@@ -25,9 +25,9 @@
 # Upgrade against the chart SOURCE DIRECTORY, not the .tgz — the packaged chart
 # is a build artifact that goes stale and drops these local template additions.
 #
-# Ports in use: 8080 mcp-openapi-banking, 8081
-# mcp-grafana, 8082 mcp-banking-rest, 8083 mcp-pingone, 8084 mcp-brave.
-# A new sidecar takes 8085.
+# Ports in use: 8080 mcp-openapi-banking, 8081 mcp-grafana, 8082 mcp-banking-rest,
+# 8083 mcp-pingone, 8084 mcp-brave, 8085 guardrail-probe, 8086 mcp-promptguard.
+# A new sidecar takes 8087.
 
 # ghcr-pull-secret, NOT ghcr-pull. Both exist in this namespace; the running
 # Deployment uses ghcr-pull-secret, and naming the other one here would swap the
@@ -210,6 +210,26 @@ extraContainers:
       tcpSocket:
         port: 8080
       initialDelaySeconds: 3
+      periodSeconds: 10
+
+  # Real External Guardrail ML sidecar: Meta Prompt-Guard, source demo_mcp_promptguard/.
+  # The gateway POSTs each governed unit to localhost:8086/inspect and blocks on a
+  # returned finding. Point the console's "ML Sidecar URL" here (not the probe's
+  # :8085) once the image is proven, then delete guardrail-probe below.
+  # Image is GATED-model-baked — see demo_mcp_promptguard/README.md to rebuild.
+  - name: mcp-promptguard
+    image: ghcr.io/curtismu7/ai-demo-mcp-promptguard:latest
+    imagePullPolicy: Always
+    env:
+      - name: PORT
+        value: "8086"
+    ports:
+      - containerPort: 8086
+    readinessProbe:
+      httpGet:
+        path: /health
+        port: 8086
+      initialDelaySeconds: 15
       periodSeconds: 10
 
   # CONTRACT DISCOVERY, TEMPORARY. Point the console's External Guardrail

@@ -1,14 +1,36 @@
 # Grafana — the only monitoring UI reachable from outside the cluster.
 #
 # Datasource and dashboards are provisioned from files (monitoring/grafana/**,
-# turned into ConfigMaps by k8s/create-secrets.sh) rather than clicked in: this
-# pod's storage is an emptyDir, so anything configured through the UI is gone on
-# the next restart.
+# turned into ConfigMaps by k8s/create-secrets.sh) rather than clicked in, so
+# they are re-applied on every start.
+#
+# The Grafana DB lives on the grafana-data PVC below, because some state exists
+# ONLY in the DB: above all the `mcp-grafana` service-account token the
+# Privilege gateway calls Grafana with (privilege/AGENTLESS-CONFIGURATION.md).
+# On an emptyDir every Grafana restart silently revoked that token, and the
+# gateway's Grafana tool 401'd until someone re-minted it and restarted the
+# gateway. The admin password is the one thing that must NOT persist from the
+# DB — see the sync-admin-password initContainer.
 #
 # Sign-in is required. Anonymous access is off and sign-up is off, so the admin
 # account provisioned from grafana-secrets is the only way in. That matters more
 # here than it does for /jaeger: these panels expose the gateway's route names,
 # JVM state and error counts, and this path is on the public internet.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: grafana-data
+  namespace: ai-demo
+  labels:
+    app: ai-demo
+    component: grafana
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -35,8 +57,51 @@ spec:
         component: grafana
     spec:
       securityContext:
-        # grafana image runs as uid 472; the emptyDir must be writable by it.
+        # grafana image runs as uid 472; the data volume must be writable by it.
         fsGroup: 472
+      # Grafana reads GF_SECURITY_ADMIN_PASSWORD only when it CREATES the DB.
+      # With the DB on a PVC, a rotated password would otherwise never reach
+      # it — the old (possibly leaked) one would stay valid on this
+      # internet-facing login. So every start re-applies the password from
+      # grafana-secrets to the persisted DB. Fails the pod rather than starting
+      # on a stale password.
+      initContainers:
+        - name: sync-admin-password
+          image: grafana/grafana:11.3.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              if [ ! -f "$GF_PATHS_DATA/grafana.db" ]; then
+                echo "first boot; Grafana creates the admin from env"; exit 0
+              fi
+              if [ -z "$GF_SECURITY_ADMIN_PASSWORD" ]; then
+                echo "grafana-secrets has no admin password; refusing to start on the DB's old one" >&2
+                exit 1
+              fi
+              printf '%s' "$GF_SECURITY_ADMIN_PASSWORD" | grafana cli \
+                --homepath "$GF_PATHS_HOME" --config "$GF_PATHS_CONFIG" \
+                admin reset-admin-password --password-from-stdin
+          env:
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-secrets
+                  key: GF_SECURITY_ADMIN_PASSWORD
+                  optional: true
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/grafana
+              subPath: data
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
       containers:
         - name: grafana
           image: grafana/grafana:11.3.0
@@ -199,7 +264,8 @@ spec:
             name: grafana-dashboards
             optional: true
         - name: data
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: grafana-data
       restartPolicy: Always
 ---
 apiVersion: v1

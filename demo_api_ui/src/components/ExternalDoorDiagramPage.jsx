@@ -2,9 +2,9 @@
 // flow (docs/EXTERNAL_DOOR_MCP_FLOW.md): an architecture graph (styled like
 // PrivilegeMcpDiagramPage's Architecture tab) and a dual-credential-path
 // sequence diagram with notes (styled like InvestDualAuthDiagramPage).
-import React, { useEffect, useRef, useState } from "react";
-import mermaid from "mermaid";
+import React, { useState } from "react";
 import DiagramExportBar from "./DiagramExportBar";
+import { useMermaidRender } from "../hooks/useMermaidRender";
 import "./PrivilegeMcpDiagramPage.css";
 import "./McpGatewayOauthFlowPage.css";
 
@@ -113,49 +113,18 @@ const NOTES = [
   },
 ];
 
+const FLOWCHART_OPTS = { useMaxWidth: true };
+const SEQUENCE_OPTS = { useMaxWidth: true, wrap: true };
+
 export default function ExternalDoorDiagramPage() {
-  const archRef = useRef(null);
-  const seqRef = useRef(null);
   const [archSource, setArchSource] = useState(ARCHITECTURE_SOURCE);
   const [seqSource, setSeqSource] = useState(SEQUENCE_SOURCE);
-  const [archError, setArchError] = useState(null);
-  const [seqError, setSeqError] = useState(null);
-  const renderIdRef = useRef(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    setArchError(null);
-    setSeqError(null);
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: "dark",
-      securityLevel: "loose",
-      sequence: { useMaxWidth: true, wrap: true },
-      flowchart: { useMaxWidth: true },
-    });
-
-    async function renderArch() {
-      try {
-        const id = `external-door-arch-${++renderIdRef.current}`;
-        const { svg } = await mermaid.render(id, archSource);
-        if (!cancelled && archRef.current) archRef.current.innerHTML = svg;
-      } catch (err) {
-        if (!cancelled) setArchError(err?.message || "Mermaid render failed");
-      }
-    }
-    async function renderSeq() {
-      try {
-        const id = `external-door-seq-${++renderIdRef.current}`;
-        const { svg } = await mermaid.render(id, seqSource);
-        if (!cancelled && seqRef.current) seqRef.current.innerHTML = svg;
-      } catch (err) {
-        if (!cancelled) setSeqError(err?.message || "Mermaid render failed");
-      }
-    }
-    renderArch();
-    renderSeq();
-    return () => { cancelled = true; };
-  }, [archSource, seqSource]);
+  const { containerRef: archRef, error: archError } = useMermaidRender(archSource, {
+    flowchart: FLOWCHART_OPTS,
+  });
+  const { containerRef: seqRef, error: seqError } = useMermaidRender(seqSource, {
+    sequence: SEQUENCE_OPTS,
+  });
 
   return (
     <>

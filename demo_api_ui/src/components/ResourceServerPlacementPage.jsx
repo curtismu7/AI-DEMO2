@@ -2,9 +2,9 @@
 // in the agent flow, and which token it validates (only the step-9 token,
 // delegated to PingOne Authorize over the AAM sideband). Follows the
 // mermaid.initialize/render pattern used by McpGatewayOauthFlowPage.jsx.
-import React, { useEffect, useRef, useState } from "react";
-import mermaid from "mermaid";
+import React, { useState } from "react";
 import DiagramExportBar from "./DiagramExportBar";
+import { useMermaidRender } from "../hooks/useMermaidRender";
 import "./ResourceServerPlacementPage.css";
 
 const MERMAID_SOURCE = `flowchart TD
@@ -86,34 +86,13 @@ const RULES = [
   },
 ];
 
-export default function ResourceServerPlacementPage() {
-  const containerRef = useRef(null);
-  const [source, setSource] = useState(MERMAID_SOURCE);
-  const [renderError, setRenderError] = useState(null);
-  const renderIdRef = useRef(0);
+const FLOWCHART_OPTS = { htmlLabels: true, useMaxWidth: true, curve: "linear" };
 
-  useEffect(() => {
-    let cancelled = false;
-    setRenderError(null);
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: "dark",
-      securityLevel: "loose",
-      flowchart: { htmlLabels: true, useMaxWidth: true, curve: "linear" },
-    });
-    (async () => {
-      try {
-        const id = `resource-server-placement-svg-${++renderIdRef.current}`;
-        const { svg } = await mermaid.render(id, source);
-        if (!cancelled && containerRef.current) containerRef.current.innerHTML = svg;
-      } catch (err) {
-        if (!cancelled) setRenderError(err?.message || "Mermaid render failed");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [source]);
+export default function ResourceServerPlacementPage() {
+  const [source, setSource] = useState(MERMAID_SOURCE);
+  const { containerRef, error: renderError } = useMermaidRender(source, {
+    flowchart: FLOWCHART_OPTS,
+  });
 
   return (
     <div className="rsp-page">

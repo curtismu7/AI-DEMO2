@@ -2,10 +2,9 @@
 // deployment variants (agent-based, agentless) from the SE instructional demo
 // setup doc, rendered via Mermaid with the request flow numbered step by step.
 // Follows the PrivilegeMcpDiagramPage tab/render/export conventions.
-import React, { useEffect, useRef, useState } from "react";
-import mermaid from "mermaid";
+import React, { useEffect, useState } from "react";
 import DiagramExportBar from "./DiagramExportBar";
-import { useThemeOptional } from "../context/ThemeContext";
+import { useMermaidRender } from "../hooks/useMermaidRender";
 import "./PrivilegeMcpDiagramPage.css";
 import "./PrivilegeGatewayTopologyPage.css";
 import "./McpGatewayOauthFlowPage.css";
@@ -205,75 +204,25 @@ const LEGEND = [
   { className: "pgt-swatch--step", label: "step number" },
 ];
 
+const FLOWCHART_OPTS = { useMaxWidth: true };
+const SEQUENCE_OPTS = { useMaxWidth: true, wrap: true };
+
 export default function PrivilegeGatewayTopologyPage() {
-  const containerRef = useRef(null);
-  const seqRef = useRef(null);
-  const { darkMode } = useThemeOptional();
   const [activeTab, setActiveTab] = useState("agent");
   const [source, setSource] = useState(AGENT_SOURCE);
   const [seqSource, setSeqSource] = useState(SEQUENCE_SOURCE);
-  const [renderError, setRenderError] = useState(null);
-  const [seqRenderError, setSeqRenderError] = useState(null);
-  const renderIdRef = useRef(0);
 
   useEffect(() => {
     const tab = TABS.find((t) => t.id === activeTab);
     if (tab) setSource(tab.source);
   }, [activeTab]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setRenderError(null);
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: darkMode ? "dark" : "default",
-      securityLevel: "loose",
-      flowchart: { useMaxWidth: true },
-    });
-
-    async function render() {
-      try {
-        const id = `privilege-gateway-topology-${++renderIdRef.current}`;
-        const { svg } = await mermaid.render(id, source);
-        if (!cancelled && containerRef.current) {
-          containerRef.current.innerHTML = svg;
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setRenderError(err?.message || "Mermaid render failed");
-        }
-      }
-    }
-    render();
-    return () => { cancelled = true; };
-  }, [source, darkMode]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setSeqRenderError(null);
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: darkMode ? "dark" : "default",
-      securityLevel: "loose",
-      sequence: { useMaxWidth: true, wrap: true },
-    });
-
-    async function renderSeq() {
-      try {
-        const id = `privilege-gateway-topology-seq-${++renderIdRef.current}`;
-        const { svg } = await mermaid.render(id, seqSource);
-        if (!cancelled && seqRef.current) {
-          seqRef.current.innerHTML = svg;
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setSeqRenderError(err?.message || "Mermaid render failed");
-        }
-      }
-    }
-    renderSeq();
-    return () => { cancelled = true; };
-  }, [seqSource, darkMode]);
+  const { containerRef, error: renderError } = useMermaidRender(source, {
+    flowchart: FLOWCHART_OPTS,
+  });
+  const { containerRef: seqRef, error: seqRenderError } = useMermaidRender(seqSource, {
+    sequence: SEQUENCE_OPTS,
+  });
 
   const activeTabMeta = TABS.find((t) => t.id === activeTab);
 

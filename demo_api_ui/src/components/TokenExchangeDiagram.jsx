@@ -1,10 +1,10 @@
 // Live Mermaid flowchart of the RFC 8693 token exchange pipeline.
 // Subscribes to tokenChainTraceStore — starts blank, nodes appear as steps complete.
-import { useEffect, useRef, useState, useCallback } from 'react';
-import mermaid from 'mermaid';
+import { useEffect, useState, useCallback } from 'react';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { pausedGateState } from '../services/tokenChainTrace/buildTraceSteps';
 import { useThemeOptional } from '../context/ThemeContext';
+import { useMermaidRender } from '../hooks/useMermaidRender';
 import DiagramExportBar from './DiagramExportBar';
 
 // ── helpers ─────────────────────────────────────────────────────────────────
@@ -289,17 +289,18 @@ export function buildDiagramSource(trace, steps, dark = true) {
   return lines.join('\n');
 }
 
-// ── render counter — prevents stale async renders overwriting newer ones ────
-let _globalRenderSeq = 0;
+// useMaxWidth:false is the readability half of the arrow/label fix below.
+// With it true mermaid scales the WHOLE svg down to the panel's width, and
+// this diagram is wide (five subgraphs of claim tables), so every label was
+// being shrunk to a few pixels. False renders at natural size and lets the
+// container (overflow:auto) scroll instead of shrinking the type.
+const FLOWCHART_OPTS = { htmlLabels: false, useMaxWidth: false, curve: 'basis' };
 
 // ── component ────────────────────────────────────────────────────────────────
 
 export default function TokenExchangeDiagram() {
   const [snap, setSnap]         = useState(() => tokenChainTraceStore.getState());
   const [override, setOverride] = useState(null);
-  const containerRef            = useRef(null);
-  const renderIdRef             = useRef(0);
-  const [renderError, setRenderError] = useState(null);
   // Optional: this panel is portaled and several suites render it standalone,
   // outside ThemeProvider. useThemeOptional returns inert light mode there.
   const { darkMode } = useThemeOptional();
@@ -316,54 +317,24 @@ export default function TokenExchangeDiagram() {
   const liveSource = buildDiagramSource(snap.trace, snap.steps, darkMode);
   const source     = override ?? liveSource;
 
-  useEffect(() => {
-    let cancelled = false;
-    setRenderError(null);
-    const renderId = ++_globalRenderSeq;
-
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: darkMode ? 'dark' : 'default',
-      securityLevel: 'loose',
-      // lineColor/textColor are NOT decoration. Mermaid picks connector and
-      // edge-label colours from the theme, and the theme has no idea what this
-      // panel's body colour is — that mismatch is what made the arrows and the
-      // subject_token / actor_token labels disappear. Pin them to the palette.
-      themeVariables: {
-        lineColor: P.line,
-        textColor: P.edgeLabel,
-        edgeLabelBackground: P.edgeLabelBg,
-        // Subgraph boxes ("BFF · RFC 8693 Token Exchange", "MCP Server"). The
-        // built-in fills are a mid grey in dark and a pale yellow in light, and
-        // both render their title in a grey that is barely on the box.
-        clusterBkg: P.clusterBg,
-        clusterBorder: P.clusterBorder,
-        titleColor: P.title,
-      },
-      // useMaxWidth:false — this is the readability half of the fix. With it
-      // true mermaid scales the WHOLE svg down to the panel's width, and this
-      // diagram is wide (five subgraphs of claim tables), so every label was
-      // being shrunk to a few pixels. False renders at natural size and lets
-      // the container (overflow:auto) scroll instead of shrinking the type.
-      flowchart: { htmlLabels: false, useMaxWidth: false, curve: 'basis' },
-    });
-
-    async function render() {
-      try {
-        const { svg } = await mermaid.render(`ted-svg-${renderId}`, source);
-        if (!cancelled && renderIdRef.current <= renderId && containerRef.current) {
-          renderIdRef.current = renderId;
-          containerRef.current.innerHTML = svg;
-        }
-      } catch (err) {
-        if (!cancelled) setRenderError(err?.message || 'Mermaid render failed');
-      }
-    }
-    render();
-    return () => { cancelled = true; };
-    // darkMode is a real dependency: with an uploaded .mmd, `source` is frozen,
-    // so a theme flip would otherwise leave the old SVG on screen.
-  }, [source, darkMode, P]);
+  // lineColor/textColor are NOT decoration. Mermaid picks connector and
+  // edge-label colours from the theme, and the theme has no idea what this
+  // panel's body colour is — that mismatch is what made the arrows and the
+  // subject_token / actor_token labels disappear. Pin them to the palette.
+  const { containerRef, error: renderError } = useMermaidRender(source, {
+    themeVariables: {
+      lineColor: P.line,
+      textColor: P.edgeLabel,
+      edgeLabelBackground: P.edgeLabelBg,
+      // Subgraph boxes ("BFF · RFC 8693 Token Exchange", "MCP Server"). The
+      // built-in fills are a mid grey in dark and a pale yellow in light, and
+      // both render their title in a grey that is barely on the box.
+      clusterBkg: P.clusterBg,
+      clusterBorder: P.clusterBorder,
+      titleColor: P.title,
+    },
+    flowchart: FLOWCHART_OPTS,
+  });
 
   const handleImport     = useCallback((text) => setOverride(text.trim() || null), []);
   const handleResetToLive = useCallback(() => setOverride(null), []);

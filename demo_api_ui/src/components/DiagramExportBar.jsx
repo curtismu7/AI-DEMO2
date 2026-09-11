@@ -10,11 +10,10 @@
 //   - mermaid.live / GitHub render the .mmd as-is.
 
 import { useRef } from "react";
+import "./DiagramExportBar.css";
 
 const linkStyle = {
-  fontSize: "0.8rem",
   fontWeight: 600,
-  color: "#1d4ed8",
   textDecoration: "underline",
   whiteSpace: "nowrap",
 };
@@ -65,35 +64,21 @@ export default function DiagramExportBar({ items, source, sourceFilename = "diag
   if (!hasContent) return null;
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        flexWrap: "wrap",
-        gap: "0.75rem",
-        padding: "0.4rem 0.6rem",
-        background: "#f8fafc",
-        border: "1px solid #e2e8f0",
-        borderRadius: 6,
-        margin: "0.5rem 0",
-      }}
-    >
-      <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#475569" }}>
-        Export:
-      </span>
+    <div className="deb-bar">
+      <span className="deb-label">Export:</span>
       {items?.map(({ label, href }) => (
-        <a key={href} href={href} download style={linkStyle}>
+        <a key={href} href={href} download className="deb-link" style={linkStyle}>
           {label}
         </a>
       ))}
       {source != null && (
-        <button onClick={handleDownload} style={btnStyle}>
+        <button onClick={handleDownload} className="deb-link" style={btnStyle}>
           Download .mmd
         </button>
       )}
       {onSourceChange && (
         <>
-          <button onClick={() => fileInputRef.current?.click()} style={btnStyle}>
+          <button onClick={() => fileInputRef.current?.click()} className="deb-link" style={btnStyle}>
             Upload .mmd
           </button>
           <input
@@ -105,13 +90,7 @@ export default function DiagramExportBar({ items, source, sourceFilename = "diag
           />
         </>
       )}
-      <span
-        style={{
-          marginLeft: "auto",
-          fontSize: "0.72rem",
-          color: "#64748b",
-        }}
-      >
+      <span className="deb-hint">
         {items?.length
           ? "Lucidchart: import the .drawio (File \u203a Import) or paste the .mmd via Insert \u203a Diagram as code \u203a Mermaid"
           : "Edit the .mmd in mermaid.live or any text editor, then upload to update the diagram"}

@@ -915,7 +915,7 @@ export default function LlmGatewayPage() {
             />
             <button
               type="button"
-              className="lgw-theme"
+              className="lgw-theme lgw-compare-toggle"
               onClick={() => setCompareWithLocal((v) => !v)}
               disabled={busy || !canCompare}
               aria-pressed={compareOn}

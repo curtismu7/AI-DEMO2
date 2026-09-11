@@ -140,6 +140,33 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-10 — Cookie-only session flag went stale after the 10s reconnect poll gave up
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/__tests__/AIAgent.cookieOnlySlowRecheck.test.jsx` (new).
+
+**What was broken:** when `/api/auth/session` reported `cookieOnlyBffSession:true`,
+the agent polled it every 2s and stopped for good after 5 tries. If the
+server-side session finished hydrating after that 10s window, nothing re-checked
+it, so `cookieOnlyBffSession` stayed true until some other session check happened
+to run or the page was reloaded — and while it did, a later unrelated 401 was
+classified as a hydration failure (session-fix bubble) instead of the normal auth
+message. Found by reading the code while debugging an SE-stack "session token was
+rejected" report; it was **not** shown to be that report's cause (the SE logs were
+never examined).
+
+**Fixed by** keeping the fast 2s × 5 poll unchanged and, once it gives up,
+re-checking every 30s until the session reports healed, then stopping. Both timers
+are cleared on effect cleanup.
+
+**Do not break:** the fast poll's cadence and the `sessionReconnecting` banner
+behaviour. The slow re-check must stop once `cookieOnlyBffSession` is false — an
+unbounded poll against `/api/auth/session` is the regression to avoid.
+
+**Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/components/__tests__/AIAgent.cookieOnlySlowRecheck.test.jsx`
+— fails before the fix (`expected 5 to be greater than 5`), passes after;
+`npm run test:unit` 528 files / 4050 passed; `npm run build` exit 0.
+
 ### 2026-09-09 — 17 of 19 pages in the "Diagrams" nav group had no light/dark toggle
 
 **Files changed:** `demo_api_ui/src/components/TopNav.js`, `TopNav.css`,

@@ -9,10 +9,10 @@
  * The diagram is rendered client-side via mermaid@11 — no PNG export step.
  * The mermaid source matches the diagram presented at plan-approval time.
  */
-import { useEffect, useRef, useState } from "react";
-import mermaid from "mermaid";
+import { useState } from "react";
 import { PathFilterBar } from "./diagram";
 import DiagramExportBar from "./DiagramExportBar";
+import { useMermaidRender } from "../hooks/useMermaidRender";
 import "./Phase266ArchitecturePage.css";
 
 // Module-level paths constant — consumed by the shared PathFilterBar component
@@ -167,42 +167,15 @@ const SPEC_HOPS = [
   },
 ];
 
+const FLOWCHART_OPTS = { htmlLabels: true, useMaxWidth: true, curve: "basis" };
+
 export default function Phase266ArchitecturePage() {
-  const containerRef = useRef(null);
   const [source, setSource] = useState(MERMAID_SOURCE);
-  const [renderError, setRenderError] = useState(null);
   const [selectedPath, setSelectedPath] = useState(null);
-  const renderIdRef = useRef(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    setRenderError(null);
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: "default",
-      securityLevel: "loose",
-      flowchart: { htmlLabels: true, useMaxWidth: true, curve: "basis" },
-    });
-
-    async function render() {
-      try {
-        const id = `phase266-architecture-svg-${++renderIdRef.current}`;
-        const { svg } = await mermaid.render(id, source);
-        if (!cancelled && containerRef.current) {
-          containerRef.current.innerHTML = svg;
-          tagPathNodes(containerRef.current);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setRenderError(err?.message || "Mermaid render failed");
-        }
-      }
-    }
-    render();
-    return () => {
-      cancelled = true;
-    };
-  }, [source]);
+  const { containerRef, error: renderError } = useMermaidRender(source, {
+    flowchart: FLOWCHART_OPTS,
+    onRendered: tagPathNodes,
+  });
 
   const wrapperClass = [
     "p266-arch-diagram-wrapper",

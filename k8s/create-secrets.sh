@@ -59,9 +59,9 @@ kubectl() {
 # ── Restart only what actually changed ──────────────────────────────────────
 # This script used to `rollout restart` nine deployments on every run, changed
 # or not. That is ~10-40s of downtime per service per run for nothing, and for
-# grafana it is destructive: its `data` volume is an emptyDir, so every restart
-# wipes the Grafana DB (provisioned dashboards return from configmaps, but
-# UI-created dashboards, annotations, API keys and preferences do not).
+# grafana it was destructive while its DB sat on an emptyDir: every restart
+# wiped UI-created dashboards, API keys and service-account tokens (it is on
+# the grafana-data PVC now — see k8s/77-grafana-deployment.yaml).
 #
 # The signal is resourceVersion. The API server bumps it only when a write
 # actually changes the stored object, so a no-op `kubectl apply` leaves it
