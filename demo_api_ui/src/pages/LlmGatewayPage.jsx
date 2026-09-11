@@ -17,6 +17,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useThemeOptional } from '../context/ThemeContext';
 import useDividerDrag from '../hooks/useDividerDrag';
 import { ATTACK_CATEGORIES, GUARDRAIL_ATTACKS } from '../config/guardrailAttackCatalog';
+import BlockAgreementModal from '../components/BlockAgreementModal';
 import LlmGatewayReel from './LlmGatewayReel';
 import JsonHighlight from '../components/shared/JsonHighlight';
 import GatewayVerdicts from '../components/GatewayVerdicts';
@@ -303,6 +304,7 @@ export default function LlmGatewayPage() {
   const [turns, setTurns] = useState([]);
   const [decision, setDecision] = useState(null);
   const [decisionView, setDecisionView] = useState('form');
+  const [showBlockAgreement, setShowBlockAgreement] = useState(false);
   const [limitsByLane, setLimitsByLane] = useState({});
   // Each virtual key's caps as Privilege stores them (console API). Empty when
   // no console token is connected — the lane cards then show what they always did.
@@ -816,6 +818,14 @@ export default function LlmGatewayPage() {
               ))}
             </select>
             <span className="lgw-attacks__note">Fills the prompt below — review it, then Send.</span>
+            <button
+              type="button"
+              className="lgw-theme"
+              onClick={() => setShowBlockAgreement(true)}
+              title="How the gateway decides whether an ML-sidecar finding blocks a request"
+            >
+              🛡 How blocking is decided
+            </button>
             {scorecard && !scorecard.done ? (
               <button type="button" className="lgw-theme" onClick={() => { stopRef.current = true; }}>
                 Stop
@@ -1038,6 +1048,7 @@ export default function LlmGatewayPage() {
             rather than firing a request nobody asked for on every page view. */}
         <GatewayVerdicts />
       </div>
+      <BlockAgreementModal isOpen={showBlockAgreement} onClose={() => setShowBlockAgreement(false)} />
     </div>
   );
 }
