@@ -733,6 +733,51 @@ describe("LLM Gateway console", () => {
 
       expect(await screen.findByTestId("lgw-point-at")).toHaveTextContent(attack.pointAt);
     });
+
+    // Every cue describes what PRIVILEGE did. A local lane has no Privilege in
+    // its path, so a cue there would have the presenter narrate protection that
+    // never happened, beside a decision reading "Reached the model: yes".
+    it("shows no Say cue while a local lane is selected", async () => {
+      mockFetch(() => new Promise(() => {}), CONFIG_WITH_LOCALS);
+      render(<LlmGatewayPage />);
+      fireEvent.click((await screen.findByText("llama.cpp (local)")).closest("button"));
+
+      fireEvent.click(notesToggle());
+      fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: "jailbreak" } });
+
+      expect(screen.queryByTestId("lgw-talk-track")).not.toBeInTheDocument();
+    });
+
+    it("shows no Point-at cue beside a local lane's result", async () => {
+      mockFetch(() => ({
+        ok: true, status: 200,
+        text: async () => JSON.stringify({
+          reply: "DAN MODE ON", provider: "llamacpp", route: "/v1/chat/completions",
+          latencyMs: 900, reachedProvider: true, providerLimits: null,
+        }),
+      }), CONFIG_WITH_LOCALS);
+      render(<LlmGatewayPage />);
+      fireEvent.click((await screen.findByText("llama.cpp (local)")).closest("button"));
+
+      fireEvent.click(notesToggle());
+      fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: "jailbreak" } });
+      fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+      await screen.findByTestId("lgw-decision");
+
+      expect(screen.queryByTestId("lgw-point-at")).not.toBeInTheDocument();
+    });
+
+    // The attack choice persists across reloads; an id since removed from the
+    // catalog must not render as an empty "Say:".
+    it("shows no cue for a remembered attack that is no longer in the catalog", async () => {
+      window.localStorage.setItem("lgw-attack-choice", "retired_attack");
+      window.localStorage.setItem("lgw-presenter-notes", "1");
+      mockFetch(() => new Promise(() => {}));
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      expect(screen.queryByTestId("lgw-talk-track")).not.toBeInTheDocument();
+    });
   });
 
   describe("empty prompt", () => {

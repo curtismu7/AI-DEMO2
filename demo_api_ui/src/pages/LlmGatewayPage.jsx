@@ -631,9 +631,12 @@ export default function LlmGatewayPage() {
                 {ATTACK_EFFECT[(GUARDRAIL_ATTACKS.find((a) => a.id === selectedAttack) || {}).effect]}
               </span>
             ) : null}
-            {presenterNotes && selectedAttack ? (
+            {/* Every cue describes what Privilege did, so none while a local lane
+                is selected — Privilege isn't in that path. A remembered id no
+                longer in the catalog has no cue to show. */}
+            {presenterNotes && !active?.isLocal && GUARDRAIL_ATTACKS.find((a) => a.id === selectedAttack) ? (
               <span className="lgw-attacks__effect lgw-talk" data-testid="lgw-talk-track">
-                Say: {(GUARDRAIL_ATTACKS.find((a) => a.id === selectedAttack) || {}).whatToSay}
+                Say: {GUARDRAIL_ATTACKS.find((a) => a.id === selectedAttack).whatToSay}
               </span>
             ) : null}
           </div>
@@ -777,9 +780,13 @@ export default function LlmGatewayPage() {
           ) : null}
           {/* The presenter's cue for the verdict just shown — only for a Library
               attack, since a hand-typed prompt has no known story to point at. */}
-          {presenterNotes && decision?.attackId ? (
+          {/* Follows the lane of the call on display: a local lane's result had no
+              Privilege in its path, so there is nothing of Privilege's to point at. */}
+          {presenterNotes
+            && !(lanes.find((l) => l.provider === decision?.provider) || {}).isLocal
+            && GUARDRAIL_ATTACKS.find((a) => a.id === decision?.attackId) ? (
             <p className="lgw-rail__note lgw-talk" data-testid="lgw-point-at">
-              Point at: {(GUARDRAIL_ATTACKS.find((a) => a.id === decision.attackId) || {}).pointAt}
+              Point at: {GUARDRAIL_ATTACKS.find((a) => a.id === decision.attackId).pointAt}
             </p>
           ) : null}
           {/* This page can't tell a compliant reply from a refusal — both come back
