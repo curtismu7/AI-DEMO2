@@ -45,6 +45,19 @@ describe('GatewayServer OAuth broker wiring', () => {
     expect(res.status).toBe(201);
   });
 
+  it('GET /oauth/resume is served by the gateway, not its catch-all 404', async () => {
+    // The Privilege gateway link (#3140) sends the browser back here after the
+    // BFF's gateway sign-in. The router handled it, but GatewayServer only
+    // dispatches the paths isOAuthBrokerPath() lists, so live it answered the
+    // gateway's own {"error":"not_found"} — invisible to router-level tests.
+    const server = new GatewayServer({ config: stubConfig, upstreamMcpUrl: 'ws://localhost:9' });
+    const res = await supertest(server.httpServer)
+      .get('/oauth/resume')
+      .query({ rs: 'never-issued', link: 'ok' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_grant');
+  });
+
   it('the existing RFC 9728 protected-resource metadata points authorization_servers at THIS gateway\'s reachable base URL, not the audience string', async () => {
     const server = new GatewayServer({ config: stubConfig, upstreamMcpUrl: 'ws://localhost:9' });
     const res = await supertest(server.httpServer).get('/.well-known/oauth-protected-resource');

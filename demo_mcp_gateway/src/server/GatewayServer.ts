@@ -423,13 +423,16 @@ export class GatewayServer {
   }
 
   // Path match for the OAuth broker (RFC 8414 AS metadata + DCR + authorize/
-  // callback/token) — dispatched to OAuthBrokerRouter in handleRequest().
+  // callback/resume/token) — dispatched to OAuthBrokerRouter in handleRequest().
+  // A route added to OAuthBrokerRouter.handle() must be listed here too, or it
+  // answers this server's catch-all 404 (see the wiring test for /oauth/resume).
   private isOAuthBrokerPath(url: string): boolean {
     const pathname = url.split('?')[0];
     return pathname === '/.well-known/oauth-authorization-server'
       || pathname === '/oauth/register'
       || pathname === '/oauth/authorize'
       || pathname === '/oauth/callback'
+      || pathname === '/oauth/resume'
       || pathname === '/oauth/token';
   }
 
