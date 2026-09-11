@@ -77,10 +77,49 @@ export function normalizeVerdict(doc) {
   };
 }
 
-/** Pick the profile's search tool without hardcoding a name we have not seen. */
+/**
+ * Pick the tool that runs a document query against an index.
+ *
+ * `SearchIndexTool` is the one that takes a `query_dsl` and returns `hits`. Prefer
+ * it by exact name: once every tool is granted, the door also exposes
+ * `MsearchTool`, `GenericOpenSearchApiTool`, `SearchQuerySetsTool`, … which all
+ * match a bare /search/ but take DIFFERENT args, so grabbing the first /search/
+ * hit can silently pick a tool that returns zero rows. Fall back to a fuzzy match
+ * only if the exact name is absent.
+ */
 export function pickSearchTool(tools) {
   const names = (tools || []).map((t) => (typeof t === 'string' ? t : t.name)).filter(Boolean);
-  return names.find((n) => /search/i.test(n)) || names.find((n) => /query/i.test(n)) || null;
+  return names.find((n) => n === 'SearchIndexTool')
+    || names.find((n) => /^search.*index/i.test(n))
+    || names.find((n) => /search/i.test(n))
+    || names.find((n) => /query/i.test(n))
+    || null;
+}
+
+/**
+ * Extract OpenSearch `hits` from an inspector invoke response.
+ *
+ * opensearch-mcp-server returns the search result as MCP tool CONTENT — a text
+ * block "Search results from <index> (JSON format):\n{…the _search response…}" —
+ * not as a structured `result.hits`. Reading `result.hits.hits` therefore always
+ * saw undefined and rendered zero rows even when the query matched. Parse the
+ * text block (from its first `{`); keep the structured shape as a fallback in
+ * case a future server returns it directly.
+ */
+export function extractSearchHits(invokeBody) {
+  const direct = invokeBody?.result?.hits?.hits || invokeBody?.hits?.hits;
+  if (Array.isArray(direct)) return direct;
+  const content = invokeBody?.result?.content;
+  const text = Array.isArray(content)
+    ? content.map((c) => (c && typeof c.text === 'string' ? c.text : '')).join('\n')
+    : '';
+  const brace = text.indexOf('{');
+  if (brace < 0) return [];
+  try {
+    return JSON.parse(text.slice(brace))?.hits?.hits || [];
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -138,9 +177,14 @@ export default function GatewayVerdicts({ fetchImpl }) {
           tool,
           params: {
             index: INDEX,
-            query: { match: { msg: 'AIGuard' } },
+            // SearchIndexTool's arg is `query_dsl` (a full OpenSearch DSL body),
+            // NOT `query`. Sending `query` left query_dsl empty and the tool
+            // returned nothing.
+            query_dsl: {
+              query: { match: { msg: 'AIGuard' } },
+              sort: [{ time: { order: 'desc' } }],
+            },
             size: 25,
-            sort: [{ time: { order: 'desc' } }],
           },
         }),
       });
@@ -153,7 +197,7 @@ export default function GatewayVerdicts({ fetchImpl }) {
       }
       if (!invokeRes.ok) throw new Error(invokeBody.error || `HTTP ${invokeRes.status}`);
 
-      const hits = invokeBody?.result?.hits?.hits || invokeBody?.hits?.hits || [];
+      const hits = extractSearchHits(invokeBody);
       setVerdicts(hits.map(normalizeVerdict));
       setState('ready');
     } catch (err) {
