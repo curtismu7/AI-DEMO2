@@ -665,6 +665,14 @@
   font-size: var(--font-size-2xl);
   field-sizing: content;
   max-height: 70vh;
+  /* The row also holds 🔍, Compare and Send, which left the box ~215px wide —
+     a column of three words a line. On its own full-width line instead. */
+  flex-basis: 100%;
+  order: -1;
+}
+
+.lgw-composer:has(textarea.is-presenting) {
+  flex-wrap: wrap;
 }
 
 .lgw-bigprompt {
