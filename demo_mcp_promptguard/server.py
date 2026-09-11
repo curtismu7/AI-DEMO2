@@ -108,9 +108,15 @@ def make_handler(classify):
             try:
                 n = int(self.headers.get("content-length") or 0)
                 req = json.loads(self.rfile.read(n) or b"{}")
-                findings = to_findings(req.get("units"), classify)
+                units = req.get("units") or []
+                findings = to_findings(units, classify)
             except Exception as e:  # gateway's Fail Closed setting decides what a 5xx means
+                print("promptguard: inspect_failed " + str(e), flush=True)
                 return self._send(502, {"error": "inspect_failed", "message": str(e)})
+            # One line per call so a demo can show the sidecar firing. Verdict only —
+            # no prompt text — so shared cluster logs never carry the user's content.
+            verdict = ", ".join(f["messages"][0] for f in findings) or "allow"
+            print(f"promptguard: {len(units)} unit(s) -> {verdict}", flush=True)
             return self._send(200, {"findings": findings})
 
     return H
