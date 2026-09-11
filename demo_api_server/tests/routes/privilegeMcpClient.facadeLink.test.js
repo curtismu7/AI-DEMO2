@@ -80,6 +80,7 @@ function startLink(app, query) {
 const origFetch = global.fetch;
 const origGatewayUrl = process.env.PRIVILEGE_MCPGW_URL;
 const origGatewayBase = process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE;
+const origCallbackHost = process.env.PRIVILEGE_MCP_CALLBACK_HOST;
 
 beforeEach(() => {
   process.env.PRIVILEGE_MCPGW_URL = `${GATEWAY}/opensearch22/mcp`;
@@ -92,6 +93,8 @@ afterEach(() => {
   else process.env.PRIVILEGE_MCPGW_URL = origGatewayUrl;
   if (origGatewayBase === undefined) delete process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE;
   else process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE = origGatewayBase;
+  if (origCallbackHost === undefined) delete process.env.PRIVILEGE_MCP_CALLBACK_HOST;
+  else process.env.PRIVILEGE_MCP_CALLBACK_HOST = origCallbackHost;
   jest.restoreAllMocks();
 });
 
@@ -162,6 +165,31 @@ describe('GET /api/privilege-mcp/facade-link', () => {
     expect(location.searchParams.get('prompt')).toBeNull();
     expect(session.privilegeFacadeLink).toMatchObject({ app: 'opensearch', resume: RESUME, tokenUri: TOKEN_URI });
     expect(session.privilegeFacadeLink.oauthState).toBe(location.searchParams.get('state'));
+  });
+
+  test('builds its callback from configuration, ignoring forged X-Forwarded-Host/-Proto', async () => {
+    const res = await startLink(buildApp({}), { app: 'opensearch', resume: RESUME })
+      .set('X-Forwarded-Host', 'attacker.example.com')
+      .set('X-Forwarded-Proto', 'http');
+
+    expect(res.status).toBe(302);
+    const location = new URL(res.headers.location);
+    const redirectUri = location.searchParams.get('redirect_uri');
+    expect(redirectUri).toBe('https://local.ping-devops.com:4000/api/privilege-mcp/facade-link/callback');
+
+    const registerCall = global.fetch.mock.calls.find(([url]) => String(url).endsWith('/register'));
+    const registerBody = JSON.parse(registerCall[1].body);
+    expect(registerBody.redirect_uris).toEqual([redirectUri]);
+    expect(JSON.stringify(registerBody)).not.toContain('attacker.example.com');
+  });
+
+  test('honours PRIVILEGE_MCP_CALLBACK_HOST for the link callback', async () => {
+    process.env.PRIVILEGE_MCP_CALLBACK_HOST = 'demo.example.com:8443';
+    const res = await startLink(buildApp({}), { app: 'opensearch', resume: RESUME });
+
+    expect(res.status).toBe(302);
+    const location = new URL(res.headers.location);
+    expect(location.searchParams.get('redirect_uri')).toBe('https://demo.example.com:8443/api/privilege-mcp/facade-link/callback');
   });
 
   test('signs in to the gateway the façade calls, not PRIVILEGE_MCPGW_URL', async () => {

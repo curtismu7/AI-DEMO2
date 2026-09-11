@@ -1548,15 +1548,20 @@ async function getOrRegisterDcrClient(authorizationUri, redirectUri, tokenEndpoi
 // endpoints, registers a DCR client if the gateway is self-advertising, and
 // builds the PKCE authorization URL. Does not set pendingAuth.returnTo —
 // callers that need it set it on the returned object's session afterward.
-async function beginOAuthFlow(session, req, { callbackPath } = {}) {
+async function beginOAuthFlow(session, req, { callbackPath, callbackOrigin } = {}) {
   const { authorizationUri, tokenUri, issuer, selfAdvertised, advertisedScopes, tokenEndpointAuthMethods } = await discoverAuth(session);
   const verifier = randomString(48);
   const challenge = sha256Base64Url(verifier);
   const oauthState = randomString(24);
 
-  const host = req.get('x-forwarded-host') || process.env.PRIVILEGE_MCP_CALLBACK_HOST || 'local.ping-devops.com:4000';
-  const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
-  const redirectUri = `${protocol}://${host}${callbackPath || '/api/privilege-mcp/auth/callback'}`;
+  let redirectUri;
+  if (callbackOrigin) {
+    redirectUri = `${callbackOrigin}${callbackPath || '/api/privilege-mcp/auth/callback'}`;
+  } else {
+    const host = req.get('x-forwarded-host') || process.env.PRIVILEGE_MCP_CALLBACK_HOST || 'local.ping-devops.com:4000';
+    const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
+    redirectUri = `${protocol}://${host}${callbackPath || '/api/privilege-mcp/auth/callback'}`;
+  }
 
   let clientId = session.config.clientId;
   let dcrClientId = null;
@@ -2144,6 +2149,12 @@ router.get('/auth/callback', async (req, res) => {
 // sign-in the operator has in flight here, or the door they have selected.
 // ---------------------------------------------------------------------------
 const FACADE_LINK_CALLBACK_PATH = '/api/privilege-mcp/facade-link/callback';
+// The link is unauthenticated, so its OAuth callback origin must come from
+// configuration — never from X-Forwarded-Host/-Proto, which a caller controls
+// and which would decide where the gateway delivers the authorization code.
+function linkCallbackOrigin() {
+  return `https://${process.env.PRIVILEGE_MCP_CALLBACK_HOST || 'local.ping-devops.com:4000'}`;
+}
 // Same rule as the façade's app segment (routes/mcpFacade.js APP_SEGMENT): the
 // name is interpolated into a gateway URL, so it is a NAME, never a path.
 const LINK_APP_NAME = /^[A-Za-z0-9._-]{1,64}$/;
@@ -2195,7 +2206,7 @@ router.get('/facade-link', async (req, res) => {
       },
       gatewayMode: 'privilege',
     };
-    const authUrl = await beginOAuthFlow(linkSession, req, { callbackPath: FACADE_LINK_CALLBACK_PATH });
+    const authUrl = await beginOAuthFlow(linkSession, req, { callbackPath: FACADE_LINK_CALLBACK_PATH, callbackOrigin: linkCallbackOrigin() });
     // No prompt=none: the person at the browser is signing in right now, and a
     // login_required dead end would only surface as an error in their MCP client.
     authUrl.searchParams.delete('prompt');

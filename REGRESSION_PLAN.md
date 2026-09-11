@@ -172,7 +172,7 @@ every non-Privilege door; `/state`'s `gatewaySession` shape (per-app status is
 the sibling `gatewaySessionsByApp`); the 503 when the flag is off; `/facade-link`
 redirects only to the configured broker's `/oauth/resume`; the link builds its door from the façade's own gateway base (`services/privilegeGatewayBase.js`), and
 writes the single shared per-app session — a crafted link changes which identity every façade caller of
-that app runs as.
+that app runs as; `/facade-link`'s OAuth callback origin comes from `PRIVILEGE_MCP_CALLBACK_HOST`, never from `X-Forwarded-*`.
 
 **Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/services/privilegeGatewaySession.test.js tests/services/privilegeGatewaySessionStore.test.js tests/routes/mcpFacade.privilegeGatewayDoor.test.js tests/routes/privilegeMcpClient.facadeLink.test.js tests/routes/privilegeMcpClient.gatewaySessionRemember.test.js tests/routes/privilegeMcpClient.gatewaySessionState.test.js tests/routes/privilegeMcpClient.dcrReregister.test.js --forceExit`;
 `cd demo_mcp_gateway && npm run build && ./node_modules/.bin/jest tests/oauth-broker-token-store.test.ts tests/oauth-broker-router-authorize.test.ts --forceExit`.

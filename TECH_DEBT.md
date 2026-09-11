@@ -23,7 +23,9 @@ record.
 env vars set only in `docker-compose.yml`: `BFF_PRIVILEGE_LINK_URL` (mcp-gateway)
 and `MCP_FACADE_PRIVILEGE_LINK` (demo-api-server). The SE k8s deployment sets
 neither, so its privilege-gateway door keeps the old 503 + "sign in at
-/privilege-mcp-client" behaviour.
+/privilege-mcp-client" behaviour. The two switches must be set together: with
+the BFF flag on and the broker link URL unset, every connect ends in a 401
+after one re-authentication (bounded by the MCP SDK, but it always fails).
 
 **Why it wasn't fixed now.** Scoped to the local stack LM Studio uses; the SE
 façade is reached on a different host and its broker/BFF public URLs differ,
@@ -51,6 +53,8 @@ The same header also sets the gateway `redirect_uri`, i.e. where the authorizati
 someone who can set it on their own request can register their host, send a victim the authorize
 URL, and redeem the code through their own `/facade-link/callback`, landing the victim's gateway
 identity in the shared per-app session. `/auth/start` had the same property before this change.
+Since the hardening on PR #3140, `/facade-link` pins its callback to `PRIVILEGE_MCP_CALLBACK_HOST`,
+so the remaining surface is `/auth/start`.
 
 **Why it wasn't fixed now.** Found in review of the link change. The same surface
 already existed through `POST /config` + `/auth/start`, and the demo runs on a
@@ -58,6 +62,23 @@ trusted local stack.
 
 **Real fix.** Build the callback host from configuration (`PRIVILEGE_MCP_CALLBACK_HOST`
 or the public app origin) instead of the request header, or bound the cache.
+
+### [ ] 2026-09-11 — An unauthenticated /facade-link can replace an app's shared gateway identity
+
+**What's wrong.** `/api/privilege-mcp/facade-link` is unauthenticated and stores the resulting gateway token in
+the single per-app session every façade caller of that app uses. Someone who starts a broker authorization can send
+its `/facade-link` URL to a signed-in victim; the victim's browser completes the gateway sign-in (silently, through
+SSO) and the victim's gateway identity becomes the app-wide credential, which any holder of a valid façade bearer
+then calls tools through. Raised by Greptile on PR #3140.
+
+**Why it wasn't fixed now.** The design is deliberately one operator identity per app on a trusted local stack
+(the spec's Security section), and `/privilege-mcp-client`'s own sign-in already set the same shared session. A real
+fix changes how the link commits its token.
+
+**Real fix.** Bind the link to the browser that started the MCP client's sign-in: have the broker set a
+browser-bound nonce at `/oauth/authorize`, and let the BFF hold the gateway token as pending until `/oauth/resume`
+confirms that nonce, committing it to the shared session only then — or key gateway sessions per caller instead
+of per app.
 
 ### [ ] 2026-09-11 — LLM token custody: what the fix deliberately left open
 
