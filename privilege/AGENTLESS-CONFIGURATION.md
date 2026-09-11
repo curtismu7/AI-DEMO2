@@ -10,13 +10,18 @@ gateway at an HTTP endpoint that scores each governed prompt/response. Ping
 publishes no spec for it. This contract was recovered from the gateway binary's
 `aiguard.Webhook*` structs plus a live capture from the `guardrail-probe` sidecar
 (a stub that logs the request and always allows). The real implementation is
-`demo_mcp_promptguard/` (Meta Prompt-Guard), running as the `mcp-promptguard`
-sidecar on port 8086.
+`demo_mcp_promptguard/`, running as the `mcp-promptguard` sidecar on port 8086.
+Its default model is the public `protectai/deberta-v3-base-prompt-injection-v2`
+(builds with no HF token); Meta Prompt-Guard also works but is gated, via
+`PROMPTGUARD_MODEL` + a build `HF_TOKEN`. The sidecar logs one verdict line per
+`/inspect` (`kubectl logs -c mcp-promptguard` → `N unit(s) -> allow` or
+`-> Prompt-Guard flagged INJECTION (1.00)`) — the live proof-of-fire for a demo.
 
 **Config in the console panel:** enable the **External Guardrail** detector first
 (the ML Sidecar fields stay disabled until it is on). Then ML Sidecar URL
 `http://localhost:8086/inspect`, Timeout `1000`, Auth Header blank (the sidecar
-checks none), Block Agreement default. **Leave Sidecar Fail Closed OFF** until a
+checks none), and **Block Agreement `off`** if you want the sidecar to block on
+its own (see the merge rule below). **Leave Sidecar Fail Closed OFF** until a
 block from the sidecar is proven — with it ON, any sidecar 5xx blocks every call.
 
 **Request** — `POST <url>`, `application/json`:
@@ -45,10 +50,16 @@ block threshold makes the gateway block (HTTP 400 to the caller):
 Returning `{"allow":true}` (as the probe stub did) has no `findings` key and reads
 as allow — that is why the stub never blocked anything.
 
-**Still unconfirmed:** whether the gateway blocks purely on a finding's presence
-or re-applies its own per-category block threshold to the sidecar's finding, and
-the exact severity→action mapping. Prove by making `mcp-promptguard` return a
-finding on a benign trigger phrase and checking the caller gets 400.
+**Merge rule — confirmed live 2026-09-11.** Whether an ML finding blocks is
+governed by the console's **Block Agreement** setting, not by the finding alone:
+`off` = the ML finding blocks on its own; `unit` = honored only if a deterministic
+detector also fired on the SAME content unit; `inspection` = honored if one fired
+anywhere in the request. Deterministic detectors always run independently, so a
+real injection blocks under any mode (the built-ins catch it too) — the sidecar's
+independent value shows only under `off`, or for content the built-ins miss. This
+is what the LLM Gateway page's "Block Agreement" explainer modal teaches. Proven
+end to end: under `off`, a benign prompt returns `{"findings":[]}` (allowed) and an
+injection returns a `prompt_injection/high` finding that blocks with HTTP 400.
 
 **No Ping-published guardrail image exists to drop in instead** (checked
 2026-09-10). The console field's `http://promptguard:8770/inspect` is aspirational
