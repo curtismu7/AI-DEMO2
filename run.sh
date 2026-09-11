@@ -6,7 +6,7 @@
 #   Demo API Server  → https://api.ping.demo:3001
 #   Demo UI          → https://local.ping-devops.com:4000
 #   Demo MCP Server  → localhost:8080
-#   LangChain Agent  → localhost:8887 (FastAPI/CodeGraph) + 8889 (chat WS) + 8881 (health/inspector)
+#   LangChain Agent  → localhost:8887 (FastAPI/CodeGraph) + 8881 (health/inspector)
 #
 # One-time setup (run once each, requires sudo for /etc/hosts):
 #   echo '127.0.0.1  api.ping.demo' | sudo tee -a /etc/hosts
@@ -286,8 +286,8 @@ fi
 # Ports managed by run.sh (Node processes + Python agents + Docker-hosted PingGateway :3036).
 # Defined once and referenced by both stop_listeners_on_demo_ports and
 # force_kill_listeners_on_demo_ports to avoid per-function drift.
-# LangChain ports: 8887 (FastAPI/CodeGraph), 8889 (chat WS), 8881 (health)
-DEMO_PORTS=(3001 4000 8080 8887 8889 8881 3005 3006 3009 8081 8082 8891 8892 8893 8896 3036)
+# LangChain ports: 8887 (FastAPI/CodeGraph), 8881 (health)
+DEMO_PORTS=(3001 4000 8080 8887 8881 3005 3006 3009 8081 8082 8891 8892 8893 8896 3036)
 
 # Pre-create all log files so tail/log viewers work before services start.
 # We TRUNCATE here (not just touch) — services that get skipped or fail to relaunch
@@ -397,7 +397,7 @@ preflight_checks() {
   fi
 
   # Port conflicts (check for non-Banking listeners)
-  for port in "${API_PORT}" "${UI_PORT}" 8080 8887 8889 8881; do
+  for port in "${API_PORT}" "${UI_PORT}" 8080 8887 8881; do
     if port_listening "${port}"; then
       warn "Port ${port} is already in use (will be stopped before start)"
     fi
@@ -916,7 +916,7 @@ print_status_table() {
   service_status_line "Mortgage Service"     8082         "/health"        "http://localhost:8082 (internal)"
   service_status_line "Agent Service"        3006         "/health"        "http://localhost:3006 (internal)"
   service_status_line "HITL Service"         3009         "/health"        "http://localhost:3009 (internal)"
-  service_status_line "LangChain Agent"      8881         "/health"        "ws://localhost:8889 (chat WS)"
+  service_status_line "LangChain Agent"      8881         "/health"        "http://localhost:8887 (internal)"
   service_status_line "OpenAI Agents SDK"    8891         "/health"        "http://localhost:8891 (internal)"
   service_status_line "Mastra Agent"         8892         "/health"        "http://localhost:8892 (internal)"
   service_status_line "Pydantic AI Agent"    8893         "/health"        "http://localhost:8893 (internal)"
@@ -963,7 +963,7 @@ cmd_stop() {
     docker compose -f "$BASEDIR/ping-gateway/docker-compose.yml" down --remove-orphans \
       >> "${LOG_PG}" 2>&1 || true
   fi
-  echo "   Sweeping ports (API :${API_PORT}, UI :${UI_PORT}, MCP :8080, AuthzServer :9001, GW :3005, Agent :3006, HITL :3009, Invest :8081, Weather :8896, Mortgage :8082, LangChain :8887/8889/8881, OASDK :8891, Mastra :8892, Pydantic :8893, PingGateway :3036)…"
+  echo "   Sweeping ports (API :${API_PORT}, UI :${UI_PORT}, MCP :8080, AuthzServer :9001, GW :3005, Agent :3006, HITL :3009, Invest :8081, Weather :8896, Mortgage :8082, LangChain :8887/8881, OASDK :8891, Mastra :8892, Pydantic :8893, PingGateway :3036)…"
   stop_listeners_on_demo_ports
   sleep 1
   force_kill_listeners_on_demo_ports
@@ -1052,7 +1052,7 @@ cmd_help() {
   echo "    Demo UI              :${UI_PORT}  (${PROTO_LABEL})"
   echo "    Demo MCP Server      :8080
     MCP Gateway          :3005"
-  echo "    LangChain Agent      :8887 (FastAPI/CodeGraph) :8889 (chat WS) :8881 (health)"
+  echo "    LangChain Agent      :8887 (FastAPI/CodeGraph) :8881 (health)"
   echo "    OpenAI Agents SDK    :8891"
   echo "    Mastra Agent         :8892"
   echo "    Pydantic AI Agent    :8893"
@@ -1185,7 +1185,7 @@ preflight_checks
 
 # ── Auto-kill any existing Banking services before (re)starting ─────────────
 _any_running=false
-for _chk_port in ${API_PORT} ${UI_PORT} 8080 8887 8889 8881 8891 8892 8893; do
+for _chk_port in ${API_PORT} ${UI_PORT} 8080 8887 8881 8891 8892 8893; do
   if port_listening "$_chk_port"; then
     _any_running=true
     break
@@ -1723,15 +1723,15 @@ echo "[WEB] Starting Demo UI on ${CLIENT_URL}..."
 ) &
 echo $! > "$PID_UI"
 
-# ── LangChain Agent (chat WS :8889 + health :8890 + FastAPI :8887) ────────────
+# ── LangChain Agent (health :8890 + FastAPI :8887) ────────────
 # Entry point is src/main.py, run as a module (`python -m src.main`) — it is an
-# asyncio app that manages its own websockets server (8889) and health server
+# asyncio app that manages its own health server
 # (8890). Note: Port 8888 is occupied by OrbStack on macOS, so the FastAPI /run
 # endpoint uses :8887 (configurable via AGUI_HTTP_PORT). The BFF proxies to this
 # port via LANGCHAIN_AGENT_HTTP_URL. Reads langchain_agent/.env via python-dotenv.
 # The venv is `.venv`.
 if [[ -f "$BASEDIR/langchain_agent/src/main.py" ]]; then
-  echo "[CHAIN] Starting LangChain Agent (chat WS :8889, health :8890, API :8887)..."
+  echo "[CHAIN] Starting LangChain Agent (health :8890, API :8887)..."
   (
     cd "$BASEDIR/langchain_agent"
     if [[ -x ".venv/bin/python" ]]; then
@@ -1861,7 +1861,7 @@ echo -e "${MAGENTA}${BOLD}  ┌─ PORTS ─────────────
 echo -e "${MAGENTA}${BOLD}  │${RESET}  [PORT]  Demo API Server           :${API_PORT}  ${YELLOW}(${PROTO_LABEL})${RESET}"
 echo -e "${MAGENTA}${BOLD}  │${RESET}  [WEB]  Demo UI (React)        :${UI_PORT}  ${YELLOW}(${PROTO_LABEL})${RESET}"
 echo -e "${MAGENTA}${BOLD}  │${RESET}  [BOT]  Demo MCP Server           :8080  ${YELLOW}(WebSocket)${RESET}"
-echo -e "${MAGENTA}${BOLD}  │${RESET}  [CHAIN]  LangChain Agent    :8889  ${YELLOW}(chat WS)${RESET}  :8890  ${YELLOW}(health)${RESET}"
+echo -e "${MAGENTA}${BOLD}  │${RESET}  [CHAIN]  LangChain Agent    :8887  ${YELLOW}(AG-UI)${RESET}  :8890  ${YELLOW}(health)${RESET}"
 echo -e "${MAGENTA}${BOLD}  │${RESET}  [OASDK]  OpenAI Agents SDK         :8891${RESET}"
 echo -e "${MAGENTA}${BOLD}  │${RESET}  [MASTRA] Mastra Agent               :8892${RESET}"
 echo -e "${MAGENTA}${BOLD}  │${RESET}  [PYDANTIC] Pydantic AI Agent        :8893${RESET}"

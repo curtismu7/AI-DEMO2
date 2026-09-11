@@ -6,8 +6,7 @@ This module starts the complete application including:
 - OAuth authentication manager
 - MCP client manager
 - LangChain agent
-- WebSocket chat interface
-- Session management
+- AG-UI /run HTTP endpoint
 """
 
 import asyncio
@@ -25,9 +24,7 @@ from config.settings import get_config
 from authentication.oauth_manager import OAuthAuthenticationManager
 from mcp.tool_registry import MCPClientManager
 from agent.langchain_mcp_agent import LangChainMCPAgent
-from api.websocket_handler import ChatWebSocketHandler
 from api.message_processor import MessageProcessor
-from api.session_manager import SessionManager
 from api.health import HealthCheckServer
 from log_utils.structured_logger import setup_logging
 
@@ -43,10 +40,7 @@ class LangChainMCPApplication:
         self.oauth_manager: Optional[OAuthAuthenticationManager] = None
         self.mcp_manager: Optional[MCPClientManager] = None
         self.agent: Optional[LangChainMCPAgent] = None
-        self.session_manager: Optional[SessionManager] = None
-        self.websocket_handler: Optional[ChatWebSocketHandler] = None
         self.message_processor: Optional[MessageProcessor] = None
-        self.websocket_server = None
         self.health_server: Optional[HealthCheckServer] = None
         self._agui_server_task: Optional[asyncio.Task] = None
         self._shutdown_event = asyncio.Event()
@@ -106,45 +100,14 @@ class LangChainMCPApplication:
             await self.agent.initialize_tools()
             self.health_server.update_status("agent", "ready")
             
-            # Initialize session manager
-            logger.info("Initializing session manager...")
-            self.session_manager = SessionManager(self.config)
-            # CR-01: start the periodic cleanup loop. Without this, _sessions /
-            # _session_messages / _user_sessions accumulate forever — the
-            # session_timeout_minutes config is silently inert.
-            await self.session_manager.start()
-
-            # CR-01: same for ConversationMemory cleanup (lives on the agent).
+            # CR-01: start ConversationMemory cleanup (lives on the agent).
             # Without start_cleanup_task(), _sessions / _messages /
             # _langchain_memories grow unbounded for the process lifetime.
             await self.agent.conversation_memory.start_cleanup_task()
 
-            # Initialize WebSocket handler
-            logger.info("Initializing WebSocket handler...")
-            self.websocket_handler = ChatWebSocketHandler(self.config)
-            
-            # Initialize message processor
+            # Initialize message processor (drives AG-UI /run turns)
             logger.info("Initializing message processor...")
-            self.message_processor = MessageProcessor(
-                agent=self.agent,
-                session_manager=self.session_manager,
-                websocket_handler=self.websocket_handler,
-                config=self.config
-            )
-            self.health_server.update_status("message_processor", "initializing")
-            
-            # Wire components together
-            self.websocket_handler.set_message_processor(self.message_processor)
-            self.websocket_handler.set_session_manager(self.session_manager)
-            
-            # Start message processor. WR-02 Option A: start() schedules BOTH
-            # the ingress dispatcher AND the per-session-worker idle reaper.
-            # CR-01-class guard: the reaper is wired but inert unless started
-            # here at app init (exactly the CR-01 class of bug — a cleanup
-            # loop that exists but is never started). This call sits next to
-            # SessionManager.start() / ConversationMemory.start_cleanup_task()
-            # above for the same reason.
-            await self.message_processor.start()
+            self.message_processor = MessageProcessor(agent=self.agent)
             self.health_server.update_status("message_processor", "ready")
 
             # AG-UI /run SSE endpoint: FastAPI on port 8888 (always active).
@@ -174,9 +137,8 @@ class LangChainMCPApplication:
                     "role": "mcp_host",
                     "summary": (
                         "LangChain process: LLM orchestrates user turns; MCP client executes "
-                        "tools over WebSocket to MCP servers (e.g. banking). Chat WebSocket is UI transport."
+                        "tools over WebSocket to MCP servers (e.g. banking)."
                     ),
-                    "chat_websocket_port": self.config.chat.websocket_port,
                     "mcp_discovery_model": "Host lists tools from MCP via MCPClientManager after connect; model chooses tools/call.",
                     "langchain_tools_exposed_to_llm": tools,
                     "mcp_client_registry": registry,
@@ -258,52 +220,6 @@ class LangChainMCPApplication:
             except Exception as e:
                 logger.error(f"❌ Failed to register MCP server {server_name}: {e}")
                 # Continue with other servers even if one fails
-    
-    async def start_websocket_server(self):
-        """Start the WebSocket server."""
-        import websockets
-
-        # Bind to loopback by default (same CR-03 discipline as
-        # HEALTH_HTTP_HOST / AGUI_HTTP_HOST). CHAT_WS_HOST allows an explicit
-        # override for container networking where the BFF lives in another pod.
-        host = self.config.chat.chat_ws_host
-        port = self.config.chat.websocket_port
-
-        # HI-01: bound message size and check Origin to defeat 50MB-frame DoS
-        # and cross-site WebSocket hijacking. Allowlist comes from
-        # ALLOWED_WS_ORIGINS (comma-separated); falls back to the canonical
-        # api.ping.demo origin used by run-bank.sh local dev.
-        allowed_origins = [
-            o.strip()
-            for o in self.config.chat.allowed_ws_origins.split(",")
-            if o.strip()
-        ]
-        max_ws_size = self.config.chat.ws_max_message_bytes  # 64KB default
-
-        logger.info(
-            f"Starting WebSocket server on {host}:{port} "
-            f"(origins={allowed_origins}, max_size={max_ws_size}B)..."
-        )
-
-        try:
-            self.websocket_server = await websockets.serve(
-                self.websocket_handler.handle_connection,
-                host,
-                port,
-                ping_interval=55,
-                ping_timeout=10,
-                close_timeout=10,
-                max_size=max_ws_size,
-                origins=allowed_origins,
-            )
-            
-            self.health_server.update_status("websocket_server", "ready")
-            logger.info(f"✅ WebSocket server started on ws://{host}:{port}")
-            
-        except Exception as e:
-            self.health_server.update_status("websocket_server", "failed")
-            logger.error(f"❌ Failed to start WebSocket server: {e}")
-            raise
     
     async def start_agui_http_server(self) -> None:
         """Start FastAPI/uvicorn on port 8888 serving the AG-UI /run SSE endpoint.
@@ -395,8 +311,7 @@ class LangChainMCPApplication:
         # drives an LLM (spends the API key + reads the source tree),
         # /codegraph/reindex spawns the CPU-heavy indexer, and
         # /inspector/mcp-host leaks the MCP tool registry. The health server
-        # (port 8890, loopback-only) and the hardened WebSocket transport are
-        # separate servers with their own controls.
+        # (port 8890, loopback-only) is a separate server with its own controls.
 
         _DEFAULT_INTERNAL_SECRET = "dev-shared-secret-change-me"
         _env_name = str(getattr(self.config, "environment", None)
@@ -488,14 +403,10 @@ class LangChainMCPApplication:
             # Initialize components
             await self.initialize()
             
-            # Start WebSocket server
-            await self.start_websocket_server()
-            
             # Register signal handlers
             self._setup_signal_handlers()
             
             logger.info("LangChain MCP OAuth Agent is running")
-            logger.info("WebSocket endpoint: ws://localhost:%s", self.config.chat.websocket_port)
             logger.info("Frontend URL: https://api.ping.demo:4000 (if running)")
             hp = self.health_server.port if self.health_server else self.config.chat.health_http_port
             logger.info("Health check: http://localhost:%s/health", hp)
@@ -548,27 +459,6 @@ class LangChainMCPApplication:
                     pass
                 logger.info("✅ AG-UI HTTP server stopped")
 
-            # Stop WebSocket server
-            if self.websocket_server:
-                self.websocket_server.close()
-                await self.websocket_server.wait_closed()
-                logger.info("✅ WebSocket server stopped")
-            
-            # Stop message processor
-            if self.message_processor:
-                await self.message_processor.stop()
-                logger.info("✅ Message processor stopped")
-            
-            # Shutdown WebSocket handler
-            if self.websocket_handler:
-                await self.websocket_handler.shutdown()
-                logger.info("✅ WebSocket handler shutdown")
-            
-            # Shutdown session manager
-            if self.session_manager:
-                await self.session_manager.shutdown()
-                logger.info("✅ Session manager shutdown")
-            
             # Shutdown agent
             if self.agent:
                 await self.agent.shutdown()

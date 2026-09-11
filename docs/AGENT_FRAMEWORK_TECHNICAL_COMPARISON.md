@@ -16,7 +16,7 @@ A technical comparison of the four AI agent implementations in this project to h
 | **OAuth / tokens** | Manages its own (agent + user flows) | Delegated to BFF | Delegated to BFF | Delegated to BFF |
 | **Conversation memory** | Per-session, with trimming | Stateless (BFF owns it) | Stateless | Stateless |
 | **Invocation** | WebSocket + SSE + HTTP | HTTP SSE | HTTP SSE | HTTP SSE |
-| **Port (default)** | 8888 / 8889 / 8890 | 8892 | 8891 | 8893 |
+| **Port (default)** | 8888 / 8890 | 8892 | 8891 | 8893 |
 | **Tracing / observability** | Built-in trace server + callbacks | AG-UI events only | AG-UI events + token usage | AG-UI events only |
 | **Horizontal scaling** | Harder (session state) | Easy | Easy | Easy |
 | **Complexity** | High — production-grade | Low — simple compute | Medium | Medium |

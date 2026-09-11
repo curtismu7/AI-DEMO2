@@ -39,8 +39,8 @@ PROXY_BASE="${LLM_BASE%/v1}"
 E2E_MODEL="${AGENT_LLM_MODEL:-phi-4-mini-instruct}"
 CURL_TIMEOUT=45
 
-# Per-agent: name, AG-UI /run SSE port. langchain_agent runs three listeners
-# (uvicorn :8888 for /run SSE, websockets :8889 for chat WS, health :8890);
+# Per-agent: name, AG-UI /run SSE port. langchain_agent runs two listeners
+# (uvicorn :8888 for /run SSE, health :8890);
 # the AG-UI proxy in routes/agentRun.js targets :8888 (verified by the
 # agentRun.framework-routing.test.js suite).
 AGENT_NAMES=(langchain openai_agents mastra pydantic_ai)

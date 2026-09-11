@@ -105,7 +105,7 @@ flowchart LR
   UI -.->|"302 → /authorize · PKCE · code back"| POAUTH
   EXT -.->|"POST /api/agent/delegate"| SRV
   SRV -->|"AG-UI · SSE · STATE_DELTA"| AGSVC
-  SRV -.->|"HTTP /run · WS :8889"| LC
+  SRV -.->|"HTTP /run"| LC
   SRV -.->|"HTTP /run"| OA
   SRV -.->|"HTTP /run"| MS
   SRV -.->|"HTTP /run"| PD

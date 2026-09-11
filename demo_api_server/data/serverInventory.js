@@ -125,7 +125,7 @@ const SERVER_INVENTORY = [
     // proof the process is up and serving).
     healthPath: '/', acceptAnyStatus: true,
     candidates: candidates('http://langchain-agent:8888', 'http://localhost:8888'),
-    purpose: 'LangChain agent runtime — 8888 AG-UI SSE, 8889 WS chat, 8890 health (loopback-only).',
+    purpose: 'LangChain agent runtime — 8888 AG-UI SSE, 8890 health (loopback-only).',
   },
   {
     key: 'openai-agent', name: 'OpenAI Agent', container: 'ai-demo-openai-agent',

@@ -80,7 +80,6 @@ The LangChain Agent service provides the CodeGraph feature for `/code-explorer`.
 
 The agent runs in a Python container with:
 - **Port 8888**: FastAPI endpoint (CodeGraph API)
-- **Port 8889**: WebSocket for chat
 - **Port 8890**: Health check endpoint
 
 ### How It Works

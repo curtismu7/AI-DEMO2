@@ -10,7 +10,7 @@
     "api-resource-server": { "host": "api-resource-server",    "port": 8082, "scheme": "http" },
     "hitl-service":     { "host": "hitl-service",        "port": 3009, "scheme": "http" },
     "agent-service":    { "host": "agent-service",       "port": 3006, "scheme": "http" },
-    "langchain-agent":  { "host": "langchain-agent",     "port": 8888, "scheme": "http", "extraPorts": { "websocket": 8889, "health": 8890 } },
+    "langchain-agent":  { "host": "langchain-agent",     "port": 8888, "scheme": "http", "extraPorts": { "health": 8890 } },
     "openai-agent":     { "host": "openai-agent",        "port": 8891, "scheme": "http" },
     "mastra-agent":     { "host": "mastra-agent",        "port": 8892, "scheme": "http" },
     "pydantic-agent":   { "host": "pydantic-agent",      "port": 8893, "scheme": "http" },
@@ -37,7 +37,7 @@
     "endpoints": { "introspect": "/as/introspect", "decision": "/governance/pap/alpha/policy/:workerId/decision" }
   },
   "configmap": {
-    "_comment": "Generated env keys for k8s/02-configmap.yaml. Derivation grammar: 'url:<svc>' = <scheme>://host:port; 'ws:<svc>' = ws://host:port; 'http:<svc>'/'https:<svc>' = forced scheme; 'port:<svc>' or 'port:<svc>.<extra>' = bare port; 'public' / 'public:/path' = browser-facing base URL (+ path); 'aud:<role>' = OAuth resource audience from scope-topology.json (enduser|agentGateway|mcpServer|mcpGateway); 'flag:<name>'; 'literal:<value>'. Key rationales: HITL_SERVICE_URL is the canonical HITL service for agent/MCP-initiated challenges — both the BFF pre-flight and the MCP gateway create/verify challenges here; without it they default to localhost:3009 (unreachable in-cluster) and no challengeId is ever minted. CHAT_WS_HOST: the chat WS binds 127.0.0.1 by default (loopback-only invariant); cross-pod access via the langchain-agent Service needs the explicit 0.0.0.0 override.",
+    "_comment": "Generated env keys for k8s/02-configmap.yaml. Derivation grammar: 'url:<svc>' = <scheme>://host:port; 'ws:<svc>' = ws://host:port; 'http:<svc>'/'https:<svc>' = forced scheme; 'port:<svc>' or 'port:<svc>.<extra>' = bare port; 'public' / 'public:/path' = browser-facing base URL (+ path); 'aud:<role>' = OAuth resource audience from scope-topology.json (enduser|agentGateway|mcpServer|mcpGateway); 'flag:<name>'; 'literal:<value>'. Key rationales: HITL_SERVICE_URL is the canonical HITL service for agent/MCP-initiated challenges — both the BFF pre-flight and the MCP gateway create/verify challenges here; without it they default to localhost:3009 (unreachable in-cluster) and no challengeId is ever minted.",
     "PUBLIC_APP_URL": "public",
     "PINGONE_PUBLIC_APP_URL": "public",
     "REACT_APP_CLIENT_URL": "public",
@@ -64,10 +64,8 @@
     "BFF_INTERNAL_ID_TOKEN_URL": "literal:https://demo-api-server:3001/internal/id-token",
     "BANKING_RESOURCE_SERVER_BASE_URL": "url:bff",
     "AGUI_HTTP_PORT": "port:langchain-agent",
-    "WEBSOCKET_PORT": "port:langchain-agent.websocket",
     "HEALTH_HTTP_PORT": "port:langchain-agent.health",
     "AGUI_HTTP_HOST": "literal:0.0.0.0",
-    "CHAT_WS_HOST": "literal:0.0.0.0",
     "MCP_SERVER_RESOURCE_URI": "literal:mcpserver.ping.demo,mcpgateway.ping.demo",
     "MCP_RESOURCE_SERVER_RESOURCE_URI": "literal:mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo",
     "MCP_RESOURCE_URI": "literal:mcpserver.ping.demo,mcpgateway.ping.demo",

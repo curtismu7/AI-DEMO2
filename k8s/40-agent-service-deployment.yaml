@@ -32,8 +32,6 @@ spec:
         ports:
         - containerPort: 8888
           name: agui
-        - containerPort: 8889
-          name: ws-chat
         - containerPort: 8890
           name: health
         # secret first, configmap last → cluster URLs in the configmap win
@@ -121,10 +119,6 @@ spec:
     targetPort: 8888
     protocol: TCP
     name: agui
-  - port: 8889
-    targetPort: 8889
-    protocol: TCP
-    name: ws-chat
   - port: 8890
     targetPort: 8890
     protocol: TCP

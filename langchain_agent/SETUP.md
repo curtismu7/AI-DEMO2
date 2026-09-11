@@ -144,10 +144,7 @@ OPENAI_API_KEY=your-openai-api-key
 
 #### Chat Interface
 ```bash
-WEBSOCKET_PORT=8080
-MAX_MESSAGE_LENGTH=4096
 CONVERSATION_HISTORY_LIMIT=100
-SESSION_CLEANUP_INTERVAL_MINUTES=15
 ```
 
 #### MCP Server Configuration
@@ -285,7 +282,7 @@ lsof -i :8080
 kill -9 <PID>
 
 # Or use different port
-export WEBSOCKET_PORT=8081
+export AGUI_HTTP_PORT=8081
 ```
 
 #### 4. PingOne Connection Issues

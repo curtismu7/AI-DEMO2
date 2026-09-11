@@ -23,7 +23,7 @@
 | **ping-gateway** | ai-demo-ping-gateway | 3036→8080 | 583 MB | Ping Identity IG (`forgeops-public/ig:latest`) | **Alternative** MCP gateway using the real PingGateway product; config = routes + Groovy in `ping-gateway/config`. Selected vs mcp-gateway by `ff_mcp_gateway_pinggateway`. HTTP transport to backends. |
 | **mcp-proxy** | ai-demo-mcp-proxy | 8895→8895 | 192 MB | Node | HTTP-to-MCP sidecar — exposes MCP tools as plain REST for non-MCP callers. |
 | **agent-service** | ai-demo-agent-service | 3016→3006 | 367 MB | Node/TS (LangGraph) | Agent orchestration / Helix routing service. **Host port 3016** because OrbStack reserves 3006 on macOS (internal port stays 3006). |
-| **langchain-agent** | ai-demo-langchain-agent | 8888/8889/8890 | 730 MB | Python (uvicorn) | LangChain agent runtime. 8888 = AG-UI SSE / FastAPI, 8889 = WebSocket chat, 8890 = health. Entry: `./scripts/startup.sh`. |
+| **langchain-agent** | ai-demo-langchain-agent | 8888/8890 | 730 MB | Python (uvicorn) | LangChain agent runtime. 8888 = AG-UI SSE / FastAPI, 8890 = health. Entry: `./scripts/startup.sh`. |
 | **openai-agent** | ai-demo-openai-agent | 8891→8891 | 368 MB | Python (uvicorn) | OpenAI-SDK agent runtime variant. |
 | **pydantic-agent** | ai-demo-pydantic-agent | 8893→8893 | 741 MB | Python (uvicorn) | Pydantic-AI agent runtime variant. |
 | **mastra-agent** | ai-demo-mastra-agent | 8892→8892 | 401 MB | Node/TS (Mastra) | Mastra agent runtime variant. |

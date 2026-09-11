@@ -487,7 +487,7 @@ forward_specs_for_profile() {
         "svc/llamaindex-agent   8894:8894"
         "svc/agent-service      3016:3006"
         "svc/hitl-service       3009:3009"
-        "svc/langchain-agent    8888:8888 8889:8889 8890:8890"
+        "svc/langchain-agent    8888:8888 8890:8890"
         "svc/openai-agent       8891:8891"
         "svc/mastra-agent       8892:8892"
         "svc/pydantic-agent     8893:8893"
