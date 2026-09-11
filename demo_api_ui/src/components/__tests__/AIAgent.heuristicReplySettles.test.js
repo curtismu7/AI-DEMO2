@@ -6,6 +6,7 @@
  * "Which account…?" clarification. These drive the real typed-prompt path and
  * assert the reply settles: done once the answer is shown, error when /nl fails.
  * Harness mirrors AIAgent.noMatch.test.js; the flow-diagram service is real.
+ * Not vertical-specific, so it runs as Super Sports (the repo's default vertical).
  */
 import React from "react";
 import "@testing-library/jest-dom";
@@ -17,7 +18,7 @@ import { agentFlowDiagram } from "../../services/agentFlowDiagramService";
 
 vi.mock("../../context/IndustryBrandingContext", () => ({
   useIndustryBranding: () => ({
-    preset: { shortName: "Super Banking", name: "Super Banking" },
+    preset: { shortName: "Super Sports", name: "Super Sports" },
   }),
 }));
 
@@ -119,9 +120,9 @@ vi.mock("../../services/bffAxios", () => ({
 
 vi.mock("../../vertical/useVertical", () => ({
   useVertical: () => ({
-    activeId: "healthcare",
-    pageManifest: { id: "healthcare", identity: { displayName: "CareConnect" } },
-    agentManifest: { id: "healthcare", identity: { displayName: "CareConnect" } },
+    activeId: "sporting-goods",
+    pageManifest: { id: "sporting-goods", identity: { displayName: "Super Sports" } },
+    agentManifest: { id: "sporting-goods", identity: { displayName: "Super Sports" } },
     adminManifest: null,
     pageMockData: null,
     isAdminScope: false,
@@ -162,7 +163,7 @@ function renderAgent() {
     <MemoryRouter>
       <ActivityNarrativeProvider>
         <ProofOfEnforcementProvider>
-          <AIAgent user={customerUser} mode="inline" forceVertical="healthcare" />
+          <AIAgent user={customerUser} mode="inline" forceVertical="sporting-goods" />
         </ProofOfEnforcementProvider>
       </ActivityNarrativeProvider>
     </MemoryRouter>,
