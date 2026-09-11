@@ -8,7 +8,7 @@
  * PingOne Authorize request/response) on every MCP call and POSTs it to
  * /internal/gateway-decision (routes/gatewayDecisionIngest.js), which calls
  * record(). That covers every caller — including third-party apps that send no
- * correlation id — so the decision panel and /identity-chain can show WHY a call
+ * correlation id — so the decision panel on /agent-gateway-inspector can show WHY a call
  * was permitted or denied (e.g. an invalid-actor-chain DENY) without the operator
  * having to grep container logs.
  *

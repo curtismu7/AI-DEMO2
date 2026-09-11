@@ -189,7 +189,6 @@ export const NAV_STRUCTURE_CATALOG = [
       "Service Graph",
       "Tracing",
       "Transaction Trace",
-      "Identity Chain",
       "Grafana",
       "Health Check",
     ],

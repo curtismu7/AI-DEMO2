@@ -55,6 +55,7 @@ Decisions made:
   - In `routes/agentRun.js`, after `tools` is built (~:508), add the run's tool names to `req.session.agentRunToolNames` and save the session. The existing save at :388 runs before tools are resolved.
   - Add to the stored list; never replace it. Callbacks carry only the session ID, not a run ID, so two overlapping runs in one session would otherwise overwrite each other and reject a tool their own run was offered. Anything extra this accepts was still offered to the same user in the same session, and still passes the gateway and P1AZ. Binding the list to a run ID would mean changing all four agents' callback bodies; that goes in TECH_DEBT.
   - In `agentTool.js`, after loading the session (~:92), return 403 `{ error: 'tool_not_offered' }` for a `tool` that is not in `session.agentRunToolNames`. A session with no list is also refused. `delegate_to_specialist` must be in the offered list; confirm the a2a overlay puts it there, and if not, allow it explicitly.
+  - Changed in the build: the list lives in the run context (`services/agentRunContext.js`, added on main the same day for the flow trace), not on the session. The session is last-write-wins across concurrent requests, so a stale save could erase the list mid-run and refuse every tool call. The run context is per run (a later run replaces it), in-process, and needs no session save.
   - Run the response through `redactValue` (`utils/logRedact.js`) before sending it.
 
 ### 3. `call_pingone_tool` lets the LLM run any hosted PingOne tool
@@ -86,7 +87,7 @@ Decisions made:
 2. A2A local serve: `mcp_error` with no `gatewayDecision` is not served locally; with `'PERMIT'` it is. `executeBffToolWithToken` passes `gatewayDecision` through its error result. That part is tested on the executor itself, because `a2aExecution.test.js` mocks the executor.
 3. `runReasonLoop`: when the model emits a tool that is not in `p.tools`, `executeTool` is not called and the tool message is `tool_not_offered`.
 4. `runReasonLoop`: a result containing `Bearer eyJ…` reaches the model as `[REDACTED_JWT]`.
-5. `/internal/agent-tool`: a tool not in `session.agentRunToolNames` gets a 403, and a response containing a JWT is redacted.
+5. `/internal/agent-tool`: a tool not offered to the session's run in flight gets a 403, and a response containing a JWT is redacted. As built, the list comes from the run context, and the test proves it holds when the stored session carries no list.
 6. `callPingOneTool({ name: 'deleteUser' })` is refused, and `adapter.callTool` is not called.
 7. `toRecord` output has no `access_token`.
 

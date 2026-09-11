@@ -31,6 +31,7 @@ vi.mock("../components/SelfServicePage", () => ({ default: () => null }));
 vi.mock("../components/SetupPage", () => ({ default: () => null }));
 vi.mock("../components/SetupWizard", () => ({ default: () => null }));
 vi.mock("../components/Configuration/UnifiedConfigurationPage", () => ({ default: () => null }));
+vi.mock("../components/AgentGatewayLogPanel", () => ({ default: () => null }));
 
 const fs = require("fs");
 const path = require("path");
@@ -157,6 +158,38 @@ describe("App.js — critical JSX placements", () => {
       const block = appSrc.slice(start);
       expect(block.slice(0, block.indexOf("/>"))).toContain("RequireAdminLogin");
     }
+  });
+});
+
+// ─── Gateway decisions panel — the decision feed's only screen ───────────────
+// PingGateway posts every P1AZ decision to /internal/gateway-decision and the
+// panel reads it back. The panel's old host (McpGatewayConfig) is not routed
+// anywhere, so without this mount the feed has no screen at all.
+
+describe("/agent-gateway-inspector — gateway decisions panel", () => {
+  const routesSrc = fs.readFileSync(
+    path.resolve(__dirname, "../routes/PublicRoutes.js"),
+    "utf8"
+  );
+  const panelSrc = fs.readFileSync(
+    path.resolve(__dirname, "../components/AgentGatewayLogPanel.jsx"),
+    "utf8"
+  );
+
+  test("McpGatewayConfigRoute renders AgentGatewayLogPanel", () => {
+    const body = routesSrc.match(/export function McpGatewayConfigRoute[\s\S]*?\n}\n/);
+    expect(body && body[0]).toContain("<AgentGatewayLogPanel");
+  });
+
+  test("AgentGatewayLogPanel imports the mgc-* stylesheet it renders with", () => {
+    expect(panelSrc).toMatch(/import ["']\.\/McpGatewayConfig\.css["']/);
+  });
+
+  test("the panel keeps its .mgc-root wrapper (width, 24px inset, font)", () => {
+    // Its old host (McpGatewayConfig) rendered it inside .mgc-root; without that
+    // wrapper it sits flush against the page with the wrong typography.
+    const body = routesSrc.match(/export function McpGatewayConfigRoute[\s\S]*?\n}\n/);
+    expect(body && body[0]).toMatch(/className="mgc-root"[\s\S]*<AgentGatewayLogPanel/);
   });
 });
 

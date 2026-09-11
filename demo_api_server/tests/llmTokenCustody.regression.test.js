@@ -62,11 +62,14 @@ describe('runReasonLoop — what the model can call and what it sees', () => {
   });
 });
 
-describe('/internal/agent-tool — only tools offered to the external agent', () => {
-  const SESSION = { user: { id: 'u1' }, oauthTokens: { accessToken: 'tok' }, agentRunToolNames: ['get_my_accounts'] };
+describe('/internal/agent-tool — only tools offered to the external agent run', () => {
+  // The offered tools live in the run context (services/agentRunContext.js), not
+  // the stored session: a concurrent request's stale session save must not be
+  // able to erase them mid-run. So the stored session here carries no list.
+  const SESSION = { user: { id: 'u1' }, oauthTokens: { accessToken: 'tok' } };
   let executeBffTool;
 
-  function post(session, body) {
+  function post(offeredToolNames, body) {
     jest.resetModules();
     executeBffTool = jest.fn(async () => JSON.stringify({ ok: true, note: `Bearer ${JWT}` }));
     jest.doMock('../services/bffMcpToolExecutor', () => ({ executeBffTool }));
@@ -74,7 +77,10 @@ describe('/internal/agent-tool — only tools offered to the external agent', ()
     const app = express();
     app.use(express.json());
     app.use((req, _res, next) => {
-      req.sessionStore = { get: (_id, cb) => cb(null, session) };
+      req.sessionStore = { get: (_id, cb) => cb(null, { ...SESSION }) };
+      if (offeredToolNames) {
+        require('../services/agentRunContext').setRunContext('s1', {}).toolNames = offeredToolNames;
+      }
       next();
     });
     app.use('/internal', require('../routes/agentTool'));
@@ -84,48 +90,26 @@ describe('/internal/agent-tool — only tools offered to the external agent', ()
       .send(body);
   }
 
-  test('a tool not offered in this session is refused', async () => {
-    const res = await post(SESSION, { tool: 'create_transfer', args: {}, sessionId: 's1' });
+  test('a tool not offered to this run is refused', async () => {
+    const res = await post(['get_my_accounts'], { tool: 'create_transfer', args: {}, sessionId: 's1' });
     expect(res.status).toBe(403);
     expect(res.body.error).toBe('tool_not_offered');
     expect(executeBffTool).not.toHaveBeenCalled();
   });
 
-  test('a session with no offered-tool list is refused', async () => {
-    const { agentRunToolNames: _omit, ...bare } = SESSION;
-    const res = await post(bare, { tool: 'get_my_accounts', args: {}, sessionId: 's1' });
+  test('with no run in flight for the session, every tool is refused', async () => {
+    const res = await post(null, { tool: 'get_my_accounts', args: {}, sessionId: 's1' });
     expect(res.status).toBe(403);
     expect(res.body.error).toBe('tool_not_offered');
   });
 
-  test('an offered tool runs, and a JWT in its result is redacted', async () => {
-    const res = await post(SESSION, { tool: 'get_my_accounts', args: {}, sessionId: 's1' });
+  test('an offered tool runs although the stored session carries no list, and a JWT in its result is redacted', async () => {
+    const res = await post(['get_my_accounts'], { tool: 'get_my_accounts', args: {}, sessionId: 's1' });
     expect(res.status).toBe(200);
     expect(JSON.stringify(res.body)).not.toContain('eyJ');
     expect(res.body.result.note).toContain('[REDACTED_JWT]');
-  });
-});
-
-describe('agentRun — recording the tools offered to an external agent run', () => {
-  let recordOfferedTools;
-  beforeEach(() => {
-    jest.resetModules();
-    jest.doMock('../services/configStore', () => ({ getEffective: jest.fn() }));
-    ({ recordOfferedTools } = require('../routes/agentRun').__test);
-  });
-
-  test('adds this run\'s tools to the session list and never drops an earlier run\'s', async () => {
-    const req = { session: { agentRunToolNames: ['get_balance'], save: (cb) => cb() } };
-    await recordOfferedTools(req, [{ name: 'get_my_accounts' }, { name: 'get_balance' }]);
-    expect(req.session.agentRunToolNames.sort()).toEqual(['get_balance', 'get_my_accounts']);
-  });
-
-  test('rejects when the session store cannot save, and leaves the earlier list untouched', async () => {
-    const req = { session: { agentRunToolNames: ['get_balance'], save: (cb) => cb(new Error('store down')) } };
-    await expect(recordOfferedTools(req, [{ name: 'get_my_accounts' }])).rejects.toThrow('store down');
-    // express-session writes a modified session when the 503 ends: a run that
-    // never started must not leave its tools on the list.
-    expect(req.session.agentRunToolNames).toEqual(['get_balance']);
+    // The list stays server-side: it is not handed to the tool pipeline.
+    expect(executeBffTool.mock.calls[0][0].req.body).not.toHaveProperty('toolNames');
   });
 });
 

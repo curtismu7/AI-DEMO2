@@ -96,7 +96,7 @@ minimal diff.
 | tools/list backend outage scope (locked 2026-08-18, PR #1980) | `demo_mcp_gateway/src/toolsListHealth.ts` — `'total'` (zero live backends read) vs `'partial'` (some answered). Only `'total'` may clear the outage; "any success clears everything" reported a healthy gateway serving a truncated tool list |
 | MCP gateway suite is a blocking, serial gate (locked 2026-08-18, PR #1980) | `.github/workflows/ci.yml` (`SUITE_BLOCKING=1 npm run test:mcp-gateway`), `scripts/test-service-suite.sh` (`mcp-gateway` → `DEFAULT_WORKERS=1`). Eight suites bind a real listening socket and race at 2 workers (`socket hang up`); serial is also faster (6.5s vs ~19s). Do not raise the worker count and do not make the job non-blocking |
 | Airlines is THREE tiers, not two (locked 2026-08-27) | `scope-topology.json`, `demo_api_server/config/verticals/airlines/manifest.json`, `demo_mcp_resource_server/src/tools/airlinesTools.ts`. `get_airline_bookings` (plain, `airlines:read`) → `sensitive_airline_bookings` (**consent**, `airlines:read`+`sensitive:read`, chip "🔐 Sensitive reservations", `useCaseId: hitl-consent`) → `sensitive_passenger_record` (**A2A-only**, `read`+`a2aDelegatedScope: pnr:read`+`requiresAgentMediation`, chip `useCaseId: a2a-delegation`). Two different demos in one vertical. **Do not "align" `sensitive_airline_bookings` with the other ten `sensitive_*` tools** — those ten are one A2A specialist tool *per vertical* (`config/a2aSpecialists.js`), and airlines' slot is already `sensitive_passenger_record`. Adding `requiresAgentMediation` to it would DENY the consent chip with `missing_act` (`demo_authz_server/routes/decision.js` Rule ~721, `REQUIRE_ACT_FOR_AGENT_TOOLS` defaults on) and delete airlines' HITL-consent demo. See TECH_DEBT 2026-08-26 |
-| LLM token custody (locked 2026-09-11) | Nothing the LLM produces picks a credential, a destination, or a route around the MCP gateway and PingOne Authorize. `demo_api_server/services/agentReasoningClient.js` `runReasonLoop` runs only tools it offered and redacts JWTs from every result the model sees. `routes/agentTool.js` runs only tools in `session.agentRunToolNames` (a per-session union set in `routes/agentRun.js`) and redacts the result. `services/mcpToolPipeline.js` honours the A2A `skipBffAuthorize` only when the gateway is authoritative, and puts the gateway's `gatewayDecision` on `mcp_error`. `services/demoAgentLangGraphService.js` A2A local serve needs that decision to be PERMIT. `config/verticals/pingone-admin/tools.js` `CALLABLE_TOOLS` caps `call_pingone_tool` (the read tools the chips use, plus `createUser` as a documented exception). `demo_mcp_jwt_verifier/server.py` fetches JWKS only from the `PINGONE_JWKS_URI` host. Do not drop an offered-tool check, and never run a tool the gateway did not PERMIT. Guarded by `demo_api_server/tests/llmTokenCustody.regression.test.js`, `src/__tests__/mcpToolPipeline.authzBypass.test.js`, `src/__tests__/a2aExecution.test.js`, `tests/oas/pingone-admin.test.js`, `demo_mcp_jwt_verifier/test_jwks_allowlist.py`. Plan: `docs/superpowers/plans/2026-09-11-user-token-custody.md` |
+| LLM token custody (locked 2026-09-11) | Nothing the LLM produces picks a credential, a destination, or a route around the MCP gateway and PingOne Authorize. `demo_api_server/services/agentReasoningClient.js` `runReasonLoop` runs only tools it offered and redacts JWTs from every result the model sees. `routes/agentTool.js` runs only the tools `routes/agentRun.js` offered to the session's run in flight, read from `services/agentRunContext.js` (never from the stored session, which a concurrent stale save can overwrite), and redacts the result. `services/mcpToolPipeline.js` honours the A2A `skipBffAuthorize` only when the gateway is authoritative, and puts the gateway's `gatewayDecision` on `mcp_error`. `services/demoAgentLangGraphService.js` A2A local serve needs that decision to be PERMIT. `config/verticals/pingone-admin/tools.js` `CALLABLE_TOOLS` caps `call_pingone_tool` (the read tools the chips use, plus `createUser` as a documented exception). `demo_mcp_jwt_verifier/server.py` fetches JWKS only from the `PINGONE_JWKS_URI` host. Do not drop an offered-tool check, and never run a tool the gateway did not PERMIT. Guarded by `demo_api_server/tests/llmTokenCustody.regression.test.js`, `src/__tests__/mcpToolPipeline.authzBypass.test.js`, `src/__tests__/a2aExecution.test.js`, `tests/oas/pingone-admin.test.js`, `demo_mcp_jwt_verifier/test_jwks_allowlist.py`. Plan: `docs/superpowers/plans/2026-09-11-user-token-custody.md` |
 
 ---
 
@@ -176,7 +176,9 @@ both checkpoints, or put a token within its reach:
 - Local serve requires the gateway's recorded PERMIT, carried as
   `gatewayDecision` through the pipeline and `executeBffToolWithToken`.
 - Both LLM entry points refuse tools they did not offer (`tool_not_offered`)
-  and redact JWTs from results.
+  and redact JWTs from results. The external agents' list is the run's, kept
+  in `agentRunContext`, not the session: a concurrent stale save can overwrite
+  the session.
 - `call_pingone_tool` is capped to the read tools the admin chips use, plus
   `createUser` as a documented exception.
 - The verifier only fetches `https` URLs on the `PINGONE_JWKS_URI` host.
@@ -194,6 +196,39 @@ What is deliberately left open is in TECH_DEBT 2026-09-11, "LLM token custody".
 **Verify:**
 - Server: `cd demo_api_server && CI=true ./node_modules/.bin/jest llmTokenCustody mcpToolPipeline a2a agentTool agentRun agentReasoning pingone-admin delegation --forceExit`. Every new case failed before its fix (10 red), and all pass after.
 - Verifier: `docker run --rm -v "$PWD/demo_mcp_jwt_verifier:/app" -w /app --entrypoint python ai-demo-mcp-jwt-verifier:latest test_jwks_allowlist.py` prints 4 `ok` lines.
+
+### 2026-09-11 — AG-UI tool calls lost their flow trace when a session write landed mid-run
+
+**Files changed:** `demo_api_server/routes/agentRun.js`, `demo_api_server/routes/agentTool.js`,
+`demo_api_server/services/agentRunContext.js` (new), `demo_api_server/services/useCaseDemoBehaviors.js`,
+`demo_api_server/tests/agentRunContext.sessionRace.test.js` (new), `demo_api_server/tests/needs-build-chips.test.js`,
+`demo_api_server/tests/agentToolUseCaseId.test.js` (removed — it asserted a hand-copied snippet of the
+old session code, never the route).
+
+**What was broken:** `/api/agent/run` passed the run's `flowTraceId` (and `useCaseId`) to the
+agent's tool callback (`/internal/agent-tool`) through the express session. The session is
+last-write-wins across concurrent requests. The mode picker's `POST /api/langchain/config` loads the
+session, awaits `configStore.setConfig`, then saves — so when it overlapped the start of a run it
+wrote its stale copy over `agentRunFlowTraceId`. The tool call then ran with no trace,
+`bindTraceEmit` fell back to the no-op emit, and the Agent request flow panel showed prompt + reply
+but no hops. Seen live once, on a cold llama.cpp run right after switching mode (tool call ~69s in).
+**Not reproduced on a warm stack:** an idle flow SSE survives 75s, and bursts/loops of config
+requests around the send did not hit the window. The regression test replays the losing end state.
+
+**Fixed by** registering the run context in an in-process map keyed by session id
+(`services/agentRunContext.js`) instead of the session: `agentRun` sets it, `agentTool` reads it into
+the callback's `req.body`. An entry lives only while its run is open: `agentRun` clears it when its
+response closes, unless a newer run in the same session already replaced it (otherwise guest session
+churn would grow the map without bound). `resolveActiveUseCaseId`'s session fallback read a field
+nothing writes any more, so it is removed.
+
+**Do not break:** the tool callback's `req.body` must carry the run's `flowTraceId` / `useCaseId`
+whatever the stored session holds. Single-BFF-process assumption — the same one `mcpFlowSseHub` makes.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/agentRunContext.sessionRace.test.js`
+— fails before the fix (the callback body held nulls instead of `trace-race-1` / `account-summary`),
+passes after; scoped `agentRun|agentTool|needs-build-chips|useCase` 43 suites / 873 passed; callers of
+`resolveActiveUseCaseId` (`mcpToolAuthorization`, `agentMcpTokenService`) 8 suites / 184 passed.
 
 ### 2026-09-11 — /monitoring/agent-flow never opened the Agent request flow panel on a fresh load
 

@@ -1,8 +1,9 @@
 'use strict';
 /**
  * /internal/gateway-decision — PingGateway posts every P1AZ decision's audit trail
- * here (p1az-decision.groovy), so /identity-chain can show who called, with which
- * token, and why PingOne Authorize decided. It covers every caller, including
+ * here (p1az-decision.groovy), so the gateway decisions panel on
+ * /agent-gateway-inspector can show who called, with which token, and why
+ * PingOne Authorize decided. It covers every caller, including
  * third-party apps such as Onyx that send no correlation id, which the
  * transaction ledger cannot record.
  *

@@ -1612,7 +1612,8 @@ app.use('/internal', require('./routes/mcpAuditIngest'));
 // NOT browser-facing. Read back at /api/transaction-trace.
 app.use('/internal', require('./routes/transactionHopIngest'));
 // PingGateway decision ingest — every P1AZ decision's audit trail, correlation id
-// or not, so /identity-chain can show third-party callers (e.g. Onyx) too.
+// or not, so the decisions panel on /agent-gateway-inspector shows third-party
+// callers (e.g. Onyx) too.
 // Secret-guarded; NOT browser-facing. Read back at /api/admin/agent-gateway/decisions.
 app.use('/internal', require('./routes/gatewayDecisionIngest'));
 // Recording façade for external MCP clients (LM Studio, LibreChat) — relays to

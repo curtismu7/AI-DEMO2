@@ -27,9 +27,12 @@ MCP gateway and PingOne Authorize. These remain:
   `dev-shared-secret-change-me` is accepted unless `VAULT_INTERNAL_STRICT=true`,
   and the BFF port is published, so anyone holding the secret and a session id
   can act as that user. The LLM cannot reach this; a person on the network can.
-- **The external-agent tool allowlist is per session, not per run.** Callbacks
-  carry only the session id, so `agentRunToolNames` is the union of every run's
-  offered tools in that session.
+- **The external-agent tool allowlist is the latest run's, held in-process.**
+  Callbacks carry only the session id, so `/internal/agent-tool` checks the
+  tools of the session's run in flight (`services/agentRunContext.js`). A second
+  run in the same session replaces the first's list, and a BFF restart mid-run
+  refuses the rest of that run's tool calls. This is the same
+  single-BFF-process assumption the flow trace makes.
 - **`call_pingone_tool` has no gateway or P1AZ hop.** It is capped to the read
   tools the admin chips use, plus `createUser`: a documented exception that
   writes to PingOne gated only by the admin's PingOne roles. Its
@@ -52,6 +55,23 @@ internal route on a listener that isn't published. Put a run id in the four
 agents' callback bodies. Route `call_pingone_tool` through the gateway with a
 P1AZ decision. Add specialist-tool rules to the P1AZ policy so no-gateway A2A
 works again. Delete the dead langchain path.
+
+### [ ] 2026-09-11 — agentRun's end-of-run session save can undo a concurrent mode change
+
+**What's wrong.** `/api/agent/run` still modifies the session (it stores `intentToken`), so
+express-session saves the copy it loaded at the START of the run when the run ENDS. Anything another
+request wrote to the session in between is overwritten — e.g. the mode picker's `langchain_config`.
+Seen live: switching Heuristics → llama.cpp right before sending left the picker on Heuristics after
+the run finished. Same last-write-wins mechanism that lost the run's `flowTraceId`
+(REGRESSION_PLAN §4, 2026-09-11 "AG-UI tool calls lost their flow trace").
+
+**Why it wasn't fixed now.** That fix moved only the per-run trace / useCase off the session.
+`intentToken` is read from the stored session by `/internal/agent-tool` and other routes; moving it
+changes the intent-token contract, and the missing flow steps did not depend on it.
+
+**Real fix.** Don't let a long-running request save its whole stale session at the end: write the one
+field with a targeted read-modify-write (re-load the stored session, set it, save) as soon as it is
+minted, or move `intentToken` to the run context like the trace.
 
 ### [x] 2026-09-11 — HistoryModal.js is unthemed (23 inline style blocks)
 

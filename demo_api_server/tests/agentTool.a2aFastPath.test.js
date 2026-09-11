@@ -38,14 +38,17 @@ const SESSION = {
   oauthTokens: { accessToken: 'tok' },
   agentRunFlowTraceId: null,
   agentRunUseCaseId: null,
-  agentRunToolNames: ['sensitive_patient_records', 'delegate_to_specialist', 'get_my_accounts'],
 };
+
+// The run's offered tools (agentRun.js registers them per run).
+const OFFERED = ['sensitive_patient_records', 'delegate_to_specialist', 'get_my_accounts'];
 
 function buildApp() {
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => {
     req.sessionStore = { get: (_id, cb) => cb(null, { ...SESSION }) };
+    require('../services/agentRunContext').setRunContext('s1', {}).toolNames = OFFERED;
     next();
   });
   // Fresh require so route module picks up mocks.
@@ -109,6 +112,7 @@ describe('/internal/agent-tool — A2A fast-path', () => {
     app.use(express.json());
     app.use((req, _res, next) => {
       req.sessionStore = { get: (_id, cb) => cb(null, { ...SESSION, active_vertical: 'healthcare' }) };
+      require('../services/agentRunContext').setRunContext('s1', {}).toolNames = OFFERED;
       next();
     });
     app.use('/internal', require('../routes/agentTool'));

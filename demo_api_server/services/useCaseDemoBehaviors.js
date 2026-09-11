@@ -23,17 +23,15 @@ const JIT_TOKEN_LIFETIME_SEC = 300;
 const UC21_DEMO_PREMIUM_GROUP = 'Banking_PremiumTier';
 
 /**
- * Resolve the active useCaseId from the request body or agent-run session stash.
+ * Resolve the active useCaseId from the request body. The agent tool callback
+ * puts the run's useCaseId there (agentRunContext); it is no longer stashed on
+ * the session, where a concurrent request's stale save could erase it.
  * @param {object} [req]
  * @returns {string|null}
  */
 function resolveActiveUseCaseId(req) {
   const bodyId = typeof req?.body?.useCaseId === 'string' ? req.body.useCaseId.trim() : '';
   if (bodyId && isValidUseCaseId(bodyId)) return bodyId;
-  const sessionId = typeof req?.session?.agentRunUseCaseId === 'string'
-    ? req.session.agentRunUseCaseId.trim()
-    : '';
-  if (sessionId && isValidUseCaseId(sessionId)) return sessionId;
   return null;
 }
 

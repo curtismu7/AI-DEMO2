@@ -94,9 +94,11 @@ router.post('/agent-tool', async (req, res) => {
     return res.status(404).json({ error: 'session_not_found_or_no_tokens' });
   }
 
-  // The tool name comes from the agent's LLM: only tools agentRun.js offered in
-  // this session may run.
-  if (!Array.isArray(session.agentRunToolNames) || !session.agentRunToolNames.includes(tool)) {
+  // The tool name comes from the agent's LLM: only tools agentRun.js offered to
+  // this session's run in flight may run. Read from the run context, not the
+  // stored session, which a concurrent stale save can overwrite.
+  const { toolNames = [], ...runBody } = require('../services/agentRunContext').getRunContext(sessionId);
+  if (!toolNames.includes(tool)) {
     return res.status(403).json({ error: 'tool_not_offered', tool });
   }
 
@@ -107,12 +109,12 @@ router.post('/agent-tool', async (req, res) => {
     session: { ...session, id: sessionId },
     sessionID: sessionId,
     intentToken: session.intentToken || null,
-    // flowTraceId was persisted on the session by agentRun.js for this run.
-    // executeBffTool reads it from req.body to publish pipeline phase milestones
-    // to the browser's live MCP flow SSE (the compliance checklist).
-    // useCaseId was persisted on the session by agentRun.js to tag the flow for
-    // cross-process observability; executeBffTool stamps token events with it.
-    body: { flowTraceId: session.agentRunFlowTraceId || null, useCaseId: session.agentRunUseCaseId || null },
+    // flowTraceId / useCaseId of the run in flight, registered by agentRun.js.
+    // executeBffTool reads them from req.body to publish pipeline phase
+    // milestones to the browser's live MCP flow SSE and to tag token events.
+    // Not read from the stored session: a concurrent request's stale save can
+    // erase them there (see services/agentRunContext.js).
+    body: runBody,
   };
   const tokenEvents = [];
 

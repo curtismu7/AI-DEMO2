@@ -199,22 +199,6 @@ async function resolveAgentTarget({ message, vertical } = {}) {
 
 // When the active vertical ships a plugin, external runtimes must see the
 // vertical's own tool schemas (e.g. book_appointment), not the banking catalog.
-// /internal/agent-tool only runs tools offered to this session's agent runs.
-// Added to, never replaced: callbacks carry only the session id, so overlapping
-// runs in one session share the list. Saved before the run starts because the
-// agent calls back mid-run; a failed save rejects, so the run is not started.
-function recordOfferedTools(req, tools) {
-  const previous = req.session.agentRunToolNames;
-  req.session.agentRunToolNames = [...new Set([...(previous || []), ...tools.map((t) => t.name)])];
-  return new Promise((resolve, reject) => req.session.save((e) => {
-    if (!e) return resolve();
-    // express-session writes a modified session when the response ends, so put
-    // the list back: a run that never started must not leave its tools on it.
-    req.session.agentRunToolNames = previous;
-    reject(e);
-  }));
-}
-
 function resolveAgentRunTools(currentTools, activeId) {
   return verticalDispatch.hasPlugin(activeId)
     ? verticalDispatch.toolSchemasFor(activeId, () => currentTools)
@@ -381,31 +365,26 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
 
   // flowTraceId binds this run to the browser's live MCP flow SSE subscription.
   // The agent service executes tools by calling back into the BFF at
-  // /internal/agent-tool, which rebuilds a request from the STORED session — so
-  // we persist the trace id on the session here. agentTool.js reads it back into
-  // req.body.flowTraceId, and executeBffTool then publishes pipeline phases to
-  // the hub keyed by it, lighting up the compliance checklist for the AG-UI path.
-  // Assumes one AG-UI run per session at a time: this is a single scalar, so two
-  // concurrent runs in the same session would cross-wire the flow SSE. Acceptable
-  // for the demo (one agent panel per session); key by runId if that changes.
-  //
-  // useCaseId tags the flow for cross-process observability, mirroring flowTraceId.
-  // The AG-UI browser passes it; agentRun stashes on session; agentTool forwards
-  // it back into req.body so executeBffTool stamps all token events with the tag.
-  // CRITICAL: useCaseId assignment is UNCONDITIONAL (set to value or null) so each
-  // run overwrites (and clears) the stale value from previous runs. If run N has no
-  // useCaseId, it must clear run N-1's stale value before session.save().
+  // /internal/agent-tool, which cannot see this request — so the trace id and
+  // the clicked useCaseId are registered per session in agentRunContext, where
+  // agentTool.js reads them back into req.body. executeBffTool then publishes
+  // pipeline phases to the hub keyed by the trace and stamps token events with
+  // the useCaseId. NOT kept on the session: it is last-write-wins across
+  // concurrent requests, and the mode picker's POST /api/langchain/config saved
+  // its stale copy over the trace, so the whole run's phases went to no trace.
+  // Assumes one AG-UI run per session at a time: two concurrent runs in the same
+  // session would cross-wire the flow SSE. Acceptable for the demo (one agent
+  // panel per session); key by runId if that changes.
+  // useCaseId is overwritten every run (value or null) so a stale one never leaks.
   const flowTraceId = typeof req.body?.flowTraceId === 'string' ? req.body.flowTraceId.trim() : '';
   const useCaseId = typeof req.body?.useCaseId === 'string' ? req.body.useCaseId.trim() : '';
-  if (flowTraceId || useCaseId) {
-    if (flowTraceId) req.session.agentRunFlowTraceId = flowTraceId;
-    req.session.agentRunUseCaseId = useCaseId || null;
-    try {
-      await new Promise((resolve, reject) => req.session.save((e) => (e ? reject(e) : resolve())));
-    } catch (saveErr) {
-      console.warn('[agentRun] session save failed (non-fatal):', saveErr.message);
-    }
-  }
+  // Registered for every run, not only traced ones: the offered-tool list the
+  // tool callback enforces (Step B) hangs off this entry too.
+  const runContext = require('../services/agentRunContext');
+  const runEntry = runContext.setRunContext(req.session.id, { flowTraceId, useCaseId });
+  // Live only for this run: cleared when its response closes, unless a newer
+  // run in the same session has already replaced it.
+  res.on('close', () => runContext.clearRunContext(req.session.id, runEntry));
 
   // Sliding-window: forward only the most recent N messages to each agent.
   // Configurable via agent_history_limit (default 10). Prevents unbounded
@@ -531,17 +510,10 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
 
     tools = resolveAgentRunTools(tools, verticalManifest.resolver.activeIdFor(req));
 
-    try {
-      await recordOfferedTools(req, tools);
-    } catch (saveErr) {
-      // Without the list every tool callback would be refused as
-      // tool_not_offered; stop here with the real reason instead.
-      console.error('[agentRun] could not save the offered-tool list:', saveErr.message);
-      return res.status(503).json({
-        error: 'session_save_failed',
-        message: 'Could not record the tools offered to this run, so it was not started.',
-      });
-    }
+    // /internal/agent-tool only runs the tools offered to this run. Kept on the
+    // run context, not the session: a concurrent request's stale session save
+    // could otherwise erase the list mid-run and refuse every tool call.
+    if (runEntry) runEntry.toolNames = tools.map((t) => t.name);
 
     // Merge any token events from tools/list
     initialTokenEvents = [...initialTokenEvents, ...(toolsResult.tokenEvents || [])];
@@ -931,7 +903,6 @@ module.exports.FRAMEWORK_HOSTS = FRAMEWORK_HOSTS;
 module.exports.__test = {
   resolveAgentTarget,
   resolveAgentRunTools,
-  recordOfferedTools,
   markRecovered,
   _recordTraceEvents,
   _ensureHitlConsentSubscription,

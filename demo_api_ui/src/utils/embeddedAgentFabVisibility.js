@@ -124,7 +124,6 @@ export function isMonitoringRoute(pathname) {
                          //         /monitoring/flow-inspector, /monitoring/mcp-traffic,
                          //         /monitoring/api-explorer
     '/architecture',
-    '/identity-chain',   // drive traffic with the agent, watch each P1AZ decision land live
   ];
   return MONITORING_PREFIXES.some(prefix => p === prefix || p.startsWith(prefix + '/'));
 }
