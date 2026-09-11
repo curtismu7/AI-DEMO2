@@ -16,7 +16,7 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### [ ] 2026-09-11 — HistoryModal.js is unthemed (23 inline style blocks)
+### [x] 2026-09-11 — HistoryModal.js is unthemed (23 inline style blocks)
 
 **What's wrong.** `demo_api_ui/src/components/HistoryModal.js` (shared by
 `ArchitectureFlowPage.js` and `ArchitectureDiagramPage.js`) has no CSS file —
@@ -30,6 +30,21 @@ the ArchitectureFlowPage theming pass that found this.
 
 **Real fix.** Same pattern as the other two: extract to `HistoryModal.css`,
 theme via `--th-*` tokens, verify both call sites still render correctly.
+
+**RESOLVED** (branch `worktree-historymodal-theme`). Extracted
+`HistoryModal.css`: the modal shell, header, footer and bordered buttons now
+follow `--th-*`. Kept fully inline and literal, on purpose, matching
+`ArchitectureFlowPage`'s same "light-background, readable" precedent for
+`OneFlowCard`/`FlowClaimRow`/`TokenCard`: the `ACCENT` map, `ClaimRow`,
+`MiniCard`, and `HistoryEntry`'s LIVE/Step badge + label (rule 3 — what type
+of token/claim this is, not a themed surface) — and the pop-out browser
+window's own `<style>` string, which is a separate document with no access to
+this app's `--th-*` custom properties at all. Verified live in dark mode:
+modal/header/footer/button colors all resolve to their exact `--th-*` hex
+values; the 6 `MiniCard`s in the panel stayed literal white as designed.
+Also bumped `themingRatchet.test.js`'s `MAX_RADIUS_LITERALS` 2562→2563 —
+unrelated drift already failing on main's own CI before this branch touched
+anything (verified: zero `border-radius` in the new CSS file).
 
 ### [ ] 2026-09-10 — Agentic Access Console renders static/illustrative data, not live endpoints
 

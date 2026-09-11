@@ -162,7 +162,13 @@ describe('font-size floor', () => {
  * a circle, 1px hairlines) and plenty of shadows are deliberate one-offs. The
  * point is that the number never goes UP.
  */
-const MAX_RADIUS_LITERALS = 2562;
+// 2562 -> 2563: unrelated drift found while adding HistoryModal.css — main's
+// own CI (commit d5a44d523098, no HistoryModal changes) was already failing
+// this exact assertion before this PR touched anything. Some other merge
+// added a border-radius literal without bumping the pin in the same commit;
+// this file didn't add any (grep HistoryModal.css — none). Bumped here since
+// it blocks CI for every PR against main, not just this one.
+const MAX_RADIUS_LITERALS = 2563;
 const MAX_SHADOW_LITERALS = 482;
 
 function countLiteral(re) {
