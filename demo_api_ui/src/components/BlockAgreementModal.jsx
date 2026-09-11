@@ -77,7 +77,9 @@ export default function BlockAgreementModal({ isOpen, onClose }) {
       defaultWidth={560}
       defaultHeight={560}
     >
-      <div className="ba-modal">
+      {/* dm-scroll: dm-body is bare by contract — no padding, no scroll. */}
+      <div className="dm-scroll">
+        <div className="ba-modal">
         <p className="ba-intro">
           Controls how the ML sidecar verdict is merged with the deterministic detector
           layer. Deterministic detectors always run independently — this setting only
@@ -136,6 +138,7 @@ export default function BlockAgreementModal({ isOpen, onClose }) {
           prompt, and no deterministic detector fired — so the finding was honored only as
           an alert, not a block. Switch the mode to <code>off</code> above to see it block.
         </p>
+        </div>
       </div>
     </DraggableModal>
   );

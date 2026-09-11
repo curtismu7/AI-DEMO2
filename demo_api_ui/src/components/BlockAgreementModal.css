@@ -34,14 +34,16 @@
   align-items: start;
   padding: 0.5rem 0.625rem;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
+  color: var(--th-text-body);
   cursor: pointer;
 }
 
 .ba-mode.is-active {
   border-color: var(--th-status-info-border);
   background: var(--th-status-info-bg);
+  color: var(--th-text-body);
 }
 
 .ba-mode input {
@@ -81,7 +83,7 @@
 .ba-seg button {
   padding: 0.3rem 0.7rem;
   border: 1px solid var(--th-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--th-bg-inset);
   color: var(--th-text-body);
   font-size: 0.8125rem;
@@ -100,8 +102,9 @@
   gap: 0.25rem;
   padding: 0.75rem;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-inset);
+  color: var(--th-text-body);
 }
 
 .ba-outcome strong {
@@ -111,6 +114,7 @@
 .ba-outcome.is-blocked {
   border-color: var(--th-status-error-border);
   background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
 }
 
 .ba-outcome.is-blocked strong {
@@ -120,6 +124,7 @@
 .ba-outcome.is-alert {
   border-color: var(--th-status-warning-border);
   background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
 }
 
 .ba-outcome.is-alert strong {
@@ -129,6 +134,7 @@
 .ba-outcome.is-allow {
   border-color: var(--th-status-success-border);
   background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
 }
 
 .ba-outcome.is-allow strong {
@@ -142,7 +148,7 @@
 
 .ba-note code {
   padding: 0.05rem 0.3rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--th-code-bg);
   color: var(--th-code-text);
   font-size: 0.8125rem;
