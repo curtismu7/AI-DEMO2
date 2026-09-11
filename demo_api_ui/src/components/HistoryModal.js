@@ -7,6 +7,7 @@
  */
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import './HistoryModal.css';
 
 const MIN_W = 380;
 const MIN_H = 180;
@@ -234,10 +235,9 @@ export default function HistoryModal({ history, onClear }) {
   if (!visible || !history || history.length === 0) return null;
 
   return createPortal(
-    <div style={{
+    <div className="hm-modal" style={{
       position: 'fixed', left: pos.x, top: pos.y, width: size.w, zIndex: 9999,
-      background: '#fff', borderRadius: 10, border: '1px solid #cbd5e1',
-      boxShadow: '0 8px 40px rgba(0,0,0,0.22)', display: 'flex', flexDirection: 'column',
+      borderRadius: 10, display: 'flex', flexDirection: 'column',
       overflow: 'hidden', userSelect: 'none', height: open ? size.h : 'auto',
     }}>
       {/* 8 resize handles */}
@@ -247,34 +247,37 @@ export default function HistoryModal({ history, onClear }) {
 
       {/* Header — drag zone */}
       <div
+        className="hm-header"
         onMouseDown={onDragDown}
         style={{
           display: 'flex', alignItems: 'center', gap: 6, padding: '7px 10px',
-          background: '#f1f5f9', borderBottom: '1px solid #e2e8f0',
           cursor: 'grab', flexShrink: 0,
         }}
       >
-        <button onClick={() => setOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.95rem', color: '#475569', padding: 0, lineHeight: 1 }}>
+        <button onClick={() => setOpen(o => !o)} className="hm-btn hm-toggle-btn" style={{ cursor: 'pointer', padding: 0, lineHeight: 1 }}>
           {open ? '▾' : '▸'}
         </button>
-        <span style={{ flex: 1, fontSize: '0.78rem', fontWeight: 700, color: '#334155' }}>
+        <span className="hm-header-title" style={{ flex: 1, fontWeight: 700 }}>
           Token History ({history.length})
         </span>
         <button
           onMouseDown={e => e.stopPropagation()}
           onClick={popOut}
           title="Pop out to new window"
-          style={{ background: 'none', border: '1px solid #cbd5e1', borderRadius: 4, cursor: 'pointer', fontSize: '0.68rem', color: '#374151', padding: '2px 6px' }}
+          className="hm-btn hm-btn--bordered hm-icon-btn"
+          style={{ cursor: 'pointer', padding: '2px 6px' }}
         >🪟 Pop out</button>
         <button
           onMouseDown={e => e.stopPropagation()}
           onClick={onClear}
-          style={{ background: 'none', border: '1px solid #cbd5e1', borderRadius: 4, cursor: 'pointer', fontSize: '0.68rem', color: '#374151', padding: '2px 6px' }}
+          className="hm-btn hm-btn--bordered hm-icon-btn"
+          style={{ cursor: 'pointer', padding: '2px 6px' }}
         >✕ Clear</button>
         <button
           onMouseDown={e => e.stopPropagation()}
           onClick={() => setVisible(false)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.9rem', color: '#374151', padding: 0, lineHeight: 1 }}
+          className="hm-btn hm-close-x"
+          style={{ cursor: 'pointer', padding: 0, lineHeight: 1 }}
         >✕</button>
       </div>
 
@@ -287,12 +290,13 @@ export default function HistoryModal({ history, onClear }) {
             ))}
           </div>
           {/* Footer close button */}
-          <div style={{ flexShrink: 0, padding: '6px 10px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', background: '#f8fafc' }}>
+          <div className="hm-footer" style={{ flexShrink: 0, padding: '6px 10px', display: 'flex', justifyContent: 'flex-end' }}>
             <button
               type="button"
               onMouseDown={e => e.stopPropagation()}
               onClick={() => setVisible(false)}
-              style={{ padding: '3px 10px', border: '1px solid #cbd5e1', borderRadius: 4, cursor: 'pointer', fontSize: '0.75rem', color: '#374151', background: '#fff' }}
+              className="hm-btn hm-btn--bordered hm-footer-close-btn"
+              style={{ padding: '3px 10px', borderRadius: 4, cursor: 'pointer' }}
             >
               Close
             </button>

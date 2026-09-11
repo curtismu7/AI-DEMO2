@@ -1,0 +1,51 @@
+/* HistoryModal.css — the floating panel's own chrome (shell, header, footer,
+   buttons) follows the app theme via --th-*.
+
+   Deliberately NOT in scope: the ACCENT map, ClaimRow, MiniCard, and
+   HistoryEntry's LIVE/Step badge + label — these are the same
+   "light-background, readable" token-detail family as
+   ArchitectureFlowPage's OneFlowCard/FlowClaimRow/TokenCard (rule 3 —
+   what type of token/claim this is, not a themed surface), kept fully
+   inline and untouched for the same reason. The pop-out browser window
+   is also untouched: it's a separate document (window.open('', ...))
+   with no access to this app's --th-* custom properties at all. */
+
+.hm-modal {
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  box-shadow: var(--shadow-lg);
+  color: var(--th-text);
+}
+
+.hm-header {
+  background: var(--th-bg-inset);
+  border-bottom: 1px solid var(--th-border);
+  color: var(--th-text-body);
+}
+.hm-header-title {
+  color: var(--th-text);
+  font-size: 0.78rem;
+}
+
+.hm-btn {
+  background: none;
+  border: none;
+  color: var(--th-text-body);
+}
+.hm-btn--bordered {
+  border: 1px solid var(--th-border);
+}
+.hm-toggle-btn { font-size: 0.95rem; }
+.hm-close-x { font-size: 0.9rem; }
+.hm-icon-btn { font-size: 0.68rem; }
+
+.hm-footer {
+  border-top: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
+}
+.hm-footer .hm-btn--bordered {
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
+}
+.hm-footer-close-btn { font-size: 0.75rem; }
