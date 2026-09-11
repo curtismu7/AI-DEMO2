@@ -122,7 +122,7 @@ describe('executeBffToolWithToken — the gateway decision survives an error', (
     jest.doMock('../services/mcpToolPipeline', () => ({
       runMcpToolPipeline: jest.fn(async () => ({
         kind: 'error',
-        body: { error: 'mcp_error', message: 'upstream 502', gatewayDecision: 'PERMIT' },
+        body: { error: 'mcp_error', message: 'upstream 502', gatewayDecision: 'PERMIT', bffDecision: 'PERMIT' },
       })),
     }));
     const executor = require('../services/bffMcpToolExecutor');
@@ -135,7 +135,7 @@ describe('executeBffToolWithToken — the gateway decision survives an error', (
       suppliedToken: 'NESTED.ACT.TOKEN',
     }));
 
-    expect(out).toMatchObject({ error: 'mcp_error', gatewayDecision: 'PERMIT' });
+    expect(out).toMatchObject({ error: 'mcp_error', gatewayDecision: 'PERMIT', bffDecision: 'PERMIT' });
   });
 });
 

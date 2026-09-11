@@ -213,4 +213,25 @@ describe('a skipped gate is visible in the response (C4)', () => {
     expect(outcome.body.mcpAuthorizeEvaluation).toMatchObject({ decision: 'PERMIT' });
     expect(outcome.body.mcpAuthorizeEvaluation.skipped).toBeUndefined();
   });
+
+  // With no gateway the BFF gate is the enforcement point: its decision rides
+  // on the upstream error so the A2A in-BFF fallback can require a PERMIT
+  // (demoAgentLangGraphService), as it requires the gateway's in gateway mode.
+  it('without a gateway, an upstream error carries the BFF gate decision', async () => {
+    const deps = makeDeps({
+      mcpCallTool: jest.fn(async () => { throw new Error('Upstream aud mismatch'); }),
+    });
+    const outcome = await runMcpToolPipeline(makeCtx({ deps, skipBffAuthorize: true }));
+
+    expect(outcome.kind).toBe('error');
+    expect(outcome.body).toMatchObject({ error: 'mcp_error', bffDecision: 'PERMIT' });
+  });
+
+  it('with a gateway, an upstream error carries no BFF decision — the gateway decided', async () => {
+    const deps = gatewayDeps();
+    deps.callToolViaGateway = jest.fn(async () => { throw new Error('Gateway upstream error (HTTP 502)'); });
+    const outcome = await runMcpToolPipeline(makeCtx({ deps, skipBffAuthorize: true }));
+
+    expect(outcome.body).toMatchObject({ error: 'mcp_error', bffDecision: null });
+  });
 });

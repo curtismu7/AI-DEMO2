@@ -1835,9 +1835,12 @@ async function runMcpToolPipeline(ctx) {
             return { kind: 'error', httpStatus: 502, body: {
                 error: 'mcp_error',
                 message: err.message,
-                // The gateway's P1AZ decision, when it made one before failing.
-                // A2A local serve requires a PERMIT here (demoAgentLangGraphService).
+                // The P1AZ decision that authorized this call before delivery
+                // failed: the gateway's, or with no gateway the BFF gate's (it is
+                // the enforcement point then). A2A local serve requires a PERMIT
+                // from one of them (demoAgentLangGraphService).
                 gatewayDecision: err.gwAuditTrail?.authorize?.decision ?? null,
+                bffDecision: useGateway ? null : (mcpAuthorizeEvaluationThisRequest?.decision ?? null),
                 tokenEvents
             } };
         }
