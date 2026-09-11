@@ -12,13 +12,14 @@ Showing tokens in the UI is fine; that is the teaching. The security rule is abo
 - the exchange audience or scopes,
 - a feature flag.
 
-Every backend call the LLM triggers must pass the MCP gateway and PingOne Authorize (P1AZ).
+Every backend call the LLM triggers must pass the MCP gateway and PingOne Authorize (P1AZ). There is one accepted, documented exception: `call_pingone_tool` may run `createUser` on the admin's own delegated token, gated only by that admin's PingOne roles (gap 3).
 
 Decisions made:
 
 - Fix all four gaps below.
 - No-gateway mode fails closed for A2A specialist calls.
 - Keep the cross-user delegation fix from the earlier version.
+- Keep `createUser` in the `call_pingone_tool` allowlist as a documented exception to the no-bypass rule.
 
 ## What already holds (audit, 2026-09-11)
 
@@ -41,6 +42,7 @@ Decisions made:
   - `mcp_unreachable` means the gateway never answered.
   - `gateway_error` is never produced by the pipeline.
   - Fix, pipeline side: in the catch that returns `mcp_error` (`mcpToolPipeline.js:1833`), add `gatewayDecision: err.gwAuditTrail?.authorize?.decision ?? null` to the body. The trail is already on the thrown error (`mcpGatewayClient.js:720-726`) and already turned into token events just above. Confirm the field name in `_parseGwAuditTrail`.
+  - Fix, executor side: `executeBffToolWithToken` (the A2A path, `bffMcpToolExecutor.js:437`) rebuilds error results with only `error` and `message`, which would drop the new field. Add `gatewayDecision: outcome.body?.gatewayDecision ?? null` to that return.
   - Fix, local-serve side: serve locally only when `toolResult.gatewayDecision === 'PERMIT'`, and drop the other two error codes from the list.
 
 ### 2. Nothing strips tokens from what the LLM receives, and tool names are not checked
@@ -50,14 +52,16 @@ Decisions made:
   - After running it: `resultStr = redactMessage(resultStr)` from `utils/logRedact.js`. Its pattern is unanchored and catches a token inside error text ("Bearer eyJ…"); `scrubRawJwts` only matches a whole-string JWT. Apply this before the result goes to `toolMessages` or `toolResults`.
   - The no-tool return shape must stay byte-identical, because `agentReasoningLoop.regression.test.js` compares it with `toEqual`.
 - **External agents:** `routes/agentTool.js` (`/internal/agent-tool`).
-  - In `routes/agentRun.js`, after `tools` is built (~:508), store `req.session.agentRunToolNames = tools.map((t) => t.name)` and save the session. The existing save at :388 runs before tools are resolved.
+  - In `routes/agentRun.js`, after `tools` is built (~:508), add the run's tool names to `req.session.agentRunToolNames` and save the session. The existing save at :388 runs before tools are resolved.
+  - Add to the stored list; never replace it. Callbacks carry only the session ID, not a run ID, so two overlapping runs in one session would otherwise overwrite each other and reject a tool their own run was offered. Anything extra this accepts was still offered to the same user in the same session, and still passes the gateway and P1AZ. Binding the list to a run ID would mean changing all four agents' callback bodies; that goes in TECH_DEBT.
   - In `agentTool.js`, after loading the session (~:92), return 403 `{ error: 'tool_not_offered' }` for a `tool` that is not in `session.agentRunToolNames`. A session with no list is also refused. `delegate_to_specialist` must be in the offered list; confirm the a2a overlay puts it there, and if not, allow it explicitly.
   - Run the response through `redactValue` (`utils/logRedact.js`) before sending it.
 
 ### 3. `call_pingone_tool` lets the LLM run any hosted PingOne tool
 
 - `config/verticals/pingone-admin/tools.js` `callPingOneTool` (:317) sends any name and arguments the model picks to `mcp.pingone.com`, using the admin's delegated token. There is no gateway, no P1AZ and no allowlist. The host and environment are pinned.
-- Fix: refuse names outside an allowlist before `adapter.callTool`. The allowlist is `CORE_TOOLS` (:10: `listUsers`, `getUser`, `listPopulations`, `listApplications`, `getEnvironment`) plus `createUser`, because the admin agent's "create a user" intent routes to it (`pingone-admin/index.js:43`). To make it strictly read-only, drop `createUser`, which breaks that intent.
+- Fix: refuse names outside an allowlist before `adapter.callTool`. The allowlist is `CORE_TOOLS` (:10: `listUsers`, `getUser`, `listPopulations`, `listApplications`, `getEnvironment`) plus `createUser`, which the admin agent's "create a user" intent routes to (`pingone-admin/index.js:43`).
+- **`createUser` is a documented exception to the no-bypass rule** (decided 2026-09-11). It writes to PingOne with no gateway or P1AZ check, gated only by the signed-in admin's PingOne roles. It runs on the admin's own delegated token, never the user token. Recorded in TECH_DEBT.
 - Make the tool description (which advertises `createUser`) and the `scopes: ['read']` label match the allowlist.
 - This path still has no gateway or P1AZ hop. The allowlist caps it; routing it through the gateway is out of scope (TECH_DEBT).
 
@@ -77,7 +81,7 @@ Decisions made:
 `demo_api_server/tests/llmTokenCustody.regression.test.js`. Case 1 can go in `src/__tests__/mcpToolPipeline.authzBypass.test.js` instead if its fixtures are reusable. Each case fails if its fix is reverted:
 
 1. With `ctx.skipBffAuthorize` and no gateway, the BFF P1AZ check runs (`evaluateMcpFirstToolGate` is called). With a gateway, it is skipped.
-2. A2A local serve: `mcp_error` with no `gatewayDecision` is not served locally; with `'PERMIT'` it is.
+2. A2A local serve: `mcp_error` with no `gatewayDecision` is not served locally; with `'PERMIT'` it is. `executeBffToolWithToken` passes `gatewayDecision` through its error result. That part is tested on the executor itself, because `a2aExecution.test.js` mocks the executor.
 3. `runReasonLoop`: when the model emits a tool that is not in `p.tools`, `executeTool` is not called and the tool message is `tool_not_offered`.
 4. `runReasonLoop`: a result containing `Bearer eyJ…` reaches the model as `[REDACTED_JWT]`.
 5. `/internal/agent-tool`: a tool not in `session.agentRunToolNames` gets a 403, and a response containing a JWT is redacted.
@@ -90,6 +94,7 @@ Existing suites to re-run, updating any that assert the old behaviour:
 
 - `tests/agentReasoningLoop.regression.test.js`, `src/__tests__/agentReasoningClientLoopGuard.test.js`, `tests/agentReasoningClient.tokens.test.js`
 - `src/__tests__/mcpToolPipeline.authzBypass.test.js`, `src/__tests__/mcpToolPipeline.authorizeEvaluations.test.js`
+- `src/__tests__/a2aExecution.test.js` (its local-serve case must now supply a PERMIT)
 - `tests/agentTool.a2aFastPath.test.js`, `tests/agentTool.wireContract.regression.test.js`, `tests/agentTool.elicitation.test.js`
 - `tests/pingoneAdminCaseRetry.test.js`, `tests/adminChipDeadends.test.js`, `tests/bankingAgentLangGraphService.pingoneAdminToolsCalled.test.js`, `tests/stepVerification.pingone-admin.test.js`
 
@@ -100,7 +105,8 @@ Existing suites to re-run, updating any that assert the old behaviour:
 - `TECH_DEBT.md`: record what is deliberately left:
   - **`/internal/agent-tool` auth is a shared secret only.** The default `dev-shared-secret-change-me` is accepted unless `VAULT_INTERNAL_STRICT=true`. Port 3001 is published, and the "loopback" comment at `agentTool.js:18` is wrong. Anyone with the secret and a session ID can act as that user. The LLM cannot reach this.
   - **Platform mode** gives OpenAI or Anthropic an exchanged gateway token (`services/platformAgentRuntime.js:35-62`). The gateway and P1AZ still check each call.
-  - `call_pingone_tool` has no gateway or P1AZ hop.
+  - `call_pingone_tool` has no gateway or P1AZ hop, and `createUser` is allowed through it as a documented exception.
+  - The external-agent tool allowlist covers the whole session, not one run, because callbacks carry no run ID.
   - oauth-mcp does no P1AZ itself (scope checks only), and `:8080` is published.
   - The langchain `auth_token` and direct-MCP path is dead code.
   - The P1AZ policy has no rules for A2A specialist tools, so no-gateway A2A is denied by design.
