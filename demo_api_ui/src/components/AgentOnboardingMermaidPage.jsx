@@ -4,9 +4,9 @@
 // arrows instead of hand-positioned CSS. A third, additive view — not a
 // replacement. Follows the mermaid.initialize/render pattern already used in
 // Phase266ArchitecturePage.jsx.
-import React, { useEffect, useRef, useState } from "react";
-import mermaid from "mermaid";
+import React, { useState } from "react";
 import DiagramExportBar from "./DiagramExportBar";
+import { useMermaidRender } from "../hooks/useMermaidRender";
 import "./AgentOnboardingMermaidPage.css";
 
 const ICON = (name, alt) =>
@@ -84,40 +84,13 @@ const LEGEND = [
   { color: "#0891b2", label: "Enterprise Runtime" },
 ];
 
+const FLOWCHART_OPTS = { htmlLabels: true, useMaxWidth: true, curve: "basis" };
+
 export default function AgentOnboardingMermaidPage() {
-  const containerRef = useRef(null);
   const [source, setSource] = useState(MERMAID_SOURCE);
-  const [renderError, setRenderError] = useState(null);
-  const renderIdRef = useRef(0);
-
-  useEffect(() => {
-    let cancelled = false;
-    setRenderError(null);
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: "dark",
-      securityLevel: "loose",
-      flowchart: { htmlLabels: true, useMaxWidth: true, curve: "basis" },
-    });
-
-    async function render() {
-      try {
-        const id = `agent-onboarding-mermaid-svg-${++renderIdRef.current}`;
-        const { svg } = await mermaid.render(id, source);
-        if (!cancelled && containerRef.current) {
-          containerRef.current.innerHTML = svg;
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setRenderError(err?.message || "Mermaid render failed");
-        }
-      }
-    }
-    render();
-    return () => {
-      cancelled = true;
-    };
-  }, [source]);
+  const { containerRef, error: renderError } = useMermaidRender(source, {
+    flowchart: FLOWCHART_OPTS,
+  });
 
   return (
     <div className="aom-page">

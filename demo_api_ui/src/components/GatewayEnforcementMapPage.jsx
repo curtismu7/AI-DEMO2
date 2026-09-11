@@ -3,14 +3,16 @@
 // Split" panel renders). Source of truth: scripts/gen-gateway-enforcement-map.js
 // — re-run it after touching any of the files it scans; this page updates
 // automatically since it imports the generated output, never a hand-typed copy.
-import React, { useEffect, useRef, useState } from "react";
-import mermaid from "mermaid";
+import React, { useState } from "react";
 import DiagramExportBar from "./DiagramExportBar";
+import { useMermaidRender } from "../hooks/useMermaidRender";
 import {
   GATEWAY_ENFORCEMENT_JOURNEY_MERMAID,
   GATEWAY_ENFORCEMENT_STAKES,
   GATEWAY_ENFORCEMENT_ROWS,
 } from "./education/gatewayEnforcementDiagram.generated";
+
+const FLOWCHART_OPTS = { htmlLabels: true, useMaxWidth: true, curve: "basis" };
 
 const STATUS_LABEL = {
   done: "✅ enforced",
@@ -26,33 +28,14 @@ const VERDICT_STYLE = {
   pending: { bg: "#2d0a0a", fg: "#fca5a5", border: "#dc2626", icon: "⚠️" },
 };
 
-export default function GatewayEnforcementMapPage() {
-  const containerRef = useRef(null);
-  const [source, setSource] = useState(GATEWAY_ENFORCEMENT_JOURNEY_MERMAID);
-  const [renderError, setRenderError] = useState(null);
-  const renderIdRef = useRef(0);
+const THEME_VARS = { fontSize: "20px" };
 
-  useEffect(() => {
-    let cancelled = false;
-    setRenderError(null);
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: "default",
-      securityLevel: "loose",
-      themeVariables: { fontSize: "20px" },
-      flowchart: { htmlLabels: true, useMaxWidth: true, curve: "basis" },
-    });
-    (async () => {
-      try {
-        const id = `gateway-enforcement-map-svg-${++renderIdRef.current}`;
-        const { svg } = await mermaid.render(id, source);
-        if (!cancelled && containerRef.current) containerRef.current.innerHTML = svg;
-      } catch (err) {
-        if (!cancelled) setRenderError(err?.message || "Mermaid render failed");
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [source]);
+export default function GatewayEnforcementMapPage() {
+  const [source, setSource] = useState(GATEWAY_ENFORCEMENT_JOURNEY_MERMAID);
+  const { containerRef, error: renderError } = useMermaidRender(source, {
+    themeVariables: THEME_VARS,
+    flowchart: FLOWCHART_OPTS,
+  });
 
   return (
     <div style={{ padding: "24px", maxWidth: 1100, margin: "0 auto" }}>

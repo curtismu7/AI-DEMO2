@@ -3,9 +3,9 @@
 // (graph TB) and Sign-in + Tool Call (sequenceDiagram) mirror the doc's
 // current diagrams verbatim; Auth Flow is this page's own more detailed
 // breakdown of the OAuth/PKCE handshake, not sourced from the doc.
-import React, { useEffect, useRef, useState } from "react";
-import mermaid from "mermaid";
+import React, { useEffect, useState } from "react";
 import DiagramExportBar from "./DiagramExportBar";
+import { useMermaidRender } from "../hooks/useMermaidRender";
 import "./PrivilegeMcpDiagramPage.css";
 
 const ARCHITECTURE_SOURCE = `graph TB
@@ -125,12 +125,12 @@ const TABS = [
   { id: "flow", label: "Auth Flow", source: AUTH_FLOW_SOURCE, filename: "privilege-mcp-auth-flow.mmd" },
 ];
 
+const SEQUENCE_OPTS = { useMaxWidth: true, wrap: true };
+const FLOWCHART_OPTS = { useMaxWidth: true };
+
 export default function PrivilegeMcpDiagramPage() {
-  const containerRef = useRef(null);
   const [activeTab, setActiveTab] = useState("arch");
   const [source, setSource] = useState(ARCHITECTURE_SOURCE);
-  const [renderError, setRenderError] = useState(null);
-  const renderIdRef = useRef(0);
 
   // Sync source when tab changes
   useEffect(() => {
@@ -138,33 +138,10 @@ export default function PrivilegeMcpDiagramPage() {
     if (tab) setSource(tab.source);
   }, [activeTab]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setRenderError(null);
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: "dark",
-      securityLevel: "loose",
-      sequence: { useMaxWidth: true, wrap: true },
-      flowchart: { useMaxWidth: true },
-    });
-
-    async function render() {
-      try {
-        const id = `privilege-mcp-diagram-${++renderIdRef.current}`;
-        const { svg } = await mermaid.render(id, source);
-        if (!cancelled && containerRef.current) {
-          containerRef.current.innerHTML = svg;
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setRenderError(err?.message || "Mermaid render failed");
-        }
-      }
-    }
-    render();
-    return () => { cancelled = true; };
-  }, [source]);
+  const { containerRef, error: renderError } = useMermaidRender(source, {
+    sequence: SEQUENCE_OPTS,
+    flowchart: FLOWCHART_OPTS,
+  });
 
   const activeTabMeta = TABS.find((t) => t.id === activeTab);
 
