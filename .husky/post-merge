@@ -4,7 +4,18 @@
 # app. Runs in the background and never blocks or fails the git operation.
 # Manual escape hatch: npm run export:learning.
 
-if git diff --name-only ORIG_HEAD HEAD 2>/dev/null | grep -q '^demo_api_ui/src/components/education/'; then
+#
+# Never fire inside an agent worktree (.claude/worktrees/<name>/...), for the
+# same reason as post-checkout: the exporter's `reset --hard origin/main` can
+# land on this checkout's own branch. Here it wiped a `git merge origin/main`
+# mid-merge (2026-09-11). Only the export is skipped — the BFF restart below
+# still runs.
+in_agent_worktree=0
+case "$(pwd)" in
+  */.claude/worktrees/*) in_agent_worktree=1 ;;
+esac
+
+if [ "$in_agent_worktree" = "0" ] && git diff --name-only ORIG_HEAD HEAD 2>/dev/null | grep -q '^demo_api_ui/src/components/education/'; then
   echo "[post-merge] education panels changed — exporting Learning Hub in background (logs/learning-hub-export.log)..."
   mkdir -p logs
   nohup npm run export:learning >> logs/learning-hub-export.log 2>&1 &
