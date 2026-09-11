@@ -1,0 +1,171 @@
+/* VerticalPipelineMap.css — chrome follows the app theme via --th-*; the four
+   pipeline-stage colors (vertical/chip/tool/scope) stay their own literal hues
+   on purpose, same as other categorical/legend palettes in this codebase
+   (THEMING.md §1.3) — they're what distinguishes a stage at a glance, not a
+   light/dark surface. */
+
+.vpm-loading, .vpm-error {
+  padding: 24px;
+}
+.vpm-loading { color: var(--th-text-muted); }
+.vpm-error { color: var(--th-status-error); }
+
+.vpm-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.vpm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--th-border);
+}
+.vpm-header-title {
+  font-weight: 600;
+  font-size: var(--font-size-body);
+}
+.vpm-header-sub {
+  font-size: var(--font-size-xs);
+  color: var(--th-text-muted);
+  margin-top: 2px;
+}
+.vpm-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vpm-legend {
+  display: flex;
+  gap: 8px;
+  font-size: var(--font-size-3xs);
+  color: var(--th-text-muted);
+}
+.vpm-legend-swatch--read { color: #117a65; }
+.vpm-legend-swatch--write { color: #6e2f0a; }
+
+.vpm-recheck-btn {
+  background: var(--th-status-info);
+  color: var(--th-text-invert);
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: var(--font-size-2xs);
+  cursor: pointer;
+}
+.vpm-recheck-btn:disabled {
+  background: var(--th-bg-inset);
+  color: var(--th-text-muted);
+  cursor: not-allowed;
+}
+
+.vpm-stage-labels {
+  display: flex;
+  padding: 6px 16px;
+  background: var(--th-bg-inset);
+  color: var(--th-text-muted);
+  border-bottom: 1px solid var(--th-border);
+}
+.vpm-stage-label {
+  flex: 1;
+  font-size: var(--font-size-3xs);
+  color: var(--th-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.vpm-canvas {
+  flex: 1;
+  min-height: 400px;
+  --xy-background-color: var(--th-bg-card);
+  --xy-background-pattern-color: var(--th-border);
+  --xy-minimap-background-color: var(--th-bg-inset);
+  /* Stays semi-transparent (React Flow's own default) so the minimap content
+     under the current-viewport mask stays visible — a solid --th-* here would
+     paint over it. */
+  --xy-minimap-mask-background-color: color-mix(in srgb, var(--th-bg-page) 55%, transparent);
+  --xy-minimap-mask-stroke-color: var(--th-border);
+  --xy-minimap-node-stroke-color: var(--th-border);
+  --xy-controls-button-background-color: var(--th-bg-card);
+  --xy-controls-button-background-color-hover: var(--th-bg-inset);
+  --xy-controls-button-color: var(--th-text);
+  --xy-controls-button-color-hover: var(--th-text);
+  --xy-controls-button-border-color: var(--th-border);
+  --xy-attribution-background-color: transparent;
+}
+
+/* ---------- pipeline nodes — literal stage palette, see file header ---------- */
+.vpm-node {
+  color: #fff;
+  text-align: center;
+  box-shadow: var(--shadow-md);
+}
+.vpm-node-kind {
+  font-size: var(--font-size-3xs);
+  opacity: 0.8;
+  margin-bottom: 2px;
+}
+
+.vpm-node--vertical {
+  background: var(--vpm-vertical-color, #1a5276);
+  padding: 8px 14px;
+  border-radius: 8px;
+  min-width: 130px;
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+}
+.vpm-node--vertical-tagline {
+  font-size: var(--font-size-3xs);
+  opacity: 0.75;
+  margin-top: 2px;
+}
+
+.vpm-node--chip {
+  padding: 6px 12px;
+  border-radius: 20px;
+  min-width: 110px;
+  font-size: var(--font-size-2xs);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.vpm-node--chip.vpm-node--write { background: #6e2f0a; }
+.vpm-node--chip:not(.vpm-node--write) { background: #117a65; }
+.vpm-node-chip-label { font-weight: 600; }
+.vpm-node-badge {
+  margin-top: 4px;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: var(--font-size-3xs);
+  display: inline-block;
+}
+.vpm-node-badge--permit { background: #145a32; }
+.vpm-node-badge--deny { background: #7b241c; }
+.vpm-node-badge--pending { background: #555; }
+
+.vpm-node--tool {
+  background: #784212;
+  padding: 6px 12px;
+  border-radius: 6px;
+  min-width: 120px;
+  font-size: var(--font-size-xs);
+}
+.vpm-node-tool-label {
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.vpm-node--scope {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: var(--font-size-3xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  box-shadow: var(--shadow-sm);
+}
+.vpm-node--scope.vpm-node--write { background: #6c1f1f; }
+.vpm-node--scope:not(.vpm-node--write) { background: #1a3a5c; }

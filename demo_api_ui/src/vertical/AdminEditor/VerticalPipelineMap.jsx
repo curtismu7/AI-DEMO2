@@ -10,33 +10,26 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import bffAxios from '../../services/bffAxios';
+import './VerticalPipelineMap.css';
 
-// ── Node colours per pipeline stage ────────────────────────────────────────
+// ── Node colours per pipeline stage — literal, not --th-*, see .css header ──
 const STAGE_COLORS = {
   vertical: '#1a5276',
   chip:     '#117a65',
   tool:     '#784212',
   scope:    '#4a235a',
-  authz:    '#922b21',
 };
 
 // ── Custom node: Vertical header ───────────────────────────────────────────
 function VerticalNode({ data }) {
   return (
-    <div style={{
-      background: data.color || STAGE_COLORS.vertical,
-      color: '#fff',
-      padding: '8px 14px',
-      borderRadius: 8,
-      minWidth: 130,
-      fontWeight: 600,
-      fontSize: 13,
-      textAlign: 'center',
-      boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
-    }}>
-      <div style={{ fontSize: 11, opacity: 0.8, marginBottom: 2 }}>Vertical</div>
+    <div
+      className="vpm-node vpm-node--vertical"
+      style={data.color ? { '--vpm-vertical-color': data.color } : undefined}
+    >
+      <div className="vpm-node-kind">Vertical</div>
       {data.label}
-      {data.tagline && <div style={{ fontSize: 10, opacity: 0.75, marginTop: 2 }}>{data.tagline}</div>}
+      {data.tagline && <div className="vpm-node--vertical-tagline">{data.tagline}</div>}
     </div>
   );
 }
@@ -44,33 +37,16 @@ function VerticalNode({ data }) {
 // ── Custom node: Chip ───────────────────────────────────────────────────────
 function ChipNode({ data }) {
   const badge = data.decision === 'PERMIT'
-    ? { text: '✅ PERMIT', bg: '#145a32' }
+    ? { text: '✅ PERMIT', kind: 'permit' }
     : data.decision === 'DENY'
-      ? { text: '❌ DENY', bg: '#7b241c' }
-      : { text: '…', bg: '#555' };
+      ? { text: '❌ DENY', kind: 'deny' }
+      : { text: '…', kind: 'pending' };
 
   return (
-    <div style={{
-      background: data.isWrite ? '#6e2f0a' : STAGE_COLORS.chip,
-      color: '#fff',
-      padding: '6px 12px',
-      borderRadius: 20,
-      minWidth: 110,
-      fontSize: 12,
-      textAlign: 'center',
-      boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-      border: '1px solid rgba(255,255,255,0.15)',
-    }}>
-      <div style={{ fontSize: 10, opacity: 0.75, marginBottom: 1 }}>Chip</div>
-      <div style={{ fontWeight: 600 }}>{data.label}</div>
-      <div style={{
-        marginTop: 4,
-        background: badge.bg,
-        borderRadius: 4,
-        padding: '1px 6px',
-        fontSize: 10,
-        display: 'inline-block',
-      }}>{badge.text}</div>
+    <div className={`vpm-node vpm-node--chip${data.isWrite ? ' vpm-node--write' : ''}`}>
+      <div className="vpm-node-kind">Chip</div>
+      <div className="vpm-node-chip-label">{data.label}</div>
+      <div className={`vpm-node-badge vpm-node-badge--${badge.kind}`}>{badge.text}</div>
     </div>
   );
 }
@@ -78,37 +54,17 @@ function ChipNode({ data }) {
 // ── Custom node: Tool ──────────────────────────────────────────────────────
 function ToolNode({ data }) {
   return (
-    <div style={{
-      background: STAGE_COLORS.tool,
-      color: '#fff',
-      padding: '6px 12px',
-      borderRadius: 6,
-      minWidth: 120,
-      fontSize: 11,
-      textAlign: 'center',
-      boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-    }}>
-      <div style={{ fontSize: 10, opacity: 0.75, marginBottom: 1 }}>MCP Tool</div>
-      <div style={{ fontWeight: 600, fontFamily: 'monospace' }}>{data.label}</div>
+    <div className="vpm-node vpm-node--tool">
+      <div className="vpm-node-kind">MCP Tool</div>
+      <div className="vpm-node-tool-label">{data.label}</div>
     </div>
   );
 }
 
 // ── Custom node: Scope badge ───────────────────────────────────────────────
 function ScopeNode({ data }) {
-  const color = data.label === 'write' ? '#6c1f1f' : '#1a3a5c';
   return (
-    <div style={{
-      background: color,
-      color: '#fff',
-      padding: '3px 10px',
-      borderRadius: 12,
-      fontSize: 10,
-      fontWeight: 600,
-      letterSpacing: '0.05em',
-      textTransform: 'uppercase',
-      boxShadow: '0 1px 4px rgba(0,0,0,0.2)',
-    }}>
+    <div className={`vpm-node vpm-node--scope${data.label === 'write' ? ' vpm-node--write' : ''}`}>
       {data.label}
     </div>
   );
@@ -130,6 +86,8 @@ const Y_START    = 40;
 const Y_GAP_VERT = 40;    // gap between verticals
 const Y_GAP_CHIP = 70;    // gap between chips within a vertical
 const SCOPE_H    = 36;
+
+const STAGE_LABELS = ['Vertical', 'Chip / Action', 'MCP Tool', 'Required Scopes'];
 
 // ── Build nodes + edges from pipeline data ─────────────────────────────────
 function buildGraph(pipeline, decisions) {
@@ -277,39 +235,32 @@ export function VerticalPipelineMap() {
     if (pipeline.length > 0) checkAllChips(pipeline);
   }, [pipeline, checkAllChips]);
 
-  if (loading) return <div style={{ padding: 24, color: '#888' }}>Loading pipeline map…</div>;
-  if (error) return <div style={{ padding: 24, color: '#c0392b' }}>Error: {error}</div>;
+  if (loading) return <div className="vpm-loading">Loading pipeline map…</div>;
+  if (error) return <div className="vpm-error">Error: {error}</div>;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="vpm-root">
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid #2a2a2a' }}>
+      <div className="vpm-header">
         <div>
-          <div style={{ fontWeight: 600, fontSize: 14 }}>Vertical Pipeline Map</div>
-          <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+          <div className="vpm-header-title">Vertical Pipeline Map</div>
+          <div className="vpm-header-sub">
             Vertical → Chip → MCP Tool → Required Scopes — with live PingOne Authorize decisions
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="vpm-header-actions">
           {/* Legend */}
-          <div style={{ display: 'flex', gap: 8, fontSize: 10, color: '#aaa' }}>
-            <span style={{ color: '#117a65' }}>● Read chip</span>
-            <span style={{ color: '#6e2f0a' }}>● Write chip</span>
-            <span style={{ color: '#145a32' }}>✅ PERMIT</span>
-            <span style={{ color: '#7b241c' }}>❌ DENY</span>
+          <div className="vpm-legend">
+            <span className="vpm-legend-swatch--read">● Read chip</span>
+            <span className="vpm-legend-swatch--write">● Write chip</span>
+            <span>✅ PERMIT</span>
+            <span>❌ DENY</span>
           </div>
           <button
+            type="button"
+            className="vpm-recheck-btn"
             onClick={() => checkAllChips(pipeline)}
             disabled={checking}
-            style={{
-              background: checking ? '#333' : '#1a5276',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 6,
-              padding: '6px 14px',
-              fontSize: 12,
-              cursor: checking ? 'not-allowed' : 'pointer',
-            }}
           >
             {checking ? 'Checking…' : 'Re-check Authorization'}
           </button>
@@ -317,16 +268,14 @@ export function VerticalPipelineMap() {
       </div>
 
       {/* Stage labels */}
-      <div style={{ display: 'flex', padding: '6px 16px', gap: 0, background: '#111', borderBottom: '1px solid #222' }}>
-        {[['Vertical', X_VERTICAL + 16], ['Chip / Action', X_CHIP + 16], ['MCP Tool', X_TOOL + 16], ['Required Scopes', X_SCOPE + 16]].map(([label, x]) => (
-          <div key={label} style={{ position: 'absolute', left: x + 16, fontSize: 10, color: '#666', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            {label}
-          </div>
+      <div className="vpm-stage-labels">
+        {STAGE_LABELS.map((label) => (
+          <div key={label} className="vpm-stage-label">{label}</div>
         ))}
       </div>
 
       {/* React Flow canvas */}
-      <div style={{ flex: 1, minHeight: 400 }}>
+      <div className="vpm-canvas">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -339,8 +288,8 @@ export function VerticalPipelineMap() {
           minZoom={0.3}
           maxZoom={2}
         >
-          <Background color="#2a2a2a" gap={20} />
-          <Controls style={{ background: '#1a1a1a', border: '1px solid #333' }} />
+          <Background gap={20} />
+          <Controls />
           <MiniMap
             nodeColor={n => {
               if (n.type === 'vertical') return '#1a5276';
@@ -348,7 +297,6 @@ export function VerticalPipelineMap() {
               if (n.type === 'tool') return '#784212';
               return '#4a235a';
             }}
-            style={{ background: '#111', border: '1px solid #333' }}
           />
         </ReactFlow>
       </div>
