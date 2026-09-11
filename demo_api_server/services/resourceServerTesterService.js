@@ -358,6 +358,8 @@ async function resolveTokenAsync(body, req) {
   if (cached && cached.access_token) {
     return { token: cached.access_token, source: 'session:mcp' };
   }
+  // Captured before the mint: a clear() during it must not be undone below.
+  const since = agentTokenCache.generation(session);
   try {
     const resolved = await agentMcpTokenService.resolveMcpAccessTokenWithEvents(
       req,
@@ -372,7 +374,7 @@ async function resolveTokenAsync(body, req) {
     agentTokenCache.set(session, vertical, scopes, {
       access_token: minted,
       expires_in: Number(resolved.expires_in) > 0 ? Number(resolved.expires_in) : 3600,
-    });
+    }, since);
     return { token: minted, source: 'session:mcp' };
   } catch (err) {
     console.warn('[resource-server-tester] mcp mint failed:', err && err.message ? err.message : err);

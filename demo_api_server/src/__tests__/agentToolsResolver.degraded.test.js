@@ -3,6 +3,7 @@ jest.mock('../../services/agentScopes', () => ({ resolveAgentScopes: () => ['rea
 jest.mock('../../services/agentTokenCache', () => ({
   get: () => ({ access_token: 'tok', expires_in: 600 }),
   set: () => {},
+  generation: () => 0,
 }));
 jest.mock('../../services/agentMcpTokenService', () => ({
   resolveMcpAccessTokenWithEvents: jest.fn(),

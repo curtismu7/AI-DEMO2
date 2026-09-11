@@ -81,6 +81,37 @@ describe('agentTokenCache', () => {
     expect(cache.get(other, 'banking', ['read']).access_token).toBe('theirs');
   });
 
+  // Greptile P1 on #3148: every writer mints between get() and set(), so a
+  // consent change / revoke / logout that clears mid-mint was undone when the
+  // in-flight set() landed — restoring a token minted under the previous
+  // authorization. set() takes the generation captured before the mint.
+  it('a mint that started before clear() cannot repopulate the cache', () => {
+    const cache = require('../../services/agentTokenCache');
+    const session = sess('s-revoked');
+    const since = cache.generation(session);
+    cache.clear(session); // consent revoked while the mint was in flight
+    cache.set(session, 'banking', ['read'], { access_token: 'stale', expires_in: 3600 }, since);
+    expect(cache.get(session, 'banking', ['read'])).toBeNull();
+  });
+
+  it('a mint that started after the last clear() still caches', () => {
+    const cache = require('../../services/agentTokenCache');
+    const session = sess('s-fresh');
+    cache.clear(session);
+    const since = cache.generation(session);
+    cache.set(session, 'banking', ['read'], { access_token: 'fresh', expires_in: 3600 }, since);
+    expect(cache.get(session, 'banking', ['read']).access_token).toBe('fresh');
+  });
+
+  it('clear() advances the session generation', () => {
+    const cache = require('../../services/agentTokenCache');
+    const session = sess('s-gen');
+    const before = cache.generation(session);
+    cache.clear(session);
+    expect(cache.generation(session)).not.toBe(before);
+    expect(cache.generation(sess('s-other'))).toBe(0);
+  });
+
   it('a session with no id is uncached, never an error', () => {
     const cache = require('../../services/agentTokenCache');
     const anon = {};

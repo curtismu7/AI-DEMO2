@@ -20,6 +20,7 @@ jest.mock('../../services/agentTokenCache', () => ({
   set: jest.fn(),
   newest: jest.fn(() => null),
   clear: jest.fn(),
+  generation: jest.fn(() => 0),
 }));
 
 jest.mock('../../services/agentMcpTokenService', () => {
@@ -277,11 +278,13 @@ describe('resolveTokenAsync', () => {
     const req = sessionReq(session);
     const r = await tester.resolveTokenAsync({ tokenRef: 'mcp' }, req);
     expect(r).toEqual({ token: 'minted-tok', source: 'session:mcp' });
+    // 5th arg: the generation captured before the mint (Greptile P1 on #3148).
     expect(agentTokenCache.set).toHaveBeenCalledWith(
       session,
       'banking',
       ['mcp:invoke', 'openid', 'profile'],
       { access_token: 'minted-tok', expires_in: 1800 },
+      0,
     );
   });
 
