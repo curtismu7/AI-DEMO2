@@ -95,4 +95,21 @@ describe('agentFlowDiagram — typed (AG-UI) run fills the step rail', () => {
     expect(statusById().reply).toBe('error');
     expect(agentFlowDiagram.getState().phase).toBe('error');
   });
+
+  // The heuristics path settles the reply when its answer is shown — after a
+  // failed tool call already marked it error. That later "answered" must not
+  // turn a failed run green.
+  test('settling never overwrites a reply that is already settled', () => {
+    agentFlowDiagram.startLlmReasoning('show my balance');
+    agentFlowDiagram.completeReply(false);
+    agentFlowDiagram.completeReply(true);
+    expect(statusById().reply).toBe('error');
+    expect(agentFlowDiagram.getState().phase).toBe('error');
+  });
+
+  test('settling with no reply step leaves the panel untouched', () => {
+    agentFlowDiagram.completeReply(true);
+    expect(agentFlowDiagram.getState().steps).toEqual([]);
+    expect(agentFlowDiagram.getState().phase).toBe('idle');
+  });
 });

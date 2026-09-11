@@ -140,6 +140,32 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-11 — Heuristics-path answers left the flow panel's "Agent → You" step pending forever
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`, `demo_api_ui/src/services/agentFlowDiagramService.js`,
+`demo_api_ui/src/services/__tests__/agentFlowDiagramService.test.js`,
+`demo_api_ui/src/components/__tests__/AIAgent.heuristicReplySettles.test.js` (new).
+
+**What was broken:** #3129 seeds "You → Agent" plus a pending "Agent → You" for every typed prompt
+(`agentFlowDiagram.startLlmReasoning`), but only the AG-UI path (`useAgentRun`) settled the reply. A
+prompt answered by the heuristics path (`/api/demo-agent/nl`) without a tool call — e.g. the
+"Which account would you like to check the balance for?" clarification — left the reply pending
+forever, and a failed `/nl` request did the same. Seen live right after #3135's deploy.
+
+**Fixed by** settling at the two functions every heuristics answer ends in: `dispatchNlResult` is now
+a thin wrapper around `dispatchNlResultInner` that settles done on return and error on throw, and
+`reportNlFailure` settles error. `completeReply` now settles only a reply that is still pending, so a
+later "answered" never turns a reply a failed tool call already marked error green, and a panel with
+no reply step is left alone.
+
+**Do not break:** `completeReply` must stay a no-op unless the reply step is pending — the AG-UI path,
+the tool path (`completeMcpToolCall`) and the heuristics path can all reach it for one prompt.
+
+**Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/services/__tests__/agentFlowDiagramService.test.js src/components/__tests__/AIAgent.heuristicReplySettles.test.js`
+— 4 fail before the fix (settled reply overwritten, empty panel marked done, heuristics answer and
+`/nl` failure left pending), 9/9 pass after; `npm run test:unit` 532 files / 4107 passed;
+`npm run build` exit 0.
+
 ### 2026-09-11 — AG-UI tool calls lost their flow trace when a session write landed mid-run
 
 **Files changed:** `demo_api_server/routes/agentRun.js`, `demo_api_server/routes/agentTool.js`,
