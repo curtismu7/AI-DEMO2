@@ -37,7 +37,7 @@
   margin: 0.4rem 0 0;
   font-size: var(--font-size-sm);
   line-height: 1.35;
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .gwv__note--auth { color: var(--th-status-warning); }
@@ -74,7 +74,7 @@
 .gwv__cat { font-weight: 700; color: var(--th-text); }
 .gwv__event,
 .gwv__dir,
-.gwv__time { color: var(--th-text-muted); }
+.gwv__time { color: var(--th-text-body); }
 
 .gwv__frameworks {
   display: flex;
@@ -95,7 +95,7 @@
   font-size: var(--font-size-sm);
 }
 
-.gwv__fw-label { color: var(--th-text-muted); }
+.gwv__fw-label { color: var(--th-text-body); }
 .gwv__fw-id {
   font-family: var(--font-mono);
   font-weight: 700;
