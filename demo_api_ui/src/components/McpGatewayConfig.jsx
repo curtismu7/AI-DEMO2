@@ -6,6 +6,7 @@ import GatewayRoutingDiagram from "./GatewayRoutingDiagram";
 import AgentGatewayConfigEditor from "./AgentGatewayConfigEditor";
 import AgentGatewayLogPanel from "./AgentGatewayLogPanel";
 import AgentGatewayTester from "./AgentGatewayTester";
+import InterAgentAbuseTester from "./InterAgentAbuseTester";
 import McpTrafficPage from "./McpTrafficPage";
 import TokenSecurityTester from "./TokenSecurityTester";
 import CapabilityCallout from "./CapabilityCallout";
@@ -726,6 +727,7 @@ MCP_RESOURCE_SERVER_RESOURCE_URI=https://mcp-invest.ping.demo
 			{activeTab === "tester" && (
 				<div className="mgc-panel">
 					<AgentGatewayTester />
+					<InterAgentAbuseTester />
 				</div>
 			)}
 			{activeTab === "logs" && (
