@@ -2,8 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { ATTACK_CATEGORIES, GUARDRAIL_ATTACKS } from './guardrailAttackCatalog';
 
 describe('guardrailAttackCatalog', () => {
-  it('has the seven chat-content threats', () => {
-    expect(GUARDRAIL_ATTACKS).toHaveLength(7);
+  // 7 chat-content threats that produce a real gateway verdict + 4 Tool & Agent
+  // Safety chips (effect 'none' here, they block on the tool path) + External
+  // Guardrail (the ML sidecar) = the full AIGuard detector policy, mirrored.
+  it('mirrors the full detector policy (12 chips)', () => {
+    expect(GUARDRAIL_ATTACKS).toHaveLength(12);
+  });
+
+  // The four Tool & Agent Safety chips must stay 'none': the chat lane fires no
+  // verdict for them (measured), and labeling them 'blocks' would be a fake chip.
+  it('the tool/agent chips are effect none', () => {
+    for (const id of ['tool_abuse', 'tool_poisoning', 'schema_violation', 'inter_agent_abuse']) {
+      const a = GUARDRAIL_ATTACKS.find((x) => x.id === id);
+      expect(a, id).toBeTruthy();
+      expect(a.effect, `${id} effect`).toBe('none');
+    }
   });
 
   it('every entry is complete and non-empty', () => {
