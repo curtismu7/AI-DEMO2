@@ -14,7 +14,14 @@ import './AgentFlowDiagramPanel.css';
 const REPLAY_TICK_MS = 900;
 const SEQ_ROW_H = 34;
 const SEQ_TOP_PAD = 12;
-const ACTOR_LABELS = { browser: 'Browser', bff: 'BFF', pingone: 'PingOne' };
+const ACTOR_LABELS = {
+  browser: 'Browser',
+  bff: 'BFF',
+  pingone: 'PingOne',
+  gateway: 'Agent Gateway',
+  authorize: 'PingOne Authorize',
+  mcp: 'MCP Server',
+};
 function actorLabel(actor) {
   return ACTOR_LABELS[actor] || actor.charAt(0).toUpperCase() + actor.slice(1);
 }

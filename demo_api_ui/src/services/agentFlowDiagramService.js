@@ -76,6 +76,8 @@ let state = {
   steps: [],
   serverEvents: [],
   hint: null,
+  /** The current turn's prompt — the rail's first step (set by startLlmReasoning). */
+  prompt: null,
   updatedAt: 0,
   complianceSteps: COMPLIANCE_STEPS.map(s => ({ ...s })),
   complianceStep: null,
@@ -190,6 +192,53 @@ function buildCompletedSteps(toolName, tokenEvents, ok, errorMessage) {
   return steps;
 }
 
+/** Swimlane [from, to] per step id — AgentFlowDiagramPanel's ACTOR_LABELS names the lanes. */
+const STEP_ACTORS = {
+  prompt: ['browser', 'bff'],
+  as: ['browser', 'pingone'],
+  agent: ['browser', 'bff'],
+  bff: ['bff', 'pingone'],
+  'mcp-gateway': ['bff', 'gateway'],
+  pingauthorize: ['gateway', 'authorize'],
+  mcp: ['gateway', 'mcp'],
+  tool: ['mcp', 'mcp'],
+  reply: ['bff', 'browser'],
+};
+
+/**
+ * Step statuses each BFF pipeline phase settles. A typed (AG-UI) run never calls
+ * startMcpToolCall/completeMcpToolCall — these SSE events are its only progress.
+ */
+const PHASE_STEP_STATUS = {
+  access_token_ready: { as: 'done', agent: 'done', bff: 'done' },
+  access_token_error: { bff: 'error' },
+  authorize_permitted: { 'mcp-gateway': 'done', pingauthorize: 'done' },
+  authorize_gate_skipped: { 'mcp-gateway': 'done', pingauthorize: 'done' },
+  authorize_denied: { 'mcp-gateway': 'done', pingauthorize: 'error' },
+  mcp_remote_begin: { 'mcp-gateway': 'done', mcp: 'active' },
+  mcp_remote_done: { mcp: 'done', tool: 'done' },
+  mcp_remote_tool_error: { mcp: 'done', tool: 'error' },
+  mcp_remote_unreachable: { mcp: 'error' },
+};
+
+const REPLY_DETAIL = {
+  pending: 'Waiting for the agent reply…',
+  done: 'Reply delivered to the chat',
+  error: 'Run ended without a reply',
+};
+
+/** Wrap a tool's hops with the prompt (when known) and the reply, tagged with swimlane actors. */
+function liveSteps(hops, replyStatus) {
+  const steps = [
+    ...(state.prompt ? [{ id: 'prompt', title: 'You → Agent', detail: state.prompt, status: 'done' }] : []),
+    ...hops,
+    { id: 'reply', title: 'Agent → You', detail: REPLY_DETAIL[replyStatus], status: replyStatus },
+  ];
+  return steps.map((s) => (STEP_ACTORS[s.id]
+    ? { ...s, actor: STEP_ACTORS[s.id][0], toActor: STEP_ACTORS[s.id][1] }
+    : s));
+}
+
 export const agentFlowDiagram = {
   subscribe(fn) {
     listeners.add(fn);
@@ -238,6 +287,20 @@ export const agentFlowDiagram = {
       });
       if (ids.length) { state.updatedAt = Date.now(); emit(); }
       return;
+    }
+
+    // Drive the step rail from the pipeline's own phases. `resolving_access_token`
+    // is the first event every pipeline run emits, so it starts a tool's hops —
+    // unless that tool is already running (the chip path calls startMcpToolCall
+    // first, and a duplicate must not wipe its progress).
+    // ponytail: one tool at a time — a multi-tool run shows the latest tool's hops.
+    if (payload.phase === 'resolving_access_token' && payload.tool
+      && !(state.phase === 'running' && state.toolName === payload.tool)) {
+      agentFlowDiagram.startMcpToolCall(payload.tool);
+    }
+    const settled = PHASE_STEP_STATUS[payload.phase];
+    if (settled) {
+      state.steps = state.steps.map((s) => (settled[s.id] ? { ...s, status: settled[s.id] } : s));
     }
 
     // Phase-based compliance map — keyed on ACTUAL server phase names from server.js
@@ -329,6 +392,7 @@ export const agentFlowDiagram = {
     state.steps = [];
     state.serverEvents = [];
     state.hint = 'Run a banking action in the agent to see each hop update live.';
+    state.prompt = null;
     state.updatedAt = Date.now();
     emit();
   },
@@ -353,7 +417,7 @@ export const agentFlowDiagram = {
     state.toolName = toolName;
     state.hint = null;
     state.serverEvents = [];
-    state.steps = [
+    state.steps = liveSteps([
       {
         id: 'as',
         title: 'PingOne — Demo User App',
@@ -396,7 +460,7 @@ export const agentFlowDiagram = {
         detail: 'In progress…',
         status: 'pending',
       },
-    ];
+    ], 'pending');
     state.updatedAt = Date.now();
     emit();
   },
@@ -407,7 +471,7 @@ export const agentFlowDiagram = {
   completeMcpToolCall({ toolName, tokenEvents, ok, errorMessage = null }) {
     state.phase = ok ? 'done' : 'error';
     state.toolName = toolName;
-    state.steps = buildCompletedSteps(toolName, tokenEvents, ok, errorMessage);
+    state.steps = liveSteps(buildCompletedSteps(toolName, tokenEvents, ok, errorMessage), ok ? 'done' : 'error');
     state.updatedAt = Date.now();
     emit();
   },
@@ -525,6 +589,23 @@ export const agentFlowDiagram = {
     const llmStep = state.complianceSteps.find(s => s.id === 'agent-llm-reasoning');
     if (llmStep) llmStep.status = 'done';
     state.complianceStep = 'agent-llm-reasoning';
+    // New turn: show the prompt now with a pending reply; the tool's hops slot in
+    // between once its pipeline starts (applyServerEvent → startMcpToolCall).
+    state.prompt = text || null;
+    state.phase = 'running';
+    state.toolName = null;
+    state.hint = null;
+    state.serverEvents = [];
+    state.steps = liveSteps([], 'pending');
+    state.updatedAt = Date.now();
+    emit();
+  },
+
+  /** Close the reply step when the agent run finishes (true) or fails (false) — useAgentRun calls it. */
+  completeReply(ok) {
+    const status = ok ? 'done' : 'error';
+    state.steps = state.steps.map((s) => (s.id === 'reply' ? { ...s, status, detail: REPLY_DETAIL[status] } : s));
+    state.phase = status;
     state.updatedAt = Date.now();
     emit();
   },

@@ -267,8 +267,13 @@ export function useAgentRun({
           } else if (event.type === 'STATE_DELTA') {
             callbacksRef.current.onStateDelta && callbacksRef.current.onStateDelta(event.delta);
           } else if (event.type === 'RUN_FINISHED') {
+            // An interrupt is a HITL pause — the reply has not arrived yet.
+            if (event.outcome?.type !== 'interrupt') {
+              try { agentFlowDiagram.completeReply(true); } catch (_) { /* display-only */ }
+            }
             callbacksRef.current.onFinished && callbacksRef.current.onFinished(event.outcome);
           } else if (event.type === 'RUN_ERROR') {
+            try { agentFlowDiagram.completeReply(false); } catch (_) { /* display-only */ }
             setError(event.message || 'Agent error');
             callbacksRef.current.onError && callbacksRef.current.onError(event.message || 'Agent error');
           }
