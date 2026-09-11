@@ -198,7 +198,8 @@ import "@testing-library/jest-dom";
 import axios from "axios";
 import { getCachedJson } from "../services/cachedStatusService";
 import { loadPublicConfig, savePublicConfig } from "../services/configService";
-import App from "../App";
+import App, { AgentFlowPage } from "../App";
+import { agentFlowDiagram } from "../services/agentFlowDiagramService";
 
 // Wire the mocks to proper implementations before every test
 beforeEach(() => {
@@ -288,6 +289,21 @@ describe("App — toast position", () => {
       "data-position",
       "bottom-left",
     );
+  });
+});
+
+describe("AgentFlowPage (/monitoring/agent-flow)", () => {
+  afterEach(() => {
+    agentFlowDiagram.close();
+  });
+
+  // The page mounts before <AgentFlowDiagramPanel/> (a later sibling in App)
+  // has attached its listener, so an `agent-flow-diagram-open` event fired from
+  // the page's effect was dropped on a fresh load and the panel never opened.
+  // No listener is mounted here (the panel is mocked) — exactly that timing.
+  it("opens the agent flow panel even when no listener is mounted yet", () => {
+    render(<AgentFlowPage />);
+    expect(agentFlowDiagram.getState().visible).toBe(true);
   });
 });
 

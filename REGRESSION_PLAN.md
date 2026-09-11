@@ -140,6 +140,31 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-11 — /monitoring/agent-flow never opened the Agent request flow panel on a fresh load
+
+**Files changed:** `demo_api_ui/src/App.js`, `demo_api_ui/src/__tests__/App.session.test.js`.
+
+**What was broken:** `AgentFlowPage` opened the panel by firing
+`agent-flow-diagram-open` from its mount effect. The page sits inside `<Routes>`,
+which renders before `<AgentFlowDiagramPanel/>` in App, so the page's effect ran
+before the panel's effect attached the listener — on a fresh load or reload the
+event went nowhere and the page showed only its "the request flow panel will
+appear automatically" copy, with no panel. Client-side navigation to the page
+worked, because by then the panel was already listening. Reproduced live:
+fresh load → no `.afd-panel`; firing the event by hand afterwards → panel opens.
+
+**Fixed by** calling `agentFlowDiagram.open()` (and `reset()` when there are no
+steps — the same steps the panel's listener takes) directly from the page's
+effect. The service holds module-level state, so it does not depend on mount order.
+
+**Do not break:** the panel still opens only on explicit user action — the
+`/monitoring/agent-flow` page, the agent header's "Agent flow diagram" switch, or
+the event. `startMcpToolCall` must not auto-open it.
+
+**Verify:** `cd demo_api_ui && ./node_modules/.bin/vitest run src/__tests__/App.session.test.js`
+— fails before the fix (`expected false to be true`), passes after (12/12);
+`npm run test:unit` 530 files / 4090 passed; `npm run build` exit 0.
+
 ### 2026-09-10 — Cookie-only session flag went stale after the 10s reconnect poll gave up
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`,

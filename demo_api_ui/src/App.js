@@ -290,9 +290,14 @@ const setupBrowserExtensionHandling = () => {
  * renders a blank placeholder so the URL stays valid (no silent redirect to /).
  */
 /** Page wrapper for /monitoring/agent-flow — opens the Agent Request Flow panel on mount. */
-function AgentFlowPage() {
+export function AgentFlowPage() {
   useEffect(() => {
-    window.dispatchEvent(new CustomEvent("agent-flow-diagram-open"));
+    // Open through the service, not the `agent-flow-diagram-open` event: this
+    // effect runs before <AgentFlowDiagramPanel/> (a later sibling in App) has
+    // attached its listener, so on a fresh load the event was dropped and the
+    // panel never opened. Same steps the panel's listener takes.
+    agentFlowDiagram.open();
+    if (!agentFlowDiagram.getState().steps.length) agentFlowDiagram.reset();
   }, []);
   return (
     <div
