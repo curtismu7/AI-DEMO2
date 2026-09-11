@@ -74,11 +74,12 @@ spec:
             - -c
             - |
               set -e
-              if [ -z "$GF_SECURITY_ADMIN_PASSWORD" ]; then
-                echo "grafana-secrets has no admin password; nothing to sync"; exit 0
-              fi
               if [ ! -f "$GF_PATHS_DATA/grafana.db" ]; then
                 echo "first boot; Grafana creates the admin from env"; exit 0
+              fi
+              if [ -z "$GF_SECURITY_ADMIN_PASSWORD" ]; then
+                echo "grafana-secrets has no admin password; refusing to start on the DB's old one" >&2
+                exit 1
               fi
               printf '%s' "$GF_SECURITY_ADMIN_PASSWORD" | grafana cli \
                 --homepath "$GF_PATHS_HOME" --config "$GF_PATHS_CONFIG" \
