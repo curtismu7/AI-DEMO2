@@ -9,10 +9,25 @@ import {
   isEnterpriseMcpDemoRoute,
   isPingOneAdminAgentRoute,
   isTokenChainRoute,
+  isMonitoringRoute,
 } from '../embeddedAgentFabVisibility';
 
 const customer = { role: 'customer', id: '1' };
 const admin = { role: 'admin', id: 'a1' };
+
+describe('isMonitoringRoute', () => {
+  it('shows the floating agent on /identity-chain so a call can be made and its decision watched on the same page', () => {
+    expect(isMonitoringRoute('/identity-chain')).toBe(true);
+    expect(isMonitoringRoute('/identity-chain/')).toBe(true);
+  });
+
+  it('still matches the existing observability pages and nothing unrelated', () => {
+    expect(isMonitoringRoute('/api-traffic')).toBe(true);
+    expect(isMonitoringRoute('/monitoring/token-chain')).toBe(true);
+    expect(isMonitoringRoute('/transaction-trace')).toBe(false);
+    expect(isMonitoringRoute('/identity-chainsaw')).toBe(false);
+  });
+});
 
 describe('isBankingAgentDashboardRoute', () => {
   it('matches home dashboards only', () => {
