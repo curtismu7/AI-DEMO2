@@ -51,7 +51,7 @@
 
 .vpm-recheck-btn {
   background: var(--th-status-info);
-  color: #fff;
+  color: var(--th-text-invert);
   border: none;
   border-radius: 6px;
   padding: 6px 14px;
@@ -84,6 +84,13 @@
   min-height: 400px;
   --xy-background-color: var(--th-bg-card);
   --xy-background-pattern-color: var(--th-border);
+  --xy-minimap-background-color: var(--th-bg-inset);
+  /* Stays semi-transparent (React Flow's own default) so the minimap content
+     under the current-viewport mask stays visible — a solid --th-* here would
+     paint over it. */
+  --xy-minimap-mask-background-color: color-mix(in srgb, var(--th-bg-page) 55%, transparent);
+  --xy-minimap-mask-stroke-color: var(--th-border);
+  --xy-minimap-node-stroke-color: var(--th-border);
   --xy-controls-button-background-color: var(--th-bg-card);
   --xy-controls-button-background-color-hover: var(--th-bg-inset);
   --xy-controls-button-color: var(--th-text);
