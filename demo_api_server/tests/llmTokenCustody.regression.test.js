@@ -120,9 +120,12 @@ describe('agentRun — recording the tools offered to an external agent run', ()
     expect(req.session.agentRunToolNames.sort()).toEqual(['get_balance', 'get_my_accounts']);
   });
 
-  test('rejects when the session store cannot save, so the run is not started', async () => {
-    const req = { session: { save: (cb) => cb(new Error('store down')) } };
+  test('rejects when the session store cannot save, and leaves the earlier list untouched', async () => {
+    const req = { session: { agentRunToolNames: ['get_balance'], save: (cb) => cb(new Error('store down')) } };
     await expect(recordOfferedTools(req, [{ name: 'get_my_accounts' }])).rejects.toThrow('store down');
+    // express-session writes a modified session when the 503 ends: a run that
+    // never started must not leave its tools on the list.
+    expect(req.session.agentRunToolNames).toEqual(['get_balance']);
   });
 });
 

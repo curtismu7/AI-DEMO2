@@ -204,8 +204,15 @@ async function resolveAgentTarget({ message, vertical } = {}) {
 // runs in one session share the list. Saved before the run starts because the
 // agent calls back mid-run; a failed save rejects, so the run is not started.
 function recordOfferedTools(req, tools) {
-  req.session.agentRunToolNames = [...new Set([...(req.session.agentRunToolNames || []), ...tools.map((t) => t.name)])];
-  return new Promise((resolve, reject) => req.session.save((e) => (e ? reject(e) : resolve())));
+  const previous = req.session.agentRunToolNames;
+  req.session.agentRunToolNames = [...new Set([...(previous || []), ...tools.map((t) => t.name)])];
+  return new Promise((resolve, reject) => req.session.save((e) => {
+    if (!e) return resolve();
+    // express-session writes a modified session when the response ends, so put
+    // the list back: a run that never started must not leave its tools on it.
+    req.session.agentRunToolNames = previous;
+    reject(e);
+  }));
 }
 
 function resolveAgentRunTools(currentTools, activeId) {
