@@ -24,14 +24,20 @@
 }
 .hm-header-title {
   color: var(--th-text);
+  font-size: 0.78rem;
 }
 
 .hm-btn {
+  background: none;
+  border: none;
   color: var(--th-text-body);
 }
 .hm-btn--bordered {
   border: 1px solid var(--th-border);
 }
+.hm-toggle-btn { font-size: 0.95rem; }
+.hm-close-x { font-size: 0.9rem; }
+.hm-icon-btn { font-size: 0.68rem; }
 
 .hm-footer {
   border-top: 1px solid var(--th-border);
@@ -42,3 +48,4 @@
   background: var(--th-bg-card);
   color: var(--th-text-body);
 }
+.hm-footer-close-btn { font-size: 0.75rem; }

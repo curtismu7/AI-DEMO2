@@ -254,30 +254,30 @@ export default function HistoryModal({ history, onClear }) {
           cursor: 'grab', flexShrink: 0,
         }}
       >
-        <button onClick={() => setOpen(o => !o)} className="hm-btn" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.95rem', padding: 0, lineHeight: 1 }}>
+        <button onClick={() => setOpen(o => !o)} className="hm-btn hm-toggle-btn" style={{ cursor: 'pointer', padding: 0, lineHeight: 1 }}>
           {open ? '▾' : '▸'}
         </button>
-        <span className="hm-header-title" style={{ flex: 1, fontSize: '0.78rem', fontWeight: 700 }}>
+        <span className="hm-header-title" style={{ flex: 1, fontWeight: 700 }}>
           Token History ({history.length})
         </span>
         <button
           onMouseDown={e => e.stopPropagation()}
           onClick={popOut}
           title="Pop out to new window"
-          className="hm-btn hm-btn--bordered"
-          style={{ background: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.68rem', padding: '2px 6px' }}
+          className="hm-btn hm-btn--bordered hm-icon-btn"
+          style={{ cursor: 'pointer', padding: '2px 6px' }}
         >🪟 Pop out</button>
         <button
           onMouseDown={e => e.stopPropagation()}
           onClick={onClear}
-          className="hm-btn hm-btn--bordered"
-          style={{ background: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.68rem', padding: '2px 6px' }}
+          className="hm-btn hm-btn--bordered hm-icon-btn"
+          style={{ cursor: 'pointer', padding: '2px 6px' }}
         >✕ Clear</button>
         <button
           onMouseDown={e => e.stopPropagation()}
           onClick={() => setVisible(false)}
-          className="hm-btn"
-          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.9rem', padding: 0, lineHeight: 1 }}
+          className="hm-btn hm-close-x"
+          style={{ cursor: 'pointer', padding: 0, lineHeight: 1 }}
         >✕</button>
       </div>
 
@@ -295,8 +295,8 @@ export default function HistoryModal({ history, onClear }) {
               type="button"
               onMouseDown={e => e.stopPropagation()}
               onClick={() => setVisible(false)}
-              className="hm-btn hm-btn--bordered"
-              style={{ padding: '3px 10px', borderRadius: 4, cursor: 'pointer', fontSize: '0.75rem' }}
+              className="hm-btn hm-btn--bordered hm-footer-close-btn"
+              style={{ padding: '3px 10px', borderRadius: 4, cursor: 'pointer' }}
             >
               Close
             </button>
