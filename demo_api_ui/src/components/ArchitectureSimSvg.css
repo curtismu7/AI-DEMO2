@@ -2,9 +2,11 @@
    That palette is documented and duplicated in ArchitectureOverviewPage.js's
    own legend ("stays its own fixed colors regardless of theme"); changing one
    without the other silently desyncs the legend from the diagram.
-   The canvas BACKGROUND is the one themed piece: the original SVG painted no
-   background of its own and simply showed through to .aov-diagram-wrap's
-   --th-bg-card, so forcing a literal white here would newly break dark mode. */
+   The canvas BACKGROUND and CONTROLS are the themed pieces: the original SVG
+   painted no background of its own and simply showed through to
+   .aov-diagram-wrap's --th-bg-card, so a literal light background/icon color
+   here would newly break dark mode (Greptile caught the controls at ~2.25:1
+   contrast in dark mode when only the background had been themed). */
 
 .asim-canvas {
   width: 100%;
@@ -13,9 +15,9 @@
   --xy-background-color: var(--th-bg-card);
   --xy-controls-button-background-color: var(--th-bg-card);
   --xy-controls-button-background-color-hover: var(--th-bg-inset);
-  --xy-controls-button-color: #475569;
-  --xy-controls-button-color-hover: #1e293b;
-  --xy-controls-button-border-color: #cbd5e1;
+  --xy-controls-button-color: var(--th-text);
+  --xy-controls-button-color-hover: var(--th-text);
+  --xy-controls-button-border-color: var(--th-border);
   --xy-attribution-background-color: transparent;
 }
 .asim-canvas .react-flow__handle { opacity: 0; pointer-events: none; }
