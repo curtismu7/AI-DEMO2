@@ -658,6 +658,25 @@
   resize: vertical;
 }
 
+/* 🔍 on: the whole prompt, large. field-sizing grows the box to its content
+   and re-measures when A+ rescales the token; where it is unsupported the
+   rows={12} the toggle sets is the fallback. */
+.lgw-composer textarea.is-presenting {
+  font-size: var(--font-size-2xl);
+  field-sizing: content;
+  max-height: 70vh;
+}
+
+.lgw-bigprompt {
+  font-size: var(--font-size-base);
+}
+
+.lgw-bigprompt[aria-pressed="true"] {
+  border-color: var(--th-accent, var(--th-text));
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
+}
+
 .lgw-send {
   padding: 0.4rem 0.9rem;
   border: 1px solid var(--th-border);

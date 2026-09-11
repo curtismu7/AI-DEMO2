@@ -308,6 +308,7 @@ export default function LlmGatewayPage() {
   // no console token is connected — the lane cards then show what they always did.
   const [consoleKeys, setConsoleKeys] = useState([]);
   const [selectedAttack, setSelectedAttack] = useState(() => window.localStorage.getItem('lgw-attack-choice') || '');
+  const [bigPrompt, setBigPrompt] = useState(false);
   // Cue text for whoever is driving the demo. Off by default and remembered per
   // browser, so the audience never reads the script over the presenter's shoulder.
   const [presenterNotes, setPresenterNotes] = useState(() => window.localStorage.getItem('lgw-presenter-notes') === '1');
@@ -881,8 +882,21 @@ export default function LlmGatewayPage() {
           <div className="lgw-composer">
             {/* Multi-line so an attack payload with embedded newlines shows
                 exactly as it will be sent. Enter sends; Shift+Enter adds a line. */}
+            {/* 🔍 shows the whole prompt, large, for a room: the 3-row box hides
+                most of an attack payload, and A+ only enlarges the visible part. */}
+            <button
+              type="button"
+              className="lgw-theme lgw-bigprompt"
+              onClick={() => setBigPrompt((on) => !on)}
+              title="Show the whole prompt large"
+              aria-label="Show the whole prompt large"
+              aria-pressed={bigPrompt}
+            >
+              🔍
+            </button>
             <textarea
-              rows={3}
+              rows={bigPrompt ? 12 : 3}
+              className={bigPrompt ? 'is-presenting' : undefined}
               aria-label="Prompt"
               value={prompt}
               placeholder={`Ask through ${TITLES[selected] || selected}…`}
