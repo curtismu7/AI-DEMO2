@@ -16,6 +16,21 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-11 — HistoryModal.js is unthemed (23 inline style blocks)
+
+**What's wrong.** `demo_api_ui/src/components/HistoryModal.js` (shared by
+`ArchitectureFlowPage.js` and `ArchitectureDiagramPage.js`) has no CSS file —
+all colors/backgrounds live in inline `style={{}}` objects, so it never
+follows the app's light/dark toggle, the same THEMING.md §8.3 issue
+`VerticalPipelineMap` and `ArchitectureFlowPage` had before their fixes.
+
+**Why it wasn't fixed now.** It's shared by two components; theming it would
+touch `ArchitectureDiagramPage.js`'s rendering too, which was out of scope for
+the ArchitectureFlowPage theming pass that found this.
+
+**Real fix.** Same pattern as the other two: extract to `HistoryModal.css`,
+theme via `--th-*` tokens, verify both call sites still render correctly.
+
 ### [ ] 2026-09-10 — Agentic Access Console renders static/illustrative data, not live endpoints
 
 **What's wrong.** `demo_api_ui/src/pages/AgenticAccessConsolePage.js` and its nine

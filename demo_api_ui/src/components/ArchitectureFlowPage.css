@@ -1,0 +1,114 @@
+/* ArchitectureFlowPage.css — page chrome around the /architecture/flow
+   simulation follows the app theme via --th-*.
+
+   Deliberately NOT in scope: AudTrail, FlowClaimRow/OneFlowCard/TokenCard
+   (documented "light-background, readable" token-detail overlays — rule 3),
+   and every ArchNode colorClass except `default` (active/error/permit/hitl
+   are semantic status accents, also rule 3 — see the COLOR map's comment in
+   ArchitectureFlowPage.js). Only ArchNode's idle state and the generic page
+   chrome — title, scenario picker, banners, the canvas and its React Flow
+   chrome — are themed here.
+
+   arch-node-pulse's keyframes stay in the inline <style> tag in the JSX,
+   not here — it's a colored pulse-glow animation (fixed blue, matching the
+   "active" status accent), not a plain elevation shadow, so the shadow-scale
+   ratchet's var(--shadow-sm|md|lg) suggestion doesn't fit it. */
+
+.afp-title {
+  color: var(--th-text);
+}
+
+.afp-scenario-label {
+  color: var(--th-text-muted);
+}
+
+.afp-scenario-select {
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.afp-step-badge {
+  color: var(--th-text-muted);
+  background: var(--th-bg-inset);
+  border: 1px solid transparent;
+}
+.afp-step-badge--paused {
+  background: var(--th-status-warning-bg);
+  border-color: var(--th-status-warning-border);
+  color: var(--th-status-warning-text);
+}
+
+.afp-step-desc {
+  background: var(--th-status-info-bg);
+  border: 1px solid var(--th-status-info-border);
+  color: var(--th-status-info-text);
+}
+.afp-step-desc strong {
+  color: var(--th-status-info);
+}
+
+.afp-agent-banner {
+  border: 1px solid transparent;
+}
+.afp-agent-banner--ok {
+  background: var(--th-status-success-bg);
+  border-color: var(--th-status-success-border);
+  color: var(--th-status-success-text);
+}
+.afp-agent-banner--error {
+  background: var(--th-status-error-bg);
+  border-color: var(--th-status-error-border);
+  color: var(--th-status-error-text);
+}
+.afp-agent-banner--warn {
+  background: var(--th-status-warning-bg);
+  border-color: var(--th-status-warning-border);
+  color: var(--th-status-warning-text);
+}
+.afp-agent-banner-title {
+  color: var(--th-text);
+}
+.afp-agent-banner-tool {
+  background: var(--th-bg-inset);
+  color: var(--th-status-info);
+}
+.afp-agent-banner-detail,
+.afp-agent-banner-phase {
+  color: var(--th-text-muted);
+}
+
+.afp-canvas-wrap {
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+.afp-canvas {
+  height: 100%;
+  --xy-background-color: var(--th-bg-card);
+  --xy-background-pattern-color: var(--th-border);
+  --xy-minimap-background-color: var(--th-bg-inset);
+  --xy-minimap-mask-background-color: color-mix(in srgb, var(--th-bg-page) 55%, transparent);
+  --xy-minimap-mask-stroke-color: var(--th-border);
+  --xy-minimap-node-stroke-color: var(--th-border);
+  --xy-controls-button-background-color: var(--th-bg-card);
+  --xy-controls-button-background-color-hover: var(--th-bg-inset);
+  --xy-controls-button-color: var(--th-text);
+  --xy-controls-button-color-hover: var(--th-text);
+  --xy-controls-button-border-color: var(--th-border);
+  --xy-attribution-background-color: transparent;
+}
+
+.afp-help-text {
+  color: var(--th-text-muted);
+}
+
+/* The idle-state placeholder shown where TokenCard renders once a step is
+   active. It sits directly on the (now themed) canvas, so it needs to follow
+   the theme too — a translucent literal white blended fine against the old
+   always-light canvas but would read as a stray white box on a dark one. */
+.afp-token-placeholder {
+  background: color-mix(in srgb, var(--th-bg-card) 90%, transparent);
+  border: 1px dashed var(--th-border);
+  color: var(--th-text-muted);
+}
