@@ -1,0 +1,101 @@
+/* IdentityChainPage — /identity-chain. Theme tokens only (THEMING.md). */
+
+.icp-page {
+  padding: 1.5rem;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.icp-title {
+  margin: 0 0 0.5rem;
+  font-size: var(--font-size-2xl);
+  color: var(--th-text);
+}
+
+.icp-intro,
+.icp-empty {
+  margin: 0 0 1rem;
+  font-size: var(--font-size-body);
+  color: var(--th-text-muted);
+}
+
+.icp-error {
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.75rem;
+  font-size: var(--font-size-sm);
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+}
+
+.icp-card {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.icp-card__head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 0.75rem;
+}
+
+.icp-card__time {
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+}
+
+.icp-chain {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.icp-step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--th-border);
+  border-top-width: 3px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  min-width: 0;
+}
+
+.icp-step--ok {
+  border-top-color: var(--th-status-success-text);
+}
+
+.icp-step--warn {
+  border-top-color: var(--th-status-warning-text);
+}
+
+.icp-step--blocked {
+  border-top-color: var(--th-status-error-text);
+}
+
+.icp-step__label {
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--th-text-muted);
+}
+
+.icp-step__value {
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  color: var(--th-text);
+  overflow-wrap: anywhere;
+}
+
+.icp-step__detail {
+  font-size: var(--font-size-xs);
+  color: var(--th-text-body);
+  overflow-wrap: anywhere;
+}

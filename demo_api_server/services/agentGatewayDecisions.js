@@ -4,11 +4,13 @@
  * agentGatewayDecisions — in-memory ring buffer of the most recent Real Agent
  * Gateway (PingGateway / IG) authorization decisions.
  *
- * The gateway emits an X-Gw-Audit-Trail header (introspection + the full PingOne
- * Authorize request/response) on every MCP call; mcpGatewayClient.js parses it
- * into `gwAuditTrail`. record() is called there so the admin UI's decision panel
- * can show WHY a call was permitted or denied (e.g. an invalid-actor-chain DENY)
- * without the operator having to grep container logs.
+ * PingGateway's p1az-decision.groovy builds an audit trail (token claims + the full
+ * PingOne Authorize request/response) on every MCP call and POSTs it to
+ * /internal/gateway-decision (routes/gatewayDecisionIngest.js), which calls
+ * record(). That covers every caller — including third-party apps that send no
+ * correlation id — so the decision panel and /identity-chain can show WHY a call
+ * was permitted or denied (e.g. an invalid-actor-chain DENY) without the operator
+ * having to grep container logs.
  *
  * Intentionally in-memory + bounded: this is a live debugging aid, not an audit
  * of record (the durable trail is the gateway/authz logs). Lost on restart.
@@ -37,6 +39,13 @@ function record(trail, meta = {}) {
       vertical: authorize.vertical || '',
       sub: introspection.sub || '',
       clientId: introspection.client_id || '',
+      // Token claims for the identity chain: which audience/scopes/issuer the
+      // caller's token carried, and the delegated agent (act) if there was one.
+      aud: introspection.aud || '',
+      scope: introspection.scope || '',
+      iss: introspection.iss || '',
+      email: introspection.email || '',
+      actor: (trail.mcpAudit && trail.mcpAudit.who && trail.mcpAudit.who.agentSub) || '',
       correlationId: meta.correlationId || '',
       reason: authorize.reason || null,
       // statements: real PingOne Authorize deny/permit statements (the actionable

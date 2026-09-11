@@ -22,7 +22,8 @@ const REFRESH_MS = 4000;
 
 // A real PingOne Authorize statement carries a JSON string payload; pull a
 // human message out of it for display, falling back to the statement name.
-function statementMessage(stmt) {
+// Exported for IdentityChainPage, which shows the same deny/permit statements.
+export function statementMessage(stmt) {
   if (!stmt) return '';
   try {
     const p = typeof stmt.payload === 'string' ? JSON.parse(stmt.payload) : stmt.payload;
