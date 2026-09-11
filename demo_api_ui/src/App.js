@@ -146,6 +146,7 @@ import AgentRegistryPage from "./pages/AgentRegistryPage";
 import CheckPage from "./pages/CheckPage";
 import TracingPage from "./pages/TracingPage";
 import TransactionTracePage from "./pages/TransactionTracePage";
+import IdentityChainPage from "./pages/IdentityChainPage";
 import AutonomousAgentsPage from "./pages/AutonomousAgentsPage";
 import FootprintPicksPage from "./pages/FootprintPicksPage";
 import FootprintMockGalleryPage from "./pages/FootprintMockGalleryPage";
@@ -971,6 +972,21 @@ function AppWithAuth() {
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
                           <TransactionTracePage />
+                        </main>
+                      </>
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
+                />
+                <Route
+                  path="/identity-chain"
+                  element={
+                    loading ? null : user ? (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <IdentityChainPage />
                         </main>
                       </>
                     ) : (

@@ -177,7 +177,7 @@ const AUTO_EXPAND_SECTIONS = [
   // breaks the single-section accordion.
   { id: "industry-verticals", paths: ["/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/university", "/admin/government", "/admin/manufacturing", "/admin/investment", "/admin/abercrombie-fitch", "/admin/verticals", "/path/mortgage"] },
   { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit"] },
-  { id: "telemetry", paths: ["/tracing", "/telemetry", "/transaction-trace", "/check"] },
+  { id: "telemetry", paths: ["/tracing", "/telemetry", "/transaction-trace", "/identity-chain", "/check"] },
   { id: "agent-studio-preview", paths: ["/iga-for-ai", "/discovery-preview", "/privileges-gateway-preview", "/platform-gaps"] },
   { id: "learn-present", paths: ["/learning", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide"] },
   { id: "tests", paths: ["/resource-server", "/resource-server-cc"] },
@@ -955,6 +955,7 @@ export default function AdminSideNav({
         { label: "Service Graph", path: "/telemetry", icon: "log" },
         { label: "Tracing", path: "/tracing", icon: "log" },
         { label: "Transaction Trace", path: "/transaction-trace", icon: "log" },
+        { label: "Identity Chain", path: "/identity-chain", icon: "log" },
         {
           // External, so it uses the same action+window.open shape as PAC
           // Editor rather than a router path. Grafana holds PingGateway's own

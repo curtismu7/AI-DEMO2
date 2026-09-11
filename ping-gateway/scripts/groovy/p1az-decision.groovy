@@ -317,6 +317,10 @@ def introspectionData = [
     exp       : tokenInfo['exp'],
     iss       : tokenIss,
     client_id : tokenInfo['client_id'] ?: sub,
+    // For /identity-chain: the audience the token actually carried, and the
+    // user's email when the IdP put one in the token.
+    aud       : tokenAudActual ?: null,
+    email     : tokenInfo['email'] ?: null,
 ]
 
 // ── Parse JSON-RPC body for method / tool / args ──────────────────────────────
@@ -1163,6 +1167,45 @@ def auditTrail = [
     lastFilter: (outcome == 'PERMIT' && !obligationKind ? 'P1AZDecision' : null),
 ]
 def auditTrailJson = JsonOutput.toJson(auditTrail)
+
+// ── Publish the decision to the BFF (/identity-chain) ─────────────────────────
+// Fire-and-forget, same pattern and trust model as transaction-hop.groovy: a
+// daemon thread so a slow or dead BFF never adds latency, every failure
+// swallowed. Unlike the hop this needs NO correlation id — third-party callers
+// (e.g. Onyx) never send one, and the decision itself is the record the viewer
+// shows. The URL is the hop URL's sibling, so no new env var is needed.
+def hopUrlForDecision = System.getenv('BFF_TRANSACTION_HOP_URL') ?: ''
+def decisionIngestUrl = hopUrlForDecision.endsWith('/internal/transaction-hop') ?
+    hopUrlForDecision.replace('/internal/transaction-hop', '/internal/gateway-decision') : ''
+def decisionIngestSecret = System.getenv('BFF_INTERNAL_SECRET') ?: ''
+if (decisionIngestUrl && decisionIngestSecret) {
+    def allowInsecureDecisionHostname = System.getenv('PG_ALLOW_INSECURE_VAULT_HOSTNAME') == 'true'
+    def publishDecision = new Thread({
+        try {
+            def conn = new URL(decisionIngestUrl).openConnection() as java.net.HttpURLConnection
+            // Same opt-in hostname relaxation as transaction-hop.groovy (in-cluster
+            // the BFF is demo-api-server, not a SAN on the mkcert cert).
+            if (allowInsecureDecisionHostname && conn instanceof javax.net.ssl.HttpsURLConnection) {
+                conn.setHostnameVerifier({ String hostname, javax.net.ssl.SSLSession session ->
+                    hostname == 'demo-api-server' || hostname == 'api.ping.demo' || hostname == 'localhost'
+                } as javax.net.ssl.HostnameVerifier)
+            }
+            conn.requestMethod = 'POST'
+            conn.doOutput = true
+            conn.connectTimeout = 2000
+            conn.readTimeout = 2000
+            conn.setRequestProperty('Content-Type', 'application/json')
+            conn.setRequestProperty('x-internal-gateway-secret', decisionIngestSecret)
+            conn.outputStream.withWriter('UTF-8') { it.write(auditTrailJson) }
+            conn.responseCode
+            try { conn.inputStream?.close() } catch (Exception ignored2) {}
+        } catch (Exception e) {
+            logger.warn('[P1AZ] decision publish failed: ' + e.message)
+        }
+    } as Runnable)
+    publishDecision.daemon = true
+    publishDecision.start()
+}
 
 // Step-up obligation: the caller must complete MFA, not find a human. Answer 428
 // with a distinct error code so the agent drives the MFA modal and retries with a

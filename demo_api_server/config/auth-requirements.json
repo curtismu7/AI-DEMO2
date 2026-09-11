@@ -169,6 +169,7 @@
     "/gateway-enforcement-map": "public",
     "/graphify": "public",
     "/group-policy": "user",
+    "/identity-chain": "user",
     "/iga-for-ai": "public",
     "/intent-binding-learning": "public",
     "/invest-dual-auth": "public",
