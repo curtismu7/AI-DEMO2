@@ -1,0 +1,114 @@
+/* ArchitectureSimSvg.css — the node/edge palette is FIXED, not --th-* themed.
+   That palette is documented and duplicated in ArchitectureOverviewPage.js's
+   own legend ("stays its own fixed colors regardless of theme"); changing one
+   without the other silently desyncs the legend from the diagram.
+   The canvas BACKGROUND and CONTROLS are the themed pieces: the original SVG
+   painted no background of its own and simply showed through to
+   .aov-diagram-wrap's --th-bg-card, so a literal light background/icon color
+   here would newly break dark mode (Greptile caught the controls at ~2.25:1
+   contrast in dark mode when only the background had been themed). */
+
+.asim-canvas {
+  width: 100%;
+  height: 520px;
+  min-width: 700px;
+  --xy-background-color: var(--th-bg-card);
+  --xy-controls-button-background-color: var(--th-bg-card);
+  --xy-controls-button-background-color-hover: var(--th-bg-inset);
+  --xy-controls-button-color: var(--th-text);
+  --xy-controls-button-color-hover: var(--th-text);
+  --xy-controls-button-border-color: var(--th-border);
+  --xy-attribution-background-color: transparent;
+}
+.asim-canvas .react-flow__handle { opacity: 0; pointer-events: none; }
+
+.asim-col-label {
+  width: 100%;
+  font-size: var(--font-size-3xs);
+  color: #94a3b8;
+  font-family: system-ui, sans-serif;
+  text-align: center;
+  pointer-events: none;
+}
+
+.asim-node {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 7px;
+  border: 1.5px solid #cbd5e1;
+  background: #f1f5f9;
+  color: #475569;
+  font-family: system-ui, sans-serif;
+  text-align: center;
+  padding: 4px 6px;
+}
+.asim-node-label { font-size: var(--font-size-sm); font-weight: 700; }
+.asim-node-sub { font-size: var(--font-size-3xs); opacity: 0.8; }
+.asim-node-badge {
+  position: absolute;
+  top: -10px;
+  right: -4px;
+  font-size: var(--font-size-sm);
+}
+
+.asim-node[data-state="active"] {
+  border-width: 2px;
+  border-color: #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+  filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.6));
+  animation: asim-pulse 1s linear infinite;
+}
+.asim-node[data-state="done"] {
+  border-width: 2px;
+  border-color: #22c55e;
+  background: #f0fdf4;
+  color: #166534;
+}
+.asim-node[data-state="blocked"] {
+  border-width: 2px;
+  border-color: #ef4444;
+  background: #fef2f2;
+  color: #991b1b;
+  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.5));
+}
+
+@keyframes asim-pulse {
+  0%, 100% { border-color: #f59e0b; }
+  50% { border-color: rgba(245, 158, 11, 0.4); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .asim-node[data-state="active"] { animation: none; }
+}
+
+/* ---------- edges ---------- */
+.asim-edge {
+  fill: none;
+  stroke-width: 1.5;
+  stroke: #cbd5e1;
+}
+.asim-edge[data-state="active"] {
+  stroke: #f59e0b;
+  stroke-width: 2.5;
+  stroke-dasharray: 6 4;
+  animation: asim-dash 0.5s linear infinite;
+}
+.asim-edge[data-state="done"] { stroke: #22c55e; stroke-width: 2; }
+.asim-edge[data-state="blocked"] { stroke: #ef4444; stroke-width: 2; }
+
+@keyframes asim-dash { to { stroke-dashoffset: -10; } }
+@media (prefers-reduced-motion: reduce) {
+  .asim-edge[data-state="active"] { animation: none; }
+}
+
+.asim-arrowhead { fill: #cbd5e1; }
+.asim-arrowhead[data-state="active"] { fill: #f59e0b; }
+.asim-arrowhead[data-state="done"] { fill: #22c55e; }
+.asim-arrowhead[data-state="blocked"] { fill: #ef4444; }
