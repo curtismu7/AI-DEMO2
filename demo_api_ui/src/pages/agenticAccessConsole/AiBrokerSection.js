@@ -198,7 +198,7 @@ export default function AiBrokerSection({ user }) {
       </div>
 
       <div className="aac-section-block">
-        <h3>AI Guard — Attack Library</h3>
+        <h3>AI Guard — Attack Library <span className="aac-badge aac-badge--neutral">Static</span></h3>
         <p className="aac-card-sub" style={{ marginBottom: 8 }}>
           Source: <code>config/guardrailAttackCatalog.js</code>
         </p>

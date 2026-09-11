@@ -55,16 +55,18 @@ Most sections now fetch real endpoints instead of importing a local constant:
 - **Live, signed-in only (public page, real per-user data):** Agents'
   identity cards (`GET /api/registry/agents` — real PingOne/workload/A2A
   rows, not the 4 illustrative framework names), Policies' decision log
-  (`GET /api/authorize/recent-decisions`, degrades to a named "not configured"
-  state), CIBA's step-up approvals (new `GET /api/auth/ciba/requests`, reads
+  and Dashboard's recent-decisions table (both `GET /api/authorize/recent-decisions`,
+  degrade to a named "not configured" state; Dashboard added 2026-09-10), CIBA's step-up approvals (new `GET /api/auth/ciba/requests`, reads
   the session's existing `req.session.cibaRequests`), and AI Broker's recent
   attempts log (new `GET /api/privilege-mcp/llm/guardrail-attempts`, backed by
   a new 20-entry ring buffer in `services/guardrailAttemptLog.js` that
   `POST /api/privilege-mcp/llm/call` appends to after each real Privilege
   verdict). All four render the original illustrative content, labeled "Sign
   in to see live data," for anonymous visitors.
-- **Still illustrative, on purpose:** Dashboard tab (not in scope this pass —
-  next target per the note above), Auth tab, Servers' Privilege-registered and
+- **Still illustrative, on purpose:** Dashboard's stat tiles and coverage
+  tables (no endpoint aggregates them — badged "Static"/"Illustrative"; the
+  "1,842 decisions (24h)" tile is invented and needs a 24h count endpoint,
+  since `recent-decisions` caps at 20), AI Broker's Attack Library, Auth tab, Servers' Privilege-registered and
   dev/diagnostic tiers and the resource-server tool list (no live endpoint),
   CIBA's Agentic Apps registry and A2A protocol panels (need an operator
   connect step this public page can't perform), and Token Exchange's 4-step
