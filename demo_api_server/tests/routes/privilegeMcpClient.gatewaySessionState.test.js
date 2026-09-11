@@ -10,7 +10,7 @@ const privilegeGatewaySession = require('../../services/privilegeGatewaySession'
 const TOKEN_URI = 'https://mcpgw.ai-demo.ping-devops.com/oauth/token';
 
 describe('GET /api/privilege-mcp/state — gatewaySession', () => {
-  afterEach(() => privilegeGatewaySession.clear());
+  afterEach(() => privilegeGatewaySession.clearAll());
 
   it('reports no_session when no human has signed in', async () => {
     privilegeGatewaySession.clear();
@@ -50,5 +50,16 @@ describe('GET /api/privilege-mcp/state — gatewaySession', () => {
     const res = await request(app).get('/api/privilege-mcp/state').expect(200);
 
     expect(res.body.gatewaySession).toEqual({ ready: true, reason: 'refreshable' });
+  });
+
+  it('reports each app\'s session alongside the default one', async () => {
+    privilegeGatewaySession.remember({
+      app: 'opensearch', accessToken: 'tok', expiresIn: 3600, tokenUri: TOKEN_URI,
+    });
+
+    const res = await request(app).get('/api/privilege-mcp/state').expect(200);
+
+    expect(res.body.gatewaySessionsByApp).toEqual({ opensearch: { ready: true } });
+    expect(res.body.gatewaySession).toEqual({ ready: false, reason: 'no_session' });
   });
 });

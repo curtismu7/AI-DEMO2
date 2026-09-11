@@ -1504,17 +1504,21 @@ async function isDcrClientStillKnown(tokenUri, client) {
 async function getOrRegisterDcrClient(authorizationUri, redirectUri, tokenEndpointAuthMethod = 'client_secret_post') {
   const registerUri = new URL(authorizationUri);
   registerUri.pathname = registerUri.pathname.replace(/\/authorize$/, '/register');
-  const cacheKey = registerUri.toString();
+  const registerUrl = registerUri.toString();
+  // Keyed by redirect URI too: the gateway binds a client to the redirect URIs
+  // it registered, and /facade-link/callback is a different one from
+  // /auth/callback for the same app.
+  const cacheKey = `${registerUrl} ${redirectUri}`;
   if (dcrClientCache.has(cacheKey)) {
     const cached = dcrClientCache.get(cacheKey);
-    const tokenUri = cacheKey.replace(/\/register$/, '/token');
+    const tokenUri = registerUrl.replace(/\/register$/, '/token');
     if (await isDcrClientStillKnown(tokenUri, cached)) return cached;
     // The gateway restarted and forgot us. Drop it and register again below,
     // rather than handing the browser a client_id that can only 400.
     dcrClientCache.delete(cacheKey);
   }
 
-  const response = await fetch(cacheKey, {
+  const response = await fetch(registerUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -1543,7 +1547,7 @@ async function getOrRegisterDcrClient(authorizationUri, redirectUri, tokenEndpoi
 // endpoints, registers a DCR client if the gateway is self-advertising, and
 // builds the PKCE authorization URL. Does not set pendingAuth.returnTo —
 // callers that need it set it on the returned object's session afterward.
-async function beginOAuthFlow(session, req) {
+async function beginOAuthFlow(session, req, { callbackPath } = {}) {
   const { authorizationUri, tokenUri, issuer, selfAdvertised, advertisedScopes, tokenEndpointAuthMethods } = await discoverAuth(session);
   const verifier = randomString(48);
   const challenge = sha256Base64Url(verifier);
@@ -1551,7 +1555,7 @@ async function beginOAuthFlow(session, req) {
 
   const host = req.get('x-forwarded-host') || process.env.PRIVILEGE_MCP_CALLBACK_HOST || 'local.ping-devops.com:4000';
   const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
-  const redirectUri = `${protocol}://${host}/api/privilege-mcp/auth/callback`;
+  const redirectUri = `${protocol}://${host}${callbackPath || '/api/privilege-mcp/auth/callback'}`;
 
   let clientId = session.config.clientId;
   let dcrClientId = null;
@@ -1635,6 +1639,40 @@ async function beginOAuthFlow(session, req) {
   };
 
   return authUrl;
+}
+
+// Redeem a gateway authorization code with the PKCE verifier, redirect URI and
+// client its flow started with. Shared by /auth/callback and
+// /facade-link/callback so both redeem codes identically.
+async function exchangeAuthorizationCode(pending, code, fallbackClientId) {
+  const tokenBody = new URLSearchParams({
+    grant_type: 'authorization_code',
+    code,
+    redirect_uri: pending.redirectUri,
+    code_verifier: pending.verifier,
+  });
+  // A DCR client (self-advertising gateway, see beginOAuthFlow) is unrelated
+  // to the PingOne app id — the token endpoint only recognizes its own.
+  tokenBody.set('client_id', pending.dcrClientId || fallbackClientId);
+  const clientSecret = pending.dcrClientSecret
+    || process.env.PRIVILEGE_SSO_CLIENT_SECRET || process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET || '';
+  if (clientSecret) tokenBody.set('client_secret', clientSecret);
+
+  const tokenResponse = await fetch(pending.tokenUri, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: tokenBody,
+  });
+  const tokenText = await tokenResponse.text();
+  let tokenData;
+  try { tokenData = JSON.parse(tokenText); } catch { throw new Error(`Token exchange non-JSON: ${tokenText.slice(0, 300)}`); }
+  if (!tokenResponse.ok) throw new Error(`Token exchange failed: ${tokenResponse.status} ${tokenText.slice(0, 300)}`);
+  return tokenData;
+}
+
+// The Agentic App a gateway door URL names: https://<gateway>/<app>/mcp -> <app>.
+function gatewayAppFromUrl(url) {
+  try { return new URL(url).pathname.split('/').filter(Boolean)[0] || null; } catch { return null; }
 }
 
 // ---------------------------------------------------------------------------
@@ -1836,10 +1874,12 @@ router.get('/state', (req, res) => {
     // and refreshAccessToken() dead-ends — that is the "asked to log in over and
     // over" symptom, not a bug in this relay.
     oauth: { authenticated: Boolean(session.oauth.accessToken), source: session.oauth.source || null, expiresAt: session.oauth.expiresAt, scope: session.oauth.scope || '', hasRefreshToken: Boolean(session.oauth.refreshToken) },
-    // The façade's privilege-gateway door runs on a server-side gateway token
-    // that dies with the process (services/privilegeGatewaySession.js). Ship its
-    // state so the page can say so instead of the door failing silently.
+    // The façade's privilege-gateway door runs on server-side gateway tokens,
+    // one per Agentic App, that expire hourly (services/privilegeGatewaySession.js).
+    // Ship their state so the page can say so instead of the door failing
+    // silently. gatewaySession stays the default app's — the page's banner reads it.
     gatewaySession: privilegeGatewaySession.status(),
+    gatewaySessionsByApp: privilegeGatewaySession.statusAll(),
     // Where the sibling doors above came from. `persisted: false` means nobody
     // has connected the console yet and the picker is on the pre-W8 fallback.
     doorDiscovery: discoverySummary(discovery),
@@ -2030,29 +2070,7 @@ router.get('/auth/callback', async (req, res) => {
       throw new Error('OAuth issuer mismatch.');
     }
 
-    const tokenBody = new URLSearchParams({
-      grant_type: 'authorization_code',
-      code,
-      redirect_uri: session.pendingAuth.redirectUri,
-      code_verifier: session.pendingAuth.verifier,
-    });
-    const tokenHeaders = { 'Content-Type': 'application/x-www-form-urlencoded' };
-    // A DCR client (self-advertising gateway, see beginOAuthFlow) is unrelated
-    // to the PingOne app id — the token endpoint only recognizes its own.
-    tokenBody.set('client_id', session.pendingAuth.dcrClientId || session.config.clientId);
-    const clientSecret = session.pendingAuth.dcrClientSecret
-      || process.env.PRIVILEGE_SSO_CLIENT_SECRET || process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET || '';
-    if (clientSecret) tokenBody.set('client_secret', clientSecret);
-
-    const tokenResponse = await fetch(session.pendingAuth.tokenUri, {
-      method: 'POST',
-      headers: tokenHeaders,
-      body: tokenBody,
-    });
-    const tokenText = await tokenResponse.text();
-    let tokenData;
-    try { tokenData = JSON.parse(tokenText); } catch { throw new Error(`Token exchange non-JSON: ${tokenText.slice(0, 300)}`); }
-    if (!tokenResponse.ok) throw new Error(`Token exchange failed: ${tokenResponse.status} ${tokenText.slice(0, 300)}`);
+    const tokenData = await exchangeAuthorizationCode(session.pendingAuth, code, session.config.clientId);
 
     session.oauth.accessToken = tokenData.access_token;
     session.oauth.refreshToken = tokenData.refresh_token || null;
@@ -2087,6 +2105,7 @@ router.get('/auth/callback', async (req, res) => {
     const gatewayOrigin = new URL(DEFAULT_PRIVILEGE_MCP_URL()).origin;
     if (tokenOrigin === gatewayOrigin) {
       privilegeGatewaySession.remember({
+        app: gatewayAppFromUrl(session.config.mcpUrl),
         accessToken: session.oauth.accessToken,
         refreshToken: session.oauth.refreshToken,
         expiresIn: tokenData.expires_in,
@@ -2101,6 +2120,111 @@ router.get('/auth/callback', async (req, res) => {
   } catch (err) {
     emitEvent(session, 'error', { scope: 'oauth_callback', message: err.message });
     redirectWithError(err.message);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Privilege gateway link — the gateway sign-in, chained into an MCP client's
+// own OAuth, so nobody has to visit this page to make the façade's
+// privilege-gateway door work.
+// docs/superpowers/specs/2026-09-11-lmstudio-privilege-gateway-link-design.md
+//
+// The broker (demo_mcp_gateway, OAuthBrokerRouter) sends the browser here after
+// its own PingOne hop. This runs the same gateway sign-in /auth/start does, for
+// one Agentic App, stores the token in services/privilegeGatewaySession.js, and
+// hands the browser back to the broker's /oauth/resume to finish the client's
+// flow. It keeps its own session slot and callback, so it never disturbs a
+// sign-in the operator has in flight here, or the door they have selected.
+// ---------------------------------------------------------------------------
+const FACADE_LINK_CALLBACK_PATH = '/api/privilege-mcp/facade-link/callback';
+// Same rule as the façade's app segment (routes/mcpFacade.js APP_SEGMENT): the
+// name is interpolated into a gateway URL, so it is a NAME, never a path.
+const LINK_APP_NAME = /^[A-Za-z0-9._-]{1,64}$/;
+
+// Only the configured broker's own resume endpoint, never a caller-named URL:
+// this route is unauthenticated and redirects.
+function linkResumeUrl(value) {
+  if (typeof value !== 'string' || value.length > 500) return null;
+  let url;
+  let brokerOrigin;
+  try {
+    url = new URL(value);
+    brokerOrigin = new URL(process.env.MCP_FACADE_AGENT_GATEWAY_AS || 'http://localhost:3005').origin;
+  } catch {
+    return null;
+  }
+  if (url.origin !== brokerOrigin || url.pathname !== '/oauth/resume' || !url.searchParams.get('rs')) return null;
+  return url.toString();
+}
+
+function redirectToResume(res, resume, params) {
+  const url = new URL(resume);
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+  res.redirect(url.toString());
+}
+
+router.get('/facade-link', async (req, res) => {
+  // No app segment on the door means the default app, exactly as the façade reads it.
+  const app = (typeof req.query.app === 'string' && req.query.app) || privilegeGatewaySession.defaultApp();
+  const resume = linkResumeUrl(req.query.resume);
+  if (!LINK_APP_NAME.test(app) || !resume) {
+    return res.status(400).json({ error: 'facade-link needs a plain app name and the broker\'s /oauth/resume URL.' });
+  }
+  // A throwaway session: beginOAuthFlow reads config and writes pendingAuth,
+  // and this flow must touch neither on the operator's real one. `_sid: null`
+  // keeps emitEvent from broadcasting to a page that did not start it.
+  const linkSession = {
+    _sid: null,
+    config: {
+      mcpUrl: `${new URL(DEFAULT_PRIVILEGE_MCP_URL()).origin}/${app}/mcp`,
+      clientId: '',
+      scopes: 'openid profile email',
+    },
+    gatewayMode: 'privilege',
+  };
+  try {
+    const authUrl = await beginOAuthFlow(linkSession, req, { callbackPath: FACADE_LINK_CALLBACK_PATH });
+    // No prompt=none: the person at the browser is signing in right now, and a
+    // login_required dead end would only surface as an error in their MCP client.
+    authUrl.searchParams.delete('prompt');
+    req.session.privilegeFacadeLink = { ...linkSession.pendingAuth, app, resume };
+    return res.redirect(authUrl.toString());
+  } catch (err) {
+    return redirectToResume(res, resume, { link: 'error', reason: String(err.message).slice(0, 300) });
+  }
+});
+
+router.get('/facade-link/callback', async (req, res) => {
+  const link = req.session?.privilegeFacadeLink;
+  if (!link?.resume) {
+    return res.status(400).json({ error: 'No Privilege gateway link sign-in is in progress in this browser.' });
+  }
+  // Single use, whatever happens next.
+  req.session.privilegeFacadeLink = null;
+  const fail = (reason) => redirectToResume(res, link.resume, {
+    link: 'error',
+    reason: String(reason || 'Privilege gateway sign-in failed').slice(0, 300),
+  });
+
+  const { code, state, iss, error, error_description: errorDescription } = req.query;
+  if (error) return fail(errorDescription ? `${error}: ${errorDescription}` : error);
+  if (!code || state !== link.oauthState) return fail('OAuth state mismatch.');
+  if (iss && link.issuer && iss !== link.issuer) return fail('OAuth issuer mismatch.');
+  try {
+    const tokenData = await exchangeAuthorizationCode(link, code, '');
+    if (!tokenData.access_token) return fail('The gateway returned no access token.');
+    privilegeGatewaySession.remember({
+      app: link.app,
+      accessToken: tokenData.access_token,
+      refreshToken: tokenData.refresh_token || null,
+      expiresIn: tokenData.expires_in,
+      tokenUri: link.tokenUri,
+      clientId: link.dcrClientId,
+      clientSecret: link.dcrClientSecret,
+    });
+    return redirectToResume(res, link.resume, { link: 'ok' });
+  } catch (err) {
+    return fail(err.message);
   }
 });
 
