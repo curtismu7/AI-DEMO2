@@ -91,8 +91,10 @@ function HopDetail({ result, tab, onTab }) {
 export default function ActivityPanel({ results, error, dark = false }) {
   const logRef = useRef(null);
   const entries = Array.isArray(results) ? results : [];
-  // null follows the newest hop as a run streams in; '' means all closed.
-  const [openId, setOpenId] = useState(null);
+  // Hops are identified by position, not stepId: re-running a step appends a
+  // second result with the same stepId. null follows the newest hop as a run
+  // streams in; -1 means all closed.
+  const [openIdx, setOpenIdx] = useState(null);
   const [tab, setTab] = useState('token');
   const [poppedOut, setPoppedOut] = useState(false);
 
@@ -104,13 +106,12 @@ export default function ActivityPanel({ results, error, dark = false }) {
 
   // Each new result (or a reset) hands the open hop back to the newest one.
   useEffect(() => {
-    setOpenId(null);
+    setOpenIdx(null);
   }, [entries.length]);
 
   const message = errorText(error);
   const needsSignIn = entries.some((result) => result.response?.status === 401);
-  const newestId = entries.length > 0 ? entries[entries.length - 1]?.stepId : null;
-  const activeId = openId === null ? newestId : openId;
+  const activeIdx = openIdx === null ? entries.length - 1 : openIdx;
 
   // expandable=false is the column while the chain is popped out: rows still
   // pick the hop, the window shows its detail.
@@ -121,15 +122,15 @@ export default function ActivityPanel({ results, error, dark = false }) {
         status: result.error ? 'error' : null,
         explanation: result.error,
       };
-      const open = result.stepId === activeId;
+      const open = idx === activeIdx;
 
       return (
-        <div key={result.stepId} className={`chain-hop${open ? ' chain-hop--open' : ''}`}>
+        <div key={idx} className={`chain-hop${open ? ' chain-hop--open' : ''}`}>
           <button
             type="button"
             className="chain-hop__row"
             aria-expanded={expandable ? open : undefined}
-            onClick={() => setOpenId(open ? '' : result.stepId)}
+            onClick={() => setOpenIdx(open ? -1 : idx)}
           >
             <span className="chain-hop__n">{idx + 1}</span>
             <span className="chain-hop__label">{summary.label}</span>
@@ -189,7 +190,7 @@ export default function ActivityPanel({ results, error, dark = false }) {
         {/* The modal portals to document.body, outside the page — re-enter
             .protocol-playground so the --pp-* tokens and this page's own
             dark toggle apply inside the window too. */}
-        <div className={`protocol-playground pp-chain-window${dark ? ' dark' : ''}`}>
+        <div className={`dm-scroll protocol-playground pp-chain-window${dark ? ' dark' : ''}`}>
           {entries.length === 0 ? empty : renderChain(true)}
         </div>
       </DraggableModal>

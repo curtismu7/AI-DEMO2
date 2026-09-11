@@ -33,6 +33,17 @@ describe('ActivityPanel — compact token chain', () => {
     expect(screen.queryAllByRole('tabpanel')).toHaveLength(0);
   });
 
+  test('re-running a step adds its own row; only that newest run is open', () => {
+    // The engine appends a second result with the same stepId on a re-run.
+    render(<ActivityPanel results={[hop(1), hop(2), hop(1)]} error={null} />);
+
+    const rows = screen.getAllByRole('button', { name: /POST \/api\/demo\/hop-1\b/ });
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveAttribute('aria-expanded', 'false');
+    expect(rows[1]).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getAllByRole('tabpanel')).toHaveLength(1);
+  });
+
   test('a decoded token opens on the Token tab; tabs switch the detail', () => {
     const decodedToken = { isValid: true, payload: { sub: 'user-1', act: { sub: 'client-app' } } };
     render(<ActivityPanel results={[hop(1, { decodedToken })]} error={null} />);

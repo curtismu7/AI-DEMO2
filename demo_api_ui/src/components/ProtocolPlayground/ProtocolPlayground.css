@@ -698,11 +698,8 @@
 }
 
 /* Pop-out window. ActivityPanel re-wraps the portalled content in
-   .protocol-playground so the --pp-* tokens reach it. */
-.pp-chain-window {
-  padding: 4px 12px 12px;
-}
-
+   .protocol-playground so the --pp-* tokens reach it; .dm-scroll on the
+   same element owns its padding and scrolling. */
 .pp-chain-window .chain-panel > .json-viewer {
   max-height: none;
 }
