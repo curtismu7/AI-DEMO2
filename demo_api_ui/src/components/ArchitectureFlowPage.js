@@ -26,6 +26,7 @@ import "@xyflow/react/dist/style.css";
 import apiClient from "../services/apiClient";
 import { agentFlowDiagram } from "../services/agentFlowDiagramService";
 import { useAppEventsSSE } from "../hooks/useAppEventsSSE";
+import "./ArchitectureFlowPage.css";
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
 
@@ -51,7 +52,12 @@ const COLOR = {
     border: "#ca8a04",
     text: "#713f12",
   },
-  default: { bg: "#f8fafc", border: "#e2e8f0", text: "#334155" },
+  // The idle state is a plain surface (THEMING.md rule 3's "how far from the
+  // page ground" branch), unlike the five states above which are semantic
+  // status accents ("what is this thing") and stay literal on purpose. It's
+  // the only entry read through CSS vars — everything else in COLOR is a
+  // fixed hex/rgba string.
+  default: { bg: "var(--th-bg-card)", border: "var(--th-border)", text: "var(--th-text)" },
 };
 
 // ─── Architecture node ────────────────────────────────────────────────────────
@@ -66,9 +72,18 @@ function ArchNode({ data }) {
   const isAspirational = !!data.aspirational;
   return (
     <div
+      className="afp-node"
       style={{
-        background: c.bg,
-        border: `2px ${isAspirational ? "dashed" : "solid"} ${c.border}`,
+        // background/border-color/color are declared in ArchitectureFlowPage.css
+        // (.afp-node) and only READ these as custom properties — keeps the
+        // actual themeable CSS properties out of inline style (THEMING.md
+        // §8.3) while c.bg/c.border/c.text stay whatever this state needs
+        // (a fixed hex/rgba for the five status accents, --th-* for default).
+        "--afp-bg": c.bg,
+        "--afp-border": c.border,
+        "--afp-text": c.text,
+        borderStyle: isAspirational ? "dashed" : "solid",
+        borderWidth: 2,
         borderRadius: 8,
         padding: "6px 10px",
         minWidth: 85,
@@ -106,7 +121,6 @@ function ArchNode({ data }) {
         style={{
           fontWeight: 700,
           fontSize: "0.68rem",
-          color: c.text,
           lineHeight: 1.2,
           marginBottom: data.label2 ? 0.5 : 0,
         }}
@@ -114,25 +128,17 @@ function ArchNode({ data }) {
         {data.label}
       </div>
       {data.label2 && (
-        <div
-          style={{
-            fontSize: "0.58rem",
-            color: c.text,
-            opacity: 0.7,
-            lineHeight: 1.1,
-          }}
-        >
+        <div style={{ fontSize: "0.58rem", opacity: 0.7, lineHeight: 1.1 }}>
           {data.label2}
         </div>
       )}
       {data.stepLabel && (
         <div
+          className="afp-node-steplabel"
           style={{
             marginTop: 5,
             fontSize: "0.62rem",
             fontWeight: 600,
-            color: c.text,
-            background: `${c.border}20`,
             borderRadius: 3,
             padding: "2px 4px",
             lineHeight: 1.3,
@@ -144,13 +150,15 @@ function ArchNode({ data }) {
       {/* Token badge — shows aud/act with changed claims highlighted */}
       {b && (
         <div
+          className="afp-node-badge"
           style={{
             marginTop: 5,
             padding: "4px 5px",
             background: "rgba(0,0,0,0.06)",
             borderRadius: 4,
             textAlign: "left",
-            borderLeft: `2px solid ${c.border}`,
+            borderLeftStyle: "solid",
+            borderLeftWidth: 2,
           }}
         >
           {b.aud && (
@@ -2617,14 +2625,7 @@ export default function ArchitectureFlowPage({ user }) {
         className="arch-diagram-toolbar"
         style={{ marginBottom: "0.5rem", flexWrap: "wrap", gap: "0.5rem" }}
       >
-        <h2
-          style={{
-            margin: 0,
-            fontSize: "1.05rem",
-            fontWeight: 700,
-            color: "#1e293b",
-          }}
-        >
+        <h2 className="afp-title" style={{ margin: 0, fontWeight: 700 }}>
           Interactive Architecture Flow
         </h2>
         <DiagramControls
@@ -2645,12 +2646,8 @@ export default function ArchitectureFlowPage({ user }) {
           extra={
             <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
               <span
-                style={{
-                  fontSize: "0.75rem",
-                  fontWeight: 600,
-                  color: "#475569",
-                  whiteSpace: "nowrap",
-                }}
+                className="afp-scenario-label"
+                style={{ fontWeight: 600, whiteSpace: "nowrap" }}
               >
                 Scenario:
               </span>
@@ -2658,13 +2655,10 @@ export default function ArchitectureFlowPage({ user }) {
                 value={selectedScenario}
                 onChange={(e) => setSelectedScenario(e.target.value)}
                 disabled={isSimulating}
+                className="afp-scenario-select"
                 style={{
-                  fontSize: "0.78rem",
                   padding: "4px 8px",
                   borderRadius: 6,
-                  border: "1px solid #cbd5e1",
-                  background: "#fff",
-                  color: "#1e293b",
                   cursor: isSimulating ? "not-allowed" : "pointer",
                 }}
               >
@@ -2688,15 +2682,8 @@ export default function ArchitectureFlowPage({ user }) {
         />
         {activeStep && (
           <span
-            style={{
-              fontSize: "0.8rem",
-              fontWeight: 600,
-              color: "#475569",
-              background: isPaused ? "#fef9c3" : "#f1f5f9",
-              borderRadius: 6,
-              padding: "4px 10px",
-              border: isPaused ? "1px solid #ca8a04" : "none",
-            }}
+            className={`afp-step-badge${isPaused ? " afp-step-badge--paused" : ""}`}
+            style={{ fontWeight: 600, borderRadius: 6, padding: "4px 10px" }}
           >
             {isPaused ? "⏸ PAUSED — " : ""}
             {activeStep.stepLabel}
@@ -2710,19 +2697,16 @@ export default function ArchitectureFlowPage({ user }) {
       {/* Step description — explains what's happening in the current step */}
       {activeStep && activeStep.description && (
         <div
+          className="afp-step-desc"
           style={{
-            background: "#f0f9ff",
-            border: "1px solid #0284c7",
             borderRadius: 8,
             padding: "12px 14px",
             marginBottom: "12px",
-            fontSize: "0.85rem",
             lineHeight: "1.5",
-            color: "#0c4a6e",
             fontWeight: 500,
           }}
         >
-          <strong style={{ color: "#0369a1" }}>Step {currentStep + 1}:</strong>{" "}
+          <strong>Step {currentStep + 1}:</strong>{" "}
           {activeStep.description}
         </div>
       )}
@@ -2730,26 +2714,24 @@ export default function ArchitectureFlowPage({ user }) {
       {/* Live agent banner — shown when agent is actively running a tool */}
       {agentSnap && !isSimulating && (
         <div
+          className={`afp-agent-banner afp-agent-banner--${
+            agentSnap.phase?.includes("error") || agentSnap.phase?.includes("denied")
+              ? "error"
+              : agentSnap.phase === "mfa_challenge_initiated"
+                ? "warn"
+                : "ok"
+          }`}
           style={{
             display: "flex",
             alignItems: "center",
             gap: "10px",
-            background:
-              agentSnap.phase === "mfa_challenge_initiated"
-                ? "#fef9c3"
-                : agentSnap.phase?.includes("error") ||
-                    agentSnap.phase?.includes("denied")
-                  ? "#fee2e2"
-                  : "#f0fdf4",
-            border: `1px solid ${agentSnap.phase?.includes("error") || agentSnap.phase?.includes("denied") ? "#fca5a5" : agentSnap.phase === "mfa_challenge_initiated" ? "#fde68a" : "#bbf7d0"}`,
             borderRadius: 6,
             padding: "6px 12px",
             marginBottom: 6,
-            fontSize: "0.8rem",
             flexWrap: "wrap",
           }}
         >
-          <span style={{ fontSize: "1rem" }}>
+          <span className="afp-agent-banner-icon">
             {agentSnap.phase?.includes("error") ||
             agentSnap.phase?.includes("denied")
               ? "❌"
@@ -2760,34 +2742,23 @@ export default function ArchitectureFlowPage({ user }) {
                   ? "✅"
                   : "⚡"}
           </span>
-          <span style={{ fontWeight: 700, color: "#1e293b" }}>Live agent:</span>
+          <span className="afp-agent-banner-title" style={{ fontWeight: 700 }}>Live agent:</span>
           {agentSnap.toolName && (
             <span
-              style={{
-                fontFamily: "inherit",
-                background: "#f1f5f9",
-                borderRadius: 4,
-                padding: "1px 6px",
-                fontSize: "0.77rem",
-                color: "#1d4ed8",
-                fontWeight: 700,
-              }}
+              className="afp-agent-banner-tool"
+              style={{ fontFamily: "inherit", borderRadius: 4, padding: "1px 6px", fontWeight: 700 }}
             >
               {agentSnap.toolName}
             </span>
           )}
           {agentSnap.serverEvents?.length > 0 && (
-            <span style={{ color: "#475569" }}>
+            <span className="afp-agent-banner-detail">
               {agentSnap.serverEvents[agentSnap.serverEvents.length - 1].label}
             </span>
           )}
           <span
-            style={{
-              marginLeft: "auto",
-              fontSize: "0.72rem",
-              color: "#374151",
-              fontFamily: "inherit",
-            }}
+            className="afp-agent-banner-phase"
+            style={{ marginLeft: "auto", fontFamily: "inherit" }}
           >
             {agentSnap.phase}
           </span>
@@ -2795,16 +2766,9 @@ export default function ArchitectureFlowPage({ user }) {
       )}
 
       {/* Diagram */}
-      <div
-        style={{
-          height: "70vh",
-          border: "1px solid #e2e8f0",
-          borderRadius: 8,
-          overflow: "hidden",
-          background: "#f8fafc",
-        }}
-      >
+      <div className="afp-canvas-wrap" style={{ height: "70vh", borderRadius: 8, overflow: "hidden" }}>
         <ReactFlow
+          className="afp-canvas"
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
@@ -2814,14 +2778,13 @@ export default function ArchitectureFlowPage({ user }) {
           fitViewOptions={{ padding: 0.14 }}
           attributionPosition="bottom-left"
         >
-          <Background color="#e2e8f0" gap={20} />
+          <Background gap={20} />
           <Controls />
           <MiniMap
             nodeColor={(n) => {
               const c = COLOR[n.data?.colorClass];
-              return c ? c.border : "#e2e8f0";
+              return c ? c.border : COLOR.default.border;
             }}
-            style={{ background: "#f1f5f9", border: "1px solid #e2e8f0" }}
           />
 
           {/* Token card — top-right of canvas */}
@@ -2835,13 +2798,10 @@ export default function ArchitectureFlowPage({ user }) {
               />
             ) : !isSimulating ? (
               <div
+                className="afp-token-placeholder"
                 style={{
-                  background: "rgba(255,255,255,0.9)",
-                  border: "1px dashed #cbd5e1",
                   borderRadius: 8,
                   padding: "10px 14px",
-                  fontSize: "0.75rem",
-                  color: "#374151",
                   maxWidth: 200,
                   textAlign: "center",
                   lineHeight: 1.5,
@@ -2856,7 +2816,7 @@ export default function ArchitectureFlowPage({ user }) {
         </ReactFlow>
       </div>
 
-      <p style={{ marginTop: "0.4rem", fontSize: "0.7rem", color: "#374151" }}>
+      <p className="afp-help-text" style={{ marginTop: "0.4rem" }}>
         Hit <strong>▶ Simulate Flow</strong> then <strong>⏸ Pause</strong> at
         any step to read the token card. Node badges show{" "}
         <span style={{ color: "#1d4ed8", fontWeight: 600 }}>aud</span>,{" "}
@@ -2871,128 +2831,3 @@ export default function ArchitectureFlowPage({ user }) {
   );
 }
 
-// eslint-disable-next-line no-unused-vars
-// eslint-disable-next-line no-unused-vars
-function FlowHistory({ history, onClear }) {
-  const [open, setOpen] = React.useState(true);
-  return (
-    <div
-      style={{
-        marginTop: "1rem",
-        border: "1px solid #e2e8f0",
-        borderRadius: 10,
-        background: "#f8fafc",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "8px 12px",
-          background: "#f1f5f9",
-          borderBottom: "1px solid #e2e8f0",
-        }}
-      >
-        <button
-          onClick={() => setOpen((o) => !o)}
-          style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontSize: "1rem",
-            color: "#475569",
-            padding: "0 2px",
-          }}
-        >
-          {open ? "▾" : "▸"}
-        </button>
-        <span
-          style={{
-            flex: 1,
-            fontSize: "0.82rem",
-            fontWeight: 700,
-            color: "#334155",
-          }}
-        >
-          Token History — {history.length} token
-          {history.length !== 1 ? "s" : ""} captured
-        </span>
-        <button
-          onClick={onClear}
-          style={{
-            background: "none",
-            border: "1px solid #cbd5e1",
-            borderRadius: 4,
-            cursor: "pointer",
-            fontSize: "0.72rem",
-            color: "#374151",
-            padding: "2px 8px",
-          }}
-        >
-          ✕ Clear
-        </button>
-      </div>
-      {open && (
-        <div
-          style={{
-            display: "flex",
-            gap: 12,
-            overflowX: "auto",
-            padding: 12,
-            scrollSnapType: "x mandatory",
-            WebkitOverflowScrolling: "touch",
-          }}
-        >
-          {history.map((entry, idx) => (
-            <div
-              key={idx}
-              style={{
-                flex: "0 0 auto",
-                width: 300,
-                scrollSnapAlign: "start",
-                display: "flex",
-                flexDirection: "column",
-                gap: 6,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  fontSize: "0.75rem",
-                  fontWeight: 600,
-                  color: "#475569",
-                }}
-              >
-                <span
-                  style={{
-                    background: "#004687",
-                    color: "#fff",
-                    fontSize: "0.65rem",
-                    fontWeight: 700,
-                    borderRadius: 20,
-                    padding: "2px 7px",
-                    whiteSpace: "nowrap",
-                    flexShrink: 0,
-                  }}
-                >
-                  Step {entry.stepNum}
-                </span>
-                {entry.label}
-              </div>
-              <TokenCard
-                token={entry.token}
-                tokenOut={entry.tokenOut}
-                isTokenExchange={entry.isTokenExchange}
-                isHitl={entry.isHitl}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
