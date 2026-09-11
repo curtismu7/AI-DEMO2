@@ -202,10 +202,14 @@ export function PrivilegeMcpLearningPageRoute({ user, logout }) {
 }
 
 export function AgentGatewayCapabilitiesPageRoute({ user, logout }) {
+  // AgentGatewayCapabilitiesPage renders AgentGatewayInspectorClean, which calls
+  // useInspectorFields() and throws without this provider (same as McpGatewayConfigRoute).
   return (
-    <AppShell user={user} logout={logout}>
-      <AgentGatewayCapabilitiesPage />
-    </AppShell>
+    <InspectorFieldProvider>
+      <AppShell user={user} logout={logout}>
+        <AgentGatewayCapabilitiesPage />
+      </AppShell>
+    </InspectorFieldProvider>
   );
 }
 

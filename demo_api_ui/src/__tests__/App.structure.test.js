@@ -193,6 +193,30 @@ describe("/agent-gateway-inspector — gateway decisions panel", () => {
   });
 });
 
+// ─── Inspector routes need InspectorFieldProvider ────────────────────────────
+// AgentGatewayInspectorClean calls useInspectorFields(), which throws without a
+// provider above it. /agent-gateway-capabilities rendered it bare from #2650
+// (2026-08-31) on, so that page crashed on every load.
+
+describe("routes rendering the gateway inspector are wrapped in InspectorFieldProvider", () => {
+  const routesSrc = fs.readFileSync(
+    path.resolve(__dirname, "../routes/PublicRoutes.js"),
+    "utf8"
+  );
+  const routeBodies = routesSrc.match(/export function \w+Route\b[\s\S]*?\n}\n/g) || [];
+  const inspectorRoutes = routeBodies
+    .filter((b) => /<(AgentGatewayInspectorClean|AgentGatewayCapabilitiesPage)\b/.test(b))
+    .map((b) => [b.match(/export function (\w+)/)[1], b]);
+
+  test("finds the inspector routes (so the check below can't pass vacuously)", () => {
+    expect(inspectorRoutes.length).toBeGreaterThanOrEqual(2);
+  });
+
+  test.each(inspectorRoutes)("%s wraps InspectorFieldProvider", (_name, body) => {
+    expect(body).toContain("<InspectorFieldProvider");
+  });
+});
+
 // ─── DashboardContent (highest priority — guards the 3d2cf092 regression) ────
 
 describe("CustomerRoutes.js / DashboardContent — critical imports and JSX", () => {
