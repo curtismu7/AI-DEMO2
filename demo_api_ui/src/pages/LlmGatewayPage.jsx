@@ -219,6 +219,30 @@ function denialExplanation(decision) {
 // Privilege policy between the prompt and the model.
 const UNGUARDED_LANE = 'llamacpp';
 
+// Run all scores each attack's guarded result against the catalog's measured
+// `effect`, so a policy that quietly stopped firing shows up as a mismatch.
+const EFFECT_LABEL = { blocks: 'Blocked', sanitizes: 'Redacted', none: 'No verdict' };
+
+function scoreKind(d) {
+  if (!d) return null;
+  if (d.layer === 'Privilege') return 'blocks';
+  if (d.tone === 'ok') return d.redactions > 0 ? 'sanitizes' : 'none';
+  return 'error';
+}
+
+function scoreLabel(d) {
+  const kind = scoreKind(d);
+  if (kind === 'sanitizes') return `Redacted (${d.redactions})`;
+  return EFFECT_LABEL[kind] || d.verdict;
+}
+
+// A one-line preview, so an unguarded reply to a harmful prompt is never shown
+// in full on a projector unless someone opens it on purpose.
+function firstLine(text) {
+  const line = String(text || '').split('\n').find((l) => l.trim()) || '';
+  return line.length > 80 ? `${line.slice(0, 80)}…` : line;
+}
+
 function payloadFor(id) {
   return (GUARDRAIL_ATTACKS.find((a) => a.id === id) || {}).payload || '';
 }
@@ -293,6 +317,12 @@ export default function LlmGatewayPage() {
   const canCompare = lanes.some((l) => l.provider === UNGUARDED_LANE)
     && !(lanes.find((l) => l.provider === selected) || {}).isLocal;
   const compareOn = compareWithLocal && canCompare;
+  // Run all's scorecard ({ rows, done }), the result opened from it, and the
+  // Stop flag — a ref, because the loop reads it between awaits.
+  const [scorecard, setScorecard] = useState(null);
+  const [scorePick, setScorePick] = useState(null);
+  const stopRef = useRef(false);
+  const canRunAll = canCompare && Boolean((lanes.find((l) => l.provider === selected) || {}).keyConfigured);
   // Clicking Send with nothing typed used to be a silent no-op — the button
   // just did nothing, which reads as broken rather than "you forgot a step".
   const [sendError, setSendError] = useState('');
@@ -354,12 +384,54 @@ export default function LlmGatewayPage() {
     setTurns([]);
     setDecision(null);
     setSelectedTurnId(null);
+    setScorecard(null);
+    setScorePick(null);
     setLimitsByLane({});
     setPrompt('');
     setSelectedAttack('');
     setSendError('');
     window.localStorage.removeItem('lgw-attack-choice');
   }, []);
+
+  // One call, success or failure, as the model turn it produced. Never throws,
+  // so a compare run always has both sides to show and Run all never halts on
+  // one failed attack.
+  const callLane = useCallback(async (provider, laneModel, text, attackId) => {
+    const lane = lanes.find((l) => l.provider === provider) || {};
+    const id = nextTurnId.current++;
+    try {
+      const data = await api('/llm/call', { method: 'POST', body: { provider, prompt: text, ...(laneModel ? { model: laneModel } : {}) } });
+      const redactions = countRedactions(data.reply);
+      const d = {
+        verdict: redactions > 0 ? 'Answered, redacted' : 'Answered', tone: 'ok', layer: null,
+        redactions,
+        model: laneModel || lane.model || null,
+        provider, route: data.route, latencyMs: data.latencyMs,
+        reachedProvider: data.reachedProvider !== false,
+        reason: null, providerLimits: data.providerLimits || null,
+        attackId,
+      };
+      return { id, role: 'model', text: data.reply, tone: 'ok', provider, decision: d };
+    } catch (err) {
+      const { verdict, tone, layer } = classify(err);
+      const d = {
+        verdict, tone, layer,
+        model: laneModel || lane.model || null,
+        provider: err.provider || provider,
+        route: err.route || lane.route || '',
+        latencyMs: err.latencyMs,
+        reachedProvider: err.reachedProvider === true,
+        reason: err.reason || err.message,
+        providerLimits: err.providerLimits || null,
+        attackId,
+      };
+      return {
+        id, role: 'model', tone, provider, decision: d,
+        text: tone === 'warn' ? `Privilege denied this call. ${err.reason || err.message}` : err.message,
+        rawBody: err.rawBody,
+      };
+    }
+  }, [lanes]);
 
   const send = useCallback(async () => {
     const text = prompt.trim();
@@ -385,54 +457,21 @@ export default function LlmGatewayPage() {
     setSelectedTurnId(null);
     setPrompt('');
     setSelectedAttack('');
-    // One call, success or failure, as the model turn it produced. Never throws,
-    // so a compare run always has both sides to show.
-    const run = async (provider, laneModel) => {
-      const lane = lanes.find((l) => l.provider === provider) || {};
-      const id = nextTurnId.current++;
-      try {
-        const data = await api('/llm/call', { method: 'POST', body: { provider, prompt: text, ...(laneModel ? { model: laneModel } : {}) } });
-        const redactions = countRedactions(data.reply);
-        const d = {
-          verdict: redactions > 0 ? 'Answered, redacted' : 'Answered', tone: 'ok', layer: null,
-          redactions,
-          model: laneModel || lane.model || null,
-          provider, route: data.route, latencyMs: data.latencyMs,
-          reachedProvider: data.reachedProvider !== false,
-          reason: null, providerLimits: data.providerLimits || null,
-          attackId,
-        };
-        return { id, role: 'model', text: data.reply, tone: 'ok', provider, decision: d };
-      } catch (err) {
-        const { verdict, tone, layer } = classify(err);
-        const d = {
-          verdict, tone, layer,
-          model: laneModel || lane.model || null,
-          provider: err.provider || provider,
-          route: err.route || lane.route || '',
-          latencyMs: err.latencyMs,
-          reachedProvider: err.reachedProvider === true,
-          reason: err.reason || err.message,
-          providerLimits: err.providerLimits || null,
-          attackId,
-        };
-        return {
-          id, role: 'model', tone, provider, decision: d,
-          text: tone === 'warn' ? `Privilege denied this call. ${err.reason || err.message}` : err.message,
-          rawBody: err.rawBody,
-        };
-      }
-    };
+    setScorecard(null);
+    setScorePick(null);
     try {
       if (compareOn) {
         // Both at once: the unguarded side has no gateway in front of it, so
         // running them in turn would only make the guarded one look slower.
-        const [guarded, unguarded] = await Promise.all([run(selected, model), run(UNGUARDED_LANE, '')]);
+        const [guarded, unguarded] = await Promise.all([
+          callLane(selected, model, text, attackId),
+          callLane(UNGUARDED_LANE, '', text, attackId),
+        ]);
         setTurns((t) => [...t, { id: nextTurnId.current++, role: 'pair', guarded, unguarded }]);
         setSelectedTurnId(guarded.id);
         record(selected, guarded.decision);
       } else {
-        const turn = await run(selected, model);
+        const turn = await callLane(selected, model, text, attackId);
         setTurns((t) => [...t, turn]);
         setSelectedTurnId(turn.id);
         record(selected, turn.decision);
@@ -440,7 +479,43 @@ export default function LlmGatewayPage() {
     } finally {
       setBusy(false);
     }
-  }, [prompt, busy, selected, lanes, modelByLane, selectedAttack, record, compareOn]);
+  }, [prompt, busy, selected, modelByLane, selectedAttack, record, compareOn, callLane]);
+
+  // Run all: every Library attack through the selected lane, then llama.cpp,
+  // strictly one call at a time — llama.cpp's :8090 proxy is one shared rate
+  // bucket, and a 429 there reads exactly like a dead lane. Stop is checked
+  // before every call, so nothing goes out after it is pressed.
+  const runAll = useCallback(async () => {
+    if (busy || !canRunAll) return;
+    const model = (modelByLane[selected] || '').trim();
+    stopRef.current = false;
+    setBusy(true);
+    setTurns([]);
+    setDecision(null);
+    setSelectedTurnId(null);
+    setScorePick(null);
+    setSendError('');
+    const rows = GUARDRAIL_ATTACKS.map((attack) => ({ attack, guarded: null, unguarded: null }));
+    setScorecard({ rows: [...rows], done: false });
+    const put = (i, side, turn) => {
+      rows[i] = { ...rows[i], [side]: turn };
+      setScorecard({ rows: [...rows], done: false });
+    };
+    try {
+      for (let i = 0; i < rows.length; i += 1) {
+        const { attack } = rows[i];
+        if (stopRef.current) break;
+        const guarded = await callLane(selected, model, attack.payload, attack.id);
+        put(i, 'guarded', guarded);
+        record(selected, guarded.decision);
+        if (stopRef.current) break;
+        put(i, 'unguarded', await callLane(UNGUARDED_LANE, '', attack.payload, attack.id));
+      }
+    } finally {
+      setScorecard({ rows: [...rows], done: true });
+      setBusy(false);
+    }
+  }, [busy, canRunAll, modelByLane, selected, callLane, record]);
 
   const active = lanes.find((l) => l.provider === selected);
   // In a compare run the band stays on the guarded call — it is the story the
@@ -451,6 +526,28 @@ export default function LlmGatewayPage() {
   // a llama.cpp result shown while Anthropic is selected must not claim
   // Privilege passed it through.
   const decisionIsLocal = Boolean((lanes.find((l) => l.provider === decision?.provider) || {}).isLocal);
+
+  // One scorecard cell. Clicking it puts that call in Last decision and opens
+  // its full reply below the table.
+  const scoreCell = (turn, side, attack, mismatch) => {
+    if (!turn) return <span className="lgw-score__ms">{scorecard.done ? 'not run' : '…'}</span>;
+    const ms = turn.decision.latencyMs;
+    return (
+      <button
+        type="button"
+        className="lgw-score__cell"
+        data-testid={`lgw-score-${side}`}
+        onClick={() => { setDecision(turn.decision); setScorePick(turn); }}
+        title="Show this call in Last decision"
+      >
+        {side === 'guarded'
+          ? scoreLabel(turn.decision)
+          : turn.tone === 'ok' ? firstLine(turn.text) : turn.decision.verdict}
+        {mismatch ? <span className="lgw-score__flag"> ⚠️ expected {EFFECT_LABEL[attack.effect]}</span> : null}
+        {ms !== undefined && ms !== null ? <span className="lgw-score__ms"> · {ms} ms</span> : null}
+      </button>
+    );
+  };
 
   // One model turn. Clicking it re-points Last decision at that run's result.
   const renderModelTurn = (t) => (
@@ -612,7 +709,7 @@ export default function LlmGatewayPage() {
         <section className="lgw-main" aria-label="Conversation">
           <h2 className="lgw-rail__k lgw-main__k">Request</h2>
           <div className="lgw-turns">
-            {turns.length === 0 ? (
+            {turns.length === 0 && !scorecard ? (
               <p className="lgw-empty">
                 {active?.isLocal ? (
                   <>Ask something through <strong>{TITLES[selected]}</strong>. This lane runs unmediated &mdash; no
@@ -650,6 +747,40 @@ export default function LlmGatewayPage() {
                 </div>
               );
             })}
+            {scorecard ? (
+              <div className="lgw-score" data-testid="lgw-scorecard" data-done={scorecard.done ? 'true' : 'false'}>
+                <table className="lgw-score__table">
+                  <thead>
+                    <tr>
+                      <th>Attack</th>
+                      <th>Expected</th>
+                      <th>Through {TITLES[selected] || selected}</th>
+                      <th>llama.cpp &mdash; no policy layer</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scorecard.rows.map((r) => {
+                      const kind = scoreKind(r.guarded?.decision);
+                      const mismatch = Boolean(kind) && kind !== r.attack.effect;
+                      return (
+                        <tr
+                          key={r.attack.id}
+                          data-testid={`lgw-score-${r.attack.id}`}
+                          data-mismatch={mismatch ? 'true' : undefined}
+                          className={mismatch ? 'is-mismatch' : undefined}
+                        >
+                          <td>{r.attack.label}</td>
+                          <td>{EFFECT_LABEL[r.attack.effect]}</td>
+                          <td>{scoreCell(r.guarded, 'guarded', r.attack, mismatch)}</td>
+                          <td>{scoreCell(r.unguarded, 'unguarded', r.attack, false)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {scorePick ? <div data-testid="lgw-score-detail">{renderModelTurn(scorePick)}</div> : null}
+              </div>
+            ) : null}
             {busy ? (
               <p className="lgw-empty lgw-busy">
                 <span className="lgw-spinner" aria-hidden="true" />
@@ -680,6 +811,23 @@ export default function LlmGatewayPage() {
               ))}
             </select>
             <span className="lgw-attacks__note">Fills the prompt below — review it, then Send.</span>
+            {scorecard && !scorecard.done ? (
+              <button type="button" className="lgw-theme" onClick={() => { stopRef.current = true; }}>
+                Stop
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="lgw-theme"
+                onClick={runAll}
+                disabled={busy || !canRunAll}
+                title={canRunAll
+                  ? 'Fire every attack through this lane and through llama.cpp, one call at a time, and score each against what it should do'
+                  : 'Needs a Privilege lane with a key selected, and a llama.cpp lane'}
+              >
+                Run all attacks
+              </button>
+            )}
             {selectedAttack && ATTACK_EFFECT[(GUARDRAIL_ATTACKS.find((a) => a.id === selectedAttack) || {}).effect] ? (
               <span className="lgw-attacks__effect" data-testid="lgw-attack-effect">
                 {ATTACK_EFFECT[(GUARDRAIL_ATTACKS.find((a) => a.id === selectedAttack) || {}).effect]}
