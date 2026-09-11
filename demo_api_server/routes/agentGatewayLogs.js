@@ -8,12 +8,14 @@
  *   GET /api/admin/agent-gateway/logs?tail=200&filter=P1AZ
  *       → raw IG container logs (docker socket), token-redacted.
  *   GET /api/admin/agent-gateway/decisions?limit=20
- *       → recent PingOne Authorize decisions parsed from X-Gw-Audit-Trail.
+ *       → recent PingOne Authorize decisions posted by PingGateway to
+ *         /internal/gateway-decision. Non-admins see only their own.
  */
 
 const express = require('express');
 const agentGatewayLogs = require('../services/agentGatewayLogs');
 const agentGatewayDecisions = require('../services/agentGatewayDecisions');
+const { resolveActingIdentity } = require('../middleware/transactionTurn');
 
 const router = express.Router();
 
@@ -28,10 +30,16 @@ router.get('/agent-gateway/logs', async (req, res) => {
 });
 
 router.get('/agent-gateway/decisions', (req, res) => {
+  // Ownership, same rule as /api/transaction-trace: a non-admin sees only
+  // decisions about their own PingOne sub; admins see every caller's. Entries
+  // carry email, sub, client id and scopes, so an unfiltered buffer would show
+  // one signed-in user another user's identity and token metadata.
+  const isAdmin = req.user?.role === 'admin';
+  const principal = isAdmin ? undefined : resolveActingIdentity(req);
   return res.status(200).json({
     ok: true,
     container: agentGatewayLogs.GATEWAY_CONTAINER,
-    decisions: agentGatewayDecisions.recent(req.query.limit),
+    decisions: agentGatewayDecisions.recent(req.query.limit, principal),
   });
 });
 

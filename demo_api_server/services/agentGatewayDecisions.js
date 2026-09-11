@@ -46,6 +46,10 @@ function record(trail, meta = {}) {
       iss: introspection.iss || '',
       email: introspection.email || '',
       actor: (trail.mcpAudit && trail.mcpAudit.who && trail.mcpAudit.who.agentSub) || '',
+      // Where PingGateway stopped the call, if it did. Set for a DENY, and also for
+      // a PERMIT that carries an unmet obligation (step-up MFA, human approval):
+      // the decision was PERMIT but the MCP server was never called.
+      stoppedAt: trail.denyingFilter || null,
       correlationId: meta.correlationId || '',
       reason: authorize.reason || null,
       // statements: real PingOne Authorize deny/permit statements (the actionable
@@ -60,10 +64,17 @@ function record(trail, meta = {}) {
   }
 }
 
-/** Return recent decisions, newest first. */
-function recent(limit = MAX) {
+/**
+ * Return recent decisions, newest first.
+ * @param {number} [limit]
+ * @param {string|null} [principal]  when given, only decisions whose `sub` is this
+ *   principal. Filtered BEFORE the limit, so a user's own decisions are never
+ *   crowded out by other callers' newer ones. A null principal matches nothing.
+ */
+function recent(limit = MAX, principal) {
   const n = Math.min(Math.max(parseInt(limit, 10) || MAX, 1), MAX);
-  return buffer.slice(-n).reverse();
+  const pool = principal === undefined ? buffer : buffer.filter((e) => e.sub === principal);
+  return pool.slice(-n).reverse();
 }
 
 function clear() { buffer.length = 0; }

@@ -24,6 +24,10 @@ const REFRESH_MS = 3000;
  */
 export function chainSteps(d) {
   const permitted = String(d.decision || "").toUpperCase() === "PERMIT";
+  // A PERMIT with an unmet obligation (step-up MFA, human approval) still stops at
+  // PingGateway, which reports where it stopped in `stoppedAt`.
+  const held = permitted && Boolean(d.stoppedAt);
+  const reached = permitted && !held;
   const reasons = (d.statements || []).map(statementMessage).filter(Boolean);
   if (!reasons.length && d.reason) reasons.push(String(d.reason));
   return [
@@ -64,15 +68,19 @@ export function chainSteps(d) {
       label: "PingOne Authorize",
       value: d.decision || "UNKNOWN",
       detail: [d.backend && `backend ${d.backend}`, ...reasons].filter(Boolean).join(" · "),
-      status: permitted ? "ok" : "blocked",
+      status: reached ? "ok" : held ? "warn" : "blocked",
       badgeClass: decisionBadgeClass(d),
     },
     {
       key: "mcp",
       label: "MCP server",
-      value: permitted ? "reached" : "not reached",
-      detail: permitted ? "" : "the call stopped at PingOne Authorize",
-      status: permitted ? "ok" : "blocked",
+      value: reached ? "reached" : held ? "held at PingGateway" : "not reached",
+      detail: reached
+        ? ""
+        : held
+          ? "PERMIT with an unmet obligation (e.g. step-up MFA or approval); the call was not forwarded"
+          : "the call stopped at PingOne Authorize",
+      status: reached ? "ok" : held ? "warn" : "blocked",
     },
   ];
 }
@@ -122,7 +130,8 @@ export default function IdentityChainPage() {
       <h1 className="icp-title">Identity Chain</h1>
       <p className="icp-intro">
         Every MCP call through PingGateway: who the user is, which app is calling, what their token
-        carries, and what PingOne Authorize decided. It refreshes every few seconds.
+        carries, and what PingOne Authorize decided. You see your own calls; admins see every
+        caller's. It refreshes every few seconds.
       </p>
       {error ? <p className="icp-error" role="alert">{error}</p> : null}
       {!error && decisions.length === 0 ? (

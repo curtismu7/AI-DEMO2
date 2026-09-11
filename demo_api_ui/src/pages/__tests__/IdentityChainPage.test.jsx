@@ -57,4 +57,14 @@ describe("IdentityChainPage", () => {
     expect(byKey.mcp.value).toBe("reached");
     expect(byKey.authorize.status).toBe("ok");
   });
+
+  it("does not claim the MCP server was reached when PingGateway held a PERMIT", () => {
+    // Step-up / approval: P1AZ said PERMIT with an unmet obligation, so the gateway
+    // stopped the call and reports where.
+    const steps = chainSteps({ ...ONYX_DENY, decision: "PERMIT", actor: "agent-7", statements: [], stoppedAt: "P1AZDecision" });
+    const byKey = Object.fromEntries(steps.map((s) => [s.key, s]));
+    expect(byKey.mcp.value).toBe("held at PingGateway");
+    expect(byKey.mcp.status).toBe("warn");
+    expect(byKey.authorize.status).toBe("warn");
+  });
 });

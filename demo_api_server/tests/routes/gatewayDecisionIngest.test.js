@@ -33,6 +33,7 @@ const DENY_TRAIL = {
     statements: [{ code: 'mcp-invalid-actor', payload: '{"message":"not a registered actor"}' }],
   },
   mcpAudit: { who: { userSub: 'user-1', agentSub: null } },
+  denyingFilter: 'P1AZDecision',
 };
 
 describe('POST /internal/gateway-decision', () => {
@@ -72,6 +73,7 @@ describe('POST /internal/gateway-decision', () => {
       iss: 'https://auth.pingone.com/env/as',
       email: 'demo@example.com',
       actor: '',
+      stoppedAt: 'P1AZDecision',
     }));
     expect(entry.statements[0].code).toBe('mcp-invalid-actor');
   });
