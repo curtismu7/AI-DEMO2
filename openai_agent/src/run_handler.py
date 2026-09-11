@@ -87,6 +87,7 @@ async def agent_run(request: Request) -> StreamingResponse:
         "bff_tool_url": resolve_bff_tool_url(bff_tool_url, cfg.bff_tool_url),
         "bff_internal_secret": cfg.bff_internal_secret,
         "session_id": session_id,
+        "run_id": run_id,
         "base_url": llm_base_url,
     }
 

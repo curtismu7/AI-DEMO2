@@ -79,7 +79,9 @@ async def agent_run(request: Request) -> StreamingResponse:
     )
 
     auth_token: str = body.get("auth_token", "")
-    run_id: str = f"run_{uuid.uuid4().hex[:12]}"
+    # The BFF's run id, as the other agents use: tool callbacks name their run,
+    # and the BFF keys each run's context (tool list, Intent Token) by it.
+    run_id: str = body.get("runId") or f"run_{uuid.uuid4().hex[:12]}"
     # Vertical persona injected by the BFF from the active vertical manifest.
     # Used to override the base persona in _build_system_message on the first turn.
     vertical_flavor: Optional[str] = body.get("vertical_flavor") or None
@@ -148,7 +150,7 @@ async def _run_stream(
         _invoke_agent(emitter, session_id, message, auth_token, finish, vertical_flavor,
                       bff_tool_url=bff_tool_url, tool_schemas=tool_schemas or [],
                       messages_list=messages_list or [], run_provider=run_provider,
-                      run_model=run_model, user_identity=user_identity)
+                      run_model=run_model, user_identity=user_identity, run_id=run_id)
     )
 
     try:
@@ -219,6 +221,7 @@ async def _invoke_agent(
     run_provider: Optional[str] = None,
     run_model: Optional[str] = None,
     user_identity: Optional[Dict[str, Any]] = None,
+    run_id: str = "",
 ) -> None:
     """Invoke the message processor and drive emitter lifecycle."""
     if _message_processor is None:
@@ -252,6 +255,7 @@ async def _invoke_agent(
             run_provider=run_provider,
             run_model=run_model,
             user_identity=user_identity,
+            run_id=run_id,
         )
         await emitter.on_run_end()
     except Exception as exc:

@@ -73,15 +73,25 @@ changes the intent-token contract, and the missing flow steps did not depend on 
 field with a targeted read-modify-write (re-load the stored session, set it, save) as soon as it is
 minted, or move `intentToken` to the run context like the trace.
 
-**RESOLVED** (branch `worktree-agent-run-no-session-write`). `intentToken` was the only session field
-`/api/agent/run` wrote (`buildSessionPreviewTokenEvents` writes none), and the only reader of the
-stored value was `/internal/agent-tool` — the "other routes" above were wrong: the chip route,
-`agentInvokeRoute` and `devTools` mint their own onto `req.intentToken`. So it moved to the run context
-like the trace: `agentRun` sets `runEntry.intentToken`, `agentTool` reads it from `getRunContext` with
-no session fallback. With no session write the run's request leaves the session unmodified, so
-express-session saves nothing at the end and can no longer overwrite a mode change. It also fixed a
-second bug this entry missed: because the write was only saved when the run ended, the mid-run tool
-callback had been forwarding the PREVIOUS run's Intent Token to the gateway.
+**RESOLVED** (branch `worktree-agent-run-no-session-write`, #3141), in three parts.
+
+1. `intentToken` moved to the run context like the trace. It was the only session field the route
+   itself wrote (`buildSessionPreviewTokenEvents` writes none), and the only reader of the stored value
+   was `/internal/agent-tool` — the "other routes" above were wrong: the chip route, `agentInvokeRoute`
+   and `devTools` mint their own onto `req.intentToken`. This also fixed a second bug: because the write
+   was only saved when the run ended, the mid-run tool callback had been forwarding the PREVIOUS run's
+   Intent Token to the gateway.
+2. Setup services still write the session — `getAgentCCToken` caches the agent token in
+   `session.agentTokens` on a miss (Greptile P1 on #3141) — and that write was still saved as the run's
+   stale copy at the end. `agentRun` now compares the session with its start-of-run copy just before the
+   agent stream and, if setup changed it, saves it there. Nothing writes it after that, so express-session
+   skips its own end-of-run save. **Still open:** when setup did write, a mode change made during setup
+   (the seconds between the run's start and that save) is still overwritten; reload-and-merge if that
+   window ever matters.
+3. Overlapping runs in one session shared a session-keyed run context, so an older run's tool callback
+   read the newer run's Intent Token and tool list (Greptile P1 on #3141). Entries are now keyed by
+   session + run id and all five agents send `runId` on `/internal/agent-tool`; a callback without it
+   falls back to the session's latest run, as before.
 
 ### [x] 2026-09-11 — HistoryModal.js is unthemed (23 inline style blocks)
 

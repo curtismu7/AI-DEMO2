@@ -85,6 +85,40 @@ describe('/internal/agent-tool — run context survives a lost session write', (
     expect(req.intentToken).toBe('intent-token-this-run');
     expect(req.body).toEqual({ flowTraceId: 'trace-intent-1', useCaseId: null });
   });
+
+  // Greptile P1 on #3141: two overlapping runs in one browser session shared one
+  // session-keyed context, so the older run's tool callback read the newer run's
+  // Intent Token and offered-tool list. The callback now names its run.
+  it("gives an overlapping run's tool callback its own run context", async () => {
+    const app = buildApp();
+    const { setRunContext } = runContext();
+    const older = setRunContext('s-overlap', { flowTraceId: 'trace-A', runId: 'run-A' });
+    older.toolNames = ['get_my_accounts'];
+    older.intentToken = 'intent-A';
+    const newer = setRunContext('s-overlap', { flowTraceId: 'trace-B', runId: 'run-B' });
+    newer.toolNames = ['get_my_transactions'];
+    newer.intentToken = 'intent-B';
+
+    const res = await post(app, { tool: 'get_my_accounts', args: {}, sessionId: 's-overlap', runId: 'run-A' });
+
+    expect({ status: res.status, error: res.body && res.body.error }).toEqual({ status: 200, error: undefined });
+    const { req } = mockExecuteBffTool.mock.calls[0][0];
+    expect(req.intentToken).toBe('intent-A');
+    expect(req.body).toEqual({ flowTraceId: 'trace-A', useCaseId: null });
+  });
+
+  it("refuses a callback that names a run that is no longer in flight", async () => {
+    const app = buildApp();
+    const { setRunContext, clearRunContext } = runContext();
+    const ended = setRunContext('s-ended', { runId: 'run-old' });
+    ended.toolNames = ['get_my_accounts'];
+    clearRunContext('s-ended', ended);
+    setRunContext('s-ended', { runId: 'run-new' }).toolNames = ['get_my_accounts'];
+
+    const res = await post(app, { tool: 'get_my_accounts', args: {}, sessionId: 's-ended', runId: 'run-old' });
+
+    expect({ status: res.status, error: res.body && res.body.error }).toEqual({ status: 403, error: 'tool_not_offered' });
+  });
 });
 
 describe('agentRunContext — one entry per run in flight', () => {

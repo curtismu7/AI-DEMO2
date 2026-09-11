@@ -40,6 +40,21 @@ describe('buildBffTools', () => {
     );
   });
 
+  // The BFF keys each run's context (tool list, Intent Token) by run id: a
+  // callback without it could read an overlapping newer run's context.
+  it('tool execute names its run in the BFF callback body', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ result: {} }),
+    } as any);
+
+    const tools = buildBffTools([SCHEMA], { ...RUN_CTX, runId: 'run-A' });
+    await tools[0].execute!({ userId: 'u1' }, {} as any);
+
+    const [, init] = (global.fetch as jest.Mock).mock.calls[0];
+    expect(JSON.parse(init.body).runId).toBe('run-A');
+  });
+
   it('tool execute throws BffToolError on non-ok response', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: false,

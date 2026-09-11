@@ -166,7 +166,8 @@ async function executeTool(
   bffToolUrl: string | undefined,
   pinnedBffToolUrl: string | undefined,
   sessionId: string | undefined,
-  internalSecret: string
+  internalSecret: string,
+  runId: string
 ): Promise<ToolExecResult> {
   // Prefer the env-pinned URL over the caller-supplied one to prevent SSRF.
   bffToolUrl = pinnedBffToolUrl || bffToolUrl;
@@ -194,16 +195,17 @@ async function executeTool(
 
   try {
     // Wire contract for BFF_TOOL_URL=/internal/agent-tool (see routes/agentTool.js):
-    // body must be { tool, args, sessionId }. Do NOT send MCP/JSON-RPC here —
-    // #1108 briefly did and every tool call 400'd with tool_required because
-    // sessionId/tool lived under params.* instead of the top level.
+    // body must be { tool, args, sessionId, runId }. Do NOT send MCP/JSON-RPC
+    // here — #1108 briefly did and every tool call 400'd with tool_required
+    // because sessionId/tool lived under params.* instead of the top level.
+    // runId: the BFF keys each run's context (tool list, Intent Token) by it.
     const resp = await fetch(bffToolUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-internal-gateway-secret': internalSecret,
       },
-      body: JSON.stringify({ tool: toolName, args: toolArgs, sessionId }),
+      body: JSON.stringify({ tool: toolName, args: toolArgs, sessionId, runId }),
       // Bound the BFF tool call so a hung/slow tool can't hold the SSE stream open
       // forever — a timeout surfaces as a tool error the reasoning loop can recover from.
       signal: AbortSignal.timeout(30000),
@@ -545,7 +547,7 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
           toolSpan.setAttribute('tool_call_id', callId);
           toolSpan.setAttribute('correlation_id', getCorrelationId() ?? '');
 
-          const { result, mcpEntry, authorizeDecision, callTokenEvents } = await executeTool(call.name, call.args, bffToolUrl, pinnedBffToolUrl, sessionId, internalSecret);
+          const { result, mcpEntry, authorizeDecision, callTokenEvents } = await executeTool(call.name, call.args, bffToolUrl, pinnedBffToolUrl, sessionId, internalSecret, runId);
 
           if (mcpEntry?.durationMs) {
             toolSpan.setAttribute('duration_ms', mcpEntry.durationMs);

@@ -86,4 +86,22 @@ describe('agentRun Intent Token mint — uses the exported extractor', () => {
     expect(src).toMatch(/runEntry\.intentToken\s*=\s*_intentToken/);
     expect(src).not.toMatch(/req\.session\.intentToken\s*=/);
   });
+
+  test('agentRun saves the session after its setup writes and before the agent stream', () => {
+    // Setup can still write the session (the agent-token cache on a miss). Left
+    // to express-session, that is saved when this long-running response ENDS, as
+    // the copy loaded when the run STARTED — overwriting a mode change made
+    // mid-run (Greptile P1 on #3141). Saved here instead, the session is
+    // unchanged at the end, so express-session skips its own save.
+    const fs = require('fs');
+    const path = require('path');
+    const src = fs.readFileSync(path.join(__dirname, '../routes/agentRun.js'), 'utf8');
+    const lastSetupWrite = src.indexOf('runEntry.toolNames =');
+    const save = src.indexOf('req.session.save(', lastSetupWrite);
+    const streamStart = src.indexOf('Step E: set SSE headers');
+    expect(lastSetupWrite).toBeGreaterThan(-1);
+    expect(streamStart).toBeGreaterThan(-1);
+    expect(save).toBeGreaterThan(lastSetupWrite);
+    expect(save).toBeLessThan(streamStart);
+  });
 });

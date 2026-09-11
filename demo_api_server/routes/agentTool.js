@@ -98,7 +98,10 @@ router.post('/agent-tool', async (req, res) => {
   // this session's run in flight may run. Read from the run context, not the
   // stored session, which a concurrent stale save can overwrite — and so is the
   // run's Intent Token (agentRun no longer writes it to the session).
-  const { toolNames = [], intentToken = null, ...runBody } = require('../services/agentRunContext').getRunContext(sessionId);
+  // body.runId names the run this callback belongs to, so an older run that
+  // overlaps a newer one in the same session reads its own entry.
+  const callbackRunId = typeof req.body?.runId === 'string' ? req.body.runId : undefined;
+  const { toolNames = [], intentToken = null, ...runBody } = require('../services/agentRunContext').getRunContext(sessionId, callbackRunId);
   if (!toolNames.includes(tool)) {
     return res.status(403).json({ error: 'tool_not_offered', tool });
   }

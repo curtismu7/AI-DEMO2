@@ -48,6 +48,7 @@ export async function handleRun(req: Request, res: Response): Promise<void> {
     bffToolUrl: resolveBffToolUrl(ctx.bffToolUrl as string | undefined, cfg.bffToolUrl),
     bffInternalSecret: cfg.bffInternalSecret,
     sessionId,
+    runId,
     abortSignal: abortController.signal,
   };
   // Per-run model override from BFF context wins; falls back to env-resolved

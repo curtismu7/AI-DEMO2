@@ -372,19 +372,22 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
   // the useCaseId. NOT kept on the session: it is last-write-wins across
   // concurrent requests, and the mode picker's POST /api/langchain/config saved
   // its stale copy over the trace, so the whole run's phases went to no trace.
-  // Assumes one AG-UI run per session at a time: two concurrent runs in the same
-  // session would cross-wire the flow SSE. Acceptable for the demo (one agent
-  // panel per session); key by runId if that changes.
+  // Keyed by session AND runId: the agents echo runId on every tool callback, so
+  // two runs overlapping in one browser session each read their own entry.
   // useCaseId is overwritten every run (value or null) so a stale one never leaks.
   const flowTraceId = typeof req.body?.flowTraceId === 'string' ? req.body.flowTraceId.trim() : '';
   const useCaseId = typeof req.body?.useCaseId === 'string' ? req.body.useCaseId.trim() : '';
   // Registered for every run, not only traced ones: the offered-tool list the
   // tool callback enforces (Step B) hangs off this entry too.
   const runContext = require('../services/agentRunContext');
-  const runEntry = runContext.setRunContext(req.session.id, { flowTraceId, useCaseId });
+  const runEntry = runContext.setRunContext(req.session.id, { flowTraceId, useCaseId, runId });
   // Live only for this run: cleared when its response closes, unless a newer
   // run in the same session has already replaced it.
   res.on('close', () => runContext.clearRunContext(req.session.id, runEntry));
+  // The session as this run loaded it, compared the way express-session does
+  // (minus the cookie) — see the early save before Step E.
+  const omitCookie = (k, v) => (k === 'cookie' ? undefined : v);
+  const sessionAtStart = JSON.stringify(req.session, omitCookie);
 
   // Sliding-window: forward only the most recent N messages to each agent.
   // Configurable via agent_history_limit (default 10). Prevents unbounded
@@ -647,6 +650,21 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
     },
     ...(resume ? { resume } : {}),
   };
+
+  // Persist setup's session writes (the agent-token cache on a miss) NOW. Left
+  // to express-session they are saved when this long-running response ENDS, as
+  // the whole session loaded when the run STARTED — undoing a mode change made
+  // mid-run (Greptile P1 on #3141). Saved here, the session is unchanged at the
+  // end, so express-session skips its own save. Only when setup changed it:
+  // saving an unchanged copy would itself be a stale write.
+  // ponytail: a mode change during setup (before this line) is still lost;
+  // reload-and-merge if that window ever matters.
+  if (JSON.stringify(req.session, omitCookie) !== sessionAtStart) {
+    await new Promise((resolve) => req.session.save((err) => {
+      if (err) console.warn('[agentRun] early session save failed (non-fatal):', err.message);
+      resolve();
+    }));
+  }
 
   // ---------------------------------------------------------------------------
   // Step E: set SSE headers and proxy stream from agent service

@@ -57,6 +57,8 @@ class RunCtx(TypedDict):
     bff_tool_url: str
     bff_internal_secret: str
     session_id: str
+    # Named on every callback: the BFF keys each run's context by it.
+    run_id: str
 
 
 def build_bff_tools(
@@ -112,7 +114,8 @@ def _make_tool(schema: dict, run_ctx: RunCtx, sink: Optional[Callable[[dict], Co
             async with httpx.AsyncClient(timeout=_timeout) as client:
                 resp = await client.post(
                     run_ctx["bff_tool_url"],
-                    json={"tool": tool_name, "args": args, "sessionId": run_ctx["session_id"]},
+                    json={"tool": tool_name, "args": args, "sessionId": run_ctx["session_id"],
+                          "runId": run_ctx.get("run_id")},
                     headers={
                         "x-internal-gateway-secret": run_ctx["bff_internal_secret"],
                         "x-session-id": run_ctx["session_id"],
