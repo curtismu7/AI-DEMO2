@@ -2,7 +2,15 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import GatewayVerdicts, { normalizeVerdict, pickSearchTool, frameworkLabel, authGate } from '../GatewayVerdicts';
+import GatewayVerdicts, { normalizeVerdict, pickSearchTool, extractSearchHits, frameworkLabel, authGate } from '../GatewayVerdicts';
+
+// The shape opensearch-mcp-server actually returns from SearchIndexTool: the
+// _search response as a text block inside MCP tool content, prefixed with a
+// human sentence. Measured live 2026-09-11.
+function contentTextInvoke(hits) {
+  const osResponse = { took: 2, timed_out: false, hits: { total: { value: hits.length }, hits } };
+  return { result: { content: [{ type: 'text', text: `Search results from gateway-events (JSON format):\n${JSON.stringify(osResponse)}` }] } };
+}
 
 const AIGUARD_DOC = {
   _source: {
@@ -78,6 +86,30 @@ describe('pickSearchTool', () => {
 
   it('returns null rather than guessing when nothing matches', () => {
     expect(pickSearchTool([{ name: 'ListIndices' }])).toBeNull();
+  });
+
+  // Once every tool is granted the door exposes several /search/ tools with
+  // different args; only SearchIndexTool takes query_dsl and returns hits.
+  it('prefers SearchIndexTool over other /search/ tools regardless of order', () => {
+    expect(pickSearchTool([
+      { name: 'MsearchTool' }, { name: 'GenericOpenSearchApiTool' }, { name: 'SearchIndexTool' },
+    ])).toBe('SearchIndexTool');
+  });
+});
+
+describe('extractSearchHits', () => {
+  it('parses the MCP content-text shape opensearch-mcp-server actually returns', () => {
+    const hits = extractSearchHits(contentTextInvoke([AIGUARD_DOC]));
+    expect(hits).toHaveLength(1);
+    expect(hits[0]._source.Category).toBe('pii');
+  });
+
+  it('still reads the structured shape if a server returns one', () => {
+    expect(extractSearchHits({ result: { hits: { hits: [AIGUARD_DOC] } } })).toHaveLength(1);
+  });
+
+  it('returns [] for content with no JSON body', () => {
+    expect(extractSearchHits({ result: { content: [{ type: 'text', text: 'no results' }] } })).toEqual([]);
   });
 });
 
@@ -170,5 +202,28 @@ describe('GatewayVerdicts', () => {
     fireEvent.click(screen.getByRole('button', { name: /load findings/i }));
 
     await waitFor(() => expect(screen.getByTestId('gwv-empty')).toBeInTheDocument());
+  });
+
+  // The two live bugs: the invoke must send `query_dsl` (not `query`), and the
+  // result arrives as MCP content text (not result.hits). Both fixed together.
+  it('sends query_dsl and renders findings from the content-text response', async () => {
+    let invokeBodyStr = null;
+    const fetchImpl = vi.fn((url, opts) => {
+      if (String(url).includes('/tools')) {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({ tools: [{ name: 'SearchIndexTool' }] }) });
+      }
+      invokeBodyStr = opts && opts.body;
+      return Promise.resolve({ ok: true, status: 200, json: async () => contentTextInvoke([AIGUARD_DOC]) });
+    });
+    render(<GatewayVerdicts fetchImpl={fetchImpl} />);
+    fireEvent.click(screen.getByRole('button', { name: /load findings/i }));
+
+    await waitFor(() => expect(screen.getByTestId('gwv-list')).toBeInTheDocument());
+    expect(screen.getByText('AML.T0057')).toBeInTheDocument();
+    const sent = JSON.parse(invokeBodyStr);
+    expect(sent.tool).toBe('SearchIndexTool');
+    expect(sent.params).toHaveProperty('query_dsl');
+    expect(sent.params).not.toHaveProperty('query');
+    expect(sent.params.query_dsl.query).toEqual({ match: { msg: 'AIGuard' } });
   });
 });
