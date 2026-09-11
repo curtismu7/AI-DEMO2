@@ -813,13 +813,25 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
   }
 
   // A door that owns its upstream auth swaps the caller's bearer for the
-  // server-side gateway session. Without one the honest answer is "a human has
-  // to sign in", not a confusing 401 that sends the client back to OUR broker
-  // it already satisfied.
+  // server-side gateway session of the app it names. Without one there are two
+  // honest answers. With the gateway link on, the client's own sign-in restores
+  // this leg — the broker chains it through /api/privilege-mcp/facade-link
+  // (docs/superpowers/specs/2026-09-11-lmstudio-privilege-gateway-link-design.md)
+  // — so send the client back to authenticate. Without the link, a 401 would
+  // only loop it through a sign-in that cannot fix this: say a human has to
+  // sign in instead.
   let upstreamHeaders = forwardHeaders(req, correlationId);
   if (door.ownsUpstreamAuth) {
-    const upstreamToken = await privilegeGatewaySession.getAccessToken();
+    const upstreamToken = await privilegeGatewaySession.getAccessToken(req.params.app);
     if (!upstreamToken) {
+      if (process.env.MCP_FACADE_PRIVILEGE_LINK === 'true') {
+        res.set('WWW-Authenticate', rewriteChallenge('Bearer error="invalid_token"', `${facadeBase(req)}/.well-known/oauth-protected-resource`, door.scopes));
+        return res.status(401).json({
+          jsonrpc: '2.0',
+          id: rpc.id ?? null,
+          error: { code: -32001, message: 'Unauthorized', data: { reason: 'gateway_session_unavailable' } },
+        });
+      }
       return res.status(503).json({
         jsonrpc: '2.0',
         id: rpc.id ?? null,
@@ -827,7 +839,7 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
           code: -32002,
           message: 'Gateway session unavailable',
           data: {
-            reason: privilegeGatewaySession.status().reason,
+            reason: privilegeGatewaySession.status(req.params.app).reason,
             remedy: 'Sign in once at /privilege-mcp-client — the gateway forgets its clients on restart.',
           },
         },
@@ -968,6 +980,10 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
   res.status(upstream.status);
   if (upstreamSession) res.set('Mcp-Session-Id', upstreamSession);
   if (upstream.status === 401) {
+    // The gateway refused the session's token (it restarted, or the token was
+    // minted for another app). Drop it so the client's re-authentication
+    // starts from a clean slate instead of replaying a dead token.
+    if (door.ownsUpstreamAuth) privilegeGatewaySession.clear(req.params.app);
     res.set('WWW-Authenticate', rewriteChallenge(upstream.headers.get('www-authenticate'), `${facadeBase(req)}/.well-known/oauth-protected-resource`, door.scopes));
   }
 
@@ -1114,7 +1130,7 @@ router.delete(['/:door/mcp', '/:door/:app/mcp'], async (req, res) => {
   // credential for this upstream and is rejected by it.
   let headers = forwardHeaders(req, null);
   if (req.door.ownsUpstreamAuth) {
-    const upstreamToken = await privilegeGatewaySession.getAccessToken();
+    const upstreamToken = await privilegeGatewaySession.getAccessToken(req.params.app);
     if (!upstreamToken) {
       // Unlike the POST path, a missing gateway session is not worth a 503: the
       // client is tearing its side down either way, and the upstream session
