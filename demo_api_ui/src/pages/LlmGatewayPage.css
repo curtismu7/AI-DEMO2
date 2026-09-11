@@ -376,6 +376,66 @@
   color: var(--th-text);
 }
 
+/* Run all: one row per Library attack, scored against the catalog. A row
+   whose result disagrees with the catalog fills in the warning family, so a
+   policy that stopped firing is visible from across the room. */
+.lgw-score {
+  overflow-x: auto;
+}
+
+.lgw-score__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+  color: var(--th-text);
+}
+
+.lgw-score__table th,
+.lgw-score__table td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--th-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.lgw-score__table th {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}
+
+.lgw-score__table tr.is-mismatch td {
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+}
+
+.lgw-score__cell {
+  width: 100%;
+  padding: 0.2rem 0.3rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lgw-score__cell:hover {
+  border-color: var(--th-border);
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.lgw-score__flag {
+  font-weight: 700;
+}
+
+.lgw-score__ms {
+  color: var(--th-text-muted);
+}
+
 .lgw-empty {
   margin: 0;
   font-size: var(--font-size-base);

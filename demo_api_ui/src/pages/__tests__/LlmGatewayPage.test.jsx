@@ -910,6 +910,198 @@ describe("LLM Gateway console", () => {
     });
   });
 
+  // Run all: every Library attack through the selected Privilege lane and
+  // through llama.cpp, one call at a time (llama.cpp's proxy is one shared rate
+  // bucket), scored against what the catalog says each attack should produce.
+  describe("run all attacks", () => {
+    const EXPECTED_LABEL = { blocks: "Blocked", sanitizes: "Redacted", none: "No verdict" };
+    const DENIED = () => ({
+      ok: false, status: 403,
+      text: async () => JSON.stringify({
+        error: "blocked", code: "llm_policy_denied", reason: "request blocked by security policy: prompt_injection",
+        provider: "anthropic", route: "/llm/anthropic/v1/messages", latencyMs: 20, reachedProvider: false,
+      }),
+    });
+    const OK = (reply) => ({
+      ok: true, status: 200,
+      text: async () => JSON.stringify({
+        reply, provider: "anthropic", route: "/llm/anthropic/v1/messages",
+        latencyMs: 300, reachedProvider: true, providerLimits: null,
+      }),
+    });
+    // What the gateway does to each attack, per the catalog's measured `effect`.
+    const faithful = (payload) => {
+      const effect = GUARDRAIL_ATTACKS.find((a) => a.payload === payload).effect;
+      if (effect === "blocks") return DENIED();
+      if (effect === "sanitizes") return OK("Jane Doe | [REDACTED:pii] | [REDACTED:pii]");
+      return OK("I can't help with that.");
+    };
+
+    // Records every /llm/call body, and whether a call ever started while
+    // another was still in flight.
+    function mockRunAll({ guarded = faithful, unguarded = () => OK("Sure, here you go."), config = CONFIG_WITH_LOCALS } = {}) {
+      const state = { calls: [], overlapped: false, inFlight: 0 };
+      global.fetch = vi.fn((url, init) => {
+        const u = String(url);
+        if (u.endsWith("/llm/config")) {
+          return Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(config) });
+        }
+        if (u.endsWith("/llm/call")) {
+          const body = JSON.parse(init.body);
+          state.calls.push(body);
+          if (state.inFlight > 0) state.overlapped = true;
+          state.inFlight += 1;
+          const res = body.provider === "llamacpp" ? unguarded(body.prompt) : guarded(body.prompt);
+          return Promise.resolve({ ...res, text: async () => { state.inFlight -= 1; return res.text(); } });
+        }
+        return new Promise(() => {});
+      });
+      return state;
+    }
+    const runAll = () => fireEvent.click(screen.getByRole("button", { name: /run all attacks/i }));
+    const whenDone = () => waitFor(() => expect(screen.getByTestId("lgw-scorecard")).toHaveAttribute("data-done", "true"));
+
+    it("fires every attack in catalog order, selected lane then llama.cpp, never two at once", async () => {
+      const state = mockRunAll();
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      runAll();
+      await whenDone();
+
+      expect(state.calls.map((c) => [c.provider, c.prompt])).toEqual(
+        GUARDRAIL_ATTACKS.flatMap((a) => [["anthropic", a.payload], ["llamacpp", a.payload]]),
+      );
+      expect(state.overlapped).toBe(false);
+    });
+
+    it("scores each row by what came back, with no flag when it matches the catalog", async () => {
+      mockRunAll();
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      runAll();
+      await whenDone();
+
+      for (const a of GUARDRAIL_ATTACKS) {
+        const row = screen.getByTestId(`lgw-score-${a.id}`);
+        expect(within(row).getByTestId("lgw-score-guarded"), a.id).toHaveTextContent(EXPECTED_LABEL[a.effect]);
+        expect(row, a.id).not.toHaveAttribute("data-mismatch", "true");
+      }
+    });
+
+    it("flags a row that disagrees with the catalog, and still runs the rest", async () => {
+      const injection = GUARDRAIL_ATTACKS.find((a) => a.id === "prompt_injection");
+      mockRunAll({ guarded: (p) => (p === injection.payload ? OK("Sure.") : faithful(p)) });
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      runAll();
+      await whenDone();
+
+      const row = screen.getByTestId("lgw-score-prompt_injection");
+      expect(row).toHaveAttribute("data-mismatch", "true");
+      expect(row).toHaveTextContent(/⚠️.*expected Blocked/);
+      const last = GUARDRAIL_ATTACKS[GUARDRAIL_ATTACKS.length - 1];
+      expect(within(screen.getByTestId(`lgw-score-${last.id}`)).getByTestId("lgw-score-unguarded")).toHaveTextContent("Sure, here you go.");
+    });
+
+    it("previews only the first line of an unguarded reply until it is clicked", async () => {
+      mockRunAll({ unguarded: () => OK("First line of the answer.\nimport os  # the rest of it") });
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      runAll();
+      await whenDone();
+
+      const cell = within(screen.getByTestId("lgw-score-malicious_content")).getByTestId("lgw-score-unguarded");
+      expect(cell).toHaveTextContent("First line of the answer.");
+      expect(screen.queryByText(/import os/)).not.toBeInTheDocument();
+
+      fireEvent.click(cell);
+
+      expect(screen.getByTestId("lgw-score-detail")).toHaveTextContent(/import os/);
+      expect(screen.getByTestId("lgw-decision")).toHaveTextContent("llamacpp");
+    });
+
+    it("Stop sends nothing more, and marks the attacks it never reached", async () => {
+      const calls = [];
+      let release;
+      global.fetch = vi.fn((url, init) => {
+        const u = String(url);
+        if (u.endsWith("/llm/config")) {
+          return Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(CONFIG_WITH_LOCALS) });
+        }
+        if (u.endsWith("/llm/call")) {
+          calls.push(JSON.parse(init.body));
+          return new Promise((resolve) => { release = () => resolve(DENIED()); });
+        }
+        return new Promise(() => {});
+      });
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      runAll();
+      await waitFor(() => expect(calls).toHaveLength(1));
+      fireEvent.click(screen.getByRole("button", { name: /^stop$/i }));
+      release();
+      await whenDone();
+
+      expect(calls).toHaveLength(1);
+      expect(screen.getByTestId(`lgw-score-${GUARDRAIL_ATTACKS[1].id}`)).toHaveTextContent(/not run/i);
+    });
+
+    it("can't be started without a llama.cpp lane to compare against", async () => {
+      mockRunAll({ config: CONFIG });
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      expect(screen.getByRole("button", { name: /run all attacks/i })).toBeDisabled();
+    });
+
+    // The results belong to the lane that ran them. Switching lanes afterwards
+    // must not relabel a health check as a lane that was never tested.
+    it("keeps the scorecard labelled with the lane the run went through after a lane switch", async () => {
+      mockRunAll();
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      runAll();
+      await whenDone();
+      fireEvent.click(screen.getByRole("button", { name: /google/i }));
+
+      const card = screen.getByTestId("lgw-scorecard");
+      expect(within(card).getByRole("columnheader", { name: /through anthropic/i })).toBeInTheDocument();
+      expect(within(card).queryByRole("columnheader", { name: /through google/i })).not.toBeInTheDocument();
+    });
+
+    // Reset mid-run cleared the screen, then the still-running loop refilled it.
+    it("can't Reset while a run is still in flight", async () => {
+      const calls = [];
+      global.fetch = vi.fn((url, init) => {
+        const u = String(url);
+        if (u.endsWith("/llm/config")) {
+          return Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify(CONFIG_WITH_LOCALS) });
+        }
+        if (u.endsWith("/llm/call")) {
+          calls.push(JSON.parse(init.body));
+          // The first guarded call lands, so a decision is on screen; the next
+          // never does, so the run is still in flight.
+          return calls.length === 1 ? Promise.resolve(DENIED()) : new Promise(() => {});
+        }
+        return new Promise(() => {});
+      });
+      render(<LlmGatewayPage />);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      runAll();
+      await waitFor(() => expect(calls).toHaveLength(2));
+      await screen.findByTestId("lgw-decision");
+
+      expect(screen.getByRole("button", { name: /^reset$/i })).toBeDisabled();
+    });
+  });
+
   describe("empty prompt", () => {
     beforeEach(() => { window.localStorage.clear(); });
 
