@@ -1050,12 +1050,15 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
     // Deliberately narrow: only after a transport/upstream failure (never after
     // a DENY or a challenge, which are real answers), and only when the active
     // vertical's plugin actually owns the tool.
-    // And only when the gateway recorded a PERMIT: mcp_error comes from any
-    // failure, including one before the gateway decided, and mcp_unreachable
-    // means it never answered. Serving locally without that would skip P1AZ.
+    // And only when the call was authorized: the gateway recorded a PERMIT, or,
+    // with no gateway, the BFF's own P1AZ gate did (it is the enforcement point
+    // then, and mcp-server rejects the specialist token's A2A-gateway
+    // audience). mcp_error comes from any failure, including one before any
+    // decision; serving locally without a PERMIT would skip P1AZ.
     const failedUpstream = toolResult && typeof toolResult === 'object'
       && toolResult.error === 'mcp_error'
-      && String(toolResult.gatewayDecision || '').toUpperCase() === 'PERMIT';
+      && [toolResult.gatewayDecision, toolResult.bffDecision]
+        .some((d) => String(d || '').toUpperCase() === 'PERMIT');
     if (failedUpstream) {
       const ownsTool = (() => {
         try {

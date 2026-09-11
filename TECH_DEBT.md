@@ -108,8 +108,18 @@ MCP gateway and PingOne Authorize. These remain:
 - **oauth-mcp does no P1AZ itself** (scope checks only), and `:8080` is published.
 - **The langchain `auth_token` / direct-MCP path is dead code**
   (`POST /api/agent/langchain/run`; nothing calls it).
-- **No-gateway A2A specialist calls are now denied, by design.** The BFF-side
-  P1AZ policy has no rules for specialist tools.
+- **FIXED 2026-09-11 (branch `worktree-a2a-no-gateway-bff-pep`): no-gateway A2A
+  specialist calls could not complete.** The stated cause was wrong. The cloud
+  P1AZ policy already decides specialist calls, and the BFF gate asks the same
+  decision endpoint the gateway does. The real blockers were two:
+  - mcp-server rejects the specialist token's A2A-gateway audience, and the
+    in-BFF fallback needed a gateway PERMIT, which no-gateway mode never has;
+  - the simulated engine's audience check compared against a single value.
+
+  Now, with no gateway, the BFF's own P1AZ PERMIT (`bffDecision`) authorizes
+  the in-BFF delivery, and the simulated engine accepts every gateway identity,
+  like the cloud policy. What's still missing is a real remote path to
+  mcp-server with no gateway (see Real fix).
 
 **Why it wasn't fixed now.** Each one is out of the LLM's reach, needs changes
 in all four agent services, or needs P1AZ policy work.
@@ -117,8 +127,9 @@ in all four agent services, or needs P1AZ policy work.
 **Real fix.** Make the strict internal secret the default, and serve the
 internal route on a listener that isn't published. Put a run id in the four
 agents' callback bodies. Route `call_pingone_tool` through the gateway with a
-P1AZ decision. Add specialist-tool rules to the P1AZ policy so no-gateway A2A
-works again. Delete the dead langchain path.
+P1AZ decision. For a real no-gateway remote A2A path, issue the specialist
+token for mcp-server's audience; that needs PingOne grants and a
+`HasValidMcpAudience` change. Delete the dead langchain path.
 
 ### [x] 2026-09-11 — agentRun's end-of-run session save can undo a concurrent mode change
 

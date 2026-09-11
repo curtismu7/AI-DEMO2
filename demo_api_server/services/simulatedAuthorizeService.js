@@ -329,7 +329,11 @@ async function evaluateMcpFirstTool({
   if (mcpResourceUri && tokenAudience) {
     const tokenAudList = String(tokenAudience).split(/[\s,]+/).filter(Boolean);
     const expected = String(mcpResourceUri).trim();
-    if (!tokenAudList.includes(expected)) {
+    // Parity with the cloud policy's HasValidMcpAudience, which accepts every
+    // gateway identity — including the A2A gateway a specialist's nested-act
+    // token is audienced to. A single-value check denied every A2A call.
+    const accepted = [expected, ...scopeTopology.mcpGatewayAudiences()];
+    if (!tokenAudList.some((a) => accepted.includes(a))) {
       const out = {
         decision: 'DENY',
         stepUpRequired: false,
