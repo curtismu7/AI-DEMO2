@@ -164,6 +164,7 @@ export default function ProtocolViewer({ flowSpec, executionState, onExecutionSt
           <ActivityPanel
             results={executionState.results}
             error={executionState.error}
+            dark={dark}
           />
         </div>
       </div>

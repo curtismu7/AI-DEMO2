@@ -484,6 +484,9 @@
 }
 
 .activity-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 16px 20px;
   border-bottom: 1px solid var(--pp-border);
 }
@@ -565,55 +568,143 @@
   color: var(--pp-text-muted);
 }
 
-.activity-entry-block {
-  padding-bottom: 14px;
-  margin-bottom: 14px;
+/* --- Token chain: one row per hop, one hop open at a time, its detail
+   tabbed rather than stacked, so the column stays about a screen tall. --- */
+
+.activity-popout-btn {
+  margin-left: auto;
+  background-color: var(--pp-btn-bg);
+  color: var(--pp-btn-text);
+  border: 1px solid var(--pp-btn-border);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: var(--font-size-2xs);
+  cursor: pointer;
+}
+
+.activity-popout-btn:hover:not(:disabled) {
+  background-color: var(--pp-btn-hover);
+  color: var(--pp-btn-text);
+}
+
+.activity-popout-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.chain-hop {
   border-bottom: 1px solid var(--pp-border);
 }
 
-.activity-entry-block:last-child {
-  margin-bottom: 0;
+.chain-hop:last-child {
   border-bottom: none;
 }
 
-.entry-detail {
-  margin-top: 8px;
-}
-
-.entry-detail summary {
+.chain-hop__row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  column-gap: 8px;
+  row-gap: 2px;
+  align-items: center;
+  padding: 9px 6px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  text-align: left;
+  color: var(--pp-text);
+  font: inherit;
   cursor: pointer;
-  user-select: none;
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 4px 0;
 }
 
-.entry-detail summary:hover .entry-detail__tag {
+.chain-hop__row:hover {
+  background-color: var(--pp-item-hover);
   color: var(--pp-text);
 }
 
-.entry-detail__tag {
+.chain-hop--open > .chain-hop__row {
+  background-color: var(--pp-bg-surface);
+  color: var(--pp-text);
+}
+
+.chain-hop__row:focus-visible {
+  outline: 2px solid var(--pp-item-active-bg);
+  outline-offset: -2px;
+}
+
+.chain-hop__n {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  color: var(--pp-text-muted);
+}
+
+.chain-hop__label {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chain-hop__sub {
+  grid-column: 2 / -1;
+  font-size: var(--font-size-2xs);
+  color: var(--pp-text-secondary);
+}
+
+.chain-hop__body {
+  padding: 6px 6px 12px;
+}
+
+.chain-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--pp-border);
+}
+
+.chain-tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 6px 10px;
   font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--pp-text-muted);
-  flex-shrink: 0;
+  cursor: pointer;
 }
 
-.entry-detail__meta {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  color: var(--pp-text-secondary);
-  word-break: break-all;
-  min-width: 0;
+.chain-tab:hover,
+.chain-tab[aria-selected="true"] {
+  color: var(--pp-text);
 }
 
-.entry-detail[open] > .json-viewer {
-  margin-top: 6px;
-  max-height: 360px;
+.chain-tab[aria-selected="true"] {
+  border-bottom-color: var(--pp-item-active-bg);
+}
+
+.chain-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chain-panel > .json-viewer {
+  max-height: 320px;
   overflow-y: auto;
+}
+
+/* Pop-out window. ActivityPanel re-wraps the portalled content in
+   .protocol-playground so the --pp-* tokens reach it. */
+.pp-chain-window {
+  padding: 4px 12px 12px;
+}
+
+.pp-chain-window .chain-panel > .json-viewer {
+  max-height: none;
 }
 
 /* --- Step cards container --- */
