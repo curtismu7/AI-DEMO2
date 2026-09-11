@@ -59,6 +59,46 @@ trusted local stack.
 **Real fix.** Build the callback host from configuration (`PRIVILEGE_MCP_CALLBACK_HOST`
 or the public app origin) instead of the request header, or bound the cache.
 
+### [ ] 2026-09-11 — LLM token custody: what the fix deliberately left open
+
+**What's wrong.** The LLM-custody fix (branch `fix/llm-token-custody`, plan
+`docs/superpowers/plans/2026-09-11-user-token-custody.md`) closed every path
+where model output could pick a credential, a destination, or a route around the
+MCP gateway and PingOne Authorize. These remain:
+
+- **`/internal/agent-tool` is gated by a shared secret only.** The default
+  `dev-shared-secret-change-me` is accepted unless `VAULT_INTERNAL_STRICT=true`,
+  and the BFF port is published, so anyone holding the secret and a session id
+  can act as that user. The LLM cannot reach this; a person on the network can.
+- **The external-agent tool allowlist is the latest run's, held in-process.**
+  Callbacks carry only the session id, so `/internal/agent-tool` checks the
+  tools of the session's run in flight (`services/agentRunContext.js`). A second
+  run in the same session replaces the first's list, and a BFF restart mid-run
+  refuses the rest of that run's tool calls. This is the same
+  single-BFF-process assumption the flow trace makes.
+- **`call_pingone_tool` has no gateway or P1AZ hop.** It is capped to the read
+  tools the admin chips use, plus `createUser`: a documented exception that
+  writes to PingOne gated only by the admin's PingOne roles. Its
+  `scopes: ['read']` label no longer matches; the label feeds
+  `scripts/gen-vertical-tools.js`, so changing it means regenerating that file.
+- **Platform mode** hands an exchanged gateway token to OpenAI or Anthropic as
+  the MCP connector credential (`services/platformAgentRuntime.js`). The gateway
+  and P1AZ still check each call.
+- **oauth-mcp does no P1AZ itself** (scope checks only), and `:8080` is published.
+- **The langchain `auth_token` / direct-MCP path is dead code**
+  (`POST /api/agent/langchain/run`; nothing calls it).
+- **No-gateway A2A specialist calls are now denied, by design.** The BFF-side
+  P1AZ policy has no rules for specialist tools.
+
+**Why it wasn't fixed now.** Each one is out of the LLM's reach, needs changes
+in all four agent services, or needs P1AZ policy work.
+
+**Real fix.** Make the strict internal secret the default, and serve the
+internal route on a listener that isn't published. Put a run id in the four
+agents' callback bodies. Route `call_pingone_tool` through the gateway with a
+P1AZ decision. Add specialist-tool rules to the P1AZ policy so no-gateway A2A
+works again. Delete the dead langchain path.
+
 ### [ ] 2026-09-11 — agentRun's end-of-run session save can undo a concurrent mode change
 
 **What's wrong.** `/api/agent/run` still modifies the session (it stores `intentToken`), so

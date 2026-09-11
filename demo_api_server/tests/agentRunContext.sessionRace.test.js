@@ -53,7 +53,8 @@ describe('/internal/agent-tool — run context survives a lost session write', (
   });
 
   it("forwards the run's flowTraceId and useCaseId even though the stored session lost them", async () => {
-    setRunContext('s-race', { flowTraceId: 'trace-race-1', useCaseId: 'account-summary' });
+    // agentRun attaches the run's offered tools to the same entry.
+    setRunContext('s-race', { flowTraceId: 'trace-race-1', useCaseId: 'account-summary' }).toolNames = ['get_my_accounts'];
 
     const res = await post(buildApp(), { tool: 'get_my_accounts', args: {}, sessionId: 's-race' });
 

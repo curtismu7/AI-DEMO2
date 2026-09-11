@@ -601,8 +601,14 @@ export const agentFlowDiagram = {
     emit();
   },
 
-  /** Close the reply step when the agent run finishes (true) or fails (false) — useAgentRun calls it. */
+  /**
+   * Close the reply step when the agent run finishes (true) or fails (false).
+   * Settles only a reply that is still pending: the heuristics path settles when
+   * its answer is shown, which must not turn a reply a failed tool call already
+   * marked error green — and a panel with no reply step is left alone.
+   */
   completeReply(ok) {
+    if (!state.steps.some((s) => s.id === 'reply' && s.status === 'pending')) return;
     const status = ok ? 'done' : 'error';
     state.steps = state.steps.map((s) => (s.id === 'reply' ? { ...s, status, detail: REPLY_DETAIL[status] } : s));
     state.phase = status;

@@ -29,11 +29,17 @@ export const InspectorFieldProvider = ({ children }) => {
   );
 };
 
-export const useInspectorFields = () => {
-  const context = useContext(InspectorFieldContext);
-  if (!context) throw new Error('useInspectorFields must be used within InspectorFieldProvider');
-  return context;
-};
+// Without a provider, inspectors still work: they just can't share fields with
+// each other. A missing provider used to throw and take down the whole page
+// (/agent-gateway-capabilities crashed on every load from 2026-08-31). Module-level
+// so the functions keep one identity: both inspectors list them in effect deps.
+const NO_PROVIDER_FIELDS = Object.freeze({
+  registerFields: () => {},
+  getMatchingFields: () => ({}),
+  allFields: {},
+});
+
+export const useInspectorFields = () => useContext(InspectorFieldContext) ?? NO_PROVIDER_FIELDS;
 
 // Flatten nested objects for field extraction
 const flattenObject = (obj, prefix = '') => {
