@@ -175,7 +175,13 @@ that app runs as.
 
 **Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/services/privilegeGatewaySession.test.js tests/services/privilegeGatewaySessionStore.test.js tests/routes/mcpFacade.privilegeGatewayDoor.test.js tests/routes/privilegeMcpClient.facadeLink.test.js tests/routes/privilegeMcpClient.gatewaySessionRemember.test.js tests/routes/privilegeMcpClient.gatewaySessionState.test.js tests/routes/privilegeMcpClient.dcrReregister.test.js --forceExit`;
 `cd demo_mcp_gateway && npm run build && ./node_modules/.bin/jest tests/oauth-broker-token-store.test.ts tests/oauth-broker-router-authorize.test.ts --forceExit`.
-Results: RESULTS_FROM_TASK_6.
+Results: BFF `Tests: 81 passed, 81 total` (12 suites, exit=0).
+Broker `Tests: 50 passed, 50 total` (6 suites, `npm run build` clean, exit=0).
+All nine revert-to-RED checks (DCR cache key, flag-off 401, per-app session
+key, link-resume origin check, broker's park-and-chain condition, the dropped
+`prompt` param, the issuer-mismatch guard, the door's gateway-base source, and
+the `/facade-link` catch-and-redirect) turned their named test(s) red alone and
+green again after `git checkout --`.
 
 ### 2026-09-11 — AG-UI tool calls lost their flow trace when a session write landed mid-run
 
