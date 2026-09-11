@@ -21,6 +21,31 @@ const REFRESH_MS = 3000;
 export const ONYX_URL = "http://localhost:3003";
 
 /**
+ * Open Onyx on the right half of the screen, so this page can sit on the left.
+ * Browsers only let a page size windows it opened itself, so this window can't
+ * be moved: the presenter keeps it on the left. The opener is cleared after
+ * opening, the same protection rel="noopener" gives (which would stop the sizing).
+ * The link's href stays as a plain new-tab fallback: a modified click, or a
+ * blocked popup, falls through to it.
+ * @param {MouseEvent} event  the link's click event
+ */
+export function openOnyxSideBySide(event) {
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+  const s = window.screen;
+  const half = Math.floor(s.availWidth / 2);
+  const features = [
+    `left=${(s.availLeft || 0) + half}`,
+    `top=${s.availTop || 0}`,
+    `width=${half}`,
+    `height=${s.availHeight}`,
+  ].join(",");
+  const win = window.open(ONYX_URL, "onyx", features);
+  if (!win) return; // popup blocked: let the plain link open a tab instead
+  event.preventDefault();
+  win.opener = null;
+}
+
+/**
  * The chain for one gateway decision, as display steps.
  * Exported so the step logic is testable without rendering.
  * @param {object} d  one entry from /api/admin/agent-gateway/decisions
@@ -132,10 +157,11 @@ export default function IdentityChainPage() {
     <div className="icp-page">
       <h1 className="icp-title">Identity Chain</h1>
       <p className="icp-intro">
-        <a href={ONYX_URL} target="_blank" rel="noopener noreferrer">
-          Open Onyx
+        <a href={ONYX_URL} target="_blank" rel="noopener noreferrer" onClick={openOnyxSideBySide}>
+          Show Onyx side by side
         </a>{" "}
-        in its own window to put the two side by side: every call Onyx makes appears here.
+        opens Onyx on the right half of your screen; keep this window on the left. Every call Onyx
+        makes appears here.
       </p>
       <p className="icp-intro">
         Every MCP call through PingGateway: who the user is, which app is calling, what their token

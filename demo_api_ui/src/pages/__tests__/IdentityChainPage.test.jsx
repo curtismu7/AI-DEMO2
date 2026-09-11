@@ -49,13 +49,47 @@ describe("IdentityChainPage", () => {
     expect(await screen.findByText(/No gateway decisions yet/)).toBeInTheDocument();
   });
 
-  it("links to Onyx in a new window so the two can sit side by side", async () => {
+  it("links to Onyx, keeping a plain new-tab link as the fallback", async () => {
     apiClient.get.mockResolvedValue({ data: { decisions: [] } });
     render(<IdentityChainPage />);
-    const link = await screen.findByRole("link", { name: /Open Onyx/ });
+    const link = await screen.findByRole("link", { name: /Show Onyx side by side/ });
     expect(link).toHaveAttribute("href", "http://localhost:3003");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("opens Onyx on the right half of the screen so the two sit side by side", async () => {
+    apiClient.get.mockResolvedValue({ data: { decisions: [] } });
+    // jsdom reports a 0x0 screen; give it a real one so the split is checkable.
+    const screenProps = { availWidth: 1600, availHeight: 900, availLeft: 0, availTop: 0 };
+    const saved = {};
+    for (const [k, v] of Object.entries(screenProps)) {
+      saved[k] = Object.getOwnPropertyDescriptor(window.screen, k);
+      Object.defineProperty(window.screen, k, { value: v, configurable: true });
+    }
+    const popup = { opener: {} };
+    const open = vi.spyOn(window, "open").mockReturnValue(popup);
+    try {
+      render(<IdentityChainPage />);
+      const link = await screen.findByRole("link", { name: /Show Onyx side by side/ });
+      link.click();
+      expect(open).toHaveBeenCalledTimes(1);
+      const [url, name, features] = open.mock.calls[0];
+      expect(url).toBe("http://localhost:3003");
+      expect(name).toBe("onyx");
+      expect(features).toContain("left=800");
+      expect(features).toContain("width=800");
+      expect(features).toContain("height=900");
+      expect(features).toContain("top=0");
+      // Same protection as rel="noopener": Onyx can't reach back into this page.
+      expect(popup.opener).toBeNull();
+    } finally {
+      open.mockRestore();
+      for (const [k, d] of Object.entries(saved)) {
+        if (d) Object.defineProperty(window.screen, k, d);
+        else delete window.screen[k];
+      }
+    }
   });
 
   it("marks a permitted delegated call as reaching the MCP server", () => {
