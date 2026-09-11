@@ -65,13 +65,16 @@ describe('mcp-facade multi-app door', () => {
     seenMethod = undefined;
     seenAuth = undefined;
     jwksService.getPublicKey.mockResolvedValue({ keyObject: publicKey, alg: 'RS256' });
-    gatewaySession.remember({
-      accessToken: 'gateway-token',
-      expiresIn: 3600,
-      tokenUri: 'https://mcpgw.example.com/token',
-    });
+    for (const appName of ['opensearch22', 'banking-mcp', 'git_server.v2']) {
+      gatewaySession.remember({
+        app: appName,
+        accessToken: 'gateway-token',
+        expiresIn: 3600,
+        tokenUri: 'https://mcpgw.example.com/token',
+      });
+    }
   });
-  afterEach(() => gatewaySession.clear());
+  afterEach(() => gatewaySession.clearAll());
 
   test('routes each app segment to its own gateway app', async () => {
     // The upstream entry path is per app (see privilegeEntryPath) and every app
@@ -145,13 +148,16 @@ describe('mcp-facade multi-app DELETE', () => {
     seenMethod = undefined;
     seenAuth = undefined;
     jwksService.getPublicKey.mockResolvedValue({ keyObject: publicKey, alg: 'RS256' });
-    gatewaySession.remember({
-      accessToken: 'gateway-token',
-      expiresIn: 3600,
-      tokenUri: 'https://mcpgw.example.com/token',
-    });
+    for (const appName of ['opensearch22', 'banking-mcp']) {
+      gatewaySession.remember({
+        app: appName,
+        accessToken: 'gateway-token',
+        expiresIn: 3600,
+        tokenUri: 'https://mcpgw.example.com/token',
+      });
+    }
   });
-  afterEach(() => gatewaySession.clear());
+  afterEach(() => gatewaySession.clearAll());
 
   test('routes the app segment to its own upstream with the gateway token', async () => {
     const res = await request(app())
@@ -177,7 +183,7 @@ describe('mcp-facade multi-app DELETE', () => {
   });
 
   test('tears down locally without calling upstream when no gateway session exists', async () => {
-    gatewaySession.clear();
+    gatewaySession.clear('banking-mcp');
 
     const res = await request(app())
       .delete('/api/mcp-facade/privilege-gateway/banking-mcp/mcp')

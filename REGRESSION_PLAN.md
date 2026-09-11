@@ -141,6 +141,49 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-11 — LM Studio's Privilege entries needed a visit to /privilege-mcp-client, and said "SSE error: Non-200 status code (405)"
+
+**Files changed:** `demo_api_server/services/privilegeGatewaySession.js`,
+new `demo_api_server/services/lmdb/privilegeGatewaySessionStore.lmdb.js`,
+new `demo_api_server/services/privilegeGatewayBase.js`,
+`demo_api_server/routes/mcpFacade.js`, `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_mcp_gateway/src/oauth/BrokerTokenStore.ts`,
+`demo_mcp_gateway/src/oauth/OAuthBrokerRouter.ts`, `docker-compose.yml`, and tests.
+
+**What was broken:** the façade's `privilege-gateway/<app>` door only worked
+after a human signed in at `/privilege-mcp-client` (Privilege mode). The session
+was in memory — lost on every BFF container recreate — and gateway tokens live
+60 minutes with no refresh token. Without it the door answered 503; LM Studio
+0.4.23 treats any non-auth error as "try SSE", hit the façade's deliberate 405
+on GET, and showed only "Authentication failed — SSE error: Non-200 status
+code (405)".
+
+**Fixed by** chaining the gateway sign-in into the MCP client's own OAuth: the
+broker keeps `resource`, and for a Privilege door (with `BFF_PRIVILEGE_LINK_URL`)
+parks the authorization and sends the browser to `/api/privilege-mcp/facade-link`,
+which runs the existing gateway sign-in for that app and returns to the broker's
+`/oauth/resume`. Sessions are per app and persisted in LMDB. With
+`MCP_FACADE_PRIVILEGE_LINK=true` a missing session answers 401 so clients
+re-authenticate.
+
+**Do not break:** `/privilege-mcp-client`'s own sign-in, `pendingAuth` and
+selected door (the link uses its own session slot and callback); the broker for
+every non-Privilege door; `/state`'s `gatewaySession` shape (per-app status is
+the sibling `gatewaySessionsByApp`); the 503 when the flag is off; `/facade-link`
+redirects only to the configured broker's `/oauth/resume`; the link builds its door from the façade's own gateway base (`services/privilegeGatewayBase.js`), and
+writes the single shared per-app session — a crafted link changes which identity every façade caller of
+that app runs as; `/facade-link`'s OAuth callback origin comes from `PRIVILEGE_MCP_CALLBACK_HOST`, never from `X-Forwarded-*`.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/services/privilegeGatewaySession.test.js tests/services/privilegeGatewaySessionStore.test.js tests/routes/mcpFacade.privilegeGatewayDoor.test.js tests/routes/privilegeMcpClient.facadeLink.test.js tests/routes/privilegeMcpClient.gatewaySessionRemember.test.js tests/routes/privilegeMcpClient.gatewaySessionState.test.js tests/routes/privilegeMcpClient.dcrReregister.test.js --forceExit`;
+`cd demo_mcp_gateway && npm run build && ./node_modules/.bin/jest tests/oauth-broker-token-store.test.ts tests/oauth-broker-router-authorize.test.ts --forceExit`.
+Results: BFF `Tests: 81 passed, 81 total` (12 suites, exit=0).
+Broker `Tests: 50 passed, 50 total` (6 suites, `npm run build` clean, exit=0).
+All nine revert-to-RED checks (DCR cache key, flag-off 401, per-app session
+key, link-resume origin check, broker's park-and-chain condition, the dropped
+`prompt` param, the issuer-mismatch guard, the door's gateway-base source, and
+the `/facade-link` catch-and-redirect) turned their named test(s) red alone and
+green again after `git checkout --`.
+
 ### 2026-09-11 — Heuristics-path answers left the flow panel's "Agent → You" step pending forever
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`, `demo_api_ui/src/services/agentFlowDiagramService.js`,

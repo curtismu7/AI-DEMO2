@@ -86,3 +86,92 @@ describe('privilege gateway session', () => {
     expect(session.status()).toEqual({ ready: true });
   });
 });
+
+describe('privilege gateway session — one per app, persisted', () => {
+  const originalApp = process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP;
+  afterEach(() => {
+    if (originalApp === undefined) delete process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP;
+    else process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP = originalApp;
+    jest.restoreAllMocks();
+  });
+
+  function fakeStore(initial = {}) {
+    const data = { ...initial };
+    return {
+      data,
+      loadAll: jest.fn(() => ({ ...data })),
+      save: jest.fn((app, record) => { data[app] = record; }),
+      remove: jest.fn((app) => { delete data[app]; }),
+    };
+  }
+
+  test('keeps a separate session per app', async () => {
+    const session = load();
+    remembered(session, { app: 'opensearch', accessToken: 'os-token' });
+    remembered(session, { app: 'opensearch22', accessToken: 'os22-token' });
+
+    expect(await session.getAccessToken('opensearch')).toBe('os-token');
+    expect(await session.getAccessToken('opensearch22')).toBe('os22-token');
+
+    session.clear('opensearch');
+    expect(await session.getAccessToken('opensearch')).toBeNull();
+    expect(await session.getAccessToken('opensearch22')).toBe('os22-token');
+  });
+
+  test('a call with no app means the default door app', async () => {
+    process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP = 'opensearch22';
+    const session = load();
+    remembered(session, { app: 'opensearch22', accessToken: 'default-token' });
+
+    expect(await session.getAccessToken()).toBe('default-token');
+    expect(session.status()).toEqual({ ready: true });
+    expect(session.statusAll()).toEqual({ opensearch22: { ready: true } });
+  });
+
+  test('clearAll drops every app', () => {
+    const session = load();
+    remembered(session, { app: 'a1' });
+    remembered(session, { app: 'a2' });
+
+    session.clearAll();
+
+    expect(session.statusAll()).toEqual({});
+  });
+
+  test('survives a process restart through the store', async () => {
+    const backing = fakeStore();
+    const first = load();
+    first.__setStore(backing);
+    remembered(first, { app: 'opensearch', accessToken: 'persisted-token' });
+    expect(backing.save).toHaveBeenCalledWith('opensearch', expect.objectContaining({ accessToken: 'persisted-token' }));
+
+    const second = load(); // a fresh module, as after a container recreate
+    second.__setStore(backing);
+    expect(await second.getAccessToken('opensearch')).toBe('persisted-token');
+  });
+
+  test('does not resurrect an expired session that has no refresh token', () => {
+    const backing = fakeStore({
+      opensearch: { accessToken: 'dead', refreshToken: null, tokenUri: TOKEN_URI, expiresAt: Date.now() - 1000 },
+    });
+    const session = load();
+    session.__setStore(backing);
+
+    expect(session.status('opensearch')).toEqual({ ready: false, reason: 'no_session' });
+  });
+
+  test('a failing store still leaves a working in-memory session', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const session = load();
+    session.__setStore({
+      loadAll: () => { throw new Error('MDB_MAP_FULL'); },
+      save: () => { throw new Error('MDB_MAP_FULL'); },
+      remove: () => { throw new Error('MDB_MAP_FULL'); },
+    });
+
+    remembered(session, { app: 'opensearch', accessToken: 'mem-token' });
+
+    expect(await session.getAccessToken('opensearch')).toBe('mem-token');
+    expect(console.warn).toHaveBeenCalled();
+  });
+});
