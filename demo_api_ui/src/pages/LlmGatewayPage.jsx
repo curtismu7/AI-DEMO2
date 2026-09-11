@@ -280,6 +280,9 @@ export default function LlmGatewayPage() {
   // no console token is connected — the lane cards then show what they always did.
   const [consoleKeys, setConsoleKeys] = useState([]);
   const [selectedAttack, setSelectedAttack] = useState(() => window.localStorage.getItem('lgw-attack-choice') || '');
+  // Cue text for whoever is driving the demo. Off by default and remembered per
+  // browser, so the audience never reads the script over the presenter's shoulder.
+  const [presenterNotes, setPresenterNotes] = useState(() => window.localStorage.getItem('lgw-presenter-notes') === '1');
   // Clicking Send with nothing typed used to be a silent no-op — the button
   // just did nothing, which reads as broken rather than "you forgot a step".
   const [sendError, setSendError] = useState('');
@@ -383,6 +386,7 @@ export default function LlmGatewayPage() {
         provider: selected, route: data.route, latencyMs: data.latencyMs,
         reachedProvider: data.reachedProvider !== false,
         reason: null, providerLimits: data.providerLimits || null,
+        attackId,
       };
       const id = nextTurnId.current++;
       setTurns((t) => [...t, { id, role: 'model', text: data.reply, tone: 'ok', provider: selected, decision: d }]);
@@ -426,6 +430,19 @@ export default function LlmGatewayPage() {
         </div>
         <div className="lgw-bar__side">
           {gatewayUrl ? <code className="lgw-origin">{gatewayUrl}</code> : null}
+          <button
+            type="button"
+            className="lgw-theme"
+            onClick={() => {
+              const next = !presenterNotes;
+              setPresenterNotes(next);
+              window.localStorage.setItem('lgw-presenter-notes', next ? '1' : '0');
+            }}
+            title="Show what to say and what to point at for each attack"
+            aria-pressed={presenterNotes}
+          >
+            Presenter notes
+          </button>
           <button
             type="button"
             className="lgw-theme"
@@ -614,6 +631,11 @@ export default function LlmGatewayPage() {
                 {ATTACK_EFFECT[(GUARDRAIL_ATTACKS.find((a) => a.id === selectedAttack) || {}).effect]}
               </span>
             ) : null}
+            {presenterNotes && selectedAttack ? (
+              <span className="lgw-attacks__effect lgw-talk" data-testid="lgw-talk-track">
+                Say: {(GUARDRAIL_ATTACKS.find((a) => a.id === selectedAttack) || {}).whatToSay}
+              </span>
+            ) : null}
           </div>
 
           {/* Local lanes have no virtual key and so no allowlist to demonstrate;
@@ -751,6 +773,13 @@ export default function LlmGatewayPage() {
           {decision && decision.layer === 'Privilege' ? (
             <p className="lgw-rail__note" data-testid="lgw-denial-explanation">
               {denialExplanation(decision)}
+            </p>
+          ) : null}
+          {/* The presenter's cue for the verdict just shown — only for a Library
+              attack, since a hand-typed prompt has no known story to point at. */}
+          {presenterNotes && decision?.attackId ? (
+            <p className="lgw-rail__note lgw-talk" data-testid="lgw-point-at">
+              Point at: {(GUARDRAIL_ATTACKS.find((a) => a.id === decision.attackId) || {}).pointAt}
             </p>
           ) : null}
           {/* This page can't tell a compliant reply from a refusal — both come back
