@@ -5,6 +5,7 @@
 // (ARCHITECTURE-TRUTHS T-3 floor). Recursion cap enforced here.
 const axios = require('axios');
 const configStore = require('./configStore');
+const { redactMessage } = require('../utils/logRedact');
 const { REASON_LOOP_TIMEOUT_MS } = require('../../llm-timeouts.json');
 
 const REASON_URL =
@@ -57,6 +58,7 @@ async function runReasonLoop(p) {
   // Without this the model can re-propose the same failing call up to
   // maxIterations times — the visible "show my accounts" loop.
   const seenCalls = new Map(); // sig -> last result string
+  const offeredTools = new Set((p.tools || []).map((t) => t && (t.name || t.function?.name)));
   // Names of tools actually executed this loop. The caller returned a hardcoded
   // toolsCalled: [] because this was never reported, which made every LLM-path
   // use case unable to satisfy 'tool-dispatched' evidence even when a tool ran.
@@ -120,9 +122,15 @@ async function runReasonLoop(p) {
     if (data.type === 'tool_calls') {
       const toolMessages = [];
       for (const call of data.calls) {
+        // The tool name is model output, so only tools this loop offered may run.
+        if (!offeredTools.has(call.name)) {
+          toolMessages.push({ role: 'tool', content: JSON.stringify({ error: 'tool_not_offered', tool: call.name }), tool_call_id: call.id });
+          continue;
+        }
         const sig = `${call.name}|${JSON.stringify(call.args || {})}`;
         const result = await p.executeTool(call.name, call.args);
-        const resultStr = typeof result === 'string' ? result : JSON.stringify(result);
+        // Results go back into the model's context: a token must never ride along.
+        const resultStr = redactMessage(typeof result === 'string' ? result : JSON.stringify(result));
         // Parse the result to detect a terminal signal (e.g. requiresCustomerLogin).
         let parsed = null;
         if (result && typeof result === 'object') parsed = result;

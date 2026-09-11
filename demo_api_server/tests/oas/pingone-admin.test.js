@@ -39,16 +39,17 @@ test('getTools returns list_pingone_tools and call_pingone_tool with read scope'
   });
 });
 
-test('list_pingone_tools returns live tool list with source: live', async () => {
+test('list_pingone_tools returns the live tools call_pingone_tool will run, with source: live', async () => {
   adapter.listTools.mockResolvedValue([
     { name: 'listUsers', description: 'List users in the environment' },
     { name: 'createPopulation', description: 'Create a population' },
   ]);
   const { result, render } = await plugin.executeTool('list_pingone_tools', {}, {});
   expect(render).toBe('list_pingone_tools');
+  // createPopulation is live but outside the allowlist: advertising it would
+  // only invite a "not allowed" refusal.
   expect(result.tools).toEqual([
     { name: 'listUsers', description: 'List users in the environment' },
-    { name: 'createPopulation', description: 'Create a population' },
   ]);
   expect(result.source).toBe('live — hosted PingOne MCP');
 });
@@ -170,11 +171,18 @@ test('call_pingone_tool falls back to labeled mock for known tool when the Manag
   expect(result.source).toBe('mock — PingOne MCP and Management API both unavailable: connect ECONNREFUSED');
 });
 
-test('call_pingone_tool returns labeled unavailable for unknown tool on transport failure', async () => {
+test('call_pingone_tool returns labeled unavailable for a tool with no mock or REST fallback on transport failure', async () => {
   adapter.callTool.mockRejectedValue(httpErr('PingOne MCP HTTP 503'));
-  const { result } = await plugin.executeTool('call_pingone_tool', { name: 'resetPassword' }, {});
+  const { result } = await plugin.executeTool('call_pingone_tool', { name: 'listDavinciFlows' }, {});
   expect(result.responseSummary).toMatch(/unavailable/i);
   expect(result.source).toBe('mock — PingOne MCP unavailable: PingOne MCP HTTP 503');
+});
+
+test('call_pingone_tool refuses a hosted tool outside the allowlist before calling PingOne', async () => {
+  adapter.callTool.mockClear();
+  const { result } = await plugin.executeTool('call_pingone_tool', { name: 'resetPassword' }, {});
+  expect(adapter.callTool).not.toHaveBeenCalled();
+  expect(result.error).toMatch(/not allowed/i);
 });
 
 test('call_pingone_tool renders a JSON-RPC (validation) error as a live response', async () => {

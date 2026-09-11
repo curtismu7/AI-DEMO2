@@ -24,6 +24,8 @@ function buildApp() {
     req.sessionStore = {
       get: (_id, cb) => cb(null, { user: { id: 'u1' }, oauthTokens: { accessToken: 'tok' } }),
     };
+    // The run's offered tools (agentRun.js registers them per run).
+    require('../services/agentRunContext').setRunContext('s1', {}).toolNames = ['get_my_accounts'];
     next();
   });
   app.use('/internal', require('../routes/agentTool'));

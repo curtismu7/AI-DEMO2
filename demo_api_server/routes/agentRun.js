@@ -378,13 +378,13 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
   // useCaseId is overwritten every run (value or null) so a stale one never leaks.
   const flowTraceId = typeof req.body?.flowTraceId === 'string' ? req.body.flowTraceId.trim() : '';
   const useCaseId = typeof req.body?.useCaseId === 'string' ? req.body.useCaseId.trim() : '';
-  if (flowTraceId || useCaseId) {
-    const runContext = require('../services/agentRunContext');
-    const runEntry = runContext.setRunContext(req.session.id, { flowTraceId, useCaseId });
-    // Live only for this run: cleared when its response closes, unless a newer
-    // run in the same session has already replaced it.
-    res.on('close', () => runContext.clearRunContext(req.session.id, runEntry));
-  }
+  // Registered for every run, not only traced ones: the offered-tool list the
+  // tool callback enforces (Step B) hangs off this entry too.
+  const runContext = require('../services/agentRunContext');
+  const runEntry = runContext.setRunContext(req.session.id, { flowTraceId, useCaseId });
+  // Live only for this run: cleared when its response closes, unless a newer
+  // run in the same session has already replaced it.
+  res.on('close', () => runContext.clearRunContext(req.session.id, runEntry));
 
   // Sliding-window: forward only the most recent N messages to each agent.
   // Configurable via agent_history_limit (default 10). Prevents unbounded
@@ -509,6 +509,11 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
     }));
 
     tools = resolveAgentRunTools(tools, verticalManifest.resolver.activeIdFor(req));
+
+    // /internal/agent-tool only runs the tools offered to this run. Kept on the
+    // run context, not the session: a concurrent request's stale session save
+    // could otherwise erase the list mid-run and refuse every tool call.
+    if (runEntry) runEntry.toolNames = tools.map((t) => t.name);
 
     // Merge any token events from tools/list
     initialTokenEvents = [...initialTokenEvents, ...(toolsResult.tokenEvents || [])];
