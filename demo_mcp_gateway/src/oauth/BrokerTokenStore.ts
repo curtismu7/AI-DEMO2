@@ -19,6 +19,9 @@ export interface PendingAuthorization {
    *  record. Deliberately not `state`: that is a single-use CSRF token and the
    *  ledger is a readable audit surface. */
   correlationId?: string;
+  /** RFC 8707 `resource` the client asked for. Names the façade door, which is
+   *  how the callback knows to chain the Privilege gateway sign-in. */
+  resource?: string;
   expiresAt: number;
 }
 
@@ -40,6 +43,23 @@ export interface IssuedCode {
   expiresAt: number;
 }
 
+/** An authorization parked mid-flight while the BFF signs the browser in to
+ *  the Privilege AI Gateway — everything /oauth/resume needs to issue the
+ *  broker's own code once the browser comes back. */
+export interface ResumableAuthorization {
+  id: string;
+  clientId: string;
+  redirectUri: string;
+  scope: string;
+  codeChallenge: string;
+  codeChallengeMethod: string;
+  clientState: string;
+  pingOneAccessToken: string;
+  pingOneExpiresIn: number;
+  correlationId?: string;
+  expiresAt: number;
+}
+
 const PENDING_TTL_MS = 600_000; // 10 minutes — a real PingOne login takes longer than a code exchange
 const CODE_TTL_MS = 60_000;
 
@@ -52,6 +72,7 @@ const CODE_TTL_MS = 60_000;
 export class BrokerTokenStore {
   private pending: Map<string, PendingAuthorization> = new Map();
   private codes: Map<string, IssuedCode> = new Map();
+  private resumable: Map<string, ResumableAuthorization> = new Map();
 
   createPendingAuthorization(params: Omit<PendingAuthorization, 'state' | 'expiresAt'>): string {
     const state = crypto.randomBytes(32).toString('base64url');
@@ -81,6 +102,20 @@ export class BrokerTokenStore {
     const entry = this.codes.get(code);
     if (!entry) return null;
     this.codes.delete(code);
+    if (Date.now() > entry.expiresAt) return null;
+    return entry;
+  }
+
+  createResume(params: Omit<ResumableAuthorization, 'id' | 'expiresAt'>, ttlMsOverride?: number): string {
+    const id = crypto.randomBytes(32).toString('base64url');
+    this.resumable.set(id, { ...params, id, expiresAt: Date.now() + (ttlMsOverride ?? PENDING_TTL_MS) });
+    return id;
+  }
+
+  consumeResume(id: string): ResumableAuthorization | null {
+    const entry = this.resumable.get(id);
+    if (!entry) return null;
+    this.resumable.delete(id);
     if (Date.now() > entry.expiresAt) return null;
     return entry;
   }

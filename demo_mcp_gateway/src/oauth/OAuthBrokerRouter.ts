@@ -37,6 +37,22 @@ function readIdentityClaims(idToken?: string): Record<string, unknown> {
   }
 }
 
+/** Façade Privilege door paths: /mcp-facade/privilege-gateway[/<app>]/mcp. */
+const PRIVILEGE_DOOR_PATH = /^\/mcp-facade\/privilege-gateway(?:\/([A-Za-z0-9._-]{1,64}))?\/mcp$/;
+
+/**
+ * The Agentic App a client's `resource` names when it is the façade's Privilege
+ * door: the app segment, '' for the bare door (the BFF then uses its default
+ * app), or null for any other resource.
+ */
+export function privilegeLinkApp(resource?: string): string | null {
+  if (!resource) return null;
+  let path: string;
+  try { path = new URL(resource).pathname; } catch { return null; }
+  const match = PRIVILEGE_DOOR_PATH.exec(path);
+  return match ? (match[1] || '') : null;
+}
+
 /**
  * OAuth 2.1 Authorization Server for external MCP clients (LM Studio,
  * Cursor, etc.) reaching this gateway over HTTP. Ported pattern from
@@ -65,6 +81,8 @@ export class OAuthBrokerRouter {
         return this.handleAuthorize(req, res, url);
       case '/oauth/callback':
         return this.handleCallback(req, res, url);
+      case '/oauth/resume':
+        return this.handleResume(res, url);
       case '/oauth/token':
         return this.handleToken(req, res);
       default:
@@ -152,6 +170,7 @@ export class OAuthBrokerRouter {
     const codeChallengeMethod = url.searchParams.get('code_challenge_method') || 'S256';
     const clientState = url.searchParams.get('state') || '';
     const scope = url.searchParams.get('scope') || 'mcp:invoke';
+    const resource = url.searchParams.get('resource') || undefined;
 
     if (!clientId || !redirectUri || responseType !== 'code' || !codeChallenge) {
       this.json(res, 400, { error: 'invalid_request', error_description: 'Missing required parameters' });
@@ -196,7 +215,7 @@ export class OAuthBrokerRouter {
     const correlationId = crypto.randomUUID();
     const relayState = this.tokenStore.createPendingAuthorization({
       clientId, redirectUri, scope, codeChallenge, codeChallengeMethod,
-      clientState, pingOneCodeVerifier, correlationId,
+      clientState, pingOneCodeVerifier, correlationId, resource,
     });
 
     const issuer = this.issuer(req);
@@ -321,6 +340,33 @@ export class OAuthBrokerRouter {
       identity: { clientId: pending.clientId, ...idTokenClaims },
     });
 
+    // The façade's Privilege door needs a second leg the client cannot see: a
+    // sign-in to the Privilege AI Gateway, held server-side by the BFF. Park
+    // this authorization, let the BFF do that sign-in while the browser is
+    // here, and finish at /oauth/resume. See
+    // docs/superpowers/specs/2026-09-11-lmstudio-privilege-gateway-link-design.md.
+    const linkApp = privilegeLinkApp(pending.resource);
+    const linkUrl = process.env.BFF_PRIVILEGE_LINK_URL;
+    if (linkApp !== null && linkUrl) {
+      const resumeId = this.tokenStore.createResume({
+        clientId: pending.clientId,
+        redirectUri: pending.redirectUri,
+        scope: pending.scope,
+        codeChallenge: pending.codeChallenge,
+        codeChallengeMethod: pending.codeChallengeMethod,
+        clientState: pending.clientState,
+        pingOneAccessToken,
+        pingOneExpiresIn: expiresIn,
+        correlationId: pending.correlationId,
+      });
+      const link = new URL(linkUrl);
+      if (linkApp) link.searchParams.set('app', linkApp);
+      link.searchParams.set('resume', `${this.issuer(req)}/oauth/resume?rs=${encodeURIComponent(resumeId)}`);
+      res.writeHead(302, { Location: link.toString() });
+      res.end();
+      return true;
+    }
+
     const ownCode = this.tokenStore.createCode({
       clientId: pending.clientId,
       redirectUri: pending.redirectUri,
@@ -395,6 +441,38 @@ export class OAuthBrokerRouter {
     if (method !== 'S256') return false;
     const computed = crypto.createHash('sha256').update(verifier).digest('base64url');
     return computed === challenge;
+  }
+
+  private handleResume(res: ServerResponse, url: URL): boolean {
+    const resumeId = url.searchParams.get('rs');
+    const parked = resumeId ? this.tokenStore.consumeResume(resumeId) : null;
+    if (!parked) {
+      this.json(res, 400, { error: 'invalid_grant', error_description: 'Unknown or expired authorization request' });
+      return true;
+    }
+    // redirectUri was checked against the client's registration at /oauth/authorize.
+    const callback = new URL(parked.redirectUri);
+    if (url.searchParams.get('link') === 'ok') {
+      callback.searchParams.set('code', this.tokenStore.createCode({
+        clientId: parked.clientId,
+        redirectUri: parked.redirectUri,
+        scope: parked.scope,
+        codeChallenge: parked.codeChallenge,
+        codeChallengeMethod: parked.codeChallengeMethod,
+        pingOneAccessToken: parked.pingOneAccessToken,
+        pingOneExpiresIn: parked.pingOneExpiresIn,
+      }));
+    } else {
+      // Tell the client, instead of handing it a token for a door that would
+      // only 401 again — that loops it through sign-in after sign-in.
+      const reason = (url.searchParams.get('reason') || 'no reason given').slice(0, 300);
+      callback.searchParams.set('error', 'access_denied');
+      callback.searchParams.set('error_description', `Privilege gateway sign-in failed: ${reason}`);
+    }
+    if (parked.clientState) callback.searchParams.set('state', parked.clientState);
+    res.writeHead(302, { Location: callback.toString() });
+    res.end();
+    return true;
   }
 
   private readBody(req: IncomingMessage): Promise<string> {
