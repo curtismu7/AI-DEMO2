@@ -317,8 +317,8 @@ def introspectionData = [
     exp       : tokenInfo['exp'],
     iss       : tokenIss,
     client_id : tokenInfo['client_id'] ?: sub,
-    // For /identity-chain: the audience the token actually carried, and the
-    // user's email when the IdP put one in the token.
+    // For the decisions panel on /agent-gateway-inspector: the audience the
+    // token actually carried, and the user's email when the IdP put one in it.
     aud       : tokenAudActual ?: null,
     email     : tokenInfo['email'] ?: null,
 ]
@@ -1168,11 +1168,11 @@ def auditTrail = [
 ]
 def auditTrailJson = JsonOutput.toJson(auditTrail)
 
-// ── Publish the decision to the BFF (/identity-chain) ─────────────────────────
+// ── Publish the decision to the BFF (/agent-gateway-inspector decisions panel) ─
 // Fire-and-forget, same pattern and trust model as transaction-hop.groovy: a
 // daemon thread so a slow or dead BFF never adds latency, every failure
 // swallowed. Unlike the hop this needs NO correlation id — third-party callers
-// (e.g. Onyx) never send one, and the decision itself is the record the viewer
+// (e.g. Onyx) never send one, and the decision itself is the record the panel
 // shows. The URL is the hop URL's sibling, so no new env var is needed.
 def hopUrlForDecision = System.getenv('BFF_TRANSACTION_HOP_URL') ?: ''
 def decisionIngestUrl = hopUrlForDecision.endsWith('/internal/transaction-hop') ?

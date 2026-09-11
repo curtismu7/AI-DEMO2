@@ -16,14 +16,16 @@ import { isPause } from '../services/tokenChainTrace/pauseObligation';
 import apiClient from '../services/apiClient';
 import CapabilityCallout from './CapabilityCallout';
 import { AGENT_GATEWAY_CAPABILITIES } from '../config/capabilityLedgers/agentGatewayCapabilities';
+// Its only former host (McpGatewayConfig) is no longer routed, so the panel
+// brings its own mgc-* styles to wherever it is mounted.
+import './McpGatewayConfig.css';
 
 const TAIL_OPTIONS = [100, 200, 500, 1000];
 const REFRESH_MS = 4000;
 
 // A real PingOne Authorize statement carries a JSON string payload; pull a
 // human message out of it for display, falling back to the statement name.
-// Exported for IdentityChainPage, which shows the same deny/permit statements.
-export function statementMessage(stmt) {
+function statementMessage(stmt) {
   if (!stmt) return '';
   try {
     const p = typeof stmt.payload === 'string' ? JSON.parse(stmt.payload) : stmt.payload;

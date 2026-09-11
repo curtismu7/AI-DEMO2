@@ -31,12 +31,12 @@ describe('needs-build chip behaviors', () => {
       expect(resolveActiveUseCaseId(req)).toBe('audit-trail');
     });
 
-    it('falls back to session agentRunUseCaseId', () => {
+    it('ignores a session agentRunUseCaseId — the run context reaches the body instead', () => {
       const req = {
         body: {},
         session: { agentRunUseCaseId: 'jit-ephemeral-credentials' },
       };
-      expect(resolveActiveUseCaseId(req)).toBe('jit-ephemeral-credentials');
+      expect(resolveActiveUseCaseId(req)).toBeNull();
     });
 
     it('rejects unknown slugs', () => {
