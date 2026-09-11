@@ -121,10 +121,12 @@ class ExecutionEngine {
         }
       }
 
-      // Decode token from response if present
+      // Decode token from response if present. Token endpoints (RFC 8693,
+      // DPoP) return it as access_token, not token.
       let decodedToken = null;
-      if (response.data?.token) {
-        decodedToken = decodeJWT(response.data.token);
+      const bodyToken = response.data?.token || response.data?.access_token;
+      if (bodyToken) {
+        decodedToken = decodeJWT(bodyToken);
       } else if (response.headers?.authorization) {
         const bearerMatch = response.headers.authorization.match(/Bearer\s+(.+)/);
         if (bearerMatch) {
