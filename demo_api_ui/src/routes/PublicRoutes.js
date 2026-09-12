@@ -45,6 +45,7 @@ import DavinciLoginCallback from "../pages/DavinciLoginCallback";
 import DavinciLoginConfirmedPage from "../pages/DavinciLoginConfirmedPage";
 import DavinciExplainerPage from "../pages/DavinciExplainerPage";
 import OrchestrationSdkExplainerPage from "../pages/OrchestrationSdkExplainerPage";
+import DavinciSdkLoginPage from "../pages/DavinciSdkLoginPage";
 import CibaApprovalPage from "../pages/CibaApprovalPage";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
 import EnterpriseMcpDemoPage from '../pages/EnterpriseMcpDemoPage';
@@ -471,6 +472,17 @@ export function OrchestrationSdkExplainerRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <OrchestrationSdkExplainerPage />
+    </AppShell>
+  );
+}
+
+// DaVinci SDK login sandbox (public) — the SDK drives the flow in-page and
+// renders its collectors as our own UI. Public for the same reason
+// /davinci-login is: the user is not signed in until the callback POST finishes.
+export function DavinciSdkLoginRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <DavinciSdkLoginPage />
     </AppShell>
   );
 }

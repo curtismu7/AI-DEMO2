@@ -187,6 +187,7 @@ import PublicRoutes, {
   DavinciLoginConfirmedRoute,
   DavinciExplainerRoute,
   OrchestrationSdkExplainerRoute,
+  DavinciSdkLoginRoute,
   GraphifyPageRoute,
   IntentBindingLearningPageRoute,
   A2AProtocolLearningPageRoute,
@@ -842,6 +843,7 @@ function AppWithAuth() {
                 <Route path="/davinci-login/confirmed" element={<DavinciLoginConfirmedRoute user={user} logout={logout} />} />
                 <Route path="/davinci-orchestration" element={<DavinciExplainerRoute user={user} logout={logout} />} />
                 <Route path="/orchestration-sdk" element={<OrchestrationSdkExplainerRoute user={user} logout={logout} />} />
+                <Route path="/davinci-sdk-login" element={<DavinciSdkLoginRoute user={user} logout={logout} />} />
                 <Route path="/ciba-approve" element={<CibaApprovalPageRoute />} />
                 <Route
                   path="/code-explorer"

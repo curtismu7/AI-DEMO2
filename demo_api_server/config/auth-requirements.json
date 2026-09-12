@@ -151,6 +151,7 @@
     "/davinci-login/callback": "public",
     "/davinci-login/confirmed": "public",
     "/davinci-orchestration": "public",
+    "/davinci-sdk-login": "public",
     "/delegated-commerce": "admin",
     "/delegation": "admin",
     "/delegation-chain-value": "public",

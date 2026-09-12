@@ -1350,6 +1350,11 @@ app.use('/api/sdk-demo', require('./routes/sdkDemoTokens'));
 // DaVinci login callback route — exchanges OIDC code for tokens and establishes session
 app.use('/api/davinci-login', require('./routes/davinciLogin'));
 
+// DaVinci SDK login (/davinci-sdk-login) — separate from the widget path above
+// because the SDK authorizes with the DaVinci app's own client_id, so the code
+// must be exchanged as that client rather than through oauthService's admin one.
+app.use('/api/davinci-sdk-login', require('./routes/davinciSdkLogin'));
+
 app.use('/api/auth', authRoutes);
 app.use('/api/auth/oauth', oauthRoutes);
 app.use('/api/auth/oauth/user', oauthUserRoutes);
