@@ -52,7 +52,11 @@ function jwksUrl(cfg) {
  * @returns {Promise<object|null>} signed card, or null when the vertical has no specialist
  */
 async function getSignedCard(vertical, cfg) {
-  if (_signed.has(vertical)) return _signed.get(vertical);
+  // Keyed on jwksUrl(cfg) too, not just vertical: the card and the signed
+  // jku both derive from cfg, so a config change (PUBLIC_APP_URL) must not
+  // serve a stale jku memoized under an old cfg.
+  const memoKey = `${vertical}|${jwksUrl(cfg)}`;
+  if (_signed.has(memoKey)) return _signed.get(memoKey);
   const card = buildSpecialistAgentCard(vertical, cfg);
   if (!card) return null;
   const key = getCardSigningKey();
@@ -63,7 +67,7 @@ async function getSignedCard(vertical, cfg) {
     jku: jwksUrl(cfg),
   });
   const signed = await signer(card);
-  _signed.set(vertical, signed);
+  _signed.set(memoKey, signed);
   return signed;
 }
 
