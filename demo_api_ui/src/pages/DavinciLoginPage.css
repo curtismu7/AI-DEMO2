@@ -44,7 +44,7 @@
    hiding the title/subtitle above it and leaving a full-height gray plate. */
 .dvl-widget {
   position: relative;
-  min-height: 600px;
+  min-height: 800px;
 }
 
 .dvl-retry {
