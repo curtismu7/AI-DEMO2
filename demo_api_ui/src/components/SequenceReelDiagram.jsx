@@ -29,7 +29,7 @@ import "./SequenceReelDiagram.css";
 
 const COL_WIDTH = 130;
 const COL_MARGIN = 70;
-const ROW_HEIGHT = 30;
+const ROW_HEIGHT = 56;
 const TOP_PAD = 60;
 const BOTTOM_PAD = 30;
 
@@ -41,6 +41,13 @@ const ZOOM_DEFAULT = 130;
 // Narration pace for slow mode — deliberately slow, this is for talking over
 // a live crowd, not for watching the data arrive.
 const SLOW_REVEAL_MS = 2600;
+const SLOW_SPEED_OPTIONS = [
+  { value: 1000, label: "1s (fast)" },
+  { value: 1500, label: "1.5s" },
+  { value: 2600, label: "2.6s (default)" },
+  { value: 4000, label: "4s" },
+  { value: 6000, label: "6s (slow)" },
+];
 
 function laneClass(lane) {
   return `srd-lane-${String(lane || "").toLowerCase()}`;
@@ -57,6 +64,8 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
   );
   const resetZoom = useCallback(() => setZoomLevel(ZOOM_DEFAULT), []);
 
+  const [slowRevealMs, setSlowRevealMs] = useState(SLOW_REVEAL_MS);
+
   const allLifelineSteps = useMemo(() => deriveLifelineSteps(snap.steps), [snap.steps]);
 
   // Slow mode: reveal one step at a time on a timer instead of the full set
@@ -72,9 +81,9 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
   }, [slowMode, allLifelineSteps.length]);
   useEffect(() => {
     if (!slowMode || revealedCount >= allLifelineSteps.length) return;
-    const timer = setTimeout(() => setRevealedCount((prev) => prev + 1), SLOW_REVEAL_MS);
+    const timer = setTimeout(() => setRevealedCount((prev) => prev + 1), slowRevealMs);
     return () => clearTimeout(timer);
-  }, [slowMode, revealedCount, allLifelineSteps.length]);
+  }, [slowMode, revealedCount, allLifelineSteps.length, slowRevealMs]);
 
   const lifelineSteps = slowMode ? allLifelineSteps.slice(0, revealedCount) : allLifelineSteps;
   const participants = useMemo(() => deriveLifelineParticipants(lifelineSteps), [lifelineSteps]);
@@ -142,9 +151,23 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
           </button>
         )}
         {slowMode && (
-          <span className="srd-slow-badge" title="Steps are revealing slowly for narration">
-            Slow mode — {Math.min(revealedCount, allLifelineSteps.length)}/{allLifelineSteps.length}
-          </span>
+          <>
+            <select
+              className="srd-speed-select"
+              value={slowRevealMs}
+              onChange={(e) => setSlowRevealMs(Number(e.target.value))}
+              title="Adjust pace of step revelation"
+            >
+              {SLOW_SPEED_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <span className="srd-slow-badge" title="Steps are revealing slowly for narration">
+              Slow mode — {Math.min(revealedCount, allLifelineSteps.length)}/{allLifelineSteps.length}
+            </span>
+          </>
         )}
       </div>
       <div className="srd-scroll">

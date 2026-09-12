@@ -96,6 +96,28 @@
   border-color: var(--th-status-info);
 }
 
+.srd-speed-select {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.srd-speed-select:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.srd-speed-select:focus {
+  outline: 2px solid var(--th-focus);
+  outline-offset: -1px;
+}
+
 .srd-slow-badge {
   margin-left: auto;
   font-size: var(--font-size-3xs);
