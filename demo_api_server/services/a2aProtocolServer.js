@@ -111,7 +111,7 @@ function createA2aProtocolRouter(opts = {}) {
 
     router.use(
       base,
-      requireA2aPingOneBearer,
+      requireA2aPingOneBearer(vertical),
       jsonRpcHandler({
         requestHandler: handler,
         userBuilder: pingOneA2aUserBuilder,

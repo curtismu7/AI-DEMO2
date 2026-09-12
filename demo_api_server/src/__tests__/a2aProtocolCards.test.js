@@ -27,6 +27,17 @@ jest.mock('../../services/tokenValidationService', () => ({
 }));
 const { validateToken } = require('../../services/tokenValidationService');
 
+// The bearer gate's mount site (services/a2aProtocolServer.js) never threads a
+// cfg into verifyA2aBearer, so it always falls back to the real configStore
+// singleton. That store has no checked-in default for the generalist's client
+// id (a credential, unlike the intermediate-audience URIs which DO have a
+// real fallback in scope-topology.json), so without this mock every claim
+// would fail the actor check regardless of shape. Only getEffective is read.
+const GENERALIST_CLIENT_ID = 'generalist-agent';
+jest.mock('../../services/configStore', () => ({
+  getEffective: (key) => (key === 'pingone_ai_agent_client_id' ? 'generalist-agent' : ''),
+}));
+
 function fakeJwt(payload) {
   const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
   return `${b64({ alg: 'none', typ: 'JWT' })}.${b64(payload)}.sig`;
@@ -57,7 +68,16 @@ describe('a2aAgentCardService', () => {
   });
 
   test('routes A&F SendMessage through its aliased specialist handler', async () => {
-    validateToken.mockResolvedValueOnce({ client_id: 'generalist-agent' });
+    // abercrombie-fitch aliases to the 'retail' specialist (appKey 'purchase');
+    // its intermediate audience has a real checked-in fallback in
+    // scope-topology.json ("a2a-intermediate-purchase.ping.demo").
+    const claims = {
+      sub: 'user-af',
+      aud: ['a2a-intermediate-purchase.ping.demo'],
+      scope: 'agent:invoke:purchase',
+      act: { client_id: GENERALIST_CLIENT_ID },
+    };
+    validateToken.mockResolvedValueOnce(claims);
     const cfg = {
       getEffective: (key) =>
         key === 'ff_a2a_delegation' ? true : 'https://api.ping.demo:3001',
@@ -67,7 +87,7 @@ describe('a2aAgentCardService', () => {
 
     const res = await request(app)
       .post('/abercrombie-fitch')
-      .set('Authorization', `Bearer ${fakeJwt({ client_id: 'generalist-agent' })}`)
+      .set('Authorization', `Bearer ${fakeJwt(claims)}`)
       .set('A2A-Version', '1.0')
       .send({
         jsonrpc: '2.0',
@@ -121,12 +141,17 @@ describe('requireA2aPingOneBearer', () => {
     const res = {
       statusCode: 200,
       body: null,
+      headers: {},
       status(code) {
         this.statusCode = code;
         return this;
       },
       json(body) {
         this.body = body;
+        return this;
+      },
+      set(header, value) {
+        this.headers[header] = value;
         return this;
       },
     };
@@ -139,23 +164,32 @@ describe('requireA2aPingOneBearer', () => {
 
   test('rejects missing Authorization', async () => {
     const res = mockRes();
-    await requireA2aPingOneBearer({ headers: {} }, res, () => {});
+    await requireA2aPingOneBearer('investment')({ headers: {} }, res, () => {});
     expect(res.statusCode).toBe(401);
     expect(validateToken).not.toHaveBeenCalled();
   });
 
   test('accepts a bearer that passes JWKS signature verification', async () => {
-    validateToken.mockResolvedValueOnce({ client_id: 'agent-1', aud: ['x'] });
+    // 'investment' is a real specialist (config/a2aSpecialists.js) with appKey
+    // 'holdings' — its intermediate audience has a real checked-in fallback in
+    // scope-topology.json ("a2a-intermediate-holdings.ping.demo").
+    const claims = {
+      sub: 'user-1',
+      aud: ['a2a-intermediate-holdings.ping.demo'],
+      scope: 'agent:invoke:holdings',
+      act: { client_id: GENERALIST_CLIENT_ID },
+    };
+    validateToken.mockResolvedValueOnce(claims);
     const res = mockRes();
     const req = {
-      headers: { authorization: `Bearer ${fakeJwt({ client_id: 'agent-1', aud: ['x'] })}` },
+      headers: { authorization: `Bearer ${fakeJwt(claims)}` },
     };
     let nextCalled = false;
-    await requireA2aPingOneBearer(req, res, () => {
+    await requireA2aPingOneBearer('investment')(req, res, () => {
       nextCalled = true;
     });
     expect(nextCalled).toBe(true);
-    expect(req.a2aPingOne.clientId).toBe('agent-1');
+    expect(req.a2aPingOne.clientId).toBe(GENERALIST_CLIENT_ID);
   });
 
   // Regression for the forged-identity bug: a JWT-shaped token whose signature
@@ -172,7 +206,7 @@ describe('requireA2aPingOneBearer', () => {
       },
     };
     let nextCalled = false;
-    await requireA2aPingOneBearer(req, res, () => {
+    await requireA2aPingOneBearer('investment')(req, res, () => {
       nextCalled = true;
     });
     expect(nextCalled).toBe(false);
