@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node 22 CommonJS, Express, axios, jest + supertest (server); React 19 + Vite, `apiClient` (axios), `InspectorShell`, `DraggableModal` (UI).
 
-**Spec:** `docs/superpowers/specs/2026-09-12-secret-rotation-page-design.md`
+**Spec:** `docs/secret-rotation/2026-09-12-secret-rotation-page-design.md`
 
 ## Global Constraints
 

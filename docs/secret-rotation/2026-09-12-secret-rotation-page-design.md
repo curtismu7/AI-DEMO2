@@ -23,6 +23,18 @@ An **operator tool**, not a demo feature. Real rotation against real apps,
 accepting brief downtime as the cost. It is not designed to be shown to a customer
 on a call and does not need a sandbox target.
 
+**Amendment (2026-09-12, post-implementation):** the plan below was implemented
+and reviewed as admin-only — `auth-requirements.json` `"admin"`, `App.js`'s
+`<RequireAdminLogin>`, and `server.js`'s `requireAdmin` middleware. After
+implementation, the repo owner explicitly decided to open the page to **any
+logged-in user, not just admins** — `"/secret-rotation"` is now `"user"`-level,
+gated by a plain "is anyone logged in" check (`SignInRequired`), with no admin
+requirement anywhere in the chain. The worker-app hard-exclusion, the two-stage
+confirm, and every other guardrail in this doc are unaffected and still apply
+equally to every caller. This was a deliberate, explicitly-confirmed choice
+(the owner was told plainly that this removes the tool's only role-based access
+boundary before choosing it) — not a defect being carried forward.
+
 ## Decisions
 
 | Decision | Choice |

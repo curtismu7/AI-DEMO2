@@ -1548,12 +1548,16 @@ function AppWithAuth() {
                                 </RequireAdminLogin>
                               }
                             />
+                            {/* Any logged-in user, not admin-only — deliberate, per
+                                auth-requirements.json "/secret-rotation": "user". */}
                             <Route
                               path="/secret-rotation"
                               element={
-                                <RequireAdminLogin user={user}>
+                                loading ? null : user ? (
                                   <SecretRotationPage />
-                                </RequireAdminLogin>
+                                ) : (
+                                  <SignInRequired />
+                                )
                               }
                             />
                             <Route
