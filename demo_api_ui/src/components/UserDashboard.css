@@ -335,7 +335,7 @@
    so the detail row is visible without scrolling the whole page. */
 .ud-body.ud-sequence-view-active .ud-agent-column,
 .ud-body.ud-sequence-view-active .srd-root {
-  max-height: 45vh;
+  max-height: 40vh;
   overflow-y: auto;
 }
 
