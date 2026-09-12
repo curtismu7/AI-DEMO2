@@ -86,14 +86,44 @@ test('a mode change survives the first token exchange of a session', async ({ pl
 
       const toolsRes = await toolsPromise;
       const toolsEndedAt = Date.now();
+      const toolsBody = await toolsRes.json().catch(() => ({}));
+      // .type, not .id: these come from agentSessionMiddleware's
+      // recordTokenEvent(type, ...), not from buildTokenEvent — see the note below.
+      const eventTypes = (toolsBody.tokenEvents || []).map((e) => e.type);
       console.log(
         `[first-exchange] /tools http=${toolsRes.status()} ended=${secs(toolsEndedAt)}s ` +
-        `switch=${secs(switchedAt)}s overlapped=${switchedAt < toolsEndedAt}`,
+        `switch=${secs(switchedAt)}s overlapped=${switchedAt < toolsEndedAt} ` +
+        `tools=${(toolsBody.availableTools || []).length} degraded=${!!toolsBody.degraded} ` +
+        `events=${eventTypes.join(',')}`,
       );
       expect(
         switchedAt < toolsEndedAt,
         'the switch did not land while /tools was in flight — this run proves nothing',
       ).toBe(true);
+
+      // Without these, a SLOW PRE-EXCHANGE FAILURE (delayed token check, scope
+      // refusal, config error) would stay in flight across the switch, satisfy
+      // the overlap check, and pass — while no session write ever happened. The
+      // guard would then report "fixed" against broken code, which is the one
+      // outcome that makes it worthless.
+      //
+      // resolveAvailableTools MINTS the delegated token before discovery and
+      // THROWS on failure (need_auth / discovery_token_failed / blocked), which
+      // the route turns into 401/403/502. So a 200 with tools in the body is
+      // proof the request reached and completed the exchange — the write under
+      // test happens on that path.
+      //
+      // Deliberately NOT asserted: the 'dpop-binding' token event. It is built
+      // into the array passed to agentMcpTokenService, but resolveAvailableTools
+      // returns `req.tokenEvents` — a DIFFERENT array, filled by
+      // agentSessionMiddleware's recordTokenEvent(type, ...) — so that event
+      // never reaches this response. Same two-array trap documented in
+      // agentRun.js. Don't re-add it; assert on the status + tools instead.
+      expect(toolsRes.ok(), `/tools failed (HTTP ${toolsRes.status()}) — no exchange ran`).toBe(true);
+      expect(
+        (toolsBody.availableTools || []).length,
+        'no tools discovered — /tools did not complete the exchange + discovery path',
+      ).toBeGreaterThan(0);
 
       const after = (await status()).provider;
       console.log(`[first-exchange] switched=${switched} after=${after}`);
