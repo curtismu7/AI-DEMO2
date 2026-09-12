@@ -120,10 +120,15 @@ test('a mode change survives the first token exchange of a session', async ({ pl
       // never reaches this response. Same two-array trap documented in
       // agentRun.js. Don't re-add it; assert on the status + tools instead.
       expect(toolsRes.ok(), `/tools failed (HTTP ${toolsRes.status()}) — no exchange ran`).toBe(true);
+      // Evidence of the path, not of its yield: asserting availableTools > 0 would
+      // couple this guard to tool configuration, and a legitimate empty catalog
+      // would fail it for a non-bug reason. `degraded` counts as evidence too —
+      // the resolver degrades only AFTER a successful mint (discovery blipped),
+      // and it is the mint that performs the session write under test.
       expect(
-        (toolsBody.availableTools || []).length,
-        'no tools discovered — /tools did not complete the exchange + discovery path',
-      ).toBeGreaterThan(0);
+        eventTypes.includes('tools_list_success') || toolsBody.degraded === true,
+        `/tools did not complete the exchange + discovery path (events=${eventTypes.join(',')}, degraded=${!!toolsBody.degraded})`,
+      ).toBe(true);
 
       const after = (await status()).provider;
       console.log(`[first-exchange] switched=${switched} after=${after}`);
