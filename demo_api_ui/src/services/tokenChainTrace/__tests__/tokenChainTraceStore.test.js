@@ -220,6 +220,35 @@ test("beginTrace carries an unfulfilled STEP_UP gate into the resume of the same
   expect(authorize.priorGate).toBe("STEP_UP");
 });
 
+test("beginTrace carries the mfa_challenge_* phases into a STEP_UP resume, and the resume's own phases do not drop them", () => {
+  // Observed live: the completed run's 'stepup' step in buildTraceSteps.js
+  // reads phases off the NEW trace only — without this carry, a genuine MFA
+  // run reads 'notinpath' once the resume's beginTrace() wipes trace.phases.
+  tokenChainTraceStore.beginTrace({ prompt: "checkout headphones for $600" });
+  tokenChainTraceStore.ingestAuthorize({ decision: "INDETERMINATE", outcome: "STEP_UP" });
+  tokenChainTraceStore.ingestPhases([
+    { phase: "mfa_challenge_initiated" },
+    { phase: "mfa_challenge_completed" },
+  ]);
+  tokenChainTraceStore.beginTrace({ prompt: "checkout headphones for $600" });
+  // The resume's own SSE stream never repeats the mfa_challenge_* phases —
+  // the challenge already resolved — but does carry its own unrelated phases.
+  tokenChainTraceStore.ingestPhases([{ phase: "authorize_permitted" }]);
+  const { phases } = tokenChainTraceStore.getState().trace;
+  const names = phases.map((p) => p.phase);
+  expect(names).toContain("mfa_challenge_initiated");
+  expect(names).toContain("mfa_challenge_completed");
+  expect(names).toContain("authorize_permitted");
+});
+
+test("does not carry mfa_challenge_* phases into an unrelated next prompt", () => {
+  tokenChainTraceStore.beginTrace({ prompt: "checkout headphones for $600" });
+  tokenChainTraceStore.ingestAuthorize({ decision: "INDETERMINATE", outcome: "STEP_UP" });
+  tokenChainTraceStore.ingestPhases([{ phase: "mfa_challenge_initiated" }]);
+  tokenChainTraceStore.beginTrace({ prompt: "what's my balance" });
+  expect(tokenChainTraceStore.getState().trace.phases).toEqual([]);
+});
+
 test("carries an unfulfilled HITL_REQUIRED gate the same way", () => {
   tokenChainTraceStore.beginTrace({ prompt: "checkout headphones for $300" });
   tokenChainTraceStore.ingestAuthorize({ decision: "INDETERMINATE", outcome: "HITL_REQUIRED" });
@@ -393,4 +422,44 @@ test("bindFlowTrace binds a run whose id is generated after beginTrace (AG-UI pa
     detail: { flowTraceId: "flow-B", type: "mcp-result", tool: "get_branch_hours", result: { ok: 1 } },
   }));
   expect(tokenChainTraceStore.getState().trace.mcpResult.tool).toBe("get_branch_hours");
+});
+
+// ── Replay history (SystemFlowMap's "last 5 runs") ──────────────────────────
+// reset() deliberately does not clear this — see its comment — so these
+// assertions use unique prompts and relative order/de-dup rather than an
+// absolute history.length, since other tests in this file also complete runs
+// and reset() runs in beforeEach without touching the history log.
+
+test("completeTrace records the run into history, most recent first", () => {
+  tokenChainTraceStore.beginTrace({ prompt: "history-test-a" });
+  tokenChainTraceStore.completeTrace(true);
+  tokenChainTraceStore.beginTrace({ prompt: "history-test-b" });
+  tokenChainTraceStore.completeTrace(false);
+  const { history } = tokenChainTraceStore.getState();
+  const runA = history.find((h) => h.prompt?.message === "history-test-a");
+  const runB = history.find((h) => h.prompt?.message === "history-test-b");
+  expect(runA).toBeTruthy();
+  expect(runB).toBeTruthy();
+  expect(history.indexOf(runB)).toBeLessThan(history.indexOf(runA));
+  expect(runA.outcome).toBe("ok");
+  expect(runB.outcome).toBe("error");
+});
+
+test("completeTrace does not push a duplicate history entry for the same run", () => {
+  tokenChainTraceStore.beginTrace({ prompt: "history-test-dup" });
+  tokenChainTraceStore.completeTrace(true);
+  tokenChainTraceStore.completeTrace(true);
+  const { history } = tokenChainTraceStore.getState();
+  expect(history.filter((h) => h.prompt?.message === "history-test-dup")).toHaveLength(1);
+});
+
+test("history is capped at 5 entries", () => {
+  for (let i = 0; i < 6; i += 1) {
+    tokenChainTraceStore.beginTrace({ prompt: `history-cap-${i}` });
+    tokenChainTraceStore.completeTrace(true);
+  }
+  const { history } = tokenChainTraceStore.getState();
+  expect(history.length).toBeLessThanOrEqual(5);
+  expect(history.some((h) => h.prompt?.message === "history-cap-5")).toBe(true);
+  expect(history.some((h) => h.prompt?.message === "history-cap-0")).toBe(false);
 });

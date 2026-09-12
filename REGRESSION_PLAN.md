@@ -185,6 +185,68 @@ touched and its `onError`/offer-registration contract is unchanged.
 
 **Verify:** `cd demo_api_ui && npx vitest run src/components/__tests__/SecurityCenter.tabs.test.jsx src/components/__tests__/OtpStepUpModal.fidoAssertion.test.jsx src/components/__tests__/OtpStepUpModal.methodChoice.test.jsx src/components/__tests__/DeviceSelector.test.jsx src/components/UserDashboardPing2026.test.js src/components/__tests__/UserDashboardPing2026.stepUpLifecycle.test.js src/components/__tests__/TransactionConsentModal.declineScope.test.jsx src/components/__tests__/TransactionConsentModal.simulated.test.jsx` (8 files, 38 tests, all pass) plus the full `npm run test:unit` (541 files / 4174 tests pass, 24 pre-existing skips) and `npm run build` (exit 0). Passkeys only work on `local.ping-devops.com:4000` (PingOne's FIDO2 relying-party-id policy requires a public TLD) — a live click-through of the new `SecurityCenter` enrollment path and the auto-launched step-up needs that host.
 
+### 2026-09-12 — System Flow Map: stuck-"RUNNING" diagram, missing replay history, new resize/theme/consent affordances
+
+**Files changed:** `demo_api_ui/src/components/SystemFlowMap.jsx`, `SystemFlowMap.css`,
+`src/services/tokenChainTrace/tokenChainTraceStore.js`, `src/hooks/useAgentRun.js`.
+Tests: `src/components/__tests__/SystemFlowMap.test.jsx`,
+`src/services/tokenChainTrace/__tests__/tokenChainTraceStore.test.js`,
+`src/hooks/__tests__/useAgentRun.settleReply.test.js`.
+
+**What was broken:**
+- `useAgentRun.js`'s AG-UI streaming path (`RUN_FINISHED`/`RUN_ERROR`) only ever
+  called `agentFlowDiagram.completeReply()` — a SEPARATE store from
+  `tokenChainTraceStore` — so `trace.outcome` stayed `null` forever on a normal
+  finish (only `abort()` ever settled it). Confirmed live: a completed chat run
+  showed the System Flow Map's verdict stuck on "RUNNING" and never appeared in
+  the new replay history, even though the reply had fully rendered.
+- A STEP_UP (device MFA) resume re-enters `beginTrace()`, which wipes
+  `trace.phases` and never carries the `mfa_challenge_*` evidence forward the
+  way `gateToCarry` already carries the STEP_UP decision — a completed run's
+  'stepup' step then found no evidence and read `notinpath`, painting a real
+  MFA run as though step-up never happened.
+- `SystemFlowMap`'s node/edge folding ranked `active` above `done`, so a hop
+  whose status was still (stale-)`active` at trace completion never repainted
+  green, and the header verdict read the same `trace.outcome`-driven "RUNNING"
+  indefinitely for the same reason as above.
+- No replay of recent runs, no map size control, and no in-panel light/dark
+  toggle (the app-wide toggle isn't reachable while this floating panel is up).
+
+**What was fixed:**
+- `useAgentRun.js` now also calls `tokenChainTraceStore.completeTrace(ok, flowTraceId)`
+  alongside `agentFlowDiagram.completeReply()` on `RUN_FINISHED` (non-interrupt)
+  and `RUN_ERROR`.
+- `tokenChainTraceStore.beginTrace()`/`ingestPhases()` carry `mfa_challenge_*`
+  phase entries forward across a carried STEP_UP resume, merging rather than
+  replacing so the resume's own phases are kept too.
+- `SystemFlowMap.buildFlowModel()` repaints a stale `active` state to `done`
+  once the `reply` step reads `done` (evidence-based, independent of
+  `trace.outcome`); the verdict badge/caption apply the same correction.
+- Added: a "replay last 5 runs" strip (`tokenChainTraceStore` keeps a capped,
+  de-duped-by-runId history pushed on `completeTrace`), an A-/A+ map-size
+  control (`sfm:zoom:v1`, same pattern as `TokenChainTraceRail`'s zoom), an
+  in-panel light/dark toggle (`useThemeOptional`), and broadened the CIBA/MFA
+  node to "Approval Gate — Step-up MFA · HITL · Consent" plus relabeled the
+  backend node to "Resource Server" for legibility.
+
+**Do not break:**
+- `gateToCarry`'s STEP_UP/HITL_REQUIRED decision-carry logic is unchanged —
+  the phases carry is a separate, additive field on the same carried-gate
+  condition (`carried === "STEP_UP"`), not a rework of it.
+- `completeTrace()`'s existing callers (`demoAgentService.js`,
+  `LiveUseCaseWorkbenchPage.js`, etc.) are untouched; the AG-UI path simply
+  gained the same call it was missing.
+- `stateForStep()`'s `HELD_DECISIONS` (STEP_UP/HITL_REQUIRED/INDETERMINATE
+  render as "held", not "done") is unchanged — the active-to-done repaint only
+  fires when the reply step itself is `done`.
+
+**Verify:**
+- `cd demo_api_ui && npm run test:unit && npm run build` — 541 files / 4184
+  tests pass, build exits 0.
+- Live: asked the Super Sports agent a question end to end — verdict reached
+  "COMPLETE" (not stuck "RUNNING"), the run appeared in the replay strip, and
+  clicking it froze the map on that run while "Live" returned to the current one.
+
 ### 2026-09-12 — Final-review hardening pass on the A2A hop (4 Important findings + 2 smaller)
 
 **Files changed:** `demo_api_server/services/a2aProtocolServer.js`,
