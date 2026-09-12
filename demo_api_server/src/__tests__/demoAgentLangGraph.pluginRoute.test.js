@@ -9,14 +9,16 @@ jest.mock('../../services/scopeTopology', () => ({
   isA2aDelegatedTool: jest.fn(),
 }));
 jest.mock('../../services/a2aDelegationService', () => ({
-  delegateToSpecialist: jest.fn(),
+  exchangeAsGeneralist: jest.fn(),
+}));
+jest.mock('../../services/a2aProtocolClient', () => ({
+  sendA2aProtocolHandoff: jest.fn(),
 }));
 jest.mock('../../services/bffMcpToolExecutor', () => ({
   executeBffTool: jest.fn(),
   executeBffToolWithToken: jest.fn(),
 }));
 const dispatch = require('../../services/verticalDispatch');
-const { executeBffToolWithToken } = require('../../services/bffMcpToolExecutor');
 const { __test } = require('../../services/demoAgentLangGraphService');
 
 // scopeTopology / a2aDelegationService are LAZILY required INSIDE
@@ -32,12 +34,14 @@ const { __test } = require('../../services/demoAgentLangGraphService');
 // memory note (same landmine, different file) for the general pattern.
 let scopeTopology;
 let a2aDelegationService;
+let a2aProtocolClient;
 
 describe('agent reason-loop plugin routing helpers', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     scopeTopology = require('../../services/scopeTopology');
     a2aDelegationService = require('../../services/a2aDelegationService');
+    a2aProtocolClient = require('../../services/a2aProtocolClient');
   });
 
   it('resolveToolSchemas uses plugin schemas when plugin exists', () => {
@@ -74,22 +78,33 @@ describe('agent reason-loop plugin routing helpers', () => {
     // exactly like dispatchVerticalIntent's heuristic path already does.
     it('routes a directly-called a2aDelegated tool through delegation, not the plugin/BFF path', async () => {
       scopeTopology.isA2aDelegatedTool.mockImplementation((n) => n === 'sensitive_patient_records');
-      a2aDelegationService.delegateToSpecialist.mockResolvedValue({
-        token: 'specialist-token',
+      a2aDelegationService.exchangeAsGeneralist.mockResolvedValue({
+        token: 'T.AGENT1',
         specialist: 'Records Specialist',
         vertical: 'healthcare',
+        specialistVertical: 'records',
         tool: 'sensitive_patient_records',
+        scopes: ['records:read'],
+      });
+      // The specialist runs Exchange #2 and the tool behind the wire hop.
+      a2aProtocolClient.sendA2aProtocolHandoff.mockResolvedValue({
+        ok: true,
+        tokenEvents: [],
+        result: { success: true },
+        toolError: null,
         actChainDepth: 2,
         scopes: ['records:read'],
       });
-      executeBffToolWithToken.mockResolvedValue(JSON.stringify({ success: true }));
 
       const exec = __test.resolveExecuteTool('healthcare', {
         userId: 'u', userToken: 't', req: {}, tokenEvents: [], sessionId: 's',
       });
       const out = await exec('sensitive_patient_records', {});
 
-      expect(a2aDelegationService.delegateToSpecialist).toHaveBeenCalled();
+      expect(a2aDelegationService.exchangeAsGeneralist).toHaveBeenCalled();
+      expect(a2aProtocolClient.sendA2aProtocolHandoff).toHaveBeenCalledWith(
+        expect.objectContaining({ subjectToken: 'T.AGENT1', tool: 'sensitive_patient_records' }),
+      );
       expect(dispatch.executeToolFor).not.toHaveBeenCalled();
       expect(dispatch.isPluginToolName).not.toHaveBeenCalled();
       const parsed = JSON.parse(out);
@@ -104,7 +119,7 @@ describe('agent reason-loop plugin routing helpers', () => {
         userId: 'u', userToken: 't', req: {}, tokenEvents: [], sessionId: 's',
       });
       await exec('view_coverage', {});
-      expect(a2aDelegationService.delegateToSpecialist).not.toHaveBeenCalled();
+      expect(a2aDelegationService.exchangeAsGeneralist).not.toHaveBeenCalled();
       expect(dispatch.executeToolFor).toHaveBeenCalled();
     });
 

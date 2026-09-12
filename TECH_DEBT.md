@@ -16,6 +16,84 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-11 — A2A wire hop has no proof-of-possession
+
+**What's wrong.** The bearer `verifyA2aBearer` validates is a plain, bearer
+access token: PingOne issues neither DPoP (RFC 9449) nor certificate-bound
+(RFC 8705) tokens, so possession alone authenticates it — see
+`docs/SPIFFE_PLAN.md:53` (capability table: both rows "NOT supported") and
+`:232` ("No RFC 8705, no DPoP, no `cnf` mechanism of any kind"). Anyone who
+captures the token in flight can replay it until it expires.
+
+**Why it wasn't fixed now.** PingOne cloud cannot issue a sender-constrained
+token at all; there is no config flag to flip.
+
+**Real fix.** Adopt a native `cnf` claim if PingOne ever adds one, or move the
+token-issuing leg to PingFederate / Advanced Identity Cloud, which can bind a
+`cnf` via DPoP or mTLS today.
+
+### [ ] 2026-09-11 — Agent Card signing key is process-ephemeral
+
+**What's wrong.** `services/a2aCardSigningService.js#getCardSigningKey`
+generates a fresh Ed25519 keypair on first use and holds it only in memory —
+a restart rotates it silently. This is sound today because the same process
+both signs cards and serves their verification JWKS, so every verifier reads
+the current key.
+
+**Why it wasn't fixed now.** Nothing outside this process caches a card or its
+`jku` across a restart yet.
+
+**Real fix.** Persist the key (env secret or a keystore) once a third party is
+expected to cache our Agent Cards or verify them after this process restarts.
+
+### [ ] 2026-09-11 — `POST /a2a/specialists/:vertical` now requires a delegated token
+
+**What's wrong.** `verifyA2aBearer`'s actor check requires `act` present and
+the actor to be the registered generalist, so a caller presenting a bare
+client_credentials token (no `act`) is rejected outright. This is a breaking
+change to the wire contract for any external caller that authenticated that
+way.
+
+**Why it wasn't fixed now.** No in-repo caller does this — both transports
+(`services/a2aProtocolClient.js` in-process, and any HTTP client) already send
+the Exchange #1 delegated token.
+
+**Real fix.** None needed unless a real external A2A client shows up; document
+the requirement in the Agent Card's security scheme description if that
+happens.
+
+### [ ] 2026-09-11 — `bffMcpToolExecutor` sets no timeout of its own
+
+**What's wrong.** `services/bffMcpToolExecutor.js`'s tool call has no timeout
+of its own, so the only ceiling above it is whatever the caller imposes.
+Discovered while deriving the A2A wire hop's own bound (90150ms in
+`services/a2aProtocolClient.js`): that number has to budget for an unbounded
+tool call, which it can only do by assuming one never hangs forever in
+practice.
+
+**Why it wasn't fixed now.** Out of scope for the A2A hardening work that
+found it; no reported hang today.
+
+**Real fix.** Give `bffMcpToolExecutor` its own timeout so callers don't have
+to derive their ceiling from an assumption about an unbounded leg.
+
+### [ ] 2026-09-11 — HTTP transport drops the specialist's token-chain rows
+
+**What's wrong.** Ruling 14 (UC2's declared chain matching what is emitted)
+holds for the in-process path. On the HTTP transport,
+`services/a2aProtocolServer.js:319` builds the per-request specialist handler
+with `tokenEvents: []` — a fresh, empty array — rather than a chain shared with
+the caller, so an external HTTP caller's emitted chain is narrower than the
+in-process one the UI drives.
+
+**Why it wasn't fixed now.** No caller drives the HTTP transport today
+(`A2A_PROTOCOL_HTTP=1` is off by default); the in-process path is what UC2
+exercises and its chain is complete.
+
+**Real fix.** Thread a real `tokenEvents` array through the HTTP request (e.g.
+off `req`) if the HTTP transport gets a real caller that needs the specialist's
+`a2a-agent2-actor` / `a2a-exchange2` / tool-dispatched rows.
+
 ### [ ] 2026-09-11 — A lost or slow commit response can commit a sign-in the client was told had failed
 
 **What's wrong.** `/oauth/resume`'s `commitPrivilegeLink` posts to
