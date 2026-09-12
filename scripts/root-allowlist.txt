@@ -102,6 +102,7 @@ package-lock.json
 package.json
 ping-gateway
 ping-mcpgw
+ping_agent_guardrails_diagram.html
 ping_agent_onboarding_flow_diagram.html
 ping_agent_onboarding_flow_diagram_compact.html
 ping_agent_onboarding_flow_diagram_subway.html
