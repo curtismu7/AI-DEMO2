@@ -29,6 +29,18 @@ const EMPTY_TRACE = () => ({
 // per-call event array (e.g. an attack sim's) arrives without it.
 const SESSION_EVENT_IDS = ["user-token", "session-token-introspection", "user-token-introspection"];
 
+// The device-MFA challenge/response phases from routes/mfa.js. Unlike the
+// HITL phases (authorize_denied_hitl / gateway_step_up_required /
+// mcp_auth_challenge_intercepted), whose approval retry "stays inside one
+// trace" (gateToCarry's own comment), a STEP_UP resume re-enters
+// sendAgentMessage -> beginTrace(), which wipes trace.phases. The challenge
+// already completed on the trace being replaced, so the retry's own run never
+// re-emits these — the completed run's 'stepup' step in buildTraceSteps.js
+// then finds no evidence and reads 'notinpath', painting a real MFA run as
+// though step-up never happened. Carried the same way gateToCarry already
+// carries the STEP_UP decision across this exact boundary.
+const MFA_PHASE_NAMES = new Set(["mfa_challenge_initiated", "mfa_challenge_completed", "mfa_challenge_failed"]);
+
 let trace = EMPTY_TRACE();
 let runSeq = 0;
 // The flowTraceId of the run currently owning the trace. Set when a run binds
@@ -117,13 +129,20 @@ function gateToCarry(from, nextPrompt) {
   return from.prompt?.message === String(nextPrompt) ? outcome : null;
 }
 
+// Last few COMPLETED runs, most recent first, so a presenter can flip back to
+// one after the live trace has moved on to the next prompt — reset()/
+// beginTrace() intentionally do not touch this: clearing or starting the live
+// view is not the same action as discarding the replay log.
+const HISTORY_MAX = 5;
+let history = [];
+
 function emit() {
   const snap = getState();
   listeners.forEach((fn) => { try { fn(snap); } catch { /* listener errors are theirs */ } });
 }
 
 function getState() {
-  return { trace: { ...trace }, steps: buildTraceSteps(trace) };
+  return { trace: { ...trace }, steps: buildTraceSteps(trace), history };
 }
 
 function ensureTrace() {
@@ -150,6 +169,11 @@ export const tokenChainTraceStore = {
         return rest;
       });
     const carried = gateToCarry(trace, prompt);
+    // See MFA_PHASE_NAMES: only a carried STEP_UP resume needs this — its
+    // challenge/response phases live entirely on the trace being replaced.
+    const carriedMfaPhases = carried === "STEP_UP"
+      ? trace.phases.filter((p) => p && MFA_PHASE_NAMES.has(p.phase))
+      : [];
 
     trace = EMPTY_TRACE();
     explicitlyReset = false;
@@ -157,6 +181,7 @@ export const tokenChainTraceStore = {
     trace.runId = ++runSeq;
     trace.prompt = prompt ? { message: String(prompt) } : null;
     trace.tokenEvents = sessionEvents;
+    trace.phases = carriedMfaPhases;
     if (carried) trace.authorize = { outcome: carried, priorGate: carried };
     // Bind this run's flowTraceId (may be null here on paths that mint the id
     // after beginTrace — those call bindFlowTrace once it exists).
@@ -185,7 +210,14 @@ export const tokenChainTraceStore = {
   ingestPhases(serverEvents) {
     if (!Array.isArray(serverEvents) || !serverEvents.length) return;
     ensureTrace();
-    trace.phases = serverEvents.slice();
+    // Keep any carried MFA phase (beginTrace seeded it from the trace this
+    // run resumes) that this run's own stream does not repeat — a resumed
+    // challenge already completed, so nothing here re-emits it, and the plain
+    // replace below would otherwise drop it.
+    const carriedMfaPhases = trace.phases.filter(
+      (p) => p && MFA_PHASE_NAMES.has(p.phase) && !serverEvents.some((e) => e && e.phase === p.phase),
+    );
+    trace.phases = [...carriedMfaPhases, ...serverEvents.slice()];
     emit();
   },
   ingestRoutingMode(mode, detail = null, flowTraceId = null) {
@@ -314,7 +346,16 @@ export const tokenChainTraceStore = {
     // Stamped so a settled run can report its own wall-clock duration.
     // startedAt alone only gives an elapsed time while the run is still live.
     trace.finishedAt = Date.now();
+    // De-duped by runId — a path that calls completeTrace twice for the same
+    // run (e.g. a retry that re-settles) must not push the same run in twice.
+    if (trace.runId != null && history[0]?.runId !== trace.runId) {
+      history = [{ ...trace }, ...history].slice(0, HISTORY_MAX);
+    }
     emit();
+  },
+  /** The store's own replay log — up to the last HISTORY_MAX completed runs. */
+  getHistory() {
+    return history;
   },
   /** Full demo reset — empty pipeline (nothing done) ready for the next run. */
   reset() {
