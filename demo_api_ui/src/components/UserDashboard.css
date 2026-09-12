@@ -12,7 +12,7 @@
   margin: 0 auto;
   box-sizing: border-box;
   /* EducationBar is a fixed top-right hamburger — no extra top padding for a full-width bar */
-  padding: clamp(20px, 3vw, 36px) clamp(12px, 3.5vw, 20px) 28px;
+  padding: clamp(20px, 3vw, 36px) clamp(12px, 5vw, 64px) clamp(28px, 6vh, 120px);
   font-family: var(--font-primary);
   background-color: var(--brand-light-gray);
   min-height: 100vh;

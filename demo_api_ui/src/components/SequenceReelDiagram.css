@@ -22,21 +22,20 @@
   --srd-color-data: color-mix(in oklab, #e87ba4 30%, white);
 }
 
-/* Dark steps of the same 5 families — validated separately against the dark
-   surface (see validate_palette.js run notes), not an automatic flip.
+/* Dark steps of the same 5 families — vibrant colors for dark mode
    Project rule: dark is [data-theme="dark"] only, never prefers-color-scheme. */
 :root[data-theme="dark"] .srd-root {
-  --srd-color-browser: #3987e5;
-  --srd-color-chat: color-mix(in oklab, #3987e5 75%, white);
-  --srd-color-agent: #d95926;
-  --srd-color-llm: color-mix(in oklab, #d95926 75%, white);
-  --srd-color-mcp: #199e70;
-  --srd-color-gateway: color-mix(in oklab, #199e70 75%, white);
-  --srd-color-pingone: #c98500;
-  --srd-color-authz: color-mix(in oklab, #c98500 75%, white);
-  --srd-color-bff: #d55181;
-  --srd-color-api: color-mix(in oklab, #d55181 65%, white);
-  --srd-color-data: color-mix(in oklab, #d55181 50%, white);
+  --srd-color-browser: #4a9eff;
+  --srd-color-chat: color-mix(in oklab, #4a9eff 80%, white);
+  --srd-color-agent: #ff6b4a;
+  --srd-color-llm: color-mix(in oklab, #ff6b4a 80%, white);
+  --srd-color-mcp: #2ed9a3;
+  --srd-color-gateway: color-mix(in oklab, #2ed9a3 80%, white);
+  --srd-color-pingone: #ffa500;
+  --srd-color-authz: color-mix(in oklab, #ffa500 80%, white);
+  --srd-color-bff: #ff5599;
+  --srd-color-api: color-mix(in oklab, #ff5599 75%, white);
+  --srd-color-data: color-mix(in oklab, #ff5599 55%, white);
 }
 
 .srd-empty {
@@ -96,6 +95,28 @@
   border-color: var(--th-status-info);
 }
 
+.srd-speed-select {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.srd-speed-select:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.srd-speed-select:focus {
+  outline: 2px solid var(--th-focus);
+  outline-offset: -1px;
+}
+
 .srd-slow-badge {
   margin-left: auto;
   font-size: var(--font-size-3xs);
@@ -128,8 +149,10 @@
 }
 
 .srd-lifeline {
-  stroke: var(--th-border);
+  stroke: var(--th-border-strong);
+  stroke-width: 2.5;
   stroke-dasharray: 3 3;
+  opacity: 0.7;
 }
 
 .srd-note-box {
@@ -146,7 +169,7 @@
 
 .srd-arrow {
   stroke: var(--th-border-strong);
-  stroke-width: 2.5;
+  stroke-width: 3;
   cursor: pointer;
 }
 

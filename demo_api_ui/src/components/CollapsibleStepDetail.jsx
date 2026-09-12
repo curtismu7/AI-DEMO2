@@ -3,7 +3,7 @@ import StepDetailPanel from "./StepDetailPanel";
 import "./CollapsibleStepDetail.css";
 
 export default function CollapsibleStepDetail({ step }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   if (!step) return null;
 
