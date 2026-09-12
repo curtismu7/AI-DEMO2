@@ -19,10 +19,22 @@ const path = require('node:path');
 const fs = require('node:fs');
 
 const REPO_ROOT = path.join(__dirname, '..');
+
+// Requiring a demo_api_server module through REPO_ROOT works natively but is
+// wrong in the container: REPO_ROOT is the /repo bind of the HOST checkout, so
+// Node's resolver walks up to /repo/demo_api_server/node_modules — a macOS/arm64
+// tree whose lmdb binding cannot load under Linux. /app is a second mount of the
+// SAME sources with the image's own linux node_modules beside it (the long-lived
+// BFF process already proves it loads). Detect on /app/services, which exists
+// only in the container.
+const DEMO_API_SERVER_ROOT = fs.existsSync('/app/services')
+  ? '/app'
+  : path.join(REPO_ROOT, 'demo_api_server');
+
 // Only isWorkerApp is used below — the driver in rotateAppSecretCli.js imports
 // regenerateClientSecret/verifySecret/fingerprint itself.
-const { isWorkerApp } = require(path.join(REPO_ROOT, 'demo_api_server/services/pingOneSecretRotation'));
-const { openVault } = require(path.join(REPO_ROOT, 'demo_api_server/lib/vault'));
+const { isWorkerApp } = require(path.join(DEMO_API_SERVER_ROOT, 'services/pingOneSecretRotation'));
+const { openVault } = require(path.join(DEMO_API_SERVER_ROOT, 'lib/vault'));
 
 const SECRETFUL_AUTH_METHODS = new Set(['CLIENT_SECRET_BASIC', 'CLIENT_SECRET_POST', 'CLIENT_SECRET_JWT']);
 
@@ -63,7 +75,7 @@ async function preflight({ app, vaultPath, vaultPassword }) {
 // resolves correctly because module.exports is populated before the CLI driver
 // (which closes the cycle) is ever require()'d. Move this below the
 // require.main block and the CLI breaks with "preflight is not a function".
-module.exports = { preflight };
+module.exports = { preflight, DEMO_API_SERVER_ROOT };
 
 if (require.main === module) {
   // CLI path is exercised manually; see the plan's Task 3 manual verification.

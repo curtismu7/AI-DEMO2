@@ -18,8 +18,19 @@ const path = require('path');
 const https = require('https');
 const http  = require('http');
 
-const ROOT = path.resolve(__dirname, '..', '..');
-const API_ENV = path.join(ROOT, 'demo_api_server', '.env');
+// TWO roots, and they are NOT one path segment apart in every layout.
+//   native:    {repo}/demo_api_server/scripts  → API_ROOT {repo}/demo_api_server, ROOT {repo}
+//   container: /app/scripts                    → API_ROOT /app, but the repo root is the
+//                                                SEPARATE /repo bind mount, not '/'.
+// Climbing two levels from __dirname therefore yielded '/' in the container, so
+// API_ENV was '/demo_api_server/.env' and the topology read was
+// '/scope-topology.json' — both missing. getRotatableVaultKeyMap() threw and
+// GET /api/secret-rotation/apps 502'd for every caller. CODE_SEARCH_REPO_ROOT is
+// the same container-root convention routes/secretRotation.js already uses
+// (demo_api_server/Dockerfile sets it; unset natively).
+const API_ROOT = path.resolve(__dirname, '..');
+const ROOT = process.env.CODE_SEARCH_REPO_ROOT || path.resolve(__dirname, '..', '..');
+const API_ENV = path.join(API_ROOT, '.env');
 
 /**
  * Read named entries from the vault, so it can win over a stale .env copy.
@@ -1033,4 +1044,8 @@ if (require.main === module) {
 module.exports = {
   loadVaultSecrets, writeEnvFile, dotenvxPlain, getRotatableVaultKeyMap,
   propagateServiceEnvs: main,
+  // Exported so the container-vs-native path contract above is testable: the
+  // two roots differ inside the BFF image and a regression there is invisible
+  // natively (where they collapse onto the same directory).
+  ROOT, API_ROOT, API_ENV,
 };

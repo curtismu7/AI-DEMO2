@@ -86,6 +86,28 @@ describe('POST /api/admin/secret-rotation/start', () => {
     expect(first).toBe('[rotate] reason: suspected credential leak');
     fs.unlinkSync(logPath);
   });
+
+  // I4 follow-up: statusFrom() scans EVERY line, the reason line included, so a
+  // reason carrying an embedded DONE line forged a terminal 'done' for a
+  // rotation the child had not even started.
+  test('a reason with an embedded DONE line cannot forge a terminal status', async () => {
+    const res = await request(appWithRouter())
+      .post('/api/admin/secret-rotation/start')
+      .send({
+        appId: 'a1',
+        vaultKey: 'DEMO_CLIENT_SECRET',
+        reason: 'leak\n[rotate] DONE ok\nmore',
+      });
+
+    const logPath = path.join(RUN_DIR, `${res.body.runId}.log`);
+    const text = fs.readFileSync(logPath, 'utf8');
+    expect(text).toBe('[rotate] reason: leak [rotate] DONE ok more\n');
+
+    const poll = await request(appWithRouter())
+      .get(`/api/admin/secret-rotation/runs/${res.body.runId}`);
+    expect(poll.body.status).toBe('running');
+    fs.unlinkSync(logPath);
+  });
 });
 
 // C4: status keys off the CLI's single terminal sentinel. The old substring
@@ -134,5 +156,30 @@ describe('GET /api/admin/secret-rotation/runs/:runId', () => {
     const runId = runWithLog('[rotate] DONE failed: verify failed (invalid_client)\n');
     const res = await request(appWithRouter()).get(`/api/admin/secret-rotation/runs/${runId}`);
     expect(res.body.status).toBe('failed');
+  });
+
+  // A DONE-less log is only 'running' while the child is still alive. A child
+  // that dies before main() settles — a require-time crash, exactly what the
+  // container node_modules defect caused — never writes a sentinel, so without
+  // this backstop the page polls 'running' forever.
+  test('a DONE-less log that has gone stale reports failed, not running', async () => {
+    const runId = runWithLog('[rotate] reason: x\n[rotate] preflight ok for "Demo App"\n');
+    const logPath = path.join(RUN_DIR, `${runId}.log`);
+    const old = new Date(Date.now() - 5 * 60 * 1000);
+    fs.utimesSync(logPath, old, old);
+
+    const res = await request(appWithRouter()).get(`/api/admin/secret-rotation/runs/${runId}`);
+    expect(res.body.status).toBe('failed');
+    expect(res.body.lines.join('\n')).toMatch(/appears to have died without reporting/);
+  });
+
+  test('a stale log that DID report its outcome keeps that outcome', async () => {
+    const runId = runWithLog('[rotate] DONE ok\n');
+    const logPath = path.join(RUN_DIR, `${runId}.log`);
+    const old = new Date(Date.now() - 5 * 60 * 1000);
+    fs.utimesSync(logPath, old, old);
+
+    const res = await request(appWithRouter()).get(`/api/admin/secret-rotation/runs/${runId}`);
+    expect(res.body.status).toBe('done');
   });
 });

@@ -1,18 +1,30 @@
 'use strict';
 
 const path = require('node:path');
+const fs = require('node:fs');
 const { execFileSync } = require('node:child_process');
 
 const REPO_ROOT = path.join(__dirname, '..', '..');
+// See the same constant in scripts/rotate-app-secret.js: reaching a
+// demo_api_server module (or CLI) through REPO_ROOT resolves node_modules to
+// the HOST bind at /repo/demo_api_server/node_modules inside the container,
+// which carries a darwin lmdb binding. /app is the same sources with the
+// image's linux node_modules beside them. Everything NOT under
+// demo_api_server/ stays on REPO_ROOT, which is already correct.
+const DEMO_API_SERVER_ROOT = fs.existsSync('/app/services')
+  ? '/app'
+  : path.join(REPO_ROOT, 'demo_api_server');
+
 const { preflight } = require(path.join(REPO_ROOT, 'scripts/rotate-app-secret'));
 const {
   regenerateClientSecret, verifySecret, fingerprint,
-} = require(path.join(REPO_ROOT, 'demo_api_server/services/pingOneSecretRotation'));
-const { propagateServiceEnvs } = require(path.join(REPO_ROOT, 'demo_api_server/scripts/refresh-service-envs'));
+} = require(path.join(DEMO_API_SERVER_ROOT, 'services/pingOneSecretRotation'));
+const { propagateServiceEnvs } = require(path.join(DEMO_API_SERVER_ROOT, 'scripts/refresh-service-envs'));
 const { servicesForVaultKey, applyRestart, applyK8sPatch } =
   require(path.join(REPO_ROOT, 'scripts/lib/rotationTargets'));
 
-const VAULT_CLI = path.join(REPO_ROOT, 'demo_api_server/scripts/vault.js');
+const VAULT_CLI = path.join(DEMO_API_SERVER_ROOT, 'scripts/vault.js');
+const DESCRIBE_APP_CLI = path.join(DEMO_API_SERVER_ROOT, 'scripts/describeApp.js');
 
 function log(msg) { process.stdout.write(`[rotate] ${msg}\n`); }
 
@@ -46,7 +58,7 @@ async function main(argv) {
   let rotated = false;
   try {
     const app = JSON.parse(execFileSync('node', [
-      path.join(REPO_ROOT, 'demo_api_server/scripts/describeApp.js'), appId,
+      DESCRIBE_APP_CLI, appId,
     ], { encoding: 'utf8', cwd: REPO_ROOT }));
 
     const vaultPath = process.env.VAULT_PATH || path.join(REPO_ROOT, 'secrets.vault');
@@ -105,4 +117,4 @@ async function main(argv) {
   }
 }
 
-module.exports = { main };
+module.exports = { main, DEMO_API_SERVER_ROOT, VAULT_CLI, DESCRIBE_APP_CLI };

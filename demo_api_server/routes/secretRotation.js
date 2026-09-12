@@ -21,6 +21,11 @@ const SECRETFUL = new Set(['CLIENT_SECRET_BASIC', 'CLIENT_SECRET_POST', 'CLIENT_
 const REPO_ROOT = process.env.CODE_SEARCH_REPO_ROOT || path.join(__dirname, '..', '..');
 const RUN_DIR = path.join(__dirname, '..', 'data', 'rotation-runs');
 
+// How long a run log may sit untouched, with no DONE line, before /runs/:id
+// calls the child dead. Generous on purpose: this is a detached background
+// process doing network round-trips, not a live request.
+const STALE_RUN_MS = 30_000;
+
 router.get('/apps', async (_req, res) => {
   try {
     // The vault key is SERVER-derived: only apps this repo actually stores a
@@ -71,8 +76,12 @@ router.post('/start', async (req, res) => {
   // The operator-typed justification is the run's audit trail — an
   // irreversible action that asks for a reason and drops it is worse than not
   // asking. Written first, before the child can append anything. It is not a
-  // secret, so it is logged verbatim.
-  fs.writeFileSync(logPath, `[rotate] reason: ${String(reason || '(none given)').trim()}\n`);
+  // secret, so it is logged verbatim — but flattened to ONE line first.
+  // statusFrom() scans every line of this file, so an embedded newline carrying
+  // the literal '[rotate] DONE ok' would forge a terminal success status for a
+  // rotation that never happened.
+  const flatReason = String(reason || '(none given)').replace(/[\r\n]+/g, ' ').trim();
+  fs.writeFileSync(logPath, `[rotate] reason: ${flatReason}\n`);
   const out = fs.openSync(logPath, 'a');
 
   const argv = [path.join(REPO_ROOT, 'scripts/rotate-app-secret.js'),
@@ -99,11 +108,16 @@ router.post('/start', async (req, res) => {
  *
  * 'aborted' is distinct from 'failed' on purpose: it means nothing changed.
  */
+// startsWith, not includes: the CLI always emits its sentinel at column 0, and
+// the operator-typed reason shares this file. Substring matching let a reason
+// mentioning the sentinel anywhere on its line forge a terminal status — which
+// flattening the reason's newlines alone does NOT fix, since the forged text
+// survives on the reason line. Both guards are required.
 function statusFrom(lines) {
   for (const line of lines) {
-    if (line.includes('[rotate] DONE ok')) return 'done';
-    if (line.includes('[rotate] DONE failed')) return 'failed';
-    if (line.includes('[rotate] DONE aborted')) return 'aborted';
+    if (line.startsWith('[rotate] DONE ok')) return 'done';
+    if (line.startsWith('[rotate] DONE failed')) return 'failed';
+    if (line.startsWith('[rotate] DONE aborted')) return 'aborted';
   }
   return 'running';
 }
@@ -115,7 +129,22 @@ router.get('/runs/:runId', (req, res) => {
   const logPath = path.join(RUN_DIR, `${req.params.runId}.log`);
   if (!fs.existsSync(logPath)) return res.status(404).json({ error: 'run not found' });
   const lines = fs.readFileSync(logPath, 'utf8').split('\n').filter(Boolean);
-  res.json({ status: statusFrom(lines), lines });
+  const status = statusFrom(lines);
+  // Liveness backstop. The DONE sentinel is the only terminal signal, so a child
+  // that dies BEFORE it can print one — a require-time crash, an OOM kill —
+  // leaves a log nothing will ever append to and the page polls 'running'
+  // forever. mtime is the cheapest liveness proxy: the CLI logs a line at every
+  // step, so a silent log is a dead process, not a slow one.
+  if (status === 'running' && Date.now() - fs.statSync(logPath).mtimeMs > STALE_RUN_MS) {
+    return res.json({
+      status: 'failed',
+      lines: lines.concat(
+        `[rotate] no output for over ${STALE_RUN_MS / 1000}s and no DONE line — `
+        + 'the rotation process appears to have died without reporting.',
+      ),
+    });
+  }
+  res.json({ status, lines });
 });
 
 module.exports = router;
