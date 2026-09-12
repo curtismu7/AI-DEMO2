@@ -38,6 +38,12 @@ const FLAGS = [
 export default function PrivilegeFirstGatewayPage() {
   return (
     <main className="pfg-page">
+      <div className="pfg-archived">
+        <strong>Archived.</strong> The identity fork below was settled by live measurement
+        (Outcome A) — see the lessons-learned notes on{" "}
+        <a href="/privilege-gateway-topologies">Privilege Gateway Topologies</a>, the page
+        this content has moved to.
+      </div>
       <header className="pfg-hero">
         <div className="pfg-eyebrow">AI-DEMO2 · plan 2026-09-08</div>
         <h1>Privilege first, Agent Gateway for the rest</h1>
