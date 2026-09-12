@@ -43,6 +43,7 @@ import SdkLoginCallback from "../pages/SdkLoginCallback";
 import DavinciLoginCallback from "../pages/DavinciLoginCallback";
 import DavinciLoginConfirmedPage from "../pages/DavinciLoginConfirmedPage";
 import DavinciExplainerPage from "../pages/DavinciExplainerPage";
+import OrchestrationSdkExplainerPage from "../pages/OrchestrationSdkExplainerPage";
 import DavinciLoginGuidePage from "../pages/DavinciLoginGuidePage";
 import CibaApprovalPage from "../pages/CibaApprovalPage";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
@@ -450,7 +451,19 @@ export function DavinciExplainerRoute({ user, logout }) {
   );
 }
 
-// Training lesson for the widget login above — how it works, the real
+// How the Ping Orchestration SDK works — static lesson, no SDK/PingOne/BFF
+// calls, so it teaches the same in any environment. Public for the same reason
+// the widget login guide is: the subject is signing in, so it has to be
+// readable before you have.
+export function OrchestrationSdkExplainerRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <OrchestrationSdkExplainerPage />
+    </AppShell>
+  );
+}
+
+// Training lesson for the widget login — how it works, the real
 // sdk-token/callback request/response shapes, and the hop-by-hop flow.
 // Public, like the sandbox it documents: it's reference material, not a
 // signed-in feature.

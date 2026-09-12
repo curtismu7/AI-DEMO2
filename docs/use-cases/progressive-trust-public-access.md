@@ -25,8 +25,8 @@ The public catalog path skips PingOne Authorize, the Agent Gateway, and token ex
 
 ## Evidence
 
-**Token chain steps:** authorize-decision → tool-dispatched  
-**Activity categories:** mcp, authorize
+**Token chain steps:** tool-dispatched  
+**Activity categories:** mcp
 
 ## Code References
 

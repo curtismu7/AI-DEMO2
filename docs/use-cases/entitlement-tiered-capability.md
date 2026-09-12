@@ -16,7 +16,7 @@ PingOne group membership drives a per-tier tool set and amount limits; the user'
 
 ## How to Run
 
-**Trigger:** Chip message: `transfer $600 from checking to savings`  
+**Trigger:** Chip message: `check my sensitive account details for tier access`  
 **Expected outcome:** `PERMIT`
 
 ## What to Say

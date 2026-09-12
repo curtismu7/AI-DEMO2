@@ -17,11 +17,11 @@ PingOne manages the agent app as a first-class identity; rotating or retiring th
 ## How to Run
 
 **Trigger:** Chip message: `show my balance`  
-**Expected outcome:** `DENY_401`
+**Expected outcome:** `PERMIT`
 
 ## What to Say
 
-> The agent app was retired — its credential no longer mints tokens, so the call dies at the exchange step.
+> This is the live agent identity, so the exchange succeeds. Retire or rotate that agent app in the PingOne console and run it again — the same call dies at the exchange step, with no per-tool cleanup anywhere.
 
 ## Evidence
 
