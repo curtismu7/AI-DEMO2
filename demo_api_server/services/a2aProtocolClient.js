@@ -27,13 +27,43 @@ const {
   JsonRpcTransportFactory,
   createAuthenticatingFetchWithRetry,
 } = require('@a2a-js/sdk/client');
-const { buildA2aEvent } = require('./a2aDelegationService');
+const {
+  buildA2aEvent,
+  DEFAULT_EXCHANGE_TIMEOUT_MS,
+  DEFAULT_EXCHANGE_ATTEMPTS,
+  DEFAULT_RETRY_DELAY_MS,
+} = require('./a2aDelegationService');
 const { specialistRpcUrl, pushAgentCardEvent } = require('./a2aAgentCardService');
 const { createSpecialistProtocolHandler } = require('./a2aProtocolServer');
 const { getSignedCard, cardVerifier } = require('./a2aCardSigningService');
 const { verifyA2aBearer } = require('../middleware/a2aPingOneBearer');
 
-const DEFAULT_HANDOFF_TIMEOUT_MS = 5000;
+/**
+ * TWO ceilings, because this function wraps two different kinds of work.
+ *
+ * The quick legs — bearer validation (one PingOne JWKS fetch, cached) and card
+ * signing + verification (in-process Ed25519) — keep the original 5s bound. That
+ * number was written for a stalled client_credentials mint, which is now gone,
+ * but its rationale still holds for these legs: a stalled PingOne call must
+ * never hang UC2.
+ *
+ * The SendMessage leg is different. It now contains the specialist's OWN
+ * Exchange #2 and the tool call it makes afterwards, so its ceiling is DERIVED
+ * from the budget a2aDelegationService gives that exchange — attempts ×
+ * per-attempt timeout, plus the retry delay between attempts — plus one more
+ * per-attempt budget as the margin for the tool call. That margin matters:
+ * services/bffMcpToolExecutor.js sets no timeout of its own, so this is the only
+ * ceiling above the tool call.
+ *
+ * At 5s a slow-but-succeeding specialist was cut off and reported as
+ * a2a_exchange2_failed — a false failure on a working path, which reads as a
+ * broken demo rather than a timeout. The bound stays finite either way: an
+ * unbounded in-process hop can hang UC2 indefinitely.
+ */
+const GATE_TIMEOUT_MS = 5000;
+const SPECIALIST_EXCHANGE_BUDGET_MS =
+  DEFAULT_EXCHANGE_ATTEMPTS * DEFAULT_EXCHANGE_TIMEOUT_MS + DEFAULT_RETRY_DELAY_MS;
+const DEFAULT_HANDOFF_TIMEOUT_MS = SPECIALIST_EXCHANGE_BUDGET_MS + DEFAULT_EXCHANGE_TIMEOUT_MS;
 
 /**
  * Specialist failures that mean NO nested-act token was ever minted. The reply
@@ -198,7 +228,7 @@ async function sendA2aProtocolHandoff(opts = {}) {
     if (!subjectToken) throw new Error('no delegated token supplied for the A2A hop');
     claims = await withTimeout(
       () => verifyA2aBearer(subjectToken, { vertical, cfg }),
-      timeoutMs,
+      GATE_TIMEOUT_MS,
       'A2A bearer validation',
     );
   } catch (err) {
@@ -244,7 +274,7 @@ async function sendA2aProtocolHandoff(opts = {}) {
         await cardVerifier(cfg)(signed);
         return signed;
       },
-      timeoutMs,
+      GATE_TIMEOUT_MS,
       'A2A Agent Card verification',
     );
   } catch (err) {

@@ -134,4 +134,85 @@ describe('a2aProtocolClient', () => {
     // No credential may appear in the token chain.
     expect(JSON.stringify(tokenEvents)).not.toMatch(/T\.NESTED|T\.AGENT1/);
   });
+
+  describe('time bounds', () => {
+    const OLD_BOUND_MS = 5000; // the bound before the specialist's work moved inside it
+
+    const hop = (tokenEvents) => sendA2aProtocolHandoff({
+      vertical: 'investment',
+      subtask: 'review my holdings',
+      tool: TOOL,
+      toolArgs: {},
+      subjectToken: 'T.AGENT1',
+      tokenEvents,
+      cfg: CFG,
+      req: { sessionID: 's1' },
+      sessionId: 's1',
+    });
+
+    afterEach(() => jest.useRealTimers());
+
+    // THE REGRESSION THIS FIX EXISTS FOR. The hop now contains the specialist's
+    // Exchange #2, which a2aDelegationService budgets at attempts × 30s. At the
+    // old 5s ceiling this working path was cut off and reported as
+    // a2a_exchange2_failed — a false failure.
+    test('a hop slower than the old 5s bound still succeeds', async () => {
+      jest.useFakeTimers();
+      verifyA2aBearer.mockResolvedValue({ sub: 'u1', act: { client_id: 'gen-id' } });
+      exchangeAsSpecialist.mockImplementation(
+        () => new Promise((resolve) => {
+          setTimeout(
+            () => resolve({ token: 'T.NESTED', claims: { sub: 'u1' }, actChainDepth: 2, scopes: ['holdings:read'] }),
+            OLD_BOUND_MS * 4, // 20s: past the old bound, inside the exchange budget
+          );
+        }),
+      );
+      executeBffToolWithToken.mockResolvedValue(JSON.stringify({ holdings: [{ symbol: 'VTI' }] }));
+
+      const tokenEvents = [];
+      const pending = hop(tokenEvents);
+      await jest.advanceTimersByTimeAsync(OLD_BOUND_MS * 4 + 1);
+      const out = await pending;
+
+      expect(out.ok).toBe(true);
+      expect(out.result).toEqual({ holdings: [{ symbol: 'VTI' }] });
+      expect(out.actChainDepth).toBe(2);
+    });
+
+    // The old suite pinned that a stalled bearer MINT could not hang the A2A use
+    // case. The mint is gone; the guarantee is not. A hop that never settles must
+    // still end as a bounded failure.
+    test('a stalled hop is bounded, not hung', async () => {
+      jest.useFakeTimers();
+      verifyA2aBearer.mockResolvedValue({ sub: 'u1', act: { client_id: 'gen-id' } });
+      exchangeAsSpecialist.mockImplementation(() => new Promise(() => {}));
+
+      const tokenEvents = [];
+      const pending = hop(tokenEvents);
+      await jest.advanceTimersByTimeAsync(10 * 60 * 1000);
+      const out = await pending;
+
+      expect(out.ok).toBe(false);
+      expect(out.code).toBe('a2a_exchange2_failed');
+      expect(out.error).toMatch(/timed out/i);
+      expect(tokenEvents.some((e) => e.id === 'a2a-protocol-message' && e.status === 'failed')).toBe(true);
+    });
+
+    // The quick legs keep the original 5s bound: a stalled PingOne JWKS fetch
+    // must not inherit the long SendMessage ceiling.
+    test('a stalled bearer validation fails at the short gate bound', async () => {
+      jest.useFakeTimers();
+      verifyA2aBearer.mockImplementation(() => new Promise(() => {}));
+
+      const tokenEvents = [];
+      const pending = hop(tokenEvents);
+      await jest.advanceTimersByTimeAsync(OLD_BOUND_MS + 1);
+      const out = await pending;
+
+      expect(out.ok).toBe(false);
+      expect(out.code).toBe('a2a_unauthorized');
+      expect(out.error).toMatch(/timed out/i);
+      expect(exchangeAsSpecialist).not.toHaveBeenCalled();
+    });
+  });
 });

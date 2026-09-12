@@ -709,6 +709,13 @@ module.exports = {
   // derivation there once granted bare `read` while the runtime requested the
   // delegated scope, which a fresh bootstrap turns into invalid_scope.
   deriveSpecialistScopes,
+  // The exchange budget. Exported so a2aProtocolClient can DERIVE its wire-hop
+  // ceiling from the same numbers instead of hard-coding a second one: the hop
+  // now contains the specialist's Exchange #2, so a bound below this budget
+  // cuts off a slow-but-succeeding specialist.
+  DEFAULT_EXCHANGE_TIMEOUT_MS,
+  DEFAULT_EXCHANGE_ATTEMPTS,
+  DEFAULT_RETRY_DELAY_MS,
   // exported for unit tests
   buildA2aEvent,
   countActDepth,
