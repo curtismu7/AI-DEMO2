@@ -150,8 +150,10 @@
 }
 
 .srd-lifeline {
-  stroke: var(--th-border);
+  stroke: var(--th-border-strong);
+  stroke-width: 2.5;
   stroke-dasharray: 3 3;
+  opacity: 0.7;
 }
 
 .srd-note-box {
