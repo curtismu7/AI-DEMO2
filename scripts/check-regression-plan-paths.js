@@ -12,6 +12,11 @@
  * Tokens containing `*` are treated as globs. Non-file tokens (code
  * identifiers, endpoints) and gitignored `.env` files are skipped.
  *
+ * A token starting with `/` is an HTTP route, not a file: §1 file paths are
+ * always repo-relative. Without that rule a row naming an endpoint whose path
+ * ends in a file extension (`/a2a/specialists/.well-known/jwks.json`, added by
+ * the 2026-09-11 A2A hardening) fails the gate as a "missing file".
+ *
  * Wired into CI (gates job). Run locally: npm run regression:paths
  */
 'use strict';
@@ -44,6 +49,7 @@ function fileTokens(rowText) {
   return tokens.filter(
     (t) =>
       FILE_EXT_RE.test(t) &&
+      !t.startsWith('/') &&
       !t.includes('(') &&
       !t.includes('?') &&
       !t.includes(' ') &&
