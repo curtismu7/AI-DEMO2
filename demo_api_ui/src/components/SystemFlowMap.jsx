@@ -7,13 +7,38 @@
 // here derives its own verdict — the authorize decision comes off the authorize
 // step and the headline off buildRunStory, so the map cannot disagree with the
 // rail or the Proof verdict.
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ReactFlow, Controls, Handle, Position, getBezierPath } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import DraggableModal from './DraggableModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
-import { buildRunStory } from '../services/tokenChainTrace/buildTraceSteps';
+import { buildRunStory, buildTraceSteps } from '../services/tokenChainTrace/buildTraceSteps';
+import { useThemeOptional } from '../context/ThemeContext';
 import './SystemFlowMap.css';
+
+// Presenter map size (A-/A+), same pattern as TokenChainTraceRail's ZOOM_*
+// (readStoredZoom there) — a separate key because the two panels are scaled
+// independently.
+const ZOOM_KEY = 'sfm:zoom:v1';
+const ZOOM_MIN = 0.8;
+const ZOOM_MAX = 1.6;
+const ZOOM_STEP = 0.1;
+const ZOOM_DEFAULT = 1;
+
+function readStoredZoom() {
+  try {
+    const v = Number(window.localStorage.getItem(ZOOM_KEY));
+    return v >= ZOOM_MIN && v <= ZOOM_MAX ? v : ZOOM_DEFAULT;
+  } catch {
+    return ZOOM_DEFAULT;
+  }
+}
+
+function truncate(text, max) {
+  if (!text) return '';
+  const s = String(text);
+  return s.length > max ? `${s.slice(0, max)}…` : s;
+}
 
 // The deployment, grouped by who owns the box. Five bands: the model is its own
 // trust boundary because the agent calls OUT to it — a run that never reaches
@@ -27,14 +52,24 @@ export const NODES = {
   'p1-agenttok': { name: 'PingOne /as/token', sub: 'client_credentials · actor' },
   'p1-exchange': { name: 'Token exchange', sub: 'RFC 8693 · act chain' },
   'p1-authorize': { name: 'PingOne Authorize', sub: 'PDP · sideband' },
-  'p1-stepup': { name: 'CIBA / MFA', sub: 'HITL step-up' },
+  // One box for all three pause kinds buildTraceSteps.js's 'stepup' step
+  // detects — device step-up MFA, a generic HITL approval, and a HITLCONSENT
+  // obligation — because all three already share that single step/evidence
+  // path. A separate "Consent" box would either duplicate this one or sit
+  // permanently unlit for the two other kinds, which is the same noise the
+  // introspect/JWKS box was left out for above.
+  'p1-stepup': { name: 'Approval Gate', sub: 'Step-up MFA · HITL · Consent' },
   browser: { name: 'Browser', sub: 'demo_api_ui :4000' },
   bff: { name: 'BFF', sub: 'demo_api_server :3001' },
   agent: { name: 'LangGraph agent', sub: 'demoAgentLangGraphService' },
   llm: { name: 'LLM proxy', sub: ':8090 · one shared rate bucket' },
   pep: { name: 'Gateway PEP', sub: 'PingGateway :3036 · /mcp' },
-  mcp: { name: 'MCP server', sub: 'oauth-mcp · resource server' },
-  api: { name: 'Backend API', sub: 'banking / vertical REST' },
+  mcp: { name: 'MCP Server', sub: 'oauth-mcp · protected resource' },
+  // The downstream business-logic API the MCP tool call actually reaches —
+  // named "Resource Server" first since that is the role people ask "where is
+  // it" about; "MCP Server" above is the protocol front door to it, not a
+  // second one.
+  api: { name: 'Resource Server', sub: 'Backend API · banking / vertical REST' },
   db: { name: 'Data store', sub: 'SQLite · vertical dataset' },
 };
 
@@ -304,7 +339,29 @@ export function SystemFlowMapView() {
 
   useEffect(() => tokenChainTraceStore.subscribe(setStoreState), []);
 
-  const { trace, steps } = storeState;
+  const { darkMode, toggleDarkMode } = useThemeOptional();
+
+  // null = following the live run. Set to a past run's id (from the replay
+  // strip below) to freeze the map on one of the last few completed runs
+  // instead — a deliberate look-back, so a new live run starting does not
+  // yank the presenter out of it.
+  const [viewingRunId, setViewingRunId] = useState(null);
+  const history = storeState.history || [];
+  const viewingTrace = viewingRunId != null ? history.find((h) => h.runId === viewingRunId) : null;
+  const trace = viewingTrace || storeState.trace;
+  const steps = useMemo(
+    () => (viewingTrace ? buildTraceSteps(viewingTrace) : storeState.steps),
+    [viewingTrace, storeState.steps],
+  );
+
+  const [zoom, setZoom] = useState(readStoredZoom);
+  useEffect(() => {
+    try { window.localStorage.setItem(ZOOM_KEY, String(zoom)); } catch { /* private mode — size still works, just not remembered */ }
+  }, [zoom]);
+  const stepZoom = useCallback((delta) => {
+    setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round((z + delta) * 10) / 10)));
+  }, []);
+
   const { nodeStates, edges, decision, lit } = useMemo(() => buildFlowModel(steps), [steps]);
   const story = useMemo(() => buildRunStory(trace, steps), [trace, steps]);
   // buildRunStory's outcome also comes from trace.outcome, and reads 'active'
@@ -340,20 +397,92 @@ export function SystemFlowMapView() {
   );
 
   return (
-    <div className="sfm-root">
+    <div className="sfm-root" style={{ zoom }}>
       <div className="sfm-head">
         <span className={`sfm-verdict sfm-verdict--${verdictTone(decision, displayStory)}`}>
           {verdictLabel(decision, displayStory)}
         </span>
+        {viewingTrace ? <span className="sfm-viewing">replay</span> : null}
         {elapsed != null ? (
           <span className="sfm-ms">{elapsed}<span>ms</span></span>
         ) : null}
         <span className="sfm-hops">{lit} {lit === 1 ? 'hop' : 'hops'}</span>
         <span className="sfm-spacer" />
-        <button type="button" className="sfm-clear" onClick={() => tokenChainTraceStore.reset()}>
-          Clear
+        <div className="sfm-zoom" role="group" aria-label="System flow map size">
+          <button
+            type="button"
+            className="sfm-zoom-btn"
+            onClick={() => stepZoom(-ZOOM_STEP)}
+            disabled={zoom <= ZOOM_MIN}
+            title="Smaller map"
+            aria-label="Decrease map size"
+          >
+            A-
+          </button>
+          <button
+            type="button"
+            className="sfm-zoom-pct"
+            onClick={() => setZoom(ZOOM_DEFAULT)}
+            disabled={zoom === ZOOM_DEFAULT}
+            title="Reset map size"
+            aria-label="Reset map size"
+          >
+            {Math.round(zoom * 100)}%
+          </button>
+          <button
+            type="button"
+            className="sfm-zoom-btn"
+            onClick={() => stepZoom(ZOOM_STEP)}
+            disabled={zoom >= ZOOM_MAX}
+            title="Larger map"
+            aria-label="Increase map size"
+          >
+            A+
+          </button>
+        </div>
+        <button
+          type="button"
+          className="sfm-icon-btn"
+          onClick={toggleDarkMode}
+          aria-label="Toggle dark mode"
+          aria-pressed={darkMode}
+          title="Switch this map between light and dark"
+        >
+          {darkMode ? '☀️' : '🌙'}
+        </button>
+        <button
+          type="button"
+          className="sfm-clear"
+          onClick={() => { setViewingRunId(null); tokenChainTraceStore.reset(); }}
+        >
+          Reset
         </button>
       </div>
+
+      {history.length > 0 ? (
+        <div className="sfm-history" role="group" aria-label="Replay last runs">
+          <span className="sfm-history-label">Replay:</span>
+          <button
+            type="button"
+            className={`sfm-history-btn${viewingRunId == null ? ' sfm-history-btn--active' : ''}`}
+            onClick={() => setViewingRunId(null)}
+          >
+            Live
+          </button>
+          {history.map((h) => (
+            <button
+              key={h.runId}
+              type="button"
+              className={`sfm-history-btn${viewingRunId === h.runId ? ' sfm-history-btn--active' : ''}`}
+              onClick={() => setViewingRunId(h.runId)}
+              title={h.prompt?.message || `run #${h.runId}`}
+            >
+              {h.outcome === 'error' ? '✕ ' : h.outcome === 'ok' ? '✓ ' : ''}
+              {truncate(h.prompt?.message, 22) || `run #${h.runId}`}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <div className="sfm-caption">
         {displayStory ? displayStory.headline : 'No run yet — send an agent prompt and the hops paint here.'}
