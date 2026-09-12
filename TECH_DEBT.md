@@ -16,6 +16,25 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-12 — DaVinci widget login has no live flow trace
+
+**What's wrong.** `/davinci-login-guide` documents the flow with a static
+mermaid diagram (fixed source, not driven by a real run). The repo's live
+step-by-step trace pattern (`AgentFlowDiagramPanel` / `stepReplay.js`, driven
+by `services/agentFlowDiagramService.js`) replays real request/response events
+off `TokenChainContext`/`ExchangeModeContext` — the DaVinci widget flow
+(`routes/davinciLogin.js`, `DavinciLoginPage.jsx`) doesn't emit any events into
+that service today, so an actual widget run can't be replayed the same way.
+
+**Why it wasn't fixed now.** Scoped as a deliberate follow-up (bounded static
+lesson now, live trace later) rather than wiring new instrumentation into the
+widget flow in the same change.
+
+**Real fix.** Emit step events from `/sdk-token` and `/callback` (and the
+widget's `successCallback`/`errorCallback`) into `agentFlowDiagramService`,
+then render them via `AgentFlowDiagramPanel` alongside or instead of the
+static diagram on the guide page.
+
 ### [ ] 2026-09-12 — Secret Rotation page: preflight doesn't check vault writability, and one staleness exemption is unbounded
 
 **What's wrong.** Three gaps left open after the Secret Rotation admin tool

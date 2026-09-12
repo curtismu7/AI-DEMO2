@@ -704,6 +704,7 @@ export default function AdminSideNav({
         { label: "Privilege Demo", path: "/privilege-demo", icon: "shld" },
         { label: "SDK Login", path: "/sdk-login", icon: "mbl" },
         { label: "DaVinci Login", path: "/davinci-login", icon: "sign-in" },
+        { label: "DaVinci Login Guide", path: "/davinci-login-guide", icon: "doc" },
       ],
     },
     {
