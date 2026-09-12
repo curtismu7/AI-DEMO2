@@ -322,6 +322,23 @@
   white-space: nowrap;
 }
 
+/* Sequence view's step detail — full width, below the agent + diagram
+   (both are stacked/full-width already; this just sits under both). */
+.ud-sequence-detail-row {
+  grid-column: 1 / -1;
+  margin-top: 0.75rem;
+}
+
+/* Sequence view: the agent column and the diagram default to a much
+   taller natural height than either needs, which pushes the step detail
+   panel below the fold. Cap both and let them scroll internally instead,
+   so the detail row is visible without scrolling the whole page. */
+.ud-body.ud-sequence-view-active .ud-agent-column,
+.ud-body.ud-sequence-view-active .srd-root {
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
 .ud-agent-column {
   position: relative;
   min-width: 0;

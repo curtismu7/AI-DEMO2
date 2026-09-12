@@ -9846,6 +9846,9 @@ export default function BankingAgent({
                           // the Movie reel toggle above.
                           setShowSequenceDiagram(newVal);
                           window.dispatchEvent(new CustomEvent("agent-sequence-diagram-toggle", { detail: { on: newVal } }));
+                          // Auto-collapse the left nav so the diagram gets the
+                          // width back; restored when the toggle goes off.
+                          window.dispatchEvent(new CustomEvent("admin-sidenav-collapse-toggle", { detail: { collapsed: newVal } }));
                         }}
                         title="Show a live lifeline sequence diagram instead of the movie reel for this session (returns on reload)"
                       >
