@@ -140,6 +140,47 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-12 — `/architecture/flow`'s Token History panel didn't auto-scroll and duplicated on pop-out
+
+**Files changed:** `demo_api_ui/src/components/HistoryModal.js`,
+`demo_api_ui/src/components/__tests__/HistoryModal.test.jsx` (new).
+
+**What was broken:** the floating Token History panel on `/architecture/flow`
+has two bugs. (1) Its scrollable log div had no ref and no scroll effect, so
+it never followed new entries as the simulation ran — the user had to
+manually scroll down after every step. (2) `popOut()` hides the in-page panel
+(`setVisible(false)`) when the "Pop out" button opens a separate browser
+window, but a second effect — "auto-reopen when new history arrives after
+being dismissed" — watches only `history.length` and knows nothing about
+pop-out state. The next simulation step re-triggered `setVisible(true)`,
+so the in-page panel reappeared alongside the still-open popped-out window:
+two token chains visible at once. This is a longstanding design flaw (both
+pieces of state were introduced together, PR #370), not a recent regression.
+
+**What was fixed:** added a `logRef` + a `useEffect` keyed on `history` that
+sets `scrollTop = scrollHeight` on the log div. Added `isPoppedOut` state,
+set on `popOut()` and gating the auto-reopen effect (`&& !isPoppedOut`), plus
+a `popupRef` + polling effect that clears `isPoppedOut` and restores
+`visible` once the popped-out window's `closed` flag goes true — preserving
+the original "come back when dismissed" recovery path, now correctly scoped
+to an actual window close instead of firing on every new step.
+
+**Do not break:**
+- The panel must still auto-reopen when dismissed via its own ✕ button and a
+  *new* run starts (the original "auto-reopen" behavior) — only the pop-out
+  case should suppress it.
+- The in-page panel must stay hidden for the entire lifetime of the popped-out
+  window, however many more simulation steps run.
+- Closing the popped-out window must restore the in-page panel.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/components/__tests__/HistoryModal.test.jsx`
+— all 3 cases fail against the pre-fix code (confirmed by reverting the fix
+and re-running) and pass after; `npm run build` exit 0. Live-verified on
+`/architecture/flow` (public route, no login needed): ran a full 25-step
+simulation, log tracked to bottom (`scrollHeight - scrollTop - clientHeight
+<= 2`) as entries arrived; popped out and the in-page panel stayed hidden
+through the rest of the run; closing the popped-out tab restored it.
+
 ### 2026-09-12 — D-05's anti-bypass rule never fired in k8s: the gateway audience was compared unsplit
 
 **Files changed:** `oauth-mcp/src/auth/lastHopAuthorization.ts`,
