@@ -1,6 +1,6 @@
 import { render, waitFor } from "@testing-library/react";
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
-import DavinciLoginPage from "../DavinciLoginPage";
+import DavinciLoginWidget from "../DavinciLoginWidget";
 
 // The page must render the DaVinci flow with the config the BFF minted, and on
 // success follow the BFF's authorize URL — that hop is what turns the widget's
@@ -50,12 +50,12 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("DavinciLoginPage widget rendering", () => {
+describe("DavinciLoginWidget rendering", () => {
   test("starts the flow immediately, with no username field of its own", async () => {
     const skRenderScreen = vi.fn();
     loadWidget.mockResolvedValue({ skRenderScreen });
 
-    render(<DavinciLoginPage />);
+    render(<DavinciLoginWidget />);
 
     await waitFor(() => expect(fetchWidgetConfig).toHaveBeenCalledTimes(1));
     expect(fetchWidgetConfig).toHaveBeenCalledWith();
@@ -65,7 +65,7 @@ describe("DavinciLoginPage widget rendering", () => {
     const skRenderScreen = vi.fn();
     loadWidget.mockResolvedValue({ skRenderScreen });
 
-    render(<DavinciLoginPage />);
+    render(<DavinciLoginWidget />);
 
     await waitFor(() => expect(skRenderScreen).toHaveBeenCalledTimes(1));
     const [node, props] = skRenderScreen.mock.calls[0];
@@ -84,7 +84,7 @@ describe("DavinciLoginPage widget rendering", () => {
     const skRenderScreen = vi.fn();
     loadWidget.mockResolvedValue({ skRenderScreen });
 
-    render(<DavinciLoginPage />);
+    render(<DavinciLoginWidget />);
     await waitFor(() => expect(skRenderScreen).toHaveBeenCalledTimes(1));
 
     skRenderScreen.mock.calls[0][1].successCallback({ sessionToken: "dv-session-1" });
@@ -102,7 +102,7 @@ describe("DavinciLoginPage widget rendering", () => {
     loadWidget.mockResolvedValue({ skRenderScreen });
     fetchWidgetConfig.mockRejectedValue(new Error("DaVinci demo is not configured."));
 
-    const { findByText } = render(<DavinciLoginPage />);
+    const { findByText } = render(<DavinciLoginWidget />);
 
     await findByText(/not configured/i);
     expect(skRenderScreen).not.toHaveBeenCalled();
@@ -112,7 +112,7 @@ describe("DavinciLoginPage widget rendering", () => {
     const skRenderScreen = vi.fn();
     loadWidget.mockResolvedValue({ skRenderScreen });
 
-    const { findByText } = render(<DavinciLoginPage />);
+    const { findByText } = render(<DavinciLoginWidget />);
     await waitFor(() => expect(skRenderScreen).toHaveBeenCalledTimes(1));
 
     skRenderScreen.mock.calls[0][1].errorCallback({ message: "Flow policy not found" });

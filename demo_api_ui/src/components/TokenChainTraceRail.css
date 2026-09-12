@@ -179,22 +179,6 @@
 .tctr-zoom-btn:disabled,
 .tctr-zoom-pct:disabled { opacity: 0.4; cursor: default; }
 
-.tctr-chain-line {
-  display: flex; align-items: center; gap: 6px; padding: 10px 12px;
-  border-bottom: 1px solid var(--tctr-border); font-weight: 600; flex-wrap: wrap;
-}
-.tctr-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-.tctr-dot--user { background: #f472b6; }
-.tctr-dot--agent { background: #c084fc; }
-.tctr-dot--mcp { background: #34d399; }
-.tctr-arrow { color: var(--th-text-muted); font-weight: 400; }
-.tctr-badge {
-  margin-left: auto; background: var(--brand-navy, #1d4ed8); color: #fff;
-  font-size: var(--font-size-2xs); padding: 2px 8px; border-radius: 999px; font-weight: 700;
-}
-/* An errored run must not wear the same confident badge as a clean one. */
-.tctr-badge--error { background: #b91c1c; }
-
 .tctr-sec-label {
   font-size: var(--font-size-2xs); font-weight: 700; color: var(--tctr-muted); text-transform: uppercase;
   letter-spacing: 0.06em; padding: 8px 12px 2px;
@@ -486,7 +470,6 @@
   color: #dbeafe;
 }
 
-:root[data-theme="dark"] .tctr .tctr-arrow,
 :root[data-theme="dark"] .tctr .tctr-step-chev,
 :root[data-theme="dark"] .tctr .tctr-sc-note,
 :root[data-theme="dark"] .tctr .tctr-story-bits,

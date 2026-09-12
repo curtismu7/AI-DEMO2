@@ -60,9 +60,9 @@ describe("OrchestrationSdkExplainerPage", () => {
     // same two routes, so an unscoped query matches twice.
     render(<OrchestrationSdkExplainerPage />);
     const modes = within(document.querySelector(".osx-modes"));
-    expect(modes.getByRole("link", { name: "/davinci-login" })).toHaveAttribute(
+    expect(modes.getByRole("link", { name: "/davinci-login-guide" })).toHaveAttribute(
       "href",
-      "/davinci-login",
+      "/davinci-login-guide",
     );
     expect(modes.getByRole("link", { name: "/davinci-sdk-login" })).toHaveAttribute(
       "href",

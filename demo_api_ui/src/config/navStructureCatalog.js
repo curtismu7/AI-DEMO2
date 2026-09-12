@@ -98,7 +98,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "OAS Demo",
       "Privilege Demo",
       "SDK Login",
-      "DaVinci Login",
+      "DaVinci Login Guide",
       "DaVinci SDK Login",
       "Orchestration SDK",
       "DaVinci Orchestration",
@@ -248,6 +248,7 @@ export const NAV_STRUCTURE_CATALOG = [
     children: [
       "Feature Flags",
       "LLM Config",
+      "Secret Rotation",
       "App Configuration",
       "OAuth Debug",
       "Postman Collections",
