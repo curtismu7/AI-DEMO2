@@ -858,6 +858,11 @@ export default function BankingAgent({
       return true;
     }
   });
+  // "Sequence view" — swaps the dashboard's right-column reel for a live
+  // lifeline sequence diagram of the same trace data. Session-only, same
+  // reasoning as showFilmstrip above: a stray click must not hide either
+  // surface forever.
+  const [showSequenceDiagram, setShowSequenceDiagram] = useState(false);
   // "DaVinci Mode" — pure UI preference (no server flag), surfaces the DaVinci
   // Orchestration explainer/demo nav entry instead of standard agent chrome.
   // See docs/superpowers/specs/2026-08-17-davinci-orchestration-showcase-design.md.
@@ -9765,6 +9770,21 @@ export default function BankingAgent({
                         title="Show or hide the token chain movie reel for this session (returns on reload)"
                       >
                         Movie reel
+                      </Check>
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={showSequenceDiagram}
+                        onChange={(e) => {
+                          const newVal = e.target.checked;
+                          // Deliberately NOT persisted — same reasoning as
+                          // the Movie reel toggle above.
+                          setShowSequenceDiagram(newVal);
+                          window.dispatchEvent(new CustomEvent("agent-sequence-diagram-toggle", { detail: { on: newVal } }));
+                        }}
+                        title="Show a live lifeline sequence diagram instead of the movie reel for this session (returns on reload)"
+                      >
+                        Sequence view
                       </Check>
                       <Check
                         variant="switch"
