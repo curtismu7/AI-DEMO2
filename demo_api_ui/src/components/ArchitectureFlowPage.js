@@ -1152,13 +1152,23 @@ const SIMULATE_STEPS = [
 // ─── Aud trail ────────────────────────────────────────────────────────────────
 
 const AUD_HOPS = [
-  { icon: "", label: "CC Token", aud: "agent1", activeFrom: 0, activeTo: 5 },
+  {
+    icon: "",
+    label: "CC Token",
+    aud: "agent1",
+    activeFrom: 0,
+    activeTo: 5,
+    description:
+      "The agent's own client_credentials token — no user behind it yet. Scoped only to what the agent needs to discover tools and identify itself; it can never carry a sub claim.",
+  },
   {
     icon: "",
     label: "Subject Token",
     aud: "agent1",
     activeFrom: 13,
     activeTo: 15,
+    description:
+      "A real user access token (sub=alice), issued once the user has authenticated. This is the token the BFF will present as subject_token in the upcoming RFC 8693 exchange.",
   },
   {
     icon: "",
@@ -1167,6 +1177,8 @@ const AUD_HOPS = [
     isExchange: true,
     activeFrom: 16,
     activeTo: 16,
+    description:
+      "The BFF exchanges the subject token (user) plus its own actor identity (agent) for a single delegated token — the moment the two identities are combined into one credential.",
   },
   {
     icon: "",
@@ -1175,6 +1187,8 @@ const AUD_HOPS = [
     act: "agent1",
     activeFrom: 17,
     activeTo: 25,
+    description:
+      "The delegated token that actually reaches the Agent Gateway: sub=alice (who authorized this), act=agent1 (who is acting), aud narrowed to the gateway — never wider than one hop needs.",
   },
 ];
 
@@ -1184,6 +1198,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["user", "idp-oauth-as"],
       colorClass: "active",
       stepLabel: "OAuth 2.0 PKCE — code request",
+      description:
+        "The BFF redirects the browser to PingOne's authorization endpoint with a PKCE code_challenge. No client secret is ever exposed to the browser — the code_verifier stays client-side and is only presented at token exchange.",
       activeEdgeIds: ["user-idp"],
       edgeStyle: A,
       nodeBadges: {},
@@ -1201,6 +1217,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["idp-oauth-as", "agent"],
       colorClass: "active",
       stepLabel: "ID Token issued — UI only, never sent to APIs",
+      description:
+        "PingOne returns an ID token identifying the signed-in user to the BFF. Its audience is the client itself — this token authenticates the user to the app; it is never forwarded to any API or MCP tool.",
       activeEdgeIds: ["idp-agent"],
       edgeStyle: A,
       nodeBadges: { agent: { aud: "banking-app-client", _changed: ["aud"] } },
@@ -1220,6 +1238,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["idp-oauth-as", "agent"],
       colorClass: "active",
       stepLabel: "Access Token issued — scoped for delegation",
+      description:
+        "Alongside the ID token, PingOne issues a platform-level access token for the BFF. This is standard OAuth issuance, not itself an RFC 8693 exchange — it's what later authorizes the BFF to perform that exchange on the user's behalf.",
       activeEdgeIds: ["idp-agent"],
       edgeStyle: A,
       nodeBadges: {
@@ -1242,6 +1262,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["agent"],
       colorClass: "active",
       stepLabel: "BFF stores token — ID token stays in browser",
+      description:
+        "The BFF's server-side session holds the access token; the ID token stays in browser memory only. Splitting custody this way keeps the API-facing token off the frontend entirely.",
       activeEdgeIds: [],
       edgeStyle: A,
       nodeBadges: {},
@@ -1259,6 +1281,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["agent", "idp-oauth-as"],
       colorClass: "active",
       stepLabel: "RFC 8693 Exchange #1 — user token IN",
+      description:
+        "The BFF exchanges the user's access token (subject_token) plus its own client credentials (actor) with PingOne. The result is a single delegated token audienced to the Agent Gateway, carrying both sub (the user) and act (the agent) — no separate tokens travel forward.",
       activeEdgeIds: ["agent-idp"],
       edgeStyle: A,
       nodeBadges: {},
@@ -1288,6 +1312,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["agent", "mcp-gw"],
       colorClass: "active",
       stepLabel: "Delegation token arrives at Ping Agent Gateway",
+      description:
+        "The gateway validates the token before evaluating any policy: audience must equal mcp-gateway, and both sub and act.sub must be present — D-05 anti-bypass rejects a bare client_credentials token (no act at all) right here, one step before any depth check.",
       activeEdgeIds: ["agent-mcp"],
       edgeStyle: A,
       nodeBadges: {
@@ -1312,6 +1338,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["mcp-gw", "idp-oauth-as"],
       colorClass: "active",
       stepLabel: "RFC 8693 Exchange #3 — gateway narrows to backend audience",
+      description:
+        "With PingOne Authorize's PERMIT in hand, the gateway performs its own RFC 8693 exchange — trading the mcp-gateway-audienced token for a new one scoped to the MCP Server's actual resource URI. This is a real third exchange in the chain, not a passthrough.",
       activeEdgeIds: ["mcp-gw-idp"],
       edgeStyle: A,
       nodeBadges: {},
@@ -1341,6 +1369,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["mcp-gw", "mcp-server"],
       colorClass: "active",
       stepLabel: "Ping Agent Gateway forwards backend-scoped token → MCP Server",
+      description:
+        "The gateway forwards the newly-exchanged, backend-scoped token to the MCP Server. The server validates the narrowed audience directly — a token still carrying aud=mcp-gateway would be rejected here.",
       activeEdgeIds: ["mcp-gw-server"],
       edgeStyle: A,
       nodeBadges: {
@@ -1367,6 +1397,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["agent", "llm"],
       colorClass: "active",
       stepLabel: "LLM decides: get_my_accounts",
+      description:
+        "The agent's LLM interprets the user's request and selects the get_my_accounts tool — no token or network call happens yet, this is local reasoning.",
       activeEdgeIds: ["agent-llm"],
       edgeStyle: A,
       nodeBadges: {},
@@ -1376,6 +1408,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["mcp-gw", "pingauthorize"],
       colorClass: "active",
       stepLabel: "PingOne Authorization Server: McpRequest",
+      description:
+        "Before listing available tools, the gateway asks PingOne Authorize a coarse-grained question: is this agent+user combination allowed to interact with the gateway at all?",
       activeEdgeIds: ["mcp-authz"],
       edgeStyle: A,
       nodeBadges: {},
@@ -1393,6 +1427,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["pingauthorize"],
       colorClass: "active-permit",
       stepLabel: "PERMIT — tools discovery allowed",
+      description:
+        "PingOne Authorize permits the McpRequest check, so the agent may proceed to discover and call tools.",
       activeEdgeIds: [],
       edgeStyle: P,
       nodeBadges: {},
@@ -1407,6 +1443,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["mcp-gw", "pingauthorize"],
       colorClass: "active",
       stepLabel: "PingOne Authorization Server: McpToolCall — get_my_accounts",
+      description:
+        "A second, tool-specific check follows: PingOne Authorize evaluates whether this token's scope (read) is sufficient for the get_my_accounts tool.",
       activeEdgeIds: ["mcp-authz"],
       edgeStyle: A,
       nodeBadges: {},
@@ -1425,6 +1463,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["pingauthorize"],
       colorClass: "active-permit",
       stepLabel: "PERMIT — read sufficient",
+      description:
+        "The token's read scope satisfies get_my_accounts' requirement, so PingOne Authorize permits the tool call.",
       activeEdgeIds: [],
       edgeStyle: P,
       nodeBadges: {},
@@ -1440,6 +1480,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["mcp-gw", "idp-oauth-as"],
       colorClass: "active",
       stepLabel: "RFC 8693 Exchange #3 — gateway narrows to backend audience",
+      description:
+        "With both checks passed, the gateway exchanges the mcp-gateway-audienced token for one scoped to the MCP Server's real resource URI before forwarding — the same real third exchange used on every olb-routed tool call, not a passthrough.",
       activeEdgeIds: ["mcp-gw-idp"],
       edgeStyle: A,
       nodeBadges: {},
@@ -1465,6 +1507,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["mcp-server", "banking-api"],
       colorClass: "active",
       stepLabel: "Banking API returns accounts — 200 OK",
+      description:
+        "The MCP Server, now holding a backend-scoped token, calls the Banking API and returns the account list to the agent.",
       activeEdgeIds: ["mcp-server-api"],
       edgeStyle: A,
       nodeBadges: {
@@ -1484,6 +1528,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["agent", "llm"],
       colorClass: "active",
       stepLabel: "LLM decides: create_transfer",
+      description:
+        "The agent's LLM selects create_transfer to move funds — a write operation, which the policy layer treats with more scrutiny than a read.",
       activeEdgeIds: ["agent-llm"],
       edgeStyle: A,
       nodeBadges: {},
@@ -1493,6 +1539,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["mcp-gw", "pingauthorize"],
       colorClass: "active",
       stepLabel: "PingOne Authorization Server: create_transfer — high-risk",
+      description:
+        "The gateway sends the tool-call check to PingOne Authorize. Because create_transfer is a write operation, the policy evaluates the transfer amount against configured risk thresholds rather than just scope.",
       activeEdgeIds: ["mcp-authz"],
       edgeStyle: A,
       nodeBadges: {},
@@ -1512,6 +1560,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["pingauthorize"],
       colorClass: "active-hitl",
       stepLabel: "PERMIT + HITL_CONSENT obligation",
+      description:
+        "This $750 transfer clears the hard-deny ceiling but sits above the auto-approve threshold, so PingOne Authorize returns PERMIT with an obligation rather than an outright decision either way.",
       isHitl: true,
       activeEdgeIds: [],
       edgeStyle: H,
@@ -1529,6 +1579,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["agent", "hitl"],
       colorClass: "active-hitl",
       stepLabel: "HITL — awaiting human approval",
+      description:
+        "The agent honors the HITL_CONSENT obligation by pausing and routing the request to the human-in-the-loop service for the user's explicit approval before executing anything.",
       isHitl: true,
       activeEdgeIds: ["agent-hitl"],
       edgeStyle: H,
@@ -1546,6 +1598,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["hitl", "agent"],
       colorClass: "active-permit",
       stepLabel: "User approved ✓ — agent continues",
+      description:
+        "Alice approves the transfer in the HITL prompt. Only now does the agent proceed to call the tool — nothing was executed while consent was pending.",
       isHitl: true,
       activeEdgeIds: ["hitl-agent"],
       edgeStyle: P,
@@ -1562,6 +1616,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["mcp-server", "banking-api"],
       colorClass: "active",
       stepLabel: "Banking API executes transfer — 200 OK",
+      description:
+        "With approval recorded, the MCP Server calls the Banking API to execute the transfer using the write-scoped token.",
       activeEdgeIds: ["mcp-server-api"],
       edgeStyle: A,
       nodeBadges: { "banking-api": { aud: "banking-api", _changed: ["aud"] } },
@@ -1582,6 +1638,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["agent", "mcp-gw"],
       colorClass: "active",
       stepLabel: "Agent attempts write with read-only token",
+      description:
+        "The agent tries create_transfer using a token scoped for read only — no write scope was ever granted for this session, so the call is bound to fail before it reaches the backend.",
       activeEdgeIds: ["agent-mcp"],
       edgeStyle: A,
       nodeBadges: {
@@ -1602,6 +1660,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["mcp-gw", "pingauthorize"],
       colorClass: "active",
       stepLabel: "PingOne Authorization Server: create_transfer — insufficient scope",
+      description:
+        "The gateway sends the same McpToolCall check to PingOne Authorize. The policy compares the token's scope (read) against what create_transfer requires (write) and finds it insufficient.",
       activeEdgeIds: ["mcp-authz"],
       edgeStyle: A,
       nodeBadges: {},
@@ -1621,6 +1681,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["pingauthorize"],
       colorClass: "active-error",
       stepLabel: "DENY — insufficient scope",
+      description:
+        "PingOne Authorize returns an explicit DENY, citing insufficient_scope — this is a real policy rejection, not a network or auth failure.",
       activeEdgeIds: [],
       edgeStyle: { stroke: "#ef4444", strokeWidth: 2.5 },
       nodeBadges: {},
@@ -1637,6 +1699,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["mcp-gw", "agent"],
       colorClass: "active-error",
       stepLabel: "403 Forbidden — propagated to agent",
+      description:
+        "The gateway converts the DENY into an HTTP 403 with a WWW-Authenticate challenge naming the missing scope, per RFC 6750 §3.1 — the agent must not blindly retry with the same token.",
       activeEdgeIds: ["agent-mcp"],
       edgeStyle: { stroke: "#ef4444", strokeWidth: 2.5 },
       nodeBadges: {},
@@ -1654,6 +1718,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["agent"],
       colorClass: "active-error",
       stepLabel: "Agent gracefully handles 403",
+      description:
+        "Rather than retrying or failing silently, the agent surfaces a clear message to the user and signals that a scope upgrade (re-authentication with write access) is needed to complete the transfer.",
       activeEdgeIds: [],
       edgeStyle: A,
       nodeBadges: {},
@@ -1674,6 +1740,8 @@ const SCENARIO_STEPS_FLOW = {
       colorClass: "active",
       stepLabel:
         "Agent attempts tools/call (agent context only — no subject token)",
+      description:
+        "The agent calls get_my_accounts using only its own agent-level credentials — no user (subject) token has been obtained yet for this session.",
       activeEdgeIds: ["agent-mcp"],
       edgeStyle: A,
       nodeBadges: { "mcp-gw": { aud: "agent1", _changed: ["aud"] } },
@@ -1688,6 +1756,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["mcp-gw", "pingauthorize"],
       colorClass: "active",
       stepLabel: "Gateway → PingOne Authorization Server: authorization check",
+      description:
+        "The gateway asks PingOne Authorize whether an agent-only token (no sub claim) is sufficient to call a tool that touches user data.",
       activeEdgeIds: ["mcp-authz"],
       edgeStyle: A,
       nodeBadges: {},
@@ -1703,6 +1773,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["pingauthorize"],
       colorClass: "active-error",
       stepLabel: "PingOne Authorization Server: DENY — no subject token required",
+      description:
+        "PingOne Authorize denies the call: get_my_accounts requires an identified user behind the request, and an agent-only token has no sub claim to identify one.",
       activeEdgeIds: [],
       edgeStyle: { stroke: "#ef4444", strokeWidth: 2.5 },
       nodeBadges: {},
@@ -1718,6 +1790,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["mcp-gw", "agent"],
       colorClass: "active-error",
       stepLabel: "Agent Gateway → Agent: 403 Forbidden",
+      description:
+        "The gateway converts the DENY into a 403, telling the agent exactly why: insufficient_scope because no subject token is present.",
       activeEdgeIds: ["agent-mcp"],
       edgeStyle: { stroke: "#ef4444", strokeWidth: 2.5 },
       nodeBadges: {},
@@ -1731,6 +1805,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["agent", "user"],
       colorClass: "active",
       stepLabel: "Agent → User: user context required (scope: balance)",
+      description:
+        "Rather than failing the whole interaction, the agent asks the chatbot UI to prompt the user directly, since only the user can authorize the missing scope.",
       activeEdgeIds: ["user-agent"],
       edgeStyle: A,
       nodeBadges: {},
@@ -1745,6 +1821,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["user", "idp-oauth-as"],
       colorClass: "active",
       stepLabel: "Web App → PingOne: request subject token (resource + scope)",
+      description:
+        "The web app initiates a normal OAuth request for a token scoped specifically to this agent resource and the balance scope it needs, per RFC 8707 resource indicators.",
       activeEdgeIds: ["user-idp"],
       edgeStyle: A,
       nodeBadges: {},
@@ -1760,6 +1838,8 @@ const SCENARIO_STEPS_FLOW = {
       nodeIds: ["idp-oauth-as"],
       colorClass: "active",
       stepLabel: "PingOne issues subject token with may_act",
+      description:
+        "PingOne issues the subject token with a may_act claim pre-authorizing this specific agent to act on the user's behalf — this is what makes the later RFC 8693 exchange possible.",
       activeEdgeIds: [],
       edgeStyle: A,
       nodeBadges: {
@@ -1994,13 +2074,11 @@ const SCENARIO_STEPS_FLOW = {
 };
 
 function AudTrail({ stepIndex }) {
+  const [expanded, setExpanded] = useState(null);
+  const expandedHop = expanded != null ? AUD_HOPS[expanded] : null;
   return (
     <div
       style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        flexWrap: "wrap",
         background: "#f1f5f9",
         border: "1px solid #cbd5e1",
         borderRadius: 10,
@@ -2008,93 +2086,123 @@ function AudTrail({ stepIndex }) {
         marginBottom: 10,
       }}
     >
-      <span
+      <div
         style={{
-          fontSize: "0.82rem",
-          fontWeight: 700,
-          color: "#475569",
-          marginRight: 8,
-          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          flexWrap: "wrap",
         }}
       >
-        aud trail:
-      </span>
-      {AUD_HOPS.map((hop, i) => {
-        const on = stepIndex >= hop.activeFrom && stepIndex <= hop.activeTo;
-        const past = stepIndex > hop.activeTo;
-        return (
-          <React.Fragment key={i}>
-            {i > 0 && (
-              <span
-                style={{
-                  color: past ? "#2563eb" : "#cbd5e1",
-                  fontSize: "0.95rem",
-                  fontWeight: 700,
-                }}
-              >
-                →
-              </span>
-            )}
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                background: on ? "#004687" : past ? "#dbeafe" : "#fff",
-                border: `1.5px solid ${on ? "#004687" : past ? "#93c5fd" : "#cbd5e1"}`,
-                borderRadius: 8,
-                padding: "6px 12px",
-                transition: "all 0.3s",
-                minWidth: 110,
-              }}
-            >
-              <span style={{ fontSize: "0.9rem" }}>{hop.icon}</span>
-              <span
-                style={{
-                  fontSize: "0.75rem",
-                  fontWeight: 700,
-                  color: on ? "#fff" : past ? "#1d4ed8" : "#475569",
-                  lineHeight: 1.3,
-                }}
-              >
-                {hop.label}
-              </span>
-              <span
-                style={{
-                  fontSize: "0.7rem",
-                  fontFamily: "inherit",
-                  color: on ? "#bfdbfe" : past ? "#3b82f6" : "#64748b",
-                  lineHeight: 1.3,
-                }}
-              >
-                {hop.isExchange ? hop.aud : `aud: ${hop.aud}`}
-              </span>
-              {hop.act && (
+        <span
+          style={{
+            fontSize: "0.82rem",
+            fontWeight: 700,
+            color: "#475569",
+            marginRight: 8,
+            flexShrink: 0,
+          }}
+        >
+          aud trail:
+        </span>
+        {AUD_HOPS.map((hop, i) => {
+          const on = stepIndex >= hop.activeFrom && stepIndex <= hop.activeTo;
+          const past = stepIndex > hop.activeTo;
+          const isExpanded = expanded === i;
+          return (
+            <React.Fragment key={i}>
+              {i > 0 && (
                 <span
                   style={{
-                    fontSize: "0.68rem",
-                    fontFamily: "inherit",
-                    color: on ? "#86efac" : "#64748b",
+                    color: past ? "#2563eb" : "#cbd5e1",
+                    fontSize: "0.95rem",
+                    fontWeight: 700,
                   }}
                 >
-                  act: {hop.act}
+                  →
                 </span>
               )}
-              {hop.may_act && (
+              <button
+                type="button"
+                onClick={() => setExpanded((e) => (e === i ? null : i))}
+                title="Click for details"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  background: on ? "#004687" : past ? "#dbeafe" : "#fff",
+                  border: `1.5px solid ${isExpanded ? "#f59e0b" : on ? "#004687" : past ? "#93c5fd" : "#cbd5e1"}`,
+                  borderRadius: 8,
+                  padding: "6px 12px",
+                  transition: "all 0.3s",
+                  minWidth: 110,
+                  cursor: "pointer",
+                  font: "inherit",
+                }}
+              >
+                <span style={{ fontSize: "0.9rem" }}>{hop.icon}</span>
                 <span
                   style={{
-                    fontSize: "0.68rem",
-                    fontFamily: "inherit",
-                    color: on ? "#fde68a" : "#64748b",
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    color: on ? "#fff" : past ? "#1d4ed8" : "#475569",
+                    lineHeight: 1.3,
                   }}
                 >
-                  may_act: {hop.may_act}
+                  {hop.label}
                 </span>
-              )}
-            </div>
-          </React.Fragment>
-        );
-      })}
+                <span
+                  style={{
+                    fontSize: "0.7rem",
+                    fontFamily: "inherit",
+                    color: on ? "#bfdbfe" : past ? "#3b82f6" : "#64748b",
+                    lineHeight: 1.3,
+                  }}
+                >
+                  {hop.isExchange ? hop.aud : `aud: ${hop.aud}`}
+                </span>
+                {hop.act && (
+                  <span
+                    style={{
+                      fontSize: "0.68rem",
+                      fontFamily: "inherit",
+                      color: on ? "#86efac" : "#64748b",
+                    }}
+                  >
+                    act: {hop.act}
+                  </span>
+                )}
+                {hop.may_act && (
+                  <span
+                    style={{
+                      fontSize: "0.68rem",
+                      fontFamily: "inherit",
+                      color: on ? "#fde68a" : "#64748b",
+                    }}
+                  >
+                    may_act: {hop.may_act}
+                  </span>
+                )}
+              </button>
+            </React.Fragment>
+          );
+        })}
+      </div>
+      {expandedHop && (
+        <div
+          style={{
+            marginTop: 10,
+            paddingTop: 10,
+            borderTop: "1px dashed #cbd5e1",
+            fontSize: "0.78rem",
+            color: "#334155",
+            lineHeight: 1.5,
+          }}
+        >
+          <b style={{ color: "#1e293b" }}>{expandedHop.label}:</b>{" "}
+          {expandedHop.description}
+        </div>
+      )}
     </div>
   );
 }
@@ -2116,6 +2224,46 @@ const FLOW_ACCENT = {
   mcp: "#475569",
   error: "#dc2626",
 };
+
+// Standard JWT claims a real token of this shape would also carry —
+// synthesized at render time rather than hand-authored into every one of the
+// ~150 step objects across all scenarios. Only tokens that are actually JWTs
+// (oauth/idtoken/exchange) get them; decision/response payloads (mcp/permit/
+// hitl/error) don't pretend to be tokens. Shown in a visually separate
+// "standard claims" group so they read as typical-for-this-token-type, not
+// as another scenario-authored fact.
+const TOKEN_TTL_MS = {
+  oauth: 60 * 60 * 1000, // access tokens: 1h
+  idtoken: 60 * 60 * 1000, // ID tokens: 1h
+  exchange: 5 * 60 * 1000, // RFC 8693 delegated/exchanged tokens: narrower-lived by design
+};
+
+function stableJti(token) {
+  const s = JSON.stringify(token);
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h).toString(16).padStart(8, "0");
+}
+
+export function standardClaimsFor(token) {
+  const type = token._type;
+  if (type) return TOKEN_TTL_MS[type] ? buildStandardClaims(token, TOKEN_TTL_MS[type]) : null;
+  // No explicit _type: only treat this as a token if it's shaped like one —
+  // has an audience — and isn't a PingOne Authorize decision/request payload
+  // (those use DecisionContext/decision but never carry an aud of their own).
+  const looksLikeToken =
+    typeof token.aud === "string" && !("decision" in token) && !("DecisionContext" in token);
+  return looksLikeToken ? buildStandardClaims(token, TOKEN_TTL_MS.oauth) : null;
+}
+
+function buildStandardClaims(token, ttl) {
+  const iat = Date.now();
+  return {
+    iat: new Date(iat).toISOString(),
+    exp: new Date(iat + ttl).toISOString(),
+    jti: stableJti(token),
+  };
+}
 
 function FlowClaimRow({ k, v }) {
   const isAud = k === "aud" || k === "audience" || k === "TokenAudience";
@@ -2168,6 +2316,7 @@ function FlowClaimRow({ k, v }) {
 }
 
 function OneFlowCard({ token, isHitl }) {
+  const [showRaw, setShowRaw] = useState(false);
   if (!token) return null;
   const accentType =
     token._type ||
@@ -2189,6 +2338,7 @@ function OneFlowCard({ token, isHitl }) {
       k !== "_rfcs" &&
       k !== "note",
   );
+  const standardClaims = standardClaimsFor(token);
   return (
     <div
       style={{
@@ -2243,6 +2393,56 @@ function OneFlowCard({ token, isHitl }) {
       {claimEntries.map(([k, v]) => (
         <FlowClaimRow key={k} k={k} v={v} />
       ))}
+      {standardClaims && (
+        <div
+          style={{
+            marginTop: 6,
+            paddingTop: 6,
+            borderTop: "1px dashed #e2e8f0",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "0.62rem",
+              fontWeight: 700,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+              color: "#94a3b8",
+              marginBottom: 3,
+            }}
+          >
+            Standard claims (typical for this token type)
+          </div>
+          {Object.entries(standardClaims).map(([k, v]) => (
+            <div
+              key={k}
+              style={{ display: "flex", gap: 8, marginBottom: 2 }}
+            >
+              <span
+                style={{
+                  fontSize: "0.68rem",
+                  color: "#94a3b8",
+                  minWidth: 100,
+                  flexShrink: 0,
+                  fontFamily: "inherit",
+                }}
+              >
+                {k}
+              </span>
+              <span
+                style={{
+                  fontSize: "0.72rem",
+                  fontFamily: "inherit",
+                  color: "#64748b",
+                  wordBreak: "break-word",
+                }}
+              >
+                {v}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
       {note && (
         <div
           style={{
@@ -2258,6 +2458,47 @@ function OneFlowCard({ token, isHitl }) {
         >
           ℹ {note}
         </div>
+      )}
+      <button
+        type="button"
+        onClick={() => setShowRaw((s) => !s)}
+        style={{
+          pointerEvents: "auto",
+          marginTop: 8,
+          paddingTop: 6,
+          width: "100%",
+          textAlign: "left",
+          background: "none",
+          border: "none",
+          borderTop: "1px solid #f1f5f9",
+          cursor: "pointer",
+          fontSize: "0.68rem",
+          fontWeight: 600,
+          color: "#64748b",
+          fontFamily: "inherit",
+        }}
+      >
+        {showRaw ? "▾ Hide raw JSON" : "▸ View raw JSON"}
+      </button>
+      {showRaw && (
+        <pre
+          style={{
+            pointerEvents: "auto",
+            marginTop: 6,
+            padding: 8,
+            background: "#0f172a",
+            color: "#e2e8f0",
+            borderRadius: 6,
+            fontSize: "0.65rem",
+            lineHeight: 1.5,
+            overflowX: "auto",
+            maxHeight: 220,
+            overflowY: "auto",
+            userSelect: "text",
+          }}
+        >
+          {JSON.stringify(token, null, 2)}
+        </pre>
       )}
     </div>
   );
@@ -2834,7 +3075,11 @@ export default function ArchitectureFlowPage({ user }) {
           totalSteps={stepsRef.current.length}
           isSimulating={isSimulating}
           isPaused={isPaused}
-          onSimulate={runSimulation}
+          // DiagramControls wires this straight to a button's onClick, which
+          // calls it with the click event — runSimulation must not receive
+          // that as scenarioKey, or `scenarioKey || selectedScenario` picks
+          // the (always-truthy) event and the scenario dropdown is ignored.
+          onSimulate={() => runSimulation()}
           onPrev={prevStep}
           onPause={pause}
           onResume={resume}
