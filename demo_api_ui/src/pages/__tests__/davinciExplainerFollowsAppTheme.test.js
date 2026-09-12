@@ -40,6 +40,15 @@ describe('/davinci-orchestration follows the app theme', () => {
     expect(jsx).not.toMatch(/prefers-color-scheme/);
   });
 
+  it('does not borrow the global .btn-primary class for its CTA', () => {
+    // .btn-primary is a claimed global button class that App.css skins with
+    // `color: var(--th-text-invert) !important`. Borrowing it forces white ink
+    // on whatever ground this page sets — which measured 1.8:1 in dark mode
+    // once --accent became a theme token. The CTA is dvx-cta and styles itself.
+    expect(jsx).not.toMatch(/className=["']btn-primary["']/);
+    expect(jsx).toMatch(/className=["']dvx-cta["']/);
+  });
+
   it('resolves its private palette from --th-* tokens', () => {
     // The ~210 rules below the mapping block reference no colour literal at
     // all, so this block is the page's entire relationship with the theme.
