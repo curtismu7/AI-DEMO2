@@ -5,6 +5,22 @@
   font-family: var(--font-primary);
 }
 
+/* This page set no anchor colour at all, so its in-page links fell through to
+   PingOne's end-user-nano.css — loaded cross-origin from assets.pingone.com in
+   public/index.html — which paints `a:link` the brand primary #277ba5. On the
+   dark ground that measured 3.98:1 against a 4.5 requirement.
+
+   --th-status-info-text is the themed blue (#1e40af / #93c5fd), so the link
+   still reads as a link in both modes instead of being frozen at one brand
+   value. The selectors carry element + class + link state because their
+   `a:link` is (0,1,1) and would beat a lone class; `.dlg-page a:link` is
+   (0,2,1) and wins regardless of load order. */
+.dlg-page a,
+.dlg-page a:link,
+.dlg-page a:visited {
+  color: var(--th-status-info-text);
+}
+
 /* --th-bg-band is a fixed dark navy in BOTH themes (like TopNav's own band),
    so its ink is --th-text-invert, never --th-text/--th-text-muted — those
    are tuned for --th-bg-page/-card and go near-black-on-navy in light mode. */
