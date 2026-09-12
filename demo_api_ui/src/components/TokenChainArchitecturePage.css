@@ -26,11 +26,39 @@
 
 .tca-diagram-frame {
   background: var(--th-bg-inset);
-  padding: 2rem;
-  border-radius: 8px;
+  padding: 1.5rem 2rem 2rem;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--th-border);
-  overflow-x: auto;
   color: var(--th-text);
+}
+
+.tca-zoom-hint {
+  font-size: var(--font-size-xs);
+  color: var(--th-text-faint);
+  margin: 0 0 0.75rem;
+}
+
+/* Fixed-size clipping window — panning moves .tca-diagram-content inside it
+   via CSS transform (useZoomPanViewport) instead of relying on native
+   scrollbars, so both directions pan regardless of the diagram's shape. */
+.tca-diagram-viewport {
+  position: relative;
+  height: 560px;
+  overflow: hidden;
+  cursor: grab;
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.tca-diagram-viewport--panning {
+  cursor: grabbing;
+}
+
+.tca-diagram-content {
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
 .tca-cards {
@@ -42,7 +70,7 @@
 .tca-card {
   padding: 1.5rem;
   background: var(--th-bg-inset);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--th-text-muted);
   font-size: 0.9rem;
 }
