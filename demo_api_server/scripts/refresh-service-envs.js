@@ -944,5 +944,7 @@ if (require.main === module) {
   });
 }
 
-// Exported for tests. Running this file directly is unaffected.
-module.exports = { loadVaultSecrets, writeEnvFile, dotenvxPlain };
+// Exported for tests and for scripts/rotate-app-secret.js, which re-runs this
+// propagation after rotating a secret. Running this file directly is unaffected —
+// the `require.main === module` guard above still drives the CLI path.
+module.exports = { loadVaultSecrets, writeEnvFile, dotenvxPlain, propagateServiceEnvs: main };
