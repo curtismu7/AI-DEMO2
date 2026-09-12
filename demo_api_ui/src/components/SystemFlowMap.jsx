@@ -166,6 +166,19 @@ export function stateForStep(step, decision) {
 }
 
 /**
+ * True once the reply step has real evidence (a streamed LLM reply, or a
+ * heuristic reply composed from a tool result) — independent of
+ * trace.outcome, which buildTraceSteps.js documents live runs frequently
+ * never set. Used to repaint a hop that is still reading 'active' after the
+ * run has actually finished, rather than leaving it lit blue forever.
+ * @param {Array} list steps from buildTraceSteps
+ * @returns {boolean}
+ */
+function runEnded(list) {
+  return list.some((s) => s && (s.baseId || s.id) === 'reply' && s.status === 'done');
+}
+
+/**
  * Fold the run's steps into node states and edges.
  * @param {Array} steps from buildTraceSteps
  * @returns {{ nodeStates: object, edges: Array, decision: string|null, lit: number }}
@@ -177,6 +190,7 @@ export function buildFlowModel(steps) {
   // NOT_RECORDED is the display default for an evaluation with no decision
   // field, not a verdict — buildRunStory makes the same exclusion.
   const decision = raw && raw !== 'NOT_RECORDED' ? raw : null;
+  const ended = runEnded(list);
 
   const nodeStates = {};
   // Keyed by node pair, not by step. Several steps legitimately run between the
@@ -194,8 +208,11 @@ export function buildFlowModel(steps) {
   for (const step of list) {
     const spec = STEP_TO_EDGE[step?.baseId || step?.id];
     if (!spec) continue;
-    const state = stateForStep(step, spec.to === 'p1-authorize' ? decision : null);
+    let state = stateForStep(step, spec.to === 'p1-authorize' ? decision : null);
     if (!state) continue;
+    // The run is over — nothing is genuinely still in flight, so a hop stuck
+    // on 'active' is stale evidence, not a live one.
+    if (ended && state === 'active') state = 'done';
     if (state !== 'skipped') lit += 1;
     if (spec.node) {
       bump(spec.node, state);
@@ -290,6 +307,22 @@ export function SystemFlowMapView() {
   const { trace, steps } = storeState;
   const { nodeStates, edges, decision, lit } = useMemo(() => buildFlowModel(steps), [steps]);
   const story = useMemo(() => buildRunStory(trace, steps), [trace, steps]);
+  // buildRunStory's outcome also comes from trace.outcome, and reads 'active'
+  // ('RUNNING') just as indefinitely when that never gets set. The reply
+  // step existing is the same "run is actually over" evidence buildFlowModel
+  // uses above — reuse it so the verdict badge cannot disagree with the map.
+  const ended = useMemo(() => Array.isArray(steps)
+    && steps.some((s) => s && (s.baseId || s.id) === 'reply' && s.status === 'done'), [steps]);
+  const displayStory = useMemo(() => {
+    if (!story || !ended || story.outcome !== 'active') return story;
+    return {
+      ...story,
+      outcome: 'ok',
+      headline: decision
+        ? `This run completed successfully — Authorize returned ${decision.replace(/_/g, ' ')}.`
+        : 'This run completed successfully.',
+    };
+  }, [story, ended, decision]);
   const elapsed = trace?.finishedAt && trace?.startedAt ? trace.finishedAt - trace.startedAt : null;
 
   const flowNodes = useMemo(
@@ -309,8 +342,8 @@ export function SystemFlowMapView() {
   return (
     <div className="sfm-root">
       <div className="sfm-head">
-        <span className={`sfm-verdict sfm-verdict--${verdictTone(decision, story)}`}>
-          {verdictLabel(decision, story)}
+        <span className={`sfm-verdict sfm-verdict--${verdictTone(decision, displayStory)}`}>
+          {verdictLabel(decision, displayStory)}
         </span>
         {elapsed != null ? (
           <span className="sfm-ms">{elapsed}<span>ms</span></span>
@@ -323,7 +356,7 @@ export function SystemFlowMapView() {
       </div>
 
       <div className="sfm-caption">
-        {story ? story.headline : 'No run yet — send an agent prompt and the hops paint here.'}
+        {displayStory ? displayStory.headline : 'No run yet — send an agent prompt and the hops paint here.'}
       </div>
 
       <div className="sfm-canvas">

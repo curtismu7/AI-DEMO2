@@ -132,6 +132,23 @@ describe('buildFlowModel', () => {
     const { edges } = buildFlowModel([second]);
     expect(edges[0]).toMatchObject({ from: 'pep', to: 'p1-authorize' });
   });
+
+  it('repaints a stale "active" hop to done once the reply step proves the run ended', () => {
+    // trace.outcome frequently never gets set on live runs (buildTraceSteps.js),
+    // which used to leave a hop reading 'active' — and its box lit blue —
+    // forever after the run had genuinely finished.
+    const { nodeStates, edges } = buildFlowModel([
+      step('gateway', 'active'),
+      step('reply', 'done'),
+    ]);
+    expect(nodeStates.pep).toBe('done');
+    expect(edges[0]).toMatchObject({ from: 'bff', to: 'pep', state: 'done' });
+  });
+
+  it('leaves a genuinely in-flight hop active while the reply has not arrived', () => {
+    const { nodeStates } = buildFlowModel([step('gateway', 'active')]);
+    expect(nodeStates.pep).toBe('active');
+  });
 });
 
 describe('verdict', () => {
