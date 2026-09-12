@@ -227,6 +227,108 @@ function RecognizeConfig() {
   );
 }
 
+// ─── External Guardrail Webhook config ────────────────────────────────────────
+
+function ExternalGuardrailWebhookConfig() {
+  const [currentUrl, setCurrentUrl] = useState('');
+  const [url,        setUrl]        = useState('');
+  const [saving,     setSaving]     = useState(false);
+  const [saveResult, setSaveResult] = useState(null);  // 'ok' | 'error'
+  const [saveMsg,    setSaveMsg]    = useState('');
+
+  useEffect(() => {
+    fetch('/api/admin/config', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => setCurrentUrl(data?.config?.EXTERNAL_GUARDRAIL_WEBHOOK_URL || ''))
+      .catch(() => {});
+  }, []);
+
+  /** Auto-dismiss save result after 3 s */
+  useEffect(() => {
+    if (!saveResult) return;
+    const t = setTimeout(() => { setSaveResult(null); setSaveMsg(''); }, 3000);
+    return () => clearTimeout(t);
+  }, [saveResult]);
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setSaveResult(null);
+    try {
+      const res  = await fetch('/api/admin/config', {
+        method:      'POST',
+        credentials: 'include',
+        headers:     { 'Content-Type': 'application/json' },
+        body:        JSON.stringify({ EXTERNAL_GUARDRAIL_WEBHOOK_URL: url.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setCurrentUrl(url.trim());
+      setUrl('');
+      setSaveResult('ok');
+      setSaveMsg('Webhook URL saved.');
+    } catch (err) {
+      setSaveResult('error');
+      setSaveMsg(err.message || 'Save failed.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="rc-section">
+      <div className="rc-section__header">
+        <h2 className="rc-section__title">External Guardrail Webhook</h2>
+        <p className="rc-section__subtitle">
+          Used by <strong>External Guardrail Webhook</strong> above. When that flag is ON, every AI
+          Guard denial (a Privilege <code>llm_policy_denied</code> or <code>llm_rate_limited</code>{' '}
+          verdict from the Agentic Access Console's LLM panel) is also POSTed here as JSON —
+          point it at a generic webhook inspector (e.g. webhook.site) to see exactly what data
+          AI Guard has when it blocks a request.
+        </p>
+      </div>
+
+      <div className="rc-card">
+        <div className="rc-card__status-row">
+          <span className="rc-label">Current URL</span>
+          <span className={`rc-status ${currentUrl ? 'rc-status--set' : 'rc-status--unset'}`}>
+            {currentUrl || 'Not configured'}
+          </span>
+        </div>
+
+        <form className="rc-form" onSubmit={handleSave}>
+          <div className="rc-field">
+            <label className="rc-field__label" htmlFor="egw-url">
+              EXTERNAL_GUARDRAIL_WEBHOOK_URL
+            </label>
+            <input
+              id="egw-url"
+              type="text"
+              className="rc-field__input"
+              placeholder="https://webhook.site/…"
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+
+          <div className="rc-form__footer">
+            <button
+              type="submit"
+              className="rc-save-btn"
+              disabled={saving || !url.trim()}
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+            {saveResult === 'ok'    && <span className="rc-result rc-result--ok">✅ {saveMsg}</span>}
+            {saveResult === 'error' && <span className="rc-result rc-result--err">❌ {saveMsg}</span>}
+          </div>
+        </form>
+      </div>
+    </section>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function FeatureFlagsPage() {
@@ -365,6 +467,7 @@ export default function FeatureFlagsPage() {
       )}
 
       <RecognizeConfig />
+      <ExternalGuardrailWebhookConfig />
 
       <div className="ff-footer">
         <p>

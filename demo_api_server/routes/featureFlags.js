@@ -808,6 +808,23 @@ const FLAG_REGISTRY = [
     defaultValue: false,
   },
   {
+    id:           'ff_external_guardrail_webhook',
+    name:         'External Guardrail Webhook',
+    category:     'LLM',
+    description:
+      'When **ON**, every AI Guard denial from `POST /api/privilege-mcp/llm/call` (a Privilege ' +
+      '`llm_policy_denied` or `llm_rate_limited` verdict) is also POSTed as JSON to ' +
+      '`EXTERNAL_GUARDRAIL_WEBHOOK_URL` — set that URL below. Point it at a generic webhook ' +
+      'inspector (e.g. webhook.site) to see exactly what data AI Guard has at the moment it blocks ' +
+      'a request: provider, prompt, route, verdict, reason, and latency.',
+    impact:
+      'OFF (default) = no change to today\'s behavior. ON = a denied prompt is also sent to a ' +
+      'third party (whatever EXTERNAL_GUARDRAIL_WEBHOOK_URL points to) — use a URL you trust.',
+    type:         'boolean',
+    defaultValue: false,
+    warnIfEnabled: true,
+  },
+  {
     id:           'ff_weather_mcp_showcase',
     name:         'Weather MCP Showcase (Agent Gateway)',
     category:     'MCP / Agent',
