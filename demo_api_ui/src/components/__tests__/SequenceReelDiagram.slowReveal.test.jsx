@@ -24,11 +24,14 @@ import SequenceReelDiagram from "../SequenceReelDiagram";
 const DEFAULT_MS = 2600;
 const noop = () => {};
 
+let scrollIntoViewSpy;
+
 describe("SequenceReelDiagram slow-mode reveal", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     // jsdom leaves this off SVG elements; the component scrolls the active step.
-    Element.prototype.scrollIntoView = vi.fn();
+    scrollIntoViewSpy = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoViewSpy;
   });
   afterEach(() => {
     vi.useRealTimers();
@@ -53,6 +56,20 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
 
     act(() => vi.advanceTimersByTime(DEFAULT_MS));
     expect(drawnSteps(container)).toBe(STEPS.length);
+  });
+
+  it("follows the active step without scrollIntoView", () => {
+    // scrollIntoView moves every scrollable ancestor on BOTH axes, and
+    // .srd-scroll is overflow-x:auto — so following a late step drags the
+    // diagram sideways and cuts off the first lanes. jsdom has no layout, so
+    // asserting the resulting offsets would be vacuous; asserting the two-axis
+    // API is never reached is the part that actually regresses.
+    const { rerender } = render(
+      <SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />,
+    );
+    rerender(<SequenceReelDiagram slowMode onToggleSlowMode={noop} />);
+    act(() => vi.advanceTimersByTime(DEFAULT_MS * 3));
+    expect(scrollIntoViewSpy).not.toHaveBeenCalled();
   });
 
   it("keeps the toolbar mounted at zero revealed steps", () => {
