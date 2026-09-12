@@ -17,7 +17,7 @@ Removing the user from the allowed PingOne group makes the enterprise IdP refuse
 ## How to Run
 
 **Trigger:** Chip message: `show my balance`  
-**Expected outcome:** `DENY`
+**Expected outcome:** `PERMIT`
 
 ## What to Say
 

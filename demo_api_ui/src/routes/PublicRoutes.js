@@ -44,6 +44,7 @@ import DavinciLoginPage from "../pages/DavinciLoginPage";
 import DavinciLoginCallback from "../pages/DavinciLoginCallback";
 import DavinciLoginConfirmedPage from "../pages/DavinciLoginConfirmedPage";
 import DavinciExplainerPage from "../pages/DavinciExplainerPage";
+import OrchestrationSdkExplainerPage from "../pages/OrchestrationSdkExplainerPage";
 import CibaApprovalPage from "../pages/CibaApprovalPage";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
 import EnterpriseMcpDemoPage from '../pages/EnterpriseMcpDemoPage';
@@ -458,6 +459,18 @@ export function DavinciExplainerRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <DavinciExplainerPage />
+    </AppShell>
+  );
+}
+
+// How the Ping Orchestration SDK works — static lesson, no SDK/PingOne/BFF
+// calls, so it teaches the same in any environment. Public for the same reason
+// /davinci-login is: the subject is signing in, so it has to be readable before
+// you have.
+export function OrchestrationSdkExplainerRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <OrchestrationSdkExplainerPage />
     </AppShell>
   );
 }

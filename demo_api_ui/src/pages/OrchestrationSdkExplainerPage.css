@@ -1,0 +1,295 @@
+/* Orchestration SDK explainer (/orchestration-sdk).
+
+   Themeable values come from --th-* so both modes work without a
+   prefers-color-scheme block (THEMING.md). Every rule that sets a themed
+   ground also sets its ink (§1.5), font sizes come from the scale with
+   --font-size-3xs as the floor (§8.1), and radii come from the scale (§9.3).
+
+   Deliberately a stylesheet rather than the scoped inline <style> blob
+   DavinciExplainerPage.jsx carries: that page defines its own --bg/--surface
+   palette and a private theme toggle, which is why it cannot follow the app
+   theme. This page follows it for free. */
+
+.osx-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+  color: var(--th-text);
+}
+
+.osx-eyebrow {
+  margin: 0 0 6px;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}
+
+.osx-title {
+  margin: 0 0 12px;
+  font-size: var(--font-size-h1);
+  line-height: 1.2;
+  color: var(--th-text);
+}
+
+.osx-lede {
+  margin: 0 0 8px;
+  max-width: 68ch;
+  font-size: var(--font-size-lg);
+  line-height: 1.6;
+  color: var(--th-text-body);
+}
+
+.osx-section {
+  margin-top: 40px;
+}
+
+.osx-h2 {
+  margin: 0 0 10px;
+  font-size: var(--font-size-h2);
+  color: var(--th-text);
+}
+
+.osx-body {
+  margin: 0 0 14px;
+  max-width: 72ch;
+  line-height: 1.65;
+  color: var(--th-text-body);
+}
+
+/* A parenthetical that should read as secondary without dropping to hint-grey. */
+.osx-body-aside {
+  border-left: 3px solid var(--th-border-strong);
+  padding-left: 12px;
+  color: var(--th-text-muted);
+}
+
+/* --- Three invocation modes --- */
+
+.osx-modes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.osx-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+}
+
+/* The SDK column is what the page is about — mark it with the border and a
+   tinted ground, both carrying their own ink so neither theme loses the text. */
+.osx-mode.is-featured {
+  color: var(--th-status-info-text);
+  background: var(--th-status-info-bg);
+  border-color: var(--th-status-info-border);
+}
+
+.osx-mode-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.osx-mode-title {
+  margin: 0;
+  font-size: var(--font-size-md);
+  color: inherit;
+}
+
+.osx-mode-link,
+.osx-mode-note {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--font-size-xs);
+  color: var(--th-text-muted);
+}
+
+.osx-mode.is-featured .osx-mode-link,
+.osx-mode.is-featured .osx-mode-note {
+  color: inherit;
+}
+
+.osx-mode-facts,
+.osx-cat-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0;
+}
+
+.osx-mode-facts dt,
+.osx-cat-facts dt {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--th-text-muted);
+}
+
+.osx-mode.is-featured .osx-mode-facts dt {
+  color: inherit;
+}
+
+.osx-mode-facts dd,
+.osx-cat-facts dd {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  color: inherit;
+}
+
+.osx-mode-pick {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.55;
+  color: inherit;
+}
+
+/* --- Collector categories --- */
+
+.osx-cats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.osx-cat {
+  padding: 16px;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+}
+
+.osx-cat-title {
+  margin: 0 0 6px;
+  font-size: var(--font-size-md);
+  color: var(--th-text);
+}
+
+.osx-cat-values {
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+
+/* --- Code --- */
+
+.osx-code {
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-size: var(--font-size-sm);
+  line-height: 1.55;
+  color: var(--th-code-text);
+  background: var(--th-code-bg);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+}
+
+.osx-code code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: inherit;
+  background: none;
+}
+
+.osx-code-inline {
+  padding: 1px 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92em;
+  color: var(--th-code-text);
+  background: var(--th-code-bg);
+  border-radius: var(--radius-sm);
+  overflow-wrap: anywhere;
+}
+
+/* --- Mermaid lifecycle diagram --- */
+
+.osx-diagram {
+  margin: 0 0 18px;
+  padding: 16px;
+  overflow-x: auto;
+  color: var(--th-text);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+}
+
+.osx-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.osx-diagram-error {
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  color: var(--th-status-error-text);
+  background: var(--th-status-error-bg);
+  border: 1px solid var(--th-status-error-border);
+  border-radius: var(--radius-md);
+}
+
+/* --- Traps: native <details>, no JS --- */
+
+.osx-trap {
+  margin-bottom: 8px;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+}
+
+.osx-trap-summary {
+  padding: 12px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--th-text);
+  border-radius: var(--radius-md);
+}
+
+.osx-trap-summary:hover {
+  color: var(--th-text);
+  background: var(--th-bg-hover);
+}
+
+.osx-trap[open] .osx-trap-summary {
+  border-bottom: 1px solid var(--th-border);
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+
+.osx-trap-body {
+  padding: 14px 16px 2px;
+}
+
+.osx-trap-body .osx-body:last-child {
+  margin-bottom: 12px;
+}
+
+/* --- Links out --- */
+
+.osx-links {
+  margin: 0;
+  padding-left: 20px;
+  max-width: 72ch;
+  line-height: 1.7;
+  color: var(--th-text-body);
+}
+
+.osx-links li {
+  margin-bottom: 6px;
+}
+
+.osx-footnote {
+  margin-top: 40px;
+  padding-top: 14px;
+  font-size: var(--font-size-xs);
+  color: var(--th-text-muted);
+  border-top: 1px solid var(--th-border);
+}
