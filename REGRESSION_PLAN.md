@@ -168,7 +168,18 @@ and names the audience it matched in the error.
   a list.
 - With neither audience configured the check stays a no-op (local dev).
 - mcp-server still accepts `https://api.ping.demo:3036/mcp` as an *upstream*
-  audience, deliberately, for native ID-JAG redemption.
+  audience, deliberately, for native ID-JAG redemption. That audience is not in
+  Docker's gateway list, so Rule 1 does not touch it; ID-JAG redemption is
+  validated by the grant handler against the upstream list
+  (`IdJagGrantHandler.ts:99`), not by this bearer check.
+- **Precedence when an audience is in BOTH lists: Rule 1 wins (reject).** k8s
+  ships that overlap — `02-configmap.yaml` has `mcpgateway.ping.demo` in
+  `MCP_GW_RESOURCE_URI` and in `MCP_SERVER_RESOURCE_URI` (a transitional entry
+  for callers on the old forward-unchanged contract). D-05 exists precisely to
+  refuse a gateway-audience token at the upstream, so the transitional entry
+  cannot resurrect it, and that entry is dead config in both deployments — it
+  was already dead in Docker, where the single-value compare matched. Pinned by
+  the overlap case in `oauth-mcp/tests/gateway-upstream.test.ts`.
 
 **Verify:** `cd oauth-mcp && ./node_modules/.bin/jest tests/gateway-upstream.test.ts`
 — the comma-list case failed before the fix with "Upstream aud mismatch" (proof

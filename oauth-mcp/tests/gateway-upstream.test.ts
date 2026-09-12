@@ -142,6 +142,24 @@ describe('enforceUpstreamContract — D-05 next-hop token enforcement', () => {
     expect(result.errors).toHaveLength(0);
   });
 
+  // Precedence, pinned deliberately: an audience in BOTH lists is rejected.
+  // k8s ships exactly this overlap — 02-configmap.yaml has mcpgateway.ping.demo
+  // in MCP_GW_RESOURCE_URI *and* in MCP_SERVER_RESOURCE_URI (a transitional
+  // entry for callers on the old forward-unchanged contract). D-05's whole
+  // purpose is that a gateway-audience token is not usable at the upstream, so
+  // Rule 1 wins and the transitional entry cannot resurrect it. Docker has
+  // behaved this way all along (its single-value compare already matched); this
+  // only makes k8s agree.
+  it('rejects an audience that appears in BOTH the gateway and upstream lists — Rule 1 wins', () => {
+    const claims = { sub: 'agent-transitional', aud: GATEWAY_AUD, exp: makeExp() };
+    const result = enforceUpstreamContract(claims, {
+      upstreamAudience: `${UPSTREAM_AUD}, ${GATEWAY_AUD}`,
+      gatewayAudience: GATEWAY_AUD,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('D-05');
+  });
+
   it('rejects tokens missing aud entirely', () => {
     const claims = { sub: 'agent-no-aud', exp: makeExp() };
     const result = enforceUpstreamContract(claims, {
