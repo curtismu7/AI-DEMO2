@@ -25,18 +25,18 @@ jest.mock('../../data/store', () => ({
 // call returned the stubbed payload) — two different objects. A factory returns
 // one plain object that both the test and the route resolve to.
 jest.mock('axios', () => ({ post: jest.fn(), get: jest.fn() }));
-// Config comes from the FACTORY, driven by a mock-prefixed variable (the only
-// kind jest lets a factory close over). jest.config sets `clearMocks: true`,
-// and a per-test mockImplementation proved unreliable against it — only the
-// first test saw the value and every later one 503'd. A flag the factory reads
-// on each call has no ordering dependency at all.
+// The redirect URI comes from the FACTORY, not from a per-test
+// mockImplementation: jest.config sets `clearMocks: true`, against which a
+// per-test implementation proved unreliable — only the first test saw the value
+// and every later one 503'd. The explicit redirect key is used rather than
+// pingone_public_app_url so this suite cannot perturb any other consumer of
+// that base URL.
 //
-// The explicit redirect key is used rather than pingone_public_app_url so this
-// suite cannot perturb any other consumer of that base URL.
-let mockAppId = '4e122cbf-defe-4c39-a5b5-c6b7da2b63f1';
+// The app id is NOT here — config/davinci.js reads it from process.env, like
+// every other non-secret field in that object (only the vaulted apiKey goes
+// through configStore), and tests/davinciConfig.test.js pins that.
 jest.mock('../../services/configStore', () => ({
   getEffective: jest.fn((key) => {
-    if (key === 'pingone_davinci_login_app_id') return mockAppId;
     if (key === 'pingone_davinci_sdk_login_redirect_uri') {
       return 'https://local.ping-devops.com:4000/davinci-sdk-login';
     }
@@ -91,8 +91,14 @@ describe('routes/davinciSdkLogin', () => {
     // of the mocked configStore while the handle imported at the top of this
     // file still points at the old one, so every mockImplementation set here
     // would be invisible to the code under test and /start would 503.
-    mockAppId = SDK_APP_ID;
+    process.env.PINGONE_DAVINCI_LOGIN_APP_ID = SDK_APP_ID;
     app = buildApp();
+  });
+
+  afterEach(() => {
+    // Leaving it set would leak into any suite that runs after this one in the
+    // same worker.
+    delete process.env.PINGONE_DAVINCI_LOGIN_APP_ID;
   });
 
   describe('POST /start', () => {
@@ -115,7 +121,7 @@ describe('routes/davinciSdkLogin', () => {
     });
 
     it('503s naming the exact missing key when the app id is unset', async () => {
-      mockAppId = '';
+      delete process.env.PINGONE_DAVINCI_LOGIN_APP_ID;
       const res = await request(app).post('/api/davinci-sdk-login/start').expect(503);
       expect(res.body.error).toBe('davinci_sdk_not_configured');
       expect(res.body.missing.join(' ')).toContain('PINGONE_DAVINCI_LOGIN_APP_ID');

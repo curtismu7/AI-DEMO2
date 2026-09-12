@@ -77,8 +77,8 @@ router.post('/start', (req, res) => {
     // configStore, and the two have different fixes (see /sdk-token's comment).
     return res.status(503).json({
       error: 'davinci_sdk_not_configured',
-      message: 'DaVinci SDK login is not configured — missing: PINGONE_DAVINCI_LOGIN_APP_ID (.env or configStore key pingone_davinci_login_app_id).',
-      missing: ['PINGONE_DAVINCI_LOGIN_APP_ID (.env or configStore pingone_davinci_login_app_id)'],
+      message: 'DaVinci SDK login is not configured — missing: PINGONE_DAVINCI_LOGIN_APP_ID (.env).',
+      missing: ['PINGONE_DAVINCI_LOGIN_APP_ID (.env)'],
     });
   }
 

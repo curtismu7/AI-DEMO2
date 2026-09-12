@@ -22,11 +22,7 @@ const config = {
   // flow's terminal PingOne Authentication node (the code /callback exchanges).
   get login() {
     return {
-      // getEffective is env-first, so a PINGONE_DAVINCI_LOGIN_APP_ID in .env
-      // still wins; this additionally lets the id be set from configStore / the
-      // Config UI without an .env edit and a restart. Same reasoning as apiKey
-      // below, minus the secrecy — an app id is not a secret.
-      appId:      configStore.getEffective('pingone_davinci_login_app_id'),
+      appId:      process.env.PINGONE_DAVINCI_LOGIN_APP_ID,
       flowIdV1:   process.env.PINGONE_DAVINCI_LOGIN_FLOW_ID_V1,
       flowIdV2:   process.env.PINGONE_DAVINCI_LOGIN_FLOW_ID_V2,
       companyId:  process.env.PINGONE_DAVINCI_LOGIN_COMPANY_ID,
