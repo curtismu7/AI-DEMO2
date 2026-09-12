@@ -1621,6 +1621,10 @@ app.use('/internal', require('./routes/transactionHopIngest'));
 // callers (e.g. Onyx) too.
 // Secret-guarded; NOT browser-facing. Read back at /api/admin/agent-gateway/decisions.
 app.use('/internal', require('./routes/gatewayDecisionIngest'));
+// The broker's confirmation that a Privilege link's gateway sign-in finished in
+// the browser that started it — see routes/privilegeLinkCommit.js. Secret-guarded;
+// NOT browser-facing.
+app.use('/internal', require('./routes/privilegeLinkCommit'));
 // Recording façade for external MCP clients (LM Studio, LibreChat) — relays to
 // the Agent Gateway / Privilege doors, writes the hops above in-process, and
 // appends a reel_url to every tool result. No session: the client brings its

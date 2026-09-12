@@ -22,6 +22,15 @@ export interface PendingAuthorization {
   /** RFC 8707 `resource` the client asked for. Names the façade door, which is
    *  how the callback knows to chain the Privilege gateway sign-in. */
   resource?: string;
+  /** Browser-bound nonce for the Privilege link: set when this authorize will
+   *  chain the BFF gateway sign-in, echoed by the browser's cookie at
+   *  /oauth/resume so a link URL mailed to someone else cannot commit. */
+  linkNonce?: string;
+  /** Names this authorization's OWN nonce cookie (`pgw_link_<id>`). A single
+   *  fixed cookie name let two concurrent authorizations in one browser
+   *  overwrite each other's nonce and fail both logins (Greptile P1, PR
+   *  #3153) — one such id per authorization keeps them independent. */
+  linkCookieId?: string;
   expiresAt: number;
 }
 
@@ -57,6 +66,11 @@ export interface ResumableAuthorization {
   pingOneAccessToken: string;
   pingOneExpiresIn: number;
   correlationId?: string;
+  /** The nonce /oauth/resume must see in the browser's cookie before committing. */
+  linkNonce?: string;
+  /** Same id as the pending authorization's, so /oauth/resume reads and clears
+   *  THIS authorization's own cookie (see PendingAuthorization.linkCookieId). */
+  linkCookieId?: string;
   expiresAt: number;
 }
 
