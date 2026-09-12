@@ -86,6 +86,7 @@ credentials.txt
 demo_api_server/.env.pre-import-*
 demo_api_server/data/backups/
 demo_api_server/data/runtimeData.json.bak
+demo_api_server/data/rotation-runs/
 # Agent-gateway-config editor rotating backups (written next to the edited
 # file, e.g. /.backups for scope-topology.json via the compose /repo mount)
 .backups/
