@@ -202,7 +202,6 @@ export const NAV_STRUCTURE_CATALOG = [
       "Token Flow (Interactive) (Node)",
       "Token Chain Architecture (Node)",
       "Interactive Flow (Node)",
-      "Phase 266 — 3 Paths (MM)",
       "Sequence Diagram (Node)",
       "Canvas Diagram (Node)",
       "Agent Onboarding Flow (Node)",

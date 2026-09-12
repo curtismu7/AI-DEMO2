@@ -1002,11 +1002,6 @@ export default function AdminSideNav({
           icon: "lnk",
         },
         { label: "Interactive Flow (Node)", path: "/architecture/flow", icon: ">" },
-        {
-          label: "Phase 266 — 3 Paths (MM)",
-          path: "/architecture/phase-266",
-          icon: "rte",
-        },
         { label: "Sequence Diagram (Node)", path: "/sequence-diagram", icon: "log" },
         { label: "Canvas Diagram (Node)", path: "/architecture/canvas", icon: "arc" },
         { label: "Agent Onboarding Flow (Node)", path: "/agent-onboarding-flow", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
