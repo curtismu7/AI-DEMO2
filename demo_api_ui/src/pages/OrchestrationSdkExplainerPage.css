@@ -156,7 +156,7 @@ a.osx-cta:focus-visible {
   color: inherit;
 }
 
-/* Same cause as .osx-cta below: end-user-nano.css's `a:link` is (0,1,1) and
+/* Same cause as .osx-cta above: end-user-nano.css's `a:link` is (0,1,1) and
    beats a lone class at (0,1,0), so these rendered in the brand blue rather
    than the muted tone specified here. Element+class+state takes it back. */
 a.osx-mode-link,
