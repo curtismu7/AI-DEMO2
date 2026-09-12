@@ -273,7 +273,7 @@ export const A2A_RECORDED_RUN = {
             "scheme": {
               "$case": "httpAuthSecurityScheme",
               "value": {
-                "description": "PingOne access token (client_credentials) for the A2A hop",
+                "description": "PingOne access token (the caller's own RFC 8693 delegated token) for the A2A hop",
                 "scheme": "Bearer",
                 "bearerFormat": "JWT"
               }
@@ -379,7 +379,7 @@ export const A2A_RECORDED_RUN = {
         "scheme": {
           "$case": "httpAuthSecurityScheme",
           "value": {
-            "description": "PingOne access token (client_credentials) for the A2A hop",
+            "description": "PingOne access token (the caller's own RFC 8693 delegated token) for the A2A hop",
             "scheme": "Bearer",
             "bearerFormat": "JWT"
           }
