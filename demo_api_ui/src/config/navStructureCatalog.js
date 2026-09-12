@@ -99,6 +99,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "Privilege Demo",
       "SDK Login",
       "DaVinci Login",
+      "DaVinci Login Guide",
     ],
   },
   {
