@@ -46,7 +46,7 @@ function laneClass(lane) {
   return `srd-lane-${String(lane || "").toLowerCase()}`;
 }
 
-export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slowMode }) {
+export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slowMode, onToggleSlowMode }) {
   const [snap, setSnap] = useState(() => tokenChainTraceStore.getState());
   useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
 
@@ -131,6 +131,16 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
         <button type="button" className="srd-zoom-btn" onClick={() => handleZoom(ZOOM_STEP)} title="Zoom in">
           +
         </button>
+        {onToggleSlowMode && (
+          <button
+            type="button"
+            className={`srd-slow-btn ${slowMode ? "srd-slow-btn--active" : ""}`}
+            onClick={onToggleSlowMode}
+            title={slowMode ? "Turn off slow mode" : "Turn on slow mode for narration"}
+          >
+            🐢
+          </button>
+        )}
         {slowMode && (
           <span className="srd-slow-badge" title="Steps are revealing slowly for narration">
             Slow mode — {Math.min(revealedCount, allLifelineSteps.length)}/{allLifelineSteps.length}

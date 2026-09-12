@@ -3620,6 +3620,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               onSelectStep={setSelectedSeqStep}
               selectedStepId={selectedSeqStep?.id}
               slowMode={slowMode}
+              onToggleSlowMode={() => setSlowMode(!slowMode)}
             />
           )}
           {showSequenceDiagram && selectedSeqStep && (
@@ -3766,6 +3767,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               onSelectStep={setSelectedSeqStep}
               selectedStepId={selectedSeqStep?.id}
               slowMode={slowMode}
+              onToggleSlowMode={() => setSlowMode(!slowMode)}
             />
           )}
           {showSequenceDiagram && selectedSeqStep && (
@@ -3840,6 +3842,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               onSelectStep={setSelectedSeqStep}
               selectedStepId={selectedSeqStep?.id}
               slowMode={slowMode}
+              onToggleSlowMode={() => setSlowMode(!slowMode)}
             />
           )}
           {showSequenceDiagram && selectedSeqStep && (
