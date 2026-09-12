@@ -16,7 +16,7 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### [ ] 2026-09-11 — A lost or slow commit response can leave the wrong sign-in committed
+### [ ] 2026-09-11 — A lost or slow commit response can commit a sign-in the client was told had failed
 
 **What's wrong.** `/oauth/resume`'s `commitPrivilegeLink` posts to
 `/internal/privilege-link/commit` with a 3s timeout. If the BFF applies the commit
