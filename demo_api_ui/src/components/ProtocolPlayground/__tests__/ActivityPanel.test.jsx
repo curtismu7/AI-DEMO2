@@ -57,11 +57,13 @@ describe('ActivityPanel — compact token chain', () => {
     expect(screen.getByText('HTTP 200 (decoded)')).toBeInTheDocument();
 
     // Expiry reads as local time, with the exact ISO kept in the tooltip.
-    // Asserted by shape, not by value — the rendered string is timezone- and
-    // locale-dependent, the ISO one is not.
-    const expiry = screen.getByTitle('2024-01-01T00:00:00.000Z');
+    // Compared against toLocaleString() computed here rather than a shape
+    // match: this holds in any timezone or locale AND catches empty or wrong
+    // text, which a "not ISO-shaped" assertion would let through.
+    const iso = '2024-01-01T00:00:00.000Z';
+    const expiry = screen.getByTitle(iso);
     expect(expiry).toHaveClass('claim-value');
-    expect(expiry.textContent).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
+    expect(expiry.textContent).toBe(new Date(iso).toLocaleString());
 
     fireEvent.click(screen.getByRole('tab', { name: 'Request' }));
     expect(within(screen.getByRole('tabpanel')).getByText('"/api/demo/hop-1"')).toBeInTheDocument();
