@@ -157,7 +157,7 @@
 /* Form view only: the transport line that sits above the JSON body. */
 .sdp-payload-head {
   font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-sm);
   color: var(--th-text-muted);
   margin-bottom: 4px;
   white-space: pre-wrap;
