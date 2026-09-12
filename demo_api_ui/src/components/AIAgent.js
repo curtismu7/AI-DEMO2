@@ -5205,6 +5205,15 @@ export default function BankingAgent({
               );
               toast.dismiss(toastId);
               agentFlowDiagram.completeMfaChallenge(null); // Pending
+              // The System Flow Map's CIBA box reads this — see pollCibaStepUp's
+              // approved/denied branches for how it resolves.
+              tokenChainTraceStore.ingestTokenEvent({
+                id: "ciba-poll",
+                eventType: "auth",
+                timestamp: new Date().toISOString(),
+                description: "CIBA backchannel step-up pending approval",
+                additionalData: { grantedVia: "ciba", status: "pending" },
+              });
               setLoading(false);
               pollCibaStepUp(auth_req_id, (interval || 5) * 1000, actionId, form);
             } catch (err) {
@@ -5892,6 +5901,13 @@ export default function BankingAgent({
             );
             toast.dismiss(toastId);
             agentFlowDiagram.completeMfaChallenge(null);
+            tokenChainTraceStore.ingestTokenEvent({
+              id: "ciba-poll",
+              eventType: "auth",
+              timestamp: new Date().toISOString(),
+              description: "CIBA backchannel step-up pending approval",
+              additionalData: { grantedVia: "ciba", status: "pending" },
+            });
             setLoading(false);
             pollCibaStepUp(auth_req_id, (interval || 5) * 1000, actionId, form);
           } catch (cibaErr) {
@@ -8959,6 +8975,16 @@ export default function BankingAgent({
           `ciba-denied-${Date.now()}`,
         );
         agentFlowDiagram.completeMfaChallenge(false);
+        // Same trace as the "pending" stamp above (no resume happens on a
+        // denial) — the System Flow Map's CIBA box would otherwise stay lit
+        // "active" forever once the run stops here.
+        tokenChainTraceStore.ingestTokenEvent({
+          id: "ciba-poll",
+          eventType: "auth",
+          timestamp: new Date().toISOString(),
+          description: "CIBA backchannel step-up denied or expired",
+          additionalData: { grantedVia: "ciba", status: "denied" },
+        });
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
         cibaPollTimeoutsRef.current.delete(authReqId);
@@ -8973,6 +8999,13 @@ export default function BankingAgent({
           `ciba-denied-${Date.now()}`,
         );
         agentFlowDiagram.completeMfaChallenge(false);
+        tokenChainTraceStore.ingestTokenEvent({
+          id: "ciba-poll",
+          eventType: "auth",
+          timestamp: new Date().toISOString(),
+          description: "CIBA backchannel step-up denied or expired",
+          additionalData: { grantedVia: "ciba", status: "denied" },
+        });
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
         cibaPollTimeoutsRef.current.delete(authReqId);
@@ -8987,7 +9020,18 @@ export default function BankingAgent({
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
         cibaPollTimeoutsRef.current.delete(authReqId);
-        runAction(actionId, form, { isRefire: true });
+        await runAction(actionId, form, { isRefire: true });
+        // runAction's own beginTrace() wipes evidence of the CIBA approval
+        // that just happened — same reasoning as pollCibaThenResumeNl's
+        // identical re-stamp below — so the trace this refire actually
+        // produced has something for the CIBA box to read.
+        tokenChainTraceStore.ingestTokenEvent({
+          id: "ciba-poll",
+          eventType: "auth",
+          timestamp: new Date().toISOString(),
+          description: "CIBA backchannel step-up approved (out-of-band)",
+          additionalData: { grantedVia: "ciba", status: "approved" },
+        });
         return;
       }
       // still pending
@@ -9065,6 +9109,13 @@ export default function BankingAgent({
           { showCibaApproveAction: true, cibaAuthReqId: auth_req_id },
         );
         agentFlowDiagram.completeMfaChallenge(null);
+        tokenChainTraceStore.ingestTokenEvent({
+          id: "ciba-poll",
+          eventType: "auth",
+          timestamp: new Date().toISOString(),
+          description: "CIBA backchannel step-up pending approval",
+          additionalData: { grantedVia: "ciba", status: "pending" },
+        });
         pollCibaThenResumeNl(auth_req_id, (interval || 5) * 1000, text, useCaseId);
       } catch (err) {
         console.error("[BankingAgent] CIBA initiation failed:", err);
@@ -9336,6 +9387,16 @@ export default function BankingAgent({
           `ciba-denied-${Date.now()}`,
         );
         agentFlowDiagram.completeMfaChallenge(false);
+        // Same trace as the "pending" stamp above (no resume happens on a
+        // denial) — the System Flow Map's CIBA box would otherwise stay lit
+        // "active" forever once the run stops here.
+        tokenChainTraceStore.ingestTokenEvent({
+          id: "ciba-poll",
+          eventType: "auth",
+          timestamp: new Date().toISOString(),
+          description: "CIBA backchannel step-up denied or expired",
+          additionalData: { grantedVia: "ciba", status: "denied" },
+        });
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
         cibaPollTimeoutsRef.current.delete(authReqId);
@@ -9350,6 +9411,13 @@ export default function BankingAgent({
           `ciba-denied-${Date.now()}`,
         );
         agentFlowDiagram.completeMfaChallenge(false);
+        tokenChainTraceStore.ingestTokenEvent({
+          id: "ciba-poll",
+          eventType: "auth",
+          timestamp: new Date().toISOString(),
+          description: "CIBA backchannel step-up denied or expired",
+          additionalData: { grantedVia: "ciba", status: "denied" },
+        });
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
         cibaPollTimeoutsRef.current.delete(authReqId);
@@ -9379,13 +9447,14 @@ export default function BankingAgent({
           // /api/agent/invoke response never re-includes. Re-stamp it into the
           // trace this resumed call just started, so the ProofStrip evidence
           // chain (which requires 'ciba-poll') can actually complete instead of
-          // reading "Incomplete -- Waiting on ciba-poll" forever.
+          // reading "Incomplete -- Waiting on ciba-poll" forever. `status`
+          // (additive) is what the System Flow Map's CIBA box reads.
           tokenChainTraceStore.ingestTokenEvent({
             id: "ciba-poll",
             eventType: "auth",
             timestamp: new Date().toISOString(),
             description: "CIBA backchannel step-up approved (out-of-band)",
-            additionalData: { grantedVia: "ciba" },
+            additionalData: { grantedVia: "ciba", status: "approved" },
           });
           await handleNlResumeResponse(response, text, useCaseId);
         } catch (e) {

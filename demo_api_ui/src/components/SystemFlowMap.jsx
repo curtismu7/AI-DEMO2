@@ -52,13 +52,11 @@ export const NODES = {
   'p1-agenttok': { name: 'PingOne /as/token', sub: 'client_credentials · actor' },
   'p1-exchange': { name: 'Token exchange', sub: 'RFC 8693 · act chain' },
   'p1-authorize': { name: 'PingOne Authorize', sub: 'PDP · sideband' },
-  // One box for all three pause kinds buildTraceSteps.js's 'stepup' step
-  // detects — device step-up MFA, a generic HITL approval, and a HITLCONSENT
-  // obligation — because all three already share that single step/evidence
-  // path. A separate "Consent" box would either duplicate this one or sit
-  // permanently unlit for the two other kinds, which is the same noise the
-  // introspect/JWKS box was left out for above.
-  'p1-stepup': { name: 'Approval Gate', sub: 'Step-up MFA · HITL · Consent' },
+  // Three independent mechanisms, tracked separately — see deriveGateStates
+  // below for the evidence each one actually lights on:
+  'p1-mfa': { name: 'MFA', sub: 'Device step-up · PingOne MFA' },
+  'p1-consent': { name: 'Consent', sub: 'HITL approval · transfer consent' },
+  'p1-ciba': { name: 'CIBA', sub: 'Backchannel push · OIDC CIBA' },
   browser: { name: 'Browser', sub: 'demo_api_ui :4000' },
   bff: { name: 'BFF', sub: 'demo_api_server :3001' },
   agent: { name: 'LangGraph agent', sub: 'demoAgentLangGraphService' },
@@ -90,13 +88,16 @@ export const BANDS = [
     label: 'Ping Identity · PingOne · Authorize PDP',
     x: 0,
     y: 0,
-    cols: 5,
-    nodes: ['p1-signin', 'p1-agenttok', 'p1-exchange', 'p1-authorize', 'p1-stepup'],
+    cols: 4,
+    nodes: ['p1-signin', 'p1-agenttok', 'p1-exchange', 'p1-authorize', 'p1-mfa', 'p1-consent', 'p1-ciba'],
   },
-  { id: 'stack', label: 'Demo stack · BFF + agent', x: 0, y: 122, cols: 2, nodes: ['browser', 'bff', 'agent'] },
-  { id: 'pep', label: 'PEP · gateway', x: 378, y: 122, cols: 1, nodes: ['pep'] },
-  { id: 'backends', label: 'MCP servers · data', x: 582, y: 122, cols: 1, nodes: ['mcp', 'api', 'db'] },
-  { id: 'model', label: 'Model · demo_llm_proxy', x: 0, y: 322, cols: 1, nodes: ['llm'] },
+  // y: 200, not 122 — the ping band is now two rows (7 boxes at 4 cols) since
+  // MFA/Consent/CIBA split out of the single old stepup box, and these bands
+  // sit directly below it.
+  { id: 'stack', label: 'Demo stack · BFF + agent', x: 0, y: 200, cols: 2, nodes: ['browser', 'bff', 'agent'] },
+  { id: 'pep', label: 'PEP · gateway', x: 378, y: 200, cols: 1, nodes: ['pep'] },
+  { id: 'backends', label: 'MCP servers · data', x: 582, y: 200, cols: 1, nodes: ['mcp', 'api', 'db'] },
+  { id: 'model', label: 'Model · demo_llm_proxy', x: 0, y: 400, cols: 1, nodes: ['llm'] },
 ];
 
 // Bands before their boxes — React Flow requires a parent ahead of its children.
@@ -112,7 +113,7 @@ for (const b of BANDS) {
     position: { x: b.x, y: b.y },
     width: 2 * PAD + cols * W + (cols - 1) * GAP,
     height: TOP + rows * H + (rows - 1) * GAP + PAD,
-    data: { label: b.label },
+    data: { label: b.label, bandKey: b.id },
   });
   b.nodes.forEach((id, i) => {
     const position = { x: PAD + (i % cols) * (W + GAP), y: TOP + Math.floor(i / cols) * (H + GAP) };
@@ -156,7 +157,10 @@ export const STEP_TO_EDGE = {
   gateway: { from: 'bff', to: 'pep', kind: 'http' },
   authorize: { from: 'pep', to: 'p1-authorize', kind: 'pdp' },
   'intent-binding': { from: 'pep', to: 'p1-authorize', kind: 'pdp' },
-  stepup: { from: 'pep', to: 'p1-stepup', kind: 'ciba' },
+  // MFA/Consent/CIBA are NOT wired here — buildTraceSteps' single 'stepup'
+  // step can't tell them apart (see deriveGateStates below), so they're
+  // derived straight from trace evidence instead of from the step loop this
+  // map runs over.
   'api-key-swap': { from: 'pep', to: 'mcp', kind: 'http' },
   mcp: { from: 'pep', to: 'mcp', kind: 'http' },
   api: { from: 'mcp', to: 'api', kind: 'http' },
@@ -213,12 +217,65 @@ function runEnded(list) {
   return list.some((s) => s && (s.baseId || s.id) === 'reply' && s.status === 'done');
 }
 
+const hasPhase = (phases, name) => Array.isArray(phases) && phases.some((p) => p && p.phase === name);
+const findTokenEvent = (events, id) => (Array.isArray(events) ? events.find((e) => e && e.id === id) : undefined);
+
+/**
+ * MFA, Consent and CIBA are three independent mechanisms buildTraceSteps.js's
+ * single 'stepup' step folds into one chip for the rail (it can't tell them
+ * apart) — this map needs them separate so a presenter can see WHICH one
+ * actually fired. Derived straight from trace evidence rather than from that
+ * shared step, so splitting them here cannot ripple into TokenChainTraceRail
+ * or any other consumer of buildTraceSteps' step list.
+ * @param {object|null|undefined} trace
+ * @param {boolean} ended the run has genuinely finished (buildFlowModel's own `ended`)
+ * @returns {{ mfa: string|null, consent: string|null, ciba: string|null }}
+ */
+function deriveGateStates(trace, ended) {
+  const phases = trace?.phases;
+  const tokenEvents = trace?.tokenEvents;
+
+  // routes/mfa.js's own phases — the actual device step-up flow.
+  const mfaFailed = hasPhase(phases, 'mfa_challenge_failed');
+  const mfaDone = hasPhase(phases, 'mfa_challenge_completed');
+  const mfaStarted = hasPhase(phases, 'mfa_challenge_initiated');
+  const mfa = mfaFailed ? 'error' : mfaDone ? 'done' : mfaStarted ? 'active' : ended ? 'skipped' : null;
+
+  // authorize_denied_hitl (local/simulated path) and gateway_hitl_required
+  // (live PingGateway path) are the two PDPs' phases for the SAME HITL_CONSENT
+  // obligation this demo enforces on transfers (authorizeObligations.js,
+  // simulatedAuthorizeService.js: "all transfers require human consent").
+  // mcp_auth_challenge_intercepted is the anonymous-caller 401 leg of the same
+  // gate. trace.authorize.hitlApproved is stamped once a verified receipt
+  // permits the retry (tokenChainTraceStore's carried-gate handling).
+  const consentStarted = hasPhase(phases, 'authorize_denied_hitl')
+    || hasPhase(phases, 'gateway_hitl_required')
+    || hasPhase(phases, 'mcp_auth_challenge_intercepted');
+  const consentApproved = trace?.authorize?.hitlApproved === true;
+  const consent = consentStarted ? (consentApproved ? 'done' : 'active') : ended ? 'skipped' : null;
+
+  // CIBA has no phase of its own — it's a fully separate REST round trip
+  // (POST /api/auth/ciba/initiate + poll) AIAgent.js drives client-side, so
+  // it's tagged directly onto trace.tokenEvents at those call sites instead
+  // (id: 'ciba-poll', additionalData.status: 'pending' | 'approved' | 'denied').
+  const cibaTok = findTokenEvent(tokenEvents, 'ciba-poll');
+  const cibaStatus = cibaTok?.additionalData?.status;
+  const ciba = !cibaTok ? (ended ? 'skipped' : null)
+    : cibaStatus === 'denied' ? 'error'
+    : cibaStatus === 'approved' ? 'done'
+    : 'active';
+
+  return { mfa, consent, ciba };
+}
+
 /**
  * Fold the run's steps into node states and edges.
  * @param {Array} steps from buildTraceSteps
+ * @param {object|null} [trace] the raw trace — only used to derive the
+ *   MFA/Consent/CIBA boxes, which have no entry in STEP_TO_EDGE
  * @returns {{ nodeStates: object, edges: Array, decision: string|null, lit: number }}
  */
-export function buildFlowModel(steps) {
+export function buildFlowModel(steps, trace) {
   const list = Array.isArray(steps) ? steps : [];
   const az = list.find((s) => s && (s.baseId || s.id) === 'authorize');
   const raw = az?.detail?.decision?.outcome;
@@ -273,6 +330,20 @@ export function buildFlowModel(steps) {
     bump(spec.from, state === 'skipped' ? 'skipped' : 'done');
   }
 
+  // MFA / Consent / CIBA — not in STEP_TO_EDGE (see deriveGateStates), so
+  // folded in here instead of the step loop above.
+  const gates = deriveGateStates(trace, ended);
+  for (const [key, nodeId] of Object.entries({ mfa: 'p1-mfa', consent: 'p1-consent', ciba: 'p1-ciba' })) {
+    const state = gates[key];
+    if (!state) continue;
+    if (state !== 'skipped') lit += 1;
+    bump(nodeId, state);
+    edgeByPair.set(`pep|${nodeId}`, {
+      id: `pep|${nodeId}`, from: 'pep', to: nodeId, kind: 'ciba', state, titles: [NODES[nodeId].name],
+    });
+    bump('pep', state === 'skipped' ? 'skipped' : 'done');
+  }
+
   // `lit` counts hops that ran, not lanes drawn — collapsing three bff→pep
   // steps into one line must not make the header under-report the run.
   const edges = [...edgeByPair.values()].map((e) => ({
@@ -299,7 +370,7 @@ export function verdictTone(decision, story) {
 }
 
 function BandNode({ data }) {
-  return <div className="sfm-band" data-band={data.label} />;
+  return <div className="sfm-band" data-band={data.label} data-band-id={data.bandKey} />;
 }
 
 const SIDES = { top: Position.Top, right: Position.Right, bottom: Position.Bottom, left: Position.Left };
@@ -362,7 +433,7 @@ export function SystemFlowMapView() {
     setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round((z + delta) * 10) / 10)));
   }, []);
 
-  const { nodeStates, edges, decision, lit } = useMemo(() => buildFlowModel(steps), [steps]);
+  const { nodeStates, edges, decision, lit } = useMemo(() => buildFlowModel(steps, trace), [steps, trace]);
   const story = useMemo(() => buildRunStory(trace, steps), [trace, steps]);
   // buildRunStory's outcome also comes from trace.outcome, and reads 'active'
   // ('RUNNING') just as indefinitely when that never gets set. The reply
@@ -510,7 +581,7 @@ export function SystemFlowMapView() {
         <span><i data-kind="http" />http / MCP</span>
         <span><i data-kind="oauth" />OAuth / RFC 8693</span>
         <span><i data-kind="pdp" />PDP sideband</span>
-        <span><i data-kind="ciba" />CIBA step-up</span>
+        <span><i data-kind="ciba" />step-up / HITL</span>
         <span><i data-kind="data" />data</span>
         <span className="sfm-legend-sep" />
         <span><b className="sfm-swatch sfm-swatch--done" />reached</span>

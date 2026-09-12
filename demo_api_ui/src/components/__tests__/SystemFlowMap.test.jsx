@@ -122,7 +122,7 @@ describe('buildFlowModel', () => {
     const { lit } = buildFlowModel([
       step('prompt', 'done'),
       step('exchange', 'done'),
-      step('stepup', 'notinpath'),
+      step('stepup', 'notinpath'), // not in STEP_TO_EDGE — see deriveGateStates
     ]);
     expect(lit).toBe(2);
   });
@@ -163,6 +163,62 @@ describe('verdict', () => {
     expect(verdictLabel(null, { outcome: 'ok' })).toBe('COMPLETE');
     expect(verdictLabel(null, { outcome: 'error' })).toBe('RUN ERROR');
     expect(verdictLabel(null, { outcome: 'active' })).toBe('RUNNING');
+  });
+});
+
+describe('MFA / Consent / CIBA gate boxes', () => {
+  it('lights MFA from routes/mfa.js phases, independent of consent/CIBA', () => {
+    const trace = { phases: [{ phase: 'mfa_challenge_completed' }] };
+    const { nodeStates } = buildFlowModel([], trace);
+    expect(nodeStates['p1-mfa']).toBe('done');
+    expect(nodeStates['p1-consent']).toBeUndefined();
+    expect(nodeStates['p1-ciba']).toBeUndefined();
+  });
+
+  it('marks MFA active while only the challenge has started', () => {
+    const trace = { phases: [{ phase: 'mfa_challenge_initiated' }] };
+    const { nodeStates } = buildFlowModel([], trace);
+    expect(nodeStates['p1-mfa']).toBe('active');
+  });
+
+  it('marks a failed MFA challenge as an error', () => {
+    const trace = { phases: [{ phase: 'mfa_challenge_failed' }] };
+    const { nodeStates } = buildFlowModel([], trace);
+    expect(nodeStates['p1-mfa']).toBe('error');
+  });
+
+  it('lights Consent from the HITL/consent gate phases, active until hitlApproved', () => {
+    const started = { phases: [{ phase: 'authorize_denied_hitl' }] };
+    expect(buildFlowModel([], started).nodeStates['p1-consent']).toBe('active');
+
+    const approved = { phases: [{ phase: 'gateway_hitl_required' }], authorize: { hitlApproved: true } };
+    expect(buildFlowModel([], approved).nodeStates['p1-consent']).toBe('done');
+  });
+
+  it('lights CIBA from a ciba-poll token event, independent of MFA/consent', () => {
+    const pending = { tokenEvents: [{ id: 'ciba-poll', additionalData: { status: 'pending' } }] };
+    expect(buildFlowModel([], pending).nodeStates['p1-ciba']).toBe('active');
+
+    const approved = { tokenEvents: [{ id: 'ciba-poll', additionalData: { status: 'approved' } }] };
+    expect(buildFlowModel([], approved).nodeStates['p1-ciba']).toBe('done');
+    expect(buildFlowModel([], approved).nodeStates['p1-mfa']).toBeUndefined();
+
+    const denied = { tokenEvents: [{ id: 'ciba-poll', additionalData: { status: 'denied' } }] };
+    expect(buildFlowModel([], denied).nodeStates['p1-ciba']).toBe('error');
+  });
+
+  it('marks all three skipped once the run has ended without any of them firing', () => {
+    const trace = { phases: [{ phase: 'reply' }] }; // trace shape irrelevant — `ended` comes from steps
+    const { nodeStates } = buildFlowModel([step('reply', 'done')], trace);
+    expect(nodeStates['p1-mfa']).toBe('skipped');
+    expect(nodeStates['p1-consent']).toBe('skipped');
+    expect(nodeStates['p1-ciba']).toBe('skipped');
+  });
+
+  it('draws a pep hop for whichever gate box is lit', () => {
+    const trace = { phases: [{ phase: 'mfa_challenge_completed' }] };
+    const { edges } = buildFlowModel([], trace);
+    expect(edges).toEqual([expect.objectContaining({ from: 'pep', to: 'p1-mfa', state: 'done' })]);
   });
 });
 
