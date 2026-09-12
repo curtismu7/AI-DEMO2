@@ -46,6 +46,9 @@ async function resolveAvailableTools(req, { vertical, allowWrite }) {
 
   let tok = agentTokenCache.get(req.session, vertical, scopes);
   if (!tok) {
+    // Captured before the mint: a consent change / revoke / logout that clears
+    // the cache mid-mint must not be undone by the set() below.
+    const since = agentTokenCache.generation(req.session);
     // RFC 8693 exchange → delegated token (sub=user, act=agent, aud=gateway) with
     // the write-toggle scopes. The gateway accepts this (it has a sub); the agent
     // CC token does not.
@@ -66,7 +69,7 @@ async function resolveAvailableTools(req, { vertical, allowWrite }) {
       throw err;
     }
     tok = { access_token: resolved.token, expires_in: DISCOVERY_TOKEN_TTL_S };
-    agentTokenCache.set(req.session, vertical, scopes, tok);
+    agentTokenCache.set(req.session, vertical, scopes, tok, since);
   }
 
   const userSub = (req.agentContext && req.agentContext.userId) || null;

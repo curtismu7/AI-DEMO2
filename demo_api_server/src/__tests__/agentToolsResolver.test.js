@@ -8,8 +8,10 @@ jest.mock('../../services/agentMcpTokenService', () => ({ resolveMcpAccessTokenW
 jest.mock('../../services/agentGatewayClient', () => ({ listAvailableTools: jest.fn() }));
 // resolveAgentScopes is real (reads the SoT); agentTokenCache is real (operates on req.session).
 
+// The agent-token cache is keyed by session id (it is no longer stored on the
+// session), so a fixture without an id would miss on every call.
 function makeReq() {
-  return { session: {}, agentContext: { userId: 'user-sub-1' }, tokenEvents: [] };
+  return { session: { id: 'sess-tools-1' }, agentContext: { userId: 'user-sub-1' }, tokenEvents: [] };
 }
 
 describe('resolveAvailableTools', () => {

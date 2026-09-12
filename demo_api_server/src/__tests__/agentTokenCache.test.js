@@ -1,41 +1,130 @@
 /**
- * agentTokenCache — session-scoped agent-token cache keyed by (vertical, scopeSet).
- * Reused within a (vertical, scopeSet) combo; a switch is a deliberate cache miss.
- * Cleared on logout for free via req.session.destroy().
+ * agentTokenCache — agent-token cache keyed by (session id, vertical, scopeSet).
+ *
+ * Held in process, NOT on req.session. It used to live under
+ * req.session.agentTokens, which made every long request that missed the cache
+ * save its whole session copy when it ended: an 11s POST /api/demo-agent/tools
+ * on a cold cache wrote back the session as it was when the request started,
+ * undoing an agent-mode change made meanwhile (live, 2026-09-11 — same
+ * last-write-wins class as REGRESSION_PLAN §4's /api/agent/run entry).
+ *
+ * setup.js runs jest.resetModules() per test, so the map starts empty in each.
  */
-const cache = require('../../services/agentTokenCache');
 
 describe('agentTokenCache', () => {
+  const sess = (id) => ({ id });
+
   it('set then get returns the token within the same (vertical, scopeSet)', () => {
-    const session = {};
+    const cache = require('../../services/agentTokenCache');
+    const session = sess('s-1');
     cache.set(session, 'healthcare', ['records:read'], { access_token: 'tok', expires_in: 3600 });
-    const got = cache.get(session, 'healthcare', ['records:read']);
-    expect(got.access_token).toBe('tok');
+    expect(cache.get(session, 'healthcare', ['records:read']).access_token).toBe('tok');
+  });
+
+  it('never writes the token onto the session', () => {
+    const cache = require('../../services/agentTokenCache');
+    const session = sess('s-nowrite');
+    cache.set(session, 'banking', ['read'], { access_token: 'tok', expires_in: 3600 });
+    expect(session.agentTokens).toBeUndefined();
+    expect(Object.keys(session)).toEqual(['id']);
   });
 
   it('scopeSet order does not matter (key is sorted)', () => {
-    const session = {};
+    const cache = require('../../services/agentTokenCache');
+    const session = sess('s-2');
     cache.set(session, 'banking', ['write', 'read'], { access_token: 'tok', expires_in: 3600 });
     expect(cache.get(session, 'banking', ['read', 'write']).access_token).toBe('tok');
   });
 
   it('different vertical or scopeSet is a cache miss', () => {
-    const session = {};
+    const cache = require('../../services/agentTokenCache');
+    const session = sess('s-3');
     cache.set(session, 'healthcare', ['records:read'], { access_token: 'tok', expires_in: 3600 });
     expect(cache.get(session, 'retail', ['records:read'])).toBeNull();
     expect(cache.get(session, 'healthcare', ['records:read', 'write'])).toBeNull();
   });
 
+  it('another session never sees this session\'s token', () => {
+    const cache = require('../../services/agentTokenCache');
+    cache.set(sess('s-mine'), 'banking', ['read'], { access_token: 'tok', expires_in: 3600 });
+    expect(cache.get(sess('s-theirs'), 'banking', ['read'])).toBeNull();
+  });
+
   it('an expired entry returns null', () => {
-    const session = {};
-    cache.set(session, 'banking', ['read'], { access_token: 'tok', expires_in: 3600 });
-    // Backdate the cached entry's expiry to simulate an elapsed TTL.
-    session.agentTokens[cache.keyFor('banking', ['read'])].expires_at = Date.now() - 1;
+    const cache = require('../../services/agentTokenCache');
+    const session = sess('s-4');
+    // 60s of lifetime is exactly the safety margin the cache subtracts.
+    cache.set(session, 'banking', ['read'], { access_token: 'tok', expires_in: 60 });
     expect(cache.get(session, 'banking', ['read'])).toBeNull();
   });
 
+  it('newest() returns the latest-expiring non-expired token for the session', () => {
+    const cache = require('../../services/agentTokenCache');
+    const session = sess('s-5');
+    cache.set(session, 'banking', ['mcp:invoke'], { access_token: 'tok-old', expires_in: 120 });
+    cache.set(session, 'banking', ['mcp:invoke', 'openid'], { access_token: 'tok-new', expires_in: 240 });
+    cache.set(session, 'banking', ['stale'], { access_token: 'tok-stale', expires_in: 60 });
+    expect(cache.newest(session)).toBe('tok-new');
+    expect(cache.newest(sess('s-none'))).toBeNull();
+  });
+
+  it('clear() drops the session\'s tokens and leaves other sessions alone', () => {
+    const cache = require('../../services/agentTokenCache');
+    const mine = sess('s-clear');
+    const other = sess('s-keep');
+    cache.set(mine, 'banking', ['read'], { access_token: 'mine', expires_in: 3600 });
+    cache.set(other, 'banking', ['read'], { access_token: 'theirs', expires_in: 3600 });
+
+    cache.clear(mine);
+
+    expect(cache.get(mine, 'banking', ['read'])).toBeNull();
+    expect(cache.get(other, 'banking', ['read']).access_token).toBe('theirs');
+  });
+
+  // Greptile P1 on #3148: every writer mints between get() and set(), so a
+  // consent change / revoke / logout that clears mid-mint was undone when the
+  // in-flight set() landed — restoring a token minted under the previous
+  // authorization. set() takes the generation captured before the mint.
+  it('a mint that started before clear() cannot repopulate the cache', () => {
+    const cache = require('../../services/agentTokenCache');
+    const session = sess('s-revoked');
+    const since = cache.generation(session);
+    cache.clear(session); // consent revoked while the mint was in flight
+    cache.set(session, 'banking', ['read'], { access_token: 'stale', expires_in: 3600 }, since);
+    expect(cache.get(session, 'banking', ['read'])).toBeNull();
+  });
+
+  it('a mint that started after the last clear() still caches', () => {
+    const cache = require('../../services/agentTokenCache');
+    const session = sess('s-fresh');
+    cache.clear(session);
+    const since = cache.generation(session);
+    cache.set(session, 'banking', ['read'], { access_token: 'fresh', expires_in: 3600 }, since);
+    expect(cache.get(session, 'banking', ['read']).access_token).toBe('fresh');
+  });
+
+  it('clear() advances the session generation', () => {
+    const cache = require('../../services/agentTokenCache');
+    const session = sess('s-gen');
+    const before = cache.generation(session);
+    cache.clear(session);
+    expect(cache.generation(session)).not.toBe(before);
+    expect(cache.generation(sess('s-other'))).toBe(0);
+  });
+
+  it('a session with no id is uncached, never an error', () => {
+    const cache = require('../../services/agentTokenCache');
+    const anon = {};
+    expect(() => cache.set(anon, 'banking', ['read'], { access_token: 'x', expires_in: 3600 })).not.toThrow();
+    expect(cache.get(anon, 'banking', ['read'])).toBeNull();
+    expect(cache.newest(anon)).toBeNull();
+  });
+
   it('null/absent session is safe', () => {
+    const cache = require('../../services/agentTokenCache');
     expect(cache.get(null, 'banking', ['read'])).toBeNull();
     expect(() => cache.set(null, 'banking', ['read'], { access_token: 'x' })).not.toThrow();
+    expect(cache.newest(null)).toBeNull();
+    expect(() => cache.clear(null)).not.toThrow();
   });
 });

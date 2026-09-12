@@ -140,6 +140,82 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-12 — the first token exchange of a session undid a mode change
+
+**Files changed:** `demo_api_server/services/dpopKeyService.js`,
+new `demo_api_server/services/sessionScopedCaches.js`, `demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/services/tokenRefresh.js`, `demo_api_server/routes/oauth.js`,
+`demo_api_server/routes/oauthUser.js`, `demo_api_server/routes/admin.js`, `demo_api_server/server.js`,
+new `demo_api_server/tests/dpopSessionKey.test.js`, new `demo_api_server/tests/sessionScopedCaches.test.js`.
+
+**What was broken:** `getSessionDpopKey` minted the per-session ephemeral DPoP keypair straight onto
+`req.session.dpopKey` (get-or-create; `ff_dpop` is ON). That happens on the session's FIRST token
+exchange — the discovery exchange behind `POST /api/demo-agent/tools`, and `/api/agent/run`'s setup — so
+that request marked the session modified, and express-session wrote its whole start-of-request copy back
+when it ended, undoing an agent-mode change made while it ran. Once per session, which is why it read as
+intermittent: whichever request minted the key was the one that reverted, and in a browser session the
+dashboard's own boot calls usually minted it before anyone could switch. Same last-write-wins class as
+the two entries below; this was the writer they left behind.
+
+**Fixed by** holding the keypair in `dpopKeyService`'s own in-process map keyed by session id, swept
+after 12h of disuse. `peekSessionDpopKey(session)` — which never mints — replaces `mcpToolPipeline`'s
+direct `req.session.dpopKey` read, preserving its "only when Phase A minted a key" rule, and
+`clearSessionDpopKey(session)` runs on both logout paths beside the agent-token clear, since
+`session.destroy()` no longer drops it.
+
+**Do not break:** the key must stay STABLE for a session — the delegated MCP token is bound to it
+(`cnf.jkt`), so a second key would sign proofs the gateway cannot match to the token it issued. Nothing
+reads or writes `session.dpopKey`; go through `getSessionDpopKey` / `peekSessionDpopKey` /
+`clearSessionDpopKey`, and the read path must never mint.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest dpopSessionKey sessionScopedCaches dpopKeyService webBotAuth mcpToolPipeline oauth logout admin --forceExit`
+— 91 suites / 810 passed. `tests/dpopSessionKey.test.js` is 7/7: four of its assertions were red against
+the old behaviour (the session write, stability per session id, peek-never-mints, no-id → null), and
+"peek counts as use" was red against this PR's own first cut — the 12h disuse sweep could evict a key the
+tool pipeline was still signing hops with, since that path only ever peeks (Greptile P1).
+`tests/sessionScopedCaches.test.js` pins that a clear drops only that session's entries and never throws
+on a missing or idless session.
+Live, and this is the part unit tests cannot show: `tests/e2e/first-exchange-dpop.real.spec.js` drives a
+headless BFF login with NO browser page, so no dashboard boot call can mint the key first and the
+spanning `/api/demo-agent/tools` IS the session's first exchange. Before the fix it REVERTED (switch at
+t+0.17s, `/tools` ended t+1.69s, provider came back `llamacpp`); the post-deploy re-run must report KEPT.
+
+### 2026-09-11 — a long request's agent-token cache write undid a mode change
+
+**This removed one writer, not the symptom.** The live check after deploying it still reverted a mode
+change made during a session's first token exchange — see the DPoP entry above, which closes that one.
+
+**Files changed:** `demo_api_server/services/agentTokenCache.js`,
+`demo_api_server/services/resourceServerTesterService.js`, `demo_api_server/routes/delegatedCommerce.js`,
+`demo_api_server/routes/oauth.js`, `demo_api_server/routes/oauthUser.js`,
+`docs/SPEC-authorize-driven-dynamic-chips.md`, and tests.
+
+**What was broken:** `agentTokenCache` stored the agent (client-credentials / exchanged) token under
+`req.session.agentTokens`, so a cache MISS inside a long request marked the session modified and
+express-session wrote that request's whole session copy — the one loaded when the request STARTED —
+back to the store when it ended. An 11s `POST /api/demo-agent/tools` on a cold cache (the dashboard's
+tool lookup, right after the #3141 deploy restarted the BFF) therefore reverted an agent-mode change
+made while it ran: seen live 2026-09-11, the session's `langchain_config.provider` went back to its
+pre-change value. Same last-write-wins class as the `/api/agent/run` entry below, reached through a
+different route, so that entry's early save could not cover it.
+
+**Fixed by** holding the tokens in an in-process map inside `agentTokenCache`, keyed by session id +
+(vertical, scopeSet), so no caller marks the session modified. Expired entries are swept on write (the
+map outlives the sessions now), `newest(session)` replaces the resource-server tester's own scan of
+`session.agentTokens`, and `clear(session)` replaces `req.session.agentTokens = {}` in delegated-commerce
+consent/revoke and is called on both logout paths — `session.destroy()` no longer clears the cache for
+free.
+
+**Do not break:** nothing reads or writes `session.agentTokens` — the field is gone; go through
+`agentTokenCache` (`get` / `set` / `newest` / `clear`). A cached entry needs `session.id`: a session
+without one is permanently uncached, so test fixtures that assert cache reuse must carry an id. Logout
+must keep calling `clear()`. In-process, single-BFF-process, like `mcpFlowSseHub` and `agentRunContext`.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest agentTokenCache agentToolsResolver resourceServerTester summaryInflow delegatedCommerce tokenChain --forceExit`
+— 13 suites / 117 passed; the rewritten cache spec was red first (5 of 10: the session write, `newest`,
+`clear`, the no-id case, null-safety). Full BFF suite: 1012 of 1013 suites, 11,665 passed — the single
+failure (`tests/routes/privilegeMcpClient.status.test.js`) passes alone 4/4 and never touches the cache.
+Scoped `oauth|logout|auth` after the logout change: 119 suites / 1190 passed.
 ### 2026-09-11 — Privilege link: bind the gateway token to its browser, and check the broker before 401
 
 **Files changed:** `demo_mcp_gateway/src/oauth/BrokerTokenStore.ts`, `OAuthBrokerRouter.ts`,
@@ -291,8 +367,9 @@ loaded when the run STARTED, so anything another request saved in between was ov
 Heuristics → llama.cpp just before sending left the mode picker on Heuristics after the run. The same
 delay meant the mid-run tool callback (`/internal/agent-tool`) read the store before that save and
 forwarded the PREVIOUS run's Intent Token (or none) to the gateway. Removing that write was not enough:
-setup services still write the session (`getAgentCCToken` caches the agent token in
-`session.agentTokens` on a miss), and that too was saved as the stale copy at the end. And the run
+setup services still write the session (`resolveAvailableTools` cached the agent token under
+`session.agentTokens` on a miss — `getAgentCCToken` itself writes nothing, corrected here), and that
+too was saved as the stale copy at the end. And the run
 context was keyed by session alone, so two runs overlapping in one session cross-wired: the older
 run's tool callback got the newer run's Intent Token and offered-tool list.
 

@@ -494,6 +494,10 @@ router.get('/logout', async (req, res) => {
   // a newer operator's session when an older one logs out.
   pingoneAdminSession.clearIfCurrent(req.session?.pingoneMcpAdminToken?.accessToken);
 
+  // Agent tokens and the DPoP keypair are cached in-process keyed by session id,
+  // not on the session, so session.destroy() below no longer drops them.
+  require('../services/sessionScopedCaches').clearSessionScopedCaches(req.session);
+
   req.session.destroy((err) => {
     if (err) {
       console.error('Session destruction error:', err?.stack || String(err));

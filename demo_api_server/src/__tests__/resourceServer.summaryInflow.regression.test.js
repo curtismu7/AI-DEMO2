@@ -108,15 +108,13 @@ describe('resourceServer GET /summary-inflow', () => {
       iat: Math.floor(Date.now() / 1000),
       act: { sub: 'agent-client' },
     });
-    const app = buildApp({
-      oauthTokens: { accessToken: 'sess-at' },
-      agentTokens: {
-        'banking::mcp:invoke': {
-          access_token: mcpTok,
-          expires_at: Date.now() + 120_000,
-        },
-      },
-    });
+    // The cache lives in agentTokenCache keyed by session id, not on the
+    // session — seed it through the module the route will read (same jest
+    // registry: setup.js resets modules between tests).
+    const session = { id: 's-inflow', oauthTokens: { accessToken: 'sess-at' } };
+    require('../../services/agentTokenCache')
+      .set(session, 'banking', ['mcp:invoke'], { access_token: mcpTok, expires_in: 3600 });
+    const app = buildApp(session);
     const res = await request(app)
       .get('/api/resource-server/summary-inflow')
       .set('Authorization', 'Bearer sess-at');
