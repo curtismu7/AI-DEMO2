@@ -137,7 +137,23 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
     return active ? active.id : lifelineSteps[lifelineSteps.length - 1]?.id;
   }, [lifelineSteps]);
   useEffect(() => {
-    activeStepRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+    const el = activeStepRef.current;
+    // Deliberately not scrollIntoView: it scrolls every scrollable ancestor on
+    // BOTH axes, and .srd-scroll is overflow-x:auto. An arrow step spans two
+    // lanes, so bringing a late one into view drags the diagram sideways and
+    // pushes the first lanes off-screen — the cast should stay put and only
+    // the vertical follow is wanted. This reproduces `block: "nearest"` (move
+    // the minimum, do nothing when already visible) and never touches
+    // scrollLeft.
+    const scroller = el?.closest(".srd-root");
+    if (!el || !scroller) return;
+    const step = el.getBoundingClientRect();
+    const view = scroller.getBoundingClientRect();
+    const delta =
+      step.top < view.top ? step.top - view.top
+      : step.bottom > view.bottom ? step.bottom - view.bottom
+      : 0;
+    if (delta) scroller.scrollTo({ top: scroller.scrollTop + delta, behavior: "smooth" });
   }, [activeStepId]);
 
   // Keyed on the trace, not the revealed slice: a slow-mode reveal sits at zero
