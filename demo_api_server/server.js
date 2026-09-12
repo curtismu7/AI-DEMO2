@@ -143,6 +143,7 @@ const demoScenarioRoutes = require('./routes/demoScenario');
 const adminRoutes = require('./routes/admin');
 const pingcliRoutes = require('./routes/pingcli');
 const mgmtApiRoutes = require('./routes/mgmtApi');
+const secretRotationRoutes = require('./routes/secretRotation');
 const pingAiTestLabRoutes = require('./routes/pingAiTestLab');
 const adminAgentToolsRoutes = require('./routes/adminAgentTools');
 const adminAgentRoutes = require('./routes/adminAgentRoutes');
@@ -1057,6 +1058,9 @@ app.use('/api/admin/pingcli', authenticateToken, pingcliRoutes);
 // them. Verified live — with authenticateToken alone a CUSTOMER session got 200
 // from GET /operations.
 app.use('/api/admin/mgmt-api', authenticateToken, requireAdmin, mgmtApiRoutes);
+// Any authenticated user, not admin-only — deliberate per auth-requirements.json
+// "/secret-rotation": "user".
+app.use('/api/admin/secret-rotation', authenticateToken, secretRotationRoutes);
 app.use('/api/admin/ping-ai-test-lab', authenticateToken, pingAiTestLabRoutes);
 app.use('/api/admin/config', adminConfigRoutes);
 

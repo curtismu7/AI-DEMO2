@@ -18,8 +18,19 @@ const path = require('path');
 const https = require('https');
 const http  = require('http');
 
-const ROOT = path.resolve(__dirname, '..', '..');
-const API_ENV = path.join(ROOT, 'demo_api_server', '.env');
+// TWO roots, and they are NOT one path segment apart in every layout.
+//   native:    {repo}/demo_api_server/scripts  → API_ROOT {repo}/demo_api_server, ROOT {repo}
+//   container: /app/scripts                    → API_ROOT /app, but the repo root is the
+//                                                SEPARATE /repo bind mount, not '/'.
+// Climbing two levels from __dirname therefore yielded '/' in the container, so
+// API_ENV was '/demo_api_server/.env' and the topology read was
+// '/scope-topology.json' — both missing. getRotatableVaultKeyMap() threw and
+// GET /api/secret-rotation/apps 502'd for every caller. CODE_SEARCH_REPO_ROOT is
+// the same container-root convention routes/secretRotation.js already uses
+// (demo_api_server/Dockerfile sets it; unset natively).
+const API_ROOT = path.resolve(__dirname, '..');
+const ROOT = process.env.CODE_SEARCH_REPO_ROOT || path.resolve(__dirname, '..', '..');
+const API_ENV = path.join(API_ROOT, '.env');
 
 /**
  * Read named entries from the vault, so it can win over a stale .env copy.
@@ -46,7 +57,14 @@ async function loadVaultSecrets(names, root = ROOT) {
     }
     if (!password) return out;
 
-    const { openVault } = require(path.join(root, 'demo_api_server', 'lib', 'vault'));
+    // API_ROOT, not `root`: `root` is the repo root, and reaching lib/vault
+    // through it resolves node_modules from the HOST bind inside the container
+    // — the same class of defect the API_ROOT/ROOT split exists to kill. It
+    // survives today only because argon2 ships cross-platform prebuilds and the
+    // catch below swallows the failure as "vault unavailable"; one dependency
+    // upgrade turns that into a silent outage. `root` still locates the vault
+    // FILE, which genuinely lives at the repo root.
+    const { openVault } = require(path.join(API_ROOT, 'lib', 'vault'));
     const handle = await openVault(vaultFile, password);
     try {
       for (const name of names) {
@@ -287,42 +305,12 @@ async function resolveResourcesByAudience(token, region, envId, targetAudiences)
   return result;
 }
 
-// ── Main ───────────────────────────────────────────────────────────────────
+// ── App targets ────────────────────────────────────────────────────────────
 
-async function main() {
-  if (!fs.existsSync(API_ENV)) {
-    console.log('[refresh-envs] demo_api_server/.env not found — bootstrap not yet run, skipping.');
-    process.exit(0);
-  }
-
-  const apiVars = parseEnv(API_ENV);
-  const envId  = apiVars.PINGONE_ENVIRONMENT_ID;
-  const region = apiVars.PINGONE_REGION || 'com';
-  const workerId     = apiVars.PINGONE_WORKER_CLIENT_ID;
-  const workerSecret = apiVars.PINGONE_WORKER_CLIENT_SECRET;
-
-  if (!envId || !workerId || !workerSecret) {
-    console.log('[refresh-envs] Missing PINGONE_ENVIRONMENT_ID / WORKER credentials in api_server .env — skipping.');
-    process.exit(0);
-  }
-
-  const asBase = `https://auth.pingone.${region}/${envId}/as`;
-
-  let token;
-  try {
-    token = await getWorkerToken(envId, workerId, workerSecret, region);
-    console.log('[refresh-envs] PingOne worker token acquired.');
-  } catch (err) {
-    console.warn(`[refresh-envs] WARNING: Could not get PingOne worker token: ${err.message}`);
-    console.warn('[refresh-envs] Services will start with existing .env files.');
-    process.exit(0);
-  }
-
-  // ── Resolve apps by their canonical names from scope-topology.json ──────
-  const topology = JSON.parse(fs.readFileSync(path.join(ROOT, 'scope-topology.json'), 'utf8'));
+/** The PingOne apps this script resolves, keyed by logical name. */
+function appTargets(topology) {
   const appNames = topology.provisioning.appNames;
-
-  const APP_TARGETS = {
+  return {
     mcpGateway:   appNames['Super Banking MCP Gateway'],
     mcpExchanger: appNames['Super Banking MCP Exchanger'],
     // Step 9 (backend exchange to the banking API) needs its OWN client. The
@@ -337,10 +325,14 @@ async function main() {
     agent:        appNames['Super Banking Agent'],
     worker:       appNames['Super Banking Worker'],
   };
+}
 
-  // The clientIds the previous run already wrote. These are the stable key —
-  // a console rename moves the display name but never the clientId.
-  const KNOWN_CLIENT_IDS = {
+/**
+ * The clientIds the previous run already wrote. These are the stable key —
+ * a console rename moves the display name but never the clientId.
+ */
+function knownClientIds(apiVars) {
+  return {
     mcpGateway:     apiVars.PINGONE_MCP_GATEWAY_CLIENT_ID,
     mcpExchanger:   apiVars.PINGONE_TOKEN_EXCHANGER_CLIENT_ID,
     step9Exchanger: apiVars.PINGONE_MCP_EXCHANGER_CLIENT_ID,
@@ -348,6 +340,106 @@ async function main() {
     agent:          apiVars.AGENT_CLIENT_ID,
     worker:         apiVars.PINGONE_WORKER_CLIENT_ID,
   };
+}
+
+/**
+ * appTargets key → the vault entry that holds that app's client secret.
+ *
+ * Exactly the keys whose secret has a counterpart in main()'s `creds` block, so
+ * a rotation writes the key this script will later read back. Deliberately
+ * absent:
+ *   worker    — rotating it destroys the credential this tooling authenticates
+ *               with. The one hard exclusion the rotation tool exists to enforce.
+ *   mcpServer — resolved for naming only; `creds` carries no secret for it.
+ */
+const ROTATABLE_VAULT_KEYS = {
+  mcpGateway:     'PINGONE_MCP_GATEWAY_CLIENT_SECRET',
+  mcpExchanger:   'PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET',
+  step9Exchanger: 'PINGONE_MCP_EXCHANGER_CLIENT_SECRET',
+  aiAgent:        'PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET',
+  agent:          'AGENT_CLIENT_SECRET',
+};
+
+/**
+ * Server-derived map of "which apps may be rotated, and under which vault key".
+ *
+ * The rotation UI used to invent a key from an app's DISPLAY NAME, which can
+ * never equal a real one — so the new secret landed under a key nothing reads
+ * while the live key kept the now-dead value. This is the authority instead.
+ *
+ * Keyed by BOTH the PingOne application id and its clientId: /apps filters on
+ * clientId, /start only ever receives the application id, and one lookup table
+ * serving both avoids a second Management API round-trip just to translate.
+ *
+ * @returns {Promise<Record<string,string>>} id|clientId → vault entry name
+ */
+async function getRotatableVaultKeyMap(deps = {}) {
+  const getToken = deps.getWorkerToken || getWorkerToken;
+  const resolve  = deps.resolveApps || resolveApps;
+
+  const apiVars = parseEnv(API_ENV);
+  const envId  = apiVars.PINGONE_ENVIRONMENT_ID;
+  const region = apiVars.PINGONE_REGION || 'com';
+  const workerId     = apiVars.PINGONE_WORKER_CLIENT_ID;
+  const workerSecret = apiVars.PINGONE_WORKER_CLIENT_SECRET;
+  if (!envId || !workerId || !workerSecret) {
+    throw new Error('PingOne worker credentials are not configured in demo_api_server/.env');
+  }
+
+  const token = await getToken(envId, workerId, workerSecret, region);
+  const topology = JSON.parse(fs.readFileSync(path.join(ROOT, 'scope-topology.json'), 'utf8'));
+  const apps = await resolve(token, region, envId, appTargets(topology), knownClientIds(apiVars));
+
+  const map = {};
+  for (const [key, vaultKey] of Object.entries(ROTATABLE_VAULT_KEYS)) {
+    const app = apps[key];
+    if (!app) continue;
+    if (app.clientId) map[app.clientId] = vaultKey;
+    if (app.id) map[app.id] = vaultKey;
+  }
+  return map;
+}
+
+// ── Main ───────────────────────────────────────────────────────────────────
+
+/** A condition main() treats as "nothing to do" — exit 0 for the CLI, a
+ *  recoverable no-op for programmatic callers (the rotation CLI). */
+function skip(message) {
+  const err = new Error(message);
+  err.skipped = true;
+  return err;
+}
+
+async function main() {
+  if (!fs.existsSync(API_ENV)) {
+    throw skip('[refresh-envs] demo_api_server/.env not found — bootstrap not yet run, skipping.');
+  }
+
+  const apiVars = parseEnv(API_ENV);
+  const envId  = apiVars.PINGONE_ENVIRONMENT_ID;
+  const region = apiVars.PINGONE_REGION || 'com';
+  const workerId     = apiVars.PINGONE_WORKER_CLIENT_ID;
+  const workerSecret = apiVars.PINGONE_WORKER_CLIENT_SECRET;
+
+  if (!envId || !workerId || !workerSecret) {
+    throw skip('[refresh-envs] Missing PINGONE_ENVIRONMENT_ID / WORKER credentials in api_server .env — skipping.');
+  }
+
+  const asBase = `https://auth.pingone.${region}/${envId}/as`;
+
+  let token;
+  try {
+    token = await getWorkerToken(envId, workerId, workerSecret, region);
+    console.log('[refresh-envs] PingOne worker token acquired.');
+  } catch (err) {
+    throw skip(`[refresh-envs] WARNING: Could not get PingOne worker token: ${err.message}\n`
+      + '[refresh-envs] Services will start with existing .env files.');
+  }
+
+  // ── Resolve apps by their canonical names from scope-topology.json ──────
+  const topology = JSON.parse(fs.readFileSync(path.join(ROOT, 'scope-topology.json'), 'utf8'));
+  const APP_TARGETS = appTargets(topology);
+  const KNOWN_CLIENT_IDS = knownClientIds(apiVars);
 
   let apps;
   try {
@@ -358,9 +450,8 @@ async function main() {
       + (byName ? ` (${byName} by display name — see warnings above).` : ' (all by clientId).'),
     );
   } catch (err) {
-    console.warn(`[refresh-envs] WARNING: Could not resolve apps from PingOne: ${err.message}`);
-    console.warn('[refresh-envs] Services will start with existing .env files.');
-    process.exit(0);
+    throw skip(`[refresh-envs] WARNING: Could not resolve apps from PingOne: ${err.message}\n`
+      + '[refresh-envs] Services will start with existing .env files.');
   }
 
   // ── Resolve resource ids ────────────────────────────────────────────────
@@ -937,12 +1028,31 @@ async function main() {
 // the module to unit-test loadVaultSecrets executes the whole refresh (and its
 // process.exit), which is both a failing test and a script that rewrites every
 // service .env as a side effect of being imported.
+// main() now THROWS instead of calling process.exit() — it is awaited in-process
+// by the rotation CLI after an irreversible PingOne rotate, and a process.exit()
+// there killed the whole rotation mid-flight (with status 0, which reads as
+// success). This block preserves the CLI's previous observable behaviour exactly:
+// a "nothing to do" skip still prints the same text and exits 0; anything else
+// still exits 1.
 if (require.main === module) {
   main().catch(err => {
+    if (err && err.skipped) {
+      console.warn(err.message);
+      process.exit(0);
+    }
     console.error('[refresh-envs] Fatal error:', err.message);
     process.exit(1);
   });
 }
 
-// Exported for tests. Running this file directly is unaffected.
-module.exports = { loadVaultSecrets, writeEnvFile, dotenvxPlain };
+// Exported for tests and for scripts/rotate-app-secret.js, which re-runs this
+// propagation after rotating a secret. Running this file directly is unaffected —
+// the `require.main === module` guard above still drives the CLI path.
+module.exports = {
+  loadVaultSecrets, writeEnvFile, dotenvxPlain, getRotatableVaultKeyMap,
+  propagateServiceEnvs: main,
+  // Exported so the container-vs-native path contract above is testable: the
+  // two roots differ inside the BFF image and a regression there is invisible
+  // natively (where they collapse onto the same directory).
+  ROOT, API_ROOT, API_ENV,
+};

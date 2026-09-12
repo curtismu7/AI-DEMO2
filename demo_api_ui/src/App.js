@@ -93,6 +93,7 @@ import ResourceServerJourneyPage from "./pages/ResourceServerJourneyPage";
 import RetailAdminOps from "./components/RetailAdminOps";
 import ScopeAuditPage from "./components/ScopeAuditPage";
 import ScopeReferencePage from "./components/ScopeReferencePage";
+import SecretRotationPage from "./pages/SecretRotationPage";
 import SecurityCenter from "./components/SecurityCenter";
 import SecuritySettings from "./components/SecuritySettings";
 import ServerRestartModal from "./components/ServerRestartModal";
@@ -186,6 +187,7 @@ import PublicRoutes, {
   DavinciLoginCallbackRoute,
   DavinciLoginConfirmedRoute,
   DavinciExplainerRoute,
+  DavinciLoginGuidePageRoute,
   GraphifyPageRoute,
   IntentBindingLearningPageRoute,
   A2AProtocolLearningPageRoute,
@@ -840,6 +842,7 @@ function AppWithAuth() {
                 <Route path="/davinci-login/callback" element={<DavinciLoginCallbackRoute user={user} logout={logout} />} />
                 <Route path="/davinci-login/confirmed" element={<DavinciLoginConfirmedRoute user={user} logout={logout} />} />
                 <Route path="/davinci-orchestration" element={<DavinciExplainerRoute user={user} logout={logout} />} />
+                <Route path="/davinci-login-guide" element={<DavinciLoginGuidePageRoute user={user} logout={logout} />} />
                 <Route path="/ciba-approve" element={<CibaApprovalPageRoute />} />
                 <Route
                   path="/code-explorer"
@@ -1545,6 +1548,18 @@ function AppWithAuth() {
                                     onLogout={logout}
                                   />
                                 </RequireAdminLogin>
+                              }
+                            />
+                            {/* Any logged-in user, not admin-only — deliberate, per
+                                auth-requirements.json "/secret-rotation": "user". */}
+                            <Route
+                              path="/secret-rotation"
+                              element={
+                                loading ? null : user ? (
+                                  <SecretRotationPage />
+                                ) : (
+                                  <SignInRequired />
+                                )
                               }
                             />
                             <Route

@@ -21,7 +21,7 @@ import {
   toast,
 } from "../utils/appToast";
 import { navigateToCustomerOAuthLogin, SESSION_REAUTH_EVENT } from "../utils/authUi";
-import { normalizePhoneE164 } from "../utils/mfaEnrollment";
+import { normalizePhoneE164, pickPreferredDevice, isPasskeySupported } from "../utils/mfaEnrollment";
 import {
   getDashboardLayout,
   setDashboardLayout,
@@ -40,6 +40,7 @@ import TokenChainFilmstrip from "./TokenChainFilmstrip";
 import ReelDock from "./ReelDock";
 import SequenceReelDiagram from "./SequenceReelDiagram";
 import StepDetailPanel from "./StepDetailPanel";
+import CollapsibleStepDetail from "./CollapsibleStepDetail";
 import SimpleStepperBar from "./SimpleStepperBar";
 import AgentResponseMirror from "./AgentResponseMirror";
 import ExchangeModeToggle from "./ExchangeModeToggle";
@@ -840,8 +841,14 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       }
       setStepUpRequired(false);
       toast.dismiss("customer-step-up");
-      // Route by device type — single device: auto-route; multiple: show picker
+      // Route by device type — single device: auto-route; multiple: prefer an
+      // enrolled passkey (if this browser can use it), else show picker.
       if (devices.length > 1) {
+        const preferred = isPasskeySupported() ? pickPreferredDevice(devices) : null;
+        if (preferred) {
+          handleFido2Challenge(data.daId, preferred);
+          return;
+        }
         setDevicePickerDevices(devices);
         setDevicePickerDaId(data.daId);
         setDevicePickerOpen(true);
@@ -3613,11 +3620,12 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               onSelectStep={setSelectedSeqStep}
               selectedStepId={selectedSeqStep?.id}
               slowMode={slowMode}
+              onToggleSlowMode={() => setSlowMode(!slowMode)}
             />
           )}
           {showSequenceDiagram && selectedSeqStep && (
             <div className="ud-sequence-detail-row">
-              <StepDetailPanel step={selectedSeqStep} />
+              <CollapsibleStepDetail step={selectedSeqStep} />
             </div>
           )}
         </div>
@@ -3759,11 +3767,12 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               onSelectStep={setSelectedSeqStep}
               selectedStepId={selectedSeqStep?.id}
               slowMode={slowMode}
+              onToggleSlowMode={() => setSlowMode(!slowMode)}
             />
           )}
           {showSequenceDiagram && selectedSeqStep && (
             <div className="ud-sequence-detail-row">
-              <StepDetailPanel step={selectedSeqStep} />
+              <CollapsibleStepDetail step={selectedSeqStep} />
             </div>
           )}
         </div>
@@ -3833,11 +3842,12 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               onSelectStep={setSelectedSeqStep}
               selectedStepId={selectedSeqStep?.id}
               slowMode={slowMode}
+              onToggleSlowMode={() => setSlowMode(!slowMode)}
             />
           )}
           {showSequenceDiagram && selectedSeqStep && (
             <div className="ud-sequence-detail-row">
-              <StepDetailPanel step={selectedSeqStep} />
+              <CollapsibleStepDetail step={selectedSeqStep} />
             </div>
           )}
           </div>

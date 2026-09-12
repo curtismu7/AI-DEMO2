@@ -187,9 +187,24 @@
   box-sizing: border-box;
   border: 1px dashed var(--th-border);
   border-radius: 10px;
-  background: var(--th-bg-inset);
+  background: var(--sfm-band-bg, var(--th-bg-inset));
   color: var(--th-text);
 }
+/* One light, low-saturation tint per band so the five trust boundaries read
+   apart at a glance — deliberately quiet (this is a grouping cue, not a
+   status), so it stays out of the way of the real state colours on the boxes
+   inside. Local vars, not --th-*, since these are five arbitrary hues rather
+   than the app's semantic scale. */
+.sfm-band[data-band-id="ping"] { --sfm-band-bg: #eef2ff; }
+.sfm-band[data-band-id="stack"] { --sfm-band-bg: #f0fdf4; }
+.sfm-band[data-band-id="pep"] { --sfm-band-bg: #fefce8; }
+.sfm-band[data-band-id="backends"] { --sfm-band-bg: #fdf4ff; }
+.sfm-band[data-band-id="model"] { --sfm-band-bg: #f0f9ff; }
+:root[data-theme="dark"] .sfm-band[data-band-id="ping"] { --sfm-band-bg: rgba(99, 102, 241, 0.1); }
+:root[data-theme="dark"] .sfm-band[data-band-id="stack"] { --sfm-band-bg: rgba(34, 197, 94, 0.08); }
+:root[data-theme="dark"] .sfm-band[data-band-id="pep"] { --sfm-band-bg: rgba(234, 179, 8, 0.09); }
+:root[data-theme="dark"] .sfm-band[data-band-id="backends"] { --sfm-band-bg: rgba(217, 70, 239, 0.08); }
+:root[data-theme="dark"] .sfm-band[data-band-id="model"] { --sfm-band-bg: rgba(14, 165, 233, 0.09); }
 .sfm-band::before {
   content: attr(data-band);
   position: absolute;

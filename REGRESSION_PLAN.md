@@ -141,6 +141,114 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-12 — System Flow Map: split the merged approval-gate box into real MFA / Consent / CIBA boxes; per-band background tints
+
+**Files changed:** `demo_api_ui/src/components/SystemFlowMap.jsx`, `SystemFlowMap.css`,
+`AIAgent.js`. Tests: `src/components/__tests__/SystemFlowMap.test.jsx`.
+
+**What was broken:** the map had one "Approval Gate" box for step-up MFA, HITL
+and consent combined (deliberately, in the prior commit) because
+`buildTraceSteps.js`'s single `stepup` step can't tell the three apart — a
+presenter watching a real MFA or CIBA run couldn't see which mechanism
+actually fired. CIBA specifically had **no evidence path to the client trace
+at all**: `AIAgent.js` drives it as three separate `POST /api/auth/ciba/*`
+REST round trips, entirely outside the `/api/mcp/tool` phase-emission
+pipeline that feeds `tokenChainTraceStore`.
+
+**What was fixed:**
+- `SystemFlowMap.jsx` now derives three independent boxes straight from trace
+  evidence (`deriveGateStates`), bypassing `buildTraceSteps`' shared step list
+  entirely so this cannot ripple into `TokenChainTraceRail` or any other
+  consumer of it:
+  - **MFA** — `mfa_challenge_initiated/completed/failed` phases (routes/mfa.js;
+    unchanged detection, now its own box).
+  - **Consent** — `authorize_denied_hitl` (local/simulated PDP) /
+    `gateway_hitl_required` (live PingGateway PDP, previously not read by
+    `buildTraceSteps.js`'s stepup step at all) / `mcp_auth_challenge_intercepted`;
+    resolved via `trace.authorize.hitlApproved`. All three are the same
+    HITL_CONSENT obligation (`authorizeObligations.js`,
+    `simulatedAuthorizeService.js`: "all transfers require human consent").
+  - **CIBA** — new client-side instrumentation. `AIAgent.js`'s 3 CIBA-initiate
+    call sites now stamp a `ciba-poll` token event (`additionalData.status:
+    'pending'`) into `tokenChainTraceStore`; both poll functions
+    (`pollCibaStepUp`, `pollCibaThenResumeNl`) update it to `'denied'` on a
+    404/403/410, or `'approved'` after the resume that follows an approval
+    (mirroring the pre-existing `pollCibaThenResumeNl` re-stamp that already
+    existed for a *different* reason — ProofStrip's evidence chain — which
+    this reuses and extends with the `status` field).
+- `pollCibaStepUp`'s approved branch now `await`s `runAction(...)` (was
+  fire-and-forget) so the re-stamp lands on the trace the refire actually
+  produced, not before it starts.
+- Relabeled the resulting boxes MFA / Consent / CIBA (was "CIBA / MFA" then
+  "Approval Gate"); `p1-stepup` removed from `NODES`/`BANDS`/`STEP_TO_EDGE`.
+- Each of the 5 deployment bands now gets its own light background tint
+  (`--sfm-band-bg`, local vars — not `--th-*`, since these are five arbitrary
+  grouping hues, not the app's semantic scale) so the trust boundaries read
+  apart; dark variants via `:root[data-theme="dark"]` only, per this repo's
+  hard rule (never `prefers-color-scheme`).
+
+**Do not break:**
+- `buildTraceSteps.js`'s `stepup` step, `TITLES`/`LANES`/`NARRATIVES` entries
+  for it, and `TokenChainTraceRail`'s single-card rendering of it are
+  UNCHANGED — the split lives entirely in `SystemFlowMap.jsx`'s own derivation.
+- The pre-existing `ciba-poll` re-stamp in `pollCibaThenResumeNl` (ProofStrip's
+  evidence-chain requirement) still fires with the same `id`/`description` —
+  only an additive `additionalData.status` field was added.
+- `runAction`'s CIBA branch now awaits before returning; it does not change
+  what `runAction` itself does on a normal (non-CIBA) call.
+
+**Verify:**
+- `cd demo_api_ui && npm run test:unit && npm run build` — 541 files / 4191
+  tests pass, build exits 0.
+- Live: opened the System Flow Map — MFA / Consent / CIBA render as three
+  distinct boxes in a 2-row grid under PingOne Authorize, each of the 5 bands
+  has a visibly different light tint, and none of the repositioned bands
+  overlap (checked via `getBoundingClientRect`).
+
+### 2026-09-12 — Passkey enrollment dead-ended on SecurityCenter; FIDO2 wasn't the preferred step-up method anywhere
+
+**Files changed:** `demo_api_ui/src/components/SecurityCenter.js`,
+`demo_api_ui/src/components/UserDashboardPing2026.js`,
+`demo_api_ui/src/components/OtpStepUpModal.js`,
+`demo_api_ui/src/components/DeviceSelector.tsx`,
+`demo_api_ui/src/utils/mfaEnrollment.js`, `demo_api_ui/src/App.css`.
+
+**What was broken:** `SecurityCenter.js` (the persistent account-security page,
+routed at `App.js:1949`) listed "Security Key (FIDO2)" as an enrollable device
+type, but `renderEnrollPicker()` had no `enrollType === 'fido2'` branch —
+selecting it fell through to a dead end telling the user to "Use the PingOne
+mobile app or admin portal to enroll this device type," even though the real
+`navigator.credentials.create` enrollment flow already worked elsewhere
+(`UserDashboardPing2026.handleEnrollFido2`). Separately, nothing preferred an
+already-enrolled passkey over other MFA methods during step-up: with 2+
+devices enrolled, `UserDashboardPing2026.handleInitiateOtp` and
+`OtpStepUpModal`'s p1mfa mode always landed on a neutral picker/table in
+enrollment order.
+
+**What was fixed:** `SecurityCenter.js` gained a working `handleEnrollFido2`
+(same init → `navigator.credentials.create` → complete pattern as
+`UserDashboardPing2026`), wired into a new `enrollType === 'fido2'` branch, and
+the picker now lists it first, labeled "(Recommended)". Added
+`isPasskeySupported()` and `pickPreferredDevice()` to the shared
+`mfaEnrollment.js` (moved `isPasskeySupported` out of `OtpStepUpModal.js` to
+avoid a second copy). `UserDashboardPing2026.handleInitiateOtp` now
+auto-launches the FIDO2 challenge when a passkey is enrolled and the browser
+supports WebAuthn, instead of opening the neutral device picker — the picker
+is still the fallback when no passkey is available. `OtpStepUpModal`'s method
+table (which by design always shows Email/SMS/Passkey side by side, so it was
+reordered rather than auto-skipped) now leads with the Passkey row, marked
+"(Recommended)". `DeviceSelector.tsx` (the HITL transfer-consent picker) sorts
+an enrolled FIDO2 device first rather than rendering PingOne's return order.
+
+**Do not break:** Do not restore the old `!fidoEnrolled` gate this touches
+adjacent to — `OtpStepUpModal`'s `NotAllowedError` → `passkey-register-offer`
+cross-device recovery (2026-07-27 entry below) must keep firing regardless of
+`fidoEnrolled`; this change only affects which step happens *before* that
+recovery path, not the recovery logic itself. `Fido2Challenge.js` was not
+touched and its `onError`/offer-registration contract is unchanged.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/components/__tests__/SecurityCenter.tabs.test.jsx src/components/__tests__/OtpStepUpModal.fidoAssertion.test.jsx src/components/__tests__/OtpStepUpModal.methodChoice.test.jsx src/components/__tests__/DeviceSelector.test.jsx src/components/UserDashboardPing2026.test.js src/components/__tests__/UserDashboardPing2026.stepUpLifecycle.test.js src/components/__tests__/TransactionConsentModal.declineScope.test.jsx src/components/__tests__/TransactionConsentModal.simulated.test.jsx` (8 files, 38 tests, all pass) plus the full `npm run test:unit` (541 files / 4174 tests pass, 24 pre-existing skips) and `npm run build` (exit 0). Passkeys only work on `local.ping-devops.com:4000` (PingOne's FIDO2 relying-party-id policy requires a public TLD) — a live click-through of the new `SecurityCenter` enrollment path and the auto-launched step-up needs that host.
+
 ### 2026-09-12 — System Flow Map: stuck-"RUNNING" diagram, missing replay history, new resize/theme/consent affordances
 
 **Files changed:** `demo_api_ui/src/components/SystemFlowMap.jsx`, `SystemFlowMap.css`,

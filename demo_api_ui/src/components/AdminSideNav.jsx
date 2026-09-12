@@ -704,6 +704,7 @@ export default function AdminSideNav({
         { label: "Privilege Demo", path: "/privilege-demo", icon: "shld" },
         { label: "SDK Login", path: "/sdk-login", icon: "mbl" },
         { label: "DaVinci Login", path: "/davinci-login", icon: "sign-in" },
+        { label: "DaVinci Login Guide", path: "/davinci-login-guide", icon: "doc" },
       ],
     },
     {
@@ -1078,6 +1079,7 @@ export default function AdminSideNav({
           icon: "flag",
         },
         { label: "LLM Config", path: "/llm-config", icon: "agt" },
+        { label: "Secret Rotation", path: "/secret-rotation", icon: "key" },
         { label: "App Configuration", path: "/configure", icon: "fix" },
         { label: "OAuth Debug", path: "/configure?tab=debug", icon: "dbg" },
         { label: "Postman Collections", path: "/postman", icon: "msg" },

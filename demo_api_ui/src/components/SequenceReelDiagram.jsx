@@ -46,7 +46,7 @@ function laneClass(lane) {
   return `srd-lane-${String(lane || "").toLowerCase()}`;
 }
 
-export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slowMode }) {
+export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slowMode, onToggleSlowMode }) {
   const [snap, setSnap] = useState(() => tokenChainTraceStore.getState());
   useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
 
@@ -131,6 +131,16 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
         <button type="button" className="srd-zoom-btn" onClick={() => handleZoom(ZOOM_STEP)} title="Zoom in">
           +
         </button>
+        {onToggleSlowMode && (
+          <button
+            type="button"
+            className={`srd-slow-btn ${slowMode ? "srd-slow-btn--active" : ""}`}
+            onClick={onToggleSlowMode}
+            title={slowMode ? "Turn off slow mode" : "Turn on slow mode for narration"}
+          >
+            🐢
+          </button>
+        )}
         {slowMode && (
           <span className="srd-slow-badge" title="Steps are revealing slowly for narration">
             Slow mode — {Math.min(revealedCount, allLifelineSteps.length)}/{allLifelineSteps.length}
@@ -149,11 +159,11 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
             const x = colX(lane);
             return (
               <g key={lane}>
-                <rect x={x - 52} y="12" width="104" height="26" rx="5" className="srd-actor-box" />
-                <text x={x} y="30" textAnchor="middle" className="srd-actor-label">
+                <rect x={x - 68} y="8" width="136" height="34" rx="5" className="srd-actor-box" />
+                <text x={x} y="31" textAnchor="middle" className="srd-actor-label">
                   {lane}
                 </text>
-                <line x1={x} y1="38" x2={x} y2={height - BOTTOM_PAD + 10} className="srd-lifeline" />
+                <line x1={x} y1="42" x2={x} y2={height - BOTTOM_PAD + 10} className="srd-lifeline" />
               </g>
             );
           })}
@@ -179,8 +189,8 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
                   tabIndex={0}
                   onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && selectStep(step.id)}
                 >
-                  <rect x={x - 58} y={y - 12} width="116" height="22" rx="5" className="srd-note-box" />
-                  <text x={x} y={y + 4} textAnchor="middle" className="srd-note-label">
+                  <rect x={x - 75} y={y - 14} width="150" height="28" rx="5" className="srd-note-box" />
+                  <text x={x} y={y + 5} textAnchor="middle" className="srd-note-label">
                     {step.label}
                   </text>
                   {isActive && <circle cx={x} cy={y} r="6" className="srd-active-pulse" />}

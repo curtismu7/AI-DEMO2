@@ -44,6 +44,7 @@ import DavinciLoginPage from "../pages/DavinciLoginPage";
 import DavinciLoginCallback from "../pages/DavinciLoginCallback";
 import DavinciLoginConfirmedPage from "../pages/DavinciLoginConfirmedPage";
 import DavinciExplainerPage from "../pages/DavinciExplainerPage";
+import DavinciLoginGuidePage from "../pages/DavinciLoginGuidePage";
 import CibaApprovalPage from "../pages/CibaApprovalPage";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
 import EnterpriseMcpDemoPage from '../pages/EnterpriseMcpDemoPage';
@@ -458,6 +459,18 @@ export function DavinciExplainerRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <DavinciExplainerPage />
+    </AppShell>
+  );
+}
+
+// Training lesson for the widget login above — how it works, the real
+// sdk-token/callback request/response shapes, and the hop-by-hop flow.
+// Public, like the sandbox it documents: it's reference material, not a
+// signed-in feature.
+export function DavinciLoginGuidePageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <DavinciLoginGuidePage />
     </AppShell>
   );
 }
