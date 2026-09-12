@@ -205,6 +205,50 @@ pipeline that feeds `tokenChainTraceStore`.
   has a visibly different light tint, and none of the repositioned bands
   overlap (checked via `getBoundingClientRect`).
 
+### 2026-09-12 — Passkey enrollment dead-ended on SecurityCenter; FIDO2 wasn't the preferred step-up method anywhere
+
+**Files changed:** `demo_api_ui/src/components/SecurityCenter.js`,
+`demo_api_ui/src/components/UserDashboardPing2026.js`,
+`demo_api_ui/src/components/OtpStepUpModal.js`,
+`demo_api_ui/src/components/DeviceSelector.tsx`,
+`demo_api_ui/src/utils/mfaEnrollment.js`, `demo_api_ui/src/App.css`.
+
+**What was broken:** `SecurityCenter.js` (the persistent account-security page,
+routed at `App.js:1949`) listed "Security Key (FIDO2)" as an enrollable device
+type, but `renderEnrollPicker()` had no `enrollType === 'fido2'` branch —
+selecting it fell through to a dead end telling the user to "Use the PingOne
+mobile app or admin portal to enroll this device type," even though the real
+`navigator.credentials.create` enrollment flow already worked elsewhere
+(`UserDashboardPing2026.handleEnrollFido2`). Separately, nothing preferred an
+already-enrolled passkey over other MFA methods during step-up: with 2+
+devices enrolled, `UserDashboardPing2026.handleInitiateOtp` and
+`OtpStepUpModal`'s p1mfa mode always landed on a neutral picker/table in
+enrollment order.
+
+**What was fixed:** `SecurityCenter.js` gained a working `handleEnrollFido2`
+(same init → `navigator.credentials.create` → complete pattern as
+`UserDashboardPing2026`), wired into a new `enrollType === 'fido2'` branch, and
+the picker now lists it first, labeled "(Recommended)". Added
+`isPasskeySupported()` and `pickPreferredDevice()` to the shared
+`mfaEnrollment.js` (moved `isPasskeySupported` out of `OtpStepUpModal.js` to
+avoid a second copy). `UserDashboardPing2026.handleInitiateOtp` now
+auto-launches the FIDO2 challenge when a passkey is enrolled and the browser
+supports WebAuthn, instead of opening the neutral device picker — the picker
+is still the fallback when no passkey is available. `OtpStepUpModal`'s method
+table (which by design always shows Email/SMS/Passkey side by side, so it was
+reordered rather than auto-skipped) now leads with the Passkey row, marked
+"(Recommended)". `DeviceSelector.tsx` (the HITL transfer-consent picker) sorts
+an enrolled FIDO2 device first rather than rendering PingOne's return order.
+
+**Do not break:** Do not restore the old `!fidoEnrolled` gate this touches
+adjacent to — `OtpStepUpModal`'s `NotAllowedError` → `passkey-register-offer`
+cross-device recovery (2026-07-27 entry below) must keep firing regardless of
+`fidoEnrolled`; this change only affects which step happens *before* that
+recovery path, not the recovery logic itself. `Fido2Challenge.js` was not
+touched and its `onError`/offer-registration contract is unchanged.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/components/__tests__/SecurityCenter.tabs.test.jsx src/components/__tests__/OtpStepUpModal.fidoAssertion.test.jsx src/components/__tests__/OtpStepUpModal.methodChoice.test.jsx src/components/__tests__/DeviceSelector.test.jsx src/components/UserDashboardPing2026.test.js src/components/__tests__/UserDashboardPing2026.stepUpLifecycle.test.js src/components/__tests__/TransactionConsentModal.declineScope.test.jsx src/components/__tests__/TransactionConsentModal.simulated.test.jsx` (8 files, 38 tests, all pass) plus the full `npm run test:unit` (541 files / 4174 tests pass, 24 pre-existing skips) and `npm run build` (exit 0). Passkeys only work on `local.ping-devops.com:4000` (PingOne's FIDO2 relying-party-id policy requires a public TLD) — a live click-through of the new `SecurityCenter` enrollment path and the auto-launched step-up needs that host.
+
 ### 2026-09-12 — System Flow Map: stuck-"RUNNING" diagram, missing replay history, new resize/theme/consent affordances
 
 **Files changed:** `demo_api_ui/src/components/SystemFlowMap.jsx`, `SystemFlowMap.css`,

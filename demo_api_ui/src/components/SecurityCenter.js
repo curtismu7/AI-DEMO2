@@ -3,6 +3,7 @@ import { notifySuccess, notifyError } from '../utils/appToast';
 import { navigateToCustomerOAuthLogin } from '../utils/authUi';
 import SignInPrompt from './SignInPrompt';
 import { loadPublicConfig } from '../services/configService';
+import { describePasskeyRegistrationError } from '../utils/mfaEnrollment';
 import { useThemeOptional } from '../context/ThemeContext';
 import './SecurityCenter.css';
 
@@ -274,16 +275,70 @@ export default function SecurityCenter({ user }) {
     }
   }
 
+  async function handleEnrollFido2() {
+    setEnrollBusy(true);
+    setEnrollError(null);
+    try {
+      const initRes = await fetch('/api/auth/mfa/enroll/fido2-init', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!initRes.ok) {
+        const body = await initRes.json().catch(() => ({}));
+        throw new Error(body.message || `Server error ${initRes.status}`);
+      }
+      const initData = await initRes.json();
+      const credential = await navigator.credentials.create({
+        publicKey: initData.publicKeyCredentialCreationOptions,
+      });
+      if (!credential) throw new Error('Passkey creation was cancelled.');
+      const attestation = {
+        id: credential.id,
+        rawId: btoa(String.fromCharCode(...new Uint8Array(credential.rawId))),
+        type: credential.type,
+        response: {
+          attestationObject: btoa(
+            String.fromCharCode(...new Uint8Array(credential.response.attestationObject)),
+          ),
+          clientDataJSON: btoa(
+            String.fromCharCode(...new Uint8Array(credential.response.clientDataJSON)),
+          ),
+        },
+      };
+      const completeRes = await fetch('/api/auth/mfa/enroll/fido2-complete', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deviceId: initData.deviceId,
+          attestation,
+          origin: window.location.origin,
+        }),
+      });
+      if (!completeRes.ok) {
+        const body = await completeRes.json().catch(() => ({}));
+        throw new Error(body.message || `Server error ${completeRes.status}`);
+      }
+      notifySuccess('Passkey registered.');
+      closeEnrollPicker();
+      fetchDevices();
+    } catch (err) {
+      setEnrollError(describePasskeyRegistrationError(err));
+    } finally {
+      if (mountedRef.current) setEnrollBusy(false);
+    }
+  }
+
   function renderEnrollPicker() {
     if (!enrollType) {
       return (
         <div className="enroll-picker">
           <p className="sc-label-strong" style={{ margin: '0 0 0.5rem', fontWeight: 600 }}>Select device type to add:</p>
           {[
+            { key: 'fido2', label: 'Security Key / Passkey (Recommended)' },
             { key: 'email', label: 'Email OTP' },
             { key: 'sms', label: 'SMS OTP' },
             { key: 'totp', label: 'Authenticator App (TOTP)' },
-            { key: 'fido2', label: 'Security Key (FIDO2)' },
           ].map(({ key, label }) => (
             <button
               key={key}
@@ -409,7 +464,39 @@ export default function SecurityCenter({ user }) {
       );
     }
 
-    // TOTP or FIDO2 — requires native browser APIs or mobile app
+    if (enrollType === 'fido2') {
+      return (
+        <div className="enroll-picker">
+          <p style={{ margin: '0 0 0.5rem', fontWeight: 600 }}>Register a Passkey</p>
+          <p className="sc-hint" style={{ margin: '0 0 0.75rem' }}>
+            Use Touch ID, Face ID, Windows Hello, or a security key.
+          </p>
+          {enrollError && (
+            <p className="sc-error-inline" style={{ margin: '0 0 0.5rem' }}>{enrollError}</p>
+          )}
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={handleEnrollFido2}
+              disabled={enrollBusy}
+            >
+              {enrollBusy ? 'Registering...' : 'Register'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={closeEnrollPicker}
+              disabled={enrollBusy}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // TOTP — requires the PingOne mobile app or admin portal
     return (
       <div className="enroll-picker">
         <p className="sc-hint" style={{ margin: '0 0 0.75rem' }}>

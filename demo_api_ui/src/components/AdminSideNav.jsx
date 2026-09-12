@@ -305,6 +305,26 @@ export default function AdminSideNav({
     return () => mq.removeEventListener("change", apply);
   }, []);
 
+  // Auto-collapse while the dashboard's "Sequence view" is on, so the
+  // diagram gets the width back — same ref-gated pattern as the viewport
+  // auto-collapse above: only restore if THIS is what collapsed it, so a
+  // manual collapse (or the viewport auto-collapse) in between still holds.
+  const seqViewAutoCollapsedRef = useRef(false);
+  useEffect(() => {
+    const handler = (e) => {
+      const on = !!e.detail?.collapsed;
+      if (on) {
+        seqViewAutoCollapsedRef.current = true;
+        setCollapsed(true);
+      } else if (seqViewAutoCollapsedRef.current) {
+        seqViewAutoCollapsedRef.current = false;
+        setCollapsed(false);
+      }
+    };
+    window.addEventListener("admin-sidenav-collapse-toggle", handler);
+    return () => window.removeEventListener("admin-sidenav-collapse-toggle", handler);
+  }, []);
+
   // Role-scoped expansion state: a group the user opened should stay open
   // until they open a different one, even across sidebar remounts and the
   // full-page reloads this app performs (role/vertical switch, reauth).
@@ -1532,6 +1552,7 @@ export default function AdminSideNav({
         onClick={() => {
           const next = !collapsed;
           autoCollapsedRef.current = false;
+          seqViewAutoCollapsedRef.current = false;
           setCollapsed(next);
           try {
             window.localStorage.setItem(COLLAPSED_KEY, String(next));
