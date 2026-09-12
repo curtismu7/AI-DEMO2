@@ -106,6 +106,24 @@ describe('dpopKeyService — per-session key, off the session', () => {
     expect(peekSessionDpopKey(req.session).jkt).toBe(minted.jkt);
   });
 
+  it('peek counts as use — the sweep cannot evict a key the pipeline is still signing with', () => {
+    // The pipeline signs every hop through peek and may never re-enter
+    // getSessionDpopKey, so a read must keep the entry alive. Otherwise the
+    // 12h disuse sweep drops a key a live token is still bound to (cnf.jkt).
+    jest.useFakeTimers();
+    try {
+      const req = reqFor('s-dpop-ttl');
+      const minted = getSessionDpopKey(req);
+      jest.advanceTimersByTime(11 * 60 * 60 * 1000);
+      expect(peekSessionDpopKey(req.session).jkt).toBe(minted.jkt);
+      // 13h since the mint, but only 2h since that read.
+      jest.advanceTimersByTime(2 * 60 * 60 * 1000);
+      expect(getSessionDpopKey(req).jkt).toBe(minted.jkt);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('no session, or a session with no id, yields null and never throws', () => {
     expect(getSessionDpopKey(null)).toBeNull();
     expect(getSessionDpopKey({})).toBeNull();

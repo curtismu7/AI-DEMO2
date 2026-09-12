@@ -154,7 +154,12 @@ function peekSessionDpopKey(session) {
   const sessionId = _sessionIdOf(session);
   if (!sessionId) return null;
   const entry = _sessionKeys.get(sessionId);
-  return entry ? entry.key : null;
+  if (!entry) return null;
+  // Reading IS use: the tool pipeline signs every hop through this path and may
+  // never re-enter getSessionDpopKey, so without this the sweep could evict a key
+  // a live token is still bound to (cnf.jkt) — Greptile P1 on #3151.
+  entry.at = Date.now();
+  return entry.key;
 }
 
 /** Drop a session's DPoP key (logout). */

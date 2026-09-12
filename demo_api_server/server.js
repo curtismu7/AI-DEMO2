@@ -886,6 +886,11 @@ app.get('/api/auth/logout', async (req, res) => {
     // because a group write failed.
     await require('./services/groupMembershipLogoutRestore').restorePremiumTierOnLogout(req);
 
+    // Session-scoped in-process caches (agent tokens, DPoP keypair) no longer die
+    // with the session — they were moved off it (REGRESSION_PLAN §4), so every
+    // destruction path clears them explicitly.
+    require('./services/sessionScopedCaches').clearSessionScopedCaches(req.session);
+
     req.session.destroy((err) => {
         if (err) {
             console.error('Session destruction error during unified logout:', err);
