@@ -1,9 +1,10 @@
 // Renders ONE DaVinci collector as our own UI.
 //
-// This is the only place in the app that knows collector shapes. Scope for now:
-// TextCollector, PasswordCollector and SubmitCollector — enough to drive the
-// flow's Password Sign On Page end to end and see the real behaviour before the
-// remaining types are added.
+// This is the only place in the app that knows collector shapes. Scope covers
+// exactly what the live flow's sign-on screen sends, verified against the real
+// SDK on 2026-09-12 (5 collectors): TextCollector `username`, PasswordCollector
+// `password`, SubmitCollector `SIGNON`, and two FlowCollectors — `REGISTER`
+// ("No account? Register now!") and `TROUBLE` ("Having trouble signing on?").
 //
 // Two rules that are easy to get wrong and fail silently:
 //
@@ -22,7 +23,7 @@
 // unsupported collector that renders blank looks like a broken page.
 import { useId } from "react";
 
-export default function CollectorField({ collector, value, onChange, onSubmit, error, busy }) {
+export default function CollectorField({ collector, value, onChange, onSubmit, onFlow, error, busy }) {
   const id = useId();
   const key = collector?.output?.key ?? collector?.name;
   const label = collector?.output?.label ?? key;
@@ -81,12 +82,24 @@ export default function CollectorField({ collector, value, onChange, onSubmit, e
       );
     }
 
-    // Action collector: carries no value, so there is nothing to update — it
-    // only advances the flow.
+    // Action collectors carry no value, so there is nothing to update — they
+    // only move the flow.
     case "SubmitCollector": {
       return (
         <button type="button" className="dvsdk-submit" onClick={onSubmit} disabled={busy}>
           {busy ? "Working..." : label}
+        </button>
+      );
+    }
+
+    // A secondary branch out of this screen — "No account? Register now!",
+    // "Having trouble signing on?". It does NOT submit the form: it takes the
+    // flow down another path via client.flow({ action: output.key }), so the
+    // page routes it separately from onSubmit.
+    case "FlowCollector": {
+      return (
+        <button type="button" className="dvsdk-flow-link" onClick={onFlow} disabled={busy}>
+          {label}
         </button>
       );
     }
@@ -109,4 +122,5 @@ export const SUPPORTED_COLLECTORS = [
   "PasswordCollector",
   "ValidatedPasswordCollector",
   "SubmitCollector",
+  "FlowCollector",
 ];

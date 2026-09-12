@@ -86,6 +86,29 @@
   background: var(--th-bg-inset);
 }
 
+/* FlowCollector: a secondary branch out of this screen, not a submit. Styled as
+   a link so it does not compete with the primary action, but it is a real
+   button because it triggers a flow transition. */
+.dvsdk-flow-link {
+  font: inherit;
+  align-self: flex-start;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  color: var(--th-text-body);
+  background: none;
+  border: 0;
+}
+
+.dvsdk-flow-link:hover {
+  color: var(--th-text);
+}
+
+.dvsdk-flow-link:disabled {
+  cursor: default;
+  color: var(--th-text-muted);
+}
+
 /* A collector the renderer does not handle yet. Visible on purpose — a blank
    render looks like the flow is missing a field. */
 .dvsdk-unsupported {

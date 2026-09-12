@@ -111,6 +111,32 @@ export default function DavinciSdkLoginPage() {
     navigate("/davinci-login/confirmed", { replace: true });
   }, [navigate]);
 
+  // A FlowCollector branches the flow instead of submitting this screen, so it
+  // must NOT go through submit() — no values are written and next() is not
+  // called. client.flow({action}) returns the initiator to invoke.
+  const takeFlow = useCallback(async (collector) => {
+    const client = clientRef.current;
+    if (!client) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const node = await client.flow({ action: collector.output?.key ?? collector.name })();
+      if (node?.status === "failure") {
+        setMessage(client.getError?.()?.message || "That path could not be started.");
+        setPhase("failed");
+        return;
+      }
+      setValues({});
+      syncFromClient(client, node);
+      setPhase("collecting");
+    } catch (err) {
+      setMessage(err.message);
+      setPhase("failed");
+    } finally {
+      setBusy(false);
+    }
+  }, [syncFromClient]);
+
   const submit = useCallback(async () => {
     const client = clientRef.current;
     if (!client) return;
@@ -208,6 +234,7 @@ export default function DavinciSdkLoginPage() {
                 busy={busy}
                 onChange={(v) => setValues((prev) => ({ ...prev, [key]: v }))}
                 onSubmit={submit}
+                onFlow={() => takeFlow(c)}
               />
             );
           })}

@@ -1,6 +1,9 @@
-// Collector fixtures below are the real 2.1.1 shapes, taken from the shipped
-// type definitions — not invented. The Password Sign On Page of the CIAM flow
-// is what they model.
+// The fixtures below are the shapes a LIVE run actually returned from the
+// "PingOne Sign On with Registration, Password Reset and Recovery" flow on
+// 2026-09-12 — not invented, and not merely read off the type definitions.
+// Its sign-on screen sends exactly five collectors: TextCollector `username`,
+// PasswordCollector `password`, SubmitCollector `SIGNON`, and FlowCollectors
+// `REGISTER` and `TROUBLE`.
 //
 // The load-bearing tests are the two silent-failure ones: that a value is
 // written through the updater and never by assignment, and that an unknown
@@ -44,6 +47,18 @@ const submitCollector = {
   name: "buttonValue",
   error: null,
   output: { key: "buttonValue", label: "Sign On", type: "SUBMIT_BUTTON" },
+};
+
+// Verbatim from a live run against the flow's sign-on screen (2026-09-12):
+// FlowCollector carries type FLOW_BUTTON and branches the flow rather than
+// submitting the form.
+const flowCollector = {
+  category: "ActionCollector",
+  type: "FlowCollector",
+  id: "TROUBLE-4",
+  name: "TROUBLE",
+  error: null,
+  output: { key: "TROUBLE", label: "Having trouble signing on?", type: "FLOW_BUTTON" },
 };
 
 describe("CollectorField", () => {
@@ -105,6 +120,20 @@ describe("CollectorField", () => {
     expect(screen.getByText("Invalid credentials")).toBeInTheDocument();
   });
 
+  it("routes a FlowCollector to onFlow, never to onSubmit", () => {
+    // A FlowCollector branches the flow (client.flow) instead of submitting
+    // this screen. Wiring it to onSubmit would write values and call next(),
+    // submitting a half-filled form down the wrong path.
+    const onSubmit = vi.fn();
+    const onFlow = vi.fn();
+    render(<CollectorField collector={flowCollector} onSubmit={onSubmit} onFlow={onFlow} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Having trouble signing on?" }));
+
+    expect(onFlow).toHaveBeenCalledTimes(1);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it("renders a VISIBLE fallback for an unsupported collector", () => {
     // The other silent-failure guard: a collector we cannot draw must not
     // render blank, or the flow appears to be missing a field.
@@ -124,6 +153,7 @@ describe("CollectorField", () => {
       "PasswordCollector",
       "ValidatedPasswordCollector",
       "SubmitCollector",
+      "FlowCollector",
     ]);
   });
 });
