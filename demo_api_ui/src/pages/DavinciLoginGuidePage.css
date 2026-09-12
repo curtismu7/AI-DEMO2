@@ -21,6 +21,16 @@
   color: var(--th-status-info-text);
 }
 
+/* There is no global `a:focus-visible` in the app — index.css only styles the
+   named button classes — so this link had no visible focus ring at all. Found
+   by tabbing the page in dark mode and reading outline-width off each control,
+   which is the only way to see it: a missing ring renders as nothing. */
+.dlg-page a:focus-visible {
+  outline: 2px solid var(--th-status-info);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
 /* --th-bg-band is a fixed dark navy in BOTH themes (like TopNav's own band),
    so its ink is --th-text-invert, never --th-text/--th-text-muted — those
    are tuned for --th-bg-page/-card and go near-black-on-navy in light mode. */
