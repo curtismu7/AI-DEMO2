@@ -30,7 +30,7 @@ import "./SequenceReelDiagram.css";
 const COL_WIDTH = 130;
 const COL_MARGIN = 70;
 const ROW_HEIGHT = 56;
-const TOP_PAD = 60;
+const TOP_PAD = 80;
 const BOTTOM_PAD = 30;
 
 const ZOOM_MIN = 60;
@@ -181,12 +181,12 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
           {participants.map((lane) => {
             const x = colX(lane);
             return (
-              <g key={lane}>
-                <rect x={x - 68} y="8" width="136" height="34" rx="5" className="srd-actor-box" />
-                <text x={x} y="31" textAnchor="middle" className="srd-actor-label">
+              <g key={lane} className={laneClass(lane)}>
+                <rect x={x - 78} y="4" width="156" height="48" rx="8" className="srd-actor-box" />
+                <text x={x} y="34" textAnchor="middle" className="srd-actor-label">
                   {lane}
                 </text>
-                <line x1={x} y1="42" x2={x} y2={height - BOTTOM_PAD + 10} className="srd-lifeline" />
+                <line x1={x} y1="52" x2={x} y2={height - BOTTOM_PAD + 10} className="srd-lifeline" />
               </g>
             );
           })}
