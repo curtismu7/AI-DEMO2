@@ -190,9 +190,15 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   }, []);
 
   // Quick Config "Sequence view" — swaps the reel for a live lifeline
-  // sequence diagram of the same trace data. Same session-only convention
-  // as showFilmstrip above.
-  const [showSequenceDiagram, setShowSequenceDiagram] = useState(false);
+  // sequence diagram of the same trace data. Persisted to localStorage
+  // so the user's view choice survives page refresh.
+  const [showSequenceDiagram, setShowSequenceDiagram] = useState(() => {
+    try {
+      return localStorage.getItem("dashboard-view-mode") === "sequence";
+    } catch {
+      return false;
+    }
+  });
   // The step a user clicked on in the diagram, rendered below it via
   // StepDetailPanel — the same narrative/RFC/request-response detail the
   // reel already shows for this exact step shape. Cleared on toggle-off so
@@ -208,14 +214,39 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     return () => window.removeEventListener("agent-sequence-diagram-toggle", handler);
   }, []);
 
+  // Persist view mode preference to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("dashboard-view-mode", showSequenceDiagram ? "sequence" : "reel");
+    } catch {
+      /* ignore */
+    }
+  }, [showSequenceDiagram]);
+
   // Quick Config "Slow mode" — narrows the agent column so the sequence
-  // diagram gets the width back while narrating a slow-paced reveal.
-  const [slowMode, setSlowMode] = useState(false);
+  // diagram gets the width back while narrating a slow-paced reveal. Persisted
+  // so presentation mode preference survives refresh.
+  const [slowMode, setSlowMode] = useState(() => {
+    try {
+      return localStorage.getItem("dashboard-slow-mode") === "true";
+    } catch {
+      return false;
+    }
+  });
   useEffect(() => {
     const handler = (e) => setSlowMode(!!e.detail?.on);
     window.addEventListener("agent-slow-mode-toggle", handler);
     return () => window.removeEventListener("agent-slow-mode-toggle", handler);
   }, []);
+
+  // Persist slow mode preference to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("dashboard-slow-mode", String(slowMode));
+    } catch {
+      /* ignore */
+    }
+  }, [slowMode]);
 
   // ff_show_agent_in_middle — when false (default) the banking column
   // is hidden in the middle-agent layout (banking info comes from the agent /
