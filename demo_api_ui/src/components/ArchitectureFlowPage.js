@@ -2616,9 +2616,12 @@ export default function ArchitectureFlowPage({ user }) {
         const t = setTimeout(
           () => {
             applyStep(i);
+            // Reaching the last step ends the run in place — the diagram
+            // stays showing the completed flow instead of snapping back to
+            // the empty start. "Reset"/"Stop" (resetDiagram) are the
+            // explicit, user-initiated ways back to the beginning.
             if (i === steps.length - 1) {
               const done = setTimeout(() => {
-                resetDiagram();
                 setIsSimulating(false);
               }, HIGHLIGHT_MS);
               simTimeouts.current.push(done);
@@ -2629,7 +2632,7 @@ export default function ArchitectureFlowPage({ user }) {
         simTimeouts.current.push(t);
       });
     },
-    [applyStep, resetDiagram, stepMs],
+    [applyStep, stepMs],
   );
 
   const clearHistory = useCallback(() => setHistory([]), []);
@@ -2675,14 +2678,14 @@ export default function ArchitectureFlowPage({ user }) {
   const nextStep = useCallback(() => {
     if (!isPaused) return;
     const next = pausedStep.current + 1;
+    // Already on the last step — stop in place, same as the auto-play path.
     if (next >= stepsRef.current.length) {
-      resetDiagram();
       setIsSimulating(false);
       return;
     }
     applyStep(next);
     pausedStep.current = next;
-  }, [isPaused, applyStep, resetDiagram]);
+  }, [isPaused, applyStep]);
 
   const stopSim = useCallback(() => {
     simTimeouts.current.forEach(clearTimeout);
