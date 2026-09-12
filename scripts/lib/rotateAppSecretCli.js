@@ -48,8 +48,19 @@ async function main(argv) {
   log(check.ok ? `verified (${check.code})` : `VERIFY FAILED (${check.code})`);
   if (!check.ok) process.exitCode = 1;
 
-  if (argv.includes('--restart')) log('restart requested — implemented in Task 7');
-  if (argv.includes('--k8s')) log('k8s patch requested — implemented in Task 7');
+  const { servicesForVaultKey, applyRestart, applyK8sPatch } =
+    require(path.join(REPO_ROOT, 'scripts/lib/rotationTargets'));
+
+  if (argv.includes('--restart')) {
+    const services = servicesForVaultKey(vaultKey);
+    log(`recreating: ${services.join(', ')}`);
+    applyRestart(services);
+    log('containers recreated');
+  }
+  if (argv.includes('--k8s')) {
+    applyK8sPatch(vaultKey, secret);
+    log('k8s secret patched');
+  }
 }
 
 module.exports = { main };
