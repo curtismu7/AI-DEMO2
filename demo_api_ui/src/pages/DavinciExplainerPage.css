@@ -1,0 +1,238 @@
+/* DaVinci Orchestration explainer (/davinci-orchestration).
+
+   This page used to carry its own palette, its own sun/moon toggle and its own
+   `data-theme` attribute, seeded from `prefers-color-scheme`. That meant the
+   app's theme toggle did nothing here: flipping the app to dark left this page
+   light, and the OS seeding is what THEMING.md forbids outright ("Dark is
+   :root[data-theme='dark'] only, never prefers-color-scheme"). It was also a
+   270-line inline <style> blob, which REGRESSION_PLAN §0 H3 rules out.
+
+   The 12 private variable names are kept and simply re-pointed at --th-*
+   tokens, so the ~210 rules below are untouched and the page now follows the
+   app theme for free. Those rules reference no colour literal at all — every
+   value goes through this block — which is why the remap is the whole job. */
+
+.davinci-explainer {
+  --bg: var(--th-bg-page);
+  --surface: var(--th-bg-card);
+  --surface-2: var(--th-bg-inset);
+  --border: var(--th-border);
+  --text: var(--th-text);
+  --text-muted: var(--th-text-muted);
+
+  /* --text-faint deliberately resolves to the SAME token as --text-muted, not
+     to --th-text-faint. The four things it colours here are real text —
+     the section h2s, the flow tags, the CTA note and the footnote — and
+     --th-text-faint is a hint grey: measured against these grounds it lands at
+     2.34-2.39:1 in light and 4.29:1 in dark, failing AA in both. That was
+     already true of the old private palette (#8891a8 / #6c7592 measured
+     2.84-2.94:1 live), so this fixes a standing failure rather than one the
+     remap introduced.
+
+     The ink ladder has no fourth step that passes — text > text-body >
+     text-muted > text-faint, and only faint fails — so the third tone cannot
+     come from colour. It comes from size, weight, uppercase and letterspacing,
+     which is what actually distinguishes these four from body copy anyway. */
+  --text-faint: var(--th-text-muted);
+
+  /* --accent / --accent-ink are a ground-and-ink pair, which is exactly what
+     --th-bg-emphasis / --th-text-on-emphasis are for: they flip together, so
+     the ink can never be left behind on a changed ground (§0 H1). */
+  --accent: var(--th-bg-emphasis);
+  --accent-ink: var(--th-text-on-emphasis);
+  --accent-soft: var(--th-status-info-bg);
+  --mono-tint: var(--th-code-bg);
+
+  /* No --th-* shadow token exists. Kept as a literal, but expressed in
+     color-mix against the page ink so it deepens in dark mode instead of
+     staying a light-mode shadow on a dark ground. */
+  --shadow:
+    0 1px 2px color-mix(in srgb, var(--th-text) 8%, transparent),
+    0 8px 24px color-mix(in srgb, var(--th-text) 10%, transparent);
+
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-primary);
+  font-size: var(--font-size-md);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100%;
+}
+
+/* .davinci-header-actions is gone with the private theme toggle it positioned —
+   it held nothing else. */
+
+.davinci-explainer > div:last-of-type {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 24px 96px;
+}
+
+.davinci-explainer .eyebrow {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 14px;
+}
+
+.davinci-explainer h1 {
+  font-size: 30px;
+  line-height: 1.18;
+  letter-spacing: -0.015em;
+  margin: 0 0 16px;
+  font-weight: 700;
+}
+
+.davinci-explainer .lede {
+  font-size: 16.5px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  max-width: 62ch;
+  margin: 0 0 40px;
+}
+.davinci-explainer .lede em { color: var(--text); font-style: normal; font-weight: 600; }
+
+.davinci-explainer h2 {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin: 0 0 18px;
+  padding-top: 4px;
+}
+
+.davinci-explainer section + section { margin-top: 44px; }
+
+.davinci-explainer .matrix {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.davinci-explainer .matrix-row {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  gap: 0;
+}
+.davinci-explainer .matrix-row + .matrix-row { border-top: 1px solid var(--border); }
+.davinci-explainer .matrix-row.is-featured { background: var(--accent-soft); }
+.davinci-explainer .matrix-cell { padding: 16px 18px; }
+.davinci-explainer .matrix-cell.platform {
+  font-weight: 600;
+  font-size: 13.5px;
+  display: flex;
+  align-items: center;
+  border-right: 1px solid var(--border);
+  color: var(--text);
+}
+.davinci-explainer .matrix-row.is-featured .matrix-cell.platform { color: var(--accent); }
+.davinci-explainer .matrix-cell.note {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+.davinci-explainer .matrix-row.is-featured .matrix-cell.note { color: var(--text); }
+
+.davinci-explainer .flow {
+  position: relative;
+  padding-left: 34px;
+}
+.davinci-explainer .flow::before {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 8px;
+  bottom: 8px;
+  width: 1.5px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--border) 0,
+    var(--border) 4px,
+    transparent 4px,
+    transparent 9px
+  );
+}
+.davinci-explainer .flow-step { position: relative; padding: 0 0 26px; }
+.davinci-explainer .flow-step:last-child { padding-bottom: 0; }
+.davinci-explainer .flow-step::before {
+  content: "";
+  position: absolute;
+  left: -34px;
+  top: 3px;
+  width: 9px;
+  height: 9px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border: 2px solid var(--accent);
+}
+.davinci-explainer .flow-step.is-branch::before { border-color: var(--text-faint); }
+.davinci-explainer .flow-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 3px;
+}
+.davinci-explainer .flow-detail { font-size: 13px; color: var(--text-muted); }
+.davinci-explainer .flow-tag {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  background: var(--mono-tint);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  margin-left: 8px;
+  vertical-align: 1px;
+}
+
+.davinci-explainer .closing {
+  font-size: 14.5px;
+  color: var(--text-muted);
+  margin-top: 22px;
+  padding: 16px 18px;
+  background: var(--surface-2);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+}
+
+.davinci-explainer .cta-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.davinci-explainer .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+  font-size: 13.5px;
+  padding: 11px 18px;
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+.davinci-explainer .btn-primary svg { flex-shrink: 0; }
+.davinci-explainer .cta-note { font-size: 12.5px; color: var(--text-faint); max-width: 34ch; margin: 0; }
+
+.davinci-explainer .footnote {
+  margin-top: 56px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+@media (max-width: 560px) {
+  .davinci-explainer .matrix-row { grid-template-columns: 1fr; }
+  .davinci-explainer .matrix-cell.platform { border-right: none; border-bottom: 1px solid var(--border); }
+}
