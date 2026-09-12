@@ -104,12 +104,18 @@ describe('a2aAgentCardService', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.error).toBeUndefined();
-    expect(res.body.result.message.parts[0].text).toContain(
-      specialistForVertical('abercrombie-fitch').specialistName,
-    );
+    // The reply is DATA now, not an acknowledgment: one text part carrying
+    // { result, toolError }. This caller names no skill in the message
+    // metadata, so the specialist refuses before minting anything — the
+    // specialist's identity is asserted via the metadata below.
+    expect(JSON.parse(res.body.result.message.parts[0].text)).toEqual({
+      result: null,
+      toolError: 'not_authorized_for_skill',
+    });
     expect(res.body.result.message.metadata).toMatchObject({
       vertical: 'abercrombie-fitch',
       specialistAppKey: specialistForVertical('abercrombie-fitch').appKey,
+      specialist: specialistForVertical('abercrombie-fitch').specialistName,
       demoLayer: 'a2a-protocol-wire',
     });
   });
