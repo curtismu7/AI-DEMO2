@@ -194,14 +194,6 @@ const SEQUENCE_NOTES = [
       { text: "Both variants converge on the same JIT policy check and the same cluster-local hop to the MCP server — what differs is how the client's identity and traffic reach the gateway: a locally-installed agent tunneling out, or a direct OIDC sign-in against the ingress." },
     ],
   },
-  {
-    title: "Lessons learned — backend Auth Mode (measured 2026-09-10)",
-    items: [
-      { text: "Custom request headers reach the backend unchanged (confirmed with a custom x-pingone-admin-token header) — so a header carrying the caller's exchanged token, such as X-Subject-Token, will also survive the gw → MCP server hop, letting delegated user identity through instead of collapsing to a machine subject." },
-      { text: "Auth Mode None forwards no Authorization header to the backend at all — not the caller's bearer, not a substitute. A backend that needs a bearer on this hop requires Auth Mode Static Token instead." },
-      { text: "x-forwarded-for preserves the real caller address ahead of the gateway; x-forwarded-host arrives present but empty — don't key policy or logging on it." },
-    ],
-  },
 ];
 
 const LEGEND = [
@@ -237,6 +229,12 @@ export default function PrivilegeGatewayTopologyPage() {
   return (
     <>
     <div className="pmd-page pgt-page">
+      <div className="pgt-archived">
+        <strong>Archived.</strong> See{" "}
+        <a href="/privilege-first-gateway">Privilege first, Agent Gateway for the rest</a>{" "}
+        for the current Privilege Agentic App gateway content, including the settled backend-hop
+        Auth Mode findings.
+      </div>
       <div className="pmd-hero">
         <span className="pmd-eyebrow">PingOne Privilege · MCP Gateway</span>
         <h1>Privilege Gateway Topologies</h1>

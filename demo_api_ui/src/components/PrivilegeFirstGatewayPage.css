@@ -14,19 +14,6 @@
   background: var(--th-bg-page);
 }
 
-.pfg-archived {
-  color: var(--th-status-warning-text);
-  background: var(--th-status-warning-bg);
-  border: 1px solid var(--th-status-warning);
-  border-radius: var(--radius-md);
-  padding: 10px 14px;
-  font-size: var(--font-size-sm);
-}
-.pfg-archived a {
-  color: inherit;
-  text-decoration: underline;
-}
-
 .pfg-hero {
   display: grid;
   gap: 8px;

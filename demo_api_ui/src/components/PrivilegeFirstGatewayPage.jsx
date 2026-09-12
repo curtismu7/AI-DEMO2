@@ -38,12 +38,6 @@ const FLAGS = [
 export default function PrivilegeFirstGatewayPage() {
   return (
     <main className="pfg-page">
-      <div className="pfg-archived">
-        <strong>Archived.</strong> The identity fork below was settled by live measurement
-        (Outcome A) — see the lessons-learned notes on{" "}
-        <a href="/privilege-gateway-topologies">Privilege Gateway Topologies</a>, the page
-        this content has moved to.
-      </div>
       <header className="pfg-hero">
         <div className="pfg-eyebrow">AI-DEMO2 · plan 2026-09-08</div>
         <h1>Privilege first, Agent Gateway for the rest</h1>
@@ -230,10 +224,14 @@ export default function PrivilegeFirstGatewayPage() {
           </svg>
         </div>
         <figcaption>
-          <strong>The fork the plan stops at.</strong> Privilege rejects tokens from the demo environment, and the
-          Agent Gateway needs the user's exchanged token for banking scopes. Whether the user's identity can cross
-          this hop is measured in Phase 0 with a throwaway Agentic App and the Node gateway's logs, then decided by
-          the operator.
+          <strong>The fork the plan stops at — settled 2026-09-10 as Outcome A.</strong> A live probe (throwaway
+          Agentic App on Auth Mode None, pointed at a disposable header-logging backend) confirmed it: custom
+          request headers reach the backend unchanged, so a header carrying the caller's exchanged token — such
+          as X-Subject-Token — survives this hop too, letting delegated user identity reach the Agent Gateway
+          instead of collapsing to a machine subject. Auth Mode None itself forwards no Authorization header at
+          all; a backend that needs a bearer on this hop requires Auth Mode Static Token instead. (x-forwarded-for
+          preserves the real caller address; x-forwarded-host arrives empty — don't key logic on it.) What's left
+          is wiring up the bridge token in the console: Phase 2, Tasks 5–9.
         </figcaption>
       </figure>
 
