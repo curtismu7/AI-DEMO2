@@ -207,6 +207,15 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     return () => window.removeEventListener("agent-sequence-diagram-toggle", handler);
   }, []);
 
+  // Quick Config "Slow mode" — narrows the agent column so the sequence
+  // diagram gets the width back while narrating a slow-paced reveal.
+  const [slowMode, setSlowMode] = useState(false);
+  useEffect(() => {
+    const handler = (e) => setSlowMode(!!e.detail?.on);
+    window.addEventListener("agent-slow-mode-toggle", handler);
+    return () => window.removeEventListener("agent-slow-mode-toggle", handler);
+  }, []);
+
   // ff_show_agent_in_middle — when false (default) the banking column
   // is hidden in the middle-agent layout (banking info comes from the agent /
   // pop-out). Floating mode is unaffected. Mirrors the cookie-
@@ -3603,6 +3612,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}
               selectedStepId={selectedSeqStep?.id}
+              slowMode={slowMode}
             />
           )}
           {showSequenceDiagram && selectedSeqStep && (
@@ -3650,7 +3660,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           // and banking-column states keep their existing rules.
           className={`dashboard-content ud-body ud-body--2026 ud-focus-mode ${splitGridClass(
             showBankingInMiddle,
-          )}${middleAgentOpen ? "" : " ud-middle-collapsed"}${showSequenceDiagram ? " ud-sequence-view-active" : ""}`}
+          )}${middleAgentOpen ? "" : " ud-middle-collapsed"}${showSequenceDiagram ? " ud-sequence-view-active" : ""}${showSequenceDiagram && slowMode ? " ud-slow-mode-active" : ""}`}
           style={{ '--ud-agent-col-width': `${agentColWidth}px` }}
         >
           {/* Full width above both columns, where the mock puts it. Inside the
@@ -3748,6 +3758,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}
               selectedStepId={selectedSeqStep?.id}
+              slowMode={slowMode}
             />
           )}
           {showSequenceDiagram && selectedSeqStep && (
@@ -3821,6 +3832,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}
               selectedStepId={selectedSeqStep?.id}
+              slowMode={slowMode}
             />
           )}
           {showSequenceDiagram && selectedSeqStep && (

@@ -15,7 +15,14 @@
 // render StepDetailPanel — the same narrative/RFC/request-response/JSON-Form
 // detail the reel already shows for this exact step shape — in its own
 // full-width row below the diagram.
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+//
+// Color identity: 11 lanes is past a safe categorical hue count, so lanes
+// are grouped into 5 validated hue families (see SequenceReelDiagram.css) —
+// each lane keeps its own shade, but a family reads as one color group.
+// Status (active/done/error) is a SEPARATE encoding layered on top (motion,
+// dash, weight) — it never overrides the lane's hue, or "each step is a
+// different color" would collapse back into "each status is a color".
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { deriveLifelineSteps, deriveLifelineParticipants } from "../services/tokenChainTrace/deriveLifelineSteps";
 import "./SequenceReelDiagram.css";
@@ -31,7 +38,15 @@ const ZOOM_MAX = 200;
 const ZOOM_STEP = 10;
 const ZOOM_DEFAULT = 130;
 
-export default function SequenceReelDiagram({ onSelectStep, selectedStepId }) {
+// Narration pace for slow mode — deliberately slow, this is for talking over
+// a live crowd, not for watching the data arrive.
+const SLOW_REVEAL_MS = 2600;
+
+function laneClass(lane) {
+  return `srd-lane-${String(lane || "").toLowerCase()}`;
+}
+
+export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slowMode }) {
   const [snap, setSnap] = useState(() => tokenChainTraceStore.getState());
   useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
 
@@ -42,7 +57,26 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId }) {
   );
   const resetZoom = useCallback(() => setZoomLevel(ZOOM_DEFAULT), []);
 
-  const lifelineSteps = useMemo(() => deriveLifelineSteps(snap.steps), [snap.steps]);
+  const allLifelineSteps = useMemo(() => deriveLifelineSteps(snap.steps), [snap.steps]);
+
+  // Slow mode: reveal one step at a time on a timer instead of the full set
+  // arriving instantly. Real steps keep arriving at full speed underneath —
+  // this only paces what's drawn.
+  const [revealedCount, setRevealedCount] = useState(allLifelineSteps.length);
+  useEffect(() => {
+    if (!slowMode) {
+      setRevealedCount(allLifelineSteps.length);
+      return;
+    }
+    setRevealedCount((prev) => (prev > allLifelineSteps.length ? 0 : prev));
+  }, [slowMode, allLifelineSteps.length]);
+  useEffect(() => {
+    if (!slowMode || revealedCount >= allLifelineSteps.length) return;
+    const timer = setTimeout(() => setRevealedCount((prev) => prev + 1), SLOW_REVEAL_MS);
+    return () => clearTimeout(timer);
+  }, [slowMode, revealedCount, allLifelineSteps.length]);
+
+  const lifelineSteps = slowMode ? allLifelineSteps.slice(0, revealedCount) : allLifelineSteps;
   const participants = useMemo(() => deriveLifelineParticipants(lifelineSteps), [lifelineSteps]);
 
   const stepsById = useMemo(() => {
@@ -59,6 +93,19 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId }) {
     },
     [onSelectStep, stepsById],
   );
+
+  // Keep the currently-executing step in view as the diagram grows — the
+  // whole point of a live narration surface is that the audience never has
+  // to hunt for where things are. Falls back to the newest step when
+  // nothing is explicitly "active" (e.g. the run just finished).
+  const activeStepRef = useRef(null);
+  const activeStepId = useMemo(() => {
+    const active = [...lifelineSteps].reverse().find((s) => s.status === "active");
+    return active ? active.id : lifelineSteps[lifelineSteps.length - 1]?.id;
+  }, [lifelineSteps]);
+  useEffect(() => {
+    activeStepRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+  }, [activeStepId]);
 
   if (!lifelineSteps.length) {
     return (
@@ -84,6 +131,11 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId }) {
         <button type="button" className="srd-zoom-btn" onClick={() => handleZoom(ZOOM_STEP)} title="Zoom in">
           +
         </button>
+        {slowMode && (
+          <span className="srd-slow-badge" title="Steps are revealing slowly for narration">
+            Slow mode — {Math.min(revealedCount, allLifelineSteps.length)}/{allLifelineSteps.length}
+          </span>
+        )}
       </div>
       <div className="srd-scroll">
         <svg
@@ -109,12 +161,18 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId }) {
             const y = TOP_PAD + idx * ROW_HEIGHT;
             const statusClass = `srd-status-${step.status || "pending"}`;
             const isSelected = step.id === selectedStepId;
-            const groupClass = `${statusClass}${isSelected ? " srd-selected" : ""}`;
+            const isActive = step.status === "active";
+            const stepLaneClass = laneClass(step.type === "note" ? step.lane : step.to);
+            const groupClass = `${statusClass} ${stepLaneClass}${isSelected ? " srd-selected" : ""}`;
+            const setStepRef = (el) => {
+              if (step.id === activeStepId) activeStepRef.current = el;
+            };
             if (step.type === "note") {
               const x = colX(step.lane);
               return (
                 <g
                   key={step.id}
+                  ref={setStepRef}
                   className={groupClass}
                   onClick={() => selectStep(step.id)}
                   role="button"
@@ -125,6 +183,7 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId }) {
                   <text x={x} y={y + 4} textAnchor="middle" className="srd-note-label">
                     {step.label}
                   </text>
+                  {isActive && <circle cx={x} cy={y} r="6" className="srd-active-pulse" />}
                 </g>
               );
             }
@@ -133,6 +192,7 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId }) {
             return (
               <g
                 key={step.id}
+                ref={setStepRef}
                 className={groupClass}
                 onClick={() => selectStep(step.id)}
                 role="button"
@@ -145,26 +205,34 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId }) {
                   x2={toX}
                   y2={y}
                   className="srd-arrow"
-                  markerEnd="url(#srd-arrowhead)"
+                  markerEnd={`url(#srd-arrowhead-${String(step.to || "").toLowerCase()})`}
                 />
                 <text x={(fromX + toX) / 2} y={y - 5} textAnchor="middle" className="srd-arrow-label">
                   {step.label}
                 </text>
+                {isActive && (
+                  <circle r="4" className="srd-active-dot">
+                    <animateMotion path={`M ${fromX},${y} L ${toX},${y}`} dur="1.4s" repeatCount="indefinite" />
+                  </circle>
+                )}
               </g>
             );
           })}
           <defs>
-            <marker
-              id="srd-arrowhead"
-              markerWidth="9"
-              markerHeight="9"
-              refX="8"
-              refY="3.5"
-              orient="auto"
-              markerUnits="strokeWidth"
-            >
-              <path d="M0,0 L0,7 L8,3.5 z" className="srd-arrowhead-fill" />
-            </marker>
+            {["browser", "chat", "agent", "llm", "mcp", "gateway", "pingone", "authz", "bff", "api", "data"].map((lane) => (
+              <marker
+                key={lane}
+                id={`srd-arrowhead-${lane}`}
+                markerWidth="9"
+                markerHeight="9"
+                refX="8"
+                refY="3.5"
+                orient="auto"
+                markerUnits="strokeWidth"
+              >
+                <path d="M0,0 L0,7 L8,3.5 z" className={`srd-arrowhead-fill srd-lane-${lane}`} />
+              </marker>
+            ))}
           </defs>
         </svg>
       </div>
