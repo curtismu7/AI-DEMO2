@@ -206,8 +206,6 @@ export const NAV_STRUCTURE_CATALOG = [
       "Canvas Diagram (Node)",
       "Agent Onboarding Flow (Node)",
       "Agent Onboarding Flow Subway (Node)",
-      "Agent Onboarding Flow (MM)",
-      "Agent Gateway OAuth Flow (MM)",
       "Invest Dual-Auth (MM)",
       "External Door MCP Flow (MM)",
       "AI Agent Gateway (MM)",
