@@ -103,6 +103,7 @@ package.json
 ping-gateway
 ping-mcpgw
 ping_agent_onboarding_flow_diagram.html
+ping_agent_onboarding_flow_diagram_compact.html
 ping_agent_onboarding_flow_diagram_subway.html
 pingone
 pingone-privgateway-helm-main
