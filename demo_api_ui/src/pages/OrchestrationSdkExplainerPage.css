@@ -50,7 +50,27 @@
   margin: 18px 0 0;
 }
 
-.osx-cta {
+/* Every link state is named, and the selectors carry the element as well as the
+   class, because a bare `.osx-cta` LOSES `color` and `text-decoration`.
+
+   The competitor is PingOne's own end-user-nano.css, loaded cross-origin from
+   assets.pingone.com in public/index.html, which styles `a` with the brand
+   primary #277ba5 plus an underline. Against a single class it won both
+   properties while `background` and `border` — which it does not set — applied,
+   producing the emphasis ground with link-blue ink at 2.71:1. Measured on the
+   live page; exactly the ground-without-ink failure REGRESSION_PLAN §0 H1
+   describes, and invisible to themingRatchet because both sides used tokens.
+
+   `a.osx-cta:link` is (0,2,1) against their (0,1,1) at most, so this wins
+   regardless of load order. Do not collapse it back to a lone class.
+
+   Note for anyone debugging a similar override: enumerating document.styleSheets
+   will NOT show the culprit — reading cssRules on that cross-origin sheet throws
+   SecurityError, so it silently drops out of the scan. */
+a.osx-cta,
+a.osx-cta:link,
+a.osx-cta:visited {
+  display: inline-block;
   font-weight: 600;
   padding: 9px 16px;
   text-decoration: none;
@@ -60,7 +80,8 @@
   border-radius: var(--radius-md);
 }
 
-.osx-cta:hover {
+a.osx-cta:hover,
+a.osx-cta:focus-visible {
   color: var(--th-text-on-emphasis);
   background: var(--th-bg-emphasis);
   text-decoration: underline;
@@ -135,14 +156,23 @@
   color: inherit;
 }
 
-.osx-mode-link,
+/* Same cause as .osx-cta above: end-user-nano.css's `a:link` is (0,1,1) and
+   beats a lone class at (0,1,0), so these rendered in the brand blue rather
+   than the muted tone specified here. Element+class+state takes it back. */
+a.osx-mode-link,
+a.osx-mode-link:link,
+a.osx-mode-link:visited,
 .osx-mode-note {
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
   color: var(--th-text-muted);
 }
 
-.osx-mode.is-featured .osx-mode-link,
+/* (0,3,1) — must stay above the a.osx-mode-link:link rule (0,2,1) so the
+   featured card's link keeps inheriting that card's ink. */
+.osx-mode.is-featured a.osx-mode-link,
+.osx-mode.is-featured a.osx-mode-link:link,
+.osx-mode.is-featured a.osx-mode-link:visited,
 .osx-mode.is-featured .osx-mode-note {
   color: inherit;
 }
