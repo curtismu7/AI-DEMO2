@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
-import { computeStepsThroughIndex } from '../ArchitectureFlowPage';
+import { computeStepsThroughIndex, standardClaimsFor } from '../ArchitectureFlowPage';
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const SOURCE_PATH = path.join(DIR, '..', 'ArchitectureFlowPage.js');
@@ -39,6 +39,48 @@ describe('computeStepsThroughIndex — progressive reveal accumulator', () => {
     // "agent" got a badge at step 1 and reappears at step 2 with no nodeBadges entry —
     // the badge must survive, not be wiped by step 2's nodeIds pass.
     expect(nodeMeta.agent.badge).toEqual({ aud: 'x' });
+  });
+});
+
+describe('standardClaimsFor — synthesized standard JWT claims', () => {
+  it('returns null for non-token payloads (decision/response objects)', () => {
+    expect(standardClaimsFor({ _type: 'mcp' })).toBeNull();
+    expect(standardClaimsFor({ _type: 'permit' })).toBeNull();
+    expect(standardClaimsFor({ _type: 'hitl' })).toBeNull();
+    expect(standardClaimsFor({ _type: 'error' })).toBeNull();
+    expect(standardClaimsFor({})).toBeNull();
+  });
+
+  it('returns iat/exp/jti for real token types, with exp after iat', () => {
+    for (const type of ['oauth', 'idtoken', 'exchange']) {
+      const claims = standardClaimsFor({ _type: type, aud: 'x' });
+      expect(claims).not.toBeNull();
+      expect(new Date(claims.exp).getTime()).toBeGreaterThan(new Date(claims.iat).getTime());
+      expect(claims.jti).toMatch(/^[0-9a-f]+$/);
+    }
+  });
+
+  it('jti is deterministic for identical token content, and differs for different content', () => {
+    const a = standardClaimsFor({ _type: 'oauth', sub: 'alice' });
+    const b = standardClaimsFor({ _type: 'oauth', sub: 'alice' });
+    const c = standardClaimsFor({ _type: 'oauth', sub: 'bob' });
+    expect(a.jti).toBe(b.jti);
+    expect(a.jti).not.toBe(c.jti);
+  });
+
+  it('treats an untyped-but-token-shaped payload (has aud, no decision fields) as a token', () => {
+    // Several hand-authored steps omit _type entirely on real bearer tokens
+    // (e.g. "Agent Token (tools/list)": { type, aud, scope, note }) — these
+    // must still get standard claims, not just objects with an explicit _type.
+    expect(standardClaimsFor({ type: 'Agent Token', aud: 'agent1', scope: 'mcp:invoke' })).not.toBeNull();
+  });
+
+  it('does not treat an untyped non-token signal/request payload as a token', () => {
+    // No `aud` at all — an internal UI signal, not a bearer token.
+    expect(standardClaimsFor({ type: 'User Context Required', resource: 'agent1', required_scope: 'balance' })).toBeNull();
+    // Has `aud`-like shape but is a PingOne Authorize decision/request — never a token itself.
+    expect(standardClaimsFor({ type: 'Authorization Decision', decision: '✅ PERMIT', DecisionContext: 'McpToolCall' })).toBeNull();
+    expect(standardClaimsFor({ type: 'PingOne Authorization Server Request', DecisionContext: 'McpToolCall', TokenAudience: 'mcp-gw' })).toBeNull();
   });
 });
 
