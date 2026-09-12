@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import StepDetailPanel from "../StepDetailPanel";
 
 const STEP = {
@@ -44,6 +45,24 @@ describe("StepDetailPanel", () => {
     expect(document.querySelector(".sdp details")).toBeNull();
     expect(screen.getByText(/grant_type=\.\.\.token-exchange/)).toBeVisible();
     expect(screen.getByText(/"scope": "write"/)).toBeVisible();
+  });
+
+  // JSON is still what opens — the rail exists to show the raw evidence — and
+  // Form is the reading aid one click away. A payload that is display text, not
+  // JSON, gets no toggle at all rather than an empty Form view.
+  it("offers Form only on payloads with a JSON body, keeping the transport line", async () => {
+    render(<StepDetailPanel step={STEP} />);
+    // Request is "POST /as/token\ngrant_type=..." — no JSON body, so no toggle.
+    // Response is "200 OK\n{ ... }" — one toggle.
+    expect(screen.getAllByRole("button", { name: "Form" })).toHaveLength(1);
+
+    await userEvent.click(screen.getByRole("button", { name: "Form" }));
+    const rows = Array.from(document.querySelectorAll(".fjt-form__row")).map(
+      (r) => r.textContent,
+    );
+    expect(rows).toEqual(["scopewrite"]);
+    // The transport line above the body is not a JSON leaf; it must survive.
+    expect(screen.getByText("200 OK")).toBeVisible();
   });
 
   it("renders what changed as before and after, marking only the moved claims", () => {

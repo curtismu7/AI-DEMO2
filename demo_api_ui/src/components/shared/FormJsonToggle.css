@@ -1,0 +1,94 @@
+/* demo_api_ui/src/components/shared/FormJsonToggle.css
+ *
+ * Form / JSON switch for a payload pane. Colours come from --th-* only, so dark
+ * mode is inherited from :root[data-theme="dark"] — no @media
+ * (prefers-color-scheme) block here, per REGRESSION_PLAN §0 H1.
+ */
+
+.fjt {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fjt-switch {
+  display: inline-flex;
+  align-self: flex-start;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.fjt-switch button {
+  border: 0;
+  padding: 2px 10px;
+  font-size: var(--font-size-2xs);
+  font-weight: 600;
+  line-height: 1.6;
+  cursor: pointer;
+  background: var(--th-bg-card);
+  color: var(--th-text-muted);
+}
+
+.fjt-switch button + button {
+  border-left: 1px solid var(--th-border);
+}
+
+.fjt-switch button:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.fjt-switch button.is-active {
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
+}
+
+.fjt-form {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fjt-form__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 8px;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--th-border);
+}
+
+.fjt-form__row:last-child {
+  border-bottom: 0;
+}
+
+.fjt-form dt,
+.fjt-form dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  overflow-wrap: anywhere;
+}
+
+.fjt-form dt {
+  color: var(--th-text-muted);
+}
+
+.fjt-form dd {
+  color: var(--th-text);
+}
+
+.fjt-json {
+  margin: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  /* monospace: raw JSON payload */
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  white-space: pre-wrap;
+  overflow-x: auto;
+}

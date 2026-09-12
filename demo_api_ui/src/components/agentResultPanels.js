@@ -4,6 +4,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { formatCurrency, formatDateTime } from "../utils/formatters";
 import { InlineMd, MarkdownContent } from "./shared/MarkdownText";
+import FormJsonToggle from "./shared/FormJsonToggle";
 import VerticalResult from "./VerticalResult";
 
 // ─── Results Panel (side panel showing rich formatted data next to the agent) ──
@@ -684,6 +685,50 @@ export function ResultsPanel({ panel, onClose, style }) {
         </button>
       </div>
       <div className="bar-rp-body">
+        {/* ResultsPanelBody IS the Form view; the toggle only adds the raw
+            payload behind it, so a demo can show the data and then the wire
+            shape it came from. A "text" panel has no payload — no toggle. */}
+        {panel.type === "text" ? (
+          <ResultsPanelBody panel={panel} />
+        ) : (
+          <FormJsonToggle
+            value={
+              panel.type === "vertical"
+                ? { descriptor: panel.descriptor, data: panel.data }
+                : panel.data
+            }
+            ariaLabel="Results view"
+          >
+            <ResultsPanelBody panel={panel} />
+          </FormJsonToggle>
+        )}
+      </div>
+      {/* Resize handles */}
+      <div
+        className="bar-rp-resize-e"
+        onMouseDown={(e) => onResizeMouseDown(e, "e")}
+        aria-hidden
+      />
+      <div
+        className="bar-rp-resize-s"
+        onMouseDown={(e) => onResizeMouseDown(e, "s")}
+        aria-hidden
+      />
+      <div
+        className="bar-rp-resize-se"
+        onMouseDown={(e) => onResizeMouseDown(e, "se")}
+        aria-label="Resize"
+        title="Drag to resize"
+      />
+    </aside>
+  );
+}
+
+/** The panel's rendered content, by type — extracted so the Form/JSON toggle can
+ *  take it as its Form view without the resize chrome moving inside the switch. */
+function ResultsPanelBody({ panel }) {
+  return (
+    <>
         {panel.type === "accounts" && <AccountsTable accounts={panel.data} terminology={panel.terminology} />}
         {panel.type === "transactions" && (
           <TransactionsTable transactions={panel.data} terminology={panel.terminology} />
@@ -718,24 +763,6 @@ export function ResultsPanel({ panel, onClose, style }) {
         {panel.type === "vertical" && (
           <VerticalResult descriptor={panel.descriptor} data={panel.data} />
         )}
-      </div>
-      {/* Resize handles */}
-      <div
-        className="bar-rp-resize-e"
-        onMouseDown={(e) => onResizeMouseDown(e, "e")}
-        aria-hidden
-      />
-      <div
-        className="bar-rp-resize-s"
-        onMouseDown={(e) => onResizeMouseDown(e, "s")}
-        aria-hidden
-      />
-      <div
-        className="bar-rp-resize-se"
-        onMouseDown={(e) => onResizeMouseDown(e, "se")}
-        aria-label="Resize"
-        title="Drag to resize"
-      />
-    </aside>
+    </>
   );
 }
