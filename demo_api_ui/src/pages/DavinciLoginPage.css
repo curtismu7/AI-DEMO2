@@ -4,7 +4,7 @@
    ground also sets its ink (§1.5), and radii come from the scale (§9.3). */
 
 .dvl-page {
-  max-width: 720px;
+  max-width: 100%;
   margin: 48px auto;
   padding: 0 20px;
   color: var(--th-text);
