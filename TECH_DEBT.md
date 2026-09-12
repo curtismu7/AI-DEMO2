@@ -87,7 +87,7 @@ trusted local stack.
 **Real fix.** Build the callback host from configuration (`PRIVILEGE_MCP_CALLBACK_HOST`
 or the public app origin) instead of the request header, or bound the cache.
 
-### [x] 2026-09-11 — An unauthenticated /facade-link can replace an app's shared gateway identity
+### [ ] 2026-09-11 — An unauthenticated /facade-link can replace an app's shared gateway identity — NARROWED, not closed
 
 **What's wrong.** `/api/privilege-mcp/facade-link` is unauthenticated and stores the resulting gateway token in
 the single per-app session every façade caller of that app uses. Someone who starts a broker authorization can send
@@ -104,17 +104,40 @@ browser-bound nonce at `/oauth/authorize`, and let the BFF hold the gateway toke
 confirms that nonce, committing it to the shared session only then — or key gateway sessions per caller instead
 of per app.
 
-**RESOLVED** (branch `worktree-privilege-link-bind-and-config-check`). Built exactly the bind-to-browser fix
-above. The broker sets a random `pgw_link` cookie (`HttpOnly`, `SameSite=Lax`, `Path=/oauth`, 10-minute
-`Max-Age`) at `/oauth/authorize` only when the authorize will chain a Privilege door's link, and stores the
-same nonce on the pending authorization and the resume record it becomes. `/facade-link/callback` now parks
-the gateway token under the resume id (`privilegeGatewaySession.rememberPending`) instead of committing it
-straight to the shared session. `/oauth/resume` compares the cookie the browser sends back against the
-resume's nonce and, only on a match, calls the BFF's new `/internal/privilege-link/commit` (secret-guarded,
-same trust model as `/internal/transaction-hop`) to promote the parked token into the app's session
-(`commitPending`); any mismatch, missing cookie, or failed commit denies with `access_denied` and parks
-nothing. A link mailed to a signed-in victim now completes a sign-in that is parked and never committed,
-because the victim's browser never carries the attacker's nonce.
+**NARROWED, not closed** (branch `worktree-privilege-link-bind-and-config-check`, on top of commit `30e9847c8`
+on this same branch, which shipped the bind-to-browser fix above). A security review found that the
+browser-binding proves the wrong thing: the `pgw_link` cookie only proves that whoever opens `/oauth/resume`
+also did `/oauth/authorize` — trivially true for an attacker replaying their own cookie — never that the
+browser which completed the BFF's gateway sign-in in between (the one whose identity actually lands in the
+parked token) was that same browser. This pass hardened every CHEAP path to the finding without closing the
+finding itself, and fixed a real defect in the browser-binding's own trust chain along the way:
+
+- The broker now signs the link it issues to the BFF (HMAC over the app + resume id, computed with the shared
+  internal secret) and the BFF's `/facade-link` refuses an unsigned link or one signed for a different app — the
+  caller can no longer choose the parked slot or swap the target app.
+- A park is first-write-wins (`rememberPending` refuses a second park under an id the broker mints once) and is
+  discarded — never left parked until its TTL — whenever the broker denies a resume (bad cookie, or an
+  upstream sign-in failure).
+- The nonce check is unconditional: a parked record with no nonce now denies instead of silently committing
+  (previously `parked.linkNonce && …` short-circuited past the check for any record with no nonce recorded).
+- The broker's advertisement (`privilege_link_supported`) requires both `BFF_PRIVILEGE_LINK_URL` and
+  `BFF_PRIVILEGE_LINK_COMMIT_URL`, so a half-wired pair degrades instead of advertising a chain that 403s
+  every commit.
+
+**What this still does NOT stop.** An attacker who starts their own broker authorize, stops before the BFF's
+gateway sign-in, and mails that (now correctly signed) `/facade-link` URL to a signed-in victim still commits
+the victim's identity if the attacker can also get hold of the terminal `/oauth/resume?rs=…&link=ok` URL the
+BFF hands back — e.g. by suppressing the victim's browser from ever navigating it and capturing it some other
+way — because the attacker can replay THAT URL from their own browser, which still carries the `pgw_link`
+cookie from the authorize step they genuinely did. The nonce cookie proves "the browser at `/oauth/resume` is
+the browser that ran `/oauth/authorize`," which holds for the attacker regardless of who did the sign-in
+parked in between; it does not, and structurally cannot on its own, prove that the browser which produced the
+parked identity is the browser redeeming it.
+
+**Real fix.** Key the gateway session by app **and** the caller's subject, so a captured/parked token can
+only ever serve the identity it was minted for instead of becoming an app-wide shared credential — the
+`ponytail:` note already on `privilegeGatewaySession.js` ("one operator identity per app; key it per user if a
+second identity ever needs this door") anticipates exactly this.
 
 ### [ ] 2026-09-11 — LLM token custody: what the fix deliberately left open
 

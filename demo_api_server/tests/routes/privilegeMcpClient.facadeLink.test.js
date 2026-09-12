@@ -8,6 +8,7 @@
 
 const express = require('express');
 const request = require('supertest');
+const crypto = require('crypto');
 
 const GATEWAY = 'https://mcpgw.test.example.com';
 const APP_URL = `${GATEWAY}/opensearch/mcp`;
@@ -15,6 +16,17 @@ const AUTH_URI = `${GATEWAY}/opensearch/authorize`;
 const TOKEN_URI = `${GATEWAY}/opensearch/token`;
 const RESUME = 'http://localhost:3005/oauth/resume?rs=parked-1';
 const SID = 'facade-link-test';
+
+// The broker signs the link it issues (app + resume id); the route refuses an
+// unsigned one. Compute the same HMAC here with the test's own secret, over
+// the RAW app value — never the resolved default — so the bare-door case
+// hashes the same empty string on both sides.
+const INTERNAL_SECRET = 'test-facade-link-internal-secret';
+function sigFor(app, resume) {
+  let rs = '';
+  try { rs = new URL(resume).searchParams.get('rs') || ''; } catch { /* resume invalid; sig is irrelevant */ }
+  return crypto.createHmac('sha256', INTERNAL_SECRET).update(`${app}|${rs}`).digest('base64url');
+}
 
 const mockRemember = jest.fn();
 const mockRememberPending = jest.fn();
@@ -76,18 +88,28 @@ function buildApp(sessionStore) {
   return app;
 }
 
-function startLink(app, query) {
-  return request(app).get('/api/privilege-mcp/facade-link').query(query);
+// Auto-signs unless the caller already supplied a `sig` (so a test asserting
+// an invalid/absent signature can override it) or opts out entirely with
+// `{ sign: false }` (the "no sig at all" case).
+function startLink(app, query, { sign = true } = {}) {
+  const q = { ...query };
+  if (sign && q.sig === undefined) {
+    const rawApp = typeof q.app === 'string' ? q.app : '';
+    q.sig = sigFor(rawApp, q.resume || RESUME);
+  }
+  return request(app).get('/api/privilege-mcp/facade-link').query(q);
 }
 
 const origFetch = global.fetch;
 const origGatewayUrl = process.env.PRIVILEGE_MCPGW_URL;
 const origGatewayBase = process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE;
 const origCallbackHost = process.env.PRIVILEGE_MCP_CALLBACK_HOST;
+const origInternalSecret = process.env.BFF_INTERNAL_SECRET;
 
 beforeEach(() => {
   process.env.PRIVILEGE_MCPGW_URL = `${GATEWAY}/opensearch22/mcp`;
   process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE = GATEWAY;
+  process.env.BFF_INTERNAL_SECRET = INTERNAL_SECRET;
   global.fetch = gatewayFetch();
 });
 afterEach(() => {
@@ -98,6 +120,8 @@ afterEach(() => {
   else process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE = origGatewayBase;
   if (origCallbackHost === undefined) delete process.env.PRIVILEGE_MCP_CALLBACK_HOST;
   else process.env.PRIVILEGE_MCP_CALLBACK_HOST = origCallbackHost;
+  if (origInternalSecret === undefined) delete process.env.BFF_INTERNAL_SECRET;
+  else process.env.BFF_INTERNAL_SECRET = origInternalSecret;
   jest.restoreAllMocks();
 });
 
@@ -138,6 +162,22 @@ describe('GET /api/privilege-mcp/facade-link', () => {
       .get(`/api/privilege-mcp/facade-link?app=a&app=b&resume=${encodeURIComponent(RESUME)}`);
     expect(res.status).toBe(400);
     expect(res.headers.location).toBeUndefined();
+  });
+
+  test('a link with no sig is a 400 and starts no OAuth flow', async () => {
+    const res = await startLink(buildApp({}), { app: 'opensearch', resume: RESUME }, { sign: false });
+    expect(res.status).toBe(400);
+    expect(res.headers.location).toBeUndefined();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('a sig valid for a different app is a 400 and starts no OAuth flow', async () => {
+    const res = await startLink(buildApp({}), {
+      app: 'opensearch', resume: RESUME, sig: sigFor('some-other-app', RESUME),
+    });
+    expect(res.status).toBe(400);
+    expect(res.headers.location).toBeUndefined();
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   test('a gateway that cannot be discovered goes back to the broker as link=error', async () => {

@@ -174,6 +174,25 @@ read the configured host. A new browser origin must be added to ALL of:
   does not advertise the link, the door answers its existing 503 with `reason: 'gateway_link_not_configured'`
   and never dials the upstream.
 
+**2026-09-11 hardening pass (same branch, on top of the above — see TECH_DEBT.md's NARROWED entry for the
+residual this does NOT close):**
+- The broker now signs the `/facade-link` URL it issues (`sig`: HMAC-SHA256 over `<raw app>|<resume id>` with
+  the shared internal secret, default `dev-shared-secret-change-me` matching
+  `utils/internalSecret.js`); `/facade-link` refuses a missing or wrong signature with the same 400 body as
+  every other malformed-link case, so a distinct error can't tell a prober which field failed.
+- `rememberPending` is first-write-wins (a second park under an id the broker mints once is refused, sweeping
+  expired parks on the way in) and `discardPending` drops a park outright; the broker's `/oauth/resume` calls
+  the commit endpoint with `{ rs, action: 'discard' }` on every deny path (bad cookie, or an upstream sign-in
+  failure) instead of leaving the token parked until its TTL.
+- The nonce check in `/oauth/resume` is now unconditional — a parked record with no `linkNonce` recorded
+  denies instead of the old `parked.linkNonce && …` short-circuiting past the check entirely.
+- `privilege_link_supported` now requires BOTH `BFF_PRIVILEGE_LINK_URL` and `BFF_PRIVILEGE_LINK_COMMIT_URL` —
+  the redirect leg alone would advertise a chain whose commit leg 403s every request.
+- `brokerAdvertisesLink`'s probe is bounded with `AbortSignal.timeout(2000)` and logs (`console.warn`) why it
+  failed, so a wrong base URL doesn't silently disable the whole feature for 60s at a time with no trace; the
+  flag-on 503 remedy now names the two broker env vars instead of pointing at `/privilege-mcp-client`, which
+  cannot fix a broker-side misconfiguration.
+
 **Do not break:**
 - The parked token never becomes a session without the broker's confirmation at `/oauth/resume` —
   `commitPending` is the only path into `remember()` for a link-originated token, and it requires a resume id
@@ -186,10 +205,16 @@ read the configured host. A new browser origin must be added to ALL of:
 - With either flag off (`MCP_FACADE_PRIVILEGE_LINK` unset, or the broker not advertising
   `privilege_link_supported`), the façade keeps its 503 — it must never 401 a client into a loop it cannot
   complete.
+- `/facade-link` requires a `sig` computed over the raw `app` query value and the resume's `rs` — a caller
+  cannot choose the parked slot or the target app by hand-crafting the URL.
+- A `rememberPending` under an `rs` already parked (and not expired) is refused, and every deny path
+  discards the park instead of leaving it live until `PENDING_TTL_MS`.
+- A parked record with no `linkNonce` always denies at `/oauth/resume` — never falls through to a commit.
+- `privilege_link_supported` requires both `BFF_PRIVILEGE_LINK_URL` and `BFF_PRIVILEGE_LINK_COMMIT_URL`.
 
 **Verify:**
-- `cd demo_mcp_gateway && npm run build && ./node_modules/.bin/jest tests/oauth-broker-router-authorize.test.ts tests/oauth-broker-router-token.test.ts tests/oauth-broker-router-metadata.test.ts tests/oauth-broker-token-store.test.ts tests/gateway-oauth-broker-wiring.test.ts tests/oauth-client-registry.test.ts --forceExit` — 6 suites, 57 tests, all pass.
-- `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/services/privilegeGatewaySession.test.js tests/routes/privilegeLinkCommit.test.js tests/routes/privilegeMcpClient.facadeLink.test.js tests/routes/mcpFacade.privilegeGatewayDoor.test.js tests/routes/privilegeMcpClient.gatewaySessionRemember.test.js tests/routes/privilegeMcpClient.gatewaySessionState.test.js tests/routes/mcpFacade.privilegeEntryPath.test.js tests/routes/mcpFacade.multiApp.test.js --forceExit` — 8 suites, 73 tests, all pass.
+- `cd demo_mcp_gateway && npm run build && ./node_modules/.bin/jest tests/oauth-broker-router-authorize.test.ts tests/oauth-broker-router-token.test.ts tests/oauth-broker-router-metadata.test.ts tests/oauth-broker-token-store.test.ts tests/gateway-oauth-broker-wiring.test.ts tests/oauth-client-registry.test.ts --forceExit` — 6 suites, 61 tests, all pass.
+- `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/services/privilegeGatewaySession.test.js tests/routes/privilegeLinkCommit.test.js tests/routes/privilegeMcpClient.facadeLink.test.js tests/routes/mcpFacade.privilegeGatewayDoor.test.js tests/routes/privilegeMcpClient.gatewaySessionRemember.test.js tests/routes/privilegeMcpClient.gatewaySessionState.test.js tests/routes/mcpFacade.privilegeEntryPath.test.js tests/routes/mcpFacade.multiApp.test.js tests/routes/privilegeMcpClient.rfc9728.test.js --forceExit` — 9 suites, 86 tests, all pass.
 
 ### 2026-09-11 — No-gateway A2A specialist calls could not complete
 

@@ -667,9 +667,15 @@ async function brokerAdvertisesLink() {
     || 'http://localhost:3005';
   let value = false;
   try {
-    const response = await fetch(`${base.replace(/\/+$/, '')}/.well-known/oauth-authorization-server`);
+    const response = await fetch(`${base.replace(/\/+$/, '')}/.well-known/oauth-authorization-server`,
+      { signal: AbortSignal.timeout(2000) });
     if (response.ok) value = Boolean((JSON.parse(await response.text()) || {}).privilege_link_supported);
-  } catch { value = false; }
+  } catch (err) {
+    // Fail closed, but not silently: a wrong base URL disables the whole feature
+    // for 60s at a time and leaves no other trace.
+    console.warn('[mcpFacade] broker link advertisement check failed:', err.message);
+    value = false;
+  }
   linkAdvert = { at: Date.now(), value };
   return value;
 }
@@ -865,7 +871,9 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
             reason: process.env.MCP_FACADE_PRIVILEGE_LINK === 'true'
               ? 'gateway_link_not_configured'
               : privilegeGatewaySession.status(req.params.app).reason,
-            remedy: 'Sign in once at /privilege-mcp-client — the gateway forgets its clients on restart.',
+            remedy: process.env.MCP_FACADE_PRIVILEGE_LINK === 'true'
+              ? 'Set BFF_PRIVILEGE_LINK_URL and BFF_PRIVILEGE_LINK_COMMIT_URL on the broker (mcp-gateway), or unset MCP_FACADE_PRIVILEGE_LINK on the BFF.'
+              : 'Sign in once at /privilege-mcp-client — the gateway forgets its clients on restart.',
           },
         },
       });

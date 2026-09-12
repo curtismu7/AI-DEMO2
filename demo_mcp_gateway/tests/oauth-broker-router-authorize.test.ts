@@ -1,6 +1,7 @@
 import { createServer, Server } from 'http';
 import supertest from 'supertest';
 import axios from 'axios';
+import * as crypto from 'crypto';
 import { OAuthBrokerRouter } from '../src/oauth/OAuthBrokerRouter';
 import { ClientRegistry } from '../src/oauth/ClientRegistry';
 import { BrokerTokenStore } from '../src/oauth/BrokerTokenStore';
@@ -16,10 +17,10 @@ process.env.GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID = 'c8392dc4-2d82-4e49-92a8-79
 process.env.PINGONE_ENVIRONMENT_ID = '01d89b06-66d5-430e-9f28-65636843788b';
 process.env.PINGONE_REGION = 'com';
 
-function makeRouterAndServer() {
+function makeRouterAndServer(secret = 'test-internal-secret') {
   const clientRegistry = new ClientRegistry();
   const tokenStore = new BrokerTokenStore();
-  const router = new OAuthBrokerRouter(clientRegistry, tokenStore, 'https://mcp-gateway.example.com');
+  const router = new OAuthBrokerRouter(clientRegistry, tokenStore, 'https://mcp-gateway.example.com', undefined, secret);
   const server: Server = createServer(async (req, res) => {
     const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
     const handled = await router.handle(req, res, url);
@@ -170,11 +171,12 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
     });
   }
 
-  function parked(tokenStore: BrokerTokenStore) {
+  function parked(tokenStore: BrokerTokenStore, linkNonce?: string) {
     return tokenStore.createResume({
       clientId: 'c1', redirectUri: REDIRECT, scope: 'mcp:invoke',
       codeChallenge: 'external-challenge', codeChallengeMethod: 'S256',
       clientState: 'external-state', pingOneAccessToken: 'REAL-PINGONE-TOKEN', pingOneExpiresIn: 3600,
+      linkNonce,
     });
   }
 
@@ -211,6 +213,18 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
     expect(resume.searchParams.get('rs')).toBeTruthy();
   });
 
+  it('the link the broker issues carries a signature over its app and resume id', async () => {
+    process.env.BFF_PRIVILEGE_LINK_URL = LINK_URL;
+    const { res } = await callbackFor(DOOR);
+
+    const link = new URL(res.headers.location);
+    const resumeId = new URL(link.searchParams.get('resume')!).searchParams.get('rs')!;
+    const expected = crypto.createHmac('sha256', 'test-internal-secret')
+      .update(`opensearch|${resumeId}`)
+      .digest('base64url');
+    expect(link.searchParams.get('sig')).toBe(expected);
+  });
+
   it('omits app for the bare door, so the BFF uses its default app', async () => {
     process.env.BFF_PRIVILEGE_LINK_URL = LINK_URL;
     const { res } = await callbackFor('http://localhost:3002/mcp-facade/privilege-gateway/mcp');
@@ -237,12 +251,13 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
   it('link=ok issues the broker code carrying the PingOne token and the client state', async () => {
     process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = 'https://bff.example.com/internal/privilege-link/commit';
     const { tokenStore, server } = makeRouterAndServer();
-    const rs = parked(tokenStore);
-    // parked() carries no linkNonce — nothing for the cookie check to verify —
-    // so this parked record must still commit through the BFF.
+    // The nonce check fails closed (H4) — a park with no nonce can never
+    // commit — so this park carries one and the request sends the matching
+    // cookie, same as a real browser completing the sign-in it started.
+    const rs = parked(tokenStore, 'n1');
     mockedAxios.post.mockResolvedValueOnce({ status: 204 });
 
-    const res = await supertest(server).get('/oauth/resume').query({ rs, link: 'ok' });
+    const res = await supertest(server).get('/oauth/resume').query({ rs, link: 'ok' }).set('Cookie', 'pgw_link=n1');
 
     expect(res.status).toBe(302);
     const back = new URL(res.headers.location);
@@ -270,9 +285,9 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
   it('an unknown or already-used resume id is invalid_grant', async () => {
     process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = 'https://bff.example.com/internal/privilege-link/commit';
     const { tokenStore, server } = makeRouterAndServer();
-    const rs = parked(tokenStore);
+    const rs = parked(tokenStore, 'n1');
     mockedAxios.post.mockResolvedValueOnce({ status: 204 });
-    await supertest(server).get('/oauth/resume').query({ rs, link: 'ok' }).expect(302);
+    await supertest(server).get('/oauth/resume').query({ rs, link: 'ok' }).set('Cookie', 'pgw_link=n1').expect(302);
 
     const again = await supertest(server).get('/oauth/resume').query({ rs, link: 'ok' });
     expect(again.status).toBe(400);
@@ -331,8 +346,64 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
     expect(mockedAxios.post).toHaveBeenCalledWith(
       'https://bff.example.com/internal/privilege-link/commit',
       { rs },
-      expect.objectContaining({ headers: expect.objectContaining({ 'x-internal-gateway-secret': expect.any(String) }) }),
+      // A previously-passing broker could send an empty x-internal-gateway-secret and
+      // still pass an `expect.any(String)` assertion here — exactly the misconfiguration
+      // that 403s every commit. Assert the exact value the test's own secret produces.
+      expect.objectContaining({ headers: expect.objectContaining({ 'x-internal-gateway-secret': 'test-internal-secret' }) }),
     );
+  });
+
+  it('a resume with no nonce is denied', async () => {
+    process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = 'https://bff.example.com/internal/privilege-link/commit';
+    const { tokenStore, server } = makeRouterAndServer();
+    const rs = parked(tokenStore); // no linkNonce
+
+    const res = await supertest(server).get('/oauth/resume').query({ rs, link: 'ok' });
+
+    const back = new URL(res.headers.location);
+    expect(back.searchParams.get('error')).toBe('access_denied');
+    expect(back.searchParams.get('code')).toBeNull();
+    // A discard is fine (and expected — see the next test); a commit is not.
+    expect(mockedAxios.post).not.toHaveBeenCalledWith(
+      expect.any(String),
+      { rs },
+      expect.anything(),
+    );
+  });
+
+  it('a denied resume discards the parked token', async () => {
+    process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = 'https://bff.example.com/internal/privilege-link/commit';
+    const { tokenStore, server } = makeRouterAndServer();
+
+    const rsBadCookie = parked(tokenStore, 'n1');
+    await supertest(server).get('/oauth/resume').query({ rs: rsBadCookie, link: 'ok' }).set('Cookie', 'pgw_link=wrong');
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      'https://bff.example.com/internal/privilege-link/commit',
+      { rs: rsBadCookie, action: 'discard' },
+      expect.objectContaining({ headers: expect.objectContaining({ 'x-internal-gateway-secret': 'test-internal-secret' }) }),
+    );
+
+    const rsLinkError = parked(tokenStore, 'n2');
+    await supertest(server).get('/oauth/resume').query({ rs: rsLinkError, link: 'error', reason: 'nope' });
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      'https://bff.example.com/internal/privilege-link/commit',
+      { rs: rsLinkError, action: 'discard' },
+      expect.anything(),
+    );
+  });
+
+  it('the resume response clears the binding cookie on both success and denial', async () => {
+    process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = 'https://bff.example.com/internal/privilege-link/commit';
+    const { tokenStore, server } = makeRouterAndServer();
+
+    const rsOk = parked(tokenStore, 'n1');
+    mockedAxios.post.mockResolvedValueOnce({ status: 204 });
+    const success = await supertest(server).get('/oauth/resume').query({ rs: rsOk, link: 'ok' }).set('Cookie', 'pgw_link=n1');
+    expect(success.headers['set-cookie']?.[0]).toMatch(/^pgw_link=;.*Max-Age=0/);
+
+    const rsDeny = parked(tokenStore, 'n2');
+    const denied = await supertest(server).get('/oauth/resume').query({ rs: rsDeny, link: 'error', reason: 'nope' });
+    expect(denied.headers['set-cookie']?.[0]).toMatch(/^pgw_link=;.*Max-Age=0/);
   });
 
   it('link=ok with a missing or wrong cookie commits nothing and denies', async () => {
@@ -353,8 +424,14 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
       expect(back.searchParams.get('error')).toBe('access_denied');
       expect(back.searchParams.get('error_description')).toMatch(/browser that started it/);
       expect(back.searchParams.get('code')).toBeNull();
+      // A deny discards the park (H2) — that's a commit-shaped body with no
+      // `action`, never issued here.
+      expect(mockedAxios.post).not.toHaveBeenCalledWith(
+        expect.any(String),
+        { rs },
+        expect.anything(),
+      );
     }
-    expect(mockedAxios.post).not.toHaveBeenCalled();
   });
 
   it('a failed commit denies instead of issuing a code', async () => {

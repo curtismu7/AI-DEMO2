@@ -82,7 +82,8 @@ export class OAuthBrokerRouter {
     // Advertised in RFC 8414 scopes_supported; spec-following clients (MCP SDK,
     // LM Studio) request exactly this list when they have no scope of their own.
     private scopesSupported: string[] = ['mcp:invoke'],
-    private bffInternalSecret: string = process.env.BFF_INTERNAL_SECRET || '',
+    // Must match demo_api_server/utils/internalSecret.js DEFAULT_INTERNAL_SECRET.
+    private bffInternalSecret: string = process.env.BFF_INTERNAL_SECRET || 'dev-shared-secret-change-me',
   ) {}
 
   /** Returns true if this router handled the request. */
@@ -125,7 +126,11 @@ export class OAuthBrokerRouter {
       // Non-standard, on purpose: the BFF façade cannot see this service's env,
       // and a 401 that assumes the chain exists would loop a client through
       // sign-ins that cannot restore the gateway leg.
-      privilege_link_supported: Boolean(process.env.BFF_PRIVILEGE_LINK_URL),
+      // Both legs, or none: the redirect leg alone would advertise a chain whose
+      // commit leg refuses, failing every connect instead of degrading.
+      privilege_link_supported: Boolean(
+        process.env.BFF_PRIVILEGE_LINK_URL && process.env.BFF_PRIVILEGE_LINK_COMMIT_URL,
+      ),
     });
     return true;
   }
@@ -390,6 +395,15 @@ export class OAuthBrokerRouter {
       const link = new URL(linkUrl);
       if (linkApp) link.searchParams.set('app', linkApp);
       link.searchParams.set('resume', `${this.issuer(req)}/oauth/resume?rs=${encodeURIComponent(resumeId)}`);
+      // The BFF cannot tell a link we issued from one a caller typed, and it is
+      // unauthenticated by design. Sign the two fields that decide where the
+      // token lands: which app it is minted for, and which parked slot it fills.
+      // Signed over the RAW app (empty for the bare door) so both sides agree
+      // before the BFF resolves its default.
+      link.searchParams.set('sig', crypto
+        .createHmac('sha256', this.bffInternalSecret)
+        .update(`${linkApp}|${resumeId}`)
+        .digest('base64url'));
       res.writeHead(302, { Location: link.toString() });
       res.end();
       return true;
@@ -487,6 +501,9 @@ export class OAuthBrokerRouter {
     };
 
     const deny = (description: string) => {
+      // The parked token is nobody's now. Fire-and-forget: the browser must not
+      // wait on this, and a failed discard still expires on the BFF's TTL.
+      void this.discardPrivilegeLink(resumeId as string);
       callback.searchParams.set('error', 'access_denied');
       callback.searchParams.set('error_description', description.slice(0, 300));
       if (parked.clientState) callback.searchParams.set('state', parked.clientState);
@@ -504,7 +521,9 @@ export class OAuthBrokerRouter {
     // The browser that finishes the sign-in must be the one that started the
     // authorize, or a link mailed to a signed-in victim would put THEIR gateway
     // identity into the app-wide session (Greptile P1, PR #3140).
-    if (parked.linkNonce && readCookie(req.headers.cookie, LINK_NONCE_COOKIE) !== parked.linkNonce) {
+    // Unconditional: a parked record with no nonce is not a link we can vouch
+    // for, and the one place this feature must not fail open is identity.
+    if (readCookie(req.headers.cookie, LINK_NONCE_COOKIE) !== parked.linkNonce) {
       return deny('Privilege gateway sign-in was not completed in the browser that started it');
     }
     if (!(await this.commitPrivilegeLink(resumeId as string))) {
@@ -543,6 +562,19 @@ export class OAuthBrokerRouter {
     } catch {
       return false;
     }
+  }
+
+  /** Tell the BFF to drop a parked token we refused to commit. */
+  private async discardPrivilegeLink(resumeId: string): Promise<void> {
+    const commitUrl = process.env.BFF_PRIVILEGE_LINK_COMMIT_URL;
+    if (!commitUrl) return;
+    try {
+      await axios.post(commitUrl, { rs: resumeId, action: 'discard' }, {
+        headers: { 'x-internal-gateway-secret': this.bffInternalSecret },
+        timeout: 3000,
+        validateStatus: (s) => s < 500,
+      });
+    } catch { /* best effort — the park expires anyway */ }
   }
 
   private readBody(req: IncomingMessage): Promise<string> {

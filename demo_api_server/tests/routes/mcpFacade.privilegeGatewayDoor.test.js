@@ -172,7 +172,7 @@ describe('mcp-facade privilege-gateway door', () => {
     expect(seenAuth).toBeUndefined();
   });
 
-  test('with the flag on but the broker not advertising the link, the door stays at 503 and never dials the upstream', async () => {
+  test('with the flag on but the broker not advertising the link, the door stays at 503 with the operator remedy and never dials the upstream', async () => {
     process.env.MCP_FACADE_PRIVILEGE_LINK = 'true';
     stubBrokerAdvert(false);
     router.__test.resetLinkAdvert();
@@ -183,7 +183,30 @@ describe('mcp-facade privilege-gateway door', () => {
 
     expect(res.status).toBe(503);
     expect(res.body.error.data.reason).toBe('gateway_link_not_configured');
+    // A human sign-in at /privilege-mcp-client cannot fix this — the broker's
+    // half of the chain is what's missing, and the remedy must say so.
+    expect(res.body.error.data.remedy).toBe(
+      'Set BFF_PRIVILEGE_LINK_URL and BFF_PRIVILEGE_LINK_COMMIT_URL on the broker (mcp-gateway), or unset MCP_FACADE_PRIVILEGE_LINK on the BFF.',
+    );
     expect(seenAuth).toBeUndefined();
+  });
+
+  test('brokerAdvertisesLink bounds its probe with an AbortSignal', async () => {
+    process.env.MCP_FACADE_PRIVILEGE_LINK = 'true';
+    global.fetch = jest.fn(async (url, opts) => {
+      if (String(url).includes('/.well-known/oauth-authorization-server')) {
+        return { ok: true, text: async () => JSON.stringify({ privilege_link_supported: true }) };
+      }
+      return originalFetch(url, opts);
+    });
+    router.__test.resetLinkAdvert();
+
+    await request(buildApp()).post(DOOR_APP)
+      .set('Authorization', `Bearer ${callerToken()}`)
+      .send(RPC);
+
+    const probeCall = global.fetch.mock.calls.find(([url]) => String(url).includes('/.well-known/oauth-authorization-server'));
+    expect(probeCall[1]?.signal).toBeInstanceOf(AbortSignal);
   });
 
   test('uses the session for the app in the URL, not another app', async () => {

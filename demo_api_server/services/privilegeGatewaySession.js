@@ -224,6 +224,13 @@ const pendingLinks = new Map();
 /** Park a link's gateway token under its broker resume id. */
 function rememberPending(id, record) {
   if (!id || !record?.accessToken || !record?.tokenUri) return;
+  for (const [key, parked] of pendingLinks) {
+    if (parked.expiresAt <= Date.now()) pendingLinks.delete(key);
+  }
+  // First park wins. A second under the same id is a different browser's
+  // sign-in landing on a slot someone else already filled — never legitimate,
+  // since the broker mints each resume id once.
+  if (pendingLinks.has(id)) return;
   pendingLinks.set(id, { ...record, expiresAt: Date.now() + PENDING_TTL_MS });
 }
 
@@ -239,7 +246,12 @@ function commitPending(id) {
   return { app: keyFor(record.app) };
 }
 
+/** Drop a parked token — the broker refused to commit this link. */
+function discardPending(id) {
+  if (id) pendingLinks.delete(id);
+}
+
 module.exports = {
   remember, clear, clearAll, status, statusAll, getAccessToken, defaultApp, __setStore,
-  rememberPending, commitPending,
+  rememberPending, commitPending, discardPending,
 };

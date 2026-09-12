@@ -215,4 +215,36 @@ describe('privilege gateway session — parked links (browser-bound commit)', ()
     expect(session.status('opensearch')).toEqual({ ready: false, reason: 'no_session' });
     jest.useRealTimers();
   });
+
+  test('rememberPending refuses to overwrite an existing park — the first token is what commitPending returns', async () => {
+    const session = load();
+    session.rememberPending('rs-1', { app: 'opensearch', accessToken: 'first-token', tokenUri: TOKEN_URI });
+    session.rememberPending('rs-1', { app: 'opensearch', accessToken: 'second-token', tokenUri: TOKEN_URI });
+
+    expect(session.commitPending('rs-1')).toEqual({ app: 'opensearch' });
+    expect(await session.getAccessToken('opensearch')).toBe('first-token');
+  });
+
+  test('discardPending makes a later commitPending return null', () => {
+    const session = load();
+    session.rememberPending('rs-1', { app: 'opensearch', accessToken: 'parked-token', tokenUri: TOKEN_URI });
+
+    session.discardPending('rs-1');
+
+    expect(session.commitPending('rs-1')).toBeNull();
+  });
+
+  test('an expired park is swept on the next rememberPending, so first-park-wins does not block a fresh one', () => {
+    jest.useFakeTimers();
+    const session = load();
+    session.rememberPending('rs-1', { app: 'opensearch', accessToken: 'stale-token', tokenUri: TOKEN_URI });
+
+    jest.advanceTimersByTime(600_001); // PENDING_TTL_MS + 1
+    // Without the sweep, first-park-wins would refuse this second park under
+    // the same id even though the first one is long dead.
+    session.rememberPending('rs-1', { app: 'opensearch', accessToken: 'fresh-token', tokenUri: TOKEN_URI });
+
+    expect(session.commitPending('rs-1')).toEqual({ app: 'opensearch' });
+    jest.useRealTimers();
+  });
 });

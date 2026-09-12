@@ -72,4 +72,37 @@ describe('POST /internal/privilege-link/commit', () => {
     expect(res.body).toEqual({ app: 'opensearch' });
     expect(privilegeGatewaySession.status('opensearch')).toEqual({ ready: true });
   });
+
+  test('action: discard returns 204 and drops the park — a following commit 404s', async () => {
+    privilegeGatewaySession.rememberPending('rs-1', {
+      app: 'opensearch', accessToken: 'parked-token', tokenUri: TOKEN_URI,
+    });
+
+    const discard = await request(app())
+      .post('/internal/privilege-link/commit')
+      .set('x-internal-gateway-secret', SECRET)
+      .send({ rs: 'rs-1', action: 'discard' });
+    expect(discard.status).toBe(204);
+
+    const commit = await request(app())
+      .post('/internal/privilege-link/commit')
+      .set('x-internal-gateway-secret', SECRET)
+      .send({ rs: 'rs-1' });
+    expect(commit.status).toBe(404);
+  });
+
+  test('discard of an unknown rs is still 204', async () => {
+    const res = await request(app())
+      .post('/internal/privilege-link/commit')
+      .set('x-internal-gateway-secret', SECRET)
+      .send({ rs: 'never-parked', action: 'discard' });
+    expect(res.status).toBe(204);
+  });
+
+  test('discard without the secret is 403', async () => {
+    const res = await request(app())
+      .post('/internal/privilege-link/commit')
+      .send({ rs: 'rs-1', action: 'discard' });
+    expect(res.status).toBe(403);
+  });
 });
