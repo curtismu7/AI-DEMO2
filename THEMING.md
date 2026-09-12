@@ -272,10 +272,12 @@ enough to be risky.
 These were not "not yet migrated", they were **actively wrong**: they fired
 against the app's own theme. All of them are now gone.
 
-Two remain and are exempt, as their own comments say — `AgentGuardrailsDiagram`
-and `AgentOnboardingFlowDiagram` intend to follow the OS. Leave them. **Any
-other `@media (prefers-color-scheme)` is a regression**, so it stays a
-do-on-sight rule rather than a finished list.
+One remains and is exempt, as its own comment says — `AgentGuardrailsDiagram`
+intends to follow the OS. Leave it. `AgentOnboardingFlowDiagram` was migrated
+to `:root[data-theme="dark"]` once it turned out the OS-only behavior read as
+"this page doesn't support dark mode" to someone toggling the app's own
+switch. **Any other `@media (prefers-color-scheme)` is a regression**, so it
+stays a do-on-sight rule rather than a finished list.
 
 How the ten files were resolved, because the right answer was not the same in
 each and the reasoning is reusable:

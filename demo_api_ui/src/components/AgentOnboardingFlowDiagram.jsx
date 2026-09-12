@@ -252,24 +252,10 @@ export default function AgentOnboardingFlowDiagram() {
           here are not yet built in this demo.
         </p>
         <a
-          className="learning-hub__weblink"
+          className="learning-hub__weblink aof-share-link"
           href="https://curtismu7.github.io/llama-vscode-setup-guide/learning/agent-onboarding-flow.html"
           target="_blank"
           rel="noopener noreferrer"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 8,
-            width: "fit-content",
-            padding: "8px 14px",
-            borderRadius: 999,
-            background: "#f0eefb",
-            border: "1px solid #ddd5fb",
-            color: "#5b3fd6",
-            textDecoration: "none",
-            fontSize: 14,
-            fontWeight: 600,
-          }}
         >
           Share this diagram on the web — open the public page ↗
         </a>
