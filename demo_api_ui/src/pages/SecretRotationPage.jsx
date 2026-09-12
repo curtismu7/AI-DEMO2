@@ -22,21 +22,46 @@ export default function SecretRotationPage() {
   const [reason, setReason] = useState('');
   const [lines, setLines] = useState([]);
   const [status, setStatus] = useState('idle');
+  const [errorMessage, setErrorMessage] = useState('');
   const timer = useRef(null);
+  // Set true on unmount; checked before every setState/re-poll so an
+  // in-flight request or a pending poll timeout can't act on an unmounted
+  // page (same pattern as KillSwitchConfirmModal.jsx).
+  const cancelledRef = useRef(false);
 
   useEffect(() => {
     apiClient.get('/api/admin/secret-rotation/apps')
-      .then((r) => setApps(r.data.apps || []))
-      .catch(() => setApps([]));
-    return () => clearTimeout(timer.current);
+      .then((r) => { if (!cancelledRef.current) setApps(r.data.apps || []); })
+      .catch(() => { if (!cancelledRef.current) setApps([]); });
+    return () => {
+      cancelledRef.current = true;
+      clearTimeout(timer.current);
+    };
   }, []);
 
   const poll = useCallback(async (runId) => {
-    const { data } = await apiClient.get(`/api/admin/secret-rotation/runs/${runId}`);
-    setLines(data.lines || []);
-    setStatus(data.status);
-    if (data.status === 'running') timer.current = setTimeout(() => poll(runId), POLL_MS);
+    try {
+      const { data } = await apiClient.get(`/api/admin/secret-rotation/runs/${runId}`);
+      if (cancelledRef.current) return;
+      setLines(data.lines || []);
+      setStatus(data.status);
+      if (data.status === 'running') {
+        timer.current = setTimeout(() => {
+          if (!cancelledRef.current) poll(runId);
+        }, POLL_MS);
+      }
+    } catch (err) {
+      if (cancelledRef.current) return;
+      setStatus('error');
+      setErrorMessage(err?.message || 'Unknown error');
+    }
   }, []);
+
+  function selectApp(a) {
+    setSelected(a);
+    setArmed(false);
+    setReason('');
+  }
 
   function closeConfirm() {
     setConfirming(false);
@@ -47,16 +72,25 @@ export default function SecretRotationPage() {
   async function startRotation() {
     setConfirming(false);
     setStatus('running');
-    const { data } = await apiClient.post('/api/admin/secret-rotation/start', {
-      appId: selected.id,
-      vaultKey: selected.vaultKey || `${selected.name.toUpperCase().replace(/\W+/g, '_')}_CLIENT_SECRET`,
-      restart: true,
-      k8s: false,
-      reason,
-    });
-    setArmed(false);
-    setReason('');
-    poll(data.runId);
+    setErrorMessage('');
+    try {
+      const { data } = await apiClient.post('/api/admin/secret-rotation/start', {
+        appId: selected.id,
+        vaultKey: selected.vaultKey || `${selected.name.toUpperCase().replace(/\W+/g, '_')}_CLIENT_SECRET`,
+        restart: true,
+        k8s: false,
+        reason,
+      });
+      setArmed(false);
+      setReason('');
+      poll(data.runId);
+    } catch (err) {
+      if (cancelledRef.current) return;
+      setArmed(false);
+      setReason('');
+      setStatus('error');
+      setErrorMessage(err?.message || 'Unknown error');
+    }
   }
 
   const fingerprint = parseFingerprint(lines);
@@ -69,7 +103,7 @@ export default function SecretRotationPage() {
           <ul className="sr-app-list">
             {apps.map((a) => (
               <li key={a.id}>
-                <button type="button" onClick={() => setSelected(a)}>{a.name}</button>
+                <button type="button" onClick={() => selectApp(a)}>{a.name}</button>
               </li>
             ))}
           </ul>
@@ -81,11 +115,14 @@ export default function SecretRotationPage() {
             <button type="button" className="sr-danger" onClick={() => setConfirming(true)}>
               Rotate secret
             </button>
-            {status !== 'idle' && (
+            {status !== 'idle' && status !== 'error' && (
               <p className="sr-result">
                 Secret: <code>••••••••</code>
                 {fingerprint && <> · fingerprint <code>{fingerprint}</code></>}
               </p>
+            )}
+            {status === 'error' && (
+              <p className="sr-error">Rotation status unknown: {errorMessage}</p>
             )}
           </div>
         )}
