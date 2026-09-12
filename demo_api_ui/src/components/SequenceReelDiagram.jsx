@@ -80,13 +80,21 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
   // arriving instantly. Real steps keep arriving at full speed underneath —
   // this only paces what's drawn.
   const [revealedCount, setRevealedCount] = useState(allLifelineSteps.length);
+
+  // Off: everything is visible as it arrives.
   useEffect(() => {
-    if (!slowMode) {
-      setRevealedCount(allLifelineSteps.length);
-      return;
-    }
-    setRevealedCount((prev) => (prev > allLifelineSteps.length ? 0 : prev));
+    if (!slowMode) setRevealedCount(allLifelineSteps.length);
   }, [slowMode, allLifelineSteps.length]);
+
+  // Switching it on rewinds to the first step. Keyed on the toggle alone, so a
+  // step arriving mid-narration extends the reveal instead of restarting it.
+  // Without the rewind, turning slow mode on after a run has finished leaves
+  // the counter at the end and the timer below never arms — the whole reveal
+  // silently no-ops, which is the state a presenter actually hits.
+  useEffect(() => {
+    if (slowMode) setRevealedCount(0);
+  }, [slowMode]);
+
   useEffect(() => {
     if (!slowMode || revealedCount >= allLifelineSteps.length) return;
     const timer = setTimeout(() => setRevealedCount((prev) => prev + 1), slowRevealMs);
@@ -94,7 +102,11 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
   }, [slowMode, revealedCount, allLifelineSteps.length, slowRevealMs]);
 
   const lifelineSteps = slowMode ? allLifelineSteps.slice(0, revealedCount) : allLifelineSteps;
-  const participants = useMemo(() => deriveLifelineParticipants(lifelineSteps), [lifelineSteps]);
+  // Cast comes from the whole trace, not the revealed slice: deriving it from
+  // the slice re-flows every column each time a step introduces a new lane, so
+  // the reveal jitters sideways instead of drawing one arrow into a fixed set
+  // of lifelines.
+  const participants = useMemo(() => deriveLifelineParticipants(allLifelineSteps), [allLifelineSteps]);
 
   const stepsById = useMemo(() => {
     const map = new Map();
@@ -124,7 +136,10 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
     activeStepRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
   }, [activeStepId]);
 
-  if (!lifelineSteps.length) {
+  // Keyed on the trace, not the revealed slice: a slow-mode reveal sits at zero
+  // revealed steps for one tick, and bailing to the placeholder there would
+  // unmount the toolbar — including the button to turn slow mode back off.
+  if (!allLifelineSteps.length) {
     return (
       <div className="srd-empty">
         Run an agent request to populate the sequence diagram.
@@ -133,8 +148,9 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
   }
 
   // Boxes centre on their lane, so the outermost lanes need half a box of
-  // clearance or the viewBox crops them.
-  const maxNoteHalf = lifelineSteps.reduce(
+  // clearance or the viewBox crops them. Measured over the whole trace so the
+  // canvas width — and therefore the zoom scale — holds still during a reveal.
+  const maxNoteHalf = allLifelineSteps.reduce(
     (m, s) => (s.type === "note" ? Math.max(m, noteBoxWidth(s.label) / 2) : m),
     0,
   );
