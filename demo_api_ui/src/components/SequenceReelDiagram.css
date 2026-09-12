@@ -1,0 +1,94 @@
+.srd-root {
+  overflow-x: auto;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  padding: 0.5rem;
+}
+
+.srd-empty {
+  padding: 0.75rem;
+  font-size: var(--font-size-3xs);
+  color: var(--th-text-muted);
+  background: var(--th-bg-inset);
+  border: 1px dashed var(--th-border);
+  border-radius: var(--radius-md);
+}
+
+.srd-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.srd-actor-box {
+  fill: var(--th-bg-card);
+  stroke: var(--th-border-strong);
+}
+
+.srd-actor-label {
+  fill: var(--th-text);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.srd-lifeline {
+  stroke: var(--th-border);
+  stroke-dasharray: 3 3;
+}
+
+.srd-note-box {
+  fill: var(--th-bg-page);
+  stroke: var(--th-border);
+}
+
+.srd-note-label,
+.srd-arrow-label {
+  fill: var(--th-text-muted);
+  font-size: 10px;
+}
+
+.srd-arrow {
+  stroke: var(--th-border-strong);
+  stroke-width: 1.25;
+}
+
+.srd-arrowhead-fill {
+  fill: var(--th-border-strong);
+}
+
+.srd-status-active .srd-arrow,
+.srd-status-active .srd-note-box {
+  stroke: var(--th-status-info);
+}
+
+.srd-status-active .srd-arrow-label,
+.srd-status-active .srd-note-label {
+  fill: var(--th-status-info-text);
+  font-weight: 700;
+}
+
+.srd-status-active .srd-arrowhead-fill {
+  fill: var(--th-status-info);
+}
+
+.srd-status-done .srd-arrow,
+.srd-status-done .srd-note-box {
+  stroke: var(--th-status-success);
+}
+
+.srd-status-done .srd-arrow-label,
+.srd-status-done .srd-note-label {
+  fill: var(--th-status-success-text);
+}
+
+.srd-status-error .srd-arrow,
+.srd-status-error .srd-note-box {
+  stroke: var(--th-status-error);
+}
+
+.srd-status-error .srd-arrow-label,
+.srd-status-error .srd-note-label {
+  fill: var(--th-status-error-text);
+}

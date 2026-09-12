@@ -105,8 +105,10 @@ describe("Focus Mode filmstrip guard", () => {
     expect(direct).toHaveLength(1);
     // Two ReelDocks now: float, and the clinical-split branch.
     expect(docks).toHaveLength(2);
-    expect(p2026).toMatch(/\{showFilmstrip && <TokenChainFilmstrip\s*\/>\}/);
-    const dockGuards = p2026.match(/\{showFilmstrip && <ReelDock\s*\/>\}/g) || [];
+    // Also gated on !showSequenceDiagram since the Quick Config "Sequence
+    // view" toggle swaps the reel for SequenceReelDiagram at the same sites.
+    expect(p2026).toMatch(/\{showFilmstrip && !showSequenceDiagram && <TokenChainFilmstrip\s*\/>\}/);
+    const dockGuards = p2026.match(/\{showFilmstrip && !showSequenceDiagram && <ReelDock\s*\/>\}/g) || [];
     expect(dockGuards).toHaveLength(2);
   });
 
@@ -121,7 +123,7 @@ describe("Focus Mode filmstrip guard", () => {
     const endOfBranch = p2026.indexOf("if (loading) {", branch);
     expect(endOfBranch).toBeGreaterThan(branch);
     const clinicalJsx = p2026.slice(branch, endOfBranch);
-    expect(clinicalJsx).toMatch(/\{showFilmstrip && <ReelDock\s*\/>\}/);
+    expect(clinicalJsx).toMatch(/\{showFilmstrip && !showSequenceDiagram && <ReelDock\s*\/>\}/);
   });
 
   // The bottom-dock guard that sat here went with the dock layout itself. What

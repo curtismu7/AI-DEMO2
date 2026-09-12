@@ -38,6 +38,7 @@ import { extractRfc9470Challenge } from "../utils/wwwAuthenticate";
 import DashboardTokenRail from "./DashboardTokenRail";
 import TokenChainFilmstrip from "./TokenChainFilmstrip";
 import ReelDock from "./ReelDock";
+import SequenceReelDiagram from "./SequenceReelDiagram";
 import SimpleStepperBar from "./SimpleStepperBar";
 import AgentResponseMirror from "./AgentResponseMirror";
 import ExchangeModeToggle from "./ExchangeModeToggle";
@@ -184,6 +185,16 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     const handler = (e) => setShowFilmstrip(!!e.detail?.on);
     window.addEventListener("agent-filmstrip-toggle", handler);
     return () => window.removeEventListener("agent-filmstrip-toggle", handler);
+  }, []);
+
+  // Quick Config "Sequence view" — swaps the reel for a live lifeline
+  // sequence diagram of the same trace data. Same session-only convention
+  // as showFilmstrip above.
+  const [showSequenceDiagram, setShowSequenceDiagram] = useState(false);
+  useEffect(() => {
+    const handler = (e) => setShowSequenceDiagram(!!e.detail?.on);
+    window.addEventListener("agent-sequence-diagram-toggle", handler);
+    return () => window.removeEventListener("agent-sequence-diagram-toggle", handler);
   }, []);
 
   // ff_show_agent_in_middle — when false (default) the banking column
@@ -3577,7 +3588,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               reel at all. .agent-clinical-host is display:block over a 100vh
               shell, the same shape as float mode, so .tcfs-float-host's
               position:sticky/bottom:0 pins it without any clinical-specific CSS. */}
-          {showFilmstrip && <ReelDock />}
+          {showFilmstrip && !showSequenceDiagram && <ReelDock />}
+          {showSequenceDiagram && <SequenceReelDiagram />}
         </div>
         {renderGlobalModals()}
       </>
@@ -3711,7 +3723,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               nothing on screen: it governed only the float branch, which does
               not mount in this layout. The reel was never lost, the control
               was simply wired to the copy you were not looking at. */}
-          {showFilmstrip && <TokenChainFilmstrip />}
+          {showFilmstrip && !showSequenceDiagram && <TokenChainFilmstrip />}
+          {showSequenceDiagram && <SequenceReelDiagram />}
         </div>
       ) : (
         // Float mode ('none'): 2-column layout — token rail + content; FAB is a
@@ -3773,7 +3786,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             {/* Response mirror — shows last agent reply on main page when toggled on */}
             <AgentResponseMirror />
             {/* Movie reel filmstrip — toggled via More › Movie reel in the agent header */}
-            {showFilmstrip && <ReelDock />}
+            {showFilmstrip && !showSequenceDiagram && <ReelDock />}
+          {showSequenceDiagram && <SequenceReelDiagram />}
           </div>
       )}
 
