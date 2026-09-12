@@ -216,6 +216,106 @@ must keep calling `clear()`. In-process, single-BFF-process, like `mcpFlowSseHub
 `clear`, the no-id case, null-safety). Full BFF suite: 1012 of 1013 suites, 11,665 passed — the single
 failure (`tests/routes/privilegeMcpClient.status.test.js`) passes alone 4/4 and never touches the cache.
 Scoped `oauth|logout|auth` after the logout change: 119 suites / 1190 passed.
+### 2026-09-11 — Privilege link: bind the gateway token to its browser, and check the broker before 401
+
+**Files changed:** `demo_mcp_gateway/src/oauth/BrokerTokenStore.ts`, `OAuthBrokerRouter.ts`,
+`src/server/GatewayServer.ts`; `demo_api_server/services/privilegeGatewaySession.js`,
+`routes/privilegeMcpClient.js`, `routes/privilegeLinkCommit.js` (new), `routes/mcpFacade.js`, `server.js`;
+`docker-compose.yml`. Tests: `demo_mcp_gateway/tests/oauth-broker-router-authorize.test.ts`,
+`oauth-broker-router-metadata.test.ts`; `demo_api_server/tests/services/privilegeGatewaySession.test.js`,
+`tests/routes/privilegeLinkCommit.test.js` (new), `privilegeMcpClient.facadeLink.test.js`,
+`mcpFacade.privilegeGatewayDoor.test.js`.
+
+**What was broken (two Greptile P1s from PR #3140):**
+- `/api/privilege-mcp/facade-link` is unauthenticated and committed the resulting gateway token straight
+  into the shared per-app session. An attacker could start a broker authorization, send a signed-in victim
+  the `/facade-link` URL, and the victim's gateway identity became the app-wide credential — callable by
+  anyone holding a valid façade bearer ("Shared Identity Can Be Replaced").
+- With `MCP_FACADE_PRIVILEGE_LINK=true` but the broker's `BFF_PRIVILEGE_LINK_URL` unset, the façade answered
+  401 assuming the link chain existed. The client re-authenticated, the broker completed a plain OAuth with
+  no gateway leg, and the façade 401'd again — every connect failed ("Partial Configuration Causes Login
+  Loop").
+
+**What was fixed:**
+- The broker sets a random `pgw_link` nonce cookie at `/oauth/authorize` only when the authorize will chain
+  a Privilege door's link, and carries the same nonce on the pending authorization and the resume record.
+  `/facade-link/callback` now parks the gateway token under the resume id
+  (`privilegeGatewaySession.rememberPending`) instead of calling `remember()`. `/oauth/resume` verifies the
+  browser's cookie against the resume's nonce and, only on a match, calls the new secret-guarded
+  `/internal/privilege-link/commit` to promote the parked token into the app's session
+  (`commitPending`) — any mismatch, missing cookie, or failed commit denies with `access_denied`.
+- The broker's `/.well-known/oauth-authorization-server` now advertises `privilege_link_supported`
+  (`Boolean(BFF_PRIVILEGE_LINK_URL)`). The façade's `ownsUpstreamAuth` 401 path (`mcpFacade.js`) asks the
+  broker (cached 60s, fail-closed) before answering 401 instead of trusting the flag alone; when the broker
+  does not advertise the link, the door answers its existing 503 with `reason: 'gateway_link_not_configured'`
+  and never dials the upstream.
+
+**2026-09-11 hardening pass (same branch, on top of the above — see TECH_DEBT.md's NARROWED entry for the
+residual this does NOT close):**
+- The broker now signs the `/facade-link` URL it issues (`sig`: HMAC-SHA256 over `<raw app>|<resume id>` with
+  the shared internal secret, default `dev-shared-secret-change-me` matching
+  `utils/internalSecret.js`); `/facade-link` refuses a missing or wrong signature with the same 400 body as
+  every other malformed-link case, so a distinct error can't tell a prober which field failed.
+- `rememberPending` is first-write-wins (a second park under an id the broker mints once is refused, sweeping
+  expired parks on the way in) and `discardPending` drops a park outright; the broker's `/oauth/resume` calls
+  the commit endpoint with `{ rs, action: 'discard' }` on every deny path (bad cookie, or an upstream sign-in
+  failure) instead of leaving the token parked until its TTL.
+- The nonce check in `/oauth/resume` is now unconditional — a parked record with no `linkNonce` recorded
+  denies instead of the old `parked.linkNonce && …` short-circuiting past the check entirely.
+- `privilege_link_supported` now requires BOTH `BFF_PRIVILEGE_LINK_URL` and `BFF_PRIVILEGE_LINK_COMMIT_URL` —
+  the redirect leg alone would advertise a chain whose commit leg 403s every request.
+- `brokerAdvertisesLink`'s probe is bounded with `AbortSignal.timeout(2000)` and logs (`console.warn`) why it
+  failed, so a wrong base URL doesn't silently disable the whole feature for 60s at a time with no trace; the
+  flag-on 503 remedy now names the two broker env vars instead of pointing at `/privilege-mcp-client`, which
+  cannot fix a broker-side misconfiguration.
+
+**Do not break:**
+- The parked token never becomes a session without the broker's confirmation at `/oauth/resume` —
+  `commitPending` is the only path into `remember()` for a link-originated token, and it requires a resume id
+  the BFF itself parked.
+- The `pgw_link` cookie is `Path=/oauth`, `HttpOnly`, `SameSite=Lax`, and is cleared (`Max-Age=0`) on every
+  `/oauth/resume` response, success or denial.
+- `/auth/start` and any non-Privilege-door authorize set no cookie and carry no `linkNonce` — only an
+  authorize whose `resource` resolves to a Privilege door (`privilegeLinkApp`) with both
+  `BFF_PRIVILEGE_LINK_URL` and `BFF_PRIVILEGE_LINK_COMMIT_URL` set gets one. Both env legs gate the callback
+  chain and the authorize cookie the same way they gate the advertised metadata — `privilegeLinkConfigured()`
+  is the one helper all three call sites use, so a half-wired pair falls through to the ordinary non-link path
+  instead of sending a browser through a gateway sign-in whose commit leg would refuse it.
+- With either flag off (`MCP_FACADE_PRIVILEGE_LINK` unset, or the broker not advertising
+  `privilege_link_supported`), the façade keeps its 503 — it must never 401 a client into a loop it cannot
+  complete.
+- `/facade-link` requires a `sig` computed over the raw `app` query value and the resume's `rs` — a caller
+  cannot choose the parked slot or the target app by hand-crafting the URL.
+- A `rememberPending` under an `rs` already parked (and not expired) is refused, and every deny path
+  discards the park instead of leaving it live until `PENDING_TTL_MS`.
+- A discard is remembered even when it arrives before its park: a later `rememberPending` under the same id
+  is refused (`commitPending` returns null) rather than parking a token nobody can ever commit, and the
+  tombstone itself expires so the id is not blocked forever.
+- A parked record with no `linkNonce` always denies at `/oauth/resume` — never falls through to a commit.
+- `privilege_link_supported` requires both `BFF_PRIVILEGE_LINK_URL` and `BFF_PRIVILEGE_LINK_COMMIT_URL`.
+- The façade's flag-on 503 distinguishes a broker that answered with no advertisement
+  (`gateway_link_not_configured`, remedy: set the two broker env vars) from a broker that did not answer at
+  all (`gateway_link_unreachable`, remedy: check the broker is running and reachable) — never send an operator
+  to reconfigure env vars that are already correct.
+- The `/facade-link` signature is HMAC-SHA256 over `<raw app>|<resume id>` under a purpose-bound key derived
+  from the shared internal secret (`HMAC(secret, 'privilege-link-v1')`), not the raw secret itself — the label
+  must match byte-for-byte between the broker (`OAuthBrokerRouter.linkSigningKey`) and the BFF
+  (`privilegeMcpClient.linkSigningKey`), or every link 400s.
+- The binding cookie is per-authorization (`pgw_link_<id>`, minted at `/oauth/authorize` and cleared at
+  `/oauth/resume`) — a single fixed name let two authorizations in one browser overwrite each other's nonce
+  and fail both logins, exactly LM Studio's two-door (`opensearch22` + `opensearch`) setup (Greptile P1, PR
+  #3153).
+- Promoting a parked token (`commitPending`) preserves the token's own absolute expiry (`tokenExpiresAt`,
+  set at `rememberPending` time) instead of handing `remember()` the original `expiresIn` — a token parked for
+  N seconds must not come back recorded as living `expiresIn` seconds longer than it really does (Greptile P2,
+  PR #3153).
+- Both `pendingLinks` and `discardedLinks` are swept (`sweepLinks`) on EVERY write path — `rememberPending` and
+  `discardPending` alike — so repeated denied or abandoned sign-ins that never park cannot grow the tombstone
+  map for the life of the process (Greptile P2, PR #3153).
+
+**Verify:**
+- `cd demo_mcp_gateway && npm run build && ./node_modules/.bin/jest tests/oauth-broker-router-authorize.test.ts tests/oauth-broker-router-token.test.ts tests/oauth-broker-router-metadata.test.ts tests/oauth-broker-token-store.test.ts tests/gateway-oauth-broker-wiring.test.ts tests/oauth-client-registry.test.ts --forceExit` — 6 suites, 65 tests, all pass.
+- `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/services/privilegeGatewaySession.test.js tests/routes/privilegeLinkCommit.test.js tests/routes/privilegeMcpClient.facadeLink.test.js tests/routes/mcpFacade.privilegeGatewayDoor.test.js tests/routes/privilegeMcpClient.gatewaySessionRemember.test.js tests/routes/privilegeMcpClient.gatewaySessionState.test.js tests/routes/mcpFacade.privilegeEntryPath.test.js tests/routes/mcpFacade.multiApp.test.js tests/routes/privilegeMcpClient.rfc9728.test.js --forceExit` — 9 suites, 92 tests, all pass.
 
 ### 2026-09-11 — No-gateway A2A specialist calls could not complete
 

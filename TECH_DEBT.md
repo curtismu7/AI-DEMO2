@@ -16,6 +16,37 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-11 — A lost or slow commit response can commit a sign-in the client was told had failed
+
+**What's wrong.** `/oauth/resume`'s `commitPrivilegeLink` posts to
+`/internal/privilege-link/commit` with a 3s timeout. If the BFF applies the commit
+(promotes the parked token into the app's shared session) but its response is lost
+or the call exceeds that timeout, `commitPrivilegeLink` still returns `false`. The
+broker then denies and calls `discardPrivilegeLink` — but the discard cannot undo a
+commit that already happened server-side, because `commitPending` already deleted
+the park and nothing tracks "committed but the caller never found out." The
+practical effect: the shared identity is replaced while the client is told
+sign-in failed. Raised by Greptile on PR #3153.
+
+**Why it wasn't fixed now.**
+- The identity that lands is the legitimate signer's own, not an attacker's — this
+  is an inconsistency, not an escalation. Nothing here lets anyone commit an
+  identity that isn't theirs; that's the separate, already-NARROWED finding above.
+- The client retries, and the retry succeeds (a fresh authorize parks and commits a
+  new token), so the user-visible cost is one redundant sign-in, not a stuck app.
+- A correct fix is two-phase — make the commit recoverable by resume id, or add a
+  conditional rollback tied to the commit id — which is disproportionate to how
+  narrow this window is and belongs in its own test-first change rather than a
+  drive-by inside the cookie/expiry fixes this pass otherwise makes.
+
+**Real fix.** Either make `/internal/privilege-link/commit` idempotent and
+recoverable by resume id (a retry or late response can re-ask "did rs-X commit?"
+instead of assuming it didn't), or add a conditional rollback keyed to the commit
+id so a broker that gave up waiting can undo a commit that lands after all. Cover
+it with a test that delays or fails the HTTP response to the broker *after* the
+BFF has already applied the commit, and asserts the app's session still reflects
+the intended outcome once the dust settles.
+
 ### [ ] 2026-09-11 — LangChain's direct-MCP message pipeline has no production caller
 
 **What's wrong.** Removing the legacy chat WebSocket on :8889 (branch
@@ -47,6 +78,9 @@ neither, so its privilege-gateway door keeps the old 503 + "sign in at
 /privilege-mcp-client" behaviour. The two switches must be set together: with
 the BFF flag on and the broker link URL unset, every connect ends in a 401
 after one re-authentication (bounded by the MCP SDK, but it always fails).
+As of `worktree-privilege-link-bind-and-config-check`, the façade now refuses
+to 401 unless the broker advertises `privilege_link_supported`, so a
+half-configured pair degrades to the 503 instead of failing every connect.
 
 **Why it wasn't fixed now.** Scoped to the local stack LM Studio uses; the SE
 façade is reached on a different host and its broker/BFF public URLs differ,
@@ -84,7 +118,7 @@ trusted local stack.
 **Real fix.** Build the callback host from configuration (`PRIVILEGE_MCP_CALLBACK_HOST`
 or the public app origin) instead of the request header, or bound the cache.
 
-### [ ] 2026-09-11 — An unauthenticated /facade-link can replace an app's shared gateway identity
+### [ ] 2026-09-11 — An unauthenticated /facade-link can replace an app's shared gateway identity — NARROWED, not closed
 
 **What's wrong.** `/api/privilege-mcp/facade-link` is unauthenticated and stores the resulting gateway token in
 the single per-app session every façade caller of that app uses. Someone who starts a broker authorization can send
@@ -101,6 +135,43 @@ browser-bound nonce at `/oauth/authorize`, and let the BFF hold the gateway toke
 confirms that nonce, committing it to the shared session only then — or key gateway sessions per caller instead
 of per app.
 
+**NARROWED, not closed** (branch `worktree-privilege-link-bind-and-config-check`, on top of commit `30e9847c8`
+on this same branch, which shipped the bind-to-browser fix above). A security review found that the
+browser-binding proves the wrong thing: the `pgw_link` cookie only proves that whoever opens `/oauth/resume`
+also did `/oauth/authorize` — trivially true for an attacker replaying their own cookie — never that the
+browser which completed the BFF's gateway sign-in in between (the one whose identity actually lands in the
+parked token) was that same browser. This pass hardened every CHEAP path to the finding without closing the
+finding itself, and fixed a real defect in the browser-binding's own trust chain along the way:
+
+- The broker now signs the link it issues to the BFF (HMAC over the app + resume id, computed with the shared
+  internal secret) and the BFF's `/facade-link` refuses an unsigned link or one signed for a different app — the
+  caller can no longer choose the parked slot or swap the target app.
+- A park is first-write-wins (`rememberPending` refuses a second park under an id the broker mints once) and is
+  discarded — never left parked until its TTL — whenever the broker denies a resume (bad cookie, or an
+  upstream sign-in failure).
+- The nonce check is unconditional: a parked record with no nonce now denies instead of silently committing
+  (previously `parked.linkNonce && …` short-circuited past the check for any record with no nonce recorded).
+- The broker's advertisement (`privilege_link_supported`) requires both `BFF_PRIVILEGE_LINK_URL` and
+  `BFF_PRIVILEGE_LINK_COMMIT_URL`, so a half-wired pair degrades instead of advertising a chain that 403s
+  every commit.
+
+**What this still does NOT stop.** An attacker who starts their own broker authorize and stops before the
+BFF's gateway sign-in already holds that link's `rs` and `sig` — the broker's own redirect to `/facade-link`
+hands both to the attacker's browser, so nothing has to be captured or guessed afterwards. Mailing that
+(correctly signed) URL to a signed-in victim parks the victim's identity under an id the attacker knows. The
+only thing then standing between that park and a commit is the victim's browser following the final
+`/oauth/resume?rs=…&link=ok` hop, which consumes the id and discards the park. An attacker who prevents that
+last navigation — framing `/facade-link` and blocking the terminal hop with their own page's CSP, or mailing
+it to a victim who can reach the BFF but not the loopback broker — opens the resume URL themselves instead,
+still carrying the `pgw_link` cookie from the authorize they genuinely did, and the victim's identity commits.
+The nonce proves "the browser at `/oauth/resume` is the browser that ran `/oauth/authorize`", which is true of
+the attacker regardless of who signed in; it cannot, on its own, prove that the browser which produced the
+parked identity is the one redeeming it.
+
+**Real fix.** Key the gateway session by app **and** the caller's subject, so a captured/parked token can
+only ever serve the identity it was minted for instead of becoming an app-wide shared credential — the
+`ponytail:` note already on `privilegeGatewaySession.js` ("one operator identity per app; key it per user if a
+second identity ever needs this door") anticipates exactly this.
 ### [ ] 2026-09-11 — mcp-server accepts gateway-audienced tokens: D-05's own rule cannot fire
 
 **What's wrong.** `oauth-mcp/src/auth/lastHopAuthorization.ts` enforces two

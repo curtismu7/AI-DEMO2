@@ -1110,6 +1110,10 @@ services:
       # Unset = no chaining. See
       # docs/superpowers/specs/2026-09-11-lmstudio-privilege-gateway-link-design.md.
       BFF_PRIVILEGE_LINK_URL: "https://local.ping-devops.com:4000/api/privilege-mcp/facade-link"
+      # Where the broker confirms a Privilege link (server-to-server, shared
+      # secret) before it issues the client's code. Internal service name: this
+      # one is never a browser redirect.
+      BFF_PRIVILEGE_LINK_COMMIT_URL: "https://demo-api-server:3001/internal/privilege-link/commit"
       # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
       # Without it every hop fails UNABLE_TO_VERIFY_LEAF_SIGNATURE and is silently
       # swallowed by the fire-and-forget .catch() -- an invisible, empty chain.

@@ -40,6 +40,26 @@ function readIdentityClaims(idToken?: string): Record<string, unknown> {
 /** Façade Privilege door paths: /mcp-facade/privilege-gateway[/<app>]/mcp. */
 const PRIVILEGE_DOOR_PATH = /^\/mcp-facade\/privilege-gateway(?:\/([A-Za-z0-9._-]{1,64}))?\/mcp$/;
 
+/** Cookie carrying a Privilege link's browser-bound nonce, one per authorization.
+ *  A single fixed name would let two concurrent authorizations in one browser
+ *  overwrite each other's nonce and fail both (Greptile P1, PR #3153). Path-scoped
+ *  to /oauth so it rides the resume redirect and nothing else. No `Secure`: the
+ *  broker is served over plain HTTP on localhost:3005 in this demo, and a Secure
+ *  cookie would simply never be sent. */
+const LINK_NONCE_COOKIE_PREFIX = 'pgw_link_';
+
+function linkNonceCookieName(id: string): string {
+  return `${LINK_NONCE_COOKIE_PREFIX}${id}`;
+}
+
+function readCookie(header: string | undefined, name: string): string | null {
+  for (const part of (header || '').split(';')) {
+    const [k, ...rest] = part.trim().split('=');
+    if (k === name) return rest.join('=') || null;
+  }
+  return null;
+}
+
 /**
  * The Agentic App a client's `resource` names when it is the façade's Privilege
  * door: the app segment, '' for the bare door (the BFF then uses its default
@@ -51,6 +71,14 @@ export function privilegeLinkApp(resource?: string): string | null {
   try { path = new URL(resource).pathname; } catch { return null; }
   const match = PRIVILEGE_DOOR_PATH.exec(path);
   return match ? (match[1] || '') : null;
+}
+
+/** Both legs of the Privilege link, or none. The redirect leg on its own sends a
+ *  browser through a gateway sign-in whose commit leg then refuses it, so every
+ *  connect fails instead of degrading. The metadata, the authorize cookie and the
+ *  callback chain must all give the same answer or they drift apart again. */
+function privilegeLinkConfigured(): boolean {
+  return Boolean(process.env.BFF_PRIVILEGE_LINK_URL && process.env.BFF_PRIVILEGE_LINK_COMMIT_URL);
 }
 
 /**
@@ -68,6 +96,8 @@ export class OAuthBrokerRouter {
     // Advertised in RFC 8414 scopes_supported; spec-following clients (MCP SDK,
     // LM Studio) request exactly this list when they have no scope of their own.
     private scopesSupported: string[] = ['mcp:invoke'],
+    // Must match demo_api_server/utils/internalSecret.js DEFAULT_INTERNAL_SECRET.
+    private bffInternalSecret: string = process.env.BFF_INTERNAL_SECRET || 'dev-shared-secret-change-me',
   ) {}
 
   /** Returns true if this router handled the request. */
@@ -82,7 +112,7 @@ export class OAuthBrokerRouter {
       case '/oauth/callback':
         return this.handleCallback(req, res, url);
       case '/oauth/resume':
-        return this.handleResume(res, url);
+        return this.handleResume(req, res, url);
       case '/oauth/token':
         return this.handleToken(req, res);
       default:
@@ -107,6 +137,10 @@ export class OAuthBrokerRouter {
       grant_types_supported: ['authorization_code'],
       token_endpoint_auth_methods_supported: ['none'],
       code_challenge_methods_supported: ['S256'],
+      // Non-standard, on purpose: the BFF façade cannot see this service's env,
+      // and a 401 that assumes the chain exists would loop a client through
+      // sign-ins that cannot restore the gateway leg.
+      privilege_link_supported: privilegeLinkConfigured(),
     });
     return true;
   }
@@ -213,9 +247,16 @@ export class OAuthBrokerRouter {
     // on the pending record across the PingOne round trip, and reused by the
     // callback so "who asked" and "who came back" sit on one trace.
     const correlationId = crypto.randomUUID();
+    // Only a chained Privilege door needs the binding; every other authorize is
+    // untouched.
+    const willChainLink = privilegeLinkApp(resource) !== null && privilegeLinkConfigured();
+    const linkNonce = willChainLink ? crypto.randomBytes(32).toString('base64url') : undefined;
+    // base64url is safe in a cookie name — one id per authorization, so two
+    // chained in the same browser never collide (Greptile P1, PR #3153).
+    const linkCookieId = willChainLink ? crypto.randomBytes(9).toString('base64url') : undefined;
     const relayState = this.tokenStore.createPendingAuthorization({
       clientId, redirectUri, scope, codeChallenge, codeChallengeMethod,
-      clientState, pingOneCodeVerifier, correlationId, resource,
+      clientState, pingOneCodeVerifier, correlationId, resource, linkNonce, linkCookieId,
     });
 
     const issuer = this.issuer(req);
@@ -261,7 +302,11 @@ export class OAuthBrokerRouter {
       params: { scope, reauth: reauthParams },
     });
 
-    res.writeHead(302, { Location: pingOneAuthorize.toString() });
+    const authorizeHeaders: Record<string, string> = { Location: pingOneAuthorize.toString() };
+    if (linkNonce && linkCookieId) {
+      authorizeHeaders['Set-Cookie'] = `${linkNonceCookieName(linkCookieId)}=${linkNonce}; HttpOnly; SameSite=Lax; Path=/oauth; Max-Age=600`;
+    }
+    res.writeHead(302, authorizeHeaders);
     res.end();
     return true;
   }
@@ -347,7 +392,7 @@ export class OAuthBrokerRouter {
     // docs/superpowers/specs/2026-09-11-lmstudio-privilege-gateway-link-design.md.
     const linkApp = privilegeLinkApp(pending.resource);
     const linkUrl = process.env.BFF_PRIVILEGE_LINK_URL;
-    if (linkApp !== null && linkUrl) {
+    if (linkApp !== null && linkUrl && privilegeLinkConfigured()) {
       const resumeId = this.tokenStore.createResume({
         clientId: pending.clientId,
         redirectUri: pending.redirectUri,
@@ -358,10 +403,21 @@ export class OAuthBrokerRouter {
         pingOneAccessToken,
         pingOneExpiresIn: expiresIn,
         correlationId: pending.correlationId,
+        linkNonce: pending.linkNonce,
+        linkCookieId: pending.linkCookieId,
       });
       const link = new URL(linkUrl);
       if (linkApp) link.searchParams.set('app', linkApp);
       link.searchParams.set('resume', `${this.issuer(req)}/oauth/resume?rs=${encodeURIComponent(resumeId)}`);
+      // The BFF cannot tell a link we issued from one a caller typed, and it is
+      // unauthenticated by design. Sign the two fields that decide where the
+      // token lands: which app it is minted for, and which parked slot it fills.
+      // Signed over the RAW app (empty for the bare door) so both sides agree
+      // before the BFF resolves its default.
+      link.searchParams.set('sig', crypto
+        .createHmac('sha256', this.linkSigningKey())
+        .update(`${linkApp}|${resumeId}`)
+        .digest('base64url'));
       res.writeHead(302, { Location: link.toString() });
       res.end();
       return true;
@@ -443,7 +499,8 @@ export class OAuthBrokerRouter {
     return computed === challenge;
   }
 
-  private handleResume(res: ServerResponse, url: URL): boolean {
+  // --- Back from the BFF's Privilege gateway sign-in (see handleCallback) ---
+  private async handleResume(req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean> {
     const resumeId = url.searchParams.get('rs');
     const parked = resumeId ? this.tokenStore.consumeResume(resumeId) : null;
     if (!parked) {
@@ -452,27 +509,94 @@ export class OAuthBrokerRouter {
     }
     // redirectUri was checked against the client's registration at /oauth/authorize.
     const callback = new URL(parked.redirectUri);
-    if (url.searchParams.get('link') === 'ok') {
-      callback.searchParams.set('code', this.tokenStore.createCode({
-        clientId: parked.clientId,
-        redirectUri: parked.redirectUri,
-        scope: parked.scope,
-        codeChallenge: parked.codeChallenge,
-        codeChallengeMethod: parked.codeChallengeMethod,
-        pingOneAccessToken: parked.pingOneAccessToken,
-        pingOneExpiresIn: parked.pingOneExpiresIn,
-      }));
-    } else {
+    // Clear THIS authorization's own binding cookie however this ends — it is
+    // single-use, and clearing a different name would leave it stranded.
+    const cookieName = linkNonceCookieName(parked.linkCookieId || '');
+    const headers: Record<string, string> = {
+      'Set-Cookie': `${cookieName}=; HttpOnly; SameSite=Lax; Path=/oauth; Max-Age=0`,
+    };
+
+    const deny = (description: string) => {
+      // The parked token is nobody's now. Fire-and-forget: the browser must not
+      // wait on this, and a failed discard still expires on the BFF's TTL.
+      void this.discardPrivilegeLink(resumeId as string);
+      callback.searchParams.set('error', 'access_denied');
+      callback.searchParams.set('error_description', description.slice(0, 300));
+      if (parked.clientState) callback.searchParams.set('state', parked.clientState);
+      res.writeHead(302, { ...headers, Location: callback.toString() });
+      res.end();
+      return true;
+    };
+
+    if (url.searchParams.get('link') !== 'ok') {
       // Tell the client, instead of handing it a token for a door that would
       // only 401 again — that loops it through sign-in after sign-in.
-      const reason = (url.searchParams.get('reason') || 'no reason given').slice(0, 300);
-      callback.searchParams.set('error', 'access_denied');
-      callback.searchParams.set('error_description', `Privilege gateway sign-in failed: ${reason}`);
+      const reason = (url.searchParams.get('reason') || 'no reason given');
+      return deny(`Privilege gateway sign-in failed: ${reason}`);
     }
+    // The browser that finishes the sign-in must be the one that started the
+    // authorize, or a link mailed to a signed-in victim would put THEIR gateway
+    // identity into the app-wide session (Greptile P1, PR #3140).
+    // Unconditional: a parked record with no nonce is not a link we can vouch
+    // for, and the one place this feature must not fail open is identity.
+    if (readCookie(req.headers.cookie, cookieName) !== parked.linkNonce) {
+      return deny('Privilege gateway sign-in was not completed in the browser that started it');
+    }
+    if (!(await this.commitPrivilegeLink(resumeId as string))) {
+      return deny('Privilege gateway sign-in could not be committed');
+    }
+
+    callback.searchParams.set('code', this.tokenStore.createCode({
+      clientId: parked.clientId,
+      redirectUri: parked.redirectUri,
+      scope: parked.scope,
+      codeChallenge: parked.codeChallenge,
+      codeChallengeMethod: parked.codeChallengeMethod,
+      pingOneAccessToken: parked.pingOneAccessToken,
+      pingOneExpiresIn: parked.pingOneExpiresIn,
+    }));
     if (parked.clientState) callback.searchParams.set('state', parked.clientState);
-    res.writeHead(302, { Location: callback.toString() });
+    res.writeHead(302, { ...headers, Location: callback.toString() });
     res.end();
     return true;
+  }
+
+  /** Ask the BFF to promote the parked gateway token into the app's session.
+   *  Server-to-server with the shared internal secret, same posture as
+   *  dualTokenDispatch's BFF calls. No commit URL configured = nothing to
+   *  commit, which is how a deployment without the BFF side behaves. */
+  private async commitPrivilegeLink(resumeId: string): Promise<boolean> {
+    const commitUrl = process.env.BFF_PRIVILEGE_LINK_COMMIT_URL;
+    if (!commitUrl) return false;
+    try {
+      const resp = await axios.post(commitUrl, { rs: resumeId }, {
+        headers: { 'x-internal-gateway-secret': this.bffInternalSecret },
+        timeout: 3000,
+        validateStatus: (s) => s < 500,
+      });
+      return resp.status >= 200 && resp.status < 300;
+    } catch {
+      return false;
+    }
+  }
+
+  /** A purpose-bound key, so a signature that travels in a browser-visible URL is
+   *  never an oracle against the shared internal secret itself. */
+  private linkSigningKey(): Buffer {
+    return crypto.createHmac('sha256', this.bffInternalSecret).update('privilege-link-v1').digest();
+  }
+
+  /** Tell the BFF to drop a parked token we refused to commit. */
+  private async discardPrivilegeLink(resumeId: string): Promise<void> {
+    const commitUrl = process.env.BFF_PRIVILEGE_LINK_COMMIT_URL;
+    if (!commitUrl) return;
+    try {
+      await axios.post(commitUrl, { rs: resumeId, action: 'discard' }, {
+        headers: { 'x-internal-gateway-secret': this.bffInternalSecret },
+        timeout: 3000,
+        validateStatus: (s) => s < 500,
+      });
+    } catch { /* best effort — the park expires anyway */ }
   }
 
   private readBody(req: IncomingMessage): Promise<string> {

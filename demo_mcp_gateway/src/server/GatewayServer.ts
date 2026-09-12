@@ -199,6 +199,7 @@ export class GatewayServer {
       // the first is the gateway's own primary audience (mcpgateway.ping.demo).
       (this.config.gatewayResourceUri || '').split(',')[0].trim(),
       GATEWAY_SCOPES,
+      config.bffInternalSecret,
     );
     this.upstreamMcpUrl = (
       upstreamMcpUrl ||
