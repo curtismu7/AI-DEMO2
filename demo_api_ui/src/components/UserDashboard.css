@@ -329,13 +329,18 @@
   margin-top: 0.35rem;
 }
 
-/* Sequence view: the agent column and the diagram default to a much
-   taller natural height than either needs, which pushes the step detail
-   panel below the fold. Cap both and let them scroll internally instead,
-   so the detail row is visible without scrolling the whole page. */
+/* Sequence view: the agent column and the diagram default to a much taller
+   natural height than either needs, which pushes the step detail panel below
+   the fold. Cap both and let them scroll internally instead.
+
+   The cap is the grid row, not 50vh. The detail panel is its own track and
+   sizes to its content, so the row these live in has already given it away
+   what it needs — a fixed 50vh on top of that reserves the space a second
+   time and leaves a dead band below both columns whenever the viewport is
+   taller than ~1100px (measured: 885px row, 550px columns, 335px of nothing). */
 .ud-body.ud-sequence-view-active .ud-agent-column,
 .ud-body.ud-sequence-view-active .srd-root {
-  max-height: 50vh;
+  max-height: 100%;
   overflow-y: auto;
 }
 

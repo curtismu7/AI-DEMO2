@@ -27,12 +27,16 @@ import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTrac
 import { deriveLifelineSteps, deriveLifelineParticipants } from "../services/tokenChainTrace/deriveLifelineSteps";
 import "./SequenceReelDiagram.css";
 
-const COL_WIDTH = 130;
+const COL_WIDTH = 140;
 const COL_MARGIN = 70;
 const ROW_HEIGHT = 56;
 const TOP_PAD = 80;
 const BOTTOM_PAD = 30;
-const ACTOR_BOX_W = 156;
+// Derived, never set independently: a box wider than the column pitch runs
+// into its neighbours, which is what a literal 156 against a 130 pitch did.
+// 120 clears the widest lane label (HEURISTICS, measured at 95px/15px bold).
+const LANE_GAP = 20;
+const ACTOR_BOX_W = COL_WIDTH - LANE_GAP;
 
 // An SVG <rect> behind a <text> cannot size itself, so estimate the label's
 // advance width: 12px is .srd-note-label's size and ~0.57em is a mixed-case
