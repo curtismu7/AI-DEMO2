@@ -1,0 +1,58 @@
+#!/usr/bin/env node
+'use strict';
+
+/**
+ * rotate-app-secret.js — rotate one PingOne client secret and propagate it.
+ *
+ * Runs as a detached process so it survives the container recreate in step 6:
+ * when the rotated app is one ai-demo-api-server itself authenticates with,
+ * an in-BFF design would kill itself moments after PingOne destroyed the old
+ * secret, losing the answer to "did the vault write land?".
+ *
+ * Order matters. Everything fallible is preflighted BEFORE the regenerate call,
+ * because that call is irreversible and has no grace period.
+ *
+ * Usage: node scripts/rotate-app-secret.js --app-id <id> [--restart] [--k8s]
+ */
+
+const path = require('node:path');
+const fs = require('node:fs');
+
+const REPO_ROOT = path.join(__dirname, '..');
+// Only isWorkerApp is used below — the driver in rotateAppSecretCli.js imports
+// regenerateClientSecret/verifySecret/fingerprint itself.
+const { isWorkerApp } = require(path.join(REPO_ROOT, 'demo_api_server/services/pingOneSecretRotation'));
+
+const SECRETFUL_AUTH_METHODS = new Set(['CLIENT_SECRET_BASIC', 'CLIENT_SECRET_POST', 'CLIENT_SECRET_JWT']);
+
+/** Throws on any condition that must stop us BEFORE the irreversible rotate. */
+async function preflight({ app, vaultPath, vaultPassword }) {
+  if (isWorkerApp(app)) {
+    throw new Error(
+      `Refusing to rotate "${app.name}": it is the configured worker app. `
+      + 'Rotating it would destroy the credential this tool uses to reach the Management API.');
+  }
+  const method = String(app.tokenEndpointAuthMethod || '').toUpperCase();
+  if (!SECRETFUL_AUTH_METHODS.has(method)) {
+    throw new Error(`Refusing to rotate "${app.name}": tokenEndpointAuthMethod is ${method || 'unset'}, so it has no client secret.`);
+  }
+  if (!vaultPassword) {
+    throw new Error('Refusing to rotate: no vault password available, so the new secret could not be persisted.');
+  }
+  if (!fs.existsSync(vaultPath)) {
+    throw new Error(`Refusing to rotate: vault not found at ${vaultPath}.`);
+  }
+}
+
+// Load-bearing order: this export MUST run before the require.main block below.
+// rotateAppSecretCli.js requires this file for `preflight` while this file
+// requires rotateAppSecretCli.js for its `main` — a circular require that only
+// resolves correctly because module.exports is populated before the CLI driver
+// (which closes the cycle) is ever require()'d. Move this below the
+// require.main block and the CLI breaks with "preflight is not a function".
+module.exports = { preflight };
+
+if (require.main === module) {
+  // CLI path is exercised manually; see the plan's Task 3 manual verification.
+  require(path.join(REPO_ROOT, 'scripts/lib/rotateAppSecretCli')).main(process.argv.slice(2));
+}
