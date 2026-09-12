@@ -24,6 +24,44 @@ describe('OAuthBrokerRouter metadata', () => {
     expect(res.body.code_challenge_methods_supported).toEqual(['S256']);
     expect(res.body.grant_types_supported).toEqual(['authorization_code']);
   });
+
+  it('advertises privilege_link_supported only when BOTH the link and commit URLs are set', async () => {
+    const server = makeServer();
+    const LINK = 'https://local.ping-devops.com:4000/api/privilege-mcp/facade-link';
+    const COMMIT = 'https://demo-api-server:3001/internal/privilege-link/commit';
+
+    const neither = await supertest(server).get('/.well-known/oauth-authorization-server');
+    expect(neither.body.privilege_link_supported).toBe(false);
+
+    process.env.BFF_PRIVILEGE_LINK_URL = LINK;
+    try {
+      // The redirect leg alone would advertise a chain whose commit leg
+      // refuses every request — that's the "Partial Configuration Causes
+      // Login Loop" finding this half-configured case must not reproduce.
+      const linkOnly = await supertest(server).get('/.well-known/oauth-authorization-server');
+      expect(linkOnly.body.privilege_link_supported).toBe(false);
+    } finally {
+      delete process.env.BFF_PRIVILEGE_LINK_URL;
+    }
+
+    process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = COMMIT;
+    try {
+      const commitOnly = await supertest(server).get('/.well-known/oauth-authorization-server');
+      expect(commitOnly.body.privilege_link_supported).toBe(false);
+    } finally {
+      delete process.env.BFF_PRIVILEGE_LINK_COMMIT_URL;
+    }
+
+    process.env.BFF_PRIVILEGE_LINK_URL = LINK;
+    process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = COMMIT;
+    try {
+      const both = await supertest(server).get('/.well-known/oauth-authorization-server');
+      expect(both.body.privilege_link_supported).toBe(true);
+    } finally {
+      delete process.env.BFF_PRIVILEGE_LINK_URL;
+      delete process.env.BFF_PRIVILEGE_LINK_COMMIT_URL;
+    }
+  });
 });
 
 describe('OAuthBrokerRouter registration', () => {

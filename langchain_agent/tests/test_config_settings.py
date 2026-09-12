@@ -88,7 +88,6 @@ class TestEnvironmentConfigs:
         assert config.get_environment_name() == "test"
         
         defaults = config.get_default_values()
-        assert defaults["WEBSOCKET_PORT"] == "8081"
         assert defaults["SESSION_TIMEOUT_MINUTES"] == "5"
         
         # Test validation - should be lenient
@@ -137,7 +136,7 @@ class TestConfigManager:
             "PINGONE_AUTHORIZATION_ENDPOINT": "https://test.forgeblocks.com/auth",
             "PINGONE_REDIRECT_URI": "http://localhost:8080/callback",
             "OPENAI_API_KEY": "test-openai-key",
-            "WEBSOCKET_PORT": "8080",
+            "AGUI_HTTP_PORT": "8080",
         }
         
         with patch.dict(os.environ, env_vars, clear=True):
@@ -149,14 +148,14 @@ class TestConfigManager:
             assert config.log_level == "DEBUG"
             assert config.pingone.base_url == "https://test.forgeblocks.com"
             assert config.langchain.openai_api_key == "test-openai-key"
-            assert config.chat.websocket_port == 8080
+            assert config.chat.agui_http_port == 8080
     
     def test_load_config_with_file(self):
         """Test loading configuration from JSON file."""
         config_data = {
             "PINGONE_BASE_URL": "https://file.forgeblocks.com",
             "DEBUG": "false",
-            "WEBSOCKET_PORT": "9090"
+            "AGUI_HTTP_PORT": "9090"
         }
         
         env_vars = {
@@ -180,7 +179,7 @@ class TestConfigManager:
                 # File values should override defaults but not environment variables
                 assert config.pingone.base_url == "https://file.forgeblocks.com"
                 assert config.debug is False  # From file
-                assert config.chat.websocket_port == 9090  # From file
+                assert config.chat.agui_http_port == 9090  # From file
         finally:
             config_file_path.unlink()
     
@@ -188,7 +187,7 @@ class TestConfigManager:
         """Test that environment variables take priority over file and defaults."""
         config_data = {
             "DEBUG": "false",
-            "WEBSOCKET_PORT": "9090"
+            "AGUI_HTTP_PORT": "9090"
         }
         
         env_vars = {
@@ -212,7 +211,7 @@ class TestConfigManager:
                 config = manager.load_config()
                 
                 assert config.debug is True  # Environment overrides file
-                assert config.chat.websocket_port == 9090  # File value used
+                assert config.chat.agui_http_port == 9090  # File value used
         finally:
             config_file_path.unlink()
     

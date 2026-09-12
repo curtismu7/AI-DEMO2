@@ -213,4 +213,73 @@ function __setStore(s) {
   sessions.clear();
 }
 
-module.exports = { remember, clear, clearAll, status, statusAll, getAccessToken, defaultApp, __setStore };
+// Tokens the link flow has minted but not yet committed. They become the app's
+// session only when the broker confirms, at /oauth/resume, that the browser
+// finishing the sign-in is the one that started the authorize
+// (/internal/privilege-link/commit). Deliberately in-memory and never
+// persisted: an uncommitted token belongs to nobody yet.
+const PENDING_TTL_MS = 600_000;
+const pendingLinks = new Map();
+
+// A discard can land before its park: /oauth/resume consumes the resume record
+// first, so a deny can run while the BFF's sign-in is still in flight. Remember
+// the id briefly so the park that arrives afterwards is refused instead of held,
+// uncommittable, until its TTL.
+const discardedLinks = new Map();
+
+/** Drop expired entries from both maps — parks and the tombstones that block
+ *  a late park. Runs on both write paths so neither can grow unbounded. */
+function sweepLinks(now) {
+  for (const [key, parked] of pendingLinks) if (parked.expiresAt <= now) pendingLinks.delete(key);
+  for (const [key, until] of discardedLinks) if (until <= now) discardedLinks.delete(key);
+}
+
+/** Park a link's gateway token under its broker resume id. */
+function rememberPending(id, record) {
+  if (!id || !record?.accessToken || !record?.tokenUri) return;
+  sweepLinks(Date.now());
+  if (discardedLinks.has(id)) return;
+  // First park wins. A second under the same id is a different browser's
+  // sign-in landing on a slot someone else already filled — never legitimate,
+  // since the broker mints each resume id once.
+  if (pendingLinks.has(id)) return;
+  pendingLinks.set(id, {
+    ...record,
+    expiresAt: Date.now() + PENDING_TTL_MS,
+    // The park's TTL and the TOKEN's lifetime are different clocks. Keep the
+    // token's absolute expiry so promoting it later does not restart it.
+    tokenExpiresAt: Date.now() + (Number(record.expiresIn) > 0 ? Number(record.expiresIn) * 1000 : 300_000),
+  });
+}
+
+/** Promote a parked token into its app's session. Single use; null when the id
+ *  is unknown or expired. */
+function commitPending(id) {
+  const parked = id ? pendingLinks.get(id) : null;
+  if (!parked) return null;
+  pendingLinks.delete(id);
+  if (parked.expiresAt <= Date.now()) return null;
+  const { expiresAt, tokenExpiresAt, ...record } = parked;
+  const remainingSec = Math.max(1, Math.round((tokenExpiresAt - Date.now()) / 1000));
+  remember({ ...record, expiresIn: remainingSec });
+  return { app: keyFor(record.app) };
+}
+
+/** Drop a parked token — the broker refused to commit this link. */
+function discardPending(id) {
+  if (!id) return;
+  sweepLinks(Date.now());
+  pendingLinks.delete(id);
+  discardedLinks.set(id, Date.now() + PENDING_TTL_MS);
+}
+
+/** Test seam: current tombstone count, so a sweep-on-discard test doesn't
+ *  need to poke at module-private state. */
+function __discardedLinksSize() {
+  return discardedLinks.size;
+}
+
+module.exports = {
+  remember, clear, clearAll, status, statusAll, getAccessToken, defaultApp, __setStore,
+  rememberPending, commitPending, discardPending, __discardedLinksSize,
+};

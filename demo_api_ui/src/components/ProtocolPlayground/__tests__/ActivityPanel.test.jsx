@@ -45,11 +45,25 @@ describe('ActivityPanel — compact token chain', () => {
   });
 
   test('a decoded token opens on the Token tab; tabs switch the detail', () => {
-    const decodedToken = { isValid: true, payload: { sub: 'user-1', act: { sub: 'client-app' } } };
+    const decodedToken = {
+      isValid: true,
+      payload: { sub: 'user-1', act: { sub: 'client-app' }, exp: 1704067200 },
+    };
     render(<ActivityPanel results={[hop(1, { decodedToken })]} error={null} />);
 
     expect(screen.getByRole('tab', { name: 'Token' })).toHaveAttribute('aria-selected', 'true');
     expect(within(screen.getByRole('tabpanel')).getByText('"client-app"')).toBeInTheDocument();
+    // "decoded", not "signed": nothing here verifies the signature.
+    expect(screen.getByText('HTTP 200 (decoded)')).toBeInTheDocument();
+
+    // Expiry reads as local time, with the exact ISO kept in the tooltip.
+    // Compared against toLocaleString() computed here rather than a shape
+    // match: this holds in any timezone or locale AND catches empty or wrong
+    // text, which a "not ISO-shaped" assertion would let through.
+    const iso = '2024-01-01T00:00:00.000Z';
+    const expiry = screen.getByTitle(iso);
+    expect(expiry).toHaveClass('claim-value');
+    expect(expiry.textContent).toBe(new Date(iso).toLocaleString());
 
     fireEvent.click(screen.getByRole('tab', { name: 'Request' }));
     expect(within(screen.getByRole('tabpanel')).getByText('"/api/demo/hop-1"')).toBeInTheDocument();

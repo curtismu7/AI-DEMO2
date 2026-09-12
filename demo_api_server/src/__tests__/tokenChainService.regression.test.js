@@ -169,7 +169,9 @@ describe('tokenChainService — Token Chain correctness regression', () => {
     let captured;
     global.fetch = jest.fn(async (url, opts) => { captured = opts; return { ok: true, json: async () => [] }; });
 
-    const req = { id: 'req-1', session: {} }; // shared session across polls
+    // The agent-token cache is keyed by session id (it is not stored on the
+    // session), so the shared session across polls needs one to be cacheable.
+    const req = { id: 'req-1', session: { id: 'sess-chain-1' } };
     await localSvc.getMCPToolCalls('u1', req);
     await localSvc.getMCPToolCalls('u1', req); // second poll should hit the cache
 

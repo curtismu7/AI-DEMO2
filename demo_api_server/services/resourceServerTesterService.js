@@ -302,17 +302,11 @@ async function probe(token, targetPath) {
   }
 }
 
-/** Newest non-expired agentTokens cache entry (gateway TX), or null. */
+/** Newest non-expired cached agent token (gateway TX), or null. */
 function latestCachedMcpToken(session) {
-  const map = session && session.agentTokens;
-  if (!map || typeof map !== 'object') return null;
-  let best = null;
-  for (const entry of Object.values(map)) {
-    if (!entry || !entry.access_token) continue;
-    if (Date.now() >= (entry.expires_at || 0)) continue;
-    if (!best || (entry.expires_at || 0) > (best.expires_at || 0)) best = entry;
-  }
-  return best ? best.access_token : null;
+  // The cache is keyed by session id in agentTokenCache, not stored on the
+  // session — scanning session.agentTokens here would always find nothing.
+  return agentTokenCache.newest(session);
 }
 
 /**
@@ -364,6 +358,8 @@ async function resolveTokenAsync(body, req) {
   if (cached && cached.access_token) {
     return { token: cached.access_token, source: 'session:mcp' };
   }
+  // Captured before the mint: a clear() during it must not be undone below.
+  const since = agentTokenCache.generation(session);
   try {
     const resolved = await agentMcpTokenService.resolveMcpAccessTokenWithEvents(
       req,
@@ -378,7 +374,7 @@ async function resolveTokenAsync(body, req) {
     agentTokenCache.set(session, vertical, scopes, {
       access_token: minted,
       expires_in: Number(resolved.expires_in) > 0 ? Number(resolved.expires_in) : 3600,
-    });
+    }, since);
     return { token: minted, source: 'session:mcp' };
   } catch (err) {
     console.warn('[resource-server-tester] mcp mint failed:', err && err.message ? err.message : err);

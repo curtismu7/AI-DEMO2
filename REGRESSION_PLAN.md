@@ -114,7 +114,6 @@ minimal diff.
 | `8081` | MCP Invest Server | `ws://localhost:8081` |
 | `8082` | Mortgage Service | `http://localhost:8082` |
 | `8888` | LangChain Agent (uvicorn main) | `http://localhost:8888` |
-| `8889` | LangChain Agent (chat WS) | `ws://localhost:8889` |
 | `8890` | LangChain Agent (health) | `http://localhost:8890` |
 
 **`local.ping-devops.com` is the canonical local BROWSER origin** (HTTPS via
@@ -206,6 +205,229 @@ read the configured host. A new browser origin must be added to ALL of:
 - `cd demo_api_ui && npm run test:unit && npm run build` — 534 files / 4119 tests
   pass, build exits 0.
 
+### 2026-09-12 — D-05's anti-bypass rule never fired in k8s: the gateway audience was compared unsplit
+
+**Files changed:** `oauth-mcp/src/auth/lastHopAuthorization.ts`,
+`oauth-mcp/tests/gateway-upstream.test.ts`.
+
+**What was broken:** `enforceUpstreamContract` runs two rules. Rule 2 (the
+upstream audience must match) splits its setting with `normalizeAudienceList`.
+Rule 1 — D-05, "a gateway-audience token must not be used at the upstream" —
+compared the raw env string (`audValues.includes(options.gatewayAudience)`), and
+`resolveUpstreamAudiences()` passes `MCP_GW_RESOURCE_URI` through unsplit.
+Wherever that variable is a comma list the comparison could never be true, so
+the rule was silently off. In k8s it is a list: `k8s/02-configmap.yaml:62` sets
+`"mcpgateway.ping.demo,https://api.ping.demo:3036/mcp"` and the mcp-server pod
+loads that ConfigMap (`k8s/30-mcp-server-deployment.yaml:130-134`), so a
+gateway-audienced token presented straight to mcp-server skipped the gateway's
+Authorize evaluation and its RFC 8693 exchange. Docker was unaffected:
+`oauth-mcp/.env:11` sets the single value `mcpgateway.ping.demo`, which the raw
+comparison matched.
+
+**What was fixed:** Rule 1 splits the setting with the same helper Rule 2 uses,
+and names the audience it matched in the error.
+
+**Do not break:**
+- The single-value shape (Docker) must keep rejecting a gateway-audienced token.
+- A token audienced at the upstream must still pass when the gateway setting is
+  a list.
+- With neither audience configured the check stays a no-op (local dev).
+- mcp-server still accepts `https://api.ping.demo:3036/mcp` as an *upstream*
+  audience, deliberately, for native ID-JAG redemption. That audience is not in
+  Docker's gateway list, so Rule 1 does not touch it; ID-JAG redemption is
+  validated by the grant handler against the upstream list
+  (`IdJagGrantHandler.ts:99`), not by this bearer check.
+- **Precedence when an audience is in BOTH lists: Rule 1 wins (reject).** k8s
+  ships that overlap — `02-configmap.yaml` has `mcpgateway.ping.demo` in
+  `MCP_GW_RESOURCE_URI` and in `MCP_SERVER_RESOURCE_URI` (a transitional entry
+  for callers on the old forward-unchanged contract). D-05 exists precisely to
+  refuse a gateway-audience token at the upstream, so the transitional entry
+  cannot resurrect it, and that entry is dead config in both deployments — it
+  was already dead in Docker, where the single-value compare matched. Pinned by
+  the overlap case in `oauth-mcp/tests/gateway-upstream.test.ts`.
+
+**Verify:** `cd oauth-mcp && ./node_modules/.bin/jest tests/gateway-upstream.test.ts`
+— the comma-list case failed before the fix with "Upstream aud mismatch" (proof
+Rule 1 never ran) and passes after; `npm run test:unit` 91 suites / 1138 tests
+pass; `npm run build` exit 0.
+
+### 2026-09-12 — the first token exchange of a session undid a mode change
+
+**Files changed:** `demo_api_server/services/dpopKeyService.js`,
+new `demo_api_server/services/sessionScopedCaches.js`, `demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/services/tokenRefresh.js`, `demo_api_server/routes/oauth.js`,
+`demo_api_server/routes/oauthUser.js`, `demo_api_server/routes/admin.js`, `demo_api_server/server.js`,
+new `demo_api_server/tests/dpopSessionKey.test.js`, new `demo_api_server/tests/sessionScopedCaches.test.js`.
+
+**What was broken:** `getSessionDpopKey` minted the per-session ephemeral DPoP keypair straight onto
+`req.session.dpopKey` (get-or-create; `ff_dpop` is ON). That happens on the session's FIRST token
+exchange — the discovery exchange behind `POST /api/demo-agent/tools`, and `/api/agent/run`'s setup — so
+that request marked the session modified, and express-session wrote its whole start-of-request copy back
+when it ended, undoing an agent-mode change made while it ran. Once per session, which is why it read as
+intermittent: whichever request minted the key was the one that reverted, and in a browser session the
+dashboard's own boot calls usually minted it before anyone could switch. Same last-write-wins class as
+the two entries below; this was the writer they left behind.
+
+**Fixed by** holding the keypair in `dpopKeyService`'s own in-process map keyed by session id, swept
+after 12h of disuse. `peekSessionDpopKey(session)` — which never mints — replaces `mcpToolPipeline`'s
+direct `req.session.dpopKey` read, preserving its "only when Phase A minted a key" rule, and
+`clearSessionDpopKey(session)` runs on both logout paths beside the agent-token clear, since
+`session.destroy()` no longer drops it.
+
+**Do not break:** the key must stay STABLE for a session — the delegated MCP token is bound to it
+(`cnf.jkt`), so a second key would sign proofs the gateway cannot match to the token it issued. Nothing
+reads or writes `session.dpopKey`; go through `getSessionDpopKey` / `peekSessionDpopKey` /
+`clearSessionDpopKey`, and the read path must never mint.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest dpopSessionKey sessionScopedCaches dpopKeyService webBotAuth mcpToolPipeline oauth logout admin --forceExit`
+— 91 suites / 810 passed. `tests/dpopSessionKey.test.js` is 7/7: four of its assertions were red against
+the old behaviour (the session write, stability per session id, peek-never-mints, no-id → null), and
+"peek counts as use" was red against this PR's own first cut — the 12h disuse sweep could evict a key the
+tool pipeline was still signing hops with, since that path only ever peeks (Greptile P1).
+`tests/sessionScopedCaches.test.js` pins that a clear drops only that session's entries and never throws
+on a missing or idless session.
+Live, and this is the part unit tests cannot show: `tests/e2e/first-exchange-dpop.real.spec.js` drives a
+headless BFF login with NO browser page, so no dashboard boot call can mint the key first and the
+spanning `/api/demo-agent/tools` IS the session's first exchange. Before the fix it REVERTED (switch at
+t+0.17s, `/tools` ended t+1.69s, provider came back `llamacpp`); the post-deploy re-run must report KEPT.
+
+### 2026-09-11 — a long request's agent-token cache write undid a mode change
+
+**This removed one writer, not the symptom.** The live check after deploying it still reverted a mode
+change made during a session's first token exchange — see the DPoP entry above, which closes that one.
+
+**Files changed:** `demo_api_server/services/agentTokenCache.js`,
+`demo_api_server/services/resourceServerTesterService.js`, `demo_api_server/routes/delegatedCommerce.js`,
+`demo_api_server/routes/oauth.js`, `demo_api_server/routes/oauthUser.js`,
+`docs/SPEC-authorize-driven-dynamic-chips.md`, and tests.
+
+**What was broken:** `agentTokenCache` stored the agent (client-credentials / exchanged) token under
+`req.session.agentTokens`, so a cache MISS inside a long request marked the session modified and
+express-session wrote that request's whole session copy — the one loaded when the request STARTED —
+back to the store when it ended. An 11s `POST /api/demo-agent/tools` on a cold cache (the dashboard's
+tool lookup, right after the #3141 deploy restarted the BFF) therefore reverted an agent-mode change
+made while it ran: seen live 2026-09-11, the session's `langchain_config.provider` went back to its
+pre-change value. Same last-write-wins class as the `/api/agent/run` entry below, reached through a
+different route, so that entry's early save could not cover it.
+
+**Fixed by** holding the tokens in an in-process map inside `agentTokenCache`, keyed by session id +
+(vertical, scopeSet), so no caller marks the session modified. Expired entries are swept on write (the
+map outlives the sessions now), `newest(session)` replaces the resource-server tester's own scan of
+`session.agentTokens`, and `clear(session)` replaces `req.session.agentTokens = {}` in delegated-commerce
+consent/revoke and is called on both logout paths — `session.destroy()` no longer clears the cache for
+free.
+
+**Do not break:** nothing reads or writes `session.agentTokens` — the field is gone; go through
+`agentTokenCache` (`get` / `set` / `newest` / `clear`). A cached entry needs `session.id`: a session
+without one is permanently uncached, so test fixtures that assert cache reuse must carry an id. Logout
+must keep calling `clear()`. In-process, single-BFF-process, like `mcpFlowSseHub` and `agentRunContext`.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest agentTokenCache agentToolsResolver resourceServerTester summaryInflow delegatedCommerce tokenChain --forceExit`
+— 13 suites / 117 passed; the rewritten cache spec was red first (5 of 10: the session write, `newest`,
+`clear`, the no-id case, null-safety). Full BFF suite: 1012 of 1013 suites, 11,665 passed — the single
+failure (`tests/routes/privilegeMcpClient.status.test.js`) passes alone 4/4 and never touches the cache.
+Scoped `oauth|logout|auth` after the logout change: 119 suites / 1190 passed.
+### 2026-09-11 — Privilege link: bind the gateway token to its browser, and check the broker before 401
+
+**Files changed:** `demo_mcp_gateway/src/oauth/BrokerTokenStore.ts`, `OAuthBrokerRouter.ts`,
+`src/server/GatewayServer.ts`; `demo_api_server/services/privilegeGatewaySession.js`,
+`routes/privilegeMcpClient.js`, `routes/privilegeLinkCommit.js` (new), `routes/mcpFacade.js`, `server.js`;
+`docker-compose.yml`. Tests: `demo_mcp_gateway/tests/oauth-broker-router-authorize.test.ts`,
+`oauth-broker-router-metadata.test.ts`; `demo_api_server/tests/services/privilegeGatewaySession.test.js`,
+`tests/routes/privilegeLinkCommit.test.js` (new), `privilegeMcpClient.facadeLink.test.js`,
+`mcpFacade.privilegeGatewayDoor.test.js`.
+
+**What was broken (two Greptile P1s from PR #3140):**
+- `/api/privilege-mcp/facade-link` is unauthenticated and committed the resulting gateway token straight
+  into the shared per-app session. An attacker could start a broker authorization, send a signed-in victim
+  the `/facade-link` URL, and the victim's gateway identity became the app-wide credential — callable by
+  anyone holding a valid façade bearer ("Shared Identity Can Be Replaced").
+- With `MCP_FACADE_PRIVILEGE_LINK=true` but the broker's `BFF_PRIVILEGE_LINK_URL` unset, the façade answered
+  401 assuming the link chain existed. The client re-authenticated, the broker completed a plain OAuth with
+  no gateway leg, and the façade 401'd again — every connect failed ("Partial Configuration Causes Login
+  Loop").
+
+**What was fixed:**
+- The broker sets a random `pgw_link` nonce cookie at `/oauth/authorize` only when the authorize will chain
+  a Privilege door's link, and carries the same nonce on the pending authorization and the resume record.
+  `/facade-link/callback` now parks the gateway token under the resume id
+  (`privilegeGatewaySession.rememberPending`) instead of calling `remember()`. `/oauth/resume` verifies the
+  browser's cookie against the resume's nonce and, only on a match, calls the new secret-guarded
+  `/internal/privilege-link/commit` to promote the parked token into the app's session
+  (`commitPending`) — any mismatch, missing cookie, or failed commit denies with `access_denied`.
+- The broker's `/.well-known/oauth-authorization-server` now advertises `privilege_link_supported`
+  (`Boolean(BFF_PRIVILEGE_LINK_URL)`). The façade's `ownsUpstreamAuth` 401 path (`mcpFacade.js`) asks the
+  broker (cached 60s, fail-closed) before answering 401 instead of trusting the flag alone; when the broker
+  does not advertise the link, the door answers its existing 503 with `reason: 'gateway_link_not_configured'`
+  and never dials the upstream.
+
+**2026-09-11 hardening pass (same branch, on top of the above — see TECH_DEBT.md's NARROWED entry for the
+residual this does NOT close):**
+- The broker now signs the `/facade-link` URL it issues (`sig`: HMAC-SHA256 over `<raw app>|<resume id>` with
+  the shared internal secret, default `dev-shared-secret-change-me` matching
+  `utils/internalSecret.js`); `/facade-link` refuses a missing or wrong signature with the same 400 body as
+  every other malformed-link case, so a distinct error can't tell a prober which field failed.
+- `rememberPending` is first-write-wins (a second park under an id the broker mints once is refused, sweeping
+  expired parks on the way in) and `discardPending` drops a park outright; the broker's `/oauth/resume` calls
+  the commit endpoint with `{ rs, action: 'discard' }` on every deny path (bad cookie, or an upstream sign-in
+  failure) instead of leaving the token parked until its TTL.
+- The nonce check in `/oauth/resume` is now unconditional — a parked record with no `linkNonce` recorded
+  denies instead of the old `parked.linkNonce && …` short-circuiting past the check entirely.
+- `privilege_link_supported` now requires BOTH `BFF_PRIVILEGE_LINK_URL` and `BFF_PRIVILEGE_LINK_COMMIT_URL` —
+  the redirect leg alone would advertise a chain whose commit leg 403s every request.
+- `brokerAdvertisesLink`'s probe is bounded with `AbortSignal.timeout(2000)` and logs (`console.warn`) why it
+  failed, so a wrong base URL doesn't silently disable the whole feature for 60s at a time with no trace; the
+  flag-on 503 remedy now names the two broker env vars instead of pointing at `/privilege-mcp-client`, which
+  cannot fix a broker-side misconfiguration.
+
+**Do not break:**
+- The parked token never becomes a session without the broker's confirmation at `/oauth/resume` —
+  `commitPending` is the only path into `remember()` for a link-originated token, and it requires a resume id
+  the BFF itself parked.
+- The `pgw_link` cookie is `Path=/oauth`, `HttpOnly`, `SameSite=Lax`, and is cleared (`Max-Age=0`) on every
+  `/oauth/resume` response, success or denial.
+- `/auth/start` and any non-Privilege-door authorize set no cookie and carry no `linkNonce` — only an
+  authorize whose `resource` resolves to a Privilege door (`privilegeLinkApp`) with both
+  `BFF_PRIVILEGE_LINK_URL` and `BFF_PRIVILEGE_LINK_COMMIT_URL` set gets one. Both env legs gate the callback
+  chain and the authorize cookie the same way they gate the advertised metadata — `privilegeLinkConfigured()`
+  is the one helper all three call sites use, so a half-wired pair falls through to the ordinary non-link path
+  instead of sending a browser through a gateway sign-in whose commit leg would refuse it.
+- With either flag off (`MCP_FACADE_PRIVILEGE_LINK` unset, or the broker not advertising
+  `privilege_link_supported`), the façade keeps its 503 — it must never 401 a client into a loop it cannot
+  complete.
+- `/facade-link` requires a `sig` computed over the raw `app` query value and the resume's `rs` — a caller
+  cannot choose the parked slot or the target app by hand-crafting the URL.
+- A `rememberPending` under an `rs` already parked (and not expired) is refused, and every deny path
+  discards the park instead of leaving it live until `PENDING_TTL_MS`.
+- A discard is remembered even when it arrives before its park: a later `rememberPending` under the same id
+  is refused (`commitPending` returns null) rather than parking a token nobody can ever commit, and the
+  tombstone itself expires so the id is not blocked forever.
+- A parked record with no `linkNonce` always denies at `/oauth/resume` — never falls through to a commit.
+- `privilege_link_supported` requires both `BFF_PRIVILEGE_LINK_URL` and `BFF_PRIVILEGE_LINK_COMMIT_URL`.
+- The façade's flag-on 503 distinguishes a broker that answered with no advertisement
+  (`gateway_link_not_configured`, remedy: set the two broker env vars) from a broker that did not answer at
+  all (`gateway_link_unreachable`, remedy: check the broker is running and reachable) — never send an operator
+  to reconfigure env vars that are already correct.
+- The `/facade-link` signature is HMAC-SHA256 over `<raw app>|<resume id>` under a purpose-bound key derived
+  from the shared internal secret (`HMAC(secret, 'privilege-link-v1')`), not the raw secret itself — the label
+  must match byte-for-byte between the broker (`OAuthBrokerRouter.linkSigningKey`) and the BFF
+  (`privilegeMcpClient.linkSigningKey`), or every link 400s.
+- The binding cookie is per-authorization (`pgw_link_<id>`, minted at `/oauth/authorize` and cleared at
+  `/oauth/resume`) — a single fixed name let two authorizations in one browser overwrite each other's nonce
+  and fail both logins, exactly LM Studio's two-door (`opensearch22` + `opensearch`) setup (Greptile P1, PR
+  #3153).
+- Promoting a parked token (`commitPending`) preserves the token's own absolute expiry (`tokenExpiresAt`,
+  set at `rememberPending` time) instead of handing `remember()` the original `expiresIn` — a token parked for
+  N seconds must not come back recorded as living `expiresIn` seconds longer than it really does (Greptile P2,
+  PR #3153).
+- Both `pendingLinks` and `discardedLinks` are swept (`sweepLinks`) on EVERY write path — `rememberPending` and
+  `discardPending` alike — so repeated denied or abandoned sign-ins that never park cannot grow the tombstone
+  map for the life of the process (Greptile P2, PR #3153).
+
+**Verify:**
+- `cd demo_mcp_gateway && npm run build && ./node_modules/.bin/jest tests/oauth-broker-router-authorize.test.ts tests/oauth-broker-router-token.test.ts tests/oauth-broker-router-metadata.test.ts tests/oauth-broker-token-store.test.ts tests/gateway-oauth-broker-wiring.test.ts tests/oauth-client-registry.test.ts --forceExit` — 6 suites, 65 tests, all pass.
+- `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/services/privilegeGatewaySession.test.js tests/routes/privilegeLinkCommit.test.js tests/routes/privilegeMcpClient.facadeLink.test.js tests/routes/mcpFacade.privilegeGatewayDoor.test.js tests/routes/privilegeMcpClient.gatewaySessionRemember.test.js tests/routes/privilegeMcpClient.gatewaySessionState.test.js tests/routes/mcpFacade.privilegeEntryPath.test.js tests/routes/mcpFacade.multiApp.test.js tests/routes/privilegeMcpClient.rfc9728.test.js --forceExit` — 9 suites, 92 tests, all pass.
+
 ### 2026-09-11 — No-gateway A2A specialist calls could not complete
 
 **Files changed:** `demo_api_server/services/mcpToolPipeline.js`,
@@ -267,8 +489,9 @@ loaded when the run STARTED, so anything another request saved in between was ov
 Heuristics → llama.cpp just before sending left the mode picker on Heuristics after the run. The same
 delay meant the mid-run tool callback (`/internal/agent-tool`) read the store before that save and
 forwarded the PREVIOUS run's Intent Token (or none) to the gateway. Removing that write was not enough:
-setup services still write the session (`getAgentCCToken` caches the agent token in
-`session.agentTokens` on a miss), and that too was saved as the stale copy at the end. And the run
+setup services still write the session (`resolveAvailableTools` cached the agent token under
+`session.agentTokens` on a miss — `getAgentCCToken` itself writes nothing, corrected here), and that
+too was saved as the stale copy at the end. And the run
 context was keyed by session alone, so two runs overlapping in one session cross-wired: the older
 run's tool callback got the newer run's Intent Token and offered-tool list.
 

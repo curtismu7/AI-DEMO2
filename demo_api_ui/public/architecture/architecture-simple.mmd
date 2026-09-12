@@ -51,7 +51,7 @@ flowchart LR
     MCPServer["demo_mcp_server<br/>MCP protocol · WebSocket :8080<br/>tools/list · tools/call"]
     MCPInvest["demo_mcp_resource_server<br/>Investment MCP server :8081<br/>(WebSocket + HTTP)"]
     Mortgage["demo_api_resource_server<br/>Phase 266 Path A backend :8082<br/>X-API-Key gated"]
-    LangChain["langchain_agent<br/>Python uvicorn :8888<br/>chat WS :8889 - health :8890"]
+    LangChain["langchain_agent<br/>Python uvicorn :8888<br/>health :8890"]
     Vault[("secrets.vault<br/>AEAD + Argon2id<br/>startup-loaded - Phase 269")]
     MgmtAPI["PingOne Management API<br/>/v1/environments/{env}/users<br/>worker token (CC)"]
 
@@ -118,7 +118,6 @@ flowchart LR
     BFF -->|"vaultLoader.js startup-load<br/>configStore.setRaw persist:false"| Vault
     LangChain -->|"WS MCP - Bearer in JSON-RPC"| MCPServer
     LangChain -->|"HTTPS - provider API key"| LLM
-    User -.->|"WebSocket chat :8889"| LangChain
 
     %% ── Gateway is the policy gate AND the credential broker ──────────
     Gateway -->|"PDP evaluate per call:<br/>scope · aud · may_act · amount"| Authorize

@@ -1,6 +1,6 @@
 # AI Demo — local Docker Compose
 #
-# Starts: BFF (3001 HTTPS), UI/nginx (4000 HTTPS), MCP server (8080), LangChain agent (8888/8889/8890)
+# Starts: BFF (3001 HTTPS), UI/nginx (4000 HTTPS), MCP server (8080), LangChain agent (8888/8890)
 #
 # Prerequisites:
 #   1. Run bootstrap first: cd demo_api_server && npm run pingone:bootstrap
@@ -893,7 +893,6 @@ services:
     command: ./scripts/startup.sh
     ports:
       - "8888:8888"   # AG-UI SSE / FastAPI
-      - "8889:8889"   # WebSocket chat
       - "8890:8890"   # health
     environment:
       ENVIRONMENT: development
@@ -901,11 +900,9 @@ services:
       BFF_BASE_URL: "https://demo-api-server:3001"
       MCP_SERVER_URL: "ws://mcp-server:8080"
       AGUI_HTTP_PORT: "8888"
-      WEBSOCKET_PORT: "8889"
       HEALTH_HTTP_PORT: "8890"
       # Servers bind 127.0.0.1 by default; published ports need the container override.
       AGUI_HTTP_HOST: "0.0.0.0"
-      CHAT_WS_HOST: "0.0.0.0"
       # CodeGraph Explorer LLM — priority: Anthropic > Groq > local llama
       LLAMACPP_BASE_URL: "${LLAMACPP_BASE_URL:-http://host.docker.internal:8090}"
       LLAMACPP_MODEL: "gpt-oss-20b"
@@ -1113,6 +1110,10 @@ services:
       # Unset = no chaining. See
       # docs/superpowers/specs/2026-09-11-lmstudio-privilege-gateway-link-design.md.
       BFF_PRIVILEGE_LINK_URL: "https://local.ping-devops.com:4000/api/privilege-mcp/facade-link"
+      # Where the broker confirms a Privilege link (server-to-server, shared
+      # secret) before it issues the client's code. Internal service name: this
+      # one is never a browser redirect.
+      BFF_PRIVILEGE_LINK_COMMIT_URL: "https://demo-api-server:3001/internal/privilege-link/commit"
       # mkcert CA so the emitter's HTTPS POST to the BFF can verify its leaf cert.
       # Without it every hop fails UNABLE_TO_VERIFY_LEAF_SIGNATURE and is silently
       # swallowed by the fire-and-forget .catch() -- an invisible, empty chain.

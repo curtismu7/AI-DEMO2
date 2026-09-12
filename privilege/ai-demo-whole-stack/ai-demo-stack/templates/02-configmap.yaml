@@ -49,10 +49,8 @@ data:
   BFF_INTERNAL_ID_TOKEN_URL: "https://demo-api-server:3001/internal/id-token"
   BANKING_RESOURCE_SERVER_BASE_URL: "https://demo-api-server:3001"
   AGUI_HTTP_PORT: "8888"
-  WEBSOCKET_PORT: "8889"
   HEALTH_HTTP_PORT: "8890"
   AGUI_HTTP_HOST: "0.0.0.0"
-  CHAT_WS_HOST: "0.0.0.0"
   MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
   # mcp-resource-server (invest) pulls this whole map in via envFrom, so it must
   # get its OWN audience list under its own name — the banking value above is

@@ -223,7 +223,6 @@ Comprehensive breakdown of all **13 services** (Node.js, TypeScript, and Python)
 
 - **Ports:**
   - 8888 (uvicorn FastAPI server)
-  - 8889 (WebSocket chat interface)
   - 8890 (health + LangSmith tracing inspector)
 - **Entry Point:** `python -m src.main`
 - **Role:** LangChain-based agent runtime
@@ -245,7 +244,6 @@ python3 -m venv .venv
 - `src/main.py` — main entry point
 - `src/agent/langchain_mcp_agent.py` — agent implementation
 - `src/mcp/connection.py` — MCP connection handling
-- `src/api/websocket_handler.py` — WebSocket chat
 
 ---
 

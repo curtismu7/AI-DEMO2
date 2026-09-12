@@ -40,7 +40,7 @@ npm run setup:fresh -- /path/to/archive.tar.gz
 - Mortgage Service on `localhost:8082`
 - Agent Service on host `localhost:3016` (container 3006)
 - HITL Service on `localhost:3009`
-- LangChain Agent on `localhost:8888/8889/8890` (Python)
+- LangChain Agent on `localhost:8888/8890` (Python)
 - OpenAI Agent on `localhost:8891`, Mastra Agent on `localhost:8892`, Pydantic Agent on `localhost:8893`
 - Authorize mock on `localhost:9001`
 

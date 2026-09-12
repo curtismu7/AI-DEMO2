@@ -886,6 +886,11 @@ app.get('/api/auth/logout', async (req, res) => {
     // because a group write failed.
     await require('./services/groupMembershipLogoutRestore').restorePremiumTierOnLogout(req);
 
+    // Session-scoped in-process caches (agent tokens, DPoP keypair) no longer die
+    // with the session — they were moved off it (REGRESSION_PLAN §4), so every
+    // destruction path clears them explicitly.
+    require('./services/sessionScopedCaches').clearSessionScopedCaches(req.session);
+
     req.session.destroy((err) => {
         if (err) {
             console.error('Session destruction error during unified logout:', err);
@@ -1616,6 +1621,10 @@ app.use('/internal', require('./routes/transactionHopIngest'));
 // callers (e.g. Onyx) too.
 // Secret-guarded; NOT browser-facing. Read back at /api/admin/agent-gateway/decisions.
 app.use('/internal', require('./routes/gatewayDecisionIngest'));
+// The broker's confirmation that a Privilege link's gateway sign-in finished in
+// the browser that started it — see routes/privilegeLinkCommit.js. Secret-guarded;
+// NOT browser-facing.
+app.use('/internal', require('./routes/privilegeLinkCommit'));
 // Recording façade for external MCP clients (LM Studio, LibreChat) — relays to
 // the Agent Gateway / Privilege doors, writes the hops above in-process, and
 // appends a reel_url to every tool result. No session: the client brings its

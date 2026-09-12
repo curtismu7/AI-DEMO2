@@ -109,7 +109,7 @@ router.post('/consent', requireNotAdmin, async (req, res) => {
       access_token: req.session?.oauthTokens?.accessToken || null,
     });
     const updated = delegatedCommerceService.updateConsent(registration.id, scopes);
-    req.session.agentTokens = {};
+    require('../services/agentTokenCache').clear(req.session);
     await saveSession(req);
     await revokeActiveDelegations(registration.applicationId, userId, granted.id);
     res.json({
@@ -166,7 +166,7 @@ router.post('/revoke', requireNotAdmin, async (req, res) => {
     await pingOneUserService.clearMayActIfMatches(userId, registration.applicationId);
     await revokeActiveDelegations(registration.applicationId, userId);
     const revoked = delegatedCommerceService.revoke(registration.id);
-    req.session.agentTokens = {};
+    require('../services/agentTokenCache').clear(req.session);
     const auditId = `delegated-revoke-${Date.now()}`;
     mcpAuditStore.append({
       eventId: auditId,

@@ -183,6 +183,8 @@ async function autoRefreshMiddleware(req, res, next) {
     
     // If refresh token expired, clear session and require re-auth
     if (error.code === 'REFRESH_TOKEN_EXPIRED') {
+      // Session-scoped in-process caches no longer die with the session.
+      require('./sessionScopedCaches').clearSessionScopedCaches(req.session);
       req.session.destroy(() => {
         res.status(401).json({ 
           error: 'Session expired',

@@ -138,33 +138,9 @@ class LangChainConfig:
 @dataclass
 class ChatConfig:
     """Configuration for chat interface."""
-    # Default 8889 (not 8080) — 8080 is owned by banking_mcp_server in run-bank.sh.
-    websocket_port: int = 8889
-    max_message_length: int = 4096
     conversation_history_limit: int = 100
-    session_cleanup_interval_minutes: int = 15
-    # WR-02 (Option A): per-session message workers. Each chat session gets
-    # its own ordered processing path so different sessions run concurrently
-    # while turns within ONE session stay strictly ordered. These bound and
-    # reap that pool.
-    #   max_session_workers          — hard cap on concurrent per-session
-    #                                  workers; cap-hit => backpressure error
-    #                                  to the client (never silently dropped).
-    #   session_worker_idle_ttl_seconds — a worker idle (no messages) longer
-    #                                  than this is torn down + its task
-    #                                  cancelled/awaited by the reaper.
-    #   session_worker_reap_interval_seconds — reaper loop tick.
-    max_session_workers: int = 50
-    session_worker_idle_ttl_seconds: int = 900
-    session_worker_reap_interval_seconds: int = 60
     # Server bind hosts / knobs (CR-03 discipline: loopback by default; override
     # only for container networking where peers live in another pod).
-    chat_ws_host: str = "127.0.0.1"  # CHAT_WS_HOST
-    # HI-01: WebSocket Origin allowlist (comma-separated) + max frame size.
-    allowed_ws_origins: str = (
-        "https://api.ping.demo:4000,http://localhost:4000,http://127.0.0.1:4000"
-    )  # ALLOWED_WS_ORIGINS
-    ws_max_message_bytes: int = 65536  # WS_MAX_MESSAGE_BYTES (64KB default)
     health_http_port: int = 8890  # HEALTH_HTTP_PORT (8081 reserved by run-bank.sh)
     agui_http_host: str = "127.0.0.1"  # AGUI_HTTP_HOST
     agui_http_port: int = 8888  # AGUI_HTTP_PORT
@@ -219,7 +195,6 @@ class DevelopmentConfig(BaseEnvironmentConfig):
         return {
             "DEBUG": "true",
             "LOG_LEVEL": "DEBUG",
-            "WEBSOCKET_PORT": "8889",
             "LANGCHAIN_VERBOSE": "true",
             "LANGCHAIN_MODEL_NAME": "llama3.2",
             "PINGONE_REDIRECT_URI": "http://localhost:8889/auth/callback",
@@ -248,7 +223,6 @@ class StagingConfig(BaseEnvironmentConfig):
         return {
             "DEBUG": "false",
             "LOG_LEVEL": "INFO",
-            "WEBSOCKET_PORT": "8889",
             "LANGCHAIN_VERBOSE": "false",
             "LANGCHAIN_MODEL_NAME": "llama3.2",
             "SESSION_TIMEOUT_MINUTES": "60",
@@ -274,7 +248,6 @@ class ProductionConfig(BaseEnvironmentConfig):
         return {
             "DEBUG": "false",
             "LOG_LEVEL": "WARNING",
-            "WEBSOCKET_PORT": "8889",
             "LANGCHAIN_VERBOSE": "false",
             "SESSION_TIMEOUT_MINUTES": "120",  # Longer timeout for production
             "MAX_RETRY_ATTEMPTS": "5",
@@ -303,7 +276,6 @@ class TestConfig(BaseEnvironmentConfig):
         return {
             "DEBUG": "true",
             "LOG_LEVEL": "DEBUG",
-            "WEBSOCKET_PORT": "8081",  # Different port for tests
             "LANGCHAIN_VERBOSE": "false",  # Keep test output clean
             "LANGCHAIN_MODEL_NAME": "llama3.2",
             "PINGONE_BASE_URL": "https://test.forgeblocks.com",
@@ -531,37 +503,9 @@ class ConfigManager:
                 "A value of 0 or negative causes trim_messages() to return an empty list, "
                 "which would silently discard all conversation history."
             )
-        # WebSocket Origin allowlist. Starts from ALLOWED_WS_ORIGINS (or the local
-        # dev default), then folds in the deployment's public origin
-        # (CORS_ORIGIN / PUBLIC_APP_URL) so a deployed frontend can open the chat
-        # WebSocket without a separate ALLOWED_WS_ORIGINS entry. Without this, a
-        # deploy that sets only PUBLIC_APP_URL (e.g. the SE cluster) falls back to
-        # the local-only default and silently rejects the deployed origin — the
-        # agent connects but never returns results.
-        _ws_origins = [
-            o.strip()
-            for o in get_env_value(
-                "ALLOWED_WS_ORIGINS",
-                "https://api.ping.demo:4000,http://localhost:4000,http://127.0.0.1:4000",
-            ).split(",")
-            if o.strip()
-        ]
-        for _pub_key in ("CORS_ORIGIN", "PUBLIC_APP_URL"):
-            _pub = (get_env_value(_pub_key, "") or "").strip().rstrip("/")
-            if _pub and _pub not in _ws_origins:
-                _ws_origins.append(_pub)
 
         chat_config = ChatConfig(
-            websocket_port=int(get_env_value("WEBSOCKET_PORT", "8889")),
-            max_message_length=int(get_env_value("MAX_MESSAGE_LENGTH", "4096")),
             conversation_history_limit=int(get_env_value("CONVERSATION_HISTORY_LIMIT", "100")),
-            session_cleanup_interval_minutes=int(get_env_value("SESSION_CLEANUP_INTERVAL_MINUTES", "15")),
-            max_session_workers=int(get_env_value("MAX_SESSION_WORKERS", "50")),
-            session_worker_idle_ttl_seconds=int(get_env_value("SESSION_WORKER_IDLE_TTL_SECONDS", "900")),
-            session_worker_reap_interval_seconds=int(get_env_value("SESSION_WORKER_REAP_INTERVAL_SECONDS", "60")),
-            chat_ws_host=get_env_value("CHAT_WS_HOST", "127.0.0.1"),
-            allowed_ws_origins=",".join(_ws_origins),
-            ws_max_message_bytes=int(get_env_value("WS_MAX_MESSAGE_BYTES", str(64 * 1024))),
             health_http_port=int(get_env_value("HEALTH_HTTP_PORT", "8890")),
             agui_http_host=get_env_value("AGUI_HTTP_HOST", "127.0.0.1"),
             agui_http_port=int(get_env_value("AGUI_HTTP_PORT", "8888")),

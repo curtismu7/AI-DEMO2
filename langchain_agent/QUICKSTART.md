@@ -191,7 +191,7 @@ MCP_SERVER_SLACK_AUTH_REQUIRED=true
 lsof -i :8080
 
 # Kill the process or use different port
-export WEBSOCKET_PORT=8081
+export AGUI_HTTP_PORT=8081
 ```
 
 ### "Import errors"

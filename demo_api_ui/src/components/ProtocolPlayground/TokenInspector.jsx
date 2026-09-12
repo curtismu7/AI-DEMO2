@@ -1,5 +1,14 @@
 import React from 'react';
-import { extractScopes, formatTokenDisplay } from '../../services/tokenInspector';
+import { formatTokenDisplay } from '../../services/tokenInspector';
+
+/**
+ * ISO is exact but unreadable from the back of a room. Show local time and
+ * keep the ISO string in the tooltip for anyone who needs the precision.
+ */
+function readableTime(iso) {
+  const when = new Date(iso);
+  return Number.isNaN(when.getTime()) ? iso : when.toLocaleString();
+}
 
 export default function TokenInspector({ token }) {
   if (!token || !token.isValid || !token.payload) {
@@ -37,7 +46,7 @@ export default function TokenInspector({ token }) {
         {display.exp && (
           <div className="claim">
             <span className="claim-label">Expires:</span>
-            <span className="claim-value">{display.exp}</span>
+            <span className="claim-value" title={display.exp}>{readableTime(display.exp)}</span>
           </div>
         )}
       </div>

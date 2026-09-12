@@ -33,13 +33,6 @@ data:
   REACT_APP_CLIENT_URL: "https://local.ping-devops.com:4000"
   MCP_FACADE_REEL_BASE: "https://local.ping-devops.com:4000"
   MCP_FACADE_AGENT_GATEWAY_AS: "https://local.ping-devops.com:4000"
-  # Starts the plain-HTTP façade listener (server.js — it only listens when this
-  # is set), which is the target toInternalMcpUrl() rewrites every own-origin
-  # door to. Without it the BFF cannot reach its OWN façade and Direct doors:
-  # the rewrite still points at localhost:3002, nothing listens, and every one
-  # fails "fetch failed". docker-compose has always set it; k8s never did, so
-  # those doors were dead on any cluster deploy while working locally.
-  MCP_FACADE_HTTP_PORT: "3002"
   FRONTEND_ADMIN_URL: "https://local.ping-devops.com:4000/admin"
   FRONTEND_DASHBOARD_URL: "https://local.ping-devops.com:4000/dashboard"
   CORS_ORIGIN: "https://local.ping-devops.com:4000,https://api.ping.demo:4000"
@@ -61,21 +54,12 @@ data:
   BFF_INTERNAL_ID_TOKEN_URL: "https://demo-api-server:3001/internal/id-token"
   BANKING_RESOURCE_SERVER_BASE_URL: "https://demo-api-server:3001"
   AGUI_HTTP_PORT: "8888"
-  WEBSOCKET_PORT: "8889"
   HEALTH_HTTP_PORT: "8890"
   AGUI_HTTP_HOST: "0.0.0.0"
-  CHAT_WS_HOST: "0.0.0.0"
   MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
   MCP_RESOURCE_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo"
   MCP_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
-  # Must list every audience the Node gateway accepts. PR #364 gave A2A its own
-  # Exchange #2 destination (mcpgateway-a2a.ping.demo) and added it to all three
-  # docker-compose blocks, but not here — so on k8s every A2A specialist tool call
-  # minted aud=mcpgateway-a2a.ping.demo and the gateway answered 401 invalid_aud.
-  # That killed UC2.6 outright (its leg-1 dispatch fails, so the mismatch probe
-  # never runs) and left UC2/UC2.5/UC37 dispatching against a failing call.
-  # Keep in sync with docker-compose.yml.
-  MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo,mcpserver.ping.demo"
+  MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp"
   PINGONE_RESOURCE_MCP_GATEWAY_URI: "mcpgateway.ping.demo"
   PINGONE_RESOURCE_AGENT_GATEWAY_URI: "agentgateway.ping.demo"
   PINGONE_RESOURCE_TWO_EXCHANGE_URI: "mcpgateway.ping.demo"

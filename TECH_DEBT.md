@@ -94,6 +94,58 @@ exercises and its chain is complete.
 off `req`) if the HTTP transport gets a real caller that needs the specialist's
 `a2a-agent2-actor` / `a2a-exchange2` / tool-dispatched rows.
 
+### [ ] 2026-09-11 — A lost or slow commit response can commit a sign-in the client was told had failed
+
+**What's wrong.** `/oauth/resume`'s `commitPrivilegeLink` posts to
+`/internal/privilege-link/commit` with a 3s timeout. If the BFF applies the commit
+(promotes the parked token into the app's shared session) but its response is lost
+or the call exceeds that timeout, `commitPrivilegeLink` still returns `false`. The
+broker then denies and calls `discardPrivilegeLink` — but the discard cannot undo a
+commit that already happened server-side, because `commitPending` already deleted
+the park and nothing tracks "committed but the caller never found out." The
+practical effect: the shared identity is replaced while the client is told
+sign-in failed. Raised by Greptile on PR #3153.
+
+**Why it wasn't fixed now.**
+- The identity that lands is the legitimate signer's own, not an attacker's — this
+  is an inconsistency, not an escalation. Nothing here lets anyone commit an
+  identity that isn't theirs; that's the separate, already-NARROWED finding above.
+- The client retries, and the retry succeeds (a fresh authorize parks and commits a
+  new token), so the user-visible cost is one redundant sign-in, not a stuck app.
+- A correct fix is two-phase — make the commit recoverable by resume id, or add a
+  conditional rollback tied to the commit id — which is disproportionate to how
+  narrow this window is and belongs in its own test-first change rather than a
+  drive-by inside the cookie/expiry fixes this pass otherwise makes.
+
+**Real fix.** Either make `/internal/privilege-link/commit` idempotent and
+recoverable by resume id (a retry or late response can re-ask "did rs-X commit?"
+instead of assuming it didn't), or add a conditional rollback keyed to the commit
+id so a broker that gave up waiting can undo a commit that lands after all. Cover
+it with a test that delays or fails the HTTP response to the broker *after* the
+BFF has already applied the commit, and asserts the app's session still reflects
+the intended outcome once the dust settles.
+
+### [ ] 2026-09-11 — LangChain's direct-MCP message pipeline has no production caller
+
+**What's wrong.** Removing the legacy chat WebSocket on :8889 (branch
+`worktree-remove-langchain-ws-8889`) left `LangChainMCPAgent.process_message_with_tracing`,
+its `process_message` delegate, the `stream_context["websocket_handler"]` streaming
+branch inside it, and `clear_session_memory` reachable only from tests. The AG-UI
+`/run` path (`MessageProcessor.process_agui_message`) builds its own graph and never
+calls them. Nothing evicts AG-UI thread checkpoints any more either —
+`clear_session_memory` only ever ran on a WS disconnect. The dev default
+`PINGONE_REDIRECT_URI=http://localhost:8889/auth/callback` in
+`langchain_agent/src/config/settings.py` still names the removed port.
+
+**Why it wasn't fixed now.** Scoped to the transport. These belong to the separate
+"LangChain tools go through the BFF only" cleanup, which also decides whether the
+startup PingOne client registration (`main.py`) and `/run`'s direct-MCP fallback
+(no `bffToolUrl`) stay — and the redirect URI is part of that registration.
+
+**Real fix.** Remove the direct-MCP pipeline together with the `/run` fallback and
+the startup registration (or give them a real caller if kept), and evict
+MemorySaver threads for finished AG-UI sessions.
+
 ### [ ] 2026-09-11 — The Privilege gateway link is wired for the local Docker stack only
 
 **What's wrong.** The MCP-client-driven Privilege gateway sign-in
@@ -104,6 +156,9 @@ neither, so its privilege-gateway door keeps the old 503 + "sign in at
 /privilege-mcp-client" behaviour. The two switches must be set together: with
 the BFF flag on and the broker link URL unset, every connect ends in a 401
 after one re-authentication (bounded by the MCP SDK, but it always fails).
+As of `worktree-privilege-link-bind-and-config-check`, the façade now refuses
+to 401 unless the broker advertises `privilege_link_supported`, so a
+half-configured pair degrades to the 503 instead of failing every connect.
 
 **Why it wasn't fixed now.** Scoped to the local stack LM Studio uses; the SE
 façade is reached on a different host and its broker/BFF public URLs differ,
@@ -141,7 +196,7 @@ trusted local stack.
 **Real fix.** Build the callback host from configuration (`PRIVILEGE_MCP_CALLBACK_HOST`
 or the public app origin) instead of the request header, or bound the cache.
 
-### [ ] 2026-09-11 — An unauthenticated /facade-link can replace an app's shared gateway identity
+### [ ] 2026-09-11 — An unauthenticated /facade-link can replace an app's shared gateway identity — NARROWED, not closed
 
 **What's wrong.** `/api/privilege-mcp/facade-link` is unauthenticated and stores the resulting gateway token in
 the single per-app session every façade caller of that app uses. Someone who starts a broker authorization can send
@@ -157,6 +212,110 @@ fix changes how the link commits its token.
 browser-bound nonce at `/oauth/authorize`, and let the BFF hold the gateway token as pending until `/oauth/resume`
 confirms that nonce, committing it to the shared session only then — or key gateway sessions per caller instead
 of per app.
+
+**NARROWED, not closed** (branch `worktree-privilege-link-bind-and-config-check`, on top of commit `30e9847c8`
+on this same branch, which shipped the bind-to-browser fix above). A security review found that the
+browser-binding proves the wrong thing: the `pgw_link` cookie only proves that whoever opens `/oauth/resume`
+also did `/oauth/authorize` — trivially true for an attacker replaying their own cookie — never that the
+browser which completed the BFF's gateway sign-in in between (the one whose identity actually lands in the
+parked token) was that same browser. This pass hardened every CHEAP path to the finding without closing the
+finding itself, and fixed a real defect in the browser-binding's own trust chain along the way:
+
+- The broker now signs the link it issues to the BFF (HMAC over the app + resume id, computed with the shared
+  internal secret) and the BFF's `/facade-link` refuses an unsigned link or one signed for a different app — the
+  caller can no longer choose the parked slot or swap the target app.
+- A park is first-write-wins (`rememberPending` refuses a second park under an id the broker mints once) and is
+  discarded — never left parked until its TTL — whenever the broker denies a resume (bad cookie, or an
+  upstream sign-in failure).
+- The nonce check is unconditional: a parked record with no nonce now denies instead of silently committing
+  (previously `parked.linkNonce && …` short-circuited past the check for any record with no nonce recorded).
+- The broker's advertisement (`privilege_link_supported`) requires both `BFF_PRIVILEGE_LINK_URL` and
+  `BFF_PRIVILEGE_LINK_COMMIT_URL`, so a half-wired pair degrades instead of advertising a chain that 403s
+  every commit.
+
+**What this still does NOT stop.** An attacker who starts their own broker authorize and stops before the
+BFF's gateway sign-in already holds that link's `rs` and `sig` — the broker's own redirect to `/facade-link`
+hands both to the attacker's browser, so nothing has to be captured or guessed afterwards. Mailing that
+(correctly signed) URL to a signed-in victim parks the victim's identity under an id the attacker knows. The
+only thing then standing between that park and a commit is the victim's browser following the final
+`/oauth/resume?rs=…&link=ok` hop, which consumes the id and discards the park. An attacker who prevents that
+last navigation — framing `/facade-link` and blocking the terminal hop with their own page's CSP, or mailing
+it to a victim who can reach the BFF but not the loopback broker — opens the resume URL themselves instead,
+still carrying the `pgw_link` cookie from the authorize they genuinely did, and the victim's identity commits.
+The nonce proves "the browser at `/oauth/resume` is the browser that ran `/oauth/authorize`", which is true of
+the attacker regardless of who signed in; it cannot, on its own, prove that the browser which produced the
+parked identity is the one redeeming it.
+
+**Real fix.** Key the gateway session by app **and** the caller's subject, so a captured/parked token can
+only ever serve the identity it was minted for instead of becoming an app-wide shared credential — the
+`ponytail:` note already on `privilegeGatewaySession.js` ("one operator identity per app; key it per user if a
+second identity ever needs this door") anticipates exactly this.
+### [x] 2026-09-11 — mcp-server accepts gateway-audienced tokens: D-05's own rule cannot fire
+
+**What's wrong.** `oauth-mcp/src/auth/lastHopAuthorization.ts` enforces two
+rules. Rule 2 (the upstream audience must match) splits its setting with
+`normalizeAudienceList` (`:75`, `:107-111`). Rule 1 — D-05, "a gateway-audience
+token must not be used at the upstream" — does not: it compares the raw env
+string (`audValues.includes(options.gatewayAudience)`, `:64`), and
+`resolveUpstreamAudiences()` passes `MCP_GW_RESOURCE_URI` through unsplit
+(`:103`). Every deployment sets that variable as a comma list, so the comparison
+can never be true and Rule 1 never fires where the variable is set at all.
+
+On mcp-server it is inert twice over: that service's block sets only
+`MCP_SERVER_RESOURCE_URI` and no `MCP_GW_RESOURCE_URI`, so `gatewayAudience` is
+undefined — and that same accepted list (`docker-compose.yml:757`) itself
+includes two gateway audiences (`mcpgateway.ping.demo`,
+`https://api.ping.demo:3036/mcp`). So a gateway-audienced token presented
+directly to mcp-server passes both rules today, which is the exact step-skip
+D-05 exists to stop. Port `:8080` is published (see the entry below). No LLM
+path reaches it; a caller holding such a token does.
+
+**Why it wasn't fixed now.** Found while checking why no-gateway A2A specialist
+calls are rejected — that rejection is Rule 2 working as intended, because
+`:757`'s list has no `mcpgateway-a2a.ping.demo`. Making Rule 1 fire changes what
+mcp-server accepts, in a service that ships as a baked image, and nothing in the
+demo depends on it firing today. It deserves its own test-first change rather
+than a drive-by in an unrelated PR.
+
+**Real fix.** Split `gatewayAudience` with the same `normalizeAudienceList`, and
+cover it with a test per deployment shape (single value, comma list, unset).
+Then decide deliberately whether mcp-server should accept gateway audiences at
+all: while it does, D-05 is enforced only by the cloud policy's
+`TokenAudTargetsUpstream`, never at the upstream itself.
+
+**RESOLVED 2026-09-12** (branch `worktree-d05-upstream-audience`) — and the
+entry above got the deployment wrong, which is the more useful half of the
+record. Two claims were false, both from reading `docker-compose.yml` instead of
+the running container:
+
+- "that service's block sets only `MCP_SERVER_RESOURCE_URI` and no
+  `MCP_GW_RESOURCE_URI`". `docker exec ai-demo-mcp-server printenv` returns
+  `MCP_GW_RESOURCE_URI=mcpgateway.ping.demo`. The compose block does not set it;
+  the service's `env_file` does (`oauth-mcp/.env:11`). Compose is not the runtime.
+- "a gateway-audienced token presented directly to mcp-server passes both rules
+  today". Not in Docker: that value is a single audience, so the raw comparison
+  matched and Rule 1 fired. Enforcement is real on all three entry paths — HTTP
+  401 (`HttpMCPTransport.ts:690-694`), WebSocket close 1008
+  (`DemoMCPServer.ts:395-400`), and initialize refusing to adopt the token
+  (`MCPMessageHandler.ts:189-194`).
+
+**Where it was real: k8s.** `k8s/02-configmap.yaml:62` sets
+`MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp"`,
+and the mcp-server pod loads that ConfigMap by `envFrom`
+(`k8s/30-mcp-server-deployment.yaml:130-134`). With a comma list the raw compare
+could never match, so Rule 1 never ran there and a gateway-audienced token
+reached the upstream having skipped the gateway's Authorize evaluation and its
+RFC 8693 exchange.
+
+**The fix.** Rule 1 splits the setting with the same `normalizeAudienceList`
+Rule 2 uses, and names the audience it matched. Docker's single-value behaviour
+is unchanged. Guarded by the comma-list cases in
+`oauth-mcp/tests/gateway-upstream.test.ts`; see REGRESSION_PLAN §4 2026-09-12.
+
+Still deliberate and not a bug: mcp-server also accepts
+`https://api.ping.demo:3036/mcp` as an *upstream* audience so a native ID-JAG
+minted for PingGateway can be redeemed there — `docker-compose.yml:744-757`
+explains each entry in that list.
 
 ### [ ] 2026-09-11 — LLM token custody: what the fix deliberately left open
 
@@ -196,8 +355,20 @@ MCP gateway and PingOne Authorize. These remain:
 
   Now, with no gateway, the BFF's own P1AZ PERMIT (`bffDecision`) authorizes
   the in-BFF delivery, and the simulated engine accepts every gateway identity,
-  like the cloud policy. What's still missing is a real remote path to
-  mcp-server with no gateway (see Real fix).
+  like the cloud policy.
+
+  **The "real remote path to mcp-server" this entry used to promise does not
+  exist to build (checked 2026-09-11).** `oauth-mcp` does list the vertical
+  `sensitive_*` tools, but its handler relays every one of them straight back to
+  the BFF (`oauth-mcp/src/tools/handlers/verticalHandlers.ts:14-31` →
+  `/api/path/vertical-tool`), so the BFF is their resource server in every mode.
+  A remote hop would be BFF → mcp-server → BFF: a round trip that adds no
+  authorization, since the BFF's own P1AZ decision already gates it. Gateway
+  mode takes that same path (`demo_mcp_gateway/src/router.ts:222` routes them to
+  `olb`). `sensitive_customer_identity` is not in `oauth-mcp` at all. The only
+  genuinely remote specialist tools — the four investment tools and
+  `sensitive_passenger_record` — live on `demo_mcp_resource_server`
+  (`mcp-invest.ping.demo`), so mcp-server was the wrong upstream for them too.
 
 **Why it wasn't fixed now.** Each one is out of the LLM's reach, needs changes
 in all four agent services, or needs P1AZ policy work.
@@ -205,9 +376,15 @@ in all four agent services, or needs P1AZ policy work.
 **Real fix.** Make the strict internal secret the default, and serve the
 internal route on a listener that isn't published. Put a run id in the four
 agents' callback bodies. Route `call_pingone_tool` through the gateway with a
-P1AZ decision. For a real no-gateway remote A2A path, issue the specialist
-token for mcp-server's audience; that needs PingOne grants and a
-`HasValidMcpAudience` change. Delete the dead langchain path.
+P1AZ decision. For no-gateway delivery of the five genuinely remote specialist
+tools (the four invest tools and `sensitive_passenger_record`, both on
+`demo_mcp_resource_server`), add a BFF-to-resource-server transport and audience
+the specialist token there: that needs new uniquely-named PingOne grants
+(PingOne issues one resource per exchange, and one scope name binds to one
+resource) plus two cloud-policy changes — an A2A branch in
+`HasValidMcpAudience` and a matching D-05 exemption in
+`TokenAudTargetsUpstream` — imported by hand in the console. Low value: the
+gateway path already delivers those five. Delete the dead langchain path.
 
 ### [x] 2026-09-11 — agentRun's end-of-run session save can undo a concurrent mode change
 
@@ -234,13 +411,27 @@ minted, or move `intentToken` to the run context like the trace.
    and `devTools` mint their own onto `req.intentToken`. This also fixed a second bug: because the write
    was only saved when the run ended, the mid-run tool callback had been forwarding the PREVIOUS run's
    Intent Token to the gateway.
-2. Setup services still write the session — `getAgentCCToken` caches the agent token in
+2. Setup services still write the session — `resolveAvailableTools` cached the agent token under
    `session.agentTokens` on a miss (Greptile P1 on #3141) — and that write was still saved as the run's
    stale copy at the end. `agentRun` now compares the session with its start-of-run copy just before the
    agent stream and, if setup changed it, saves it there. Nothing writes it after that, so express-session
-   skips its own end-of-run save. **Still open:** when setup did write, a mode change made during setup
-   (the seconds between the run's start and that save) is still overwritten; reload-and-merge if that
-   window ever matters.
+   skips its own end-of-run save. (This entry first named `getAgentCCToken` as that writer; it writes
+   nothing to the session — corrected while fixing the follow-up below.)
+
+   **Follow-up, resolved:** the early save left a window — a mode change made during setup itself was
+   still overwritten — and the same cache write reverted a mode change from *other* long requests
+   entirely outside this route: an 11s `POST /api/demo-agent/tools` on a cold cache did it live on
+   2026-09-11, right after the #3141 deploy. `agentTokenCache` now holds tokens in-process keyed by
+   session id instead of on the session, so none of its callers marks the session modified and the
+   window closes for this writer. `agentRun`'s early save stays as defence for any future setup write.
+
+   **That did not close the symptom.** Verified live after the #3148 deploy: a mode change made during
+   a session's FIRST token exchange was still reverted. `dpopKeyService.getSessionDpopKey` minted
+   `req.session.dpopKey` on that exchange (`ff_dpop` is ON), so that request saved its own stale copy —
+   once per session, which is why it read as intermittent. Proven with a headless session (no browser,
+   so no dashboard boot calls) whose first exchange WAS the spanning request. The keypair now lives
+   in-process keyed by session id; see REGRESSION_PLAN §4, "the first token exchange of a session undid
+   a mode change".
 3. Overlapping runs in one session shared a session-keyed run context, so an older run's tool callback
    read the newer run's Intent Token and tool list (Greptile P1 on #3141). Entries are now keyed by
    session + run id and all five agents send `runId` on `/internal/agent-tool`; a callback without it

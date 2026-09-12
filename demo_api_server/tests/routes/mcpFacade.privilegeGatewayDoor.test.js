@@ -76,16 +76,38 @@ function buildApp() {
 
 const RPC = { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} };
 
+const originalFetch = global.fetch;
+
+// Only the broker's own metadata fetch (brokerAdvertisesLink) is stubbed —
+// everything else (the real upstream calls this suite's `upstream` server
+// answers) must keep going through the real fetch, or every door call in
+// this file would get the canned metadata body instead of its own response.
+function stubBrokerAdvert(supported) {
+  global.fetch = jest.fn(async (url, opts) => {
+    if (String(url).includes('/.well-known/oauth-authorization-server')) {
+      return { ok: true, text: async () => JSON.stringify({ privilege_link_supported: supported }) };
+    }
+    return originalFetch(url, opts);
+  });
+}
+
 describe('mcp-facade privilege-gateway door', () => {
   beforeEach(() => {
     seenAuth = undefined;
     seenPath = undefined;
     jwksService.getPublicKey.mockResolvedValue({ keyObject: publicKey, alg: 'RS256' });
     gatewaySession.clearAll();
+    // The 401-for-re-auth path now checks the broker's own advertisement
+    // before answering — default it to "supported" so existing cases keep
+    // testing what they always tested; the one case that cares about the
+    // opposite sets its own stub.
+    stubBrokerAdvert(true);
+    router.__test.resetLinkAdvert();
   });
   afterEach(() => {
     gatewaySession.clearAll();
     delete process.env.MCP_FACADE_PRIVILEGE_LINK;
+    global.fetch = originalFetch;
   });
 
   test('answers 503 with a remedy when no operator session exists and the gateway link is off', async () => {
@@ -148,6 +170,67 @@ describe('mcp-facade privilege-gateway door', () => {
     expect(res.body.error.data.remedy).toMatch(/privilege-mcp-client/);
     expect(res.headers['www-authenticate']).toContain('/mcp-facade/privilege-gateway/opensearch/.well-known/oauth-protected-resource');
     expect(seenAuth).toBeUndefined();
+  });
+
+  test('with the flag on but the broker not advertising the link, the door stays at 503 with the operator remedy and never dials the upstream', async () => {
+    process.env.MCP_FACADE_PRIVILEGE_LINK = 'true';
+    stubBrokerAdvert(false);
+    router.__test.resetLinkAdvert();
+
+    const res = await request(buildApp()).post(DOOR_APP)
+      .set('Authorization', `Bearer ${callerToken()}`)
+      .send(RPC);
+
+    expect(res.status).toBe(503);
+    expect(res.body.error.data.reason).toBe('gateway_link_not_configured');
+    // A human sign-in at /privilege-mcp-client cannot fix this — the broker's
+    // half of the chain is what's missing, and the remedy must say so.
+    expect(res.body.error.data.remedy).toBe(
+      'Set BFF_PRIVILEGE_LINK_URL and BFF_PRIVILEGE_LINK_COMMIT_URL on the broker (mcp-gateway), or unset MCP_FACADE_PRIVILEGE_LINK on the BFF.',
+    );
+    expect(seenAuth).toBeUndefined();
+  });
+
+  test('with the flag on and the broker unreachable, the 503 distinguishes it from an unconfigured pair', async () => {
+    process.env.MCP_FACADE_PRIVILEGE_LINK = 'true';
+    global.fetch = jest.fn(async (url, opts) => {
+      if (String(url).includes('/.well-known/oauth-authorization-server')) {
+        throw new Error('ECONNREFUSED');
+      }
+      return originalFetch(url, opts);
+    });
+    router.__test.resetLinkAdvert();
+
+    const res = await request(buildApp()).post(DOOR_APP)
+      .set('Authorization', `Bearer ${callerToken()}`)
+      .send(RPC);
+
+    expect(res.status).toBe(503);
+    expect(res.body.error.data.reason).toBe('gateway_link_unreachable');
+    // Telling an operator to set env vars that are already right sends them
+    // nowhere useful — an unreachable broker needs a different remedy.
+    expect(res.body.error.data.remedy).toBe(
+      'The broker (mcp-gateway) did not answer its metadata endpoint — check it is running and that MCP_FACADE_AGENT_GATEWAY_AS_INTERNAL points at it.',
+    );
+    expect(seenAuth).toBeUndefined();
+  });
+
+  test('brokerAdvertisesLink bounds its probe with an AbortSignal', async () => {
+    process.env.MCP_FACADE_PRIVILEGE_LINK = 'true';
+    global.fetch = jest.fn(async (url, opts) => {
+      if (String(url).includes('/.well-known/oauth-authorization-server')) {
+        return { ok: true, text: async () => JSON.stringify({ privilege_link_supported: true }) };
+      }
+      return originalFetch(url, opts);
+    });
+    router.__test.resetLinkAdvert();
+
+    await request(buildApp()).post(DOOR_APP)
+      .set('Authorization', `Bearer ${callerToken()}`)
+      .send(RPC);
+
+    const probeCall = global.fetch.mock.calls.find(([url]) => String(url).includes('/.well-known/oauth-authorization-server'));
+    expect(probeCall[1]?.signal).toBeInstanceOf(AbortSignal);
   });
 
   test('uses the session for the app in the URL, not another app', async () => {

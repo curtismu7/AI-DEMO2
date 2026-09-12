@@ -175,3 +175,144 @@ describe('privilege gateway session — one per app, persisted', () => {
     expect(console.warn).toHaveBeenCalled();
   });
 });
+
+describe('privilege gateway session — parked links (browser-bound commit)', () => {
+  test('a parked token is invisible to status()/getAccessToken() until committed', async () => {
+    const session = load();
+    session.rememberPending('rs-1', {
+      app: 'opensearch', accessToken: 'parked-token', refreshToken: null, expiresIn: 3600, tokenUri: TOKEN_URI,
+    });
+
+    expect(session.status('opensearch')).toEqual({ ready: false, reason: 'no_session' });
+    expect(await session.getAccessToken('opensearch')).toBeNull();
+
+    const committed = session.commitPending('rs-1');
+    expect(committed).toEqual({ app: 'opensearch' });
+    expect(await session.getAccessToken('opensearch')).toBe('parked-token');
+  });
+
+  test('commitPending is single-use', async () => {
+    const session = load();
+    session.rememberPending('rs-1', { app: 'opensearch', accessToken: 'parked-token', tokenUri: TOKEN_URI });
+
+    expect(session.commitPending('rs-1')).toEqual({ app: 'opensearch' });
+    expect(session.commitPending('rs-1')).toBeNull();
+  });
+
+  test('an unknown rs commits nothing', () => {
+    const session = load();
+    expect(session.commitPending('never-parked')).toBeNull();
+  });
+
+  test('an expired parked record returns null and commits nothing', async () => {
+    jest.useFakeTimers();
+    const session = load();
+    session.rememberPending('rs-1', { app: 'opensearch', accessToken: 'parked-token', tokenUri: TOKEN_URI });
+
+    jest.advanceTimersByTime(600_001); // PENDING_TTL_MS + 1
+
+    expect(session.commitPending('rs-1')).toBeNull();
+    expect(session.status('opensearch')).toEqual({ ready: false, reason: 'no_session' });
+    jest.useRealTimers();
+  });
+
+  test('rememberPending refuses to overwrite an existing park — the first token is what commitPending returns', async () => {
+    const session = load();
+    session.rememberPending('rs-1', { app: 'opensearch', accessToken: 'first-token', tokenUri: TOKEN_URI });
+    session.rememberPending('rs-1', { app: 'opensearch', accessToken: 'second-token', tokenUri: TOKEN_URI });
+
+    expect(session.commitPending('rs-1')).toEqual({ app: 'opensearch' });
+    expect(await session.getAccessToken('opensearch')).toBe('first-token');
+  });
+
+  test('discardPending makes a later commitPending return null', () => {
+    const session = load();
+    session.rememberPending('rs-1', { app: 'opensearch', accessToken: 'parked-token', tokenUri: TOKEN_URI });
+
+    session.discardPending('rs-1');
+
+    expect(session.commitPending('rs-1')).toBeNull();
+  });
+
+  test('a discard before any park makes a later rememberPending a no-op, and the tombstone is swept once expired', () => {
+    jest.useFakeTimers();
+    const session = load();
+    // /oauth/resume consumes the resume record first, so a deny can land while
+    // the BFF's own sign-in is still in flight — the discard must still be
+    // honoured once that park finally arrives.
+    session.discardPending('rs-1');
+    session.rememberPending('rs-1', { app: 'opensearch', accessToken: 'late-token', tokenUri: TOKEN_URI });
+    expect(session.commitPending('rs-1')).toBeNull();
+
+    jest.advanceTimersByTime(600_001); // PENDING_TTL_MS + 1
+    // The tombstone itself expires, so a later, unrelated reuse of the same id
+    // is not blocked forever.
+    session.rememberPending('rs-1', { app: 'opensearch', accessToken: 'fresh-token', tokenUri: TOKEN_URI });
+    expect(session.commitPending('rs-1')).toEqual({ app: 'opensearch' });
+    jest.useRealTimers();
+  });
+
+  test('an expired park is swept on the next rememberPending, so first-park-wins does not block a fresh one', () => {
+    jest.useFakeTimers();
+    const session = load();
+    session.rememberPending('rs-1', { app: 'opensearch', accessToken: 'stale-token', tokenUri: TOKEN_URI });
+
+    jest.advanceTimersByTime(600_001); // PENDING_TTL_MS + 1
+    // Without the sweep, first-park-wins would refuse this second park under
+    // the same id even though the first one is long dead.
+    session.rememberPending('rs-1', { app: 'opensearch', accessToken: 'fresh-token', tokenUri: TOKEN_URI });
+
+    expect(session.commitPending('rs-1')).toEqual({ app: 'opensearch' });
+    jest.useRealTimers();
+  });
+
+  test('commitPending keeps the token real absolute expiry rather than restarting it from commit time', async () => {
+    // Greptile P2, PR #3153: commitPending used to hand remember() the
+    // original expiresIn, so a token parked for 5 minutes came back recorded
+    // as living 5 minutes longer than it really does.
+    jest.useFakeTimers();
+    const session = load();
+    session.rememberPending('rs-1', { app: 'opensearch', accessToken: 'parked-token', tokenUri: TOKEN_URI, expiresIn: 3600 });
+
+    jest.advanceTimersByTime(5 * 60 * 1000); // parked for 5 minutes before the BFF confirms the link
+    expect(session.commitPending('rs-1')).toEqual({ app: 'opensearch' });
+
+    // A restarted clock would still call this ready straight through
+    // commit + 3600s. The real window is 3600s from the PARK, so by the time
+    // total elapsed-since-park reaches 3600s it must already be expired.
+    jest.advanceTimersByTime(3600 * 1000 - 5 * 60 * 1000);
+    expect(session.status('opensearch')).toEqual({ ready: false, reason: 'expired' });
+    expect(await session.getAccessToken('opensearch')).toBeNull();
+    jest.useRealTimers();
+  });
+
+  test('a token whose real expiry passed while parked does not come back ready on commit', async () => {
+    jest.useFakeTimers();
+    const session = load();
+    session.rememberPending('rs-1', { app: 'opensearch', accessToken: 'parked-token', tokenUri: TOKEN_URI, expiresIn: 300 });
+
+    // Past the token's 300s real lifetime, but well inside the park's own
+    // 600s TTL — commitPending must still refuse to call this ready, rather
+    // than handing remember() a fresh 300s window measured from commit time.
+    jest.advanceTimersByTime(400_000);
+
+    expect(session.commitPending('rs-1')).toEqual({ app: 'opensearch' });
+    expect(session.status('opensearch').ready).toBe(false);
+    expect(await session.getAccessToken('opensearch')).toBeNull();
+    jest.useRealTimers();
+  });
+
+  test('discardPending sweeps expired tombstones too, so repeated denies with no parks do not grow forever', () => {
+    jest.useFakeTimers();
+    const session = load();
+    session.discardPending('rs-1');
+    session.discardPending('rs-2');
+    session.discardPending('rs-3');
+    expect(session.__discardedLinksSize()).toBe(3);
+
+    jest.advanceTimersByTime(600_001); // PENDING_TTL_MS + 1 — the three above are now expired
+    session.discardPending('rs-4'); // sweeps the three dead tombstones, then adds its own fresh one
+    expect(session.__discardedLinksSize()).toBe(1);
+    jest.useRealTimers();
+  });
+});

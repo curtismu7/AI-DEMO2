@@ -37,7 +37,7 @@ flowchart LR
   subgraph Agents["Agent runtimes"]
     direction TB
     AGSVC["demo_agent_service :3006<br/>AG-UI runner · /run · text/event-stream"]:::agent
-    LC["langchain_agent :8888 / :8889 / :8890"]:::agent
+    LC["langchain_agent :8888 / :8890"]:::agent
     OA["openai_agent :8891"]:::agent
     MS["mastra_agent :8892"]:::agent
     PD["pydantic_agent :8893"]:::agent
@@ -71,7 +71,7 @@ flowchart LR
   SRV -->|"AG-UI · SSE · STATE_DELTA"| AGSVC
 
   %% BFF → runtimes
-  SRV -.->|"HTTP /run · WS :8889"| LC
+  SRV -.->|"HTTP /run"| LC
   SRV -.->|"HTTP /run"| OA
   SRV -.->|"HTTP /run"| MS
   SRV -.->|"HTTP /run"| PD

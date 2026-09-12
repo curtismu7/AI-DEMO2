@@ -704,6 +704,51 @@
   max-height: none;
 }
 
+/* Token summary above the raw claims. TokenInspector shipped without a
+   stylesheet, so its label and value ran together ("Audience:demo-resource-
+   server"). Every rule is scoped under .token-inspector because .claim-value
+   also belongs to TokenChainEventCard. */
+.token-inspector {
+  padding: 10px 12px;
+  border: 1px solid var(--pp-border);
+  border-radius: var(--radius-md);
+  background-color: var(--pp-bg-surface);
+  color: var(--pp-text);
+}
+
+.token-inspector h5 {
+  margin: 0 0 8px;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pp-text-muted);
+}
+
+.token-inspector .token-claims {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 10px;
+}
+
+/* Each row hands its two spans to the grid above, so labels and values line
+   up in columns instead of each row laying itself out. */
+.token-inspector .claim {
+  display: contents;
+}
+
+.token-inspector .claim-label {
+  font-size: var(--font-size-2xs);
+  color: var(--pp-text-muted);
+}
+
+.token-inspector .claim-value {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  color: var(--pp-text);
+  overflow-wrap: anywhere;
+}
+
 /* --- Step cards container --- */
 
 .step-cards-container {

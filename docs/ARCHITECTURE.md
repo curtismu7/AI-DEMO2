@@ -58,7 +58,7 @@ Two ideas hold the whole thing together:
 | **Mortgage Service** | `demo_api_resource_server` | Node | 8082 | API-key-gated resource (demonstrates token→API-key swap) |
 | **Mock Authz Server** | `demo_authz_server` | Node | 9001 | Drop-in replacement for PingOne Authorize + introspection (dev/test) |
 | **Agent Service** | `demo_agent_service` | TypeScript | 3006 (→3016 in Docker) | Reasoning-only agent (Helix / Anthropic) |
-| **LangChain Agent** | `langchain_agent` | Python / FastAPI | 8888 (SSE), 8889 (WS), 8890 (health) | Full MCP-driven agent orchestrator |
+| **LangChain Agent** | `langchain_agent` | Python / FastAPI | 8888 (SSE), 8890 (health) | Full MCP-driven agent orchestrator |
 | **Mastra Agent** | `mastra_agent` | TypeScript | 8892 | Agent runtime (Mastra framework) |
 | **OpenAI Agent** | `openai_agent` | Python / FastAPI | 8891 | Agent runtime (OpenAI Agents SDK) |
 | **Pydantic Agent** | `pydantic_agent` | Python / FastAPI | 8893 | Agent runtime (Pydantic AI) |

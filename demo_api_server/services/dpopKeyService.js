@@ -87,16 +87,85 @@ function signDpopProof({ privatePem, publicJwk, htu, htm = 'POST', ath }) {
   return `${signingInput}.${b64url(sig)}`;
 }
 
+// ---------------------------------------------------------------------------
+// Per-session key store — in this process, keyed by session id, NOT on the session
+// ---------------------------------------------------------------------------
+//
+// Held under req.session.dpopKey, minting this key MUTATED the session, so
+// express-session wrote that request's whole start-of-request copy back when the
+// request ended. The first token exchange of a session therefore undid anything
+// saved while it ran — a mode change made during that exchange was reverted
+// (reproduced live 2026-09-12 with a session whose first exchange was the
+// spanning request). Same last-write-wins class as /api/agent/run and the
+// agent-token cache before it; see REGRESSION_PLAN §4.
+//
+// The key must stay STABLE for a session: the delegated MCP token is bound to it
+// (cnf.jkt), so a second key would sign proofs the gateway cannot match to the
+// token it issued. Entries are swept after KEY_TTL_MS of disuse, which bounds the
+// map against guest-session churn now that session.destroy() no longer drops it.
+// In-process: the same single-BFF-process assumption mcpFlowSseHub,
+// agentRunContext and agentTokenCache make — a restart mints a fresh key, which
+// is what "ephemeral per session" already meant.
+//
+// ponytail: TTL sweep only, no size cap — an unused entry costs a keypair for
+// KEY_TTL_MS; add a cap if session churn ever makes that matter.
+
+/** @type {Map<string, {key: object, at: number}>} sessionId -> keypair + last use */
+const _sessionKeys = new Map();
+
+/** Generous next to any token lifetime the key is bound to (cnf.jkt). */
+const KEY_TTL_MS = 12 * 60 * 60 * 1000;
+
+const _sessionIdOf = (session) =>
+  (session && typeof session.id === 'string' && session.id) || null;
+
+function _sweepSessionKeys(now) {
+  for (const [sid, entry] of _sessionKeys) {
+    if (now - entry.at >= KEY_TTL_MS) _sessionKeys.delete(sid);
+  }
+}
+
 /**
  * Get-or-create the per-session ephemeral DPoP keypair. Returns null when there
- * is no session (the caller then skips DPoP — it is best-effort plumbing).
+ * is no session, or none with an id to key it by (the caller then skips DPoP —
+ * it is best-effort plumbing).
  */
 function getSessionDpopKey(req) {
-  if (!req || !req.session) return null;
-  if (!req.session.dpopKey || !req.session.dpopKey.jkt) {
-    req.session.dpopKey = generateDpopKeypair();
+  const sessionId = _sessionIdOf(req && req.session);
+  if (!sessionId) return null;
+  const now = Date.now();
+  _sweepSessionKeys(now);
+  let entry = _sessionKeys.get(sessionId);
+  if (!entry || !entry.key || !entry.key.jkt) {
+    entry = { key: generateDpopKeypair(), at: now };
+    _sessionKeys.set(sessionId, entry);
+  } else {
+    entry.at = now; // in use — keep it past the sweep
   }
-  return req.session.dpopKey;
+  return entry.key;
+}
+
+/**
+ * The session's existing DPoP keypair, or null — never mints one. The tool
+ * pipeline signs a per-hop proof only when the token exchange already minted a
+ * key ("never create one here"), so its read path must not create.
+ */
+function peekSessionDpopKey(session) {
+  const sessionId = _sessionIdOf(session);
+  if (!sessionId) return null;
+  const entry = _sessionKeys.get(sessionId);
+  if (!entry) return null;
+  // Reading IS use: the tool pipeline signs every hop through this path and may
+  // never re-enter getSessionDpopKey, so without this the sweep could evict a key
+  // a live token is still bound to (cnf.jkt) — Greptile P1 on #3151.
+  entry.at = Date.now();
+  return entry.key;
+}
+
+/** Drop a session's DPoP key (logout). */
+function clearSessionDpopKey(session) {
+  const sessionId = _sessionIdOf(session);
+  if (sessionId) _sessionKeys.delete(sessionId);
 }
 
 // ---------------------------------------------------------------------------
@@ -173,6 +242,8 @@ module.exports = {
   accessTokenHash,
   signDpopProof,
   getSessionDpopKey,
+  peekSessionDpopKey,
+  clearSessionDpopKey,
   getWebBotAuthKey,
   signWebBotAuthHeaders,
 };

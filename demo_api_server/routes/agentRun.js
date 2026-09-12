@@ -164,10 +164,8 @@ setInterval(() => {
 // Helpers
 // ---------------------------------------------------------------------------
 
-// LangChain agent runs three listeners: uvicorn :8888 (AG-UI /run SSE),
-// websockets :8889 (legacy chat WS), health :8890. Proxy /run to :8888 — the
-// previous 8889 routing hit the WebSocket port and silently failed because
-// raw HTTP requests are closed by the websockets handler.
+// LangChain agent serves AG-UI /run (SSE) on uvicorn :8888; :8890 is its
+// loopback-only health server.
 const FRAMEWORK_PORTS = {
   langchain:     8888,
   openai_agents: 8891,
