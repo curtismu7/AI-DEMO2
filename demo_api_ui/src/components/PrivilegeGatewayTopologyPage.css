@@ -1,6 +1,20 @@
 /* PrivilegeGatewayTopologyPage.css — steps list + zone legend only; page
    chrome (hero, tabs, panel) comes from PrivilegeMcpDiagramPage.css. */
 
+.pgt-archived {
+  color: var(--th-status-warning-text);
+  background: var(--th-status-warning-bg);
+  border: 1px solid var(--th-status-warning);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: var(--font-size-sm);
+  margin-bottom: 12px;
+}
+.pgt-archived a {
+  color: inherit;
+  text-decoration: underline;
+}
+
 .pgt-blurb {
   max-width: 760px;
   margin-bottom: 12px;

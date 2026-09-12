@@ -6,10 +6,19 @@
  */
 import React from 'react';
 import { useMermaidRender } from '../hooks/useMermaidRender';
+import useZoomPanViewport from '../hooks/useZoomPanViewport';
+import { DiagramControls } from './diagram';
 import './TokenChainArchitecturePage.css';
 
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 3;
+const ZOOM_STEP = 0.25;
+// Bigger by default per the ticket, not just zoomable: fontSize up from
+// mermaid's own ~16px default (mermaid auto-sizes node boxes to fit their
+// text, so this also makes every box bigger), plus a modest initial zoom on
+// top of that.
 export const MERMAID_DIAGRAM = `
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#2E5090', 'primaryTextColor': '#fff', 'primaryBorderColor': '#1a3a5c', 'lineColor': '#4a7bb8', 'secondaryColor': '#28a745', 'tertiaryColor': '#f57c00', 'fontFamily': 'sans-serif'}, 'flowchart': {'useMaxWidth': true}}}%%
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#2E5090', 'primaryTextColor': '#fff', 'primaryBorderColor': '#1a3a5c', 'lineColor': '#4a7bb8', 'secondaryColor': '#28a745', 'tertiaryColor': '#f57c00', 'fontFamily': 'sans-serif', 'fontSize': '20px'}, 'flowchart': {'useMaxWidth': false}}}%%
 graph LR
     subgraph Client["CLIENT"]
       User["👤 User"]
@@ -151,6 +160,10 @@ export default function TokenChainArchitecturePage({ user }) {
   // useMermaidRender's theme for this render — it renders the same in both
   // app modes by design (see MERMAID_DIAGRAM's %%{init}%% line).
   const { containerRef: diagramRef, error: renderError } = useMermaidRender(MERMAID_DIAGRAM);
+  const {
+    zoom, isPanning, containerRef: viewportRef,
+    zoomIn, zoomOut, zoomReset, viewportProps, contentStyle,
+  } = useZoomPanViewport({ initialZoom: 1.2, min: ZOOM_MIN, max: ZOOM_MAX, step: ZOOM_STEP });
 
   return (
     <div className="tca-page">
@@ -164,10 +177,28 @@ export default function TokenChainArchitecturePage({ user }) {
       </div>
 
       <div className="tca-diagram-frame">
+        <DiagramControls
+          zoom={zoom}
+          onZoomIn={zoomIn}
+          onZoomOut={zoomOut}
+          onZoomReset={zoomReset}
+          zoomMin={ZOOM_MIN}
+          zoomMax={ZOOM_MAX}
+          zoomStep={ZOOM_STEP}
+        />
+        <p className="tca-zoom-hint">Scroll to zoom · Right-click and drag to pan</p>
         {renderError ? (
           <p className="tca-diagram-error">Diagram failed to render: {renderError}</p>
         ) : (
-          <div ref={diagramRef} className="tca-diagram" />
+          <div
+            className={`tca-diagram-viewport${isPanning ? ' tca-diagram-viewport--panning' : ''}`}
+            ref={viewportRef}
+            {...viewportProps}
+          >
+            <div className="tca-diagram-content" style={contentStyle}>
+              <div ref={diagramRef} className="tca-diagram" />
+            </div>
+          </div>
         )}
       </div>
 

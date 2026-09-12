@@ -153,6 +153,24 @@ demo_api_server/data/persistent/lmdb/data.mdb
 *-keys.txt
 *.key
 
+# Helix agent key files. These hold a real PingOne API key (`keyValue`) and
+# must never be committed — this repo is public. README tells you to drop the
+# file the Helix console downloads into the repo root yourself; it is YOUR
+# local file, not repo config. Every reader treats it as an optional guarded
+# fallback (services/helixAgentKeyLoader.js), never as required config: the
+# supported source is HELIX_API_KEY via vault/env, and the precedence is
+# env -> configStore/LMDB -> keyfile (demo_api_server/.env.example).
+#
+# All five names below were committed by #370's 2026-07-12 bulk import, not on
+# purpose — LLM-bak.json carried a live env_admin key into a public repo. An
+# earlier version of this comment wrongly called LLM.json/LLM2.json
+# "intentionally tracked"; they never were.
+/LLM.json
+/LLM2.json
+/LLM-bak.json
+/LLM-wizard.json
+/llm3.json
+
 
 # pac.jar is a 33MB Ping-supplied binary — set PAC_JAR instead of committing it.
 /pac/pac.jar

@@ -96,7 +96,8 @@ minimal diff.
 | tools/list backend outage scope (locked 2026-08-18, PR #1980) | `demo_mcp_gateway/src/toolsListHealth.ts` — `'total'` (zero live backends read) vs `'partial'` (some answered). Only `'total'` may clear the outage; "any success clears everything" reported a healthy gateway serving a truncated tool list |
 | MCP gateway suite is a blocking, serial gate (locked 2026-08-18, PR #1980) | `.github/workflows/ci.yml` (`SUITE_BLOCKING=1 npm run test:mcp-gateway`), `scripts/test-service-suite.sh` (`mcp-gateway` → `DEFAULT_WORKERS=1`). Eight suites bind a real listening socket and race at 2 workers (`socket hang up`); serial is also faster (6.5s vs ~19s). Do not raise the worker count and do not make the job non-blocking |
 | Airlines is THREE tiers, not two (locked 2026-08-27) | `scope-topology.json`, `demo_api_server/config/verticals/airlines/manifest.json`, `demo_mcp_resource_server/src/tools/airlinesTools.ts`. `get_airline_bookings` (plain, `airlines:read`) → `sensitive_airline_bookings` (**consent**, `airlines:read`+`sensitive:read`, chip "🔐 Sensitive reservations", `useCaseId: hitl-consent`) → `sensitive_passenger_record` (**A2A-only**, `read`+`a2aDelegatedScope: pnr:read`+`requiresAgentMediation`, chip `useCaseId: a2a-delegation`). Two different demos in one vertical. **Do not "align" `sensitive_airline_bookings` with the other ten `sensitive_*` tools** — those ten are one A2A specialist tool *per vertical* (`config/a2aSpecialists.js`), and airlines' slot is already `sensitive_passenger_record`. Adding `requiresAgentMediation` to it would DENY the consent chip with `missing_act` (`demo_authz_server/routes/decision.js` Rule ~721, `REQUIRE_ACT_FOR_AGENT_TOOLS` defaults on) and delete airlines' HITL-consent demo. See TECH_DEBT 2026-08-26 |
-| LLM token custody (locked 2026-09-11) | Nothing the LLM produces picks a credential, a destination, or a route around the MCP gateway and PingOne Authorize. `demo_api_server/services/agentReasoningClient.js` `runReasonLoop` runs only tools it offered and redacts JWTs from every result the model sees. `routes/agentTool.js` runs only the tools `routes/agentRun.js` offered to the session's run in flight, read from `services/agentRunContext.js` (never from the stored session, which a concurrent stale save can overwrite), and redacts the result. `services/mcpToolPipeline.js` honours the A2A `skipBffAuthorize` only when the gateway is authoritative, and puts the P1AZ decision that authorized the call on `mcp_error`: `gatewayDecision` from the gateway, or `bffDecision` from the BFF gate when there is no gateway. `services/demoAgentLangGraphService.js` A2A local serve needs one of them to be PERMIT. `services/simulatedAuthorizeService.js` accepts every gateway identity (`scopeTopology.mcpGatewayAudiences()`), as the cloud `HasValidMcpAudience` does. `config/verticals/pingone-admin/tools.js` `CALLABLE_TOOLS` caps `call_pingone_tool` (the read tools the chips use, plus `createUser` as a documented exception). `demo_mcp_jwt_verifier/server.py` fetches JWKS only from the `PINGONE_JWKS_URI` host. Do not drop an offered-tool check, and never run a tool that no P1AZ decision PERMITted. Guarded by `demo_api_server/tests/llmTokenCustody.regression.test.js`, `src/__tests__/mcpToolPipeline.authzBypass.test.js`, `src/__tests__/a2aExecution.test.js`, `src/__tests__/a2aSimulatedAuthorize.test.js`, `tests/oas/pingone-admin.test.js`, `demo_mcp_jwt_verifier/test_jwks_allowlist.py`. Plan: `docs/superpowers/plans/2026-09-11-user-token-custody.md` |
+| LLM token custody (locked 2026-09-11) | Nothing the LLM produces picks a credential, a destination, or a route around the MCP gateway and PingOne Authorize. `demo_api_server/services/agentReasoningClient.js` `runReasonLoop` runs only tools it offered and redacts JWTs from every result the model sees. `routes/agentTool.js` runs only the tools `routes/agentRun.js` offered to the session's run in flight, read from `services/agentRunContext.js` (never from the stored session, which a concurrent stale save can overwrite), and redacts the result. `services/mcpToolPipeline.js` honours the A2A `skipBffAuthorize` only when the gateway is authoritative, and puts the P1AZ decision that authorized the call on `mcp_error`: `gatewayDecision` from the gateway, or `bffDecision` from the BFF gate when there is no gateway. `services/a2aProtocolServer.js`'s A2A wire executor (`maybeServeLocally`) needs one of them to be PERMIT before serving a specialist tool locally when the gateway has no backend for it — this is the ONLY file that holds this gate now (Task 5 of the 2026-09-11 A2A hardening plan deleted the duplicate block from `services/demoAgentLangGraphService.js`); do not reintroduce it there. `services/simulatedAuthorizeService.js` accepts every gateway identity (`scopeTopology.mcpGatewayAudiences()`), as the cloud `HasValidMcpAudience` does. `config/verticals/pingone-admin/tools.js` `CALLABLE_TOOLS` caps `call_pingone_tool` (the read tools the chips use, plus `createUser` as a documented exception). `demo_mcp_jwt_verifier/server.py` fetches JWKS only from the `PINGONE_JWKS_URI` host. Do not drop an offered-tool check, and never run a tool that no P1AZ decision PERMITted. Guarded by `demo_api_server/tests/llmTokenCustody.regression.test.js`, `src/__tests__/mcpToolPipeline.authzBypass.test.js`, `src/__tests__/a2aExecution.test.js`, `src/__tests__/a2aSimulatedAuthorize.test.js`, `tests/oas/pingone-admin.test.js`, `demo_mcp_jwt_verifier/test_jwks_allowlist.py`, `demo_api_server/tests/a2aSpecialistExecutor.test.js`, `demo_api_server/tests/a2aSpecialistRouterContext.test.js`. Plan: `docs/superpowers/plans/2026-09-11-user-token-custody.md` |
+| A2A wire hop authentication (locked 2026-09-11) | `middleware/a2aPingOneBearer.js`'s `verifyA2aBearer` is the one gate every specialist call passes through: PingOne signature/issuer/exp via JWKS, audience = this specialist's own intermediate resource (RFC 8707 — a token minted for specialist A must not work on B), scope `agent:invoke:<appKey>`, `act` present and exactly one level deep (no `act` = a machine token with no user behind it; depth 2 = an Exchange #2 token replayed back into the hop), and the actor (`act.client_id`/`act.sub`) equal to the registered generalist — a bare client_credentials token has no `act` at all, so it fails the depth check one step earlier. `services/a2aProtocolServer.js`'s `assertSkillAllowed` then refuses any tool not in that specialist's own `config/a2aSpecialists.js` `tools` allowlist, before any token is minted. BOTH paths run the same `verifyA2aBearer` — the HTTP route via `requireA2aPingOneBearer`, and `services/a2aProtocolClient.js`'s in-process `sendA2aProtocolHandoff` calling it directly before `handler.sendMessage` — there is no way into a specialist that skips it. `services/a2aCardSigningService.js`'s `cardVerifier` accepts a signed Agent Card's `jku` ONLY when it equals our own JWKS URL (the /a2a/specialists/.well-known/jwks.json route, not a file); any other origin is refused outright and never fetched (blocks key substitution / SSRF). No token crosses the wire in either direction: the specialist performs its own Exchange #2 and tool call in-process, and `publishReply` sends `{ result, toolError }` only — never a token. A failed hop never soft-fails: `sendA2aProtocolHandoff` returns `{ ok: false, error, code }` for the caller to report, and the specialist executor replies with a `toolError` code rather than running anyway. When the gateway has no backend to forward to, `maybeServeLocally` falls back to serving the tool in-process only when `[gatewayDecision, bffDecision].some(PERMIT)` — the same two-decision gate as the "LLM token custody" row above, never a bare `gatewayDecision === 'PERMIT'`, because no-gateway mode never produces a gateway PERMIT. Guarded by `demo_api_server/tests/a2aBearerValidation.test.js`, `tests/a2aCardSigning.test.js`, `tests/a2aSpecialistExecutor.test.js` |
 
 ---
 
@@ -139,6 +140,70 @@ read the configured host. A new browser origin must be added to ALL of:
 ---
 
 ## §4 — Bug Fix Log
+
+### 2026-09-12 — Final-review hardening pass on the A2A hop (4 Important findings + 2 smaller)
+
+**Files changed:** `demo_api_server/services/a2aProtocolServer.js`,
+`services/a2aProtocolClient.js`. Tests: `tests/a2aSpecialistExecutor.test.js`,
+`src/__tests__/a2aProtocolClient.test.js`. UI: `demo_api_ui/src/data/a2aRecordedRun.js`,
+`src/components/InterAgentAbuseTester.jsx`.
+
+**What was broken:**
+- `publishReply` serialized the specialist's whole `toolResult` verbatim into the
+  A2A reply; on an `mcp_error` the upstream `message` field could carry a
+  JWT-shaped string, and the docblock claimed that "can never" happen with
+  nothing in the function backing that claim.
+- `maybeServeLocally` keyed the local-dispatch `userId` off
+  `ctx.req.session.user.id` before `ctx.claims?.sub`. The HTTP A2A mount runs
+  `sessionMiddleware` but not `authenticateToken`, so the attached session can
+  belong to an unrelated caller while `claims.sub` is the subject the bearer
+  gate (`verifyA2aBearer`) actually validated — preferring session could serve
+  a PERMITted call's data to the wrong user.
+- `a2aProtocolClient.js`'s `finishHop` set `protocolResponse.ok: !chainFailure`
+  while the same event's `status` was `'failed'` for ANY `toolError` — a plain
+  tool error that isn't one of `CHAIN_FAILURES` rendered `status:'failed'`
+  beside `protocolResponse.ok:true`.
+- The UI's `a2aRecordedRun.js` replay fixture's `a2a-protocol-bearer` event
+  described a `client_credentials` bearer; the live code now sends the
+  Exchange #1 delegated token on that leg.
+- `InterAgentAbuseTester.jsx`'s comment said the wire gate checks
+  signature/issuer/client_id only; `verifyA2aBearer` actually checks six things
+  (sig/iss/exp, audience, scope, act depth, actor, subject). Its response
+  parsing read `b?.message` before `b?.error`, though the gate only ever sends
+  `{ error }`.
+
+**What was fixed:**
+- `publishReply` now passes `result` through `redactValue` (`utils/logRedact.js`)
+  before serializing; the docblock states the guarantee comes from that pass,
+  not from the tool pipeline's own error paths being token-free on their own.
+- `maybeServeLocally`'s `userId` now prefers `ctx.claims?.sub`, falling back to
+  `ctx.req?.session?.user?.id` only when claims is absent.
+- `protocolResponse.ok` is now `!toolError` (chainFailure only ever fires when
+  toolError does, so this is a strict widening of the failure case, not a
+  behavior change for the existing chain-failure case).
+- Rewrote the `a2a-protocol-bearer` fixture event to a genuinely delegated
+  bearer (`sub` = the user, `act.sub` = the generalist, `aud`/`scope` = the
+  sporting-goods vertical's real `a2a-intermediate-membership.ping.demo` /
+  `agent:invoke:membership`), cross-checked against the same fixture's
+  `a2a-exchange1`/`a2a-exchange2` events for the same generalist client id.
+- Rewrote the stale comment in `InterAgentAbuseTester.jsx` to the six real
+  checks and noted its two probes only exercise check 1 (signature). Swapped
+  its response-parsing precedence to read `error` before `message`.
+
+**Do not break:**
+- `publishReply`'s redaction applies to every caller, not just the mcp_error
+  path — don't bypass it by constructing the reply text by hand elsewhere.
+- The in-process UC2 path (where `claims.sub` and `session.user.id` are already
+  the same user) is unaffected by the precedence swap.
+- `protocolResponse.ok` must keep tracking `toolError`, not `chainFailure` — a
+  future edit reintroducing `!chainFailure` reopens this exact contradiction.
+
+**Verify:**
+- `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/a2aSpecialistExecutor src/__tests__/a2aProtocolClient --forceExit`
+  — 17/17 pass, including 2 new cases (JWT redaction, mismatched session-vs-claims
+  identity) that fail before the fix.
+- `cd demo_api_ui && npm run test:unit && npm run build` — 534 files / 4119 tests
+  pass, build exits 0.
 
 ### 2026-09-12 — D-05's anti-bypass rule never fired in k8s: the gateway audience was compared unsplit
 

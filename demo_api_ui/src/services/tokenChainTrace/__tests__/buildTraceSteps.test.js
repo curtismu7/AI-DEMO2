@@ -594,6 +594,41 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(steps.find((s) => s.id === "stepup").status).toBe("active");
   });
 
+  // demo_hitl_service's consent-required gate is a SEPARATE mechanism from the
+  // mfa_challenge_* device step-up above, but shares the same "stepup" chip —
+  // both real deps.emit() phases from mcpToolPipeline.js's HITL branch.
+  test("authorize_denied_hitl marks step-up active (demo_hitl_service challenge created)", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      phases: [{ phase: "authorize_denied_hitl", label: "HITL challenge required", detail: "" }],
+    });
+    expect(steps.find((s) => s.id === "stepup").status).toBe("active");
+  });
+
+  test("gateway_step_up_required and mcp_auth_challenge_intercepted also mark step-up active", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      phases: [
+        { phase: "mcp_auth_challenge_intercepted", label: "", detail: "" },
+        { phase: "gateway_step_up_required", label: "", detail: "" },
+      ],
+    });
+    expect(steps.find((s) => s.id === "stepup").status).toBe("active");
+  });
+
+  // The HITL gate is asynchronous — the human approves out-of-band and the
+  // agent retries as a separate later trace — so "done" is only knowable on
+  // the retry's own trace, via authorize.hitlApproved (already returned by
+  // mcpToolAuthorizationService.js once a verified receipt permits the call).
+  test("a retry trace with authorize.hitlApproved marks step-up done", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      phases: [{ phase: "authorize_permitted", label: "", detail: "" }],
+      authorize: { decision: "PERMIT", hitlApproved: true, hitlChallengeId: "chal-1" },
+    });
+    expect(steps.find((s) => s.id === "stepup").status).toBe("done");
+  });
+
   test("gw-authorize token event fills gateway step checks", () => {
     const statements = [{
       name: "MCP Tool Authorization Denied",

@@ -229,6 +229,12 @@ export default function PrivilegeGatewayTopologyPage() {
   return (
     <>
     <div className="pmd-page pgt-page">
+      <div className="pgt-archived">
+        <strong>Archived.</strong> See{" "}
+        <a href="/privilege-first-gateway">Privilege first, Agent Gateway for the rest</a>{" "}
+        for the current Privilege Agentic App gateway content, including the settled backend-hop
+        Auth Mode findings.
+      </div>
       <div className="pmd-hero">
         <span className="pmd-eyebrow">PingOne Privilege · MCP Gateway</span>
         <h1>Privilege Gateway Topologies</h1>

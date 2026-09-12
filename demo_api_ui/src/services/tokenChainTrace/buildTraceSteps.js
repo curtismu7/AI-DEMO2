@@ -1277,14 +1277,34 @@ export function buildTraceSteps(trace) {
   // 7a. step-up (conditional) — omitted mid-flight so it doesn't sit "pending"
   // for runs that will never need it; once the trace completes without a
   // challenge, show it as notinpath rather than silently disappearing.
-  const stepUpStarted = hasPhase(phases, "mfa_challenge_initiated");
-  const stepUpDone = hasPhase(phases, "mfa_challenge_completed");
+  //
+  // Two independent gates share this one chip: the device MFA step-up
+  // (mfa_challenge_*, PostHog-tracked) and the demo_hitl_service
+  // consent-required gate (authorize_denied_hitl / gateway_step_up_required /
+  // mcp_auth_challenge_intercepted — real deps.emit() calls in
+  // mcpToolPipeline.js). The HITL gate is asynchronous — the human approves
+  // out-of-band and the agent retries as a SEPARATE later trace — so "done"
+  // for that path is only knowable on the retry's own trace, via
+  // azEval.hitlApproved (mcpToolAuthorizationService.js's evaluation already
+  // carries it once a verified receipt permits the call).
+  const hitlChallengeStarted = hasPhase(phases, "authorize_denied_hitl")
+    || hasPhase(phases, "gateway_step_up_required")
+    || hasPhase(phases, "mcp_auth_challenge_intercepted");
+  const hitlApprovedThisRun = azEval?.hitlApproved === true;
+  const stepUpStarted = hasPhase(phases, "mfa_challenge_initiated") || hitlChallengeStarted;
+  const stepUpDone = hasPhase(phases, "mfa_challenge_completed") || hitlApprovedThisRun;
   const stepUpFailed = hasPhase(phases, "mfa_challenge_failed");
   if (stepUpStarted || stepUpDone || stepUpFailed) {
     steps.push(makeStep("stepup",
       stepUpFailed ? "error" : stepUpDone ? "done" : "active", {
-        kv: phases.filter((p) => p.phase && p.phase.startsWith("mfa_challenge"))
-          .map((p) => [p.phase, p.label || ""]),
+        kv: [
+          ...phases.filter((p) => p.phase && (p.phase.startsWith("mfa_challenge")
+              || p.phase === "authorize_denied_hitl"
+              || p.phase === "gateway_step_up_required"
+              || p.phase === "mcp_auth_challenge_intercepted"))
+            .map((p) => [p.phase, p.label || ""]),
+          ...(hitlApprovedThisRun ? [["hitlApproved", "true"]] : []),
+        ],
       }));
   } else if (traceComplete) {
     steps.push(makeStep("stepup", "notinpath", {
