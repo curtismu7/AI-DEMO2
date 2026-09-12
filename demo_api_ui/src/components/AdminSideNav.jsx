@@ -1017,7 +1017,6 @@ export default function AdminSideNav({
         { label: "External Door MCP Flow (MM)", path: "/external-door-diagrams", icon: "arc" },
         { label: "AI Agent Gateway (MM)", path: "/privilege-mcp-diagrams", icon: "lck" },
         { label: "Privilege Gateway Topologies (MM)", path: "/privilege-gateway-topologies", icon: "arc" },
-        { label: "Privilege-First Gateway (Node)", path: "/privilege-first-gateway", icon: "lck" },
         { label: "Gateway vs P1AZ Enforcement (MM)", path: "/gateway-enforcement-map", icon: "arc" },
         { label: "Resource Server Placement (MM)", path: "/resource-server-placement", icon: "arc" },
       ],
