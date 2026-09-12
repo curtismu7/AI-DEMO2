@@ -303,8 +303,11 @@ function createA2aProtocolRouter(opts = {}) {
       (req, res, next) => {
         // Built PER REQUEST: the executor needs this request's bearer (the
         // Exchange #1 subject token), session and claims, which a handler built
-        // once at startup cannot supply. req.a2aPingOne is set by the gate above,
-        // which still runs first and is unchanged.
+        // once at startup cannot supply — it degrades every real call to
+        // a2a_no_subject_token. Guarded by
+        // tests/a2aSpecialistRouterContext.test.js, which fails if this is
+        // reverted to startup construction. req.a2aPingOne is set by the gate
+        // above, which still runs first and is unchanged.
         // ponytail: a fresh InMemoryTaskStore per request, so no task outlives
         // the response — fine for this one-shot message/send hop; share a store
         // per vertical if task polling is ever needed.
