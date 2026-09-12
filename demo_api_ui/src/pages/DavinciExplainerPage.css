@@ -208,7 +208,24 @@
   gap: 14px;
   flex-wrap: wrap;
 }
-.davinci-explainer .btn-primary {
+/* Named dvx-cta rather than btn-primary on purpose.
+   `.btn-primary` is a claimed GLOBAL button class, and App.css skins it with
+       .App.end-user-nano :is(.btn-primary, …) { color: var(--th-text-invert) !important }
+   so its ink is forced white regardless of specificity. That was invisible
+   while this page's --accent was a dark indigo (white read fine on it). The
+   moment --accent became --th-bg-emphasis, dark mode made that ground a light
+   blue and the forced white ink measured 1.8:1 on the live page.
+
+   A local CTA has no business borrowing a global button class it does not want
+   the skin of: this rule already sets its own ground, padding, radius and
+   border. Renaming is the fix; fighting an !important with another one is not.
+
+   Element + class + link states for the usual reason — PingOne's
+   end-user-nano.css styles `a:link` at (0,1,1) and would take `color` and
+   `text-decoration` off a lone class. */
+.davinci-explainer a.dvx-cta,
+.davinci-explainer a.dvx-cta:link,
+.davinci-explainer a.dvx-cta:visited {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -221,7 +238,13 @@
   text-decoration: none;
   border: 1px solid transparent;
 }
-.davinci-explainer .btn-primary svg { flex-shrink: 0; }
+
+.davinci-explainer a.dvx-cta:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.davinci-explainer .dvx-cta svg { flex-shrink: 0; }
 .davinci-explainer .cta-note { font-size: 12.5px; color: var(--text-faint); max-width: 34ch; margin: 0; }
 
 .davinci-explainer .footnote {

@@ -133,7 +133,12 @@ export default function DavinciExplainerPage() {
 
         <section>
           <div className="cta-row">
-            <a className="btn-primary" href="/davinci-login-guide">
+            {/* dvx-cta, NOT btn-primary: that is a claimed global button class,
+                and App.css skins it with `color: var(--th-text-invert)
+                !important`, which forces white ink no matter what this page
+                sets. Harmless while this page's accent was a dark indigo;
+                white-on-light-blue once the accent became a theme token. */}
+            <a className="dvx-cta" href="/davinci-login-guide">
               See the live widget login demo
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14M13 6l6 6-6 6" />
