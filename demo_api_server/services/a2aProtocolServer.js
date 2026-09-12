@@ -15,7 +15,7 @@ const {
   InMemoryTaskStore,
   AgentEvent,
 } = require('@a2a-js/sdk/server');
-const { agentCardHandler, jsonRpcHandler } = require('@a2a-js/sdk/server/express');
+const { jsonRpcHandler } = require('@a2a-js/sdk/server/express');
 const {
   specialistForVertical,
   verticalsWithSpecialist,
@@ -25,6 +25,7 @@ const {
   requireA2aPingOneBearer,
   pingOneA2aUserBuilder,
 } = require('../middleware/a2aPingOneBearer');
+const { getSignedCard, publicJwks } = require('./a2aCardSigningService');
 
 function defaultConfigStore() {
   return require('./configStore');
@@ -98,16 +99,21 @@ function createA2aProtocolRouter(opts = {}) {
   const getCfg = opts.configStore || defaultConfigStore;
   const router = express.Router();
 
+  // Verification key for the Agent Card signatures (A2A v1.0 §8.4). Public, like the cards.
+  router.get('/.well-known/jwks.json', (_req, res) => res.json(publicJwks()));
+
   for (const vertical of verticalsWithSpecialist()) {
     const built = createSpecialistProtocolHandler(vertical, typeof getCfg === 'function' ? getCfg() : getCfg);
     if (!built) continue;
     const { handler } = built;
     const base = `/${encodeURIComponent(vertical)}`;
 
-    router.use(
-      `${base}/.well-known/agent-card.json`,
-      agentCardHandler({ agentCardProvider: handler }),
-    );
+    router.get(`${base}/.well-known/agent-card.json`, async (_req, res) => {
+      const cfg = typeof getCfg === 'function' ? getCfg() : getCfg;
+      const card = await getSignedCard(vertical, cfg);
+      if (!card) return res.status(404).json({ error: 'no_specialist' });
+      return res.json(card);
+    });
 
     router.use(
       base,
