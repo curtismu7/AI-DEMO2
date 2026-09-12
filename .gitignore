@@ -153,6 +153,17 @@ demo_api_server/data/persistent/lmdb/data.mdb
 *-keys.txt
 *.key
 
+# One-off LLM-config exports leaked via #370's 2026-07-12 bulk import (one,
+# LLM-bak.json, carried a live-looking credential). Never re-add these exact
+# names. LLM.json and LLM2.json are intentionally tracked — run-docker.sh,
+# demo_api_server/scripts/{exportMigrationBundle,setupFresh}.js, and
+# k8s/create-secrets.sh all read them as committed config (the "Helix agent
+# key" auto-import). Do NOT broaden this to `LLM*.json` — that would
+# silently untrack them.
+/LLM-bak.json
+/LLM-wizard.json
+/llm3.json
+
 
 # pac.jar is a 33MB Ping-supplied binary — set PAC_JAR instead of committing it.
 /pac/pac.jar
