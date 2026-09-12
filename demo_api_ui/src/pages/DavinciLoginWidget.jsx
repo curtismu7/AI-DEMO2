@@ -2,13 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWidgetConfig, loadWidget } from "../lib/davinciWidgetClient";
 import "./DavinciLoginPage.css";
 
-// DaVinci Widget login sandbox (/davinci-login). Renders the DaVinci flow's own
-// screens in-page via davinci.skRenderScreen, separate from and not touching the
-// protected BFF redirect login (routes/oauth.js). See
-// docs/superpowers/specs/2026-08-17-davinci-orchestration-showcase-design.md.
+// The live DaVinci widget, embedded as the "Try It Live" section of
+// DavinciLoginGuidePage (/davinci-login-guide) — renders the DaVinci flow's own
+// screens in-page via davinci.skRenderScreen, separate from and not touching
+// the protected BFF redirect login (routes/oauth.js).
 //
 // username is optional in the flow's Input Schema, so the flow's own Sign On
-// screen collects it — this page starts the flow immediately with no
+// screen collects it — this component starts the flow immediately with no
 // identifier field of its own.
 //
 // The widget ends at a DaVinci sessionToken, not an OIDC code — Ping's docs tie
@@ -18,7 +18,7 @@ import "./DavinciLoginPage.css";
 // PingOne recognises the session, does not re-challenge, and redirects to
 // /davinci-login/callback with a code plus an ID token echoing the BFF's nonce.
 
-export default function DavinciLoginPage() {
+export default function DavinciLoginWidget() {
   const [status, setStatus] = useState("loading"); // loading | flow | error
   const [error, setError] = useState(null);
   const [flowVersion, setFlowVersion] = useState(null);
@@ -76,7 +76,6 @@ export default function DavinciLoginPage() {
 
   return (
     <div className="dvl-page">
-      <h1 className="dvl-title">DaVinci Widget Login</h1>
       {flowVersion && <p className="dvl-version">Flow version: {flowVersion}</p>}
 
       {error && <div className="dvl-error">{error}</div>}

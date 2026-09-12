@@ -40,7 +40,6 @@ import AgentGatewayInspectorClean from "../components/AgentGatewayInspectorClean
 import AgentGatewayLogPanel from "../components/AgentGatewayLogPanel";
 import SdkLoginPage from "../pages/SdkLoginPage";
 import SdkLoginCallback from "../pages/SdkLoginCallback";
-import DavinciLoginPage from "../pages/DavinciLoginPage";
 import DavinciLoginCallback from "../pages/DavinciLoginCallback";
 import DavinciLoginConfirmedPage from "../pages/DavinciLoginConfirmedPage";
 import DavinciExplainerPage from "../pages/DavinciExplainerPage";
@@ -416,18 +415,6 @@ export function SdkLoginPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <SdkLoginPage />
-    </AppShell>
-  );
-}
-
-// DaVinci widget login sandbox (public) — drives its own browser-side flow.
-// AppShell-wrapped like /dashboard: TopNav and the side nav render fine with
-// user=null (both are optional-chained), and it's what gives the page the
-// main-content flex layout that keeps the footer pinned to the bottom.
-export function DavinciLoginPageRoute({ user, logout }) {
-  return (
-    <AppShell user={user} logout={logout}>
-      <DavinciLoginPage />
     </AppShell>
   );
 }

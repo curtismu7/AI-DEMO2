@@ -1,4 +1,4 @@
-/* DaVinci Widget login sandbox (/davinci-login) and its OIDC callback.
+/* DaVinci Widget login (embedded in /davinci-login-guide) and its OIDC callback.
    Themeable values come from --th-* so both modes work without a
    prefers-color-scheme block (THEMING.md). Every rule that sets a themed
    ground also sets its ink (§1.5), and radii come from the scale (§9.3). */
