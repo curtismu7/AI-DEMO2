@@ -1007,7 +1007,6 @@ export default function AdminSideNav({
         { label: "Agent Onboarding Flow (Node)", path: "/agent-onboarding-flow", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
         { label: "Agent Onboarding Flow Subway (Node)", path: "/agent-onboarding-flow-subway", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
         { label: "Invest Dual-Auth (MM)", path: "/invest-dual-auth", icon: "rte" },
-        { label: "External Door MCP Flow (MM)", path: "/external-door-diagrams", icon: "arc" },
         { label: "AI Agent Gateway (MM)", path: "/privilege-mcp-diagrams", icon: "lck" },
         { label: "Privilege Gateway Topologies (MM)", path: "/privilege-gateway-topologies", icon: "arc" },
         { label: "Privilege-First Gateway (Node)", path: "/privilege-first-gateway", icon: "lck" },
