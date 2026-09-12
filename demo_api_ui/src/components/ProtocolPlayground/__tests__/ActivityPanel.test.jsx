@@ -50,6 +50,8 @@ describe('ActivityPanel — compact token chain', () => {
 
     expect(screen.getByRole('tab', { name: 'Token' })).toHaveAttribute('aria-selected', 'true');
     expect(within(screen.getByRole('tabpanel')).getByText('"client-app"')).toBeInTheDocument();
+    // "decoded", not "signed": nothing here verifies the signature.
+    expect(screen.getByText('HTTP 200 (decoded)')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('tab', { name: 'Request' }));
     expect(within(screen.getByRole('tabpanel')).getByText('"/api/demo/hop-1"')).toBeInTheDocument();

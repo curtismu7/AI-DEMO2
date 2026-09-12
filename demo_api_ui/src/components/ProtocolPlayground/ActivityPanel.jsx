@@ -33,7 +33,9 @@ function synthesizeEvent(result) {
   return {
     label: `${method} ${endpoint}`,
     status: statusMap[status] || (status >= 200 && status < 300 ? 'success' : 'error'),
-    explanation: `HTTP ${status}${result.decodedToken?.isValid ? ' (signed)' : ''}`,
+    // "decoded", not "signed": decodeJWT parses the token, it never verifies
+    // the signature — and the demo tokens carry a placeholder one.
+    explanation: `HTTP ${status}${result.decodedToken?.isValid ? ' (decoded)' : ''}`,
   };
 }
 
