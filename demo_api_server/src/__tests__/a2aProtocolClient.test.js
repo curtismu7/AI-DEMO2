@@ -150,6 +150,43 @@ describe('a2aProtocolClient', () => {
     expect(JSON.stringify(tokenEvents)).not.toMatch(/T\.NESTED|T\.AGENT1/);
   });
 
+  // Item 5 — the top-level status and the teaching-surface protocolResponse.ok
+  // must agree. A plain tool_error that is NOT one of CHAIN_FAILURES (the
+  // nested-act token still minted fine; only the tool call itself failed)
+  // used to read protocolResponse.ok:true beside status:'failed' — a visible
+  // contradiction, since ok was keyed off chainFailure instead of toolError.
+  test('a plain tool_error (not a chain-failure code) reports ok:false alongside status:failed', async () => {
+    verifyA2aBearer.mockResolvedValue({ sub: 'u1', act: { client_id: 'gen-id' } });
+    exchangeAsSpecialist.mockResolvedValue({
+      token: 'T.NESTED', claims: { sub: 'u1' }, actChainDepth: 2, scopes: ['holdings:read'],
+    });
+    executeBffToolWithToken.mockResolvedValue(
+      JSON.stringify({ error: 'mcp_error', message: 'socket hang up' }),
+    );
+    const tokenEvents = [];
+
+    const out = await sendA2aProtocolHandoff({
+      vertical: 'investment',
+      subtask: 'review my holdings',
+      tool: TOOL,
+      toolArgs: {},
+      subjectToken: 'T.AGENT1',
+      tokenEvents,
+      cfg: CFG,
+      req: { sessionID: 's1' },
+      sessionId: 's1',
+    });
+
+    // mcp_error is not in CHAIN_FAILURES, so the hop itself still reports
+    // ok:true (the nested-act chain minted fine) — only the tool call failed.
+    expect(out.ok).toBe(true);
+    expect(out.toolError).toBe('mcp_error');
+
+    const msgEvent = tokenEvents.find((e) => e.id === 'a2a-protocol-message');
+    expect(msgEvent.status).toBe('failed');
+    expect(msgEvent.protocolResponse.ok).toBe(false);
+  });
+
   // The card leg must fail CLOSED, for the same reason the bearer leg must: an
   // unenforced check sitting behind a green suite is how the `void bearer;` gap
   // survived. With the real verifier this leg always succeeds, so nothing else

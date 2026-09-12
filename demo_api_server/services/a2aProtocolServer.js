@@ -29,6 +29,7 @@ const { getSignedCard, publicJwks } = require('./a2aCardSigningService');
 const { exchangeAsSpecialist } = require('./a2aDelegationService');
 const { executeBffToolWithToken } = require('./bffMcpToolExecutor');
 const { parseToolResult } = require('./llmResponseContract');
+const { redactValue } = require('../utils/logRedact');
 
 function defaultConfigStore() {
   return require('./configStore');
@@ -54,11 +55,15 @@ function assertSkillAllowed(specialist, tool) {
  * just minted stays on this side of the wire, and the caller gets the tool
  * result. One text part, because this mount already has a proven text-part
  * shape; the failure codes are deliberately generic (the detail goes to the
- * log, as the bearer gate does) so an upstream message can never carry a
- * credential into the reply.
+ * log, as the bearer gate does). `result` is the tool pipeline's own object —
+ * on an mcp_error it can carry a raw upstream `message` — so it is passed
+ * through `redactValue` (utils/logRedact.js, the same JWT-stripping pass the
+ * BFF's own logs go through) before it reaches the wire; the tool pipeline's
+ * own error paths are not otherwise guaranteed token-free.
  */
 function publishReply(eventBus, requestContext, fields) {
   const { specialist, vertical, result, toolError, actChainDepth = null, scopes = [] } = fields;
+  const safeResult = redactValue(result);
   eventBus.publish(
     AgentEvent.message({
       messageId: crypto.randomUUID(),
@@ -67,7 +72,7 @@ function publishReply(eventBus, requestContext, fields) {
       role: Role.ROLE_AGENT,
       parts: [
         {
-          content: { $case: 'text', value: JSON.stringify({ result, toolError }) },
+          content: { $case: 'text', value: JSON.stringify({ result: safeResult, toolError }) },
           metadata: undefined,
           filename: '',
           mediaType: 'text/plain',
@@ -135,7 +140,13 @@ async function maybeServeLocally({ vertical, tool, args, ctx, toolResult, tokenE
     // fast-path re-enters A2A delegation for every a2aDelegated tool name and
     // would recurse forever on exactly the upstream failure this path handles.
     // Authorization already ran; this is delivery only.
-    const userId = ctx.req?.session?.user?.id || ctx.claims?.sub || 'anon';
+    // The HTTP A2A mount runs sessionMiddleware but not authenticateToken, so
+    // ctx.req.session can belong to an unrelated caller while ctx.claims.sub is
+    // the PingOne-validated subject the bearer gate (verifyA2aBearer) actually
+    // authorized. Prefer the validated bearer's subject; session is only a
+    // defensive fallback for the unlikely case claims is absent (routes/oauth.js
+    // ~L362: session.user.id and claims.sub are the same PingOne sub).
+    const userId = ctx.claims?.sub || ctx.req?.session?.user?.id || 'anon';
     const localOut = await verticalDispatch.executeToolFor(
       vertical,
       tool,

@@ -178,7 +178,7 @@ function finishHop({ sent, tokenEvents, vertical, card, mode, protocolRequest })
         protocolRequest,
         // Facts, not the payload: the specialist's data is rendered by the
         // caller's result card, and the token chain is not the place for it.
-        protocolResponse: { ok: !chainFailure, toolError, actChainDepth, scopes },
+        protocolResponse: { ok: !toolError, toolError, actChainDepth, scopes },
       },
     ),
   );

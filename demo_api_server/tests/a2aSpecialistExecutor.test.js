@@ -137,4 +137,62 @@ describe('specialist A2A executor', () => {
     expect(() => assertSkillAllowed(SPECIALIST, 'transfer_money')).toThrow(/not authorized/i);
     expect(() => assertSkillAllowed(SPECIALIST, TOOL)).not.toThrow();
   });
+
+  // publishReply serializes the specialist's whole toolResult verbatim. On an
+  // mcp_error, toolResult can carry a raw upstream `message` — redactObject
+  // (utils/logRedact.js) must strip a JWT-shaped string out of it before it
+  // reaches the wire reply.
+  test('redacts a JWT-shaped string in an mcp_error message before publishing', async () => {
+    const jwt = 'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ4In0.sig';
+    exchangeAsSpecialist.mockResolvedValue({ token: 'T.NESTED', claims: {}, actChainDepth: 2, scopes: [] });
+    executeBffToolWithToken.mockResolvedValue(
+      JSON.stringify({ error: 'mcp_error', message: `upstream said: ${jwt}` }),
+    );
+
+    const ctx = { req: { sessionID: 's1' }, tokenEvents: [], sessionId: 's1', claims: { sub: 'u1' }, toolArgs: {} };
+    const exec = makeSpecialistExecutor(SPECIALIST, 'investment', { subjectToken: 'T.AGENT1', ctx });
+    const { published, eventBus } = capture();
+    await exec.execute(fakeRequestContext('positions'), eventBus);
+
+    const serialized = JSON.stringify(published[0]);
+    expect(serialized).not.toContain(jwt);
+    expect(replyOf(published).payload.result.message).toBe('upstream said: [REDACTED_JWT]');
+  });
+
+  // Item 2 — security-sensitive. The HTTP A2A mount runs sessionMiddleware but
+  // not authenticateToken, so ctx.req.session can belong to an unrelated
+  // caller while ctx.claims.sub is the subject verifyA2aBearer actually
+  // validated. maybeServeLocally must key the local dispatch off the
+  // VALIDATED claims subject, never the session, when the two disagree.
+  test('maybeServeLocally uses the validated bearer subject, not a mismatched session', async () => {
+    const verticalDispatch = require('../services/verticalDispatch');
+    exchangeAsSpecialist.mockResolvedValue({ token: 'T.NESTED', claims: {}, actChainDepth: 2, scopes: [] });
+    executeBffToolWithToken.mockResolvedValue(
+      JSON.stringify({ error: 'mcp_error', message: 'HTTP 502', gatewayDecision: 'PERMIT' }),
+    );
+    const schemas = jest.spyOn(verticalDispatch, 'toolSchemasFor').mockReturnValue([{ name: TOOL }]);
+    const local = jest.spyOn(verticalDispatch, 'executeToolFor').mockResolvedValue({ result: { ok: 1 } });
+
+    const ctx = {
+      req: { sessionID: 's1', session: { user: { id: 'user-B' } } },
+      tokenEvents: [],
+      sessionId: 's1',
+      claims: { sub: 'user-A' },
+      toolArgs: {},
+    };
+    const exec = makeSpecialistExecutor(SPECIALIST, 'investment', { subjectToken: 'T.AGENT1', ctx });
+    const { eventBus } = capture();
+    await exec.execute(fakeRequestContext('positions'), eventBus);
+
+    expect(local).toHaveBeenCalledTimes(1);
+    expect(local).toHaveBeenCalledWith(
+      'investment',
+      TOOL,
+      expect.anything(),
+      expect.objectContaining({ userId: 'user-A' }),
+      expect.anything(),
+    );
+    schemas.mockRestore();
+    local.mockRestore();
+  });
 });
