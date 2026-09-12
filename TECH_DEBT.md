@@ -101,6 +101,39 @@ browser-bound nonce at `/oauth/authorize`, and let the BFF hold the gateway toke
 confirms that nonce, committing it to the shared session only then — or key gateway sessions per caller instead
 of per app.
 
+### [ ] 2026-09-11 — mcp-server accepts gateway-audienced tokens: D-05's own rule cannot fire
+
+**What's wrong.** `oauth-mcp/src/auth/lastHopAuthorization.ts` enforces two
+rules. Rule 2 (the upstream audience must match) splits its setting with
+`normalizeAudienceList` (`:75`, `:107-111`). Rule 1 — D-05, "a gateway-audience
+token must not be used at the upstream" — does not: it compares the raw env
+string (`audValues.includes(options.gatewayAudience)`, `:64`), and
+`resolveUpstreamAudiences()` passes `MCP_GW_RESOURCE_URI` through unsplit
+(`:103`). Every deployment sets that variable as a comma list, so the comparison
+can never be true and Rule 1 never fires where the variable is set at all.
+
+On mcp-server it is inert twice over: that service's block sets only
+`MCP_SERVER_RESOURCE_URI` and no `MCP_GW_RESOURCE_URI`, so `gatewayAudience` is
+undefined — and that same accepted list (`docker-compose.yml:757`) itself
+includes two gateway audiences (`mcpgateway.ping.demo`,
+`https://api.ping.demo:3036/mcp`). So a gateway-audienced token presented
+directly to mcp-server passes both rules today, which is the exact step-skip
+D-05 exists to stop. Port `:8080` is published (see the entry below). No LLM
+path reaches it; a caller holding such a token does.
+
+**Why it wasn't fixed now.** Found while checking why no-gateway A2A specialist
+calls are rejected — that rejection is Rule 2 working as intended, because
+`:757`'s list has no `mcpgateway-a2a.ping.demo`. Making Rule 1 fire changes what
+mcp-server accepts, in a service that ships as a baked image, and nothing in the
+demo depends on it firing today. It deserves its own test-first change rather
+than a drive-by in an unrelated PR.
+
+**Real fix.** Split `gatewayAudience` with the same `normalizeAudienceList`, and
+cover it with a test per deployment shape (single value, comma list, unset).
+Then decide deliberately whether mcp-server should accept gateway audiences at
+all: while it does, D-05 is enforced only by the cloud policy's
+`TokenAudTargetsUpstream`, never at the upstream itself.
+
 ### [ ] 2026-09-11 — LLM token custody: what the fix deliberately left open
 
 **What's wrong.** The LLM-custody fix (branch `fix/llm-token-custody`, plan
@@ -139,8 +172,20 @@ MCP gateway and PingOne Authorize. These remain:
 
   Now, with no gateway, the BFF's own P1AZ PERMIT (`bffDecision`) authorizes
   the in-BFF delivery, and the simulated engine accepts every gateway identity,
-  like the cloud policy. What's still missing is a real remote path to
-  mcp-server with no gateway (see Real fix).
+  like the cloud policy.
+
+  **The "real remote path to mcp-server" this entry used to promise does not
+  exist to build (checked 2026-09-11).** `oauth-mcp` does list the vertical
+  `sensitive_*` tools, but its handler relays every one of them straight back to
+  the BFF (`oauth-mcp/src/tools/handlers/verticalHandlers.ts:14-31` →
+  `/api/path/vertical-tool`), so the BFF is their resource server in every mode.
+  A remote hop would be BFF → mcp-server → BFF: a round trip that adds no
+  authorization, since the BFF's own P1AZ decision already gates it. Gateway
+  mode takes that same path (`demo_mcp_gateway/src/router.ts:222` routes them to
+  `olb`). `sensitive_customer_identity` is not in `oauth-mcp` at all. The only
+  genuinely remote specialist tools — the four investment tools and
+  `sensitive_passenger_record` — live on `demo_mcp_resource_server`
+  (`mcp-invest.ping.demo`), so mcp-server was the wrong upstream for them too.
 
 **Why it wasn't fixed now.** Each one is out of the LLM's reach, needs changes
 in all four agent services, or needs P1AZ policy work.
@@ -148,9 +193,15 @@ in all four agent services, or needs P1AZ policy work.
 **Real fix.** Make the strict internal secret the default, and serve the
 internal route on a listener that isn't published. Put a run id in the four
 agents' callback bodies. Route `call_pingone_tool` through the gateway with a
-P1AZ decision. For a real no-gateway remote A2A path, issue the specialist
-token for mcp-server's audience; that needs PingOne grants and a
-`HasValidMcpAudience` change. Delete the dead langchain path.
+P1AZ decision. For no-gateway delivery of the five genuinely remote specialist
+tools (the four invest tools and `sensitive_passenger_record`, both on
+`demo_mcp_resource_server`), add a BFF-to-resource-server transport and audience
+the specialist token there: that needs new uniquely-named PingOne grants
+(PingOne issues one resource per exchange, and one scope name binds to one
+resource) plus two cloud-policy changes — an A2A branch in
+`HasValidMcpAudience` and a matching D-05 exemption in
+`TokenAudTargetsUpstream` — imported by hand in the console. Low value: the
+gateway path already delivers those five. Delete the dead langchain path.
 
 ### [x] 2026-09-11 — agentRun's end-of-run session save can undo a concurrent mode change
 
