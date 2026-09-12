@@ -245,6 +245,7 @@ export const NAV_STRUCTURE_CATALOG = [
     children: [
       "Feature Flags",
       "LLM Config",
+      "Secret Rotation",
       "App Configuration",
       "OAuth Debug",
       "Postman Collections",
