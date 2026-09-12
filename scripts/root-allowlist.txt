@@ -28,8 +28,6 @@ Connect to the PingOne Remote MCP Server.pdf
 DOCKER_STARTUP.md
 FEATURES.md
 HANDOFF.md
-LLM.json
-LLM2.json
 NEW-MACHINE.md
 README.md
 REGRESSION_LOG.md

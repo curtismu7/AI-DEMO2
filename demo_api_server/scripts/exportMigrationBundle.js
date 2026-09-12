@@ -72,7 +72,10 @@ function collectSeedFiles() {
   const singles = [
     path.join(REPO_ROOT, 'service-topology.json'),
     path.join(REPO_ROOT, 'scope-topology.json'),
-    path.join(REPO_ROOT, 'LLM.json'),
+    // LLM.json is deliberately NOT bundled: it is a Helix agent key file
+    // holding a real PingOne credential, so copying it would put that key in
+    // every exported bundle. The importing side gets it from HELIX_API_KEY
+    // (vault/env), the same path setupFresh.js uses.
     path.join(REPO_ROOT, 'docs', 'HELIX_AGENT_DIRECTIVES.json'),
   ];
   for (const abs of singles) {
