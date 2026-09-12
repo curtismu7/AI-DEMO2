@@ -213,7 +213,7 @@ function compactActivityForPrompt(raw) {
   ].join(' | ');
   return rows.slice(0, ACTIVITY_ROWS_FOR_PROMPT).map(pick).join('\n');
 }
-const { executeBffTool, executeBffToolWithToken } = require('./bffMcpToolExecutor');
+const { executeBffTool } = require('./bffMcpToolExecutor');
 const { searchPublicBranches, formatBranchCatalogReply } = require('../data/publicBranchCatalog');
 const { buildPublicCatalogTokenEvents } = require('./publicCatalogTokenEvents');
 const { isAdminClientToken, adminTokenAgentResponse, isVerticalExemptFromAdminTokenGuard } = require('./customerTokenGuard');
@@ -979,10 +979,11 @@ async function executeHeuristicBanking(parsed, userId, userToken, req = null, su
  */
 
 /**
- * A2A interception: delegate_to_specialist is NOT an MCP tool — it triggers the
- * chained RFC 8693 delegation (a2aDelegationService) using the active vertical's
- * specialist, pushing the a2a-* events onto the shared tokenEvents (→ SSE/UI).
- * Returns a JSON string for the reason loop.
+ * A2A interception: delegate_to_specialist is NOT an MCP tool — it runs
+ * Exchange #1 (a2aDelegationService.exchangeAsGeneralist) for the active
+ * vertical's specialist and then sends that delegated token over the A2A wire
+ * hop (a2aProtocolClient), pushing both halves' a2a-* events onto the shared
+ * tokenEvents (→ SSE/UI). Returns a JSON string for the reason loop.
  */
 // Specialist tools that have a real return shape wired to a manifest render key
 // (config/verticals/investment/manifest.json). Tools not in this map still get
@@ -992,7 +993,10 @@ const A2A_TOOL_RENDER = { get_portfolio_summary: 'portfolio_summary' };
 async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionId }) {
   const a2a = require('./a2aDelegationService');
   const events = tokenEvents || [];
-  const result = await a2a.delegateToSpecialist(req, {
+  const { sendA2aProtocolHandoff } = require('./a2aProtocolClient');
+  // Exchange #1 ONLY. The generalist mints the delegated token (sub: the user,
+  // act: the generalist) and stops — Exchange #2 is the specialist's to make.
+  const result = await a2a.exchangeAsGeneralist(req, {
     vertical: activeId,
     subtask: args && args.subtask,
     tool: args && args.tool,
@@ -1014,106 +1018,42 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
     } catch (_) { /* best-effort default only */ }
   }
 
-  // Execute the specialist's tool WITH the minted nested-act token. The pipeline
-  // skips the user→agent exchange (suppliedToken) and runs Authorize + the gateway
-  // call; Authorize PERMITs the depth-2 act chain (the generalist alone is DENIED).
-  let toolResult = null;
-  if (result.tool) {
-    const raw = await executeBffToolWithToken({
-      name: result.tool,
-      args: toolArgs,
-      req,
-      tokenEvents: events,
-      sessionId: sessionId || req?.sessionID || '',
-      suppliedToken: result.token,
-      suppliedUserSub: result.userSub,
+  // The A2A wire hop (A2A v1.0 §7.3-7.5): the delegated token above IS the
+  // bearer. The SPECIALIST performs Exchange #2, calls the tool, and applies the
+  // PERMIT-gated local serve on its own side (services/a2aProtocolServer.js —
+  // REGRESSION_PLAN §1), then answers with DATA only, so no token crosses the
+  // wire in either direction. Its a2a-agent2-actor / a2a-exchange2 /
+  // tool-dispatched rows reach the shared chain through ctx.tokenEvents.
+  const handoff = await sendA2aProtocolHandoff({
+    vertical: activeId,
+    subtask: args?.subtask || undefined,
+    tool: result.tool,
+    toolArgs,
+    subjectToken: result.token,
+    tokenEvents: events,
+    cfg: configStore,
+    req,
+    sessionId: sessionId || req?.sessionID || '',
+  });
+  // No soft-fail. A refused or broken hop is not a delegation: report the
+  // specific code (a2a_unauthorized / a2a_card_signature /
+  // a2a_exchange2_failed); the human-readable reason is already on the chain.
+  if (!handoff.ok) {
+    return JSON.stringify({
+      delegated: false,
+      error: handoff.code || handoff.error || 'a2a_protocol_handoff_failed',
     });
-    ({ result: toolResult } = parseToolResult(raw, { site: `a2a:${result.tool}` }));
-
-    // The gateway AUTHORIZES, but it cannot always SERVE.
-    //
-    // Only banking's OLB tools sit behind the gateway's backend. Every other
-    // vertical's specialist tool (sensitive_patient_records, sensitive_tax_record,
-    // sensitive_payroll_details, ...) is implemented in this process by the
-    // vertical plugin — config/verticals/<v>/tools.js. So the A2A call ran the
-    // full chain, PingOne Authorize PERMITted it, and then the gateway had
-    // nothing to forward to:
-    //
-    //     P1AZDecision    -> forwarded (PERMIT)
-    //     BackendExchange -> skipped     backend: null
-    //     -> Gateway upstream error (HTTP 502)
-    //
-    // Authorization succeeded; only delivery failed. The BFF is the resource
-    // server for these tools, so run it here — the decision has already been
-    // made by the gateway, and this does not bypass it.
-    //
-    // Deliberately narrow: only after a transport/upstream failure (never after
-    // a DENY or a challenge, which are real answers), and only when the active
-    // vertical's plugin actually owns the tool.
-    // And only when the call was authorized: the gateway recorded a PERMIT, or,
-    // with no gateway, the BFF's own P1AZ gate did (it is the enforcement point
-    // then, and mcp-server rejects the specialist token's A2A-gateway
-    // audience). mcp_error comes from any failure, including one before any
-    // decision; serving locally without a PERMIT would skip P1AZ.
-    const failedUpstream = toolResult && typeof toolResult === 'object'
-      && toolResult.error === 'mcp_error'
-      && [toolResult.gatewayDecision, toolResult.bffDecision]
-        .some((d) => String(d || '').toUpperCase() === 'PERMIT');
-    if (failedUpstream) {
-      const ownsTool = (() => {
-        try {
-          const schemas = verticalDispatch.toolSchemasFor(activeId, { isAdmin: false }, () => []) || [];
-          return schemas.some((t) => (t && (t.name || (t.function && t.function.name))) === result.tool);
-        } catch (_) { return false; }
-      })();
-      if (ownsTool) {
-        try {
-          // userId is not a parameter of this function; derive it the same way
-          // the rest of the file does, falling back to the delegation subject.
-          //
-          // Call executeToolFor DIRECTLY — do NOT go through resolveExecuteTool.
-          // That helper's A2A fast-path (#1042) re-enters executeA2aDelegation for
-          // every isA2aDelegatedTool name, which would recurse forever here the
-          // moment the gateway returns an upstream error (the exact case this
-          // local-serve path exists to handle). Authorization already ran at the
-          // gateway; this is delivery only.
-          const localUserId = req?.session?.user?.id || result.userSub || 'anon';
-          const localOut = await verticalDispatch.executeToolFor(
-            activeId,
-            result.tool,
-            toolArgs,
-            {
-              userId: localUserId,
-              userToken: null,
-              req,
-              tokenEvents: events,
-              sessionId: sessionId || req?.sessionID || '',
-              isAdmin: false,
-            },
-            async () => ({ result: { error: 'no_local_plugin_handler' }, render: 'text' }),
-          );
-          const localResult = (localOut && typeof localOut === 'object' && !Array.isArray(localOut) && 'result' in localOut)
-            ? localOut.result
-            : localOut;
-          if (localResult && !(typeof localResult === 'object' && 'error' in localResult)) {
-            console.log('[executeA2aDelegation] %s authorized at the gateway, served locally (no gateway backend for this vertical)', result.tool);
-            toolResult = localResult;
-          }
-        } catch (localErr) {
-          console.warn('[executeA2aDelegation] local execution of %s failed: %s', result.tool, localErr?.message);
-        }
-      }
-    }
   }
 
-  // "Delegated" only means the nested-act token was minted — it is NOT proof the
-  // specialist's tool call actually succeeded. Report that separately so a tool-call
-  // failure (e.g. a gateway DENY, a missing BFF route) surfaces instead of being
-  // masked by an unconditional "Delegation complete" text.
-  // Detect error by key presence, not truthiness — an empty-string error ("") is
-  // still a failure. Fall back to 'tool_error' so the UI has a displayable label.
-  const toolHasError = toolResult && typeof toolResult === 'object' && 'error' in toolResult;
-  const toolError = toolHasError ? (toolResult.error || 'tool_error') : null;
+  const toolResult = handoff.result ?? null;
+  // "Delegated" only means the nested-act chain was minted — it is NOT proof the
+  // specialist's tool call actually succeeded. Report that separately so a
+  // tool-call failure (e.g. a gateway DENY, a missing BFF route) surfaces instead
+  // of being masked by an unconditional "Delegation complete" text. The
+  // error-by-key-presence detection (an empty-string error is still a failure,
+  // falling back to 'tool_error') now runs in the specialist's executor, which
+  // is where the tool result is read.
+  const toolError = handoff.toolError || null;
 
   return JSON.stringify({
     delegated: true,
@@ -1121,8 +1061,8 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
     vertical: result.vertical,
     specialistVertical: result.specialistVertical,
     tool: result.tool,
-    actChainDepth: result.actChainDepth,
-    scopes: result.scopes,
+    actChainDepth: handoff.actChainDepth ?? null,
+    scopes: handoff.scopes && handoff.scopes.length ? handoff.scopes : result.scopes,
     result: toolResult,
     toolError: toolError || null,
     render: !toolError && result.tool ? A2A_TOOL_RENDER[result.tool] || null : null,
