@@ -59,7 +59,8 @@ const COLLECTOR_CATEGORIES = [
   {
     category: "Input",
     categoryValues: "SingleValueCollector, ValidatedSingleValueCollector, MultiValueCollector, ObjectValueCollector",
-    examples: "TextCollector, PasswordCollector, SingleSelectCollector, MultiSelectCollector, PhoneNumberCollector",
+    examples:
+      "TextCollector, PasswordCollector, SingleSelectCollector, MultiSelectCollector, PhoneNumberCollector. A required checkbox arrives as ValidatedBooleanCollector and an optional one as BooleanCollector — the flow's own validation, surfaced as a different type.",
     render: "A form field.",
     write: "client.update(collector)(value)",
   },
@@ -80,7 +81,7 @@ const COLLECTOR_CATEGORIES = [
   {
     category: "Automatic",
     categoryValues: "SingleValueAutoCollector, ObjectValueAutoCollector",
-    examples: "ProtectCollector, PollingCollector, FidoRegistrationCollector, FidoAuthenticationCollector",
+    examples: "ProtectCollector, FidoRegistrationCollector, FidoAuthenticationCollector, PollingCollector",
     render: "No UI at all — act, then submit. These carry output.config instead of output.label, which is how you spot them.",
     write: "client.update(collector)(result) once you have the signal, assertion or poll status.",
   },
@@ -253,6 +254,15 @@ export default function OrchestrationSdkExplainerPage() {
         <pre className="osx-code">
           <code>{WRITE_SAMPLE}</code>
         </pre>
+        <p className="osx-body osx-body-aside">
+          Two limits worth knowing before you design a flow around the SDK, both
+          from Ping&rsquo;s compatibility reference. <strong>SKPolling components cannot be
+          processed by the DaVinci client and should not be included in a flow at
+          all</strong> &mdash; which rules out Magic Link and anything else built on
+          polling, even though a <code className="osx-code-inline">PollingCollector</code> type
+          exists for MFA polling. And images embedded in a Custom HTML Template
+          cannot be passed to the SDK as structured data.
+        </p>
       </section>
 
       <section className="osx-section">
