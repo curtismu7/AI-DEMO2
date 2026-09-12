@@ -1,46 +1,70 @@
 /**
  * @file a2aExecution.test.js
- * Slice 3b: the delegate_to_specialist interception mints the nested-act token,
- * then executes the specialist's tool WITH that token (executeBffToolWithToken →
- * the suppliedToken pipeline path), and returns the real tool result.
+ * The delegate_to_specialist interception runs Exchange #1 ONLY, sends that
+ * delegated token over the A2A wire hop as the bearer, and maps the
+ * specialist's data-only reply back into an unchanged output contract.
+ *
+ * Exchange #2, the tool call and the REGRESSION_PLAN §1 locked PERMIT-gated
+ * local serve now run inside the specialist executor — they are covered by
+ * tests/a2aSpecialistExecutor.test.js, which owns those locked cases.
  */
 
-jest.mock('../../services/a2aDelegationService', () => ({ delegateToSpecialist: jest.fn() }));
-
-const HAPPY_DELEGATION = (req, opts) => {
-  (opts.tokenEvents || []).push({ id: 'a2a-exchange2', claims: { sub: 'user', act: { sub: 'spec', act: { sub: 'gen' } } } });
-  return Promise.resolve({
-    token: 'NESTED.ACT.TOKEN',
-    userSub: 'user',
-    vertical: opts.vertical,
-    specialist: 'Investment Advisor',
-    tool: 'get_portfolio_summary',
-    scopes: ['invest:read'],
-    actChainDepth: 2,
-  });
-};
+jest.mock('../../services/a2aDelegationService', () => ({ exchangeAsGeneralist: jest.fn() }));
+jest.mock('../../services/a2aProtocolClient', () => ({ sendA2aProtocolHandoff: jest.fn() }));
 
 jest.mock('../../services/bffMcpToolExecutor', () => ({
   executeBffTool: jest.fn(),
-  executeBffToolWithToken: jest.fn(async (o) => JSON.stringify({ positions: [{ symbol: 'VTI' }], _sawToken: o.suppliedToken })),
+  executeBffToolWithToken: jest.fn(),
   callMcpToolAsAgent: jest.fn(),
   setPipelineDeps: jest.fn(),
 }));
 
-describe('A2A execution wiring (Slice 3b)', () => {
+const HAPPY_GENERALIST = (_req, opts) => {
+  (opts.tokenEvents || []).push({ id: 'a2a-exchange1', claims: { sub: 'user', act: { sub: 'gen' } } });
+  return Promise.resolve({
+    token: 'T.AGENT1',
+    userSub: 'user',
+    vertical: opts.vertical,
+    specialist: 'Investment Advisor',
+    specialistAppKey: 'investment',
+    specialistVertical: 'investment',
+    tool: 'get_portfolio_summary',
+    scopes: ['invest:read'],
+  });
+};
+
+// The specialist's own legs happen behind the hop; it reports their outcome.
+const HAPPY_HANDOFF = ({ tokenEvents }) => {
+  (tokenEvents || []).push({
+    id: 'a2a-exchange2',
+    claims: { sub: 'user', act: { sub: 'spec', act: { sub: 'gen' } } },
+  });
+  return Promise.resolve({
+    ok: true,
+    tokenEvents,
+    result: { positions: [{ symbol: 'VTI' }] },
+    toolError: null,
+    actChainDepth: 2,
+    scopes: ['invest:read'],
+  });
+};
+
+describe('A2A execution wiring', () => {
   // setup.js runs jest.resetModules() afterEach, so re-require fresh each test to
-  // keep svc / a2a / executor in the same module graph as the lazy require inside
+  // keep svc / a2a / client in the same module graph as the lazy require inside
   // executeA2aDelegation.
-  let svc, a2a, executor;
+  let svc, a2a, client, executor;
   beforeEach(() => {
     jest.clearAllMocks();
     svc = require('../../services/demoAgentLangGraphService');
     a2a = require('../../services/a2aDelegationService');
+    client = require('../../services/a2aProtocolClient');
     executor = require('../../services/bffMcpToolExecutor');
   });
 
-  it('delegates, then executes the specialist tool with the nested-act token', async () => {
-    a2a.delegateToSpecialist.mockImplementation(HAPPY_DELEGATION);
+  it('runs Exchange #1 and hands that delegated token to the wire hop as the bearer', async () => {
+    a2a.exchangeAsGeneralist.mockImplementation(HAPPY_GENERALIST);
+    client.sendA2aProtocolHandoff.mockImplementation(HAPPY_HANDOFF);
     const tokenEvents = [];
     const out = await svc.__test.executeA2aDelegation('banking', { subtask: 'positions' }, { req: { sessionID: 's1' }, tokenEvents, sessionId: 's1' });
     const parsed = JSON.parse(out);
@@ -48,44 +72,64 @@ describe('A2A execution wiring (Slice 3b)', () => {
     expect(parsed.delegated).toBe(true);
     expect(parsed.specialist).toBe('Investment Advisor');
     expect(parsed.tool).toBe('get_portfolio_summary');
+    expect(parsed.result).toEqual({ positions: [{ symbol: 'VTI' }] });
+    expect(parsed.toolError).toBeNull();
+    expect(parsed.actChainDepth).toBe(2);
+    expect(parsed.scopes).toEqual(['invest:read']);
 
-    // The tool ran with the PRE-MINTED nested-act token (not a fresh exchange).
-    expect(executor.executeBffToolWithToken).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'get_portfolio_summary', suppliedToken: 'NESTED.ACT.TOKEN', suppliedUserSub: 'user' }),
+    // The hop carries the Exchange #1 token and the tool to authorize against.
+    expect(client.sendA2aProtocolHandoff).toHaveBeenCalledWith(
+      expect.objectContaining({
+        vertical: 'banking',
+        subjectToken: 'T.AGENT1',
+        tool: 'get_portfolio_summary',
+      }),
     );
-    expect(parsed.result).toEqual({ positions: [{ symbol: 'VTI' }], _sawToken: 'NESTED.ACT.TOKEN' });
+    // The generalist no longer calls the specialist's tool itself.
+    expect(executor.executeBffToolWithToken).not.toHaveBeenCalled();
 
-    // The chained-exchange token events flowed onto the shared chain (→ SSE/UI).
+    // Both halves' events flowed onto the ONE shared chain (→ SSE/UI): Exchange
+    // #1 from this side, Exchange #2 from the specialist through ctx.tokenEvents.
+    expect(tokenEvents.some((e) => e.id === 'a2a-exchange1')).toBe(true);
     expect(tokenEvents.some((e) => e.id === 'a2a-exchange2')).toBe(true);
   });
 
-  it('returns delegated:false and runs no tool when no token was minted', async () => {
-    a2a.delegateToSpecialist.mockImplementation(() => Promise.resolve({ error: 'A2A delegation is disabled', token: null }));
+  it('returns delegated:false and runs no tool when Exchange #1 minted nothing', async () => {
+    a2a.exchangeAsGeneralist.mockImplementation(() => Promise.resolve({ error: 'A2A delegation is disabled', token: null }));
     const out = await svc.__test.executeA2aDelegation('banking', {}, { req: {}, tokenEvents: [], sessionId: 's' });
     const parsed = JSON.parse(out);
 
     expect(parsed.delegated).toBe(false);
     expect(parsed.error).toMatch(/disabled/);
+    expect(client.sendA2aProtocolHandoff).not.toHaveBeenCalled();
+    expect(executor.executeBffToolWithToken).not.toHaveBeenCalled();
+  });
+
+  // No soft-fail: a refused or broken hop is not a delegation. Before this, the
+  // wire hop was detached and its failure could not be reported at all.
+  it('reports delegated:false with the hop code when the wire hop fails, and runs no tool', async () => {
+    a2a.exchangeAsGeneralist.mockImplementation(HAPPY_GENERALIST);
+    client.sendA2aProtocolHandoff.mockImplementation(({ tokenEvents }) => Promise.resolve({
+      ok: false, tokenEvents, error: 'unauthorized', code: 'a2a_unauthorized',
+    }));
+
+    const out = await svc.__test.executeA2aDelegation('banking', { subtask: 'positions' }, { req: { sessionID: 's1' }, tokenEvents: [], sessionId: 's1' });
+    const parsed = JSON.parse(out);
+
+    expect(parsed.delegated).toBe(false);
+    expect(parsed.error).toBe('a2a_unauthorized');
     expect(executor.executeBffToolWithToken).not.toHaveBeenCalled();
   });
 
   it('resolves the verticalResult render descriptor from the SPECIALIST vertical, not the delegating one', async () => {
     // banking's manifest has no 'portfolio_summary' render key (that key only
-    // exists in investment's) — delegateToSpecialist reports vertical:'banking'
-    // (who delegated) alongside specialistVertical:'investment' (who owns the
-    // tool + its render descriptor). Regression: looking the descriptor up
-    // under `vertical` instead of `specialistVertical` resolves to null, and
-    // the UI falls back to a raw JSON dump instead of the formatted card.
-    a2a.delegateToSpecialist.mockImplementation((_req, opts) => Promise.resolve({
-      token: 'NESTED.ACT.TOKEN',
-      userSub: 'user',
-      vertical: opts.vertical,
-      specialistVertical: 'investment',
-      specialist: 'Investment Advisor',
-      tool: 'get_portfolio_summary',
-      scopes: ['invest:read'],
-      actChainDepth: 2,
-    }));
+    // exists in investment's) — Exchange #1 reports vertical:'banking' (who
+    // delegated) alongside specialistVertical:'investment' (who owns the tool +
+    // its render descriptor). Regression: looking the descriptor up under
+    // `vertical` instead of `specialistVertical` resolves to null, and the UI
+    // falls back to a raw JSON dump instead of the formatted card.
+    a2a.exchangeAsGeneralist.mockImplementation(HAPPY_GENERALIST);
+    client.sendA2aProtocolHandoff.mockImplementation(HAPPY_HANDOFF);
     // The descriptor lookup reads verticalManifest.loader's cache, which is only
     // populated by init() (normally called once at server startup).
     require('../../services/verticalManifest').verticalManifest.init();
@@ -98,128 +142,5 @@ describe('A2A execution wiring (Slice 3b)', () => {
     expect(out.verticalResult.render).toBe('portfolio_summary');
     expect(out.verticalResult.descriptor).toBeTruthy();
     expect(out.verticalResult.descriptor.type).toBe('fieldList');
-  });
-
-  it('serves locally after gateway upstream error without re-entering A2A', async () => {
-    // #986 local-serve path: gateway AUTHORIZES then returns 502 (no backend for
-    // the vertical plugin tool). After #1042, resolveExecuteTool's A2A fast-path
-    // re-entered executeA2aDelegation for every isA2aDelegatedTool name — infinite
-    // recursion / process crash on the exact failure this path exists to handle.
-    // Delivery must call executeToolFor directly and mint the nested-act token once.
-    const verticalDispatch = require('../../services/verticalDispatch');
-    a2a.delegateToSpecialist.mockImplementation((_req, opts) => Promise.resolve({
-      token: 'NESTED.ACT.TOKEN',
-      userSub: 'user',
-      vertical: opts.vertical,
-      specialist: 'Records Specialist',
-      tool: 'sensitive_patient_records',
-      scopes: ['records:read'],
-      actChainDepth: 2,
-    }));
-    executor.executeBffToolWithToken.mockResolvedValueOnce(
-      JSON.stringify({ error: 'mcp_error', message: 'Gateway upstream error (HTTP 502)', gatewayDecision: 'PERMIT' }),
-    );
-    const schemasSpy = jest.spyOn(verticalDispatch, 'toolSchemasFor').mockReturnValue([
-      { name: 'sensitive_patient_records' },
-    ]);
-    const execSpy = jest.spyOn(verticalDispatch, 'executeToolFor').mockResolvedValue({
-      result: { records: [{ id: 'r1' }] },
-      render: 'list',
-    });
-
-    const out = await svc.__test.executeA2aDelegation(
-      'healthcare',
-      { tool: 'sensitive_patient_records' },
-      { req: { sessionID: 's1', session: { user: { id: 'u1' } } }, tokenEvents: [], sessionId: 's1' },
-    );
-    const parsed = JSON.parse(out);
-
-    expect(a2a.delegateToSpecialist).toHaveBeenCalledTimes(1);
-    expect(executor.executeBffToolWithToken).toHaveBeenCalledTimes(1);
-    expect(execSpy).toHaveBeenCalledTimes(1);
-    expect(parsed.delegated).toBe(true);
-    expect(parsed.toolError).toBeNull();
-    expect(parsed.result).toEqual({ records: [{ id: 'r1' }] });
-
-    schemasSpy.mockRestore();
-    execSpy.mockRestore();
-  });
-
-  it('does NOT serve locally when the gateway never recorded a PERMIT', async () => {
-    // mcp_error comes from any failure, including one before the gateway
-    // decided, and mcp_unreachable means it never answered. Running the
-    // specialist tool in-process then would skip P1AZ entirely.
-    const verticalDispatch = require('../../services/verticalDispatch');
-    a2a.delegateToSpecialist.mockImplementation((_req, opts) => Promise.resolve({
-      token: 'NESTED.ACT.TOKEN',
-      userSub: 'user',
-      vertical: opts.vertical,
-      specialist: 'Records Specialist',
-      tool: 'sensitive_patient_records',
-      scopes: ['records:read'],
-      actChainDepth: 2,
-    }));
-    executor.executeBffToolWithToken.mockResolvedValueOnce(
-      JSON.stringify({ error: 'mcp_error', message: 'socket hang up' }),
-    );
-    const schemasSpy = jest.spyOn(verticalDispatch, 'toolSchemasFor').mockReturnValue([
-      { name: 'sensitive_patient_records' },
-    ]);
-    const execSpy = jest.spyOn(verticalDispatch, 'executeToolFor').mockResolvedValue({
-      result: { records: [{ id: 'r1' }] },
-      render: 'list',
-    });
-
-    const out = await svc.__test.executeA2aDelegation(
-      'healthcare',
-      { tool: 'sensitive_patient_records' },
-      { req: { sessionID: 's1', session: { user: { id: 'u1' } } }, tokenEvents: [], sessionId: 's1' },
-    );
-    const parsed = JSON.parse(out);
-
-    expect(execSpy).not.toHaveBeenCalled();
-    expect(parsed.result).not.toEqual({ records: [{ id: 'r1' }] });
-
-    schemasSpy.mockRestore();
-    execSpy.mockRestore();
-  });
-
-  it('serves locally with no gateway when the BFF gate itself PERMITted', async () => {
-    // No-gateway mode: the BFF gate is the enforcement point, and mcp-server
-    // rejects the specialist token's A2A-gateway audience. The BFF's own PERMIT
-    // authorizes the in-BFF delivery, as the gateway's does in gateway mode.
-    const verticalDispatch = require('../../services/verticalDispatch');
-    a2a.delegateToSpecialist.mockImplementation((_req, opts) => Promise.resolve({
-      token: 'NESTED.ACT.TOKEN',
-      userSub: 'user',
-      vertical: opts.vertical,
-      specialist: 'Records Specialist',
-      tool: 'sensitive_patient_records',
-      scopes: ['records:read'],
-      actChainDepth: 2,
-    }));
-    executor.executeBffToolWithToken.mockResolvedValueOnce(
-      JSON.stringify({ error: 'mcp_error', message: 'Upstream aud mismatch', gatewayDecision: null, bffDecision: 'PERMIT' }),
-    );
-    const schemasSpy = jest.spyOn(verticalDispatch, 'toolSchemasFor').mockReturnValue([
-      { name: 'sensitive_patient_records' },
-    ]);
-    const execSpy = jest.spyOn(verticalDispatch, 'executeToolFor').mockResolvedValue({
-      result: { records: [{ id: 'r1' }] },
-      render: 'list',
-    });
-
-    const out = await svc.__test.executeA2aDelegation(
-      'healthcare',
-      { tool: 'sensitive_patient_records' },
-      { req: { sessionID: 's1', session: { user: { id: 'u1' } } }, tokenEvents: [], sessionId: 's1' },
-    );
-    const parsed = JSON.parse(out);
-
-    expect(execSpy).toHaveBeenCalledTimes(1);
-    expect(parsed.result).toEqual({ records: [{ id: 'r1' }] });
-
-    schemasSpy.mockRestore();
-    execSpy.mockRestore();
   });
 });

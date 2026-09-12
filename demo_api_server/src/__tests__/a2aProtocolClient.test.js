@@ -1,21 +1,137 @@
 'use strict';
 
-const { sendA2aProtocolHandoff } = require('../../services/a2aProtocolClient');
+/**
+ * The generalist's half of the A2A wire hop.
+ *
+ * The hop carries the Exchange #1 DELEGATED token — no client_credentials
+ * bearer is minted — and the in-process path runs the SAME PingOne gate the
+ * HTTP route does, so it is not a way around it.
+ *
+ * The specialist's own two legs (Exchange #2, the tool call) are mocked so
+ * these tests drive the REAL @a2a-js handler and executor without a PingOne
+ * tenant or a gateway.
+ */
 
-describe('a2aProtocolClient time bounds', () => {
-  test('soft-fails a stalled bearer mint instead of hanging the A2A use case', async () => {
+jest.mock('../../middleware/a2aPingOneBearer', () => ({ verifyA2aBearer: jest.fn() }));
+jest.mock('../../services/a2aDelegationService', () => ({
+  ...jest.requireActual('../../services/a2aDelegationService'),
+  exchangeAsSpecialist: jest.fn(),
+}));
+jest.mock('../../services/bffMcpToolExecutor', () => ({ executeBffToolWithToken: jest.fn() }));
+
+const { verifyA2aBearer } = require('../../middleware/a2aPingOneBearer');
+const { exchangeAsSpecialist } = require('../../services/a2aDelegationService');
+const { executeBffToolWithToken } = require('../../services/bffMcpToolExecutor');
+const { sendA2aProtocolHandoff } = require('../../services/a2aProtocolClient');
+const { specialistForVertical } = require('../../config/a2aSpecialists');
+
+const CFG = { getEffective: () => '' };
+const TOOL = specialistForVertical('investment').tools[0];
+
+describe('a2aProtocolClient', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('sends the delegated token and mints no client_credentials bearer', async () => {
+    verifyA2aBearer.mockResolvedValue({ sub: 'u1', act: { client_id: 'gen-id' } });
+    const oauthService = { getAiAgentClientCredentialsToken: jest.fn() };
     const tokenEvents = [];
-    const result = await sendA2aProtocolHandoff({
-      vertical: 'banking',
+
+    await sendA2aProtocolHandoff({
+      vertical: 'investment',
+      subtask: 'positions',
+      subjectToken: 'T.AGENT1',
       tokenEvents,
-      timeoutMs: 5,
-      deps: { oauthService: { getAiAgentClientCredentialsToken: () => new Promise(() => {}) } },
+      cfg: CFG,
+      deps: { oauthService },
     });
 
-    expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/bearer mint timed out/i);
-    expect(tokenEvents).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: 'a2a-protocol-bearer', status: 'failed' }),
-    ]));
+    expect(oauthService.getAiAgentClientCredentialsToken).not.toHaveBeenCalled();
+    expect(verifyA2aBearer).toHaveBeenCalledWith('T.AGENT1', expect.objectContaining({ vertical: 'investment' }));
+    const bearerEvent = tokenEvents.find((e) => e.id === 'a2a-protocol-bearer');
+    expect(bearerEvent.status).toBe('acquired');
+  });
+
+  test('fails the hop when the bearer does not validate (no soft-fail)', async () => {
+    verifyA2aBearer.mockRejectedValue(new Error('unauthorized'));
+    const tokenEvents = [];
+    const out = await sendA2aProtocolHandoff({
+      vertical: 'investment', subtask: 'positions', subjectToken: 'BAD', tokenEvents, cfg: CFG,
+    });
+
+    expect(out.ok).toBe(false);
+    expect(out.error).toMatch(/unauthorized/i);
+    expect(tokenEvents.some((e) => e.status === 'failed')).toBe(true);
+  });
+
+  test('requires a delegated token to be supplied', async () => {
+    const out = await sendA2aProtocolHandoff({ vertical: 'investment', tokenEvents: [], cfg: CFG });
+    expect(out.ok).toBe(false);
+  });
+
+  // Ruling 5 — the security point of the whole change. The in-process path used
+  // to `void bearer` and never call the validator, so anything that could reach
+  // this function reached the specialist's tool. An invalid bearer must stop
+  // before Exchange #2 and before the tool call, exactly as the HTTP 401 does.
+  test('an invalid bearer on the IN-PROCESS path runs no exchange and no tool', async () => {
+    verifyA2aBearer.mockRejectedValue(new Error('invalid_token'));
+    const tokenEvents = [];
+
+    const out = await sendA2aProtocolHandoff({
+      vertical: 'investment',
+      subtask: 'positions',
+      tool: TOOL,
+      toolArgs: {},
+      subjectToken: 'FORGED.TOKEN',
+      tokenEvents,
+      cfg: CFG,
+    });
+
+    expect(out.ok).toBe(false);
+    expect(out.code).toBe('a2a_unauthorized');
+    expect(exchangeAsSpecialist).not.toHaveBeenCalled();
+    expect(executeBffToolWithToken).not.toHaveBeenCalled();
+  });
+
+  test('maps the specialist data-only reply back onto the hop result', async () => {
+    verifyA2aBearer.mockResolvedValue({ sub: 'u1', act: { client_id: 'gen-id' } });
+    exchangeAsSpecialist.mockResolvedValue({
+      token: 'T.NESTED', claims: { sub: 'u1' }, actChainDepth: 2, scopes: ['holdings:read'],
+    });
+    executeBffToolWithToken.mockResolvedValue(JSON.stringify({ holdings: [{ symbol: 'VTI' }] }));
+    const tokenEvents = [];
+
+    const out = await sendA2aProtocolHandoff({
+      vertical: 'investment',
+      subtask: 'review my holdings',
+      tool: TOOL,
+      toolArgs: { account_id: 'acct-1' },
+      subjectToken: 'T.AGENT1',
+      tokenEvents,
+      cfg: CFG,
+      req: { sessionID: 's1' },
+      sessionId: 's1',
+    });
+
+    expect(out.ok).toBe(true);
+    expect(out.result).toEqual({ holdings: [{ symbol: 'VTI' }] });
+    expect(out.toolError).toBeNull();
+    expect(out.actChainDepth).toBe(2);
+    expect(out.scopes).toEqual(['holdings:read']);
+
+    // The delegated token is the hop's subject token, and the tool ran under the
+    // nested-act token the SPECIALIST minted.
+    expect(exchangeAsSpecialist).toHaveBeenCalledWith(
+      'T.AGENT1', expect.objectContaining({ vertical: 'investment', tool: TOOL }),
+    );
+    expect(executeBffToolWithToken).toHaveBeenCalledWith(
+      expect.objectContaining({ name: TOOL, suppliedToken: 'T.NESTED' }),
+    );
+
+    // The three wire events the UI and UC2.7 declare.
+    expect(tokenEvents.map((e) => e.id)).toEqual(
+      expect.arrayContaining(['a2a-protocol-bearer', 'a2a-agent-card', 'a2a-protocol-message']),
+    );
+    // No credential may appear in the token chain.
+    expect(JSON.stringify(tokenEvents)).not.toMatch(/T\.NESTED|T\.AGENT1/);
   });
 });
