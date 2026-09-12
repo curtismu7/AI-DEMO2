@@ -17,8 +17,10 @@ const RESUME = 'http://localhost:3005/oauth/resume?rs=parked-1';
 const SID = 'facade-link-test';
 
 const mockRemember = jest.fn();
+const mockRememberPending = jest.fn();
 jest.mock('../../services/privilegeGatewaySession', () => ({
   remember: (...args) => mockRemember(...args),
+  rememberPending: (...args) => mockRememberPending(...args),
   clear: jest.fn(),
   clearAll: jest.fn(),
   status: jest.fn(() => ({ ready: false, reason: 'no_session' })),
@@ -62,6 +64,7 @@ function gatewayFetch({ tokenStatus = 200 } = {}) {
 function buildApp(sessionStore) {
   jest.resetModules();
   mockRemember.mockClear();
+  mockRememberPending.mockClear();
   const router = require('../../routes/privilegeMcpClient');
   const app = express();
   app.use((req, _res, next) => {
@@ -258,7 +261,7 @@ describe('GET /api/privilege-mcp/facade-link/callback', () => {
     return request(app).get('/api/privilege-mcp/facade-link/callback').query(query);
   }
 
-  test('stores the gateway token for that app and hands the browser back to the broker', async () => {
+  test('parks the gateway token under the broker\'s resume id and hands the browser back to it', async () => {
     const { app, state } = await linked();
     const res = await callback(app, { code: 'gw-code', state });
 
@@ -267,9 +270,12 @@ describe('GET /api/privilege-mcp/facade-link/callback', () => {
     expect(back.origin + back.pathname).toBe('http://localhost:3005/oauth/resume');
     expect(back.searchParams.get('rs')).toBe('parked-1');
     expect(back.searchParams.get('link')).toBe('ok');
-    expect(mockRemember).toHaveBeenCalledWith(expect.objectContaining({
+    // Parked, not committed — the broker commits at /oauth/resume once it has
+    // checked its own browser-bound cookie (Greptile P1, PR #3140).
+    expect(mockRememberPending).toHaveBeenCalledWith('parked-1', expect.objectContaining({
       app: 'opensearch', accessToken: 'gateway-token', tokenUri: TOKEN_URI, clientId: 'dcr-link-1',
     }));
+    expect(mockRemember).not.toHaveBeenCalled();
   });
 
   test('a state mismatch goes back to the broker as link=error and stores nothing', async () => {
@@ -278,6 +284,7 @@ describe('GET /api/privilege-mcp/facade-link/callback', () => {
     expect(back.searchParams.get('link')).toBe('error');
     expect(back.searchParams.get('reason')).toMatch(/state/i);
     expect(mockRemember).not.toHaveBeenCalled();
+    expect(mockRememberPending).not.toHaveBeenCalled();
   });
 
   test('a gateway error goes back to the broker as link=error', async () => {

@@ -40,6 +40,20 @@ function readIdentityClaims(idToken?: string): Record<string, unknown> {
 /** Façade Privilege door paths: /mcp-facade/privilege-gateway[/<app>]/mcp. */
 const PRIVILEGE_DOOR_PATH = /^\/mcp-facade\/privilege-gateway(?:\/([A-Za-z0-9._-]{1,64}))?\/mcp$/;
 
+/** Cookie carrying the Privilege link's browser-bound nonce. Path-scoped to
+ *  /oauth so it rides the resume redirect and nothing else. No `Secure`: the
+ *  broker is served over plain HTTP on localhost:3005 in this demo, and a
+ *  Secure cookie would simply never be sent. */
+const LINK_NONCE_COOKIE = 'pgw_link';
+
+function readCookie(header: string | undefined, name: string): string | null {
+  for (const part of (header || '').split(';')) {
+    const [k, ...rest] = part.trim().split('=');
+    if (k === name) return rest.join('=') || null;
+  }
+  return null;
+}
+
 /**
  * The Agentic App a client's `resource` names when it is the façade's Privilege
  * door: the app segment, '' for the bare door (the BFF then uses its default
@@ -68,6 +82,7 @@ export class OAuthBrokerRouter {
     // Advertised in RFC 8414 scopes_supported; spec-following clients (MCP SDK,
     // LM Studio) request exactly this list when they have no scope of their own.
     private scopesSupported: string[] = ['mcp:invoke'],
+    private bffInternalSecret: string = process.env.BFF_INTERNAL_SECRET || '',
   ) {}
 
   /** Returns true if this router handled the request. */
@@ -82,7 +97,7 @@ export class OAuthBrokerRouter {
       case '/oauth/callback':
         return this.handleCallback(req, res, url);
       case '/oauth/resume':
-        return this.handleResume(res, url);
+        return this.handleResume(req, res, url);
       case '/oauth/token':
         return this.handleToken(req, res);
       default:
@@ -107,6 +122,10 @@ export class OAuthBrokerRouter {
       grant_types_supported: ['authorization_code'],
       token_endpoint_auth_methods_supported: ['none'],
       code_challenge_methods_supported: ['S256'],
+      // Non-standard, on purpose: the BFF façade cannot see this service's env,
+      // and a 401 that assumes the chain exists would loop a client through
+      // sign-ins that cannot restore the gateway leg.
+      privilege_link_supported: Boolean(process.env.BFF_PRIVILEGE_LINK_URL),
     });
     return true;
   }
@@ -213,9 +232,13 @@ export class OAuthBrokerRouter {
     // on the pending record across the PingOne round trip, and reused by the
     // callback so "who asked" and "who came back" sit on one trace.
     const correlationId = crypto.randomUUID();
+    // Only a chained Privilege door needs the binding; every other authorize is
+    // untouched.
+    const willChainLink = privilegeLinkApp(resource) !== null && Boolean(process.env.BFF_PRIVILEGE_LINK_URL);
+    const linkNonce = willChainLink ? crypto.randomBytes(32).toString('base64url') : undefined;
     const relayState = this.tokenStore.createPendingAuthorization({
       clientId, redirectUri, scope, codeChallenge, codeChallengeMethod,
-      clientState, pingOneCodeVerifier, correlationId, resource,
+      clientState, pingOneCodeVerifier, correlationId, resource, linkNonce,
     });
 
     const issuer = this.issuer(req);
@@ -261,7 +284,11 @@ export class OAuthBrokerRouter {
       params: { scope, reauth: reauthParams },
     });
 
-    res.writeHead(302, { Location: pingOneAuthorize.toString() });
+    const authorizeHeaders: Record<string, string> = { Location: pingOneAuthorize.toString() };
+    if (linkNonce) {
+      authorizeHeaders['Set-Cookie'] = `${LINK_NONCE_COOKIE}=${linkNonce}; HttpOnly; SameSite=Lax; Path=/oauth; Max-Age=600`;
+    }
+    res.writeHead(302, authorizeHeaders);
     res.end();
     return true;
   }
@@ -358,6 +385,7 @@ export class OAuthBrokerRouter {
         pingOneAccessToken,
         pingOneExpiresIn: expiresIn,
         correlationId: pending.correlationId,
+        linkNonce: pending.linkNonce,
       });
       const link = new URL(linkUrl);
       if (linkApp) link.searchParams.set('app', linkApp);
@@ -443,7 +471,8 @@ export class OAuthBrokerRouter {
     return computed === challenge;
   }
 
-  private handleResume(res: ServerResponse, url: URL): boolean {
+  // --- Back from the BFF's Privilege gateway sign-in (see handleCallback) ---
+  private async handleResume(req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean> {
     const resumeId = url.searchParams.get('rs');
     const parked = resumeId ? this.tokenStore.consumeResume(resumeId) : null;
     if (!parked) {
@@ -452,27 +481,68 @@ export class OAuthBrokerRouter {
     }
     // redirectUri was checked against the client's registration at /oauth/authorize.
     const callback = new URL(parked.redirectUri);
-    if (url.searchParams.get('link') === 'ok') {
-      callback.searchParams.set('code', this.tokenStore.createCode({
-        clientId: parked.clientId,
-        redirectUri: parked.redirectUri,
-        scope: parked.scope,
-        codeChallenge: parked.codeChallenge,
-        codeChallengeMethod: parked.codeChallengeMethod,
-        pingOneAccessToken: parked.pingOneAccessToken,
-        pingOneExpiresIn: parked.pingOneExpiresIn,
-      }));
-    } else {
+    // Clear the binding cookie however this ends — it is single-use.
+    const headers: Record<string, string> = {
+      'Set-Cookie': `${LINK_NONCE_COOKIE}=; HttpOnly; SameSite=Lax; Path=/oauth; Max-Age=0`,
+    };
+
+    const deny = (description: string) => {
+      callback.searchParams.set('error', 'access_denied');
+      callback.searchParams.set('error_description', description.slice(0, 300));
+      if (parked.clientState) callback.searchParams.set('state', parked.clientState);
+      res.writeHead(302, { ...headers, Location: callback.toString() });
+      res.end();
+      return true;
+    };
+
+    if (url.searchParams.get('link') !== 'ok') {
       // Tell the client, instead of handing it a token for a door that would
       // only 401 again — that loops it through sign-in after sign-in.
-      const reason = (url.searchParams.get('reason') || 'no reason given').slice(0, 300);
-      callback.searchParams.set('error', 'access_denied');
-      callback.searchParams.set('error_description', `Privilege gateway sign-in failed: ${reason}`);
+      const reason = (url.searchParams.get('reason') || 'no reason given');
+      return deny(`Privilege gateway sign-in failed: ${reason}`);
     }
+    // The browser that finishes the sign-in must be the one that started the
+    // authorize, or a link mailed to a signed-in victim would put THEIR gateway
+    // identity into the app-wide session (Greptile P1, PR #3140).
+    if (parked.linkNonce && readCookie(req.headers.cookie, LINK_NONCE_COOKIE) !== parked.linkNonce) {
+      return deny('Privilege gateway sign-in was not completed in the browser that started it');
+    }
+    if (!(await this.commitPrivilegeLink(resumeId as string))) {
+      return deny('Privilege gateway sign-in could not be committed');
+    }
+
+    callback.searchParams.set('code', this.tokenStore.createCode({
+      clientId: parked.clientId,
+      redirectUri: parked.redirectUri,
+      scope: parked.scope,
+      codeChallenge: parked.codeChallenge,
+      codeChallengeMethod: parked.codeChallengeMethod,
+      pingOneAccessToken: parked.pingOneAccessToken,
+      pingOneExpiresIn: parked.pingOneExpiresIn,
+    }));
     if (parked.clientState) callback.searchParams.set('state', parked.clientState);
-    res.writeHead(302, { Location: callback.toString() });
+    res.writeHead(302, { ...headers, Location: callback.toString() });
     res.end();
     return true;
+  }
+
+  /** Ask the BFF to promote the parked gateway token into the app's session.
+   *  Server-to-server with the shared internal secret, same posture as
+   *  dualTokenDispatch's BFF calls. No commit URL configured = nothing to
+   *  commit, which is how a deployment without the BFF side behaves. */
+  private async commitPrivilegeLink(resumeId: string): Promise<boolean> {
+    const commitUrl = process.env.BFF_PRIVILEGE_LINK_COMMIT_URL;
+    if (!commitUrl) return false;
+    try {
+      const resp = await axios.post(commitUrl, { rs: resumeId }, {
+        headers: { 'x-internal-gateway-secret': this.bffInternalSecret },
+        timeout: 3000,
+        validateStatus: (s) => s < 500,
+      });
+      return resp.status >= 200 && resp.status < 300;
+    } catch {
+      return false;
+    }
   }
 
   private readBody(req: IncomingMessage): Promise<string> {

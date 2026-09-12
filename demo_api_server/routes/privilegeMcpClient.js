@@ -2236,7 +2236,9 @@ router.get('/facade-link/callback', async (req, res) => {
   try {
     const tokenData = await exchangeAuthorizationCode(link, code, '');
     if (!tokenData.access_token) return fail('The gateway returned no access token.');
-    privilegeGatewaySession.remember({
+    // Park it. The broker commits at /oauth/resume, once it has checked the
+    // browser-bound cookie it set at /oauth/authorize.
+    privilegeGatewaySession.rememberPending(new URL(link.resume).searchParams.get('rs'), {
       app: link.app,
       accessToken: tokenData.access_token,
       refreshToken: tokenData.refresh_token || null,

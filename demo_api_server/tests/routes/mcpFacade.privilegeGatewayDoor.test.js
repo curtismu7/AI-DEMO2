@@ -76,16 +76,38 @@ function buildApp() {
 
 const RPC = { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} };
 
+const originalFetch = global.fetch;
+
+// Only the broker's own metadata fetch (brokerAdvertisesLink) is stubbed —
+// everything else (the real upstream calls this suite's `upstream` server
+// answers) must keep going through the real fetch, or every door call in
+// this file would get the canned metadata body instead of its own response.
+function stubBrokerAdvert(supported) {
+  global.fetch = jest.fn(async (url, opts) => {
+    if (String(url).includes('/.well-known/oauth-authorization-server')) {
+      return { ok: true, text: async () => JSON.stringify({ privilege_link_supported: supported }) };
+    }
+    return originalFetch(url, opts);
+  });
+}
+
 describe('mcp-facade privilege-gateway door', () => {
   beforeEach(() => {
     seenAuth = undefined;
     seenPath = undefined;
     jwksService.getPublicKey.mockResolvedValue({ keyObject: publicKey, alg: 'RS256' });
     gatewaySession.clearAll();
+    // The 401-for-re-auth path now checks the broker's own advertisement
+    // before answering — default it to "supported" so existing cases keep
+    // testing what they always tested; the one case that cares about the
+    // opposite sets its own stub.
+    stubBrokerAdvert(true);
+    router.__test.resetLinkAdvert();
   });
   afterEach(() => {
     gatewaySession.clearAll();
     delete process.env.MCP_FACADE_PRIVILEGE_LINK;
+    global.fetch = originalFetch;
   });
 
   test('answers 503 with a remedy when no operator session exists and the gateway link is off', async () => {
@@ -147,6 +169,20 @@ describe('mcp-facade privilege-gateway door', () => {
     expect(res.body.error.data.reason).toBe('gateway_session_unavailable');
     expect(res.body.error.data.remedy).toMatch(/privilege-mcp-client/);
     expect(res.headers['www-authenticate']).toContain('/mcp-facade/privilege-gateway/opensearch/.well-known/oauth-protected-resource');
+    expect(seenAuth).toBeUndefined();
+  });
+
+  test('with the flag on but the broker not advertising the link, the door stays at 503 and never dials the upstream', async () => {
+    process.env.MCP_FACADE_PRIVILEGE_LINK = 'true';
+    stubBrokerAdvert(false);
+    router.__test.resetLinkAdvert();
+
+    const res = await request(buildApp()).post(DOOR_APP)
+      .set('Authorization', `Bearer ${callerToken()}`)
+      .send(RPC);
+
+    expect(res.status).toBe(503);
+    expect(res.body.error.data.reason).toBe('gateway_link_not_configured');
     expect(seenAuth).toBeUndefined();
   });
 

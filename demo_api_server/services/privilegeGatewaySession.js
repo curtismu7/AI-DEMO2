@@ -213,4 +213,33 @@ function __setStore(s) {
   sessions.clear();
 }
 
-module.exports = { remember, clear, clearAll, status, statusAll, getAccessToken, defaultApp, __setStore };
+// Tokens the link flow has minted but not yet committed. They become the app's
+// session only when the broker confirms, at /oauth/resume, that the browser
+// finishing the sign-in is the one that started the authorize
+// (/internal/privilege-link/commit). Deliberately in-memory and never
+// persisted: an uncommitted token belongs to nobody yet.
+const PENDING_TTL_MS = 600_000;
+const pendingLinks = new Map();
+
+/** Park a link's gateway token under its broker resume id. */
+function rememberPending(id, record) {
+  if (!id || !record?.accessToken || !record?.tokenUri) return;
+  pendingLinks.set(id, { ...record, expiresAt: Date.now() + PENDING_TTL_MS });
+}
+
+/** Promote a parked token into its app's session. Single use; null when the id
+ *  is unknown or expired. */
+function commitPending(id) {
+  const parked = id ? pendingLinks.get(id) : null;
+  if (!parked) return null;
+  pendingLinks.delete(id);
+  if (parked.expiresAt <= Date.now()) return null;
+  const { expiresAt, ...record } = parked;
+  remember(record);
+  return { app: keyFor(record.app) };
+}
+
+module.exports = {
+  remember, clear, clearAll, status, statusAll, getAccessToken, defaultApp, __setStore,
+  rememberPending, commitPending,
+};

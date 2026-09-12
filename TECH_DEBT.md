@@ -47,6 +47,9 @@ neither, so its privilege-gateway door keeps the old 503 + "sign in at
 /privilege-mcp-client" behaviour. The two switches must be set together: with
 the BFF flag on and the broker link URL unset, every connect ends in a 401
 after one re-authentication (bounded by the MCP SDK, but it always fails).
+As of `worktree-privilege-link-bind-and-config-check`, the façade now refuses
+to 401 unless the broker advertises `privilege_link_supported`, so a
+half-configured pair degrades to the 503 instead of failing every connect.
 
 **Why it wasn't fixed now.** Scoped to the local stack LM Studio uses; the SE
 façade is reached on a different host and its broker/BFF public URLs differ,
@@ -84,7 +87,7 @@ trusted local stack.
 **Real fix.** Build the callback host from configuration (`PRIVILEGE_MCP_CALLBACK_HOST`
 or the public app origin) instead of the request header, or bound the cache.
 
-### [ ] 2026-09-11 — An unauthenticated /facade-link can replace an app's shared gateway identity
+### [x] 2026-09-11 — An unauthenticated /facade-link can replace an app's shared gateway identity
 
 **What's wrong.** `/api/privilege-mcp/facade-link` is unauthenticated and stores the resulting gateway token in
 the single per-app session every façade caller of that app uses. Someone who starts a broker authorization can send
@@ -100,6 +103,18 @@ fix changes how the link commits its token.
 browser-bound nonce at `/oauth/authorize`, and let the BFF hold the gateway token as pending until `/oauth/resume`
 confirms that nonce, committing it to the shared session only then — or key gateway sessions per caller instead
 of per app.
+
+**RESOLVED** (branch `worktree-privilege-link-bind-and-config-check`). Built exactly the bind-to-browser fix
+above. The broker sets a random `pgw_link` cookie (`HttpOnly`, `SameSite=Lax`, `Path=/oauth`, 10-minute
+`Max-Age`) at `/oauth/authorize` only when the authorize will chain a Privilege door's link, and stores the
+same nonce on the pending authorization and the resume record it becomes. `/facade-link/callback` now parks
+the gateway token under the resume id (`privilegeGatewaySession.rememberPending`) instead of committing it
+straight to the shared session. `/oauth/resume` compares the cookie the browser sends back against the
+resume's nonce and, only on a match, calls the BFF's new `/internal/privilege-link/commit` (secret-guarded,
+same trust model as `/internal/transaction-hop`) to promote the parked token into the app's session
+(`commitPending`); any mismatch, missing cookie, or failed commit denies with `access_denied` and parks
+nothing. A link mailed to a signed-in victim now completes a sign-in that is parked and never committed,
+because the victim's browser never carries the attacker's nonce.
 
 ### [ ] 2026-09-11 — LLM token custody: what the fix deliberately left open
 

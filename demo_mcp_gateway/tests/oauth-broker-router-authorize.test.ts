@@ -157,7 +157,10 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
   const REDIRECT = 'http://127.0.0.1:33389/mcp-oauth-callback';
   const DOOR = 'http://localhost:3002/mcp-facade/privilege-gateway/opensearch/mcp';
 
-  afterEach(() => { delete process.env.BFF_PRIVILEGE_LINK_URL; });
+  afterEach(() => {
+    delete process.env.BFF_PRIVILEGE_LINK_URL;
+    delete process.env.BFF_PRIVILEGE_LINK_COMMIT_URL;
+  });
 
   function pendingFor(tokenStore: BrokerTokenStore, clientId: string, resource?: string) {
     return tokenStore.createPendingAuthorization({
@@ -232,8 +235,12 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
   });
 
   it('link=ok issues the broker code carrying the PingOne token and the client state', async () => {
+    process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = 'https://bff.example.com/internal/privilege-link/commit';
     const { tokenStore, server } = makeRouterAndServer();
     const rs = parked(tokenStore);
+    // parked() carries no linkNonce — nothing for the cookie check to verify —
+    // so this parked record must still commit through the BFF.
+    mockedAxios.post.mockResolvedValueOnce({ status: 204 });
 
     const res = await supertest(server).get('/oauth/resume').query({ rs, link: 'ok' });
 
@@ -261,8 +268,10 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
   });
 
   it('an unknown or already-used resume id is invalid_grant', async () => {
+    process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = 'https://bff.example.com/internal/privilege-link/commit';
     const { tokenStore, server } = makeRouterAndServer();
     const rs = parked(tokenStore);
+    mockedAxios.post.mockResolvedValueOnce({ status: 204 });
     await supertest(server).get('/oauth/resume').query({ rs, link: 'ok' }).expect(302);
 
     const again = await supertest(server).get('/oauth/resume').query({ rs, link: 'ok' });
@@ -271,5 +280,107 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
 
     const unknown = await supertest(server).get('/oauth/resume').query({ rs: 'never-issued', link: 'ok' });
     expect(unknown.status).toBe(400);
+  });
+
+  it('sets a browser-bound nonce cookie and stores it on the pending authorization for a Privilege door', async () => {
+    process.env.BFF_PRIVILEGE_LINK_URL = LINK_URL;
+    const { clientRegistry, tokenStore, server } = makeRouterAndServer();
+    const client = clientRegistry.registerClient({ client_name: 'LM Studio', redirect_uris: [REDIRECT] });
+
+    const res = await supertest(server).get('/oauth/authorize').query({
+      client_id: client.client_id, redirect_uri: REDIRECT, response_type: 'code',
+      code_challenge: 'c', code_challenge_method: 'S256', state: 's', resource: DOOR,
+    });
+
+    const cookie = res.headers['set-cookie']?.[0];
+    expect(cookie).toMatch(/^pgw_link=[^;]+; HttpOnly; SameSite=Lax; Path=\/oauth; Max-Age=600$/);
+    const nonce = cookie!.split(';')[0].split('=')[1];
+    const relayState = new URL(res.headers.location).searchParams.get('state')!;
+    expect(tokenStore.consumePendingAuthorization(relayState)?.linkNonce).toBe(nonce);
+  });
+
+  it('sets no nonce cookie for a non-Privilege resource', async () => {
+    process.env.BFF_PRIVILEGE_LINK_URL = LINK_URL;
+    const { clientRegistry, server } = makeRouterAndServer();
+    const client = clientRegistry.registerClient({ client_name: 'LM Studio', redirect_uris: [REDIRECT] });
+
+    const res = await supertest(server).get('/oauth/authorize').query({
+      client_id: client.client_id, redirect_uri: REDIRECT, response_type: 'code',
+      code_challenge: 'c', code_challenge_method: 'S256', state: 's',
+    });
+
+    expect(res.headers['set-cookie']).toBeUndefined();
+  });
+
+  it('link=ok with the matching cookie commits through the BFF and then issues the code', async () => {
+    process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = 'https://bff.example.com/internal/privilege-link/commit';
+    const { tokenStore, server } = makeRouterAndServer();
+    const rs = tokenStore.createResume({
+      clientId: 'c1', redirectUri: REDIRECT, scope: 'mcp:invoke',
+      codeChallenge: 'external-challenge', codeChallengeMethod: 'S256',
+      clientState: 'external-state', pingOneAccessToken: 'REAL-PINGONE-TOKEN', pingOneExpiresIn: 3600,
+      linkNonce: 'n1',
+    });
+    mockedAxios.post.mockResolvedValueOnce({ status: 204 });
+
+    const res = await supertest(server).get('/oauth/resume').query({ rs, link: 'ok' }).set('Cookie', 'pgw_link=n1');
+
+    expect(res.status).toBe(302);
+    const back = new URL(res.headers.location);
+    expect(back.searchParams.get('code')).toBeTruthy();
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      'https://bff.example.com/internal/privilege-link/commit',
+      { rs },
+      expect.objectContaining({ headers: expect.objectContaining({ 'x-internal-gateway-secret': expect.any(String) }) }),
+    );
+  });
+
+  it('link=ok with a missing or wrong cookie commits nothing and denies', async () => {
+    process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = 'https://bff.example.com/internal/privilege-link/commit';
+    const { tokenStore, server } = makeRouterAndServer();
+
+    for (const cookie of [undefined, 'pgw_link=other']) {
+      const rs = tokenStore.createResume({
+        clientId: 'c1', redirectUri: REDIRECT, scope: 'mcp:invoke',
+        codeChallenge: 'external-challenge', codeChallengeMethod: 'S256',
+        clientState: 'external-state', pingOneAccessToken: 'REAL-PINGONE-TOKEN', pingOneExpiresIn: 3600,
+        linkNonce: 'n1',
+      });
+      const req = supertest(server).get('/oauth/resume').query({ rs, link: 'ok' });
+      const res = await (cookie ? req.set('Cookie', cookie) : req);
+
+      const back = new URL(res.headers.location);
+      expect(back.searchParams.get('error')).toBe('access_denied');
+      expect(back.searchParams.get('error_description')).toMatch(/browser that started it/);
+      expect(back.searchParams.get('code')).toBeNull();
+    }
+    expect(mockedAxios.post).not.toHaveBeenCalled();
+  });
+
+  it('a failed commit denies instead of issuing a code', async () => {
+    process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = 'https://bff.example.com/internal/privilege-link/commit';
+    const { tokenStore, server } = makeRouterAndServer();
+
+    mockedAxios.post.mockResolvedValueOnce({ status: 500 });
+    const rs1 = tokenStore.createResume({
+      clientId: 'c1', redirectUri: REDIRECT, scope: 'mcp:invoke',
+      codeChallenge: 'external-challenge', codeChallengeMethod: 'S256',
+      clientState: 'external-state', pingOneAccessToken: 'REAL-PINGONE-TOKEN', pingOneExpiresIn: 3600,
+      linkNonce: 'n1',
+    });
+    const res1 = await supertest(server).get('/oauth/resume').query({ rs: rs1, link: 'ok' }).set('Cookie', 'pgw_link=n1');
+    expect(new URL(res1.headers.location).searchParams.get('error')).toBe('access_denied');
+    expect(new URL(res1.headers.location).searchParams.get('code')).toBeNull();
+
+    mockedAxios.post.mockRejectedValueOnce(new Error('ECONNREFUSED'));
+    const rs2 = tokenStore.createResume({
+      clientId: 'c1', redirectUri: REDIRECT, scope: 'mcp:invoke',
+      codeChallenge: 'external-challenge', codeChallengeMethod: 'S256',
+      clientState: 'external-state', pingOneAccessToken: 'REAL-PINGONE-TOKEN', pingOneExpiresIn: 3600,
+      linkNonce: 'n1',
+    });
+    const res2 = await supertest(server).get('/oauth/resume').query({ rs: rs2, link: 'ok' }).set('Cookie', 'pgw_link=n1');
+    expect(new URL(res2.headers.location).searchParams.get('error')).toBe('access_denied');
+    expect(new URL(res2.headers.location).searchParams.get('code')).toBeNull();
   });
 });

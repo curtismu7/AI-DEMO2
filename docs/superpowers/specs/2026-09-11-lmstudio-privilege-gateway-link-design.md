@@ -69,7 +69,7 @@ with an RFC 9728 challenge (flag on), so LM Studio re-runs steps 1–6 on its ow
   - Exported `privilegeLinkApp(resource)`: the app segment for `/mcp-facade/privilege-gateway/<app>/mcp`, `''` for the bare `/mcp-facade/privilege-gateway/mcp`, `null` otherwise.
   - `handleCallback`: after the PingOne token exchange and the `oauth.callback` hop, if `process.env.BFF_PRIVILEGE_LINK_URL` is set and `privilegeLinkApp(resource) !== null`, create a resume record and 302 to the link URL with `app` (when non-empty) and `resume`. Otherwise unchanged.
   - New route `/oauth/resume` (GET): consume `rs`; unknown/expired → 400 `invalid_grant`. `link=ok` → `createCode` + 302 to the client `redirect_uri` with `code` and `state`. Anything else → 302 to the client `redirect_uri` with `error=access_denied`, `error_description=<reason, ≤300 chars>`, and `state`.
-- `docker-compose.yml` (`mcp-gateway`): `BFF_PRIVILEGE_LINK_URL: "https://local.ping-devops.com:4000/api/privilege-mcp/facade-link"` — browser-facing, the host that holds the BFF session cookie.
+- `docker-compose.yml` (`mcp-gateway`): `BFF_PRIVILEGE_LINK_URL: "https://local.ping-devops.com:4000/api/privilege-mcp/facade-link"` — browser-facing, the host that holds the BFF session cookie. `BFF_PRIVILEGE_LINK_COMMIT_URL` names the BFF's `/internal/privilege-link/commit` — server-to-server, never a browser redirect — that `/oauth/resume` calls once it has checked the browser-bound cookie.
 
 ### BFF — `demo_api_server` (bind-mounted)
 
@@ -82,7 +82,8 @@ with an RFC 9728 challenge (flag on), so LM Studio re-runs steps 1–6 on its ow
   - The header comment's "deliberately in-memory" rationale is rewritten (see Security).
 - `routes/privilegeMcpClient.js`
   - `GET /facade-link?app=&resume=`: `app` (absent or empty = `defaultApp()`; a non-string value is a 400) must match the façade's app-segment rule; `resume` must have the origin of `MCP_FACADE_AGENT_GATEWAY_AS || 'http://localhost:3005'`, path `/oauth/resume`, and an `rs`. Otherwise 400, no redirect. Build the door URL from `privilegeGatewayBase()` (shared with the façade, `services/privilegeGatewayBase.js`) + `/<app>/mcp`, so the token is minted on the gateway the door calls, run `beginOAuthFlow` against a throwaway session object for that door (Privilege mode; `prompt` removed) with callback path `/api/privilege-mcp/facade-link/callback`, save its pending state plus `app`/`resume` in `req.session.privilegeFacadeLink`, 302 to the gateway authorize URL. Never touches the operator's `pendingAuth` or `config`. The callback origin comes from `PRIVILEGE_MCP_CALLBACK_HOST` (default `local.ping-devops.com:4000`), never from `X-Forwarded-*`.
-  - `GET /facade-link/callback`: single-use slot; check `state` (and `iss`) against `req.session.privilegeFacadeLink`; exchange the code via `exchangeAuthorizationCode`, a helper factored out of `/auth/callback` with no behaviour change there; `privilegeGatewaySession.remember({ app, … })`; 302 to `resume&link=ok`. Any failure → 302 to `resume&link=error&reason=…`; a missing slot → 400 (nothing safe to redirect to).
+  - `GET /facade-link/callback`: single-use slot; check `state` (and `iss`) against `req.session.privilegeFacadeLink`; exchange the code via `exchangeAuthorizationCode`, a helper factored out of `/auth/callback` with no behaviour change there; `privilegeGatewaySession.rememberPending(rs, { app, … })` — parked, not committed — keyed by the `rs` on the resume URL; 302 to `resume&link=ok`. Any failure → 302 to `resume&link=error&reason=…`; a missing slot → 400 (nothing safe to redirect to).
+  - New `routes/privilegeLinkCommit.js`, mounted at `/internal/privilege-link/commit`: secret-guarded (`x-internal-gateway-secret` against `BFF_INTERNAL_SECRET`, constant-time compare), NOT under `/api/*`. The broker calls it from `/oauth/resume` once it has verified its own browser-bound cookie; `privilegeGatewaySession.commitPending(rs)` promotes the parked token into the shared session and answers `{ app }`, or 404 when the id is unknown or expired.
   - `beginOAuthFlow(session, req, { callbackPath })`: optional third argument; default keeps `/api/privilege-mcp/auth/callback`.
   - `getOrRegisterDcrClient`: cache key includes the redirect URI — the gateway binds a DCR client to its registered redirect URIs.
   - `/auth/callback`: `remember` now passes the app parsed from the door URL.
@@ -105,7 +106,7 @@ with an RFC 9728 challenge (flag on), so LM Studio re-runs steps 1–6 on its ow
 | Gateway rejects the new token upstream | Façade clears that app's session and relays the challenge; the MCP SDK re-auths at most once per connect ("401 after successful authentication" ends it) |
 | `BFF_PRIVILEGE_LINK_URL` unset (broker) | Callback returns to the client as today |
 | `MCP_FACADE_PRIVILEGE_LINK` unset (BFF) | Façade keeps the 503 (this half cannot loop) |
-| `MCP_FACADE_PRIVILEGE_LINK` on but `BFF_PRIVILEGE_LINK_URL` unset (broker) | Every connect: 401 → one re-auth through a broker that does not chain the gateway sign-in → 401 again; the MCP SDK stops after one retry, so each connect fails with a browser tab. Set both switches together (docker-compose.yml does) |
+| `MCP_FACADE_PRIVILEGE_LINK` on but `BFF_PRIVILEGE_LINK_URL` unset (broker) | The façade sees no `privilege_link_supported` and keeps the 503 (`gateway_link_not_configured`) |
 | LMDB read or write fails | Warn and continue in memory |
 
 ## Security
@@ -114,7 +115,7 @@ with an RFC 9728 challenge (flag on), so LM Studio re-runs steps 1–6 on its ow
 - **Login CSRF:** the gateway code is redeemed with the BFF's own `state` + PKCE verifier held in the requesting browser's session slot. A crafted `/facade-link` URL can only sign the victim into the gateway as themselves.
 - **Resume ids:** random, single-use, 10-minute TTL. `link=ok` is unsigned by design: skipping the gateway hop yields today's behaviour (a broker code with no gateway leg → 401 again), not an escalation.
 - **Tokens at rest:** the per-app gateway token is written to LMDB in the BFF data volume. The same token is already persisted in the LMDB session store (`CLEAR_SESSIONS_ON_BOOT=false`), it expires within 60 minutes, and dead records are skipped on load. Never logged, never on a ledger hop.
-- **Identity:** one operator identity per app, as today. Whoever authenticates through the MCP client sets that app's gateway session.
+- **Identity:** the BFF parks a link's gateway token under its broker resume id rather than committing it straight to the app's shared session. The broker sets a browser-bound nonce cookie (`pgw_link`, `HttpOnly`, `SameSite=Lax`, `Path=/oauth`) at `/oauth/authorize` for a chained Privilege door, and `/oauth/resume` only calls `/internal/privilege-link/commit` — promoting the parked token into the shared session — once it has verified that cookie against the pending record's nonce. A link URL mailed to a signed-in victim can no longer replace an app's shared gateway identity: the victim's browser never carries the attacker's nonce, so the sign-in it completes is parked and never committed (Greptile P1, PR #3140).
 
 ## What does not change
 

@@ -175,3 +175,44 @@ describe('privilege gateway session — one per app, persisted', () => {
     expect(console.warn).toHaveBeenCalled();
   });
 });
+
+describe('privilege gateway session — parked links (browser-bound commit)', () => {
+  test('a parked token is invisible to status()/getAccessToken() until committed', async () => {
+    const session = load();
+    session.rememberPending('rs-1', {
+      app: 'opensearch', accessToken: 'parked-token', refreshToken: null, expiresIn: 3600, tokenUri: TOKEN_URI,
+    });
+
+    expect(session.status('opensearch')).toEqual({ ready: false, reason: 'no_session' });
+    expect(await session.getAccessToken('opensearch')).toBeNull();
+
+    const committed = session.commitPending('rs-1');
+    expect(committed).toEqual({ app: 'opensearch' });
+    expect(await session.getAccessToken('opensearch')).toBe('parked-token');
+  });
+
+  test('commitPending is single-use', async () => {
+    const session = load();
+    session.rememberPending('rs-1', { app: 'opensearch', accessToken: 'parked-token', tokenUri: TOKEN_URI });
+
+    expect(session.commitPending('rs-1')).toEqual({ app: 'opensearch' });
+    expect(session.commitPending('rs-1')).toBeNull();
+  });
+
+  test('an unknown rs commits nothing', () => {
+    const session = load();
+    expect(session.commitPending('never-parked')).toBeNull();
+  });
+
+  test('an expired parked record returns null and commits nothing', async () => {
+    jest.useFakeTimers();
+    const session = load();
+    session.rememberPending('rs-1', { app: 'opensearch', accessToken: 'parked-token', tokenUri: TOKEN_URI });
+
+    jest.advanceTimersByTime(600_001); // PENDING_TTL_MS + 1
+
+    expect(session.commitPending('rs-1')).toBeNull();
+    expect(session.status('opensearch')).toEqual({ ready: false, reason: 'no_session' });
+    jest.useRealTimers();
+  });
+});

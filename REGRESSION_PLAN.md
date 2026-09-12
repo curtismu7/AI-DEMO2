@@ -140,6 +140,57 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-11 — Privilege link: bind the gateway token to its browser, and check the broker before 401
+
+**Files changed:** `demo_mcp_gateway/src/oauth/BrokerTokenStore.ts`, `OAuthBrokerRouter.ts`,
+`src/server/GatewayServer.ts`; `demo_api_server/services/privilegeGatewaySession.js`,
+`routes/privilegeMcpClient.js`, `routes/privilegeLinkCommit.js` (new), `routes/mcpFacade.js`, `server.js`;
+`docker-compose.yml`. Tests: `demo_mcp_gateway/tests/oauth-broker-router-authorize.test.ts`,
+`oauth-broker-router-metadata.test.ts`; `demo_api_server/tests/services/privilegeGatewaySession.test.js`,
+`tests/routes/privilegeLinkCommit.test.js` (new), `privilegeMcpClient.facadeLink.test.js`,
+`mcpFacade.privilegeGatewayDoor.test.js`.
+
+**What was broken (two Greptile P1s from PR #3140):**
+- `/api/privilege-mcp/facade-link` is unauthenticated and committed the resulting gateway token straight
+  into the shared per-app session. An attacker could start a broker authorization, send a signed-in victim
+  the `/facade-link` URL, and the victim's gateway identity became the app-wide credential — callable by
+  anyone holding a valid façade bearer ("Shared Identity Can Be Replaced").
+- With `MCP_FACADE_PRIVILEGE_LINK=true` but the broker's `BFF_PRIVILEGE_LINK_URL` unset, the façade answered
+  401 assuming the link chain existed. The client re-authenticated, the broker completed a plain OAuth with
+  no gateway leg, and the façade 401'd again — every connect failed ("Partial Configuration Causes Login
+  Loop").
+
+**What was fixed:**
+- The broker sets a random `pgw_link` nonce cookie at `/oauth/authorize` only when the authorize will chain
+  a Privilege door's link, and carries the same nonce on the pending authorization and the resume record.
+  `/facade-link/callback` now parks the gateway token under the resume id
+  (`privilegeGatewaySession.rememberPending`) instead of calling `remember()`. `/oauth/resume` verifies the
+  browser's cookie against the resume's nonce and, only on a match, calls the new secret-guarded
+  `/internal/privilege-link/commit` to promote the parked token into the app's session
+  (`commitPending`) — any mismatch, missing cookie, or failed commit denies with `access_denied`.
+- The broker's `/.well-known/oauth-authorization-server` now advertises `privilege_link_supported`
+  (`Boolean(BFF_PRIVILEGE_LINK_URL)`). The façade's `ownsUpstreamAuth` 401 path (`mcpFacade.js`) asks the
+  broker (cached 60s, fail-closed) before answering 401 instead of trusting the flag alone; when the broker
+  does not advertise the link, the door answers its existing 503 with `reason: 'gateway_link_not_configured'`
+  and never dials the upstream.
+
+**Do not break:**
+- The parked token never becomes a session without the broker's confirmation at `/oauth/resume` —
+  `commitPending` is the only path into `remember()` for a link-originated token, and it requires a resume id
+  the BFF itself parked.
+- The `pgw_link` cookie is `Path=/oauth`, `HttpOnly`, `SameSite=Lax`, and is cleared (`Max-Age=0`) on every
+  `/oauth/resume` response, success or denial.
+- `/auth/start` and any non-Privilege-door authorize set no cookie and carry no `linkNonce` — only an
+  authorize whose `resource` resolves to a Privilege door (`privilegeLinkApp`) with `BFF_PRIVILEGE_LINK_URL`
+  set gets one.
+- With either flag off (`MCP_FACADE_PRIVILEGE_LINK` unset, or the broker not advertising
+  `privilege_link_supported`), the façade keeps its 503 — it must never 401 a client into a loop it cannot
+  complete.
+
+**Verify:**
+- `cd demo_mcp_gateway && npm run build && ./node_modules/.bin/jest tests/oauth-broker-router-authorize.test.ts tests/oauth-broker-router-token.test.ts tests/oauth-broker-router-metadata.test.ts tests/oauth-broker-token-store.test.ts tests/gateway-oauth-broker-wiring.test.ts tests/oauth-client-registry.test.ts --forceExit` — 6 suites, 57 tests, all pass.
+- `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/services/privilegeGatewaySession.test.js tests/routes/privilegeLinkCommit.test.js tests/routes/privilegeMcpClient.facadeLink.test.js tests/routes/mcpFacade.privilegeGatewayDoor.test.js tests/routes/privilegeMcpClient.gatewaySessionRemember.test.js tests/routes/privilegeMcpClient.gatewaySessionState.test.js tests/routes/mcpFacade.privilegeEntryPath.test.js tests/routes/mcpFacade.multiApp.test.js --forceExit` — 8 suites, 73 tests, all pass.
+
 ### 2026-09-11 — No-gateway A2A specialist calls could not complete
 
 **Files changed:** `demo_api_server/services/mcpToolPipeline.js`,

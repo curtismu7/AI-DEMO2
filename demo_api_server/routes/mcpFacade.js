@@ -653,6 +653,27 @@ async function verifyDoorBearer(req, door) {
   return { ok: true };
 }
 
+// The façade cannot read the broker's env, so it asks: the broker advertises
+// privilege_link_supported only when BFF_PRIVILEGE_LINK_URL is set. Cached
+// because this sits on the 401 path, and fail-closed — any doubt keeps the 503,
+// which tells a human how to fix it instead of looping the client.
+const LINK_ADVERT_TTL_MS = 60_000;
+let linkAdvert = { at: 0, value: false };
+
+async function brokerAdvertisesLink() {
+  if (Date.now() - linkAdvert.at < LINK_ADVERT_TTL_MS) return linkAdvert.value;
+  const base = process.env.MCP_FACADE_AGENT_GATEWAY_AS_INTERNAL
+    || process.env.MCP_FACADE_AGENT_GATEWAY_AS
+    || 'http://localhost:3005';
+  let value = false;
+  try {
+    const response = await fetch(`${base.replace(/\/+$/, '')}/.well-known/oauth-authorization-server`);
+    if (response.ok) value = Boolean((JSON.parse(await response.text()) || {}).privilege_link_supported);
+  } catch { value = false; }
+  linkAdvert = { at: Date.now(), value };
+  return value;
+}
+
 function forwardHeaders(req, correlationId) {
   const headers = { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' };
   // mcp-method / mcp-name are REQUIRED by MCP 2026-07-28 Streamable HTTP
@@ -818,7 +839,8 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
   if (door.ownsUpstreamAuth) {
     const upstreamToken = await privilegeGatewaySession.getAccessToken(req.params.app);
     if (!upstreamToken) {
-      if (process.env.MCP_FACADE_PRIVILEGE_LINK === 'true') {
+      const linkOn = process.env.MCP_FACADE_PRIVILEGE_LINK === 'true' && await brokerAdvertisesLink();
+      if (linkOn) {
         res.set('WWW-Authenticate', rewriteChallenge('Bearer error="invalid_token"', `${facadeBase(req)}/.well-known/oauth-protected-resource`, door.scopes));
         return res.status(401).json({
           jsonrpc: '2.0',
@@ -840,7 +862,9 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
           code: -32002,
           message: 'Gateway session unavailable',
           data: {
-            reason: privilegeGatewaySession.status(req.params.app).reason,
+            reason: process.env.MCP_FACADE_PRIVILEGE_LINK === 'true'
+              ? 'gateway_link_not_configured'
+              : privilegeGatewaySession.status(req.params.app).reason,
             remedy: 'Sign in once at /privilege-mcp-client — the gateway forgets its clients on restart.',
           },
         },
@@ -1170,4 +1194,7 @@ router.get('/broker-prompt', (_req, res) => {
 });
 
 module.exports = router;
-module.exports.__test = { DOORS, rewriteChallenge, sessions, MAX_SESSIONS, verifyDoorBearer };
+module.exports.__test = {
+  DOORS, rewriteChallenge, sessions, MAX_SESSIONS, verifyDoorBearer,
+  resetLinkAdvert: () => { linkAdvert = { at: 0, value: false }; },
+};

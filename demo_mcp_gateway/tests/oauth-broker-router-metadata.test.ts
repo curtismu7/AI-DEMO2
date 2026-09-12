@@ -24,6 +24,20 @@ describe('OAuthBrokerRouter metadata', () => {
     expect(res.body.code_challenge_methods_supported).toEqual(['S256']);
     expect(res.body.grant_types_supported).toEqual(['authorization_code']);
   });
+
+  it('advertises privilege_link_supported only when the link URL is set', async () => {
+    const server = makeServer();
+    const off = await supertest(server).get('/.well-known/oauth-authorization-server');
+    expect(off.body.privilege_link_supported).toBe(false);
+
+    process.env.BFF_PRIVILEGE_LINK_URL = 'https://local.ping-devops.com:4000/api/privilege-mcp/facade-link';
+    try {
+      const on = await supertest(server).get('/.well-known/oauth-authorization-server');
+      expect(on.body.privilege_link_supported).toBe(true);
+    } finally {
+      delete process.env.BFF_PRIVILEGE_LINK_URL;
+    }
+  });
 });
 
 describe('OAuthBrokerRouter registration', () => {
