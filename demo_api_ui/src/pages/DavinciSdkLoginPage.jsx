@@ -174,9 +174,15 @@ export default function DavinciSdkLoginPage() {
 
   return (
     <div className="dvsdk-page">
-      <h1 className="dvsdk-title">DaVinci SDK Login</h1>
+      {/* Matches the side-nav label. The nav was renamed to "Orchestration SDK
+          Login" while this heading still said "DaVinci SDK Login", so clicking
+          the orchestration entry landed on a page that did not look like the
+          orchestration app — reported as "I do not see a way to start the
+          orchestration app, I only see widget". */}
+      <h1 className="dvsdk-title">Orchestration SDK Login</h1>
       <p className="dvsdk-sub">
-        The flow&rsquo;s collectors, rendered by this app rather than by DaVinci.
+        The Ping Orchestration SDK runs a PingOne DaVinci flow and this page renders
+        the flow&rsquo;s collectors itself &mdash; no DaVinci-hosted screens, no widget.
       </p>
 
       {phase === "loading" && <p className="dvsdk-status">Starting the flow...</p>}
