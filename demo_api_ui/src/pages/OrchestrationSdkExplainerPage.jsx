@@ -153,6 +153,19 @@ export default function OrchestrationSdkExplainerPage() {
         ship a release to follow it.
       </p>
 
+      {/* The working page, above everything else. This lesson used to open with
+          the three-mode comparison, whose Widget card links out — so the first
+          click from a page called "Orchestration SDK" landed on the widget, and
+          the SDK's own UI was the one thing not offered. */}
+      <p className="osx-cta-row">
+        <a className="osx-cta" href="/davinci-sdk-login">
+          Open the live SDK login
+        </a>
+        <span className="osx-cta-note">
+          Runs the real DaVinci flow and renders its collectors with the code on this page.
+        </span>
+      </p>
+
       <section className="osx-section">
         <h2 className="osx-h2">Three ways to run a flow</h2>
         <p className="osx-body">

@@ -55,6 +55,19 @@ describe("OrchestrationSdkExplainerPage", () => {
     expect(sdk.closest(".osx-mode")).toHaveClass("is-featured");
   });
 
+  it("offers the live SDK login before anything else", () => {
+    // Regression: the page opened with the three-mode comparison, whose Widget
+    // card links out — so the first click from a page named "Orchestration SDK"
+    // went to the widget, and the SDK's own UI was the one thing not offered.
+    render(<OrchestrationSdkExplainerPage />);
+    const cta = screen.getByRole("link", { name: /Open the live SDK login/ });
+    expect(cta).toHaveAttribute("href", "/davinci-sdk-login");
+
+    // And it must come before the comparison in document order.
+    const modes = document.querySelector(".osx-modes");
+    expect(cta.compareDocumentPosition(modes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("links out to both sibling login pages so the comparison is clickable", () => {
     // Scoped to the comparison itself: the "where to go next" list links to the
     // same two routes, so an unscoped query matches twice.

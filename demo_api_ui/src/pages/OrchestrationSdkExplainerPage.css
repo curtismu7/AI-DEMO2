@@ -41,6 +41,36 @@
   color: var(--th-text-body);
 }
 
+/* Primary call to action: the live page this lesson documents. */
+.osx-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 0;
+}
+
+.osx-cta {
+  font-weight: 600;
+  padding: 9px 16px;
+  text-decoration: none;
+  color: var(--th-text-on-emphasis);
+  background: var(--th-bg-emphasis);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+}
+
+.osx-cta:hover {
+  color: var(--th-text-on-emphasis);
+  background: var(--th-bg-emphasis);
+  text-decoration: underline;
+}
+
+.osx-cta-note {
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+}
+
 .osx-section {
   margin-top: 40px;
 }
