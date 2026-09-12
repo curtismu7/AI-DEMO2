@@ -205,6 +205,22 @@ import { useResourceServerInterstitial } from "./ResourceServerInterstitial";
 import AgentNoMatchCard from "./AgentNoMatchCard";
 import AgentGroundedAnswerCard from "./AgentGroundedAnswerCard";
 
+const CHAT_ZOOM_KEY = "ba:chatZoom:v1";
+const CHAT_ZOOM_MIN = 0.8;
+const CHAT_ZOOM_MAX = 1.6;
+const CHAT_ZOOM_STEP = 0.1;
+const CHAT_ZOOM_DEFAULT = 1.2;
+
+export function readStoredChatZoom() {
+  try {
+    const v = Number(window.localStorage.getItem(CHAT_ZOOM_KEY));
+    return v >= CHAT_ZOOM_MIN && v <= CHAT_ZOOM_MAX ? v : CHAT_ZOOM_DEFAULT;
+  } catch {
+    return CHAT_ZOOM_DEFAULT;
+  }
+}
+
+
 // Phase 266 H2 audit: TokenChain credentialPath stamping origins per setTokenEvents call:
 //   line 3433 (scopeTestRes.tokenEvents)  — origin: scope-test path via callMcpTool; credentialPath: oauth_bearer (default; stamped by bankingAgentService)
 //   line 3503 (audTestRes.tokenEvents)    — origin: aud-test path via callMcpTool; credentialPath: oauth_bearer (default; stamped by bankingAgentService)
@@ -437,6 +453,20 @@ export default function BankingAgent({
 
   // Always start collapsed on page load — never restore open state from localStorage.
   const [isOpen, setIsOpen] = useState(false);
+  /**
+   * Transcript text size (A−/A+), same control the token-chain rails carry.
+   * Applied as CSS `zoom` on the message list so absolute font-size tokens
+   * inside the bubbles scale too — an em cascade would miss them.
+   * Opens above 100%: this panel is read off a projector.
+   */
+  const [chatZoom, setChatZoom] = useState(readStoredChatZoom);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CHAT_ZOOM_KEY, String(chatZoom));
+    } catch {
+      /* private mode — size still works, just not remembered */
+    }
+  }, [chatZoom]);
   const [isExpanded, setIsExpanded] = useState(false);
   /** Pop-out: the panel's Window object when popped out to its own browser window, else null. */
   const [poppedOutWin, setPoppedOutWin] = useState(null);
@@ -9562,6 +9592,41 @@ export default function BankingAgent({
                     />
                   </div>
                 )}
+              <div className="ba-textsize" role="group" aria-label="Response text size">
+                <button
+                  type="button"
+                  className="ba-textsize-btn"
+                  onClick={() =>
+                    setChatZoom((z) => Math.max(CHAT_ZOOM_MIN, +(z - CHAT_ZOOM_STEP).toFixed(2)))
+                  }
+                  disabled={chatZoom <= CHAT_ZOOM_MIN}
+                  title="Smaller response text"
+                  aria-label="Decrease response text size"
+                >
+                  A−
+                </button>
+                <button
+                  type="button"
+                  className="ba-textsize-pct"
+                  onClick={() => setChatZoom(CHAT_ZOOM_DEFAULT)}
+                  disabled={chatZoom === CHAT_ZOOM_DEFAULT}
+                  title="Reset response text size"
+                >
+                  {Math.round(chatZoom * 100)}%
+                </button>
+                <button
+                  type="button"
+                  className="ba-textsize-btn"
+                  onClick={() =>
+                    setChatZoom((z) => Math.min(CHAT_ZOOM_MAX, +(z + CHAT_ZOOM_STEP).toFixed(2)))
+                  }
+                  disabled={chatZoom >= CHAT_ZOOM_MAX}
+                  title="Bigger response text"
+                  aria-label="Increase response text size"
+                >
+                  A+
+                </button>
+              </div>
               {/* Split-column sign-out — moved next to the title so it's never lost in the
                   tools row below (inline split-column mode only, unchanged D-02 behavior) */}
               {splitChrome && isLoggedIn && (
@@ -11648,6 +11713,7 @@ export default function BankingAgent({
                 className="banking-agent-messages"
                 ref={messagesContainerRef}
                 onScroll={handleTranscriptScroll}
+                style={{ zoom: chatZoom }}
               >
                 {heroData && (
                   <div className="ba-hero-wrapper">

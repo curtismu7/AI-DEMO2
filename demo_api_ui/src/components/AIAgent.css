@@ -7237,3 +7237,45 @@ button.ba-action-btn:hover {
     min-width: 0 !important;
   }
 }
+
+/* ── Response text size (A− / % / A+) ──
+   Presenter control in the panel header. The value drives CSS `zoom` on
+   .banking-agent-messages — the bubbles size off absolute --font-size-*
+   tokens, so an em cascade would leave them behind. */
+.ba-textsize {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.ba-textsize-btn,
+.ba-textsize-pct {
+  padding: 2px 7px;
+  border: 1px solid var(--th-border);
+  border-radius: 6px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  line-height: 1.6;
+  cursor: pointer;
+}
+
+.ba-textsize-pct {
+  min-width: 42px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.ba-textsize-btn:hover:not(:disabled),
+.ba-textsize-pct:hover:not(:disabled) {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.ba-textsize-btn:disabled,
+.ba-textsize-pct:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
