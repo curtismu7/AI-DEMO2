@@ -456,6 +456,7 @@ async function setAgentGrants(appId, desired) {
 module.exports = {
   BUILDER_MARKER,
   agentName,
+  listApplicationsRaw,
   getAgentForUser: withSanitizedErrors(getAgentForUser),
   createAgentForUser: withSanitizedErrors(createAgentForUser),
   deleteAgentForUser: withSanitizedErrors(deleteAgentForUser),

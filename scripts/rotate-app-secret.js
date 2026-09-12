@@ -22,6 +22,7 @@ const REPO_ROOT = path.join(__dirname, '..');
 // Only isWorkerApp is used below — the driver in rotateAppSecretCli.js imports
 // regenerateClientSecret/verifySecret/fingerprint itself.
 const { isWorkerApp } = require(path.join(REPO_ROOT, 'demo_api_server/services/pingOneSecretRotation'));
+const { openVault } = require(path.join(REPO_ROOT, 'demo_api_server/lib/vault'));
 
 const SECRETFUL_AUTH_METHODS = new Set(['CLIENT_SECRET_BASIC', 'CLIENT_SECRET_POST', 'CLIENT_SECRET_JWT']);
 
@@ -42,6 +43,18 @@ async function preflight({ app, vaultPath, vaultPassword }) {
   if (!fs.existsSync(vaultPath)) {
     throw new Error(`Refusing to rotate: vault not found at ${vaultPath}.`);
   }
+  // Prove the vault actually opens with this password BEFORE the irreversible
+  // call — existsSync only proves a file is there, not that it's writable.
+  // openVault() alone proves decryptability without mutating anything, so no
+  // set/save round-trip is needed here.
+  let vault;
+  try {
+    vault = await openVault(vaultPath, vaultPassword);
+  } catch (err) {
+    throw new Error(`Refusing to rotate: vault at ${vaultPath} could not be opened — ${err.message}`);
+  } finally {
+    if (vault) vault.close();
+  }
 }
 
 // Load-bearing order: this export MUST run before the require.main block below.
@@ -54,5 +67,13 @@ module.exports = { preflight };
 
 if (require.main === module) {
   // CLI path is exercised manually; see the plan's Task 3 manual verification.
-  require(path.join(REPO_ROOT, 'scripts/lib/rotateAppSecretCli')).main(process.argv.slice(2));
+  // .catch() is required: an uncaught rejection here hits Node's default
+  // handler, which util.inspect()s the whole error — and an axios failure
+  // from regenerateClientSecret carries the management bearer token in
+  // err.config.headers.Authorization. Print err.message only, never err.
+  require(path.join(REPO_ROOT, 'scripts/lib/rotateAppSecretCli')).main(process.argv.slice(2))
+    .catch((err) => {
+      process.stderr.write(`[rotate] FAILED: ${err.message}\n`);
+      process.exitCode = 1;
+    });
 }
