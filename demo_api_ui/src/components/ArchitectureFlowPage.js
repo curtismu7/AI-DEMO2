@@ -2457,7 +2457,11 @@ const PHASE_TO_NODES = {
   local_fallback_blocked_no_user: [
     { id: "mcp-server", colorClass: "active-error" },
   ],
-  // HITL
+  // HITL — device step-up (mfa_challenge_*, PostHog-tracked) vs. the
+  // demo_hitl_service consent-required gate (authorize_denied_hitl /
+  // mcp_auth_challenge_intercepted / gateway_step_up_required, both real
+  // deps.emit() calls in mcpToolPipeline.js) are two different mechanisms;
+  // both light the same "hitl" node since both pause for a human.
   mfa_challenge_initiated: [
     { id: "hitl", colorClass: "active-hitl" },
     { id: "agent", colorClass: "active-hitl" },
@@ -2465,6 +2469,15 @@ const PHASE_TO_NODES = {
   mfa_challenge_completed: [{ id: "hitl", colorClass: "active-permit" }],
   mfa_challenge_failed: [{ id: "hitl", colorClass: "active-error" }],
   mfa_challenge_skipped: [{ id: "hitl", colorClass: "active-prev" }],
+  authorize_denied_hitl: [
+    { id: "pingauthorize", colorClass: "active-hitl" },
+    { id: "hitl", colorClass: "active-hitl" },
+  ],
+  gateway_step_up_required: [
+    { id: "pingauthorize", colorClass: "active-hitl" },
+    { id: "hitl", colorClass: "active-hitl" },
+  ],
+  mcp_auth_challenge_intercepted: [{ id: "agent", colorClass: "active-hitl" }],
   // General
   request_accepted: [{ id: "agent", colorClass: "active" }],
   no_bearer_token_branch: [{ id: "mcp-gw", colorClass: "active" }],
