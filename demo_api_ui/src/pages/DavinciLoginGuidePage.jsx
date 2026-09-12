@@ -133,7 +133,7 @@ export default function DavinciLoginGuidePage() {
   return (
     <div className="dlg-page">
       <header className="dlg-header">
-        <h1>DaVinci Widget Login Guide</h1>
+        <h1>DaVinci Widget</h1>
         <p className="dlg-subtitle">
           Try the live widget below, then see how it actually works — the real
           request/response shapes, the hop-by-hop flow, and where it lives in this repo.
