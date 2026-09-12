@@ -137,73 +137,35 @@
   height: auto;
 }
 
+/* Each lane publishes its hue once, here; the marks below read it. */
+.srd-lane-browser { --srd-lane: var(--srd-color-browser); }
+.srd-lane-chat { --srd-lane: var(--srd-color-chat); }
+.srd-lane-agent { --srd-lane: var(--srd-color-agent); }
+.srd-lane-llm { --srd-lane: var(--srd-color-llm); }
+.srd-lane-mcp { --srd-lane: var(--srd-color-mcp); }
+.srd-lane-gateway { --srd-lane: var(--srd-color-gateway); }
+.srd-lane-pingone { --srd-lane: var(--srd-color-pingone); }
+.srd-lane-authz { --srd-lane: var(--srd-color-authz); }
+.srd-lane-bff { --srd-lane: var(--srd-color-bff); }
+.srd-lane-api { --srd-lane: var(--srd-color-api); }
+.srd-lane-data { --srd-lane: var(--srd-color-data); }
+
+/* Solid lane-coloured header, white label. The raw lane shade cannot be the
+   fill: six of the eleven are `color-mix(…, white)` tints built to read as
+   strokes, and white-on-tint leaves the label with no contrast in either
+   theme. Darkening to a fixed lightness keeps the hue and the family grouping
+   while guaranteeing the label clears contrast on every lane. */
 .srd-actor-box {
-  fill: var(--th-bg-card);
-  stroke: var(--th-border-strong);
+  fill: color-mix(in oklab, var(--srd-lane, var(--th-text-muted)) 62%, black);
+  stroke: var(--srd-lane, var(--th-border-strong));
   stroke-width: 2;
 }
 
 .srd-actor-label {
-  fill: white;
+  fill: #fff;
   font-size: 15px;
   font-weight: 700;
   letter-spacing: 0.5px;
-}
-
-/* Colored participant boxes per lane */
-.srd-lane-browser .srd-actor-box {
-  fill: var(--srd-color-browser);
-  stroke: var(--srd-color-browser);
-}
-
-.srd-lane-chat .srd-actor-box {
-  fill: var(--srd-color-chat);
-  stroke: var(--srd-color-chat);
-}
-
-.srd-lane-agent .srd-actor-box {
-  fill: var(--srd-color-agent);
-  stroke: var(--srd-color-agent);
-}
-
-.srd-lane-llm .srd-actor-box {
-  fill: var(--srd-color-llm);
-  stroke: var(--srd-color-llm);
-}
-
-.srd-lane-mcp .srd-actor-box {
-  fill: var(--srd-color-mcp);
-  stroke: var(--srd-color-mcp);
-}
-
-.srd-lane-gateway .srd-actor-box {
-  fill: var(--srd-color-gateway);
-  stroke: var(--srd-color-gateway);
-}
-
-.srd-lane-pingone .srd-actor-box {
-  fill: var(--srd-color-pingone);
-  stroke: var(--srd-color-pingone);
-}
-
-.srd-lane-authz .srd-actor-box {
-  fill: var(--srd-color-authz);
-  stroke: var(--srd-color-authz);
-}
-
-.srd-lane-bff .srd-actor-box {
-  fill: var(--srd-color-bff);
-  stroke: var(--srd-color-bff);
-}
-
-.srd-lane-api .srd-actor-box {
-  fill: var(--srd-color-api);
-  stroke: var(--srd-color-api);
-}
-
-.srd-lane-data .srd-actor-box {
-  fill: var(--srd-color-data);
-  stroke: var(--srd-color-data);
 }
 
 .srd-lifeline {

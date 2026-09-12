@@ -32,6 +32,14 @@ const COL_MARGIN = 70;
 const ROW_HEIGHT = 56;
 const TOP_PAD = 80;
 const BOTTOM_PAD = 30;
+const ACTOR_BOX_W = 156;
+
+// An SVG <rect> behind a <text> cannot size itself, so estimate the label's
+// advance width: 12px is .srd-note-label's size and ~0.57em is a mixed-case
+// sans average. Erring wide only pads the box; erring narrow clips the label.
+const NOTE_CHAR_W = 6.8;
+const noteBoxWidth = (label) =>
+  Math.max(150, String(label ?? "").length * NOTE_CHAR_W + 32);
 
 const ZOOM_MIN = 60;
 const ZOOM_MAX = 200;
@@ -124,8 +132,15 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
     );
   }
 
-  const colX = (lane) => COL_MARGIN + participants.indexOf(lane) * COL_WIDTH;
-  const width = COL_MARGIN * 2 + Math.max(participants.length - 1, 0) * COL_WIDTH;
+  // Boxes centre on their lane, so the outermost lanes need half a box of
+  // clearance or the viewBox crops them.
+  const maxNoteHalf = lifelineSteps.reduce(
+    (m, s) => (s.type === "note" ? Math.max(m, noteBoxWidth(s.label) / 2) : m),
+    0,
+  );
+  const pad = Math.max(COL_MARGIN, ACTOR_BOX_W / 2, maxNoteHalf) + 8;
+  const colX = (lane) => pad + participants.indexOf(lane) * COL_WIDTH;
+  const width = pad * 2 + Math.max(participants.length - 1, 0) * COL_WIDTH;
   const height = TOP_PAD + lifelineSteps.length * ROW_HEIGHT + BOTTOM_PAD;
 
   return (
@@ -182,7 +197,7 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
             const x = colX(lane);
             return (
               <g key={lane} className={laneClass(lane)}>
-                <rect x={x - 78} y="4" width="156" height="48" rx="8" className="srd-actor-box" />
+                <rect x={x - ACTOR_BOX_W / 2} y="4" width={ACTOR_BOX_W} height="48" rx="8" className="srd-actor-box" />
                 <text x={x} y="34" textAnchor="middle" className="srd-actor-label">
                   {lane}
                 </text>
@@ -202,6 +217,7 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
             };
             if (step.type === "note") {
               const x = colX(step.lane);
+              const noteW = noteBoxWidth(step.label);
               return (
                 <g
                   key={step.id}
@@ -212,7 +228,7 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
                   tabIndex={0}
                   onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && selectStep(step.id)}
                 >
-                  <rect x={x - 75} y={y - 14} width="150" height="28" rx="5" className="srd-note-box" />
+                  <rect x={x - noteW / 2} y={y - 14} width={noteW} height="28" rx="5" className="srd-note-box" />
                   <text x={x} y={y + 5} textAnchor="middle" className="srd-note-label">
                     {step.label}
                   </text>
