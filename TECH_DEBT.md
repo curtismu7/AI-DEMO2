@@ -16,6 +16,37 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-11 — A lost or slow commit response can leave the wrong sign-in committed
+
+**What's wrong.** `/oauth/resume`'s `commitPrivilegeLink` posts to
+`/internal/privilege-link/commit` with a 3s timeout. If the BFF applies the commit
+(promotes the parked token into the app's shared session) but its response is lost
+or the call exceeds that timeout, `commitPrivilegeLink` still returns `false`. The
+broker then denies and calls `discardPrivilegeLink` — but the discard cannot undo a
+commit that already happened server-side, because `commitPending` already deleted
+the park and nothing tracks "committed but the caller never found out." The
+practical effect: the shared identity is replaced while the client is told
+sign-in failed. Raised by Greptile on PR #3153.
+
+**Why it wasn't fixed now.**
+- The identity that lands is the legitimate signer's own, not an attacker's — this
+  is an inconsistency, not an escalation. Nothing here lets anyone commit an
+  identity that isn't theirs; that's the separate, already-NARROWED finding above.
+- The client retries, and the retry succeeds (a fresh authorize parks and commits a
+  new token), so the user-visible cost is one redundant sign-in, not a stuck app.
+- A correct fix is two-phase — make the commit recoverable by resume id, or add a
+  conditional rollback tied to the commit id — which is disproportionate to how
+  narrow this window is and belongs in its own test-first change rather than a
+  drive-by inside the cookie/expiry fixes this pass otherwise makes.
+
+**Real fix.** Either make `/internal/privilege-link/commit` idempotent and
+recoverable by resume id (a retry or late response can re-ask "did rs-X commit?"
+instead of assuming it didn't), or add a conditional rollback keyed to the commit
+id so a broker that gave up waiting can undo a commit that lands after all. Cover
+it with a test that delays or fails the HTTP response to the broker *after* the
+BFF has already applied the commit, and asserts the app's session still reflects
+the intended outcome once the dust settles.
+
 ### [ ] 2026-09-11 — LangChain's direct-MCP message pipeline has no production caller
 
 **What's wrong.** Removing the legacy chat WebSocket on :8889 (branch

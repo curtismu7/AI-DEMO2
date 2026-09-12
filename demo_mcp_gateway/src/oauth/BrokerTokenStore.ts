@@ -26,6 +26,11 @@ export interface PendingAuthorization {
    *  chain the BFF gateway sign-in, echoed by the browser's cookie at
    *  /oauth/resume so a link URL mailed to someone else cannot commit. */
   linkNonce?: string;
+  /** Names this authorization's OWN nonce cookie (`pgw_link_<id>`). A single
+   *  fixed cookie name let two concurrent authorizations in one browser
+   *  overwrite each other's nonce and fail both logins (Greptile P1, PR
+   *  #3153) — one such id per authorization keeps them independent. */
+  linkCookieId?: string;
   expiresAt: number;
 }
 
@@ -63,6 +68,9 @@ export interface ResumableAuthorization {
   correlationId?: string;
   /** The nonce /oauth/resume must see in the browser's cookie before committing. */
   linkNonce?: string;
+  /** Same id as the pending authorization's, so /oauth/resume reads and clears
+   *  THIS authorization's own cookie (see PendingAuthorization.linkCookieId). */
+  linkCookieId?: string;
   expiresAt: number;
 }
 

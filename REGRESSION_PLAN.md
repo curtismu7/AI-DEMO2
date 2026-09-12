@@ -301,10 +301,21 @@ residual this does NOT close):**
   from the shared internal secret (`HMAC(secret, 'privilege-link-v1')`), not the raw secret itself — the label
   must match byte-for-byte between the broker (`OAuthBrokerRouter.linkSigningKey`) and the BFF
   (`privilegeMcpClient.linkSigningKey`), or every link 400s.
+- The binding cookie is per-authorization (`pgw_link_<id>`, minted at `/oauth/authorize` and cleared at
+  `/oauth/resume`) — a single fixed name let two authorizations in one browser overwrite each other's nonce
+  and fail both logins, exactly LM Studio's two-door (`opensearch22` + `opensearch`) setup (Greptile P1, PR
+  #3153).
+- Promoting a parked token (`commitPending`) preserves the token's own absolute expiry (`tokenExpiresAt`,
+  set at `rememberPending` time) instead of handing `remember()` the original `expiresIn` — a token parked for
+  N seconds must not come back recorded as living `expiresIn` seconds longer than it really does (Greptile P2,
+  PR #3153).
+- Both `pendingLinks` and `discardedLinks` are swept (`sweepLinks`) on EVERY write path — `rememberPending` and
+  `discardPending` alike — so repeated denied or abandoned sign-ins that never park cannot grow the tombstone
+  map for the life of the process (Greptile P2, PR #3153).
 
 **Verify:**
-- `cd demo_mcp_gateway && npm run build && ./node_modules/.bin/jest tests/oauth-broker-router-authorize.test.ts tests/oauth-broker-router-token.test.ts tests/oauth-broker-router-metadata.test.ts tests/oauth-broker-token-store.test.ts tests/gateway-oauth-broker-wiring.test.ts tests/oauth-client-registry.test.ts --forceExit` — 6 suites, 61 tests, all pass.
-- `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/services/privilegeGatewaySession.test.js tests/routes/privilegeLinkCommit.test.js tests/routes/privilegeMcpClient.facadeLink.test.js tests/routes/mcpFacade.privilegeGatewayDoor.test.js tests/routes/privilegeMcpClient.gatewaySessionRemember.test.js tests/routes/privilegeMcpClient.gatewaySessionState.test.js tests/routes/mcpFacade.privilegeEntryPath.test.js tests/routes/mcpFacade.multiApp.test.js tests/routes/privilegeMcpClient.rfc9728.test.js --forceExit` — 9 suites, 86 tests, all pass.
+- `cd demo_mcp_gateway && npm run build && ./node_modules/.bin/jest tests/oauth-broker-router-authorize.test.ts tests/oauth-broker-router-token.test.ts tests/oauth-broker-router-metadata.test.ts tests/oauth-broker-token-store.test.ts tests/gateway-oauth-broker-wiring.test.ts tests/oauth-client-registry.test.ts --forceExit` — 6 suites, 65 tests, all pass.
+- `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/services/privilegeGatewaySession.test.js tests/routes/privilegeLinkCommit.test.js tests/routes/privilegeMcpClient.facadeLink.test.js tests/routes/mcpFacade.privilegeGatewayDoor.test.js tests/routes/privilegeMcpClient.gatewaySessionRemember.test.js tests/routes/privilegeMcpClient.gatewaySessionState.test.js tests/routes/mcpFacade.privilegeEntryPath.test.js tests/routes/mcpFacade.multiApp.test.js tests/routes/privilegeMcpClient.rfc9728.test.js --forceExit` — 9 suites, 92 tests, all pass.
 
 ### 2026-09-11 — No-gateway A2A specialist calls could not complete
 

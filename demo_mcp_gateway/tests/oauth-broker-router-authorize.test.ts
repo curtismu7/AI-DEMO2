@@ -175,13 +175,24 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
     });
   }
 
-  function parked(tokenStore: BrokerTokenStore, linkNonce?: string) {
+  // The cookie is now per-authorization (Greptile P1, PR #3153) — every test
+  // below that used to send a bare `pgw_link=<nonce>` needs the matching
+  // `pgw_link_<id>` name instead. One fixed id here is enough for the tests
+  // that only ever handle a single authorization at a time; the concurrency
+  // test below mints its own two ids for real.
+  const LINK_COOKIE_ID = 'cid1';
+
+  function parked(tokenStore: BrokerTokenStore, linkNonce?: string, linkCookieId: string = LINK_COOKIE_ID) {
     return tokenStore.createResume({
       clientId: 'c1', redirectUri: REDIRECT, scope: 'mcp:invoke',
       codeChallenge: 'external-challenge', codeChallengeMethod: 'S256',
       clientState: 'external-state', pingOneAccessToken: 'REAL-PINGONE-TOKEN', pingOneExpiresIn: 3600,
-      linkNonce,
+      linkNonce, linkCookieId: linkNonce ? linkCookieId : undefined,
     });
+  }
+
+  function linkCookieHeader(nonce: string, linkCookieId: string = LINK_COOKIE_ID) {
+    return `pgw_link_${linkCookieId}=${nonce}`;
   }
 
   async function callbackFor(resource?: string) {
@@ -296,7 +307,7 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
     const rs = parked(tokenStore, 'n1');
     mockedAxios.post.mockResolvedValueOnce({ status: 204 });
 
-    const res = await supertest(server).get('/oauth/resume').query({ rs, link: 'ok' }).set('Cookie', 'pgw_link=n1');
+    const res = await supertest(server).get('/oauth/resume').query({ rs, link: 'ok' }).set('Cookie', linkCookieHeader('n1'));
 
     expect(res.status).toBe(302);
     const back = new URL(res.headers.location);
@@ -326,7 +337,7 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
     const { tokenStore, server } = makeRouterAndServer();
     const rs = parked(tokenStore, 'n1');
     mockedAxios.post.mockResolvedValueOnce({ status: 204 });
-    await supertest(server).get('/oauth/resume').query({ rs, link: 'ok' }).set('Cookie', 'pgw_link=n1').expect(302);
+    await supertest(server).get('/oauth/resume').query({ rs, link: 'ok' }).set('Cookie', linkCookieHeader('n1')).expect(302);
 
     const again = await supertest(server).get('/oauth/resume').query({ rs, link: 'ok' });
     expect(again.status).toBe(400);
@@ -348,10 +359,16 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
     });
 
     const cookie = res.headers['set-cookie']?.[0];
-    expect(cookie).toMatch(/^pgw_link=[^;]+; HttpOnly; SameSite=Lax; Path=\/oauth; Max-Age=600$/);
+    expect(cookie).toMatch(/^pgw_link_[^=;]+=[^;]+; HttpOnly; SameSite=Lax; Path=\/oauth; Max-Age=600$/);
+    const cookieName = cookie!.split('=')[0];
     const nonce = cookie!.split(';')[0].split('=')[1];
     const relayState = new URL(res.headers.location).searchParams.get('state')!;
-    expect(tokenStore.consumePendingAuthorization(relayState)?.linkNonce).toBe(nonce);
+    const pending = tokenStore.consumePendingAuthorization(relayState);
+    expect(pending?.linkNonce).toBe(nonce);
+    // The cookie is scoped to THIS authorization's own id, not a fixed name —
+    // a second concurrent authorize must get a different one (see the
+    // concurrency test below).
+    expect(cookieName).toBe(`pgw_link_${pending?.linkCookieId}`);
   });
 
   it('sets no nonce cookie for a non-Privilege resource', async () => {
@@ -370,15 +387,10 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
   it('link=ok with the matching cookie commits through the BFF and then issues the code', async () => {
     process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = 'https://bff.example.com/internal/privilege-link/commit';
     const { tokenStore, server } = makeRouterAndServer();
-    const rs = tokenStore.createResume({
-      clientId: 'c1', redirectUri: REDIRECT, scope: 'mcp:invoke',
-      codeChallenge: 'external-challenge', codeChallengeMethod: 'S256',
-      clientState: 'external-state', pingOneAccessToken: 'REAL-PINGONE-TOKEN', pingOneExpiresIn: 3600,
-      linkNonce: 'n1',
-    });
+    const rs = parked(tokenStore, 'n1');
     mockedAxios.post.mockResolvedValueOnce({ status: 204 });
 
-    const res = await supertest(server).get('/oauth/resume').query({ rs, link: 'ok' }).set('Cookie', 'pgw_link=n1');
+    const res = await supertest(server).get('/oauth/resume').query({ rs, link: 'ok' }).set('Cookie', linkCookieHeader('n1'));
 
     expect(res.status).toBe(302);
     const back = new URL(res.headers.location);
@@ -416,7 +428,7 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
     const { tokenStore, server } = makeRouterAndServer();
 
     const rsBadCookie = parked(tokenStore, 'n1');
-    await supertest(server).get('/oauth/resume').query({ rs: rsBadCookie, link: 'ok' }).set('Cookie', 'pgw_link=wrong');
+    await supertest(server).get('/oauth/resume').query({ rs: rsBadCookie, link: 'ok' }).set('Cookie', linkCookieHeader('wrong'));
     expect(mockedAxios.post).toHaveBeenCalledWith(
       'https://bff.example.com/internal/privilege-link/commit',
       { rs: rsBadCookie, action: 'discard' },
@@ -438,25 +450,20 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
 
     const rsOk = parked(tokenStore, 'n1');
     mockedAxios.post.mockResolvedValueOnce({ status: 204 });
-    const success = await supertest(server).get('/oauth/resume').query({ rs: rsOk, link: 'ok' }).set('Cookie', 'pgw_link=n1');
-    expect(success.headers['set-cookie']?.[0]).toMatch(/^pgw_link=;.*Max-Age=0/);
+    const success = await supertest(server).get('/oauth/resume').query({ rs: rsOk, link: 'ok' }).set('Cookie', linkCookieHeader('n1'));
+    expect(success.headers['set-cookie']?.[0]).toMatch(new RegExp(`^pgw_link_${LINK_COOKIE_ID}=;.*Max-Age=0`));
 
     const rsDeny = parked(tokenStore, 'n2');
     const denied = await supertest(server).get('/oauth/resume').query({ rs: rsDeny, link: 'error', reason: 'nope' });
-    expect(denied.headers['set-cookie']?.[0]).toMatch(/^pgw_link=;.*Max-Age=0/);
+    expect(denied.headers['set-cookie']?.[0]).toMatch(new RegExp(`^pgw_link_${LINK_COOKIE_ID}=;.*Max-Age=0`));
   });
 
   it('link=ok with a missing or wrong cookie commits nothing and denies', async () => {
     process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = 'https://bff.example.com/internal/privilege-link/commit';
     const { tokenStore, server } = makeRouterAndServer();
 
-    for (const cookie of [undefined, 'pgw_link=other']) {
-      const rs = tokenStore.createResume({
-        clientId: 'c1', redirectUri: REDIRECT, scope: 'mcp:invoke',
-        codeChallenge: 'external-challenge', codeChallengeMethod: 'S256',
-        clientState: 'external-state', pingOneAccessToken: 'REAL-PINGONE-TOKEN', pingOneExpiresIn: 3600,
-        linkNonce: 'n1',
-      });
+    for (const cookie of [undefined, linkCookieHeader('other')]) {
+      const rs = parked(tokenStore, 'n1');
       const req = supertest(server).get('/oauth/resume').query({ rs, link: 'ok' });
       const res = await (cookie ? req.set('Cookie', cookie) : req);
 
@@ -479,25 +486,82 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
     const { tokenStore, server } = makeRouterAndServer();
 
     mockedAxios.post.mockResolvedValueOnce({ status: 500 });
-    const rs1 = tokenStore.createResume({
-      clientId: 'c1', redirectUri: REDIRECT, scope: 'mcp:invoke',
-      codeChallenge: 'external-challenge', codeChallengeMethod: 'S256',
-      clientState: 'external-state', pingOneAccessToken: 'REAL-PINGONE-TOKEN', pingOneExpiresIn: 3600,
-      linkNonce: 'n1',
-    });
-    const res1 = await supertest(server).get('/oauth/resume').query({ rs: rs1, link: 'ok' }).set('Cookie', 'pgw_link=n1');
+    const rs1 = parked(tokenStore, 'n1');
+    const res1 = await supertest(server).get('/oauth/resume').query({ rs: rs1, link: 'ok' }).set('Cookie', linkCookieHeader('n1'));
     expect(new URL(res1.headers.location).searchParams.get('error')).toBe('access_denied');
     expect(new URL(res1.headers.location).searchParams.get('code')).toBeNull();
 
     mockedAxios.post.mockRejectedValueOnce(new Error('ECONNREFUSED'));
-    const rs2 = tokenStore.createResume({
-      clientId: 'c1', redirectUri: REDIRECT, scope: 'mcp:invoke',
-      codeChallenge: 'external-challenge', codeChallengeMethod: 'S256',
-      clientState: 'external-state', pingOneAccessToken: 'REAL-PINGONE-TOKEN', pingOneExpiresIn: 3600,
-      linkNonce: 'n1',
-    });
-    const res2 = await supertest(server).get('/oauth/resume').query({ rs: rs2, link: 'ok' }).set('Cookie', 'pgw_link=n1');
+    const rs2 = parked(tokenStore, 'n1');
+    const res2 = await supertest(server).get('/oauth/resume').query({ rs: rs2, link: 'ok' }).set('Cookie', linkCookieHeader('n1'));
     expect(new URL(res2.headers.location).searchParams.get('error')).toBe('access_denied');
     expect(new URL(res2.headers.location).searchParams.get('code')).toBeNull();
+  });
+
+  it('two concurrent authorizations in one browser each keep their own binding', async () => {
+    // LM Studio configured with two Privilege doors (opensearch22 and
+    // opensearch) authorizes both in one browser session. A fixed cookie
+    // name would let the second overwrite the first's nonce and deny both
+    // resumes (Greptile P1, PR #3153).
+    process.env.BFF_PRIVILEGE_LINK_URL = LINK_URL;
+    process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = COMMIT_URL;
+    const { clientRegistry, tokenStore, server } = makeRouterAndServer();
+    const client = clientRegistry.registerClient({ client_name: 'LM Studio', redirect_uris: [REDIRECT] });
+
+    async function authorize(): Promise<string> {
+      const res = await supertest(server).get('/oauth/authorize').query({
+        client_id: client.client_id, redirect_uri: REDIRECT, response_type: 'code',
+        code_challenge: 'c', code_challenge_method: 'S256', state: 's', resource: DOOR,
+      });
+      return res.headers['set-cookie']![0].split(';')[0]; // "name=value"
+    }
+
+    const cookieA = await authorize();
+    const cookieB = await authorize();
+    const [nameA, nonceA] = cookieA.split('=');
+    const [nameB, nonceB] = cookieB.split('=');
+    expect(nameA).not.toBe(nameB);
+    const idA = nameA.slice('pgw_link_'.length);
+    const idB = nameB.slice('pgw_link_'.length);
+
+    function parkFor(id: string, nonce: string, token: string) {
+      return tokenStore.createResume({
+        clientId: 'c1', redirectUri: REDIRECT, scope: 'mcp:invoke',
+        codeChallenge: 'external-challenge', codeChallengeMethod: 'S256',
+        clientState: 'external-state', pingOneAccessToken: token, pingOneExpiresIn: 3600,
+        linkNonce: nonce, linkCookieId: id,
+      });
+    }
+    mockedAxios.post.mockResolvedValue({ status: 204 });
+
+    // A's resume succeeds sending only A's own cookie.
+    const rsA = parkFor(idA, nonceA, 'TOKEN-A');
+    const resumeA = await supertest(server).get('/oauth/resume').query({ rs: rsA, link: 'ok' }).set('Cookie', cookieA);
+    expect(new URL(resumeA.headers.location).searchParams.get('code')).toBeTruthy();
+
+    // B's resume succeeds sending only B's own cookie.
+    const rsB = parkFor(idB, nonceB, 'TOKEN-B');
+    const resumeB = await supertest(server).get('/oauth/resume').query({ rs: rsB, link: 'ok' }).set('Cookie', cookieB);
+    expect(new URL(resumeB.headers.location).searchParams.get('code')).toBeTruthy();
+
+    // Sending both cookies together (a browser holding both authorizations)
+    // must still resolve to the right one, not the other's nonce.
+    const rsA2 = parkFor(idA, nonceA, 'TOKEN-A2');
+    const resumeBoth = await supertest(server).get('/oauth/resume').query({ rs: rsA2, link: 'ok' })
+      .set('Cookie', `${cookieA}; ${cookieB}`);
+    expect(new URL(resumeBoth.headers.location).searchParams.get('code')).toBeTruthy();
+  });
+
+  it('clears only its own binding cookie', async () => {
+    process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = COMMIT_URL;
+    const { tokenStore, server } = makeRouterAndServer();
+    const rs = parked(tokenStore, 'n1');
+    mockedAxios.post.mockResolvedValueOnce({ status: 204 });
+
+    const res = await supertest(server).get('/oauth/resume').query({ rs, link: 'ok' }).set('Cookie', linkCookieHeader('n1'));
+
+    const clearCookie = res.headers['set-cookie']?.[0];
+    expect(clearCookie).toMatch(new RegExp(`^pgw_link_${LINK_COOKIE_ID}=;.*Max-Age=0`));
+    expect(clearCookie).not.toMatch(/^pgw_link=;/);
   });
 });

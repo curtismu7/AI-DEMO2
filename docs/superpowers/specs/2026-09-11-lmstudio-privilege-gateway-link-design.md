@@ -123,7 +123,9 @@ with an RFC 9728 challenge (flag on), so LM Studio re-runs steps 1–6 on its ow
   `/facade-link` URL it issues (HMAC over the app + resume id, keyed by a purpose-bound key derived from the
   shared internal secret — not the secret itself, since the signature travels in a browser-visible redirect
   URL) and the BFF refuses an unsigned link or one signed for a different app, so a caller can no longer
-  choose the parked slot or swap the target app. The broker also sets a browser-bound nonce cookie (`pgw_link`, `HttpOnly`,
+  choose the parked slot or swap the target app. The broker also sets a browser-bound nonce cookie (`pgw_link_<id>`,
+  named per authorization so two chained in the same browser cannot overwrite each other's nonce — a single fixed
+  name failed both logins, exactly LM Studio's two-door setup (Greptile P1, PR #3153) — `HttpOnly`,
   `SameSite=Lax`, `Path=/oauth`) at `/oauth/authorize` for a chained Privilege door, and `/oauth/resume` only
   calls `/internal/privilege-link/commit` — promoting the parked token into the shared session — once it has
   verified that cookie against the pending record's nonce, unconditionally: a parked record with no nonce at
@@ -137,7 +139,7 @@ with an RFC 9728 challenge (flag on), so LM Studio re-runs steps 1–6 on its ow
   identity under an id the attacker already knows. The only thing between that park and a commit is the
   victim's browser following the final `/oauth/resume?rs=…&link=ok` hop, which consumes the id and discards
   the park; an attacker who prevents that last navigation redeems the URL themselves instead, still carrying
-  the matching `pgw_link` cookie from the authorize they genuinely ran, and the victim's identity commits.
+  the matching `pgw_link_<id>` cookie from the authorize they genuinely ran, and the victim's identity commits.
   See `TECH_DEBT.md`'s NARROWED entry for the residual and the real fix (key gateway sessions per caller, not
   just per app).
 

@@ -40,11 +40,17 @@ function readIdentityClaims(idToken?: string): Record<string, unknown> {
 /** Façade Privilege door paths: /mcp-facade/privilege-gateway[/<app>]/mcp. */
 const PRIVILEGE_DOOR_PATH = /^\/mcp-facade\/privilege-gateway(?:\/([A-Za-z0-9._-]{1,64}))?\/mcp$/;
 
-/** Cookie carrying the Privilege link's browser-bound nonce. Path-scoped to
- *  /oauth so it rides the resume redirect and nothing else. No `Secure`: the
- *  broker is served over plain HTTP on localhost:3005 in this demo, and a
- *  Secure cookie would simply never be sent. */
-const LINK_NONCE_COOKIE = 'pgw_link';
+/** Cookie carrying a Privilege link's browser-bound nonce, one per authorization.
+ *  A single fixed name would let two concurrent authorizations in one browser
+ *  overwrite each other's nonce and fail both (Greptile P1, PR #3153). Path-scoped
+ *  to /oauth so it rides the resume redirect and nothing else. No `Secure`: the
+ *  broker is served over plain HTTP on localhost:3005 in this demo, and a Secure
+ *  cookie would simply never be sent. */
+const LINK_NONCE_COOKIE_PREFIX = 'pgw_link_';
+
+function linkNonceCookieName(id: string): string {
+  return `${LINK_NONCE_COOKIE_PREFIX}${id}`;
+}
 
 function readCookie(header: string | undefined, name: string): string | null {
   for (const part of (header || '').split(';')) {
@@ -245,9 +251,12 @@ export class OAuthBrokerRouter {
     // untouched.
     const willChainLink = privilegeLinkApp(resource) !== null && privilegeLinkConfigured();
     const linkNonce = willChainLink ? crypto.randomBytes(32).toString('base64url') : undefined;
+    // base64url is safe in a cookie name — one id per authorization, so two
+    // chained in the same browser never collide (Greptile P1, PR #3153).
+    const linkCookieId = willChainLink ? crypto.randomBytes(9).toString('base64url') : undefined;
     const relayState = this.tokenStore.createPendingAuthorization({
       clientId, redirectUri, scope, codeChallenge, codeChallengeMethod,
-      clientState, pingOneCodeVerifier, correlationId, resource, linkNonce,
+      clientState, pingOneCodeVerifier, correlationId, resource, linkNonce, linkCookieId,
     });
 
     const issuer = this.issuer(req);
@@ -294,8 +303,8 @@ export class OAuthBrokerRouter {
     });
 
     const authorizeHeaders: Record<string, string> = { Location: pingOneAuthorize.toString() };
-    if (linkNonce) {
-      authorizeHeaders['Set-Cookie'] = `${LINK_NONCE_COOKIE}=${linkNonce}; HttpOnly; SameSite=Lax; Path=/oauth; Max-Age=600`;
+    if (linkNonce && linkCookieId) {
+      authorizeHeaders['Set-Cookie'] = `${linkNonceCookieName(linkCookieId)}=${linkNonce}; HttpOnly; SameSite=Lax; Path=/oauth; Max-Age=600`;
     }
     res.writeHead(302, authorizeHeaders);
     res.end();
@@ -395,6 +404,7 @@ export class OAuthBrokerRouter {
         pingOneExpiresIn: expiresIn,
         correlationId: pending.correlationId,
         linkNonce: pending.linkNonce,
+        linkCookieId: pending.linkCookieId,
       });
       const link = new URL(linkUrl);
       if (linkApp) link.searchParams.set('app', linkApp);
@@ -499,9 +509,11 @@ export class OAuthBrokerRouter {
     }
     // redirectUri was checked against the client's registration at /oauth/authorize.
     const callback = new URL(parked.redirectUri);
-    // Clear the binding cookie however this ends — it is single-use.
+    // Clear THIS authorization's own binding cookie however this ends — it is
+    // single-use, and clearing a different name would leave it stranded.
+    const cookieName = linkNonceCookieName(parked.linkCookieId || '');
     const headers: Record<string, string> = {
-      'Set-Cookie': `${LINK_NONCE_COOKIE}=; HttpOnly; SameSite=Lax; Path=/oauth; Max-Age=0`,
+      'Set-Cookie': `${cookieName}=; HttpOnly; SameSite=Lax; Path=/oauth; Max-Age=0`,
     };
 
     const deny = (description: string) => {
@@ -527,7 +539,7 @@ export class OAuthBrokerRouter {
     // identity into the app-wide session (Greptile P1, PR #3140).
     // Unconditional: a parked record with no nonce is not a link we can vouch
     // for, and the one place this feature must not fail open is identity.
-    if (readCookie(req.headers.cookie, LINK_NONCE_COOKIE) !== parked.linkNonce) {
+    if (readCookie(req.headers.cookie, cookieName) !== parked.linkNonce) {
       return deny('Privilege gateway sign-in was not completed in the browser that started it');
     }
     if (!(await this.commitPrivilegeLink(resumeId as string))) {
