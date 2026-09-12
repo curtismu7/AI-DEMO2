@@ -93,6 +93,7 @@ import ResourceServerJourneyPage from "./pages/ResourceServerJourneyPage";
 import RetailAdminOps from "./components/RetailAdminOps";
 import ScopeAuditPage from "./components/ScopeAuditPage";
 import ScopeReferencePage from "./components/ScopeReferencePage";
+import SecretRotationPage from "./pages/SecretRotationPage";
 import SecurityCenter from "./components/SecurityCenter";
 import SecuritySettings from "./components/SecuritySettings";
 import ServerRestartModal from "./components/ServerRestartModal";
@@ -1544,6 +1545,14 @@ function AppWithAuth() {
                                     user={user}
                                     onLogout={logout}
                                   />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            <Route
+                              path="/secret-rotation"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <SecretRotationPage />
                                 </RequireAdminLogin>
                               }
                             />
