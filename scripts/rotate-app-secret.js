@@ -71,9 +71,23 @@ if (require.main === module) {
   // handler, which util.inspect()s the whole error — and an axios failure
   // from regenerateClientSecret carries the management bearer token in
   // err.config.headers.Authorization. Print err.message only, never err.
+  //
+  // The DONE line is the run's single terminal sentinel — the BFF's /runs/:id
+  // keys its status off these EXACT strings. Without it a refused rotation
+  // (which matches none of the success/failure words) polled as "running"
+  // forever, and the page rendered a secret mask for a rotation that never
+  // happened. Write it LAST on every path, and to stdout so it lands in the
+  // same redirected run log the route tails.
+  //   DONE ok           — rotated, propagated, verified
+  //   DONE failed: ...  — something after the irreversible rotate went wrong
+  //   DONE aborted: ... — refused before anything was touched
   require(path.join(REPO_ROOT, 'scripts/lib/rotateAppSecretCli')).main(process.argv.slice(2))
+    .then(() => {
+      process.stdout.write('[rotate] DONE ok\n');
+    })
     .catch((err) => {
-      process.stderr.write(`[rotate] FAILED: ${err.message}\n`);
+      const kind = err && err.aborted ? 'aborted' : 'failed';
+      process.stdout.write(`[rotate] DONE ${kind}: ${err.message.split('\n')[0]}\n`);
       process.exitCode = 1;
     });
 }

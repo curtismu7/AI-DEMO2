@@ -117,6 +117,11 @@ function summarizeAgent(app) {
 }
 
 async function listApplicationsRaw(opts) {
+  // `opts` is the ONLY source of auth here — there is no axios.defaults token.
+  // Callers that omit it (routes/secretRotation.js, scripts/describeApp.js) would
+  // otherwise send an unauthenticated request that validateStatus swallows into
+  // an empty list. Default it at the source so every caller gets a real token.
+  opts = opts || await requestOptions();
   const res = await axios.get(`${apiBase()}/applications?limit=100`, { ...opts, validateStatus: () => true });
   return res.data?._embedded?.applications || [];
 }

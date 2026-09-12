@@ -11,7 +11,7 @@
 const crypto = require('node:crypto');
 const axios = require('axios');
 const configStore = require('./configStore');
-const { getManagementToken, resolveWorkerCredentials } = require('./pingOneClientService');
+const { getManagementToken, WORKER_CREDENTIAL_FAMILIES } = require('./pingOneClientService');
 
 const REGENERATE_CONTENT_TYPE = 'application/vnd.pingidentity.secret.regenerate+json';
 
@@ -36,9 +36,22 @@ function fingerprint(secret) {
   return crypto.createHash('sha256').update(String(secret), 'utf8').digest('hex').slice(0, 8);
 }
 
+/**
+ * True when this app is — or could be — the credential the Management API calls
+ * authenticate with. The one app this tool must never rotate.
+ *
+ * Checks EVERY configured credential family, not one resolveWorkerCredentials()
+ * call: that helper returns the first family whose id (and, when
+ * `secretRequired`, secret) is present, so resolveWorkerCredentials(false) and
+ * the resolveWorkerCredentials(true) getManagementToken() actually uses can name
+ * DIFFERENT apps — e.g. family 1 has an id but no secret. Guarding only one of
+ * them leaves the real management-token holder rotatable.
+ */
 function isWorkerApp(app) {
-  const { clientId } = resolveWorkerCredentials(false);
-  return Boolean(clientId) && app.clientId === clientId;
+  const ids = WORKER_CREDENTIAL_FAMILIES
+    .map(([idKey]) => configStore.getEffective(idKey))
+    .filter(Boolean);
+  return ids.includes(app.clientId);
 }
 
 /**

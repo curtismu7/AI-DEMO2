@@ -61,6 +61,12 @@ export default function SecretRotationPage() {
     setSelected(a);
     setArmed(false);
     setReason('');
+    // Clear the previous app's run too, or its fingerprint and log render
+    // under the newly selected app's heading.
+    clearTimeout(timer.current);
+    setLines([]);
+    setStatus('idle');
+    setErrorMessage('');
   }
 
   function closeConfirm() {
@@ -76,8 +82,13 @@ export default function SecretRotationPage() {
     try {
       const { data } = await apiClient.post('/api/admin/secret-rotation/start', {
         appId: selected.id,
-        vaultKey: selected.vaultKey || `${selected.name.toUpperCase().replace(/\W+/g, '_')}_CLIENT_SECRET`,
-        restart: true,
+        // Server-derived by /apps — never guessed here. A key invented from the
+        // display name can never match a real vault entry.
+        vaultKey: selected.vaultKey,
+        // Both false: the rotation runs inside the BFF container, which ships
+        // no docker CLI and no kubectl. The run log prints the exact host
+        // command to finish the job instead.
+        restart: false,
         k8s: false,
         reason,
       });
@@ -115,11 +126,20 @@ export default function SecretRotationPage() {
             <button type="button" className="sr-danger" onClick={() => setConfirming(true)}>
               Rotate secret
             </button>
-            {status !== 'idle' && status !== 'error' && (
+            {status === 'running' && <p className="sr-result">Rotating…</p>}
+            {/* The mask claims a secret exists — only a completed rotation
+                earns it. An aborted run changed nothing at all. */}
+            {status === 'done' && (
               <p className="sr-result">
                 Secret: <code>••••••••</code>
                 {fingerprint && <> · fingerprint <code>{fingerprint}</code></>}
               </p>
+            )}
+            {status === 'aborted' && (
+              <p className="sr-error">Rotation refused — nothing was changed. See the log.</p>
+            )}
+            {status === 'failed' && (
+              <p className="sr-error">Rotation failed after the secret was rotated. See the log.</p>
             )}
             {status === 'error' && (
               <p className="sr-error">Rotation status unknown: {errorMessage}</p>

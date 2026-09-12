@@ -22,9 +22,18 @@ function servicesForVaultKey(vaultKey) {
  */
 function applyRestart(services, deps = {}) {
   const execFile = deps.execFile || execFileSync;
-  execFile(path.join(REPO_ROOT, 'run-docker.sh'), ['restart', ...services], {
-    cwd: REPO_ROOT, stdio: ['ignore', 'inherit', 'inherit'],
-  });
+  try {
+    // 'pipe', never 'inherit': this process's stdout/stderr is redirected into a
+    // run log the BFF serves over HTTP, and a failing child's raw output can
+    // echo request bodies. Captured and discarded; only the fixed remediation
+    // below is ever surfaced.
+    execFile(path.join(REPO_ROOT, 'run-docker.sh'), ['restart', ...services], {
+      cwd: REPO_ROOT, stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch (_err) {
+    throw new Error('container restart failed — run '
+      + '`./run-docker.sh restart ' + services.join(' ') + '` on the host to finish');
+  }
 }
 
 /**
@@ -35,10 +44,23 @@ function applyRestart(services, deps = {}) {
  */
 function applyK8sPatch(vaultKey, secret, deps = {}) {
   const execFile = deps.execFile || execFileSync;
+  // Namespace and merge type match k8s/create-secrets.sh, which passes
+  // --namespace="$NS" (K8S_NAMESPACE, default ai-demo) --type merge on every
+  // equivalent call. Without them this only worked by accident, via whatever
+  // namespace the current kubectl context happened to default to.
+  const namespace = process.env.K8S_NAMESPACE || 'ai-demo';
   const patch = JSON.stringify({ stringData: { [vaultKey]: secret } });
-  execFile('kubectl', ['patch', 'secret', 'ai-demo-secrets', '--patch-file', '/dev/stdin'], {
-    input: patch, stdio: ['pipe', 'inherit', 'inherit'],
-  });
+  try {
+    // 'pipe', never 'inherit' — kubectl echoes request bodies on some 4xx
+    // responses, and this process's output is an HTTP-served run log.
+    execFile('kubectl', ['patch', 'secret', 'ai-demo-secrets',
+      '--namespace', namespace, '--type', 'merge', '--patch-file', '/dev/stdin'], {
+      input: patch, stdio: ['pipe', 'pipe', 'pipe'],
+    });
+  } catch (_err) {
+    throw new Error('k8s secret patch failed — patch '
+      + vaultKey + ' into secret ai-demo-secrets in namespace ' + namespace + ' by hand to finish');
+  }
 }
 
 module.exports = { servicesForVaultKey, applyRestart, applyK8sPatch };

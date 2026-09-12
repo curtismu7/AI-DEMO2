@@ -6,6 +6,11 @@ describe('refresh-service-envs exports', () => {
     expect(typeof mod.propagateServiceEnvs).toBe('function');
   });
 
+  test('exposes getRotatableVaultKeyMap so vault keys are server-derived', () => {
+    const mod = require('../scripts/refresh-service-envs');
+    expect(typeof mod.getRotatableVaultKeyMap).toBe('function');
+  });
+
   test('still exports the helpers its existing tests use', () => {
     const mod = require('../scripts/refresh-service-envs');
     expect(typeof mod.loadVaultSecrets).toBe('function');

@@ -3,12 +3,27 @@
 jest.mock('axios');
 const axios = require('axios');
 
+// Family 1 has an id but NO secret; family 3 has a matching id+secret pair. That
+// is the split that makes resolveWorkerCredentials(false) and (true) name
+// DIFFERENT apps — see the isWorkerApp tests at the bottom.
+const mockConfig = {
+  PINGONE_ENVIRONMENT_ID: 'env-1',
+  PINGONE_REGION: 'com',
+  PINGONE_WORKER_CLIENT_ID: 'worker-client-id',
+  PINGONE_MGMT_CLIENT_ID: 'mgmt-client-id',
+  PINGONE_MGMT_CLIENT_SECRET: 'mgmt-secret',
+};
 jest.mock('../services/configStore', () => ({
-  getEffective: (k) => ({ PINGONE_ENVIRONMENT_ID: 'env-1', PINGONE_REGION: 'com' }[k] || ''),
+  getEffective: (k) => (mockConfig[k] || ''),
 }));
 jest.mock('../services/pingOneClientService', () => ({
   getManagementToken: jest.fn().mockResolvedValue('tok-abc'),
-  resolveWorkerCredentials: jest.fn(() => ({ clientId: 'worker-client-id', clientSecret: 'x' })),
+  WORKER_CREDENTIAL_FAMILIES: [
+    ['PINGONE_WORKER_CLIENT_ID', 'PINGONE_WORKER_CLIENT_SECRET'],
+    ['PINGONE_WORKER_TOKEN_CLIENT_ID', 'PINGONE_WORKER_TOKEN_CLIENT_SECRET'],
+    ['PINGONE_MGMT_CLIENT_ID', 'PINGONE_MGMT_CLIENT_SECRET'],
+    ['PINGONE_MANAGEMENT_CLIENT_ID', 'PINGONE_MANAGEMENT_CLIENT_SECRET'],
+  ],
 }));
 
 const {
@@ -65,5 +80,13 @@ describe('pingOneSecretRotation', () => {
   test('isWorkerApp matches the configured worker clientId', () => {
     expect(isWorkerApp({ clientId: 'worker-client-id' })).toBe(true);
     expect(isWorkerApp({ clientId: 'something-else' })).toBe(false);
+  });
+
+  // I3: resolveWorkerCredentials(false) returns family 1 (id, no secret);
+  // getManagementToken's resolveWorkerCredentials(true) skips it and returns
+  // family 3. Guarding only the first left the app that actually holds the
+  // management token rotatable — the one exclusion this tool exists to enforce.
+  test('isWorkerApp guards EVERY credential family, not just the first resolvable one', () => {
+    expect(isWorkerApp({ clientId: 'mgmt-client-id' })).toBe(true);
   });
 });

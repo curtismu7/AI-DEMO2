@@ -7,23 +7,37 @@ const { spawn } = require('node:child_process');
 const express = require('express');
 const { listApplicationsRaw } = require('../services/agentBuilderService');
 const { isWorkerApp } = require('../services/pingOneSecretRotation');
+const { getRotatableVaultKeyMap } = require('../scripts/refresh-service-envs');
 
 const router = express.Router();
 
 const SECRETFUL = new Set(['CLIENT_SECRET_BASIC', 'CLIENT_SECRET_POST', 'CLIENT_SECRET_JWT']);
 
-const REPO_ROOT = path.join(__dirname, '..', '..');
+// Routes run from /app/routes inside the BFF container, so a __dirname-relative
+// repo root resolves to '/' and the spawned CLI path is wrong. The repo is
+// bind-mounted at /repo — the same convention CODE_SEARCH_REPO_ROOT and
+// SCOPE_TOPOLOGY_PATH already use (demo_api_server/Dockerfile sets it). Falls
+// back to the on-disk layout when running natively, where the env var is unset.
+const REPO_ROOT = process.env.CODE_SEARCH_REPO_ROOT || path.join(__dirname, '..', '..');
 const RUN_DIR = path.join(__dirname, '..', 'data', 'rotation-runs');
 
 router.get('/apps', async (_req, res) => {
   try {
-    const raw = await listApplicationsRaw();
+    // The vault key is SERVER-derived: only apps this repo actually stores a
+    // secret for can be rotated, and each carries the exact key its new secret
+    // must land under. The page used to invent one from the display name, which
+    // could never match a real key.
+    const [raw, vaultKeys] = await Promise.all([
+      listApplicationsRaw(), getRotatableVaultKeyMap(),
+    ]);
     const apps = raw
       .filter((a) => SECRETFUL.has(String(a.tokenEndpointAuthMethod || '').toUpperCase()))
       .filter((a) => !isWorkerApp(a))
+      .filter((a) => Boolean(vaultKeys[a.clientId]))
       .map((a) => ({
         id: a.id, clientId: a.clientId, name: a.name,
         tokenEndpointAuthMethod: a.tokenEndpointAuthMethod,
+        vaultKey: vaultKeys[a.clientId],
       }));
     res.json({ apps });
   } catch (err) {
@@ -31,14 +45,34 @@ router.get('/apps', async (_req, res) => {
   }
 });
 
-router.post('/start', (req, res) => {
-  const { appId, vaultKey, restart, k8s } = req.body || {};
+router.post('/start', async (req, res) => {
+  const { appId, vaultKey, restart, k8s, reason } = req.body || {};
   if (!appId) return res.status(400).json({ error: 'appId is required' });
   if (!vaultKey) return res.status(400).json({ error: 'vaultKey is required' });
+
+  // Preflight the pair BEFORE spawning anything: the CLI's first irreversible
+  // step is downstream of this, and a vaultKey that doesn't belong to this app
+  // writes the new secret somewhere nothing reads.
+  let vaultKeys;
+  try {
+    vaultKeys = await getRotatableVaultKeyMap();
+  } catch (err) {
+    return res.status(502).json({ error: `Could not resolve rotatable apps: ${err.message}` });
+  }
+  if (vaultKeys[appId] !== vaultKey) {
+    return res.status(400).json({
+      error: `vaultKey ${vaultKey} is not the rotatable vault key for application ${appId}`,
+    });
+  }
 
   fs.mkdirSync(RUN_DIR, { recursive: true });
   const runId = crypto.randomUUID();
   const logPath = path.join(RUN_DIR, `${runId}.log`);
+  // The operator-typed justification is the run's audit trail — an
+  // irreversible action that asks for a reason and drops it is worse than not
+  // asking. Written first, before the child can append anything. It is not a
+  // secret, so it is logged verbatim.
+  fs.writeFileSync(logPath, `[rotate] reason: ${String(reason || '(none given)').trim()}\n`);
   const out = fs.openSync(logPath, 'a');
 
   const argv = [path.join(REPO_ROOT, 'scripts/rotate-app-secret.js'),
@@ -56,6 +90,24 @@ router.post('/start', (req, res) => {
   res.status(202).json({ runId });
 });
 
+/**
+ * Status comes from the CLI's single terminal sentinel, never from guessing at
+ * words in the log. The old substring match ("verified", "VERIFY FAILED",
+ * "Error") matched none of the preflight refusal messages, so a correctly
+ * refused rotation polled as 'running' forever while the page showed a mask for
+ * a secret that was never touched.
+ *
+ * 'aborted' is distinct from 'failed' on purpose: it means nothing changed.
+ */
+function statusFrom(lines) {
+  for (const line of lines) {
+    if (line.includes('[rotate] DONE ok')) return 'done';
+    if (line.includes('[rotate] DONE failed')) return 'failed';
+    if (line.includes('[rotate] DONE aborted')) return 'aborted';
+  }
+  return 'running';
+}
+
 router.get('/runs/:runId', (req, res) => {
   if (!/^[0-9a-f-]{36}$/.test(req.params.runId)) {
     return res.status(400).json({ error: 'invalid runId' });
@@ -63,9 +115,7 @@ router.get('/runs/:runId', (req, res) => {
   const logPath = path.join(RUN_DIR, `${req.params.runId}.log`);
   if (!fs.existsSync(logPath)) return res.status(404).json({ error: 'run not found' });
   const lines = fs.readFileSync(logPath, 'utf8').split('\n').filter(Boolean);
-  const done = lines.some((l) => /verified|VERIFY FAILED|Error/.test(l));
-  const failed = lines.some((l) => /VERIFY FAILED|Error/.test(l));
-  res.json({ status: failed ? 'failed' : (done ? 'done' : 'running'), lines });
+  res.json({ status: statusFrom(lines), lines });
 });
 
 module.exports = router;
