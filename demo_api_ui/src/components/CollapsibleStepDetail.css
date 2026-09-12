@@ -21,6 +21,7 @@
 
 .csd-summary:hover {
   background: var(--th-bg-hover);
+  color: var(--th-text);
   border-color: var(--th-border-strong);
 }
 
