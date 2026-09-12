@@ -142,6 +142,70 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-12 — Final-review hardening pass on the A2A hop (4 Important findings + 2 smaller)
+
+**Files changed:** `demo_api_server/services/a2aProtocolServer.js`,
+`services/a2aProtocolClient.js`. Tests: `tests/a2aSpecialistExecutor.test.js`,
+`src/__tests__/a2aProtocolClient.test.js`. UI: `demo_api_ui/src/data/a2aRecordedRun.js`,
+`src/components/InterAgentAbuseTester.jsx`.
+
+**What was broken:**
+- `publishReply` serialized the specialist's whole `toolResult` verbatim into the
+  A2A reply; on an `mcp_error` the upstream `message` field could carry a
+  JWT-shaped string, and the docblock claimed that "can never" happen with
+  nothing in the function backing that claim.
+- `maybeServeLocally` keyed the local-dispatch `userId` off
+  `ctx.req.session.user.id` before `ctx.claims?.sub`. The HTTP A2A mount runs
+  `sessionMiddleware` but not `authenticateToken`, so the attached session can
+  belong to an unrelated caller while `claims.sub` is the subject the bearer
+  gate (`verifyA2aBearer`) actually validated — preferring session could serve
+  a PERMITted call's data to the wrong user.
+- `a2aProtocolClient.js`'s `finishHop` set `protocolResponse.ok: !chainFailure`
+  while the same event's `status` was `'failed'` for ANY `toolError` — a plain
+  tool error that isn't one of `CHAIN_FAILURES` rendered `status:'failed'`
+  beside `protocolResponse.ok:true`.
+- The UI's `a2aRecordedRun.js` replay fixture's `a2a-protocol-bearer` event
+  described a `client_credentials` bearer; the live code now sends the
+  Exchange #1 delegated token on that leg.
+- `InterAgentAbuseTester.jsx`'s comment said the wire gate checks
+  signature/issuer/client_id only; `verifyA2aBearer` actually checks six things
+  (sig/iss/exp, audience, scope, act depth, actor, subject). Its response
+  parsing read `b?.message` before `b?.error`, though the gate only ever sends
+  `{ error }`.
+
+**What was fixed:**
+- `publishReply` now passes `result` through `redactValue` (`utils/logRedact.js`)
+  before serializing; the docblock states the guarantee comes from that pass,
+  not from the tool pipeline's own error paths being token-free on their own.
+- `maybeServeLocally`'s `userId` now prefers `ctx.claims?.sub`, falling back to
+  `ctx.req?.session?.user?.id` only when claims is absent.
+- `protocolResponse.ok` is now `!toolError` (chainFailure only ever fires when
+  toolError does, so this is a strict widening of the failure case, not a
+  behavior change for the existing chain-failure case).
+- Rewrote the `a2a-protocol-bearer` fixture event to a genuinely delegated
+  bearer (`sub` = the user, `act.sub` = the generalist, `aud`/`scope` = the
+  sporting-goods vertical's real `a2a-intermediate-membership.ping.demo` /
+  `agent:invoke:membership`), cross-checked against the same fixture's
+  `a2a-exchange1`/`a2a-exchange2` events for the same generalist client id.
+- Rewrote the stale comment in `InterAgentAbuseTester.jsx` to the six real
+  checks and noted its two probes only exercise check 1 (signature). Swapped
+  its response-parsing precedence to read `error` before `message`.
+
+**Do not break:**
+- `publishReply`'s redaction applies to every caller, not just the mcp_error
+  path — don't bypass it by constructing the reply text by hand elsewhere.
+- The in-process UC2 path (where `claims.sub` and `session.user.id` are already
+  the same user) is unaffected by the precedence swap.
+- `protocolResponse.ok` must keep tracking `toolError`, not `chainFailure` — a
+  future edit reintroducing `!chainFailure` reopens this exact contradiction.
+
+**Verify:**
+- `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/a2aSpecialistExecutor src/__tests__/a2aProtocolClient --forceExit`
+  — 17/17 pass, including 2 new cases (JWT redaction, mismatched session-vs-claims
+  identity) that fail before the fix.
+- `cd demo_api_ui && npm run test:unit && npm run build` — 534 files / 4119 tests
+  pass, build exits 0.
+
 ### 2026-09-11 — No-gateway A2A specialist calls could not complete
 
 **Files changed:** `demo_api_server/services/mcpToolPipeline.js`,
