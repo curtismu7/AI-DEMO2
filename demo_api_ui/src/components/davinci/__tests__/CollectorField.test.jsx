@@ -145,6 +145,20 @@ describe("CollectorField", () => {
     expect(screen.getByLabelText("Password")).toHaveAttribute("autocomplete", "new-password");
   });
 
+  it("seeds its displayed value from collector.input.value", () => {
+    // Half of the stale-value fix found by driving the live flow. The field
+    // shows what the SDK holds; the page supplies the other half by folding a
+    // step counter into the React key, so consecutive screens that reuse a
+    // collector id (the flow's sign-on and enter-username screens both send
+    // `username-0`) remount instead of keeping the previous screen's state.
+    const prefilled = {
+      ...textCollector,
+      input: { ...textCollector.input, value: "carried-forward" },
+    };
+    render(<CollectorField collector={prefilled} updater={() => null} />);
+    expect(screen.getByLabelText("Username")).toHaveValue("carried-forward");
+  });
+
   it("renders a VISIBLE fallback for an unsupported collector", () => {
     // The other silent-failure guard: a collector we cannot draw must not
     // render blank, or the flow appears to be missing a field.

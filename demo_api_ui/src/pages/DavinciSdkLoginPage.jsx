@@ -28,6 +28,12 @@ export default function DavinciSdkLoginPage() {
   const [message, setMessage] = useState(null);
   const [missing, setMissing] = useState(null);
   const [collectors, setCollectors] = useState([]);
+  // Bumped on every node transition and folded into each field's React key, so
+  // the inputs REMOUNT per screen. Without it, two consecutive screens that
+  // reuse a collector id (the flow's sign-on and "enter username" screens both
+  // send `username-0`) keep the previous screen's local state, showing a value
+  // the SDK does not hold. Caught driving the live flow, not by any unit test.
+  const [step, setStep] = useState(0);
   const [fieldErrors, setFieldErrors] = useState({});
   const [busy, setBusy] = useState(false);
 
@@ -47,6 +53,7 @@ export default function DavinciSdkLoginPage() {
   // its collectors — which is what lets the form re-render with complaints.
   const syncFromClient = useCallback((client, node) => {
     setCollectors(client.getCollectors?.() || []);
+    setStep((n) => n + 1);
     const errs = {};
     if (node?.status === "error") {
       for (const ec of client.getErrorCollectors?.() || []) {
@@ -212,7 +219,7 @@ export default function DavinciSdkLoginPage() {
             const key = c.output?.key ?? c.name ?? c.id;
             return (
               <CollectorField
-                key={c.id ?? key}
+                key={`${step}:${c.id ?? key}`}
                 collector={c}
                 updater={c.category === "ActionCollector" ? undefined : clientRef.current?.update(c)}
                 serverError={fieldErrors[key]}
