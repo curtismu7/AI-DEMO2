@@ -30,10 +30,27 @@ export default function SecretRotationPage() {
   const cancelledRef = useRef(false);
 
   useEffect(() => {
+    // A LOCAL `cancelled`, not `cancelledRef` — React StrictMode double-invokes
+    // this effect in dev (mount, synthetic unmount, remount). `cancelledRef` is
+    // a ref at component scope, so its cleanup-set `true` from the first,
+    // discarded invocation survives into the second, real one and is never
+    // reset — every fetch after that point is silently ignored by both `then`
+    // handlers, forever, on every single mount. A `let` declared inside the
+    // effect body is a fresh binding each time the effect re-runs, exactly
+    // like KillSwitchConfirmModal.jsx's `activeRuns` fetch, which this was
+    // meant to copy. See memory: StrictMode defeats useRef first-run guards.
+    // Also revive cancelledRef for this run: StrictMode's synthetic unmount
+    // (from the PREVIOUS invocation of this same effect) already set it true
+    // via the cleanup below, and nothing else ever resets it back — without
+    // this, poll()/startRotation() would stay permanently blocked too, since
+    // they gate on this same ref for the rest of the component's real life.
+    cancelledRef.current = false;
+    let cancelled = false;
     apiClient.get('/api/admin/secret-rotation/apps')
-      .then((r) => { if (!cancelledRef.current) setApps(r.data.apps || []); })
-      .catch(() => { if (!cancelledRef.current) setApps([]); });
+      .then((r) => { if (!cancelled) setApps(r.data.apps || []); })
+      .catch(() => { if (!cancelled) setApps([]); });
     return () => {
+      cancelled = true;
       cancelledRef.current = true;
       clearTimeout(timer.current);
     };
