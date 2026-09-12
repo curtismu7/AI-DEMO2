@@ -113,7 +113,10 @@
 }
 
 .srd-speed-select:focus {
-  outline: 2px solid var(--th-focus);
+  /* --th-focus is not a real token — an undefined custom property with no
+     fallback resolves to nothing, so this focus ring did not render at all.
+     --th-border-strong is what the sibling CollapsibleStepDetail.css uses. */
+  outline: 2px solid var(--th-border-strong);
   outline-offset: -1px;
 }
 
