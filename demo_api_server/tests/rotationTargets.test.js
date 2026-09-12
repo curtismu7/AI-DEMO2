@@ -5,7 +5,17 @@ const { servicesForVaultKey, applyRestart, applyK8sPatch } = require('../../scri
 describe('rotationTargets', () => {
   test('maps a vault key to the services that consume it', () => {
     expect(servicesForVaultKey('PINGONE_MCP_GATEWAY_CLIENT_SECRET'))
-      .toEqual(expect.arrayContaining(['demo-mcp-gateway']));
+      .toEqual(expect.arrayContaining(['mcp-gateway']));
+  });
+
+  test('uses the real compose service name, not the demo- prefixed guess', () => {
+    expect(servicesForVaultKey('PINGONE_MCP_GATEWAY_CLIENT_SECRET'))
+      .not.toEqual(expect.arrayContaining(['demo-mcp-gateway']));
+  });
+
+  test('TE_CLIENT_SECRET recreates both consumers: the BFF and ping-gateway', () => {
+    expect(servicesForVaultKey('TE_CLIENT_SECRET'))
+      .toEqual(expect.arrayContaining(['demo-api-server', 'ping-gateway']));
   });
 
   test('unknown key recreates the BFF, which reads every secret', () => {

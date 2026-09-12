@@ -8,8 +8,8 @@ const REPO_ROOT = path.join(__dirname, '..', '..');
 // Which compose services read which secret. The BFF is the catch-all because it
 // resolves every key through configStore.
 const SERVICE_MAP = {
-  PINGONE_MCP_GATEWAY_CLIENT_SECRET: ['demo-mcp-gateway', 'demo-api-server'],
-  TE_CLIENT_SECRET: ['demo-api-server'],
+  PINGONE_MCP_GATEWAY_CLIENT_SECRET: ['mcp-gateway', 'demo-api-server'],
+  TE_CLIENT_SECRET: ['demo-api-server', 'ping-gateway'],
 };
 
 function servicesForVaultKey(vaultKey) {
