@@ -73,6 +73,25 @@
   color: var(--th-text);
 }
 
+.srd-slow-btn {
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  padding: 0.2rem 0.4rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.srd-slow-btn:hover {
+  background: var(--th-bg-hover);
+}
+
+.srd-slow-btn--active {
+  background: var(--th-status-info-bg);
+  border-color: var(--th-status-info);
+}
+
 .srd-slow-badge {
   margin-left: auto;
   font-size: var(--font-size-3xs);
