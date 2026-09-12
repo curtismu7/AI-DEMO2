@@ -143,8 +143,10 @@ read the configured host. A new browser origin must be added to ALL of:
 ### 2026-09-12 — the first token exchange of a session undid a mode change
 
 **Files changed:** `demo_api_server/services/dpopKeyService.js`,
-`demo_api_server/services/mcpToolPipeline.js`, `demo_api_server/routes/oauth.js`,
-`demo_api_server/routes/oauthUser.js`, `demo_api_server/src/__tests__/dpopKeyService.test.js`.
+new `demo_api_server/services/sessionScopedCaches.js`, `demo_api_server/services/mcpToolPipeline.js`,
+`demo_api_server/services/tokenRefresh.js`, `demo_api_server/routes/oauth.js`,
+`demo_api_server/routes/oauthUser.js`, `demo_api_server/routes/admin.js`, `demo_api_server/server.js`,
+new `demo_api_server/tests/dpopSessionKey.test.js`, new `demo_api_server/tests/sessionScopedCaches.test.js`.
 
 **What was broken:** `getSessionDpopKey` minted the per-session ephemeral DPoP keypair straight onto
 `req.session.dpopKey` (get-or-create; `ff_dpop` is ON). That happens on the session's FIRST token
@@ -166,10 +168,13 @@ direct `req.session.dpopKey` read, preserving its "only when Phase A minted a ke
 reads or writes `session.dpopKey`; go through `getSessionDpopKey` / `peekSessionDpopKey` /
 `clearSessionDpopKey`, and the read path must never mint.
 
-**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest dpopKeyService webBotAuth mcpToolPipeline oauth logout --forceExit`
-— 50 suites / 507 passed; the one failure (`src/__tests__/oauth-scope-integration.test.js`, "401 for
-invalid OAuth tokens") passes alone 37/38 and is the known contention flake. The spec is 8/8, with 4 of
-the 5 new tests red first (session write, stability per session id, peek-never-mints, no-id → null).
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest dpopSessionKey sessionScopedCaches dpopKeyService webBotAuth mcpToolPipeline oauth logout admin --forceExit`
+— 91 suites / 810 passed. `tests/dpopSessionKey.test.js` is 7/7: four of its assertions were red against
+the old behaviour (the session write, stability per session id, peek-never-mints, no-id → null), and
+"peek counts as use" was red against this PR's own first cut — the 12h disuse sweep could evict a key the
+tool pipeline was still signing hops with, since that path only ever peeks (Greptile P1).
+`tests/sessionScopedCaches.test.js` pins that a clear drops only that session's entries and never throws
+on a missing or idless session.
 Live, and this is the part unit tests cannot show: `tests/e2e/first-exchange-dpop.real.spec.js` drives a
 headless BFF login with NO browser page, so no dashboard boot call can mint the key first and the
 spanning `/api/demo-agent/tools` IS the session's first exchange. Before the fix it REVERTED (switch at
