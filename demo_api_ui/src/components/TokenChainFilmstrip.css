@@ -332,32 +332,6 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
 
 .tcfs-title { font-size: var(--font-size-body); font-weight: 700; }
 
-.tcfs-dots {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--font-size-2xs);
-  font-weight: 600;
-  color: #cbd5e1;
-}
-
-.tcfs-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
-.tcfs-dot--user { background: #f472b6; }
-.tcfs-dot--agent { background: #c084fc; }
-.tcfs-dot--mcp { background: #34d399; }
-.tcfs-arrow { color: var(--th-text-muted); }
-
-.tcfs-badge {
-  background: #1d4ed8;
-  color: #ffffff;
-  font-size: 11.5px;
-  font-weight: 700;
-  border-radius: 999px;
-  padding: 2px 9px;
-}
-/* An errored run must not wear the same confident badge as a clean one. */
-.tcfs-badge--error { background: #b91c1c; }
-
 .tcfs-actions {
   margin-left: auto;
   display: flex;

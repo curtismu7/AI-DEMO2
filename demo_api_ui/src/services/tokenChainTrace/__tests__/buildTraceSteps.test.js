@@ -1,4 +1,4 @@
-import { buildTraceSteps, buildRunStory, buildGatewayStages, chainBadge } from "../buildTraceSteps";
+import { buildTraceSteps, buildRunStory, buildGatewayStages } from "../buildTraceSteps";
 import { hasPopoutWorthyDetail } from "../../../components/TraceStepCard";
 
 const EMPTY_TRACE = {
@@ -1122,37 +1122,6 @@ describe("buildRunStory — L0 strip", () => {
   });
 });
 
-describe("chainBadge — an errored run must not wear the clean badge", () => {
-  test("a clean run reads CHAINED", () => {
-    const steps = buildTraceSteps({ ...EMPTY_TRACE, outcome: "ok", prompt: { message: "show my balance" } });
-    expect(chainBadge({ ...EMPTY_TRACE, outcome: "ok", prompt: { message: "show my balance" } }, steps))
-      .toEqual({ label: "CHAINED", tone: "ok" });
-  });
-
-  test("a run with an error step stops claiming CHAINED", () => {
-    const badge = chainBadge(
-      { ...EMPTY_TRACE, outcome: "error", prompt: { message: "transfer $300" } },
-      [{ id: "mcp-call", title: "MCP", status: "error" }],
-    );
-    expect(badge).toEqual({ label: "RUN ERROR", tone: "error" });
-  });
-
-  test("an EXPECTED deny is the control working, so the badge stays CHAINED", () => {
-    const trace = {
-      ...EMPTY_TRACE,
-      outcome: "ok",
-      prompt: { message: "transfer $9000" },
-      mcpResult: { denied: true, expected: true },
-    };
-    expect(chainBadge(trace, [{ id: "mcp-call", title: "MCP", status: "error" }]))
-      .toEqual({ label: "CHAINED", tone: "ok" });
-  });
-
-  test("no trace at all yields no error claim", () => {
-    expect(chainBadge(EMPTY_TRACE, [])).toEqual({ label: "CHAINED", tone: "ok" });
-  });
-});
-
 describe("buildRunStory — missing decision is never dressed up as INDETERMINATE", () => {
   // INDETERMINATE is a real P1AZ verdict ("could not evaluate", fail-closed
   // since #1310). A trace whose authorize slot has no decision recorded must
@@ -1402,12 +1371,6 @@ describe("buildTraceSteps — approval gate pause is not a failed run", () => {
     expect(story.headline).not.toMatch(/error/i);
   });
 
-  test("badge stays CHAINED while the gate holds", () => {
-    const trace = pausedTrace();
-    expect(chainBadge(trace, buildTraceSteps(trace)))
-      .toEqual({ label: "CHAINED", tone: "ok" });
-  });
-
   test("a declined gate says so rather than claiming the run is still waiting", () => {
     const trace = pausedTrace({ approvalOutcome: "declined" });
     const story = buildRunStory(trace, buildTraceSteps(trace));
@@ -1422,12 +1385,6 @@ describe("buildTraceSteps — approval gate pause is not a failed run", () => {
     expect(buildRunStory(trace, steps).outcome).toBe("ok");
     expect(steps.find((s) => s.id === "mcp").status).toBe("notinpath");
     expect(steps.find((s) => s.id === "mcp").detail.why).toMatch(/never ran .* was refused/);
-  });
-
-  test("a declined gate keeps the badge green — the control did its job", () => {
-    const trace = pausedTrace({ approvalOutcome: "declined" });
-    expect(chainBadge(trace, buildTraceSteps(trace)))
-      .toEqual({ label: "CHAINED", tone: "ok" });
   });
 
   test("a HITL obligation is named as human approval, not step-up", () => {
