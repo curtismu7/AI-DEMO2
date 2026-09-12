@@ -166,6 +166,7 @@ describe('requireA2aPingOneBearer', () => {
     const res = mockRes();
     await requireA2aPingOneBearer('investment')({ headers: {} }, res, () => {});
     expect(res.statusCode).toBe(401);
+    expect(res.headers['WWW-Authenticate']).toBe('Bearer error="invalid_token"');
     expect(validateToken).not.toHaveBeenCalled();
   });
 
@@ -211,6 +212,7 @@ describe('requireA2aPingOneBearer', () => {
     });
     expect(nextCalled).toBe(false);
     expect(res.statusCode).toBe(401);
+    expect(res.headers['WWW-Authenticate']).toBe('Bearer error="invalid_token"');
     expect(req.a2aPingOne).toBeUndefined();
   });
 });

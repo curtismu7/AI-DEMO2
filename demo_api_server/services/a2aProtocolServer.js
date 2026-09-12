@@ -7,7 +7,7 @@
  * subsystem, not a feature.
  */
 
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 const express = require('express');
 const { Role } = require('@a2a-js/sdk');
 const {

@@ -7,8 +7,10 @@
  * act = the generalist, audience = this one specialist's intermediate resource.
  * A bare client_credentials token is rejected — it proves no user.
  *
- * Both the HTTP route and the in-process client call verifyA2aBearer, so there
- * is no path into a specialist that skips authentication.
+ * Today, only the HTTP route (services/a2aProtocolServer.js, via
+ * requireA2aPingOneBearer) enforces this. services/a2aProtocolClient.js's
+ * in-process path does not yet call verifyA2aBearer — wiring it there is a
+ * later task, not done here. Until that lands, the in-process path is a gap.
  */
 
 const { validateToken } = require('../services/tokenValidationService');

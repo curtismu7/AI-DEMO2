@@ -35,10 +35,14 @@ function run(claims, cfg = fakeCfg()) {
   return verifyA2aBearer('header.payload.sig', { vertical: VERTICAL, cfg });
 }
 
-async function expectRejection(claims, { code, status }, cfg) {
-  await expect(run(claims, cfg)).rejects.toMatchObject({ code, status });
+async function expectRejection(claims, { code, status, challenge }, cfg) {
+  const expected = { code, status };
+  if (challenge) expected.challenge = challenge;
+  await expect(run(claims, cfg)).rejects.toMatchObject(expected);
   await expect(run(claims, cfg)).rejects.toBeInstanceOf(A2aAuthError);
 }
+
+const INVALID_TOKEN_CHALLENGE = 'Bearer error="invalid_token"';
 
 describe('verifyA2aBearer', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -52,13 +56,13 @@ describe('verifyA2aBearer', () => {
     validateToken.mockRejectedValueOnce(new Error('signature verification failed'));
     await expect(
       verifyA2aBearer('bad.token.sig', { vertical: VERTICAL, cfg: fakeCfg() }),
-    ).rejects.toMatchObject({ code: 'invalid_token', status: 401 });
+    ).rejects.toMatchObject({ code: 'invalid_token', status: 401, challenge: INVALID_TOKEN_CHALLENGE });
   });
 
   test('rejects a token audienced to a DIFFERENT specialist', async () => {
     await expectRejection(
       { ...GOOD_CLAIMS, aud: ['https://a2a-intermediate.tax.example'] },
-      { code: 'invalid_token', status: 401 },
+      { code: 'invalid_token', status: 401, challenge: INVALID_TOKEN_CHALLENGE },
     );
   });
 
@@ -71,20 +75,20 @@ describe('verifyA2aBearer', () => {
 
   test('rejects a bare client_credentials token (no act, so no user behind it)', async () => {
     const { act, ...noAct } = GOOD_CLAIMS;
-    await expectRejection(noAct, { code: 'invalid_token', status: 401 });
+    await expectRejection(noAct, { code: 'invalid_token', status: 401, challenge: INVALID_TOKEN_CHALLENGE });
   });
 
   test('rejects an Exchange #2 token replayed into the hop (act nested two deep)', async () => {
     await expectRejection(
       { ...GOOD_CLAIMS, act: { client_id: 'specialist-client-id', act: { client_id: GENERALIST } } },
-      { code: 'invalid_token', status: 401 },
+      { code: 'invalid_token', status: 401, challenge: INVALID_TOKEN_CHALLENGE },
     );
   });
 
   test('rejects an actor that is not the generalist', async () => {
     await expectRejection(
       { ...GOOD_CLAIMS, act: { client_id: 'some-other-agent' } },
-      { code: 'invalid_token', status: 401 },
+      { code: 'invalid_token', status: 401, challenge: INVALID_TOKEN_CHALLENGE },
     );
   });
 
