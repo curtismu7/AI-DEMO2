@@ -96,6 +96,11 @@
 }
 
 .srd-speed-select {
+  /* A global `select, input, textarea { width: 100% }` wins otherwise, and the
+     control stretches to ~940px to show "2.6s (default)". */
+  width: auto;
+  max-width: 150px;
+  flex: 0 0 auto;
   background: var(--th-bg-card);
   color: var(--th-text);
   border: 1px solid var(--th-border-strong);
