@@ -18,6 +18,7 @@ export default function SecretRotationPage() {
   const [apps, setApps] = useState([]);
   const [selected, setSelected] = useState(null);
   const [confirming, setConfirming] = useState(false);
+  const [armed, setArmed] = useState(false);
   const [reason, setReason] = useState('');
   const [lines, setLines] = useState([]);
   const [status, setStatus] = useState('idle');
@@ -39,6 +40,7 @@ export default function SecretRotationPage() {
 
   function closeConfirm() {
     setConfirming(false);
+    setArmed(false);
     setReason('');
   }
 
@@ -52,6 +54,7 @@ export default function SecretRotationPage() {
       k8s: false,
       reason,
     });
+    setArmed(false);
     setReason('');
     poll(data.runId);
   }
@@ -102,9 +105,19 @@ export default function SecretRotationPage() {
             </p>
             <label htmlFor="sr-reason">Reason</label>
             <input id="sr-reason" value={reason} onChange={(e) => setReason(e.target.value)} />
-            <button type="button" className="sr-danger" onClick={startRotation}>
-              Yes, rotate
-            </button>
+            {!armed ? (
+              <button
+                type="button"
+                disabled={!reason.trim()}
+                onClick={() => setArmed(true)}
+              >
+                I understand — arm rotation
+              </button>
+            ) : (
+              <button type="button" className="sr-danger" onClick={startRotation}>
+                Yes, rotate
+              </button>
+            )}
           </div>
         </DraggableModal>
       )}
