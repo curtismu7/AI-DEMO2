@@ -40,6 +40,7 @@ import TokenChainFilmstrip from "./TokenChainFilmstrip";
 import ReelDock from "./ReelDock";
 import SequenceReelDiagram from "./SequenceReelDiagram";
 import StepDetailPanel from "./StepDetailPanel";
+import CollapsibleStepDetail from "./CollapsibleStepDetail";
 import SimpleStepperBar from "./SimpleStepperBar";
 import AgentResponseMirror from "./AgentResponseMirror";
 import ExchangeModeToggle from "./ExchangeModeToggle";
@@ -3623,7 +3624,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           )}
           {showSequenceDiagram && selectedSeqStep && (
             <div className="ud-sequence-detail-row">
-              <StepDetailPanel step={selectedSeqStep} />
+              <CollapsibleStepDetail step={selectedSeqStep} />
             </div>
           )}
         </div>
@@ -3769,7 +3770,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           )}
           {showSequenceDiagram && selectedSeqStep && (
             <div className="ud-sequence-detail-row">
-              <StepDetailPanel step={selectedSeqStep} />
+              <CollapsibleStepDetail step={selectedSeqStep} />
             </div>
           )}
         </div>
@@ -3843,7 +3844,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           )}
           {showSequenceDiagram && selectedSeqStep && (
             <div className="ud-sequence-detail-row">
-              <StepDetailPanel step={selectedSeqStep} />
+              <CollapsibleStepDetail step={selectedSeqStep} />
             </div>
           )}
           </div>
