@@ -28,7 +28,6 @@ export default function DavinciSdkLoginPage() {
   const [message, setMessage] = useState(null);
   const [missing, setMissing] = useState(null);
   const [collectors, setCollectors] = useState([]);
-  const [values, setValues] = useState({});
   const [fieldErrors, setFieldErrors] = useState({});
   const [busy, setBusy] = useState(false);
 
@@ -126,7 +125,6 @@ export default function DavinciSdkLoginPage() {
         setPhase("failed");
         return;
       }
-      setValues({});
       syncFromClient(client, node);
       setPhase("collecting");
     } catch (err) {
@@ -143,21 +141,9 @@ export default function DavinciSdkLoginPage() {
     setBusy(true);
     setMessage(null);
     try {
-      // Write every collected value through its updater. NEVER by assignment —
-      // the SDK state is frozen and assignment is a silent no-op. The updater
-      // returns an error object that has to be checked.
-      const writeErrors = {};
-      for (const c of client.getCollectors?.() || []) {
-        const key = c.output?.key ?? c.name;
-        if (c.category === "ActionCollector" || !(key in values)) continue;
-        const err = client.update(c)(values[key]);
-        if (err && "error" in err) writeErrors[key] = err.error?.message || "Could not accept this value.";
-      }
-      if (Object.keys(writeErrors).length) {
-        setFieldErrors(writeErrors);
-        return;
-      }
-
+      // Values are already in the SDK: each field wrote through its updater on
+      // change (Ping's own sample does the same), so there is nothing to
+      // collect here and no submit-time loop that could miss a collector.
       const node = await client.next();
       if (node?.status === "success") {
         await finish(client);
@@ -169,7 +155,6 @@ export default function DavinciSdkLoginPage() {
         return;
       }
       // 'continue' and 'error' both re-render; 'error' carries field messages.
-      setValues({});
       syncFromClient(client, node);
       setPhase("collecting");
     } catch (err) {
@@ -178,7 +163,7 @@ export default function DavinciSdkLoginPage() {
     } finally {
       setBusy(false);
     }
-  }, [values, finish, syncFromClient]);
+  }, [finish, syncFromClient]);
 
   return (
     <div className="dvsdk-page">
@@ -229,10 +214,9 @@ export default function DavinciSdkLoginPage() {
               <CollectorField
                 key={c.id ?? key}
                 collector={c}
-                value={values[key]}
-                error={fieldErrors[key]}
+                updater={c.category === "ActionCollector" ? undefined : clientRef.current?.update(c)}
+                serverError={fieldErrors[key]}
                 busy={busy}
-                onChange={(v) => setValues((prev) => ({ ...prev, [key]: v }))}
                 onSubmit={submit}
                 onFlow={() => takeFlow(c)}
               />

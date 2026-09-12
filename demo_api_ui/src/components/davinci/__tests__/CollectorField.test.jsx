@@ -5,9 +5,9 @@
 // PasswordCollector `password`, SubmitCollector `SIGNON`, and FlowCollectors
 // `REGISTER` and `TROUBLE`.
 //
-// The load-bearing tests are the two silent-failure ones: that a value is
-// written through the updater and never by assignment, and that an unknown
-// collector renders something visible rather than nothing.
+// The load-bearing tests are the silent-failure ones: that values reach the SDK
+// through the updater rather than by assignment, that an updater rejection is
+// surfaced, and that an unknown collector renders something visible.
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import CollectorField, { SUPPORTED_COLLECTORS } from "../CollectorField";
@@ -15,43 +15,41 @@ import CollectorField, { SUPPORTED_COLLECTORS } from "../CollectorField";
 const textCollector = {
   category: "SingleValueCollector",
   type: "TextCollector",
-  id: "email-1",
-  name: "email",
+  id: "username-0",
+  name: "username",
   error: null,
-  input: { key: "email", value: "", type: "TEXT" },
-  output: { key: "email", label: "Email", type: "TEXT", value: "" },
+  input: { key: "username", value: "", type: "TEXT" },
+  output: { key: "username", label: "Username", type: "TEXT", value: "" },
 };
 
 const validatedTextCollector = {
   ...textCollector,
   category: "ValidatedSingleValueCollector",
-  id: "email-2",
+  id: "username-v",
   input: { ...textCollector.input, validation: [{ type: "REQUIRED" }] },
 };
 
 const passwordCollector = {
   category: "SingleValueCollector",
   type: "PasswordCollector",
-  id: "pw-1",
+  id: "password-1",
   name: "password",
   error: null,
   input: { key: "password", value: "", type: "PASSWORD" },
-  // Note: no output.value — PasswordCollector deliberately omits it.
+  // No output.value — PasswordCollector deliberately omits it. `verify` marks
+  // the confirm half of a password pair.
   output: { key: "password", label: "Password", type: "PASSWORD", verify: false },
 };
 
 const submitCollector = {
   category: "ActionCollector",
   type: "SubmitCollector",
-  id: "submit-1",
-  name: "buttonValue",
+  id: "SIGNON-2",
+  name: "SIGNON",
   error: null,
-  output: { key: "buttonValue", label: "Sign On", type: "SUBMIT_BUTTON" },
+  output: { key: "SIGNON", label: "Sign On", type: "SUBMIT_BUTTON" },
 };
 
-// Verbatim from a live run against the flow's sign-on screen (2026-09-12):
-// FlowCollector carries type FLOW_BUTTON and branches the flow rather than
-// submitting the form.
 const flowCollector = {
   category: "ActionCollector",
   type: "FlowCollector",
@@ -63,67 +61,74 @@ const flowCollector = {
 
 describe("CollectorField", () => {
   it("renders a TextCollector as a text input labelled from output.label", () => {
-    render(<CollectorField collector={textCollector} value="" onChange={() => {}} />);
-    const input = screen.getByLabelText("Email");
-    expect(input).toHaveAttribute("type", "text");
+    render(<CollectorField collector={textCollector} updater={() => null} />);
+    expect(screen.getByLabelText("Username")).toHaveAttribute("type", "text");
   });
 
   it("renders a PasswordCollector masked", () => {
-    render(<CollectorField collector={passwordCollector} value="" onChange={() => {}} />);
+    render(<CollectorField collector={passwordCollector} updater={() => null} />);
     expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
   });
 
-  it("reports the typed value upward instead of mutating the collector", () => {
+  it("writes through the updater and never mutates the collector", () => {
     // The silent-failure guard. SDK state is immer-frozen: assigning to
     // collector.input.value throws nothing, changes nothing, and fails only at
-    // submit with an empty field. The component must never write to the
-    // collector — it reports the value and the page routes it to the updater.
-    const onChange = vi.fn();
-    const frozen = Object.freeze({ ...textCollector, input: Object.freeze({ ...textCollector.input }) });
-    render(<CollectorField collector={frozen} value="" onChange={onChange} />);
+    // submit with an empty field. The updater is the only write path.
+    const updater = vi.fn(() => null);
+    const frozen = Object.freeze({
+      ...textCollector,
+      input: Object.freeze({ ...textCollector.input }),
+    });
+    render(<CollectorField collector={frozen} updater={updater} />);
 
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "ada@example.com" } });
+    fireEvent.change(screen.getByLabelText("Username"), { target: { value: "ada" } });
 
-    expect(onChange).toHaveBeenCalledWith("ada@example.com");
+    expect(updater).toHaveBeenCalledWith("ada");
     expect(frozen.input.value).toBe("");
   });
 
-  it("treats a validated text field by category, not by type", () => {
+  it("surfaces an updater rejection immediately, not at submit", () => {
+    // update() returns null on success or an internal_error object. Ignoring it
+    // discards the SDK's only report that the write did not land.
+    const updater = vi.fn(() => ({ error: { message: "Value not allowed" }, type: "internal_error" }));
+    render(<CollectorField collector={textCollector} updater={updater} />);
+
+    fireEvent.change(screen.getByLabelText("Username"), { target: { value: "!!" } });
+
+    expect(screen.getByText("Value not allowed")).toBeInTheDocument();
+    expect(screen.getByLabelText("Username")).toHaveAttribute("aria-invalid", "true");
+  });
+
+  it("marks a validated text field by category, not by type", () => {
     // ValidatedTextCollector has type 'TextCollector' with a different
     // category. Switching on type alone silently drops its validation rules.
-    render(<CollectorField collector={validatedTextCollector} value="" onChange={() => {}} />);
-    expect(screen.getByLabelText("Email")).toHaveAttribute("data-validated", "true");
+    render(<CollectorField collector={validatedTextCollector} updater={() => null} />);
+    expect(screen.getByLabelText("Username")).toHaveAttribute("data-validated", "true");
   });
 
   it("renders a SubmitCollector as a button that advances the flow", () => {
     const onSubmit = vi.fn();
     render(<CollectorField collector={submitCollector} onSubmit={onSubmit} />);
-    const btn = screen.getByRole("button", { name: "Sign On" });
-    fireEvent.click(btn);
+    fireEvent.click(screen.getByRole("button", { name: "Sign On" }));
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
-  it("does not offer a value channel for an action collector", () => {
+  it("gives an action collector no input and no updater", () => {
     // ActionCollectors carry no value; CollectorValueType resolves to never.
-    const onChange = vi.fn();
-    render(<CollectorField collector={submitCollector} onChange={onChange} onSubmit={() => {}} />);
-    expect(onChange).not.toHaveBeenCalled();
+    render(<CollectorField collector={submitCollector} onSubmit={() => {}} />);
     expect(screen.queryByRole("textbox")).toBeNull();
   });
 
   it("shows a per-field server error against the right field", () => {
-    render(
-      <CollectorField collector={passwordCollector} value="x" onChange={() => {}} error="Invalid credentials" />,
-    );
-    const input = screen.getByLabelText("Password");
-    expect(input).toHaveAttribute("aria-invalid", "true");
+    render(<CollectorField collector={passwordCollector} updater={() => null} serverError="Invalid credentials" />);
+    expect(screen.getByLabelText("Password")).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByText("Invalid credentials")).toBeInTheDocument();
   });
 
   it("routes a FlowCollector to onFlow, never to onSubmit", () => {
     // A FlowCollector branches the flow (client.flow) instead of submitting
-    // this screen. Wiring it to onSubmit would write values and call next(),
-    // submitting a half-filled form down the wrong path.
+    // this screen. Wiring it to onSubmit would submit the form down the wrong
+    // path.
     const onSubmit = vi.fn();
     const onFlow = vi.fn();
     render(<CollectorField collector={flowCollector} onSubmit={onSubmit} onFlow={onFlow} />);
@@ -132,6 +137,12 @@ describe("CollectorField", () => {
 
     expect(onFlow).toHaveBeenCalledTimes(1);
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("uses new-password autocomplete for the verify half of a password pair", () => {
+    const verify = { ...passwordCollector, output: { ...passwordCollector.output, verify: true } };
+    render(<CollectorField collector={verify} updater={() => null} />);
+    expect(screen.getByLabelText("Password")).toHaveAttribute("autocomplete", "new-password");
   });
 
   it("renders a VISIBLE fallback for an unsupported collector", () => {
