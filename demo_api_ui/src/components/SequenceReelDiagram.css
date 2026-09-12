@@ -1,10 +1,42 @@
 .srd-root {
-  overflow-x: auto;
   background: var(--th-bg-inset);
   color: var(--th-text);
   border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
   padding: 0.5rem;
+
+  /* Lane identity — 11 lanes grouped into 5 validated hue families (see
+     dataviz palette validation notes below); a lane's shade groups it with
+     its family, the hue tells the families apart. Status is layered on top
+     separately (motion, dash, weight) and never overrides these. */
+  --srd-color-browser: #2a78d6;
+  --srd-color-chat: color-mix(in oklab, #2a78d6 60%, white);
+  --srd-color-agent: #eb6834;
+  --srd-color-llm: color-mix(in oklab, #eb6834 60%, white);
+  --srd-color-mcp: #1baf7a;
+  --srd-color-gateway: color-mix(in oklab, #1baf7a 60%, white);
+  --srd-color-pingone: #eda100;
+  --srd-color-authz: color-mix(in oklab, #eda100 60%, white);
+  --srd-color-bff: #e87ba4;
+  --srd-color-api: color-mix(in oklab, #e87ba4 55%, white);
+  --srd-color-data: color-mix(in oklab, #e87ba4 30%, white);
+}
+
+/* Dark steps of the same 5 families — validated separately against the dark
+   surface (see validate_palette.js run notes), not an automatic flip.
+   Project rule: dark is [data-theme="dark"] only, never prefers-color-scheme. */
+:root[data-theme="dark"] .srd-root {
+  --srd-color-browser: #3987e5;
+  --srd-color-chat: color-mix(in oklab, #3987e5 75%, white);
+  --srd-color-agent: #d95926;
+  --srd-color-llm: color-mix(in oklab, #d95926 75%, white);
+  --srd-color-mcp: #199e70;
+  --srd-color-gateway: color-mix(in oklab, #199e70 75%, white);
+  --srd-color-pingone: #c98500;
+  --srd-color-authz: color-mix(in oklab, #c98500 75%, white);
+  --srd-color-bff: #d55181;
+  --srd-color-api: color-mix(in oklab, #d55181 65%, white);
+  --srd-color-data: color-mix(in oklab, #d55181 50%, white);
 }
 
 .srd-empty {
@@ -16,9 +48,71 @@
   border-radius: var(--radius-md);
 }
 
+.srd-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.srd-zoom-btn,
+.srd-zoom-reset {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+}
+
+.srd-zoom-btn:hover,
+.srd-zoom-reset:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.srd-slow-btn {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.srd-slow-btn:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.srd-slow-btn--active {
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+  border-color: var(--th-status-info);
+}
+
+.srd-slow-badge {
+  margin-left: auto;
+  font-size: var(--font-size-3xs);
+  font-weight: 600;
+  color: var(--th-status-info-text);
+  background: var(--th-status-info-bg);
+  border: 1px solid var(--th-status-info-border);
+  border-radius: var(--radius-pill);
+  padding: 0.15rem 0.55rem;
+}
+
+.srd-scroll {
+  overflow-x: auto;
+}
+
 .srd-svg {
   display: block;
-  width: 100%;
   height: auto;
 }
 
@@ -29,7 +123,7 @@
 
 .srd-actor-label {
   fill: var(--th-text);
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -41,54 +135,165 @@
 .srd-note-box {
   fill: var(--th-bg-page);
   stroke: var(--th-border);
+  cursor: pointer;
 }
 
 .srd-note-label,
 .srd-arrow-label {
   fill: var(--th-text-muted);
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .srd-arrow {
   stroke: var(--th-border-strong);
-  stroke-width: 1.25;
+  stroke-width: 2.5;
+  cursor: pointer;
 }
 
 .srd-arrowhead-fill {
   fill: var(--th-border-strong);
 }
 
+.srd-selected .srd-arrow,
+.srd-selected .srd-note-box {
+  stroke-width: 2.5;
+}
+
+.srd-selected .srd-note-box {
+  fill: var(--th-bg-hover);
+}
+
+/* Status — structural/motion cues layered on top of the lane color, never a
+   color override (that would cancel "each step is a different color"). */
 .srd-status-active .srd-arrow,
 .srd-status-active .srd-note-box {
-  stroke: var(--th-status-info);
+  stroke-width: 2.25;
 }
 
 .srd-status-active .srd-arrow-label,
 .srd-status-active .srd-note-label {
-  fill: var(--th-status-info-text);
   font-weight: 700;
 }
 
-.srd-status-active .srd-arrowhead-fill {
+.srd-active-dot {
   fill: var(--th-status-info);
 }
 
-.srd-status-done .srd-arrow,
-.srd-status-done .srd-note-box {
-  stroke: var(--th-status-success);
+.srd-active-pulse {
+  fill: none;
+  stroke: var(--th-status-info);
+  stroke-width: 2;
+  animation: srd-pulse 1.4s ease-out infinite;
 }
 
-.srd-status-done .srd-arrow-label,
-.srd-status-done .srd-note-label {
-  fill: var(--th-status-success-text);
+@keyframes srd-pulse {
+  0% {
+    r: 6;
+    opacity: 0.9;
+  }
+  100% {
+    r: 16;
+    opacity: 0;
+  }
 }
 
 .srd-status-error .srd-arrow,
 .srd-status-error .srd-note-box {
-  stroke: var(--th-status-error);
+  stroke-dasharray: 4 2;
 }
 
 .srd-status-error .srd-arrow-label,
 .srd-status-error .srd-note-label {
   fill: var(--th-status-error-text);
+  font-weight: 700;
+}
+
+/* Lane identity — the mark (box/line/arrowhead) carries the color; labels
+   stay in ink above so color is never the only signal for a lane's name. */
+.srd-lane-browser .srd-note-box,
+.srd-lane-browser .srd-arrow {
+  stroke: var(--srd-color-browser);
+}
+.srd-lane-browser.srd-arrowhead-fill {
+  fill: var(--srd-color-browser);
+}
+
+.srd-lane-chat .srd-note-box,
+.srd-lane-chat .srd-arrow {
+  stroke: var(--srd-color-chat);
+}
+.srd-lane-chat.srd-arrowhead-fill {
+  fill: var(--srd-color-chat);
+}
+
+.srd-lane-agent .srd-note-box,
+.srd-lane-agent .srd-arrow {
+  stroke: var(--srd-color-agent);
+}
+.srd-lane-agent.srd-arrowhead-fill {
+  fill: var(--srd-color-agent);
+}
+
+.srd-lane-llm .srd-note-box,
+.srd-lane-llm .srd-arrow {
+  stroke: var(--srd-color-llm);
+}
+.srd-lane-llm.srd-arrowhead-fill {
+  fill: var(--srd-color-llm);
+}
+
+.srd-lane-mcp .srd-note-box,
+.srd-lane-mcp .srd-arrow {
+  stroke: var(--srd-color-mcp);
+}
+.srd-lane-mcp.srd-arrowhead-fill {
+  fill: var(--srd-color-mcp);
+}
+
+.srd-lane-gateway .srd-note-box,
+.srd-lane-gateway .srd-arrow {
+  stroke: var(--srd-color-gateway);
+}
+.srd-lane-gateway.srd-arrowhead-fill {
+  fill: var(--srd-color-gateway);
+}
+
+.srd-lane-pingone .srd-note-box,
+.srd-lane-pingone .srd-arrow {
+  stroke: var(--srd-color-pingone);
+}
+.srd-lane-pingone.srd-arrowhead-fill {
+  fill: var(--srd-color-pingone);
+}
+
+.srd-lane-authz .srd-note-box,
+.srd-lane-authz .srd-arrow {
+  stroke: var(--srd-color-authz);
+}
+.srd-lane-authz.srd-arrowhead-fill {
+  fill: var(--srd-color-authz);
+}
+
+.srd-lane-bff .srd-note-box,
+.srd-lane-bff .srd-arrow {
+  stroke: var(--srd-color-bff);
+}
+.srd-lane-bff.srd-arrowhead-fill {
+  fill: var(--srd-color-bff);
+}
+
+.srd-lane-api .srd-note-box,
+.srd-lane-api .srd-arrow {
+  stroke: var(--srd-color-api);
+}
+.srd-lane-api.srd-arrowhead-fill {
+  fill: var(--srd-color-api);
+}
+
+.srd-lane-data .srd-note-box,
+.srd-lane-data .srd-arrow {
+  stroke: var(--srd-color-data);
+}
+.srd-lane-data.srd-arrowhead-fill {
+  fill: var(--srd-color-data);
 }

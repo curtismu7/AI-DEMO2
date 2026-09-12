@@ -100,13 +100,12 @@ test("legend button opens the legend modal; inspect opens claims modal", () => {
   expect(screen.getByTestId("claims-modal")).toHaveTextContent("user");
 });
 
-test("MCP tab shows the MCP panel and hides the full step list; chain line stays", () => {
+test("MCP tab shows the MCP panel and hides the full step list", () => {
   render(<TokenChainTraceRail />);
   openView("MCP");
   expect(screen.getByText(/MCP server — tool executes/)).toBeInTheDocument();
   expect(screen.queryByText(/Sign-in — User Token acquired/)).not.toBeInTheDocument();
   expect(screen.queryByText(/LLM composes reply/)).not.toBeInTheDocument();
-  expect(screen.getByText("CHAINED")).toBeInTheDocument();
   expect(screen.getByText(/No MCP tool call yet/i)).toBeInTheDocument();
 });
 

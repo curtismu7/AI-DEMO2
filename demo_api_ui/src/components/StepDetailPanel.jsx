@@ -112,8 +112,9 @@ function splitPayload(text) {
   }
 }
 
-/** A payload, open. JSON stays the default view — it is the evidence this rail
- *  exists to show — with Form one click away for reading it off a projector. */
+/** A payload, open. Form is the default view: this rail is read off a projector
+ *  at the back of a room, where labelled rows land and a raw blob does not. JSON
+ *  is one click away and is still the whole, unedited payload. */
 function Payload({ label, title, text }) {
   const split = splitPayload(text);
   return (
@@ -124,7 +125,7 @@ function Payload({ label, title, text }) {
         <FormJsonToggle
           value={split.json}
           ariaLabel={`${label} view`}
-          defaultView="json"
+          defaultView="form"
           jsonView={<pre className="sdp-pre">{text}</pre>}
         >
           {/* The transport line above the body is not a JSON leaf, so the

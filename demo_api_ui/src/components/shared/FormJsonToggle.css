@@ -22,7 +22,7 @@
 .fjt-switch button {
   border: 0;
   padding: 2px 10px;
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-sm);
   font-weight: 600;
   line-height: 1.6;
   cursor: pointer;
@@ -67,7 +67,7 @@
 .fjt-form dd {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-sm);
   overflow-wrap: anywhere;
 }
 
@@ -88,7 +88,7 @@
   color: var(--th-code-text);
   /* monospace: raw JSON payload */
   font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-sm);
   white-space: pre-wrap;
   overflow-x: auto;
 }

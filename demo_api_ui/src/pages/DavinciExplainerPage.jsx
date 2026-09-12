@@ -2,7 +2,7 @@
 // DaVinci or BFF calls, so it works even before the console setup in
 // docs/superpowers/specs/2026-08-17-davinci-orchestration-showcase-design.md's
 // Task 1 is done. Reached from the agent header's More menu when "DaVinci Mode"
-// is on (see AIAgent.js). Optional CTA links to the live widget demo (/davinci-login).
+// is on (see AIAgent.js). Optional CTA links to the live widget demo (/davinci-login-guide).
 //
 // Visual design ported from the approved mockup (davinci-explainer-mock.html):
 // a breadcrumb "shell" bar, a bordered comparison matrix with a highlighted
@@ -167,7 +167,7 @@ export default function DavinciExplainerPage() {
 
         <section>
           <div className="cta-row">
-            <a className="btn-primary" href="/davinci-login">
+            <a className="btn-primary" href="/davinci-login-guide">
               See the live widget login demo
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14M13 6l6 6-6 6" />

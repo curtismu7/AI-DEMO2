@@ -157,7 +157,7 @@
 /* Form view only: the transport line that sits above the JSON body. */
 .sdp-payload-head {
   font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-sm);
   color: var(--th-text-muted);
   margin-bottom: 4px;
   white-space: pre-wrap;
@@ -167,7 +167,11 @@
   margin: 0;
   /* monospace: raw HTTP request/response payloads */
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  /* This is the JSON half of the Form/JSON switch (StepDetailPanel passes it as
+     `jsonView`), so it has to match the Form half's size — at 11.5px the same
+     payload shrank when you flipped to JSON. Off the literal and onto the scale
+     while here, per THEMING.md. */
+  font-size: var(--font-size-sm);
   line-height: 1.45;
   color: var(--th-text);
   background: var(--th-bg-card);

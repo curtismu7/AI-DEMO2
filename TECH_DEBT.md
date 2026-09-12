@@ -16,6 +16,71 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-12 — DaVinci widget login has no live flow trace
+
+**What's wrong.** `/davinci-login-guide` documents the flow with a static
+mermaid diagram (fixed source, not driven by a real run). The repo's live
+step-by-step trace pattern (`AgentFlowDiagramPanel` / `stepReplay.js`, driven
+by `services/agentFlowDiagramService.js`) replays real request/response events
+off `TokenChainContext`/`ExchangeModeContext` — the DaVinci widget flow
+(`routes/davinciLogin.js`, `DavinciLoginPage.jsx`) doesn't emit any events into
+that service today, so an actual widget run can't be replayed the same way.
+
+**Why it wasn't fixed now.** Scoped as a deliberate follow-up (bounded static
+lesson now, live trace later) rather than wiring new instrumentation into the
+widget flow in the same change.
+
+**Real fix.** Emit step events from `/sdk-token` and `/callback` (and the
+widget's `successCallback`/`errorCallback`) into `agentFlowDiagramService`,
+then render them via `AgentFlowDiagramPanel` alongside or instead of the
+static diagram on the guide page.
+
+### [ ] 2026-09-12 — Secret Rotation page: preflight doesn't check vault writability, and one staleness exemption is unbounded
+
+**What's wrong.** Three gaps left open after the Secret Rotation admin tool
+(`demo_api_ui/src/pages/SecretRotationPage.jsx`, `scripts/rotate-app-secret.js`)
+shipped, all found during its own review cycle:
+
+1. `rotate-app-secret.js`'s `preflight()` proves the vault file exists and
+   decrypts (via `openVault`), never that it's *writable*. If `/repo` (the
+   BFF container's bind mount of `secrets.vault`) were ever remounted `:ro`,
+   the same class of failure this preflight exists to prevent would return —
+   the irreversible PingOne rotate would succeed, then the vault write would
+   fail with the new secret unrecoverable. Fix: `fs.accessSync(vaultPath,
+   fs.constants.W_OK)` on both the vault file and its directory (the atomic
+   write's temp file lands in the directory) inside `preflight()`.
+2. `demo_api_server/scripts/refresh-service-envs.js`'s `loadVaultSecrets`
+   requires `lib/vault` via `path.join(API_ROOT, 'lib', 'vault')` — correct
+   today only because `argon2` (used by `lib/vault/crypto.js`) ships
+   cross-platform prebuilds, unlike `lmdb`'s per-platform optional
+   dependencies. No test pins this specific require line; native and
+   container paths are byte-identical for it, so a silent revert to the
+   old `root + 'demo_api_server/lib/vault'` form would pass the full suite.
+   Fix: a `__dirname`-stubbed test matching the pattern already used in
+   `demo_api_server/tests/rotationContainerPaths.test.js`.
+3. `routes/secretRotation.js`'s run-staleness check (`STALE_RUN_MS = 30_000`)
+   is suppressed while the log's last line matches `/^\[rotate\] recreating:
+   /`, so the operator isn't falsely told a rotation died mid-container
+   -restart. That suppression has no upper time bound — a process that died
+   immediately after logging `recreating:` would poll `running` forever with
+   no terminal state. Not reachable today: the page hardcodes `restart:
+   false`, and the BFF image ships no `docker` CLI, so a hand-crafted
+   `restart: true` call fails fast through `rotationTargets.js`'s
+   `is_known_service` guard instead of hanging. Fix, if restart is ever
+   exercised automatically again: a bounded exemption
+   (`inRestart && age < RESTART_STALE_MS`) instead of an unbounded one.
+
+**Why it wasn't fixed now.** All three surfaced in the final review pass of
+an already-long implementation session (8 tasks, 3 rounds of whole-branch
+review); none is reachable in the feature's current shipped configuration
+(rotation runs are always non-`--restart` from the page), so they were
+triaged as real-but-not-blocking rather than re-opening another fix round.
+
+**Real fix.** Three independent one-line-to-small changes, listed above.
+None requires design work — the constants and patterns they need
+(`fs.constants.W_OK`, the `rotationContainerPaths.test.js` mocking pattern,
+a second time constant) already exist elsewhere in the same files.
+
 ### [ ] 2026-09-11 — A2A wire hop has no proof-of-possession
 
 **What's wrong.** The bearer `verifyA2aBearer` validates is a plain, bearer

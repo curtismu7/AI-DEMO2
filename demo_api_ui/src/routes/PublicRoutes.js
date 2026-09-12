@@ -40,11 +40,11 @@ import AgentGatewayInspectorClean from "../components/AgentGatewayInspectorClean
 import AgentGatewayLogPanel from "../components/AgentGatewayLogPanel";
 import SdkLoginPage from "../pages/SdkLoginPage";
 import SdkLoginCallback from "../pages/SdkLoginCallback";
-import DavinciLoginPage from "../pages/DavinciLoginPage";
 import DavinciLoginCallback from "../pages/DavinciLoginCallback";
 import DavinciLoginConfirmedPage from "../pages/DavinciLoginConfirmedPage";
 import DavinciExplainerPage from "../pages/DavinciExplainerPage";
 import OrchestrationSdkExplainerPage from "../pages/OrchestrationSdkExplainerPage";
+import DavinciLoginGuidePage from "../pages/DavinciLoginGuidePage";
 import CibaApprovalPage from "../pages/CibaApprovalPage";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
 import EnterpriseMcpDemoPage from '../pages/EnterpriseMcpDemoPage';
@@ -420,18 +420,6 @@ export function SdkLoginPageRoute({ user, logout }) {
   );
 }
 
-// DaVinci widget login sandbox (public) — drives its own browser-side flow.
-// AppShell-wrapped like /dashboard: TopNav and the side nav render fine with
-// user=null (both are optional-chained), and it's what gives the page the
-// main-content flex layout that keeps the footer pinned to the bottom.
-export function DavinciLoginPageRoute({ user, logout }) {
-  return (
-    <AppShell user={user} logout={logout}>
-      <DavinciLoginPage />
-    </AppShell>
-  );
-}
-
 // OIDC redirect callback for the widget login — it exchanges the code and
 // redirects. Public: the user is not signed in until this route finishes.
 export function DavinciLoginCallbackRoute({ user, logout }) {
@@ -465,12 +453,24 @@ export function DavinciExplainerRoute({ user, logout }) {
 
 // How the Ping Orchestration SDK works — static lesson, no SDK/PingOne/BFF
 // calls, so it teaches the same in any environment. Public for the same reason
-// /davinci-login is: the subject is signing in, so it has to be readable before
-// you have.
+// the widget login guide is: the subject is signing in, so it has to be
+// readable before you have.
 export function OrchestrationSdkExplainerRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <OrchestrationSdkExplainerPage />
+    </AppShell>
+  );
+}
+
+// Training lesson for the widget login — how it works, the real
+// sdk-token/callback request/response shapes, and the hop-by-hop flow.
+// Public, like the sandbox it documents: it's reference material, not a
+// signed-in feature.
+export function DavinciLoginGuidePageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <DavinciLoginGuidePage />
     </AppShell>
   );
 }

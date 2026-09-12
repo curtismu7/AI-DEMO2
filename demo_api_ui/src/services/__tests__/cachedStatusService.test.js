@@ -52,3 +52,29 @@ describe('cachedStatusService overlapping-request race', () => {
     expect(global.fetch).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('cachedStatusService request timeout', () => {
+  beforeEach(() => {
+    clearStatusCache();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    delete global.fetch;
+  });
+
+  it('rejects instead of hanging forever when the network never responds', async () => {
+    // Never resolves — simulates a stalled BFF/session-check under load, the
+    // exact condition that left the "Loading customer dashboard…" spinner
+    // stuck: this is the one status call in the app not routed through
+    // apiClient's 10s axios timeout.
+    global.fetch = vi.fn(() => new Promise(() => {}));
+
+    const pending = getCachedStatus('/api/auth/oauth/user/status');
+    const assertion = expect(pending).rejects.toThrow(/timed out/i);
+
+    await vi.advanceTimersByTimeAsync(12001);
+    await assertion;
+  });
+});

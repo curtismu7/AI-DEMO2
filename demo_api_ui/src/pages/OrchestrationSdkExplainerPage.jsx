@@ -33,8 +33,8 @@ const INVOCATION_MODES = [
   },
   {
     mode: "Widget",
-    route: "/davinci-login",
-    routeLabel: "/davinci-login",
+    route: "/davinci-login-guide",
+    routeLabel: "/davinci-login-guide",
     ui: "DaVinci's own HTML, inside your page",
     returns: "a DaVinci sessionToken — not an OIDC code",
     pick:
@@ -366,7 +366,7 @@ export default function OrchestrationSdkExplainerPage() {
             with a live trace of every call it makes.
           </li>
           <li>
-            <a href="/davinci-login">/davinci-login</a> &mdash; the same flow in the hosted widget,
+            <a href="/davinci-login-guide">/davinci-login-guide</a> &mdash; the same flow in the hosted widget,
             for contrast.
           </li>
           <li>
