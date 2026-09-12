@@ -141,6 +141,70 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-12 — System Flow Map: split the merged approval-gate box into real MFA / Consent / CIBA boxes; per-band background tints
+
+**Files changed:** `demo_api_ui/src/components/SystemFlowMap.jsx`, `SystemFlowMap.css`,
+`AIAgent.js`. Tests: `src/components/__tests__/SystemFlowMap.test.jsx`.
+
+**What was broken:** the map had one "Approval Gate" box for step-up MFA, HITL
+and consent combined (deliberately, in the prior commit) because
+`buildTraceSteps.js`'s single `stepup` step can't tell the three apart — a
+presenter watching a real MFA or CIBA run couldn't see which mechanism
+actually fired. CIBA specifically had **no evidence path to the client trace
+at all**: `AIAgent.js` drives it as three separate `POST /api/auth/ciba/*`
+REST round trips, entirely outside the `/api/mcp/tool` phase-emission
+pipeline that feeds `tokenChainTraceStore`.
+
+**What was fixed:**
+- `SystemFlowMap.jsx` now derives three independent boxes straight from trace
+  evidence (`deriveGateStates`), bypassing `buildTraceSteps`' shared step list
+  entirely so this cannot ripple into `TokenChainTraceRail` or any other
+  consumer of it:
+  - **MFA** — `mfa_challenge_initiated/completed/failed` phases (routes/mfa.js;
+    unchanged detection, now its own box).
+  - **Consent** — `authorize_denied_hitl` (local/simulated PDP) /
+    `gateway_hitl_required` (live PingGateway PDP, previously not read by
+    `buildTraceSteps.js`'s stepup step at all) / `mcp_auth_challenge_intercepted`;
+    resolved via `trace.authorize.hitlApproved`. All three are the same
+    HITL_CONSENT obligation (`authorizeObligations.js`,
+    `simulatedAuthorizeService.js`: "all transfers require human consent").
+  - **CIBA** — new client-side instrumentation. `AIAgent.js`'s 3 CIBA-initiate
+    call sites now stamp a `ciba-poll` token event (`additionalData.status:
+    'pending'`) into `tokenChainTraceStore`; both poll functions
+    (`pollCibaStepUp`, `pollCibaThenResumeNl`) update it to `'denied'` on a
+    404/403/410, or `'approved'` after the resume that follows an approval
+    (mirroring the pre-existing `pollCibaThenResumeNl` re-stamp that already
+    existed for a *different* reason — ProofStrip's evidence chain — which
+    this reuses and extends with the `status` field).
+- `pollCibaStepUp`'s approved branch now `await`s `runAction(...)` (was
+  fire-and-forget) so the re-stamp lands on the trace the refire actually
+  produced, not before it starts.
+- Relabeled the resulting boxes MFA / Consent / CIBA (was "CIBA / MFA" then
+  "Approval Gate"); `p1-stepup` removed from `NODES`/`BANDS`/`STEP_TO_EDGE`.
+- Each of the 5 deployment bands now gets its own light background tint
+  (`--sfm-band-bg`, local vars — not `--th-*`, since these are five arbitrary
+  grouping hues, not the app's semantic scale) so the trust boundaries read
+  apart; dark variants via `:root[data-theme="dark"]` only, per this repo's
+  hard rule (never `prefers-color-scheme`).
+
+**Do not break:**
+- `buildTraceSteps.js`'s `stepup` step, `TITLES`/`LANES`/`NARRATIVES` entries
+  for it, and `TokenChainTraceRail`'s single-card rendering of it are
+  UNCHANGED — the split lives entirely in `SystemFlowMap.jsx`'s own derivation.
+- The pre-existing `ciba-poll` re-stamp in `pollCibaThenResumeNl` (ProofStrip's
+  evidence-chain requirement) still fires with the same `id`/`description` —
+  only an additive `additionalData.status` field was added.
+- `runAction`'s CIBA branch now awaits before returning; it does not change
+  what `runAction` itself does on a normal (non-CIBA) call.
+
+**Verify:**
+- `cd demo_api_ui && npm run test:unit && npm run build` — 541 files / 4191
+  tests pass, build exits 0.
+- Live: opened the System Flow Map — MFA / Consent / CIBA render as three
+  distinct boxes in a 2-row grid under PingOne Authorize, each of the 5 bands
+  has a visibly different light tint, and none of the repositioned bands
+  overlap (checked via `getBoundingClientRect`).
+
 ### 2026-09-12 — System Flow Map: stuck-"RUNNING" diagram, missing replay history, new resize/theme/consent affordances
 
 **Files changed:** `demo_api_ui/src/components/SystemFlowMap.jsx`, `SystemFlowMap.css`,
