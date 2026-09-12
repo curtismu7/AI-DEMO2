@@ -461,3 +461,84 @@ describe('a2aDelegationService exchange resilience', () => {
     expect(operation).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('split exchanges', () => {
+  // Mirrors the fakes this file already uses for delegateToSpecialist.
+  // NOTE: vertical is 'banking' here (not 'investment' as in the original
+  // brief draft) — config/a2aSpecialists.js keys banking's specialist to
+  // appKey 'investment' ('investment' the vertical is keyed to appKey
+  // 'holdings'). The fixture's other values (pingone_investment_agent_*,
+  // a2a_intermediate_audience_investment, invest:read, get_portfolio_summary,
+  // "Investment Advisor") are all banking's real values, so the vertical must
+  // be 'banking' for this fixture to exercise the keys the code actually reads.
+  const deps = () => ({
+    oauthService: {
+      getAiAgentClientCredentialsToken: jest.fn().mockResolvedValue('AGENT1.ACTOR'),
+      getClientCredentialsTokenAs: jest.fn().mockResolvedValue('AGENT2.ACTOR'),
+      performTokenExchangeAs: jest
+        .fn()
+        .mockResolvedValueOnce('T.AGENT1')
+        .mockResolvedValueOnce('T.NESTED'),
+    },
+    configStore: {
+      getEffective: (k) =>
+        ({
+          pingone_ai_agent_client_id: 'gen-id',
+          pingone_ai_agent_client_secret: 'gen-secret',
+          pingone_investment_agent_client_id: 'spec-id',
+          pingone_investment_agent_client_secret: 'spec-secret',
+          a2a_intermediate_audience_investment: 'https://intermediate.example',
+          a2a_gateway_audience: 'https://gateway.example',
+        })[k] || '',
+    },
+    getSessionBearerForMcp: () => 'USER.TOKEN',
+    scopeTopology: { a2aDelegatedScope: () => 'invest:read', toolScopes: () => ['invest:read'] },
+    verifiedTrustService: { isEnabled: () => false },
+  });
+
+  test('the generalist half returns the hop bearer and stops before Exchange #2', async () => {
+    const svc = require('../../services/a2aDelegationService');
+    const d = deps();
+    const tokenEvents = [];
+    const out = await svc.exchangeAsGeneralist({}, {
+      vertical: 'banking', tool: 'get_portfolio_summary', tokenEvents, deps: d,
+    });
+
+    expect(out.error).toBeUndefined();
+    expect(out.token).toBe('T.AGENT1');
+    expect(d.oauthService.performTokenExchangeAs).toHaveBeenCalledTimes(1);
+    expect(tokenEvents.map((e) => e.id)).toEqual(
+      expect.arrayContaining(['user-token', 'a2a-agent1-actor', 'a2a-exchange1']),
+    );
+    expect(tokenEvents.some((e) => e.id === 'a2a-exchange2')).toBe(false);
+  });
+
+  test('the specialist half exchanges the hop bearer for the nested-act token', async () => {
+    const svc = require('../../services/a2aDelegationService');
+    const d = deps();
+    d.oauthService.performTokenExchangeAs = jest.fn().mockResolvedValue('T.NESTED');
+    const tokenEvents = [];
+    const out = await svc.exchangeAsSpecialist('T.AGENT1', {
+      vertical: 'banking', tool: 'get_portfolio_summary', tokenEvents, deps: d,
+    });
+
+    expect(out.token).toBe('T.NESTED');
+    // The hop bearer is the SUBJECT of Exchange #2, with the specialist as actor.
+    expect(d.oauthService.performTokenExchangeAs).toHaveBeenCalledWith(
+      'T.AGENT1', 'AGENT2.ACTOR', 'spec-id', 'spec-secret',
+      'https://gateway.example', ['invest:read'], 'post',
+    );
+    expect(tokenEvents.map((e) => e.id)).toEqual(
+      expect.arrayContaining(['a2a-agent2-actor', 'a2a-exchange2']),
+    );
+  });
+
+  test('delegateToSpecialist still composes both halves for the policy probe', async () => {
+    const svc = require('../../services/a2aDelegationService');
+    const out = await svc.delegateToSpecialist({}, {
+      vertical: 'banking', tool: 'get_portfolio_summary', tokenEvents: [], deps: deps(),
+      skipProtocolHandoff: true,
+    });
+    expect(out.token).toBe('T.NESTED');
+  });
+});
