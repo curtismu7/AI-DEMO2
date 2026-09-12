@@ -935,7 +935,9 @@ router.post(
       const oauthTokens = req.session?.oauthTokens || null;
       const result = await killSwitchService.killAgent(agentId, reason, userId, oauthTokens, scope, req.sessionID);
 
-      // Destroy admin session — token is revoked, session is now invalid
+      // Destroy admin session — token is revoked, session is now invalid.
+      // Session-scoped in-process caches no longer die with it (REGRESSION_PLAN §4).
+      require('../services/sessionScopedCaches').clearSessionScopedCaches(req.session);
       req.session.destroy(() => {});
 
       // Return 401: the session/token is gone, UI must redirect to PingOne login

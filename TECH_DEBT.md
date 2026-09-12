@@ -190,6 +190,14 @@ minted, or move `intentToken` to the run context like the trace.
    2026-09-11, right after the #3141 deploy. `agentTokenCache` now holds tokens in-process keyed by
    session id instead of on the session, so none of its callers marks the session modified and the
    window closes for this writer. `agentRun`'s early save stays as defence for any future setup write.
+
+   **That did not close the symptom.** Verified live after the #3148 deploy: a mode change made during
+   a session's FIRST token exchange was still reverted. `dpopKeyService.getSessionDpopKey` minted
+   `req.session.dpopKey` on that exchange (`ff_dpop` is ON), so that request saved its own stale copy —
+   once per session, which is why it read as intermittent. Proven with a headless session (no browser,
+   so no dashboard boot calls) whose first exchange WAS the spanning request. The keypair now lives
+   in-process keyed by session id; see REGRESSION_PLAN §4, "the first token exchange of a session undid
+   a mode change".
 3. Overlapping runs in one session shared a session-keyed run context, so an older run's tool callback
    read the newer run's Intent Token and tool list (Greptile P1 on #3141). Entries are now keyed by
    session + run id and all five agents send `runId` on `/internal/agent-tool`; a callback without it

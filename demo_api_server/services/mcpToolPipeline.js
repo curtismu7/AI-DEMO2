@@ -989,8 +989,11 @@ async function runMcpToolPipeline(ctx) {
         let _dpopKey = null;
         try {
             const _ff = require('./configStore').getEffective('ff_dpop');
-            if ((_ff === true || _ff === 'true') && req.session && req.session.dpopKey) {
-                _dpopKey = req.session.dpopKey;
+            if (_ff === true || _ff === 'true') {
+                // Keyed by session id in dpopKeyService, not stored on the session
+                // (that write reverted concurrent saves — REGRESSION_PLAN §4).
+                // peek never mints, keeping "only when Phase A minted a key".
+                _dpopKey = require('./dpopKeyService').peekSessionDpopKey(req && req.session);
             }
         } catch (_) { /* best-effort */ }
         // get_branch_hours (UC24 public catalog) selects its catalog by a

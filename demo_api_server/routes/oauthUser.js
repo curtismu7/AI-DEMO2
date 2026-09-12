@@ -1081,9 +1081,9 @@ router.get('/logout', async (req, res) => {
     if (userId) clearTokenChain(userId);
     mcpAudit.clearToolCalls();
     appEventService.clearEvents();
-    // Agent tokens are cached in-process keyed by session id, not on the
-    // session, so session.destroy() below no longer drops them for free.
-    require('../services/agentTokenCache').clear(req.session);
+    // Agent tokens and the DPoP keypair are cached in-process keyed by session
+    // id, not on the session, so session.destroy() below no longer drops them.
+    require('../services/sessionScopedCaches').clearSessionScopedCaches(req.session);
   } catch (_) { /* non-fatal */ }
 
   req.session.destroy((err) => {
