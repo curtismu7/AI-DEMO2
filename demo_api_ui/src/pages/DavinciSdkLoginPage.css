@@ -1,0 +1,149 @@
+/* DaVinci SDK login (/davinci-sdk-login) and its collector fields.
+   Themeable values come from --th-* so both modes work without a
+   prefers-color-scheme block (THEMING.md). Every rule that sets a themed ground
+   also sets its ink (§1.5), font sizes come from the scale (§8.1) and radii from
+   the scale (§9.3). */
+
+.dvsdk-page {
+  max-width: 420px;
+  margin: 48px auto;
+  padding: 0 20px;
+  color: var(--th-text);
+}
+
+.dvsdk-title {
+  margin: 0 0 4px;
+  font-size: var(--font-size-h2);
+  color: var(--th-text);
+}
+
+.dvsdk-sub {
+  margin: 0 0 20px;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+}
+
+.dvsdk-status {
+  color: var(--th-text-muted);
+}
+
+.dvsdk-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dvsdk-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.dvsdk-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--th-text);
+}
+
+.dvsdk-input {
+  font: inherit;
+  padding: 9px 11px;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+}
+
+.dvsdk-input:focus {
+  outline: 2px solid var(--th-border-strong);
+  outline-offset: 1px;
+}
+
+.dvsdk-input[aria-invalid="true"] {
+  border-color: var(--th-status-error-border);
+}
+
+.dvsdk-field-error {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--th-status-error-text);
+}
+
+.dvsdk-submit {
+  font: inherit;
+  font-weight: 600;
+  padding: 10px 18px;
+  cursor: pointer;
+  color: var(--th-text-on-emphasis);
+  background: var(--th-bg-emphasis);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+}
+
+.dvsdk-submit:disabled {
+  cursor: default;
+  color: var(--th-text-muted);
+  background: var(--th-bg-inset);
+}
+
+/* A collector the renderer does not handle yet. Visible on purpose — a blank
+   render looks like the flow is missing a field. */
+.dvsdk-unsupported {
+  margin: 0;
+  padding: 9px 11px;
+  font-size: var(--font-size-sm);
+  color: var(--th-status-warning-text);
+  background: var(--th-status-warning-bg);
+  border: 1px solid var(--th-status-warning-border);
+  border-radius: var(--radius-md);
+}
+
+.dvsdk-notice {
+  padding: 12px 14px;
+  color: var(--th-status-info-text);
+  background: var(--th-status-info-bg);
+  border: 1px solid var(--th-status-info-border);
+  border-radius: var(--radius-md);
+}
+
+.dvsdk-notice-title {
+  margin: 0 0 6px;
+  font-weight: 700;
+  color: inherit;
+}
+
+.dvsdk-missing {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.dvsdk-error,
+.dvsdk-form-error {
+  padding: 10px 12px;
+  color: var(--th-status-error-text);
+  background: var(--th-status-error-bg);
+  border: 1px solid var(--th-status-error-border);
+  border-radius: var(--radius-md);
+}
+
+.dvsdk-form-error {
+  margin: 0 0 4px;
+  font-size: var(--font-size-sm);
+}
+
+.dvsdk-retry {
+  font: inherit;
+  font-weight: 600;
+  margin-top: 10px;
+  padding: 9px 16px;
+  cursor: pointer;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+}
+
+.dvsdk-retry:hover {
+  color: var(--th-text);
+  background: var(--th-bg-hover);
+}
