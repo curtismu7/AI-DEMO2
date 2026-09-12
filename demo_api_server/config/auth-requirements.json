@@ -146,7 +146,6 @@
     "/control-plane": "user",
     "/copilot": "public",
     "/dashboard": "public",
-    "/davinci-login": "public",
     "/davinci-login/callback": "public",
     "/davinci-login/confirmed": "public",
     "/davinci-orchestration": "public",

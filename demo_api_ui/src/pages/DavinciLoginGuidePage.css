@@ -5,38 +5,25 @@
   font-family: var(--font-primary);
 }
 
+/* --th-bg-band is a fixed dark navy in BOTH themes (like TopNav's own band),
+   so its ink is --th-text-invert, never --th-text/--th-text-muted — those
+   are tuned for --th-bg-page/-card and go near-black-on-navy in light mode. */
 .dlg-header {
   padding: 2rem 3rem 1.5rem;
   border-bottom: 1px solid var(--th-border);
   background: var(--th-bg-band);
-  color: var(--th-text);
-}
-
-.dlg-back {
-  background: none;
-  border: 1px solid var(--th-border);
-  color: var(--th-text);
-  padding: 0.4rem 0.8rem;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-size: var(--font-size-sm);
-  margin-bottom: 1rem;
-}
-.dlg-back:hover,
-.dlg-back:focus-visible {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
+  color: var(--th-text-invert);
 }
 
 .dlg-header h1 {
   font-size: var(--font-size-h1);
   font-weight: 600;
-  color: var(--th-text);
+  color: var(--th-text-invert);
   margin: 0 0 0.5rem;
 }
 
 .dlg-subtitle {
-  color: var(--th-text-muted);
+  color: var(--th-text-invert);
   font-size: var(--font-size-base);
   max-width: 700px;
   margin: 0;

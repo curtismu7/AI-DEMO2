@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import useDividerDrag from "../hooks/useDividerDrag";
 import { useMermaidRender } from "../hooks/useMermaidRender";
+import DavinciLoginWidget from "./DavinciLoginWidget";
 import "./DavinciLoginGuidePage.css";
 
 const GUIDE_SECTIONS = [
+  { id: "try-it", label: "Try It Live", icon: "\u{1F511}" },
   { id: "overview", label: "Overview", icon: "\u{1F4D6}" },
   { id: "how-it-works", label: "How It Works", icon: "⚙️" },
   { id: "flow", label: "The Flow", icon: "\u{1F310}" },
@@ -16,7 +17,7 @@ const GUIDE_SECTIONS = [
 
 // The exact hop-by-hop sequence: routes/davinciLogin.js's /sdk-token and
 // /callback, plus the widget's skRenderScreen success path in
-// DavinciLoginPage.jsx. Kept as one static source rather than reusing
+// DavinciLoginWidget.jsx. Kept as one static source rather than reusing
 // ProtocolPlayground's flowSpec/buildSequenceSource — this diagram is fixed,
 // not driven by a live run, so the smaller direct mermaid source is enough.
 const FLOW_SOURCE = `sequenceDiagram
@@ -116,8 +117,7 @@ function FlowDiagram() {
 }
 
 export default function DavinciLoginGuidePage() {
-  const [activeSection, setActiveSection] = useState("overview");
-  const navigate = useNavigate();
+  const [activeSection, setActiveSection] = useState("try-it");
   const { size: navWidth, handleProps: navHandleProps } = useDividerDrag({
     min: 180,
     max: 400,
@@ -133,12 +133,9 @@ export default function DavinciLoginGuidePage() {
   return (
     <div className="dlg-page">
       <header className="dlg-header">
-        <button type="button" className="dlg-back" onClick={() => navigate("/davinci-login")}>
-          Back to DaVinci Login
-        </button>
         <h1>DaVinci Widget Login Guide</h1>
         <p className="dlg-subtitle">
-          How the <code>/davinci-login</code> widget sandbox actually works — the real
+          Try the live widget below, then see how it actually works — the real
           request/response shapes, the hop-by-hop flow, and where it lives in this repo.
         </p>
       </header>
@@ -161,17 +158,27 @@ export default function DavinciLoginGuidePage() {
         <div className="divider-drag-handle" aria-label="Resize section navigation" {...navHandleProps} />
 
         <main className="dlg-content">
+          {/* ─── Try It Live ─── */}
+          <Section id="try-it" title="Try It Live">
+            <p>
+              The widget below runs the real DaVinci flow end-to-end against this demo&apos;s
+              PingOne environment. On success it signs you in as an existing demo user — see{" "}
+              <a href="#security">Security</a> for what that means.
+            </p>
+            <DavinciLoginWidget />
+          </Section>
+
           {/* ─── Overview ─── */}
           <Section id="overview" title="Overview">
             <p>
-              The DaVinci widget login sandbox (<code>/davinci-login</code>) renders a DaVinci
-              flow&apos;s own screens in-page via the hosted <code>davinci.js</code> script and its{" "}
-              <code>skRenderScreen</code> call — it is a widget integration, <strong>not</strong> the{" "}
-              <code>@forgerock/davinci-client</code> SDK. That SDK approach was tried and abandoned;
-              some older docs in this repo still describe it and are stale.
+              The widget above renders a DaVinci flow&apos;s own screens in-page via the hosted{" "}
+              <code>davinci.js</code> script and its <code>skRenderScreen</code> call — it is a
+              widget integration, <strong>not</strong> the <code>@forgerock/davinci-client</code>{" "}
+              SDK. That SDK approach was tried and abandoned; some older docs in this repo still
+              describe it and are stale.
             </p>
             <div className="dlg-callout dlg-callout--info">
-              <strong>Separate from the protected admin login.</strong> This route never touches{" "}
+              <strong>Separate from the protected admin login.</strong> This flow never touches{" "}
               <code>routes/oauth.js</code> (admin login, auto-creates accounts) — it mirrors{" "}
               <code>routes/oauthUser.js</code>&apos;s end-user callback instead, and only signs in an{" "}
               <strong>existing</strong> demo user.
@@ -309,7 +316,7 @@ export default function DavinciLoginGuidePage() {
                 [
                   "401 nonce_missing on /callback",
                   "No /sdk-token call happened first in this session (or the session didn't persist)",
-                  "Restart the sign-in from /davinci-login",
+                  "Restart the sign-in using the Try It Live section above",
                 ],
                 [
                   "401 nonce_mismatch on /callback",
@@ -330,7 +337,7 @@ export default function DavinciLoginGuidePage() {
             <TableBlock
               headers={["File", "Purpose"]}
               rows={[
-                ["demo_api_ui/src/pages/DavinciLoginPage.jsx", "Renders the widget via skRenderScreen; handles successCallback/errorCallback"],
+                ["demo_api_ui/src/pages/DavinciLoginWidget.jsx", "Renders the widget via skRenderScreen; handles successCallback/errorCallback"],
                 ["demo_api_ui/src/lib/davinciWidgetClient.js", "Loads the davinci.js script tag; fetches widget config from the BFF"],
                 ["demo_api_server/routes/davinciLogin.js", "sdk-token + callback routes — nonce/PKCE arming and the code exchange"],
                 ["demo_api_server/config/davinci.js", "companyId / policyId / API key config"],

@@ -138,7 +138,7 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
             onClick={onToggleSlowMode}
             title={slowMode ? "Turn off slow mode" : "Turn on slow mode for narration"}
           >
-            🐢
+            ½×
           </button>
         )}
         {slowMode && (
