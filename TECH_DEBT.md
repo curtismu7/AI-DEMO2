@@ -172,7 +172,7 @@ parked identity is the one redeeming it.
 only ever serve the identity it was minted for instead of becoming an app-wide shared credential — the
 `ponytail:` note already on `privilegeGatewaySession.js` ("one operator identity per app; key it per user if a
 second identity ever needs this door") anticipates exactly this.
-### [ ] 2026-09-11 — mcp-server accepts gateway-audienced tokens: D-05's own rule cannot fire
+### [x] 2026-09-11 — mcp-server accepts gateway-audienced tokens: D-05's own rule cannot fire
 
 **What's wrong.** `oauth-mcp/src/auth/lastHopAuthorization.ts` enforces two
 rules. Rule 2 (the upstream audience must match) splits its setting with
@@ -204,6 +204,40 @@ cover it with a test per deployment shape (single value, comma list, unset).
 Then decide deliberately whether mcp-server should accept gateway audiences at
 all: while it does, D-05 is enforced only by the cloud policy's
 `TokenAudTargetsUpstream`, never at the upstream itself.
+
+**RESOLVED 2026-09-12** (branch `worktree-d05-upstream-audience`) — and the
+entry above got the deployment wrong, which is the more useful half of the
+record. Two claims were false, both from reading `docker-compose.yml` instead of
+the running container:
+
+- "that service's block sets only `MCP_SERVER_RESOURCE_URI` and no
+  `MCP_GW_RESOURCE_URI`". `docker exec ai-demo-mcp-server printenv` returns
+  `MCP_GW_RESOURCE_URI=mcpgateway.ping.demo`. The compose block does not set it;
+  the service's `env_file` does (`oauth-mcp/.env:11`). Compose is not the runtime.
+- "a gateway-audienced token presented directly to mcp-server passes both rules
+  today". Not in Docker: that value is a single audience, so the raw comparison
+  matched and Rule 1 fired. Enforcement is real on all three entry paths — HTTP
+  401 (`HttpMCPTransport.ts:690-694`), WebSocket close 1008
+  (`DemoMCPServer.ts:395-400`), and initialize refusing to adopt the token
+  (`MCPMessageHandler.ts:189-194`).
+
+**Where it was real: k8s.** `k8s/02-configmap.yaml:62` sets
+`MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp"`,
+and the mcp-server pod loads that ConfigMap by `envFrom`
+(`k8s/30-mcp-server-deployment.yaml:130-134`). With a comma list the raw compare
+could never match, so Rule 1 never ran there and a gateway-audienced token
+reached the upstream having skipped the gateway's Authorize evaluation and its
+RFC 8693 exchange.
+
+**The fix.** Rule 1 splits the setting with the same `normalizeAudienceList`
+Rule 2 uses, and names the audience it matched. Docker's single-value behaviour
+is unchanged. Guarded by the comma-list cases in
+`oauth-mcp/tests/gateway-upstream.test.ts`; see REGRESSION_PLAN §4 2026-09-12.
+
+Still deliberate and not a bug: mcp-server also accepts
+`https://api.ping.demo:3036/mcp` as an *upstream* audience so a native ID-JAG
+minted for PingGateway can be redeemed there — `docker-compose.yml:744-757`
+explains each entry in that list.
 
 ### [ ] 2026-09-11 — LLM token custody: what the fix deliberately left open
 
