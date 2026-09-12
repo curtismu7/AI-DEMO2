@@ -140,6 +140,41 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-12 — D-05's anti-bypass rule never fired in k8s: the gateway audience was compared unsplit
+
+**Files changed:** `oauth-mcp/src/auth/lastHopAuthorization.ts`,
+`oauth-mcp/tests/gateway-upstream.test.ts`.
+
+**What was broken:** `enforceUpstreamContract` runs two rules. Rule 2 (the
+upstream audience must match) splits its setting with `normalizeAudienceList`.
+Rule 1 — D-05, "a gateway-audience token must not be used at the upstream" —
+compared the raw env string (`audValues.includes(options.gatewayAudience)`), and
+`resolveUpstreamAudiences()` passes `MCP_GW_RESOURCE_URI` through unsplit.
+Wherever that variable is a comma list the comparison could never be true, so
+the rule was silently off. In k8s it is a list: `k8s/02-configmap.yaml:62` sets
+`"mcpgateway.ping.demo,https://api.ping.demo:3036/mcp"` and the mcp-server pod
+loads that ConfigMap (`k8s/30-mcp-server-deployment.yaml:130-134`), so a
+gateway-audienced token presented straight to mcp-server skipped the gateway's
+Authorize evaluation and its RFC 8693 exchange. Docker was unaffected:
+`oauth-mcp/.env:11` sets the single value `mcpgateway.ping.demo`, which the raw
+comparison matched.
+
+**What was fixed:** Rule 1 splits the setting with the same helper Rule 2 uses,
+and names the audience it matched in the error.
+
+**Do not break:**
+- The single-value shape (Docker) must keep rejecting a gateway-audienced token.
+- A token audienced at the upstream must still pass when the gateway setting is
+  a list.
+- With neither audience configured the check stays a no-op (local dev).
+- mcp-server still accepts `https://api.ping.demo:3036/mcp` as an *upstream*
+  audience, deliberately, for native ID-JAG redemption.
+
+**Verify:** `cd oauth-mcp && ./node_modules/.bin/jest tests/gateway-upstream.test.ts`
+— the comma-list case failed before the fix with "Upstream aud mismatch" (proof
+Rule 1 never ran) and passes after; `npm run test:unit` 91 suites / 1138 tests
+pass; `npm run build` exit 0.
+
 ### 2026-09-12 — the first token exchange of a session undid a mode change
 
 **Files changed:** `demo_api_server/services/dpopKeyService.js`,

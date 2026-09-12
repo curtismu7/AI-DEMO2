@@ -118,6 +118,30 @@ describe('enforceUpstreamContract — D-05 next-hop token enforcement', () => {
     expect(result.errors[0]).toContain('D-05');
   });
 
+  // MCP_GW_RESOURCE_URI is set comma-separated on several services (the BFF, the
+  // Node gateway, authz-server), the same shape MCP_SERVER_RESOURCE_URI uses.
+  // Rule 1 compared the raw string, so on any of those a gateway-audience token
+  // passed D-05 untouched: the whole point of the rule, silently off.
+  it('rejects a gateway-audience token when gatewayAudience is a comma-separated list', () => {
+    const claims = { sub: 'agent-bypass', aud: GATEWAY_AUD, exp: makeExp() };
+    const result = enforceUpstreamContract(claims, {
+      upstreamAudience: UPSTREAM_AUD,
+      gatewayAudience: `https://other-gateway.example.com, ${GATEWAY_AUD}`,
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors[0]).toContain('D-05');
+  });
+
+  it('still accepts an upstream-audience token when gatewayAudience is a comma-separated list', () => {
+    const claims = { sub: 'agent-1', aud: UPSTREAM_AUD, exp: makeExp() };
+    const result = enforceUpstreamContract(claims, {
+      upstreamAudience: UPSTREAM_AUD,
+      gatewayAudience: `https://other-gateway.example.com, ${GATEWAY_AUD}`,
+    });
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
   it('rejects tokens missing aud entirely', () => {
     const claims = { sub: 'agent-no-aud', exp: makeExp() };
     const result = enforceUpstreamContract(claims, {

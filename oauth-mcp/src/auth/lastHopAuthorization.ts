@@ -60,11 +60,17 @@ export function enforceUpstreamContract(
 
   const audValues: string[] = Array.isArray(aud) ? aud.map(String) : [String(aud)];
 
-  // Rule 1: D-05 anti-bypass — reject gateway-audience tokens at the upstream
-  if (options.gatewayAudience && audValues.includes(options.gatewayAudience)) {
+  // Rule 1: D-05 anti-bypass — reject gateway-audience tokens at the upstream.
+  // Split the setting exactly like Rule 2 below: MCP_GW_RESOURCE_URI is
+  // comma-separated in several deployments (k8s 02-configmap.yaml, the BFF, the
+  // Node gateway), and comparing the raw string meant the rule silently never
+  // fired wherever that is true — an off switch nobody could see.
+  const gatewayAuds = normalizeAudienceList(options.gatewayAudience);
+  const presentedGatewayAud = gatewayAuds.find((g) => audValues.includes(g));
+  if (presentedGatewayAud) {
     errors.push(
       `D-05 violation: gateway-audience token cannot be used at upstream ` +
-      `(aud includes "${options.gatewayAudience}"). ` +
+      `(aud includes "${presentedGatewayAud}"). ` +
       `The gateway must perform RFC 8693 exchange before forwarding.`,
     );
   }
