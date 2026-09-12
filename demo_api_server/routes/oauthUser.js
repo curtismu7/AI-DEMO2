@@ -1084,6 +1084,8 @@ router.get('/logout', async (req, res) => {
     // Agent tokens are cached in-process keyed by session id, not on the
     // session, so session.destroy() below no longer drops them for free.
     require('../services/agentTokenCache').clear(req.session);
+    // Same for the per-session DPoP keypair — also in-process, keyed by session id.
+    require('../services/dpopKeyService').clearSessionDpopKey(req.session);
   } catch (_) { /* non-fatal */ }
 
   req.session.destroy((err) => {

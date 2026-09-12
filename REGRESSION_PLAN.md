@@ -140,7 +140,45 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-12 — the first token exchange of a session undid a mode change
+
+**Files changed:** `demo_api_server/services/dpopKeyService.js`,
+`demo_api_server/services/mcpToolPipeline.js`, `demo_api_server/routes/oauth.js`,
+`demo_api_server/routes/oauthUser.js`, `demo_api_server/src/__tests__/dpopKeyService.test.js`.
+
+**What was broken:** `getSessionDpopKey` minted the per-session ephemeral DPoP keypair straight onto
+`req.session.dpopKey` (get-or-create; `ff_dpop` is ON). That happens on the session's FIRST token
+exchange — the discovery exchange behind `POST /api/demo-agent/tools`, and `/api/agent/run`'s setup — so
+that request marked the session modified, and express-session wrote its whole start-of-request copy back
+when it ended, undoing an agent-mode change made while it ran. Once per session, which is why it read as
+intermittent: whichever request minted the key was the one that reverted, and in a browser session the
+dashboard's own boot calls usually minted it before anyone could switch. Same last-write-wins class as
+the two entries below; this was the writer they left behind.
+
+**Fixed by** holding the keypair in `dpopKeyService`'s own in-process map keyed by session id, swept
+after 12h of disuse. `peekSessionDpopKey(session)` — which never mints — replaces `mcpToolPipeline`'s
+direct `req.session.dpopKey` read, preserving its "only when Phase A minted a key" rule, and
+`clearSessionDpopKey(session)` runs on both logout paths beside the agent-token clear, since
+`session.destroy()` no longer drops it.
+
+**Do not break:** the key must stay STABLE for a session — the delegated MCP token is bound to it
+(`cnf.jkt`), so a second key would sign proofs the gateway cannot match to the token it issued. Nothing
+reads or writes `session.dpopKey`; go through `getSessionDpopKey` / `peekSessionDpopKey` /
+`clearSessionDpopKey`, and the read path must never mint.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest dpopKeyService webBotAuth mcpToolPipeline oauth logout --forceExit`
+— 50 suites / 507 passed; the one failure (`src/__tests__/oauth-scope-integration.test.js`, "401 for
+invalid OAuth tokens") passes alone 37/38 and is the known contention flake. The spec is 8/8, with 4 of
+the 5 new tests red first (session write, stability per session id, peek-never-mints, no-id → null).
+Live, and this is the part unit tests cannot show: `tests/e2e/first-exchange-dpop.real.spec.js` drives a
+headless BFF login with NO browser page, so no dashboard boot call can mint the key first and the
+spanning `/api/demo-agent/tools` IS the session's first exchange. Before the fix it REVERTED (switch at
+t+0.17s, `/tools` ended t+1.69s, provider came back `llamacpp`); the post-deploy re-run must report KEPT.
+
 ### 2026-09-11 — a long request's agent-token cache write undid a mode change
+
+**This removed one writer, not the symptom.** The live check after deploying it still reverted a mode
+change made during a session's first token exchange — see the DPoP entry above, which closes that one.
 
 **Files changed:** `demo_api_server/services/agentTokenCache.js`,
 `demo_api_server/services/resourceServerTesterService.js`, `demo_api_server/routes/delegatedCommerce.js`,
