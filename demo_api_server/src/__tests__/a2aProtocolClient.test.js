@@ -18,10 +18,21 @@ jest.mock('../../services/a2aDelegationService', () => ({
   exchangeAsSpecialist: jest.fn(),
 }));
 jest.mock('../../services/bffMcpToolExecutor', () => ({ executeBffToolWithToken: jest.fn() }));
+// Only cardVerifier is replaceable, and it DELEGATES TO THE REAL ONE by default
+// (see beforeEach) so every other case still exercises genuine sign/verify
+// interop. Overriding it is the only way to reach the card fail-closed leg: the
+// client destructures cardVerifier at module load, so jest.spyOn on the module
+// object afterwards would never be seen.
+jest.mock('../../services/a2aCardSigningService', () => ({
+  ...jest.requireActual('../../services/a2aCardSigningService'),
+  cardVerifier: jest.fn(),
+}));
 
 const { verifyA2aBearer } = require('../../middleware/a2aPingOneBearer');
 const { exchangeAsSpecialist } = require('../../services/a2aDelegationService');
 const { executeBffToolWithToken } = require('../../services/bffMcpToolExecutor');
+const { cardVerifier } = require('../../services/a2aCardSigningService');
+const realCardSigning = jest.requireActual('../../services/a2aCardSigningService');
 const { sendA2aProtocolHandoff } = require('../../services/a2aProtocolClient');
 const { specialistForVertical } = require('../../config/a2aSpecialists');
 
@@ -29,7 +40,11 @@ const CFG = { getEffective: () => '' };
 const TOOL = specialistForVertical('investment').tools[0];
 
 describe('a2aProtocolClient', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Real verification by default; only the negative case below overrides it.
+    cardVerifier.mockImplementation(realCardSigning.cardVerifier);
+  });
 
   test('sends the delegated token and mints no client_credentials bearer', async () => {
     verifyA2aBearer.mockResolvedValue({ sub: 'u1', act: { client_id: 'gen-id' } });
@@ -133,6 +148,40 @@ describe('a2aProtocolClient', () => {
     );
     // No credential may appear in the token chain.
     expect(JSON.stringify(tokenEvents)).not.toMatch(/T\.NESTED|T\.AGENT1/);
+  });
+
+  // The card leg must fail CLOSED, for the same reason the bearer leg must: an
+  // unenforced check sitting behind a green suite is how the `void bearer;` gap
+  // survived. With the real verifier this leg always succeeds, so nothing else
+  // in this file would notice if verification stopped being fatal.
+  test('a card whose signature does not verify fails the hop closed', async () => {
+    verifyA2aBearer.mockResolvedValue({ sub: 'u1', act: { client_id: 'gen-id' } });
+    cardVerifier.mockReturnValue(async () => {
+      throw new Error('refusing foreign jku https://evil.example/.well-known/jwks.json');
+    });
+    const tokenEvents = [];
+
+    const out = await sendA2aProtocolHandoff({
+      vertical: 'investment',
+      subtask: 'review my holdings',
+      tool: TOOL,
+      toolArgs: {},
+      subjectToken: 'T.AGENT1',
+      tokenEvents,
+      cfg: CFG,
+      req: { sessionID: 's1' },
+      sessionId: 's1',
+    });
+
+    expect(out.ok).toBe(false);
+    expect(out.code).toBe('a2a_card_signature');
+    expect(out.error).toMatch(/jku/i);
+    // Nothing ran: no Exchange #2, no tool call.
+    expect(exchangeAsSpecialist).not.toHaveBeenCalled();
+    expect(executeBffToolWithToken).not.toHaveBeenCalled();
+    // It is the CARD leg that stopped it — the bearer gate had already passed.
+    expect(tokenEvents.some((e) => e.id === 'a2a-protocol-bearer' && e.status === 'acquired')).toBe(true);
+    expect(tokenEvents.some((e) => e.id === 'a2a-agent-card' && e.status === 'failed')).toBe(true);
   });
 
   describe('time bounds', () => {
