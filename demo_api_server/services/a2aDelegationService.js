@@ -454,6 +454,9 @@ async function exchangeAsSpecialist(subjectToken, opts = {}) {
   const retryDelayMs = opts.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
 
   const specialist = specialistForVertical(vertical);
+  if (!specialist) {
+    return { token: null, claims: null, error: `No A2A specialist configured for vertical "${vertical}"` };
+  }
   const specialistScopes = deriveSpecialistScopes(specialist, scopeTopo);
   const c = resolveA2aConfig(cfg, specialist, scopeTopo);
 

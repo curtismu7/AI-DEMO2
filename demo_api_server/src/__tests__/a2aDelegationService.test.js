@@ -533,6 +533,19 @@ describe('split exchanges', () => {
     );
   });
 
+  test('the specialist half returns { error }, not an unhandled throw, for an unknown vertical', async () => {
+    const svc = require('../../services/a2aDelegationService');
+    const d = deps();
+    const tokenEvents = [];
+    const out = await svc.exchangeAsSpecialist('T.AGENT1', {
+      vertical: 'not-a-real-vertical', tool: 'get_portfolio_summary', tokenEvents, deps: d,
+    });
+
+    expect(out.token).toBeNull();
+    expect(out.error).toMatch(/No A2A specialist configured/i);
+    expect(d.oauthService.performTokenExchangeAs).not.toHaveBeenCalled();
+  });
+
   test('delegateToSpecialist still composes both halves for the policy probe', async () => {
     const svc = require('../../services/a2aDelegationService');
     const out = await svc.delegateToSpecialist({}, {
