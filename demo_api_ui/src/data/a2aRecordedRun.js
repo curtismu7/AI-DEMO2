@@ -255,7 +255,7 @@ export const A2A_RECORDED_RUN = {
       "mode": "in-process",
       "agentCard": {
         "name": "Membership Specialist",
-        "description": "Super Banking Membership Specialist Agent — A2A specialist for vertical \"sporting-goods\". Wire auth is PingOne Bearer; MCP tools still require nested-act delegation.",
+        "description": "Super Banking Membership Specialist Agent — A2A specialist for vertical \"sporting-goods\". Wire auth carries the caller's own delegated token; this specialist performs its own nested-act exchange before calling MCP tools.",
         "version": "1.0.0",
         "documentationUrl": "https://a2a-protocol.org/dev/tutorials/",
         "provider": {
@@ -335,11 +335,11 @@ export const A2A_RECORDED_RUN = {
       "timestamp": "2026-08-29T18:13:54.905Z",
       "alg": null,
       "claims": null,
-      "explanation": "A2A handoff received by Membership Specialist. Wire auth: PingOne Bearer. MCP tools still require nested-act delegation. Task: hand off to a specialist to review the sensitive membership details",
+      "explanation": "A2A handoff received by Membership Specialist. Wire auth: the caller's own RFC 8693 delegated token. This specialist performs its own nested-act exchange before calling MCP tools. Task: hand off to a specialist to review the sensitive membership details",
       "a2aRole": "protocol-message",
       "vertical": "sporting-goods",
       "agentName": "Membership Specialist",
-      "replyText": "A2A handoff received by Membership Specialist. Wire auth: PingOne Bearer. MCP tools still require nested-act delegation. Task: hand off to a specialist to review the sensitive membership details",
+      "replyText": "A2A handoff received by Membership Specialist. Wire auth: the caller's own RFC 8693 delegated token. This specialist performs its own nested-act exchange before calling MCP tools. Task: hand off to a specialist to review the sensitive membership details",
       "mode": "in-process",
       "protocolRequest": {
         "method": "message/send",
@@ -354,14 +354,14 @@ export const A2A_RECORDED_RUN = {
         }
       },
       "protocolResponse": {
-        "replyText": "A2A handoff received by Membership Specialist. Wire auth: PingOne Bearer. MCP tools still require nested-act delegation. Task: hand off to a specialist to review the sensitive membership details",
+        "replyText": "A2A handoff received by Membership Specialist. Wire auth: the caller's own RFC 8693 delegated token. This specialist performs its own nested-act exchange before calling MCP tools. Task: hand off to a specialist to review the sensitive membership details",
         "ok": true
       }
     }
   ],
   "agentCard": {
     "name": "Membership Specialist",
-    "description": "Super Banking Membership Specialist Agent — A2A specialist for vertical \"sporting-goods\". Wire auth is PingOne Bearer; MCP tools still require nested-act delegation.",
+    "description": "Super Banking Membership Specialist Agent — A2A specialist for vertical \"sporting-goods\". Wire auth carries the caller's own delegated token; this specialist performs its own nested-act exchange before calling MCP tools.",
     "version": "1.0.0",
     "documentationUrl": "https://a2a-protocol.org/dev/tutorials/",
     "provider": {
