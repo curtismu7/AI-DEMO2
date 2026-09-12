@@ -75,20 +75,24 @@
 
 .srd-slow-btn {
   background: var(--th-bg-card);
+  color: var(--th-text);
   border: 1px solid var(--th-border-strong);
   border-radius: var(--radius-sm);
-  font-size: 16px;
-  padding: 0.2rem 0.4rem;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .srd-slow-btn:hover {
   background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .srd-slow-btn--active {
   background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
   border-color: var(--th-status-info);
 }
 
