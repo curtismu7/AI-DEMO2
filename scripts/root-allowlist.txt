@@ -30,6 +30,7 @@ FEATURES.md
 HANDOFF.md
 LLM.json
 LLM2.json
+NEW-MACHINE.md
 README.md
 REGRESSION_LOG.md
 REGRESSION_PLAN.md
@@ -101,7 +102,9 @@ package-lock.json
 package.json
 ping-gateway
 ping-mcpgw
+ping_agent_guardrails_diagram.html
 ping_agent_onboarding_flow_diagram.html
+ping_agent_onboarding_flow_diagram_compact.html
 ping_agent_onboarding_flow_diagram_subway.html
 pingone
 pingone-privgateway-helm-main
