@@ -115,11 +115,15 @@ with an RFC 9728 challenge (flag on), so LM Studio re-runs steps 1–6 on its ow
 - **Login CSRF:** the gateway code is redeemed with the BFF's own `state` + PKCE verifier held in the requesting browser's session slot. A crafted `/facade-link` URL can only sign the victim into the gateway as themselves.
 - **Resume ids:** random, single-use, 10-minute TTL. `link=ok` is unsigned by design: skipping the gateway hop yields today's behaviour (a broker code with no gateway leg → 401 again), not an escalation.
 - **Tokens at rest:** the per-app gateway token is written to LMDB in the BFF data volume. The same token is already persisted in the LMDB session store (`CLEAR_SESSIONS_ON_BOOT=false`), it expires within 60 minutes, and dead records are skipped on load. Never logged, never on a ledger hop.
-- **Identity — narrowed, not closed (2026-09-11 hardening pass).** The BFF parks a link's gateway token under
+- **Identity — narrowed, not closed (2026-09-11 hardening pass).** Both `BFF_PRIVILEGE_LINK_URL` and
+  `BFF_PRIVILEGE_LINK_COMMIT_URL` must be configured or the chain does not run at all — one leg alone falls
+  through to the ordinary non-link path instead of sending a browser through a gateway sign-in its commit leg
+  would refuse. The BFF parks a link's gateway token under
   its broker resume id rather than committing it straight to the app's shared session. The broker signs the
-  `/facade-link` URL it issues (HMAC over the app + resume id with the shared internal secret) and the BFF
-  refuses an unsigned link or one signed for a different app, so a caller can no longer choose the parked slot
-  or swap the target app. The broker also sets a browser-bound nonce cookie (`pgw_link`, `HttpOnly`,
+  `/facade-link` URL it issues (HMAC over the app + resume id, keyed by a purpose-bound key derived from the
+  shared internal secret — not the secret itself, since the signature travels in a browser-visible redirect
+  URL) and the BFF refuses an unsigned link or one signed for a different app, so a caller can no longer
+  choose the parked slot or swap the target app. The broker also sets a browser-bound nonce cookie (`pgw_link`, `HttpOnly`,
   `SameSite=Lax`, `Path=/oauth`) at `/oauth/authorize` for a chained Privilege door, and `/oauth/resume` only
   calls `/internal/privilege-link/commit` — promoting the parked token into the shared session — once it has
   verified that cookie against the pending record's nonce, unconditionally: a parked record with no nonce at
@@ -128,10 +132,12 @@ with an RFC 9728 challenge (flag on), so LM Studio re-runs steps 1–6 on its ow
   cookie proves that whoever completes `/oauth/resume` is the same browser that ran `/oauth/authorize` — it
   does not, and cannot by itself, prove that the browser which completed the BFF's gateway sign-in in between
   (the one whose identity the parked token actually carries) was that same browser. An attacker who starts
-  their own authorize, stops before the BFF sign-in, mails the (now signed) `/facade-link` URL to a signed-in
-  victim, and then gets hold of the terminal `/oauth/resume?rs=…&link=ok` URL some other way (e.g. suppressing
-  the victim's own navigation to it) can still redeem it from their own browser — which genuinely carries the
-  matching `pgw_link` cookie from the authorize step they themselves ran — and commit the victim's identity.
+  their own authorize already holds that link's `rs` and `sig` — the broker's own redirect to `/facade-link`
+  hands both to their browser — so mailing the (now signed) URL to a signed-in victim parks the victim's
+  identity under an id the attacker already knows. The only thing between that park and a commit is the
+  victim's browser following the final `/oauth/resume?rs=…&link=ok` hop, which consumes the id and discards
+  the park; an attacker who prevents that last navigation redeems the URL themselves instead, still carrying
+  the matching `pgw_link` cookie from the authorize they genuinely ran, and the victim's identity commits.
   See `TECH_DEBT.md`'s NARROWED entry for the residual and the real fix (key gateway sessions per caller, not
   just per app).
 

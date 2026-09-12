@@ -67,6 +67,14 @@ export function privilegeLinkApp(resource?: string): string | null {
   return match ? (match[1] || '') : null;
 }
 
+/** Both legs of the Privilege link, or none. The redirect leg on its own sends a
+ *  browser through a gateway sign-in whose commit leg then refuses it, so every
+ *  connect fails instead of degrading. The metadata, the authorize cookie and the
+ *  callback chain must all give the same answer or they drift apart again. */
+function privilegeLinkConfigured(): boolean {
+  return Boolean(process.env.BFF_PRIVILEGE_LINK_URL && process.env.BFF_PRIVILEGE_LINK_COMMIT_URL);
+}
+
 /**
  * OAuth 2.1 Authorization Server for external MCP clients (LM Studio,
  * Cursor, etc.) reaching this gateway over HTTP. Ported pattern from
@@ -126,11 +134,7 @@ export class OAuthBrokerRouter {
       // Non-standard, on purpose: the BFF façade cannot see this service's env,
       // and a 401 that assumes the chain exists would loop a client through
       // sign-ins that cannot restore the gateway leg.
-      // Both legs, or none: the redirect leg alone would advertise a chain whose
-      // commit leg refuses, failing every connect instead of degrading.
-      privilege_link_supported: Boolean(
-        process.env.BFF_PRIVILEGE_LINK_URL && process.env.BFF_PRIVILEGE_LINK_COMMIT_URL,
-      ),
+      privilege_link_supported: privilegeLinkConfigured(),
     });
     return true;
   }
@@ -239,7 +243,7 @@ export class OAuthBrokerRouter {
     const correlationId = crypto.randomUUID();
     // Only a chained Privilege door needs the binding; every other authorize is
     // untouched.
-    const willChainLink = privilegeLinkApp(resource) !== null && Boolean(process.env.BFF_PRIVILEGE_LINK_URL);
+    const willChainLink = privilegeLinkApp(resource) !== null && privilegeLinkConfigured();
     const linkNonce = willChainLink ? crypto.randomBytes(32).toString('base64url') : undefined;
     const relayState = this.tokenStore.createPendingAuthorization({
       clientId, redirectUri, scope, codeChallenge, codeChallengeMethod,
@@ -379,7 +383,7 @@ export class OAuthBrokerRouter {
     // docs/superpowers/specs/2026-09-11-lmstudio-privilege-gateway-link-design.md.
     const linkApp = privilegeLinkApp(pending.resource);
     const linkUrl = process.env.BFF_PRIVILEGE_LINK_URL;
-    if (linkApp !== null && linkUrl) {
+    if (linkApp !== null && linkUrl && privilegeLinkConfigured()) {
       const resumeId = this.tokenStore.createResume({
         clientId: pending.clientId,
         redirectUri: pending.redirectUri,
@@ -401,7 +405,7 @@ export class OAuthBrokerRouter {
       // Signed over the RAW app (empty for the bare door) so both sides agree
       // before the BFF resolves its default.
       link.searchParams.set('sig', crypto
-        .createHmac('sha256', this.bffInternalSecret)
+        .createHmac('sha256', this.linkSigningKey())
         .update(`${linkApp}|${resumeId}`)
         .digest('base64url'));
       res.writeHead(302, { Location: link.toString() });
@@ -562,6 +566,12 @@ export class OAuthBrokerRouter {
     } catch {
       return false;
     }
+  }
+
+  /** A purpose-bound key, so a signature that travels in a browser-visible URL is
+   *  never an oracle against the shared internal secret itself. */
+  private linkSigningKey(): Buffer {
+    return crypto.createHmac('sha256', this.bffInternalSecret).update('privilege-link-v1').digest();
   }
 
   /** Tell the BFF to drop a parked token we refused to commit. */

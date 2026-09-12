@@ -234,6 +234,24 @@ describe('privilege gateway session — parked links (browser-bound commit)', ()
     expect(session.commitPending('rs-1')).toBeNull();
   });
 
+  test('a discard before any park makes a later rememberPending a no-op, and the tombstone is swept once expired', () => {
+    jest.useFakeTimers();
+    const session = load();
+    // /oauth/resume consumes the resume record first, so a deny can land while
+    // the BFF's own sign-in is still in flight — the discard must still be
+    // honoured once that park finally arrives.
+    session.discardPending('rs-1');
+    session.rememberPending('rs-1', { app: 'opensearch', accessToken: 'late-token', tokenUri: TOKEN_URI });
+    expect(session.commitPending('rs-1')).toBeNull();
+
+    jest.advanceTimersByTime(600_001); // PENDING_TTL_MS + 1
+    // The tombstone itself expires, so a later, unrelated reuse of the same id
+    // is not blocked forever.
+    session.rememberPending('rs-1', { app: 'opensearch', accessToken: 'fresh-token', tokenUri: TOKEN_URI });
+    expect(session.commitPending('rs-1')).toEqual({ app: 'opensearch' });
+    jest.useRealTimers();
+  });
+
   test('an expired park is swept on the next rememberPending, so first-park-wins does not block a fresh one', () => {
     jest.useFakeTimers();
     const session = load();

@@ -191,6 +191,30 @@ describe('mcp-facade privilege-gateway door', () => {
     expect(seenAuth).toBeUndefined();
   });
 
+  test('with the flag on and the broker unreachable, the 503 distinguishes it from an unconfigured pair', async () => {
+    process.env.MCP_FACADE_PRIVILEGE_LINK = 'true';
+    global.fetch = jest.fn(async (url, opts) => {
+      if (String(url).includes('/.well-known/oauth-authorization-server')) {
+        throw new Error('ECONNREFUSED');
+      }
+      return originalFetch(url, opts);
+    });
+    router.__test.resetLinkAdvert();
+
+    const res = await request(buildApp()).post(DOOR_APP)
+      .set('Authorization', `Bearer ${callerToken()}`)
+      .send(RPC);
+
+    expect(res.status).toBe(503);
+    expect(res.body.error.data.reason).toBe('gateway_link_unreachable');
+    // Telling an operator to set env vars that are already right sends them
+    // nowhere useful — an unreachable broker needs a different remedy.
+    expect(res.body.error.data.remedy).toBe(
+      'The broker (mcp-gateway) did not answer its metadata endpoint — check it is running and that MCP_FACADE_AGENT_GATEWAY_AS_INTERNAL points at it.',
+    );
+    expect(seenAuth).toBeUndefined();
+  });
+
   test('brokerAdvertisesLink bounds its probe with an AbortSignal', async () => {
     process.env.MCP_FACADE_PRIVILEGE_LINK = 'true';
     global.fetch = jest.fn(async (url, opts) => {

@@ -124,15 +124,18 @@ finding itself, and fixed a real defect in the browser-binding's own trust chain
   `BFF_PRIVILEGE_LINK_COMMIT_URL`, so a half-wired pair degrades instead of advertising a chain that 403s
   every commit.
 
-**What this still does NOT stop.** An attacker who starts their own broker authorize, stops before the BFF's
-gateway sign-in, and mails that (now correctly signed) `/facade-link` URL to a signed-in victim still commits
-the victim's identity if the attacker can also get hold of the terminal `/oauth/resume?rs=…&link=ok` URL the
-BFF hands back — e.g. by suppressing the victim's browser from ever navigating it and capturing it some other
-way — because the attacker can replay THAT URL from their own browser, which still carries the `pgw_link`
-cookie from the authorize step they genuinely did. The nonce cookie proves "the browser at `/oauth/resume` is
-the browser that ran `/oauth/authorize`," which holds for the attacker regardless of who did the sign-in
-parked in between; it does not, and structurally cannot on its own, prove that the browser which produced the
-parked identity is the browser redeeming it.
+**What this still does NOT stop.** An attacker who starts their own broker authorize and stops before the
+BFF's gateway sign-in already holds that link's `rs` and `sig` — the broker's own redirect to `/facade-link`
+hands both to the attacker's browser, so nothing has to be captured or guessed afterwards. Mailing that
+(correctly signed) URL to a signed-in victim parks the victim's identity under an id the attacker knows. The
+only thing then standing between that park and a commit is the victim's browser following the final
+`/oauth/resume?rs=…&link=ok` hop, which consumes the id and discards the park. An attacker who prevents that
+last navigation — framing `/facade-link` and blocking the terminal hop with their own page's CSP, or mailing
+it to a victim who can reach the BFF but not the loopback broker — opens the resume URL themselves instead,
+still carrying the `pgw_link` cookie from the authorize they genuinely did, and the victim's identity commits.
+The nonce proves "the browser at `/oauth/resume` is the browser that ran `/oauth/authorize`", which is true of
+the attacker regardless of who signed in; it cannot, on its own, prove that the browser which produced the
+parked identity is the one redeeming it.
 
 **Real fix.** Key the gateway session by app **and** the caller's subject, so a captured/parked token can
 only ever serve the identity it was minted for instead of becoming an app-wide shared credential — the

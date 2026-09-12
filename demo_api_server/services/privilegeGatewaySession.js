@@ -221,12 +221,22 @@ function __setStore(s) {
 const PENDING_TTL_MS = 600_000;
 const pendingLinks = new Map();
 
+// A discard can land before its park: /oauth/resume consumes the resume record
+// first, so a deny can run while the BFF's sign-in is still in flight. Remember
+// the id briefly so the park that arrives afterwards is refused instead of held,
+// uncommittable, until its TTL.
+const discardedLinks = new Map();
+
 /** Park a link's gateway token under its broker resume id. */
 function rememberPending(id, record) {
   if (!id || !record?.accessToken || !record?.tokenUri) return;
   for (const [key, parked] of pendingLinks) {
     if (parked.expiresAt <= Date.now()) pendingLinks.delete(key);
   }
+  for (const [key, expiresAt] of discardedLinks) {
+    if (expiresAt <= Date.now()) discardedLinks.delete(key);
+  }
+  if (discardedLinks.has(id)) return;
   // First park wins. A second under the same id is a different browser's
   // sign-in landing on a slot someone else already filled — never legitimate,
   // since the broker mints each resume id once.
@@ -248,7 +258,9 @@ function commitPending(id) {
 
 /** Drop a parked token — the broker refused to commit this link. */
 function discardPending(id) {
-  if (id) pendingLinks.delete(id);
+  if (!id) return;
+  pendingLinks.delete(id);
+  discardedLinks.set(id, Date.now() + PENDING_TTL_MS);
 }
 
 module.exports = {

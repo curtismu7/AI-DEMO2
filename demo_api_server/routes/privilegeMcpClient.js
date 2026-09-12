@@ -2176,13 +2176,18 @@ function linkResumeUrl(value) {
   return url.toString();
 }
 
+// Must match OAuthBrokerRouter.linkSigningKey — same label, same derivation.
+function linkSigningKey() {
+  return crypto.createHmac('sha256', internalSecret()).update('privilege-link-v1').digest();
+}
+
 // The link is unauthenticated and decides which identity lands in which app's
 // shared session, so only a link the broker actually issued may proceed. The
 // secret resolves per call on purpose: the vault sets it long after these
 // routes are required (see utils/internalSecret.js).
 function linkSignatureValid(rawApp, rs, presented) {
   if (typeof presented !== 'string' || !presented) return false;
-  const expected = crypto.createHmac('sha256', internalSecret())
+  const expected = crypto.createHmac('sha256', linkSigningKey())
     .update(`${rawApp}|${rs}`).digest('base64url');
   const a = Buffer.from(presented);
   const b = Buffer.from(expected);
@@ -2211,6 +2216,10 @@ router.get('/facade-link', async (req, res) => {
   // the BFF hash the same string for the bare door.
   const rawApp = (typeof req.query.app === 'string' && req.query.app) || '';
   if (!linkSignatureValid(rawApp, new URL(resume).searchParams.get('rs'), req.query.sig)) {
+    // The one cause an operator cannot see from the 400: the broker captures
+    // BFF_INTERNAL_SECRET once at startup while this side resolves it per call,
+    // so a rotation leaves the two disagreeing and every link fails here.
+    console.warn('[facade-link] link signature rejected — check BFF_INTERNAL_SECRET matches the broker\'s, and that the broker was restarted after any rotation');
     return res.status(400).json({ error: 'facade-link needs a plain app name and the broker\'s /oauth/resume URL.' });
   }
   try {

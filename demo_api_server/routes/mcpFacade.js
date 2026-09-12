@@ -658,26 +658,28 @@ async function verifyDoorBearer(req, door) {
 // because this sits on the 401 path, and fail-closed — any doubt keeps the 503,
 // which tells a human how to fix it instead of looping the client.
 const LINK_ADVERT_TTL_MS = 60_000;
-let linkAdvert = { at: 0, value: false };
+let linkAdvert = { at: 0, value: false, reachable: false };
 
+// Returns { value, reachable }: `value` is the broker's advertisement, `reachable`
+// says whether we got an answer at all. The 503 needs both — "not configured" and
+// "cannot be reached" send an operator to different places.
 async function brokerAdvertisesLink() {
-  if (Date.now() - linkAdvert.at < LINK_ADVERT_TTL_MS) return linkAdvert.value;
+  if (Date.now() - linkAdvert.at < LINK_ADVERT_TTL_MS) return linkAdvert;
   const base = process.env.MCP_FACADE_AGENT_GATEWAY_AS_INTERNAL
     || process.env.MCP_FACADE_AGENT_GATEWAY_AS
     || 'http://localhost:3005';
   let value = false;
+  let reachable = false;
   try {
     const response = await fetch(`${base.replace(/\/+$/, '')}/.well-known/oauth-authorization-server`,
       { signal: AbortSignal.timeout(2000) });
+    reachable = response.ok;
     if (response.ok) value = Boolean((JSON.parse(await response.text()) || {}).privilege_link_supported);
   } catch (err) {
-    // Fail closed, but not silently: a wrong base URL disables the whole feature
-    // for 60s at a time and leaves no other trace.
     console.warn('[mcpFacade] broker link advertisement check failed:', err.message);
-    value = false;
   }
-  linkAdvert = { at: Date.now(), value };
-  return value;
+  linkAdvert = { at: Date.now(), value, reachable };
+  return linkAdvert;
 }
 
 function forwardHeaders(req, correlationId) {
@@ -845,8 +847,9 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
   if (door.ownsUpstreamAuth) {
     const upstreamToken = await privilegeGatewaySession.getAccessToken(req.params.app);
     if (!upstreamToken) {
-      const linkOn = process.env.MCP_FACADE_PRIVILEGE_LINK === 'true' && await brokerAdvertisesLink();
-      if (linkOn) {
+      const linkFlagOn = process.env.MCP_FACADE_PRIVILEGE_LINK === 'true';
+      const advert = linkFlagOn ? await brokerAdvertisesLink() : null;
+      if (advert?.value) {
         res.set('WWW-Authenticate', rewriteChallenge('Bearer error="invalid_token"', `${facadeBase(req)}/.well-known/oauth-protected-resource`, door.scopes));
         return res.status(401).json({
           jsonrpc: '2.0',
@@ -868,11 +871,13 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
           code: -32002,
           message: 'Gateway session unavailable',
           data: {
-            reason: process.env.MCP_FACADE_PRIVILEGE_LINK === 'true'
-              ? 'gateway_link_not_configured'
+            reason: linkFlagOn
+              ? (advert.reachable ? 'gateway_link_not_configured' : 'gateway_link_unreachable')
               : privilegeGatewaySession.status(req.params.app).reason,
-            remedy: process.env.MCP_FACADE_PRIVILEGE_LINK === 'true'
-              ? 'Set BFF_PRIVILEGE_LINK_URL and BFF_PRIVILEGE_LINK_COMMIT_URL on the broker (mcp-gateway), or unset MCP_FACADE_PRIVILEGE_LINK on the BFF.'
+            remedy: linkFlagOn
+              ? (advert.reachable
+                ? 'Set BFF_PRIVILEGE_LINK_URL and BFF_PRIVILEGE_LINK_COMMIT_URL on the broker (mcp-gateway), or unset MCP_FACADE_PRIVILEGE_LINK on the BFF.'
+                : 'The broker (mcp-gateway) did not answer its metadata endpoint — check it is running and that MCP_FACADE_AGENT_GATEWAY_AS_INTERNAL points at it.')
               : 'Sign in once at /privilege-mcp-client — the gateway forgets its clients on restart.',
           },
         },
@@ -1204,5 +1209,5 @@ router.get('/broker-prompt', (_req, res) => {
 module.exports = router;
 module.exports.__test = {
   DOORS, rewriteChallenge, sessions, MAX_SESSIONS, verifyDoorBearer,
-  resetLinkAdvert: () => { linkAdvert = { at: 0, value: false }; },
+  resetLinkAdvert: () => { linkAdvert = { at: 0, value: false, reachable: false }; },
 };

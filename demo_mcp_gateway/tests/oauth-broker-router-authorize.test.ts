@@ -155,6 +155,10 @@ describe('OAuthBrokerRouter /oauth/callback', () => {
 
 describe('OAuthBrokerRouter — Privilege gateway link', () => {
   const LINK_URL = 'https://local.ping-devops.com:4000/api/privilege-mcp/facade-link';
+  // The both-legs rule (X1) gates the callback chain and the authorize cookie,
+  // not just the metadata — so any test exercising the chained path needs both
+  // env vars set, same as a real deployment.
+  const COMMIT_URL = 'https://bff.example.com/internal/privilege-link/commit';
   const REDIRECT = 'http://127.0.0.1:33389/mcp-oauth-callback';
   const DOOR = 'http://localhost:3002/mcp-facade/privilege-gateway/opensearch/mcp';
 
@@ -202,6 +206,7 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
 
   it('parks the authorization and sends the browser to the BFF link for a Privilege door', async () => {
     process.env.BFF_PRIVILEGE_LINK_URL = LINK_URL;
+    process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = COMMIT_URL;
     const { res } = await callbackFor(DOOR);
 
     expect(res.status).toBe(302);
@@ -215,18 +220,52 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
 
   it('the link the broker issues carries a signature over its app and resume id', async () => {
     process.env.BFF_PRIVILEGE_LINK_URL = LINK_URL;
+    process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = COMMIT_URL;
     const { res } = await callbackFor(DOOR);
 
     const link = new URL(res.headers.location);
     const resumeId = new URL(link.searchParams.get('resume')!).searchParams.get('rs')!;
-    const expected = crypto.createHmac('sha256', 'test-internal-secret')
+    // The shared secret signs nothing directly — a purpose-bound derived key
+    // does, so this signature is never an oracle against the secret itself.
+    const signingKey = crypto.createHmac('sha256', 'test-internal-secret').update('privilege-link-v1').digest();
+    const expected = crypto.createHmac('sha256', signingKey)
       .update(`opensearch|${resumeId}`)
       .digest('base64url');
     expect(link.searchParams.get('sig')).toBe(expected);
   });
 
+  it('does not chain the link when only one leg is configured', async () => {
+    // BFF_PRIVILEGE_LINK_URL alone advertises a chain whose commit leg would
+    // refuse it (X1) — the callback must fall through to the ordinary
+    // non-link path instead of sending the browser through a sign-in that can
+    // only end in access_denied.
+    process.env.BFF_PRIVILEGE_LINK_URL = LINK_URL;
+    // BFF_PRIVILEGE_LINK_COMMIT_URL deliberately left unset.
+    const { res } = await callbackFor(DOOR);
+
+    expect(res.status).toBe(302);
+    const back = new URL(res.headers.location);
+    expect(back.origin + back.pathname).toBe(REDIRECT);
+    expect(back.searchParams.get('code')).toBeTruthy();
+  });
+
+  it('sets no nonce cookie when only one leg is configured', async () => {
+    process.env.BFF_PRIVILEGE_LINK_URL = LINK_URL;
+    // BFF_PRIVILEGE_LINK_COMMIT_URL deliberately left unset.
+    const { clientRegistry, server } = makeRouterAndServer();
+    const client = clientRegistry.registerClient({ client_name: 'LM Studio', redirect_uris: [REDIRECT] });
+
+    const res = await supertest(server).get('/oauth/authorize').query({
+      client_id: client.client_id, redirect_uri: REDIRECT, response_type: 'code',
+      code_challenge: 'c', code_challenge_method: 'S256', state: 's', resource: DOOR,
+    });
+
+    expect(res.headers['set-cookie']).toBeUndefined();
+  });
+
   it('omits app for the bare door, so the BFF uses its default app', async () => {
     process.env.BFF_PRIVILEGE_LINK_URL = LINK_URL;
+    process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = COMMIT_URL;
     const { res } = await callbackFor('http://localhost:3002/mcp-facade/privilege-gateway/mcp');
     const link = new URL(res.headers.location);
     expect(link.origin + link.pathname).toBe(LINK_URL);
@@ -299,6 +338,7 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
 
   it('sets a browser-bound nonce cookie and stores it on the pending authorization for a Privilege door', async () => {
     process.env.BFF_PRIVILEGE_LINK_URL = LINK_URL;
+    process.env.BFF_PRIVILEGE_LINK_COMMIT_URL = COMMIT_URL;
     const { clientRegistry, tokenStore, server } = makeRouterAndServer();
     const client = clientRegistry.registerClient({ client_name: 'LM Studio', redirect_uris: [REDIRECT] });
 

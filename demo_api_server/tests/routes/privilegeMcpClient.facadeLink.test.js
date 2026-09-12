@@ -22,10 +22,15 @@ const SID = 'facade-link-test';
 // the RAW app value — never the resolved default — so the bare-door case
 // hashes the same empty string on both sides.
 const INTERNAL_SECRET = 'test-facade-link-internal-secret';
+// Must match OAuthBrokerRouter.linkSigningKey / privilegeMcpClient's own
+// linkSigningKey — a purpose-bound derived key, never the raw shared secret.
+function linkSigningKey() {
+  return crypto.createHmac('sha256', INTERNAL_SECRET).update('privilege-link-v1').digest();
+}
 function sigFor(app, resume) {
   let rs = '';
   try { rs = new URL(resume).searchParams.get('rs') || ''; } catch { /* resume invalid; sig is irrelevant */ }
-  return crypto.createHmac('sha256', INTERNAL_SECRET).update(`${app}|${rs}`).digest('base64url');
+  return crypto.createHmac('sha256', linkSigningKey()).update(`${app}|${rs}`).digest('base64url');
 }
 
 const mockRemember = jest.fn();
@@ -178,6 +183,16 @@ describe('GET /api/privilege-mcp/facade-link', () => {
     expect(res.status).toBe(400);
     expect(res.headers.location).toBeUndefined();
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('a bad signature logs a warning naming BFF_INTERNAL_SECRET and returns the same generic 400 body', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const res = await startLink(buildApp({}), {
+      app: 'opensearch', resume: RESUME, sig: sigFor('some-other-app', RESUME),
+    });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({ error: 'facade-link needs a plain app name and the broker\'s /oauth/resume URL.' });
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('BFF_INTERNAL_SECRET'));
   });
 
   test('a gateway that cannot be discovered goes back to the broker as link=error', async () => {

@@ -200,8 +200,11 @@ residual this does NOT close):**
 - The `pgw_link` cookie is `Path=/oauth`, `HttpOnly`, `SameSite=Lax`, and is cleared (`Max-Age=0`) on every
   `/oauth/resume` response, success or denial.
 - `/auth/start` and any non-Privilege-door authorize set no cookie and carry no `linkNonce` — only an
-  authorize whose `resource` resolves to a Privilege door (`privilegeLinkApp`) with `BFF_PRIVILEGE_LINK_URL`
-  set gets one.
+  authorize whose `resource` resolves to a Privilege door (`privilegeLinkApp`) with both
+  `BFF_PRIVILEGE_LINK_URL` and `BFF_PRIVILEGE_LINK_COMMIT_URL` set gets one. Both env legs gate the callback
+  chain and the authorize cookie the same way they gate the advertised metadata — `privilegeLinkConfigured()`
+  is the one helper all three call sites use, so a half-wired pair falls through to the ordinary non-link path
+  instead of sending a browser through a gateway sign-in whose commit leg would refuse it.
 - With either flag off (`MCP_FACADE_PRIVILEGE_LINK` unset, or the broker not advertising
   `privilege_link_supported`), the façade keeps its 503 — it must never 401 a client into a loop it cannot
   complete.
@@ -209,8 +212,19 @@ residual this does NOT close):**
   cannot choose the parked slot or the target app by hand-crafting the URL.
 - A `rememberPending` under an `rs` already parked (and not expired) is refused, and every deny path
   discards the park instead of leaving it live until `PENDING_TTL_MS`.
+- A discard is remembered even when it arrives before its park: a later `rememberPending` under the same id
+  is refused (`commitPending` returns null) rather than parking a token nobody can ever commit, and the
+  tombstone itself expires so the id is not blocked forever.
 - A parked record with no `linkNonce` always denies at `/oauth/resume` — never falls through to a commit.
 - `privilege_link_supported` requires both `BFF_PRIVILEGE_LINK_URL` and `BFF_PRIVILEGE_LINK_COMMIT_URL`.
+- The façade's flag-on 503 distinguishes a broker that answered with no advertisement
+  (`gateway_link_not_configured`, remedy: set the two broker env vars) from a broker that did not answer at
+  all (`gateway_link_unreachable`, remedy: check the broker is running and reachable) — never send an operator
+  to reconfigure env vars that are already correct.
+- The `/facade-link` signature is HMAC-SHA256 over `<raw app>|<resume id>` under a purpose-bound key derived
+  from the shared internal secret (`HMAC(secret, 'privilege-link-v1')`), not the raw secret itself — the label
+  must match byte-for-byte between the broker (`OAuthBrokerRouter.linkSigningKey`) and the BFF
+  (`privilegeMcpClient.linkSigningKey`), or every link 400s.
 
 **Verify:**
 - `cd demo_mcp_gateway && npm run build && ./node_modules/.bin/jest tests/oauth-broker-router-authorize.test.ts tests/oauth-broker-router-token.test.ts tests/oauth-broker-router-metadata.test.ts tests/oauth-broker-token-store.test.ts tests/gateway-oauth-broker-wiring.test.ts tests/oauth-client-registry.test.ts --forceExit` — 6 suites, 61 tests, all pass.
