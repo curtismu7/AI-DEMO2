@@ -57,7 +57,14 @@ async function loadVaultSecrets(names, root = ROOT) {
     }
     if (!password) return out;
 
-    const { openVault } = require(path.join(root, 'demo_api_server', 'lib', 'vault'));
+    // API_ROOT, not `root`: `root` is the repo root, and reaching lib/vault
+    // through it resolves node_modules from the HOST bind inside the container
+    // — the same class of defect the API_ROOT/ROOT split exists to kill. It
+    // survives today only because argon2 ships cross-platform prebuilds and the
+    // catch below swallows the failure as "vault unavailable"; one dependency
+    // upgrade turns that into a silent outage. `root` still locates the vault
+    // FILE, which genuinely lives at the repo root.
+    const { openVault } = require(path.join(API_ROOT, 'lib', 'vault'));
     const handle = await openVault(vaultFile, password);
     try {
       for (const name of names) {

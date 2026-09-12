@@ -173,6 +173,31 @@ describe('GET /api/admin/secret-rotation/runs/:runId', () => {
     expect(res.body.lines.join('\n')).toMatch(/appears to have died without reporting/);
   });
 
+  // applyRestart logs `recreating: ...` then blocks in run-docker.sh for
+  // minutes. Calling that run dead — mid-recreate, post-rotate — is the worst
+  // possible false positive.
+  test('a stale log parked on the recreate step is still running, not failed', async () => {
+    const runId = runWithLog(
+      '[rotate] verified (token_issued)\n[rotate] recreating: mcp-gateway, demo-api-server\n');
+    const logPath = path.join(RUN_DIR, `${runId}.log`);
+    const old = new Date(Date.now() - 5 * 60 * 1000);
+    fs.utimesSync(logPath, old, old);
+
+    const res = await request(appWithRouter()).get(`/api/admin/secret-rotation/runs/${runId}`);
+    expect(res.body.status).toBe('running');
+  });
+
+  test('a stale log that got PAST the recreate step still reports failed', async () => {
+    const runId = runWithLog(
+      '[rotate] recreating: mcp-gateway\n[rotate] containers recreated\n');
+    const logPath = path.join(RUN_DIR, `${runId}.log`);
+    const old = new Date(Date.now() - 5 * 60 * 1000);
+    fs.utimesSync(logPath, old, old);
+
+    const res = await request(appWithRouter()).get(`/api/admin/secret-rotation/runs/${runId}`);
+    expect(res.body.status).toBe('failed');
+  });
+
   test('a stale log that DID report its outcome keeps that outcome', async () => {
     const runId = runWithLog('[rotate] DONE ok\n');
     const logPath = path.join(RUN_DIR, `${runId}.log`);

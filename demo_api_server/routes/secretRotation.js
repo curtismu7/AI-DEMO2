@@ -135,7 +135,15 @@ router.get('/runs/:runId', (req, res) => {
   // leaves a log nothing will ever append to and the page polls 'running'
   // forever. mtime is the cheapest liveness proxy: the CLI logs a line at every
   // step, so a silent log is a dead process, not a slow one.
-  if (status === 'running' && Date.now() - fs.statSync(logPath).mtimeMs > STALE_RUN_MS) {
+  // ...except while the CLI is inside its one legitimately-silent step:
+  // applyRestart logs `recreating: <services>` and then BLOCKS in
+  // run-docker.sh for potentially minutes with nothing to say. Crying
+  // "process died" there — mid-recreate, post-rotate — is the worst possible
+  // false positive. Scoped to the last line so a run that got past the
+  // recreate is still covered.
+  const inRestart = /^\[rotate\] recreating: /.test(lines[lines.length - 1] || '');
+  if (status === 'running' && !inRestart
+      && Date.now() - fs.statSync(logPath).mtimeMs > STALE_RUN_MS) {
     return res.json({
       status: 'failed',
       lines: lines.concat(

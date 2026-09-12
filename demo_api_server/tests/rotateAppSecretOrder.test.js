@@ -33,6 +33,7 @@ jest.mock('../../scripts/lib/rotationTargets', () => ({
   applyK8sPatch: jest.fn(() => { order.push('k8s'); }),
 }));
 
+const { execFileSync } = require('node:child_process');
 const { preflight } = require('../../scripts/rotate-app-secret');
 const rotation = require('../../demo_api_server/services/pingOneSecretRotation');
 const { propagateServiceEnvs } = require('../../demo_api_server/scripts/refresh-service-envs');
@@ -70,6 +71,20 @@ describe('rotateAppSecretCli orchestration', () => {
       'propagate',
       'verify',
     ]);
+  });
+
+  // vault.js computes its OWN vault path (path.resolve(__dirname, '..', '..') +
+  // '/secrets.vault'). Now that VAULT_CLI resolves under DEMO_API_SERVER_ROOT,
+  // that default is '/secrets.vault' in-container — the :ro bind. preflight
+  // proves a DIFFERENT file opens, so the mismatch would surface only at
+  // save(), after the irreversible rotate. The two halves must agree by
+  // construction, not by each deriving the path again.
+  test('the vault write targets exactly the path preflight validated', async () => {
+    await main(ARGV);
+    const validated = preflight.mock.calls[0][0].vaultPath;
+    expect(validated).toBeTruthy();
+    const setCall = execFileSync.mock.calls.find(([, args]) => args[1] === 'set');
+    expect(setCall[2].env.VAULT_PATH).toBe(validated);
   });
 
   test('preflight rejection means nothing irreversible ever runs', async () => {

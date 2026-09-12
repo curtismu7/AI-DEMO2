@@ -28,10 +28,23 @@ const DESCRIBE_APP_CLI = path.join(DEMO_API_SERVER_ROOT, 'scripts/describeApp.js
 
 function log(msg) { process.stdout.write(`[rotate] ${msg}\n`); }
 
-/** Writes the value on STDIN — never argv, which execFileSync echoes on error. */
-function vaultSet(name, value) {
+/**
+ * Writes the value on STDIN — never argv, which execFileSync echoes on error.
+ *
+ * `vaultPath` MUST be the same path preflight() already opened. vault.js
+ * computes its own default as path.resolve(__dirname, '..', '..') +
+ * '/secrets.vault', which now that VAULT_CLI lives at /app/scripts resolves to
+ * '/secrets.vault' — the :ro bind of the BFF's own read path
+ * (docker-compose.yml). openVault() would still succeed there, so the failure
+ * would only surface at save(), which renames a temp file over the target: EBUSY
+ * on a read-only bind, AFTER the irreversible PingOne rotate, with the new
+ * secret living only in this process's memory. Passing the validated path makes
+ * the half that checks and the half that writes agree by construction.
+ */
+function vaultSet(name, value, vaultPath) {
   execFileSync('node', [VAULT_CLI, 'set', name], {
     input: value, stdio: ['pipe', 'ignore', 'pipe'], cwd: REPO_ROOT,
+    env: { ...process.env, VAULT_PATH: vaultPath },
   });
 }
 
@@ -57,9 +70,12 @@ async function main(argv) {
   // Everything before this flips true is recoverable — nothing has changed yet.
   let rotated = false;
   try {
+    // Explicit stdio: without it stderr is inherited straight into the shared
+    // run log, unprefixed and interleaved with the [rotate] lines the route
+    // parses. Same discipline vaultSet and applyRestart already use.
     const app = JSON.parse(execFileSync('node', [
       DESCRIBE_APP_CLI, appId,
-    ], { encoding: 'utf8', cwd: REPO_ROOT }));
+    ], { encoding: 'utf8', cwd: REPO_ROOT, stdio: ['pipe', 'pipe', 'pipe'] }));
 
     const vaultPath = process.env.VAULT_PATH || path.join(REPO_ROOT, 'secrets.vault');
     await preflight({ app, vaultPath, vaultPassword: process.env.VAULT_PASSWORD || '' });
@@ -70,7 +86,7 @@ async function main(argv) {
     rotated = true;
     log(`rotated. fingerprint=${fingerprint(secret)}`);
 
-    vaultSet(vaultKey, secret);
+    vaultSet(vaultKey, secret, vaultPath);
     log(`vault updated: ${vaultKey} = ••••••••`);
 
     // Propagation is non-fatal by design (design spec, "Failure modes":
