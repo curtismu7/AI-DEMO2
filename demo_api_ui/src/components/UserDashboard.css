@@ -322,6 +322,34 @@
   white-space: nowrap;
 }
 
+/* Sequence view's step detail — full width, below the agent + diagram
+   (both are stacked/full-width already; this just sits under both). */
+.ud-sequence-detail-row {
+  grid-column: 1 / -1;
+  margin-top: 0.75rem;
+}
+
+/* Sequence view: the agent column and the diagram default to a much
+   taller natural height than either needs, which pushes the step detail
+   panel below the fold. Cap both and let them scroll internally instead,
+   so the detail row is visible without scrolling the whole page. */
+.ud-body.ud-sequence-view-active .ud-agent-column,
+.ud-body.ud-sequence-view-active .srd-root {
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
+/* Slow mode: narrating the diagram to a crowd needs the width, not the agent
+   chat. Focus Mode never renders a banking column (see the comment above the
+   TokenChainFilmstrip mount), so grid-template-columns always resolves to
+   just [agent, diagram] here regardless of the no-banking class — matching
+   on the classes that are actually always present (not --no-banking, which
+   isn't) and outweighing every competing rule (up to 3 classes) on class
+   count alone, without touching the user's persisted --ud-agent-col-width. */
+.ud-body.ud-body--2026.ud-focus-mode.ud-body--dashboard-split3.ud-sequence-view-active.ud-slow-mode-active {
+  grid-template-columns: minmax(0, 0.55fr) minmax(0, 1.45fr);
+}
+
 .ud-agent-column {
   position: relative;
   min-width: 0;
@@ -429,6 +457,10 @@
 
   .ud-body.ud-body--2026.ud-body--dashboard-split3.ud-body--dashboard-split3--no-banking {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .ud-body.ud-body--2026.ud-focus-mode.ud-body--dashboard-split3.ud-sequence-view-active.ud-slow-mode-active {
+    grid-template-columns: minmax(0, 0.55fr) minmax(0, 1.45fr);
   }
 }
 

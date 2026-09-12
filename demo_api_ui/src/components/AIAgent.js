@@ -893,6 +893,9 @@ export default function BankingAgent({
   // reasoning as showFilmstrip above: a stray click must not hide either
   // surface forever.
   const [showSequenceDiagram, setShowSequenceDiagram] = useState(false);
+  // "Slow mode" — paces the sequence diagram's step reveal for live narration.
+  // Only meaningful while Sequence view is on; toggled off with it.
+  const [slowMode, setSlowMode] = useState(false);
   // "DaVinci Mode" — pure UI preference (no server flag), surfaces the DaVinci
   // Orchestration explainer/demo nav entry instead of standard agent chrome.
   // See docs/superpowers/specs/2026-08-17-davinci-orchestration-showcase-design.md.
@@ -9846,11 +9849,33 @@ export default function BankingAgent({
                           // the Movie reel toggle above.
                           setShowSequenceDiagram(newVal);
                           window.dispatchEvent(new CustomEvent("agent-sequence-diagram-toggle", { detail: { on: newVal } }));
+                          // Auto-collapse the left nav so the diagram gets the
+                          // width back; restored when the toggle goes off.
+                          window.dispatchEvent(new CustomEvent("admin-sidenav-collapse-toggle", { detail: { collapsed: newVal } }));
+                          if (!newVal && slowMode) {
+                            setSlowMode(false);
+                            window.dispatchEvent(new CustomEvent("agent-slow-mode-toggle", { detail: { on: false } }));
+                          }
                         }}
                         title="Show a live lifeline sequence diagram instead of the movie reel for this session (returns on reload)"
                       >
                         Sequence view
                       </Check>
+                      {showSequenceDiagram && (
+                        <Check
+                          variant="switch"
+                          className="ba-header-toggle-label"
+                          checked={slowMode}
+                          onChange={(e) => {
+                            const newVal = e.target.checked;
+                            setSlowMode(newVal);
+                            window.dispatchEvent(new CustomEvent("agent-slow-mode-toggle", { detail: { on: newVal } }));
+                          }}
+                          title="Reveal sequence diagram steps slowly, for narrating the flow to a live audience"
+                        >
+                          Slow mode
+                        </Check>
+                      )}
                       <Check
                         variant="switch"
                         className="ba-header-toggle-label"

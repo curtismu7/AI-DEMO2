@@ -39,6 +39,7 @@ import DashboardTokenRail from "./DashboardTokenRail";
 import TokenChainFilmstrip from "./TokenChainFilmstrip";
 import ReelDock from "./ReelDock";
 import SequenceReelDiagram from "./SequenceReelDiagram";
+import StepDetailPanel from "./StepDetailPanel";
 import SimpleStepperBar from "./SimpleStepperBar";
 import AgentResponseMirror from "./AgentResponseMirror";
 import ExchangeModeToggle from "./ExchangeModeToggle";
@@ -191,10 +192,28 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   // sequence diagram of the same trace data. Same session-only convention
   // as showFilmstrip above.
   const [showSequenceDiagram, setShowSequenceDiagram] = useState(false);
+  // The step a user clicked on in the diagram, rendered below it via
+  // StepDetailPanel — the same narrative/RFC/request-response detail the
+  // reel already shows for this exact step shape. Cleared on toggle-off so
+  // switching back to the reel doesn't leave a stale panel showing.
+  const [selectedSeqStep, setSelectedSeqStep] = useState(null);
   useEffect(() => {
-    const handler = (e) => setShowSequenceDiagram(!!e.detail?.on);
+    const handler = (e) => {
+      const on = !!e.detail?.on;
+      setShowSequenceDiagram(on);
+      if (!on) setSelectedSeqStep(null);
+    };
     window.addEventListener("agent-sequence-diagram-toggle", handler);
     return () => window.removeEventListener("agent-sequence-diagram-toggle", handler);
+  }, []);
+
+  // Quick Config "Slow mode" — narrows the agent column so the sequence
+  // diagram gets the width back while narrating a slow-paced reveal.
+  const [slowMode, setSlowMode] = useState(false);
+  useEffect(() => {
+    const handler = (e) => setSlowMode(!!e.detail?.on);
+    window.addEventListener("agent-slow-mode-toggle", handler);
+    return () => window.removeEventListener("agent-slow-mode-toggle", handler);
   }, []);
 
   // ff_show_agent_in_middle — when false (default) the banking column
@@ -3589,7 +3608,18 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               shell, the same shape as float mode, so .tcfs-float-host's
               position:sticky/bottom:0 pins it without any clinical-specific CSS. */}
           {showFilmstrip && !showSequenceDiagram && <ReelDock />}
-          {showSequenceDiagram && <SequenceReelDiagram />}
+          {showSequenceDiagram && (
+            <SequenceReelDiagram
+              onSelectStep={setSelectedSeqStep}
+              selectedStepId={selectedSeqStep?.id}
+              slowMode={slowMode}
+            />
+          )}
+          {showSequenceDiagram && selectedSeqStep && (
+            <div className="ud-sequence-detail-row">
+              <StepDetailPanel step={selectedSeqStep} />
+            </div>
+          )}
         </div>
         {renderGlobalModals()}
       </>
@@ -3630,7 +3660,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           // and banking-column states keep their existing rules.
           className={`dashboard-content ud-body ud-body--2026 ud-focus-mode ${splitGridClass(
             showBankingInMiddle,
-          )}${middleAgentOpen ? "" : " ud-middle-collapsed"}`}
+          )}${middleAgentOpen ? "" : " ud-middle-collapsed"}${showSequenceDiagram ? " ud-sequence-view-active" : ""}${showSequenceDiagram && slowMode ? " ud-slow-mode-active" : ""}`}
           style={{ '--ud-agent-col-width': `${agentColWidth}px` }}
         >
           {/* Full width above both columns, where the mock puts it. Inside the
@@ -3724,7 +3754,18 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               not mount in this layout. The reel was never lost, the control
               was simply wired to the copy you were not looking at. */}
           {showFilmstrip && !showSequenceDiagram && <TokenChainFilmstrip />}
-          {showSequenceDiagram && <SequenceReelDiagram />}
+          {showSequenceDiagram && (
+            <SequenceReelDiagram
+              onSelectStep={setSelectedSeqStep}
+              selectedStepId={selectedSeqStep?.id}
+              slowMode={slowMode}
+            />
+          )}
+          {showSequenceDiagram && selectedSeqStep && (
+            <div className="ud-sequence-detail-row">
+              <StepDetailPanel step={selectedSeqStep} />
+            </div>
+          )}
         </div>
       ) : (
         // Float mode ('none'): 2-column layout — token rail + content; FAB is a
@@ -3787,7 +3828,18 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             <AgentResponseMirror />
             {/* Movie reel filmstrip — toggled via More › Movie reel in the agent header */}
             {showFilmstrip && !showSequenceDiagram && <ReelDock />}
-          {showSequenceDiagram && <SequenceReelDiagram />}
+          {showSequenceDiagram && (
+            <SequenceReelDiagram
+              onSelectStep={setSelectedSeqStep}
+              selectedStepId={selectedSeqStep?.id}
+              slowMode={slowMode}
+            />
+          )}
+          {showSequenceDiagram && selectedSeqStep && (
+            <div className="ud-sequence-detail-row">
+              <StepDetailPanel step={selectedSeqStep} />
+            </div>
+          )}
           </div>
       )}
 
