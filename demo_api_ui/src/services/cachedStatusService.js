@@ -7,6 +7,24 @@
 
 const cache = {};
 const CACHE_TTL_MS = 10000; // 10 seconds
+// Bounds a stalled BFF/session check, which otherwise hangs this fetch()
+// forever — unlike every other call in fetchUserData(), which goes through
+// apiClient's own 10s axios timeout and is already bounded. Deliberately
+// distinct from CACHE_TTL_MS (also 10s) so a TTL-expiry wait in a test or in
+// production doesn't also read as this request having timed out.
+const REQUEST_TIMEOUT_MS = 12000;
+
+/** Race fetch() against a timer so a stalled request rejects instead of hanging forever. */
+function fetchWithTimeout(url, config, timeoutMs = REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => {
+      controller.abort();
+      reject(new Error(`${url} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+  return Promise.race([fetch(url, { ...config, signal: controller.signal }), timeoutPromise]);
+}
 
 // Auto-invalidate cache on auth transitions
 if (typeof window !== 'undefined') {
@@ -43,7 +61,7 @@ export async function getCachedStatus(url, config = {}) {
   // whether a newer, faster request already replaced this cache entry by
   // the time this one resolves -- an older, slower overlapping request must
   // never clobber a fresher cached response with stale data.
-  const promise = fetch(url, requestConfig)
+  const promise = fetchWithTimeout(url, requestConfig)
     .then((r) => {
       if (!r.ok) throw new Error(`${url} returned ${r.status}`);
       const contentType = r.headers.get('content-type') || '';

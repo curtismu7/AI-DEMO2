@@ -39,14 +39,24 @@ const flagsFor = async (cfg) => {
 };
 
 describe('useAppFlags — spinner knobs', () => {
-  it('an empty config yields the pre-knob look', async () => {
+  it('an empty config yields the pre-knob look, minus the forced-dark card', async () => {
+    // spinner_dark_card now defaults to false — the overlay follows the app's
+    // light/dark theme instead of always rendering the dark card.
     expect(await flagsFor({})).toEqual({
       variant: 'neural',
       size: 88,
       accent: '',
-      dark: true,
+      dark: false,
       feed: true,
     });
+  });
+
+  it('an admin can still force the dark card on (real boolean)', async () => {
+    expect(await flagsFor({ spinner_dark_card: true })).toMatchObject({ dark: true });
+  });
+
+  it('an admin can still force the dark card on (configStore string)', async () => {
+    expect(await flagsFor({ spinner_dark_card: 'true' })).toMatchObject({ dark: true });
   });
 
   it('reads configStore string values, not just booleans', async () => {
