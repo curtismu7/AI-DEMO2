@@ -45,13 +45,23 @@ describe('ActivityPanel — compact token chain', () => {
   });
 
   test('a decoded token opens on the Token tab; tabs switch the detail', () => {
-    const decodedToken = { isValid: true, payload: { sub: 'user-1', act: { sub: 'client-app' } } };
+    const decodedToken = {
+      isValid: true,
+      payload: { sub: 'user-1', act: { sub: 'client-app' }, exp: 1704067200 },
+    };
     render(<ActivityPanel results={[hop(1, { decodedToken })]} error={null} />);
 
     expect(screen.getByRole('tab', { name: 'Token' })).toHaveAttribute('aria-selected', 'true');
     expect(within(screen.getByRole('tabpanel')).getByText('"client-app"')).toBeInTheDocument();
     // "decoded", not "signed": nothing here verifies the signature.
     expect(screen.getByText('HTTP 200 (decoded)')).toBeInTheDocument();
+
+    // Expiry reads as local time, with the exact ISO kept in the tooltip.
+    // Asserted by shape, not by value — the rendered string is timezone- and
+    // locale-dependent, the ISO one is not.
+    const expiry = screen.getByTitle('2024-01-01T00:00:00.000Z');
+    expect(expiry).toHaveClass('claim-value');
+    expect(expiry.textContent).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
 
     fireEvent.click(screen.getByRole('tab', { name: 'Request' }));
     expect(within(screen.getByRole('tabpanel')).getByText('"/api/demo/hop-1"')).toBeInTheDocument();
