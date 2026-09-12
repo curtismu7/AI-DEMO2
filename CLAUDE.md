@@ -59,6 +59,8 @@ PingOne lifecycle (`setup:fresh`, `pingone:bootstrap`, import/export/reset) muta
 - `langchain_agent/` — Python+LangGraph+pytest · own `CLAUDE.md`; `openai_agent/`, `pydantic_agent/` — Python+pytest; `mastra_agent/` — Node
 - `demo_llm_proxy/`, `scripts/`, `docs/`, `planning/`
 
+**Root stays limited to** the service/infra dirs above, root-level docs (`README.md`, `CHANGELOG.md`, etc.), top-level run/install scripts, and compose/k8s config — nothing else lands at repo root. A new export, mock, report, or one-off script belongs under `scripts/`, `docs/`, `planning/`, or the owning service directory instead. [`scripts/root-allowlist.txt`](scripts/root-allowlist.txt) is the enforced source of truth — CI's `root:allowlist:check` fails a PR that adds an unlisted top-level entry; add a genuine new one there in the same PR.
+
 ## Watch out
 
 - Auth/token/session/UI: protected — state what you won't break before editing.

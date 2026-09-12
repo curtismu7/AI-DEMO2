@@ -154,6 +154,15 @@
   margin: 2px 0 3px 11px;
 }
 
+/* Form view only: the transport line that sits above the JSON body. */
+.sdp-payload-head {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-muted);
+  margin-bottom: 4px;
+  white-space: pre-wrap;
+}
+
 .sdp-pre {
   margin: 0;
   /* monospace: raw HTTP request/response payloads */

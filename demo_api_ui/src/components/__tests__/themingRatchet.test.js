@@ -89,7 +89,7 @@ import path from 'node:path';
 // nav-reachable pages from the full audit. Each page's own brand/legend
 // accent (the CC orange, --dtp-red/--dc-navy/--dc-blue, the #0a66c2 OWASP
 // blue, the SecurityCenter navy header) stays literal per THEMING.md §1.3.
-const MAX_UNTHEMED = 138;
+const MAX_UNTHEMED = 137;
 
 const SRC = path.join(__dirname, '..', '..');
 

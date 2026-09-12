@@ -10,11 +10,16 @@
 // defeat the point. The attack is precisely about the bearer being absent or
 // forged, so the header must be controlled exactly.
 //
-// Measured 2026-09-10 (see the tool-lane twin in toolAttackCatalog.js): the wire
-// gate (middleware/a2aPingOneBearer.js) validates signature + issuer + client_id
-// only — NOT audience/scope. So "stopped" here is the unauthenticated/forged
-// caller denied at the door (401). Fine-grained authority beyond the door is
-// enforced downstream at the MCP/Authorize layer (the Tool Abuse path), not here.
+// The wire gate (middleware/a2aPingOneBearer.js, verifyA2aBearer) checks, in
+// order: (1) signature/issuer/expiry via PingOne JWKS, (2) audience — the
+// specialist's own intermediate resource, (3) scope agent:invoke:<appKey>,
+// (4) an act chain present and exactly one level deep, (5) the actor is the
+// registered generalist's client id, (6) a subject (sub) is present. This
+// card's two probes (no bearer, a forged/unsignable token) are both denied at
+// check 1/signature — they don't exercise audience or scope, so "stopped"
+// here only proves the unauthenticated/forged caller was denied at the door
+// (401). Finer-grained authority beyond the door is enforced downstream at
+// the MCP/Authorize layer (the Tool Abuse path), not here.
 import React, { useState } from 'react';
 import './InterAgentAbuseTester.css';
 
@@ -73,7 +78,7 @@ async function runProbe(key) {
     method: 'POST', credentials: 'omit', headers, body: JSON.stringify(RPC_BODY),
   });
   let message = '';
-  try { const b = await res.json(); message = b?.message || b?.error || JSON.stringify(b).slice(0, 200); }
+  try { const b = await res.json(); message = b?.error || b?.message || JSON.stringify(b).slice(0, 200); }
   catch { message = await res.text().catch(() => ''); }
   return { httpStatus: res.status, message: (message || '').slice(0, 240) };
 }
