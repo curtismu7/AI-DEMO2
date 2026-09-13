@@ -1,0 +1,89 @@
+# Hostile MCP server as its own Deployment + Service in the Privilege gateway's
+# namespace, so it can be registered as a custom Agentic App backend at
+#   http://hostile-mcp-server.ping-devops-curtismuir.svc.cluster.local/sse
+# This does NOT touch the agentless-mcpgw Helm chart (no sidecar). See
+# docs/superpowers/specs/2026-09-13-hostile-mcp-behind-privilege-design.md.
+#
+# BUILD FOR arm64 — the SE cluster nodes are Graviton (arm64). An amd64 image
+# fails to pull ("no match for platform") or crashes ("exec format error"):
+#   docker buildx build --platform linux/arm64 --provenance=false \
+#     -t ghcr.io/curtismu7/hostile-mcp-server:latest --push .
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hostile-mcp-server
+  namespace: ping-devops-curtismuir
+  labels:
+    app: hostile-mcp-server
+    component: red-team
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: hostile-mcp-server
+  template:
+    metadata:
+      labels:
+        app: hostile-mcp-server
+        component: red-team
+    spec:
+      imagePullSecrets:
+      - name: ghcr-pull-secret
+      containers:
+      - name: hostile-mcp-server
+        image: ghcr.io/curtismu7/hostile-mcp-server:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8899
+          name: http
+        env:
+        - name: PORT
+          value: "8899"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8899
+          initialDelaySeconds: 10
+          periodSeconds: 60
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8899
+          initialDelaySeconds: 5
+          periodSeconds: 30
+          timeoutSeconds: 3
+          failureThreshold: 3
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hostile-mcp-server
+  namespace: ping-devops-curtismuir
+  labels:
+    app: hostile-mcp-server
+    component: red-team
+spec:
+  type: ClusterIP
+  ports:
+  # Port 80 so the backend URL needs no port: …svc.cluster.local/sse
+  - port: 80
+    targetPort: 8899
+    protocol: TCP
+    name: http
+  selector:
+    app: hostile-mcp-server

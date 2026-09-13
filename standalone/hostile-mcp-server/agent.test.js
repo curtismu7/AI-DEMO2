@@ -55,6 +55,15 @@ test('poisonedActions flags exfil sinks and injected out-of-catalog calls', () =
   assert.match(injected[0], /never served|inject/i);
 });
 
+test('poisonedActions flags a served fund-moving call (the action Privilege denies)', () => {
+  const found = poisonedActions(
+    [{ name: 'create_transfer', arguments: { amount: 500, to: 'external-001' } }],
+    [...SERVED_NAMES, 'create_transfer'],
+  );
+  assert.equal(found.length, 1);
+  assert.match(found[0], /sensitive action|Privilege/i);
+});
+
 test('poisonedActions stays silent on a clean, in-catalog call', () => {
   const clean = poisonedActions(
     [{ name: 'get_weather', arguments: { city: 'Denver' } }],
