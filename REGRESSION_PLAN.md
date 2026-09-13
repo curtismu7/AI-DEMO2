@@ -141,6 +141,37 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-13 — Node gateway: a DPoP-bound token without a valid, unreplayed proof is refused
+
+**Files changed:** `demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts`,
+`src/index.ts`, `src/wsBindingGuard.ts`. Tests:
+`demo_mcp_gateway/tests/authorizeMcpRequest.dpopBoundEnforce.test.ts` (new),
+`tests/wsBindingGuard.test.ts`.
+
+**What was broken:** the gateway verified DPoP proofs for real (signature, htu,
+htm, iat, ath, jkt and a jti replay cache) but only refused a failure when
+`REQUIRE_DPOP_PROOF=true`, which is unset in the stack. A token bound to a key
+(`cnf.jkt`, from the token or the demo TraT envelope) was accepted with a
+missing, forged or replayed proof, so the sender constraint that binding exists
+for was never enforced, and UC12 could not truthfully show replay defense.
+
+**What was fixed:** HTTP Step 2d refuses a failed verification when
+`REQUIRE_DPOP_PROOF=true` **or** the token is bound (RFC 9449 §7). The
+WebSocket tools/call guard applies the same rule through `isDpopBound()`
+(the token's cnf claim, or the TraT envelope when
+`ALLOW_UNSIGNED_TRAT_CONTEXT=true`); WebSocket cannot carry a proof, so a bound
+token is refused there and steered to `POST /mcp`.
+
+**Do not break:**
+- An unbound token is unchanged: it needs a proof only when
+  `REQUIRE_DPOP_PROOF=true`.
+- The HITL receipt single-use check (REGRESSION_PLAN §1) runs on both
+  transports exactly as before; nothing in its path changed.
+- The replay cache is in-memory per gateway instance (noted in `dpopVerify.ts`).
+
+**Verify:** `cd demo_mcp_gateway && ./node_modules/.bin/jest tests/authorizeMcpRequest.dpopBoundEnforce.test.ts tests/wsBindingGuard.test.ts tests/authorizeMcpRequest.dpopWwwAuthenticate.test.ts tests/dpopVerify.test.ts`.
+The bound-token refusal and replay tests fail against the pre-fix middleware.
+
 ### 2026-09-13 — UC2.5 Demo step runs the A2A orchestrator instead of UC2
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`. Test:
