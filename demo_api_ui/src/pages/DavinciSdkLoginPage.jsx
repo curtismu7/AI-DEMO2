@@ -42,8 +42,9 @@ const triggerOf = (c) =>
 export default function DavinciSdkLoginPage() {
   // loading | collecting | reused | signedIn | notConfigured | failed
   const [phase, setPhase] = useState("loading");
-  // Username an existing PingOne session signed in as, shown on the "reused"
-  // panel so the user can Continue as them or sign out to switch.
+  // Who an existing PingOne session signed in as ({ username, userId, email }
+  // from the BFF), shown on the "reused" panel so the user can Continue as them
+  // or sign out to switch.
   const [reusedAs, setReusedAs] = useState(null);
   // Who ended up signed in and HOW: "session" (an existing PingOne session
   // completed the flow with no screens) or "form" (the user submitted the
@@ -121,9 +122,10 @@ export default function DavinciSdkLoginPage() {
     setMessage(node?.status === "error" ? client.getError?.()?.message || null : null);
   }, []);
 
-  // Stay on this page, signed in, and explain what just happened.
-  const showSignedIn = useCallback((username, via) => {
-    setSignedIn({ username, via });
+  // Stay on this page, signed in, and explain what just happened. `profile` is
+  // what the BFF returned about the user: username, PingOne user id and email.
+  const showSignedIn = useCallback((profile, via) => {
+    setSignedIn({ ...profile, via });
     setPhase("signedIn");
     setShowWhatHappened(true);
   }, []);
@@ -144,15 +146,19 @@ export default function DavinciSdkLoginPage() {
     // One-shot, success path only, like PrivilegeMcpClientPage; never dispatch
     // it from a listener (AIAgent.js documents the re-check loop that causes).
     window.dispatchEvent(new CustomEvent("userAuthenticated"));
-    const username = result?.username || null;
+    const profile = {
+      username: result?.username || null,
+      userId: result?.userId || null,
+      email: result?.email || null,
+    };
     // A reused PingOne session completed the flow without anyone typing a name,
     // so say WHO it signed in as and offer to switch before going further.
     if (reused) {
-      setReusedAs(username);
+      setReusedAs(profile);
       setPhase("reused");
       return;
     }
-    showSignedIn(username, "form");
+    showSignedIn(profile, "form");
   }, [showSignedIn]);
 
   // Ends the PingOne session (not this app's session) and returns here with a
@@ -348,9 +354,9 @@ export default function DavinciSdkLoginPage() {
                 <div className="dvsdk-notice">
                   <p className="dvsdk-notice-title">Signed in with your existing PingOne session</p>
                   <p>
-                    {reusedAs ? (
+                    {reusedAs?.username ? (
                       <>
-                        You are signed in as <strong>{reusedAs}</strong>.
+                        You are signed in as <strong>{reusedAs.username}</strong>.
                       </>
                     ) : (
                       "This browser was already signed in to PingOne, so no form was needed."
@@ -384,6 +390,17 @@ export default function DavinciSdkLoginPage() {
                       "Signed in."
                     )}
                   </p>
+                  {/* Read by the BFF from PingOne's userinfo after the code
+                      exchange. The SDK flow cannot carry these: pi.flow hands
+                      the page a screen's form fields, not the flow's HTML. */}
+                  <dl className="dvsdk-profile">
+                    <dt>Username</dt>
+                    <dd>{signedIn?.username || "Not available"}</dd>
+                    <dt>User ID</dt>
+                    <dd>{signedIn?.userId ? <code>{signedIn.userId}</code> : "Not available"}</dd>
+                    <dt>Email</dt>
+                    <dd>{signedIn?.email || "Not set"}</dd>
+                  </dl>
                   <div className="dvsdk-actions">
                     <button type="button" className="dvsdk-retry" onClick={() => setShowWhatHappened(true)}>
                       What just happened?

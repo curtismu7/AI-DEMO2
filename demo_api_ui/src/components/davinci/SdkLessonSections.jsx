@@ -296,7 +296,8 @@ Content-Type: application/json
 
 { "code": "…", "codeVerifier": "…" }
 
-200 OK   { "ok": true, "username": "…" }        + HttpOnly session cookie
+200 OK   { "ok": true, "username": "…", "userId": "…", "email": "…" }
+         + HttpOnly session cookie (tokens stay on the server)
 400      { "error": "invalid_request", "message": "…" }
 401      { "error": "nonce_missing" | "nonce_mismatch", "message": "…" }
 404      { "error": "user_not_found", "message": "…" }`;

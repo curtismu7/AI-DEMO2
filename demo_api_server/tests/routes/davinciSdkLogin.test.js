@@ -170,7 +170,7 @@ describe('routes/davinciSdkLogin', () => {
           token_type: 'Bearer',
         },
       });
-      oauthService.getUserInfo.mockResolvedValue({ sub: 's', preferred_username: 'customer1' });
+      oauthService.getUserInfo.mockResolvedValue({ sub: 's', preferred_username: 'customer1', email: 'customer1@example.com' });
       oauthService.createUserFromOAuth.mockReturnValue({ username: 'customer1' });
       dataStore.getUserByUsername.mockReturnValue({ id: 'u1', username: 'customer1', role: 'customer' });
     }
@@ -182,8 +182,10 @@ describe('routes/davinciSdkLogin', () => {
       await a
         .post('/api/davinci-sdk-login/callback')
         .send({ code: 'c', codeVerifier: 'v' })
-        // username comes back so the page can name a reused PingOne session.
-        .expect(200, { ok: true, username: 'customer1' });
+        // username names a reused PingOne session; userId (PingOne `sub`) and
+        // email let the page show who signed in. Matching the WHOLE body also
+        // proves no token material comes back to the browser.
+        .expect(200, { ok: true, username: 'customer1', userId: 's', email: 'customer1@example.com' });
 
       const [url, body] = axios.post.mock.calls[0];
       expect(url).toBe('https://auth.pingone.com/env-1/as/token');
@@ -195,6 +197,17 @@ describe('routes/davinciSdkLogin', () => {
       // Public client: PKCE proves possession, so no secret may be sent.
       expect(form.get('client_secret')).toBeNull();
       expect(body).not.toContain('client_secret');
+    });
+
+    it("falls back to the demo user record's email when PingOne userinfo has none", async () => {
+      const { a, nonce } = await armed();
+      happyUpstream(nonce);
+      oauthService.getUserInfo.mockResolvedValue({ sub: 's', preferred_username: 'customer1' });
+      dataStore.getUserByUsername.mockReturnValue({ id: 'u1', username: 'customer1', email: 'record@example.com', role: 'customer' });
+
+      const res = await a.post('/api/davinci-sdk-login/callback').send({ code: 'c', codeVerifier: 'v' }).expect(200);
+      expect(res.body.userId).toBe('s');
+      expect(res.body.email).toBe('record@example.com');
     });
 
     it('ignores a body-supplied redirectUri and uses the server-derived one', async () => {

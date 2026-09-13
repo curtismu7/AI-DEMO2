@@ -224,7 +224,18 @@ router.post('/callback', async (req, res) => {
         // as ("Signed in as demoAdmin — continue, or sign out to switch"),
         // which it cannot know otherwise: a reused session completes the flow
         // with no screens, so the user never typed a name.
-        return res.json({ ok: true, username: user.username || null });
+        //
+        // userId and email come from PingOne's userinfo for this token (`sub` is
+        // the PingOne user id, the same id a DaVinci Read User node returns), so
+        // the page can show who signed in. The SDK flow cannot carry them:
+        // pi.flow hands the page a screen's form fields, never the flow's
+        // success HTML. Never add token material here; tokens stay in the session.
+        return res.json({
+          ok: true,
+          username: user.username || null,
+          userId: userInfo?.sub || null,
+          email: userInfo?.email || user.email || null,
+        });
       });
     });
   } catch (err) {
