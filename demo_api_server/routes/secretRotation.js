@@ -37,12 +37,12 @@ router.get('/apps', async (_req, res) => {
     ]);
     const apps = raw
       .filter((a) => SECRETFUL.has(String(a.tokenEndpointAuthMethod || '').toUpperCase()))
-      .filter((a) => !isWorkerApp(a))
       .filter((a) => Boolean(vaultKeys[a.clientId]))
       .map((a) => ({
         id: a.id, clientId: a.clientId, name: a.name,
         tokenEndpointAuthMethod: a.tokenEndpointAuthMethod,
         vaultKey: vaultKeys[a.clientId],
+        isWorker: isWorkerApp(a),
       }));
     res.json({ apps });
   } catch (err) {

@@ -16,6 +16,39 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-13 — worker-token mint has no fallback if the vault and `.env` drift
+
+**What's wrong.** `demo_api_server/scripts/refresh-service-envs.js`'s worker-token
+resolution (`main()` and `getRotatableVaultKeyMap()`) is vault-first for
+`PINGONE_WORKER_CLIENT_SECRET`: it prefers a vault-stored value over the raw
+`.env` file. `PINGONE_WORKER_CLIENT_SECRET` is in `vault-migrate.js`'s
+migration allowlist, so on any deployment that has run that migration the
+vault value wins on *every* `refresh-service-envs` run, not just during an
+in-flight worker rotation. If the vault entry and the working `.env` value
+ever drift (e.g. the vault holds a stale value from a rotation whose `.env`
+write-back never happened), the token mint fails and `refresh-service-envs`
+degrades non-fatally — `.env` propagation is silently skipped, logged as a
+warning, with no automatic fallback to the other candidate value.
+
+**Why it wasn't fixed now.** Surfaced by the final whole-branch review of
+`docs/secret-rotation/2026-09-13-worker-credential-rotation-design.md`'s
+implementation. This exact non-fatal-skip-on-failure shape already exists for
+every other cause of a worker-token mint failure (wrong password, network
+blip, expired secret) — this branch adds one more trigger for a pre-existing
+failure mode, not a new one, so it doesn't block that branch's merge. A retry
+(try the vault-supplied secret, fall back to the `.env` value once if that
+fails) would close the gap in a few lines, but adding new untested retry
+logic inside a single, no-second-chance final-review fix wave was judged
+riskier than the gap it would close.
+
+**The real fix.** Add a one-shot retry in both `main()` and
+`getRotatableVaultKeyMap()`'s worker-token mint: on a mint failure with the
+vault-first secret, retry once with `apiVars.PINGONE_WORKER_CLIENT_SECRET`
+(only if it differs from the vault value) before throwing/skipping. Give it
+its own tests (mint fails with vault value, succeeds with `.env` value;
+both fail, still degrades non-fatally) rather than folding it into an
+unrelated change.
+
 ### [ ] 2026-09-13 — HITL consent can be approved with no session
 
 **What's wrong.** `POST /api/demo-agent/consent`

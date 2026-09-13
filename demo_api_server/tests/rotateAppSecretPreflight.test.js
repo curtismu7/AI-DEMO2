@@ -30,11 +30,22 @@ describe('rotate-app-secret preflight', () => {
     rotation.isWorkerApp.mockReturnValue(false);
   });
 
-  test('refuses the worker app, before ever touching the vault', async () => {
+  // 2026-09-13: the worker is no longer refused here. isWorkerApp() itself is
+  // unchanged (services/pingOneSecretRotation.js) and still correctly
+  // identifies the worker — this test now proves preflight() doesn't
+  // special-case that identification anymore, since the worker became a
+  // supported rotation target (routes/secretRotation.js's GET /apps now
+  // annotates it isWorker:true instead of filtering it out, and POST
+  // /start's vaultKeys[appId] !== vaultKey check is the real authorization
+  // gate now — this CLI-level absolute refusal was the third, previously
+  // unnoticed, isWorkerApp call site blocking the feature end-to-end).
+  test('does NOT refuse a worker-shaped app — proceeds to the vault like any other', async () => {
     rotation.isWorkerApp.mockReturnValue(true);
-    await expect(preflight({ app: APP, vaultPath: '/tmp/x', vaultPassword: 'p' }))
-      .rejects.toThrow(/worker/i);
-    expect(vaultLib.openVault).not.toHaveBeenCalled();
+    const close = jest.fn();
+    vaultLib.openVault.mockResolvedValue({ close });
+    await expect(preflight({ app: APP, vaultPath: REAL_PATH, vaultPassword: 'correct' }))
+      .resolves.toBeUndefined();
+    expect(vaultLib.openVault).toHaveBeenCalledWith(REAL_PATH, 'correct');
   });
 
   test('refuses an app with no rotatable secret, before ever touching the vault', async () => {

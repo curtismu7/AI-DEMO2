@@ -31,20 +31,14 @@ const DEMO_API_SERVER_ROOT = fs.existsSync('/app/services')
   ? '/app'
   : path.join(REPO_ROOT, 'demo_api_server');
 
-// Only isWorkerApp is used below — the driver in rotateAppSecretCli.js imports
-// regenerateClientSecret/verifySecret/fingerprint itself.
-const { isWorkerApp } = require(path.join(DEMO_API_SERVER_ROOT, 'services/pingOneSecretRotation'));
+// The driver in rotateAppSecretCli.js imports regenerateClientSecret/
+// verifySecret/fingerprint itself.
 const { openVault } = require(path.join(DEMO_API_SERVER_ROOT, 'lib/vault'));
 
 const SECRETFUL_AUTH_METHODS = new Set(['CLIENT_SECRET_BASIC', 'CLIENT_SECRET_POST', 'CLIENT_SECRET_JWT']);
 
 /** Throws on any condition that must stop us BEFORE the irreversible rotate. */
 async function preflight({ app, vaultPath, vaultPassword }) {
-  if (isWorkerApp(app)) {
-    throw new Error(
-      `Refusing to rotate "${app.name}": it is the configured worker app. `
-      + 'Rotating it would destroy the credential this tool uses to reach the Management API.');
-  }
   const method = String(app.tokenEndpointAuthMethod || '').toUpperCase();
   if (!SECRETFUL_AUTH_METHODS.has(method)) {
     throw new Error(`Refusing to rotate "${app.name}": tokenEndpointAuthMethod is ${method || 'unset'}, so it has no client secret.`);
