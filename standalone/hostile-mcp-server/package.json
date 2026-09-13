@@ -9,6 +9,7 @@
   "scripts": {
     "start": "node index.mjs",
     "dev": "node --watch index.mjs",
+    "agent": "node agent.mjs",
     "test": "node --test"
   },
   "dependencies": {
