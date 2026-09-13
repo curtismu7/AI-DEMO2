@@ -138,6 +138,12 @@ export default function DavinciSdkLoginPage() {
     // tokens, so the verifier has to travel with the code.
     const codeVerifier = takePkceVerifier(cfgRef.current.clientId);
     const result = await postCallback({ code, codeVerifier });
+    // The BFF session exists now, but the app shell (TopNav, route guards)
+    // re-checks it only on this event, so without it the page stayed signed-out
+    // until a reload. It used to be a full page load that refreshed the shell.
+    // One-shot, success path only, like PrivilegeMcpClientPage; never dispatch
+    // it from a listener (AIAgent.js documents the re-check loop that causes).
+    window.dispatchEvent(new CustomEvent("userAuthenticated"));
     const username = result?.username || null;
     // A reused PingOne session completed the flow without anyone typing a name,
     // so say WHO it signed in as and offer to switch before going further.
