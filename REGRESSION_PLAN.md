@@ -141,6 +141,31 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-13 — Sequence view: a gateway filter deny with no deny phase is drawn on the gateway
+
+**Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`.
+Test: `src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`.
+
+**What was broken:** live UC31 (Miami under the default `texas` scope, run from
+the /weather-mcp Run chip through `/api/agent/invoke`) returned
+`gateway_policy_denied` / `weather_scope_denied`, but the trace received the
+deny only as a `gw-filter-chain` token event with status `deny`: no
+`gateway_policy_denied` phase arrived over the flow SSE. `gwDenied` read only
+that phase or a `sim-gateway-deny` event, and since #3244 counts
+`gw-filter-chain` as the gateway being seen, the sequence view drew
+"Agent Gateway — token validated" (done) and put the refusal on the MCP server.
+
+**What was fixed:** a `gw-filter-chain` event with status `deny` counts as a
+gateway deny. Its `explanation` supplies the DENY label when there is no phase
+and no sim event (that branch read `simGwDeny.label` unguarded).
+
+**Do not break:**
+- A permitting `gw-filter-chain` (status `active`) still draws the gateway done.
+- `gateway_policy_denied` and `sim-gateway-deny` keep their own labels.
+
+**Verify:** `cd demo_api_ui && node_modules/.bin/vitest run buildTraceSteps.test`.
+The new filter-deny test fails against the pre-fix builder.
+
 ### 2026-09-13 — Sequence view: step-up is drawn when it actually happens (BFF 428, device MFA, CIBA, live PingGateway consent)
 
 **Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`,
