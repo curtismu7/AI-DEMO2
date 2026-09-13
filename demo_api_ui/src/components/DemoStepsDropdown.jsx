@@ -255,11 +255,11 @@ export default function DemoStepsDropdown({
             onClick={(e) => { e.stopPropagation(); handleRarQuickResultToggle(); }}
             aria-pressed={rarQuickResult}
             aria-label={rarQuickResult
-              ? 'Result mode: quick chat reply. Click to switch to the full intent-binding page.'
-              : 'Result mode: full intent-binding page. Click to switch to a quick chat reply.'}
+              ? 'Result mode: quick chat reply, a simulated RAR check. Click to switch to the full intent-binding page, which makes the live PingOne PAR push.'
+              : 'Result mode: full intent-binding page with the live PingOne PAR push. Click to switch to a quick chat reply, a simulated RAR check.'}
             title={rarQuickResult
-              ? 'Quick result — click to open the full intent-binding page instead'
-              : 'Full page — click to switch to a quick chat result instead'}
+              ? 'Quick result (simulated RAR check) — click to use the full page with the live PAR push'
+              : 'Full page (live PAR push) — click to switch to a quick, simulated chat result'}
             data-testid="uc14b-result-toggle"
           >
             {rarQuickResult ? 'Q' : 'F'}

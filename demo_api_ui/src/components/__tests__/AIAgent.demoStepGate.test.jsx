@@ -283,3 +283,49 @@ describe("a page-type step clears the live trace before it opens its page", () =
     expect(trace.tokenEvents).toHaveLength(0);
   });
 });
+
+describe("UC14b quick result says when it is simulated", () => {
+  const UC14B = {
+    id: "UC14b",
+    useCaseId: "par-rar-intent-verified",
+    title: "Intent (RAR verified)",
+    // The quick-result branch does not read auth; public keeps the signed-out
+    // render from gating the step before it gets there.
+    auth: "public",
+    primaryTool: null,
+    trigger: { type: "link", path: "/intent-binding-learning" },
+  };
+
+  async function runQuickResult() {
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent("agent-demo-step-select", {
+        detail: { uc: UC14B, stepNumber: 3, opts: { quickResult: true } },
+      }));
+    });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 150));
+    });
+  }
+
+  it("marks the offline RAR check as simulated", async () => {
+    apiPost.mockResolvedValue({ data: { status: 200, errorCode: null, live: false, tokenChainEvents: [] } });
+    renderSignedOut();
+    await runQuickResult();
+
+    await waitFor(() => {
+      expect(document.body.textContent).toContain("Simulated: an offline RAR check");
+    });
+    expect(apiPost).toHaveBeenCalledWith("/api/demo/intent-binding/run", expect.objectContaining({ action: "permit" }));
+  });
+
+  it("does not call a live run simulated", async () => {
+    apiPost.mockResolvedValue({ data: { status: 200, errorCode: null, live: true, tokenChainEvents: [] } });
+    renderSignedOut();
+    await runQuickResult();
+
+    await waitFor(() => {
+      expect(document.body.textContent).toContain("Intent binding");
+    });
+    expect(document.body.textContent).not.toContain("Simulated: an offline RAR check");
+  });
+});
