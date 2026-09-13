@@ -1154,6 +1154,22 @@ cmd_restart_one() {
   echo ""
 }
 
+# Every `up --build` retags the service and leaves its predecessor untagged, and
+# nothing here ever collected them: 291 dangling images by 2026-09-13, which filled
+# the disk until the Docker daemon stopped answering. That failure is worth naming
+# because it does not look like a disk problem — `docker ps` and `docker logs` hang,
+# the BFF returns nothing, and it reads as an application outage.
+# `until=24h` spares an image another worktree session built minutes ago but has
+# not yet tagged or started.
+_prune_orphaned_images() {
+  local out
+  if out="$(docker image prune -f --filter 'until=24h' 2>&1)"; then
+    ok "${out##*$'\n'}"
+  else
+    warn "image prune failed (not fatal): ${out##*$'\n'}"
+  fi
+}
+
 cmd_build_one() {
   local build_opts=""
   local services=()
@@ -1177,6 +1193,7 @@ cmd_build_one() {
   _export_llamacpp_base_url
   docker compose "${COMPOSE_FILES[@]}" up -d --build${build_opts} --no-deps "${services[@]}"
   ok "Rebuilt and restarted: ${services[@]}."
+  _prune_orphaned_images
   echo ""
 }
 
@@ -1583,6 +1600,8 @@ cmd_start() {
         "${_CORE_UP[@]}" "${_DEFAULT_OPTIONAL_SVCS[@]}"
     fi
   fi
+
+  _prune_orphaned_images
 
   echo ""
   cmd_demo_sync
