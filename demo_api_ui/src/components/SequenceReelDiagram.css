@@ -63,6 +63,24 @@
   align-items: center;
   gap: 0.4rem;
   margin-bottom: 0.4rem;
+  /* .srd-root is the vertical scroller, so an unpinned row scrolls away with
+     the diagram — at the end of a tall reveal neither row was reachable, which
+     is precisely when a presenter wants Next. Colour alongside the background:
+     a themed ground without themed ink trips the theming ratchet. */
+  position: sticky;
+  z-index: 2;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+/* .srd-root has 0.5rem of padding, and `top: 0` pins to that padding line rather
+   than the scroller's edge — so the diagram scrolled through the gap and showed
+   above the pinned row. Pin flush with the edge and paint over the padding; the
+   negative margin cancels the added padding so the row does not move at rest. */
+.srd-toolbar--top {
+  top: -0.5rem;
+  margin-top: -0.5rem;
+  padding-top: 0.5rem;
 }
 
 .srd-zoom-btn,
@@ -132,8 +150,10 @@
 }
 
 .srd-toolbar--bottom {
+  bottom: -0.5rem;
   margin-top: 0.4rem;
-  margin-bottom: 0;
+  margin-bottom: -0.5rem;
+  padding-bottom: 0.5rem;
 }
 
 .srd-slow-btn--active {
