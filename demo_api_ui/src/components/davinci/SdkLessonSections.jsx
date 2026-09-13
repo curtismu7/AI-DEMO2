@@ -103,7 +103,7 @@ const SNIPPET_CORS = `# Part of the application object. PUT replaces the whole a
 # so read it first and send it back with this merged in.
 "corsSettings": {
   "behavior": "ALLOW_SPECIFIC_ORIGINS",
-  "origins": ["https://local.ping-devops.com:4000"]
+  "origins": ["https://app.example.com"]
 }`;
 
 const PIFLOW_TABLE = [
@@ -163,7 +163,7 @@ const API_START = `POST /api/davinci-sdk-login/start
 200 OK
 {
   "clientId": "<PingOne application id>",
-  "redirectUri": "https://local.ping-devops.com:4000/davinci-sdk-login",
+  "redirectUri": "https://app.example.com/davinci-sdk-login",
   "wellknown": "https://auth.pingone.com/<envId>/as/.well-known/openid-configuration",
   "scope": "openid profile email …",
   "nonce": "…"
@@ -180,7 +180,7 @@ const API_AUTHORIZE = `GET https://auth.pingone.com/<envId>/as/authorize
     ?client_id=<clientId>
     &response_type=code
     &scope=openid profile email …
-    &redirect_uri=https://local.ping-devops.com:4000/davinci-sdk-login
+    &redirect_uri=https://app.example.com/davinci-sdk-login
     &code_challenge=…
     &code_challenge_method=S256
     &state=…
@@ -607,8 +607,10 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         <TableBlock headers={["Setting", "Where", "Why it matters"]} rows={CHECKLIST} />
         <CodeBlock title="Attach the flow policy" code={SNIPPET_ASSIGN} language="http" />
         <CodeBlock title="Allow the page's origin" code={SNIPPET_CORS} language="json" />
+        {/* This demo's own client_id and redirect_uri: shown on screen, never in
+            the customer PDF. */}
         {config.clientId && (
-          <p>
+          <p className="lesson-no-print">
             This page received: client_id <code>{config.clientId}</code>, redirect_uri{" "}
             <code>{config.redirectUri}</code>, scope <code>{config.scope}</code>. None of it is
             secret; the BFF hands the browser public configuration only.
