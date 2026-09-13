@@ -441,6 +441,10 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
                   tabIndex={0}
                   onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && selectStep(step.id)}
                 >
+                  {/* Full-row transparent hit target: the visible box is easy to
+                      click, but this makes the whole row clickable too, so a hop
+                      never feels dead depending on where you land. */}
+                  <rect x={0} y={y - ROW_HEIGHT / 2} width={width} height={ROW_HEIGHT} className="srd-hitbox" />
                   <rect x={x - noteW / 2} y={y - 14} width={noteW} height="28" rx="5" className="srd-note-box" />
                   <text x={x} y={y + 5} textAnchor="middle" className="srd-note-label">
                     {step.label}
@@ -461,6 +465,11 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
                 tabIndex={0}
                 onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && selectStep(step.id)}
               >
+                {/* Full-row transparent hit target. The arrow itself is a 2px line
+                    plus a small label, so without this a click anywhere else on
+                    the row misses and the hop (e.g. PingOne Authorize) reads as
+                    having no detail. This makes the whole row open its detail. */}
+                <rect x={0} y={y - ROW_HEIGHT / 2} width={width} height={ROW_HEIGHT} className="srd-hitbox" />
                 <line
                   x1={fromX}
                   y1={y}

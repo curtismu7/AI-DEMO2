@@ -259,6 +259,14 @@
   opacity: 0.7;
 }
 
+/* Full-row click target behind each hop. `transparent` (not `none`) still
+   receives pointer events, so a click anywhere on the row opens the hop's
+   detail — an arrow is otherwise only a 2px line plus a small label to hit. */
+.srd-hitbox {
+  fill: transparent;
+  cursor: pointer;
+}
+
 .srd-note-box {
   fill: var(--th-bg-page);
   stroke: var(--th-border);

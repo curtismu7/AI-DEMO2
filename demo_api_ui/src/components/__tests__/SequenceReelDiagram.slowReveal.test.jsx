@@ -3,7 +3,7 @@
 // has already finished, so the counter is sitting at the end of the trace and
 // the timer never arms. The reveal then silently does nothing.
 import React from "react";
-import { render, act } from "@testing-library/react";
+import { render, act, fireEvent } from "@testing-library/react";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const STEPS = [
@@ -429,5 +429,49 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     act(() => vi.advanceTimersByTime(DEFAULT_MS));
     expect(widthAt()).toBe(full);
     expect(lanesAt()).toBe(3);
+  });
+
+  it("gives every hop a full-row hit target, including arrows with no box", () => {
+    // authorize is drawn as an ARROW (its lane differs from the previous hop), so
+    // it has no note box — only a 2px line and a small label. Every drawn row
+    // must still carry a .srd-hitbox so the whole row is clickable.
+    store.state = {
+      steps: [
+        step("prompt", "CHAT", "done"),
+        step("agent", "AGENT", "done"),
+        step("authorize", "AUTHZ", "done"),
+      ],
+      trace: { runId: 1, outcome: "ok" },
+    };
+    const { container } = render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
+    const rows = [...container.querySelectorAll('g[role="button"]')];
+    expect(rows.length).toBe(3);
+    // Every row — note or arrow — has a hit target.
+    for (const g of rows) expect(g.querySelector("rect.srd-hitbox")).not.toBeNull();
+    // The authorize row is an arrow (no note box) but still has a hitbox.
+    const authorizeRow = rows.find((g) => (g.querySelector("text")?.textContent || "").includes("authorize"));
+    expect(authorizeRow.querySelector("rect.srd-note-box")).toBeNull();
+    expect(authorizeRow.querySelector("rect.srd-hitbox")).not.toBeNull();
+  });
+
+  it("clicking anywhere on an arrow row opens that hop's detail", () => {
+    const onSelectStep = vi.fn();
+    store.state = {
+      steps: [
+        step("prompt", "CHAT", "done"),
+        step("agent", "AGENT", "done"),
+        step("authorize", "AUTHZ", "done"),
+      ],
+      trace: { runId: 1, outcome: "ok" },
+    };
+    const { container } = render(
+      <SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} onSelectStep={onSelectStep} />,
+    );
+    const authorizeRow = [...container.querySelectorAll('g[role="button"]')]
+      .find((g) => (g.querySelector("text")?.textContent || "").includes("authorize"));
+    // Click the full-row hit target, not the thin line/label.
+    fireEvent.click(authorizeRow.querySelector("rect.srd-hitbox"));
+    expect(onSelectStep).toHaveBeenCalledTimes(1);
+    expect(onSelectStep.mock.calls[0][0]).toMatchObject({ id: "authorize" });
   });
 });
