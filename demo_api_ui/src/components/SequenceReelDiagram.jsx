@@ -156,6 +156,34 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
     if (delta) scroller.scrollTo({ top: scroller.scrollTop + delta, behavior: "smooth" });
   }, [activeStepId]);
 
+  // Horizontal follow, slow mode only: while narrating, the step being revealed
+  // should stay on screen even once the reveal walks past the fold. Off, the
+  // diagram stays anchored at the first lane — opening a finished trace should
+  // show the cast from the start, not drop the viewer mid-diagram.
+  //
+  // Gated on slowMode (observed state), NOT a useRef "skip the first run" guard:
+  // StrictMode double-invokes effects and silently defeats those.
+  useEffect(() => {
+    if (!slowMode) return;
+    const el = activeStepRef.current;
+    const box = el?.closest(".srd-scroll");
+    if (!el || !box) return;
+    const step = el.getBoundingClientRect();
+    const view = box.getBoundingClientRect();
+    const pad = 24;
+    let delta = 0;
+    if (step.width > view.width) {
+      // An arrow spanning more lanes than fit on screen: centre it, rather than
+      // jam one end against an edge and hide the other.
+      delta = step.left + step.width / 2 - (view.left + view.width / 2);
+    } else if (step.left < view.left + pad) {
+      delta = step.left - view.left - pad;
+    } else if (step.right > view.right - pad) {
+      delta = step.right - view.right + pad;
+    }
+    if (delta) box.scrollTo({ left: box.scrollLeft + delta, behavior: "smooth" });
+  }, [activeStepId, slowMode]);
+
   // Keyed on the trace, not the revealed slice: a slow-mode reveal sits at zero
   // revealed steps for one tick, and bailing to the placeholder there would
   // unmount the toolbar — including the button to turn slow mode back off.

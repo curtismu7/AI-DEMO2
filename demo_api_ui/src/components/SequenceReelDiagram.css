@@ -20,6 +20,17 @@
   --srd-color-bff: #e87ba4;
   --srd-color-api: color-mix(in oklab, #e87ba4 55%, white);
   --srd-color-data: color-mix(in oklab, #e87ba4 30%, white);
+
+  /* Stand-in lanes: these never co-occur with the lane they replace, so they
+     borrow its shade instead of adding a 12th hue to a palette the notes above
+     already call past a safe categorical count. A heuristic run replaces the
+     LLM hop outright (buildTraceSteps emits one or the other, never both), and
+     a vertical's resource lane plays the API lane's part. Declared once — each
+     resolves to whichever value its target holds in the active theme. */
+  --srd-color-heuristics: var(--srd-color-llm);
+  --srd-color-airlines: var(--srd-color-api);
+  --srd-color-invest: var(--srd-color-api);
+  --srd-color-mortgage: var(--srd-color-api);
 }
 
 /* Dark steps of the same 5 families — vibrant colors for dark mode
@@ -157,6 +168,10 @@
 .srd-lane-bff { --srd-lane: var(--srd-color-bff); }
 .srd-lane-api { --srd-lane: var(--srd-color-api); }
 .srd-lane-data { --srd-lane: var(--srd-color-data); }
+.srd-lane-heuristics { --srd-lane: var(--srd-color-heuristics); }
+.srd-lane-airlines { --srd-lane: var(--srd-color-airlines); }
+.srd-lane-invest { --srd-lane: var(--srd-color-invest); }
+.srd-lane-mortgage { --srd-lane: var(--srd-color-mortgage); }
 
 /* Solid lane-coloured header, white label. The raw lane shade cannot be the
    fill: six of the eleven are `color-mix(…, white)` tints built to read as
@@ -347,4 +362,36 @@
 }
 .srd-lane-data.srd-arrowhead-fill {
   fill: var(--srd-color-data);
+}
+
+.srd-lane-heuristics .srd-note-box,
+.srd-lane-heuristics .srd-arrow {
+  stroke: var(--srd-color-heuristics);
+}
+.srd-lane-heuristics.srd-arrowhead-fill {
+  fill: var(--srd-color-heuristics);
+}
+
+.srd-lane-airlines .srd-note-box,
+.srd-lane-airlines .srd-arrow {
+  stroke: var(--srd-color-airlines);
+}
+.srd-lane-airlines.srd-arrowhead-fill {
+  fill: var(--srd-color-airlines);
+}
+
+.srd-lane-invest .srd-note-box,
+.srd-lane-invest .srd-arrow {
+  stroke: var(--srd-color-invest);
+}
+.srd-lane-invest.srd-arrowhead-fill {
+  fill: var(--srd-color-invest);
+}
+
+.srd-lane-mortgage .srd-note-box,
+.srd-lane-mortgage .srd-arrow {
+  stroke: var(--srd-color-mortgage);
+}
+.srd-lane-mortgage.srd-arrowhead-fill {
+  fill: var(--srd-color-mortgage);
 }
