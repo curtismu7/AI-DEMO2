@@ -49,6 +49,26 @@ describe('/davinci-orchestration follows the app theme', () => {
     expect(jsx).toMatch(/className=["']dvx-cta["']/);
   });
 
+  it('offers the SDK login BEFORE the widget, not only the widget', () => {
+    // The page had exactly one link and it went to the widget guide, so the
+    // only way out of a page about orchestration was the thing orchestration
+    // is not. Reported twice ("it's calling the widget… this has nothing to do
+    // with the widget").
+    //
+    // Asserting document ORDER, not just presence: a test that only checked
+    // the SDK link existed would pass with it buried under the widget one,
+    // which is the defect.
+    const sdk = jsx.indexOf('href="/davinci-sdk-login"');
+    const widget = jsx.indexOf('href="/davinci-login-guide"');
+    expect(sdk, 'page must link to the SDK login').toBeGreaterThan(-1);
+    expect(widget, 'the widget link stays as the alternative').toBeGreaterThan(-1);
+    expect(sdk).toBeLessThan(widget);
+
+    // And it must be above the body of the page, not appended at the end.
+    const firstSection = jsx.indexOf('<section>');
+    expect(sdk).toBeLessThan(firstSection);
+  });
+
   it('resolves its private palette from --th-* tokens', () => {
     // The ~210 rules below the mapping block reference no colour literal at
     // all, so this block is the page's entire relationship with the theme.

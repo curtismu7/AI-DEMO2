@@ -252,6 +252,23 @@
   outline-offset: 2px;
 }
 
+/* The top CTA is the running app; this one is the alternative integration, so
+   it reads as secondary. Outline rather than filled — same ink as body copy on
+   the page ground, which both themes already guarantee. */
+.davinci-explainer a.dvx-cta-secondary,
+.davinci-explainer a.dvx-cta-secondary:link,
+.davinci-explainer a.dvx-cta-secondary:visited {
+  color: var(--text);
+  background: transparent;
+  border-color: var(--border);
+}
+
+/* The first CTA sits directly under the lede, which carries a 40px bottom
+   margin; without this the button crowds the section heading below it. */
+.davinci-explainer .cta-row-top {
+  margin: 0 0 40px;
+}
+
 .davinci-explainer .dvx-cta svg { flex-shrink: 0; }
 .davinci-explainer .cta-note { font-size: var(--font-size-sm); color: var(--text-faint); max-width: 34ch; margin: 0; }
 

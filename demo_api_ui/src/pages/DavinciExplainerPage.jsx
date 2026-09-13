@@ -99,6 +99,24 @@ export default function DavinciExplainerPage() {
           identity and business systems together &mdash; on one visual, no-code canvas.
         </p>
 
+        {/* The running app goes FIRST. This page previously offered exactly one
+            link and it went to the widget guide, so the only way out of a page
+            about orchestration was the thing orchestration is not. Reported
+            twice. The widget link is still here, lower down, as the
+            alternative. */}
+        <div className="cta-row cta-row-top">
+          <a className="dvx-cta" href="/davinci-sdk-login">
+            Run the Orchestration SDK login
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </a>
+          <p className="cta-note">
+            The Ping Orchestration SDK runs the DaVinci flow and this app renders the
+            flow&rsquo;s collectors itself &mdash; no DaVinci-hosted screens.
+          </p>
+        </div>
+
         <section>
           <h2>How this differs from the alternatives</h2>
           <div className="matrix">
@@ -138,15 +156,15 @@ export default function DavinciExplainerPage() {
                 !important`, which forces white ink no matter what this page
                 sets. Harmless while this page's accent was a dark indigo;
                 white-on-light-blue once the accent became a theme token. */}
-            <a className="dvx-cta" href="/davinci-login-guide">
-              See the live widget login demo
+            <a className="dvx-cta dvx-cta-secondary" href="/davinci-login-guide">
+              Or see the hosted widget instead
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14M13 6l6 6-6 6" />
               </svg>
             </a>
             <p className="cta-note">
-              Requires DaVinci console setup. If that&rsquo;s not done yet on this environment,
-              the live page explains what&rsquo;s missing.
+              The alternative integration: DaVinci renders its own screens rather than
+              handing this app collectors. Requires DaVinci console setup.
             </p>
           </div>
         </section>
