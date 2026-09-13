@@ -141,6 +141,32 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-13 — UC2.5 Demo step runs the A2A orchestrator instead of UC2
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`. Test:
+`demo_api_ui/src/components/__tests__/AIAgent.demoStepGate.test.jsx`.
+
+**What was broken:** UC2.5 ("A2A Orchestrator") is a chip whose text,
+"delegate this to a specialist", went through chat, where it matched the same
+A2A heuristic (`config/verticals/a2a/index.js`) as UC2's "hand off to a
+specialist". The chip ran UC2's delegation and the orchestrator
+(`POST /api/a2a/message` → `orchestrateDelegation`) never ran, though the step
+is named for it.
+
+**What was fixed:** the Demo steps dispatcher handles UC2.5 before the generic
+chip branch. It gates on sign-in, calls `/api/a2a/init` and `/api/a2a/message`
+with the chip text (as `/a2a-protocol-learning` does), shows the orchestrator's
+reply, feeds its `tokenEvents` into the trace, and ticks the step only on
+`success: true`.
+
+**Do not break:**
+- `routes/a2aAgentRoutes.js`, `orchestrateDelegation` and the A2A wire checks
+  (REGRESSION_PLAN §1 "A2A wire hop authentication") are unchanged; this only
+  calls the existing route.
+- Every other chip step still goes through the chat branch.
+
+**Verify:** `cd demo_api_ui && node_modules/.bin/vitest run AIAgent.demoStepGate`.
+
 ### 2026-09-13 — UC5 insufficient-scope sim no longer reports approval challenges as insufficient_scope
 
 **Files changed:** `demo_api_server/services/attackSimulatorService.js`. Test:
