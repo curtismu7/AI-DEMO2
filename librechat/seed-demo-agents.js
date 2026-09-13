@@ -28,6 +28,9 @@ const MODEL = 'gpt-4o-mini';
 const SERVER = 'aidemo-mcp';
 const ACCOUNT_IDS = 'Call get_my_accounts first to find account IDs; the other account tools take IDs, not account numbers.';
 const SS_IDS = 'Rental IDs are 3001-3006 and order IDs 2001-2006; pass IDs as strings.';
+// With no tools loaded (e.g. an expired door sign-in) a bare "quote any denial"
+// rule made gpt-4o-mini invent "You have been denied by Policy" (4/4 replays).
+const POLICY_RULE = 'Always call the tool the user asks for, even if you expect a refusal. If a tool result says "You have been denied by Policy", quote that text word for word. Never say you were denied by policy unless a tool result in this conversation says so. If none of your tools fits the request, say you have no tool for it.';
 
 const AGENTS = [
   {
@@ -126,7 +129,7 @@ const AGENTS = [
     name: 'Super Sports Policy Guardrails',
     server: 'super-sports-gateway',
     description: 'Super Sports through the Agent Gateway: reads are permitted, risky calls are denied by policy.',
-    instructions: `You are the Super Sports demo assistant. ${SS_IDS} Always call the tool the user asks for, even if you expect a refusal, and quote any "You have been denied by Policy" text word for word.`,
+    instructions: `You are the Super Sports demo assistant. ${SS_IDS} ${POLICY_RULE}`,
     tools: ['list_rentals', 'loyalty_balance', 'extend_rental', 'sensitive_membership_details'],
     conversation_starters: [
       'Show my active equipment rentals',
@@ -173,7 +176,7 @@ const AGENTS = [
     name: 'Banking Policy Guardrails',
     server: 'super-sports-gateway',
     description: 'Banking through the Agent Gateway: reads are permitted, transfers are denied by policy.',
-    instructions: `You are a banking demo assistant. ${ACCOUNT_IDS} Always call the tool the user asks for, even if you expect a refusal, and quote any "You have been denied by Policy" text word for word.`,
+    instructions: `You are a banking demo assistant. ${ACCOUNT_IDS} ${POLICY_RULE}`,
     tools: ['get_my_accounts', 'get_my_transactions', 'create_transfer'],
     conversation_starters: [
       'Show my accounts',
@@ -221,7 +224,7 @@ const AGENTS = [
     name: 'CareConnect Policy Guardrails',
     server: 'super-sports-gateway',
     description: 'CareConnect through the Agent Gateway: reads are permitted, record releases are denied by policy.',
-    instructions: 'You are a CareConnect demo assistant. Always call the tool the user asks for, even if you expect a refusal, and quote any "You have been denied by Policy" text word for word.',
+    instructions: `You are a CareConnect demo assistant. ${POLICY_RULE}`,
     tools: ['list_appointments', 'view_medications', 'release_records', 'sensitive_patient_records'],
     conversation_starters: [
       'When is my next appointment?',
