@@ -14,14 +14,18 @@ interface:
   prompts:
     share: true
     public: true
+  # Keep My Agents and both endpoints in the model selector beside the Demos
+  # specs below. Unset, LibreChat turns it off whenever modelSpecs exist
+  # (data-schemas loadDefaultInterface; measured 2026-09-13: only the five
+  # Demos groups were listed).
+  modelSelect: true
 
 # A "Demos" menu in the model selector: each spec opens one seeded agent.
 # The agent_ids come from seed-demo-agents.js on this machine's Mongo volume —
 # re-seeding keeps them (agents are updated by name), but a fresh volume
 # issues new ids, so copy them from the seed output into this list.
 # ponytail: hard-coded ids; generate this block from the seed if volumes get recreated often.
-# Specs use the agents endpoint and interface.modelSelect defaults to true, so
-# the client still lists every other endpoint and My Agents beside them.
+# interface.modelSelect above keeps the other endpoints listed beside them.
 modelSpecs:
   list:
     - {name: everyday-banking, label: 'Everyday Banking', group: 'Banking', description: 'Accounts, balances and transactions.', preset: {endpoint: agents, agent_id: agent_kffiDGYrj-A5HjMtGHIIG}}
