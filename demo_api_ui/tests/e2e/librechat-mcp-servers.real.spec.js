@@ -4,10 +4,14 @@
 //   cd demo_api_ui && PLAYWRIGHT_SKIP_WEBSERVER=1 \
 //     npm run test:e2e:real -- librechat-mcp-servers
 //
+// Through the PingOne Privilege LLM gateway instead of the local proxy, add:
+//   LIBRECHAT_E2E_PROVIDER='PingOne Privilege (OpenAI)' LIBRECHAT_E2E_MODEL=gpt-4o-mini
+//
 // Prerequisites:
 //   - the librechat/ stack is up          (docker compose -f librechat/docker-compose.yml up -d)
 //   - the main stack's mcp-server on :8080 (aidemo-mcp)
-//   - the gpt-oss tier on :8096, via :8090 (every tool call)
+//   - the gpt-oss tier on :8096, via :8090 (every tool call), or the Privilege
+//     provider with PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI in librechat/.env
 //
 // What "proven" means here: the agent's reply renders LibreChat's own
 // "Ran <tool>" marker for that server AND the answer contains data only the
@@ -16,8 +20,9 @@
 const { test, expect } = require('@playwright/test');
 
 const LC = process.env.LIBRECHAT_URL || 'http://localhost:3080';
-const PROVIDER = 'Local LLM Proxy';
-const MODEL = 'gpt-oss-20b'; // the only local tier with --jinja, i.e. tool calls
+const PROVIDER = process.env.LIBRECHAT_E2E_PROVIDER || 'Local LLM Proxy';
+// gpt-oss-20b is the only local tier with --jinja, i.e. tool calls
+const MODEL = process.env.LIBRECHAT_E2E_MODEL || 'gpt-oss-20b';
 const ACCOUNT = {
   name: 'LibreChat E2E',
   username: 'librechat_e2e',
