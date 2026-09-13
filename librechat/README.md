@@ -60,9 +60,9 @@ below.
 
 ## Docker vs pingaws
 
-`librechat.yaml`'s `mcpServers` doors point at the local docker stack
-(`api.ping.demo:3001`) by default. To point them at the SE AWS cluster
-instead:
+`librechat.yaml` targets the local docker stack by default, and carries one
+door: `aidemo-mcp` (the mcp-server on `:8080`). To point at the SE AWS
+cluster instead:
 ```bash
 LIBRECHAT_CONFIG=librechat.pingaws.yaml docker compose -f librechat/docker-compose.yml up -d # force-compose
 ```
@@ -81,10 +81,10 @@ recreate a container whose compose-level config didn't change.
 | Door | Docker target | pingaws target |
 |---|---|---|
 | `aidemo-mcp` | works (auth-disabled local mcp-server) | not offered — host-local only |
-| `opensearch-direct` | works if the Mac kubectl port-forward (`:9900`) is running | not offered — Mac-only port-forward |
-| `opensearch-privilege-gateway` | works | works — replaced `opensearch-privilege-agent` on 2026-09-05. That entry pointed at the deleted `agent` door, whose mesh frontend still resolved while nothing served it; the Mac-local `:8643` reachability caveat it carried is moot now, since nothing routes that way |
-| `privilege-agentless` | works | works — verified live |
-| `agent-gateway` | works | works — a 502 `upstream_unavailable` seen live 2026-08-25 was a routine `demo_mcp_gateway` rollout on the pingaws cluster catching this door mid-startup-probe (`kubectl -n ping-devops-cmuir get events` showed one `Unhealthy: connection refused` right after pod creation, then `2/2 Running` ~4s later) — not a bug. If this recurs, check `kubectl --context us -n ping-devops-cmuir get pods -l app=mcp-gateway` before assuming a LibreChat or façade problem |
+| `opensearch-direct` | removed 2026-09-13 — the `cm-mcpgw-opensearch-mcp-server` Service it port-forwarded to is gone | not offered — Mac-only port-forward |
+| `opensearch-privilege-gateway` | removed 2026-09-13 — the local façade's sign-in server is `http://localhost:3005`, unreachable from inside the LibreChat container | works — replaced `opensearch-privilege-agent` on 2026-09-05. That entry pointed at the deleted `agent` door, whose mesh frontend still resolved while nothing served it; the Mac-local `:8643` reachability caveat it carried is moot now, since nothing routes that way |
+| `privilege-agentless` | removed 2026-09-13 — addressed `ai-demo.ping-devops.com`, torn down with `ping-devops-cmuir` | works — verified live |
+| `agent-gateway` | removed 2026-09-13 — same host as `privilege-agentless` | works — a 502 `upstream_unavailable` seen live 2026-08-25 was a routine `demo_mcp_gateway` rollout on the pingaws cluster catching this door mid-startup-probe (`kubectl -n ping-devops-cmuir get events` showed one `Unhealthy: connection refused` right after pod creation, then `2/2 Running` ~4s later) — not a bug. If this recurs, check `kubectl --context us -n ping-devops-cmuir get pods -l app=mcp-gateway` before assuming a LibreChat or façade problem |
 
 A door showing `OAuth Required: true` at LibreChat startup is normal — it
 means the façade answered its RFC 9728 discovery correctly and LibreChat
