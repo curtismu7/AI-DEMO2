@@ -16,6 +16,93 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-13 — Raw PingGateway log window is open to any signed-in user
+
+**What's wrong.** `GET /api/admin/agent-gateway/logs`
+(`demo_api_server/routes/agentGatewayLogs.js:22`) sits under `/api/admin`
+with only `authenticateToken` applied at the mount. The file's own header
+says "open to any signed-in user … no additional role/scope guard". Meanwhile
+the header of `services/agentGatewayLogs.js` says admin-only, so the two
+contradict each other. The route returns raw IG container stdout, token-redacted
+but not filtered by user, including the `[P1AZ] REQUEST/RESPONSE/DECISION` lines
+for every caller. Its sibling `/agent-gateway/decisions` does filter to the
+caller's own PingOne sub (same file, lines 32-44).
+
+**Why it wasn't fixed now.** Found while documenting what the demo shows for
+the overview deck, on a docs-only branch. The owner chose to log it rather than
+change a BFF route in that PR.
+
+**Real fix.** Add an admin guard to `/agent-gateway/logs`, or filter log lines
+to the caller's sub the way `/decisions` already does. Correct whichever
+header comment turns out to be wrong.
+
+### [ ] 2026-09-13 — `/api/app-events` and its SSE stream have no auth
+
+**What's wrong.** `demo_api_server/server.js:1491-1517` mounts
+`GET /api/app-events` and `GET /api/app-events/stream` with no auth
+middleware. The comment reads "available to ALL pages (not just admin)".
+Anyone who can reach the BFF can read the shared app-event feed, with no
+per-user filter. `/architecture/token-flow` (UC-LEARN6) is the public consumer.
+
+**Why it wasn't fixed now.** Found during the same docs-only work. The public
+token-flow page depends on this endpoint, so closing it needs a decision about
+what that page may show while signed out.
+
+**Real fix.** Either require auth and filter events to the caller, or serve
+the public page a stripped copy with event shape only and no identity metadata.
+
+### [ ] 2026-09-13 — `/api/token-chain/events` streams every user's token-exchange claims
+
+**What's wrong.** `demo_api_server/routes/tokenChain.js:108` (mounted with
+`authenticateToken` at `server.js:1708`) subscribes to *all* `token_exchange`
+app events and forwards them to any signed-in client, with no per-user filter.
+The success event at `services/agentMcpTokenService.js:939-940` puts
+`jwtFullDecode` (the decoded claims of each exchanged MCP token: sub, `act`,
+aud, scope) into metadata. So one signed-in user's inspector shows other users'
+identities and delegation chains. The route also forwards
+`metadata.subjectToken` / `resultToken` verbatim. No producer found on
+2026-09-13 sets those, so raw JWTs don't appear to flow today, but nothing
+stops one from starting. It was not checked whether the `decodeJwt` result
+object also carries the raw token string.
+
+**Why it wasn't fixed now.** Same docs-only branch, logged per the owner's
+decision. The fix touches token-chain handling, which REGRESSION_PLAN.md §1
+protects.
+
+**Real fix.** Filter subscribed events to the caller's session or user id.
+Drop `jwtFullDecode`, `subjectToken` and `resultToken` from the SSE payload,
+and send only what `useTokenChainSSE` renders.
+
+### [ ] 2026-09-13 — `/llm/guardrail-attempts` returns every user's prompts
+
+**What's wrong.** `GET /api/privilege-mcp/llm/guardrail-attempts`
+(`demo_api_server/routes/privilegeMcpClient.js:3336`) is gated by
+`requireSession` only and returns `guardrailAttemptLog.list()` unfiltered.
+Its own comment notes the entries "carry real user-typed prompt text". Any
+signed-in user sees every user's guardrail attempts in the Agentic Access
+Console's AI Broker section.
+
+**Why it wasn't fixed now.** Same docs-only branch, logged per the owner's
+decision.
+
+**Real fix.** Record the caller's sub on each attempt and filter `list()` to
+it, with admins seeing all, matching `/api/admin/agent-gateway/decisions`.
+
+### [ ] 2026-09-13 — `/api/newrelic/view/:view` has no auth
+
+**What's wrong.** `demo_api_server/server.js:1589` mounts
+`routes/newRelicQuery.js` with no auth middleware.
+`router.get('/view/:view')` (line 305) runs New Relic queries for any caller.
+One of those views backs `/monitoring/p1az` (the authorize decision stream,
+latency, fail-open counts). It returns data only when New Relic is configured.
+
+**Why it wasn't fixed now.** Same docs-only branch, logged per the owner's
+decision.
+
+**Real fix.** Put `authenticateToken` (and an admin guard, if the views are
+operator-only) on the `/api/newrelic` mount, then check that `/monitoring/p1az`
+still loads for the intended audience.
+
 ### [ ] 2026-09-12 — DaVinci widget login has no live flow trace
 
 **What's wrong.** `/davinci-login-guide` documents the flow with a static
