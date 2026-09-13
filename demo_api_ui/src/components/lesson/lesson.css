@@ -55,13 +55,19 @@
   min-height: calc(100vh - 140px);
 }
 
+/* The app's TopNav is position: sticky and --topnav-height tall, and the page
+   scrolls beneath it. Stuck at top: 0, this sidebar slid under the bar and hid
+   its first entry; seen in a live screenshot. The same offset is the section
+   scroll margin below and the SDK page's sticky sign-in card.
+   Ceiling: on narrow screens the bar can wrap taller than the token; revisit
+   if the bar's height ever becomes a measured value. */
 .lesson-sidebar {
   width: var(--lesson-nav-w, 220px);
   padding: 1.5rem 1rem;
   border-right: 1px solid var(--th-border);
   position: sticky;
-  top: 0;
-  height: 100vh;
+  top: var(--topnav-height, 60px);
+  height: calc(100vh - var(--topnav-height, 60px));
   overflow-y: auto;
   flex-shrink: 0;
 }
@@ -107,6 +113,8 @@
   margin-bottom: 3rem;
   padding-bottom: 2rem;
   border-bottom: 1px solid var(--th-border);
+  /* A nav click scrolls here; without this the title lands under the TopNav. */
+  scroll-margin-top: calc(var(--topnav-height, 60px) + 1rem);
 }
 
 .lesson-section-title {
