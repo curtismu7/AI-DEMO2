@@ -84,26 +84,58 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
   // arriving instantly. Real steps keep arriving at full speed underneath —
   // this only paces what's drawn.
   const [revealedCount, setRevealedCount] = useState(allLifelineSteps.length);
+  const [playing, setPlaying] = useState(false);
+  const totalSteps = allLifelineSteps.length;
 
   // Off: everything is visible as it arrives.
   useEffect(() => {
     if (!slowMode) setRevealedCount(allLifelineSteps.length);
   }, [slowMode, allLifelineSteps.length]);
 
-  // Switching it on rewinds to the first step. Keyed on the toggle alone, so a
-  // step arriving mid-narration extends the reveal instead of restarting it.
-  // Without the rewind, turning slow mode on after a run has finished leaves
-  // the counter at the end and the timer below never arms — the whole reveal
-  // silently no-ops, which is the state a presenter actually hits.
+  // Switching it on rewinds to the first step and starts playing. Keyed on the
+  // toggle alone, so a step arriving mid-narration extends the reveal instead of
+  // restarting it. Without the rewind, turning slow mode on after a run has
+  // finished leaves the counter at the end and the timer below never arms — the
+  // whole reveal silently no-ops, which is the state a presenter actually hits.
   useEffect(() => {
-    if (slowMode) setRevealedCount(0);
+    if (slowMode) {
+      setRevealedCount(0);
+      setPlaying(true);
+    }
   }, [slowMode]);
 
+  // The timer only runs while playing, so Pause, Prev and Next all hold the
+  // reveal where the presenter put it.
   useEffect(() => {
-    if (!slowMode || revealedCount >= allLifelineSteps.length) return;
+    if (!slowMode || !playing || revealedCount >= totalSteps) return;
     const timer = setTimeout(() => setRevealedCount((prev) => prev + 1), slowRevealMs);
     return () => clearTimeout(timer);
-  }, [slowMode, revealedCount, allLifelineSteps.length, slowRevealMs]);
+  }, [slowMode, playing, revealedCount, totalSteps, slowRevealMs]);
+
+  // Halt at the end rather than run on. Steps can still be arriving from a live
+  // run, and without this the reveal would quietly pick them up and keep moving
+  // after the presenter thought it had finished; they press Play to go again.
+  useEffect(() => {
+    if (slowMode && playing && totalSteps > 0 && revealedCount >= totalSteps) setPlaying(false);
+  }, [slowMode, playing, revealedCount, totalSteps]);
+
+  const goToStep = useCallback(
+    (n) => {
+      setPlaying(false);
+      setRevealedCount(Math.max(0, Math.min(totalSteps, n)));
+    },
+    [totalSteps],
+  );
+
+  const togglePlay = useCallback(() => {
+    // Play at the end means "run it again", not "resume off the end".
+    if (revealedCount >= totalSteps) {
+      setRevealedCount(0);
+      setPlaying(true);
+      return;
+    }
+    setPlaying((p) => !p);
+  }, [revealedCount, totalSteps]);
 
   const lifelineSteps = slowMode ? allLifelineSteps.slice(0, revealedCount) : allLifelineSteps;
   // Cast comes from the whole trace, not the revealed slice: deriving it from
@@ -207,48 +239,87 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
   const width = pad * 2 + Math.max(participants.length - 1, 0) * COL_WIDTH;
   const height = TOP_PAD + lifelineSteps.length * ROW_HEIGHT + BOTTOM_PAD;
 
-  return (
-    <div className="srd-root">
-      <div className="srd-toolbar">
-        <button type="button" className="srd-zoom-btn" onClick={() => handleZoom(-ZOOM_STEP)} title="Zoom out">
-          −
+  // Rendered above and below the diagram: during a narration the presenter is
+  // looking at the bottom of a tall reveal, and reaching back to the top row to
+  // press Next defeats the point.
+  const toolbar = (position) => (
+    <div className={`srd-toolbar srd-toolbar--${position}`}>
+      <button type="button" className="srd-zoom-btn" onClick={() => handleZoom(-ZOOM_STEP)} title="Zoom out">
+        −
+      </button>
+      <button type="button" className="srd-zoom-reset" onClick={resetZoom} title="Reset zoom">
+        {zoomLevel}%
+      </button>
+      <button type="button" className="srd-zoom-btn" onClick={() => handleZoom(ZOOM_STEP)} title="Zoom in">
+        +
+      </button>
+      {onToggleSlowMode && (
+        <button
+          type="button"
+          className={`srd-slow-btn ${slowMode ? "srd-slow-btn--active" : ""}`}
+          onClick={onToggleSlowMode}
+          title={slowMode ? "Turn off slow mode" : "Turn on slow mode for narration"}
+        >
+          Slow
         </button>
-        <button type="button" className="srd-zoom-reset" onClick={resetZoom} title="Reset zoom">
-          {zoomLevel}%
-        </button>
-        <button type="button" className="srd-zoom-btn" onClick={() => handleZoom(ZOOM_STEP)} title="Zoom in">
-          +
-        </button>
-        {onToggleSlowMode && (
+      )}
+      {slowMode && (
+        <>
           <button
             type="button"
-            className={`srd-slow-btn ${slowMode ? "srd-slow-btn--active" : ""}`}
-            onClick={onToggleSlowMode}
-            title={slowMode ? "Turn off slow mode" : "Turn on slow mode for narration"}
+            className="srd-step-btn"
+            onClick={() => goToStep(revealedCount - 1)}
+            disabled={revealedCount <= 0}
+            title="Previous step"
           >
-            Slow
+            Prev
           </button>
-        )}
-        {slowMode && (
-          <>
-            <select
-              className="srd-speed-select"
-              value={slowRevealMs}
-              onChange={(e) => setSlowRevealMs(Number(e.target.value))}
-              title="Adjust pace of step revelation"
-            >
-              {SLOW_SPEED_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <span className="srd-slow-badge" title="Steps are revealing slowly for narration">
-              Slow mode — {Math.min(revealedCount, allLifelineSteps.length)}/{allLifelineSteps.length}
-            </span>
-          </>
-        )}
-      </div>
+          <button
+            type="button"
+            className="srd-step-btn srd-step-btn--play"
+            onClick={togglePlay}
+            title={
+              revealedCount >= totalSteps
+                ? "Replay from the first step"
+                : playing
+                  ? "Pause the reveal"
+                  : "Resume the reveal"
+            }
+          >
+            {revealedCount >= totalSteps ? "Replay" : playing ? "Pause" : "Play"}
+          </button>
+          <button
+            type="button"
+            className="srd-step-btn"
+            onClick={() => goToStep(revealedCount + 1)}
+            disabled={revealedCount >= totalSteps}
+            title="Next step"
+          >
+            Next
+          </button>
+          <select
+            className="srd-speed-select"
+            value={slowRevealMs}
+            onChange={(e) => setSlowRevealMs(Number(e.target.value))}
+            title="Adjust pace of step revelation"
+          >
+            {SLOW_SPEED_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <span className="srd-slow-badge" title="Steps are revealing slowly for narration">
+            Slow mode — {Math.min(revealedCount, totalSteps)}/{totalSteps}
+          </span>
+        </>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="srd-root">
+      {toolbar("top")}
       <div className="srd-scroll">
         <svg
           viewBox={`0 0 ${width} ${height}`}
@@ -332,7 +403,7 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
             );
           })}
           <defs>
-            {["browser", "chat", "agent", "llm", "mcp", "gateway", "pingone", "authz", "bff", "api", "data"].map((lane) => (
+            {participants.map((p) => p.toLowerCase()).map((lane) => (
               <marker
                 key={lane}
                 id={`srd-arrowhead-${lane}`}
@@ -349,6 +420,7 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
           </defs>
         </svg>
       </div>
+      {toolbar("bottom")}
     </div>
   );
 }

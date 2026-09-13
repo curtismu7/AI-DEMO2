@@ -113,6 +113,82 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     expect(scrollTo.mock.calls.map(([a]) => a).filter((a) => a && "left" in a)).toHaveLength(0);
   });
 
+  const btn = (c, label) =>
+    [...c.querySelectorAll(".srd-toolbar button")].find((b) => b.textContent.trim() === label);
+
+  // One act() per interval. The next timeout is only scheduled once React has
+  // re-rendered, so advancing N intervals in a single act() fires exactly one.
+  const tick = (n = 1) => {
+    for (let i = 0; i < n; i++) act(() => vi.advanceTimersByTime(DEFAULT_MS));
+  };
+
+  it("halts at the last step instead of running on", () => {
+    // Steps can still be arriving from a live run; without the halt the reveal
+    // quietly picks them up and keeps moving after the presenter thought it had
+    // finished.
+    const { container, rerender } = render(
+      <SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />,
+    );
+    rerender(<SequenceReelDiagram slowMode onToggleSlowMode={noop} />);
+    tick(STEPS.length + 4);
+
+    expect(drawnSteps(container)).toBe(STEPS.length);
+    // Offers a replay rather than sitting on "Pause" at a dead end.
+    expect(btn(container, "Replay")).toBeTruthy();
+    expect(btn(container, "Next").disabled).toBe(true);
+  });
+
+  it("steps forward and back by hand, and stops playing when it does", () => {
+    const { container, rerender } = render(
+      <SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />,
+    );
+    rerender(<SequenceReelDiagram slowMode onToggleSlowMode={noop} />);
+    tick();
+    expect(drawnSteps(container)).toBe(1);
+
+    act(() => btn(container, "Next").click());
+    expect(drawnSteps(container)).toBe(2);
+    // Manual stepping pauses, so the timer must not carry it onward.
+    expect(btn(container, "Play")).toBeTruthy();
+    tick(4);
+    expect(drawnSteps(container)).toBe(2);
+
+    act(() => btn(container, "Prev").click());
+    expect(drawnSteps(container)).toBe(1);
+    act(() => btn(container, "Prev").click());
+    expect(drawnSteps(container)).toBe(0);
+    expect(btn(container, "Prev").disabled).toBe(true);
+  });
+
+  it("replays from the first step when Play is pressed at the end", () => {
+    const { container, rerender } = render(
+      <SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />,
+    );
+    rerender(<SequenceReelDiagram slowMode onToggleSlowMode={noop} />);
+    tick(STEPS.length + 4);
+    expect(drawnSteps(container)).toBe(STEPS.length);
+
+    act(() => btn(container, "Replay").click());
+    expect(drawnSteps(container)).toBe(0);
+    tick();
+    expect(drawnSteps(container)).toBe(1);
+  });
+
+  it("renders a control row above and below the diagram", () => {
+    const { container, rerender } = render(
+      <SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />,
+    );
+    expect(container.querySelectorAll(".srd-toolbar")).toHaveLength(2);
+    expect(container.querySelector(".srd-toolbar--top")).not.toBeNull();
+    expect(container.querySelector(".srd-toolbar--bottom")).not.toBeNull();
+    // The bottom row is the one a presenter reaches during a long reveal, so it
+    // must carry the transport too, not just the zoom buttons.
+    rerender(<SequenceReelDiagram slowMode onToggleSlowMode={noop} />);
+    const bottom = container.querySelector(".srd-toolbar--bottom");
+    for (const label of ["Prev", "Next"])
+      expect([...bottom.querySelectorAll("button")].some((b) => b.textContent.trim() === label)).toBe(true);
+  });
+
   it("keeps the toolbar mounted at zero revealed steps", () => {
     // Otherwise the rewind swaps the whole diagram for the empty-state
     // placeholder and takes the button to turn slow mode back off with it.

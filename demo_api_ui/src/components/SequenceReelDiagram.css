@@ -63,6 +63,24 @@
   align-items: center;
   gap: 0.4rem;
   margin-bottom: 0.4rem;
+  /* .srd-root is the vertical scroller, so an unpinned row scrolls away with
+     the diagram — at the end of a tall reveal neither row was reachable, which
+     is precisely when a presenter wants Next. Colour alongside the background:
+     a themed ground without themed ink trips the theming ratchet. */
+  position: sticky;
+  z-index: 2;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+/* .srd-root has 0.5rem of padding, and `top: 0` pins to that padding line rather
+   than the scroller's edge — so the diagram scrolled through the gap and showed
+   above the pinned row. Pin flush with the edge and paint over the padding; the
+   negative margin cancels the added padding so the row does not move at rest. */
+.srd-toolbar--top {
+  top: -0.5rem;
+  margin-top: -0.5rem;
+  padding-top: 0.5rem;
 }
 
 .srd-zoom-btn,
@@ -98,6 +116,44 @@
 .srd-slow-btn:hover {
   background: var(--th-bg-hover);
   color: var(--th-text);
+}
+
+/* Transport: Prev / Play-Pause-Replay / Next. Same shape as the zoom and Slow
+   buttons so the row reads as one control strip. */
+.srd-step-btn {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.srd-step-btn:hover:not(:disabled) {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.srd-step-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.srd-step-btn--play {
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+  border-color: var(--th-status-info);
+  min-width: 52px;
+}
+
+.srd-toolbar--bottom {
+  bottom: -0.5rem;
+  margin-top: 0.4rem;
+  margin-bottom: -0.5rem;
+  padding-bottom: 0.5rem;
 }
 
 .srd-slow-btn--active {
