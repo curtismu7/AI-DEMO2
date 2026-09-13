@@ -223,6 +223,24 @@ describe("buildTraceSteps — Agent Gateway filter chain", () => {
     expect(gwStep(steps).status).toBe("error");
     expect(gwStep(steps).detail.decision.outcome).toBe("DENY");
   });
+
+  test("a filter-chain deny with no gateway_policy_denied phase is still drawn on the gateway", () => {
+    // Live UC31 (Miami under the texas scope) on /api/agent/invoke: the deny
+    // reaches the trace only as gw-filter-chain status "deny".
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [{
+        id: "gw-filter-chain", status: "deny",
+        explanation: "Agent Gateway: weather scope restricted to texas",
+        denyingFilter: "tx-weather-scope.groovy",
+        filterChain: [{ filter: "tx-weather-scope.groovy", result: "blocked" }],
+      }],
+    });
+    expect(gwStep(steps).status).toBe("error");
+    expect(gwStep(steps).detail.decision.outcome).toBe("DENY");
+    expect(gwStep(steps).detail.decision.label).toContain("weather scope restricted");
+  });
 });
 
 describe("buildTraceSteps — MCP lifecycle handshake and the second exchange", () => {
