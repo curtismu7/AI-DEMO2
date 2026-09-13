@@ -23,13 +23,18 @@ const pick = (data) => ({
  * Wrap target.fetch until the returned function is called.
  * @param {(call: object) => void} onCall
  * @param {Window} [target]
+ * @param {() => boolean} [shouldRecord] asked when a call STARTS, never when its
+ *   record arrives — the record waits on a body read that can finish after the
+ *   caller has moved on (live: /widget-session was dropped that way).
  * @returns {() => void} uninstall
  */
-export function installWidgetTrace(onCall, target = window) {
+export function installWidgetTrace(onCall, target = window, shouldRecord = () => true) {
   const original = target.fetch;
 
   target.fetch = async function tracedFetch(input, init) {
+    const recording = shouldRecord();
     const response = await original.call(this, input, init);
+    if (!recording) return response;
     let url = null;
     try {
       url = new URL(String(input?.url ?? input), target.location?.origin);
