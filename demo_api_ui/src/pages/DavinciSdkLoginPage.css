@@ -18,9 +18,10 @@
   margin-top: 1rem;
 }
 
+/* Sticky below the app's sticky TopNav, not under it (see lesson.css). */
 .dvsdk-live-app {
   position: sticky;
-  top: 1rem;
+  top: calc(var(--topnav-height, 60px) + 1rem);
   padding: 1.25rem;
   color: var(--th-text);
   background: var(--th-bg-card);
