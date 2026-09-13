@@ -1161,12 +1161,20 @@ cmd_restart_one() {
 # the BFF returns nothing, and it reads as an application outage.
 # `until=24h` spares an image another worktree session built minutes ago but has
 # not yet tagged or started.
-_prune_orphaned_images() {
+# Build cache leaks the same way and is the second-largest consumer after images
+# (42.73GB across 451 entries on 2026-09-13, none of it active). Nothing collected
+# it either, so pruning only images just moves where the disk goes.
+_prune_build_leftovers() {
   local out
   if out="$(docker image prune -f --filter 'until=24h' 2>&1)"; then
     ok "${out##*$'\n'}"
   else
     warn "image prune failed (not fatal): ${out##*$'\n'}"
+  fi
+  if out="$(docker builder prune -f --filter 'until=24h' 2>&1)"; then
+    ok "build cache: ${out##*$'\n'}"
+  else
+    warn "builder prune failed (not fatal): ${out##*$'\n'}"
   fi
 }
 
@@ -1193,7 +1201,7 @@ cmd_build_one() {
   _export_llamacpp_base_url
   docker compose "${COMPOSE_FILES[@]}" up -d --build${build_opts} --no-deps "${services[@]}"
   ok "Rebuilt and restarted: ${services[@]}."
-  _prune_orphaned_images
+  _prune_build_leftovers
   echo ""
 }
 
@@ -1601,7 +1609,7 @@ cmd_start() {
     fi
   fi
 
-  _prune_orphaned_images
+  _prune_build_leftovers
 
   echo ""
   cmd_demo_sync
@@ -1728,6 +1736,7 @@ cmd_promptfoo() {
   if ! docker compose "${COMPOSE_FILES[@]}" ps --status running --services 2>/dev/null | grep -qx 'promptfoo-step-narration'; then
     _purge_foreign_container_names
     docker compose "${COMPOSE_FILES[@]}" up -d --build promptfoo-step-narration
+    _prune_build_leftovers
   fi
   docker compose "${COMPOSE_FILES[@]}" exec -T promptfoo-step-narration \
     promptfoo eval -c promptfoo/step-narration.config.yaml --filter-providers phi-4-mini-instruct
