@@ -62,10 +62,13 @@ below.
    ```bash
    node librechat/seed-demo-agents.js
    ```
-   Creates four public agents — Everyday Banking, Money Movement, Support and
-   Fees, Super Sports — each on PingOne Privilege (OpenAI) / `gpt-4o-mini`
-   with a few `aidemo-mcp` tools and four clickable starter prompts. Pick one
-   in the agent selector and click a prompt. Re-run it to update them in place.
+   Creates public agents — Everyday Banking, Money Movement, Support and
+   Fees, Super Sports, Super Sports Gear & Rentals, Super Sports Orders &
+   Loyalty, Super Sports Stores & Code — each on PingOne Privilege (OpenAI) /
+   `gpt-4o-mini` with a few `aidemo-mcp` tools and four clickable starter
+   prompts. Pick one in the agent selector and click a prompt. Re-run it to
+   update them in place. The three "Super Sports …" data agents read the
+   seeded Super Sports store through the BFF vertical-tool relay.
    Every click is a real OpenAI call billed to the Privilege virtual key, and
    Money Movement changes the demo balances.
 
