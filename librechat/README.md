@@ -88,8 +88,14 @@ below.
      `opensearch-privilege-gateway` and `privilege-opensearch22` (MCP settings →
      Connect → PingOne login). `opensearch-privilege-gateway` also needs the
      façade's Privilege leg signed in at `/privilege-mcp-client`.
-   - **Start the port-forward** for OpenSearch · Direct:
-     `kubectl --context us -n ping-devops-curtismuir port-forward svc/opensearch-mcp-server 9900:80`.
+   - **Keep the port-forward up** for OpenSearch · Direct, once per Mac:
+     `bash scripts/install-opensearch-port-forward-launchd.sh` (from the main
+     checkout). It installs a launchd agent that restarts
+     `kubectl --context us -n ping-devops-curtismuir port-forward svc/opensearch-mcp-server 9900:80`
+     whenever the tunnel drops, including after a reboot or pod restart. Log:
+     `~/Library/Logs/aidemo2-opensearch-port-forward.log`. If it logs an
+     oidc-login or Unauthorized error, run `kubectl --context us get ns` once to
+     sign in again.
    - The `oauth-loopback` sidecar shares the api container's network, so after
      recreating `librechat`, run
      `docker compose -f librechat/docker-compose.yml up -d oauth-loopback` too.
@@ -118,7 +124,7 @@ recreate a container whose compose-level config didn't change.
 |---|---|---|
 | `aidemo-mcp` | works (auth-disabled local mcp-server) | not offered — host-local only |
 | `super-sports-gateway` | works once each user Connects (PingOne login); the façade's `localhost:3005` sign-in server is reached through the `oauth-loopback` sidecar | not offered |
-| `opensearch-direct` | works while the Mac port-forward runs: `kubectl --context us -n ping-devops-curtismuir port-forward svc/opensearch-mcp-server 9900:80` (no auth) | not offered — Mac-only port-forward |
+| `opensearch-direct` | works while the Mac port-forward runs (no auth); `bash scripts/install-opensearch-port-forward-launchd.sh` keeps it up with a launchd agent | not offered — Mac-only port-forward |
 | `privilege-opensearch22` | works once each user Connects; LibreChat signs in against the Privilege gateway's own OAuth server (public host, no sidecar) | not offered |
 | `opensearch-privilege-gateway` | works once each user Connects (through the `oauth-loopback` sidecar) and the façade's Privilege leg is signed in at `/privilege-mcp-client` | works — replaced `opensearch-privilege-agent` on 2026-09-05. That entry pointed at the deleted `agent` door, whose mesh frontend still resolved while nothing served it; the Mac-local `:8643` reachability caveat it carried is moot now, since nothing routes that way |
 | `privilege-agentless` | removed 2026-09-13 — addressed `ai-demo.ping-devops.com`, torn down with `ping-devops-cmuir` | works — verified live |
