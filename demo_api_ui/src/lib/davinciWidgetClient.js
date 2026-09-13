@@ -3,9 +3,10 @@
 // The widget script is hosted by Ping and pulled in on demand rather than
 // bundled, so it is only fetched on the one page that uses it. Every secret
 // stays on the BFF: POST /api/davinci-login/sdk-token mints the SDK token from
-// the DaVinci API key, arms the OIDC nonce, and keeps the PKCE verifier, then
-// returns only what davinci.skRenderScreen needs plus the authorize URL the
-// page visits once the flow succeeds. Nothing here is hardcoded in the bundle.
+// the DaVinci API key and arms the OIDC nonce, then returns only what
+// davinci.skRenderScreen needs. When the flow succeeds, the tokens it returns go
+// to POST /api/davinci-login/widget-session. Nothing here is hardcoded in the
+// bundle.
 
 const WIDGET_SRC = "https://assets.pingone.com/davinci/latest/davinci.js";
 
@@ -46,4 +47,17 @@ export async function fetchWidgetConfig() {
     throw new Error(body.message || `Could not start a DaVinci login flow (HTTP ${res.status}).`);
   }
   return res.json();
+}
+
+// The flow's final node returns OIDC tokens to the page. The BFF verifies them
+// (signatures, audience, nonce, same user) before it signs anyone in.
+export async function postWidgetSession({ idToken, accessToken }) {
+  const res = await fetch("/api/davinci-login/widget-session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ idToken, accessToken }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.message || `Sign-in failed (HTTP ${res.status}).`);
+  return body;
 }
