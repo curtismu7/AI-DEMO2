@@ -36,8 +36,10 @@ const DOORS = [
     server: 'aidemo-mcp',
     tool: 'get_my_accounts',
     prompt: 'What are my account balances?',
-    // The seed store's four accounts: checking 10,000 / savings 15,000.
-    reply: /10[,.]?000|15[,.]?000/,
+    // get_my_accounts on aidemo-mcp, 2026-09-13: checking 3,400 / savings 6,600.
+    // ponytail: hardcoded balances drift when the demo store changes (they were
+    // 10,000 / 15,000 before) — read them from the tool first if that recurs.
+    reply: /3[,.]?400|6[,.]?600/,
   },
 ];
 
