@@ -203,6 +203,21 @@ function httpRequest(opts, postData) {
   });
 }
 
+/**
+ * Mint a PingOne worker token preferring vaultSecret over envSecret, retrying
+ * once with envSecret if vaultSecret fails — closes the silent-outage window
+ * where a stale vault-vs-.env drift on this one credential blocks
+ * refresh-service-envs entirely, not just an in-flight worker rotation.
+ */
+async function mintWorkerToken(getToken, envId, workerId, vaultSecret, envSecret, region) {
+  try {
+    return await getToken(envId, workerId, vaultSecret, region);
+  } catch (err) {
+    if (!envSecret || envSecret === vaultSecret) throw err;
+    return getToken(envId, workerId, envSecret, region);
+  }
+}
+
 async function getWorkerToken(envId, clientId, clientSecret, region) {
   const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
   const body = 'grant_type=client_credentials';
@@ -436,7 +451,7 @@ async function getRotatableVaultKeyMap(deps = {}) {
     throw new Error('PingOne worker credentials are not configured in demo_api_server/.env');
   }
 
-  const token = await getToken(envId, workerId, workerSecret, region);
+  const token = await mintWorkerToken(getToken, envId, workerId, workerSecret, apiVars.PINGONE_WORKER_CLIENT_SECRET, region);
   const topology = JSON.parse(fs.readFileSync(path.join(ROOT, 'scope-topology.json'), 'utf8'));
   const apps = await resolve(token, region, envId, appTargets(topology), knownClientIds(apiVars));
 
@@ -506,7 +521,7 @@ async function main(deps = {}) {
 
   let token;
   try {
-    token = await getToken(envId, workerId, workerSecret, region);
+    token = await mintWorkerToken(getToken, envId, workerId, workerSecret, apiVars.PINGONE_WORKER_CLIENT_SECRET, region);
     console.log('[refresh-envs] PingOne worker token acquired.');
   } catch (err) {
     throw skip(`[refresh-envs] WARNING: Could not get PingOne worker token: ${err.message}\n`

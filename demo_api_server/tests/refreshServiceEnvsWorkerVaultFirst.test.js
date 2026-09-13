@@ -55,4 +55,33 @@ describe('refresh-service-envs main() — worker token is vault-first', () => {
     await mod.propagateServiceEnvs({ getWorkerToken, loadVaultSecrets }).catch(() => {});
     expect(getWorkerToken).toHaveBeenCalledWith('env-1', 'worker-id', 'old-dead-secret', 'com');
   });
+
+  // 2026-09-13 TECH_DEBT fix: vault-vs-.env drift on this one credential must
+  // not block the whole run — retry once with the .env value.
+  test('retries with the .env value when the vault-supplied secret fails to mint', async () => {
+    const getWorkerToken = jest.fn()
+      .mockRejectedValueOnce(new Error('invalid_client'))
+      .mockResolvedValueOnce('tok');
+    const loadVaultSecrets = jest.fn().mockResolvedValue({ PINGONE_WORKER_CLIENT_SECRET: 'stale-vault-secret' });
+    await mod.propagateServiceEnvs({ getWorkerToken, loadVaultSecrets }).catch(() => {});
+    expect(getWorkerToken).toHaveBeenCalledTimes(2);
+    expect(getWorkerToken).toHaveBeenNthCalledWith(1, 'env-1', 'worker-id', 'stale-vault-secret', 'com');
+    expect(getWorkerToken).toHaveBeenNthCalledWith(2, 'env-1', 'worker-id', 'old-dead-secret', 'com');
+  });
+
+  test('when the .env value is identical to the vault value, the original error propagates as a skip (no second attempt)', async () => {
+    const getWorkerToken = jest.fn().mockRejectedValue(new Error('invalid_client'));
+    // Vault value equals the .env value read from ENV_TEXT ('old-dead-secret') —
+    // no real fallback available.
+    const loadVaultSecrets = jest.fn().mockResolvedValue({ PINGONE_WORKER_CLIENT_SECRET: 'old-dead-secret' });
+    let caught = null;
+    try {
+      await mod.propagateServiceEnvs({ getWorkerToken, loadVaultSecrets });
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).not.toBeNull();
+    expect(caught.skipped).toBe(true); // degrades non-fatally exactly as before, not a new uncaught throw
+    expect(getWorkerToken).toHaveBeenCalledTimes(1);
+  });
 });

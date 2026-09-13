@@ -198,6 +198,32 @@ describe('GET /api/admin/secret-rotation/runs/:runId', () => {
     expect(res.body.status).toBe('failed');
   });
 
+  // 2026-09-12 TECH_DEBT fix: the recreate-step exemption is bounded, not
+  // unbounded — a process that died right after logging `recreating:` must
+  // still eventually report failed rather than polling 'running' forever.
+  test('a stale log parked on the recreate step PAST the bound reports failed, not running forever', async () => {
+    const runId = runWithLog(
+      '[rotate] verified (token_issued)\n[rotate] recreating: mcp-gateway, demo-api-server\n');
+    const logPath = path.join(RUN_DIR, `${runId}.log`);
+    const old = new Date(Date.now() - 11 * 60 * 1000); // past RESTART_STALE_MS (10 min)
+    fs.utimesSync(logPath, old, old);
+
+    const res = await request(appWithRouter()).get(`/api/admin/secret-rotation/runs/${runId}`);
+    expect(res.body.status).toBe('failed');
+    expect(res.body.lines.join('\n')).toMatch(/appears to have died without reporting/);
+  });
+
+  test('a stale log parked on the recreate step WITHIN the bound stays running', async () => {
+    const runId = runWithLog(
+      '[rotate] verified (token_issued)\n[rotate] recreating: mcp-gateway, demo-api-server\n');
+    const logPath = path.join(RUN_DIR, `${runId}.log`);
+    const old = new Date(Date.now() - 8 * 60 * 1000); // within RESTART_STALE_MS (10 min)
+    fs.utimesSync(logPath, old, old);
+
+    const res = await request(appWithRouter()).get(`/api/admin/secret-rotation/runs/${runId}`);
+    expect(res.body.status).toBe('running');
+  });
+
   test('a stale log that DID report its outcome keeps that outcome', async () => {
     const runId = runWithLog('[rotate] DONE ok\n');
     const logPath = path.join(RUN_DIR, `${runId}.log`);
