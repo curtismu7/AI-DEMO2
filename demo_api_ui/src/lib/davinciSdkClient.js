@@ -163,6 +163,35 @@ export async function postCallback({ code, codeVerifier }) {
   return body;
 }
 
+/**
+ * End the browser's PingOne SSO session and come back to this page with a
+ * clean form. This does NOT touch the app's own BFF session.
+ *
+ * Needed because an existing PingOne session is reused: signed in to PingOne as
+ * one user, the flow completes as that user, and signing in as someone else on
+ * top of it fails with "userSessionMismatch". Signing out of PingOne is the way
+ * to switch.
+ *
+ * Measured against the live environment: /as/signoff honours
+ * post_logout_redirect_uri WITHOUT an id_token_hint once the URI is registered
+ * on the app — so this is built in the browser and the ID token (held by the
+ * BFF) never has to reach it.
+ *
+ * `go` is injectable only so a test can capture the URL; jsdom will not let a
+ * test redefine window.location.
+ */
+export async function signOutOfPingOne(cfg, go = (url) => window.location.assign(url)) {
+  const discovery = await fetch(cfg.wellknown).then((r) => r.json());
+  if (!discovery?.end_session_endpoint) {
+    throw new Error("PingOne did not advertise an end_session_endpoint, so sign-out is unavailable.");
+  }
+  const url = new URL(discovery.end_session_endpoint);
+  url.searchParams.set("post_logout_redirect_uri", cfg.redirectUri);
+  url.searchParams.set("client_id", cfg.clientId);
+  go(url.toString());
+  return url.toString();
+}
+
 export function isSdkError(result) {
   return !result || (typeof result === "object" && "error" in result && Boolean(result.error));
 }

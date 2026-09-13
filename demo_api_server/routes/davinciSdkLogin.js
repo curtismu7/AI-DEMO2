@@ -220,7 +220,11 @@ router.post('/callback', async (req, res) => {
           console.error('[davinci-sdk-login/callback] Session save FAILED:', saveErr.message);
           return res.status(500).json({ error: 'session_save_failed', message: 'Could not persist session.' });
         }
-        return res.json({ ok: true });
+        // username lets the page say WHO an existing PingOne session signed in
+        // as ("Signed in as demoAdmin — continue, or sign out to switch"),
+        // which it cannot know otherwise: a reused session completes the flow
+        // with no screens, so the user never typed a name.
+        return res.json({ ok: true, username: user.username || null });
       });
     });
   } catch (err) {

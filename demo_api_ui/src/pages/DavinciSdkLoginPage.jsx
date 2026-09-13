@@ -18,13 +18,17 @@ import {
   fetchSdkConfig,
   initClient,
   postCallback,
+  signOutOfPingOne,
   takePkceVerifier,
 } from "../lib/davinciSdkClient";
 import "./DavinciSdkLoginPage.css";
 
 export default function DavinciSdkLoginPage() {
   const navigate = useNavigate();
-  const [phase, setPhase] = useState("loading"); // loading | collecting | notConfigured | failed | done
+  const [phase, setPhase] = useState("loading"); // loading | collecting | reused | notConfigured | failed | done
+  // Username an existing PingOne session signed in as, shown on the "reused"
+  // panel so the user can Continue as them or sign out to switch.
+  const [reusedAs, setReusedAs] = useState(null);
   const [message, setMessage] = useState(null);
   const [missing, setMissing] = useState(null);
   const [collectors, setCollectors] = useState([]);
@@ -67,16 +71,33 @@ export default function DavinciSdkLoginPage() {
   // Declared before start() because start() now depends on it: a const in a
   // useCallback dependency array is read at render time, so referencing it
   // above its declaration throws.
-  const finish = useCallback(async (client) => {
+  const finish = useCallback(async (client, { reused = false } = {}) => {
     const code = client.getClient?.()?.authorization?.code;
     if (!code) throw new Error("The flow succeeded but returned no authorization code.");
     // The SDK owns the PKCE verifier; the BFF does the exchange and holds the
     // tokens, so the verifier has to travel with the code.
     const codeVerifier = takePkceVerifier(cfgRef.current.clientId);
-    await postCallback({ code, codeVerifier });
+    const result = await postCallback({ code, codeVerifier });
+    // A reused PingOne session completed the flow without anyone typing a name,
+    // so say WHO it signed in as and offer to switch, rather than silently
+    // landing the user in the app as someone they may not have expected.
+    if (reused) {
+      setReusedAs(result?.username || null);
+      setPhase("reused");
+      return;
+    }
     setPhase("done");
     navigate("/davinci-login/confirmed", { replace: true });
   }, [navigate]);
+
+  // Ends the PingOne session (not this app's session) and returns here with a
+  // clean form — the way to sign in as a different user. See signOutOfPingOne.
+  const signOut = useCallback(() => {
+    signOutOfPingOne(cfgRef.current).catch((err) => {
+      setMessage(err.message);
+      setPhase("failed");
+    });
+  }, []);
 
   const start = useCallback(async () => {
     setPhase("loading");
@@ -88,13 +109,13 @@ export default function DavinciSdkLoginPage() {
       const client = await initClient(cfg, { onTrace });
       clientRef.current = client;
 
-      // prompt=login: this page exists to SHOW the flow's collectors, and a
-      // browser that already holds a PingOne session otherwise gets the flow
-      // completed silently (flow.status COMPLETED + a code, no screens).
-      // Measured in one signed-in browser: without it, COMPLETED; with it, a
-      // real sign-on screen (capability customHTMLTemplate). start({query})
-      // merges onto the authorize URL, so it reaches PingOne as a parameter.
-      const node = await client.start({ query: { nonce: cfg.nonce, prompt: "login" } });
+      // No prompt=login. It was added so a signed-in presenter would still see
+      // the collectors, but it made PingOne REFUSE a sign-in as a different
+      // user: signed in to PingOne as demoAdmin, the form then authenticated
+      // someone else and the flow failed with "userSessionMismatch". Instead an
+      // existing PingOne session is reused (the flow completes with no
+      // screens), and the page offers to sign out of PingOne to switch users.
+      const node = await client.start({ query: { nonce: cfg.nonce } });
       if (node?.status === "failure") {
         // A 5XX or an unparseable payload lands here, not on 'error'. The SDK
         // logs "Response of 5XX indicates unrecoverable failure"; its own error
@@ -113,7 +134,9 @@ export default function DavinciSdkLoginPage() {
       // subtitle, nothing else. Reported from a screenshot while signed in as
       // Demo Admin; reproduced by signing in once and reloading the page.
       if (node?.status === "success") {
-        await finish(client);
+        // reused: nobody typed anything, so finish() shows who this signed in
+        // as, with Continue / sign out, instead of navigating straight away.
+        await finish(client, { reused: true });
         return;
       }
       syncFromClient(client, node);
@@ -128,7 +151,7 @@ export default function DavinciSdkLoginPage() {
       setMessage(err.message);
       setPhase("failed");
     }
-  }, [onTrace, syncFromClient]);
+  }, [onTrace, syncFromClient, finish]);
 
   useEffect(() => {
     if (startedRef.current) return;
@@ -206,6 +229,36 @@ export default function DavinciSdkLoginPage() {
 
       {phase === "loading" && <p className="dvsdk-status">Starting the flow...</p>}
 
+      {/* An existing PingOne session completed the flow with no screens. Say
+          who it signed in as and let the user choose, rather than dropping
+          them into the app as someone they may not have expected. */}
+      {phase === "reused" && (
+        <div className="dvsdk-notice">
+          <p className="dvsdk-notice-title">Signed in with your existing PingOne session</p>
+          <p>
+            {reusedAs ? (
+              <>
+                You are signed in as <strong>{reusedAs}</strong>.
+              </>
+            ) : (
+              "This browser was already signed in to PingOne, so no form was needed."
+            )}
+          </p>
+          <div className="dvsdk-actions">
+            <button
+              type="button"
+              className="dvsdk-retry"
+              onClick={() => navigate("/davinci-login/confirmed", { replace: true })}
+            >
+              Continue
+            </button>
+            <button type="button" className="dvsdk-retry" onClick={signOut}>
+              Sign out of PingOne and use a different account
+            </button>
+          </div>
+        </div>
+      )}
+
       {phase === "notConfigured" && (
         <div className="dvsdk-notice">
           <p className="dvsdk-notice-title">Not configured</p>
@@ -224,10 +277,28 @@ export default function DavinciSdkLoginPage() {
 
       {phase === "failed" && (
         <div className="dvsdk-error">
-          <p>{message}</p>
-          <button type="button" className="dvsdk-retry" onClick={start}>
-            Try again
-          </button>
+          {/* userSessionMismatch: PingOne already has a session for a DIFFERENT
+              user and will not sign someone else in on top of it. Reported
+              while signed in as demoAdmin. Retrying cannot fix that; signing
+              out of PingOne can, so offer it instead of the bare code. */}
+          {/userSessionMismatch/i.test(message || "") ? (
+            <p>
+              This browser is signed in to PingOne as a different user, so PingOne will not
+              sign you in as someone else on top of that session.
+            </p>
+          ) : (
+            <p>{message}</p>
+          )}
+          <div className="dvsdk-actions">
+            <button type="button" className="dvsdk-retry" onClick={start}>
+              Try again
+            </button>
+            {/userSessionMismatch/i.test(message || "") && (
+              <button type="button" className="dvsdk-retry" onClick={signOut}>
+                Sign out of PingOne and use a different account
+              </button>
+            )}
+          </div>
         </div>
       )}
 
