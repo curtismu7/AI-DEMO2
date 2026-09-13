@@ -50,6 +50,12 @@ const NOTE_CHAR_W = 6.8;
 const noteBoxWidth = (label) =>
   Math.max(150, String(label ?? "").length * NOTE_CHAR_W + 32);
 
+// Arrow labels get a box too, so every hop reads as one clickable object rather
+// than loose text floating over a line. Tighter padding and no 150px floor: an
+// arrow label is centred between two lanes, where a note box's minimum would
+// reach across the neighbouring lifelines.
+const labelBoxWidth = (label) => String(label ?? "").length * NOTE_CHAR_W + 18;
+
 const ZOOM_MIN = 60;
 const ZOOM_MAX = 200;
 const ZOOM_STEP = 10;
@@ -211,6 +217,13 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
   // to hunt for where things are. Falls back to the newest step when
   // nothing is explicitly "active" (e.g. the run just finished).
   const activeStepRef = useRef(null);
+  const scrollRef = useRef(null);
+  // Each new run starts at the first hop, so return the box to its left edge
+  // instead of leaving it wherever the previous run scrolled to — the first
+  // lane (BROWSER / sign-in) should be on screen when a run begins.
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollLeft = 0;
+  }, [runId]);
   const activeStepId = useMemo(() => {
     const active = [...lifelineSteps].reverse().find((s) => s.status === "active");
     return active ? active.id : lifelineSteps[lifelineSteps.length - 1]?.id;
@@ -225,17 +238,12 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
     // the vertical follow is wanted. This reproduces `block: "nearest"` (move
     // the minimum, do nothing when already visible) and never touches
     // scrollLeft.
-    const scroller = el?.closest(".srd-root");
+    const scroller = el?.closest(".srd-scroll");
     if (!el || !scroller) return;
     const step = el.getBoundingClientRect();
+    // The toolbars sit outside .srd-scroll, so its own top/bottom edges are the
+    // visible band — no need to carve out the control rows any more.
     const view = scroller.getBoundingClientRect();
-    // The control rows are pinned over the scroller's top and bottom edges, so
-    // the visible band is between them. Measuring against the scroller alone
-    // parked the newest step underneath the bottom row.
-    const topRow = scroller.querySelector(".srd-toolbar--top")?.getBoundingClientRect();
-    const bottomRow = scroller.querySelector(".srd-toolbar--bottom")?.getBoundingClientRect();
-    const bandTop = topRow ? Math.max(view.top, topRow.bottom) : view.top;
-    const bandBottom = bottomRow ? Math.min(view.bottom, bottomRow.top) : view.bottom;
     // Following the newest row, the lane footer sits just under it — keep it in
     // view too, or the lane names are off-screen exactly while narrating. Not for
     // a mid-trace active step: the footer is then far below, and chasing it would
@@ -245,8 +253,8 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
       : null;
     const wantBottom = footer ? Math.max(step.bottom, footer.bottom) : step.bottom;
     const delta =
-      step.top < bandTop ? step.top - bandTop
-      : wantBottom > bandBottom ? wantBottom - bandBottom
+      step.top < view.top ? step.top - view.top
+      : wantBottom > view.bottom ? wantBottom - view.bottom
       : 0;
     if (delta) scroller.scrollTo({ top: scroller.scrollTop + delta, behavior: "smooth" });
   }, [activeStepId, followFooter]);
@@ -263,6 +271,9 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
     const el = activeStepRef.current;
     const box = el?.closest(".srd-scroll");
     if (!el || !box) return;
+    // Everything fits — leave the first lane pinned at the left rather than
+    // nudging it off-screen when there is nothing to reveal by scrolling.
+    if (box.scrollWidth <= box.clientWidth + 1) return;
     const step = el.getBoundingClientRect();
     const view = box.getBoundingClientRect();
     const pad = 24;
@@ -294,7 +305,10 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
   // clearance or the viewBox crops them. Measured over the whole trace so the
   // canvas width — and therefore the zoom scale — holds still during a reveal.
   const maxNoteHalf = allLifelineSteps.reduce(
-    (m, s) => (s.type === "note" ? Math.max(m, noteBoxWidth(s.label) / 2) : m),
+    // Arrow labels are boxed too now, so they widen the canvas the same way a
+    // note box does — without this the widest ones (the MCP and gateway hops)
+    // get clipped at the right edge.
+    (m, s) => Math.max(m, (s.type === "note" ? noteBoxWidth(s.label) : labelBoxWidth(s.label)) / 2),
     0,
   );
   const pad = Math.max(COL_MARGIN, ACTOR_BOX_W / 2, maxNoteHalf) + 8;
@@ -384,7 +398,7 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
   return (
     <div className="srd-root">
       {toolbar("top")}
-      <div className="srd-scroll">
+      <div className="srd-scroll" ref={scrollRef}>
         <svg
           viewBox={`0 0 ${width} ${height}`}
           className="srd-svg"
@@ -422,7 +436,11 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
             const y = TOP_PAD + idx * ROW_HEIGHT;
             const statusClass = `srd-status-${step.status || "pending"}`;
             const isSelected = step.id === selectedStepId;
-            const isActive = step.status === "active";
+            // A step can be left stranded at "active" in the store once the run
+            // ends (the MCP hop does this), and the running dot then keeps
+            // crawling after the flow has finished. The trace's own outcome is
+            // the authority: nothing is still running once it has one.
+            const isActive = step.status === "active" && !traceFinished;
             const stepLaneClass = laneClass(step.type === "note" ? step.lane : step.to);
             const groupClass = `${statusClass} ${stepLaneClass}${isSelected ? " srd-selected" : ""}`;
             const setStepRef = (el) => {
@@ -455,6 +473,7 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
             }
             const fromX = colX(step.from);
             const toX = colX(step.to);
+            const labelW = labelBoxWidth(step.label);
             return (
               <g
                 key={step.id}
@@ -478,7 +497,18 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
                   className="srd-arrow"
                   markerEnd={`url(#srd-arrowhead-${String(step.to || "").toLowerCase()})`}
                 />
-                <text x={(fromX + toX) / 2} y={y - 5} textAnchor="middle" className="srd-arrow-label">
+                {/* Boxed label, sitting just above the line so the arrow does
+                    not cut through it. Same treatment as a note box, so a hop
+                    looks the same whether it is drawn as a note or an arrow. */}
+                <rect
+                  x={(fromX + toX) / 2 - labelW / 2}
+                  y={y - 24}
+                  width={labelW}
+                  height="22"
+                  rx="5"
+                  className="srd-label-box"
+                />
+                <text x={(fromX + toX) / 2} y={y - 8} textAnchor="middle" className="srd-arrow-label">
                   {step.label}
                 </text>
                 {isActive && (
