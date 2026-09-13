@@ -80,6 +80,14 @@ else
   ( cd "$REPO_ROOT" && docker compose "${K8S_COMPOSE[@]}" build "${compose_names[@]}" )
 fi
 
+# Each rebuild orphans the previous ai-demo-k8-* set and its build cache, and nothing
+# collected either — same leak as run-docker.sh's _prune_build_leftovers. The new
+# images are already tagged, so the retag below is unaffected. `|| warn` is required,
+# not stylistic: under `set -e` a failed prune would abort the rollout.
+info "Pruning orphaned images and build cache..."
+docker image prune -f --filter 'until=24h' >/dev/null || warn "image prune failed (not fatal)"
+docker builder prune -f --filter 'until=24h' >/dev/null || warn "builder prune failed (not fatal)"
+
 # Compose tags images as <project>-<service>:latest (e.g. ai-demo-k8-demo-api-server).
 # K8s deployments use shorter names (ai-demo-k8-api-server). Retag so rollouts pick
 # up the just-built layers instead of a stale IfNotPresent image.
