@@ -166,6 +166,31 @@ left is canonicalized to `insufficient_scope`.
 
 **Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest src/__tests__/attackSimulator.test.js --forceExit`.
 
+### 2026-09-13 — Sequence view: a gateway filter deny with no deny phase is drawn on the gateway
+
+**Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`.
+Test: `src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`.
+
+**What was broken:** live UC31 (Miami under the default `texas` scope, run from
+the /weather-mcp Run chip through `/api/agent/invoke`) returned
+`gateway_policy_denied` / `weather_scope_denied`, but the trace received the
+deny only as a `gw-filter-chain` token event with status `deny`: no
+`gateway_policy_denied` phase arrived over the flow SSE. `gwDenied` read only
+that phase or a `sim-gateway-deny` event, and since #3244 counts
+`gw-filter-chain` as the gateway being seen, the sequence view drew
+"Agent Gateway — token validated" (done) and put the refusal on the MCP server.
+
+**What was fixed:** a `gw-filter-chain` event with status `deny` counts as a
+gateway deny. Its `explanation` supplies the DENY label when there is no phase
+and no sim event (that branch read `simGwDeny.label` unguarded).
+
+**Do not break:**
+- A permitting `gw-filter-chain` (status `active`) still draws the gateway done.
+- `gateway_policy_denied` and `sim-gateway-deny` keep their own labels.
+
+**Verify:** `cd demo_api_ui && node_modules/.bin/vitest run buildTraceSteps.test`.
+The new filter-deny test fails against the pre-fix builder.
+
 ### 2026-09-13 — Sequence view: step-up is drawn when it actually happens (BFF 428, device MFA, CIBA, live PingGateway consent)
 
 **Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`,
@@ -203,6 +228,42 @@ builder's `stepup` step stayed dark for most real step-ups.
 
 **Verify:** `cd demo_api_ui && node_modules/.bin/vitest run buildTraceSteps.test tokenChainTraceStore agentFlowDiagramService`.
 Seven tests fail against the pre-fix sources.
+
+### 2026-09-13 — Open-access hop: every vertical tool answered 401 invalid_token
+
+**Files changed:** `oauth-mcp/src/tools/BankingToolProvider.ts`.
+Tests: `oauth-mcp/tests/tools/BankingToolProvider.privilegeToken.test.ts`.
+
+**What was broken:** with `MCP_AUTH_DISABLED=true`, a caller without a
+validatable bearer (LibreChat's `aidemo-mcp`, the Privilege open-access hop)
+reaches `executeTool` with the placeholder `'disabled'`. The open-access branch
+minted the demo-user token only for tools with no `vertical` tag — its comment
+said vertical tools "execute server-side with no token". They don't: the vertical
+handler relays to BFF `POST /api/path/vertical-tool`, whose `authenticateToken`
+rejected `Bearer disabled` with `401 invalid_token`. Every sporting-goods,
+retail, healthcare and workforce action tool (`list_gear`, `list_rentals`,
+`loyalty_balance`, …) failed with `Banking API error: invalid_token` (BFF log
+`POST /api/path/vertical-tool 401`, 12:45:19 and 12:46:19).
+
+**What was fixed:** the open-access branch mints the demo-user token for every
+tool (`if (openAccessHop)`), so vertical tools reach the BFF with a real bearer,
+which `authenticateToken` binds to the open-access demo user.
+`TokenResolver` is unchanged: it still skips Step 9 for vertical tools and
+forwards that token as-is.
+
+**Do not break:**
+- With `MCP_AUTH_DISABLED` unset or false, the per-tool scope check still fails
+  closed — the placeholder gets `Insufficient scope` and no demo token.
+- A real bearer is never swapped: `openAccessHop` still requires the
+  `'disabled'` placeholder or a Privilege (`procyon`) token.
+- The BFF binding stays gated on `MCP_AUTH_DISABLED === 'true' && !decoded.sub &&
+  role !== 'admin'` (see the 2026-08-10 open-access entries).
+
+**Verify:** `cd oauth-mcp && ./node_modules/.bin/jest tests/tools/BankingToolProvider.privilegeToken.test.ts`
+(the vertical-tool case fails against the pre-fix code); live after
+`scripts/deploy-live.sh`: `tools/call list_rentals` on `http://localhost:8080/mcp`
+with `Bearer none` returns the Trek Marlin 8 rental, and the BFF logs
+`POST /api/path/vertical-tool 200`.
 
 ### 2026-09-13 — Sequence view: gateway denies and permits are drawn on the gateway; tools/call's 401 is drawn in wire order
 

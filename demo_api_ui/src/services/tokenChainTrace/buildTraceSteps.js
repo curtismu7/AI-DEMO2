@@ -18,6 +18,15 @@ const LANES = {
   database: "DATA", reply: "LLM",
 };
 
+// What a lane is called on screen. The LLM and the heuristic router are both the
+// AI agent choosing a tool and composing the reply; which one ran is detail, not
+// a different actor. The keys stay as they are: they drive lane colours and CSS
+// classes.
+const LANE_LABELS = { LLM: "AI AGENT", HEURISTICS: "AI AGENT" };
+export function laneLabel(lane) {
+  return LANE_LABELS[lane] || lane;
+}
+
 // The delegation-to-MCP portion of the pipeline, in order. Not derivable from
 // LANES (exchange shares the BFF lane with agent-token), so declared explicitly
 // here alongside the rest of the step-model vocabulary — the MCP tab and the
@@ -52,7 +61,7 @@ const TITLES = {
   // labels the topology diagram already used.
   "tools-list-challenge": "tools/list 401 — no token, gateway challenges",
   "tools-list": "tools/list — tool discovery, token accepted",
-  llm: "LLM — reasoning & tool choice",
+  llm: "AI Agent — reasoning & tool choice",
   "agent-token": "Agent identity token",
   // Named, not numbered: "Token exchange" is the node label the topology
   // diagram and its tests have always used for the delegated exchange, so the
@@ -70,7 +79,7 @@ const TITLES = {
   mcp: "MCP server — tool executes, token accepted",
   api: "Resource server — backend app",
   database: "Database — data query",
-  reply: "LLM composes reply → chat",
+  reply: "AI Agent composes reply → chat",
 };
 
 // What each hop does — always shown when a step is expanded, even before its
@@ -915,7 +924,7 @@ export function buildTraceSteps(trace) {
   // 4. llm — heuristic runs skip the model; label/lane become HEURISTICS and mark done
   if (isHeuristic) {
     const llmStep = makeStep("llm", "done", {
-      narrative: "Heuristics matched the prompt to a known intent and chose the tool — the LLM was not invoked.",
+      narrative: "The AI agent matched the prompt to a known intent and chose the tool — the LLM was not invoked.",
       // STEP_SPEC.llm teaches "the model proposes, policy decides"; on this path
       // there is no model at all, so replace it rather than teach the wrong hop.
       spec: {
@@ -932,7 +941,7 @@ export function buildTraceSteps(trace) {
           : "The BFF matched this prompt to a known intent and called the tool directly without LLM reasoning.",
       },
     });
-    llmStep.title = "Heuristics — intent match & tool choice";
+    llmStep.title = "AI Agent — intent match & tool choice";
     llmStep.lane = "HEURISTICS";
     steps.push(llmStep);
   } else {
@@ -1381,7 +1390,12 @@ export function buildTraceSteps(trace) {
     (e) => e && e.id === "sim-gateway-deny"
       && e.error !== "rar_amount_exceeded" && e.error !== "rar_unexpected_deny",
   );
-  const gwDenied = !!gwDeniedPhase || !!simGwDeny;
+  // A gateway deny can also reach the trace only as a gw-filter-chain event with
+  // status "deny" and no gateway_policy_denied phase: live UC31 (Miami under the
+  // texas scope) on /api/agent/invoke, 2026-09-13. Without it that run drew the
+  // gateway as "token validated" and put the refusal on the MCP server.
+  const gwFilterDenied = gwFilterChainEvent?.status === "deny";
+  const gwDenied = !!gwDeniedPhase || !!simGwDeny || gwFilterDenied;
   // gw-filter-chain is built only from a gateway response (X-Gw-Audit-Trail) or
   // a gateway deny, never as a skip marker. On a PingGateway permit it is often
   // the only gateway evidence, so leaving it out drew that gateway not in path.
@@ -1409,7 +1423,7 @@ export function buildTraceSteps(trace) {
             // serverEvents rows use "—" as the empty-detail placeholder
             label: `DENY — ${(gwDeniedPhase
               ? (gwDeniedPhase.detail && gwDeniedPhase.detail !== "—" ? gwDeniedPhase.detail : gwDeniedPhase.label)
-              : (simGwDeny.label || simGwDeny.explanation)) || "gateway policy"}` }
+              : simGwDeny ? (simGwDeny.label || simGwDeny.explanation) : gwFilterChainEvent?.explanation) || "gateway policy"}` }
         : undefined,
       kv: [
         gwIntro ? ["introspection", gwIntro.status === "active" ? "✓ active" : String(gwIntro.status)] : null,
@@ -1598,13 +1612,13 @@ export function buildTraceSteps(trace) {
     llmReply ? {
       response: { title: "Streamed reply", text: String(llmReply) },
     } : isHeuristic && mcpDone ? {
-      narrative: "Heuristics formatted the tool result into the chat reply — no LLM composition.",
+      narrative: "The AI agent formatted the tool result into the chat reply — no LLM composition.",
       response: mcpResult && mcpResult.result
         ? { title: "Composed reply (from tool result)", text: asJson(mcpResult.result) }
         : undefined,
     } : {});
   if (isHeuristic) {
-    replyStep.title = "Heuristics composes reply → chat";
+    replyStep.title = "AI Agent composes reply → chat";
     replyStep.lane = "HEURISTICS";
   }
   steps.push(replyStep);

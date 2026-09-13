@@ -9,6 +9,7 @@
 // whatever step you finished on.
 import React, { useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { laneLabel } from "../services/tokenChainTrace/buildTraceSteps";
 import "./TokenChainPresenter.css";
 
 const STATUS_TEXT = {
@@ -106,7 +107,7 @@ export default function TokenChainPresenter({ steps, activeId, onSelect, onClose
         <span className="tcp-count">
           Step {at + 1} of {count}
         </span>
-        <span className="tcp-lane">{step.lane}</span>
+        <span className="tcp-lane">{laneLabel(step.lane)}</span>
         <span className={`tcp-status tcp-status--${step.status || "pending"}`}>
           {STATUS_TEXT[step.status] || step.status}
         </span>
