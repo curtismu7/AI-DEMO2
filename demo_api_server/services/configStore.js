@@ -413,6 +413,10 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   ff_admin_token_exchange:         { public: true, default: 'false' }, // Use token exchange for admin sessions (RFC 8693 with admin app as subject)
   ff_local_fallback_on_exchange_failure: { public: true, default: 'false' }, // Allow the BFF to run a tool through the LOCAL handler when RFC 8693 exchange fails — bypasses the gateway, the MCP server, and every authorization check
   ff_mcp_rate_limit:               { public: true, default: 'false' }, // UC18: per-agent/per-tool sliding-window rate limiting. Demo Agent Gateway: in-process (before P1AZ). PingOne Agent Gateway (IG): PingGateway uc18-rate-limit.groovy (429 before P1AZ; armed via X-UC18-Rate-Limit from BFF).
+  // AI Guard (Privilege LLM sub-gateway) failures — POST /llm/call denials — forwarded to an external
+  // webhook (e.g. webhook.site) for inspection. See services/externalGuardrailForwarder.js.
+  ff_external_guardrail_webhook:   { public: true, default: 'false' },
+  EXTERNAL_GUARDRAIL_WEBHOOK_URL:  { public: true, default: '' },
   ff_bedrock_agentcore_gateway:    { public: false, default: 'false' }, // EKS: route MCP via AgentCore Gateway (requires AWS_DEPLOYMENT=1)
   ff_bedrock_llm:                  { public: false, default: 'false' }, // EKS: Bedrock Converse LLM (requires AWS_DEPLOYMENT=1)
   // MCP Gateway passthrough mode — when true the gateway forwards MCP requests

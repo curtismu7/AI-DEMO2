@@ -10,12 +10,12 @@
           },
           {
             "type": "command",
-            "command": "bash \"/Users/cmuir/Development/AI-DEMO2/.claude/hooks/block-bare-compose-up.sh\"",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-bare-compose-up.sh\"",
             "statusMessage": "Checking for bare docker compose up..."
           },
           {
             "type": "command",
-            "command": "python3 \"/Users/cmuir/Development/AI-DEMO2/.claude/hooks/warn-token-leaks.py\"",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/warn-token-leaks.py\"",
             "statusMessage": "Checking for token leaks..."
           }
         ]
@@ -25,7 +25,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"/Users/cmuir/Development/AI-DEMO2/.claude/hooks/block-main-checkout-writes.sh\"",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/block-main-checkout-writes.sh\"",
             "statusMessage": "Checking worktree isolation..."
           }
         ]
@@ -45,12 +45,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"/Users/cmuir/Development/AI-DEMO2/.claude/hooks/warn-stale-main-checkout.sh\"",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/warn-stale-main-checkout.sh\"",
             "timeout": 20
           },
           {
             "type": "command",
-            "command": "bash \"/Users/cmuir/Development/AI-DEMO2/.claude/hooks/warn-missing-service-deps.sh\"",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/warn-missing-service-deps.sh\"",
             "timeout": 20
           }
         ]

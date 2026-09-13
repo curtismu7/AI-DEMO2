@@ -151,6 +151,7 @@ describe("FeatureFlagsPage — flag toggle", () => {
     global.fetch = vi
       .fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ apiKeySet: false, tenantNameSet: false, tenantName: null }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ config: {} }) })
       .mockResolvedValueOnce({ ok: true, json: async () => MOCK_RESPONSE })
       .mockResolvedValueOnce({
         ok: true,
@@ -164,9 +165,9 @@ describe("FeatureFlagsPage — flag toggle", () => {
       screen.getByRole("button", { name: /enable real pingone authorize/i }),
     );
 
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(4));
 
-    const [patchUrl, patchInit] = global.fetch.mock.calls[2];
+    const [patchUrl, patchInit] = global.fetch.mock.calls[3];
     expect(patchInit.method).toBe("PATCH");
     expect(JSON.parse(patchInit.body)).toEqual({
       updates: { ff_authorize_real: true },
@@ -178,6 +179,7 @@ describe("FeatureFlagsPage — flag toggle", () => {
     global.fetch = vi
       .fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ apiKeySet: false, tenantNameSet: false, tenantName: null }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ config: {} }) })
       .mockResolvedValueOnce({ ok: true, json: async () => MOCK_RESPONSE })
       .mockResolvedValueOnce({
         ok: false,
@@ -209,6 +211,7 @@ describe("FeatureFlagsPage — flag toggle", () => {
     global.fetch = vi
       .fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ apiKeySet: false, tenantNameSet: false, tenantName: null }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ config: {} }) })
       .mockResolvedValueOnce({ ok: true, json: async () => MOCK_RESPONSE })
       .mockResolvedValueOnce({
         ok: true,
@@ -234,6 +237,7 @@ describe("FeatureFlagsPage — flag toggle", () => {
     global.fetch = vi
       .fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ apiKeySet: false, tenantNameSet: false, tenantName: null }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ config: {} }) })
       .mockResolvedValueOnce({ ok: true, json: async () => MOCK_RESPONSE })
       .mockResolvedValueOnce({
         ok: true,
