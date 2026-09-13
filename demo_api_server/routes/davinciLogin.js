@@ -58,16 +58,14 @@ async function establishSession(req, res, tokens, label) {
     return res.status(404).json({ error: 'user_not_found', message: `No demo user found for "${oauthUser.username}".` });
   }
 
-  // Regenerate session before storing credentials to prevent session fixation
-  // (mirrors routes/oauth.js and routes/oauthUser.js). Failure is fatal.
-  req.session.regenerate((regenErr) => {
-    if (regenErr) {
-      console.error(`[davinci-login/${label}] Session regenerate FAILED — aborting login:`, regenErr.message);
-      return res.status(500).json({ error: 'session_regenerate_failed', message: 'Could not establish a session.' });
-    }
-
+  const persistAndRespond = () => {
     req.session.oauthTokens = tokens;
     req.session.user = user;
+    // Marks this session as a widget login so a later /widget-session call on
+    // the SAME session (see isWidgetAccessTokenExpiring below) is recognized
+    // as a silent refresh rather than a first sign-in — the widget's tokens
+    // carry no refresh token (2026-09-13 tech debt), so this is the only signal.
+    if (label === 'widget-session') { req.session.davinciWidgetLogin = true; }
 
     req.session.save((saveErr) => {
       if (saveErr) {
@@ -79,7 +77,39 @@ async function establishSession(req, res, tokens, label) {
       // guaranteed to find this record, so the page must not ask it.
       return res.json({ ok: true, username: user.username || null });
     });
+  };
+
+  // A widget session silently refreshing its own already-established sign-in
+  // (davinciWidgetLogin already true) reuses the existing session instead of
+  // regenerating it. Regenerating on every refresh — not just on a first
+  // login — would wipe unrelated session state (agent context, HITL state,
+  // ...) each time the access token neared expiry.
+  if (label === 'widget-session' && req.session.davinciWidgetLogin === true) {
+    return persistAndRespond();
+  }
+
+  // Regenerate session before storing credentials to prevent session fixation
+  // (mirrors routes/oauth.js and routes/oauthUser.js). Failure is fatal.
+  req.session.regenerate((regenErr) => {
+    if (regenErr) {
+      console.error(`[davinci-login/${label}] Session regenerate FAILED — aborting login:`, regenErr.message);
+      return res.status(500).json({ error: 'session_regenerate_failed', message: 'Could not establish a session.' });
+    }
+    persistAndRespond();
   });
+}
+
+// A widget session carries no refresh token (see file header), so the only
+// way to renew it before it dies is to silently re-run the same widget flow
+// while the PingOne session it created still exists — never for a session
+// that has a real refresh token (that's middleware/tokenRefresh.js's job).
+// Margin mirrors that middleware's own 5-minute MARGIN constant.
+const WIDGET_REFRESH_MARGIN_MS = 5 * 60 * 1000;
+function isWidgetAccessTokenExpiring(session, marginMs = WIDGET_REFRESH_MARGIN_MS) {
+  const tokens = session?.oauthTokens;
+  if (session?.davinciWidgetLogin !== true || !tokens?.accessToken || tokens.refreshToken) return false;
+  if (typeof tokens.expiresAt !== 'number') return false;
+  return (Date.now() + marginMs) >= tokens.expiresAt;
 }
 
 // Mints a DaVinci SDK token for one widget run (davinci.skRenderScreen's
@@ -155,6 +185,19 @@ router.post('/sdk-token', async (req, res) => {
       const normalized = normalizeAxiosError(e, { label: 'DaVinci SDK token', timeoutMs: 10_000 });
       return res.status(normalized.httpStatus).json({ error: 'davinci_sdk_token_failed', message: normalized.message });
     }
+  });
+});
+
+// GET /api/davinci-login/session-status
+//
+// Cheap boolean check (no tokens, no secrets) so the page can decide whether
+// to silently re-run the widget flow before the access token expires — see
+// isWidgetAccessTokenExpiring and the 2026-09-13 tech debt entry.
+router.get('/session-status', (req, res) => {
+  const davinciWidgetLogin = req.session?.davinciWidgetLogin === true;
+  res.json({
+    davinciWidgetLogin,
+    needsRefresh: davinciWidgetLogin && isWidgetAccessTokenExpiring(req.session),
   });
 });
 
@@ -291,3 +334,5 @@ router.post('/callback', async (req, res) => {
 });
 
 module.exports = router;
+// Exported for tests and GET /session-status — not a route.
+module.exports.isWidgetAccessTokenExpiring = isWidgetAccessTokenExpiring;

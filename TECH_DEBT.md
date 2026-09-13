@@ -119,7 +119,7 @@ legitimate flow. Also ran the two other suites that already exercise `POST
 middleware to always attach a userId, so neither exercised the no-session gap
 and neither needed updating; both still pass unchanged.
 
-### [ ] 2026-09-13 — DaVinci widget sessions have no refresh token
+### [x] 2026-09-13 — DaVinci widget sessions have no refresh token
 
 **What's wrong.** A widget sign-in (`POST /api/davinci-login/widget-session`)
 stores the tokens the flow's "Return Success Response (Widget Flows)" node
@@ -137,7 +137,49 @@ honours it for widget flows (unverified), or re-run the widget flow when the
 access token nears expiry — the PingOne session it created still exists, so a
 Check Session branch can return fresh tokens without a new sign-on.
 
-### [ ] 2026-09-12 — DaVinci widget login has no live flow trace
+**RESOLVED 2026-09-13** (branch `fix/davinci-widget-silent-refresh-and-trace`)
+— implemented the second option; the `offline_access` option stays
+unattempted (still unverified PingOne connector behavior). `routes/davinciLogin.js`'s
+`establishSession` now sets `req.session.davinciWidgetLogin = true` on a widget
+sign-in — the only signal a later `/widget-session` call has that it is a
+silent refresh of an already-established session rather than a first login,
+since the widget's tokens carry no refresh token to distinguish the two. A new
+`isWidgetAccessTokenExpiring(session, marginMs = 5 * 60_000)` helper (margin
+mirrors `middleware/tokenRefresh.js`'s own 5-minute `MARGIN`) flags a
+widget-only session within 5 minutes of its access token's expiry, surfaced to
+the page via a new cheap `GET /api/davinci-login/session-status` (no tokens,
+just `{ davinciWidgetLogin, needsRefresh }`). On a refresh call, `establishSession`
+now skips `req.session.regenerate()` — regenerating on every silent refresh
+(not just a first login) would wipe unrelated session state (agent context,
+HITL state, ...) each time the access token neared expiry.
+
+The frontend piece (`demo_api_ui/src/lib/davinciWidgetClient.js`'s
+`refreshWidgetSessionIfNeeded`, wired into `DavinciLoginGuidePage.jsx`'s mount
+effect) re-runs the exact same flow execution the initial sign-in used — a
+fresh `/sdk-token` mint, `davinci.skRenderScreen` in a detached invisible
+container, then `POST /widget-session` — reusing the browser's existing
+PingOne session so no visible UI or user interaction is needed if PingOne
+still recognizes it; a failure is non-fatal and the session simply expires as
+it does today. **Deviation from the entry's literal ask, stated up front:**
+the trigger is scoped to `/davinci-login-guide`'s own mount (a returning
+visitor to the lesson page), not a global app-wide poller. A true "refreshes
+from anywhere in the app" trigger would need either a new always-on polling
+hook in `useAuth.js` or a new interceptor in the shared `apiClient.js` — both
+protected, widely-shared, heavily order-sensitive files (`apiClient`'s
+interceptor tests pin registration order by index) — for a demo-lesson-only
+session type. That tradeoff was judged not worth the risk for this fix; the
+gap is left as a scoping note here rather than a new tech-debt entry, since
+it's a direct, known consequence of this fix's own design choice, not a
+newly-discovered issue.
+
+Tests: `demo_api_server/tests/routes/davinciLogin.test.js` (`isWidgetAccessTokenExpiring`
+unit cases, `GET /session-status`, and an end-to-end `/sdk-token` →
+`/widget-session` refresh proving the session is reused — no `regenerate` call
+— and fresh tokens are stored) and `demo_api_ui/src/lib/__tests__/davinciWidgetClient.test.js`
+(`fetchWidgetSessionStatus`, `refreshWidgetSessionIfNeeded`'s detached-container
+run and its non-fatal failure path).
+
+### [x] 2026-09-12 — DaVinci widget login has no live flow trace
 
 **What's wrong.** `/davinci-login-guide` documents the flow with a static
 mermaid diagram (fixed source, not driven by a real run). The repo's live
@@ -156,6 +198,35 @@ widget signs in there since 2026-09-13; `/callback` is no longer on its path)
 and the widget's `successCallback`/`errorCallback` into `agentFlowDiagramService`,
 then render them via `AgentFlowDiagramPanel` alongside or instead of the
 static diagram on the guide page.
+
+**RESOLVED 2026-09-13** (branch `fix/davinci-widget-silent-refresh-and-trace`)
+— one correction to the entry: `agentFlowDiagramService.js` lives in
+`demo_api_ui/src/services/`, not the BFF, so there is no BFF→browser channel
+for `/sdk-token` and `/widget-session` to emit into directly. Instead
+`demo_api_ui/src/pages/DavinciLoginWidget.jsx` instruments its own calls to
+those routes plus its `successCallback`/`errorCallback` — the same pattern
+`AIAgent.js` already uses for `startMcpToolCall`/`completeMcpToolCall` around
+its own fetches. Three new methods on `agentFlowDiagram`
+(`startDavinciWidgetLogin`, `updateDavinciWidgetStep`,
+`completeDavinciWidgetLogin`) track a 3-step rail (`sdk-token` → `widget-flow`
+→ `widget-session`), matching the existing step-status/emit contract exactly.
+`AgentFlowDiagramPanel` was already globally mounted on every non-"API traffic
+only" route (`App.js`, gated by `isApiTrafficOnlyPage`) and already opens only
+on an explicit user action (never auto-opened, per its own documented
+invariant) — so no new panel wiring was needed. `WidgetLessonSections.jsx`'s
+"The Flow" section now has an "Open Live Trace" button next to the static
+diagram (reusing the existing `.dvl-retry` button style) that calls
+`agentFlowDiagram.open()`, the same direct-call pattern
+`routes/MonitoringRoutes.js`'s `AgentFlowPage` already uses.
+
+Tests: `demo_api_ui/src/services/__tests__/agentFlowDiagramService.test.js`
+(the three new methods), `demo_api_ui/src/pages/__tests__/DavinciLoginWidget.test.jsx`
+(a successful run marks every step done; a BFF rejection, an `errorCallback`,
+and an `/sdk-token` failure each mark the correct step as the failure point),
+and `demo_api_ui/src/components/davinci/__tests__/WidgetLessonSections.test.jsx`
+(the button opens the panel). No live-backend UI test of the rendered panel
+itself was added — impractical without a running stack — the backend-equivalent
+(service + page instrumentation) tests above are the coverage for this pass.
 
 ### [x] 2026-09-12 — Secret Rotation page: preflight doesn't check vault writability, and one staleness exemption is unbounded
 

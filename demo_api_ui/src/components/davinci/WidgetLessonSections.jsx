@@ -11,6 +11,7 @@
 // Section ids and order are shared with the Orchestration SDK lesson on
 // /davinci-sdk-login; the-final-node and tokens-to-session are widget-specific.
 import { CodeBlock, MermaidFigure, OnThisRun, Section, Status, TableBlock } from "../lesson";
+import { agentFlowDiagram } from "../../services/agentFlowDiagramService";
 
 export const WIDGET_LESSON_SECTIONS = [
   { id: "try-it-live", label: "Try It Live" },
@@ -421,6 +422,13 @@ export default function WidgetLessonSections({ calls = [] }) {
 
       <Section id="the-flow" title="The Flow">
         <MermaidFigure source={FLOW_SOURCE} label="DaVinci widget sign-in sequence" />
+        <p>
+          That diagram is a fixed lesson drawing, not driven by a real run. Sign in above under Try It Live,
+          then open the live trace below to watch this same sequence play out step by step from your own run.
+        </p>
+        <button type="button" className="dvl-retry" onClick={() => agentFlowDiagram.open()}>
+          Open Live Trace
+        </button>
       </Section>
 
       <Section id="the-final-node" title="The Final Node">

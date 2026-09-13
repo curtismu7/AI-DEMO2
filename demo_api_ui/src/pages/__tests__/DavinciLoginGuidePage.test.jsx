@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { act, fireEvent, render } from "@testing-library/react";
+import { act, fireEvent, render, waitFor } from "@testing-library/react";
 
 vi.mock("mermaid", () => ({
   default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: "<svg></svg>" })) },
@@ -13,8 +13,13 @@ vi.mock("../DavinciLoginWidget", () => ({
   },
 }));
 
+vi.mock("../../lib/davinciWidgetClient", () => ({
+  refreshWidgetSessionIfNeeded: vi.fn().mockResolvedValue(false),
+}));
+
 import DavinciLoginGuidePage from "../DavinciLoginGuidePage";
 import { WIDGET_LESSON_SECTIONS } from "../../components/davinci/WidgetLessonSections";
+import { refreshWidgetSessionIfNeeded } from "../../lib/davinciWidgetClient";
 
 describe("DavinciLoginGuidePage", () => {
   it("lays the lesson out with a nav entry and a section for every shared section id", () => {
@@ -40,5 +45,13 @@ describe("DavinciLoginGuidePage", () => {
 
     fireEvent.click(getByText("API Calls", { selector: ".dm-scroll a" }));
     expect(queryByText("Here is what the DaVinci widget did on this run.", { exact: false })).toBeNull();
+  });
+
+  // 2026-09-13 tech debt: a returning visitor with a near-expiry widget
+  // session gets a silent, invisible re-run instead of just losing it.
+  it("checks for a silent widget-session refresh on mount", async () => {
+    refreshWidgetSessionIfNeeded.mockClear();
+    render(<DavinciLoginGuidePage />);
+    await waitFor(() => expect(refreshWidgetSessionIfNeeded).toHaveBeenCalledTimes(1));
   });
 });

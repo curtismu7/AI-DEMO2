@@ -2,12 +2,13 @@
 // shell (components/lesson) so it reads as one course with /davinci-sdk-login:
 // Try It Live (the widget beside a live Call Inspector), then the lesson
 // sections, then a "What just happened" summary after sign-in.
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import CallInspector from "../components/davinci/CallInspector";
 import WidgetLessonSections, { WIDGET_LESSON_SECTIONS } from "../components/davinci/WidgetLessonSections";
 import WidgetRunSummary from "../components/davinci/WidgetRunSummary";
 import DraggableModal from "../components/DraggableModal";
 import { LessonLayout, Section } from "../components/lesson";
+import { refreshWidgetSessionIfNeeded } from "../lib/davinciWidgetClient";
 import DavinciLoginWidget from "./DavinciLoginWidget";
 import "./DavinciLoginGuidePage.css";
 
@@ -15,6 +16,14 @@ export default function DavinciLoginGuidePage() {
   const [calls, setCalls] = useState([]);
   const [signedIn, setSignedIn] = useState(null);
   const [showSummary, setShowSummary] = useState(false);
+
+  // 2026-09-13 tech debt: a widget session carries no refresh token, so a
+  // returning visitor whose access token is near expiry gets a silent,
+  // invisible re-run of the same flow instead of just losing the session.
+  // Non-fatal: on any failure the session simply expires as it does today.
+  useEffect(() => {
+    refreshWidgetSessionIfNeeded().catch(() => {});
+  }, []);
 
   const onStart = useCallback(() => {
     setCalls([]);

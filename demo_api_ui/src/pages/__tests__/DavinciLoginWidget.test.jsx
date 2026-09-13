@@ -24,6 +24,7 @@ import { loadWidget, fetchWidgetConfig, postWidgetSession } from "../../lib/davi
 vi.mock("../../lib/davinciWidgetTrace", () => ({ installWidgetTrace: vi.fn() }));
 
 import { installWidgetTrace } from "../../lib/davinciWidgetTrace";
+import { agentFlowDiagram } from "../../services/agentFlowDiagramService";
 
 const CONFIG = {
   accessToken: "sdk-tok-1",
@@ -280,5 +281,71 @@ describe("DavinciLoginWidget rendering", () => {
 
     expect(listener).not.toHaveBeenCalled();
     window.removeEventListener("userAuthenticated", listener);
+  });
+});
+
+// 2026-09-12 tech debt: /davinci-login-guide's "The Flow" section replays a
+// live trace off these events — there is no BFF→browser channel for this
+// flow, so the page instruments its own calls, same as
+// startMcpToolCall/completeMcpToolCall do for the agent's own fetches.
+describe("DavinciLoginWidget live flow trace", () => {
+  beforeEach(() => {
+    agentFlowDiagram.reset();
+  });
+
+  test("a successful run marks every step done", async () => {
+    const skRenderScreen = vi.fn();
+    loadWidget.mockResolvedValue({ skRenderScreen });
+    postWidgetSession.mockResolvedValue({ ok: true, username: "demouser" });
+
+    render(<DavinciLoginWidget />);
+    await waitFor(() => expect(skRenderScreen).toHaveBeenCalledTimes(1));
+    expect(agentFlowDiagram.getState().steps.find((s) => s.id === "sdk-token").status).toBe("done");
+
+    await skRenderScreen.mock.calls[0][1].successCallback({ id_token: "id-1", access_token: "at-1" });
+
+    const snap = agentFlowDiagram.getState();
+    expect(snap.phase).toBe("done");
+    expect(snap.steps.map((s) => s.status)).toEqual(["done", "done", "done"]);
+  });
+
+  test("the BFF rejecting the sign-in marks widget-session as the failing step", async () => {
+    const skRenderScreen = vi.fn();
+    loadWidget.mockResolvedValue({ skRenderScreen });
+    postWidgetSession.mockRejectedValue(new Error("Sign-in tokens failed verification. Restart the sign-in."));
+
+    render(<DavinciLoginWidget />);
+    await waitFor(() => expect(skRenderScreen).toHaveBeenCalledTimes(1));
+    await skRenderScreen.mock.calls[0][1].successCallback({ id_token: "id-1", access_token: "at-1" });
+
+    const snap = agentFlowDiagram.getState();
+    expect(snap.phase).toBe("error");
+    expect(snap.steps.find((s) => s.id === "widget-session")).toMatchObject({
+      status: "error",
+      detail: "Sign-in tokens failed verification. Restart the sign-in.",
+    });
+  });
+
+  test("errorCallback marks the flow step as the failing one", async () => {
+    const skRenderScreen = vi.fn();
+    loadWidget.mockResolvedValue({ skRenderScreen });
+
+    render(<DavinciLoginWidget />);
+    await waitFor(() => expect(skRenderScreen).toHaveBeenCalledTimes(1));
+    skRenderScreen.mock.calls[0][1].errorCallback({ message: "Flow policy not found" });
+
+    const snap = agentFlowDiagram.getState();
+    expect(snap.phase).toBe("error");
+    expect(snap.steps.find((s) => s.id === "widget-flow")).toMatchObject({ status: "error", detail: "Flow policy not found" });
+  });
+
+  test("the BFF refusing to mint a token marks sdk-token as the failing step", async () => {
+    fetchWidgetConfig.mockRejectedValue(new Error("DaVinci demo is not configured."));
+
+    render(<DavinciLoginWidget />);
+    await waitFor(() => expect(agentFlowDiagram.getState().phase).toBe("error"));
+
+    const snap = agentFlowDiagram.getState();
+    expect(snap.steps.find((s) => s.id === "sdk-token")).toMatchObject({ status: "error", detail: "DaVinci demo is not configured." });
   });
 });
