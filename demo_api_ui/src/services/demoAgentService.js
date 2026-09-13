@@ -1081,6 +1081,11 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false, flowTraceId
     // Without the failure branch, UC30 (weather mcp_error) left TraceRail with
     // outcome=error but no mcp step error (only successful exchange/DPoP whys).
     if (Array.isArray(data.toolsCalled) && data.toolsCalled.length) {
+      // A live mcp-result frame for this run may already be in the trace,
+      // carrying the real result, request and timing. The envelope has none of
+      // those, so it fills in around a live result and never replaces it.
+      const storedResult = tokenChainTraceStore.getState().trace.mcpResult;
+      const live = storedResult && (!flowTraceId || storedResult.flowTraceId === flowTraceId) ? storedResult : null;
       const failedTool = data.success === false || Boolean(data.error);
       if (failedTool) {
         const errCode = data.error
@@ -1093,6 +1098,7 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false, flowTraceId
         const isGatewayDeny = Boolean(data.gatewayErrorCode) || data.error === "gateway_policy_denied";
         const specificCode = data.gatewayErrorCode || errCode;
         tokenChainTraceStore.ingestMcpResult({
+          ...(live || {}),
           tool: data.toolsCalled[0],
           flowTraceId,
           toolsCalled: data.toolsCalled,
@@ -1106,8 +1112,9 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false, flowTraceId
             message: data.message || data.reply || errCode,
           },
         });
-      } else {
+      } else if (live?.result == null) {
         tokenChainTraceStore.ingestMcpResult({
+          ...(live || {}),
           tool: data.toolsCalled[0],
           flowTraceId,
           toolsCalled: data.toolsCalled,
@@ -1221,6 +1228,12 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
       const tokenEvent = { ...data };
       delete tokenEvent.type;
       onTokenEvent?.(tokenEvent);
+    }
+    // The MCP tool result, forwarded the way the chip path and useAgentRun
+    // already do. Without it this path's store only saw the end-of-run
+    // synthesis, which has no result or request, so the API step never finished.
+    if (data && data.type === "mcp-result") {
+      window.dispatchEvent(new CustomEvent("mcp-tool-result-sse", { detail: { ...data, flowTraceId } }));
     }
     try {
       agentFlowDiagram.applyServerEvent(data);
