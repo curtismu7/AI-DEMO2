@@ -680,6 +680,21 @@ export const agentFlowDiagram = {
   },
 
   /**
+   * Record a device-MFA outcome as a phase row. routes/mfa.js reports these
+   * only to PostHog, so the trace store never saw a real MFA step-up; the row
+   * reaches it through the same subscription as the pipeline's own phases.
+   * Device MFA only: CIBA has its own evidence (the ciba-poll token event), and
+   * an MFA phase on a CIBA approval would light the System Flow Map's MFA box.
+   * @param {'mfa_challenge_completed'|'mfa_challenge_failed'} phase
+   */
+  recordMfaPhase(phase) {
+    const row = { phase, label: PHASE_LABELS[phase] || phase, detail: '—' };
+    state.serverEvents = [...state.serverEvents, row].slice(-MAX_SERVER_EVENTS);
+    state.updatedAt = Date.now();
+    emit();
+  },
+
+  /**
    * Render the completed login sequence recorded by the BFF (see
    * loginFlowTraceService.js) — the browser was away at PingOne for the
    * middle of it, so this replaces the live step-by-step model with the
