@@ -292,6 +292,11 @@ async function getAppSecret(token, region, envId, appId) {
   } catch (_) { return ''; }
 }
 
+async function listAllApps(token, region, envId) {
+  const data = await pingoneGet(token, region, envId, '/applications?limit=100');
+  return data._embedded?.applications || [];
+}
+
 async function resolveResourcesByAudience(token, region, envId, targetAudiences) {
   // targetAudiences: { logicalKey: 'audience.string', ... }
   const data = await pingoneGet(token, region, envId, '/resources?limit=100');
@@ -361,6 +366,41 @@ const ROTATABLE_VAULT_KEYS = {
 };
 
 /**
+ * Apps whose clientId is already known directly from demo_api_server/.env —
+ * unlike ROTATABLE_VAULT_KEYS above, these need no PingOne name/clientId
+ * resolution, just a plain env lookup. Confirmed safe to rotate 2026-09-13
+ * (user sign-off): this demo's own admin login, its fraud/balance agents, the
+ * enterprise IdP federation client, and all 11 A2A specialist agents (see
+ * config/a2aSpecialists.js). Deliberately excludes the worker app (hard
+ * exclusion enforced separately by isWorkerApp), other engineers' personal
+ * PingOne registrations in the shared tenant, and PKCE-only public clients
+ * that carry no secret at all.
+ */
+const A2A_SPECIALIST_KEYS = [
+  'INVESTMENT', 'RECORDS', 'PURCHASE', 'MEMBERSHIP', 'PAYROLL', 'TAX',
+  'FINAID', 'SUPPLIER', 'HOLDINGS', 'PASSENGER', 'IDENTITY',
+];
+const DIRECT_VAULT_KEY_ENV_PAIRS = [
+  ['PINGONE_ADMIN_CLIENT_ID', 'PINGONE_ADMIN_CLIENT_SECRET'],
+  ['PINGONE_FRAUD_WATCH_AGENT_CLIENT_ID', 'PINGONE_FRAUD_WATCH_AGENT_CLIENT_SECRET'],
+  ['PINGONE_BALANCE_SWEEP_AGENT_CLIENT_ID', 'PINGONE_BALANCE_SWEEP_AGENT_CLIENT_SECRET'],
+  ['ENTERPRISE_IDP_PINGONE_CLIENT_ID', 'ENTERPRISE_IDP_PINGONE_CLIENT_SECRET'],
+  ...A2A_SPECIALIST_KEYS.map((k) => [
+    `PINGONE_A2A_${k}_AGENT_CLIENT_ID`, `PINGONE_A2A_${k}_AGENT_CLIENT_SECRET`,
+  ]),
+];
+
+/** clientId (as already recorded in .env) -> vault entry name. */
+function directVaultKeyMap(apiVars) {
+  const map = {};
+  for (const [idVar, secretVar] of DIRECT_VAULT_KEY_ENV_PAIRS) {
+    const clientId = apiVars[idVar];
+    if (clientId) map[clientId] = secretVar;
+  }
+  return map;
+}
+
+/**
  * Server-derived map of "which apps may be rotated, and under which vault key".
  *
  * The rotation UI used to invent a key from an app's DISPLAY NAME, which can
@@ -376,6 +416,7 @@ const ROTATABLE_VAULT_KEYS = {
 async function getRotatableVaultKeyMap(deps = {}) {
   const getToken = deps.getWorkerToken || getWorkerToken;
   const resolve  = deps.resolveApps || resolveApps;
+  const listApps = deps.listAllApps || listAllApps;
 
   const apiVars = parseEnv(API_ENV);
   const envId  = apiVars.PINGONE_ENVIRONMENT_ID;
@@ -396,6 +437,20 @@ async function getRotatableVaultKeyMap(deps = {}) {
     if (!app) continue;
     if (app.clientId) map[app.clientId] = vaultKey;
     if (app.id) map[app.id] = vaultKey;
+  }
+
+  // Direct .env-known apps also need their PingOne application id (POST
+  // /start is only ever given that, never the clientId) — look it up by the
+  // clientId we already trust, rather than re-resolving by display name.
+  const direct = directVaultKeyMap(apiVars);
+  if (Object.keys(direct).length) {
+    const all = await listApps(token, region, envId);
+    for (const app of all) {
+      const vaultKey = direct[app.clientId];
+      if (!vaultKey) continue;
+      map[app.clientId] = vaultKey;
+      if (app.id) map[app.id] = vaultKey;
+    }
   }
   return map;
 }
