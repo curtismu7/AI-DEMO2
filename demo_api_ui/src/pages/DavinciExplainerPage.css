@@ -10,7 +10,13 @@
    The 12 private variable names are kept and simply re-pointed at --th-*
    tokens, so the ~210 rules below are untouched and the page now follows the
    app theme for free. Those rules reference no colour literal at all — every
-   value goes through this block — which is why the remap is the whole job. */
+   value goes through this block — which is why the remap is the whole job.
+
+   TYPE: every font-size comes from the scale (THEMING.md §8.1), not from the
+   half-pixel literals this page was ported in with. Measured on the live page,
+   25 of its 32 text elements were under 14px — body copy at 13-13.5px, labels
+   at 10.5-12px — which is what "everything is too small" was. Nothing here is
+   below --font-size-xs (11px); the §0 H2 floor is --font-size-3xs (10px). */
 
 .davinci-explainer {
   --bg: var(--th-bg-page);
@@ -69,7 +75,7 @@
 }
 
 .davinci-explainer .eyebrow {
-  font-size: 11.5px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -78,7 +84,7 @@
 }
 
 .davinci-explainer h1 {
-  font-size: 30px;
+  font-size: var(--font-size-3xl);
   line-height: 1.18;
   letter-spacing: -0.015em;
   margin: 0 0 16px;
@@ -86,7 +92,7 @@
 }
 
 .davinci-explainer .lede {
-  font-size: 16.5px;
+  font-size: var(--font-size-lg);
   line-height: 1.6;
   color: var(--text-muted);
   max-width: 62ch;
@@ -95,7 +101,7 @@
 .davinci-explainer .lede em { color: var(--text); font-style: normal; font-weight: 600; }
 
 .davinci-explainer h2 {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -115,7 +121,9 @@
 }
 .davinci-explainer .matrix-row {
   display: grid;
-  grid-template-columns: 190px 1fr;
+  /* Widened with the type: the platform names went 13.5px -> 15px, and
+     "Microsoft Entra ID Governance" was already wrapping at 190px. */
+  grid-template-columns: 210px 1fr;
   gap: 0;
 }
 .davinci-explainer .matrix-row + .matrix-row { border-top: 1px solid var(--border); }
@@ -123,7 +131,7 @@
 .davinci-explainer .matrix-cell { padding: 16px 18px; }
 .davinci-explainer .matrix-cell.platform {
   font-weight: 600;
-  font-size: 13.5px;
+  font-size: var(--font-size-base);
   display: flex;
   align-items: center;
   border-right: 1px solid var(--border);
@@ -131,7 +139,7 @@
 }
 .davinci-explainer .matrix-row.is-featured .matrix-cell.platform { color: var(--accent); }
 .davinci-explainer .matrix-cell.note {
-  font-size: 13.5px;
+  font-size: var(--font-size-base);
   color: var(--text-muted);
   line-height: 1.55;
 }
@@ -171,15 +179,15 @@
 }
 .davinci-explainer .flow-step.is-branch::before { border-color: var(--text-faint); }
 .davinci-explainer .flow-title {
-  font-size: 14px;
+  font-size: var(--font-size-md);
   font-weight: 600;
   color: var(--text);
   margin: 0 0 3px;
 }
-.davinci-explainer .flow-detail { font-size: 13px; color: var(--text-muted); }
+.davinci-explainer .flow-detail { font-size: var(--font-size-base); color: var(--text-muted); }
 .davinci-explainer .flow-tag {
   display: inline-block;
-  font-size: 10.5px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -193,7 +201,7 @@
 }
 
 .davinci-explainer .closing {
-  font-size: 14.5px;
+  font-size: var(--font-size-base);
   color: var(--text-muted);
   margin-top: 22px;
   padding: 16px 18px;
@@ -232,7 +240,7 @@
   background: var(--accent);
   color: var(--accent-ink);
   font-weight: 600;
-  font-size: 13.5px;
+  font-size: var(--font-size-base);
   padding: 11px 18px;
   border-radius: var(--radius-lg);
   text-decoration: none;
@@ -245,13 +253,13 @@
 }
 
 .davinci-explainer .dvx-cta svg { flex-shrink: 0; }
-.davinci-explainer .cta-note { font-size: 12.5px; color: var(--text-faint); max-width: 34ch; margin: 0; }
+.davinci-explainer .cta-note { font-size: var(--font-size-sm); color: var(--text-faint); max-width: 34ch; margin: 0; }
 
 .davinci-explainer .footnote {
   margin-top: 56px;
   padding-top: 20px;
   border-top: 1px solid var(--border);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   color: var(--text-faint);
 }
 
