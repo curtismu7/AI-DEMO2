@@ -12,10 +12,16 @@ const STEPS = [
   { id: "s3", lane: "AGENT", title: "Agent service receives request", status: "done" },
 ];
 
+// A store the tests can drive: set `store.state` and call `emit` to simulate a
+// new run starting or a live run adding steps.
+const store = vi.hoisted(() => ({ state: null, listeners: new Set() }));
 vi.mock("../../services/tokenChainTrace/tokenChainTraceStore", () => ({
   tokenChainTraceStore: {
-    getState: () => ({ steps: STEPS }),
-    subscribe: () => () => {},
+    getState: () => store.state,
+    subscribe: (fn) => {
+      store.listeners.add(fn);
+      return () => store.listeners.delete(fn);
+    },
   },
 }));
 
@@ -28,6 +34,9 @@ let scrollIntoViewSpy;
 
 describe("SequenceReelDiagram slow-mode reveal", () => {
   beforeEach(() => {
+    // Default: a finished run whose three steps all happened.
+    store.state = { steps: STEPS, trace: { runId: 1, outcome: "ok" } };
+    store.listeners.clear();
     vi.useFakeTimers();
     // jsdom leaves this off SVG elements; the component scrolls the active step.
     scrollIntoViewSpy = vi.fn();
@@ -257,6 +266,93 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     } finally {
       STEPS[0].status = prior;
     }
+  });
+
+  const emit = (next) =>
+    act(() => {
+      store.state = next;
+      store.listeners.forEach((fn) => fn(next));
+    });
+
+  const step = (id, lane, status, title = id) => ({ id, lane, title, status });
+
+  it("draws nothing until a run has happened beyond the always-on rows", () => {
+    // What a fresh page load produces: the browser step is always done, sign-in
+    // is carried over, and every other step is still pending.
+    store.state = {
+      steps: [
+        step("website", "BROWSER", "done"),
+        step("signin", "PINGONE", "done"),
+        step("prompt", "CHAT", "pending"),
+        step("agent", "AGENT", "pending"),
+      ],
+      trace: { runId: null, outcome: null },
+    };
+    const { container } = render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
+    expect(drawnSteps(container)).toBe(0);
+    expect(container.querySelector(".srd-empty")).not.toBeNull();
+  });
+
+  it("draws only steps that happened, including failures", () => {
+    store.state = {
+      steps: [
+        step("website", "BROWSER", "done"),
+        step("signin", "PINGONE", "done"),
+        step("prompt", "CHAT", "done"),
+        step("agent", "AGENT", "pending"),
+        step("llm", "LLM", "notinpath"),
+        step("api-key-swap", "GATEWAY", "skipped"),
+        step("gateway", "GATEWAY", "error"),
+      ],
+      trace: { runId: 1, outcome: "error" },
+    };
+    const { container } = render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
+    const titles = [...container.querySelectorAll('g[role="button"] text')].map((t) => t.textContent);
+    expect(drawnSteps(container)).toBe(4);
+    expect(titles).toContain("gateway");
+    for (const hidden of ["agent", "llm", "api-key-swap"]) expect(titles).not.toContain(hidden);
+  });
+
+  it("does not start a narration on mount when slow mode is already on", () => {
+    // Slow mode comes back from localStorage, so it is on at page load. Loading
+    // the page must not replay the last trace.
+    const { container } = render(<SequenceReelDiagram slowMode onToggleSlowMode={noop} />);
+    expect(drawnSteps(container)).toBe(STEPS.length);
+    tick(STEPS.length + 2);
+    expect(drawnSteps(container)).toBe(STEPS.length);
+    expect(btn(container, "Replay")).toBeTruthy();
+  });
+
+  it("clears the previous flow when a new run starts, and narrates it in slow mode", () => {
+    const { container } = render(<SequenceReelDiagram slowMode onToggleSlowMode={noop} />);
+    expect(drawnSteps(container)).toBe(STEPS.length);
+
+    emit({ steps: [step("n1", "BROWSER", "done", "New run step")], trace: { runId: 2, outcome: null } });
+    expect(drawnSteps(container)).toBe(0);
+    const titles = () => [...container.querySelectorAll('g[role="button"] text')].map((t) => t.textContent);
+    expect(titles()).not.toContain(STEPS[2].title);
+
+    tick();
+    expect(drawnSteps(container)).toBe(1);
+    expect(titles()).toContain("New run step");
+  });
+
+  it("keeps playing when it catches up with a run that is still going", () => {
+    store.state = { steps: STEPS, trace: { runId: 1, outcome: null } };
+    const { container, rerender } = render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
+    rerender(<SequenceReelDiagram slowMode onToggleSlowMode={noop} />);
+    tick(STEPS.length + 2);
+    expect(drawnSteps(container)).toBe(STEPS.length);
+    // Caught up, not finished: still following, not offering a replay.
+    expect(btn(container, "Pause")).toBeTruthy();
+    expect(btn(container, "Replay")).toBeFalsy();
+
+    emit({ steps: [...STEPS, step("s4", "MCP", "done", "Fourth")], trace: { runId: 1, outcome: null } });
+    tick();
+    expect(drawnSteps(container)).toBe(4);
+
+    emit({ steps: [...STEPS, step("s4", "MCP", "done", "Fourth")], trace: { runId: 1, outcome: "ok" } });
+    expect(btn(container, "Replay")).toBeTruthy();
   });
 
   it("keeps the toolbar mounted at zero revealed steps", () => {
