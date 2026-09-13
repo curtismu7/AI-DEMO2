@@ -465,7 +465,10 @@ function skip(message) {
   return err;
 }
 
-async function main() {
+async function main(deps = {}) {
+  const getToken = deps.getWorkerToken || getWorkerToken;
+  const loadVault = deps.loadVaultSecrets || loadVaultSecrets;
+
   if (!fs.existsSync(API_ENV)) {
     throw skip('[refresh-envs] demo_api_server/.env not found — bootstrap not yet run, skipping.');
   }
@@ -473,8 +476,16 @@ async function main() {
   const apiVars = parseEnv(API_ENV);
   const envId  = apiVars.PINGONE_ENVIRONMENT_ID;
   const region = apiVars.PINGONE_REGION || 'com';
-  const workerId     = apiVars.PINGONE_WORKER_CLIENT_ID;
-  const workerSecret = apiVars.PINGONE_WORKER_CLIENT_SECRET;
+  const workerId = apiVars.PINGONE_WORKER_CLIENT_ID;
+  // Vault-first: if the app being rotated IS the worker, vaultSet() has
+  // already written the new secret by the time this runs (rotateAppSecretCli
+  // calls propagateServiceEnvs() right after vaultSet()), but apiVars still
+  // holds the OLD, now-dead value from the not-yet-restarted .env file.
+  // Degrades to apiVars when the vault has nothing for this key (the normal
+  // case, and every fresh clone with no vault), so this changes nothing
+  // outside an in-flight worker rotation.
+  const vaultWorker = await loadVault(['PINGONE_WORKER_CLIENT_SECRET']);
+  const workerSecret = vaultWorker.PINGONE_WORKER_CLIENT_SECRET || apiVars.PINGONE_WORKER_CLIENT_SECRET;
 
   if (!envId || !workerId || !workerSecret) {
     throw skip('[refresh-envs] Missing PINGONE_ENVIRONMENT_ID / WORKER credentials in api_server .env — skipping.');
@@ -484,7 +495,7 @@ async function main() {
 
   let token;
   try {
-    token = await getWorkerToken(envId, workerId, workerSecret, region);
+    token = await getToken(envId, workerId, workerSecret, region);
     console.log('[refresh-envs] PingOne worker token acquired.');
   } catch (err) {
     throw skip(`[refresh-envs] WARNING: Could not get PingOne worker token: ${err.message}\n`
