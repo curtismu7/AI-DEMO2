@@ -4,6 +4,7 @@ import React, { useMemo } from "react";
 import JsonHighlight, { tokenize, formatJson } from "./shared/JsonHighlight";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { stageReplay } from "../services/inspectorReplay";
+import { laneLabel } from "../services/tokenChainTrace/buildTraceSteps";
 import "./shared/JsonHighlight.css";
 
 const STATUS_ICON = { pending: "·", active: "…", done: "✓", error: "✗", notinpath: "–" };
@@ -317,7 +318,7 @@ function TraceStepCard({ step, onInspect, defaultOpen = false, useCase = null })
         <span className={`tctr-step-title${notInPath ? " tctr-step-title--notinpath" : ""}`}>{step.num}. {step.title}</span>
         {notInPath
           ? <span className="tctr-lane tctr-lane--notinpath">Not in path</span>
-          : <span className={`tctr-lane tctr-lane--${step.lane.toLowerCase()}`}>{step.lane}</span>}
+          : <span className={`tctr-lane tctr-lane--${step.lane.toLowerCase()}`}>{laneLabel(step.lane)}</span>}
         <span className="tctr-step-chev" aria-hidden="true">▶</span>
       </summary>
       <div className="tctr-step-body">

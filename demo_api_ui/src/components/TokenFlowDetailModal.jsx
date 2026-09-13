@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DraggableModal from './DraggableModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
-import { buildRunStory, pausedGateState } from '../services/tokenChainTrace/buildTraceSteps';
+import { buildRunStory, pausedGateState, laneLabel } from '../services/tokenChainTrace/buildTraceSteps';
 import './TokenFlowDetailModal.css';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -107,7 +107,7 @@ function StepRow({ step, num, selected, onClick }) {
       </span>
       {skip
         ? <span className="tfd-notinpath-tag">Not in path</span>
-        : <span className={badgeCls(step.lane)}>{step.lane}</span>
+        : <span className={badgeCls(step.lane)}>{laneLabel(step.lane)}</span>
       }
       {!skip && <span className="tfd-arrow">▶</span>}
     </div>
@@ -132,7 +132,7 @@ function DetailCard({ step, num, selected, onClick }) {
           <div className="tfd-card-top">
             <span className="tfd-card-num">{num}.</span>
             <span className={`tfd-card-title${skip ? ' striked' : ''}`}>{step.title}</span>
-            <span className={badgeCls(step.lane)}>{step.lane}</span>
+            <span className={badgeCls(step.lane)}>{laneLabel(step.lane)}</span>
           </div>
           {step.detail?.why && (
             <div className="tfd-card-sub">{step.detail.why.slice(0, 80)}</div>
@@ -176,7 +176,7 @@ function Inspector({ step, onClose }) {
   return (
     <>
       <div className="tfd-insp-header">
-        <span className={inspBadgeCls(step.lane)}>{step.lane}</span>
+        <span className={inspBadgeCls(step.lane)}>{laneLabel(step.lane)}</span>
         <span className="tfd-insp-title">{step.title}</span>
         <button className="tfd-insp-close" onClick={onClose} title="Close inspector">✕</button>
       </div>
@@ -1070,7 +1070,7 @@ export default function TokenFlowDetailModal({ isOpen, onClose }) {
                 <div style={{ padding: '8px 14px', display: 'flex', flexDirection: 'column', gap: 5, fontSize: 11 }}>
                   {steps.filter(s => s.detail?.claims && Object.keys(s.detail.claims).length > 0).map(s => (
                     <div key={s.id} style={{ fontFamily: 'var(--font-mono, monospace)', color: 'var(--text-secondary, #c9d1d9)' }}>
-                      <span style={{ color: 'var(--accent, #2f81f7)' }}>{s.lane}</span>
+                      <span style={{ color: 'var(--accent, #2f81f7)' }}>{laneLabel(s.lane)}</span>
                       {' · '}
                       {s.detail.claims.scope
                         ? <span style={{ color: '#bc8cff' }}>scope: {typeof s.detail.claims.scope === 'object' ? JSON.stringify(s.detail.claims.scope) : s.detail.claims.scope}</span>

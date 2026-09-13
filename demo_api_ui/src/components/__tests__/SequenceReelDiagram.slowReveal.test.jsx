@@ -313,6 +313,21 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     for (const hidden of ["agent", "llm", "api-key-swap"]) expect(titles).not.toContain(hidden);
   });
 
+  it("labels the heuristics lane as the AI agent", () => {
+    store.state = {
+      steps: [
+        step("prompt", "CHAT", "done"),
+        step("llm", "HEURISTICS", "done"),
+        step("reply", "HEURISTICS", "done"),
+      ],
+      trace: { runId: 1, outcome: "ok" },
+    };
+    const { container } = render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
+    const headers = [...container.querySelectorAll(".srd-actor-label")].map((t) => t.textContent);
+    expect(headers).toContain("AI AGENT");
+    expect(headers).not.toContain("HEURISTICS");
+  });
+
   it("does not start a narration on mount when slow mode is already on", () => {
     // Slow mode comes back from localStorage, so it is on at page load. Loading
     // the page must not replay the last trace.

@@ -25,6 +25,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { deriveLifelineSteps, deriveLifelineParticipants } from "../services/tokenChainTrace/deriveLifelineSteps";
+import { laneLabel } from "../services/tokenChainTrace/buildTraceSteps";
 import "./SequenceReelDiagram.css";
 
 const COL_WIDTH = 140;
@@ -386,7 +387,7 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
               <g key={lane} className={laneClass(lane)}>
                 <rect x={x - ACTOR_BOX_W / 2} y="4" width={ACTOR_BOX_W} height="48" rx="8" className="srd-actor-box" />
                 <text x={x} y="34" textAnchor="middle" className="srd-actor-label">
-                  {lane}
+                  {laneLabel(lane)}
                 </text>
                 <line x1={x} y1="52" x2={x} y2={footerY} className="srd-lifeline" />
                 {/* The cast again at the foot of the lifelines: during a tall
@@ -401,7 +402,7 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
                   className="srd-actor-box srd-actor-box--footer"
                 />
                 <text x={x} y={footerY + 30} textAnchor="middle" className="srd-actor-label srd-actor-label--footer">
-                  {lane}
+                  {laneLabel(lane)}
                 </text>
               </g>
             );
