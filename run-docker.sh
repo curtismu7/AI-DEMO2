@@ -31,6 +31,7 @@
 #   agents     Alternate agent frameworks — openai-agent, mastra-agent, pydantic-agent
 #   tracing    Jaeger OTLP backend
 #   demo-auth  Demo authz-server + demo mcp-gateway (auto via demo-sync)
+#   observability  Grafana + Prometheus + Loki + Alloy + Alertmanager — off by default
 #
 # Single-service commands take one OR MORE service names, e.g.
 #   ./run-docker.sh restart ui demo-api-server
@@ -104,28 +105,26 @@ fi
 
 # Core banking demo — always started by default.
 #
-# The observability four (loki alloy prometheus grafana) carry no compose
-# profile, so before they were listed here nothing ever started them: the
-# Grafana dashboards existed but had no container to serve them, and Alloy
-# shipped no container stdout to Loki. They are cheap (1g + 512m + 512m +
-# 512m mem_limits, all four image-only, no build) and every Grafana log panel
-# depends on Alloy running alongside the services it tails.
+# Observability (prometheus alertmanager loki alloy grafana) is NOT core. It was
+# listed here until 2026-09-13 because, unprofiled and unlisted, nothing ever
+# started it. It is now the `observability` optional group — profiled in
+# docker-compose.yml, off unless started — because it held ~750 MiB of RAM for
+# dashboards most sessions never open.
 CORE_SERVICES=(
   ui mcp-server mcp-resource-server mcp-weather mcp-brave api-resource-server mcp-proxy
   ping-gateway langchain-agent agent-service hitl-service llm-proxy
   promptfoo-step-narration
-  loki alloy prometheus grafana
 )
 
 # Optional groups — start on demand via `./run-docker.sh optional start <group>`.
-OPTIONAL_GROUP_NAMES=(rag agents tracing demo-auth mcpgw)
+OPTIONAL_GROUP_NAMES=(rag agents tracing demo-auth mcpgw observability)
 
 # Also brought up on every `start` / `restart` / `build` (core stack). Still
 # stoppable with `./run-docker.sh optional stop rag` without tearing down core.
 DEFAULT_OPTIONAL_GROUPS=(rag)
 
 # Compose profiles matching OPTIONAL_GROUP_NAMES (also used for `start full`).
-FULL_STACK_PROFILE_ARGS=(--profile rag --profile agents --profile tracing --profile demo-auth --profile mcpgw)
+FULL_STACK_PROFILE_ARGS=(--profile rag --profile agents --profile tracing --profile demo-auth --profile mcpgw --profile observability)
 
 # Teardown only. `notebooklm` is deliberately absent from FULL_STACK_PROFILE_ARGS
 # (it restart-loops without a host ~/.notebooklm cookie jar, so it is never
@@ -142,7 +141,8 @@ _optional_group_profiles() {
     tracing)   echo "tracing" ;;
     demo-auth) echo "demo-auth" ;;
     mcpgw)     echo "mcpgw" ;;
-    all)       echo "rag agents tracing demo-auth mcpgw" ;;
+    observability) echo "observability" ;;
+    all)       echo "rag agents tracing demo-auth mcpgw observability" ;;
     *) return 1 ;;
   esac
 }
@@ -166,6 +166,7 @@ _optional_group_services() {
     tracing)   echo "jaeger" ;;
     demo-auth) echo "authz-server mcp-gateway mcp-jwt-verifier" ;;
     mcpgw)     echo "ping-mcpgw mcpgw-nginx opensearch opensearch-mcp-server" ;;
+    observability) echo "prometheus alertmanager loki alloy grafana" ;;
     all)
       local g svc out=""
       for g in "${OPTIONAL_GROUP_NAMES[@]}"; do
@@ -186,6 +187,7 @@ _optional_group_desc() {
     tracing)   echo "Jaeger OTLP tracing backend" ;;
     demo-auth) echo "Demo Authorize AS + Demo Agent Gateway (Node mcp-gateway)" ;;
     mcpgw)     echo "PingOne Privilege MCPGW (JIT least-privilege + session recording) + OpenSearch sample backend" ;;
+    observability) echo "Grafana + Prometheus + Loki + Alloy + Alertmanager (off by default)" ;;
     all)       echo "Every optional group" ;;
     *)         echo "Unknown group" ;;
   esac
@@ -536,6 +538,29 @@ _export_llamacpp_base_url() {
   core_up="$(_effective_core_services | tr '\n' ' ')"
   if [[ " ${core_up} " == *" llm-proxy "* ]]; then
     export LLAMACPP_BASE_URL="${LLAMACPP_BASE_URL:-http://llm-proxy:8090}"
+  fi
+}
+
+# LOKI_URL reaches the BFF through docker-compose.yml's ${LOKI_URL-http://loki:3100}
+# when the container is CREATED. With the observability group off there is no loki
+# container, and that default has services/lokiForwarder.js POST to a name that does
+# not resolve once per app event (~17 warnings per 3 idle minutes). Every path that
+# can (re)create the BFF calls this first so they all agree: empty unless Loki is
+# running, or the caller passes `on` because it is starting the group. An explicit
+# LOKI_URL in the caller's own shell always wins.
+#
+# The running check captures into a variable rather than `docker ps | grep -q`:
+# under pipefail grep's early exit can SIGPIPE docker ps and read as "not running".
+# scripts/serve-worktree.sh recreates the BFF without this launcher and mirrors it.
+_LOKI_URL_FROM_CALLER="${LOKI_URL+set}"
+_export_loki_url() {
+  [[ -n "${_LOKI_URL_FROM_CALLER}" ]] && return 0
+  local running=""
+  [[ "${1:-}" == "on" ]] || running="$(docker ps -q --filter 'name=^ai-demo-loki$' --filter 'status=running' 2>/dev/null || true)"
+  if [[ "${1:-}" == "on" || -n "${running}" ]]; then
+    unset LOKI_URL
+  else
+    export LOKI_URL=""
   fi
 }
 
@@ -1146,6 +1171,7 @@ cmd_restart_one() {
   _includes_bff "$@" && { vault_preflight; dotenvx_preflight; echo ""; }
   _purge_foreign_container_names
   _export_llamacpp_base_url
+  _export_loki_url
   docker compose "${COMPOSE_FILES[@]}" up -d --force-recreate --no-deps "$@"
   ok "Restarted: ${*}."
   if _includes_bff "$@"; then
@@ -1199,6 +1225,7 @@ cmd_build_one() {
   _includes_bff "${services[@]}" && { vault_preflight; dotenvx_preflight; echo ""; }
   _purge_foreign_container_names
   _export_llamacpp_base_url
+  _export_loki_url
   docker compose "${COMPOSE_FILES[@]}" up -d --build${build_opts} --no-deps "${services[@]}"
   ok "Rebuilt and restarted: ${services[@]}."
   _prune_build_leftovers
@@ -1322,6 +1349,7 @@ cmd_demo_sync() {
   # fails SILENTLY here (jaeger especially — profiled, and only this path and
   # `optional start tracing` create it). Clear foreign squatters first.
   _purge_foreign_container_names
+  _export_loki_url
 
   ok "Ensuring demo-auth containers are up (RAR demo needs the Demo Agent Gateway; routing: simulated=${sim}, pingGateway=${pgw})"
   docker compose "${COMPOSE_FILES[@]}" --profile demo-auth up -d authz-server mcp-gateway
@@ -1393,6 +1421,15 @@ cmd_optional_start() {
   # shellcheck disable=SC2206
   local _profiles=( ${profile_args} )
   _purge_foreign_container_names
+  # `up -d` names no services, so it also covers the BFF and recreates it whenever
+  # LOKI_URL differs from how it was created. Decide it here, or starting ANY group
+  # would put the BFF back on the compose default Loki address.
+  if [[ " ${groups[*]} " == *" observability "* || " ${groups[*]} " == *" all "* ]]; then
+    _export_loki_url on
+    warn "If the BFF was created with Loki off, this recreates it (~35s) so it resumes pushing app events to Loki."
+  else
+    _export_loki_url
+  fi
   docker compose "${COMPOSE_FILES[@]}" "${_profiles[@]}" up -d
   ok "Started profile(s): ${groups[*]}"
 
@@ -1433,6 +1470,22 @@ cmd_optional_stop() {
   local _profiles=( ${profile_args} )
   docker compose "${COMPOSE_FILES[@]}" "${_profiles[@]}" stop ${services}
   ok "Stopped: ${services}"
+  # The BFF keeps the LOKI_URL it was created with, so stopping Loki alone leaves it
+  # posting to a name that no longer resolves. Recreate it through the normal
+  # restart path (preflights + demo-sync), which now sees Loki down. Only when the
+  # running BFF actually still points at Loki: `optional stop all` on a stack where
+  # observability was never started must not cost a BFF restart (and demo-sync's
+  # mcp-proxy recreate) for nothing.
+  if [[ " ${groups[*]} " == *" observability "* || " ${groups[*]} " == *" all "* ]]; then
+    local bff_loki
+    bff_loki="$(docker exec ai-demo-api-server printenv LOKI_URL 2>/dev/null || true)"
+    if [[ -n "${bff_loki}" ]]; then
+      warn "BFF is still pushing to ${bff_loki} — recreating it (~35s) with the Loki push off."
+      cmd_restart_one demo-api-server
+    else
+      ok "BFF's Loki push is already off — no restart needed."
+    fi
+  fi
   echo ""
 }
 
@@ -1477,11 +1530,13 @@ cmd_optional_help() {
     echo "    ${g}  — $(_optional_group_desc "${g}")"
   done
   echo ""
-  echo "  Note: rag starts with core by default; use optional stop/start to toggle."
+  echo "  Note: rag starts with core by default; observability does not. Use optional stop/start to toggle."
+  echo "        Starting or stopping observability can recreate the BFF (~35s) to switch its Loki push."
   echo "  Examples:"
   echo "    ./run-docker.sh optional stop rag"
   echo "    ./run-docker.sh optional start rag"
   echo "    ./run-docker.sh optional start agents"
+  echo "    ./run-docker.sh optional start observability"
   echo "    ./run-docker.sh optional status"
   echo ""
 }
@@ -1566,6 +1621,8 @@ cmd_start() {
 
   _CORE_UP=($(_effective_core_services))
   _export_llamacpp_base_url
+  # cmd_stop ran above, so Loki is down here unless this start brings the group up.
+  if [[ "${stack}" == "full" ]]; then _export_loki_url on; else _export_loki_url; fi
   # shellcheck disable=SC2206
   _DEFAULT_PROFILES=($(_optional_profile_args "${DEFAULT_OPTIONAL_GROUPS[@]}"))
   # shellcheck disable=SC2206
@@ -1656,6 +1713,7 @@ cmd_start() {
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh${RESET}                   start core + Code Search (rag)"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh start full${RESET}        start every compose service"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh optional stop rag${RESET}   stop Code Search / RAG (free RAM)"
+  echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh optional start observability${RESET}  Grafana / Prometheus / Loki (off by default)"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh optional status${RESET}     show optional group state"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh restart${RESET}           restart core + rag"
   echo -e "${WHITE}${BOLD}  │${RESET}  ${BOLD}./run-docker.sh restart${RESET} <svc>     restart specific service(s)"
@@ -1753,6 +1811,7 @@ cmd_mode() {
       echo -e "${CYAN}${BOLD}   [DOCKER]  Switching to demo mode (dashboards + token chain)...${RESET}"
       cmd_stop
       # Full stack stopped first; only then the demo containers come up.
+      _export_loki_url
       docker compose "${COMPOSE_FILES[@]}" up -d \
         ui demo-api-server mcp-server mcp-gateway ping-gateway
       ok "Demo mode active (ui + BFF + mcp-server + mcp-gateway + ping-gateway)."
@@ -1839,6 +1898,7 @@ cmd_help() {
   echo "    ./run-docker.sh optional stop rag           # free Code Search RAM when unused"
   echo "    ./run-docker.sh optional start rag          # re-enable Code Search"
   echo "    ./run-docker.sh optional start agents       # alt agent frameworks"
+  echo "    ./run-docker.sh optional start observability # Grafana + Prometheus + Loki, when needed"
   echo "    ./run-docker.sh optional status             # see what's running"
   echo "    DEMO_STACK=full ./run-docker.sh start       # env override for full stack"
   echo "    ./run-docker.sh build                       # rebuild core images"
