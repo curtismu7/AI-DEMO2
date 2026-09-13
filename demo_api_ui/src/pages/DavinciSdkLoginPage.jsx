@@ -138,6 +138,12 @@ export default function DavinciSdkLoginPage() {
     // tokens, so the verifier has to travel with the code.
     const codeVerifier = takePkceVerifier(cfgRef.current.clientId);
     const result = await postCallback({ code, codeVerifier });
+    // The BFF session exists now, but the app shell (TopNav, route guards)
+    // re-checks it only on this event, so without it the page stayed signed-out
+    // until a reload. It used to be a full page load that refreshed the shell.
+    // One-shot, success path only, like PrivilegeMcpClientPage; never dispatch
+    // it from a listener (AIAgent.js documents the re-check loop that causes).
+    window.dispatchEvent(new CustomEvent("userAuthenticated"));
     const username = result?.username || null;
     // A reused PingOne session completed the flow without anyone typing a name,
     // so say WHO it signed in as and offer to switch before going further.
@@ -235,6 +241,14 @@ export default function DavinciSdkLoginPage() {
       const from = traceRef.current.length;
       const node = await client.flow({ action: collector.output?.key ?? collector.name })();
       recordStep(client, "flow", node, from, triggerOf(collector));
+      // A flow button can END the flow, not just branch it: a success screen's
+      // "Continue" is a next-event button, which the SDK hands over as a
+      // FlowCollector. Without this the COMPLETED node fell through to an empty
+      // form and the code never reached the BFF.
+      if (node?.status === "success") {
+        await finish(client);
+        return;
+      }
       if (node?.status === "failure") {
         setMessage(client.getError?.()?.message || "That path could not be started.");
         setPhase("failed");

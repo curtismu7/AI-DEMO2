@@ -284,6 +284,14 @@ of navigating to `/davinci-login/confirmed` — it reports sign-in through
 check picks it up. The live check above now expects the "What just happened"
 modal to open on the same page, not a navigation.
 
+**Do not break (Call Inspector):** a call is recorded when it *starts* inside a
+run — the widget passes `installWidgetTrace` a `shouldRecord` check that the
+trace asks before the request goes out. Gating when the record *arrives*
+dropped `/api/davinci-login/widget-session` live: the trace reads that body
+from a clone after `postWidgetSession` has already read it and stopped the
+run. Live check: the Call Inspector lists `/api/davinci-login/widget-session`
+after sign-in.
+
 ### 2026-09-13 — Sequence view: a gateway filter deny with no deny phase is drawn on the gateway
 
 **Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`.

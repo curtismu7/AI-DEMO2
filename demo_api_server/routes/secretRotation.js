@@ -26,6 +26,16 @@ const RUN_DIR = path.join(__dirname, '..', 'data', 'rotation-runs');
 // process doing network round-trips, not a live request.
 const STALE_RUN_MS = 30_000;
 
+// The recreate-step exemption below (`inRestart`) must not be unbounded: a
+// process that died immediately after logging `recreating:` would otherwise
+// poll 'running' forever with no terminal state. Not reachable today — the
+// page hardcodes `restart: false` and the BFF image ships no `docker` CLI —
+// but this is the defensive upper bound for if that ever changes. A container
+// recreate normally takes seconds; this is generous headroom, not a tuned SLA.
+// (Kept well above existing tests' 5-minute-old fixtures for the in-progress
+// recreate case, which must stay 'running'.)
+const RESTART_STALE_MS = 10 * 60_000;
+
 router.get('/apps', async (_req, res) => {
   try {
     // The vault key is SERVER-derived: only apps this repo actually stores a
@@ -142,12 +152,16 @@ router.get('/runs/:runId', (req, res) => {
   // false positive. Scoped to the last line so a run that got past the
   // recreate is still covered.
   const inRestart = /^\[rotate\] recreating: /.test(lines[lines.length - 1] || '');
-  if (status === 'running' && !inRestart
-      && Date.now() - fs.statSync(logPath).mtimeMs > STALE_RUN_MS) {
+  const age = Date.now() - fs.statSync(logPath).mtimeMs;
+  // Bounded: the recreate exemption raises the threshold, it does not remove
+  // it — a process that died right after logging `recreating:` still needs a
+  // terminal state eventually, not 'running' forever.
+  const staleThresholdMs = inRestart ? RESTART_STALE_MS : STALE_RUN_MS;
+  if (status === 'running' && age > staleThresholdMs) {
     return res.json({
       status: 'failed',
       lines: lines.concat(
-        `[rotate] no output for over ${STALE_RUN_MS / 1000}s and no DONE line — `
+        `[rotate] no output for over ${staleThresholdMs / 1000}s and no DONE line — `
         + 'the rotation process appears to have died without reporting.',
       ),
     });

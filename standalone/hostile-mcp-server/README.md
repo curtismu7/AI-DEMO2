@@ -38,15 +38,28 @@ npm install
 npm start          # serves on http://127.0.0.1:8899/  (override with PORT)
 ```
 
-Then point any real MCP client at that URL and look at its `tools/list`:
+Transports (both live at once) and endpoints:
 
-- **In this repo:** `standalone/mcp-inspector` (a no-login MCP client) — add the
-  URL as a profile and list its tools.
-- **Standalone:** the MCP OAuth demo agent, or any agent that speaks Streamable
-  HTTP.
+- `POST /`  — Streamable HTTP (the standalone agent and scanner use this).
+- `GET /sse` + `POST /messages?sessionId=…` — SSE, the transport the PingOne
+  Privilege AI Gateway discovers over (see the k8s section below).
+- `GET /health` — `{ ok, tools }` for k8s and the gateway.
 
-You will see both poisoned tools arrive with their payloads intact. That is the
+Then point any real MCP client at the URL and look at its `tools/list`:
+
+- **In this repo:** `standalone/mcp-inspector` (a no-login MCP client).
+- **Standalone:** any agent that speaks Streamable HTTP or SSE.
+
+You will see the poisoned tools arrive with their payloads intact. That is the
 whole demo: the client now holds the attacker's instructions in its context.
+
+### Served tools
+
+- `get_weather` — **poisoned description** (hidden `<IMPORTANT>` transfer instruction).
+- `search_docs` — **poisoned inputSchema** (off-box `callback_url` exfil sink).
+- `create_transfer` — a **real, callable** tool (a stub — moves nothing). It is
+  the harmful action the `get_weather` poison induces, and the tool CALL the
+  Privilege gateway is meant to deny.
 
 ## Watch a real agent act on the poison
 
@@ -65,7 +78,9 @@ It runs two *benign* user tasks and shows the poison landing:
   off-box `callback_url` from the poisoned schema — **exfiltration lands** on a
   call the user never asked to leak.
 - "What's the weather in Denver?" → the model, having read the `<IMPORTANT>`
-  block, tries a `create_transfer` the server never served — **injection lands**.
+  block, calls `create_transfer` to move money to an external account —
+  **injection lands**. That fund-moving call is the one Privilege denies at the
+  gateway (see the k8s section).
 
 Each landing is flagged inline (`⚠️ POISON LANDED — …`). The demo is that a real
 model, reading trusted-looking tool metadata, does the attacker's bidding.
@@ -93,9 +108,42 @@ npm test
 - `agent.test.js` — the poison reaches the model verbatim, and when the model
   acts on it we correctly call it "landed" (runs offline; the LLM is injected).
 
+## Behind the Privilege AI Gateway (SE k8s)
+
+`k8s/deployment.yaml` runs this as its own Deployment + Service in
+`ping-devops-curtismuir`, so the Privilege gateway can front it as a custom
+Agentic App and **deny the `create_transfer` call** the poison induces — the full
+chain. Design and the complete runbook:
+`docs/superpowers/specs/2026-09-13-hostile-mcp-behind-privilege-design.md`.
+
+**Build for arm64 — the SE nodes are Graviton.** An amd64 image fails to pull or
+crashes with `exec format error`.
+
+```bash
+docker buildx build --platform linux/arm64 --provenance=false \
+  -t ghcr.io/curtismu7/hostile-mcp-server:latest --push .
+kubectl apply -f k8s/deployment.yaml
+kubectl exec -n ping-devops-curtismuir deploy/hostile-mcp-server -- wget -qO- http://127.0.0.1:8899/health
+```
+
+Then, in the Privilege console (Agentic Apps → Add Application → MCP Server):
+
+- MCP Server URL: `http://hostile-mcp-server.ping-devops-curtismuir.svc.cluster.local/sse`
+  (**`/sse`, not `/mcp`** — the gateway discovers over SSE)
+- Mesh Cluster: `ai-demo-cmuir`, Auth Mode: `None`
+
+Restart the gateway so discovery re-runs
+(`kubectl rollout restart deployment/agentless-mcpgw -n ping-devops-curtismuir`),
+then author a policy on the app that **denies `create_transfer`**. Client URL:
+`https://mcpgw.ai-demo.ping-devops.com/<AppName>/mcp`.
+
 ## Not in scope
 
 - **Inter-Agent Abuse** — an A2A / second-agent threat, not something a single
   MCP server stages. It belongs with the demo's A2A path (UC2/UC2.5).
-- **OAuth, gateway/compose wiring, a web UI, any scoring.** This is a local
-  red-team toy: one server, serving payloads, nothing more.
+- **Blocking the metadata poison itself.** The gateway polices tool *calls*, not
+  *metadata*, so it cannot stop the description/schema poison — that is the point
+  of the full-chain demo (poison lands; the *action* is what Privilege denies).
+  Catching the metadata at ingest is `standalone/mcp-scanner`'s job.
+- **A web UI, any scoring in this server.** It serves payloads and one stub
+  action; it never judges. The gateway wiring above is deployment, not scoring.

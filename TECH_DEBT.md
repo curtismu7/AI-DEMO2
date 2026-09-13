@@ -16,7 +16,7 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
-### [ ] 2026-09-13 — worker-token mint has no fallback if the vault and `.env` drift
+### [x] 2026-09-13 — worker-token mint has no fallback if the vault and `.env` drift
 
 **What's wrong.** `demo_api_server/scripts/refresh-service-envs.js`'s worker-token
 resolution (`main()` and `getRotatableVaultKeyMap()`) is vault-first for
@@ -49,7 +49,22 @@ its own tests (mint fails with vault value, succeeds with `.env` value;
 both fail, still degrades non-fatally) rather than folding it into an
 unrelated change.
 
-### [ ] 2026-09-13 — HITL consent can be approved with no session
+**RESOLVED 2026-09-13** (branch `worktree-agent-a002b1e84d5aab240`) — exactly
+the fix guessed above. Added a local `mintWorkerToken(getToken, envId,
+workerId, vaultSecret, envSecret, region)` helper in
+`demo_api_server/scripts/refresh-service-envs.js`: tries `vaultSecret` first,
+and on failure retries once with `envSecret` only if it differs from
+`vaultSecret` (otherwise the original error propagates unchanged, preserving
+the existing non-fatal-skip shape). Both call sites — `main()` and
+`getRotatableVaultKeyMap()` — now go through it, each keeping its own
+surrounding try/catch and error wording. Tests added to
+`demo_api_server/tests/refreshServiceEnvsWorkerVaultFirst.test.js` (the
+`main()` case) and `demo_api_server/tests/refreshServiceEnvsRotatableKeys.test.js`
+(the `getRotatableVaultKeyMap()` case), each proving the retry fires on drift
+and that an identical `.env`/vault value degrades non-fatally with no second
+attempt — both verified red against the pre-fix code before the fix landed.
+
+### [x] 2026-09-13 — HITL consent can be approved with no session
 
 **What's wrong.** `POST /api/demo-agent/consent`
 (`demo_api_server/routes/demoAgentRoutes.js`, the `/consent` handler) checks
@@ -76,6 +91,33 @@ answer 401 (`{ error, need_auth: true }`) before looking up the challenge, and
 keep the 403 for a signed-in user who does not own it. Add a supertest spec for
 both, plus the existing approve path, so the HITL retry (`_hitl_challenge_id`)
 still works for the owner.
+
+**RESOLVED — branch `fix/hitl-consent-requires-session`.** Confirmed the
+current code still matched this entry byte-for-byte (`if (entry.userId &&
+userSub && entry.userId !== userSub)`). Added one guard right after `userSub`
+is derived: `if (!userSub) return res.status(401).json({ error: 'Session
+expired', need_auth: true })`, placed BEFORE `hitlServiceClient.getChallengeStatus(consentId)`
+so an unauthenticated caller can't use the 404/403/200 response split to learn
+whether a given `consentId` exists. The existing ownership check (now always
+reached with a truthy `userSub`) and the 404/409 branches are unchanged.
+
+`_hitl_challenge_id` turned out not to be a distinct branch inside this
+handler — it's the reserved tool-arg a retried tool call carries elsewhere
+(`services/mcpToolPipeline.js`, `services/verticalMcpExecution.js`), so
+"still works for the owner" is covered by the existing approve-path test,
+not a separate code path to test here.
+
+New spec `demo_api_server/tests/demoAgentConsentRoute.test.js` covers: no
+session + valid consentId → 401 `{ error, need_auth: true }` with
+`hitlServiceClient.getChallengeStatus` and `recordConsentDecision` both
+asserted never called; signed-in non-owner → 403, decision never recorded;
+signed-in owner approve/reject → 200 `{ recorded, approved }`, decision
+recorded with the right verb — a regression guard on the pre-existing
+legitimate flow. Also ran the two other suites that already exercise `POST
+/api/demo-agent/consent` (`tests/routes/hitlGateway.integration.test.js`,
+`tests/routes/hitlGateway.regression.test.js`) — both mock the session
+middleware to always attach a userId, so neither exercised the no-session gap
+and neither needed updating; both still pass unchanged.
 
 ### [x] 2026-09-13 — DaVinci widget sessions have no refresh token
 
@@ -186,7 +228,7 @@ and `demo_api_ui/src/components/davinci/__tests__/WidgetLessonSections.test.jsx`
 itself was added — impractical without a running stack — the backend-equivalent
 (service + page instrumentation) tests above are the coverage for this pass.
 
-### [ ] 2026-09-12 — Secret Rotation page: preflight doesn't check vault writability, and one staleness exemption is unbounded
+### [x] 2026-09-12 — Secret Rotation page: preflight doesn't check vault writability, and one staleness exemption is unbounded
 
 **What's wrong.** Three gaps left open after the Secret Rotation admin tool
 (`demo_api_ui/src/pages/SecretRotationPage.jsx`, `scripts/rotate-app-secret.js`)
@@ -231,6 +273,37 @@ triaged as real-but-not-blocking rather than re-opening another fix round.
 None requires design work — the constants and patterns they need
 (`fs.constants.W_OK`, the `rotationContainerPaths.test.js` mocking pattern,
 a second time constant) already exist elsewhere in the same files.
+
+**RESOLVED 2026-09-13** (branch `worktree-agent-a002b1e84d5aab240`) — all three
+gaps fixed as scoped, no surprises:
+
+1. `scripts/rotate-app-secret.js`'s `preflight()` now runs
+   `fs.accessSync(vaultPath, fs.constants.W_OK)` and
+   `fs.accessSync(path.dirname(vaultPath), fs.constants.W_OK)` after the
+   `existsSync` check and before `openVault()`, refusing with "is not
+   writable" on either failure. Test added to
+   `demo_api_server/tests/rotateAppSecretPreflight.test.js` via
+   `jest.spyOn(fs, 'accessSync')`, verified red against the pre-fix code.
+2. Added a test to `demo_api_server/tests/rotationContainerPaths.test.js`
+   pinning `loadVaultSecrets`' `require(path.join(API_ROOT, 'lib', 'vault'))`
+   line. As predicted, the native-root case is byte-identical between the
+   correct and old-buggy forms and cannot discriminate them; the
+   container-root case (a `root` argument diverging from `API_ROOT`, as
+   `CODE_SEARCH_REPO_ROOT` does for real) does — confirmed by temporarily
+   reintroducing the old `root + 'demo_api_server/lib/vault'` form and
+   watching exactly that one test go red.
+3. `routes/secretRotation.js` gained `RESTART_STALE_MS = 10 * 60_000` (10
+   minutes — generous headroom over existing tests' 5-minute-old
+   still-recreating fixture, and well above a normally-seconds-long
+   container recreate). The `inRestart` exemption now raises the staleness
+   threshold to `RESTART_STALE_MS` instead of removing it, so a process that
+   died right after logging `recreating:` still eventually reports `failed`.
+   Two tests added to `demo_api_server/tests/routes/secretRotationRun.test.js`
+   (past-the-bound → failed, within-the-bound → running), both verified red
+   against the pre-fix unbounded exemption.
+
+Full relevant test surface green (70/70 across 8 suites) — see the fix-wave
+PR for the exact command.
 
 ### [ ] 2026-09-11 — A2A wire hop has no proof-of-possession
 
