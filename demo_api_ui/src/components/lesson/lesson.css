@@ -364,9 +364,9 @@
 }
 
 @media print {
-  @page {
-    margin: 16mm 14mm;
-  }
+  /* Page margins and the per-page legal footer are an @page rule that
+     LessonLayout adds only while a lesson is mounted; @page here would apply
+     to every page of the app. */
 
   /* Only the lesson prints. App chrome, side navs, floating buttons and any open
      dialog are hidden. Every rule is scoped with :has(.lesson-page) because this

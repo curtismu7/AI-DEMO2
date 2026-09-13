@@ -118,11 +118,14 @@ describe("Export PDF (a customer handout)", () => {
     document.documentElement.removeAttribute("data-theme");
   });
 
-  it("prints in the light theme, then puts the viewer's theme back", () => {
+  it("prints in the light theme under a Ping Identity file name, then puts both back", () => {
     document.documentElement.setAttribute("data-theme", "dark");
+    document.title = "App";
     let themeWhilePrinting = null;
+    let titleWhilePrinting = null;
     window.print = vi.fn(() => {
       themeWhilePrinting = document.documentElement.getAttribute("data-theme");
+      titleWhilePrinting = document.title;
     });
     render(lesson());
 
@@ -130,8 +133,25 @@ describe("Export PDF (a customer handout)", () => {
 
     expect(window.print).toHaveBeenCalledTimes(1);
     expect(themeWhilePrinting).toBe("light");
+    // "Save as PDF" suggests document.title as the file name.
+    expect(titleWhilePrinting).toBe("Ping Identity – Lesson");
     window.dispatchEvent(new Event("afterprint"));
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    expect(document.title).toBe("App");
+  });
+
+  it("restores theme and title at once if printing throws", () => {
+    document.documentElement.setAttribute("data-theme", "dark");
+    document.title = "App";
+    window.print = vi.fn(() => {
+      throw new Error("printing blocked");
+    });
+    render(lesson());
+
+    fireEvent.click(screen.getByRole("button", { name: "Export PDF" }));
+
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    expect(document.title).toBe("App");
   });
 
   it("returns to the system theme when the viewer had none set", () => {
@@ -164,5 +184,20 @@ describe("Export PDF (a customer handout)", () => {
     const legal = container.querySelector(".lesson-print-legal").textContent;
     expect(legal).toMatch(/Copyright © \d{4} Ping Identity Corporation\. All rights reserved\./);
     expect(legal).toContain("trademarks or registered trademarks of Ping Identity Corporation");
+  });
+
+  it("puts the legal notice in every printed page's footer only while a lesson is mounted", () => {
+    const printRule = () => document.head.querySelector("style[data-lesson-print]");
+    const { unmount } = render(lesson());
+
+    const css = printRule()?.textContent || "";
+    expect(css).toContain("@page");
+    expect(css).toContain("@bottom-center");
+    expect(css).toMatch(/Copyright © \d{4} Ping Identity Corporation\. All rights reserved\./);
+    expect(css).toContain("trademarks or registered trademarks of Ping Identity Corporation");
+
+    // @page is global, so it must not outlive the lesson.
+    unmount();
+    expect(printRule()).toBeNull();
   });
 });

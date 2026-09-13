@@ -35,16 +35,28 @@ const LEGAL_TRADEMARK =
 
 // Prints in the light theme whatever the viewer uses: print drops background
 // colours by default, so dark-theme ink would come out pale on white paper.
-function exportPdf() {
+// "Save as PDF" suggests document.title as the file name, so it names the
+// lesson for the duration of the print. Both are restored on afterprint, or at
+// once if print() throws. A print a browser silently blocks never fires
+// afterprint; nothing in this app runs sandboxed, so that case is not handled.
+function exportPdf(title) {
   const root = document.documentElement;
-  const previous = root.getAttribute("data-theme");
+  const previousTheme = root.getAttribute("data-theme");
+  const previousTitle = document.title;
   root.setAttribute("data-theme", "light");
+  document.title = `Ping Identity – ${title}`;
   const restore = () => {
-    if (previous === null) root.removeAttribute("data-theme");
-    else root.setAttribute("data-theme", previous);
+    if (previousTheme === null) root.removeAttribute("data-theme");
+    else root.setAttribute("data-theme", previousTheme);
+    document.title = previousTitle;
   };
   window.addEventListener("afterprint", restore, { once: true });
-  window.print();
+  try {
+    window.print();
+  } catch {
+    window.removeEventListener("afterprint", restore);
+    restore();
+  }
 }
 
 /**
@@ -64,6 +76,23 @@ export function LessonLayout({
   const [active, setActive] = useState(sections[0]?.id);
   const { size, handleProps } = useDividerDrag({ min: 180, max: 400, initial: 220, storageKey });
 
+  // Every printed page carries the copyright and trademark notice in its bottom
+  // margin, via an @page margin box. Measured in Chromium's PDF output: a
+  // position:fixed footer repeats but covers the page's last lines of text, and
+  // a table-footer-group does not repeat at all; the margin box does neither.
+  // @page cannot be scoped to one page of a single-page app and cannot compute
+  // the year, so the rule exists only while a lesson is mounted. Browsers
+  // without margin-box support still get the end-of-document notice.
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.setAttribute("data-lesson-print", "");
+    style.textContent = `@media print { @page { margin: 16mm 14mm 24mm; @bottom-center { content: ${JSON.stringify(
+      `${LEGAL_COPYRIGHT} ${LEGAL_TRADEMARK}`,
+    )}; font-family: system-ui, -apple-system, sans-serif; font-size: 7.5pt; color: var(--th-text-muted, #555); } } }`;
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
+
   const go = (id) => {
     setActive(id);
     document.getElementById(id)?.scrollIntoView?.({ behavior: "smooth" });
@@ -82,7 +111,7 @@ export function LessonLayout({
           </div>
           <div className="lesson-header-row">
             <h1>{title}</h1>
-            <button type="button" className="lesson-export" onClick={exportPdf}>
+            <button type="button" className="lesson-export" onClick={() => exportPdf(title)}>
               Export PDF
             </button>
           </div>
