@@ -12,6 +12,8 @@ const LANES = {
   // sits in the PINGONE lane beside sign-in; redemption happens at the MCP
   // Authorization Server, which is the MCP lane.
   "id-jag-issued": "PINGONE", "id-jag-redeemed": "MCP",
+  // A live intent-binding run pushes its authorization_details to PingOne first.
+  "par-push": "PINGONE", "request-uri": "PINGONE",
   "intent-binding": "AUTHZ",
   gateway: "GATEWAY", "api-key-swap": "GATEWAY",
   "tools-call-challenge": "MCP", mcp: "MCP", api: "API",
@@ -72,6 +74,8 @@ const TITLES = {
   "id-jag-redeemed": "ID-JAG redeemed — MCP authorization server",
   authorize: "PingOne Authorize — policy decision",
   stepup: "Step-up required — HITL / MFA",
+  "par-push": "PAR push — authorization_details to PingOne",
+  "request-uri": "request_uri issued by PingOne",
   "intent-binding": "Intent Binding Check",
   gateway: "Agent Gateway — token validated",
   "api-key-swap": "API-key path — credential swap",
@@ -101,6 +105,8 @@ const NARRATIVES = {
   "id-jag-redeemed": "The MCP authorization server verifies that assertion against the IdP's JWKS and issues its own access token. The employee is never redirected to an MCP consent screen — this is the token-endpoint-only flow enterprise-managed authorization exists to provide.",
   authorize: "Before any tool runs, the BFF asks PingOne Authorize whether THIS user + agent may perform THIS action.",
   stepup: "The policy demanded step-up: the human must approve (HITL/CIBA/MFA) before the tool call proceeds.",
+  "par-push": "The BFF pushes the authorization_details to PingOne's PAR endpoint over the back channel (RFC 9126), so the browser never carries them.",
+  "request-uri": "PingOne stores the pushed request and returns a request_uri that points at it. It does not check the amount; the intent cap is enforced afterwards.",
   "intent-binding": "Verifies the requested transfer against the declared RFC 9396 authorization_details cap.",
   gateway: "Ping Agent Gateway checks the delegated token before anything reaches the MCP server: introspection, audience binding, scope, delegation chain.",
   "api-key-swap": "Path A (api_key): the gateway drops the OAuth bearer and attaches a service API key (X-API-Key + X-User-Sub). The user's bearer never reaches the downstream service.",
@@ -125,6 +131,8 @@ const STEP_RFCS = {
   exchange: ["RFC 8693", "RFC 8707"],
   "id-jag-issued": ["RFC 8693", "ID-JAG draft"],
   "id-jag-redeemed": ["RFC 7523", "MCP Enterprise-Managed Authorization"],
+  "par-push": ["RFC 9126", "RFC 9396"],
+  "request-uri": ["RFC 9126"],
 };
 
 // Long-form teaching content per hop, rendered ONLY by the pop-out window
@@ -265,6 +273,23 @@ const STEP_SPEC = {
     mandate: "CIBA defines a decoupled flow: the client initiates, the human approves on a separate authenticated device, and the client polls the token endpoint until the decision lands. RFC 8176 defines the amr values that record HOW that human authenticated, so the approval is provable after the fact.",
     why: "The human is pulled back into the loop at the moment of risk rather than only at login. The agent's request pauses with HTTP 428 instead of failing outright, and resumes only after a real human decision that is recorded in the resulting token's amr and acr.",
     failure: "Treating advice as enforcement. An approval gate returned with obligatory:false is guidance — if the caller is free to skip it, the gate does not exist. Verify the call actually blocked, not merely that a challenge was mentioned.",
+  },
+  "par-push": {
+    refs: [
+      { label: "RFC 9126 §2", title: "Pushed Authorization Requests", href: "https://www.rfc-editor.org/rfc/rfc9126#section-2" },
+      { label: "RFC 9396 §2", title: "authorization_details — rich authorization requests", href: "https://www.rfc-editor.org/rfc/rfc9396#section-2" },
+    ],
+    mandate: "RFC 9126 lets a client send its authorization request, here carrying RFC 9396 authorization_details, straight to the authorization server's PAR endpoint over an authenticated back channel instead of through the browser.",
+    why: "The declared intent (payee and cap) never rides in a browser URL, so nothing between the user and PingOne can read or alter it before PingOne stores it.",
+    failure: "Treating a successful push as an approval. PAR only stores the request; nothing has been authorized or checked yet.",
+  },
+  "request-uri": {
+    refs: [
+      { label: "RFC 9126 §2.2", title: "Successful PAR response — request_uri", href: "https://www.rfc-editor.org/rfc/rfc9126#section-2.2" },
+    ],
+    mandate: "A successful push returns a request_uri and its expires_in. The client then references that URI instead of resending the request parameters.",
+    why: "The request_uri points at exactly the intent that was pushed, so later steps act on what the customer declared rather than on a restatement of it.",
+    failure: "Reading an issued request_uri as proof the amount was accepted. In this demo PingOne returns one without validating the amount; the cap is enforced afterwards.",
   },
   "intent-binding": {
     refs: [
@@ -1316,14 +1341,30 @@ export function buildTraceSteps(trace) {
     }));
   }
 
+  // 7b0. PAR push + request_uri. A live intent-binding run pushes the
+  // authorization_details to PingOne before the intent check (RFC 9126;
+  // routes/intentBinding.js). No other path has these hops, so they are
+  // evidence-only: omitted unless this run pushed.
+  const parPushEvent = findEvent(tokenEvents, "par-push");
+  if (parPushEvent) {
+    steps.push(makeStep("par-push", parPushEvent.status === "error" ? "error" : "done", { tokenEvent: parPushEvent }));
+  }
+  const requestUriEvent = findEvent(tokenEvents, "request-uri");
+  if (requestUriEvent) {
+    steps.push(makeStep("request-uri", "done", { tokenEvent: requestUriEvent }));
+  }
+
   // 7b. intent-binding — RAR (RFC 9396) intent verification. Same gating as
   // step-up: omit mid-flight (not part of the default BFF→gateway chain;
   // only the Intent Binding learning demo / UC14 emit evidence). Once the
   // trace completes without evidence, mark notinpath rather than pending.
-  const intentVerifiedEvent = (tokenEvents || []).find((e) => e.id === "intent-binding-verified");
+  // A live PAR run reports the cap check as intent-check, then p1az-permit or
+  // transfer-blocked.
+  const intentVerifiedEvent = (tokenEvents || []).find((e) => e.id === "intent-binding-verified")
+    || (findEvent(tokenEvents, "intent-check") && findEvent(tokenEvents, "p1az-permit"));
   const intentDeniedEvent = (tokenEvents || []).find(
     (e) => e.id === "sim-gateway-deny" && (e.error === "rar_amount_exceeded" || e.error === "rar_unexpected_deny"),
-  );
+  ) || findEvent(tokenEvents, "transfer-blocked");
   if (intentVerifiedEvent || intentDeniedEvent) {
     // Permit carries its own request/response (the real create_transfer call
     // + gateway result). Deny never reaches a backend response, so "request"
