@@ -40,6 +40,25 @@ endpoints:
       titleConvo: true
       titleModel: 'demo-llm-proxy'
 
+    - name: 'PingOne Privilege (OpenAI)'
+      # The PingOne Privilege AI Gateway's OpenAI lane (ping-devops-curtismuir).
+      # The key is a Privilege virtual key, not an OpenAI key: the gateway
+      # injects the provider credential and enforces this key's model
+      # allowlist and spend caps. Measured 2026-09-13: gpt-4o-mini and gpt-4o
+      # answer 200 and return tool_calls; gpt-4.1-mini and gpt-5-mini answer
+      # 403 "not allowed for this key". The key lives in librechat/.env.
+      apiKey: '${PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI}'
+      baseURL: 'https://mcpgw.ai-demo.ping-devops.com/llm/openai/v1'
+      models:
+        default:
+          - 'gpt-4o-mini'
+          - 'gpt-4o'
+        # /v1/models lists OpenAI's whole catalog, not this key's allowlist.
+        fetch: false
+      titleConvo: true
+      # Must be on the key's allowlist — demo-llm-proxy would 403.
+      titleModel: 'gpt-4o-mini'
+
 mcpServers:
   # Only the door that works against the local stack. Six others were removed
   # 2026-09-13 because none could connect: privilege-agentless, agent-gateway
