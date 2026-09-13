@@ -164,7 +164,10 @@
     transparent 9px
   );
 }
-.davinci-explainer .flow-step { position: relative; padding: 0 0 26px; }
+/* 26px -> 12px. Measured: each step was 96px tall for two lines of text, and
+   the chain ran 631px for seven steps. See .flow-detail below for the other
+   half of that. */
+.davinci-explainer .flow-step { position: relative; padding: 0 0 12px; }
 .davinci-explainer .flow-step:last-child { padding-bottom: 0; }
 .davinci-explainer .flow-step::before {
   content: "";
@@ -182,9 +185,21 @@
   font-size: var(--font-size-md);
   font-weight: 600;
   color: var(--text);
-  margin: 0 0 3px;
+  /* The page's 1.65 body line-height is for prose; on a one-line heading it
+     just adds 10px of box around the text. */
+  line-height: 1.35;
+  margin: 0 0 2px;
 }
-.davinci-explainer .flow-detail { font-size: var(--font-size-base); color: var(--text-muted); }
+
+/* margin: 0 is the load-bearing part. This is a <p> and nothing reset the UA
+   default, so every step carried an invisible 16px bottom margin on top of the
+   step's own padding — about 42px of dead space per step, seven times over. */
+.davinci-explainer .flow-detail {
+  font-size: var(--font-size-base);
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin: 0;
+}
 .davinci-explainer .flow-tag {
   display: inline-block;
   font-size: var(--font-size-xs);
