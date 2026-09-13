@@ -72,11 +72,25 @@ below.
    Every click is a real OpenAI call billed to the Privilege virtual key, and
    Money Movement changes the demo balances.
 
+   It also creates Super Sports Policy Guardrails (on `super-sports-gateway`)
+   and three OpenSearch agents — OpenSearch · Direct, OpenSearch · via
+   Privilege, OpenSearch · Privilege opensearch22 — with the same three
+   starters, one per door. Before using them:
+   - **Connect once** per LibreChat user to `super-sports-gateway`,
+     `opensearch-privilege-gateway` and `privilege-opensearch22` (MCP settings →
+     Connect → PingOne login). `opensearch-privilege-gateway` also needs the
+     façade's Privilege leg signed in at `/privilege-mcp-client`.
+   - **Start the port-forward** for OpenSearch · Direct:
+     `kubectl --context us -n ping-devops-curtismuir port-forward svc/opensearch-mcp-server 9900:80`.
+   - The `oauth-loopback` sidecar shares the api container's network, so after
+     recreating `librechat`, run
+     `docker compose -f librechat/docker-compose.yml up -d oauth-loopback` too.
+
 ## Docker vs pingaws
 
-`librechat.yaml` targets the local docker stack by default, and carries one
-door: `aidemo-mcp` (the mcp-server on `:8080`). To point at the SE AWS
-cluster instead:
+`librechat.yaml` targets the local docker stack by default: `aidemo-mcp`,
+`super-sports-gateway`, the three OpenSearch doors — see "Known door caveats"
+below. To point at the SE AWS cluster instead:
 ```bash
 LIBRECHAT_CONFIG=librechat.pingaws.yaml docker compose -f librechat/docker-compose.yml up -d # force-compose
 ```
@@ -95,8 +109,10 @@ recreate a container whose compose-level config didn't change.
 | Door | Docker target | pingaws target |
 |---|---|---|
 | `aidemo-mcp` | works (auth-disabled local mcp-server) | not offered — host-local only |
-| `opensearch-direct` | removed 2026-09-13 — the `cm-mcpgw-opensearch-mcp-server` Service it port-forwarded to is gone | not offered — Mac-only port-forward |
-| `opensearch-privilege-gateway` | removed 2026-09-13 — the local façade's sign-in server is `http://localhost:3005`, unreachable from inside the LibreChat container | works — replaced `opensearch-privilege-agent` on 2026-09-05. That entry pointed at the deleted `agent` door, whose mesh frontend still resolved while nothing served it; the Mac-local `:8643` reachability caveat it carried is moot now, since nothing routes that way |
+| `super-sports-gateway` | works once each user Connects (PingOne login); the façade's `localhost:3005` sign-in server is reached through the `oauth-loopback` sidecar | not offered |
+| `opensearch-direct` | works while the Mac port-forward runs: `kubectl --context us -n ping-devops-curtismuir port-forward svc/opensearch-mcp-server 9900:80` (no auth) | not offered — Mac-only port-forward |
+| `privilege-opensearch22` | works once each user Connects; LibreChat signs in against the Privilege gateway's own OAuth server (public host, no sidecar) | not offered |
+| `opensearch-privilege-gateway` | works once each user Connects (through the `oauth-loopback` sidecar) and the façade's Privilege leg is signed in at `/privilege-mcp-client` | works — replaced `opensearch-privilege-agent` on 2026-09-05. That entry pointed at the deleted `agent` door, whose mesh frontend still resolved while nothing served it; the Mac-local `:8643` reachability caveat it carried is moot now, since nothing routes that way |
 | `privilege-agentless` | removed 2026-09-13 — addressed `ai-demo.ping-devops.com`, torn down with `ping-devops-cmuir` | works — verified live |
 | `agent-gateway` | removed 2026-09-13 — same host as `privilege-agentless` | works — a 502 `upstream_unavailable` seen live 2026-08-25 was a routine `demo_mcp_gateway` rollout on the pingaws cluster catching this door mid-startup-probe (`kubectl -n ping-devops-cmuir get events` showed one `Unhealthy: connection refused` right after pod creation, then `2/2 Running` ~4s later) — not a bug. If this recurs, check `kubectl --context us -n ping-devops-cmuir get pods -l app=mcp-gateway` before assuming a LibreChat or façade problem |
 

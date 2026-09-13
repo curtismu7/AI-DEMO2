@@ -18,6 +18,12 @@ interface:
 mcpSettings:
   allowedAddresses:
     - 'host.docker.internal:8080'
+    # opensearch-direct: the Mac port-forward to the OpenSearch MCP Service.
+    - 'host.docker.internal:9900'
+    # The BFF mcp-facade doors (api.ping.demo is aliased to the host gateway)
+    # and their sign-in server, reached through the oauth-loopback sidecar.
+    - 'api.ping.demo:3001'
+    - 'localhost:3005'
 
 endpoints:
   custom:
@@ -68,14 +74,13 @@ endpoints:
       titleModel: 'gpt-4o-mini'
 
 mcpServers:
-  # Only the door that works against the local stack. Six others were removed
-  # 2026-09-13 because none could connect: privilege-agentless, agent-gateway
-  # and banking-direct addressed SE hosts torn down with ping-devops-cmuir;
-  # opensearch-privilege-gateway and pingone-admin go through the local
-  # mcp-facade, whose sign-in server (http://localhost:3005) is unreachable
-  # from inside this container; opensearch-direct port-forwarded to a Service
-  # that no longer exists. librechat.pingaws.yaml still carries the SE doors.
-  # Use it from an Agent with a few tools selected — see
+  # Doors that work against the local stack (2026-09-13). The façade doors'
+  # sign-in server http://localhost:3005 is reachable through the oauth-loopback
+  # sidecar in docker-compose.yml. Doors with OAuth need each LibreChat user to
+  # Connect once (PingOne login). privilege-agentless, agent-gateway (SE host)
+  # and banking-direct stay out: their SE hosts were torn down with
+  # ping-devops-cmuir; librechat.pingaws.yaml still carries them. Use every door
+  # from an Agent with a few tools selected — see
   # docs/superpowers/plans/2026-08-24-librechat-privilege-mcp-client.md Task 5.
 
   # Direct — this repo's mcp-server on the host (docker-compose.yml :8080).
@@ -97,4 +102,42 @@ mcpServers:
       source: admin
       authorization_type: bearer
       key: none
+    timeout: 60000
+
+  # Super Sports through the Node Agent Gateway (demo_mcp_gateway) via the
+  # recording façade: real PingOne Authorize decisions (mock PDP locally).
+  # Reads PERMIT; extend_rental is denied missing_act and
+  # sensitive_membership_details a2a_delegation_required for a user token.
+  super-sports-gateway:
+    type: streamable-http
+    url: 'https://api.ping.demo:3001/mcp-facade/agent-gateway/mcp'
+    timeout: 60000
+
+  # OpenSearch, three ways, same OpenSearch MCP server behind each:
+  # 1. Direct, no Privilege. Needs the Mac port-forward running:
+  #      kubectl --context us -n ping-devops-curtismuir \
+  #        port-forward svc/opensearch-mcp-server 9900:80
+  #    No auth; 9 tools (ClusterHealthTool, ListIndexTool, CountTool, ...).
+  opensearch-direct:
+    type: streamable-http
+    url: 'http://host.docker.internal:9900/mcp'
+    timeout: 60000
+
+  # 2. Through the recording façade to the Privilege AI Gateway's opensearch22
+  #    app. The façade holds the Privilege leg server-side
+  #    (services/privilegeGatewaySession.js) — sign in once at
+  #    /privilege-mcp-client after a gateway restart — and records the trace.
+  #    A 403 "doesn't have access to MCP app" means the Privilege policy lapsed.
+  opensearch-privilege-gateway:
+    type: streamable-http
+    url: 'https://api.ping.demo:3001/mcp-facade/privilege-gateway/opensearch22/mcp'
+    timeout: 60000
+
+  # 3. Straight to the Privilege AI Gateway's opensearch22 app. LibreChat signs
+  #    in against the gateway's own OAuth server
+  #    (https://mcpgw.ai-demo.ping-devops.com/opensearch22); public host, so no
+  #    allowedAddresses entry and no sidecar.
+  privilege-opensearch22:
+    type: streamable-http
+    url: 'https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp'
     timeout: 60000
