@@ -104,3 +104,65 @@ describe("TableBlock, Status, OnThisRun, MermaidFigure", () => {
     expect(screen.getByRole("figure", { name: "The flow" })).toBeTruthy();
   });
 });
+
+describe("Export PDF (a customer handout)", () => {
+  const lesson = (props = {}) => (
+    <LessonLayout title="Lesson" sections={[{ id: "overview", label: "Overview" }]} {...props}>
+      <Section id="try-it-live" title="Try It Live" />
+      <Section id="overview" title="Overview" />
+      <Section id="in-this-repo" title="In This Repo" />
+    </LessonLayout>
+  );
+
+  afterEach(() => {
+    document.documentElement.removeAttribute("data-theme");
+  });
+
+  it("prints in the light theme, then puts the viewer's theme back", () => {
+    document.documentElement.setAttribute("data-theme", "dark");
+    let themeWhilePrinting = null;
+    window.print = vi.fn(() => {
+      themeWhilePrinting = document.documentElement.getAttribute("data-theme");
+    });
+    render(lesson());
+
+    fireEvent.click(screen.getByRole("button", { name: "Export PDF" }));
+
+    expect(window.print).toHaveBeenCalledTimes(1);
+    expect(themeWhilePrinting).toBe("light");
+    window.dispatchEvent(new Event("afterprint"));
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+  });
+
+  it("returns to the system theme when the viewer had none set", () => {
+    window.print = vi.fn();
+    render(lesson());
+
+    fireEvent.click(screen.getByRole("button", { name: "Export PDF" }));
+    window.dispatchEvent(new Event("afterprint"));
+
+    expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
+  });
+
+  it("leaves Try It Live and In This Repo out of the printout by default", () => {
+    const { container } = render(lesson());
+    expect(container.querySelector("#try-it-live").classList.contains("lesson-no-print")).toBe(true);
+    expect(container.querySelector("#in-this-repo").classList.contains("lesson-no-print")).toBe(true);
+    expect(container.querySelector("#overview").classList.contains("lesson-no-print")).toBe(false);
+  });
+
+  it("prints every section when a lesson asks for no exclusions", () => {
+    const { container } = render(lesson({ printExclude: [] }));
+    expect(container.querySelectorAll(".lesson-no-print")).toHaveLength(0);
+  });
+
+  it("carries Ping Identity branding and the copyright and trademark notice", () => {
+    const { container } = render(lesson());
+    // Text, not the repo's placeholder "P" badge image.
+    expect(container.querySelector(".lesson-print-wordmark").textContent).toBe("Ping Identity");
+    expect(container.querySelector(".lesson-print-brand img")).toBeNull();
+    const legal = container.querySelector(".lesson-print-legal").textContent;
+    expect(legal).toMatch(/Copyright © \d{4} Ping Identity Corporation\. All rights reserved\./);
+    expect(legal).toContain("trademarks or registered trademarks of Ping Identity Corporation");
+  });
+});
