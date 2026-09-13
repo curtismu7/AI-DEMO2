@@ -40,6 +40,10 @@ function deps() {
     // lookup is never empty — listAllApps always runs. Default it to a no-op
     // mock so tests that don't care about direct apps don't hit the network.
     listAllApps: jest.fn().mockResolvedValue([]),
+    // Default to "vault has nothing for this key" so every existing test
+    // keeps falling back to apiVars's PINGONE_WORKER_CLIENT_SECRET exactly
+    // as before this mock was added.
+    loadVaultSecrets: jest.fn().mockResolvedValue({}),
   };
 }
 
@@ -85,6 +89,19 @@ describe('getRotatableVaultKeyMap', () => {
   test('throws rather than returning an empty map when worker creds are absent', async () => {
     fs.readFileSync = (p, enc) => (p === API_ENV ? 'PINGONE_REGION=com' : realRead(p, enc));
     await expect(getRotatableVaultKeyMap(deps())).rejects.toThrow(/worker credentials/i);
+  });
+
+  // Finding 3 (2026-09-13 fix-wave): this function had its own, separate
+  // worker-token resolution that never got main()'s vault-first fix — GET
+  // /apps and POST /start's preflight both call it, so every call to either
+  // endpoint 502'd after a worker rotation, not just a repeat rotation of
+  // the worker itself. Mirrors refreshServiceEnvsWorkerVaultFirst.test.js's
+  // proof for main().
+  test('prefers a vault-supplied worker secret over the stale .env value', async () => {
+    const d = deps();
+    d.loadVaultSecrets = jest.fn().mockResolvedValue({ PINGONE_WORKER_CLIENT_SECRET: 'new-rotated-secret' });
+    await getRotatableVaultKeyMap(d);
+    expect(d.getWorkerToken).toHaveBeenCalledWith('env-1', 'worker-id', 'new-rotated-secret', 'com');
   });
 });
 

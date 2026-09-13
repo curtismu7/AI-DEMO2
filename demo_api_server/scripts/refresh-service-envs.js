@@ -353,8 +353,9 @@ function knownClientIds(apiVars) {
  * Exactly the keys whose secret has a counterpart in main()'s `creds` block, so
  * a rotation writes the key this script will later read back. Deliberately
  * absent:
- *   worker    — rotating it destroys the credential this tooling authenticates
- *               with. The one hard exclusion the rotation tool exists to enforce.
+ *   worker    — not resolved via name-matching here; it's a direct
+ *               .env-known app instead (see DIRECT_VAULT_KEY_ENV_PAIRS below).
+ *               No longer excluded from rotation as of 2026-09-13.
  *   mcpServer — resolved for naming only; `creds` carries no secret for it.
  */
 const ROTATABLE_VAULT_KEYS = {
@@ -370,11 +371,12 @@ const ROTATABLE_VAULT_KEYS = {
  * unlike ROTATABLE_VAULT_KEYS above, these need no PingOne name/clientId
  * resolution, just a plain env lookup. Confirmed safe to rotate 2026-09-13
  * (user sign-off): this demo's own admin login, its fraud/balance agents, the
- * enterprise IdP federation client, and all 11 A2A specialist agents (see
- * config/a2aSpecialists.js). Deliberately excludes the worker app (hard
- * exclusion enforced separately by isWorkerApp), other engineers' personal
- * PingOne registrations in the shared tenant, and PKCE-only public clients
- * that carry no secret at all.
+ * enterprise IdP federation client, all 11 A2A specialist agents (see
+ * config/a2aSpecialists.js), and — as of 2026-09-13 — the worker app itself
+ * (see docs/secret-rotation/2026-09-13-worker-credential-rotation-design.md
+ * for why that's now safe). Still excludes other engineers' personal PingOne
+ * registrations in the shared tenant and PKCE-only public clients that carry
+ * no secret at all.
  */
 const A2A_SPECIALIST_KEYS = [
   'INVESTMENT', 'RECORDS', 'PURCHASE', 'MEMBERSHIP', 'PAYROLL', 'TAX',
@@ -418,12 +420,18 @@ async function getRotatableVaultKeyMap(deps = {}) {
   const getToken = deps.getWorkerToken || getWorkerToken;
   const resolve  = deps.resolveApps || resolveApps;
   const listApps = deps.listAllApps || listAllApps;
+  const loadVault = deps.loadVaultSecrets || loadVaultSecrets;
 
   const apiVars = parseEnv(API_ENV);
   const envId  = apiVars.PINGONE_ENVIRONMENT_ID;
   const region = apiVars.PINGONE_REGION || 'com';
-  const workerId     = apiVars.PINGONE_WORKER_CLIENT_ID;
-  const workerSecret = apiVars.PINGONE_WORKER_CLIENT_SECRET;
+  const workerId = apiVars.PINGONE_WORKER_CLIENT_ID;
+  // Vault-first, mirroring main()'s identical fix — GET /apps and POST
+  // /start's preflight both call this function, so without this fix EVERY
+  // call to either endpoint 502s after a worker rotation, not just a
+  // repeat rotation of the worker itself.
+  const vaultWorker = await loadVault(['PINGONE_WORKER_CLIENT_SECRET']);
+  const workerSecret = vaultWorker.PINGONE_WORKER_CLIENT_SECRET || apiVars.PINGONE_WORKER_CLIENT_SECRET;
   if (!envId || !workerId || !workerSecret) {
     throw new Error('PingOne worker credentials are not configured in demo_api_server/.env');
   }
@@ -482,9 +490,11 @@ async function main(deps = {}) {
   // already written the new secret by the time this runs (rotateAppSecretCli
   // calls propagateServiceEnvs() right after vaultSet()), but apiVars still
   // holds the OLD, now-dead value from the not-yet-restarted .env file.
-  // Degrades to apiVars when the vault has nothing for this key (the normal
-  // case, and every fresh clone with no vault), so this changes nothing
-  // outside an in-flight worker rotation.
+  // Degrades to apiVars only when the vault has nothing for this key. Note
+  // this is NOT rare in practice: PINGONE_WORKER_CLIENT_SECRET is in
+  // vault-migrate.js's migration allowlist, so on any deployment that has
+  // run that migration, the vault wins on EVERY refresh-service-envs run —
+  // not only during an in-flight worker rotation.
   const vaultWorker = await loadVault(['PINGONE_WORKER_CLIENT_SECRET']);
   const workerSecret = vaultWorker.PINGONE_WORKER_CLIENT_SECRET || apiVars.PINGONE_WORKER_CLIENT_SECRET;
 
@@ -929,7 +939,7 @@ async function main(deps = {}) {
     // specialist call (UC2 / UC2.5) since the mock engine denies by default
     // on lookup failure.
     PINGONE_WORKER_CLIENT_ID:        fb('PINGONE_WORKER_CLIENT_ID'),
-    PINGONE_WORKER_CLIENT_SECRET:    fb('PINGONE_WORKER_CLIENT_SECRET'),
+    PINGONE_WORKER_CLIENT_SECRET:    workerSecret,
   }, [
     'This is the mock PingOne Authorize server.',
     'PINGONE_WORKER_CLIENT_ID/SECRET back pingOneUserLookup.js\'s Management API',
@@ -1038,7 +1048,7 @@ async function main(deps = {}) {
                                       || fb('PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID')
                                       || fb('PINGAUTHORIZE_WORKER_ID'),
     P1AZ_WORKER_CLIENT_ID:          fb('PINGONE_AUTHORIZE_WORKER_CLIENT_ID') || fb('PINGONE_WORKER_CLIENT_ID'),
-    P1AZ_WORKER_CLIENT_SECRET:    fb('PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET') || fb('PINGONE_WORKER_CLIENT_SECRET'),
+    P1AZ_WORKER_CLIENT_SECRET:    fb('PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET') || workerSecret,
     // ping-gateway/config/routes/03-mcp-delegation.json (Phase 2 RFC 8693
     // delegation demo route) needs these two for DelegationProtection's
     // resourceId and DelegationResourceServerFilter's scopes — without them
