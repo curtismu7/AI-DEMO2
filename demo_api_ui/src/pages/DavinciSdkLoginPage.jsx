@@ -64,6 +64,20 @@ export default function DavinciSdkLoginPage() {
     setMessage(node?.status === "error" ? client.getError?.()?.message || null : null);
   }, []);
 
+  // Declared before start() because start() now depends on it: a const in a
+  // useCallback dependency array is read at render time, so referencing it
+  // above its declaration throws.
+  const finish = useCallback(async (client) => {
+    const code = client.getClient?.()?.authorization?.code;
+    if (!code) throw new Error("The flow succeeded but returned no authorization code.");
+    // The SDK owns the PKCE verifier; the BFF does the exchange and holds the
+    // tokens, so the verifier has to travel with the code.
+    const codeVerifier = takePkceVerifier(cfgRef.current.clientId);
+    await postCallback({ code, codeVerifier });
+    setPhase("done");
+    navigate("/davinci-login/confirmed", { replace: true });
+  }, [navigate]);
+
   const start = useCallback(async () => {
     setPhase("loading");
     setMessage(null);
@@ -74,7 +88,13 @@ export default function DavinciSdkLoginPage() {
       const client = await initClient(cfg, { onTrace });
       clientRef.current = client;
 
-      const node = await client.start({ query: { nonce: cfg.nonce } });
+      // prompt=login: this page exists to SHOW the flow's collectors, and a
+      // browser that already holds a PingOne session otherwise gets the flow
+      // completed silently (flow.status COMPLETED + a code, no screens).
+      // Measured in one signed-in browser: without it, COMPLETED; with it, a
+      // real sign-on screen (capability customHTMLTemplate). start({query})
+      // merges onto the authorize URL, so it reaches PingOne as a parameter.
+      const node = await client.start({ query: { nonce: cfg.nonce, prompt: "login" } });
       if (node?.status === "failure") {
         // A 5XX or an unparseable payload lands here, not on 'error'. The SDK
         // logs "Response of 5XX indicates unrecoverable failure"; its own error
@@ -84,6 +104,16 @@ export default function DavinciSdkLoginPage() {
             "The flow could not be started. It may not be deployed, or not enabled for PingOne.",
         );
         setPhase("failed");
+        return;
+      }
+      // The browser already holds a PingOne session, so /as/authorize completed
+      // the flow outright (flow.status COMPLETED, authorization code attached)
+      // and there are no screens and no collectors. This used to fall through
+      // to "collecting" with zero collectors and render an EMPTY FORM: heading,
+      // subtitle, nothing else. Reported from a screenshot while signed in as
+      // Demo Admin; reproduced by signing in once and reloading the page.
+      if (node?.status === "success") {
+        await finish(client);
         return;
       }
       syncFromClient(client, node);
@@ -105,17 +135,6 @@ export default function DavinciSdkLoginPage() {
     startedRef.current = true;
     start();
   }, [start]);
-
-  const finish = useCallback(async (client) => {
-    const code = client.getClient?.()?.authorization?.code;
-    if (!code) throw new Error("The flow succeeded but returned no authorization code.");
-    // The SDK owns the PKCE verifier; the BFF does the exchange and holds the
-    // tokens, so the verifier has to travel with the code.
-    const codeVerifier = takePkceVerifier(cfgRef.current.clientId);
-    await postCallback({ code, codeVerifier });
-    setPhase("done");
-    navigate("/davinci-login/confirmed", { replace: true });
-  }, [navigate]);
 
   // A FlowCollector branches the flow instead of submitting this screen, so it
   // must NOT go through submit() — no values are written and next() is not
