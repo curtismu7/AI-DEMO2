@@ -35,6 +35,11 @@ function deps() {
   return {
     getWorkerToken: jest.fn().mockResolvedValue('tok'),
     resolveApps: jest.fn().mockResolvedValue(RESOLVED),
+    // The worker's own id/secret are mandatory env vars, so now that the
+    // worker is itself a DIRECT_VAULT_KEY_ENV_PAIRS entry, the "direct apps"
+    // lookup is never empty — listAllApps always runs. Default it to a no-op
+    // mock so tests that don't care about direct apps don't hit the network.
+    listAllApps: jest.fn().mockResolvedValue([]),
   };
 }
 
@@ -60,12 +65,6 @@ describe('getRotatableVaultKeyMap', () => {
     expect(map['cid-s9']).toBe('PINGONE_MCP_EXCHANGER_CLIENT_SECRET');
     expect(map['cid-ai']).toBe('PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET');
     expect(map['cid-ag']).toBe('AGENT_CLIENT_SECRET');
-  });
-
-  test('EXCLUDES the worker — rotating it destroys the credential this tool uses', async () => {
-    const map = await getRotatableVaultKeyMap(deps());
-    expect(map['worker-id']).toBeUndefined();
-    expect(map['app-wk']).toBeUndefined();
   });
 
   test('excludes an app with no vault-key counterpart in the creds block', async () => {
@@ -156,11 +155,24 @@ describe('getRotatableVaultKeyMap — direct .env-known apps', () => {
     expect(map['app-grafana']).toBeUndefined();
   });
 
-  test('never calls listAllApps when no direct apps are configured in .env', async () => {
-    const plain = deps();
-    plain.listAllApps = jest.fn().mockResolvedValue(ALL_APPS);
-    fs.readFileSync = (p, enc) => (p === API_ENV ? ENV_TEXT : realRead(p, enc));
-    await getRotatableVaultKeyMap(plain);
-    expect(plain.listAllApps).not.toHaveBeenCalled();
+  // 2026-09-13: "never calls listAllApps when no direct apps are configured"
+  // is no longer a reachable scenario — the worker's id/secret are mandatory
+  // env vars, and the worker is now itself a DIRECT_VAULT_KEY_ENV_PAIRS entry,
+  // so "no direct apps configured" can't happen. Test removed; superseded by
+  // the "includes the worker" case below, which exercises the same listAllApps
+  // call path this test used to assert never ran.
+
+  // 2026-09-13: the worker is no longer excluded. Task 1's vault-first fix
+  // inside main()'s own worker-token resolution is what makes rotating it
+  // safe for the CLI's own mid-run propagation step; this map's job is just
+  // to say "the worker is a rotatable app now", same as any other direct app.
+  test('includes the worker once DIRECT_VAULT_KEY_ENV_PAIRS covers it, keyed by id and clientId', async () => {
+    const allAppsWithWorker = [...ALL_APPS, { id: 'app-worker', clientId: 'worker-id' }];
+    const map = await getRotatableVaultKeyMap({
+      ...deps(),
+      listAllApps: jest.fn().mockResolvedValue(allAppsWithWorker),
+    });
+    expect(map['worker-id']).toBe('PINGONE_WORKER_CLIENT_SECRET');
+    expect(map['app-worker']).toBe('PINGONE_WORKER_CLIENT_SECRET');
   });
 });

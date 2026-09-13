@@ -61,4 +61,23 @@ describe('GET /api/admin/secret-rotation/apps', () => {
     const res = await request(appWithRouter()).get('/api/admin/secret-rotation/apps');
     expect(JSON.stringify(res.body)).not.toMatch(/secret"\s*:/i);
   });
+
+  test('includes the worker once it has a vault-key mapping, flagged isWorker: true', async () => {
+    getRotatableVaultKeyMap.mockResolvedValue({
+      c1: 'PINGONE_MCP_GATEWAY_CLIENT_SECRET',
+      a1: 'PINGONE_MCP_GATEWAY_CLIENT_SECRET',
+      'worker-client-id': 'PINGONE_WORKER_CLIENT_SECRET',
+      a2: 'PINGONE_WORKER_CLIENT_SECRET',
+    });
+    const res = await request(appWithRouter()).get('/api/admin/secret-rotation/apps');
+    const worker = res.body.apps.find((a) => a.id === 'a2');
+    expect(worker).toBeDefined();
+    expect(worker.isWorker).toBe(true);
+  });
+
+  test('flags a non-worker app isWorker: false', async () => {
+    const res = await request(appWithRouter()).get('/api/admin/secret-rotation/apps');
+    const nonWorker = res.body.apps.find((a) => a.id === 'a1');
+    expect(nonWorker.isWorker).toBe(false);
+  });
 });
