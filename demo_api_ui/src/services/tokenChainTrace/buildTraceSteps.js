@@ -38,7 +38,9 @@ const LANES = {
 // notifications/initialized sit with discovery on the spine, not on the
 // tool-call branch. TokenTopologyPanel partitions spine vs branch off this
 // list, so leaving them here drew the session as part of the invocation.
-export const MCP_STEP_IDS = ["gateway", "api-key-swap", "tools-call-challenge", "mcp", "api", "database"];
+// Wire order: the credential-less tools/call goes out before the authorized
+// call reaches the gateway. TraceMcpPanel renders this list in order.
+export const MCP_STEP_IDS = ["tools-call-challenge", "gateway", "api-key-swap", "mcp", "api", "database"];
 
 const TITLES = {
   website: "Website — browser / UI app",
@@ -1324,6 +1326,13 @@ export function buildTraceSteps(trace) {
     }));
   }
 
+  // 7c. tools/call #1 — the same handshake on invocation: a credential-less
+  // tools/call the gateway refuses at its own edge, so nothing reaches the MCP
+  // server. Drawn in wire order: the pipeline sends it (mcpChallengeProbe)
+  // after the Authorize gate and before the authorized call reaches the
+  // gateway, so it precedes the gateway hop rather than the MCP call.
+  steps.push(buildChallengeStep("tools-call-challenge", "tools/call", tokenEvents, traceComplete));
+
   // 8. gateway — gw-introspection/gw-mtls can arrive with status "skipped"
   // (the BFF's own signal that this leg was never part of the run: mTLS off,
   // introspection not enabled). That alone must not count as "seen" — only
@@ -1357,10 +1366,17 @@ export function buildTraceSteps(trace) {
       && e.error !== "rar_amount_exceeded" && e.error !== "rar_unexpected_deny",
   );
   const gwDenied = !!gwDeniedPhase || !!simGwDeny;
-  const gwSeen = !!(gwAz || gwIntro || gwInbound || gwScope);
+  // gw-filter-chain is built only from a gateway response (X-Gw-Audit-Trail) or
+  // a gateway deny, never as a skip marker. On a PingGateway permit it is often
+  // the only gateway evidence, so leaving it out drew that gateway not in path.
+  const gwSeen = !!(gwAz || gwIntro || gwInbound || gwScope || gwFilterChainEvent);
   const gwSkipEvidence = [gwIntroRaw, gwMtls].filter((e) => e && e.status === "skipped");
   steps.push(makeStep("gateway",
-    authorizeFailed ? "notinpath" : gwDenied ? "error" : gwSeen ? "done" : traceComplete ? "notinpath" : "pending",
+    // A gateway deny outranks authorizeFailed. The pipeline hands the gateway's
+    // own P1AZ DENY over as the run's authorize evidence, which marks Authorize
+    // failed; checking that first drew the gateway that blocked the call as
+    // not in path.
+    gwDenied ? "error" : authorizeFailed ? "notinpath" : gwSeen ? "done" : traceComplete ? "notinpath" : "pending",
     (gwSeen || gwDenied) ? {
       stages: buildGatewayStages(gwStages, gwDenyingFilter),
       why: gwDenied
@@ -1462,11 +1478,6 @@ export function buildTraceSteps(trace) {
     } : !apiKeySwapDone && traceComplete ? {
       narrative: "This run used the delegated OAuth bearer path — no API-key credential swap occurred.",
     } : {}));
-
-  // 8c. tools/call #1 — the same handshake on invocation: a credential-less
-  // tools/call the gateway refuses at its own edge, so nothing reaches the MCP
-  // server. Sits directly before the authorized call it precedes.
-  steps.push(buildChallengeStep("tools-call-challenge", "tools/call", tokenEvents, traceComplete));
 
   // 8d. The MCP lifecycle handshake is NOT a hop here.
   // A tool call over an already-open session is one message, not three. The

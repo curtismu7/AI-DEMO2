@@ -141,6 +141,39 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-13 — Sequence view: gateway denies and permits are drawn on the gateway; tools/call's 401 is drawn in wire order
+
+**Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`.
+Tests: `src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`,
+`src/components/__tests__/TokenTopologyPanel.a2a.test.jsx`.
+
+**What was broken:** the sequence view draws only steps that happened, so a
+step marked "not in path" vanishes from it.
+- A gateway P1AZ DENY is handed over as the run's authorize evidence
+  (`mcpToolPipeline` → `gatewayBlockAuthEval`), which marks Authorize failed.
+  The gateway step checked `authorizeFailed` before `gwDenied`, so the gateway
+  that blocked the call was drawn not in path.
+- `gwSeen` ignored `gw-filter-chain`, often the only evidence a PingGateway
+  permit publishes, so a permitting gateway was drawn not in path too.
+- The credential-less tools/call challenge was listed after the gateway and the
+  API-key swap, though the pipeline sends it (`mcpChallengeProbe`) after the
+  Authorize gate and before the authorized call reaches the gateway.
+
+**What was fixed:** the gateway step checks `gwDenied` first; `gwSeen` counts
+`gw-filter-chain`; `tools-call-challenge` is pushed just before the gateway,
+and `MCP_STEP_IDS` follows the same order (`TraceMcpPanel` and the topology
+branch render in list order).
+
+**Do not break:**
+- A BFF Authorize DENY with no gateway deny still draws the gateway and every
+  hop after it as not in path.
+- `gw-introspection` / `gw-mtls` with status `skipped` still do not count as
+  the gateway being seen.
+- `MCP_STEP_IDS` stays in chain order; the builder test asserts it.
+
+**Verify:** `cd demo_api_ui && node_modules/.bin/vitest run buildTraceSteps.test TokenTopologyPanel.a2a`.
+Five tests fail against the pre-fix builder.
+
 ### 2026-09-13 — UC32: a weather scope picked on /weather-mcp survives the Run it was picked for
 
 **Files changed:** `demo_api_ui/src/utils/weatherScopeHandoff.js` (new),
