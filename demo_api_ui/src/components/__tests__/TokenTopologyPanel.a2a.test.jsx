@@ -111,9 +111,9 @@ describe('buildA2aTopology', () => {
     });
 
     // Heuristic routing lights up the agent and the (LLM-less) reasoning hop.
-    expect(screen.getByText('Heuristics')).toBeInTheDocument();
+    expect(screen.getByText('AI Agent')).toBeInTheDocument();
     expect(firedNames(container))
-      .toEqual(['Website', 'Chatbot', 'Agent service receives request', 'Heuristics']);
+      .toEqual(['Website', 'Chatbot', 'Agent service receives request', 'AI Agent']);
     // Sign-in still has no token evidence, so it stays dimmed.
     expect(firedNames(container)).not.toContain('Sign-in');
   });

@@ -1,4 +1,4 @@
-import { buildTraceSteps, buildRunStory, buildGatewayStages, MCP_STEP_IDS } from "../buildTraceSteps";
+import { buildTraceSteps, buildRunStory, buildGatewayStages, MCP_STEP_IDS, laneLabel } from "../buildTraceSteps";
 import { hasPopoutWorthyDetail } from "../../../components/TraceStepCard";
 
 const EMPTY_TRACE = {
@@ -895,11 +895,11 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
     expect(byId.agent.status).toBe("done");
     expect(byId.llm.status).toBe("done");
-    expect(byId.llm.title).toBe("Heuristics — intent match & tool choice");
+    expect(byId.llm.title).toBe("AI Agent — intent match & tool choice");
     expect(byId.llm.lane).toBe("HEURISTICS");
     expect(byId.llm.detail.response.text).toContain("view_coverage");
     expect(byId.reply.status).toBe("done");
-    expect(byId.reply.title).toBe("Heuristics composes reply → chat");
+    expect(byId.reply.title).toBe("AI Agent composes reply → chat");
     expect(byId.reply.lane).toBe("HEURISTICS");
   });
 
@@ -916,7 +916,7 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(byId.llm.status).toBe("done");
     expect(byId.llm.lane).toBe("HEURISTICS");
     expect(byId.reply.status).toBe("done");
-    expect(byId.reply.title).toBe("Heuristics composes reply → chat");
+    expect(byId.reply.title).toBe("AI Agent composes reply → chat");
     expect(byId.reply.lane).toBe("HEURISTICS");
     expect(byId.reply.detail.response.text).toContain("a1");
   });
@@ -1537,5 +1537,13 @@ describe("buildTraceSteps — approval gate pause is not a failed run", () => {
     const steps = buildTraceSteps(trace);
     expect(steps.find((s) => s.id === "mcp").status).toBe("error");
     expect(buildRunStory(trace, steps).outcome).toBe("error");
+  });
+});
+
+describe("laneLabel", () => {
+  test("shows the LLM and heuristics lanes as the AI agent and leaves other lanes alone", () => {
+    expect(laneLabel("HEURISTICS")).toBe("AI AGENT");
+    expect(laneLabel("LLM")).toBe("AI AGENT");
+    expect(laneLabel("GATEWAY")).toBe("GATEWAY");
   });
 });

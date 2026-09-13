@@ -12,6 +12,7 @@
 // shows only observed hops and Classic still shows the fixed catalog — this
 // component never decides which steps exist (REGRESSION_PLAN §4, 2026-08-05).
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { laneLabel } from "../services/tokenChainTrace/buildTraceSteps";
 import "./TokenChainNodeRail.css";
 
 const DENSITY_KEY = "tctr_node_density";
@@ -329,7 +330,7 @@ export default function TokenChainNodeRail({ steps, activeId, onSelect, onPresen
             >
               <span className="tcnr-node-top">
                 <span className="tcnr-node-n">{i + 1}</span>
-                <span className="tcnr-node-lane">{step.lane}</span>
+                <span className="tcnr-node-lane">{laneLabel(step.lane)}</span>
               </span>
               <span className="tcnr-node-title">{nodeLabel(step)}</span>
               <NodeFact step={step} />

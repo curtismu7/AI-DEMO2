@@ -76,7 +76,7 @@ test("ingestRoutingMode after beginTrace marks llm/reply heuristic-ready", () =>
   const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
   expect(byId.llm.status).toBe("done");
   expect(byId.llm.lane).toBe("HEURISTICS");
-  expect(byId.reply.title).toBe("Heuristics composes reply → chat");
+  expect(byId.reply.title).toBe("AI Agent composes reply → chat");
 });
 
 test("beginTrace strips sticky useCaseId from carried session token", () => {

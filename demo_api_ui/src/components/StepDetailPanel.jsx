@@ -4,6 +4,7 @@
 // view of it and is deliberately a separate component so that card is untouched.
 import React from "react";
 import FormJsonToggle, { PayloadFormView } from "./shared/FormJsonToggle";
+import { laneLabel } from "../services/tokenChainTrace/buildTraceSteps";
 import "./StepDetailPanel.css";
 
 const STATUS_TEXT = {
@@ -154,7 +155,7 @@ export default function StepDetailPanel({ step, onInspect }) {
     <div className="sdp">
       <div className="sdp-head">
         <h3 className="sdp-title">{step.title}</h3>
-        <span className="sdp-lane">{step.lane}</span>
+        <span className="sdp-lane">{laneLabel(step.lane)}</span>
         <span className={`sdp-status sdp-status--${step.status || "pending"}`}>
           {STATUS_TEXT[step.status] || String(step.status || "")}
         </span>
