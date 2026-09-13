@@ -23,13 +23,13 @@ All commands below assume you run deploy/test scripts from `~/Development/AI-DEM
 1. Run the installer (Docker mode recommended):
 
    ```bash
-   curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-demo/main/install.sh | bash
+   curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
    ```
 
 2. Clone the repo on **mac-Y4JYJ03X**:
 
    ```bash
-   git clone https://github.com/curtismu7/AI-demo.git ~/AI-demo-test
+   git clone https://github.com/curtismu7/AI-DEMO2.git ~/AI-demo-test
    cd ~/AI-demo-test
    git checkout feat/dev-remote-test-workflow
    ```

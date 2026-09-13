@@ -13,7 +13,7 @@ This is a **completely standalone** project — it can be handed to anyone and r
 One command bootstraps everything on a fresh Mac — no tooling required beforehand:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-demo/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
 ```
 
 It installs **Homebrew, git, Node 20, Python 3.12, Docker (OrbStack), mkcert, llama.cpp**, and any
@@ -40,11 +40,11 @@ asks **how you want to run** the demo:
 Non-interactive install (skip all prompts, defaults to local mode):
 
 ```bash
-ASSUME_YES=1 curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-demo/main/install.sh | bash
+ASSUME_YES=1 curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
 ```
 
 After install, start the demo any time with the launcher for your mode (e.g. `cd ~/AI-demo && ./run.sh`)
-and open **`https://api.ping.demo:4000`**. Full details for each mode are in [How to Run](#how-to-run) below.
+and open **`https://local.ping-devops.com:4000`**. Full details for each mode are in [How to Run](#how-to-run) below.
 
 ## Components
 
@@ -69,7 +69,7 @@ and open **`https://api.ping.demo:4000`**. Full details for each mode are in [Ho
 
 System architecture with token flow. **Interactive version** (layer toggles, scenario highlighting, JWT payload cards, token-issue connector lines) is served by the UI:
 
-- Running app: [`/architecture/token-flow.html`](https://api.ping.demo:4000/architecture/token-flow.html)
+- Running app: [`/architecture/token-flow.html`](https://local.ping-devops.com:4000/architecture/token-flow.html)
 - Source: [`demo_api_ui/public/architecture/token-flow.html`](demo_api_ui/public/architecture/token-flow.html)
 - Spec: [`docs/superpowers/specs/2026-05-29-architecture-diagram-token-overlay-design.md`](docs/superpowers/specs/2026-05-29-architecture-diagram-token-overlay-design.md)
 
@@ -135,7 +135,7 @@ Runs everything directly as Node/Python processes on your Mac. **No Docker, no K
 
 ```bash
 # First-time setup
-curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-demo/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
 # Select option 1 — installs Node, Python, mkcert, and bootstraps PingOne automatically
 ```
 
@@ -146,7 +146,7 @@ cd ~/AI-demo
 ./run.sh
 ```
 
-**Access:** `https://api.ping.demo:4000`
+**Access:** `https://local.ping-devops.com:4000`
 
 `./run.sh` starts the BFF, UI dev server, MCP server, and agent directly as native processes. HTTPS is handled by mkcert (trusted on first run — no browser warnings).
 
@@ -180,7 +180,7 @@ Runs all services in containers on your Mac. No Kubernetes needed — just Docke
 ```bash
 # One-time: trust the local CA and add the hostname
 sudo mkcert -install
-echo '127.0.0.1  api.ping.demo' | sudo tee -a /etc/hosts
+echo '127.0.0.1  local.ping-devops.com api.ping.demo' | sudo tee -a /etc/hosts
 
 # Bootstrap PingOne (writes demo_api_server/.env and generates certs/)
 cd ~/AI-demo/demo_api_server && npm run pingone:bootstrap
@@ -195,7 +195,7 @@ cd ~/AI-demo
 ./run-docker.sh build        # rebuild images, then start core
 ```
 
-**Access:** `https://api.ping.demo:4000`
+**Access:** `https://local.ping-devops.com:4000`
 
 #### Memory-efficient Docker stack
 
@@ -319,7 +319,7 @@ Runs all services in a local Kubernetes cluster via OrbStack. Same images as pro
 
 ```bash
 # First-time setup
-curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-demo/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
 # Select option 2 — installs OrbStack, kubectl, and bootstraps PingOne
 ```
 
@@ -330,7 +330,7 @@ cd ~/AI-demo
 ./run-k8.sh
 ```
 
-**Access:** `https://api.ping.demo:4000` (same local URL — port-forwarded from the cluster)
+**Access:** `https://local.ping-devops.com:4000` (same local URL — port-forwarded from the cluster)
 
 `./run-k8.sh` builds Docker images, applies Kubernetes manifests to the local `ai-demo` namespace, and sets up port-forwards that auto-respawn if dropped.
 
@@ -383,7 +383,7 @@ Deploys to the shared Ping SE DevOps cluster (`ping-dev-aws-us-east-2`). Images 
 
 ```bash
 # First-time setup
-curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-demo/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
 # Select option 3 — installs all tools above automatically
 ```
 
@@ -470,17 +470,17 @@ kubectl logs -n ping-devops-cmuir deploy/<name> --previous        # after a cras
 ### Fresh install (new machine)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-demo/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
 ```
 
 Prompts you to choose a run mode and installs all required tools + bootstraps PingOne automatically.
 
 ```bash
 # Install to a custom directory
-INSTALL_DIR=~/work/AI-demo curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-demo/main/install.sh | bash
+INSTALL_DIR=~/work/AI-demo curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
 
 # Non-interactive (skip all prompts)
-ASSUME_YES=1 curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-demo/main/install.sh | bash
+ASSUME_YES=1 curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
 ```
 
 ---
@@ -555,7 +555,7 @@ Full guide: [`docs/user-guide/helix-setup.md`](docs/user-guide/helix-setup.md).
 ASSUME_YES=1 ~/AI-demo/uninstall.sh   # skip all prompts
 ```
 
-Then re-install: `curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-demo/main/install.sh | bash`
+Then re-install: `curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash`
 
 ---
 

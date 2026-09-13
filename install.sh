@@ -2,7 +2,7 @@
 # install.sh — Standalone bootstrapper for the AI Demo.
 #
 # Designed to be curl-piped on a brand-new Mac — no prior tooling required:
-#   curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-demo/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
 #
 # What it does (in order):
 #   1. Asks how you want to run the demo — determines what gets installed:
@@ -55,7 +55,7 @@ set -euo pipefail
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
-REPO_URL="${REPO_URL:-https://github.com/curtismu7/AI-demo.git}"
+REPO_URL="${REPO_URL:-https://github.com/curtismu7/AI-DEMO2.git}"
 BRANCH="${BANKING_BRANCH:-main}"
 DEFAULT_DIR_NAME="AI-demo"
 NODE_REQUIRED_MAJOR="20"

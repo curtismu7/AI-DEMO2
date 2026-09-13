@@ -20,7 +20,7 @@ Runs the BFF, UI dev server, MCP server, and AI agent directly as Node/Python pr
 ### Option 1: First-time setup
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-demo/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
 # Select option 1 — installs Node, Python, mkcert, bootstraps PingOne automatically
 ```
 
@@ -139,7 +139,7 @@ Runs all services in a local Kubernetes cluster. Uses the same Docker images and
 ### Option 3: First-time setup
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-demo/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
 # Select option 2 — installs OrbStack, kubectl, bootstraps PingOne
 ```
 
@@ -205,7 +205,7 @@ Deploys to the shared Ping SE DevOps cluster (`ping-dev-aws-us-east-2`). Images 
 
 ```bash
 # Or install everything automatically:
-curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-demo/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
 # Select option 3
 ```
 

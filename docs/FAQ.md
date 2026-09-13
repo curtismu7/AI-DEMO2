@@ -26,11 +26,10 @@ Answers for presenters, SEs and developers working with the Super Banking AI dem
 ### What's the one-line install?
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh \
-  | REPO_URL=https://github.com/curtismu7/AI-DEMO2.git bash
+curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
 ```
 
-Set `REPO_URL` as shown. `install.sh` and the README still point at the old `curtismu7/AI-demo` repository, which no longer resolves, so the command as printed in the README fails. Add `ASSUME_YES=1` before `bash` to skip the prompts; the installer then defaults to local mode.
+Add `ASSUME_YES=1` before `bash` to skip the prompts; the installer then defaults to local mode.
 
 The installer asks how you want to run the demo:
 
@@ -103,7 +102,7 @@ Useful `run-docker.sh` commands:
 
 ### Why does the app say "Please sign in" after I signed in?
 
-You are probably on `api.ping.demo:4000`. That address serves the same app, but the session cookie and the passkey `rp.id` belong to `local.ping-devops.com`, so sign-in never sticks. Use `https://local.ping-devops.com:4000`. Some older docs, including the README, still show the `api.ping.demo` address.
+You are probably on `api.ping.demo:4000`. That address serves the same app, but the session cookie and the passkey `rp.id` belong to `local.ping-devops.com`, so sign-in never sticks. Use `https://local.ping-devops.com:4000`. Some older docs still show the `api.ping.demo` address.
 
 For automated tests, point `E2E_BASE_URL` at `local.ping-devops.com` too. Otherwise every `*.real.spec.js` returns 401, which looks like broken auth.
 
