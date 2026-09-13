@@ -343,6 +343,157 @@ describe('POST /api/davinci-login/widget-session', () => {
     expect(res.body.error).toBe('user_not_found');
     expect(sess.oauthTokens).toBeUndefined();
   });
+
+  // 2026-09-13 tech debt: the widget's tokens carry no refresh token, so the
+  // only way to renew a near-expiry widget session is to silently re-run the
+  // flow. A refresh must reuse the existing session (no regenerate) — unlike
+  // a first sign-in above — or every silent refresh would wipe unrelated
+  // session state.
+  test('refreshing an already-established widget session reuses it (no regenerate) and stores fresh tokens', async () => {
+    tokensVerifyAs(jwks({ ...ID_CLAIMS, nonce: 'nonce-refresh' }), jwks(AT_CLAIMS));
+    const sess = {
+      davinciLoginNonce: 'nonce-refresh',
+      davinciWidgetLogin: true,
+      user: { id: 'u1', username: 'demoUser', role: 'customer' },
+      oauthTokens: {
+        accessToken: 'old-at', idToken: 'old-id', refreshToken: null,
+        expiresAt: Date.now() - 1000, tokenType: 'Bearer', scope: 'openid',
+      },
+    };
+    const regenerateSpy = jest.fn((cb) => cb(null));
+    const app = express();
+    app.use(express.json());
+    app.use((req, _res, next) => {
+      req.session = sess;
+      req.session.regenerate = regenerateSpy;
+      req.session.save = (cb) => cb && cb(null);
+      next();
+    });
+    app.use('/api/davinci-login', davinciLoginRoutes);
+
+    const res = await request(app)
+      .post('/api/davinci-login/widget-session')
+      .send({ idToken: 'id-w', accessToken: 'at-w' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true, username: 'demoUser' });
+    expect(regenerateSpy).not.toHaveBeenCalled(); // reused the existing session, not a fresh one
+    expect(sess.oauthTokens.accessToken).toBe('at-w'); // fresh tokens replaced the near-expiry ones
+    expect(sess.davinciWidgetLogin).toBe(true);
+  });
+});
+
+describe('silent widget session refresh (2026-09-13 tech debt)', () => {
+  const ENV = {
+    PINGONE_DAVINCI_LOGIN_COMPANY_ID: 'co-1',
+    PINGONE_DAVINCI_LOGIN_POLICY_ID_V1: 'pol-v1',
+  };
+  const saved = {};
+  const jwks = (claims) => ({ verified: true, fallbackMethod: 'jwks', claims, warning: null, error: null });
+
+  beforeEach(() => {
+    axios.post.mockReset();
+    configStore.getEffective.mockReset().mockImplementation((k) =>
+      k === 'pingone_davinci_api_key' ? 'sk-secret-key' : ''
+    );
+    Object.keys(ENV).forEach((k) => { saved[k] = process.env[k]; process.env[k] = ENV[k]; });
+    tokenVerificationService.verifyExchangedToken.mockReset();
+    oauthService.getUserInfo.mockReset().mockResolvedValue({ sub: 'p1-user-1', preferred_username: 'demoUser' });
+    oauthService.createUserFromOAuth.mockReset().mockReturnValue({ username: 'demoUser' });
+    dataStore.getUserByUsername.mockReset().mockReturnValue({ id: 'u1', username: 'demoUser', role: 'customer' });
+    process.env.PINGONE_RESOURCE_BFF_URI = 'enduser.ping.demo';
+  });
+  afterEach(() => {
+    Object.keys(ENV).forEach((k) => {
+      if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k];
+    });
+  });
+
+  test('isWidgetAccessTokenExpiring is false for a non-widget session, a session with a refresh token, and one well before expiry', () => {
+    const { isWidgetAccessTokenExpiring } = davinciLoginRoutes;
+    expect(isWidgetAccessTokenExpiring({ oauthTokens: { accessToken: 'a', expiresAt: Date.now() - 1 } })).toBe(false);
+    expect(isWidgetAccessTokenExpiring({
+      davinciWidgetLogin: true,
+      oauthTokens: { accessToken: 'a', refreshToken: 'r', expiresAt: Date.now() - 1 },
+    })).toBe(false);
+    expect(isWidgetAccessTokenExpiring({
+      davinciWidgetLogin: true,
+      oauthTokens: { accessToken: 'a', refreshToken: null, expiresAt: Date.now() + 60 * 60_000 },
+    })).toBe(false);
+  });
+
+  test('isWidgetAccessTokenExpiring is true once within the refresh margin', () => {
+    const { isWidgetAccessTokenExpiring } = davinciLoginRoutes;
+    expect(isWidgetAccessTokenExpiring({
+      davinciWidgetLogin: true,
+      oauthTokens: { accessToken: 'a', refreshToken: null, expiresAt: Date.now() + 60_000 },
+    })).toBe(true);
+  });
+
+  test('GET /session-status reports needsRefresh for a near-expiry widget session', async () => {
+    const sess = {
+      davinciWidgetLogin: true,
+      oauthTokens: { accessToken: 'a', refreshToken: null, expiresAt: Date.now() + 1000 },
+    };
+    const res = await request(buildApp(sess)).get('/api/davinci-login/session-status');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ davinciWidgetLogin: true, needsRefresh: true });
+  });
+
+  test('GET /session-status reports false/false for a fresh non-widget session', async () => {
+    const res = await request(buildApp({})).get('/api/davinci-login/session-status');
+    expect(res.body).toEqual({ davinciWidgetLogin: false, needsRefresh: false });
+  });
+
+  test('end-to-end: /sdk-token then /widget-session silently refresh a near-expiry widget session, reusing it with no new user interaction', async () => {
+    const sess = {
+      davinciWidgetLogin: true,
+      user: { id: 'u1', username: 'demoUser', role: 'customer' },
+      oauthTokens: {
+        accessToken: 'old-at', idToken: 'old-id', refreshToken: null,
+        expiresAt: Date.now() + 60_000, tokenType: 'Bearer', scope: 'openid',
+      },
+    };
+    axios.post.mockResolvedValue({ data: { access_token: 'sdk-tok-refresh' } });
+
+    const regenerateSpy = jest.fn((cb) => cb(null));
+    const app = express();
+    app.use(express.json());
+    app.use((req, _res, next) => {
+      req.session = sess; // SAME session object across both calls below — never a fresh one
+      req.session.regenerate = regenerateSpy;
+      req.session.save = (cb) => cb && cb(null);
+      next();
+    });
+    app.use('/api/davinci-login', davinciLoginRoutes);
+
+    // Step 1: mint a fresh SDK token — the same DaVinci flow-execution call
+    // (/sdktoken) the initial sign-in used — reusing this session's nonce slot.
+    const sdkRes = await request(app).post('/api/davinci-login/sdk-token');
+    expect(sdkRes.status).toBe(200);
+    expect(axios.post).toHaveBeenCalledWith(
+      'https://orchestrate-api.pingone.com/v1/company/co-1/sdktoken',
+      expect.objectContaining({ policyId: 'pol-v1' }),
+      expect.anything(),
+    );
+    const nonce = sess.davinciLoginNonce;
+    expect(nonce).toMatch(/^[0-9a-f]{32}$/);
+
+    // Step 2: the flow's success node hands back fresh tokens echoing that nonce.
+    tokenVerificationService.verifyExchangedToken.mockImplementation(async (token) =>
+      (token === 'id-w' ? jwks({ sub: 'p1-user-1', aud: 'client-1', nonce }) : jwks({
+        sub: 'p1-user-1', aud: ['enduser.ping.demo'],
+        exp: Math.floor(Date.now() / 1000) + 3600, scope: 'openid profile email read write ai:agent:read',
+      })));
+    const wsRes = await request(app)
+      .post('/api/davinci-login/widget-session')
+      .send({ idToken: 'id-w', accessToken: 'at-w' });
+
+    expect(wsRes.status).toBe(200);
+    expect(wsRes.body).toEqual({ ok: true, username: 'demoUser' });
+    expect(regenerateSpy).not.toHaveBeenCalled(); // reused the existing session, not a fresh one
+    expect(sess.oauthTokens.accessToken).toBe('at-w'); // fresh tokens replaced the near-expiry ones
+  });
 });
 
 
