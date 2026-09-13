@@ -36,8 +36,10 @@ const DOORS = [
     server: 'aidemo-mcp',
     tool: 'get_my_accounts',
     prompt: 'What are my account balances?',
-    // The seed store's four accounts: checking 10,000 / savings 15,000.
-    reply: /10[,.]?000|15[,.]?000/,
+    // get_my_accounts on aidemo-mcp, 2026-09-13: checking 3,400 / savings 6,600.
+    // ponytail: hardcoded balances drift when the demo store changes (they were
+    // 10,000 / 15,000 before) — read them from the tool first if that recurs.
+    reply: /3[,.]?400|6[,.]?600/,
   },
 ];
 
@@ -79,7 +81,9 @@ async function loginOnce(playwright, browser) {
 
   session.context = await browser.newContext();
   const page = await session.context.newPage();
-  await page.goto(`${LC}/login`);
+  // redirect=false keeps the local form when librechat/.env sets
+  // OPENID_AUTO_REDIRECT=true (LibreChat's Login reads exactly that param).
+  await page.goto(`${LC}/login?redirect=false`);
   await page.getByRole('textbox', { name: 'Email' }).fill(ACCOUNT.email);
   await page.getByRole('textbox', { name: 'Password' }).fill(ACCOUNT.password);
   await page.getByTestId('login-button').click();
