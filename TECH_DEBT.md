@@ -16,6 +16,24 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-13 — DaVinci widget sessions have no refresh token
+
+**What's wrong.** A widget sign-in (`POST /api/davinci-login/widget-session`)
+stores the tokens the flow's "Return Success Response (Widget Flows)" node
+returned, and that node returns no refresh token. `oauthTokens.refreshToken` is
+`null`, so the session ends when the access token expires (PingOne's default
+lifetime) instead of refreshing like a redirect login.
+
+**Why it wasn't fixed now.** The fix was to make widget sign-in work at all; the
+only refresh-token path is the `/authorize` hop that cannot reach PingOne's
+session cookie from the widget's cross-site calls (REGRESSION_PLAN §4
+2026-09-13).
+
+**Real fix.** Either request `offline_access` on the node if the connector
+honours it for widget flows (unverified), or re-run the widget flow when the
+access token nears expiry — the PingOne session it created still exists, so a
+Check Session branch can return fresh tokens without a new sign-on.
+
 ### [ ] 2026-09-12 — DaVinci widget login has no live flow trace
 
 **What's wrong.** `/davinci-login-guide` documents the flow with a static
@@ -30,8 +48,9 @@ that service today, so an actual widget run can't be replayed the same way.
 lesson now, live trace later) rather than wiring new instrumentation into the
 widget flow in the same change.
 
-**Real fix.** Emit step events from `/sdk-token` and `/callback` (and the
-widget's `successCallback`/`errorCallback`) into `agentFlowDiagramService`,
+**Real fix.** Emit step events from `/sdk-token` and `/widget-session` (the
+widget signs in there since 2026-09-13; `/callback` is no longer on its path)
+and the widget's `successCallback`/`errorCallback` into `agentFlowDiagramService`,
 then render them via `AgentFlowDiagramPanel` alongside or instead of the
 static diagram on the guide page.
 
