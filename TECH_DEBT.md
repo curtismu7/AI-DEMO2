@@ -49,7 +49,7 @@ its own tests (mint fails with vault value, succeeds with `.env` value;
 both fail, still degrades non-fatally) rather than folding it into an
 unrelated change.
 
-### [ ] 2026-09-13 — HITL consent can be approved with no session
+### [x] 2026-09-13 — HITL consent can be approved with no session
 
 **What's wrong.** `POST /api/demo-agent/consent`
 (`demo_api_server/routes/demoAgentRoutes.js`, the `/consent` handler) checks
@@ -76,6 +76,33 @@ answer 401 (`{ error, need_auth: true }`) before looking up the challenge, and
 keep the 403 for a signed-in user who does not own it. Add a supertest spec for
 both, plus the existing approve path, so the HITL retry (`_hitl_challenge_id`)
 still works for the owner.
+
+**RESOLVED — branch `fix/hitl-consent-requires-session`.** Confirmed the
+current code still matched this entry byte-for-byte (`if (entry.userId &&
+userSub && entry.userId !== userSub)`). Added one guard right after `userSub`
+is derived: `if (!userSub) return res.status(401).json({ error: 'Session
+expired', need_auth: true })`, placed BEFORE `hitlServiceClient.getChallengeStatus(consentId)`
+so an unauthenticated caller can't use the 404/403/200 response split to learn
+whether a given `consentId` exists. The existing ownership check (now always
+reached with a truthy `userSub`) and the 404/409 branches are unchanged.
+
+`_hitl_challenge_id` turned out not to be a distinct branch inside this
+handler — it's the reserved tool-arg a retried tool call carries elsewhere
+(`services/mcpToolPipeline.js`, `services/verticalMcpExecution.js`), so
+"still works for the owner" is covered by the existing approve-path test,
+not a separate code path to test here.
+
+New spec `demo_api_server/tests/demoAgentConsentRoute.test.js` covers: no
+session + valid consentId → 401 `{ error, need_auth: true }` with
+`hitlServiceClient.getChallengeStatus` and `recordConsentDecision` both
+asserted never called; signed-in non-owner → 403, decision never recorded;
+signed-in owner approve/reject → 200 `{ recorded, approved }`, decision
+recorded with the right verb — a regression guard on the pre-existing
+legitimate flow. Also ran the two other suites that already exercise `POST
+/api/demo-agent/consent` (`tests/routes/hitlGateway.integration.test.js`,
+`tests/routes/hitlGateway.regression.test.js`) — both mock the session
+middleware to always attach a userId, so neither exercised the no-session gap
+and neither needed updating; both still pass unchanged.
 
 ### [ ] 2026-09-13 — DaVinci widget sessions have no refresh token
 

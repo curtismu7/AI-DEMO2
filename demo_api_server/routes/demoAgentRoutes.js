@@ -625,6 +625,15 @@ router.post('/consent', async (req, res) => {
       req.agentContext?.userId ||
       null;
 
+    // A request with no session (agentGuestSessionMiddleware lets these
+    // through with req.agentContext = null) has no identity to check
+    // ownership against — treat it as unauthenticated and refuse BEFORE the
+    // challenge lookup so an unauthenticated caller can't learn whether a
+    // given consentId exists.
+    if (!userSub) {
+      return res.status(401).json({ error: 'Session expired', need_auth: true });
+    }
+
     let entry;
     try {
       entry = await hitlServiceClient.getChallengeStatus(consentId);
