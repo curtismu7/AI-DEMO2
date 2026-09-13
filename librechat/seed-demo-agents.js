@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Creates (or updates, by name) the four LibreChat demo agents and makes each
-// one public, so every LibreChat account sees them with clickable starter
+// Creates (or updates, by name) the LibreChat demo agents in AGENTS and makes
+// each one public, so every LibreChat account sees them with clickable starter
 // prompts on the new-chat screen.
 //
 //   node librechat/seed-demo-agents.js
@@ -120,6 +120,39 @@ const AGENTS = [
       'Find where PingOne Authorize denies agent-mediated tools',
     ],
   },
+  // The agents below use doors other than aidemo-mcp (librechat.yaml). The
+  // gateway and Privilege doors need each LibreChat user to Connect once.
+  {
+    name: 'Super Sports Policy Guardrails',
+    server: 'super-sports-gateway',
+    description: 'Super Sports through the Agent Gateway: reads are permitted, risky calls are denied by policy.',
+    instructions: `You are the Super Sports demo assistant. ${SS_IDS} Always call the tool the user asks for, even if you expect a refusal, and quote any "You have been denied by Policy" text word for word.`,
+    tools: ['list_rentals', 'loyalty_balance', 'extend_rental', 'sensitive_membership_details'],
+    conversation_starters: [
+      'Show my active equipment rentals',
+      'What is my loyalty points balance?',
+      'Extend my Trek Marlin 8 rental (3001) by 2 days',
+      'Show my sensitive membership payment details',
+    ],
+  },
+  // Same OpenSearch MCP server behind three doors, same read-only starters, so a
+  // presenter can compare the routes.
+  ...[
+    ['OpenSearch · Direct', 'opensearch-direct', 'No Privilege in front: the OpenSearch MCP server over the Mac port-forward.'],
+    ['OpenSearch · via Privilege', 'opensearch-privilege-gateway', 'Through the recording façade to the Privilege AI Gateway opensearch22 app.'],
+    ['OpenSearch · Privilege opensearch22', 'privilege-opensearch22', 'Straight to the Privilege AI Gateway opensearch22 app.'],
+  ].map(([name, server, description]) => ({
+    name,
+    server,
+    description,
+    instructions: 'You are an OpenSearch demo assistant. Always call the matching tool: ClusterHealthTool for health, ListIndexTool for indices, CountTool for document counts. Keep answers short.',
+    tools: ['ClusterHealthTool', 'ListIndexTool', 'CountTool'],
+    conversation_starters: [
+      'What is the OpenSearch cluster health?',
+      'List the OpenSearch indices',
+      'How many documents are in the cluster?',
+    ],
+  })),
 ];
 
 async function call(method, path, { token, body } = {}) {
@@ -157,13 +190,14 @@ async function main() {
 
   let failed = 0;
   for (const def of AGENTS) {
+    const server = def.server || SERVER;
     const body = {
       name: def.name,
       description: def.description,
       instructions: def.instructions,
       provider: PROVIDER,
       model: MODEL,
-      tools: [`sys__server__sys_mcp_${SERVER}`, ...def.tools.map((t) => `${t}_mcp_${SERVER}`)],
+      tools: [`sys__server__sys_mcp_${server}`, ...def.tools.map((t) => `${t}_mcp_${server}`)],
       conversation_starters: def.conversation_starters,
     };
     const id = existing.get(def.name);

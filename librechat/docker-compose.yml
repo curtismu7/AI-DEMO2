@@ -73,6 +73,23 @@ services:
       - librechat-data:/app/data
     restart: unless-stopped
 
+  # The agent-gateway and privilege-gateway façade doors advertise
+  # http://localhost:3005 as their sign-in server (demo_mcp_gateway's OAuth
+  # broker) — the issuer PingOne's callback is registered for. LibreChat makes
+  # its OAuth metadata and token calls server-side from inside the api
+  # container, where localhost:3005 is nothing. This sidecar shares that
+  # container's network namespace and forwards its 127.0.0.1:3005 to the broker
+  # on the host (spiked 2026-09-13: issuer http://localhost:3005 via the relay).
+  # It shares api's namespace, so recreate it whenever librechat is recreated.
+  oauth-loopback:
+    container_name: librechat-oauth-loopback
+    image: alpine/socat:latest
+    network_mode: "service:api"
+    command: TCP-LISTEN:3005,bind=127.0.0.1,fork,reuseaddr TCP:host.docker.internal:3005
+    depends_on:
+      - api
+    restart: unless-stopped
+
   mongodb:
     container_name: librechat-mongodb
     # mongo:8.0.20 (LibreChat's vendor default) requires AVX instructions.
