@@ -41,7 +41,13 @@ describe('refresh-service-envs — demo_authz_server/.env worker credentials', (
     expect(authzServerEnvBlock()).toMatch(/PINGONE_WORKER_CLIENT_ID\s*:\s*fb\('PINGONE_WORKER_CLIENT_ID'\)/);
   });
 
+  // 2026-09-13: the RHS changed from fb('PINGONE_WORKER_CLIENT_SECRET') (the
+  // raw, stale .env value) to the vault-first `workerSecret` main() already
+  // computes — fixing exactly the kind of staleness this file's own docblock
+  // warns about (see docs/secret-rotation/2026-09-13-worker-credential-
+  // rotation-design.md). This test's job is still just "the key gets
+  // emitted at all", not "with which literal expression".
   it('emits PINGONE_WORKER_CLIENT_SECRET so pingOneUserLookup can call the Management API', () => {
-    expect(authzServerEnvBlock()).toMatch(/PINGONE_WORKER_CLIENT_SECRET\s*:\s*fb\('PINGONE_WORKER_CLIENT_SECRET'\)/);
+    expect(authzServerEnvBlock()).toMatch(/PINGONE_WORKER_CLIENT_SECRET\s*:\s*workerSecret/);
   });
 });
