@@ -35,6 +35,7 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   const drawnSteps = (c) => c.querySelectorAll('g[role="button"]').length;
@@ -70,6 +71,46 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     rerender(<SequenceReelDiagram slowMode onToggleSlowMode={noop} />);
     act(() => vi.advanceTimersByTime(DEFAULT_MS * 3));
     expect(scrollIntoViewSpy).not.toHaveBeenCalled();
+  });
+
+  // jsdom does no layout, so every rect is 0x0 and the follow computes a zero
+  // delta — an unstubbed assertion here would pass whether or not the feature
+  // exists. Stub the two rects the effect reads so the delta is real.
+  const withLayout = ({ stepLeft, stepRight, viewLeft = 0, viewRight = 800 }) => {
+    // HTMLElement.prototype, not Element.prototype: jsdom leaves scrollTo
+    // undefined on Element but defines it on HTMLElement, so a stub on Element
+    // is shadowed for any <div> and silently never fires.
+    const scrollTo = vi.fn();
+    vi.spyOn(HTMLElement.prototype, "scrollTo").mockImplementation(scrollTo);
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function () {
+      const cls = String(this.getAttribute?.("class") || this.className?.baseVal || this.className || "");
+      if (cls.includes("srd-scroll"))
+        return { left: viewLeft, right: viewRight, width: viewRight - viewLeft, top: 0, bottom: 600, height: 600 };
+      if (this.getAttribute?.("role") === "button")
+        return { left: stepLeft, right: stepRight, width: stepRight - stepLeft, top: 0, bottom: 20, height: 20 };
+      return { left: 0, right: 0, width: 0, top: 0, bottom: 0, height: 0 };
+    });
+    return scrollTo;
+  };
+
+  it("scrolls right to keep the revealed step on screen in slow mode", () => {
+    const scrollTo = withLayout({ stepLeft: 1200, stepRight: 1400 });
+    const { rerender } = render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
+    rerender(<SequenceReelDiagram slowMode onToggleSlowMode={noop} />);
+    act(() => vi.advanceTimersByTime(DEFAULT_MS));
+
+    const horizontal = scrollTo.mock.calls.map(([a]) => a).filter((a) => a && "left" in a);
+    expect(horizontal.length).toBeGreaterThan(0);
+    // step.right 1400 past view.right 800, minus a 24px gutter.
+    expect(horizontal.at(-1).left).toBe(624);
+  });
+
+  it("never scrolls horizontally when slow mode is off", () => {
+    // This is what keeps a finished trace anchored at the first lane on open.
+    const scrollTo = withLayout({ stepLeft: 1200, stepRight: 1400 });
+    render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
+    act(() => vi.advanceTimersByTime(DEFAULT_MS * 3));
+    expect(scrollTo.mock.calls.map(([a]) => a).filter((a) => a && "left" in a)).toHaveLength(0);
   });
 
   it("keeps the toolbar mounted at zero revealed steps", () => {
