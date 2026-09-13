@@ -453,7 +453,7 @@ returns the exact same success shape as before. The full pre-existing
 timeout never fires against any mocked call in that surface, since all of
 them resolve well within 25000ms.
 
-### [ ] 2026-09-11 — HTTP transport drops the specialist's token-chain rows
+### [x] 2026-09-11 — HTTP transport drops the specialist's token-chain rows
 
 **What's wrong.** Ruling 14 (UC2's declared chain matching what is emitted)
 holds for the in-process path. On the HTTP transport,
@@ -469,6 +469,43 @@ exercises and its chain is complete.
 **Real fix.** Thread a real `tokenEvents` array through the HTTP request (e.g.
 off `req`) if the HTTP transport gets a real caller that needs the specialist's
 `a2a-agent2-actor` / `a2a-exchange2` / tool-dispatched rows.
+
+**RESOLVED 2026-09-13** (branch `worktree-agent-a44c24ee7bfe426eb`) — built
+**preemptively, per the repo owner's explicit choice**, with
+`A2A_PROTOCOL_HTTP` still off by default and nothing currently exercising
+this path in production.
+
+The `tokenEvents: []` the router already built per-request was already real
+and mutated in place by the specialist executor (Exchange #2, tool dispatch)
+— the actual gap was that nothing ever read it back out to the caller. Fixed
+by adding an `exposeTokenEvents` flag to the executor's `ctx` (set only by
+the HTTP router, never by the in-process path): `makeSpecialistExecutor`'s
+`reply` closure now folds `tokenEvents` into `publishReply`'s fields when
+that flag is set, and `publishReply` puts a redacted copy
+(`redactValue(tokenEvents)`, the same JWT-stripping pass `result` already
+goes through) into the JSON-RPC reply's `metadata.tokenEvents`.
+`a2aProtocolClient.js#finishHop` reads that field back out and merges it
+into the caller's own `tokenEvents` array (`tokenEvents.push(...)`) before
+this hop's own `a2a-protocol-message` row — the in-process path never sets
+`metadata.tokenEvents`, so the merge is an unconditional no-op there,
+confirmed unaffected by its own dedicated test.
+
+Tests: `demo_api_server/tests/a2aProtocolHttpTokenChain.test.js` — drives
+the REAL `@a2a-js/sdk` client and server over an actual loopback HTTP
+server (the exact path `A2A_PROTOCOL_HTTP=1` / `opts.baseUrl` selects), with
+only Exchange #2 and the tool call mocked (the same seam every other A2A
+test in this repo mocks at). Proves: the specialist's rows
+(`a2a-agent2-actor`, `a2a-exchange2`, `a2a-tool-dispatch`) reach the
+caller's array, not an empty one; two sequential HTTP requests each start
+fresh with no cross-request leakage; the in-process path (flag off) is
+byte-for-byte unaffected. Confirmed red first (2 of 3 tests fail against
+the pre-fix `git checkout`'d source — the third, proving the in-process
+path is untouched, correctly still passes since it doesn't depend on the
+fix), green after restoring the fix. Full pre-existing A2A test surface (9
+suites / 51 tests: `a2aCardSigning`, `a2aSpecialistRouterContext`,
+`agentTool.a2aGeneralistMismatch`, `a2aSpecialistExecutor`,
+`demoAgentLangGraph.pluginRoute`, `a2aProtocolCards`, `a2aExecution`,
+`a2aProtocolClient`) passes unchanged.
 
 ### [ ] 2026-09-11 — A lost or slow commit response can commit a sign-in the client was told had failed
 
