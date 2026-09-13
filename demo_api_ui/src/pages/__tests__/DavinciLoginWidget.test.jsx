@@ -20,6 +20,10 @@ vi.mock("../../lib/davinciWidgetClient", () => ({
 
 import { loadWidget, fetchWidgetConfig, postWidgetSession } from "../../lib/davinciWidgetClient";
 
+vi.mock("../../lib/davinciWidgetTrace", () => ({ installWidgetTrace: vi.fn() }));
+
+import { installWidgetTrace } from "../../lib/davinciWidgetTrace";
+
 const CONFIG = {
   accessToken: "sdk-tok-1",
   companyId: "co-1",
@@ -79,23 +83,51 @@ describe("DavinciLoginWidget rendering", () => {
     });
   });
 
-  test("successCallback hands the flow's tokens to the BFF, then loads the confirmation page", async () => {
+  test("successCallback posts the tokens, stays on the page and reports who signed in", async () => {
     const skRenderScreen = vi.fn();
     loadWidget.mockResolvedValue({ skRenderScreen });
-    postWidgetSession.mockResolvedValue({ ok: true });
+    postWidgetSession.mockResolvedValue({ ok: true, username: "demouser" });
+    const uninstall = vi.fn();
+    installWidgetTrace.mockReturnValue(uninstall);
+    const onSignedIn = vi.fn();
 
-    render(<DavinciLoginWidget />);
+    render(<DavinciLoginWidget onCall={vi.fn()} onSignedIn={onSignedIn} />);
     await waitFor(() => expect(skRenderScreen).toHaveBeenCalledTimes(1));
 
-    await skRenderScreen.mock.calls[0][1].successCallback({
-      id_token: "id-1",
-      access_token: "at-1",
-      sessionToken: "dv-session-1",
-    });
+    await skRenderScreen.mock.calls[0][1].successCallback({ id_token: "id-1", access_token: "at-1" });
 
     expect(postWidgetSession).toHaveBeenCalledWith({ idToken: "id-1", accessToken: "at-1" });
-    expect(assigned).toEqual(["/davinci-login/confirmed"]);
+    expect(onSignedIn).toHaveBeenCalledWith({ username: "demouser" });
+    expect(uninstall).toHaveBeenCalled();
+    expect(assigned).toEqual([]);
     expect(cookieWrites).toEqual([]);
+  });
+
+  test("installs the call trace before it fetches config, so /sdk-token and /start are recorded", async () => {
+    const order = [];
+    installWidgetTrace.mockImplementation(() => { order.push("trace"); return vi.fn(); });
+    fetchWidgetConfig.mockImplementation(async () => { order.push("config"); return CONFIG; });
+    loadWidget.mockResolvedValue({ skRenderScreen: vi.fn() });
+    const onCall = vi.fn();
+    const onStart = vi.fn();
+
+    render(<DavinciLoginWidget onCall={onCall} onStart={onStart} />);
+
+    await waitFor(() => expect(order).toEqual(["trace", "config"]));
+    expect(installWidgetTrace).toHaveBeenCalledWith(onCall);
+    expect(onStart).toHaveBeenCalledTimes(1);
+  });
+
+  test("removes the call trace when it unmounts", async () => {
+    const uninstall = vi.fn();
+    installWidgetTrace.mockReturnValue(uninstall);
+    loadWidget.mockResolvedValue({ skRenderScreen: vi.fn() });
+
+    const { unmount } = render(<DavinciLoginWidget onCall={vi.fn()} />);
+    await waitFor(() => expect(installWidgetTrace).toHaveBeenCalled());
+    unmount();
+
+    expect(uninstall).toHaveBeenCalled();
   });
 
   test("a sign-in the BFF rejects shows its reason and does not leave the page", async () => {

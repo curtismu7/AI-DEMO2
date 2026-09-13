@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWidgetConfig, loadWidget, postWidgetSession } from "../lib/davinciWidgetClient";
+import { installWidgetTrace } from "../lib/davinciWidgetTrace";
 import "./DavinciLoginPage.css";
 
 // The live DaVinci widget, embedded as the "Try It Live" section of
@@ -13,23 +14,35 @@ import "./DavinciLoginPage.css";
 //
 // The flow ends with the PingOne Authentication connector's "Return Success
 // Response (Widget Flows)", which hands OIDC tokens to successCallback. The page
-// posts them to the BFF, which verifies them and signs the user in, then loads
-// the confirmation page. There is no /authorize redirect: the PingOne session
-// cookie from the widget's cross-site calls never reaches one (see
-// routes/davinciLogin.js).
+// posts them to the BFF, which verifies them and signs the user in. The widget
+// stays on the page and reports the sign-in through onSignedIn; while it runs,
+// installWidgetTrace records each API call (addresses and status only) for the
+// lesson's Call Inspector.
 
-export default function DavinciLoginWidget() {
-  const [status, setStatus] = useState("loading"); // loading | flow | error
+export default function DavinciLoginWidget({ onCall, onStart, onSignedIn }) {
+  const [status, setStatus] = useState("loading"); // loading | flow | signedIn | error
   const [error, setError] = useState(null);
   const [flowVersion, setFlowVersion] = useState(null);
   const containerRef = useRef(null);
   // skRenderScreen mutates the container directly. StrictMode double-invokes
   // effects, so without this the flow renders twice into the same node.
   const renderedRef = useRef(false);
+  const uninstallTraceRef = useRef(null);
+
+  const stopTrace = useCallback(() => {
+    uninstallTraceRef.current?.();
+    uninstallTraceRef.current = null;
+  }, []);
+
+  useEffect(() => stopTrace, [stopTrace]);
 
   const start = useCallback(async () => {
     setStatus("loading");
     setError(null);
+    onStart?.();
+    // Installed before the config fetch so /sdk-token and /start are recorded.
+    stopTrace();
+    if (onCall) uninstallTraceRef.current = installWidgetTrace(onCall);
     try {
       const cfg = await fetchWidgetConfig();
       setFlowVersion(cfg.flowVersion || null);
@@ -48,28 +61,31 @@ export default function DavinciLoginWidget() {
         useModal: false,
         successCallback: async (response) => {
           try {
-            await postWidgetSession({
+            const result = await postWidgetSession({
               idToken: response?.id_token,
               accessToken: response?.access_token,
             });
-            // A full load, not a client-side navigation, so the app shell picks
-            // up the session this request just created.
-            window.location.assign("/davinci-login/confirmed");
+            stopTrace();
+            setStatus("signedIn");
+            onSignedIn?.({ username: result?.username || null });
           } catch (err) {
+            stopTrace();
             setError(err.message);
             setStatus("error");
           }
         },
         errorCallback: (err) => {
+          stopTrace();
           setError(err?.message || "The DaVinci flow could not be completed.");
           setStatus("error");
         },
       });
     } catch (err) {
+      stopTrace();
       setError(err.message);
       setStatus("error");
     }
-  }, []);
+  }, [onCall, onStart, onSignedIn, stopTrace]);
 
   useEffect(() => {
     if (renderedRef.current) return;

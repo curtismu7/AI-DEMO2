@@ -189,7 +189,7 @@ test('succeeds when the ID token echoes the issued nonce, and the nonce is singl
 
   const res = await agent.post('/api/davinci-login/callback').send(CALLBACK_BODY);
   expect(res.status).toBe(200);
-  expect(res.body).toEqual({ ok: true });
+  expect(res.body).toEqual({ ok: true, username: 'demouser' });
 
   // Replaying the identical callback must fail: the nonce was consumed.
   const replay = await agent.post('/api/davinci-login/callback').send(CALLBACK_BODY);
@@ -216,7 +216,7 @@ test('widget-session succeeds when the ID token echoes the armed nonce, and the 
 
   const res = await agent.post('/api/davinci-login/widget-session').send(WIDGET_BODY);
   expect(res.status).toBe(200);
-  expect(res.body).toEqual({ ok: true });
+  expect(res.body).toEqual({ ok: true, username: 'demouser' });
 
   // Replaying the same tokens must fail: the nonce was consumed.
   const replay = await agent.post('/api/davinci-login/widget-session').send(WIDGET_BODY);
