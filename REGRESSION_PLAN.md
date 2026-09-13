@@ -196,6 +196,72 @@ passed, 24 skipped) and `npm run build` (exit 0). The live fresh-browser check
 (Sign On → Welcome → Success → `/davinci-login/confirmed`) runs after merge: a
 worktree-served BFF boots seed data and would 404 `/api/auth/me`.
 
+### 2026-09-13 — UC32: a weather scope picked on /weather-mcp survives the Run it was picked for
+
+**Files changed:** `demo_api_ui/src/utils/weatherScopeHandoff.js` (new),
+`src/components/WeatherStateControl.jsx`, `src/pages/McpShowcasePage.jsx`,
+`src/components/AIAgent.js`. Tests: `src/utils/__tests__/weatherScopeHandoff.test.js`,
+`src/components/__tests__/WeatherStateControl.handoff.test.jsx`.
+
+**What was broken:** UC32 is "change the gateway's allowed weather scope, then
+watch the run respect it". `WeatherStateControl` resets
+`ff_weather_mcp_allowed_state` to `texas` when it unmounts, so a scope left on
+"Any" can't make UC31 permit later. But the page's own Run button unmounts it
+on the way to `/dashboard`, so that reset fired before the run: every UC32 run
+went out under the default scope, whatever the presenter picked.
+
+**What was fixed:** on a scope-kind showcase page, Run and the free-form ask
+mark the navigation in sessionStorage. The control's unmount consumes the
+marker and hands the reset to the dashboard instead of resetting on the way
+out; `AIAgent.js`'s resume effect restores `texas` in its `finally` once the
+handed-off run has finished.
+
+**Do not break:**
+- Leaving the page any other way still resets the scope on unmount. UC30/UC31
+  in the Demo Steps script assume the default: Austin permits, Miami denies.
+- The marker expires after 5s, so an unconsumed one can't suppress a later,
+  genuine reset.
+- The post-run restore is best-effort and swallows errors; `reset-demo`
+  remains the backstop.
+
+**Verify:** `cd demo_api_ui && node_modules/.bin/vitest run weatherScopeHandoff WeatherStateControl.handoff`.
+"hands the reset to the dashboard when leaving through Run" fails against the
+pre-fix `WeatherStateControl.jsx`.
+
+### 2026-09-13 — Sequence view: page-type Demo steps clear the last run; chat runs keep their live MCP result (#3239)
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`src/services/demoAgentService.js`. Tests:
+`src/services/__tests__/demoAgentService.mcpResultStream.test.js`,
+`src/services/__tests__/demoAgentService.liveResultSynthesis.test.js`,
+`src/components/__tests__/AIAgent.demoStepGate.test.jsx`.
+
+**What was broken:**
+- A page-type (link) Demo step navigated without clearing
+  `tokenChainTraceStore`, so the dashboard's sequence diagram kept drawing the
+  previous chat run under the new step.
+- The chat SSE path dropped `mcp-result` frames, so a chat run's MCP step never
+  carried the real result, request or timing. Forwarding them alone was not
+  enough: `ingestLegacyRunTrace`'s end-of-run synthesis replaced the stored
+  result with an empty one.
+
+**What was fixed:**
+- The link branch calls `tokenChainTraceStore.reset()` before it navigates.
+- The chat stream re-dispatches each `mcp-result` frame as
+  `mcp-tool-result-sse`, tagged with the run's `flowTraceId`.
+- `ingestLegacyRunTrace` fills in around a live result for the same run: on
+  success it keeps the result, request and timing; on failure it adds the
+  error without losing the request. The store lookup runs only when the
+  envelope names a tool.
+
+**Do not break:**
+- A stored result from a different `flowTraceId` is not treated as live; the
+  envelope replaces it.
+- A run with no tool call still completes the trace and the reply without
+  reading the store.
+
+**Verify:** `cd demo_api_ui && node_modules/.bin/vitest run demoAgentService.mcpResultStream demoAgentService.liveResultSynthesis AIAgent.demoStepGate`.
+
 ### 2026-09-12 — System Flow Map: split the merged approval-gate box into real MFA / Consent / CIBA boxes; per-band background tints
 
 **Files changed:** `demo_api_ui/src/components/SystemFlowMap.jsx`, `SystemFlowMap.css`,

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-
-const FLAG_ID = 'ff_weather_mcp_allowed_state';
-// The flag's registered default (routes/featureFlags.js). UC30/UC31 in the
-// Demo Steps script assume it: Austin permits, Miami denies.
-const DEFAULT_STATE = 'texas';
+import {
+  WEATHER_SCOPE_DEFAULT as DEFAULT_STATE,
+  WEATHER_SCOPE_FLAG_ID as FLAG_ID,
+  markRestoreAfterRun,
+  takeLeavingToRun,
+} from '../utils/weatherScopeHandoff';
 const OPTIONS = [
   { value: 'texas', label: 'Texas' },
   { value: 'michigan', label: 'Michigan' },
@@ -28,7 +29,14 @@ export default function WeatherStateControl() {
   const savedRef = useRef(null);
 
   useEffect(() => () => {
+    const leavingToRun = takeLeavingToRun();
     if (savedRef.current && savedRef.current !== DEFAULT_STATE) {
+      // Leaving through the page's own Run button: the changed scope is what that
+      // run is about, so the dashboard restores the default once it has finished.
+      if (leavingToRun) {
+        markRestoreAfterRun();
+        return;
+      }
       fetch('/api/admin/feature-flags', {
         method: 'PATCH',
         credentials: 'include',

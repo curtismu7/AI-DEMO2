@@ -128,13 +128,47 @@ export default function SecretRotationPage() {
       <InspectorShell
         title="Secret Rotation"
         left={(
-          <ul className="sr-app-list">
-            {apps.map((a) => (
-              <li key={a.id}>
-                <button type="button" onClick={() => selectApp(a)}>{a.name}</button>
-              </li>
-            ))}
-          </ul>
+          <div className="sr-app-table-wrap">
+            <table className="sr-app-table">
+              <thead>
+                <tr>
+                  <th scope="col" className="sr-app-table-select-col">
+                    <span className="sr-visually-hidden">Select</span>
+                  </th>
+                  <th scope="col">Application</th>
+                  <th scope="col">Auth method</th>
+                </tr>
+              </thead>
+              <tbody>
+                {apps.map((a) => {
+                  const isSelected = selected?.id === a.id;
+                  return (
+                    <tr
+                      key={a.id}
+                      className={isSelected ? 'sr-row-selected' : ''}
+                      onClick={() => selectApp(a)}
+                    >
+                      <td>
+                        <input
+                          type="radio"
+                          name="sr-app"
+                          aria-label={`Select ${a.name} to rotate`}
+                          checked={isSelected}
+                          onChange={() => selectApp(a)}
+                        />
+                      </td>
+                      <td>
+                        <button type="button" className="sr-row-name" onClick={() => selectApp(a)}>
+                          {a.name}
+                        </button>
+                      </td>
+                      <td className="sr-meta">{a.tokenEndpointAuthMethod}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
         middle={selected && (
           <div className="sr-detail">
