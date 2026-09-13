@@ -229,6 +229,8 @@ curl -sk https://api.ping.demo:3001/api/health/inventory/sizes   # per-container
 ./run-docker.sh optional start agents     # OpenAI / Mastra / Pydantic agents
 ./run-docker.sh optional start verticals  # MCP invest + mortgage services
 ./run-docker.sh optional start tracing    # Jaeger OTLP backend
+./run-docker.sh optional start observability  # Grafana + Prometheus + Loki + Alloy + Alertmanager (off by default)
+./run-docker.sh optional stop observability   # also restarts the BFF (~35s) if it was pushing to Loki
 ./run-docker.sh optional stop rag         # free ~600 MB+ when done with Code Search
 ./run-docker.sh optional start rag agents # multiple groups in one command
 ```
