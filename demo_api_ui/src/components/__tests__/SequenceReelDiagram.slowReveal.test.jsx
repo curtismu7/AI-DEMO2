@@ -189,6 +189,76 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
       expect([...bottom.querySelectorAll("button")].some((b) => b.textContent.trim() === label)).toBe(true);
   });
 
+  it("draws the lane cast again under the last row, and moves it down with the reveal", () => {
+    const { container, rerender } = render(
+      <SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />,
+    );
+    const labels = (sel) => [...container.querySelectorAll(sel)].map((t) => t.textContent);
+    expect(labels("text.srd-actor-label--footer")).toEqual(labels("text.srd-actor-label:not(.srd-actor-label--footer)"));
+    expect(container.querySelectorAll("rect.srd-actor-box--footer")).toHaveLength(3);
+
+    const footerY = () => Number(container.querySelector("rect.srd-actor-box--footer").getAttribute("y"));
+    const lowestRowY = () => {
+      let max = -Infinity;
+      for (const g of container.querySelectorAll('g[role="button"]')) {
+        for (const el of g.querySelectorAll("line, rect")) {
+          max = Math.max(max, Number(el.getAttribute("y1") ?? el.getAttribute("y")), Number(el.getAttribute("y2") ?? -Infinity));
+        }
+      }
+      return max;
+    };
+
+    rerender(<SequenceReelDiagram slowMode onToggleSlowMode={noop} />);
+    tick();
+    const first = footerY();
+    expect(first).toBeGreaterThan(lowestRowY());
+    tick();
+    expect(footerY()).toBeGreaterThan(first);
+    expect(footerY()).toBeGreaterThan(lowestRowY());
+  });
+
+  // A layout where the scroller is 600px tall with control rows pinned over its
+  // top 40px and bottom 40px. jsdom does no layout, so without stubs every rect
+  // is 0x0 and the follow never moves — the assertions would pass vacuously.
+  const withBand = ({ step, footer }) => {
+    const scrollTo = vi.fn();
+    vi.spyOn(HTMLElement.prototype, "scrollTo").mockImplementation(scrollTo);
+    const rect = (top, bottom) => ({ top, bottom, height: bottom - top, left: 0, right: 800, width: 800 });
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function () {
+      const cls = String(this.getAttribute?.("class") || "");
+      if (cls.includes("srd-toolbar--top")) return rect(0, 40);
+      if (cls.includes("srd-toolbar--bottom")) return rect(560, 600);
+      if (cls.includes("srd-actor-box--footer")) return rect(footer[0], footer[1]);
+      if (cls.split(" ").includes("srd-root")) return rect(0, 600);
+      if (this.getAttribute?.("role") === "button") return rect(step[0], step[1]);
+      return rect(0, 0);
+    });
+    return () => scrollTo.mock.calls.map(([a]) => a).filter((a) => a && "top" in a);
+  };
+
+  it("brings the newest step and the footer out from under the pinned bottom row", () => {
+    // Step bottom 520 and footer bottom 580 are both inside the scroller (600),
+    // but the bottom row covers 560-600: measuring against the scroller alone
+    // left the footer under the row and never scrolled.
+    const verticalCalls = withBand({ step: [500, 520], footer: [530, 580] });
+    render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
+    expect(verticalCalls().at(-1)?.top).toBe(20);
+  });
+
+  it("does not chase the footer past a mid-trace active step", () => {
+    // The footer is far below a mid-trace step; scrolling to it would push the
+    // step the viewer is following out of view.
+    const prior = STEPS[0].status;
+    STEPS[0].status = "active";
+    try {
+      const verticalCalls = withBand({ step: [100, 120], footer: [530, 580] });
+      render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
+      expect(verticalCalls()).toHaveLength(0);
+    } finally {
+      STEPS[0].status = prior;
+    }
+  });
+
   it("keeps the toolbar mounted at zero revealed steps", () => {
     // Otherwise the rewind swaps the whole diagram for the empty-state
     // placeholder and takes the button to turn slow mode back off with it.
@@ -211,7 +281,7 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
 
     rerender(<SequenceReelDiagram slowMode onToggleSlowMode={noop} />);
     const widthAt = () => container.querySelector("svg").getAttribute("viewBox").split(" ")[2];
-    const lanesAt = () => container.querySelectorAll("rect.srd-actor-box").length;
+    const lanesAt = () => container.querySelectorAll("rect.srd-actor-box:not(.srd-actor-box--footer)").length;
 
     expect(widthAt()).toBe(full);
     expect(lanesAt()).toBe(3);
