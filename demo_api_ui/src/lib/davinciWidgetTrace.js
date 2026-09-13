@@ -32,7 +32,7 @@ export function installWidgetTrace(onCall, target = window) {
     const response = await original.call(this, input, init);
     let url = null;
     try {
-      url = new URL(typeof input === "string" ? input : input?.url, target.location?.origin);
+      url = new URL(String(input?.url ?? input), target.location?.origin);
     } catch {
       return response;
     }

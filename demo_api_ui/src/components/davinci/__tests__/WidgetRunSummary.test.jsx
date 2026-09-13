@@ -34,6 +34,15 @@ describe("WidgetRunSummary", () => {
     expect(container.querySelector(".lesson-warn").textContent).toContain("no tokens");
   });
 
+  it("warns when the run included an /as/authorize call", () => {
+    const withAuthorize = [...RUN, call("/as/authorize")];
+    const { container } = render(<WidgetRunSummary calls={withAuthorize} />);
+    const authorizeStatus = [...container.querySelectorAll(".lesson-warn")].find((el) =>
+      el.textContent.includes("without an /authorize redirect"),
+    );
+    expect(authorizeStatus).toBeTruthy();
+  });
+
   it("links into the lesson sections through onNavigate", () => {
     const onNavigate = vi.fn();
     const { getByText } = render(<WidgetRunSummary calls={RUN} onNavigate={onNavigate} />);

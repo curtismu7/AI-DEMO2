@@ -15,9 +15,9 @@ import "./DavinciLoginPage.css";
 // The flow ends with the PingOne Authentication connector's "Return Success
 // Response (Widget Flows)", which hands OIDC tokens to successCallback. The page
 // posts them to the BFF, which verifies them and signs the user in. The widget
-// stays on the page and reports the sign-in through onSignedIn; while it runs,
-// installWidgetTrace records each API call (addresses and status only) for the
-// lesson's Call Inspector.
+// stays on the page and reports the sign-in through onSignedIn; installWidgetTrace
+// records each API call (addresses and status only) for the lesson's Call
+// Inspector while a run is in flight.
 
 export default function DavinciLoginWidget({ onCall, onStart, onSignedIn }) {
   const [status, setStatus] = useState("loading"); // loading | flow | signedIn | error
@@ -27,22 +27,23 @@ export default function DavinciLoginWidget({ onCall, onStart, onSignedIn }) {
   // skRenderScreen mutates the container directly. StrictMode double-invokes
   // effects, so without this the flow renders twice into the same node.
   const renderedRef = useRef(false);
-  const uninstallTraceRef = useRef(null);
+  // Gates which calls installWidgetTrace forwards to onCall. The trace itself
+  // is installed once per onCall identity below, independent of start()'s own
+  // lifecycle, so StrictMode's mount/uninstall/remount (which happens before
+  // start()'s first await resolves) cannot leave it uninstalled for the rest
+  // of the run.
+  const recordingRef = useRef(false);
 
-  const stopTrace = useCallback(() => {
-    uninstallTraceRef.current?.();
-    uninstallTraceRef.current = null;
-  }, []);
-
-  useEffect(() => stopTrace, [stopTrace]);
+  useEffect(
+    () => (onCall ? installWidgetTrace((call) => { if (recordingRef.current) onCall(call); }) : undefined),
+    [onCall],
+  );
 
   const start = useCallback(async () => {
     setStatus("loading");
     setError(null);
     onStart?.();
-    // Installed before the config fetch so /sdk-token and /start are recorded.
-    stopTrace();
-    if (onCall) uninstallTraceRef.current = installWidgetTrace(onCall);
+    recordingRef.current = true;
     try {
       const cfg = await fetchWidgetConfig();
       setFlowVersion(cfg.flowVersion || null);
@@ -65,27 +66,31 @@ export default function DavinciLoginWidget({ onCall, onStart, onSignedIn }) {
               idToken: response?.id_token,
               accessToken: response?.access_token,
             });
-            stopTrace();
+            recordingRef.current = false;
+            // One-shot signal the app shell listens for (useAuth.js) so TopNav
+            // and route guards flip to signed-in. Dispatch only here, never
+            // from a listener (that loops — see AIAgent.js:2301).
+            window.dispatchEvent(new CustomEvent("userAuthenticated"));
             setStatus("signedIn");
             onSignedIn?.({ username: result?.username || null });
           } catch (err) {
-            stopTrace();
+            recordingRef.current = false;
             setError(err.message);
             setStatus("error");
           }
         },
         errorCallback: (err) => {
-          stopTrace();
+          recordingRef.current = false;
           setError(err?.message || "The DaVinci flow could not be completed.");
           setStatus("error");
         },
       });
     } catch (err) {
-      stopTrace();
+      recordingRef.current = false;
       setError(err.message);
       setStatus("error");
     }
-  }, [onCall, onStart, onSignedIn, stopTrace]);
+  }, [onStart, onSignedIn]);
 
   useEffect(() => {
     if (renderedRef.current) return;

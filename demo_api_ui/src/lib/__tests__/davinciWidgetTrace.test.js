@@ -82,6 +82,19 @@ describe("installWidgetTrace", () => {
     expect(onCall).not.toHaveBeenCalled();
   });
 
+  it("records a call made with a URL object input, not just a string", async () => {
+    const { target } = fakeWindow([json({ ok: true })]);
+    const onCall = vi.fn();
+    installWidgetTrace(onCall, target);
+
+    await target.fetch(new URL("https://auth.pingone.com/env-1/davinci/policy/pol-1/start"));
+    await tick();
+
+    expect(onCall).toHaveBeenCalledWith(
+      expect.objectContaining({ host: "auth.pingone.com", path: "/env-1/davinci/policy/pol-1/start" }),
+    );
+  });
+
   it("records the page's own BFF calls, and restores fetch on uninstall", async () => {
     const { target } = fakeWindow([json({ ok: true })]);
     const original = target.fetch;

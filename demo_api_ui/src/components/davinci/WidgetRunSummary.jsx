@@ -46,7 +46,9 @@ export default function WidgetRunSummary({ username = null, calls = [], onNaviga
       <OnThisRun>
         <ul className="lesson-list">
           <li>
-            <Status ok>Signed in without an /authorize redirect: this page never navigated</Status>
+            <Status ok={run.authorizeCalls === 0}>
+              Signed in without an /authorize redirect: this page never navigated
+            </Status>
           </li>
           <li>
             The flow started{run.started ? "" : " (start call not captured)"}, then {run.capabilityPosts} screen
