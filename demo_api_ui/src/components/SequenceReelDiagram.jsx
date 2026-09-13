@@ -64,6 +64,16 @@ const SLOW_SPEED_OPTIONS = [
   { value: 6000, label: "6s (slow)" },
 ];
 
+// A step only earns a row once it has actually happened. buildTraceSteps
+// returns the whole pipeline for every trace: steps with no evidence yet come
+// back "pending", and ones outside this run's path "notinpath" or "skipped".
+// This diagram has no styling for either, so drawing them showed a complete
+// flow on page load and made each new run look identical to the last.
+const HAPPENED = new Set(["done", "active", "error", "waiting"]);
+// Rows that exist before any run: the browser step is unconditionally done and
+// beginTrace carries sign-in across runs. Neither means a run has started.
+const SESSION_STEP_IDS = new Set(["website", "signin"]);
+
 function laneClass(lane) {
   return `srd-lane-${String(lane || "").toLowerCase()}`;
 }
@@ -81,49 +91,70 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
 
   const [slowRevealMs, setSlowRevealMs] = useState(SLOW_REVEAL_MS);
 
-  const allLifelineSteps = useMemo(() => deriveLifelineSteps(snap.steps), [snap.steps]);
+  const allLifelineSteps = useMemo(() => {
+    const happened = (snap.steps || []).filter((step) => HAPPENED.has(step.status));
+    if (!happened.some((step) => !SESSION_STEP_IDS.has(step.id))) return [];
+    return deriveLifelineSteps(happened);
+  }, [snap.steps]);
+  const runId = snap.trace?.runId ?? null;
+  const traceFinished = snap.trace?.outcome === "ok" || snap.trace?.outcome === "error";
 
   // Slow mode: reveal one step at a time on a timer instead of the full set
   // arriving instantly. Real steps keep arriving at full speed underneath —
   // this only paces what's drawn.
   const [revealedCount, setRevealedCount] = useState(allLifelineSteps.length);
   const [playing, setPlaying] = useState(false);
+  // A narration is something the presenter started. Slow mode alone is not
+  // one: it is restored from localStorage, so it is already on at page load.
+  const [narrating, setNarrating] = useState(false);
   const totalSteps = allLifelineSteps.length;
 
-  // Off: everything is visible as it arrives.
+  // Not narrating: everything that has happened is visible as it arrives.
   useEffect(() => {
-    if (!slowMode) setRevealedCount(allLifelineSteps.length);
-  }, [slowMode, allLifelineSteps.length]);
+    if (!slowMode || !narrating) setRevealedCount(totalSteps);
+  }, [slowMode, narrating, totalSteps]);
 
-  // Switching it on rewinds to the first step and starts playing. Keyed on the
-  // toggle alone, so a step arriving mid-narration extends the reveal instead of
-  // restarting it. Without the rewind, turning slow mode on after a run has
-  // finished leaves the counter at the end and the timer below never arms — the
-  // whole reveal silently no-ops, which is the state a presenter actually hits.
+  // Start a narration on an observed change only — slow mode being switched on,
+  // or a new run beginning while it is on — never merely on mount, which
+  // replayed the last trace every time the page loaded. Compared against the
+  // previous value rather than a "skip the first run" ref: StrictMode
+  // double-invokes effects and silently defeats those.
+  const prevSlowRef = useRef(slowMode);
+  const prevRunRef = useRef(runId);
   useEffect(() => {
-    if (slowMode) {
+    const turnedOn = slowMode && !prevSlowRef.current;
+    const newRun = slowMode && runId != null && runId !== prevRunRef.current;
+    prevSlowRef.current = slowMode;
+    prevRunRef.current = runId;
+    if (!slowMode) {
+      setNarrating(false);
+      return;
+    }
+    if (turnedOn || newRun) {
+      setNarrating(true);
       setRevealedCount(0);
       setPlaying(true);
     }
-  }, [slowMode]);
+  }, [slowMode, runId]);
 
   // The timer only runs while playing, so Pause, Prev and Next all hold the
-  // reveal where the presenter put it.
+  // reveal where the presenter put it. It re-arms when a live run adds steps.
   useEffect(() => {
     if (!slowMode || !playing || revealedCount >= totalSteps) return;
     const timer = setTimeout(() => setRevealedCount((prev) => prev + 1), slowRevealMs);
     return () => clearTimeout(timer);
   }, [slowMode, playing, revealedCount, totalSteps, slowRevealMs]);
 
-  // Halt at the end rather than run on. Steps can still be arriving from a live
-  // run, and without this the reveal would quietly pick them up and keep moving
-  // after the presenter thought it had finished; they press Play to go again.
+  // Halt at the end of a FINISHED run. Catching up with a run that is still
+  // going is not the end: the pace outruns the server, and halting there would
+  // stop the narration mid-flow until the presenter pressed Play.
   useEffect(() => {
-    if (slowMode && playing && totalSteps > 0 && revealedCount >= totalSteps) setPlaying(false);
-  }, [slowMode, playing, revealedCount, totalSteps]);
+    if (slowMode && playing && traceFinished && totalSteps > 0 && revealedCount >= totalSteps) setPlaying(false);
+  }, [slowMode, playing, traceFinished, revealedCount, totalSteps]);
 
   const goToStep = useCallback(
     (n) => {
+      setNarrating(true);
       setPlaying(false);
       setRevealedCount(Math.max(0, Math.min(totalSteps, n)));
     },
@@ -131,16 +162,17 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
   );
 
   const togglePlay = useCallback(() => {
-    // Play at the end means "run it again", not "resume off the end".
-    if (revealedCount >= totalSteps) {
+    setNarrating(true);
+    // At the end with nothing playing, Play means "run it again".
+    if (revealedCount >= totalSteps && !playing) {
       setRevealedCount(0);
       setPlaying(true);
       return;
     }
     setPlaying((p) => !p);
-  }, [revealedCount, totalSteps]);
+  }, [revealedCount, totalSteps, playing]);
 
-  const lifelineSteps = slowMode ? allLifelineSteps.slice(0, revealedCount) : allLifelineSteps;
+  const lifelineSteps = slowMode && narrating ? allLifelineSteps.slice(0, revealedCount) : allLifelineSteps;
   // Cast comes from the whole trace, not the revealed slice: deriving it from
   // the slice re-flows every column each time a step introduces a new lane, so
   // the reveal jitters sideways instead of drawing one arrow into a fixed set
@@ -299,14 +331,14 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
             className="srd-step-btn srd-step-btn--play"
             onClick={togglePlay}
             title={
-              revealedCount >= totalSteps
+              revealedCount >= totalSteps && !playing
                 ? "Replay from the first step"
                 : playing
                   ? "Pause the reveal"
                   : "Resume the reveal"
             }
           >
-            {revealedCount >= totalSteps ? "Replay" : playing ? "Pause" : "Play"}
+            {revealedCount >= totalSteps && !playing ? "Replay" : playing ? "Pause" : "Play"}
           </button>
           <button
             type="button"
