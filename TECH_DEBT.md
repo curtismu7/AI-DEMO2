@@ -321,7 +321,7 @@ token at all; there is no config flag to flip.
 token-issuing leg to PingFederate / Advanced Identity Cloud, which can bind a
 `cnf` via DPoP or mTLS today.
 
-### [ ] 2026-09-11 — Agent Card signing key is process-ephemeral
+### [x] 2026-09-11 — Agent Card signing key is process-ephemeral
 
 **What's wrong.** `services/a2aCardSigningService.js#getCardSigningKey`
 generates a fresh Ed25519 keypair on first use and holds it only in memory —
@@ -334,6 +334,48 @@ the current key.
 
 **Real fix.** Persist the key (env secret or a keystore) once a third party is
 expected to cache our Agent Cards or verify them after this process restarts.
+
+**RESOLVED 2026-09-13** (branch `worktree-agent-ad0a7e89503f35d06`) — built
+**preemptively, per the repo owner's explicit choice** after being told
+plainly that nothing outside this process caches a card or `jku` yet; this is
+not a response to a new caller showing up.
+
+Added `ensureCardSigningKeyPersisted(opts)` to `a2aCardSigningService.js`,
+called once at boot in `server.js` in the same `VAULT_PASSWORD`-still-available
+window as the pre-existing Helix key migration (that env var is deliberately
+wiped right after the normal startup vault load, so `getCardSigningKey()`
+itself can never reopen the vault at request time). It reads a PKCS#8 PEM from
+the vault under the key `A2A_CARD_SIGNING_PRIVATE_KEY` if one exists; if not,
+generates a fresh Ed25519 keypair exactly as the old fallback always did,
+persists it, then bridges the PEM into
+`process.env.A2A_CARD_SIGNING_PRIVATE_KEY` — the same vault-to-env-bridge
+convention `INTENT_TOKEN_SECRET`/`BFF_INTERNAL_SECRET` already use.
+`getCardSigningKey()` now derives its key from that env var when present,
+falling back to the original ephemeral generation when it's absent (no vault
+configured, or the boot step failed — always non-fatal, startup and card
+signing never block on it).
+
+**Accepted, pre-existing-class limitation, not solved here:** two processes
+racing this on a genuinely empty vault on first boot can each generate a
+different key; the vault's own lost-update guard on `save()` rejects the
+second writer, which this catches and logs non-fatally — that process just
+keeps its own unpersisted key for its own lifetime. Same class of race this
+repo already accepts for every other vault-backed secret it generates rather
+than requires an operator to set.
+
+Tests: `demo_api_server/tests/a2aCardSigningPersistence.test.js` against a
+fake `vaultLib` (the function's own DI seam) — first-boot generate+persist;
+an existing vault entry is read, never regenerated; the SAME key survives
+across a simulated restart (`_resetCardSigningKey()` + clearing the env
+bridge, then re-running the boot step against the same fake vault store); a
+vault error degrades non-fatally with `getCardSigningKey()` still resolving a
+usable key, and the logged warning never contains PEM material; the
+vault-sourced key's public JWK shape (`kty: 'OKP', crv: 'Ed25519'`) matches
+what the JWKS endpoint already serves. Confirmed red first (all 7 failed with
+`_resetCardSigningKey is not a function` against the pre-change file via
+`git stash`), green after restoring the fix. The pre-existing
+`tests/a2aCardSigning.test.js` (JWKS shape, card signing/verification, jku
+pinning) passes unchanged — 2 suites / 15 tests total.
 
 ### [ ] 2026-09-11 — `POST /a2a/specialists/:vertical` now requires a delegated token
 
@@ -351,7 +393,7 @@ the Exchange #1 delegated token.
 the requirement in the Agent Card's security scheme description if that
 happens.
 
-### [ ] 2026-09-11 — `bffMcpToolExecutor` sets no timeout of its own
+### [x] 2026-09-11 — `bffMcpToolExecutor` sets no timeout of its own
 
 **What's wrong.** `services/bffMcpToolExecutor.js`'s tool call has no timeout
 of its own, so the only ceiling above it is whatever the caller imposes.
@@ -365,6 +407,51 @@ found it; no reported hang today.
 
 **Real fix.** Give `bffMcpToolExecutor` its own timeout so callers don't have
 to derive their ceiling from an assumption about an unbounded leg.
+
+**RESOLVED 2026-09-13** (branch `worktree-agent-aef8cc1a91049b771`) — exactly
+the fix guessed above, applied to all five of the file's tool-call legs:
+`callMcpToolAsAgent`'s `callMcpToolInternal(...)` call, the no-pipeline
+`tool.invoke(...)` fallback in `executeBffTool`, and the `runMcpToolPipeline(ctx)`
+call in each of `executeBffTool`, `runPipelineForSim`, and
+`executeBffToolWithToken` (the A2A specialist path `a2aProtocolClient.js`
+actually budgets around). Added a local `withTimeout(operation, timeoutMs,
+label)` helper (same `Promise.race` shape as `a2aProtocolClient.js`'s own
+`withTimeout` — no shared util was extracted, since the two files' versions
+already differ slightly and this one didn't need the injectable-timers
+parameter `a2aDelegationService.js`'s copy has) and a `DEFAULT_TOOL_CALL_TIMEOUT_MS
+= 25000` constant.
+
+**Why 25000ms.** `a2aProtocolClient.js`'s `DEFAULT_HANDOFF_TIMEOUT_MS` (90150ms)
+budgets the specialist's Exchange #2 (2 attempts x 30000ms + 150ms retry delay
+= 60150ms) plus one more `DEFAULT_EXCHANGE_TIMEOUT_MS` (30000ms) as the margin
+for "the tool call" that follows — this file. That assumption only holds if
+this call actually returns inside 30000ms, which nothing enforced before this
+fix. 25000ms sits comfortably under that 30000ms margin (5s of headroom for
+the RFC 8693 exchange and BFF-preflight PingOne Authorize work this file does
+around the wire leg), without cutting a healthy call tighter than the wire leg
+it wraps already is one layer down (`mcpGatewayClient`'s
+`MCP_GATEWAY_TIMEOUT_MS`, default 30000ms; the WebSocket path's own ~15s
+per-call timeout).
+
+**How it was verified to actually bound a hang, not just race a timer.**
+`demo_api_server/tests/bffMcpToolExecutor.timeout.test.js` mocks
+`runMcpToolPipeline` to return a promise that never settles
+(`new Promise(() => {})`), drives it with `jest.useFakeTimers()` +
+`jest.advanceTimersByTimeAsync(25001)`, and asserts the call rejects with an
+error naming both the tool and the timeout value
+(`/"get_my_accounts" timed out \(25000ms\)/`) instead of hanging. Confirmed
+red first: run against the pre-fix file (temporarily reverted via
+`git checkout --`), the same test failed by exceeding **jest's own 30000ms
+test timeout** — proof the call was genuinely unbounded, not merely slow.
+Restoring the fix turned it green in 1.3s. A second test in the same file
+pins the regression guard: a pipeline call that resolves normally still
+returns the exact same success shape as before. The full pre-existing
+`bffMcpToolExecutor`-adjacent surface (38 suites / 471 tests, including
+`tests/bffMcpToolExecutor.runRegistry.test.js`,
+`src/__tests__/bffMcpToolExecutor.runPipelineForSim.test.js`, and
+`src/__tests__/a2aProtocolClient.test.js`) still passes unchanged — the new
+timeout never fires against any mocked call in that surface, since all of
+them resolve well within 25000ms.
 
 ### [x] 2026-09-11 — HTTP transport drops the specialist's token-chain rows
 

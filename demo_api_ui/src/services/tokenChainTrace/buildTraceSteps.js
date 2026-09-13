@@ -1573,6 +1573,23 @@ export function buildTraceSteps(trace) {
   const mcpErrored = !!(mcpResult && mcpResult.status === "error");
   const mcpDone = !mcpErrored && (hasPhase(phases, "mcp_remote_done") || !!(mcpResult && mcpResult.result));
   const mcpBegun = hasPhase(phases, "mcp_remote_begin");
+  // mcpToolPipeline ends a failed call on one of these phases and returns
+  // WITHOUT publishing an mcpResult, so neither mcpDone (wants mcp_remote_done
+  // or a result) nor mcpErrored (wants mcpResult.status) can ever become true.
+  // mcpBegun then won the chain below and the hop claimed the tool was still
+  // executing for the rest of the session — observed as "MCP server — tool
+  // executes" still spinning on a finished run.
+  //
+  // Deliberately excludes mcp_remote_unreachable: that one is emitted BEFORE the
+  // local fallback, which on success publishes a result and legitimately ends
+  // "done". Only phases the pipeline actually returns on belong here.
+  const MCP_TERMINAL_ERROR_PHASES = [
+    "mcp_remote_tool_error",
+    "gateway_unreachable_no_fallback",
+    "local_tool_error",
+    "local_fallback_blocked_no_user",
+  ];
+  const mcpFailedTerminal = MCP_TERMINAL_ERROR_PHASES.some((p) => hasPhase(phases, p));
   // A pause is not a failure: the 428 the approval gate raises arrives as
   // `mcpResult.status: 'error'` (transport-derived, `denied` false), which
   // painted this step red on every UC7/UC8 run. It stays "active" — the call is
@@ -1583,7 +1600,10 @@ export function buildTraceSteps(trace) {
     authorizeFailed ? "notinpath" : mcpDone ? "done" : mcpPausedGate ? "active"
       // Refused gate: the tool never ran and never will — not a spinner, and
       // not an error either. It was simply never in this run's path.
-      : mcpGate ? "notinpath" : (gwDenied || mcpErrored) ? "error" : mcpBegun ? "active" : traceComplete ? "notinpath" : "pending",
+      // mcpFailedTerminal sits with the other failures, AFTER the gate checks: a
+      // paused gate is not a failure, and must keep reading "active" while it
+      // waits on the human.
+      : mcpGate ? "notinpath" : (gwDenied || mcpErrored || mcpFailedTerminal) ? "error" : mcpBegun ? "active" : traceComplete ? "notinpath" : "pending",
     mcpResult ? {
       why: mcpGate
         ? (mcpGate.declined

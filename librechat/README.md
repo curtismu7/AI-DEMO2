@@ -72,6 +72,16 @@ below.
    Every click is a real OpenAI call billed to the Privilege virtual key, and
    Money Movement changes the demo balances.
 
+   Three ways users find the prompts:
+   - **Demos menu** — the model selector lists every agent grouped by area
+     (`modelSpecs` in `librechat.yaml`); picking one opens it on a new chat
+     with its starters. The specs hold agent ids from this machine's Mongo
+     volume: after a fresh volume, copy the ids the seed prints into that list.
+   - **Prompts library** — type `/` in any chat (new or existing) to search
+     every starter, named `<agent> · <prompt>` and grouped by category. It
+     fills the message box; pick the named agent first.
+   - **Agent description** — each agent's description ends with its prompts.
+
    It also creates Super Sports Policy Guardrails (on `super-sports-gateway`)
    and three OpenSearch agents — OpenSearch · Direct, OpenSearch · via
    Privilege, OpenSearch · Privilege opensearch22 — with the same three

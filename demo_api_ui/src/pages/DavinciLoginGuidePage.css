@@ -6,21 +6,51 @@
 
 .dvl-live {
   display: grid;
-  grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
+  grid-template-columns: minmax(300px, 440px) minmax(0, 1fr);
   gap: 1.5rem;
   align-items: start;
   margin-top: 1rem;
 }
 
-/* Sticky below the app's sticky TopNav, not under it. */
+/* The widget card: the thing this page is about, so it stands apart from the
+   lesson around it, matching DavinciSdkLoginPage.css's flow card. It sits on
+   the emphasis surface with that surface's ink, runs larger than the Call
+   Inspector cards, and carries the large elevation.
+   Sticky below the app's sticky TopNav, not under it. */
 .dvl-live-app {
   position: sticky;
   top: calc(var(--topnav-height, 60px) + 1rem);
-  padding: 1.25rem;
+  padding: 1.75rem;
+  color: var(--th-text-on-emphasis);
+  background: var(--th-bg-emphasis);
+  border: 1px solid var(--th-bg-emphasis);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Text with no ground of its own takes the card's ink. DavinciLoginPage.css
+   gives these --th-text / --th-text-muted for the other pages that share it,
+   so the override is scoped to this card. .dvl-error keeps its own ground. */
+.dvl-live-app .dvl-page,
+.dvl-live-app .dvl-status,
+.dvl-live-app .dvl-version {
+  color: inherit;
+}
+
+/* DaVinci draws its own HTML here (its end-user-nano styles), so it gets a
+   card panel and keeps its normal ground instead of the emphasis surface. */
+.dvl-live-app .dvl-widget {
   color: var(--th-text);
   background: var(--th-bg-card);
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+/* .dvl-retry already sits on the card surface, so it inverts against the
+   emphasis ground; its focus ring takes the card's ink. */
+.dvl-live-app .dvl-retry:focus-visible {
+  outline: 2px solid var(--th-text-on-emphasis);
+  outline-offset: 2px;
 }
 
 .dvl-live-calls h3 {
@@ -32,8 +62,8 @@
 .dvl-signed-in {
   margin-top: 1rem;
   padding-top: 1rem;
-  color: var(--th-text-body);
-  border-top: 1px solid var(--th-border);
+  color: inherit;
+  border-top: 1px solid var(--th-text-on-emphasis);
 }
 
 .dvl-calls {

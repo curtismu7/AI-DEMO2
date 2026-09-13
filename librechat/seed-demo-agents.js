@@ -1,16 +1,19 @@
 #!/usr/bin/env node
 // Creates (or updates, by name) the LibreChat demo agents in AGENTS and makes
 // each one public, so every LibreChat account sees them with clickable starter
-// prompts on the new-chat screen.
+// prompts on the new-chat screen. Each starter also becomes a public Prompts
+// library entry (type / in any chat), and each agent's description lists them.
 //
 //   node librechat/seed-demo-agents.js
 //
-// Needs the librechat/ stack up and `interface.agents.public: true` in
-// librechat.yaml (a regular account may not publish otherwise).
+// Needs the librechat/ stack up and `interface.agents.public` and
+// `interface.prompts.public` true in librechat.yaml (a regular account may not
+// publish otherwise).
 //
-// Why agents and not modelSpecs: a spec can only attach a whole MCP server,
-// and aidemo-mcp exposes 242 tools — OpenAI rejects more than 128 per request
-// (400 array_above_max_length, measured 2026-09-13 through the Privilege lane).
+// Why agents and not modelSpecs with mcpServers: a spec can only attach a whole
+// MCP server, and aidemo-mcp exposes 242 tools — OpenAI rejects more than 128
+// per request (400 array_above_max_length, measured 2026-09-13 through the
+// Privilege lane). librechat.yaml's modelSpecs only point at these agents.
 'use strict';
 
 const LC = process.env.LIBRECHAT_URL || 'http://localhost:3080';
@@ -28,6 +31,14 @@ const MODEL = 'gpt-4o-mini';
 const SERVER = 'aidemo-mcp';
 const ACCOUNT_IDS = 'Call get_my_accounts first to find account IDs; the other account tools take IDs, not account numbers.';
 const SS_IDS = 'Rental IDs are 3001-3006 and order IDs 2001-2006; pass IDs as strings.';
+// With no tools loaded (e.g. an expired door sign-in) a bare "quote any denial"
+// rule made gpt-4o-mini invent "You have been denied by Policy" (4/4 replays).
+const POLICY_RULE = 'Always call the tool the user asks for, even if you expect a refusal. If a tool result says "You have been denied by Policy", quote that text word for word. Never say you were denied by policy unless a tool result in this conversation says so. If none of your tools fits the request, say you have no tool for it.';
+// Prompts library category; matches the modelSpecs groups in librechat.yaml.
+const category = (name) => (name.includes('Policy Guardrails') ? 'Policy Guardrails'
+  : ['OpenSearch', 'Super Sports', 'CareConnect'].find((c) => name.startsWith(c)) || 'Banking');
+// Prompt commands allow only [a-z0-9-], at most 56 characters.
+const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 const AGENTS = [
   {
@@ -126,7 +137,7 @@ const AGENTS = [
     name: 'Super Sports Policy Guardrails',
     server: 'super-sports-gateway',
     description: 'Super Sports through the Agent Gateway: reads are permitted, risky calls are denied by policy.',
-    instructions: `You are the Super Sports demo assistant. ${SS_IDS} Always call the tool the user asks for, even if you expect a refusal, and quote any "You have been denied by Policy" text word for word.`,
+    instructions: `You are the Super Sports demo assistant. ${SS_IDS} ${POLICY_RULE}`,
     tools: ['list_rentals', 'loyalty_balance', 'extend_rental', 'sensitive_membership_details'],
     conversation_starters: [
       'Show my active equipment rentals',
@@ -173,7 +184,7 @@ const AGENTS = [
     name: 'Banking Policy Guardrails',
     server: 'super-sports-gateway',
     description: 'Banking through the Agent Gateway: reads are permitted, transfers are denied by policy.',
-    instructions: `You are a banking demo assistant. ${ACCOUNT_IDS} Always call the tool the user asks for, even if you expect a refusal, and quote any "You have been denied by Policy" text word for word.`,
+    instructions: `You are a banking demo assistant. ${ACCOUNT_IDS} ${POLICY_RULE}`,
     tools: ['get_my_accounts', 'get_my_transactions', 'create_transfer'],
     conversation_starters: [
       'Show my accounts',
@@ -221,7 +232,7 @@ const AGENTS = [
     name: 'CareConnect Policy Guardrails',
     server: 'super-sports-gateway',
     description: 'CareConnect through the Agent Gateway: reads are permitted, record releases are denied by policy.',
-    instructions: 'You are a CareConnect demo assistant. Always call the tool the user asks for, even if you expect a refusal, and quote any "You have been denied by Policy" text word for word.',
+    instructions: `You are a CareConnect demo assistant. ${POLICY_RULE}`,
     tools: ['list_appointments', 'view_medications', 'release_records', 'sensitive_patient_records'],
     conversation_starters: [
       'When is my next appointment?',
@@ -270,7 +281,7 @@ async function main() {
     const server = def.server || SERVER;
     const body = {
       name: def.name,
-      description: def.description,
+      description: `${def.description} Try: ${def.conversation_starters.map((s) => `"${s}"`).join(' · ')}`,
       instructions: def.instructions,
       provider: PROVIDER,
       model: MODEL,
@@ -300,7 +311,60 @@ async function main() {
     }
     console.log(`ok   ${def.name} (${agentId}) ${id ? 'updated' : 'created'}, public`);
   }
+  failed += await seedPrompts(token);
   if (failed) process.exit(1);
+}
+
+// One public Prompts library entry per starter: starters only render on an
+// empty new chat, while / lists prompts in any chat. Named "<agent> · <starter>"
+// and updated by name; entries this account owns that match no starter any
+// more are deleted.
+async function seedPrompts(token) {
+  const want = new Map();
+  for (const def of AGENTS) {
+    def.conversation_starters.forEach((text, i) => {
+      want.set(`${def.name} · ${text}`, {
+        text,
+        group: { category: category(def.name), oneliner: `Use with the ${def.name} agent.`, command: `${slug(def.name)}-${i + 1}` },
+      });
+    });
+  }
+  const mine = new Map();
+  for (let after = null, more = true; more;) {
+    const r = await call('GET', `/api/prompts/groups?pageSize=100${after ? `&cursor=${after}` : ''}`, { token });
+    if (r.status !== 200) throw new Error(`list prompts ${r.status}: ${r.text.slice(0, 200)}`);
+    for (const g of r.json.promptGroups) if (g.authorName === ACCOUNT.name) mine.set(g.name, g._id);
+    ({ has_more: more, after } = r.json);
+  }
+
+  let failed = 0;
+  for (const [name, { text, group }] of want) {
+    const id = mine.get(name);
+    const saved = id
+      ? await call('PATCH', `/api/prompts/groups/${id}`, { token, body: group })
+      : await call('POST', '/api/prompts', { token, body: { prompt: { prompt: text, type: 'text' }, group: { name, ...group } } });
+    if (saved.status !== 200) {
+      failed++;
+      console.error(`FAIL prompt ${name}: ${id ? 'update' : 'create'} ${saved.status} ${saved.text.slice(0, 200)}`);
+      continue;
+    }
+    const share = await call('PUT', `/api/permissions/promptGroup/${id || saved.json.group._id}`, {
+      token,
+      body: { updated: [], removed: [], public: true, publicAccessRoleId: 'promptGroup_viewer' },
+    });
+    if (share.status !== 200) {
+      failed++;
+      console.error(`FAIL prompt ${name}: make public ${share.status} ${share.text.slice(0, 200)} (is interface.prompts.public true in librechat.yaml, and LibreChat restarted?)`);
+    }
+  }
+  for (const [name, id] of mine) {
+    if (want.has(name)) continue;
+    const d = await call('DELETE', `/api/prompts/groups/${id}`, { token });
+    if (d.status !== 200) failed++;
+    console.log(`${d.status === 200 ? 'ok  ' : 'FAIL'} deleted stale prompt ${name}`);
+  }
+  console.log(`${failed ? 'FAIL' : 'ok  '} ${want.size} prompts in the Prompts library (${failed} failed)`);
+  return failed;
 }
 
 main().catch((e) => {
