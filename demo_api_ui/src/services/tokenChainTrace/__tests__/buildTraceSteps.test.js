@@ -1,4 +1,4 @@
-import { buildTraceSteps, buildRunStory, buildGatewayStages } from "../buildTraceSteps";
+import { buildTraceSteps, buildRunStory, buildGatewayStages, MCP_STEP_IDS } from "../buildTraceSteps";
 import { hasPopoutWorthyDetail } from "../../../components/TraceStepCard";
 
 const EMPTY_TRACE = {
@@ -23,8 +23,9 @@ describe("buildTraceSteps — empty trace", () => {
       // instead — see the discovery-hop test below.
       "tools-list-challenge", "tools-list",
       "llm", "agent-token", "exchange",
-      "authorize", "gateway", "api-key-swap",
-      "tools-call-challenge", "mcp",
+      // tools/call's credential-less leg goes out after the Authorize gate and
+      // before the authorized call reaches the gateway, so it is drawn there.
+      "authorize", "tools-call-challenge", "gateway", "api-key-swap", "mcp",
       "api", "database", "reply",
     ]);
     expect(steps[0].status).toBe("done"); // website is inherently done
@@ -32,13 +33,17 @@ describe("buildTraceSteps — empty trace", () => {
     expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]);
   });
 
-  test("each MCP method's challenge leg sits immediately before its authorized leg", () => {
+  test("each MCP method's challenge leg is drawn in wire order, just before the hop that carries its authorized call", () => {
     const ids = buildTraceSteps(EMPTY_TRACE).map((s) => s.id);
-    // Both methods are now a challenge immediately followed by their authorized
-    // leg, with nothing wedged between: the session handshake is no longer a hop
-    // at all (its evidence hangs off tools-list).
+    // tools/list's authorized leg is its own hop. tools/call's authorized leg
+    // reaches the gateway first, so its challenge sits between Authorize and the
+    // gateway. The session handshake is not a hop at all (its evidence hangs off
+    // tools-list).
     expect(ids.indexOf("tools-list") - ids.indexOf("tools-list-challenge")).toBe(1);
-    expect(ids.indexOf("mcp") - ids.indexOf("tools-call-challenge")).toBe(1);
+    expect(ids.indexOf("tools-call-challenge") - ids.indexOf("authorize")).toBe(1);
+    expect(ids.indexOf("gateway") - ids.indexOf("tools-call-challenge")).toBe(1);
+    // The MCP tab renders MCP_STEP_IDS in list order, so it must match the chain.
+    expect(MCP_STEP_IDS).toEqual(ids.filter((id) => MCP_STEP_IDS.includes(id)));
     expect(ids).not.toContain("mcp-initialize");
     expect(ids).not.toContain("mcp-initialized");
   });
@@ -185,6 +190,38 @@ describe("buildTraceSteps — Agent Gateway filter chain", () => {
       tokenEvents: [{ id: "gw-authorize", decision: "PERMIT" }],
     });
     expect(gwStep(steps).detail.stages).toBeUndefined();
+  });
+
+  test("a gateway permit that reports only its filter chain is drawn as done", () => {
+    // PingGateway permits often publish nothing but X-Gw-Audit-Trail.
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [{ id: "gw-filter-chain", status: "active", filterChain: CHAIN, lastFilter: "BackendExchange" }],
+    });
+    expect(gwStep(steps).status).toBe("done");
+    expect(gwStep(steps).detail.stages).toHaveLength(5);
+  });
+
+  test("a deny carrying the gateway's own P1AZ DENY is drawn on the gateway, not as not in path", () => {
+    // The pipeline hands the gateway's decision over as the run's authorize
+    // evidence, so Authorize reads failed too.
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      authorize: { decision: "DENY" },
+      phases: [{ phase: "gateway_policy_denied", detail: "access_denied" }],
+      tokenEvents: [{
+        id: "gw-filter-chain", status: "deny", denyingFilter: "P1AZDecision",
+        filterChain: [
+          { filter: "TokenIntrospection", result: "passed" },
+          { filter: "P1AZDecision", result: "blocked", decision: "DENY" },
+        ],
+      }],
+    });
+    expect(steps.find((s) => s.id === "authorize").status).toBe("error");
+    expect(gwStep(steps).status).toBe("error");
+    expect(gwStep(steps).detail.decision.outcome).toBe("DENY");
   });
 });
 
@@ -971,6 +1008,57 @@ describe("buildTraceSteps — not-in-path steps once the trace completes", () =>
       phases: [{ phase: "mfa_challenge_initiated", label: "HITL — MFA challenge", detail: "" }],
     });
     expect(steps.find((s) => s.id === "stepup").status).toBe("active");
+  });
+
+  test("a bare 428 authorize_denied (the BFF's step-up block) marks step-up active", () => {
+    // The BFF's step-up block emits no phase of its own.
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      phases: [{ phase: "authorize_denied", status: 428 }],
+    });
+    const stepup = steps.find((s) => s.id === "stepup");
+    expect(stepup.status).toBe("active");
+    expect(stepup.detail.kv).toContainEqual(["authorize", "HTTP 428 challenge"]);
+  });
+
+  test("a hard 403 authorize_denied does not invent a step-up", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      phases: [{ phase: "authorize_denied", status: 403 }],
+    });
+    expect(steps.find((s) => s.id === "stepup").status).toBe("notinpath");
+  });
+
+  test("a step-up retry that PERMITs with the gate carried does not reopen step-up", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      authorize: { decision: "PERMIT", outcome: "STEP_UP", priorGate: "STEP_UP" },
+    });
+    expect(steps.find((s) => s.id === "stepup").status).not.toBe("active");
+  });
+
+  test("gateway_hitl_required (live PingGateway consent gate) marks step-up active", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      phases: [{ phase: "gateway_hitl_required", label: "", detail: "" }],
+    });
+    expect(steps.find((s) => s.id === "stepup").status).toBe("active");
+  });
+
+  test.each([
+    ["pending", "active"],
+    ["approved", "done"],
+    ["denied", "error"],
+  ])("a ciba-poll event with status %s marks step-up %s", (cibaStatus, expected) => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{ id: "ciba-poll", additionalData: { grantedVia: "ciba", status: cibaStatus } }],
+    });
+    const stepup = steps.find((s) => s.id === "stepup");
+    expect(stepup.status).toBe(expected);
+    expect(stepup.detail.kv).toContainEqual(["ciba", cibaStatus]);
   });
 });
 

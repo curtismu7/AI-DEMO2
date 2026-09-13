@@ -113,3 +113,28 @@ describe('agentFlowDiagram — typed (AG-UI) run fills the step rail', () => {
     expect(agentFlowDiagram.getState().phase).toBe('idle');
   });
 });
+
+// routes/mfa.js reports device-MFA outcomes only to PostHog; the UI records them
+// here so the trace store sees real step-up evidence.
+describe('agentFlowDiagram.recordMfaPhase', () => {
+  beforeEach(() => {
+    agentFlowDiagram.reset();
+  });
+
+  test('appends a labelled phase row that subscribers receive', () => {
+    const seen = [];
+    const unsubscribe = agentFlowDiagram.subscribe((snap) => seen.push(snap.serverEvents.map((r) => r.phase)));
+    agentFlowDiagram.recordMfaPhase('mfa_challenge_completed');
+    unsubscribe();
+    expect(seen.at(-1)).toEqual(['mfa_challenge_completed']);
+    expect(agentFlowDiagram.getState().serverEvents.at(-1)).toMatchObject({
+      phase: 'mfa_challenge_completed',
+      label: 'HITL approved — MFA step-up verified',
+    });
+  });
+
+  test('completeMfaChallenge alone records no phase, so a CIBA outcome cannot light the MFA box', () => {
+    agentFlowDiagram.completeMfaChallenge(true);
+    expect(agentFlowDiagram.getState().serverEvents).toEqual([]);
+  });
+});

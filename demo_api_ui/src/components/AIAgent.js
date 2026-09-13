@@ -8795,6 +8795,7 @@ export default function BankingAgent({
       setP1mfaDaId(null);
       setP1mfaDevices([]);
       agentFlowDiagram.completeMfaChallenge(true);
+      agentFlowDiagram.recordMfaPhase("mfa_challenge_completed");
       cb();
       return;
     }
@@ -8808,6 +8809,7 @@ export default function BankingAgent({
       setP1mfaDevices([]);
       // Verify MFA in flow diagram
       agentFlowDiagram.completeMfaChallenge(true);
+      agentFlowDiagram.recordMfaPhase("mfa_challenge_completed");
       // Retry the original action with MFA verified
       runAction(actionId, form, { isRefire: true });
     }
@@ -8829,6 +8831,7 @@ export default function BankingAgent({
       "mfa-cancelled",
     );
     agentFlowDiagram.completeMfaChallenge(false);
+    agentFlowDiagram.recordMfaPhase("mfa_challenge_failed");
   };
 
   // FIDO submit handler (Phase 174-03)
@@ -8839,6 +8842,7 @@ export default function BankingAgent({
       setShowOtpModal(false);
       setStepUpMethod("otp");
       agentFlowDiagram.completeMfaChallenge(true);
+      agentFlowDiagram.recordMfaPhase("mfa_challenge_completed");
       cb();
       return;
     }
@@ -8848,6 +8852,7 @@ export default function BankingAgent({
       setShowOtpModal(false);
       setStepUpMethod("otp");
       agentFlowDiagram.completeMfaChallenge(true);
+      agentFlowDiagram.recordMfaPhase("mfa_challenge_completed");
       runAction(actionId, form, { isRefire: true });
     }
   };
@@ -8914,6 +8919,7 @@ export default function BankingAgent({
       setP1mfaDaId(null);
       setP1mfaDevices([]);
       agentFlowDiagram.completeMfaChallenge(true);
+      agentFlowDiagram.recordMfaPhase("mfa_challenge_completed");
       cb();
       return;
     }
@@ -8925,6 +8931,7 @@ export default function BankingAgent({
       setP1mfaDaId(null);
       setP1mfaDevices([]);
       agentFlowDiagram.completeMfaChallenge(true);
+      agentFlowDiagram.recordMfaPhase("mfa_challenge_completed");
       runAction(actionId, form, { isRefire: true });
     }
   };

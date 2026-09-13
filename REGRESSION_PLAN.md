@@ -196,6 +196,77 @@ passed, 24 skipped) and `npm run build` (exit 0). The live fresh-browser check
 (Sign On → Welcome → Success → `/davinci-login/confirmed`) runs after merge: a
 worktree-served BFF boots seed data and would 404 `/api/auth/me`.
 
+### 2026-09-13 — Sequence view: step-up is drawn when it actually happens (BFF 428, device MFA, CIBA, live PingGateway consent)
+
+**Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`,
+`src/services/agentFlowDiagramService.js`, `src/components/AIAgent.js`. Tests:
+`src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`,
+`src/services/tokenChainTrace/__tests__/tokenChainTraceStore.test.js`,
+`src/services/__tests__/agentFlowDiagramService.test.js`.
+
+**What was broken:** the sequence view draws only steps that happened, and the
+builder's `stepup` step stayed dark for most real step-ups.
+- A BFF step-up block emits only a bare `authorize_denied` (HTTP 428), no
+  phase of its own.
+- Device-MFA outcomes went only to PostHog (`routes/mfa.js`). Nothing put
+  `mfa_challenge_*` into the trace, although the store already carried those
+  phases across a STEP_UP resume; `agentFlowDiagram.startMfaChallenge` is
+  never called.
+- The builder ignored `gateway_hitl_required` (the live PingGateway consent
+  gate) and the `ciba-poll` token event `AIAgent.js` stamps for CIBA.
+
+**What was fixed:**
+- `stepup` starts on the Authorize challenge itself (`azIsChallenge`: HTTP 428
+  or a pause obligation), on `gateway_hitl_required`, or on a `ciba-poll`
+  event; `ciba-poll` approved / denied mark it done / error.
+- `agentFlowDiagram.recordMfaPhase` appends an `mfa_challenge_completed` /
+  `mfa_challenge_failed` row. The OTP, FIDO and P1MFA handlers in `AIAgent.js`
+  call it (cancel records failed) before they replay the prompt, so the store
+  picks it up and carries it into the retry.
+
+**Do not break:**
+- CIBA paths call only `completeMfaChallenge`, never `recordMfaPhase`, so the
+  System Flow Map's MFA box stays off on a CIBA approval.
+- A retry that PERMITs with the STEP_UP gate carried is not a challenge and
+  does not reopen step-up; a hard 403 does not invent one.
+- `routes/mfa.js` is unchanged.
+
+**Verify:** `cd demo_api_ui && node_modules/.bin/vitest run buildTraceSteps.test tokenChainTraceStore agentFlowDiagramService`.
+Seven tests fail against the pre-fix sources.
+
+### 2026-09-13 — Sequence view: gateway denies and permits are drawn on the gateway; tools/call's 401 is drawn in wire order
+
+**Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`.
+Tests: `src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`,
+`src/components/__tests__/TokenTopologyPanel.a2a.test.jsx`.
+
+**What was broken:** the sequence view draws only steps that happened, so a
+step marked "not in path" vanishes from it.
+- A gateway P1AZ DENY is handed over as the run's authorize evidence
+  (`mcpToolPipeline` → `gatewayBlockAuthEval`), which marks Authorize failed.
+  The gateway step checked `authorizeFailed` before `gwDenied`, so the gateway
+  that blocked the call was drawn not in path.
+- `gwSeen` ignored `gw-filter-chain`, often the only evidence a PingGateway
+  permit publishes, so a permitting gateway was drawn not in path too.
+- The credential-less tools/call challenge was listed after the gateway and the
+  API-key swap, though the pipeline sends it (`mcpChallengeProbe`) after the
+  Authorize gate and before the authorized call reaches the gateway.
+
+**What was fixed:** the gateway step checks `gwDenied` first; `gwSeen` counts
+`gw-filter-chain`; `tools-call-challenge` is pushed just before the gateway,
+and `MCP_STEP_IDS` follows the same order (`TraceMcpPanel` and the topology
+branch render in list order).
+
+**Do not break:**
+- A BFF Authorize DENY with no gateway deny still draws the gateway and every
+  hop after it as not in path.
+- `gw-introspection` / `gw-mtls` with status `skipped` still do not count as
+  the gateway being seen.
+- `MCP_STEP_IDS` stays in chain order; the builder test asserts it.
+
+**Verify:** `cd demo_api_ui && node_modules/.bin/vitest run buildTraceSteps.test TokenTopologyPanel.a2a`.
+Five tests fail against the pre-fix builder.
+
 ### 2026-09-13 — UC32: a weather scope picked on /weather-mcp survives the Run it was picked for
 
 **Files changed:** `demo_api_ui/src/utils/weatherScopeHandoff.js` (new),

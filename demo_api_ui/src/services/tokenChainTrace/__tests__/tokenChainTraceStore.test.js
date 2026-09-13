@@ -1,5 +1,6 @@
 import { buildRunStory } from "../buildTraceSteps";
 import { tokenChainTraceStore } from "../tokenChainTraceStore";
+import { agentFlowDiagram } from "../../agentFlowDiagramService";
 
 beforeEach(() => tokenChainTraceStore.reset());
 
@@ -247,6 +248,19 @@ test("does not carry mfa_challenge_* phases into an unrelated next prompt", () =
   tokenChainTraceStore.ingestPhases([{ phase: "mfa_challenge_initiated" }]);
   tokenChainTraceStore.beginTrace({ prompt: "what's my balance" });
   expect(tokenChainTraceStore.getState().trace.phases).toEqual([]);
+});
+
+test("a device-MFA outcome recorded on the flow diagram reaches the trace and survives the resume", () => {
+  // AIAgent records the outcome on agentFlowDiagram right before it replays the
+  // prompt; the store picks it up through its passive subscription.
+  tokenChainTraceStore.beginTrace({ prompt: "checkout headphones for $600" });
+  tokenChainTraceStore.ingestAuthorize({ decision: "INDETERMINATE", outcome: "STEP_UP" });
+  agentFlowDiagram.recordMfaPhase("mfa_challenge_completed");
+  tokenChainTraceStore.beginTrace({ prompt: "checkout headphones for $600" });
+  tokenChainTraceStore.ingestAuthorize({ decision: "PERMIT" });
+  const { trace, steps } = tokenChainTraceStore.getState();
+  expect(trace.phases.map((p) => p.phase)).toContain("mfa_challenge_completed");
+  expect(steps.find((s) => s.id === "stepup").status).toBe("done");
 });
 
 test("carries an unfulfilled HITL_REQUIRED gate the same way", () => {
