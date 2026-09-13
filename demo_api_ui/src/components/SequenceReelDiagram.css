@@ -20,6 +20,10 @@
   --srd-color-bff: #e87ba4;
   --srd-color-api: color-mix(in oklab, #e87ba4 55%, white);
   --srd-color-data: color-mix(in oklab, #e87ba4 30%, white);
+  /* A2A hops sit beside the AGENT and LLM lanes, so they cannot borrow either
+     shade; they take a third, lighter step of the agent family. Mixed from the
+     agent token, so it follows the active theme without a second declaration. */
+  --srd-color-a2a: color-mix(in oklab, var(--srd-color-agent) 35%, white);
 
   /* Stand-in lanes: these never co-occur with the lane they replace, so they
      borrow its shade instead of adding a 12th hue to a palette the notes above
@@ -224,6 +228,7 @@
 .srd-lane-bff { --srd-lane: var(--srd-color-bff); }
 .srd-lane-api { --srd-lane: var(--srd-color-api); }
 .srd-lane-data { --srd-lane: var(--srd-color-data); }
+.srd-lane-a2a { --srd-lane: var(--srd-color-a2a); }
 .srd-lane-heuristics { --srd-lane: var(--srd-color-heuristics); }
 .srd-lane-airlines { --srd-lane: var(--srd-color-airlines); }
 .srd-lane-invest { --srd-lane: var(--srd-color-invest); }
@@ -418,6 +423,14 @@
 }
 .srd-lane-data.srd-arrowhead-fill {
   fill: var(--srd-color-data);
+}
+
+.srd-lane-a2a .srd-note-box,
+.srd-lane-a2a .srd-arrow {
+  stroke: var(--srd-color-a2a);
+}
+.srd-lane-a2a.srd-arrowhead-fill {
+  fill: var(--srd-color-a2a);
 }
 
 .srd-lane-heuristics .srd-note-box,
