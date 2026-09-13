@@ -16,7 +16,7 @@ const GUIDE_SECTIONS = [
 ];
 
 // The exact hop-by-hop sequence: routes/davinciLogin.js's /sdk-token and
-// /callback, plus the widget's skRenderScreen success path in
+// /widget-session, plus the widget's skRenderScreen success path in
 // DavinciLoginWidget.jsx. Kept as one static source rather than reusing
 // ProtocolPlayground's flowSpec/buildSequenceSource — this diagram is fixed,
 // not driven by a live run, so the smaller direct mermaid source is enough.
@@ -29,22 +29,21 @@ const FLOW_SOURCE = `sequenceDiagram
     participant P1 as PingOne
 
     B->>BFF: POST /sdk-token
-    BFF->>BFF: arm nonce, state, PKCE verifier (session)
-    BFF->>DV: POST /company/:id/sdktoken
+    BFF->>BFF: arm single-use nonce (session)
+    BFF->>DV: POST /company/:id/sdktoken { nonce }
     DV-->>BFF: access_token (SDK token)
-    BFF-->>B: accessToken, authorizeUrl
+    BFF-->>B: accessToken (widget config)
     B->>W: skRenderScreen(config)
-    W->>DV: flow's own screens (sign-on, MFA, ...)
-    DV-->>W: sessionToken
-    W-->>B: successCallback(sessionToken)
-    B->>B: set DV-ST cookie
-    B->>P1: redirect to authorizeUrl
-    P1-->>B: redirect /callback?code=...&id_token(nonce)
-    B->>BFF: POST /callback { code }
-    BFF->>P1: exchange code (PKCE)
-    P1-->>BFF: tokens (id_token echoes nonce)
-    BFF->>BFF: verify nonce, look up existing user, regenerate session
-    BFF-->>B: { ok: true }`;
+    W->>DV: flow's own screens (sign-on, welcome, success)
+    DV->>P1: Return Success Response (Widget Flows)
+    P1-->>W: id_token (echoes nonce), access_token
+    W-->>B: successCallback(id_token, access_token)
+    B->>BFF: POST /widget-session { idToken, accessToken }
+    BFF->>P1: fetch JWKS, verify both signatures
+    BFF->>BFF: check nonce, audiences, same subject
+    BFF->>BFF: look up existing user, regenerate session
+    BFF-->>B: { ok: true }
+    B->>B: load /davinci-login/confirmed`;
 
 function CodeBlock({ title, children }) {
   const [copied, setCopied] = useState(false);
@@ -186,7 +185,7 @@ export default function DavinciLoginGuidePage() {
             <h3>Why it exists</h3>
             <ul>
               <li>Demonstrates a DaVinci-orchestrated sign-on without leaving the app</li>
-              <li>Still ends in a normal PingOne session — same token exchange, same cookies</li>
+              <li>Still ends in a normal BFF session, holding PingOne-issued tokens for the Demo API</li>
               <li>Lets a flow author add steps (MFA, risk checks) without any BFF code changes</li>
             </ul>
           </Section>
@@ -194,35 +193,34 @@ export default function DavinciLoginGuidePage() {
           {/* ─── How It Works ─── */}
           <Section id="how-it-works" title="How It Works">
             <p>
-              DaVinci&apos;s <strong>&quot;PingOne Flow&quot;</strong> toggle makes OIDC issuance and
-              widget rendering mutually exclusive — a flow either renders its own screens, or it hands
-              back an OIDC code directly, never both. So the page runs the widget for the screens, then
-              makes one <code>/authorize</code> hop for the token.
+              The flow ends with the PingOne Authentication connector&apos;s{" "}
+              <strong>Return Success Response (Widget Flows)</strong>, which creates the PingOne session
+              and returns OIDC tokens straight to the page. The page hands them to the BFF, which
+              verifies them before signing anyone in. There is no <code>/authorize</code> redirect:
+              the PingOne session cookie set during the widget&apos;s cross-site calls never reaches
+              one, so a redirect would land on PingOne&apos;s hosted sign-on page instead.
             </p>
             <ol>
               <li>
                 Page loads, calls <code>POST /api/davinci-login/sdk-token</code>. The BFF arms a
-                single-use nonce, PKCE verifier and state on the session, mints a DaVinci SDK token, and
-                returns widget config plus a pre-built <code>authorizeUrl</code>.
+                single-use nonce on the session, passes it to the flow as a parameter, mints a DaVinci
+                SDK token, and returns the widget config.
               </li>
               <li>
                 The widget script renders the flow&apos;s own screens (sign-on, MFA, whatever the flow
                 declares) in the page&apos;s container via <code>skRenderScreen</code>.
               </li>
               <li>
-                On success the widget hands back a DaVinci <code>sessionToken</code> — not an OIDC code.
-                The page sets it as a <code>DV-ST</code> cookie and follows the BFF-built{" "}
-                <code>authorizeUrl</code>.
+                On success the flow&apos;s final node returns an <code>id_token</code> (carrying the
+                nonce from step 1) and an <code>access_token</code> for the Demo API to the
+                widget&apos;s <code>successCallback</code>.
               </li>
               <li>
-                PingOne recognizes the DaVinci session from the cookie, skips re-challenging the user,
-                and redirects to <code>/davinci-login/callback</code> with a code and an ID token
-                carrying the nonce from step 1.
-              </li>
-              <li>
-                <code>POST /api/davinci-login/callback</code> exchanges the code, verifies the ID
-                token&apos;s nonce matches (single-use, deleted before the exchange), looks up an{" "}
-                <strong>existing</strong> demo user by username, regenerates the session, and signs in.
+                <code>POST /api/davinci-login/widget-session</code> verifies both signatures against
+                PingOne&apos;s JWKS, checks the nonce (single-use, deleted before any check), that the
+                ID token was issued to this app and the access token for this API, and that both name
+                the same user. It then looks up an <strong>existing</strong> demo user, regenerates the
+                session, and signs in; the page loads <code>/davinci-login/confirmed</code>.
               </li>
             </ol>
           </Section>
@@ -248,8 +246,7 @@ export default function DavinciLoginGuidePage() {
   "companyId": "...",
   "policyId": "...",
   "flowVersion": "v1",
-  "apiRoot": "https://auth.pingone.com/",
-  "authorizeUrl": "https://auth.pingone.com/.../as/authorize?..."
+  "apiRoot": "https://auth.pingone.com/"
 }`}
             </CodeBlock>
             <CodeBlock title="Response 503 — davinci_not_configured">
@@ -259,13 +256,12 @@ export default function DavinciLoginGuidePage() {
 }`}
             </CodeBlock>
 
-            <h3>POST /api/davinci-login/callback</h3>
-            <p>Exchanges the code the widget&apos;s authorize redirect produced.</p>
+            <h3>POST /api/davinci-login/widget-session</h3>
+            <p>Signs in with the tokens the flow&apos;s final node returned to the widget.</p>
             <CodeBlock title="Request">
 {`{
-  "code": "abc123..."
-  // codeVerifier / redirectUri are read from the session — the widget path
-  // never sees the PKCE verifier itself
+  "idToken": "eyJhbGciOi...",      // from successCallback's id_token
+  "accessToken": "eyJhbGciOi..."   // from successCallback's access_token
 }`}
             </CodeBlock>
             <CodeBlock title="Response 200">
@@ -275,7 +271,10 @@ export default function DavinciLoginGuidePage() {
               headers={["Status", "error", "Cause"]}
               rows={[
                 ["401", "nonce_missing", "No login flow was armed in this session"],
+                ["401", "token_unverified", "A signature did not verify against PingOne's JWKS"],
                 ["401", "nonce_mismatch", "ID token's nonce doesn't match — possible replay"],
+                ["401", "audience_mismatch", "ID token not issued to this app, or access token not for this API"],
+                ["401", "subject_mismatch", "The two tokens name different users"],
                 ["404", "user_not_found", "No demo user exists for the authenticated username"],
               ]}
             />
@@ -289,8 +288,13 @@ export default function DavinciLoginGuidePage() {
                 secret used only server-side to mint the SDK token.
               </li>
               <li>
-                <strong>Nonce is single-use.</strong> Read-and-deleted from the session before the
-                token exchange, so a failed attempt can&apos;t retry against the same value.
+                <strong>Nonce is single-use.</strong> Read-and-deleted from the session before any
+                token check, so a failed attempt can&apos;t retry against the same value.
+              </li>
+              <li>
+                <strong>Tokens are verified, not trusted.</strong> They pass through the browser, so
+                the BFF checks both signatures against PingOne&apos;s JWKS (never introspection alone),
+                the audiences, and that both name the same user.
               </li>
               <li>
                 <strong>Existing users only.</strong> Unlike the admin OAuth route, this never
@@ -314,17 +318,22 @@ export default function DavinciLoginGuidePage() {
                   "Set the missing value the error message names",
                 ],
                 [
-                  "401 nonce_missing on /callback",
+                  "401 nonce_missing on /widget-session",
                   "No /sdk-token call happened first in this session (or the session didn't persist)",
                   "Restart the sign-in using the Try It Live section above",
                 ],
                 [
-                  "401 nonce_mismatch on /callback",
-                  "ID token's nonce doesn't match what was armed — possible replay or a stale authorizeUrl",
-                  "Restart the sign-in; do not retry the same authorizeUrl",
+                  "401 nonce_mismatch on /widget-session",
+                  "ID token's nonce doesn't match what was armed — possible replay, or the flow's final node lost its nonce claim",
+                  "Restart the sign-in; if it repeats, check the flow's Return Success Response (Widget Flows) node",
                 ],
                 [
-                  "404 user_not_found on /callback",
+                  "401 audience_mismatch on /widget-session",
+                  "The flow's final node issues tokens for a different app, or without the Demo API scopes",
+                  "Point the node at the app the BFF signs in with, and request the Demo API scopes",
+                ],
+                [
+                  "404 user_not_found on /widget-session",
                   "The username DaVinci authenticated has no matching demo user in dataStore",
                   "Use a username that exists in the demo user data, or create one first",
                 ],
@@ -338,8 +347,8 @@ export default function DavinciLoginGuidePage() {
               headers={["File", "Purpose"]}
               rows={[
                 ["demo_api_ui/src/pages/DavinciLoginWidget.jsx", "Renders the widget via skRenderScreen; handles successCallback/errorCallback"],
-                ["demo_api_ui/src/lib/davinciWidgetClient.js", "Loads the davinci.js script tag; fetches widget config from the BFF"],
-                ["demo_api_server/routes/davinciLogin.js", "sdk-token + callback routes — nonce/PKCE arming and the code exchange"],
+                ["demo_api_ui/src/lib/davinciWidgetClient.js", "Loads the davinci.js script tag; fetches widget config and posts the flow's tokens to the BFF"],
+                ["demo_api_server/routes/davinciLogin.js", "sdk-token + widget-session routes — nonce arming and token verification"],
                 ["demo_api_server/config/davinci.js", "companyId / policyId / API key config"],
               ]}
             />

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchWidgetConfig, loadWidget } from "../lib/davinciWidgetClient";
+import { fetchWidgetConfig, loadWidget, postWidgetSession } from "../lib/davinciWidgetClient";
 import "./DavinciLoginPage.css";
 
 // The live DaVinci widget, embedded as the "Try It Live" section of
@@ -11,12 +11,12 @@ import "./DavinciLoginPage.css";
 // screen collects it — this component starts the flow immediately with no
 // identifier field of its own.
 //
-// The widget ends at a DaVinci sessionToken, not an OIDC code — Ping's docs tie
-// OIDC issuance to the redirect integration, and the two are mutually exclusive
-// on the flow's "PingOne Flow" toggle. So on success we hand PingOne the DaVinci
-// session as the DV-ST cookie and follow the authorize URL the BFF prepared:
-// PingOne recognises the session, does not re-challenge, and redirects to
-// /davinci-login/callback with a code plus an ID token echoing the BFF's nonce.
+// The flow ends with the PingOne Authentication connector's "Return Success
+// Response (Widget Flows)", which hands OIDC tokens to successCallback. The page
+// posts them to the BFF, which verifies them and signs the user in, then loads
+// the confirmation page. There is no /authorize redirect: the PingOne session
+// cookie from the widget's cross-site calls never reaches one (see
+// routes/davinciLogin.js).
 
 export default function DavinciLoginWidget() {
   const [status, setStatus] = useState("loading"); // loading | flow | error
@@ -46,11 +46,19 @@ export default function DavinciLoginWidget() {
           includeHttpCredentials: true,
         },
         useModal: false,
-        successCallback: (response) => {
-          if (response?.sessionToken) {
-            document.cookie = `DV-ST=${response.sessionToken}; path=/; max-age=86400; secure; samesite=lax`;
+        successCallback: async (response) => {
+          try {
+            await postWidgetSession({
+              idToken: response?.id_token,
+              accessToken: response?.access_token,
+            });
+            // A full load, not a client-side navigation, so the app shell picks
+            // up the session this request just created.
+            window.location.assign("/davinci-login/confirmed");
+          } catch (err) {
+            setError(err.message);
+            setStatus("error");
           }
-          window.location.assign(cfg.authorizeUrl);
         },
         errorCallback: (err) => {
           setError(err?.message || "The DaVinci flow could not be completed.");

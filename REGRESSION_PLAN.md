@@ -223,6 +223,61 @@ left is canonicalized to `insufficient_scope`.
 
 **Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest src/__tests__/attackSimulator.test.js --forceExit`.
 
+### 2026-09-13 — DaVinci widget sign-in ended on PingOne's hosted sign-on page instead of signing in
+
+**Files changed:** `demo_api_server/routes/davinciLogin.js`,
+`demo_api_ui/src/pages/DavinciLoginWidget.jsx`, `demo_api_ui/src/lib/davinciWidgetClient.js`,
+`demo_api_ui/src/pages/DavinciLoginGuidePage.jsx`. Tests: `tests/routes/davinciLogin.test.js`,
+`tests/davinciLoginNonce.test.js`, `src/pages/__tests__/DavinciLoginWidget.test.jsx`,
+`src/lib/__tests__/davinciWidgetClient.test.js`. Outside the repo: DaVinci flow
+`81d2862114afc2a3d0cf00dca80b89e3` (policy "AI DEMO"), now version 6.
+
+**What was broken:** after the widget's Sign On, the page followed an
+`/authorize` URL expecting PingOne to find a session and issue a code. In a
+browser with no existing PingOne session it landed on PingOne's hosted sign-on
+page. Two faults. First, the flow ended with an HTTP success response, which
+creates no PingOne session and returns no `sessionToken`, so the `DV-ST` cookie
+was never even set — and PingOne's `/authorize` does not read `DV-ST` anyway
+(Ping's widget example uses it to carry a DaVinci session into the next
+`/sdktoken` call). Second, once the flow did create a session, the `ST` cookie
+PingOne set during the widget's cross-site calls still never reached a
+top-level `/as/authorize`: measured in a fresh Chrome, `Set-Cookie: ST` arrived,
+was reported not blocked, and was absent from the cookie jar when `/authorize`
+was sent. A browser that already held a PingOne session "worked" by signing in
+as that session's user, not necessarily the one who signed in on the widget.
+
+**What was fixed:** the flow (v6) ends with the PingOne Authentication
+connector's "Return Success Response (Widget Flows)" (app `8a711944…`, scopes
+`openid profile email read write ai:agent:read`, and a `nonce` ID-token claim
+from the flow's nonce input), after new Welcome and Success screens and a Create
+Session node. It returns `id_token` and `access_token` to `successCallback`; the
+page posts them to the new `POST /api/davinci-login/widget-session`, then loads
+`/davinci-login/confirmed`. That route requires both tokens JWKS-verified
+(`verified === true && fallbackMethod === 'jwks'` — `tokenVerificationService`
+fails open, and its introspection fallback carries no nonce or ID-token
+audience), the single-use armed nonce (consumed before any check), ID-token
+`aud` equal to `oauthService.config.clientId`, access-token `aud` including the
+BFF resource (the same env names `middleware/auth.js` reads), and the same `sub`
+in both. `/sdk-token` now arms only the nonce — no authorize URL, PKCE verifier
+or state — and the `DV-ST` cookie is gone. `/callback` stays for a client that
+runs its own PKCE, but takes the verifier and redirect URI from the body only.
+Session establishment is one helper shared by both routes.
+
+**Do not break:** nonce read-and-delete before any check, on both routes; the
+existing-user-only lookup (no auto-create, no auto-admin); session regenerate
+before storing tokens; never accept a token the verifier did not JWKS-verify.
+If the flow's final node is edited it must keep the nonce claim, the app id and
+the Demo API scopes, or every widget sign-in 401s. Widget sessions carry no
+refresh token (TECH_DEBT 2026-09-13). `routes/oauth.js`, `routes/oauthUser.js`
+and `oauthService` untouched.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/davinciLogin.test.js tests/davinciLoginNonce.test.js --forceExit`
+(32/32); disabling each of the eight `/widget-session` checks in turn turns its
+own named test red. `cd demo_api_ui && npm run test:unit` (551 files, 4302
+passed, 24 skipped) and `npm run build` (exit 0). The live fresh-browser check
+(Sign On → Welcome → Success → `/davinci-login/confirmed`) runs after merge: a
+worktree-served BFF boots seed data and would 404 `/api/auth/me`.
+
 ### 2026-09-13 — Sequence view: a gateway filter deny with no deny phase is drawn on the gateway
 
 **Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`.

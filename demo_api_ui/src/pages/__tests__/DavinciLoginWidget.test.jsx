@@ -3,10 +3,10 @@ import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import DavinciLoginWidget from "../DavinciLoginWidget";
 
 // The page must render the DaVinci flow with the config the BFF minted, and on
-// success follow the BFF's authorize URL — that hop is what turns the widget's
-// sessionToken into an OIDC code carrying the nonce /api/davinci-login/callback
-// verifies. Dropping it leaves the user authenticated to DaVinci but never
-// signed in to the demo, so these tests pin the wiring.
+// success hand the flow's OIDC tokens to POST /api/davinci-login/widget-session
+// before loading the confirmation page. Dropping that post leaves the user
+// authenticated to PingOne but never signed in to the demo, so these tests pin
+// the wiring.
 //
 // username is optional in the flow's Input Schema (the flow's own Sign On
 // screen collects it), so the page starts the flow immediately with no
@@ -15,9 +15,10 @@ import DavinciLoginWidget from "../DavinciLoginWidget";
 vi.mock("../../lib/davinciWidgetClient", () => ({
   loadWidget: vi.fn(),
   fetchWidgetConfig: vi.fn(),
+  postWidgetSession: vi.fn(),
 }));
 
-import { loadWidget, fetchWidgetConfig } from "../../lib/davinciWidgetClient";
+import { loadWidget, fetchWidgetConfig, postWidgetSession } from "../../lib/davinciWidgetClient";
 
 const CONFIG = {
   accessToken: "sdk-tok-1",
@@ -25,7 +26,6 @@ const CONFIG = {
   policyId: "pol-v1",
   flowVersion: "v1",
   apiRoot: "https://auth.pingone.com/",
-  authorizeUrl: "https://auth.pingone.com/env-1/as/authorize?nonce=abc123",
 };
 
 let assigned;
@@ -37,9 +37,8 @@ beforeEach(() => {
   cookieWrites = [];
   delete window.location;
   window.location = { assign: (url) => assigned.push(url), search: "" };
-  // jsdom serves the test page over http and silently drops a `secure` cookie,
-  // so spy the setter rather than reading document.cookie back — that also lets
-  // the assertion below pin the secure flag itself.
+  // Spy the setter: the page used to write a DV-ST cookie PingOne never read,
+  // and must not again.
   vi.spyOn(document, "cookie", "set").mockImplementation((v) => cookieWrites.push(v));
   fetchWidgetConfig.mockResolvedValue(CONFIG);
 });
@@ -80,21 +79,37 @@ describe("DavinciLoginWidget rendering", () => {
     });
   });
 
-  test("successCallback stores the DaVinci session and follows the BFF authorize URL", async () => {
+  test("successCallback hands the flow's tokens to the BFF, then loads the confirmation page", async () => {
     const skRenderScreen = vi.fn();
     loadWidget.mockResolvedValue({ skRenderScreen });
+    postWidgetSession.mockResolvedValue({ ok: true });
 
     render(<DavinciLoginWidget />);
     await waitFor(() => expect(skRenderScreen).toHaveBeenCalledTimes(1));
 
-    skRenderScreen.mock.calls[0][1].successCallback({ sessionToken: "dv-session-1" });
+    await skRenderScreen.mock.calls[0][1].successCallback({
+      id_token: "id-1",
+      access_token: "at-1",
+      sessionToken: "dv-session-1",
+    });
 
-    expect(cookieWrites).toHaveLength(1);
-    expect(cookieWrites[0]).toContain("DV-ST=dv-session-1");
-    // A DaVinci session token must never ride an unencrypted request.
-    expect(cookieWrites[0]).toContain("secure");
-    // Without this hop there is no OIDC code and no session — the whole point.
-    expect(assigned).toEqual([CONFIG.authorizeUrl]);
+    expect(postWidgetSession).toHaveBeenCalledWith({ idToken: "id-1", accessToken: "at-1" });
+    expect(assigned).toEqual(["/davinci-login/confirmed"]);
+    expect(cookieWrites).toEqual([]);
+  });
+
+  test("a sign-in the BFF rejects shows its reason and does not leave the page", async () => {
+    const skRenderScreen = vi.fn();
+    loadWidget.mockResolvedValue({ skRenderScreen });
+    postWidgetSession.mockRejectedValue(new Error("Sign-in tokens failed verification. Restart the sign-in."));
+
+    const { findByText } = render(<DavinciLoginWidget />);
+    await waitFor(() => expect(skRenderScreen).toHaveBeenCalledTimes(1));
+
+    await skRenderScreen.mock.calls[0][1].successCallback({ id_token: "id-1", access_token: "at-1" });
+
+    await findByText(/failed verification/i);
+    expect(assigned).toEqual([]);
   });
 
   test("shows an error and does not render the flow when the BFF will not mint a token", async () => {
@@ -119,5 +134,6 @@ describe("DavinciLoginWidget rendering", () => {
 
     await findByText(/flow policy not found/i);
     expect(assigned).toEqual([]);
+    expect(postWidgetSession).not.toHaveBeenCalled();
   });
 });
