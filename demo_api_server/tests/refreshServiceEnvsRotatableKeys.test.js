@@ -103,6 +103,30 @@ describe('getRotatableVaultKeyMap', () => {
     await getRotatableVaultKeyMap(d);
     expect(d.getWorkerToken).toHaveBeenCalledWith('env-1', 'worker-id', 'new-rotated-secret', 'com');
   });
+
+  // 2026-09-13 TECH_DEBT fix: mirrors refreshServiceEnvsWorkerVaultFirst.test.js's
+  // proof for main() — this function has its own separate worker-token
+  // resolution and needs the same retry.
+  test('retries with the .env value when the vault-supplied secret fails to mint', async () => {
+    const d = deps();
+    d.getWorkerToken = jest.fn()
+      .mockRejectedValueOnce(new Error('invalid_client'))
+      .mockResolvedValueOnce('tok');
+    d.loadVaultSecrets = jest.fn().mockResolvedValue({ PINGONE_WORKER_CLIENT_SECRET: 'stale-vault-secret' });
+    await getRotatableVaultKeyMap(d);
+    expect(d.getWorkerToken).toHaveBeenCalledTimes(2);
+    expect(d.getWorkerToken).toHaveBeenNthCalledWith(1, 'env-1', 'worker-id', 'stale-vault-secret', 'com');
+    expect(d.getWorkerToken).toHaveBeenNthCalledWith(2, 'env-1', 'worker-id', 'worker-secret', 'com');
+  });
+
+  test('when the .env value is identical to the vault value, the original error propagates (no second attempt)', async () => {
+    const d = deps();
+    d.getWorkerToken = jest.fn().mockRejectedValue(new Error('invalid_client'));
+    // ENV_TEXT's PINGONE_WORKER_CLIENT_SECRET is 'worker-secret' — same as the vault value here.
+    d.loadVaultSecrets = jest.fn().mockResolvedValue({ PINGONE_WORKER_CLIENT_SECRET: 'worker-secret' });
+    await expect(getRotatableVaultKeyMap(d)).rejects.toThrow('invalid_client');
+    expect(d.getWorkerToken).toHaveBeenCalledTimes(1);
+  });
 });
 
 // 2026-09-13: expanded from 5 apps to this demo's own admin/agent apps whose
