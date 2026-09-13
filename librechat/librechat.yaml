@@ -10,6 +10,37 @@ interface:
   agents:
     share: true
     public: true
+  # Same for the demo prompts it adds to the Prompts library (type / in chat).
+  prompts:
+    share: true
+    public: true
+
+# A "Demos" menu in the model selector: each spec opens one seeded agent.
+# The agent_ids come from seed-demo-agents.js on this machine's Mongo volume —
+# re-seeding keeps them (agents are updated by name), but a fresh volume
+# issues new ids, so copy them from the seed output into this list.
+# ponytail: hard-coded ids; generate this block from the seed if volumes get recreated often.
+# Specs use the agents endpoint and interface.modelSelect defaults to true, so
+# the client still lists every other endpoint and My Agents beside them.
+modelSpecs:
+  list:
+    - {name: everyday-banking, label: 'Everyday Banking', group: 'Banking', description: 'Accounts, balances and transactions.', preset: {endpoint: agents, agent_id: agent_kffiDGYrj-A5HjMtGHIIG}}
+    - {name: money-movement, label: 'Money Movement', group: 'Banking', description: 'Transfers, deposits and withdrawals. Changes the demo balances.', preset: {endpoint: agents, agent_id: agent_2PYzQsHO3ZxryCZXNH2No}}
+    - {name: support-and-fees, label: 'Support and Fees', group: 'Banking', description: 'Fee schedule, fee waivers and branch hours.', preset: {endpoint: agents, agent_id: agent_JuaqisgxbDGjKQ4iRRFvM}}
+    - {name: banking-account-details, label: 'Banking Account Details', group: 'Banking', description: 'Accounts, nicknames and transaction details.', preset: {endpoint: agents, agent_id: agent_GEIwUWs0eyjamkqyd-rKA}}
+    - {name: super-sports, label: 'Super Sports', group: 'Super Sports', description: 'Gear orders and warranties.', preset: {endpoint: agents, agent_id: agent_m97KM-3gDMBfQsu5hNL9A}}
+    - {name: super-sports-gear-rentals, label: 'Super Sports Gear & Rentals', group: 'Super Sports', description: 'Rentals, gear for sale, wishlist and coaching.', preset: {endpoint: agents, agent_id: agent_fWg8lq30Uk8aoZp4GbYeb}}
+    - {name: super-sports-orders-loyalty, label: 'Super Sports Orders & Loyalty', group: 'Super Sports', description: 'Orders, loyalty points and store credit.', preset: {endpoint: agents, agent_id: agent_BnSJVZvhIG48sfJVhQg3A}}
+    - {name: super-sports-stores-code, label: 'Super Sports Stores & Code', group: 'Super Sports', description: 'Store hours and a search of the demo source code.', preset: {endpoint: agents, agent_id: agent_JgBWL6kD1JxMju4dwRoJr}}
+    - {name: careconnect-health-data, label: 'CareConnect Health Data', group: 'CareConnect', description: 'Appointments, medications, labs and allergies.', preset: {endpoint: agents, agent_id: agent_jTeyK3sdGeG9YhOOOl6sx}}
+    - {name: careconnect-coverage-claims, label: 'CareConnect Coverage & Claims', group: 'CareConnect', description: 'Coverage, claims, care team and referrals.', preset: {endpoint: agents, agent_id: agent_MCEjti8D8OmlDJ1ByGOCY}}
+    - {name: careconnect-actions, label: 'CareConnect Actions', group: 'CareConnect', description: 'Refill a prescription or book an appointment. Changes the demo data.', preset: {endpoint: agents, agent_id: agent_T1uscvG4dEEYaP46Cm0kB}}
+    - {name: super-sports-policy-guardrails, label: 'Super Sports Policy Guardrails', group: 'Policy Guardrails', description: 'Reads permitted, risky calls denied by policy. Connect super-sports-gateway first.', preset: {endpoint: agents, agent_id: agent_dHaKLN_ZFfdoLchcFIQmO}}
+    - {name: banking-policy-guardrails, label: 'Banking Policy Guardrails', group: 'Policy Guardrails', description: 'Reads permitted, transfers denied by policy. Connect super-sports-gateway first.', preset: {endpoint: agents, agent_id: agent_ZExlrlqicQeAEM9QfQ1Ic}}
+    - {name: careconnect-policy-guardrails, label: 'CareConnect Policy Guardrails', group: 'Policy Guardrails', description: 'Reads permitted, record releases denied by policy. Connect super-sports-gateway first.', preset: {endpoint: agents, agent_id: agent_d9CSY3KnpQ95xeou9yTOl}}
+    - {name: opensearch-direct, label: 'OpenSearch · Direct', group: 'OpenSearch', description: 'No Privilege in front. Needs the Mac port-forward.', preset: {endpoint: agents, agent_id: agent_NqFc9aF7UdJPE7gIXz39t}}
+    - {name: opensearch-via-privilege, label: 'OpenSearch · via Privilege', group: 'OpenSearch', description: 'Through the façade to the Privilege opensearch22 app.', preset: {endpoint: agents, agent_id: agent_9vHeC_U0qcoA6PB2GOTtG}}
+    - {name: opensearch-privilege-opensearch22, label: 'OpenSearch · Privilege opensearch22', group: 'OpenSearch', description: 'Straight to the Privilege opensearch22 app.', preset: {endpoint: agents, agent_id: agent_-i7gJO7tyfjEiTu5r_2iD}}
 
 # LibreChat's SSRF guard blocks any MCP server URL that resolves to a private
 # address — which every host-gateway alias in docker-compose.yml does. Each
