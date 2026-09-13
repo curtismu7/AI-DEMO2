@@ -1,26 +1,31 @@
-// /davinci-sdk-login — runs a DaVinci flow with the Ping Orchestration SDK and
-// renders the flow's collectors as our own UI.
+// /davinci-sdk-login runs a DaVinci flow with the Ping Orchestration SDK,
+// renders the flow's collectors as our own UI, and teaches how that works.
 //
 // Deliberately does NOT touch /davinci-login (the hosted-widget page) or any
 // file in REGRESSION_PLAN §1. Parallel route, parallel BFF endpoints.
 //
-// Scope today: TextCollector, PasswordCollector, SubmitCollector — enough to
-// drive the flow's Password Sign On Page. CollectorField renders a visible
-// fallback for anything else rather than omitting a field silently.
+// It is a lesson page on the shared components/lesson shell, laid out like the
+// DaVinci widget guide so the two lessons read as one course. "Try It Live"
+// holds the working sign-in beside the Step Inspector: every SDK call adds a
+// card showing the code that ran, the request, DaVinci's answer and the
+// collectors, all from this browser's own run. The sections below it
+// (SdkLessonSections) teach the rest.
 //
-// Debugging goes through the SDK's own logger (see davinciSdkClient.js), which
-// narrates what the SDK decided. `trace` below collects those entries, and the
-// "What just happened" walkthrough renders the parts a developer needs from it.
+// Scope today: TextCollector, PasswordCollector, SubmitCollector and
+// FlowCollector, enough to drive the flow's sign-on and "Enter Username" forms.
+// CollectorField renders a visible fallback for anything else rather than
+// omitting a field silently.
 //
-// A successful sign-in does NOT leave this page. It used to navigate to
-// /davinci-login/confirmed, whose "Continue to the app" went home — out of the
-// lesson. Now a "What just happened" modal walks through the steps that actually
-// ran, and closing it leaves you here, signed in, with a way to reopen it or
-// sign out to switch users.
+// A successful sign-in does NOT leave this page. A "What just happened" modal
+// summarises the run and links into the lesson; closing it leaves you here,
+// signed in, with a way to reopen it or sign out to switch users.
 import { useCallback, useEffect, useRef, useState } from "react";
 import CollectorField from "../components/davinci/CollectorField";
+import SdkLessonSections, { SDK_LESSON_SECTIONS } from "../components/davinci/SdkLessonSections";
 import SdkWalkthrough from "../components/davinci/SdkWalkthrough";
+import StepInspector, { summarizeResponse } from "../components/davinci/StepInspector";
 import DraggableModal from "../components/DraggableModal";
+import { LessonLayout, Section } from "../components/lesson";
 import {
   fetchSdkConfig,
   initClient,
@@ -30,15 +35,19 @@ import {
 } from "../lib/davinciSdkClient";
 import "./DavinciSdkLoginPage.css";
 
+// What the Step Inspector records about the collector a user clicked.
+const triggerOf = (c) =>
+  c ? { type: c.type, key: c.output?.key ?? c.name, label: c.output?.label ?? null } : null;
+
 export default function DavinciSdkLoginPage() {
   // loading | collecting | reused | signedIn | notConfigured | failed
   const [phase, setPhase] = useState("loading");
   // Username an existing PingOne session signed in as, shown on the "reused"
   // panel so the user can Continue as them or sign out to switch.
   const [reusedAs, setReusedAs] = useState(null);
-  // Who ended up signed in and HOW — "session" (an existing PingOne session
+  // Who ended up signed in and HOW: "session" (an existing PingOne session
   // completed the flow with no screens) or "form" (the user submitted the
-  // collectors). The walkthrough tells the story of whichever actually happened.
+  // collectors). The summary tells the story of whichever actually happened.
   const [signedIn, setSignedIn] = useState(null);
   const [showWhatHappened, setShowWhatHappened] = useState(false);
   const [message, setMessage] = useState(null);
@@ -52,6 +61,8 @@ export default function DavinciSdkLoginPage() {
   const [step, setStep] = useState(0);
   const [fieldErrors, setFieldErrors] = useState({});
   const [busy, setBusy] = useState(false);
+  // One Step Inspector card per SDK call on this run.
+  const [steps, setSteps] = useState([]);
 
   const clientRef = useRef(null);
   const cfgRef = useRef(null);
@@ -64,9 +75,39 @@ export default function DavinciSdkLoginPage() {
     traceRef.current.push(entry);
   }, []);
 
+  // Records what really happened on one SDK call: the request the middleware
+  // saw (masked before it was stored), the SDK's own cached copy of DaVinci's
+  // JSON, and the collectors it built. `from` is the trace length before the
+  // call, so the card gets THIS call's request, not an earlier one.
+  const recordStep = useCallback((client, kind, node, from, trigger = null) => {
+    const request = traceRef.current.slice(from).filter((e) => e.source === "http").at(-1) || null;
+    const cached = client.cache?.getLatestResponse?.();
+    const status = node?.status ?? null;
+    setSteps((prev) => [
+      ...prev,
+      {
+        kind,
+        trigger,
+        request,
+        response: summarizeResponse(cached?.data),
+        nodeStatus: status,
+        collectors:
+          status === "continue" || status === "error"
+            ? (client.getCollectors?.() || []).map((c) => ({
+                type: c.type,
+                category: c.category,
+                key: c.output?.key ?? c.name,
+                label: c.output?.label ?? null,
+              }))
+            : [],
+        errorMessage: status === "error" || status === "failure" ? client.getError?.()?.message || null : null,
+      },
+    ]);
+  }, []);
+
   // Reads collectors off the client rather than off the node, because
   // getCollectors() is the supported accessor and an error node still carries
-  // its collectors — which is what lets the form re-render with complaints.
+  // its collectors, which is what lets the form re-render with complaints.
   const syncFromClient = useCallback((client, node) => {
     setCollectors(client.getCollectors?.() || []);
     setStep((n) => n + 1);
@@ -109,7 +150,8 @@ export default function DavinciSdkLoginPage() {
   }, [showSignedIn]);
 
   // Ends the PingOne session (not this app's session) and returns here with a
-  // clean form — the way to sign in as a different user. See signOutOfPingOne.
+  // clean form, which is the way to sign in as a different user. See
+  // signOutOfPingOne.
   const signOut = useCallback(() => {
     signOutOfPingOne(cfgRef.current).catch((err) => {
       setMessage(err.message);
@@ -121,6 +163,8 @@ export default function DavinciSdkLoginPage() {
     setPhase("loading");
     setMessage(null);
     setMissing(null);
+    setSteps([]);
+    traceRef.current = [];
     try {
       const cfg = await fetchSdkConfig();
       cfgRef.current = cfg;
@@ -133,7 +177,9 @@ export default function DavinciSdkLoginPage() {
       // someone else and the flow failed with "userSessionMismatch". Instead an
       // existing PingOne session is reused (the flow completes with no
       // screens), and the page offers to sign out of PingOne to switch users.
+      const from = traceRef.current.length;
       const node = await client.start({ query: { nonce: cfg.nonce } });
+      recordStep(client, "start", node, from);
       if (node?.status === "failure") {
         // A 5XX or an unparseable payload lands here, not on 'error'. The SDK
         // logs "Response of 5XX indicates unrecoverable failure"; its own error
@@ -169,7 +215,7 @@ export default function DavinciSdkLoginPage() {
       setMessage(err.message);
       setPhase("failed");
     }
-  }, [onTrace, syncFromClient, finish]);
+  }, [onTrace, recordStep, syncFromClient, finish]);
 
   useEffect(() => {
     if (startedRef.current) return;
@@ -178,7 +224,7 @@ export default function DavinciSdkLoginPage() {
   }, [start]);
 
   // A FlowCollector branches the flow instead of submitting this screen, so it
-  // must NOT go through submit() — no values are written and next() is not
+  // must NOT go through submit(): no values are written and next() is not
   // called. client.flow({action}) returns the initiator to invoke.
   const takeFlow = useCallback(async (collector) => {
     const client = clientRef.current;
@@ -186,7 +232,9 @@ export default function DavinciSdkLoginPage() {
     setBusy(true);
     setMessage(null);
     try {
+      const from = traceRef.current.length;
       const node = await client.flow({ action: collector.output?.key ?? collector.name })();
+      recordStep(client, "flow", node, from, triggerOf(collector));
       if (node?.status === "failure") {
         setMessage(client.getError?.()?.message || "That path could not be started.");
         setPhase("failed");
@@ -200,9 +248,12 @@ export default function DavinciSdkLoginPage() {
     } finally {
       setBusy(false);
     }
-  }, [syncFromClient]);
+  }, [recordStep, syncFromClient]);
 
-  const submit = useCallback(async () => {
+  // `collector` is the SubmitCollector that was clicked (or, for Enter in a
+  // field, the form's first one). It changes nothing about the request; it
+  // only lets the Step Inspector name what the user did.
+  const submit = useCallback(async (collector) => {
     const client = clientRef.current;
     if (!client) return;
     setBusy(true);
@@ -211,7 +262,9 @@ export default function DavinciSdkLoginPage() {
       // Values are already in the SDK: each field wrote through its updater on
       // change (Ping's own sample does the same), so there is nothing to
       // collect here and no submit-time loop that could miss a collector.
+      const from = traceRef.current.length;
       const node = await client.next();
+      recordStep(client, "next", node, from, triggerOf(collector));
       if (node?.status === "success") {
         await finish(client);
         return;
@@ -230,168 +283,205 @@ export default function DavinciSdkLoginPage() {
     } finally {
       setBusy(false);
     }
-  }, [finish, syncFromClient]);
+  }, [finish, recordStep, syncFromClient]);
+
+  // From the modal's links: close it and bring that lesson section into view.
+  const goToSection = useCallback((id) => {
+    setShowWhatHappened(false);
+    document.getElementById(id)?.scrollIntoView?.({ behavior: "smooth" });
+  }, []);
 
   return (
-    <div className="dvsdk-page">
-      {/* Matches the side-nav label. The nav was renamed to "Orchestration SDK
-          Login" while this heading still said "DaVinci SDK Login", so clicking
-          the orchestration entry landed on a page that did not look like the
-          orchestration app — reported as "I do not see a way to start the
-          orchestration app, I only see widget". */}
-      <h1 className="dvsdk-title">Orchestration SDK Login</h1>
-      <p className="dvsdk-sub">
-        The Ping Orchestration SDK runs a PingOne DaVinci flow and this page renders
-        the flow&rsquo;s collectors itself &mdash; no DaVinci-hosted screens, no widget.
-      </p>
+    <LessonLayout
+      // Matches the side-nav label (sdkLoginHeadingMatchesNav.test.js). The nav
+      // was once renamed while this heading was not, and the page stopped
+      // looking like the orchestration app it is.
+      title="Orchestration SDK Login"
+      subtitle={
+        <>
+          The Ping Orchestration SDK runs a PingOne DaVinci flow, and this page draws each of the
+          flow&rsquo;s forms itself from collectors. No DaVinci-hosted screens, no widget. Try it
+          live, watch every step in the Step Inspector, then read how it works.
+        </>
+      }
+      sections={SDK_LESSON_SECTIONS}
+      storageKey="dvsdk-lesson-nav-width"
+    >
+      <Section id="try-it-live" title="Try It Live">
+        <p>
+          This is a working sign-in. The form is not a DaVinci page: the SDK fetched the flow&rsquo;s
+          current step as JSON, and this page drew it from the collectors. Each time the page calls
+          the SDK, the Step Inspector adds a card with the code that ran, the request the SDK sent,
+          DaVinci&rsquo;s answer, and the collectors it produced.
+        </p>
+        <p>
+          To watch the flow move from one DaVinci form to the next without signing in, click{" "}
+          <strong>Having trouble signing on?</strong>. That button is a FlowCollector: it sends the
+          flow back to DaVinci, which runs until its next screen, <strong>Enter Username</strong>,
+          and stops there. If this browser is already signed in to PingOne, the flow completes on
+          the first call with no form; sign out of PingOne to see the forms.
+        </p>
 
-      {phase === "loading" && <p className="dvsdk-status">Starting the flow...</p>}
+        <div className="dvsdk-live">
+          <div className="dvsdk-live-app">
+            <div className="dvsdk-page">
+              {phase === "loading" && <p className="dvsdk-status">Starting the flow...</p>}
 
-      {/* An existing PingOne session completed the flow with no screens. Say
-          who it signed in as and let the user choose, rather than dropping
-          them into the app as someone they may not have expected. */}
-      {phase === "reused" && (
-        <div className="dvsdk-notice">
-          <p className="dvsdk-notice-title">Signed in with your existing PingOne session</p>
-          <p>
-            {reusedAs ? (
-              <>
-                You are signed in as <strong>{reusedAs}</strong>.
-              </>
-            ) : (
-              "This browser was already signed in to PingOne, so no form was needed."
-            )}
-          </p>
-          <div className="dvsdk-actions">
-            <button
-              type="button"
-              className="dvsdk-retry"
-              onClick={() => showSignedIn(reusedAs, "session")}
-            >
-              Continue
-            </button>
-            <button type="button" className="dvsdk-retry" onClick={signOut}>
-              Sign out of PingOne and use a different account
-            </button>
+              {/* An existing PingOne session completed the flow with no screens. Say
+                  who it signed in as and let the user choose, rather than dropping
+                  them into the app as someone they may not have expected. */}
+              {phase === "reused" && (
+                <div className="dvsdk-notice">
+                  <p className="dvsdk-notice-title">Signed in with your existing PingOne session</p>
+                  <p>
+                    {reusedAs ? (
+                      <>
+                        You are signed in as <strong>{reusedAs}</strong>.
+                      </>
+                    ) : (
+                      "This browser was already signed in to PingOne, so no form was needed."
+                    )}
+                  </p>
+                  <div className="dvsdk-actions">
+                    <button
+                      type="button"
+                      className="dvsdk-retry"
+                      onClick={() => showSignedIn(reusedAs, "session")}
+                    >
+                      Continue
+                    </button>
+                    <button type="button" className="dvsdk-retry" onClick={signOut}>
+                      Sign out of PingOne and use a different account
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Signed in and deliberately STILL HERE, with no trip out to the app. */}
+              {phase === "signedIn" && (
+                <div className="dvsdk-notice">
+                  <p className="dvsdk-notice-title">You&rsquo;re signed in</p>
+                  <p>
+                    {signedIn?.username ? (
+                      <>
+                        Signed in as <strong>{signedIn.username}</strong>.
+                      </>
+                    ) : (
+                      "Signed in."
+                    )}
+                  </p>
+                  <div className="dvsdk-actions">
+                    <button type="button" className="dvsdk-retry" onClick={() => setShowWhatHappened(true)}>
+                      What just happened?
+                    </button>
+                    <button type="button" className="dvsdk-retry" onClick={signOut}>
+                      Sign out of PingOne and use a different account
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {phase === "notConfigured" && (
+                <div className="dvsdk-notice">
+                  <p className="dvsdk-notice-title">Not configured</p>
+                  <p>{message}</p>
+                  {missing?.length > 0 && (
+                    <ul className="dvsdk-missing">
+                      {missing.map((m) => (
+                        <li key={m}>
+                          <code>{m}</code>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+
+              {phase === "failed" && (
+                <div className="dvsdk-error">
+                  {/* userSessionMismatch: PingOne already has a session for a DIFFERENT
+                      user and will not sign someone else in on top of it. Reported
+                      while signed in as demoAdmin. Retrying cannot fix that; signing
+                      out of PingOne can, so offer it instead of the bare code. */}
+                  {/userSessionMismatch/i.test(message || "") ? (
+                    <p>
+                      This browser is signed in to PingOne as a different user, so PingOne will not
+                      sign you in as someone else on top of that session.
+                    </p>
+                  ) : (
+                    <p>{message}</p>
+                  )}
+                  <div className="dvsdk-actions">
+                    <button type="button" className="dvsdk-retry" onClick={start}>
+                      Try again
+                    </button>
+                    {/userSessionMismatch/i.test(message || "") && (
+                      <button type="button" className="dvsdk-retry" onClick={signOut}>
+                        Sign out of PingOne and use a different account
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {phase === "collecting" && (
+                <form
+                  className="dvsdk-form"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    submit(collectors.find((c) => c.type === "SubmitCollector"));
+                  }}
+                >
+                  {message && <p className="dvsdk-form-error">{message}</p>}
+                  {collectors.map((c) => {
+                    const key = c.output?.key ?? c.name ?? c.id;
+                    return (
+                      <CollectorField
+                        key={`${step}:${c.id ?? key}`}
+                        collector={c}
+                        updater={c.category === "ActionCollector" ? undefined : clientRef.current?.update(c)}
+                        serverError={fieldErrors[key]}
+                        busy={busy}
+                        onSubmit={() => submit(c)}
+                        onFlow={() => takeFlow(c)}
+                      />
+                    );
+                  })}
+                </form>
+              )}
+            </div>
+          </div>
+
+          <div className="dvsdk-live-steps">
+            <h3>Step Inspector</h3>
+            <StepInspector steps={steps} />
           </div>
         </div>
-      )}
+      </Section>
 
-      {/* Signed in and deliberately STILL HERE — no trip out to the app. */}
-      {phase === "signedIn" && (
-        <div className="dvsdk-notice">
-          <p className="dvsdk-notice-title">You&rsquo;re signed in</p>
-          <p>
-            {signedIn?.username ? (
-              <>
-                Signed in as <strong>{signedIn.username}</strong>.
-              </>
-            ) : (
-              "Signed in."
-            )}
-          </p>
-          <div className="dvsdk-actions">
-            <button type="button" className="dvsdk-retry" onClick={() => setShowWhatHappened(true)}>
-              What just happened?
-            </button>
-            <button type="button" className="dvsdk-retry" onClick={signOut}>
-              Sign out of PingOne and use a different account
-            </button>
-          </div>
-        </div>
-      )}
+      <SdkLessonSections config={cfgRef.current || {}} steps={steps} />
 
-      {phase === "notConfigured" && (
-        <div className="dvsdk-notice">
-          <p className="dvsdk-notice-title">Not configured</p>
-          <p>{message}</p>
-          {missing?.length > 0 && (
-            <ul className="dvsdk-missing">
-              {missing.map((m) => (
-                <li key={m}>
-                  <code>{m}</code>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
-      {phase === "failed" && (
-        <div className="dvsdk-error">
-          {/* userSessionMismatch: PingOne already has a session for a DIFFERENT
-              user and will not sign someone else in on top of it. Reported
-              while signed in as demoAdmin. Retrying cannot fix that; signing
-              out of PingOne can, so offer it instead of the bare code. */}
-          {/userSessionMismatch/i.test(message || "") ? (
-            <p>
-              This browser is signed in to PingOne as a different user, so PingOne will not
-              sign you in as someone else on top of that session.
-            </p>
-          ) : (
-            <p>{message}</p>
-          )}
-          <div className="dvsdk-actions">
-            <button type="button" className="dvsdk-retry" onClick={start}>
-              Try again
-            </button>
-            {/userSessionMismatch/i.test(message || "") && (
-              <button type="button" className="dvsdk-retry" onClick={signOut}>
-                Sign out of PingOne and use a different account
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {phase === "collecting" && (
-        <form
-          className="dvsdk-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            submit();
-          }}
-        >
-          {message && <p className="dvsdk-form-error">{message}</p>}
-          {collectors.map((c) => {
-            const key = c.output?.key ?? c.name ?? c.id;
-            return (
-              <CollectorField
-                key={`${step}:${c.id ?? key}`}
-                collector={c}
-                updater={c.category === "ActionCollector" ? undefined : clientRef.current?.update(c)}
-                serverError={fieldErrors[key]}
-                busy={busy}
-                onSubmit={submit}
-                onFlow={() => takeFlow(c)}
-              />
-            );
-          })}
-        </form>
-      )}
-
-      {/* The developer walkthrough: how the app is wired to PingOne, pi.flow,
-          collectors, how each DaVinci step comes back, and the BFF exchange —
-          plus what actually happened on this run, from the page's own SDK
-          trace. New storageKey so a size saved for the old, smaller modal does
-          not shrink this one. */}
+      {/* The run summary: what happened on this run, linking into the sections
+          above. New storageKey so a size saved for the old, larger walkthrough
+          modal does not carry over. */}
       <DraggableModal
         isOpen={showWhatHappened}
         onClose={() => setShowWhatHappened(false)}
         title="What just happened"
-        storageKey="davinci-sdk-walkthrough"
-        defaultWidth={900}
-        defaultHeight={760}
+        storageKey="davinci-sdk-run-summary"
+        defaultWidth={720}
+        defaultHeight={620}
       >
         <div className="dm-scroll">
           <SdkWalkthrough
             via={signedIn?.via}
             username={signedIn?.username}
             trace={traceRef.current}
-            config={cfgRef.current || {}}
+            steps={steps}
+            onNavigate={goToSection}
           />
         </div>
       </DraggableModal>
-    </div>
+    </LessonLayout>
   );
 }

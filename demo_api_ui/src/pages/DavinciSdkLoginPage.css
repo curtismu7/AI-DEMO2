@@ -1,26 +1,50 @@
-/* DaVinci SDK login (/davinci-sdk-login) and its collector fields.
+/* DaVinci SDK login (/davinci-sdk-login): the live sign-in, its collector
+   fields and the Step Inspector cards. The page shell (header, section nav,
+   code, tables) is components/lesson/lesson.css.
+
    Themeable values come from --th-* so both modes work without a
    prefers-color-scheme block (THEMING.md). Every rule that sets a themed ground
    also sets its ink (§1.5), font sizes come from the scale (§8.1) and radii from
    the scale (§9.3). */
 
+/* Try It Live: the sign-in beside the Step Inspector. The sign-in column stays
+   in view while the cards grow, so the form and the step that produced it can
+   be read together. */
+.dvsdk-live {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+  margin-top: 1rem;
+}
+
+.dvsdk-live-app {
+  position: sticky;
+  top: 1rem;
+  padding: 1.25rem;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+}
+
+@media (max-width: 900px) {
+  .dvsdk-live {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dvsdk-live-app {
+    position: static;
+  }
+}
+
+.lesson-section .dvsdk-live-steps h3 {
+  margin-top: 0;
+}
+
 .dvsdk-page {
   max-width: 420px;
-  margin: 48px auto;
-  padding: 0 20px;
   color: var(--th-text);
-}
-
-.dvsdk-title {
-  margin: 0 0 4px;
-  font-size: var(--font-size-h2);
-  color: var(--th-text);
-}
-
-.dvsdk-sub {
-  margin: 0 0 20px;
-  font-size: var(--font-size-sm);
-  color: var(--th-text-muted);
 }
 
 .dvsdk-status {
@@ -109,7 +133,7 @@
   color: var(--th-text-muted);
 }
 
-/* A collector the renderer does not handle yet. Visible on purpose — a blank
+/* A collector the renderer does not handle yet. Visible on purpose: a blank
    render looks like the flow is missing a field. */
 .dvsdk-unsupported {
   margin: 0;
@@ -180,4 +204,48 @@
   flex-wrap: wrap;
   align-items: center;
   column-gap: 10px;
+}
+
+/* Step Inspector cards. `.lesson-section` is in each selector that has to beat
+   the lesson shell's own `.lesson-section ol` / `.lesson-section p` rules. */
+.lesson-section .sdkl-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sdkl-step {
+  margin: 0 0 1rem;
+  padding: 1rem 1.1rem;
+  color: var(--th-text-body);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-left: 4px solid var(--th-border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.lesson-section .sdkl-step-title {
+  margin: 0 0 0.25rem;
+  font-size: var(--font-size-md);
+  color: var(--th-text);
+}
+
+.lesson-section .sdkl-part {
+  margin: 1rem 0 0.25rem;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--th-text-muted);
+}
+
+.lesson-section .sdkl-outcome {
+  margin: 1rem 0 0;
+  padding: 0.6rem 0.8rem;
+  color: var(--th-status-info-text);
+  background: var(--th-status-info-bg);
+  border: 1px solid var(--th-status-info-border);
+  border-radius: var(--radius-md);
+}
+
+.sdkl-empty {
+  color: var(--th-text-muted);
 }
