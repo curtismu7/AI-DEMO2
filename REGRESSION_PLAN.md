@@ -141,6 +141,31 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-13 — UC5 insufficient-scope sim no longer reports approval challenges as insufficient_scope
+
+**Files changed:** `demo_api_server/services/attackSimulatorService.js`. Test:
+`demo_api_server/src/__tests__/attackSimulator.test.js`.
+
+**What was broken:** `_runInsufficientScope` canonicalized every
+`mcp_tool_error` to `insufficient_scope` / 403. `mcpGatewayClient` throws that
+same code for step-up (HTTP 428 `step_up_required`, JSON-RPC `-32403`), HITL
+consent (HTTP 428/403 `hitl_required`, JSON-RPC `-32002`) and elicitation
+(HTTP 428 `elicitation_required`, JSON-RPC `-32003`). So a gateway that asked
+for approval was reported, labelled and scored as a scope denial.
+
+**What was fixed:** new `_approvalChallengeCode(err)` reads the flags the
+client sets on each path (`stepUp`, `elicitation`, `hitl`, `gatewayErrorCode`,
+`rpcCode`, `rpcData`). A challenge keeps its own code and HTTP status, and its
+`sim-gateway-deny` event is labelled `Gateway challenge (<code>)`. Only what is
+left is canonicalized to `insufficient_scope`.
+
+**Do not break:**
+- A genuine scope denial (`mcp_tool_error` with no approval flag, or
+  `gateway_policy_denied`) still reports `insufficient_scope` / 403.
+- `mcpGatewayClient`'s error shapes are unchanged; this only reads them.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest src/__tests__/attackSimulator.test.js --forceExit`.
+
 ### 2026-09-13 — Sequence view: step-up is drawn when it actually happens (BFF 428, device MFA, CIBA, live PingGateway consent)
 
 **Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`,

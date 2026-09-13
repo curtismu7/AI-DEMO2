@@ -699,6 +699,29 @@ async function runAttackSim(sim, req, attackAmount) {
 }
 
 /**
+ * The approval the gateway asked for instead of refusing, or null for a refusal.
+ * Step-up, HITL consent and elicitation all reach callers as code
+ * 'mcp_tool_error' (HTTP 428 or 403, or a JSON-RPC error in a 200), the same
+ * code a genuine scope denial carries, so they have to be told apart before the
+ * insufficient-scope sim canonicalizes to insufficient_scope. Reads the flags
+ * mcpGatewayClient sets on each path.
+ * @param {object} err error thrown by callToolViaGateway
+ * @returns {'step_up_required'|'elicitation_required'|'hitl_required'|null}
+ */
+function _approvalChallengeCode(err) {
+  if (!err || typeof err !== 'object') return null;
+  const data = err.rpcData || {};
+  if (err.stepUp || err.gatewayErrorCode === 'step_up_required' || data.error === 'step_up_required') {
+    return 'step_up_required';
+  }
+  if (err.elicitation || err.gatewayErrorCode === 'elicitation_required' || err.rpcCode === -32003) {
+    return 'elicitation_required';
+  }
+  if (err.hitl || data.hitl) return 'hitl_required';
+  return null;
+}
+
+/**
  * insufficient-scope sim:
  *   Exchange subject token to the REAL gateway audience requesting only ['read'].
  *   Then call create_transfer — which requires 'write'.
@@ -799,16 +822,21 @@ async function _runInsufficientScope(subjectToken, useCaseId, tokenChainEvents) 
   } catch (err) {
     const { errorCode: rawCode, httpStatus: rawStatus, reason } = _parseGatewayError(err, 403);
     // Canonicalize: mcp_tool_error (HTTP 200) and gateway_policy_denied (HTTP 403) both
-    // represent a scope denial in this sim. Report as 'insufficient_scope' with 403.
-    const isScopeDeny = rawCode === 'mcp_tool_error' || rawCode === 'gateway_policy_denied';
-    const errorCode = isScopeDeny ? 'insufficient_scope' : rawCode;
+    // represent a scope denial in this sim. Report as 'insufficient_scope' with 403 —
+    // unless the gateway asked for an approval (step-up, consent, elicitation), which
+    // also arrives as mcp_tool_error and is not a scope denial.
+    const challengeCode = _approvalChallengeCode(err);
+    const isScopeDeny = !challengeCode && (rawCode === 'mcp_tool_error' || rawCode === 'gateway_policy_denied');
+    const errorCode = challengeCode || (isScopeDeny ? 'insufficient_scope' : rawCode);
     const httpStatus = isScopeDeny ? 403 : rawStatus;
     tokenChainEvents.push(buildTokenEvent(
       'sim-gateway-deny',
-      'Gateway DENY (insufficient_scope)',
+      challengeCode ? `Gateway challenge (${errorCode})` : `Gateway DENY (${errorCode})`,
       'error',
       null,
-      `Gateway rejected the call with ${httpStatus} ${errorCode}: ${reason}`,
+      challengeCode
+        ? `Gateway answered with ${httpStatus} ${errorCode} — an approval challenge, not a scope denial: ${reason}`
+        : `Gateway rejected the call with ${httpStatus} ${errorCode}: ${reason}`,
       // tool/arguments let the Token Chain UI replay the attempted call in
       // the Agent Gateway Tester — this sim never reaches mcpResult since
       // the gateway rejects it before the MCP server runs.
@@ -1940,5 +1968,5 @@ async function _runImpersonationNoAct(subjectToken, useCaseId, tokenChainEvents)
 
 module.exports = {
   runAttackSim, runIntentBindingDemo, _exchangeSimToken,
-  __test: { _resolveForeignAccountId, _gatewayExchangeTarget, _denyFromGateway, _nodeGatewayUrl, IMPERSONATION_TRANSFER_ARGS, pickTransferAccounts },
+  __test: { _resolveForeignAccountId, _gatewayExchangeTarget, _denyFromGateway, _nodeGatewayUrl, IMPERSONATION_TRANSFER_ARGS, pickTransferAccounts, _approvalChallengeCode },
 };
