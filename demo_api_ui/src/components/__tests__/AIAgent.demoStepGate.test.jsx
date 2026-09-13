@@ -144,6 +144,7 @@ vi.mock("../../vertical/useVertical", () => ({
 
 import AIAgent from "../AIAgent";
 import { getCompletedUseCaseIds } from "../../utils/useCaseDemoProgress";
+import { tokenChainTraceStore } from "../../services/tokenChainTrace/tokenChainTraceStore";
 
 const UC12 = {
   id: "UC12",
@@ -261,5 +262,24 @@ describe("✓ only after the step ran", () => {
       expect(screen.getByText(/no runnable trigger/i)).toBeInTheDocument();
     });
     expect(getCompletedUseCaseIds().has("UC99")).toBe(false);
+  });
+});
+
+describe("a page-type step clears the live trace before it opens its page", () => {
+  it("drops the previous run so the dashboard diagram does not keep showing it", async () => {
+    // Seed a previous run, as a chat turn would have left it.
+    tokenChainTraceStore.beginTrace({ prompt: "show my accounts" });
+    tokenChainTraceStore.ingestTokenEvent({ id: "exchanged-token", status: "active" });
+    expect(tokenChainTraceStore.getState().trace.prompt).not.toBeNull();
+
+    renderSignedOut();
+    await runStep(UC27);
+
+    await waitFor(() => {
+      expect(screen.getByText(/opening \/a2a-protocol-learning/i)).toBeInTheDocument();
+    });
+    const { trace } = tokenChainTraceStore.getState();
+    expect(trace.prompt).toBeNull();
+    expect(trace.tokenEvents).toHaveLength(0);
   });
 });

@@ -8029,6 +8029,10 @@ export default function BankingAgent({
         return;
       }
       addMessage("assistant", `${stepLabel} — opening ${trigger.path}.`);
+      // This step runs on its own page. Clear the live trace first, or the
+      // dashboard's sequence diagram keeps showing the previous run when the
+      // presenter comes back, as though it belonged to this step.
+      try { tokenChainTraceStore.reset(); } catch (_) {}
       navigate(trigger.path);
       markUseCaseCompleted(uc.id);
       return;
