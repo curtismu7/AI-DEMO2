@@ -29,7 +29,7 @@ is the ambient list further down — those are *not* armed for you.
 | 7 | `UC14` — PAR + RAR intent violation (pushed intent exceeded) | Same PAR grant, but the agent now asks for more than it pushed — intent is a contract. | `ff_rar` | — |
 | 8 | `UC31` — Third-party MCP server — out-of-scope call denied | Agent calls a third-party weather MCP for an out-of-policy location — egress control on  | — | yes |
 | 9 | `UC42` — Third-party search server — blocked query denied | Same egress control, different policy shape — a content blocklist on a third-party searc | — | yes |
-| 10 | `UC12` — Token theft / replay defense | Attacker steals the user's token and replays it straight at the backend, skipping the ga | `ff_dpop` | — |
+| 10 | `UC12` — Token theft / replay defense | Attacker replays the user's session token at the gateway, skipping the token exchange. | `ff_dpop` | — |
 | 11 | `UC5` — Wrong / insufficient scope | An MCP server reaches for a tool it was never scoped for — scope is a hard ceiling. | — | — |
 
 **Gateway floor** = `ff_mcp_gateway_pinggateway`.
