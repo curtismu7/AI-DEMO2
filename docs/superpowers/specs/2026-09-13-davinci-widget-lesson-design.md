@@ -146,23 +146,29 @@ incl. `includeHttpCredentials`, `successCallback` posting tokens) and the BFF SD
   `onNavigate(id)` prop — as `SdkWalkthrough` does — so a link closes the modal and scrolls
   to that section. No teaching content of its own — that lives in the sections.
 - `DavinciLoginWidget.jsx` — after `/widget-session` succeeds it stays on the page, reads
-  the signed-in username from the existing `GET /api/auth/me`, and calls
-  `onSignedIn({ username, trace })`; the guide page opens the `DraggableModal`. No
-  navigation to `/davinci-login/confirmed` (that route and page stay for `/callback`). No
-  server change.
+  the signed-in username from that response, and calls `onSignedIn({ username })`; the
+  guide page opens the `DraggableModal`. No navigation to `/davinci-login/confirmed` (that
+  route and page stay for `/callback`).
+- `routes/davinciLogin.js` — the one server change: `establishSession` answers
+  `{ ok: true, username: user.username || null }`, as `routes/davinciSdkLogin.js` already
+  does. Amended 2026-09-13 (SDD ledger Ruling R5): `GET /api/auth/me` returned
+  `user.username = null` after a live widget sign-in, because it looks the user up by the
+  token's PingOne `sub` while `/widget-session` resolves the user by username.
 
 ## Out of scope
 
 `components/lesson/` (ai-demo2-35), `SdkWalkthrough.jsx`, `/davinci-sdk-login`,
-`/sdk-login`, server routes (unchanged since #3245), the DaVinci flow.
+`/sdk-login`, server routes other than the one-line `/widget-session` response change above,
+the DaVinci flow.
 
 ## Testing and verification
 
 - vitest: `davinciWidgetTrace` (records only the allowed fields, installs before and
   restores after the run, passes responses through untouched), `WidgetRunSummary` (renders
   run facts, warns when a call was not captured), `DavinciLoginWidget` (stays on page,
-  reads `/api/auth/me`, calls `onSignedIn`, no navigation), guide page renders all twelve
-  section ids in order.
+  passes the `/widget-session` username to `onSignedIn`, no navigation), guide page renders
+  all twelve section ids in order.
+- jest: `/widget-session` and `/callback` success responses carry `username`.
 - Gates for touched surfaces: `npm run test:unit`, `npm run build`, theming ratchets (new
   CSS), `dmScrollContract` (new modal), emoji allowlist.
 - Live, fresh browser on `local.ping-devops.com:4000` with a stack-generation pin: Sign On

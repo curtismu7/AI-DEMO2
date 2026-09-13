@@ -881,7 +881,7 @@ const TROUBLE = [
 const FILES = [
   ["demo_api_ui/src/pages/DavinciLoginGuidePage.jsx", "This page: LessonLayout, Try It Live grid, run summary modal"],
   ["demo_api_ui/src/pages/DavinciLoginWidget.jsx", "Mints config, installs the call trace, runs skRenderScreen, posts the tokens"],
-  ["demo_api_ui/src/lib/davinciWidgetClient.js", "davinci.js loader, POST /sdk-token, POST /widget-session, GET /api/auth/me"],
+  ["demo_api_ui/src/lib/davinciWidgetClient.js", "davinci.js loader, POST /sdk-token, POST /widget-session"],
   ["demo_api_ui/src/lib/davinciWidgetTrace.js", "Records the widget's calls (addresses and status only) for the Call Inspector"],
   ["demo_api_ui/src/components/davinci/CallInspector.jsx", "One card per call, live beside the widget"],
   ["demo_api_ui/src/components/davinci/WidgetRunSummary.jsx", "The What just happened modal"],
@@ -1276,49 +1276,32 @@ git commit -m "feat(davinci-widget): What just happened run summary"
 ### Task 5: Widget reports sign-in and records its calls
 
 **Files:**
-- Modify: `demo_api_ui/src/lib/davinciWidgetClient.js` (add `fetchSignedInUser`)
+- Modify: `demo_api_server/routes/davinciLogin.js` (`establishSession` answers with the username — ledger Ruling R5)
 - Modify: `demo_api_ui/src/pages/DavinciLoginWidget.jsx`
-- Test: `demo_api_ui/src/lib/__tests__/davinciWidgetClient.test.js`, `demo_api_ui/src/pages/__tests__/DavinciLoginWidget.test.jsx`
+- Test: `demo_api_server/tests/routes/davinciLogin.test.js`, `demo_api_server/tests/davinciLoginNonce.test.js`, `demo_api_ui/src/pages/__tests__/DavinciLoginWidget.test.jsx`
+
+> **Why the server changes (Ruling R5).** The first version of this task read the username from `GET /api/auth/me`. Measured after a live widget sign-in, that returned 200 with `user.username = null`: `/me` looks up the dataStore by the token's PingOne `sub`, while `/widget-session` resolves the user by username. The sibling SDK route already answers `{ ok: true, username: user.username || null }` (`routes/davinciSdkLogin.js`) and its page reads the name from that response, so this task does the same.
 
 **Interfaces:**
 - Consumes: `installWidgetTrace(onCall)` (Task 1).
-- Produces: `fetchSignedInUser() => Promise<string|null>` (never throws); `DavinciLoginWidget({ onCall, onStart, onSignedIn })` — calls `onStart()` at each run start, `onCall(call)` per recorded call, `onSignedIn({ username })` after `/widget-session` succeeds. No navigation.
+- Produces: `POST /api/davinci-login/widget-session` (and `POST /callback`, which shares `establishSession`) answers `{ ok: true, username: string|null }`; `DavinciLoginWidget({ onCall, onStart, onSignedIn })` — calls `onStart()` at each run start, `onCall(call)` per recorded call, `onSignedIn({ username })` with the username from the `/widget-session` response. No navigation.
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `demo_api_ui/src/lib/__tests__/davinciWidgetClient.test.js` (and add `fetchSignedInUser` to its import line):
+Server first. List the success assertions that must now carry the username:
 
-```js
-describe("fetchSignedInUser", () => {
-  test("returns the session's username from /api/auth/me", async () => {
-    global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: async () => ({ user: { username: "demouser" } }) }));
+Run: `grep -n "toEqual({ ok: true })" demo_api_server/tests/routes/davinciLogin.test.js demo_api_server/tests/davinciLoginNonce.test.js`
+Expected: four lines — in `davinciLogin.test.js` the `/callback` "valid code exchanges tokens…" test and the `/widget-session` "verified tokens establish a session…" test; in `davinciLoginNonce.test.js` the `/callback` "succeeds when the ID token echoes…" test and the `/widget-session` "succeeds when the ID token echoes the armed nonce…" test.
 
-    await expect(fetchSignedInUser()).resolves.toBe("demouser");
-    expect(global.fetch.mock.calls[0][0]).toBe("/api/auth/me");
-  });
+Change each to include the username that test's `dataStore.getUserByUsername` mock returns:
+- `davinciLogin.test.js` (both tests mock `{ id: 'u1', username: 'demoUser', role: 'customer' }`): `expect(res.body).toEqual({ ok: true, username: 'demoUser' });`
+- `davinciLoginNonce.test.js` (both tests mock `{ id: 'u-1', username: 'demouser', role: 'customer' }`): `expect(res.body).toEqual({ ok: true, username: 'demouser' });`
 
-  test("returns null instead of throwing when the lookup fails", async () => {
-    global.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 404, json: async () => ({}) }));
-    await expect(fetchSignedInUser()).resolves.toBeNull();
-
-    global.fetch = vi.fn(() => Promise.reject(new Error("offline")));
-    await expect(fetchSignedInUser()).resolves.toBeNull();
-  });
-});
-```
-
-In `demo_api_ui/src/pages/__tests__/DavinciLoginWidget.test.jsx`, extend the client mock and mock the trace:
+In `demo_api_ui/src/pages/__tests__/DavinciLoginWidget.test.jsx`, mock the trace alongside the existing client mock (the client mock is unchanged):
 
 ```jsx
-vi.mock("../../lib/davinciWidgetClient", () => ({
-  loadWidget: vi.fn(),
-  fetchWidgetConfig: vi.fn(),
-  postWidgetSession: vi.fn(),
-  fetchSignedInUser: vi.fn(),
-}));
 vi.mock("../../lib/davinciWidgetTrace", () => ({ installWidgetTrace: vi.fn() }));
 
-import { loadWidget, fetchWidgetConfig, postWidgetSession, fetchSignedInUser } from "../../lib/davinciWidgetClient";
 import { installWidgetTrace } from "../../lib/davinciWidgetTrace";
 ```
 
@@ -1328,8 +1311,7 @@ Replace the test `"successCallback hands the flow's tokens to the BFF, then load
   test("successCallback posts the tokens, stays on the page and reports who signed in", async () => {
     const skRenderScreen = vi.fn();
     loadWidget.mockResolvedValue({ skRenderScreen });
-    postWidgetSession.mockResolvedValue({ ok: true });
-    fetchSignedInUser.mockResolvedValue("demouser");
+    postWidgetSession.mockResolvedValue({ ok: true, username: "demouser" });
     const uninstall = vi.fn();
     installWidgetTrace.mockReturnValue(uninstall);
     const onSignedIn = vi.fn();
@@ -1376,27 +1358,21 @@ Replace the test `"successCallback hands the flow's tokens to the BFF, then load
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `cd demo_api_ui && ./node_modules/.bin/vitest run src/lib/__tests__/davinciWidgetClient.test.js src/pages/__tests__/DavinciLoginWidget.test.jsx`
-Expected: FAIL — `fetchSignedInUser is not a function`, `onSignedIn` not called, `installWidgetTrace` not called.
+Run: `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/davinciLogin.test.js tests/davinciLoginNonce.test.js --forceExit`
+Expected: FAIL — the four success tests report `username` missing from the response body.
+
+Run: `cd demo_api_ui && ./node_modules/.bin/vitest run src/pages/__tests__/DavinciLoginWidget.test.jsx`
+Expected: FAIL — `onSignedIn` not called, `installWidgetTrace` not called.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Append to `demo_api_ui/src/lib/davinciWidgetClient.js`:
+In `demo_api_server/routes/davinciLogin.js`, inside `establishSession`, replace `return res.json({ ok: true });` with:
 
 ```js
-// Who the new session belongs to, for the run summary. /widget-session answers
-// only { ok: true }, and the lesson must not guess: read the existing
-// /api/auth/me. Never throws — a failed lookup only drops the name from the lede.
-export async function fetchSignedInUser() {
-  try {
-    const res = await fetch("/api/auth/me", { headers: { Accept: "application/json" } });
-    if (!res.ok) return null;
-    const body = await res.json();
-    return body?.user?.username || null;
-  } catch {
-    return null;
-  }
-}
+        // The username rides back with the result, as routes/davinciSdkLogin.js
+        // does: GET /api/auth/me looks the user up by the token's sub and is not
+        // guaranteed to find this record, so the page must not ask it.
+        return res.json({ ok: true, username: user.username || null });
 ```
 
 In `demo_api_ui/src/pages/DavinciLoginWidget.jsx`:
@@ -1405,12 +1381,7 @@ In `demo_api_ui/src/pages/DavinciLoginWidget.jsx`:
 
 ```jsx
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  fetchSignedInUser,
-  fetchWidgetConfig,
-  loadWidget,
-  postWidgetSession,
-} from "../lib/davinciWidgetClient";
+import { fetchWidgetConfig, loadWidget, postWidgetSession } from "../lib/davinciWidgetClient";
 import { installWidgetTrace } from "../lib/davinciWidgetTrace";
 import "./DavinciLoginPage.css";
 ```
@@ -1466,14 +1437,13 @@ export default function DavinciLoginWidget({ onCall, onStart, onSignedIn }) {
 ```jsx
         successCallback: async (response) => {
           try {
-            await postWidgetSession({
+            const result = await postWidgetSession({
               idToken: response?.id_token,
               accessToken: response?.access_token,
             });
-            const username = await fetchSignedInUser();
             stopTrace();
             setStatus("signedIn");
-            onSignedIn?.({ username });
+            onSignedIn?.({ username: result?.username || null });
           } catch (err) {
             stopTrace();
             setError(err.message);
@@ -1491,13 +1461,16 @@ export default function DavinciLoginWidget({ onCall, onStart, onSignedIn }) {
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `cd demo_api_ui && ./node_modules/.bin/vitest run src/lib/__tests__/davinciWidgetClient.test.js src/pages/__tests__/DavinciLoginWidget.test.jsx`
+Run: `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/davinciLogin.test.js tests/davinciLoginNonce.test.js --forceExit`
+Expected: PASS (all tests in both files).
+
+Run: `cd demo_api_ui && ./node_modules/.bin/vitest run src/pages/__tests__/DavinciLoginWidget.test.jsx src/lib/__tests__/davinciWidgetClient.test.js`
 Expected: PASS (all tests in both files).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add demo_api_ui/src/lib/davinciWidgetClient.js demo_api_ui/src/lib/__tests__/davinciWidgetClient.test.js demo_api_ui/src/pages/DavinciLoginWidget.jsx demo_api_ui/src/pages/__tests__/DavinciLoginWidget.test.jsx
+git add demo_api_server/routes/davinciLogin.js demo_api_server/tests/routes/davinciLogin.test.js demo_api_server/tests/davinciLoginNonce.test.js demo_api_ui/src/pages/DavinciLoginWidget.jsx demo_api_ui/src/pages/__tests__/DavinciLoginWidget.test.jsx
 git commit -m "feat(davinci-widget): stay on the page after sign-in and record the widget's calls"
 ```
 
