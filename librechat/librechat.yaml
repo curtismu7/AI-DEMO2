@@ -3,6 +3,14 @@
 version: 1.3.14
 cache: true
 
+# Lets seed-demo-agents.js (run as a regular USER account) share its demo
+# agents publicly, so every LibreChat account sees them. Only the keys listed
+# here change; use/create keep their defaults.
+interface:
+  agents:
+    share: true
+    public: true
+
 # LibreChat's SSRF guard blocks any MCP server URL that resolves to a private
 # address — which every host-gateway alias in docker-compose.yml does. Each
 # entry is host:port; the hostname is matched before DNS, so the alias is

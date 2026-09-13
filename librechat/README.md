@@ -58,6 +58,17 @@ below.
 
    UI: `http://localhost:3080`.
 
+4. **Demo agents** (optional, so presenters don't have to know what to type):
+   ```bash
+   node librechat/seed-demo-agents.js
+   ```
+   Creates four public agents — Everyday Banking, Money Movement, Support and
+   Fees, Super Sports — each on PingOne Privilege (OpenAI) / `gpt-4o-mini`
+   with a few `aidemo-mcp` tools and four clickable starter prompts. Pick one
+   in the agent selector and click a prompt. Re-run it to update them in place.
+   Every click is a real OpenAI call billed to the Privilege virtual key, and
+   Money Movement changes the demo balances.
+
 ## Docker vs pingaws
 
 `librechat.yaml` targets the local docker stack by default, and carries one
