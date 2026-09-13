@@ -328,6 +328,35 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     expect(headers).not.toContain("HEURISTICS");
   });
 
+  it("draws the A2A hops right after the tool choice, with their status", () => {
+    store.state = {
+      steps: [
+        step("prompt", "CHAT", "done"),
+        step("llm", "HEURISTICS", "done"),
+        step("reply", "HEURISTICS", "done"),
+      ],
+      trace: {
+        runId: 1,
+        outcome: "ok",
+        tokenEvents: [
+          { id: "a2a-exchange1", status: "active" },
+          { id: "a2a-exchange2", status: "error" },
+        ],
+      },
+    };
+    const { container } = render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
+    const rows = [...container.querySelectorAll('g[role="button"]')];
+    const labels = rows.map((g) => g.querySelector("text")?.textContent || "");
+    const at = (text) => labels.findIndex((l) => l.includes(text));
+    expect(at("A2A Exchange #1")).toBe(at("llm") + 1);
+    expect(at("A2A Exchange #2")).toBe(at("reply") - 1);
+    expect(rows[at("A2A Exchange #2")].getAttribute("class")).toContain("srd-status-error");
+    // Hops with no event stay pending and are not drawn.
+    expect(labels.some((l) => l.includes("Agent Card"))).toBe(false);
+    const headers = [...container.querySelectorAll(".srd-actor-label")].map((t) => t.textContent);
+    expect(headers).toContain("A2A");
+  });
+
   it("does not start a narration on mount when slow mode is already on", () => {
     // Slow mode comes back from localStorage, so it is on at page load. Loading
     // the page must not replay the last trace.

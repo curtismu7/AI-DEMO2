@@ -141,6 +141,31 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-13 — UC5 insufficient-scope sim no longer reports approval challenges as insufficient_scope
+
+**Files changed:** `demo_api_server/services/attackSimulatorService.js`. Test:
+`demo_api_server/src/__tests__/attackSimulator.test.js`.
+
+**What was broken:** `_runInsufficientScope` canonicalized every
+`mcp_tool_error` to `insufficient_scope` / 403. `mcpGatewayClient` throws that
+same code for step-up (HTTP 428 `step_up_required`, JSON-RPC `-32403`), HITL
+consent (HTTP 428/403 `hitl_required`, JSON-RPC `-32002`) and elicitation
+(HTTP 428 `elicitation_required`, JSON-RPC `-32003`). So a gateway that asked
+for approval was reported, labelled and scored as a scope denial.
+
+**What was fixed:** new `_approvalChallengeCode(err)` reads the flags the
+client sets on each path (`stepUp`, `elicitation`, `hitl`, `gatewayErrorCode`,
+`rpcCode`, `rpcData`). A challenge keeps its own code and HTTP status, and its
+`sim-gateway-deny` event is labelled `Gateway challenge (<code>)`. Only what is
+left is canonicalized to `insufficient_scope`.
+
+**Do not break:**
+- A genuine scope denial (`mcp_tool_error` with no approval flag, or
+  `gateway_policy_denied`) still reports `insufficient_scope` / 403.
+- `mcpGatewayClient`'s error shapes are unchanged; this only reads them.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest src/__tests__/attackSimulator.test.js --forceExit`.
+
 ### 2026-09-13 — DaVinci widget sign-in ended on PingOne's hosted sign-on page instead of signing in
 
 **Files changed:** `demo_api_server/routes/davinciLogin.js`,
@@ -258,6 +283,42 @@ builder's `stepup` step stayed dark for most real step-ups.
 
 **Verify:** `cd demo_api_ui && node_modules/.bin/vitest run buildTraceSteps.test tokenChainTraceStore agentFlowDiagramService`.
 Seven tests fail against the pre-fix sources.
+
+### 2026-09-13 — Open-access hop: every vertical tool answered 401 invalid_token
+
+**Files changed:** `oauth-mcp/src/tools/BankingToolProvider.ts`.
+Tests: `oauth-mcp/tests/tools/BankingToolProvider.privilegeToken.test.ts`.
+
+**What was broken:** with `MCP_AUTH_DISABLED=true`, a caller without a
+validatable bearer (LibreChat's `aidemo-mcp`, the Privilege open-access hop)
+reaches `executeTool` with the placeholder `'disabled'`. The open-access branch
+minted the demo-user token only for tools with no `vertical` tag — its comment
+said vertical tools "execute server-side with no token". They don't: the vertical
+handler relays to BFF `POST /api/path/vertical-tool`, whose `authenticateToken`
+rejected `Bearer disabled` with `401 invalid_token`. Every sporting-goods,
+retail, healthcare and workforce action tool (`list_gear`, `list_rentals`,
+`loyalty_balance`, …) failed with `Banking API error: invalid_token` (BFF log
+`POST /api/path/vertical-tool 401`, 12:45:19 and 12:46:19).
+
+**What was fixed:** the open-access branch mints the demo-user token for every
+tool (`if (openAccessHop)`), so vertical tools reach the BFF with a real bearer,
+which `authenticateToken` binds to the open-access demo user.
+`TokenResolver` is unchanged: it still skips Step 9 for vertical tools and
+forwards that token as-is.
+
+**Do not break:**
+- With `MCP_AUTH_DISABLED` unset or false, the per-tool scope check still fails
+  closed — the placeholder gets `Insufficient scope` and no demo token.
+- A real bearer is never swapped: `openAccessHop` still requires the
+  `'disabled'` placeholder or a Privilege (`procyon`) token.
+- The BFF binding stays gated on `MCP_AUTH_DISABLED === 'true' && !decoded.sub &&
+  role !== 'admin'` (see the 2026-08-10 open-access entries).
+
+**Verify:** `cd oauth-mcp && ./node_modules/.bin/jest tests/tools/BankingToolProvider.privilegeToken.test.ts`
+(the vertical-tool case fails against the pre-fix code); live after
+`scripts/deploy-live.sh`: `tools/call list_rentals` on `http://localhost:8080/mcp`
+with `Bearer none` returns the Trek Marlin 8 rental, and the BFF logs
+`POST /api/path/vertical-tool 200`.
 
 ### 2026-09-13 — Sequence view: gateway denies and permits are drawn on the gateway; tools/call's 401 is drawn in wire order
 

@@ -26,6 +26,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { deriveLifelineSteps, deriveLifelineParticipants } from "../services/tokenChainTrace/deriveLifelineSteps";
 import { laneLabel } from "../services/tokenChainTrace/buildTraceSteps";
+import { buildA2aTokenChainSteps } from "./TokenChainTraceRail";
 import "./SequenceReelDiagram.css";
 
 const COL_WIDTH = 140;
@@ -92,11 +93,21 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
 
   const [slowRevealMs, setSlowRevealMs] = useState(SLOW_REVEAL_MS);
 
+  // The A2A hops are not in buildTraceSteps; the Token Chain rail splices them
+  // in right after the tool choice, and this view draws them in the same place.
+  const steps = useMemo(() => {
+    const base = snap.steps || [];
+    const a2a = buildA2aTokenChainSteps(snap.trace?.tokenEvents);
+    if (!a2a.length) return base;
+    const at = base.findIndex((step) => step.id === "llm");
+    return [...base.slice(0, at + 1), ...a2a, ...base.slice(at + 1)];
+  }, [snap.steps, snap.trace]);
+
   const allLifelineSteps = useMemo(() => {
-    const happened = (snap.steps || []).filter((step) => HAPPENED.has(step.status));
+    const happened = steps.filter((step) => HAPPENED.has(step.status));
     if (!happened.some((step) => !SESSION_STEP_IDS.has(step.id))) return [];
     return deriveLifelineSteps(happened);
-  }, [snap.steps]);
+  }, [steps]);
   const runId = snap.trace?.runId ?? null;
   const traceFinished = snap.trace?.outcome === "ok" || snap.trace?.outcome === "error";
 
@@ -182,9 +193,9 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
 
   const stepsById = useMemo(() => {
     const map = new Map();
-    for (const step of snap.steps || []) map.set(step.id, step);
+    for (const step of steps) map.set(step.id, step);
     return map;
-  }, [snap.steps]);
+  }, [steps]);
 
   const selectStep = useCallback(
     (id) => {

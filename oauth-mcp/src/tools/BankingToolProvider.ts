@@ -170,17 +170,19 @@ export class BankingToolProvider {
             this.logger.info(
               `[BankingToolProvider] open-access hop (MCP_AUTH_DISABLED) — the gateway owns authorization; skipping banking scope check for ${toolName}`
             );
-            // Banking DATA tools (not vertical) still need a real subject_token for
-            // Step 9 (the placeholder 'disabled' cannot be exchanged). Mint a demo
-            // user token from the BFF and run the tool as that user. Vertical tools
-            // execute server-side with no token, so they need nothing here.
-            if (!tool.vertical && openAccessHop) {
+            // Every tool that reaches the BFF needs a real bearer, and the
+            // placeholder 'disabled' is not one. Banking DATA tools need it as the
+            // Step 9 subject_token; vertical tools relay to /api/path/vertical-tool,
+            // whose authenticateToken rejects the placeholder with 401
+            // invalid_token. Mint a demo user token from the BFF and run the tool
+            // as that user.
+            if (openAccessHop) {
               const demoToken = await this.apiClient.fetchDemoSubjectToken();
               if (demoToken) {
                 effectiveAgentToken = demoToken;
-                this.logger.info(`[BankingToolProvider] open-access data tool — using demo-user subject token for Step 9 (${toolName})`);
+                this.logger.info(`[BankingToolProvider] open-access tool — using demo-user subject token (${toolName})`);
               } else {
-                this.logger.warn(`[BankingToolProvider] open-access data tool — demo subject token unavailable; ${toolName} will fail Step 9`);
+                this.logger.warn(`[BankingToolProvider] open-access tool — demo subject token unavailable; ${toolName} will fail at the BFF`);
               }
             }
           } else {

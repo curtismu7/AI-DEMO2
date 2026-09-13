@@ -20,9 +20,11 @@ describe('the SDK login page is named the same thing in the nav and on the page'
     )?.[1];
     expect(navLabel, 'AdminSideNav must list /davinci-sdk-login').toBeTruthy();
 
+    // The page's h1 is rendered by the shared lesson shell from LessonLayout's
+    // `title` prop.
     const page = read('../DavinciSdkLoginPage.jsx');
-    const heading = page.match(/<h1 className="dvsdk-title">([^<]+)<\/h1>/)?.[1];
-    expect(heading, 'DavinciSdkLoginPage must render an h1').toBeTruthy();
+    const heading = page.match(/<LessonLayout[\s\S]*?\btitle="([^"]+)"/)?.[1];
+    expect(heading, 'DavinciSdkLoginPage must pass LessonLayout a title').toBeTruthy();
 
     expect(heading.trim()).toBe(navLabel.trim());
   });

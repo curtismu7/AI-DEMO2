@@ -16,6 +16,34 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-13 — HITL consent can be approved with no session
+
+**What's wrong.** `POST /api/demo-agent/consent`
+(`demo_api_server/routes/demoAgentRoutes.js`, the `/consent` handler) checks
+ownership only when both sides are known:
+`if (entry.userId && userSub && entry.userId !== userSub)`. The router runs
+`agentGuestSessionMiddleware` (`router.use` at the top of the file), which lets
+a request with no session through with `req.agentContext = null`
+(`middleware/agentSessionMiddleware.js`, `agentGuestSessionMiddleware`). With no
+session `userSub` is `null`, the ownership check is skipped, and
+`recordConsentDecision(consentId, 'approve')` runs for any pending challenge.
+The only guard is that `consentId` must be a v4 UUID, so exploiting it needs a
+leaked challenge id (for example from a trace, a log line, or a gateway 428
+body, which carries `challengeId`). The `/api/demo-agent` entry in `server.js`'s
+path list is `refreshIfExpiring`, not an auth gate.
+
+**Why it wasn't fixed now.** Found while sizing whether LibreChat could demo
+HITL consent through the agent-gateway door. That work stayed out of scope, and
+the fix changes behavior on the HITL consent path (REGRESSION_PLAN §1), so it
+belongs in its own PR with its own tests rather than bundled into a doc or demo
+change.
+
+**Real fix.** Treat a missing `userSub` as unauthenticated for this route:
+answer 401 (`{ error, need_auth: true }`) before looking up the challenge, and
+keep the 403 for a signed-in user who does not own it. Add a supertest spec for
+both, plus the existing approve path, so the HITL retry (`_hitl_challenge_id`)
+still works for the owner.
+
 ### [ ] 2026-09-13 — DaVinci widget sessions have no refresh token
 
 **What's wrong.** A widget sign-in (`POST /api/davinci-login/widget-session`)

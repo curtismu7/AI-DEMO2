@@ -8001,6 +8001,11 @@ export default function BankingAgent({
               `${stepLabel}`,
               `Intent binding \`permit\` → ${status ?? "?"} ${verdict} ${attackSimVerdictNote(verdict)}`.trim(),
               reason ? reason : null,
+              // Without live:true the route runs the offline RAR simulator; the
+              // real PingOne PAR push happens only on the full intent-binding page.
+              data?.live === true
+                ? null
+                : "Simulated: an offline RAR check, not the live PingOne PAR push. Switch this step to Full page for the real RFC 9126 request.",
             ]
               .filter(Boolean)
               .join("\n"),

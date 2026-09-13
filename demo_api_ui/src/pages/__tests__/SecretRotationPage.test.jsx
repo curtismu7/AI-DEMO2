@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, test, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const APPS = [
@@ -153,6 +153,35 @@ describe('SecretRotationPage', () => {
     expect(otherRadio).toBeChecked();
     expect(demoRadio).not.toBeChecked();
     expect(otherRadio.closest('tr')).toHaveClass('sr-row-selected');
+  });
+
+  // The app list grew to 20 real apps with long names sharing the column with
+  // a UUID clientId — showing the clientId under the name (not e.g. in a
+  // tooltip) is what lets an operator tell two similarly-named apps apart
+  // without opening each one.
+  test('shows each app\'s clientId under its name', async () => {
+    renderPage(<SecretRotationPage />);
+    expect(await screen.findByText('Demo App')).toBeInTheDocument();
+    expect(screen.getByText('c1')).toBeInTheDocument();
+    expect(screen.getByText('c2')).toBeInTheDocument();
+  });
+
+  // Dragging a header's resize handle should resize that column, not its
+  // neighbors — pins the handler keying off the dragged column only.
+  test('dragging a column resizer resizes that column and not the others', async () => {
+    renderPage(<SecretRotationPage />);
+    await screen.findByText('Demo App');
+    const table = screen.getByRole('table');
+    const appCol = () => table.querySelectorAll('col')[1];
+    const authCol = () => table.querySelectorAll('col')[2];
+    const startWidth = appCol().style.width;
+
+    fireEvent.mouseDown(screen.getByTestId('sr-col-resizer-app'), { clientX: 300 });
+    fireEvent.mouseMove(document, { clientX: 360 });
+    fireEvent.mouseUp(document);
+
+    expect(appCol().style.width).toBe(`${parseInt(startWidth, 10) + 60}px`);
+    expect(authCol().style.width).toBe('160px');
   });
 
   test('switching the selected app clears an armed rotation for the previous app', async () => {
