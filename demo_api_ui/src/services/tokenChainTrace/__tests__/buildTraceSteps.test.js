@@ -1613,3 +1613,41 @@ describe("laneLabel", () => {
     expect(laneLabel("GATEWAY")).toBe("GATEWAY");
   });
 });
+
+describe("mcp step — terminal failure phases", () => {
+  // mcpToolPipeline returns on each of these WITHOUT publishing an mcpResult, so
+  // neither mcpDone (wants mcp_remote_done or a result) nor mcpErrored (wants
+  // mcpResult.status) can ever become true. mcpBegun then won the status chain
+  // and the hop went on claiming the tool was executing for the rest of the
+  // session — "MCP server — tool executes" still spinning on a finished run.
+  const begun = { phase: "mcp_remote_begin" };
+
+  test.each([
+    "mcp_remote_tool_error",
+    "gateway_unreachable_no_fallback",
+    "local_tool_error",
+    "local_fallback_blocked_no_user",
+  ])("%s ends the mcp hop as an error, not a spinner", (phase) => {
+    const steps = buildTraceSteps({ ...EMPTY_TRACE, outcome: "ok", phases: [begun, { phase }] });
+    expect(steps.find((s) => s.id === "mcp").status).toBe("error");
+  });
+
+  // The two below pass with or without the fix: they are guards against
+  // over-correcting it, not proof of it.
+  test("mcp_remote_unreachable is NOT terminal — a successful local fallback still reads done", () => {
+    // The pipeline emits it BEFORE falling back, and the fallback publishes a
+    // result. Treating it as terminal would paint a completed run red.
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      phases: [begun, { phase: "mcp_remote_unreachable" }, { phase: "local_tool_done" }],
+      mcpResult: { tool: "get_branch_hours", result: { hours: "9-5" } },
+    });
+    expect(steps.find((s) => s.id === "mcp").status).toBe("done");
+  });
+
+  test("a run genuinely still in flight keeps its spinner", () => {
+    const steps = buildTraceSteps({ ...EMPTY_TRACE, phases: [begun] });
+    expect(steps.find((s) => s.id === "mcp").status).toBe("active");
+  });
+});
