@@ -121,3 +121,51 @@ describe('refresh-service-envs.js — API_ROOT vs ROOT', () => {
     expect(mod.API_ENV).toBe(path.join(REPO_ROOT, 'demo_api_server', '.env'));
   });
 });
+
+// 2026-09-12 TECH_DEBT fix: loadVaultSecrets requires lib/vault through
+// API_ROOT (path.join(API_ROOT, 'lib', 'vault')), correct today only because
+// argon2 (lib/vault/crypto.js) ships cross-platform prebuilds, unlike lmdb's
+// per-platform optional dependencies — nothing pinned this exact require
+// line before. A silent regression to the old, wrong
+// `root + 'demo_api_server/lib/vault'` form is byte-identical to the correct
+// form under the native root assumption (REPO_ROOT === API_ROOT's parent),
+// so only the container assumption (root diverges from API_ROOT, exactly as
+// CODE_SEARCH_REPO_ROOT does in the real container) can actually catch it.
+describe('refresh-service-envs.js — loadVaultSecrets requires lib/vault through API_ROOT', () => {
+  const VAULT_MODULE_PATH = path.join(NATIVE_API_ROOT, 'lib', 'vault');
+
+  beforeEach(() => {
+    jest.resetModules();
+    jest.doMock(VAULT_MODULE_PATH, () => ({
+      openVault: async () => ({
+        read: async (name) => (name === 'PROBE_KEY' ? 'via-api-root' : ''),
+        close() {},
+      }),
+    }), { virtual: true });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    jest.resetModules();
+    delete process.env.VAULT_PASSWORD;
+  });
+
+  test('native root assumption: root === REPO_ROOT resolves the vault via API_ROOT', async () => {
+    process.env.VAULT_PASSWORD = 'pw';
+    const vaultFile = path.join(REPO_ROOT, 'secrets.vault');
+    jest.spyOn(fs, 'existsSync').mockImplementation((p) => p === vaultFile);
+    const mod = require('../scripts/refresh-service-envs');
+    const out = await mod.loadVaultSecrets(['PROBE_KEY'], REPO_ROOT);
+    expect(out.PROBE_KEY).toBe('via-api-root');
+  });
+
+  test('container root assumption: root diverges from API_ROOT (e.g. CODE_SEARCH_REPO_ROOT=/repo) still resolves the vault via API_ROOT, not root + demo_api_server/lib/vault', async () => {
+    process.env.VAULT_PASSWORD = 'pw';
+    const containerRoot = '/repo';
+    const vaultFile = path.join(containerRoot, 'secrets.vault');
+    jest.spyOn(fs, 'existsSync').mockImplementation((p) => p === vaultFile);
+    const mod = require('../scripts/refresh-service-envs');
+    const out = await mod.loadVaultSecrets(['PROBE_KEY'], containerRoot);
+    expect(out.PROBE_KEY).toBe('via-api-root');
+  });
+});
