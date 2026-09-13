@@ -64,6 +64,11 @@ const DEFAULT_VAULT_PATH = path.join(REPO_ROOT, 'secrets.vault');
 // to answer "is the vault unlocked" without enumerating configStore.
 let _unlocked = false;
 let _entriesLoaded = 0;
+// The boot password, held module-private after step 7 deletes it from
+// process.env. Its one consumer is routes/secretRotation.js, which hands it to
+// the rotation CLI child's spawn env: that child's preflight needs it to persist
+// the new secret, and inheriting process.env no longer carries it.
+let _bootVaultPassword;
 
 // Vault entries that must also land in process.env, because their consumers read
 // process.env directly and never consult configStore. Keep this list minimal and
@@ -195,6 +200,7 @@ async function loadVaultIntoConfigStore(opts = {}) {
 
   _unlocked = true;
   _entriesLoaded = entryCount;
+  _bootVaultPassword = password;
   logger.log('[vault] loaded ' + entryCount + ' entries from ' + vaultPath);
   return { loaded: true, entries: entryCount };
 }
@@ -279,6 +285,9 @@ function isVaultUnlockedThisProcess() { return _unlocked; }
 /** Phase 269.1 — entry count from the last successful unlock (or 0). */
 function vaultEntryCountThisProcess() { return _entriesLoaded; }
 
+/** The password the boot load opened the vault with (undefined if none). Never log it. */
+function vaultPasswordThisProcess() { return _bootVaultPassword; }
+
 module.exports = {
   // Exported so the vault-wins guarantee is testable: a name dropped from this
   // list silently returns that key to "whichever copy wins", which for
@@ -289,5 +298,6 @@ module.exports = {
   unlockVaultAtRuntime,
   isVaultUnlockedThisProcess,
   vaultEntryCountThisProcess,
+  vaultPasswordThisProcess,
   DEFAULT_VAULT_PATH,
 };

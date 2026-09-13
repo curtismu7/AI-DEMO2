@@ -8,6 +8,7 @@ const express = require('express');
 const { listApplicationsRaw } = require('../services/agentBuilderService');
 const { isWorkerApp } = require('../services/pingOneSecretRotation');
 const { getRotatableVaultKeyMap } = require('../scripts/refresh-service-envs');
+const { vaultPasswordThisProcess } = require('../services/vaultLoader');
 
 const router = express.Router();
 
@@ -90,9 +91,13 @@ router.post('/start', async (req, res) => {
   if (k8s) argv.push('--k8s');
 
   // Detached: a container recreate in the rotation's own restart step must not
-  // orphan it. No secret is ever passed here — the CLI obtains it from PingOne.
+  // orphan it. No secret goes in argv — the CLI obtains the client secret from
+  // PingOne. The vault password goes in THIS child's env only: the boot loader
+  // deleted it from process.env, and without it the CLI's preflight refuses.
+  const vaultPassword = vaultPasswordThisProcess();
   const child = spawn(process.execPath, argv, {
     cwd: REPO_ROOT, detached: true, stdio: ['ignore', out, out],
+    env: vaultPassword ? { ...process.env, VAULT_PASSWORD: vaultPassword } : process.env,
   });
   child.unref();
 
