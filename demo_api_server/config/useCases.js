@@ -1090,24 +1090,26 @@ const RAW_USE_CASES = [
     useCaseId: 'token-theft-replay',
     track: 'attacks',
     title: 'Token theft / replay defense',
-    buyerStory: "A stolen token must be unusable — audience binding and DPoP key binding ensure it can't be replayed.",
-    pingOneSolution: 'The gateway enforces audience binding (D-05) unconditionally; DPoP key binding adds a proof-of-possession check when enabled.',
+    buyerStory: "A stolen token must be unusable anywhere but where it was issued — audience binding makes the gateway refuse a token minted for another audience.",
+    pingOneSolution: 'The gateway enforces audience binding (D-05) unconditionally. This step replays a session token minted for another audience and sends no DPoP proof, so audience binding is the control that refuses it.',
     trigger: { type: 'attack', sim: 'replayed-token' },
     expectedOutcome: 'DENY_401',
     // Audience binding is enforced at the gateway BEFORE PingOne Authorize is
     // consulted, so this sim never produces an 'authorize-decision'. The replayed
     // user token is carried on 'sim-replay-start'.
     evidence: { tokenChain: ['sim-replay-start', 'sim-gateway-deny'], activity: ['token', 'gateway'] },
-    codeRefs: ['demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts', 'demo_api_server/services/dpopKeyService.js'],
+    codeRefs: ['demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts', 'demo_api_server/services/attackSimulatorService.js'],
+    // Stays flag-gated: use-cases-maturity P2 blocks 'works' until the gateway
+    // requires DPoP proofs by default. The sim itself sends no DPoP proof.
     maturity: 'flag:ff_dpop',
     owasp: { threats: ['T9'], sections: ['§3.2.8', '§4.2.3'] },
-    whatToSay: 'Audience binding is unconditional; with DPoP on, a stolen token without the private key is worthless.',
+    whatToSay: 'Audience binding is unconditional: a token minted for another audience is refused at the gateway with 401, before PingOne Authorize is consulted.',
     advanced: false,
-    whatLong: "A valid delegated token is stolen and replayed by a different party. Audience binding means the token is only accepted by the specific gateway it was minted for — it cannot be used against a different endpoint. When DPoP is enabled, a cryptographic key-binding check is also enforced.",
-    businessValue: 'Audience binding is free and always on. DPoP adds key-binding so a stolen token without the private key is useless — two layers of replay defense without application changes.',
+    whatLong: "A valid token is stolen and replayed by a different party. Audience binding means the token is only accepted by the specific gateway it was minted for — it cannot be used against a different endpoint. This step replays the user's session token straight at the gateway, skipping the token exchange. DPoP key binding, which would also stop a replay of a correctly-audienced token, is not exercised here.",
+    businessValue: 'Audience binding is free and always on: a token lifted from one service cannot be spent at another, without application changes.',
     productRoles: {
-      idp:   "Mints the token with a specific aud and — when DPoP is on — binds it to the agent's DPoP key.",
-      gw:    'Enforces aud binding unconditionally; validates the DPoP proof when the feature flag is enabled.',
+      idp:   "Mints the token with a specific aud.",
+      gw:    'Enforces aud binding unconditionally and refuses the replayed token with 401 invalid_aud.',
     },
     primaryTool: null,
   },

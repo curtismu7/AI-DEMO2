@@ -1031,13 +1031,13 @@ export const DEMO_SCENARIOS = [
     ],
     steps: [
       {
-        action: "Step 9 · card 'DPoP / replay defense' (UC12) — click Run sim",
+        action: "Step 9 · card 'Token theft / replay defense' (UC12) — click Run sim",
         prompt: "(click Run sim on UC12 card)",
         explanation:
-          "Attacker steals the user's token and replays it straight at the backend, skipping the gateway. DENY 401 — the token is audience-bound, worthless anywhere but where it was minted.",
+          "Attacker replays the user's session token at the gateway, skipping the token exchange. DENY 401 — the token is audience-bound, worthless anywhere but where it was minted.",
         watch: [
           "Rail: sim-replay-start → sim-gateway-deny, DENY 401 (audience binding)",
-          "Say: Steal the user's token, replay it straight at the backend, skip the gateway. DENY. A stolen token is a dead token.",
+          "Say: Steal the user's token and replay it at the gateway. DENY 401. A token spent in the wrong place is a dead token.",
         ],
       },
       {
