@@ -241,6 +241,14 @@ export default function DavinciSdkLoginPage() {
       const from = traceRef.current.length;
       const node = await client.flow({ action: collector.output?.key ?? collector.name })();
       recordStep(client, "flow", node, from, triggerOf(collector));
+      // A flow button can END the flow, not just branch it: a success screen's
+      // "Continue" is a next-event button, which the SDK hands over as a
+      // FlowCollector. Without this the COMPLETED node fell through to an empty
+      // form and the code never reached the BFF.
+      if (node?.status === "success") {
+        await finish(client);
+        return;
+      }
       if (node?.status === "failure") {
         setMessage(client.getError?.()?.message || "That path could not be started.");
         setPhase("failed");
