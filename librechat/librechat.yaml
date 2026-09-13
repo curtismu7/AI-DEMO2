@@ -141,3 +141,23 @@ mcpServers:
     type: streamable-http
     url: 'https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp'
     timeout: 60000
+
+  # 4. The hostile MCP server (standalone/hostile-mcp-server) through the
+  #    Privilege AI Gateway's `libre` app. Serves poisoned tool metadata
+  #    (get_weather description injection, search_docs schema exfil) plus a
+  #    real create_transfer the poison induces. The demo: the poison rides in
+  #    on tools/list unfiltered (the gateway can't police metadata), then a
+  #    create_transfer CALL is DENIED by the app's policy. LibreChat signs in
+  #    against the gateway's own OAuth server (public host, no allowedAddresses).
+  #    See docs/superpowers/specs/2026-09-13-hostile-mcp-behind-privilege-design.md.
+  privilege-libre:
+    type: streamable-http
+    url: 'https://mcpgw.ai-demo.ping-devops.com/libre/mcp'
+    timeout: 60000
+
+  # 5. Same libre app, but through the recording façade so the trace shows in
+  #    the demo. Sign in once at /privilege-mcp-client for the gateway leg.
+  libre-privilege-gateway:
+    type: streamable-http
+    url: 'https://api.ping.demo:3001/mcp-facade/privilege-gateway/libre/mcp'
+    timeout: 60000
