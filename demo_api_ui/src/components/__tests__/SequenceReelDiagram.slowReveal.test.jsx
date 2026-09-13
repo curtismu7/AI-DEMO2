@@ -504,4 +504,39 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     const container = withMcpActive(null);
     expect(container.querySelector(".srd-active-dot")).not.toBeNull();
   });
+
+  // Zoom and narration pace survive a reload. Stored values are validated, so a
+  // stale or hand-edited one falls back rather than rendering an unusable
+  // diagram or a select with no matching option.
+  afterEach(() => {
+    localStorage.removeItem("dashboard-seq-zoom");
+    localStorage.removeItem("dashboard-seq-speed");
+  });
+
+  // Rendered with slow mode ON: the transport controls and the speed select only
+  // exist while narrating, so with it off .srd-speed-select is simply absent.
+  // Zoom is in the toolbar either way.
+  const renderWithSteps = () => {
+    store.state = {
+      steps: [step("prompt", "CHAT", "done"), step("agent", "AGENT", "done")],
+      trace: { runId: 1, outcome: "ok" },
+    };
+    return render(<SequenceReelDiagram slowMode onToggleSlowMode={noop} />).container;
+  };
+
+  it("restores zoom and narration speed from storage", () => {
+    localStorage.setItem("dashboard-seq-zoom", "80");
+    localStorage.setItem("dashboard-seq-speed", "4000");
+    const c = renderWithSteps();
+    expect(c.querySelector(".srd-zoom-reset").textContent).toContain("80");
+    expect(c.querySelector(".srd-speed-select").value).toBe("4000");
+  });
+
+  it("ignores a stored zoom out of range or a speed that is not on the menu", () => {
+    localStorage.setItem("dashboard-seq-zoom", "9999");
+    localStorage.setItem("dashboard-seq-speed", "1234");
+    const c = renderWithSteps();
+    expect(c.querySelector(".srd-zoom-reset").textContent).toContain("130");
+    expect(c.querySelector(".srd-speed-select").value).toBe("2600");
+  });
 });

@@ -72,6 +72,41 @@ const SLOW_SPEED_OPTIONS = [
   { value: 6000, label: "6s (slow)" },
 ];
 
+// Zoom and narration pace are user settings, so they outlive a reload the way
+// the dashboard's view-mode and slow-mode choices do. Both are validated on
+// read — zoom against its own range, speed against the options actually on the
+// menu — so a stale or hand-edited value falls back to the default instead of
+// rendering an unusable diagram or a select with no matching option. Storage
+// can also throw outright (Safari private mode), hence the try/catch.
+const ZOOM_KEY = "dashboard-seq-zoom";
+const SPEED_KEY = "dashboard-seq-speed";
+
+const readStoredZoom = () => {
+  try {
+    const n = Number.parseInt(localStorage.getItem(ZOOM_KEY) || "", 10);
+    return Number.isFinite(n) && n >= ZOOM_MIN && n <= ZOOM_MAX ? n : ZOOM_DEFAULT;
+  } catch {
+    return ZOOM_DEFAULT;
+  }
+};
+
+const readStoredSpeed = () => {
+  try {
+    const n = Number.parseInt(localStorage.getItem(SPEED_KEY) || "", 10);
+    return SLOW_SPEED_OPTIONS.some((opt) => opt.value === n) ? n : SLOW_REVEAL_MS;
+  } catch {
+    return SLOW_REVEAL_MS;
+  }
+};
+
+const writePref = (key, value) => {
+  try {
+    localStorage.setItem(key, String(value));
+  } catch {
+    /* ignore */
+  }
+};
+
 // A step only earns a row once it has actually happened. buildTraceSteps
 // returns the whole pipeline for every trace: steps with no evidence yet come
 // back "pending", and ones outside this run's path "notinpath" or "skipped".
@@ -90,14 +125,19 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
   const [snap, setSnap] = useState(() => tokenChainTraceStore.getState());
   useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
 
-  const [zoomLevel, setZoomLevel] = useState(ZOOM_DEFAULT);
+  const [zoomLevel, setZoomLevel] = useState(readStoredZoom);
   const handleZoom = useCallback(
     (delta) => setZoomLevel((prev) => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, prev + delta))),
     [],
   );
   const resetZoom = useCallback(() => setZoomLevel(ZOOM_DEFAULT), []);
 
-  const [slowRevealMs, setSlowRevealMs] = useState(SLOW_REVEAL_MS);
+  const [slowRevealMs, setSlowRevealMs] = useState(readStoredSpeed);
+
+  // Persist both as they change, so the next visit opens at the same zoom and
+  // pace instead of resetting to the defaults mid-demo.
+  useEffect(() => writePref(ZOOM_KEY, zoomLevel), [zoomLevel]);
+  useEffect(() => writePref(SPEED_KEY, slowRevealMs), [slowRevealMs]);
 
   // The A2A hops are not in buildTraceSteps; the Token Chain rail splices them
   // in right after the tool choice, and this view draws them in the same place.
