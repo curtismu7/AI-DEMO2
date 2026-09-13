@@ -56,6 +56,7 @@ const SIM_USE_CASE_IDS = {
   'wrong-aud': 'bad-client-gateway',
   'cross-owner-account': 'cross-owner-account',
   'replayed-token': 'token-theft-replay',
+  'dpop-replay': 'token-theft-replay',
   'rogue-actor': 'confused-deputy-actor-injection',
   'rar-exceeded': 'par-rar-intent-violation',
   'tampered-intent-token': 'intent-token-tampering',
@@ -220,6 +221,7 @@ const CANONICAL_DENY_REASON = {
   missing_act: 'agent-mediated tool call is missing the required act (delegation) claim',
   invalid_aud: 'token audience does not match the gateway resource',
   insufficient_scope: 'token is missing a scope the tool requires',
+  dpop_replay_blocked: 'a DPoP proof (RFC 9449) cannot be replayed — the gateway refused the reused jti',
 };
 
 /**
@@ -668,6 +670,10 @@ async function runAttackSim(sim, req, attackAmount) {
 
   if (sim === 'replayed-token') {
     return _runReplayedToken(subjectToken, useCaseId, tokenChainEvents);
+  }
+
+  if (sim === 'dpop-replay') {
+    return _runDpopReplay(subjectToken, useCaseId, tokenChainEvents);
   }
 
   if (sim === 'rogue-actor') {
@@ -1352,6 +1358,125 @@ async function _runCrossOwnerAccount(subjectToken, useCaseId, tokenChainEvents, 
 }
 
 /**
+ * Given the two gateway calls a DPoP replay makes, decide the sim verdict.
+ * The control works when the first (fresh proof) is accepted and the second
+ * (same proof, same jti) is refused with an invalid_dpop_proof error. Pure so
+ * it can be unit-tested without a live gateway.
+ *
+ * @param {{ok: boolean, error?: object}} first   outcome of the legit call
+ * @param {{ok: boolean, error?: object}} replay  outcome of the replayed call
+ * @returns {'DENY_REPLAY'|'FIRST_CALL_FAILED'|'UNEXPECTED_PERMIT'}
+ */
+function _dpopReplayVerdict(first, replay) {
+  if (!first.ok) return 'FIRST_CALL_FAILED';
+  if (replay.ok) return 'UNEXPECTED_PERMIT';
+  return 'DENY_REPLAY';
+}
+
+/**
+ * UC12 dpop-replay: prove DPoP (RFC 9449) replay defense end to end.
+ *   1. Exchange the session token to the gateway audience (read scope).
+ *   2. Bind it to a fresh key (cnf.jkt) via the TraT envelope and sign ONE DPoP
+ *      proof. Present both to the Node gateway — a legitimate, key-bound call.
+ *   3. Replay the SAME proof (same jti). The gateway's replay cache refuses it
+ *      with 401 invalid_dpop_proof "jti replay".
+ * A stolen bearer + a captured proof is worthless: it can be sent exactly once,
+ * and only by the holder of the private key that signed it.
+ */
+async function _runDpopReplay(subjectToken, useCaseId, tokenChainEvents) {
+  const sim = 'dpop-replay';
+  const exchange = await _exchangeGatewayToken(subjectToken, ['read'], useCaseId, tokenChainEvents, sim);
+  if (!exchange.ok) return exchange.result;
+  const boundToken = exchange.token;
+
+  const { generateDpopKeypair, signDpopProof, accessTokenHash } = require('./dpopKeyService');
+  const key = generateDpopKeypair();
+  const nodeUrl = _nodeGatewayUrl();
+  const htu = `${nodeUrl.replace(/\/$/, '')}/mcp`;
+  const proof = signDpopProof({
+    privatePem: key.privatePem,
+    publicJwk: key.publicJwk,
+    htu,
+    htm: 'POST',
+    ath: accessTokenHash(boundToken),
+  });
+  // The demo TraT envelope carries cnf.jkt (ALLOW_UNSIGNED_TRAT_CONTEXT); the
+  // gateway reads it exactly as it would a native cnf claim, so the token is
+  // DPoP-bound and a bad or reused proof fails closed.
+  const tratContextHeader = JSON.stringify({ cnf: { jkt: key.jkt }, trat_sim: true });
+
+  tokenChainEvents.push(buildTokenEvent(
+    'sim-dpop-bound',
+    'DPoP-bound token (cnf.jkt) + fresh proof',
+    'active',
+    null,
+    `The gateway token is bound to key ${key.jkt.slice(0, 12)}… (cnf.jkt) and carries a signed DPoP proof `
+    + '(RFC 9449). Only the holder of the private key can produce it.',
+    { rfc: 'RFC 9449', cnf: { jkt: key.jkt } },
+  ));
+
+  const callOpts = {
+    simulatedAttack: true,
+    useCaseId,
+    tratContextHeader,
+    extraHeaders: { DPoP: proof },
+  };
+
+  // Call #1 — the legitimate, key-bound call. Must be accepted.
+  try {
+    await callToolViaGateway(nodeUrl, boundToken, 'get_my_accounts', {}, callOpts);
+  } catch (err) {
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-dpop-first-failed',
+      'First DPoP call failed (control could not be exercised)',
+      'error',
+      null,
+      `The initial key-bound call did not succeed (${err.message}). The replay could not be demonstrated — `
+      + 'check that ff_dpop is armed and the gateway accepts the bound token.',
+      { error: err.gatewayErrorCode || err.code },
+    ));
+    stampUseCaseId(tokenChainEvents, useCaseId);
+    return {
+      sim, useCaseId,
+      status: err.httpStatus || 502,
+      errorCode: 'dpop_first_call_failed',
+      reason: `The legitimate DPoP-bound call failed before the replay could run: ${err.message}`,
+      tokenChainEvents,
+    };
+  }
+  tokenChainEvents.push(buildTokenEvent(
+    'sim-dpop-first-permit',
+    'First call PERMITTED (valid proof)',
+    'active',
+    null,
+    'The gateway accepted the key-bound call with its fresh proof. Now the SAME proof is replayed.',
+  ));
+
+  // Call #2 — replay the identical proof (same jti). Must be refused.
+  try {
+    await callToolViaGateway(nodeUrl, boundToken, 'get_my_accounts', {}, callOpts);
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-gateway-unexpected-permit',
+      'Gateway PERMIT (unexpected)',
+      'warning',
+      null,
+      'The gateway accepted a replayed DPoP proof — replay defense (jti cache) may not be active.',
+    ));
+    stampUseCaseId(tokenChainEvents, useCaseId);
+    return {
+      sim, useCaseId, status: 200, errorCode: 'unexpected_permit',
+      reason: 'Gateway accepted a replayed proof — DPoP replay defense may not be active',
+      tokenChainEvents,
+    };
+  } catch (err) {
+    return _denyFromGateway(
+      sim, useCaseId, tokenChainEvents, err, 401, 'dpop_replay_blocked',
+      'Gateway DENY (dpop_replay_blocked)',
+    );
+  }
+}
+
+/**
  * UC12 replayed-token: present the BFF/session token (wrong audience) directly to the gateway.
  */
 async function _runReplayedToken(subjectToken, useCaseId, tokenChainEvents) {
@@ -1968,5 +2093,5 @@ async function _runImpersonationNoAct(subjectToken, useCaseId, tokenChainEvents)
 
 module.exports = {
   runAttackSim, runIntentBindingDemo, _exchangeSimToken,
-  __test: { _resolveForeignAccountId, _gatewayExchangeTarget, _denyFromGateway, _nodeGatewayUrl, IMPERSONATION_TRANSFER_ARGS, pickTransferAccounts, _approvalChallengeCode },
+  __test: { _resolveForeignAccountId, _gatewayExchangeTarget, _denyFromGateway, _nodeGatewayUrl, IMPERSONATION_TRANSFER_ARGS, pickTransferAccounts, _approvalChallengeCode, _dpopReplayVerdict },
 };

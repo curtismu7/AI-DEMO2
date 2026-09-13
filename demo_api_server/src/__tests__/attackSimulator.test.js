@@ -203,3 +203,15 @@ describeIf('AttackSimulator — real-API (wrong-aud)', () => {
     });
   }, 30000);
 });
+
+  describe('_dpopReplayVerdict', () => {
+    test('a legit first call then a refused replay proves the control', () => {
+      expect(__test._dpopReplayVerdict({ ok: true }, { ok: false, error: {} })).toBe('DENY_REPLAY');
+    });
+    test('a first call that never succeeded cannot demonstrate replay defense', () => {
+      expect(__test._dpopReplayVerdict({ ok: false }, { ok: false })).toBe('FIRST_CALL_FAILED');
+    });
+    test('a replay the gateway accepts is an unexpected permit', () => {
+      expect(__test._dpopReplayVerdict({ ok: true }, { ok: true })).toBe('UNEXPECTED_PERMIT');
+    });
+  });

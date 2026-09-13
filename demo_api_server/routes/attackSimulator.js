@@ -21,6 +21,7 @@ const VALID_SIMS = [
   'wrong-aud',
   'cross-owner-account',
   'replayed-token',
+  'dpop-replay',
   'rogue-actor',
   'rar-exceeded',
   'tampered-intent-token',
