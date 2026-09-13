@@ -74,3 +74,22 @@ export function wsTransportBindingGuard(opts: {
   }
   return null;
 }
+
+/**
+ * Whether a call's token is bound to a DPoP key (cnf.jkt), read the two ways the
+ * HTTP path reads it: the token's own cnf claim, or the demo TraT envelope when
+ * ALLOW_UNSIGNED_TRAT_CONTEXT=true. A bound token needs a proof (RFC 9449 §7),
+ * which a WebSocket tools/call cannot carry.
+ */
+export function isDpopBound(
+  xTratContext: string | undefined,
+  decoded: unknown,
+): boolean {
+  if ((decoded as { cnf?: { jkt?: string } } | null | undefined)?.cnf?.jkt) return true;
+  if (!xTratContext || process.env.ALLOW_UNSIGNED_TRAT_CONTEXT !== 'true') return false;
+  try {
+    return Boolean((JSON.parse(xTratContext) as { cnf?: { jkt?: string } })?.cnf?.jkt);
+  } catch {
+    return false;
+  }
+}

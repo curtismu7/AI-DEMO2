@@ -731,8 +731,8 @@ export function buildAuthorizeMcpRequest(
     // The BFF binds the delegated token to a per-session key (cnf.jkt, carried in the
     // TraT envelope in simulated mode or the token claim natively) and signs a fresh
     // DPoP proof per hop. Verify the inbound proof with real crypto so a stolen bearer
-    // is useless without the private key. Fail-closed only when REQUIRE_DPOP_PROOF=true;
-    // otherwise observe + log + bridge so the demo runs with the flag on but enforcement off.
+    // is useless without the private key. Fail-closed when REQUIRE_DPOP_PROOF=true, and
+    // always for a token bound to a key (cnf.jkt); otherwise observe + log + bridge.
     const _dpopProof = _hdr('dpop');
     if (_dpopProof) noteBindingHeaderSeen('dpop');
     let _cnfJkt: string | undefined;
@@ -788,7 +788,10 @@ export function buildAuthorizeMcpRequest(
         teachLog.info('[GW] DPoP proof verified', { jkt: _v.jkt });
       } else {
         teachLog.warn(`[GW] DPoP proof verification failed: ${_v.reason} (tool: ${toolName})`);
-        if (_requireDpop) {
+        // RFC 9449 §7: a DPoP-bound token must come with a valid proof. A bound token
+        // (cnf.jkt) therefore fails closed even with REQUIRE_DPOP_PROOF unset; that flag
+        // still decides whether an UNBOUND token must carry a proof at all.
+        if (_requireDpop || _cnfJkt) {
           setAuditHeader(res);
           res.writeHead(401, {
             'Content-Type': 'application/json',

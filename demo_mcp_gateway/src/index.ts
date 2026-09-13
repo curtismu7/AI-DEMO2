@@ -40,7 +40,7 @@ import { buildDiscoverResult, SUPPORTED_PROTOCOL_VERSIONS } from './serverDiscov
 import { extractRequestedProtocolVersion, buildUnsupportedProtocolVersionError } from './modernNegotiation';
 import { GatewayIntrospectionClient } from './auth/GatewayIntrospectionClient';
 import { runMcpAuthorizationPipeline } from './auth/authorizeMcpRequestCore';
-import { wsTransportBindingGuard } from './wsBindingGuard';
+import { wsTransportBindingGuard, isDpopBound } from './wsBindingGuard';
 import { noteBindingHeaderSeen } from './authzPosture';
 import { loadVaultIntoEnv } from './vault';
 import { extractCorrelationId } from './correlationId';
@@ -610,7 +610,9 @@ async function handleMessage(
     // (same class as the WS rate-limit gap, BUGS.md #13 / PR #1825). No-op when both
     // controls are OFF (defaults: REQUIRE_DPOP_PROOF unset, wbaMode=monitor).
     const _bindingReject = wsTransportBindingGuard({
-      requireDpopProof: process.env.REQUIRE_DPOP_PROOF === 'true',
+      // A key-bound token (cnf.jkt) needs a proof whether or not the flag is set, and
+      // WebSocket cannot carry one: same rule as the HTTP path (Step 2d).
+      requireDpopProof: process.env.REQUIRE_DPOP_PROOF === 'true' || isDpopBound(xTratContext, decoded),
       wbaMode: config.wbaMode,
     });
     if (_bindingReject) {
