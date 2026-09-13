@@ -77,6 +77,7 @@ import { markUseCaseCompleted, clearCompletedUseCases } from "../utils/useCaseDe
 import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
 import { isApprovalBlockError, isStepUpBlockError } from "../utils/stepUpError";
 import apiClient from "../services/apiClient";
+import { restoreDefaultScopeAfterRun } from "../utils/weatherScopeHandoff";
 import { formatAxiosError } from "../utils/formatAxiosError";
 import { windowTranscript } from "../utils/transcriptWindow";
 import { adminCustomerContext } from "../services/adminCustomerContext";
@@ -8613,6 +8614,10 @@ export default function BankingAgent({
           });
         }
       } finally {
+        // A weather showcase run carried a live scope change (UC32). The run has
+        // ended, whether or not it succeeded, so put the policy back now —
+        // otherwise UC31 would permit on the next pass of the script.
+        restoreDefaultScopeAfterRun(apiClient);
         // Only clear pending state if this send wasn't superseded — otherwise we'd
         // clobber a newer nlResumeAfterAuth set while this request was in flight.
         if (!cancelled) {
