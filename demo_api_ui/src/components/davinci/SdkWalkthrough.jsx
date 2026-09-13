@@ -170,10 +170,15 @@ const CONTRAST = [
     "Default response mode: a 302 to PingOne's pages, then the browser is redirected to redirect_uri?code=…",
     "A code on your callback route",
   ],
+  // Deliberately NOT "a sessionToken, then a second /authorize hop": that is
+  // the pattern this repo's widget page used, and it was measured not to work
+  // — PingOne's /authorize does not read a DV-ST cookie, and what the widget
+  // returns depends entirely on the flow's final node. Describe the contract,
+  // not a broken recipe.
   [
     "DaVinci widget",
-    "DaVinci draws its own screens inside your page; davinci.skRenderScreen fires a JavaScript successCallback",
-    "A DaVinci sessionToken, then a second /authorize hop to get a code",
+    "DaVinci draws its own screens inside your page; davinci.skRenderScreen fires a JavaScript successCallback with whatever the flow's final node returns",
+    "A DaVinci session token or OIDC tokens (from a PingOne Authentication widget-success node) — not an authorization code; your code turns it into a session",
   ],
   [
     "Orchestration SDK + pi.flow (this page)",
