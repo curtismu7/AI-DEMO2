@@ -5,6 +5,7 @@ Answers for presenters, SEs and developers working with the Super Banking AI dem
 - [Download and install](#download-and-install)
 - [Starting the demo](#starting-the-demo)
 - [Settings that matter, and the ones that break things](#settings-that-matter-and-the-ones-that-break-things)
+- [Which PingOne app does what](#which-pingone-app-does-what)
 - [Other things you need to know](#other-things-you-need-to-know)
 - [Lessons learned](#lessons-learned)
 
@@ -161,6 +162,121 @@ Some flags are pinned by an environment variable (for example `FF_MCP_GATEWAY_PI
 - **`LLM_BACKEND`:** `llamacpp` (default) or `omlx` (Apple Silicon). Selects the model server behind the LLM proxy on `:8090`.
 - **`MCP_MTLS_ON`** (root `.env`): unset means plaintext between gateway and MCP servers; `1` means mTLS. There is no runtime toggle. Recreate `mcp-server`, `ping-gateway`, `mcp-gateway` and `demo-api-server` after changing it.
 - **`authorize_mode`:** `pingone`, `simulated` or `pingone_with_fallback`.
+
+---
+
+## Which PingOne app does what
+
+When something breaks, find the symptom, then open that app in the PingOne console. App names below are exactly as they appear in the console, in the main demo environment (`01d89b06`) unless noted.
+
+The mapping comes from the code, and the app names were checked against the environment's app list on 2026-09-13. The running demo's configured client IDs were not checked, so where a config key has fallbacks, confirm which client ID is actually set before assuming.
+
+### Start from the symptom
+
+| You see | Open this PingOne app | Read from |
+| --- | --- | --- |
+| Customer can't sign in, or keeps landing back on sign-in | Demo AI App - User Login | `PINGONE_USER_CLIENT_ID` (also check you're on `local.ping-devops.com:4000`) |
+| Admin can't sign in | Demo AI App - Admin Login | `PINGONE_ADMIN_CLIENT_ID` |
+| Agent tool call fails at token exchange (`invalid_client`) | Demo AI App - AI Agent Actor, then Demo AI App - Token Exchanger | `PINGONE_AI_AGENT_ACTOR_CLIENT_ID`, `PINGONE_TOKEN_EXCHANGER_CLIENT_ID` |
+| PingGateway rejects the agent's token (401, token inactive) | Demo AI App - Token Exchanger (PingGateway introspects with it) | `INTROSPECT_CLIENT_ID`, a copy of the exchanger |
+| Tool call fails after the gateway hop (401 or 502) | Demo AI App - MCP Gateway; for banking tools, also Demo AI App - MCP Step 9 Exchanger | `PINGONE_MCP_GATEWAY_CLIENT_ID` / `TE_CLIENT_ID`, `PINGONE_MCP_EXCHANGER_CLIENT_ID` |
+| PingOne Authorize decisions fail, "Missing PingOne worker credentials", or UC1 "Incomplete" after a secret rotation | Demo AI App - Introspection Worker (the operator worker) | `PINGONE_WORKER_CLIENT_ID`, copied to `P1AZ_WORKER_CLIENT_ID` |
+| CIBA approval (UC22) won't start | Demo AI App - Admin Login: the environment has no dedicated CIBA app, so CIBA falls back to it | `PINGONE_CIBA_CLIENT_ID` if set, otherwise `PINGONE_ADMIN_CLIENT_ID` |
+| Agent-to-agent handoff 401s with an audience mismatch | That vertical's *Specialist Agent* app (banking: Demo AI App - Investment Advisor Agent) | `PINGONE_A2A_<KEY>_AGENT_CLIENT_ID` |
+| Enterprise-managed MCP (UC25, UC39, UC40) fails at sign-in | Demo AI App - Enterprise IdP Federation | `ENTERPRISE_IDP_PINGONE_CLIENT_ID` |
+| The DaVinci SDK login page fails | Demo AI App - DaVinci SDK Login | `PINGONE_DAVINCI_LOGIN_APP_ID` |
+| Claude Code's banking-gateway login fails | Claude Code - Banking Gateway | `GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID` (pinned in `docker-compose.yml`) |
+| Grafana's PingOne sign-in fails (local admin still works) | Demo AI App - Grafana Login | `GRAFANA_PINGONE_CLIENT_ID` (default pinned in `docker-compose.yml`) |
+| A Management API call fails | Check `PINGONE_MGMT_*` / `PINGONE_MANAGEMENT_*` first. If those are unset, the call uses Demo AI App - Admin Login **before** the worker. | See `pingone_mgmt_client_id` in `services/configStore.js` |
+| Privilege AI Gateway sign-in fails with `invalid_client` | The gateway's OIDC client in the Privilege tenant (`0428ba4f`), not this environment | `PRIVILEGE_SSO_CLIENT_ID`; the vault holds the real secret |
+
+### Every app the demo uses
+
+| PingOne app | What it's for | Config keys | Used by |
+| --- | --- | --- | --- |
+| Demo AI App - User Login | Customer sign-in (authorization code + PKCE) | `PINGONE_USER_CLIENT_ID` | BFF |
+| Demo AI App - Admin Login | Admin sign-in; CIBA fallback; Management API fallback | `PINGONE_ADMIN_CLIENT_ID` | BFF |
+| Demo AI App - AI Agent Actor | The agent's identity: actor in exchange #1, and the PAR client for intent binding | `PINGONE_AI_AGENT_ACTOR_CLIENT_ID` (aliases `PINGONE_AI_AGENT_CLIENT_ID`, `AI_AGENT_CLIENT_ID`) | BFF, langchain-agent |
+| Demo AI App - Token Exchanger | Performs the RFC 8693 exchanges for the gateway audience; PingGateway introspects with it | `PINGONE_TOKEN_EXCHANGER_CLIENT_ID` (falls back to `PINGONE_MCP_TOKEN_EXCHANGER_*`, `PINGONE_MCP_EXCHANGER_*`, `AGENT_OAUTH_CLIENT_*`) | BFF, PingGateway, banking MCP server, Node gateway, Authorize mock |
+| Demo AI App - MCP Gateway | The gateway's own identity; exchanges to the MCP server audience | `PINGONE_MCP_GATEWAY_CLIENT_ID`, `MCP_GW_CLIENT_ID`, `TE_CLIENT_ID` | PingGateway, Node gateway, BFF |
+| Demo AI App - MCP Step 9 Exchanger | The banking MCP server's exchange to the banking API | `PINGONE_MCP_EXCHANGER_CLIENT_ID` | Banking MCP server (`oauth-mcp`) |
+| Demo AI App - *\<name\>* Specialist Agent, and Demo AI App - Investment Advisor Agent (11 apps in all) | Agent-to-agent specialists, one per vertical | `PINGONE_A2A_<KEY>_AGENT_CLIENT_ID` | BFF |
+| Demo AI App - Introspection Worker | The operator worker: PingOne Authorize calls, user and group lookups, provisioning, Management API | `PINGONE_WORKER_CLIENT_ID` (or `PINGONE_AUTHORIZE_WORKER_CLIENT_ID` if set); copied to `P1AZ_WORKER_CLIENT_ID` | BFF, PingGateway, Authorize mock |
+| Demo AI App - Enterprise IdP Federation | The demo enterprise IdP for enterprise-managed MCP authorization | `ENTERPRISE_IDP_PINGONE_CLIENT_ID` | BFF (`routes/enterpriseIdp.js`) |
+| Demo AI App - DaVinci SDK Login | Public PKCE client for `/davinci-sdk-login` | `PINGONE_DAVINCI_LOGIN_APP_ID` | BFF, web app |
+| Claude Code - Banking Gateway | Public PKCE client for Claude Code and IDE MCP clients | `PINGONE_GATEWAY_MCP_OAUTH_CLIENT_ID`, `GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID` | Node gateway OAuth broker, `.mcp.json` |
+| Demo AI App - Grafana Login | Grafana single sign-on | `GRAFANA_PINGONE_CLIENT_ID` | Grafana |
+| LibreChat Local Login - exploratory | LibreChat sign-in. A bad secret locks everyone out when auto-redirect is on. | `OPENID_CLIENT_ID` in `librechat/.env` | LibreChat |
+| Demo AI App - Onyx | Onyx sign-in, and its MCP action to PingGateway | Onyx's own config (`~/.config/onyx`), not this repo | Onyx |
+| Demo AI App - Agent Actor | Worker identity for the agent service; docs disagree on whether any exchange still uses it | `PINGONE_AGENT_CLIENT_ID` | agent-service |
+| Demo AI App - Fraud Watch Agent, Demo AI App - Balance Sweep Agent | Autonomous agent identities (client credentials) | `PINGONE_FRAUD_WATCH_AGENT_*`, `PINGONE_BALANCE_SWEEP_AGENT_*` | Privilege banking backend experiments |
+| Demo AI App - MCP Server Client | Banking MCP server identity; no runtime use found | none | — |
+| Demo AI App - MCP External Client | Federation hop for external MCP client doors, per `docs/superpowers/plans/2026-08-23-external-door-token-chain-bridge.md`; no code reference found | — | — |
+| Demo AI App - Privilege Tenant Federation | The identity provider behind Privilege AI Gateway sign-in | none in this repo | Privilege gateway federation |
+
+Apps you can usually ignore when debugging the demo:
+
+- **Developer tooling:** PingOne MCP Server and the PingOne MCP Server Claude Code, Cursor and VS Code workers (IDE access to the hosted PingOne MCP), and the two *Super Banking Worker* apps.
+- **System apps:** PingOne DaVinci Connection, PingOne Helix Connection, the two `…_agent` Helix workers, PingID Desktop Gen2, PingOne Admin Console, Application Portal, Self-Service, and Getting Started Application (disabled). Don't modify these.
+- **No code reference found:** Demo AI App - PKCE, MCP Gateway - cmuir agentless, Privilege Cloud MCP Gateway, Sample Apps - Native Flow.
+- **`ai-demo-bff-audit`:** not a runtime dependency. Its name collides with the Node gateway broker's static client ID, which lives in `docker-compose.yml`, not in PingOne.
+
+Outside this environment:
+
+- **Privilege tenant `0428ba4f`:** the gateway's OIDC client. It is read from `PRIVILEGE_SSO_CLIENT_ID`, and the vault is the source of truth for its secret.
+- **The "PingOne Privilege" app (`a6219652…`):** owned by the Privilege service. **Never rotate its secret**: the Privilege console signs in through it, and one copy can't be updated.
+- **Copilot Studio broker:** `agent_token_service/.env` reuses the variable name `PINGONE_AGENT_CLIENT_ID` for a different app.
+
+### Demo Steps and the PingOne apps they touch
+
+Most chip steps run the same **standard chain**:
+
+1. Demo AI App - User Login issues the customer's token.
+2. Demo AI App - AI Agent Actor is the actor in exchange #1.
+3. Demo AI App - Token Exchanger performs exchange #2 to the gateway audience.
+4. Demo AI App - MCP Gateway is PingGateway's identity for its exchange to the tool server.
+5. Demo AI App - Introspection Worker calls PingOne Authorize, from both the BFF and PingGateway.
+
+These are the 24 Demo Steps the agent shows for every customer vertical, in order.
+
+| # | Step | Gate | Flag | What it demonstrates | PingOne apps |
+| --- | --- | --- | --- | --- | --- |
+| 1 | UC24 Public catalog access | public | — | Public tool, no token | None |
+| 2 | UC1 Delegated access with proof | user | `ff_mcp_gateway_pinggateway` | Two RFC 8693 exchanges and an Authorize permit | Standard chain |
+| 3 | UC8 Human-in-the-loop consent | user | `ff_mcp_gateway_pinggateway` | Authorize asks for consent ($300); single-use receipt | Standard chain (the HITL service is local, not PingOne) |
+| 4 | UC7 Step-up required | user | `ff_mcp_gateway_pinggateway` | Authorize requires step-up, then PingOne MFA | Standard chain, plus PingOne MFA (the MFA client wasn't traced) |
+| 5 | UC14b Intent verified (PAR + RAR) | user | `ff_rar` | Pushed intent within the cap | AI Agent Actor (the PAR push), PingOne Authorize |
+| 6 | UC14 Intent violation (PAR + RAR) | user | `ff_rar` | Over the cap, Authorize denies | Token Exchanger, Introspection Worker (Authorize) |
+| 7 | UC12 Token theft / replay | user | `ff_dpop` | A replayed session token is rejected at the gateway (the simulation sends no DPoP proof) | User Login |
+| 8 | UC6 Authorization denied | user | `ff_mcp_gateway_pinggateway` | Authorize denies a $2,500 transfer | Standard chain |
+| 9 | UC2 Agent-to-agent delegation | user | `ff_mcp_gateway_pinggateway` | Nested `act` chain across two hops | User Login, AI Agent Actor, that vertical's Specialist Agent, Introspection Worker (Authorize checks the chain) |
+| 10 | UC2.5 A2A orchestrator | user | `ff_mcp_gateway_pinggateway` | The orchestrator picks a specialist, then the UC2 chain runs | Same as UC2 |
+| 11 | UC2.7 A2A protocol and identity | public | — | Agent Card and JSON-RPC; the UC2 chain once signed in | None when signed out; the UC2 apps when signed in |
+| 12 | UC22 CIBA approval | user | `ciba_enabled` | Authorize step-up approved on the user's phone | Standard chain, plus the CIBA client (Admin Login in this environment) |
+| 13 | UC5 Insufficient scope | user | — | Read-only token; the gateway returns 403 | Token Exchanger |
+| 14 | UC10 Another user's account | user | — | Authorize denies on resource ownership | Standard chain |
+| 15 | UC13 Confused-deputy actor | user | — | A rogue actor is injected; Authorize denies | Standard chain |
+| 16 | UC11 Bad client at the gateway | user | — | Wrong audience; the gateway returns 401 | User Login (the exchange client wasn't traced) |
+| 17 | UC20 Audit trail | user | `ff_mcp_gateway_pinggateway` | The UC1 chip with evidence tagging | Standard chain |
+| 18 | UC18 Rate-limit defense | user | — | A burst of calls; the gateway returns 429 | Token Exchanger |
+| 19 | UC30 Third-party MCP permitted | public | — | PingGateway policy permits the call | None (the weather route has no OAuth) |
+| 20 | UC31 Third-party MCP denied | public | — | PingGateway policy denies the call | None |
+| 21 | UC32 Live-reconfigure the gateway policy | public | — | An admin setting the gateway reads live | None |
+| 22 | UC40 Enterprise-managed MCP (ID-JAG) | public | `ff_enterprise_managed_mcp_auth` | The demo IdP signs the grant (ID-JAG is mocked) after a group check | Enterprise IdP Federation, Introspection Worker (group lookup) |
+| 23 | UC38 Personal Agent Concierge | user | `ff_personal_agent_concierge` | MFA, a registered agent, then an exchange | User Login, Introspection Worker (creates the agent app); the exchange client wasn't traced |
+| 24 | UC-TOOL1 Protected RAG | user | `ff_mcp_gateway_pinggateway` | `code:search` exchange and an Authorize permit | Standard chain |
+
+The PingOne Admin vertical's steps (ADMIN1–13) sign in with PingOne's built-in `pingone-mcp-server` client, which isn't an app in your environment, and call the hosted PingOne MCP server. None of them go through the gateway or Authorize.
+
+| Steps | What they do | Fallback when the hosted MCP call fails |
+| --- | --- | --- |
+| ADMIN1–4, ADMIN9 | List applications, users and populations; get the environment and its services | Management API with Demo AI App - Introspection Worker |
+| ADMIN5–6 | Search users or applications by name prefix | Opens a filter first; same hosted tools as ADMIN1–2 |
+| ADMIN7–8 | List the PingOne MCP tools; show resources and their scopes | Scopes come from the Management API with the Introspection Worker |
+| ADMIN10–12 | List DaVinci flows, applications and connectors | None |
+| ADMIN13 | Govern PingOne MCP with Privilege (a link to `/privilege-mcp-client`) | Not traced; see the Privilege tenant above |
+
+The other 38 use cases in `demo_api_server/config/useCases.js` aren't Demo Steps. Most of them run the standard chain.
 
 ---
 
