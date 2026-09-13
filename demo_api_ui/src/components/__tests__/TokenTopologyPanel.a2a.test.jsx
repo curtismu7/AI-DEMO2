@@ -132,7 +132,7 @@ describe('buildA2aTopology', () => {
     const branchNames = [...container.querySelectorAll('.ttp-branch .ttp-name')].map((n) => n.textContent);
     // The tool call is two requests: the refused one and the authorized one.
     // Both hang off the branch, in the order they went out.
-    expect(branchNames).toEqual(['Agent Gateway', 'API-key path', 'tools/call 401', 'MCP server', 'Resource server', 'Database']);
+    expect(branchNames).toEqual(['tools/call 401', 'Agent Gateway', 'API-key path', 'MCP server', 'Resource server', 'Database']);
     // Discovery belongs on the spine — and the MCP session handshake is part of
     // discovery, not of the tool call. Traced live 2026-08-18: the tool-call leg
     // produced initialize / notifications/initialized / tools/list on the MCP
