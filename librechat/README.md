@@ -75,7 +75,15 @@ below.
    It also creates Super Sports Policy Guardrails (on `super-sports-gateway`)
    and three OpenSearch agents — OpenSearch · Direct, OpenSearch · via
    Privilege, OpenSearch · Privilege opensearch22 — with the same three
-   starters, one per door. Before using them:
+   starters, one per door.
+
+   Banking and CareConnect (healthcare) agents: Banking Account Details,
+   CareConnect Health Data, CareConnect Coverage & Claims and CareConnect
+   Actions run on `aidemo-mcp` (no sign-in; CareConnect Actions changes the
+   seeded store until the BFF restarts). Banking Policy Guardrails and
+   CareConnect Policy Guardrails reuse `super-sports-gateway`: reads are
+   permitted, transfers and record releases are denied by policy. Before using
+   the gateway and Privilege agents:
    - **Connect once** per LibreChat user to `super-sports-gateway`,
      `opensearch-privilege-gateway` and `privilege-opensearch22` (MCP settings →
      Connect → PingOne login). `opensearch-privilege-gateway` also needs the

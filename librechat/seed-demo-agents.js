@@ -153,6 +153,83 @@ const AGENTS = [
       'How many documents are in the cluster?',
     ],
   })),
+  // Banking and CareConnect (healthcare). The aidemo-mcp agents read the demo
+  // user's seeded store; the gateway agents reuse super-sports-gateway, where
+  // create_transfer, release_records and sensitive_patient_records are
+  // agent-mediated and a signed-in user's token is denied (scope-topology.json).
+  {
+    name: 'Banking Account Details',
+    description: 'Accounts, nicknames, transactions and transaction details.',
+    instructions: `You are a banking demo assistant. ${ACCOUNT_IDS} For transaction details, call get_my_transactions first and pass the newest transaction id to get_transaction_detail. Keep answers short.`,
+    tools: ['get_my_accounts', 'get_account_nickname', 'get_my_transactions', 'get_transaction_detail'],
+    conversation_starters: [
+      'Show my accounts',
+      "What is my checking account's nickname?",
+      'Show my recent transactions',
+      'Show the details of my latest transaction',
+    ],
+  },
+  {
+    name: 'Banking Policy Guardrails',
+    server: 'super-sports-gateway',
+    description: 'Banking through the Agent Gateway: reads are permitted, transfers are denied by policy.',
+    instructions: `You are a banking demo assistant. ${ACCOUNT_IDS} Always call the tool the user asks for, even if you expect a refusal, and quote any "You have been denied by Policy" text word for word.`,
+    tools: ['get_my_accounts', 'get_my_transactions', 'create_transfer'],
+    conversation_starters: [
+      'Show my accounts',
+      'Show my recent transactions',
+      'Transfer $50 from checking to savings',
+    ],
+  },
+  {
+    name: 'CareConnect Health Data',
+    description: 'Appointments, medications, lab results and allergies for the CareConnect patient.',
+    instructions: 'You are a CareConnect demo assistant. Call the matching tool for each question. Keep answers short.',
+    tools: ['list_appointments', 'view_medications', 'view_lab_results', 'view_allergies'],
+    conversation_starters: [
+      'When is my next appointment?',
+      'What medications am I taking?',
+      'Show my latest lab results',
+      'What am I allergic to?',
+    ],
+  },
+  {
+    name: 'CareConnect Coverage & Claims',
+    description: 'Insurance coverage, claims, care team and referrals.',
+    instructions: 'You are a CareConnect demo assistant. Call the matching tool for each question. Keep answers short.',
+    tools: ['view_coverage', 'view_claims', 'view_care_team', 'view_referrals'],
+    conversation_starters: [
+      'What does my insurance plan cover?',
+      'Show my recent claims',
+      'Who is on my care team?',
+      'Do I have any referrals?',
+    ],
+  },
+  {
+    name: 'CareConnect Actions',
+    description: 'Refill a prescription or book an appointment. Changes the demo data until the BFF restarts.',
+    instructions: 'You are a CareConnect demo assistant that takes actions. Get medication ids from view_medications (Lisinopril is 501) and pass ids as strings. Say exactly what you changed.',
+    tools: ['refill_prescription', 'book_appointment', 'view_medications', 'list_appointments'],
+    conversation_starters: [
+      'Refill my Lisinopril prescription',
+      'Book an annual physical with Dr. Sarah Mitchell',
+      'What medications am I taking?',
+      'When is my next appointment?',
+    ],
+  },
+  {
+    name: 'CareConnect Policy Guardrails',
+    server: 'super-sports-gateway',
+    description: 'CareConnect through the Agent Gateway: reads are permitted, record releases are denied by policy.',
+    instructions: 'You are a CareConnect demo assistant. Always call the tool the user asks for, even if you expect a refusal, and quote any "You have been denied by Policy" text word for word.',
+    tools: ['list_appointments', 'view_medications', 'release_records', 'sensitive_patient_records'],
+    conversation_starters: [
+      'When is my next appointment?',
+      'What medications am I taking?',
+      'Release my medical records to Dr. Helen Park',
+      'Show my sensitive patient records',
+    ],
+  },
 ];
 
 async function call(method, path, { token, body } = {}) {
