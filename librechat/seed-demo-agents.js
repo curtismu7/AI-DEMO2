@@ -27,6 +27,7 @@ const PROVIDER = 'PingOne Privilege (OpenAI)';
 const MODEL = 'gpt-4o-mini';
 const SERVER = 'aidemo-mcp';
 const ACCOUNT_IDS = 'Call get_my_accounts first to find account IDs; the other account tools take IDs, not account numbers.';
+const SS_IDS = 'Rental IDs are 3001-3006 and order IDs 2001-2006; pass IDs as strings.';
 
 const AGENTS = [
   {
@@ -75,6 +76,48 @@ const AGENTS = [
       'Is my watch still under warranty?',
       'How many warranty claims do I have left?',
       'When was my order delivered?',
+    ],
+  },
+  // The three below read the demo user's seeded Super Sports store
+  // (demo_api_server/config/verticals/sporting-goods/seed.json) through the BFF
+  // vertical-tool relay. Every starter is read-only.
+  {
+    name: 'Super Sports Gear & Rentals',
+    description: 'Equipment rentals, gear for sale, wishlist and coaching sessions.',
+    instructions: `You are the Super Sports demo assistant. ${SS_IDS} Keep answers short.`,
+    tools: ['list_rentals', 'browse_gear', 'list_wishlist', 'list_coaching_sessions'],
+    conversation_starters: [
+      'Show my active equipment rentals',
+      'What gear can I buy right now?',
+      "What's on my wishlist?",
+      'Which coaching sessions do I have booked?',
+    ],
+  },
+  {
+    name: 'Super Sports Orders & Loyalty',
+    description: 'Gear orders, order status, loyalty points and store credit.',
+    instructions: `You are the Super Sports demo assistant. ${SS_IDS} Keep answers short.`,
+    tools: ['list_gear', 'gear_order_status', 'loyalty_balance', 'list_store_credit'],
+    conversation_starters: [
+      'Show my gear orders',
+      'Where is my Garmin Forerunner 265 order (2002)?',
+      'How many loyalty points do I have?',
+      'How much store credit do I have?',
+    ],
+  },
+  {
+    name: 'Super Sports Stores & Code',
+    description: 'Public store locations and hours, plus a search of this demo\'s source code.',
+    // Without the "never ask for a city" line, gpt-4o-mini answered "What Super
+    // Sports stores are near me?" with "Please provide your city" and called
+    // nothing (measured 2026-09-13).
+    instructions: 'You are the Super Sports demo assistant. For any store question, call get_branch_hours right away with vertical "sporting-goods"; add city only when the user names one. If no city is given, list every store it returns — never ask the user for a city first. For code questions call code_search. Keep answers short.',
+    tools: ['get_branch_hours', 'code_search'],
+    conversation_starters: [
+      'What Super Sports stores are near me?',
+      "What are the Denver Outfitter's hours?",
+      'Where is extend_rental implemented?',
+      'Find where PingOne Authorize denies agent-mediated tools',
     ],
   },
 ];
