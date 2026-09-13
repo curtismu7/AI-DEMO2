@@ -108,7 +108,10 @@ const AGENTS = [
   {
     name: 'Super Sports Stores & Code',
     description: 'Public store locations and hours, plus a search of this demo\'s source code.',
-    instructions: 'You are the Super Sports demo assistant. For store questions always call get_branch_hours with vertical "sporting-goods" (add city when the user names one). For code questions call code_search. Keep answers short.',
+    // Without the "never ask for a city" line, gpt-4o-mini answered "What Super
+    // Sports stores are near me?" with "Please provide your city" and called
+    // nothing (measured 2026-09-13).
+    instructions: 'You are the Super Sports demo assistant. For any store question, call get_branch_hours right away with vertical "sporting-goods"; add city only when the user names one. If no city is given, list every store it returns — never ask the user for a city first. For code questions call code_search. Keep answers short.',
     tools: ['get_branch_hours', 'code_search'],
     conversation_starters: [
       'What Super Sports stores are near me?',
