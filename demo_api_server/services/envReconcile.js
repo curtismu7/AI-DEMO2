@@ -106,6 +106,9 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'mcp_server_url', 'mcp_gateway_http_url', 'mcp_pinggateway_url', 'mcp_demo_gateway_url', 'mcp_step9_resource_uri',
   'frontend_url', 'frontend_admin_url', 'react_app_client_url', 'public_app_url', 'frontend_dashboard_url',
   'mcp_olb_ws_url', 'mcp_resource_server_ws_url', 'upstream_mcp_url',
+  // external AI Guard denial webhook (e.g. webhook.site) — a third-party inspector
+  // endpoint, not tied to which PingOne environment is active
+  'external_guardrail_webhook_url',
   // pingone_mcp_server_url is an alias for mcp_server_url — deployment URL, not env identity
   'pingone_mcp_server_url',
   // internal shared secrets + session
