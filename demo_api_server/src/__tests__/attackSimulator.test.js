@@ -108,6 +108,22 @@ describe('AttackSimulator — structural (no creds needed)', () => {
     expect(Array.isArray(result.tokenChainEvents)).toBe(true);
   });
 
+  // UC5 reported every mcp_tool_error as insufficient_scope, including the
+  // approvals the gateway asks for instead of refusing. Shapes are the ones
+  // mcpGatewayClient throws on each path.
+  test.each([
+    ['HTTP 428 step-up', { code: 'mcp_tool_error', httpStatus: 428, gatewayErrorCode: 'step_up_required', stepUp: true }, 'step_up_required'],
+    ['JSON-RPC -32403 step-up', { code: 'mcp_tool_error', httpStatus: 200, rpcCode: -32403, rpcData: { error: 'step_up_required' } }, 'step_up_required'],
+    ['HTTP 428 elicitation', { code: 'mcp_tool_error', httpStatus: 428, gatewayErrorCode: 'elicitation_required', elicitation: true }, 'elicitation_required'],
+    ['JSON-RPC -32003 elicitation', { code: 'mcp_tool_error', httpStatus: 200, rpcCode: -32003 }, 'elicitation_required'],
+    ['HTTP 428 HITL', { code: 'mcp_tool_error', httpStatus: 428, gatewayErrorCode: 'hitl_required', hitl: true }, 'hitl_required'],
+    ['JSON-RPC -32002 HITL', { code: 'mcp_tool_error', httpStatus: 200, rpcCode: -32002, rpcData: { hitl: true } }, 'hitl_required'],
+    ['a scope denial in a JSON-RPC error', { code: 'mcp_tool_error', httpStatus: 200, rpcCode: -32000 }, null],
+    ['a gateway 403 policy denial', { code: 'gateway_policy_denied', httpStatus: 403 }, null],
+  ])('_approvalChallengeCode: %s', (_name, err, expected) => {
+    expect(__test._approvalChallengeCode(err)).toBe(expected);
+  });
+
   const A62_SIM_USE_CASE_IDS = {
     'cross-owner-account': 'cross-owner-account',
     'replayed-token': 'token-theft-replay',
