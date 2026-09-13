@@ -207,6 +207,26 @@
   column-gap: 10px;
 }
 
+/* The signed-in user's details from the BFF: username, PingOne user id, email.
+   It sits inside .dvsdk-notice, so its ink inherits the notice's themed colour. */
+.dvsdk-profile {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 8px 0 0;
+  font-size: var(--font-size-sm);
+  color: inherit;
+}
+
+.dvsdk-profile dt {
+  font-weight: 600;
+}
+
+.dvsdk-profile dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 /* Step Inspector cards. `.lesson-section` is in each selector that has to beat
    the lesson shell's own `.lesson-section ol` / `.lesson-section p` rules. */
 .lesson-section .sdkl-steps {
