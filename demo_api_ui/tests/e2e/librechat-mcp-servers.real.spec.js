@@ -79,7 +79,9 @@ async function loginOnce(playwright, browser) {
 
   session.context = await browser.newContext();
   const page = await session.context.newPage();
-  await page.goto(`${LC}/login`);
+  // redirect=false keeps the local form when librechat/.env sets
+  // OPENID_AUTO_REDIRECT=true (LibreChat's Login reads exactly that param).
+  await page.goto(`${LC}/login?redirect=false`);
   await page.getByRole('textbox', { name: 'Email' }).fill(ACCOUNT.email);
   await page.getByRole('textbox', { name: 'Password' }).fill(ACCOUNT.password);
   await page.getByTestId('login-button').click();
