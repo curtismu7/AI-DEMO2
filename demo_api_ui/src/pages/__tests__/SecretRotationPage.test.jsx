@@ -132,6 +132,29 @@ describe('SecretRotationPage', () => {
     expect(screen.queryByText(/rotating…/i)).not.toBeInTheDocument();
   });
 
+  // With 20 rotatable apps in production, a plain button list gave no visual
+  // cue which app was selected. A table with a radio + row highlight fixes
+  // that; this pins the highlight actually tracking `selected`, not just
+  // existing once.
+  test('shows a table with the app list, and marks the selected row', async () => {
+    renderPage(<SecretRotationPage />);
+    expect(await screen.findByRole('table')).toBeInTheDocument();
+    const demoRadio = await screen.findByRole('radio', { name: /select demo app/i });
+    const otherRadio = screen.getByRole('radio', { name: /select other app/i });
+    expect(demoRadio).not.toBeChecked();
+
+    await userEvent.click(screen.getByText('Demo App'));
+    expect(demoRadio).toBeChecked();
+    expect(otherRadio).not.toBeChecked();
+    expect(demoRadio.closest('tr')).toHaveClass('sr-row-selected');
+    expect(otherRadio.closest('tr')).not.toHaveClass('sr-row-selected');
+
+    await userEvent.click(otherRadio);
+    expect(otherRadio).toBeChecked();
+    expect(demoRadio).not.toBeChecked();
+    expect(otherRadio.closest('tr')).toHaveClass('sr-row-selected');
+  });
+
   test('switching the selected app clears an armed rotation for the previous app', async () => {
     renderPage(<SecretRotationPage />);
     await userEvent.click(await screen.findByText('Demo App'));
