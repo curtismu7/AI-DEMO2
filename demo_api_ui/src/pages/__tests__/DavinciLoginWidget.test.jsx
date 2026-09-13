@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { render, waitFor } from "@testing-library/react";
 import { describe, test, expect, vi, beforeEach, afterEach } from "vitest";
 import DavinciLoginWidget from "../DavinciLoginWidget";
@@ -19,6 +20,10 @@ vi.mock("../../lib/davinciWidgetClient", () => ({
 }));
 
 import { loadWidget, fetchWidgetConfig, postWidgetSession } from "../../lib/davinciWidgetClient";
+
+vi.mock("../../lib/davinciWidgetTrace", () => ({ installWidgetTrace: vi.fn() }));
+
+import { installWidgetTrace } from "../../lib/davinciWidgetTrace";
 
 const CONFIG = {
   accessToken: "sdk-tok-1",
@@ -79,23 +84,57 @@ describe("DavinciLoginWidget rendering", () => {
     });
   });
 
-  test("successCallback hands the flow's tokens to the BFF, then loads the confirmation page", async () => {
+  test("successCallback posts the tokens, stays on the page and reports who signed in", async () => {
     const skRenderScreen = vi.fn();
     loadWidget.mockResolvedValue({ skRenderScreen });
-    postWidgetSession.mockResolvedValue({ ok: true });
+    postWidgetSession.mockResolvedValue({ ok: true, username: "demouser" });
+    const uninstall = vi.fn();
+    installWidgetTrace.mockReturnValue(uninstall);
+    const onSignedIn = vi.fn();
+    const onCall = vi.fn();
 
-    render(<DavinciLoginWidget />);
+    render(<DavinciLoginWidget onCall={onCall} onSignedIn={onSignedIn} />);
     await waitFor(() => expect(skRenderScreen).toHaveBeenCalledTimes(1));
 
-    await skRenderScreen.mock.calls[0][1].successCallback({
-      id_token: "id-1",
-      access_token: "at-1",
-      sessionToken: "dv-session-1",
-    });
+    await skRenderScreen.mock.calls[0][1].successCallback({ id_token: "id-1", access_token: "at-1" });
 
     expect(postWidgetSession).toHaveBeenCalledWith({ idToken: "id-1", accessToken: "at-1" });
-    expect(assigned).toEqual(["/davinci-login/confirmed"]);
+    expect(onSignedIn).toHaveBeenCalledWith({ username: "demouser" });
+    // The trace stays installed after success — only unmount uninstalls it —
+    // but a call made after sign-in must not reach onCall.
+    expect(uninstall).not.toHaveBeenCalled();
+    const forward = installWidgetTrace.mock.calls[0][0];
+    forward({ path: "/late/call" });
+    expect(onCall).not.toHaveBeenCalledWith({ path: "/late/call" });
+    expect(assigned).toEqual([]);
     expect(cookieWrites).toEqual([]);
+  });
+
+  test("installs the call trace before it fetches config, so /sdk-token and /start are recorded", async () => {
+    const order = [];
+    installWidgetTrace.mockImplementation(() => { order.push("trace"); return vi.fn(); });
+    fetchWidgetConfig.mockImplementation(async () => { order.push("config"); return CONFIG; });
+    loadWidget.mockResolvedValue({ skRenderScreen: vi.fn() });
+    const onCall = vi.fn();
+    const onStart = vi.fn();
+
+    render(<DavinciLoginWidget onCall={onCall} onStart={onStart} />);
+
+    await waitFor(() => expect(order).toEqual(["trace", "config"]));
+    expect(installWidgetTrace).toHaveBeenCalledWith(expect.any(Function));
+    expect(onStart).toHaveBeenCalledTimes(1);
+  });
+
+  test("removes the call trace when it unmounts", async () => {
+    const uninstall = vi.fn();
+    installWidgetTrace.mockReturnValue(uninstall);
+    loadWidget.mockResolvedValue({ skRenderScreen: vi.fn() });
+
+    const { unmount } = render(<DavinciLoginWidget onCall={vi.fn()} />);
+    await waitFor(() => expect(installWidgetTrace).toHaveBeenCalled());
+    unmount();
+
+    expect(uninstall).toHaveBeenCalled();
   });
 
   test("a sign-in the BFF rejects shows its reason and does not leave the page", async () => {
@@ -126,8 +165,9 @@ describe("DavinciLoginWidget rendering", () => {
   test("errorCallback surfaces the flow failure instead of redirecting", async () => {
     const skRenderScreen = vi.fn();
     loadWidget.mockResolvedValue({ skRenderScreen });
+    const onCall = vi.fn();
 
-    const { findByText } = render(<DavinciLoginWidget />);
+    const { findByText } = render(<DavinciLoginWidget onCall={onCall} />);
     await waitFor(() => expect(skRenderScreen).toHaveBeenCalledTimes(1));
 
     skRenderScreen.mock.calls[0][1].errorCallback({ message: "Flow policy not found" });
@@ -135,5 +175,72 @@ describe("DavinciLoginWidget rendering", () => {
     await findByText(/flow policy not found/i);
     expect(assigned).toEqual([]);
     expect(postWidgetSession).not.toHaveBeenCalled();
+    // A call made after the error must not reach onCall (recording stopped).
+    const forward = installWidgetTrace.mock.calls[0][0];
+    forward({ path: "/late/call" });
+    expect(onCall).not.toHaveBeenCalledWith({ path: "/late/call" });
+  });
+
+  // C1: StrictMode mounts, simulates an unmount, then remounts before the
+  // config fetch resolves. The trace must survive that so calls the widget
+  // makes after skRenderScreen (start, screen submits, widget-session) still
+  // reach onCall — not just the /sdk-token call made before the first await.
+  test("under StrictMode, a call made after skRenderScreen still reaches onCall", async () => {
+    const actual = await vi.importActual("../../lib/davinciWidgetTrace");
+    installWidgetTrace.mockImplementation(actual.installWidgetTrace);
+    const skRenderScreen = vi.fn();
+    loadWidget.mockResolvedValue({ skRenderScreen });
+    const originalFetch = window.fetch;
+    window.fetch = vi.fn(async () => ({ status: 200, headers: { get: () => null } }));
+    const onCall = vi.fn();
+
+    render(
+      <StrictMode>
+        <DavinciLoginWidget onCall={onCall} />
+      </StrictMode>,
+    );
+    await waitFor(() => expect(skRenderScreen).toHaveBeenCalledTimes(1));
+
+    await window.fetch("https://auth.pingone.com/env-1/davinci/policy/pol-1/start", { method: "POST" });
+    await waitFor(() =>
+      expect(onCall).toHaveBeenCalledWith(
+        expect.objectContaining({ path: "/env-1/davinci/policy/pol-1/start" }),
+      ),
+    );
+
+    window.fetch = originalFetch;
+  });
+
+  // I3: the app shell (useAuth.js) listens for this one-shot event to flip
+  // TopNav and route guards to signed-in.
+  test("dispatches userAuthenticated exactly once after a successful sign-in", async () => {
+    const skRenderScreen = vi.fn();
+    loadWidget.mockResolvedValue({ skRenderScreen });
+    postWidgetSession.mockResolvedValue({ ok: true, username: "demouser" });
+    const listener = vi.fn();
+    window.addEventListener("userAuthenticated", listener);
+
+    render(<DavinciLoginWidget />);
+    await waitFor(() => expect(skRenderScreen).toHaveBeenCalledTimes(1));
+    await skRenderScreen.mock.calls[0][1].successCallback({ id_token: "id-1", access_token: "at-1" });
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    window.removeEventListener("userAuthenticated", listener);
+  });
+
+  test("does not dispatch userAuthenticated when the BFF rejects the sign-in", async () => {
+    const skRenderScreen = vi.fn();
+    loadWidget.mockResolvedValue({ skRenderScreen });
+    postWidgetSession.mockRejectedValue(new Error("Sign-in tokens failed verification. Restart the sign-in."));
+    const listener = vi.fn();
+    window.addEventListener("userAuthenticated", listener);
+
+    const { findByText } = render(<DavinciLoginWidget />);
+    await waitFor(() => expect(skRenderScreen).toHaveBeenCalledTimes(1));
+    await skRenderScreen.mock.calls[0][1].successCallback({ id_token: "id-1", access_token: "at-1" });
+    await findByText(/failed verification/i);
+
+    expect(listener).not.toHaveBeenCalled();
+    window.removeEventListener("userAuthenticated", listener);
   });
 });

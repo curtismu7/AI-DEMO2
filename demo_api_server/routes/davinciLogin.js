@@ -74,7 +74,10 @@ async function establishSession(req, res, tokens, label) {
         console.error(`[davinci-login/${label}] Session save FAILED:`, saveErr.message);
         return res.status(500).json({ error: 'session_save_failed', message: 'Could not persist session.' });
       }
-      return res.json({ ok: true });
+      // The username rides back with the result, as routes/davinciSdkLogin.js
+      // does: GET /api/auth/me looks the user up by the token's sub and is not
+      // guaranteed to find this record, so the page must not ask it.
+      return res.json({ ok: true, username: user.username || null });
     });
   });
 }

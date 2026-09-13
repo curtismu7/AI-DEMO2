@@ -92,7 +92,7 @@ describe('POST /api/davinci-login/callback', () => {
       .send({ code: 'code-1', codeVerifier: 'verifier-1', redirectUri: 'https://local.ping-devops.com:4000/davinci-login/callback' });
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body).toEqual({ ok: true, username: 'demoUser' });
     expect(oauthService.exchangeCodeForToken).toHaveBeenCalledWith('code-1', 'verifier-1', 'https://local.ping-devops.com:4000/davinci-login/callback');
     expect(oauthService.getUserInfo).toHaveBeenCalledWith('at-1');
     expect(dataStore.getUserByUsername).toHaveBeenCalledWith('demoUser');
@@ -223,7 +223,7 @@ describe('POST /api/davinci-login/widget-session', () => {
     const res = await request(buildApp(sess)).post('/api/davinci-login/widget-session').send(BODY);
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true });
+    expect(res.body).toEqual({ ok: true, username: 'demoUser' });
     expect(tokenVerificationService.verifyExchangedToken).toHaveBeenCalledWith('id-w');
     expect(tokenVerificationService.verifyExchangedToken).toHaveBeenCalledWith('at-w');
     expect(oauthService.getUserInfo).toHaveBeenCalledWith('at-w');
