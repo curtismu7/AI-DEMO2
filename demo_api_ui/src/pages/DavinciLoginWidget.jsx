@@ -27,15 +27,16 @@ export default function DavinciLoginWidget({ onCall, onStart, onSignedIn }) {
   // skRenderScreen mutates the container directly. StrictMode double-invokes
   // effects, so without this the flow renders twice into the same node.
   const renderedRef = useRef(false);
-  // Gates which calls installWidgetTrace forwards to onCall. The trace itself
-  // is installed once per onCall identity below, independent of start()'s own
-  // lifecycle, so StrictMode's mount/uninstall/remount (which happens before
-  // start()'s first await resolves) cannot leave it uninstalled for the rest
-  // of the run.
+  // Whether a call belongs to the run. installWidgetTrace asks this when each
+  // call STARTS: asking when its record arrives dropped /widget-session live,
+  // because the trace reads that body after the sign-in has finished. The trace
+  // itself is installed once per onCall identity below, independent of start()'s
+  // own lifecycle, so StrictMode's mount/uninstall/remount (which happens before
+  // start()'s first await resolves) cannot leave it uninstalled for the run.
   const recordingRef = useRef(false);
 
   useEffect(
-    () => (onCall ? installWidgetTrace((call) => { if (recordingRef.current) onCall(call); }) : undefined),
+    () => (onCall ? installWidgetTrace(onCall, window, () => recordingRef.current) : undefined),
     [onCall],
   );
 

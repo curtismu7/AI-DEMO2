@@ -101,11 +101,10 @@ describe("DavinciLoginWidget rendering", () => {
     expect(postWidgetSession).toHaveBeenCalledWith({ idToken: "id-1", accessToken: "at-1" });
     expect(onSignedIn).toHaveBeenCalledWith({ username: "demouser" });
     // The trace stays installed after success — only unmount uninstalls it —
-    // but a call made after sign-in must not reach onCall.
+    // but a call that starts after sign-in is not recorded.
     expect(uninstall).not.toHaveBeenCalled();
-    const forward = installWidgetTrace.mock.calls[0][0];
-    forward({ path: "/late/call" });
-    expect(onCall).not.toHaveBeenCalledWith({ path: "/late/call" });
+    const shouldRecord = installWidgetTrace.mock.calls[0][2];
+    expect(shouldRecord()).toBe(false);
     expect(assigned).toEqual([]);
     expect(cookieWrites).toEqual([]);
   });
@@ -121,7 +120,9 @@ describe("DavinciLoginWidget rendering", () => {
     render(<DavinciLoginWidget onCall={onCall} onStart={onStart} />);
 
     await waitFor(() => expect(order).toEqual(["trace", "config"]));
-    expect(installWidgetTrace).toHaveBeenCalledWith(expect.any(Function));
+    expect(installWidgetTrace).toHaveBeenCalledWith(onCall, window, expect.any(Function));
+    // Recording is on while the run is in flight.
+    expect(installWidgetTrace.mock.calls[0][2]()).toBe(true);
     expect(onStart).toHaveBeenCalledTimes(1);
   });
 
@@ -175,10 +176,8 @@ describe("DavinciLoginWidget rendering", () => {
     await findByText(/flow policy not found/i);
     expect(assigned).toEqual([]);
     expect(postWidgetSession).not.toHaveBeenCalled();
-    // A call made after the error must not reach onCall (recording stopped).
-    const forward = installWidgetTrace.mock.calls[0][0];
-    forward({ path: "/late/call" });
-    expect(onCall).not.toHaveBeenCalledWith({ path: "/late/call" });
+    // A call that starts after the error is not recorded (recording stopped).
+    expect(installWidgetTrace.mock.calls[0][2]()).toBe(false);
   });
 
   // C1: StrictMode mounts, simulates an unmount, then remounts before the
@@ -209,6 +208,45 @@ describe("DavinciLoginWidget rendering", () => {
     );
 
     window.fetch = originalFetch;
+  });
+
+  // Live 2026-09-13: postWidgetSession reads the /widget-session body and the
+  // widget stops recording before the trace's own clone read finishes. The
+  // decision must be taken when the call starts, or that call never shows.
+  test("records /widget-session even when its body is read after the sign-in finished", async () => {
+    const actual = await vi.importActual("../../lib/davinciWidgetTrace");
+    installWidgetTrace.mockImplementation(actual.installWidgetTrace);
+    const skRenderScreen = vi.fn();
+    loadWidget.mockResolvedValue({ skRenderScreen });
+    let releaseCloneRead;
+    const cloneRead = new Promise((r) => { releaseCloneRead = r; });
+    const originalFetch = window.fetch;
+    window.fetch = vi.fn(async () => ({
+      status: 200,
+      headers: { get: (h) => (h.toLowerCase() === "content-type" ? "application/json" : null) },
+      json: async () => ({ ok: true, username: "demouser" }),
+      clone: () => ({ json: async () => { await cloneRead; return { ok: true }; } }),
+    }));
+    postWidgetSession.mockImplementation(async () => {
+      const res = await window.fetch("https://local.ping-devops.com:4000/api/davinci-login/widget-session", { method: "POST" });
+      return res.json();
+    });
+    const onCall = vi.fn();
+
+    try {
+      render(<DavinciLoginWidget onCall={onCall} />);
+      await waitFor(() => expect(skRenderScreen).toHaveBeenCalledTimes(1));
+      await skRenderScreen.mock.calls[0][1].successCallback({ id_token: "id-1", access_token: "at-1" });
+      releaseCloneRead();
+
+      await waitFor(() =>
+        expect(onCall).toHaveBeenCalledWith(
+          expect.objectContaining({ path: "/api/davinci-login/widget-session", status: 200 }),
+        ),
+      );
+    } finally {
+      window.fetch = originalFetch;
+    }
   });
 
   // I3: the app shell (useAuth.js) listens for this one-shot event to flip
