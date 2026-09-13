@@ -9,16 +9,17 @@
 // fallback for anything else rather than omitting a field silently.
 //
 // Debugging goes through the SDK's own logger (see davinciSdkClient.js), which
-// narrates what the SDK decided. `trace` below collects those entries; the live
-// trace panel will render them, and until then they are one console call away.
+// narrates what the SDK decided. `trace` below collects those entries, and the
+// "What just happened" walkthrough renders the parts a developer needs from it.
 //
 // A successful sign-in does NOT leave this page. It used to navigate to
 // /davinci-login/confirmed, whose "Continue to the app" went home — out of the
-// lesson. Now a "What just happened" modal explains the steps that actually
+// lesson. Now a "What just happened" modal walks through the steps that actually
 // ran, and closing it leaves you here, signed in, with a way to reopen it or
 // sign out to switch users.
 import { useCallback, useEffect, useRef, useState } from "react";
 import CollectorField from "../components/davinci/CollectorField";
+import SdkWalkthrough from "../components/davinci/SdkWalkthrough";
 import DraggableModal from "../components/DraggableModal";
 import {
   fetchSdkConfig,
@@ -37,7 +38,7 @@ export default function DavinciSdkLoginPage() {
   const [reusedAs, setReusedAs] = useState(null);
   // Who ended up signed in and HOW — "session" (an existing PingOne session
   // completed the flow with no screens) or "form" (the user submitted the
-  // collectors). The modal tells the story of whichever actually happened.
+  // collectors). The walkthrough tells the story of whichever actually happened.
   const [signedIn, setSignedIn] = useState(null);
   const [showWhatHappened, setShowWhatHappened] = useState(false);
   const [message, setMessage] = useState(null);
@@ -231,8 +232,6 @@ export default function DavinciSdkLoginPage() {
     }
   }, [finish, syncFromClient]);
 
-  const viaSession = signedIn?.via === "session";
-
   return (
     <div className="dvsdk-page">
       {/* Matches the side-nav label. The nav was renamed to "Orchestration SDK
@@ -371,62 +370,26 @@ export default function DavinciSdkLoginPage() {
         </form>
       )}
 
-      {/* Only what actually ran is described: the session path and the form
-          path differ at step 3. No tokens, codes or verifiers are shown. */}
+      {/* The developer walkthrough: how the app is wired to PingOne, pi.flow,
+          collectors, how each DaVinci step comes back, and the BFF exchange —
+          plus what actually happened on this run, from the page's own SDK
+          trace. New storageKey so a size saved for the old, smaller modal does
+          not shrink this one. */}
       <DraggableModal
         isOpen={showWhatHappened}
         onClose={() => setShowWhatHappened(false)}
         title="What just happened"
-        storageKey="davinci-sdk-what-happened"
-        defaultWidth={600}
-        defaultHeight={560}
+        storageKey="davinci-sdk-walkthrough"
+        defaultWidth={900}
+        defaultHeight={760}
       >
         <div className="dm-scroll">
-          <p className="dvsdk-modal-lede">
-            {signedIn?.username ? (
-              <>
-                You&rsquo;re signed in as <strong>{signedIn.username}</strong>, and you&rsquo;re
-                still on this page.
-              </>
-            ) : (
-              "You're signed in, and you're still on this page."
-            )}
-          </p>
-          <ol className="dvsdk-steps">
-            <li>
-              This page asked the BFF to start (<code>POST /api/davinci-sdk-login/start</code>).
-              It armed a one-time nonce and returned only public configuration &mdash; no secrets.
-            </li>
-            <li>
-              The Ping Orchestration SDK called PingOne <code>/as/authorize</code> with{" "}
-              <code>response_mode=pi.flow</code>, so the DaVinci flow came back to this page as
-              JSON instead of redirecting the browser.
-            </li>
-            {viaSession ? (
-              <li>
-                PingOne already had a session for this browser, so the flow completed immediately
-                &mdash; no screens, nothing to fill in &mdash; and PingOne returned an
-                authorization code.
-              </li>
-            ) : (
-              <li>
-                This page rendered the flow&rsquo;s collectors &mdash; username, password and Sign
-                On &mdash; as its own form, with no DaVinci-hosted screens. You submitted, DaVinci
-                completed the flow, and PingOne returned an authorization code.
-              </li>
-            )}
-            <li>
-              The page sent that code and its PKCE verifier to the BFF (
-              <code>POST /api/davinci-sdk-login/callback</code>). The BFF exchanged them at
-              PingOne&rsquo;s token endpoint and would have rejected the ID token if its nonce did
-              not match the one from step 1.
-            </li>
-            <li>
-              The BFF holds the tokens in a server-side session behind an HttpOnly cookie. No
-              tokens were stored in this browser, and the access token is scoped to this
-              app&rsquo;s API rather than PingOne&rsquo;s own.
-            </li>
-          </ol>
+          <SdkWalkthrough
+            via={signedIn?.via}
+            username={signedIn?.username}
+            trace={traceRef.current}
+            config={cfgRef.current || {}}
+          />
         </div>
       </DraggableModal>
     </div>
