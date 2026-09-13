@@ -124,7 +124,7 @@
       { "id": "rt9", "label": "Compare my last two orders", "message": "Compare my recent purchases side by side", "mode": "both", "tool": "list_orders", "useCaseId": "delegated-access-with-proof" },
       { "id": "rt10", "label": "Any deals on what I viewed?", "message": "Any deals on what I viewed?", "mode": "both", "tool": "view_recently_viewed", "useCaseId": "delegated-access-with-proof" },
       { "id": "rt-direct", "label": "🔌 Direct MCP", "message": "list my orders", "mode": "direct", "tool": "list_orders" },
-      { "id": "rt-dpop", "label": "Token replay — wrong audience", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "tool": "test_wrong_audience", "useCaseId": "token-theft-replay" },
+      { "id": "rt-dpop", "label": "DPoP / replay defense", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "tool": "test_wrong_audience", "useCaseId": "token-theft-replay" },
       { "id": "rt-deny", "label": "Authz DENY", "message": "show my sporting gear order", "mode": "direct", "denyTool": "show_gear_order", "useCaseId": "authz-denied" },
       { "id": "rt-bad-scope", "label": "Bad scope", "message": "run an order call my token has no scope for", "mode": "direct", "tool": "test_wrong_scope", "useCaseId": "insufficient-scope" }
     ],

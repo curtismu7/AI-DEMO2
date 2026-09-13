@@ -203,3 +203,31 @@ describeIf('AttackSimulator — real-API (wrong-aud)', () => {
     });
   }, 30000);
 });
+
+  describe('_dpopReplayVerdict', () => {
+    test('first proof accepted, replay refused for DPoP proves the control', () => {
+      expect(__test._dpopReplayVerdict({ dpopRejected: false }, { dpopRejected: true, ok: false }))
+        .toBe('DENY_REPLAY');
+    });
+    test('the first proof being rejected means the binding is wrong, not the replay', () => {
+      expect(__test._dpopReplayVerdict({ dpopRejected: true }, { dpopRejected: false, ok: false }))
+        .toBe('FIRST_PROOF_REJECTED');
+    });
+    test('a replay the gateway accepts is an unexpected permit', () => {
+      expect(__test._dpopReplayVerdict({ dpopRejected: false }, { dpopRejected: false, ok: true }))
+        .toBe('UNEXPECTED_PERMIT');
+    });
+    test('a replay that fails downstream (not for DPoP) is not a blocked replay', () => {
+      expect(__test._dpopReplayVerdict({ dpopRejected: false }, { dpopRejected: false, ok: false }))
+        .toBe('REPLAY_NOT_BLOCKED');
+    });
+  });
+
+  describe('_isDpopRejection', () => {
+    test('is true only when the gateway error code is invalid_dpop_proof', () => {
+      expect(__test._isDpopRejection({ gatewayErrorCode: 'invalid_dpop_proof', httpStatus: 502 })).toBe(true);
+      expect(__test._isDpopRejection({ gatewayErrorCode: 'gateway_policy_denied' })).toBe(false);
+      expect(__test._isDpopRejection({ code: 'gateway_client_error' })).toBe(false);
+      expect(__test._isDpopRejection(null)).toBe(false);
+    });
+  });
