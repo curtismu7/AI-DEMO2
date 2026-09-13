@@ -1009,6 +1009,57 @@ describe("buildTraceSteps — not-in-path steps once the trace completes", () =>
     });
     expect(steps.find((s) => s.id === "stepup").status).toBe("active");
   });
+
+  test("a bare 428 authorize_denied (the BFF's step-up block) marks step-up active", () => {
+    // The BFF's step-up block emits no phase of its own.
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      phases: [{ phase: "authorize_denied", status: 428 }],
+    });
+    const stepup = steps.find((s) => s.id === "stepup");
+    expect(stepup.status).toBe("active");
+    expect(stepup.detail.kv).toContainEqual(["authorize", "HTTP 428 challenge"]);
+  });
+
+  test("a hard 403 authorize_denied does not invent a step-up", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      phases: [{ phase: "authorize_denied", status: 403 }],
+    });
+    expect(steps.find((s) => s.id === "stepup").status).toBe("notinpath");
+  });
+
+  test("a step-up retry that PERMITs with the gate carried does not reopen step-up", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      authorize: { decision: "PERMIT", outcome: "STEP_UP", priorGate: "STEP_UP" },
+    });
+    expect(steps.find((s) => s.id === "stepup").status).not.toBe("active");
+  });
+
+  test("gateway_hitl_required (live PingGateway consent gate) marks step-up active", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      phases: [{ phase: "gateway_hitl_required", label: "", detail: "" }],
+    });
+    expect(steps.find((s) => s.id === "stepup").status).toBe("active");
+  });
+
+  test.each([
+    ["pending", "active"],
+    ["approved", "done"],
+    ["denied", "error"],
+  ])("a ciba-poll event with status %s marks step-up %s", (cibaStatus, expected) => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{ id: "ciba-poll", additionalData: { grantedVia: "ciba", status: cibaStatus } }],
+    });
+    const stepup = steps.find((s) => s.id === "stepup");
+    expect(stepup.status).toBe(expected);
+    expect(stepup.detail.kv).toContainEqual(["ciba", cibaStatus]);
+  });
 });
 
 describe("buildTraceSteps — intent-binding step", () => {

@@ -1266,13 +1266,26 @@ export function buildTraceSteps(trace) {
   // for that path is only knowable on the retry's own trace, via
   // azEval.hitlApproved (mcpToolAuthorizationService.js's evaluation already
   // carries it once a verified receipt permits the call).
+  // gateway_hitl_required is the live PingGateway PDP's phase for the same
+  // consent gate (SystemFlowMap's Consent box already reads it).
   const hitlChallengeStarted = hasPhase(phases, "authorize_denied_hitl")
     || hasPhase(phases, "gateway_step_up_required")
+    || hasPhase(phases, "gateway_hitl_required")
     || hasPhase(phases, "mcp_auth_challenge_intercepted");
   const hitlApprovedThisRun = azEval?.hitlApproved === true;
-  const stepUpStarted = hasPhase(phases, "mfa_challenge_initiated") || hitlChallengeStarted;
-  const stepUpDone = hasPhase(phases, "mfa_challenge_completed") || hitlApprovedThisRun;
-  const stepUpFailed = hasPhase(phases, "mfa_challenge_failed");
+  // CIBA has no phase: AIAgent.js stamps a ciba-poll token event whose
+  // additionalData.status is pending | approved | denied.
+  const cibaPoll = findEvent(tokenEvents, "ciba-poll");
+  const cibaStatus = cibaPoll?.additionalData?.status || null;
+  // A BFF step-up emits only a bare authorize_denied (HTTP 428), no phase of
+  // its own, so the Authorize challenge is itself the evidence that step-up was
+  // demanded. azIsChallenge also covers a pause obligation; a retry that
+  // PERMITs is not a challenge, so it does not reopen the step.
+  const stepUpStarted = hasPhase(phases, "mfa_challenge_initiated") || hitlChallengeStarted
+    || azIsChallenge || !!cibaPoll;
+  const stepUpDone = hasPhase(phases, "mfa_challenge_completed") || hitlApprovedThisRun
+    || cibaStatus === "approved";
+  const stepUpFailed = hasPhase(phases, "mfa_challenge_failed") || cibaStatus === "denied";
   if (stepUpStarted || stepUpDone || stepUpFailed) {
     steps.push(makeStep("stepup",
       stepUpFailed ? "error" : stepUpDone ? "done" : "active", {
@@ -1280,9 +1293,12 @@ export function buildTraceSteps(trace) {
           ...phases.filter((p) => p.phase && (p.phase.startsWith("mfa_challenge")
               || p.phase === "authorize_denied_hitl"
               || p.phase === "gateway_step_up_required"
+              || p.phase === "gateway_hitl_required"
               || p.phase === "mcp_auth_challenge_intercepted"))
             .map((p) => [p.phase, p.label || ""]),
+          ...(azDeniedHttp === 428 ? [["authorize", "HTTP 428 challenge"]] : []),
           ...(hitlApprovedThisRun ? [["hitlApproved", "true"]] : []),
+          ...(cibaStatus ? [["ciba", cibaStatus]] : []),
         ],
       }));
   } else if (traceComplete) {
