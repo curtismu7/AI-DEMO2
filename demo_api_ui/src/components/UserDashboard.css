@@ -338,10 +338,17 @@
    what it needs — a fixed 50vh on top of that reserves the space a second
    time and leaves a dead band below both columns whenever the viewport is
    taller than ~1100px (measured: 885px row, 550px columns, 335px of nothing). */
-.ud-body.ud-sequence-view-active .ud-agent-column,
-.ud-body.ud-sequence-view-active .srd-root {
+.ud-body.ud-sequence-view-active .ud-agent-column {
   max-height: 100%;
   overflow-y: auto;
+}
+
+/* .srd-root now bounds the height and hands scrolling to its own .srd-scroll box
+   (both axes), so it must NOT be a second vertical scroller of its own — that
+   left the horizontal bar stranded at the bottom of the tall SVG. */
+.ud-body.ud-sequence-view-active .srd-root {
+  max-height: 100%;
+  overflow: hidden;
 }
 
 /* Slow mode: narrating the diagram to a crowd needs the width, not the agent

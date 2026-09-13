@@ -4,6 +4,12 @@
   border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
   padding: 0.5rem;
+  /* Column so the toolbars sit above/below one bounded scroll box (.srd-scroll),
+     which owns BOTH axes — so its horizontal bar rides the visible bottom edge
+     instead of the bottom of a tall SVG where it can't be reached. */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 
   /* Lane identity — 11 lanes grouped into 5 validated hue families (see
      dataviz palette validation notes below); a lane's shade groups it with
@@ -67,10 +73,10 @@
   align-items: center;
   gap: 0.4rem;
   margin-bottom: 0.4rem;
-  /* .srd-root is the vertical scroller, so an unpinned row scrolls away with
-     the diagram — at the end of a tall reveal neither row was reachable, which
-     is precisely when a presenter wants Next. Colour alongside the background:
-     a themed ground without themed ink trips the theming ratchet. */
+  /* The toolbars sit outside .srd-scroll (the scroll box), so they stay put
+     while the diagram scrolls — sticky is kept as a harmless backstop. Colour
+     alongside the background: a themed ground without themed ink trips the
+     theming ratchet. */
   position: sticky;
   z-index: 2;
   background: var(--th-bg-inset);
@@ -208,7 +214,30 @@
 }
 
 .srd-scroll {
-  overflow-x: auto;
+  /* The single scroll box for both axes. flex:1 + min-height:0 make it take the
+     height left by the toolbars and bound it, so both scrollbars sit at this
+     box's own edges and stay reachable no matter how tall or wide the diagram. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  /* Always show the bars (macOS/Chrome hide overlay bars until you scroll, which
+     hid that the first lane was just off to the left). */
+  scrollbar-width: thin;
+  scrollbar-color: var(--th-border-strong) transparent;
+}
+
+.srd-scroll::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.srd-scroll::-webkit-scrollbar-thumb {
+  background: var(--th-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.srd-scroll::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .srd-svg {
@@ -267,6 +296,9 @@
   cursor: pointer;
 }
 
+/* .srd-label-box is the arrow equivalent of a note box — same treatment, so a
+   hop looks and behaves the same whichever way it is drawn. */
+.srd-label-box,
 .srd-note-box {
   fill: var(--th-bg-page);
   stroke: var(--th-border);
@@ -290,10 +322,12 @@
 }
 
 .srd-selected .srd-arrow,
+.srd-selected .srd-label-box,
 .srd-selected .srd-note-box {
   stroke-width: 2.5;
 }
 
+.srd-selected .srd-label-box,
 .srd-selected .srd-note-box {
   fill: var(--th-bg-hover);
 }
@@ -301,6 +335,7 @@
 /* Status — structural/motion cues layered on top of the lane color, never a
    color override (that would cancel "each step is a different color"). */
 .srd-status-active .srd-arrow,
+.srd-status-active .srd-label-box,
 .srd-status-active .srd-note-box {
   stroke-width: 2.25;
 }

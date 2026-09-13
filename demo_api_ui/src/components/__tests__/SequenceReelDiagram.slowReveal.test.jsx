@@ -91,6 +91,14 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     // is shadowed for any <div> and silently never fires.
     const scrollTo = vi.fn();
     vi.spyOn(HTMLElement.prototype, "scrollTo").mockImplementation(scrollTo);
+    // The follow skips when the diagram fits; jsdom reports 0 for both, so stub
+    // a content wider than the box so the guard lets the follow run.
+    vi.spyOn(HTMLElement.prototype, "scrollWidth", "get").mockImplementation(function () {
+      return String(this.className || "").includes("srd-scroll") ? 2000 : 0;
+    });
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(function () {
+      return String(this.className || "").includes("srd-scroll") ? viewRight - viewLeft : 0;
+    });
     vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function () {
       const cls = String(this.getAttribute?.("class") || this.className?.baseVal || this.className || "");
       if (cls.includes("srd-scroll"))
@@ -235,23 +243,20 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     const rect = (top, bottom) => ({ top, bottom, height: bottom - top, left: 0, right: 800, width: 800 });
     vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function () {
       const cls = String(this.getAttribute?.("class") || "");
-      if (cls.includes("srd-toolbar--top")) return rect(0, 40);
-      if (cls.includes("srd-toolbar--bottom")) return rect(560, 600);
       if (cls.includes("srd-actor-box--footer")) return rect(footer[0], footer[1]);
-      if (cls.split(" ").includes("srd-root")) return rect(0, 600);
+      if (cls.split(" ").includes("srd-scroll")) return rect(0, 600);
       if (this.getAttribute?.("role") === "button") return rect(step[0], step[1]);
       return rect(0, 0);
     });
     return () => scrollTo.mock.calls.map(([a]) => a).filter((a) => a && "top" in a);
   };
 
-  it("brings the newest step and the footer out from under the pinned bottom row", () => {
-    // Step bottom 520 and footer bottom 580 are both inside the scroller (600),
-    // but the bottom row covers 560-600: measuring against the scroller alone
-    // left the footer under the row and never scrolled.
-    const verticalCalls = withBand({ step: [500, 520], footer: [530, 580] });
+  it("scrolls down to keep the newest step's lane footer in view", () => {
+    // The scroll box is 600 tall. The footer's bottom (650) is below it, so the
+    // follow scrolls down by the overshoot to bring the lane names on screen.
+    const verticalCalls = withBand({ step: [500, 520], footer: [560, 650] });
     render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
-    expect(verticalCalls().at(-1)?.top).toBe(20);
+    expect(verticalCalls().at(-1)?.top).toBe(50);
   });
 
   it("does not chase the footer past a mid-trace active step", () => {
@@ -448,9 +453,11 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     expect(rows.length).toBe(3);
     // Every row — note or arrow — has a hit target.
     for (const g of rows) expect(g.querySelector("rect.srd-hitbox")).not.toBeNull();
-    // The authorize row is an arrow (no note box) but still has a hitbox.
+    // Every row also carries a visible box — a note box, or an arrow's label box.
+    for (const g of rows) expect(g.querySelector("rect.srd-note-box, rect.srd-label-box")).not.toBeNull();
+    // The authorize row is an arrow: it gets the label box, and a hitbox.
     const authorizeRow = rows.find((g) => (g.querySelector("text")?.textContent || "").includes("authorize"));
-    expect(authorizeRow.querySelector("rect.srd-note-box")).toBeNull();
+    expect(authorizeRow.querySelector("rect.srd-label-box")).not.toBeNull();
     expect(authorizeRow.querySelector("rect.srd-hitbox")).not.toBeNull();
   });
 
@@ -473,5 +480,28 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     fireEvent.click(authorizeRow.querySelector("rect.srd-hitbox"));
     expect(onSelectStep).toHaveBeenCalledTimes(1);
     expect(onSelectStep.mock.calls[0][0]).toMatchObject({ id: "authorize" });
+  });
+
+  // A step can be left stranded at "active" in the store after the run ends —
+  // the MCP hop does exactly this — and the crawling dot then goes on claiming
+  // the tool is still executing long after the flow finished.
+  const withMcpActive = (outcome) => {
+    store.state = {
+      steps: [step("prompt", "CHAT", "done"), step("agent", "AGENT", "done"), step("mcp", "MCP", "active")],
+      trace: { runId: 1, outcome },
+    };
+    return render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />).container;
+  };
+
+  it("stops the running dot once the trace has finished", () => {
+    const container = withMcpActive("ok");
+    expect(container.querySelector(".srd-active-dot")).toBeNull();
+    expect(container.querySelector(".srd-active-pulse")).toBeNull();
+  });
+
+  it("still shows the running dot while the trace is in flight", () => {
+    // The guard above must not kill the running indicator outright.
+    const container = withMcpActive(null);
+    expect(container.querySelector(".srd-active-dot")).not.toBeNull();
   });
 });

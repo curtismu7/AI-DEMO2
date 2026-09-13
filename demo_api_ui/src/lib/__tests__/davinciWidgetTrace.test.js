@@ -108,6 +108,30 @@ describe("installWidgetTrace", () => {
     expect(onCall.mock.calls[0][0]).toMatchObject({ host: "local.ping-devops.com:4000", path: "/api/davinci-login/widget-session", status: 200 });
     expect(target.fetch).toBe(original);
   });
+
+  // Live 2026-09-13: the widget stops recording as soon as postWidgetSession's own
+  // res.json() resolves, which beat the trace's clone().json() — so the
+  // /widget-session record was dropped. shouldRecord is asked when a call STARTS.
+  it("asks shouldRecord when a call starts, so a slow body read cannot drop a call already in flight", async () => {
+    let release;
+    const bodyRead = new Promise((r) => { release = r; });
+    const slow = { ...json({}), clone() { return { json: async () => { await bodyRead; return {}; } }; } };
+    const { target } = fakeWindow([slow, json({ ok: true })]);
+    const onCall = vi.fn();
+    let recording = true;
+    installWidgetTrace(onCall, target, () => recording);
+
+    await target.fetch("/api/davinci-login/widget-session", { method: "POST" });
+    recording = false;
+    release();
+    await tick();
+    expect(onCall).toHaveBeenCalledTimes(1);
+    expect(onCall.mock.calls[0][0]).toMatchObject({ path: "/api/davinci-login/widget-session" });
+
+    await target.fetch("https://auth.pingone.com/env-1/davinci/policy/pol-1/start", { method: "POST" });
+    await tick();
+    expect(onCall).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("summarizeWidgetTrace", () => {
