@@ -278,6 +278,12 @@ passed, 24 skipped) and `npm run build` (exit 0). The live fresh-browser check
 (Sign On → Welcome → Success → `/davinci-login/confirmed`) runs after merge: a
 worktree-served BFF boots seed data and would 404 `/api/auth/me`.
 
+**2026-09-13 update:** the widget now stays on `/davinci-login-guide` instead
+of navigating to `/davinci-login/confirmed` — it reports sign-in through
+`onSignedIn` and dispatches `userAuthenticated` so the app shell's session
+check picks it up. The live check above now expects the "What just happened"
+modal to open on the same page, not a navigation.
+
 ### 2026-09-13 — Sequence view: a gateway filter deny with no deny phase is drawn on the gateway
 
 **Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`.

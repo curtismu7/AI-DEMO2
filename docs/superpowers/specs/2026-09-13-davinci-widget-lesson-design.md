@@ -81,7 +81,7 @@ makes `/as/authorize` run a flow.
 4. Each screen submit → `POST https://auth.pingone.com/{envId}/davinci/connections/{connectionId}/capabilities/customHTMLTemplate`, headers `interactionid`, `interactiontoken`, body `{ id, eventName: "continue", interactionId, nextEvent: { eventName: "continue", eventType: "post" }, parameters: { buttonType, buttonValue, …form fields } }`. Response: the next screen.
 5. After Create Session: response also sets `ST` and `ST-NO-SS` on `auth.pingone.com`.
 6. Final submit → response from `capabilityName: returnSuccessResponseWidget`, `connectorId: pingOneAuthenticationConnector`: `{ success: true, access_token, token_type: "Bearer", expires_in: 3600, scope, id_token, sessionToken, sessionTokenMaxAge }`.
-7. Page → `POST /api/davinci-login/widget-session { idToken, accessToken }` → `{ ok: true }` + session cookie.
+7. Page → `POST /api/davinci-login/widget-session { idToken, accessToken }` → `{ ok: true, username }` + session cookie.
 
 The browser never requests `/as/authorize`, so `response_mode` never appears.
 

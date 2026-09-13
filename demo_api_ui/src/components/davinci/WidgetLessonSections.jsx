@@ -91,7 +91,7 @@ const WIRING = [
 const BFF_CONFIG = `# demo_api_server — read by config/davinci.js
 PINGONE_DAVINCI_LOGIN_COMPANY_ID=<PingOne environment id>
 PINGONE_DAVINCI_LOGIN_POLICY_ID_V1=<DaVinci flow policy id>
-# PINGONE_DAVINCI_API_KEY lives in the vault, never in .env or the bundle`;
+# PINGONE_DAVINCI_API_KEY: keep it in the vault, never in the browser`;
 
 const INTEGRATION = `<div class="dvWidget"></div>
 <script src="https://assets.pingone.com/davinci/latest/davinci.js"></script>
@@ -112,11 +112,12 @@ const INTEGRATION = `<div class="dvWidget"></div>
       useModal: false,
       successCallback: async (response) => {
         // The final node returned OIDC tokens. Let the server verify them.
-        await fetch("/api/davinci-login/widget-session", {
+        const res = await fetch("/api/davinci-login/widget-session", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ idToken: response.id_token, accessToken: response.access_token }),
         });
+        if (!res.ok) throw new Error("Sign-in was rejected — see the response body for why.");
       },
       errorCallback: (err) => console.error(err),
     });
@@ -139,7 +140,9 @@ Content-Type: application/json
 const PAGE_CONFIG_CALL = `// Page → BFF
 POST /api/davinci-login/sdk-token
 
-// 200 — public config only; neither the API key nor the nonce is here
+// 200 — public config only. The API key stays server-side, and there is no
+// separate nonce field here — it's embedded in the SDK token, not something
+// your code reads or sends.
 {
   "accessToken": "eyJ…",
   "companyId": "<environment id>",
@@ -207,11 +210,14 @@ Content-Type: application/json
 { "idToken": "eyJ…", "accessToken": "eyJ…" }
 
 // 200, Set-Cookie: connect.sid (HttpOnly)
-{ "ok": true }
+{ "ok": true, "username": "…" }
 
+// 400 { "error": "invalid_request" }
 // 401 { "error": "nonce_missing" | "token_unverified" | "nonce_mismatch"
 //                | "audience_mismatch" | "subject_mismatch" }
-// 404 { "error": "user_not_found" }`;
+// 404 { "error": "user_not_found" }
+// 500 { "error": "session_regenerate_failed" | "session_save_failed" }
+// 502 { "error": "davinci_widget_session_failed" }`;
 
 const SESSION_CODE = `// routes/davinciLogin.js — POST /widget-session (abridged)
 const expectedNonce = req.session.davinciLoginNonce;   // armed by /sdk-token
@@ -232,10 +238,14 @@ if (bffAudience && ![].concat(access.claims.aud).includes(bffAudience)) return r
 if (id.claims.sub !== access.claims.sub) return reject("subject_mismatch");
 
 // Existing demo users only, then a fresh session (no fixation).
-req.session.regenerate(() => {
+req.session.regenerate((regenErr) => {
+  if (regenErr) return res.status(500).json({ error: "session_regenerate_failed" });
   req.session.oauthTokens = { accessToken, idToken, refreshToken: null, expiresAt: access.claims.exp * 1000 };
   req.session.user = user;
-  res.json({ ok: true });
+  req.session.save((saveErr) => {
+    if (saveErr) return res.status(500).json({ error: "session_save_failed" });
+    res.json({ ok: true, username: user.username });
+  });
 });`;
 
 export const FLOW_SOURCE = `sequenceDiagram
@@ -264,6 +274,7 @@ export const FLOW_SOURCE = `sequenceDiagram
   W-->>Page: successCallback(response)
   Page->>BFF: POST /api/davinci-login/widget-session
   BFF->>P1: GET /as/jwks and verify both signatures
+  BFF->>P1: GET /as/userinfo
   BFF-->>Page: ok and an HttpOnly session cookie`;
 
 const FINAL_NODES = [
@@ -285,8 +296,10 @@ const TROUBLE = [
   ["/sdk-token 503 davinci_not_configured", "Missing company id, policy id, or the vaulted API key", "Set the value the error names"],
   ["\"data has additional properties\" from DaVinci", "A parameter the flow's Input Schema does not declare", "Declare it, or stop sending it"],
   ["The widget never starts the flow", "policyId names a PingOne flow policy (trigger AUTHENTICATION), which only /as/authorize runs", "Use a widget flow policy (no trigger) for the widget; keep PingOne flow policies for redirect or the SDK"],
-  ["Widget shows no tokens / 401 token_unverified", "The final node is an HTTP success response, or a signature did not verify", "End the flow with Return Success Response (Widget Flows)"],
-  ["401 nonce_mismatch", "The final node lost its nonce idTokenClaim, or a stale widget run", "Restart the sign-in; check the node's idTokenClaims"],
+  ["Widget shows no tokens / BFF 400 invalid_request", "The final node is an HTTP success response, so successCallback gets no id_token or access_token", "End the flow with Return Success Response (Widget Flows)"],
+  ["401 token_unverified", "Both tokens arrived but a signature did not verify against PingOne's JWKS", "Confirm the final node issues real PingOne-signed tokens, then restart the sign-in"],
+  ["401 nonce_missing", "No nonce is armed for this session, or the final node's idTokenClaims dropped nonce", "Restart the sign-in from this page; check the node's idTokenClaims includes nonce = {{global.parameters.nonce}}"],
+  ["401 nonce_mismatch", "The ID token's nonce doesn't match what this session armed — a second tab, or Retry re-arming /sdk-token before this run's tokens came back", "Restart the sign-in in a single tab"],
   ["401 audience_mismatch", "The node issues tokens for a different app, or without the Demo API scopes", "Point the node at the BFF's client and request the resource scopes"],
   ["404 user_not_found", "The PingOne user has no demo account", "Sign in as an existing demo user"],
 ];
@@ -369,7 +382,8 @@ export default function WidgetLessonSections({ calls = [] }) {
           <li>
             The BFF arms a one-time nonce in the session, then calls DaVinci&rsquo;s{" "}
             <code>/sdktoken</code> with its API key, passing the nonce as a flow parameter. It returns the SDK
-            token and public config — never the key or the nonce.
+            token and public config; the key never leaves the server, and the nonce is not sent back as its own
+            field — it&rsquo;s already embedded in the SDK token your code receives.
           </li>
           <li>
             The page calls <code>davinci.skRenderScreen</code>. davinci.js posts{" "}
@@ -457,7 +471,10 @@ export default function WidgetLessonSections({ calls = [] }) {
       <Section id="security" title="Security">
         <ul className="lesson-list">
           <li>The DaVinci API key stays on the server; the browser only ever holds a short-lived SDK token.</li>
-          <li>The nonce never reaches the browser — it travels inside the SDK token and comes back in the ID token.</li>
+          <li>
+            The nonce is generated and stored server-side and consumed once. The browser only carries it inside
+            the tokens and cannot choose it.
+          </li>
           <li>Tokens are verified, never trusted: JWKS signatures, nonce, both audiences and the subject.</li>
           <li>The session is regenerated before tokens are stored, and tokens live server-side only.</li>
           <li>Only existing demo users sign in; nothing is auto-created from a DaVinci login.</li>
