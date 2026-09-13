@@ -7926,6 +7926,43 @@ export default function BankingAgent({
       await ensureRequiredDemoFlags(ucFlags, uc.id);
     }
 
+    // UC2.5 runs the A2A orchestrator itself. Sent as a chat chip, its prompt
+    // ("delegate this to a specialist") matched UC2's A2A heuristic, so the
+    // orchestrator never ran. The /api/a2a routes and their wire checks are
+    // unchanged; this only calls them, the way /a2a-protocol-learning does.
+    if (uc.id === "UC2.5" && trigger.type === "chip" && trigger.text) {
+      if (stepNeedsAuth) {
+        signInPrompt();
+        return;
+      }
+      addMessage("user", stepLabel);
+      setNlLoading(true);
+      try { tokenChainTraceStore.beginTrace({ prompt: trigger.text }); } catch (_) {}
+      try {
+        await apiClient.post("/api/a2a/init", {});
+        const { data } = await apiClient.post("/api/a2a/message", {
+          message: trigger.text,
+          vertical: effectiveVerticalId,
+        });
+        addMessage("assistant", `${stepLabel}\n${data?.reply || "The orchestrator returned no reply."}`);
+        if (data?.tokenEvents?.length) {
+          appendTokenEvents(data.tokenEvents);
+          try { tokenChainTraceStore.ingestTokenEvents(data.tokenEvents); } catch (_) {}
+        }
+        try { tokenChainTraceStore.completeTrace(data?.success === true); } catch (_) {}
+        if (data?.success === true) markUseCaseCompleted(uc.id);
+      } catch (err) {
+        addMessage(
+          "assistant",
+          `${stepLabel}\nA2A orchestrator failed: ${formatAxiosError(err, err.message || "failed")}`,
+        );
+        try { tokenChainTraceStore.completeTrace(false); } catch (_) {}
+      } finally {
+        setNlLoading(false);
+      }
+      return;
+    }
+
     if (trigger.type === "chip" && trigger.text) {
       // Reset token chain trace so the proof strip shows this use case
       try { tokenChainTraceStore.beginTrace({ prompt: trigger.text }); } catch (_) {}
