@@ -107,10 +107,33 @@ describe('routes/davinciSdkLogin', () => {
       expect(res.body).toMatchObject({
         clientId: SDK_APP_ID,
         redirectUri: EXPECTED_REDIRECT,
-        scope: 'openid profile email',
         wellknown: 'https://auth.pingone.com/env-1/as/.well-known/openid-configuration',
       });
       expect(res.body.nonce).toMatch(/^[0-9a-f]{32}$/);
+    });
+
+    it('asks for a Demo API scope, which is what sets the token audience', () => {
+      // Not cosmetic. With only the OIDC scopes PingOne mints the access token
+      // for its OWN api (aud: https://api.pingone.com); middleware/auth.js
+      // requires enduser.ping.demo in `aud` and fails closed. The observable
+      // result was a sign-in that SUCCEEDED (/start 200, /callback 200) and
+      // then 401'd on every authenticated call, which reads as a lost session.
+      //
+      // Asserted as "contains the customer scopes" rather than as a literal
+      // string, because the point is that a resource scope is present at all —
+      // a literal would also pass if someone swapped in an unrelated one.
+      const { getScopesForUserType } = require('../../config/scopes');
+      const customer = getScopesForUserType('customer');
+      expect(customer.length).toBeGreaterThan(0);
+
+      return request(app)
+        .post('/api/davinci-sdk-login/start')
+        .expect(200)
+        .then(({ body }) => {
+          const scopes = body.scope.split(' ');
+          expect(scopes).toEqual(expect.arrayContaining(['openid', 'profile', 'email']));
+          for (const s of customer) expect(scopes).toContain(s);
+        });
     });
 
     it('makes NO upstream call — the SDK talks to PingOne directly', async () => {

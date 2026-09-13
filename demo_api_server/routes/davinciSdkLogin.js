@@ -35,10 +35,25 @@ const { getTokenEndpoint, getDiscoveryEndpoint } = require('../services/oauthEnd
 const oauthService = require('../services/oauthService');
 const dataStore = require('../data/store');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
+const { getScopesForUserType } = require('../config/scopes');
 
 const router = express.Router();
 
-const SCOPE = 'openid profile email';
+// The banking scopes are NOT decoration — they decide the token's AUDIENCE.
+//
+// With only the OIDC scopes, PingOne issues an access token for its own API
+// (aud: https://api.pingone.com). middleware/auth.js requires BFF_RESOURCE_URI
+// (enduser.ping.demo) to appear in `aud` and fails closed, so sign-in SUCCEEDED
+// and then every authenticated call 401'd with "Token audience [...] does not
+// match this service's audience", which the UI reports as a lost session and
+// bounces to the app login. Measured end to end: /start 200, /callback 200,
+// then /api/auth/me 401.
+//
+// Asking for a scope of the "Demo API" resource is what makes PingOne mint the
+// token for that resource instead. Kept in sync with config/scopes.js's
+// `customer` user type — the SDK sign-in produces a customer, so it must not
+// hand out more than the ordinary user-login path does.
+const SCOPE = ['openid', 'profile', 'email', ...getScopesForUserType('customer')].join(' ');
 
 // Config-first, headers last. Header derivation once put the INTERNAL upstream
 // name into redirect_uri on the live stack (https://demo-api-server:3001/...),
