@@ -439,8 +439,7 @@ run_setup() {
   local dir="$1"
   info "Running setup:fresh inside ${dir}..."
   echo ""
-  PUBLIC_APP_URL="https://ai-demo.ping-devops.com" \
-    ( cd "$dir" && npm run setup:fresh -- --from-installer --skip-vault )
+  ( cd "$dir" && PUBLIC_APP_URL="https://ai-demo.ping-devops.com" npm run setup:fresh -- --from-installer --skip-vault )
 }
 
 _set_env_key() {
