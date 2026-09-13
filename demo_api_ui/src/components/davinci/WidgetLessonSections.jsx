@@ -53,7 +53,7 @@ const WIRING = [
     "Your BFF mints the widget's SDK token with it (X-SK-API-KEY). A server-side secret — never in the browser.",
   ],
   [
-    "Flow policy (here a759d4c3 \"AI DEMO\", latest version)",
+    "The widget's flow policy (latest version)",
     "DaVinci › Applications › Flow Policy",
     "Chosen by policyId in the SDK-token request. A widget policy has no trigger: it is not a PingOne flow policy and is not assigned to any PingOne application.",
   ],
@@ -75,12 +75,12 @@ const WIRING = [
   [
     "That node's settings",
     "Flow › final node",
-    "Application id (the OIDC app the tokens are issued to), Reduced Scopes (openid profile email read write ai:agent:read — they decide the access token's audience), and an idTokenClaims entry nonce = {{global.parameters.nonce}} for the BFF's replay check.",
+    "Application id (the OIDC app the tokens are issued to), Reduced Scopes (openid profile email plus your API's scopes — they decide the access token's audience), and an idTokenClaims entry nonce = {{global.parameters.nonce}} for the BFF's replay check.",
   ],
   [
     "OIDC application's resource grant",
     "PingOne › Applications › Resources",
-    "Grants the Demo API scopes, so the access token's aud is enduser.ping.demo — the audience this BFF accepts.",
+    "Grants your API's scopes, so the access token's aud is your API's audience — the audience your BFF accepts.",
   ],
   [
     "CORS allowed origin",
@@ -196,10 +196,10 @@ POST https://auth.pingone.com/<envId>/davinci/connections/<connectionId>/capabil
   "capabilityName": "returnSuccessResponseWidget",
   "connectorId": "pingOneAuthenticationConnector",
   "id_token": "eyJ…",              // aud = the node's application id; nonce claim
-  "access_token": "eyJ…",          // aud = enduser.ping.demo
+  "access_token": "eyJ…",          // aud = your API's audience
   "token_type": "Bearer",
   "expires_in": 3600,
-  "scope": "openid profile email write read ai:agent:read",
+  "scope": "openid profile email <your API scopes>",
   "sessionToken": "…",             // opaque DaVinci session id
   "sessionTokenMaxAge": 2591999
 }`;
@@ -440,7 +440,7 @@ export default function WidgetLessonSections({ calls = [] }) {
         <p>
           This flow ends with PingOne Authentication&rsquo;s Return Success Response (Widget Flows), configured
           with the application id the tokens are issued to, the scopes{" "}
-          <code>openid profile email read write ai:agent:read</code>, and an <code>idTokenClaims</code> entry{" "}
+          <code>openid profile email</code> plus your API&rsquo;s scopes, and an <code>idTokenClaims</code> entry{" "}
           <code>nonce = {"{{global.parameters.nonce}}"}</code>. Change any of the three and every sign-in fails
           the BFF&rsquo;s checks.
         </p>
