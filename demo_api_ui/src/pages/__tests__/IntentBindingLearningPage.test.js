@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import IntentBindingLearningPage from "../IntentBindingLearningPage";
+import { tokenChainTraceStore } from "../../services/tokenChainTrace/tokenChainTraceStore";
 
 beforeEach(() => {
   global.fetch = vi.fn();
@@ -117,4 +118,32 @@ test("a 401 from Run asks the visitor to sign in instead of showing the raw code
   expect(screen.getByRole("button", { name: /^sign in$/i })).toBeInTheDocument();
   // The bare machine code must never reach the user.
   expect(screen.queryByText(/authentication_required/)).toBeNull();
+});
+
+test("a run hands its token events to the live trace, so the sequence view can draw the PAR hops", async () => {
+  tokenChainTraceStore.reset();
+  global.fetch.mockResolvedValueOnce({
+    ok: true,
+    status: 200,
+    json: async () => ({
+      status: 200, errorCode: null, reason: "PERMIT — within the declared intent (via PAR)", live: true,
+      tokenChainEvents: [
+        { id: "par-push", label: "PAR Endpoint Push", status: "active" },
+        { id: "request-uri", label: "Received request_uri", status: "active" },
+      ],
+    }),
+  });
+
+  render(
+    <MemoryRouter>
+      <IntentBindingLearningPage />
+    </MemoryRouter>,
+  );
+  fireEvent.click(screen.getByRole("button", { name: /run permit/i }));
+
+  await waitFor(() => {
+    const ids = tokenChainTraceStore.getState().trace.tokenEvents.map((e) => e.id);
+    expect(ids).toEqual(expect.arrayContaining(["par-push", "request-uri"]));
+  });
+  expect(tokenChainTraceStore.getState().steps.find((s) => s.id === "par-push").status).toBe("done");
 });

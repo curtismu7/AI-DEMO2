@@ -1114,6 +1114,54 @@ describe("buildTraceSteps — intent-binding step", () => {
     const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
     expect(byId["intent-binding"].status).toBe("error");
   });
+
+  test("a live PAR permit draws the push and request_uri right before the intent check", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [
+        { id: "par-push", label: "PAR Endpoint Push", status: "active" },
+        { id: "request-uri", label: "Received request_uri", status: "active" },
+        { id: "intent-check", label: "Intent cap $80 <= $100", status: "active" },
+        { id: "p1az-permit", label: "PingOne Authorize — PERMIT", status: "active" },
+      ],
+    });
+    const ids = steps.map((s) => s.id);
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    expect(byId["par-push"]).toMatchObject({ status: "done", lane: "PINGONE" });
+    expect(byId["request-uri"]).toMatchObject({ status: "done", lane: "PINGONE" });
+    expect(byId["intent-binding"].status).toBe("done");
+    expect(ids.indexOf("request-uri")).toBe(ids.indexOf("par-push") + 1);
+    expect(ids.indexOf("intent-binding")).toBe(ids.indexOf("request-uri") + 1);
+  });
+
+  test("a rejected PAR push is an error, and a live over-cap run fails the intent check", () => {
+    const rejected = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [{ id: "par-push", label: "PAR Endpoint Push", status: "error" }],
+    });
+    expect(rejected.find((s) => s.id === "par-push").status).toBe("error");
+    expect(rejected.find((s) => s.id === "request-uri")).toBeUndefined();
+
+    const overCap = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [
+        { id: "par-push", status: "active" },
+        { id: "request-uri", status: "active" },
+        { id: "intent-check", status: "exceeded" },
+        { id: "transfer-blocked", label: "Transfer blocked — intent exceeded", status: "enforced" },
+      ],
+    });
+    expect(overCap.find((s) => s.id === "intent-binding").status).toBe("error");
+  });
+
+  test("a run with no PAR evidence has no PAR steps", () => {
+    const ids = buildTraceSteps({ ...EMPTY_TRACE, outcome: "ok" }).map((s) => s.id);
+    expect(ids).not.toContain("par-push");
+    expect(ids).not.toContain("request-uri");
+  });
 });
 
 describe("buildTraceSteps — attack sim (UC5 gateway scope deny)", () => {
