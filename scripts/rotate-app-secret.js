@@ -49,6 +49,14 @@ async function preflight({ app, vaultPath, vaultPassword }) {
   if (!fs.existsSync(vaultPath)) {
     throw new Error(`Refusing to rotate: vault not found at ${vaultPath}.`);
   }
+  // existsSync proves the file is there, not that it's writable — the atomic
+  // write's temp file lands in the vault's directory, so check both.
+  try {
+    fs.accessSync(vaultPath, fs.constants.W_OK);
+    fs.accessSync(path.dirname(vaultPath), fs.constants.W_OK);
+  } catch (err) {
+    throw new Error(`Refusing to rotate: vault at ${vaultPath} is not writable — ${err.message}`);
+  }
   // Prove the vault actually opens with this password BEFORE the irreversible
   // call — existsSync only proves a file is there, not that it's writable.
   // openVault() alone proves decryptability without mutating anything, so no
