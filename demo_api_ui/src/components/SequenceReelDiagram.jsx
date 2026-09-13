@@ -31,7 +31,10 @@ const COL_WIDTH = 140;
 const COL_MARGIN = 70;
 const ROW_HEIGHT = 56;
 const TOP_PAD = 80;
-const BOTTOM_PAD = 30;
+// The lane footer starts this far above the next row slot, which clears the
+// last row's note box (it extends 14px either side of the row line).
+const FOOTER_RISE = 20;
+const FOOTER_PAD = 8;
 // Derived, never set independently: a box wider than the column pitch runs
 // into its neighbours, which is what a literal 156 against a 130 pitch did.
 // 120 clears the widest lane label (HEURISTICS, measured at 95px/15px bold).
@@ -168,6 +171,7 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
     const active = [...lifelineSteps].reverse().find((s) => s.status === "active");
     return active ? active.id : lifelineSteps[lifelineSteps.length - 1]?.id;
   }, [lifelineSteps]);
+  const followFooter = activeStepId != null && activeStepId === lifelineSteps[lifelineSteps.length - 1]?.id;
   useEffect(() => {
     const el = activeStepRef.current;
     // Deliberately not scrollIntoView: it scrolls every scrollable ancestor on
@@ -181,12 +185,27 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
     if (!el || !scroller) return;
     const step = el.getBoundingClientRect();
     const view = scroller.getBoundingClientRect();
+    // The control rows are pinned over the scroller's top and bottom edges, so
+    // the visible band is between them. Measuring against the scroller alone
+    // parked the newest step underneath the bottom row.
+    const topRow = scroller.querySelector(".srd-toolbar--top")?.getBoundingClientRect();
+    const bottomRow = scroller.querySelector(".srd-toolbar--bottom")?.getBoundingClientRect();
+    const bandTop = topRow ? Math.max(view.top, topRow.bottom) : view.top;
+    const bandBottom = bottomRow ? Math.min(view.bottom, bottomRow.top) : view.bottom;
+    // Following the newest row, the lane footer sits just under it — keep it in
+    // view too, or the lane names are off-screen exactly while narrating. Not for
+    // a mid-trace active step: the footer is then far below, and chasing it would
+    // push the step itself out of view.
+    const footer = followFooter
+      ? scroller.querySelector(".srd-actor-box--footer")?.getBoundingClientRect()
+      : null;
+    const wantBottom = footer ? Math.max(step.bottom, footer.bottom) : step.bottom;
     const delta =
-      step.top < view.top ? step.top - view.top
-      : step.bottom > view.bottom ? step.bottom - view.bottom
+      step.top < bandTop ? step.top - bandTop
+      : wantBottom > bandBottom ? wantBottom - bandBottom
       : 0;
     if (delta) scroller.scrollTo({ top: scroller.scrollTop + delta, behavior: "smooth" });
-  }, [activeStepId]);
+  }, [activeStepId, followFooter]);
 
   // Horizontal follow, slow mode only: while narrating, the step being revealed
   // should stay on screen even once the reveal walks past the fold. Off, the
@@ -237,7 +256,8 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
   const pad = Math.max(COL_MARGIN, ACTOR_BOX_W / 2, maxNoteHalf) + 8;
   const colX = (lane) => pad + participants.indexOf(lane) * COL_WIDTH;
   const width = pad * 2 + Math.max(participants.length - 1, 0) * COL_WIDTH;
-  const height = TOP_PAD + lifelineSteps.length * ROW_HEIGHT + BOTTOM_PAD;
+  const footerY = TOP_PAD + lifelineSteps.length * ROW_HEIGHT - FOOTER_RISE;
+  const height = footerY + 48 + FOOTER_PAD;
 
   // Rendered above and below the diagram: during a narration the presenter is
   // looking at the bottom of a tall reveal, and reaching back to the top row to
@@ -336,7 +356,21 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
                 <text x={x} y="34" textAnchor="middle" className="srd-actor-label">
                   {lane}
                 </text>
-                <line x1={x} y1="52" x2={x} y2={height - BOTTOM_PAD + 10} className="srd-lifeline" />
+                <line x1={x} y1="52" x2={x} y2={footerY} className="srd-lifeline" />
+                {/* The cast again at the foot of the lifelines: during a tall
+                    reveal the view sits at the bottom, where the top row is
+                    long out of sight. Rides just under the newest row. */}
+                <rect
+                  x={x - ACTOR_BOX_W / 2}
+                  y={footerY}
+                  width={ACTOR_BOX_W}
+                  height="48"
+                  rx="8"
+                  className="srd-actor-box srd-actor-box--footer"
+                />
+                <text x={x} y={footerY + 30} textAnchor="middle" className="srd-actor-label srd-actor-label--footer">
+                  {lane}
+                </text>
               </g>
             );
           })}
