@@ -396,10 +396,13 @@
     background: none;
   }
 
+  /* .lesson-run is "On this run": always this browser's own trace, never
+     customer material. */
   .lesson-sidebar,
   .lesson-layout > .divider-drag-handle,
   .lesson-export,
   .lesson-code-copy,
+  .lesson-run,
   .lesson-no-print {
     display: none !important;
   }

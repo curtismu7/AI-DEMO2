@@ -67,6 +67,9 @@ describe("SdkLessonSections", () => {
       <SdkLessonSections config={{ clientId: "client-1", redirectUri: "https://app/davinci-sdk-login", scope: "openid" }} />,
     );
     expect(container.querySelector("#how-its-wired").textContent).toContain("client-1");
+    // The demo's own client_id must not reach the customer PDF.
+    const received = [...container.querySelectorAll("#how-its-wired p")].find((p) => p.textContent.includes("client-1"));
+    expect(received.classList.contains("lesson-no-print")).toBe(true);
   });
 });
 

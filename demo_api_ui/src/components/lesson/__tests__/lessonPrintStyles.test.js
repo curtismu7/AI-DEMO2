@@ -28,7 +28,8 @@ describe('lesson print styles', () => {
   });
 
   it('hides screen-only controls and the excluded sections on paper', () => {
-    for (const cls of ['.lesson-sidebar', '.lesson-export', '.lesson-code-copy', '.lesson-no-print']) {
+    // .lesson-run ("On this run") is always this browser's trace, not customer material.
+    for (const cls of ['.lesson-sidebar', '.lesson-export', '.lesson-code-copy', '.lesson-run', '.lesson-no-print']) {
       expect(printBlock).toContain(cls);
     }
   });
