@@ -119,12 +119,25 @@ one, so there is nothing to fix there.
   the same `directVaultKeyMap()`/`listAllApps()` id-lookup path as the other
   15 direct apps.
 - `routes/secretRotation.js`'s `GET /apps` drops its
-  `.filter((a) => !isWorkerApp(a))` line. `isWorkerApp()` itself
-  (`demo_api_server/services/pingOneSecretRotation.js`) stays — it is still
-  correct, general-purpose logic, just no longer called from this one call
-  site. (Grep before deleting: confirm nothing else imports it before
-  removing the function itself, in case a future change wants to reintroduce
-  a different kind of guard.)
+  `.filter((a) => !isWorkerApp(a))` line, replacing it with
+  `isWorker: isWorkerApp(a)` on the mapped object — the display filter
+  becomes an annotation the UI warning (below) reads. `isWorkerApp()` itself
+  (`demo_api_server/services/pingOneSecretRotation.js`) is unchanged.
+- **Amendment (2026-09-13, post-implementation):** the "grep before
+  deleting" note this section originally carried was never actually run.
+  The final whole-branch review found a THIRD `isWorkerApp()` call site this
+  design missed entirely: `scripts/rotate-app-secret.js`'s `preflight()`
+  unconditionally refused any app `isWorkerApp()` identified, regardless of
+  the `/apps` filter or the UI. That made the feature non-functional
+  end-to-end — an operator could reach the worker-specific warning and
+  confirm, only for the CLI to abort with "it is the configured worker
+  app." Fixed by removing that block from `preflight()` too; `POST
+  /start`'s own `vaultKeys[appId] !== vaultKey` check (unchanged, already
+  correct) and the UI's two-stage confirm are the real gates now. The
+  lesson, not just the fix: a design section that says "grep before X" is
+  a promise, not a formality — the grep itself belongs in the plan's
+  pre-flight scan, not left as a parenthetical for the implementer to
+  maybe remember.
 
 ## UI warning copy
 
