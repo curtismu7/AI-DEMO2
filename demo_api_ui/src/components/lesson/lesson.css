@@ -327,3 +327,158 @@
   color: var(--th-text-muted);
   border-top: 1px solid var(--th-border);
 }
+
+/* Export PDF: the button sits on the header band beside the title. */
+.lesson-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* The band is dark navy in both themes, so the button takes the band's
+   inverted ink; on hover it becomes an ordinary light surface. */
+.lesson-export {
+  flex-shrink: 0;
+  padding: 0.5rem 1rem;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--th-text-invert);
+  background: transparent;
+  border: 1px solid var(--th-text-invert);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.lesson-export:hover,
+.lesson-export:focus-visible {
+  color: var(--th-text);
+  background: var(--th-bg-card);
+}
+
+/* Print-only blocks: Ping Identity branding and the legal notice. */
+.lesson-print-brand,
+.lesson-print-legal {
+  display: none;
+}
+
+@media print {
+  /* Page margins and the per-page legal footer are an @page rule that
+     LessonLayout adds only while a lesson is mounted; @page here would apply
+     to every page of the app. */
+
+  /* Only the lesson prints. App chrome, side navs, floating buttons and any open
+     dialog are hidden. Every rule is scoped with :has(.lesson-page) because this
+     stylesheet stays loaded after navigating to other pages of the app, and
+     printing those must not change. */
+  body:has(.lesson-page) :not(:has(.lesson-page)):not(.lesson-page):not(.lesson-page *) {
+    display: none !important;
+  }
+
+  /* The app's layout wrappers around the lesson scroll or clip to the viewport
+     on screen; on paper they must let the whole lesson run across pages. */
+  body:has(.lesson-page),
+  body:has(.lesson-page) :has(.lesson-page) {
+    display: block !important;
+    position: static !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: none !important;
+  }
+
+  .lesson-page {
+    min-height: 0;
+    background: none;
+  }
+
+  .lesson-sidebar,
+  .lesson-layout > .divider-drag-handle,
+  .lesson-export,
+  .lesson-code-copy,
+  .lesson-no-print {
+    display: none !important;
+  }
+
+  .lesson-layout {
+    display: block;
+    min-height: 0;
+  }
+
+  .lesson-content {
+    max-width: none;
+    padding: 0;
+  }
+
+  /* Print drops the band's background, so its inverted ink would print white
+     on white: the header becomes a plain title block. */
+  .lesson-header {
+    margin-bottom: 1.5rem;
+    padding: 0 0 1rem;
+    color: var(--th-text);
+    background: none;
+    border-bottom: 2px solid var(--th-border-strong);
+  }
+
+  .lesson-header h1,
+  .lesson-subtitle {
+    color: var(--th-text);
+  }
+
+  .lesson-print-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0 0 1rem;
+    font-size: var(--font-size-xs);
+    color: var(--th-text-muted);
+  }
+
+  .lesson-print-wordmark {
+    font-size: var(--font-size-lg);
+    font-weight: 700;
+    color: var(--th-text);
+  }
+
+  .lesson-print-legal {
+    display: block;
+    margin-top: 2rem;
+    padding-top: 0.75rem;
+    font-size: var(--font-size-xs);
+    color: var(--th-text-muted);
+    border-top: 1px solid var(--th-border);
+  }
+
+  .lesson-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+  }
+
+  .lesson-section-title,
+  .lesson-section h3 {
+    break-after: avoid;
+  }
+
+  .lesson-code,
+  .lesson-table-wrap,
+  .lesson-mermaid,
+  .lesson-run {
+    break-inside: avoid;
+  }
+
+  /* Long lines wrap on paper instead of being cut off at the page edge. */
+  .lesson-code pre,
+  .lesson-table-wrap,
+  .lesson-mermaid {
+    overflow: visible;
+  }
+
+  .lesson-code pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}
