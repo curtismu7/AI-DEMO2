@@ -182,7 +182,8 @@ describe('routes/davinciSdkLogin', () => {
       await a
         .post('/api/davinci-sdk-login/callback')
         .send({ code: 'c', codeVerifier: 'v' })
-        .expect(200, { ok: true });
+        // username comes back so the page can name a reused PingOne session.
+        .expect(200, { ok: true, username: 'customer1' });
 
       const [url, body] = axios.post.mock.calls[0];
       expect(url).toBe('https://auth.pingone.com/env-1/as/token');

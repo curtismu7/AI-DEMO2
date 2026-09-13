@@ -170,3 +170,14 @@
   color: var(--th-text);
   background: var(--th-bg-hover);
 }
+
+/* Continue / "Sign out of PingOne and use a different account" sit together on
+   the reused-session panel and beside Try again on a userSessionMismatch. The
+   buttons carry their own margin-top, so this only spaces them sideways and
+   lets the long sign-out label wrap under Continue on a narrow screen. */
+.dvsdk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 10px;
+}
