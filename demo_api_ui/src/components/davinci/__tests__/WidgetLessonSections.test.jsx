@@ -3,13 +3,14 @@
 // Mermaid parser, the API calls are the captured widget contract, pi.flow is
 // taught as the contrast, and no secret value can render.
 import { describe, it, expect, vi } from "vitest";
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 
 vi.mock("mermaid", () => ({
   default: { initialize: vi.fn(), render: vi.fn(async () => ({ svg: "<svg></svg>" })) },
 }));
 
 import WidgetLessonSections, { FLOW_SOURCE, WIDGET_LESSON_SECTIONS } from "../WidgetLessonSections";
+import { agentFlowDiagram } from "../../../services/agentFlowDiagramService";
 
 describe("WIDGET_LESSON_SECTIONS", () => {
   it("uses the shared order with the widget's two sections before security", () => {
@@ -70,6 +71,18 @@ describe("WidgetLessonSections", () => {
     expect(code).toContain("includeHttpCredentials: true");
     expect(code).toContain("/sdktoken");
     expect(code).toContain("verifyExchangedToken");
+  });
+
+  // 2026-09-12 tech debt: the static diagram is a fixed drawing — this button
+  // is how a reader gets to a real run's live trace instead.
+  it("opens the live trace panel from The Flow section", () => {
+    agentFlowDiagram.close();
+    const { container } = render(<WidgetLessonSections />);
+    const btn = container.querySelector("#the-flow button");
+    expect(btn.textContent).toBe("Open Live Trace");
+
+    fireEvent.click(btn);
+    expect(agentFlowDiagram.getState().visible).toBe(true);
   });
 });
 

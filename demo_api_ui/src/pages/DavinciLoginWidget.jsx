@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWidgetConfig, loadWidget, postWidgetSession } from "../lib/davinciWidgetClient";
 import { installWidgetTrace } from "../lib/davinciWidgetTrace";
+import { agentFlowDiagram } from "../services/agentFlowDiagramService";
 import "./DavinciLoginPage.css";
 
 // The live DaVinci widget, embedded as the "Try It Live" section of
@@ -44,8 +45,14 @@ export default function DavinciLoginWidget({ onCall, onStart, onSignedIn }) {
     setError(null);
     onStart?.();
     recordingRef.current = true;
+    // Live trace for /davinci-login-guide's "The Flow" section (2026-09-12
+    // tech debt) — there is no BFF→browser channel for this flow, so the page
+    // instruments its own calls into agentFlowDiagramService, same as
+    // startMcpToolCall/completeMcpToolCall do for the agent's fetches.
+    agentFlowDiagram.startDavinciWidgetLogin();
     try {
       const cfg = await fetchWidgetConfig();
+      agentFlowDiagram.updateDavinciWidgetStep("sdk-token", "done");
       setFlowVersion(cfg.flowVersion || null);
       const davinci = await loadWidget();
       setStatus("flow");
@@ -61,12 +68,15 @@ export default function DavinciLoginWidget({ onCall, onStart, onSignedIn }) {
         },
         useModal: false,
         successCallback: async (response) => {
+          agentFlowDiagram.updateDavinciWidgetStep("widget-flow", "done");
           try {
             const result = await postWidgetSession({
               idToken: response?.id_token,
               accessToken: response?.access_token,
             });
             recordingRef.current = false;
+            agentFlowDiagram.updateDavinciWidgetStep("widget-session", "done");
+            agentFlowDiagram.completeDavinciWidgetLogin(true);
             // One-shot signal the app shell listens for (useAuth.js) so TopNav
             // and route guards flip to signed-in. Dispatch only here, never
             // from a listener (that loops — see AIAgent.js:2301).
@@ -75,18 +85,22 @@ export default function DavinciLoginWidget({ onCall, onStart, onSignedIn }) {
             onSignedIn?.({ username: result?.username || null });
           } catch (err) {
             recordingRef.current = false;
+            agentFlowDiagram.completeDavinciWidgetLogin(false, err.message);
             setError(err.message);
             setStatus("error");
           }
         },
         errorCallback: (err) => {
           recordingRef.current = false;
-          setError(err?.message || "The DaVinci flow could not be completed.");
+          const message = err?.message || "The DaVinci flow could not be completed.";
+          agentFlowDiagram.completeDavinciWidgetLogin(false, message);
+          setError(message);
           setStatus("error");
         },
       });
     } catch (err) {
       recordingRef.current = false;
+      agentFlowDiagram.completeDavinciWidgetLogin(false, err.message);
       setError(err.message);
       setStatus("error");
     }
