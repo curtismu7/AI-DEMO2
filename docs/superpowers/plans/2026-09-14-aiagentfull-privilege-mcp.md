@@ -316,34 +316,65 @@ Then in `demo_api_ui/src/components/AIAgentFull.js` only, rename the component (
 +export default function BankingAgentFull({
 ```
 
-- [ ] **Step 2: Write the failing smoke test**
+- [ ] **Step 2: Write the failing smoke test, reusing the real render harness**
+
+`AIAgent.js` cannot render behind a bare `<MemoryRouter>` — it needs the same
+context/service mock harness every existing `AIAgent.*.test.js` file sets up
+(confirmed against `demo_api_ui/src/components/__tests__/AIAgent.noMatch.test.js`).
+Copy that file's full `vi.mock(...)` block (every one of: `IndustryBrandingContext`,
+`EducationUIContext`, `TokenChainContext`, `AgentUiModeContext`,
+`SessionTokenContext`, `demoAgentNlService`, `demoAgentService`, `configService`,
+`agentAccessConsent`, `agentToolSteps`, `react-toastify`, `appToast`,
+`useAgentState`, `useAgentRun`, `bffAxios`, `useVertical`) and its `renderAgent`
+helper (`MemoryRouter` + `ActivityNarrativeProvider` + `ProofOfEnforcementProvider`)
+verbatim into the new test file, then adapt only the two lines below:
+
+```diff
+-import AIAgent from "../AIAgent";
++import AIAgentFull from "../AIAgentFull";
+```
+
+```diff
+-          <AIAgent {...props} />
++          <AIAgentFull {...props} />
+```
+
+Add one more mock (`AIAgentFull` doesn't need `privilegeMcpService` mocked for
+this smoke test since it never calls a tool, but keep it stubbed so an
+accidental effect can't hit the network):
 
 ```js
-// demo_api_ui/src/components/__tests__/AIAgentFull.smoke.test.js
-import { describe, test, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-import AIAgentFull from '../AIAgentFull';
+vi.mock("../../services/privilegeMcpService", () => ({ callMcpToolViaPrivilege: vi.fn() }));
+```
 
-vi.mock('../../services/demoAgentService', async (importOriginal) => {
-  const actual = await importOriginal();
-  return { ...actual, callMcpTool: vi.fn() };
-});
-vi.mock('../../services/privilegeMcpService', () => ({ callMcpToolViaPrivilege: vi.fn() }));
+Then the smoke test itself — use `mode: "inline", forceVertical: "healthcare"`
+(the exact props `AIAgent.noMatch.test.js` uses to get the chat body to
+render) and async `findBy*` queries, since the chat body mounts after an
+effect resolves, not synchronously:
 
-describe('AIAgentFull smoke', () => {
-  test('renders the MCP transport picker and the disabled Privilege A2A stub', () => {
-    render(
-      <MemoryRouter>
-        <AIAgentFull user={{ id: 'u1', role: 'customer' }} onLogout={() => {}} />
-      </MemoryRouter>,
-    );
-    expect(screen.getByLabelText(/mcp transport/i)).toBeInTheDocument();
-    expect(screen.getByText(/privilege a2a/i)).toBeInTheDocument();
+```js
+describe("AIAgentFull smoke", () => {
+  it("renders the MCP transport picker and the disabled Privilege A2A stub", async () => {
+    renderAgent({
+      user: { id: "u1", role: "customer" },
+      mode: "inline",
+      forceVertical: "healthcare",
+    });
+    expect(await screen.findByLabelText(/mcp transport/i)).toBeInTheDocument();
+    expect(await screen.findByText(/privilege a2a/i)).toBeInTheDocument();
     expect(screen.getByText(/coming later/i)).toBeInTheDocument();
   });
 });
 ```
+
+If the transport picker / A2A stub still don't appear under these props once
+Step 5 adds them — i.e. if `pageOwnsAgentChrome` (the flag gating the
+`AgentModeSelector` block they sit beside) evaluates `true` for this
+combination of props — read how `pageOwnsAgentChrome` is computed earlier in
+the duplicated file and adjust the test's props (not the component) until it
+is `false`, the same way `AgentModeSelector` itself is confirmed visible in
+existing `AIAgent.*.test.js` files. Note in your report which props you
+needed, since that is a fact this plan could not verify in advance.
 
 - [ ] **Step 3: Run the test to verify it fails**
 
@@ -436,45 +467,48 @@ git commit -m "feat(agent): add AIAgentFull with a Privilege MCP transport picke
 
 **Files:**
 - Modify: `demo_api_ui/src/App.js`
+- Modify: `demo_api_ui/src/__tests__/App.structure.test.js` (existing merge-safety
+  guard file — add cases to it rather than creating a new render-based test.
+  That file's own header comment explains why: `App.js`'s deep import tree
+  hangs in jsdom unless heavily mocked, so this repo's convention for
+  guarding `App.js` structure is string-level assertions against the source
+  text, not a full render. Follow that convention here too.)
 
 **Interfaces:**
 - Consumes: `isFullAgentRoute` (Task 3), `AIAgentFull` default export (Task 4).
 
 - [ ] **Step 1: Write the failing test**
 
+Add one `vi.mock` (alongside the file's existing ones near the top) and two
+new cases, following the file's existing `test.each` / `describe` shape:
+
+```diff
+ vi.mock("../components/AIAgent", () => ({ default: () => null }));
++vi.mock("../components/AIAgentFull", () => ({ default: () => null }));
+```
+
+```diff
+   const cases = [
+     ["AIAgent", 'import AIAgent from "./components/AIAgent"'],
++    ["AIAgentFull", 'import AIAgentFull from "./components/AIAgentFull"'],
++    ["isFullAgentRoute", "isFullAgentRoute"],
+     ["SessionTokenProvider", 'import { SessionTokenProvider } from "./context/SessionTokenContext"'],
+```
+
 ```js
-// demo_api_ui/src/__tests__/App.fullAgentToggle.test.jsx
-import { describe, test, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-import App from '../App';
-
-vi.mock('../components/AIAgent', () => ({ default: () => <div data-testid="agent-simple" /> }));
-vi.mock('../components/AIAgentFull', () => ({ default: () => <div data-testid="agent-full" /> }));
-vi.mock('../utils/embeddedAgentFabVisibility', async (importOriginal) => {
-  const actual = await importOriginal();
-  return { ...actual, isFullAgentRoute: (p) => p === '/dashboard' };
-});
-
-describe('App — agent variant toggle', () => {
-  test('mounts AIAgentFull on a route the allowlist opts in, AIAgent everywhere else', () => {
-    render(
-      <MemoryRouter initialEntries={['/dashboard']}>
-        <App />
-      </MemoryRouter>,
-    );
-    expect(screen.queryByTestId('agent-full')).toBeInTheDocument();
-    expect(screen.queryByTestId('agent-simple')).not.toBeInTheDocument();
-  });
+// In the "App.js — critical JSX placements" describe block, add:
+test("the single agent mount picks AIAgentFull or AIAgent via isFullAgentRoute", () => {
+  expect(appSrc).toContain(
+    "const AgentComponent = isFullAgentRoute(pathname) ? AIAgentFull : AIAgent;",
+  );
+  expect(appSrc).toContain("<AgentComponent");
 });
 ```
 
-*(This test asserts the wiring in isolation via mocks; it does not need real auth/session setup because both agent components are mocked to a bare marker div.)*
-
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd demo_api_ui && npx vitest run src/__tests__/App.fullAgentToggle.test.jsx`
-Expected: FAIL — `agent-full` testid never renders (App.js always mounts `AIAgent`).
+Run: `cd demo_api_ui && npx vitest run src/__tests__/App.structure.test.js`
+Expected: FAIL — the 3 new cases fail (`AIAgentFull` isn't imported yet, `isFullAgentRoute` isn't referenced, `AgentComponent` doesn't exist).
 
 - [ ] **Step 3: Write the minimal implementation**
 
@@ -515,8 +549,8 @@ Immediately before the `{shouldMountSingleAgent && (...)}` JSX block:
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd demo_api_ui && npx vitest run src/__tests__/App.fullAgentToggle.test.jsx`
-Expected: PASS.
+Run: `cd demo_api_ui && npx vitest run src/__tests__/App.structure.test.js`
+Expected: PASS (all cases, including the 3 new ones).
 
 - [ ] **Step 5: Run the full UI unit suite + build**
 
@@ -526,7 +560,7 @@ Expected: both PASS — the build gate matters here since `App.js` is on every r
 - [ ] **Step 6: Commit**
 
 ```bash
-git add demo_api_ui/src/App.js demo_api_ui/src/__tests__/App.fullAgentToggle.test.jsx
+git add demo_api_ui/src/App.js demo_api_ui/src/__tests__/App.structure.test.js
 git commit -m "feat(agent): wire isFullAgentRoute to mount AIAgentFull instead of AIAgent"
 ```
 
