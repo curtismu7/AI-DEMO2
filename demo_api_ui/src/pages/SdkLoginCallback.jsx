@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSdkClient, isSdkError } from "../lib/oidcSdkClient";
+import { isSdkLoginPopup, POPUP_RESULT_TYPE } from "../lib/sdkLoginPopup";
 
 // OIDC redirect callback for the SDK centralized-login demo.
 // PingOne redirects here with ?code&state. We exchange the code for tokens via the
@@ -44,6 +45,23 @@ export default function SdkLoginCallback() {
         const code = params.get("code");
         const state = params.get("state");
         const oauthErr = params.get("error");
+
+        // Pop-out sign-in: hand the result to /sdk-login and close. The opener
+        // does the exchange — it holds the SDK's state + PKCE verifier.
+        if (isSdkLoginPopup()) {
+          window.opener.postMessage(
+            {
+              type: POPUP_RESULT_TYPE,
+              code,
+              state,
+              error: oauthErr,
+              errorDescription: params.get("error_description"),
+            },
+            window.location.origin,
+          );
+          window.close();
+          return;
+        }
 
         if (oauthErr) {
           throw new Error(params.get("error_description") || oauthErr);
