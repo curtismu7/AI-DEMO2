@@ -16,6 +16,14 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-14 — AIAgentFull Privilege MCP transport bypasses token exchange and authz gates
+
+**What's wrong.** The new `AIAgentFull` component's "Via Privilege Gateway" MCP transport calls `POST /api/privilege-mcp-simple/tools/call` (introduced in this plan) which dispatches MCP tools directly without running the banking demo's RFC 8693 token exchange, PingOne Authorize gate, HITL interceptor, or kill-switch. All four live in `demo_api_server/services/mcpToolPipeline.js`, the protected core per `REGRESSION_PLAN.md` §1. Other MCP transports in the stack route through `mcpToolPipeline`, ensuring consistent authz policy and audit. The privilege-mcp endpoint is intentionally simple to serve as a policy-comparison tool (e.g., "see what an agent does when it ignores authorization"): not a production-equivalent path.
+
+**Why it wasn't fixed now.** Confirmed scope decision: adding Privilege as a full, pipelined third transport (alongside `callToolLocal` and `callToolViaGateway`) was deferred to avoid scope creep and regression risk on the protected §1 core. The simpler direct endpoint serves the demo's immediate need.
+
+**Real fix.** Create a third dispatch mode inside `mcpToolPipeline.js` for Privilege-routed tool calls, thread it through the same RFC 8693/Authorize/HITL/kill-switch checks, and wire `AIAgentFull`'s Privilege transport to call `mcpToolPipeline` instead of the standalone endpoint. Requires coordination with authorization logic to ensure Privilege-delegated calls respect the same decision surface as other tool paths.
+
 ### [ ] 2026-09-13 — Raw PingGateway log window is open to any signed-in user
 
 **What's wrong.** `GET /api/admin/agent-gateway/logs`
