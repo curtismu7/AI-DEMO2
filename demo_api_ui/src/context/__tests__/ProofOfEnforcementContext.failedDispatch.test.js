@@ -59,3 +59,42 @@ test('a deny-like use case still reads denied-as-expected on an errored dispatch
   );
   expect(v.state).toBe('denied-as-expected');
 });
+
+// UC32: the live scope decides, so both outcomes are the policy working — but a
+// dispatch that failed for any other reason is still a failed run.
+const RECONFIGURE_ENTRY = {
+  useCaseId: 'weather-mcp-live-reconfigure',
+  id: 'UC32',
+  title: "Live-reconfigure the gateway's scope policy",
+  expectedOutcome: 'POLICY_RECONFIGURED',
+  evidence: { tokenChain: [], activity: [] },
+};
+
+test('UC32 verifies a call the reconfigured scope permitted', () => {
+  const v = computeVerdict(
+    traceWith({ tool: 'get_weather', status: 'success' }, { authorize: { decision: 'PERMIT' } }),
+    RECONFIGURE_ENTRY,
+  );
+  expect(v.state).toBe('verified');
+  expect(v.resultText).toBe('Completed — get_weather dispatched');
+});
+
+test('UC32 verifies a call the reconfigured scope denied, instead of "Run failed"', () => {
+  const v = computeVerdict(
+    traceWith(
+      { tool: 'get_weather', status: 'error', error: 'gateway_policy_denied', denied: true },
+      { outcome: 'error', authorize: { decision: 'DENY' } },
+    ),
+    RECONFIGURE_ENTRY,
+  );
+  expect(v.state).toBe('verified');
+  expect(v.resultText).toBe('Denied by the reconfigured scope policy');
+});
+
+test('UC32 still fails a dispatch that errored without a gateway deny', () => {
+  const v = computeVerdict(
+    traceWith({ tool: 'get_weather', status: 'error', error: 'upstream_502', denied: false }, { outcome: 'error' }),
+    RECONFIGURE_ENTRY,
+  );
+  expect(v.state).toBe('mismatch');
+});

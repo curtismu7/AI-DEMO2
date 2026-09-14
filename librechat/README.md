@@ -82,6 +82,10 @@ below.
      fills the message box; pick the named agent first.
    - **Agent description** — each agent's description ends with its prompts.
 
+   Starters only show on a **new chat**. Picking an agent under My Agents
+   inside an existing chat switches that chat's agent with no starters — open
+   a new chat first.
+
    It also creates Super Sports Policy Guardrails (on `super-sports-gateway`)
    and three OpenSearch agents — OpenSearch · Direct, OpenSearch · via
    Privilege, OpenSearch · Privilege opensearch22 — with the same three

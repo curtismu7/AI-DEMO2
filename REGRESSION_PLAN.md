@@ -141,6 +141,36 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-14 — UC32: a run under a changed weather scope is scored as UC32, not UC31
+
+**Files changed:** `demo_api_ui/src/utils/weatherScopeHandoff.js`,
+`src/pages/McpShowcasePage.jsx`, `src/context/ProofOfEnforcementContext.js`. Tests:
+`src/utils/__tests__/weatherScopeHandoff.test.js`,
+`src/context/__tests__/ProofOfEnforcementContext.failedDispatch.test.js`.
+
+**What was broken:** `/weather-mcp`'s Run buttons always sent UC30
+(`weather-mcp-texas-permit`) or UC31 (`weather-mcp-texas-deny`), and the Proof
+strip picks its catalog entry from that id. So the UC32 demo (switch the scope,
+run the same Miami query) scored as UC31: title "out-of-scope call denied" over a
+call the new scope permitted. And UC32's own `POLICY_RECONFIGURED` expectation
+had no case for a gateway deny, so a run the reconfigured scope denied (Miami
+under Michigan) would have read "Run failed".
+
+**What was fixed:** at Run time the page reads `ff_weather_mcp_allowed_state`;
+anything but `texas` sends `weather-mcp-live-reconfigure` instead
+(`runUseCaseIdForScope`). `computeVerdict` verifies a UC32 run whose dispatch was
+a gateway deny (`mcpResult.denied`), "Denied by the reconfigured scope policy".
+
+**Do not break:**
+- Under the default scope, or when the flags can't be read, the buttons keep
+  UC30/UC31 — the Demo Steps script depends on them.
+- `markLeavingToRun()` still runs before `navigate`, so the scope reset hand-off
+  above is unchanged.
+- A UC32 dispatch that errored without a gateway deny is still a mismatch.
+
+**Verify:** `cd demo_api_ui && node_modules/.bin/vitest run weatherScopeHandoff ProofOfEnforcementContext.failedDispatch`.
+The UC32 deny test fails against the pre-fix `computeVerdict`.
+
 ### 2026-09-12 — `/architecture/flow`'s Token History panel didn't auto-scroll and duplicated on pop-out
 
 **Files changed:** `demo_api_ui/src/components/HistoryModal.js`,

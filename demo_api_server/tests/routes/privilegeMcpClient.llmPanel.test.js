@@ -17,8 +17,10 @@ jest.mock('../../services/privilegeLlmProxyService', () => ({
   callPrivilegeOpenAI: jest.fn(),
   listModels: jest.fn(),
 }));
+jest.mock('../../services/externalGuardrailForwarder', () => ({ forwardDenial: jest.fn() }));
 
 const express = require('express');
+const externalGuardrailForwarder = require('../../services/externalGuardrailForwarder');
 const request = require('supertest');
 const session = require('express-session');
 
@@ -247,6 +249,35 @@ describe('POST /llm/call transport facts', () => {
 
     expect(res.status).toBe(403);
     expect(res.body.reachedProvider).toBe(false);
+  });
+
+  // ff_external_guardrail_webhook: the denial branch is the only caller, so this
+  // pins that the real request path reaches the forwarder (the flag/URL gate is
+  // covered in externalGuardrailForwarder.test.js).
+  it('hands a policy denial to the external guardrail forwarder, and a success does not', async () => {
+    const denial = new Error('blocked');
+    denial.code = 'llm_policy_denied';
+    denial.reason = 'no PII';
+    denial.provider = 'anthropic';
+    proxy.callPrivilegeClaude.mockRejectedValueOnce(denial);
+
+    await post({ provider: 'anthropic', prompt: 'my SSN is 123' });
+
+    expect(externalGuardrailForwarder.forwardDenial).toHaveBeenCalledTimes(1);
+    expect(externalGuardrailForwarder.forwardDenial).toHaveBeenCalledWith(expect.objectContaining({
+      provider: 'anthropic',
+      prompt: 'my SSN is 123',
+      route: '/llm/anthropic/v1/messages',
+      code: 'llm_policy_denied',
+      verdict: 'BLOCKED',
+      reason: 'no PII',
+      latencyMs: expect.any(Number),
+    }));
+
+    externalGuardrailForwarder.forwardDenial.mockClear();
+    proxy.callPrivilegeClaude.mockResolvedValueOnce('ok');
+    await post({ provider: 'anthropic', prompt: 'hi' });
+    expect(externalGuardrailForwarder.forwardDenial).not.toHaveBeenCalled();
   });
 
   // The opposite diagnosis, and the pair is indistinguishable without this flag.
