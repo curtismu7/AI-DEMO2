@@ -266,7 +266,7 @@ function ExternalGuardrailWebhookConfig() {
       setCurrentUrl(url.trim());
       setUrl('');
       setSaveResult('ok');
-      setSaveMsg('Webhook URL saved.');
+      setSaveMsg(url.trim() ? 'Webhook URL saved.' : 'Webhook URL cleared.');
     } catch (err) {
       setSaveResult('error');
       setSaveMsg(err.message || 'Save failed.');
@@ -316,9 +316,9 @@ function ExternalGuardrailWebhookConfig() {
             <button
               type="submit"
               className="rc-save-btn"
-              disabled={saving || !url.trim()}
+              disabled={saving || (!url.trim() && !currentUrl)}
             >
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? 'Saving…' : (url.trim() || !currentUrl ? 'Save' : 'Clear')}
             </button>
             {saveResult === 'ok'    && <span className="rc-result rc-result--ok">✅ {saveMsg}</span>}
             {saveResult === 'error' && <span className="rc-result rc-result--err">❌ {saveMsg}</span>}

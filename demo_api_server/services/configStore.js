@@ -117,6 +117,8 @@ const _SECRET_KEYS_RAW = [
   'pingone_client_jwt_private_key',
   'pingone_mgmt_private_key',
   'enterprise_idp_inspector_client_secret',
+  // Anyone holding a webhook.site-style URL can read every denied prompt sent to it.
+  'EXTERNAL_GUARDRAIL_WEBHOOK_URL',
 ];
 // Membership is UPPER-canonical: config keys are stored UPPER everywhere
 // (in-memory cache + LMDB rows), so secret detection must match regardless
@@ -1483,7 +1485,7 @@ class ConfigStore {
     const updates = {};        // what goes into storage (encrypted secrets)
     const cacheUpdates = {};   // what goes into the in-memory cache (plaintext)
 
-    const allowEmptyStringKeys = new Set(['marketing_demo_username_hint', 'marketing_demo_password_hint', 'demo_accounts']);
+    const allowEmptyStringKeys = new Set(['marketing_demo_username_hint', 'marketing_demo_password_hint', 'demo_accounts', 'EXTERNAL_GUARDRAIL_WEBHOOK_URL']);
     for (const [key, value] of Object.entries(data)) {
       if (!(key in FIELD_DEFS)) continue;          // ignore unknown keys
       // Bootstrap keys: skip only when .env is already providing the value —
