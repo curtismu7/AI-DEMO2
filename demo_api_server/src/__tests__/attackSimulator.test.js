@@ -108,6 +108,22 @@ describe('AttackSimulator — structural (no creds needed)', () => {
     expect(Array.isArray(result.tokenChainEvents)).toBe(true);
   });
 
+  // UC5 reported every mcp_tool_error as insufficient_scope, including the
+  // approvals the gateway asks for instead of refusing. Shapes are the ones
+  // mcpGatewayClient throws on each path.
+  test.each([
+    ['HTTP 428 step-up', { code: 'mcp_tool_error', httpStatus: 428, gatewayErrorCode: 'step_up_required', stepUp: true }, 'step_up_required'],
+    ['JSON-RPC -32403 step-up', { code: 'mcp_tool_error', httpStatus: 200, rpcCode: -32403, rpcData: { error: 'step_up_required' } }, 'step_up_required'],
+    ['HTTP 428 elicitation', { code: 'mcp_tool_error', httpStatus: 428, gatewayErrorCode: 'elicitation_required', elicitation: true }, 'elicitation_required'],
+    ['JSON-RPC -32003 elicitation', { code: 'mcp_tool_error', httpStatus: 200, rpcCode: -32003 }, 'elicitation_required'],
+    ['HTTP 428 HITL', { code: 'mcp_tool_error', httpStatus: 428, gatewayErrorCode: 'hitl_required', hitl: true }, 'hitl_required'],
+    ['JSON-RPC -32002 HITL', { code: 'mcp_tool_error', httpStatus: 200, rpcCode: -32002, rpcData: { hitl: true } }, 'hitl_required'],
+    ['a scope denial in a JSON-RPC error', { code: 'mcp_tool_error', httpStatus: 200, rpcCode: -32000 }, null],
+    ['a gateway 403 policy denial', { code: 'gateway_policy_denied', httpStatus: 403 }, null],
+  ])('_approvalChallengeCode: %s', (_name, err, expected) => {
+    expect(__test._approvalChallengeCode(err)).toBe(expected);
+  });
+
   const A62_SIM_USE_CASE_IDS = {
     'cross-owner-account': 'cross-owner-account',
     'replayed-token': 'token-theft-replay',
@@ -187,3 +203,31 @@ describeIf('AttackSimulator — real-API (wrong-aud)', () => {
     });
   }, 30000);
 });
+
+  describe('_dpopReplayVerdict', () => {
+    test('first proof accepted, replay refused for DPoP proves the control', () => {
+      expect(__test._dpopReplayVerdict({ dpopRejected: false }, { dpopRejected: true, ok: false }))
+        .toBe('DENY_REPLAY');
+    });
+    test('the first proof being rejected means the binding is wrong, not the replay', () => {
+      expect(__test._dpopReplayVerdict({ dpopRejected: true }, { dpopRejected: false, ok: false }))
+        .toBe('FIRST_PROOF_REJECTED');
+    });
+    test('a replay the gateway accepts is an unexpected permit', () => {
+      expect(__test._dpopReplayVerdict({ dpopRejected: false }, { dpopRejected: false, ok: true }))
+        .toBe('UNEXPECTED_PERMIT');
+    });
+    test('a replay that fails downstream (not for DPoP) is not a blocked replay', () => {
+      expect(__test._dpopReplayVerdict({ dpopRejected: false }, { dpopRejected: false, ok: false }))
+        .toBe('REPLAY_NOT_BLOCKED');
+    });
+  });
+
+  describe('_isDpopRejection', () => {
+    test('is true only when the gateway error code is invalid_dpop_proof', () => {
+      expect(__test._isDpopRejection({ gatewayErrorCode: 'invalid_dpop_proof', httpStatus: 502 })).toBe(true);
+      expect(__test._isDpopRejection({ gatewayErrorCode: 'gateway_policy_denied' })).toBe(false);
+      expect(__test._isDpopRejection({ code: 'gateway_client_error' })).toBe(false);
+      expect(__test._isDpopRejection(null)).toBe(false);
+    });
+  });

@@ -138,6 +138,17 @@ fi
 
 copy_bff_env "$target"
 
+# The BFF gets LOKI_URL from docker-compose.yml when it is CREATED, and this
+# recreates it without going through run-docker.sh. Mirror _export_loki_url there:
+# with the observability group off there is no loki container, and the compose
+# default would have the BFF post to a name that does not resolve once per app event.
+# Captured into a variable, not piped to grep -q: under pipefail the early exit can
+# SIGPIPE docker ps and read as "not running".
+if [[ -z "${LOKI_URL+set}" ]]; then
+  loki_running="$(docker ps -q --filter 'name=^ai-demo-loki$' --filter 'status=running' 2>/dev/null || true)"
+  [[ -n "$loki_running" ]] || export LOKI_URL=""
+fi
+
 recreate() {
   docker compose \
     --project-directory "$MAIN" \

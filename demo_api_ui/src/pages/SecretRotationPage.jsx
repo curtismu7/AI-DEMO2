@@ -5,6 +5,8 @@ import apiClient from '../services/apiClient';
 import './SecretRotationPage.css';
 
 const POLL_MS = 2000;
+const MIN_COL_WIDTH = 60;
+const DEFAULT_COL_WIDTHS = { select: 40, app: 320, auth: 160 };
 
 // The API never returns the secret; a run's fingerprint (from its log's
 // `fingerprint=` line) is the only way to verify a rotation without ever
@@ -16,6 +18,33 @@ function parseFingerprint(lines) {
 
 export default function SecretRotationPage() {
   const [apps, setApps] = useState([]);
+  const [colWidths, setColWidths] = useState(DEFAULT_COL_WIDTHS);
+  // Table cells don't support native CSS `resize` reliably, so a column drag
+  // adjusts a <col> width directly (table-layout: fixed ties every row's
+  // width to it) instead of adding a resize-observer dependency for three
+  // columns.
+  const resizeState = useRef(null);
+
+  const onColResizeMove = useCallback((e) => {
+    const state = resizeState.current;
+    if (!state) return;
+    const delta = e.clientX - state.startX;
+    setColWidths((w) => ({ ...w, [state.col]: Math.max(MIN_COL_WIDTH, state.startWidth + delta) }));
+  }, []);
+
+  const onColResizeUp = useCallback(() => {
+    resizeState.current = null;
+    document.removeEventListener('mousemove', onColResizeMove);
+    document.removeEventListener('mouseup', onColResizeUp);
+  }, [onColResizeMove]);
+
+  const startColResize = useCallback((col) => (e) => {
+    e.preventDefault();
+    resizeState.current = { col, startX: e.clientX, startWidth: colWidths[col] };
+    document.addEventListener('mousemove', onColResizeMove);
+    document.addEventListener('mouseup', onColResizeUp);
+  }, [colWidths, onColResizeMove, onColResizeUp]);
+
   const [selected, setSelected] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const [armed, setArmed] = useState(false);
@@ -30,10 +59,27 @@ export default function SecretRotationPage() {
   const cancelledRef = useRef(false);
 
   useEffect(() => {
+    // A LOCAL `cancelled`, not `cancelledRef` — React StrictMode double-invokes
+    // this effect in dev (mount, synthetic unmount, remount). `cancelledRef` is
+    // a ref at component scope, so its cleanup-set `true` from the first,
+    // discarded invocation survives into the second, real one and is never
+    // reset — every fetch after that point is silently ignored by both `then`
+    // handlers, forever, on every single mount. A `let` declared inside the
+    // effect body is a fresh binding each time the effect re-runs, exactly
+    // like KillSwitchConfirmModal.jsx's `activeRuns` fetch, which this was
+    // meant to copy. See memory: StrictMode defeats useRef first-run guards.
+    // Also revive cancelledRef for this run: StrictMode's synthetic unmount
+    // (from the PREVIOUS invocation of this same effect) already set it true
+    // via the cleanup below, and nothing else ever resets it back — without
+    // this, poll()/startRotation() would stay permanently blocked too, since
+    // they gate on this same ref for the rest of the component's real life.
+    cancelledRef.current = false;
+    let cancelled = false;
     apiClient.get('/api/admin/secret-rotation/apps')
-      .then((r) => { if (!cancelledRef.current) setApps(r.data.apps || []); })
-      .catch(() => { if (!cancelledRef.current) setApps([]); });
+      .then((r) => { if (!cancelled) setApps(r.data.apps || []); })
+      .catch(() => { if (!cancelled) setApps([]); });
     return () => {
+      cancelled = true;
       cancelledRef.current = true;
       clearTimeout(timer.current);
     };
@@ -111,13 +157,72 @@ export default function SecretRotationPage() {
       <InspectorShell
         title="Secret Rotation"
         left={(
-          <ul className="sr-app-list">
-            {apps.map((a) => (
-              <li key={a.id}>
-                <button type="button" onClick={() => selectApp(a)}>{a.name}</button>
-              </li>
-            ))}
-          </ul>
+          <div className="sr-app-table-wrap">
+            <table className="sr-app-table">
+              <colgroup>
+                <col style={{ width: colWidths.select }} />
+                <col style={{ width: colWidths.app }} />
+                <col style={{ width: colWidths.auth }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th scope="col" className="sr-app-table-select-col">
+                    <span className="sr-visually-hidden">Select</span>
+                    <span
+                      className="sr-col-resizer"
+                      data-testid="sr-col-resizer-select"
+                      onMouseDown={startColResize('select')}
+                    />
+                  </th>
+                  <th scope="col">
+                    Application
+                    <span
+                      className="sr-col-resizer"
+                      data-testid="sr-col-resizer-app"
+                      onMouseDown={startColResize('app')}
+                    />
+                  </th>
+                  <th scope="col">
+                    Auth method
+                    <span
+                      className="sr-col-resizer"
+                      data-testid="sr-col-resizer-auth"
+                      onMouseDown={startColResize('auth')}
+                    />
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {apps.map((a) => {
+                  const isSelected = selected?.id === a.id;
+                  return (
+                    <tr
+                      key={a.id}
+                      className={isSelected ? 'sr-row-selected' : ''}
+                      onClick={() => selectApp(a)}
+                    >
+                      <td>
+                        <input
+                          type="radio"
+                          name="sr-app"
+                          aria-label={`Select ${a.name} to rotate`}
+                          checked={isSelected}
+                          onChange={() => selectApp(a)}
+                        />
+                      </td>
+                      <td>
+                        <button type="button" className="sr-row-name" onClick={() => selectApp(a)}>
+                          {a.name}
+                        </button>
+                        <div className="sr-row-clientid">{a.clientId}</div>
+                      </td>
+                      <td className="sr-meta">{a.tokenEndpointAuthMethod}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
         middle={selected && (
           <div className="sr-detail">
@@ -157,8 +262,19 @@ export default function SecretRotationPage() {
         >
           <div className="dm-scroll">
             <p className="sr-warning">
-              ⚠️ This cannot be undone. <strong>{selected.name}</strong>&apos;s current secret
-              dies immediately, and every consumer fails until propagation completes.
+              {selected.isWorker ? (
+                <>
+                  ⚠️ This cannot be undone. <strong>{selected.name}</strong>&apos;s current secret
+                  dies immediately — and because this is the credential the whole demo uses to
+                  authenticate to PingOne&apos;s Management API, every PingOne-dependent request
+                  in the demo fails, not just this app&apos;s, until demo-api-server is restarted.
+                </>
+              ) : (
+                <>
+                  ⚠️ This cannot be undone. <strong>{selected.name}</strong>&apos;s current secret
+                  dies immediately, and every consumer fails until propagation completes.
+                </>
+              )}
             </p>
             <label htmlFor="sr-reason">Reason</label>
             <input id="sr-reason" value={reason} onChange={(e) => setReason(e.target.value)} />

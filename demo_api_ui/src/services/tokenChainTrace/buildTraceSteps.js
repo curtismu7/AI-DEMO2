@@ -12,11 +12,22 @@ const LANES = {
   // sits in the PINGONE lane beside sign-in; redemption happens at the MCP
   // Authorization Server, which is the MCP lane.
   "id-jag-issued": "PINGONE", "id-jag-redeemed": "MCP",
+  // A live intent-binding run pushes its authorization_details to PingOne first.
+  "par-push": "PINGONE", "request-uri": "PINGONE",
   "intent-binding": "AUTHZ",
   gateway: "GATEWAY", "api-key-swap": "GATEWAY",
   "tools-call-challenge": "MCP", mcp: "MCP", api: "API",
   database: "DATA", reply: "LLM",
 };
+
+// What a lane is called on screen. The LLM and the heuristic router are both the
+// AI agent choosing a tool and composing the reply; which one ran is detail, not
+// a different actor. The keys stay as they are: they drive lane colours and CSS
+// classes.
+const LANE_LABELS = { LLM: "AI AGENT", HEURISTICS: "AI AGENT" };
+export function laneLabel(lane) {
+  return LANE_LABELS[lane] || lane;
+}
 
 // The delegation-to-MCP portion of the pipeline, in order. Not derivable from
 // LANES (exchange shares the BFF lane with agent-token), so declared explicitly
@@ -38,7 +49,9 @@ const LANES = {
 // notifications/initialized sit with discovery on the spine, not on the
 // tool-call branch. TokenTopologyPanel partitions spine vs branch off this
 // list, so leaving them here drew the session as part of the invocation.
-export const MCP_STEP_IDS = ["gateway", "api-key-swap", "tools-call-challenge", "mcp", "api", "database"];
+// Wire order: the credential-less tools/call goes out before the authorized
+// call reaches the gateway. TraceMcpPanel renders this list in order.
+export const MCP_STEP_IDS = ["tools-call-challenge", "gateway", "api-key-swap", "mcp", "api", "database"];
 
 const TITLES = {
   website: "Website — browser / UI app",
@@ -50,7 +63,7 @@ const TITLES = {
   // labels the topology diagram already used.
   "tools-list-challenge": "tools/list 401 — no token, gateway challenges",
   "tools-list": "tools/list — tool discovery, token accepted",
-  llm: "LLM — reasoning & tool choice",
+  llm: "AI Agent — reasoning & tool choice",
   "agent-token": "Agent identity token",
   // Named, not numbered: "Token exchange" is the node label the topology
   // diagram and its tests have always used for the delegated exchange, so the
@@ -61,6 +74,8 @@ const TITLES = {
   "id-jag-redeemed": "ID-JAG redeemed — MCP authorization server",
   authorize: "PingOne Authorize — policy decision",
   stepup: "Step-up required — HITL / MFA",
+  "par-push": "PAR push — authorization_details to PingOne",
+  "request-uri": "request_uri issued by PingOne",
   "intent-binding": "Intent Binding Check",
   gateway: "Agent Gateway — token validated",
   "api-key-swap": "API-key path — credential swap",
@@ -68,7 +83,7 @@ const TITLES = {
   mcp: "MCP server — tool executes, token accepted",
   api: "Resource server — backend app",
   database: "Database — data query",
-  reply: "LLM composes reply → chat",
+  reply: "AI Agent composes reply → chat",
 };
 
 // What each hop does — always shown when a step is expanded, even before its
@@ -90,6 +105,8 @@ const NARRATIVES = {
   "id-jag-redeemed": "The MCP authorization server verifies that assertion against the IdP's JWKS and issues its own access token. The employee is never redirected to an MCP consent screen — this is the token-endpoint-only flow enterprise-managed authorization exists to provide.",
   authorize: "Before any tool runs, the BFF asks PingOne Authorize whether THIS user + agent may perform THIS action.",
   stepup: "The policy demanded step-up: the human must approve (HITL/CIBA/MFA) before the tool call proceeds.",
+  "par-push": "The BFF pushes the authorization_details to PingOne's PAR endpoint over the back channel (RFC 9126), so the browser never carries them.",
+  "request-uri": "PingOne stores the pushed request and returns a request_uri that points at it. It does not check the amount; the intent cap is enforced afterwards.",
   "intent-binding": "Verifies the requested transfer against the declared RFC 9396 authorization_details cap.",
   gateway: "Ping Agent Gateway checks the delegated token before anything reaches the MCP server: introspection, audience binding, scope, delegation chain.",
   "api-key-swap": "Path A (api_key): the gateway drops the OAuth bearer and attaches a service API key (X-API-Key + X-User-Sub). The user's bearer never reaches the downstream service.",
@@ -114,6 +131,8 @@ const STEP_RFCS = {
   exchange: ["RFC 8693", "RFC 8707"],
   "id-jag-issued": ["RFC 8693", "ID-JAG draft"],
   "id-jag-redeemed": ["RFC 7523", "MCP Enterprise-Managed Authorization"],
+  "par-push": ["RFC 9126", "RFC 9396"],
+  "request-uri": ["RFC 9126"],
 };
 
 // Long-form teaching content per hop, rendered ONLY by the pop-out window
@@ -254,6 +273,23 @@ const STEP_SPEC = {
     mandate: "CIBA defines a decoupled flow: the client initiates, the human approves on a separate authenticated device, and the client polls the token endpoint until the decision lands. RFC 8176 defines the amr values that record HOW that human authenticated, so the approval is provable after the fact.",
     why: "The human is pulled back into the loop at the moment of risk rather than only at login. The agent's request pauses with HTTP 428 instead of failing outright, and resumes only after a real human decision that is recorded in the resulting token's amr and acr.",
     failure: "Treating advice as enforcement. An approval gate returned with obligatory:false is guidance — if the caller is free to skip it, the gate does not exist. Verify the call actually blocked, not merely that a challenge was mentioned.",
+  },
+  "par-push": {
+    refs: [
+      { label: "RFC 9126 §2", title: "Pushed Authorization Requests", href: "https://www.rfc-editor.org/rfc/rfc9126#section-2" },
+      { label: "RFC 9396 §2", title: "authorization_details — rich authorization requests", href: "https://www.rfc-editor.org/rfc/rfc9396#section-2" },
+    ],
+    mandate: "RFC 9126 lets a client send its authorization request, here carrying RFC 9396 authorization_details, straight to the authorization server's PAR endpoint over an authenticated back channel instead of through the browser.",
+    why: "The declared intent (payee and cap) never rides in a browser URL, so nothing between the user and PingOne can read or alter it before PingOne stores it.",
+    failure: "Treating a successful push as an approval. PAR only stores the request; nothing has been authorized or checked yet.",
+  },
+  "request-uri": {
+    refs: [
+      { label: "RFC 9126 §2.2", title: "Successful PAR response — request_uri", href: "https://www.rfc-editor.org/rfc/rfc9126#section-2.2" },
+    ],
+    mandate: "A successful push returns a request_uri and its expires_in. The client then references that URI instead of resending the request parameters.",
+    why: "The request_uri points at exactly the intent that was pushed, so later steps act on what the customer declared rather than on a restatement of it.",
+    failure: "Reading an issued request_uri as proof the amount was accepted. In this demo PingOne returns one without validating the amount; the cap is enforced afterwards.",
   },
   "intent-binding": {
     refs: [
@@ -913,7 +949,7 @@ export function buildTraceSteps(trace) {
   // 4. llm — heuristic runs skip the model; label/lane become HEURISTICS and mark done
   if (isHeuristic) {
     const llmStep = makeStep("llm", "done", {
-      narrative: "Heuristics matched the prompt to a known intent and chose the tool — the LLM was not invoked.",
+      narrative: "The AI agent matched the prompt to a known intent and chose the tool — the LLM was not invoked.",
       // STEP_SPEC.llm teaches "the model proposes, policy decides"; on this path
       // there is no model at all, so replace it rather than teach the wrong hop.
       spec: {
@@ -930,7 +966,7 @@ export function buildTraceSteps(trace) {
           : "The BFF matched this prompt to a known intent and called the tool directly without LLM reasoning.",
       },
     });
-    llmStep.title = "Heuristics — intent match & tool choice";
+    llmStep.title = "AI Agent — intent match & tool choice";
     llmStep.lane = "HEURISTICS";
     steps.push(llmStep);
   } else {
@@ -1264,13 +1300,26 @@ export function buildTraceSteps(trace) {
   // for that path is only knowable on the retry's own trace, via
   // azEval.hitlApproved (mcpToolAuthorizationService.js's evaluation already
   // carries it once a verified receipt permits the call).
+  // gateway_hitl_required is the live PingGateway PDP's phase for the same
+  // consent gate (SystemFlowMap's Consent box already reads it).
   const hitlChallengeStarted = hasPhase(phases, "authorize_denied_hitl")
     || hasPhase(phases, "gateway_step_up_required")
+    || hasPhase(phases, "gateway_hitl_required")
     || hasPhase(phases, "mcp_auth_challenge_intercepted");
   const hitlApprovedThisRun = azEval?.hitlApproved === true;
-  const stepUpStarted = hasPhase(phases, "mfa_challenge_initiated") || hitlChallengeStarted;
-  const stepUpDone = hasPhase(phases, "mfa_challenge_completed") || hitlApprovedThisRun;
-  const stepUpFailed = hasPhase(phases, "mfa_challenge_failed");
+  // CIBA has no phase: AIAgent.js stamps a ciba-poll token event whose
+  // additionalData.status is pending | approved | denied.
+  const cibaPoll = findEvent(tokenEvents, "ciba-poll");
+  const cibaStatus = cibaPoll?.additionalData?.status || null;
+  // A BFF step-up emits only a bare authorize_denied (HTTP 428), no phase of
+  // its own, so the Authorize challenge is itself the evidence that step-up was
+  // demanded. azIsChallenge also covers a pause obligation; a retry that
+  // PERMITs is not a challenge, so it does not reopen the step.
+  const stepUpStarted = hasPhase(phases, "mfa_challenge_initiated") || hitlChallengeStarted
+    || azIsChallenge || !!cibaPoll;
+  const stepUpDone = hasPhase(phases, "mfa_challenge_completed") || hitlApprovedThisRun
+    || cibaStatus === "approved";
+  const stepUpFailed = hasPhase(phases, "mfa_challenge_failed") || cibaStatus === "denied";
   if (stepUpStarted || stepUpDone || stepUpFailed) {
     steps.push(makeStep("stepup",
       stepUpFailed ? "error" : stepUpDone ? "done" : "active", {
@@ -1278,9 +1327,12 @@ export function buildTraceSteps(trace) {
           ...phases.filter((p) => p.phase && (p.phase.startsWith("mfa_challenge")
               || p.phase === "authorize_denied_hitl"
               || p.phase === "gateway_step_up_required"
+              || p.phase === "gateway_hitl_required"
               || p.phase === "mcp_auth_challenge_intercepted"))
             .map((p) => [p.phase, p.label || ""]),
+          ...(azDeniedHttp === 428 ? [["authorize", "HTTP 428 challenge"]] : []),
           ...(hitlApprovedThisRun ? [["hitlApproved", "true"]] : []),
+          ...(cibaStatus ? [["ciba", cibaStatus]] : []),
         ],
       }));
   } else if (traceComplete) {
@@ -1289,14 +1341,30 @@ export function buildTraceSteps(trace) {
     }));
   }
 
+  // 7b0. PAR push + request_uri. A live intent-binding run pushes the
+  // authorization_details to PingOne before the intent check (RFC 9126;
+  // routes/intentBinding.js). No other path has these hops, so they are
+  // evidence-only: omitted unless this run pushed.
+  const parPushEvent = findEvent(tokenEvents, "par-push");
+  if (parPushEvent) {
+    steps.push(makeStep("par-push", parPushEvent.status === "error" ? "error" : "done", { tokenEvent: parPushEvent }));
+  }
+  const requestUriEvent = findEvent(tokenEvents, "request-uri");
+  if (requestUriEvent) {
+    steps.push(makeStep("request-uri", "done", { tokenEvent: requestUriEvent }));
+  }
+
   // 7b. intent-binding — RAR (RFC 9396) intent verification. Same gating as
   // step-up: omit mid-flight (not part of the default BFF→gateway chain;
   // only the Intent Binding learning demo / UC14 emit evidence). Once the
   // trace completes without evidence, mark notinpath rather than pending.
-  const intentVerifiedEvent = (tokenEvents || []).find((e) => e.id === "intent-binding-verified");
+  // A live PAR run reports the cap check as intent-check, then p1az-permit or
+  // transfer-blocked.
+  const intentVerifiedEvent = (tokenEvents || []).find((e) => e.id === "intent-binding-verified")
+    || (findEvent(tokenEvents, "intent-check") && findEvent(tokenEvents, "p1az-permit"));
   const intentDeniedEvent = (tokenEvents || []).find(
     (e) => e.id === "sim-gateway-deny" && (e.error === "rar_amount_exceeded" || e.error === "rar_unexpected_deny"),
-  );
+  ) || findEvent(tokenEvents, "transfer-blocked");
   if (intentVerifiedEvent || intentDeniedEvent) {
     // Permit carries its own request/response (the real create_transfer call
     // + gateway result). Deny never reaches a backend response, so "request"
@@ -1323,6 +1391,13 @@ export function buildTraceSteps(trace) {
       narrative: "RFC 9396 RAR intent binding was not armed for this run (ff_rar off / no authorization_details attest) — not required on the default token path.",
     }));
   }
+
+  // 7c. tools/call #1 — the same handshake on invocation: a credential-less
+  // tools/call the gateway refuses at its own edge, so nothing reaches the MCP
+  // server. Drawn in wire order: the pipeline sends it (mcpChallengeProbe)
+  // after the Authorize gate and before the authorized call reaches the
+  // gateway, so it precedes the gateway hop rather than the MCP call.
+  steps.push(buildChallengeStep("tools-call-challenge", "tools/call", tokenEvents, traceComplete));
 
   // 8. gateway — gw-introspection/gw-mtls can arrive with status "skipped"
   // (the BFF's own signal that this leg was never part of the run: mTLS off,
@@ -1356,11 +1431,23 @@ export function buildTraceSteps(trace) {
     (e) => e && e.id === "sim-gateway-deny"
       && e.error !== "rar_amount_exceeded" && e.error !== "rar_unexpected_deny",
   );
-  const gwDenied = !!gwDeniedPhase || !!simGwDeny;
-  const gwSeen = !!(gwAz || gwIntro || gwInbound || gwScope);
+  // A gateway deny can also reach the trace only as a gw-filter-chain event with
+  // status "deny" and no gateway_policy_denied phase: live UC31 (Miami under the
+  // texas scope) on /api/agent/invoke, 2026-09-13. Without it that run drew the
+  // gateway as "token validated" and put the refusal on the MCP server.
+  const gwFilterDenied = gwFilterChainEvent?.status === "deny";
+  const gwDenied = !!gwDeniedPhase || !!simGwDeny || gwFilterDenied;
+  // gw-filter-chain is built only from a gateway response (X-Gw-Audit-Trail) or
+  // a gateway deny, never as a skip marker. On a PingGateway permit it is often
+  // the only gateway evidence, so leaving it out drew that gateway not in path.
+  const gwSeen = !!(gwAz || gwIntro || gwInbound || gwScope || gwFilterChainEvent);
   const gwSkipEvidence = [gwIntroRaw, gwMtls].filter((e) => e && e.status === "skipped");
   steps.push(makeStep("gateway",
-    authorizeFailed ? "notinpath" : gwDenied ? "error" : gwSeen ? "done" : traceComplete ? "notinpath" : "pending",
+    // A gateway deny outranks authorizeFailed. The pipeline hands the gateway's
+    // own P1AZ DENY over as the run's authorize evidence, which marks Authorize
+    // failed; checking that first drew the gateway that blocked the call as
+    // not in path.
+    gwDenied ? "error" : authorizeFailed ? "notinpath" : gwSeen ? "done" : traceComplete ? "notinpath" : "pending",
     (gwSeen || gwDenied) ? {
       stages: buildGatewayStages(gwStages, gwDenyingFilter),
       why: gwDenied
@@ -1377,7 +1464,7 @@ export function buildTraceSteps(trace) {
             // serverEvents rows use "—" as the empty-detail placeholder
             label: `DENY — ${(gwDeniedPhase
               ? (gwDeniedPhase.detail && gwDeniedPhase.detail !== "—" ? gwDeniedPhase.detail : gwDeniedPhase.label)
-              : (simGwDeny.label || simGwDeny.explanation)) || "gateway policy"}` }
+              : simGwDeny ? (simGwDeny.label || simGwDeny.explanation) : gwFilterChainEvent?.explanation) || "gateway policy"}` }
         : undefined,
       kv: [
         gwIntro ? ["introspection", gwIntro.status === "active" ? "✓ active" : String(gwIntro.status)] : null,
@@ -1463,11 +1550,6 @@ export function buildTraceSteps(trace) {
       narrative: "This run used the delegated OAuth bearer path — no API-key credential swap occurred.",
     } : {}));
 
-  // 8c. tools/call #1 — the same handshake on invocation: a credential-less
-  // tools/call the gateway refuses at its own edge, so nothing reaches the MCP
-  // server. Sits directly before the authorized call it precedes.
-  steps.push(buildChallengeStep("tools-call-challenge", "tools/call", tokenEvents, traceComplete));
-
   // 8d. The MCP lifecycle handshake is NOT a hop here.
   // A tool call over an already-open session is one message, not three. The
   // session is opened by the Agent Gateway during tool DISCOVERY — traced live
@@ -1491,6 +1573,23 @@ export function buildTraceSteps(trace) {
   const mcpErrored = !!(mcpResult && mcpResult.status === "error");
   const mcpDone = !mcpErrored && (hasPhase(phases, "mcp_remote_done") || !!(mcpResult && mcpResult.result));
   const mcpBegun = hasPhase(phases, "mcp_remote_begin");
+  // mcpToolPipeline ends a failed call on one of these phases and returns
+  // WITHOUT publishing an mcpResult, so neither mcpDone (wants mcp_remote_done
+  // or a result) nor mcpErrored (wants mcpResult.status) can ever become true.
+  // mcpBegun then won the chain below and the hop claimed the tool was still
+  // executing for the rest of the session — observed as "MCP server — tool
+  // executes" still spinning on a finished run.
+  //
+  // Deliberately excludes mcp_remote_unreachable: that one is emitted BEFORE the
+  // local fallback, which on success publishes a result and legitimately ends
+  // "done". Only phases the pipeline actually returns on belong here.
+  const MCP_TERMINAL_ERROR_PHASES = [
+    "mcp_remote_tool_error",
+    "gateway_unreachable_no_fallback",
+    "local_tool_error",
+    "local_fallback_blocked_no_user",
+  ];
+  const mcpFailedTerminal = MCP_TERMINAL_ERROR_PHASES.some((p) => hasPhase(phases, p));
   // A pause is not a failure: the 428 the approval gate raises arrives as
   // `mcpResult.status: 'error'` (transport-derived, `denied` false), which
   // painted this step red on every UC7/UC8 run. It stays "active" — the call is
@@ -1501,7 +1600,10 @@ export function buildTraceSteps(trace) {
     authorizeFailed ? "notinpath" : mcpDone ? "done" : mcpPausedGate ? "active"
       // Refused gate: the tool never ran and never will — not a spinner, and
       // not an error either. It was simply never in this run's path.
-      : mcpGate ? "notinpath" : (gwDenied || mcpErrored) ? "error" : mcpBegun ? "active" : traceComplete ? "notinpath" : "pending",
+      // mcpFailedTerminal sits with the other failures, AFTER the gate checks: a
+      // paused gate is not a failure, and must keep reading "active" while it
+      // waits on the human.
+      : mcpGate ? "notinpath" : (gwDenied || mcpErrored || mcpFailedTerminal) ? "error" : mcpBegun ? "active" : traceComplete ? "notinpath" : "pending",
     mcpResult ? {
       why: mcpGate
         ? (mcpGate.declined
@@ -1571,13 +1673,13 @@ export function buildTraceSteps(trace) {
     llmReply ? {
       response: { title: "Streamed reply", text: String(llmReply) },
     } : isHeuristic && mcpDone ? {
-      narrative: "Heuristics formatted the tool result into the chat reply — no LLM composition.",
+      narrative: "The AI agent formatted the tool result into the chat reply — no LLM composition.",
       response: mcpResult && mcpResult.result
         ? { title: "Composed reply (from tool result)", text: asJson(mcpResult.result) }
         : undefined,
     } : {});
   if (isHeuristic) {
-    replyStep.title = "Heuristics composes reply → chat";
+    replyStep.title = "AI Agent composes reply → chat";
     replyStep.lane = "HEURISTICS";
   }
   steps.push(replyStep);

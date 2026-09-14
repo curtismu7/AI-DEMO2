@@ -70,11 +70,15 @@ services:
       - ai-demo
 
   # Prometheus + Grafana read the metrics PingGateway already publishes on its
-  # admin connector (:8085). Unprofiled, same as jaeger above: observability is
-  # part of the default stack rather than something to remember to switch on.
+  # admin connector (:8085). Profile `observability`, shared by alertmanager, loki,
+  # alloy and grafana below: off by default, started with
+  # `./run-docker.sh optional start observability`. They go together because none
+  # works alone — grafana needs prometheus, prometheus needs alertmanager, alloy
+  # needs loki. Nothing outside the group depends on them.
   prometheus:
     image: prom/prometheus:v2.55.1
     container_name: ai-demo-prometheus
+    profiles: ["observability"]
     mem_limit: 1g
     restart: unless-stopped
     command:
@@ -101,6 +105,7 @@ services:
   alertmanager:
     image: prom/alertmanager:v0.34.0
     container_name: ai-demo-alertmanager
+    profiles: ["observability"]
     mem_limit: 256m
     restart: unless-stopped
     command:
@@ -113,7 +118,7 @@ services:
       - ai-demo
 
   # Loki backs Grafana's log view the way prometheus backs its metrics — Grafana
-  # stores nothing itself. Unprofiled for the same reason as prometheus above.
+  # stores nothing itself. Same `observability` profile as prometheus above.
   # No config file: the image's /etc/loki/local-config.yaml is already
   # single-binary, filesystem-backed and listening on 3100. Storage is the
   # container's own layer, matching the emptyDir the k8s manifest uses — demo
@@ -121,6 +126,7 @@ services:
   loki:
     image: grafana/loki:3.3.2
     container_name: ai-demo-loki
+    profiles: ["observability"]
     mem_limit: 1g
     restart: unless-stopped
     command: ["-config.file=/etc/loki/local-config.yaml"]
@@ -140,6 +146,7 @@ services:
   alloy:
     image: grafana/alloy:v1.19.2
     container_name: ai-demo-alloy
+    profiles: ["observability"]
     mem_limit: 512m
     restart: unless-stopped
     command:
@@ -158,6 +165,7 @@ services:
   grafana:
     image: grafana/grafana:11.3.0
     container_name: ai-demo-grafana
+    profiles: ["observability"]
     mem_limit: 512m
     restart: unless-stopped
     depends_on:

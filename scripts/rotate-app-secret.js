@@ -31,20 +31,14 @@ const DEMO_API_SERVER_ROOT = fs.existsSync('/app/services')
   ? '/app'
   : path.join(REPO_ROOT, 'demo_api_server');
 
-// Only isWorkerApp is used below — the driver in rotateAppSecretCli.js imports
-// regenerateClientSecret/verifySecret/fingerprint itself.
-const { isWorkerApp } = require(path.join(DEMO_API_SERVER_ROOT, 'services/pingOneSecretRotation'));
+// The driver in rotateAppSecretCli.js imports regenerateClientSecret/
+// verifySecret/fingerprint itself.
 const { openVault } = require(path.join(DEMO_API_SERVER_ROOT, 'lib/vault'));
 
 const SECRETFUL_AUTH_METHODS = new Set(['CLIENT_SECRET_BASIC', 'CLIENT_SECRET_POST', 'CLIENT_SECRET_JWT']);
 
 /** Throws on any condition that must stop us BEFORE the irreversible rotate. */
 async function preflight({ app, vaultPath, vaultPassword }) {
-  if (isWorkerApp(app)) {
-    throw new Error(
-      `Refusing to rotate "${app.name}": it is the configured worker app. `
-      + 'Rotating it would destroy the credential this tool uses to reach the Management API.');
-  }
   const method = String(app.tokenEndpointAuthMethod || '').toUpperCase();
   if (!SECRETFUL_AUTH_METHODS.has(method)) {
     throw new Error(`Refusing to rotate "${app.name}": tokenEndpointAuthMethod is ${method || 'unset'}, so it has no client secret.`);
@@ -54,6 +48,14 @@ async function preflight({ app, vaultPath, vaultPassword }) {
   }
   if (!fs.existsSync(vaultPath)) {
     throw new Error(`Refusing to rotate: vault not found at ${vaultPath}.`);
+  }
+  // existsSync proves the file is there, not that it's writable — the atomic
+  // write's temp file lands in the vault's directory, so check both.
+  try {
+    fs.accessSync(vaultPath, fs.constants.W_OK);
+    fs.accessSync(path.dirname(vaultPath), fs.constants.W_OK);
+  } catch (err) {
+    throw new Error(`Refusing to rotate: vault at ${vaultPath} is not writable — ${err.message}`);
   }
   // Prove the vault actually opens with this password BEFORE the irreversible
   // call — existsSync only proves a file is there, not that it's writable.

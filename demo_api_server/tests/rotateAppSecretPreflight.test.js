@@ -11,6 +11,7 @@ jest.mock('../../demo_api_server/lib/vault', () => ({
   openVault: jest.fn(),
 }));
 
+const fs = require('fs');
 const rotation = require('../../demo_api_server/services/pingOneSecretRotation');
 const vaultLib = require('../../demo_api_server/lib/vault');
 const { preflight } = require('../../scripts/rotate-app-secret');
@@ -30,11 +31,22 @@ describe('rotate-app-secret preflight', () => {
     rotation.isWorkerApp.mockReturnValue(false);
   });
 
-  test('refuses the worker app, before ever touching the vault', async () => {
+  // 2026-09-13: the worker is no longer refused here. isWorkerApp() itself is
+  // unchanged (services/pingOneSecretRotation.js) and still correctly
+  // identifies the worker — this test now proves preflight() doesn't
+  // special-case that identification anymore, since the worker became a
+  // supported rotation target (routes/secretRotation.js's GET /apps now
+  // annotates it isWorker:true instead of filtering it out, and POST
+  // /start's vaultKeys[appId] !== vaultKey check is the real authorization
+  // gate now — this CLI-level absolute refusal was the third, previously
+  // unnoticed, isWorkerApp call site blocking the feature end-to-end).
+  test('does NOT refuse a worker-shaped app — proceeds to the vault like any other', async () => {
     rotation.isWorkerApp.mockReturnValue(true);
-    await expect(preflight({ app: APP, vaultPath: '/tmp/x', vaultPassword: 'p' }))
-      .rejects.toThrow(/worker/i);
-    expect(vaultLib.openVault).not.toHaveBeenCalled();
+    const close = jest.fn();
+    vaultLib.openVault.mockResolvedValue({ close });
+    await expect(preflight({ app: APP, vaultPath: REAL_PATH, vaultPassword: 'correct' }))
+      .resolves.toBeUndefined();
+    expect(vaultLib.openVault).toHaveBeenCalledWith(REAL_PATH, 'correct');
   });
 
   test('refuses an app with no rotatable secret, before ever touching the vault', async () => {
@@ -62,6 +74,23 @@ describe('rotate-app-secret preflight', () => {
     await expect(preflight({ app: APP, vaultPath: REAL_PATH, vaultPassword: 'wrong' }))
       .rejects.toThrow(/could not be opened/i);
     expect(vaultLib.openVault).toHaveBeenCalledWith(REAL_PATH, 'wrong');
+  });
+
+  // 2026-09-12 TECH_DEBT fix: existsSync only proves the file is there, not
+  // that it (or its directory, where the atomic write's temp file lands) is
+  // writable — a remounted-:ro vault would otherwise pass preflight, then
+  // rotate the PingOne secret irrecoverably before the write failed.
+  test('refuses when the vault file is not writable, before ever touching the vault', async () => {
+    const accessSpy = jest.spyOn(fs, 'accessSync').mockImplementation((p) => {
+      if (p === REAL_PATH) throw new Error('EACCES: permission denied');
+    });
+    try {
+      await expect(preflight({ app: APP, vaultPath: REAL_PATH, vaultPassword: 'p' }))
+        .rejects.toThrow(/not writable/i);
+      expect(vaultLib.openVault).not.toHaveBeenCalled();
+    } finally {
+      accessSpy.mockRestore();
+    }
   });
 
   test('resolves when app, vault path and password are all valid', async () => {

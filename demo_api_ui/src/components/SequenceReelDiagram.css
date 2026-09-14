@@ -4,6 +4,12 @@
   border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
   padding: 0.5rem;
+  /* Column so the toolbars sit above/below one bounded scroll box (.srd-scroll),
+     which owns BOTH axes — so its horizontal bar rides the visible bottom edge
+     instead of the bottom of a tall SVG where it can't be reached. */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 
   /* Lane identity — 11 lanes grouped into 5 validated hue families (see
      dataviz palette validation notes below); a lane's shade groups it with
@@ -20,6 +26,21 @@
   --srd-color-bff: #e87ba4;
   --srd-color-api: color-mix(in oklab, #e87ba4 55%, white);
   --srd-color-data: color-mix(in oklab, #e87ba4 30%, white);
+  /* A2A hops sit beside the AGENT and LLM lanes, so they cannot borrow either
+     shade; they take a third, lighter step of the agent family. Mixed from the
+     agent token, so it follows the active theme without a second declaration. */
+  --srd-color-a2a: color-mix(in oklab, var(--srd-color-agent) 35%, white);
+
+  /* Stand-in lanes: these never co-occur with the lane they replace, so they
+     borrow its shade instead of adding a 12th hue to a palette the notes above
+     already call past a safe categorical count. A heuristic run replaces the
+     LLM hop outright (buildTraceSteps emits one or the other, never both), and
+     a vertical's resource lane plays the API lane's part. Declared once — each
+     resolves to whichever value its target holds in the active theme. */
+  --srd-color-heuristics: var(--srd-color-llm);
+  --srd-color-airlines: var(--srd-color-api);
+  --srd-color-invest: var(--srd-color-api);
+  --srd-color-mortgage: var(--srd-color-api);
 }
 
 /* Dark steps of the same 5 families — vibrant colors for dark mode
@@ -52,6 +73,24 @@
   align-items: center;
   gap: 0.4rem;
   margin-bottom: 0.4rem;
+  /* The toolbars sit outside .srd-scroll (the scroll box), so they stay put
+     while the diagram scrolls — sticky is kept as a harmless backstop. Colour
+     alongside the background: a themed ground without themed ink trips the
+     theming ratchet. */
+  position: sticky;
+  z-index: 2;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+/* .srd-root has 0.5rem of padding, and `top: 0` pins to that padding line rather
+   than the scroller's edge — so the diagram scrolled through the gap and showed
+   above the pinned row. Pin flush with the edge and paint over the padding; the
+   negative margin cancels the added padding so the row does not move at rest. */
+.srd-toolbar--top {
+  top: -0.5rem;
+  margin-top: -0.5rem;
+  padding-top: 0.5rem;
 }
 
 .srd-zoom-btn,
@@ -87,6 +126,44 @@
 .srd-slow-btn:hover {
   background: var(--th-bg-hover);
   color: var(--th-text);
+}
+
+/* Transport: Prev / Play-Pause-Replay / Next. Same shape as the zoom and Slow
+   buttons so the row reads as one control strip. */
+.srd-step-btn {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.srd-step-btn:hover:not(:disabled) {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.srd-step-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.srd-step-btn--play {
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+  border-color: var(--th-status-info);
+  min-width: 52px;
+}
+
+.srd-toolbar--bottom {
+  bottom: -0.5rem;
+  margin-top: 0.4rem;
+  margin-bottom: -0.5rem;
+  padding-bottom: 0.5rem;
 }
 
 .srd-slow-btn--active {
@@ -137,7 +214,30 @@
 }
 
 .srd-scroll {
-  overflow-x: auto;
+  /* The single scroll box for both axes. flex:1 + min-height:0 make it take the
+     height left by the toolbars and bound it, so both scrollbars sit at this
+     box's own edges and stay reachable no matter how tall or wide the diagram. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  /* Always show the bars (macOS/Chrome hide overlay bars until you scroll, which
+     hid that the first lane was just off to the left). */
+  scrollbar-width: thin;
+  scrollbar-color: var(--th-border-strong) transparent;
+}
+
+.srd-scroll::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.srd-scroll::-webkit-scrollbar-thumb {
+  background: var(--th-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.srd-scroll::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .srd-svg {
@@ -157,6 +257,11 @@
 .srd-lane-bff { --srd-lane: var(--srd-color-bff); }
 .srd-lane-api { --srd-lane: var(--srd-color-api); }
 .srd-lane-data { --srd-lane: var(--srd-color-data); }
+.srd-lane-a2a { --srd-lane: var(--srd-color-a2a); }
+.srd-lane-heuristics { --srd-lane: var(--srd-color-heuristics); }
+.srd-lane-airlines { --srd-lane: var(--srd-color-airlines); }
+.srd-lane-invest { --srd-lane: var(--srd-color-invest); }
+.srd-lane-mortgage { --srd-lane: var(--srd-color-mortgage); }
 
 /* Solid lane-coloured header, white label. The raw lane shade cannot be the
    fill: six of the eleven are `color-mix(…, white)` tints built to read as
@@ -183,6 +288,17 @@
   opacity: 0.7;
 }
 
+/* Full-row click target behind each hop. `transparent` (not `none`) still
+   receives pointer events, so a click anywhere on the row opens the hop's
+   detail — an arrow is otherwise only a 2px line plus a small label to hit. */
+.srd-hitbox {
+  fill: transparent;
+  cursor: pointer;
+}
+
+/* .srd-label-box is the arrow equivalent of a note box — same treatment, so a
+   hop looks and behaves the same whichever way it is drawn. */
+.srd-label-box,
 .srd-note-box {
   fill: var(--th-bg-page);
   stroke: var(--th-border);
@@ -206,10 +322,12 @@
 }
 
 .srd-selected .srd-arrow,
+.srd-selected .srd-label-box,
 .srd-selected .srd-note-box {
   stroke-width: 2.5;
 }
 
+.srd-selected .srd-label-box,
 .srd-selected .srd-note-box {
   fill: var(--th-bg-hover);
 }
@@ -217,6 +335,7 @@
 /* Status — structural/motion cues layered on top of the lane color, never a
    color override (that would cancel "each step is a different color"). */
 .srd-status-active .srd-arrow,
+.srd-status-active .srd-label-box,
 .srd-status-active .srd-note-box {
   stroke-width: 2.25;
 }
@@ -347,4 +466,44 @@
 }
 .srd-lane-data.srd-arrowhead-fill {
   fill: var(--srd-color-data);
+}
+
+.srd-lane-a2a .srd-note-box,
+.srd-lane-a2a .srd-arrow {
+  stroke: var(--srd-color-a2a);
+}
+.srd-lane-a2a.srd-arrowhead-fill {
+  fill: var(--srd-color-a2a);
+}
+
+.srd-lane-heuristics .srd-note-box,
+.srd-lane-heuristics .srd-arrow {
+  stroke: var(--srd-color-heuristics);
+}
+.srd-lane-heuristics.srd-arrowhead-fill {
+  fill: var(--srd-color-heuristics);
+}
+
+.srd-lane-airlines .srd-note-box,
+.srd-lane-airlines .srd-arrow {
+  stroke: var(--srd-color-airlines);
+}
+.srd-lane-airlines.srd-arrowhead-fill {
+  fill: var(--srd-color-airlines);
+}
+
+.srd-lane-invest .srd-note-box,
+.srd-lane-invest .srd-arrow {
+  stroke: var(--srd-color-invest);
+}
+.srd-lane-invest.srd-arrowhead-fill {
+  fill: var(--srd-color-invest);
+}
+
+.srd-lane-mortgage .srd-note-box,
+.srd-lane-mortgage .srd-arrow {
+  stroke: var(--srd-color-mortgage);
+}
+.srd-lane-mortgage.srd-arrowhead-fill {
+  fill: var(--srd-color-mortgage);
 }

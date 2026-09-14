@@ -51,6 +51,12 @@ if [[ "\$1" == "inspect" ]]; then
   esac
   exit 0
 fi
+if [[ "\$1" == "ps" ]]; then
+  [[ "\${STUB_LOKI_RUNNING:-0}" == "1" ]] && echo "abc123"
+  exit 0
+fi
+# Record what the recreate saw, so the LOKI_URL decision can be asserted.
+[[ "\$1" == "compose" ]] && echo "\${LOKI_URL-unset}" > "$ROOT/loki-url-seen"
 # compose up: honour the mount move only when the harness says the recreate takes.
 if [[ "\$1" == "compose" && "\$STUB_RECREATE_TAKES" == "1" ]]; then
   echo "\${WORKTREE_SRC_ROOT:-$MAIN}" > "$STATE"
@@ -120,6 +126,19 @@ out="$(cd "$MAIN" && STUB_RECREATE_TAKES=0 bash "$SCRIPT" 2>&1)"; rc=$?
 check "status exits 0" "$rc" "0"
 case "$out" in *"main checkout"*) ok "status names the main checkout when that is mounted" ;;
                *) bad "status names the main checkout when that is mounted" ;; esac
+teardown
+
+# --- 5. LOKI_URL follows whether loki is running -------------------------------
+# The recreate bypasses run-docker.sh, so without this it would put the BFF back on
+# the compose default Loki address while the observability group is off.
+setup
+(unset LOKI_URL; cd "$MAIN" && STUB_RECREATE_TAKES=1 bash "$SCRIPT" "$TARGET" >/dev/null 2>&1)
+check "exports LOKI_URL empty when loki is not running" "$(cat "$ROOT/loki-url-seen" 2>/dev/null || echo missing)" ""
+teardown
+
+setup
+(unset LOKI_URL; cd "$MAIN" && STUB_RECREATE_TAKES=1 STUB_LOKI_RUNNING=1 bash "$SCRIPT" "$TARGET" >/dev/null 2>&1)
+check "leaves LOKI_URL to the compose default when loki is running" "$(cat "$ROOT/loki-url-seen" 2>/dev/null || echo missing)" "unset"
 teardown
 
 echo

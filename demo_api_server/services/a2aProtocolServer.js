@@ -60,9 +60,15 @@ function assertSkillAllowed(specialist, tool) {
  * through `redactValue` (utils/logRedact.js, the same JWT-stripping pass the
  * BFF's own logs go through) before it reaches the wire; the tool pipeline's
  * own error paths are not otherwise guaranteed token-free.
+ *
+ * `fields.tokenEvents`, when present, is the specialist's own token-chain rows
+ * (a2a-agent2-actor / a2a-exchange2 / tool-dispatched) — only set by the HTTP
+ * router (see createA2aProtocolRouter below), never by the in-process path,
+ * because only the HTTP transport has no other way to hand its chain back to
+ * the caller (a2aProtocolClient.js#finishHop reads it off this metadata).
  */
 function publishReply(eventBus, requestContext, fields) {
-  const { specialist, vertical, result, toolError, actChainDepth = null, scopes = [] } = fields;
+  const { specialist, vertical, result, toolError, actChainDepth = null, scopes = [], tokenEvents } = fields;
   const safeResult = redactValue(result);
   eventBus.publish(
     AgentEvent.message({
@@ -86,6 +92,7 @@ function publishReply(eventBus, requestContext, fields) {
         scopes,
         toolError,
         demoLayer: 'a2a-protocol-wire',
+        ...(tokenEvents ? { tokenEvents: redactValue(tokenEvents) } : {}),
       },
       extensions: [],
       referenceTaskIds: [],
@@ -194,7 +201,12 @@ function makeSpecialistExecutor(specialist, vertical = specialist.appKey, opts =
       const tokenEvents = ctx.tokenEvents || [];
       const meta = requestContext.userMessage?.metadata || {};
       const reply = (fields) =>
-        publishReply(eventBus, requestContext, { specialist, vertical, ...fields });
+        publishReply(eventBus, requestContext, {
+          specialist,
+          vertical,
+          ...(ctx.exposeTokenEvents ? { tokenEvents } : {}),
+          ...fields,
+        });
 
       let tool;
       try {
@@ -322,6 +334,16 @@ function createA2aProtocolRouter(opts = {}) {
         // ponytail: a fresh InMemoryTaskStore per request, so no task outlives
         // the response — fine for this one-shot message/send hop; share a store
         // per vertical if task polling is ever needed.
+        //
+        // tokenEvents: [] here is real and per-request (fresh each call, never
+        // shared across requests) — the specialist executor mutates this SAME
+        // array as it runs Exchange #2 and dispatches the tool. Unlike the
+        // in-process path, an HTTP caller cannot read that array by reference
+        // (it never crosses the wire), so exposeTokenEvents:true tells
+        // publishReply to fold it into the JSON-RPC reply's metadata, where
+        // a2aProtocolClient.js#finishHop reads it back out for the HTTP
+        // transport (sendA2aProtocolHandoff / A2A_PROTOCOL_HTTP=1) — see
+        // TECH_DEBT.md "HTTP transport drops the specialist's token-chain rows".
         const built = createSpecialistProtocolHandler(
           vertical,
           typeof getCfg === 'function' ? getCfg() : getCfg,
@@ -330,6 +352,7 @@ function createA2aProtocolRouter(opts = {}) {
             tokenEvents: [],
             sessionId: req.sessionID,
             claims: req.a2aPingOne?.claims,
+            exposeTokenEvents: true,
           },
         );
         if (!built) return next();

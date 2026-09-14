@@ -34,11 +34,27 @@ const configStore = require('../services/configStore');
 const { getTokenEndpoint, getDiscoveryEndpoint } = require('../services/oauthEndpointResolver');
 const oauthService = require('../services/oauthService');
 const dataStore = require('../data/store');
+const { determineClientType } = require('../middleware/auth');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
+const { getScopesForUserType } = require('../config/scopes');
 
 const router = express.Router();
 
-const SCOPE = 'openid profile email';
+// The banking scopes are NOT decoration — they decide the token's AUDIENCE.
+//
+// With only the OIDC scopes, PingOne issues an access token for its own API
+// (aud: https://api.pingone.com). middleware/auth.js requires BFF_RESOURCE_URI
+// (enduser.ping.demo) to appear in `aud` and fails closed, so sign-in SUCCEEDED
+// and then every authenticated call 401'd with "Token audience [...] does not
+// match this service's audience", which the UI reports as a lost session and
+// bounces to the app login. Measured end to end: /start 200, /callback 200,
+// then /api/auth/me 401.
+//
+// Asking for a scope of the "Demo API" resource is what makes PingOne mint the
+// token for that resource instead. Kept in sync with config/scopes.js's
+// `customer` user type — the SDK sign-in produces a customer, so it must not
+// hand out more than the ordinary user-login path does.
+const SCOPE = ['openid', 'profile', 'email', ...getScopesForUserType('customer')].join(' ');
 
 // Config-first, headers last. Header derivation once put the INTERNAL upstream
 // name into redirect_uri on the live stack (https://demo-api-server:3001/...),
@@ -199,13 +215,33 @@ router.post('/callback', async (req, res) => {
         scope: tokenData.scope || null,
       };
       req.session.user = user;
+      // A customer sign-in, stored like routes/oauthUser.js's callback. Without
+      // oauthType 'user' the session reads as ADMIN to /api/auth/oauth/status
+      // (routes/oauth.js) and as signed-out to /api/auth/oauth/user/status.
+      req.session.clientType = determineClientType(tokenData.access_token);
+      req.session.oauthType = 'user';
 
       req.session.save((saveErr) => {
         if (saveErr) {
           console.error('[davinci-sdk-login/callback] Session save FAILED:', saveErr.message);
           return res.status(500).json({ error: 'session_save_failed', message: 'Could not persist session.' });
         }
-        return res.json({ ok: true });
+        // username lets the page say WHO an existing PingOne session signed in
+        // as ("Signed in as demoAdmin — continue, or sign out to switch"),
+        // which it cannot know otherwise: a reused session completes the flow
+        // with no screens, so the user never typed a name.
+        //
+        // userId and email come from PingOne's userinfo for this token (`sub` is
+        // the PingOne user id, the same id a DaVinci Read User node returns), so
+        // the page can show who signed in. The SDK flow cannot carry them:
+        // pi.flow hands the page a screen's form fields, never the flow's
+        // success HTML. Never add token material here; tokens stay in the session.
+        return res.json({
+          ok: true,
+          username: user.username || null,
+          userId: userInfo?.sub || null,
+          email: userInfo?.email || user.email || null,
+        });
       });
     });
   } catch (err) {

@@ -141,6 +141,390 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-13 — Node gateway: a DPoP-bound token without a valid, unreplayed proof is refused
+
+**Files changed:** `demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts`,
+`src/index.ts`, `src/wsBindingGuard.ts`. Tests:
+`demo_mcp_gateway/tests/authorizeMcpRequest.dpopBoundEnforce.test.ts` (new),
+`tests/wsBindingGuard.test.ts`.
+
+**What was broken:** the gateway verified DPoP proofs for real (signature, htu,
+htm, iat, ath, jkt and a jti replay cache) but only refused a failure when
+`REQUIRE_DPOP_PROOF=true`, which is unset in the stack. A token bound to a key
+(`cnf.jkt`, from the token or the demo TraT envelope) was accepted with a
+missing, forged or replayed proof, so the sender constraint that binding exists
+for was never enforced, and UC12 could not truthfully show replay defense.
+
+**What was fixed:** HTTP Step 2d refuses a failed verification when
+`REQUIRE_DPOP_PROOF=true` **or** the token is bound (RFC 9449 §7). The
+WebSocket tools/call guard applies the same rule through `isDpopBound()`
+(the token's cnf claim, or the TraT envelope when
+`ALLOW_UNSIGNED_TRAT_CONTEXT=true`); WebSocket cannot carry a proof, so a bound
+token is refused there and steered to `POST /mcp`.
+
+**Do not break:**
+- An unbound token is unchanged: it needs a proof only when
+  `REQUIRE_DPOP_PROOF=true`.
+- The HITL receipt single-use check (REGRESSION_PLAN §1) runs on both
+  transports exactly as before; nothing in its path changed.
+- The replay cache is in-memory per gateway instance (noted in `dpopVerify.ts`).
+
+**Verify:** `cd demo_mcp_gateway && ./node_modules/.bin/jest tests/authorizeMcpRequest.dpopBoundEnforce.test.ts tests/wsBindingGuard.test.ts tests/authorizeMcpRequest.dpopWwwAuthenticate.test.ts tests/dpopVerify.test.ts`.
+The bound-token refusal and replay tests fail against the pre-fix middleware.
+
+### 2026-09-13 — UC2.5 Demo step runs the A2A orchestrator instead of UC2
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`. Test:
+`demo_api_ui/src/components/__tests__/AIAgent.demoStepGate.test.jsx`.
+
+**What was broken:** UC2.5 ("A2A Orchestrator") is a chip whose text,
+"delegate this to a specialist", went through chat, where it matched the same
+A2A heuristic (`config/verticals/a2a/index.js`) as UC2's "hand off to a
+specialist". The chip ran UC2's delegation and the orchestrator
+(`POST /api/a2a/message` → `orchestrateDelegation`) never ran, though the step
+is named for it.
+
+**What was fixed:** the Demo steps dispatcher handles UC2.5 before the generic
+chip branch. It gates on sign-in, calls `/api/a2a/init` and `/api/a2a/message`
+with the chip text (as `/a2a-protocol-learning` does), shows the orchestrator's
+reply, feeds its `tokenEvents` into the trace, and ticks the step only on
+`success: true`.
+
+**Do not break:**
+- `routes/a2aAgentRoutes.js`, `orchestrateDelegation` and the A2A wire checks
+  (REGRESSION_PLAN §1 "A2A wire hop authentication") are unchanged; this only
+  calls the existing route.
+- Every other chip step still goes through the chat branch.
+
+**Verify:** `cd demo_api_ui && node_modules/.bin/vitest run AIAgent.demoStepGate`.
+
+### 2026-09-13 — UC5 insufficient-scope sim no longer reports approval challenges as insufficient_scope
+
+**Files changed:** `demo_api_server/services/attackSimulatorService.js`. Test:
+`demo_api_server/src/__tests__/attackSimulator.test.js`.
+
+**What was broken:** `_runInsufficientScope` canonicalized every
+`mcp_tool_error` to `insufficient_scope` / 403. `mcpGatewayClient` throws that
+same code for step-up (HTTP 428 `step_up_required`, JSON-RPC `-32403`), HITL
+consent (HTTP 428/403 `hitl_required`, JSON-RPC `-32002`) and elicitation
+(HTTP 428 `elicitation_required`, JSON-RPC `-32003`). So a gateway that asked
+for approval was reported, labelled and scored as a scope denial.
+
+**What was fixed:** new `_approvalChallengeCode(err)` reads the flags the
+client sets on each path (`stepUp`, `elicitation`, `hitl`, `gatewayErrorCode`,
+`rpcCode`, `rpcData`). A challenge keeps its own code and HTTP status, and its
+`sim-gateway-deny` event is labelled `Gateway challenge (<code>)`. Only what is
+left is canonicalized to `insufficient_scope`.
+
+**Do not break:**
+- A genuine scope denial (`mcp_tool_error` with no approval flag, or
+  `gateway_policy_denied`) still reports `insufficient_scope` / 403.
+- `mcpGatewayClient`'s error shapes are unchanged; this only reads them.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest src/__tests__/attackSimulator.test.js --forceExit`.
+
+### 2026-09-13 — DaVinci widget sign-in ended on PingOne's hosted sign-on page instead of signing in
+
+**Files changed:** `demo_api_server/routes/davinciLogin.js`,
+`demo_api_ui/src/pages/DavinciLoginWidget.jsx`, `demo_api_ui/src/lib/davinciWidgetClient.js`,
+`demo_api_ui/src/pages/DavinciLoginGuidePage.jsx`. Tests: `tests/routes/davinciLogin.test.js`,
+`tests/davinciLoginNonce.test.js`, `src/pages/__tests__/DavinciLoginWidget.test.jsx`,
+`src/lib/__tests__/davinciWidgetClient.test.js`. Outside the repo: DaVinci flow
+`81d2862114afc2a3d0cf00dca80b89e3` (policy "AI DEMO"), now version 6.
+
+**What was broken:** after the widget's Sign On, the page followed an
+`/authorize` URL expecting PingOne to find a session and issue a code. In a
+browser with no existing PingOne session it landed on PingOne's hosted sign-on
+page. Two faults. First, the flow ended with an HTTP success response, which
+creates no PingOne session and returns no `sessionToken`, so the `DV-ST` cookie
+was never even set — and PingOne's `/authorize` does not read `DV-ST` anyway
+(Ping's widget example uses it to carry a DaVinci session into the next
+`/sdktoken` call). Second, once the flow did create a session, the `ST` cookie
+PingOne set during the widget's cross-site calls still never reached a
+top-level `/as/authorize`: measured in a fresh Chrome, `Set-Cookie: ST` arrived,
+was reported not blocked, and was absent from the cookie jar when `/authorize`
+was sent. A browser that already held a PingOne session "worked" by signing in
+as that session's user, not necessarily the one who signed in on the widget.
+
+**What was fixed:** the flow (v6) ends with the PingOne Authentication
+connector's "Return Success Response (Widget Flows)" (app `8a711944…`, scopes
+`openid profile email read write ai:agent:read`, and a `nonce` ID-token claim
+from the flow's nonce input), after new Welcome and Success screens and a Create
+Session node. It returns `id_token` and `access_token` to `successCallback`; the
+page posts them to the new `POST /api/davinci-login/widget-session`, then loads
+`/davinci-login/confirmed`. That route requires both tokens JWKS-verified
+(`verified === true && fallbackMethod === 'jwks'` — `tokenVerificationService`
+fails open, and its introspection fallback carries no nonce or ID-token
+audience), the single-use armed nonce (consumed before any check), ID-token
+`aud` equal to `oauthService.config.clientId`, access-token `aud` including the
+BFF resource (the same env names `middleware/auth.js` reads), and the same `sub`
+in both. `/sdk-token` now arms only the nonce — no authorize URL, PKCE verifier
+or state — and the `DV-ST` cookie is gone. `/callback` stays for a client that
+runs its own PKCE, but takes the verifier and redirect URI from the body only.
+Session establishment is one helper shared by both routes.
+
+**Do not break:** nonce read-and-delete before any check, on both routes; the
+existing-user-only lookup (no auto-create, no auto-admin); session regenerate
+before storing tokens; never accept a token the verifier did not JWKS-verify.
+If the flow's final node is edited it must keep the nonce claim, the app id and
+the Demo API scopes, or every widget sign-in 401s. Widget sessions carry no
+refresh token (TECH_DEBT 2026-09-13). `routes/oauth.js`, `routes/oauthUser.js`
+and `oauthService` untouched.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/davinciLogin.test.js tests/davinciLoginNonce.test.js --forceExit`
+(32/32); disabling each of the eight `/widget-session` checks in turn turns its
+own named test red. `cd demo_api_ui && npm run test:unit` (551 files, 4302
+passed, 24 skipped) and `npm run build` (exit 0). The live fresh-browser check
+(Sign On → Welcome → Success → `/davinci-login/confirmed`) runs after merge: a
+worktree-served BFF boots seed data and would 404 `/api/auth/me`.
+
+**2026-09-13 update:** the widget now stays on `/davinci-login-guide` instead
+of navigating to `/davinci-login/confirmed` — it reports sign-in through
+`onSignedIn` and dispatches `userAuthenticated` so the app shell's session
+check picks it up. The live check above now expects the "What just happened"
+modal to open on the same page, not a navigation.
+
+**Do not break (Call Inspector):** a call is recorded when it *starts* inside a
+run — the widget passes `installWidgetTrace` a `shouldRecord` check that the
+trace asks before the request goes out. Gating when the record *arrives*
+dropped `/api/davinci-login/widget-session` live: the trace reads that body
+from a clone after `postWidgetSession` has already read it and stopped the
+run. Live check: the Call Inspector lists `/api/davinci-login/widget-session`
+after sign-in.
+
+### 2026-09-14 — DaVinci sign-ins (widget and SDK) stored the session in the admin status slot
+
+**Files changed:** `demo_api_server/routes/davinciLogin.js`,
+`demo_api_server/routes/davinciSdkLogin.js`,
+`demo_api_ui/src/pages/DavinciLoginConfirmedPage.jsx`. Tests:
+`tests/routes/davinciLogin.test.js`, `tests/routes/davinciSdkLogin.test.js`,
+`src/pages/__tests__/DavinciLoginConfirmedPage.test.jsx`.
+
+**What was broken:** both DaVinci sign-ins stored `oauthTokens` and `user` but
+never `oauthType` or `clientType`. `routes/oauth.js` `/status` (admin) counts any
+session whose `oauthType !== 'user'` as its own, so it answered
+`authenticated: true`; `routes/oauthUser.js` `/status` (customer) requires
+`oauthType` `'user'` or `'admin'`, so it answered `authenticated: false`. The app
+shell (`useAuth.js`) asks the admin endpoint first, so a customer looked signed
+in through the admin slot while every customer-status reader saw a signed-out
+user. Separately, `/davinci-login/confirmed` read `/api/auth/me`, which looks the
+user up by the token's PingOne `sub` rather than the demo user record the
+session holds, so Username was blank.
+
+**What was fixed:** both routes now set `req.session.clientType =
+determineClientType(accessToken)` and `req.session.oauthType = 'user'` beside
+`req.session.user`, exactly as `routes/oauthUser.js`'s callback does. The
+confirmed page reads `/api/auth/oauth/user/status` and says "You are not signed
+in." when it is not authenticated.
+
+**Do not break:** a DaVinci customer sign-in sets `oauthType = 'user'` —
+regenerate-before-store and `session.save()` are unchanged, and neither status
+endpoint was edited. `/api/auth/me` is shared and was not changed.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest
+tests/routes/davinciLogin.test.js tests/routes/davinciSdkLogin.test.js
+tests/davinciLoginNonce.test.js --forceExit` (each new `oauthType` assertion
+failed first). Live: after a widget sign-in, `/api/auth/oauth/user/status` is
+`authenticated: true` and `/api/auth/oauth/status` is `authenticated: false`.
+
+### 2026-09-13 — Sequence view: a gateway filter deny with no deny phase is drawn on the gateway
+
+**Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`.
+Test: `src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`.
+
+**What was broken:** live UC31 (Miami under the default `texas` scope, run from
+the /weather-mcp Run chip through `/api/agent/invoke`) returned
+`gateway_policy_denied` / `weather_scope_denied`, but the trace received the
+deny only as a `gw-filter-chain` token event with status `deny`: no
+`gateway_policy_denied` phase arrived over the flow SSE. `gwDenied` read only
+that phase or a `sim-gateway-deny` event, and since #3244 counts
+`gw-filter-chain` as the gateway being seen, the sequence view drew
+"Agent Gateway — token validated" (done) and put the refusal on the MCP server.
+
+**What was fixed:** a `gw-filter-chain` event with status `deny` counts as a
+gateway deny. Its `explanation` supplies the DENY label when there is no phase
+and no sim event (that branch read `simGwDeny.label` unguarded).
+
+**Do not break:**
+- A permitting `gw-filter-chain` (status `active`) still draws the gateway done.
+- `gateway_policy_denied` and `sim-gateway-deny` keep their own labels.
+
+**Verify:** `cd demo_api_ui && node_modules/.bin/vitest run buildTraceSteps.test`.
+The new filter-deny test fails against the pre-fix builder.
+
+### 2026-09-13 — Sequence view: step-up is drawn when it actually happens (BFF 428, device MFA, CIBA, live PingGateway consent)
+
+**Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`,
+`src/services/agentFlowDiagramService.js`, `src/components/AIAgent.js`. Tests:
+`src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`,
+`src/services/tokenChainTrace/__tests__/tokenChainTraceStore.test.js`,
+`src/services/__tests__/agentFlowDiagramService.test.js`.
+
+**What was broken:** the sequence view draws only steps that happened, and the
+builder's `stepup` step stayed dark for most real step-ups.
+- A BFF step-up block emits only a bare `authorize_denied` (HTTP 428), no
+  phase of its own.
+- Device-MFA outcomes went only to PostHog (`routes/mfa.js`). Nothing put
+  `mfa_challenge_*` into the trace, although the store already carried those
+  phases across a STEP_UP resume; `agentFlowDiagram.startMfaChallenge` is
+  never called.
+- The builder ignored `gateway_hitl_required` (the live PingGateway consent
+  gate) and the `ciba-poll` token event `AIAgent.js` stamps for CIBA.
+
+**What was fixed:**
+- `stepup` starts on the Authorize challenge itself (`azIsChallenge`: HTTP 428
+  or a pause obligation), on `gateway_hitl_required`, or on a `ciba-poll`
+  event; `ciba-poll` approved / denied mark it done / error.
+- `agentFlowDiagram.recordMfaPhase` appends an `mfa_challenge_completed` /
+  `mfa_challenge_failed` row. The OTP, FIDO and P1MFA handlers in `AIAgent.js`
+  call it (cancel records failed) before they replay the prompt, so the store
+  picks it up and carries it into the retry.
+
+**Do not break:**
+- CIBA paths call only `completeMfaChallenge`, never `recordMfaPhase`, so the
+  System Flow Map's MFA box stays off on a CIBA approval.
+- A retry that PERMITs with the STEP_UP gate carried is not a challenge and
+  does not reopen step-up; a hard 403 does not invent one.
+- `routes/mfa.js` is unchanged.
+
+**Verify:** `cd demo_api_ui && node_modules/.bin/vitest run buildTraceSteps.test tokenChainTraceStore agentFlowDiagramService`.
+Seven tests fail against the pre-fix sources.
+
+### 2026-09-13 — Open-access hop: every vertical tool answered 401 invalid_token
+
+**Files changed:** `oauth-mcp/src/tools/BankingToolProvider.ts`.
+Tests: `oauth-mcp/tests/tools/BankingToolProvider.privilegeToken.test.ts`.
+
+**What was broken:** with `MCP_AUTH_DISABLED=true`, a caller without a
+validatable bearer (LibreChat's `aidemo-mcp`, the Privilege open-access hop)
+reaches `executeTool` with the placeholder `'disabled'`. The open-access branch
+minted the demo-user token only for tools with no `vertical` tag — its comment
+said vertical tools "execute server-side with no token". They don't: the vertical
+handler relays to BFF `POST /api/path/vertical-tool`, whose `authenticateToken`
+rejected `Bearer disabled` with `401 invalid_token`. Every sporting-goods,
+retail, healthcare and workforce action tool (`list_gear`, `list_rentals`,
+`loyalty_balance`, …) failed with `Banking API error: invalid_token` (BFF log
+`POST /api/path/vertical-tool 401`, 12:45:19 and 12:46:19).
+
+**What was fixed:** the open-access branch mints the demo-user token for every
+tool (`if (openAccessHop)`), so vertical tools reach the BFF with a real bearer,
+which `authenticateToken` binds to the open-access demo user.
+`TokenResolver` is unchanged: it still skips Step 9 for vertical tools and
+forwards that token as-is.
+
+**Do not break:**
+- With `MCP_AUTH_DISABLED` unset or false, the per-tool scope check still fails
+  closed — the placeholder gets `Insufficient scope` and no demo token.
+- A real bearer is never swapped: `openAccessHop` still requires the
+  `'disabled'` placeholder or a Privilege (`procyon`) token.
+- The BFF binding stays gated on `MCP_AUTH_DISABLED === 'true' && !decoded.sub &&
+  role !== 'admin'` (see the 2026-08-10 open-access entries).
+
+**Verify:** `cd oauth-mcp && ./node_modules/.bin/jest tests/tools/BankingToolProvider.privilegeToken.test.ts`
+(the vertical-tool case fails against the pre-fix code); live after
+`scripts/deploy-live.sh`: `tools/call list_rentals` on `http://localhost:8080/mcp`
+with `Bearer none` returns the Trek Marlin 8 rental, and the BFF logs
+`POST /api/path/vertical-tool 200`.
+
+### 2026-09-13 — Sequence view: gateway denies and permits are drawn on the gateway; tools/call's 401 is drawn in wire order
+
+**Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`.
+Tests: `src/services/tokenChainTrace/__tests__/buildTraceSteps.test.js`,
+`src/components/__tests__/TokenTopologyPanel.a2a.test.jsx`.
+
+**What was broken:** the sequence view draws only steps that happened, so a
+step marked "not in path" vanishes from it.
+- A gateway P1AZ DENY is handed over as the run's authorize evidence
+  (`mcpToolPipeline` → `gatewayBlockAuthEval`), which marks Authorize failed.
+  The gateway step checked `authorizeFailed` before `gwDenied`, so the gateway
+  that blocked the call was drawn not in path.
+- `gwSeen` ignored `gw-filter-chain`, often the only evidence a PingGateway
+  permit publishes, so a permitting gateway was drawn not in path too.
+- The credential-less tools/call challenge was listed after the gateway and the
+  API-key swap, though the pipeline sends it (`mcpChallengeProbe`) after the
+  Authorize gate and before the authorized call reaches the gateway.
+
+**What was fixed:** the gateway step checks `gwDenied` first; `gwSeen` counts
+`gw-filter-chain`; `tools-call-challenge` is pushed just before the gateway,
+and `MCP_STEP_IDS` follows the same order (`TraceMcpPanel` and the topology
+branch render in list order).
+
+**Do not break:**
+- A BFF Authorize DENY with no gateway deny still draws the gateway and every
+  hop after it as not in path.
+- `gw-introspection` / `gw-mtls` with status `skipped` still do not count as
+  the gateway being seen.
+- `MCP_STEP_IDS` stays in chain order; the builder test asserts it.
+
+**Verify:** `cd demo_api_ui && node_modules/.bin/vitest run buildTraceSteps.test TokenTopologyPanel.a2a`.
+Five tests fail against the pre-fix builder.
+
+### 2026-09-13 — UC32: a weather scope picked on /weather-mcp survives the Run it was picked for
+
+**Files changed:** `demo_api_ui/src/utils/weatherScopeHandoff.js` (new),
+`src/components/WeatherStateControl.jsx`, `src/pages/McpShowcasePage.jsx`,
+`src/components/AIAgent.js`. Tests: `src/utils/__tests__/weatherScopeHandoff.test.js`,
+`src/components/__tests__/WeatherStateControl.handoff.test.jsx`.
+
+**What was broken:** UC32 is "change the gateway's allowed weather scope, then
+watch the run respect it". `WeatherStateControl` resets
+`ff_weather_mcp_allowed_state` to `texas` when it unmounts, so a scope left on
+"Any" can't make UC31 permit later. But the page's own Run button unmounts it
+on the way to `/dashboard`, so that reset fired before the run: every UC32 run
+went out under the default scope, whatever the presenter picked.
+
+**What was fixed:** on a scope-kind showcase page, Run and the free-form ask
+mark the navigation in sessionStorage. The control's unmount consumes the
+marker and hands the reset to the dashboard instead of resetting on the way
+out; `AIAgent.js`'s resume effect restores `texas` in its `finally` once the
+handed-off run has finished.
+
+**Do not break:**
+- Leaving the page any other way still resets the scope on unmount. UC30/UC31
+  in the Demo Steps script assume the default: Austin permits, Miami denies.
+- The marker expires after 5s, so an unconsumed one can't suppress a later,
+  genuine reset.
+- The post-run restore is best-effort and swallows errors; `reset-demo`
+  remains the backstop.
+
+**Verify:** `cd demo_api_ui && node_modules/.bin/vitest run weatherScopeHandoff WeatherStateControl.handoff`.
+"hands the reset to the dashboard when leaving through Run" fails against the
+pre-fix `WeatherStateControl.jsx`.
+
+### 2026-09-13 — Sequence view: page-type Demo steps clear the last run; chat runs keep their live MCP result (#3239)
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`src/services/demoAgentService.js`. Tests:
+`src/services/__tests__/demoAgentService.mcpResultStream.test.js`,
+`src/services/__tests__/demoAgentService.liveResultSynthesis.test.js`,
+`src/components/__tests__/AIAgent.demoStepGate.test.jsx`.
+
+**What was broken:**
+- A page-type (link) Demo step navigated without clearing
+  `tokenChainTraceStore`, so the dashboard's sequence diagram kept drawing the
+  previous chat run under the new step.
+- The chat SSE path dropped `mcp-result` frames, so a chat run's MCP step never
+  carried the real result, request or timing. Forwarding them alone was not
+  enough: `ingestLegacyRunTrace`'s end-of-run synthesis replaced the stored
+  result with an empty one.
+
+**What was fixed:**
+- The link branch calls `tokenChainTraceStore.reset()` before it navigates.
+- The chat stream re-dispatches each `mcp-result` frame as
+  `mcp-tool-result-sse`, tagged with the run's `flowTraceId`.
+- `ingestLegacyRunTrace` fills in around a live result for the same run: on
+  success it keeps the result, request and timing; on failure it adds the
+  error without losing the request. The store lookup runs only when the
+  envelope names a tool.
+
+**Do not break:**
+- A stored result from a different `flowTraceId` is not treated as live; the
+  envelope replaces it.
+- A run with no tool call still completes the trace and the reply without
+  reading the store.
+
+**Verify:** `cd demo_api_ui && node_modules/.bin/vitest run demoAgentService.mcpResultStream demoAgentService.liveResultSynthesis AIAgent.demoStepGate`.
+
 ### 2026-09-12 — System Flow Map: split the merged approval-gate box into real MFA / Consent / CIBA boxes; per-band background tints
 
 **Files changed:** `demo_api_ui/src/components/SystemFlowMap.jsx`, `SystemFlowMap.css`,

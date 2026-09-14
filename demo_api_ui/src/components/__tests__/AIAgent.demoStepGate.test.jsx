@@ -144,6 +144,7 @@ vi.mock("../../vertical/useVertical", () => ({
 
 import AIAgent from "../AIAgent";
 import { getCompletedUseCaseIds } from "../../utils/useCaseDemoProgress";
+import { tokenChainTraceStore } from "../../services/tokenChainTrace/tokenChainTraceStore";
 
 const UC12 = {
   id: "UC12",
@@ -261,5 +262,114 @@ describe("✓ only after the step ran", () => {
       expect(screen.getByText(/no runnable trigger/i)).toBeInTheDocument();
     });
     expect(getCompletedUseCaseIds().has("UC99")).toBe(false);
+  });
+});
+
+describe("a page-type step clears the live trace before it opens its page", () => {
+  it("drops the previous run so the dashboard diagram does not keep showing it", async () => {
+    // Seed a previous run, as a chat turn would have left it.
+    tokenChainTraceStore.beginTrace({ prompt: "show my accounts" });
+    tokenChainTraceStore.ingestTokenEvent({ id: "exchanged-token", status: "active" });
+    expect(tokenChainTraceStore.getState().trace.prompt).not.toBeNull();
+
+    renderSignedOut();
+    await runStep(UC27);
+
+    await waitFor(() => {
+      expect(screen.getByText(/opening \/a2a-protocol-learning/i)).toBeInTheDocument();
+    });
+    const { trace } = tokenChainTraceStore.getState();
+    expect(trace.prompt).toBeNull();
+    expect(trace.tokenEvents).toHaveLength(0);
+  });
+});
+
+describe("UC14b quick result says when it is simulated", () => {
+  const UC14B = {
+    id: "UC14b",
+    useCaseId: "par-rar-intent-verified",
+    title: "Intent (RAR verified)",
+    // The quick-result branch does not read auth; public keeps the signed-out
+    // render from gating the step before it gets there.
+    auth: "public",
+    primaryTool: null,
+    trigger: { type: "link", path: "/intent-binding-learning" },
+  };
+
+  async function runQuickResult() {
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent("agent-demo-step-select", {
+        detail: { uc: UC14B, stepNumber: 3, opts: { quickResult: true } },
+      }));
+    });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 150));
+    });
+  }
+
+  it("marks the offline RAR check as simulated", async () => {
+    apiPost.mockResolvedValue({ data: { status: 200, errorCode: null, live: false, tokenChainEvents: [] } });
+    renderSignedOut();
+    await runQuickResult();
+
+    await waitFor(() => {
+      expect(document.body.textContent).toContain("Simulated: an offline RAR check");
+    });
+    expect(apiPost).toHaveBeenCalledWith("/api/demo/intent-binding/run", expect.objectContaining({ action: "permit" }));
+  });
+
+  it("does not call a live run simulated", async () => {
+    apiPost.mockResolvedValue({ data: { status: 200, errorCode: null, live: true, tokenChainEvents: [] } });
+    renderSignedOut();
+    await runQuickResult();
+
+    await waitFor(() => {
+      expect(document.body.textContent).toContain("Intent binding");
+    });
+    expect(document.body.textContent).not.toContain("Simulated: an offline RAR check");
+  });
+});
+
+describe("UC2.5 runs the A2A orchestrator, not UC2's chat path", () => {
+  const UC25 = {
+    id: "UC2.5",
+    useCaseId: "a2a-orchestrator-learning",
+    title: "A2A Orchestrator — Interactive Learning",
+    // The orchestrator branch checks auth itself; public reaches it signed out.
+    auth: "public",
+    primaryTool: null,
+    trigger: { type: "chip", text: "delegate this to a specialist" },
+  };
+
+  it("posts the chip text to the orchestrator, shows its reply and ticks the step", async () => {
+    apiPost.mockImplementation((url) => Promise.resolve({
+      data: url === "/api/a2a/message"
+        ? { success: true, reply: "Delegation complete — specialist received narrowed token", tokenEvents: [] }
+        : { initialized: true },
+    }));
+    renderSignedOut();
+    await runStep(UC25);
+
+    await waitFor(() => {
+      expect(document.body.textContent).toContain("Delegation complete");
+    });
+    expect(apiPost).toHaveBeenCalledWith("/api/a2a/message", expect.objectContaining({ message: "delegate this to a specialist" }));
+    expect(sendAgentMessage).not.toHaveBeenCalled();
+    expect(getCompletedUseCaseIds().has("UC2.5")).toBe(true);
+  });
+
+  it("does not tick the step when the orchestrator declines", async () => {
+    apiPost.mockImplementation((url) => Promise.resolve({
+      data: url === "/api/a2a/message"
+        ? { success: false, reply: "This request does not require delegation to a specialist.", tokenEvents: [] }
+        : { initialized: true },
+    }));
+    renderSignedOut();
+    await runStep(UC25);
+
+    await waitFor(() => {
+      expect(document.body.textContent).toContain("does not require delegation");
+    });
+    expect(getCompletedUseCaseIds().has("UC2.5")).toBe(false);
   });
 });

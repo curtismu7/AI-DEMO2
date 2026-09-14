@@ -79,6 +79,12 @@ function buildApp() {
   app.use(express.json());
   app.use(session({ secret: 't', resave: false, saveUninitialized: false }));
   app.use('/api/davinci-sdk-login', davinciSdkLoginRouter);
+  // Test-only window onto the session the callback wrote.
+  app.get('/__session', (req, res) => res.json({
+    oauthType: req.session.oauthType || null,
+    clientType: req.session.clientType || null,
+    username: req.session.user?.username || null,
+  }));
   return app;
 }
 
@@ -107,10 +113,33 @@ describe('routes/davinciSdkLogin', () => {
       expect(res.body).toMatchObject({
         clientId: SDK_APP_ID,
         redirectUri: EXPECTED_REDIRECT,
-        scope: 'openid profile email',
         wellknown: 'https://auth.pingone.com/env-1/as/.well-known/openid-configuration',
       });
       expect(res.body.nonce).toMatch(/^[0-9a-f]{32}$/);
+    });
+
+    it('asks for a Demo API scope, which is what sets the token audience', () => {
+      // Not cosmetic. With only the OIDC scopes PingOne mints the access token
+      // for its OWN api (aud: https://api.pingone.com); middleware/auth.js
+      // requires enduser.ping.demo in `aud` and fails closed. The observable
+      // result was a sign-in that SUCCEEDED (/start 200, /callback 200) and
+      // then 401'd on every authenticated call, which reads as a lost session.
+      //
+      // Asserted as "contains the customer scopes" rather than as a literal
+      // string, because the point is that a resource scope is present at all —
+      // a literal would also pass if someone swapped in an unrelated one.
+      const { getScopesForUserType } = require('../../config/scopes');
+      const customer = getScopesForUserType('customer');
+      expect(customer.length).toBeGreaterThan(0);
+
+      return request(app)
+        .post('/api/davinci-sdk-login/start')
+        .expect(200)
+        .then(({ body }) => {
+          const scopes = body.scope.split(' ');
+          expect(scopes).toEqual(expect.arrayContaining(['openid', 'profile', 'email']));
+          for (const s of customer) expect(scopes).toContain(s);
+        });
     });
 
     it('makes NO upstream call — the SDK talks to PingOne directly', async () => {
@@ -147,7 +176,7 @@ describe('routes/davinciSdkLogin', () => {
           token_type: 'Bearer',
         },
       });
-      oauthService.getUserInfo.mockResolvedValue({ sub: 's', preferred_username: 'customer1' });
+      oauthService.getUserInfo.mockResolvedValue({ sub: 's', preferred_username: 'customer1', email: 'customer1@example.com' });
       oauthService.createUserFromOAuth.mockReturnValue({ username: 'customer1' });
       dataStore.getUserByUsername.mockReturnValue({ id: 'u1', username: 'customer1', role: 'customer' });
     }
@@ -159,7 +188,10 @@ describe('routes/davinciSdkLogin', () => {
       await a
         .post('/api/davinci-sdk-login/callback')
         .send({ code: 'c', codeVerifier: 'v' })
-        .expect(200, { ok: true });
+        // username names a reused PingOne session; userId (PingOne `sub`) and
+        // email let the page show who signed in. Matching the WHOLE body also
+        // proves no token material comes back to the browser.
+        .expect(200, { ok: true, username: 'customer1', userId: 's', email: 'customer1@example.com' });
 
       const [url, body] = axios.post.mock.calls[0];
       expect(url).toBe('https://auth.pingone.com/env-1/as/token');
@@ -171,6 +203,31 @@ describe('routes/davinciSdkLogin', () => {
       // Public client: PKCE proves possession, so no secret may be sent.
       expect(form.get('client_secret')).toBeNull();
       expect(body).not.toContain('client_secret');
+    });
+
+    // A customer sign-in: without oauthType 'user' the session reads as admin to
+    // /api/auth/oauth/status and as signed-out to /api/auth/oauth/user/status.
+    it('stores the session as a customer (oauthType user) sign-in', async () => {
+      const { a, nonce } = await armed();
+      happyUpstream(nonce);
+
+      await a.post('/api/davinci-sdk-login/callback').send({ code: 'c', codeVerifier: 'v' }).expect(200);
+
+      const { body } = await a.get('/__session').expect(200);
+      expect(body.username).toBe('customer1');
+      expect(body.oauthType).toBe('user');
+      expect(body.clientType).not.toBeNull();
+    });
+
+    it("falls back to the demo user record's email when PingOne userinfo has none", async () => {
+      const { a, nonce } = await armed();
+      happyUpstream(nonce);
+      oauthService.getUserInfo.mockResolvedValue({ sub: 's', preferred_username: 'customer1' });
+      dataStore.getUserByUsername.mockReturnValue({ id: 'u1', username: 'customer1', email: 'record@example.com', role: 'customer' });
+
+      const res = await a.post('/api/davinci-sdk-login/callback').send({ code: 'c', codeVerifier: 'v' }).expect(200);
+      expect(res.body.userId).toBe('s');
+      expect(res.body.email).toBe('record@example.com');
     });
 
     it('ignores a body-supplied redirectUri and uses the server-derived one', async () => {
