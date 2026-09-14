@@ -107,6 +107,9 @@ below.
      Sports Gear & Rentals or CareConnect Health Data.
    - **Handoff · Super Sports Checkout** — reads gear orders, then hands
      payment to Money Movement, so one chat reaches two business units.
+     "Withdraw $449 from checking to pay for order 2002" runs
+     `create_withdrawal` and stops at the demo's human-consent step
+     (`hitl_required`) — approve it on the web dashboard.
 
    Account Viewer and Checkout change the demo balances. To see each step,
    look for `Transferred to <agent>` between the two agents' tool calls.
