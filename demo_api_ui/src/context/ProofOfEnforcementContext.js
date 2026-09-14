@@ -185,6 +185,17 @@ export function computeVerdict(trace, catalogEntry) {
   // policy DENY also lands here as status:'error' (with denied:true), and for a
   // deny-like use case that block IS the demo working.
   const dispatchFailed = trace.mcpResult?.status === 'error';
+  // UC32 expects no fixed decision — the live scope decides — so a gateway
+  // deny under the reconfigured scope is the policy working, not a failed run.
+  if (expected === 'POLICY_RECONFIGURED' && trace.mcpResult?.denied) {
+    return {
+      useCaseId, id: catalogEntry.id, title: catalogEntry.title,
+      expectedOutcome: expected,
+      state: 'verified', matchedSteps, missingSteps: [], vertical,
+      intent, tool, mechanism,
+      resultText: 'Denied by the reconfigured scope policy',
+    };
+  }
   if ((trace.outcome === 'error' || dispatchFailed) && state !== 'denied-as-expected') {
     return {
       useCaseId, id: catalogEntry.id, title: catalogEntry.title,
