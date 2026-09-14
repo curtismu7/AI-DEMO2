@@ -172,6 +172,32 @@ JSON 502 instead of a dropped connection, and below the BFF's
 `http://ping-gateway:8080/mcp/weather` with header `MCP-Protocol-Version:
 2025-06-18`; a lookup over 10 s must return 200, not a 0-byte 502.
 
+### 2026-09-14 — Proof strip: a deny-expected use case whose call failed before any block is not "Denied as expected"
+
+**Files changed:** `demo_api_ui/src/context/ProofOfEnforcementContext.js`. Tests:
+`src/context/__tests__/ProofOfEnforcementContext.failedDispatch.test.js`.
+
+**What was broken:** with `ai-demo-ping-gateway` missing from the stack, every
+UC31 run failed `token_exchange_failed — getaddrinfo ENOTFOUND ping-gateway`,
+yet the card read "Verified (as expected) — Denied as expected by policy".
+`computeVerdict` treats a deny-like expectation with no decision as satisfied,
+and the failed-dispatch demotion skipped every `denied-as-expected` state, so a
+call that never reached the gateway was scored as the policy working.
+
+**What was fixed:** a failed dispatch (`mcpResult.status === 'error'`) only keeps
+`denied-as-expected` when the block is on the trace — `mcpResult.denied`, a
+`trace.authorize.outcome`, or a non-PERMIT decision. Otherwise it is a mismatch,
+"Run failed — the tool call did not complete".
+
+**Do not break:**
+- A real gateway deny (`denied: true`, with or without an authorize decision)
+  stays green — UC31 and every `gateway_policy_denied` path set `denied`.
+- Deny, step-up and HITL verdicts with `mcpResult: null` (authorize-only
+  evidence, attack sims) are untouched: the check needs a failed dispatch.
+
+**Verify:** `cd demo_api_ui && node_modules/.bin/vitest run ProofOfEnforcementContext`.
+"a deny-like use case whose call failed before any block" fails against the pre-fix file.
+
 ### 2026-09-14 — UC32: a run under a changed weather scope is scored as UC32, not UC31
 
 **Files changed:** `demo_api_ui/src/utils/weatherScopeHandoff.js`,
