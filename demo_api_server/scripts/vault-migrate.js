@@ -142,6 +142,40 @@ const ALLOWED_ENV_VARS = Object.freeze([
   // `kubectl set env` on the SE deployment (see privilege/AGENTLESS-
   // CONFIGURATION.md, 2026-09-06 banking-rest entry).
   'MCP_RESOURCE_SERVER_API_KEY',
+  // Added 2026-09-14 (vault coverage audit): secret-shaped names present in
+  // one or more service .env files but missing from this allowlist, found by
+  // diffing every `*_SECRET`/`*_KEY`/`*_TOKEN`/`*_PASSWORD`-suffixed name
+  // across all 13 service .env files against this list.
+  'PINGONE_FRAUD_WATCH_AGENT_CLIENT_SECRET',
+  'PINGONE_BALANCE_SWEEP_AGENT_CLIENT_SECRET',
+  'PINGONE_SAMPLE_FLOW_CLIENT_SECRET',
+  'BRAVE_SEARCH_API_KEY',
+  'NOTEBOOKLM_SERVER_TOKEN',
+  'LLM_DIRECT_ANTHROPIC_KEY',
+  'LLM_DIRECT_GOOGLE_KEY',
+  'LLM_DIRECT_OPENAI_KEY',
+  // Present in 3 files (demo_api_server, demo_mcp_gateway, ping-gateway) —
+  // exactly the multi-service-disagreement shape that caused the 2026-08-25
+  // GW_INTROSPECTION outage; vault-backing removes the possibility of drift.
+  'MCP_GW_PRIVILEGE_BRIDGE_SECRET',
+  // demo_api_resource_server refuses to boot on its default value (see
+  // demo_api_resource_server/server.js's own FATAL check).
+  'API_RESOURCE_SERVER_API_KEY',
+  'PRIVILEGE_PROXY_TOKEN',
+  // Grafana is explicitly internet-facing (root CLAUDE.md); these three
+  // secure the admin login and its PingOne SSO client.
+  'GRAFANA_PINGONE_CLIENT_SECRET',
+  'GRAFANA_ADMIN_PASSWORD',
+  'GRAFANA_ADMIN_TOKEN',
+  // Deliberately NOT added (same audit, checked their actual usage before
+  // excluding): `PINGONE_BOOTSTRAP_CLIENT_SECRET` (the chicken-and-egg
+  // bootstrap secret needed before the vault exists — same class as
+  // VAULT_PASSWORD below), `PINGONE_SAMPLE_TEST_PASSWORD` (a PingOne devdocs
+  // sample-app's test-user login, not an access-control secret — see
+  // routes/nativeFlowSample.js), `E2E_CUSTOMER_PASSWORD` (a literal alias for
+  // the already-excluded DEMO_USER_PASSWORD — see demo_api_ui/tests/helpers/
+  // demoCredentials.js's own MAPPING).
+  //
   // Deliberately NOT added, same judgment call already made and documented
   // for dotenvx encryption in demo_api_server/scripts/dotenvx-encrypt-envs.js
   // (ADDITIONAL_SECRET_NAMES comment, 2026-08-18): `DOTENV_PUBLIC_KEY` (meant
