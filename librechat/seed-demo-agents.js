@@ -312,13 +312,14 @@ AGENTS.push({
   description: 'Reads Super Sports gear orders, then hands payment to the Money Movement agent: one chat reaches two business units.',
   instructions: `You are the Super Sports checkout demo assistant. ${SS_IDS} Look up gear orders yourself. When the user wants to pay for an order, hand off to Money Movement with the order and its amount. Keep answers short.`,
   tools: ['list_gear', 'gear_order_status'],
-  // "Pay" alone made Money Movement call create_transfer with no destination
-  // account, which failed (measured 2026-09-14); paying is a withdrawal.
-  handoffs: [{ to: 'Money Movement', description: 'Pay for an order: withdraw its amount from the named bank account with create_withdrawal (not a transfer).' }],
+  handoffs: [{ to: 'Money Movement', description: 'Pay from a bank account: withdrawals and transfers.' }],
   conversation_starters: [
     'Show my gear orders',
     'Where is my Garmin Forerunner 265 order (2002)?',
-    'Pay for my Garmin Forerunner 265 order (2002) from checking',
+    // A bare "pay for my order" made Money Movement call create_transfer with an
+    // invented payee account ("To account not found", 2/2 on 2026-09-14, even
+    // with the handoff description saying withdrawal) — name the withdrawal.
+    'Withdraw $449 from checking to pay for order 2002',
   ],
 });
 
