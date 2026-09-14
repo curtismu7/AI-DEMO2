@@ -124,18 +124,40 @@ export default function HistoryModal({ history, onClear }) {
   const [size,    setSize]    = useState({ w: 340, h: 460 });
   const [open,    setOpen]    = useState(true);
   const [visible, setVisible] = useState(true);
+  const [isPoppedOut, setIsPoppedOut] = useState(false);
   // eslint-disable-next-line no-unused-vars
   const dragRef   = useRef(null);
   // eslint-disable-next-line no-unused-vars
   const resizeRef = useRef(null);
   const prevLenRef = useRef(0);
+  const logRef = useRef(null);
+  const popupRef = useRef(null);
 
-  // Auto-reopen when new history arrives after being dismissed
+  // Auto-reopen when new history arrives after being dismissed — but not
+  // while the popout window owns the view, or it reappears alongside it.
   useEffect(() => {
     const len = history ? history.length : 0;
-    if (len > prevLenRef.current && len > 0) setVisible(true);
+    if (len > prevLenRef.current && len > 0 && !isPoppedOut) setVisible(true);
     prevLenRef.current = len;
+  }, [history, isPoppedOut]);
+
+  // Auto-scroll the log to the newest entry as the simulation adds steps.
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [history]);
+
+  // Restore the in-page panel once the user closes the popout window.
+  useEffect(() => {
+    if (!isPoppedOut) return undefined;
+    const id = setInterval(() => {
+      if (popupRef.current?.closed) {
+        popupRef.current = null;
+        setIsPoppedOut(false);
+        setVisible(true);
+      }
+    }, 500);
+    return () => clearInterval(id);
+  }, [isPoppedOut]);
 
   // Listen for clear signal posted by the popout window
   useEffect(() => {
@@ -229,6 +251,8 @@ export default function HistoryModal({ history, onClear }) {
       </body>`;
     w.document.replaceChild(html, w.document.documentElement);
     // Hide the in-browser panel while popout is open
+    popupRef.current = w;
+    setIsPoppedOut(true);
     setVisible(false);
   }, [history, size, pos]);
 
@@ -284,7 +308,7 @@ export default function HistoryModal({ history, onClear }) {
       {/* Log — vertical scroll, newest at bottom */}
       {open && (
         <>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px' }}>
+          <div ref={logRef} className="hm-log" style={{ flex: 1, overflowY: 'auto', padding: '10px 12px' }}>
             {history.map((entry, idx) => (
               <HistoryEntry key={idx} entry={entry} />
             ))}

@@ -231,6 +231,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "Agentic Trust",
       "Agent Guardrails",
       "OWASP Agent Risks",
+      "Privilege for AI",
       "llama-vscode Guide",
     ],
   },
