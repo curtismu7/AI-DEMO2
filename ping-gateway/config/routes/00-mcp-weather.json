@@ -31,7 +31,7 @@
       "handler": {
         "type": "ReverseProxyHandler",
         "baseURI": "${env['PG_WEATHER_BACKEND_URL']}",
-        "config": {}
+        "config": { "soTimeout": "20 seconds" }
       }
     }
   }

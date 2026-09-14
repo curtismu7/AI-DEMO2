@@ -141,6 +141,37 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-14 — Weather MCP: an uncached lookup no longer 502s at PingGateway's 10-second socket timeout
+
+**Files changed:** `ping-gateway/config/routes/00-mcp-weather.json`.
+
+**What was broken:** the route's `ReverseProxyHandler` had `"config": {}`, so it
+ran on PingGateway's default `soTimeout` of 10 seconds. An uncached weather-mcp
+lookup (Nominatim geocode, then api.weather.gov) routinely takes 4–12 s — a
+direct Austin call measured 11.7 s. Past 10 s PingGateway destroyed the
+connection: `BadGatewayFilter @00-mcp-weather … HttpClosedException: Connection
+was closed`, an empty-body 502, and the chat showed "Gateway upstream error (HTTP
+502)". Denies never reached the backend, so only permitted calls (UC30, UC32
+under "Any") failed, and only on a cold cache. Reproduced 2026-09-14: scope
+`any`, `get_weather` "Springfield" through `ping-gateway:8080/mcp/weather` →
+502, 0 bytes, 10,055 ms; Portland (7.3 s) and Columbus (7.7 s) succeeded.
+
+**What was fixed:** `soTimeout: "20 seconds"` on that route's
+`ReverseProxyHandler`. It sits above the bridge's own 15 s child timeout
+(`demo_mcp_weather/server.js`), so a genuinely hung lookup returns the bridge's
+JSON 502 instead of a dropped connection, and below the BFF's
+`MCP_GATEWAY_TIMEOUT_MS` (30 s), so the BFF still hears the answer.
+
+**Do not break:**
+- Keep this route's `soTimeout` above the bridge's 15 s child timeout and below
+  the BFF's gateway timeout; lowering it back reintroduces the cold-cache 502.
+- The scope filter (`tx-weather-scope.groovy`) is unchanged: denies still return
+  403 before any backend connection.
+
+**Verify:** after the route reloads, send an uncached city (scope `any`) through
+`http://ping-gateway:8080/mcp/weather` with header `MCP-Protocol-Version:
+2025-06-18`; a lookup over 10 s must return 200, not a 0-byte 502.
+
 ### 2026-09-14 — UC32: a run under a changed weather scope is scored as UC32, not UC31
 
 **Files changed:** `demo_api_ui/src/utils/weatherScopeHandoff.js`,
