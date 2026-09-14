@@ -34,22 +34,24 @@ function _isTestRun() {
  */
 async function forwardDenial(attempt) {
   if (_isTestRun()) return;
-  if (configStore.getEffective('ff_external_guardrail_webhook') !== 'true') return;
-  const url = configStore.getEffective('EXTERNAL_GUARDRAIL_WEBHOOK_URL');
-  if (!url) return;
+  // The caller does not await or catch this, so a config-store throw must not
+  // escape as an unhandled rejection.
+  try {
+    if (configStore.getEffective('ff_external_guardrail_webhook') !== 'true') return;
+    const url = configStore.getEffective('EXTERNAL_GUARDRAIL_WEBHOOK_URL');
+    if (!url) return;
 
-  const payload = {
-    source: 'ai-demo-bff',
-    eventType: 'ai_guard_denial',
-    timestamp: new Date().toISOString(),
-    ...attempt,
-  };
+    const payload = {
+      source: 'ai-demo-bff',
+      eventType: 'ai_guard_denial',
+      timestamp: new Date().toISOString(),
+      ...attempt,
+    };
 
-  await axios
-    .post(url, payload, { headers: { 'Content-Type': 'application/json' }, timeout: 5000 })
-    .catch((err) => {
-      console.warn('[externalGuardrailForwarder] forward failed:', err?.message);
-    });
+    await axios.post(url, payload, { headers: { 'Content-Type': 'application/json' }, timeout: 5000 });
+  } catch (err) {
+    console.warn('[externalGuardrailForwarder] forward failed:', err?.message);
+  }
 }
 
 module.exports = { forwardDenial };

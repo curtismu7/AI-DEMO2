@@ -70,6 +70,14 @@ describe('externalGuardrailForwarder test-environment guard', () => {
     expect(axios.post).not.toHaveBeenCalled();
   });
 
+  // The route calls this without await/catch — a rejection would be unhandled.
+  it('resolves (never rejects) when the config store throws', async () => {
+    process.env.EXTERNAL_GUARDRAIL_ALLOW_TEST_FORWARD = 'true';
+    configStore.getEffective.mockImplementation(() => { throw new Error('store not ready'); });
+    await expect(forwarder.forwardDenial({ provider: 'anthropic', verdict: 'BLOCKED' })).resolves.toBeUndefined();
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+
   it('no-ops when the flag is ON but no URL is configured', async () => {
     process.env.EXTERNAL_GUARDRAIL_ALLOW_TEST_FORWARD = 'true';
     stubStore({ flag: 'true', url: '' });
