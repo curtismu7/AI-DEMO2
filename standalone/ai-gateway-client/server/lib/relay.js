@@ -1021,6 +1021,8 @@ router.get('/state', (req, res) => {
     : [
       { name: PRIVILEGE_APP_OPENSEARCH(), privilegeUrl: DEFAULT_PRIVILEGE_OPENSEARCH_MCP_URL(), status: '', policies: [] },
       { name: PRIVILEGE_APP_BRAVE(), privilegeUrl: DEFAULT_PRIVILEGE_BRAVE_MCP_URL(), status: '', policies: [] },
+      // MCP Aggregate app: opensearch + banking-mcp behind one URL.
+      { name: 'aggregate', privilegeUrl: privilegeDoorUrl('aggregate'), status: '', policies: [] },
     ]
   ).filter((app) => app.name && app.name !== defaultApp);
 

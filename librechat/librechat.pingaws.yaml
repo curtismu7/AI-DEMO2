@@ -60,6 +60,13 @@ mcpServers:
     url: 'https://ai-demo.ping-devops.com/mcp-facade/privilege-gateway/opensearch22/mcp'
     timeout: 60000
 
+  # 1b. Same façade door, the Privilege `aggregate` app (MCP Aggregate:
+  #     opensearch + banking-mcp, 42 tools) — select a few from an Agent.
+  aggregate-privilege-gateway:
+    type: streamable-http
+    url: 'https://ai-demo.ping-devops.com/mcp-facade/privilege-gateway/aggregate/mcp'
+    timeout: 60000
+
   # 2. Via the Agentless gateway — the `external` Privilege application
   #    (privilege/AGENTLESS-CONFIGURATION.md). Same door as the docker
   #    variant's #4, over the SE ingress instead.

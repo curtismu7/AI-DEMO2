@@ -25,6 +25,12 @@
       "type": "default"
     },
     {
+      "key": "mcpgw_aggregate_url",
+      "value": "https://mcpgw.ai-demo.ping-devops.com/aggregate/mcp",
+      "description": "Privilege aggregate app (MCP Aggregate): opensearch + banking-mcp behind one URL",
+      "type": "default"
+    },
+    {
       "key": "pingone_client_id",
       "value": "a6219652-47af-4ed2-8dea-20e9940b3377",
       "description": "PingOne application the BFF uses for Privilege SSO (env 01d89b06)",
@@ -220,6 +226,37 @@
               "pm.test('200 OK', () => pm.response.to.have.status(200));",
               "const b = pm.response.json();",
               "console.log(JSON.stringify(b.result || b.error || b).slice(0, 400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5b. Configure — switch to the aggregate app (MCP Aggregate)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"mcpUrl\": \"{{mcpgw_aggregate_url}}\",\n  \"clientId\": \"{{pingone_client_id}}\"\n}"
+        },
+        "url": {
+          "raw": "{{bff_url}}/api/privilege-mcp/config",
+          "host": ["{{bff_url}}"],
+          "path": ["api", "privilege-mcp", "config"]
+        },
+        "description": "Switches the BFF to the Privilege `aggregate` app (type MCP Aggregate): opensearch (9 tools) and banking-mcp (33 tools) behind one URL, tool names prefixed `<server>__`.\n\nThen re-run 2 (Start Auth) and 3 (List tools)."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('200 OK', () => pm.response.to.have.status(200));",
+              "const b = pm.response.json();",
+              "pm.test('config saved', () => pm.expect(b.ok).to.be.true);",
+              "console.log('mcpUrl set to:', b.config?.mcpUrl);"
             ]
           }
         }

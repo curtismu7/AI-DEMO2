@@ -97,10 +97,12 @@ describe('GET /api/privilege-mcp/state — mcpUrl default', () => {
     const res = await request(app).get('/api/privilege-mcp/state').expect(200);
 
     const privilegeLabels = res.body.presets.filter((p) => p.mode === 'privilege').map((p) => p.label);
-    expect(privilegeLabels).toEqual(expect.arrayContaining(['Privilege — opensearch', 'Privilege — brave']));
+    expect(privilegeLabels).toEqual(expect.arrayContaining(['Privilege — opensearch', 'Privilege — brave', 'Privilege — aggregate']));
 
     const facadeLabels = res.body.presets.filter((p) => p.mode === 'facade').map((p) => p.label);
-    expect(facadeLabels).toEqual(expect.arrayContaining(['Façade — opensearch', 'Façade — brave']));
+    expect(facadeLabels).toEqual(expect.arrayContaining(['Façade — opensearch', 'Façade — brave', 'Façade — aggregate']));
+    expect(res.body.presets.find((p) => p.label === 'Façade — aggregate').url)
+      .toMatch(/\/mcp-facade\/privilege-gateway\/aggregate\/mcp$/);
 
     // Each app is a distinct URL, not three copies of the same default app.
     const privilegeUrls = res.body.presets.filter((p) => p.mode === 'privilege').map((p) => p.url);
