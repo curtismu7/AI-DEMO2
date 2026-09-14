@@ -22,12 +22,18 @@ afterEach(() => {
 });
 
 describe("DavinciLoginConfirmedPage", () => {
-  test("shows the signed-in user from /api/auth/me", async () => {
+  // The session's own demo user, not /api/auth/me: /me looks the user up by the
+  // token's PingOne sub, which is not the demo record a DaVinci sign-in stores,
+  // so its username came back blank.
+  test("shows the signed-in user from the customer session status", async () => {
     global.fetch = vi.fn((url) => {
-      expect(url).toBe("/api/auth/me");
+      expect(url).toBe("/api/auth/oauth/user/status");
       return Promise.resolve({
         ok: true,
-        json: async () => ({ user: { username: "demoUser", role: "customer", email: "demo@example.com" } }),
+        json: async () => ({
+          authenticated: true,
+          user: { username: "demoUser", role: "customer", email: "demo@example.com" },
+        }),
       });
     });
 
@@ -44,5 +50,16 @@ describe("DavinciLoginConfirmedPage", () => {
     const { findByText } = renderPage();
 
     await findByText(/could not load your session/i);
+  });
+
+  test("says so when the customer session is not signed in", async () => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: true, json: async () => ({ authenticated: false, user: null }) })
+    );
+
+    const { findByText, queryByText } = renderPage();
+
+    await findByText(/not signed in/i);
+    expect(queryByText("Username")).toBeNull();
   });
 });

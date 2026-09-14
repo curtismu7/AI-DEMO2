@@ -292,6 +292,41 @@ from a clone after `postWidgetSession` has already read it and stopped the
 run. Live check: the Call Inspector lists `/api/davinci-login/widget-session`
 after sign-in.
 
+### 2026-09-14 — DaVinci sign-ins (widget and SDK) stored the session in the admin status slot
+
+**Files changed:** `demo_api_server/routes/davinciLogin.js`,
+`demo_api_server/routes/davinciSdkLogin.js`,
+`demo_api_ui/src/pages/DavinciLoginConfirmedPage.jsx`. Tests:
+`tests/routes/davinciLogin.test.js`, `tests/routes/davinciSdkLogin.test.js`,
+`src/pages/__tests__/DavinciLoginConfirmedPage.test.jsx`.
+
+**What was broken:** both DaVinci sign-ins stored `oauthTokens` and `user` but
+never `oauthType` or `clientType`. `routes/oauth.js` `/status` (admin) counts any
+session whose `oauthType !== 'user'` as its own, so it answered
+`authenticated: true`; `routes/oauthUser.js` `/status` (customer) requires
+`oauthType` `'user'` or `'admin'`, so it answered `authenticated: false`. The app
+shell (`useAuth.js`) asks the admin endpoint first, so a customer looked signed
+in through the admin slot while every customer-status reader saw a signed-out
+user. Separately, `/davinci-login/confirmed` read `/api/auth/me`, which looks the
+user up by the token's PingOne `sub` rather than the demo user record the
+session holds, so Username was blank.
+
+**What was fixed:** both routes now set `req.session.clientType =
+determineClientType(accessToken)` and `req.session.oauthType = 'user'` beside
+`req.session.user`, exactly as `routes/oauthUser.js`'s callback does. The
+confirmed page reads `/api/auth/oauth/user/status` and says "You are not signed
+in." when it is not authenticated.
+
+**Do not break:** a DaVinci customer sign-in sets `oauthType = 'user'` —
+regenerate-before-store and `session.save()` are unchanged, and neither status
+endpoint was edited. `/api/auth/me` is shared and was not changed.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest
+tests/routes/davinciLogin.test.js tests/routes/davinciSdkLogin.test.js
+tests/davinciLoginNonce.test.js --forceExit` (each new `oauthType` assertion
+failed first). Live: after a widget sign-in, `/api/auth/oauth/user/status` is
+`authenticated: true` and `/api/auth/oauth/status` is `authenticated: false`.
+
 ### 2026-09-13 — Sequence view: a gateway filter deny with no deny phase is drawn on the gateway
 
 **Files changed:** `demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js`.
