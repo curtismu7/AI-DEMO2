@@ -42,6 +42,15 @@ test('GET /state defaults to privilege mode with a Privilege door preset', async
   });
 });
 
+test('Privilege presets include the MCP Aggregate app door', async () => {
+  await withServer(async (base) => {
+    const body = await (await fetch(`${base}/api/gateway/state`)).json();
+    const aggregate = body.presets.find((p) => p.label === 'Privilege — aggregate');
+    assert.ok(aggregate, 'no Privilege aggregate preset in /state');
+    assert.equal(aggregate.url, 'https://mcpgw.ai-demo.ping-devops.com/aggregate/mcp');
+  });
+});
+
 test('Direct mode ships both the opensearch default and the Brave sibling at their exact URLs', async () => {
   await withServer(async (base) => {
     const body = await (await fetch(`${base}/api/gateway/state`)).json();

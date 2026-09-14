@@ -196,3 +196,19 @@ mcpServers:
     type: streamable-http
     url: 'https://api.ping.demo:3001/mcp-facade/privilege-gateway/libre/mcp'
     timeout: 60000
+
+  # 6. The Privilege `aggregate` app (type MCP Aggregate): opensearch (9 tools)
+  #    and banking-mcp (33 tools) behind one URL, tool names prefixed
+  #    `<server>__`. Reachable through the AI Gateway only. 42 tools is more
+  #    schema than the gpt-oss tier holds — select a few from an Agent.
+  privilege-aggregate:
+    type: streamable-http
+    url: 'https://mcpgw.ai-demo.ping-devops.com/aggregate/mcp'
+    timeout: 60000
+
+  # 7. Same aggregate app through the recording façade (trace in the demo).
+  #    Sign in once at /privilege-mcp-client for the gateway leg.
+  aggregate-privilege-gateway:
+    type: streamable-http
+    url: 'https://api.ping.demo:3001/mcp-facade/privilege-gateway/aggregate/mcp'
+    timeout: 60000
