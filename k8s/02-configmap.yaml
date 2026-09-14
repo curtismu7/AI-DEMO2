@@ -101,6 +101,9 @@ data:
   # and aguiSseProxy.js, which otherwise default to 127.0.0.1:8888 (the BFF pod
   # itself) and 502 in-cluster. Points at the langchain-agent ClusterIP service.
   LANGCHAIN_AGENT_HTTP_URL: "http://langchain-agent:8888"
+  # Public A2A JSON-RPC URL advertised in the LangChain Agent Card. Privilege
+  # proxies this route to the in-cluster service and enforces the virtual key.
+  PRIVILEGE_A2A_PUBLIC_URL: "https://mcpgw.ai-demo.ping-devops.com/langchainagent/a2a/jsonrpc"
 
   # Feature flag (hand-managed): enable the HTTP MCP transport alongside WS.
   HTTP_MCP_TRANSPORT_ENABLED: "true"

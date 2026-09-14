@@ -141,6 +141,39 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-14 — Privilege Remote Agent now has a real, authenticated A2A backend
+
+**Files changed:** `langchain_agent/src/api/a2a_handler.py`,
+`langchain_agent/src/authentication/token_validator.py`, `langchain_agent/src/main.py`,
+`langchain_agent/tests/test_a2a_handler.py`,
+`langchain_agent/tests/test_token_validator_path_a.py`, `k8s/02-configmap.yaml`.
+
+**What was broken:** Privilege's `langchainagent` Remote Agent pointed at
+`http://langchain-agent.ai-demo.svc.cluster.local:8888`, but no `ai-demo`
+namespace exists in the live SE cluster and the deployed service belongs in
+`ping-devops-cmuir`. Even if DNS had resolved, port 8888 exposed AG-UI `/run`
+only—there was no A2A Agent Card or JSON-RPC endpoint for Privilege to call.
+
+**What was fixed:** The LangChain FastAPI process now publishes a Privilege-compatible
+A2A 0.3 Agent Card at `/a2a/.well-known/agent-card.json` and accepts
+`message/send` at `/a2a/jsonrpc`. Agent execution is fail-closed: the
+gateway-injected `txn-token` must be an RS256 PingOne JWT with the configured
+issuer, a valid expiry, audience `PingGateway`, and `client_id`. The token is
+never logged or returned. `PRIVILEGE_A2A_PUBLIC_URL` keeps the advertised JSON-RPC
+URL on the public Privilege gateway rather than leaking an internal service name.
+
+**Do not break:** `/run`, `/codegraph/*`, and `/inspector/*` remain protected by
+`BFF_INTERNAL_SECRET`. Only A2A discovery is public on the pod network; A2A
+execution must never accept a merely present or decoded `txn-token` without
+signature, issuer, expiry, audience, and client validation.
+
+**Verify:** `cd langchain_agent && bash scripts/run-pytest.sh
+tests/test_a2a_handler.py tests/test_token_validator_path_a.py`. After deployment,
+Privilege Backend URL must be
+`http://langchain-agent.ping-devops-cmuir.svc.cluster.local:8888`; Agent Card
+discovery through `/langchainagent/a2a/.well-known/agent-card.json` must return
+200 with a valid AI Gateway key.
+
 ### 2026-09-14 — Weather MCP: an uncached lookup no longer 502s at PingGateway's 10-second socket timeout
 
 **Files changed:** `ping-gateway/config/routes/00-mcp-weather.json`.
