@@ -20,6 +20,22 @@ what this repo called "agentless").
 | Authentication | Gateway-managed OAuth: RFC 7591 dynamic registration + PKCE, no client id configured on the client |
 | Gateway's own OIDC | client `1a403855-81f6-45eb-b233-fed59abc5c73` in tenant `0428ba4f…`, from secret `agentless-mcpgw-oidc-config` (key `pingone.env`). This is what `PRIVILEGE_SSO_CLIENT_ID`/`_ENV_ID` must match — see "Which PingOne identity is which" |
 
+## NHI: ai-demo-se-cluster-sensor
+
+Registered 2026-09-14 in the PingOne Privilege **Register non-human identity**
+flow. This is an identity-only Kubernetes ServiceAccount; it has no explicit
+RoleBinding or ClusterRoleBinding in the SE cluster.
+
+| | |
+|---|---|
+| Platform | Kubernetes — ServiceAccount Token |
+| Issuer | `https://oidc.eks.us-east-2.amazonaws.com/id/9ACBE86EA026DE86EFC05A61A5F83B30` |
+| Subject | `system:serviceaccount:ping-devops-cmuir:shadow-ai-sensor` |
+| JWKS | `https://oidc.eks.us-east-2.amazonaws.com/id/9ACBE86EA026DE86EFC05A61A5F83B30/keys` |
+| Generated audience | `priv-nhi-zqgtl66tzwdjs46qmjfq5p4gg4ngvsxh` |
+| Permission | `shadowai:write` only |
+| Last reported | Never — the optional `procyon-nodesensor` deployment has not been run |
+
 ## Rules that still bite
 
 - **Register the backend with `/mcp`, never `/sse`** — and this file has now

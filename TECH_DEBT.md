@@ -16,6 +16,23 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-14 — Shadow-AI reporting is registered but not wired
+
+The SE cluster is registered as a federated NHI in Privilege
+(`privilege/CURRENT-CONFIGURATION.md` → `ai-demo-se-cluster-sensor`) with
+`shadowai:write` and generated audience
+`priv-nhi-zqgtl66tzwdjs46qmjfq5p4gg4ngvsxh`. The console now offers the
+`procyon-nodesensor` Helm chart, but it has not been deployed or validated in
+this cluster; the NHI's last reported status is therefore `Never`.
+`docs/use-cases/nhi-inventory.md` (UC-NHI1) still runs on
+`demo_api_server/services/controlPlane/demoAgentRoster.js` mock data.
+
+Upgrade path: review the vendor chart and its DaemonSet permissions, deploy it
+with the registered audience and `shadow-ai-sensor` ServiceAccount, verify a
+real `shadowai:write` report, then extend
+`demo_api_server/services/controlPlane/liveAgentInfo.js` to consume discovered
+workloads instead of the mock roster.
+
 ### [ ] 2026-09-14 — /sdk-login embedded sign-in depends on a hand-set PingOne CORS setting
 
 **What's wrong.** The embedded (`pi.flow`) sign-in on `/sdk-login` only completes

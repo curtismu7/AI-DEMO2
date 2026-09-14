@@ -13,14 +13,15 @@
 ## Research findings (read before executing)
 
 - **The reporting half of this feature is real but not available to us yet.** `privilege/LESSONS-LEARNED.md` (line 682) shows the Privilege *Mac desktop agent* logs `collectShadowAIEvents: shadowAISync not initialized` — proof `shadowAISync`/shadow-AI discovery is a real, existing Privilege capability. But the only sensor binary we have evidence of is the Mac desktop agent (`cyonagent_mac`, per-workstation). The Helm chart we already hold (`pingone-privgateway-helm-main/agent/privgateway-0.1.0.tgz`) deploys `cyonproxy` (the MCP gateway proxy) — **not** a shadow-AI discovery sensor. There is no k8s-deployable sensor in anything this repo currently has access to.
-- **Consequence:** registering the cluster as an NHI (Tasks 1-4 below) is real and completable now. Actually receiving discovered-workload reports via `shadowai:write` is blocked on a vendor artifact we don't have — Task 5 documents this as a parked follow-up instead of faking it.
+- **Update after console registration (2026-09-14):** the Privilege console now offers a `procyon-nodesensor` Helm chart and generated install values. That vendor artifact is outside this repository and has not been deployed or permission-reviewed here; deploying and validating it is follow-up work, not part of the registration proof below.
+- **Consequence:** registering the cluster as an NHI (Tasks 1-4 below) is real and complete. Actually receiving discovered-workload reports via `shadowai:write` remains parked: the vendor chart now shown by the console has not been deployed or permission-reviewed — Task 5 records that follow-up instead of faking reports.
 - **The public Privilege docs don't cover this yet either** — `docs.pingidentity.com/privilege/llms.txt` has no pages on NHI registration, workload federation, or `shadowai:write` as of 2026-09-14. Confirmed by direct fetch, not assumed.
 - **Cluster identity, confirmed live:** kubectl context `us` already points at the SE EKS cluster; the real AI-DEMO2 workloads run in namespace `ping-devops-cmuir` (confirmed via `kubectl get svc -n ping-devops-cmuir` → `mcp-resource-server`, `grafana`, `jaeger`, `loki`, `prometheus`). `ping-devops-curtismuir` is a separate namespace (Privilege gateway sandbox: `agentless-mcpgw`, `opensearch-mcp-server`) — do not confuse the two.
 - **Our kubectl user lacks RBAC to hit `/.well-known/openid-configuration` through the apiserver proxy** (`Forbidden` when tried live) — Task 1 reads the issuer out of a minted token's own `iss` claim instead, which needs no extra RBAC.
 
 ## Non-Goals (explicitly out of scope for this plan)
 
-- Building a `shadowai:write` reporter. No sensor artifact exists yet to run it against — see Task 5.
+- Building or deploying a `shadowai:write` reporter. The console offers a vendor `procyon-nodesensor` chart, but this plan does not deploy or validate that artifact — see Task 5.
 - Automating the console registration step itself. There is no documented Privilege admin API and no MCP tool for it (`scripts/privilege-console-probe.mjs` reverse-engineers a read-only console API using a human's `auth_token` browser cookie — there is no service-account credential path). Task 4 is a manual runbook for a human to execute.
 - Wiring `docs/use-cases/nhi-inventory.md` / `ControlPlaneRoster.jsx` to real discovery data. That depends on Task 5's outcome and is not part of this plan.
 
@@ -298,7 +299,7 @@ This is a human-executed task in the Privilege browser console (no API/MCP acces
 **Files:**
 - Modify: `privilege/CURRENT-CONFIGURATION.md` (existing doc that already tracks what's live in Privilege for this demo)
 
-- [ ] **Step 1: Execute the registration**
+- [x] **Step 1: Execute the registration**
 
 In the Privilege console's "Register non-human identity" screen:
 
@@ -312,7 +313,7 @@ In the Privilege console's "Register non-human identity" screen:
 | JWKS URL | the value Task 1's script printed |
 | Permissions | `shadowai:write` only — leave `policy:read` unchecked (least privilege; nothing in this plan reads policy) |
 
-- [ ] **Step 2: Record the result**
+- [x] **Step 2: Record the result**
 
 Add a new section to `privilege/CURRENT-CONFIGURATION.md`:
 
@@ -321,15 +322,15 @@ Add a new section to `privilege/CURRENT-CONFIGURATION.md`:
 
 - Registered: 2026-09-14
 - ServiceAccount: system:serviceaccount:ping-devops-cmuir:shadow-ai-sensor (no RBAC bindings)
-- JWKS URL: <paste the value from scripts/nhi/check-cluster-jwks.sh>
-- Generated audience: <paste what the console displayed after Save>
+- JWKS URL: `https://oidc.eks.us-east-2.amazonaws.com/id/9ACBE86EA026DE86EFC05A61A5F83B30/keys`
+- Generated audience: `priv-nhi-zqgtl66tzwdjs46qmjfq5p4gg4ngvsxh`
 - Permission: shadowai:write only
-- Status: registered; NOT receiving reports — no k8s-deployable shadow-AI
-  sensor exists yet (see Task 5 of the plan above). This registration only
-  proves the federation trust works.
+- Status: registered; NOT receiving reports — the optional `procyon-nodesensor`
+  chart has not been deployed. This registration only proves the federation
+  trust works.
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add privilege/CURRENT-CONFIGURATION.md
@@ -347,7 +348,7 @@ git commit -m "docs(nhi): record the registered cluster NHI in CURRENT-CONFIGURA
 
 Re-run the check this plan already did once: `grep -rl "sensor" pingone-privgateway-helm-main/` and check whether a Ping SE/Privilege contact has shipped a k8s DaemonSet or sidecar variant of the shadow-AI agent since 2026-09-14. If one now exists, this plan's scope was deliberately limited to registration — building the reporter is new work, not covered here.
 
-- [ ] **Step 2: Record the parked state**
+- [x] **Step 2: Record the parked state**
 
 Add to `TECH_DEBT.md`:
 
@@ -356,20 +357,19 @@ Add to `TECH_DEBT.md`:
 
 The SE cluster is registered as a federated NHI in Privilege
 (`privilege/CURRENT-CONFIGURATION.md` → `ai-demo-se-cluster-sensor`), but
-nothing calls `shadowai:write` yet — the only shadow-AI sensor we have
-evidence of is the Mac desktop agent (`privilege/LESSONS-LEARNED.md`,
-`collectShadowAIEvents`/`shadowAISync`), and it has no k8s-deployable
-variant in anything this repo holds. `docs/use-cases/nhi-inventory.md`
-(UC-NHI1) still runs on `demo_api_server/services/controlPlane/demoAgentRoster.js`
-mock data as a result.
+nothing calls `shadowai:write` yet. The console offers a vendor
+`procyon-nodesensor` Helm chart, but it has not been deployed or validated in
+this cluster. `docs/use-cases/nhi-inventory.md` (UC-NHI1) still runs on
+`demo_api_server/services/controlPlane/demoAgentRoster.js` mock data as a
+result.
 
-Upgrade path: once a k8s sensor artifact exists, point it at the
-`shadow-ai-sensor` ServiceAccount already registered, then extend
-`demo_api_server/services/controlPlane/liveAgentInfo.js` to pull real
-discovered-workload data instead of the mock roster.
+Upgrade path: review and deploy the vendor chart with the registered
+`shadow-ai-sensor` ServiceAccount and generated audience, verify a real report,
+then extend `demo_api_server/services/controlPlane/liveAgentInfo.js` to pull
+real discovered-workload data instead of the mock roster.
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add TECH_DEBT.md
@@ -380,7 +380,7 @@ git commit -m "docs(nhi): park shadow-AI reporting pending a k8s-deployable sens
 
 ## Self-Review
 
-**Spec coverage:** Task 1 covers "prove the JWKS is real"; Task 2 covers "create the identity, least-privilege"; Task 3 covers "prove the federation trust works before touching the console"; Task 4 covers the actual registration + record-keeping; Task 5 covers the explicitly-named blocker (no sensor artifact) so it isn't silently dropped. Non-Goals names the three things this plan deliberately does not build.
+**Spec coverage:** Task 1 covers "prove the JWKS is real"; Task 2 covers "create the identity, least-privilege"; Task 3 covers "prove the federation trust works before touching the console"; Task 4 covers the actual registration + record-keeping; Task 5 records the newly surfaced vendor sensor artifact as follow-up without deploying it. Non-Goals names the three things this plan deliberately does not build.
 
 **Placeholder scan:** no TBD/"add error handling"/"similar to Task N" — every code step has real, runnable content; Task 4/5 are manual/doc tasks by nature (no code exists to place there) and say so explicitly rather than faking code.
 
