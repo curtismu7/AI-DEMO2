@@ -9823,6 +9823,7 @@ export default function BankingAgentFull({
                 <label>
                   MCP transport{" "}
                   <select
+                    className="ctl-select"
                     value={mcpTransport}
                     onChange={(e) => setMcpTransport(e.target.value)}
                   >
@@ -9832,12 +9833,12 @@ export default function BankingAgentFull({
                 </label>
                 )}
                 {!pageOwnsAgentChrome && mcpTransport === "privilege" && (
-                <span role="note" title="Privilege policy applies on this path; the banking demo's consent, HITL, and kill-switch checks do not run here.">
-                  Privilege enforces policy here — banking consent/HITL/kill-switch do not run on this path
+                <span role="note" title="Privilege policy applies on this path; the banking demo's consent, HITL, and kill-switch checks do not run here. Scope: direct tool-call chips only — chat replies and the account/transfer helper actions still use the direct pipeline.">
+                  Privilege enforces policy here — banking consent/HITL/kill-switch do not run on this path. This only redirects direct tool-call chips; chat replies and the account/transfer helper actions still use the direct pipeline.
                 </span>
                 )}
                 {!pageOwnsAgentChrome && (
-                <span aria-disabled="true" title="Not implemented yet">
+                <span title="Not implemented yet">
                   Privilege A2A — coming later
                 </span>
                 )}
