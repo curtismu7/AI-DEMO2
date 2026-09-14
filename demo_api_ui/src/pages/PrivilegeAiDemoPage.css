@@ -1,0 +1,211 @@
+/* Privilege for AI — Hostile MCP (/privilege-for-ai).
+
+   Themeable values come from --th-* so both light and dark work without a
+   prefers-color-scheme block (THEMING.md); dark is :root[data-theme="dark"]
+   only. Every themed ground also sets its ink, font sizes come from the scale
+   (--font-size-* with --font-size-3xs the floor), radii from --radius-*, and
+   any code/URL uses var(--font-mono) — never a literal family, which the
+   uiRegression CSS test forbids. Permit/deny/gap use the --th-status-* set. */
+
+/* The page chrome — title, subtitle, section nav, Export PDF button and print
+   handout — comes from the shared LessonLayout. These rules style only the
+   content blocks inside each Section. */
+.pfa-sub {
+  margin: 0 0 20px;
+  max-width: 66ch;
+  font-size: var(--font-size-md);
+  line-height: 1.55;
+  color: var(--th-text-muted);
+}
+
+/* Threat matrix */
+.pfa-matrix { display: flex; flex-direction: column; gap: 12px; }
+.pfa-threat {
+  display: grid;
+  grid-template-columns: 42px 1fr 210px;
+  gap: 18px;
+  align-items: center;
+  padding: 18px 20px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+  border-left: 4px solid var(--th-edge, var(--th-border));
+  border-radius: var(--radius-md, 10px);
+}
+.pfa-tone-deny { --th-edge: var(--th-status-error); }
+.pfa-tone-content { --th-edge: var(--th-status-info); }
+.pfa-tone-gap { --th-edge: var(--th-status-warning); }
+
+.pfa-threat-num {
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+  color: var(--th-edge);
+  font-variant-numeric: tabular-nums;
+}
+.pfa-threat-title { margin: 0; font-size: var(--font-size-md); font-weight: 700; color: var(--th-text); }
+.pfa-threat-desc { margin: 4px 0 0; font-size: var(--font-size-sm); color: var(--th-text-muted); line-height: 1.5; }
+
+.pfa-verdict { display: flex; flex-direction: column; gap: 6px; }
+.pfa-tag {
+  align-self: flex-start;
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: var(--radius-sm, 6px);
+}
+.pfa-tag-stops {
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+}
+.pfa-tag-misses {
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+}
+.pfa-verdict-by { font-size: var(--font-size-xs); color: var(--th-text-muted); line-height: 1.45; }
+
+/* Flow */
+.pfa-flow-scroll { overflow-x: auto; padding-bottom: 4px; }
+.pfa-rail { display: flex; align-items: stretch; min-width: 640px; }
+.pfa-rail-cell { display: flex; align-items: stretch; flex: 1; }
+.pfa-node {
+  flex: 1;
+  padding: 16px;
+  text-align: center;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md, 10px);
+}
+.pfa-node-accent {
+  border-color: var(--th-status-info);
+  background: var(--th-status-info-bg);
+  color: var(--th-text);
+}
+.pfa-node-role {
+  font-size: var(--font-size-3xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--th-text-faint);
+  margin-bottom: 5px;
+}
+.pfa-node-name { font-size: var(--font-size-md); font-weight: 700; color: var(--th-text); }
+.pfa-node-sub { margin-top: 4px; font-size: var(--font-size-2xs); color: var(--th-text-muted); line-height: 1.4; }
+
+.pfa-conn {
+  flex: 0 0 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 6px;
+}
+.pfa-conn-lane { font-size: var(--font-size-3xs); color: var(--th-text-muted); text-align: center; line-height: 1.3; }
+.pfa-conn-arrow {
+  width: 100%;
+  height: 2px;
+  background: var(--th-border-strong);
+  color: var(--th-text);
+  position: relative;
+}
+.pfa-conn-arrow::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: -3px;
+  border: 4px solid transparent;
+  border-left-color: var(--th-border-strong);
+}
+.pfa-conn-guard {
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm, 6px);
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+}
+
+.pfa-gap {
+  margin-top: 18px;
+  padding: 16px 18px;
+  background: var(--th-status-warning-bg);
+  color: var(--th-text);
+  border: 1px solid var(--th-status-warning-border, var(--th-status-warning));
+  border-radius: var(--radius-md, 10px);
+}
+.pfa-gap-lbl {
+  margin: 0 0 6px;
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--th-status-warning-text);
+}
+.pfa-gap-body { margin: 0; font-size: var(--font-size-sm); line-height: 1.55; color: var(--th-text); }
+
+.pfa-code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  padding: 1px 5px;
+  border-radius: var(--radius-sm, 5px);
+}
+
+/* Steps */
+.pfa-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.pfa-step {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 16px;
+  align-items: start;
+  padding: 16px 18px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md, 10px);
+}
+.pfa-step-num {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm, 6px);
+  background: var(--th-status-info);
+  color: var(--th-text-invert);
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.pfa-step-text { margin: 0; font-size: var(--font-size-md); color: var(--th-text); line-height: 1.5; }
+.pfa-step-note { margin: 5px 0 0; font-family: var(--font-mono); font-size: var(--font-size-2xs); color: var(--th-text-muted); }
+.pfa-note-ok { color: var(--th-status-success-text); font-weight: 600; }
+.pfa-note-no { color: var(--th-status-error-text); font-weight: 600; }
+
+/* Reference */
+.pfa-ref {
+  margin: 0;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md, 10px);
+  overflow: hidden;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+.pfa-ref-row {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  gap: 16px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--th-border);
+}
+.pfa-ref-row:first-child { border-top: none; }
+.pfa-ref-k { font-size: var(--font-size-sm); color: var(--th-text-muted); }
+.pfa-ref-v { font-family: var(--font-mono); font-size: var(--font-size-2xs); color: var(--th-text); word-break: break-all; }
+
+@media (max-width: 680px) {
+  .pfa-threat { grid-template-columns: 36px 1fr; }
+  .pfa-verdict { grid-column: 1 / -1; padding-top: 10px; border-top: 1px dashed var(--th-border); }
+  .pfa-ref-row { grid-template-columns: 1fr; gap: 4px; }
+}

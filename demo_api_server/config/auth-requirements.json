@@ -231,6 +231,7 @@
     "/postman": "admin",
     "/privilege-demo": "public",
     "/privilege-first-gateway": "public",
+    "/privilege-for-ai": "public",
     "/privilege-gateway-topologies": "public",
     "/privilege-mcp-client": "public",
     "/privilege-mcp-diagrams": "public",

@@ -1056,6 +1056,7 @@ export default function AdminSideNav({
         { label: "Agentic Trust", path: "/agentic-trust", icon: "shld" },
         { label: "Agent Guardrails", path: "/agent-guardrails", icon: "pol" },
         { label: "OWASP Agent Risks", path: "/owasp", icon: "sec" },
+        { label: "Privilege for AI", path: "/privilege-for-ai", icon: "shld" },
         {
           label: "llama-vscode Guide",
           path: "/llama-vscode-guide",
