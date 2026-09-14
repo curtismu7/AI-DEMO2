@@ -291,6 +291,34 @@ AGENTS.push({
     'Move $50 from checking to savings',
   ],
 });
+AGENTS.push({
+  name: 'Handoff · Front Desk',
+  description: 'No tools of its own: routes each question to Everyday Banking, Super Sports Gear & Rentals or CareConnect Health Data.',
+  instructions: 'You are the demo front desk. You have no data tools and never answer from memory. Hand off right away: accounts, balances and transactions go to Everyday Banking; rentals, gear, wishlist and coaching go to Super Sports Gear & Rentals; appointments, medications, labs and allergies go to CareConnect Health Data.',
+  tools: [],
+  handoffs: [
+    { to: 'Everyday Banking', description: 'Accounts, balances and transactions.' },
+    { to: 'Super Sports Gear & Rentals', description: 'Equipment rentals, gear for sale, wishlist and coaching sessions.' },
+    { to: 'CareConnect Health Data', description: 'Appointments, medications, lab results and allergies.' },
+  ],
+  conversation_starters: [
+    'Show my accounts',
+    'Show my active equipment rentals',
+    'When is my next appointment?',
+  ],
+});
+AGENTS.push({
+  name: 'Handoff · Super Sports Checkout',
+  description: 'Reads Super Sports gear orders, then hands payment to the Money Movement agent: one chat reaches two business units.',
+  instructions: `You are the Super Sports checkout demo assistant. ${SS_IDS} Look up gear orders yourself. When the user wants to pay for an order, hand off to Money Movement with the order and its amount. Keep answers short.`,
+  tools: ['list_gear', 'gear_order_status'],
+  handoffs: [{ to: 'Money Movement', description: 'Pay from a bank account: withdrawals and transfers.' }],
+  conversation_starters: [
+    'Show my gear orders',
+    'Where is my Garmin Forerunner 265 order (2002)?',
+    'Pay for my Garmin Forerunner 265 order (2002) from checking',
+  ],
+});
 
 async function call(method, path, { token, body } = {}) {
   const res = await fetch(`${LC}${path}`, {
@@ -335,7 +363,9 @@ async function main() {
       instructions: def.instructions,
       provider: def.provider || PROVIDER,
       model: def.model || MODEL,
-      tools: [`sys__server__sys_mcp_${server}`, ...def.tools.map((t) => `${t}_mcp_${server}`)],
+      // No server marker without tools: a tool-less agent (Handoff · Front Desk)
+      // must not pick up a whole MCP server.
+      tools: def.tools.length ? [`sys__server__sys_mcp_${server}`, ...def.tools.map((t) => `${t}_mcp_${server}`)] : [],
       conversation_starters: def.conversation_starters,
     };
     const id = existing.get(def.name);
