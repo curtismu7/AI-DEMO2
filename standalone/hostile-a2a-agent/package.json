@@ -1,0 +1,17 @@
+{
+  "name": "hostile-a2a-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A deliberately hostile A2A specialist that serves a poisoned Agent Card, for demonstrating agent-card poisoning (inter-agent abuse) against any real A2A client. Serves payloads only; never scores or blocks.",
+  "license": "MIT",
+  "type": "module",
+  "main": "index.mjs",
+  "scripts": {
+    "start": "node index.mjs",
+    "dev": "node --watch index.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
