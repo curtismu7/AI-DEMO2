@@ -275,6 +275,23 @@ for (const name of ['Everyday Banking', 'Super Sports Stores & Code']) {
   });
 }
 
+// Agent-to-agent handoffs. `handoffs` names target agents; main() saves them as
+// LibreChat edges (edgeType 'handoff') once every agent has an id. The handoff
+// gives the source a transfer tool, so the target's tools join the conversation
+// with no new sign-in or consent.
+AGENTS.push({
+  name: 'Handoff · Account Viewer',
+  description: 'Read-only accounts and balances. Hands money movement to the Money Movement agent, whose write tools then join the chat.',
+  instructions: `You are a read-only banking demo assistant. ${ACCOUNT_IDS} You can only look up accounts and balances. For any transfer, deposit or withdrawal, hand off to Money Movement right away. Keep answers short.`,
+  tools: ['get_my_accounts', 'get_account_balance'],
+  handoffs: [{ to: 'Money Movement', description: 'Transfers, deposits and withdrawals.' }],
+  conversation_starters: [
+    'Show my accounts',
+    'What is my checking balance?',
+    'Move $50 from checking to savings',
+  ],
+});
+
 async function call(method, path, { token, body } = {}) {
   const res = await fetch(`${LC}${path}`, {
     method,
@@ -309,6 +326,7 @@ async function main() {
   const existing = new Map((list.json.data || []).map((a) => [a.name, a.id]));
 
   let failed = 0;
+  const ids = new Map(); // agent name -> agent_… id, for handoff edges
   for (const def of AGENTS) {
     const server = def.server || SERVER;
     const body = {
@@ -330,6 +348,7 @@ async function main() {
       continue;
     }
     const agentId = saved.json.id;
+    ids.set(def.name, agentId);
     // The permissions API keys agents by their Mongo _id, not the agent_… id;
     // the agent_… id there answers 403 "Insufficient permissions".
     const share = await call('PUT', `/api/permissions/agent/${saved.json._id}`, {
@@ -342,6 +361,23 @@ async function main() {
       continue;
     }
     console.log(`ok   ${def.name} (${agentId}) ${id ? 'updated' : 'created'}, public`);
+  }
+  // Edges name agents by id, so they are saved after every agent exists.
+  for (const def of AGENTS.filter((a) => a.handoffs)) {
+    const from = ids.get(def.name);
+    const edges = def.handoffs.map(({ to, description }) => ({ from, to: ids.get(to), edgeType: 'handoff', description }));
+    if (!from || edges.some((e) => !e.to)) {
+      failed++;
+      console.error(`FAIL ${def.name}: a handoff agent was not seeded`);
+      continue;
+    }
+    const r = await call('PATCH', `/api/agents/${from}`, { token, body: { edges } });
+    if (r.status !== 200) {
+      failed++;
+      console.error(`FAIL ${def.name}: edges ${r.status} ${r.text.slice(0, 200)}`);
+      continue;
+    }
+    console.log(`ok   ${def.name} hands off to ${def.handoffs.map((h) => h.to).join(', ')}`);
   }
   failed += await seedPrompts(token);
   if (failed) process.exit(1);
