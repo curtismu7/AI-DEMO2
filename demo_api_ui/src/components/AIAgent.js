@@ -890,13 +890,30 @@ export default function BankingAgent({
     }
   });
   // "Sequence view" — swaps the dashboard's right-column reel for a live
-  // lifeline sequence diagram of the same trace data. Session-only, same
-  // reasoning as showFilmstrip above: a stray click must not hide either
-  // surface forever.
-  const [showSequenceDiagram, setShowSequenceDiagram] = useState(false);
+  // lifeline sequence diagram of the same trace data. Restored from the SAME key
+  // UserDashboardPing2026 persists, because both components hold a copy of this
+  // state: the dashboard restored "sequence" on reload while this switch still
+  // rendered unchecked, so the first click dispatched the value already in
+  // effect and the toggle read as dead. The reel is the default — sequence view
+  // has to be chosen. Unlike ba_show_filmstrip this cannot strand the user:
+  // turning it off always returns the reel, which is never storage-gated.
+  const [showSequenceDiagram, setShowSequenceDiagram] = useState(() => {
+    try {
+      return localStorage.getItem("dashboard-view-mode") === "sequence";
+    } catch {
+      return false;
+    }
+  });
   // "Slow mode" — paces the sequence diagram's step reveal for live narration.
-  // Only meaningful while Sequence view is on; toggled off with it.
-  const [slowMode, setSlowMode] = useState(false);
+  // Only meaningful while Sequence view is on; toggled off with it. Restored
+  // from the dashboard's key for the same reason as above.
+  const [slowMode, setSlowMode] = useState(() => {
+    try {
+      return localStorage.getItem("dashboard-slow-mode") === "true";
+    } catch {
+      return false;
+    }
+  });
   // "DaVinci Mode" — pure UI preference (no server flag), surfaces the DaVinci
   // Orchestration explainer/demo nav entry instead of standard agent chrome.
   // See docs/superpowers/specs/2026-08-17-davinci-orchestration-showcase-design.md.
@@ -7924,6 +7941,43 @@ export default function BankingAgent({
     const ucFlags = runsSignedOut(uc) ? [] : requiredFlagsForUseCase(uc);
     if (ucFlags.length && isLoggedIn) {
       await ensureRequiredDemoFlags(ucFlags, uc.id);
+    }
+
+    // UC2.5 runs the A2A orchestrator itself. Sent as a chat chip, its prompt
+    // ("delegate this to a specialist") matched UC2's A2A heuristic, so the
+    // orchestrator never ran. The /api/a2a routes and their wire checks are
+    // unchanged; this only calls them, the way /a2a-protocol-learning does.
+    if (uc.id === "UC2.5" && trigger.type === "chip" && trigger.text) {
+      if (stepNeedsAuth) {
+        signInPrompt();
+        return;
+      }
+      addMessage("user", stepLabel);
+      setNlLoading(true);
+      try { tokenChainTraceStore.beginTrace({ prompt: trigger.text }); } catch (_) {}
+      try {
+        await apiClient.post("/api/a2a/init", {});
+        const { data } = await apiClient.post("/api/a2a/message", {
+          message: trigger.text,
+          vertical: effectiveVerticalId,
+        });
+        addMessage("assistant", `${stepLabel}\n${data?.reply || "The orchestrator returned no reply."}`);
+        if (data?.tokenEvents?.length) {
+          appendTokenEvents(data.tokenEvents);
+          try { tokenChainTraceStore.ingestTokenEvents(data.tokenEvents); } catch (_) {}
+        }
+        try { tokenChainTraceStore.completeTrace(data?.success === true); } catch (_) {}
+        if (data?.success === true) markUseCaseCompleted(uc.id);
+      } catch (err) {
+        addMessage(
+          "assistant",
+          `${stepLabel}\nA2A orchestrator failed: ${formatAxiosError(err, err.message || "failed")}`,
+        );
+        try { tokenChainTraceStore.completeTrace(false); } catch (_) {}
+      } finally {
+        setNlLoading(false);
+      }
+      return;
     }
 
     if (trigger.type === "chip" && trigger.text) {

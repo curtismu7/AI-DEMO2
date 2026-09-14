@@ -4,8 +4,9 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const APPS = [
-  { id: 'a1', clientId: 'c1', name: 'Demo App', tokenEndpointAuthMethod: 'CLIENT_SECRET_POST', vaultKey: 'PINGONE_AGENT_CLIENT_SECRET' },
-  { id: 'a2', clientId: 'c2', name: 'Other App', tokenEndpointAuthMethod: 'CLIENT_SECRET_POST', vaultKey: 'AGENT_CLIENT_SECRET' },
+  { id: 'a1', clientId: 'c1', name: 'Demo App', tokenEndpointAuthMethod: 'CLIENT_SECRET_POST', vaultKey: 'PINGONE_AGENT_CLIENT_SECRET', isWorker: false },
+  { id: 'a2', clientId: 'c2', name: 'Other App', tokenEndpointAuthMethod: 'CLIENT_SECRET_POST', vaultKey: 'AGENT_CLIENT_SECRET', isWorker: false },
+  { id: 'a3', clientId: 'c3', name: 'Demo AI App - Introspection Worker', tokenEndpointAuthMethod: 'CLIENT_SECRET_POST', vaultKey: 'PINGONE_WORKER_CLIENT_SECRET', isWorker: true },
 ];
 
 vi.mock('../../services/apiClient', () => ({
@@ -196,5 +197,23 @@ describe('SecretRotationPage', () => {
 
     expect(screen.queryByRole('button', { name: /yes, rotate/i })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /arm rotation/i })).toBeDisabled();
+  });
+
+  test('warns specifically about the worker\'s repo-wide blast radius, not the generic per-app warning', async () => {
+    renderPage(<SecretRotationPage />);
+    await userEvent.click(await screen.findByText('Demo AI App - Introspection Worker'));
+    await userEvent.click(screen.getByRole('button', { name: /rotate secret/i }));
+
+    expect(screen.getByText(/every PingOne-dependent request in the demo fails/i)).toBeInTheDocument();
+    expect(screen.queryByText(/every consumer fails until propagation completes/i)).not.toBeInTheDocument();
+  });
+
+  test('shows the generic per-app warning for a non-worker app', async () => {
+    renderPage(<SecretRotationPage />);
+    await userEvent.click(await screen.findByText('Demo App'));
+    await userEvent.click(screen.getByRole('button', { name: /rotate secret/i }));
+
+    expect(screen.getByText(/every consumer fails until propagation completes/i)).toBeInTheDocument();
+    expect(screen.queryByText(/every PingOne-dependent request in the demo fails/i)).not.toBeInTheDocument();
   });
 });

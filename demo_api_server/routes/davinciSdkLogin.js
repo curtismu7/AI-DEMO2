@@ -34,6 +34,7 @@ const configStore = require('../services/configStore');
 const { getTokenEndpoint, getDiscoveryEndpoint } = require('../services/oauthEndpointResolver');
 const oauthService = require('../services/oauthService');
 const dataStore = require('../data/store');
+const { determineClientType } = require('../middleware/auth');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const { getScopesForUserType } = require('../config/scopes');
 
@@ -214,6 +215,11 @@ router.post('/callback', async (req, res) => {
         scope: tokenData.scope || null,
       };
       req.session.user = user;
+      // A customer sign-in, stored like routes/oauthUser.js's callback. Without
+      // oauthType 'user' the session reads as ADMIN to /api/auth/oauth/status
+      // (routes/oauth.js) and as signed-out to /api/auth/oauth/user/status.
+      req.session.clientType = determineClientType(tokenData.access_token);
+      req.session.oauthType = 'user';
 
       req.session.save((saveErr) => {
         if (saveErr) {
@@ -224,7 +230,18 @@ router.post('/callback', async (req, res) => {
         // as ("Signed in as demoAdmin — continue, or sign out to switch"),
         // which it cannot know otherwise: a reused session completes the flow
         // with no screens, so the user never typed a name.
-        return res.json({ ok: true, username: user.username || null });
+        //
+        // userId and email come from PingOne's userinfo for this token (`sub` is
+        // the PingOne user id, the same id a DaVinci Read User node returns), so
+        // the page can show who signed in. The SDK flow cannot carry them:
+        // pi.flow hands the page a screen's form fields, never the flow's
+        // success HTML. Never add token material here; tokens stay in the session.
+        return res.json({
+          ok: true,
+          username: user.username || null,
+          userId: userInfo?.sub || null,
+          email: userInfo?.email || user.email || null,
+        });
       });
     });
   } catch (err) {

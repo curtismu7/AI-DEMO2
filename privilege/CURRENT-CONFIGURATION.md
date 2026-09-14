@@ -34,6 +34,37 @@ what this repo called "agentless").
   event" description recorded here earlier no longer matches what this gateway
   does. `opensearch22` was re-registered as `…/mcp` on 2026-09-08 and its
   calls succeeded over `/opensearch22/mcp` (200/202/200 in the gateway log).
+- **A 403 here is an expired policy, and it lies to you three more times.**
+  One expired time-box on an Agentic App produced all four of these at once on
+  `agent-gateway` (2026-09-10), and only the first is honest:
+
+  ```
+  403 from Privilege, 96 ms, NO backend hop
+  console: "Empty Tools"
+  console: "Gateway Unreachable — Showing Cached Data"
+  console: 'Error discovering MCP server: calling "initialize": Unauthorized'
+  ```
+
+  "Gateway Unreachable" and "Unauthorized" do **not** mean what they say. The
+  path was measured open and fast at that moment: from the `agentless-mcpgw` pod,
+  `POST http://ping-gateway.ping-devops-cmuir.svc.cluster.local:8080/mcp`
+  resolved DNS in 12 ms and returned 401 in **13 ms**. Nothing was unreachable
+  and nothing was misconfigured. Privilege refuses at its own policy layer
+  *before* dialling the backend, so the backend never sees the call and every
+  downstream symptom is a consequence of the missing tool list. **Check the
+  policy time-box first.**
+- **Silence in PingGateway's log is not evidence of no traffic.** It logs
+  *nothing at all* for a request it answers 401 — measured 2026-09-10 with five
+  curl POSTs that produced zero log lines. Reasoning from that absence produced
+  two confidently wrong conclusions in one session ("Privilege never dials the
+  gateway", then "our bridge filter is refusing discovery"). If you need proof a
+  request arrived, add a log line or probe from inside the pod; do not infer it
+  from an empty log.
+- **The Privilege gateway is in a different namespace from the demo.**
+  `agentless-mcpgw` runs in **`ping-devops-curtismuir`**; the demo runs in
+  **`ping-devops-cmuir`**. Searching only the demo namespace yields a confident
+  and false "the Privilege AI Gateway is not deployed". This is the
+  `cmuir` vs `curtismuir` trap from the setup notes, inverted.
 - **`svc.cluster.local` is the backend, not a client URL.** It resolves only
   inside the cluster; a client pointed there hangs. Clients use the client URL
   above.
@@ -78,8 +109,9 @@ what this repo called "agentless").
 
 | App | Type | Backend | Status |
 | --- | --- | --- | --- |
-| `opensearch22` | MCP Server (subdomain) | `http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/mcp` | Working end-to-end 2026-09-08 — client path `/opensearch22/mcp` (calls logged 200/202/200 after the `/mcp` re-registration) |
-| `opensearch` | MCP Server (subdomain) | same, older duplicate registration | **Was dead from 2026-09-08 to 2026-09-10, now fixed.** When `opensearch22` was re-registered on `/mcp`, this twin was left on `/sse`, so its entry path stayed pinned there and every client call to `/opensearch/mcp` answered a bare `404` — `[mcpgw] rejecting /mcp on app opensearch: outside entry path "/sse"`. This row claimed "Working" the whole time and cost a debugging session. Re-registered on `/mcp` 2026-09-10 |
+| `opensearch22` | MCP Server (subdomain) | `http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/mcp` | Working end-to-end 2026-09-08 — client path `/opensearch22/mcp` (calls logged 200/202/200 after the `/mcp` re-registration). **Deliberate known-good fixture:** policy carries a **3-month** time-box so this door always answers 200, giving the demo one connection that is never transient. It is also the default (`MCP_FACADE_PRIVILEGE_GATEWAY_APP` falls back to `opensearch22`). The box still expires — when this door starts 403ing, that is the renewal coming due, not a regression |
+| `opensearch` | MCP Server (subdomain) | same, older duplicate registration | **Was dead from 2026-09-08 to 2026-09-10, now fixed.** When `opensearch22` was re-registered on `/mcp`, this twin was left on `/sse`, so its entry path stayed pinned there and every client call to `/opensearch/mcp` answered a bare `404` — `[mcpgw] rejecting /mcp on app opensearch: outside entry path "/sse"`. This row claimed "Working" the whole time and cost a debugging session. Re-registered on `/mcp` 2026-09-10. **Its policy is now deliberately left OFF, so it always answers 403** — the known-deny twin of `opensearch22`, so the demo can show "the chain works" and "enforcement is real" back to back. Do NOT attach a policy here and do not report the 403 as broken: there is not even a policy to go and fix. A posture check that treats any 403 as failure is wrong about this door |
+| `agent-gateway` | MCP Server (subdomain) | `http://ping-gateway.ping-devops-cmuir.svc.cluster.local:8080/mcp` — the **real PingGateway**, cross-namespace from this gateway | Registered 2026-09-10 for the privilege-first MCP chain (`ff_mcp_gateway_privilege_first`). Needs Task 8b's `privilege-bridge.groovy` on PingGateway plus `MCP_GW_PRIVILEGE_BRIDGE_SECRET` equal to this app's Static Token — both in place and probe-verified 2026-09-10. **Its policy time-box expired**, so the door 403s until renewed; see "A 403 here is an expired policy" below |
 | `pingone-mcp-server-2` | MCP Server (subdomain) | unrelated, pre-existing app kept for its own purpose | Not part of this demo — see the note below, this is NOT the demo's PingOne MCP |
 | `mcp-brave-search` | Catalog sidecar | Privilege's own `mcp/brave-search:1.0.0` image, reaching our `mcp-brave` sidecar via the mesh | Working after the 2026-09-07 gateway restart (was stuck in a "Tenant not found" registration retry loop) |
 | `mcp-grafana` | Catalog sidecar | Privilege's own `mcp/grafana:1.0.0` image → our `mcp-grafana` sidecar via the mesh | Working after the same restart |

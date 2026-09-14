@@ -1090,26 +1090,26 @@ const RAW_USE_CASES = [
     useCaseId: 'token-theft-replay',
     track: 'attacks',
     title: 'Token theft / replay defense',
-    buyerStory: "A stolen token must be unusable anywhere but where it was issued — audience binding makes the gateway refuse a token minted for another audience.",
-    pingOneSolution: 'The gateway enforces audience binding (D-05) unconditionally. This step replays a session token minted for another audience and sends no DPoP proof, so audience binding is the control that refuses it.',
-    trigger: { type: 'attack', sim: 'replayed-token' },
+    buyerStory: "A stolen token must be unusable — audience binding and DPoP key binding ensure it can't be replayed.",
+    pingOneSolution: 'The gateway binds the delegated token to a DPoP key (cnf.jkt) and refuses a reused proof — this step replays one proof and the gateway rejects the second with 401 invalid_dpop_proof. Audience binding (D-05) is enforced unconditionally underneath.',
+    trigger: { type: 'attack', sim: 'dpop-replay' },
     expectedOutcome: 'DENY_401',
     // Audience binding is enforced at the gateway BEFORE PingOne Authorize is
     // consulted, so this sim never produces an 'authorize-decision'. The replayed
     // user token is carried on 'sim-replay-start'.
     evidence: { tokenChain: ['sim-replay-start', 'sim-gateway-deny'], activity: ['token', 'gateway'] },
-    codeRefs: ['demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts', 'demo_api_server/services/attackSimulatorService.js'],
-    // Stays flag-gated: use-cases-maturity P2 blocks 'works' until the gateway
-    // requires DPoP proofs by default. The sim itself sends no DPoP proof.
+    codeRefs: ['demo_mcp_gateway/src/dpopVerify.ts', 'demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts', 'demo_api_server/services/dpopKeyService.js'],
+    // Flag-gated on ff_dpop: the delegated token is DPoP-bound only when the
+    // flag is armed, and the sim replays that bound token's proof.
     maturity: 'flag:ff_dpop',
     owasp: { threats: ['T9'], sections: ['§3.2.8', '§4.2.3'] },
-    whatToSay: 'Audience binding is unconditional: a token minted for another audience is refused at the gateway with 401, before PingOne Authorize is consulted.',
+    whatToSay: 'With DPoP on, a stolen token is worthless without the private key: the gateway refuses a replayed proof (401 invalid_dpop_proof). Audience binding is unconditional underneath.',
     advanced: false,
-    whatLong: "A valid token is stolen and replayed by a different party. Audience binding means the token is only accepted by the specific gateway it was minted for — it cannot be used against a different endpoint. This step replays the user's session token straight at the gateway, skipping the token exchange. DPoP key binding, which would also stop a replay of a correctly-audienced token, is not exercised here.",
-    businessValue: 'Audience binding is free and always on: a token lifted from one service cannot be spent at another, without application changes.',
+    whatLong: "A valid, correctly-audienced delegated token is DPoP-bound (cnf.jkt). The agent signs one proof and calls the gateway — accepted. The SAME proof is then replayed: the gateway's replay cache refuses it with 401 invalid_dpop_proof. A stolen bearer plus a captured proof is worthless — the proof works exactly once, and only from the holder of the private key. Audience binding is enforced unconditionally as a second layer.",
+    businessValue: 'Two layers of replay defense with no application changes: audience binding stops a token being spent at another service, and DPoP key binding stops a stolen token being replayed at all.',
     productRoles: {
-      idp:   "Mints the token with a specific aud.",
-      gw:    'Enforces aud binding unconditionally and refuses the replayed token with 401 invalid_aud.',
+      idp:   "Mints the token with a specific aud and binds it to the agent's DPoP key (cnf.jkt) when DPoP is on.",
+      gw:    'Enforces aud binding unconditionally; verifies the DPoP proof and refuses a reused one (jti replay cache) with 401 invalid_dpop_proof.',
     },
     primaryTool: null,
   },

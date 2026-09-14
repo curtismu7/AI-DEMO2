@@ -147,6 +147,18 @@ function readReply(sent) {
  */
 function finishHop({ sent, tokenEvents, vertical, card, mode, protocolRequest }) {
   const { payload, metadata } = readReply(sent);
+
+  // HTTP transport only: the specialist's own a2a-agent2-actor / a2a-exchange2 /
+  // tool-dispatched rows cannot reach us by shared reference the way the
+  // in-process path's ctx.tokenEvents does — they rode back in the JSON-RPC
+  // reply metadata instead (a2aProtocolServer.js#publishReply, gated on
+  // exposeTokenEvents). Fold them into the caller's chain, in order, before
+  // this hop's own a2a-protocol-message row. The in-process path never sets
+  // metadata.tokenEvents, so this is a no-op there.
+  if (Array.isArray(metadata.tokenEvents)) {
+    tokenEvents.push(...metadata.tokenEvents);
+  }
+
   const toolError = payload?.toolError || metadata.toolError || null;
   const chainFailure = toolError ? CHAIN_FAILURES[toolError] || null : null;
   const agentName = card?.name || vertical;

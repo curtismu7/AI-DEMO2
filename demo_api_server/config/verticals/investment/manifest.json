@@ -87,7 +87,7 @@
       { "id": "inv-a2a", "label": "Sensitive holdings", "message": "access my sensitive holdings", "mode": "both", "challenge": "consent", "tool": "sensitive_holdings" },
       { "id": "inv-llm", "label": "YTD performance", "message": "How is my portfolio performing year to date?", "mode": "both", "tool": "show_investment" },
       { "id": "inv-direct", "label": "Direct MCP", "message": "show my portfolios", "mode": "direct", "tool": "view_portfolios" },
-      { "id": "inv-dpop", "label": "Token replay — wrong audience", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "tool": "test_wrong_audience", "useCaseId": "token-theft-replay" },
+      { "id": "inv-dpop", "label": "DPoP / replay defense", "message": "fire a token with the wrong audience at the gateway", "mode": "direct", "tool": "test_wrong_audience", "useCaseId": "token-theft-replay" },
       { "id": "inv-deny", "label": "Authz DENY", "message": "show the factory work order", "mode": "direct", "denyTool": "show_work_order", "useCaseId": "authz-denied" },
       { "id": "inv-bad-scope", "label": "Bad scope", "message": "run a trade call my token has no scope for", "mode": "direct", "tool": "test_wrong_scope", "useCaseId": "insufficient-scope" }
     ],

@@ -36,7 +36,7 @@ Every PingOne client used in the demo, cross-referenced to the flows above.
 | Demo AI App - Token Exchanger | `f4dd707d` | WEB_APP | CLIENT_SECRET_POST | `PINGONE_TOKEN_EXCHANGER_CLIENT_ID` | Flow 3, 7 | Two-Exchange Step 2 actor + single-exchange actor. Acquires CC token `aud=mcpgateway.ping.demo`; used as `actor_token` in Exchange #2. |
 | Demo AI App - MCP Gateway | `6586d3de` | WEB_APP | CLIENT_SECRET_POST | `PINGONE_MCP_GATEWAY_CLIENT_ID` | Flow 3, 7 | MCP gateway process identity. Holds grants to MCP Server resource; performs second token exchange to `mcpserver.ping.demo`. |
 | Demo AI App - MCP Server Client | `c76a9868` | WEB_APP | CLIENT_SECRET_POST | *(not in .env)* | Internal | MCP server process client identity. Client credentials only, no grants. |
-| Demo AI App - Introspection Worker | `89ad8921` | WORKER | CLIENT_SECRET_BASIC | `PINGONE_WORKER_CLIENT_ID` | Flow 3, 7 | RFC 7662 token introspection. Only client authorised to call `/as/introspect` against tokens issued by other clients. |
+| Demo AI App - Introspection Worker | `e1e33bbe` | WORKER | CLIENT_SECRET_BASIC | `PINGONE_WORKER_CLIENT_ID` | Flow 3, 7 | RFC 7662 token introspection. Only client authorised to call `/as/introspect` against tokens issued by other clients. |
 | ~~Demo AI App - Agent Actor~~ | ~~`f93d8ae5`~~ | WORKER | — | `AGENT_CLIENT_ID` (removed) | — | **Deleted 2026-06-14.** Was unused — `PINGONE_AI_AGENT_ACTOR_CLIENT_ID` always resolved first. |
 
 ### configStore Resolution Chains

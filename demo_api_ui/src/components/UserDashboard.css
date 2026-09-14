@@ -338,20 +338,29 @@
    what it needs — a fixed 50vh on top of that reserves the space a second
    time and leaves a dead band below both columns whenever the viewport is
    taller than ~1100px (measured: 885px row, 550px columns, 335px of nothing). */
-.ud-body.ud-sequence-view-active .ud-agent-column,
-.ud-body.ud-sequence-view-active .srd-root {
+.ud-body.ud-sequence-view-active .ud-agent-column {
   max-height: 100%;
   overflow-y: auto;
 }
 
-/* Slow mode: narrating the diagram to a crowd needs the width, not the agent
-   chat. Focus Mode never renders a banking column (see the comment above the
+/* .srd-root now bounds the height and hands scrolling to its own .srd-scroll box
+   (both axes), so it must NOT be a second vertical scroller of its own — that
+   left the horizontal bar stranded at the bottom of the tall SVG. */
+.ud-body.ud-sequence-view-active .srd-root {
+  max-height: 100%;
+  overflow: hidden;
+}
+
+/* Sequence view needs the width, not the agent chat — the diagram is the whole
+   point of this view. This was previously gated on .ud-slow-mode-active too, so
+   the columns snapped back and the diagram lost its space the moment Slow mode
+   went off. Focus Mode never renders a banking column (see the comment above the
    TokenChainFilmstrip mount), so grid-template-columns always resolves to
    just [agent, diagram] here regardless of the no-banking class — matching
    on the classes that are actually always present (not --no-banking, which
-   isn't) and outweighing every competing rule (up to 3 classes) on class
+   isn't) and still outweighing every competing rule (up to 3 classes) on class
    count alone, without touching the user's persisted --ud-agent-col-width. */
-.ud-body.ud-body--2026.ud-focus-mode.ud-body--dashboard-split3.ud-sequence-view-active.ud-slow-mode-active {
+.ud-body.ud-body--2026.ud-focus-mode.ud-body--dashboard-split3.ud-sequence-view-active {
   grid-template-columns: minmax(0, 0.55fr) minmax(0, 1.45fr);
 }
 
@@ -464,7 +473,7 @@
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
-  .ud-body.ud-body--2026.ud-focus-mode.ud-body--dashboard-split3.ud-sequence-view-active.ud-slow-mode-active {
+  .ud-body.ud-body--2026.ud-focus-mode.ud-body--dashboard-split3.ud-sequence-view-active {
     grid-template-columns: minmax(0, 0.55fr) minmax(0, 1.45fr);
   }
 }

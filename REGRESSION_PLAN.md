@@ -167,6 +167,63 @@ route passes it in that one child's spawn `env`.
 
 **Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/secretRotationRun.test.js --forceExit`.
 
+### 2026-09-13 — Node gateway: a DPoP-bound token without a valid, unreplayed proof is refused
+
+**Files changed:** `demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts`,
+`src/index.ts`, `src/wsBindingGuard.ts`. Tests:
+`demo_mcp_gateway/tests/authorizeMcpRequest.dpopBoundEnforce.test.ts` (new),
+`tests/wsBindingGuard.test.ts`.
+
+**What was broken:** the gateway verified DPoP proofs for real (signature, htu,
+htm, iat, ath, jkt and a jti replay cache) but only refused a failure when
+`REQUIRE_DPOP_PROOF=true`, which is unset in the stack. A token bound to a key
+(`cnf.jkt`, from the token or the demo TraT envelope) was accepted with a
+missing, forged or replayed proof, so the sender constraint that binding exists
+for was never enforced, and UC12 could not truthfully show replay defense.
+
+**What was fixed:** HTTP Step 2d refuses a failed verification when
+`REQUIRE_DPOP_PROOF=true` **or** the token is bound (RFC 9449 §7). The
+WebSocket tools/call guard applies the same rule through `isDpopBound()`
+(the token's cnf claim, or the TraT envelope when
+`ALLOW_UNSIGNED_TRAT_CONTEXT=true`); WebSocket cannot carry a proof, so a bound
+token is refused there and steered to `POST /mcp`.
+
+**Do not break:**
+- An unbound token is unchanged: it needs a proof only when
+  `REQUIRE_DPOP_PROOF=true`.
+- The HITL receipt single-use check (REGRESSION_PLAN §1) runs on both
+  transports exactly as before; nothing in its path changed.
+- The replay cache is in-memory per gateway instance (noted in `dpopVerify.ts`).
+
+**Verify:** `cd demo_mcp_gateway && ./node_modules/.bin/jest tests/authorizeMcpRequest.dpopBoundEnforce.test.ts tests/wsBindingGuard.test.ts tests/authorizeMcpRequest.dpopWwwAuthenticate.test.ts tests/dpopVerify.test.ts`.
+The bound-token refusal and replay tests fail against the pre-fix middleware.
+
+### 2026-09-13 — UC2.5 Demo step runs the A2A orchestrator instead of UC2
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`. Test:
+`demo_api_ui/src/components/__tests__/AIAgent.demoStepGate.test.jsx`.
+
+**What was broken:** UC2.5 ("A2A Orchestrator") is a chip whose text,
+"delegate this to a specialist", went through chat, where it matched the same
+A2A heuristic (`config/verticals/a2a/index.js`) as UC2's "hand off to a
+specialist". The chip ran UC2's delegation and the orchestrator
+(`POST /api/a2a/message` → `orchestrateDelegation`) never ran, though the step
+is named for it.
+
+**What was fixed:** the Demo steps dispatcher handles UC2.5 before the generic
+chip branch. It gates on sign-in, calls `/api/a2a/init` and `/api/a2a/message`
+with the chip text (as `/a2a-protocol-learning` does), shows the orchestrator's
+reply, feeds its `tokenEvents` into the trace, and ticks the step only on
+`success: true`.
+
+**Do not break:**
+- `routes/a2aAgentRoutes.js`, `orchestrateDelegation` and the A2A wire checks
+  (REGRESSION_PLAN §1 "A2A wire hop authentication") are unchanged; this only
+  calls the existing route.
+- Every other chip step still goes through the chat branch.
+
+**Verify:** `cd demo_api_ui && node_modules/.bin/vitest run AIAgent.demoStepGate`.
+
 ### 2026-09-13 — UC5 insufficient-scope sim no longer reports approval challenges as insufficient_scope
 
 **Files changed:** `demo_api_server/services/attackSimulatorService.js`. Test:
@@ -191,6 +248,110 @@ left is canonicalized to `insufficient_scope`.
 - `mcpGatewayClient`'s error shapes are unchanged; this only reads them.
 
 **Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest src/__tests__/attackSimulator.test.js --forceExit`.
+
+### 2026-09-13 — DaVinci widget sign-in ended on PingOne's hosted sign-on page instead of signing in
+
+**Files changed:** `demo_api_server/routes/davinciLogin.js`,
+`demo_api_ui/src/pages/DavinciLoginWidget.jsx`, `demo_api_ui/src/lib/davinciWidgetClient.js`,
+`demo_api_ui/src/pages/DavinciLoginGuidePage.jsx`. Tests: `tests/routes/davinciLogin.test.js`,
+`tests/davinciLoginNonce.test.js`, `src/pages/__tests__/DavinciLoginWidget.test.jsx`,
+`src/lib/__tests__/davinciWidgetClient.test.js`. Outside the repo: DaVinci flow
+`81d2862114afc2a3d0cf00dca80b89e3` (policy "AI DEMO"), now version 6.
+
+**What was broken:** after the widget's Sign On, the page followed an
+`/authorize` URL expecting PingOne to find a session and issue a code. In a
+browser with no existing PingOne session it landed on PingOne's hosted sign-on
+page. Two faults. First, the flow ended with an HTTP success response, which
+creates no PingOne session and returns no `sessionToken`, so the `DV-ST` cookie
+was never even set — and PingOne's `/authorize` does not read `DV-ST` anyway
+(Ping's widget example uses it to carry a DaVinci session into the next
+`/sdktoken` call). Second, once the flow did create a session, the `ST` cookie
+PingOne set during the widget's cross-site calls still never reached a
+top-level `/as/authorize`: measured in a fresh Chrome, `Set-Cookie: ST` arrived,
+was reported not blocked, and was absent from the cookie jar when `/authorize`
+was sent. A browser that already held a PingOne session "worked" by signing in
+as that session's user, not necessarily the one who signed in on the widget.
+
+**What was fixed:** the flow (v6) ends with the PingOne Authentication
+connector's "Return Success Response (Widget Flows)" (app `8a711944…`, scopes
+`openid profile email read write ai:agent:read`, and a `nonce` ID-token claim
+from the flow's nonce input), after new Welcome and Success screens and a Create
+Session node. It returns `id_token` and `access_token` to `successCallback`; the
+page posts them to the new `POST /api/davinci-login/widget-session`, then loads
+`/davinci-login/confirmed`. That route requires both tokens JWKS-verified
+(`verified === true && fallbackMethod === 'jwks'` — `tokenVerificationService`
+fails open, and its introspection fallback carries no nonce or ID-token
+audience), the single-use armed nonce (consumed before any check), ID-token
+`aud` equal to `oauthService.config.clientId`, access-token `aud` including the
+BFF resource (the same env names `middleware/auth.js` reads), and the same `sub`
+in both. `/sdk-token` now arms only the nonce — no authorize URL, PKCE verifier
+or state — and the `DV-ST` cookie is gone. `/callback` stays for a client that
+runs its own PKCE, but takes the verifier and redirect URI from the body only.
+Session establishment is one helper shared by both routes.
+
+**Do not break:** nonce read-and-delete before any check, on both routes; the
+existing-user-only lookup (no auto-create, no auto-admin); session regenerate
+before storing tokens; never accept a token the verifier did not JWKS-verify.
+If the flow's final node is edited it must keep the nonce claim, the app id and
+the Demo API scopes, or every widget sign-in 401s. Widget sessions carry no
+refresh token (TECH_DEBT 2026-09-13). `routes/oauth.js`, `routes/oauthUser.js`
+and `oauthService` untouched.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/davinciLogin.test.js tests/davinciLoginNonce.test.js --forceExit`
+(32/32); disabling each of the eight `/widget-session` checks in turn turns its
+own named test red. `cd demo_api_ui && npm run test:unit` (551 files, 4302
+passed, 24 skipped) and `npm run build` (exit 0). The live fresh-browser check
+(Sign On → Welcome → Success → `/davinci-login/confirmed`) runs after merge: a
+worktree-served BFF boots seed data and would 404 `/api/auth/me`.
+
+**2026-09-13 update:** the widget now stays on `/davinci-login-guide` instead
+of navigating to `/davinci-login/confirmed` — it reports sign-in through
+`onSignedIn` and dispatches `userAuthenticated` so the app shell's session
+check picks it up. The live check above now expects the "What just happened"
+modal to open on the same page, not a navigation.
+
+**Do not break (Call Inspector):** a call is recorded when it *starts* inside a
+run — the widget passes `installWidgetTrace` a `shouldRecord` check that the
+trace asks before the request goes out. Gating when the record *arrives*
+dropped `/api/davinci-login/widget-session` live: the trace reads that body
+from a clone after `postWidgetSession` has already read it and stopped the
+run. Live check: the Call Inspector lists `/api/davinci-login/widget-session`
+after sign-in.
+
+### 2026-09-14 — DaVinci sign-ins (widget and SDK) stored the session in the admin status slot
+
+**Files changed:** `demo_api_server/routes/davinciLogin.js`,
+`demo_api_server/routes/davinciSdkLogin.js`,
+`demo_api_ui/src/pages/DavinciLoginConfirmedPage.jsx`. Tests:
+`tests/routes/davinciLogin.test.js`, `tests/routes/davinciSdkLogin.test.js`,
+`src/pages/__tests__/DavinciLoginConfirmedPage.test.jsx`.
+
+**What was broken:** both DaVinci sign-ins stored `oauthTokens` and `user` but
+never `oauthType` or `clientType`. `routes/oauth.js` `/status` (admin) counts any
+session whose `oauthType !== 'user'` as its own, so it answered
+`authenticated: true`; `routes/oauthUser.js` `/status` (customer) requires
+`oauthType` `'user'` or `'admin'`, so it answered `authenticated: false`. The app
+shell (`useAuth.js`) asks the admin endpoint first, so a customer looked signed
+in through the admin slot while every customer-status reader saw a signed-out
+user. Separately, `/davinci-login/confirmed` read `/api/auth/me`, which looks the
+user up by the token's PingOne `sub` rather than the demo user record the
+session holds, so Username was blank.
+
+**What was fixed:** both routes now set `req.session.clientType =
+determineClientType(accessToken)` and `req.session.oauthType = 'user'` beside
+`req.session.user`, exactly as `routes/oauthUser.js`'s callback does. The
+confirmed page reads `/api/auth/oauth/user/status` and says "You are not signed
+in." when it is not authenticated.
+
+**Do not break:** a DaVinci customer sign-in sets `oauthType = 'user'` —
+regenerate-before-store and `session.save()` are unchanged, and neither status
+endpoint was edited. `/api/auth/me` is shared and was not changed.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest
+tests/routes/davinciLogin.test.js tests/routes/davinciSdkLogin.test.js
+tests/davinciLoginNonce.test.js --forceExit` (each new `oauthType` assertion
+failed first). Live: after a widget sign-in, `/api/auth/oauth/user/status` is
+`authenticated: true` and `/api/auth/oauth/status` is `authenticated: false`.
 
 ### 2026-09-13 — Sequence view: a gateway filter deny with no deny phase is drawn on the gateway
 

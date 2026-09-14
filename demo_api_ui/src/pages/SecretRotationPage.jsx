@@ -262,8 +262,19 @@ export default function SecretRotationPage() {
         >
           <div className="dm-scroll">
             <p className="sr-warning">
-              ⚠️ This cannot be undone. <strong>{selected.name}</strong>&apos;s current secret
-              dies immediately, and every consumer fails until propagation completes.
+              {selected.isWorker ? (
+                <>
+                  ⚠️ This cannot be undone. <strong>{selected.name}</strong>&apos;s current secret
+                  dies immediately — and because this is the credential the whole demo uses to
+                  authenticate to PingOne&apos;s Management API, every PingOne-dependent request
+                  in the demo fails, not just this app&apos;s, until demo-api-server is restarted.
+                </>
+              ) : (
+                <>
+                  ⚠️ This cannot be undone. <strong>{selected.name}</strong>&apos;s current secret
+                  dies immediately, and every consumer fails until propagation completes.
+                </>
+              )}
             </p>
             <label htmlFor="sr-reason">Reason</label>
             <input id="sr-reason" value={reason} onChange={(e) => setReason(e.target.value)} />

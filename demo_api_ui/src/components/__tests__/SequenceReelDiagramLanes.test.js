@@ -40,4 +40,17 @@ describe("SequenceReelDiagram lane colours", () => {
     const l = lane.toLowerCase();
     expect(CSS).toMatch(new RegExp(`\\.srd-lane-${l}\\s*\\{[^}]*--srd-lane:`));
   });
+
+  // The view also draws the rail's A2A hops (buildA2aTokenChainSteps), whose
+  // lane never appears in buildTraceSteps.js.
+  it("the lane of the rail's A2A hops has a colour", () => {
+    const RAIL = read("../TokenChainTraceRail.jsx");
+    const lanes = new Set([...RAIL.matchAll(/\["a2a-[^"]+",[^\]]*"([A-Z0-9_]+)"\]/g)].map((m) => m[1]));
+    expect([...lanes]).toEqual(["A2A"]);
+    for (const lane of lanes) {
+      const l = lane.toLowerCase();
+      expect(CSS).toMatch(new RegExp(`--srd-color-${l}\\s*:`));
+      expect(CSS).toMatch(new RegExp(`\\.srd-lane-${l}\\s*\\{[^}]*--srd-lane:`));
+    }
+  });
 });

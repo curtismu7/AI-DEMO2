@@ -29,6 +29,43 @@ function toEntry(level, args) {
 }
 
 /**
+ * The body a flow step POSTs to DaVinci, reduced to its shape: eventName,
+ * eventType, actionKey, and the formData KEYS with every typed value replaced.
+ * Built from an allowlist rather than by blanking known fields, so a field
+ * this code has never seen is dropped instead of shown. Exported for tests.
+ * @param {unknown} body the request body string the SDK is about to send
+ * @returns {object|null}
+ */
+export function maskStepBody(body) {
+  if (typeof body !== "string" || !body) return null;
+  let parsed;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object") return null;
+  const params = parsed.parameters || {};
+  const data = params.data || {};
+  const formData =
+    data.formData && typeof data.formData === "object"
+      ? Object.fromEntries(Object.keys(data.formData).map((k) => [k, data.formData[k] === "" ? "" : "…"]))
+      : null;
+  return {
+    ...(parsed.id ? { id: "…" } : {}),
+    ...(parsed.eventName ? { eventName: String(parsed.eventName) } : {}),
+    ...(parsed.interactionId ? { interactionId: "…" } : {}),
+    parameters: {
+      ...(params.eventType ? { eventType: String(params.eventType) } : {}),
+      data: {
+        ...(data.actionKey ? { actionKey: String(data.actionKey) } : {}),
+        ...(formData ? { formData } : {}),
+      },
+    },
+  };
+}
+
+/**
  * Build a DaVinci client.
  *
  * @param {object} cfg - from POST /api/davinci-sdk-login/start
@@ -52,17 +89,22 @@ export async function initClient(cfg, { onTrace, logLevel = "debug" } = {}) {
       }
     : { level: "none" };
 
-  // Pass-through middleware: it must return the args unchanged, so this only
-  // observes. Anything that mutates here changes the real request.
+  // Pass-through middleware: it only observes. Anything that mutates the
+  // request here changes what is actually sent. The SDK hands every middleware
+  // its own request object, { url: URL, method, headers, body }
+  // (sdk-request-middleware initQuery), so the JSON a flow step POSTs is
+  // visible here. The body is masked BEFORE it leaves this function: the trace
+  // feeds the on-page Step Inspector, and a typed password must never reach it.
   const requestMiddleware = emit
     ? [
-        (fetchArgs, action, next) => {
+        (req, action, next) => {
           emit({
             at: Date.now(),
             source: "http",
             action: action?.type ?? null,
-            url: typeof fetchArgs?.[0] === "string" ? fetchArgs[0] : fetchArgs?.url,
-            method: fetchArgs?.[1]?.method ?? fetchArgs?.method ?? "GET",
+            url: req?.url ? String(req.url) : null,
+            method: req?.method ?? "GET",
+            body: maskStepBody(req?.body),
           });
           return next?.();
         },

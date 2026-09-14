@@ -1114,6 +1114,54 @@ describe("buildTraceSteps — intent-binding step", () => {
     const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
     expect(byId["intent-binding"].status).toBe("error");
   });
+
+  test("a live PAR permit draws the push and request_uri right before the intent check", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      tokenEvents: [
+        { id: "par-push", label: "PAR Endpoint Push", status: "active" },
+        { id: "request-uri", label: "Received request_uri", status: "active" },
+        { id: "intent-check", label: "Intent cap $80 <= $100", status: "active" },
+        { id: "p1az-permit", label: "PingOne Authorize — PERMIT", status: "active" },
+      ],
+    });
+    const ids = steps.map((s) => s.id);
+    const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+    expect(byId["par-push"]).toMatchObject({ status: "done", lane: "PINGONE" });
+    expect(byId["request-uri"]).toMatchObject({ status: "done", lane: "PINGONE" });
+    expect(byId["intent-binding"].status).toBe("done");
+    expect(ids.indexOf("request-uri")).toBe(ids.indexOf("par-push") + 1);
+    expect(ids.indexOf("intent-binding")).toBe(ids.indexOf("request-uri") + 1);
+  });
+
+  test("a rejected PAR push is an error, and a live over-cap run fails the intent check", () => {
+    const rejected = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [{ id: "par-push", label: "PAR Endpoint Push", status: "error" }],
+    });
+    expect(rejected.find((s) => s.id === "par-push").status).toBe("error");
+    expect(rejected.find((s) => s.id === "request-uri")).toBeUndefined();
+
+    const overCap = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "error",
+      tokenEvents: [
+        { id: "par-push", status: "active" },
+        { id: "request-uri", status: "active" },
+        { id: "intent-check", status: "exceeded" },
+        { id: "transfer-blocked", label: "Transfer blocked — intent exceeded", status: "enforced" },
+      ],
+    });
+    expect(overCap.find((s) => s.id === "intent-binding").status).toBe("error");
+  });
+
+  test("a run with no PAR evidence has no PAR steps", () => {
+    const ids = buildTraceSteps({ ...EMPTY_TRACE, outcome: "ok" }).map((s) => s.id);
+    expect(ids).not.toContain("par-push");
+    expect(ids).not.toContain("request-uri");
+  });
 });
 
 describe("buildTraceSteps — attack sim (UC5 gateway scope deny)", () => {
@@ -1563,5 +1611,43 @@ describe("laneLabel", () => {
     expect(laneLabel("HEURISTICS")).toBe("AI AGENT");
     expect(laneLabel("LLM")).toBe("AI AGENT");
     expect(laneLabel("GATEWAY")).toBe("GATEWAY");
+  });
+});
+
+describe("mcp step — terminal failure phases", () => {
+  // mcpToolPipeline returns on each of these WITHOUT publishing an mcpResult, so
+  // neither mcpDone (wants mcp_remote_done or a result) nor mcpErrored (wants
+  // mcpResult.status) can ever become true. mcpBegun then won the status chain
+  // and the hop went on claiming the tool was executing for the rest of the
+  // session — "MCP server — tool executes" still spinning on a finished run.
+  const begun = { phase: "mcp_remote_begin" };
+
+  test.each([
+    "mcp_remote_tool_error",
+    "gateway_unreachable_no_fallback",
+    "local_tool_error",
+    "local_fallback_blocked_no_user",
+  ])("%s ends the mcp hop as an error, not a spinner", (phase) => {
+    const steps = buildTraceSteps({ ...EMPTY_TRACE, outcome: "ok", phases: [begun, { phase }] });
+    expect(steps.find((s) => s.id === "mcp").status).toBe("error");
+  });
+
+  // The two below pass with or without the fix: they are guards against
+  // over-correcting it, not proof of it.
+  test("mcp_remote_unreachable is NOT terminal — a successful local fallback still reads done", () => {
+    // The pipeline emits it BEFORE falling back, and the fallback publishes a
+    // result. Treating it as terminal would paint a completed run red.
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      outcome: "ok",
+      phases: [begun, { phase: "mcp_remote_unreachable" }, { phase: "local_tool_done" }],
+      mcpResult: { tool: "get_branch_hours", result: { hours: "9-5" } },
+    });
+    expect(steps.find((s) => s.id === "mcp").status).toBe("done");
+  });
+
+  test("a run genuinely still in flight keeps its spinner", () => {
+    const steps = buildTraceSteps({ ...EMPTY_TRACE, phases: [begun] });
+    expect(steps.find((s) => s.id === "mcp").status).toBe("active");
   });
 });

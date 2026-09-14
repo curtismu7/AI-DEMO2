@@ -1,82 +1,119 @@
-/* DaVinci SDK login (/davinci-sdk-login) and its collector fields.
+/* DaVinci SDK login (/davinci-sdk-login): the live sign-in, its collector
+   fields and the Step Inspector cards. The page shell (header, section nav,
+   code, tables) is components/lesson/lesson.css.
+
    Themeable values come from --th-* so both modes work without a
    prefers-color-scheme block (THEMING.md). Every rule that sets a themed ground
    also sets its ink (§1.5), font sizes come from the scale (§8.1) and radii from
    the scale (§9.3). */
 
-.dvsdk-page {
-  max-width: 420px;
-  margin: 48px auto;
-  padding: 0 20px;
-  color: var(--th-text);
+/* Try It Live: the sign-in beside the Step Inspector. The sign-in column stays
+   in view while the cards grow, so the form and the step that produced it can
+   be read together. */
+.dvsdk-live {
+  display: grid;
+  grid-template-columns: minmax(300px, 440px) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+  margin-top: 1rem;
 }
 
-.dvsdk-title {
-  margin: 0 0 4px;
-  font-size: var(--font-size-h2);
-  color: var(--th-text);
+/* The flow card: where the DaVinci flow's forms render, and the thing this page
+   is about, so it stands apart from the lesson around it. It sits on the
+   emphasis surface (navy in light, light blue in dark) with that surface's ink,
+   runs larger than the Step Inspector cards, and carries the large elevation.
+   Anything inside without a ground of its own inherits that ink; inputs,
+   buttons and notices keep their own surface and ink.
+   Sticky below the app's sticky TopNav, not under it (see lesson.css). */
+.dvsdk-live-app {
+  position: sticky;
+  top: calc(var(--topnav-height, 60px) + 1rem);
+  padding: 1.75rem;
+  color: var(--th-text-on-emphasis);
+  background: var(--th-bg-emphasis);
+  border: 1px solid var(--th-bg-emphasis);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
 }
 
-.dvsdk-sub {
-  margin: 0 0 20px;
-  font-size: var(--font-size-sm);
-  color: var(--th-text-muted);
+@media (max-width: 900px) {
+  .dvsdk-live {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dvsdk-live-app {
+    position: static;
+  }
+}
+
+.lesson-section .dvsdk-live-steps h3 {
+  margin-top: 0;
 }
 
 .dvsdk-status {
-  color: var(--th-text-muted);
+  font-size: var(--font-size-md);
 }
 
 .dvsdk-form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 .dvsdk-field {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
 .dvsdk-label {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-base);
   font-weight: 600;
-  color: var(--th-text);
+  color: inherit;
 }
 
 .dvsdk-input {
   font: inherit;
-  padding: 9px 11px;
+  font-size: var(--font-size-md);
+  padding: 11px 13px;
   color: var(--th-text);
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
 }
 
+/* The ring sits on the flow card's emphasis ground, so it takes that ink. */
 .dvsdk-input:focus {
-  outline: 2px solid var(--th-border-strong);
-  outline-offset: 1px;
+  outline: 2px solid var(--th-text-on-emphasis);
+  outline-offset: 2px;
 }
 
 .dvsdk-input[aria-invalid="true"] {
   border-color: var(--th-status-error-border);
 }
 
+/* Given its own ground: error ink alone is not readable on the flow card's
+   emphasis surface. */
 .dvsdk-field-error {
   margin: 0;
+  padding: 2px 6px;
   font-size: var(--font-size-xs);
   color: var(--th-status-error-text);
+  background: var(--th-status-error-bg);
+  border-radius: var(--radius-sm);
 }
 
+/* The primary action inverts against the flow card: card surface on the
+   emphasis ground. Left on the emphasis surface it would vanish into the card. */
 .dvsdk-submit {
   font: inherit;
+  font-size: var(--font-size-md);
   font-weight: 600;
-  padding: 10px 18px;
+  padding: 12px 22px;
   cursor: pointer;
-  color: var(--th-text-on-emphasis);
-  background: var(--th-bg-emphasis);
-  border: 1px solid var(--th-border-strong);
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-bg-card);
   border-radius: var(--radius-md);
 }
 
@@ -88,28 +125,28 @@
 
 /* FlowCollector: a secondary branch out of this screen, not a submit. Styled as
    a link so it does not compete with the primary action, but it is a real
-   button because it triggers a flow transition. */
+   button because it triggers a flow transition. It takes the flow card's ink. */
 .dvsdk-flow-link {
   font: inherit;
   align-self: flex-start;
   padding: 0;
   cursor: pointer;
   text-decoration: underline;
-  color: var(--th-text-body);
+  color: inherit;
   background: none;
   border: 0;
 }
 
 .dvsdk-flow-link:hover {
-  color: var(--th-text);
+  text-decoration-thickness: 2px;
 }
 
 .dvsdk-flow-link:disabled {
   cursor: default;
-  color: var(--th-text-muted);
+  opacity: 0.6;
 }
 
-/* A collector the renderer does not handle yet. Visible on purpose — a blank
+/* A collector the renderer does not handle yet. Visible on purpose: a blank
    render looks like the flow is missing a field. */
 .dvsdk-unsupported {
   margin: 0;
@@ -180,4 +217,68 @@
   flex-wrap: wrap;
   align-items: center;
   column-gap: 10px;
+}
+
+/* The signed-in user's details from the BFF: username, PingOne user id, email.
+   It sits inside .dvsdk-notice, so its ink inherits the notice's themed colour. */
+.dvsdk-profile {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 8px 0 0;
+  font-size: var(--font-size-sm);
+  color: inherit;
+}
+
+.dvsdk-profile dt {
+  font-weight: 600;
+}
+
+.dvsdk-profile dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Step Inspector cards. `.lesson-section` is in each selector that has to beat
+   the lesson shell's own `.lesson-section ol` / `.lesson-section p` rules. */
+.lesson-section .sdkl-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sdkl-step {
+  margin: 0 0 1rem;
+  padding: 1rem 1.1rem;
+  color: var(--th-text-body);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-left: 4px solid var(--th-border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.lesson-section .sdkl-step-title {
+  margin: 0 0 0.25rem;
+  font-size: var(--font-size-md);
+  color: var(--th-text);
+}
+
+.lesson-section .sdkl-part {
+  margin: 1rem 0 0.25rem;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--th-text-muted);
+}
+
+.lesson-section .sdkl-outcome {
+  margin: 1rem 0 0;
+  padding: 0.6rem 0.8rem;
+  color: var(--th-status-info-text);
+  background: var(--th-status-info-bg);
+  border: 1px solid var(--th-status-info-border);
+  border-radius: var(--radius-md);
+}
+
+.sdkl-empty {
+  color: var(--th-text-muted);
 }

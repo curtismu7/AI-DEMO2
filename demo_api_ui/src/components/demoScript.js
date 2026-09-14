@@ -116,12 +116,12 @@ export const DEMO_SCRIPT = {
       beats: [
         {
           ucId: "UC12",
-          action: "Step 9 · card 'Token theft / replay defense' (UC12) - click Run sim",
+          action: "Step 9 · card 'DPoP / replay defense' (UC12) - click Run sim",
           what:
-            "Attacker replays the user's session token at the gateway, skipping the token exchange.",
+            "Attacker captures a DPoP-bound token's proof and replays it at the gateway.",
           expected:
             "Rail: sim-replay-start then sim-gateway-deny, DENY 401 (audience binding)",
-          say: "The attack security teams actually lose sleep over. Steal the user's token and replay it at the gateway. DENY 401. The token is audience-bound - worthless anywhere but where it was minted. A token spent in the wrong place is a dead token.",
+          say: "The attack security teams actually lose sleep over. Steal the token AND its proof, replay it at the gateway. DENY 401 - the proof works exactly once, and only with the private key you don't have. A stolen token is a dead token.",
         },
         {
           ucId: "UC5",

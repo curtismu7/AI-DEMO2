@@ -62,18 +62,59 @@ below.
    ```bash
    node librechat/seed-demo-agents.js
    ```
-   Creates four public agents — Everyday Banking, Money Movement, Support and
-   Fees, Super Sports — each on PingOne Privilege (OpenAI) / `gpt-4o-mini`
-   with a few `aidemo-mcp` tools and four clickable starter prompts. Pick one
-   in the agent selector and click a prompt. Re-run it to update them in place.
+   Creates public agents — Everyday Banking, Money Movement, Support and
+   Fees, Super Sports, Super Sports Gear & Rentals, Super Sports Orders &
+   Loyalty, Super Sports Stores & Code — each on PingOne Privilege (OpenAI) /
+   `gpt-4o-mini` with a few `aidemo-mcp` tools and four clickable starter
+   prompts. Pick one in the agent selector and click a prompt. Re-run it to
+   update them in place. The three "Super Sports …" data agents read the
+   seeded Super Sports store through the BFF vertical-tool relay.
    Every click is a real OpenAI call billed to the Privilege virtual key, and
    Money Movement changes the demo balances.
 
+   Three ways users find the prompts:
+   - **Demos menu** — the model selector lists every agent grouped by area
+     (`modelSpecs` in `librechat.yaml`); picking one opens it on a new chat
+     with its starters. The specs hold agent ids from this machine's Mongo
+     volume: after a fresh volume, copy the ids the seed prints into that list.
+   - **Prompts library** — type `/` in any chat (new or existing) to search
+     every starter, named `<agent> · <prompt>` and grouped by category. It
+     fills the message box; pick the named agent first.
+   - **Agent description** — each agent's description ends with its prompts.
+
+   It also creates Super Sports Policy Guardrails (on `super-sports-gateway`)
+   and three OpenSearch agents — OpenSearch · Direct, OpenSearch · via
+   Privilege, OpenSearch · Privilege opensearch22 — with the same three
+   starters, one per door.
+
+   Banking and CareConnect (healthcare) agents: Banking Account Details,
+   CareConnect Health Data, CareConnect Coverage & Claims and CareConnect
+   Actions run on `aidemo-mcp` (no sign-in; CareConnect Actions changes the
+   seeded store until the BFF restarts). Banking Policy Guardrails and
+   CareConnect Policy Guardrails reuse `super-sports-gateway`: reads are
+   permitted, transfers and record releases are denied by policy. Before using
+   the gateway and Privilege agents:
+   - **Connect once** per LibreChat user to `super-sports-gateway`,
+     `opensearch-privilege-gateway` and `privilege-opensearch22` (MCP settings →
+     Connect → PingOne login). `opensearch-privilege-gateway` also needs the
+     façade's Privilege leg signed in at `/privilege-mcp-client`.
+   - **Keep the port-forward up** for OpenSearch · Direct, once per Mac:
+     `bash scripts/install-opensearch-port-forward-launchd.sh` (from the main
+     checkout). It installs a launchd agent that restarts
+     `kubectl --context us -n ping-devops-curtismuir port-forward svc/opensearch-mcp-server 9900:80`
+     whenever the tunnel drops, including after a reboot or pod restart. Log:
+     `~/Library/Logs/aidemo2-opensearch-port-forward.log`. If it logs an
+     oidc-login or Unauthorized error, run `kubectl --context us get ns` once to
+     sign in again.
+   - The `oauth-loopback` sidecar shares the api container's network, so after
+     recreating `librechat`, run
+     `docker compose -f librechat/docker-compose.yml up -d oauth-loopback` too.
+
 ## Docker vs pingaws
 
-`librechat.yaml` targets the local docker stack by default, and carries one
-door: `aidemo-mcp` (the mcp-server on `:8080`). To point at the SE AWS
-cluster instead:
+`librechat.yaml` targets the local docker stack by default: `aidemo-mcp`,
+`super-sports-gateway`, the three OpenSearch doors — see "Known door caveats"
+below. To point at the SE AWS cluster instead:
 ```bash
 LIBRECHAT_CONFIG=librechat.pingaws.yaml docker compose -f librechat/docker-compose.yml up -d # force-compose
 ```
@@ -92,8 +133,10 @@ recreate a container whose compose-level config didn't change.
 | Door | Docker target | pingaws target |
 |---|---|---|
 | `aidemo-mcp` | works (auth-disabled local mcp-server) | not offered — host-local only |
-| `opensearch-direct` | removed 2026-09-13 — the `cm-mcpgw-opensearch-mcp-server` Service it port-forwarded to is gone | not offered — Mac-only port-forward |
-| `opensearch-privilege-gateway` | removed 2026-09-13 — the local façade's sign-in server is `http://localhost:3005`, unreachable from inside the LibreChat container | works — replaced `opensearch-privilege-agent` on 2026-09-05. That entry pointed at the deleted `agent` door, whose mesh frontend still resolved while nothing served it; the Mac-local `:8643` reachability caveat it carried is moot now, since nothing routes that way |
+| `super-sports-gateway` | works once each user Connects (PingOne login); the façade's `localhost:3005` sign-in server is reached through the `oauth-loopback` sidecar | not offered |
+| `opensearch-direct` | works while the Mac port-forward runs (no auth); `bash scripts/install-opensearch-port-forward-launchd.sh` keeps it up with a launchd agent | not offered — Mac-only port-forward |
+| `privilege-opensearch22` | works once each user Connects; LibreChat signs in against the Privilege gateway's own OAuth server (public host, no sidecar) | not offered |
+| `opensearch-privilege-gateway` | works once each user Connects (through the `oauth-loopback` sidecar) and the façade's Privilege leg is signed in at `/privilege-mcp-client` | works — replaced `opensearch-privilege-agent` on 2026-09-05. That entry pointed at the deleted `agent` door, whose mesh frontend still resolved while nothing served it; the Mac-local `:8643` reachability caveat it carried is moot now, since nothing routes that way |
 | `privilege-agentless` | removed 2026-09-13 — addressed `ai-demo.ping-devops.com`, torn down with `ping-devops-cmuir` | works — verified live |
 | `agent-gateway` | removed 2026-09-13 — same host as `privilege-agentless` | works — a 502 `upstream_unavailable` seen live 2026-08-25 was a routine `demo_mcp_gateway` rollout on the pingaws cluster catching this door mid-startup-probe (`kubectl -n ping-devops-cmuir get events` showed one `Unhealthy: connection refused` right after pod creation, then `2/2 Running` ~4s later) — not a bug. If this recurs, check `kubectl --context us -n ping-devops-cmuir get pods -l app=mcp-gateway` before assuming a LibreChat or façade problem |
 
