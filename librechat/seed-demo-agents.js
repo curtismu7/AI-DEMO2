@@ -164,6 +164,21 @@ const AGENTS = [
       'How many documents are in the cluster?',
     ],
   })),
+  // The Privilege `aggregate` app (MCP Aggregate): opensearch and banking-mcp
+  // behind one URL, each tool prefixed `<server>__`. A few from each side, since
+  // all 42 overflow the gpt-oss tier.
+  {
+    name: 'Privilege Aggregate',
+    server: 'privilege-aggregate',
+    description: 'One Privilege AI Gateway app aggregating the OpenSearch and banking MCP servers.',
+    instructions: 'You are a demo assistant behind one aggregated MCP app. Call opensearch__ClusterHealthTool for cluster health, opensearch__ListIndexTool for indices, banking-mcp__list_banking_accounts for accounts and banking-mcp__get_banking_account for one account. Keep answers short.',
+    tools: ['opensearch__ClusterHealthTool', 'opensearch__ListIndexTool', 'banking-mcp__list_banking_accounts', 'banking-mcp__get_banking_account'],
+    conversation_starters: [
+      'What is the OpenSearch cluster health?',
+      'List the OpenSearch indices',
+      'List my banking accounts',
+    ],
+  },
   // Banking and CareConnect (healthcare). The aidemo-mcp agents read the demo
   // user's seeded store; the gateway agents reuse super-sports-gateway, where
   // create_transfer, release_records and sensitive_patient_records are

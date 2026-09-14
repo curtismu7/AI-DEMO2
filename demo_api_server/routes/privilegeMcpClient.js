@@ -1746,6 +1746,14 @@ router.get('/state', (req, res) => {
         status: '',
         policies: [],
       },
+      // MCP Aggregate app: opensearch + banking-mcp behind one URL.
+      {
+        name: 'aggregate',
+        privilegeUrl: privilegeDoorUrl('aggregate'),
+        facadeUrl: facadeDoorUrl('aggregate'),
+        status: '',
+        policies: [],
+      },
     ]
   ).filter((app) => app.name && app.name !== defaultApp);
 
