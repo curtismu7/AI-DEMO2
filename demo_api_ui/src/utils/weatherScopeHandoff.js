@@ -9,6 +9,17 @@ export const WEATHER_SCOPE_FLAG_ID = 'ff_weather_mcp_allowed_state';
 // The flag's registered default (routes/featureFlags.js). UC30/UC31 in the Demo
 // Steps script assume it: Austin permits, Miami denies.
 export const WEATHER_SCOPE_DEFAULT = 'texas';
+// UC32. The page's Run buttons are UC30 (Austin) and UC31 (Miami), which each
+// assume the default scope — so a run made after the presenter changed it
+// claimed UC31's "denied as expected" over a call the new scope permitted.
+export const WEATHER_RECONFIGURE_USE_CASE_ID = 'weather-mcp-live-reconfigure';
+
+/** The use case a showcase run really is, given the scope live at Run time. */
+export function runUseCaseIdForScope(useCaseId, allowedState) {
+  return allowedState && allowedState !== WEATHER_SCOPE_DEFAULT
+    ? WEATHER_RECONFIGURE_USE_CASE_ID
+    : useCaseId;
+}
 
 const LEAVING_TO_RUN = 'weatherScope.leavingToRun';
 const RESTORE_AFTER_RUN = 'weatherScope.restoreAfterRun';

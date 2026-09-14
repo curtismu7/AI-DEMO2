@@ -2,7 +2,11 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import WeatherStateControl from '../components/WeatherStateControl';
-import { markLeavingToRun } from '../utils/weatherScopeHandoff';
+import {
+  WEATHER_SCOPE_FLAG_ID,
+  markLeavingToRun,
+  runUseCaseIdForScope,
+} from '../utils/weatherScopeHandoff';
 import WeatherBlocklistControl from '../components/WeatherBlocklistControl';
 import { useVertical } from '../vertical/useVertical';
 import { useThemeOptional } from '../context/ThemeContext';
@@ -165,12 +169,25 @@ export default function McpShowcasePage({ capability }) {
           vertical,
         });
         await apiClient.post('/api/verticals/active', { id: vertical });
-        // The scope control resets its policy when this page unmounts; mark this
-        // navigation as the run the policy was changed for.
-        if (cfg.policyKind === 'scope') markLeavingToRun();
+        let runUseCaseId = data.useCaseId;
+        if (cfg.policyKind === 'scope') {
+          // A changed scope makes this run UC32, whichever button was pressed.
+          // Unreadable flags keep the button's own use case rather than block the run.
+          const { data: flagData } = await apiClient
+            .get('/api/admin/feature-flags')
+            .catch(() => ({}));
+          const flags = flagData?.flags || flagData || [];
+          const scope = Array.isArray(flags)
+            ? flags.find((f) => f.id === WEATHER_SCOPE_FLAG_ID)?.value
+            : null;
+          runUseCaseId = runUseCaseIdForScope(data.useCaseId, scope);
+          // The scope control resets its policy when this page unmounts; mark this
+          // navigation as the run the policy was changed for.
+          markLeavingToRun();
+        }
         navigate('/dashboard', {
           state: {
-            useCaseId: data.useCaseId,
+            useCaseId: runUseCaseId,
             triggerText: data.triggerText,
             type: data.type,
             vertical,
