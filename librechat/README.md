@@ -114,9 +114,11 @@ below.
    Account Viewer and Checkout change the demo balances. To see each step,
    look for `Transferred to <agent>` between the two agents' tool calls.
 
-   **Unattended runs.** The seed also creates three schedules owned by the
-   seed account (sign in as it to see them under Schedules), all **disabled**
-   so nothing fires by surprise. Each run acts as the schedule's owner with
+   **Unattended runs.** Scheduling is switched on in `librechat.yaml`
+   (`interface.schedules`, at most 3 schedules per user, hourly at most); without
+   that key LibreChat answers 403 "Scheduled chats are disabled". The seed also
+   creates three schedules owned by the seed account (sign in as it to see them
+   under Schedules), all **disabled** so nothing fires by surprise. Each run acts as the schedule's owner with
    nobody present, reusing the owner's stored MCP sign-in; LibreChat checks the
    agent's MCP servers before every run. Use **Run now** to demo one:
    - **Morning balance report** — Everyday Banking reads balances and

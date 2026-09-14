@@ -19,6 +19,14 @@ interface:
   # (data-schemas loadDefaultInterface; measured 2026-09-13: only the five
   # Demos groups were listed).
   modelSelect: true
+  # Scheduled chats (unattended runs). Unset, LibreChat answers 403 "Scheduled
+  # chats are disabled" (packages/api getLimits). Capped because it applies to
+  # every account; seed-demo-agents.js creates its three schedules disabled.
+  schedules:
+    use: true
+    create: true
+    maxPerUser: 3
+    minIntervalMinutes: 60
 
 # A "Demos" menu in the model selector: each spec opens one seeded agent.
 # The agent_ids come from seed-demo-agents.js on this machine's Mongo volume —
