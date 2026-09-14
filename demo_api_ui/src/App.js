@@ -42,6 +42,7 @@ import PlatformGapsPage from "./components/agentStudioPreview/PlatformGapsPage";
 import AgentFlowDiagramPanel from "./components/AgentFlowDiagramPanel";
 import { AgenticTrustEducation } from "./components/AgenticTrustEducation";
 import OwaspLearnerPage from "./components/OwaspLearnerPage";
+import PrivilegeAiDemoPage from "./pages/PrivilegeAiDemoPage";
 import UngovernedAgentPage from "./components/UngovernedAgentPage";
 import AIAgent from "./components/AIAgent";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -1715,6 +1716,10 @@ function AppWithAuth() {
                             <Route
                               path="/owasp"
                               element={<OwaspLearnerPage />}
+                            />
+                            <Route
+                              path="/privilege-for-ai"
+                              element={<PrivilegeAiDemoPage />}
                             />
                             <Route
                               path="/ungoverned-agent"
