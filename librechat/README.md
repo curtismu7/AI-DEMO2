@@ -86,6 +86,14 @@ below.
    inside an existing chat switches that chat's agent with no starters — open
    a new chat first.
 
+   **Same agent, two model paths.** Everyday Banking · Local model and Super
+   Sports Stores & Code · Local model copy those agents onto the Local LLM
+   Proxy (`gpt-oss-20b`), with no Privilege in front. Run the same starter on
+   each pair in two new chats: Everyday Banking answers on both paths, while
+   "What Super Sports stores are near me?" is blocked on the Privilege lane
+   (data exfiltration on the store list) and answered locally. The local
+   copies need the host model tiers running.
+
    It also creates Super Sports Policy Guardrails (on `super-sports-gateway`)
    and three OpenSearch agents — OpenSearch · Direct, OpenSearch · via
    Privilege, OpenSearch · Privilege opensearch22 — with the same three
