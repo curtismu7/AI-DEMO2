@@ -258,6 +258,23 @@ const AGENTS = [
   },
 ];
 
+// Same agent, two model paths: each copy keeps the original's tools, instructions
+// and starters but runs on the Local LLM Proxy, with no Privilege in front. Stores
+// & Code can show a Privilege control (its store answer is sometimes blocked as
+// data exfiltration on the Privilege lane — 3/3 on 2026-09-13, passed on
+// 2026-09-14); Everyday Banking answers on both.
+// gpt-oss-20b is the only local tier that accepts tools (librechat.yaml).
+for (const name of ['Everyday Banking', 'Super Sports Stores & Code']) {
+  const base = AGENTS.find((a) => a.name === name);
+  AGENTS.push({
+    ...base,
+    name: `${name} · Local model`,
+    description: `${base.description} Local LLM Proxy (gpt-oss-20b), no Privilege in front — compare with ${name}.`,
+    provider: 'Local LLM Proxy',
+    model: 'gpt-oss-20b',
+  });
+}
+
 async function call(method, path, { token, body } = {}) {
   const res = await fetch(`${LC}${path}`, {
     method,
@@ -298,8 +315,8 @@ async function main() {
       name: def.name,
       description: `${def.description} Try: ${def.conversation_starters.map((s) => `"${s}"`).join(' · ')}`,
       instructions: def.instructions,
-      provider: PROVIDER,
-      model: MODEL,
+      provider: def.provider || PROVIDER,
+      model: def.model || MODEL,
       tools: [`sys__server__sys_mcp_${server}`, ...def.tools.map((t) => `${t}_mcp_${server}`)],
       conversation_starters: def.conversation_starters,
     };
