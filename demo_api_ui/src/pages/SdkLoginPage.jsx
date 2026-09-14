@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import JsonHighlight from "../components/shared/JsonHighlight";
+import EmbeddedSignInForm from "../components/sdk-login/EmbeddedSignInForm";
 import { getSdkClient, isSdkError } from "../lib/oidcSdkClient";
+import { POPUP_RESULT_TYPE, POPUP_WINDOW_NAME } from "../lib/sdkLoginPopup";
 import { decodeJWT } from "../services/tokenInspector";
+import "./SdkLoginPage.css";
 
 // tokens.<field> -> tab label, in display order.
 const TOKEN_TABS = [
@@ -202,6 +205,11 @@ export default function SdkLoginPage() {
   const [exercise, setExercise] = useState('');
   const [inspectTokenType, setInspectTokenType] = useState('accessToken');
 
+  // Pop-out sign-in: the open popup and the cleanup for its listener + close poll.
+  const popupRef = useRef(null);
+  const popupCleanupRef = useRef(null);
+  useEffect(() => () => popupCleanupRef.current?.(), []);
+
   const toggleTheme = useCallback(() => {
     setTheme((t) => {
       const next = t === "dark" ? "light" : "dark";
@@ -259,6 +267,63 @@ export default function SdkLoginPage() {
       setBusy(false);
     }
   }, []);
+
+  const handlePopupSignIn = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    popupCleanupRef.current?.();
+    try {
+      const client = await getSdkClient();
+      const url = await client.authorize.url();
+      if (typeof url !== "string") {
+        throw new Error(url?.error || "Could not build the authorization URL");
+      }
+      const popup = window.open(url, POPUP_WINDOW_NAME, "popup,width=520,height=720");
+      if (!popup) {
+        setError("Your browser blocked the pop-up. Allow pop-ups for this site, or use another sign-in.");
+        setBusy(false);
+        return;
+      }
+      popupRef.current = popup;
+
+      let settled = false;
+      const finish = () => {
+        settled = true;
+        window.removeEventListener("message", onMessage);
+        clearInterval(closedPoll);
+        popupCleanupRef.current = null;
+        setBusy(false);
+      };
+      const onMessage = async (event) => {
+        if (event.origin !== window.location.origin || event.source !== popupRef.current) return;
+        if (event.data?.type !== POPUP_RESULT_TYPE) return;
+        finish();
+        const { code, state, error: oauthError, errorDescription } = event.data;
+        if (oauthError || !code) {
+          setError(errorDescription || oauthError || "The pop-out sign-in did not return a code.");
+          return;
+        }
+        const result = await client.token.exchange(code, state);
+        if (isSdkError(result)) {
+          setError(result.error || "Token exchange failed.");
+          return;
+        }
+        await refresh();
+      };
+      const closedPoll = setInterval(() => {
+        if (!settled && popup.closed) {
+          finish();
+          setError("The sign-in window was closed before it finished.");
+        }
+      }, 500);
+      window.addEventListener("message", onMessage);
+      popupCleanupRef.current = finish;
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  }, [refresh]);
 
   const handleRevoke = useCallback(async () => {
     setBusy(true);
@@ -341,7 +406,20 @@ export default function SdkLoginPage() {
   }, []);
 
   return (
-    <div style={styles.page}>
+    <div
+      style={{
+        ...styles.page,
+        "--sdk-panel": C.panel,
+        "--sdk-panel2": C.panel2,
+        "--sdk-text": C.text,
+        "--sdk-muted": C.muted,
+        "--sdk-border": C.border,
+        "--sdk-blue": C.blue,
+        "--sdk-on-blue": "#fff",
+        "--sdk-red-text": C.redText,
+        "--sdk-error-bg": C.bannerErrBg,
+      }}
+    >
       <div style={styles.wrap}>
         <div style={styles.headRow}>
           <div style={styles.topbar}>
@@ -430,21 +508,34 @@ export default function SdkLoginPage() {
               SDK session <span style={styles.tag("out")}>no tokens</span>
             </div>
             <p style={{ color: C.muted, margin: "0 0 16px" }}>
-              You are not signed in. Clicking below calls <code>client.authorize.url()</code> (the SDK
-              generates &amp; stores <code>state</code> + PKCE verifier) and redirects you to PingOne.
+              You are not signed in. All three sign-ins use the same PKCE app: each calls{" "}
+              <code>client.authorize.url()</code> (the SDK stores <code>state</code> + the PKCE verifier) and
+              finishes with <code>client.token.exchange(code, state)</code> in this tab.
             </p>
-            <div style={styles.row}>
-              <button
-                type="button"
-                disabled={busy}
-                style={{ ...styles.btn, ...styles.btnPrimary, opacity: busy ? 0.6 : 1 }}
-                onClick={handleSignIn}
-              >
-                Sign in with the SDK →
-              </button>
-              <span style={{ ...styles.note, marginTop: 0 }}>
-                redirects to PingOne, returns to <code>/sdk-login/callback</code>
-              </span>
+            <div className="sdk-signin-options">
+              <div className="sdk-signin-option">
+                <h3>Redirect</h3>
+                <p>The whole page goes to PingOne&apos;s hosted login and comes back to <code>/sdk-login/callback</code>.</p>
+                <button type="button" disabled={busy} className="sdk-btn sdk-btn-primary" onClick={handleSignIn}>
+                  Sign in with the SDK →
+                </button>
+              </div>
+              <div className="sdk-signin-option">
+                <h3>Pop-out</h3>
+                <p>PingOne&apos;s hosted login opens in a pop-up window. The callback posts the code back here and closes; this page never navigates.</p>
+                <button type="button" disabled={busy} className="sdk-btn sdk-btn-primary" onClick={handlePopupSignIn}>
+                  Sign in in a pop-out
+                </button>
+              </div>
+              <div className="sdk-signin-option">
+                <h3>Embedded (pi.flow)</h3>
+                <p>
+                  Your own form drives PingOne&apos;s native flow with <code>response_mode=pi.flow</code>. Needs explicit
+                  CORS origins on the PingOne app and a browser that keeps PingOne&apos;s third-party session cookie
+                  (Chrome does; Safari and Firefox block it).
+                </p>
+                <EmbeddedSignInForm onSignedIn={refresh} onUsePopup={handlePopupSignIn} onUseRedirect={handleSignIn} />
+              </div>
             </div>
           </div>
         )}
