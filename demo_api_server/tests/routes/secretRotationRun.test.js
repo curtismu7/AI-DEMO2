@@ -110,6 +110,61 @@ describe('POST /api/admin/secret-rotation/start', () => {
   });
 });
 
+// The boot loader deletes VAULT_PASSWORD from process.env once the vault is
+// open, and the CLI's preflight reads only process.env.VAULT_PASSWORD. A child
+// that merely inherits the BFF's env therefore refused every rotation with "no
+// vault password available". The route must hand the password to THIS child —
+// without putting it back into the long-lived BFF env.
+describe('POST /start after the boot vault load deleted VAULT_PASSWORD', () => {
+  const os = require('node:os');
+  const { loadVaultIntoConfigStore } = require('../../services/vaultLoader');
+  const PW = 'unit-test-vault-pw';
+  let tmpDir;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    getRotatableVaultKeyMap.mockResolvedValue({ a1: 'DEMO_CLIENT_SECRET' });
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rotation-vault-'));
+  });
+  afterEach(() => {
+    delete process.env.VAULT_PASSWORD;
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  test('the spawned CLI receives the vault password; argv and the BFF env do not', async () => {
+    const vaultPath = path.join(tmpDir, 'secrets.vault');
+    fs.writeFileSync(vaultPath, 'placeholder — openVault is mocked');
+    process.env.VAULT_PASSWORD = PW;
+    await loadVaultIntoConfigStore({
+      vaultPath,
+      isVercel: false,
+      logger: { log: jest.fn(), error: jest.fn() },
+      configStore: {
+        ensureInitialized: jest.fn().mockResolvedValue(undefined),
+        setRaw: jest.fn().mockResolvedValue(undefined),
+      },
+      vaultLib: {
+        openVault: jest.fn().mockResolvedValue({ list: () => [], read: () => undefined, close: jest.fn() }),
+      },
+    });
+    expect(process.env.VAULT_PASSWORD).toBeUndefined();
+
+    const res = await request(appWithRouter())
+      .post('/api/admin/secret-rotation/start')
+      .send({ appId: 'a1', vaultKey: 'DEMO_CLIENT_SECRET', reason: 'env handoff' });
+    expect(res.status).toBe(202);
+
+    const [, argv, opts] = mockSpawn.mock.calls[0];
+    // spawn() with no `env` option inherits process.env — model that default
+    // rather than assume an explicit env object exists.
+    const childEnv = opts.env || process.env;
+    expect(childEnv.VAULT_PASSWORD).toBe(PW);
+    expect(argv.join(' ')).not.toContain(PW);
+    expect(process.env.VAULT_PASSWORD).toBeUndefined();
+    fs.unlinkSync(path.join(RUN_DIR, `${res.body.runId}.log`));
+  });
+});
+
 // C4: status keys off the CLI's single terminal sentinel. The old substring
 // guess ("verified" / "VERIFY FAILED" / "Error") matched none of the refusal
 // messages, so a correctly refused rotation polled 'running' forever while the

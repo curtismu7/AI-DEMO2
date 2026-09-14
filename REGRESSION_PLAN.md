@@ -212,6 +212,32 @@ simulation, log tracked to bottom (`scrollHeight - scrollTop - clientHeight
 <= 2`) as entries arrived; popped out and the in-page panel stayed hidden
 through the rest of the run; closing the popped-out tab restored it.
 
+### 2026-09-13 — Secret Rotation: the spawned CLI had no vault password, so every page-started rotation aborted
+
+**Files changed:** `demo_api_server/services/vaultLoader.js`,
+`demo_api_server/routes/secretRotation.js`. Test:
+`demo_api_server/tests/routes/secretRotationRun.test.js`.
+
+**What was broken:** `loadVaultIntoConfigStore` deletes `VAULT_PASSWORD` from
+`process.env` at boot (T-269-06), before `.listen()`. `POST
+/api/admin/secret-rotation/start` spawned `scripts/rotate-app-secret.js` with no
+`env` option, so the child inherited that trimmed env, and
+`rotateAppSecretCli.js` reads only `process.env.VAULT_PASSWORD`. Preflight
+refused with "no vault password available" (`DONE aborted`) before any PingOne
+call, in Docker and natively, whenever a vault was loaded at boot.
+
+**What was fixed:** the loader keeps the password it successfully opened the
+vault with in a module-private variable (`vaultPasswordThisProcess()`), and the
+route passes it in that one child's spawn `env`.
+
+**Do not break:**
+- `process.env.VAULT_PASSWORD` is still deleted after the boot load and is never
+  re-added to the BFF's env.
+- The password never goes in argv or the run log.
+- `unlockVaultAtRuntime` still never touches the env or this variable.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest tests/routes/secretRotationRun.test.js --forceExit`.
+
 ### 2026-09-13 — Node gateway: a DPoP-bound token without a valid, unreplayed proof is refused
 
 **Files changed:** `demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts`,
