@@ -108,6 +108,10 @@ describe('POST /api/davinci-login/callback', () => {
       scope: 'openid profile',
     });
     expect(session.user).toEqual({ id: 'u1', username: 'demoUser', role: 'customer' });
+    // A customer sign-in: without oauthType 'user' the session reads as admin to
+    // /api/auth/oauth/status and as signed-out to /api/auth/oauth/user/status.
+    expect(session.oauthType).toBe('user');
+    expect(session.clientType).toBeDefined();
   });
 
   test('missing code is rejected', async () => {
@@ -236,6 +240,8 @@ describe('POST /api/davinci-login/widget-session', () => {
       scope: AT_CLAIMS.scope,
     });
     expect(sess.user).toEqual({ id: 'u1', username: 'demoUser', role: 'customer' });
+    expect(sess.oauthType).toBe('user');
+    expect(sess.clientType).toBeDefined();
     expect(sess.davinciLoginNonce).toBeUndefined();
   });
 

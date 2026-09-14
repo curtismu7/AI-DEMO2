@@ -28,6 +28,7 @@ const { getDiscoveryEndpoint } = require('../services/oauthEndpointResolver');
 const oauthService = require('../services/oauthService');
 const tokenVerificationService = require('../services/tokenVerificationService');
 const dataStore = require('../data/store');
+const { determineClientType } = require('../middleware/auth');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
 const router = express.Router();
@@ -61,6 +62,11 @@ async function establishSession(req, res, tokens, label) {
   const persistAndRespond = () => {
     req.session.oauthTokens = tokens;
     req.session.user = user;
+    // A customer sign-in, stored like routes/oauthUser.js's callback. Without
+    // oauthType 'user' the session reads as ADMIN to /api/auth/oauth/status
+    // (routes/oauth.js) and as signed-out to /api/auth/oauth/user/status.
+    req.session.clientType = determineClientType(tokens.accessToken);
+    req.session.oauthType = 'user';
     // Marks this session as a widget login so a later /widget-session call on
     // the SAME session (see isWidgetAccessTokenExpiring below) is recognized
     // as a silent refresh rather than a first sign-in — the widget's tokens

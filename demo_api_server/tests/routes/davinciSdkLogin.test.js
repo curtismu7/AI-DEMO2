@@ -79,6 +79,12 @@ function buildApp() {
   app.use(express.json());
   app.use(session({ secret: 't', resave: false, saveUninitialized: false }));
   app.use('/api/davinci-sdk-login', davinciSdkLoginRouter);
+  // Test-only window onto the session the callback wrote.
+  app.get('/__session', (req, res) => res.json({
+    oauthType: req.session.oauthType || null,
+    clientType: req.session.clientType || null,
+    username: req.session.user?.username || null,
+  }));
   return app;
 }
 
@@ -197,6 +203,20 @@ describe('routes/davinciSdkLogin', () => {
       // Public client: PKCE proves possession, so no secret may be sent.
       expect(form.get('client_secret')).toBeNull();
       expect(body).not.toContain('client_secret');
+    });
+
+    // A customer sign-in: without oauthType 'user' the session reads as admin to
+    // /api/auth/oauth/status and as signed-out to /api/auth/oauth/user/status.
+    it('stores the session as a customer (oauthType user) sign-in', async () => {
+      const { a, nonce } = await armed();
+      happyUpstream(nonce);
+
+      await a.post('/api/davinci-sdk-login/callback').send({ code: 'c', codeVerifier: 'v' }).expect(200);
+
+      const { body } = await a.get('/__session').expect(200);
+      expect(body.username).toBe('customer1');
+      expect(body.oauthType).toBe('user');
+      expect(body.clientType).not.toBeNull();
     });
 
     it("falls back to the demo user record's email when PingOne userinfo has none", async () => {

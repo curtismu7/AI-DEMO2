@@ -34,6 +34,7 @@ const configStore = require('../services/configStore');
 const { getTokenEndpoint, getDiscoveryEndpoint } = require('../services/oauthEndpointResolver');
 const oauthService = require('../services/oauthService');
 const dataStore = require('../data/store');
+const { determineClientType } = require('../middleware/auth');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const { getScopesForUserType } = require('../config/scopes');
 
@@ -214,6 +215,11 @@ router.post('/callback', async (req, res) => {
         scope: tokenData.scope || null,
       };
       req.session.user = user;
+      // A customer sign-in, stored like routes/oauthUser.js's callback. Without
+      // oauthType 'user' the session reads as ADMIN to /api/auth/oauth/status
+      // (routes/oauth.js) and as signed-out to /api/auth/oauth/user/status.
+      req.session.clientType = determineClientType(tokenData.access_token);
+      req.session.oauthType = 'user';
 
       req.session.save((saveErr) => {
         if (saveErr) {
