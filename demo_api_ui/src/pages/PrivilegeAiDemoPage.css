@@ -18,6 +18,19 @@
   color: var(--th-text-muted);
 }
 
+.pfa-scanner-points {
+  margin: 0 0 16px;
+  padding-left: 20px;
+  max-width: 66ch;
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--th-text-muted);
+}
+.pfa-scanner-link {
+  font-weight: 600;
+  color: var(--th-status-info-text);
+}
+
 /* Threat matrix */
 .pfa-matrix { display: flex; flex-direction: column; gap: 12px; }
 .pfa-threat {

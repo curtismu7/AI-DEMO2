@@ -16,6 +16,7 @@ import "./PrivilegeAiDemoPage.css";
 const SECTIONS = [
   { id: "threats", label: "Three threats" },
   { id: "flow", label: "Defense in depth" },
+  { id: "scanner", label: "Blue-team scanner" },
   { id: "run", label: "Demo steps" },
   { id: "reference", label: "Reference" },
 ];
@@ -146,6 +147,23 @@ export default function PrivilegeAiDemoPage() {
             the scanner stops the <em>ingestion</em>.
           </p>
         </div>
+      </Section>
+
+      <Section id="scanner" title="The blue-team scanner — catch it at ingest">
+        <p className="pfa-sub">
+          Privilege stops the <em>action</em> (MCP lane) and the <em>content</em> (LLM lane), but it does not inspect the
+          poisoned tool metadata itself. The scanner is that missing piece: it reads the server's{" "}
+          <code className="pfa-code">tools/list</code> and flags the hidden instruction and the exfil sink before an agent
+          ever trusts them — the same detection as <code className="pfa-code">standalone/mcp-scanner</code>, reporting
+          never blocking.
+        </p>
+        <ul className="pfa-scanner-points">
+          <li>Against the hostile server it flags <b>2 findings</b>: get_weather (hidden-instruction) and search_docs (exfil-sink).</li>
+          <li>create_transfer is <b>not</b> flagged — a legit-looking action tool, no poisoned metadata.</li>
+        </ul>
+        <p className="pfa-sub">
+          <a className="pfa-scanner-link" href="/mcp-scanner">Open the MCP Scanner and run it live →</a>
+        </p>
       </Section>
 
       <Section id="run" title="Run the demo, step by step">

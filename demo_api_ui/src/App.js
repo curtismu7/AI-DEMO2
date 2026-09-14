@@ -43,6 +43,7 @@ import AgentFlowDiagramPanel from "./components/AgentFlowDiagramPanel";
 import { AgenticTrustEducation } from "./components/AgenticTrustEducation";
 import OwaspLearnerPage from "./components/OwaspLearnerPage";
 import PrivilegeAiDemoPage from "./pages/PrivilegeAiDemoPage";
+import McpScannerPage from "./pages/McpScannerPage";
 import UngovernedAgentPage from "./components/UngovernedAgentPage";
 import AIAgent from "./components/AIAgent";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -1720,6 +1721,10 @@ function AppWithAuth() {
                             <Route
                               path="/privilege-for-ai"
                               element={<PrivilegeAiDemoPage />}
+                            />
+                            <Route
+                              path="/mcp-scanner"
+                              element={<McpScannerPage />}
                             />
                             <Route
                               path="/ungoverned-agent"

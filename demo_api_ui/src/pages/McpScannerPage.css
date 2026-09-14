@@ -1,0 +1,149 @@
+/* MCP Metadata Scanner (/mcp-scanner). Themed via --th-* (both modes, dark is
+   data-theme="dark" only); every rule with a --th background sets a --th color on
+   its own line (THEMING §1.5 ratchet); code uses var(--font-mono), never a literal
+   family. Font sizes from the scale. */
+
+.mcps-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+  color: var(--th-text);
+  font-family: var(--font-primary);
+}
+
+.mcps-eyebrow {
+  margin: 0 0 6px;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--th-status-info-text);
+}
+.mcps-hero { margin-bottom: 28px; }
+.mcps-title {
+  margin: 0 0 12px;
+  font-size: var(--font-size-h1);
+  line-height: 1.15;
+  color: var(--th-text);
+  text-wrap: balance;
+}
+.mcps-lede {
+  margin: 0;
+  max-width: 68ch;
+  font-size: var(--font-size-md);
+  line-height: 1.6;
+  color: var(--th-text-body);
+}
+
+.mcps-code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  padding: 1px 5px;
+  border-radius: var(--radius-sm, 5px);
+}
+
+.mcps-panel {
+  padding: 20px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md, 10px);
+}
+
+.mcps-run-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.mcps-run-hint { font-size: var(--font-size-xs); color: var(--th-text-muted); }
+
+.mcps-btn {
+  font-family: var(--font-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  padding: 9px 16px;
+  cursor: pointer;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm, 6px);
+}
+.mcps-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.mcps-btn:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 2px; }
+.mcps-btn-primary {
+  background: var(--th-status-info);
+  color: var(--th-text-invert);
+  border-color: var(--th-status-info);
+}
+
+.mcps-custom { margin-top: 18px; }
+.mcps-summary {
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--th-status-info-text);
+}
+.mcps-textarea {
+  display: block;
+  width: 100%;
+  margin: 12px 0;
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  line-height: 1.5;
+  resize: vertical;
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm, 6px);
+}
+
+.mcps-error {
+  margin: 20px 0 0;
+  padding: 12px 16px;
+  font-size: var(--font-size-sm);
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+  border: 1px solid var(--th-status-error, var(--th-border));
+  border-radius: var(--radius-sm, 6px);
+}
+
+.mcps-results { margin-top: 24px; }
+.mcps-scanned {
+  margin: 0 0 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-muted);
+}
+
+.mcps-clean {
+  padding: 16px 18px;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+  border: 1px solid var(--th-status-success, var(--th-border));
+  border-radius: var(--radius-md, 10px);
+}
+
+.mcps-findings { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.mcps-finding {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+  border-left: 4px solid var(--mcps-edge, var(--th-border));
+  border-radius: var(--radius-md, 10px);
+}
+.mcps-kind-hidden-instruction { --mcps-edge: var(--th-status-error); }
+.mcps-kind-exfil-sink { --mcps-edge: var(--th-status-warning); }
+.mcps-finding-head { font-size: var(--font-size-sm); color: var(--th-text); }
+.mcps-finding-detail { font-family: var(--font-mono); font-size: var(--font-size-2xs); color: var(--th-text-muted); }
+
+.mcps-verdict {
+  margin: 14px 0 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--th-status-error-text);
+}
