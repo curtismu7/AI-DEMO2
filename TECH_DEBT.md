@@ -16,6 +16,23 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-09-14 — /sdk-login embedded sign-in depends on a hand-set PingOne CORS setting
+
+**What's wrong.** The embedded (`pi.flow`) sign-in on `/sdk-login` only completes
+because the PKCE app (`160cc22f…` "Demo AI App - PKCE") has `corsSettings`
+`ALLOW_SPECIFIC_ORIGINS` for `https://local.ping-devops.com:4000`,
+`https://api.ping.demo:4000` and `https://ai-demo.ping-devops.com`, set by hand on
+2026-09-14. With `corsSettings: null`, `GET /as/resume` returns the code with no
+`Access-Control-Allow-Origin`, so the browser cannot read it. No provisioning
+script manages this app, so a re-created app silently breaks the embedded option.
+
+**Why it wasn't fixed now.** The feature PR is UI-only; provisioning for this app
+does not exist yet.
+
+**Real fix.** Set `corsSettings` wherever the PKCE app gets provisioned (or add a
+check that fails loudly when it is missing), and add a new deployment origin to
+the list when one appears.
+
 ### [ ] 2026-09-13 — Raw PingGateway log window is open to any signed-in user
 
 **What's wrong.** `GET /api/admin/agent-gateway/logs`
