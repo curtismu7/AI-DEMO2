@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Stage, Layer, Rect, Text, Arrow, Group, Circle } from 'react-konva';
 import useCanvasLayout from '../hooks/useCanvasLayout';
+import { useThemeOptional } from '../context/ThemeContext';
 import './ArchitectureCanvasPage.css';
 
 const W = 155;
@@ -9,6 +10,11 @@ const H_ICON = 36;   // colored icon strip height
 const R = 8;
 const STAGE_W = 1400;  // fixed wide canvas — wrapper scrolls on small screens
 
+// Konva paints via fill/stroke props, not CSS — it can't pick up --th-*
+// tokens, so the on-screen palette needs its own light/dark pair. Kept
+// separate from the exported Mermaid/LucidChart files below, which stay on
+// the light palette regardless of the app's theme (a downloaded diagram is a
+// standalone artifact, not a themed page).
 const LAYER_STYLE = {
   client:   { fill: '#f0f4ff', stroke: '#4f46e5', label: '#1e1b4b', sub: '#6366f1', icon: '#4f46e5' },
   gateway:  { fill: '#f5f3ff', stroke: '#7c3aed', label: '#2e1065', sub: '#8b5cf6', icon: '#7c3aed' },
@@ -17,6 +23,16 @@ const LAYER_STYLE = {
   policy:   { fill: '#fdf2f8', stroke: '#db2777', label: '#831843', sub: '#ec4899', icon: '#db2777' },
   backend:  { fill: '#f0f9ff', stroke: '#0284c7', label: '#0c4a6e', sub: '#0ea5e9', icon: '#0284c7' },
   tool:     { fill: '#f8fafc', stroke: '#475569', label: '#1e293b', sub: '#64748b', icon: '#475569' },
+};
+
+const LAYER_STYLE_DARK = {
+  client:   { fill: '#151a33', stroke: '#818cf8', label: '#e0e7ff', sub: '#a5b4fc', icon: '#818cf8' },
+  gateway:  { fill: '#1e1b3a', stroke: '#a78bfa', label: '#ede9fe', sub: '#c4b5fd', icon: '#a78bfa' },
+  agent:    { fill: '#0f2a20', stroke: '#34d399', label: '#d1fae5', sub: '#6ee7b7', icon: '#34d399' },
+  mcp:      { fill: '#2a1f0a', stroke: '#fbbf24', label: '#fef3c7', sub: '#fcd34d', icon: '#fbbf24' },
+  policy:   { fill: '#2a1220', stroke: '#f472b6', label: '#fce7f3', sub: '#f9a8d4', icon: '#f472b6' },
+  backend:  { fill: '#0c1f2e', stroke: '#38bdf8', label: '#e0f2fe', sub: '#7dd3fc', icon: '#38bdf8' },
+  tool:     { fill: '#1b2540', stroke: '#94a3b8', label: '#e2e8f0', sub: '#cbd5e1', icon: '#94a3b8' },
 };
 
 // Per-node icon — falls back to LAYER_ICON
@@ -258,6 +274,11 @@ function midpoint(pts) {
 }
 
 export default function ArchitectureCanvasPage() {
+  const { darkMode } = useThemeOptional();
+  const layerStyle = darkMode ? LAYER_STYLE_DARK : LAYER_STYLE;
+  const canvasBg = darkMode ? '#0b1220' : '#f8fafc';
+  const colLabelFill = darkMode ? '#94a3b8' : '#64748b';
+  const dimmedEdgeColor = darkMode ? '#475569' : '#d1d5db';
   const { nodes, edges, moveNode, renameNode, addNode, removeEdge, addEdge, resetLayout } = useCanvasLayout();
   const [newLabel, setNewLabel] = useState('');
   const [connectMode, setConnectMode] = useState(false);
@@ -284,6 +305,20 @@ export default function ArchitectureCanvasPage() {
     obs.observe(wrapRef.current);
     return () => obs.disconnect();
   }, []);
+
+  // Connect mode has no visible way out besides re-clicking the same toggle —
+  // Escape cancels it, matching every other modal-like interaction in the app.
+  useEffect(() => {
+    if (!connectMode) return;
+    const onKeyDown = (e) => {
+      if (e.key !== 'Escape') return;
+      setConnectMode(false);
+      setDragWire(null);
+      dragWireRef.current = null;
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [connectMode]);
 
   const handleDragMove = useCallback((id, e) => {
     moveNode(id, e.target.x(), e.target.y());
@@ -531,7 +566,7 @@ export default function ArchitectureCanvasPage() {
         >
           {/* Background */}
           <Layer>
-            <Rect x={0} y={0} width={STAGE_W} height={stageH} fill="#f8fafc" />
+            <Rect x={0} y={0} width={STAGE_W} height={stageH} fill={canvasBg} />
           </Layer>
 
           {/* Column labels — x tracks the average position of member nodes */}
@@ -541,7 +576,7 @@ export default function ArchitectureCanvasPage() {
               return (
                 <Text key={col.label} x={lx} y={8} width={W}
                   text={col.label.toUpperCase()} fontSize={11} fontStyle="bold"
-                  fontFamily="system-ui, sans-serif" fill="#64748b"
+                  fontFamily="system-ui, sans-serif" fill={colLabelFill}
                   letterSpacing={1} align="center" listening={false} />
               );
             })}
@@ -550,7 +585,7 @@ export default function ArchitectureCanvasPage() {
           {/* Nodes — Okta-style two-zone cards (drawn before edges so arrowheads sit on top) */}
           <Layer>
             {nodes.map(node => {
-              const style = LAYER_STYLE[node.layer] ?? LAYER_STYLE.tool;
+              const style = layerStyle[node.layer] ?? layerStyle.tool;
               const isConnectSrc = connectFrom === node.id;
               const strokeColor = isConnectSrc ? '#f59e0b' : connectMode ? '#3b82f6' : style.stroke;
               const strokeWidth = (isConnectSrc || connectMode) ? 2.5 : 1.5;
@@ -610,8 +645,8 @@ export default function ArchitectureCanvasPage() {
               const pts = arrowPoints(src, tgt);
               const isSelected = selectedEdge === edge.id;
               const dimmed = !!flow;
-              const srcStyle = LAYER_STYLE[src.layer] ?? LAYER_STYLE.tool;
-              const lineColor = isSelected ? '#ef4444' : dimmed ? '#d1d5db' : srcStyle.stroke;
+              const srcStyle = layerStyle[src.layer] ?? layerStyle.tool;
+              const lineColor = isSelected ? '#ef4444' : dimmed ? dimmedEdgeColor : srcStyle.stroke;
               const dash = (!isSelected && !dimmed) ? (LAYER_DASH[src.layer] ?? null) : null;
               return (
                 <Arrow key={edge.id} points={pts}

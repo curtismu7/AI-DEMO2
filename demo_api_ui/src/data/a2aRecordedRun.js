@@ -207,30 +207,37 @@ export const A2A_RECORDED_RUN = {
     },
     {
       "id": "a2a-protocol-bearer",
-      "label": "A2A Protocol — PingOne wire bearer · client_credentials",
+      "label": "A2A Protocol — wire bearer · Exchange #1 delegated token",
       "status": "acquired",
       "timestamp": "2026-08-29T18:13:54.902Z",
       "alg": "RS256",
       "claims": {
         "client_id": "0b412e8b-cfbc-4c7d-a773-0d46118de09d",
         "iss": "https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as",
-        "jti": "6977cf09-5696-4b26-a84e-4dc79709c1fc",
+        "jti": "02189927-c491-4cc7-813d-2ac27b38fb88",
         "iat": 1788027234,
         "exp": 1788030834,
         "aud": [
-          "agentgateway.ping.demo"
+          "a2a-intermediate-membership.ping.demo"
         ],
-        "scope": "agent:invoke",
-        "may_act": "{\"sub\":\"f4dd707d-f78d-4417-ba56-dc8707d10a1f\"}",
+        "scope": "agent:invoke:membership",
+        "sub": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
+        "sid": "17698419-8b97-408f-9aee-57c8841b3687",
+        "auth_time": 1788027228,
+        "acr": "Agent-Consent-Login",
+        "act": {
+          "sub": "0b412e8b-cfbc-4c7d-a773-0d46118de09d"
+        },
+        "may_act": "{\"sub\":\"5a5d730f-864c-46b4-a651-53516a6f709c\"}",
         "env": "01d89b06-66d5-430e-9f28-65636843788b",
-        "org": "97ba44f2-f7ee-4144-aa95-9e636b57c096",
-        "p1.rid": "6977cf09-5696-4b26-a84e-4dc79709c1fc"
+        "org": "97ba44f2-f7ee-4144-aa95-9e636b57c096"
       },
-      "explanation": "Separate from nested-act MCP tokens. Pattern: Magic 8 Ball security sample (bearer to A2A server) with PingOne as IdP.",
+      "explanation": "The wire hop carries the user’s own delegated token (sub: the user, act: the generalist) — not a client_credentials token, which would prove no user was behind the call. The same PingOne gate the HTTP route applies validated it here too.",
       "a2aRole": "protocol-bearer",
       "vertical": "sporting-goods",
       "publicCardUrl": "https://local.ping-devops.com:4000/a2a/specialists/sporting-goods/.well-known/agent-card.json",
-      "clientId": "0b412e8b-cfbc-4c7d-a773-0d46118de09d"
+      "clientId": "0b412e8b-cfbc-4c7d-a773-0d46118de09d",
+      "userSub": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761"
     },
     {
       "id": "a2a-agent-card",
@@ -255,7 +262,7 @@ export const A2A_RECORDED_RUN = {
       "mode": "in-process",
       "agentCard": {
         "name": "Membership Specialist",
-        "description": "Super Banking Membership Specialist Agent — A2A specialist for vertical \"sporting-goods\". Wire auth is PingOne Bearer; MCP tools still require nested-act delegation.",
+        "description": "Super Banking Membership Specialist Agent — A2A specialist for vertical \"sporting-goods\". Wire auth carries the caller's own delegated token; this specialist performs its own nested-act exchange before calling MCP tools.",
         "version": "1.0.0",
         "documentationUrl": "https://a2a-protocol.org/dev/tutorials/",
         "provider": {
@@ -273,7 +280,7 @@ export const A2A_RECORDED_RUN = {
             "scheme": {
               "$case": "httpAuthSecurityScheme",
               "value": {
-                "description": "PingOne access token (client_credentials) for the A2A hop",
+                "description": "PingOne access token (the caller's own RFC 8693 delegated token) for the A2A hop",
                 "scheme": "Bearer",
                 "bearerFormat": "JWT"
               }
@@ -335,11 +342,11 @@ export const A2A_RECORDED_RUN = {
       "timestamp": "2026-08-29T18:13:54.905Z",
       "alg": null,
       "claims": null,
-      "explanation": "A2A handoff received by Membership Specialist. Wire auth: PingOne Bearer. MCP tools still require nested-act delegation. Task: hand off to a specialist to review the sensitive membership details",
+      "explanation": "A2A handoff received by Membership Specialist. Wire auth: the caller's own RFC 8693 delegated token. This specialist performs its own nested-act exchange before calling MCP tools. Task: hand off to a specialist to review the sensitive membership details",
       "a2aRole": "protocol-message",
       "vertical": "sporting-goods",
       "agentName": "Membership Specialist",
-      "replyText": "A2A handoff received by Membership Specialist. Wire auth: PingOne Bearer. MCP tools still require nested-act delegation. Task: hand off to a specialist to review the sensitive membership details",
+      "replyText": "A2A handoff received by Membership Specialist. Wire auth: the caller's own RFC 8693 delegated token. This specialist performs its own nested-act exchange before calling MCP tools. Task: hand off to a specialist to review the sensitive membership details",
       "mode": "in-process",
       "protocolRequest": {
         "method": "message/send",
@@ -354,14 +361,14 @@ export const A2A_RECORDED_RUN = {
         }
       },
       "protocolResponse": {
-        "replyText": "A2A handoff received by Membership Specialist. Wire auth: PingOne Bearer. MCP tools still require nested-act delegation. Task: hand off to a specialist to review the sensitive membership details",
+        "replyText": "A2A handoff received by Membership Specialist. Wire auth: the caller's own RFC 8693 delegated token. This specialist performs its own nested-act exchange before calling MCP tools. Task: hand off to a specialist to review the sensitive membership details",
         "ok": true
       }
     }
   ],
   "agentCard": {
     "name": "Membership Specialist",
-    "description": "Super Banking Membership Specialist Agent — A2A specialist for vertical \"sporting-goods\". Wire auth is PingOne Bearer; MCP tools still require nested-act delegation.",
+    "description": "Super Banking Membership Specialist Agent — A2A specialist for vertical \"sporting-goods\". Wire auth carries the caller's own delegated token; this specialist performs its own nested-act exchange before calling MCP tools.",
     "version": "1.0.0",
     "documentationUrl": "https://a2a-protocol.org/dev/tutorials/",
     "provider": {
@@ -379,7 +386,7 @@ export const A2A_RECORDED_RUN = {
         "scheme": {
           "$case": "httpAuthSecurityScheme",
           "value": {
-            "description": "PingOne access token (client_credentials) for the A2A hop",
+            "description": "PingOne access token (the caller's own RFC 8693 delegated token) for the A2A hop",
             "scheme": "Bearer",
             "bearerFormat": "JWT"
           }

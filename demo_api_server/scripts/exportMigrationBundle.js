@@ -72,7 +72,10 @@ function collectSeedFiles() {
   const singles = [
     path.join(REPO_ROOT, 'service-topology.json'),
     path.join(REPO_ROOT, 'scope-topology.json'),
-    path.join(REPO_ROOT, 'LLM.json'),
+    // LLM.json is deliberately NOT bundled: it is a Helix agent key file
+    // holding a real PingOne credential, so copying it would put that key in
+    // every exported bundle. The importing side gets it from HELIX_API_KEY
+    // (vault/env), the same path setupFresh.js uses.
     path.join(REPO_ROOT, 'docs', 'HELIX_AGENT_DIRECTIVES.json'),
   ];
   for (const abs of singles) {
@@ -357,7 +360,7 @@ async function main() {
   console.log(`       scp ${outputPath} user@target-machine:~/`);
   console.log('');
   console.log('  2. On the target machine, clone the repo and install all packages:');
-  console.log('       git clone https://github.com/curtismu7/AI-demo.git && cd AI-demo');
+  console.log('       git clone https://github.com/curtismu7/AI-DEMO2.git && cd AI-demo');
   console.log('       cd demo_api_server && npm install && cd ..');
   console.log('       cd oauth-mcp  && npm install && cd ..');
   console.log('       cd demo_api_ui      && npm install --legacy-peer-deps && cd ..');

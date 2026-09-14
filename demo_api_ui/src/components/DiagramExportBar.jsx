@@ -93,7 +93,9 @@ export default function DiagramExportBar({ items, source, sourceFilename = "diag
       <span className="deb-hint">
         {items?.length
           ? "Lucidchart: import the .drawio (File \u203a Import) or paste the .mmd via Insert \u203a Diagram as code \u203a Mermaid"
-          : "Edit the .mmd in mermaid.live or any text editor, then upload to update the diagram"}
+          : onSourceChange
+            ? "Edit the .mmd in mermaid.live or any text editor, then upload to update the diagram"
+            : "Paste the .mmd into mermaid.live, draw.io, or Lucidchart to view or edit it elsewhere"}
       </span>
     </div>
   );

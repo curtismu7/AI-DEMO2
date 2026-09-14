@@ -6,7 +6,8 @@ makes a fresh checkout boot cleanly via **Docker** or **`./run.sh`**, and explai
 what `git clone` does and does **not** carry.
 
 For the everyday run details (ports, commands, troubleshooting) see
-[QUICKSTART.md](QUICKSTART.md). This file is specifically the *new-machine* gaps.
+[README.md](README.md) and [DOCKER_STARTUP.md](DOCKER_STARTUP.md). This file is
+specifically the *new-machine* gaps.
 
 ---
 
@@ -15,12 +16,11 @@ For the everyday run details (ports, commands, troubleshooting) see
 | Item | Path |
 | --- | --- |
 | Project agent skills | [.claude/skills/](.claude/skills/) |
-| Slash commands | [.claude/commands/](.claude/commands/) |
-| Workflows | [.claude/workflows/](.claude/workflows/) |
+| Repo hooks (worktree guard, stale-checkout warning, token-leak warning) | [.claude/hooks/](.claude/hooks/) |
 | Shared Claude settings | [.claude/settings.json](.claude/settings.json) (must stay secret-free; personal allowlists go in gitignored `settings.local.json`) |
 | MCP server registry | `.air/mcp.json` (Claude Code, per-machine, gitignored — copy from [.air/mcp.json.example](.air/mcp.json.example)); `.cursor/mcp.json` (Cursor, per-machine, gitignored — copy from [.cursor/mcp.json.example](.cursor/mcp.json.example)) |
 | Launchers | `run.sh`, `run-docker.sh`, `docker-compose.yml` |
-| Env templates | `.env.example`, `.env.docker.example` |
+| Env templates | Per-service, not root — e.g. `demo_api_server/.env.example`, `ping-gateway/.env.example`. See [docs/ENV.md](docs/ENV.md) for the canonical map |
 
 ## 2. What `git clone` does NOT carry (set up separately)
 

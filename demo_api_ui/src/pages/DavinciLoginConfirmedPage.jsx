@@ -6,6 +6,10 @@ import "./DavinciLoginPage.css";
 // The callback route establishes a normal BFF session and redirects here rather
 // than to "/", so the user gets an explicit confirmation of who they're signed
 // in as instead of silently landing back on the app shell.
+//
+// Reads the customer session status, not /api/auth/me: /me looks the user up by
+// the token's PingOne sub, which is not the demo user record a DaVinci sign-in
+// stores, so its username came back blank.
 
 export default function DavinciLoginConfirmedPage() {
   const [status, setStatus] = useState("loading"); // loading | ok | error
@@ -13,12 +17,13 @@ export default function DavinciLoginConfirmedPage() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch("/api/auth/me", { headers: { Accept: "application/json" } })
+    fetch("/api/auth/oauth/user/status", { headers: { Accept: "application/json" } })
       .then(async (res) => {
         if (!res.ok) throw new Error(`Could not load your session (HTTP ${res.status}).`);
         return res.json();
       })
       .then((body) => {
+        if (!body.authenticated || !body.user) throw new Error("You are not signed in.");
         setUser(body.user);
         setStatus("ok");
       })

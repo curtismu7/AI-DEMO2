@@ -3,6 +3,49 @@
 version: 1.3.14
 cache: true
 
+# Lets seed-demo-agents.js (run as a regular USER account) share its demo
+# agents publicly, so every LibreChat account sees them. Only the keys listed
+# here change; use/create keep their defaults.
+interface:
+  agents:
+    share: true
+    public: true
+  # Same for the demo prompts it adds to the Prompts library (type / in chat).
+  prompts:
+    share: true
+    public: true
+  # Keep My Agents and both endpoints in the model selector beside the Demos
+  # specs below. Unset, LibreChat turns it off whenever modelSpecs exist
+  # (data-schemas loadDefaultInterface; measured 2026-09-13: only the five
+  # Demos groups were listed).
+  modelSelect: true
+
+# A "Demos" menu in the model selector: each spec opens one seeded agent.
+# The agent_ids come from seed-demo-agents.js on this machine's Mongo volume —
+# re-seeding keeps them (agents are updated by name), but a fresh volume
+# issues new ids, so copy them from the seed output into this list.
+# ponytail: hard-coded ids; generate this block from the seed if volumes get recreated often.
+# interface.modelSelect above keeps the other endpoints listed beside them.
+modelSpecs:
+  list:
+    - {name: everyday-banking, label: 'Everyday Banking', group: 'Banking', description: 'Accounts, balances and transactions.', preset: {endpoint: agents, agent_id: agent_kffiDGYrj-A5HjMtGHIIG}}
+    - {name: money-movement, label: 'Money Movement', group: 'Banking', description: 'Transfers, deposits and withdrawals. Changes the demo balances.', preset: {endpoint: agents, agent_id: agent_2PYzQsHO3ZxryCZXNH2No}}
+    - {name: support-and-fees, label: 'Support and Fees', group: 'Banking', description: 'Fee schedule, fee waivers and branch hours.', preset: {endpoint: agents, agent_id: agent_JuaqisgxbDGjKQ4iRRFvM}}
+    - {name: banking-account-details, label: 'Banking Account Details', group: 'Banking', description: 'Accounts, nicknames and transaction details.', preset: {endpoint: agents, agent_id: agent_GEIwUWs0eyjamkqyd-rKA}}
+    - {name: super-sports, label: 'Super Sports', group: 'Super Sports', description: 'Gear orders and warranties.', preset: {endpoint: agents, agent_id: agent_m97KM-3gDMBfQsu5hNL9A}}
+    - {name: super-sports-gear-rentals, label: 'Super Sports Gear & Rentals', group: 'Super Sports', description: 'Rentals, gear for sale, wishlist and coaching.', preset: {endpoint: agents, agent_id: agent_fWg8lq30Uk8aoZp4GbYeb}}
+    - {name: super-sports-orders-loyalty, label: 'Super Sports Orders & Loyalty', group: 'Super Sports', description: 'Orders, loyalty points and store credit.', preset: {endpoint: agents, agent_id: agent_BnSJVZvhIG48sfJVhQg3A}}
+    - {name: super-sports-stores-code, label: 'Super Sports Stores & Code', group: 'Super Sports', description: 'Store hours and a search of the demo source code.', preset: {endpoint: agents, agent_id: agent_JgBWL6kD1JxMju4dwRoJr}}
+    - {name: careconnect-health-data, label: 'CareConnect Health Data', group: 'CareConnect', description: 'Appointments, medications, labs and allergies.', preset: {endpoint: agents, agent_id: agent_jTeyK3sdGeG9YhOOOl6sx}}
+    - {name: careconnect-coverage-claims, label: 'CareConnect Coverage & Claims', group: 'CareConnect', description: 'Coverage, claims, care team and referrals.', preset: {endpoint: agents, agent_id: agent_MCEjti8D8OmlDJ1ByGOCY}}
+    - {name: careconnect-actions, label: 'CareConnect Actions', group: 'CareConnect', description: 'Refill a prescription or book an appointment. Changes the demo data.', preset: {endpoint: agents, agent_id: agent_T1uscvG4dEEYaP46Cm0kB}}
+    - {name: super-sports-policy-guardrails, label: 'Super Sports Policy Guardrails', group: 'Policy Guardrails', description: 'Reads permitted, risky calls denied by policy. Connect super-sports-gateway first.', preset: {endpoint: agents, agent_id: agent_dHaKLN_ZFfdoLchcFIQmO}}
+    - {name: banking-policy-guardrails, label: 'Banking Policy Guardrails', group: 'Policy Guardrails', description: 'Reads permitted, transfers denied by policy. Connect super-sports-gateway first.', preset: {endpoint: agents, agent_id: agent_ZExlrlqicQeAEM9QfQ1Ic}}
+    - {name: careconnect-policy-guardrails, label: 'CareConnect Policy Guardrails', group: 'Policy Guardrails', description: 'Reads permitted, record releases denied by policy. Connect super-sports-gateway first.', preset: {endpoint: agents, agent_id: agent_d9CSY3KnpQ95xeou9yTOl}}
+    - {name: opensearch-direct, label: 'OpenSearch · Direct', group: 'OpenSearch', description: 'No Privilege in front. Needs the Mac port-forward.', preset: {endpoint: agents, agent_id: agent_NqFc9aF7UdJPE7gIXz39t}}
+    - {name: opensearch-via-privilege, label: 'OpenSearch · via Privilege', group: 'OpenSearch', description: 'Through the façade to the Privilege opensearch22 app.', preset: {endpoint: agents, agent_id: agent_9vHeC_U0qcoA6PB2GOTtG}}
+    - {name: opensearch-privilege-opensearch22, label: 'OpenSearch · Privilege opensearch22', group: 'OpenSearch', description: 'Straight to the Privilege opensearch22 app.', preset: {endpoint: agents, agent_id: agent_-i7gJO7tyfjEiTu5r_2iD}}
+
 # LibreChat's SSRF guard blocks any MCP server URL that resolves to a private
 # address — which every host-gateway alias in docker-compose.yml does. Each
 # entry is host:port; the hostname is matched before DNS, so the alias is
@@ -10,13 +53,12 @@ cache: true
 mcpSettings:
   allowedAddresses:
     - 'host.docker.internal:8080'
+    # opensearch-direct: the Mac port-forward to the OpenSearch MCP Service.
     - 'host.docker.internal:9900'
-    # demo_api_server's BFF, host of mcp-facade (recording proxy) — see
-    # docs/superpowers/specs/2026-08-24-librechat-embedded-mcp-trace-design.md
-    # and PR #2356. Only opensearch-privilege-agent still targets it locally
-    # below; privilege-agentless/agent-gateway moved to the pingaws-hosted
-    # facade (public host, needs no allowlist entry of its own).
+    # The BFF mcp-facade doors (api.ping.demo is aliased to the host gateway)
+    # and their sign-in server, reached through the oauth-loopback sidecar.
     - 'api.ping.demo:3001'
+    - 'localhost:3005'
 
 endpoints:
   custom:
@@ -47,19 +89,41 @@ endpoints:
       titleConvo: true
       titleModel: 'demo-llm-proxy'
 
-mcpServers:
-  # The same three doors the AI Gateway client page (/privilege-mcp-client)
-  # offers, so LibreChat can demo each one without editing this file.
-  # Every one of them fronts the banking mcp-server (oauth-mcp/); they differ
-  # only in what sits in between. Use them from an Agent with a few tools
-  # selected — see docs/superpowers/plans/2026-08-24-librechat-privilege-mcp-client.md Task 5.
+    - name: 'PingOne Privilege (OpenAI)'
+      # The PingOne Privilege AI Gateway's OpenAI lane (ping-devops-curtismuir).
+      # The key is a Privilege virtual key, not an OpenAI key: the gateway
+      # injects the provider credential and enforces this key's model
+      # allowlist and spend caps. Measured 2026-09-13: gpt-4o-mini and gpt-4o
+      # answer 200 and return tool_calls; gpt-4.1-mini and gpt-5-mini answer
+      # 403 "not allowed for this key". The key lives in librechat/.env.
+      apiKey: '${PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI}'
+      baseURL: 'https://mcpgw.ai-demo.ping-devops.com/llm/openai/v1'
+      models:
+        default:
+          - 'gpt-4o-mini'
+          - 'gpt-4o'
+        # /v1/models lists OpenAI's whole catalog, not this key's allowlist.
+        fetch: false
+      titleConvo: true
+      # Must be on the key's allowlist — demo-llm-proxy would 403.
+      titleModel: 'gpt-4o-mini'
 
-  # 1. Direct — this repo's mcp-server on the host (docker-compose.yml :8080).
-  #    The local stack runs it with MCP_AUTH_DISABLED=true, so there is no
-  #    401 challenge and LibreChat never starts OAuth: tool calls just work.
-  #    (With auth enabled this entry could NOT work from inside Docker — the
-  #    server's RFC 9728 metadata names http://localhost:8080/mcp, and
-  #    LibreChat refuses OAuth when that origin differs from the URL below.)
+mcpServers:
+  # Doors that work against the local stack (2026-09-13). The façade doors'
+  # sign-in server http://localhost:3005 is reachable through the oauth-loopback
+  # sidecar in docker-compose.yml. Doors with OAuth need each LibreChat user to
+  # Connect once (PingOne login). privilege-agentless, agent-gateway (SE host)
+  # and banking-direct stay out: their SE hosts were torn down with
+  # ping-devops-cmuir; librechat.pingaws.yaml still carries them. Use every door
+  # from an Agent with a few tools selected — see
+  # docs/superpowers/plans/2026-08-24-librechat-privilege-mcp-client.md Task 5.
+
+  # Direct — this repo's mcp-server on the host (docker-compose.yml :8080).
+  # The local stack runs it with MCP_AUTH_DISABLED=true, so there is no
+  # 401 challenge and LibreChat never starts OAuth: tool calls just work.
+  # (With auth enabled this entry could NOT work from inside Docker — the
+  # server's RFC 9728 metadata names http://localhost:8080/mcp, and
+  # LibreChat refuses OAuth when that origin differs from the URL below.)
   aidemo-mcp:
     type: streamable-http
     url: 'http://host.docker.internal:8080/mcp'
@@ -75,108 +139,60 @@ mcpServers:
       key: none
     timeout: 60000
 
-  # 2. OpenSearch direct, no Privilege — the same K8s opensearch-mcp-server
-  #    the two Privilege doors below front, reached over a kubectl
-  #    port-forward on the Mac (the Service is ClusterIP-only; there is
-  #    deliberately no public ingress for an unauthenticated MCP server):
+  # Super Sports through the Node Agent Gateway (demo_mcp_gateway) via the
+  # recording façade: real PingOne Authorize decisions (mock PDP locally).
+  # Reads PERMIT; extend_rental is denied missing_act and
+  # sensitive_membership_details a2a_delegation_required for a user token.
+  super-sports-gateway:
+    type: streamable-http
+    url: 'https://api.ping.demo:3001/mcp-facade/agent-gateway/mcp'
+    timeout: 60000
+
+  # OpenSearch, three ways, same OpenSearch MCP server behind each:
+  # 1. Direct, no Privilege. Needs the Mac port-forward running:
   #      kubectl --context us -n ping-devops-curtismuir \
-  #        port-forward svc/cm-mcpgw-opensearch-mcp-server 9900:80
-  #    Nine tools (ListIndexTool, ClusterHealthTool, SearchIndexTool, ...).
-  #    Shows as failed at startup until the port-forward is running.
+  #        port-forward svc/opensearch-mcp-server 9900:80
+  #    No auth; 9 tools (ClusterHealthTool, ListIndexTool, CountTool, ...).
   opensearch-direct:
     type: streamable-http
     url: 'http://host.docker.internal:9900/mcp'
     timeout: 60000
 
-  # 3-5. Through mcp-facade — a recording proxy in demo_api_server (PR
-  #    #2356) that relays each of these three doors to its real upstream
-  #    unchanged and records every hop to this repo's transaction ledger,
-  #    so a call through any of them shows up in the same "movie reel"
-  #    (/transaction-trace/embed/:correlationId) the AI Gateway client page
-  #    already gives this repo's own agent. See
-  #    docs/superpowers/specs/2026-08-24-librechat-embedded-mcp-trace-design.md.
-  #    No apiKey/no-op-header tricks needed on any of these three: the
-  #    facade is a genuine MCP server that answers its own RFC 9728
-  #    metadata (resource = the facade URL itself), so LibreChat's native
-  #    OAuth detection and DCR+PKCE flow work directly against it, the same
-  #    way they already did against the real agentless gateway.
-
-  # 3. OpenSearch through the Privilege AI Gateway. This used to be the
-  #    `agent` door (Priv Agent mode, the agent's own mTLS identity, no
-  #    OAuth). That door was deleted 2026-09-05: its mesh frontend still
-  #    resolves through the Priv Agent's DNS proxy while nothing serves the
-  #    port, so it hung rather than failing. The AI Gateway is the live path
-  #    now, and the facade holds its upstream leg server-side
+  # 2. Through the recording façade to the Privilege AI Gateway's opensearch22
+  #    app. The façade holds the Privilege leg server-side
   #    (services/privilegeGatewaySession.js) — sign in once at
-  #    /privilege-mcp-client after a gateway restart. A 403 "doesn't have
-  #    access to MCP app opensearch" means the gateway WAS reached and this
-  #    user's time-boxed Privilege policy has lapsed — re-author it in the
-  #    console; nothing here is wrong.
+  #    /privilege-mcp-client after a gateway restart — and records the trace.
+  #    A 403 "doesn't have access to MCP app" means the Privilege policy lapsed.
   opensearch-privilege-gateway:
     type: streamable-http
     url: 'https://api.ping.demo:3001/mcp-facade/privilege-gateway/opensearch22/mcp'
     timeout: 60000
 
-  # 4. Via the Agentless gateway — the `external` Privilege application
-  #    (privilege/AGENTLESS-CONFIGURATION.md, 2026-08-24 entry). Verified
-  #    live through the facade 2026-08-24: 401 + WWW-Authenticate with a
-  #    self-referential resource_metadata, DCR against the real gateway,
-  #    242 tools, get_my_accounts 200 with a reel_url attached.
-  #
-  # Points at the pingaws-hosted facade, not the local one — matches
-  # lmstudio/mcp.json's MCP Agentless-Banking, the reference this repo keeps
-  # both MCP clients' door lists in sync against. Use it from an Agent, not
-  # the plain chat picker: the plain picker attaches all 242 tools (~30k
-  # tokens of schema, more than the 16k-ctx gpt-oss tier holds), while the
-  # Agent builder's MCP tool dialog lets you select only get_my_accounts.
-  privilege-agentless:
+  # 3. Straight to the Privilege AI Gateway's opensearch22 app. LibreChat signs
+  #    in against the gateway's own OAuth server
+  #    (https://mcpgw.ai-demo.ping-devops.com/opensearch22); public host, so no
+  #    allowedAddresses entry and no sidecar.
+  privilege-opensearch22:
     type: streamable-http
-    url: 'https://ai-demo.ping-devops.com/mcp-facade/agentless/mcp'
+    url: 'https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp'
     timeout: 60000
 
-  # 5. Via the Agent Gateway (demo_mcp_gateway) — the OAuth broker from
-  #    PR #2353 (RFC 8414 + 7591) fronted by the same facade so this door
-  #    gets the identical reel treatment as the two Privilege doors above.
-  #    Verified live 2026-08-24: 401 + self-referential resource_metadata,
-  #    same as privilege-agentless.
-  #
-  # pingaws-hosted, matching lmstudio/mcp.json's MCP AgentGateway-Banking.
-  agent-gateway:
+  # 4. The hostile MCP server (standalone/hostile-mcp-server) through the
+  #    Privilege AI Gateway's `libre` app. Serves poisoned tool metadata
+  #    (get_weather description injection, search_docs schema exfil) plus a
+  #    real create_transfer the poison induces. The demo: the poison rides in
+  #    on tools/list unfiltered (the gateway can't police metadata), then a
+  #    create_transfer CALL is DENIED by the app's policy. LibreChat signs in
+  #    against the gateway's own OAuth server (public host, no allowedAddresses).
+  #    See docs/superpowers/specs/2026-09-13-hostile-mcp-behind-privilege-design.md.
+  privilege-libre:
     type: streamable-http
-    url: 'https://ai-demo.ping-devops.com/mcp-facade/agent-gateway/mcp'
+    url: 'https://mcpgw.ai-demo.ping-devops.com/libre/mcp'
     timeout: 60000
 
-  # 6. Direct, no facade — the public SE ingress in front of this repo's own
-  #    mcp-server (k8s/aws/se-ingress.yaml's mcp-public-door-ingress), fronted
-  #    by ping-gateway for real PingOne OAuth (not the local aidemo-mcp
-  #    door's MCP_AUTH_DISABLED shortcut). Matches lmstudio/mcp.json's MCP
-  #    Direct-Banking — same URL, same door, kept in sync across both
-  #    clients.
-  banking-direct:
+  # 5. Same libre app, but through the recording façade so the trace shows in
+  #    the demo. Sign in once at /privilege-mcp-client for the gateway leg.
+  libre-privilege-gateway:
     type: streamable-http
-    url: 'https://cmuir-mcp.ping-devops.com/mcp'
-    timeout: 60000
-
-  # 7. Hosted PingOne MCP (the Management API surface, not banking) — via the
-  #    facade's pingone-admin door. Worker client_credentials, baked in
-  #    server-side (demo_api_server's own worker creds) — no per-caller
-  #    login, no OAuth challenge at all; every caller through this door gets
-  #    the same worker-level PingOne admin access.
-  #
-  #    Exposes the RAW hosted catalog, uncapped — 85 tools / ~373KB of
-  #    schema measured live 2026-08-25 (this moves with PingOne's own
-  #    management-API coverage and the worker's roles, so don't treat that
-  #    number as fixed). Use it from an Agent with specific tools selected,
-  #    not the plain chat picker, which auto-attaches every tool from a
-  #    door and will blow past a small model's context window — same
-  #    caution as privilege-agentless above, just uncapped here by request
-  #    instead of routed through the list_pingone_tools/call_pingone_tool
-  #    wrapper bankingAgentLangGraphService.js's own pingone-admin path uses.
-  #
-  #    Local BFF only (verified live) — pingaws's BFF pod's own PingOne
-  #    worker credentials are unverified for this door; point at
-  #    ai-demo.ping-devops.com only after confirming that.
-  pingone-admin:
-    type: streamable-http
-    url: 'https://api.ping.demo:3001/mcp-facade/pingone-admin/mcp'
+    url: 'https://api.ping.demo:3001/mcp-facade/privilege-gateway/libre/mcp'
     timeout: 60000

@@ -7,6 +7,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { useAgentRun } from '../useAgentRun';
 import { agentFlowDiagram } from '../../services/agentFlowDiagramService';
+import { tokenChainTraceStore } from '../../services/tokenChainTrace/tokenChainTraceStore';
 
 vi.mock('../../services/mcpFlowSseClient', () => ({
   openMcpFlowSse: vi.fn(() => () => {}),
@@ -112,5 +113,62 @@ describe('useAgentRun — settles the flow reply when a run ends without a termi
     await act(async () => { await result.current.run({ threadId: 't', runId: 'A', messages: [] }); });
 
     expect(agentFlowDiagram.completeReply).toHaveBeenCalledWith(false);
+  });
+});
+
+// Regression: agentFlowDiagram.completeReply() above settles a SEPARATE store
+// from tokenChainTraceStore — nothing else on this AG-UI path called
+// completeTrace() on a normal finish, so trace.outcome stayed null forever
+// (only abort() ever settled it). SystemFlowMap/TokenChainTraceRail could
+// still infer completion from the reply text itself, but the replay history
+// and anything reading trace.outcome directly never saw the run settle.
+describe('useAgentRun — settles tokenChainTraceStore on RUN_FINISHED / RUN_ERROR', () => {
+  function sseFetch(eventLine) {
+    let served = false;
+    return vi.fn(() => Promise.resolve({
+      ok: true,
+      body: {
+        getReader: () => ({
+          read: async () => {
+            if (served) return { done: true };
+            served = true;
+            return { done: false, value: new TextEncoder().encode(`data: ${eventLine}\n\n`) };
+          },
+          releaseLock: () => {},
+        }),
+      },
+      json: async () => ({}),
+    }));
+  }
+
+  beforeEach(() => {
+    tokenChainTraceStore.completeTrace.mockClear();
+  });
+
+  it('a successful RUN_FINISHED completes the trace as ok', async () => {
+    global.fetch = sseFetch(JSON.stringify({ type: 'RUN_FINISHED', outcome: { type: 'success' } }));
+    const { result } = renderHook(() => useAgentRun({}));
+
+    await act(async () => { await result.current.run({ threadId: 't', runId: 'A', messages: [] }); });
+
+    expect(tokenChainTraceStore.completeTrace).toHaveBeenCalledWith(true, expect.any(String));
+  });
+
+  it('an interrupt (HITL pause) RUN_FINISHED does not complete the trace', async () => {
+    global.fetch = sseFetch(JSON.stringify({ type: 'RUN_FINISHED', outcome: { type: 'interrupt', interrupts: [{}] } }));
+    const { result } = renderHook(() => useAgentRun({}));
+
+    await act(async () => { await result.current.run({ threadId: 't', runId: 'A', messages: [] }); });
+
+    expect(tokenChainTraceStore.completeTrace).not.toHaveBeenCalled();
+  });
+
+  it('a RUN_ERROR completes the trace as failed', async () => {
+    global.fetch = sseFetch(JSON.stringify({ type: 'RUN_ERROR', message: 'boom' }));
+    const { result } = renderHook(() => useAgentRun({}));
+
+    await act(async () => { await result.current.run({ threadId: 't', runId: 'A', messages: [] }); });
+
+    expect(tokenChainTraceStore.completeTrace).toHaveBeenCalledWith(false, expect.any(String));
   });
 });

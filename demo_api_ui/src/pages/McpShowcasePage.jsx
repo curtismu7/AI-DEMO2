@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import WeatherStateControl from '../components/WeatherStateControl';
+import { markLeavingToRun } from '../utils/weatherScopeHandoff';
 import WeatherBlocklistControl from '../components/WeatherBlocklistControl';
 import { useVertical } from '../vertical/useVertical';
 import { useThemeOptional } from '../context/ThemeContext';
@@ -164,6 +165,9 @@ export default function McpShowcasePage({ capability }) {
           vertical,
         });
         await apiClient.post('/api/verticals/active', { id: vertical });
+        // The scope control resets its policy when this page unmounts; mark this
+        // navigation as the run the policy was changed for.
+        if (cfg.policyKind === 'scope') markLeavingToRun();
         navigate('/dashboard', {
           state: {
             useCaseId: data.useCaseId,
@@ -180,7 +184,7 @@ export default function McpShowcasePage({ capability }) {
         );
       }
     },
-    [activeVerticalId, navigate],
+    [activeVerticalId, cfg, navigate],
   );
 
   // Free-form ask. The canned Run buttons only cover the two scripted outcomes;
@@ -198,6 +202,7 @@ export default function McpShowcasePage({ capability }) {
       setError(null);
       try {
         await apiClient.post('/api/verticals/active', { id: vertical });
+        if (cfg.policyKind === 'scope') markLeavingToRun();
         navigate('/dashboard', {
           state: { triggerText: cfg.freeForm.prompt(q), vertical },
         });

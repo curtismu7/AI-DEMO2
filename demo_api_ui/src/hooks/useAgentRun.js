@@ -283,13 +283,24 @@ export function useAgentRun({
           } else if (event.type === 'RUN_FINISHED') {
             settled = true;
             // An interrupt is a HITL pause — the reply has not arrived yet.
-            if (event.outcome?.type !== 'interrupt') {
+            const isInterrupt = event.outcome?.type === 'interrupt';
+            if (!isInterrupt) {
               try { agentFlowDiagram.completeReply(true); } catch (_) { /* display-only */ }
+              // agentFlowDiagram (above) is a SEPARATE store from
+              // tokenChainTraceStore — nothing else on this AG-UI path ever
+              // calls completeTrace(), so trace.outcome stayed null forever on
+              // a run that genuinely finished (only the abort path in
+              // stopRun() above ever settled it). SystemFlowMap/
+              // TokenChainTraceRail could still infer "done" from the reply
+              // text itself, but the replay history and anything reading
+              // trace.outcome directly never saw the run settle.
+              try { tokenChainTraceStore.completeTrace(true, flowTraceId); } catch (_) { /* display-only */ }
             }
             callbacksRef.current.onFinished && callbacksRef.current.onFinished(event.outcome);
           } else if (event.type === 'RUN_ERROR') {
             settled = true;
             try { agentFlowDiagram.completeReply(false); } catch (_) { /* display-only */ }
+            try { tokenChainTraceStore.completeTrace(false, flowTraceId); } catch (_) { /* display-only */ }
             setError(event.message || 'Agent error');
             callbacksRef.current.onError && callbacksRef.current.onError(event.message || 'Agent error');
           }

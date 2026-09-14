@@ -70,7 +70,7 @@ test("Live starts empty and Classic keeps the complete fixed catalog as fallback
 
   // 11 step titles present, none expanded (no step body text visible)
   expect(screen.getByText(/Sign-in — User Token acquired/)).toBeInTheDocument();
-  expect(screen.getByText(/LLM composes reply/)).toBeInTheDocument();
+  expect(screen.getByText(/AI Agent composes reply/)).toBeInTheDocument();
   expect(document.querySelectorAll("details.tctr-step[open]")).toHaveLength(0);
   // Exchange Mode Details reference accordion present (collapsed)
   expect(screen.getByText(/Exchange Mode Details/)).toBeInTheDocument();
@@ -100,13 +100,12 @@ test("legend button opens the legend modal; inspect opens claims modal", () => {
   expect(screen.getByTestId("claims-modal")).toHaveTextContent("user");
 });
 
-test("MCP tab shows the MCP panel and hides the full step list; chain line stays", () => {
+test("MCP tab shows the MCP panel and hides the full step list", () => {
   render(<TokenChainTraceRail />);
   openView("MCP");
   expect(screen.getByText(/MCP server — tool executes/)).toBeInTheDocument();
   expect(screen.queryByText(/Sign-in — User Token acquired/)).not.toBeInTheDocument();
-  expect(screen.queryByText(/LLM composes reply/)).not.toBeInTheDocument();
-  expect(screen.getByText("CHAINED")).toBeInTheDocument();
+  expect(screen.queryByText(/AI Agent composes reply/)).not.toBeInTheDocument();
   expect(screen.getByText(/No MCP tool call yet/i)).toBeInTheDocument();
 });
 

@@ -59,3 +59,58 @@ describe('BankingToolProvider.isPrivilegeGatewayToken', () => {
     expect(provider.isPrivilegeGatewayToken('')).toBe(false);
   });
 });
+
+// A vertical tool relays to BFF /api/path/vertical-tool, whose authenticateToken
+// rejects the open-access placeholder bearer 'disabled' with 401 invalid_token —
+// so on the open-access hop it needs the minted demo-user token too, exactly like
+// a banking data tool. A real bearer, or the flag being off, must change nothing.
+describe('BankingToolProvider open-access hop — vertical tools', () => {
+  const originalFlag = process.env.MCP_AUTH_DISABLED;
+  const session = { sessionId: 's1' } as any;
+  let api: any;
+  let auth: any;
+  let provider: BankingToolProvider;
+
+  beforeEach(() => {
+    api = new BankingAPIClient() as jest.Mocked<BankingAPIClient>;
+    auth = new BankingAuthenticationManager({} as any) as jest.Mocked<BankingAuthenticationManager>;
+    const sess = new BankingSessionManager('t', 'k') as jest.Mocked<BankingSessionManager>;
+    api.startTrace = jest.fn();
+    api.stopTrace = jest.fn(() => []);
+    api.fetchDemoSubjectToken = jest.fn().mockResolvedValue('demo.subject.token');
+    api.callVerticalTool = jest.fn().mockResolvedValue({ ok: true, result: { rentals: [] }, render: 'list_rentals' });
+    provider = new BankingToolProvider(api, auth, sess);
+  });
+
+  afterEach(() => {
+    if (originalFlag === undefined) delete process.env.MCP_AUTH_DISABLED;
+    else process.env.MCP_AUTH_DISABLED = originalFlag;
+  });
+
+  it('runs a vertical tool with the minted demo-user token instead of the placeholder', async () => {
+    process.env.MCP_AUTH_DISABLED = 'true';
+    const result = await provider.executeTool('list_rentals', {}, session, 'disabled');
+    expect(api.fetchDemoSubjectToken).toHaveBeenCalled();
+    expect(api.callVerticalTool).toHaveBeenCalledWith('demo.subject.token', 'list_rentals', {}, 'sporting-goods');
+    expect(result.success).toBe(true);
+  });
+
+  it('forwards a real bearer unchanged even with MCP_AUTH_DISABLED on', async () => {
+    process.env.MCP_AUTH_DISABLED = 'true';
+    auth.validateTokenScopes = jest.fn().mockResolvedValue(true);
+    const real = jwt({ alg: 'RS256', kid: 'pingone-key' }, { aud: 'mcpserver.ping.demo', scope: 'read' });
+    await provider.executeTool('list_rentals', {}, session, real);
+    expect(api.fetchDemoSubjectToken).not.toHaveBeenCalled();
+    expect(api.callVerticalTool).toHaveBeenCalledWith(real, 'list_rentals', {}, 'sporting-goods');
+  });
+
+  it('still fails closed on scope when MCP_AUTH_DISABLED is off', async () => {
+    delete process.env.MCP_AUTH_DISABLED;
+    auth.validateTokenScopes = jest.fn().mockResolvedValue(false);
+    const result = await provider.executeTool('list_rentals', {}, session, 'disabled');
+    expect(result.success).toBe(false);
+    expect(JSON.stringify(result)).toContain('Insufficient scope');
+    expect(api.fetchDemoSubjectToken).not.toHaveBeenCalled();
+    expect(api.callVerticalTool).not.toHaveBeenCalled();
+  });
+});

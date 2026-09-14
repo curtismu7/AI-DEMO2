@@ -1711,6 +1711,11 @@
 .otp-step-up-modal__method-badge--extra {
   background: #475569;
 }
+.otp-step-up-modal__method-recommended {
+  color: var(--th-text);
+  font-weight: 500;
+  font-size: var(--font-size-3xs);
+}
 .otp-step-up-modal__method-detail {
   color: var(--th-text-body);
   line-height: 1.35;

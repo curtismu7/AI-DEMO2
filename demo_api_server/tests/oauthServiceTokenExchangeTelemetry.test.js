@@ -5,7 +5,8 @@
  * must emit `token-exchange/request` → `token-exchange/{ok,fail}` via
  * appEventService.logEvent so a New Relic dashboard can facet on the metadata.
  *
- * These tests assert on what logEvent was called with (per te-instrument-brief.md) —
+ * These tests assert on what logEvent was called with (per
+ * docs/briefs/te-instrument-brief.md) —
  * never on anything reaching New Relic. newRelicForwarder._isTestRun() already
  * guards that (see tests/newRelicForwarder.test.js); we don't touch it.
  */

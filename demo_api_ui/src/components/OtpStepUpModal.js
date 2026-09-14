@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import DraggableModal from './DraggableModal';
 import { registerPasskey, normalizePublicKeyRequestOptions } from '../utils/passkeyCeremony';
-import { normalizePhoneE164, describePasskeyRegistrationError } from '../utils/mfaEnrollment';
+import { normalizePhoneE164, describePasskeyRegistrationError, isPasskeySupported } from '../utils/mfaEnrollment';
 
 /**
  * Find an email OTP device from a PingOne MFA device list.
@@ -65,14 +65,6 @@ function findExtraDevices(devices) {
 }
 
 /**
- * Whether the browser can run WebAuthn passkey ceremonies.
- * @returns {boolean}
- */
-function isPasskeySupported() {
-  return typeof window !== 'undefined' && typeof window.PublicKeyCredential !== 'undefined';
-}
-
-/**
  * Professional method-choice table: always lists Email OTP + Passkey.
  * Optional extra enrolled devices appear as additional rows.
  */
@@ -121,6 +113,27 @@ function MethodChoiceTable({
           </tr>
         </thead>
         <tbody>
+          <tr className={`otp-step-up-modal__method-row${hasFido ? '' : ' otp-step-up-modal__method-row--setup'}`}>
+            <td>
+              <span className="otp-step-up-modal__method-name">
+                <span className="otp-step-up-modal__method-badge otp-step-up-modal__method-badge--passkey" aria-hidden>KEY</span>
+                Passkey{' '}
+                <span className="otp-step-up-modal__method-recommended">(Recommended)</span>
+              </span>
+            </td>
+            <td className="otp-step-up-modal__method-detail">{passkeyDetail}</td>
+            <td>
+              <button
+                type="button"
+                className="otp-step-up-modal__method-cta"
+                onClick={onChoosePasskey}
+                disabled={!passkeySupported || registering}
+                data-testid="mfa-choose-passkey"
+              >
+                {passkeyCta}
+              </button>
+            </td>
+          </tr>
           <tr className="otp-step-up-modal__method-row">
             <td>
               <span className="otp-step-up-modal__method-name">
@@ -160,26 +173,6 @@ function MethodChoiceTable({
                 data-testid="mfa-choose-sms"
               >
                 {smsCta}
-              </button>
-            </td>
-          </tr>
-          <tr className={`otp-step-up-modal__method-row${hasFido ? '' : ' otp-step-up-modal__method-row--setup'}`}>
-            <td>
-              <span className="otp-step-up-modal__method-name">
-                <span className="otp-step-up-modal__method-badge otp-step-up-modal__method-badge--passkey" aria-hidden>KEY</span>
-                Passkey
-              </span>
-            </td>
-            <td className="otp-step-up-modal__method-detail">{passkeyDetail}</td>
-            <td>
-              <button
-                type="button"
-                className="otp-step-up-modal__method-cta"
-                onClick={onChoosePasskey}
-                disabled={!passkeySupported || registering}
-                data-testid="mfa-choose-passkey"
-              >
-                {passkeyCta}
               </button>
             </td>
           </tr>

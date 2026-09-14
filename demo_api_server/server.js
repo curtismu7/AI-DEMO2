@@ -143,6 +143,7 @@ const demoScenarioRoutes = require('./routes/demoScenario');
 const adminRoutes = require('./routes/admin');
 const pingcliRoutes = require('./routes/pingcli');
 const mgmtApiRoutes = require('./routes/mgmtApi');
+const secretRotationRoutes = require('./routes/secretRotation');
 const pingAiTestLabRoutes = require('./routes/pingAiTestLab');
 const adminAgentToolsRoutes = require('./routes/adminAgentTools');
 const adminAgentRoutes = require('./routes/adminAgentRoutes');
@@ -1057,6 +1058,9 @@ app.use('/api/admin/pingcli', authenticateToken, pingcliRoutes);
 // them. Verified live — with authenticateToken alone a CUSTOMER session got 200
 // from GET /operations.
 app.use('/api/admin/mgmt-api', authenticateToken, requireAdmin, mgmtApiRoutes);
+// Any authenticated user, not admin-only — deliberate per auth-requirements.json
+// "/secret-rotation": "user".
+app.use('/api/admin/secret-rotation', authenticateToken, secretRotationRoutes);
 app.use('/api/admin/ping-ai-test-lab', authenticateToken, pingAiTestLabRoutes);
 app.use('/api/admin/config', adminConfigRoutes);
 
@@ -1349,6 +1353,11 @@ app.use('/api/sdk-demo', require('./routes/sdkDemoTokens'));
 
 // DaVinci login callback route — exchanges OIDC code for tokens and establishes session
 app.use('/api/davinci-login', require('./routes/davinciLogin'));
+
+// DaVinci SDK login (/davinci-sdk-login) — separate from the widget path above
+// because the SDK authorizes with the DaVinci app's own client_id, so the code
+// must be exchanged as that client rather than through oauthService's admin one.
+app.use('/api/davinci-sdk-login', require('./routes/davinciSdkLogin'));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/auth/oauth', oauthRoutes);
@@ -3064,6 +3073,27 @@ if (require.main === module) {
             }
         } catch (e) {
             console.warn('[startup] Helix key migration skipped:', e.message);
+        }
+
+        // One-time A2A Agent Card signing key persistence (TECH_DEBT.md
+        // 2026-09-11 "Agent Card signing key is process-ephemeral", RESOLVED).
+        // Same vault-write-during-startup window as the Helix key migration
+        // above — VAULT_PASSWORD is only available here, before
+        // loadVaultIntoConfigStore's finally deletes it. Idempotent and
+        // best-effort — a failure here must NEVER block startup
+        // (getCardSigningKey()'s ephemeral fallback still resolves a key).
+        try {
+            const { ensureCardSigningKeyPersisted } = require('./services/a2aCardSigningService');
+            const { DEFAULT_VAULT_PATH } = require('./services/vaultLoader');
+            const r = await ensureCardSigningKeyPersisted({
+                vaultPath: process.env.VAULT_PATH || DEFAULT_VAULT_PATH,
+                vaultPassword: _vaultPwForMigration,
+            });
+            if (r.persisted) {
+                console.log(`[startup] A2A card signing key ${r.generated ? 'generated and persisted to' : 'loaded from'} vault`);
+            }
+        } catch (e) {
+            console.warn('[startup] A2A card signing key persistence skipped:', e.message);
         }
 
         // Helix configuration check: warn if no API key is resolvable so the

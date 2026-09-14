@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import StepDetailPanel from "../StepDetailPanel";
 
 const STEP = {
@@ -43,7 +44,32 @@ describe("StepDetailPanel", () => {
     expect(document.querySelectorAll(".sdp-payload")).toHaveLength(2);
     expect(document.querySelector(".sdp details")).toBeNull();
     expect(screen.getByText(/grant_type=\.\.\.token-exchange/)).toBeVisible();
+    // The response opens in Form (the default), so its content is on screen as
+    // labelled rows rather than as the raw blob this used to assert. The point
+    // of the test is that the payload is OPEN, not which view renders it.
+    expect(document.querySelector(".fjt-form__row")).toBeVisible();
+  });
+
+  // Form is what opens: this panel is read off a projector, where labelled rows
+  // land and a raw blob does not. A payload that is display text, not JSON, gets
+  // no toggle at all rather than an empty Form view.
+  it("opens a JSON payload in Form, keeping the transport line above it", () => {
+    render(<StepDetailPanel step={STEP} />);
+    // Request is "POST /as/token\ngrant_type=..." — no JSON body, so no toggle.
+    // Response is "200 OK\n{ ... }" — one toggle, already on Form.
+    expect(screen.getByRole("button", { name: "Form" })).toHaveAttribute("aria-pressed", "true");
+    expect(
+      Array.from(document.querySelectorAll(".fjt-form__row")).map((r) => r.textContent),
+    ).toEqual(["scopewrite"]);
+    // The transport line above the body is not a JSON leaf; it must survive.
+    expect(screen.getByText("200 OK")).toBeVisible();
+  });
+
+  it("still reaches the whole raw payload through JSON", async () => {
+    render(<StepDetailPanel step={STEP} />);
+    await userEvent.click(screen.getByRole("button", { name: "JSON" }));
     expect(screen.getByText(/"scope": "write"/)).toBeVisible();
+    expect(document.querySelector(".fjt-form__row")).toBeNull();
   });
 
   it("renders what changed as before and after, marking only the moved claims", () => {

@@ -105,8 +105,10 @@ describe("Focus Mode filmstrip guard", () => {
     expect(direct).toHaveLength(1);
     // Two ReelDocks now: float, and the clinical-split branch.
     expect(docks).toHaveLength(2);
-    expect(p2026).toMatch(/\{showFilmstrip && <TokenChainFilmstrip\s*\/>\}/);
-    const dockGuards = p2026.match(/\{showFilmstrip && <ReelDock\s*\/>\}/g) || [];
+    // Also gated on !showSequenceDiagram since the Quick Config "Sequence
+    // view" toggle swaps the reel for SequenceReelDiagram at the same sites.
+    expect(p2026).toMatch(/\{showFilmstrip && !showSequenceDiagram && <TokenChainFilmstrip\s*\/>\}/);
+    const dockGuards = p2026.match(/\{showFilmstrip && !showSequenceDiagram && <ReelDock\s*\/>\}/g) || [];
     expect(dockGuards).toHaveLength(2);
   });
 
@@ -121,7 +123,7 @@ describe("Focus Mode filmstrip guard", () => {
     const endOfBranch = p2026.indexOf("if (loading) {", branch);
     expect(endOfBranch).toBeGreaterThan(branch);
     const clinicalJsx = p2026.slice(branch, endOfBranch);
-    expect(clinicalJsx).toMatch(/\{showFilmstrip && <ReelDock\s*\/>\}/);
+    expect(clinicalJsx).toMatch(/\{showFilmstrip && !showSequenceDiagram && <ReelDock\s*\/>\}/);
   });
 
   // The bottom-dock guard that sat here went with the dock layout itself. What
@@ -208,5 +210,27 @@ describe("Focus Mode filmstrip guard", () => {
     // selectors this check has already outlived, and that history is the point.
     expect(canary).not.toMatch(/querySelector\(['"]\.customer-skin-p1/);
     expect(canary).toMatch(/querySelector\(['"]\.user-dashboard--clinical-split/);
+  });
+
+  // UserDashboardPing2026 and AIAgent each hold a copy of the view-mode state,
+  // and the dashboard restores its copy from localStorage. AIAgent must read the
+  // SAME key: when it did not, a reload restored sequence view while the switch
+  // still rendered unchecked, so the first click dispatched the value already in
+  // effect and the toggle read as dead. Note this is a different key from
+  // ba_show_filmstrip above — the reel itself is still never storage-gated, so
+  // turning sequence view off always brings it back.
+  test("AIAgent restores the view mode from the key the dashboard persists", () => {
+    const aiAgentSrc = read("../components/AIAgent.js");
+    expect(aiAgentSrc).toMatch(/getItem\(\s*["']dashboard-view-mode["']\s*\)/);
+    expect(p2026).toMatch(/setItem\(\s*["']dashboard-view-mode["']/);
+  });
+
+  // Sequence view owns the width whenever it is on — not only while Slow mode
+  // happens to be on too. Gating the split on .ud-slow-mode-active shrank the
+  // diagram the moment Slow went off, mid-demo.
+  test("the sequence-view column split is not gated on slow mode", () => {
+    const css = read("../components/UserDashboard.css");
+    expect(css).toContain(".ud-sequence-view-active {");
+    expect(css).not.toContain(".ud-sequence-view-active.ud-slow-mode-active");
   });
 });

@@ -4,7 +4,7 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import apiClient from "../services/apiClient";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
-import { MCP_STEP_IDS, buildRunStory, chainBadge } from "../services/tokenChainTrace/buildTraceSteps";
+import { MCP_STEP_IDS, buildRunStory } from "../services/tokenChainTrace/buildTraceSteps";
 import { resolveInspectClaims } from "../services/tokenChainTrace/resolveInspectClaims";
 import { isFlagOn, shouldShowTrustTab } from "../utils/tokenChainTrust";
 import { buildA2aChainDetail } from "../utils/a2aChainDetail";
@@ -183,19 +183,6 @@ const VIEW_ID_TO_TAB = {
   demoTrack: "demo-track",
 };
 
-const CHAIN_DOTS = [
-  { cls: "user", label: "User" },
-  { cls: "agent", label: "Agent" },
-  { cls: "mcp", label: "MCP" },
-];
-
-// mcpRouteOnly mode (vertical ops consoles): same trace data, but only the
-// delegation-to-MCP hops, with the dots relabelled for the MCP route.
-const MCP_ROUTE_DOTS = [
-  { cls: "agent", label: "Agent (MCP Client)" },
-  { cls: "mcp", label: "MCP Server" },
-];
-
 /**
  * Loads ff_dpop / ff_rar so Trust can appear for those use cases.
  * @param {(next: { ffDpop: boolean, ffRar: boolean }) => void} setFlags
@@ -371,7 +358,6 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
     () => (viewMode === "classic" ? classicSteps : buildLiveTokenChainSteps(classicSteps, trace)),
     [viewMode, classicSteps, trace],
   );
-  const dots = mcpRouteOnly ? MCP_ROUTE_DOTS : CHAIN_DOTS;
   // Clearing a run (or switching to a Live view that has not produced steps
   // yet) must drop both the selection and the presenter. Otherwise the flag
   // survives the empty state and the next run pops the full-screen projector
@@ -398,7 +384,6 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
     trace.llmDetail || trace.llmReply || trace.outcome || trace.routingMode,
   );
   const runStory = buildRunStory(trace, snap.steps);
-  const badge = chainBadge(trace, snap.steps);
 
   // Drop Trust selection if the use case ends while that tab is open.
   useEffect(() => {
@@ -543,16 +528,6 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
             ) : null}
           </div>
         </div>
-      </div>
-
-      <div className="tctr-chain-line">
-        {dots.map((d, i) => (
-          <React.Fragment key={d.cls}>
-            {i > 0 && <span className="tctr-arrow">→</span>}
-            <span className={`tctr-dot tctr-dot--${d.cls}`} /> {d.label}
-          </React.Fragment>
-        ))}
-        <span className={`tctr-badge tctr-badge--${badge.tone}`}>{badge.label}</span>
       </div>
 
       {tab === "chain" ? (

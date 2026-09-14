@@ -12,7 +12,7 @@
   margin: 0 auto;
   box-sizing: border-box;
   /* EducationBar is a fixed top-right hamburger — no extra top padding for a full-width bar */
-  padding: clamp(20px, 3vw, 36px) clamp(12px, 3.5vw, 20px) 28px;
+  padding: clamp(20px, 3vw, 36px) clamp(12px, 5vw, 64px) clamp(28px, 6vh, 120px);
   font-family: var(--font-primary);
   background-color: var(--brand-light-gray);
   min-height: 100vh;
@@ -322,6 +322,48 @@
   white-space: nowrap;
 }
 
+/* Sequence view's step detail — full width, below the agent + diagram
+   (both are stacked/full-width already; this just sits under both). */
+.ud-sequence-detail-row {
+  grid-column: 1 / -1;
+  margin-top: 0.35rem;
+}
+
+/* Sequence view: the agent column and the diagram default to a much taller
+   natural height than either needs, which pushes the step detail panel below
+   the fold. Cap both and let them scroll internally instead.
+
+   The cap is the grid row, not 50vh. The detail panel is its own track and
+   sizes to its content, so the row these live in has already given it away
+   what it needs — a fixed 50vh on top of that reserves the space a second
+   time and leaves a dead band below both columns whenever the viewport is
+   taller than ~1100px (measured: 885px row, 550px columns, 335px of nothing). */
+.ud-body.ud-sequence-view-active .ud-agent-column {
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+/* .srd-root now bounds the height and hands scrolling to its own .srd-scroll box
+   (both axes), so it must NOT be a second vertical scroller of its own — that
+   left the horizontal bar stranded at the bottom of the tall SVG. */
+.ud-body.ud-sequence-view-active .srd-root {
+  max-height: 100%;
+  overflow: hidden;
+}
+
+/* Sequence view needs the width, not the agent chat — the diagram is the whole
+   point of this view. This was previously gated on .ud-slow-mode-active too, so
+   the columns snapped back and the diagram lost its space the moment Slow mode
+   went off. Focus Mode never renders a banking column (see the comment above the
+   TokenChainFilmstrip mount), so grid-template-columns always resolves to
+   just [agent, diagram] here regardless of the no-banking class — matching
+   on the classes that are actually always present (not --no-banking, which
+   isn't) and still outweighing every competing rule (up to 3 classes) on class
+   count alone, without touching the user's persisted --ud-agent-col-width. */
+.ud-body.ud-body--2026.ud-focus-mode.ud-body--dashboard-split3.ud-sequence-view-active {
+  grid-template-columns: minmax(0, 0.55fr) minmax(0, 1.45fr);
+}
+
 .ud-agent-column {
   position: relative;
   min-width: 0;
@@ -429,6 +471,10 @@
 
   .ud-body.ud-body--2026.ud-body--dashboard-split3.ud-body--dashboard-split3--no-banking {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .ud-body.ud-body--2026.ud-focus-mode.ud-body--dashboard-split3.ud-sequence-view-active {
+    grid-template-columns: minmax(0, 0.55fr) minmax(0, 1.45fr);
   }
 }
 

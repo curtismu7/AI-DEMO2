@@ -3,7 +3,7 @@
 # UC29 — OAuth introspection outage — fail closed
 
 **Track:** attacks  
-**Maturity:** ✅ `works`  
+**Maturity:** 🏗️ `needs-build`  
 **OWASP:** 🛡️ **OWASP ASI** — Threats: T2 · Sections: §3.2.1, §8
 
 ## Buyer Story

@@ -61,7 +61,8 @@ function buildSpecialistAgentCard(vertical, cfg) {
     name: specialist.specialistName,
     description:
       `${specialist.appName} — A2A specialist for vertical "${vertical}". ` +
-      `Wire auth is PingOne Bearer; MCP tools still require nested-act delegation.`,
+      `Wire auth carries the caller's own delegated token; this specialist performs its ` +
+      `own nested-act exchange before calling MCP tools.`,
     version: '1.0.0',
     documentationUrl: 'https://a2a-protocol.org/dev/tutorials/',
     provider: {
@@ -79,7 +80,7 @@ function buildSpecialistAgentCard(vertical, cfg) {
         scheme: {
           $case: 'httpAuthSecurityScheme',
           value: {
-            description: 'PingOne access token (client_credentials) for the A2A hop',
+            description: 'PingOne access token (the caller\'s own RFC 8693 delegated token) for the A2A hop',
             scheme: 'Bearer',
             bearerFormat: 'JWT',
           },

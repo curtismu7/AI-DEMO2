@@ -3,7 +3,8 @@
   flex-direction: column;
   height: 100%;
   min-height: 600px;
-  background: #f5f0eb;
+  background: var(--th-bg-page);
+  color: var(--th-text);
 }
 
 .canvas-toolbar {
@@ -81,7 +82,7 @@
   color: var(--th-text-faint);
   padding: 4px 16px;
   background: var(--th-bg-inset);
-  border-bottom: 1px solid #ede8e0;
+  border-bottom: 1px solid var(--th-border);
 }
 
 /* Scrollable canvas wrapper — key change: overflow-x: auto allows horizontal scroll on small screens */

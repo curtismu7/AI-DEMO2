@@ -42,8 +42,11 @@ function mapCfgToFlags(cfg) {
       !cfg.spinner_accent || cfg.spinner_accent === "default"
         ? ""
         : cfg.spinner_accent,
+    // Off by default: the spinner overlay follows the app's light/dark theme
+    // (see LoadingOverlay.css's [data-theme="dark"] rules) rather than always
+    // rendering the dark card. An admin can still force it on via configStore.
     spinnerDarkCard:
-      cfg.spinner_dark_card !== false && cfg.spinner_dark_card !== "false",
+      cfg.spinner_dark_card === true || cfg.spinner_dark_card === "true",
     spinnerActivityFeed:
       cfg.spinner_activity_feed !== false &&
       cfg.spinner_activity_feed !== "false",
@@ -63,7 +66,7 @@ export function useAppFlags() {
     spinnerVariant: "neural",
     spinnerSize: 88,
     spinnerAccent: "",
-    spinnerDarkCard: true,
+    spinnerDarkCard: false,
     spinnerActivityFeed: true,
   });
 

@@ -1,0 +1,509 @@
+.srd-root {
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  padding: 0.5rem;
+  /* Column so the toolbars sit above/below one bounded scroll box (.srd-scroll),
+     which owns BOTH axes — so its horizontal bar rides the visible bottom edge
+     instead of the bottom of a tall SVG where it can't be reached. */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+
+  /* Lane identity — 11 lanes grouped into 5 validated hue families (see
+     dataviz palette validation notes below); a lane's shade groups it with
+     its family, the hue tells the families apart. Status is layered on top
+     separately (motion, dash, weight) and never overrides these. */
+  --srd-color-browser: #2a78d6;
+  --srd-color-chat: color-mix(in oklab, #2a78d6 60%, white);
+  --srd-color-agent: #eb6834;
+  --srd-color-llm: color-mix(in oklab, #eb6834 60%, white);
+  --srd-color-mcp: #1baf7a;
+  --srd-color-gateway: color-mix(in oklab, #1baf7a 60%, white);
+  --srd-color-pingone: #eda100;
+  --srd-color-authz: color-mix(in oklab, #eda100 60%, white);
+  --srd-color-bff: #e87ba4;
+  --srd-color-api: color-mix(in oklab, #e87ba4 55%, white);
+  --srd-color-data: color-mix(in oklab, #e87ba4 30%, white);
+  /* A2A hops sit beside the AGENT and LLM lanes, so they cannot borrow either
+     shade; they take a third, lighter step of the agent family. Mixed from the
+     agent token, so it follows the active theme without a second declaration. */
+  --srd-color-a2a: color-mix(in oklab, var(--srd-color-agent) 35%, white);
+
+  /* Stand-in lanes: these never co-occur with the lane they replace, so they
+     borrow its shade instead of adding a 12th hue to a palette the notes above
+     already call past a safe categorical count. A heuristic run replaces the
+     LLM hop outright (buildTraceSteps emits one or the other, never both), and
+     a vertical's resource lane plays the API lane's part. Declared once — each
+     resolves to whichever value its target holds in the active theme. */
+  --srd-color-heuristics: var(--srd-color-llm);
+  --srd-color-airlines: var(--srd-color-api);
+  --srd-color-invest: var(--srd-color-api);
+  --srd-color-mortgage: var(--srd-color-api);
+}
+
+/* Dark steps of the same 5 families — vibrant colors for dark mode
+   Project rule: dark is [data-theme="dark"] only, never prefers-color-scheme. */
+:root[data-theme="dark"] .srd-root {
+  --srd-color-browser: #4a9eff;
+  --srd-color-chat: color-mix(in oklab, #4a9eff 80%, white);
+  --srd-color-agent: #ff6b4a;
+  --srd-color-llm: color-mix(in oklab, #ff6b4a 80%, white);
+  --srd-color-mcp: #2ed9a3;
+  --srd-color-gateway: color-mix(in oklab, #2ed9a3 80%, white);
+  --srd-color-pingone: #ffa500;
+  --srd-color-authz: color-mix(in oklab, #ffa500 80%, white);
+  --srd-color-bff: #ff5599;
+  --srd-color-api: color-mix(in oklab, #ff5599 75%, white);
+  --srd-color-data: color-mix(in oklab, #ff5599 55%, white);
+}
+
+.srd-empty {
+  padding: 0.75rem;
+  font-size: var(--font-size-3xs);
+  color: var(--th-text-muted);
+  background: var(--th-bg-inset);
+  border: 1px dashed var(--th-border);
+  border-radius: var(--radius-md);
+}
+
+.srd-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+  /* The toolbars sit outside .srd-scroll (the scroll box), so they stay put
+     while the diagram scrolls — sticky is kept as a harmless backstop. Colour
+     alongside the background: a themed ground without themed ink trips the
+     theming ratchet. */
+  position: sticky;
+  z-index: 2;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+/* .srd-root has 0.5rem of padding, and `top: 0` pins to that padding line rather
+   than the scroller's edge — so the diagram scrolled through the gap and showed
+   above the pinned row. Pin flush with the edge and paint over the padding; the
+   negative margin cancels the added padding so the row does not move at rest. */
+.srd-toolbar--top {
+  top: -0.5rem;
+  margin-top: -0.5rem;
+  padding-top: 0.5rem;
+}
+
+.srd-zoom-btn,
+.srd-zoom-reset {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+}
+
+.srd-zoom-btn:hover,
+.srd-zoom-reset:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.srd-slow-btn {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.srd-slow-btn:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+/* Transport: Prev / Play-Pause-Replay / Next. Same shape as the zoom and Slow
+   buttons so the row reads as one control strip. */
+.srd-step-btn {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.srd-step-btn:hover:not(:disabled) {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.srd-step-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.srd-step-btn--play {
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+  border-color: var(--th-status-info);
+  min-width: 52px;
+}
+
+.srd-toolbar--bottom {
+  bottom: -0.5rem;
+  margin-top: 0.4rem;
+  margin-bottom: -0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.srd-slow-btn--active {
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+  border-color: var(--th-status-info);
+}
+
+.srd-speed-select {
+  /* A global `select, input, textarea { width: 100% }` wins otherwise, and the
+     control stretches to ~940px to show "2.6s (default)". */
+  width: auto;
+  max-width: 150px;
+  flex: 0 0 auto;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.srd-speed-select:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.srd-speed-select:focus {
+  /* --th-focus is not a real token — an undefined custom property with no
+     fallback resolves to nothing, so this focus ring did not render at all.
+     --th-border-strong is what the sibling CollapsibleStepDetail.css uses. */
+  outline: 2px solid var(--th-border-strong);
+  outline-offset: -1px;
+}
+
+.srd-slow-badge {
+  margin-left: auto;
+  font-size: var(--font-size-3xs);
+  font-weight: 600;
+  color: var(--th-status-info-text);
+  background: var(--th-status-info-bg);
+  border: 1px solid var(--th-status-info-border);
+  border-radius: var(--radius-pill);
+  padding: 0.15rem 0.55rem;
+}
+
+.srd-scroll {
+  /* The single scroll box for both axes. flex:1 + min-height:0 make it take the
+     height left by the toolbars and bound it, so both scrollbars sit at this
+     box's own edges and stay reachable no matter how tall or wide the diagram. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  /* Always show the bars (macOS/Chrome hide overlay bars until you scroll, which
+     hid that the first lane was just off to the left). */
+  scrollbar-width: thin;
+  scrollbar-color: var(--th-border-strong) transparent;
+}
+
+.srd-scroll::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.srd-scroll::-webkit-scrollbar-thumb {
+  background: var(--th-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.srd-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.srd-svg {
+  display: block;
+  height: auto;
+}
+
+/* Each lane publishes its hue once, here; the marks below read it. */
+.srd-lane-browser { --srd-lane: var(--srd-color-browser); }
+.srd-lane-chat { --srd-lane: var(--srd-color-chat); }
+.srd-lane-agent { --srd-lane: var(--srd-color-agent); }
+.srd-lane-llm { --srd-lane: var(--srd-color-llm); }
+.srd-lane-mcp { --srd-lane: var(--srd-color-mcp); }
+.srd-lane-gateway { --srd-lane: var(--srd-color-gateway); }
+.srd-lane-pingone { --srd-lane: var(--srd-color-pingone); }
+.srd-lane-authz { --srd-lane: var(--srd-color-authz); }
+.srd-lane-bff { --srd-lane: var(--srd-color-bff); }
+.srd-lane-api { --srd-lane: var(--srd-color-api); }
+.srd-lane-data { --srd-lane: var(--srd-color-data); }
+.srd-lane-a2a { --srd-lane: var(--srd-color-a2a); }
+.srd-lane-heuristics { --srd-lane: var(--srd-color-heuristics); }
+.srd-lane-airlines { --srd-lane: var(--srd-color-airlines); }
+.srd-lane-invest { --srd-lane: var(--srd-color-invest); }
+.srd-lane-mortgage { --srd-lane: var(--srd-color-mortgage); }
+
+/* Solid lane-coloured header, white label. The raw lane shade cannot be the
+   fill: six of the eleven are `color-mix(…, white)` tints built to read as
+   strokes, and white-on-tint leaves the label with no contrast in either
+   theme. Darkening to a fixed lightness keeps the hue and the family grouping
+   while guaranteeing the label clears contrast on every lane. */
+.srd-actor-box {
+  fill: color-mix(in oklab, var(--srd-lane, var(--th-text-muted)) 62%, black);
+  stroke: var(--srd-lane, var(--th-border-strong));
+  stroke-width: 2;
+}
+
+.srd-actor-label {
+  fill: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.srd-lifeline {
+  stroke: var(--th-border-strong);
+  stroke-width: 2.5;
+  stroke-dasharray: 3 3;
+  opacity: 0.7;
+}
+
+/* Full-row click target behind each hop. `transparent` (not `none`) still
+   receives pointer events, so a click anywhere on the row opens the hop's
+   detail — an arrow is otherwise only a 2px line plus a small label to hit. */
+.srd-hitbox {
+  fill: transparent;
+  cursor: pointer;
+}
+
+/* .srd-label-box is the arrow equivalent of a note box — same treatment, so a
+   hop looks and behaves the same whichever way it is drawn. */
+.srd-label-box,
+.srd-note-box {
+  fill: var(--th-bg-page);
+  stroke: var(--th-border);
+  cursor: pointer;
+}
+
+.srd-note-label,
+.srd-arrow-label {
+  fill: var(--th-text-muted);
+  font-size: 12px;
+}
+
+.srd-arrow {
+  stroke: var(--th-border-strong);
+  stroke-width: 3;
+  cursor: pointer;
+}
+
+.srd-arrowhead-fill {
+  fill: var(--th-border-strong);
+}
+
+.srd-selected .srd-arrow,
+.srd-selected .srd-label-box,
+.srd-selected .srd-note-box {
+  stroke-width: 2.5;
+}
+
+.srd-selected .srd-label-box,
+.srd-selected .srd-note-box {
+  fill: var(--th-bg-hover);
+}
+
+/* Status — structural/motion cues layered on top of the lane color, never a
+   color override (that would cancel "each step is a different color"). */
+.srd-status-active .srd-arrow,
+.srd-status-active .srd-label-box,
+.srd-status-active .srd-note-box {
+  stroke-width: 2.25;
+}
+
+.srd-status-active .srd-arrow-label,
+.srd-status-active .srd-note-label {
+  font-weight: 700;
+}
+
+.srd-active-dot {
+  fill: var(--th-status-info);
+}
+
+.srd-active-pulse {
+  fill: none;
+  stroke: var(--th-status-info);
+  stroke-width: 2;
+  animation: srd-pulse 1.4s ease-out infinite;
+}
+
+@keyframes srd-pulse {
+  0% {
+    r: 6;
+    opacity: 0.9;
+  }
+  100% {
+    r: 16;
+    opacity: 0;
+  }
+}
+
+.srd-status-error .srd-arrow,
+.srd-status-error .srd-note-box {
+  stroke-dasharray: 4 2;
+}
+
+.srd-status-error .srd-arrow-label,
+.srd-status-error .srd-note-label {
+  fill: var(--th-status-error-text);
+  font-weight: 700;
+}
+
+/* Lane identity — the mark (box/line/arrowhead) carries the color; labels
+   stay in ink above so color is never the only signal for a lane's name. */
+.srd-lane-browser .srd-note-box,
+.srd-lane-browser .srd-arrow {
+  stroke: var(--srd-color-browser);
+}
+.srd-lane-browser.srd-arrowhead-fill {
+  fill: var(--srd-color-browser);
+}
+
+.srd-lane-chat .srd-note-box,
+.srd-lane-chat .srd-arrow {
+  stroke: var(--srd-color-chat);
+}
+.srd-lane-chat.srd-arrowhead-fill {
+  fill: var(--srd-color-chat);
+}
+
+.srd-lane-agent .srd-note-box,
+.srd-lane-agent .srd-arrow {
+  stroke: var(--srd-color-agent);
+}
+.srd-lane-agent.srd-arrowhead-fill {
+  fill: var(--srd-color-agent);
+}
+
+.srd-lane-llm .srd-note-box,
+.srd-lane-llm .srd-arrow {
+  stroke: var(--srd-color-llm);
+}
+.srd-lane-llm.srd-arrowhead-fill {
+  fill: var(--srd-color-llm);
+}
+
+.srd-lane-mcp .srd-note-box,
+.srd-lane-mcp .srd-arrow {
+  stroke: var(--srd-color-mcp);
+}
+.srd-lane-mcp.srd-arrowhead-fill {
+  fill: var(--srd-color-mcp);
+}
+
+.srd-lane-gateway .srd-note-box,
+.srd-lane-gateway .srd-arrow {
+  stroke: var(--srd-color-gateway);
+}
+.srd-lane-gateway.srd-arrowhead-fill {
+  fill: var(--srd-color-gateway);
+}
+
+.srd-lane-pingone .srd-note-box,
+.srd-lane-pingone .srd-arrow {
+  stroke: var(--srd-color-pingone);
+}
+.srd-lane-pingone.srd-arrowhead-fill {
+  fill: var(--srd-color-pingone);
+}
+
+.srd-lane-authz .srd-note-box,
+.srd-lane-authz .srd-arrow {
+  stroke: var(--srd-color-authz);
+}
+.srd-lane-authz.srd-arrowhead-fill {
+  fill: var(--srd-color-authz);
+}
+
+.srd-lane-bff .srd-note-box,
+.srd-lane-bff .srd-arrow {
+  stroke: var(--srd-color-bff);
+}
+.srd-lane-bff.srd-arrowhead-fill {
+  fill: var(--srd-color-bff);
+}
+
+.srd-lane-api .srd-note-box,
+.srd-lane-api .srd-arrow {
+  stroke: var(--srd-color-api);
+}
+.srd-lane-api.srd-arrowhead-fill {
+  fill: var(--srd-color-api);
+}
+
+.srd-lane-data .srd-note-box,
+.srd-lane-data .srd-arrow {
+  stroke: var(--srd-color-data);
+}
+.srd-lane-data.srd-arrowhead-fill {
+  fill: var(--srd-color-data);
+}
+
+.srd-lane-a2a .srd-note-box,
+.srd-lane-a2a .srd-arrow {
+  stroke: var(--srd-color-a2a);
+}
+.srd-lane-a2a.srd-arrowhead-fill {
+  fill: var(--srd-color-a2a);
+}
+
+.srd-lane-heuristics .srd-note-box,
+.srd-lane-heuristics .srd-arrow {
+  stroke: var(--srd-color-heuristics);
+}
+.srd-lane-heuristics.srd-arrowhead-fill {
+  fill: var(--srd-color-heuristics);
+}
+
+.srd-lane-airlines .srd-note-box,
+.srd-lane-airlines .srd-arrow {
+  stroke: var(--srd-color-airlines);
+}
+.srd-lane-airlines.srd-arrowhead-fill {
+  fill: var(--srd-color-airlines);
+}
+
+.srd-lane-invest .srd-note-box,
+.srd-lane-invest .srd-arrow {
+  stroke: var(--srd-color-invest);
+}
+.srd-lane-invest.srd-arrowhead-fill {
+  fill: var(--srd-color-invest);
+}
+
+.srd-lane-mortgage .srd-note-box,
+.srd-lane-mortgage .srd-arrow {
+  stroke: var(--srd-color-mortgage);
+}
+.srd-lane-mortgage.srd-arrowhead-fill {
+  fill: var(--srd-color-mortgage);
+}

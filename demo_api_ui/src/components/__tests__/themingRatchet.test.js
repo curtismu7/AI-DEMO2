@@ -89,7 +89,7 @@ import path from 'node:path';
 // nav-reachable pages from the full audit. Each page's own brand/legend
 // accent (the CC orange, --dtp-red/--dc-navy/--dc-blue, the #0a66c2 OWASP
 // blue, the SecurityCenter navy header) stays literal per THEMING.md §1.3.
-const MAX_UNTHEMED = 138;
+const MAX_UNTHEMED = 136;
 
 const SRC = path.join(__dirname, '..', '..');
 
@@ -256,8 +256,12 @@ describe('theming ratchet', () => {
  * no dark override) to this one page rather than that shared file. Every
  * child inside those cards already has its own ccrsp-* color class — a
  * textbook "container whose every child sets a colour" harmless match.
+ *
+ * 453 -> 454: SequenceReelDiagram.css's `.srd-scroll::-webkit-scrollbar-thumb`
+ * takes `background: var(--th-border-strong)` and has no color — a scrollbar
+ * thumb renders no text, so "ink" does not apply; a themed thumb is correct.
  */
-const MAX_GROUND_WITHOUT_INK = 453;
+const MAX_GROUND_WITHOUT_INK = 454;
 
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const HAS_COLOR = /(?:^|\n)\s*color\s*:/;

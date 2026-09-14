@@ -56,7 +56,7 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC15** — Intent-token tampering](./intent-token-tampering.md) 🏗️ 🛡️
 - [**UC16** — Impersonation blocked (OBO required)](./impersonation-blocked.md) ✅ 🛡️
 - [**UC18** — Rate-limit / resource-overload defense](./rate-limit-defense.md) ✅ 🛡️
-- [**UC29** — OAuth introspection outage — fail closed](./oauth-fail-closed.md) ✅ 🛡️
+- [**UC29** — OAuth introspection outage — fail closed](./oauth-fail-closed.md) 🏗️ 🛡️
 
 ## Hitl
 
@@ -86,3 +86,4 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC-PAM-SCRIPT** — Privilege Demo — Request Access Script](./privilege-demo-script.md) ✅
 - [**UC-LEARN8** — Enterprise-Managed MCP Authorization](./enterprise-managed-mcp-auth.md) ✅
 - [**UC-LEARN9** — ID-JAG / Cross-App Access](./id-jag-cross-app-access.md) ✅
+- [**UC-LEARN10** — Orchestration SDK (Custom UI)](./orchestration-sdk.md) ✅

@@ -92,10 +92,13 @@ describe('the honesty contract', () => {
     expect(panes.some((p) => p.layer === LAYER.WIRE)).toBe(true);
   });
 
-  it('says the wire bearer is a separate token from the nested-act one', () => {
+  it('says the wire bearer IS the Exchange #1 delegated token, not a client_credentials mint', () => {
     const bearer = panes.find((p) => p.key === 'wire:bearer');
     expect(bearer).toBeTruthy();
-    expect(bearer.note).toMatch(/SEPARATE token/);
+    expect(bearer.title).toMatch(/RFC 8693 delegated token/);
+    expect(bearer.title).not.toMatch(/client_credentials/);
+    expect(bearer.note).toMatch(/Exchange #1/);
+    expect(bearer.note).toMatch(/specialist.*Exchange #2/);
   });
 
   it('returns nothing rather than throwing when there is no A2A run', () => {

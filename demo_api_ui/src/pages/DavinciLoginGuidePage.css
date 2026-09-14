@@ -1,0 +1,110 @@
+/* demo_api_ui/src/pages/DavinciLoginGuidePage.css
+   /davinci-login-guide — only what the shared lesson shell (components/lesson)
+   does not provide: the Try It Live grid and the Call Inspector cards. Mirrors
+   DavinciSdkLoginPage.css's .dvsdk-live. Every colour is a --th-* token; font
+   sizes come from the scale; radii from --radius-*. */
+
+.dvl-live {
+  display: grid;
+  grid-template-columns: minmax(300px, 440px) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+  margin-top: 1rem;
+}
+
+/* The widget card: the thing this page is about, so it stands apart from the
+   lesson around it, matching DavinciSdkLoginPage.css's flow card. It sits on
+   the emphasis surface with that surface's ink, runs larger than the Call
+   Inspector cards, and carries the large elevation.
+   Sticky below the app's sticky TopNav, not under it. */
+.dvl-live-app {
+  position: sticky;
+  top: calc(var(--topnav-height, 60px) + 1rem);
+  padding: 1.75rem;
+  color: var(--th-text-on-emphasis);
+  background: var(--th-bg-emphasis);
+  border: 1px solid var(--th-bg-emphasis);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Text with no ground of its own takes the card's ink. DavinciLoginPage.css
+   gives these --th-text / --th-text-muted for the other pages that share it,
+   so the override is scoped to this card. .dvl-error keeps its own ground. */
+.dvl-live-app .dvl-page,
+.dvl-live-app .dvl-status,
+.dvl-live-app .dvl-version {
+  color: inherit;
+}
+
+/* DaVinci draws its own HTML here (its end-user-nano styles), so it gets a
+   card panel and keeps its normal ground instead of the emphasis surface. */
+.dvl-live-app .dvl-widget {
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+/* .dvl-retry already sits on the card surface, so it inverts against the
+   emphasis ground; its focus ring takes the card's ink. */
+.dvl-live-app .dvl-retry:focus-visible {
+  outline: 2px solid var(--th-text-on-emphasis);
+  outline-offset: 2px;
+}
+
+.dvl-live-calls h3 {
+  margin: 0 0 0.75rem;
+  font-size: var(--font-size-lg);
+  color: var(--th-text);
+}
+
+.dvl-signed-in {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  color: inherit;
+  border-top: 1px solid var(--th-text-on-emphasis);
+}
+
+.dvl-calls {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dvl-call {
+  margin: 0 0 0.75rem;
+  padding: 0.75rem 1rem;
+  color: var(--th-text-body);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+}
+
+.dvl-call-title {
+  margin: 0 0 0.35rem;
+  font-size: var(--font-size-sm);
+  color: var(--th-text);
+  overflow-wrap: anywhere;
+}
+
+.dvl-call p {
+  margin: 0.25rem 0 0;
+  font-size: var(--font-size-sm);
+}
+
+.dvl-calls-empty {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+}
+
+@media (max-width: 900px) {
+  .dvl-live {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dvl-live-app {
+    position: static;
+  }
+}

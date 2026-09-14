@@ -59,7 +59,7 @@ export const SECURITY_DEMO_USE_CASE_IDS = [
   'UC14b', // PAR within cap → PERMIT (intent-binding page), ff_rar
   'UC14',  // PAR over cap → DENY (rar-exceeded attack sim), ff_rar
   'UC31',  // weather Miami → gateway DENY
-  'UC12',  // DPoP / replay attack sim → DENY_401
+  'UC12',  // DPoP replay attack sim → DENY_401
   'UC5',   // insufficient scope attack sim → DENY_403
 ];
 

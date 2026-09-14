@@ -18,7 +18,7 @@ All apps renamed to `Demo AI App - <Role>` standard on 2026-06-14.
 | Demo AI App - Token Exchanger | `f4dd707d` | WEB_APP | `PINGONE_TOKEN_EXCHANGER_CLIENT_ID` | `agentMcpTokenService` | Two-Exchange Step 2 actor + single-exchange actor. Gets CC token (aud=mcpgateway.ping.demo), used as `actor_token` in Exchange #2. |
 | Demo AI App - MCP Gateway | `6586d3de` | WEB_APP | `PINGONE_MCP_GATEWAY_CLIENT_ID` | MCP gateway process | MCP gateway client identity. Client credentials + token_exchange. |
 | Demo AI App - MCP Server Client | `c76a9868` | WEB_APP | *(not in .env)* | MCP server process | MCP server client identity. Client credentials only. |
-| Demo AI App - Introspection Worker | `89ad8921` | WORKER | `PINGONE_WORKER_CLIENT_ID` | `tokenIntrospectionService` | RFC 7662 token introspection. Only WORKER authorised to introspect tokens issued by other clients. Uses CLIENT_SECRET_BASIC. |
+| Demo AI App - Introspection Worker | `e1e33bbe` | WORKER | `PINGONE_WORKER_CLIENT_ID` | `tokenIntrospectionService` | RFC 7662 token introspection. Only WORKER authorised to introspect tokens issued by other clients. Uses CLIENT_SECRET_BASIC. |
 | PingOne MCP Server | `44e907ff` | NATIVE_APP | *(dev tooling)* | Claude Code → hosted PingOne MCP server | PKCE-only native app; OAuth client AI assistants use to reach the hosted PingOne MCP server. Not a demo runtime component. |
 
 **Naming convention:** `Demo AI App - <Role>` for all demo apps. Workers use a descriptive role suffix (e.g. `Introspection Worker`) rather than `App`.
@@ -146,7 +146,7 @@ Was unused — `AGENT_CLIENT_ID` maps to `pingone_ai_agent_client_id` as the low
 
 ---
 
-### Demo AI App - Introspection Worker (`89ad8921`) — WORKER ✓
+### Demo AI App - Introspection Worker (`e1e33bbe`) — WORKER ✓
 
 **Role:** RFC 7662 token introspection. Only client authorised to introspect across clients in this environment.
 
@@ -181,12 +181,12 @@ Was unused — `AGENT_CLIENT_ID` maps to `pingone_ai_agent_client_id` as the low
 
 ## Introspection Note
 
-`tokenIntrospectionService.js` uses `PINGONE_WORKER_CLIENT_ID` (`89ad8921`) with `CLIENT_SECRET_BASIC`. This is correct — it is the only app in this environment authorised to introspect tokens issued by other clients (RFC 7662).
+`tokenIntrospectionService.js` uses `PINGONE_WORKER_CLIENT_ID` (`e1e33bbe`) with `CLIENT_SECRET_BASIC`. This is correct — it is the only app in this environment authorised to introspect tokens issued by other clients (RFC 7662).
 
 **Manual .env fix required:** `GW_INTROSPECTION_CLIENT_ID` and `GW_INTROSPECTION_CLIENT_SECRET` currently point to `f4dd707d` (Demo MCP Exchanger). Update to Worker credentials:
 
 ```env
-GW_INTROSPECTION_CLIENT_ID=89ad8921-2e90-4b58-93bd-9ec72bd33ad5
+GW_INTROSPECTION_CLIENT_ID=e1e33bbe-cd65-47d0-b2d4-f18582ad42a6
 GW_INTROSPECTION_CLIENT_SECRET=<PINGONE_WORKER_CLIENT_SECRET value>
 PINGONE_INTROSPECTION_AUTH_METHOD=basic
 ```

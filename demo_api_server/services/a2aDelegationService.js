@@ -266,22 +266,21 @@ function resolveA2aConfig(cfgArg, specialist, scopeTopo) {
 }
 
 /**
- * Perform the chained RFC 8693 exchange that produces the nested act token,
- * for the active vertical's specialist (resolved from the per-vertical registry).
+ * Generalist half — Exchange #1: user → Agent 1 delegated token (act:{agent1}).
+ * Resolves the vertical's specialist, enforces the tool allowlist, runs the
+ * Agent 2 credential / audience / session-bearer guards (unchanged — failing
+ * fast here means Exchange #1 never runs for a misconfigured specialist), then
+ * performs Exchange #1. `token` on success is tAgent1 — the hop bearer
+ * exchangeAsSpecialist chains off of next.
  *
- * @param {object}        req                Express request (session holds the user token)
- * @param {object}        opts
- * @param {string}        opts.vertical      Active vertical id (selects the specialist)
- * @param {string}        [opts.subtask]     Human description of the delegated sub-task
- * @param {string}        [opts.tool]        Specialist tool the run intends to call
- * @param {Array}         [opts.tokenEvents] Mutable event array to append to (shared chain)
- * @param {object}        [opts.deps]        Injected dependencies for testing
- * @returns {Promise<{ token: string|null, tokenEvents: Array, claims: object|null,
- *                      userSub: string|null, vertical: string, specialist: string,
- *                      agent1: string, agent2: string, scopes: string[],
- *                      actChainDepth: number, error?: string }>}
+ * @param {object} req   Express request (session holds the user token)
+ * @param {object} opts  { vertical, subtask, tool, tokenEvents, deps, ... } — same opts delegateToSpecialist takes
+ * @returns {Promise<{ token: string|null, tokenEvents: Array, userSub: string|null,
+ *                      vertical: string, specialist?: string, specialistAppKey?: string,
+ *                      specialistVertical?: string, tool?: string|null, agent1?: string,
+ *                      scopes?: string[], error?: string }>}
  */
-async function delegateToSpecialist(req, opts = {}) {
+async function exchangeAsGeneralist(req, opts = {}) {
   const deps = opts.deps || {};
   const oauth = deps.oauthService || defaultOauthService();
   const cfg = deps.configStore || defaultConfigStore();
@@ -294,7 +293,7 @@ async function delegateToSpecialist(req, opts = {}) {
   const exchangeAttempts = opts.exchangeAttempts || DEFAULT_EXCHANGE_ATTEMPTS;
   const retryDelayMs = opts.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
 
-  const base = { token: null, tokenEvents, claims: null, userSub: null, vertical };
+  const base = { token: null, tokenEvents, userSub: null, vertical };
 
   const specialist = specialistForVertical(vertical);
   if (!specialist) {
@@ -400,6 +399,72 @@ async function delegateToSpecialist(req, opts = {}) {
       },
     ));
 
+    return {
+      token: tAgent1,
+      tokenEvents,
+      userSub,
+      vertical,
+      specialist: specialist.specialistName,
+      specialistAppKey: specialist.appKey,
+      // Same value as specialistAppKey — kept because executeA2aDelegation's
+      // render-descriptor lookup keys off specialistVertical (the specialist's
+      // OWN vertical namespace, e.g. banking's Investment Advisor is appKey
+      // 'investment'), not `vertical` (the DELEGATING vertical) above.
+      specialistVertical: specialist.appKey,
+      tool,
+      agent1: c.agent1ClientId,
+      scopes: specialistScopes,
+    };
+  } catch (err) {
+    tokenEvents.push(buildA2aEvent(
+      'a2a-exchange-failed',
+      'A2A delegation failed',
+      'failed',
+      null,
+      `Chained RFC 8693 exchange failed: ${err.message}`,
+      { a2aRole: 'error', error: err.message, httpStatus: err.httpStatus || null },
+    ));
+    return { token: null, tokenEvents, userSub, vertical, error: err.message };
+  }
+}
+
+/**
+ * Specialist half — Exchange #2: Agent 1's hop bearer + Agent 2 (specialist)
+ * actor → nested act token. Re-resolves its OWN config via resolveA2aConfig
+ * (client secrets never travel in exchangeAsGeneralist's return value), then
+ * performs Exchange #2 and the additive, soft-fail Verified Trust assertion.
+ *
+ * @param {string} subjectToken  tAgent1 — the hop bearer from exchangeAsGeneralist
+ * @param {object} opts          { vertical, tool, tokenEvents, deps, ... }
+ * @returns {Promise<{ token: string|null, claims: object|null, agent2?: string,
+ *                      scopes: string[], actChainDepth?: number,
+ *                      trustAssertion?: object, error?: string }>}
+ */
+async function exchangeAsSpecialist(subjectToken, opts = {}) {
+  const deps = opts.deps || {};
+  const oauth = deps.oauthService || defaultOauthService();
+  const cfg = deps.configStore || defaultConfigStore();
+  const scopeTopo = deps.scopeTopology || defaultScopeTopology();
+
+  const tokenEvents = opts.tokenEvents || [];
+  const vertical = opts.vertical;
+  const tool = opts.tool || null;
+  const exchangeTimeoutMs = opts.exchangeTimeoutMs || DEFAULT_EXCHANGE_TIMEOUT_MS;
+  const exchangeAttempts = opts.exchangeAttempts || DEFAULT_EXCHANGE_ATTEMPTS;
+  const retryDelayMs = opts.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
+
+  const specialist = specialistForVertical(vertical);
+  if (!specialist) {
+    return { token: null, claims: null, error: `No A2A specialist configured for vertical "${vertical}"` };
+  }
+  const specialistScopes = deriveSpecialistScopes(specialist, scopeTopo);
+  const c = resolveA2aConfig(cfg, specialist, scopeTopo);
+
+  // The subject token (tAgent1) already carries the user as `sub` — decode it
+  // rather than threading userSub through as a separate param.
+  const userSub = decodeJwt(subjectToken)?.claims?.sub || null;
+
+  try {
     // ── Exchange #2: Agent 1 token + Agent 2 (specialist) actor → nested act ─────
     // Agent 2's actor token targets its OWN intermediate audience (not the final
     // specialist/gateway audience) using its uniquely-named invoke scope. PingOne
@@ -425,7 +490,7 @@ async function delegateToSpecialist(req, opts = {}) {
 
     const tInvest = await runExchange(
       () => oauth.performTokenExchangeAs(
-        tAgent1,
+        subjectToken,
         agent2Actor,
         c.agent2ClientId,
         c.agent2Secret,
@@ -464,34 +529,6 @@ async function delegateToSpecialist(req, opts = {}) {
       },
     ));
 
-    // Additive A2A *wire* hop (Agent Card + JSON-RPC) with a separate PingOne
-    // bearer — does not replace nested-act MCP. Soft-fail so identity path wins.
-    let protocolHandoff = null;
-    if (opts.skipProtocolHandoff !== true) {
-      try {
-        const { sendA2aProtocolHandoff } = deps.sendA2aProtocolHandoff
-          ? { sendA2aProtocolHandoff: deps.sendA2aProtocolHandoff }
-          : require('./a2aProtocolClient');
-        protocolHandoff = await sendA2aProtocolHandoff({
-          vertical,
-          subtask,
-          tokenEvents,
-          cfg,
-          deps: { oauthService: oauth },
-          baseUrl: opts.protocolBaseUrl,
-        });
-      } catch (protoErr) {
-        tokenEvents.push(buildA2aEvent(
-          'a2a-protocol-message',
-          'A2A Protocol — SendMessage failed',
-          'failed',
-          null,
-          `Wire hop threw (nested-act MCP path unchanged): ${protoErr.message}`,
-          { a2aRole: 'protocol-message', vertical, error: protoErr.message },
-        ));
-      }
-    }
-
     // Additive Verified Trust assertion — a signed credential alongside the
     // bearer chain, not instead of it. No DaVinci flow exists on this tenant
     // yet (verifiedTrustService throws NOT_CONFIGURED), so this is soft-fail
@@ -528,22 +565,10 @@ async function delegateToSpecialist(req, opts = {}) {
 
     return {
       token: tInvest,
-      tokenEvents,
       claims: tInvestDecoded?.claims || null,
-      userSub,
-      vertical,
-      // The specialist's OWN vertical namespace (e.g. banking's Investment
-      // Advisor is appKey 'investment') — distinct from `vertical` above,
-      // which is the DELEGATING vertical. Needed to resolve the render
-      // descriptor from the specialist's manifest, not the delegator's.
-      specialistVertical: specialist.appKey,
-      specialist: specialist.specialistName,
-      tool,
-      agent1: c.agent1ClientId,
       agent2: c.agent2ClientId,
       scopes: specialistScopes,
       actChainDepth,
-      protocolHandoff,
       trustAssertion,
     };
   } catch (err) {
@@ -555,8 +580,36 @@ async function delegateToSpecialist(req, opts = {}) {
       `Chained RFC 8693 exchange failed: ${err.message}`,
       { a2aRole: 'error', error: err.message, httpStatus: err.httpStatus || null },
     ));
-    return { token: null, tokenEvents, claims: null, userSub, error: err.message };
+    return { token: null, claims: null, error: err.message };
   }
+}
+
+/**
+ * Perform the chained RFC 8693 exchange that produces the nested act token,
+ * for the active vertical's specialist (resolved from the per-vertical registry).
+ * Composes the generalist half (exchangeAsGeneralist) and the specialist half
+ * (exchangeAsSpecialist) in sequence — kept as a single entry point for this
+ * function's remaining caller, the group-policy decision-board probe
+ * (routes/groupMembership.js).
+ *
+ * @param {object}        req                Express request (session holds the user token)
+ * @param {object}        opts
+ * @param {string}        opts.vertical      Active vertical id (selects the specialist)
+ * @param {string}        [opts.subtask]     Human description of the delegated sub-task
+ * @param {string}        [opts.tool]        Specialist tool the run intends to call
+ * @param {Array}         [opts.tokenEvents] Mutable event array to append to (shared chain)
+ * @param {object}        [opts.deps]        Injected dependencies for testing
+ * @returns {Promise<{ token: string|null, tokenEvents: Array, claims: object|null,
+ *                      userSub: string|null, vertical: string, specialist: string,
+ *                      agent1: string, agent2: string, scopes: string[],
+ *                      actChainDepth: number, error?: string }>}
+ */
+async function delegateToSpecialist(req, opts = {}) {
+  const first = await exchangeAsGeneralist(req, opts);
+  if (first.error || !first.token) return first;
+  const second = await exchangeAsSpecialist(first.token, { ...opts, tokenEvents: first.tokenEvents });
+  if (second.error) return { ...first, ...second, token: null };
+  return { ...first, ...second };
 }
 
 /**
@@ -648,12 +701,21 @@ function countActDepth(act) {
 module.exports = {
   resolveA2aConfig,
   delegateToSpecialist,
+  exchangeAsGeneralist,
+  exchangeAsSpecialist,
   probeGeneralistMismatch,
   // Exchange #2's requested scope. Exported so pingoneProvisionService (Step
   // 37a-A2A) grants the SAME scope the runtime asks for — a second, hand-rolled
   // derivation there once granted bare `read` while the runtime requested the
   // delegated scope, which a fresh bootstrap turns into invalid_scope.
   deriveSpecialistScopes,
+  // The exchange budget. Exported so a2aProtocolClient can DERIVE its wire-hop
+  // ceiling from the same numbers instead of hard-coding a second one: the hop
+  // now contains the specialist's Exchange #2, so a bound below this budget
+  // cuts off a slow-but-succeeding specialist.
+  DEFAULT_EXCHANGE_TIMEOUT_MS,
+  DEFAULT_EXCHANGE_ATTEMPTS,
+  DEFAULT_RETRY_DELAY_MS,
   // exported for unit tests
   buildA2aEvent,
   countActDepth,

@@ -79,11 +79,12 @@ export function buildA2aTeachingPanes(detail) {
   const proto = detail.protocol;
   if (proto?.bearer) {
     panes.push(pane('wire:bearer', LAYER.WIRE,
-      'Wire bearer · PingOne client_credentials',
+      'Wire bearer · RFC 8693 delegated token',
       PROVENANCE.DECODED, proto.bearer, {
         // The single most important sentence on the page.
-        note: 'A SEPARATE token from the nested-act one. The wire hop authenticates as the agent; '
-          + 'MCP tools still require the Exchange #2 nested-act token.',
+        note: 'This IS the Exchange #1 token (subject = the user, act = the generalist) — it '
+          + 'rides the wire as-is. The specialist receiving it performs its OWN Exchange #2, '
+          + 'minting the nested-act token itself and never returning it, before calling the tool.',
         failed: proto.bearer.status === 'failed',
       }));
   }

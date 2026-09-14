@@ -16,7 +16,7 @@ An admin-editable Allowed State control, right on the gateway capability card, c
 
 ## How to Run
 
-**Trigger:** Trigger (link): `{"type":"link","path":"/agent-gateway-capabilities","label":"Open Capability Tour"}`  
+**Trigger:** Trigger (link): `{"type":"link","path":"/weather-mcp","label":"Open the Weather MCP page"}`  
 **Expected outcome:** `POLICY_RECONFIGURED`
 
 ## What to Say

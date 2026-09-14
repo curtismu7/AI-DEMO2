@@ -113,3 +113,90 @@ describe('agentFlowDiagram — typed (AG-UI) run fills the step rail', () => {
     expect(agentFlowDiagram.getState().phase).toBe('idle');
   });
 });
+
+// routes/mfa.js reports device-MFA outcomes only to PostHog; the UI records them
+// here so the trace store sees real step-up evidence.
+describe('agentFlowDiagram.recordMfaPhase', () => {
+  beforeEach(() => {
+    agentFlowDiagram.reset();
+  });
+
+  test('appends a labelled phase row that subscribers receive', () => {
+    const seen = [];
+    const unsubscribe = agentFlowDiagram.subscribe((snap) => seen.push(snap.serverEvents.map((r) => r.phase)));
+    agentFlowDiagram.recordMfaPhase('mfa_challenge_completed');
+    unsubscribe();
+    expect(seen.at(-1)).toEqual(['mfa_challenge_completed']);
+    expect(agentFlowDiagram.getState().serverEvents.at(-1)).toMatchObject({
+      phase: 'mfa_challenge_completed',
+      label: 'HITL approved — MFA step-up verified',
+    });
+  });
+
+  test('completeMfaChallenge alone records no phase, so a CIBA outcome cannot light the MFA box', () => {
+    agentFlowDiagram.completeMfaChallenge(true);
+    expect(agentFlowDiagram.getState().serverEvents).toEqual([]);
+  });
+});
+
+// 2026-09-12 tech debt: the DaVinci widget flow (DavinciLoginWidget.jsx)
+// instruments its own fetch/skRenderScreen calls into these steps so
+// /davinci-login-guide can show a real run instead of only a static diagram.
+describe('agentFlowDiagram — DaVinci widget login live trace', () => {
+  beforeEach(() => {
+    agentFlowDiagram.reset();
+  });
+
+  test('startDavinciWidgetLogin seeds the three steps with the first active', () => {
+    agentFlowDiagram.startDavinciWidgetLogin();
+    const snap = agentFlowDiagram.getState();
+    expect(snap.phase).toBe('running');
+    expect(snap.toolName).toBe('davinci-widget-login');
+    expect(snap.steps.map((s) => [s.id, s.status])).toEqual([
+      ['sdk-token', 'active'],
+      ['widget-flow', 'pending'],
+      ['widget-session', 'pending'],
+    ]);
+  });
+
+  test('updateDavinciWidgetStep marks a step done and activates the next pending one', () => {
+    agentFlowDiagram.startDavinciWidgetLogin();
+    agentFlowDiagram.updateDavinciWidgetStep('sdk-token', 'done');
+    let snap = agentFlowDiagram.getState();
+    expect(snap.steps.map((s) => [s.id, s.status])).toEqual([
+      ['sdk-token', 'done'],
+      ['widget-flow', 'active'],
+      ['widget-session', 'pending'],
+    ]);
+
+    agentFlowDiagram.updateDavinciWidgetStep('widget-flow', 'done');
+    snap = agentFlowDiagram.getState();
+    expect(snap.steps.map((s) => [s.id, s.status])).toEqual([
+      ['sdk-token', 'done'],
+      ['widget-flow', 'done'],
+      ['widget-session', 'active'],
+    ]);
+  });
+
+  test('completeDavinciWidgetLogin(true) finishes the run once every step is done', () => {
+    agentFlowDiagram.startDavinciWidgetLogin();
+    ['sdk-token', 'widget-flow', 'widget-session'].forEach((id) => agentFlowDiagram.updateDavinciWidgetStep(id, 'done'));
+    agentFlowDiagram.completeDavinciWidgetLogin(true);
+    const snap = agentFlowDiagram.getState();
+    expect(snap.phase).toBe('done');
+    expect(snap.steps.every((s) => s.status === 'done')).toBe(true);
+  });
+
+  test('completeDavinciWidgetLogin(false) marks the first unfinished step as the failure point', () => {
+    agentFlowDiagram.startDavinciWidgetLogin();
+    agentFlowDiagram.updateDavinciWidgetStep('sdk-token', 'done');
+    agentFlowDiagram.completeDavinciWidgetLogin(false, 'The DaVinci flow could not be completed.');
+    const snap = agentFlowDiagram.getState();
+    expect(snap.phase).toBe('error');
+    expect(snap.steps.find((s) => s.id === 'widget-flow')).toMatchObject({
+      status: 'error',
+      detail: 'The DaVinci flow could not be completed.',
+    });
+    expect(snap.steps.find((s) => s.id === 'widget-session').status).toBe('pending');
+  });
+});

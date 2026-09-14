@@ -25,6 +25,27 @@ export function normalizePhoneE164(raw) {
 }
 
 /**
+ * Whether the browser can run WebAuthn passkey ceremonies.
+ * @returns {boolean}
+ */
+export function isPasskeySupported() {
+  return typeof window !== 'undefined' && typeof window.PublicKeyCredential !== 'undefined';
+}
+
+/**
+ * Preferred device for step-up when a user has more than one enrolled: a
+ * FIDO2/passkey device, if any, so step-up defaults to it instead of a
+ * neutral picker.
+ * @param {Array} devices
+ * @returns {object|null}
+ */
+export function pickPreferredDevice(devices) {
+  return (devices || []).find((d) =>
+    String(d?.type || '').toUpperCase().startsWith('FIDO2'),
+  ) || null;
+}
+
+/**
  * Human-readable explanation for a passkey registration failure.
  *
  * WebAuthn surfaces an rp.id mismatch as a generic browser error with no

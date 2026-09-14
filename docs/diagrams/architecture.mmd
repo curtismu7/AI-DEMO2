@@ -114,6 +114,9 @@ runtime switchable"]
     MCPInvestSvc["demo_mcp_resource_server<br/>Investment MCP server :8081"]
     MortgageSvc["demo_api_resource_server<br/>Phase 266 Path A backend :8082<br/>X-API-Key gated"]
     HITLSvc["demo_hitl_service<br/>Out-of-band consent :3009"]
+    WeatherMcp["demo_mcp_weather<br/>Weather MCP server :8896<br/>MCP Streamable HTTP (POST /mcp)"]
+    MastraAgent["mastra_agent<br/>Mastra agent framework :8892<br/>alternative agent — proxied via AG-UI"]
+    AuthzMock["demo_authz_server<br/>Mock PingOne Authorization Server :9001<br/>fallback_simulated (opt-in), AUTHORIZE_FAILOVER_MODE"]
 
     %% ── PingGateway (Ping Identity IG) — DEFAULT MCP gateway ──────────
     PingGW["PingGateway (IG, :3036)<br/>DEFAULT MCP gateway<br/>Selected by ff_mcp_gateway_pinggateway (default true)<br/>Warms Authorize on startup (best-effort)<br/>Authorize outage: AUTHORIZE_FAILOVER_MODE=deny (fail-closed 503, default)<br/>fallback_simulated (mock authz-server :9001) is opt-in only<br/>Sends UserId + McpResourceUri in Authorize params<br/>RFC 8693 single-resource exchange"]
@@ -214,9 +217,12 @@ runtime switchable"]
     AuthRoutes -->|"RFC 8693 exchanged Bearer<br/>(ff_mcp_gateway_pinggateway=true, default)"| PingGW
     PingGW -->|"PDP evaluate (UserId + McpResourceUri)<br/>outage → fail-closed deny (default)"| PDP
     PingGW -->|"WS/HTTP MCP — exchanged Bearer"| MCPProtocol
+    PingGW -->|"HTTP MCP — exchanged Bearer"| WeatherMcp
+    PingGW -.->|"fallback_simulated (opt-in)"| AuthzMock
 
     %% ── Connections: AG-UI SSE streaming ─────────────────────────────────────
     AuthRoutes --> AGUIRoutes
+    AGUIRoutes -.->|"proxy (one of langchain/openai/mastra/pydantic)"| MastraAgent
 
     %% ── Connections: Copilot Studio agent-token broker ───────────────────────
     AgentTokenSvc -->|"client_credentials<br/>scope: agent:invoke"| OIDC_AS
@@ -281,6 +287,6 @@ env: VALIDATION_MODE · runtime switchable"]
     class Agent,FastAPI,HealthInsp,LangChain,MCPClientPy agent
     class A2AOrch,Specialist agent
     class Standards,S1,S2,S3,S4,S5,S6,S7,S8,S9,S10,S11 standard
-    class Gateway,GwProxy,GwAuthorize,AgentService,MCPInvestSvc,MortgageSvc,HITLSvc,ResourceServer,BankingRS,BankingSQLite,PingGW,AGUIRoutes backend
+    class Gateway,GwProxy,GwAuthorize,AgentService,MCPInvestSvc,MortgageSvc,HITLSvc,ResourceServer,BankingRS,BankingSQLite,PingGW,AGUIRoutes,WeatherMcp,MastraAgent,AuthzMock backend
     class Vault,AgentTokenSvc planned
     class K8s,Ingress,BFFPod,GWPod,MCPPod,AgentPod,HITLPod,InvestPod,MortgagePod k8s

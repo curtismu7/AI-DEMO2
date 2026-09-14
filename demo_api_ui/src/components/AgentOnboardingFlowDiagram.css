@@ -1,6 +1,6 @@
 /* AgentOnboardingFlowDiagram.css — scoped tokens under .aof-page, following
    AgentGuardrailsDiagram.css / TokenDisplay.css convention (own palette,
-   dark mode via prefers-color-scheme). */
+   dark mode keyed to :root[data-theme="dark"] like the rest of the app). */
 
 .aof-page {
   max-width: 1180px;
@@ -21,9 +21,9 @@
   width: fit-content;
   padding: 8px 12px;
   border-radius: 999px;
-  background: #f6f3eb;
-  color: #1b1b1b;
-  border: 1px solid #e5e5e5;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
   font-size: var(--font-size-sm);
   font-weight: 600;
 }
@@ -34,14 +34,30 @@
   line-height: 1.05;
   letter-spacing: -0.02em;
   font-weight: 700;
+  color: var(--th-text);
 }
 
 .aof-subhead {
   max-width: 860px;
   font-size: var(--font-size-base);
   line-height: 1.5;
-  color: #6b7280;
+  color: var(--th-text-muted);
   margin: 0;
+}
+
+.aof-share-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--th-bg-inset);
+  border: 1px solid #343ced;
+  color: #343ced;
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
 }
 
 /* --- content rendered inside FloatingPanel --- */
@@ -63,16 +79,14 @@
   color: var(--aof-text-primary);
 }
 
-@media (prefers-color-scheme: dark) {
-  .aof-root {
-    --aof-bg: #0f1115;
-    --aof-bg-light: #161a21;
-    --aof-border-light: #2a313c;
-    --aof-text-primary: #e9ecf3;
-    --aof-text-secondary: #9aa2b4;
-    --aof-shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.3);
-    --aof-shadow-focus: 0 0 0 3px rgba(169, 224, 255, 0.18);
-  }
+:root[data-theme="dark"] .aof-root {
+  --aof-bg: #0f1115;
+  --aof-bg-light: #161a21;
+  --aof-border-light: #2a313c;
+  --aof-text-primary: #e9ecf3;
+  --aof-text-secondary: #9aa2b4;
+  --aof-shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.3);
+  --aof-shadow-focus: 0 0 0 3px rgba(169, 224, 255, 0.18);
 }
 
 .aof-flow-tabs,

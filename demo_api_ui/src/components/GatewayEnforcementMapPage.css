@@ -1,0 +1,133 @@
+/* GatewayEnforcementMapPage.css
+ * Page previously carried every style inline with no color set anywhere
+ * (REGRESSION_PLAN §0 H3) — it rendered on whatever ink the ambient page
+ * background happened to supply, which is near-black in both themes
+ * (THEMING.md §1.5), so the heading, description text and table cells were
+ * all unreadable in dark mode. VERDICT_STYLE/STATUS_LABEL colors (the
+ * per-check enforcement verdict cards) stay literal on purpose — they are
+ * semantic status accents (THEMING.md §1.3), not surfaces. */
+
+.gwe-page {
+  padding: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+  color: var(--th-text);
+}
+
+.gwe-eyebrow {
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-muted);
+}
+
+.gwe-page h1 {
+  margin-top: 4px;
+  color: var(--th-text);
+}
+
+.gwe-desc {
+  color: var(--th-text-body);
+  max-width: 760px;
+}
+
+.gwe-reading-note {
+  color: var(--th-text-muted);
+  max-width: 760px;
+  font-size: var(--font-size-sm);
+}
+
+.gwe-error {
+  color: var(--th-status-error);
+}
+
+.gwe-section-title {
+  font-size: var(--font-size-md);
+  margin-top: 32px;
+  color: var(--th-text);
+}
+
+.gwe-stakes {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.gwe-stakes-card {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  min-width: 260px;
+  max-width: 260px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.gwe-stakes-card-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--th-text);
+}
+
+.gwe-stakes-card-scenario {
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-muted);
+  line-height: 1.5;
+  font-style: italic;
+}
+
+.gwe-verdict {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-xs);
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid;
+}
+
+/* Same in both themes on purpose — these are semantic verdict colors
+   (THEMING.md §1.3), matching VERDICT_STYLE in GatewayEnforcementMapPage.jsx. */
+.gwe-verdict--done       { background: #0a2418; color: #6ee7b7; border-color: #059669; }
+.gwe-verdict--bydesign   { background: #062b2b; color: #5eead4; border-color: #0d9488; }
+.gwe-verdict--flagged    { background: #2a1a00; color: #fbbf24; border-color: #d97706; }
+.gwe-verdict--pending    { background: #2d0a0a; color: #fca5a5; border-color: #dc2626; }
+
+.gwe-table {
+  margin-top: 8px;
+}
+
+.gwe-table td.gwe-table-p1az {
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-muted);
+  max-width: 360px;
+}
+
+.gwe-rar-note {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  font-size: var(--font-size-2xs);
+  line-height: 1.6;
+  color: var(--th-text-muted);
+  max-width: 900px;
+}
+
+.gwe-rar-note strong {
+  color: var(--th-text);
+}
+
+.gwe-rar-note p {
+  margin: 6px 0 0;
+}
+
+.gwe-footer {
+  color: var(--th-text-faint);
+  font-size: var(--font-size-xs);
+  margin-top: 16px;
+}

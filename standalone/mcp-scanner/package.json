@@ -1,0 +1,16 @@
+{
+  "name": "mcp-scanner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A tool-metadata scanner for MCP servers: flags description injection and inputSchema exfil sinks before an agent ingests them. Reports; never blocks.",
+  "license": "MIT",
+  "type": "module",
+  "main": "scanner.mjs",
+  "scripts": {
+    "scan": "node index.mjs",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
+  }
+}

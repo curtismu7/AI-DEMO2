@@ -50,7 +50,7 @@ const LAUNCHER = path.join(ROOT, 'run-docker.sh');
  * with OPTIONAL_GROUP_NAMES / _optional_group_profiles in run-docker.sh — a
  * service carrying one of these is startable even though it is not in SERVICES.
  */
-const OPTIONAL_PROFILES = new Set(['rag', 'agents', 'tracing', 'demo-auth', 'mcpgw']);
+const OPTIONAL_PROFILES = new Set(['rag', 'agents', 'tracing', 'demo-auth', 'mcpgw', 'observability']);
 
 /**
  * Services deliberately NOT managed by run-docker.sh. Each needs a reason: the

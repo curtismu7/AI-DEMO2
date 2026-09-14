@@ -12,6 +12,7 @@
 const EDUCATIONAL_PATH_PREFIXES = [
   '/sequence-diagram',
   '/architecture',  // covers /architecture/system, /architecture/flow, etc.
+  '/orchestration-sdk',  // static SDK lesson — makes no SDK/PingOne/BFF calls
 ];
 
 export function isEducationalPath(pathname = window.location.pathname) {

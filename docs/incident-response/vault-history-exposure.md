@@ -106,8 +106,11 @@ GitHub Support to expire the cached blobs; forks retain them regardless.
 - `.gitignore` covers `/secrets.vault`, `/secrets.vault.audit.log`, and (as of
   this change) `/secrets.vault*.tmp` — the in-flight envelope written by
   `save()` is complete ciphertext and was previously un-ignored.
-- `e2e-use-cases-test.js` now requires `PINGONE_TEST_PASSWORD` from the
-  environment and exits if it is unset — no literal fallback.
+- `e2e-use-cases-test.js` was changed to require `PINGONE_TEST_PASSWORD` from
+  the environment and exit if unset — no literal fallback. That file was then
+  deleted outright in #3164 (2026-09-12) as an unreferenced root-level
+  artifact, so the control is moot; the equivalent coverage lives in
+  `demo_api_ui/tests/e2e/use-cases-*.spec.js`, which never held a literal.
 
 ## 5. What must not regress
 

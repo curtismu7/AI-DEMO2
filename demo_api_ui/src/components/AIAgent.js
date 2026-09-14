@@ -77,6 +77,7 @@ import { markUseCaseCompleted, clearCompletedUseCases } from "../utils/useCaseDe
 import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
 import { isApprovalBlockError, isStepUpBlockError } from "../utils/stepUpError";
 import apiClient from "../services/apiClient";
+import { restoreDefaultScopeAfterRun } from "../utils/weatherScopeHandoff";
 import { formatAxiosError } from "../utils/formatAxiosError";
 import { windowTranscript } from "../utils/transcriptWindow";
 import { adminCustomerContext } from "../services/adminCustomerContext";
@@ -204,6 +205,22 @@ import { isNegativeChip, dispatchNegativeChip } from "./negativeChipDispatch";
 import { useResourceServerInterstitial } from "./ResourceServerInterstitial";
 import AgentNoMatchCard from "./AgentNoMatchCard";
 import AgentGroundedAnswerCard from "./AgentGroundedAnswerCard";
+
+const CHAT_ZOOM_KEY = "ba:chatZoom:v1";
+const CHAT_ZOOM_MIN = 0.8;
+const CHAT_ZOOM_MAX = 1.6;
+const CHAT_ZOOM_STEP = 0.1;
+const CHAT_ZOOM_DEFAULT = 1.2;
+
+export function readStoredChatZoom() {
+  try {
+    const v = Number(window.localStorage.getItem(CHAT_ZOOM_KEY));
+    return v >= CHAT_ZOOM_MIN && v <= CHAT_ZOOM_MAX ? v : CHAT_ZOOM_DEFAULT;
+  } catch {
+    return CHAT_ZOOM_DEFAULT;
+  }
+}
+
 
 // Phase 266 H2 audit: TokenChain credentialPath stamping origins per setTokenEvents call:
 //   line 3433 (scopeTestRes.tokenEvents)  — origin: scope-test path via callMcpTool; credentialPath: oauth_bearer (default; stamped by bankingAgentService)
@@ -437,6 +454,20 @@ export default function BankingAgent({
 
   // Always start collapsed on page load — never restore open state from localStorage.
   const [isOpen, setIsOpen] = useState(false);
+  /**
+   * Transcript text size (A−/A+), same control the token-chain rails carry.
+   * Applied as CSS `zoom` on the message list so absolute font-size tokens
+   * inside the bubbles scale too — an em cascade would miss them.
+   * Opens above 100%: this panel is read off a projector.
+   */
+  const [chatZoom, setChatZoom] = useState(readStoredChatZoom);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CHAT_ZOOM_KEY, String(chatZoom));
+    } catch {
+      /* private mode — size still works, just not remembered */
+    }
+  }, [chatZoom]);
   const [isExpanded, setIsExpanded] = useState(false);
   /** Pop-out: the panel's Window object when popped out to its own browser window, else null. */
   const [poppedOutWin, setPoppedOutWin] = useState(null);
@@ -856,6 +887,31 @@ export default function BankingAgent({
       return true;
     } catch {
       return true;
+    }
+  });
+  // "Sequence view" — swaps the dashboard's right-column reel for a live
+  // lifeline sequence diagram of the same trace data. Restored from the SAME key
+  // UserDashboardPing2026 persists, because both components hold a copy of this
+  // state: the dashboard restored "sequence" on reload while this switch still
+  // rendered unchecked, so the first click dispatched the value already in
+  // effect and the toggle read as dead. The reel is the default — sequence view
+  // has to be chosen. Unlike ba_show_filmstrip this cannot strand the user:
+  // turning it off always returns the reel, which is never storage-gated.
+  const [showSequenceDiagram, setShowSequenceDiagram] = useState(() => {
+    try {
+      return localStorage.getItem("dashboard-view-mode") === "sequence";
+    } catch {
+      return false;
+    }
+  });
+  // "Slow mode" — paces the sequence diagram's step reveal for live narration.
+  // Only meaningful while Sequence view is on; toggled off with it. Restored
+  // from the dashboard's key for the same reason as above.
+  const [slowMode, setSlowMode] = useState(() => {
+    try {
+      return localStorage.getItem("dashboard-slow-mode") === "true";
+    } catch {
+      return false;
     }
   });
   // "DaVinci Mode" — pure UI preference (no server flag), surfaces the DaVinci
@@ -5167,6 +5223,15 @@ export default function BankingAgent({
               );
               toast.dismiss(toastId);
               agentFlowDiagram.completeMfaChallenge(null); // Pending
+              // The System Flow Map's CIBA box reads this — see pollCibaStepUp's
+              // approved/denied branches for how it resolves.
+              tokenChainTraceStore.ingestTokenEvent({
+                id: "ciba-poll",
+                eventType: "auth",
+                timestamp: new Date().toISOString(),
+                description: "CIBA backchannel step-up pending approval",
+                additionalData: { grantedVia: "ciba", status: "pending" },
+              });
               setLoading(false);
               pollCibaStepUp(auth_req_id, (interval || 5) * 1000, actionId, form);
             } catch (err) {
@@ -5854,6 +5919,13 @@ export default function BankingAgent({
             );
             toast.dismiss(toastId);
             agentFlowDiagram.completeMfaChallenge(null);
+            tokenChainTraceStore.ingestTokenEvent({
+              id: "ciba-poll",
+              eventType: "auth",
+              timestamp: new Date().toISOString(),
+              description: "CIBA backchannel step-up pending approval",
+              additionalData: { grantedVia: "ciba", status: "pending" },
+            });
             setLoading(false);
             pollCibaStepUp(auth_req_id, (interval || 5) * 1000, actionId, form);
           } catch (cibaErr) {
@@ -7871,6 +7943,43 @@ export default function BankingAgent({
       await ensureRequiredDemoFlags(ucFlags, uc.id);
     }
 
+    // UC2.5 runs the A2A orchestrator itself. Sent as a chat chip, its prompt
+    // ("delegate this to a specialist") matched UC2's A2A heuristic, so the
+    // orchestrator never ran. The /api/a2a routes and their wire checks are
+    // unchanged; this only calls them, the way /a2a-protocol-learning does.
+    if (uc.id === "UC2.5" && trigger.type === "chip" && trigger.text) {
+      if (stepNeedsAuth) {
+        signInPrompt();
+        return;
+      }
+      addMessage("user", stepLabel);
+      setNlLoading(true);
+      try { tokenChainTraceStore.beginTrace({ prompt: trigger.text }); } catch (_) {}
+      try {
+        await apiClient.post("/api/a2a/init", {});
+        const { data } = await apiClient.post("/api/a2a/message", {
+          message: trigger.text,
+          vertical: effectiveVerticalId,
+        });
+        addMessage("assistant", `${stepLabel}\n${data?.reply || "The orchestrator returned no reply."}`);
+        if (data?.tokenEvents?.length) {
+          appendTokenEvents(data.tokenEvents);
+          try { tokenChainTraceStore.ingestTokenEvents(data.tokenEvents); } catch (_) {}
+        }
+        try { tokenChainTraceStore.completeTrace(data?.success === true); } catch (_) {}
+        if (data?.success === true) markUseCaseCompleted(uc.id);
+      } catch (err) {
+        addMessage(
+          "assistant",
+          `${stepLabel}\nA2A orchestrator failed: ${formatAxiosError(err, err.message || "failed")}`,
+        );
+        try { tokenChainTraceStore.completeTrace(false); } catch (_) {}
+      } finally {
+        setNlLoading(false);
+      }
+      return;
+    }
+
     if (trigger.type === "chip" && trigger.text) {
       // Reset token chain trace so the proof strip shows this use case
       try { tokenChainTraceStore.beginTrace({ prompt: trigger.text }); } catch (_) {}
@@ -7946,6 +8055,11 @@ export default function BankingAgent({
               `${stepLabel}`,
               `Intent binding \`permit\` → ${status ?? "?"} ${verdict} ${attackSimVerdictNote(verdict)}`.trim(),
               reason ? reason : null,
+              // Without live:true the route runs the offline RAR simulator; the
+              // real PingOne PAR push happens only on the full intent-binding page.
+              data?.live === true
+                ? null
+                : "Simulated: an offline RAR check, not the live PingOne PAR push. Switch this step to Full page for the real RFC 9126 request.",
             ]
               .filter(Boolean)
               .join("\n"),
@@ -7975,6 +8089,10 @@ export default function BankingAgent({
         return;
       }
       addMessage("assistant", `${stepLabel} — opening ${trigger.path}.`);
+      // This step runs on its own page. Clear the live trace first, or the
+      // dashboard's sequence diagram keeps showing the previous run when the
+      // presenter comes back, as though it belonged to this step.
+      try { tokenChainTraceStore.reset(); } catch (_) {}
       navigate(trigger.path);
       markUseCaseCompleted(uc.id);
       return;
@@ -8555,6 +8673,10 @@ export default function BankingAgent({
           });
         }
       } finally {
+        // A weather showcase run carried a live scope change (UC32). The run has
+        // ended, whether or not it succeeded, so put the policy back now —
+        // otherwise UC31 would permit on the next pass of the script.
+        restoreDefaultScopeAfterRun(apiClient);
         // Only clear pending state if this send wasn't superseded — otherwise we'd
         // clobber a newer nlResumeAfterAuth set while this request was in flight.
         if (!cancelled) {
@@ -8732,6 +8854,7 @@ export default function BankingAgent({
       setP1mfaDaId(null);
       setP1mfaDevices([]);
       agentFlowDiagram.completeMfaChallenge(true);
+      agentFlowDiagram.recordMfaPhase("mfa_challenge_completed");
       cb();
       return;
     }
@@ -8745,6 +8868,7 @@ export default function BankingAgent({
       setP1mfaDevices([]);
       // Verify MFA in flow diagram
       agentFlowDiagram.completeMfaChallenge(true);
+      agentFlowDiagram.recordMfaPhase("mfa_challenge_completed");
       // Retry the original action with MFA verified
       runAction(actionId, form, { isRefire: true });
     }
@@ -8766,6 +8890,7 @@ export default function BankingAgent({
       "mfa-cancelled",
     );
     agentFlowDiagram.completeMfaChallenge(false);
+    agentFlowDiagram.recordMfaPhase("mfa_challenge_failed");
   };
 
   // FIDO submit handler (Phase 174-03)
@@ -8776,6 +8901,7 @@ export default function BankingAgent({
       setShowOtpModal(false);
       setStepUpMethod("otp");
       agentFlowDiagram.completeMfaChallenge(true);
+      agentFlowDiagram.recordMfaPhase("mfa_challenge_completed");
       cb();
       return;
     }
@@ -8785,6 +8911,7 @@ export default function BankingAgent({
       setShowOtpModal(false);
       setStepUpMethod("otp");
       agentFlowDiagram.completeMfaChallenge(true);
+      agentFlowDiagram.recordMfaPhase("mfa_challenge_completed");
       runAction(actionId, form, { isRefire: true });
     }
   };
@@ -8851,6 +8978,7 @@ export default function BankingAgent({
       setP1mfaDaId(null);
       setP1mfaDevices([]);
       agentFlowDiagram.completeMfaChallenge(true);
+      agentFlowDiagram.recordMfaPhase("mfa_challenge_completed");
       cb();
       return;
     }
@@ -8862,6 +8990,7 @@ export default function BankingAgent({
       setP1mfaDaId(null);
       setP1mfaDevices([]);
       agentFlowDiagram.completeMfaChallenge(true);
+      agentFlowDiagram.recordMfaPhase("mfa_challenge_completed");
       runAction(actionId, form, { isRefire: true });
     }
   };
@@ -8921,6 +9050,16 @@ export default function BankingAgent({
           `ciba-denied-${Date.now()}`,
         );
         agentFlowDiagram.completeMfaChallenge(false);
+        // Same trace as the "pending" stamp above (no resume happens on a
+        // denial) — the System Flow Map's CIBA box would otherwise stay lit
+        // "active" forever once the run stops here.
+        tokenChainTraceStore.ingestTokenEvent({
+          id: "ciba-poll",
+          eventType: "auth",
+          timestamp: new Date().toISOString(),
+          description: "CIBA backchannel step-up denied or expired",
+          additionalData: { grantedVia: "ciba", status: "denied" },
+        });
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
         cibaPollTimeoutsRef.current.delete(authReqId);
@@ -8935,6 +9074,13 @@ export default function BankingAgent({
           `ciba-denied-${Date.now()}`,
         );
         agentFlowDiagram.completeMfaChallenge(false);
+        tokenChainTraceStore.ingestTokenEvent({
+          id: "ciba-poll",
+          eventType: "auth",
+          timestamp: new Date().toISOString(),
+          description: "CIBA backchannel step-up denied or expired",
+          additionalData: { grantedVia: "ciba", status: "denied" },
+        });
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
         cibaPollTimeoutsRef.current.delete(authReqId);
@@ -8949,7 +9095,18 @@ export default function BankingAgent({
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
         cibaPollTimeoutsRef.current.delete(authReqId);
-        runAction(actionId, form, { isRefire: true });
+        await runAction(actionId, form, { isRefire: true });
+        // runAction's own beginTrace() wipes evidence of the CIBA approval
+        // that just happened — same reasoning as pollCibaThenResumeNl's
+        // identical re-stamp below — so the trace this refire actually
+        // produced has something for the CIBA box to read.
+        tokenChainTraceStore.ingestTokenEvent({
+          id: "ciba-poll",
+          eventType: "auth",
+          timestamp: new Date().toISOString(),
+          description: "CIBA backchannel step-up approved (out-of-band)",
+          additionalData: { grantedVia: "ciba", status: "approved" },
+        });
         return;
       }
       // still pending
@@ -9027,6 +9184,13 @@ export default function BankingAgent({
           { showCibaApproveAction: true, cibaAuthReqId: auth_req_id },
         );
         agentFlowDiagram.completeMfaChallenge(null);
+        tokenChainTraceStore.ingestTokenEvent({
+          id: "ciba-poll",
+          eventType: "auth",
+          timestamp: new Date().toISOString(),
+          description: "CIBA backchannel step-up pending approval",
+          additionalData: { grantedVia: "ciba", status: "pending" },
+        });
         pollCibaThenResumeNl(auth_req_id, (interval || 5) * 1000, text, useCaseId);
       } catch (err) {
         console.error("[BankingAgent] CIBA initiation failed:", err);
@@ -9298,6 +9462,16 @@ export default function BankingAgent({
           `ciba-denied-${Date.now()}`,
         );
         agentFlowDiagram.completeMfaChallenge(false);
+        // Same trace as the "pending" stamp above (no resume happens on a
+        // denial) — the System Flow Map's CIBA box would otherwise stay lit
+        // "active" forever once the run stops here.
+        tokenChainTraceStore.ingestTokenEvent({
+          id: "ciba-poll",
+          eventType: "auth",
+          timestamp: new Date().toISOString(),
+          description: "CIBA backchannel step-up denied or expired",
+          additionalData: { grantedVia: "ciba", status: "denied" },
+        });
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
         cibaPollTimeoutsRef.current.delete(authReqId);
@@ -9312,6 +9486,13 @@ export default function BankingAgent({
           `ciba-denied-${Date.now()}`,
         );
         agentFlowDiagram.completeMfaChallenge(false);
+        tokenChainTraceStore.ingestTokenEvent({
+          id: "ciba-poll",
+          eventType: "auth",
+          timestamp: new Date().toISOString(),
+          description: "CIBA backchannel step-up denied or expired",
+          additionalData: { grantedVia: "ciba", status: "denied" },
+        });
         setCibaApproving(null);
         cibaPollersRef.current.delete(authReqId);
         cibaPollTimeoutsRef.current.delete(authReqId);
@@ -9341,13 +9522,14 @@ export default function BankingAgent({
           // /api/agent/invoke response never re-includes. Re-stamp it into the
           // trace this resumed call just started, so the ProofStrip evidence
           // chain (which requires 'ciba-poll') can actually complete instead of
-          // reading "Incomplete -- Waiting on ciba-poll" forever.
+          // reading "Incomplete -- Waiting on ciba-poll" forever. `status`
+          // (additive) is what the System Flow Map's CIBA box reads.
           tokenChainTraceStore.ingestTokenEvent({
             id: "ciba-poll",
             eventType: "auth",
             timestamp: new Date().toISOString(),
             description: "CIBA backchannel step-up approved (out-of-band)",
-            additionalData: { grantedVia: "ciba" },
+            additionalData: { grantedVia: "ciba", status: "approved" },
           });
           await handleNlResumeResponse(response, text, useCaseId);
         } catch (e) {
@@ -9557,6 +9739,41 @@ export default function BankingAgent({
                     />
                   </div>
                 )}
+              <div className="ba-textsize" role="group" aria-label="Response text size">
+                <button
+                  type="button"
+                  className="ba-textsize-btn"
+                  onClick={() =>
+                    setChatZoom((z) => Math.max(CHAT_ZOOM_MIN, +(z - CHAT_ZOOM_STEP).toFixed(2)))
+                  }
+                  disabled={chatZoom <= CHAT_ZOOM_MIN}
+                  title="Smaller response text"
+                  aria-label="Decrease response text size"
+                >
+                  A−
+                </button>
+                <button
+                  type="button"
+                  className="ba-textsize-pct"
+                  onClick={() => setChatZoom(CHAT_ZOOM_DEFAULT)}
+                  disabled={chatZoom === CHAT_ZOOM_DEFAULT}
+                  title="Reset response text size"
+                >
+                  {Math.round(chatZoom * 100)}%
+                </button>
+                <button
+                  type="button"
+                  className="ba-textsize-btn"
+                  onClick={() =>
+                    setChatZoom((z) => Math.min(CHAT_ZOOM_MAX, +(z + CHAT_ZOOM_STEP).toFixed(2)))
+                  }
+                  disabled={chatZoom >= CHAT_ZOOM_MAX}
+                  title="Bigger response text"
+                  aria-label="Increase response text size"
+                >
+                  A+
+                </button>
+              </div>
               {/* Split-column sign-out — moved next to the title so it's never lost in the
                   tools row below (inline split-column mode only, unchanged D-02 behavior) */}
               {splitChrome && isLoggedIn && (
@@ -9766,6 +9983,43 @@ export default function BankingAgent({
                       >
                         Movie reel
                       </Check>
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={showSequenceDiagram}
+                        onChange={(e) => {
+                          const newVal = e.target.checked;
+                          // Deliberately NOT persisted — same reasoning as
+                          // the Movie reel toggle above.
+                          setShowSequenceDiagram(newVal);
+                          window.dispatchEvent(new CustomEvent("agent-sequence-diagram-toggle", { detail: { on: newVal } }));
+                          // Auto-collapse the left nav so the diagram gets the
+                          // width back; restored when the toggle goes off.
+                          window.dispatchEvent(new CustomEvent("admin-sidenav-collapse-toggle", { detail: { collapsed: newVal } }));
+                          if (!newVal && slowMode) {
+                            setSlowMode(false);
+                            window.dispatchEvent(new CustomEvent("agent-slow-mode-toggle", { detail: { on: false } }));
+                          }
+                        }}
+                        title="Show a live lifeline sequence diagram instead of the movie reel for this session (returns on reload)"
+                      >
+                        Sequence view
+                      </Check>
+                      {showSequenceDiagram && (
+                        <Check
+                          variant="switch"
+                          className="ba-header-toggle-label"
+                          checked={slowMode}
+                          onChange={(e) => {
+                            const newVal = e.target.checked;
+                            setSlowMode(newVal);
+                            window.dispatchEvent(new CustomEvent("agent-slow-mode-toggle", { detail: { on: newVal } }));
+                          }}
+                          title="Reveal sequence diagram steps slowly, for narrating the flow to a live audience"
+                        >
+                          Slow mode
+                        </Check>
+                      )}
                       <Check
                         variant="switch"
                         className="ba-header-toggle-label"
@@ -11628,6 +11882,7 @@ export default function BankingAgent({
                 className="banking-agent-messages"
                 ref={messagesContainerRef}
                 onScroll={handleTranscriptScroll}
+                style={{ zoom: chatZoom }}
               >
                 {heroData && (
                   <div className="ba-hero-wrapper">

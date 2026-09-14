@@ -7,13 +7,38 @@
 // here derives its own verdict — the authorize decision comes off the authorize
 // step and the headline off buildRunStory, so the map cannot disagree with the
 // rail or the Proof verdict.
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ReactFlow, Controls, Handle, Position, getBezierPath } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import DraggableModal from './DraggableModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
-import { buildRunStory } from '../services/tokenChainTrace/buildTraceSteps';
+import { buildRunStory, buildTraceSteps } from '../services/tokenChainTrace/buildTraceSteps';
+import { useThemeOptional } from '../context/ThemeContext';
 import './SystemFlowMap.css';
+
+// Presenter map size (A-/A+), same pattern as TokenChainTraceRail's ZOOM_*
+// (readStoredZoom there) — a separate key because the two panels are scaled
+// independently.
+const ZOOM_KEY = 'sfm:zoom:v1';
+const ZOOM_MIN = 0.8;
+const ZOOM_MAX = 1.6;
+const ZOOM_STEP = 0.1;
+const ZOOM_DEFAULT = 1;
+
+function readStoredZoom() {
+  try {
+    const v = Number(window.localStorage.getItem(ZOOM_KEY));
+    return v >= ZOOM_MIN && v <= ZOOM_MAX ? v : ZOOM_DEFAULT;
+  } catch {
+    return ZOOM_DEFAULT;
+  }
+}
+
+function truncate(text, max) {
+  if (!text) return '';
+  const s = String(text);
+  return s.length > max ? `${s.slice(0, max)}…` : s;
+}
 
 // The deployment, grouped by who owns the box. Five bands: the model is its own
 // trust boundary because the agent calls OUT to it — a run that never reaches
@@ -27,14 +52,22 @@ export const NODES = {
   'p1-agenttok': { name: 'PingOne /as/token', sub: 'client_credentials · actor' },
   'p1-exchange': { name: 'Token exchange', sub: 'RFC 8693 · act chain' },
   'p1-authorize': { name: 'PingOne Authorize', sub: 'PDP · sideband' },
-  'p1-stepup': { name: 'CIBA / MFA', sub: 'HITL step-up' },
+  // Three independent mechanisms, tracked separately — see deriveGateStates
+  // below for the evidence each one actually lights on:
+  'p1-mfa': { name: 'MFA', sub: 'Device step-up · PingOne MFA' },
+  'p1-consent': { name: 'Consent', sub: 'HITL approval · transfer consent' },
+  'p1-ciba': { name: 'CIBA', sub: 'Backchannel push · OIDC CIBA' },
   browser: { name: 'Browser', sub: 'demo_api_ui :4000' },
   bff: { name: 'BFF', sub: 'demo_api_server :3001' },
   agent: { name: 'LangGraph agent', sub: 'demoAgentLangGraphService' },
   llm: { name: 'LLM proxy', sub: ':8090 · one shared rate bucket' },
   pep: { name: 'Gateway PEP', sub: 'PingGateway :3036 · /mcp' },
-  mcp: { name: 'MCP server', sub: 'oauth-mcp · resource server' },
-  api: { name: 'Backend API', sub: 'banking / vertical REST' },
+  mcp: { name: 'MCP Server', sub: 'oauth-mcp · protected resource' },
+  // The downstream business-logic API the MCP tool call actually reaches —
+  // named "Resource Server" first since that is the role people ask "where is
+  // it" about; "MCP Server" above is the protocol front door to it, not a
+  // second one.
+  api: { name: 'Resource Server', sub: 'Backend API · banking / vertical REST' },
   db: { name: 'Data store', sub: 'SQLite · vertical dataset' },
 };
 
@@ -55,13 +88,16 @@ export const BANDS = [
     label: 'Ping Identity · PingOne · Authorize PDP',
     x: 0,
     y: 0,
-    cols: 5,
-    nodes: ['p1-signin', 'p1-agenttok', 'p1-exchange', 'p1-authorize', 'p1-stepup'],
+    cols: 4,
+    nodes: ['p1-signin', 'p1-agenttok', 'p1-exchange', 'p1-authorize', 'p1-mfa', 'p1-consent', 'p1-ciba'],
   },
-  { id: 'stack', label: 'Demo stack · BFF + agent', x: 0, y: 122, cols: 2, nodes: ['browser', 'bff', 'agent'] },
-  { id: 'pep', label: 'PEP · gateway', x: 378, y: 122, cols: 1, nodes: ['pep'] },
-  { id: 'backends', label: 'MCP servers · data', x: 582, y: 122, cols: 1, nodes: ['mcp', 'api', 'db'] },
-  { id: 'model', label: 'Model · demo_llm_proxy', x: 0, y: 322, cols: 1, nodes: ['llm'] },
+  // y: 200, not 122 — the ping band is now two rows (7 boxes at 4 cols) since
+  // MFA/Consent/CIBA split out of the single old stepup box, and these bands
+  // sit directly below it.
+  { id: 'stack', label: 'Demo stack · BFF + agent', x: 0, y: 200, cols: 2, nodes: ['browser', 'bff', 'agent'] },
+  { id: 'pep', label: 'PEP · gateway', x: 378, y: 200, cols: 1, nodes: ['pep'] },
+  { id: 'backends', label: 'MCP servers · data', x: 582, y: 200, cols: 1, nodes: ['mcp', 'api', 'db'] },
+  { id: 'model', label: 'Model · demo_llm_proxy', x: 0, y: 400, cols: 1, nodes: ['llm'] },
 ];
 
 // Bands before their boxes — React Flow requires a parent ahead of its children.
@@ -77,7 +113,7 @@ for (const b of BANDS) {
     position: { x: b.x, y: b.y },
     width: 2 * PAD + cols * W + (cols - 1) * GAP,
     height: TOP + rows * H + (rows - 1) * GAP + PAD,
-    data: { label: b.label },
+    data: { label: b.label, bandKey: b.id },
   });
   b.nodes.forEach((id, i) => {
     const position = { x: PAD + (i % cols) * (W + GAP), y: TOP + Math.floor(i / cols) * (H + GAP) };
@@ -121,7 +157,10 @@ export const STEP_TO_EDGE = {
   gateway: { from: 'bff', to: 'pep', kind: 'http' },
   authorize: { from: 'pep', to: 'p1-authorize', kind: 'pdp' },
   'intent-binding': { from: 'pep', to: 'p1-authorize', kind: 'pdp' },
-  stepup: { from: 'pep', to: 'p1-stepup', kind: 'ciba' },
+  // MFA/Consent/CIBA are NOT wired here — buildTraceSteps' single 'stepup'
+  // step can't tell them apart (see deriveGateStates below), so they're
+  // derived straight from trace evidence instead of from the step loop this
+  // map runs over.
   'api-key-swap': { from: 'pep', to: 'mcp', kind: 'http' },
   mcp: { from: 'pep', to: 'mcp', kind: 'http' },
   api: { from: 'mcp', to: 'api', kind: 'http' },
@@ -166,17 +205,84 @@ export function stateForStep(step, decision) {
 }
 
 /**
+ * True once the reply step has real evidence (a streamed LLM reply, or a
+ * heuristic reply composed from a tool result) — independent of
+ * trace.outcome, which buildTraceSteps.js documents live runs frequently
+ * never set. Used to repaint a hop that is still reading 'active' after the
+ * run has actually finished, rather than leaving it lit blue forever.
+ * @param {Array} list steps from buildTraceSteps
+ * @returns {boolean}
+ */
+function runEnded(list) {
+  return list.some((s) => s && (s.baseId || s.id) === 'reply' && s.status === 'done');
+}
+
+const hasPhase = (phases, name) => Array.isArray(phases) && phases.some((p) => p && p.phase === name);
+const findTokenEvent = (events, id) => (Array.isArray(events) ? events.find((e) => e && e.id === id) : undefined);
+
+/**
+ * MFA, Consent and CIBA are three independent mechanisms buildTraceSteps.js's
+ * single 'stepup' step folds into one chip for the rail (it can't tell them
+ * apart) — this map needs them separate so a presenter can see WHICH one
+ * actually fired. Derived straight from trace evidence rather than from that
+ * shared step, so splitting them here cannot ripple into TokenChainTraceRail
+ * or any other consumer of buildTraceSteps' step list.
+ * @param {object|null|undefined} trace
+ * @param {boolean} ended the run has genuinely finished (buildFlowModel's own `ended`)
+ * @returns {{ mfa: string|null, consent: string|null, ciba: string|null }}
+ */
+function deriveGateStates(trace, ended) {
+  const phases = trace?.phases;
+  const tokenEvents = trace?.tokenEvents;
+
+  // routes/mfa.js's own phases — the actual device step-up flow.
+  const mfaFailed = hasPhase(phases, 'mfa_challenge_failed');
+  const mfaDone = hasPhase(phases, 'mfa_challenge_completed');
+  const mfaStarted = hasPhase(phases, 'mfa_challenge_initiated');
+  const mfa = mfaFailed ? 'error' : mfaDone ? 'done' : mfaStarted ? 'active' : ended ? 'skipped' : null;
+
+  // authorize_denied_hitl (local/simulated path) and gateway_hitl_required
+  // (live PingGateway path) are the two PDPs' phases for the SAME HITL_CONSENT
+  // obligation this demo enforces on transfers (authorizeObligations.js,
+  // simulatedAuthorizeService.js: "all transfers require human consent").
+  // mcp_auth_challenge_intercepted is the anonymous-caller 401 leg of the same
+  // gate. trace.authorize.hitlApproved is stamped once a verified receipt
+  // permits the retry (tokenChainTraceStore's carried-gate handling).
+  const consentStarted = hasPhase(phases, 'authorize_denied_hitl')
+    || hasPhase(phases, 'gateway_hitl_required')
+    || hasPhase(phases, 'mcp_auth_challenge_intercepted');
+  const consentApproved = trace?.authorize?.hitlApproved === true;
+  const consent = consentStarted ? (consentApproved ? 'done' : 'active') : ended ? 'skipped' : null;
+
+  // CIBA has no phase of its own — it's a fully separate REST round trip
+  // (POST /api/auth/ciba/initiate + poll) AIAgent.js drives client-side, so
+  // it's tagged directly onto trace.tokenEvents at those call sites instead
+  // (id: 'ciba-poll', additionalData.status: 'pending' | 'approved' | 'denied').
+  const cibaTok = findTokenEvent(tokenEvents, 'ciba-poll');
+  const cibaStatus = cibaTok?.additionalData?.status;
+  const ciba = !cibaTok ? (ended ? 'skipped' : null)
+    : cibaStatus === 'denied' ? 'error'
+    : cibaStatus === 'approved' ? 'done'
+    : 'active';
+
+  return { mfa, consent, ciba };
+}
+
+/**
  * Fold the run's steps into node states and edges.
  * @param {Array} steps from buildTraceSteps
+ * @param {object|null} [trace] the raw trace — only used to derive the
+ *   MFA/Consent/CIBA boxes, which have no entry in STEP_TO_EDGE
  * @returns {{ nodeStates: object, edges: Array, decision: string|null, lit: number }}
  */
-export function buildFlowModel(steps) {
+export function buildFlowModel(steps, trace) {
   const list = Array.isArray(steps) ? steps : [];
   const az = list.find((s) => s && (s.baseId || s.id) === 'authorize');
   const raw = az?.detail?.decision?.outcome;
   // NOT_RECORDED is the display default for an evaluation with no decision
   // field, not a verdict — buildRunStory makes the same exclusion.
   const decision = raw && raw !== 'NOT_RECORDED' ? raw : null;
+  const ended = runEnded(list);
 
   const nodeStates = {};
   // Keyed by node pair, not by step. Several steps legitimately run between the
@@ -194,8 +300,11 @@ export function buildFlowModel(steps) {
   for (const step of list) {
     const spec = STEP_TO_EDGE[step?.baseId || step?.id];
     if (!spec) continue;
-    const state = stateForStep(step, spec.to === 'p1-authorize' ? decision : null);
+    let state = stateForStep(step, spec.to === 'p1-authorize' ? decision : null);
     if (!state) continue;
+    // The run is over — nothing is genuinely still in flight, so a hop stuck
+    // on 'active' is stale evidence, not a live one.
+    if (ended && state === 'active') state = 'done';
     if (state !== 'skipped') lit += 1;
     if (spec.node) {
       bump(spec.node, state);
@@ -219,6 +328,20 @@ export function buildFlowModel(steps) {
     // The source box is at least reached — it originated the hop. Never
     // stronger than `done`, so a failing hop reddens its target, not its caller.
     bump(spec.from, state === 'skipped' ? 'skipped' : 'done');
+  }
+
+  // MFA / Consent / CIBA — not in STEP_TO_EDGE (see deriveGateStates), so
+  // folded in here instead of the step loop above.
+  const gates = deriveGateStates(trace, ended);
+  for (const [key, nodeId] of Object.entries({ mfa: 'p1-mfa', consent: 'p1-consent', ciba: 'p1-ciba' })) {
+    const state = gates[key];
+    if (!state) continue;
+    if (state !== 'skipped') lit += 1;
+    bump(nodeId, state);
+    edgeByPair.set(`pep|${nodeId}`, {
+      id: `pep|${nodeId}`, from: 'pep', to: nodeId, kind: 'ciba', state, titles: [NODES[nodeId].name],
+    });
+    bump('pep', state === 'skipped' ? 'skipped' : 'done');
   }
 
   // `lit` counts hops that ran, not lanes drawn — collapsing three bff→pep
@@ -247,7 +370,7 @@ export function verdictTone(decision, story) {
 }
 
 function BandNode({ data }) {
-  return <div className="sfm-band" data-band={data.label} />;
+  return <div className="sfm-band" data-band={data.label} data-band-id={data.bandKey} />;
 }
 
 const SIDES = { top: Position.Top, right: Position.Right, bottom: Position.Bottom, left: Position.Left };
@@ -287,9 +410,47 @@ export function SystemFlowMapView() {
 
   useEffect(() => tokenChainTraceStore.subscribe(setStoreState), []);
 
-  const { trace, steps } = storeState;
-  const { nodeStates, edges, decision, lit } = useMemo(() => buildFlowModel(steps), [steps]);
+  const { darkMode, toggleDarkMode } = useThemeOptional();
+
+  // null = following the live run. Set to a past run's id (from the replay
+  // strip below) to freeze the map on one of the last few completed runs
+  // instead — a deliberate look-back, so a new live run starting does not
+  // yank the presenter out of it.
+  const [viewingRunId, setViewingRunId] = useState(null);
+  const history = storeState.history || [];
+  const viewingTrace = viewingRunId != null ? history.find((h) => h.runId === viewingRunId) : null;
+  const trace = viewingTrace || storeState.trace;
+  const steps = useMemo(
+    () => (viewingTrace ? buildTraceSteps(viewingTrace) : storeState.steps),
+    [viewingTrace, storeState.steps],
+  );
+
+  const [zoom, setZoom] = useState(readStoredZoom);
+  useEffect(() => {
+    try { window.localStorage.setItem(ZOOM_KEY, String(zoom)); } catch { /* private mode — size still works, just not remembered */ }
+  }, [zoom]);
+  const stepZoom = useCallback((delta) => {
+    setZoom((z) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round((z + delta) * 10) / 10)));
+  }, []);
+
+  const { nodeStates, edges, decision, lit } = useMemo(() => buildFlowModel(steps, trace), [steps, trace]);
   const story = useMemo(() => buildRunStory(trace, steps), [trace, steps]);
+  // buildRunStory's outcome also comes from trace.outcome, and reads 'active'
+  // ('RUNNING') just as indefinitely when that never gets set. The reply
+  // step existing is the same "run is actually over" evidence buildFlowModel
+  // uses above — reuse it so the verdict badge cannot disagree with the map.
+  const ended = useMemo(() => Array.isArray(steps)
+    && steps.some((s) => s && (s.baseId || s.id) === 'reply' && s.status === 'done'), [steps]);
+  const displayStory = useMemo(() => {
+    if (!story || !ended || story.outcome !== 'active') return story;
+    return {
+      ...story,
+      outcome: 'ok',
+      headline: decision
+        ? `This run completed successfully — Authorize returned ${decision.replace(/_/g, ' ')}.`
+        : 'This run completed successfully.',
+    };
+  }, [story, ended, decision]);
   const elapsed = trace?.finishedAt && trace?.startedAt ? trace.finishedAt - trace.startedAt : null;
 
   const flowNodes = useMemo(
@@ -307,23 +468,95 @@ export function SystemFlowMapView() {
   );
 
   return (
-    <div className="sfm-root">
+    <div className="sfm-root" style={{ zoom }}>
       <div className="sfm-head">
-        <span className={`sfm-verdict sfm-verdict--${verdictTone(decision, story)}`}>
-          {verdictLabel(decision, story)}
+        <span className={`sfm-verdict sfm-verdict--${verdictTone(decision, displayStory)}`}>
+          {verdictLabel(decision, displayStory)}
         </span>
+        {viewingTrace ? <span className="sfm-viewing">replay</span> : null}
         {elapsed != null ? (
           <span className="sfm-ms">{elapsed}<span>ms</span></span>
         ) : null}
         <span className="sfm-hops">{lit} {lit === 1 ? 'hop' : 'hops'}</span>
         <span className="sfm-spacer" />
-        <button type="button" className="sfm-clear" onClick={() => tokenChainTraceStore.reset()}>
-          Clear
+        <div className="sfm-zoom" role="group" aria-label="System flow map size">
+          <button
+            type="button"
+            className="sfm-zoom-btn"
+            onClick={() => stepZoom(-ZOOM_STEP)}
+            disabled={zoom <= ZOOM_MIN}
+            title="Smaller map"
+            aria-label="Decrease map size"
+          >
+            A-
+          </button>
+          <button
+            type="button"
+            className="sfm-zoom-pct"
+            onClick={() => setZoom(ZOOM_DEFAULT)}
+            disabled={zoom === ZOOM_DEFAULT}
+            title="Reset map size"
+            aria-label="Reset map size"
+          >
+            {Math.round(zoom * 100)}%
+          </button>
+          <button
+            type="button"
+            className="sfm-zoom-btn"
+            onClick={() => stepZoom(ZOOM_STEP)}
+            disabled={zoom >= ZOOM_MAX}
+            title="Larger map"
+            aria-label="Increase map size"
+          >
+            A+
+          </button>
+        </div>
+        <button
+          type="button"
+          className="sfm-icon-btn"
+          onClick={toggleDarkMode}
+          aria-label="Toggle dark mode"
+          aria-pressed={darkMode}
+          title="Switch this map between light and dark"
+        >
+          {darkMode ? '☀️' : '🌙'}
+        </button>
+        <button
+          type="button"
+          className="sfm-clear"
+          onClick={() => { setViewingRunId(null); tokenChainTraceStore.reset(); }}
+        >
+          Reset
         </button>
       </div>
 
+      {history.length > 0 ? (
+        <div className="sfm-history" role="group" aria-label="Replay last runs">
+          <span className="sfm-history-label">Replay:</span>
+          <button
+            type="button"
+            className={`sfm-history-btn${viewingRunId == null ? ' sfm-history-btn--active' : ''}`}
+            onClick={() => setViewingRunId(null)}
+          >
+            Live
+          </button>
+          {history.map((h) => (
+            <button
+              key={h.runId}
+              type="button"
+              className={`sfm-history-btn${viewingRunId === h.runId ? ' sfm-history-btn--active' : ''}`}
+              onClick={() => setViewingRunId(h.runId)}
+              title={h.prompt?.message || `run #${h.runId}`}
+            >
+              {h.outcome === 'error' ? '✕ ' : h.outcome === 'ok' ? '✓ ' : ''}
+              {truncate(h.prompt?.message, 22) || `run #${h.runId}`}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       <div className="sfm-caption">
-        {story ? story.headline : 'No run yet — send an agent prompt and the hops paint here.'}
+        {displayStory ? displayStory.headline : 'No run yet — send an agent prompt and the hops paint here.'}
       </div>
 
       <div className="sfm-canvas">
@@ -348,7 +581,7 @@ export function SystemFlowMapView() {
         <span><i data-kind="http" />http / MCP</span>
         <span><i data-kind="oauth" />OAuth / RFC 8693</span>
         <span><i data-kind="pdp" />PDP sideband</span>
-        <span><i data-kind="ciba" />CIBA step-up</span>
+        <span><i data-kind="ciba" />step-up / HITL</span>
         <span><i data-kind="data" />data</span>
         <span className="sfm-legend-sep" />
         <span><b className="sfm-swatch sfm-swatch--done" />reached</span>

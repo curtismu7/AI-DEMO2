@@ -22,3 +22,12 @@ snapshots/authorizeSnapshotCloudDelta.test.js:generic-api-key:82
 docs/scope-topology.md:generic-api-key:184
 docs/scope-topology.md:generic-api-key:205
 .claude/HANDOFF-2026-08-17-apikey-tools.md:generic-api-key:93
+
+# False positives — Glean image content ids in two <img src> URLs
+# (pingidentity-be.glean.com/api/v1/images?key=...). The `key=` parameter
+# identifies the image, it is not an API credential, and the images resolve
+# only for a viewer already signed in to Ping's internal Glean. Confirmed by
+# the repo owner 2026-09-12 when restoring this file (it was deleted by
+# mistake in #3164 and is the source for `npm run publish:agent-guardrails`).
+ping_agent_guardrails_diagram.html:generic-api-key:632
+ping_agent_guardrails_diagram.html:generic-api-key:638

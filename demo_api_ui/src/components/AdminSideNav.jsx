@@ -305,6 +305,26 @@ export default function AdminSideNav({
     return () => mq.removeEventListener("change", apply);
   }, []);
 
+  // Auto-collapse while the dashboard's "Sequence view" is on, so the
+  // diagram gets the width back — same ref-gated pattern as the viewport
+  // auto-collapse above: only restore if THIS is what collapsed it, so a
+  // manual collapse (or the viewport auto-collapse) in between still holds.
+  const seqViewAutoCollapsedRef = useRef(false);
+  useEffect(() => {
+    const handler = (e) => {
+      const on = !!e.detail?.collapsed;
+      if (on) {
+        seqViewAutoCollapsedRef.current = true;
+        setCollapsed(true);
+      } else if (seqViewAutoCollapsedRef.current) {
+        seqViewAutoCollapsedRef.current = false;
+        setCollapsed(false);
+      }
+    };
+    window.addEventListener("admin-sidenav-collapse-toggle", handler);
+    return () => window.removeEventListener("admin-sidenav-collapse-toggle", handler);
+  }, []);
+
   // Role-scoped expansion state: a group the user opened should stay open
   // until they open a different one, even across sidebar remounts and the
   // full-page reloads this app performs (role/vertical switch, reauth).
@@ -479,7 +499,6 @@ export default function AdminSideNav({
         { label: "Audit Agent", path: "/audit-agent", icon: "shld" },
         { label: "AI Agent Gateway Guide", path: "/privilege-mcp-learning", icon: "doc" },
         { label: "AI Agent Gateway Diagrams", path: "/privilege-mcp-diagrams", icon: "arc" },
-        { label: "Privilege Gateway Topologies", path: "/privilege-gateway-topologies", icon: "arc" },
       ],
     },
     { label: "Themes", path: "/themes", icon: "cfg" },
@@ -684,7 +703,13 @@ export default function AdminSideNav({
         { label: "OAS Demo", path: "/oas-demo", icon: "pol" },
         { label: "Privilege Demo", path: "/privilege-demo", icon: "shld" },
         { label: "SDK Login", path: "/sdk-login", icon: "mbl" },
-        { label: "DaVinci Login", path: "/davinci-login", icon: "sign-in" },
+        { label: "DaVinci Login Guide", path: "/davinci-login-guide", icon: "doc" },
+        { label: "Orchestration SDK Login", path: "/davinci-sdk-login", icon: "mbl" },
+        { label: "Orchestration SDK Guide", path: "/orchestration-sdk", icon: "sec" },
+        // Was reachable only from the agent header's More menu with DaVinci Mode
+        // on, so nobody could find the repo's own DaVinci explainer. It is a
+        // static page with no API calls; listing it here costs nothing.
+        { label: "DaVinci Orchestration", path: "/davinci-orchestration", icon: "pol" },
       ],
     },
     {
@@ -1002,21 +1027,12 @@ export default function AdminSideNav({
           icon: "lnk",
         },
         { label: "Interactive Flow (Node)", path: "/architecture/flow", icon: ">" },
-        {
-          label: "Phase 266 — 3 Paths (MM)",
-          path: "/architecture/phase-266",
-          icon: "rte",
-        },
         { label: "Sequence Diagram (Node)", path: "/sequence-diagram", icon: "log" },
         { label: "Canvas Diagram (Node)", path: "/architecture/canvas", icon: "arc" },
         { label: "Agent Onboarding Flow (Node)", path: "/agent-onboarding-flow", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
         { label: "Agent Onboarding Flow Subway (Node)", path: "/agent-onboarding-flow-subway", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
-        { label: "Agent Onboarding Flow (MM)", path: "/agent-onboarding-flow-mermaid", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
-        { label: "Agent Gateway OAuth Flow (MM)", path: "/mcp-gateway-oauth-flow", icon: "log" },
         { label: "Invest Dual-Auth (MM)", path: "/invest-dual-auth", icon: "rte" },
-        { label: "External Door MCP Flow (MM)", path: "/external-door-diagrams", icon: "arc" },
         { label: "AI Agent Gateway (MM)", path: "/privilege-mcp-diagrams", icon: "lck" },
-        { label: "Privilege Gateway Topologies (MM)", path: "/privilege-gateway-topologies", icon: "arc" },
         { label: "Privilege-First Gateway (Node)", path: "/privilege-first-gateway", icon: "lck" },
         { label: "Gateway vs P1AZ Enforcement (MM)", path: "/gateway-enforcement-map", icon: "arc" },
         { label: "Resource Server Placement (MM)", path: "/resource-server-placement", icon: "arc" },
@@ -1068,6 +1084,7 @@ export default function AdminSideNav({
           icon: "flag",
         },
         { label: "LLM Config", path: "/llm-config", icon: "agt" },
+        { label: "Secret Rotation", path: "/secret-rotation", icon: "key" },
         { label: "App Configuration", path: "/configure", icon: "fix" },
         { label: "OAuth Debug", path: "/configure?tab=debug", icon: "dbg" },
         { label: "Postman Collections", path: "/postman", icon: "msg" },
@@ -1542,6 +1559,7 @@ export default function AdminSideNav({
         onClick={() => {
           const next = !collapsed;
           autoCollapsedRef.current = false;
+          seqViewAutoCollapsedRef.current = false;
           setCollapsed(next);
           try {
             window.localStorage.setItem(COLLAPSED_KEY, String(next));

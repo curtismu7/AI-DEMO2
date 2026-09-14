@@ -39,6 +39,12 @@ const DeviceSelector: FC<DeviceSelectorProps> = ({
   registeringType = null,
   registerError = null,
 }) => {
+  // Lead with an enrolled passkey — the recommended step-up method — ahead of
+  // other enrolled devices, which keep their relative order.
+  const sortedDevices = [...devices].sort((a, b) =>
+    (b.type.toUpperCase() === "FIDO2" ? 1 : 0) - (a.type.toUpperCase() === "FIDO2" ? 1 : 0),
+  );
+
   // Types the user has no device for. PingOne reports passkeys as FIDO2.
   const enrolledTypes = new Set(devices.map((d) => d.type.toUpperCase()));
   const missingTypes = onRegisterDevice
@@ -96,7 +102,7 @@ const DeviceSelector: FC<DeviceSelectorProps> = ({
       <div className="device-selector__scroll">
         <p className="device-selector__title">{title}</p>
         <div className="device-selector__list">
-          {devices.map((device) => (
+          {sortedDevices.map((device) => (
             <button
               key={device.id}
               type="button"

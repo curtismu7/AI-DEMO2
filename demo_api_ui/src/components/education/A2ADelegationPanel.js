@@ -166,8 +166,11 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
             </li>
             <li>
               <strong>Wire protocol (Linux Foundation A2A)</strong> — the generalist discovers the specialist via an{' '}
-              <strong>Agent Card</strong> and sends an A2A <code>SendMessage</code> over JSON-RPC, authenticated with a{' '}
-              <strong>separate PingOne Bearer</strong> (not the nested-act MCP token). Pattern matches the official{' '}
+              <strong>Agent Card</strong> and sends an A2A <code>SendMessage</code> over JSON-RPC. The bearer on this
+              hop is the <strong>user&apos;s own Exchange #1 delegated token</strong> (<code>sub</code>: the user,{' '}
+              <code>act</code>: the generalist) — not a bare client_credentials token, and not the specialist&apos;s
+              nested-act MCP token either; the specialist mints that one itself, in its own process, <em>after</em> the
+              hop arrives. Pattern matches the official{' '}
               <a
                 href="https://github.com/a2aproject/a2a-samples/tree/main/samples/java/agents/magic_8_ball_security"
                 target="_blank"
@@ -180,7 +183,9 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
           </ul>
           <Callout>
             Wire hop and MCP hop are deliberate separates: protocol auth proves agent-to-agent transport;
-            nested <code>act</code> proves who may call banking tools for the user.
+            nested <code>act</code> proves who may call banking tools for the user. The wire bearer is a plain
+            JWT — PingOne issues neither DPoP nor certificate-bound tokens for it, so it is{' '}
+            <strong>not sender-constrained</strong>: whoever holds the token can present it.
           </Callout>
           <h3>When it runs</h3>
           <p style={{ color: '#374151' }}>

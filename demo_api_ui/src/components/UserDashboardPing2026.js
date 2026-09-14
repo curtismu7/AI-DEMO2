@@ -21,7 +21,7 @@ import {
   toast,
 } from "../utils/appToast";
 import { navigateToCustomerOAuthLogin, SESSION_REAUTH_EVENT } from "../utils/authUi";
-import { normalizePhoneE164 } from "../utils/mfaEnrollment";
+import { normalizePhoneE164, pickPreferredDevice, isPasskeySupported } from "../utils/mfaEnrollment";
 import {
   getDashboardLayout,
   setDashboardLayout,
@@ -38,6 +38,9 @@ import { extractRfc9470Challenge } from "../utils/wwwAuthenticate";
 import DashboardTokenRail from "./DashboardTokenRail";
 import TokenChainFilmstrip from "./TokenChainFilmstrip";
 import ReelDock from "./ReelDock";
+import SequenceReelDiagram from "./SequenceReelDiagram";
+import StepDetailPanel from "./StepDetailPanel";
+import CollapsibleStepDetail from "./CollapsibleStepDetail";
 import SimpleStepperBar from "./SimpleStepperBar";
 import AgentResponseMirror from "./AgentResponseMirror";
 import ExchangeModeToggle from "./ExchangeModeToggle";
@@ -185,6 +188,65 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     window.addEventListener("agent-filmstrip-toggle", handler);
     return () => window.removeEventListener("agent-filmstrip-toggle", handler);
   }, []);
+
+  // Quick Config "Sequence view" — swaps the reel for a live lifeline
+  // sequence diagram of the same trace data. Persisted to localStorage
+  // so the user's view choice survives page refresh.
+  const [showSequenceDiagram, setShowSequenceDiagram] = useState(() => {
+    try {
+      return localStorage.getItem("dashboard-view-mode") === "sequence";
+    } catch {
+      return false;
+    }
+  });
+  // The step a user clicked on in the diagram, rendered below it via
+  // StepDetailPanel — the same narrative/RFC/request-response detail the
+  // reel already shows for this exact step shape. Cleared on toggle-off so
+  // switching back to the reel doesn't leave a stale panel showing.
+  const [selectedSeqStep, setSelectedSeqStep] = useState(null);
+  useEffect(() => {
+    const handler = (e) => {
+      const on = !!e.detail?.on;
+      setShowSequenceDiagram(on);
+      if (!on) setSelectedSeqStep(null);
+    };
+    window.addEventListener("agent-sequence-diagram-toggle", handler);
+    return () => window.removeEventListener("agent-sequence-diagram-toggle", handler);
+  }, []);
+
+  // Persist view mode preference to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("dashboard-view-mode", showSequenceDiagram ? "sequence" : "reel");
+    } catch {
+      /* ignore */
+    }
+  }, [showSequenceDiagram]);
+
+  // Quick Config "Slow mode" — narrows the agent column so the sequence
+  // diagram gets the width back while narrating a slow-paced reveal. Persisted
+  // so presentation mode preference survives refresh.
+  const [slowMode, setSlowMode] = useState(() => {
+    try {
+      return localStorage.getItem("dashboard-slow-mode") === "true";
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    const handler = (e) => setSlowMode(!!e.detail?.on);
+    window.addEventListener("agent-slow-mode-toggle", handler);
+    return () => window.removeEventListener("agent-slow-mode-toggle", handler);
+  }, []);
+
+  // Persist slow mode preference to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem("dashboard-slow-mode", String(slowMode));
+    } catch {
+      /* ignore */
+    }
+  }, [slowMode]);
 
   // ff_show_agent_in_middle — when false (default) the banking column
   // is hidden in the middle-agent layout (banking info comes from the agent /
@@ -810,8 +872,14 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       }
       setStepUpRequired(false);
       toast.dismiss("customer-step-up");
-      // Route by device type — single device: auto-route; multiple: show picker
+      // Route by device type — single device: auto-route; multiple: prefer an
+      // enrolled passkey (if this browser can use it), else show picker.
       if (devices.length > 1) {
+        const preferred = isPasskeySupported() ? pickPreferredDevice(devices) : null;
+        if (preferred) {
+          handleFido2Challenge(data.daId, preferred);
+          return;
+        }
         setDevicePickerDevices(devices);
         setDevicePickerDaId(data.daId);
         setDevicePickerOpen(true);
@@ -3577,7 +3645,20 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               reel at all. .agent-clinical-host is display:block over a 100vh
               shell, the same shape as float mode, so .tcfs-float-host's
               position:sticky/bottom:0 pins it without any clinical-specific CSS. */}
-          {showFilmstrip && <ReelDock />}
+          {showFilmstrip && !showSequenceDiagram && <ReelDock />}
+          {showSequenceDiagram && (
+            <SequenceReelDiagram
+              onSelectStep={setSelectedSeqStep}
+              selectedStepId={selectedSeqStep?.id}
+              slowMode={slowMode}
+              onToggleSlowMode={() => setSlowMode(!slowMode)}
+            />
+          )}
+          {showSequenceDiagram && selectedSeqStep && (
+            <div className="ud-sequence-detail-row">
+              <CollapsibleStepDetail step={selectedSeqStep} />
+            </div>
+          )}
         </div>
         {renderGlobalModals()}
       </>
@@ -3618,7 +3699,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           // and banking-column states keep their existing rules.
           className={`dashboard-content ud-body ud-body--2026 ud-focus-mode ${splitGridClass(
             showBankingInMiddle,
-          )}${middleAgentOpen ? "" : " ud-middle-collapsed"}`}
+          )}${middleAgentOpen ? "" : " ud-middle-collapsed"}${showSequenceDiagram ? " ud-sequence-view-active" : ""}${showSequenceDiagram && slowMode ? " ud-slow-mode-active" : ""}`}
           style={{ '--ud-agent-col-width': `${agentColWidth}px` }}
         >
           {/* Full width above both columns, where the mock puts it. Inside the
@@ -3711,7 +3792,20 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               nothing on screen: it governed only the float branch, which does
               not mount in this layout. The reel was never lost, the control
               was simply wired to the copy you were not looking at. */}
-          {showFilmstrip && <TokenChainFilmstrip />}
+          {showFilmstrip && !showSequenceDiagram && <TokenChainFilmstrip />}
+          {showSequenceDiagram && (
+            <SequenceReelDiagram
+              onSelectStep={setSelectedSeqStep}
+              selectedStepId={selectedSeqStep?.id}
+              slowMode={slowMode}
+              onToggleSlowMode={() => setSlowMode(!slowMode)}
+            />
+          )}
+          {showSequenceDiagram && selectedSeqStep && (
+            <div className="ud-sequence-detail-row">
+              <CollapsibleStepDetail step={selectedSeqStep} />
+            </div>
+          )}
         </div>
       ) : (
         // Float mode ('none'): 2-column layout — token rail + content; FAB is a
@@ -3773,7 +3867,20 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             {/* Response mirror — shows last agent reply on main page when toggled on */}
             <AgentResponseMirror />
             {/* Movie reel filmstrip — toggled via More › Movie reel in the agent header */}
-            {showFilmstrip && <ReelDock />}
+            {showFilmstrip && !showSequenceDiagram && <ReelDock />}
+          {showSequenceDiagram && (
+            <SequenceReelDiagram
+              onSelectStep={setSelectedSeqStep}
+              selectedStepId={selectedSeqStep?.id}
+              slowMode={slowMode}
+              onToggleSlowMode={() => setSlowMode(!slowMode)}
+            />
+          )}
+          {showSequenceDiagram && selectedSeqStep && (
+            <div className="ud-sequence-detail-row">
+              <CollapsibleStepDetail step={selectedSeqStep} />
+            </div>
+          )}
           </div>
       )}
 

@@ -11,7 +11,7 @@
  * unaffected.
  */
 
-import { wsTransportBindingGuard } from '../src/wsBindingGuard';
+import { wsTransportBindingGuard, isDpopBound } from '../src/wsBindingGuard';
 
 describe('wsTransportBindingGuard', () => {
   it('allows the call when both controls are OFF (defaults)', () => {
@@ -47,5 +47,32 @@ describe('wsTransportBindingGuard', () => {
     const r = wsTransportBindingGuard({ requireDpopProof: true, wbaMode: 'enforce' });
     expect(r).not.toBeNull();
     expect(r!.data.error).toBe('invalid_dpop_proof');
+  });
+});
+
+describe('isDpopBound', () => {
+  const ORIGINAL = process.env.ALLOW_UNSIGNED_TRAT_CONTEXT;
+  afterEach(() => {
+    if (ORIGINAL === undefined) delete process.env.ALLOW_UNSIGNED_TRAT_CONTEXT;
+    else process.env.ALLOW_UNSIGNED_TRAT_CONTEXT = ORIGINAL;
+  });
+
+  it('is bound by the token\'s own cnf.jkt claim', () => {
+    expect(isDpopBound(undefined, { cnf: { jkt: 'abc' } })).toBe(true);
+  });
+
+  it('is bound by the TraT envelope only when unsigned envelopes are allowed', () => {
+    const envelope = JSON.stringify({ cnf: { jkt: 'abc' } });
+    process.env.ALLOW_UNSIGNED_TRAT_CONTEXT = 'true';
+    expect(isDpopBound(envelope, {})).toBe(true);
+    process.env.ALLOW_UNSIGNED_TRAT_CONTEXT = 'false';
+    expect(isDpopBound(envelope, {})).toBe(false);
+  });
+
+  it('is not bound without a thumbprint, or with a malformed envelope', () => {
+    process.env.ALLOW_UNSIGNED_TRAT_CONTEXT = 'true';
+    expect(isDpopBound(undefined, {})).toBe(false);
+    expect(isDpopBound('{not json', {})).toBe(false);
+    expect(isDpopBound(JSON.stringify({ purp: 'x' }), null)).toBe(false);
   });
 });

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { EDU } from "../components/education/educationIds";
 import SignInPrompt from "../components/SignInPrompt";
+import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import "./IntentBindingLearningPage.css";
 
 /**
@@ -50,6 +51,14 @@ function useColumnRun(action, defaultAmount) {
         setError(data.reason || data.error || "Request failed");
       } else {
         setResult(data);
+        // Hand the run to the live trace so the dashboard's sequence view draws
+        // it: the PAR push and request_uri on a live run, the intent check on
+        // either. Display-only — never break the page over it.
+        try {
+          tokenChainTraceStore.beginTrace({ prompt: `Intent binding: ${action} $${Number(amount)}${live ? " (live PAR)" : ""}` });
+          tokenChainTraceStore.ingestTokenEvents(Array.isArray(data.tokenChainEvents) ? data.tokenChainEvents : []);
+          tokenChainTraceStore.completeTrace(data.status === 200);
+        } catch (_) { /* display-only */ }
       }
     } catch (err) {
       setError(err.message);

@@ -9,7 +9,7 @@ argument-hint: 'Install PingOne MCP (ask Cursor vs VS Code) and/or create a Work
 This is a **Claude skill** stored at:
 
 - Personal: `~/.claude/skills/pingone-mcp-install/SKILL.md`
-- Repo: `.claude/skills/pingone-mcp-install/SKILL.md` (mirrored under `pingone/`, `claude-skills-bundle/`, `claudSkills/`)
+- Repo: `.claude/skills/pingone-mcp-install/SKILL.md` (mirrored under `pingone/`, `claudSkills/`)
 
 ## FIRST STEP — ask which IDE (required)
 

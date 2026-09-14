@@ -9,7 +9,7 @@
 // in the narrowest column on screen.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
-import { MCP_STEP_IDS, chainBadge } from "../services/tokenChainTrace/buildTraceSteps";
+import { MCP_STEP_IDS } from "../services/tokenChainTrace/buildTraceSteps";
 import { resolveInspectClaims } from "../services/tokenChainTrace/resolveInspectClaims";
 import { isFlagOn, shouldShowTrustTab } from "../utils/tokenChainTrust";
 import { useTokenChainOptional } from "../context/TokenChainContext";
@@ -153,7 +153,6 @@ export default function TokenChainFilmstrip() {
     () => (viewMode === "classic" ? classicSteps : buildLiveTokenChainSteps(classicSteps, trace)),
     [viewMode, classicSteps, trace],
   );
-  const badge = chainBadge(trace, classicSteps);
 
   // Clearing a run must drop the selection, the sheet and the presenter, or the
   // next run reopens whatever was left behind.
@@ -212,14 +211,6 @@ export default function TokenChainFilmstrip() {
       <div className="tcfs-spotlight">
       <div className="tcfs-head">
         <span className="tcfs-title">Token Chain</span>
-        <span className="tcfs-dots">
-          <span className="tcfs-dot tcfs-dot--user" /> User
-          <span className="tcfs-arrow">→</span>
-          <span className="tcfs-dot tcfs-dot--agent" /> Agent
-          <span className="tcfs-arrow">→</span>
-          <span className="tcfs-dot tcfs-dot--mcp" /> MCP
-        </span>
-        <span className={`tcfs-badge tcfs-badge--${badge.tone}`}>{badge.label}</span>
         <div className="tcfs-actions">
           <ChainViewMenu
             steps={steps}

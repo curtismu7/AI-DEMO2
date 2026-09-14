@@ -3,6 +3,8 @@
 // renders the same data payload-first and collapsed; this is the presenter's
 // view of it and is deliberately a separate component so that card is untouched.
 import React from "react";
+import FormJsonToggle, { PayloadFormView } from "./shared/FormJsonToggle";
+import { laneLabel } from "../services/tokenChainTrace/buildTraceSteps";
 import "./StepDetailPanel.css";
 
 const STATUS_TEXT = {
@@ -91,13 +93,50 @@ function ClaimDiff({ beforeAfter }) {
   );
 }
 
-/** A collapsed payload — one click away for whoever asks, out of the way otherwise. */
+/**
+ * Split a payload into its leading transport line and its JSON body, when it has
+ * one. Most payloads here are `asJson(x)` alone, but many are a request line
+ * followed by a body (`POST /as/token\n{…}`) — the body is the part worth a Form
+ * view, and losing the line above it would lose which endpoint was called.
+ * Returns null for payloads that are display text, which keep the plain <pre>.
+ */
+function splitPayload(text) {
+  const s = String(text ?? "");
+  const i = s.search(/[[{]/);
+  if (i === -1) return null;
+  try {
+    const json = JSON.parse(s.slice(i));
+    if (!json || typeof json !== "object") return null;
+    return { head: s.slice(0, i).trimEnd(), json };
+  } catch {
+    return null;
+  }
+}
+
+/** A payload, open. Form is the default view: this rail is read off a projector
+ *  at the back of a room, where labelled rows land and a raw blob does not. JSON
+ *  is one click away and is still the whole, unedited payload. */
 function Payload({ label, title, text }) {
+  const split = splitPayload(text);
   return (
     <div className="sdp-payload">
       <div className="sdp-section-label">{label}</div>
       {title ? <div className="sdp-payload-title">{title}</div> : null}
-      <pre className="sdp-pre">{text}</pre>
+      {split ? (
+        <FormJsonToggle
+          value={split.json}
+          ariaLabel={`${label} view`}
+          defaultView="form"
+          jsonView={<pre className="sdp-pre">{text}</pre>}
+        >
+          {/* The transport line above the body is not a JSON leaf, so the
+              flattened view would silently drop which endpoint was called. */}
+          {split.head ? <div className="sdp-payload-head">{split.head}</div> : null}
+          <PayloadFormView value={split.json} />
+        </FormJsonToggle>
+      ) : (
+        <pre className="sdp-pre">{text}</pre>
+      )}
     </div>
   );
 }
@@ -116,7 +155,7 @@ export default function StepDetailPanel({ step, onInspect }) {
     <div className="sdp">
       <div className="sdp-head">
         <h3 className="sdp-title">{step.title}</h3>
-        <span className="sdp-lane">{step.lane}</span>
+        <span className="sdp-lane">{laneLabel(step.lane)}</span>
         <span className={`sdp-status sdp-status--${step.status || "pending"}`}>
           {STATUS_TEXT[step.status] || String(step.status || "")}
         </span>

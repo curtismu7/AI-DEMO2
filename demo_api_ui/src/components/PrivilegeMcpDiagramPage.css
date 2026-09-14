@@ -80,6 +80,34 @@
   height: auto;
 }
 
+.pmd-rf-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 8px;
+  font-size: var(--font-size-2xs);
+  color: var(--pmd-ink-2);
+}
+
+.pmd-rf-canvas {
+  height: 520px;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+/* React Flow's own stylesheet paints white pane/controls/minimap chrome —
+   override to match this page's fixed-dark palette (see the header comment:
+   PrivilegeMcpDiagramPage doesn't follow the app's light/dark toggle). */
+.pmd-rf-canvas .react-flow__pane { background: var(--pmd-bg); }
+.pmd-rf-canvas .react-flow__edge-text { fill: var(--pmd-ink-2); font-size: var(--font-size-3xs); }
+.pmd-rf-canvas .react-flow__edge-textbg { fill: var(--pmd-bg); }
+.pmd-rf-canvas .react-flow__controls-button {
+  background: var(--pmd-panel);
+  border-bottom-color: var(--pmd-border);
+  fill: var(--pmd-ink);
+}
+.pmd-rf-canvas .react-flow__controls-button:hover { background: var(--pmd-border); }
+
 .pmd-error {
   color: #f87171;
   font-size: var(--font-size-sm);

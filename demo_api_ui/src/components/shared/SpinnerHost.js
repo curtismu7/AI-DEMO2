@@ -17,7 +17,7 @@ import './LoadingOverlay.css';
  *                         'classic'→ original <span className="lo-spinner"> ring
  *   spinner_size          88
  *   spinner_accent        '' → --brand-navy
- *   spinner_dark_card     true
+ *   spinner_dark_card     false → overlay follows the app's light/dark theme
  *   spinner_activity_feed true
  */
 

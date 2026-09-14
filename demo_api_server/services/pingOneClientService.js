@@ -44,14 +44,20 @@ function buildClientAssertion(clientId, tokenUrl, authMethod, clientSecret, priv
 // stray management secret. The legacy PINGONE_MGMT_*/MANAGEMENT_* keys are honored only
 // as a fallback: a drifted PINGONE_MGMT_CLIENT_ID pointing at a non-CC app produced live
 // "Unsupported grant type: client_credentials" 400s (see PR #121); the worker always works.
+// Exported so callers that must reason about "could this app be the worker?"
+// (secret rotation's isWorkerApp) can check EVERY family rather than whichever
+// one a single resolveWorkerCredentials() call happens to return — the answer
+// changes with `secretRequired`, and a disagreement there means guarding the
+// wrong app while the real management-token holder stays rotatable.
+const WORKER_CREDENTIAL_FAMILIES = [
+  ['PINGONE_WORKER_CLIENT_ID',       'PINGONE_WORKER_CLIENT_SECRET'],
+  ['PINGONE_WORKER_TOKEN_CLIENT_ID', 'PINGONE_WORKER_TOKEN_CLIENT_SECRET'],
+  ['PINGONE_MGMT_CLIENT_ID',         'PINGONE_MGMT_CLIENT_SECRET'],
+  ['PINGONE_MANAGEMENT_CLIENT_ID',   'PINGONE_MANAGEMENT_CLIENT_SECRET'],
+];
+
 function resolveWorkerCredentials(secretRequired) {
-  const FAMILIES = [
-    ['PINGONE_WORKER_CLIENT_ID',       'PINGONE_WORKER_CLIENT_SECRET'],
-    ['PINGONE_WORKER_TOKEN_CLIENT_ID', 'PINGONE_WORKER_TOKEN_CLIENT_SECRET'],
-    ['PINGONE_MGMT_CLIENT_ID',         'PINGONE_MGMT_CLIENT_SECRET'],
-    ['PINGONE_MANAGEMENT_CLIENT_ID',   'PINGONE_MANAGEMENT_CLIENT_SECRET'],
-  ];
-  for (const [idKey, secretKey] of FAMILIES) {
+  for (const [idKey, secretKey] of WORKER_CREDENTIAL_FAMILIES) {
     const id = configStore.getEffective(idKey);
     if (!id) continue;
     const secret = configStore.getEffective(secretKey);
@@ -278,4 +284,5 @@ module.exports = {
   deleteApplication,
   getManagementToken,
   resolveWorkerCredentials,
+  WORKER_CREDENTIAL_FAMILIES,
 };
