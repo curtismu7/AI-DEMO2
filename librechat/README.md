@@ -90,9 +90,12 @@ below.
    Sports Stores & Code · Local model copy those agents onto the Local LLM
    Proxy (`gpt-oss-20b`), with no Privilege in front. Run the same starter on
    each pair in two new chats: Everyday Banking answers on both paths, while
-   "What Super Sports stores are near me?" is blocked on the Privilege lane
-   (data exfiltration on the store list) and answered locally. The local
-   copies need the host model tiers running.
+   "What Super Sports stores are near me?" can be blocked on the Privilege
+   lane (data exfiltration on the store list) and is answered locally. The
+   block is not every time — 3/3 blocked on 2026-09-13, passed on 2026-09-14 —
+   so run it before a demo rather than promising it. The local copies need the
+   host model tiers running, and gpt-oss-20b can take several minutes to
+   answer.
 
    It also creates Super Sports Policy Guardrails (on `super-sports-gateway`)
    and three OpenSearch agents — OpenSearch · Direct, OpenSearch · via

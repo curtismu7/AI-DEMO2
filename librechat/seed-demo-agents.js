@@ -245,8 +245,9 @@ const AGENTS = [
 
 // Same agent, two model paths: each copy keeps the original's tools, instructions
 // and starters but runs on the Local LLM Proxy, with no Privilege in front. Stores
-// & Code shows a Privilege control (its store answer is blocked as data
-// exfiltration on the Privilege lane); Everyday Banking answers on both.
+// & Code can show a Privilege control (its store answer is sometimes blocked as
+// data exfiltration on the Privilege lane — 3/3 on 2026-09-13, passed on
+// 2026-09-14); Everyday Banking answers on both.
 // gpt-oss-20b is the only local tier that accepts tools (librechat.yaml).
 for (const name of ['Everyday Banking', 'Super Sports Stores & Code']) {
   const base = AGENTS.find((a) => a.name === name);
