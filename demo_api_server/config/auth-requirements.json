@@ -189,6 +189,7 @@
     "/mcp-gateway": "public",
     "/mcp-gateway-oauth-flow": "public",
     "/mcp-inspector": "public",
+    "/mcp-scanner": "public",
     "/mcp-tools": "public",
     "/mcp-traffic": "public",
     "/mfa-test": "public",

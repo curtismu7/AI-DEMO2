@@ -232,6 +232,8 @@ export const NAV_STRUCTURE_CATALOG = [
       "Agent Guardrails",
       "OWASP Agent Risks",
       "Privilege for AI",
+      "MCP Scanner",
+      "LibreChat",
       "llama-vscode Guide",
     ],
   },

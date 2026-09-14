@@ -250,6 +250,9 @@ export default function AdminSideNav({
   // and on its own port in Docker Compose, which is a different origin from the
   // UI. Same split the BFF makes for tracesUiUrl.
   const grafanaUrl = isLocalHost() ? "http://localhost:3000" : "/grafana";
+  // LibreChat is a separate app on :3080 (docker), reached as an external link —
+  // same action+window.open shape as Grafana. It runs locally only.
+  const libreChatUrl = "http://localhost:3080";
 
   // Per-user sidebar customization (Demo Config page). Returns [] when
   // ff_sidebar_customization is OFF or the request fails — full nav either way.
@@ -1057,6 +1060,13 @@ export default function AdminSideNav({
         { label: "Agent Guardrails", path: "/agent-guardrails", icon: "pol" },
         { label: "OWASP Agent Risks", path: "/owasp", icon: "sec" },
         { label: "Privilege for AI", path: "/privilege-for-ai", icon: "shld" },
+        { label: "MCP Scanner", path: "/mcp-scanner", icon: "dbg" },
+        {
+          label: "LibreChat",
+          icon: "chat",
+          searchAlias: "librechat mcp client agent chat privilege libre",
+          action: () => window.open(libreChatUrl, "_blank", "noopener,noreferrer"),
+        },
         {
           label: "llama-vscode Guide",
           path: "/llama-vscode-guide",
