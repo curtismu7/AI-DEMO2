@@ -27,6 +27,7 @@
   align-items: center;
   padding: 18px 20px;
   background: var(--th-bg-card);
+  color: var(--th-text);
   border: 1px solid var(--th-border);
   border-left: 4px solid var(--th-edge, var(--th-border));
   border-radius: var(--radius-md, 10px);
@@ -54,8 +55,14 @@
   padding: 4px 9px;
   border-radius: var(--radius-sm, 6px);
 }
-.pfa-tag-stops { background: var(--th-status-success-bg); color: var(--th-status-success-text); }
-.pfa-tag-misses { background: var(--th-status-warning-bg); color: var(--th-status-warning-text); }
+.pfa-tag-stops {
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+}
+.pfa-tag-misses {
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+}
 .pfa-verdict-by { font-size: var(--font-size-xs); color: var(--th-text-muted); line-height: 1.45; }
 
 /* Flow */
@@ -67,10 +74,15 @@
   padding: 16px;
   text-align: center;
   background: var(--th-bg-inset);
+  color: var(--th-text);
   border: 1px solid var(--th-border);
   border-radius: var(--radius-md, 10px);
 }
-.pfa-node-accent { border-color: var(--th-status-info); background: var(--th-status-info-bg); }
+.pfa-node-accent {
+  border-color: var(--th-status-info);
+  background: var(--th-status-info-bg);
+  color: var(--th-text);
+}
 .pfa-node-role {
   font-size: var(--font-size-3xs);
   letter-spacing: 0.1em;
@@ -95,6 +107,7 @@
   width: 100%;
   height: 2px;
   background: var(--th-border-strong);
+  color: var(--th-text);
   position: relative;
 }
 .pfa-conn-arrow::after {
@@ -118,6 +131,7 @@
   margin-top: 18px;
   padding: 16px 18px;
   background: var(--th-status-warning-bg);
+  color: var(--th-text);
   border: 1px solid var(--th-status-warning-border, var(--th-status-warning));
   border-radius: var(--radius-md, 10px);
 }
@@ -149,6 +163,7 @@
   align-items: start;
   padding: 16px 18px;
   background: var(--th-bg-card);
+  color: var(--th-text);
   border: 1px solid var(--th-border);
   border-radius: var(--radius-md, 10px);
 }
@@ -176,6 +191,7 @@
   border-radius: var(--radius-md, 10px);
   overflow: hidden;
   background: var(--th-bg-card);
+  color: var(--th-text);
 }
 .pfa-ref-row {
   display: grid;
