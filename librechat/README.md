@@ -114,6 +114,22 @@ below.
    Account Viewer and Checkout change the demo balances. To see each step,
    look for `Transferred to <agent>` between the two agents' tool calls.
 
+   **Unattended runs.** Scheduling is switched on in `librechat.yaml`
+   (`interface.schedules`, at most 3 schedules per user, hourly at most); without
+   that key LibreChat answers 403 "Scheduled chats are disabled". The seed also
+   creates three schedules owned by the seed account (sign in as it to see them
+   under Schedules), all **disabled** so nothing fires by surprise. Each run acts as the schedule's owner with
+   nobody present, reusing the owner's stored MCP sign-in; LibreChat checks the
+   agent's MCP servers before every run. Use **Run now** to demo one:
+   - **Morning balance report** — Everyday Banking reads balances and
+     transactions (daily 08:00 when enabled).
+   - **Daily rentals check** — Super Sports Policy Guardrails on
+     `super-sports-gateway` (daily 09:00). Connect the seed account to that
+     door once first; with no stored sign-in the run fails the MCP check.
+   - **Weekly savings sweep** — Money Movement, "Transfer $750 from checking to
+     savings" (Mondays 07:00). The amount is above the consent threshold, so
+     the run stops at human consent instead of moving money.
+
    It also creates Super Sports Policy Guardrails (on `super-sports-gateway`)
    and three OpenSearch agents — OpenSearch · Direct, OpenSearch · via
    Privilege, OpenSearch · Privilege opensearch22 — with the same three

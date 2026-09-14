@@ -323,6 +323,20 @@ AGENTS.push({
   ],
 });
 
+// Unattended runs: main() seeds these as schedules owned by this seed account.
+// Each run acts as the owner with nobody present and reuses the owner's stored
+// MCP sign-in; LibreChat checks the agent's MCP servers before every run.
+const TIMEZONE = 'America/Chicago';
+const SCHEDULES = [
+  { name: 'Morning balance report', agent: 'Everyday Banking', prompt: 'Summarize my balances and my last 5 transactions.', cadence: { frequency: 'daily', hour: 8, minute: 0 } },
+  // super-sports-gateway needs this seed account to Connect once (PingOne login)
+  // before a run can pass the MCP check.
+  { name: 'Daily rentals check', agent: 'Super Sports Policy Guardrails', prompt: 'Show my active equipment rentals.', cadence: { frequency: 'daily', hour: 9, minute: 0 } },
+  // $750 is above the demo's consent and step-up thresholds, so the run should
+  // stop at human consent (hitl_required) instead of moving money unattended.
+  { name: 'Weekly savings sweep', agent: 'Money Movement', prompt: 'Transfer $750 from checking to savings.', cadence: { frequency: 'weekly', hour: 7, minute: 0, daysOfWeek: [1] } },
+];
+
 async function call(method, path, { token, body } = {}) {
   const res = await fetch(`${LC}${path}`, {
     method,
@@ -411,6 +425,32 @@ async function main() {
       continue;
     }
     console.log(`ok   ${def.name} hands off to ${def.handoffs.map((h) => h.to).join(', ')}`);
+  }
+  // Schedules are created disabled so nothing fires by surprise. "Run now"
+  // (POST /api/schedules/:id/run) still fires a disabled one; enabling it in the
+  // UI makes it fire on its cadence as this seed account.
+  const sched = await call('GET', '/api/schedules', { token });
+  if (sched.status !== 200) throw new Error(`list schedules ${sched.status}: ${sched.text.slice(0, 200)}`);
+  const haveSchedules = new Map((sched.json.schedules || []).map((s) => [s.name, s.id]));
+  for (const s of SCHEDULES) {
+    const agentId = ids.get(s.agent);
+    if (!agentId) {
+      failed++;
+      console.error(`FAIL schedule ${s.name}: agent ${s.agent} was not seeded`);
+      continue;
+    }
+    const body = { name: s.name, prompt: s.prompt, agent_id: agentId, cadence: s.cadence, timezone: TIMEZONE };
+    const id = haveSchedules.get(s.name);
+    // Updates leave `enabled` alone, so a schedule switched on in the UI stays on.
+    const r = id
+      ? await call('PATCH', `/api/schedules/${id}`, { token, body })
+      : await call('POST', '/api/schedules', { token, body: { ...body, enabled: false, clientRequestId: `seed-${slug(s.name)}` } });
+    if (r.status !== 200 && r.status !== 201) {
+      failed++;
+      console.error(`FAIL schedule ${s.name}: ${id ? 'update' : 'create'} ${r.status} ${r.text.slice(0, 200)}`);
+      continue;
+    }
+    console.log(`ok   schedule ${s.name} (${r.json.id}) ${id ? 'updated' : 'created, disabled'}`);
   }
   failed += await seedPrompts(token);
   if (failed) process.exit(1);
