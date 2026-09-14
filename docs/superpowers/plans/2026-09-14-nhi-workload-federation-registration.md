@@ -324,6 +324,7 @@ Add a new section to `privilege/CURRENT-CONFIGURATION.md`:
 - ServiceAccount: system:serviceaccount:ping-devops-cmuir:shadow-ai-sensor (no RBAC bindings)
 - JWKS URL: `https://oidc.eks.us-east-2.amazonaws.com/id/9ACBE86EA026DE86EFC05A61A5F83B30/keys`
 - Generated audience: `priv-nhi-zqgtl66tzwdjs46qmjfq5p4gg4ngvsxh`
+- Controller endpoint: `hydra.privilege.pingone.com:443`
 - Permission: shadowai:write only
 - Status: registered; NOT receiving reports — the optional `procyon-nodesensor`
   chart has not been deployed. This registration only proves the federation

@@ -22,8 +22,9 @@ The SE cluster is registered as a federated NHI in Privilege
 (`privilege/CURRENT-CONFIGURATION.md` → `ai-demo-se-cluster-sensor`) with
 `shadowai:write` and generated audience
 `priv-nhi-zqgtl66tzwdjs46qmjfq5p4gg4ngvsxh`. The console now offers the
-`procyon-nodesensor` Helm chart, but it has not been deployed or validated in
-this cluster; the NHI's last reported status is therefore `Never`.
+`procyon-nodesensor` Helm chart pointed at controller endpoint
+`hydra.privilege.pingone.com:443`, but it has not been deployed or validated
+in this cluster; the NHI's last reported status is therefore `Never`.
 `docs/use-cases/nhi-inventory.md` (UC-NHI1) still runs on
 `demo_api_server/services/controlPlane/demoAgentRoster.js` mock data.
 

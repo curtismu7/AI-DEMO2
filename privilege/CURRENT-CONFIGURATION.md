@@ -33,6 +33,7 @@ RoleBinding or ClusterRoleBinding in the SE cluster.
 | Subject | `system:serviceaccount:ping-devops-cmuir:shadow-ai-sensor` |
 | JWKS | `https://oidc.eks.us-east-2.amazonaws.com/id/9ACBE86EA026DE86EFC05A61A5F83B30/keys` |
 | Generated audience | `priv-nhi-zqgtl66tzwdjs46qmjfq5p4gg4ngvsxh` |
+| Controller endpoint | `hydra.privilege.pingone.com:443` |
 | Permission | `shadowai:write` only |
 | Last reported | Never — the optional `procyon-nodesensor` deployment has not been run |
 
