@@ -146,7 +146,9 @@ read the configured host. A new browser origin must be added to ALL of:
 **Files changed:** `langchain_agent/src/api/a2a_handler.py`,
 `langchain_agent/src/authentication/token_validator.py`, `langchain_agent/src/main.py`,
 `langchain_agent/tests/test_a2a_handler.py`,
-`langchain_agent/tests/test_token_validator_path_a.py`, `k8s/02-configmap.yaml`.
+`langchain_agent/tests/test_token_validator_path_a.py`, `k8s/02-configmap.yaml`,
+`scripts/privilege-console-probe.mjs`, and
+`scripts/privilege-console-probe.test.mjs`.
 
 **What was broken:** Privilege's `langchainagent` Remote Agent pointed at
 `http://langchain-agent.ai-demo.svc.cluster.local:8888`, but no `ai-demo`
@@ -161,6 +163,9 @@ gateway-injected `txn-token` must be an RS256 PingOne JWT with the configured
 issuer, a valid expiry, audience `PingGateway`, and `client_id`. The token is
 never logged or returned. `PRIVILEGE_A2A_PUBLIC_URL` keeps the advertised JSON-RPC
 URL on the public Privilege gateway rather than leaking an internal service name.
+The console probe's guarded `--set-backend` mode previews the exact one-field
+`HttpAppConfig.Backends` diff and performs the documented application PUT only
+when the operator adds `--apply`.
 
 **Do not break:** `/run`, `/codegraph/*`, and `/inspector/*` remain protected by
 `BFF_INTERNAL_SECRET`. Only A2A discovery is public on the pod network; A2A
