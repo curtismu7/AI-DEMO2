@@ -287,6 +287,11 @@ export class OAuthBrokerRouter {
     for (const [k, v] of Object.entries(reauthParams)) {
       pingOneAuthorize.searchParams.set(k, v);
     }
+    // LibreChat has no setting for extra authorize params, so pre-fill the demo
+    // user here, recognized by its MCP callback path. Other clients are untouched.
+    if (/^\/api\/mcp\/[^/]+\/oauth\/callback$/.test(new URL(redirectUri).pathname)) {
+      pingOneAuthorize.searchParams.set('login_hint', 'demoUser');
+    }
 
     // The login leg, on the record. Until this existed the ledger only saw a
     // transaction once the client was ALREADY authenticated, so the moment that

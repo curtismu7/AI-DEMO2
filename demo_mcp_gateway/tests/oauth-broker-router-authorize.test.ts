@@ -54,6 +54,19 @@ describe('OAuthBrokerRouter /oauth/authorize', () => {
     expect(location.searchParams.get('resource')).toBe('https://mcp-gateway.example.com');
   });
 
+  it('pre-fills login_hint=demoUser for LibreChat only', async () => {
+    const { clientRegistry, server } = makeRouterAndServer();
+    async function hintFor(redirectUri: string) {
+      const client = clientRegistry.registerClient({ client_name: 'x', redirect_uris: [redirectUri] });
+      const res = await supertest(server).get('/oauth/authorize').query({
+        client_id: client.client_id, redirect_uri: redirectUri, response_type: 'code', code_challenge: 'c',
+      });
+      return new URL(res.headers.location).searchParams.get('login_hint');
+    }
+    expect(await hintFor('http://localhost:3080/api/mcp/aggregate-privilege-gateway/oauth/callback')).toBe('demoUser');
+    expect(await hintFor('http://127.0.0.1:33389/mcp-oauth-callback')).toBeNull();
+  });
+
   it('adopts an unknown client_id whose redirect_uri is loopback — a registry restart must not strand a client', async () => {
     // The registry is in-memory: a gateway rebuild forgets every DCR client
     // while LM Studio keeps the id it was issued (seen live 2026-08-25:
