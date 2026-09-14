@@ -7,7 +7,21 @@ import {
   markRestoreAfterRun,
   takeRestoreAfterRun,
   restoreDefaultScopeAfterRun,
+  runUseCaseIdForScope,
+  WEATHER_RECONFIGURE_USE_CASE_ID,
 } from '../weatherScopeHandoff';
+
+describe('runUseCaseIdForScope', () => {
+  it('keeps the button use case under the default scope or an unreadable one', () => {
+    expect(runUseCaseIdForScope('weather-mcp-texas-deny', WEATHER_SCOPE_DEFAULT)).toBe('weather-mcp-texas-deny');
+    expect(runUseCaseIdForScope('weather-mcp-texas-deny', undefined)).toBe('weather-mcp-texas-deny');
+  });
+
+  it('makes a run under a changed scope UC32, for either button', () => {
+    expect(runUseCaseIdForScope('weather-mcp-texas-deny', 'any')).toBe(WEATHER_RECONFIGURE_USE_CASE_ID);
+    expect(runUseCaseIdForScope('weather-mcp-texas-permit', 'michigan')).toBe(WEATHER_RECONFIGURE_USE_CASE_ID);
+  });
+});
 
 describe('weather scope handoff', () => {
   beforeEach(() => {
