@@ -48,11 +48,11 @@ New module `demo_api_ui/src/lib/embeddedPiFlow.js` — fetch only, no React:
   - A resume that throws, returns no code, or redirects → typed error `resume_blocked` ("this browser did not send PingOne's session cookie — third-party cookies are blocked here").
 - The page's embedded form submits, calls `client.token.exchange(code, state)`, then `refresh()`. On `unsupported_step` or `resume_blocked` it shows the reason plus **Use the pop-out** and **Use the redirect** buttons. The password is cleared from state after every submit.
 
-The password goes from the browser **directly to PingOne**; the BFF never sees it or the tokens. No `login_hint` prefill in the form (it is visible, the user types it).
+The password goes from the browser **directly to PingOne** and never to the BFF. No `login_hint` prefill in the form (it is visible, the user types it).
 
 ### Page layout and copy
 
-The signed-out card becomes three options in order — Redirect, Pop-out, Embedded — each with one sentence on what happens and the SDK/API calls involved. Embedded's sentence states the two requirements: explicit CORS origins on the PingOne app, and a browser that keeps PingOne's third-party session cookie (Chrome yes; Safari/Firefox block it). The flow timeline and the "Different from the main app" note are unchanged.
+The signed-out card becomes three options in order — Redirect, Pop-out, Embedded — each with one sentence on what happens and the SDK/API calls involved. Embedded's sentence states the two requirements: explicit CORS origins on the PingOne app, and a browser that keeps PingOne's third-party session cookie (Chrome yes; Safari and private windows block it). The flow timeline and the "Different from the main app" note are unchanged.
 
 ### Styling
 
