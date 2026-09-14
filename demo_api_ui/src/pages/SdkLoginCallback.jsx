@@ -59,7 +59,9 @@ export default function SdkLoginCallback() {
             },
             window.location.origin,
           );
-          window.close();
+          // Deferred so the posted message is delivered before the window closes —
+          // closing synchronously races the message dispatch in some browsers.
+          setTimeout(() => window.close(), 0);
           return;
         }
 

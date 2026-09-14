@@ -2,12 +2,11 @@ import { useState } from "react";
 import { getSdkClient, isSdkError } from "../../lib/oidcSdkClient";
 import { startEmbeddedSignIn, submitPassword } from "../../lib/embeddedPiFlow";
 
-// Embedded username/password sign-in for /sdk-login. The password goes from this
-// browser straight to PingOne (pi.flow); the code is exchanged by the SDK here, so
-// the BFF never sees the password or the tokens. Anything beyond a password step,
-// or a browser that blocks PingOne's third-party session cookie, falls back to
-// the hosted sign-ins.
-export default function EmbeddedSignInForm({ onSignedIn, onUsePopup, onUseRedirect }) {
+// Embedded username/password sign-in for /sdk-login. The password goes only from
+// this browser to PingOne (pi.flow) and never to the BFF; the code is exchanged by
+// the SDK here. Anything beyond a password step, or a browser that blocks PingOne's
+// third-party session cookie, falls back to the hosted sign-ins.
+export default function EmbeddedSignInForm({ onSignedIn, onUsePopup, onUseRedirect, disabled, onBusyChange }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -18,6 +17,7 @@ export default function EmbeddedSignInForm({ onSignedIn, onUsePopup, onUseRedire
     const typed = password;
     setPassword("");
     setBusy(true);
+    onBusyChange?.(true);
     setFailure(null);
     try {
       const client = await getSdkClient();
@@ -30,10 +30,12 @@ export default function EmbeddedSignInForm({ onSignedIn, onUsePopup, onUseRedire
       setFailure({ code: err.code || "start_failed", message: err.message });
     } finally {
       setBusy(false);
+      onBusyChange?.(false);
     }
   };
 
   const needsHosted = failure && (failure.code === "unsupported_step" || failure.code === "resume_blocked");
+  const controlsDisabled = busy || disabled;
 
   return (
     <form className="sdk-embedded-form" onSubmit={submit}>
@@ -45,7 +47,7 @@ export default function EmbeddedSignInForm({ onSignedIn, onUsePopup, onUseRedire
         <span>Password</span>
         <input className="sdk-input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
       </label>
-      <button type="submit" className="sdk-btn sdk-btn-primary" disabled={busy}>
+      <button type="submit" className="sdk-btn sdk-btn-primary" disabled={controlsDisabled}>
         {busy ? "Signing in…" : "Sign in here"}
       </button>
       {failure && (
@@ -53,8 +55,8 @@ export default function EmbeddedSignInForm({ onSignedIn, onUsePopup, onUseRedire
           <p>{failure.message}</p>
           {needsHosted && (
             <div className="sdk-signin-row">
-              <button type="button" className="sdk-btn sdk-btn-ghost" onClick={onUsePopup}>Use the pop-out</button>
-              <button type="button" className="sdk-btn sdk-btn-ghost" onClick={onUseRedirect}>Use the redirect</button>
+              <button type="button" className="sdk-btn sdk-btn-ghost" disabled={controlsDisabled} onClick={onUsePopup}>Use the pop-out</button>
+              <button type="button" className="sdk-btn sdk-btn-ghost" disabled={controlsDisabled} onClick={onUseRedirect}>Use the redirect</button>
             </div>
           )}
         </div>

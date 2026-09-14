@@ -54,14 +54,42 @@ describe("SdkLoginPage — sign-in options", () => {
 
     expect(await screen.findByText(/blocked the pop-up/i)).toBeInTheDocument();
     expect(window.open).toHaveBeenCalledWith(
-      "https://auth.pingone.com/env-1/as/authorize?state=s1",
+      "about:blank",
       "sdk-login-popup",
       expect.any(String),
     );
   });
 
+  it("opens the pop-out window synchronously, then points it at the authorize URL", async () => {
+    const popup = { closed: false, close: vi.fn(), location: {} };
+    window.open = vi.fn(() => popup);
+    const user = userEvent.setup();
+    render(<SdkLoginPage />);
+
+    await user.click(await screen.findByRole("button", { name: /sign in in a pop-out/i }));
+
+    expect(window.open).toHaveBeenCalledWith("about:blank", "sdk-login-popup", expect.any(String));
+    await vi.waitFor(() =>
+      expect(popup.location.href).toBe("https://auth.pingone.com/env-1/as/authorize?state=s1"),
+    );
+  });
+
+  it("closes the popup and shows the error when building the authorize URL fails", async () => {
+    const popup = { closed: false, close: vi.fn(), location: {} };
+    window.open = vi.fn(() => popup);
+    authorizeUrl.mockRejectedValue(new Error("Could not reach PingOne"));
+    const user = userEvent.setup();
+    render(<SdkLoginPage />);
+
+    await user.click(await screen.findByRole("button", { name: /sign in in a pop-out/i }));
+
+    expect(await screen.findByText(/could not reach pingone/i)).toBeInTheDocument();
+    expect(popup.close).toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /sign in in a pop-out/i })).not.toBeDisabled();
+  });
+
   it("exchanges only a pop-out result from its own window and origin", async () => {
-    const popup = { closed: false, close: vi.fn() };
+    const popup = { closed: false, close: vi.fn(), location: {} };
     window.open = vi.fn(() => popup);
     const user = userEvent.setup();
     render(<SdkLoginPage />);
@@ -81,6 +109,17 @@ describe("SdkLoginPage — sign-in options", () => {
     });
     expect(exchange).not.toHaveBeenCalled();
 
+    // A message with the right origin and source but the wrong type is ignored too.
+    const wrongType = (origin, source) => {
+      const event = new MessageEvent("message", { data: { ...result, type: "not-the-right-type" }, origin });
+      Object.defineProperty(event, "source", { value: source });
+      return event;
+    };
+    await act(async () => {
+      window.dispatchEvent(wrongType(window.location.origin, popup));
+    });
+    expect(exchange).not.toHaveBeenCalled();
+
     tokenGet.mockResolvedValue({ accessToken: "at" });
     await act(async () => {
       window.dispatchEvent(message(window.location.origin, popup));
@@ -90,7 +129,7 @@ describe("SdkLoginPage — sign-in options", () => {
   });
 
   it("keeps busy until the token exchange settles, so a second pop-out click can't overlap it", async () => {
-    const popup = { closed: false, close: vi.fn() };
+    const popup = { closed: false, close: vi.fn(), location: {} };
     window.open = vi.fn(() => popup);
     const user = userEvent.setup();
     render(<SdkLoginPage />);
@@ -118,6 +157,7 @@ describe("SdkLoginPage — sign-in options", () => {
 
     expect(screen.getByRole("button", { name: /sign in in a pop-out/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /sign in with the sdk/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /sign in here/i })).toBeDisabled();
     expect(window.open).toHaveBeenCalledTimes(1);
 
     tokenGet.mockResolvedValue({ accessToken: "at" });
@@ -128,19 +168,83 @@ describe("SdkLoginPage — sign-in options", () => {
     expect(await screen.findByText(/authenticated/i)).toBeInTheDocument();
   });
 
-  it("signs in with the embedded form and clears the password", async () => {
+  it("shows an error and re-enables the pop-out button when the token exchange rejects", async () => {
+    const popup = { closed: false, close: vi.fn(), location: {} };
+    window.open = vi.fn(() => popup);
+    exchange.mockRejectedValue(new Error("Token exchange failed."));
+    const user = userEvent.setup();
+    render(<SdkLoginPage />);
+    await user.click(await screen.findByRole("button", { name: /sign in in a pop-out/i }));
+
+    const result = { type: "sdk-login-popup-result", code: "c1", state: "s1", error: null, errorDescription: null };
+    const message = (origin, source) => {
+      const event = new MessageEvent("message", { data: result, origin });
+      Object.defineProperty(event, "source", { value: source });
+      return event;
+    };
+    await act(async () => {
+      window.dispatchEvent(message(window.location.origin, popup));
+    });
+
+    expect(await screen.findByText(/token exchange failed/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sign in in a pop-out/i })).not.toBeDisabled();
+  });
+
+  it("signs in with the embedded form, clears the password and reaches the signed-in state", async () => {
     startEmbeddedSignIn.mockResolvedValue({ flowId: "f", checkUrl: "u", resumeBase: "b" });
     submitPassword.mockResolvedValue({ code: "c2", state: "s2" });
     const user = userEvent.setup();
     render(<SdkLoginPage />);
 
     await user.type(await screen.findByLabelText(/username/i), "demoUser");
-    await user.type(screen.getByLabelText(/password/i), "pw");
+    const passwordField = screen.getByLabelText(/password/i);
+    await user.type(passwordField, "pw");
     tokenGet.mockResolvedValue({ accessToken: "at" });
     await user.click(screen.getByRole("button", { name: /sign in here/i }));
 
     await vi.waitFor(() => expect(exchange).toHaveBeenCalledWith("c2", "s2"));
     expect(submitPassword).toHaveBeenCalledWith({ flowId: "f", checkUrl: "u", resumeBase: "b" }, "demoUser", "pw");
+    expect(await screen.findByText(/authenticated/i)).toBeInTheDocument();
+  });
+
+  it("disables the pop-out and redirect buttons while an embedded submit is pending", async () => {
+    startEmbeddedSignIn.mockResolvedValue({ flowId: "f", checkUrl: "u", resumeBase: "b" });
+    let resolveSubmit;
+    submitPassword.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSubmit = resolve;
+      }),
+    );
+    const user = userEvent.setup();
+    render(<SdkLoginPage />);
+
+    await user.type(await screen.findByLabelText(/username/i), "demoUser");
+    await user.type(screen.getByLabelText(/password/i), "pw");
+    await user.click(screen.getByRole("button", { name: /sign in here/i }));
+
+    expect(await screen.findByRole("button", { name: /sign in in a pop-out/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /sign in with the sdk/i })).toBeDisabled();
+
+    tokenGet.mockResolvedValue({ accessToken: "at" });
+    await act(async () => {
+      resolveSubmit({ code: "c2", state: "s2" });
+    });
+    await vi.waitFor(() => expect(exchange).toHaveBeenCalledWith("c2", "s2"));
+  });
+
+  it("shows why and offers both hosted sign-ins when the embedded form hits an unsupported step", async () => {
+    startEmbeddedSignIn.mockResolvedValue({ flowId: "f", checkUrl: "u", resumeBase: "b" });
+    submitPassword.mockRejectedValue(new EmbeddedSignInError("unsupported_step", "PingOne asked for MFA_REQUIRED, which this form does not handle.", "MFA_REQUIRED"));
+    const user = userEvent.setup();
+    render(<SdkLoginPage />);
+
+    await user.type(await screen.findByLabelText(/username/i), "demoUser");
+    await user.type(screen.getByLabelText(/password/i), "pw");
+    await user.click(screen.getByRole("button", { name: /sign in here/i }));
+
+    expect(await screen.findByText(/mfa_required/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /use the pop-out/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /use the redirect/i })).toBeInTheDocument();
   });
 
   it("shows why and offers both hosted sign-ins when the embedded form cannot finish", async () => {
@@ -159,5 +263,20 @@ describe("SdkLoginPage — sign-in options", () => {
     expect(screen.getByRole("button", { name: /use the redirect/i })).toBeInTheDocument();
     expect(password).toHaveValue("");
     expect(exchange).not.toHaveBeenCalled();
+  });
+
+  it("shows the message and no fallback buttons when the embedded form rejects invalid credentials", async () => {
+    startEmbeddedSignIn.mockResolvedValue({ flowId: "f", checkUrl: "u", resumeBase: "b" });
+    submitPassword.mockRejectedValue(new EmbeddedSignInError("invalid_credentials", "Invalid username or password"));
+    const user = userEvent.setup();
+    render(<SdkLoginPage />);
+
+    await user.type(await screen.findByLabelText(/username/i), "demoUser");
+    await user.type(screen.getByLabelText(/password/i), "wrong");
+    await user.click(screen.getByRole("button", { name: /sign in here/i }));
+
+    expect(await screen.findByText(/invalid username or password/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /use the pop-out/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /use the redirect/i })).not.toBeInTheDocument();
   });
 });

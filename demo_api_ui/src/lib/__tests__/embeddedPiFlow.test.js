@@ -73,6 +73,21 @@ describe("embeddedPiFlow", () => {
     expect(err.message).toBe("Invalid username or password");
   });
 
+  it("maps a non-400 failure (500) to start_failed, not invalid_credentials", async () => {
+    global.fetch.mockResolvedValueOnce(jsonRes({ message: "Internal error" }, 500));
+    const err = await submitPassword({ flowId: "f", checkUrl: "u", resumeBase: "b" }, "u", "pw").catch((e) => e);
+    expect(err).toBeInstanceOf(EmbeddedSignInError);
+    expect(err.code).toBe("start_failed");
+    expect(err.message).toBe("Internal error");
+  });
+
+  it("maps a 500 with no PingOne message to a generic start_failed message naming the status", async () => {
+    global.fetch.mockResolvedValueOnce(jsonRes({}, 500));
+    const err = await submitPassword({ flowId: "f", checkUrl: "u", resumeBase: "b" }, "u", "pw").catch((e) => e);
+    expect(err.code).toBe("start_failed");
+    expect(err.message).toBe("PingOne could not check the password (HTTP 500).");
+  });
+
   it("maps a second step after the password to unsupported_step", async () => {
     global.fetch.mockResolvedValueOnce(jsonRes({ id: "f", status: "PASSWORD_EXPIRED" }));
     await expect(submitPassword({ flowId: "f", checkUrl: "u", resumeBase: "b" }, "u", "p"))

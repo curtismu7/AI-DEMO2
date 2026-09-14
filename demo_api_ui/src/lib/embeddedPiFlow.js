@@ -68,8 +68,12 @@ export async function submitPassword(flow, username, password) {
   });
   const body = await readJson(res);
   if (!res.ok || body.status === "USERNAME_PASSWORD_REQUIRED") {
-    const message = body.details?.[0]?.message || body.message || "PingOne rejected the username or password.";
-    throw new EmbeddedSignInError("invalid_credentials", message, body.code);
+    if (res.status === 400 || body.status === "USERNAME_PASSWORD_REQUIRED") {
+      const message = body.details?.[0]?.message || body.message || "PingOne rejected the username or password.";
+      throw new EmbeddedSignInError("invalid_credentials", message, body.code);
+    }
+    const message = body.details?.[0]?.message || body.message || `PingOne could not check the password (HTTP ${res.status}).`;
+    throw new EmbeddedSignInError("start_failed", message, body.code);
   }
   if (body.status !== "COMPLETED") {
     throw new EmbeddedSignInError("unsupported_step", `PingOne asked for ${body.status}, which this form does not handle.`, body.status);

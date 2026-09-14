@@ -99,7 +99,9 @@ describe("SdkLoginCallback", () => {
         { type: "sdk-login-popup-result", code: "popcode", state: "popstate", error: null, errorDescription: null },
         window.location.origin,
       );
-      expect(close).toHaveBeenCalled();
+      // window.close() is deferred so the posted message is delivered before the
+      // window closes (a close-versus-message delivery race).
+      await vi.waitFor(() => expect(close).toHaveBeenCalled());
       expect(exchange).not.toHaveBeenCalled();
     });
 
