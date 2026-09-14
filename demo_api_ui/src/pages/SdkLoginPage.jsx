@@ -288,37 +288,42 @@ export default function SdkLoginPage() {
       popupRef.current = popup;
 
       let settled = false;
-      const finish = () => {
+      const stopListening = () => {
         settled = true;
         window.removeEventListener("message", onMessage);
         clearInterval(closedPoll);
         popupCleanupRef.current = null;
-        setBusy(false);
       };
       const onMessage = async (event) => {
         if (event.origin !== window.location.origin || event.source !== popupRef.current) return;
         if (event.data?.type !== POPUP_RESULT_TYPE) return;
-        finish();
+        stopListening();
         const { code, state, error: oauthError, errorDescription } = event.data;
         if (oauthError || !code) {
           setError(errorDescription || oauthError || "The pop-out sign-in did not return a code.");
+          setBusy(false);
           return;
         }
-        const result = await client.token.exchange(code, state);
-        if (isSdkError(result)) {
-          setError(result.error || "Token exchange failed.");
-          return;
+        try {
+          const result = await client.token.exchange(code, state);
+          if (isSdkError(result)) {
+            setError(result.error || "Token exchange failed.");
+            return;
+          }
+          await refresh();
+        } finally {
+          setBusy(false);
         }
-        await refresh();
       };
       const closedPoll = setInterval(() => {
         if (!settled && popup.closed) {
-          finish();
+          stopListening();
           setError("The sign-in window was closed before it finished.");
+          setBusy(false);
         }
       }, 500);
       window.addEventListener("message", onMessage);
-      popupCleanupRef.current = finish;
+      popupCleanupRef.current = stopListening;
     } catch (err) {
       setError(err.message);
       setBusy(false);

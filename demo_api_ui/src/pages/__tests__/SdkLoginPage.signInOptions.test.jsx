@@ -89,6 +89,45 @@ describe("SdkLoginPage — sign-in options", () => {
     expect(await screen.findByText(/authenticated/i)).toBeInTheDocument();
   });
 
+  it("keeps busy until the token exchange settles, so a second pop-out click can't overlap it", async () => {
+    const popup = { closed: false, close: vi.fn() };
+    window.open = vi.fn(() => popup);
+    const user = userEvent.setup();
+    render(<SdkLoginPage />);
+    await user.click(await screen.findByRole("button", { name: /sign in in a pop-out/i }));
+
+    let resolveExchange;
+    exchange.mockReturnValue(
+      new Promise((resolve) => {
+        resolveExchange = resolve;
+      }),
+    );
+
+    const result = { type: "sdk-login-popup-result", code: "c1", state: "s1", error: null, errorDescription: null };
+    // jsdom's MessageEvent only accepts a real Window/MessagePort as `source`, so
+    // the fake popup is attached after construction.
+    const message = (origin, source) => {
+      const event = new MessageEvent("message", { data: result, origin });
+      Object.defineProperty(event, "source", { value: source });
+      return event;
+    };
+    await act(async () => {
+      window.dispatchEvent(message(window.location.origin, popup));
+    });
+    await vi.waitFor(() => expect(exchange).toHaveBeenCalledWith("c1", "s1"));
+
+    expect(screen.getByRole("button", { name: /sign in in a pop-out/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /sign in with the sdk/i })).toBeDisabled();
+    expect(window.open).toHaveBeenCalledTimes(1);
+
+    tokenGet.mockResolvedValue({ accessToken: "at" });
+    await act(async () => {
+      resolveExchange({ accessToken: "at" });
+    });
+
+    expect(await screen.findByText(/authenticated/i)).toBeInTheDocument();
+  });
+
   it("signs in with the embedded form and clears the password", async () => {
     startEmbeddedSignIn.mockResolvedValue({ flowId: "f", checkUrl: "u", resumeBase: "b" });
     submitPassword.mockResolvedValue({ code: "c2", state: "s2" });
