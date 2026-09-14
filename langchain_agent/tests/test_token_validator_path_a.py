@@ -7,6 +7,7 @@ Covers the task's required cases:
   * user_id=victim + valid token for attacker -> bound to attacker
   * invalid / expired / wrong-aud token -> refused
 """
+
 import time
 from types import SimpleNamespace
 
@@ -20,7 +21,9 @@ from src.authentication.token_validator import (
     TokenValidationError,
     _accepted_audiences,
     _derive_issuer,
+    validate_privilege_transaction_token,
 )
+import src.authentication.token_validator as token_validator_module
 
 AUD = "https://banking-langchain-agent.banking-demo.com"
 ISS = "https://auth.pingone.test/env-1/as"
@@ -58,7 +61,9 @@ def validator(rsa_key, monkeypatch):
 
 
 def _mint(rsa_key, *, sub, email=None, aud=AUD, iss=ISS, exp_delta=600, extra=None):
-    claims = {"sub": sub, "aud": aud, "exp": int(time.time()) + exp_delta}
+    claims = {"aud": aud, "exp": int(time.time()) + exp_delta}
+    if sub is not None:
+        claims["sub"] = sub
     if iss is not None:
         claims["iss"] = iss
     if email is not None:
@@ -130,7 +135,12 @@ def test_missing_sub_refused(validator, rsa_key):
         encryption_algorithm=serialization.NoEncryption(),
     )
     token = jwt.encode(
-        {"aud": AUD, "iss": ISS, "exp": int(time.time()) + 600, "email": "x@example.com"},
+        {
+            "aud": AUD,
+            "iss": ISS,
+            "exp": int(time.time()) + 600,
+            "email": "x@example.com",
+        },
         pem,
         algorithm="RS256",
         headers={"kid": KID},
@@ -170,3 +180,69 @@ def test_issuer_underivable_raises():
     pingone = SimpleNamespace(issuer="", token_endpoint="")
     with pytest.raises(ValueError, match="Cannot derive token issuer"):
         _derive_issuer(pingone)
+
+
+def test_privilege_transaction_token_requires_signed_pinggateway_client_token(
+    rsa_key, monkeypatch
+):
+    class _FakeSigningKey:
+        key = rsa_key.public_key()
+
+    class _FakeJWKClient:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def get_signing_key_from_jwt(self, _token):
+            return _FakeSigningKey()
+
+    pingone = SimpleNamespace(
+        jwks_uri="https://example.invalid/as/jwks",
+        issuer=ISS,
+        token_endpoint="",
+    )
+    monkeypatch.setattr(
+        token_validator_module, "get_config", lambda: SimpleNamespace(pingone=pingone)
+    )
+    monkeypatch.setattr(token_validator_module, "PyJWKClient", _FakeJWKClient)
+    monkeypatch.setattr(token_validator_module, "_privilege_jwk_client", None)
+
+    token = _mint(
+        rsa_key,
+        sub=None,
+        aud="PingGateway",
+        extra={"client_id": "privilege-a2a-key"},
+    )
+    claims = validate_privilege_transaction_token(token)
+    assert claims["client_id"] == "privilege-a2a-key"
+
+
+def test_privilege_transaction_token_rejects_wrong_audience(rsa_key, monkeypatch):
+    class _FakeSigningKey:
+        key = rsa_key.public_key()
+
+    class _FakeJWKClient:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def get_signing_key_from_jwt(self, _token):
+            return _FakeSigningKey()
+
+    pingone = SimpleNamespace(
+        jwks_uri="https://example.invalid/as/jwks",
+        issuer=ISS,
+        token_endpoint="",
+    )
+    monkeypatch.setattr(
+        token_validator_module, "get_config", lambda: SimpleNamespace(pingone=pingone)
+    )
+    monkeypatch.setattr(token_validator_module, "PyJWKClient", _FakeJWKClient)
+    monkeypatch.setattr(token_validator_module, "_privilege_jwk_client", None)
+
+    token = _mint(
+        rsa_key,
+        sub=None,
+        aud="some-other-service",
+        extra={"client_id": "privilege-a2a-key"},
+    )
+    with pytest.raises(TokenValidationError):
+        validate_privilege_transaction_token(token)

@@ -24,6 +24,9 @@
 //   node scripts/privilege-console-probe.mjs openapi2           # full record for one app
 //   node scripts/privilege-console-probe.mjs openapi2 mcp-grafana  # diff broken vs working
 //   node scripts/privilege-console-probe.mjs --policies         # raw pacpolicys
+//   node scripts/privilege-console-probe.mjs langchainagent \
+//     --set-backend http://langchain-agent.ping-devops-cmuir.svc.cluster.local:8888
+//   # Re-run with --apply only after reviewing the one-field dry-run diff.
 //
 // Host: the API is served from console.privilege.pingone.com, NOT from the
 // <tenant>.privilege.pingone.com host you see in devtools — see the note on
@@ -73,6 +76,25 @@ export function diffRecords(a, b) {
     .map((p) => ({ path: p, a: fa.has(p) ? fa.get(p) : '(absent)', b: fb.has(p) ? fb.get(p) : '(absent)' }));
 }
 
+/** Return a copy with only the HTTP application's backend list replaced. */
+export function updateHttpBackend(app, backend) {
+  let parsed;
+  try {
+    parsed = new URL(backend);
+  } catch {
+    throw new Error(`Invalid backend URL: ${backend}`);
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error('Backend URL must use http or https');
+  }
+  if (!app?.Spec?.HttpAppConfig) {
+    throw new Error('Selected application has no Spec.HttpAppConfig; refusing to change another app type');
+  }
+  const updated = structuredClone(app);
+  updated.Spec.HttpAppConfig.Backends = { Elems: [backend.replace(/\/$/, '')] };
+  return updated;
+}
+
 // --- API ------------------------------------------------------------------
 
 async function mintSessionId(base) {
@@ -90,18 +112,21 @@ const AUTH_MODES = [
   { name: 'Authorization: Bearer', headers: (t) => ({ Authorization: `Bearer ${t}` }) },
 ];
 
-function makeGet(base, token, sessionId) {
+function makeApiClient(base, token, sessionId) {
   let mode = null; // pinned to whichever mode first answers non-401
-  return async function get(path) {
+  async function request(path, { method = 'GET', body } = {}) {
     let res;
     let text;
     for (const candidate of mode ? [mode] : AUTH_MODES) {
       res = await fetch(`${base}${path}`, {
+        method,
         headers: {
           ...candidate.headers(token),
           'x-procyon-session-id': sessionId,
           accept: 'application/json',
+          ...(body === undefined ? {} : { 'content-type': 'application/json' }),
         },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
       text = await res.text();
       if (res.status !== 401) {
@@ -131,6 +156,10 @@ function makeGet(base, token, sessionId) {
     } catch {
       throw new Error(`Console API returned non-JSON from ${path}: ${text.slice(0, 200)}`);
     }
+  }
+  return {
+    get: (path) => request(path),
+    put: (path, body) => request(path, { method: 'PUT', body }),
   };
 }
 
@@ -185,12 +214,18 @@ async function main() {
     tenantFlag >= 0 ? args.splice(tenantFlag, 2)[1] : process.env.PRIVILEGE_CONSOLE_TENANT || DEFAULT_TENANT;
   const baseFlag = args.indexOf('--base');
   const base = (baseFlag >= 0 ? args.splice(baseFlag, 2)[1] : consoleBase()).replace(/\/$/, '');
+  const backendFlag = args.indexOf('--set-backend');
+  const setBackend = backendFlag >= 0 ? args.splice(backendFlag, 2)[1] : null;
+  const applyIndex = args.indexOf('--apply');
+  const apply = applyIndex >= 0;
+  if (applyIndex >= 0) args.splice(applyIndex, 1);
   const wantPolicies = args.includes('--policies');
   const names = args.filter((a) => !a.startsWith('--'));
 
   console.log(`# base   ${base}`);
   console.log(`# tenant ${tenant}\n`);
-  const get = makeGet(base, token, await mintSessionId(base));
+  const api = makeApiClient(base, token, await mintSessionId(base));
+  const get = api.get;
 
   if (wantPolicies) {
     const body = await get(`/api/${tenant}/v1/pacpolicys`);
@@ -210,6 +245,31 @@ async function main() {
   if (missing.length) {
     console.error(`Not found: ${missing.join(', ')}\nApps in this tenant: ${[...byName.keys()].join(', ')}`);
     process.exit(1);
+  }
+
+  if (setBackend) {
+    if (names.length !== 1) {
+      throw new Error('--set-backend requires exactly one application name');
+    }
+    const name = names[0];
+    const current = byName.get(name);
+    const updated = updateHttpBackend(current, setBackend);
+    const changes = diffRecords(current, updated);
+    console.log(`# backend update for ${name} (${apply ? 'APPLY' : 'DRY RUN'})\n`);
+    for (const row of changes) {
+      console.log(`${row.path}\n    before: ${JSON.stringify(row.a)}\n    after:  ${JSON.stringify(row.b)}`);
+    }
+    if (!apply) {
+      console.log('\nNo change made. Re-run the same command with --apply after the backend is resolvable.');
+      return;
+    }
+    const namespace = current.ObjectMeta?.Namespace || 'default';
+    await api.put(
+      `/api/${tenant}/v1/applications/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`,
+      updated,
+    );
+    console.log('\nBackend updated.');
+    return;
   }
 
   if (names.length === 0) {
