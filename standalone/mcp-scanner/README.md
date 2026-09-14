@@ -28,6 +28,16 @@ npm run scan                       # scans http://127.0.0.1:8899/
 npm run scan -- https://your-mcp-server/   # or any URL
 ```
 
+Scan an **A2A Agent Card** too (agent-card poisoning / inter-agent abuse — the
+agent-layer analog), against `standalone/hostile-a2a-agent` or any A2A agent:
+
+```bash
+npm run scan -- --card http://127.0.0.1:8898/.well-known/agent-card.json
+```
+
+It flags a hidden instruction in the card `description` and an exfil instruction
+in any skill `description`.
+
 Against `standalone/hostile-mcp-server` (start it first) you'll see:
 
 ```
