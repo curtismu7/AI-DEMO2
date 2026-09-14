@@ -554,6 +554,51 @@ export const agentFlowDiagram = {
     emit();
   },
 
+  /**
+   * DaVinci widget sign-in (/davinci-login-guide, routes/davinciLogin.js).
+   * Called from DavinciLoginWidget.jsx around its own fetch/skRenderScreen
+   * calls — there is no BFF→browser channel for this flow, so the page
+   * instruments itself, same as startMcpToolCall/completeMcpToolCall do for
+   * the agent's own fetches.
+   */
+  startDavinciWidgetLogin() {
+    state.phase = 'running';
+    state.toolName = 'davinci-widget-login';
+    state.hint = null;
+    state.serverEvents = [];
+    state.steps = [
+      { id: 'sdk-token', title: 'BFF — POST /sdk-token', detail: 'Minting a DaVinci SDK token and arming a one-time nonce', status: 'active' },
+      { id: 'widget-flow', title: 'davinci.js — runs the flow', detail: 'Rendering the flow’s own screens to its final node', status: 'pending' },
+      { id: 'widget-session', title: 'BFF — POST /widget-session', detail: 'Verifying tokens and establishing the session', status: 'pending' },
+    ];
+    state.updatedAt = Date.now();
+    emit();
+  },
+
+  /** Marks one DaVinci widget step done (and activates the next pending one). */
+  updateDavinciWidgetStep(id, status, detail) {
+    const idx = state.steps.findIndex((s) => s.id === id);
+    if (idx === -1) return;
+    state.steps = state.steps.map((s, i) => {
+      if (s.id === id) return { ...s, status, detail: detail || s.detail };
+      if (status === 'done' && i === idx + 1 && s.status === 'pending') return { ...s, status: 'active' };
+      return s;
+    });
+    state.updatedAt = Date.now();
+    emit();
+  },
+
+  /** @param {boolean} ok @param {string|null} [detail] */
+  completeDavinciWidgetLogin(ok, detail = null) {
+    state.phase = ok ? 'done' : 'error';
+    if (!ok) {
+      const idx = state.steps.findIndex((s) => s.status !== 'done');
+      if (idx !== -1) state.steps[idx] = { ...state.steps[idx], status: 'error', detail: detail || state.steps[idx].detail };
+    }
+    state.updatedAt = Date.now();
+    emit();
+  },
+
   /** Call when MFA challenge modal opens (user is completing step-up for tools/list gate). */
   startMfaChallenge() {
     const mfaStep = state.steps.find((s) => s.id === 'mfa');
@@ -675,6 +720,21 @@ export const agentFlowDiagram = {
       });
     }
     state.phase = ok ? 'running' : 'error';
+    state.updatedAt = Date.now();
+    emit();
+  },
+
+  /**
+   * Record a device-MFA outcome as a phase row. routes/mfa.js reports these
+   * only to PostHog, so the trace store never saw a real MFA step-up; the row
+   * reaches it through the same subscription as the pipeline's own phases.
+   * Device MFA only: CIBA has its own evidence (the ciba-poll token event), and
+   * an MFA phase on a CIBA approval would light the System Flow Map's MFA box.
+   * @param {'mfa_challenge_completed'|'mfa_challenge_failed'} phase
+   */
+  recordMfaPhase(phase) {
+    const row = { phase, label: PHASE_LABELS[phase] || phase, detail: '—' };
+    state.serverEvents = [...state.serverEvents, row].slice(-MAX_SERVER_EVENTS);
     state.updatedAt = Date.now();
     emit();
   },

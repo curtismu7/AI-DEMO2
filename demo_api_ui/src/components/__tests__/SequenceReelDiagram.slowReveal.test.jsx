@@ -3,7 +3,7 @@
 // has already finished, so the counter is sitting at the end of the trace and
 // the timer never arms. The reveal then silently does nothing.
 import React from "react";
-import { render, act } from "@testing-library/react";
+import { render, act, fireEvent } from "@testing-library/react";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 const STEPS = [
@@ -91,6 +91,14 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     // is shadowed for any <div> and silently never fires.
     const scrollTo = vi.fn();
     vi.spyOn(HTMLElement.prototype, "scrollTo").mockImplementation(scrollTo);
+    // The follow skips when the diagram fits; jsdom reports 0 for both, so stub
+    // a content wider than the box so the guard lets the follow run.
+    vi.spyOn(HTMLElement.prototype, "scrollWidth", "get").mockImplementation(function () {
+      return String(this.className || "").includes("srd-scroll") ? 2000 : 0;
+    });
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(function () {
+      return String(this.className || "").includes("srd-scroll") ? viewRight - viewLeft : 0;
+    });
     vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function () {
       const cls = String(this.getAttribute?.("class") || this.className?.baseVal || this.className || "");
       if (cls.includes("srd-scroll"))
@@ -235,23 +243,20 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     const rect = (top, bottom) => ({ top, bottom, height: bottom - top, left: 0, right: 800, width: 800 });
     vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function () {
       const cls = String(this.getAttribute?.("class") || "");
-      if (cls.includes("srd-toolbar--top")) return rect(0, 40);
-      if (cls.includes("srd-toolbar--bottom")) return rect(560, 600);
       if (cls.includes("srd-actor-box--footer")) return rect(footer[0], footer[1]);
-      if (cls.split(" ").includes("srd-root")) return rect(0, 600);
+      if (cls.split(" ").includes("srd-scroll")) return rect(0, 600);
       if (this.getAttribute?.("role") === "button") return rect(step[0], step[1]);
       return rect(0, 0);
     });
     return () => scrollTo.mock.calls.map(([a]) => a).filter((a) => a && "top" in a);
   };
 
-  it("brings the newest step and the footer out from under the pinned bottom row", () => {
-    // Step bottom 520 and footer bottom 580 are both inside the scroller (600),
-    // but the bottom row covers 560-600: measuring against the scroller alone
-    // left the footer under the row and never scrolled.
-    const verticalCalls = withBand({ step: [500, 520], footer: [530, 580] });
+  it("scrolls down to keep the newest step's lane footer in view", () => {
+    // The scroll box is 600 tall. The footer's bottom (650) is below it, so the
+    // follow scrolls down by the overshoot to bring the lane names on screen.
+    const verticalCalls = withBand({ step: [500, 520], footer: [560, 650] });
     render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
-    expect(verticalCalls().at(-1)?.top).toBe(20);
+    expect(verticalCalls().at(-1)?.top).toBe(50);
   });
 
   it("does not chase the footer past a mid-trace active step", () => {
@@ -311,6 +316,50 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     expect(drawnSteps(container)).toBe(4);
     expect(titles).toContain("gateway");
     for (const hidden of ["agent", "llm", "api-key-swap"]) expect(titles).not.toContain(hidden);
+  });
+
+  it("labels the heuristics lane as the AI agent", () => {
+    store.state = {
+      steps: [
+        step("prompt", "CHAT", "done"),
+        step("llm", "HEURISTICS", "done"),
+        step("reply", "HEURISTICS", "done"),
+      ],
+      trace: { runId: 1, outcome: "ok" },
+    };
+    const { container } = render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
+    const headers = [...container.querySelectorAll(".srd-actor-label")].map((t) => t.textContent);
+    expect(headers).toContain("AI AGENT");
+    expect(headers).not.toContain("HEURISTICS");
+  });
+
+  it("draws the A2A hops right after the tool choice, with their status", () => {
+    store.state = {
+      steps: [
+        step("prompt", "CHAT", "done"),
+        step("llm", "HEURISTICS", "done"),
+        step("reply", "HEURISTICS", "done"),
+      ],
+      trace: {
+        runId: 1,
+        outcome: "ok",
+        tokenEvents: [
+          { id: "a2a-exchange1", status: "active" },
+          { id: "a2a-exchange2", status: "error" },
+        ],
+      },
+    };
+    const { container } = render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
+    const rows = [...container.querySelectorAll('g[role="button"]')];
+    const labels = rows.map((g) => g.querySelector("text")?.textContent || "");
+    const at = (text) => labels.findIndex((l) => l.includes(text));
+    expect(at("A2A Exchange #1")).toBe(at("llm") + 1);
+    expect(at("A2A Exchange #2")).toBe(at("reply") - 1);
+    expect(rows[at("A2A Exchange #2")].getAttribute("class")).toContain("srd-status-error");
+    // Hops with no event stay pending and are not drawn.
+    expect(labels.some((l) => l.includes("Agent Card"))).toBe(false);
+    const headers = [...container.querySelectorAll(".srd-actor-label")].map((t) => t.textContent);
+    expect(headers).toContain("A2A");
   });
 
   it("does not start a narration on mount when slow mode is already on", () => {
@@ -385,5 +434,109 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     act(() => vi.advanceTimersByTime(DEFAULT_MS));
     expect(widthAt()).toBe(full);
     expect(lanesAt()).toBe(3);
+  });
+
+  it("gives every hop a full-row hit target, including arrows with no box", () => {
+    // authorize is drawn as an ARROW (its lane differs from the previous hop), so
+    // it has no note box — only a 2px line and a small label. Every drawn row
+    // must still carry a .srd-hitbox so the whole row is clickable.
+    store.state = {
+      steps: [
+        step("prompt", "CHAT", "done"),
+        step("agent", "AGENT", "done"),
+        step("authorize", "AUTHZ", "done"),
+      ],
+      trace: { runId: 1, outcome: "ok" },
+    };
+    const { container } = render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
+    const rows = [...container.querySelectorAll('g[role="button"]')];
+    expect(rows.length).toBe(3);
+    // Every row — note or arrow — has a hit target.
+    for (const g of rows) expect(g.querySelector("rect.srd-hitbox")).not.toBeNull();
+    // Every row also carries a visible box — a note box, or an arrow's label box.
+    for (const g of rows) expect(g.querySelector("rect.srd-note-box, rect.srd-label-box")).not.toBeNull();
+    // The authorize row is an arrow: it gets the label box, and a hitbox.
+    const authorizeRow = rows.find((g) => (g.querySelector("text")?.textContent || "").includes("authorize"));
+    expect(authorizeRow.querySelector("rect.srd-label-box")).not.toBeNull();
+    expect(authorizeRow.querySelector("rect.srd-hitbox")).not.toBeNull();
+  });
+
+  it("clicking anywhere on an arrow row opens that hop's detail", () => {
+    const onSelectStep = vi.fn();
+    store.state = {
+      steps: [
+        step("prompt", "CHAT", "done"),
+        step("agent", "AGENT", "done"),
+        step("authorize", "AUTHZ", "done"),
+      ],
+      trace: { runId: 1, outcome: "ok" },
+    };
+    const { container } = render(
+      <SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} onSelectStep={onSelectStep} />,
+    );
+    const authorizeRow = [...container.querySelectorAll('g[role="button"]')]
+      .find((g) => (g.querySelector("text")?.textContent || "").includes("authorize"));
+    // Click the full-row hit target, not the thin line/label.
+    fireEvent.click(authorizeRow.querySelector("rect.srd-hitbox"));
+    expect(onSelectStep).toHaveBeenCalledTimes(1);
+    expect(onSelectStep.mock.calls[0][0]).toMatchObject({ id: "authorize" });
+  });
+
+  // A step can be left stranded at "active" in the store after the run ends —
+  // the MCP hop does exactly this — and the crawling dot then goes on claiming
+  // the tool is still executing long after the flow finished.
+  const withMcpActive = (outcome) => {
+    store.state = {
+      steps: [step("prompt", "CHAT", "done"), step("agent", "AGENT", "done"), step("mcp", "MCP", "active")],
+      trace: { runId: 1, outcome },
+    };
+    return render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />).container;
+  };
+
+  it("stops the running dot once the trace has finished", () => {
+    const container = withMcpActive("ok");
+    expect(container.querySelector(".srd-active-dot")).toBeNull();
+    expect(container.querySelector(".srd-active-pulse")).toBeNull();
+  });
+
+  it("still shows the running dot while the trace is in flight", () => {
+    // The guard above must not kill the running indicator outright.
+    const container = withMcpActive(null);
+    expect(container.querySelector(".srd-active-dot")).not.toBeNull();
+  });
+
+  // Zoom and narration pace survive a reload. Stored values are validated, so a
+  // stale or hand-edited one falls back rather than rendering an unusable
+  // diagram or a select with no matching option.
+  afterEach(() => {
+    localStorage.removeItem("dashboard-seq-zoom");
+    localStorage.removeItem("dashboard-seq-speed");
+  });
+
+  // Rendered with slow mode ON: the transport controls and the speed select only
+  // exist while narrating, so with it off .srd-speed-select is simply absent.
+  // Zoom is in the toolbar either way.
+  const renderWithSteps = () => {
+    store.state = {
+      steps: [step("prompt", "CHAT", "done"), step("agent", "AGENT", "done")],
+      trace: { runId: 1, outcome: "ok" },
+    };
+    return render(<SequenceReelDiagram slowMode onToggleSlowMode={noop} />).container;
+  };
+
+  it("restores zoom and narration speed from storage", () => {
+    localStorage.setItem("dashboard-seq-zoom", "80");
+    localStorage.setItem("dashboard-seq-speed", "4000");
+    const c = renderWithSteps();
+    expect(c.querySelector(".srd-zoom-reset").textContent).toContain("80");
+    expect(c.querySelector(".srd-speed-select").value).toBe("4000");
+  });
+
+  it("ignores a stored zoom out of range or a speed that is not on the menu", () => {
+    localStorage.setItem("dashboard-seq-zoom", "9999");
+    localStorage.setItem("dashboard-seq-speed", "1234");
+    const c = renderWithSteps();
+    expect(c.querySelector(".srd-zoom-reset").textContent).toContain("130");
+    expect(c.querySelector(".srd-speed-select").value).toBe("2600");
   });
 });

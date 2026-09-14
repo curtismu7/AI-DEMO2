@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchWidgetConfig, loadWidget } from "../lib/davinciWidgetClient";
+import { fetchWidgetConfig, loadWidget, postWidgetSession } from "../lib/davinciWidgetClient";
+import { installWidgetTrace } from "../lib/davinciWidgetTrace";
+import { agentFlowDiagram } from "../services/agentFlowDiagramService";
 import "./DavinciLoginPage.css";
 
 // The live DaVinci widget, embedded as the "Try It Live" section of
@@ -11,27 +13,47 @@ import "./DavinciLoginPage.css";
 // screen collects it — this component starts the flow immediately with no
 // identifier field of its own.
 //
-// The widget ends at a DaVinci sessionToken, not an OIDC code — Ping's docs tie
-// OIDC issuance to the redirect integration, and the two are mutually exclusive
-// on the flow's "PingOne Flow" toggle. So on success we hand PingOne the DaVinci
-// session as the DV-ST cookie and follow the authorize URL the BFF prepared:
-// PingOne recognises the session, does not re-challenge, and redirects to
-// /davinci-login/callback with a code plus an ID token echoing the BFF's nonce.
+// The flow ends with the PingOne Authentication connector's "Return Success
+// Response (Widget Flows)", which hands OIDC tokens to successCallback. The page
+// posts them to the BFF, which verifies them and signs the user in. The widget
+// stays on the page and reports the sign-in through onSignedIn; installWidgetTrace
+// records each API call (addresses and status only) for the lesson's Call
+// Inspector while a run is in flight.
 
-export default function DavinciLoginWidget() {
-  const [status, setStatus] = useState("loading"); // loading | flow | error
+export default function DavinciLoginWidget({ onCall, onStart, onSignedIn }) {
+  const [status, setStatus] = useState("loading"); // loading | flow | signedIn | error
   const [error, setError] = useState(null);
   const [flowVersion, setFlowVersion] = useState(null);
   const containerRef = useRef(null);
   // skRenderScreen mutates the container directly. StrictMode double-invokes
   // effects, so without this the flow renders twice into the same node.
   const renderedRef = useRef(false);
+  // Whether a call belongs to the run. installWidgetTrace asks this when each
+  // call STARTS: asking when its record arrives dropped /widget-session live,
+  // because the trace reads that body after the sign-in has finished. The trace
+  // itself is installed once per onCall identity below, independent of start()'s
+  // own lifecycle, so StrictMode's mount/uninstall/remount (which happens before
+  // start()'s first await resolves) cannot leave it uninstalled for the run.
+  const recordingRef = useRef(false);
+
+  useEffect(
+    () => (onCall ? installWidgetTrace(onCall, window, () => recordingRef.current) : undefined),
+    [onCall],
+  );
 
   const start = useCallback(async () => {
     setStatus("loading");
     setError(null);
+    onStart?.();
+    recordingRef.current = true;
+    // Live trace for /davinci-login-guide's "The Flow" section (2026-09-12
+    // tech debt) — there is no BFF→browser channel for this flow, so the page
+    // instruments its own calls into agentFlowDiagramService, same as
+    // startMcpToolCall/completeMcpToolCall do for the agent's fetches.
+    agentFlowDiagram.startDavinciWidgetLogin();
     try {
       const cfg = await fetchWidgetConfig();
+      agentFlowDiagram.updateDavinciWidgetStep("sdk-token", "done");
       setFlowVersion(cfg.flowVersion || null);
       const davinci = await loadWidget();
       setStatus("flow");
@@ -46,22 +68,44 @@ export default function DavinciLoginWidget() {
           includeHttpCredentials: true,
         },
         useModal: false,
-        successCallback: (response) => {
-          if (response?.sessionToken) {
-            document.cookie = `DV-ST=${response.sessionToken}; path=/; max-age=86400; secure; samesite=lax`;
+        successCallback: async (response) => {
+          agentFlowDiagram.updateDavinciWidgetStep("widget-flow", "done");
+          try {
+            const result = await postWidgetSession({
+              idToken: response?.id_token,
+              accessToken: response?.access_token,
+            });
+            recordingRef.current = false;
+            agentFlowDiagram.updateDavinciWidgetStep("widget-session", "done");
+            agentFlowDiagram.completeDavinciWidgetLogin(true);
+            // One-shot signal the app shell listens for (useAuth.js) so TopNav
+            // and route guards flip to signed-in. Dispatch only here, never
+            // from a listener (that loops — see AIAgent.js:2301).
+            window.dispatchEvent(new CustomEvent("userAuthenticated"));
+            setStatus("signedIn");
+            onSignedIn?.({ username: result?.username || null });
+          } catch (err) {
+            recordingRef.current = false;
+            agentFlowDiagram.completeDavinciWidgetLogin(false, err.message);
+            setError(err.message);
+            setStatus("error");
           }
-          window.location.assign(cfg.authorizeUrl);
         },
         errorCallback: (err) => {
-          setError(err?.message || "The DaVinci flow could not be completed.");
+          recordingRef.current = false;
+          const message = err?.message || "The DaVinci flow could not be completed.";
+          agentFlowDiagram.completeDavinciWidgetLogin(false, message);
+          setError(message);
           setStatus("error");
         },
       });
     } catch (err) {
+      recordingRef.current = false;
+      agentFlowDiagram.completeDavinciWidgetLogin(false, err.message);
       setError(err.message);
       setStatus("error");
     }
-  }, []);
+  }, [onStart, onSignedIn]);
 
   useEffect(() => {
     if (renderedRef.current) return;

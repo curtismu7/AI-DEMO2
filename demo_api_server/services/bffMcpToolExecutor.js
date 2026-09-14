@@ -27,6 +27,48 @@ function setPipelineDeps(deps) {
 }
 
 /**
+ * Ceiling for this file's own tool-call legs (the pipeline run, the direct
+ * tool.invoke fallback, and the no-pipeline gateway/WS call). The wire leg one
+ * layer down already has its own bound (mcpGatewayClient's
+ * MCP_GATEWAY_TIMEOUT_MS, default 30000ms; the WebSocket path's own ~15s
+ * per-call timeout in mcpWebSocketClient.js) — but this file also runs the
+ * RFC 8693 exchange and the BFF-preflight PingOne Authorize call around that
+ * leg, neither of which had a ceiling of its own here, so the call as a whole
+ * was unbounded.
+ *
+ * services/a2aProtocolClient.js's SendMessage leg derives its own bound
+ * (DEFAULT_HANDOFF_TIMEOUT_MS = 90150ms) by budgeting the specialist's
+ * Exchange #2 (2 attempts x 30000ms + 150ms retry delay = 60150ms) plus ONE
+ * more 30000ms as the margin for "the tool call" that follows — this file.
+ * That margin only holds if this call actually returns inside it. 25000ms
+ * keeps it comfortably under that 30000ms margin (5s of headroom for the
+ * in-process work this file does around the wire leg) without cutting a
+ * healthy call any tighter than the wire leg it wraps already is.
+ */
+const DEFAULT_TOOL_CALL_TIMEOUT_MS = 25000;
+
+/**
+ * Bound a tool-call promise so nothing above it waits forever. Same
+ * Promise.race shape as services/a2aProtocolClient.js's withTimeout — none of
+ * the calls wrapped below (pipeline run, tool.invoke, gateway/WS dispatch)
+ * expose an AbortSignal, so this can only stop WAITING on a hang, not cancel
+ * the underlying call; it still settles (success or timeout) and never leaves
+ * a caller blocked past timeoutMs.
+ */
+function withTimeout(operation, timeoutMs, label) {
+  let timer;
+  return Promise.race([
+    Promise.resolve().then(operation),
+    new Promise((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error(`MCP tool call "${label}" timed out (${timeoutMs}ms)`)),
+        timeoutMs,
+      );
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+/**
  * Resolve the flowTraceId for this request and bind a trace-aware pipeline `emit`
  * so phase milestones reach the flow SSE hub — the same live compliance steps the
  * chip/direct path (POST /api/mcp/tool) shows. Without this the shared deps.emit
@@ -64,7 +106,11 @@ async function callMcpToolAsAgent({ name, args, userId, userToken, sessionId, to
       { code: resolved.blockCode || 'user_token_forwarding_disabled', httpStatus: resolved.blockHttpStatus || 403 },
     );
   }
-  return callMcpToolInternal(name, args || {}, agentToken, userId, tokenEvents, sessionId);
+  return withTimeout(
+    () => callMcpToolInternal(name, args || {}, agentToken, userId, tokenEvents, sessionId),
+    DEFAULT_TOOL_CALL_TIMEOUT_MS,
+    name,
+  );
 }
 
 /**
@@ -186,7 +232,11 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
       });
     }
     const _toolStart = Date.now();
-    const result = await tool.invoke(args, { configurable: { agentContext: { agentToken, userId, tokenEvents, sessionId } } });
+    const result = await withTimeout(
+      () => tool.invoke(args, { configurable: { agentContext: { agentToken, userId, tokenEvents, sessionId } } }),
+      DEFAULT_TOOL_CALL_TIMEOUT_MS,
+      name,
+    );
     const _duration = Date.now() - _toolStart;
     const resultStr = typeof result === 'string' ? result : JSON.stringify(result);
     try {
@@ -241,7 +291,7 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
   const _runId = agentRunRegistry.startRun(_agentKey, { tool: name, userId: effectiveReq.session?.user?.id || null });
   let outcome;
   try {
-    outcome = await runMcpToolPipeline(ctx);
+    outcome = await withTimeout(() => runMcpToolPipeline(ctx), DEFAULT_TOOL_CALL_TIMEOUT_MS, name);
   } finally {
     agentRunRegistry.endRun(_runId);
   }
@@ -340,7 +390,7 @@ async function runPipelineForSim({ tool, params, req, useCaseId, vertical }) {
   const _agentKey = deriveAgentKey(req, null, req.session?.user?.oauthId || req.session?.user?.id || null);
   const _runId = agentRunRegistry.startRun(_agentKey, { tool, userId: req.session?.user?.id || null });
   try {
-    return await runMcpToolPipeline(ctx);
+    return await withTimeout(() => runMcpToolPipeline(ctx), DEFAULT_TOOL_CALL_TIMEOUT_MS, tool);
   } finally {
     agentRunRegistry.endRun(_runId);
   }
@@ -397,7 +447,7 @@ async function executeBffToolWithToken({ name, args, req = null, tokenEvents = [
   const _runId = agentRunRegistry.startRun(_agentKey, { tool: name, userId: effectiveReq.session?.user?.id || null });
   let outcome;
   try {
-    outcome = await runMcpToolPipeline(ctx);
+    outcome = await withTimeout(() => runMcpToolPipeline(ctx), DEFAULT_TOOL_CALL_TIMEOUT_MS, name);
   } finally {
     agentRunRegistry.endRun(_runId);
   }

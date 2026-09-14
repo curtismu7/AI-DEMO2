@@ -41,7 +41,7 @@ boundary before choosing it) — not a defect being carried forward.
 | --- | --- |
 | Audience | Operator tool (real rotation) |
 | Steps owned | Rotate → vault → `.env` → recreate containers → patch k8s secrets |
-| Worker app | **Hard-excluded** — never appears in the list |
+| Worker app | ~~Hard-excluded~~ — see 2026-09-13 amendment below: rotatable as of `2026-09-13-worker-credential-rotation-design.md` |
 | k8s | In scope, same pass as local |
 | Execution model | CLI does the work; page launches it **detached** and tails its log |
 | Secret display | **Masked only** (`••••••••` + short SHA-256 fingerprint). The raw value is never shown, never returned to the browser |
@@ -194,7 +194,11 @@ Runner: jest in `demo_api_server`, scoped per the repo's "scoped by default" rul
 
 ## Out of scope
 
-- Rotating the worker credential itself.
+- ~~Rotating the worker credential itself.~~ **Amendment (2026-09-13):**
+  superseded — see `docs/secret-rotation/2026-09-13-worker-credential-rotation-design.md`.
+  The worker is no longer hard-excluded; every other guardrail in this doc
+  (never in argv, never printed/returned, the two-stage confirm, restart
+  required to take effect) still applies to it exactly as to any other app.
 - Scheduled/automatic rotation.
 - Rewriting history or any remediation of already-leaked values — that is
   `docs/incident-response/`'s job, and rotation at source is the only real fix.

@@ -3075,6 +3075,27 @@ if (require.main === module) {
             console.warn('[startup] Helix key migration skipped:', e.message);
         }
 
+        // One-time A2A Agent Card signing key persistence (TECH_DEBT.md
+        // 2026-09-11 "Agent Card signing key is process-ephemeral", RESOLVED).
+        // Same vault-write-during-startup window as the Helix key migration
+        // above — VAULT_PASSWORD is only available here, before
+        // loadVaultIntoConfigStore's finally deletes it. Idempotent and
+        // best-effort — a failure here must NEVER block startup
+        // (getCardSigningKey()'s ephemeral fallback still resolves a key).
+        try {
+            const { ensureCardSigningKeyPersisted } = require('./services/a2aCardSigningService');
+            const { DEFAULT_VAULT_PATH } = require('./services/vaultLoader');
+            const r = await ensureCardSigningKeyPersisted({
+                vaultPath: process.env.VAULT_PATH || DEFAULT_VAULT_PATH,
+                vaultPassword: _vaultPwForMigration,
+            });
+            if (r.persisted) {
+                console.log(`[startup] A2A card signing key ${r.generated ? 'generated and persisted to' : 'loaded from'} vault`);
+            }
+        } catch (e) {
+            console.warn('[startup] A2A card signing key persistence skipped:', e.message);
+        }
+
         // Helix configuration check: warn if no API key is resolvable so the
         // operator knows the NL agent will run heuristics-only.
         try {

@@ -103,7 +103,170 @@ decision.
 operator-only) on the `/api/newrelic` mount, then check that `/monitoring/p1az`
 still loads for the intended audience.
 
-### [ ] 2026-09-12 — DaVinci widget login has no live flow trace
+### [x] 2026-09-13 — worker-token mint has no fallback if the vault and `.env` drift
+
+**What's wrong.** `demo_api_server/scripts/refresh-service-envs.js`'s worker-token
+resolution (`main()` and `getRotatableVaultKeyMap()`) is vault-first for
+`PINGONE_WORKER_CLIENT_SECRET`: it prefers a vault-stored value over the raw
+`.env` file. `PINGONE_WORKER_CLIENT_SECRET` is in `vault-migrate.js`'s
+migration allowlist, so on any deployment that has run that migration the
+vault value wins on *every* `refresh-service-envs` run, not just during an
+in-flight worker rotation. If the vault entry and the working `.env` value
+ever drift (e.g. the vault holds a stale value from a rotation whose `.env`
+write-back never happened), the token mint fails and `refresh-service-envs`
+degrades non-fatally — `.env` propagation is silently skipped, logged as a
+warning, with no automatic fallback to the other candidate value.
+
+**Why it wasn't fixed now.** Surfaced by the final whole-branch review of
+`docs/secret-rotation/2026-09-13-worker-credential-rotation-design.md`'s
+implementation. This exact non-fatal-skip-on-failure shape already exists for
+every other cause of a worker-token mint failure (wrong password, network
+blip, expired secret) — this branch adds one more trigger for a pre-existing
+failure mode, not a new one, so it doesn't block that branch's merge. A retry
+(try the vault-supplied secret, fall back to the `.env` value once if that
+fails) would close the gap in a few lines, but adding new untested retry
+logic inside a single, no-second-chance final-review fix wave was judged
+riskier than the gap it would close.
+
+**The real fix.** Add a one-shot retry in both `main()` and
+`getRotatableVaultKeyMap()`'s worker-token mint: on a mint failure with the
+vault-first secret, retry once with `apiVars.PINGONE_WORKER_CLIENT_SECRET`
+(only if it differs from the vault value) before throwing/skipping. Give it
+its own tests (mint fails with vault value, succeeds with `.env` value;
+both fail, still degrades non-fatally) rather than folding it into an
+unrelated change.
+
+**RESOLVED 2026-09-13** (branch `worktree-agent-a002b1e84d5aab240`) — exactly
+the fix guessed above. Added a local `mintWorkerToken(getToken, envId,
+workerId, vaultSecret, envSecret, region)` helper in
+`demo_api_server/scripts/refresh-service-envs.js`: tries `vaultSecret` first,
+and on failure retries once with `envSecret` only if it differs from
+`vaultSecret` (otherwise the original error propagates unchanged, preserving
+the existing non-fatal-skip shape). Both call sites — `main()` and
+`getRotatableVaultKeyMap()` — now go through it, each keeping its own
+surrounding try/catch and error wording. Tests added to
+`demo_api_server/tests/refreshServiceEnvsWorkerVaultFirst.test.js` (the
+`main()` case) and `demo_api_server/tests/refreshServiceEnvsRotatableKeys.test.js`
+(the `getRotatableVaultKeyMap()` case), each proving the retry fires on drift
+and that an identical `.env`/vault value degrades non-fatally with no second
+attempt — both verified red against the pre-fix code before the fix landed.
+
+### [x] 2026-09-13 — HITL consent can be approved with no session
+
+**What's wrong.** `POST /api/demo-agent/consent`
+(`demo_api_server/routes/demoAgentRoutes.js`, the `/consent` handler) checks
+ownership only when both sides are known:
+`if (entry.userId && userSub && entry.userId !== userSub)`. The router runs
+`agentGuestSessionMiddleware` (`router.use` at the top of the file), which lets
+a request with no session through with `req.agentContext = null`
+(`middleware/agentSessionMiddleware.js`, `agentGuestSessionMiddleware`). With no
+session `userSub` is `null`, the ownership check is skipped, and
+`recordConsentDecision(consentId, 'approve')` runs for any pending challenge.
+The only guard is that `consentId` must be a v4 UUID, so exploiting it needs a
+leaked challenge id (for example from a trace, a log line, or a gateway 428
+body, which carries `challengeId`). The `/api/demo-agent` entry in `server.js`'s
+path list is `refreshIfExpiring`, not an auth gate.
+
+**Why it wasn't fixed now.** Found while sizing whether LibreChat could demo
+HITL consent through the agent-gateway door. That work stayed out of scope, and
+the fix changes behavior on the HITL consent path (REGRESSION_PLAN §1), so it
+belongs in its own PR with its own tests rather than bundled into a doc or demo
+change.
+
+**Real fix.** Treat a missing `userSub` as unauthenticated for this route:
+answer 401 (`{ error, need_auth: true }`) before looking up the challenge, and
+keep the 403 for a signed-in user who does not own it. Add a supertest spec for
+both, plus the existing approve path, so the HITL retry (`_hitl_challenge_id`)
+still works for the owner.
+
+**RESOLVED — branch `fix/hitl-consent-requires-session`.** Confirmed the
+current code still matched this entry byte-for-byte (`if (entry.userId &&
+userSub && entry.userId !== userSub)`). Added one guard right after `userSub`
+is derived: `if (!userSub) return res.status(401).json({ error: 'Session
+expired', need_auth: true })`, placed BEFORE `hitlServiceClient.getChallengeStatus(consentId)`
+so an unauthenticated caller can't use the 404/403/200 response split to learn
+whether a given `consentId` exists. The existing ownership check (now always
+reached with a truthy `userSub`) and the 404/409 branches are unchanged.
+
+`_hitl_challenge_id` turned out not to be a distinct branch inside this
+handler — it's the reserved tool-arg a retried tool call carries elsewhere
+(`services/mcpToolPipeline.js`, `services/verticalMcpExecution.js`), so
+"still works for the owner" is covered by the existing approve-path test,
+not a separate code path to test here.
+
+New spec `demo_api_server/tests/demoAgentConsentRoute.test.js` covers: no
+session + valid consentId → 401 `{ error, need_auth: true }` with
+`hitlServiceClient.getChallengeStatus` and `recordConsentDecision` both
+asserted never called; signed-in non-owner → 403, decision never recorded;
+signed-in owner approve/reject → 200 `{ recorded, approved }`, decision
+recorded with the right verb — a regression guard on the pre-existing
+legitimate flow. Also ran the two other suites that already exercise `POST
+/api/demo-agent/consent` (`tests/routes/hitlGateway.integration.test.js`,
+`tests/routes/hitlGateway.regression.test.js`) — both mock the session
+middleware to always attach a userId, so neither exercised the no-session gap
+and neither needed updating; both still pass unchanged.
+
+### [x] 2026-09-13 — DaVinci widget sessions have no refresh token
+
+**What's wrong.** A widget sign-in (`POST /api/davinci-login/widget-session`)
+stores the tokens the flow's "Return Success Response (Widget Flows)" node
+returned, and that node returns no refresh token. `oauthTokens.refreshToken` is
+`null`, so the session ends when the access token expires (PingOne's default
+lifetime) instead of refreshing like a redirect login.
+
+**Why it wasn't fixed now.** The fix was to make widget sign-in work at all; the
+only refresh-token path is the `/authorize` hop that cannot reach PingOne's
+session cookie from the widget's cross-site calls (REGRESSION_PLAN §4
+2026-09-13).
+
+**Real fix.** Either request `offline_access` on the node if the connector
+honours it for widget flows (unverified), or re-run the widget flow when the
+access token nears expiry — the PingOne session it created still exists, so a
+Check Session branch can return fresh tokens without a new sign-on.
+
+**RESOLVED 2026-09-13** (branch `fix/davinci-widget-silent-refresh-and-trace`)
+— implemented the second option; the `offline_access` option stays
+unattempted (still unverified PingOne connector behavior). `routes/davinciLogin.js`'s
+`establishSession` now sets `req.session.davinciWidgetLogin = true` on a widget
+sign-in — the only signal a later `/widget-session` call has that it is a
+silent refresh of an already-established session rather than a first login,
+since the widget's tokens carry no refresh token to distinguish the two. A new
+`isWidgetAccessTokenExpiring(session, marginMs = 5 * 60_000)` helper (margin
+mirrors `middleware/tokenRefresh.js`'s own 5-minute `MARGIN`) flags a
+widget-only session within 5 minutes of its access token's expiry, surfaced to
+the page via a new cheap `GET /api/davinci-login/session-status` (no tokens,
+just `{ davinciWidgetLogin, needsRefresh }`). On a refresh call, `establishSession`
+now skips `req.session.regenerate()` — regenerating on every silent refresh
+(not just a first login) would wipe unrelated session state (agent context,
+HITL state, ...) each time the access token neared expiry.
+
+The frontend piece (`demo_api_ui/src/lib/davinciWidgetClient.js`'s
+`refreshWidgetSessionIfNeeded`, wired into `DavinciLoginGuidePage.jsx`'s mount
+effect) re-runs the exact same flow execution the initial sign-in used — a
+fresh `/sdk-token` mint, `davinci.skRenderScreen` in a detached invisible
+container, then `POST /widget-session` — reusing the browser's existing
+PingOne session so no visible UI or user interaction is needed if PingOne
+still recognizes it; a failure is non-fatal and the session simply expires as
+it does today. **Deviation from the entry's literal ask, stated up front:**
+the trigger is scoped to `/davinci-login-guide`'s own mount (a returning
+visitor to the lesson page), not a global app-wide poller. A true "refreshes
+from anywhere in the app" trigger would need either a new always-on polling
+hook in `useAuth.js` or a new interceptor in the shared `apiClient.js` — both
+protected, widely-shared, heavily order-sensitive files (`apiClient`'s
+interceptor tests pin registration order by index) — for a demo-lesson-only
+session type. That tradeoff was judged not worth the risk for this fix; the
+gap is left as a scoping note here rather than a new tech-debt entry, since
+it's a direct, known consequence of this fix's own design choice, not a
+newly-discovered issue.
+
+Tests: `demo_api_server/tests/routes/davinciLogin.test.js` (`isWidgetAccessTokenExpiring`
+unit cases, `GET /session-status`, and an end-to-end `/sdk-token` →
+`/widget-session` refresh proving the session is reused — no `regenerate` call
+— and fresh tokens are stored) and `demo_api_ui/src/lib/__tests__/davinciWidgetClient.test.js`
+(`fetchWidgetSessionStatus`, `refreshWidgetSessionIfNeeded`'s detached-container
+run and its non-fatal failure path).
+
+### [x] 2026-09-12 — DaVinci widget login has no live flow trace
 
 **What's wrong.** `/davinci-login-guide` documents the flow with a static
 mermaid diagram (fixed source, not driven by a real run). The repo's live
@@ -117,12 +280,42 @@ that service today, so an actual widget run can't be replayed the same way.
 lesson now, live trace later) rather than wiring new instrumentation into the
 widget flow in the same change.
 
-**Real fix.** Emit step events from `/sdk-token` and `/callback` (and the
-widget's `successCallback`/`errorCallback`) into `agentFlowDiagramService`,
+**Real fix.** Emit step events from `/sdk-token` and `/widget-session` (the
+widget signs in there since 2026-09-13; `/callback` is no longer on its path)
+and the widget's `successCallback`/`errorCallback` into `agentFlowDiagramService`,
 then render them via `AgentFlowDiagramPanel` alongside or instead of the
 static diagram on the guide page.
 
-### [ ] 2026-09-12 — Secret Rotation page: preflight doesn't check vault writability, and one staleness exemption is unbounded
+**RESOLVED 2026-09-13** (branch `fix/davinci-widget-silent-refresh-and-trace`)
+— one correction to the entry: `agentFlowDiagramService.js` lives in
+`demo_api_ui/src/services/`, not the BFF, so there is no BFF→browser channel
+for `/sdk-token` and `/widget-session` to emit into directly. Instead
+`demo_api_ui/src/pages/DavinciLoginWidget.jsx` instruments its own calls to
+those routes plus its `successCallback`/`errorCallback` — the same pattern
+`AIAgent.js` already uses for `startMcpToolCall`/`completeMcpToolCall` around
+its own fetches. Three new methods on `agentFlowDiagram`
+(`startDavinciWidgetLogin`, `updateDavinciWidgetStep`,
+`completeDavinciWidgetLogin`) track a 3-step rail (`sdk-token` → `widget-flow`
+→ `widget-session`), matching the existing step-status/emit contract exactly.
+`AgentFlowDiagramPanel` was already globally mounted on every non-"API traffic
+only" route (`App.js`, gated by `isApiTrafficOnlyPage`) and already opens only
+on an explicit user action (never auto-opened, per its own documented
+invariant) — so no new panel wiring was needed. `WidgetLessonSections.jsx`'s
+"The Flow" section now has an "Open Live Trace" button next to the static
+diagram (reusing the existing `.dvl-retry` button style) that calls
+`agentFlowDiagram.open()`, the same direct-call pattern
+`routes/MonitoringRoutes.js`'s `AgentFlowPage` already uses.
+
+Tests: `demo_api_ui/src/services/__tests__/agentFlowDiagramService.test.js`
+(the three new methods), `demo_api_ui/src/pages/__tests__/DavinciLoginWidget.test.jsx`
+(a successful run marks every step done; a BFF rejection, an `errorCallback`,
+and an `/sdk-token` failure each mark the correct step as the failure point),
+and `demo_api_ui/src/components/davinci/__tests__/WidgetLessonSections.test.jsx`
+(the button opens the panel). No live-backend UI test of the rendered panel
+itself was added — impractical without a running stack — the backend-equivalent
+(service + page instrumentation) tests above are the coverage for this pass.
+
+### [x] 2026-09-12 — Secret Rotation page: preflight doesn't check vault writability, and one staleness exemption is unbounded
 
 **What's wrong.** Three gaps left open after the Secret Rotation admin tool
 (`demo_api_ui/src/pages/SecretRotationPage.jsx`, `scripts/rotate-app-secret.js`)
@@ -168,6 +361,37 @@ None requires design work — the constants and patterns they need
 (`fs.constants.W_OK`, the `rotationContainerPaths.test.js` mocking pattern,
 a second time constant) already exist elsewhere in the same files.
 
+**RESOLVED 2026-09-13** (branch `worktree-agent-a002b1e84d5aab240`) — all three
+gaps fixed as scoped, no surprises:
+
+1. `scripts/rotate-app-secret.js`'s `preflight()` now runs
+   `fs.accessSync(vaultPath, fs.constants.W_OK)` and
+   `fs.accessSync(path.dirname(vaultPath), fs.constants.W_OK)` after the
+   `existsSync` check and before `openVault()`, refusing with "is not
+   writable" on either failure. Test added to
+   `demo_api_server/tests/rotateAppSecretPreflight.test.js` via
+   `jest.spyOn(fs, 'accessSync')`, verified red against the pre-fix code.
+2. Added a test to `demo_api_server/tests/rotationContainerPaths.test.js`
+   pinning `loadVaultSecrets`' `require(path.join(API_ROOT, 'lib', 'vault'))`
+   line. As predicted, the native-root case is byte-identical between the
+   correct and old-buggy forms and cannot discriminate them; the
+   container-root case (a `root` argument diverging from `API_ROOT`, as
+   `CODE_SEARCH_REPO_ROOT` does for real) does — confirmed by temporarily
+   reintroducing the old `root + 'demo_api_server/lib/vault'` form and
+   watching exactly that one test go red.
+3. `routes/secretRotation.js` gained `RESTART_STALE_MS = 10 * 60_000` (10
+   minutes — generous headroom over existing tests' 5-minute-old
+   still-recreating fixture, and well above a normally-seconds-long
+   container recreate). The `inRestart` exemption now raises the staleness
+   threshold to `RESTART_STALE_MS` instead of removing it, so a process that
+   died right after logging `recreating:` still eventually reports `failed`.
+   Two tests added to `demo_api_server/tests/routes/secretRotationRun.test.js`
+   (past-the-bound → failed, within-the-bound → running), both verified red
+   against the pre-fix unbounded exemption.
+
+Full relevant test surface green (70/70 across 8 suites) — see the fix-wave
+PR for the exact command.
+
 ### [ ] 2026-09-11 — A2A wire hop has no proof-of-possession
 
 **What's wrong.** The bearer `verifyA2aBearer` validates is a plain, bearer
@@ -184,7 +408,7 @@ token at all; there is no config flag to flip.
 token-issuing leg to PingFederate / Advanced Identity Cloud, which can bind a
 `cnf` via DPoP or mTLS today.
 
-### [ ] 2026-09-11 — Agent Card signing key is process-ephemeral
+### [x] 2026-09-11 — Agent Card signing key is process-ephemeral
 
 **What's wrong.** `services/a2aCardSigningService.js#getCardSigningKey`
 generates a fresh Ed25519 keypair on first use and holds it only in memory —
@@ -197,6 +421,48 @@ the current key.
 
 **Real fix.** Persist the key (env secret or a keystore) once a third party is
 expected to cache our Agent Cards or verify them after this process restarts.
+
+**RESOLVED 2026-09-13** (branch `worktree-agent-ad0a7e89503f35d06`) — built
+**preemptively, per the repo owner's explicit choice** after being told
+plainly that nothing outside this process caches a card or `jku` yet; this is
+not a response to a new caller showing up.
+
+Added `ensureCardSigningKeyPersisted(opts)` to `a2aCardSigningService.js`,
+called once at boot in `server.js` in the same `VAULT_PASSWORD`-still-available
+window as the pre-existing Helix key migration (that env var is deliberately
+wiped right after the normal startup vault load, so `getCardSigningKey()`
+itself can never reopen the vault at request time). It reads a PKCS#8 PEM from
+the vault under the key `A2A_CARD_SIGNING_PRIVATE_KEY` if one exists; if not,
+generates a fresh Ed25519 keypair exactly as the old fallback always did,
+persists it, then bridges the PEM into
+`process.env.A2A_CARD_SIGNING_PRIVATE_KEY` — the same vault-to-env-bridge
+convention `INTENT_TOKEN_SECRET`/`BFF_INTERNAL_SECRET` already use.
+`getCardSigningKey()` now derives its key from that env var when present,
+falling back to the original ephemeral generation when it's absent (no vault
+configured, or the boot step failed — always non-fatal, startup and card
+signing never block on it).
+
+**Accepted, pre-existing-class limitation, not solved here:** two processes
+racing this on a genuinely empty vault on first boot can each generate a
+different key; the vault's own lost-update guard on `save()` rejects the
+second writer, which this catches and logs non-fatally — that process just
+keeps its own unpersisted key for its own lifetime. Same class of race this
+repo already accepts for every other vault-backed secret it generates rather
+than requires an operator to set.
+
+Tests: `demo_api_server/tests/a2aCardSigningPersistence.test.js` against a
+fake `vaultLib` (the function's own DI seam) — first-boot generate+persist;
+an existing vault entry is read, never regenerated; the SAME key survives
+across a simulated restart (`_resetCardSigningKey()` + clearing the env
+bridge, then re-running the boot step against the same fake vault store); a
+vault error degrades non-fatally with `getCardSigningKey()` still resolving a
+usable key, and the logged warning never contains PEM material; the
+vault-sourced key's public JWK shape (`kty: 'OKP', crv: 'Ed25519'`) matches
+what the JWKS endpoint already serves. Confirmed red first (all 7 failed with
+`_resetCardSigningKey is not a function` against the pre-change file via
+`git stash`), green after restoring the fix. The pre-existing
+`tests/a2aCardSigning.test.js` (JWKS shape, card signing/verification, jku
+pinning) passes unchanged — 2 suites / 15 tests total.
 
 ### [ ] 2026-09-11 — `POST /a2a/specialists/:vertical` now requires a delegated token
 
@@ -214,7 +480,7 @@ the Exchange #1 delegated token.
 the requirement in the Agent Card's security scheme description if that
 happens.
 
-### [ ] 2026-09-11 — `bffMcpToolExecutor` sets no timeout of its own
+### [x] 2026-09-11 — `bffMcpToolExecutor` sets no timeout of its own
 
 **What's wrong.** `services/bffMcpToolExecutor.js`'s tool call has no timeout
 of its own, so the only ceiling above it is whatever the caller imposes.
@@ -229,7 +495,52 @@ found it; no reported hang today.
 **Real fix.** Give `bffMcpToolExecutor` its own timeout so callers don't have
 to derive their ceiling from an assumption about an unbounded leg.
 
-### [ ] 2026-09-11 — HTTP transport drops the specialist's token-chain rows
+**RESOLVED 2026-09-13** (branch `worktree-agent-aef8cc1a91049b771`) — exactly
+the fix guessed above, applied to all five of the file's tool-call legs:
+`callMcpToolAsAgent`'s `callMcpToolInternal(...)` call, the no-pipeline
+`tool.invoke(...)` fallback in `executeBffTool`, and the `runMcpToolPipeline(ctx)`
+call in each of `executeBffTool`, `runPipelineForSim`, and
+`executeBffToolWithToken` (the A2A specialist path `a2aProtocolClient.js`
+actually budgets around). Added a local `withTimeout(operation, timeoutMs,
+label)` helper (same `Promise.race` shape as `a2aProtocolClient.js`'s own
+`withTimeout` — no shared util was extracted, since the two files' versions
+already differ slightly and this one didn't need the injectable-timers
+parameter `a2aDelegationService.js`'s copy has) and a `DEFAULT_TOOL_CALL_TIMEOUT_MS
+= 25000` constant.
+
+**Why 25000ms.** `a2aProtocolClient.js`'s `DEFAULT_HANDOFF_TIMEOUT_MS` (90150ms)
+budgets the specialist's Exchange #2 (2 attempts x 30000ms + 150ms retry delay
+= 60150ms) plus one more `DEFAULT_EXCHANGE_TIMEOUT_MS` (30000ms) as the margin
+for "the tool call" that follows — this file. That assumption only holds if
+this call actually returns inside 30000ms, which nothing enforced before this
+fix. 25000ms sits comfortably under that 30000ms margin (5s of headroom for
+the RFC 8693 exchange and BFF-preflight PingOne Authorize work this file does
+around the wire leg), without cutting a healthy call tighter than the wire leg
+it wraps already is one layer down (`mcpGatewayClient`'s
+`MCP_GATEWAY_TIMEOUT_MS`, default 30000ms; the WebSocket path's own ~15s
+per-call timeout).
+
+**How it was verified to actually bound a hang, not just race a timer.**
+`demo_api_server/tests/bffMcpToolExecutor.timeout.test.js` mocks
+`runMcpToolPipeline` to return a promise that never settles
+(`new Promise(() => {})`), drives it with `jest.useFakeTimers()` +
+`jest.advanceTimersByTimeAsync(25001)`, and asserts the call rejects with an
+error naming both the tool and the timeout value
+(`/"get_my_accounts" timed out \(25000ms\)/`) instead of hanging. Confirmed
+red first: run against the pre-fix file (temporarily reverted via
+`git checkout --`), the same test failed by exceeding **jest's own 30000ms
+test timeout** — proof the call was genuinely unbounded, not merely slow.
+Restoring the fix turned it green in 1.3s. A second test in the same file
+pins the regression guard: a pipeline call that resolves normally still
+returns the exact same success shape as before. The full pre-existing
+`bffMcpToolExecutor`-adjacent surface (38 suites / 471 tests, including
+`tests/bffMcpToolExecutor.runRegistry.test.js`,
+`src/__tests__/bffMcpToolExecutor.runPipelineForSim.test.js`, and
+`src/__tests__/a2aProtocolClient.test.js`) still passes unchanged — the new
+timeout never fires against any mocked call in that surface, since all of
+them resolve well within 25000ms.
+
+### [x] 2026-09-11 — HTTP transport drops the specialist's token-chain rows
 
 **What's wrong.** Ruling 14 (UC2's declared chain matching what is emitted)
 holds for the in-process path. On the HTTP transport,
@@ -245,6 +556,43 @@ exercises and its chain is complete.
 **Real fix.** Thread a real `tokenEvents` array through the HTTP request (e.g.
 off `req`) if the HTTP transport gets a real caller that needs the specialist's
 `a2a-agent2-actor` / `a2a-exchange2` / tool-dispatched rows.
+
+**RESOLVED 2026-09-13** (branch `worktree-agent-a44c24ee7bfe426eb`) — built
+**preemptively, per the repo owner's explicit choice**, with
+`A2A_PROTOCOL_HTTP` still off by default and nothing currently exercising
+this path in production.
+
+The `tokenEvents: []` the router already built per-request was already real
+and mutated in place by the specialist executor (Exchange #2, tool dispatch)
+— the actual gap was that nothing ever read it back out to the caller. Fixed
+by adding an `exposeTokenEvents` flag to the executor's `ctx` (set only by
+the HTTP router, never by the in-process path): `makeSpecialistExecutor`'s
+`reply` closure now folds `tokenEvents` into `publishReply`'s fields when
+that flag is set, and `publishReply` puts a redacted copy
+(`redactValue(tokenEvents)`, the same JWT-stripping pass `result` already
+goes through) into the JSON-RPC reply's `metadata.tokenEvents`.
+`a2aProtocolClient.js#finishHop` reads that field back out and merges it
+into the caller's own `tokenEvents` array (`tokenEvents.push(...)`) before
+this hop's own `a2a-protocol-message` row — the in-process path never sets
+`metadata.tokenEvents`, so the merge is an unconditional no-op there,
+confirmed unaffected by its own dedicated test.
+
+Tests: `demo_api_server/tests/a2aProtocolHttpTokenChain.test.js` — drives
+the REAL `@a2a-js/sdk` client and server over an actual loopback HTTP
+server (the exact path `A2A_PROTOCOL_HTTP=1` / `opts.baseUrl` selects), with
+only Exchange #2 and the tool call mocked (the same seam every other A2A
+test in this repo mocks at). Proves: the specialist's rows
+(`a2a-agent2-actor`, `a2a-exchange2`, `a2a-tool-dispatch`) reach the
+caller's array, not an empty one; two sequential HTTP requests each start
+fresh with no cross-request leakage; the in-process path (flag off) is
+byte-for-byte unaffected. Confirmed red first (2 of 3 tests fail against
+the pre-fix `git checkout`'d source — the third, proving the in-process
+path is untouched, correctly still passes since it doesn't depend on the
+fix), green after restoring the fix. Full pre-existing A2A test surface (9
+suites / 51 tests: `a2aCardSigning`, `a2aSpecialistRouterContext`,
+`agentTool.a2aGeneralistMismatch`, `a2aSpecialistExecutor`,
+`demoAgentLangGraph.pluginRoute`, `a2aProtocolCards`, `a2aExecution`,
+`a2aProtocolClient`) passes unchanged.
 
 ### [ ] 2026-09-11 — A lost or slow commit response can commit a sign-in the client was told had failed
 

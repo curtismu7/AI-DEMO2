@@ -7,7 +7,7 @@
 # deploys via kubectl to your pre-provisioned SE namespace.
 #
 # Designed to be curl-piped on a brand-new Mac:
-#   curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-demo/main/install-se.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install-se.sh | bash
 #
 # What it does (in order):
 #   1. Installs Homebrew if missing.
@@ -33,7 +33,7 @@
 
 set -euo pipefail
 
-REPO_URL="${REPO_URL:-https://github.com/curtismu7/AI-demo.git}"
+REPO_URL="${REPO_URL:-https://github.com/curtismu7/AI-DEMO2.git}"
 BRANCH="${BANKING_BRANCH:-main}"
 DEFAULT_DIR_NAME="AI-demo"
 NODE_REQUIRED_MAJOR="20"
@@ -439,8 +439,7 @@ run_setup() {
   local dir="$1"
   info "Running setup:fresh inside ${dir}..."
   echo ""
-  PUBLIC_APP_URL="https://ai-demo.ping-devops.com" \
-    ( cd "$dir" && npm run setup:fresh -- --from-installer --skip-vault )
+  ( cd "$dir" && PUBLIC_APP_URL="https://ai-demo.ping-devops.com" npm run setup:fresh -- --from-installer --skip-vault )
 }
 
 _set_env_key() {
