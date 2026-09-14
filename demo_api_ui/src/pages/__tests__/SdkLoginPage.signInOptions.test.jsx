@@ -204,6 +204,7 @@ describe("SdkLoginPage — sign-in options", () => {
 
     await vi.waitFor(() => expect(exchange).toHaveBeenCalledWith("c2", "s2"));
     expect(submitPassword).toHaveBeenCalledWith({ flowId: "f", checkUrl: "u", resumeBase: "b" }, "demoUser", "pw");
+    expect(passwordField).toHaveValue("");
     expect(await screen.findByText(/authenticated/i)).toBeInTheDocument();
   });
 
