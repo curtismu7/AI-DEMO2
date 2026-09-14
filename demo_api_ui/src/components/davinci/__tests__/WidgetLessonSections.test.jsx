@@ -36,6 +36,19 @@ describe("WidgetLessonSections", () => {
     expect(text).toContain("No PingOne sign-on policy");
   });
 
+  // Export PDF hands these sections to customers, so nothing printed may name
+  // this demo's tenant: its flow policy, its API audience or its custom scope.
+  it("names no demo-tenant identifier in any section that prints", () => {
+    const { container } = render(<WidgetLessonSections />);
+    const printed = [...container.querySelectorAll("section")]
+      .filter((s) => s.id !== "in-this-repo")
+      .map((s) => s.textContent)
+      .join("\n");
+    for (const demoValue of ["a759d4c3", "AI DEMO", "ping.demo", "ai:agent"]) {
+      expect(printed).not.toContain(demoValue);
+    }
+  });
+
   it("shows the captured wire contract, one copyable block per call", () => {
     const { container } = render(<WidgetLessonSections />);
     const api = container.querySelector("#api-calls");
