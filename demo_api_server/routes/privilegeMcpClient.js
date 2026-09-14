@@ -9,6 +9,7 @@ const privilegeGatewaySession = require('../services/privilegeGatewaySession');
 const { privilegeGatewayBase } = require('../services/privilegeGatewayBase');
 const privilegeDoorStore = require('../services/lmdb/privilegeDoorStore.lmdb');
 const guardrailAttemptLog = require('../services/guardrailAttemptLog');
+const externalGuardrailForwarder = require('../services/externalGuardrailForwarder');
 const { requireSession } = require('../middleware/auth');
 const router = express.Router();
 
@@ -3300,6 +3301,17 @@ router.post('/llm/call', express.json(), async (req, res) => {
         prompt,
         verdict: 'BLOCKED',
         reason: err.reason || err.message,
+      });
+      // Fire-and-forget: an external inspector outage must never affect the
+      // denial response the caller already gets from AI Guard.
+      externalGuardrailForwarder.forwardDenial({
+        provider: err.provider || provider,
+        prompt,
+        route,
+        code: err.code,
+        verdict: 'BLOCKED',
+        reason: err.reason || err.message,
+        latencyMs: Date.now() - t0,
       });
       return res.status(err.code === 'llm_rate_limited' ? 429 : 403).json({
         error: err.message,
