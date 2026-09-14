@@ -275,6 +275,54 @@ for (const name of ['Everyday Banking', 'Super Sports Stores & Code']) {
   });
 }
 
+// Agent-to-agent handoffs. `handoffs` names target agents; main() saves them as
+// LibreChat edges (edgeType 'handoff') once every agent has an id. The handoff
+// gives the source a transfer tool, so the target's tools join the conversation
+// with no new sign-in or consent.
+AGENTS.push({
+  name: 'Handoff · Account Viewer',
+  description: 'Read-only accounts and balances. Hands money movement to the Money Movement agent, whose write tools then join the chat.',
+  instructions: `You are a read-only banking demo assistant. ${ACCOUNT_IDS} You can only look up accounts and balances. For any transfer, deposit or withdrawal, hand off to Money Movement right away. Keep answers short.`,
+  tools: ['get_my_accounts', 'get_account_balance'],
+  handoffs: [{ to: 'Money Movement', description: 'Transfers, deposits and withdrawals.' }],
+  conversation_starters: [
+    'Show my accounts',
+    'What is my checking balance?',
+    'Move $50 from checking to savings',
+  ],
+});
+AGENTS.push({
+  name: 'Handoff · Front Desk',
+  description: 'No tools of its own: routes each question to Everyday Banking, Super Sports Gear & Rentals or CareConnect Health Data.',
+  instructions: 'You are the demo front desk. You have no data tools and never answer from memory. Hand off right away: accounts, balances and transactions go to Everyday Banking; rentals, gear, wishlist and coaching go to Super Sports Gear & Rentals; appointments, medications, labs and allergies go to CareConnect Health Data.',
+  tools: [],
+  handoffs: [
+    { to: 'Everyday Banking', description: 'Accounts, balances and transactions.' },
+    { to: 'Super Sports Gear & Rentals', description: 'Equipment rentals, gear for sale, wishlist and coaching sessions.' },
+    { to: 'CareConnect Health Data', description: 'Appointments, medications, lab results and allergies.' },
+  ],
+  conversation_starters: [
+    'Show my accounts',
+    'Show my active equipment rentals',
+    'When is my next appointment?',
+  ],
+});
+AGENTS.push({
+  name: 'Handoff · Super Sports Checkout',
+  description: 'Reads Super Sports gear orders, then hands payment to the Money Movement agent: one chat reaches two business units.',
+  instructions: `You are the Super Sports checkout demo assistant. ${SS_IDS} Look up gear orders yourself. When the user wants to pay for an order, hand off to Money Movement with the order and its amount. Keep answers short.`,
+  tools: ['list_gear', 'gear_order_status'],
+  handoffs: [{ to: 'Money Movement', description: 'Pay from a bank account: withdrawals and transfers.' }],
+  conversation_starters: [
+    'Show my gear orders',
+    'Where is my Garmin Forerunner 265 order (2002)?',
+    // A bare "pay for my order" made Money Movement call create_transfer with an
+    // invented payee account ("To account not found", 2/2 on 2026-09-14, even
+    // with the handoff description saying withdrawal) — name the withdrawal.
+    'Withdraw $449 from checking to pay for order 2002',
+  ],
+});
+
 async function call(method, path, { token, body } = {}) {
   const res = await fetch(`${LC}${path}`, {
     method,
@@ -309,6 +357,7 @@ async function main() {
   const existing = new Map((list.json.data || []).map((a) => [a.name, a.id]));
 
   let failed = 0;
+  const ids = new Map(); // agent name -> agent_… id, for handoff edges
   for (const def of AGENTS) {
     const server = def.server || SERVER;
     const body = {
@@ -317,7 +366,9 @@ async function main() {
       instructions: def.instructions,
       provider: def.provider || PROVIDER,
       model: def.model || MODEL,
-      tools: [`sys__server__sys_mcp_${server}`, ...def.tools.map((t) => `${t}_mcp_${server}`)],
+      // No server marker without tools: a tool-less agent (Handoff · Front Desk)
+      // must not pick up a whole MCP server.
+      tools: def.tools.length ? [`sys__server__sys_mcp_${server}`, ...def.tools.map((t) => `${t}_mcp_${server}`)] : [],
       conversation_starters: def.conversation_starters,
     };
     const id = existing.get(def.name);
@@ -330,6 +381,7 @@ async function main() {
       continue;
     }
     const agentId = saved.json.id;
+    ids.set(def.name, agentId);
     // The permissions API keys agents by their Mongo _id, not the agent_… id;
     // the agent_… id there answers 403 "Insufficient permissions".
     const share = await call('PUT', `/api/permissions/agent/${saved.json._id}`, {
@@ -342,6 +394,23 @@ async function main() {
       continue;
     }
     console.log(`ok   ${def.name} (${agentId}) ${id ? 'updated' : 'created'}, public`);
+  }
+  // Edges name agents by id, so they are saved after every agent exists.
+  for (const def of AGENTS.filter((a) => a.handoffs)) {
+    const from = ids.get(def.name);
+    const edges = def.handoffs.map(({ to, description }) => ({ from, to: ids.get(to), edgeType: 'handoff', description }));
+    if (!from || edges.some((e) => !e.to)) {
+      failed++;
+      console.error(`FAIL ${def.name}: a handoff agent was not seeded`);
+      continue;
+    }
+    const r = await call('PATCH', `/api/agents/${from}`, { token, body: { edges } });
+    if (r.status !== 200) {
+      failed++;
+      console.error(`FAIL ${def.name}: edges ${r.status} ${r.text.slice(0, 200)}`);
+      continue;
+    }
+    console.log(`ok   ${def.name} hands off to ${def.handoffs.map((h) => h.to).join(', ')}`);
   }
   failed += await seedPrompts(token);
   if (failed) process.exit(1);

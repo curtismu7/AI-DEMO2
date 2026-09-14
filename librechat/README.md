@@ -97,6 +97,23 @@ below.
    host model tiers running, and gpt-oss-20b can take several minutes to
    answer.
 
+   **Agent-to-agent handoffs.** Three agents carry LibreChat handoff edges
+   (`handoffs` in the seed); the source agent gets an `lc_transfer_to_<agent>`
+   tool, and once it transfers, the target agent's own tools run in the same
+   chat with no new sign-in or consent:
+   - **Handoff · Account Viewer** — read-only; "Move $50 from checking to
+     savings" transfers to Money Movement, which runs `create_transfer`.
+   - **Handoff · Front Desk** — no tools; routes to Everyday Banking, Super
+     Sports Gear & Rentals or CareConnect Health Data.
+   - **Handoff · Super Sports Checkout** — reads gear orders, then hands
+     payment to Money Movement, so one chat reaches two business units.
+     "Withdraw $449 from checking to pay for order 2002" runs
+     `create_withdrawal` and stops at the demo's human-consent step
+     (`hitl_required`) — approve it on the web dashboard.
+
+   Account Viewer and Checkout change the demo balances. To see each step,
+   look for `Transferred to <agent>` between the two agents' tool calls.
+
    It also creates Super Sports Policy Guardrails (on `super-sports-gateway`)
    and three OpenSearch agents — OpenSearch · Direct, OpenSearch · via
    Privilege, OpenSearch · Privilege opensearch22 — with the same three
