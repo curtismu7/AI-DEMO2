@@ -141,7 +141,22 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                       {policy.name || policy.id}
                     </option>
                   ))}
+                  </select>
+                <div className="inspector-clean-policy-note">AI Demo Policies is the demo policy bundle used to evaluate the selected gateway request.</div>
+              </div>
+
+              <div className="inspector-clean-quick-run">
+                <label className="inspector-clean-field-label" htmlFor="gateway-quick-tool">Quick execute</label>
+                <select id="gateway-quick-tool" value={selectedTool} onChange={(e) => setSelectedTool(e.target.value)}>
+                  <option value="">Choose a tool...</option>
+                  {availableCapabilities.map((tool) => (
+                    <option key={tool.name} value={tool.name}>{tool.name}</option>
+                  ))}
                 </select>
+                <button className="inspector-clean-button" onClick={run} disabled={running || !selectedGateway || !selectedTool}>
+                  {running ? 'Executing…' : 'Execute Tool'}
+                </button>
+                {!availableCapabilities.length ? <p className="inspector-clean-capability-note">No tools loaded yet. Refresh the gateway or sign in if the capability endpoint requires a session.</p> : null}
               </div>
 
             </div>
@@ -256,7 +271,19 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                     Executing...
                   </div>
                 )}
-                {!running && !result && !error && <div style={{ color: 'var(--th-text-muted)', fontSize: '12px' }}>Execute a tool to see results</div>}
+                {!running && !result && !error && (
+                  <div className="inspector-clean-empty-guide">
+                    <h2>What this inspector demonstrates</h2>
+                    <p>The Agent Gateway is the enforcement point in front of the MCP service. Every tool call is checked before the protected resource can run it.</p>
+                    <div className="inspector-clean-empty-guide-grid">
+                      <div><strong>1. Identify</strong><span>Validate the caller, token audience, expiry, scopes, and acting agent.</span></div>
+                      <div><strong>2. Authorize</strong><span>Evaluate the user, action, resource, attributes, and current context.</span></div>
+                      <div><strong>3. Enforce</strong><span>Forward PERMIT, pause for STEP-UP or consent, and stop DENY.</span></div>
+                      <div><strong>4. Audit</strong><span>Capture the request, decision, timing, and downstream result.</span></div>
+                    </div>
+                    <p className="inspector-clean-empty-guide-next">Choose a gateway and tool on the left, then select <strong>Execute Tool</strong>. The Response, Request, Trace, Logs, and Performance tabs will populate with the live evidence.</p>
+                  </div>
+                )}
 
                 {result && outputTab === 'response' && (
                   <pre dangerouslySetInnerHTML={{ __html: highlightJSON(JSON.stringify(result.response || result, null, 2)) }} />
