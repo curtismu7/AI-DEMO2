@@ -276,6 +276,56 @@ textarea {
   color: var(--th-text-body);
 }
 
+.inspector-clean-empty-guide {
+  max-width: 760px;
+  padding: 24px;
+  color: var(--th-text);
+}
+
+.inspector-clean-empty-guide h2 {
+  margin: 0 0 8px;
+  color: var(--th-text);
+  font-size: var(--font-size-lg);
+}
+
+.inspector-clean-empty-guide p {
+  margin: 0;
+  color: var(--th-text-body);
+  line-height: 1.55;
+}
+
+.inspector-clean-empty-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.inspector-clean-empty-guide-grid div {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  color: var(--th-text);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+}
+
+.inspector-clean-empty-guide-grid strong {
+  color: var(--th-status-info-text);
+  font-size: var(--font-size-sm);
+}
+
+.inspector-clean-empty-guide-grid span,
+.inspector-clean-empty-guide-next {
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+}
+
+.inspector-clean-empty-guide-next strong {
+  color: var(--th-text);
+}
+
 .inspector-clean-output-content pre {
   margin: 0;
   color: var(--th-text-body);

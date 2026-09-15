@@ -256,7 +256,19 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                     Executing...
                   </div>
                 )}
-                {!running && !result && !error && <div style={{ color: 'var(--th-text-muted)', fontSize: '12px' }}>Execute a tool to see results</div>}
+                {!running && !result && !error && (
+                  <div className="inspector-clean-empty-guide">
+                    <h2>What this inspector demonstrates</h2>
+                    <p>The Agent Gateway is the enforcement point in front of the MCP service. Every tool call is checked before the protected resource can run it.</p>
+                    <div className="inspector-clean-empty-guide-grid">
+                      <div><strong>1. Identify</strong><span>Validate the caller, token audience, expiry, scopes, and acting agent.</span></div>
+                      <div><strong>2. Authorize</strong><span>Evaluate the user, action, resource, attributes, and current context.</span></div>
+                      <div><strong>3. Enforce</strong><span>Forward PERMIT, pause for STEP-UP or consent, and stop DENY.</span></div>
+                      <div><strong>4. Audit</strong><span>Capture the request, decision, timing, and downstream result.</span></div>
+                    </div>
+                    <p className="inspector-clean-empty-guide-next">Choose a gateway and tool on the left, then select <strong>Execute Tool</strong>. The Response, Request, Trace, Logs, and Performance tabs will populate with the live evidence.</p>
+                  </div>
+                )}
 
                 {result && outputTab === 'response' && (
                   <pre dangerouslySetInnerHTML={{ __html: highlightJSON(JSON.stringify(result.response || result, null, 2)) }} />
