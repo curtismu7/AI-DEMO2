@@ -155,7 +155,7 @@ const AGENTS = [
   ].map(([name, server, description]) => ({
     name,
     server,
-    description,
+    description: `${description} You can ask by sending "What tools can I use?"`,
     includeStartersInDescription: false,
     instructions: 'You are an OpenSearch demo assistant. Always call the tool named by the user. For tools that need an index or document ID, discover a real one with ListIndexTool and SearchIndexTool first; never invent one. Keep answers short.',
     tools: [
