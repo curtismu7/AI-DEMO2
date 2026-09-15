@@ -1,6 +1,7 @@
 {
   "type": "plugin",
   "runner": "node",
+  "owner": "cmuir",
   "name": "ai-demo-demo-steps",
   "revision": 1
 }
