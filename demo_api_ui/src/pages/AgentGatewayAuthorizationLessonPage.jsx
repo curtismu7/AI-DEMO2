@@ -13,10 +13,10 @@ const LESSON_SECTIONS = [
 ];
 
 const FLOW_NODES = [
-  { id: "user", label: "User / agent", detail: "The agent starts an action on behalf of an identified user." },
-  { id: "gateway", label: "Agent Gateway", detail: "The gateway validates MCP structure, token, scope, actor, and request context before forwarding anything." },
-  { id: "authorize", label: "PingOne Authorize", detail: "The policy decision service evaluates identity, resource, operation, consent, and real-time context." },
-  { id: "resource", label: "Protected resource", detail: "The MCP server or API receives the request only after the gateway gets a permitted decision." },
+  { id: "user", label: "User / agent", detail: "The agent proposes an operation for an identified user. The model does not hold the user’s credential or decide whether the action is allowed." },
+  { id: "gateway", label: "Agent Gateway", detail: "The gateway is the enforcement point: it validates MCP structure, token signature and audience, scopes, actor chain, rate limits, and the request context before forwarding anything." },
+  { id: "authorize", label: "PingOne Authorize", detail: "The policy decision point evaluates the subject, acting agent, action, resource, attributes, consent, and runtime context. It returns a decision and may attach an obligation such as step-up." },
+  { id: "resource", label: "Protected resource", detail: "The MCP server or API receives the request only after the gateway gets a permitted decision. It can still perform its own validation as defense in depth." },
 ];
 
 const SCENARIOS = [
@@ -131,15 +131,29 @@ export default function AgentGatewayAuthorizationLessonPage() {
 
       <Section id="concepts" title="Key concepts">
         <div className="agal-card-grid">
-          <article className="agal-card"><h3>Agent Gateway</h3><p>Runtime boundary for MCP traffic: validates messages, checks tokens and scopes, records actors, applies throttling, and forwards permitted calls.</p></article>
-          <article className="agal-card"><h3>PingOne Authorize</h3><p>Centralized policy decision service that evaluates identity, resource, operation, attributes, consent, and context.</p></article>
-          <article className="agal-card"><h3>Protected resource</h3><p>The API or MCP server stays behind the enforcement point and executes only after the request is authorized.</p></article>
+          <article className="agal-card"><h3>Agent Gateway</h3><p>Runtime boundary for MCP traffic. It validates messages, checks tokens and scopes, records actors, applies throttling, and forwards permitted calls.</p></article>
+          <article className="agal-card"><h3>PingOne Authorize</h3><p>Centralized policy decision service. It evaluates identity, resource, operation, attributes, consent, and context without embedding policy in every agent or API.</p></article>
+          <article className="agal-card"><h3>Protected resource</h3><p>The API or MCP server stays behind the enforcement point and executes only after the request is authorized. The resource remains a second validation boundary.</p></article>
+          <article className="agal-card"><h3>Authentication</h3><p>Answers “who is this?” A token can identify the user and the agent acting for them, but identity alone does not grant permission to perform every operation.</p></article>
+          <article className="agal-card"><h3>Authorization</h3><p>Answers “may this actor perform this action on this resource now?” The answer can change with amount, destination, device, location, consent, or risk.</p></article>
+          <article className="agal-card"><h3>Obligations</h3><p>A policy can require an additional control instead of simply allowing or denying. Step-up verification and human consent keep higher-risk actions in the loop.</p></article>
+        </div>
+        <div className="agal-context-panel">
+          <h3>What the policy evaluates</h3>
+          <div className="agal-context-grid">
+            <div><strong>Subject</strong><span>the user, group, or service identity</span></div>
+            <div><strong>Actor</strong><span>the agent acting on the user’s behalf</span></div>
+            <div><strong>Action</strong><span>the operation, such as read or transfer</span></div>
+            <div><strong>Resource</strong><span>the account, record, API, or MCP tool</span></div>
+            <div><strong>Context</strong><span>amount, destination, device, time, and risk</span></div>
+            <div><strong>Obligation</strong><span>step-up, consent, logging, or a final deny</span></div>
+          </div>
         </div>
         <p className="agal-source-note">This lesson is based on the provided authorization materials and Ping Identity documentation for PingOne Authorize and the PingGateway Agent Gateway module.</p>
       </Section>
 
       <Section id="flow" title="Request flow">
-        <p>Click each stage to focus the explanation.</p>
+        <p>Click each stage to focus the explanation. The important distinction is that the gateway enforces the decision; the policy service supplies it.</p>
         <FlowDiagram selected={selectedNode} onSelect={setSelectedNode} />
         <div className="agal-detail" aria-live="polite">
           <strong>{node.label}</strong>
@@ -148,7 +162,7 @@ export default function AgentGatewayAuthorizationLessonPage() {
       </Section>
 
       <Section id="try-it-live" title="Try it">
-        <p>Run a guided scenario. These outcomes mirror the app’s existing authorization and gateway demos; the page makes the decision logic easy to explain before opening the live inspector.</p>
+        <p>Run a guided scenario. Each request is sent through the app’s existing BFF path, so the browser never receives or chooses a downstream token. Select a request first, then run it live.</p>
         <div className="agal-demo-grid">
           <div className="agal-card">
             <h3>Choose a request</h3>
@@ -176,11 +190,13 @@ export default function AgentGatewayAuthorizationLessonPage() {
 
       <Section id="summary" title="What happened">
         <ol className="agal-summary">
-          <li>The agent requested an operation for an identified user.</li>
-          <li>The Agent Gateway validated and inspected the request.</li>
-          <li>PingOne Authorize evaluated policy and context.</li>
-          <li>The gateway enforced the result before the resource was reached.</li>
+          <li>The agent proposed an operation for an identified user; its proposal was not treated as permission.</li>
+          <li>The BFF prepared the request and the Agent Gateway checked the token, audience, scopes, actor chain, and MCP request.</li>
+          <li>PingOne Authorize evaluated attributes and context, not just a static role.</li>
+          <li>The gateway enforced the response: forward on PERMIT, pause for an obligation such as STEP-UP, or stop on DENY.</li>
+          <li>The protected resource was reachable only after the enforcement boundary allowed the call.</li>
         </ol>
+        <div className="agal-next-step"><strong>Continue the demo</strong><p>Open the live inspector to inspect the captured token chain, gateway event, Authorize decision, and MCP result.</p><Link to="/agent-gateway-capabilities">Open the live evidence view</Link></div>
       </Section>
     </LessonLayout>
   );

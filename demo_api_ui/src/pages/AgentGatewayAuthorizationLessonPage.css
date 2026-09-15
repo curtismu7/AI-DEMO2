@@ -11,6 +11,14 @@
 .agal-card { color: var(--th-text); padding: 16px; background: var(--th-bg-card); border: 1px solid var(--th-border); border-radius: var(--radius-lg); }
 .agal-card h3 { margin: 0 0 7px; color: var(--th-text); font-size: 1rem; }
 .agal-card p { margin: 0; color: var(--th-text-body); line-height: 1.5; }
+.agal-context-panel, .agal-next-step { margin-top: 16px; padding: 16px; color: var(--th-text); background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: var(--radius-lg); }
+.agal-context-panel h3, .agal-next-step strong { margin: 0 0 10px; color: var(--th-text); font-size: 1rem; }
+.agal-context-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.agal-context-grid div { display: grid; gap: 3px; padding: 10px; background: var(--th-bg-card); border: 1px solid var(--th-border); border-radius: var(--radius-md); }
+.agal-context-grid strong { color: var(--th-status-info-text); font-size: var(--font-size-sm); }
+.agal-context-grid span, .agal-next-step p { color: var(--th-text-body); font-size: var(--font-size-sm); line-height: 1.45; }
+.agal-next-step p { margin: 0 0 8px; }
+.agal-next-step a { color: var(--th-status-info-text); font-size: var(--font-size-sm); }
 .agal-source-note, .agal-ready { color: var(--th-text-muted); font-size: var(--font-size-sm); }
 .agal-flow { display: flex; align-items: center; gap: 10px; overflow-x: auto; padding: 12px 2px; }
 .agal-flow-item { display: flex; align-items: center; gap: 10px; min-width: 150px; }
@@ -39,4 +47,4 @@
 .agal-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
 .agal-links a { color: var(--th-status-info-text); font-size: var(--font-size-sm); }
 .agal-summary { display: grid; gap: 10px; margin: 0; padding-left: 22px; color: var(--th-text-body); line-height: 1.5; }
-@media (max-width: 760px) { .agal-hero, .agal-card-grid, .agal-demo-grid { grid-template-columns: 1fr; } .agal-flow { align-items: stretch; flex-direction: column; } .agal-flow-item { width: 100%; } .agal-node { width: 100%; } .agal-arrow { transform: rotate(90deg); align-self: center; } }
+@media (max-width: 760px) { .agal-hero, .agal-card-grid, .agal-demo-grid, .agal-context-grid { grid-template-columns: 1fr; } .agal-flow { align-items: stretch; flex-direction: column; } .agal-flow-item { width: 100%; } .agal-node { width: 100%; } .agal-arrow { transform: rotate(90deg); align-self: center; } }
