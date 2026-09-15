@@ -7,6 +7,22 @@ AI Gateway client page (`/privilege-mcp-client`) offers, plus the Agent Gateway.
 cp lmstudio/mcp.json ~/.lmstudio/mcp.json   # then restart LM Studio
 ```
 
+## Demo Steps parity
+
+`demo-steps.json` is the LM Studio equivalent of LibreChat's curated Demo
+Steps menu. It contains the same 14 focused Banking, Super Sports, and
+CareConnect steps, including the policy-guardrail variants, with the same
+tool allowlists and conversation starters. All steps use
+`MCP AgentGateway-Banking`, so the recording façade, Agent Gateway
+authorization, and PingOne proof remain visible.
+
+LM Studio's supported `mcp.json` format configures servers, not named agents
+with per-chat tool allowlists. To run a step, select `MCP AgentGateway-Banking`
+in the chat's MCP picker, enable only that step's `tools`, paste its
+`systemPrompt` into the chat system prompt, and use one of its `starters`.
+This keeps the behavior aligned with LibreChat without inventing an
+unsupported LM Studio configuration shape.
+
 | entry (shown as `mcp/<entry>` in LM Studio) | door | auth |
 |---|---|---|
 | `MCP Direct-Banking` | our banking MCP server (`oauth-mcp`) on the SE cluster | LM Studio's native OAuth (RFC 9728 → DCR → PKCE) |
