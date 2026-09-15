@@ -88,8 +88,8 @@ modelSpecs:
     - {name: handoff-front-desk, label: 'Front Desk → Specialist', group: 'Agent to Agent / Front Desk', description: 'No direct tools. Handoffs: Everyday Banking, Super Sports Gear & Rentals, CareConnect Health Data.', preset: {endpoint: agents, agent_id: agent_5cA-_eqnS__CqVu4Fys1d}}
     - {name: handoff-super-sports-checkout, label: 'Super Sports Checkout → Payment', group: 'Agent to Agent / Super Sports', description: 'Reads orders, then delegates payment. Tools: list_gear, gear_order_status. Handoff: Money Movement.', preset: {endpoint: agents, agent_id: agent_C9N3qmt_WMkGCgorfjC7z}}
 
-    - {name: everyday-banking-local-model, label: 'Everyday Banking · Local model', group: 'Mac Agent / Local LLM / Banking', description: 'Local-model banking path on the Mac LLM proxy. Tools: get_my_accounts, get_account_balance, get_my_transactions, search_transactions.', preset: {endpoint: agents, agent_id: agent_VOUhKDRaGSKjA9LXJ2mqE}}
-    - {name: super-sports-stores-code-local-model, label: 'Super Sports Stores & Code · Local model', group: 'Mac Agent / Local LLM / Super Sports', description: 'Local-model store/code path on the Mac LLM proxy. Tools: get_branch_hours, code_search.', preset: {endpoint: agents, agent_id: agent_qjrE2h4KCo7zfMWaJZKFU}}
+    - {name: everyday-banking-local-model, label: 'Everyday Banking · Local model', group: 'Connections / Mac Agent / Local LLM / Banking', description: 'Local-model banking path on the Mac LLM proxy. Tools: get_my_accounts, get_account_balance, get_my_transactions, search_transactions.', preset: {endpoint: agents, agent_id: agent_VOUhKDRaGSKjA9LXJ2mqE}}
+    - {name: super-sports-stores-code-local-model, label: 'Super Sports Stores & Code · Local model', group: 'Connections / Mac Agent / Local LLM / Super Sports', description: 'Local-model store/code path on the Mac LLM proxy. Tools: get_branch_hours, code_search.', preset: {endpoint: agents, agent_id: agent_qjrE2h4KCo7zfMWaJZKFU}}
 
 # LibreChat's SSRF guard blocks any MCP server URL that resolves to a private
 # address — which every host-gateway alias in docker-compose.yml does. Each
