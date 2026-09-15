@@ -156,6 +156,7 @@ const AGENTS = [
     name,
     server,
     description,
+    includeStartersInDescription: false,
     instructions: 'You are an OpenSearch demo assistant. Always call the tool named by the user. For tools that need an index or document ID, discover a real one with ListIndexTool and SearchIndexTool first; never invent one. Keep answers short.',
     tools: [
       'ListIndexTool',
@@ -392,7 +393,9 @@ async function main() {
     const server = def.server || SERVER;
     const body = {
       name: def.name,
-      description: `${def.description} Try: ${def.conversation_starters.map((s) => `"${s}"`).join(' · ')}`,
+      description: def.includeStartersInDescription === false
+        ? def.description
+        : `${def.description} Try: ${def.conversation_starters.map((s) => `"${s}"`).join(' · ')}`,
       instructions: def.instructions,
       provider: def.provider || PROVIDER,
       model: def.model || MODEL,
