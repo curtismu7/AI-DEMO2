@@ -13,7 +13,10 @@
 services:
   api:
     container_name: librechat
-    image: registry.librechat.ai/danny-avila/librechat-dev:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ai-demo-librechat:vertical-subfolders
     ports:
       - "127.0.0.1:3080:3080"
     depends_on:

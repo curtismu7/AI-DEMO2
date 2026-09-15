@@ -2,10 +2,12 @@
 
 A standalone LibreChat + MongoDB Docker Compose stack, separate from this
 repo's root `docker-compose.yml` / `run-docker.sh`. It exists to prove
-this demo's MCP servers work against a real, unmodified, off-the-shelf MCP
-client — LibreChat's own OAuth (RFC 9728 discovery + DCR + PKCE) against
-the `demo_api_server` recording façade (`/mcp-facade/:door/mcp`,
-`routes/mcpFacade.js`), never a fork of LibreChat itself.
+this demo's MCP servers work against LibreChat's own OAuth (RFC 9728 discovery
++ DCR + PKCE) against the `demo_api_server` recording façade
+(`/mcp-facade/:door/mcp`, `routes/mcpFacade.js`). The stack uses a narrow
+client-image overlay solely to render model-spec paths such as `Demo Steps /
+Banking` as nested folders; its server, OAuth, MCP, and agent execution
+behavior remain the upstream image.
 
 Two targets, one compose file: the local docker stack (`api.ping.demo:3001`)
 or the SE AWS cluster (`ai-demo.ping-devops.com`) — see "Docker vs pingaws"
