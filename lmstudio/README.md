@@ -7,18 +7,35 @@ AI Gateway client page (`/privilege-mcp-client`) offers, plus the Agent Gateway.
 cp lmstudio/mcp.json ~/.lmstudio/mcp.json   # then restart LM Studio
 ```
 
-## Demo Steps
+## Demo Steps parity
 
-The browser's **LLM Provider → LM Studio** panel provides the guided Demo Steps
-catalog. Select a step, copy its prompt into LM Studio, and run it against the
-curated MCP door. The step card names the tools the presenter should expose and
-the expected result: permitted, policy denied, human approval, or step-up MFA.
+`demo-steps.json` is the source manifest for the LM Studio workflow pack. It
+contains the same 14 focused Banking, Super Sports, and CareConnect steps plus
+the four OpenSearch use cases, with their tool allowlists and conversation
+starters. All gateway-backed steps use `MCP AgentGateway-Banking`, so the
+recording façade, Agent Gateway authorization, and PingOne proof remain
+visible.
 
-Every façade-backed tool response includes a `reel_url`. LM Studio shows that
-link in the response; open it in a browser to see the available tools, request,
-authorization decision, and actual MCP response for that call. The browser trace
-is the response viewer for LM Studio because LM Studio does not render the
-embedded HTML trace panel itself.
+Install the presets with:
+
+```bash
+node lmstudio/install-presets.js
+```
+
+Then import the generated files from `~/.lmstudio/config-presets` using LM
+Studio's Preset menu. The `ai-demo-demo-steps` plugin adds a workflow dropdown
+and a `show_demo_workflow` tool. Install it with:
+
+```bash
+cd lmstudio/demo-steps-plugin
+npm install
+npm run install-plugin
+```
+
+In each chat, select the matching MCP server from the picker and enable the
+tools named by the selected workflow. LM Studio's desktop plugin API does not
+currently let a plugin change another MCP integration's tool allowlist; its
+REST API does support `allowed_tools` for programmatic requests.
 
 | entry (shown as `mcp/<entry>` in LM Studio) | door | auth |
 |---|---|---|
