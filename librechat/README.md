@@ -75,10 +75,15 @@ below.
    Money Movement changes the demo balances.
 
    Three ways users find the prompts:
-   - **Demos menu** — the model selector lists every agent grouped by area
-     (`modelSpecs` in `librechat.yaml`); picking one opens it on a new chat
-     with its starters. The specs hold agent ids from this machine's Mongo
-     volume: after a fresh volume, copy the ids the seed prints into that list.
+   - **Demos menu** — the model selector lists agents in nested folders
+     (`modelSpecs` in `librechat.yaml`): `Demo Steps / <vertical> / Façade`,
+     `Agents / <vertical> / Direct|Façade`, `Connections / Privilege / ...`,
+     `Security & Policy / <vertical>`, and `Agent to Agent / <vertical>`.
+     Mac-only choices are under `Connections / Mac Agent` (the host-local
+     OpenSearch path) and `Mac Agent / Local LLM` (the local model proxy).
+     Picking one opens it on a new chat with its starters. The specs hold agent
+     ids from this machine's Mongo volume: after a fresh volume, copy the ids
+     the seed prints into that list.
    - **Prompts library** — type `/` in any chat (new or existing) to search
      every starter, named `<agent> · <prompt>` and grouped by category. It
      fills the message box; pick the named agent first.
