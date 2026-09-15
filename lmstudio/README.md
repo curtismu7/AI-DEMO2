@@ -7,6 +7,19 @@ AI Gateway client page (`/privilege-mcp-client`) offers, plus the Agent Gateway.
 cp lmstudio/mcp.json ~/.lmstudio/mcp.json   # then restart LM Studio
 ```
 
+## Demo Steps
+
+The browser's **LLM Provider → LM Studio** panel provides the guided Demo Steps
+catalog. Select a step, copy its prompt into LM Studio, and run it against the
+curated MCP door. The step card names the tools the presenter should expose and
+the expected result: permitted, policy denied, human approval, or step-up MFA.
+
+Every façade-backed tool response includes a `reel_url`. LM Studio shows that
+link in the response; open it in a browser to see the available tools, request,
+authorization decision, and actual MCP response for that call. The browser trace
+is the response viewer for LM Studio because LM Studio does not render the
+embedded HTML trace panel itself.
+
 | entry (shown as `mcp/<entry>` in LM Studio) | door | auth |
 |---|---|---|
 | `MCP Direct-Banking` | our banking MCP server (`oauth-mcp`) on the SE cluster | LM Studio's native OAuth (RFC 9728 → DCR → PKCE) |
