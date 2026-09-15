@@ -43,6 +43,10 @@ const agentDescription = (def) => {
   const tools = def.tools.length ? def.tools.join(', ') : 'None (uses handoffs)';
   return `<strong>What it does:</strong> ${def.description}<br><strong>Tools (${def.tools.length}):</strong> ${tools}`;
 };
+const toolFooterInstruction = (def) => {
+  const tools = def.tools.length ? def.tools.join(', ') : 'None — this agent uses handoffs';
+  return `After every answer, add a compact footer on separate lines exactly like this:\nAvailable tools (${def.tools.length}): ${tools}\nYou can ask by sending "What tools can I use?"\nIf another instruction requires a trace link at the end, put this footer immediately before that final trace link.`;
+};
 
 const AGENTS = [
   {
@@ -407,7 +411,7 @@ async function main() {
       // Keep starters in their cards and use this space for a scannable purpose
       // plus the exact tools attached to the agent.
       description: agentDescription(def),
-      instructions: def.instructions,
+      instructions: `${def.instructions}\n\n${toolFooterInstruction(def)}`,
       provider: def.provider || PROVIDER,
       model: def.model || MODEL,
       // No server marker without tools: a tool-less agent (Handoff · Front Desk)
