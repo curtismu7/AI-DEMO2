@@ -16,9 +16,13 @@ for (const workflow of workflows) {
   const systemPrompt = [
     manifest.systemPrompt,
     `Current workflow: ${workflow.label}.`,
-    `Use only these MCP tools: ${workflow.tools.join(', ')}.`,
+    workflow.server ? `Use MCP server: ${workflow.server}.` : '',
+    `Use only these MCP tools: ${workflow.tools.length ? workflow.tools.join(', ') : 'none'}.`,
+    workflow.handoffs?.length
+      ? `This is a routing workflow. Route matching requests to: ${workflow.handoffs.join(', ')}.`
+      : '',
     `Suggested prompts: ${workflow.starters.join(' | ')}`,
-  ].join('\n');
+  ].filter(Boolean).join('\n');
   const preset = {
     name: `Demo · ${workflow.group} · ${workflow.label}`,
     inference_params: {

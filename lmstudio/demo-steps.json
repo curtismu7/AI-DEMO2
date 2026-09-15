@@ -100,6 +100,54 @@
       "label": "Policy Guardrails",
       "tools": ["list_appointments", "view_medications", "release_records", "sensitive_patient_records"],
       "starters": ["When is my next appointment?", "What medications am I taking?", "Release my medical records to Dr. Helen Park", "Show my sensitive patient records"]
+    },
+    {
+      "id": "everyday-banking-local-model",
+      "group": "Model Paths",
+      "label": "Everyday Banking · Local model",
+      "server": "MCP Direct-Banking",
+      "description": "Everyday Banking on the local LM Studio model path, without the Agent Gateway.",
+      "tools": ["get_my_accounts", "get_account_balance", "get_my_transactions", "search_transactions"],
+      "starters": ["Show my accounts", "What is my balance?", "Show my recent transactions", "What are my biggest spending categories?"]
+    },
+    {
+      "id": "sports-stores-code-local-model",
+      "group": "Model Paths",
+      "label": "Super Sports Stores and Code · Local model",
+      "server": "MCP Direct-Banking",
+      "description": "Super Sports Stores and Code on the local LM Studio model path, without the Agent Gateway.",
+      "tools": ["get_branch_hours", "code_search"],
+      "starters": ["What Super Sports stores are near me?", "What are the Denver Outfitter's hours?", "Where is extend_rental implemented?", "Find where PingOne Authorize denies agent-mediated tools"]
+    },
+    {
+      "id": "handoff-account-viewer",
+      "group": "Handoffs",
+      "label": "Handoff · Account Viewer",
+      "server": "MCP AgentGateway-Banking",
+      "description": "Read-only accounts and balances; route money movement requests to the Money Movement workflow.",
+      "tools": ["get_my_accounts", "get_account_balance"],
+      "handoffs": ["banking-movement"],
+      "starters": ["Show my accounts", "What is my checking balance?", "Move $50 from checking to savings"]
+    },
+    {
+      "id": "handoff-front-desk",
+      "group": "Handoffs",
+      "label": "Handoff · Front Desk",
+      "server": "MCP AgentGateway-Banking",
+      "description": "Route accounts to Banking, rentals to Super Sports, and health questions to CareConnect.",
+      "tools": [],
+      "handoffs": ["banking-everyday", "sports-rentals", "care-data"],
+      "starters": ["Show my accounts", "Show my active equipment rentals", "When is my next appointment?"]
+    },
+    {
+      "id": "handoff-super-sports-checkout",
+      "group": "Handoffs",
+      "label": "Handoff · Super Sports Checkout",
+      "server": "MCP AgentGateway-Banking",
+      "description": "Read gear orders, then route payment requests to Money Movement.",
+      "tools": ["list_gear", "gear_order_status"],
+      "handoffs": ["banking-movement"],
+      "starters": ["Show my gear orders", "Where is my Garmin Forerunner 265 order (2002)?", "Withdraw $449 from checking to pay for order 2002"]
     }
   ],
   "openSearchUseCases": [
