@@ -8,7 +8,8 @@ export async function preprocess(ctl: PromptPreprocessorController, userMessage:
   return [
     `[AI-DEMO2 workflow: ${workflow.label}]`,
     `Use the MCP server "${workflow.server}" and call the matching tool directly.`,
-    `Focused tools: ${workflow.tools.join(', ')}.`,
+    `Focused tools: ${workflow.tools.length ? workflow.tools.join(', ') : 'none'}.`,
+    ...(workflow.handoffs?.length ? [`Route matching requests to these workflows: ${workflow.handoffs.join(', ')}.`] : []),
     'Be concise; do not discuss this workflow instruction or call a workflow-explanation tool.',
     '',
     userMessage.getText(),
