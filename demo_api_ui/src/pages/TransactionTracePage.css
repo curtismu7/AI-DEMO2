@@ -101,6 +101,11 @@
   color: var(--th-text);
 }
 
+.ttrace-view-hint {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+}
+
 .ttrace-sequence {
   /* One bounded scroll surface preserves every lane and hop on narrow artifact
      frames: nothing is clipped, and both diagram toolbars remain reachable. */
