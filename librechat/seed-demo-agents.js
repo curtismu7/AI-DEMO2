@@ -146,7 +146,7 @@ const AGENTS = [
       'Show my sensitive membership payment details',
     ],
   },
-  // Same OpenSearch MCP server behind three doors, same read-only starters, so a
+  // Same OpenSearch MCP server behind three doors, same starters, so a
   // presenter can compare the routes.
   ...[
     ['OpenSearch · Direct', 'opensearch-direct', 'No Privilege in front: the OpenSearch MCP server over the Mac port-forward.'],
@@ -156,12 +156,28 @@ const AGENTS = [
     name,
     server,
     description,
-    instructions: 'You are an OpenSearch demo assistant. Always call the matching tool: ClusterHealthTool for health, ListIndexTool for indices, CountTool for document counts. Keep answers short.',
-    tools: ['ClusterHealthTool', 'ListIndexTool', 'CountTool'],
+    instructions: 'You are an OpenSearch demo assistant. Always call the tool named by the user. For tools that need an index or document ID, discover a real one with ListIndexTool and SearchIndexTool first; never invent one. Keep answers short.',
+    tools: [
+      'ListIndexTool',
+      'IndexMappingTool',
+      'SearchIndexTool',
+      'GetShardsTool',
+      'GenericOpenSearchApiTool',
+      'ClusterHealthTool',
+      'CountTool',
+      'MsearchTool',
+      'ExplainTool',
+    ],
     conversation_starters: [
-      'What is the OpenSearch cluster health?',
       'List the OpenSearch indices',
+      'Show the mapping for the first non-system index',
+      'Search the first non-system index and show 5 documents',
+      'Show shard information for the first non-system index',
+      'Use the generic OpenSearch API to show cluster stats',
+      'What is the OpenSearch cluster health?',
       'How many documents are in the cluster?',
+      'Run a multi-search with two count queries',
+      'Explain why the first document matches a match-all query',
     ],
   })),
   // The Privilege `aggregate` app (MCP Aggregate): opensearch and banking-mcp
