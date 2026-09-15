@@ -14,10 +14,7 @@ interface:
   prompts:
     share: true
     public: true
-  # Keep My Agents and both endpoints in the model selector beside the Demos
-  # specs below. Unset, LibreChat turns it off whenever modelSpecs exist
-  # (data-schemas loadDefaultInterface; measured 2026-09-13: only the five
-  # Demos groups were listed).
+  # Keep the selector enabled for the categorized specs below.
   modelSelect: true
   # Scheduled chats (unattended runs). Unset, LibreChat answers 403 "Scheduled
   # chats are disabled" (packages/api getLimits). Capped because it applies to
@@ -35,6 +32,11 @@ interface:
 # ponytail: hard-coded ids; generate this block from the seed if volumes get recreated often.
 # interface.modelSelect above keeps the other endpoints listed beside them.
 modelSpecs:
+  # Raw endpoint allowlist. Deliberately omit `agents`: the categorized specs
+  # below remain selectable, without duplicating every agent under My Agents.
+  addedEndpoints:
+    - 'Local LLM Proxy'
+    - 'PingOne Privilege (OpenAI)'
   list:
     # One grouping level is supported by this LibreChat selector. Put the
     # customer demos first, then cross-cutting security and routing demos.
