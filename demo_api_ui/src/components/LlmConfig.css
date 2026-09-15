@@ -97,6 +97,96 @@
   overflow: hidden;
   max-width: 640px;
 }
+
+.lmstudio-demo-steps {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--th-border);
+}
+
+.lmstudio-demo-steps__header,
+.lmstudio-demo-steps__layout {
+  display: flex;
+  gap: 1rem;
+}
+
+.lmstudio-demo-steps__header {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.lmstudio-demo-steps h3,
+.lmstudio-demo-step-detail h4 {
+  margin: 0;
+  color: var(--th-text);
+  font-size: var(--font-size-lg);
+}
+
+.lmstudio-demo-steps__header p,
+.lmstudio-demo-step-detail p {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+}
+
+.lmstudio-demo-steps__header p { margin: 0.25rem 0 0; }
+
+.lmstudio-demo-steps__layout { margin-top: 1rem; align-items: stretch; }
+
+.lmstudio-demo-steps__list {
+  display: flex;
+  min-width: 11rem;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.lmstudio-demo-step {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.lmstudio-demo-step:hover,
+.lmstudio-demo-step.is-selected {
+  border-color: var(--th-border-strong);
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.lmstudio-demo-step__number {
+  display: inline-grid;
+  width: 1.35rem;
+  height: 1.35rem;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-weight: 700;
+}
+
+.lmstudio-demo-step-detail {
+  flex: 1;
+  padding: 0.8rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.lmstudio-demo-step-detail p { margin: 0.55rem 0; }
+.lmstudio-demo-step-detail__prompt { color: var(--th-text); font-weight: 600; }
+
+@media (max-width: 600px) {
+  .lmstudio-demo-steps__layout { flex-direction: column; }
+}
 .cfg-card-header {
   padding: 1.1rem 1.5rem;
   border-bottom: 1px solid #f1f5f9;

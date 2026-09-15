@@ -81,12 +81,12 @@ const SLOW_SPEED_OPTIONS = [
 const ZOOM_KEY = "dashboard-seq-zoom";
 const SPEED_KEY = "dashboard-seq-speed";
 
-const readStoredZoom = () => {
+const readStoredZoom = (key = ZOOM_KEY, fallback = ZOOM_DEFAULT) => {
   try {
-    const n = Number.parseInt(localStorage.getItem(ZOOM_KEY) || "", 10);
-    return Number.isFinite(n) && n >= ZOOM_MIN && n <= ZOOM_MAX ? n : ZOOM_DEFAULT;
+    const n = Number.parseInt(localStorage.getItem(key) || "", 10);
+    return Number.isFinite(n) && n >= ZOOM_MIN && n <= ZOOM_MAX ? n : fallback;
   } catch {
-    return ZOOM_DEFAULT;
+    return fallback;
   }
 };
 
@@ -121,11 +121,22 @@ function laneClass(lane) {
   return `srd-lane-${String(lane || "").toLowerCase()}`;
 }
 
-export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slowMode, onToggleSlowMode }) {
+export default function SequenceReelDiagram({
+  onSelectStep,
+  selectedStepId,
+  slowMode,
+  onToggleSlowMode,
+  externalSteps,
+  externalRunId,
+  externalTraceFinished,
+  zoomStorageKey = ZOOM_KEY,
+  initialZoom = ZOOM_DEFAULT,
+  ariaLabel = "Live sequence diagram of this session's token chain",
+}) {
   const [snap, setSnap] = useState(() => tokenChainTraceStore.getState());
   useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
 
-  const [zoomLevel, setZoomLevel] = useState(readStoredZoom);
+  const [zoomLevel, setZoomLevel] = useState(() => readStoredZoom(zoomStorageKey, initialZoom));
   const handleZoom = useCallback(
     (delta) => setZoomLevel((prev) => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, prev + delta))),
     [],
@@ -136,26 +147,27 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
 
   // Persist both as they change, so the next visit opens at the same zoom and
   // pace instead of resetting to the defaults mid-demo.
-  useEffect(() => writePref(ZOOM_KEY, zoomLevel), [zoomLevel]);
+  useEffect(() => writePref(zoomStorageKey, zoomLevel), [zoomLevel, zoomStorageKey]);
   useEffect(() => writePref(SPEED_KEY, slowRevealMs), [slowRevealMs]);
 
   // The A2A hops are not in buildTraceSteps; the Token Chain rail splices them
   // in right after the tool choice, and this view draws them in the same place.
   const steps = useMemo(() => {
+    if (Array.isArray(externalSteps)) return externalSteps;
     const base = snap.steps || [];
     const a2a = buildA2aTokenChainSteps(snap.trace?.tokenEvents);
     if (!a2a.length) return base;
     const at = base.findIndex((step) => step.id === "llm");
     return [...base.slice(0, at + 1), ...a2a, ...base.slice(at + 1)];
-  }, [snap.steps, snap.trace]);
+  }, [externalSteps, snap.steps, snap.trace]);
 
   const allLifelineSteps = useMemo(() => {
     const happened = steps.filter((step) => HAPPENED.has(step.status));
     if (!happened.some((step) => !SESSION_STEP_IDS.has(step.id))) return [];
     return deriveLifelineSteps(happened);
   }, [steps]);
-  const runId = snap.trace?.runId ?? null;
-  const traceFinished = snap.trace?.outcome === "ok" || snap.trace?.outcome === "error";
+  const runId = externalRunId ?? snap.trace?.runId ?? null;
+  const traceFinished = externalTraceFinished ?? (snap.trace?.outcome === "ok" || snap.trace?.outcome === "error");
 
   // Slow mode: reveal one step at a time on a timer instead of the full set
   // arriving instantly. Real steps keep arriving at full speed underneath —
@@ -444,7 +456,7 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
           className="srd-svg"
           style={{ width: `${(width * zoomLevel) / 100}px` }}
           role="img"
-          aria-label="Live sequence diagram of this session's token chain"
+          aria-label={ariaLabel}
         >
           {participants.map((lane) => {
             const x = colX(lane);
@@ -496,6 +508,7 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
                   className={groupClass}
                   onClick={() => selectStep(step.id)}
                   role="button"
+                  aria-label={step.label}
                   tabIndex={0}
                   onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && selectStep(step.id)}
                 >
@@ -521,6 +534,7 @@ export default function SequenceReelDiagram({ onSelectStep, selectedStepId, slow
                 className={groupClass}
                 onClick={() => selectStep(step.id)}
                 role="button"
+                aria-label={step.label}
                 tabIndex={0}
                 onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && selectStep(step.id)}
               >
