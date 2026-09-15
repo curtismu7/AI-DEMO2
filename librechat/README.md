@@ -175,9 +175,12 @@ only with no cluster equivalent (`aidemo-mcp`, `opensearch-direct`) — see
 `librechat.pingaws.yaml`'s own header comment.
 
 Switching an **already-running** container needs an explicit restart —
-`docker restart librechat` — since `CONFIG_PATH` and the mounted `.env` are
-read once at Node startup; changing them and re-running `up -d` alone won't
-recreate a container whose compose-level config didn't change.
+`docker restart librechat librechat-oauth-loopback` — since `CONFIG_PATH` and
+the mounted `.env` are read once at Node startup; changing them and re-running
+`up -d` alone won't recreate a container whose compose-level config didn't
+change. Restart both together: the loopback sidecar shares LibreChat's network
+namespace, and leaving it attached to the pre-restart namespace makes the
+OAuth broker at `localhost:3005` unreachable.
 
 ## Known door caveats
 
