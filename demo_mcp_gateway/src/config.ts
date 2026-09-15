@@ -200,7 +200,7 @@ export interface GatewayConfig {
    * UC16 — Impersonation block: when true, tool calls to agent-mediated operations
    * (tools flagged requiresAgentMediation in scope-topology.json) are DENIED if the
    * bearer token carries no `act` claim. An act-less token erases the agent identity.
-   * Default OFF (false) — set REQUIRE_ACT_FOR_AGENT_TOOLS=true to activate.
+   * Default ON — set REQUIRE_ACT_FOR_AGENT_TOOLS=false to opt out explicitly.
    * Only breaks ff_skip_token_exchange=true flows (intentional — that flag is warn-only).
    */
   requireActForAgentTools: boolean;
@@ -447,7 +447,10 @@ export function loadConfig(): GatewayConfig {
       optional('PINGONE_AI_AGENT_ACTOR_CLIENT_ID', ''),
       ...optional('GATEWAY_ADDITIONAL_ACTOR_CLIENT_IDS', '').split(','),
     ].map((s) => s.trim()).filter(Boolean))),
-    requireActForAgentTools: process.env.REQUIRE_ACT_FOR_AGENT_TOOLS === 'true',
+    // Match demo_authz_server's Rule 2.5: act is required unless an operator
+    // explicitly opts out. An unset variable must not silently expose
+    // agent-mediated tools to act-less tokens.
+    requireActForAgentTools: process.env.REQUIRE_ACT_FOR_AGENT_TOOLS !== 'false',
     intentTokenRequired: process.env.INTENT_TOKEN_REQUIRED === 'true',
     requireRarIntent: process.env.REQUIRE_RAR_INTENT === 'true',
     // Seed only — the BFF's UI toggle overrides this via /admin/config.

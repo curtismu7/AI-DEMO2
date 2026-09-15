@@ -141,6 +141,28 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-15 — MCP Gateway act enforcement now defaults on
+
+**Files changed:** `demo_mcp_gateway/src/config.ts`,
+`demo_mcp_gateway/tests/configActDefault.test.ts`, and
+`docs/authorization-decision-split.md`.
+
+**What was broken:** The Authorize service required `act` by default for
+agent-mediated MCP tools, but the Node MCP Gateway only enabled its equivalent
+UC16 gate when `REQUIRE_ACT_FOR_AGENT_TOOLS=true` was explicitly set. An unset
+variable therefore allowed act-less agent calls through the gateway.
+
+**What was fixed:** The gateway now requires `act` by default and accepts only
+an explicit `REQUIRE_ACT_FOR_AGENT_TOOLS=false` opt-out. This does not add the
+Gateway or MCP server as artificial actors; nested `act` remains an A2A-only
+requirement.
+
+**Do not break:** Keep ordinary agent-to-Gateway calls at act depth 1 and A2A
+specialist calls at depth 2; preserve the explicit opt-out for demo/debug
+deployments and all existing audience/anti-bypass checks.
+
+**Verify:** `cd demo_mcp_gateway && npm test -- --runInBand` and `npm run build`.
+
 ### 2026-09-14 — Privilege Remote Agent now has a real, authenticated A2A backend
 
 **Files changed:** `langchain_agent/src/api/a2a_handler.py`,

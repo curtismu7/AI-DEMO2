@@ -296,8 +296,9 @@ Each is individually defensible for a demo; collectively there is no single
 "is the gate actually armed" signal.
 
 **F6. Security controls default to advisory (medium).**
-`REQUIRE_DPOP_PROOF`, `INTENT_TOKEN_REQUIRED`, `REQUIRE_RAR_INTENT`,
-`REQUIRE_ACT_FOR_AGENT_TOOLS` all default false; `MCP_GW_WBA_MODE` defaults
+`REQUIRE_DPOP_PROOF`, `INTENT_TOKEN_REQUIRED`, and `REQUIRE_RAR_INTENT` default
+false; `REQUIRE_ACT_FOR_AGENT_TOOLS` defaults true and may be explicitly disabled
+with `false`; `MCP_GW_WBA_MODE` defaults
 `monitor`. Monitor-first rollout is legitimate practice — but nothing reports the
 aggregate posture, so "we implement RFC 9449/9421/9396" is true of the code and
 false of the running default.
