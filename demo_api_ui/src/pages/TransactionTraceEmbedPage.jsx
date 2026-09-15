@@ -99,6 +99,15 @@ export default function TransactionTraceEmbedPage() {
   const tools = Array.isArray(meta.tools) ? meta.tools : null;
   const resources = Array.isArray(meta.resources) ? meta.resources : null;
   const advertisesResources = Boolean(meta.capabilities && meta.capabilities.resources);
+  const requestDetails = {
+    tool: request?.op?.replace(/^tools\/call\s+/, "") || null,
+    arguments: meta.arguments ?? {},
+    route: {
+      door: meta.doorLabel || meta.door || null,
+      upstream: meta.upstream || null,
+    },
+    client: meta.client || null,
+  };
 
   return (
     <div className={`ttrace-page ttrace-embed ttrace-page--font-${fontSize}`} data-testid="ttrace-embed">
@@ -181,11 +190,17 @@ export default function TransactionTraceEmbedPage() {
                   </li>
                 ))}
               </ul>
-            ) : null}
+            ) : (
+              <p>
+                {advertisesResources
+                  ? "The server supports resources, but this client did not call resources/list during the recorded session."
+                  : "This MCP server did not advertise the resources capability. Its tools are shown above."}
+              </p>
+            )}
           </details>
           <details open>
             <summary><strong>Request</strong> {request.op}</summary>
-            <Json value={meta.arguments} />
+            <Json value={requestDetails} />
           </details>
           <details open>
             <summary>

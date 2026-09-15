@@ -34,6 +34,7 @@ const SS_IDS = 'Rental IDs are 3001-3006 and order IDs 2001-2006; pass IDs as st
 // With no tools loaded (e.g. an expired door sign-in) a bare "quote any denial"
 // rule made gpt-4o-mini invent "You have been denied by Policy" (4/4 replays).
 const POLICY_RULE = 'Always call the tool the user asks for, even if you expect a refusal. If a tool result says "You have been denied by Policy", quote that text word for word. Never say you were denied by policy unless a tool result in this conversation says so. If none of your tools fits the request, say you have no tool for it.';
+const FACADE_TRACE_RULE = 'After every tool call, find the reel_url in the tool result and end your reply with a Markdown link labeled "View façade trace". Never invent a trace URL when reel_url is absent.';
 // Prompts library category; matches the modelSpecs groups in librechat.yaml.
 const category = (name) => (name.includes('Policy Guardrails') ? 'Policy Guardrails'
   : ['OpenSearch', 'Super Sports', 'CareConnect'].find((c) => name.startsWith(c)) || 'Banking');
@@ -145,7 +146,7 @@ const AGENTS = [
     name: 'Super Sports Policy Guardrails',
     server: 'super-sports-gateway',
     description: 'Super Sports through the Agent Gateway: reads are permitted, risky calls are denied by policy.',
-    instructions: `You are the Super Sports demo assistant. ${SS_IDS} ${POLICY_RULE}`,
+    instructions: `You are the Super Sports demo assistant. ${SS_IDS} ${POLICY_RULE} ${FACADE_TRACE_RULE}`,
     tools: ['list_rentals', 'loyalty_balance', 'extend_rental', 'sensitive_membership_details'],
     conversation_starters: [
       'Show my active equipment rentals',
@@ -230,7 +231,7 @@ const AGENTS = [
     name: 'Banking Policy Guardrails',
     server: 'super-sports-gateway',
     description: 'Banking through the Agent Gateway: reads are permitted, transfers are denied by policy.',
-    instructions: `You are a banking demo assistant. ${ACCOUNT_IDS} ${POLICY_RULE}`,
+    instructions: `You are a banking demo assistant. ${ACCOUNT_IDS} ${POLICY_RULE} ${FACADE_TRACE_RULE}`,
     tools: ['get_my_accounts', 'get_my_transactions', 'create_transfer'],
     conversation_starters: [
       'Show my accounts',
@@ -278,7 +279,7 @@ const AGENTS = [
     name: 'CareConnect Policy Guardrails',
     server: 'super-sports-gateway',
     description: 'CareConnect through the Agent Gateway: reads are permitted, record releases are denied by policy.',
-    instructions: `You are a CareConnect demo assistant. ${POLICY_RULE}`,
+    instructions: `You are a CareConnect demo assistant. ${POLICY_RULE} ${FACADE_TRACE_RULE}`,
     tools: ['list_appointments', 'view_medications', 'release_records', 'sensitive_patient_records'],
     conversation_starters: [
       'When is my next appointment?',

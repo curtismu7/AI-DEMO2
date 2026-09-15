@@ -73,6 +73,9 @@ describe("TransactionTraceEmbedPage", () => {
     expect(mcp).toHaveTextContent("Tools (1)");
     expect(mcp).toHaveTextContent("get_my_accounts — List my accounts");
     expect(mcp).toHaveTextContent("Resources — not advertised by this server");
+    expect(mcp).toHaveTextContent("This MCP server did not advertise the resources capability");
+    expect(mcp).toHaveTextContent('"door": "Agent Gateway"');
+    expect(mcp).toHaveTextContent('"tool": "get_my_accounts"');
     expect(mcp).toHaveTextContent('"limit": 4');
     expect(mcp).toHaveTextContent("✓ HTTP 200 · 42ms");
     expect(mcp).toHaveTextContent('{\\"success\\":true}');
