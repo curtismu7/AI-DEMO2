@@ -28,17 +28,70 @@ export const WORKFLOWS: Record<string, { label: string; server: string; tools: s
   'privilege-aggregate': { label: 'Privilege Aggregate', server: 'MCP Privilege-Aggregate', tools: ['opensearch__ClusterHealthTool', 'opensearch__ListIndexTool', 'banking-mcp__list_banking_accounts', 'banking-mcp__get_banking_account'], starters: ['What is the OpenSearch cluster health?', 'List my banking accounts'] },
 };
 
+function includesAny(request: string, terms: string[]): boolean {
+  return terms.some((term) => request.includes(term));
+}
+
+export function routeHandoff(workflowKey: string, request: string): { targetKey: string; reason: string } {
+  const normalized = request.toLowerCase();
+
+  if (workflowKey === 'handoff-account-viewer') {
+    if (!includesAny(normalized, ['transfer', 'deposit', 'withdraw', 'send money', 'move $', 'move money', 'pay'])) {
+      return {
+        targetKey: workflowKey,
+        reason: 'The request is account viewing and can be handled by the selected workflow.',
+      };
+    }
+    return {
+      targetKey: 'banking-movement',
+      reason: 'The request changes money or moves funds beyond account viewing.',
+    };
+  }
+
+  if (workflowKey === 'handoff-super-sports-checkout') {
+    if (!includesAny(normalized, ['pay', 'payment', 'purchase', 'checkout', 'transfer', 'deposit', 'withdraw', 'charge'])) {
+      return {
+        targetKey: workflowKey,
+        reason: 'The request is an order lookup and can be handled by the selected workflow.',
+      };
+    }
+    return {
+      targetKey: 'banking-movement',
+      reason: 'The request requires a payment, withdrawal, deposit, or transfer.',
+    };
+  }
+
+  if (workflowKey === 'handoff-front-desk') {
+    if (includesAny(normalized, ['appointment', 'medication', 'prescription', 'lab', 'allerg', 'doctor', 'care', 'health'])) {
+      return { targetKey: 'care-data', reason: 'The request concerns health or care information.' };
+    }
+    if (includesAny(normalized, ['rental', 'gear', 'equipment', 'wishlist', 'coaching', 'sports', 'bike', 'helmet'])) {
+      return { targetKey: 'sports-rentals', reason: 'The request concerns sports gear, rentals, or coaching.' };
+    }
+    return { targetKey: 'banking-everyday', reason: 'The request is treated as an everyday banking request.' };
+  }
+
+  return { targetKey: workflowKey, reason: 'The selected workflow is already the best match.' };
+}
+
 export async function toolsProvider(ctl: ToolsProviderController): Promise<Tool[]> {
-  const workflow = WORKFLOWS[ctl.getPluginConfig(configSchematics).get('workflow')] ?? WORKFLOWS['banking-everyday'];
+  const key = ctl.getPluginConfig(configSchematics).get('workflow');
+  const workflow = WORKFLOWS[key] ?? WORKFLOWS['banking-everyday'];
+  if (!workflow.handoffs?.length) return [];
+
   return [tool({
-    name: 'show_demo_workflow',
-    description: 'Briefly show the selected workflow, MCP server, allowed tools, and starter prompts. Do not add commentary.',
-    parameters: { _: z.string().optional().describe('Leave empty; this tool reads the selected workflow.') },
-    implementation: async () => [
-      `Workflow: ${workflow.label}`,
-      `MCP server: ${workflow.server}`,
-      `Tools: ${workflow.tools.join(', ')}`,
-      `Try: ${workflow.starters.join(' | ')}`,
-    ].join('\n'),
+    name: 'route_demo_request',
+    description: 'Route a cross-workflow request to the correct AI-DEMO2 workflow. Call this once before selecting a target MCP tool. Do not narrate the routing.',
+    parameters: { request: z.string().describe('The user request that may need another workflow.') },
+    implementation: async ({ request }: { request: string }) => {
+      const route = routeHandoff(key, request);
+      const target = WORKFLOWS[route.targetKey];
+      return [
+        `Handoff route: ${workflow.label} -> ${target.label}.`,
+        `MCP server: ${target.server}.`,
+        `Call one of these tools next: ${target.tools.length ? target.tools.join(', ') : 'none'}.`,
+        `Reason: ${route.reason}`,
+      ].join('\n');
+    },
   })];
 }

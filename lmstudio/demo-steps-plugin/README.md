@@ -3,12 +3,17 @@
 This LM Studio plugin adds a per-chat workflow dropdown covering the 14 core
 Demo Steps, two Local model paths, three Handoff paths, and four OpenSearch use
 cases. It injects the selected workflow as
-context before each user message; it does not expose a workflow-explanation
-tool, so the model cannot loop on setup instructions.
+context before each user message. Ordinary workflows expose no helper tools, so
+the model calls the selected MCP tool directly without setup loops.
 
-Handoff paths are routing guidance because LM Studio's desktop plugin API has no
-LibreChat-style agent-to-agent handoff graph. They keep the same names and
-starter prompts, but the model must route within the current chat.
+Handoff paths expose a `route_demo_request` coordinator only while a handoff
+workflow is selected. It deterministically chooses the next workflow and
+returns the exact MCP tools to use; the model then calls that MCP tool in the
+same chat. This provides the useful behavior of a handoff without requiring
+LM Studio's plugin API to create LibreChat-style agent-to-agent graph edges.
+
+For handoff workflows, enable the MCP integrations that contain the destination
+tools (normally `MCP AgentGateway-Banking`) in the chat MCP picker.
 
 The plugin does not replace the authenticated MCP servers. Select the matching
 server from `lmstudio/mcp.json` in the chat MCP picker; the plugin supplies the
