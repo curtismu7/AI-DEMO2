@@ -7,11 +7,23 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import apiClient from "../services/apiClient";
+import { useThemeOptional } from "../context/ThemeContext";
 import { HopCard } from "./TransactionTracePage";
 import "./TransactionTracePage.css";
 
 const POLL_MS = 2000;
 const MAX_POLLS = 90; // hops for one call land within seconds; stop after 3 min
+const FONT_STORAGE_KEY = "ttrace_embed_font_size";
+const FONT_SIZES = ["standard", "large", "xlarge"];
+
+function readFontSize() {
+  try {
+    const stored = localStorage.getItem(FONT_STORAGE_KEY);
+    return FONT_SIZES.includes(stored) ? stored : "large";
+  } catch {
+    return "large";
+  }
+}
 
 function findLastHop(hops, phase) {
   const list = (hops || []).filter((h) => h.phase === phase);
@@ -29,8 +41,19 @@ function Json({ value }) {
 
 export default function TransactionTraceEmbedPage() {
   const { correlationId } = useParams();
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const [detail, setDetail] = useState(null);
   const [status, setStatus] = useState("waiting"); // waiting | ok | disabled | error
+  const [fontSize, setFontSize] = useState(readFontSize);
+
+  const chooseFontSize = (nextSize) => {
+    setFontSize(nextSize);
+    try {
+      localStorage.setItem(FONT_STORAGE_KEY, nextSize);
+    } catch {
+      // Storage can be unavailable; the in-memory choice still applies.
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -78,9 +101,26 @@ export default function TransactionTraceEmbedPage() {
   const advertisesResources = Boolean(meta.capabilities && meta.capabilities.resources);
 
   return (
-    <div className="ttrace-page" data-testid="ttrace-embed">
+    <div className={`ttrace-page ttrace-embed ttrace-page--font-${fontSize}`} data-testid="ttrace-embed">
       <header className="ttrace-header">
-        <h1>Live trace</h1>
+        <div className="ttrace-header-top">
+          <h1>Live trace</h1>
+          <div className="ttrace-view-controls" aria-label="Trace display controls">
+            <div className="ttrace-font-controls" role="group" aria-label="Font size">
+              <button type="button" aria-label="Standard font size" aria-pressed={fontSize === "standard"} onClick={() => chooseFontSize("standard")}>A−</button>
+              <button type="button" aria-label="Large font size" aria-pressed={fontSize === "large"} onClick={() => chooseFontSize("large")}>A</button>
+              <button type="button" aria-label="Extra large font size" aria-pressed={fontSize === "xlarge"} onClick={() => chooseFontSize("xlarge")}>A+</button>
+            </div>
+            <button
+              type="button"
+              className="ttrace-theme-toggle"
+              onClick={toggleDarkMode}
+              aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+            </button>
+          </div>
+        </div>
         <p className="ttrace-sub">
           {meta.doorLabel ? `${meta.doorLabel} · ` : ""}
           {request?.op || "external MCP call"}

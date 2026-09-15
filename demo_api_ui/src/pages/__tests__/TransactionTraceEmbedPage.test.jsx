@@ -1,7 +1,8 @@
 import React from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import apiClient from "../../services/apiClient";
+import { ThemeProvider } from "../../context/ThemeContext";
 import TransactionTraceEmbedPage from "../TransactionTraceEmbedPage";
 
 vi.mock("../../services/apiClient", () => ({ default: { get: vi.fn() } }));
@@ -33,16 +34,20 @@ const RECORD = {
 
 function renderAt(correlationId) {
   return render(
-    <MemoryRouter initialEntries={[`/transaction-trace/embed/${correlationId}`]}>
-      <Routes>
-        <Route path="/transaction-trace/embed/:correlationId" element={<TransactionTraceEmbedPage />} />
-      </Routes>
-    </MemoryRouter>,
+    <ThemeProvider>
+      <MemoryRouter initialEntries={[`/transaction-trace/embed/${correlationId}`]}>
+        <Routes>
+          <Route path="/transaction-trace/embed/:correlationId" element={<TransactionTraceEmbedPage />} />
+        </Routes>
+      </MemoryRouter>
+    </ThemeProvider>,
   );
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.removeItem("ttrace_embed_font_size");
+  localStorage.removeItem("ba_dark_mode");
 });
 
 describe("TransactionTraceEmbedPage", () => {
@@ -79,5 +84,25 @@ describe("TransactionTraceEmbedPage", () => {
     apiClient.get.mockResolvedValue({ status: 403, data: { error: "feature_disabled" } });
     renderAt("cid-1");
     await waitFor(() => expect(screen.getByText(/ff_transaction_ledger/)).toBeInTheDocument());
+  });
+
+  it("defaults to large text and persists font-size controls", async () => {
+    apiClient.get.mockResolvedValue({ status: 200, data: RECORD });
+    renderAt("cid-1");
+    const page = await screen.findByTestId("ttrace-embed");
+    expect(page).toHaveClass("ttrace-page--font-large");
+
+    fireEvent.click(screen.getByRole("button", { name: "Extra large font size" }));
+    expect(page).toHaveClass("ttrace-page--font-xlarge");
+    expect(localStorage.getItem("ttrace_embed_font_size")).toBe("xlarge");
+  });
+
+  it("offers the app light and dark mode toggle", async () => {
+    apiClient.get.mockResolvedValue({ status: 200, data: RECORD });
+    renderAt("cid-1");
+    const toggle = await screen.findByRole("button", { name: "Switch to dark mode" });
+    fireEvent.click(toggle);
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    expect(screen.getByRole("button", { name: "Switch to light mode" })).toBeInTheDocument();
   });
 });

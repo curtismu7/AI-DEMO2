@@ -40,6 +40,100 @@
   color: var(--th-text);
 }
 
+.ttrace-view-controls,
+.ttrace-font-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ttrace-font-controls {
+  padding: 3px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.ttrace-font-controls button {
+  min-width: 34px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--th-text);
+  font-size: var(--font-size-body);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ttrace-font-controls button:hover,
+.ttrace-font-controls button[aria-pressed="true"] {
+  border-color: var(--th-border-strong);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+/* The external façade reel defaults one step larger than the admin trace page.
+   Controls only swap scale tokens; no inline font sizes or theme literals. */
+.ttrace-page--font-standard {
+  --ttrace-embed-body-size: var(--font-size-body);
+  --ttrace-embed-small-size: var(--font-size-sm);
+  --ttrace-embed-heading-size: var(--font-size-2xl);
+}
+
+.ttrace-page--font-large {
+  --ttrace-embed-body-size: var(--font-size-lg);
+  --ttrace-embed-small-size: var(--font-size-body);
+  --ttrace-embed-heading-size: var(--font-size-3xl);
+}
+
+.ttrace-page--font-xlarge {
+  --ttrace-embed-body-size: var(--font-size-xl);
+  --ttrace-embed-small-size: var(--font-size-lg);
+  --ttrace-embed-heading-size: var(--font-size-3xl);
+}
+
+.ttrace-embed,
+.ttrace-embed .ttrace-sub,
+.ttrace-embed .ttrace-notice,
+.ttrace-embed .ttrace-hop-head,
+.ttrace-embed .ttrace-detail {
+  font-size: var(--ttrace-embed-body-size);
+}
+
+.ttrace-embed .ttrace-header h1 {
+  font-size: var(--ttrace-embed-heading-size);
+}
+
+.ttrace-embed code {
+  color: var(--th-text);
+}
+
+.ttrace-embed .ttrace-node,
+.ttrace-embed .ttrace-phase,
+.ttrace-embed .ttrace-op,
+.ttrace-embed .ttrace-ms,
+.ttrace-embed .ttrace-identity,
+.ttrace-embed .ttrace-decision,
+.ttrace-embed .ttrace-filter,
+.ttrace-embed .ttrace-derived {
+  font-size: var(--ttrace-embed-small-size);
+}
+
+@media (max-width: 720px) {
+  .ttrace-header-top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ttrace-view-controls {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+}
+
 .ttrace-sub {
   margin: 4px 0 16px;
   color: var(--th-text, #111827);
