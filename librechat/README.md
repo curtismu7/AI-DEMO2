@@ -135,7 +135,8 @@ below.
    tools) · Privilege expose all nine tools, while OpenSearch22 · Privilege
    exposes only the three policy-approved health, index-list, and count tools.
    Their descriptions stay concise instead of repeating their prompts above
-   the starter cards.
+   the starter cards. The all-tools Privilege lane runs through the recording
+   façade and links each answer to its transaction-trace page.
 
    Banking and CareConnect (healthcare) agents: Banking Account Details,
    CareConnect Health Data, CareConnect Coverage & Claims and CareConnect

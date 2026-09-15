@@ -150,16 +150,16 @@ const AGENTS = [
   // The straight-to-Privilege opensearch22 lane deliberately demonstrates a
   // policy-restricted catalog with only three tools.
   ...[
-    ['OpenSearch22 · Direct', 'OpenSearch · Direct', 'opensearch-direct', 'No Privilege in front: the OpenSearch MCP server over the Mac port-forward.', false],
-    ['OpenSearch (all tools) · Privilege', 'OpenSearch · via Privilege', 'opensearch-privilege-gateway', 'All OpenSearch tools through the recording façade to the Privilege AI Gateway.', false],
-    ['OpenSearch22 · Privilege', 'OpenSearch · Privilege opensearch22', 'privilege-opensearch22', 'Three policy-approved tools straight through the Privilege AI Gateway opensearch22 app.', true],
-  ].map(([name, previousName, server, description, restricted]) => ({
+    ['OpenSearch22 · Direct', 'OpenSearch · Direct', 'opensearch-direct', 'No Privilege in front: the OpenSearch MCP server over the Mac port-forward.', false, false],
+    ['OpenSearch (all tools) · Privilege', 'OpenSearch · via Privilege', 'opensearch-privilege-gateway', 'All OpenSearch tools through the recording façade to the Privilege AI Gateway.', false, true],
+    ['OpenSearch22 · Privilege', 'OpenSearch · Privilege opensearch22', 'privilege-opensearch22', 'Three policy-approved tools straight through the Privilege AI Gateway opensearch22 app.', true, false],
+  ].map(([name, previousName, server, description, restricted, showFacadeTrace]) => ({
     name,
     previousNames: [previousName],
     server,
     description: `${description} You can ask by sending "What tools can I use?"`,
     includeStartersInDescription: false,
-    instructions: 'You are an OpenSearch demo assistant. Always call the tool named by the user. For tools that need an index or document ID, discover a real one with ListIndexTool and SearchIndexTool first; never invent one. Keep answers short.',
+    instructions: `You are an OpenSearch demo assistant. Always call the tool named by the user. For tools that need an index or document ID, discover a real one with ListIndexTool and SearchIndexTool first; never invent one. Keep answers short.${showFacadeTrace ? ' After every tool call, find the reel_url in the tool result and end your reply with a Markdown link labeled "View façade trace". Never invent a trace URL when reel_url is absent.' : ''}`,
     tools: restricted ? ['ClusterHealthTool', 'ListIndexTool', 'CountTool'] : [
       'ListIndexTool',
       'IndexMappingTool',
