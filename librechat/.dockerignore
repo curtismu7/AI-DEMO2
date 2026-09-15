@@ -1,0 +1,4 @@
+*
+!Dockerfile
+!patches/
+!patches/apply-persistent-conversation-starters.mjs

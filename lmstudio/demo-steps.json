@@ -1,0 +1,139 @@
+{
+  "description": "LM Studio equivalents of LibreChat's curated Demo Steps.",
+  "server": "MCP AgentGateway-Banking",
+  "systemPrompt": "Be brief and direct: answer in at most 3 short sentences, do not restate the request or explain your plan, and call the matching MCP tool immediately. If a tool result contains reel_url, end with a Markdown link labeled View façade trace; never invent a trace URL.",
+  "steps": [
+    {
+      "id": "banking-everyday",
+      "group": "Banking",
+      "label": "Everyday Banking",
+      "tools": ["get_my_accounts", "get_account_balance", "get_my_transactions", "search_transactions"],
+      "starters": ["Show my accounts", "What is my balance?", "Show my recent transactions", "What are my biggest spending categories?"]
+    },
+    {
+      "id": "banking-details",
+      "group": "Banking",
+      "label": "Account Details",
+      "tools": ["get_my_accounts", "get_account_nickname", "get_my_transactions", "get_transaction_detail"],
+      "starters": ["Show my accounts", "What is my checking account's nickname?", "Show my recent transactions", "Show the details of my latest transaction"]
+    },
+    {
+      "id": "banking-movement",
+      "group": "Banking",
+      "label": "Money Movement",
+      "tools": ["get_my_accounts", "create_transfer", "create_deposit", "create_withdrawal"],
+      "starters": ["Transfer $300 from checking to savings", "Deposit $50 into checking", "Withdraw $20 from savings", "Show my accounts"]
+    },
+    {
+      "id": "banking-support",
+      "group": "Banking",
+      "label": "Support and Fees",
+      "tools": ["get_my_accounts", "get_fee_schedule", "request_fee_waiver", "get_branch_hours"],
+      "starters": ["What fees do you charge?", "Request a fee waiver on my checking account", "What are the branch hours?", "Show my accounts"]
+    },
+    {
+      "id": "banking-policy",
+      "group": "Banking",
+      "label": "Policy Guardrails",
+      "tools": ["get_my_accounts", "get_my_transactions", "create_transfer"],
+      "starters": ["Show my accounts", "Show my recent transactions", "Transfer $50 from checking to savings"]
+    },
+    {
+      "id": "sports-legacy",
+      "group": "Super Sports",
+      "label": "Legacy Records",
+      "tools": ["show_gear_order", "show_gear_warranty"],
+      "starters": ["Show my latest gear order", "Is my watch still under warranty?", "How many warranty claims do I have left?", "When was my order delivered?"]
+    },
+    {
+      "id": "sports-rentals",
+      "group": "Super Sports",
+      "label": "Gear and Rentals",
+      "tools": ["list_rentals", "browse_gear", "list_wishlist", "list_coaching_sessions"],
+      "starters": ["Show my active equipment rentals", "What gear can I buy right now?", "What's on my wishlist?", "Which coaching sessions do I have booked?"]
+    },
+    {
+      "id": "sports-orders",
+      "group": "Super Sports",
+      "label": "Orders and Loyalty",
+      "tools": ["list_gear", "gear_order_status", "loyalty_balance", "list_store_credit"],
+      "starters": ["Show my gear orders", "Where is my Garmin Forerunner 265 order (2002)?", "How many loyalty points do I have?", "How much store credit do I have?"]
+    },
+    {
+      "id": "sports-stores-code",
+      "group": "Super Sports",
+      "label": "Stores and Code",
+      "tools": ["get_branch_hours", "code_search"],
+      "starters": ["What Super Sports stores are near me?", "What are the Denver Outfitter's hours?", "Where is extend_rental implemented?", "Find where PingOne Authorize denies agent-mediated tools"]
+    },
+    {
+      "id": "sports-policy",
+      "group": "Super Sports",
+      "label": "Policy Guardrails",
+      "tools": ["list_rentals", "loyalty_balance", "extend_rental", "sensitive_membership_details"],
+      "starters": ["Show my active equipment rentals", "What is my loyalty points balance?", "Extend my Trek Marlin 8 rental (3001) by 2 days", "Show my sensitive membership payment details"]
+    },
+    {
+      "id": "care-data",
+      "group": "CareConnect",
+      "label": "Health Data",
+      "tools": ["list_appointments", "view_medications", "view_lab_results", "view_allergies"],
+      "starters": ["When is my next appointment?", "What medications am I taking?", "Show my latest lab results", "What am I allergic to?"]
+    },
+    {
+      "id": "care-coverage",
+      "group": "CareConnect",
+      "label": "Coverage and Claims",
+      "tools": ["view_coverage", "view_claims", "view_care_team", "view_referrals"],
+      "starters": ["What does my insurance plan cover?", "Show my recent claims", "Who is on my care team?", "Do I have any referrals?"]
+    },
+    {
+      "id": "care-actions",
+      "group": "CareConnect",
+      "label": "Actions",
+      "tools": ["refill_prescription", "book_appointment", "view_medications", "list_appointments"],
+      "starters": ["Refill my Lisinopril prescription", "Book an annual physical with Dr. Sarah Mitchell", "What medications am I taking?", "When is my next appointment?"]
+    },
+    {
+      "id": "care-policy",
+      "group": "CareConnect",
+      "label": "Policy Guardrails",
+      "tools": ["list_appointments", "view_medications", "release_records", "sensitive_patient_records"],
+      "starters": ["When is my next appointment?", "What medications am I taking?", "Release my medical records to Dr. Helen Park", "Show my sensitive patient records"]
+    }
+  ],
+  "openSearchUseCases": [
+    {
+      "id": "opensearch-direct",
+      "group": "OpenSearch",
+      "label": "OpenSearch · Direct",
+      "server": "MCP Direct-OpenSearch",
+      "tools": ["ListIndexTool", "IndexMappingTool", "SearchIndexTool", "GetShardsTool", "GenericOpenSearchApiTool", "ClusterHealthTool", "CountTool", "MsearchTool", "ExplainTool"],
+      "starters": ["List the OpenSearch indices", "Show the mapping for the first non-system index", "Search the first non-system index and show 5 documents"]
+    },
+    {
+      "id": "opensearch-via-privilege",
+      "group": "OpenSearch",
+      "label": "OpenSearch · via Privilege",
+      "server": "MCP Privilege-OpenSearch",
+      "tools": ["ListIndexTool", "IndexMappingTool", "SearchIndexTool", "GetShardsTool", "GenericOpenSearchApiTool", "ClusterHealthTool", "CountTool", "MsearchTool", "ExplainTool"],
+      "starters": ["List the OpenSearch indices", "Show the mapping for the first non-system index", "Search the first non-system index and show 5 documents"]
+    },
+    {
+      "id": "opensearch-privilege-opensearch22",
+      "group": "OpenSearch",
+      "label": "OpenSearch · Privilege opensearch22",
+      "server": "MCP Privilege-OpenSearch",
+      "tools": ["ClusterHealthTool", "ListIndexTool", "CountTool"],
+      "starters": ["What is the OpenSearch cluster health?", "List the OpenSearch indices", "How many documents are in the cluster?"]
+    },
+    {
+      "id": "privilege-aggregate",
+      "group": "OpenSearch",
+      "label": "Privilege Aggregate",
+      "server": "MCP Privilege-Aggregate",
+      "tools": ["opensearch__ClusterHealthTool", "opensearch__ListIndexTool", "banking-mcp__list_banking_accounts", "banking-mcp__get_banking_account"],
+      "starters": ["What is the OpenSearch cluster health?", "List the OpenSearch indices", "List my banking accounts"]
+    }
+  ]
+}
