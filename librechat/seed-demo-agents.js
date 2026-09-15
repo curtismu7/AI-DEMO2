@@ -290,6 +290,33 @@ const AGENTS = [
   },
 ];
 
+// Façade-backed copies for the Demo Steps menu. Each keeps the focused tools
+// and prompts of the original agent, but sends MCP calls through the recording
+// Agent Gateway door so PingOne authorization and the resulting trace are
+// visible. The original agents remain available for direct/model comparisons.
+for (const name of [
+  'Everyday Banking',
+  'Banking Account Details',
+  'Money Movement',
+  'Support and Fees',
+  'Super Sports',
+  'Super Sports Gear & Rentals',
+  'Super Sports Orders & Loyalty',
+  'Super Sports Stores & Code',
+  'CareConnect Health Data',
+  'CareConnect Coverage & Claims',
+  'CareConnect Actions',
+]) {
+  const base = AGENTS.find((agent) => agent.name === name);
+  AGENTS.push({
+    ...base,
+    name: `Demo Step · ${name}`,
+    server: 'super-sports-gateway',
+    description: `${base.description} Runs through the recording façade, Agent Gateway and PingOne authorization.`,
+    instructions: `${base.instructions} ${FACADE_TRACE_RULE}`,
+  });
+}
+
 // Same agent, two model paths: each copy keeps the original's tools, instructions
 // and starters but runs on the Local LLM Proxy, with no Privilege in front. Stores
 // & Code can show a Privilege control (its store answer is sometimes blocked as
