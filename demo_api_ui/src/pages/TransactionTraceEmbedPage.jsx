@@ -64,7 +64,7 @@ function TraceSection({ title, explanation, children, className = "" }) {
   );
 }
 
-function HopFilmstrip({ hops, selectedSeq, onSelect }) {
+export function HopFilmstrip({ hops, selectedSeq, onSelect, showService = true }) {
   return (
     <section className="ttrace-filmstrip" aria-label="Recorded façade hops">
       <header className="ttrace-filmstrip__header">
@@ -84,7 +84,7 @@ function HopFilmstrip({ hops, selectedSeq, onSelect }) {
             aria-pressed={hop.seq === selectedSeq}
           >
             <span className="ttrace-film-frame__number">Frame {hop.seq}</span>
-            <strong>{hop.service || "Façade"}</strong>
+            {showService ? <strong>{hop.service || "Façade"}</strong> : null}
             <span className="ttrace-film-frame__phase">{hop.phase || "recorded hop"}</span>
             <span className="ttrace-film-frame__operation">{hop.op || "No operation recorded"}</span>
             <span className="ttrace-film-frame__meta">
@@ -98,7 +98,7 @@ function HopFilmstrip({ hops, selectedSeq, onSelect }) {
   );
 }
 
-function SelectedHopDetail({ hop }) {
+export function SelectedHopDetail({ hop }) {
   if (!hop) return null;
   const recorded = hop.details && typeof hop.details === "object"
     ? hop.details
