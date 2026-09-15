@@ -284,6 +284,7 @@ export default function TransactionTraceEmbedPage() {
             externalSteps={sequenceSteps}
             externalRunId={correlationId}
             externalTraceFinished={status === "ok"}
+            slowMode
             selectedStepId={selectedHop ? `facade-hop-${selectedHop.seq}` : undefined}
             onSelectStep={(step) => setSelectedHopSeq(step.hopSeq ?? null)}
             zoomStorageKey="ttrace_embed_sequence_zoom"

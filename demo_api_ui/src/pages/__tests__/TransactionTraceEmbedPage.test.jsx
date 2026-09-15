@@ -104,6 +104,22 @@ describe("TransactionTraceEmbedPage", () => {
     expect(screen.getByRole("heading", { name: "Step 3: get_my_accounts" })).toBeInTheDocument();
   });
 
+  it("provides playback transport for the façade sequence", async () => {
+    apiClient.get.mockResolvedValue({ status: 200, data: RECORD });
+    renderAt("cid-1");
+    await screen.findByRole("button", { name: /Frame 3/ });
+
+    fireEvent.click(screen.getByRole("button", { name: "Sequence" }));
+    expect(screen.getAllByRole("button", { name: "Prev" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Next" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Replay" })).toHaveLength(2);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Replay" })[0]);
+    expect(screen.getAllByRole("button", { name: "Pause" })).toHaveLength(2);
+    fireEvent.click(screen.getAllByRole("button", { name: "Next" })[0]);
+    expect(screen.getAllByRole("button", { name: "Play" })).toHaveLength(2);
+  });
+
   it("explains when the ledger feature is off", async () => {
     apiClient.get.mockResolvedValue({ status: 403, data: { error: "feature_disabled" } });
     renderAt("cid-1");
