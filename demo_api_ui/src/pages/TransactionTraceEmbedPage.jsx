@@ -8,12 +8,14 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import apiClient from "../services/apiClient";
 import { useThemeOptional } from "../context/ThemeContext";
+import SequenceReelDiagram from "../components/SequenceReelDiagram";
 import { HopCard } from "./TransactionTracePage";
 import "./TransactionTracePage.css";
 
 const POLL_MS = 2000;
 const MAX_POLLS = 90; // hops for one call land within seconds; stop after 3 min
 const FONT_STORAGE_KEY = "ttrace_embed_font_size";
+const VIEW_STORAGE_KEY = "ttrace_embed_view";
 const FONT_SIZES = ["standard", "large", "xlarge"];
 
 function readFontSize() {
@@ -28,6 +30,25 @@ function readFontSize() {
 function findLastHop(hops, phase) {
   const list = (hops || []).filter((h) => h.phase === phase);
   return list.length ? list[list.length - 1] : null;
+}
+
+export function facadeHopsToSequenceSteps(hops) {
+  const laneForPhase = {
+    "ui.request": "CHAT",
+    "mcp.step": "MCP",
+    "token.exchange": "BFF",
+    "gateway.authorize": "AUTHZ",
+    "mcp.tool": "MCP",
+    response: "CHAT",
+  };
+  return (hops || []).map((hop) => ({
+    id: `facade-hop-${hop.seq}`,
+    lane: laneForPhase[hop.phase] || "GATEWAY",
+    title: hop.phase === "gateway.authorize" && hop.decision
+      ? `PingOne Authorize — ${hop.decision.outcome === "deny" ? "DENY" : "PERMIT"}`
+      : hop.op || hop.phase,
+    status: hop.status === "error" ? "error" : "done",
+  }));
 }
 
 function Json({ value }) {
@@ -45,11 +66,27 @@ export default function TransactionTraceEmbedPage() {
   const [detail, setDetail] = useState(null);
   const [status, setStatus] = useState("waiting"); // waiting | ok | disabled | error
   const [fontSize, setFontSize] = useState(readFontSize);
+  const [view, setView] = useState(() => {
+    try {
+      return localStorage.getItem(VIEW_STORAGE_KEY) === "sequence" ? "sequence" : "reel";
+    } catch {
+      return "reel";
+    }
+  });
 
   const chooseFontSize = (nextSize) => {
     setFontSize(nextSize);
     try {
       localStorage.setItem(FONT_STORAGE_KEY, nextSize);
+    } catch {
+      // Storage can be unavailable; the in-memory choice still applies.
+    }
+  };
+
+  const chooseView = (nextView) => {
+    setView(nextView);
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, nextView);
     } catch {
       // Storage can be unavailable; the in-memory choice still applies.
     }
@@ -108,6 +145,7 @@ export default function TransactionTraceEmbedPage() {
     },
     client: meta.client || null,
   };
+  const sequenceSteps = facadeHopsToSequenceSteps(hops);
 
   return (
     <div className={`ttrace-page ttrace-embed ttrace-page--font-${fontSize}`} data-testid="ttrace-embed">
@@ -115,6 +153,10 @@ export default function TransactionTraceEmbedPage() {
         <div className="ttrace-header-top">
           <h1>Live trace</h1>
           <div className="ttrace-view-controls" aria-label="Trace display controls">
+            <div className="ttrace-view-mode" role="group" aria-label="Trace view">
+              <button type="button" aria-pressed={view === "reel"} onClick={() => chooseView("reel")}>Movie reel</button>
+              <button type="button" aria-pressed={view === "sequence"} onClick={() => chooseView("sequence")}>Sequence</button>
+            </div>
             <div className="ttrace-font-controls" role="group" aria-label="Font size">
               <button type="button" aria-label="Standard font size" aria-pressed={fontSize === "standard"} onClick={() => chooseFontSize("standard")}>A−</button>
               <button type="button" aria-label="Large font size" aria-pressed={fontSize === "large"} onClick={() => chooseFontSize("large")}>A</button>
@@ -150,12 +192,25 @@ export default function TransactionTraceEmbedPage() {
         </div>
       ) : null}
 
-      {hops.length ? (
+      {hops.length && view === "reel" ? (
         <ul className="ttrace-hops">
           {hops.map((hop) => (
             <HopCard key={hop.seq} hop={hop} violations={[]} severed={false} />
           ))}
         </ul>
+      ) : null}
+
+      {hops.length && view === "sequence" ? (
+        <section className="ttrace-sequence" data-testid="facade-sequence">
+          <SequenceReelDiagram
+            externalSteps={sequenceSteps}
+            externalRunId={correlationId}
+            externalTraceFinished={status === "ok"}
+            zoomStorageKey="ttrace_embed_sequence_zoom"
+            initialZoom={100}
+            ariaLabel="Sequence diagram of this facade trace"
+          />
+        </section>
       ) : null}
 
       {request ? (

@@ -41,7 +41,8 @@
 }
 
 .ttrace-view-controls,
-.ttrace-font-controls {
+.ttrace-font-controls,
+.ttrace-view-mode {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -72,6 +73,43 @@
   border-color: var(--th-border-strong);
   background: var(--th-bg-card);
   color: var(--th-text);
+}
+
+.ttrace-view-mode {
+  padding: 3px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.ttrace-view-mode button {
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--th-text);
+  font-size: var(--font-size-body);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ttrace-view-mode button:hover,
+.ttrace-view-mode button[aria-pressed="true"] {
+  border-color: var(--th-border-strong);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.ttrace-sequence {
+  /* One bounded scroll surface preserves every lane and hop on narrow artifact
+     frames: nothing is clipped, and both diagram toolbars remain reachable. */
+  max-height: min(72vh, 840px);
+  margin-bottom: 16px;
+}
+
+.ttrace-sequence .srd-root {
+  height: min(72vh, 840px);
 }
 
 /* The external façade reel defaults one step larger than the admin trace page.
@@ -131,6 +169,11 @@
     width: 100%;
     justify-content: space-between;
     flex-wrap: wrap;
+  }
+
+  .ttrace-view-mode {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 

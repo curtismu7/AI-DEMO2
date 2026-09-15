@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import apiClient from "../../services/apiClient";
 import { ThemeProvider } from "../../context/ThemeContext";
-import TransactionTraceEmbedPage from "../TransactionTraceEmbedPage";
+import TransactionTraceEmbedPage, { facadeHopsToSequenceSteps } from "../TransactionTraceEmbedPage";
 
 vi.mock("../../services/apiClient", () => ({ default: { get: vi.fn() } }));
 
@@ -47,6 +47,8 @@ function renderAt(correlationId) {
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.removeItem("ttrace_embed_font_size");
+  localStorage.removeItem("ttrace_embed_view");
+  localStorage.removeItem("ttrace_embed_sequence_zoom");
   localStorage.removeItem("ba_dark_mode");
 });
 
@@ -107,5 +109,28 @@ describe("TransactionTraceEmbedPage", () => {
     fireEvent.click(toggle);
     expect(document.documentElement).toHaveAttribute("data-theme", "dark");
     expect(screen.getByRole("button", { name: "Switch to light mode" })).toBeInTheDocument();
+  });
+
+  it("switches from the movie reel to a complete facade sequence diagram", async () => {
+    apiClient.get.mockResolvedValue({ status: 200, data: RECORD });
+    renderAt("cid-1");
+    await screen.findByTestId("hop-5");
+    expect(screen.getByRole("button", { name: "Movie reel" })).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: "Sequence" }));
+    expect(screen.getByTestId("facade-sequence")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Sequence diagram of this facade trace" })).toBeInTheDocument();
+    expect(screen.queryByTestId("hop-5")).not.toBeInTheDocument();
+    expect(localStorage.getItem("ttrace_embed_view")).toBe("sequence");
+  });
+
+  it("maps facade hops to the same lifeline vocabulary as the dashboard sequence", () => {
+    expect(facadeHopsToSequenceSteps(RECORD.hops)).toEqual([
+      expect.objectContaining({ lane: "MCP", title: "initialize" }),
+      expect.objectContaining({ lane: "CHAT", title: "tools/call get_my_accounts" }),
+      expect.objectContaining({ lane: "AUTHZ", title: "PingOne Authorize — PERMIT" }),
+      expect.objectContaining({ lane: "MCP", title: "get_my_accounts" }),
+      expect.objectContaining({ lane: "CHAT", title: "tools/call" }),
+    ]);
   });
 });
