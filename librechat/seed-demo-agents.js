@@ -146,19 +146,21 @@ const AGENTS = [
       'Show my sensitive membership payment details',
     ],
   },
-  // Same OpenSearch MCP server behind three doors, same starters, so a
-  // presenter can compare the routes.
+  // The direct and recording-facade lanes expose the full OpenSearch catalog.
+  // The straight-to-Privilege opensearch22 lane deliberately demonstrates a
+  // policy-restricted catalog with only three tools.
   ...[
-    ['OpenSearch · Direct', 'opensearch-direct', 'No Privilege in front: the OpenSearch MCP server over the Mac port-forward.'],
-    ['OpenSearch · via Privilege', 'opensearch-privilege-gateway', 'Through the recording façade to the Privilege AI Gateway opensearch22 app.'],
-    ['OpenSearch · Privilege opensearch22', 'privilege-opensearch22', 'Straight to the Privilege AI Gateway opensearch22 app.'],
-  ].map(([name, server, description]) => ({
+    ['OpenSearch22 · Direct', 'OpenSearch · Direct', 'opensearch-direct', 'No Privilege in front: the OpenSearch MCP server over the Mac port-forward.', false],
+    ['OpenSearch (all tools) · Privilege', 'OpenSearch · via Privilege', 'opensearch-privilege-gateway', 'All OpenSearch tools through the recording façade to the Privilege AI Gateway.', false],
+    ['OpenSearch22 · Privilege', 'OpenSearch · Privilege opensearch22', 'privilege-opensearch22', 'Three policy-approved tools straight through the Privilege AI Gateway opensearch22 app.', true],
+  ].map(([name, previousName, server, description, restricted]) => ({
     name,
+    previousNames: [previousName],
     server,
     description: `${description} You can ask by sending "What tools can I use?"`,
     includeStartersInDescription: false,
     instructions: 'You are an OpenSearch demo assistant. Always call the tool named by the user. For tools that need an index or document ID, discover a real one with ListIndexTool and SearchIndexTool first; never invent one. Keep answers short.',
-    tools: [
+    tools: restricted ? ['ClusterHealthTool', 'ListIndexTool', 'CountTool'] : [
       'ListIndexTool',
       'IndexMappingTool',
       'SearchIndexTool',
@@ -169,7 +171,11 @@ const AGENTS = [
       'MsearchTool',
       'ExplainTool',
     ],
-    conversation_starters: [
+    conversation_starters: restricted ? [
+      'What is the OpenSearch cluster health?',
+      'List the OpenSearch indices',
+      'How many documents are in the cluster?',
+    ] : [
       'List the OpenSearch indices',
       'Show the mapping for the first non-system index',
       'Search the first non-system index and show 5 documents',
@@ -404,7 +410,8 @@ async function main() {
       tools: def.tools.length ? [`sys__server__sys_mcp_${server}`, ...def.tools.map((t) => `${t}_mcp_${server}`)] : [],
       conversation_starters: def.conversation_starters,
     };
-    const id = existing.get(def.name);
+    const id = existing.get(def.name)
+      || def.previousNames?.map((name) => existing.get(name)).find(Boolean);
     const saved = id
       ? await call('PATCH', `/api/agents/${id}`, { token, body })
       : await call('POST', '/api/agents', { token, body });

@@ -131,10 +131,11 @@ below.
      the run stops at human consent instead of moving money.
 
    It also creates Super Sports Policy Guardrails (on `super-sports-gateway`)
-   and three OpenSearch agents — OpenSearch · Direct, OpenSearch · via
-   Privilege, OpenSearch · Privilege opensearch22 — with the same nine
-   starters, one for every OpenSearch tool, per door. Their descriptions stay
-   concise instead of repeating all nine prompts above the starter cards.
+   and three OpenSearch agents: OpenSearch22 · Direct and OpenSearch (all
+   tools) · Privilege expose all nine tools, while OpenSearch22 · Privilege
+   exposes only the three policy-approved health, index-list, and count tools.
+   Their descriptions stay concise instead of repeating their prompts above
+   the starter cards.
 
    Banking and CareConnect (healthcare) agents: Banking Account Details,
    CareConnect Health Data, CareConnect Coverage & Claims and CareConnect
