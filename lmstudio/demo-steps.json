@@ -101,5 +101,39 @@
       "tools": ["list_appointments", "view_medications", "release_records", "sensitive_patient_records"],
       "starters": ["When is my next appointment?", "What medications am I taking?", "Release my medical records to Dr. Helen Park", "Show my sensitive patient records"]
     }
+  ],
+  "openSearchUseCases": [
+    {
+      "id": "opensearch-direct",
+      "group": "OpenSearch",
+      "label": "OpenSearch · Direct",
+      "server": "MCP Direct-OpenSearch",
+      "tools": ["ListIndexTool", "IndexMappingTool", "SearchIndexTool", "GetShardsTool", "GenericOpenSearchApiTool", "ClusterHealthTool", "CountTool", "MsearchTool", "ExplainTool"],
+      "starters": ["List the OpenSearch indices", "Show the mapping for the first non-system index", "Search the first non-system index and show 5 documents"]
+    },
+    {
+      "id": "opensearch-via-privilege",
+      "group": "OpenSearch",
+      "label": "OpenSearch · via Privilege",
+      "server": "MCP Privilege-OpenSearch",
+      "tools": ["ListIndexTool", "IndexMappingTool", "SearchIndexTool", "GetShardsTool", "GenericOpenSearchApiTool", "ClusterHealthTool", "CountTool", "MsearchTool", "ExplainTool"],
+      "starters": ["List the OpenSearch indices", "Show the mapping for the first non-system index", "Search the first non-system index and show 5 documents"]
+    },
+    {
+      "id": "opensearch-privilege-opensearch22",
+      "group": "OpenSearch",
+      "label": "OpenSearch · Privilege opensearch22",
+      "server": "MCP Privilege-OpenSearch",
+      "tools": ["ClusterHealthTool", "ListIndexTool", "CountTool"],
+      "starters": ["What is the OpenSearch cluster health?", "List the OpenSearch indices", "How many documents are in the cluster?"]
+    },
+    {
+      "id": "privilege-aggregate",
+      "group": "OpenSearch",
+      "label": "Privilege Aggregate",
+      "server": "MCP Privilege-Aggregate",
+      "tools": ["opensearch__ClusterHealthTool", "opensearch__ListIndexTool", "banking-mcp__list_banking_accounts", "banking-mcp__get_banking_account"],
+      "starters": ["What is the OpenSearch cluster health?", "List the OpenSearch indices", "List my banking accounts"]
+    }
   ]
 }

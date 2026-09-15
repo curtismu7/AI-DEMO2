@@ -9,19 +9,33 @@ cp lmstudio/mcp.json ~/.lmstudio/mcp.json   # then restart LM Studio
 
 ## Demo Steps parity
 
-`demo-steps.json` is the LM Studio equivalent of LibreChat's curated Demo
-Steps menu. It contains the same 14 focused Banking, Super Sports, and
-CareConnect steps, including the policy-guardrail variants, with the same
-tool allowlists and conversation starters. All steps use
-`MCP AgentGateway-Banking`, so the recording façade, Agent Gateway
-authorization, and PingOne proof remain visible.
+`demo-steps.json` is the source manifest for the LM Studio workflow pack. It
+contains the same 14 focused Banking, Super Sports, and CareConnect steps plus
+the four OpenSearch use cases, with their tool allowlists and conversation
+starters. All gateway-backed steps use `MCP AgentGateway-Banking`, so the
+recording façade, Agent Gateway authorization, and PingOne proof remain
+visible.
 
-LM Studio's supported `mcp.json` format configures servers, not named agents
-with per-chat tool allowlists. To run a step, select `MCP AgentGateway-Banking`
-in the chat's MCP picker, enable only that step's `tools`, paste its
-`systemPrompt` into the chat system prompt, and use one of its `starters`.
-This keeps the behavior aligned with LibreChat without inventing an
-unsupported LM Studio configuration shape.
+Install the presets with:
+
+```bash
+node lmstudio/install-presets.js
+```
+
+Then import the generated files from `~/.lmstudio/config-presets` using LM
+Studio's Preset menu. The `ai-demo-demo-steps` plugin adds a workflow dropdown
+and a `show_demo_workflow` tool. Install it with:
+
+```bash
+cd lmstudio/demo-steps-plugin
+npm install
+npm run install-plugin
+```
+
+In each chat, select the matching MCP server from the picker and enable the
+tools named by the selected workflow. LM Studio's desktop plugin API does not
+currently let a plugin change another MCP integration's tool allowlist; its
+REST API does support `allowed_tools` for programmatic requests.
 
 | entry (shown as `mcp/<entry>` in LM Studio) | door | auth |
 |---|---|---|

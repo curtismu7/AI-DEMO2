@@ -1,0 +1,6 @@
+{
+  "type": "plugin",
+  "runner": "node",
+  "name": "ai-demo-demo-steps",
+  "revision": 1
+}
