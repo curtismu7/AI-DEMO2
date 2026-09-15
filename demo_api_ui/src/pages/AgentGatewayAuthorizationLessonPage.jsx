@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { LessonLayout, Section } from "../components/lesson";
+import { callMcpTool } from "../services/demoAgentService";
 import "./AgentGatewayAuthorizationLessonPage.css";
 
 const LESSON_SECTIONS = [
@@ -24,21 +25,21 @@ const SCENARIOS = [
     label: "Read account balance",
     outcome: "PERMIT",
     detail: "A low-risk read is allowed for the signed-in user.",
-    request: { tool: "get_account_balance", scope: "accounts:read", amount: 0 },
+    request: { tool: "get_account_balance", scope: "accounts:read", account_id: "checking" },
   },
   {
     id: "transfer",
     label: "Transfer $500",
     outcome: "STEP-UP",
     detail: "The operation is valid, but policy requires stronger user verification before execution.",
-    request: { tool: "create_transfer", scope: "transfers:write", amount: 500 },
+    request: { tool: "create_transfer", scope: "transfers:write", from_account_id: "checking", to_account_id: "savings", amount: 500 },
   },
   {
     id: "untrusted",
     label: "Transfer to blocked payee",
     outcome: "DENY",
     detail: "The request reaches the policy boundary but is blocked by the current context and policy.",
-    request: { tool: "create_transfer", scope: "transfers:write", payee: "blocked-payee", amount: 100 },
+    request: { tool: "create_transfer", scope: "transfers:write", from_account_id: "checking", to_account_id: "blocked-payee", amount: 100 },
   },
 ];
 
@@ -67,14 +68,42 @@ export default function AgentGatewayAuthorizationLessonPage() {
   const [selectedNode, setSelectedNode] = useState("gateway");
   const [scenarioId, setScenarioId] = useState("balance");
   const [ran, setRan] = useState(false);
+  const [liveResult, setLiveResult] = useState(null);
+  const [liveError, setLiveError] = useState(null);
+  const [liveBusy, setLiveBusy] = useState(false);
   const scenario = useMemo(() => SCENARIOS.find((item) => item.id === scenarioId) || SCENARIOS[0], [scenarioId]);
   const node = FLOW_NODES.find((item) => item.id === selectedNode) || FLOW_NODES[1];
 
   const runScenario = (id) => {
     setScenarioId(id);
     setRan(true);
+    setLiveResult(null);
+    setLiveError(null);
     setSelectedNode(id === "balance" ? "resource" : "authorize");
   };
+
+  const runLiveScenario = async () => {
+    setLiveBusy(true);
+    setLiveResult(null);
+    setLiveError(null);
+    try {
+      const { result } = await callMcpTool(scenario.request.tool, scenario.request, {
+        useCaseId: scenario.id === "balance" ? "view_balance" : "step-up-required",
+      });
+      setLiveResult(result || { status: "completed" });
+      setSelectedNode(scenario.outcome === "PERMIT" ? "resource" : "authorize");
+    } catch (error) {
+      setLiveError(error);
+      setSelectedNode("authorize");
+    } finally {
+      setLiveBusy(false);
+    }
+  };
+
+  const liveDecision = liveResult?.mcpAuthorizeEvaluation?.decision
+    || liveResult?.authorizeEvaluation?.decision
+    || liveResult?.decision
+    || null;
 
   return (
     <LessonLayout
@@ -130,7 +159,12 @@ export default function AgentGatewayAuthorizationLessonPage() {
                 </button>
               ))}
             </div>
-            {ran ? <div className={`agal-result agal-result--${scenario.outcome.toLowerCase()}`}><strong>{scenario.outcome}</strong><p>{scenario.detail}</p></div> : <p className="agal-ready">Select a scenario to walk through its decision.</p>}
+            {ran ? <div className={`agal-result agal-result--${scenario.outcome.toLowerCase()}`}><strong>{liveDecision || scenario.outcome}</strong><p>{liveError?.message || scenario.detail}</p></div> : <p className="agal-ready">Select a scenario to walk through its decision.</p>}
+            <button type="button" className="agal-live-button" onClick={runLiveScenario} disabled={!ran || liveBusy}>
+              {liveBusy ? "Running live request…" : "Run live request"}
+            </button>
+            {liveResult ? <p className="agal-live-note">Live response captured. Open the inspector to see the gateway and Authorize evidence.</p> : null}
+            {liveError ? <p className="agal-live-note">The request was stopped by the live enforcement path or requires sign-in. No local decision was substituted.</p> : null}
           </div>
           <div className="agal-card">
             <h3>Decision request</h3>

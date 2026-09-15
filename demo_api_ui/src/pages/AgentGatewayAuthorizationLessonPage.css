@@ -31,6 +31,10 @@
 .agal-result--deny { color: var(--th-status-error-text); background: var(--th-status-error-bg); }
 .agal-result--step-up { color: var(--th-status-warning-text); background: var(--th-status-warning-bg); }
 .agal-result--permit p, .agal-result--deny p, .agal-result--step-up p { color: inherit; }
+.agal-live-button { margin-top: 12px; padding: 9px 12px; color: var(--th-button-primary-text); background: var(--th-button-primary-bg); border: 1px solid var(--th-button-primary-border); border-radius: var(--radius-md); cursor: pointer; font-size: var(--font-size-sm); }
+.agal-live-button:hover:not(:disabled) { color: var(--th-button-primary-text); background: var(--th-button-primary-hover-bg); }
+.agal-live-button:disabled { opacity: .6; cursor: not-allowed; }
+.agal-live-note { margin-top: 10px !important; color: var(--th-text-muted) !important; font-size: var(--font-size-sm); }
 .agal-card pre { margin: 0; max-height: 230px; overflow: auto; padding: 12px; color: var(--th-code-text); background: var(--th-code-bg); border-radius: var(--radius-md); font-size: var(--font-size-xs); }
 .agal-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
 .agal-links a { color: var(--th-status-info-text); font-size: var(--font-size-sm); }
