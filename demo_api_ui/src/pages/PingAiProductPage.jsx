@@ -78,6 +78,7 @@ const PRODUCTS = {
       ["Support auditability", "Give security teams an evidence trail for what the model saw and how the control responded."],
     ],
     runExamples: [
+      ["Prompt injection blocked", "Send a known override attack and see Privilege stop it before the model.", "/llm-gateway?attack=prompt_injection"],
       ["LLM Gateway", "Send a model request through a Privilege virtual key and inspect the verdict.", "/llm-gateway"],
       ["LLM request tester", "Compare direct and Privilege-routed model requests.", "/llm-test"],
     ],

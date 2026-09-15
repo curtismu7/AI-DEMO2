@@ -12,16 +12,16 @@ A stolen token must be unusable — audience binding and DPoP key binding ensure
 
 ## PingOne Solution
 
-The gateway enforces audience binding (D-05) unconditionally; DPoP key binding adds a proof-of-possession check when enabled.
+The gateway binds the delegated token to a DPoP key (cnf.jkt) and refuses a reused proof — this step replays one proof and the gateway rejects the second with 401 invalid_dpop_proof. Audience binding (D-05) is enforced unconditionally underneath.
 
 ## How to Run
 
-**Trigger:** Attack simulation: `replayed-token`  
+**Trigger:** Attack simulation: `dpop-replay`  
 **Expected outcome:** `DENY_401`
 
 ## What to Say
 
-> Audience binding is unconditional; with DPoP on, a stolen token without the private key is worthless.
+> With DPoP on, a stolen token is worthless without the private key: the gateway refuses a replayed proof (401 invalid_dpop_proof). Audience binding is unconditional underneath.
 
 ## Evidence
 
@@ -30,7 +30,8 @@ The gateway enforces audience binding (D-05) unconditionally; DPoP key binding a
 
 ## Code References
 
-- `demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts`
+- `demo_mcp_gateway/src/dpopVerify.ts`
+- `demo_mcp_gateway/src/middleware/authorizeMcpRequest.ts`
 - `demo_api_server/services/dpopKeyService.js`
 
 
