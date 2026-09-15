@@ -142,6 +142,15 @@ describe('/mcp-facade — RFC 9728 surface', () => {
     expect(res.body.scopes_supported).toEqual(expect.arrayContaining(['read', 'mcp:invoke']));
   });
 
+  test('repairs a local broker origin when the façade is reached on a public host', async () => {
+    const res = await request(app())
+      .get('/mcp-facade/agent-gateway/.well-known/oauth-protected-resource')
+      .set('Host', 'ai-demo.ping-devops.com')
+      .set('X-Forwarded-Proto', 'https');
+    expect(res.status).toBe(200);
+    expect(res.body.authorization_servers).toEqual(['https://ai-demo.ping-devops.com']);
+  });
+
   test('a door with authorizationServer:null advertises none (the upstream owns identity)', async () => {
     const res = await request(app()).get('/mcp-facade/banking/.well-known/oauth-protected-resource');
     expect(res.status).toBe(200);
