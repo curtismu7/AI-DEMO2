@@ -9,7 +9,7 @@ import { useParams } from "react-router-dom";
 import apiClient from "../services/apiClient";
 import { useThemeOptional } from "../context/ThemeContext";
 import SequenceReelDiagram from "../components/SequenceReelDiagram";
-import { HopCard } from "./TransactionTracePage";
+import FormJsonToggle, { PayloadFormView } from "../components/shared/FormJsonToggle";
 import "./TransactionTracePage.css";
 
 const POLL_MS = 2000;
@@ -43,6 +43,7 @@ export function facadeHopsToSequenceSteps(hops) {
   };
   return (hops || []).map((hop) => ({
     id: `facade-hop-${hop.seq}`,
+    hopSeq: hop.seq,
     lane: laneForPhase[hop.phase] || "GATEWAY",
     title: hop.phase === "gateway.authorize" && hop.decision
       ? `PingOne Authorize — ${hop.decision.outcome === "deny" ? "DENY" : "PERMIT"}`
@@ -51,12 +52,82 @@ export function facadeHopsToSequenceSteps(hops) {
   }));
 }
 
-function Json({ value }) {
-  if (value === null || value === undefined) return <p>—</p>;
+function TraceSection({ title, explanation, children, className = "" }) {
   return (
-    <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0 }}>
-      {typeof value === "string" ? value : JSON.stringify(value, null, 2)}
-    </pre>
+    <section className={`ttrace-facade-section ${className}`.trim()}>
+      <header className="ttrace-facade-section__header">
+        <h2>{title}</h2>
+        <p>{explanation}</p>
+      </header>
+      {children}
+    </section>
+  );
+}
+
+function HopFilmstrip({ hops, selectedSeq, onSelect }) {
+  return (
+    <section className="ttrace-filmstrip" aria-label="Recorded façade hops">
+      <header className="ttrace-filmstrip__header">
+        <div>
+          <h2>Movie reel</h2>
+          <p>Each frame is a recorded façade hop. Select a frame to inspect its recorded identity, decision, and payload.</p>
+        </div>
+        <span className="ttrace-filmstrip__count">{hops.length} frames</span>
+      </header>
+      <div className="ttrace-filmstrip__track">
+        {hops.map((hop) => (
+          <button
+            type="button"
+            key={hop.seq}
+            className={`ttrace-film-frame${hop.seq === selectedSeq ? " is-selected" : ""}`}
+            onClick={() => onSelect(hop.seq)}
+            aria-pressed={hop.seq === selectedSeq}
+          >
+            <span className="ttrace-film-frame__number">Frame {hop.seq}</span>
+            <strong>{hop.service || "Façade"}</strong>
+            <span className="ttrace-film-frame__phase">{hop.phase || "recorded hop"}</span>
+            <span className="ttrace-film-frame__operation">{hop.op || "No operation recorded"}</span>
+            <span className="ttrace-film-frame__meta">
+              {Number.isFinite(hop.durationMs) ? `${hop.durationMs}ms` : "Recorded"}
+              {hop.decision?.outcome ? ` · ${hop.decision.outcome.toUpperCase()}` : ""}
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SelectedHopDetail({ hop }) {
+  if (!hop) return null;
+  const recorded = hop.details && typeof hop.details === "object"
+    ? hop.details
+    : { recorded: hop.details ?? "No additional payload was recorded for this hop." };
+  const overview = {
+    service: hop.service || null,
+    phase: hop.phase || null,
+    operation: hop.op || null,
+    status: hop.status || null,
+    durationMs: Number.isFinite(hop.durationMs) ? hop.durationMs : null,
+    identity: hop.identity || null,
+    decision: hop.decision || null,
+    filterChain: hop.filterChain || null,
+  };
+
+  return (
+    <TraceSection
+      title={`Step ${hop.seq}: ${hop.op || hop.phase || "Recorded hop"}`}
+      explanation="This is the exact evidence captured for the selected step. The form view is optimized for scanning; JSON preserves the full recorded object."
+      className="ttrace-step-detail"
+    >
+      <div className="ttrace-step-detail__overview">
+        <PayloadFormView value={overview} />
+      </div>
+      <div className="ttrace-step-detail__payload">
+        <h3>Recorded payload</h3>
+        <FormJsonToggle value={recorded} ariaLabel={`Step ${hop.seq} payload view`} defaultView="form" />
+      </div>
+    </TraceSection>
   );
 }
 
@@ -66,6 +137,7 @@ export default function TransactionTraceEmbedPage() {
   const [detail, setDetail] = useState(null);
   const [status, setStatus] = useState("waiting"); // waiting | ok | disabled | error
   const [fontSize, setFontSize] = useState(readFontSize);
+  const [selectedHopSeq, setSelectedHopSeq] = useState(null);
   const [view, setView] = useState(() => {
     try {
       return localStorage.getItem(VIEW_STORAGE_KEY) === "sequence" ? "sequence" : "reel";
@@ -146,6 +218,16 @@ export default function TransactionTraceEmbedPage() {
     client: meta.client || null,
   };
   const sequenceSteps = facadeHopsToSequenceSteps(hops);
+  const selectedHop = hops.find((hop) => hop.seq === selectedHopSeq) || null;
+  const resourcePayload = resources || {
+    availability: advertisesResources ? "Supported, but not listed during this recorded session." : "Not advertised by this MCP server.",
+    explanation: advertisesResources
+      ? "The server supports resources, but the client did not call resources/list during this session."
+      : "The server did not advertise the MCP resources capability for this session.",
+  };
+  const responsePayload = tool ? (tool.details?.error || tool.details?.result || tool.details || {}) : {
+    status: "Pending — the tool response has not been recorded yet.",
+  };
 
   return (
     <div className={`ttrace-page ttrace-embed ttrace-page--font-${fontSize}`} data-testid="ttrace-embed">
@@ -193,11 +275,7 @@ export default function TransactionTraceEmbedPage() {
       ) : null}
 
       {hops.length && view === "reel" ? (
-        <ul className="ttrace-hops">
-          {hops.map((hop) => (
-            <HopCard key={hop.seq} hop={hop} violations={[]} severed={false} />
-          ))}
-        </ul>
+        <HopFilmstrip hops={hops} selectedSeq={selectedHopSeq} onSelect={setSelectedHopSeq} />
       ) : null}
 
       {hops.length && view === "sequence" ? (
@@ -206,6 +284,8 @@ export default function TransactionTraceEmbedPage() {
             externalSteps={sequenceSteps}
             externalRunId={correlationId}
             externalTraceFinished={status === "ok"}
+            selectedStepId={selectedHop ? `facade-hop-${selectedHop.seq}` : undefined}
+            onSelectStep={(step) => setSelectedHopSeq(step.hopSeq ?? null)}
             zoomStorageKey="ttrace_embed_sequence_zoom"
             initialZoom={100}
             ariaLabel="Sequence diagram of this facade trace"
@@ -213,14 +293,16 @@ export default function TransactionTraceEmbedPage() {
         </section>
       ) : null}
 
+      <SelectedHopDetail hop={selectedHop} />
+
       {request ? (
         <section className="ttrace-detail" data-testid="embed-mcp">
-          <details>
-            <summary>
-              <strong>Tools</strong> {tools ? `(${tools.length})` : "— not listed in this session"}
-            </summary>
+          <TraceSection
+            title={`Tools${tools ? ` (${tools.length})` : ""}`}
+            explanation="Functions the MCP server exposed when the façade observed this request. These are the operations available to the selected agent."
+          >
             {tools ? (
-              <ul>
+              <ul className="ttrace-tools-list">
                 {tools.map((t) => (
                   <li key={t.name}>
                     <code>{t.name}</code>
@@ -228,42 +310,28 @@ export default function TransactionTraceEmbedPage() {
                   </li>
                 ))}
               </ul>
-            ) : null}
-          </details>
-          <details>
-            <summary>
-              <strong>Resources</strong>{" "}
-              {resources ? `(${resources.length})` : advertisesResources ? "— not listed in this session" : "— not advertised by this server"}
-            </summary>
-            {resources ? (
-              <ul>
-                {resources.map((r) => (
-                  <li key={r.uri}>
-                    <code>{r.uri}</code>
-                    {r.name ? ` ${r.name}` : ""}
-                    {r.description ? ` — ${r.description}` : ""}
-                  </li>
-                ))}
-              </ul>
             ) : (
-              <p>
-                {advertisesResources
-                  ? "The server supports resources, but this client did not call resources/list during the recorded session."
-                  : "This MCP server did not advertise the resources capability. Its tools are shown above."}
-              </p>
+              <p className="ttrace-empty-copy">Tool discovery was not recorded in this session.</p>
             )}
-          </details>
-          <details open>
-            <summary><strong>Request</strong> {request.op}</summary>
-            <Json value={requestDetails} />
-          </details>
-          <details open>
-            <summary>
-              <strong>Response</strong>{" "}
-              {tool ? `${tool.status === "ok" ? "✓" : "❌"} HTTP ${tool.details?.httpStatus ?? "—"} · ${tool.durationMs ?? "—"}ms` : "— pending"}
-            </summary>
-            <Json value={tool ? (tool.details?.error || tool.details?.result) : null} />
-          </details>
+          </TraceSection>
+          <TraceSection
+            title={`Resources${resources ? ` (${resources.length})` : ""}`}
+            explanation="MCP resources are server-provided reference records. Form is the readable inventory; JSON keeps the server’s exact resource list."
+          >
+            <FormJsonToggle value={resourcePayload} ariaLabel="Resources view" defaultView="form" />
+          </TraceSection>
+          <TraceSection
+            title="Request"
+            explanation="What the client asked the façade to send: the selected tool, its arguments, and the route chosen for this call."
+          >
+            <FormJsonToggle value={requestDetails} ariaLabel="Request view" defaultView="form" />
+          </TraceSection>
+          <TraceSection
+            title={tool ? `Response · HTTP ${tool.details?.httpStatus ?? "—"} · ${tool.durationMs ?? "—"}ms` : "Response · pending"}
+            explanation="What returned from the tool path. Form makes the result easy to scan; JSON preserves the complete unedited response."
+          >
+            <FormJsonToggle value={responsePayload} ariaLabel="Response view" defaultView="form" />
+          </TraceSection>
         </section>
       ) : null}
     </div>

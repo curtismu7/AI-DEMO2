@@ -508,6 +508,7 @@ export default function SequenceReelDiagram({
                   className={groupClass}
                   onClick={() => selectStep(step.id)}
                   role="button"
+                  aria-label={step.label}
                   tabIndex={0}
                   onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && selectStep(step.id)}
                 >
@@ -533,6 +534,7 @@ export default function SequenceReelDiagram({
                 className={groupClass}
                 onClick={() => selectStep(step.id)}
                 role="button"
+                aria-label={step.label}
                 tabIndex={0}
                 onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && selectStep(step.id)}
               >
