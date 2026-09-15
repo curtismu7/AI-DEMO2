@@ -179,7 +179,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit"] },
   { id: "telemetry", paths: ["/tracing", "/telemetry", "/transaction-trace", "/check"] },
   { id: "agent-studio-preview", paths: ["/iga-for-ai", "/discovery-preview", "/privileges-gateway-preview", "/platform-gaps"] },
-  { id: "learn-present", paths: ["/learning", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide"] },
+  { id: "learn-present", paths: ["/learning", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide", "/ai-products"] },
   { id: "tests", paths: ["/resource-server", "/resource-server-cc"] },
 ];
 
@@ -1056,6 +1056,7 @@ export default function AdminSideNav({
       icon: "ref",
       children: [
         { label: "Learning Hub", path: "/learning", icon: "doc" },
+        { label: "AI Product Pages", path: "/ai-products/core", icon: "shld" },
         { label: "Agentic Trust", path: "/agentic-trust", icon: "shld" },
         { label: "Agent Guardrails", path: "/agent-guardrails", icon: "pol" },
         { label: "OWASP Agent Risks", path: "/owasp", icon: "sec" },

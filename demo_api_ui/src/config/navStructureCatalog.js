@@ -228,6 +228,7 @@ export const NAV_STRUCTURE_CATALOG = [
     label: "Learn & Present",
     children: [
       "Learning Hub",
+      "AI Product Pages",
       "Agentic Trust",
       "Agent Guardrails",
       "OWASP Agent Risks",
