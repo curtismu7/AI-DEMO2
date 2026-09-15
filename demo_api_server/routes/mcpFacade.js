@@ -467,6 +467,41 @@ function facadeBase(req) {
   return `${req.protocol}://${req.get('host')}/mcp-facade/${req.params.door}${app}`;
 }
 
+/**
+ * Return the externally reachable OAuth broker for a façade request.
+ *
+ * The broker is exposed by the same public host as the façade in the SE
+ * deployment (/oauth/* is routed to mcp-gateway by nginx). A stale generated
+ * configmap can still leave MCP_FACADE_AGENT_GATEWAY_AS pointing at the local
+ * development origin, which makes RFC 9728 discovery unusable to LM Studio:
+ * it follows the advertised AS and cannot reach the local hostname. Keep an
+ * explicit non-local override authoritative, but repair that deployment drift
+ * from the host the client actually reached.
+ */
+function authorizationServerFor(req, door) {
+  const configured = door.authorizationServer ? door.authorizationServer() : '';
+  if (!configured) return configured;
+
+  let configuredUrl;
+  let requestUrl;
+  try {
+    configuredUrl = new URL(configured);
+    const forwardedProto = String(req.get('x-forwarded-proto') || '').split(',')[0].trim();
+    const requestProto = forwardedProto || req.protocol;
+    requestUrl = new URL(`${requestProto}://${req.get('host')}`);
+  } catch {
+    return configured;
+  }
+
+  const localHosts = new Set(['localhost', '127.0.0.1', '::1', 'local.ping-devops.com', 'api.ping.demo']);
+  const configuredIsLocal = localHosts.has(configuredUrl.hostname);
+  const requestIsPublic = !localHosts.has(requestUrl.hostname);
+  if (configuredIsLocal && requestIsPublic) {
+    return requestUrl.origin;
+  }
+  return configuredUrl.origin;
+}
+
 // The gateway pins each Agentic App to ONE client-facing entry path, derived
 // from the backend URL it was registered with, and answers a bare 404 on any
 // other. The only explanation is in the gateway's own log:
@@ -570,7 +605,7 @@ router.get(['/:door/.well-known/oauth-protected-resource', '/:door/:app/.well-kn
     scopes_supported: req.door.scopes,
     resource_name: `Demo MCP façade (${req.door.label})`,
   };
-  if (req.door.authorizationServer) body.authorization_servers = [req.door.authorizationServer()];
+  if (req.door.authorizationServer) body.authorization_servers = [authorizationServerFor(req, req.door)];
   res.set('Cache-Control', 'no-store');
   return res.json(body);
 });
