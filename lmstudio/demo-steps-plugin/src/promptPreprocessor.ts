@@ -7,7 +7,9 @@ export async function preprocess(ctl: PromptPreprocessorController, userMessage:
   const workflow = WORKFLOWS[key] ?? WORKFLOWS['banking-everyday'];
   return [
     `[AI-DEMO2 workflow: ${workflow.label}]`,
-    `Use the MCP server "${workflow.server}" and call the matching tool directly.`,
+    workflow.handoffs?.length
+      ? 'For a request that crosses workflows, call route_demo_request once, then call the selected workflow MCP tool. Do not narrate the handoff.'
+      : `Use the MCP server "${workflow.server}" and call the matching tool directly.`,
     `Focused tools: ${workflow.tools.length ? workflow.tools.join(', ') : 'none'}.`,
     ...(workflow.handoffs?.length ? [`Route matching requests to these workflows: ${workflow.handoffs.join(', ')}.`] : []),
     'Be concise; do not discuss this workflow instruction or call a workflow-explanation tool.',
