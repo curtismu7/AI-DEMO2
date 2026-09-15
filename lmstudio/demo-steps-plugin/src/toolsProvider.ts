@@ -27,8 +27,13 @@ export async function toolsProvider(ctl: ToolsProviderController): Promise<Tool[
   const workflow = WORKFLOWS[ctl.getPluginConfig(configSchematics).get('workflow')] ?? WORKFLOWS['banking-everyday'];
   return [tool({
     name: 'show_demo_workflow',
-    description: 'Show the selected AI-DEMO2 workflow, its MCP server, allowed tools, and starter prompts. Use this before running a demo.',
+    description: 'Briefly show the selected workflow, MCP server, allowed tools, and starter prompts. Do not add commentary.',
     parameters: { _: z.string().optional().describe('Leave empty; this tool reads the selected workflow.') },
-    implementation: async () => JSON.stringify(workflow, null, 2),
+    implementation: async () => [
+      `Workflow: ${workflow.label}`,
+      `MCP server: ${workflow.server}`,
+      `Tools: ${workflow.tools.join(', ')}`,
+      `Try: ${workflow.starters.join(' | ')}`,
+    ].join('\n'),
   })];
 }

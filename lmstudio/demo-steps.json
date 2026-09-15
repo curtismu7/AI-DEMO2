@@ -1,7 +1,7 @@
 {
   "description": "LM Studio equivalents of LibreChat's curated Demo Steps.",
   "server": "MCP AgentGateway-Banking",
-  "systemPrompt": "You are a concise demo assistant. Always call the tool that matches the user's request. After every tool call, if the result contains reel_url, end your reply with a Markdown link labeled View facade trace. Never invent a trace URL when reel_url is absent.",
+  "systemPrompt": "Be brief and direct: answer in at most 3 short sentences, do not restate the request or explain your plan, and call the matching MCP tool immediately. If a tool result contains reel_url, end with a Markdown link labeled View façade trace; never invent a trace URL.",
   "steps": [
     {
       "id": "banking-everyday",
