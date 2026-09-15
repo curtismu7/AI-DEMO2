@@ -137,6 +137,20 @@
   margin-bottom: 12px;
 }
 
+.inspector-clean-policy-note,
+.inspector-clean-capability-note {
+  margin: 6px 0 0;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+.inspector-clean-quick-run {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--th-border);
+}
+
 .inspector-clean-field-label {
   display: block;
   font-size: 11px;

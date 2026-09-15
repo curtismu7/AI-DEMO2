@@ -141,7 +141,22 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                       {policy.name || policy.id}
                     </option>
                   ))}
+                  </select>
+                <div className="inspector-clean-policy-note">AI Demo Policies is the demo policy bundle used to evaluate the selected gateway request.</div>
+              </div>
+
+              <div className="inspector-clean-quick-run">
+                <label className="inspector-clean-field-label" htmlFor="gateway-quick-tool">Quick execute</label>
+                <select id="gateway-quick-tool" value={selectedTool} onChange={(e) => setSelectedTool(e.target.value)}>
+                  <option value="">Choose a tool...</option>
+                  {availableCapabilities.map((tool) => (
+                    <option key={tool.name} value={tool.name}>{tool.name}</option>
+                  ))}
                 </select>
+                <button className="inspector-clean-button" onClick={run} disabled={running || !selectedGateway || !selectedTool}>
+                  {running ? 'Executing…' : 'Execute Tool'}
+                </button>
+                {!availableCapabilities.length ? <p className="inspector-clean-capability-note">No tools loaded yet. Refresh the gateway or sign in if the capability endpoint requires a session.</p> : null}
               </div>
 
             </div>
