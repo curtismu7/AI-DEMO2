@@ -39,6 +39,10 @@ const category = (name) => (name.includes('Policy Guardrails') ? 'Policy Guardra
   : ['OpenSearch', 'Super Sports', 'CareConnect'].find((c) => name.startsWith(c)) || 'Banking');
 // Prompt commands allow only [a-z0-9-], at most 56 characters.
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const agentDescription = (def) => {
+  const tools = def.tools.length ? def.tools.join(', ') : 'None (uses handoffs)';
+  return `<strong>What it does:</strong> ${def.description}<br><strong>Tools (${def.tools.length}):</strong> ${tools}`;
+};
 
 const AGENTS = [
   {
@@ -399,9 +403,10 @@ async function main() {
     const server = def.server || SERVER;
     const body = {
       name: def.name,
-      description: def.includeStartersInDescription === false
-        ? def.description
-        : `${def.description} Try: ${def.conversation_starters.map((s) => `"${s}"`).join(' · ')}`,
+      // Landing renders descriptions beginning with HTML as sanitized rich text.
+      // Keep starters in their cards and use this space for a scannable purpose
+      // plus the exact tools attached to the agent.
+      description: agentDescription(def),
       instructions: def.instructions,
       provider: def.provider || PROVIDER,
       model: def.model || MODEL,
