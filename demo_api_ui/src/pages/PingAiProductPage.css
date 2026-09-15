@@ -16,6 +16,13 @@
 .pai-capability-index { display: block; margin-bottom: 20px; color: var(--th-text-faint); font-family: var(--font-mono); font-size: var(--font-size-xs); }
 .pai-capability h3 { margin: 0 0 7px; font-size: var(--font-size-md); }
 .pai-capability p { margin: 0; color: var(--th-text-muted); font-size: var(--font-size-sm); line-height: 1.55; }
+.pai-run-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.pai-run { position: relative; min-height: 150px; padding: 18px; border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg-card); color: var(--th-text); text-decoration: none; transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease; }
+.pai-run:hover { border-color: var(--th-border-strong); box-shadow: var(--shadow-sm); transform: translateY(-2px); }
+.pai-run__label { display: block; margin-bottom: 18px; color: var(--th-status-info-text); font-size: var(--font-size-2xs); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.pai-run h3 { margin: 0 0 7px; font-size: var(--font-size-md); }
+.pai-run p { max-width: 34ch; margin: 0; color: var(--th-text-muted); font-size: var(--font-size-sm); line-height: 1.5; }
+.pai-run__arrow { position: absolute; right: 18px; bottom: 15px; color: var(--th-status-info-text); font-size: var(--font-size-lg); }
 .pai-flow { display: flex; align-items: center; gap: 0; overflow-x: auto; padding: 10px 0 22px; }
 .pai-flow__item { display: flex; align-items: center; gap: 14px; min-width: max-content; color: var(--th-text); font-size: var(--font-size-sm); font-weight: 700; }
 .pai-flow__item span { padding: 14px 16px; border: 1px solid var(--th-border-strong); border-radius: var(--radius-md); background: var(--th-bg-card); }
@@ -24,4 +31,5 @@
 .pai-takeaway { max-width: 62ch; margin: 0 0 18px; color: var(--th-text); font-size: var(--font-size-xl); font-weight: 750; line-height: 1.35; }
 .pai-next { margin: 0; color: var(--th-text-muted); font-size: var(--font-size-sm); line-height: 1.6; }
 .pai-next a { color: var(--th-status-info-text); font-weight: 700; }
-@media (max-width: 700px) { .pai-capability-grid { grid-template-columns: 1fr; } .pai-hero { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .pai-run-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .pai-capability-grid, .pai-run-grid { grid-template-columns: 1fr; } .pai-hero { grid-template-columns: 1fr; } }

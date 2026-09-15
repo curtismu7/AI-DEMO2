@@ -8,6 +8,17 @@ export const NAV_STRUCTURE_CATALOG = [
   { label: "Home" },
   { label: "Dashboard" },
   {
+    label: "AI Product Pages",
+    children: [
+      "Agent IAM Core",
+      "Agent Gateway",
+      "PingOne Authorize",
+      "Privilege · LLM",
+      "Privilege · A2A",
+      "Privilege · MCP",
+    ],
+  },
+  {
     label: "AI Agent Gateway",
     children: [
       "Protocol Playground",
@@ -228,7 +239,6 @@ export const NAV_STRUCTURE_CATALOG = [
     label: "Learn & Present",
     children: [
       "Learning Hub",
-      "AI Product Pages",
       "Agentic Trust",
       "Agent Guardrails",
       "OWASP Agent Risks",

@@ -179,7 +179,8 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit"] },
   { id: "telemetry", paths: ["/tracing", "/telemetry", "/transaction-trace", "/check"] },
   { id: "agent-studio-preview", paths: ["/iga-for-ai", "/discovery-preview", "/privileges-gateway-preview", "/platform-gaps"] },
-  { id: "learn-present", paths: ["/learning", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide", "/ai-products"] },
+  { id: "ai-product-pages", paths: ["/ai-products"] },
+  { id: "learn-present", paths: ["/learning", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide"] },
   { id: "tests", paths: ["/resource-server", "/resource-server-cc"] },
 ];
 
@@ -491,6 +492,18 @@ export default function AdminSideNav({
   const allNavItems = [
     { label: "Home", path: "/", icon: "home" },
     { label: "Dashboard", path: "/dashboard", icon: "dashboard" },
+    {
+      label: "AI Product Pages",
+      icon: "shld",
+      children: [
+        { label: "Agent IAM Core", path: "/ai-products/core", icon: "key" },
+        { label: "Agent Gateway", path: "/ai-products/gateway", icon: "shld" },
+        { label: "PingOne Authorize", path: "/ai-products/authorize", icon: "pol" },
+        { label: "Privilege · LLM", path: "/ai-products/privilege-llm", icon: "key" },
+        { label: "Privilege · A2A", path: "/ai-products/privilege-a2a", icon: "lnk" },
+        { label: "Privilege · MCP", path: "/ai-products/privilege-mcp", icon: "mcp" },
+      ],
+    },
     {
       label: "AI Agent Gateway",
       icon: "shld",
@@ -1056,7 +1069,6 @@ export default function AdminSideNav({
       icon: "ref",
       children: [
         { label: "Learning Hub", path: "/learning", icon: "doc" },
-        { label: "AI Product Pages", path: "/ai-products/core", icon: "shld" },
         { label: "Agentic Trust", path: "/agentic-trust", icon: "shld" },
         { label: "Agent Guardrails", path: "/agent-guardrails", icon: "pol" },
         { label: "OWASP Agent Risks", path: "/owasp", icon: "sec" },
