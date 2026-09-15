@@ -1,8 +1,9 @@
 # AI-DEMO2 LM Studio workflow plugin
 
 This LM Studio plugin adds a per-chat workflow dropdown covering the 14 Demo
-Steps and four OpenSearch use cases. It exposes `show_demo_workflow`, which
-returns the selected workflow's MCP server, focused tool list, and starters.
+Steps and four OpenSearch use cases. It injects the selected workflow as
+context before each user message; it does not expose a workflow-explanation
+tool, so the model cannot loop on setup instructions.
 
 The plugin does not replace the authenticated MCP servers. Select the matching
 server from `lmstudio/mcp.json` in the chat MCP picker; the plugin supplies the

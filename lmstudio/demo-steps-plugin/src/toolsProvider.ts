@@ -2,7 +2,7 @@ import { tool, type Tool, type ToolsProviderController } from '@lmstudio/sdk';
 import { z } from 'zod';
 import { configSchematics } from './config';
 
-const WORKFLOWS: Record<string, { label: string; server: string; tools: string[]; starters: string[] }> = {
+export const WORKFLOWS: Record<string, { label: string; server: string; tools: string[]; starters: string[] }> = {
   'banking-everyday': { label: 'Everyday Banking', server: 'MCP AgentGateway-Banking', tools: ['get_my_accounts', 'get_account_balance', 'get_my_transactions', 'search_transactions'], starters: ['Show my accounts', 'What is my balance?', 'Show my recent transactions'] },
   'banking-details': { label: 'Account Details', server: 'MCP AgentGateway-Banking', tools: ['get_my_accounts', 'get_account_nickname', 'get_my_transactions', 'get_transaction_detail'], starters: ['Show my accounts', 'What is my checking account nickname?', 'Show the details of my latest transaction'] },
   'banking-movement': { label: 'Money Movement', server: 'MCP AgentGateway-Banking', tools: ['get_my_accounts', 'create_transfer', 'create_deposit', 'create_withdrawal'], starters: ['Transfer $300 from checking to savings', 'Deposit $50 into checking', 'Withdraw $20 from savings'] },
