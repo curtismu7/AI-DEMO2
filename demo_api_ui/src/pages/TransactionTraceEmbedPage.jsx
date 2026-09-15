@@ -17,6 +17,13 @@ const MAX_POLLS = 90; // hops for one call land within seconds; stop after 3 min
 const FONT_STORAGE_KEY = "ttrace_embed_font_size";
 const VIEW_STORAGE_KEY = "ttrace_embed_view";
 const FONT_SIZES = ["standard", "large", "xlarge"];
+const REEL_SPEED_OPTIONS = [
+  { value: 1000, label: "1s (fast)" },
+  { value: 1500, label: "1.5s" },
+  { value: 2600, label: "2.6s (default)" },
+  { value: 4000, label: "4s" },
+  { value: 6000, label: "6s (slow)" },
+];
 
 function readFontSize() {
   try {
@@ -65,6 +72,41 @@ function TraceSection({ title, explanation, children, className = "" }) {
 }
 
 export function HopFilmstrip({ hops, selectedSeq, onSelect, showService = true }) {
+  const [revealedCount, setRevealedCount] = useState(hops.length);
+  const [playing, setPlaying] = useState(false);
+  const [speedMs, setSpeedMs] = useState(2600);
+
+  useEffect(() => {
+    setRevealedCount(hops.length);
+    setPlaying(false);
+  }, [hops]);
+
+  useEffect(() => {
+    if (!playing || revealedCount >= hops.length) return undefined;
+    const timer = setTimeout(() => setRevealedCount((count) => count + 1), speedMs);
+    return () => clearTimeout(timer);
+  }, [hops.length, playing, revealedCount, speedMs]);
+
+  useEffect(() => {
+    if (playing && revealedCount >= hops.length) setPlaying(false);
+  }, [hops.length, playing, revealedCount]);
+
+  const moveToFrame = (nextCount) => {
+    setPlaying(false);
+    setRevealedCount(Math.max(0, Math.min(hops.length, nextCount)));
+  };
+
+  const togglePlayback = () => {
+    if (revealedCount >= hops.length && !playing) {
+      setRevealedCount(0);
+      setPlaying(true);
+      return;
+    }
+    setPlaying((isPlaying) => !isPlaying);
+  };
+
+  const visibleHops = hops.slice(0, revealedCount);
+
   return (
     <section className="ttrace-filmstrip" aria-label="Recorded façade hops">
       <header className="ttrace-filmstrip__header">
@@ -74,8 +116,28 @@ export function HopFilmstrip({ hops, selectedSeq, onSelect, showService = true }
         </div>
         <span className="ttrace-filmstrip__count">{hops.length} frames</span>
       </header>
+      <div className="ttrace-filmstrip__controls" role="group" aria-label="Movie reel playback">
+        <button type="button" onClick={() => moveToFrame(revealedCount - 1)} disabled={revealedCount <= 0}>
+          Prev
+        </button>
+        <button type="button" onClick={togglePlayback}>
+          {revealedCount >= hops.length && !playing ? "Replay" : playing ? "Pause" : "Play"}
+        </button>
+        <button type="button" onClick={() => moveToFrame(revealedCount + 1)} disabled={revealedCount >= hops.length}>
+          Next
+        </button>
+        <label>
+          Speed
+          <select aria-label="Movie reel speed" value={speedMs} onChange={(event) => setSpeedMs(Number(event.target.value))}>
+            {REEL_SPEED_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </label>
+        <span aria-live="polite">{Math.min(revealedCount, hops.length)}/{hops.length} frames</span>
+      </div>
       <div className="ttrace-filmstrip__track">
-        {hops.map((hop) => (
+        {visibleHops.map((hop) => (
           <button
             type="button"
             key={hop.seq}
