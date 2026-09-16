@@ -490,7 +490,7 @@ export default function AdminSideNav({
   // badge; non-admin clicks prompt an admin re-login (see adminPromptPath)
   const allNavItems = [
     { label: "Home", path: "/", icon: "home" },
-    { label: "Dashboard", path: "/dashboard", icon: "dashboard" },
+    { label: "Dashboard", path: "/security-dashboard", icon: "dashboard", adminOnly: true },
     {
       label: "AI Agent Gateway",
       icon: "shld",
