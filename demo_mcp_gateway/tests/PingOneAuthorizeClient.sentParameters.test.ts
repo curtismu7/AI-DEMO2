@@ -74,6 +74,13 @@ describe('buildAuthorizeParameters — C1 canonical parameter set', () => {
     expect(p.AccountId).toBe('acct-002');
   });
 
+  it('forwards camelCase selected account arguments for P1AZ service resolution', () => {
+    const params = buildAuthorizeParameters(tok(), 'tools/call', 'mcpgateway.ping.demo', 'get_account_balance', {
+      accountId: 'acct-002',
+    });
+    expect(params.AccountId).toBe('acct-002');
+  });
+
   it('TokenAudience is the token\'s REAL aud, not the expected resource URI', () => {
     const p = buildAuthorizeParameters(tok({ aud: 'some-other-audience' }), 'tools/call', GW, 'create_transfer');
     expect(p.TokenAudience).toBe('some-other-audience');

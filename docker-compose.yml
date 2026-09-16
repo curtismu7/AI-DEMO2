@@ -1300,7 +1300,9 @@ services:
         GIT_SHA: ${GIT_SHA:-unknown}
     container_name: ai-demo-mcp-resource-server
     ports:
-      - "8081:8081"
+      # Keep the SQLite-backed resolver private to the host; the gateway reaches
+      # it over the Docker network as mcp-resource-server:8081.
+      - "127.0.0.1:8081:8081"
     environment:
       NODE_ENV: production
       MCP_SERVER_HOST: "0.0.0.0"

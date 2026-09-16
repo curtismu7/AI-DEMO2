@@ -43,6 +43,13 @@ In Authorization → Trust Framework:
 7. Add a deny rule for `AccountContext.RiskTier` not equal to `standard`.
    Missing or failed service resolution must remain fail-closed.
 
+The checked-in snapshot generates `AccountId` and its request contract, but the
+HTTP Service itself is intentionally a post-import environment step: its
+private route, Authorize Gateway, and API-key secret are deployment-specific
+and must not be embedded in a portable snapshot. Do not enable live decisions
+until the service resolver and deny rule above are present in the target
+environment.
+
 `AccountId` is part of the generated P1AZ request contract. The BFF, Node MCP
 gateway, and PingGateway Groovy PEPs send it from the selected account tool
 argument. The SQLite schema defaults newly inserted accounts to `restricted`,

@@ -395,8 +395,8 @@ try {
             // transaction always overwrites it.
             transactionAmount = amt != null ? String.valueOf(amt) : '0'
             transactionType   = args?.transaction_type ?: toolName
-            toAccountId       = args?.to_account_id ?: ''
-            accountId         = args?.account_id ?: (args?.from_account_id ?: toAccountId)
+            toAccountId       = args?.toAccountId ?: (args?.to_account_id ?: '')
+            accountId         = args?.accountId ?: (args?.account_id ?: (args?.fromAccountId ?: (args?.from_account_id ?: toAccountId)))
         }
     }
 } catch (Exception e) {
