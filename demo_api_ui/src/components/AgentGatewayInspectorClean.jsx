@@ -96,7 +96,7 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
       {/* Status Bar */}
       <div className="inspector-clean-statusbar">
         <div className="inspector-clean-statusbar-item">
-          <span className="inspector-clean-statusbar-badge">LIVE</span>
+          <span className="inspector-clean-statusbar-badge">DEMO SIMULATION</span>
         </div>
         <div className="inspector-clean-statusbar-item">
           Environment: <strong>01d89b06</strong>
@@ -281,7 +281,7 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                       <div><strong>3. Enforce</strong><span>Forward PERMIT, pause for STEP-UP or consent, and stop DENY.</span></div>
                       <div><strong>4. Audit</strong><span>Capture the request, decision, timing, and downstream result.</span></div>
                     </div>
-                    <p className="inspector-clean-empty-guide-next">Choose a gateway and tool on the left, then select <strong>Execute Tool</strong>. The Response, Request, Trace, Logs, and Performance tabs will populate with the live evidence.</p>
+                    <p className="inspector-clean-empty-guide-next">Choose a gateway and tool on the left, then select <strong>Execute Tool</strong>. This inspector currently demonstrates the request and response shape with simulated results; use the Gateway Tester for live gateway evidence.</p>
                   </div>
                 )}
 
