@@ -6,6 +6,10 @@ cases. It injects the selected workflow as
 context before each user message. Ordinary workflows expose no helper tools, so
 the model calls the selected MCP tool directly without setup loops.
 
+The default `Fast demo` response mode limits narration to three short sentences
+and rejects raw XML/JSON tool-call markup. `Guided demo` adds a brief route
+explanation for presentations.
+
 Handoff paths expose a `route_demo_request` coordinator only while a handoff
 workflow is selected. It deterministically chooses the next workflow and
 returns the exact MCP tools to use; the model then calls that MCP tool in the
