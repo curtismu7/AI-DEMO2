@@ -66,6 +66,16 @@ describe("App.js — critical imports", () => {
 // ─── App.js JSX placements ────────────────────────────────────────────────────
 
 describe("App.js — critical JSX placements", () => {
+  test("AI product pages render inside the sidebar-offset main content shell", () => {
+    const productRoutes = appSrc.match(
+      /<Route path="\/ai-products\/[^"]+" element={<main className="main-content"><PingAiProductPage product="[^"]+" \/><\/main>} \/>/g,
+    );
+    expect(productRoutes).toHaveLength(6);
+    expect(appSrc).toContain(
+      '<Route path="/ai-products/core" element={<main className="main-content"><PingAiProductPage product="core" /></main>} />',
+    );
+  });
+
   test("SessionTokenProvider wraps AppWithAuth", () => {
     const providerOpen = appSrc.indexOf("<SessionTokenProvider>");
     const appWithAuth = appSrc.indexOf("<AppWithAuth />", providerOpen);

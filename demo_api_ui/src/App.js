@@ -909,12 +909,12 @@ function AppWithAuth() {
                     )
                   }
                 />
-                <Route path="/ai-products/core" element={<PingAiProductPage product="core" />} />
-                <Route path="/ai-products/gateway" element={<PingAiProductPage product="gateway" />} />
-                <Route path="/ai-products/authorize" element={<PingAiProductPage product="authorize" />} />
-                <Route path="/ai-products/privilege-llm" element={<PingAiProductPage product="privilegeLlm" />} />
-                <Route path="/ai-products/privilege-a2a" element={<PingAiProductPage product="privilegeA2a" />} />
-                <Route path="/ai-products/privilege-mcp" element={<PingAiProductPage product="privilegeMcp" />} />
+                <Route path="/ai-products/core" element={<main className="main-content"><PingAiProductPage product="core" /></main>} />
+                <Route path="/ai-products/gateway" element={<main className="main-content"><PingAiProductPage product="gateway" /></main>} />
+                <Route path="/ai-products/authorize" element={<main className="main-content"><PingAiProductPage product="authorize" /></main>} />
+                <Route path="/ai-products/privilege-llm" element={<main className="main-content"><PingAiProductPage product="privilegeLlm" /></main>} />
+                <Route path="/ai-products/privilege-a2a" element={<main className="main-content"><PingAiProductPage product="privilegeA2a" /></main>} />
+                <Route path="/ai-products/privilege-mcp" element={<main className="main-content"><PingAiProductPage product="privilegeMcp" /></main>} />
                 <Route
                   path="/reports"
                   element={<ReportsPageRoute user={user} logout={logout} />}
