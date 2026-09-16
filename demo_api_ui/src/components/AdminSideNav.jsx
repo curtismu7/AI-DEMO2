@@ -721,7 +721,7 @@ export default function AdminSideNav({
         { label: "Privilege Demo", path: "/privilege-demo", icon: "shld" },
         { label: "SDK Login", path: "/sdk-login", icon: "mbl" },
         { label: "DaVinci Widget", path: "/davinci-widget", icon: "doc" },
-        { label: "DaVinci Orchestration SDK", path: "/davinci-orchestration-sdk", icon: "mbl" },
+        { label: "Davinci Orchestration SDK", path: "/davinci-orchestration-sdk", icon: "mbl" },
         { label: "Orchestration SDK Guide", path: "/orchestration-sdk", icon: "sec" },
         // Was reachable only from the agent header's More menu with DaVinci Mode
         // on, so nobody could find the repo's own DaVinci explainer. It is a
