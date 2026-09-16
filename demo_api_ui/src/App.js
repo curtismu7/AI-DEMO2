@@ -163,6 +163,7 @@ import PingCliPage from "./components/PingCliPage";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import NotebookLmPage from "./pages/NotebookLmPage";
 import AgenticAccessConsolePage from "./pages/AgenticAccessConsolePage";
+import PingAiProductPage from "./pages/PingAiProductPage";
 import AdminRoute from "./routes/AdminRoute";
 import { DashboardContent } from "./routes/CustomerRoutes";
 import EducationRoutes from "./routes/EducationRoutes";
@@ -897,6 +898,12 @@ function AppWithAuth() {
                     )
                   }
                 />
+                <Route path="/ai-products/core" element={<PingAiProductPage product="core" />} />
+                <Route path="/ai-products/gateway" element={<PingAiProductPage product="gateway" />} />
+                <Route path="/ai-products/authorize" element={<PingAiProductPage product="authorize" />} />
+                <Route path="/ai-products/privilege-llm" element={<PingAiProductPage product="privilegeLlm" />} />
+                <Route path="/ai-products/privilege-a2a" element={<PingAiProductPage product="privilegeA2a" />} />
+                <Route path="/ai-products/privilege-mcp" element={<PingAiProductPage product="privilegeMcp" />} />
                 <Route
                   path="/reports"
                   element={<ReportsPageRoute user={user} logout={logout} />}

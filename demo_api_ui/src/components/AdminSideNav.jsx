@@ -179,6 +179,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit"] },
   { id: "telemetry", paths: ["/tracing", "/telemetry", "/transaction-trace", "/check"] },
   { id: "agent-studio-preview", paths: ["/iga-for-ai", "/discovery-preview", "/privileges-gateway-preview", "/platform-gaps"] },
+  { id: "ai-product-pages", paths: ["/ai-products"] },
   { id: "learn-present", paths: ["/learning", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide"] },
   { id: "tests", paths: ["/resource-server", "/resource-server-cc"] },
 ];
@@ -503,6 +504,18 @@ export default function AdminSideNav({
         { label: "AI Agent Gateway Guide", path: "/privilege-mcp-learning", icon: "doc" },
         { label: "Authorization Walkthrough", path: "/agent-gateway-authorization", icon: "doc" },
         { label: "AI Agent Gateway Diagrams", path: "/privilege-mcp-diagrams", icon: "arc" },
+      ],
+    },
+    {
+      label: "AI Product Pages",
+      icon: "shld",
+      children: [
+        { label: "Agent IAM Core", path: "/ai-products/core", icon: "key" },
+        { label: "Agent Gateway", path: "/ai-products/gateway", icon: "shld" },
+        { label: "PingOne Authorize", path: "/ai-products/authorize", icon: "pol" },
+        { label: "Privilege · LLM", path: "/ai-products/privilege-llm", icon: "key" },
+        { label: "Privilege · A2A", path: "/ai-products/privilege-a2a", icon: "lnk" },
+        { label: "Privilege · MCP", path: "/ai-products/privilege-mcp", icon: "mcp" },
       ],
     },
     { label: "Themes", path: "/themes", icon: "cfg" },

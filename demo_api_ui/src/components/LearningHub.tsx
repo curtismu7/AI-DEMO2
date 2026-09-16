@@ -179,6 +179,43 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
     ],
   },
   {
+    id: "ping-ai-products",
+    label: "Ping AI Products",
+    icon: "🛡",
+    items: [
+      {
+        label: "Agent IAM Core",
+        description: "Agent identity, OAuth authentication, delegation, and scoped tokens",
+        icon: "🔑",
+      },
+      {
+        label: "Agent Gateway",
+        description: "The runtime enforcement point for agent, API, and MCP traffic",
+        icon: "🌐",
+      },
+      {
+        label: "PingOne Authorize",
+        description: "Fine-grained policy decisions for agents, users, resources, and actions",
+        icon: "⚖",
+      },
+      {
+        label: "Privilege for AI — LLM",
+        description: "Protect model interactions, prompts, responses, and downstream actions",
+        icon: "🧠",
+      },
+      {
+        label: "Privilege for AI — A2A",
+        description: "Control authenticated agent-to-agent delegation and handoffs",
+        icon: "🔗",
+      },
+      {
+        label: "Privilege for AI — MCP",
+        description: "Protect MCP discovery, tools, resources, and invocations",
+        icon: "🛠",
+      },
+    ],
+  },
+  {
     id: "standards-architecture",
     label: "Standards & Architecture",
     icon: "🛠",
@@ -377,6 +414,14 @@ export default function LearningHub() {
       "Enterprise-Managed Auth (EMA)": () =>
         openEdu(EDU.ENTERPRISE_MANAGED_AUTH, "overview"),
       "Agent Kill Switch": () => openEdu(EDU.KILL_SWITCH, "what"),
+    },
+    "ping-ai-products": {
+      "Agent IAM Core": () => navigate("/ai-products/core"),
+      "Agent Gateway": () => navigate("/ai-products/gateway"),
+      "PingOne Authorize": () => navigate("/ai-products/authorize"),
+      "Privilege for AI — LLM": () => navigate("/ai-products/privilege-llm"),
+      "Privilege for AI — A2A": () => navigate("/ai-products/privilege-a2a"),
+      "Privilege for AI — MCP": () => navigate("/ai-products/privilege-mcp"),
     },
     "standards-architecture": {
       "RFC & Spec Index": () => openEdu(EDU.RFC_INDEX, "index"),

@@ -20,6 +20,17 @@ export const NAV_STRUCTURE_CATALOG = [
       "AI Agent Gateway Diagrams",
     ],
   },
+  {
+    label: "AI Product Pages",
+    children: [
+      "Agent IAM Core",
+      "Agent Gateway",
+      "PingOne Authorize",
+      "Privilege · LLM",
+      "Privilege · A2A",
+      "Privilege · MCP",
+    ],
+  },
   { label: "Themes" },
   {
     label: "Demos",

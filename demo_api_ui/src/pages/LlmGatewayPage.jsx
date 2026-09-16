@@ -248,6 +248,11 @@ function payloadFor(id) {
   return (GUARDRAIL_ATTACKS.find((a) => a.id === id) || {}).payload || '';
 }
 
+function attackFromUrl() {
+  const id = new URLSearchParams(window.location.search).get('attack');
+  return GUARDRAIL_ATTACKS.some((attack) => attack.id === id) ? id : '';
+}
+
 function Meter({ label, remaining, limit, reset }) {
   if (remaining === null || remaining === undefined || !limit) return null;
   const used = Math.max(0, limit - remaining);
@@ -268,6 +273,7 @@ function Meter({ label, remaining, limit, reset }) {
 
 export default function LlmGatewayPage() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
+  const initialAttack = attackFromUrl() || window.localStorage.getItem('lgw-attack-choice') || '';
   // Column widths, drag-to-resize, persisted — same primitive InspectorShell
   // already uses, not a page-local reimplementation. Right column defaults
   // wider than the old fixed 15rem (~240px): "Refused by / Route / Reached
@@ -299,7 +305,7 @@ export default function LlmGatewayPage() {
   // The dropdown's choice persists across reloads; the prompt box must be seeded
   // from the same key or the two load out of sync — select reads "Prompt Injection",
   // box is empty, and re-picking that option fires no change event.
-  const [prompt, setPrompt] = useState(() => payloadFor(window.localStorage.getItem('lgw-attack-choice')));
+  const [prompt, setPrompt] = useState(() => payloadFor(initialAttack));
   const [busy, setBusy] = useState(false);
   const [turns, setTurns] = useState([]);
   const [decision, setDecision] = useState(null);
@@ -309,7 +315,7 @@ export default function LlmGatewayPage() {
   // Each virtual key's caps as Privilege stores them (console API). Empty when
   // no console token is connected — the lane cards then show what they always did.
   const [consoleKeys, setConsoleKeys] = useState([]);
-  const [selectedAttack, setSelectedAttack] = useState(() => window.localStorage.getItem('lgw-attack-choice') || '');
+  const [selectedAttack, setSelectedAttack] = useState(() => initialAttack);
   const [bigPrompt, setBigPrompt] = useState(false);
   // Cue text for whoever is driving the demo. Off by default and remembered per
   // browser, so the audience never reads the script over the presenter's shoulder.
