@@ -107,6 +107,14 @@ describe("CollectorField", () => {
     expect(screen.getByRole("option", { name: "Passkey" })).toBeInTheDocument();
   });
 
+  it("does not imply that the first device option was written to the SDK", () => {
+    const updater = vi.fn(() => null);
+    render(<CollectorField collector={deviceRegistrationCollector} updater={updater} />);
+
+    expect(screen.getByLabelText("Choose a method")).toHaveValue("");
+    expect(updater).not.toHaveBeenCalled();
+  });
+
   it("writes through the updater and never mutates the collector", () => {
     // The silent-failure guard. SDK state is immer-frozen: assigning to
     // collector.input.value throws nothing, changes nothing, and fails only at

@@ -31,7 +31,11 @@ import { useCallback, useId, useState } from "react";
 function DeviceRegistrationField({ collector, updater, serverError, busy }) {
   const id = useId();
   const options = collector?.output?.options || [];
-  const initial = collector?.input?.value || options.find((option) => option.default)?.value || options[0]?.value || "";
+  // Do not visually select an option that has not been written through the
+  // SDK updater. Forms may expose a first/default option while the SDK still
+  // holds an empty value; requiring an explicit choice avoids submitting an
+  // apparently-selected method as an empty device value.
+  const initial = collector?.input?.value || "";
   const [value, setValue] = useState(initial);
   const [writeError, setWriteError] = useState(null);
   const error = writeError || serverError;

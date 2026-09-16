@@ -42,6 +42,7 @@ describe('GET /api/health/services', () => {
 
     const res = await request(app).get('/api/health/services').expect(200);
     expect(res.body.services.llm_proxy.up).toBe(false);
+    expect(res.body.services.llm_proxy.configured).toBe(false);
     expect(res.body.services.llm_proxy.error).toBe('ECONNREFUSED');
   });
 

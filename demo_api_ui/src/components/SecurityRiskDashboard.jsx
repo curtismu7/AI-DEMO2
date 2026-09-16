@@ -53,6 +53,7 @@ function normalizeEvents(payload) {
 }
 
 function serviceState(service) {
+  if (service?.configured === false) return "unknown";
   if (service?.up === true) return "healthy";
   if (service?.up === false) return "down";
   return "unknown";
@@ -65,15 +66,14 @@ function severityForEvent(event) {
   return "low";
 }
 
-function buildRiskQueue(events, services) {
-  const risks = events
+function buildRiskQueue(events, services, limit = 4) {
+  const candidates = events
     .filter(
       (event) =>
         event?.severity === "error" ||
         event?.severity === "warning" ||
         event?.severity === "warn",
     )
-    .slice(0, 4)
     .map((event) => ({
       id: event.id || `${event.category}-${event.timestamp}`,
       title: eventLabel(event),
@@ -85,13 +85,14 @@ function buildRiskQueue(events, services) {
           : "Platform operations",
       age: formatAge(event.timestamp),
       status: event.severity === "error" ? "Investigate" : "Monitor",
+      sortTime: eventTime(event),
+      sortSeverity: severityForEvent(event) === "high" ? 3 : 2,
     }));
 
   Object.entries(services || {})
-    .filter(([, service]) => service?.up === false)
-    .slice(0, 4 - risks.length)
+    .filter(([, service]) => service?.up === false && service?.configured !== false)
     .forEach(([key, service]) => {
-      risks.push({
+      candidates.push({
         id: `service-${key}`,
         title: `${SERVICE_LABELS[key] || key} unavailable`,
         detail: service.error || "Health probe failed",
@@ -99,17 +100,46 @@ function buildRiskQueue(events, services) {
         owner: "Platform operations",
         age: "Current",
         status: "Investigate",
+        sortTime: Number.MAX_SAFE_INTEGER,
+        sortSeverity: 3,
       });
     });
 
-  return risks;
+  return candidates
+    .sort((a, b) => b.sortSeverity - a.sortSeverity || b.sortTime - a.sortTime)
+    .slice(0, limit)
+    .map(({ sortTime: _sortTime, sortSeverity: _sortSeverity, ...risk }) => risk);
+}
+
+function buildSignalTrend(events, now = Date.now()) {
+  const bucketCount = 12;
+  const windowMs = 24 * 60 * 60 * 1000;
+  const bucketMs = windowMs / bucketCount;
+  const start = now - windowMs;
+  const buckets = Array.from({ length: bucketCount }, () => ({ total: 0, errors: 0, warnings: 0 }));
+
+  events.forEach((event) => {
+    const timestamp = eventTime(event);
+    if (!timestamp || timestamp < start || timestamp > now) return;
+    const index = Math.min(bucketCount - 1, Math.floor((timestamp - start) / bucketMs));
+    buckets[index].total += 1;
+    if (event.severity === "error") buckets[index].errors += 1;
+    if (event.severity === "warning" || event.severity === "warn") buckets[index].warnings += 1;
+  });
+
+  const maxTotal = Math.max(1, ...buckets.map((bucket) => bucket.total));
+  return buckets.map((bucket) => ({
+    events: (bucket.total / maxTotal) * 100,
+    errors: (bucket.errors / maxTotal) * 100,
+    warnings: (bucket.warnings / maxTotal) * 100,
+  }));
 }
 
 function SignalBar({ value, tone }) {
   return (
     <span
       className={`srd-signal-bar srd-signal-bar--${tone}`}
-      style={{ height: `${Math.max(8, value)}%` }}
+      style={{ height: value > 0 ? `${Math.max(8, value)}%` : "0%" }}
     />
   );
 }
@@ -192,6 +222,11 @@ export default function SecurityRiskDashboard() {
     () => buildRiskQueue(events, services),
     [events, services],
   );
+  const allRisks = useMemo(
+    () => buildRiskQueue(events, services, Infinity),
+    [events, services],
+  );
+  const signalTrend = useMemo(() => buildSignalTrend(events), [events]);
   const selectedRisk =
     risks.find((risk) => risk.id === selectedRiskId) || risks[0] || null;
   const errors = events.filter((event) => event.severity === "error");
@@ -203,7 +238,7 @@ export default function SecurityRiskDashboard() {
       event.category === "authorize" || event.category === "token_exchange",
   );
   const unavailableServices = Object.values(services).filter(
-    (service) => service?.up === false,
+    (service) => service?.up === false && service?.configured !== false,
   ).length;
   const posture =
     unavailableServices || errors.length
@@ -288,7 +323,7 @@ export default function SecurityRiskDashboard() {
       </header>
 
       <section className="srd-context" aria-label="Dashboard context">
-        <span className="srd-context-chip">Production · Super Banking</span>
+        <span className="srd-context-chip">Application-wide scope</span>
         <span>Last 24 hours</span>
         <span>
           Last refresh {lastRefresh ? lastRefresh.toLocaleTimeString() : "—"}
@@ -312,7 +347,7 @@ export default function SecurityRiskDashboard() {
         <article className="srd-metric">
           <span className="srd-label">Critical exposure</span>
           <strong>
-            {risks.filter((risk) => risk.severity === "high").length}
+            {allRisks.filter((risk) => risk.severity === "high").length}
           </strong>
           <span>
             {errors.length
@@ -386,23 +421,15 @@ export default function SecurityRiskDashboard() {
           </div>
           <div
             className="srd-chart"
-            aria-label="Illustrative signal volume across the latest events"
+            aria-label="Security signal volume across the last 24 hours"
           >
-            {[18, 35, 28, 48, 40, 63, 55, 72, 46, 38, 29, 22].map(
-              (value, index) => (
-                <div className="srd-bar-group" key={`bar-${index}`}>
-                  <SignalBar value={value} tone="blue" />
-                  <SignalBar
-                    value={Math.max(8, value - errors.length * 3)}
-                    tone="red"
-                  />
-                  <SignalBar
-                    value={Math.max(8, value - warnings.length * 2)}
-                    tone="amber"
-                  />
-                </div>
-              ),
-            )}
+            {signalTrend.map((bucket, index) => (
+              <div className="srd-bar-group" key={`bar-${index}`}>
+                <SignalBar value={bucket.events} tone="blue" />
+                <SignalBar value={bucket.errors} tone="red" />
+                <SignalBar value={bucket.warnings} tone="amber" />
+              </div>
+            ))}
           </div>
           <div className="srd-axis">
             <span>24h ago</span>
@@ -410,8 +437,8 @@ export default function SecurityRiskDashboard() {
             <span>Now</span>
           </div>
           <p className="srd-footnote">
-            Trend shape is a visual summary of the current event buffer; connect
-            long-term metrics before using it for reporting.
+            Derived from structured event timestamps currently available to the
+            BFF; this is not a long-term reporting metric.
           </p>
         </article>
         <article className="srd-panel">
@@ -587,7 +614,9 @@ export default function SecurityRiskDashboard() {
                 <StatusBadge status={serviceState(service)} />
               </div>
               <p>
-                {service?.up === false
+                {service?.configured === false
+                  ? "Optional service is not configured"
+                  : service?.up === false
                   ? service.error || "Health probe failed"
                   : service?.up === true
                     ? "Health probe passed"

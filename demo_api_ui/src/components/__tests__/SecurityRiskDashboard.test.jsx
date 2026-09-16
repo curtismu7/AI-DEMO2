@@ -81,4 +81,77 @@ describe("SecurityRiskDashboard", () => {
       screen.getByText(/Open the source event using its correlation ID/),
     ).toBeInTheDocument();
   });
+
+  it("prioritizes high-severity events before limiting the risk queue", async () => {
+    apiClient.get.mockImplementation((path) => {
+      if (path === "/api/health/services") {
+        return Promise.resolve({ data: { services: { mcp_gateway: { up: true, configured: true } } } });
+      }
+      if (path === "/api/admin/app-events?limit=100") {
+        return Promise.resolve({
+          data: {
+            events: [
+              ...Array.from({ length: 5 }, (_, index) => ({
+                id: `warning-${index}`,
+                timestamp: `2026-09-16T14:5${index}:00.000Z`,
+                category: "config",
+                severity: "warning",
+                message: `Warning ${index}`,
+              })),
+              {
+                id: "critical-1",
+                timestamp: "2026-09-16T14:59:00.000Z",
+                category: "authorize",
+                severity: "error",
+                message: "Critical policy failure",
+              },
+            ],
+          },
+        });
+      }
+      return Promise.resolve({ data: { available: false, methods: [] } });
+    });
+
+    render(<SecurityRiskDashboard />);
+
+    expect(await screen.findAllByText("Critical policy failure")).not.toHaveLength(0);
+  });
+
+  it("does not create synthetic signal bars when there are no events", async () => {
+    apiClient.get.mockImplementation((path) => {
+      if (path === "/api/health/services") {
+        return Promise.resolve({ data: { services: { mcp_gateway: { up: true, configured: true } } } });
+      }
+      if (path === "/api/admin/app-events?limit=100") {
+        return Promise.resolve({ data: { events: [] } });
+      }
+      return Promise.resolve({ data: { available: false, methods: [] } });
+    });
+
+    const { container } = render(<SecurityRiskDashboard />);
+    await screen.findByRole("heading", { name: "Security & Risk Dashboard" });
+
+    const bars = container.querySelectorAll(".srd-signal-bar--blue");
+    expect(bars).toHaveLength(12);
+    expect([...bars].every((bar) => bar.style.height === "0%")).toBe(true);
+  });
+
+  it("does not treat an unconfigured optional service as an outage", async () => {
+    apiClient.get.mockImplementation((path) => {
+      if (path === "/api/health/services") {
+        return Promise.resolve({
+          data: { services: { llm_proxy: { up: false, configured: false, error: "not_configured" } } },
+        });
+      }
+      if (path === "/api/admin/app-events?limit=100") {
+        return Promise.resolve({ data: { events: [] } });
+      }
+      return Promise.resolve({ data: { available: false, methods: [] } });
+    });
+
+    render(<SecurityRiskDashboard />);
+
+    expect(await screen.findAllByText("Healthy")).not.toHaveLength(0);
+    expect(screen.queryByText("LLM proxy unavailable")).not.toBeInTheDocument();
+  });
 });
