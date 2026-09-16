@@ -109,6 +109,9 @@ TransactionType: '12345678-0002-4321-abcd-000000000002',
   IntentMatchesTool: '12345678-0022-4321-abcd-000000000022',
   IntentTokenError: '12345678-0023-4321-abcd-000000000023',
   UserRole: '12345678-0024-4321-abcd-000000000024',
+  // Selected account identifier used by the P1AZ Service resolver to retrieve
+  // account-level riskTier and balance from the private banking API.
+  AccountId: '12345678-0032-4321-abcd-000000000032',
   // BFF-pre-resolved JWKS membership of the token's header kid. BOOLEAN with
   // defaultValue TRUE — the inert side. The BFF OMITS this key when membership
   // is unknown (no kid, or the JWKS fetch failed), so an absent value MUST NOT
@@ -1049,6 +1052,10 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
   upsert(requestAttr(ATTR.UserRole, 'UserRole', 'STRING', 'none',
     "Caller role forwarded by the BFF ('admin' | 'customer'; lowercase). Default 'none' keeps the admin restriction inert. " +
     'A RESTRICTION input only — never a bypass (see mock Rule 2.95 / F5).'), afterLastAttrIdx);
+  upsert(requestAttr(ATTR.AccountId, 'AccountId', 'STRING', '',
+    'Selected bank account id. P1AZ interpolates this request attribute into the private account-context ' +
+    'HTTP Service URL; the Service resolver returns account-level riskTier and balance. Empty means no ' +
+    'selected account and leaves the service-backed context unavailable.'), afterLastAttrIdx);
   upsert(conditionDef(COND.AdminRoleOnWriteTool, 'AdminRoleOnWriteTool',
     `UserRole is 'admin' AND ToolName is one of the ${writeTools.length} customer write tools (requiredScopes includes ` +
     "'write' in scope-topology.json — same derivation as scopeTopology.isWriteTool). Mirrors mock Rule 2.95. Generated — do not hand-edit.",

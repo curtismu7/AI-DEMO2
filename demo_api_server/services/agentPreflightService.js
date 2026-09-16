@@ -360,6 +360,7 @@ async function evaluateBatch({ req, tools }) {
       ? (recordAmount !== null ? recordAmount : parseFloat(params.amount || 0))
       : null;
     const resourceOwnerId = resolveResourceOwnerId(tool, params);
+    const accountId = params?.accountId ?? params?.account_id ?? params?.fromAccountId ?? params?.from_account_id ?? params?.toAccountId ?? params?.to_account_id ?? null;
     const requiredGroup = groupPolicyEnabled ? groupPolicy.requiredGroupForTool(tool, activeVerticalId) : null;
     const inRequiredGroup = requiredGroup && userGroups ? userGroups.includes(requiredGroup) : null;
 
@@ -385,6 +386,7 @@ async function evaluateBatch({ req, tools }) {
         rarMaxAmount: null,
         rarPermittedPayees: null,
         toAccountId: null,
+        accountId,
         verticalId: activeVerticalId,
         clientId: facts.subjectId || null,
         mayActSub: facts.mayActSub,

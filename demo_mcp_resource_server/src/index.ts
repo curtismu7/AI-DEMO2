@@ -75,7 +75,7 @@ import fs from 'fs';
 import path from 'path';
 import { resolvePassenger, listBookings } from './db/airlinesDb';
 import { getHoldings, resolveInvestor } from './db/investDb';
-import { listAccounts, getAccount } from './db/bankingDb';
+import { listAccounts, getAccount, getAuthorizationContext } from './db/bankingDb';
 import { emitHop } from './transactionHop';
 import { register as metricsRegister, mcpMessageDuration } from './metrics';
 
@@ -451,7 +451,7 @@ function handleLegacySseMessage(req: IncomingMessage, res: ServerResponse): void
 }
 
 function handleHttp(req: IncomingMessage, res: ServerResponse): void {
-  const url = req.url || '/';
+  const url = (req.url || '/').split('?')[0];
 
   if (url === '/.well-known/oauth-protected-resource' && req.method === 'GET') {
     const asList = PINGONE_ENV_ID
@@ -584,6 +584,33 @@ function handleHttp(req: IncomingMessage, res: ServerResponse): void {
       authMechanism: 'X-API-Key (shared secret)',
       note: 'These accounts were returned because the gateway presented a valid service API key. No OAuth bearer was involved on this hop — the gateway dropped the user token and attached a shared secret from its vault.',
     }, null, 2));
+    return;
+  }
+
+  if (url === '/authorize/account-context' && req.method === 'GET') {
+    const presented = req.headers['x-api-key'] as string | undefined;
+    if (!presented) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'api_key_missing' }));
+      return;
+    }
+    if (!apiKeyMatches(presented)) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'api_key_invalid' }));
+      return;
+    }
+
+    const query = new URL(`http://localhost${req.url || ''}`).searchParams;
+    const userId = query.get('userId') || '';
+    const accountId = query.get('accountId') || '';
+    const context = userId && accountId ? getAuthorizationContext(accountId, userId) : null;
+    if (!context) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'account_context_not_found' }));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json', 'X-Auth-Mechanism': 'api_key' });
+    res.end(JSON.stringify(context));
     return;
   }
 

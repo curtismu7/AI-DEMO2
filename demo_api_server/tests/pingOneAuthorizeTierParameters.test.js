@@ -68,6 +68,11 @@ const baseArgs = {
   transactionType: 'transfer',
 };
 
+test('forwards the selected account id for P1AZ service resolution', () => {
+  const params = buildMcpDelegationParameters({ ...baseArgs, accountId: 'acct-002' });
+  expect(params.AccountId).toBe('acct-002');
+});
+
 describe('UC21 tier attributes reach PingOne Authorize', () => {
   test('the PEP forwards UserTier and Amount — the two the tier rules read', () => {
     const params = buildMcpDelegationParameters({

@@ -8,7 +8,7 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'banking-db-'));
 process.env.BANKING_DB_PATH = path.join(tmpDir, 'banking.db');
 process.env.BANKING_SEED_PATH = path.join(__dirname, '..', 'seed', 'banking.seed.json');
 
-import { getAccount, listAccounts, withDb } from '../src/db/bankingDb';
+import { getAccount, getAuthorizationContext, listAccounts, withDb } from '../src/db/bankingDb';
 
 afterAll(() => {
   fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -34,6 +34,18 @@ describe('bankingDb', () => {
     expect(account!.accountType).toBe('savings');
     expect(account!.balance).toBe(18540.0);
     expect(account!.isActive).toBe(true);
+    expect(account!.riskTier).toBe('standard');
+  });
+
+  it('returns only the selected account context for its owning user', () => {
+    expect(getAuthorizationContext('acct-002', 'demo-user')).toEqual({
+      accountId: 'acct-002',
+      userId: 'demo-user',
+      riskTier: 'standard',
+      balance: 18540,
+      currency: 'USD',
+    });
+    expect(getAuthorizationContext('acct-002', 'other-user')).toBeNull();
   });
 
   it('returns null for a nonexistent account', () => {
@@ -79,6 +91,10 @@ describe('bankingDb', () => {
       // Each user's own accounts still work correctly.
       expect(getAccount('acct-999', 'other-user')?.id).toBe('acct-999');
       expect(getAccount('acct-001', 'demo-user')?.id).toBe('acct-001');
+    });
+
+    it('defaults a newly inserted account to the restricted risk tier', () => {
+      expect(getAuthorizationContext('acct-999', 'other-user')?.riskTier).toBe('restricted');
     });
   });
 });
