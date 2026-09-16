@@ -5130,6 +5130,34 @@ body > .banking-agent-float-root .banking-agent-panel {
   line-height: 1.2;
   text-transform: uppercase;
 }
+.ba-topology-surface-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  background: var(--th-bg-inset);
+  box-sizing: border-box;
+}
+.ba-topology-surface-row label {
+  color: var(--th-text);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+}
+.ba-topology-surface-row select {
+  min-width: 108px;
+  padding: 4px 7px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: 5px;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  font: inherit;
+  font-size: var(--font-size-xs);
+}
 .ba-header-more-pop .ba-actions-trigger .ba-surface-badge {
   margin-left: auto;
 }

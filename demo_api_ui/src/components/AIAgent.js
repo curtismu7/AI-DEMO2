@@ -1054,6 +1054,25 @@ export default function BankingAgent({
   const [showTokenChain, setShowTokenChain] = useState(false);
   const [showTokenTopology, setShowTokenTopology] = useState(false); // dispatches token-topology-open; panel lives in App.js
   const [showInlineTokenTopology, setShowInlineTokenTopology] = useState(false);
+  const [topologySurface, setTopologySurface] = useState("none");
+  const chooseTopologySurface = useCallback((surface) => {
+    const embedded = surface === "embedded" || surface === "both";
+    const popout = surface === "popout" || surface === "both";
+    setTopologySurface(surface);
+    setShowInlineTokenTopology(embedded);
+    window.dispatchEvent(new CustomEvent("agent-token-topology-toggle", { detail: { on: embedded } }));
+    if (embedded && showSequenceDiagram) {
+      setShowSequenceDiagram(false);
+      window.dispatchEvent(new CustomEvent("agent-sequence-diagram-toggle", { detail: { on: false } }));
+    }
+    if (popout) {
+      setShowTokenTopology(true);
+      window.dispatchEvent(new CustomEvent('token-topology-open'));
+    } else {
+      setShowTokenTopology(false);
+      window.dispatchEvent(new CustomEvent("token-topology-close"));
+    }
+  }, [showSequenceDiagram]);
   const [showFloatingTokenChain, setShowFloatingTokenChain] = useState(false); // dispatches floating-token-chain-open; panel lives in App.js
 
   const [tokenChainWidth] = useState(() => {
@@ -9954,7 +9973,21 @@ export default function BankingAgent({
                           Side panel
                         </Check>
                       )}
-                      <div className="ba-header-more-heading">Embedded in page</div>
+                      <div className="ba-header-more-heading">Evidence views</div>
+                      <div className="ba-topology-surface-row">
+                        <label htmlFor="topology-surface-select">Token topology</label>
+                        <select
+                          id="topology-surface-select"
+                          value={topologySurface}
+                          onChange={(e) => chooseTopologySurface(e.target.value)}
+                          title="Choose where token topology appears"
+                        >
+                          <option value="none">Off</option>
+                          <option value="embedded">Embedded</option>
+                          <option value="popout">Pop-out</option>
+                          <option value="both">Both</option>
+                        </select>
+                      </div>
                       {/* Simple Stepper toggle */}
                       <Check
                         variant="switch"
@@ -10002,6 +10035,7 @@ export default function BankingAgent({
                           window.dispatchEvent(new CustomEvent("agent-sequence-diagram-toggle", { detail: { on: newVal } }));
                           if (newVal && showInlineTokenTopology) {
                             setShowInlineTokenTopology(false);
+                            setTopologySurface(showTokenTopology ? "popout" : "none");
                             window.dispatchEvent(new CustomEvent("agent-token-topology-toggle", { detail: { on: false } }));
                           }
                           // Auto-collapse the left nav so the diagram gets the
@@ -10015,23 +10049,6 @@ export default function BankingAgent({
                         title="Show a live lifeline sequence diagram instead of the movie reel for this session (returns on reload)"
                       >
                         <>Sequence view <span className="ba-surface-badge" aria-hidden="true">Embedded</span></>
-                      </Check>
-                      <Check
-                        variant="switch"
-                        className="ba-header-toggle-label"
-                        checked={showInlineTokenTopology}
-                        onChange={(e) => {
-                          const newVal = e.target.checked;
-                          setShowInlineTokenTopology(newVal);
-                          window.dispatchEvent(new CustomEvent("agent-token-topology-toggle", { detail: { on: newVal } }));
-                          if (newVal && showSequenceDiagram) {
-                            setShowSequenceDiagram(false);
-                            window.dispatchEvent(new CustomEvent("agent-sequence-diagram-toggle", { detail: { on: false } }));
-                          }
-                        }}
-                        title="Show the live token topology inline beside the agent"
-                      >
-                        <>Token topology <span className="ba-surface-badge" aria-hidden="true">Both</span></>
                       </Check>
                       {showSequenceDiagram && (
                         <Check
@@ -10101,7 +10118,13 @@ export default function BankingAgent({
                         className={`ba-actions-trigger${showTokenTopology ? " active" : ""}`}
                         aria-label="Topology"
                         title="Real-time token topology — RFC 8693 delegation chain"
-                        onClick={() => { setShowTokenTopology(v => !v); window.dispatchEvent(new CustomEvent('token-topology-open')); }}
+                        onClick={() => {
+                          if (showTokenTopology) {
+                            chooseTopologySurface(showInlineTokenTopology ? "embedded" : "none");
+                          } else {
+                            chooseTopologySurface(showInlineTokenTopology ? "both" : "popout");
+                          }
+                        }}
                       >
                         <><span>Token topology</span><span className="ba-surface-badge" aria-hidden="true">Pop-out</span></>
                       </button>
