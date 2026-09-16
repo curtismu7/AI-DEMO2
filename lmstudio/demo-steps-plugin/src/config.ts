@@ -35,4 +35,17 @@ export const configSchematics = createConfigSchematics()
     },
     'banking-everyday',
   )
+  .field(
+    'demoMode',
+    'select',
+    {
+      displayName: 'Demo response mode',
+      subtitle: 'Fast keeps tool demos brief; Guided adds one-line handoff context.',
+      options: [
+        { value: 'fast', displayName: 'Fast demo' },
+        { value: 'guided', displayName: 'Guided demo' },
+      ],
+    },
+    'fast',
+  )
   .build();

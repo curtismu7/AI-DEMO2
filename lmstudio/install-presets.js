@@ -22,6 +22,8 @@ for (const workflow of workflows) {
       ? `This is a routing workflow. Route matching requests to: ${workflow.handoffs.join(', ')}.`
       : '',
     `Suggested prompts: ${workflow.starters.join(' | ')}`,
+    'Use LM Studio native tool calls only; never print XML, JSON, or <tool_call> markup as text.',
+    'If a tool call returns no content, say the MCP call did not complete and tell the user to retry once. If authentication is required, tell the user to authenticate the named MCP server in LM Studio Integrations.',
   ].filter(Boolean).join('\n');
   const preset = {
     name: `Demo · ${workflow.group} · ${workflow.label}`,
@@ -32,6 +34,7 @@ for (const workflow of workflows) {
       pre_prompt_prefix: '',
       pre_prompt_suffix: '',
       pre_prompt: systemPrompt,
+      temperature: 0.1,
     },
   };
   const filename = `${workflow.id}.preset.json`;
