@@ -804,6 +804,13 @@ async function main(deps = {}) {
     MCP_GW_CLIENT_ID:                  creds.mcpGatewayClientId,
     MCP_GW_CLIENT_SECRET:              creds.mcpGatewaySecret,
     PINGONE_TOKEN_ENDPOINT:            `${asBase}/token`,
+    // LM Studio / IDE clients authenticate through the gateway's browser-based
+    // OAuth broker. This is the public PKCE client for the "Claude Code -
+    // Banking Gateway" PingOne app; it is a client ID, never a client secret.
+    // Keep this in the generated gateway env or refresh-service-envs.js will
+    // silently remove it from demo_mcp_gateway/.env.
+    GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID: fb('GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID')
+      || 'c8392dc4-2d82-4e49-92a8-79a78401faf5',
     GW_INTROSPECTION_CLIENT_ID:        creds.mcpExchangerClientId,
     GW_INTROSPECTION_CLIENT_SECRET:    creds.mcpExchangerSecret,
     GW_INTROSPECTION_ENDPOINT:         `${asBase}/introspect`,
@@ -817,13 +824,24 @@ async function main(deps = {}) {
     // BFF_INTERNAL_SECRET (docker-compose mcp-gateway): supplied via env_file,
     // never pinned in compose `environment:`.
     INTENT_TOKEN_SECRET:               fbVault('INTENT_TOKEN_SECRET') || fb('SESSION_SECRET'),
+    // Optional Privilege-first bridge. Leave empty for direct LM Studio OAuth
+    // against MCP AgentGateway-Banking. If Privilege fronts this gateway, set
+    // it to the Agentic App's Static Token, byte-for-byte; it is not the
+    // PingOne OAuth client ID and must never be shown in logs or committed.
+    MCP_GW_PRIVILEGE_BRIDGE_SECRET:    fb('MCP_GW_PRIVILEGE_BRIDGE_SECRET'),
   }, [
     'This is the Node MCP gateway (mcpgateway.ping.demo).',
+    'GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID is the public PKCE client ID for',
+    'the Claude Code - Banking Gateway PingOne app; it enables browser login',
+    'for LM Studio and IDE MCP clients. It is unrelated to the Privilege bridge.',
     'INTENT_TOKEN_SECRET must resolve the SAME key the BFF signs with',
     '(services/intentTokenService.js) and ping-gateway/.env verifies with.',
     'If it is ever missing here, intentTokenValidator.ts throws and every',
     'gw_audit_trail entry silently reports IntentTokenValid=false —',
     'the HMAC verifier ships as dead code with no error visible elsewhere.',
+    'MCP_GW_PRIVILEGE_BRIDGE_SECRET is optional and empty for direct LM Studio',
+    'OAuth. Only set it when Privilege fronts this gateway; it must equal the',
+    'Agentic App Static Token exactly and must never be committed.',
   ]);
   console.log('[refresh-envs] Wrote demo_mcp_gateway/.env');
 
