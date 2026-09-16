@@ -169,3 +169,25 @@ export function isEnterpriseMcpDemoRoute(pathname) {
   const p = pathname.replace(/\/$/, '') || '/';
   return p === '/demo/enterprise-mcp';
 }
+
+/**
+ * Routes that mount AIAgentFull (Demo Steps + selectable Privilege MCP
+ * transport) instead of the default AIAgent. Starts empty — add a path here
+ * per demo, never the other way around, so every existing route keeps
+ * today's behavior unchanged. Adding a route here changes which component
+ * *type* mounts, so React unmounts/remounts the agent on navigation into or
+ * out of that route — any in-progress chat state is lost.
+ * @type {string[]}
+ */
+export const FULL_AGENT_ROUTES = [];
+
+/**
+ * Whether AIAgentFull (not AIAgent) should mount for this route.
+ * @param {string} [pathname]
+ * @returns {boolean}
+ */
+export function isFullAgentRoute(pathname) {
+  if (pathname == null || typeof pathname !== 'string') return false;
+  const p = pathname.replace(/\/$/, '') || '/';
+  return FULL_AGENT_ROUTES.includes(p);
+}

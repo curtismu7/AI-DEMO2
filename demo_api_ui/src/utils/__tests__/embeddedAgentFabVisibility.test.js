@@ -10,6 +10,7 @@ import {
   isPingOneAdminAgentRoute,
   isTokenChainRoute,
   isMonitoringRoute,
+  isFullAgentRoute,
 } from '../embeddedAgentFabVisibility';
 
 const customer = { role: 'customer', id: '1' };
@@ -245,5 +246,17 @@ describe('isTokenChainRoute', () => {
     expect(isTokenChainRoute('/use-cases')).toBe(false);
     expect(isTokenChainRoute(null)).toBe(false);
     expect(isTokenChainRoute(undefined)).toBe(false);
+  });
+});
+
+describe('isFullAgentRoute', () => {
+  it('is false for every route by default (opt-in allowlist starts empty)', () => {
+    expect(isFullAgentRoute('/')).toBe(false);
+    expect(isFullAgentRoute('/dashboard')).toBe(false);
+    expect(isFullAgentRoute('/admin')).toBe(false);
+  });
+
+  it('normalizes a trailing slash the same way the other predicates do', () => {
+    expect(isFullAgentRoute('/dashboard/')).toBe(isFullAgentRoute('/dashboard'));
   });
 });
