@@ -1,4 +1,4 @@
-// The lesson on /davinci-sdk-login, below "Try It Live": how the Ping
+// The lesson on /davinci-orchestration-sdk, below "Try It Live": how the Ping
 // Orchestration SDK (@forgerock/davinci-client) runs a PingOne DaVinci flow,
 // with copyable code.
 //
@@ -150,7 +150,7 @@ while (node.status === "continue" || node.status === "error") {
 
   node = branch
     ? await client.flow({ action: branch.output.key })() // FlowCollector
-    : await client.next();                               // SubmitCollector
+    : await client.next();                               // SubmitCollector or ActionCollector
 }
 
 if (node.status === "success") {
@@ -164,7 +164,7 @@ const API_START = `POST /api/davinci-sdk-login/start
 200 OK
 {
   "clientId": "<PingOne application id>",
-  "redirectUri": "https://app.example.com/davinci-sdk-login",
+  "redirectUri": "https://app.example.com/davinci-orchestration-sdk",
   "wellknown": "https://auth.pingone.com/<envId>/as/.well-known/openid-configuration",
   "scope": "openid profile email …",
   "flowPolicyId": "<DaVinci Flow Policy ID>",
@@ -183,7 +183,7 @@ const API_AUTHORIZE = `GET https://auth.pingone.com/<envId>/as/authorize
     &acr_values=<flowPolicyId>
     &response_type=code
     &scope=openid profile email …
-    &redirect_uri=https://app.example.com/davinci-sdk-login
+    &redirect_uri=https://app.example.com/davinci-orchestration-sdk
     &code_challenge=…
     &code_challenge_method=S256
     &state=…
@@ -347,7 +347,7 @@ const CATEGORIES = [
   ["ObjectValueCollector", "phone number (country code + number)", "An object value."],
   [
     "ActionCollector",
-    "SubmitCollector, FlowCollector, IdpCollector",
+    "SubmitCollector, FlowCollector, ActionCollector, IdpCollector",
     "No value; a button. next(), flow({ action })(), or an external IdP.",
   ],
   ["NoValueCollector", "read-only and rich text", "Display only; nothing is sent."],
@@ -364,6 +364,7 @@ const FIELD_MAP = [
   ["TEXT", "TextCollector", "SingleValueCollector", "An input; update(c)(value) on change; sent as formData.<key>"],
   ["PASSWORD", "PasswordCollector", "SingleValueCollector", "A password input; the same write path; sent as formData.<key>"],
   ["SUBMIT_BUTTON", "SubmitCollector", "ActionCollector", "A button that calls next()"],
+  ["BUTTON", "ActionCollector", "ActionCollector", "A generic continue button that calls next()"],
   ["FLOW_BUTTON", "FlowCollector", "ActionCollector", "A button that calls flow({ action: c.output.key })()"],
 ];
 
@@ -415,6 +416,7 @@ function Collectors({ client, onNode }) {
       case "ValidatedPasswordCollector":
         return <TextField key={collector.id} client={client} collector={collector} type="password" />;
       case "SubmitCollector":
+      case "ActionCollector":
         return <SubmitButton key={collector.id} client={client} collector={collector} onNode={onNode} />;
       case "FlowCollector":
         return <FlowButton key={collector.id} client={client} collector={collector} onNode={onNode} />;
@@ -451,7 +453,7 @@ function TextField({ client, collector, type = "text" }) {
   );
 }`;
 
-const CODE_SUBMIT = `// SubmitCollector: no value of its own. The fields already wrote their values
+const CODE_SUBMIT = `// SubmitCollector or generic ActionCollector: no value of its own. The fields already wrote their values
 // into the SDK as the user typed, so submitting is just next(): it POSTs
 // eventType "submit", this button's actionKey and the formData.
 function SubmitButton({ client, collector, onNode }) {
@@ -796,7 +798,7 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         </p>
         <CodeBlock title="Render the current node's collectors" code={CODE_RENDER} language="jsx" />
         <CodeBlock title="TextCollector and PasswordCollector" code={CODE_TEXT} language="jsx" />
-        <CodeBlock title="SubmitCollector" code={CODE_SUBMIT} language="jsx" />
+        <CodeBlock title="SubmitCollector and ActionCollector" code={CODE_SUBMIT} language="jsx" />
         <CodeBlock title="FlowCollector" code={CODE_FLOW} language="jsx" />
         <CodeBlock title="Handle the node that comes back" code={CODE_NODE} language="js" />
         <CodeBlock title="Validated text fields" code={CODE_VALIDATE} language="js" />
@@ -814,7 +816,7 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
             <code>category: &apos;ValidatedSingleValueCollector&apos;</code>.
           </li>
           <li>
-            <strong>Submit and flow are different calls.</strong> A SubmitCollector means{" "}
+            <strong>Submit and flow are different calls.</strong> A SubmitCollector or generic ActionCollector means{" "}
             <code>client.next()</code>. A FlowCollector is a branch,{" "}
             <code>client.flow({"{ action: collector.output.key }"})()</code>, and does not submit
             the current form.

@@ -38,7 +38,7 @@ jest.mock('axios', () => ({ post: jest.fn(), get: jest.fn() }));
 jest.mock('../../services/configStore', () => ({
   getEffective: jest.fn((key) => {
     if (key === 'pingone_davinci_sdk_login_redirect_uri') {
-      return 'https://local.ping-devops.com:4000/davinci-sdk-login';
+      return 'https://local.ping-devops.com:4000/davinci-orchestration-sdk';
     }
     return '';
   }),
@@ -56,7 +56,7 @@ const dataStore = require('../../data/store');
 const SDK_APP_ID = '4e122cbf-defe-4c39-a5b5-c6b7da2b63f1';
 const FLOW_POLICY_ID = '00170f5a456819252e3a88c85a3cc4fe';
 const PUBLIC_BASE = 'https://local.ping-devops.com:4000';
-const EXPECTED_REDIRECT = `${PUBLIC_BASE}/davinci-sdk-login`;
+const EXPECTED_REDIRECT = `${PUBLIC_BASE}/davinci-orchestration-sdk`;
 
 function idTokenWithNonce(nonce) {
   const payload = Buffer.from(JSON.stringify({ nonce })).toString('base64url');

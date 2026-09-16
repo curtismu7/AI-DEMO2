@@ -39,6 +39,7 @@ import DashboardTokenRail from "./DashboardTokenRail";
 import TokenChainFilmstrip from "./TokenChainFilmstrip";
 import ReelDock from "./ReelDock";
 import SequenceReelDiagram from "./SequenceReelDiagram";
+import TokenTopologyPanel from "./TokenTopologyPanel";
 import StepDetailPanel from "./StepDetailPanel";
 import CollapsibleStepDetail from "./CollapsibleStepDetail";
 import SimpleStepperBar from "./SimpleStepperBar";
@@ -199,6 +200,12 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       return false;
     }
   });
+  const [showTokenTopology, setShowTokenTopology] = useState(false);
+  useEffect(() => {
+    const handler = (e) => setShowTokenTopology(!!e.detail?.on);
+    window.addEventListener("agent-token-topology-toggle", handler);
+    return () => window.removeEventListener("agent-token-topology-toggle", handler);
+  }, []);
   // The step a user clicked on in the diagram, rendered below it via
   // StepDetailPanel — the same narrative/RFC/request-response detail the
   // reel already shows for this exact step shape. Cleared on toggle-off so
@@ -3645,7 +3652,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               reel at all. .agent-clinical-host is display:block over a 100vh
               shell, the same shape as float mode, so .tcfs-float-host's
               position:sticky/bottom:0 pins it without any clinical-specific CSS. */}
-          {showFilmstrip && !showSequenceDiagram && <ReelDock />}
+          {showFilmstrip && !showSequenceDiagram && !showTokenTopology && <ReelDock />}
+          {showTokenTopology && <TokenTopologyPanel inline />}
           {showSequenceDiagram && (
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}
@@ -3792,7 +3800,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               nothing on screen: it governed only the float branch, which does
               not mount in this layout. The reel was never lost, the control
               was simply wired to the copy you were not looking at. */}
-          {showFilmstrip && !showSequenceDiagram && <TokenChainFilmstrip />}
+          {showFilmstrip && !showSequenceDiagram && !showTokenTopology && <TokenChainFilmstrip />}
+          {showTokenTopology && <TokenTopologyPanel inline />}
           {showSequenceDiagram && (
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}
@@ -3867,7 +3876,8 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             {/* Response mirror — shows last agent reply on main page when toggled on */}
             <AgentResponseMirror />
             {/* Movie reel filmstrip — toggled via More › Movie reel in the agent header */}
-            {showFilmstrip && !showSequenceDiagram && <ReelDock />}
+            {showFilmstrip && !showSequenceDiagram && !showTokenTopology && <ReelDock />}
+            {showTokenTopology && <TokenTopologyPanel inline />}
           {showSequenceDiagram && (
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}

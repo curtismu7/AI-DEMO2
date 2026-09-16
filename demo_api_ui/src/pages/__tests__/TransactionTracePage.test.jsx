@@ -72,7 +72,7 @@ describe("TransactionTracePage", () => {
     await waitFor(() => expect(screen.getByText("c-fail")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: /c-fail/ }));
 
-    await waitFor(() => expect(screen.getByText("authz-server")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("authz-server").length).toBeGreaterThan(0));
     expect(screen.getByText("mcp-server")).toBeInTheDocument();
     expect(screen.getByText(/❌ FAIL/)).toBeInTheDocument();
   });
@@ -172,7 +172,7 @@ describe("TransactionTracePage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 
-    await waitFor(() => expect(screen.getByText("authz-server")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("authz-server").length).toBeGreaterThan(0));
     expect(screen.queryByTestId("detail-error")).not.toBeInTheDocument();
   });
 

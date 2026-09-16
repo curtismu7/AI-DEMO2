@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useMcpToolTransport } from "../hooks/useMcpToolTransport";
 import { createPortal } from "react-dom";
 import { PopOutPortal } from "./FloatingPanel";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
@@ -362,7 +363,7 @@ function MaybePortal({ target, children }) {
   return target ? createPortal(children, target) : children;
 }
 
-export default function BankingAgent({
+export default function BankingAgentFull({
   user,
   onLogout,
   mode = "float",
@@ -413,8 +414,6 @@ export default function BankingAgent({
   // header's height never changes when it opens.
   const [headerMoreOpen, setHeaderMoreOpen] = useState(false);
   const headerMoreRef = useRef(null);
-  const headerMorePopRef = useRef(null);
-  const [headerMorePosition, setHeaderMorePosition] = useState(null);
   // Freshest handleDemoStepSelect for the strip's event bridge (the listener
   // is registered once with [] deps, so it must read through a ref).
   const demoStepSelectRef = useRef(null);
@@ -428,26 +427,16 @@ export default function BankingAgent({
   useEffect(() => {
     if (!headerMoreOpen) return undefined;
     const onDocClick = (e) => {
-      if (
-        !headerMoreRef.current?.contains(e.target) &&
-        !headerMorePopRef.current?.contains(e.target)
-      ) {
-        setHeaderMoreOpen(false);
-      }
+      if (!headerMoreRef.current?.contains(e.target)) setHeaderMoreOpen(false);
     };
     const onKey = (e) => {
       if (e.key === "Escape") setHeaderMoreOpen(false);
     };
-    const onViewportChange = () => setHeaderMoreOpen(false);
     document.addEventListener("mousedown", onDocClick);
     document.addEventListener("keydown", onKey);
-    window.addEventListener("resize", onViewportChange);
-    window.addEventListener("scroll", onViewportChange, true);
     return () => {
       document.removeEventListener("mousedown", onDocClick);
       document.removeEventListener("keydown", onKey);
-      window.removeEventListener("resize", onViewportChange);
-      window.removeEventListener("scroll", onViewportChange, true);
     };
   }, [headerMoreOpen]);
   const themeAgent = agentManifest?.agent;
@@ -488,6 +477,12 @@ export default function BankingAgent({
   const [showDiscovery, setShowDiscovery] = useState(false);
   /** Demo steps popout — same list as /use-cases Demo section. */
   const [showDemoSteps, setShowDemoSteps] = useState(false);
+  /** "direct" (today's BFF pipeline) or "privilege" (standalone Privilege AI
+   * Gateway — no banking consent/HITL/kill-switch on this path). Shadows the
+   * module-level `callMcpTool` import below for the rest of this component;
+   * every existing call site in this file keeps working unchanged. */
+  const [mcpTransport, setMcpTransport] = useState("direct");
+  const callMcpTool = useMcpToolTransport(mcpTransport);
   /** Admin tools popout — PingOne ops + banking customer-CRUD, admin-only. */
   const [showAdminTools, setShowAdminTools] = useState(false);
   const [discoverySearch, setDiscoverySearch] = useState("");
@@ -1065,26 +1060,6 @@ export default function BankingAgent({
   /** Token chain visibility — always starts hidden on page load (not persisted). */
   const [showTokenChain, setShowTokenChain] = useState(false);
   const [showTokenTopology, setShowTokenTopology] = useState(false); // dispatches token-topology-open; panel lives in App.js
-  const [showInlineTokenTopology, setShowInlineTokenTopology] = useState(false);
-  const [topologySurface, setTopologySurface] = useState("none");
-  const chooseTopologySurface = useCallback((surface) => {
-    const embedded = surface === "embedded" || surface === "both";
-    const popout = surface === "popout" || surface === "both";
-    setTopologySurface(surface);
-    setShowInlineTokenTopology(embedded);
-    window.dispatchEvent(new CustomEvent("agent-token-topology-toggle", { detail: { on: embedded } }));
-    if (embedded && showSequenceDiagram) {
-      setShowSequenceDiagram(false);
-      window.dispatchEvent(new CustomEvent("agent-sequence-diagram-toggle", { detail: { on: false } }));
-    }
-    if (popout) {
-      setShowTokenTopology(true);
-      window.dispatchEvent(new CustomEvent('token-topology-open'));
-    } else {
-      setShowTokenTopology(false);
-      window.dispatchEvent(new CustomEvent("token-topology-close"));
-    }
-  }, [showSequenceDiagram]);
   const [showFloatingTokenChain, setShowFloatingTokenChain] = useState(false); // dispatches floating-token-chain-open; panel lives in App.js
 
   const [tokenChainWidth] = useState(() => {
@@ -9844,6 +9819,29 @@ export default function BankingAgent({
                   onHeuristicFallbackChange={setHeuristicEnabled}
                 />
                 )}
+                {!pageOwnsAgentChrome && (
+                <label>
+                  MCP transport{" "}
+                  <select
+                    className="ctl-select"
+                    value={mcpTransport}
+                    onChange={(e) => setMcpTransport(e.target.value)}
+                  >
+                    <option value="direct">Direct</option>
+                    <option value="privilege">Via Privilege Gateway</option>
+                  </select>
+                </label>
+                )}
+                {!pageOwnsAgentChrome && mcpTransport === "privilege" && (
+                <span role="note" title="Privilege policy applies on this path; the banking demo's consent, HITL, and kill-switch checks do not run here. Scope: direct tool-call chips only — chat replies and the account/transfer helper actions still use the direct pipeline.">
+                  Privilege enforces policy here — banking consent/HITL/kill-switch do not run on this path. This only redirects direct tool-call chips; chat replies and the account/transfer helper actions still use the direct pipeline.
+                </span>
+                )}
+                {!pageOwnsAgentChrome && (
+                <span title="Not implemented yet">
+                  Privilege A2A — coming later
+                </span>
+                )}
                 {/* Model advisory and provider-fallback chips stay inline. They are
                     transient alerts about a degraded provider, so hiding them behind
                     More would mean the presenter never sees them. */}
@@ -9901,28 +9899,12 @@ export default function BankingAgent({
                     aria-haspopup="true"
                     aria-expanded={headerMoreOpen}
                     title="Quick Config — display preferences and the demo feature flags"
-                    onClick={(event) => {
-                      const rect = event.currentTarget.getBoundingClientRect();
-                      setHeaderMorePosition({
-                        top: rect.bottom + 6,
-                        right: Math.max(8, window.innerWidth - rect.right),
-                      });
-                      setHeaderMoreOpen((v) => !v);
-                    }}
+                    onClick={() => setHeaderMoreOpen((v) => !v)}
                   >
                     Quick Config
                   </button>
-                  {headerMoreOpen && createPortal(
-                    <div
-                      ref={headerMorePopRef}
-                      className="ba-header-more-pop"
-                      style={headerMorePosition || undefined}
-                    >
-                      <div className="ba-header-more-intro">
-                        <strong>Choose a view surface</strong>
-                        <span>Embedded views stay on this page. Pop-outs open a separate window.</span>
-                      </div>
-                      <div className="ba-header-more-heading">Display preferences</div>
+                  {headerMoreOpen && (
+                    <div className="ba-header-more-pop">
                       {/* RFC info toggle */}
                       <Check
                         variant="switch"
@@ -9996,21 +9978,6 @@ export default function BankingAgent({
                           Side panel
                         </Check>
                       )}
-                      <div className="ba-header-more-heading">Evidence views</div>
-                      <div className="ba-topology-surface-row">
-                        <label htmlFor="topology-surface-select">Token topology</label>
-                        <select
-                          id="topology-surface-select"
-                          value={topologySurface}
-                          onChange={(e) => chooseTopologySurface(e.target.value)}
-                          title="Choose where token topology appears"
-                        >
-                          <option value="none">Off</option>
-                          <option value="embedded">Embedded</option>
-                          <option value="popout">Pop-out</option>
-                          <option value="both">Both</option>
-                        </select>
-                      </div>
                       {/* Simple Stepper toggle */}
                       <Check
                         variant="switch"
@@ -10028,7 +9995,7 @@ export default function BankingAgent({
                         }}
                         title="Show or hide the Simple Stepper token-chain table"
                       >
-                        <>Simple step <span className="ba-surface-badge" aria-hidden="true">Embedded</span></>
+                        Simple step
                       </Check>
                       <Check
                         variant="switch"
@@ -10044,7 +10011,7 @@ export default function BankingAgent({
                         }}
                         title="Show or hide the token chain movie reel for this session (returns on reload)"
                       >
-                        <>Movie reel <span className="ba-surface-badge" aria-hidden="true">Embedded</span></>
+                        Movie reel
                       </Check>
                       <Check
                         variant="switch"
@@ -10056,11 +10023,6 @@ export default function BankingAgent({
                           // the Movie reel toggle above.
                           setShowSequenceDiagram(newVal);
                           window.dispatchEvent(new CustomEvent("agent-sequence-diagram-toggle", { detail: { on: newVal } }));
-                          if (newVal && showInlineTokenTopology) {
-                            setShowInlineTokenTopology(false);
-                            setTopologySurface(showTokenTopology ? "popout" : "none");
-                            window.dispatchEvent(new CustomEvent("agent-token-topology-toggle", { detail: { on: false } }));
-                          }
                           // Auto-collapse the left nav so the diagram gets the
                           // width back; restored when the toggle goes off.
                           window.dispatchEvent(new CustomEvent("admin-sidenav-collapse-toggle", { detail: { collapsed: newVal } }));
@@ -10071,7 +10033,7 @@ export default function BankingAgent({
                         }}
                         title="Show a live lifeline sequence diagram instead of the movie reel for this session (returns on reload)"
                       >
-                        <>Sequence view <span className="ba-surface-badge" aria-hidden="true">Embedded</span></>
+                        Sequence view
                       </Check>
                       {showSequenceDiagram && (
                         <Check
@@ -10135,21 +10097,13 @@ export default function BankingAgent({
                         );
                       })}
                       <div className="ba-header-more-sep" role="separator" />
-                      <div className="ba-header-more-heading">Pop-out tools</div>
                       <button
                         type="button"
                         className={`ba-actions-trigger${showTokenTopology ? " active" : ""}`}
-                        aria-label="Topology"
                         title="Real-time token topology — RFC 8693 delegation chain"
-                        onClick={() => {
-                          if (showTokenTopology) {
-                            chooseTopologySurface(showInlineTokenTopology ? "embedded" : "none");
-                          } else {
-                            chooseTopologySurface(showInlineTokenTopology ? "both" : "popout");
-                          }
-                        }}
+                        onClick={() => { setShowTokenTopology(v => !v); window.dispatchEvent(new CustomEvent('token-topology-open')); }}
                       >
-                        <><span>Token topology</span><span className="ba-surface-badge" aria-hidden="true">Pop-out</span></>
+                        Topology
                       </button>
                       {/* The other half of the same run: Topology answers "what
                           happened, in what order", this answers "which boxes,
@@ -10162,7 +10116,7 @@ export default function BankingAgent({
                         title="System flow — the run on the deployment map, and where the decision was taken"
                         onClick={() => window.dispatchEvent(new CustomEvent('system-flow-open'))}
                       >
-                        <><span>System flow</span><span className="ba-surface-badge" aria-hidden="true">Pop-out</span></>
+                        System flow
                       </button>
                       <button
                         type="button"
@@ -10170,7 +10124,7 @@ export default function BankingAgent({
                         title="Floating token chain — RFC 8693 delegation trace rail"
                         onClick={() => { setShowFloatingTokenChain(v => !v); window.dispatchEvent(new CustomEvent('floating-token-chain-open')); }}
                       >
-                        <><span>Floating token chain</span><span className="ba-surface-badge" aria-hidden="true">Pop-out</span></>
+                        Floating token chain
                       </button>
                       {/* Demo Script shortcut — opens the 15-min teleprompter without requiring sidebar nav */}
                       <button
@@ -10179,7 +10133,7 @@ export default function BankingAgent({
                         title="Open 15-Min Security Demo Script (teleprompter)"
                         onClick={() => window.dispatchEvent(new CustomEvent("demo-script-toggle"))}
                       >
-                        <><span>Script</span><span className="ba-surface-badge" aria-hidden="true">Pop-out</span></>
+                        Script
                       </button>
                       {davinciMode && (
                         <button
@@ -10191,8 +10145,7 @@ export default function BankingAgent({
                           DaVinci Orchestration
                         </button>
                       )}
-                    </div>,
-                    document.body,
+                    </div>
                   )}
                 </div>
                 {/* Demo Guide trigger — stays inline. The 2026-07-24 Actions

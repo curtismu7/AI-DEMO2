@@ -179,6 +179,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit"] },
   { id: "telemetry", paths: ["/tracing", "/telemetry", "/transaction-trace", "/check"] },
   { id: "agent-studio-preview", paths: ["/iga-for-ai", "/discovery-preview", "/privileges-gateway-preview", "/platform-gaps"] },
+  { id: "ai-product-pages", paths: ["/ai-products"] },
   { id: "learn-present", paths: ["/learning", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide"] },
   { id: "tests", paths: ["/resource-server", "/resource-server-cc"] },
 ];
@@ -505,6 +506,18 @@ export default function AdminSideNav({
         { label: "AI Agent Gateway Diagrams", path: "/privilege-mcp-diagrams", icon: "arc" },
       ],
     },
+    {
+      label: "AI Product Pages",
+      icon: "shld",
+      children: [
+        { label: "Agent IAM Core", path: "/ai-products/core", icon: "key" },
+        { label: "Agent Gateway", path: "/ai-products/gateway", icon: "shld" },
+        { label: "PingOne Authorize", path: "/ai-products/authorize", icon: "pol" },
+        { label: "Privilege · LLM", path: "/ai-products/privilege-llm", icon: "key" },
+        { label: "Privilege · A2A", path: "/ai-products/privilege-a2a", icon: "lnk" },
+        { label: "Privilege · MCP", path: "/ai-products/privilege-mcp", icon: "mcp" },
+      ],
+    },
     { label: "Themes", path: "/themes", icon: "cfg" },
     {
       label: "Demos",
@@ -707,13 +720,13 @@ export default function AdminSideNav({
         { label: "OAS Demo", path: "/oas-demo", icon: "pol" },
         { label: "Privilege Demo", path: "/privilege-demo", icon: "shld" },
         { label: "SDK Login", path: "/sdk-login", icon: "mbl" },
-        { label: "DaVinci Login Guide", path: "/davinci-login-guide", icon: "doc" },
-        { label: "Orchestration SDK Login", path: "/davinci-sdk-login", icon: "mbl" },
+        { label: "DaVinci Widget", path: "/davinci-widget", icon: "doc" },
+        { label: "Davinci Orchestration SDK", path: "/davinci-orchestration-sdk", icon: "mbl" },
         { label: "Orchestration SDK Guide", path: "/orchestration-sdk", icon: "sec" },
         // Was reachable only from the agent header's More menu with DaVinci Mode
         // on, so nobody could find the repo's own DaVinci explainer. It is a
         // static page with no API calls; listing it here costs nothing.
-        { label: "DaVinci Orchestration SDK", path: "/davinci-orchestration", icon: "pol" },
+        { label: "DaVinci Orchestration Overview", path: "/davinci-orchestration", icon: "pol" },
       ],
     },
     {

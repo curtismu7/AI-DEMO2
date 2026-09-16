@@ -13,12 +13,12 @@ import path from 'node:path';
 const read = (rel) => fs.readFileSync(path.resolve(__dirname, rel), 'utf8');
 
 describe('the SDK login page is named the same thing in the nav and on the page', () => {
-  it('h1 text matches the AdminSideNav label for /davinci-sdk-login', () => {
+  it('h1 text matches the AdminSideNav label for /davinci-orchestration-sdk', () => {
     const nav = read('../../components/AdminSideNav.jsx');
     const navLabel = nav.match(
-      /label:\s*"([^"]+)",\s*path:\s*"\/davinci-sdk-login"/,
+      /label:\s*"([^"]+)",\s*path:\s*"\/davinci-orchestration-sdk"/,
     )?.[1];
-    expect(navLabel, 'AdminSideNav must list /davinci-sdk-login').toBeTruthy();
+    expect(navLabel, 'AdminSideNav must list /davinci-orchestration-sdk').toBeTruthy();
 
     // The page's h1 is rendered by the shared lesson shell from LessonLayout's
     // `title` prop.

@@ -1,5 +1,5 @@
 // demo_api_ui/src/components/davinci/WidgetLessonSections.jsx
-// The lesson on /davinci-login-guide, below "Try It Live": how the DaVinci widget
+// The lesson on /davinci-widget, below "Try It Live": how the DaVinci widget
 // (davinci.js) runs a PingOne DaVinci flow inside your page, and how its result
 // becomes a session.
 //
@@ -9,7 +9,7 @@
 // would identify a user or a session are shown as "…".
 //
 // Section ids and order are shared with the Orchestration SDK lesson on
-// /davinci-sdk-login; the-final-node and tokens-to-session are widget-specific.
+// /davinci-orchestration-sdk; the-final-node and tokens-to-session are widget-specific.
 import { CodeBlock, MermaidFigure, OnThisRun, Section, Status, TableBlock } from "../lesson";
 import { agentFlowDiagram } from "../../services/agentFlowDiagramService";
 
@@ -42,7 +42,7 @@ const CONTRAST = [
   [
     "Orchestration SDK + pi.flow",
     "Your UI, drawn from collectors",
-    "authorizeResponse.code inside the final JSON (see /davinci-sdk-login)",
+    "authorizeResponse.code inside the final JSON (see /davinci-orchestration-sdk)",
   ],
 ];
 
@@ -363,7 +363,7 @@ export default function WidgetLessonSections({ calls = [] }) {
           client. Both keep the user on your page; they differ in who draws the screens and in what comes back.
         </p>
         <p>
-          To see pi.flow on the wire, run the <a href="/davinci-sdk-login">Orchestration SDK lesson</a>: its
+          To see pi.flow on the wire, run the <a href="/davinci-orchestration-sdk">Orchestration SDK lesson</a>: its
           Step Inspector shows <code>response_mode=pi.flow</code> read off the real authorize request.
         </p>
         {calls.length > 0 && (

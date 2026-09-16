@@ -19,6 +19,7 @@
 // (network hooks, EventSource, WebSocket setup at module level). The smoke test
 // only checks routing structure, not component content.
 vi.mock("../components/AIAgent", () => ({ default: () => null }));
+vi.mock("../components/AIAgentFull", () => ({ default: () => null }));
 vi.mock("../routes/AppShell", () => ({ default: ({ children }) => children }));
 vi.mock("../components/AuthzTestPage", () => ({ default: () => null }));
 vi.mock("../components/ComplianceModalPopout", () => ({ default: () => null }));
@@ -46,6 +47,8 @@ const appSrc = fs.readFileSync(
 describe("App.js — critical imports", () => {
   const cases = [
     ["AIAgent", 'import AIAgent from "./components/AIAgent"'],
+    ["AIAgentFull", 'import AIAgentFull from "./components/AIAgentFull"'],
+    ["isFullAgentRoute", "isFullAgentRoute"],
     ["SessionTokenProvider", 'import { SessionTokenProvider } from "./context/SessionTokenContext"'],
     ["resolveEmbeddedFocus from demoAgentSafety", 'import { resolveEmbeddedFocus } from "./components/demoAgentSafety"'],
     ["DashboardContent", 'import { DashboardContent } from "./routes/CustomerRoutes"'],
@@ -83,6 +86,13 @@ describe("App.js — critical JSX placements", () => {
 
   test("resolveEmbeddedFocus is passed as embeddedFocus prop", () => {
     expect(appSrc).toContain("embeddedFocus={resolveEmbeddedFocus(pathname)}");
+  });
+
+  test("the single agent mount picks AIAgentFull or AIAgent via isFullAgentRoute", () => {
+    expect(appSrc).toContain(
+      "const AgentComponent = isFullAgentRoute(pathname) ? AIAgentFull : AIAgent;",
+    );
+    expect(appSrc).toContain("<AgentComponent");
   });
 
   // EmbeddedAgentDock was deleted with the bottom-dock layout: the component

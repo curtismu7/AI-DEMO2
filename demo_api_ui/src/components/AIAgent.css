@@ -5068,28 +5068,98 @@ body > .banking-agent-float-root .banking-agent-panel {
    Topology, Script) live in a popout rather than expanding the header inline,
    so opening it never changes the header's height and never pushes the
    transcript down. Same interaction contract as the Token Chain rail's tray.
-   No overflow:hidden on any ancestor between here and .ba-panel, so the tray
-   is free to overlay the transcript; it opens downward and stays inside the
-   panel's rounded clip. */
+   This tray is portaled to document.body because dashboard/sidebar ancestors
+   may clip or stack their children. Coordinates are supplied from the trigger
+   so it stays anchored while remaining above every app surface. */
 .ba-header-more {
   position: relative;
   display: inline-block;
 }
 .ba-header-more-pop {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 20;
+  position: fixed;
+  z-index: 100061;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
   min-width: 190px;
+  max-height: min(70vh, 680px);
+  overflow-y: auto;
   padding: 10px;
   border: 1px solid var(--ba-border, var(--th-border));
   border-radius: 10px;
   background: var(--ba-surface, var(--th-bg-inset));
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+.ba-header-more-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 2px 4px 7px;
+  border-bottom: 1px solid var(--ba-border, var(--th-border));
+}
+.ba-header-more-intro strong {
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+}
+.ba-header-more-intro span {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.35;
+}
+.ba-header-more-heading {
+  width: 100%;
+  margin-top: 2px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-3xs);
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.ba-surface-badge {
+  margin-left: auto;
+  padding: 2px 6px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: 999px;
+  color: var(--th-text-muted);
+  background: var(--th-bg-inset);
+  font-size: var(--font-size-3xs);
+  font-weight: 800;
+  letter-spacing: .04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.ba-topology-surface-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  background: var(--th-bg-inset);
+  box-sizing: border-box;
+}
+.ba-topology-surface-row label {
+  color: var(--th-text);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+}
+.ba-topology-surface-row select {
+  min-width: 108px;
+  padding: 4px 7px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: 5px;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  font: inherit;
+  font-size: var(--font-size-xs);
+}
+.ba-header-more-pop .ba-actions-trigger .ba-surface-badge {
+  margin-left: auto;
 }
 /* Divider fencing off the server feature-flag rows. The switches above it are
    this browser's own preferences; the ones inside it change the demo for every
@@ -5122,6 +5192,12 @@ body > .banking-agent-float-root .banking-agent-panel {
   height: auto;
   min-height: 32px;
   font-size: var(--font-size-base);
+}
+.ba-header-more-pop .ba-header-toggle-label .ctl-check-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
 }
 :root[data-theme="dark"] .ba-header-more-pop {
   border-color: var(--th-border);

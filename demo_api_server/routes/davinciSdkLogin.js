@@ -64,11 +64,11 @@ function sdkRedirectUri(req) {
   if (explicit) return explicit;
 
   const publicBase = configStore.getEffective('pingone_public_app_url');
-  if (publicBase) return `${String(publicBase).replace(/\/+$/, '')}/davinci-sdk-login`;
+  if (publicBase) return `${String(publicBase).replace(/\/+$/, '')}/davinci-orchestration-sdk`;
 
   const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
   const host = (req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
-  return `${proto}://${host}/davinci-sdk-login`;
+  return `${proto}://${host}/davinci-orchestration-sdk`;
 }
 
 // POST /api/davinci-sdk-login/start

@@ -1,5 +1,5 @@
 /* demo_api_ui/src/pages/DavinciLoginGuidePage.css
-   /davinci-login-guide — only what the shared lesson shell (components/lesson)
+   /davinci-widget — only what the shared lesson shell (components/lesson)
    does not provide: the Try It Live grid and the Call Inspector cards. Mirrors
    DavinciSdkLoginPage.css's .dvsdk-live. Every colour is a --th-* token; font
    sizes come from the scale; radii from --radius-*. */

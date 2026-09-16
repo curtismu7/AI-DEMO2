@@ -2,9 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { format } from 'date-fns';
 import apiClient from '../services/apiClient';
 import { notifyError } from '../utils/appToast';
-import PageNav from './PageNav';
 import SignInPrompt from './SignInPrompt';
 import ApiCallDisplay from './ApiCallDisplay';
+import './ActivityLogs.css';
 
 const BUCKET_ORDER = ['AI Agent', 'Banking', 'Identity', 'Admin'];
 
@@ -35,15 +35,7 @@ const bucketLogs = (logs) => {
   return buckets;
 };
 
-const getActionColor = (action) => {
-  const colors = {
-    LOGIN: '#10b981', REGISTER: 'var(--brand-navy)', TRANSFER_MONEY: '#f59e0b',
-    CHECK_BALANCE: '#8b5cf6', GET_TRANSACTIONS: '#06b6d4', CREATE_USER: '#84cc16',
-    UPDATE_USER: '#f97316', DELETE_USER: '#ef4444', ADMIN_ACCESS: '#6366f1',
-    VIEW_ACTIVITY_LOGS: '#ec4899', API_ROOT: '#8b5cf6', GET_CURRENT_USER: '#06b6d4',
-  };
-  return colors[action] || '#6b7280';
-};
+const getActionClass = (action) => `activity-records-page__action--${String(action || 'unknown').toLowerCase()}`;
 
 const BUCKET_ICONS = {
   'AI Agent': 'AI',
@@ -187,33 +179,31 @@ const ActivityLogs = ({ user, onLogout }) => {
 
   if (loading && logs.length === 0) {
     return (
-      <div className="app-page-shell">
-        <div style={{ padding: '2rem' }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>Activity Logs</h1>
-          <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>API activity grouped by intent.</p>
-          <div className="loading"><div>Loading activity logs...</div></div>
+      <div className="activity-records-page">
+        <div className="activity-records-page__content">
+          <h1 className="activity-records-page__title">Application Activity</h1>
+          <p className="activity-records-page__lead">Persisted API activity and audit records.</p>
+          <div className="loading activity-records-page__loading"><div>Loading activity logs...</div></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="app-page-shell">
-      <div style={{ padding: '2rem' }}>
-        <PageNav user={user} onLogout={onLogout} title="Activity Logs" />
+    <div className="activity-records-page">
+      <div className="activity-records-page__content">
+        <h1 className="activity-records-page__title">Application Activity</h1>
+        <p className="activity-records-page__lead">Persisted API activity and audit records. For the live event stream, open Activity Log.</p>
 
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>Activity Logs</h1>
-        <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>API activity grouped by intent.</p>
-
-        <div className="app-page-toolbar app-page-toolbar--start" style={{ marginBottom: '1rem' }}>
+        <div className="activity-records-page__toolbar">
           <button type="button" onClick={exportLogs} className="btn btn-secondary">Export CSV</button>
           <button type="button" onClick={clearOldLogs} className="btn btn-danger">Clear Old Logs</button>
         </div>
 
         {/* Filters */}
-        <div className="card" style={{ marginBottom: '1rem' }}>
+        <div className="card activity-records-page__card">
           <div className="card-header"><h2 className="card-title">Filters</h2></div>
-          <div className="filters">
+          <div className="filters activity-records-page__filters">
             <div className="filter-group">
               <label className="filter-label">Username</label>
               <input type="text" className="filter-input" value={filters.username}
@@ -266,7 +256,7 @@ const ActivityLogs = ({ user, onLogout }) => {
                 <option value="100">100</option>
               </select>
             </div>
-            <div className="filter-actions">
+            <div className="filter-actions activity-records-page__filter-actions">
               <button className="btn btn-secondary"
                 onClick={() => setFilters({ page: 1, limit: 50, username: '', action: '', startDate: '', endDate: '' })}>
                 Clear Filters
@@ -281,26 +271,16 @@ const ActivityLogs = ({ user, onLogout }) => {
           if (rows.length === 0) return null;
           const isExpanded = expandedBuckets.has(bucket);
           return (
-            <div key={bucket} className="card" style={{ marginBottom: '1rem' }}>
+            <div key={bucket} className="card activity-records-page__card">
               <div
-                className="card-header"
                 onClick={() => toggleBucket(bucket)}
-                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', userSelect: 'none' }}
+                className="card-header activity-records-page__bucket-header"
               >
-                <span style={{ fontSize: '0.75rem', transition: 'transform 0.15s', transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+                <span className={`activity-records-page__bucket-chevron${isExpanded ? ' activity-records-page__bucket-chevron--open' : ''}`}>▶</span>
                 <span>{BUCKET_ICONS[bucket]}</span>
-                <h2 className="card-title" style={{ margin: 0 }}>{bucket}</h2>
-                <span style={{
-                  marginLeft: '0.5rem',
-                  background: 'var(--brand-blue, #0060f0)',
-                  color: '#fff',
-                  borderRadius: '999px',
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  padding: '1px 8px',
-                  lineHeight: '1.6',
-                }}>{rows.length}</span>
-                <span style={{ marginLeft: 'auto', color: '#64748b', fontSize: '0.8rem' }}>
+                <h2 className="card-title activity-records-page__bucket-title">{bucket}</h2>
+                <span className="activity-records-page__bucket-count">{rows.length}</span>
+                <span className="activity-records-page__bucket-state">
                   {isExpanded ? 'collapse' : 'expand'}
                 </span>
               </div>
@@ -324,21 +304,12 @@ const ActivityLogs = ({ user, onLogout }) => {
                           <td>{formatLogTimestamp(log.timestamp)}</td>
                           <td>{log.username || 'Unknown'}</td>
                           <td>
-                            <span style={{
-                              padding: '0.25rem 0.5rem', borderRadius: '0.25rem',
-                              fontSize: '0.75rem', fontWeight: 500,
-                              backgroundColor: getActionColor(log.action), color: 'white',
-                            }}>{log.action}</span>
+                            <span className={`activity-records-page__action ${getActionClass(log.action)}`}>{log.action}</span>
                           </td>
-                          <td style={{ fontFamily: 'inherit', fontSize: '0.875rem' }}>{log.endpoint}</td>
+                          <td>{log.endpoint}</td>
                           <td>{log.ipAddress || 'N/A'}</td>
                           <td>
-                            <span style={{
-                              padding: '0.25rem 0.5rem', borderRadius: '0.25rem',
-                              fontSize: '0.75rem', fontWeight: 500,
-                              backgroundColor: log.responseStatus >= 400 ? '#ef4444' : '#10b981',
-                              color: 'white',
-                            }}>{log.responseStatus}</span>
+                            <span className={`activity-records-page__status ${log.responseStatus >= 400 ? 'activity-records-page__status--error' : 'activity-records-page__status--success'}`}>{log.responseStatus}</span>
                           </td>
                           <td>{log.duration}ms</td>
                         </tr>
@@ -352,14 +323,14 @@ const ActivityLogs = ({ user, onLogout }) => {
         })}
 
         {logs.length === 0 && !loading && (
-          <div className="card">
-            <div className="empty-state" style={{ padding: '2rem', textAlign: 'center' }}>
+          <div className="card activity-records-page__card">
+            <div className="empty-state activity-records-page__empty">
               {authRequired || !user ? (
                 <SignInPrompt message="HTTP activity logs require an authenticated session. For the live oauth / mcp / HITL event stream, open Activity Log under Monitoring." />
               ) : (
                 <>
                   <h3>No activity logs found</h3>
-                  <p style={{ color: '#64748b' }}>No activity logs match the current filters.</p>
+                <p>No activity logs match the current filters.</p>
                 </>
               )}
             </div>
@@ -368,7 +339,7 @@ const ActivityLogs = ({ user, onLogout }) => {
 
         {/* Pagination */}
         {pagination.totalPages > 1 && (
-          <div className="pagination" style={{ marginTop: '1rem' }}>
+          <div className="pagination activity-records-page__pagination">
             <button className="pagination-btn"
               onClick={() => handlePageChange(pagination.currentPage - 1)}
               disabled={pagination.currentPage === 1}>Previous</button>
@@ -385,60 +356,60 @@ const ActivityLogs = ({ user, onLogout }) => {
 
         {/* Row detail modal */}
         {showModal && selectedLog && (
-          <div className="modal-overlay" onClick={closeModal}>
-            <div className="modal-content" onClick={e => e.stopPropagation()}>
-              <div className="modal-header">
+          <div className="activity-record-modal__overlay" onClick={closeModal}>
+            <div className="activity-record-modal__content" onClick={e => e.stopPropagation()}>
+              <div className="activity-record-modal__header">
                 <h2>Request Details</h2>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <div className="activity-record-modal__header-actions">
                   <button id="copy-curl-btn" className="btn btn-secondary"
-                    onClick={copyAsCurl} style={{ fontSize: '0.875rem', padding: '0.5rem 1rem' }}>
+                    onClick={copyAsCurl}>
                     Copy as cURL
                   </button>
-                  <button className="modal-close" onClick={closeModal}>×</button>
+                  <button className="activity-record-modal__close" onClick={closeModal}>×</button>
                 </div>
               </div>
-              <div className="modal-body">
-                <div className="detail-section">
+              <div className="activity-record-modal__body">
+                <div className="activity-record-modal__section">
                   <h3>Basic Information</h3>
-                  <div className="detail-grid">
-                    <div className="detail-item"><label>Timestamp:</label><span>{formatLogTimestamp(selectedLog.timestamp)}</span></div>
-                    <div className="detail-item"><label>User:</label><span>{selectedLog.username || 'Unknown'}</span></div>
-                    <div className="detail-item"><label>Action:</label>
-                      <span style={{ padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 500, backgroundColor: getActionColor(selectedLog.action), color: 'white' }}>{selectedLog.action}</span>
+                  <div className="activity-record-modal__grid">
+                    <div className="activity-record-modal__item"><label>Timestamp:</label><span>{formatLogTimestamp(selectedLog.timestamp)}</span></div>
+                    <div className="activity-record-modal__item"><label>User:</label><span>{selectedLog.username || 'Unknown'}</span></div>
+                    <div className="activity-record-modal__item"><label>Action:</label>
+                      <span className={`activity-records-page__action ${getActionClass(selectedLog.action)}`}>{selectedLog.action}</span>
                     </div>
-                    <div className="detail-item"><label>Endpoint:</label><span style={{ fontFamily: 'inherit' }}>{selectedLog.endpoint}</span></div>
-                    <div className="detail-item"><label>IP Address:</label><span>{selectedLog.ipAddress || 'N/A'}</span></div>
-                    <div className="detail-item"><label>Status:</label>
-                      <span style={{ padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 500, backgroundColor: selectedLog.responseStatus >= 400 ? '#ef4444' : '#10b981', color: 'white' }}>{selectedLog.responseStatus}</span>
+                    <div className="activity-record-modal__item"><label>Endpoint:</label><span>{selectedLog.endpoint}</span></div>
+                    <div className="activity-record-modal__item"><label>IP Address:</label><span>{selectedLog.ipAddress || 'N/A'}</span></div>
+                    <div className="activity-record-modal__item"><label>Status:</label>
+                      <span className={`activity-records-page__status ${selectedLog.responseStatus >= 400 ? 'activity-records-page__status--error' : 'activity-records-page__status--success'}`}>{selectedLog.responseStatus}</span>
                     </div>
-                    <div className="detail-item"><label>Duration:</label><span>{selectedLog.duration}ms</span></div>
+                    <div className="activity-record-modal__item"><label>Duration:</label><span>{selectedLog.duration}ms</span></div>
                   </div>
                 </div>
-                <div className="detail-section">
+                <div className="activity-record-modal__section">
                   <h3>Request Headers</h3>
-                  <div className="code-block">
+                  <div className="activity-record-modal__code">
                     <pre>{JSON.stringify({ 'User-Agent': selectedLog.userAgent, 'Content-Type': 'application/json', Authorization: selectedLog.username ? 'Bearer [TOKEN]' : 'None' }, null, 2)}</pre>
                   </div>
                 </div>
                 {selectedLog.requestBody && (
-                  <div className="detail-section">
+                  <div className="activity-record-modal__section">
                     <h3>Request Body</h3>
-                    <div className="code-block"><pre>{JSON.stringify(selectedLog.requestBody, null, 2)}</pre></div>
+                  <div className="activity-record-modal__code"><pre>{JSON.stringify(selectedLog.requestBody, null, 2)}</pre></div>
                   </div>
                 )}
-                <div className="detail-section">
+                <div className="activity-record-modal__section">
                   <h3>Response Information</h3>
-                  <div className="detail-grid">
-                    <div className="detail-item"><label>Status Code:</label>
-                      <span style={{ padding: '0.25rem 0.5rem', borderRadius: '0.25rem', fontSize: '0.75rem', fontWeight: 500, backgroundColor: selectedLog.responseStatus >= 400 ? '#ef4444' : '#10b981', color: 'white' }}>{selectedLog.responseStatus}</span>
+                  <div className="activity-record-modal__grid">
+                    <div className="activity-record-modal__item"><label>Status Code:</label>
+                      <span className={`activity-records-page__status ${selectedLog.responseStatus >= 400 ? 'activity-records-page__status--error' : 'activity-records-page__status--success'}`}>{selectedLog.responseStatus}</span>
                     </div>
-                    <div className="detail-item"><label>Response Time:</label><span>{selectedLog.duration}ms</span></div>
+                    <div className="activity-record-modal__item"><label>Response Time:</label><span>{selectedLog.duration}ms</span></div>
                   </div>
                 </div>
                 {selectedLog.responseBody && (
-                  <div className="detail-section">
+                  <div className="activity-record-modal__section">
                     <h3>Response Body</h3>
-                    <div className="code-block"><pre>{JSON.stringify(selectedLog.responseBody, null, 2)}</pre></div>
+                  <div className="activity-record-modal__code"><pre>{JSON.stringify(selectedLog.responseBody, null, 2)}</pre></div>
                   </div>
                 )}
               </div>
@@ -446,8 +417,8 @@ const ActivityLogs = ({ user, onLogout }) => {
           </div>
         )}
 
-        <section style={{ marginTop: '2rem' }}>
-          <h3 style={{ marginBottom: '1rem' }}>API Calls</h3>
+        <section className="activity-records-page__api-calls">
+          <h3>API Calls</h3>
           <ApiCallDisplay sessionId="activity-logs" />
         </section>
       </div>

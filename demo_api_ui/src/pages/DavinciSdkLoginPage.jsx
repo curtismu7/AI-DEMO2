@@ -1,4 +1,4 @@
-// /davinci-sdk-login runs a DaVinci flow with the Ping Orchestration SDK,
+// /davinci-orchestration-sdk runs a DaVinci flow with the Ping Orchestration SDK,
 // renders the flow's collectors as our own UI, and teaches how that works.
 //
 // Deliberately does NOT touch /davinci-login (the hosted-widget page) or any
@@ -11,8 +11,9 @@
 // collectors, all from this browser's own run. The sections below it
 // (SdkLessonSections) teach the rest.
 //
-// Scope today: TextCollector, PasswordCollector, SubmitCollector and
-// FlowCollector, enough to drive the flow's sign-on and "Enter Username" forms.
+// Scope today: TextCollector, PasswordCollector, SubmitCollector, generic
+// ActionCollector and FlowCollector, enough to drive multi-screen flows whose
+// continue buttons use either action shape.
 // CollectorField renders a visible fallback for anything else rather than
 // omitting a field silently.
 //
@@ -320,7 +321,7 @@ export default function DavinciSdkLoginPage() {
       // Matches the side-nav label (sdkLoginHeadingMatchesNav.test.js). The nav
       // was once renamed while this heading was not, and the page stopped
       // looking like the orchestration app it is.
-      title="Orchestration SDK Login"
+      title="Davinci Orchestration SDK"
       subtitle={
         <>
           The Ping Orchestration SDK runs a PingOne DaVinci flow, and this page draws each of the

@@ -1,4 +1,4 @@
-// DaVinci Widget login (embedded in /davinci-login-guide's "Try It Live" section).
+// DaVinci Widget login (embedded in /davinci-widget's "Try It Live" section).
 //
 // The widget script is hosted by Ping and pulled in on demand rather than
 // bundled, so it is only fetched on the one page that uses it. Every secret

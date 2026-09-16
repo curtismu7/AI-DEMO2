@@ -3,7 +3,7 @@ import path from 'node:path';
 
 // The app's TopNav is position: sticky and --topnav-height tall, and lesson
 // pages scroll beneath it. Offsets of 0 or 1rem put three things under the
-// bar, all seen in a live screenshot of /davinci-sdk-login:
+// bar, all seen in a live screenshot of /davinci-orchestration-sdk:
 //   - the lesson sidebar hid its first entry
 //   - a section-nav click scrolled the section title to y=0, under the bar
 //   - the sticky sign-in card slid under the bar while the Step Inspector grew
