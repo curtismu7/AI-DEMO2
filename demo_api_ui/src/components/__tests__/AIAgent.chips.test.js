@@ -485,6 +485,33 @@ describe("Header controls after the Actions dropdown removal", () => {
     // The locked-inline controls are unaffected by opening the tray.
     expect(screen.getByRole("button", { name: /^Guide$/i })).toBeInTheDocument();
   });
+
+  it("offers the same four surface choices for each evidence view", async () => {
+    renderAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
+    });
+
+    for (const label of [
+      "RFC info surface",
+      "Agent flow diagram surface",
+      "Simple step surface",
+      "Sequence view surface",
+    ]) {
+      const select = screen.getByLabelText(label);
+      expect(select).toHaveValue("none");
+      expect([...select.options].map((option) => option.value)).toEqual([
+        "none",
+        "embedded",
+        "popout",
+        "both",
+      ]);
+    }
+  });
 });
 
 // ─── Post-OAuth auto-open ────────────────────────────────────────────────────

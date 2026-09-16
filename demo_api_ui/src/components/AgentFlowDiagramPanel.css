@@ -27,6 +27,19 @@
   height: 90vh;
 }
 
+.afd-panel--embedded {
+  position: relative;
+  z-index: auto;
+  width: 100%;
+  min-height: 360px;
+  max-height: 70vh;
+  margin: 0.75rem 0;
+}
+
+.afd-panel--embedded .afd-header {
+  cursor: default;
+}
+
 .afd-header {
   display: flex;
   align-items: center;
