@@ -420,8 +420,13 @@ function AppWithAuth() {
   const [showSystemFlow, setShowSystemFlow] = useState(false);
   useEffect(() => {
     const onOpen = () => setShowTokenTopology(true);
+    const onClose = () => setShowTokenTopology(false);
     window.addEventListener('token-topology-open', onOpen);
-    return () => window.removeEventListener('token-topology-open', onOpen);
+    window.addEventListener('token-topology-close', onClose);
+    return () => {
+      window.removeEventListener('token-topology-open', onOpen);
+      window.removeEventListener('token-topology-close', onClose);
+    };
   }, []);
   useEffect(() => {
     const onOpen = () => setShowSystemFlow(true);
