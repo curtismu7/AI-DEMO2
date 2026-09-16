@@ -59,6 +59,24 @@ const flowCollector = {
   output: { key: "TROUBLE", label: "Having trouble signing on?", type: "FLOW_BUTTON" },
 };
 
+const deviceRegistrationCollector = {
+  category: "ObjectValueCollector",
+  type: "DeviceRegistrationCollector",
+  id: "device-0",
+  name: "device",
+  error: null,
+  input: { key: "device", value: "", type: "DEVICE_REGISTRATION", validation: null },
+  output: {
+    key: "device",
+    label: "Choose a method",
+    type: "DEVICE_REGISTRATION",
+    options: [
+      { key: "email", value: "EMAIL", type: "EMAIL", label: "Email" },
+      { key: "fido", value: "FIDO2", type: "FIDO2", label: "Passkey" },
+    ],
+  },
+};
+
 describe("CollectorField", () => {
   it("renders a TextCollector as a text input labelled from output.label", () => {
     render(<CollectorField collector={textCollector} updater={() => null} />);
@@ -68,6 +86,16 @@ describe("CollectorField", () => {
   it("renders a PasswordCollector masked", () => {
     render(<CollectorField collector={passwordCollector} updater={() => null} />);
     expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
+  });
+
+  it("renders a PingOne Forms device registration collector as an option selector", () => {
+    const updater = vi.fn(() => null);
+    render(<CollectorField collector={deviceRegistrationCollector} updater={updater} />);
+
+    fireEvent.change(screen.getByLabelText("Choose a method"), { target: { value: "FIDO2" } });
+
+    expect(updater).toHaveBeenCalledWith("FIDO2");
+    expect(screen.getByRole("option", { name: "Passkey" })).toBeInTheDocument();
   });
 
   it("writes through the updater and never mutates the collector", () => {
@@ -175,6 +203,7 @@ describe("CollectorField", () => {
   it("declares exactly what it supports, so the page can report honestly", () => {
     expect(SUPPORTED_COLLECTORS).toEqual([
       "TextCollector",
+      "DeviceRegistrationCollector",
       "PasswordCollector",
       "ValidatedPasswordCollector",
       "SubmitCollector",
