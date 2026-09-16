@@ -102,7 +102,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "DaVinci Login Guide",
       "Orchestration SDK Login",
       "Orchestration SDK Guide",
-      "DaVinci Orchestration",
+      "DaVinci Orchestration SDK",
     ],
   },
   {

@@ -713,7 +713,7 @@ export default function AdminSideNav({
         // Was reachable only from the agent header's More menu with DaVinci Mode
         // on, so nobody could find the repo's own DaVinci explainer. It is a
         // static page with no API calls; listing it here costs nothing.
-        { label: "DaVinci Orchestration", path: "/davinci-orchestration", icon: "pol" },
+        { label: "DaVinci Orchestration SDK", path: "/davinci-orchestration", icon: "pol" },
       ],
     },
     {
