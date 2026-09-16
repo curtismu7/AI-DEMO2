@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { usePingOneAuthorizeConsole } from '../hooks/usePingOneAuthorizeConsole';
+import './McpInspectorPage.clean.css';
 import './PingOneAuthorizeConsoleClean.css';
 
 function filterPolicies(policies, query) {
