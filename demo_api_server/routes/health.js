@@ -486,7 +486,7 @@ router.get('/services', async (_req, res) => {
   // Probe a base URL's /health, trying https as a fallback for mkcert dev TLS.
   // withChecks: include the target's health `checks` object in the result
   // (used for the agent service's prompt-store status).
-  const probe = async (baseUrl, { withChecks = false } = {}) => {
+  const probe = async (baseUrl, { withChecks = false, configured = true } = {}) => {
     if (!baseUrl) return { up: false, error: 'not_configured' };
     const base = baseUrl
       .replace(/^ws:\/\//, 'http://')
@@ -504,19 +504,19 @@ router.get('/services', async (_req, res) => {
           const resp = await axios.get(`${base.replace('http://', 'https://')}/health`, { timeout: 2500, httpsAgent: _devHttpsAgent });
           return ok(resp);
         } catch (e2) {
-          return { up: false, error: e2.code || e2.message };
+          return { up: false, ...(configured ? {} : { configured: false }), error: e2.code || e2.message };
         }
       }
-      return { up: false, error: e.code || e.message };
+      return { up: false, ...(configured ? {} : { configured: false }), error: e.code || e.message };
     }
   };
 
   const [mcpGateway, mcpServer, hitl, agent, llmProxy] = await Promise.all([
-    probe(process.env.MCP_GATEWAY_HTTP_URL || 'http://localhost:3005'),
-    probe((process.env.MCP_SERVER_URL || 'http://localhost:8080')),
-    probe(process.env.HITL_SERVICE_URL || 'http://localhost:3009'),
-    probe(process.env.AGENT_SERVICE_URL || 'http://localhost:3006', { withChecks: true }),
-    probe(process.env.LLM_PROXY_URL || process.env.LLAMACPP_BASE_URL || 'http://localhost:8090'),
+    probe(process.env.MCP_GATEWAY_HTTP_URL || 'http://localhost:3005', { configured: Boolean(process.env.MCP_GATEWAY_HTTP_URL) }),
+    probe(process.env.MCP_SERVER_URL || 'http://localhost:8080', { configured: Boolean(process.env.MCP_SERVER_URL) }),
+    probe(process.env.HITL_SERVICE_URL || 'http://localhost:3009', { configured: Boolean(process.env.HITL_SERVICE_URL) }),
+    probe(process.env.AGENT_SERVICE_URL || 'http://localhost:3006', { withChecks: true, configured: Boolean(process.env.AGENT_SERVICE_URL) }),
+    probe(process.env.LLM_PROXY_URL || process.env.LLAMACPP_BASE_URL || 'http://localhost:8090', { configured: Boolean(process.env.LLM_PROXY_URL || process.env.LLAMACPP_BASE_URL) }),
   ]);
 
   return res.status(200).json({
@@ -704,4 +704,3 @@ router.use('/tracing', require('./tracing'));
 router.use('/gateway-metrics', require('./gatewayMetrics'));
 
 module.exports = router;
-

@@ -30,7 +30,7 @@ vi.mock("../../lib/davinciSdkClient", () => ({
 import * as sdk from "../../lib/davinciSdkClient";
 import DavinciSdkLoginPage from "../DavinciSdkLoginPage";
 
-const CFG = { clientId: "client-1", nonce: "nonce-1" };
+const CFG = { clientId: "client-1", nonce: "nonce-1", flowPolicyId: "policy-1" };
 const SIGN_OUT = "Sign out of PingOne and use a different account";
 const MODAL = { name: "What just happened" };
 
@@ -68,7 +68,7 @@ describe("DavinciSdkLoginPage when PingOne already has a session", () => {
     render(<DavinciSdkLoginPage />);
 
     await waitFor(() => expect(client.start).toHaveBeenCalled());
-    expect(client.start).toHaveBeenCalledWith({ query: { nonce: "nonce-1" } });
+    expect(client.start).toHaveBeenCalledWith({ query: { nonce: "nonce-1", acr_values: "policy-1" } });
     expect(client.start.mock.calls[0][0].query).not.toHaveProperty("prompt");
   });
 

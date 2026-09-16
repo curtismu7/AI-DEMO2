@@ -28,6 +28,56 @@
 // unsupported collector that renders blank looks like a broken page.
 import { useCallback, useId, useState } from "react";
 
+function DeviceRegistrationField({ collector, updater, serverError, busy }) {
+  const id = useId();
+  const options = collector?.output?.options || [];
+  // Do not visually select an option that has not been written through the
+  // SDK updater. Forms may expose a first/default option while the SDK still
+  // holds an empty value; requiring an explicit choice avoids submitting an
+  // apparently-selected method as an empty device value.
+  const initial = collector?.input?.value || "";
+  const [value, setValue] = useState(initial);
+  const [writeError, setWriteError] = useState(null);
+  const error = writeError || serverError;
+  const label = collector?.output?.label ?? collector?.output?.key ?? collector?.name;
+
+  const onChange = useCallback(
+    (e) => {
+      const next = e.target.value;
+      setValue(next);
+      const result = updater?.(next);
+      setWriteError(result && "error" in result ? result.error?.message || "Could not accept this value." : null);
+    },
+    [updater],
+  );
+
+  return (
+    <div className="dvsdk-field">
+      <label className="dvsdk-label" htmlFor={id}>
+        {label}
+      </label>
+      <select
+        id={id}
+        className="dvsdk-input"
+        name={collector?.name}
+        value={value}
+        onChange={onChange}
+        disabled={busy}
+        aria-invalid={error ? "true" : undefined}
+        aria-describedby={error ? `${id}-err` : undefined}
+      >
+        {!value && <option value="">Select a method</option>}
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label || option.content || option.value}
+          </option>
+        ))}
+      </select>
+      {error && <p className="dvsdk-field-error" id={`${id}-err`}>{error}</p>}
+    </div>
+  );
+}
+
 // Text-like input shared by the text and password cases. Holds the displayed
 // value locally and writes through to the SDK on every change, reporting an
 // updater rejection immediately rather than at submit.
@@ -77,6 +127,11 @@ function TextLikeField({ collector, updater, type, autoComplete, serverError, va
 
 export default function CollectorField({ collector, updater, onSubmit, onFlow, serverError, busy }) {
   switch (collector?.type) {
+    // PingOne Forms uses an object-valued device selector. update() accepts
+    // option.value and maps it to the device type DaVinci expects.
+    case "DeviceRegistrationCollector":
+      return <DeviceRegistrationField collector={collector} updater={updater} serverError={serverError} busy={busy} />;
+
     case "TextCollector":
       return (
         <TextLikeField
@@ -141,6 +196,7 @@ export default function CollectorField({ collector, updater, onSubmit, onFlow, s
 // rendering a form that silently omits a required field.
 export const SUPPORTED_COLLECTORS = [
   "TextCollector",
+  "DeviceRegistrationCollector",
   "PasswordCollector",
   "ValidatedPasswordCollector",
   "SubmitCollector",

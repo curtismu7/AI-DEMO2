@@ -58,6 +58,7 @@ import ClientCredentialsResourcePage from "./components/ClientCredentialsResourc
 import ClientRegistrationPage from "./components/ClientRegistrationPage";
 import ComplianceModalPopout from "./components/ComplianceModalPopout";
 import Dashboard from "./components/Dashboard";
+import SecurityRiskDashboard from "./components/SecurityRiskDashboard";
 import DelegationPage from "./components/DelegationPage";
 import AgentLifecyclePage from "./pages/AgentLifecyclePage";
 import DelegatedCommercePage from "./pages/DelegatedCommercePage";
@@ -1375,6 +1376,14 @@ function AppWithAuth() {
                               element={
                                 <RequireAdminLogin user={user}>
                                   <Dashboard user={user} onLogout={logout} />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            <Route
+                              path="/security-dashboard"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <SecurityRiskDashboard />
                                 </RequireAdminLogin>
                               }
                             />
