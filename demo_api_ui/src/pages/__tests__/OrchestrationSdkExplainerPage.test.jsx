@@ -61,7 +61,7 @@ describe("OrchestrationSdkExplainerPage", () => {
     // went to the widget, and the SDK's own UI was the one thing not offered.
     render(<OrchestrationSdkExplainerPage />);
     const cta = screen.getByRole("link", { name: /Open the live SDK login/ });
-    expect(cta).toHaveAttribute("href", "/davinci-sdk-login");
+    expect(cta).toHaveAttribute("href", "/davinci-orchestration-sdk");
 
     // And it must come before the comparison in document order.
     const modes = document.querySelector(".osx-modes");
@@ -73,13 +73,13 @@ describe("OrchestrationSdkExplainerPage", () => {
     // same two routes, so an unscoped query matches twice.
     render(<OrchestrationSdkExplainerPage />);
     const modes = within(document.querySelector(".osx-modes"));
-    expect(modes.getByRole("link", { name: "/davinci-login-guide" })).toHaveAttribute(
+    expect(modes.getByRole("link", { name: "/davinci-widget" })).toHaveAttribute(
       "href",
-      "/davinci-login-guide",
+      "/davinci-widget",
     );
-    expect(modes.getByRole("link", { name: "/davinci-sdk-login" })).toHaveAttribute(
+    expect(modes.getByRole("link", { name: "/davinci-orchestration-sdk" })).toHaveAttribute(
       "href",
-      "/davinci-sdk-login",
+      "/davinci-orchestration-sdk",
     );
     // Redirect mode has no page of its own, so it must not render as a link.
     expect(modes.queryByRole("link", { name: /own sign-in/ })).toBeNull();

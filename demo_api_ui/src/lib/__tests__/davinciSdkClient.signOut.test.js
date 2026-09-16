@@ -8,7 +8,7 @@ import { signOutOfPingOne } from "../davinciSdkClient";
 
 const CFG = {
   clientId: "client-1",
-  redirectUri: "https://local.ping-devops.com:4000/davinci-sdk-login",
+  redirectUri: "https://local.ping-devops.com:4000/davinci-orchestration-sdk",
   wellknown: "https://auth.pingone.com/env-1/as/.well-known/openid-configuration",
 };
 

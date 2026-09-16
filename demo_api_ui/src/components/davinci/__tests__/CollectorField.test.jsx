@@ -59,6 +59,15 @@ const flowCollector = {
   output: { key: "TROUBLE", label: "Having trouble signing on?", type: "FLOW_BUTTON" },
 };
 
+const genericActionCollector = {
+  category: "ActionCollector",
+  type: "ActionCollector",
+  id: "CONTINUE-0",
+  name: "CONTINUE",
+  error: null,
+  output: { key: "CONTINUE", label: "Continue", type: "BUTTON" },
+};
+
 describe("CollectorField", () => {
   it("renders a TextCollector as a text input labelled from output.label", () => {
     render(<CollectorField collector={textCollector} updater={() => null} />);
@@ -110,6 +119,13 @@ describe("CollectorField", () => {
     const onSubmit = vi.fn();
     render(<CollectorField collector={submitCollector} onSubmit={onSubmit} />);
     fireEvent.click(screen.getByRole("button", { name: "Sign On" }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders a generic ActionCollector as a continue button", () => {
+    const onSubmit = vi.fn();
+    render(<CollectorField collector={genericActionCollector} onSubmit={onSubmit} />);
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
@@ -178,6 +194,7 @@ describe("CollectorField", () => {
       "PasswordCollector",
       "ValidatedPasswordCollector",
       "SubmitCollector",
+      "ActionCollector",
       "FlowCollector",
     ]);
   });

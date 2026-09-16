@@ -1,4 +1,4 @@
-// Call Inspector: one card per API call on /davinci-login-guide, built live from
+// Call Inspector: one card per API call on /davinci-widget, built live from
 // what crossed the wire in this browser (lib/davinciWidgetTrace.js).
 //
 // Each card answers: which call was this, did it succeed, and what did it do in

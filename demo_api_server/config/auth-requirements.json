@@ -158,6 +158,8 @@
     "/davinci-login/callback": "public",
     "/davinci-login/confirmed": "public",
     "/davinci-orchestration": "public",
+    "/davinci-orchestration-sdk": "public",
+    "/davinci-widget": "public",
     "/davinci-login-guide": "public",
     "/davinci-sdk-login": "public",
     "/delegated-commerce": "admin",

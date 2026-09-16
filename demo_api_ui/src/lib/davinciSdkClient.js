@@ -1,4 +1,4 @@
-// Ping Orchestration SDK client for /davinci-sdk-login.
+// Ping Orchestration SDK client for /davinci-orchestration-sdk.
 //
 // Debugging this path goes through the SDK's OWN logger, not through watching
 // HTTP. `logger.custom` is the designed channel: it narrates what the SDK

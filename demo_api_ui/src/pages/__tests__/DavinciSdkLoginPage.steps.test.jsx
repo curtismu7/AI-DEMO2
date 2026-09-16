@@ -1,4 +1,4 @@
-// The Step Inspector on /davinci-sdk-login is fed by the page itself: after each
+// The Step Inspector on /davinci-orchestration-sdk is fed by the page itself: after each
 // SDK call it records the request the middleware saw, the SDK's cached response
 // and the collectors. This drives the captured path, where the flow starts at
 // "Sign On" and the "Having trouble signing on?" FlowCollector sends it back to

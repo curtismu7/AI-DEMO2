@@ -5,7 +5,7 @@ import { agentFlowDiagram } from "../services/agentFlowDiagramService";
 import "./DavinciLoginPage.css";
 
 // The live DaVinci widget, embedded as the "Try It Live" section of
-// DavinciLoginGuidePage (/davinci-login-guide) — renders the DaVinci flow's own
+// DavinciLoginGuidePage (/davinci-widget) — renders the DaVinci flow's own
 // screens in-page via davinci.skRenderScreen, separate from and not touching
 // the protected BFF redirect login (routes/oauth.js).
 //
@@ -46,7 +46,7 @@ export default function DavinciLoginWidget({ onCall, onStart, onSignedIn }) {
     setError(null);
     onStart?.();
     recordingRef.current = true;
-    // Live trace for /davinci-login-guide's "The Flow" section (2026-09-12
+    // Live trace for /davinci-widget's "The Flow" section (2026-09-12
     // tech debt) — there is no BFF→browser channel for this flow, so the page
     // instruments its own calls into agentFlowDiagramService, same as
     // startMcpToolCall/completeMcpToolCall do for the agent's fetches.
