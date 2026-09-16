@@ -10,6 +10,12 @@ import { useTheme } from '../context/ThemeContext';
 import useDividerDrag from '../hooks/useDividerDrag';
 import './TokenTopologyPanel.css';
 
+const TOPOLOGY_SPEEDS = [
+  { value: 1200, label: 'Fast' },
+  { value: 2400, label: 'Normal' },
+  { value: 4200, label: 'Slow' },
+];
+
 // Coerce any value to a renderable string — trace data can contain {message} objects
 function str(v) {
   if (v == null) return '';
@@ -305,7 +311,7 @@ function FormattedValue({ value, depth = 0 }) {
   return <span className="ttp-fv-str">{str(parsed)}</span>;
 }
 
-function NodeBox({ node, step, selected, onClick, animateIn, nodeRef, ghost }) {
+function NodeBox({ node, step, selected, current, onClick, animateIn, nodeRef, ghost }) {
   const st = step?.status || 'pending';
   const isOk = st === 'done';
   const isErr = st === 'error';
@@ -320,7 +326,7 @@ function NodeBox({ node, step, selected, onClick, animateIn, nodeRef, ghost }) {
   return (
     <div
       ref={nodeRef}
-      className={`ttp-node${selected ? ' selected' : ''}${animateIn ? ' animate-in' : ''}${ghost ? ' ghost' : ''}`}
+      className={`ttp-node${selected ? ' selected' : ''}${current ? ' current' : ''}${animateIn ? ' animate-in' : ''}${ghost ? ' ghost' : ''}`}
       onClick={onClick}
     >
       <div className="ttp-callout-slot">
@@ -368,7 +374,7 @@ function NodeBox({ node, step, selected, onClick, animateIn, nodeRef, ghost }) {
 
 // One horizontal run of nodes joined by labelled connectors. Used for both the
 // spine and the tool-call branch so they stay visually identical.
-function NodeRow({ nodes, expandedId, onNodeClick, nodeRefs, className }) {
+function NodeRow({ nodes, expandedId, currentId, onNodeClick, nodeRefs, className }) {
   return (
     <div className={`ttp-row${className ? ' ' + className : ''}`}>
       {nodes.map((node, i) => {
@@ -388,6 +394,7 @@ function NodeRow({ nodes, expandedId, onNodeClick, nodeRefs, className }) {
               node={node}
               step={step}
               selected={expandedId === node.id}
+              current={currentId === node.id}
               ghost={unfired}
               animateIn={!unfired}
               onClick={() => onNodeClick(node.id)}
@@ -572,7 +579,7 @@ function Inspector({ step, topologyNodes, onClose }) {
   );
 }
 
-export default function TokenTopologyPanel({ isOpen, onClose }) {
+export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) {
   const { darkMode, setDarkMode } = useTheme();
   const [storeState, setStoreState] = useState(() => tokenChainTraceStore.getState());
   const [expandedId, setExpandedId] = useState(null);
@@ -586,6 +593,9 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
   const nodeRefs = useRef({});
   const diagramRef = useRef(null);
   const [branchOffset, setBranchOffset] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [revealCount, setRevealCount] = useState(null);
+  const [speed, setSpeed] = useState(2400);
 
   useEffect(() => {
     return tokenChainTraceStore.subscribe(setStoreState);
@@ -624,7 +634,10 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
     trace.outcome || trace.routingMode || a2aTopology,
   );
   const topologyNodes = hasActivity ? buildObservedTopology(steps) : [];
-  const { spine, branch, anchorId } = partitionSpineBranch(topologyNodes);
+  const totalNodes = topologyNodes.length;
+  const visibleCount = revealCount == null ? totalNodes : Math.min(revealCount, totalNodes);
+  const visibleNodes = topologyNodes.slice(0, visibleCount);
+  const { spine, branch, anchorId } = partitionSpineBranch(visibleNodes);
   const selectedStep = expandedId
     ? topologyNodes.find((node) => node.id === expandedId)?.step || null
     : null;
@@ -645,29 +658,62 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
     return () => observer.disconnect();
   }, [anchorId, spine.length, branch.length, inspWidth]);
 
-  return (
-    <DraggableModal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Token Topology"
-      defaultWidth={960}
-      defaultHeight={660}
-      storageKey="ba-token-topology-panel"
-      footer={null}
-      noBackdrop
-      zIndex={10001}
-      minWidth={580}
-      minHeight={440}
-      className={`ttp-modal ttp-modal--${darkMode ? 'dark' : 'light'}`}
-    >
+  useEffect(() => {
+    if (revealCount == null) setRevealCount(totalNodes);
+  }, [totalNodes, revealCount]);
+
+  useEffect(() => {
+    if (!playing || visibleCount >= totalNodes) {
+      if (playing && totalNodes > 0 && visibleCount >= totalNodes) setPlaying(false);
+      return undefined;
+    }
+    const timer = setTimeout(() => setRevealCount((count) => Math.min((count ?? 0) + 1, totalNodes)), speed);
+    return () => clearTimeout(timer);
+  }, [playing, visibleCount, totalNodes, speed]);
+
+  useEffect(() => {
+    if (trace.runId) {
+      setRevealCount(totalNodes);
+      setPlaying(false);
+    }
+  }, [trace.runId]);
+
+  const handlePlayPause = useCallback(() => {
+    if (!totalNodes) return;
+    if (visibleCount >= totalNodes && !playing) setRevealCount(0);
+    setPlaying((value) => !value);
+  }, [playing, totalNodes, visibleCount]);
+
+  const handleStartOver = useCallback(() => {
+    if (!totalNodes) return;
+    setRevealCount(0);
+    setPlaying(true);
+    setExpandedId(null);
+  }, [totalNodes]);
+
+  const currentId = playing && visibleNodes.length
+    ? visibleNodes[visibleNodes.length - 1]?.id
+    : topologyNodes.find((node) => node.step.status === 'active')?.id;
+
+  const content = (
       <div className="ttp-root" data-theme={darkMode ? 'dark' : 'light'}>
         {/* Toolbar */}
         <div className="ttp-toolbar">
           <div className="ttp-toolbar-left">
             {prompt && <><span className="ttp-ctx-lbl">Prompt</span><span className="ttp-ctx-prompt">{str(prompt)}</span></>}
             {routingMode && <span className="ttp-ctx-mode">{str(routingMode)}</span>}
+            <span className="ttp-playback-status" aria-live="polite">
+              {playing ? `Playing ${visibleCount}/${totalNodes}` : `Live ${visibleCount}/${totalNodes}`}
+            </span>
           </div>
           <div className="ttp-toolbar-actions">
+            <button type="button" className="ttp-play-btn" onClick={handlePlayPause} disabled={!totalNodes}>
+              {playing ? 'Pause' : visibleCount >= totalNodes ? 'Play' : 'Resume'}
+            </button>
+            <select className="ttp-speed-select" value={speed} onChange={(e) => setSpeed(Number(e.target.value))} title="Adjust topology playback speed">
+              {TOPOLOGY_SPEEDS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+            <button type="button" className="ttp-start-btn" onClick={handleStartOver} disabled={!totalNodes}>Start over</button>
             <div className="ttp-theme-control" aria-label="Token topology color theme">
               <span className={!darkMode ? 'active' : ''}>☀️ Light</span>
               <button
@@ -694,25 +740,15 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
           <div className="ttp-diagram" ref={diagramRef}>
             {hasActivity ? (
               <>
-                <div className="ttp-label">Live delegated pipeline — nodes appear as evidence arrives</div>
+                <div className="ttp-label">Live delegated pipeline — current step is highlighted; click any box for details</div>
                 <div className="ttp-graph">
-                  <NodeRow
-                    nodes={spine}
-                    className="ttp-spine"
-                    expandedId={expandedId}
-                    onNodeClick={handleNodeClick}
-                    nodeRefs={nodeRefs}
-                  />
+                  <NodeRow nodes={spine} className="ttp-spine" expandedId={expandedId} currentId={currentId} onNodeClick={handleNodeClick} nodeRefs={nodeRefs} />
                   {branch.length > 0 && (
                     <div className="ttp-branch" style={{ marginLeft: branchOffset }}>
                       <div className="ttp-branch-elbow" aria-hidden="true" />
                       <div className="ttp-branch-body">
                         <div className="ttp-branch-label">Services &amp; Tools — delegated tool call</div>
-                        <NodeRow
-                          nodes={branch}
-                          expandedId={expandedId}
-                          onNodeClick={handleNodeClick}
-                        />
+                        <NodeRow nodes={branch} expandedId={expandedId} currentId={currentId} onNodeClick={handleNodeClick} />
                       </div>
                     </div>
                   )}
@@ -726,42 +762,38 @@ export default function TokenTopologyPanel({ isOpen, onClose }) {
             )}
             {a2aTopology && (
               <div className="ttp-a2a-topology">
-                <div className="ttp-a2a-heading">
-                  <strong>A2A: main agent calling specialist agent</strong>
-                  <span>Identity and wire-protocol evidence are separate paths.</span>
-                </div>
-                <EvidenceFlow
-                  label="Identity path — RFC 8693 token exchanges for MCP authorization"
-                  nodes={a2aTopology.identity}
-                />
-                <EvidenceFlow
-                  label="Wire path — Agent Card and JSON-RPC handoff"
-                  nodes={a2aTopology.wire}
-                />
+                <div className="ttp-a2a-heading"><strong>A2A: main agent calling specialist agent</strong><span>Identity and wire-protocol evidence are separate paths.</span></div>
+                <EvidenceFlow label="Identity path — RFC 8693 token exchanges for MCP authorization" nodes={a2aTopology.identity} />
+                <EvidenceFlow label="Wire path — Agent Card and JSON-RPC handoff" nodes={a2aTopology.wire} />
               </div>
             )}
           </div>
-
           {selectedStep ? (
-            <div className="ttp-insp-pane" style={{ width: inspWidth }}>
-              <div className="ttp-resize-handle" {...inspHandleProps} />
-              <Inspector
-                step={selectedStep}
-                topologyNodes={topologyNodes}
-                onClose={() => setExpandedId(null)}
-              />
-            </div>
+            <div className="ttp-insp-pane" style={{ width: inspWidth }}><div className="ttp-resize-handle" {...inspHandleProps} /><Inspector step={selectedStep} topologyNodes={topologyNodes} onClose={() => setExpandedId(null)} /></div>
           ) : hasActivity && (
-            <div className="ttp-insp-pane" style={{ width: inspWidth }}>
-              <div className="ttp-resize-handle" {...inspHandleProps} />
-              <div className="ttp-insp-empty">
-                <div className="ttp-insp-empty-icon">🔑</div>
-                <div className="ttp-insp-empty-text">Click a node to inspect its token details</div>
-              </div>
-            </div>
+            <div className="ttp-insp-pane" style={{ width: inspWidth }}><div className="ttp-resize-handle" {...inspHandleProps} /><div className="ttp-insp-empty"><div className="ttp-insp-empty-icon">🔑</div><div className="ttp-insp-empty-text">Click a node to inspect its token details</div></div></div>
           )}
         </div>
       </div>
+  );
+
+  if (inline) return <div className="ttp-inline">{content}</div>;
+  return (
+    <DraggableModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Token Topology"
+      defaultWidth={960}
+      defaultHeight={660}
+      storageKey="ba-token-topology-panel"
+      footer={null}
+      noBackdrop
+      zIndex={10001}
+      minWidth={580}
+      minHeight={440}
+      className={`ttp-modal ttp-modal--${darkMode ? 'dark' : 'light'}`}
+    >
+      {content}
     </DraggableModal>
   );
 }

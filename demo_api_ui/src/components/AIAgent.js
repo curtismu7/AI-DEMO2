@@ -1053,6 +1053,7 @@ export default function BankingAgent({
   /** Token chain visibility — always starts hidden on page load (not persisted). */
   const [showTokenChain, setShowTokenChain] = useState(false);
   const [showTokenTopology, setShowTokenTopology] = useState(false); // dispatches token-topology-open; panel lives in App.js
+  const [showInlineTokenTopology, setShowInlineTokenTopology] = useState(false);
   const [showFloatingTokenChain, setShowFloatingTokenChain] = useState(false); // dispatches floating-token-chain-open; panel lives in App.js
 
   const [tokenChainWidth] = useState(() => {
@@ -9993,6 +9994,10 @@ export default function BankingAgent({
                           // the Movie reel toggle above.
                           setShowSequenceDiagram(newVal);
                           window.dispatchEvent(new CustomEvent("agent-sequence-diagram-toggle", { detail: { on: newVal } }));
+                          if (newVal && showInlineTokenTopology) {
+                            setShowInlineTokenTopology(false);
+                            window.dispatchEvent(new CustomEvent("agent-token-topology-toggle", { detail: { on: false } }));
+                          }
                           // Auto-collapse the left nav so the diagram gets the
                           // width back; restored when the toggle goes off.
                           window.dispatchEvent(new CustomEvent("admin-sidenav-collapse-toggle", { detail: { collapsed: newVal } }));
@@ -10004,6 +10009,23 @@ export default function BankingAgent({
                         title="Show a live lifeline sequence diagram instead of the movie reel for this session (returns on reload)"
                       >
                         Sequence view
+                      </Check>
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={showInlineTokenTopology}
+                        onChange={(e) => {
+                          const newVal = e.target.checked;
+                          setShowInlineTokenTopology(newVal);
+                          window.dispatchEvent(new CustomEvent("agent-token-topology-toggle", { detail: { on: newVal } }));
+                          if (newVal && showSequenceDiagram) {
+                            setShowSequenceDiagram(false);
+                            window.dispatchEvent(new CustomEvent("agent-sequence-diagram-toggle", { detail: { on: false } }));
+                          }
+                        }}
+                        title="Show the live token topology inline beside the agent"
+                      >
+                        Inline topology
                       </Check>
                       {showSequenceDiagram && (
                         <Check
