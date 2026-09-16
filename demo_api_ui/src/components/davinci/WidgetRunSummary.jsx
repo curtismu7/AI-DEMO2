@@ -1,5 +1,5 @@
 // "What just happened": the short run summary shown after a widget sign-in on
-// /davinci-login-guide. The teaching lives in the page's lesson sections; this
+// /davinci-widget. The teaching lives in the page's lesson sections; this
 // says what happened on THIS run and links into them. Built only from the calls
 // lib/davinciWidgetTrace.js recorded (addresses and status, never values).
 import { useMemo } from "react";
@@ -99,7 +99,7 @@ export default function WidgetRunSummary({ username = null, calls = [], onNaviga
       </ul>
 
       <LessonFoot>
-        More: the <a href="/davinci-sdk-login">Orchestration SDK lesson</a>, and Ping&rsquo;s{" "}
+        More: the <a href="/davinci-orchestration-sdk">Orchestration SDK lesson</a>, and Ping&rsquo;s{" "}
         <a
           href="https://docs.pingidentity.com/davinci/integrating_flows_into_applications/davinci_launching_a_flow_with_the_widget.html"
           target="_blank"

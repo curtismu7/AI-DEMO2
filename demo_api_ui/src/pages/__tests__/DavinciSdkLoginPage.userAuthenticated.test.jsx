@@ -1,4 +1,4 @@
-// A sign-in on /davinci-sdk-login stays on the page, so nothing reloads the app
+// A sign-in on /davinci-orchestration-sdk stays on the page, so nothing reloads the app
 // shell. useAuth (and through it TopNav and the route guards) re-checks the BFF
 // session only when "userAuthenticated" fires. Without it the page said "You're
 // signed in" while the TopNav still offered Sign In until a manual reload.

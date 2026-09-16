@@ -20,6 +20,17 @@ export const NAV_STRUCTURE_CATALOG = [
       "AI Agent Gateway Diagrams",
     ],
   },
+  {
+    label: "AI Product Pages",
+    children: [
+      "Agent IAM Core",
+      "Agent Gateway",
+      "PingOne Authorize",
+      "Privilege · LLM",
+      "Privilege · A2A",
+      "Privilege · MCP",
+    ],
+  },
   { label: "Themes" },
   {
     label: "Demos",
@@ -99,10 +110,10 @@ export const NAV_STRUCTURE_CATALOG = [
       "OAS Demo",
       "Privilege Demo",
       "SDK Login",
-      "DaVinci Login Guide",
-      "Orchestration SDK Login",
+      "DaVinci Widget",
+      "DaVinci Orchestration SDK",
       "Orchestration SDK Guide",
-      "DaVinci Orchestration",
+      "DaVinci Orchestration Overview",
     ],
   },
   {

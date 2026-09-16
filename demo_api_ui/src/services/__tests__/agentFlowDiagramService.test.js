@@ -141,7 +141,7 @@ describe('agentFlowDiagram.recordMfaPhase', () => {
 
 // 2026-09-12 tech debt: the DaVinci widget flow (DavinciLoginWidget.jsx)
 // instruments its own fetch/skRenderScreen calls into these steps so
-// /davinci-login-guide can show a real run instead of only a static diagram.
+// /davinci-widget can show a real run instead of only a static diagram.
 describe('agentFlowDiagram — DaVinci widget login live trace', () => {
   beforeEach(() => {
     agentFlowDiagram.reset();

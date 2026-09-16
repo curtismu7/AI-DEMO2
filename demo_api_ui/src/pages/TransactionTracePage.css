@@ -271,6 +271,7 @@
 .ttrace-filmstrip__controls button:focus-visible {
   border-color: var(--th-border-strong);
   background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .ttrace-filmstrip__controls button:disabled {

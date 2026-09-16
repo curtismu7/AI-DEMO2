@@ -106,6 +106,9 @@ export default function CollectorField({ collector, updater, onSubmit, onFlow, s
     // Action collectors carry no value, so there is no updater — they only move
     // the flow.
     case "SubmitCollector":
+    // DaVinci uses the generic action type for some custom continue buttons.
+    // They still submit the current node; only FlowCollector changes flows.
+    case "ActionCollector":
       return (
         <button type="button" className="dvsdk-submit" onClick={onSubmit} disabled={busy}>
           {busy ? "Working..." : (collector.output?.label ?? "Continue")}
@@ -141,5 +144,6 @@ export const SUPPORTED_COLLECTORS = [
   "PasswordCollector",
   "ValidatedPasswordCollector",
   "SubmitCollector",
+  "ActionCollector",
   "FlowCollector",
 ];
