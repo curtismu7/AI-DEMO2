@@ -20,6 +20,7 @@ import TokenFlowDetailModal from "./TokenFlowDetailModal";
 import SimpleStepperPanel from "./SimpleStepperPanel";
 import AgentFlowDiagramPanel from "./AgentFlowDiagramPanel";
 import SequenceReelDiagram from "./SequenceReelDiagram";
+import OAuthVisualizerPanel from "./OAuthVisualizerPanel";
 import ReasoningPanel from './ReasoningPanel';
 import ConversationSummaryPanel from './ConversationSummaryPanel';
 import ProofStrip from './ProofStrip';
@@ -944,6 +945,16 @@ export default function BankingAgent({
   const [sequenceSurface, setSequenceSurface] = useState(() => (
     readSurfacePreference("dashboard-sequence-surface", "dashboard-view-mode", "sequence")
   ));
+  const [oauthVisualizerSurface, setOauthVisualizerSurface] = useState(() => (
+    readSurfacePreference("ba_oauth_visualizer_surface")
+  ));
+  const showOauthVisualizer = oauthVisualizerSurface === "embedded" || oauthVisualizerSurface === "both";
+  const showOauthVisualizerPopout = oauthVisualizerSurface === "popout" || oauthVisualizerSurface === "both";
+  const chooseOauthVisualizerSurface = useCallback((surface) => {
+    setOauthVisualizerSurface(surface);
+    try { localStorage.setItem("ba_oauth_visualizer_surface", surface); } catch {}
+    window.dispatchEvent(new CustomEvent("oauth-visualizer-surface-change", { detail: { surface } }));
+  }, []);
   const showSequenceDiagram = sequenceSurface === "embedded" || sequenceSurface === "both";
   const showSequencePopout = sequenceSurface === "popout" || sequenceSurface === "both";
   // "Slow mode" — paces the sequence diagram's step reveal for live narration.
@@ -10120,6 +10131,12 @@ export default function BankingAgent({
                           }
                         }}
                       />
+                      <SurfaceSelector
+                        id="oauth-visualizer-surface-select"
+                        label="OAuth Visualizer"
+                        value={oauthVisualizerSurface}
+                        onChange={(e) => chooseOauthVisualizerSurface(e.target.value)}
+                      />
                       {showSequenceDiagram && (
                         <Check
                           variant="switch"
@@ -12701,6 +12718,16 @@ export default function BankingAgent({
       {(agentFlowSurface === "embedded" || agentFlowSurface === "both") && (
         <AgentFlowDiagramPanel embedded />
       )}
+      {showOauthVisualizer && (
+        <OAuthVisualizerPanel
+          embedded
+          onOpenPopout={() => chooseOauthVisualizerSurface("both")}
+        />
+      )}
+      <OAuthVisualizerPanel
+        isOpen={showOauthVisualizerPopout}
+        onClose={() => chooseOauthVisualizerSurface(showOauthVisualizer ? "embedded" : "none")}
+      />
       <SimpleStepperPanel
         isOpen={showSimpleStepper}
         onClose={() => {
