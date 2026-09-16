@@ -63,7 +63,7 @@ const CHECKLIST = [
   [
     "Flow policy assignment",
     "Application › Policies",
-    "Makes /as/authorize run the assigned DaVinci flow policy instead of PingOne's built-in sign-on policy. This is the whole connection between the app and DaVinci.",
+    "Applications can have more than one DaVinci policy. Send the intended policy ID as acr_values on /as/authorize; otherwise assignment priority/default selection can choose the wrong flow.",
   ],
   [
     "The flow policy itself",
@@ -134,7 +134,8 @@ const client = await davinci({
 // davinci-client adds response_mode=pi.flow, PKCE and state itself.
 // Never pass response_mode here: start() applies \`query\` with
 // URLSearchParams.set() AFTER building the URL, so it would REPLACE pi.flow.
-let node = await client.start({ query: { nonce } });`;
+// acr_values selects the DaVinci Flow Policy when the app has multiple policies.
+let node = await client.start({ query: { nonce, acr_values: flowPolicyId } });`;
 
 const SNIPPET_LOOP = `// Each pass waits for the user in a real UI; this is the shape of it.
 while (node.status === "continue" || node.status === "error") {
@@ -166,6 +167,7 @@ const API_START = `POST /api/davinci-sdk-login/start
   "redirectUri": "https://app.example.com/davinci-sdk-login",
   "wellknown": "https://auth.pingone.com/<envId>/as/.well-known/openid-configuration",
   "scope": "openid profile email …",
+  "flowPolicyId": "<DaVinci Flow Policy ID>",
   "nonce": "…"
 }
 
@@ -178,6 +180,7 @@ const API_START = `POST /api/davinci-sdk-login/start
 
 const API_AUTHORIZE = `GET https://auth.pingone.com/<envId>/as/authorize
     ?client_id=<clientId>
+    &acr_values=<flowPolicyId>
     &response_type=code
     &scope=openid profile email …
     &redirect_uri=https://app.example.com/davinci-sdk-login
@@ -310,10 +313,10 @@ export const FLOW_SOURCE = `sequenceDiagram
   participant DV as DaVinci flow
   participant BFF as BFF
   Page->>BFF: POST /api/davinci-sdk-login/start
-  BFF-->>Page: clientId, redirectUri, wellknown, scope, nonce
-  Page->>SDK: davinci(config), then start(query nonce)
-  SDK->>P1: GET /as/authorize with response_mode=pi.flow
-  P1->>DV: run the flow policy assigned to the app
+  BFF-->>Page: clientId, flowPolicyId, redirectUri, wellknown, scope, nonce
+  Page->>SDK: davinci(config), then start(query nonce, acr_values)
+  SDK->>P1: GET /as/authorize with response_mode=pi.flow + acr_values
+  P1->>DV: run the selected flow policy
   Note over DV: runs nodes until the first screen
   DV-->>SDK: 200 JSON, form Sign On + _links.next
   SDK-->>Page: node continue, collectors
@@ -618,8 +621,10 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
           The SDK never talks to &ldquo;DaVinci&rdquo; directly. It speaks OIDC to a PingOne
           application, and a <strong>flow policy assignment</strong> on that application is what
           makes <code>/as/authorize</code> run a DaVinci flow instead of PingOne&rsquo;s built-in
-          sign-on. Everything below has to be in place, or the SDK fails before a single collector
-          arrives.
+          sign-on. If the application has two policies selected, pass the intended policy ID as
+          <code>acr_values</code> on <code>client.start({"{ query: { acr_values } }"})</code>; do
+          not rely on assignment order to choose the flow. Everything below has to be in place, or
+          the SDK fails before a single collector arrives.
         </p>
         <TableBlock headers={["Setting", "Where", "Why it matters"]} rows={CHECKLIST} />
         <CodeBlock title="Attach the flow policy" code={SNIPPET_ASSIGN} language="http" />
@@ -673,8 +678,9 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
           <li>
             <code>davinci({"{ config }"})</code> reads the discovery document, and{" "}
             <code>client.start()</code> calls <code>/as/authorize</code> with{" "}
-            <code>response_mode=pi.flow</code>. PingOne runs the flow policy assigned to the
-            application.
+            <code>response_mode=pi.flow</code> plus the selected <code>acr_values</code>. When the
+            application has multiple DaVinci policies, that policy ID tells PingOne which flow
+            policy to run.
           </li>
           <li>
             DaVinci runs the flow&rsquo;s nodes on its side (connectors, functions, conditions)

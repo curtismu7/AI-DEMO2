@@ -48,6 +48,14 @@ describe("SdkLessonSections", () => {
     expect(api).toContain('"eventType": "action"');
     expect(api).toContain('"name": "Enter Username"');
     expect(api).toContain("response_mode=pi.flow");
+    expect(api).toContain("acr_values=<flowPolicyId>");
+  });
+
+  it("explains acr_values when an application has multiple DaVinci policies", () => {
+    const { container } = render(<SdkLessonSections />);
+    const wiring = container.querySelector("#how-its-wired").textContent;
+    expect(wiring).toContain("two policies selected");
+    expect(wiring).toContain("acr_values");
   });
 
   it("reports pi.flow from the real authorize request, and never its values", () => {
