@@ -648,6 +648,10 @@
   color: var(--th-text);
 }
 
+.lgw-composer--wide {
+  flex-wrap: wrap;
+}
+
 .lgw-composer textarea {
   flex: 1 1 auto;
   min-width: 0;
@@ -660,6 +664,11 @@
   font-size: var(--font-size-base);
   line-height: 1.4;
   resize: vertical;
+}
+
+.lgw-composer--wide textarea.lgw-composer__prompt {
+  flex-basis: 100%;
+  order: -1;
 }
 
 /* 🔍 on: the whole prompt, large. field-sizing grows the box to its content

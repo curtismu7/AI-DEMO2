@@ -202,6 +202,39 @@ describe("LLM Gateway console", () => {
       fireEvent.change(select, { target: { value: ATTACK.id } });
       expect(screen.getByLabelText(/^prompt$/i)).toHaveValue(ATTACK.payload);
     });
+
+    it("offers None for a hand-written prompt and clears a selected attack when chosen", async () => {
+      mockFetch(() => new Promise(() => {}));
+      render(<LlmGatewayPage />);
+
+      const select = await screen.findByLabelText(/attack library/i);
+      fireEvent.change(select, { target: { value: ATTACK.id } });
+      fireEvent.change(select, { target: { value: "__manual__" } });
+
+      expect(screen.getByRole("option", { name: /none.*enter a prompt manually/i })).toBeInTheDocument();
+      expect(select).toHaveValue("__manual__");
+      expect(screen.getByLabelText(/^prompt$/i)).toHaveValue("");
+    });
+
+    it("clears the attack selection when the payload is edited by hand", async () => {
+      mockFetch(() => new Promise(() => {}));
+      render(<LlmGatewayPage />);
+
+      const select = await screen.findByLabelText(/attack library/i);
+      fireEvent.change(select, { target: { value: ATTACK.id } });
+      fireEvent.change(screen.getByLabelText(/^prompt$/i), { target: { value: `${ATTACK.payload} edited` } });
+
+      expect(select).toHaveValue("");
+    });
+
+    it("gives the hand-written prompt its own full-width composer row", async () => {
+      mockFetch(() => new Promise(() => {}));
+      render(<LlmGatewayPage />);
+
+      const promptBox = await screen.findByLabelText(/^prompt$/i);
+      expect(promptBox).toHaveClass("lgw-composer__prompt");
+      expect(promptBox.closest(".lgw-composer")).toHaveClass("lgw-composer--wide");
+    });
   });
 
   describe("who-stopped-it headline", () => {

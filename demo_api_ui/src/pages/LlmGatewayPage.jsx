@@ -219,6 +219,7 @@ function denialExplanation(decision) {
 // The unguarded side of a compare run: a local lane, so no virtual key and no
 // Privilege policy between the prompt and the model.
 const UNGUARDED_LANE = 'llamacpp';
+const MANUAL_ATTACK = '__manual__';
 
 // Run all scores each attack's guarded result against the catalog's measured
 // `effect`, so a policy that quietly stopped firing shows up as a mismatch.
@@ -810,11 +811,12 @@ export default function LlmGatewayPage() {
                 const id = e.target.value;
                 setSelectedAttack(id);
                 window.localStorage.setItem('lgw-attack-choice', id);
-                if (id) setPrompt(payloadFor(id));
+                setPrompt(id === MANUAL_ATTACK ? '' : payloadFor(id));
                 setSendError('');
               }}
             >
               <option value="">Pick an attack to test the gateway policy…</option>
+              <option value={MANUAL_ATTACK}>None — enter a prompt manually</option>
               {ATTACK_CATEGORIES.map((cat) => (
                 <optgroup key={cat} label={cat}>
                   {GUARDRAIL_ATTACKS.filter((a) => a.category === cat).map((a) => (
@@ -895,7 +897,7 @@ export default function LlmGatewayPage() {
           ) : null}
 
           {sendError ? <p className="lgw-error" role="alert">{sendError}</p> : null}
-          <div className="lgw-composer">
+          <div className="lgw-composer lgw-composer--wide">
             {/* Multi-line so an attack payload with embedded newlines shows
                 exactly as it will be sent. Enter sends; Shift+Enter adds a line. */}
             {/* 🔍 shows the whole prompt, large, for a room: the 3-row box hides
@@ -912,11 +914,19 @@ export default function LlmGatewayPage() {
             </button>
             <textarea
               rows={bigPrompt ? 12 : 3}
-              className={bigPrompt ? 'is-presenting' : undefined}
+              className={`lgw-composer__prompt${bigPrompt ? ' is-presenting' : ''}`}
               aria-label="Prompt"
               value={prompt}
               placeholder={`Ask through ${TITLES[selected] || selected}…`}
-              onChange={(e) => { setPrompt(e.target.value); setSendError(''); }}
+              onChange={(e) => {
+                const next = e.target.value;
+                setPrompt(next);
+                if (selectedAttack && selectedAttack !== MANUAL_ATTACK && payloadFor(selectedAttack) !== next) {
+                  setSelectedAttack('');
+                  window.localStorage.setItem('lgw-attack-choice', '');
+                }
+                setSendError('');
+              }}
               onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
             />
             <button

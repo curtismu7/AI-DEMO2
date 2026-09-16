@@ -45,6 +45,13 @@ function callbackUrl(req) {
   return `${origin}${CALLBACK_PATH}`;
 }
 
+function safeReturnTo(value) {
+  if (typeof value !== 'string' || value.length > 200) return null;
+  if (!value.startsWith('/') || value.startsWith('//')) return null;
+  if (value.includes('\\') || value.includes('?') || value.includes('#')) return null;
+  return value;
+}
+
 /**
  * All demo UI origins that may host the inspector OAuth return — same
  * reasoning as mcpPingOneAdminAuth.js's inspectorCallbackUrls(): local .env
@@ -132,7 +139,13 @@ router.get('/login', requireSession, async (req, res) => {
     const codeChallenge = base64url(crypto.createHash('sha256').update(codeVerifier).digest());
     const redirectUri = callbackUrl(req);
 
-    req.session.privilegeMcpOAuth = { state, codeVerifier, redirectUri, profileId };
+    req.session.privilegeMcpOAuth = {
+      state,
+      codeVerifier,
+      redirectUri,
+      profileId,
+      returnTo: safeReturnTo(req.query.returnTo),
+    };
 
     const params = new URLSearchParams({
       response_type: 'code',
@@ -166,6 +179,9 @@ router.get('/callback', async (req, res) => {
   const failAndRedirect = (message, profileId) => {
     delete req.session.privilegeMcpOAuth;
     const profileParam = profileId ? `&profile=${encodeURIComponent(profileId)}` : '';
+    if (pending?.returnTo) {
+      return res.redirect(`${pending.returnTo}?privilege_login=error&reason=${encodeURIComponent(message)}`);
+    }
     res.redirect(`/pingone-mcp-inspector?source=custom${profileParam}&privilege_error=${encodeURIComponent(message)}`);
   };
 
@@ -196,7 +212,9 @@ router.get('/callback', async (req, res) => {
     delete req.session.privilegeMcpOAuth;
     req.session.save((err) => {
       if (err) console.error('[mcpPrivilegeAuth] session save error (post-token):', err.message);
-      res.redirect(`/pingone-mcp-inspector?source=custom&profile=${encodeURIComponent(profileId)}`);
+      res.redirect(pending.returnTo
+        ? `${pending.returnTo}?privilege_login=success`
+        : `/pingone-mcp-inspector?source=custom&profile=${encodeURIComponent(profileId)}`);
     });
   } catch (err) {
     const n = normalizeAxiosError(err, { label: 'Privilege token request' });
@@ -207,4 +225,4 @@ router.get('/callback', async (req, res) => {
 
 module.exports = router;
 // Test-only exports (pure helpers — no live network calls).
-module.exports._test = { CALLBACK_PATH, callbackUrl, inspectorCallbackUrls, issuerForProfile, _clientCache };
+module.exports._test = { CALLBACK_PATH, callbackUrl, inspectorCallbackUrls, issuerForProfile, safeReturnTo, _clientCache };
