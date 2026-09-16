@@ -190,6 +190,23 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     return () => window.removeEventListener("agent-filmstrip-toggle", handler);
   }, []);
 
+  // Quick Config "Simple step" surface — the compact table can stay embedded
+  // in the dashboard rail while its draggable panel is independently opened.
+  const [showSimpleStepper, setShowSimpleStepper] = useState(() => {
+    try {
+      const surface = localStorage.getItem("ba_simple_stepper_surface");
+      return surface === "embedded" || surface === "both"
+        || (surface == null && localStorage.getItem("ba_show_simple_stepper") === "1");
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    const handler = (e) => setShowSimpleStepper(!!e.detail?.on);
+    window.addEventListener("agent-simple-stepper-toggle", handler);
+    return () => window.removeEventListener("agent-simple-stepper-toggle", handler);
+  }, []);
+
   // Quick Config "Sequence view" — swaps the reel for a live lifeline
   // sequence diagram of the same trace data. Persisted to localStorage
   // so the user's view choice survives page refresh.
@@ -3842,7 +3859,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               <DashboardTokenRail>
                 <ExchangeModeToggle hideTable />
                 <TokenChainTraceRail />
-                <SimpleStepperBar />
+                {showSimpleStepper && <SimpleStepperBar />}
                 <div className="ud-float-chain-actions">
                   <button
                     type="button"

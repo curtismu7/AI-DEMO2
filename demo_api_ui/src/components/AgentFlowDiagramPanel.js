@@ -368,7 +368,7 @@ const AFD_PATH_COLORS = {
  * Floating, draggable, resizable live diagram: PingOne → Agent → BFF → MCP → tool.
  * State is driven by agentFlowDiagramService (bankingAgentService + BankingAgent).
  */
-export default function AgentFlowDiagramPanel() {
+export default function AgentFlowDiagramPanel({ embedded = false, enabled = true }) {
   const [snap, setSnap] = useState(() => agentFlowDiagram.getState());
   const [showTokenChain, setShowTokenChain] = useState(false);
   const [showFlowDiagram, setShowFlowDiagram] = useState(false);
@@ -427,14 +427,14 @@ export default function AgentFlowDiagramPanel() {
     return () => document.removeEventListener('keydown', onKey);
   }, [snap.visible, handleClose]);
 
-  if (!snap.visible) return null;
+  if (!enabled || !snap.visible) return null;
 
   const { steps, hint, phase, toolName, serverEvents = [] } = snap;
 
   const panel = (
     <div
-      className={`afd-panel${maximized ? ' afd-panel--maximized' : ''}`}
-      style={maximized ? undefined : {
+      className={`afd-panel${maximized ? ' afd-panel--maximized' : ''}${embedded ? ' afd-panel--embedded' : ''}`}
+      style={embedded || maximized ? undefined : {
         position: 'fixed',
         left: pos.x,
         top: pos.y,
@@ -589,5 +589,5 @@ export default function AgentFlowDiagramPanel() {
     </div>
   );
 
-  return createPortal(panel, document.body);
+  return embedded ? panel : createPortal(panel, document.body);
 }

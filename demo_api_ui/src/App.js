@@ -421,6 +421,12 @@ function AppWithAuth() {
   const [showTokenChain, setShowTokenChain] = useState(false);
   const [showTokenTopology, setShowTokenTopology] = useState(false);
   const [showSystemFlow, setShowSystemFlow] = useState(false);
+  const [agentFlowSurface, setAgentFlowSurface] = useState("popout");
+  useEffect(() => {
+    const onSurface = (event) => setAgentFlowSurface(event.detail?.surface || "none");
+    window.addEventListener("agent-flow-diagram-surface", onSurface);
+    return () => window.removeEventListener("agent-flow-diagram-surface", onSurface);
+  }, []);
   useEffect(() => {
     const onOpen = () => setShowTokenTopology(true);
     const onClose = () => setShowTokenTopology(false);
@@ -2039,7 +2045,11 @@ function AppWithAuth() {
               )}
               {!isApiTrafficOnlyPage && <CIBAPanel />}
               {!isApiTrafficOnlyPage && <CimdSimPanel />}
-              {!isApiTrafficOnlyPage && <AgentFlowDiagramPanel />}
+              {!isApiTrafficOnlyPage && (
+                <AgentFlowDiagramPanel
+                  enabled={agentFlowSurface === "popout" || agentFlowSurface === "both"}
+                />
+              )}
               {!isApiTrafficOnlyPage && (
                 <VerifiedBanner onExpand={() => setShowTokenChain(true)} />
               )}

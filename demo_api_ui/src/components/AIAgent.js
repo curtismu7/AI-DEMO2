@@ -18,6 +18,8 @@ import { useEventStream } from "../context/EventStreamContext";
 import TokenChainModal from "./TokenChainModal";
 import TokenFlowDetailModal from "./TokenFlowDetailModal";
 import SimpleStepperPanel from "./SimpleStepperPanel";
+import AgentFlowDiagramPanel from "./AgentFlowDiagramPanel";
+import SequenceReelDiagram from "./SequenceReelDiagram";
 import ReasoningPanel from './ReasoningPanel';
 import ConversationSummaryPanel from './ConversationSummaryPanel';
 import ProofStrip from './ProofStrip';
@@ -125,6 +127,41 @@ export const MORE_MENU_FLAG_IDS = [
   "ff_dpop",
   "ff_rar",
 ];
+
+const SURFACE_OPTIONS = [
+  { value: "none", label: "Off" },
+  { value: "embedded", label: "Embedded" },
+  { value: "popout", label: "Pop-out" },
+  { value: "both", label: "Both" },
+];
+
+function readSurfacePreference(key, legacyKey, legacyValue) {
+  try {
+    const saved = localStorage.getItem(key);
+    if (SURFACE_OPTIONS.some((option) => option.value === saved)) return saved;
+    if (
+      legacyKey &&
+      (localStorage.getItem(legacyKey) === (legacyValue || "true") ||
+        (!legacyValue && localStorage.getItem(legacyKey) === "1"))
+    ) {
+      return "embedded";
+    }
+  } catch {}
+  return "none";
+}
+
+function SurfaceSelector({ id, label, value, onChange }) {
+  return (
+    <div className="ba-topology-surface-row">
+      <label htmlFor={id}>{label}</label>
+      <select id={id} aria-label={`${label} surface`} value={value} onChange={onChange}>
+        {SURFACE_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+}
 import useLangchainProvider from "../hooks/useLangchainProvider";
 import { claimPendingNl, clampPanelPosition, makeReentrancyGuard, isAbortError, anySignal, isLocalModelTimeout, prewarmTierAndRetry, opportunisticPrewarm } from "./demoAgentSafety";
 import { BX_AGENT_PENDING_NL_KEY, BX_AGENT_PENDING_UC_ID_KEY, BX_AGENT_PENDING_FLAGS_KEY, BX_AGENT_PENDING_AUTH_KEY } from "../constants/agentPendingKeys";
@@ -846,13 +883,11 @@ export default function BankingAgent({
   /** MCP auth mode from oauth status — consumer vs enterprise-managed. */
   const [mcpAuthMode, setMcpAuthMode] = useState("consumer");
   const [txErrorModal, setTxErrorModal] = useState(null); // { title, message } or null
-  const [agentFlowPanelOpen, setAgentFlowPanelOpen] = useState(() => {
-    try {
-      return agentFlowDiagram.getState().visible;
-    } catch {
-      return false;
-    }
-  });
+  const [agentFlowSurface, setAgentFlowSurface] = useState(() => (
+    agentFlowDiagram.getState().visible ? "popout" : "none"
+  ));
+  const agentFlowSurfaceRef = useRef(agentFlowSurface);
+  agentFlowSurfaceRef.current = agentFlowSurface;
   const [complianceStripState, setComplianceStripState] = useState(() => {
     try {
       const s = agentFlowDiagram.getState();
@@ -878,13 +913,10 @@ export default function BankingAgent({
       return false;
     }
   });
-  const [showSimpleStepper, setShowSimpleStepper] = useState(() => {
-    try {
-      return localStorage.getItem("ba_show_simple_stepper") === "1";
-    } catch {
-      return false;
-    }
-  });
+  const [simpleStepperSurface, setSimpleStepperSurface] = useState(() => (
+    readSurfacePreference("ba_simple_stepper_surface", "ba_show_simple_stepper")
+  ));
+  const showSimpleStepper = simpleStepperSurface === "popout" || simpleStepperSurface === "both";
   // Always ON at mount. Hiding is deliberately NOT persisted: a single stray
   // click on the Movie reel switch used to write ba_show_filmstrip="0" to
   // localStorage, which hid the reel in that browser profile forever — across
@@ -909,13 +941,11 @@ export default function BankingAgent({
   // effect and the toggle read as dead. The reel is the default — sequence view
   // has to be chosen. Unlike ba_show_filmstrip this cannot strand the user:
   // turning it off always returns the reel, which is never storage-gated.
-  const [showSequenceDiagram, setShowSequenceDiagram] = useState(() => {
-    try {
-      return localStorage.getItem("dashboard-view-mode") === "sequence";
-    } catch {
-      return false;
-    }
-  });
+  const [sequenceSurface, setSequenceSurface] = useState(() => (
+    readSurfacePreference("dashboard-sequence-surface", "dashboard-view-mode", "sequence")
+  ));
+  const showSequenceDiagram = sequenceSurface === "embedded" || sequenceSurface === "both";
+  const showSequencePopout = sequenceSurface === "popout" || sequenceSurface === "both";
   // "Slow mode" — paces the sequence diagram's step reveal for live narration.
   // Only meaningful while Sequence view is on; toggled off with it. Restored
   // from the dashboard's key for the same reason as above.
@@ -1074,7 +1104,7 @@ export default function BankingAgent({
     setShowInlineTokenTopology(embedded);
     window.dispatchEvent(new CustomEvent("agent-token-topology-toggle", { detail: { on: embedded } }));
     if (embedded && showSequenceDiagram) {
-      setShowSequenceDiagram(false);
+      setSequenceSurface("none");
       window.dispatchEvent(new CustomEvent("agent-sequence-diagram-toggle", { detail: { on: false } }));
     }
     if (popout) {
@@ -1111,18 +1141,64 @@ export default function BankingAgent({
   }, [agentUiMode]);
 
   /** Show/hide RFC info token-event messages in chat. Persisted. */
-  const [showRfcInfo, setShowRfcInfo] = useState(() => {
-    try {
-      const saved = localStorage.getItem("ba_show_rfc_info");
-      if (saved !== null) return saved === "true";
-    } catch {}
-    return false; // Default: hide RFC info for clean chat
-  });
+  const [rfcInfoSurface, setRfcInfoSurface] = useState(() => (
+    readSurfacePreference("ba_rfc_info_surface", "ba_show_rfc_info")
+  ));
+  const showRfcInfo = rfcInfoSurface === "embedded" || rfcInfoSurface === "both";
+  const showRfcInfoPopout = rfcInfoSurface === "popout" || rfcInfoSurface === "both";
   useEffect(() => {
     try {
       localStorage.setItem("ba_show_rfc_info", String(showRfcInfo));
+      localStorage.setItem("ba_rfc_info_surface", rfcInfoSurface);
     } catch {}
-  }, [showRfcInfo]);
+  }, [showRfcInfo, rfcInfoSurface]);
+
+  const chooseRfcInfoSurface = useCallback((surface) => {
+    setRfcInfoSurface(surface);
+    try {
+      localStorage.setItem("ba_rfc_info_surface", surface);
+      localStorage.setItem("ba_show_rfc_info", String(surface === "embedded" || surface === "both"));
+    } catch {}
+    window.dispatchEvent(new CustomEvent("agent-rfc-info-toggle", {
+      detail: { on: surface === "embedded" || surface === "both", surface },
+    }));
+  }, []);
+
+  const chooseAgentFlowSurface = useCallback((surface) => {
+    const embedded = surface === "embedded" || surface === "both";
+    const popout = surface === "popout" || surface === "both";
+    agentFlowSurfaceRef.current = surface;
+    setAgentFlowSurface(surface);
+    if (popout || embedded) agentFlowDiagram.open();
+    else agentFlowDiagram.close();
+    window.dispatchEvent(new CustomEvent("agent-flow-diagram-surface", {
+      detail: { embedded, popout, surface },
+    }));
+  }, []);
+
+  const chooseSimpleStepperSurface = useCallback((surface) => {
+    const embedded = surface === "embedded" || surface === "both";
+    setSimpleStepperSurface(surface);
+    try {
+      localStorage.setItem("ba_simple_stepper_surface", surface);
+      localStorage.setItem("ba_show_simple_stepper", embedded || surface === "popout" ? "1" : "0");
+    } catch {}
+    window.dispatchEvent(new CustomEvent("agent-simple-stepper-toggle", {
+      detail: { on: embedded, surface },
+    }));
+  }, []);
+
+  const chooseSequenceSurface = useCallback((surface) => {
+    const embedded = surface === "embedded" || surface === "both";
+    setSequenceSurface(surface);
+    try {
+      localStorage.setItem("dashboard-sequence-surface", surface);
+      localStorage.setItem("dashboard-view-mode", embedded ? "sequence" : "reel");
+    } catch {}
+    window.dispatchEvent(new CustomEvent("agent-sequence-diagram-toggle", {
+      detail: { on: embedded, surface },
+    }));
+  }, []);
 
   /** Dark mode for the dark-capable panels (Token Chain rail). The state, its
       persistence and the data-theme attribute now live in ThemeProvider so the
@@ -1410,7 +1486,10 @@ export default function BankingAgent({
 
   useEffect(() => {
     return agentFlowDiagram.subscribe((state) => {
-      setAgentFlowPanelOpen(state.visible);
+      if (!state.visible && agentFlowSurfaceRef.current !== "embedded" && agentFlowSurfaceRef.current !== "both") {
+        setAgentFlowSurface("none");
+      }
+      if (state.visible && agentFlowSurfaceRef.current === "none") setAgentFlowSurface("popout");
       setComplianceStripState({
         complianceStep: state.complianceStep || null,
         complianceSteps: state.complianceSteps || [],
@@ -9923,29 +10002,18 @@ export default function BankingAgent({
                         <span>Embedded views stay on this page. Pop-outs open a separate window.</span>
                       </div>
                       <div className="ba-header-more-heading">Display preferences</div>
-                      {/* RFC info toggle */}
-                      <Check
-                        variant="switch"
-                        className="ba-header-toggle-label"
-                        checked={showRfcInfo}
-                        onChange={(e) => setShowRfcInfo(e.target.checked)}
-                        title="Show or hide RFC token-event messages in the chat"
-                      >
-                        RFC info
-                      </Check>
-                      {/* Agent request flow panel — MCP tool calls live, login sequence once you land back signed in */}
-                      <Check
-                        variant="switch"
-                        className="ba-header-toggle-label"
-                        checked={agentFlowPanelOpen}
-                        onChange={(e) => {
-                          if (e.target.checked) agentFlowDiagram.open();
-                          else agentFlowDiagram.close();
-                        }}
-                        title="Show or hide the agent request flow diagram (MCP tool calls, login sequence)"
-                      >
-                        Agent flow diagram
-                      </Check>
+                      <SurfaceSelector
+                        id="rfc-info-surface-select"
+                        label="RFC info"
+                        value={rfcInfoSurface}
+                        onChange={(e) => chooseRfcInfoSurface(e.target.value)}
+                      />
+                      <SurfaceSelector
+                        id="agent-flow-surface-select"
+                        label="Agent flow diagram"
+                        value={agentFlowSurface}
+                        onChange={(e) => chooseAgentFlowSurface(e.target.value)}
+                      />
                       {/* Dark mode switch — drives data-theme on the document root, which the
                           dark-capable panels (Token Chain rail) key off. */}
                       <Check
@@ -10011,25 +10079,12 @@ export default function BankingAgent({
                           <option value="both">Both</option>
                         </select>
                       </div>
-                      {/* Simple Stepper toggle */}
-                      <Check
-                        variant="switch"
-                        className="ba-header-toggle-label"
-                        checked={showSimpleStepper}
-                        onChange={(e) => {
-                          const newVal = e.target.checked;
-                          try {
-                            localStorage.setItem(
-                              "ba_show_simple_stepper",
-                              newVal ? "1" : "0",
-                            );
-                          } catch {}
-                          setShowSimpleStepper(newVal);
-                        }}
-                        title="Show or hide the Simple Stepper token-chain table"
-                      >
-                        <>Simple step <span className="ba-surface-badge" aria-hidden="true">Embedded</span></>
-                      </Check>
+                      <SurfaceSelector
+                        id="simple-step-surface-select"
+                        label="Simple step"
+                        value={simpleStepperSurface}
+                        onChange={(e) => chooseSimpleStepperSurface(e.target.value)}
+                      />
                       <Check
                         variant="switch"
                         className="ba-header-toggle-label"
@@ -10046,33 +10101,25 @@ export default function BankingAgent({
                       >
                         <>Movie reel <span className="ba-surface-badge" aria-hidden="true">Embedded</span></>
                       </Check>
-                      <Check
-                        variant="switch"
-                        className="ba-header-toggle-label"
-                        checked={showSequenceDiagram}
+                      <SurfaceSelector
+                        id="sequence-view-surface-select"
+                        label="Sequence view"
+                        value={sequenceSurface}
                         onChange={(e) => {
-                          const newVal = e.target.checked;
-                          // Deliberately NOT persisted — same reasoning as
-                          // the Movie reel toggle above.
-                          setShowSequenceDiagram(newVal);
-                          window.dispatchEvent(new CustomEvent("agent-sequence-diagram-toggle", { detail: { on: newVal } }));
-                          if (newVal && showInlineTokenTopology) {
+                          chooseSequenceSurface(e.target.value);
+                          const embedded = e.target.value === "embedded" || e.target.value === "both";
+                          if (embedded && showInlineTokenTopology) {
                             setShowInlineTokenTopology(false);
                             setTopologySurface(showTokenTopology ? "popout" : "none");
                             window.dispatchEvent(new CustomEvent("agent-token-topology-toggle", { detail: { on: false } }));
                           }
-                          // Auto-collapse the left nav so the diagram gets the
-                          // width back; restored when the toggle goes off.
-                          window.dispatchEvent(new CustomEvent("admin-sidenav-collapse-toggle", { detail: { collapsed: newVal } }));
-                          if (!newVal && slowMode) {
+                          window.dispatchEvent(new CustomEvent("admin-sidenav-collapse-toggle", { detail: { collapsed: embedded } }));
+                          if (!embedded && slowMode) {
                             setSlowMode(false);
                             window.dispatchEvent(new CustomEvent("agent-slow-mode-toggle", { detail: { on: false } }));
                           }
                         }}
-                        title="Show a live lifeline sequence diagram instead of the movie reel for this session (returns on reload)"
-                      >
-                        <>Sequence view <span className="ba-surface-badge" aria-hidden="true">Embedded</span></>
-                      </Check>
+                      />
                       {showSequenceDiagram && (
                         <Check
                           variant="switch"
@@ -12645,21 +12692,40 @@ export default function BankingAgent({
         );
       })()}
       <TokenFlowDetailModal
-        isOpen={showTokenChain}
-        onClose={() => setShowTokenChain(false)}
+        isOpen={showTokenChain || showRfcInfoPopout}
+        onClose={() => {
+          setShowTokenChain(false);
+          if (showRfcInfoPopout) chooseRfcInfoSurface(showRfcInfo ? "embedded" : "none");
+        }}
       />
+      {(agentFlowSurface === "embedded" || agentFlowSurface === "both") && (
+        <AgentFlowDiagramPanel embedded />
+      )}
       <SimpleStepperPanel
         isOpen={showSimpleStepper}
         onClose={() => {
           // Persist, same as the "Simple step" switch. Without this the ✕ only
           // closed it for the current render and ba_show_simple_stepper stayed
           // "1", so the panel came back on every page load.
-          try {
-            localStorage.setItem("ba_show_simple_stepper", "0");
-          } catch {}
-          setShowSimpleStepper(false);
+          chooseSimpleStepperSurface(simpleStepperSurface === "both" ? "embedded" : "none");
         }}
       />
+      <DraggableModal
+        isOpen={showSequencePopout}
+        onClose={() => chooseSequenceSurface(sequenceSurface === "both" ? "embedded" : "none")}
+        title="Sequence view"
+        defaultWidth={860}
+        defaultHeight={620}
+        minWidth={480}
+        minHeight={360}
+        storageKey="sequence-view-popout"
+      >
+        <SequenceReelDiagram
+          ariaLabel="Live sequence diagram pop-out"
+          slowMode={slowMode}
+          onToggleSlowMode={() => setSlowMode((value) => !value)}
+        />
+      </DraggableModal>
       {(() => {
         // Copy + builder per modal kind. 'tool' filters are case-insensitive
         // substrings (no asterisk needed); the sw prefixes are case-sensitive.
