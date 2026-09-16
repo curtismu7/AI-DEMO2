@@ -317,7 +317,7 @@ export default function DavinciSdkLoginPage() {
       // Matches the side-nav label (sdkLoginHeadingMatchesNav.test.js). The nav
       // was once renamed while this heading was not, and the page stopped
       // looking like the orchestration app it is.
-      title="DaVinci Orchestration SDK"
+      title="Davinci Orchestration SDK"
       subtitle={
         <>
           The Ping Orchestration SDK runs a PingOne DaVinci flow, and this page draws each of the
