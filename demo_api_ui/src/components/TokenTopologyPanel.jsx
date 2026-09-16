@@ -596,6 +596,7 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
   const [playing, setPlaying] = useState(false);
   const [revealCount, setRevealCount] = useState(null);
   const [speed, setSpeed] = useState(2400);
+  const [fontSize, setFontSize] = useState('medium');
 
   useEffect(() => {
     return tokenChainTraceStore.subscribe(setStoreState);
@@ -696,7 +697,7 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
     : topologyNodes.find((node) => node.step.status === 'active')?.id;
 
   const content = (
-      <div className="ttp-root" data-theme={darkMode ? 'dark' : 'light'}>
+      <div className="ttp-root" data-theme={darkMode ? 'dark' : 'light'} data-font-size={fontSize}>
         {/* Toolbar */}
         <div className="ttp-toolbar">
           <div className="ttp-toolbar-left">
@@ -714,6 +715,11 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
               {TOPOLOGY_SPEEDS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
             <button type="button" className="ttp-start-btn" onClick={handleStartOver} disabled={!totalNodes}>Start over</button>
+            <div className="ttp-font-control" aria-label="Token topology font size">
+              <button type="button" onClick={() => setFontSize('small')} aria-pressed={fontSize === 'small'} title="Use smaller text">A−</button>
+              <button type="button" onClick={() => setFontSize('medium')} aria-pressed={fontSize === 'medium'} title="Use default text">A</button>
+              <button type="button" onClick={() => setFontSize('large')} aria-pressed={fontSize === 'large'} title="Use larger text">A+</button>
+            </div>
             <div className="ttp-theme-control" aria-label="Token topology color theme">
               <span className={!darkMode ? 'active' : ''}>☀️ Light</span>
               <button
