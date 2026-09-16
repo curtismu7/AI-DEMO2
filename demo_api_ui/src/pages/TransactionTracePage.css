@@ -242,6 +242,49 @@
   font-weight: 700;
 }
 
+.ttrace-filmstrip__controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 18px 10px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.ttrace-filmstrip__controls button,
+.ttrace-filmstrip__controls select {
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  padding: 4px 9px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font: inherit;
+}
+
+.ttrace-filmstrip__controls button {
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ttrace-filmstrip__controls button:hover:not(:disabled),
+.ttrace-filmstrip__controls button:focus-visible {
+  border-color: var(--th-border-strong);
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.ttrace-filmstrip__controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ttrace-filmstrip__controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
 .ttrace-filmstrip__track {
   display: grid;
   grid-auto-columns: minmax(220px, 280px);
