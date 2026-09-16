@@ -33,8 +33,8 @@ const INVOCATION_MODES = [
   },
   {
     mode: "Widget",
-    route: "/davinci-login-guide",
-    routeLabel: "/davinci-login-guide",
+    route: "/davinci-widget",
+    routeLabel: "/davinci-widget",
     ui: "DaVinci's own HTML, inside your page",
     returns: "a DaVinci sessionToken — not an OIDC code",
     pick:
@@ -43,8 +43,8 @@ const INVOCATION_MODES = [
   },
   {
     mode: "Orchestration SDK",
-    route: "/davinci-sdk-login",
-    routeLabel: "/davinci-sdk-login",
+    route: "/davinci-orchestration-sdk",
+    routeLabel: "/davinci-orchestration-sdk",
     ui: "you, rendered from collectors",
     returns: "an authorization code, in-page, with no redirect",
     pick:
@@ -158,7 +158,7 @@ export default function OrchestrationSdkExplainerPage() {
           click from a page called "Orchestration SDK" landed on the widget, and
           the SDK's own UI was the one thing not offered. */}
       <p className="osx-cta-row">
-        <a className="osx-cta" href="/davinci-sdk-login">
+        <a className="osx-cta" href="/davinci-orchestration-sdk">
           Open the live SDK login
         </a>
         <span className="osx-cta-note">
@@ -385,11 +385,11 @@ export default function OrchestrationSdkExplainerPage() {
         <h2 className="osx-h2">Where to go next</h2>
         <ul className="osx-links">
           <li>
-            <a href="/davinci-sdk-login">/davinci-sdk-login</a> &mdash; the SDK driving a real flow,
+            <a href="/davinci-orchestration-sdk">/davinci-orchestration-sdk</a> &mdash; the SDK driving a real flow,
             with a live trace of every call it makes.
           </li>
           <li>
-            <a href="/davinci-login-guide">/davinci-login-guide</a> &mdash; the same flow in the hosted widget,
+            <a href="/davinci-widget">/davinci-widget</a> &mdash; the same flow in the hosted widget,
             for contrast.
           </li>
           <li>

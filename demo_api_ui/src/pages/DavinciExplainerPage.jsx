@@ -2,7 +2,7 @@
 // DaVinci or BFF calls, so it works even before the console setup in
 // docs/superpowers/specs/2026-08-17-davinci-orchestration-showcase-design.md's
 // Task 1 is done. Reached from the agent header's More menu when "DaVinci Mode"
-// is on (see AIAgent.js). Optional CTA links to the live widget demo (/davinci-login-guide).
+// is on (see AIAgent.js). Optional CTA links to the live widget demo (/davinci-widget).
 //
 // Visual design ported from the approved mockup (davinci-explainer-mock.html):
 // a breadcrumb "shell" bar, a bordered comparison matrix with a highlighted
@@ -105,7 +105,7 @@ export default function DavinciExplainerPage() {
             twice. The widget link is still here, lower down, as the
             alternative. */}
         <div className="cta-row cta-row-top">
-          <a className="dvx-cta" href="/davinci-sdk-login">
+          <a className="dvx-cta" href="/davinci-orchestration-sdk">
             Run the Orchestration SDK login
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M5 12h14M13 6l6 6-6 6" />
@@ -156,7 +156,7 @@ export default function DavinciExplainerPage() {
                 !important`, which forces white ink no matter what this page
                 sets. Harmless while this page's accent was a dark indigo;
                 white-on-light-blue once the accent became a theme token. */}
-            <a className="dvx-cta dvx-cta-secondary" href="/davinci-login-guide">
+            <a className="dvx-cta dvx-cta-secondary" href="/davinci-widget">
               Or see the hosted widget instead
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14M13 6l6 6-6 6" />

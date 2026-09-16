@@ -60,7 +60,7 @@ export default function DavinciLoginCallback() {
         <button
           type="button"
           className="dvl-retry"
-          onClick={() => navigate("/davinci-login-guide", { replace: true })}
+          onClick={() => navigate("/davinci-widget", { replace: true })}
         >
           Back to sign-in
         </button>

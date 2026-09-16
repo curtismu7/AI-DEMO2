@@ -1,4 +1,4 @@
-// Step Inspector: one card per SDK call on /davinci-sdk-login, built live from
+// Step Inspector: one card per SDK call on /davinci-orchestration-sdk, built live from
 // what actually crossed the wire in this browser.
 //
 // Each card answers the four questions a developer has while learning the

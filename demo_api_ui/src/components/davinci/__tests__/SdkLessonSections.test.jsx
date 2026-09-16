@@ -1,4 +1,4 @@
-// The lesson below Try It Live on /davinci-sdk-login.
+// The lesson below Try It Live on /davinci-orchestration-sdk.
 //
 // Pinned: the sections match the nav (the section ids are shared with the
 // widget lesson), the diagram is valid Mermaid checked with the REAL parser, the
@@ -38,6 +38,7 @@ describe("SdkLessonSections", () => {
     expect(code).toContain("client.flow({ action: collector.output.key })()");
     expect(code).toContain("client.next()");
     expect(code).toContain("client.getCollectors()");
+    expect(code).toContain("generic ActionCollector");
     expect(container.querySelectorAll("#collectors .lesson-code-copy").length).toBeGreaterThanOrEqual(6);
   });
 
@@ -64,7 +65,7 @@ describe("SdkLessonSections", () => {
 
   it("shows the public config the page received, when it has some", () => {
     const { container } = render(
-      <SdkLessonSections config={{ clientId: "client-1", redirectUri: "https://app/davinci-sdk-login", scope: "openid" }} />,
+      <SdkLessonSections config={{ clientId: "client-1", redirectUri: "https://app/davinci-orchestration-sdk", scope: "openid" }} />,
     );
     expect(container.querySelector("#how-its-wired").textContent).toContain("client-1");
     // The demo's own client_id must not reach the customer PDF.

@@ -852,9 +852,11 @@ function AppWithAuth() {
                 <Route path="/davinci-login/callback" element={<DavinciLoginCallbackRoute user={user} logout={logout} />} />
                 <Route path="/davinci-login/confirmed" element={<DavinciLoginConfirmedRoute user={user} logout={logout} />} />
                 <Route path="/davinci-orchestration" element={<DavinciExplainerRoute user={user} logout={logout} />} />
+                <Route path="/davinci-orchestration-sdk" element={<DavinciSdkLoginRoute user={user} logout={logout} />} />
+                <Route path="/davinci-widget" element={<DavinciLoginGuidePageRoute user={user} logout={logout} />} />
                 <Route path="/orchestration-sdk" element={<OrchestrationSdkExplainerRoute user={user} logout={logout} />} />
-                <Route path="/davinci-sdk-login" element={<DavinciSdkLoginRoute user={user} logout={logout} />} />
-                <Route path="/davinci-login-guide" element={<DavinciLoginGuidePageRoute user={user} logout={logout} />} />
+                <Route path="/davinci-sdk-login" element={<Navigate to="/davinci-orchestration-sdk" replace />} />
+                <Route path="/davinci-login-guide" element={<Navigate to="/davinci-widget" replace />} />
                 <Route path="/ciba-approve" element={<CibaApprovalPageRoute />} />
                 <Route
                   path="/code-explorer"

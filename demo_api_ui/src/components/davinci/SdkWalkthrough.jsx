@@ -1,5 +1,5 @@
 // "What just happened": the short run summary shown after a sign-in on
-// /davinci-sdk-login. The teaching lives in the page's lesson sections; this
+// /davinci-orchestration-sdk. The teaching lives in the page's lesson sections; this
 // says what happened on THIS run and links into them.
 //
 // Built only from the page's own SDK trace (the logger, requestMiddleware and

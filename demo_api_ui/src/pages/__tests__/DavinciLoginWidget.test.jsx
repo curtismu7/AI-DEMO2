@@ -284,7 +284,7 @@ describe("DavinciLoginWidget rendering", () => {
   });
 });
 
-// 2026-09-12 tech debt: /davinci-login-guide's "The Flow" section replays a
+// 2026-09-12 tech debt: /davinci-widget's "The Flow" section replays a
 // live trace off these events — there is no BFF→browser channel for this
 // flow, so the page instruments its own calls, same as
 // startMcpToolCall/completeMcpToolCall do for the agent's own fetches.

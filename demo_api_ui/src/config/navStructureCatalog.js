@@ -110,10 +110,10 @@ export const NAV_STRUCTURE_CATALOG = [
       "OAS Demo",
       "Privilege Demo",
       "SDK Login",
-      "DaVinci Login Guide",
-      "Orchestration SDK Login",
+      "DaVinci Widget",
+      "DaVinci Orchestration SDK",
       "Orchestration SDK Guide",
-      "DaVinci Orchestration",
+      "DaVinci Orchestration Overview",
     ],
   },
   {

@@ -1,5 +1,5 @@
-// /davinci-login-guide — the DaVinci widget lesson. Laid out on the shared lesson
-// shell (components/lesson) so it reads as one course with /davinci-sdk-login:
+// /davinci-widget — the DaVinci widget lesson. Laid out on the shared lesson
+// shell (components/lesson) so it reads as one course with /davinci-orchestration-sdk:
 // Try It Live (the widget beside a live Call Inspector), then the lesson
 // sections, then a "What just happened" summary after sign-in.
 import { useCallback, useEffect, useState } from "react";
