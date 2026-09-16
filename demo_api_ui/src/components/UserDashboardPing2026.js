@@ -34,6 +34,11 @@ import {
   persistAgentColWidth,
   readStoredAgentColWidth,
 } from "../utils/agentColumnLayout";
+import {
+  clampDetailPaneHeight,
+  DETAIL_PANE_MIN_HEIGHT,
+  DETAIL_PANE_MAX_VIEWPORT_RATIO,
+} from "../utils/detailPaneResize";
 import { extractRfc9470Challenge } from "../utils/wwwAuthenticate";
 import DashboardTokenRail from "./DashboardTokenRail";
 import TokenChainFilmstrip from "./TokenChainFilmstrip";
@@ -150,6 +155,8 @@ const DEMO_TRANSACTIONS = [
 const MIDDLE_HEIGHT_KEY = "middle_agent_height_px";
 const MIDDLE_DEFAULT_HEIGHT = 720;
 const MIDDLE_MIN_HEIGHT = 420;
+const DETAIL_PANE_HEIGHT_KEY = "dashboard_detail_pane_height_px";
+const DETAIL_PANE_DEFAULT_HEIGHT = 420;
 
 function readStoredMiddleHeight() {
   try {
@@ -161,6 +168,35 @@ function readStoredMiddleHeight() {
     /* ignore */
   }
   return MIDDLE_DEFAULT_HEIGHT;
+}
+
+function readStoredDetailPaneHeight() {
+  try {
+    const n = parseInt(localStorage.getItem(DETAIL_PANE_HEIGHT_KEY) || "", 10);
+    if (Number.isFinite(n)) return clampDetailPaneHeight(n, window.innerHeight);
+  } catch {
+    /* ignore */
+  }
+  return clampDetailPaneHeight(DETAIL_PANE_DEFAULT_HEIGHT, window.innerHeight);
+}
+
+function DetailPaneResizeHandle({ height, onMouseDown, onKeyDown }) {
+  return (
+    <div
+      className="ud-detail-pane-resize-handle"
+      role="separator"
+      tabIndex={0}
+      aria-label="Resize step details pane"
+      aria-orientation="horizontal"
+      aria-valuemin={DETAIL_PANE_MIN_HEIGHT}
+      aria-valuemax={Math.max(DETAIL_PANE_MIN_HEIGHT, Math.round(window.innerHeight * DETAIL_PANE_MAX_VIEWPORT_RATIO))}
+      aria-valuenow={Math.round(height)}
+      onMouseDown={onMouseDown}
+      onKeyDown={onKeyDown}
+    >
+      <span className="ud-detail-pane-resize-grip" aria-hidden="true" />
+    </div>
+  );
 }
 
 const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
@@ -300,6 +336,11 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     typeof window !== "undefined"
       ? readStoredMiddleHeight()
       : MIDDLE_DEFAULT_HEIGHT,
+  );
+  const [detailPaneHeight, setDetailPaneHeight] = useState(() =>
+    typeof window !== "undefined"
+      ? readStoredDetailPaneHeight()
+      : DETAIL_PANE_DEFAULT_HEIGHT,
   );
   const [agentColWidth, setAgentColWidth] = useState(() =>
     typeof window !== "undefined"
@@ -681,6 +722,22 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     }
   }, [middleHeight, agentPlacement]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(DETAIL_PANE_HEIGHT_KEY, String(Math.round(detailPaneHeight)));
+    } catch {
+      /* ignore */
+    }
+  }, [detailPaneHeight]);
+
+  useEffect(() => {
+    const onResize = () => {
+      setDetailPaneHeight((height) => clampDetailPaneHeight(height, window.innerHeight));
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   /** Persist middle agent column width */
   useEffect(() => {
     if (agentPlacement !== "middle") return;
@@ -757,6 +814,40 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     },
     [agentColWidth],
   );
+
+  const onDetailPaneResizeMouseDown = useCallback(
+    (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      const startY = e.clientY;
+      const startHeight = detailPaneHeight;
+      const onMove = (event) => {
+        setDetailPaneHeight(
+          clampDetailPaneHeight(startHeight - (event.clientY - startY), window.innerHeight),
+        );
+      };
+      const onUp = () => {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        dragCleanupRef.current = null;
+      };
+      dragCleanupRef.current = onUp;
+      document.body.style.cursor = "ns-resize";
+      document.body.style.userSelect = "none";
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    },
+    [detailPaneHeight],
+  );
+
+  const onDetailPaneResizeKeyDown = useCallback((e) => {
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    e.preventDefault();
+    const delta = e.key === "ArrowUp" ? 24 : -24;
+    setDetailPaneHeight((height) => clampDetailPaneHeight(height + delta, window.innerHeight));
+  }, []);
 
   // Unmounting mid-drag (role switch, route change with the button held) must
   // not leak the document listeners or leave body cursor/userSelect overridden
@@ -3680,9 +3771,16 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             />
           )}
           {showSequenceDiagram && selectedSeqStep && (
-            <div className="ud-sequence-detail-row">
+            <>
+              <DetailPaneResizeHandle
+                height={detailPaneHeight}
+                onMouseDown={onDetailPaneResizeMouseDown}
+                onKeyDown={onDetailPaneResizeKeyDown}
+              />
+              <div className="ud-sequence-detail-row" style={{ height: detailPaneHeight }}>
               <CollapsibleStepDetail step={selectedSeqStep} />
-            </div>
+              </div>
+            </>
           )}
         </div>
         {renderGlobalModals()}
@@ -3828,9 +3926,16 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             />
           )}
           {showSequenceDiagram && selectedSeqStep && (
-            <div className="ud-sequence-detail-row">
+            <>
+              <DetailPaneResizeHandle
+                height={detailPaneHeight}
+                onMouseDown={onDetailPaneResizeMouseDown}
+                onKeyDown={onDetailPaneResizeKeyDown}
+              />
+              <div className="ud-sequence-detail-row" style={{ height: detailPaneHeight }}>
               <CollapsibleStepDetail step={selectedSeqStep} />
-            </div>
+              </div>
+            </>
           )}
         </div>
       ) : (
@@ -3904,9 +4009,16 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             />
           )}
           {showSequenceDiagram && selectedSeqStep && (
-            <div className="ud-sequence-detail-row">
+            <>
+              <DetailPaneResizeHandle
+                height={detailPaneHeight}
+                onMouseDown={onDetailPaneResizeMouseDown}
+                onKeyDown={onDetailPaneResizeKeyDown}
+              />
+              <div className="ud-sequence-detail-row" style={{ height: detailPaneHeight }}>
               <CollapsibleStepDetail step={selectedSeqStep} />
-            </div>
+              </div>
+            </>
           )}
           </div>
       )}
