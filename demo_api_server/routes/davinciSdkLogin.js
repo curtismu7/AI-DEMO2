@@ -86,7 +86,7 @@ function sdkRedirectUri(req) {
 // that the SERVER remembers what it expects and spends it once, and neither half
 // of that is in the browser.
 router.post('/start', (req, res) => {
-  const { appId } = davinciConfig.login;
+  const { appId, policyIdV1 } = davinciConfig.login;
   if (!appId) {
     // Name the exact key and where it lives. A blanket "set these" cannot
     // distinguish a missing .env entry from a value that never reached
@@ -112,6 +112,7 @@ router.post('/start', (req, res) => {
     }
     return res.json({
       clientId: appId,
+      flowPolicyId: policyIdV1 || null,
       redirectUri,
       scope: SCOPE,
       wellknown: getDiscoveryEndpoint(),

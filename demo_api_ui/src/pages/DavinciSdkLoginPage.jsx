@@ -190,7 +190,11 @@ export default function DavinciSdkLoginPage() {
       // existing PingOne session is reused (the flow completes with no
       // screens), and the page offers to sign out of PingOne to switch users.
       const from = traceRef.current.length;
-      const node = await client.start({ query: { nonce: cfg.nonce } });
+      const query = {
+        nonce: cfg.nonce,
+        ...(cfg.flowPolicyId ? { acr_values: cfg.flowPolicyId } : {}),
+      };
+      const node = await client.start({ query });
       recordStep(client, "start", node, from);
       if (node?.status === "failure") {
         // A 5XX or an unparseable payload lands here, not on 'error'. The SDK
