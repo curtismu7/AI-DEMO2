@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import apiClient from "../../services/apiClient";
 import { ThemeProvider } from "../../context/ThemeContext";
-import TransactionTraceEmbedPage, { facadeHopsToSequenceSteps } from "../TransactionTraceEmbedPage";
+import TransactionTraceEmbedPage, { facadeHopsToSequenceSteps, realFlowHops } from "../TransactionTraceEmbedPage";
 
 vi.mock("../../services/apiClient", () => ({ default: { get: vi.fn() } }));
 
@@ -66,10 +66,14 @@ describe("TransactionTraceEmbedPage", () => {
   it("renders a selectable filmstrip plus form-first MCP evidence once the record exists", async () => {
     apiClient.get.mockResolvedValue({ status: 200, data: RECORD });
     renderAt("cid-1");
-    await screen.findByRole("button", { name: /Frame 5/ });
+    await screen.findByRole("button", { name: "Uncollapse all" });
+    expect(screen.queryByRole("button", { name: /Frame 5/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Uncollapse all" }));
+    await screen.findByRole("button", { name: /Frame 4/ });
     expect(screen.getByText(/Agent Gateway · tools\/call get_my_accounts · client: LM Studio/)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Movie reel" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Frame 3/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Frame 5/ })).not.toBeInTheDocument();
     // MCP panels
     const mcp = screen.getByTestId("embed-mcp");
     expect(mcp).toHaveTextContent("Tools (1)");
@@ -93,6 +97,7 @@ describe("TransactionTraceEmbedPage", () => {
   it("opens the same recorded detail from a movie frame or a sequence step", async () => {
     apiClient.get.mockResolvedValue({ status: 200, data: RECORD });
     renderAt("cid-1");
+    fireEvent.click(await screen.findByRole("button", { name: "Uncollapse all" }));
     await screen.findByRole("button", { name: /Frame 3/ });
 
     fireEvent.click(screen.getByRole("button", { name: /Frame 3/ }));
@@ -107,17 +112,17 @@ describe("TransactionTraceEmbedPage", () => {
   it("provides playback transport for the façade sequence", async () => {
     apiClient.get.mockResolvedValue({ status: 200, data: RECORD });
     renderAt("cid-1");
+    const movieReel = (await screen.findByRole("heading", { name: "Movie reel" })).closest("section");
+    fireEvent.click(within(movieReel).getByRole("button", { name: "Expand" }));
     await screen.findByRole("button", { name: /Frame 3/ });
 
     fireEvent.click(screen.getByRole("button", { name: "Sequence" }));
+    const sequence = screen.getByRole("heading", { name: "Sequence" }).closest("section");
+    fireEvent.click(within(sequence).getByRole("button", { name: "Expand" }));
+    fireEvent.click(within(sequence).getAllByRole("button", { name: "Slow" })[0]);
     expect(screen.getAllByRole("button", { name: "Prev" })).toHaveLength(2);
     expect(screen.getAllByRole("button", { name: "Next" })).toHaveLength(2);
-    expect(screen.getAllByRole("button", { name: "Replay" })).toHaveLength(2);
-
-    fireEvent.click(screen.getAllByRole("button", { name: "Replay" })[0]);
-    expect(screen.getAllByRole("button", { name: "Pause" })).toHaveLength(2);
-    fireEvent.click(screen.getAllByRole("button", { name: "Next" })[0]);
-    expect(screen.getAllByRole("button", { name: "Play" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Slow" })).toHaveLength(2);
   });
 
   it("explains when the ledger feature is off", async () => {
@@ -149,7 +154,8 @@ describe("TransactionTraceEmbedPage", () => {
   it("switches from the movie reel to a complete facade sequence diagram", async () => {
     apiClient.get.mockResolvedValue({ status: 200, data: RECORD });
     renderAt("cid-1");
-    await screen.findByRole("button", { name: /Frame 5/ });
+    fireEvent.click(await screen.findByRole("button", { name: "Uncollapse all" }));
+    await screen.findByRole("button", { name: /Frame 4/ });
     expect(screen.getByRole("button", { name: "Movie reel" })).toHaveAttribute("aria-pressed", "true");
 
     fireEvent.click(screen.getByRole("button", { name: "Sequence" }));
@@ -159,6 +165,23 @@ describe("TransactionTraceEmbedPage", () => {
     expect(localStorage.getItem("ttrace_embed_view")).toBe("sequence");
   });
 
+  it("starts sections collapsed and toggles individual sections", async () => {
+    apiClient.get.mockResolvedValue({ status: 200, data: RECORD });
+    renderAt("cid-1");
+    await screen.findByRole("button", { name: "Uncollapse all" });
+
+    const movieReel = screen.getByRole("heading", { name: "Movie reel" }).closest("section");
+    expect(within(movieReel).getByRole("button", { name: "Expand" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("button", { name: "Collapse all" })).toBeInTheDocument();
+
+    fireEvent.click(within(movieReel).getByRole("button", { name: "Expand" }));
+    expect(within(movieReel).getByRole("button", { name: "Collapse" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: /Frame 3/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Collapse all" }));
+    expect(screen.queryByRole("button", { name: /Frame 3/ })).not.toBeInTheDocument();
+  });
+
   it("maps facade hops to the same lifeline vocabulary as the dashboard sequence", () => {
     expect(facadeHopsToSequenceSteps(RECORD.hops)).toEqual([
       expect.objectContaining({ lane: "MCP", title: "initialize", hopSeq: 1 }),
@@ -166,6 +189,13 @@ describe("TransactionTraceEmbedPage", () => {
       expect.objectContaining({ lane: "AUTHZ", title: "PingOne Authorize — PERMIT" }),
       expect.objectContaining({ lane: "MCP", title: "get_my_accounts" }),
       expect.objectContaining({ lane: "CHAT", title: "tools/call" }),
+    ]);
+  });
+
+  it("keeps façade protocol and response bookkeeping out of the real flow", () => {
+    expect(realFlowHops(RECORD.hops).map((hop) => hop.phase)).toEqual([
+      "gateway.authorize",
+      "mcp.tool",
     ]);
   });
 });

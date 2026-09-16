@@ -112,6 +112,7 @@
     "/agent-builder": "user",
     "/agent-flow-inspector": "public",
     "/agent-gateway-capabilities": "public",
+    "/agent-gateway-authorization": "public",
     "/agent-gateway-inspector": "public",
     "/agent-guardrails": "public",
     "/agent-lifecycle": "admin",

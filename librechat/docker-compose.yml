@@ -16,7 +16,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: ai-demo-librechat:vertical-subfolders
+    image: ai-demo-librechat:persistent-starters
     ports:
       - "127.0.0.1:3080:3080"
     depends_on:

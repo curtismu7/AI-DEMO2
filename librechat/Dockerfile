@@ -1,16 +1,10 @@
-# The upstream LibreChat image supplies the application and its supported
-# Ariakit menu primitives. This narrow overlay only adds grouped model-spec
-# paths (for example, "Demo Steps / Banking") to the selector, then rebuilds
-# the client bundle. It leaves OAuth, MCP, and all server paths upstream.
-FROM registry.librechat.ai/danny-avila/librechat-dev:latest AS builder
+FROM registry.librechat.ai/danny-avila/librechat-dev@sha256:5ce9e7c9e009557d04cfd2c0376b98e814ad3b00323394f006a3876b521bbf96
 
-COPY overrides/CustomGroup.tsx /app/client/src/components/Chat/Menus/Endpoints/components/CustomGroup.tsx
-
-# The upstream runtime image excludes frontend dev dependencies, including
-# Vite. Install them only in this derived image so the changed selector source
-# can be compiled into the browser bundle.
-RUN npm ci --include=dev --ignore-scripts && npm run build:client
-
-FROM registry.librechat.ai/danny-avila/librechat-dev:latest
-
-COPY --from=builder /app/client/dist /app/client/dist
+COPY patches/apply-persistent-conversation-starters.mjs /tmp/apply-persistent-conversation-starters.mjs
+RUN npm ci \
+    && node /tmp/apply-persistent-conversation-starters.mjs \
+    && cd client \
+    && npm run test:ci -- ChatView.spec.tsx --runInBand \
+    && cd .. \
+    && npm run build:client \
+    && npm prune --omit=dev

@@ -5,6 +5,7 @@ import IntentBindingLearningPage from "../pages/IntentBindingLearningPage";
 import A2AProtocolLearningPage from "../pages/A2AProtocolLearningPage";
 import PrivilegeMcpLearningPage from "../pages/PrivilegeMcpLearningPage";
 import AgentGatewayCapabilitiesPage from "../pages/AgentGatewayCapabilitiesPage";
+import AgentGatewayAuthorizationLessonPage from "../pages/AgentGatewayAuthorizationLessonPage";
 import LiveUseCaseWorkbenchPage from "../pages/LiveUseCaseWorkbenchPage";
 import AIAgent from "../components/AIAgent";
 import CodeExplorerPage from "../components/CodeExplorerPage";
@@ -212,6 +213,14 @@ export function AgentGatewayCapabilitiesPageRoute({ user, logout }) {
         <AgentGatewayCapabilitiesPage />
       </AppShell>
     </InspectorFieldProvider>
+  );
+}
+
+export function AgentGatewayAuthorizationLessonPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <AgentGatewayAuthorizationLessonPage />
+    </AppShell>
   );
 }
 

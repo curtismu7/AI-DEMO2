@@ -162,7 +162,7 @@ export default function ActivityLogPanel({ enabled }) {
   return (
     <div className="alp-root">
       <header className="alp-intro">
-        <h1>Application Activity &amp; PingOne Events</h1>
+        <h1>Application Activity</h1>
         <p>
           This is the signed-in user&apos;s application activity across the demo products:
           agent runs, token exchange, authorization, gateway, MCP, consent, and transaction events.

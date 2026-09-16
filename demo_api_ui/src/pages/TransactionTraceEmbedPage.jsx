@@ -24,6 +24,7 @@ const REEL_SPEED_OPTIONS = [
   { value: 4000, label: "4s" },
   { value: 6000, label: "6s (slow)" },
 ];
+const SECTION_KEYS = ["filmstrip", "sequence", "step-detail", "tools", "resources", "request", "response"];
 
 function readFontSize() {
   try {
@@ -59,19 +60,40 @@ export function facadeHopsToSequenceSteps(hops) {
   }));
 }
 
-function TraceSection({ title, explanation, children, className = "" }) {
+export function realFlowHops(hops) {
+  return (hops || []).filter((hop) => ["token.exchange", "gateway.authorize", "privilege.authorize", "mcp.tool"].includes(hop.phase));
+}
+
+function flowServiceLabel(hop) {
+  return hop.phase === "mcp.tool" ? "MCP tool" : (hop.service || "MCP");
+}
+
+function TraceSection({ sectionKey, title, explanation, children, className = "", collapsed, onToggle }) {
+  const headingId = `ttrace-section-heading-${sectionKey}`;
+  const contentId = `ttrace-section-content-${sectionKey}`;
   return (
-    <section className={`ttrace-facade-section ${className}`.trim()}>
+    <section className={`ttrace-facade-section${collapsed ? " is-collapsed" : ""} ${className}`.trim()}>
       <header className="ttrace-facade-section__header">
-        <h2>{title}</h2>
-        <p>{explanation}</p>
+        <div className="ttrace-facade-section__heading">
+          <h2 id={headingId}>{title}</h2>
+          <button
+            type="button"
+            className="ttrace-section-toggle"
+            aria-expanded={!collapsed}
+            aria-controls={contentId}
+            onClick={() => onToggle(sectionKey)}
+          >
+            {collapsed ? "Expand" : "Collapse"}
+          </button>
+        </div>
+        {!collapsed ? <p>{explanation}</p> : null}
       </header>
-      {children}
+      {!collapsed ? <div id={contentId} className="ttrace-facade-section__content" aria-labelledby={headingId}>{children}</div> : null}
     </section>
   );
 }
 
-export function HopFilmstrip({ hops, selectedSeq, onSelect, showService = true }) {
+export function HopFilmstrip({ hops, selectedSeq, onSelect, showService = true, collapsed = false, onToggle = () => {} }) {
   const [revealedCount, setRevealedCount] = useState(hops.length);
   const [playing, setPlaying] = useState(false);
   const [speedMs, setSpeedMs] = useState(2600);
@@ -108,15 +130,21 @@ export function HopFilmstrip({ hops, selectedSeq, onSelect, showService = true }
   const visibleHops = hops.slice(0, revealedCount);
 
   return (
-    <section className="ttrace-filmstrip" aria-label="Recorded façade hops">
+    <section className={`ttrace-filmstrip${collapsed ? " is-collapsed" : ""}`} aria-label="Recorded MCP hops">
       <header className="ttrace-filmstrip__header">
         <div>
           <h2>Movie reel</h2>
-          <p>Each frame is a recorded façade hop. Select a frame to inspect its recorded identity, decision, and payload.</p>
+          {!collapsed ? <p>Each frame is a meaningful step in the request. Select a frame to inspect its recorded identity, decision, and payload.</p> : null}
         </div>
-        <span className="ttrace-filmstrip__count">{hops.length} frames</span>
+        <div className="ttrace-filmstrip__actions">
+          <span className="ttrace-filmstrip__count">{hops.length} frames</span>
+          <button type="button" className="ttrace-section-toggle" aria-expanded={!collapsed} onClick={() => onToggle("filmstrip")}>
+            {collapsed ? "Expand" : "Collapse"}
+          </button>
+        </div>
       </header>
-      <div className="ttrace-filmstrip__controls" role="group" aria-label="Movie reel playback">
+      {!collapsed ? <>
+        <div className="ttrace-filmstrip__controls" role="group" aria-label="Movie reel playback">
         <button type="button" onClick={() => moveToFrame(revealedCount - 1)} disabled={revealedCount <= 0}>
           Prev
         </button>
@@ -135,8 +163,8 @@ export function HopFilmstrip({ hops, selectedSeq, onSelect, showService = true }
           </select>
         </label>
         <span aria-live="polite">{Math.min(revealedCount, hops.length)}/{hops.length} frames</span>
-      </div>
-      <div className="ttrace-filmstrip__track">
+        </div>
+        <div className="ttrace-filmstrip__track">
         {visibleHops.map((hop) => (
           <button
             type="button"
@@ -146,7 +174,7 @@ export function HopFilmstrip({ hops, selectedSeq, onSelect, showService = true }
             aria-pressed={hop.seq === selectedSeq}
           >
             <span className="ttrace-film-frame__number">Frame {hop.seq}</span>
-            {showService ? <strong>{hop.service || "Façade"}</strong> : null}
+            {showService ? <strong>{hop.service || "Façade"}</strong> : <strong>{flowServiceLabel(hop)}</strong>}
             <span className="ttrace-film-frame__phase">{hop.phase || "recorded hop"}</span>
             <span className="ttrace-film-frame__operation">{hop.op || "No operation recorded"}</span>
             <span className="ttrace-film-frame__meta">
@@ -155,12 +183,13 @@ export function HopFilmstrip({ hops, selectedSeq, onSelect, showService = true }
             </span>
           </button>
         ))}
-      </div>
+        </div>
+      </> : null}
     </section>
   );
 }
 
-export function SelectedHopDetail({ hop }) {
+export function SelectedHopDetail({ hop, collapsed = false, onToggle = () => {} }) {
   if (!hop) return null;
   const recorded = hop.details && typeof hop.details === "object"
     ? hop.details
@@ -178,9 +207,12 @@ export function SelectedHopDetail({ hop }) {
 
   return (
     <TraceSection
+      sectionKey="step-detail"
       title={`Step ${hop.seq}: ${hop.op || hop.phase || "Recorded hop"}`}
       explanation="This is the exact evidence captured for the selected step. The form view is optimized for scanning; JSON preserves the full recorded object."
       className="ttrace-step-detail"
+      collapsed={collapsed}
+      onToggle={onToggle}
     >
       <div className="ttrace-step-detail__overview">
         <PayloadFormView value={overview} />
@@ -200,6 +232,8 @@ export default function TransactionTraceEmbedPage() {
   const [status, setStatus] = useState("waiting"); // waiting | ok | disabled | error
   const [fontSize, setFontSize] = useState(readFontSize);
   const [selectedHopSeq, setSelectedHopSeq] = useState(null);
+  const [slowMode, setSlowMode] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState(() => new Set(SECTION_KEYS));
   const [view, setView] = useState(() => {
     try {
       return localStorage.getItem(VIEW_STORAGE_KEY) === "sequence" ? "sequence" : "reel";
@@ -224,6 +258,19 @@ export default function TransactionTraceEmbedPage() {
     } catch {
       // Storage can be unavailable; the in-memory choice still applies.
     }
+  };
+
+  const toggleSection = (sectionKey) => {
+    setCollapsedSections((previous) => {
+      const next = new Set(previous);
+      if (next.has(sectionKey)) next.delete(sectionKey);
+      else next.add(sectionKey);
+      return next;
+    });
+  };
+
+  const setAllSectionsCollapsed = (collapsed) => {
+    setCollapsedSections(new Set(collapsed ? SECTION_KEYS : []));
   };
 
   useEffect(() => {
@@ -279,7 +326,8 @@ export default function TransactionTraceEmbedPage() {
     },
     client: meta.client || null,
   };
-  const sequenceSteps = facadeHopsToSequenceSteps(hops);
+  const flowHops = realFlowHops(hops);
+  const flowSequenceSteps = facadeHopsToSequenceSteps(flowHops);
   const selectedHop = hops.find((hop) => hop.seq === selectedHopSeq) || null;
   const resourcePayload = resources || {
     availability: advertisesResources ? "Supported, but not listed during this recorded session." : "Not advertised by this MCP server.",
@@ -314,6 +362,10 @@ export default function TransactionTraceEmbedPage() {
             >
               {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
             </button>
+            <div className="ttrace-collapse-controls" role="group" aria-label="Section visibility controls">
+              <button type="button" onClick={() => setAllSectionsCollapsed(true)}>Collapse all</button>
+              <button type="button" onClick={() => setAllSectionsCollapsed(false)}>Uncollapse all</button>
+            </div>
           </div>
         </div>
         <p className="ttrace-sub">
@@ -337,32 +389,54 @@ export default function TransactionTraceEmbedPage() {
       ) : null}
 
       {hops.length && view === "reel" ? (
-        <HopFilmstrip hops={hops} selectedSeq={selectedHopSeq} onSelect={setSelectedHopSeq} />
+        <HopFilmstrip
+          hops={flowHops}
+          selectedSeq={selectedHopSeq}
+          onSelect={setSelectedHopSeq}
+          collapsed={collapsedSections.has("filmstrip")}
+          onToggle={toggleSection}
+        />
       ) : null}
 
       {hops.length && view === "sequence" ? (
-        <section className="ttrace-sequence" data-testid="facade-sequence">
-          <SequenceReelDiagram
-            externalSteps={sequenceSteps}
-            externalRunId={correlationId}
-            externalTraceFinished={status === "ok"}
-            slowMode
-            selectedStepId={selectedHop ? `facade-hop-${selectedHop.seq}` : undefined}
-            onSelectStep={(step) => setSelectedHopSeq(step.hopSeq ?? null)}
-            zoomStorageKey="ttrace_embed_sequence_zoom"
-            initialZoom={100}
-            ariaLabel="Sequence diagram of this facade trace"
-          />
-        </section>
+        <TraceSection
+          sectionKey="sequence"
+          title="Sequence"
+          explanation="The same recorded hops arranged across the client, MCP, BFF, authorization, and gateway lanes."
+          collapsed={collapsedSections.has("sequence")}
+          onToggle={toggleSection}
+        >
+          <section className="ttrace-sequence" data-testid="facade-sequence">
+            <SequenceReelDiagram
+              externalSteps={flowSequenceSteps}
+              externalRunId={correlationId}
+              externalTraceFinished={status === "ok"}
+              slowMode={slowMode}
+              onToggleSlowMode={() => setSlowMode((current) => !current)}
+              selectedStepId={selectedHop ? `facade-hop-${selectedHop.seq}` : undefined}
+              onSelectStep={(step) => setSelectedHopSeq(step.hopSeq ?? null)}
+              zoomStorageKey="ttrace_embed_sequence_zoom"
+              initialZoom={100}
+              ariaLabel="Sequence diagram of this facade trace"
+            />
+          </section>
+        </TraceSection>
       ) : null}
 
-      <SelectedHopDetail hop={selectedHop} />
+      <SelectedHopDetail
+        hop={selectedHop}
+        collapsed={collapsedSections.has("step-detail")}
+        onToggle={toggleSection}
+      />
 
       {request ? (
         <section className="ttrace-detail" data-testid="embed-mcp">
           <TraceSection
+            sectionKey="tools"
             title={`Tools${tools ? ` (${tools.length})` : ""}`}
             explanation="Functions the MCP server exposed when the façade observed this request. These are the operations available to the selected agent."
+            collapsed={collapsedSections.has("tools")}
+            onToggle={toggleSection}
           >
             {tools ? (
               <ul className="ttrace-tools-list">
@@ -378,20 +452,29 @@ export default function TransactionTraceEmbedPage() {
             )}
           </TraceSection>
           <TraceSection
+            sectionKey="resources"
             title={`Resources${resources ? ` (${resources.length})` : ""}`}
             explanation="MCP resources are server-provided reference records. Form is the readable inventory; JSON keeps the server’s exact resource list."
+            collapsed={collapsedSections.has("resources")}
+            onToggle={toggleSection}
           >
             <FormJsonToggle value={resourcePayload} ariaLabel="Resources view" defaultView="form" />
           </TraceSection>
           <TraceSection
+            sectionKey="request"
             title="Request"
             explanation="What the client asked the façade to send: the selected tool, its arguments, and the route chosen for this call."
+            collapsed={collapsedSections.has("request")}
+            onToggle={toggleSection}
           >
             <FormJsonToggle value={requestDetails} ariaLabel="Request view" defaultView="form" />
           </TraceSection>
           <TraceSection
+            sectionKey="response"
             title={tool ? `Response · HTTP ${tool.details?.httpStatus ?? "—"} · ${tool.durationMs ?? "—"}ms` : "Response · pending"}
             explanation="What returned from the tool path. Form makes the result easy to scan; JSON preserves the complete unedited response."
+            collapsed={collapsedSections.has("response")}
+            onToggle={toggleSection}
           >
             <FormJsonToggle value={responsePayload} ariaLabel="Response view" defaultView="form" />
           </TraceSection>

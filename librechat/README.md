@@ -2,12 +2,15 @@
 
 A standalone LibreChat + MongoDB Docker Compose stack, separate from this
 repo's root `docker-compose.yml` / `run-docker.sh`. It exists to prove
-this demo's MCP servers work against LibreChat's own OAuth (RFC 9728 discovery
-+ DCR + PKCE) against the `demo_api_server` recording façade
-(`/mcp-facade/:door/mcp`, `routes/mcpFacade.js`). The stack uses a narrow
-client-image overlay solely to render model-spec paths such as `Demo Steps /
-Banking` as nested folders; its server, OAuth, MCP, and agent execution
-behavior remain the upstream image.
+this demo's MCP servers work against a real, minimally patched MCP
+client — LibreChat's own OAuth (RFC 9728 discovery + DCR + PKCE) against
+the `demo_api_server` recording façade (`/mcp-facade/:door/mcp`,
+`routes/mcpFacade.js`), never a fork of LibreChat itself.
+
+The local image applies one UI-only overlay: an agent's conversation starters
+remain visible after each response completes and stay hidden while a response
+is generating. The upstream image is digest-pinned so the patch fails loudly
+during `docker compose build` if its target source changes.
 
 Two targets, one compose file: the local docker stack (`api.ping.demo:3001`)
 or the SE AWS cluster (`ai-demo.ping-devops.com`) — see "Docker vs pingaws"
@@ -75,10 +78,15 @@ below.
    Money Movement changes the demo balances.
 
    Three ways users find the prompts:
-   - **Demos menu** — the model selector lists every agent grouped by area
-     (`modelSpecs` in `librechat.yaml`); picking one opens it on a new chat
-     with its starters. The specs hold agent ids from this machine's Mongo
-     volume: after a fresh volume, copy the ids the seed prints into that list.
+   - **Demos menu** — the model selector lists agents in nested folders
+     (`modelSpecs` in `librechat.yaml`): `Demo Steps / <vertical> / Façade`,
+     `Agents / <vertical> / Direct|Façade`, `Connections / Privilege / ...`,
+     `Security & Policy / <vertical>`, and `Agent to Agent / <vertical>`.
+     Mac-only choices are under `Connections / Mac Agent` (the host-local
+     OpenSearch path and local model proxy).
+     Picking one opens it on a new chat with its starters. The specs hold agent
+     ids from this machine's Mongo volume: after a fresh volume, copy the ids
+     the seed prints into that list.
    - **Prompts library** — type `/` in any chat (new or existing) to search
      every starter, named `<agent> · <prompt>` and grouped by category. It
      fills the message box; pick the named agent first.
@@ -133,12 +141,9 @@ below.
      the run stops at human consent instead of moving money.
 
    It also creates Super Sports Policy Guardrails (on `super-sports-gateway`)
-   and three OpenSearch agents: OpenSearch22 · Direct and OpenSearch (all
-   tools) · Privilege expose all nine tools, while OpenSearch22 · Privilege
-   exposes only the three policy-approved health, index-list, and count tools.
-   Their descriptions stay concise instead of repeating their prompts above
-   the starter cards. The all-tools Privilege lane runs through the recording
-   façade and links each answer to its transaction-trace page.
+   and three OpenSearch agents — OpenSearch · Direct, OpenSearch · via
+   Privilege, OpenSearch · Privilege opensearch22 — with the same three
+   starters, one per door.
 
    Banking and CareConnect (healthcare) agents: Banking Account Details,
    CareConnect Health Data, CareConnect Coverage & Claims and CareConnect
@@ -177,12 +182,9 @@ only with no cluster equivalent (`aidemo-mcp`, `opensearch-direct`) — see
 `librechat.pingaws.yaml`'s own header comment.
 
 Switching an **already-running** container needs an explicit restart —
-`docker restart librechat librechat-oauth-loopback` — since `CONFIG_PATH` and
-the mounted `.env` are read once at Node startup; changing them and re-running
-`up -d` alone won't recreate a container whose compose-level config didn't
-change. Restart both together: the loopback sidecar shares LibreChat's network
-namespace, and leaving it attached to the pre-restart namespace makes the
-OAuth broker at `localhost:3005` unreachable.
+`docker restart librechat` — since `CONFIG_PATH` and the mounted `.env` are
+read once at Node startup; changing them and re-running `up -d` alone won't
+recreate a container whose compose-level config didn't change.
 
 ## Known door caveats
 
