@@ -169,7 +169,8 @@ describe('GatewayVerdicts', () => {
     expect(screen.queryByTestId('gwv-error')).not.toBeInTheDocument();
     // And it offers the door's own login, not prose directions.
     expect(screen.getByTestId('gwv-login-link').getAttribute('href'))
-      .toContain('/api/mcp/inspector/privilege/login');
+      .toBe('/api/mcp/inspector/privilege/login?profile=built-in-privilege-opensearch&returnTo=%2Fllm-gateway');
+    expect(screen.getByTestId('gwv-needs-auth')).toHaveTextContent(/app sign-in is separate/i);
   });
 
   it('still treats a 401 as needing sign-in, for transports that use one', async () => {

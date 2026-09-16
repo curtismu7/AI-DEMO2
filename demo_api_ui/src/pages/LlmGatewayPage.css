@@ -339,7 +339,7 @@
    here, answered there" reads in a single glance. */
 .lgw-compare {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.75rem;
 }
 
@@ -378,6 +378,12 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--th-text);
+}
+
+.lgw-compare__unavailable {
+  margin: 0;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
 }
 
 /* Run all: one row per Library attack, scored against the catalog. A row
@@ -648,6 +654,10 @@
   color: var(--th-text);
 }
 
+.lgw-composer--wide {
+  flex-wrap: wrap;
+}
+
 .lgw-composer textarea {
   flex: 1 1 auto;
   min-width: 0;
@@ -660,6 +670,11 @@
   font-size: var(--font-size-base);
   line-height: 1.4;
   resize: vertical;
+}
+
+.lgw-composer--wide textarea.lgw-composer__prompt {
+  flex-basis: 100%;
+  order: -1;
 }
 
 /* 🔍 on: the whole prompt, large. field-sizing grows the box to its content

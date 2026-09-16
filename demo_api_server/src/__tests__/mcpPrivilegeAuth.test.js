@@ -156,6 +156,13 @@ describe('mcpPrivilegeAuth', () => {
       expect(session.privilegeMcpOAuth.codeVerifier).toBeTruthy();
     });
 
+    it('stashes a safe returnTo so the door login can return to its caller', async () => {
+      const { app, session } = buildApp();
+      await request(app).get(`/login?profile=${BANKING_PROFILE_ID}&returnTo=%2Fllm-gateway`);
+
+      expect(session.privilegeMcpOAuth.returnTo).toBe('/llm-gateway');
+    });
+
     it('registers the DCR client only once per door across repeated logins (process-lifetime cache)', async () => {
       const { app } = buildApp();
       await request(app).get(`/login?profile=${BANKING_PROFILE_ID}`);
@@ -224,6 +231,21 @@ describe('mcpPrivilegeAuth', () => {
       expect(session.privilegeMcpTokens[BANKING_PROFILE_ID].expiresAt).toBeGreaterThan(Date.now());
       expect(session.privilegeMcpTokens[GRAFANA_PROFILE_ID]).toBeUndefined();
       expect(session.privilegeMcpOAuth).toBeUndefined();
+    });
+
+    it('returns to the requesting page after a successful door login', async () => {
+      const built = buildApp();
+      await request(built.app).get(`/login?profile=${BANKING_PROFILE_ID}&returnTo=%2Fllm-gateway`);
+      const state = built.session.privilegeMcpOAuth.state;
+      mockAxiosPost.mockImplementation((url) => {
+        if (url === `${BANKING_ISSUER}/register`) return Promise.resolve({ data: { ...REGISTRATION } });
+        return Promise.resolve({ data: { access_token: 'banking-token', expires_in: 3600 } });
+      });
+
+      const res = await request(built.app).get(`/callback?code=abc123&state=${state}`);
+
+      expect(res.status).toBe(302);
+      expect(res.headers.location).toBe('/llm-gateway?privilege_login=success');
     });
 
     it('a second door logging in adds its own token without touching the first', async () => {

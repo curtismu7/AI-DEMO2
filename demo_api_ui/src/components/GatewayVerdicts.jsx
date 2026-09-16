@@ -49,6 +49,11 @@ const EVENT_TONE = {
   llm_request_alert: 'warn',
 };
 
+function findingsLoginUrl(loginUrl) {
+  if (!loginUrl) return null;
+  return `${loginUrl}${loginUrl.includes('?') ? '&' : '?'}returnTo=${encodeURIComponent('/llm-gateway')}`;
+}
+
 export function frameworkLabel(framework) {
   return FRAMEWORK_LABELS[framework] || framework;
 }
@@ -156,7 +161,7 @@ export default function GatewayVerdicts({ fetchImpl }) {
       const toolsBody = await toolsRes.json().catch(() => ({}));
       const gate = authGate(toolsRes, toolsBody);
       if (gate) {
-        setLoginUrl(gate.loginUrl || null);
+        setLoginUrl(findingsLoginUrl(gate.loginUrl));
         setState('needsAuth');
         return;
       }
@@ -191,7 +196,7 @@ export default function GatewayVerdicts({ fetchImpl }) {
       const invokeBody = await invokeRes.json().catch(() => ({}));
       const invokeGate = authGate(invokeRes, invokeBody);
       if (invokeGate) {
-        setLoginUrl(invokeGate.loginUrl || null);
+        setLoginUrl(findingsLoginUrl(invokeGate.loginUrl));
         setState('needsAuth');
         return;
       }
@@ -222,8 +227,9 @@ export default function GatewayVerdicts({ fetchImpl }) {
 
       {state === 'needsAuth' ? (
         <p className="gwv__note gwv__note--auth" data-testid="gwv-needs-auth">
-          This door needs its own sign-in before it will answer &mdash; its authorization server
-          offers no client-credentials grant, so the panel cannot populate on its own.{' '}
+          Your app sign-in is separate from this findings door. This Privilege/OpenSearch door
+          needs its own OAuth token before it will answer; its authorization server offers no
+          client-credentials grant, so the panel cannot populate on its own.{' '}
           {loginUrl ? (
             <a className="gwv__login" href={loginUrl} data-testid="gwv-login-link">
               Sign in to this door
