@@ -3,14 +3,9 @@ import { render, screen } from '@testing-library/react';
 import AgentGatewayCapabilitiesPage from '../AgentGatewayCapabilitiesPage';
 
 describe('AgentGatewayCapabilitiesPage', () => {
-  it('renders the Agent Gateway Inspector title and Open Inspector button', () => {
+  it('opens the Agent Gateway Inspector directly', () => {
     render(<AgentGatewayCapabilitiesPage />);
-    expect(screen.getByRole('heading', { level: 1, name: /Agent Gateway Inspector/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Open Inspector/ })).toBeInTheDocument();
-  });
-
-  it('shows intro text describing the inspector', () => {
-    render(<AgentGatewayCapabilitiesPage />);
-    expect(screen.getByText(/Test and debug MCP tools/i)).toBeInTheDocument();
+    expect(screen.getByText('Agent Gateway Inspector')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Open Inspector/ })).not.toBeInTheDocument();
   });
 });

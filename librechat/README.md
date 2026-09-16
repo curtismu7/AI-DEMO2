@@ -2,10 +2,15 @@
 
 A standalone LibreChat + MongoDB Docker Compose stack, separate from this
 repo's root `docker-compose.yml` / `run-docker.sh`. It exists to prove
-this demo's MCP servers work against a real, unmodified, off-the-shelf MCP
+this demo's MCP servers work against a real, minimally patched MCP
 client — LibreChat's own OAuth (RFC 9728 discovery + DCR + PKCE) against
 the `demo_api_server` recording façade (`/mcp-facade/:door/mcp`,
 `routes/mcpFacade.js`), never a fork of LibreChat itself.
+
+The local image applies one UI-only overlay: an agent's conversation starters
+remain visible after each response completes and stay hidden while a response
+is generating. The upstream image is digest-pinned so the patch fails loudly
+during `docker compose build` if its target source changes.
 
 Two targets, one compose file: the local docker stack (`api.ping.demo:3001`)
 or the SE AWS cluster (`ai-demo.ping-devops.com`) — see "Docker vs pingaws"
@@ -73,10 +78,15 @@ below.
    Money Movement changes the demo balances.
 
    Three ways users find the prompts:
-   - **Demos menu** — the model selector lists every agent grouped by area
-     (`modelSpecs` in `librechat.yaml`); picking one opens it on a new chat
-     with its starters. The specs hold agent ids from this machine's Mongo
-     volume: after a fresh volume, copy the ids the seed prints into that list.
+   - **Demos menu** — the model selector lists agents in nested folders
+     (`modelSpecs` in `librechat.yaml`): `Demo Steps / <vertical> / Façade`,
+     `Agents / <vertical> / Direct|Façade`, `Connections / Privilege / ...`,
+     `Security & Policy / <vertical>`, and `Agent to Agent / <vertical>`.
+     Mac-only choices are under `Connections / Mac Agent` (the host-local
+     OpenSearch path and local model proxy).
+     Picking one opens it on a new chat with its starters. The specs hold agent
+     ids from this machine's Mongo volume: after a fresh volume, copy the ids
+     the seed prints into that list.
    - **Prompts library** — type `/` in any chat (new or existing) to search
      every starter, named `<agent> · <prompt>` and grouped by category. It
      fills the message box; pick the named agent first.
@@ -96,6 +106,39 @@ below.
    so run it before a demo rather than promising it. The local copies need the
    host model tiers running, and gpt-oss-20b can take several minutes to
    answer.
+
+   **Agent-to-agent handoffs.** Three agents carry LibreChat handoff edges
+   (`handoffs` in the seed); the source agent gets an `lc_transfer_to_<agent>`
+   tool, and once it transfers, the target agent's own tools run in the same
+   chat with no new sign-in or consent:
+   - **Handoff · Account Viewer** — read-only; "Move $50 from checking to
+     savings" transfers to Money Movement, which runs `create_transfer`.
+   - **Handoff · Front Desk** — no tools; routes to Everyday Banking, Super
+     Sports Gear & Rentals or CareConnect Health Data.
+   - **Handoff · Super Sports Checkout** — reads gear orders, then hands
+     payment to Money Movement, so one chat reaches two business units.
+     "Withdraw $449 from checking to pay for order 2002" runs
+     `create_withdrawal` and stops at the demo's human-consent step
+     (`hitl_required`) — approve it on the web dashboard.
+
+   Account Viewer and Checkout change the demo balances. To see each step,
+   look for `Transferred to <agent>` between the two agents' tool calls.
+
+   **Unattended runs.** Scheduling is switched on in `librechat.yaml`
+   (`interface.schedules`, at most 3 schedules per user, hourly at most); without
+   that key LibreChat answers 403 "Scheduled chats are disabled". The seed also
+   creates three schedules owned by the seed account (sign in as it to see them
+   under Schedules), all **disabled** so nothing fires by surprise. Each run acts as the schedule's owner with
+   nobody present, reusing the owner's stored MCP sign-in; LibreChat checks the
+   agent's MCP servers before every run. Use **Run now** to demo one:
+   - **Morning balance report** — Everyday Banking reads balances and
+     transactions (daily 08:00 when enabled).
+   - **Daily rentals check** — Super Sports Policy Guardrails on
+     `super-sports-gateway` (daily 09:00). Connect the seed account to that
+     door once first; with no stored sign-in the run fails the MCP check.
+   - **Weekly savings sweep** — Money Movement, "Transfer $750 from checking to
+     savings" (Mondays 07:00). The amount is above the consent threshold, so
+     the run stops at human consent instead of moving money.
 
    It also creates Super Sports Policy Guardrails (on `super-sports-gateway`)
    and three OpenSearch agents — OpenSearch · Direct, OpenSearch · via

@@ -555,7 +555,7 @@ export const agentFlowDiagram = {
   },
 
   /**
-   * DaVinci widget sign-in (/davinci-login-guide, routes/davinciLogin.js).
+   * DaVinci widget sign-in (/davinci-widget, routes/davinciLogin.js).
    * Called from DavinciLoginWidget.jsx around its own fetch/skRenderScreen
    * calls — there is no BFF→browser channel for this flow, so the page
    * instruments itself, same as startMcpToolCall/completeMcpToolCall do for

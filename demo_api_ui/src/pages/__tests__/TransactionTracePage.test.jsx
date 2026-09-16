@@ -72,9 +72,31 @@ describe("TransactionTracePage", () => {
     await waitFor(() => expect(screen.getByText("c-fail")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: /c-fail/ }));
 
-    await waitFor(() => expect(screen.getByText("authz-server")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("authz-server").length).toBeGreaterThan(0));
     expect(screen.getByText("mcp-server")).toBeInTheDocument();
     expect(screen.getByText(/❌ FAIL/)).toBeInTheDocument();
+  });
+
+  it("provides the same movie-reel and sequence playback controls as the embedded façade page", async () => {
+    vi.stubGlobal("fetch", vi.fn((url) =>
+      String(url).includes("/c-fail") ? jsonOk(DETAIL_FAIL) : jsonOk(LIST)));
+    render(<TransactionTracePage />);
+    await waitFor(() => expect(screen.getByText("c-fail")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /c-fail/ }));
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Movie reel" })).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /Frame 3/ })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Sequence" }));
+    expect(screen.getByRole("img", { name: "Sequence diagram of this transaction trace" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Prev" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Next" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "Replay" })).toHaveLength(2);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Replay" })[0]);
+    expect(screen.getAllByRole("button", { name: "Pause" })).toHaveLength(2);
+    fireEvent.click(screen.getAllByRole("button", { name: "Next" })[0]);
+    expect(screen.getAllByRole("button", { name: "Play" })).toHaveLength(2);
   });
 
   it("renders a violation band anchored at the offending hop", async () => {
@@ -150,7 +172,7 @@ describe("TransactionTracePage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
 
-    await waitFor(() => expect(screen.getByText("authz-server")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("authz-server").length).toBeGreaterThan(0));
     expect(screen.queryByTestId("detail-error")).not.toBeInTheDocument();
   });
 

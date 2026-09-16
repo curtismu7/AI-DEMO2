@@ -164,6 +164,7 @@ import PingCliPage from "./components/PingCliPage";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import NotebookLmPage from "./pages/NotebookLmPage";
 import AgenticAccessConsolePage from "./pages/AgenticAccessConsolePage";
+import PingAiProductPage from "./pages/PingAiProductPage";
 import AdminRoute from "./routes/AdminRoute";
 import { DashboardContent } from "./routes/CustomerRoutes";
 import EducationRoutes from "./routes/EducationRoutes";
@@ -200,6 +201,7 @@ import PublicRoutes, {
   OASDemoPageRoute,
   PrivilegeMcpLearningPageRoute,
   AgentGatewayCapabilitiesPageRoute,
+  AgentGatewayAuthorizationLessonPageRoute,
   OAuthAcademyPageRoute,
   PrivilegeDemoPageRoute,
   EnterpriseMcpDemoPageRoute,
@@ -800,6 +802,12 @@ function AppWithAuth() {
                   }
                 />
                 <Route
+                  path="/agent-gateway-authorization"
+                  element={
+                    <AgentGatewayAuthorizationLessonPageRoute user={user} logout={logout} />
+                  }
+                />
+                <Route
                   path="/token-exchange-tester"
                   element={
                     <TokenExchangeTesterPageRoute user={user} logout={logout} />
@@ -847,9 +855,11 @@ function AppWithAuth() {
                 <Route path="/davinci-login/callback" element={<DavinciLoginCallbackRoute user={user} logout={logout} />} />
                 <Route path="/davinci-login/confirmed" element={<DavinciLoginConfirmedRoute user={user} logout={logout} />} />
                 <Route path="/davinci-orchestration" element={<DavinciExplainerRoute user={user} logout={logout} />} />
+                <Route path="/davinci-orchestration-sdk" element={<DavinciSdkLoginRoute user={user} logout={logout} />} />
+                <Route path="/davinci-widget" element={<DavinciLoginGuidePageRoute user={user} logout={logout} />} />
                 <Route path="/orchestration-sdk" element={<OrchestrationSdkExplainerRoute user={user} logout={logout} />} />
-                <Route path="/davinci-sdk-login" element={<DavinciSdkLoginRoute user={user} logout={logout} />} />
-                <Route path="/davinci-login-guide" element={<DavinciLoginGuidePageRoute user={user} logout={logout} />} />
+                <Route path="/davinci-sdk-login" element={<Navigate to="/davinci-orchestration-sdk" replace />} />
+                <Route path="/davinci-login-guide" element={<Navigate to="/davinci-widget" replace />} />
                 <Route path="/ciba-approve" element={<CibaApprovalPageRoute />} />
                 <Route
                   path="/code-explorer"
@@ -893,6 +903,12 @@ function AppWithAuth() {
                     )
                   }
                 />
+                <Route path="/ai-products/core" element={<PingAiProductPage product="core" />} />
+                <Route path="/ai-products/gateway" element={<PingAiProductPage product="gateway" />} />
+                <Route path="/ai-products/authorize" element={<PingAiProductPage product="authorize" />} />
+                <Route path="/ai-products/privilege-llm" element={<PingAiProductPage product="privilegeLlm" />} />
+                <Route path="/ai-products/privilege-a2a" element={<PingAiProductPage product="privilegeA2a" />} />
+                <Route path="/ai-products/privilege-mcp" element={<PingAiProductPage product="privilegeMcp" />} />
                 <Route
                   path="/reports"
                   element={<ReportsPageRoute user={user} logout={logout} />}

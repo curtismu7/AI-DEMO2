@@ -28,6 +28,22 @@ Two more gaps from the same plan, found in final review:
 **Why it wasn't fixed now.** Confirmed scope decision: adding Privilege as a full, pipelined third transport (alongside `callToolLocal` and `callToolViaGateway`) was deferred to avoid scope creep and regression risk on the protected §1 core. The simpler direct endpoint serves the demo's immediate need. The duplication and bundling gaps were accepted as the cost of an isolated, low-risk opt-in route (`FULL_AGENT_ROUTES`) while it stays empty.
 
 **Real fix.** Create a third dispatch mode inside `mcpToolPipeline.js` for Privilege-routed tool calls, thread it through the same RFC 8693/Authorize/HITL/kill-switch checks, and wire `AIAgentFull`'s Privilege transport to call `mcpToolPipeline` instead of the standalone endpoint. Requires coordination with authorization logic to ensure Privilege-delegated calls respect the same decision surface as other tool paths. Separately: convert `AIAgentFull` to a `React.lazy` import in `App.js`, and add either a diff-guard check or a shared-implementation refactor so `AIAgent.js` fixes can't silently skip `AIAgentFull.js`.
+### [ ] 2026-09-14 — /sdk-login embedded sign-in depends on a hand-set PingOne CORS setting
+
+**What's wrong.** The embedded (`pi.flow`) sign-in on `/sdk-login` only completes
+because the PKCE app (`160cc22f…` "Demo AI App - PKCE") has `corsSettings`
+`ALLOW_SPECIFIC_ORIGINS` for `https://local.ping-devops.com:4000`,
+`https://api.ping.demo:4000` and `https://ai-demo.ping-devops.com`, set by hand on
+2026-09-14. With `corsSettings: null`, `GET /as/resume` returns the code with no
+`Access-Control-Allow-Origin`, so the browser cannot read it. No provisioning
+script manages this app, so a re-created app silently breaks the embedded option.
+
+**Why it wasn't fixed now.** The feature PR is UI-only; provisioning for this app
+does not exist yet.
+
+**Real fix.** Set `corsSettings` wherever the PKCE app gets provisioned (or add a
+check that fails loudly when it is missing), and add a new deployment origin to
+the list when one appears.
 
 ### [ ] 2026-09-13 — Raw PingGateway log window is open to any signed-in user
 

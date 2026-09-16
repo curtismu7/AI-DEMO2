@@ -34,11 +34,20 @@ const SS_IDS = 'Rental IDs are 3001-3006 and order IDs 2001-2006; pass IDs as st
 // With no tools loaded (e.g. an expired door sign-in) a bare "quote any denial"
 // rule made gpt-4o-mini invent "You have been denied by Policy" (4/4 replays).
 const POLICY_RULE = 'Always call the tool the user asks for, even if you expect a refusal. If a tool result says "You have been denied by Policy", quote that text word for word. Never say you were denied by policy unless a tool result in this conversation says so. If none of your tools fits the request, say you have no tool for it.';
+const FACADE_TRACE_RULE = 'After every tool call, find the reel_url in the tool result and end your reply with a Markdown link labeled "View façade trace". Never invent a trace URL when reel_url is absent.';
 // Prompts library category; matches the modelSpecs groups in librechat.yaml.
 const category = (name) => (name.includes('Policy Guardrails') ? 'Policy Guardrails'
   : ['OpenSearch', 'Super Sports', 'CareConnect'].find((c) => name.startsWith(c)) || 'Banking');
 // Prompt commands allow only [a-z0-9-], at most 56 characters.
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const agentDescription = (def) => {
+  const tools = def.tools.length ? def.tools.join(', ') : 'None (uses handoffs)';
+  return `<strong>What it does:</strong> ${def.description}<br><strong>Tools (${def.tools.length}):</strong> ${tools}`;
+};
+const toolFooterInstruction = (def) => {
+  const tools = def.tools.length ? def.tools.join(', ') : 'None — this agent uses handoffs';
+  return `After every answer, add a compact footer on separate lines exactly like this:\nAvailable tools (${def.tools.length}): ${tools}\nYou can ask by sending "What tools can I use?"\nIf another instruction requires a trace link at the end, put this footer immediately before that final trace link.`;
+};
 
 const AGENTS = [
   {
@@ -137,7 +146,7 @@ const AGENTS = [
     name: 'Super Sports Policy Guardrails',
     server: 'super-sports-gateway',
     description: 'Super Sports through the Agent Gateway: reads are permitted, risky calls are denied by policy.',
-    instructions: `You are the Super Sports demo assistant. ${SS_IDS} ${POLICY_RULE}`,
+    instructions: `You are the Super Sports demo assistant. ${SS_IDS} ${POLICY_RULE} ${FACADE_TRACE_RULE}`,
     tools: ['list_rentals', 'loyalty_balance', 'extend_rental', 'sensitive_membership_details'],
     conversation_starters: [
       'Show my active equipment rentals',
@@ -146,22 +155,45 @@ const AGENTS = [
       'Show my sensitive membership payment details',
     ],
   },
-  // Same OpenSearch MCP server behind three doors, same read-only starters, so a
-  // presenter can compare the routes.
+  // The direct and recording-facade lanes expose the full OpenSearch catalog.
+  // The straight-to-Privilege opensearch22 lane deliberately demonstrates a
+  // policy-restricted catalog with only three tools.
   ...[
-    ['OpenSearch · Direct', 'opensearch-direct', 'No Privilege in front: the OpenSearch MCP server over the Mac port-forward.'],
-    ['OpenSearch · via Privilege', 'opensearch-privilege-gateway', 'Through the recording façade to the Privilege AI Gateway opensearch22 app.'],
-    ['OpenSearch · Privilege opensearch22', 'privilege-opensearch22', 'Straight to the Privilege AI Gateway opensearch22 app.'],
-  ].map(([name, server, description]) => ({
+    ['OpenSearch22 · Direct', 'OpenSearch · Direct', 'opensearch-direct', 'No Privilege in front: the OpenSearch MCP server over the Mac port-forward.', false, false],
+    ['OpenSearch (all tools) · Privilege', 'OpenSearch · via Privilege', 'opensearch-privilege-gateway', 'All OpenSearch tools through the recording façade to the Privilege AI Gateway.', false, true],
+    ['OpenSearch22 · Privilege', 'OpenSearch · Privilege opensearch22', 'privilege-opensearch22', 'Three policy-approved tools straight through the Privilege AI Gateway opensearch22 app.', true, false],
+  ].map(([name, previousName, server, description, restricted, showFacadeTrace]) => ({
     name,
+    previousNames: [previousName],
     server,
-    description,
-    instructions: 'You are an OpenSearch demo assistant. Always call the matching tool: ClusterHealthTool for health, ListIndexTool for indices, CountTool for document counts. Keep answers short.',
-    tools: ['ClusterHealthTool', 'ListIndexTool', 'CountTool'],
-    conversation_starters: [
+    description: `${description} You can ask by sending "What tools can I use?"`,
+    includeStartersInDescription: false,
+    instructions: `You are an OpenSearch demo assistant. Always call the tool named by the user. For tools that need an index or document ID, discover a real one with ListIndexTool and SearchIndexTool first; never invent one. Keep answers short.${showFacadeTrace ? ' After every tool call, find the reel_url in the tool result and end your reply with a Markdown link labeled "View façade trace". Never invent a trace URL when reel_url is absent.' : ''}`,
+    tools: restricted ? ['ClusterHealthTool', 'ListIndexTool', 'CountTool'] : [
+      'ListIndexTool',
+      'IndexMappingTool',
+      'SearchIndexTool',
+      'GetShardsTool',
+      'GenericOpenSearchApiTool',
+      'ClusterHealthTool',
+      'CountTool',
+      'MsearchTool',
+      'ExplainTool',
+    ],
+    conversation_starters: restricted ? [
       'What is the OpenSearch cluster health?',
       'List the OpenSearch indices',
       'How many documents are in the cluster?',
+    ] : [
+      'List the OpenSearch indices',
+      'Show the mapping for the first non-system index',
+      'Search the first non-system index and show 5 documents',
+      'Show shard information for the first non-system index',
+      'Use the generic OpenSearch API to show cluster stats',
+      'What is the OpenSearch cluster health?',
+      'How many documents are in the cluster?',
+      'Run a multi-search with two count queries',
+      'Explain why the first document matches a match-all query',
     ],
   })),
   // The Privilege `aggregate` app (MCP Aggregate): opensearch and banking-mcp
@@ -199,7 +231,7 @@ const AGENTS = [
     name: 'Banking Policy Guardrails',
     server: 'super-sports-gateway',
     description: 'Banking through the Agent Gateway: reads are permitted, transfers are denied by policy.',
-    instructions: `You are a banking demo assistant. ${ACCOUNT_IDS} ${POLICY_RULE}`,
+    instructions: `You are a banking demo assistant. ${ACCOUNT_IDS} ${POLICY_RULE} ${FACADE_TRACE_RULE}`,
     tools: ['get_my_accounts', 'get_my_transactions', 'create_transfer'],
     conversation_starters: [
       'Show my accounts',
@@ -247,7 +279,7 @@ const AGENTS = [
     name: 'CareConnect Policy Guardrails',
     server: 'super-sports-gateway',
     description: 'CareConnect through the Agent Gateway: reads are permitted, record releases are denied by policy.',
-    instructions: `You are a CareConnect demo assistant. ${POLICY_RULE}`,
+    instructions: `You are a CareConnect demo assistant. ${POLICY_RULE} ${FACADE_TRACE_RULE}`,
     tools: ['list_appointments', 'view_medications', 'release_records', 'sensitive_patient_records'],
     conversation_starters: [
       'When is my next appointment?',
@@ -257,6 +289,33 @@ const AGENTS = [
     ],
   },
 ];
+
+// Façade-backed copies for the Demo Steps menu. Each keeps the focused tools
+// and prompts of the original agent, but sends MCP calls through the recording
+// Agent Gateway door so PingOne authorization and the resulting trace are
+// visible. The original agents remain available for direct/model comparisons.
+for (const name of [
+  'Everyday Banking',
+  'Banking Account Details',
+  'Money Movement',
+  'Support and Fees',
+  'Super Sports',
+  'Super Sports Gear & Rentals',
+  'Super Sports Orders & Loyalty',
+  'Super Sports Stores & Code',
+  'CareConnect Health Data',
+  'CareConnect Coverage & Claims',
+  'CareConnect Actions',
+]) {
+  const base = AGENTS.find((agent) => agent.name === name);
+  AGENTS.push({
+    ...base,
+    name: `Demo Step · ${name}`,
+    server: 'super-sports-gateway',
+    description: `${base.description} Runs through the recording façade, Agent Gateway and PingOne authorization.`,
+    instructions: `${base.instructions} ${FACADE_TRACE_RULE}`,
+  });
+}
 
 // Same agent, two model paths: each copy keeps the original's tools, instructions
 // and starters but runs on the Local LLM Proxy, with no Privilege in front. Stores
@@ -274,6 +333,68 @@ for (const name of ['Everyday Banking', 'Super Sports Stores & Code']) {
     model: 'gpt-oss-20b',
   });
 }
+
+// Agent-to-agent handoffs. `handoffs` names target agents; main() saves them as
+// LibreChat edges (edgeType 'handoff') once every agent has an id. The handoff
+// gives the source a transfer tool, so the target's tools join the conversation
+// with no new sign-in or consent.
+AGENTS.push({
+  name: 'Handoff · Account Viewer',
+  description: 'Read-only accounts and balances. Hands money movement to the Money Movement agent, whose write tools then join the chat.',
+  instructions: `You are a read-only banking demo assistant. ${ACCOUNT_IDS} You can only look up accounts and balances. For any transfer, deposit or withdrawal, hand off to Money Movement right away. Keep answers short.`,
+  tools: ['get_my_accounts', 'get_account_balance'],
+  handoffs: [{ to: 'Money Movement', description: 'Transfers, deposits and withdrawals.' }],
+  conversation_starters: [
+    'Show my accounts',
+    'What is my checking balance?',
+    'Move $50 from checking to savings',
+  ],
+});
+AGENTS.push({
+  name: 'Handoff · Front Desk',
+  description: 'No tools of its own: routes each question to Everyday Banking, Super Sports Gear & Rentals or CareConnect Health Data.',
+  instructions: 'You are the demo front desk. You have no data tools and never answer from memory. Hand off right away: accounts, balances and transactions go to Everyday Banking; rentals, gear, wishlist and coaching go to Super Sports Gear & Rentals; appointments, medications, labs and allergies go to CareConnect Health Data.',
+  tools: [],
+  handoffs: [
+    { to: 'Everyday Banking', description: 'Accounts, balances and transactions.' },
+    { to: 'Super Sports Gear & Rentals', description: 'Equipment rentals, gear for sale, wishlist and coaching sessions.' },
+    { to: 'CareConnect Health Data', description: 'Appointments, medications, lab results and allergies.' },
+  ],
+  conversation_starters: [
+    'Show my accounts',
+    'Show my active equipment rentals',
+    'When is my next appointment?',
+  ],
+});
+AGENTS.push({
+  name: 'Handoff · Super Sports Checkout',
+  description: 'Reads Super Sports gear orders, then hands payment to the Money Movement agent: one chat reaches two business units.',
+  instructions: `You are the Super Sports checkout demo assistant. ${SS_IDS} Look up gear orders yourself. When the user wants to pay for an order, hand off to Money Movement with the order and its amount. Keep answers short.`,
+  tools: ['list_gear', 'gear_order_status'],
+  handoffs: [{ to: 'Money Movement', description: 'Pay from a bank account: withdrawals and transfers.' }],
+  conversation_starters: [
+    'Show my gear orders',
+    'Where is my Garmin Forerunner 265 order (2002)?',
+    // A bare "pay for my order" made Money Movement call create_transfer with an
+    // invented payee account ("To account not found", 2/2 on 2026-09-14, even
+    // with the handoff description saying withdrawal) — name the withdrawal.
+    'Withdraw $449 from checking to pay for order 2002',
+  ],
+});
+
+// Unattended runs: main() seeds these as schedules owned by this seed account.
+// Each run acts as the owner with nobody present and reuses the owner's stored
+// MCP sign-in; LibreChat checks the agent's MCP servers before every run.
+const TIMEZONE = 'America/Chicago';
+const SCHEDULES = [
+  { name: 'Morning balance report', agent: 'Everyday Banking', prompt: 'Summarize my balances and my last 5 transactions.', cadence: { frequency: 'daily', hour: 8, minute: 0 } },
+  // super-sports-gateway needs this seed account to Connect once (PingOne login)
+  // before a run can pass the MCP check.
+  { name: 'Daily rentals check', agent: 'Super Sports Policy Guardrails', prompt: 'Show my active equipment rentals.', cadence: { frequency: 'daily', hour: 9, minute: 0 } },
+  // $750 is above the demo's consent and step-up thresholds, so the run should
+  // stop at human consent (hitl_required) instead of moving money unattended.
+  { name: 'Weekly savings sweep', agent: 'Money Movement', prompt: 'Transfer $750 from checking to savings.', cadence: { frequency: 'weekly', hour: 7, minute: 0, daysOfWeek: [1] } },
+];
 
 async function call(method, path, { token, body } = {}) {
   const res = await fetch(`${LC}${path}`, {
@@ -309,18 +430,25 @@ async function main() {
   const existing = new Map((list.json.data || []).map((a) => [a.name, a.id]));
 
   let failed = 0;
+  const ids = new Map(); // agent name -> agent_… id, for handoff edges
   for (const def of AGENTS) {
     const server = def.server || SERVER;
     const body = {
       name: def.name,
-      description: `${def.description} Try: ${def.conversation_starters.map((s) => `"${s}"`).join(' · ')}`,
-      instructions: def.instructions,
+      // Landing renders descriptions beginning with HTML as sanitized rich text.
+      // Keep starters in their cards and use this space for a scannable purpose
+      // plus the exact tools attached to the agent.
+      description: agentDescription(def),
+      instructions: `${def.instructions}\n\n${toolFooterInstruction(def)}`,
       provider: def.provider || PROVIDER,
       model: def.model || MODEL,
-      tools: [`sys__server__sys_mcp_${server}`, ...def.tools.map((t) => `${t}_mcp_${server}`)],
+      // No server marker without tools: a tool-less agent (Handoff · Front Desk)
+      // must not pick up a whole MCP server.
+      tools: def.tools.length ? [`sys__server__sys_mcp_${server}`, ...def.tools.map((t) => `${t}_mcp_${server}`)] : [],
       conversation_starters: def.conversation_starters,
     };
-    const id = existing.get(def.name);
+    const id = existing.get(def.name)
+      || def.previousNames?.map((name) => existing.get(name)).find(Boolean);
     const saved = id
       ? await call('PATCH', `/api/agents/${id}`, { token, body })
       : await call('POST', '/api/agents', { token, body });
@@ -330,6 +458,7 @@ async function main() {
       continue;
     }
     const agentId = saved.json.id;
+    ids.set(def.name, agentId);
     // The permissions API keys agents by their Mongo _id, not the agent_… id;
     // the agent_… id there answers 403 "Insufficient permissions".
     const share = await call('PUT', `/api/permissions/agent/${saved.json._id}`, {
@@ -342,6 +471,49 @@ async function main() {
       continue;
     }
     console.log(`ok   ${def.name} (${agentId}) ${id ? 'updated' : 'created'}, public`);
+  }
+  // Edges name agents by id, so they are saved after every agent exists.
+  for (const def of AGENTS.filter((a) => a.handoffs)) {
+    const from = ids.get(def.name);
+    const edges = def.handoffs.map(({ to, description }) => ({ from, to: ids.get(to), edgeType: 'handoff', description }));
+    if (!from || edges.some((e) => !e.to)) {
+      failed++;
+      console.error(`FAIL ${def.name}: a handoff agent was not seeded`);
+      continue;
+    }
+    const r = await call('PATCH', `/api/agents/${from}`, { token, body: { edges } });
+    if (r.status !== 200) {
+      failed++;
+      console.error(`FAIL ${def.name}: edges ${r.status} ${r.text.slice(0, 200)}`);
+      continue;
+    }
+    console.log(`ok   ${def.name} hands off to ${def.handoffs.map((h) => h.to).join(', ')}`);
+  }
+  // Schedules are created disabled so nothing fires by surprise. "Run now"
+  // (POST /api/schedules/:id/run) still fires a disabled one; enabling it in the
+  // UI makes it fire on its cadence as this seed account.
+  const sched = await call('GET', '/api/schedules', { token });
+  if (sched.status !== 200) throw new Error(`list schedules ${sched.status}: ${sched.text.slice(0, 200)}`);
+  const haveSchedules = new Map((sched.json.schedules || []).map((s) => [s.name, s.id]));
+  for (const s of SCHEDULES) {
+    const agentId = ids.get(s.agent);
+    if (!agentId) {
+      failed++;
+      console.error(`FAIL schedule ${s.name}: agent ${s.agent} was not seeded`);
+      continue;
+    }
+    const body = { name: s.name, prompt: s.prompt, agent_id: agentId, cadence: s.cadence, timezone: TIMEZONE };
+    const id = haveSchedules.get(s.name);
+    // Updates leave `enabled` alone, so a schedule switched on in the UI stays on.
+    const r = id
+      ? await call('PATCH', `/api/schedules/${id}`, { token, body })
+      : await call('POST', '/api/schedules', { token, body: { ...body, enabled: false, clientRequestId: `seed-${slug(s.name)}` } });
+    if (r.status !== 200 && r.status !== 201) {
+      failed++;
+      console.error(`FAIL schedule ${s.name}: ${id ? 'update' : 'create'} ${r.status} ${r.text.slice(0, 200)}`);
+      continue;
+    }
+    console.log(`ok   schedule ${s.name} (${r.json.id}) ${id ? 'updated' : 'created, disabled'}`);
   }
   failed += await seedPrompts(token);
   if (failed) process.exit(1);

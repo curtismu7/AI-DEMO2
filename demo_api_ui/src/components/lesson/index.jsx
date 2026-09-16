@@ -1,4 +1,4 @@
-// The shared lesson shell for the DaVinci lessons: /davinci-sdk-login (the
+// The shared lesson shell for the DaVinci lessons: /davinci-orchestration-sdk (the
 // Orchestration SDK) and the DaVinci widget guide. Both lessons use it so they
 // read as one course, with the same header, resizable section nav, copyable
 // code, tables, diagrams and "On this run" box.

@@ -30,10 +30,14 @@ const PRIVILEGE_GATEWAY_HOST = process.env.PRIVILEGE_GATEWAY_HOST || 'https://mc
 const PRIVILEGE_APP = () => process.env.PRIVILEGE_GATEWAY_APP || 'opensearch22';
 const PRIVILEGE_APP_OPENSEARCH = () => process.env.PRIVILEGE_GATEWAY_APP_OPENSEARCH || 'opensearch';
 const PRIVILEGE_APP_BRAVE = () => process.env.PRIVILEGE_GATEWAY_APP_BRAVE || 'brave';
+// The hostile MCP server behind Privilege (standalone/hostile-mcp-server), for
+// the red-team demo: poisoned tool metadata + a create_transfer the policy denies.
+const PRIVILEGE_APP_LIBRE = () => process.env.PRIVILEGE_GATEWAY_APP_LIBRE || 'libre';
 
 const DEFAULT_PRIVILEGE_MCP_URL = () => `${PRIVILEGE_GATEWAY_HOST}/${PRIVILEGE_APP()}/mcp`;
 const DEFAULT_PRIVILEGE_OPENSEARCH_MCP_URL = () => `${PRIVILEGE_GATEWAY_HOST}/${PRIVILEGE_APP_OPENSEARCH()}/mcp`;
 const DEFAULT_PRIVILEGE_BRAVE_MCP_URL = () => `${PRIVILEGE_GATEWAY_HOST}/${PRIVILEGE_APP_BRAVE()}/mcp`;
+const DEFAULT_PRIVILEGE_LIBRE_MCP_URL = () => `${PRIVILEGE_GATEWAY_HOST}/${PRIVILEGE_APP_LIBRE()}/mcp`;
 // No Privilege in the path. Defaults to the AI Demo's own façade
 // (ai-demo.ping-devops.com) — verified live: it's a self-advertising OAuth
 // broker with open Dynamic Client Registration (RFC 7591) and no shared
@@ -41,6 +45,10 @@ const DEFAULT_PRIVILEGE_BRAVE_MCP_URL = () => `${PRIVILEGE_GATEWAY_HOST}/${PRIVI
 // zero setup. Override to point at any MCP server you run yourself.
 const DEFAULT_DIRECT_MCP_URL = () => process.env.DIRECT_MCP_URL || 'https://ai-demo.ping-devops.com/mcp-facade/opensearch/mcp';
 const DEFAULT_DIRECT_BRAVE_MCP_URL = () => process.env.DIRECT_BRAVE_MCP_URL || 'https://ai-demo.ping-devops.com/mcp-facade/brave/mcp';
+// The raw hostile server, no Privilege in the path — the "Direct" half of the
+// red-team contrast. Defaults to a local instance (cd standalone/hostile-mcp-server
+// && npm start); override to a port-forward of the in-cluster one if preferred.
+const DEFAULT_DIRECT_HOSTILE_MCP_URL = () => process.env.DIRECT_HOSTILE_MCP_URL || 'http://127.0.0.1:8899/';
 
 function privilegeDoorUrl(appName) {
   return `${PRIVILEGE_GATEWAY_HOST}/${appName}/mcp`;
@@ -1021,6 +1029,7 @@ router.get('/state', (req, res) => {
     : [
       { name: PRIVILEGE_APP_OPENSEARCH(), privilegeUrl: DEFAULT_PRIVILEGE_OPENSEARCH_MCP_URL(), status: '', policies: [] },
       { name: PRIVILEGE_APP_BRAVE(), privilegeUrl: DEFAULT_PRIVILEGE_BRAVE_MCP_URL(), status: '', policies: [] },
+      { name: PRIVILEGE_APP_LIBRE(), privilegeUrl: DEFAULT_PRIVILEGE_LIBRE_MCP_URL(), status: '', policies: [] },
       // MCP Aggregate app: opensearch + banking-mcp behind one URL.
       { name: 'aggregate', privilegeUrl: privilegeDoorUrl('aggregate'), status: '', policies: [] },
     ]
@@ -1031,6 +1040,7 @@ router.get('/state', (req, res) => {
     ...siblingApps.map((app) => ({ label: `Privilege — ${app.name}`, mode: 'privilege', url: app.privilegeUrl })),
     { label: '2 · Direct — no Privilege in the path', mode: 'direct', url: DEFAULT_DIRECT_MCP_URL() },
     { label: 'Direct — Brave Search', mode: 'direct', url: DEFAULT_DIRECT_BRAVE_MCP_URL() },
+    { label: 'Direct — Hostile MCP (no Privilege)', mode: 'direct', url: DEFAULT_DIRECT_HOSTILE_MCP_URL() },
   ].filter((p) => p.url);
 
   res.json({

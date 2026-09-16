@@ -60,6 +60,34 @@ test('a deny-like use case still reads denied-as-expected on an errored dispatch
   expect(v.state).toBe('denied-as-expected');
 });
 
+// Regression (live, 2026-09-14): with ping-gateway missing from the stack every
+// UC31 run failed `token_exchange_failed … ENOTFOUND ping-gateway`, and the card
+// still read "Verified — Denied as expected by policy". A failed dispatch only
+// satisfies a deny-like expectation when something shows the block happened.
+test('a deny-like use case whose call failed before any block is NOT denied-as-expected', () => {
+  const v = computeVerdict(
+    traceWith(
+      { tool: 'get_weather', status: 'error', error: 'token_exchange_failed', denied: false },
+      { outcome: 'error' },
+    ),
+    DENY_ENTRY,
+  );
+  expect(v.state).toBe('mismatch');
+  expect(v.resultText).toBe('Run failed — the tool call did not complete');
+});
+
+test('a gateway deny with no authorize decision still reads denied-as-expected', () => {
+  const v = computeVerdict(
+    traceWith(
+      { tool: 'get_weather', status: 'error', error: 'weather_scope_denied', denied: true },
+      { outcome: 'error' },
+    ),
+    DENY_ENTRY,
+  );
+  expect(v.state).toBe('denied-as-expected');
+  expect(v.resultText).toBe('Denied as expected by policy');
+});
+
 // UC32: the live scope decides, so both outcomes are the policy working — but a
 // dispatch that failed for any other reason is still a failed run.
 const RECONFIGURE_ENTRY = {

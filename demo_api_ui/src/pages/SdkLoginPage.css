@@ -1,0 +1,95 @@
+/* /sdk-login sign-in options. The page paints itself from its own PALETTES object;
+   the root sets --sdk-* from the active palette so these rules match it without
+   inline colours. Each falls back to the app theme token. */
+
+.sdk-signin-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.sdk-signin-option {
+  padding: 14px;
+  color: var(--sdk-text, var(--th-text));
+  background: var(--sdk-panel2, var(--th-bg-inset));
+  border: 1px solid var(--sdk-border, var(--th-border));
+  border-radius: var(--radius-md);
+}
+
+.sdk-signin-option h3 {
+  margin: 0 0 6px;
+  font-size: var(--font-size-sm);
+  color: var(--sdk-text, var(--th-text));
+}
+
+.sdk-signin-option p {
+  margin: 0 0 10px;
+  font-size: var(--font-size-xs);
+  color: var(--sdk-muted, var(--th-text-muted));
+}
+
+.sdk-embedded-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sdk-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--font-size-xs);
+  color: var(--sdk-muted, var(--th-text-muted));
+}
+
+.sdk-input {
+  font: inherit;
+  padding: 8px 10px;
+  color: var(--sdk-text, var(--th-text));
+  background: var(--sdk-panel, var(--th-bg-card));
+  border: 1px solid var(--sdk-border, var(--th-border));
+  border-radius: var(--radius-md);
+}
+
+.sdk-btn {
+  font: inherit;
+  font-weight: 600;
+  padding: 8px 14px;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+}
+
+.sdk-btn-primary {
+  color: var(--sdk-on-blue, var(--th-text-on-emphasis));
+  background: var(--sdk-blue, var(--th-bg-emphasis));
+  border: 1px solid var(--sdk-blue, var(--th-bg-emphasis));
+}
+
+.sdk-btn-ghost {
+  color: var(--sdk-text, var(--th-text));
+  background: transparent;
+  border: 1px solid var(--sdk-border, var(--th-border));
+}
+
+.sdk-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.sdk-signin-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sdk-signin-error {
+  padding: 8px 10px;
+  font-size: var(--font-size-xs);
+  color: var(--sdk-red-text, var(--th-status-error-text));
+  background: var(--sdk-error-bg, var(--th-status-error-bg));
+  border-radius: var(--radius-md);
+}
+
+.sdk-signin-error p {
+  margin: 0 0 8px;
+}

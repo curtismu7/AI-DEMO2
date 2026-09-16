@@ -1,5 +1,5 @@
 // Records the DaVinci widget's own API calls while it runs, for the Call
-// Inspector and the run summary on /davinci-login-guide.
+// Inspector and the run summary on /davinci-widget.
 //
 // davinci.js makes every flow call with fetch — on the run captured 2026-09-13,
 // POST /davinci/policy/{policyId}/start and each /capabilities/... POST were

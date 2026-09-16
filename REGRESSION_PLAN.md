@@ -141,6 +141,101 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-14 — Privilege Remote Agent now has a real, authenticated A2A backend
+
+**Files changed:** `langchain_agent/src/api/a2a_handler.py`,
+`langchain_agent/src/authentication/token_validator.py`, `langchain_agent/src/main.py`,
+`langchain_agent/tests/test_a2a_handler.py`,
+`langchain_agent/tests/test_token_validator_path_a.py`, `k8s/02-configmap.yaml`,
+`scripts/privilege-console-probe.mjs`, and
+`scripts/privilege-console-probe.test.mjs`.
+
+**What was broken:** Privilege's `langchainagent` Remote Agent pointed at
+`http://langchain-agent.ai-demo.svc.cluster.local:8888`, but no `ai-demo`
+namespace exists in the live SE cluster and the deployed service belongs in
+`ping-devops-cmuir`. Even if DNS had resolved, port 8888 exposed AG-UI `/run`
+only—there was no A2A Agent Card or JSON-RPC endpoint for Privilege to call.
+
+**What was fixed:** The LangChain FastAPI process now publishes a Privilege-compatible
+A2A 0.3 Agent Card at `/a2a/.well-known/agent-card.json` and accepts
+`message/send` at `/a2a/jsonrpc`. Agent execution is fail-closed: the
+gateway-injected `txn-token` must be an RS256 PingOne JWT with the configured
+issuer, a valid expiry, audience `PingGateway`, and `client_id`. The token is
+never logged or returned. `PRIVILEGE_A2A_PUBLIC_URL` keeps the advertised JSON-RPC
+URL on the public Privilege gateway rather than leaking an internal service name.
+The console probe's guarded `--set-backend` mode previews the exact one-field
+`HttpAppConfig.Backends` diff and performs the documented application PUT only
+when the operator adds `--apply`.
+
+**Do not break:** `/run`, `/codegraph/*`, and `/inspector/*` remain protected by
+`BFF_INTERNAL_SECRET`. Only A2A discovery is public on the pod network; A2A
+execution must never accept a merely present or decoded `txn-token` without
+signature, issuer, expiry, audience, and client validation.
+
+**Verify:** `cd langchain_agent && bash scripts/run-pytest.sh
+tests/test_a2a_handler.py tests/test_token_validator_path_a.py`. After deployment,
+Privilege Backend URL must be
+`http://langchain-agent.ping-devops-cmuir.svc.cluster.local:8888`; Agent Card
+discovery through `/langchainagent/a2a/.well-known/agent-card.json` must return
+200 with a valid AI Gateway key.
+
+### 2026-09-14 — Weather MCP: an uncached lookup no longer 502s at PingGateway's 10-second socket timeout
+
+**Files changed:** `ping-gateway/config/routes/00-mcp-weather.json`.
+
+**What was broken:** the route's `ReverseProxyHandler` had `"config": {}`, so it
+ran on PingGateway's default `soTimeout` of 10 seconds. An uncached weather-mcp
+lookup (Nominatim geocode, then api.weather.gov) routinely takes 4–12 s — a
+direct Austin call measured 11.7 s. Past 10 s PingGateway destroyed the
+connection: `BadGatewayFilter @00-mcp-weather … HttpClosedException: Connection
+was closed`, an empty-body 502, and the chat showed "Gateway upstream error (HTTP
+502)". Denies never reached the backend, so only permitted calls (UC30, UC32
+under "Any") failed, and only on a cold cache. Reproduced 2026-09-14: scope
+`any`, `get_weather` "Springfield" through `ping-gateway:8080/mcp/weather` →
+502, 0 bytes, 10,055 ms; Portland (7.3 s) and Columbus (7.7 s) succeeded.
+
+**What was fixed:** `soTimeout: "20 seconds"` on that route's
+`ReverseProxyHandler`. It sits above the bridge's own 15 s child timeout
+(`demo_mcp_weather/server.js`), so a genuinely hung lookup returns the bridge's
+JSON 502 instead of a dropped connection, and below the BFF's
+`MCP_GATEWAY_TIMEOUT_MS` (30 s), so the BFF still hears the answer.
+
+**Do not break:**
+- Keep this route's `soTimeout` above the bridge's 15 s child timeout and below
+  the BFF's gateway timeout; lowering it back reintroduces the cold-cache 502.
+- The scope filter (`tx-weather-scope.groovy`) is unchanged: denies still return
+  403 before any backend connection.
+
+**Verify:** after the route reloads, send an uncached city (scope `any`) through
+`http://ping-gateway:8080/mcp/weather` with header `MCP-Protocol-Version:
+2025-06-18`; a lookup over 10 s must return 200, not a 0-byte 502.
+
+### 2026-09-14 — Proof strip: a deny-expected use case whose call failed before any block is not "Denied as expected"
+
+**Files changed:** `demo_api_ui/src/context/ProofOfEnforcementContext.js`. Tests:
+`src/context/__tests__/ProofOfEnforcementContext.failedDispatch.test.js`.
+
+**What was broken:** with `ai-demo-ping-gateway` missing from the stack, every
+UC31 run failed `token_exchange_failed — getaddrinfo ENOTFOUND ping-gateway`,
+yet the card read "Verified (as expected) — Denied as expected by policy".
+`computeVerdict` treats a deny-like expectation with no decision as satisfied,
+and the failed-dispatch demotion skipped every `denied-as-expected` state, so a
+call that never reached the gateway was scored as the policy working.
+
+**What was fixed:** a failed dispatch (`mcpResult.status === 'error'`) only keeps
+`denied-as-expected` when the block is on the trace — `mcpResult.denied`, a
+`trace.authorize.outcome`, or a non-PERMIT decision. Otherwise it is a mismatch,
+"Run failed — the tool call did not complete".
+
+**Do not break:**
+- A real gateway deny (`denied: true`, with or without an authorize decision)
+  stays green — UC31 and every `gateway_policy_denied` path set `denied`.
+- Deny, step-up and HITL verdicts with `mcpResult: null` (authorize-only
+  evidence, attack sims) are untouched: the check needs a failed dispatch.
+
+**Verify:** `cd demo_api_ui && node_modules/.bin/vitest run ProofOfEnforcementContext`.
+"a deny-like use case whose call failed before any block" fails against the pre-fix file.
+
 ### 2026-09-14 — UC32: a run under a changed weather scope is scored as UC32, not UC31
 
 **Files changed:** `demo_api_ui/src/utils/weatherScopeHandoff.js`,

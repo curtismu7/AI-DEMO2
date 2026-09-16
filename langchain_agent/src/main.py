@@ -110,6 +110,9 @@ class LangChainMCPApplication:
             self.message_processor = MessageProcessor(agent=self.agent)
             self.health_server.update_status("message_processor", "ready")
 
+            from api.a2a_handler import set_agent as set_a2a_agent
+            set_a2a_agent(self.agent)
+
             # AG-UI /run SSE endpoint: FastAPI on port 8888 (always active).
             from api.agui_run_handler import set_message_processor as set_agui_mp
             set_agui_mp(self.message_processor)
@@ -233,10 +236,12 @@ class LangChainMCPApplication:
         from fastapi.responses import JSONResponse as _JSONResponse
         from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
         from api.agui_run_handler import router as agui_router
+        from api.a2a_handler import router as a2a_router
         from api.codegraph_handler import router as codegraph_router
 
         app = FastAPI(title="LangChain AG-UI", docs_url=None, redoc_url=None)
         app.include_router(agui_router)
+        app.include_router(a2a_router)
         app.include_router(codegraph_router, prefix="/codegraph")
 
         # Prometheus scrape target — unauthenticated, same posture as the
@@ -344,7 +349,7 @@ class LangChainMCPApplication:
             # every other /metrics route in this repo (monitoring/prometheus.yml
             # already trusts the internal network). This gate exists for
             # /run and /codegraph, not for metrics scraping.
-            if request.url.path == "/metrics":
+            if request.url.path == "/metrics" or request.url.path.startswith("/a2a/"):
                 return await call_next(request)
             if _gate_disabled_reason is not None:
                 return _JSONResponse(

@@ -196,7 +196,13 @@ export function computeVerdict(trace, catalogEntry) {
       resultText: 'Denied by the reconfigured scope policy',
     };
   }
-  if ((trace.outcome === 'error' || dispatchFailed) && state !== 'denied-as-expected') {
+  // …but only when the block is actually on the trace: a gateway deny, a reported
+  // block kind, or a non-PERMIT decision. A call that never reached the gateway
+  // (ENOTFOUND ping-gateway, 2026-09-14) has none of those, fell into the
+  // no-decision default above, and read "Denied as expected by policy".
+  const blockSeen = !!trace.mcpResult?.denied || !!actualOutcome || (!!decision && decision !== 'PERMIT');
+  const unprovenDeny = expectedIsDenyLike && dispatchFailed && !blockSeen;
+  if ((trace.outcome === 'error' || dispatchFailed) && (state !== 'denied-as-expected' || unprovenDeny)) {
     return {
       useCaseId, id: catalogEntry.id, title: catalogEntry.title,
       expectedOutcome: expected || null,

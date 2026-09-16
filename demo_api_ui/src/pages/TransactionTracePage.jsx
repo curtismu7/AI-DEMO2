@@ -4,8 +4,14 @@ import "./TransactionTracePage.css";
 // One source for how the PingGateway filters are named and explained, shared
 // with the Token Chain rail so the two surfaces cannot describe them differently.
 import { GW_STAGE_META } from "../services/tokenChainTrace/buildTraceSteps";
-import ReelDock from "../components/ReelDock";
 import { useThemeOptional } from "../context/ThemeContext";
+import ReelDock from "../components/ReelDock";
+import SequenceReelDiagram from "../components/SequenceReelDiagram";
+import {
+  facadeHopsToSequenceSteps,
+  HopFilmstrip,
+  SelectedHopDetail,
+} from "./TransactionTraceEmbedPage";
 
 const REFRESH_MS = 15000;
 const LIST_LIMIT = 50;
@@ -229,6 +235,8 @@ export default function TransactionTracePage() {
   const [transactions, setTransactions] = useState([]);
   const [expanded, setExpanded] = useState(null);
   const [detail, setDetail] = useState(null);
+  const [traceView, setTraceView] = useState("reel");
+  const [selectedHopSeq, setSelectedHopSeq] = useState(null);
   const [detailError, setDetailError] = useState(null);
   const [disabled, setDisabled] = useState(false);
   const [error, setError] = useState(null);
@@ -278,10 +286,12 @@ export default function TransactionTracePage() {
       setExpanded(null);
       setDetail(null);
       setDetailError(null);
+      setSelectedHopSeq(null);
       return;
     }
     setExpanded(correlationId);
     setDetail(null);
+    setSelectedHopSeq(null);
     loadDetail(correlationId);
   }, [expanded, loadDetail]);
 
@@ -299,6 +309,19 @@ export default function TransactionTracePage() {
           >
             {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
           </button>
+        </div>
+        <div className="ttrace-view-controls" aria-label="Trace view">
+          <div className="ttrace-view-mode" role="group" aria-label="Trace presentation">
+            <button type="button" aria-pressed={traceView === "reel"} onClick={() => setTraceView("reel")}>
+              Movie reel
+            </button>
+            <button type="button" aria-pressed={traceView === "sequence"} onClick={() => setTraceView("sequence")}>
+              Sequence
+            </button>
+          </div>
+          <span className="ttrace-view-hint">
+            Select a recorded run to play its steps, pause, move one step at a time, and change speed.
+          </span>
         </div>
         <p className="ttrace-sub">
           One agent turn, hop by hop — who acted, under whose delegation, with what authorization.
@@ -335,7 +358,32 @@ export default function TransactionTracePage() {
             </button>
             {expanded === t.correlationId ? (
               detail ? (
-                <TraceDetail detail={detail} />
+                <>
+                  {traceView === "reel" ? (
+                    <HopFilmstrip
+                      hops={detail.hops || []}
+                      selectedSeq={selectedHopSeq}
+                      onSelect={setSelectedHopSeq}
+                      showService={false}
+                    />
+                  ) : (
+                    <section className="ttrace-sequence" data-testid="trace-sequence">
+                      <SequenceReelDiagram
+                        externalSteps={facadeHopsToSequenceSteps(detail.hops || [])}
+                        externalRunId={detail.correlationId}
+                        externalTraceFinished
+                        slowMode
+                        selectedStepId={selectedHopSeq == null ? undefined : `facade-hop-${selectedHopSeq}`}
+                        onSelectStep={(step) => setSelectedHopSeq(step.hopSeq ?? null)}
+                        zoomStorageKey="ttrace_history_sequence_zoom"
+                        initialZoom={100}
+                        ariaLabel="Sequence diagram of this transaction trace"
+                      />
+                    </section>
+                  )}
+                  <SelectedHopDetail hop={(detail.hops || []).find((hop) => hop.seq === selectedHopSeq) || null} />
+                  <TraceDetail detail={detail} />
+                </>
               ) : detailError && detailError.correlationId === t.correlationId ? (
                 <div className="ttrace-detail-error" data-testid="detail-error">
                   <p>⚠️ Trace could not be loaded.</p>
@@ -353,11 +401,11 @@ export default function TransactionTracePage() {
         ))}
       </ul>
 
-      {/* Movie reel - the same reel the dashboard pins, over the same global
-          store. This page explains one recorded turn hop by hop but had no live
-          chain of its own. ReelDock owns the sticky grid host and the collapse
-          toggle; .tcfs is display:contents and cannot lay itself out. */}
+      {/* Keep the shared token-chain dock mounted here as well as on dashboard
+          surfaces. It is the app-wide movie-reel fallback when no history row
+          is selected, and the regression guard relies on this parity. */}
       <ReelDock />
+
     </div>
   );
 }

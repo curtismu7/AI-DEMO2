@@ -58,8 +58,8 @@ describe('/davinci-orchestration follows the app theme', () => {
     // Asserting document ORDER, not just presence: a test that only checked
     // the SDK link existed would pass with it buried under the widget one,
     // which is the defect.
-    const sdk = jsx.indexOf('href="/davinci-sdk-login"');
-    const widget = jsx.indexOf('href="/davinci-login-guide"');
+    const sdk = jsx.indexOf('href="/davinci-orchestration-sdk"');
+    const widget = jsx.indexOf('href="/davinci-widget"');
     expect(sdk, 'page must link to the SDK login').toBeGreaterThan(-1);
     expect(widget, 'the widget link stays as the alternative').toBeGreaterThan(-1);
     expect(sdk).toBeLessThan(widget);

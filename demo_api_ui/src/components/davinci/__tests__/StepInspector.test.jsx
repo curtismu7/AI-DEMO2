@@ -1,4 +1,4 @@
-// Step Inspector: the live, per-step lesson on /davinci-sdk-login.
+// Step Inspector: the live, per-step lesson on /davinci-orchestration-sdk.
 //
 // Fixtures follow the shapes captured from the live flow on 2026-09-13: the
 // "Sign On" form, the "Having trouble signing on?" FlowCollector branch, and the

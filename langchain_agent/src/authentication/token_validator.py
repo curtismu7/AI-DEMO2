@@ -24,6 +24,7 @@ issuer raises ValueError at construction — never a silent hardcoded fallback.
 All configuration is read from the settings SSOT (config.settings.get_config),
 not directly from os.environ.
 """
+
 from __future__ import annotations
 
 import logging
@@ -40,9 +41,56 @@ from config.settings import get_config
 
 logger = logging.getLogger(__name__)
 
+_privilege_jwk_client: Optional[PyJWKClient] = None
+_privilege_jwk_lock = threading.Lock()
+
 
 class TokenValidationError(Exception):
     """Raised when an access token cannot be validated. No identity is derived."""
+
+
+def validate_privilege_transaction_token(token: str) -> Dict[str, Any]:
+    """Verify the PingOne JWT Privilege places in the ``txn-token`` header.
+
+    Privilege's gateway transaction token is a workload token: it identifies
+    the calling client and uses the ``PingGateway`` audience, but does not
+    necessarily carry an end-user ``sub`` claim.  It therefore cannot use the
+    user-token validator below.  Signature, issuer, expiry, audience, and
+    ``client_id`` are all mandatory before an A2A request may execute.
+    """
+
+    if not token or not isinstance(token, str):
+        raise TokenValidationError("No Privilege transaction token supplied")
+
+    pingone = get_config().pingone
+    jwks_uri = _derive_jwks_uri(pingone)
+    issuer = _derive_issuer(pingone)
+    try:
+        global _privilege_jwk_client
+        if _privilege_jwk_client is None:
+            with _privilege_jwk_lock:
+                if _privilege_jwk_client is None:
+                    _privilege_jwk_client = PyJWKClient(jwks_uri, cache_keys=True)
+        signing_key = _privilege_jwk_client.get_signing_key_from_jwt(token)
+        claims = jwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=["PingGateway"],
+            issuer=issuer,
+            leeway=60,
+            options={"require": ["exp", "client_id"]},
+        )
+    except InvalidTokenError as exc:
+        raise TokenValidationError(
+            f"Privilege transaction token rejected: {exc}"
+        ) from exc
+    except Exception as exc:  # noqa: BLE001 - normalise without leaking the token
+        raise TokenValidationError(
+            "Privilege transaction token validation failed"
+        ) from exc
+
+    return claims
 
 
 @dataclass(frozen=True)
@@ -144,7 +192,10 @@ def _derive_issuer(pingone) -> str:
         return token_endpoint[: -len("/access_token")]
     if "/" in token_endpoint.rstrip("/"):
         base = token_endpoint.rstrip("/").rsplit("/", 1)[0]
-        if base.startswith(("http://", "https://")) and base not in ("http:/", "https:/"):
+        if base.startswith(("http://", "https://")) and base not in (
+            "http:/",
+            "https:/",
+        ):
             return base
     raise ValueError(
         "Cannot derive token issuer: set PINGONE_ISSUER or a valid "
@@ -227,7 +278,11 @@ class PingOneTokenValidator:
             raise TokenValidationError("Token has no 'sub' claim")
 
         aud_claim = claims.get("aud")
-        aud_list = aud_claim if isinstance(aud_claim, list) else ([aud_claim] if aud_claim else [])
+        aud_list = (
+            aud_claim
+            if isinstance(aud_claim, list)
+            else ([aud_claim] if aud_claim else [])
+        )
 
         # Identity comes ONLY from the validated token. Prefer standard OIDC
         # email claim; fall back to PingOne profile claim names.

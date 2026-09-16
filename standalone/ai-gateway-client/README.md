@@ -36,6 +36,15 @@ Then open http://127.0.0.1:3910. It defaults to the **Privilege** door on the pu
 
 Copy `server/.env.example` to `server/.env`. Nothing is required to try either door against the public demo — set `PRIVILEGE_GATEWAY_HOST` (and friends) to point Privilege mode at your own Privilege AI Gateway, or `DIRECT_MCP_URL` to point Direct mode at any other MCP server you run.
 
+### Red-team demo: the hostile MCP server
+
+Two doors ship for the hostile MCP server (`standalone/hostile-mcp-server`, behind Privilege as the `libre` app):
+
+- **Privilege — libre** — through the gateway. Its `tools/list` shows the poisoned tools arriving, and a `create_transfer` call is denied by the app's policy.
+- **Direct — Hostile MCP (no Privilege)** — the raw server, no gateway. Run it first: `cd standalone/hostile-mcp-server && npm start` (defaults to `http://127.0.0.1:8899/`; override with `DIRECT_HOSTILE_MCP_URL`).
+
+Switch between the two on the same call to see exactly what Privilege adds. See `docs/superpowers/specs/2026-09-13-hostile-mcp-behind-privilege-design.md`.
+
 ## Development
 
 ```bash

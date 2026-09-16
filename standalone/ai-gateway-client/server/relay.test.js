@@ -51,11 +51,20 @@ test('Privilege presets include the MCP Aggregate app door', async () => {
   });
 });
 
-test('Direct mode ships both the opensearch default and the Brave sibling at their exact URLs', async () => {
+test('Privilege presets include the libre hostile-server door', async () => {
+  await withServer(async (base) => {
+    const body = await (await fetch(`${base}/api/gateway/state`)).json();
+    const libre = body.presets.find((p) => p.label === 'Privilege — libre');
+    assert.ok(libre, 'no Privilege libre preset in /state');
+    assert.equal(libre.url, 'https://mcpgw.ai-demo.ping-devops.com/libre/mcp');
+  });
+});
+
+test('Direct mode ships the opensearch default, Brave, and hostile-MCP siblings at their exact URLs', async () => {
   await withServer(async (base) => {
     const body = await (await fetch(`${base}/api/gateway/state`)).json();
     const directPresets = body.presets.filter((p) => p.mode === 'direct');
-    assert.equal(directPresets.length, 2, 'expected exactly 2 Direct presets (opensearch default + Brave sibling)');
+    assert.equal(directPresets.length, 3, 'expected exactly 3 Direct presets (opensearch default + Brave + Hostile MCP)');
 
     const opensearch = directPresets.find((p) => p.label === '2 · Direct — no Privilege in the path');
     assert.ok(opensearch, 'no Direct opensearch-default preset in /state');
@@ -64,6 +73,10 @@ test('Direct mode ships both the opensearch default and the Brave sibling at the
     const brave = directPresets.find((p) => p.label === 'Direct — Brave Search');
     assert.ok(brave, 'no Direct Brave preset in /state — regressed, the new sibling disappeared');
     assert.equal(brave.url, 'https://ai-demo.ping-devops.com/mcp-facade/brave/mcp');
+
+    const hostile = directPresets.find((p) => p.label === 'Direct — Hostile MCP (no Privilege)');
+    assert.ok(hostile, 'no Direct Hostile MCP preset in /state');
+    assert.equal(hostile.url, 'http://127.0.0.1:8899/');
   });
 });
 
@@ -76,7 +89,7 @@ test('DIRECT_MCP_URL and DIRECT_BRAVE_MCP_URL override the Direct presets indepe
     await withServer(async (base) => {
       const body = await (await fetch(`${base}/api/gateway/state`)).json();
       const directPresets = body.presets.filter((p) => p.mode === 'direct');
-      assert.equal(directPresets.length, 2);
+      assert.equal(directPresets.length, 3);
       assert.equal(
         directPresets.find((p) => p.label === '2 · Direct — no Privilege in the path').url,
         'https://example.com/custom-opensearch/mcp',

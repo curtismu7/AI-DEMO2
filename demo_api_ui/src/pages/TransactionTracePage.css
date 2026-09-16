@@ -40,6 +40,407 @@
   color: var(--th-text);
 }
 
+.ttrace-view-controls,
+.ttrace-font-controls,
+.ttrace-view-mode {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ttrace-font-controls {
+  padding: 3px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.ttrace-font-controls button {
+  min-width: 34px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--th-text);
+  font-size: var(--font-size-body);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ttrace-font-controls button:hover,
+.ttrace-font-controls button[aria-pressed="true"] {
+  border-color: var(--th-border-strong);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.ttrace-view-mode {
+  padding: 3px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.ttrace-view-mode button {
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--th-text);
+  font-size: var(--font-size-body);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ttrace-view-mode button:hover,
+.ttrace-view-mode button[aria-pressed="true"] {
+  border-color: var(--th-border-strong);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.ttrace-view-hint {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.ttrace-sequence {
+  /* One bounded scroll surface preserves every lane and hop on narrow artifact
+     frames: nothing is clipped, and both diagram toolbars remain reachable. */
+  max-height: min(72vh, 840px);
+  margin-bottom: 16px;
+}
+
+.ttrace-sequence .srd-root {
+  height: min(72vh, 840px);
+}
+
+/* The external façade reel defaults one step larger than the admin trace page.
+   Controls only swap scale tokens; no inline font sizes or theme literals. */
+.ttrace-page--font-standard {
+  --ttrace-embed-body-size: var(--font-size-body);
+  --ttrace-embed-small-size: var(--font-size-sm);
+  --ttrace-embed-heading-size: var(--font-size-2xl);
+}
+
+.ttrace-page--font-large {
+  --ttrace-embed-body-size: var(--font-size-lg);
+  --ttrace-embed-small-size: var(--font-size-body);
+  --ttrace-embed-heading-size: var(--font-size-3xl);
+}
+
+.ttrace-page--font-xlarge {
+  --ttrace-embed-body-size: var(--font-size-xl);
+  --ttrace-embed-small-size: var(--font-size-lg);
+  --ttrace-embed-heading-size: var(--font-size-3xl);
+}
+
+.ttrace-embed,
+.ttrace-embed .ttrace-sub,
+.ttrace-embed .ttrace-notice,
+.ttrace-embed .ttrace-hop-head,
+.ttrace-embed .ttrace-detail {
+  font-size: var(--ttrace-embed-body-size);
+}
+
+.ttrace-embed .ttrace-header h1 {
+  font-size: var(--ttrace-embed-heading-size);
+}
+
+.ttrace-embed code {
+  color: var(--th-text);
+}
+
+.ttrace-embed .ttrace-node,
+.ttrace-embed .ttrace-phase,
+.ttrace-embed .ttrace-op,
+.ttrace-embed .ttrace-ms,
+.ttrace-embed .ttrace-identity,
+.ttrace-embed .ttrace-decision,
+.ttrace-embed .ttrace-filter,
+.ttrace-embed .ttrace-derived {
+  font-size: var(--ttrace-embed-small-size);
+}
+
+/* ── Embedded façade trace: a real filmstrip plus evidence panels ─────── */
+
+.ttrace-filmstrip {
+  position: relative;
+  margin: 0 0 16px;
+  padding: 12px 0;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background:
+    radial-gradient(circle at 8px 8px, var(--th-bg-page) 0 3px, transparent 3.5px) 0 0 / 16px 16px,
+    radial-gradient(circle at 8px calc(100% - 8px), var(--th-bg-page) 0 3px, transparent 3.5px) 0 100% / 16px 16px,
+    var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.ttrace-filmstrip__header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 0 18px 10px;
+}
+
+.ttrace-filmstrip__actions,
+.ttrace-facade-section__heading,
+.ttrace-collapse-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ttrace-section-toggle,
+.ttrace-collapse-controls button {
+  padding: 4px 8px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ttrace-section-toggle:hover,
+.ttrace-section-toggle:focus-visible,
+.ttrace-collapse-controls button:hover,
+.ttrace-collapse-controls button:focus-visible {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.ttrace-filmstrip h2,
+.ttrace-facade-section h2 {
+  margin: 0;
+  color: var(--th-text);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+}
+
+.ttrace-filmstrip__header p,
+.ttrace-facade-section__header p {
+  margin: 3px 0 0;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+}
+
+.ttrace-filmstrip__count {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-pill);
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.ttrace-filmstrip__controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 18px 10px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.ttrace-filmstrip__controls button,
+.ttrace-filmstrip__controls select {
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  padding: 4px 9px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font: inherit;
+}
+
+.ttrace-filmstrip__controls button {
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ttrace-filmstrip__controls button:hover:not(:disabled),
+.ttrace-filmstrip__controls button:focus-visible {
+  border-color: var(--th-border-strong);
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.ttrace-filmstrip__controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ttrace-filmstrip__controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ttrace-filmstrip__track {
+  display: grid;
+  grid-auto-columns: minmax(220px, 280px);
+  grid-auto-flow: column;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 2px 18px 4px;
+  scroll-snap-type: x proximity;
+}
+
+.ttrace-film-frame {
+  position: relative;
+  display: flex;
+  min-height: 160px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  overflow: hidden;
+  border: 2px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 18px 14px 14px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  cursor: pointer;
+  scroll-snap-align: start;
+  text-align: left;
+}
+
+.ttrace-film-frame::before,
+.ttrace-film-frame::after {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 10px;
+  content: "";
+  background-image: radial-gradient(circle, var(--th-bg-inset) 0 2px, transparent 2.5px);
+  background-size: 14px 10px;
+}
+
+.ttrace-film-frame::before { top: 3px; }
+.ttrace-film-frame::after { bottom: 3px; }
+
+.ttrace-film-frame:hover,
+.ttrace-film-frame:focus-visible,
+.ttrace-film-frame.is-selected {
+  border-color: var(--th-border-strong);
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+  outline: 2px solid var(--th-border-strong);
+  outline-offset: 2px;
+}
+
+.ttrace-film-frame__number,
+.ttrace-film-frame__phase,
+.ttrace-film-frame__meta {
+  color: var(--th-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+
+.ttrace-film-frame strong {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: var(--font-size-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ttrace-film-frame__operation {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--th-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.ttrace-film-frame__meta { margin-top: auto; }
+
+.ttrace-facade-section {
+  margin: 0;
+  padding: 14px;
+  border-top: 1px solid var(--th-border);
+}
+
+.ttrace-facade-section:first-child { border-top: 0; }
+
+.ttrace-facade-section__header { margin-bottom: 10px; }
+
+.ttrace-facade-section__heading { justify-content: space-between; }
+
+.ttrace-facade-section.is-collapsed .ttrace-facade-section__header,
+.ttrace-filmstrip.is-collapsed .ttrace-filmstrip__header { margin-bottom: 0; }
+
+.ttrace-facade-section__content { color: var(--th-text); }
+
+.ttrace-tools-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding-left: 20px;
+  color: var(--th-text);
+}
+
+.ttrace-empty-copy {
+  margin: 0;
+  color: var(--th-text-muted);
+}
+
+.ttrace-step-detail {
+  margin: 0 0 16px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.ttrace-step-detail__overview { margin-bottom: 12px; }
+
+.ttrace-step-detail__payload {
+  padding-top: 10px;
+  border-top: 1px solid var(--th-border);
+}
+
+.ttrace-step-detail__payload h3 {
+  margin: 0 0 8px;
+  color: var(--th-text);
+  font-size: var(--font-size-body);
+}
+
+@media (max-width: 720px) {
+  .ttrace-header-top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ttrace-view-controls {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .ttrace-view-mode {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .ttrace-filmstrip__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 .ttrace-sub {
   margin: 4px 0 16px;
   color: var(--th-text, #111827);

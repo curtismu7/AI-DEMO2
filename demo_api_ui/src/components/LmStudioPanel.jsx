@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../services/apiClient';
 import { notifySuccess, notifyError, notifyInfo } from '../utils/appToast';
+import { LM_STUDIO_DEMO_STEPS } from '../config/lmStudioDemoSteps';
 import './LlmConfig.css';
 
 const DEFAULT_MODEL = 'google/gemma-4-e2b';
@@ -20,6 +21,8 @@ export default function LmStudioPanel() {
   const [downloading, setDownloading] = useState(false);
   // Load state
   const [loading, setLoading] = useState(false);
+  const [selectedDemoStep, setSelectedDemoStep] = useState(LM_STUDIO_DEMO_STEPS[0].id);
+  const [copiedDemoStep, setCopiedDemoStep] = useState(null);
 
   const checkStatus = useCallback(async () => {
     setChecking(true);
@@ -129,6 +132,17 @@ export default function LmStudioPanel() {
       notifyError(`Failed to save model: ${err.message}`);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const copyDemoPrompt = async (step) => {
+    try {
+      await navigator.clipboard.writeText(step.prompt);
+      setCopiedDemoStep(step.id);
+      notifySuccess('Demo prompt copied');
+      window.setTimeout(() => setCopiedDemoStep(null), 1600);
+    } catch {
+      notifyError('Could not copy demo prompt');
     }
   };
 
@@ -317,6 +331,47 @@ export default function LmStudioPanel() {
             </button>
           )}
         </div>
+
+        <section className="lmstudio-demo-steps" aria-labelledby="lmstudio-demo-steps-title">
+          <div className="lmstudio-demo-steps__header">
+            <div>
+              <h3 id="lmstudio-demo-steps-title">Demo Steps</h3>
+              <p>Choose a guided use case, copy its prompt into LM Studio, and open the transaction trace link from the response.</p>
+            </div>
+            <span className="cfg-badge cfg-badge--active">LM Studio</span>
+          </div>
+          <div className="lmstudio-demo-steps__layout">
+            <div className="lmstudio-demo-steps__list" role="list" aria-label="LM Studio demo steps">
+              {LM_STUDIO_DEMO_STEPS.map((step, index) => (
+                <button
+                  type="button"
+                  role="listitem"
+                  key={step.id}
+                  className={`lmstudio-demo-step${selectedDemoStep === step.id ? ' is-selected' : ''}`}
+                  onClick={() => setSelectedDemoStep(step.id)}
+                  aria-pressed={selectedDemoStep === step.id}
+                >
+                  <span className="lmstudio-demo-step__number">{index + 1}</span>
+                  <span>{step.title}</span>
+                </button>
+              ))}
+            </div>
+            {(() => {
+              const step = LM_STUDIO_DEMO_STEPS.find((item) => item.id === selectedDemoStep) || LM_STUDIO_DEMO_STEPS[0];
+              return (
+                <div className="lmstudio-demo-step-detail">
+                  <h4>{step.title}</h4>
+                  <p className="lmstudio-demo-step-detail__prompt">{step.prompt}</p>
+                  <p><strong>Tools:</strong> {step.tools.join(', ')}</p>
+                  <p><strong>Expected:</strong> {step.outcome}</p>
+                  <button type="button" className="cfg-btn cfg-btn--secondary" onClick={() => copyDemoPrompt(step)}>
+                    {copiedDemoStep === step.id ? 'Copied' : 'Copy prompt'}
+                  </button>
+                </div>
+              );
+            })()}
+          </div>
+        </section>
 
         {/* Endpoint info */}
         {serverStatus === 'running' && (

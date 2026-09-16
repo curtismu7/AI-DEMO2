@@ -7,6 +7,43 @@ AI Gateway client page (`/privilege-mcp-client`) offers, plus the Agent Gateway.
 cp lmstudio/mcp.json ~/.lmstudio/mcp.json   # then restart LM Studio
 ```
 
+## Demo Steps parity
+
+`demo-steps.json` is the source manifest for the LM Studio workflow pack. It
+contains the same 14 focused Banking, Super Sports, and CareConnect steps, two
+local-model paths, three handoff paths, and four OpenSearch use cases, with
+their tool allowlists and conversation starters. All gateway-backed steps use `MCP AgentGateway-Banking`, so the
+recording façade, Agent Gateway authorization, and PingOne proof remain
+visible.
+
+Install the presets with:
+
+```bash
+node lmstudio/install-presets.js
+```
+
+Then import the generated files from `~/.lmstudio/config-presets` using LM
+Studio's Preset menu. The `ai-demo-demo-steps` plugin adds a workflow dropdown,
+Fast/Guided response mode, and a handoff coordinator for the three handoff
+workflows. Install it with:
+
+```bash
+cd lmstudio/demo-steps-plugin
+npm install
+npm run install-plugin
+```
+
+In each chat, select the matching MCP server from the picker and enable the
+tools named by the selected workflow. LM Studio's desktop plugin API does not
+currently let a plugin change another MCP integration's tool allowlist; its
+REST API does support `allowed_tools` for programmatic requests.
+
+For the fastest demo: install the presets, force-restart the plugin, select
+`Fast demo`, choose a workflow, authenticate its MCP server if prompted, enable
+only the listed tools, and start a new chat before sending a starter prompt.
+For handoffs, enable the destination server's tools too; the coordinator routes
+first and the model makes the subsequent native MCP call.
+
 | entry (shown as `mcp/<entry>` in LM Studio) | door | auth |
 |---|---|---|
 | `MCP Direct-Banking` | our banking MCP server (`oauth-mcp`) on the SE cluster | LM Studio's native OAuth (RFC 9728 → DCR → PKCE) |

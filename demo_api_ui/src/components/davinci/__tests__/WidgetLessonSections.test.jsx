@@ -65,7 +65,7 @@ describe("WidgetLessonSections", () => {
     const piFlow = container.querySelector("#pi-flow");
     expect(piFlow.textContent).toContain("response_mode=pi.flow");
     expect(piFlow.textContent).toContain("never calls /as/authorize");
-    expect(piFlow.querySelector('a[href="/davinci-sdk-login"]')).not.toBeNull();
+    expect(piFlow.querySelector('a[href="/davinci-orchestration-sdk"]')).not.toBeNull();
   });
 
   it("reports this run's calls in pi.flow only once there are some", () => {
