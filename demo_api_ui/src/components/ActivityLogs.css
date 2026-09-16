@@ -1,0 +1,127 @@
+.activity-records-page {
+  min-height: calc(100vh - 56px);
+  padding: 24px;
+  background: var(--th-bg-page);
+  color: var(--th-text);
+}
+
+.activity-records-page__content { max-width: 1600px; margin: 0 auto; }
+.activity-records-page__title { margin: 0 0 4px; color: var(--th-text); font-size: var(--font-size-xl); }
+.activity-records-page__lead { margin: 0 0 20px; color: var(--th-text-body); }
+.activity-records-page__toolbar { display: flex; gap: 8px; margin-bottom: 16px; }
+.activity-records-page__card { margin-bottom: 16px; }
+.activity-records-page .card {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border-color: var(--th-border);
+  box-shadow: var(--shadow-sm);
+}
+.activity-records-page__card .card-header { margin-bottom: 0; border-color: var(--th-border); }
+.activity-records-page .card-title { color: var(--th-text); }
+.activity-records-page__filters { margin: 0; padding: 16px; display: flex; align-items: end; gap: 16px; }
+.activity-records-page__filter-actions { margin: 0; padding: 0; }
+.activity-records-page .filter-label { color: var(--th-text-body); }
+.activity-records-page .filter-input {
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
+  border-color: var(--th-border-strong);
+}
+.activity-records-page .filter-input::placeholder { color: var(--th-text-faint); }
+.activity-records-page .btn-secondary {
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
+  border-color: var(--th-border-strong);
+}
+.activity-records-page .btn-secondary:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+  border-color: var(--th-border-strong);
+}
+.activity-records-page .table {
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
+  box-shadow: none;
+}
+.activity-records-page .table th {
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
+  border-color: var(--th-border);
+}
+.activity-records-page .table td { border-color: var(--th-border); }
+.activity-records-page .table tr:hover,
+.activity-records-page .table tr.clickable:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text-body);
+}
+.activity-records-page__bucket-header { cursor: pointer; display: flex; align-items: center; gap: 8px; user-select: none; }
+.activity-records-page__bucket-chevron { color: var(--th-text-faint); transition: transform 0.15s; }
+.activity-records-page__bucket-chevron--open { transform: rotate(90deg); }
+.activity-records-page__bucket-title { margin: 0; color: var(--th-text); }
+.activity-records-page__bucket-count { margin-left: 8px; padding: 1px 8px; border-radius: var(--radius-pill); background: var(--brand-blue, #0060f0); color: var(--th-text-invert); font-size: var(--font-size-2xs); font-weight: 600; line-height: 1.6; }
+.activity-records-page__bucket-state { margin-left: auto; color: var(--th-text-faint); font-size: var(--font-size-2xs); }
+.activity-records-page__action,
+.activity-records-page__status { display: inline-block; padding: 4px 8px; border-radius: var(--radius-sm); color: var(--th-text-invert); font-size: var(--font-size-2xs); font-weight: 600; }
+.activity-records-page__action--login { background: #059669; }
+.activity-records-page__action--register { background: var(--brand-navy); }
+.activity-records-page__action--transfer_money { background: #d97706; }
+.activity-records-page__action--check_balance,
+.activity-records-page__action--api_root { background: #7c3aed; }
+.activity-records-page__action--get_transactions,
+.activity-records-page__action--get_current_user { background: #0891b2; }
+.activity-records-page__action--create_user { background: #65a30d; }
+.activity-records-page__action--update_user { background: #ea580c; }
+.activity-records-page__action--delete_user { background: #dc2626; }
+.activity-records-page__action--admin_access { background: #4f46e5; }
+.activity-records-page__action--view_activity_logs { background: #db2777; }
+.activity-records-page__action--unknown {
+  background: var(--th-text-faint);
+  color: var(--th-text-invert);
+}
+.activity-records-page__status--success { background: #059669; }
+.activity-records-page__status--error { background: #dc2626; }
+.activity-records-page__empty { padding: 32px; text-align: center; }
+.activity-records-page__empty h3 { color: var(--th-text); }
+.activity-records-page__empty p { color: var(--th-text-body); }
+.activity-records-page__api-calls { margin-top: 32px; }
+.activity-records-page__api-calls h3 { margin-bottom: 16px; color: var(--th-text); }
+.activity-records-page__loading { padding: 32px; }
+.activity-records-page__pagination { margin-top: 16px; }
+.activity-records-page .pagination-btn {
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
+  border-color: var(--th-border-strong);
+}
+.activity-records-page .pagination-btn:hover,
+.activity-records-page .pagination-btn.active {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+  border-color: var(--th-border-strong);
+}
+
+.activity-record-modal__overlay { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; background: var(--modal-overlay-bg); }
+.activity-record-modal__content { width: 100%; max-width: 800px; max-height: 90vh; overflow-y: auto; background: var(--modal-body-bg); color: var(--modal-body-text); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); }
+.activity-record-modal__header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: var(--modal-header-bg); color: var(--modal-header-text); }
+.activity-record-modal__header h2 { margin: 0; color: inherit; font-size: var(--font-size-lg); }
+.activity-record-modal__header-actions { display: flex; align-items: center; gap: 8px; }
+.activity-record-modal__close { border: 0; background: transparent; color: inherit; font-size: var(--font-size-2xl); cursor: pointer; }
+.activity-record-modal__body { padding: 20px; }
+.activity-record-modal__section { margin-bottom: 20px; }
+.activity-record-modal__section h3 { margin: 0 0 10px; color: var(--modal-body-text); font-size: var(--font-size-md); }
+.activity-record-modal__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.activity-record-modal__item { display: flex; flex-direction: column; gap: 4px; color: var(--modal-body-text); }
+.activity-record-modal__item label { color: var(--modal-body-text-secondary); font-size: var(--font-size-2xs); font-weight: 600; }
+.activity-record-modal__code {
+  padding: 12px;
+  overflow-x: auto;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+}
+.activity-record-modal__code pre { margin: 0; color: var(--modal-body-text); font-family: var(--font-mono); font-size: var(--font-size-xs); white-space: pre-wrap; }
+
+@media (max-width: 800px) {
+  .activity-records-page { padding: 16px; }
+  .activity-records-page__filters { align-items: stretch; flex-direction: column; }
+  .activity-records-page__toolbar { flex-wrap: wrap; }
+}
