@@ -216,8 +216,9 @@ function denialExplanation(decision) {
 // state where the dropdown names an attack the prompt box does not hold is a dead
 // end: the fix has to keep the two in step, not re-fill on re-pick. Everywhere the
 // box is emptied, the selection is cleared with it.
-// The unguarded side of a compare run: a local lane, so no virtual key and no
-// Privilege policy between the prompt and the model.
+// The unguarded sides of a compare run: local lanes with no virtual key and no
+// Privilege policy between the prompt and either model.
+const LOCAL_COMPARE_PROVIDERS = ['llamacpp', 'lmstudio'];
 const UNGUARDED_LANE = 'llamacpp';
 const MANUAL_ATTACK = '__manual__';
 
@@ -321,10 +322,11 @@ export default function LlmGatewayPage() {
   // Cue text for whoever is driving the demo. Off by default and remembered per
   // browser, so the audience never reads the script over the presenter's shoulder.
   const [presenterNotes, setPresenterNotes] = useState(() => window.localStorage.getItem('lgw-presenter-notes') === '1');
-  // Guarded vs unguarded. Only meaningful with a llama.cpp lane to compare
-  // against and a Privilege lane selected — a local lane has no guarded side.
+  // Guarded vs unguarded. Only meaningful with at least one local lane to
+  // compare against and a Privilege lane selected — a local lane has no
+  // guarded side.
   const [compareWithLocal, setCompareWithLocal] = useState(false);
-  const canCompare = lanes.some((l) => l.provider === UNGUARDED_LANE)
+  const canCompare = LOCAL_COMPARE_PROVIDERS.some((provider) => lanes.some((l) => l.provider === provider))
     && !(lanes.find((l) => l.provider === selected) || {}).isLocal;
   const compareOn = compareWithLocal && canCompare;
   // Run all's scorecard ({ rows, done }), the result opened from it, and the
@@ -471,13 +473,17 @@ export default function LlmGatewayPage() {
     setScorePick(null);
     try {
       if (compareOn) {
-        // Both at once: the unguarded side has no gateway in front of it, so
+        // All at once: the local sides have no gateway in front of them, so
         // running them in turn would only make the guarded one look slower.
-        const [guarded, unguarded] = await Promise.all([
+        const localProviders = LOCAL_COMPARE_PROVIDERS.filter((provider) => lanes.some((l) => l.provider === provider));
+        const [guarded, ...locals] = await Promise.all([
           callLane(selected, model, text, attackId),
-          callLane(UNGUARDED_LANE, '', text, attackId),
+          ...localProviders.map((provider) => callLane(provider, '', text, attackId)),
         ]);
-        setTurns((t) => [...t, { id: nextTurnId.current++, role: 'pair', guarded, unguarded }]);
+        setTurns((t) => [...t, {
+          id: nextTurnId.current++, role: 'pair', guarded,
+          locals: localProviders.map((provider, i) => ({ provider, turn: locals[i] })),
+        }]);
         setSelectedTurnId(guarded.id);
         record(selected, guarded.decision);
       } else {
@@ -740,17 +746,28 @@ export default function LlmGatewayPage() {
                 return (
                   <div key={t.id} className="lgw-compare" data-testid="lgw-compare">
                     <p className="lgw-compare__caption" data-testid="lgw-compare-caption">
-                      Same prompt, two paths. Different models, so this shows a policy layer against none &mdash;
-                      not one model with and without it.
+                      Same prompt, three paths. This shows Privilege protection against two local models with no
+                      policy layer.
                     </p>
                     <div className="lgw-compare__side" data-testid="lgw-compare-guarded">
                       <span className="lgw-compare__k">Through Privilege</span>
                       {renderModelTurn(t.guarded)}
                     </div>
-                    <div className="lgw-compare__side" data-testid="lgw-compare-unguarded">
-                      <span className="lgw-compare__k">No policy layer</span>
-                      {renderModelTurn(t.unguarded)}
-                    </div>
+                    {LOCAL_COMPARE_PROVIDERS.map((provider) => {
+                      const local = t.locals.find((entry) => entry.provider === provider);
+                      return (
+                        <div
+                          key={provider}
+                          className="lgw-compare__side"
+                          data-testid={`lgw-compare-${provider === 'llamacpp' ? 'unguarded' : provider}`}
+                        >
+                          <span className="lgw-compare__k">{TITLES[provider]} — no policy layer</span>
+                          {local ? renderModelTurn(local.turn) : (
+                            <p className="lgw-compare__unavailable">{TITLES[provider]} is not available.</p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               }
@@ -936,10 +953,10 @@ export default function LlmGatewayPage() {
               disabled={busy || !canCompare}
               aria-pressed={compareOn}
               title={canCompare
-                ? 'Also send the prompt through llama.cpp, which has no policy layer, and show both results side by side'
-                : 'Needs a llama.cpp lane, and a Privilege lane selected'}
+                ? 'Also send the prompt through the available local models, which have no policy layer, and show all results side by side'
+                : 'Needs a local model lane, and a Privilege lane selected'}
             >
-              Compare with llama.cpp
+              Compare local models
             </button>
             <button type="button" className="lgw-send" onClick={send} disabled={busy || !(active?.isLocal || active?.keyConfigured)}>
               {busy ? 'Sending…' : 'Send'}
