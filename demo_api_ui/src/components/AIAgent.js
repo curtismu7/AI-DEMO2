@@ -413,6 +413,8 @@ export default function BankingAgent({
   // header's height never changes when it opens.
   const [headerMoreOpen, setHeaderMoreOpen] = useState(false);
   const headerMoreRef = useRef(null);
+  const headerMorePopRef = useRef(null);
+  const [headerMorePosition, setHeaderMorePosition] = useState(null);
   // Freshest handleDemoStepSelect for the strip's event bridge (the listener
   // is registered once with [] deps, so it must read through a ref).
   const demoStepSelectRef = useRef(null);
@@ -426,16 +428,26 @@ export default function BankingAgent({
   useEffect(() => {
     if (!headerMoreOpen) return undefined;
     const onDocClick = (e) => {
-      if (!headerMoreRef.current?.contains(e.target)) setHeaderMoreOpen(false);
+      if (
+        !headerMoreRef.current?.contains(e.target) &&
+        !headerMorePopRef.current?.contains(e.target)
+      ) {
+        setHeaderMoreOpen(false);
+      }
     };
     const onKey = (e) => {
       if (e.key === "Escape") setHeaderMoreOpen(false);
     };
+    const onViewportChange = () => setHeaderMoreOpen(false);
     document.addEventListener("mousedown", onDocClick);
     document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onViewportChange);
+    window.addEventListener("scroll", onViewportChange, true);
     return () => {
       document.removeEventListener("mousedown", onDocClick);
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onViewportChange);
+      window.removeEventListener("scroll", onViewportChange, true);
     };
   }, [headerMoreOpen]);
   const themeAgent = agentManifest?.agent;
@@ -9889,12 +9901,23 @@ export default function BankingAgent({
                     aria-haspopup="true"
                     aria-expanded={headerMoreOpen}
                     title="Quick Config — display preferences and the demo feature flags"
-                    onClick={() => setHeaderMoreOpen((v) => !v)}
+                    onClick={(event) => {
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      setHeaderMorePosition({
+                        top: rect.bottom + 6,
+                        right: Math.max(8, window.innerWidth - rect.right),
+                      });
+                      setHeaderMoreOpen((v) => !v);
+                    }}
                   >
                     Quick Config
                   </button>
-                  {headerMoreOpen && (
-                    <div className="ba-header-more-pop">
+                  {headerMoreOpen && createPortal(
+                    <div
+                      ref={headerMorePopRef}
+                      className="ba-header-more-pop"
+                      style={headerMorePosition || undefined}
+                    >
                       <div className="ba-header-more-intro">
                         <strong>Choose a view surface</strong>
                         <span>Embedded views stay on this page. Pop-outs open a separate window.</span>
@@ -10168,7 +10191,8 @@ export default function BankingAgent({
                           DaVinci Orchestration
                         </button>
                       )}
-                    </div>
+                    </div>,
+                    document.body,
                   )}
                 </div>
                 {/* Demo Guide trigger — stays inline. The 2026-07-24 Actions
