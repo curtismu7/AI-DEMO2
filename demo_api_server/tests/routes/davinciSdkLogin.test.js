@@ -54,6 +54,7 @@ const oauthService = require('../../services/oauthService');
 const dataStore = require('../../data/store');
 
 const SDK_APP_ID = '4e122cbf-defe-4c39-a5b5-c6b7da2b63f1';
+const FLOW_POLICY_ID = '00170f5a456819252e3a88c85a3cc4fe';
 const PUBLIC_BASE = 'https://local.ping-devops.com:4000';
 const EXPECTED_REDIRECT = `${PUBLIC_BASE}/davinci-orchestration-sdk`;
 
@@ -98,6 +99,7 @@ describe('routes/davinciSdkLogin', () => {
     // file still points at the old one, so every mockImplementation set here
     // would be invisible to the code under test and /start would 503.
     process.env.PINGONE_DAVINCI_LOGIN_APP_ID = SDK_APP_ID;
+    process.env.PINGONE_DAVINCI_LOGIN_POLICY_ID_V1 = FLOW_POLICY_ID;
     app = buildApp();
   });
 
@@ -105,6 +107,7 @@ describe('routes/davinciSdkLogin', () => {
     // Leaving it set would leak into any suite that runs after this one in the
     // same worker.
     delete process.env.PINGONE_DAVINCI_LOGIN_APP_ID;
+    delete process.env.PINGONE_DAVINCI_LOGIN_POLICY_ID_V1;
   });
 
   describe('POST /start', () => {
@@ -112,6 +115,7 @@ describe('routes/davinciSdkLogin', () => {
       const res = await request(app).post('/api/davinci-sdk-login/start').expect(200);
       expect(res.body).toMatchObject({
         clientId: SDK_APP_ID,
+        flowPolicyId: FLOW_POLICY_ID,
         redirectUri: EXPECTED_REDIRECT,
         wellknown: 'https://auth.pingone.com/env-1/as/.well-known/openid-configuration',
       });
