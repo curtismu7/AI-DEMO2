@@ -5091,6 +5091,48 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: var(--ba-surface, var(--th-bg-inset));
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
 }
+.ba-header-more-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 2px 4px 7px;
+  border-bottom: 1px solid var(--ba-border, var(--th-border));
+}
+.ba-header-more-intro strong {
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+}
+.ba-header-more-intro span {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.35;
+}
+.ba-header-more-heading {
+  width: 100%;
+  margin-top: 2px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-3xs);
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.ba-surface-badge {
+  margin-left: auto;
+  padding: 2px 6px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: 999px;
+  color: var(--th-text-muted);
+  background: var(--th-bg-inset);
+  font-size: var(--font-size-3xs);
+  font-weight: 800;
+  letter-spacing: .04em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+.ba-header-more-pop .ba-actions-trigger .ba-surface-badge {
+  margin-left: auto;
+}
 /* Divider fencing off the server feature-flag rows. The switches above it are
    this browser's own preferences; the ones inside it change the demo for every
    session, and the tray gives no other cue that they are different. */
@@ -5122,6 +5164,12 @@ body > .banking-agent-float-root .banking-agent-panel {
   height: auto;
   min-height: 32px;
   font-size: var(--font-size-base);
+}
+.ba-header-more-pop .ba-header-toggle-label .ctl-check-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
 }
 :root[data-theme="dark"] .ba-header-more-pop {
   border-color: var(--th-border);

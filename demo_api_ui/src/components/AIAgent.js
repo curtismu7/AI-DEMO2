@@ -9876,6 +9876,11 @@ export default function BankingAgent({
                   </button>
                   {headerMoreOpen && (
                     <div className="ba-header-more-pop">
+                      <div className="ba-header-more-intro">
+                        <strong>Choose a view surface</strong>
+                        <span>Embedded views stay on this page. Pop-outs open a separate window.</span>
+                      </div>
+                      <div className="ba-header-more-heading">Display preferences</div>
                       {/* RFC info toggle */}
                       <Check
                         variant="switch"
@@ -9949,6 +9954,7 @@ export default function BankingAgent({
                           Side panel
                         </Check>
                       )}
+                      <div className="ba-header-more-heading">Embedded in page</div>
                       {/* Simple Stepper toggle */}
                       <Check
                         variant="switch"
@@ -9966,7 +9972,7 @@ export default function BankingAgent({
                         }}
                         title="Show or hide the Simple Stepper token-chain table"
                       >
-                        Simple step
+                        <>Simple step <span className="ba-surface-badge" aria-hidden="true">Embedded</span></>
                       </Check>
                       <Check
                         variant="switch"
@@ -9982,7 +9988,7 @@ export default function BankingAgent({
                         }}
                         title="Show or hide the token chain movie reel for this session (returns on reload)"
                       >
-                        Movie reel
+                        <>Movie reel <span className="ba-surface-badge" aria-hidden="true">Embedded</span></>
                       </Check>
                       <Check
                         variant="switch"
@@ -10008,7 +10014,7 @@ export default function BankingAgent({
                         }}
                         title="Show a live lifeline sequence diagram instead of the movie reel for this session (returns on reload)"
                       >
-                        Sequence view
+                        <>Sequence view <span className="ba-surface-badge" aria-hidden="true">Embedded</span></>
                       </Check>
                       <Check
                         variant="switch"
@@ -10025,7 +10031,7 @@ export default function BankingAgent({
                         }}
                         title="Show the live token topology inline beside the agent"
                       >
-                        Inline topology
+                        <>Token topology <span className="ba-surface-badge" aria-hidden="true">Both</span></>
                       </Check>
                       {showSequenceDiagram && (
                         <Check
@@ -10089,13 +10095,15 @@ export default function BankingAgent({
                         );
                       })}
                       <div className="ba-header-more-sep" role="separator" />
+                      <div className="ba-header-more-heading">Pop-out tools</div>
                       <button
                         type="button"
                         className={`ba-actions-trigger${showTokenTopology ? " active" : ""}`}
+                        aria-label="Topology"
                         title="Real-time token topology — RFC 8693 delegation chain"
                         onClick={() => { setShowTokenTopology(v => !v); window.dispatchEvent(new CustomEvent('token-topology-open')); }}
                       >
-                        Topology
+                        <><span>Token topology</span><span className="ba-surface-badge" aria-hidden="true">Pop-out</span></>
                       </button>
                       {/* The other half of the same run: Topology answers "what
                           happened, in what order", this answers "which boxes,
@@ -10108,7 +10116,7 @@ export default function BankingAgent({
                         title="System flow — the run on the deployment map, and where the decision was taken"
                         onClick={() => window.dispatchEvent(new CustomEvent('system-flow-open'))}
                       >
-                        System flow
+                        <><span>System flow</span><span className="ba-surface-badge" aria-hidden="true">Pop-out</span></>
                       </button>
                       <button
                         type="button"
@@ -10116,7 +10124,7 @@ export default function BankingAgent({
                         title="Floating token chain — RFC 8693 delegation trace rail"
                         onClick={() => { setShowFloatingTokenChain(v => !v); window.dispatchEvent(new CustomEvent('floating-token-chain-open')); }}
                       >
-                        Floating token chain
+                        <><span>Floating token chain</span><span className="ba-surface-badge" aria-hidden="true">Pop-out</span></>
                       </button>
                       {/* Demo Script shortcut — opens the 15-min teleprompter without requiring sidebar nav */}
                       <button
@@ -10125,7 +10133,7 @@ export default function BankingAgent({
                         title="Open 15-Min Security Demo Script (teleprompter)"
                         onClick={() => window.dispatchEvent(new CustomEvent("demo-script-toggle"))}
                       >
-                        Script
+                        <><span>Script</span><span className="ba-surface-badge" aria-hidden="true">Pop-out</span></>
                       </button>
                       {davinciMode && (
                         <button
