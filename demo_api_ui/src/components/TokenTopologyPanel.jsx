@@ -601,7 +601,9 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
   const [playing, setPlaying] = useState(false);
   const [revealCount, setRevealCount] = useState(null);
   const [speed, setSpeed] = useState(2400);
-  const [fontSize, setFontSize] = useState('medium');
+  // Start at the presentation-friendly size; the inspector controls can still
+  // reduce or increase this per session.
+  const [fontSize, setFontSize] = useState('large');
 
   useEffect(() => {
     return tokenChainTraceStore.subscribe(setStoreState);
