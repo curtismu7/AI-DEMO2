@@ -336,6 +336,32 @@
   gap: 1rem;
 }
 
+.lesson-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.lesson-theme-toggle {
+  flex-shrink: 0;
+  padding: 0.5rem 0.9rem;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--th-text-invert);
+  background: transparent;
+  border: 1px solid var(--th-text-invert);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.lesson-theme-toggle:hover,
+.lesson-theme-toggle:focus-visible {
+  color: var(--th-text);
+  background: var(--th-bg-card);
+}
+
 /* The band is dark navy in both themes, so the button takes the band's
    inverted ink; on hover it becomes an ordinary light surface. */
 .lesson-export {
@@ -355,6 +381,10 @@
 .lesson-export:focus-visible {
   color: var(--th-text);
   background: var(--th-bg-card);
+}
+
+.lesson-header-nav {
+  margin-top: 1.25rem;
 }
 
 /* Print-only blocks: Ping Identity branding and the legal notice. */
@@ -401,6 +431,8 @@
   .lesson-sidebar,
   .lesson-layout > .divider-drag-handle,
   .lesson-export,
+  .lesson-theme-toggle,
+  .lesson-header-nav,
   .lesson-code-copy,
   .lesson-run,
   .lesson-no-print {

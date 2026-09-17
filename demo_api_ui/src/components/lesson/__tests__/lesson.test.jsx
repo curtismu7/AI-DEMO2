@@ -12,6 +12,7 @@ vi.mock("mermaid", () => ({
 }));
 
 import mermaid from "mermaid";
+import { ThemeProvider } from "../../../context/ThemeContext";
 import {
   CodeBlock,
   LessonLayout,
@@ -52,6 +53,24 @@ describe("CodeBlock", () => {
 });
 
 describe("LessonLayout", () => {
+  it("renders header navigation and an accessible theme toggle", () => {
+    render(
+      <ThemeProvider>
+        <LessonLayout
+          title="Lesson"
+          headerNav={<nav aria-label="Product pages"><a href="/products">Products</a></nav>}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByRole("navigation", { name: "Product pages" })).toBeInTheDocument();
+    const themeToggle = screen.getByRole("button", { name: "Switch to dark mode" });
+    expect(themeToggle).toBeInTheDocument();
+    fireEvent.click(themeToggle);
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    expect(screen.getByRole("button", { name: "Switch to light mode" })).toBeInTheDocument();
+  });
+
   it("renders one nav entry per section and scrolls to the id it names", () => {
     const scrollIntoView = vi.fn();
     render(

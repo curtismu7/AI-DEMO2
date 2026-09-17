@@ -3,9 +3,13 @@
 .pai-eyebrow--gateway { background: #0f766e; }
 .pai-eyebrow--authorize { background: #7c3aed; }
 .pai-eyebrow--privilege { background: #b91c1c; }
-.pai-product-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 28px; padding: 12px; border: 1px solid var(--th-border); background: var(--th-bg-inset); border-radius: var(--radius-md); }
-.pai-product-nav__link { padding: 7px 10px; border-radius: var(--radius-sm); color: var(--th-text-muted); font-size: var(--font-size-xs); text-decoration: none; }
-.pai-product-nav__link:hover, .pai-product-nav__link--active { color: var(--th-text); background: var(--th-bg-card); box-shadow: var(--shadow-sm); }
+.pai-product-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 14px 0 0; border-top: 1px solid var(--th-border); }
+.pai-product-nav__link { flex: 1 1 auto; padding: 12px 14px; border: 1px solid transparent; border-radius: var(--radius-md); color: var(--th-text-invert); font-size: var(--font-size-md); font-weight: 700; line-height: 1.25; text-align: center; text-decoration: none; }
+.pai-product-nav__link:hover, .pai-product-nav__link--active { color: var(--th-text); background: var(--th-bg-card); border-color: var(--th-border); box-shadow: var(--shadow-sm); }
+.pai-lesson-page .lesson-content { font-size: var(--font-size-md); }
+.pai-lesson-page .lesson-section p { font-size: var(--font-size-md); }
+.pai-lesson-page .lesson-section-title { font-size: var(--font-size-2xl); }
+.pai-lesson-page .lesson-section h3 { font-size: var(--font-size-lg); }
 .pai-hero { display: grid; grid-template-columns: 70px 1fr; gap: 18px; align-items: center; padding: 26px; border: 1px solid var(--th-border); border-left: 5px solid var(--pai-accent); border-radius: var(--radius-md); background: var(--th-bg-card); color: var(--th-text); }
 .pai-hero--core { --pai-accent: #2563eb; } .pai-hero--gateway { --pai-accent: #0f766e; } .pai-hero--authorize { --pai-accent: #7c3aed; } .pai-hero--privilege { --pai-accent: #b91c1c; }
 .pai-hero-mark { display: grid; place-items: center; width: 58px; height: 58px; border-radius: var(--radius-lg); background: var(--pai-accent); color: #fff; font-size: var(--font-size-sm); font-weight: 900; letter-spacing: .08em; }
@@ -31,5 +35,5 @@
 .pai-takeaway { max-width: 62ch; margin: 0 0 18px; color: var(--th-text); font-size: var(--font-size-xl); font-weight: 750; line-height: 1.35; }
 .pai-next { margin: 0; color: var(--th-text-muted); font-size: var(--font-size-sm); line-height: 1.6; }
 .pai-next a { color: var(--th-status-info-text); font-weight: 700; }
-@media (max-width: 900px) { .pai-run-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 700px) { .pai-capability-grid, .pai-run-grid { grid-template-columns: 1fr; } .pai-hero { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .pai-run-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pai-product-nav__link { flex-basis: 30%; } }
+@media (max-width: 700px) { .pai-capability-grid, .pai-run-grid { grid-template-columns: 1fr; } .pai-hero { grid-template-columns: 1fr; } .pai-product-nav__link { flex-basis: 45%; font-size: var(--font-size-sm); } }
