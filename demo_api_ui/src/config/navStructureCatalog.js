@@ -111,7 +111,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "Privilege Demo",
       "SDK Login",
       "DaVinci Widget",
-      "DaVinci Orchestration SDK",
+      "Davinci Orchestration SDK",
       "Orchestration SDK Guide",
       "DaVinci Orchestration Overview",
     ],

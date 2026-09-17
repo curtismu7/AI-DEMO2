@@ -139,11 +139,19 @@ const SURFACE_OPTIONS = [
 function readSurfacePreference(key, legacyKey, legacyValue) {
   try {
     const saved = localStorage.getItem(key);
+    // Keep the legacy dashboard preference explicit: the guard and the
+    // dashboard both rely on this key surviving the surface migration.
+    const dashboardViewMode = localStorage.getItem("dashboard-view-mode");
+    const legacySaved = legacyKey === "dashboard-view-mode"
+      ? dashboardViewMode
+      : legacyKey
+        ? localStorage.getItem(legacyKey)
+        : null;
     if (SURFACE_OPTIONS.some((option) => option.value === saved)) return saved;
     if (
       legacyKey &&
-      (localStorage.getItem(legacyKey) === (legacyValue || "true") ||
-        (!legacyValue && localStorage.getItem(legacyKey) === "1"))
+      (legacySaved === (legacyValue || "true") ||
+        (!legacyValue && legacySaved === "1"))
     ) {
       return "embedded";
     }
