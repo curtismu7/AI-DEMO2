@@ -3761,7 +3761,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               shell, the same shape as float mode, so .tcfs-float-host's
               position:sticky/bottom:0 pins it without any clinical-specific CSS. */}
           {showFilmstrip && !showSequenceDiagram && <ReelDock />}
-          {showTokenTopology && <TokenTopologyPanel inline />}
+          {showTokenTopology && !showSequenceDiagram && <TokenTopologyPanel inline />}
           {showSequenceDiagram && (
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}
@@ -3916,7 +3916,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               not mount in this layout. The reel was never lost, the control
               was simply wired to the copy you were not looking at. */}
           {showFilmstrip && !showSequenceDiagram && <TokenChainFilmstrip />}
-          {showTokenTopology && <TokenTopologyPanel inline />}
+          {showTokenTopology && !showSequenceDiagram && <TokenTopologyPanel inline />}
           {showSequenceDiagram && (
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}
@@ -3964,7 +3964,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               <DashboardTokenRail>
                 <ExchangeModeToggle hideTable />
                 <TokenChainTraceRail />
-                {showSimpleStepper && <SimpleStepperBar />}
+                {showSimpleStepper && !showSequenceDiagram && <SimpleStepperBar />}
                 <div className="ud-float-chain-actions">
                   <button
                     type="button"
@@ -3999,7 +3999,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             <AgentResponseMirror />
             {/* Movie reel filmstrip — toggled via More › Movie reel in the agent header */}
             {showFilmstrip && !showSequenceDiagram && <ReelDock />}
-            {showTokenTopology && <TokenTopologyPanel inline />}
+            {showTokenTopology && !showSequenceDiagram && <TokenTopologyPanel inline />}
           {showSequenceDiagram && (
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}

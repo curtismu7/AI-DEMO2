@@ -2,7 +2,7 @@
 // what happened, what changed, then the raw request and response. TraceStepCard
 // renders the same data payload-first and collapsed; this is the presenter's
 // view of it and is deliberately a separate component so that card is untouched.
-import React from "react";
+import React, { useEffect, useState } from "react";
 import FormJsonToggle, { PayloadFormView } from "./shared/FormJsonToggle";
 import { laneLabel } from "../services/tokenChainTrace/buildTraceSteps";
 import "./StepDetailPanel.css";
@@ -56,6 +56,15 @@ function changedClaims(before, after) {
 function render(value) {
   if (value === undefined) return "—";
   return typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
+function readRfcInfoEnabled() {
+  try {
+    return localStorage.getItem("ba_show_rfc_info") === "1"
+      || ["embedded", "both"].includes(localStorage.getItem("ba_rfc_info_surface"));
+  } catch {
+    return false;
+  }
 }
 
 /** Before and after side by side, with only the moved rows marked. */
@@ -142,6 +151,12 @@ function Payload({ label, title, text }) {
 }
 
 export default function StepDetailPanel({ step, onInspect }) {
+  const [showRfcInfo, setShowRfcInfo] = useState(readRfcInfoEnabled);
+  useEffect(() => {
+    const handleRfcInfoToggle = (event) => setShowRfcInfo(!!event.detail?.on);
+    window.addEventListener("agent-rfc-info-toggle", handleRfcInfoToggle);
+    return () => window.removeEventListener("agent-rfc-info-toggle", handleRfcInfoToggle);
+  }, []);
   if (!step) return null;
   const d = step.detail || {};
   const kv = Array.isArray(d.kv) ? d.kv : [];
@@ -226,7 +241,7 @@ export default function StepDetailPanel({ step, onInspect }) {
         <Payload label="Response" title={d.response.title} text={d.response.text} />
       ) : null}
 
-      {rfcs.length > 0 ? (
+      {showRfcInfo && rfcs.length > 0 ? (
         <div className="sdp-rfcs">
           {rfcs.map((r) => (
             <span className="sdp-rfc" key={typeof r === "string" ? r : r.label}>
