@@ -256,7 +256,8 @@ body .transaction-consent-card__check input[type="checkbox"] {
   background: #eff6ff;
   border: 1px solid #bfdbfe;
   border-radius: 8px;
-  font-size: 0.7rem;
+  /* RFC guidance is the teaching payoff; keep it legible at twice the former size. */
+  font-size: 1.4rem;
   color: #1e40af;
   line-height: 1.45;
 }
