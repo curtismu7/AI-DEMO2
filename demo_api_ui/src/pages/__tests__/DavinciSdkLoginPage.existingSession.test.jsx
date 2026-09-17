@@ -7,11 +7,10 @@
 //   2. prompt=login was added so the form always showed — but signed in to
 //      PingOne as demoAdmin, signing in there as a different user failed with
 //      "userSessionMismatch".
-//   3. The existing session is REUSED, the page says who it signed in as, and
-//      offers Continue or "Sign out of PingOne and use a different account".
-//   4. Continue (and a normal form sign-in) no longer leave for the app: a
-//      "What just happened" modal explains the steps, and closing it stays on
-//      this page. The old destination's "Continue to the app" went home.
+//   3. The existing session is REUSED, the page waits for the BFF callback,
+//      then says who it signed in as and opens the run summary.
+//   4. A normal form sign-in also waits for the BFF callback before showing the
+//      summary; neither path adds a fake second Continue step.
 import React from "react";
 import { render, waitFor, fireEvent } from "@testing-library/react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -81,26 +80,27 @@ describe("DavinciSdkLoginPage when PingOne already has a session", () => {
       code: "code-1",
       codeVerifier: "verifier-1",
     }));
-    expect(await findByText("demoAdmin")).toBeTruthy();
+    expect(container.querySelector(".dvsdk-notice strong")?.textContent).toBe("demoAdmin");
     expect(navigateMock).not.toHaveBeenCalled();
     expect(container.querySelector(".dvsdk-form")).toBeNull();
   });
 
-  it("Continue explains what happened in a modal and stays on this page", async () => {
+  it("waits for the BFF callback, then explains the reused session without a fake Continue step", async () => {
     sdk.initClient.mockResolvedValue(clientReturning({ status: "success" }, { code: "code-1" }));
 
-    const { findByRole, getByTitle, queryByRole, findByText } = render(<DavinciSdkLoginPage />);
-    fireEvent.click(await findByRole("button", { name: "Continue" }));
+    const { container, findByRole, getByTitle, queryByRole, queryByText } = render(<DavinciSdkLoginPage />);
 
     const dialog = await findByRole("dialog", MODAL);
     // The reused path's own story: no form, because PingOne already had a session.
     expect(dialog.textContent).toMatch(/already had a session/i);
+    expect(queryByRole("button", { name: "Continue" })).toBeNull();
+    expect(queryByText(/Waiting for the authorization callback/i)).toBeNull();
 
     fireEvent.click(getByTitle("Close"));
     await waitFor(() => expect(queryByRole("dialog", MODAL)).toBeNull());
 
     // Still here, signed in — never sent out to the app or home.
-    expect(await findByText(/Signed in as/i)).toBeTruthy();
+    expect(container.querySelector(".dvsdk-notice")?.textContent).toMatch(/Signed in as/i);
     expect(navigateMock).not.toHaveBeenCalled();
   });
 
@@ -127,13 +127,31 @@ describe("DavinciSdkLoginPage when PingOne already has a session", () => {
     sdk.initClient.mockResolvedValue(clientReturning({ status: "success" }, { code: "code-1" }));
 
     const { findByRole, getByTitle, queryByRole } = render(<DavinciSdkLoginPage />);
-    fireEvent.click(await findByRole("button", { name: "Continue" }));
     await findByRole("dialog", MODAL);
     fireEvent.click(getByTitle("Close"));
     await waitFor(() => expect(queryByRole("dialog", MODAL)).toBeNull());
 
     fireEvent.click(await findByRole("button", { name: "What just happened?" }));
     expect(await findByRole("dialog", MODAL)).toBeTruthy();
+  });
+
+  it("keeps waiting while the callback is pending and only then shows signed in", async () => {
+    let resolveCallback;
+    sdk.postCallback.mockImplementation(
+      () => new Promise((resolve) => { resolveCallback = resolve; }),
+    );
+    sdk.initClient.mockResolvedValue(clientReturning({ status: "success" }, { code: "code-1" }));
+
+    const { container, findByText, queryByRole } = render(<DavinciSdkLoginPage />);
+
+    expect(await findByText(/Waiting for the authorization callback/i)).toBeTruthy();
+    expect(queryByRole("dialog", MODAL)).toBeNull();
+    expect(queryByRole("button", { name: "Continue" })).toBeNull();
+
+    resolveCallback({ ok: true, username: "demoAdmin" });
+
+    await waitFor(() => expect(container.querySelector(".dvsdk-notice")?.textContent).toMatch(/Signed in as/i));
+    expect(await queryByRole("dialog", MODAL)).toBeTruthy();
   });
 
   it("offers to sign out of PingOne to switch to a different account", async () => {

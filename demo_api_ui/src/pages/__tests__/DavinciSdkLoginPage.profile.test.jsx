@@ -76,13 +76,11 @@ describe("DavinciSdkLoginPage shows who signed in", () => {
       email: "admin@example.com",
     });
 
-    const { findByRole, container } = render(<DavinciSdkLoginPage />);
-    // The reused panel names the user before they choose to continue.
-    const continueBtn = await findByRole("button", { name: "Continue" });
-    expect(container.querySelector(".dvsdk-notice strong")?.textContent).toBe("demoAdmin");
-    fireEvent.click(continueBtn);
+    const { container } = render(<DavinciSdkLoginPage />);
 
     await waitFor(() => expect(container.querySelector(".dvsdk-profile")).toBeTruthy());
+    expect(container.querySelector(".dvsdk-notice strong")?.textContent).toBe("demoAdmin");
+    expect(container.querySelector("button")?.textContent).not.toBe("Continue");
     expect(profileText(container)).toContain("p1-admin-9");
     expect(profileText(container)).toContain("admin@example.com");
   });
