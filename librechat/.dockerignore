@@ -2,3 +2,6 @@
 !Dockerfile
 !patches/
 !patches/apply-persistent-conversation-starters.mjs
+!client-overrides/
+!client-overrides/ScheduleExplanation.tsx
+!client-overrides/ScheduleExplanation.spec.tsx

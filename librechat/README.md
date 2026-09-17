@@ -63,6 +63,21 @@ below.
 
    UI: `http://localhost:3080`.
 
+   **Scheduled chats control center.** Sign in as the seeded schedule owner and
+   open **Schedules** in the side panel. The panel shows total/active/attention
+   counts, filters for all/attention/paused schedules, and plain-language
+   explanations for each workflow. Each card exposes **Pause schedule** (stops
+   future cadence runs), **Run now**, and the existing options menu for editing
+   the time, day, and timezone. The editor keeps the seeded agent and prompt
+   read-only and preserves last-run metadata when saving.
+
+   Pausing is the supported stop operation: this LibreChat release has no
+   in-flight cancellation endpoint, so an already-started run cannot be
+   forcibly terminated from the panel. A successful sweep run means the
+   workflow reached its outcome; it does **not** mean the $750 transfer moved.
+   The sweep may stop at step-up approval, while the rentals check needs a
+   stored `super-sports-gateway` connection.
+
 4. **Demo agents** (optional, so presenters don't have to know what to type):
    ```bash
    node librechat/seed-demo-agents.js
