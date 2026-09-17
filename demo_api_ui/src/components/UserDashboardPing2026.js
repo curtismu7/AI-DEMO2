@@ -3760,7 +3760,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               reel at all. .agent-clinical-host is display:block over a 100vh
               shell, the same shape as float mode, so .tcfs-float-host's
               position:sticky/bottom:0 pins it without any clinical-specific CSS. */}
-          {showFilmstrip && !showSequenceDiagram && !showTokenTopology && <ReelDock />}
+          {showFilmstrip && !showSequenceDiagram && <ReelDock />}
           {showTokenTopology && <TokenTopologyPanel inline />}
           {showSequenceDiagram && (
             <SequenceReelDiagram
@@ -3915,7 +3915,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               nothing on screen: it governed only the float branch, which does
               not mount in this layout. The reel was never lost, the control
               was simply wired to the copy you were not looking at. */}
-          {showFilmstrip && !showSequenceDiagram && !showTokenTopology && <TokenChainFilmstrip />}
+          {showFilmstrip && !showSequenceDiagram && <TokenChainFilmstrip />}
           {showTokenTopology && <TokenTopologyPanel inline />}
           {showSequenceDiagram && (
             <SequenceReelDiagram
@@ -3998,7 +3998,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             {/* Response mirror — shows last agent reply on main page when toggled on */}
             <AgentResponseMirror />
             {/* Movie reel filmstrip — toggled via More › Movie reel in the agent header */}
-            {showFilmstrip && !showSequenceDiagram && !showTokenTopology && <ReelDock />}
+            {showFilmstrip && !showSequenceDiagram && <ReelDock />}
             {showTokenTopology && <TokenTopologyPanel inline />}
           {showSequenceDiagram && (
             <SequenceReelDiagram
