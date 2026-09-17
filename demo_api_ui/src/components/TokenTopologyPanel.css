@@ -877,7 +877,7 @@
 .ttp-root[data-theme="light"] .ttp-font-control { background: #ffffff; border-color: #94a3b8; }
 .ttp-root[data-theme="light"] .ttp-font-control button { color: #0f172a; }
 .ttp-root[data-theme="light"] .ttp-font-control button[aria-pressed="true"] { color: #ffffff; background: #0969da; }
-.ttp-root[data-theme="light"] .ttp-node.current .ttp-box { border-color: #b45309; box-shadow: 0 0 0 3px rgba(180, 83, 9, .22); }
+.ttp-root[data-theme="light"] .ttp-node.current .ttp-box { border-color: #b45309; box-shadow: var(--shadow-sm); }
 .ttp-root[data-theme="light"] .ttp-node.current .ttp-name::after { color: #b45309; }
 .ttp-root[data-theme="light"] .ttp-theme-control > span.active {
   color: #0f172a;
