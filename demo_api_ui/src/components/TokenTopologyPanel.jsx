@@ -407,7 +407,7 @@ function NodeRow({ nodes, expandedId, currentId, onNodeClick, nodeRefs, classNam
   );
 }
 
-function Inspector({ step, topologyNodes, onClose }) {
+function Inspector({ step, topologyNodes, onClose, fontSize, setFontSize }) {
   const [tab, setTab] = useState('details');
   useEffect(() => { setTab('details'); }, [step?.id]);
 
@@ -442,6 +442,11 @@ function Inspector({ step, topologyNodes, onClose }) {
       <div className="ttp-insp-header">
         <span className={`ttp-lane ttp-lane--${(str(step.lane) || 'bff').toLowerCase()}`}>{str(step.lane)}</span>
         <span className="ttp-insp-title">{str(step.title)}</span>
+        <div className="ttp-insp-font-control" role="group" aria-label="Details font size">
+          <button type="button" onClick={() => setFontSize('small')} aria-label="Decrease details font size" aria-pressed={fontSize === 'small'}>A−</button>
+          <button type="button" onClick={() => setFontSize('medium')} aria-label="Default details font size" aria-pressed={fontSize === 'medium'}>A</button>
+          <button type="button" onClick={() => setFontSize('large')} aria-label="Increase details font size" aria-pressed={fontSize === 'large'}>A+</button>
+        </div>
         <button className="ttp-insp-close" onClick={onClose}>✕</button>
       </div>
 
@@ -775,7 +780,7 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
             )}
           </div>
           {selectedStep ? (
-            <div className="ttp-insp-pane" style={{ width: inspWidth }}><div className="ttp-resize-handle" {...inspHandleProps} /><Inspector step={selectedStep} topologyNodes={topologyNodes} onClose={() => setExpandedId(null)} /></div>
+            <div className="ttp-insp-pane" style={{ width: inspWidth }}><div className="ttp-resize-handle" {...inspHandleProps} /><Inspector step={selectedStep} topologyNodes={topologyNodes} onClose={() => setExpandedId(null)} fontSize={fontSize} setFontSize={setFontSize} /></div>
           ) : hasActivity && (
             <div className="ttp-insp-pane" style={{ width: inspWidth }}><div className="ttp-resize-handle" {...inspHandleProps} /><div className="ttp-insp-empty"><div className="ttp-insp-empty-icon">🔑</div><div className="ttp-insp-empty-text">Click a node to inspect its token details</div></div></div>
           )}
