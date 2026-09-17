@@ -154,9 +154,9 @@ function renderAgent(props = {}) {
 // the real `case "test_wrong_audience"` in AIAgent.js end-to-end.
 async function clickWrongAudienceChip() {
   renderAgent({ user: customerUser, mode: "inline" });
-  const groupHeader = screen.getByRole("button", { name: /Testing/i });
+  const groupHeader = screen.getByRole("button", { name: /Attacks/i });
   fireEvent.click(groupHeader);
-  const chip = await screen.findByText("Wrong Audience");
+  const chip = await screen.findByRole("button", { name: "Wrong Audience" });
   await act(async () => {
     fireEvent.click(chip);
   });
@@ -167,7 +167,7 @@ beforeEach(() => {
   // token-event chat messages (the RFC info card this chip renders into) are
   // hidden by default; this persisted setting is the component's own real
   // mechanism for showing them, not a test-only shortcut.
-  localStorage.setItem("ba_show_rfc_info", "true");
+  localStorage.setItem("ba_show_rfc_info", "1");
 });
 
 describe("Test Wrong Audience chip", () => {
