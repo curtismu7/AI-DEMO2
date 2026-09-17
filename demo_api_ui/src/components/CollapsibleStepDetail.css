@@ -78,6 +78,37 @@
   animation: slideDown 0.15s ease-out;
 }
 
+.csd-font-control {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.35rem;
+}
+
+.csd-font-label {
+  margin-right: 0.2rem;
+  color: var(--th-text-muted);
+  font-size: 11px;
+}
+
+.csd-font-control button {
+  min-width: 26px;
+  padding: 2px 6px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.csd-font-control button[aria-pressed="true"] {
+  background: var(--th-accent, #2563eb);
+  border-color: var(--th-accent, #2563eb);
+  color: #fff;
+}
+
 @keyframes slideDown {
   from {
     opacity: 0;

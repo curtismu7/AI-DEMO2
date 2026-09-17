@@ -141,7 +141,7 @@ function Payload({ label, title, text }) {
   );
 }
 
-export default function StepDetailPanel({ step, onInspect }) {
+export default function StepDetailPanel({ step, onInspect, fontSize = "large" }) {
   if (!step) return null;
   const d = step.detail || {};
   const kv = Array.isArray(d.kv) ? d.kv : [];
@@ -152,7 +152,7 @@ export default function StepDetailPanel({ step, onInspect }) {
   const ran = ["done", "active", "denied", "error"].includes(step.status);
 
   return (
-    <div className="sdp">
+    <div className="sdp" data-font-size={fontSize}>
       <div className="sdp-head">
         <h3 className="sdp-title">{step.title}</h3>
         <span className="sdp-lane">{laneLabel(step.lane)}</span>
