@@ -1264,7 +1264,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .banking-agent-learn-chip {
   font-size: var(--font-size-xs);
   padding: 6px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid #c6d4ff;
   background: var(--th-bg-card);
   color: var(--brand-navy);
@@ -1291,7 +1291,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   font-size: var(--font-size-2xs);
   padding: 8px;
   border: 1px solid #ccc;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   resize: vertical;
   font-family: inherit;
 }
@@ -1598,7 +1598,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   min-width: 26px;
   height: 24px;
   padding: 0 7px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   border: 1px solid rgba(255, 255, 255, 0.3);
   background: rgba(255, 255, 255, 0.14);
   color: inherit;
@@ -5121,7 +5121,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   margin-left: auto;
   padding: 2px 6px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--th-text-muted);
   background: var(--th-bg-inset);
   font-size: var(--font-size-3xs);
@@ -5139,8 +5139,9 @@ body > .banking-agent-float-root .banking-agent-panel {
   min-height: 32px;
   padding: 5px 10px;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-inset);
+  color: var(--th-text);
   box-sizing: border-box;
 }
 .ba-topology-surface-row label {
@@ -5152,7 +5153,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   min-width: 108px;
   padding: 4px 7px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   color: var(--th-text);
   background: var(--th-bg-card);
   font: inherit;

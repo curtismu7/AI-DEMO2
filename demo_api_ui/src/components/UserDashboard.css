@@ -344,6 +344,7 @@
   border: 0;
   border-top: 2px solid var(--th-border-strong);
   background: var(--th-bg-inset);
+  color: var(--th-text);
   cursor: ns-resize;
   outline: none;
 }
@@ -352,18 +353,21 @@
 .ud-detail-pane-resize-handle:focus-visible {
   border-top-color: var(--th-status-info-text);
   background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .ud-detail-pane-resize-grip {
   width: 44px;
   height: 3px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--th-border-strong);
+  color: var(--th-text);
 }
 
 .ud-detail-pane-resize-handle:hover .ud-detail-pane-resize-grip,
 .ud-detail-pane-resize-handle:focus-visible .ud-detail-pane-resize-grip {
   background: var(--th-status-info-text);
+  color: var(--th-text);
 }
 
 /* Sequence view: the agent column and the diagram default to a much taller

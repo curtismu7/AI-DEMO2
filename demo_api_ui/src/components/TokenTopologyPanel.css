@@ -47,7 +47,7 @@
   min-height: 28px;
   padding: 4px 9px;
   border: 1px solid #3d444d;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   color: #e6edf3;
   background: #21262d;
   font: inherit;
@@ -66,7 +66,7 @@
   gap: 2px;
   padding: 2px;
   border: 1px solid #3d444d;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: #21262d;
 }
 .ttp-font-control button {
@@ -74,7 +74,7 @@
   min-height: 24px;
   padding: 2px 4px;
   border: 0;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   color: #e6edf3;
   background: transparent;
   font: inherit;
@@ -103,7 +103,7 @@
   height: 28px;
   padding: 0;
   border: 2px solid #8b949e;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #30363d;
   cursor: pointer;
   transition: background .15s, border-color .15s, box-shadow .15s;
@@ -360,7 +360,7 @@
 }
 .ttp-node.current .ttp-box {
   border-color: #fbbf24;
-  box-shadow: 0 0 0 3px rgba(251, 191, 36, .28), 0 0 22px rgba(251, 191, 36, .2);
+  box-shadow: var(--shadow-md);
 }
 .ttp-node.current .ttp-name::after {
   content: ' CURRENT';
@@ -453,7 +453,7 @@
   font-family: var(--font-mono);
   letter-spacing: .04em;
   padding: 2px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   display: inline-block;
   width: fit-content;
 }
