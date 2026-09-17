@@ -59,6 +59,31 @@ describe('OAuthRouter — real PingOne-backed /authorize', () => {
     expect(location.searchParams.get('redirect_uri')).toBe(`${(router as any).issuer}/authorize/callback`);
   });
 
+  it('GET /authorize recovers an unknown loopback client id after a restart', async () => {
+    const call = fakeReqRes('GET',
+      '/authorize?client_id=lm-studio-restarted-client&redirect_uri=http://127.0.0.1:49152/oauth/callback&response_type=code&code_challenge=abc');
+
+    const handled = await router.handle(call.req, call.res);
+    const ctx = call as any;
+
+    expect(handled).toBe(true);
+    expect(ctx.statusCode).toBe(302);
+    const location = new URL(ctx.headers.Location);
+    expect(location.origin + location.pathname).toBe('https://auth.pingone.com/env/as/authorize');
+    expect(clientRegistry.getClient('lm-studio-restarted-client')?.token_endpoint_auth_method).toBe('none');
+  });
+
+  it('GET /authorize does not adopt a remote redirect for an unknown client id', async () => {
+    const call = fakeReqRes('GET',
+      '/authorize?client_id=attacker-client&redirect_uri=https://attacker.example/callback&response_type=code&code_challenge=abc');
+
+    await router.handle(call.req, call.res);
+    const ctx = call as any;
+
+    expect(ctx.statusCode).toBe(400);
+    expect(JSON.parse(ctx.body)).toEqual({ error: 'invalid_client', error_description: 'Unknown client_id' });
+  });
+
   it('full round trip: /authorize -> capture relay state -> /authorize/callback mints a code for the ORIGINAL client', async () => {
     const authorizeCall = fakeReqRes('GET',
       '/authorize?client_id=mcp-inspector&redirect_uri=http://localhost:6274/oauth/callback&response_type=code&code_challenge=abc&state=client-state-1');

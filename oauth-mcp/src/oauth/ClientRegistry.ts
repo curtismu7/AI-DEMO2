@@ -108,6 +108,19 @@ export async function fetchClientIdMetadataDocument(clientId: string): Promise<O
 /** Every dynamically-registered client lives under this one key. */
 const PERSISTED_CLIENTS_KEY = 'oauth-dynamic-clients';
 
+function assertLoopbackRedirectUri(uri: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(uri);
+  } catch {
+    throw new Error(`redirect_uri must be a loopback address (127.0.0.1 or localhost): ${uri}`);
+  }
+  const host = parsed.hostname.toLowerCase();
+  if (parsed.protocol !== 'http:' || (host !== '127.0.0.1' && host !== 'localhost' && host !== '::1' && host !== '[::1]')) {
+    throw new Error(`redirect_uri must be a loopback address (127.0.0.1 or localhost): ${uri}`);
+  }
+}
+
 /**
  * Client registry. Statically-configured clients come from OAUTH_CLIENTS (or
  * the demo defaults) on every boot; dynamically-registered ones are durable
@@ -221,6 +234,29 @@ export class ClientRegistry {
     // Fire-and-forget: a storage failure must not fail an otherwise valid
     // registration. persistClients() logs and swallows.
     void this.persistClients();
+  }
+
+  /**
+   * Recover a public native-app client after a restart or a load-balancer hop.
+   * The client ID is only adopted when its redirect is loopback, matching the
+   * trust boundary of dynamic registration. A client secret cannot be
+   * recovered from the authorize request, so the recovered client is public
+   * and remains protected by PKCE on the authorization-code flow.
+   */
+  adoptClient(clientId: string, redirectUri: string, scope = openRegistrationScope()): OAuthClient {
+    assertLoopbackRedirectUri(redirectUri);
+    const client: OAuthClient = {
+      client_id: clientId,
+      client_name: 'Dynamic MCP Client (adopted after restart)',
+      grant_types: ['authorization_code'],
+      redirect_uris: [redirectUri],
+      token_endpoint_auth_method: 'none',
+      scope,
+    };
+    this.clients.set(client.client_id, client);
+    this.dynamicClientIds.add(client.client_id);
+    void this.persistClients();
+    return client;
   }
 
   /**
