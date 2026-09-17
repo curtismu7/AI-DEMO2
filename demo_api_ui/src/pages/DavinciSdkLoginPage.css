@@ -31,9 +31,38 @@
   padding: 1.75rem;
   color: var(--th-text-on-emphasis);
   background: var(--th-bg-emphasis);
-  border: 1px solid var(--th-bg-emphasis);
+  border: 1px solid var(--th-border-strong);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
+}
+
+.dvsdk-login-header {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--th-border);
+}
+
+.dvsdk-login-header h2 {
+  margin: 0 0 0.35rem;
+  color: inherit;
+  font-size: var(--font-size-xl);
+}
+
+.dvsdk-login-header p {
+  margin: 0;
+  color: inherit;
+}
+
+.dvsdk-login-header .dvsdk-eyebrow {
+  margin-bottom: 0.35rem;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dvsdk-login-header .dvsdk-subtitle {
+  font-size: var(--font-size-sm);
 }
 
 @media (max-width: 900px) {

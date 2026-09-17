@@ -21,6 +21,7 @@ The original ask was "highlight how DaVinci can do orchestration." A first pass 
 ### 2. Login — risk-adaptive DaVinci Widget flow
 - `demo_api_ui/src/lib/davinciWidgetClient.js` — `@forgerock/davinci-client` SDK wrapper (mirrors the existing `oidcSdkClient.js` pattern)
 - `demo_api_ui/src/pages/DavinciLoginPage.jsx` at **`/davinci-login`** — renders the DaVinci flow's collectors live, guards every SDK call with `isSdkError()`
+- `demo_api_ui/src/pages/DavinciLoginGuidePage.jsx` at **`/davinci-widget`** — developer lesson with the embedded hosted widget and a same-origin pop-out runner (`?popout=1`); both modes use the same BFF-backed widget session flow, and a blocked pop-up reports an embedded fallback
 - `demo_api_server/routes/davinciLogin.js` (`GET /api/davinci-demo/config`, `POST /api/davinci-login/callback`) — exchanges the widget's OIDC code for tokens and establishes a real session (mirrors `routes/oauthUser.js`'s customer-login pattern: `exchangeCodeForToken` → `getUserInfo` → existing-user lookup → `session.regenerate()` → session write)
 - This is a **new parallel route** — does not touch the protected `routes/oauth.js`/`routes/oauthUser.js`
 
@@ -62,4 +63,4 @@ Full checklist: Task 1 in `docs/superpowers/plans/2026-08-17-davinci-orchestrati
 2. Click **More → DaVinci Orchestration** to see the value-prop page (works right now, no setup needed).
 3. As an admin, flip `ff_davinci_orchestration` on in the feature-flags panel.
 4. Trigger a transfer above the step-up threshold — it now routes through the DaVinci flow instead of the hand-coded OTP screen.
-5. Visit `/davinci-login` directly to try the widget-driven login.
+5. Visit `/davinci-widget` directly to try the widget-driven lesson, or use **Open pop-out** inside its live card to run the same widget in a separate window.

@@ -38,6 +38,32 @@ describe("DavinciLoginGuidePage", () => {
     expect(container.querySelectorAll(".dvl-live-calls .dvl-call")).toHaveLength(1);
   });
 
+  it("offers the same widget flow in a pop-out window", () => {
+    const popup = { focus: vi.fn() };
+    const open = vi.spyOn(window, "open").mockReturnValue(popup);
+    const { getByRole } = render(<DavinciLoginGuidePage />);
+
+    fireEvent.click(getByRole("button", { name: "Open pop-out" }));
+
+    expect(open).toHaveBeenCalledWith(
+      "/davinci-widget?popout=1",
+      "davinci-widget-popup",
+      expect.stringContaining("width=560"),
+    );
+    expect(popup.focus).toHaveBeenCalledTimes(1);
+    open.mockRestore();
+  });
+
+  it("explains how to continue when the browser blocks the pop-out", () => {
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    const { getByRole, getByText } = render(<DavinciLoginGuidePage />);
+
+    fireEvent.click(getByRole("button", { name: "Open pop-out" }));
+
+    expect(getByText("Your browser blocked the pop-out. Allow pop-ups for this site, or continue with the embedded widget.")).toBeTruthy();
+    open.mockRestore();
+  });
+
   it("opens the run summary after sign-in, and its links close it", () => {
     const { getByText, queryByText } = render(<DavinciLoginGuidePage />);
     act(() => widgetProps.onSignedIn({ username: "demouser" }));

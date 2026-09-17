@@ -345,6 +345,13 @@ export default function DavinciSdkLoginPage() {
 
         <div className="dvsdk-live">
           <div className="dvsdk-live-app">
+            <header className="dvsdk-login-header">
+              <p className="dvsdk-eyebrow">PingOne DaVinci</p>
+              <h2>Orchestration SDK Login</h2>
+              <p className="dvsdk-subtitle">
+                Sign in with the embedded orchestration form. Each screen comes from the live DaVinci flow.
+              </p>
+            </header>
             <div className="dvsdk-page">
               {phase === "loading" && <p className="dvsdk-status">Starting the flow...</p>}
 
