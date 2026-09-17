@@ -155,7 +155,7 @@ function dotenvxPlain(value, keyOverride) {
   }
 }
 
-function writeEnvFile(filePath, vars, extraHeader) {
+function writeEnvFile(filePath, vars, extraHeader, keyComments = {}) {
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) return; // service not installed — skip
   const lines = [
@@ -163,11 +163,12 @@ function writeEnvFile(filePath, vars, extraHeader) {
     '# Do not edit by hand — changes will be overwritten on next ./run.sh',
     ...(extraHeader ? ['#', ...extraHeader.map((l) => `# ${l}`)] : []),
     '',
-    ...Object.entries(vars).map(([k, v0]) => {
+    ...Object.entries(vars).flatMap(([k, v0]) => {
       const v = dotenvxPlain(v0);
       // Quote values containing spaces or special chars
       const needsQuote = /[\s$`"'\\;&|<>]/.test(v);
-      return `${k}=${needsQuote ? `"${v.replace(/"/g, '\\"')}"` : v}`;
+      const comment = keyComments[k] || 'Generated shared setting; see demo_api_server/.env and demo_mcp_gateway/.env.example.';
+      return [`# ${comment}`, `${k}=${needsQuote ? `"${v.replace(/"/g, '\\"')}"` : v}`];
     }),
   ];
   fs.writeFileSync(filePath, lines.join('\n') + '\n', 'utf8');
@@ -804,6 +805,13 @@ async function main(deps = {}) {
     MCP_GW_CLIENT_ID:                  creds.mcpGatewayClientId,
     MCP_GW_CLIENT_SECRET:              creds.mcpGatewaySecret,
     PINGONE_TOKEN_ENDPOINT:            `${asBase}/token`,
+    // LM Studio / IDE clients authenticate through the gateway's browser-based
+    // OAuth broker. This is the public PKCE client for the "Claude Code -
+    // Banking Gateway" PingOne app; it is a client ID, never a client secret.
+    // Keep this in the generated gateway env or refresh-service-envs.js will
+    // silently remove it from demo_mcp_gateway/.env.
+    GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID: fb('GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID')
+      || 'c8392dc4-2d82-4e49-92a8-79a78401faf5',
     GW_INTROSPECTION_CLIENT_ID:        creds.mcpExchangerClientId,
     GW_INTROSPECTION_CLIENT_SECRET:    creds.mcpExchangerSecret,
     GW_INTROSPECTION_ENDPOINT:         `${asBase}/introspect`,
@@ -817,14 +825,77 @@ async function main(deps = {}) {
     // BFF_INTERNAL_SECRET (docker-compose mcp-gateway): supplied via env_file,
     // never pinned in compose `environment:`.
     INTENT_TOKEN_SECRET:               fbVault('INTENT_TOKEN_SECRET') || fb('SESSION_SECRET'),
+    // Optional Privilege-first bridge. Leave empty for direct LM Studio OAuth
+    // against MCP AgentGateway-Banking. If Privilege fronts this gateway, set
+    // it to the Agentic App's Static Token, byte-for-byte; it is not the
+    // PingOne OAuth client ID and must never be shown in logs or committed.
+    MCP_GW_PRIVILEGE_BRIDGE_SECRET:    fb('MCP_GW_PRIVILEGE_BRIDGE_SECRET'),
   }, [
     'This is the Node MCP gateway (mcpgateway.ping.demo).',
+    'GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID is the public PKCE client ID for',
+    'the Claude Code - Banking Gateway PingOne app; it enables browser login',
+    'for LM Studio and IDE MCP clients. It is unrelated to the Privilege bridge.',
     'INTENT_TOKEN_SECRET must resolve the SAME key the BFF signs with',
     '(services/intentTokenService.js) and ping-gateway/.env verifies with.',
     'If it is ever missing here, intentTokenValidator.ts throws and every',
     'gw_audit_trail entry silently reports IntentTokenValid=false —',
     'the HMAC verifier ships as dead code with no error visible elsewhere.',
-  ]);
+    'MCP_GW_PRIVILEGE_BRIDGE_SECRET is optional and empty for direct LM Studio',
+    'OAuth. Only set it when Privilege fronts this gateway; it must equal the',
+    'Agentic App Static Token exactly and must never be committed.',
+  ], {
+    PINGONE_ENVIRONMENT_ID: 'PingOne environment UUID used to build issuer and authorization endpoints.',
+    PINGONE_REGION: 'PingOne region for the environment, normally com.',
+    PINGONE_JWKS_URI: 'PingOne JSON Web Key Set endpoint used to validate user access tokens.',
+    ENDUSER_AUDIENCE: 'Audience accepted for end-user tokens at the gateway boundary.',
+    BANKING_API_RESOURCE_URI: 'Banking resource audience used by downstream API authorization.',
+    MCP_RESOURCE_URI: 'Canonical MCP gateway/resource audience list from topology.',
+    MCP_SERVER_RESOURCE_URI: 'Downstream MCP server audience accepted during gateway forwarding.',
+    MCP_GW_RESOURCE_URI: 'This Node gateway resource audience.',
+    MCP_GW_TOKEN_ENDPOINT_AUTH_METHOD: 'OAuth token endpoint client authentication method.',
+    MCP_GW_PASSTHROUGH_TO_MCP_SERVER: 'Whether the gateway forwards the inbound token to the MCP server.',
+    PINGONE_RESOURCE_AGENT_GATEWAY_URI: 'PingOne resource audience for the agent gateway.',
+    PINGONE_RESOURCE_MCP_GATEWAY_URI: 'PingOne resource audience for this MCP gateway.',
+    PINGONE_RESOURCE_MCP_RESOURCE_SERVER_URI: 'Invest/resource-server audiences used by topology and exchange validation.',
+    AI_AGENT_INTERMEDIATE_AUDIENCE: 'Intermediate audience for the delegated agent exchange.',
+    PINGONE_RESOURCE_TWO_EXCHANGE_URI: 'Audience used by the second token exchange.',
+    TWO_EXCHANGE_INTERMEDIATE_SCOPE: 'Scope requested for the intermediate delegated exchange.',
+    BFF_INTERNAL_SECRET: 'Shared BFF-to-service authentication secret; never expose or commit.',
+    HITL_INTERNAL_SECRET: 'Shared human-in-the-loop service authentication secret; never expose or commit.',
+    PINGONE_AI_AGENT_ACTOR_CLIENT_ID: 'PingOne AI-agent actor client ID for delegated exchange.',
+    PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET: 'PingOne AI-agent actor client secret; never expose or commit.',
+    PINGONE_AI_AGENT_ACTOR_REDIRECT_URI: 'Registered redirect URI for the AI-agent actor flow.',
+    PINGONE_AGENT_CLIENT_ID: 'Main PingOne agent client ID.',
+    PINGONE_AGENT_CLIENT_SECRET: 'Main PingOne agent client secret; never expose or commit.',
+    OAUTH_PAR_ENDPOINT: 'PingOne pushed-authorization-request endpoint.',
+    PINGONE_TOKEN_EXCHANGER_CLIENT_ID: 'Client ID used for gateway token exchange.',
+    PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET: 'Client secret used for gateway token exchange; never expose or commit.',
+    ff_admin_token_exchange: 'Feature flag for administrator token exchange.',
+    ADMIN_TOKEN_LIFETIME: 'Administrator access-token lifetime in seconds.',
+    ADMIN_REFRESH_TOKEN_LIFETIME: 'Administrator refresh-token lifetime in seconds.',
+    PINGONE_ADMIN_TOKEN_ENDPOINT_AUTH: 'Authentication method for the PingOne admin token endpoint.',
+    PINGONE_INTROSPECTION_AUTH_METHOD: 'Authentication method for PingOne token introspection.',
+    PINGONE_INTROSPECTION_ENDPOINT: 'PingOne token introspection endpoint.',
+    PINGAUTHORIZE_ENDPOINT: 'PingOne Authorize policy endpoint used by gateway decisions.',
+    PINGAUTHORIZE_WORKER_ID: 'Policy worker identity used for gateway authorization decisions.',
+    MCP_GW_P1AZ_ENABLED: 'Enables PingOne Authorize policy checks in the gateway.',
+    DEMO_USER_USERNAME: 'Demo user login name; local/demo only.',
+    DEMO_USER_PASSWORD: 'Demo user password; never commit or share.',
+    DEMO_ADMIN_USERNAME: 'Demo administrator login name; local/demo only.',
+    DEMO_ADMIN_PASSWORD: 'Demo administrator password; never commit or share.',
+    TOPOLOGY_GUARD: 'Topology drift behavior, normally warn during local development.',
+    GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID: 'Public PKCE client ID for the Claude Code - Banking Gateway PingOne app; used by LM Studio and IDE clients.',
+    PINGONE_MCP_GATEWAY_CLIENT_ID: 'PingOne MCP gateway client ID for downstream token exchange.',
+    PINGONE_MCP_GATEWAY_CLIENT_SECRET: 'PingOne MCP gateway client secret; never expose or commit.',
+    MCP_GW_CLIENT_ID: 'Gateway client ID used by the Node exchange client.',
+    MCP_GW_CLIENT_SECRET: 'Gateway client secret used by the Node exchange client; never expose or commit.',
+    PINGONE_TOKEN_ENDPOINT: 'PingOne token endpoint used by exchange and broker flows.',
+    GW_INTROSPECTION_CLIENT_ID: 'Client ID used to introspect inbound gateway tokens.',
+    GW_INTROSPECTION_CLIENT_SECRET: 'Client secret used to introspect inbound gateway tokens; never expose or commit.',
+    GW_INTROSPECTION_ENDPOINT: 'Introspection endpoint for inbound gateway tokens.',
+    INTENT_TOKEN_SECRET: 'HMAC key used to verify gateway audit intent tokens; never expose or commit.',
+    MCP_GW_PRIVILEGE_BRIDGE_SECRET: 'Optional Privilege Agentic App Static Token; leave blank for direct LM Studio OAuth and never commit.',
+  });
   console.log('[refresh-envs] Wrote demo_mcp_gateway/.env');
 
   // ── demo_agent_service/.env ───────────────────────────────────────────────
