@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import StepDetailPanel from "../StepDetailPanel";
 
@@ -31,6 +31,18 @@ const DIFF_STEP = {
 };
 
 describe("StepDetailPanel", () => {
+  it("shows RFC references in the selected step detail only when RFC Info is on", () => {
+    localStorage.clear();
+    const { unmount } = render(<StepDetailPanel step={STEP} />);
+    expect(screen.queryByText("RFC 8693")).toBeNull();
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent("agent-rfc-info-toggle", { detail: { on: true } }));
+    });
+    expect(screen.getByText("RFC 8693")).toBeInTheDocument();
+    unmount();
+  });
+
   it("puts what happened above the payloads", () => {
     render(<StepDetailPanel step={STEP} />);
     const order = Array.from(document.querySelectorAll(".sdp-section-label")).map((e) => e.textContent);

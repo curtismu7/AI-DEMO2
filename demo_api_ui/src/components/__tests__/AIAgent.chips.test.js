@@ -486,7 +486,7 @@ describe("Header controls after the Actions dropdown removal", () => {
     expect(screen.getByRole("button", { name: /^Guide$/i })).toBeInTheDocument();
   });
 
-  it("offers the same four surface choices for each evidence view", async () => {
+  it("offers a toggle for RFC info and four surface choices for each evidence view", async () => {
     renderAgent({ user: customerUser, mode: "float" });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
@@ -496,11 +496,14 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
 
+    expect(screen.getByLabelText("RFC info")).not.toBeChecked();
+
     for (const label of [
-      "RFC info surface",
       "Agent flow diagram surface",
+      "Token topology",
       "Simple step surface",
       "Sequence view surface",
+      "OAuth Visualizer surface",
     ]) {
       const select = screen.getByLabelText(label);
       expect(select).toHaveValue("none");
@@ -511,6 +514,19 @@ describe("Header controls after the Actions dropdown removal", () => {
         "both",
       ]);
     }
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText("Sequence view surface"), { target: { value: "both" } });
+    });
+    expect(screen.getByLabelText("Agent flow diagram surface")).toBeDisabled();
+    expect(screen.getByLabelText("Token topology")).toBeDisabled();
+    expect(screen.getByLabelText("Simple step surface")).toBeDisabled();
+    expect(screen.getByLabelText("OAuth Visualizer surface")).toBeDisabled();
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText("Sequence view surface"), { target: { value: "popout" } });
+    });
+    expect(screen.getByLabelText("Agent flow diagram surface")).not.toBeDisabled();
   });
 });
 
