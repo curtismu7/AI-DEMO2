@@ -95,6 +95,7 @@
 }
 
 .dvl-secondary:hover {
+  color: var(--th-text);
   background: var(--th-bg-hover);
 }
 
