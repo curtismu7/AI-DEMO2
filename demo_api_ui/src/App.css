@@ -1817,12 +1817,23 @@
 }
 
 /* When sidebar is present (user is logged in), offset all content containers */
-.App:has(.admin-side-nav) .main-content,
+.App:has(.admin-side-nav) .main-content:not(:has(.pai-lesson-page)),
 .App:has(.admin-side-nav) .topnav,
 .App:has(.admin-side-nav) .chase-top-nav,
 .App:has(.admin-side-nav) > .footer {
   margin-left: var(--sidebar-width);
   transition: margin-left 0.3s ease-in-out;
+  width: calc(100% - var(--sidebar-width));
+  box-sizing: border-box;
+}
+
+/* AI lessons own their sidebar clearance because the navigation rail is fixed
+   and user-resizable. This keeps the route host and the rail in sync. */
+.App:has(.admin-side-nav) .ai-product-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  margin-left: var(--sidebar-width);
   width: calc(100% - var(--sidebar-width));
   box-sizing: border-box;
 }
@@ -1835,13 +1846,18 @@
 }
 
 /* When sidebar is collapsed */
-.App:has(.admin-side-nav--collapsed) .main-content,
+.App:has(.admin-side-nav--collapsed) .main-content:not(:has(.pai-lesson-page)),
 .App:has(.admin-side-nav--collapsed) .topnav,
 .App:has(.admin-side-nav--collapsed) .chase-top-nav,
 .App:has(.admin-side-nav--collapsed) > .footer {
   margin-left: var(--sidebar-collapsed-width);
   width: calc(100% - var(--sidebar-collapsed-width));
   box-sizing: border-box;
+}
+
+.App:has(.admin-side-nav--collapsed) .ai-product-main {
+  margin-left: var(--sidebar-collapsed-width);
+  width: calc(100% - var(--sidebar-collapsed-width));
 }
 
 .App:has(.admin-side-nav--collapsed) .main-content .main-content {
@@ -1851,7 +1867,7 @@
 
 /* Responsive: on small screens sidebar auto-collapses to icon-only */
 @media (max-width: 768px) {
-  .App:has(.admin-side-nav) .main-content,
+  .App:has(.admin-side-nav) .main-content:not(:has(.pai-lesson-page)),
   .App:has(.admin-side-nav) .topnav,
   .App:has(.admin-side-nav) .chase-top-nav,
   .App:has(.admin-side-nav) > .footer {
