@@ -2285,9 +2285,10 @@ export default function BankingAgent({
         (msg) =>
           msg.role === "user" ||
           msg.role === "assistant" ||
-          msg.role === "error",
+          msg.role === "error" ||
+          (msg.role === "token-event" && showRfcInfo),
       ),
-    [messages],
+    [messages, showRfcInfo],
   );
   const { hiddenCount: transcriptHiddenCount, visible: visibleFilteredMsgs } = windowTranscript(
     transcriptFilteredMsgs,
@@ -4443,7 +4444,7 @@ export default function BankingAgent({
           } catch (scopeErr) {
             scopeTestRes = {
               error: scopeErr.code || scopeErr.message,
-              status: scopeErr.status,
+              status: scopeErr.status ?? scopeErr.statusCode,
               missingScopes: scopeErr.missingScopes,
               requiredScopes: scopeErr.requiredScopes,
               availableScopes: scopeErr.availableScopes,
@@ -5977,6 +5978,7 @@ export default function BankingAgent({
           "token-event",
           [
             "⚠️ OAuth 2.0 §3.3 — Scope Gate: write required",
+            `✅ Gateway correctly rejected (${err.statusCode || 403}): insufficient scope`,
             `   Tool ${err.tool || actionId} requires: ${(err.requiredScopes || []).join(", ")}`,
             `   Your MCP token is missing: \`${(err.missingScopes || []).join(", ")}`,
             "   The MCP server returned JSON-RPC -32005 (INSUFFICIENT_SCOPE).",
