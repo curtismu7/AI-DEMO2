@@ -321,7 +321,7 @@ export default function DavinciSdkLoginPage() {
       // Matches the side-nav label (sdkLoginHeadingMatchesNav.test.js). The nav
       // was once renamed while this heading was not, and the page stopped
       // looking like the orchestration app it is.
-      title="Davinci Orchestration SDK"
+      title="DaVinci Orchestration SDK"
       subtitle={
         <>
           The Ping Orchestration SDK runs a PingOne DaVinci flow, and this page draws each of the
@@ -349,6 +349,13 @@ export default function DavinciSdkLoginPage() {
 
         <div className="dvsdk-live">
           <div className="dvsdk-live-app">
+            <header className="dvsdk-login-header">
+              <p className="dvsdk-eyebrow">PingOne DaVinci</p>
+              <h2>Orchestration SDK Login</h2>
+              <p className="dvsdk-subtitle">
+                Sign in with the embedded orchestration form. Each screen comes from the live DaVinci flow.
+              </p>
+            </header>
             <div className="dvsdk-page">
               {phase === "loading" && <p className="dvsdk-status">Starting the flow...</p>}
 

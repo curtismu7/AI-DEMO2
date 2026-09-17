@@ -23,9 +23,117 @@
   padding: 1.75rem;
   color: var(--th-text-on-emphasis);
   background: var(--th-bg-emphasis);
-  border: 1px solid var(--th-bg-emphasis);
+  border: 1px solid var(--th-border-strong);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
+}
+
+.dvl-login-header {
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  color: inherit;
+  border-bottom: 1px solid var(--th-border);
+}
+
+.dvl-login-header h1,
+.dvl-login-header h2 {
+  margin: 0 0 0.35rem;
+  color: inherit;
+  font-size: var(--font-size-xl);
+}
+
+.dvl-login-header p {
+  margin: 0;
+  color: inherit;
+}
+
+.dvl-eyebrow {
+  margin-bottom: 0.35rem !important;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dvl-mode-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.dvl-mode-label {
+  padding: 0.35rem 0.7rem;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  color: var(--th-text);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-pill);
+}
+
+.dvl-popup-error {
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 0.8rem;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+}
+
+.dvl-secondary {
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+}
+
+.dvl-secondary:hover {
+  color: var(--th-text);
+  background: var(--th-bg-hover);
+}
+
+.dvl-popout-page {
+  min-height: 100vh;
+  padding: 2rem 1.5rem;
+  color: var(--th-text);
+  background: var(--th-bg-page);
+}
+
+.dvl-popout-page .dvl-login-header {
+  max-width: 34rem;
+  margin: 0 auto 1rem;
+  color: var(--th-text);
+  border-color: var(--th-border);
+}
+
+.dvl-popout-card {
+  max-width: 34rem;
+  margin: 0 auto 1rem;
+  padding: 1.25rem;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.dvl-popout-card .dvl-page {
+  margin: 0;
+  padding: 0;
+}
+
+.dvl-popout-page > .dvl-secondary {
+  display: block;
+  margin: 0 auto;
+  color: var(--th-text);
+  border-color: var(--th-border);
 }
 
 /* Text with no ground of its own takes the card's ink. DavinciLoginPage.css

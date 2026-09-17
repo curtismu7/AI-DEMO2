@@ -13,9 +13,11 @@ import DavinciLoginWidget from "./DavinciLoginWidget";
 import "./DavinciLoginGuidePage.css";
 
 export default function DavinciLoginGuidePage() {
+  const isPopout = new URLSearchParams(window.location.search).get("popout") === "1";
   const [calls, setCalls] = useState([]);
   const [signedIn, setSignedIn] = useState(null);
   const [showSummary, setShowSummary] = useState(false);
+  const [popupError, setPopupError] = useState("");
 
   // 2026-09-13 tech debt: a widget session carries no refresh token, so a
   // returning visitor whose access token is near expiry gets a silent,
@@ -41,6 +43,38 @@ export default function DavinciLoginGuidePage() {
     document.getElementById(id)?.scrollIntoView?.({ behavior: "smooth" });
   }, []);
 
+  const openPopout = useCallback(() => {
+    setPopupError("");
+    const popup = window.open(
+      "/davinci-widget?popout=1",
+      "davinci-widget-popup",
+      "popup,width=560,height=820,resizable=yes,scrollbars=yes",
+    );
+    if (popup) {
+      popup.focus?.();
+    } else {
+      setPopupError("Your browser blocked the pop-out. Allow pop-ups for this site, or continue with the embedded widget.");
+    }
+  }, []);
+
+  if (isPopout) {
+    return (
+      <main className="dvl-popout-page">
+        <header className="dvl-login-header">
+          <p className="dvl-eyebrow">PingOne DaVinci</p>
+          <h1>DaVinci Widget Login</h1>
+          <p>Run the DaVinci flow in a separate window.</p>
+        </header>
+        <div className="dvl-popout-card">
+          <DavinciLoginWidget />
+        </div>
+        <button type="button" className="dvl-secondary" onClick={() => window.close()}>
+          Close window
+        </button>
+      </main>
+    );
+  }
+
   return (
     <LessonLayout
       title="DaVinci Widget"
@@ -62,6 +96,22 @@ export default function DavinciLoginGuidePage() {
 
         <div className="dvl-live">
           <div className="dvl-live-app">
+            <div className="dvl-login-header">
+              <p className="dvl-eyebrow">PingOne DaVinci</p>
+              <h2>DaVinci Widget Login</h2>
+              <p>Continue with the embedded widget, or open the same flow in a separate window.</p>
+              <div className="dvl-mode-actions">
+                <span className="dvl-mode-label">Embedded</span>
+                <button type="button" className="dvl-secondary" onClick={openPopout}>
+                  Open pop-out
+                </button>
+              </div>
+              {popupError && (
+                <p className="dvl-popup-error" role="alert">
+                  {popupError}
+                </p>
+              )}
+            </div>
             <DavinciLoginWidget onStart={onStart} onCall={onCall} onSignedIn={onSignedIn} />
             {signedIn && (
               <div className="dvl-signed-in">
