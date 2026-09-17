@@ -1030,6 +1030,10 @@ async function main(deps = {}) {
     PG_INVEST_SCOPE:                'invest:read',
     PG_OLB_BACKEND_URL:             'http://mcp-server:8080',
     PG_INVEST_BACKEND_URL:          'http://mcp-resource-server:8081',
+    // Private P1AZ resolver route: PingGateway injects this key before proxying
+    // /authorize/account-context to the SQLite-backed resource server. Keep it
+    // identical to the resource server's vault-backed key.
+    MCP_RESOURCE_SERVER_API_KEY:    fbVault('MCP_RESOURCE_SERVER_API_KEY') || fb('MCP_RESOURCE_SERVER_API_KEY'),
     BFF_INTERNAL_SECRET:            fbVault('BFF_INTERNAL_SECRET') || 'dev-shared-secret-change-me',
     // Intent Token verification in scripts/groovy/p1az-decision.groovy resolves
     // `INTENT_TOKEN_SECRET ?: SESSION_SECRET`. Neither was emitted here, so the

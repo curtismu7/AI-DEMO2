@@ -1,0 +1,33 @@
+{
+  "comment": "Private P1AZ resolver backend. The SQLite resource server stays on the internal network; PingGateway adds its service key and proxies only this read path.",
+  "name": "authorize-account-context",
+  "condition": "${find(request.uri.path, '^/authorize/account-context$')}",
+  "handler": {
+    "type": "Chain",
+    "config": {
+      "filters": [
+        {
+          "name": "InjectResourceServerKey",
+          "type": "HeaderFilter",
+          "config": {
+            "messageType": "request",
+            "remove": [
+              "Authorization",
+              "X-API-Key"
+            ],
+            "add": {
+              "X-API-Key": [
+                "${env['MCP_RESOURCE_SERVER_API_KEY']}"
+              ]
+            }
+          }
+        }
+      ],
+      "handler": {
+        "type": "ReverseProxyHandler",
+        "baseURI": "${env['PG_INVEST_BACKEND_URL']}",
+        "config": {}
+      }
+    }
+  }
+}
