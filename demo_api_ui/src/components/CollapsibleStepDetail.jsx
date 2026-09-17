@@ -18,6 +18,7 @@ export default function CollapsibleStepDetail({ step }) {
         <span className="csd-toggle-icon">{expanded ? "▼" : "▶"}</span>
         <span className="csd-label">{step.label || "Step Details"}</span>
         {step.status && <span className={`csd-status csd-status-${step.status}`}>{step.status}</span>}
+        <span className="csd-summary-size" aria-hidden="true">A−&nbsp; A&nbsp; A+</span>
       </button>
       {expanded && (
         <div className="csd-details">

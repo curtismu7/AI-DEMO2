@@ -45,6 +45,13 @@
   text-align: left;
 }
 
+.csd-summary-size {
+  color: var(--th-text-muted);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
 .csd-status {
   display: inline-block;
   padding: 0.25rem 0.5rem;
