@@ -17,6 +17,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import useDividerDrag from "../../hooks/useDividerDrag";
 import { useMermaidRender } from "../../hooks/useMermaidRender";
+import { useThemeOptional } from "../../context/ThemeContext";
 import "./lesson.css";
 
 // Sections a customer handout leaves out: Try It Live is a live sign-in with
@@ -63,7 +64,8 @@ function exportPdf(title) {
  * Header, a resizable section nav, and the content column.
  * @param {{ title: string, subtitle?: import('react').ReactNode,
  *   sections: Array<{ id: string, label: string }>, storageKey?: string,
- *   printExclude?: string[], children: import('react').ReactNode }} props
+ *   printExclude?: string[], headerNav?: import('react').ReactNode,
+ *   pageClassName?: string, children: import('react').ReactNode }} props
  */
 export function LessonLayout({
   title,
@@ -71,10 +73,13 @@ export function LessonLayout({
   sections = [],
   storageKey,
   printExclude = DEFAULT_PRINT_EXCLUDE,
+  headerNav,
+  pageClassName = "",
   children,
 }) {
   const [active, setActive] = useState(sections[0]?.id);
   const { size, handleProps } = useDividerDrag({ min: 180, max: 400, initial: 220, storageKey });
+  const { darkMode, toggleDarkMode } = useThemeOptional();
 
   // Every printed page carries the copyright and trademark notice in its bottom
   // margin, via an @page margin box. Measured in Chromium's PDF output: a
@@ -100,7 +105,7 @@ export function LessonLayout({
 
   return (
     <PrintExcludeContext.Provider value={printExclude}>
-      <div className="lesson-page">
+      <div className={`lesson-page${pageClassName ? ` ${pageClassName}` : ""}`}>
         <header className="lesson-header">
           {/* A text wordmark, not an image: the repo's branding/ping-logo.svg
               is a placeholder "P" badge, not Ping Identity's logo, and a
@@ -111,11 +116,24 @@ export function LessonLayout({
           </div>
           <div className="lesson-header-row">
             <h1>{title}</h1>
-            <button type="button" className="lesson-export" onClick={() => exportPdf(title)}>
-              Export PDF
-            </button>
+            <div className="lesson-header-actions">
+              <button
+                type="button"
+                className="lesson-theme-toggle"
+                onClick={toggleDarkMode}
+                title="Switch between light and dark mode"
+                aria-pressed={darkMode}
+                aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+              >
+                {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
+              </button>
+              <button type="button" className="lesson-export" onClick={() => exportPdf(title)}>
+                Export PDF
+              </button>
+            </div>
           </div>
           {subtitle && <p className="lesson-subtitle">{subtitle}</p>}
+          {headerNav && <div className="lesson-header-nav">{headerNav}</div>}
         </header>
         <div className="lesson-layout" style={{ "--lesson-nav-w": `${size}px` }}>
           <nav className="lesson-sidebar" aria-label="Lesson sections">

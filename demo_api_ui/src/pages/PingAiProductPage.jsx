@@ -144,16 +144,18 @@ export default function PingAiProductPage({ product = "core" }) {
   const data = PRODUCTS[product] || PRODUCTS.core;
   return (
     <LessonLayout
+      pageClassName="pai-lesson-page"
       title={data.title}
       subtitle={<><span className={`pai-eyebrow pai-eyebrow--${data.accent}`}>{data.eyebrow}</span> {data.subtitle}</>}
       sections={data.sections.map((label) => ({ id: label.toLowerCase().replaceAll(" ", "-"), label }))}
       storageKey={`ping-ai-product-${product}`}
       printExclude={[]}
+      headerNav={
+        <nav className="pai-product-nav" aria-label="AI product pages">
+          {NAV.map(([key, label]) => <Link className={key === product ? "pai-product-nav__link pai-product-nav__link--active" : "pai-product-nav__link"} key={key} to={slug(key)}>{label}</Link>)}
+        </nav>
+      }
     >
-      <nav className="pai-product-nav" aria-label="AI product pages">
-        {NAV.map(([key, label]) => <Link className={key === product ? "pai-product-nav__link pai-product-nav__link--active" : "pai-product-nav__link"} key={key} to={slug(key)}>{label}</Link>)}
-      </nav>
-
       <Section id="overview" title="The role it plays">
         <Lede>{data.lede}</Lede>
         <div className={`pai-hero pai-hero--${data.accent}`}>
