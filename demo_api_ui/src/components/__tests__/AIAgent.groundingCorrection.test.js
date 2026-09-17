@@ -140,7 +140,7 @@ describe("grounding correction surfaces in chat", () => {
     // token-event bubbles are gated behind the "Show RFC info" toggle
     // (same gate every other attack-outcome token-event bubble in this file
     // uses); opt in so the correction bubble is visible for this assertion.
-    localStorage.setItem("ba_show_rfc_info", "true");
+    localStorage.setItem("ba_show_rfc_info", "1");
     renderAgent({ user: customerUser, mode: "inline" });
     await waitFor(() => {
       expect(screen.getByText(/fwr-123/i)).toBeInTheDocument();
