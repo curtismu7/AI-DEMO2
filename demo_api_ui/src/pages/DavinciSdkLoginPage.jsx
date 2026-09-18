@@ -11,11 +11,10 @@
 // collectors, all from this browser's own run. The sections below it
 // (SdkLessonSections) teach the rest.
 //
-// Scope today: TextCollector, PasswordCollector, SubmitCollector, generic
-// ActionCollector and FlowCollector, enough to drive multi-screen flows whose
-// continue buttons use either action shape.
-// CollectorField renders a visible fallback for anything else rather than
-// omitting a field silently.
+// Scope today: interactive text, password, submit, action and flow collectors,
+// plus PingOne Forms' display-only rich text, error placeholder and automatic
+// Protect signal. CollectorField renders a visible fallback for anything else
+// rather than omitting a field silently.
 //
 // A successful sign-in does NOT leave this page. A "What just happened" modal
 // summarises the run and links into the lesson; closing it leaves you here,

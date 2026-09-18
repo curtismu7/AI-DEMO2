@@ -141,6 +141,32 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-17 — DaVinci SDK renders PingOne Forms display and security collectors
+
+**Files changed:** `demo_api_ui/src/components/davinci/CollectorField.jsx`,
+`demo_api_ui/src/pages/DavinciSdkLoginPage.css`,
+`demo_api_ui/src/pages/DavinciSdkLoginPage.jsx`,
+`demo_api_ui/src/components/davinci/SdkLessonSections.jsx`, and their focused tests.
+
+**What was broken:** The live P1 Forms flow returned `RichTextCollector`,
+`ERROR_DISPLAY`, and `ProtectCollector` on every screen, but the shared SDK
+renderer treated them as unsupported collectors. Users saw false warnings
+instead of the flow's instructional copy and automatic security step.
+
+**What was fixed:** Rich text is rendered as escaped text-only content,
+`ERROR_DISPLAY` remains an intentionally empty page-owned error slot, and
+`ProtectCollector` renders a non-interactive security status. The orchestration
+lesson now documents each shape and keeps a visible fallback for genuinely
+unknown collectors.
+
+**Do not break:** Keep `client.update(collector)` and `client.next()`/flow
+action semantics unchanged. Do not turn `RichTextCollector` into HTML, add
+inputs for automatic collectors, or hide an unrecognised collector silently.
+
+**Verify:** `cd demo_api_ui && npm run test:unit` (changed DaVinci suites pass;
+the full run currently has six unrelated existing AIAgent assertion failures),
+`npm run build`, and the focused collector/lesson Vitest suites.
+
 ### 2026-09-14 — Privilege Remote Agent now has a real, authenticated A2A backend
 
 **Files changed:** `langchain_agent/src/api/a2a_handler.py`,
