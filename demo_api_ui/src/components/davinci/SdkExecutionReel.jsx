@@ -9,9 +9,10 @@ const MODES = [
 ];
 
 const codeFor = {
-  start: "const node = await client.start({ query: { nonce } });",
+  start: "const node = await client.start({ query: { nonce, acr_values: flowPolicyId } });",
   flow: "const node = await client.flow({ action })();",
   "update-next": "client.update(collector)(value);\nconst node = await client.next();",
+  logout: "// Requires a registered redirect URI.\nawait signOutOfPingOne(cfg);",
 };
 
 function json(value) {
@@ -55,7 +56,7 @@ function LaneCard({ event, lane, events }) {
   );
 }
 
-function FrameDetails({ event }) {
+function FrameDetails({ event, compact = false }) {
   const detail = event.detail || {};
   const request = {
     ...(detail.method ? { method: detail.method, host: detail.host, path: detail.path } : {}),
@@ -70,8 +71,8 @@ function FrameDetails({ event }) {
   return (
     <section className="sdk-reel-detail" aria-label={`Selected frame: ${event.label}`}>
       <h4>{event.label}</h4>
-      <p>Frame {event.sequence} explains the DaVinci and SDK boundary for this captured event.</p>
-      <details>
+      <p>Frame {event.sequence} explains {event.codeKey === "logout" ? "how the app ends the PingOne session" : "the DaVinci and SDK boundary"} for this captured event.</p>
+      <details open={compact}>
         <summary>Code</summary>
         <pre><code>{codeFor[event.codeKey] || "// This event was observed from the SDK trace."}</code></pre>
       </details>
@@ -79,8 +80,8 @@ function FrameDetails({ event }) {
         <summary>Request</summary>
         <pre><code>{json(request)}</code></pre>
       </details>
-      <details>
-        <summary>DaVinci response</summary>
+      <details open={compact}>
+        <summary>{event.codeKey === "logout" ? "PingOne sign-out" : "DaVinci response"}</summary>
         <pre><code>{json(response)}</code></pre>
       </details>
       <details>
@@ -91,7 +92,7 @@ function FrameDetails({ event }) {
   );
 }
 
-function MovieReel({ events, selected, onSelect, frameRefs }) {
+function MovieReel({ events, selected, onSelect, frameRefs, compact = false }) {
   return (
     <>
       <div className="sdk-reel-rail" aria-label="Execution frames">
@@ -99,7 +100,7 @@ function MovieReel({ events, selected, onSelect, frameRefs }) {
           <Frame key={event.id} event={event} selected={selected?.id === event.id} onSelect={onSelect} frameRef={(node) => frameRefs.current.set(event.id, node)} />
         ))}
       </div>
-      <section className="sdk-reel-lanes" aria-label="Synchronized DaVinci and SDK collector lanes">
+      {!compact && <section className="sdk-reel-lanes" aria-label="Synchronized DaVinci and SDK collector lanes">
         <div className="sdk-reel-lane-heading"><h4>DaVinci</h4><h4>SDK + collectors</h4></div>
         {events.map((event) => (
           <div className="sdk-reel-lane-row" key={event.id}>
@@ -107,7 +108,7 @@ function MovieReel({ events, selected, onSelect, frameRefs }) {
             <LaneCard event={event} lane="sdk" events={events} />
           </div>
         ))}
-      </section>
+      </section>}
     </>
   );
 }
@@ -149,7 +150,7 @@ function useReducedMotion() {
   return reducedMotion;
 }
 
-export default function SdkExecutionReel({ events = [], previewEvents = PREVIEW_EVENTS, mode = "movie", onModeChange = () => {} }) {
+export default function SdkExecutionReel({ events = [], previewEvents = PREVIEW_EVENTS, mode = "movie", onModeChange = () => {}, compact = false }) {
   const isLive = events.length > 0;
   const isPreview = !isLive && previewEvents.length > 0;
   const displayedEvents = useMemo(() => (isLive ? events : previewEvents), [events, isLive, previewEvents]);
@@ -174,10 +175,10 @@ export default function SdkExecutionReel({ events = [], previewEvents = PREVIEW_
   }, [selectedId]);
 
   return (
-    <section className="sdk-execution-reel" aria-labelledby="sdk-reel-title" data-reduced-motion={reducedMotion}>
+    <section className={`sdk-execution-reel${compact ? " is-compact" : ""}`} aria-labelledby="sdk-reel-title" data-reduced-motion={reducedMotion}>
       <div className="sdk-reel-heading">
         <div>
-          <p className="sdk-reel-eyebrow">Execution view concepts</p>
+          {!compact && <p className="sdk-reel-eyebrow">Execution view concepts</p>}
           <h3 id="sdk-reel-title">DaVinci execution reel</h3>
         </div>
         <span className={`sdk-reel-badge${isLive ? " is-live" : ""}`} role="status">
@@ -185,22 +186,22 @@ export default function SdkExecutionReel({ events = [], previewEvents = PREVIEW_
         </span>
       </div>
 
-      <div className="sdk-reel-tabs" aria-label="Execution view concepts">
+      {!compact && <div className="sdk-reel-tabs" aria-label="Execution view concepts">
         {MODES.map(([value, label]) => (
           <button key={value} type="button" aria-pressed={mode === value} onClick={() => onModeChange(value)}>
             {label}
           </button>
         ))}
-      </div>
+      </div>}
       {isPreview && <p className="sdk-reel-preview">Concept preview: sample frames demonstrate the renderer and are not this browser run.</p>}
       {!displayedEvents.length ? <p>The first frame appears after start() begins.</p> : null}
 
       {displayedEvents.length > 0 && (
         <>
-          {mode === "debugger" ? <DebuggerView events={displayedEvents} selected={selected} onSelect={setSelectedId} frameRefs={frameRefs} /> : null}
-          {mode === "storyboard" ? <StoryboardView events={displayedEvents} selected={selected} onSelect={setSelectedId} frameRefs={frameRefs} /> : null}
-          {mode === "movie" ? <MovieReel events={displayedEvents} selected={selected} onSelect={setSelectedId} frameRefs={frameRefs} /> : null}
-          {selected && <FrameDetails event={selected} />}
+          {!compact && mode === "debugger" ? <DebuggerView events={displayedEvents} selected={selected} onSelect={setSelectedId} frameRefs={frameRefs} /> : null}
+          {!compact && mode === "storyboard" ? <StoryboardView events={displayedEvents} selected={selected} onSelect={setSelectedId} frameRefs={frameRefs} /> : null}
+          {(compact || mode === "movie") ? <MovieReel events={displayedEvents} selected={selected} onSelect={setSelectedId} frameRefs={frameRefs} compact={compact} /> : null}
+          {selected && <FrameDetails event={selected} compact={compact} />}
         </>
       )}
     </section>
