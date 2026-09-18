@@ -18,7 +18,6 @@ function createController(options: {
     controller: createMcpRecoveryController({
       serverNames: options.serverNames ?? ['super-sports-gateway'],
       initializeServer,
-      deleteMessage,
       timeoutMs: options.timeoutMs ?? 100,
     }),
   };
@@ -28,7 +27,7 @@ describe('MCP recovery controller', () => {
   test('does not initialize or delete when no MCP servers are selected', async () => {
     const { controller, initializeServer, deleteMessage } = createController({ serverNames: [] });
 
-    await expect(controller.recover()).resolves.toEqual({ status: 'no-server' });
+    await expect(controller.recover(deleteMessage)).resolves.toEqual({ status: 'no-server' });
     expect(initializeServer).toHaveBeenCalledTimes(0);
     expect(deleteMessage).not.toHaveBeenCalled();
   });
@@ -40,10 +39,10 @@ describe('MCP recovery controller', () => {
         resolveInitialization = resolve;
       }),
     );
-    const { controller } = createController({ initializeServer });
+    const { controller, deleteMessage } = createController({ initializeServer });
 
-    const first = controller.recover();
-    const second = controller.recover();
+    const first = controller.recover(deleteMessage);
+    const second = controller.recover(deleteMessage);
 
     await expect(second).resolves.toEqual({ status: 'in-flight' });
     resolveInitialization?.({ success: true });
@@ -58,24 +57,34 @@ describe('MCP recovery controller', () => {
     });
     const { controller, deleteMessage } = createController({ initializeServer });
 
-    await expect(controller.recover()).resolves.toEqual({ status: 'authentication-required' });
+    await expect(controller.recover(deleteMessage)).resolves.toEqual({ status: 'authentication-required' });
     expect(deleteMessage).not.toHaveBeenCalled();
   });
 
   test('deletes only after a successful reconnect', async () => {
     const { controller, initializeServer, deleteMessage } = createController();
 
-    await expect(controller.recover()).resolves.toEqual({ status: 'recovered' });
+    await expect(controller.recover(deleteMessage)).resolves.toEqual({ status: 'recovered' });
     expect(initializeServer).toHaveBeenCalledWith('super-sports-gateway', true);
     expect(deleteMessage).toHaveBeenCalledTimes(1);
   });
 
+  test('uses the deletion callback supplied to the recovery attempt', async () => {
+    const staleDeleteMessage = jest.fn<Promise<void>, []>().mockRejectedValue(new Error('stale callback'));
+    const attemptDeleteMessage = jest.fn<Promise<void>, []>().mockResolvedValue();
+    const { controller } = createController({ deleteMessage: staleDeleteMessage });
+
+    await expect(controller.recover(attemptDeleteMessage)).resolves.toEqual({ status: 'recovered' });
+    expect(attemptDeleteMessage).toHaveBeenCalledTimes(1);
+    expect(staleDeleteMessage).not.toHaveBeenCalled();
+  });
+
   test('initializes each unique server once', async () => {
-    const { controller, initializeServer } = createController({
+    const { controller, initializeServer, deleteMessage } = createController({
       serverNames: ['super-sports-gateway', ' super-sports-gateway ', 'aidemo-mcp'],
     });
 
-    await expect(controller.recover()).resolves.toEqual({ status: 'recovered' });
+    await expect(controller.recover(deleteMessage)).resolves.toEqual({ status: 'recovered' });
     expect(initializeServer).toHaveBeenCalledTimes(2);
     expect(initializeServer).toHaveBeenNthCalledWith(1, 'super-sports-gateway', true);
     expect(initializeServer).toHaveBeenNthCalledWith(2, 'aidemo-mcp', true);
@@ -85,7 +94,7 @@ describe('MCP recovery controller', () => {
     const initializeServer = jest.fn<Promise<InitializeResult>, [string, boolean]>().mockRejectedValue(new Error('offline'));
     const { controller, deleteMessage } = createController({ initializeServer });
 
-    await expect(controller.recover()).resolves.toEqual({ status: 'reconnect-failed' });
+    await expect(controller.recover(deleteMessage)).resolves.toEqual({ status: 'reconnect-failed' });
     expect(deleteMessage).not.toHaveBeenCalled();
   });
 
@@ -93,10 +102,10 @@ describe('MCP recovery controller', () => {
     const initializeServer = jest.fn<Promise<InitializeResult>, [string, boolean]>()
       .mockRejectedValueOnce(new Error('offline'))
       .mockResolvedValueOnce({ success: true });
-    const { controller } = createController({ initializeServer });
+    const { controller, deleteMessage } = createController({ initializeServer });
 
-    await expect(controller.recover()).resolves.toEqual({ status: 'reconnect-failed' });
-    await expect(controller.recover()).resolves.toEqual({ status: 'recovered' });
+    await expect(controller.recover(deleteMessage)).resolves.toEqual({ status: 'reconnect-failed' });
+    await expect(controller.recover(deleteMessage)).resolves.toEqual({ status: 'recovered' });
     expect(initializeServer).toHaveBeenCalledTimes(2);
   });
 
@@ -107,7 +116,7 @@ describe('MCP recovery controller', () => {
     );
     const { controller, deleteMessage } = createController({ initializeServer, timeoutMs: 100 });
 
-    const recovery = controller.recover();
+    const recovery = controller.recover(deleteMessage);
     await jest.advanceTimersByTimeAsync(100);
 
     await expect(recovery).resolves.toEqual({ status: 'timeout' });
@@ -123,14 +132,14 @@ describe('MCP recovery controller', () => {
         resolvers.push(resolve);
       }),
     );
-    const { controller } = createController({ initializeServer, timeoutMs: 100 });
+    const { controller, deleteMessage } = createController({ initializeServer, timeoutMs: 100 });
 
     try {
-      const firstRecovery = controller.recover();
+      const firstRecovery = controller.recover(deleteMessage);
       await jest.advanceTimersByTimeAsync(100);
       await expect(firstRecovery).resolves.toEqual({ status: 'timeout' });
 
-      const laterRecovery = controller.recover();
+      const laterRecovery = controller.recover(deleteMessage);
       await jest.advanceTimersByTimeAsync(0);
 
       expect(initializeServer).toHaveBeenCalledTimes(1);
@@ -152,7 +161,7 @@ describe('MCP recovery controller', () => {
       initializeServer,
     });
 
-    await expect(controller.recover()).resolves.toEqual({ status: 'reconnect-failed' });
+    await expect(controller.recover(deleteMessage)).resolves.toEqual({ status: 'reconnect-failed' });
     expect(deleteMessage).not.toHaveBeenCalled();
   });
 
@@ -160,6 +169,37 @@ describe('MCP recovery controller', () => {
     const deleteMessage = jest.fn<Promise<void>, []>().mockRejectedValue(new Error('delete failed'));
     const { controller } = createController({ deleteMessage });
 
-    await expect(controller.recover()).resolves.toEqual({ status: 'delete-failed' });
+    await expect(controller.recover(deleteMessage)).resolves.toEqual({ status: 'delete-failed' });
+  });
+
+  test('keeps its single-flight guard when current recovery inputs change during a rerender', async () => {
+    let resolveInitialization: ((result: InitializeResult) => void) | undefined;
+    const firstInitialize = jest.fn<Promise<InitializeResult>, [string, boolean]>(
+      () => new Promise((resolve) => {
+        resolveInitialization = resolve;
+      }),
+    );
+    const rerenderedInitialize = jest.fn<Promise<InitializeResult>, [string, boolean]>().mockResolvedValue({
+      success: true,
+    });
+    let currentInitialize = firstInitialize;
+    const currentServerNames = ['super-sports-gateway'];
+    const controller = createMcpRecoveryController({
+      serverNames: () => currentServerNames,
+      initializeServer: (serverName, force) => currentInitialize(serverName, force),
+      timeoutMs: 100,
+    });
+    const deleteMessage = jest.fn<Promise<void>, []>().mockResolvedValue();
+
+    const firstRecovery = controller.recover(deleteMessage);
+    await Promise.resolve();
+    currentInitialize = rerenderedInitialize;
+
+    await expect(controller.recover(deleteMessage)).resolves.toEqual({ status: 'in-flight' });
+    expect(firstInitialize).toHaveBeenCalledTimes(1);
+    expect(rerenderedInitialize).not.toHaveBeenCalled();
+
+    resolveInitialization?.({ success: true });
+    await expect(firstRecovery).resolves.toEqual({ status: 'recovered' });
   });
 });

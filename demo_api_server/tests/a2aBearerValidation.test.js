@@ -28,6 +28,7 @@ const GOOD_CLAIMS = {
   aud: [AUD],
   scope: 'agent:invoke:holdings invest:read',
   act: { client_id: GENERALIST },
+  a2a_tenant_id: 'tenant-a',
 };
 
 function run(claims, cfg = fakeCfg()) {
@@ -50,6 +51,13 @@ describe('verifyA2aBearer', () => {
   test('accepts a delegated token for this specialist and returns its claims', async () => {
     const claims = await run(GOOD_CLAIMS);
     expect(claims.sub).toBe('user-123');
+    expect(claims.tenantId).toBe('tenant-a');
+    expect(claims.tenantHandle).toMatch(/^t_/);
+  });
+
+  test('rejects a delegated token without the explicit tenant claim', async () => {
+    const { a2a_tenant_id: _tenant, ...missing } = GOOD_CLAIMS;
+    await expectRejection(missing, { code: 'invalid_token', status: 401, challenge: INVALID_TOKEN_CHALLENGE });
   });
 
   test('rejects a token that fails PingOne signature verification', async () => {
