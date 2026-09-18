@@ -19,12 +19,19 @@ Their mocked child windows also emulate the browser capabilities the real modal
 uses: document-write theme stamping and a foreign document `defaultView`.
 Product source behavior was not changed in this follow-up.
 
+Theming follow-up: paired `color: var(--th-text)` with the pop-out root,
+hover, and footer tokenized grounds, and with the remaining shared close-button
+hover violation needed to preserve the ground-without-ink baseline. The
+`MAX_UNTHEMED` ratchet pin moved from 136 to its measured 135.
+
 ## Files changed
 
 - `demo_api_ui/src/components/SimpleStepperPanel.js`
+- `demo_api_ui/src/components/DraggableModal.css`
 - `demo_api_ui/src/components/__tests__/DraggableModal.test.jsx`
 - `demo_api_ui/src/components/__tests__/SimpleStepperModalLifecycle.test.jsx`
 - `demo_api_ui/src/components/__tests__/dmScrollContract.test.js`
+- `demo_api_ui/src/components/__tests__/themingRatchet.test.js`
 
 ## Regression coverage
 
@@ -48,6 +55,12 @@ full-bleed body makes the contract test fail.
 - With `/opt/homebrew/opt/node@22/bin` first in `PATH`, the focused Vitest
   command passed: 5 files, 24 tests.
 - With the same Node 22 path, `npm run build` passed.
+- The theming-ratchet, modal, and Stepper focused command passed: 6 files,
+  31 tests.
+- The full UI suite completed under Node 22 with 581 passing files and four
+  unrelated failing files (six tests): navigation catalog drift, AIAgent
+  grounding correction, wrong audience, and wrong scope.
+- The post-ratchet Node 22 `npm run build` passed.
 
 ## Commit
 
@@ -55,7 +68,11 @@ Implementation commit: `0ff1b11dea64d4c99a89c108d4d019f78cb22a38`
 
 Test follow-up commit: `8ec67c32ca71f0dbccb167318ecbed939d3e1b3b`
 
+Theming follow-up commit: `30c8f64db80b747f31b14f79c8df314817476b8b`
+
 ## Residual risks
 
 - The required live embedded/pop-out light/dark computed-style audit and manual
   resize check were not part of this focused follow-up.
+- The full UI suite retains the unrelated failures listed above; the theming
+  ratchet and all Simple Stepper/modal coverage passed in the focused run.
