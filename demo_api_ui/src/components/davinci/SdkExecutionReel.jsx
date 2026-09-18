@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PREVIEW_EVENTS } from "./sdkExecutionEvents";
 import "./SdkExecutionReel.css";
 
@@ -23,9 +23,10 @@ function elapsed(events, event) {
   return typeof first === "number" && typeof event.at === "number" ? `+${event.at - first} ms` : "captured";
 }
 
-function Frame({ event, selected, onSelect }) {
+function Frame({ event, selected, onSelect, frameRef }) {
   return (
     <button
+      ref={frameRef}
       type="button"
       className={`sdk-reel-frame${selected ? " is-selected" : ""}`}
       aria-pressed={selected}
@@ -41,7 +42,7 @@ function Frame({ event, selected, onSelect }) {
 function LaneCard({ event, lane, events }) {
   const matches = lane === "davinci" ? event.lane === "davinci" : event.lane !== "davinci";
   return (
-    <li className={`sdk-reel-lane-card${matches ? "" : " is-empty"}`}>
+    <div className={`sdk-reel-lane-card${matches ? "" : " is-empty"}`}>
       {matches ? (
         <>
           <strong>{event.label}</strong>
@@ -50,7 +51,7 @@ function LaneCard({ event, lane, events }) {
       ) : (
         <span aria-label={`No ${lane} event for frame ${event.sequence}`}>—</span>
       )}
-    </li>
+    </div>
   );
 }
 
@@ -90,14 +91,62 @@ function FrameDetails({ event }) {
   );
 }
 
-function ModeView({ mode, events }) {
-  if (mode === "debugger") {
-    return <p className="sdk-reel-mode-copy">Debugger view keeps the selected code boundary beside its captured event.</p>;
-  }
-  if (mode === "storyboard") {
-    return <p className="sdk-reel-mode-copy">Storyboard view groups the same frames into a flow story without changing their order.</p>;
-  }
-  return <p className="sdk-reel-mode-copy">Movie reel view follows each captured boundary in sequence.</p>;
+function MovieReel({ events, selected, onSelect, frameRefs }) {
+  return (
+    <>
+      <div className="sdk-reel-rail" aria-label="Execution frames">
+        {events.map((event) => (
+          <Frame key={event.id} event={event} selected={selected?.id === event.id} onSelect={onSelect} frameRef={(node) => frameRefs.current.set(event.id, node)} />
+        ))}
+      </div>
+      <section className="sdk-reel-lanes" aria-label="Synchronized DaVinci and SDK collector lanes">
+        <div className="sdk-reel-lane-heading"><h4>DaVinci</h4><h4>SDK + collectors</h4></div>
+        {events.map((event) => (
+          <div className="sdk-reel-lane-row" key={event.id}>
+            <LaneCard event={event} lane="davinci" events={events} />
+            <LaneCard event={event} lane="sdk" events={events} />
+          </div>
+        ))}
+      </section>
+    </>
+  );
+}
+
+function DebuggerView({ events, selected, onSelect, frameRefs }) {
+  return (
+    <section className="sdk-reel-debugger" aria-label="Debugger event list">
+      <ol>
+        {events.map((event) => (
+          <li key={event.id}>
+            <Frame event={event} selected={selected?.id === event.id} onSelect={onSelect} frameRef={(node) => frameRefs.current.set(event.id, node)} />
+            <span>{event.lane} · {event.kind}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function StoryboardView({ events, selected, onSelect, frameRefs }) {
+  return (
+    <section className="sdk-reel-storyboard" aria-label="Storyboard flow">
+      {events.map((event) => (
+        <div className="sdk-reel-story-node" key={event.id}>
+          <span>{event.lane}</span>
+          <Frame event={event} selected={selected?.id === event.id} onSelect={onSelect} frameRef={(node) => frameRefs.current.set(event.id, node)} />
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function useReducedMotion() {
+  const [reducedMotion] = useState(() =>
+    typeof window !== "undefined" && typeof window.matchMedia === "function"
+      ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      : false,
+  );
+  return reducedMotion;
 }
 
 export default function SdkExecutionReel({ events = [], previewEvents = PREVIEW_EVENTS, mode = "movie", onModeChange = () => {} }) {
@@ -105,14 +154,27 @@ export default function SdkExecutionReel({ events = [], previewEvents = PREVIEW_
   const isPreview = !isLive && previewEvents.length > 0;
   const displayedEvents = useMemo(() => (isLive ? events : previewEvents), [events, isLive, previewEvents]);
   const [selectedId, setSelectedId] = useState(displayedEvents[0]?.id ?? null);
-  const selected = displayedEvents.find((event) => event.id === selectedId) || displayedEvents[0];
+  const frameRefs = useRef(new Map());
+  const reducedMotion = useReducedMotion();
+  const selected = selectedId ? displayedEvents.find((event) => event.id === selectedId) : null;
 
   useEffect(() => {
     setSelectedId(displayedEvents.at(-1)?.id ?? null);
   }, [displayedEvents]);
 
+  useEffect(() => {
+    const closeDetail = (event) => {
+      if (event.key !== "Escape" || !selectedId) return;
+      event.preventDefault();
+      frameRefs.current.get(selectedId)?.focus();
+      setSelectedId(null);
+    };
+    document.addEventListener("keydown", closeDetail);
+    return () => document.removeEventListener("keydown", closeDetail);
+  }, [selectedId]);
+
   return (
-    <section className="sdk-execution-reel" aria-labelledby="sdk-reel-title">
+    <section className="sdk-execution-reel" aria-labelledby="sdk-reel-title" data-reduced-motion={reducedMotion}>
       <div className="sdk-reel-heading">
         <div>
           <p className="sdk-reel-eyebrow">Execution view concepts</p>
@@ -131,27 +193,13 @@ export default function SdkExecutionReel({ events = [], previewEvents = PREVIEW_
         ))}
       </div>
       {isPreview && <p className="sdk-reel-preview">Concept preview: sample frames demonstrate the renderer and are not this browser run.</p>}
-      {isPreview ? <ModeView mode={mode} events={displayedEvents} /> : null}
-
       {!displayedEvents.length ? <p>The first frame appears after start() begins.</p> : null}
 
       {displayedEvents.length > 0 && (
         <>
-          <div className="sdk-reel-rail" aria-label="Execution frames">
-            {displayedEvents.map((event) => (
-              <Frame key={event.id} event={event} selected={selected?.id === event.id} onSelect={setSelectedId} />
-            ))}
-          </div>
-          <div className="sdk-reel-lanes">
-            <section aria-label="DaVinci lane">
-              <h4>DaVinci</h4>
-              <ol>{displayedEvents.map((event) => <LaneCard key={event.id} event={event} lane="davinci" events={displayedEvents} />)}</ol>
-            </section>
-            <section aria-label="SDK and collectors lane">
-              <h4>SDK + collectors</h4>
-              <ol>{displayedEvents.map((event) => <LaneCard key={event.id} event={event} lane="sdk" events={displayedEvents} />)}</ol>
-            </section>
-          </div>
+          {mode === "debugger" ? <DebuggerView events={displayedEvents} selected={selected} onSelect={setSelectedId} frameRefs={frameRefs} /> : null}
+          {mode === "storyboard" ? <StoryboardView events={displayedEvents} selected={selected} onSelect={setSelectedId} frameRefs={frameRefs} /> : null}
+          {mode === "movie" ? <MovieReel events={displayedEvents} selected={selected} onSelect={setSelectedId} frameRefs={frameRefs} /> : null}
           {selected && <FrameDetails event={selected} />}
         </>
       )}

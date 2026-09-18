@@ -75,11 +75,11 @@ describe("SdkExecutionReel", () => {
     renderReel({ events: LIVE_EVENTS });
 
     expect(screen.getByRole("status")).toHaveTextContent(/live execution/i);
-    expect(screen.getByRole("region", { name: "DaVinci lane" })).toHaveTextContent("DaVinci authorize request");
-    expect(screen.getByRole("region", { name: "SDK and collectors lane" })).toHaveTextContent("SDK starts the flow");
-    expect(screen.getByRole("region", { name: "SDK and collectors lane" })).toHaveTextContent(
-      "DaVinci returns sign-on collectors",
-    );
+    const rows = document.querySelectorAll(".sdk-reel-lane-row");
+    expect(rows).toHaveLength(LIVE_EVENTS.length);
+    expect(rows[1]).toHaveTextContent("DaVinci authorize request");
+    expect(rows[2]).toHaveTextContent("DaVinci returns sign-on collectors");
+    expect(rows[0].querySelectorAll(".sdk-reel-lane-card")).toHaveLength(2);
   });
 
   it("selects a real focusable frame button and exposes the four detail disclosures", () => {
@@ -99,6 +99,32 @@ describe("SdkExecutionReel", () => {
     expect(detail).toHaveTextContent("/as/authorize");
   });
 
+  it("closes the selected detail with Escape and returns focus to its frame", () => {
+    renderReel({ events: LIVE_EVENTS });
+
+    const frame = screen.getByRole("button", { name: /frame 2: davinci authorize request/i });
+    fireEvent.click(frame);
+    expect(screen.getByRole("region", { name: /selected frame: davinci authorize request/i })).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByRole("region", { name: /selected frame:/i })).not.toBeInTheDocument();
+    expect(frame).toHaveFocus();
+  });
+
+  it("renders a debugger event list instead of the movie reel when debugger mode is selected", () => {
+    renderReel({ mode: "debugger" });
+
+    expect(screen.getByRole("region", { name: "Debugger event list" })).toHaveTextContent("SDK starts the flow");
+    expect(document.querySelector(".sdk-reel-rail")).toBeNull();
+  });
+
+  it("renders storyboard nodes instead of the movie reel when storyboard mode is selected", () => {
+    renderReel({ mode: "storyboard" });
+
+    expect(screen.getByRole("region", { name: "Storyboard flow" })).toHaveTextContent("DaVinci authorize request");
+    expect(document.querySelector(".sdk-reel-rail")).toBeNull();
+  });
+
   it("explains that start creates the first live frame when no events exist", () => {
     renderReel({ events: [], previewEvents: [] });
 
@@ -116,6 +142,7 @@ describe("SdkExecutionReel", () => {
 
     try {
       renderReel();
+      expect(document.querySelector(".sdk-execution-reel")).toHaveAttribute("data-reduced-motion", "true");
       const frame = screen.getByRole("button", { name: /frame 1: sdk starts the flow/i });
       fireEvent.click(frame);
       expect(screen.getByRole("region", { name: /selected frame: sdk starts the flow/i })).toBeInTheDocument();
