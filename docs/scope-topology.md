@@ -70,7 +70,7 @@ Audience: `mcpserver.ping.demo`
 
 Native scopes: `mcp:invoke`, `code:search`
 
-Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `purchase:read`, `membership:read`, `payroll:read`, `holdings:read`, `identity:read`, `invest:read`, `airlines:read`, `airlines:write`, `pnr:read`, `ai:agent:read`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`, `code:search`, `audit:read`
+Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `accounts:read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `purchase:read`, `membership:read`, `payroll:read`, `holdings:read`, `identity:read`, `invest:read`, `airlines:read`, `airlines:write`, `pnr:read`, `ai:agent:read`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`, `workorders:read`, `sensitive:read`, `code:search`, `audit:read`
 
 ### Super Banking MCP Invest
 
@@ -92,7 +92,7 @@ Audience: `mcpgateway.ping.demo`
 
 Native scopes: `mcp:invoke`
 
-Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `airlines:read`, `airlines:write`, `pnr:read`, `workorders:read`, `sensitive:read`, `code:search`, `audit:read`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`
+Mirrored scopes (RFC 8693 exchange-hop, ARCHITECTURE-TRUTHS T-10): `read`, `accounts:read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `invest:read`, `airlines:read`, `airlines:write`, `pnr:read`, `workorders:read`, `sensitive:read`, `code:search`, `audit:read`, `admin:read`, `admin:write`, `admin:delete`, `users:read`, `users:manage`
 
 ### Super Banking Agent Gateway
 
@@ -212,7 +212,7 @@ Native scopes: `agent:invoke:identity`
 
 Type: `WEB_APP`  ·  Grants: `authorization_code`, `refresh_token`, `token_exchange`
 
-Granted scopes: `ai:agent:read`, `read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `workorders:read`, `invest:read`, `airlines:read`, `airlines:write`
+Granted scopes: `ai:agent:read`, `read`, `accounts:read`, `write`, `transfer`, `mortgage:read`, `largepurchase:read`, `records:read`, `gear:read`, `expense:read`, `permits:read`, `transcript:read`, `tax:read`, `finaid:read`, `supplier:read`, `workorders:read`, `invest:read`, `airlines:read`, `airlines:write`
 
 ### Super Banking Admin App
 
@@ -240,7 +240,7 @@ Granted scopes: — (none; resource-server or worker app)
 
 Type: `WEB_APP`  ·  Grants: `token_exchange`
 
-Granted scopes: `read`, `write`, `mcp:invoke`
+Granted scopes: `read`, `accounts:read`, `write`, `mcp:invoke`
 
 ### Super Banking AI Agent
 
@@ -357,7 +357,7 @@ Granted scopes: `read`, `identity:read`
 | `demo_show_transactions` | gateway | `read` | — |
 | `get_code` | gateway | `code:search` | — |
 | `list_codebases` | gateway | `code:search` | — |
-| `get_my_accounts` | gateway | `read` | — |
+| `get_my_accounts` | gateway | `accounts:read` | — |
 | `get_account_balance` | gateway | `read` | — |
 | `get_account_nickname` | gateway | `read` | — |
 | `get_my_transactions` | gateway | `read` | — |
