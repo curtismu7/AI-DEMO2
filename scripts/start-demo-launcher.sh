@@ -15,7 +15,7 @@ export DEMO_LAUNCHER_HOST="${LAUNCHER_HOST}"
 cd "${REPOSITORY_ROOT}"
 ./run-docker.sh
 ./run-docker.sh optional start demo-auth
-docker compose -f librechat/docker-compose.yml up -d api
+docker compose -f librechat/docker-compose.yml up -d api oauth-loopback
 
 if ! curl --silent --fail --max-time 1 "${LAUNCHER_URL}/health" >/dev/null 2>&1; then
   DEMO_LAUNCHER_PORT="${LAUNCHER_PORT}" nohup node scripts/demo-launcher-server.mjs >/tmp/ai-demo-launcher.log 2>&1 &

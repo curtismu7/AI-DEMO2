@@ -97,7 +97,7 @@ export function createDefaultStartStack(spawnProcess = spawn) {
   return async function defaultStartStack() {
     await runCommand('./run-docker.sh', [], spawnProcess);
     await runCommand('./run-docker.sh', ['optional', 'start', 'demo-auth'], spawnProcess);
-    await runCommand('docker', ['compose', '-f', 'librechat/docker-compose.yml', 'up', '-d', 'api'], spawnProcess);
+    await runCommand('docker', ['compose', '-f', 'librechat/docker-compose.yml', 'up', '-d', 'api', 'oauth-loopback'], spawnProcess);
   };
 }
 
