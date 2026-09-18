@@ -148,3 +148,13 @@ test('smallestLoadedCovering still substitutes UP onto non-pin tiers', () => {
     'class-0 substitutes UP onto the loaded gpt-oss, not the pin-only tier',
   );
 });
+
+test('rate limiting only applies to inference requests', () => {
+  const { isInferenceRoute } = router;
+
+  assert.strictEqual(isInferenceRoute({ method: 'POST', url: '/v1/chat/completions' }), true);
+  assert.strictEqual(isInferenceRoute({ method: 'POST', url: '/v1/completions' }), true);
+  assert.strictEqual(isInferenceRoute({ method: 'GET', url: '/v1/models' }), false);
+  assert.strictEqual(isInferenceRoute({ method: 'GET', url: '/health' }), false);
+  assert.strictEqual(isInferenceRoute({ method: 'GET', url: '/random-probe' }), false);
+});
