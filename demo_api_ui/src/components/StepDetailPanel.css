@@ -18,6 +18,9 @@
   margin-bottom: 10px;
 }
 
+.sdp[data-font-size="small"] { zoom: 0.9; }
+.sdp[data-font-size="large"] { zoom: 1.25; }
+
 .sdp-head {
   display: flex;
   align-items: baseline;
