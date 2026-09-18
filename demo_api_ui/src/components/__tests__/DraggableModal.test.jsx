@@ -2,6 +2,24 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import DraggableModal from '../DraggableModal';
 
+function makeChildWindow() {
+  const childDocument = document.implementation.createHTMLDocument('Pop-out');
+  const nativeWrite = childDocument.write.bind(childDocument);
+  Object.defineProperty(childDocument, 'defaultView', { value: window });
+  childDocument.write = vi.fn((markup) => {
+    nativeWrite(markup);
+    const theme = /<html data-theme="([^"]+)">/.exec(markup)?.[1];
+    if (theme) childDocument.documentElement.dataset.theme = theme;
+  });
+  return {
+    closed: false,
+    document: childDocument,
+    addEventListener: vi.fn(),
+    close: vi.fn(),
+    focus: vi.fn(),
+  };
+}
+
 describe('DraggableModal', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -31,14 +49,8 @@ describe('DraggableModal', () => {
 
   it('keeps pop-out theme changes scoped to the child document', () => {
     document.documentElement.dataset.theme = 'dark';
-    const childDocument = document.implementation.createHTMLDocument('Pop-out');
-    const childWindow = {
-      closed: false,
-      document: childDocument,
-      addEventListener: vi.fn(),
-      close: vi.fn(),
-      focus: vi.fn(),
-    };
+    const childWindow = makeChildWindow();
+    const { document: childDocument } = childWindow;
     vi.spyOn(window, 'open').mockReturnValue(childWindow);
 
     render(
@@ -47,7 +59,7 @@ describe('DraggableModal', () => {
       </DraggableModal>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Pop out to new window' }));
+    fireEvent.click(screen.getByTitle('Pop out to new window'));
 
     expect(childDocument.documentElement.dataset.theme).toBe('dark');
     const themeButton = childDocument.querySelector(

@@ -10,6 +10,13 @@ vi.mock('../../context/TokenChainContext', () => ({
 
 function makeChildWindow() {
   const childDocument = document.implementation.createHTMLDocument('Simple Stepper');
+  const nativeWrite = childDocument.write.bind(childDocument);
+  Object.defineProperty(childDocument, 'defaultView', { value: window });
+  childDocument.write = vi.fn((markup) => {
+    nativeWrite(markup);
+    const theme = /<html data-theme="([^"]+)">/.exec(markup)?.[1];
+    if (theme) childDocument.documentElement.dataset.theme = theme;
+  });
   return {
     closed: false,
     document: childDocument,
@@ -50,7 +57,7 @@ describe('SimpleStepperBar pop-out lifecycle', () => {
 
     render(<SimpleStepperBar />);
     fireEvent.click(screen.getByRole('button', { name: 'Show' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Pop out to new window' }));
+    fireEvent.click(screen.getByTitle('Pop out to new window'));
 
     await waitFor(() => {
       expect(childWindow.document.querySelector('button[title="Close"]')).toBeTruthy();
