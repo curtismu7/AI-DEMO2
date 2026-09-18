@@ -197,6 +197,7 @@
 
 .dm-close-btn:hover {
   background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 /* ── 8-direction resize handles ────────────────────────────────────────── */
@@ -357,6 +358,7 @@
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  color: var(--th-text);
 }
 
 .dm-popout-layout {
@@ -380,6 +382,7 @@
 
 .dm-popout-layout .dm-btn:hover {
   background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .dm-popout-layout .dm-body {
@@ -389,5 +392,6 @@
 
 .dm-popout-layout .dm-footer {
   background: var(--th-bg-inset);
+  color: var(--th-text);
   border-top-color: var(--th-border);
 }
