@@ -5093,6 +5093,15 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: var(--ba-surface, var(--th-bg-inset));
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
 }
+/* The tray has a user-controlled height. Keep its content at its natural size
+   so an expanded surface menu contributes to the scroll height instead of
+   shrinking neighboring rows into one another. */
+.ba-header-more-pop > :not(.ba-header-more-resize-handle) {
+  flex: 0 0 auto;
+}
+.ba-header-more-pop--surface-open .ba-topology-surface-row {
+  align-items: flex-start;
+}
 .ba-header-more-intro {
   display: flex;
   flex-direction: column;

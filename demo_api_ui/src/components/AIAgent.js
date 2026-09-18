@@ -10163,7 +10163,7 @@ export default function BankingAgent({
                   {headerMoreOpen && createPortal(
                     <div
                       ref={headerMorePopRef}
-                      className="ba-header-more-pop"
+                      className={`ba-header-more-pop${openSurfaceSelector ? " ba-header-more-pop--surface-open" : ""}`}
                       style={{
                         ...(headerMorePosition || {}),
                         width: headerMoreSize.width,
