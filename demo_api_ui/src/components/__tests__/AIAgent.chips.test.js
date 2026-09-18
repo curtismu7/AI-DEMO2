@@ -672,6 +672,27 @@ describe("Header controls after the Actions dropdown removal", () => {
     expect(screen.getByRole("listbox", { name: "Token topology surface options" })).toBeInTheDocument();
   });
 
+  it("marks Quick Config while a surface menu is open so its layout can expand", async () => {
+    renderAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
+    });
+
+    const quickConfig = document.querySelector(".ba-header-more-pop");
+    expect(quickConfig).not.toBeNull();
+    expect(quickConfig).not.toHaveClass("ba-header-more-pop--surface-open");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Token topology surface" }));
+    });
+
+    expect(quickConfig).toHaveClass("ba-header-more-pop--surface-open");
+  });
+
   it("supports dark mode and four-corner Quick Config resizing", async () => {
     renderThemedAgent({ user: customerUser, mode: "float" });
     await act(async () => {
