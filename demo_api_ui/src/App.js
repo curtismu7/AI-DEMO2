@@ -1351,7 +1351,7 @@ function AppWithAuth() {
                             <Route
                               path="/"
                               element={
-                                user?.role === "admin" ? (
+                                user ? (
                                   <Dashboard user={user} onLogout={logout} />
                                 ) : (
                                   <LandingPage user={user} onLogout={logout} />
