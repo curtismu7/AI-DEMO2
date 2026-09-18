@@ -111,6 +111,19 @@ const protectCollector = {
   output: { key: "deviceRisk", label: "Device risk", type: "PROTECT" },
 };
 
+const fidoAuthenticationCollector = {
+  category: "ObjectValueAutoCollector",
+  type: "FidoAuthenticationCollector",
+  id: "fido-0",
+  name: "fido",
+  input: { key: "fido", value: {}, type: "FIDO2" },
+  output: {
+    key: "fido",
+    type: "FIDO2",
+    config: { action: "AUTHENTICATE", trigger: "button", publicKeyCredentialRequestOptions: { challenge: [1, 2, 3] } },
+  },
+};
+
 describe("CollectorField", () => {
   it("renders a TextCollector as a text input labelled from output.label", () => {
     render(<CollectorField collector={textCollector} updater={() => null} />);
@@ -226,6 +239,16 @@ describe("CollectorField", () => {
     expect(screen.queryByText(/Unsupported collector/)).toBeNull();
   });
 
+  it("offers a passkey action for FidoAuthenticationCollector instead of an unsupported warning", () => {
+    const onFido = vi.fn();
+    render(<CollectorField collector={fidoAuthenticationCollector} onFido={onFido} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Use passkey" }));
+
+    expect(onFido).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/Unsupported collector/)).toBeNull();
+  });
+
   it("gives an action collector no input and no updater", () => {
     // ActionCollectors carry no value; CollectorValueType resolves to never.
     render(<CollectorField collector={submitCollector} onSubmit={() => {}} />);
@@ -297,6 +320,7 @@ describe("CollectorField", () => {
       "RichTextCollector",
       "ERROR_DISPLAY",
       "ProtectCollector",
+      "FidoAuthenticationCollector",
     ]);
   });
 });

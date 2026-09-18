@@ -146,6 +146,14 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-18 — DaVinci SDK passkey authentication and signed-in actions
+
+- **Files changed:** `demo_api_ui/src/components/davinci/CollectorField.jsx`, `demo_api_ui/src/components/davinci/SdkLessonSections.jsx`, `demo_api_ui/src/pages/DavinciSdkLoginPage.jsx`, `demo_api_ui/src/pages/DavinciSdkLoginPage.css`, and focused tests.
+- **What was broken:** `FidoAuthenticationCollector` appeared as unsupported on the live passkey screen; signed-in actions wrapped into uneven, cramped buttons.
+- **What was fixed:** A user-triggered passkey action uses the SDK FIDO helper, writes its assertion through `client.update()`, then advances with `client.next()`. Signed-in actions now stack at full card width.
+- **Do not break:** Keep assertion values out of execution evidence; preserve ACR selection, OAuth callback, BFF session handling, and PingOne logout.
+- **Verify:** Focused DaVinci Vitest suites, UI build, and rendered button contrast in both themes.
+
 ### 2026-09-18 — Repository-wide dark-theme text contrast sweep
 
 - **Files changed:** `demo_api_ui/src/**/*.css`,
