@@ -59,6 +59,16 @@ describe("SdkLessonSections", () => {
     expect(wiring).toContain("acr_values");
   });
 
+  it("documents the P1 Forms display-only and automatic collectors", () => {
+    const { container } = render(<SdkLessonSections />);
+    const collectors = container.querySelector("#collectors").textContent;
+
+    expect(collectors).toContain("RichTextCollector");
+    expect(collectors).toContain("ERROR_DISPLAY");
+    expect(collectors).toContain("ProtectCollector");
+    expect(collectors).toContain("Security check active");
+  });
+
   it("reports pi.flow from the real authorize request, and never its values", () => {
     const { container } = render(<SdkLessonSections steps={[START_STEP]} />);
     const run = container.querySelector("#pi-flow .lesson-run");

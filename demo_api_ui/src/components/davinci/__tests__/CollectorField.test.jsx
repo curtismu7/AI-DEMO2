@@ -86,6 +86,31 @@ const genericActionCollector = {
   output: { key: "CONTINUE", label: "Continue", type: "BUTTON" },
 };
 
+const richTextCollector = {
+  category: "NoValueCollector",
+  type: "RichTextCollector",
+  id: "help-text-0",
+  name: "help-text",
+  output: { key: "help-text", label: "Enter the passcode you received.", type: "LABEL" },
+};
+
+const errorDisplayCollector = {
+  category: "UnknownCollector",
+  type: "ERROR_DISPLAY",
+  id: "error-display-0",
+  name: "error-display",
+  output: { key: "error-display", label: "Error", type: "ERROR_DISPLAY" },
+};
+
+const protectCollector = {
+  category: "SingleValueAutoCollector",
+  type: "ProtectCollector",
+  id: "device-risk-0",
+  name: "deviceRisk",
+  input: { key: "deviceRisk", value: "", type: "PROTECT" },
+  output: { key: "deviceRisk", label: "Device risk", type: "PROTECT" },
+};
+
 describe("CollectorField", () => {
   it("renders a TextCollector as a text input labelled from output.label", () => {
     render(<CollectorField collector={textCollector} updater={() => null} />);
@@ -165,6 +190,42 @@ describe("CollectorField", () => {
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
+  it("renders RichTextCollector content as form copy", () => {
+    render(<CollectorField collector={richTextCollector} />);
+
+    expect(screen.getByText("Enter the passcode you received.")).toBeInTheDocument();
+    expect(screen.queryByText(/Unsupported collector/)).toBeNull();
+  });
+
+  it("renders RichTextCollector markup as text rather than HTML", () => {
+    render(
+      <CollectorField
+        collector={{
+          ...richTextCollector,
+          output: { ...richTextCollector.output, label: "<img src=x onerror=alert(1)>" },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("<img src=x onerror=alert(1)>")).toBeInTheDocument();
+    expect(screen.queryByRole("img")).toBeNull();
+  });
+
+  it("does not render ERROR_DISPLAY as an unsupported field", () => {
+    const { container } = render(<CollectorField collector={errorDisplayCollector} />);
+
+    expect(container.firstChild).toBeNull();
+    expect(screen.queryByText(/Unsupported collector/)).toBeNull();
+  });
+
+  it("renders ProtectCollector as an automatic security status", () => {
+    render(<CollectorField collector={protectCollector} />);
+
+    expect(screen.getByText("Security check active")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.queryByText(/Unsupported collector/)).toBeNull();
+  });
+
   it("gives an action collector no input and no updater", () => {
     // ActionCollectors carry no value; CollectorValueType resolves to never.
     render(<CollectorField collector={submitCollector} onSubmit={() => {}} />);
@@ -233,6 +294,9 @@ describe("CollectorField", () => {
       "SubmitCollector",
       "ActionCollector",
       "FlowCollector",
+      "RichTextCollector",
+      "ERROR_DISPLAY",
+      "ProtectCollector",
     ]);
   });
 });

@@ -1,10 +1,10 @@
 // Renders ONE DaVinci collector as our own UI.
 //
 // This is the only place in the app that knows collector shapes. Scope covers
-// exactly what the live flow's sign-on screen sends, verified against the real
-// SDK on 2026-09-12 (5 collectors): TextCollector `username`, PasswordCollector
-// `password`, SubmitCollector `SIGNON`, and two FlowCollectors — `REGISTER`
-// ("No account? Register now!") and `TROUBLE` ("Having trouble signing on?").
+// exactly what the live flow's screens send, including PingOne Forms display
+// fields and automatic security signals: TextCollector, PasswordCollector,
+// SubmitCollector, FlowCollector, RichTextCollector, ERROR_DISPLAY, and
+// ProtectCollector.
 //
 // Shape follows Ping's own reactjs-todo-davinci sample: the page hands each
 // field its `updater` from `client.update(collector)` and the field writes
@@ -125,6 +125,17 @@ function TextLikeField({ collector, updater, type, autoComplete, serverError, va
   );
 }
 
+function RichTextField({ collector }) {
+  const text = collector?.output?.label ?? collector?.output?.content ?? collector?.output?.value;
+  if (typeof text !== "string" || !text.trim()) return null;
+
+  return <p className="dvsdk-rich-text">{text}</p>;
+}
+
+function ProtectStatus() {
+  return <p className="dvsdk-security-status" role="status">Security check active</p>;
+}
+
 export default function CollectorField({ collector, updater, onSubmit, onFlow, serverError, busy }) {
   switch (collector?.type) {
     // PingOne Forms uses an object-valued device selector. update() accepts
@@ -181,6 +192,21 @@ export default function CollectorField({ collector, updater, onSubmit, onFlow, s
         </button>
       );
 
+    // PingOne Forms sends rich text as a no-value collector. It is display-only
+    // and must stay text-only; never inject its content as HTML.
+    case "RichTextCollector":
+      return <RichTextField collector={collector} />;
+
+    // ERROR_DISPLAY is a form placeholder. Page-level and field-level errors
+    // already render from the SDK node, so an empty placeholder is intentional.
+    case "ERROR_DISPLAY":
+      return null;
+
+    // Protect produces its value automatically; it is not a user-editable
+    // field, but a quiet status helps explain why no input appears here.
+    case "ProtectCollector":
+      return <ProtectStatus />;
+
     default:
       return (
         <p className="dvsdk-unsupported">
@@ -202,4 +228,7 @@ export const SUPPORTED_COLLECTORS = [
   "SubmitCollector",
   "ActionCollector",
   "FlowCollector",
+  "RichTextCollector",
+  "ERROR_DISPLAY",
+  "ProtectCollector",
 ];

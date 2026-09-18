@@ -175,6 +175,17 @@
   opacity: 0.6;
 }
 
+.dvsdk-rich-text,
+.dvsdk-security-status {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--th-text);
+}
+
+.dvsdk-security-status {
+  padding: 6px 0;
+}
+
 /* A collector the renderer does not handle yet. Visible on purpose: a blank
    render looks like the flow is missing a field. */
 .dvsdk-unsupported {
