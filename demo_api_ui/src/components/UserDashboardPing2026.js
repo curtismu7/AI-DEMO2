@@ -293,6 +293,18 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       return false;
     }
   });
+  const [followFlow, setFollowFlow] = useState(() => {
+    try {
+      return localStorage.getItem("dashboard-sequence-follow-flow") !== "false";
+    } catch {
+      return true;
+    }
+  });
+  useEffect(() => {
+    const handler = (e) => setFollowFlow(e.detail?.on !== false);
+    window.addEventListener("agent-sequence-follow-flow-toggle", handler);
+    return () => window.removeEventListener("agent-sequence-follow-flow-toggle", handler);
+  }, []);
   useEffect(() => {
     const handler = (e) => setSlowMode(!!e.detail?.on);
     window.addEventListener("agent-slow-mode-toggle", handler);
@@ -3765,8 +3777,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           {showSequenceDiagram && (
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}
+              onReset={() => setSelectedSeqStep(null)}
               selectedStepId={selectedSeqStep?.id}
               slowMode={slowMode}
+              followFlow={followFlow}
               onToggleSlowMode={() => setSlowMode(!slowMode)}
             />
           )}
@@ -3920,8 +3934,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           {showSequenceDiagram && (
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}
+              onReset={() => setSelectedSeqStep(null)}
               selectedStepId={selectedSeqStep?.id}
               slowMode={slowMode}
+              followFlow={followFlow}
               onToggleSlowMode={() => setSlowMode(!slowMode)}
             />
           )}
@@ -4003,8 +4019,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           {showSequenceDiagram && (
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}
+              onReset={() => setSelectedSeqStep(null)}
               selectedStepId={selectedSeqStep?.id}
               slowMode={slowMode}
+              followFlow={followFlow}
               onToggleSlowMode={() => setSlowMode(!slowMode)}
             />
           )}

@@ -1,7 +1,16 @@
 .srd-root {
-  background: var(--th-bg-inset);
-  color: var(--th-text);
-  border: 1px solid var(--th-border);
+  --srd-bg: var(--th-bg-inset);
+  --srd-text: var(--th-text);
+  --srd-muted: var(--th-text-muted);
+  --srd-card: var(--th-bg-card);
+  --srd-page: var(--th-bg-page);
+  --srd-hover: var(--th-bg-hover);
+  --srd-border: var(--th-border);
+  --srd-border-strong: var(--th-border-strong);
+  --srd-font-scale: 1;
+  background: var(--srd-bg);
+  color: var(--srd-text);
+  border: 1px solid var(--srd-border);
   border-radius: var(--radius-md);
   padding: 0.5rem;
   /* Column so the toolbars sit above/below one bounded scroll box (.srd-scroll),
@@ -45,7 +54,15 @@
 
 /* Dark steps of the same 5 families — vibrant colors for dark mode
    Project rule: dark is [data-theme="dark"] only, never prefers-color-scheme. */
-:root[data-theme="dark"] .srd-root {
+.srd-root[data-srd-theme="dark"] {
+  --srd-bg: #101827;
+  --srd-text: #f8fafc;
+  --srd-muted: #d5deeb;
+  --srd-card: #182235;
+  --srd-page: #111c2d;
+  --srd-hover: #24344d;
+  --srd-border: #4b607c;
+  --srd-border-strong: #8094b1;
   --srd-color-browser: #4a9eff;
   --srd-color-chat: color-mix(in oklab, #4a9eff 80%, white);
   --srd-color-agent: #ff6b4a;
@@ -59,12 +76,19 @@
   --srd-color-data: color-mix(in oklab, #ff5599 55%, white);
 }
 
+.srd-root[data-srd-theme="light"] {
+  --srd-font-scale: 1;
+}
+
+.srd-root[data-font-size="small"] { --srd-font-scale: 0.85; }
+.srd-root[data-font-size="large"] { --srd-font-scale: 1.15; }
+
 .srd-empty {
   padding: 0.75rem;
   font-size: var(--font-size-3xs);
-  color: var(--th-text-muted);
-  background: var(--th-bg-inset);
-  border: 1px dashed var(--th-border);
+  color: var(--srd-muted);
+  background: var(--srd-bg);
+  border: 1px dashed var(--srd-border);
   border-radius: var(--radius-md);
 }
 
@@ -79,8 +103,8 @@
      theming ratchet. */
   position: sticky;
   z-index: 2;
-  background: var(--th-bg-inset);
-  color: var(--th-text);
+  background: var(--srd-bg);
+  color: var(--srd-text);
 }
 
 /* .srd-root has 0.5rem of padding, and `top: 0` pins to that padding line rather
@@ -94,29 +118,57 @@
 }
 
 .srd-zoom-btn,
-.srd-zoom-reset {
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  border: 1px solid var(--th-border-strong);
+.srd-zoom-reset,
+.srd-theme-btn,
+.srd-font-btn,
+.srd-view-reset {
+  background: var(--srd-card);
+  color: var(--srd-text);
+  border: 1px solid var(--srd-border-strong);
   border-radius: var(--radius-sm);
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 600;
   padding: 0.2rem 0.5rem;
   cursor: pointer;
 }
 
 .srd-zoom-btn:hover,
-.srd-zoom-reset:hover {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
+.srd-zoom-reset:hover,
+.srd-theme-btn:hover,
+.srd-font-btn:hover,
+.srd-view-reset:hover {
+  background: var(--srd-hover);
+  color: var(--srd-text);
+}
+
+.srd-theme-btn { white-space: nowrap; }
+
+.srd-font-size-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.srd-control-label {
+  color: var(--srd-muted);
+  font-size: var(--font-size-3xs);
+  font-weight: 600;
+}
+
+.srd-font-btn { padding: 0.2rem 0.4rem; }
+
+.srd-font-btn--active {
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+  border-color: var(--th-status-info);
 }
 
 .srd-slow-btn {
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  border: 1px solid var(--th-border-strong);
+  background: var(--srd-card);
+  color: var(--srd-text);
+  border: 1px solid var(--srd-border-strong);
   border-radius: var(--radius-sm);
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 600;
   padding: 0.2rem 0.5rem;
   cursor: pointer;
@@ -124,18 +176,18 @@
 }
 
 .srd-slow-btn:hover {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
+  background: var(--srd-hover);
+  color: var(--srd-text);
 }
 
 /* Transport: Prev / Play-Pause-Replay / Next. Same shape as the zoom and Slow
    buttons so the row reads as one control strip. */
 .srd-step-btn {
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  border: 1px solid var(--th-border-strong);
+  background: var(--srd-card);
+  color: var(--srd-text);
+  border: 1px solid var(--srd-border-strong);
   border-radius: var(--radius-sm);
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 600;
   padding: 0.2rem 0.6rem;
   cursor: pointer;
@@ -143,8 +195,8 @@
 }
 
 .srd-step-btn:hover:not(:disabled) {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
+  background: var(--srd-hover);
+  color: var(--srd-text);
 }
 
 .srd-step-btn:disabled {
@@ -178,11 +230,11 @@
   width: auto;
   max-width: 150px;
   flex: 0 0 auto;
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  border: 1px solid var(--th-border-strong);
+  background: var(--srd-card);
+  color: var(--srd-text);
+  border: 1px solid var(--srd-border-strong);
   border-radius: var(--radius-sm);
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 600;
   padding: 0.2rem 0.5rem;
   cursor: pointer;
@@ -190,15 +242,15 @@
 }
 
 .srd-speed-select:hover {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
+  background: var(--srd-hover);
+  color: var(--srd-text);
 }
 
 .srd-speed-select:focus {
   /* --th-focus is not a real token — an undefined custom property with no
      fallback resolves to nothing, so this focus ring did not render at all.
      --th-border-strong is what the sibling CollapsibleStepDetail.css uses. */
-  outline: 2px solid var(--th-border-strong);
+  outline: 2px solid var(--srd-border-strong);
   outline-offset: -1px;
 }
 
@@ -223,7 +275,7 @@
   /* Always show the bars (macOS/Chrome hide overlay bars until you scroll, which
      hid that the first lane was just off to the left). */
   scrollbar-width: thin;
-  scrollbar-color: var(--th-border-strong) transparent;
+  scrollbar-color: var(--srd-border-strong) transparent;
 }
 
 .srd-scroll::-webkit-scrollbar {
@@ -232,7 +284,7 @@
 }
 
 .srd-scroll::-webkit-scrollbar-thumb {
-  background: var(--th-border-strong);
+  background: var(--srd-border-strong);
   border-radius: var(--radius-sm);
 }
 
@@ -276,13 +328,13 @@
 
 .srd-actor-label {
   fill: #fff;
-  font-size: 15px;
+  font-size: calc(var(--font-size-base) * var(--srd-font-scale));
   font-weight: 700;
   letter-spacing: 0.5px;
 }
 
 .srd-lifeline {
-  stroke: var(--th-border-strong);
+  stroke: var(--srd-border-strong);
   stroke-width: 2.5;
   stroke-dasharray: 3 3;
   opacity: 0.7;
@@ -300,25 +352,25 @@
    hop looks and behaves the same whichever way it is drawn. */
 .srd-label-box,
 .srd-note-box {
-  fill: var(--th-bg-page);
-  stroke: var(--th-border);
+  fill: var(--srd-page);
+  stroke: var(--srd-border);
   cursor: pointer;
 }
 
 .srd-note-label,
 .srd-arrow-label {
-  fill: var(--th-text-muted);
-  font-size: 12px;
+  fill: var(--srd-muted);
+  font-size: calc(var(--font-size-2xs) * var(--srd-font-scale));
 }
 
 .srd-arrow {
-  stroke: var(--th-border-strong);
+  stroke: var(--srd-border-strong);
   stroke-width: 3;
   cursor: pointer;
 }
 
 .srd-arrowhead-fill {
-  fill: var(--th-border-strong);
+  fill: var(--srd-border-strong);
 }
 
 .srd-selected .srd-arrow,
@@ -329,7 +381,7 @@
 
 .srd-selected .srd-label-box,
 .srd-selected .srd-note-box {
-  fill: var(--th-bg-hover);
+  fill: var(--srd-hover);
 }
 
 /* Status — structural/motion cues layered on top of the lane color, never a

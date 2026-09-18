@@ -20,6 +20,7 @@ import TokenFlowDetailModal from "./TokenFlowDetailModal";
 import SimpleStepperPanel from "./SimpleStepperPanel";
 import AgentFlowDiagramPanel from "./AgentFlowDiagramPanel";
 import SequenceReelDiagram from "./SequenceReelDiagram";
+import CollapsibleStepDetail from "./CollapsibleStepDetail";
 import OAuthVisualizerPanel from "./OAuthVisualizerPanel";
 import ReasoningPanel from './ReasoningPanel';
 import ConversationSummaryPanel from './ConversationSummaryPanel';
@@ -130,10 +131,18 @@ export const MORE_MENU_FLAG_IDS = [
 ];
 
 const SURFACE_OPTIONS = [
-  { value: "none", label: "Off" },
-  { value: "embedded", label: "Embedded" },
-  { value: "popout", label: "Pop-out" },
-  { value: "both", label: "Both" },
+  { value: "none", label: "Off", description: "Hide this view." },
+  { value: "embedded", label: "Embedded", description: "Keep it inside the dashboard." },
+  { value: "popout", label: "Pop-out", description: "Open a separate presenter window." },
+  { value: "both", label: "Both", description: "Show it in both surfaces." },
+];
+
+const EVIDENCE_VIEW_OPTIONS = [
+  { value: "movie-reel", label: "Movie reel", description: "Step-by-step live trace" },
+  { value: "simple-stepper", label: "Simple stepper", description: "Compact current step" },
+  { value: "sequence-view", label: "Sequence view", description: "Actor-to-actor flow" },
+  { value: "token-topology", label: "Token topology", description: "Delegation map" },
+  { value: "oauth-visualizer", label: "OAuth visualizer", description: "Protocol walkthrough" },
 ];
 
 function readSurfacePreference(key, legacyKey, legacyValue) {
@@ -160,14 +169,56 @@ function readSurfacePreference(key, legacyKey, legacyValue) {
 }
 
 function SurfaceSelector({ id, label, value, onChange, disabled = false, disabledValues = [] }) {
+  const [open, setOpen] = useState(false);
+  const selected = SURFACE_OPTIONS.find((option) => option.value === value) || SURFACE_OPTIONS[0];
+
   return (
     <div className="ba-topology-surface-row">
-      <label htmlFor={id}>{label}</label>
-      <select id={id} aria-label={`${label} surface`} value={value} onChange={onChange} disabled={disabled}>
-        {SURFACE_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value} disabled={disabledValues.includes(option.value)}>{option.label}</option>
-        ))}
-      </select>
+      <span className="ba-topology-surface-label">{label}</span>
+      <div className="ba-surface-selector">
+        <button
+          type="button"
+          id={id}
+          className="ba-surface-selector-trigger"
+          aria-label={`${label} surface`}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          disabled={disabled}
+          onClick={() => setOpen((isOpen) => !isOpen)}
+        >
+          <span>
+            <strong>{selected.label}</strong>
+            <small>{selected.description}</small>
+          </span>
+          <span className="ba-surface-selector-chevron" aria-hidden="true">{open ? "⌃" : "⌄"}</span>
+        </button>
+        {open && (
+          <div className="ba-surface-selector-menu" role="listbox" aria-label={`${label} surface options`}>
+            {SURFACE_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={option.value === value}
+                className={`ba-surface-option${option.value === value ? " is-selected" : ""}`}
+                disabled={disabledValues.includes(option.value)}
+                aria-disabled={disabledValues.includes(option.value)}
+                onClick={() => {
+                  if (disabledValues.includes(option.value)) return;
+                  onChange({ target: { value: option.value } });
+                  setOpen(false);
+                }}
+              >
+                <span className="ba-surface-option-radio" aria-hidden="true" />
+                <span>
+                  <strong>{option.label}</strong>
+                  <small>{option.description}</small>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -943,6 +994,7 @@ export default function BankingAgent({
       return true;
     }
   });
+  const [quickConfigView, setQuickConfigView] = useState("movie-reel");
   // "Sequence view" — swaps the dashboard's right-column reel for a live
   // lifeline sequence diagram of the same trace data. Restored from the SAME key
   // UserDashboardPing2026 persists, because both components hold a copy of this
@@ -966,6 +1018,7 @@ export default function BankingAgent({
     window.dispatchEvent(new CustomEvent("oauth-visualizer-surface-change", { detail: { surface } }));
   }, []);
   const showSequencePopout = sequenceSurface === "popout" || sequenceSurface === "both";
+  const [selectedSequencePopoutStep, setSelectedSequencePopoutStep] = useState(null);
   // "Slow mode" — paces the sequence diagram's step reveal for live narration.
   // Only meaningful while Sequence view is on; toggled off with it. Restored
   // from the dashboard's key for the same reason as above.
@@ -1160,7 +1213,8 @@ export default function BankingAgent({
   const [showRfcInfo, setShowRfcInfo] = useState(() => {
     try {
       const surface = localStorage.getItem("ba_rfc_info_surface");
-      return localStorage.getItem("ba_show_rfc_info") === "1" || surface === "embedded" || surface === "both";
+      const storedRfcInfo = localStorage.getItem("ba_show_rfc_info");
+      return (storedRfcInfo === "1" || storedRfcInfo === "true") || surface === "embedded" || surface === "both";
     } catch {
       return false;
     }
@@ -1215,6 +1269,37 @@ export default function BankingAgent({
     window.dispatchEvent(new CustomEvent("agent-sequence-diagram-toggle", {
       detail: { on: embedded, surface },
     }));
+  }, []);
+
+  const chooseEvidenceView = useCallback((view) => {
+    setQuickConfigView(view);
+    if (view === "movie-reel") {
+      setShowFilmstrip(true);
+      window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", { detail: { on: true } }));
+    } else if (view === "simple-stepper") {
+      chooseSimpleStepperSurface(simpleStepperSurface === "none" ? "embedded" : simpleStepperSurface);
+    } else if (view === "sequence-view") {
+      chooseSequenceSurface(sequenceSurface === "none" ? "embedded" : sequenceSurface);
+    } else if (view === "token-topology") {
+      chooseTopologySurface(topologySurface === "none" ? "embedded" : topologySurface);
+    } else if (view === "oauth-visualizer") {
+      chooseOauthVisualizerSurface(oauthVisualizerSurface === "none" ? "embedded" : oauthVisualizerSurface);
+    }
+  }, [chooseOauthVisualizerSurface, chooseSequenceSurface, chooseSimpleStepperSurface, chooseTopologySurface, oauthVisualizerSurface, sequenceSurface, simpleStepperSurface, topologySurface]);
+
+  const [followSequenceFlow, setFollowSequenceFlow] = useState(() => {
+    try {
+      return localStorage.getItem("dashboard-sequence-follow-flow") !== "false";
+    } catch {
+      return true;
+    }
+  });
+  const chooseFollowSequenceFlow = useCallback((on) => {
+    setFollowSequenceFlow(on);
+    try {
+      localStorage.setItem("dashboard-sequence-follow-flow", String(on));
+    } catch {}
+    window.dispatchEvent(new CustomEvent("agent-sequence-follow-flow-toggle", { detail: { on } }));
   }, []);
 
   /** Dark mode for the dark-capable panels (Token Chain rail). The state, its
@@ -2285,9 +2370,10 @@ export default function BankingAgent({
         (msg) =>
           msg.role === "user" ||
           msg.role === "assistant" ||
-          msg.role === "error",
+          msg.role === "error" ||
+          (showRfcInfo && msg.role === "token-event"),
       ),
-    [messages],
+    [messages, showRfcInfo],
   );
   const { hiddenCount: transcriptHiddenCount, visible: visibleFilteredMsgs } = windowTranscript(
     transcriptFilteredMsgs,
@@ -9994,6 +10080,7 @@ export default function BankingAgent({
                     className={`ba-actions-trigger${headerMoreOpen ? " active" : ""}`}
                     aria-haspopup="true"
                     aria-expanded={headerMoreOpen}
+                    aria-label="Quick Config"
                     title="Quick Config — display preferences and the demo feature flags"
                     onClick={(event) => {
                       const rect = event.currentTarget.getBoundingClientRect();
@@ -10004,7 +10091,7 @@ export default function BankingAgent({
                       setHeaderMoreOpen((v) => !v);
                     }}
                   >
-                    Quick Config
+                    <span>Quick Config</span><span className="ba-surface-badge" aria-hidden="true">02</span>
                   </button>
                   {headerMoreOpen && createPortal(
                     <div
@@ -10015,6 +10102,23 @@ export default function BankingAgent({
                       <div className="ba-header-more-intro">
                         <strong>Choose a view surface</strong>
                         <span>Embedded views stay on this page. Pop-outs open a separate window.</span>
+                      </div>
+                      <div className="ba-header-more-view-picker" role="group" aria-label="Evidence view">
+                        <div className="ba-header-more-heading">What should appear?</div>
+                        <div className="ba-header-more-view-grid">
+                          {EVIDENCE_VIEW_OPTIONS.map((option) => (
+                            <button
+                              key={option.value}
+                              type="button"
+                              className={`ba-header-more-view-option${quickConfigView === option.value ? " selected" : ""}`}
+                              aria-pressed={quickConfigView === option.value}
+                              onClick={() => chooseEvidenceView(option.value)}
+                            >
+                              <strong>{option.label}</strong>
+                              <span>{option.description}</span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
                       <div className="ba-header-more-heading">Display preferences</div>
                       <Check
@@ -10084,21 +10188,13 @@ export default function BankingAgent({
                         </Check>
                       )}
                       <div className="ba-header-more-heading">Evidence views</div>
-                      <div className="ba-topology-surface-row">
-                        <label htmlFor="topology-surface-select">Token topology</label>
-                        <select
-                          id="topology-surface-select"
-                          value={topologySurface}
-                          onChange={(e) => chooseTopologySurface(e.target.value)}
-                          disabled={isEmbeddedSurfaceDisabled("embedded", sequenceSurface)}
-                          title="Choose where token topology appears"
-                        >
-                          <option value="none">Off</option>
-                          <option value="embedded">Embedded</option>
-                          <option value="popout">Pop-out</option>
-                          <option value="both">Both</option>
-                        </select>
-                      </div>
+                      <SurfaceSelector
+                        id="topology-surface-select"
+                        label="Token topology"
+                        value={topologySurface}
+                        onChange={(e) => chooseTopologySurface(e.target.value)}
+                        disabled={isEmbeddedSurfaceDisabled("embedded", sequenceSurface)}
+                      />
                       <SurfaceSelector
                         id="simple-step-surface-select"
                         label="Simple step"
@@ -10136,6 +10232,17 @@ export default function BankingAgent({
                           }
                         }}
                       />
+                      {(showSequenceDiagram || showSequencePopout) && (
+                        <Check
+                          variant="switch"
+                          className="ba-header-toggle-label"
+                          checked={followSequenceFlow}
+                          onChange={(e) => chooseFollowSequenceFlow(e.target.checked)}
+                          title="Keep the active sequence step in view as the flow runs"
+                        >
+                          Follow flow
+                        </Check>
+                      )}
                       <SurfaceSelector
                         id="oauth-visualizer-surface-select"
                         label="OAuth Visualizer"
@@ -12745,7 +12852,10 @@ export default function BankingAgent({
       />
       <DraggableModal
         isOpen={showSequencePopout}
-        onClose={() => chooseSequenceSurface(sequenceSurface === "both" ? "embedded" : "none")}
+        onClose={() => {
+          setSelectedSequencePopoutStep(null);
+          chooseSequenceSurface(sequenceSurface === "both" ? "embedded" : "none");
+        }}
         title="Sequence view"
         defaultWidth={860}
         defaultHeight={620}
@@ -12755,9 +12865,18 @@ export default function BankingAgent({
       >
         <SequenceReelDiagram
           ariaLabel="Live sequence diagram pop-out"
+          onSelectStep={setSelectedSequencePopoutStep}
+          selectedStepId={selectedSequencePopoutStep?.id}
+          onReset={() => setSelectedSequencePopoutStep(null)}
           slowMode={slowMode}
+          followFlow={followSequenceFlow}
           onToggleSlowMode={() => setSlowMode((value) => !value)}
         />
+        {selectedSequencePopoutStep && (
+          <div className="ba-sequence-popout-detail">
+            <CollapsibleStepDetail step={selectedSequencePopoutStep} />
+          </div>
+        )}
       </DraggableModal>
       {(() => {
         // Copy + builder per modal kind. 'tool' filters are case-insensitive

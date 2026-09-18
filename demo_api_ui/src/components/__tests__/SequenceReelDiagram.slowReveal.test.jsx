@@ -130,6 +130,13 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     expect(scrollTo.mock.calls.map(([a]) => a).filter((a) => a && "left" in a)).toHaveLength(0);
   });
 
+  it("does not auto-follow the flow when Follow flow is off", () => {
+    const scrollTo = withLayout({ stepLeft: 1200, stepRight: 1400 });
+    render(<SequenceReelDiagram slowMode followFlow={false} onToggleSlowMode={noop} />);
+    act(() => vi.advanceTimersByTime(DEFAULT_MS));
+    expect(scrollTo.mock.calls.filter(([a]) => a && ("left" in a || "top" in a))).toHaveLength(0);
+  });
+
   const btn = (c, label) =>
     [...c.querySelectorAll(".srd-toolbar button")].find((b) => b.textContent.trim() === label);
 
@@ -511,6 +518,8 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
   afterEach(() => {
     localStorage.removeItem("dashboard-seq-zoom");
     localStorage.removeItem("dashboard-seq-speed");
+    localStorage.removeItem("dashboard-seq-theme");
+    localStorage.removeItem("dashboard-seq-font-size");
   });
 
   // Rendered with slow mode ON: the transport controls and the speed select only
@@ -536,7 +545,39 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     localStorage.setItem("dashboard-seq-zoom", "9999");
     localStorage.setItem("dashboard-seq-speed", "1234");
     const c = renderWithSteps();
-    expect(c.querySelector(".srd-zoom-reset").textContent).toContain("130");
+    expect(c.querySelector(".srd-zoom-reset").textContent).toContain("70");
     expect(c.querySelector(".srd-speed-select").value).toBe("2600");
+  });
+
+  it("starts compact and lets the presenter change theme and flow font size", () => {
+    const c = renderWithSteps();
+
+    expect(c.querySelector(".srd-zoom-reset").textContent).toContain("70");
+    expect(c.querySelector(".srd-root").dataset.srdTheme).toBe("light");
+    expect(c.querySelector(".srd-root").dataset.fontSize).toBe("medium");
+
+    const themeButton = c.querySelector(".srd-theme-btn");
+    fireEvent.click(themeButton);
+    expect(c.querySelector(".srd-root").dataset.srdTheme).toBe("dark");
+    expect(localStorage.getItem("dashboard-seq-theme")).toBe("dark");
+
+    fireEvent.click(c.querySelector('[aria-label="Increase flow font size"]'));
+    expect(c.querySelector(".srd-root").dataset.fontSize).toBe("large");
+    expect(localStorage.getItem("dashboard-seq-font-size")).toBe("large");
+  });
+
+  it("resets the presenter view to a clean compact state", () => {
+    localStorage.setItem("dashboard-seq-zoom", "120");
+    localStorage.setItem("dashboard-seq-theme", "dark");
+    localStorage.setItem("dashboard-seq-font-size", "large");
+    const onReset = vi.fn();
+    const c = render(<SequenceReelDiagram onReset={onReset} onToggleSlowMode={noop} />).container;
+
+    fireEvent.click(c.querySelector(".srd-view-reset"));
+
+    expect(c.querySelector(".srd-zoom-reset").textContent).toContain("70");
+    expect(c.querySelector(".srd-root").dataset.srdTheme).toBe("light");
+    expect(c.querySelector(".srd-root").dataset.fontSize).toBe("medium");
+    expect(onReset).toHaveBeenCalledTimes(1);
   });
 });

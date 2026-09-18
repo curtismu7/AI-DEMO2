@@ -59,7 +59,10 @@ const labelBoxWidth = (label) => String(label ?? "").length * NOTE_CHAR_W + 18;
 const ZOOM_MIN = 60;
 const ZOOM_MAX = 200;
 const ZOOM_STEP = 10;
-const ZOOM_DEFAULT = 130;
+const ZOOM_DEFAULT = 70;
+const THEME_KEY = "dashboard-seq-theme";
+const FONT_SIZE_KEY = "dashboard-seq-font-size";
+const FONT_SIZE_OPTIONS = ["small", "medium", "large"];
 
 // Narration pace for slow mode — deliberately slow, this is for talking over
 // a live crowd, not for watching the data arrive.
@@ -99,6 +102,25 @@ const readStoredSpeed = () => {
   }
 };
 
+const readStoredTheme = () => {
+  try {
+    const stored = localStorage.getItem(THEME_KEY);
+    if (stored === "dark" || stored === "light") return stored;
+  } catch {
+    /* ignore */
+  }
+  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+};
+
+const readStoredFontSize = () => {
+  try {
+    const stored = localStorage.getItem(FONT_SIZE_KEY);
+    return FONT_SIZE_OPTIONS.includes(stored) ? stored : "medium";
+  } catch {
+    return "medium";
+  }
+};
+
 const writePref = (key, value) => {
   try {
     localStorage.setItem(key, String(value));
@@ -123,8 +145,10 @@ function laneClass(lane) {
 
 export default function SequenceReelDiagram({
   onSelectStep,
+  onReset,
   selectedStepId,
   slowMode,
+  followFlow = true,
   onToggleSlowMode,
   externalSteps,
   externalRunId,
@@ -137,6 +161,8 @@ export default function SequenceReelDiagram({
   useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
 
   const [zoomLevel, setZoomLevel] = useState(() => readStoredZoom(zoomStorageKey, initialZoom));
+  const [surfaceTheme, setSurfaceTheme] = useState(readStoredTheme);
+  const [fontSize, setFontSize] = useState(readStoredFontSize);
   const handleZoom = useCallback(
     (delta) => setZoomLevel((prev) => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, prev + delta))),
     [],
@@ -149,6 +175,8 @@ export default function SequenceReelDiagram({
   // pace instead of resetting to the defaults mid-demo.
   useEffect(() => writePref(zoomStorageKey, zoomLevel), [zoomLevel, zoomStorageKey]);
   useEffect(() => writePref(SPEED_KEY, slowRevealMs), [slowRevealMs]);
+  useEffect(() => writePref(THEME_KEY, surfaceTheme), [surfaceTheme]);
+  useEffect(() => writePref(FONT_SIZE_KEY, fontSize), [fontSize]);
 
   // The A2A hops are not in buildTraceSteps; the Token Chain rail splices them
   // in right after the tool choice, and this view draws them in the same place.
@@ -178,6 +206,17 @@ export default function SequenceReelDiagram({
   // one: it is restored from localStorage, so it is already on at page load.
   const [narrating, setNarrating] = useState(false);
   const totalSteps = allLifelineSteps.length;
+
+  const resetView = useCallback(() => {
+    setZoomLevel(ZOOM_DEFAULT);
+    setSurfaceTheme("light");
+    setFontSize("medium");
+    setSlowRevealMs(SLOW_REVEAL_MS);
+    setNarrating(false);
+    setPlaying(false);
+    setRevealedCount(totalSteps);
+    onReset?.();
+  }, [onReset, totalSteps]);
 
   // Not narrating: everything that has happened is visible as it arrives.
   useEffect(() => {
@@ -282,6 +321,7 @@ export default function SequenceReelDiagram({
   }, [lifelineSteps]);
   const followFooter = activeStepId != null && activeStepId === lifelineSteps[lifelineSteps.length - 1]?.id;
   useEffect(() => {
+    if (!followFlow) return;
     const el = activeStepRef.current;
     // Deliberately not scrollIntoView: it scrolls every scrollable ancestor on
     // BOTH axes, and .srd-scroll is overflow-x:auto. An arrow step spans two
@@ -309,7 +349,7 @@ export default function SequenceReelDiagram({
       : wantBottom > view.bottom ? wantBottom - view.bottom
       : 0;
     if (delta) scroller.scrollTo({ top: scroller.scrollTop + delta, behavior: "smooth" });
-  }, [activeStepId, followFooter]);
+  }, [activeStepId, followFooter, followFlow]);
 
   // Horizontal follow, slow mode only: while narrating, the step being revealed
   // should stay on screen even once the reveal walks past the fold. Off, the
@@ -319,7 +359,7 @@ export default function SequenceReelDiagram({
   // Gated on slowMode (observed state), NOT a useRef "skip the first run" guard:
   // StrictMode double-invokes effects and silently defeats those.
   useEffect(() => {
-    if (!slowMode) return;
+    if (!followFlow || !slowMode) return;
     const el = activeStepRef.current;
     const box = el?.closest(".srd-scroll");
     if (!el || !box) return;
@@ -340,7 +380,7 @@ export default function SequenceReelDiagram({
       delta = step.right - view.right + pad;
     }
     if (delta) box.scrollTo({ left: box.scrollLeft + delta, behavior: "smooth" });
-  }, [activeStepId, slowMode]);
+  }, [activeStepId, followFlow, slowMode]);
 
   // Keyed on the trace, not the revealed slice: a slow-mode reveal sits at zero
   // revealed steps for one tick, and bailing to the placeholder there would
@@ -382,6 +422,39 @@ export default function SequenceReelDiagram({
       </button>
       <button type="button" className="srd-zoom-btn" onClick={() => handleZoom(ZOOM_STEP)} title="Zoom in">
         +
+      </button>
+      <button
+        type="button"
+        className="srd-theme-btn"
+        onClick={() => setSurfaceTheme((theme) => (theme === "dark" ? "light" : "dark"))}
+        aria-label={`Use ${surfaceTheme === "dark" ? "light" : "dark"} theme`}
+        title={`Use ${surfaceTheme === "dark" ? "light" : "dark"} theme`}
+      >
+        {surfaceTheme === "dark" ? "☀️ Light" : "🌙 Dark"}
+      </button>
+      <div className="srd-font-size-controls" role="group" aria-label="Flow font size">
+        <span className="srd-control-label">Text</span>
+        {FONT_SIZE_OPTIONS.map((size) => (
+          <button
+            key={size}
+            type="button"
+            className={`srd-font-btn ${fontSize === size ? "srd-font-btn--active" : ""}`}
+            onClick={() => setFontSize(size)}
+            aria-label={`${size === "small" ? "Decrease" : size === "large" ? "Increase" : "Reset"} flow font size`}
+            aria-pressed={fontSize === size}
+            title={`${size[0].toUpperCase()}${size.slice(1)} flow font size`}
+          >
+            {size === "small" ? "A−" : size === "large" ? "A+" : "A"}
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        className="srd-view-reset"
+        onClick={resetView}
+        title="Reset the sequence view to a clean starting state"
+      >
+        Reset
       </button>
       {onToggleSlowMode && (
         <button
@@ -448,7 +521,7 @@ export default function SequenceReelDiagram({
   );
 
   return (
-    <div className="srd-root">
+    <div className="srd-root" data-srd-theme={surfaceTheme} data-font-size={fontSize}>
       {toolbar("top")}
       <div className="srd-scroll" ref={scrollRef}>
         <svg
