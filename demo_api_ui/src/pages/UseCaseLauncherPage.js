@@ -16,6 +16,10 @@ import GroupMembershipToggle from '../components/GroupMembershipToggle';
 import OWASPBadge from '../components/OWASPBadge';
 import UseCaseExplainModal from '../components/UseCaseExplainModal';
 import apiClient from '../services/apiClient';
+import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
+import { openMcpFlowSse } from '../services/mcpFlowSseClient';
+import { agentFlowDiagram } from '../services/agentFlowDiagramService';
+import { buildSimRailEvents } from '../services/tokenChainTrace/simTraceAdapter';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import { useVertical } from '../vertical/useVertical';
 import useLangchainProvider from '../hooks/useLangchainProvider';
@@ -876,6 +880,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
     if (uc.trigger?.path) {
       markCameFromUseCases();
       recordCompleted(uc);
+      tokenChainTraceStore.reset();
       navigate(uc.trigger.path);
     }
   }, [navigate, openEdu, recordCompleted]);
@@ -888,8 +893,20 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
       ...prev,
       [uc.id]: { running: true, result: null, error: null },
     }));
-    apiClient.post('/api/demo/attack-sim/run', { sim })
+    const flowTraceId =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    tokenChainTraceStore.beginTrace({ prompt: sim, flowTraceId });
+    tokenChainTraceStore.bindFlowTrace(flowTraceId);
+    const closeSse = openMcpFlowSse(flowTraceId, (event) => {
+      try { agentFlowDiagram.applyServerEvent(event); } catch { /* display-only */ }
+    });
+    apiClient.post('/api/demo/attack-sim/run', { sim, flowTraceId })
       .then(({ data }) => {
+        tokenChainTraceStore.ingestTokenEvents(buildSimRailEvents(data));
+        if (data.authorize) tokenChainTraceStore.ingestAuthorize(data.authorize);
+        tokenChainTraceStore.completeTrace(typeof data.status === 'number' && data.status < 400, flowTraceId);
         setAttackStates((prev) => ({
           ...prev,
           [uc.id]: { running: false, result: data, error: null },
@@ -900,12 +917,14 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
         recordCompleted(uc);
       })
       .catch((err) => {
+        tokenChainTraceStore.completeTrace(false, flowTraceId);
         const msg = formatAxiosError(err, 'Attack simulation failed');
         setAttackStates((prev) => ({
           ...prev,
           [uc.id]: { running: false, result: null, error: msg },
         }));
-      });
+      })
+      .finally(closeSse);
   }, [recordCompleted]);
 
   // These derivations used to run directly in the render body on every

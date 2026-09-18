@@ -17,6 +17,8 @@ import { useProofOfEnforcement } from '../context/ProofOfEnforcementContext';
 import TokenChainTraceRail from '../components/TokenChainTraceRail';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { buildSimRailEvents } from '../services/tokenChainTrace/simTraceAdapter';
+import { openMcpFlowSse } from '../services/mcpFlowSseClient';
+import { agentFlowDiagram } from '../services/agentFlowDiagramService';
 import {
   DEMO_ADVANCED_USE_CASE_IDS,
   DEMO_PRIMARY_USE_CASE_IDS,
@@ -343,8 +345,19 @@ export default function LiveUseCaseWorkbenchPage() {
   const handleRunAttack = useCallback((uc) => {
     setSelectedId(uc.id);
     setRunState({ id: uc.id, state: 'running' });
-    tokenChainTraceStore.beginTrace({ prompt: `attack sim: ${uc.trigger.sim}` });
-    apiClient.post('/api/demo/attack-sim/run', { sim: uc.trigger.sim })
+    const flowTraceId =
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    tokenChainTraceStore.beginTrace({ prompt: `attack sim: ${uc.trigger.sim}`, flowTraceId });
+    tokenChainTraceStore.bindFlowTrace(flowTraceId);
+    const closeSse = openMcpFlowSse(flowTraceId, (event) => {
+      if (event?.type === 'mcp-result') {
+        window.dispatchEvent(new CustomEvent('mcp-tool-result-sse', { detail: { ...event, flowTraceId } }));
+      }
+      try { agentFlowDiagram.applyServerEvent(event); } catch { /* display-only */ }
+    });
+    apiClient.post('/api/demo/attack-sim/run', { sim: uc.trigger.sim, flowTraceId })
       .then(({ data }) => {
         // Same verdict rule as AIAgent's attack-sim handler: a sim that died
         // before its control (502 exchange_failed …) is ERROR, not DENY.
@@ -359,12 +372,13 @@ export default function LiveUseCaseWorkbenchPage() {
           buildSimRailEvents(data).forEach((ev) => tokenChainTraceStore.ingestTokenEvent(ev));
           if (data.authorize) tokenChainTraceStore.ingestAuthorize(data.authorize);
         }
-        tokenChainTraceStore.completeTrace(verdict === 'PERMIT');
+        tokenChainTraceStore.completeTrace(verdict === 'PERMIT', flowTraceId);
       })
       .catch((err) => {
-        tokenChainTraceStore.completeTrace(false);
+        tokenChainTraceStore.completeTrace(false, flowTraceId);
         setRunState({ id: uc.id, state: 'error', msg: err.message || 'Attack simulation failed' });
-      });
+      })
+      .finally(closeSse);
   }, []);
 
   // Link-type steps (e.g. UC14b PAR verified) open a learning page. POST

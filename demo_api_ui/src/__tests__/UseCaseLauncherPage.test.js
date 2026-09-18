@@ -37,6 +37,21 @@ vi.mock('../services/apiClient', () => ({
   default: { get: vi.fn(), post: vi.fn(), patch: vi.fn() },
 }));
 
+vi.mock('../services/tokenChainTrace/tokenChainTraceStore', () => ({
+  tokenChainTraceStore: {
+    reset: vi.fn(),
+    beginTrace: vi.fn(),
+    bindFlowTrace: vi.fn(),
+    ingestTokenEvents: vi.fn(),
+    ingestAuthorize: vi.fn(),
+    completeTrace: vi.fn(),
+  },
+}));
+
+vi.mock('../services/mcpFlowSseClient', () => ({
+  openMcpFlowSse: vi.fn(() => vi.fn()),
+}));
+
 // Mock useVertical — return 'banking' for activeId.
 vi.mock('../vertical/useVertical', () => ({
   useVertical: () => ({ activeId: 'banking' }),
@@ -56,6 +71,7 @@ vi.mock('../components/VerticalSwitcher', () => ({
 
 // Import apiClient after mocking
 import apiClient from '../services/apiClient';
+import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 
 const MOCK_USE_CASES = [
   {
@@ -364,6 +380,26 @@ describe('UseCaseLauncherPage', () => {
     expect(sessionStorage.getItem('bx_from_use_cases')).toBe('1');
   });
 
+  it('clears the previous trace before opening a page-type demo step', async () => {
+    apiClient.get.mockResolvedValue({ data: {
+      vertical: 'banking',
+      useCases: [{
+        ...UC_LINK,
+        id: 'UC32',
+        useCaseId: 'weather-mcp-live-reconfigure',
+        title: 'Live-reconfigure the gateway scope policy',
+        trigger: { type: 'link', path: '/weather-mcp', label: 'Open Weather MCP' },
+      }],
+    } });
+    renderPage();
+    await waitFor(() => expect(screen.getAllByText('Live-reconfigure the gateway scope policy').length).toBeGreaterThan(0));
+
+    fireEvent.click(screen.getAllByRole('button', { name: /open weather mcp/i })[0]);
+
+    expect(tokenChainTraceStore.reset).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith('/weather-mcp');
+  });
+
   it('shows OWASP badge for UCs with owasp data', async () => {
     renderPage();
     await waitFor(() => expect(screen.getAllByText('OWASP ASI').length).toBeGreaterThan(0));
@@ -393,7 +429,10 @@ describe('UseCaseLauncherPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^run$/i }));
 
-    expect(apiClient.post).toHaveBeenCalledWith('/api/demo/attack-sim/run', { sim: 'insufficient-scope' });
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/api/demo/attack-sim/run',
+      expect.objectContaining({ sim: 'insufficient-scope', flowTraceId: expect.any(String) }),
+    );
 
     await waitFor(() => expect(screen.getByText(/403 DENY/i)).toBeInTheDocument());
     expect(screen.getAllByText('insufficient_scope').length).toBeGreaterThan(0);
@@ -414,7 +453,10 @@ describe('UseCaseLauncherPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^run$/i }));
 
-    expect(apiClient.post).toHaveBeenCalledWith('/api/demo/attack-sim/run', { sim: 'wrong-aud' });
+    expect(apiClient.post).toHaveBeenCalledWith(
+      '/api/demo/attack-sim/run',
+      expect.objectContaining({ sim: 'wrong-aud', flowTraceId: expect.any(String) }),
+    );
 
     // Wait for async state update to settle before the test tears down.
     await waitFor(() => expect(apiClient.post).toHaveBeenCalledTimes(1));

@@ -39,10 +39,15 @@ vi.mock('../../services/tokenChainTrace/tokenChainTraceStore', () => ({
   tokenChainTraceStore: {
     subscribe: vi.fn(() => vi.fn()),
     beginTrace: vi.fn(),
+    bindFlowTrace: vi.fn(),
     ingestTokenEvent: vi.fn(),
     ingestAuthorize: vi.fn(),
     completeTrace: vi.fn(),
   },
+}));
+
+vi.mock('../../services/mcpFlowSseClient', () => ({
+  openMcpFlowSse: vi.fn(() => vi.fn()),
 }));
 
 vi.mock('../../services/tokenChainTrace/simTraceAdapter', () => ({
@@ -67,6 +72,7 @@ vi.mock('../../context/ProofOfEnforcementContext', () => ({
 import LiveUseCaseWorkbenchPage from '../LiveUseCaseWorkbenchPage';
 import apiClient from '../../services/apiClient';
 import { tokenChainTraceStore } from '../../services/tokenChainTrace/tokenChainTraceStore';
+import { openMcpFlowSse } from '../../services/mcpFlowSseClient';
 // Real (unmocked) component — used only by the "rail focus scroll-and-pulse"
 // suite below to render a genuine `data-step-id="authorize"` node.
 import TraceStepCard from '../../components/TraceStepCard';
@@ -84,6 +90,46 @@ beforeEach(() => {
   mockSetSurfaceHostEl.mockClear();
   mockSetToolbarHostEl.mockClear();
   localStorage.clear();
+  openMcpFlowSse.mockClear();
+  tokenChainTraceStore.beginTrace.mockClear();
+  tokenChainTraceStore.bindFlowTrace.mockClear();
+  tokenChainTraceStore.completeTrace.mockClear();
+});
+
+describe('LiveUseCaseWorkbenchPage — attack simulator trace continuity', () => {
+  it('binds one flowTraceId to the SSE stream, simulator POST, and trace lifecycle', async () => {
+    apiClient.get.mockResolvedValueOnce({
+      data: {
+        useCases: [{
+          id: 'UC5',
+          useCaseId: 'wrong-scope',
+          title: 'Insufficient scope',
+          trigger: { type: 'attack', sim: 'insufficient-scope' },
+        }],
+      },
+    });
+    apiClient.post.mockResolvedValueOnce({ data: { status: 403, errorCode: 'insufficient_scope' } });
+
+    render(<LiveUseCaseWorkbenchPage />);
+    const runButtons = await screen.findAllByRole('button', { name: 'Run sim →' });
+    fireEvent.click(runButtons[0]);
+
+    await waitFor(() => {
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/api/demo/attack-sim/run',
+        expect.objectContaining({ sim: 'insufficient-scope', flowTraceId: expect.any(String) }),
+      );
+    });
+
+    const [{ 0: streamTraceId }] = openMcpFlowSse.mock.calls;
+    const beginTraceId = tokenChainTraceStore.beginTrace.mock.calls[0][0].flowTraceId;
+    const [{ 0: boundTraceId }] = tokenChainTraceStore.bindFlowTrace.mock.calls;
+    const postTraceId = apiClient.post.mock.calls[0][1].flowTraceId;
+    expect(streamTraceId).toBe(postTraceId);
+    expect(beginTraceId).toBe(postTraceId);
+    expect(boundTraceId).toBe(postTraceId);
+    expect(tokenChainTraceStore.completeTrace).toHaveBeenCalledWith(false, postTraceId);
+  });
 });
 
 describe('LiveUseCaseWorkbenchPage — agent toolbar host', () => {
