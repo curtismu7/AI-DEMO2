@@ -232,4 +232,19 @@ describe("DavinciSdkLoginPage Step Inspector", () => {
     await waitFor(() => expect(container.querySelectorAll(".sdkl-step")).toHaveLength(1));
     expect(container.textContent).not.toMatch(/SECRETNONCE|STATEVALUE|CHALLENGEVALUE|INTERACTION-SECRET/);
   });
+
+  it("switches between live execution and collapsible lessons while keeping the form available", async () => {
+    const { container, findByRole, getByRole, queryByRole } = render(<DavinciSdkLoginPage />);
+
+    await waitFor(() => expect(container.querySelectorAll(".sdkl-step")).toHaveLength(1));
+    expect(getByRole("tab", { name: "Execution reel" })).toHaveAttribute("aria-selected", "true");
+    expect(getByRole("textbox", { name: "Username" })).toBeInTheDocument();
+
+    fireEvent.click(await findByRole("tab", { name: "Lessons" }));
+
+    expect(getByRole("tab", { name: "Lessons" })).toHaveAttribute("aria-selected", "true");
+    expect(queryByRole("tabpanel", { name: "Execution evidence" })).not.toBeInTheDocument();
+    expect(getByRole("tabpanel", { name: "Lessons" })).toBeInTheDocument();
+    expect(getByRole("textbox", { name: "Username" })).toBeInTheDocument();
+  });
 });
