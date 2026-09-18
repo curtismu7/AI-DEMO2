@@ -6232,6 +6232,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   position: fixed;
   inset: 0 0 0 auto;
   z-index: 100061;
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   min-width: 360px;
@@ -6378,6 +6379,19 @@ body > .banking-agent-float-root .banking-agent-panel {
   padding: 5px 9px;
   border-radius: 7px;
   font-size: var(--font-size-3xs);
+}
+
+/* The drawer can be narrow even on a wide viewport after the presenter drags
+   its resize handle. Give search its own row instead of squeezing it beside
+   both action buttons. */
+@container (max-width: 460px) {
+  .ba-demo-steps-drawer .ba-demo-steps-popout__header-actions {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .ba-demo-steps-drawer .ba-demo-steps-popout__search {
+    grid-column: 1 / -1;
+  }
 }
 
 .ba-demo-steps-drawer__body {
