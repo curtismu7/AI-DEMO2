@@ -146,6 +146,26 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-18 — Dashboard modal and compliance pop-out text remains readable in dark mode
+
+- **Files changed:** `demo_api_ui/src/components/ComplianceModal.css`,
+  `demo_api_ui/src/components/ComplianceModalContent.js`,
+  `demo_api_ui/src/components/ComplianceModalPopout.js`,
+  `demo_api_ui/src/components/MCPToolsListModal.css`,
+  `demo_api_ui/src/components/UserDashboard.css`, and
+  `demo_api_ui/src/components/__tests__/dashboardModalContrast.test.js`.
+- **What was broken:** Compliance checklist rows, MCP tool descriptions, and
+  customer-dashboard modal/drawer states used hard-coded or muted light-theme
+  colors that became unreadable against dark modal surfaces; the legacy
+  compliance pop-out also used inline light-theme colors.
+- **What was fixed:** Use shared modal/theme tokens for modal surfaces, body
+  ink, secondary ink, borders, status states, nested token details, drawer
+  controls, and the compliance pop-out shell. Removed the footer's inline
+  themeable border style.
+- **Do not break:** Preserve checklist state semantics, status colors, modal
+  resizing/pop-out behavior, and the separate compliance pop-out data channel.
+- **Verify:** `dashboardModalContrast.test.js` and the UI build must pass.
+
 ### 2026-09-18 — Simple Stepper pop-out surface selection now opens a child window
 
 - **Files changed:** `demo_api_ui/src/components/AIAgent.js`, `demo_api_ui/src/components/SimpleStepperPanel.js`, `demo_api_ui/src/components/__tests__/AIAgent.chips.test.js`
