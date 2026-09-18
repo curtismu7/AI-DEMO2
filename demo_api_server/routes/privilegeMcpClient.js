@@ -2928,7 +2928,10 @@ const LMSTUDIO = {
   provider: 'lmstudio',
   title: 'LM Studio (local)',
   base: () => (process.env.LMSTUDIO_BASE_URL || 'http://host.docker.internal:1234').replace(/\/+$/, ''),
-  key: () => process.env.LMSTUDIO_API_KEY || 'lmstudio',
+  // LM Studio used to accept any non-empty key. Newer servers can require a
+  // real bearer token; support both the app-specific name and LM Studio's
+  // documented LM_API_TOKEN name while keeping the legacy local default.
+  key: () => process.env.LMSTUDIO_API_KEY || process.env.LM_API_TOKEN || 'lmstudio',
   route: '/v1/chat/completions',
   modelsRoute: '/v1/models',
   // Its resident models are reasoning models. At a small cap they spend the whole
@@ -2978,6 +2981,13 @@ router.get('/llm/models/lmstudio', async (req, res) => {
     const upstream = await llmFetch(url, { headers: { Authorization: `Bearer ${LMSTUDIO.key()}` } },
       { label: 'lmstudio-models', timeoutMs: 8000, retryOn429: false });
     const data = await upstream.json().catch(() => ({}));
+    if (!upstream.ok) {
+      const detail = data?.error?.message || data?.error || upstream.statusText || String(upstream.status);
+      return res.status(502).json({
+        error: `LM Studio model list failed (${upstream.status}): ${detail}`,
+        baseUrl: LMSTUDIO.base(),
+      });
+    }
     const models = (Array.isArray(data?.data) ? data.data : []).map((m) => m.id).filter(Boolean);
     return res.json({ baseUrl: LMSTUDIO.base(), models, status: upstream.status });
   } catch (err) {
@@ -3003,6 +3013,10 @@ async function lmStudioCall(messages, config = {}) {
     const modelsRes = await llmFetch(`${base}${LMSTUDIO.modelsRoute}`, { headers: { Authorization: `Bearer ${key}` } },
       { label: 'lmstudio-models-for-call', timeoutMs: 8000, retryOn429: false });
     const modelsData = await modelsRes.json().catch(() => ({}));
+    if (!modelsRes.ok) {
+      const detail = modelsData?.error?.message || modelsData?.error || modelsRes.statusText || String(modelsRes.status);
+      throw new Error(`LM Studio model list failed (${modelsRes.status}): ${detail}`);
+    }
     model = Array.isArray(modelsData?.data) ? modelsData.data[0]?.id : undefined;
     if (!model) throw new Error(`No model loaded in LM Studio at ${base} — load one before sending a prompt.`);
   }
