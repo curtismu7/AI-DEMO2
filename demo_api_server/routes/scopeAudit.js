@@ -1,7 +1,7 @@
 /**
  * routes/scopeAudit.js — PingOne resource & scope audit endpoints.
  *
- * GET  /api/admin/scope-audit/resources   — list resources + scopes from PingOne
+ * GET  /api/admin/scope-audit/resources   — list resources/scopes/grants from PingOne
  * POST /api/admin/scope-audit/scopes      — create a missing scope on a resource
  */
 
@@ -38,6 +38,111 @@ function matchExpected(resource, expectedIndex) {
   ) || null;
 }
 
+// These are the resource relationships owned by the normal bootstrap and
+// reconciliation flow. Keep this audit-only map explicit because the topology
+// declares app scopes, while the PingOne grant target is determined by the
+// provisioning flow (an app can hold grants on more than one resource).
+function buildExpectedApplicationGrants() {
+  const resourceScopes = (name) => scopeTopology.resourceScopes(name);
+  return [
+    {
+      topologyApp: 'Super Banking User App',
+      grants: [{ sotResource: 'Super Banking API', requiredScopes: scopeTopology.appGrantedScopes('Super Banking User App') }],
+    },
+    {
+      topologyApp: 'Super Banking Admin App',
+      grants: [
+        { sotResource: 'Super Banking API', requiredScopes: scopeTopology.appGrantedScopes('Super Banking Admin App') },
+        { sotResource: 'Super Banking MCP Server', requiredScopes: resourceScopes('Super Banking MCP Server') },
+      ],
+    },
+    {
+      topologyApp: 'Super Banking MCP Exchanger',
+      grants: [
+        { sotResource: 'Super Banking Agent Gateway', requiredScopes: ['agent:invoke'] },
+        { sotResource: 'Super Banking MCP Gateway', requiredScopes: resourceScopes('Super Banking MCP Gateway') },
+        { sotResource: 'Super Banking MCP Server', requiredScopes: resourceScopes('Super Banking MCP Server') },
+      ],
+    },
+  ];
+}
+
+function provisionedAppName(topologyApp) {
+  const appNames = scopeTopology._manifest().provisioning?.appNames || {};
+  return appNames[topologyApp] || topologyApp;
+}
+
+function grantResourceId(grant) {
+  return grant.resource?.id || grant.resourceId || (typeof grant.resource === 'string' ? grant.resource : null);
+}
+
+function grantScopeNames(grant, scopeNamesById) {
+  return (grant.scopes || []).map((scope) => {
+    if (typeof scope === 'string') return scopeNamesById[scope] || scope;
+    return scope.name || scopeNamesById[scope.id] || scope.id;
+  }).filter(Boolean);
+}
+
+async function auditApplicationGrants(baseUrl, token, resources, scopesByResourceId, expectedIndex) {
+  const applicationsRes = await axios.get(`${baseUrl}/applications`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const applications = applicationsRes.data?._embedded?.applications || [];
+  const expectedApplications = buildExpectedApplicationGrants();
+  const results = [];
+
+  for (const expectedApp of expectedApplications) {
+    const provisionedName = provisionedAppName(expectedApp.topologyApp);
+    const application = applications.find(
+      (candidate) => (candidate.name || '').toLowerCase() === provisionedName.toLowerCase()
+    );
+    const grants = [];
+    let liveGrants = [];
+    if (application) {
+      const grantsRes = await axios.get(`${baseUrl}/applications/${application.id}/grants`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      liveGrants = grantsRes.data?._embedded?.grants || [];
+    }
+
+    for (const expectedGrant of expectedApp.grants) {
+      const resource = resources.find((candidate) => {
+        const match = matchExpected(candidate, expectedIndex);
+        return match?.sotResource === expectedGrant.sotResource;
+      });
+      const expectedScopes = expectedGrant.requiredScopes;
+      const scopeNamesById = Object.fromEntries(
+        (scopesByResourceId[resource?.id] || []).map((scope) => [scope.id, scope.name])
+      );
+      const matchingLiveGrants = resource
+        ? liveGrants.filter((grant) => grantResourceId(grant) === resource.id)
+        : [];
+      const actualScopes = [...new Set(matchingLiveGrants.flatMap((grant) => grantScopeNames(grant, scopeNamesById)))];
+      const missingRequired = expectedScopes.filter((scope) => !actualScopes.includes(scope));
+      grants.push({
+        sotResource: expectedGrant.sotResource,
+        resourceId: resource?.id || null,
+        requiredScopes: expectedScopes,
+        actualScopes,
+        missingRequired,
+        allRequiredPresent: Boolean(application && resource && missingRequired.length === 0),
+      });
+    }
+
+    const allRequiredPresent = grants.every((grant) => grant.allRequiredPresent);
+    results.push({
+      topologyApp: expectedApp.topologyApp,
+      name: application?.name || provisionedName,
+      id: application?.id || null,
+      status: !application ? 'MISSING' : allRequiredPresent ? 'OK' : 'MISMATCH',
+      grants,
+      allRequiredPresent,
+    });
+  }
+
+  return results;
+}
+
 // ── GET /resources — list PingOne resources with scopes + expected comparison ─
 router.get('/resources', async (_req, res) => {
   try {
@@ -59,6 +164,7 @@ router.get('/resources', async (_req, res) => {
 
     // For each resource, fetch its scopes
     const results = [];
+    const scopesByResourceId = {};
     for (const r of resources) {
       let scopes = [];
       try {
@@ -74,6 +180,7 @@ router.get('/resources', async (_req, res) => {
       } catch (e) {
         // Some built-in resources don't support scope listing
       }
+      scopesByResourceId[r.id] = scopes;
 
       const expected = matchExpected(r, expectedIndex);
       const scopeNames = scopes.map(s => s.name);
@@ -100,7 +207,16 @@ router.get('/resources', async (_req, res) => {
       });
     }
 
-    res.json({ resources: results, environment: envId, region });
+    const applications = await auditApplicationGrants(baseUrl, token, resources, scopesByResourceId, expectedIndex);
+    const applicationSummary = {
+      total: applications.length,
+      aligned: applications.filter((application) => application.status === 'OK').length,
+      missing: applications.filter((application) => application.status === 'MISSING').length,
+      mismatched: applications.filter((application) => application.status === 'MISMATCH').length,
+      allRequiredPresent: applications.every((application) => application.allRequiredPresent),
+    };
+
+    res.json({ resources: results, applications, applicationSummary, environment: envId, region });
   } catch (err) {
     console.error('[scope-audit] Error fetching resources:', err.message);
     const n = normalizeAxiosError(err, { label: 'PingOne scope audit' });

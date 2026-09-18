@@ -6,6 +6,10 @@ jest.mock('../../services/lmdb/transactionLedger.lmdb', () => ({
 jest.mock('../../services/transactionAssembler', () => ({ assemble: jest.fn() }));
 jest.mock('../../services/configStore', () => ({ getEffective: jest.fn(() => 'true') }));
 jest.mock('../../services/jwksService', () => ({ getPublicKey: jest.fn() }));
+jest.mock('../../services/facadeUpstreamExchange', () => ({
+  isConfigured: () => false,
+  isAgentGatewayConfigured: () => false,
+}));
 jest.mock('../../services/mcpPingOneHttpAdapter', () => ({
   listTools: jest.fn(async () => [
     { name: 'listUsers', description: 'List users', inputSchema: { type: 'object', properties: {} } },
@@ -77,7 +81,7 @@ beforeAll(async () => {
   process.env.MCP_FACADE_REEL_BASE = 'https://ui.example';
 });
 
-afterAll(() => new Promise((r) => upstream.close(r)));
+afterAll(() => new Promise((resolve) => upstream.close(resolve)));
 
 beforeEach(() => {
   jest.clearAllMocks();

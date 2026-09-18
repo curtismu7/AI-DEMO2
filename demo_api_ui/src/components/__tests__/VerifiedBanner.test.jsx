@@ -1,9 +1,21 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import React from 'react';
 import { render, screen, act } from '@testing-library/react';
 import VerifiedBanner from '../VerifiedBanner';
 import * as proofCtx from '../../context/ProofOfEnforcementContext';
 
 vi.useFakeTimers();
+
+const bannerCss = fs.readFileSync(
+  path.resolve(__dirname, '../VerifiedBanner.css'),
+  'utf8',
+);
+
+test('positions the banner and collapsed pill at the bottom-left', () => {
+  expect(bannerCss).toMatch(/\.verified-banner\s*\{[^}]*position:\s*fixed;[^}]*left:\s*1rem;[^}]*bottom:\s*1rem;/s);
+  expect(bannerCss).toMatch(/\.verified-pill\s*\{[^}]*position:\s*fixed;[^}]*left:\s*1rem;[^}]*bottom:\s*1rem;/s);
+});
 
 test('renders nothing when there is no verdict', () => {
   vi.spyOn(proofCtx, 'useProofOfEnforcement').mockReturnValue({ verdict: null, history: [] });

@@ -178,6 +178,13 @@ read the configured host. A new browser origin must be added to ALL of:
   status/accent colors, auth/session flows, and agent placement/state.
 - **Verify:** `dashboardModalContrast.test.js` passes 5 tests; `npm run build`
   passes. Full UI unit run: 586 files passed, 4 pre-existing files failed.
+### 2026-09-18 — Scope audit verifies application grants as well as resource scopes
+
+- **Files changed:** `demo_api_server/routes/scopeAudit.js` and its focused route tests.
+- **What was broken:** The admin scope audit checked that resource scopes existed but did not verify that the normal PingOne applications had those scopes granted on the correct resource servers.
+- **What was fixed:** The read-only audit now reports expected application grants for the User App, Admin App, and MCP Exchanger, including missing scopes, missing applications, and resource-target mismatches. Provisioning and reconciliation behavior is unchanged.
+- **Do not break:** Preserve additive scope reconciliation, resource-scope reporting, customer/admin separation, and the existing POST scope-creation contract.
+- **Verify:** Focused `scopeAuditRoute.test.js`, syntax/diff checks, and topology verification.
 
 ### 2026-09-18 — MCP account discovery uses the registered account-read scope
 

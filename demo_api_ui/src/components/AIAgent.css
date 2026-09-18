@@ -5085,6 +5085,8 @@ body > .banking-agent-float-root .banking-agent-panel {
   min-width: 190px;
   max-height: min(70vh, 680px);
   overflow-y: auto;
+  box-sizing: border-box;
+  color-scheme: light dark;
   padding: 10px;
   border: 1px solid var(--ba-border, var(--th-border));
   border-radius: 10px;
@@ -5200,13 +5202,11 @@ body > .banking-agent-float-root .banking-agent-panel {
   font-weight: 800;
 }
 .ba-surface-selector-menu {
-  position: absolute;
-  top: calc(100% + 5px);
-  right: 0;
-  z-index: 3;
+  position: static;
   display: grid;
   width: 100%;
   min-width: 238px;
+  margin-top: 5px;
   overflow: hidden;
   border: 1px solid var(--th-status-info);
   border-radius: var(--radius-md);
@@ -5335,6 +5335,27 @@ body > .banking-agent-float-root .banking-agent-panel {
   font-size: var(--font-size-3xs);
   line-height: 1.25;
 }
+.ba-header-more-resize-handle {
+  position: absolute;
+  z-index: 4;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: nwse-resize;
+}
+.ba-header-more-resize-handle:hover,
+.ba-header-more-resize-handle:focus-visible {
+  background: var(--th-status-info-bg);
+  color: var(--th-text);
+  outline: 2px solid var(--th-status-info);
+  outline-offset: -2px;
+}
+.ba-header-more-resize-handle--nw { top: 0; left: 0; cursor: nwse-resize; }
+.ba-header-more-resize-handle--ne { top: 0; right: 0; cursor: nesw-resize; }
+.ba-header-more-resize-handle--sw { bottom: 0; left: 0; cursor: nesw-resize; }
+.ba-header-more-resize-handle--se { right: 0; bottom: 0; cursor: nwse-resize; }
 .ba-header-more-pop .ba-header-toggle-label {
   height: auto;
   min-height: 32px;

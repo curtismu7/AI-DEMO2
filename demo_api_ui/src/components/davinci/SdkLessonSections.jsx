@@ -613,7 +613,7 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
 
   return (
     <>
-      <Section id="overview" title="Overview">
+      <Section id="overview" title="Overview" collapsible>
         <p>
           The Ping Orchestration SDK for JavaScript, <code>@forgerock/davinci-client</code>, runs a
           PingOne DaVinci flow from your own page. PingOne hands the SDK each step of the flow as
@@ -633,7 +633,7 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         </p>
       </Section>
 
-      <Section id="how-its-wired" title="How It's Wired">
+      <Section id="how-its-wired" title="How It's Wired" collapsible>
         <p>
           The SDK never talks to &ldquo;DaVinci&rdquo; directly. It speaks OIDC to a PingOne
           application, and a <strong>flow policy assignment</strong> on that application is what
@@ -657,7 +657,7 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         )}
       </Section>
 
-      <Section id="pi-flow" title="pi.flow">
+      <Section id="pi-flow" title="pi.flow" collapsible>
         <p>
           <code>response_mode=pi.flow</code> is what makes a custom UI possible. It changes what
           PingOne does with the same <code>GET /as/authorize</code>:
@@ -686,7 +686,7 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         )}
       </Section>
 
-      <Section id="how-it-works" title="How It Works">
+      <Section id="how-it-works" title="How It Works" collapsible>
         <ol>
           <li>
             The page asks the BFF for configuration: <code>POST /api/davinci-sdk-login/start</code>{" "}
@@ -740,7 +740,7 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         </p>
       </Section>
 
-      <Section id="api-calls" title="API Calls">
+      <Section id="api-calls" title="API Calls" collapsible>
         <p>
           The calls on the wire, in order, from runs captured on this demo. Values that identify a
           user or a session are shown as <code>…</code>; each field also carries display properties
@@ -768,7 +768,7 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         <CollapsibleCodeBlock title="POST /api/davinci-sdk-login/callback" code={API_CALLBACK} language="http" />
       </Section>
 
-      <Section id="the-flow" title="The Flow">
+      <Section id="the-flow" title="The Flow" collapsible>
         <p>
           The first form, then either path out of it: the branch that stops at the next form, or
           the submit that completes the flow. If PingOne already has a session for this browser,
@@ -777,7 +777,7 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         <MermaidFigure source={FLOW_SOURCE} label="Sequence of an Orchestration SDK sign-in" />
       </Section>
 
-      <Section id="collectors" title="Collectors">
+      <Section id="collectors" title="Collectors" collapsible>
         <p>
           A collector is the SDK&rsquo;s typed, read-only view of one field on the current form. You
           never parse DaVinci&rsquo;s form JSON yourself: you call{" "}
@@ -851,15 +851,15 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         </ul>
       </Section>
 
-      <Section id="security" title="Security">
+      <Section id="security" title="Security" collapsible>
         <TableBlock headers={["Control", "How"]} rows={SECURITY} />
       </Section>
 
-      <Section id="troubleshooting" title="Troubleshooting">
+      <Section id="troubleshooting" title="Troubleshooting" collapsible>
         <TableBlock headers={["Symptom", "Cause", "Fix"]} rows={TROUBLE} />
       </Section>
 
-      <Section id="in-this-repo" title="In This Repo">
+      <Section id="in-this-repo" title="In This Repo" collapsible>
         <TableBlock headers={["File", "Purpose"]} rows={REPO} />
         <p>
           More: the <a href="/orchestration-sdk">Orchestration SDK Guide</a> on this site, and

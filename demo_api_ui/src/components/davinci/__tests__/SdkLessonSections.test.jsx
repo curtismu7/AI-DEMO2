@@ -5,7 +5,7 @@
 // collector code a developer copies uses the SDK's real calls, and the "on this
 // run" line reports pi.flow only when the actual request carried it.
 import { describe, it, expect, vi } from "vitest";
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 
 vi.mock("mermaid", () => ({
   default: {
@@ -29,6 +29,16 @@ describe("SdkLessonSections", () => {
     const { container } = render(<SdkLessonSections />);
     const ids = [...container.querySelectorAll("section")].map((s) => s.id);
     expect(ids).toEqual(SDK_LESSON_SECTIONS.slice(1).map((s) => s.id));
+  });
+
+  it("starts lesson sections collapsed and expands a selected lesson", () => {
+    const { container } = render(<SdkLessonSections />);
+    const overview = container.querySelector("#overview .lesson-section-disclosure");
+
+    expect(overview).not.toHaveAttribute("open");
+    fireEvent.click(overview.querySelector("summary"));
+    expect(overview).toHaveAttribute("open");
+    expect(overview).toHaveTextContent("Ping Orchestration SDK for JavaScript");
   });
 
   it("gives copyable collector code built on the SDK's real calls", () => {
