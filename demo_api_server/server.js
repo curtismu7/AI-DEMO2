@@ -170,6 +170,7 @@ const {
     router: featureFlagsRoutes
 } = require('./routes/featureFlags');
 const mcpInspectorRoutes = require('./routes/mcpInspector');
+const mcpDiscoveryRoutes = require('./routes/mcpDiscovery');
 const mcpPingOneAdminAuthRoutes = require('./routes/mcpPingOneAdminAuth');
 const mcpPrivilegeAuthRoutes = require('./routes/mcpPrivilegeAuth');
 const mcpTrafficRoutes = require('./routes/mcpTraffic');
@@ -1063,6 +1064,7 @@ app.use('/api/admin/mgmt-api', authenticateToken, requireAdmin, mgmtApiRoutes);
 app.use('/api/admin/secret-rotation', authenticateToken, secretRotationRoutes);
 app.use('/api/admin/ping-ai-test-lab', authenticateToken, pingAiTestLabRoutes);
 app.use('/api/admin/config', adminConfigRoutes);
+app.use('/api/admin/mcp-discovery', mcpDiscoveryRoutes);
 
 // OpenAPI / Swagger UI. The document is introspected from this app's own router
 // (lib/openapiFromRoutes.js) rather than from per-route annotations, so it cannot
