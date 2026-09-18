@@ -150,7 +150,7 @@ describe('R1: the local authz module is deleted and unreferenced for authorizati
 
 describe('R1: surviving catalog role preserved (MCP_TOOL_SCOPES is data, not an authz oracle)', () => {
   it('still maps tools to their RFC 8693 / Inspector-hint scopes', () => {
-    expect(MCP_TOOL_SCOPES.get_my_accounts).toEqual(['read']);
+    expect(MCP_TOOL_SCOPES.get_my_accounts).toEqual(['accounts:read']);
     // create_transfer requires write AND transfer (granular scope model)
     expect(MCP_TOOL_SCOPES.create_transfer).toEqual(['write', 'transfer']);
   });

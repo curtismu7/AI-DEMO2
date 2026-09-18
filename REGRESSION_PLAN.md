@@ -146,6 +146,23 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-18 — MCP account discovery uses the registered account-read scope
+
+- **Files changed:** `scope-topology.json`, MCP scope regression fixtures and
+  comments.
+- **What was broken:** `get_my_accounts` requested broad `read`, while the
+  deployed account-read path issued/recognized `accounts:read`; the MCP
+  resource and gateway scope mirrors did not carry the narrower scope, causing
+  the inspector to list the tool but reject its call as insufficient scope.
+- **What was fixed:** Make `accounts:read` the declared scope for
+  `get_my_accounts`, add it to the user/exchanger grants, and mirror it onto
+  the MCP Server and MCP Gateway resources. Existing broad `read` mappings for
+  other tools remain unchanged.
+- **Do not break:** Preserve RFC 8693 token exchange, gateway per-tool scope
+  enforcement, customer/admin separation, and write/transfer scope contracts.
+- **Verify:** Focused BFF scope tests, topology verification, and the full unit
+  suite.
+
 ### 2026-09-18 — Dashboard modal and compliance pop-out text remains readable in dark mode
 
 - **Files changed:** `demo_api_ui/src/components/ComplianceModal.css`,

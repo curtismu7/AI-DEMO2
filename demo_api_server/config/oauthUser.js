@@ -6,7 +6,7 @@
 
 'use strict';
 const configStore = require('../services/configStore');
-const { getScopesForUserType, BANKING_SCOPES } = require('./scopes');
+const { getScopesForUserType, BANKING_SCOPES, COMPOUND_SCOPES } = require('./scopes');
 const endpointResolver = require('../services/oauthEndpointResolver');
 const { verticalManifest } = require('../services/verticalManifest');
 
@@ -71,13 +71,13 @@ const config = {
       // is intentionally kept as-is to match the working agent flow; the
       // topology's ai:agent:read naming reconciliation is a separate
       // follow-up — see REGRESSION_PLAN §4.)
-      const bankingScopes = ['openid', 'profile', 'email', 'offline_access', 'read', 'write', 'transfer', BANKING_SCOPES.AI_AGENT];
+      const bankingScopes = ['openid', 'profile', 'email', 'offline_access', 'read', 'accounts:read', 'write', 'transfer', BANKING_SCOPES.AI_AGENT];
       const featureScope = verticalManifest.resolver.resolve(verticalManifest.resolver.activeId())?.scopes?.featureScope;
       return featureScope ? [...bankingScopes, featureScope] : bankingScopes;
     }
     const role = configStore.getEffective('user_role') || 'customer';
     const banking = getScopesForUserType(role);
-    return [...new Set([...base, ...banking])];
+    return [...new Set([...base, ...banking, COMPOUND_SCOPES.ACCOUNTS_READ])];
   },
 
   /** Same as admin oauth.js — opt-in pi.flow authorize for supported PingOne apps. */

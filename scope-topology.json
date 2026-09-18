@@ -218,7 +218,7 @@
         ]
       },
       "scopes": ["mcp:invoke", "code:search"],
-      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "purchase:read", "membership:read", "payroll:read", "holdings:read", "identity:read", "invest:read", "airlines:read", "airlines:write", "pnr:read", "ai:agent:read", "admin:read", "admin:write", "admin:delete", "users:read", "users:manage", "workorders:read", "sensitive:read", "code:search", "audit:read"]
+      "mirroredScopes": ["read", "accounts:read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "purchase:read", "membership:read", "payroll:read", "holdings:read", "identity:read", "invest:read", "airlines:read", "airlines:write", "pnr:read", "ai:agent:read", "admin:read", "admin:write", "admin:delete", "users:read", "users:manage", "workorders:read", "sensitive:read", "code:search", "audit:read"]
     },
     "Super Banking MCP Invest": {
       "uri": "mcp-invest.ping.demo",
@@ -252,7 +252,7 @@
         ]
       },
       "scopes": ["mcp:invoke"],
-      "mirroredScopes": ["read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "invest:read", "airlines:read", "airlines:write", "pnr:read", "workorders:read", "sensitive:read", "code:search", "audit:read", "admin:read", "admin:write", "admin:delete", "users:read", "users:manage"]
+      "mirroredScopes": ["read", "accounts:read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "invest:read", "airlines:read", "airlines:write", "pnr:read", "workorders:read", "sensitive:read", "code:search", "audit:read", "admin:read", "admin:write", "admin:delete", "users:read", "users:manage"]
     },
     "Super Banking Agent Gateway": {
       "uri": "agentgateway.ping.demo",
@@ -328,7 +328,7 @@
     "Super Banking User App": {
       "type": "WEB_APP",
       "grantTypes": ["authorization_code", "refresh_token", "token_exchange"],
-      "grantedScopes": ["ai:agent:read", "read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "workorders:read", "invest:read", "airlines:read", "airlines:write"]
+      "grantedScopes": ["ai:agent:read", "read", "accounts:read", "write", "transfer", "mortgage:read", "largepurchase:read", "records:read", "gear:read", "expense:read", "permits:read", "transcript:read", "tax:read", "finaid:read", "supplier:read", "workorders:read", "invest:read", "airlines:read", "airlines:write"]
     },
     "Super Banking Admin App": {
       "type": "WEB_APP",
@@ -350,7 +350,7 @@
     "Super Banking MCP Exchanger": {
       "type": "WEB_APP",
       "grantTypes": ["token_exchange"],
-      "grantedScopes": ["read", "write", "mcp:invoke"]
+      "grantedScopes": ["read", "accounts:read", "write", "mcp:invoke"]
     },
     "Super Banking AI Agent": {
       "type": "WEB_APP",
@@ -520,7 +520,7 @@
       "surface": "gateway"
     },
     "get_my_accounts": {
-      "requiredScopes": ["read"],
+      "requiredScopes": ["accounts:read"],
       "surface": "gateway"
     },
     "get_account_balance": {

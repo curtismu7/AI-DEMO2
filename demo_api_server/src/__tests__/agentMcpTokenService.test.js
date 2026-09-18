@@ -91,7 +91,7 @@ jest.mock('../../services/oauthService', () => ({
 
 jest.mock('../../services/mcpWebSocketClient', () => ({
   MCP_TOOL_SCOPES: {
-    get_my_accounts:  ['read'],
+    get_my_accounts:  ['accounts:read'],
     create_transfer:  ['write'],
   },
   getSessionAccessToken: (req) => req._mockToken || null,
