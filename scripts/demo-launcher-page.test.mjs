@@ -36,7 +36,7 @@ test('keeps the launcher wrapper on loopback, starts every fixed dependency, and
   assert.match(script, /export DEMO_LAUNCHER_HOST="\$\{LAUNCHER_HOST\}"/);
   assert.doesNotMatch(script, /\$\{DEMO_LAUNCHER_HOST/);
   assert.match(script, /\.\/run-docker\.sh optional start demo-auth/);
-  assert.match(script, /docker compose -f librechat\/docker-compose\.yml up -d api/);
+  assert.match(script, /docker compose -f librechat\/docker-compose\.yml up -d api oauth-loopback/);
   assert.match(script, /\$\{LAUNCHER_URL\}\/api\/status/);
   assert.match(script, /Demo services ready: %s\/api\/status/);
 });
