@@ -21,9 +21,11 @@
 // signed in, with a way to reopen it or sign out to switch users.
 import { useCallback, useEffect, useRef, useState } from "react";
 import CollectorField from "../components/davinci/CollectorField";
+import SdkExecutionReel from "../components/davinci/SdkExecutionReel";
 import SdkLessonSections, { SDK_LESSON_SECTIONS } from "../components/davinci/SdkLessonSections";
 import SdkWalkthrough from "../components/davinci/SdkWalkthrough";
 import StepInspector, { summarizeResponse } from "../components/davinci/StepInspector";
+import { createOperationEvent, normalizeTraceEntry } from "../components/davinci/sdkExecutionEvents";
 import DraggableModal from "../components/DraggableModal";
 import { LessonLayout, Section } from "../components/lesson";
 import {
@@ -60,17 +62,29 @@ export default function DavinciSdkLoginPage() {
   const [busy, setBusy] = useState(false);
   // One Step Inspector card per SDK call on this run.
   const [steps, setSteps] = useState([]);
+  // The execution reel is separate from Step Inspector cards: it only records
+  // display-safe events as the existing SDK paths actually occur.
+  const [executionEvents, setExecutionEvents] = useState([]);
 
   const clientRef = useRef(null);
   const cfgRef = useRef(null);
   const traceRef = useRef([]);
+  const executionSequenceRef = useRef(0);
   // StrictMode double-invokes effects; starting the flow twice would burn two
   // nonces and leave the first flow orphaned.
   const startedRef = useRef(false);
 
+  const appendExecutionEvent = useCallback((event) => {
+    if (!event) return;
+    const sequence = executionSequenceRef.current + 1;
+    executionSequenceRef.current = sequence;
+    setExecutionEvents((previous) => [...previous, { ...event, id: `execution-${sequence}`, sequence }]);
+  }, []);
+
   const onTrace = useCallback((entry) => {
     traceRef.current.push(entry);
-  }, []);
+    appendExecutionEvent(normalizeTraceEntry(entry));
+  }, [appendExecutionEvent]);
 
   // Records what really happened on one SDK call: the request the middleware
   // saw (masked before it was stored), the SDK's own cached copy of DaVinci's
@@ -100,13 +114,26 @@ export default function DavinciSdkLoginPage() {
         errorMessage: status === "error" || status === "failure" ? client.getError?.()?.message || null : null,
       },
     ]);
-  }, []);
+    appendExecutionEvent(
+      createOperationEvent({
+        lane: "davinci",
+        kind: "response",
+        label: `DaVinci returned ${status || "a response"}`,
+        codeKey: kind === "next" ? "update-next" : kind,
+        detail: {
+          status,
+          eventType: cached?.data?.eventName ?? cached?.data?.eventType,
+        },
+      }),
+    );
+  }, [appendExecutionEvent]);
 
   // Reads collectors off the client rather than off the node, because
   // getCollectors() is the supported accessor and an error node still carries
   // its collectors, which is what lets the form re-render with complaints.
   const syncFromClient = useCallback((client, node) => {
-    setCollectors(client.getCollectors?.() || []);
+    const currentCollectors = client.getCollectors?.() || [];
+    setCollectors(currentCollectors);
     setStep((n) => n + 1);
     const errs = {};
     if (node?.status === "error") {
@@ -116,7 +143,19 @@ export default function DavinciSdkLoginPage() {
     }
     setFieldErrors(errs);
     setMessage(node?.status === "error" ? client.getError?.()?.message || null : null);
-  }, []);
+    appendExecutionEvent(
+      createOperationEvent({
+        lane: "collector",
+        kind: "collectors",
+        label: "SDK collector snapshot",
+        codeKey: null,
+        detail: {
+          status: node?.status,
+          collectors: currentCollectors,
+        },
+      }),
+    );
+  }, [appendExecutionEvent]);
 
   // Stay on this page, signed in, and explain what just happened. `profile` is
   // what the BFF returned about the user: username, PingOne user id and email.
@@ -129,7 +168,7 @@ export default function DavinciSdkLoginPage() {
   // Declared before start() because start() depends on it: a const in a
   // useCallback dependency array is read at render time, so referencing it
   // above its declaration throws.
-  const finish = useCallback(async (client, { reused = false } = {}) => {
+  const finish = useCallback(async (client, { reused = false, originCodeKey = null } = {}) => {
     const code = client.getClient?.()?.authorization?.code;
     if (!code) throw new Error("The flow succeeded but returned no authorization code.");
     // The SDK owns the PKCE verifier; the BFF does the exchange and holds the
@@ -139,7 +178,30 @@ export default function DavinciSdkLoginPage() {
     // The authorization code is not a session until the BFF accepts it; the
     // page must visibly wait for that callback before showing the run summary.
     setPhase("completing");
-    const result = await postCallback({ code, codeVerifier });
+    let result;
+    try {
+      result = await postCallback({ code, codeVerifier });
+    } catch (err) {
+      appendExecutionEvent(
+        createOperationEvent({
+          lane: "sdk",
+          kind: "terminal",
+          label: "SDK callback failed",
+          codeKey: originCodeKey,
+          detail: { status: "failure" },
+        }),
+      );
+      throw err;
+    }
+    appendExecutionEvent(
+      createOperationEvent({
+        lane: "sdk",
+        kind: "terminal",
+        label: "SDK completes the callback",
+        codeKey: originCodeKey,
+        detail: { status: "success" },
+      }),
+    );
     // The BFF session exists now, but the app shell (TopNav, route guards)
     // re-checks it only on this event, so without it the page stayed signed-out
     // until a reload. It used to be a full page load that refreshed the shell.
@@ -152,7 +214,7 @@ export default function DavinciSdkLoginPage() {
       email: result?.email || null,
     };
     showSignedIn(profile, reused ? "session" : "form");
-  }, [showSignedIn]);
+  }, [appendExecutionEvent, showSignedIn]);
 
   // Ends the PingOne session (not this app's session) and returns here with a
   // clean form, which is the way to sign in as a different user. See
@@ -169,7 +231,9 @@ export default function DavinciSdkLoginPage() {
     setMessage(null);
     setMissing(null);
     setSteps([]);
+    setExecutionEvents([]);
     traceRef.current = [];
+    executionSequenceRef.current = 0;
     try {
       const cfg = await fetchSdkConfig();
       cfgRef.current = cfg;
@@ -187,6 +251,15 @@ export default function DavinciSdkLoginPage() {
         nonce: cfg.nonce,
         ...(cfg.flowPolicyId ? { acr_values: cfg.flowPolicyId } : {}),
       };
+      appendExecutionEvent(
+        createOperationEvent({
+          lane: "sdk",
+          kind: "operation.begin",
+          label: "SDK starts the flow",
+          codeKey: "start",
+          detail: { eventType: "start" },
+        }),
+      );
       const node = await client.start({ query });
       recordStep(client, "start", node, from);
       if (node?.status === "failure") {
@@ -209,7 +282,7 @@ export default function DavinciSdkLoginPage() {
       if (node?.status === "success") {
         // reused: nobody typed anything, so finish() shows who this signed in
         // as, with Continue / sign out.
-        await finish(client, { reused: true });
+        await finish(client, { reused: true, originCodeKey: "start" });
         return;
       }
       syncFromClient(client, node);
@@ -224,7 +297,7 @@ export default function DavinciSdkLoginPage() {
       setMessage(err.message);
       setPhase("failed");
     }
-  }, [onTrace, recordStep, syncFromClient, finish]);
+  }, [appendExecutionEvent, onTrace, recordStep, syncFromClient, finish]);
 
   useEffect(() => {
     if (startedRef.current) return;
@@ -242,14 +315,24 @@ export default function DavinciSdkLoginPage() {
     setMessage(null);
     try {
       const from = traceRef.current.length;
-      const node = await client.flow({ action: collector.output?.key ?? collector.name })();
+      const action = collector.output?.key ?? collector.name;
+      appendExecutionEvent(
+        createOperationEvent({
+          lane: "sdk",
+          kind: "operation.begin",
+          label: "SDK follows FlowCollector",
+          codeKey: "flow",
+          detail: { type: collector.type, category: collector.category, actionKey: action },
+        }),
+      );
+      const node = await client.flow({ action })();
       recordStep(client, "flow", node, from, triggerOf(collector));
       // A flow button can END the flow, not just branch it: a success screen's
       // "Continue" is a next-event button, which the SDK hands over as a
       // FlowCollector. Without this the COMPLETED node fell through to an empty
       // form and the code never reached the BFF.
       if (node?.status === "success") {
-        await finish(client);
+        await finish(client, { originCodeKey: "flow" });
         return;
       }
       if (node?.status === "failure") {
@@ -265,7 +348,7 @@ export default function DavinciSdkLoginPage() {
     } finally {
       setBusy(false);
     }
-  }, [recordStep, syncFromClient]);
+  }, [appendExecutionEvent, finish, recordStep, syncFromClient]);
 
   // `collector` is the SubmitCollector that was clicked (or, for Enter in a
   // field, the form's first one). It changes nothing about the request; it
@@ -280,10 +363,19 @@ export default function DavinciSdkLoginPage() {
       // change (Ping's own sample does the same), so there is nothing to
       // collect here and no submit-time loop that could miss a collector.
       const from = traceRef.current.length;
+      appendExecutionEvent(
+        createOperationEvent({
+          lane: "sdk",
+          kind: "operation.begin",
+          label: "SDK updates and advances form",
+          codeKey: "update-next",
+          detail: { type: collector?.type, category: collector?.category },
+        }),
+      );
       const node = await client.next();
       recordStep(client, "next", node, from, triggerOf(collector));
       if (node?.status === "success") {
-        await finish(client);
+        await finish(client, { originCodeKey: "update-next" });
         return;
       }
       if (node?.status === "failure") {
@@ -300,7 +392,26 @@ export default function DavinciSdkLoginPage() {
     } finally {
       setBusy(false);
     }
-  }, [finish, recordStep, syncFromClient]);
+  }, [appendExecutionEvent, finish, recordStep, syncFromClient]);
+
+  const collectorUpdater = useCallback((collector) => (value) => {
+    const result = clientRef.current.update(collector)(value);
+    const key = collector.output?.key ?? collector.name;
+    appendExecutionEvent(
+      createOperationEvent({
+        lane: "collector",
+        kind: "collector.update",
+        label: "SDK updates collector",
+        codeKey: "update-next",
+        detail: {
+          type: collector.type,
+          category: collector.category,
+          formData: key ? { [key]: value } : {},
+        },
+      }),
+    );
+    return result;
+  }, [appendExecutionEvent]);
 
   // From the modal's links: close it and bring that lesson section into view.
   const goToSection = useCallback((id) => {
@@ -451,7 +562,7 @@ export default function DavinciSdkLoginPage() {
                       <CollectorField
                         key={`${step}:${c.id ?? key}`}
                         collector={c}
-                        updater={c.category === "ActionCollector" ? undefined : clientRef.current?.update(c)}
+                        updater={c.category === "ActionCollector" ? undefined : collectorUpdater(c)}
                         serverError={fieldErrors[key]}
                         busy={busy}
                         onSubmit={() => submit(c)}
@@ -467,6 +578,11 @@ export default function DavinciSdkLoginPage() {
           <div className="dvsdk-live-steps">
             <h3>Step Inspector</h3>
             <StepInspector steps={steps} />
+          </div>
+
+          <div className="dvsdk-live-reel">
+            <h3>Live execution evidence</h3>
+            <SdkExecutionReel events={executionEvents} />
           </div>
         </div>
       </Section>

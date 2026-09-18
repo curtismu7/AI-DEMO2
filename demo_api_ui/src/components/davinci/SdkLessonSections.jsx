@@ -11,7 +11,8 @@
 //
 // Section ids and order are shared with the DaVinci widget lesson so the two
 // read as one course; the Collectors section is specific to the SDK.
-import { CodeBlock, MermaidFigure, OnThisRun, Section, Status, TableBlock } from "../lesson";
+import { MermaidFigure, OnThisRun, Section, Status, TableBlock } from "../lesson";
+import CollapsibleCodeBlock from "./CollapsibleCodeBlock";
 import { requestShape } from "./StepInspector";
 
 export const SDK_LESSON_SECTIONS = [
@@ -367,9 +368,9 @@ const FIELD_MAP = [
   ["BUTTON", "ActionCollector", "ActionCollector", "A generic continue button that calls next()"],
   ["FLOW_BUTTON", "FlowCollector", "ActionCollector", "A button that calls flow({ action: c.output.key })()"],
   ["FLOW_LINK", "FlowCollector", "ActionCollector", "A branch link that calls flow({ action: c.output.key })()"],
-  ["LABEL", "RichTextCollector", "NoValueCollector", "Render text only; never inject collector content as HTML"],
-  ["ERROR_DISPLAY", "ERROR_DISPLAY", "UnknownCollector", "Render nothing; page-level and field-level errors own this slot"],
-  ["PROTECT", "ProtectCollector", "SingleValueAutoCollector", "Show status only; the SDK produces the security signal automatically"],
+  ["LABEL", "RichTextCollector", "NoValueCollector", "Render text-only content; never inject collector content as HTML"],
+  ["ERROR_DISPLAY", "ERROR_DISPLAY", "UnknownCollector", "An informational, non-input page-owned error slot; render nothing"],
+  ["PROTECT", "ProtectCollector", "SingleValueAutoCollector", "Show flow status only; the SDK produces the security signal automatically"],
 ];
 
 const PINGONE_FORMS_OBJECT = `// client.getCollectors() on a PingOne Forms device-registration screen.
@@ -626,6 +627,10 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
           This page uses the third. The BFF, not the browser, turns the code into tokens and a
           session.
         </p>
+        <p>
+          A static code block below is a copyable pattern. A live execution frame is evidence from
+          this browser run, captured only when the SDK actually makes that operation.
+        </p>
       </Section>
 
       <Section id="how-its-wired" title="How It's Wired">
@@ -639,8 +644,8 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
           the SDK fails before a single collector arrives.
         </p>
         <TableBlock headers={["Setting", "Where", "Why it matters"]} rows={CHECKLIST} />
-        <CodeBlock title="Attach the flow policy" code={SNIPPET_ASSIGN} language="http" />
-        <CodeBlock title="Allow the page's origin" code={SNIPPET_CORS} language="json" />
+        <CollapsibleCodeBlock title="Attach the flow policy" code={SNIPPET_ASSIGN} language="http" />
+        <CollapsibleCodeBlock title="Allow the page's origin" code={SNIPPET_CORS} language="json" />
         {/* This demo's own client_id and redirect_uri: shown on screen, never in
             the customer PDF. */}
         {config.clientId && (
@@ -667,7 +672,7 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
           builds the authorize URL (<code>dist/src/lib/davinci.api.js</code> in 2.1.1), together
           with PKCE (<code>code_challenge</code>, S256) and <code>state</code>.
         </p>
-        <CodeBlock title="Start a flow" code={SNIPPET_START} language="js" />
+        <CollapsibleCodeBlock title="Start a flow" code={SNIPPET_START} language="js" />
         {authorize && (
           <OnThisRun>
             <p>
@@ -727,7 +732,7 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
             the BFF makes the session.
           </li>
         </ol>
-        <CodeBlock title="The node loop" code={SNIPPET_LOOP} language="js" />
+        <CollapsibleCodeBlock title="The node loop" code={SNIPPET_LOOP} language="js" />
         <p>
           There is no callback into your app at any point: no webhook, no redirect, no JavaScript
           success callback. Each step is an ordinary request and response made by the SDK&rsquo;s
@@ -742,25 +747,25 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
           not shown here.
         </p>
         <h3>1. Get configuration from the BFF</h3>
-        <CodeBlock title="POST /api/davinci-sdk-login/start" code={API_START} language="http" />
+        <CollapsibleCodeBlock title="POST /api/davinci-sdk-login/start" code={API_START} language="http" />
         <h3>2. The flow starts</h3>
-        <CodeBlock title="client.start() sends" code={API_AUTHORIZE} language="http" />
-        <CodeBlock title="PingOne answers with the first form" code={API_FORM_1} language="json" />
+        <CollapsibleCodeBlock title="client.start() sends" code={API_AUTHORIZE} language="http" />
+        <CollapsibleCodeBlock title="PingOne answers with the first form" code={API_FORM_1} language="json" />
         <h3>3. A FlowCollector sends the flow back to DaVinci</h3>
         <p>
           The user clicked <strong>Having trouble signing on?</strong>. No values are sent, only
           the button&rsquo;s key.
         </p>
-        <CodeBlock title='client.flow({ action: "TROUBLE" })() sends' code={API_FLOW_POST} language="http" />
-        <CodeBlock title="DaVinci runs to its next screen and stops" code={API_FORM_2} language="json" />
+        <CollapsibleCodeBlock title='client.flow({ action: "TROUBLE" })() sends' code={API_FLOW_POST} language="http" />
+        <CollapsibleCodeBlock title="DaVinci runs to its next screen and stops" code={API_FORM_2} language="json" />
         <h3>4. A SubmitCollector sends the form&rsquo;s values</h3>
         <p>
           On the Sign On form instead, <strong>Sign On</strong> sends what the user typed:
         </p>
-        <CodeBlock title="client.next() sends" code={API_SUBMIT_POST} language="http" />
-        <CodeBlock title="The flow completes" code={API_COMPLETED} language="json" />
+        <CollapsibleCodeBlock title="client.next() sends" code={API_SUBMIT_POST} language="http" />
+        <CollapsibleCodeBlock title="The flow completes" code={API_COMPLETED} language="json" />
         <h3>5. The code becomes a session</h3>
-        <CodeBlock title="POST /api/davinci-sdk-login/callback" code={API_CALLBACK} language="http" />
+        <CollapsibleCodeBlock title="POST /api/davinci-sdk-login/callback" code={API_CALLBACK} language="http" />
       </Section>
 
       <Section id="the-flow" title="The Flow">
@@ -780,7 +785,7 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         </p>
         <h3>How this flow&rsquo;s fields map</h3>
         <TableBlock headers={["DaVinci field", "Collector type", "Category", "In your UI"]} rows={FIELD_MAP} />
-        <CodeBlock title="What getCollectors() returns" code={COLLECTOR_OBJECTS} language="json" />
+        <CollapsibleCodeBlock title="What getCollectors() returns" code={COLLECTOR_OBJECTS} language="json" />
         <h3>PingOne Forms is different</h3>
         <p>
           The imported <strong>Profile Management: Register New Device</strong> flow uses the
@@ -799,7 +804,7 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
           polling operation. Rich text and Protect signals are already handled as display-only and
           automatic collectors; keep a visible fallback for truly unknown types.
         </p>
-        <CodeBlock title="PingOne Forms device-registration collector" code={PINGONE_FORMS_OBJECT} language="json" />
+        <CollapsibleCodeBlock title="PingOne Forms device-registration collector" code={PINGONE_FORMS_OBJECT} language="json" />
         <h3>Every category</h3>
         <TableBlock headers={["Category", "Examples", "What you do with it"]} rows={CATEGORIES} />
         <h3>Code you can copy</h3>
@@ -807,12 +812,12 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
           React, following this page&rsquo;s own renderer (<code>CollectorField.jsx</code>). Each
           component takes the <code>client</code> returned by <code>davinci()</code>.
         </p>
-        <CodeBlock title="Render the current node's collectors" code={CODE_RENDER} language="jsx" />
-        <CodeBlock title="TextCollector and PasswordCollector" code={CODE_TEXT} language="jsx" />
-        <CodeBlock title="SubmitCollector and ActionCollector" code={CODE_SUBMIT} language="jsx" />
-        <CodeBlock title="FlowCollector" code={CODE_FLOW} language="jsx" />
-        <CodeBlock title="Handle the node that comes back" code={CODE_NODE} language="js" />
-        <CodeBlock title="Validated text fields" code={CODE_VALIDATE} language="js" />
+        <CollapsibleCodeBlock title="Render the current node's collectors" code={CODE_RENDER} language="jsx" />
+        <CollapsibleCodeBlock title="TextCollector and PasswordCollector" code={CODE_TEXT} language="jsx" />
+        <CollapsibleCodeBlock title="SubmitCollector and ActionCollector" code={CODE_SUBMIT} language="jsx" />
+        <CollapsibleCodeBlock title="FlowCollector" code={CODE_FLOW} language="jsx" />
+        <CollapsibleCodeBlock title="Handle the node that comes back" code={CODE_NODE} language="js" />
+        <CollapsibleCodeBlock title="Validated text fields" code={CODE_VALIDATE} language="js" />
         <h3>Rules that fail silently if you miss them</h3>
         <ul>
           <li>
