@@ -166,6 +166,14 @@ read the configured host. A new browser origin must be added to ALL of:
   resizing/pop-out behavior, and the separate compliance pop-out data channel.
 - **Verify:** `dashboardModalContrast.test.js` and the UI build must pass.
 
+### 2026-09-18 — Simple Stepper pop-out remains selectable beside embedded Sequence view
+
+- **Files changed:** `demo_api_ui/src/components/AIAgent.js` and `demo_api_ui/src/components/__tests__/AIAgent.chips.test.js`.
+- **What was broken:** Persisting Sequence view as `embedded` disabled the entire Simple Stepper surface selector, making its independent `popout` option unreachable.
+- **What was fixed:** Disable only the conflicting `embedded` and `both` Simple Stepper options; keep `Off` and `Pop-out` selectable.
+- **Do not break:** Sequence remains the only embedded timeline; Simple Stepper pop-out still auto-opens through `DraggableModal`.
+- **Verify:** AIAgent surface-selection regression test and focused Simple Stepper/modal suite.
+
 ### 2026-09-18 — Dashboard pop-outs share the 🪟 control and close their child window
 
 - **Files changed:** `demo_api_ui/src/components/DraggableModal.jsx`, `demo_api_ui/src/components/AuditPage.js`, `demo_api_ui/src/components/TokenChainDisplay.jsx`, dashboard quick-nav/log/token-detail/Personal Agent pop-out triggers, and focused tests.

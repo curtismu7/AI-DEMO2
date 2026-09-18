@@ -159,13 +159,13 @@ function readSurfacePreference(key, legacyKey, legacyValue) {
   return "none";
 }
 
-function SurfaceSelector({ id, label, value, onChange, disabled = false }) {
+function SurfaceSelector({ id, label, value, onChange, disabled = false, disabledValues = [] }) {
   return (
     <div className="ba-topology-surface-row">
       <label htmlFor={id}>{label}</label>
       <select id={id} aria-label={`${label} surface`} value={value} onChange={onChange} disabled={disabled}>
         {SURFACE_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>{option.label}</option>
+          <option key={option.value} value={option.value} disabled={disabledValues.includes(option.value)}>{option.label}</option>
         ))}
       </select>
     </div>
@@ -10104,7 +10104,7 @@ export default function BankingAgent({
                         label="Simple step"
                         value={simpleStepperSurface}
                         onChange={(e) => chooseSimpleStepperSurface(e.target.value)}
-                        disabled={isEmbeddedSurfaceDisabled("embedded", sequenceSurface)}
+                        disabledValues={isEmbeddedSurfaceDisabled("embedded", sequenceSurface) ? ["embedded", "both"] : []}
                       />
                       <Check
                         variant="switch"

@@ -529,7 +529,11 @@ describe("Header controls after the Actions dropdown removal", () => {
     });
     expect(screen.getByLabelText("Agent flow diagram surface")).toBeDisabled();
     expect(screen.getByLabelText("Token topology")).toBeDisabled();
-    expect(screen.getByLabelText("Simple step surface")).toBeDisabled();
+    const simpleStepSurface = screen.getByLabelText("Simple step surface");
+    expect(simpleStepSurface).not.toBeDisabled();
+    expect(simpleStepSurface.querySelector('option[value="embedded"]')).toBeDisabled();
+    expect(simpleStepSurface.querySelector('option[value="both"]')).toBeDisabled();
+    expect(simpleStepSurface.querySelector('option[value="popout"]')).not.toBeDisabled();
     expect(screen.getByLabelText("OAuth Visualizer surface")).toBeDisabled();
 
     await act(async () => {
