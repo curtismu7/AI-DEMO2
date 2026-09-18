@@ -74,9 +74,9 @@ async function defaultProbe(service, { timeoutMs }) {
   }
 }
 
-function defaultStartStack() {
+function runStackCommand(args, spawnProcess) {
   return new Promise((resolveStart, rejectStart) => {
-    const child = spawn('./run-docker.sh', [], {
+    const child = spawnProcess('./run-docker.sh', args, {
       cwd: repositoryRoot,
       shell: false,
       stdio: 'inherit',
@@ -91,6 +91,15 @@ function defaultStartStack() {
     });
   });
 }
+
+export function createDefaultStartStack(spawnProcess = spawn) {
+  return async function defaultStartStack() {
+    await runStackCommand([], spawnProcess);
+    await runStackCommand(['optional', 'start', 'demo-auth'], spawnProcess);
+  };
+}
+
+const defaultStartStack = createDefaultStartStack();
 
 async function defaultStaticPage() {
   try {

@@ -4,11 +4,43 @@ import { createServer as createHttpServer } from 'node:http';
 import test from 'node:test';
 
 import {
+  createDefaultStartStack,
   createLauncherServer,
   getAllowedServices,
   isLoopbackHost,
   listenOnLoopback,
 } from './demo-launcher-server.mjs';
+
+test('default startup runs core and demo auth commands in order', async () => {
+  const calls = [];
+  const startStack = createDefaultStartStack((command, args, options) => {
+    calls.push({ command, args, options });
+    const child = new EventEmitter();
+    queueMicrotask(() => child.emit('exit', 0));
+    return child;
+  });
+
+  await startStack();
+
+  assert.deepEqual(calls.map(({ command, args }) => ({ command, args })), [
+    { command: './run-docker.sh', args: [] },
+    { command: './run-docker.sh', args: ['optional', 'start', 'demo-auth'] },
+  ]);
+  assert.ok(calls.every(({ options }) => options.cwd && options.shell === false));
+});
+
+test('default startup does not start demo auth after core startup fails', async () => {
+  const calls = [];
+  const startStack = createDefaultStartStack((command, args) => {
+    calls.push({ command, args });
+    const child = new EventEmitter();
+    queueMicrotask(() => child.emit('exit', 1));
+    return child;
+  });
+
+  await assert.rejects(() => startStack(), /Local demo stack startup failed/);
+  assert.deepEqual(calls, [{ command: './run-docker.sh', args: [] }]);
+});
 
 function createResponse() {
   const response = new EventEmitter();
