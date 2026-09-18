@@ -28,8 +28,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 6px 12px;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  color: #fff;
+  background: var(--modal-header-bg, linear-gradient(135deg, #1a1a2e 0%, #16213e 100%));
+  color: var(--modal-header-text, #fff);
   cursor: grab;
   flex-shrink: 0;
   /* must sit above the edge handles */
@@ -56,9 +56,9 @@
 }
 
 .fp-btn {
-  background: rgba(255,255,255,0.15);
+  background: var(--modal-btn-bg, rgba(255,255,255,0.15));
   border: none;
-  color: #fff;
+  color: var(--modal-header-text, #fff);
   width: 24px;
   height: 24px;
   border-radius: 4px;
@@ -71,7 +71,7 @@
 }
 
 .fp-btn:hover {
-  background: rgba(255,255,255,0.3);
+  background: var(--modal-btn-hover-bg, rgba(255,255,255,0.3));
 }
 
 /* Content area */

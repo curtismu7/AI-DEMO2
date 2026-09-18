@@ -5096,6 +5096,23 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: var(--ba-surface, var(--th-bg-inset));
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
 }
+/* Quick Config uses the shared floating-panel shell for reliable mouse
+   dismissal, dragging, pop-out, and resize behavior. Keep the tray's content
+   styling, but let the shell own its frame and scrolling. */
+.fp-panel.ba-header-more-pop {
+  min-width: 0;
+  max-height: none;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.ba-header-more-pop > .fp-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 8px;
+  padding: 10px;
+  overflow-y: auto;
+}
 /* The tray has a user-controlled height. Keep its content at its natural size
    so an expanded surface menu contributes to the scroll height instead of
    shrinking neighboring rows into one another. */

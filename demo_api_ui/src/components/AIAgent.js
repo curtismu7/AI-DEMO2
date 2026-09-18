@@ -6,7 +6,7 @@ import React, {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { PopOutPortal } from "./FloatingPanel";
+import FloatingPanel, { PopOutPortal } from "./FloatingPanel";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { useIndustryBranding } from "../context/IndustryBrandingContext";
@@ -511,16 +511,7 @@ export default function BankingAgent({
   const [headerMoreOpen, setHeaderMoreOpen] = useState(false);
   const [openSurfaceSelector, setOpenSurfaceSelector] = useState(null);
   const headerMoreRef = useRef(null);
-  const headerMorePopRef = useRef(null);
   const [headerMorePosition, setHeaderMorePosition] = useState(null);
-  const [headerMoreSize, setHeaderMoreSize] = useState(() => ({
-    width: Math.min(760, Math.max(560, window.innerWidth - 24)),
-    height: Math.min(760, Math.max(420, window.innerHeight - 24)),
-  }));
-  const headerMoreSizeRef = useRef(headerMoreSize);
-  useEffect(() => {
-    headerMoreSizeRef.current = headerMoreSize;
-  }, [headerMoreSize]);
   // Freshest handleDemoStepSelect for the strip's event bridge (the listener
   // is registered once with [] deps, so it must read through a ref).
   const demoStepSelectRef = useRef(null);
@@ -536,7 +527,7 @@ export default function BankingAgent({
     const onDocClick = (e) => {
       if (
         !headerMoreRef.current?.contains(e.target) &&
-        !headerMorePopRef.current?.contains(e.target)
+        !e.target.closest?.(".ba-header-more-pop")
       ) {
         setHeaderMoreOpen(false);
         setOpenSurfaceSelector(null);
@@ -564,43 +555,6 @@ export default function BankingAgent({
     };
   }, [headerMoreOpen]);
 
-  const handleHeaderMoreResize = useCallback((event, direction) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const startSize = headerMoreSizeRef.current;
-    const startTop = headerMorePosition?.top ?? 8;
-    const update = (moveEvent) => {
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      const minWidth = Math.min(560, viewportWidth - 16);
-      const minHeight = Math.min(420, viewportHeight - 16);
-      let width = startSize.width;
-      let height = startSize.height;
-      if (direction.includes("e")) width += dx;
-      if (direction.includes("w")) width -= dx;
-      if (direction.includes("s")) height += dy;
-      if (direction.includes("n")) height -= dy;
-      width = Math.max(minWidth, Math.min(viewportWidth - 16, width));
-      height = Math.max(minHeight, Math.min(viewportHeight - 16, height));
-      setHeaderMoreSize({ width, height });
-      if (direction.includes("n")) {
-        setHeaderMorePosition((position) => ({
-          ...position,
-          top: Math.max(8, startTop + (startSize.height - height)),
-        }));
-      }
-    };
-    const finish = () => {
-      window.removeEventListener("pointermove", update);
-      window.removeEventListener("pointerup", finish);
-    };
-    window.addEventListener("pointermove", update);
-    window.addEventListener("pointerup", finish, { once: true });
-  }, [headerMorePosition]);
   const themeAgent = agentManifest?.agent;
   const themeManifest = pageManifest;
   const terminology = pageManifest?.terminology;
@@ -10160,30 +10114,21 @@ export default function BankingAgent({
                   >
                     <span>Quick Config</span><span className="ba-surface-badge" aria-hidden="true">02</span>
                   </button>
-                  {headerMoreOpen && createPortal(
-                    <div
-                      ref={headerMorePopRef}
+                  {headerMoreOpen && (
+                    <FloatingPanel
+                      title="Quick Config"
                       className={`ba-header-more-pop${openSurfaceSelector ? " ba-header-more-pop--surface-open" : ""}`}
-                      style={{
-                        ...(headerMorePosition || {}),
-                        width: headerMoreSize.width,
-                        height: headerMoreSize.height,
+                      defaultWidth={Math.min(760, Math.max(560, window.innerWidth - 24))}
+                      defaultHeight={Math.min(760, Math.max(420, window.innerHeight - 24))}
+                      defaultX={headerMorePosition ? Math.max(8, window.innerWidth - headerMorePosition.right - Math.min(760, Math.max(560, window.innerWidth - 24))) : null}
+                      defaultY={headerMorePosition?.top ?? null}
+                      minWidth={Math.min(560, window.innerWidth - 16)}
+                      minHeight={Math.min(420, window.innerHeight - 16)}
+                      onClose={() => {
+                        setHeaderMoreOpen(false);
+                        setOpenSurfaceSelector(null);
                       }}
                     >
-                      {[
-                        ["northwest", "nw"],
-                        ["northeast", "ne"],
-                        ["southwest", "sw"],
-                        ["southeast", "se"],
-                      ].map(([label, direction]) => (
-                        <button
-                          key={direction}
-                          type="button"
-                          className={`ba-header-more-resize-handle ba-header-more-resize-handle--${direction}`}
-                          aria-label={`Resize ${label}`}
-                          onPointerDown={(event) => handleHeaderMoreResize(event, direction)}
-                        />
-                      ))}
                       <div className="ba-header-more-intro">
                         <strong>Choose a view surface</strong>
                         <span>Embedded views stay on this page. Pop-outs open a separate window.</span>
@@ -10463,8 +10408,7 @@ export default function BankingAgent({
                           DaVinci Orchestration
                         </button>
                       )}
-                    </div>,
-                    document.body,
+                    </FloatingPanel>
                   )}
                 </div>
                 {/* Demo Guide trigger — stays inline. The 2026-07-24 Actions

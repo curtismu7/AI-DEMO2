@@ -714,6 +714,27 @@ describe("Header controls after the Actions dropdown removal", () => {
       expect(quickConfig.querySelector(`[aria-label="Resize ${direction}"]`)).toBeInTheDocument();
     }
   });
+
+  it("keeps Quick Config open for internal mouse interaction and exposes window controls", async () => {
+    renderThemedAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
+    });
+
+    const quickConfig = document.querySelector(".ba-header-more-pop");
+    expect(quickConfig).not.toBeNull();
+    expect(quickConfig.querySelector('[aria-label="Move Quick Config"]')).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Pop out Quick Config/i })).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.mouseDown(screen.getByRole("button", { name: /Token topology surface/i }));
+    });
+    expect(document.querySelector(".ba-header-more-pop")).toBeInTheDocument();
+  });
 });
 
 // ─── Post-OAuth auto-open ────────────────────────────────────────────────────
