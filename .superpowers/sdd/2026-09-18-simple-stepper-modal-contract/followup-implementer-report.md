@@ -13,9 +13,16 @@ Fixed the two final-review findings only.
 2. `SimpleStepperPanel` is now a documented `dmScrollContract` full-bleed
    caller: `.sstp-body` owns the audit table's fill and scrolling behavior.
 
+Follow-up test correction: the real shared pop-out button exposes its existing
+`title`, not an accessible name. The tests now select that established title.
+Their mocked child windows also emulate the browser capabilities the real modal
+uses: document-write theme stamping and a foreign document `defaultView`.
+Product source behavior was not changed in this follow-up.
+
 ## Files changed
 
 - `demo_api_ui/src/components/SimpleStepperPanel.js`
+- `demo_api_ui/src/components/__tests__/DraggableModal.test.jsx`
 - `demo_api_ui/src/components/__tests__/SimpleStepperModalLifecycle.test.jsx`
 - `demo_api_ui/src/components/__tests__/dmScrollContract.test.js`
 
@@ -38,17 +45,17 @@ full-bleed body makes the contract test fail.
   scrolling root.
 - `graphify update .`: completed. It reported three pre-existing syntax
   warnings in unrelated education panels.
-- Focused Vitest command and `npm run build`: could not start because the host
-  Node executable aborts with macOS `dyld` error for missing
-  `/opt/homebrew/opt/simdutf/lib/libsimdutf.34.dylib`.
+- With `/opt/homebrew/opt/node@22/bin` first in `PATH`, the focused Vitest
+  command passed: 5 files, 24 tests.
+- With the same Node 22 path, `npm run build` passed.
 
 ## Commit
 
 Implementation commit: `0ff1b11dea64d4c99a89c108d4d019f78cb22a38`
 
+Test follow-up commit: `8ec67c32ca71f0dbccb167318ecbed939d3e1b3b`
+
 ## Residual risks
 
-- Vitest and production-build execution remain unverified until the host Node
-  dynamic-library issue is repaired.
 - The required live embedded/pop-out light/dark computed-style audit and manual
-  resize check could not be performed without a working Node/browser runtime.
+  resize check were not part of this focused follow-up.
