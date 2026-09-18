@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MCP Apps — Interaction Layer Mock</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #e8edf2;
+      --muted: #91a0ad;
+      --quiet: #61707c;
+      --line: #26343f;
+      --panel: #121b22;
+      --panel-2: #18232b;
+      --bg: #091116;
+      --cyan: #71e1d0;
+      --cyan-soft: rgba(113, 225, 208, .12);
+      --amber: #f0bd72;
+      --red: #ed8d86;
+      --blue: #91b9f4;
+      --radius: 15px;
+      --shadow: 0 24px 70px rgba(0, 0, 0, .28);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); min-width: 320px; }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+
+    .app-shell { min-height: 100vh; display: grid; grid-template-columns: 230px minmax(0, 1fr); }
+    .rail { border-right: 1px solid var(--line); padding: 26px 18px; background: #0b151b; }
+    .brand { display: flex; gap: 11px; align-items: center; margin: 0 10px 44px; }
+    .brand-mark { width: 30px; height: 30px; border: 1px solid var(--cyan); border-radius: 9px; position: relative; transform: rotate(45deg); }
+    .brand-mark::after { content: ""; position: absolute; inset: 7px; border: 1px solid var(--cyan); border-radius: 4px; }
+    .brand-name { font-size: 14px; letter-spacing: .04em; font-weight: 650; }
+    .brand-sub { color: var(--quiet); font-size: 10px; margin-top: 3px; }
+    .nav-label { color: var(--quiet); font-size: 10px; letter-spacing: .13em; text-transform: uppercase; margin: 0 10px 9px; }
+    .nav { display: grid; gap: 5px; }
+    .nav button { text-align: left; border: 1px solid transparent; color: var(--muted); background: transparent; padding: 11px 12px; border-radius: 9px; font-size: 13px; }
+    .nav button:hover { color: var(--ink); background: rgba(255,255,255,.035); }
+    .nav button.active { color: var(--cyan); background: var(--cyan-soft); border-color: rgba(113, 225, 208, .22); }
+    .nav-icon { width: 18px; display: inline-block; color: currentColor; opacity: .8; }
+    .rail-foot { position: fixed; bottom: 24px; width: 194px; color: var(--quiet); font-size: 11px; line-height: 1.5; }
+    .rail-foot strong { color: var(--muted); font-weight: 550; }
+
+    main { min-width: 0; padding: 28px clamp(20px, 4vw, 62px) 58px; }
+    .topline { display: flex; justify-content: space-between; gap: 20px; align-items: center; max-width: 1180px; margin: 0 auto 54px; }
+    .crumb { color: var(--quiet); font-size: 12px; }
+    .crumb b { color: var(--muted); font-weight: 500; }
+    .host-pill { display: flex; align-items: center; gap: 8px; color: var(--muted); border: 1px solid var(--line); border-radius: 99px; padding: 8px 11px; font-size: 11px; }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 0 4px var(--cyan-soft); }
+    .view { display: none; max-width: 1180px; margin: auto; animation: reveal .28s ease-out; }
+    .view.active { display: block; }
+    @keyframes reveal { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) { .view { animation: none; } }
+
+    .eyebrow { color: var(--cyan); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; margin: 0 0 15px; }
+    h1 { font-size: clamp(28px, 4vw, 48px); line-height: .98; letter-spacing: -.055em; margin: 0; max-width: 650px; font-weight: 600; }
+    h2 { font-size: 17px; letter-spacing: -.025em; margin: 0; font-weight: 600; }
+    h3 { font-size: 13px; margin: 0; font-weight: 600; }
+    .intro { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 32px; }
+    .intro-copy { color: var(--muted); line-height: 1.55; max-width: 535px; font-size: 14px; margin: 17px 0 0; }
+    .ghost-note { max-width: 260px; color: var(--quiet); font-size: 11px; line-height: 1.5; border-left: 1px solid var(--line); padding-left: 15px; }
+    .grid { display: grid; gap: 14px; }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-2 { grid-template-columns: 1.15fr .85fr; }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .panel-pad { padding: 21px; }
+    .panel-head { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 20px; }
+    .panel-kicker { color: var(--quiet); font-size: 11px; margin-bottom: 10px; }
+    .metric { font-size: 29px; letter-spacing: -.055em; font-weight: 580; }
+    .metric small { color: var(--muted); font-size: 12px; letter-spacing: 0; font-weight: 450; }
+    .trend { color: var(--cyan); font-size: 11px; margin-top: 8px; }
+    .trend.warn { color: var(--amber); }
+    .chart { height: 78px; position: relative; overflow: hidden; margin: 8px -4px -5px; }
+    .chart svg { width: 100%; height: 100%; }
+    .section-gap { margin-top: 14px; }
+    .table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .table th { color: var(--quiet); font-weight: 500; text-align: left; padding: 0 0 12px; }
+    .table td { border-top: 1px solid rgba(38,52,63,.72); padding: 14px 0; color: var(--muted); vertical-align: middle; }
+    .table td:first-child { color: var(--ink); }
+    .right { text-align: right !important; }
+    .status { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; white-space: nowrap; }
+    .status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); }
+    .status.warn::before { background: var(--amber); }
+    .status.red::before { background: var(--red); }
+    .btn { border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 8px; padding: 9px 12px; font-size: 12px; }
+    .btn:hover { color: var(--ink); border-color: #4a5d69; }
+    .btn.primary { color: #06201d; background: var(--cyan); border-color: var(--cyan); font-weight: 650; }
+    .btn.primary:hover { background: #91f2e2; }
+    .btn.danger { color: var(--red); border-color: rgba(237,141,134,.35); }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .tag { border: 1px solid var(--line); border-radius: 99px; color: var(--muted); padding: 4px 8px; font-size: 10px; }
+    .tag.cyan { border-color: rgba(113,225,208,.32); color: var(--cyan); }
+    .tag.amber { border-color: rgba(240,189,114,.32); color: var(--amber); }
+
+    .approval-layout { display: grid; grid-template-columns: 1.2fr .8fr; gap: 14px; align-items: start; }
+    .draft { background: #101921; border: 1px solid #314754; border-radius: 11px; padding: 22px; }
+    .draft-title { font-size: 22px; letter-spacing: -.035em; margin: 0 0 15px; }
+    .draft p { color: var(--muted); font-size: 13px; line-height: 1.6; margin: 0 0 22px; }
+    .criteria { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
+    .criteria li { display: flex; gap: 9px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+    .criteria li::before { content: "✓"; color: var(--cyan); }
+    .decision { background: rgba(113,225,208,.06); border: 1px solid rgba(113,225,208,.2); border-radius: 11px; padding: 17px; margin-top: 18px; }
+    .decision-label { color: var(--cyan); font-size: 11px; margin-bottom: 10px; }
+    .decision strong { display: block; font-size: 14px; margin-bottom: 5px; }
+    .decision span { color: var(--muted); font-size: 12px; }
+    .timeline { display: grid; gap: 0; }
+    .event { display: grid; grid-template-columns: 16px 1fr; gap: 11px; position: relative; padding-bottom: 21px; }
+    .event:not(:last-child)::before { content: ""; position: absolute; top: 11px; left: 5px; bottom: 0; border-left: 1px solid var(--line); }
+    .event-dot { position: relative; z-index: 1; width: 11px; height: 11px; border: 2px solid var(--cyan); background: var(--panel); border-radius: 50%; margin-top: 3px; }
+    .event.pending .event-dot { border-color: var(--amber); }
+    .event b { display: block; font-size: 12px; font-weight: 550; }
+    .event small { display: block; color: var(--quiet); font-size: 11px; margin-top: 4px; }
+
+    .governance-top { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; }
+    .search { width: 185px; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink); border-radius: 8px; padding: 9px 11px; font-size: 12px; }
+    .agent-list { display: grid; gap: 9px; }
+    .agent-row { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto auto; gap: 13px; align-items: center; padding: 14px 0; border-top: 1px solid rgba(38,52,63,.72); }
+    .agent-avatar { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; color: var(--cyan); background: var(--cyan-soft); border: 1px solid rgba(113,225,208,.22); font-size: 13px; font-weight: 650; }
+    .agent-name { color: var(--ink); font-size: 13px; font-weight: 560; }
+    .agent-detail { color: var(--quiet); font-size: 11px; margin-top: 4px; }
+    .tool-stack { display: flex; gap: 4px; flex-wrap: wrap; max-width: 235px; justify-content: end; }
+    .risk { font-size: 10px; color: var(--cyan); border: 1px solid rgba(113,225,208,.3); border-radius: 99px; padding: 4px 7px; }
+    .risk.high { color: var(--red); border-color: rgba(237,141,134,.3); }
+    .activity { display: grid; gap: 14px; }
+    .activity-item { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid rgba(38,52,63,.72); padding-bottom: 14px; }
+    .activity-item:last-child { border-bottom: 0; padding-bottom: 0; }
+    .activity-item b { display: block; font-size: 12px; font-weight: 550; }
+    .activity-item span { display: block; color: var(--quiet); font-size: 11px; margin-top: 4px; }
+    .activity-time { color: var(--quiet); font-size: 10px; white-space: nowrap; }
+    .toast { position: fixed; right: 24px; bottom: 24px; transform: translateY(120px); opacity: 0; transition: .25s ease; background: #d7fff7; color: #09221f; border-radius: 9px; padding: 12px 15px; font-size: 12px; box-shadow: var(--shadow); }
+    .toast.show { transform: none; opacity: 1; }
+    .prototype { color: var(--quiet); font-size: 10px; text-align: right; margin-top: 30px; }
+    @media (max-width: 850px) { .app-shell { display: block; } .rail { border-right: 0; border-bottom: 1px solid var(--line); padding: 15px 18px; } .brand { margin: 0 0 15px; } .rail-foot { display: none; } .nav { display: flex; overflow-x: auto; } .nav-label { display: none; } .nav button { white-space: nowrap; } main { padding-top: 26px; } .topline { margin-bottom: 38px; } .grid-3, .grid-2, .approval-layout { grid-template-columns: 1fr; } .intro { display: block; } .ghost-note { margin-top: 20px; } }
+    @media (max-width: 540px) { main { padding-inline: 15px; } .topline { display: block; } .host-pill { width: fit-content; margin-top: 12px; } .agent-row { grid-template-columns: 34px minmax(0,1fr) auto; } .tool-stack { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="rail">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div><div class="brand-name">MCP / interaction layer</div><div class="brand-sub">visual prototype</div></div>
+      </div>
+      <div class="nav-label">Views</div>
+      <nav class="nav" aria-label="Prototype views">
+        <button class="active" data-view="accounts"><span class="nav-icon">01</span> Account dashboard</button>
+        <button data-view="approval"><span class="nav-icon">02</span> Approval workflow</button>
+        <button data-view="governance"><span class="nav-icon">03</span> Agent governance</button>
+      </nav>
+      <div class="rail-foot"><strong>Host status</strong><br>Sandboxed view ready<br><span class="live-dot" style="display:inline-block; margin: 10px 5px 0 2px"></span> local mock data</div>
+    </aside>
+
+    <main>
+      <div class="topline"><div class="crumb">Demo host / <b>MCP Apps</b></div><div class="host-pill"><span class="live-dot"></span> Host bridge connected</div></div>
+
+      <section class="view active" id="accounts">
+        <div class="intro"><div><p class="eyebrow">Tool + UI resource / get_my_accounts</p><h1>A calm view of the money that matters.</h1><p class="intro-copy">The agent fetched your account data. This App turns the same structured result into a surface you can scan, filter, and act on.</p></div><div class="ghost-note">The agent remains responsible for reasoning. The App is responsible for making state legible.</div></div>
+        <div class="grid grid-3">
+          <div class="panel panel-pad"><div class="panel-kicker">Total available</div><div class="metric">$24,812<span class="metric"><small>.64</small></span></div><div class="trend">↑ 4.8% this month</div></div>
+          <div class="panel panel-pad"><div class="panel-kicker">Liquidity</div><div class="metric">68<span class="metric"><small>% available</small></span></div><div class="trend">Within your comfort range</div></div>
+          <div class="panel panel-pad"><div class="panel-kicker">Next payment</div><div class="metric">$1,240<span class="metric"><small> due Fri</small></span></div><div class="trend warn">Review before it posts</div></div>
+        </div>
+        <div class="grid grid-2 section-gap">
+          <div class="panel panel-pad"><div class="panel-head"><div><div class="panel-kicker">Balance movement</div><h2>Last 30 days</h2></div><span class="tag cyan">healthy</span></div><div class="chart"><svg viewBox="0 0 600 100" preserveAspectRatio="none" aria-label="Balance trend"><defs><linearGradient id="area" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#71e1d0" stop-opacity=".26"/><stop offset="1" stop-color="#71e1d0" stop-opacity="0"/></linearGradient></defs><path d="M0,72 C45,78 65,53 110,63 S175,72 210,48 S260,62 305,38 S360,50 397,33 S455,48 490,22 S548,39 600,15 L600,100 L0,100Z" fill="url(#area)"/><path d="M0,72 C45,78 65,53 110,63 S175,72 210,48 S260,62 305,38 S360,50 397,33 S455,48 490,22 S548,39 600,15" fill="none" stroke="#71e1d0" stroke-width="2.5"/></svg></div></div>
+          <div class="panel panel-pad"><div class="panel-head"><div><div class="panel-kicker">Agent suggestion</div><h2>Move $600 to savings?</h2></div><span class="tag amber">optional</span></div><p class="intro-copy" style="font-size:12px; margin:0 0 17px">You have a recurring surplus this month. The agent can prepare the transfer, but you decide whether it happens.</p><div class="btn-row"><button class="btn primary action" data-message="Transfer draft opened">Review transfer</button><button class="btn action" data-message="Suggestion dismissed">Not now</button></div></div>
+        </div>
+        <div class="panel panel-pad section-gap"><div class="panel-head"><div><div class="panel-kicker">Accounts</div><h2>Connected balances</h2></div><button class="btn action" data-message="Refreshing accounts">Refresh</button></div><table class="table"><thead><tr><th>Account</th><th>Status</th><th class="right">Available</th><th class="right">Action</th></tr></thead><tbody><tr><td>Everyday checking<br><span class="panel-kicker" style="margin:5px 0 0">•••• 8841</span></td><td><span class="status">Healthy</span></td><td class="right">$8,422.18</td><td class="right"><button class="btn action" data-message="Transactions opened">View</button></td></tr><tr><td>High-yield savings<br><span class="panel-kicker" style="margin:5px 0 0">•••• 1108</span></td><td><span class="status">Healthy</span></td><td class="right">$16,390.46</td><td class="right"><button class="btn action" data-message="Transactions opened">View</button></td></tr></tbody></table></div>
+      </section>
+
+      <section class="view" id="approval">
+        <div class="intro"><div><p class="eyebrow">Tool + UI resource / present_for_approval</p><h1>Make “yes” a real event.</h1><p class="intro-copy">A structured approval surface gives the human a clear decision boundary. No chat archaeology. No ambiguous “looks good.”</p></div><div class="ghost-note">The backend remains the source of truth. This card carries an ID, a version, and an explicit decision.</div></div>
+        <div class="approval-layout">
+          <div class="panel panel-pad"><div class="panel-head"><div><div class="panel-kicker">Pending decision / US-483 · version 1</div><h2>New transfer safeguard</h2></div><span class="tag amber" id="approval-tag">awaiting review</span></div><div class="draft"><h3 class="draft-title">Require step-up authentication for new payees</h3><p>When a customer sends money to a payee created within the last 24 hours, require a second factor before the transfer can be submitted.</p><ul class="criteria"><li>Applies to external payees only</li><li>Does not change existing recurring transfers</li><li>Records the decision in the policy audit log</li></ul><div class="decision" id="decision"><div class="decision-label">Your decision</div><strong>Review the draft, then choose an action.</strong><span>Approval will send the versioned decision to the MCP tool.</span></div></div><div class="btn-row" style="margin-top:18px"><button class="btn primary" id="approve">Approve draft</button><button class="btn danger" id="reject">Request changes</button></div></div>
+          <div class="panel panel-pad"><div class="panel-head"><div><div class="panel-kicker">Audit trail</div><h2>Workflow state</h2></div><span class="tag">live</span></div><div class="timeline"><div class="event"><div class="event-dot"></div><div><b>Draft generated</b><small>Agent · 2 minutes ago</small></div></div><div class="event"><div class="event-dot"></div><div><b>Policy context attached</b><small>get_feature_context · 2 minutes ago</small></div></div><div class="event pending" id="pending-event"><div class="event-dot"></div><div><b>Human decision pending</b><small>Waiting for an explicit action</small></div></div></div></div>
+        </div>
+      </section>
+
+      <section class="view" id="governance">
+        <div class="intro"><div><p class="eyebrow">Tool + UI resource / list_agents</p><h1>See who can act on your behalf.</h1><p class="intro-copy">A registry view makes agent access reviewable: what is connected, which tools it can use, and where a human needs to intervene.</p></div><div class="ghost-note">The model can answer “who has access?” The App gives you a place to inspect and change it.</div></div>
+        <div class="grid grid-3"><div class="panel panel-pad"><div class="panel-kicker">Registered agents</div><div class="metric">08</div><div class="trend">6 active · 2 paused</div></div><div class="panel panel-pad"><div class="panel-kicker">Elevated access</div><div class="metric">02</div><div class="trend warn">Needs quarterly review</div></div><div class="panel panel-pad"><div class="panel-kicker">Last policy change</div><div class="metric">14<span class="metric"><small> min ago</small></span></div><div class="trend">Recorded and signed</div></div></div>
+        <div class="grid grid-2 section-gap"><div class="panel panel-pad"><div class="panel-head"><div><div class="panel-kicker">Agent registry</div><h2>Access by capability</h2></div><div class="governance-top"><input class="search" id="agent-search" type="search" placeholder="Filter agents" aria-label="Filter agents"><span class="tag cyan">8 total</span></div></div><div class="agent-list" id="agent-list"><div class="agent-row" data-name="privilege agent"><div class="agent-avatar">PA</div><div><div class="agent-name">Privilege Agent</div><div class="agent-detail">Owner: Operations · last active 4 min ago</div></div><div class="tool-stack"><span class="tag">accounts</span><span class="tag">transfers</span></div><span class="risk high">elevated</span><button class="btn action" data-message="Privilege Agent review opened">Review</button></div><div class="agent-row" data-name="insights analyst"><div class="agent-avatar">IA</div><div><div class="agent-name">Insights Analyst</div><div class="agent-detail">Owner: Finance · last active 18 min ago</div></div><div class="tool-stack"><span class="tag">read-only</span><span class="tag">reports</span></div><span class="risk">low risk</span><button class="btn action" data-message="Insights Analyst review opened">Review</button></div><div class="agent-row" data-name="onboarding guide"><div class="agent-avatar">OG</div><div><div class="agent-name">Onboarding Guide</div><div class="agent-detail">Owner: Customer success · paused yesterday</div></div><div class="tool-stack"><span class="tag">profiles</span><span class="tag">knowledge</span></div><span class="risk">low risk</span><button class="btn action" data-message="Onboarding Guide review opened">Review</button></div></div></div>
+          <div class="panel panel-pad"><div class="panel-head"><div><div class="panel-kicker">Recent governance events</div><h2>What changed</h2></div><span class="tag">audit</span></div><div class="activity"><div class="activity-item"><div><b>Transfer tool scope narrowed</b><span>Privilege Agent · by Maya Chen</span></div><div class="activity-time">14 min</div></div><div class="activity-item"><div><b>Onboarding Guide paused</b><span>Manual action · by Jordan Lee</span></div><div class="activity-time">1 day</div></div><div class="activity-item"><div><b>New review cycle opened</b><span>Quarterly access review</span></div><div class="activity-time">3 days</div></div></div></div></div>
+      </section>
+      <div class="prototype">Prototype only · simulated host bridge · no real actions are performed</div>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script>
+    const buttons = document.querySelectorAll('[data-view]');
+    const views = document.querySelectorAll('.view');
+    buttons.forEach((button) => button.addEventListener('click', () => {
+      buttons.forEach((item) => item.classList.toggle('active', item === button));
+      views.forEach((view) => view.classList.toggle('active', view.id === button.dataset.view));
+    }));
+
+    const toast = document.getElementById('toast');
+    let toastTimer;
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+    document.querySelectorAll('.action').forEach((button) => button.addEventListener('click', () => showToast(button.dataset.message)));
+
+    const decision = document.getElementById('decision');
+    const approvalTag = document.getElementById('approval-tag');
+    const pendingEvent = document.getElementById('pending-event');
+    document.getElementById('approve').addEventListener('click', () => {
+      approvalTag.textContent = 'approved';
+      approvalTag.className = 'tag cyan';
+      decision.innerHTML = '<div class="decision-label">Approved</div><strong>Version 1 is ready to execute.</strong><span>Recorded with an explicit human decision.</span>';
+      pendingEvent.querySelector('b').textContent = 'Approved by you';
+      pendingEvent.querySelector('small').textContent = 'Just now · version 1';
+      pendingEvent.classList.remove('pending');
+      showToast('Approval recorded');
+    });
+    document.getElementById('reject').addEventListener('click', () => {
+      approvalTag.textContent = 'changes requested';
+      approvalTag.className = 'tag amber';
+      decision.innerHTML = '<div class="decision-label" style="color:var(--amber)">Changes requested</div><strong>The agent can prepare version 2.</strong><span>Your reason would be returned to the next model turn.</span>';
+      pendingEvent.querySelector('b').textContent = 'Revision requested';
+      pendingEvent.querySelector('small').textContent = 'Just now · awaiting version 2';
+      pendingEvent.classList.add('pending');
+      showToast('Revision request recorded');
+    });
+
+    document.getElementById('agent-search').addEventListener('input', (event) => {
+      const query = event.target.value.toLowerCase();
+      document.querySelectorAll('.agent-row').forEach((row) => { row.hidden = query && !row.dataset.name.includes(query); });
+    });
+  </script>
+</body>
+</html>

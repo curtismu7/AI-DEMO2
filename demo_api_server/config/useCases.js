@@ -774,6 +774,7 @@ const RAW_USE_CASES = [
     useCaseId: 'hitl-consent',
     track: 'hitl',
     title: 'HITL consent',
+    demoLabel: '✦ MCP App · transfer approval',
     buyerStory: "Some agent actions are consequential enough to require a human approval — not just an MFA tap.",
     pingOneSolution: 'PingOne Authorize returns a HITL obligation; the agent pauses until a verified human approval receipt is received.',
     trigger: { type: 'chip', text: 'transfer $300 from checking to savings' },

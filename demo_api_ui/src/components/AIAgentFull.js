@@ -9304,6 +9304,7 @@ export default function BankingAgentFull({
             } else {
               setHitlChallengeId({
                 challengeId: cid,
+                mcpApp: useCaseId === "UC8" || useCaseId === "hitl-consent",
                 actionId: response.transactionType || "transfer",
                 snapshot: data.snapshot || null,
                 form: {
@@ -11234,6 +11235,7 @@ export default function BankingAgentFull({
                 open
                 challengeId={hitlChallengeId.challengeId}
                 preloadedSnapshot={hitlChallengeId.snapshot}
+                mcpApp={hitlChallengeId.mcpApp}
                 user={effectiveUser}
                 onClose={() => setHitlChallengeId(null)}
                 onTransactionSuccess={(msg) => {

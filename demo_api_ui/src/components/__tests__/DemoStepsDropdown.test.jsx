@@ -20,6 +20,7 @@ const CATALOG = DEMO_USE_CASE_IDS.map((id, i) => ({
   id,
   useCaseId: `slug-${id}`,
   title: `Title for ${id}`,
+  ...(id === 'UC8' ? { demoLabel: '✦ MCP App · transfer approval' } : {}),
   whatLong: `Long explanation for ${id}`,
   trigger: { type: 'chip', text: `prompt for ${id}` },
   // Insert a decoy so order-from-catalog ≠ demo script order
@@ -127,6 +128,18 @@ describe('DemoStepsDropdown', () => {
       'Explain step 9: UC2 — Title for UC2',
     );
     expect(screen.getByTestId('demo-step-UC-TOOL1')).toBeInTheDocument();
+  });
+
+  it('uses the MCP App demo label for the selected transfer approval step', async () => {
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-step-UC8')).toBeInTheDocument());
+    expect(screen.getByTestId('demo-step-UC8')).toHaveTextContent('✦ MCP App · transfer approval');
   });
 
   it('calls onSelect with the catalog entry when a step is clicked', async () => {
