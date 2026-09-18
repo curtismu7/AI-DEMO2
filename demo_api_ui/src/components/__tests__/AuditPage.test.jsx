@@ -96,3 +96,18 @@ describe("AuditPage floating window — title-bar interaction", () => {
     expect(onClose).toHaveBeenCalledTimes(1); // click still delivered
   });
 });
+
+describe("AuditPage standalone pop-out", () => {
+  it("uses the shared pop-out icon and closes from the upper-right control", async () => {
+    searchParamsValue = "popout=1";
+    const closeSpy = vi.spyOn(window, "close").mockImplementation(() => {});
+
+    await renderSettled({ onClose: vi.fn() });
+
+    expect(screen.getByLabelText("Close audit window")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Close audit window"));
+
+    expect(closeSpy).toHaveBeenCalledTimes(1);
+    closeSpy.mockRestore();
+  });
+});

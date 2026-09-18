@@ -84,10 +84,19 @@ describe("LogViewer Component", () => {
 		it("should render when open", async () => {
 			render(<LogViewer isOpen={true} onClose={vi.fn()} standalone={true} />);
 
-			await waitFor(() => {
+		await waitFor(() => {
 				expect(screen.getByText("Learning Log")).toBeInTheDocument();
 				expect(screen.getByRole("tab", { name: "Learn" })).toBeInTheDocument();
 				expect(screen.getByRole("tab", { name: "Debug" })).toBeInTheDocument();
+			});
+		});
+
+		it("uses the shared pop-out icon in embedded mode", async () => {
+			render(<LogViewer isOpen={false} onClose={vi.fn()} />);
+			fireEvent(window, new CustomEvent("banking-log-viewer-open"));
+
+			await waitFor(() => {
+				expect(screen.getByTitle("Open in new window")).toHaveTextContent("🪟");
 			});
 		});
 

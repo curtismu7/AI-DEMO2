@@ -436,7 +436,7 @@ function TraceStepCard({ step, onInspect, defaultOpen = false, useCase = null })
               className={`tctr-inspect${largeEvidence ? " tctr-inspect--emphasize" : ""}`}
               onClick={() => openStepTeachingWindow(step, useCase)}
             >
-              → Pop out full detail
+              🪟 Pop out full detail
             </button>
           )}
           {replay && (

@@ -155,7 +155,7 @@ export default function PersonalAgentStudioPage() {
             onClick={handlePopOut}
             style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, border: `1px solid ${layoutState === 'popped' ? 'var(--accent, #4f8ef7)' : 'var(--border, #2e3347)'}`, background: layoutState === 'popped' ? 'rgba(79,142,247,0.15)' : 'transparent', color: layoutState === 'popped' ? 'var(--accent, #4f8ef7)' : 'var(--muted, #8892a4)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}
           >
-            Pop Out
+            🪟 Pop Out
           </button>
           <button
             onClick={() => setTheme((t) => t === 'dark' ? 'light' : 'dark')}

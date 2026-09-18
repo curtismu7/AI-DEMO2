@@ -166,6 +166,14 @@ read the configured host. A new browser origin must be added to ALL of:
   resizing/pop-out behavior, and the separate compliance pop-out data channel.
 - **Verify:** `dashboardModalContrast.test.js` and the UI build must pass.
 
+### 2026-09-18 — Dashboard pop-outs share the 🪟 control and close their child window
+
+- **Files changed:** `demo_api_ui/src/components/DraggableModal.jsx`, `demo_api_ui/src/components/AuditPage.js`, `demo_api_ui/src/components/TokenChainDisplay.jsx`, dashboard quick-nav/log/token-detail/Personal Agent pop-out triggers, and focused tests.
+- **What was broken:** Dashboard pop-out controls used different glyphs or no glyph; the standalone Audit Trail and Token Inspector windows had no upper-right close control; shared modal close only changed parent state.
+- **What was fixed:** Standardize dashboard pop-out controls on `🪟`; add `✕` close controls to standalone windows; close the child window directly before notifying the parent.
+- **Do not break:** Preserve resize, light/dark theme, token data, and parent-window restore behavior.
+- **Verify:** Focused modal/Audit/Simple Stepper tests and the UI production build.
+
 ### 2026-09-18 — Simple Stepper pop-out surface selection now opens a child window
 
 - **Files changed:** `demo_api_ui/src/components/AIAgent.js`, `demo_api_ui/src/components/SimpleStepperPanel.js`, `demo_api_ui/src/components/__tests__/AIAgent.chips.test.js`

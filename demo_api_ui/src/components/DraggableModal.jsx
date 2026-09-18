@@ -199,6 +199,11 @@ ${inlineStyles}
     setPopoutTheme(nextTheme);
   }, [popoutTheme, popoutWin]);
 
+  const handlePopoutClose = useCallback(() => {
+    if (popoutWin && !popoutWin.closed) popoutWin.close();
+    onClose?.();
+  }, [onClose, popoutWin]);
+
   // Close popup window on unmount
   useEffect(
     () => () => {
@@ -284,8 +289,9 @@ ${inlineStyles}
               <button
                 type="button"
                 className="dm-btn"
-                onClick={onClose}
+                onClick={handlePopoutClose}
                 title="Close"
+                aria-label="Close"
               >
                 ✕
               </button>
