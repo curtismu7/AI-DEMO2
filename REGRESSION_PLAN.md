@@ -146,6 +146,14 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-18 — Simple Stepper pop-out surface selection now opens a child window
+
+- **Files changed:** `demo_api_ui/src/components/AIAgent.js`, `demo_api_ui/src/components/SimpleStepperPanel.js`, `demo_api_ui/src/components/__tests__/AIAgent.chips.test.js`
+- **What was broken:** The Quick Config surface selector stored `popout` and mounted the Simple Stepper, but the panel never received the shared modal's `autoPopOut` prop, so it remained embedded.
+- **What was fixed:** Pass `autoPopOut` through the Simple Stepper panel and enable it for the selector-owned pop-out instance.
+- **Do not break:** Preserve the existing `DraggableModal` pop-out/resize behavior, embedded/both surface precedence, and token-chain event data.
+- **Verify:** `AIAgent.chips.test.js` passes 71 tests; run the UI build before merge.
+
 ### 2026-09-18 — DaVinci SDK execution reel separates masked live evidence from concept preview
 
 **Files changed:** `demo_api_ui/src/components/davinci/sdkExecutionEvents.js`,
