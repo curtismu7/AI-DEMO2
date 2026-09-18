@@ -168,8 +168,7 @@ function readSurfacePreference(key, legacyKey, legacyValue) {
   return "none";
 }
 
-function SurfaceSelector({ id, label, value, onChange, disabled = false, disabledValues = [] }) {
-  const [open, setOpen] = useState(false);
+function SurfaceSelector({ id, label, value, onChange, disabled = false, disabledValues = [], open = false, onToggle }) {
   const selected = SURFACE_OPTIONS.find((option) => option.value === value) || SURFACE_OPTIONS[0];
 
   return (
@@ -184,7 +183,7 @@ function SurfaceSelector({ id, label, value, onChange, disabled = false, disable
           aria-haspopup="listbox"
           aria-expanded={open}
           disabled={disabled}
-          onClick={() => setOpen((isOpen) => !isOpen)}
+          onClick={() => onToggle?.(open ? null : id)}
         >
           <span>
             <strong>{selected.label}</strong>
@@ -206,7 +205,7 @@ function SurfaceSelector({ id, label, value, onChange, disabled = false, disable
                 onClick={() => {
                   if (disabledValues.includes(option.value)) return;
                   onChange({ target: { value: option.value } });
-                  setOpen(false);
+                  onToggle?.(null);
                 }}
               >
                 <span className="ba-surface-option-radio" aria-hidden="true" />
@@ -510,9 +509,18 @@ export default function BankingAgent({
   // steps, agent scope, close. A popout rather than an inline expansion so the
   // header's height never changes when it opens.
   const [headerMoreOpen, setHeaderMoreOpen] = useState(false);
+  const [openSurfaceSelector, setOpenSurfaceSelector] = useState(null);
   const headerMoreRef = useRef(null);
   const headerMorePopRef = useRef(null);
   const [headerMorePosition, setHeaderMorePosition] = useState(null);
+  const [headerMoreSize, setHeaderMoreSize] = useState(() => ({
+    width: Math.min(760, Math.max(560, window.innerWidth - 24)),
+    height: Math.min(760, Math.max(420, window.innerHeight - 24)),
+  }));
+  const headerMoreSizeRef = useRef(headerMoreSize);
+  useEffect(() => {
+    headerMoreSizeRef.current = headerMoreSize;
+  }, [headerMoreSize]);
   // Freshest handleDemoStepSelect for the strip's event bridge (the listener
   // is registered once with [] deps, so it must read through a ref).
   const demoStepSelectRef = useRef(null);
@@ -531,12 +539,19 @@ export default function BankingAgent({
         !headerMorePopRef.current?.contains(e.target)
       ) {
         setHeaderMoreOpen(false);
+        setOpenSurfaceSelector(null);
       }
     };
     const onKey = (e) => {
-      if (e.key === "Escape") setHeaderMoreOpen(false);
+      if (e.key === "Escape") {
+        setHeaderMoreOpen(false);
+        setOpenSurfaceSelector(null);
+      }
     };
-    const onViewportChange = () => setHeaderMoreOpen(false);
+    const onViewportChange = () => {
+      setHeaderMoreOpen(false);
+      setOpenSurfaceSelector(null);
+    };
     document.addEventListener("mousedown", onDocClick);
     document.addEventListener("keydown", onKey);
     window.addEventListener("resize", onViewportChange);
@@ -548,6 +563,44 @@ export default function BankingAgent({
       window.removeEventListener("scroll", onViewportChange, true);
     };
   }, [headerMoreOpen]);
+
+  const handleHeaderMoreResize = useCallback((event, direction) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startSize = headerMoreSizeRef.current;
+    const startTop = headerMorePosition?.top ?? 8;
+    const update = (moveEvent) => {
+      const dx = moveEvent.clientX - startX;
+      const dy = moveEvent.clientY - startY;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const minWidth = Math.min(560, viewportWidth - 16);
+      const minHeight = Math.min(420, viewportHeight - 16);
+      let width = startSize.width;
+      let height = startSize.height;
+      if (direction.includes("e")) width += dx;
+      if (direction.includes("w")) width -= dx;
+      if (direction.includes("s")) height += dy;
+      if (direction.includes("n")) height -= dy;
+      width = Math.max(minWidth, Math.min(viewportWidth - 16, width));
+      height = Math.max(minHeight, Math.min(viewportHeight - 16, height));
+      setHeaderMoreSize({ width, height });
+      if (direction.includes("n")) {
+        setHeaderMorePosition((position) => ({
+          ...position,
+          top: Math.max(8, startTop + (startSize.height - height)),
+        }));
+      }
+    };
+    const finish = () => {
+      window.removeEventListener("pointermove", update);
+      window.removeEventListener("pointerup", finish);
+    };
+    window.addEventListener("pointermove", update);
+    window.addEventListener("pointerup", finish, { once: true });
+  }, [headerMorePosition]);
   const themeAgent = agentManifest?.agent;
   const themeManifest = pageManifest;
   const terminology = pageManifest?.terminology;
@@ -10088,6 +10141,7 @@ export default function BankingAgent({
                         top: rect.bottom + 6,
                         right: Math.max(8, window.innerWidth - rect.right),
                       });
+                      setOpenSurfaceSelector(null);
                       setHeaderMoreOpen((v) => !v);
                     }}
                   >
@@ -10097,8 +10151,26 @@ export default function BankingAgent({
                     <div
                       ref={headerMorePopRef}
                       className="ba-header-more-pop"
-                      style={headerMorePosition || undefined}
+                      style={{
+                        ...(headerMorePosition || {}),
+                        width: headerMoreSize.width,
+                        height: headerMoreSize.height,
+                      }}
                     >
+                      {[
+                        ["northwest", "nw"],
+                        ["northeast", "ne"],
+                        ["southwest", "sw"],
+                        ["southeast", "se"],
+                      ].map(([label, direction]) => (
+                        <button
+                          key={direction}
+                          type="button"
+                          className={`ba-header-more-resize-handle ba-header-more-resize-handle--${direction}`}
+                          aria-label={`Resize ${label}`}
+                          onPointerDown={(event) => handleHeaderMoreResize(event, direction)}
+                        />
+                      ))}
                       <div className="ba-header-more-intro">
                         <strong>Choose a view surface</strong>
                         <span>Embedded views stay on this page. Pop-outs open a separate window.</span>
@@ -10135,7 +10207,9 @@ export default function BankingAgent({
                         label="Agent flow diagram"
                         value={agentFlowSurface}
                         onChange={(e) => chooseAgentFlowSurface(e.target.value)}
-                        disabled={isEmbeddedSurfaceDisabled("embedded", sequenceSurface)}
+                        disabledValues={isEmbeddedSurfaceDisabled("embedded", sequenceSurface) ? ["embedded", "both"] : []}
+                        open={openSurfaceSelector === "agent-flow-surface-select"}
+                        onToggle={setOpenSurfaceSelector}
                       />
                       {/* Dark mode switch — drives data-theme on the document root, which the
                           dark-capable panels (Token Chain rail) key off. */}
@@ -10193,7 +10267,9 @@ export default function BankingAgent({
                         label="Token topology"
                         value={topologySurface}
                         onChange={(e) => chooseTopologySurface(e.target.value)}
-                        disabled={isEmbeddedSurfaceDisabled("embedded", sequenceSurface)}
+                        disabledValues={isEmbeddedSurfaceDisabled("embedded", sequenceSurface) ? ["embedded", "both"] : []}
+                        open={openSurfaceSelector === "topology-surface-select"}
+                        onToggle={setOpenSurfaceSelector}
                       />
                       <SurfaceSelector
                         id="simple-step-surface-select"
@@ -10201,6 +10277,8 @@ export default function BankingAgent({
                         value={simpleStepperSurface}
                         onChange={(e) => chooseSimpleStepperSurface(e.target.value)}
                         disabledValues={isEmbeddedSurfaceDisabled("embedded", sequenceSurface) ? ["embedded", "both"] : []}
+                        open={openSurfaceSelector === "simple-step-surface-select"}
+                        onToggle={setOpenSurfaceSelector}
                       />
                       <Check
                         variant="switch"
@@ -10231,6 +10309,8 @@ export default function BankingAgent({
                             window.dispatchEvent(new CustomEvent("agent-slow-mode-toggle", { detail: { on: false } }));
                           }
                         }}
+                        open={openSurfaceSelector === "sequence-view-surface-select"}
+                        onToggle={setOpenSurfaceSelector}
                       />
                       {(showSequenceDiagram || showSequencePopout) && (
                         <Check
@@ -10248,7 +10328,9 @@ export default function BankingAgent({
                         label="OAuth Visualizer"
                         value={oauthVisualizerSurface}
                         onChange={(e) => chooseOauthVisualizerSurface(e.target.value)}
-                        disabled={isEmbeddedSurfaceDisabled("embedded", sequenceSurface)}
+                        disabledValues={isEmbeddedSurfaceDisabled("embedded", sequenceSurface) ? ["embedded", "both"] : []}
+                        open={openSurfaceSelector === "oauth-visualizer-surface-select"}
+                        onToggle={setOpenSurfaceSelector}
                       />
                       {showSequenceDiagram && (
                         <Check

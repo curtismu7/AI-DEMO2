@@ -23,6 +23,7 @@ import { MemoryRouter } from "react-router-dom";
 import AIAgent from "../AIAgent";
 import { ActivityNarrativeProvider } from "../../context/ActivityNarrativeContext";
 import { ProofOfEnforcementProvider } from "../../context/ProofOfEnforcementContext";
+import { ThemeProvider } from "../../context/ThemeContext";
 import * as demoAgentNlService from "../../services/demoAgentNlService";
 import * as configService from "../../services/configService";
 import * as demoAgentService from "../../services/demoAgentService";
@@ -210,6 +211,20 @@ function renderAgent(props = {}, { route = "/" } = {}) {
           <AIAgent {...props} />
         </ActivityNarrativeProvider>
       </ProofOfEnforcementProvider>
+    </MemoryRouter>,
+  );
+}
+
+function renderThemedAgent(props = {}, { route = "/" } = {}) {
+  return render(
+    <MemoryRouter initialEntries={[route]}>
+      <ThemeProvider>
+        <ProofOfEnforcementProvider>
+          <ActivityNarrativeProvider>
+            <AIAgent {...props} />
+          </ActivityNarrativeProvider>
+        </ProofOfEnforcementProvider>
+      </ThemeProvider>
     </MemoryRouter>,
   );
 }
@@ -452,7 +467,7 @@ describe("Discovery popout — '⊞ All actions' button (inline, non-popout fall
 
 describe("Header controls after the Actions dropdown removal", () => {
   it("float mode: no 'Actions' trigger, but Guide/Demo steps/scope picker/Clear progress still render", async () => {
-    renderAgent({ user: customerUser, mode: "float" });
+    renderThemedAgent({ user: customerUser, mode: "float" });
     const fab = screen.getByRole("button", { name: /Open.*AI Agent/i });
     await act(async () => {
       fireEvent.click(fab);
@@ -536,8 +551,8 @@ describe("Header controls after the Actions dropdown removal", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("option", { name: /^Both\b/ }));
     });
-    expect(screen.getByRole("button", { name: "Agent flow diagram surface" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Token topology surface" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Agent flow diagram surface" })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: "Token topology surface" })).not.toBeDisabled();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Simple step surface" }));
     });
@@ -547,7 +562,7 @@ describe("Header controls after the Actions dropdown removal", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("option", { name: /^Off\b/ }));
     });
-    expect(screen.getByRole("button", { name: "OAuth Visualizer surface" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "OAuth Visualizer surface" })).not.toBeDisabled();
     expect(screen.getByLabelText("Follow flow")).toBeChecked();
 
     await act(async () => {
@@ -600,6 +615,68 @@ describe("Header controls after the Actions dropdown removal", () => {
     });
     expect(screen.getByRole("button", { name: /Simple stepper/ })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: /Movie reel/ })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("keeps surface menus exclusive and leaves Pop-out available for every view", async () => {
+    renderAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
+    });
+
+    const labels = [
+      "Agent flow diagram surface",
+      "Token topology surface",
+      "Simple step surface",
+      "Sequence view surface",
+      "OAuth Visualizer surface",
+    ];
+    for (const label of labels) {
+      const trigger = screen.getByRole("button", { name: label });
+      expect(trigger).not.toBeDisabled();
+      await act(async () => {
+        fireEvent.click(trigger);
+      });
+      expect(screen.getByRole("listbox", { name: `${label} options` })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: /^Pop-out\b/ })).not.toBeDisabled();
+      await act(async () => {
+        fireEvent.click(screen.getByRole("option", { name: /^Off\b/ }));
+      });
+    }
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Agent flow diagram surface" }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Token topology surface" }));
+    });
+    expect(screen.queryByRole("listbox", { name: "Agent flow diagram surface options" })).not.toBeInTheDocument();
+    expect(screen.getByRole("listbox", { name: "Token topology surface options" })).toBeInTheDocument();
+  });
+
+  it("supports dark mode and four-corner Quick Config resizing", async () => {
+    renderThemedAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText("Dark mode"));
+    });
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+
+    const quickConfig = document.querySelector(".ba-header-more-pop");
+    expect(quickConfig).not.toBeNull();
+    for (const direction of ["northwest", "northeast", "southwest", "southeast"]) {
+      expect(quickConfig.querySelector(`[aria-label="Resize ${direction}"]`)).toBeInTheDocument();
+    }
   });
 });
 
