@@ -5,10 +5,29 @@ export interface McpInitializationResult {
   oauthRequired?: boolean;
 }
 
-export interface McpRecoveryControllerOptions {
+export interface McpRecoveryInputs {
   serverNames: readonly string[] | (() => readonly string[]);
   initializeServer: (serverName: string, force: boolean) => Promise<McpInitializationResult>;
   deleteMessage: () => Promise<void>;
+}
+
+export type McpRecoveryControllerOptions =
+  | (McpRecoveryInputs & {
+      timeoutMs: number;
+    })
+  | {
+      getRecoveryInputs: () => McpRecoveryInputs;
+      timeoutMs: number;
+    };
+
+function getRecoveryInputs(options: McpRecoveryControllerOptions): McpRecoveryInputs {
+  if ('getRecoveryInputs' in options) {
+    return options.getRecoveryInputs();
+  }
+  return options;
+}
+
+interface RecoveryTimeoutOptions {
   timeoutMs: number;
 }
 
@@ -39,16 +58,15 @@ function initializeWithTimeout(
   });
 }
 
-export function createMcpRecoveryController({
-  serverNames,
-  initializeServer,
-  deleteMessage,
-  timeoutMs,
-}: McpRecoveryControllerOptions) {
+export function createMcpRecoveryController(options: McpRecoveryControllerOptions) {
+  const { timeoutMs } = options as RecoveryTimeoutOptions;
   let inFlight: Promise<RecoveryResult> | undefined;
   const serverOperations = new Map<string, Promise<McpInitializationResult>>();
 
-  function initialize(serverName: string): Promise<McpInitializationResult> {
+  function initialize(
+    serverName: string,
+    initializeServer: McpRecoveryInputs['initializeServer'],
+  ): Promise<McpInitializationResult> {
     const operation = Promise.resolve().then(() => initializeServer(serverName, true));
     serverOperations.set(serverName, operation);
     const releaseOperation = () => {
@@ -61,8 +79,11 @@ export function createMcpRecoveryController({
   }
 
   async function recoverOnce(): Promise<RecoveryResult> {
+    const recoveryInputs = getRecoveryInputs(options);
     const normalizedServerNames = normalizeMcpServerNames(
-      typeof serverNames === 'function' ? serverNames() : serverNames,
+      typeof recoveryInputs.serverNames === 'function'
+        ? recoveryInputs.serverNames()
+        : recoveryInputs.serverNames,
     );
     if (normalizedServerNames.length === 0) {
       return { status: 'no-server' };
@@ -72,7 +93,9 @@ export function createMcpRecoveryController({
     }
 
     const results = await Promise.all(
-      normalizedServerNames.map((serverName) => initializeWithTimeout(initialize(serverName), timeoutMs)),
+      normalizedServerNames.map((serverName) =>
+        initializeWithTimeout(initialize(serverName, recoveryInputs.initializeServer), timeoutMs),
+      ),
     );
 
     if (results.includes('authentication-required')) {
@@ -86,7 +109,7 @@ export function createMcpRecoveryController({
     }
 
     try {
-      await deleteMessage();
+      await recoveryInputs.deleteMessage();
       return { status: 'recovered' };
     } catch {
       return { status: 'delete-failed' };
