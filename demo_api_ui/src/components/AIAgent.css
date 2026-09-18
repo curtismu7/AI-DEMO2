@@ -8,6 +8,7 @@
 .banking-agent-panel {
   background: var(--th-bg-card) !important;
   background-color: var(--th-bg-card) !important;
+  color: var(--th-text);
 }
 /* ─── BankingAgent — theme-aware chat widget ────────────────────────────── */
 /* Royal blue primary (#4169E1) — distinct from slate / navy. */
@@ -281,6 +282,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   flex-direction: column;
   gap: 8px;
   background: var(--th-bg-card) !important;
+  color: var(--th-text);
 }
 
 .ba-left-label {
@@ -1439,6 +1441,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   .banking-agent-msg.assistant[data-source="attack-sim"]
   .banking-agent-msg-bubble {
   background: var(--th-bg-inset) !important;
+  color: var(--th-text);
   color: var(--th-text) !important;
   border-left: 3px solid #f59e0b !important;
 }
