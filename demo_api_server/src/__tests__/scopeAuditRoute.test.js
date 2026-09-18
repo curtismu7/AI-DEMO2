@@ -27,8 +27,8 @@ function buildApp() {
   return app;
 }
 
-/** Mock the two PingOne Management API calls the route makes. */
-function mockPingOne(resources, scopesByResourceId) {
+/** Mock the PingOne Management API calls the route makes. */
+function mockPingOne(resources, scopesByResourceId, applications = [], grantsByApplicationId = {}) {
   axios.get.mockImplementation((url) => {
     const scopesMatch = url.match(/\/resources\/([^/]+)\/scopes$/);
     if (scopesMatch) {
@@ -36,6 +36,15 @@ function mockPingOne(resources, scopesByResourceId) {
       return Promise.resolve({
         data: { _embedded: { scopes: names.map((name, i) => ({ id: `s-${i}`, name })) } },
       });
+    }
+    const grantsMatch = url.match(/\/applications\/([^/]+)\/grants$/);
+    if (grantsMatch) {
+      return Promise.resolve({
+        data: { _embedded: { grants: grantsByApplicationId[grantsMatch[1]] || [] } },
+      });
+    }
+    if (url.endsWith('/applications')) {
+      return Promise.resolve({ data: { _embedded: { applications } } });
     }
     return Promise.resolve({ data: { _embedded: { resources } } });
   });
@@ -119,5 +128,46 @@ describe('GET /api/admin/scope-audit/resources', () => {
     const [r] = res.body.resources;
     expect(r.expected).toBeNull();
     expect(r.scopes.map((s) => s.name)).toEqual(['openid', 'profile']);
+  });
+
+  it('reports a missing scope in the User App resource grant', async () => {
+    const expectedScopes = scopeTopology.appGrantedScopes('Super Banking User App');
+    mockPingOne(
+      [{ id: 'r1', name: 'Demo API', audience: 'enduser.ping.demo', type: 'CUSTOM' }],
+      { r1: scopeTopology.resourceScopes('Super Banking API') },
+      [{ id: 'a1', name: 'Demo AI App - User Login' }],
+      {
+        a1: [{ resource: { id: 'r1' }, scopes: expectedScopes
+          .filter((name) => name !== 'accounts:read')
+          .map((name) => ({ name })) }],
+      }
+    );
+
+    const res = await request(buildApp()).get('/api/admin/scope-audit/resources');
+
+    expect(res.status).toBe(200);
+    const app = res.body.applications.find((entry) => entry.topologyApp === 'Super Banking User App');
+    expect(app.status).toBe('MISMATCH');
+    expect(app.grants[0].missingRequired).toContain('accounts:read');
+    expect(app.allRequiredPresent).toBe(false);
+  });
+
+  it('reports an aligned User App resource grant', async () => {
+    const expectedScopes = scopeTopology.appGrantedScopes('Super Banking User App');
+    mockPingOne(
+      [{ id: 'r1', name: 'Demo API', audience: 'enduser.ping.demo', type: 'CUSTOM' }],
+      { r1: scopeTopology.resourceScopes('Super Banking API') },
+      [{ id: 'a1', name: 'Demo AI App - User Login' }],
+      {
+        a1: [{ resource: { id: 'r1' }, scopes: expectedScopes.map((name) => ({ name })) }],
+      }
+    );
+
+    const res = await request(buildApp()).get('/api/admin/scope-audit/resources');
+
+    const app = res.body.applications.find((entry) => entry.topologyApp === 'Super Banking User App');
+    expect(app.status).toBe('OK');
+    expect(app.grants[0].missingRequired).toEqual([]);
+    expect(app.allRequiredPresent).toBe(true);
   });
 });
