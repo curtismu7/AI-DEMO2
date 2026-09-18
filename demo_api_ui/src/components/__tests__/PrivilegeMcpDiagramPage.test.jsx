@@ -16,7 +16,7 @@ describe('PrivilegeMcpDiagramPage', () => {
     const link = screen.getByRole('link', { name: 'privilege/PRIVILEGE-MCP.md' });
     expect(link).toHaveAttribute(
       'href',
-      'https://github.com/curtismu7/AI-DEMO2/blob/main/privilege/PRIVILEGE-MCP.md',
+      'https://github.com/cmuir_pingcorp/AI-DEMO2/blob/main/privilege/PRIVILEGE-MCP.md',
     );
   });
 
