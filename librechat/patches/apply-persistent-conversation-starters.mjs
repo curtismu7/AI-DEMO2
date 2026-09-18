@@ -81,7 +81,7 @@ let messageContent = readFileSync('/app/client/src/components/Chat/Messages/Cont
 messageContent = replaceOnce(
   messageContent,
   "import { memo, Suspense, useMemo } from 'react';",
-  "import { memo, Suspense, useMemo, useState } from 'react';",
+  "import { memo, Suspense, useMemo, useRef, useState } from 'react';",
   'message recovery state import',
 );
 messageContent = replaceOnce(
@@ -153,41 +153,58 @@ export const ErrorMessage = ({
   const [isRecovering, setIsRecovering] = useState(false);
   const isMcpToolsUnavailable = text.includes('AGENT_EXPECTED_MCP_TOOLS_UNAVAILABLE');
 
-  const controller = useMemo(
-    () =>
-      createMcpRecoveryController({
-        serverNames: mcpValues ?? [],
-        initializeServer: async (serverName, force) => {
-          const result = await initializeServer(serverName, force);
-          return {
-            success: result?.success ?? false,
-            oauthRequired: result?.oauthRequired,
-          };
-        },
-        deleteMessage: async () => {
-          const conversationId = message?.conversationId;
-          const messageId = message?.messageId;
-          if (!conversationId || !messageId) {
-            throw new Error('Cannot clear a message without conversation and message IDs');
-          }
+  const recoveryInputsRef = useRef({
+    serverNames: mcpValues ?? [],
+    initializeServer,
+    getMessages,
+    setMessages,
+    conversationId: message?.conversationId,
+    messageId: message?.messageId,
+  });
+  recoveryInputsRef.current = {
+    serverNames: mcpValues ?? [],
+    initializeServer,
+    getMessages,
+    setMessages,
+    conversationId: message?.conversationId,
+    messageId: message?.messageId,
+  };
+  const controllerRef = useRef<ReturnType<typeof createMcpRecoveryController> | null>(null);
+  if (controllerRef.current === null) {
+    controllerRef.current = createMcpRecoveryController({
+      serverNames: () => recoveryInputsRef.current.serverNames,
+      initializeServer: async (serverName, force) => {
+        const result = await recoveryInputsRef.current.initializeServer(serverName, force);
+        return {
+          success: result?.success ?? false,
+          oauthRequired: result?.oauthRequired,
+        };
+      },
+      deleteMessage: async () => {
+        const { conversationId, messageId } = recoveryInputsRef.current;
+        if (!conversationId || !messageId) {
+          throw new Error('Cannot clear a message without conversation and message IDs');
+        }
 
-          const response = await fetch(
-            '/api/messages/' + encodeURIComponent(conversationId) + '/' + encodeURIComponent(messageId),
-            { method: 'DELETE', credentials: 'include' },
+        const response = await fetch(
+          '/api/messages/' + encodeURIComponent(conversationId) + '/' + encodeURIComponent(messageId),
+          { method: 'DELETE', credentials: 'include' },
+        );
+        if (!response.ok) {
+          throw new Error('Unable to clear the MCP error message');
+        }
+
+        const messages = recoveryInputsRef.current.getMessages();
+        if (messages) {
+          recoveryInputsRef.current.setMessages(
+            messages.filter((currentMessage) => currentMessage.messageId !== messageId),
           );
-          if (!response.ok) {
-            throw new Error('Unable to clear the MCP error message');
-          }
-
-          const messages = getMessages();
-          if (messages) {
-            setMessages(messages.filter((currentMessage) => currentMessage.messageId !== messageId));
-          }
-        },
-        timeoutMs: 10_000,
-      }),
-    [getMessages, initializeServer, mcpValues, message?.conversationId, message?.messageId, setMessages],
-  );
+        }
+      },
+      timeoutMs: 10_000,
+    });
+  }
+  const controller = controllerRef.current;
 
   if (text === ERROR_CONNECTION_TEXT) {
     return <ConnectionError message={message} />;

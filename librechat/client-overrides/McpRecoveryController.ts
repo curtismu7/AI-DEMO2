@@ -6,7 +6,7 @@ export interface McpInitializationResult {
 }
 
 export interface McpRecoveryControllerOptions {
-  serverNames: readonly string[];
+  serverNames: readonly string[] | (() => readonly string[]);
   initializeServer: (serverName: string, force: boolean) => Promise<McpInitializationResult>;
   deleteMessage: () => Promise<void>;
   timeoutMs: number;
@@ -61,7 +61,9 @@ export function createMcpRecoveryController({
   }
 
   async function recoverOnce(): Promise<RecoveryResult> {
-    const normalizedServerNames = normalizeMcpServerNames(serverNames);
+    const normalizedServerNames = normalizeMcpServerNames(
+      typeof serverNames === 'function' ? serverNames() : serverNames,
+    );
     if (normalizedServerNames.length === 0) {
       return { status: 'no-server' };
     }

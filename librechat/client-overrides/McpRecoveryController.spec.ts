@@ -162,4 +162,35 @@ describe('MCP recovery controller', () => {
 
     await expect(controller.recover()).resolves.toEqual({ status: 'delete-failed' });
   });
+
+  test('keeps its single-flight guard when current recovery inputs change during a rerender', async () => {
+    let resolveInitialization: ((result: InitializeResult) => void) | undefined;
+    const firstInitialize = jest.fn<Promise<InitializeResult>, [string, boolean]>(
+      () => new Promise((resolve) => {
+        resolveInitialization = resolve;
+      }),
+    );
+    const rerenderedInitialize = jest.fn<Promise<InitializeResult>, [string, boolean]>().mockResolvedValue({
+      success: true,
+    });
+    let currentInitialize = firstInitialize;
+    const currentServerNames = ['super-sports-gateway'];
+    const controller = createMcpRecoveryController({
+      serverNames: () => currentServerNames,
+      initializeServer: (serverName, force) => currentInitialize(serverName, force),
+      deleteMessage: jest.fn<Promise<void>, []>().mockResolvedValue(),
+      timeoutMs: 100,
+    });
+
+    const firstRecovery = controller.recover();
+    await Promise.resolve();
+    currentInitialize = rerenderedInitialize;
+
+    await expect(controller.recover()).resolves.toEqual({ status: 'in-flight' });
+    expect(firstInitialize).toHaveBeenCalledTimes(1);
+    expect(rerenderedInitialize).not.toHaveBeenCalled();
+
+    resolveInitialization?.({ success: true });
+    await expect(firstRecovery).resolves.toEqual({ status: 'recovered' });
+  });
 });
