@@ -32,6 +32,7 @@
  */
 const axios = require('axios');
 const configStore = require('./configStore');
+const scopeTopology = require('./scopeTopology');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
 const TIMEOUT_MS = 10_000;
@@ -49,11 +50,11 @@ const ACCESS_TOKEN_TYPE = 'urn:ietf:params:oauth:token-type:access_token';
 const cache = new Map();
 const EXPIRY_SKEW_MS = 30_000;
 
-function cacheKey(subjectToken, audience) {
+function cacheKey(subjectToken, audience, scopes = []) {
   // The subject token is the identity here; hashing keeps whole JWTs out of a
   // long-lived map without weakening the key.
-  const crypto = require('crypto');
-  return `${crypto.createHash('sha256').update(String(subjectToken)).digest('hex')}::${audience}`;
+  const crypto = require('node:crypto');
+  return `${crypto.createHash('sha256').update(String(subjectToken)).digest('hex')}::${audience}::${scopes.join(' ')}`;
 }
 
 function readCache(key) {
@@ -125,7 +126,7 @@ async function exchangeForUpstream(subjectToken, audience, scopes = []) {
     throw e;
   }
 
-  const key = cacheKey(subjectToken, audience);
+  const key = cacheKey(subjectToken, audience, scopes);
   const cached = readCache(key);
   if (cached) return { accessToken: cached, cached: true };
 
@@ -151,7 +152,7 @@ async function exchangeForUpstream(subjectToken, audience, scopes = []) {
     throw n;
   }
 
-  const token = resp.data && resp.data.access_token;
+  const token = resp.data?.access_token;
   if (!token) {
     const e = new Error('RFC 8693 exchange returned no access_token');
     e.code = 'exchange_no_token';
@@ -161,8 +162,137 @@ async function exchangeForUpstream(subjectToken, audience, scopes = []) {
   return { accessToken: token, cached: false };
 }
 
+function resolveAgentGatewayClient() {
+  const region = process.env.PINGONE_REGION || configStore.getEffective('PINGONE_REGION') || 'com';
+  const envId = process.env.PINGONE_ENVIRONMENT_ID || configStore.getEffective('PINGONE_ENVIRONMENT_ID');
+  const clientId = process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID
+    || configStore.getEffective('pingone_ai_agent_actor_client_id');
+  const clientSecret = process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET
+    || configStore.getEffective('pingone_ai_agent_actor_client_secret');
+  if (!envId || !clientId || !clientSecret) return null;
+  return {
+    tokenEndpoint: `https://auth.pingone.${region}/${envId}/as/token`,
+    clientId,
+    clientSecret,
+    authMethod: (process.env.PINGONE_AI_AGENT_CC_AUTH_METHOD || 'post').toLowerCase(),
+  };
+}
+
+function agentGatewayAudience() {
+  return process.env.PINGONE_RESOURCE_AGENT_GATEWAY_URI
+    || configStore.getEffective('pingone_resource_agent_gateway_uri')
+    || scopeTopology.resourceUri('Super Banking Agent Gateway')
+    || 'agentgateway.ping.demo';
+}
+
+function isAgentGatewayConfigured() {
+  return Boolean(resolveAgentGatewayClient());
+}
+
+function withClientAuth(client, body) {
+  if (client.authMethod === 'basic') {
+    body.delete('client_secret');
+    return { Authorization: `Basic ${Buffer.from(`${client.clientId}:${client.clientSecret}`).toString('base64')}` };
+  }
+  body.set('client_id', client.clientId);
+  body.set('client_secret', client.clientSecret);
+  return {};
+}
+
+/**
+ * Exchange a plain MCP-client user token for the Agent Gateway token that the
+ * gateway's agent-mediated tools require. The actor token is deliberately
+ * minted by the configured AI Agent application and included in the exchange;
+ * a subject-only audience swap would still arrive without an `act` claim and
+ * would be denied as impersonation before tool-specific policy runs.
+ */
+async function exchangeForAgentGateway(subjectToken, scopes = ['agent:invoke']) {
+  if (!subjectToken) {
+    const e = new Error('token exchange requires a subject token');
+    e.code = 'exchange_no_subject';
+    throw e;
+  }
+  const client = resolveAgentGatewayClient();
+  if (!client) {
+    const e = new Error(
+      'Agent Gateway delegation is not configured — set PINGONE_AI_AGENT_ACTOR_CLIENT_ID and '
+      + 'PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET (demo_api_server/.env).',
+    );
+    e.code = 'agent_exchange_not_configured';
+    throw e;
+  }
+  const audience = agentGatewayAudience();
+  const requestedScopes = [...new Set(scopes.filter(Boolean))];
+  const key = cacheKey(subjectToken, audience, requestedScopes);
+  const cached = readCache(key);
+  if (cached) return { accessToken: cached, cached: true };
+
+  const actorScope = configStore.getEffective('agent_gateway_cc_scope') || 'agent:invoke';
+  const actorKey = cacheKey(client.clientId, audience, [actorScope]);
+  let actorToken = readCache(actorKey);
+  if (!actorToken) {
+    const actorBody = new URLSearchParams({
+      grant_type: 'client_credentials',
+      audience,
+      scope: actorScope,
+    });
+    const actorHeaders = withClientAuth(client, actorBody);
+    let actorResponse;
+    try {
+      actorResponse = await axios.post(client.tokenEndpoint, actorBody.toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...actorHeaders },
+        timeout: TIMEOUT_MS,
+      });
+    } catch (err) {
+      const n = normalizeAxiosError(err, { label: 'AI Agent actor token', timeoutMs: TIMEOUT_MS });
+      n.code = 'agent_actor_failed';
+      throw n;
+    }
+    actorToken = actorResponse.data?.access_token;
+    if (!actorToken) {
+      const e = new Error('AI Agent actor token response missing access_token');
+      e.code = 'agent_actor_no_token';
+      throw e;
+    }
+    writeCache(actorKey, actorToken, actorResponse.data.expires_in);
+  }
+
+  const exchangeBody = new URLSearchParams({
+    grant_type: GRANT_TYPE,
+    subject_token: subjectToken,
+    subject_token_type: ACCESS_TOKEN_TYPE,
+    actor_token: actorToken,
+    actor_token_type: ACCESS_TOKEN_TYPE,
+    requested_token_type: ACCESS_TOKEN_TYPE,
+    resource: audience,
+    scope: requestedScopes.join(' '),
+  });
+  const exchangeHeaders = withClientAuth(client, exchangeBody);
+  let response;
+  try {
+    response = await axios.post(client.tokenEndpoint, exchangeBody.toString(), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...exchangeHeaders },
+      timeout: TIMEOUT_MS,
+    });
+  } catch (err) {
+    const n = normalizeAxiosError(err, { label: 'RFC 8693 Agent Gateway exchange', timeoutMs: TIMEOUT_MS });
+    n.code = 'agent_exchange_failed';
+    throw n;
+  }
+  const token = response.data?.access_token;
+  if (!token) {
+    const e = new Error('Agent Gateway exchange response missing access_token');
+    e.code = 'agent_exchange_no_token';
+    throw e;
+  }
+  writeCache(key, token, response.data.expires_in);
+  return { accessToken: token, cached: false };
+}
+
 module.exports = {
   exchangeForUpstream,
+  exchangeForAgentGateway,
   isConfigured,
-  __test: { cache, cacheKey, resolveExchangeClient },
+  isAgentGatewayConfigured,
+  __test: { cache, cacheKey, resolveExchangeClient, resolveAgentGatewayClient },
 };

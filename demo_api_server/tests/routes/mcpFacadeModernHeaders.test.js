@@ -15,6 +15,9 @@ jest.mock('../../services/lmdb/transactionLedger.lmdb', () => ({ appendHop: jest
 jest.mock('../../services/transactionAssembler', () => ({ assemble: jest.fn() }));
 jest.mock('../../services/configStore', () => ({ getEffective: jest.fn(() => 'true') }));
 jest.mock('../../services/jwksService', () => ({ getPublicKey: jest.fn() }));
+jest.mock('../../services/facadeUpstreamExchange', () => ({
+  isAgentGatewayConfigured: () => false,
+}));
 
 const express = require('express');
 const request = require('supertest');
