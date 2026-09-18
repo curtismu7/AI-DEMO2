@@ -330,3 +330,27 @@
 .sdkl-empty {
   color: var(--th-text-muted);
 }
+.sdk-lesson-code {
+  margin: 0.75rem 0;
+  color: var(--th-text-body);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+}
+
+.sdk-lesson-code > summary {
+  padding: 0.65rem 0.8rem;
+  color: var(--th-link);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sdk-lesson-code > summary:focus-visible {
+  outline: 2px solid var(--th-focus-ring);
+  outline-offset: -2px;
+}
+
+.sdk-lesson-code > .lesson-code {
+  margin: 0;
+  border-top: 1px solid var(--th-border);
+}

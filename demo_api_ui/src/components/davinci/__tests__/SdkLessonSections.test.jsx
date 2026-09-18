@@ -42,6 +42,17 @@ describe("SdkLessonSections", () => {
     expect(container.querySelectorAll("#collectors .lesson-code-copy").length).toBeGreaterThanOrEqual(6);
   });
 
+  it("wraps every static lesson code sample in a closed disclosure without changing its source", () => {
+    const { container } = render(<SdkLessonSections />);
+    const disclosures = [...container.querySelectorAll(".sdk-lesson-code")];
+    const codeBlocks = [...container.querySelectorAll(".lesson-code")];
+
+    expect(disclosures).toHaveLength(codeBlocks.length);
+    expect(disclosures.length).toBeGreaterThan(0);
+    expect(disclosures.every((disclosure) => !disclosure.hasAttribute("open"))).toBe(true);
+    expect(container.querySelector("#pi-flow pre code").textContent).toContain('import { davinci } from "@forgerock/davinci-client"');
+  });
+
   it("shows the captured branch: the FlowCollector's POST and the form DaVinci stopped at", () => {
     const { container } = render(<SdkLessonSections />);
     const api = container.querySelector("#api-calls").textContent;
@@ -64,9 +75,26 @@ describe("SdkLessonSections", () => {
     const collectors = container.querySelector("#collectors").textContent;
 
     expect(collectors).toContain("RichTextCollector");
+    expect(collectors).toContain("text-only");
     expect(collectors).toContain("ERROR_DISPLAY");
+    expect(collectors).toContain("informational, non-input");
     expect(collectors).toContain("ProtectCollector");
     expect(collectors).toContain("Security check active");
+    expect(collectors).toContain("flow status");
+  });
+
+  it("distinguishes preview patterns from this browser's live evidence and documents the routing rules", () => {
+    const { container } = render(<SdkLessonSections />);
+    const text = container.textContent;
+
+    expect(text).toContain("copyable pattern");
+    expect(text).toContain("evidence from this browser run");
+    expect(text).toContain("response_mode=pi.flow");
+    expect(text).toContain("two policies selected");
+    expect(text).toContain("client.update(collector)(value)");
+    expect(text).toContain("client.next()");
+    expect(text).toContain("client.flow({ action })()");
+    expect(text).toContain("BFF makes the session");
   });
 
   it("reports pi.flow from the real authorize request, and never its values", () => {
