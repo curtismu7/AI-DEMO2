@@ -12735,6 +12735,7 @@ export default function BankingAgent({
       />
       <SimpleStepperPanel
         isOpen={showSimpleStepperPopout}
+        autoPopOut
         onClose={() => {
           // Persist, same as the "Simple step" switch. Without this the ✕ only
           // closed it for the current render and ba_show_simple_stepper stayed

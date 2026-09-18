@@ -29,6 +29,8 @@ import * as demoAgentService from "../../services/demoAgentService";
 import * as agentAccessConsent from "../../services/agentAccessConsent";
 import { useVertical } from "../../vertical/useVertical";
 
+const simpleStepperPanelMock = vi.hoisted(() => ({ props: [] }));
+
 // ─── Mock heavy dependencies ─────────────────────────────────────────────────
 
 vi.mock("../../context/IndustryBrandingContext", () => ({
@@ -81,6 +83,13 @@ vi.mock("../../context/SessionTokenContext", () => ({
     staleSession: false,
     hasActiveToken: true,
   }),
+}));
+
+vi.mock("../SimpleStepperPanel", () => ({
+  default: (props) => {
+    simpleStepperPanelMock.props.push(props);
+    return null;
+  },
 }));
 
 vi.mock("../../services/demoAgentNlService", () => ({
@@ -527,6 +536,30 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.change(screen.getByLabelText("Sequence view surface"), { target: { value: "popout" } });
     });
     expect(screen.getByLabelText("Agent flow diagram surface")).not.toBeDisabled();
+  });
+
+  it("auto-pops the Simple Stepper when its surface is set to pop-out", async () => {
+    simpleStepperPanelMock.props.length = 0;
+    renderAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
+    });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText("Simple step surface"), {
+        target: { value: "popout" },
+      });
+    });
+
+    await waitFor(() => {
+      expect(simpleStepperPanelMock.props.at(-1)).toEqual(expect.objectContaining({
+        isOpen: true,
+        autoPopOut: true,
+      }));
+    });
   });
 });
 

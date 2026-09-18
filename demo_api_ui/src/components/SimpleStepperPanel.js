@@ -11,7 +11,7 @@ import './SimpleStepperPanel.css';
  * Simple Stepper's compact per-step audit table. Its shell is owned by the
  * shared DraggableModal so it has consistent drag, resize, and pop-out controls.
  */
-export default function SimpleStepperPanel({ isOpen, onClose }) {
+export default function SimpleStepperPanel({ isOpen, onClose, autoPopOut = false }) {
   const ctx = useTokenChainOptional();
 
   // Keep the shared modal mounted only while visible. Its unmount cleanup owns
@@ -33,6 +33,7 @@ export default function SimpleStepperPanel({ isOpen, onClose }) {
       defaultHeight={480}
       minWidth={360}
       minHeight={240}
+      autoPopOut={autoPopOut}
     >
       <div className="sstp-body">
         {events.length === 0 ? (
