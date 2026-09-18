@@ -54,6 +54,7 @@ const clientReturning = (node, authorization, errorMessage = null) => ({
 describe("DavinciSdkLoginPage when PingOne already has a session", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sessionStorage.clear();
     sdk.fetchSdkConfig.mockResolvedValue(CFG);
     sdk.takePkceVerifier.mockReturnValue("verifier-1");
     sdk.postCallback.mockResolvedValue({ ok: true, username: "demoAdmin" });
@@ -161,6 +162,23 @@ describe("DavinciSdkLoginPage when PingOne already has a session", () => {
     fireEvent.click(await findByRole("button", { name: SIGN_OUT }));
 
     await waitFor(() => expect(sdk.signOutOfPingOne).toHaveBeenCalledWith(CFG));
+  });
+
+  it("keeps a display-safe sign-off frame visible after the PingOne redirect returns", async () => {
+    sdk.initClient.mockResolvedValue(clientReturning({ status: "success" }, { code: "code-1" }));
+
+    const first = render(<DavinciSdkLoginPage />);
+    fireEvent.click(await first.findByRole("button", { name: SIGN_OUT }));
+    expect(await first.findByRole("button", { name: /frame \d+: pingone sign-off requested/i })).toBeInTheDocument();
+    first.unmount();
+
+    const returned = render(<DavinciSdkLoginPage />);
+    const frame = await returned.findByRole("button", { name: /frame 1: pingone sign-off requested/i });
+    fireEvent.click(frame);
+    const detail = returned.getByRole("region", { name: /selected frame: pingone sign-off requested/i });
+    expect(detail.textContent).toContain("signOutOfPingOne");
+    expect(detail.textContent).toContain("post_logout_redirect_uri");
+    expect(detail.textContent).not.toMatch(/nonce-1|code-1|verifier-1/);
   });
 
   it("offers the same sign-out, not a bare error code, on userSessionMismatch", async () => {

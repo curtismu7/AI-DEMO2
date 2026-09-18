@@ -41,6 +41,16 @@ import "./DavinciSdkLoginPage.css";
 const triggerOf = (c) =>
   c ? { type: c.type, key: c.output?.key ?? c.name, label: c.output?.label ?? null } : null;
 
+const LOGOUT_REEL_MARKER = "davinci-sdk-logout-reel";
+const logoutReelEvent = (at = Date.now()) => createOperationEvent({
+  at,
+  lane: "sdk",
+  kind: "logout",
+  label: "PingOne sign-off requested",
+  codeKey: "logout",
+  detail: { method: "GET", path: "/as/signoff", paramNames: ["client_id", "post_logout_redirect_uri"], status: "requested" },
+});
+
 export default function DavinciSdkLoginPage() {
   // loading | collecting | completing | signedIn | notConfigured | failed
   const [phase, setPhase] = useState("loading");
@@ -220,20 +230,32 @@ export default function DavinciSdkLoginPage() {
   // clean form, which is the way to sign in as a different user. See
   // signOutOfPingOne.
   const signOut = useCallback(() => {
+    appendExecutionEvent(logoutReelEvent());
+    // A browser redirect destroys this component. Keep only a timestamp so the
+    // sign-off request remains visible in the reel when PingOne returns here.
+    try { window.sessionStorage.setItem(LOGOUT_REEL_MARKER, String(Date.now())); } catch { /* storage unavailable */ }
     signOutOfPingOne(cfgRef.current).catch((err) => {
+      try { window.sessionStorage.removeItem(LOGOUT_REEL_MARKER); } catch { /* storage unavailable */ }
       setMessage(err.message);
       setPhase("failed");
     });
-  }, []);
+  }, [appendExecutionEvent]);
 
   const start = useCallback(async () => {
     setPhase("loading");
     setMessage(null);
     setMissing(null);
     setSteps([]);
-    setExecutionEvents([]);
+    let logoutAt = 0;
+    try {
+      logoutAt = Number(window.sessionStorage.getItem(LOGOUT_REEL_MARKER)) || 0;
+      window.sessionStorage.removeItem(LOGOUT_REEL_MARKER);
+    } catch { /* storage unavailable */ }
+    // A stale marker is not evidence of this navigation's sign-off request.
+    const returningFromLogout = logoutAt > 0 && Date.now() - logoutAt < 5 * 60 * 1000;
+    setExecutionEvents(returningFromLogout ? [{ ...logoutReelEvent(logoutAt), id: "execution-1", sequence: 1 }] : []);
     traceRef.current = [];
-    executionSequenceRef.current = 0;
+    executionSequenceRef.current = returningFromLogout ? 1 : 0;
     try {
       const cfg = await fetchSdkConfig();
       cfgRef.current = cfg;

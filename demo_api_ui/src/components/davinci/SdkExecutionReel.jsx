@@ -12,6 +12,7 @@ const codeFor = {
   start: "const node = await client.start({ query: { nonce } });",
   flow: "const node = await client.flow({ action })();",
   "update-next": "client.update(collector)(value);\nconst node = await client.next();",
+  logout: "await signOutOfPingOne(cfg); // GET /as/signoff, then return to cfg.redirectUri",
 };
 
 function json(value) {
@@ -70,7 +71,7 @@ function FrameDetails({ event }) {
   return (
     <section className="sdk-reel-detail" aria-label={`Selected frame: ${event.label}`}>
       <h4>{event.label}</h4>
-      <p>Frame {event.sequence} explains the DaVinci and SDK boundary for this captured event.</p>
+      <p>Frame {event.sequence} {event.kind === "logout" ? "records the PingOne sign-off handoff; it does not prove the session ended." : "explains the DaVinci and SDK boundary for this captured event."}</p>
       <details>
         <summary>Code</summary>
         <pre><code>{codeFor[event.codeKey] || "// This event was observed from the SDK trace."}</code></pre>
@@ -80,7 +81,7 @@ function FrameDetails({ event }) {
         <pre><code>{json(request)}</code></pre>
       </details>
       <details>
-        <summary>DaVinci response</summary>
+        <summary>{event.kind === "logout" ? "PingOne handoff" : "DaVinci response"}</summary>
         <pre><code>{json(response)}</code></pre>
       </details>
       <details>

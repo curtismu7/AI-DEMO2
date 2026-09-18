@@ -84,5 +84,8 @@ describe("PREVIEW_EVENTS", () => {
       ]),
     );
     expect(JSON.stringify(PREVIEW_EVENTS)).not.toMatch(/secret|password=|authorization_code=/i);
+    expect(PREVIEW_EVENTS).toEqual(expect.arrayContaining([
+      expect.objectContaining({ lane: "sdk", kind: "logout", label: "PingOne sign-off requested" }),
+    ]));
   });
 });
