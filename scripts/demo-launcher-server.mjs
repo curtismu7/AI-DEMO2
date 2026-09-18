@@ -119,6 +119,33 @@ function writeText(response, statusCode, body) {
   response.end(body);
 }
 
+function isTrustedStartRequest(request) {
+  const fetchSite = request.headers['sec-fetch-site'];
+  if (typeof fetchSite === 'string' && fetchSite.toLowerCase() === 'cross-site') {
+    return false;
+  }
+
+  const origin = request.headers.origin;
+  if (origin === undefined) {
+    return true;
+  }
+  if (typeof origin !== 'string') {
+    return false;
+  }
+
+  try {
+    return isLoopbackHost(new URL(origin).hostname);
+  } catch {
+    return false;
+  }
+}
+
+function discardRequestBody(request) {
+  if (typeof request.resume === 'function') {
+    request.resume();
+  }
+}
+
 async function hasRequestBody(request) {
   if (request.headers['content-length'] && request.headers['content-length'] !== '0') {
     return true;
@@ -235,7 +262,13 @@ export function createLauncherServer({
         writeText(response, 405, 'Method not allowed');
         return;
       }
+      if (!isTrustedStartRequest(request)) {
+        discardRequestBody(request);
+        writeText(response, 403, 'Cross-origin startup is not allowed');
+        return;
+      }
       if (await hasRequestBody(request)) {
+        discardRequestBody(request);
         writeText(response, 400, 'Request body is not supported');
         return;
       }
