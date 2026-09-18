@@ -292,9 +292,6 @@ export default function TopNav({ user, onLogout }) {
               </div>
             )}
 
-            {/* Favorites → quick jump to pages you run a lot (per-browser). */}
-            <FavoritesMenu />
-
             {/* Search → Code Search (RAG) page */}
             <div className="topnav-search">
               <button
@@ -309,6 +306,11 @@ export default function TopNav({ user, onLogout }) {
             </div>
 
           </div>
+
+          {/* Keep the dropdown outside the horizontal scroller. The menu is
+              absolutely positioned below this control, and the scroller's
+              overflow clipping would hide it after the trigger opens it. */}
+          <FavoritesMenu />
 
           {/* Theme toggle — always visible (outside the scroll area) so it never
               scrolls off, and available to every page since TopNav is app-wide. */}
