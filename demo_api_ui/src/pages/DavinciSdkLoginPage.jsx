@@ -168,7 +168,7 @@ export default function DavinciSdkLoginPage() {
   // Declared before start() because start() depends on it: a const in a
   // useCallback dependency array is read at render time, so referencing it
   // above its declaration throws.
-  const finish = useCallback(async (client, { reused = false } = {}) => {
+  const finish = useCallback(async (client, { reused = false, originCodeKey = null } = {}) => {
     const code = client.getClient?.()?.authorization?.code;
     if (!code) throw new Error("The flow succeeded but returned no authorization code.");
     // The SDK owns the PKCE verifier; the BFF does the exchange and holds the
@@ -178,13 +178,27 @@ export default function DavinciSdkLoginPage() {
     // The authorization code is not a session until the BFF accepts it; the
     // page must visibly wait for that callback before showing the run summary.
     setPhase("completing");
-    const result = await postCallback({ code, codeVerifier });
+    let result;
+    try {
+      result = await postCallback({ code, codeVerifier });
+    } catch (err) {
+      appendExecutionEvent(
+        createOperationEvent({
+          lane: "sdk",
+          kind: "terminal",
+          label: "SDK callback failed",
+          codeKey: originCodeKey,
+          detail: { status: "failure" },
+        }),
+      );
+      throw err;
+    }
     appendExecutionEvent(
       createOperationEvent({
         lane: "sdk",
         kind: "terminal",
         label: "SDK completes the callback",
-        codeKey: "update-next",
+        codeKey: originCodeKey,
         detail: { status: "success" },
       }),
     );
@@ -268,7 +282,7 @@ export default function DavinciSdkLoginPage() {
       if (node?.status === "success") {
         // reused: nobody typed anything, so finish() shows who this signed in
         // as, with Continue / sign out.
-        await finish(client, { reused: true });
+        await finish(client, { reused: true, originCodeKey: "start" });
         return;
       }
       syncFromClient(client, node);
@@ -318,7 +332,7 @@ export default function DavinciSdkLoginPage() {
       // FlowCollector. Without this the COMPLETED node fell through to an empty
       // form and the code never reached the BFF.
       if (node?.status === "success") {
-        await finish(client);
+        await finish(client, { originCodeKey: "flow" });
         return;
       }
       if (node?.status === "failure") {
@@ -361,7 +375,7 @@ export default function DavinciSdkLoginPage() {
       const node = await client.next();
       recordStep(client, "next", node, from, triggerOf(collector));
       if (node?.status === "success") {
-        await finish(client);
+        await finish(client, { originCodeKey: "update-next" });
         return;
       }
       if (node?.status === "failure") {
