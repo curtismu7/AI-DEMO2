@@ -2,6 +2,15 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { TMessage } from 'librechat-data-provider';
 import { ErrorMessage } from './MessageContent';
+import { createMcpRecoveryController } from './McpRecoveryController';
+
+jest.mock('./McpRecoveryController', () => {
+  const actual = jest.requireActual('./McpRecoveryController');
+  return {
+    ...actual,
+    createMcpRecoveryController: jest.fn(actual.createMcpRecoveryController),
+  };
+});
 
 const mockInitializeFirst = jest.fn();
 const mockInitializeSecond = jest.fn();
@@ -95,7 +104,15 @@ describe('MCP recovery ErrorMessage', () => {
     rerender(<ErrorMessage text="AGENT_EXPECTED_MCP_TOOLS_UNAVAILABLE" message={secondMessage} />);
 
     expect(screen.getByRole('button', { name: 'Reconnecting…' })).toBeDisabled();
-    fireEvent.click(screen.getByRole('button', { name: 'Reconnecting…' }));
+    // Exercise the real controller used by the mounted UI directly: a disabled
+    // button (and the handler's state guard) would otherwise mask a lost lock.
+    const controllerFactory = jest.mocked(createMcpRecoveryController);
+    expect(controllerFactory).toHaveBeenCalledTimes(1);
+    const controller = controllerFactory.mock.results[0].value;
+    const secondDelete = jest.fn().mockResolvedValue(undefined);
+    await expect(controller.recover(secondDelete)).resolves.toEqual({ status: 'in-flight' });
+    expect(secondDelete).not.toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalled();
     expect(mockInitializeFirst).toHaveBeenCalledTimes(1);
     expect(mockInitializeSecond).not.toHaveBeenCalled();
     mockResolveInitialization?.({ success: true });
@@ -107,6 +124,8 @@ describe('MCP recovery ErrorMessage', () => {
       ),
     );
     expect(mockInitializeSecond).not.toHaveBeenCalled();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(secondDelete).not.toHaveBeenCalled();
     expect(mockSetMessages).toHaveBeenCalledWith([secondMessage]);
   });
 });

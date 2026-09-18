@@ -132,3 +132,38 @@ specific recovery attempt.
   ai-demo-librechat:persistent-starters .` from `librechat/` — exit 0.
   The focused client gate passed all 5 suites (28 tests), followed by the
   production client build and image export.
+
+## Fix round 4 — exercise the retained controller despite disabled UI
+
+### Finding addressed
+
+Clicking the disabled recovery button could not reach the recovery controller,
+so the rerender test's initializer assertions only established UI disabling.
+
+### Fix and regression evidence
+
+- The mounted test wraps the real controller factory in a Jest spy that delegates
+  to the actual implementation. No controller behavior is mocked.
+- After starting recovery through the button and rerendering with another message
+  and server, the test asserts the factory was called exactly once. A controller
+  recreation now fails that assertion.
+- The test calls that exact controller's `recover(secondDelete)` directly and
+  asserts `{ status: 'in-flight' }`, bypassing both the disabled DOM control and
+  the handler's state guard. It checks that neither the new initializer nor the
+  second deletion callback runs and no DELETE occurs before initialization settles.
+- Once the first initialization completes, exactly one DELETE targets the original
+  message and local state retains the second message. The second deletion callback
+  remains unused. Production behavior, per-attempt callbacks, and message snapshots
+  are unchanged.
+
+### Verification
+
+- `node --check librechat/patches/apply-persistent-conversation-starters.mjs` — exit 0.
+- `git diff --check` — exit 0.
+- Focused Docker gate command from this worktree's `librechat/` directory:
+  `docker build --progress=plain -f Dockerfile -t ai-demo-librechat:persistent-starters .`
+  Exact test output: `Test Suites: 5 passed, 5 total`; `Tests: 28 passed, 28 total`.
+  `McpRecoveryErrorMessage.spec.tsx` passed; production client output:
+  `built in 5.01s`. Full log: `/tmp/mcp-recovery-round4-build.log`.
+  Image export and unpack completed (`#10 DONE 96.9s`); Docker gate exit 0.
+- `graphify update .` — exit 0 (existing parser warnings in unrelated files).
