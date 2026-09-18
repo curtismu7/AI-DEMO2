@@ -14,6 +14,7 @@ test('documents the fixed local demo controls without exposing credentials', asy
   assert.match(html, /rel="icon"/);
   assert.match(html, /Check services/);
   assert.match(html, /Open LibreChat/);
+  assert.match(html, /href="http:\/\/localhost:3080"/);
   assert.match(html, /local\.ping-devops\.com:4000/);
   assert.match(html, /Policy Guardrails/);
   assert.match(html, /AGENT_EXPECTED_MCP_TOOLS_UNAVAILABLE/);
@@ -28,13 +29,16 @@ test('uses only the fixed status endpoint and does not accept external URLs', as
   assert.doesNotMatch(html, /URLSearchParams|location\.search|[?&]url=/);
 });
 
-test('keeps the launcher wrapper on loopback and starts demo auth dependencies', async () => {
+test('keeps the launcher wrapper on loopback, starts every fixed dependency, and waits for service readiness', async () => {
   const script = await readFile(launcherScriptPath, 'utf8');
 
   assert.match(script, /LAUNCHER_HOST="127\.0\.0\.1"/);
   assert.match(script, /export DEMO_LAUNCHER_HOST="\$\{LAUNCHER_HOST\}"/);
   assert.doesNotMatch(script, /\$\{DEMO_LAUNCHER_HOST/);
   assert.match(script, /\.\/run-docker\.sh optional start demo-auth/);
+  assert.match(script, /docker compose -f librechat\/docker-compose\.yml up -d api/);
+  assert.match(script, /\$\{LAUNCHER_URL\}\/api\/status/);
+  assert.match(script, /Demo services ready: %s\/api\/status/);
 });
 
 function runLauncherWithPort(port) {

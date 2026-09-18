@@ -15,6 +15,7 @@ export DEMO_LAUNCHER_HOST="${LAUNCHER_HOST}"
 cd "${REPOSITORY_ROOT}"
 ./run-docker.sh
 ./run-docker.sh optional start demo-auth
+docker compose -f librechat/docker-compose.yml up -d api
 
 if ! curl --silent --fail --max-time 1 "${LAUNCHER_URL}/health" >/dev/null 2>&1; then
   DEMO_LAUNCHER_PORT="${LAUNCHER_PORT}" nohup node scripts/demo-launcher-server.mjs >/tmp/ai-demo-launcher.log 2>&1 &
@@ -36,6 +37,19 @@ if ! curl --silent --fail --max-time 1 "${LAUNCHER_URL}/health" >/dev/null 2>&1;
 fi
 
 printf 'Demo launcher: %s\n' "${LAUNCHER_URL}"
+
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+  if curl --silent --fail --max-time 1 "${LAUNCHER_URL}/api/status" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
+if ! curl --silent --fail --max-time 1 "${LAUNCHER_URL}/api/status" >/dev/null 2>&1; then
+  printf 'Demo services did not become ready: %s/api/status\n' "${LAUNCHER_URL}" >&2
+  exit 1
+fi
+
+printf 'Demo services ready: %s/api/status\n' "${LAUNCHER_URL}"
 
 if [[ "${DEMO_LAUNCHER_OPEN:-0}" == "1" ]]; then
   if command -v open >/dev/null 2>&1; then

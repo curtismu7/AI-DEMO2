@@ -19,13 +19,13 @@
       <p class="eyebrow">AI demo operator guide</p>
       <h1>Start it. Prove it. Teach it.</h1>
       <p class="lead">This local-only page readies the LibreChat demo and gives the next presenter a repeatable path through PingOne, MCP, policy guardrails, and recovery.</p>
-      <div class="actions" aria-label="Demo actions"><button type="button" id="start">Start LibreChat</button><button type="button" class="secondary" id="check">Check services</button><a class="button secondary" href="https://local.ping-devops.com:4000" id="open-librechat">Open LibreChat</a></div>
-      <p class="notice">The canonical browser origin is <code>https://local.ping-devops.com:4000</code>. Use it for PingOne sign-in; do not use a localhost browser URL for this demo.</p>
+      <div class="actions" aria-label="Demo actions"><button type="button" id="start">Start LibreChat</button><button type="button" class="secondary" id="check">Check services</button><a class="button secondary" href="http://localhost:3080" id="open-librechat">Open LibreChat</a></div>
+      <p class="notice">LibreChat runs at <code>http://localhost:3080</code>. The separate root demo UI remains at <code>https://local.ping-devops.com:4000</code>.</p>
     </div></header>
     <main class="shell">
       <section aria-labelledby="ready-heading">
         <h2 id="ready-heading">Ready the demo</h2>
-        <p>Start the full local stack from the repository root with <code>./run-docker.sh</code>, or use the Start LibreChat action above. The action only starts the fixed local demo stack. It never accepts a command or destination from the browser.</p>
+        <p>Use Start LibreChat to start the fixed root stack, demo-auth group, and LibreChat compose service. The action waits for the fixed local health checks before reporting ready. It never accepts a command or destination from the browser.</p>
         <p class="status" id="status" role="status" aria-live="polite">Status has not been checked yet. The instructions on this page work without JavaScript.</p>
         <div class="grid" id="services" aria-label="Service readiness">
           <article class="card"><h3>LibreChat</h3><p>Chat interface and agent workspace.</p><span class="state">Check services for live readiness.</span></article>
@@ -36,7 +36,7 @@
       </section>
       <section aria-labelledby="happy-heading">
         <h2 id="happy-heading">Run the happy path</h2>
-        <ol><li>Open LibreChat at the canonical origin and complete the PingOne sign-in when prompted.</li><li>Choose the <strong>Policy Guardrails</strong> agent from the top agent menu.</li><li>Open the MCP servers panel on the left. Select the matching <strong>super-sports-gateway</strong> server and use its reconnect control if it is not green.</li><li>Start a new chat after changing the agent or MCP server, then use one of the prompts below.</li></ol>
+        <ol><li>Open LibreChat at <code>http://localhost:3080</code> and complete the PingOne sign-in when prompted.</li><li>Choose the <strong>Policy Guardrails</strong> agent from the top agent menu.</li><li>Open the MCP servers panel on the left. Select the matching <strong>super-sports-gateway</strong> server and use its reconnect control if it is not green.</li><li>Start a new chat after changing the agent or MCP server, then use one of the prompts below.</li></ol>
         <div aria-label="Copyable demo prompts"><div class="prompt"><code>Show my active equipment rentals</code><button type="button" class="copy" data-copy="Show my active equipment rentals">Copy</button></div><div class="prompt"><code>What is my loyalty points balance?</code><button type="button" class="copy" data-copy="What is my loyalty points balance?">Copy</button></div><div class="prompt"><code>Extend my Trek Marlin 8 rental (3001) by 2 days</code><button type="button" class="copy" data-copy="Extend my Trek Marlin 8 rental (3001) by 2 days">Copy</button></div><div class="prompt"><code>Show my sensitive membership payment details</code><button type="button" class="copy" data-copy="Show my sensitive membership payment details">Copy</button></div></div>
       </section>
       <section aria-labelledby="controls-heading"><h2 id="controls-heading">Show the controls</h2><div class="two-up"><article class="lesson"><h3>MCP server status</h3><p>A green dot means the server is connected. A yellow dot means it needs attention, commonly authentication. Use the reconnect icon beside that server. Pick only the server that matches the selected agent so its MCP tools are available to the chat.</p></article><article class="lesson"><h3>Bounded recovery</h3><p>When a tool-dependent agent reports <code>AGENT_EXPECTED_MCP_TOOLS_UNAVAILABLE</code>, use <strong>Clear error &amp; reconnect</strong>. It starts one fresh connection attempt for the selected MCP server and clears the saved error only after every selected server reconnects successfully.</p></article></div></section>
@@ -44,7 +44,7 @@
       <section aria-labelledby="troubleshooting-heading"><h2 id="troubleshooting-heading">If something fails</h2>
         <details><summary>Service readiness is unavailable</summary><p>From the repository root, check the known local services, then inspect only the affected containers.</p><pre class="commands"><code>npm run demo:launcher<br>./run-docker.sh status<br>docker logs ai-demo-mcp-gateway --tail 100<br>docker logs librechat --tail 100</code></pre></details>
         <details><summary>The MCP gateway is not running</summary><p>Start the supported demo-auth optional group, then reconnect the matching MCP server in LibreChat.</p><pre class="commands"><code>./run-docker.sh optional start demo-auth<br>./run-docker.sh status</code></pre></details>
-        <details><summary>PingOne sign-in loops or the demo user is rejected</summary><p>Use a fresh private window and return to the canonical origin. A browser page served from localhost cannot complete this demo's PingOne sign-in contract.</p><pre class="commands"><code>https://local.ping-devops.com:4000</code></pre></details>
+        <details><summary>PingOne sign-in loops or the demo user is rejected</summary><p>Use a fresh private window and return to LibreChat at its local URL. The canonical root demo UI is a separate application.</p><pre class="commands"><code>http://localhost:3080</code></pre></details>
         <details><summary>The old error remains after refresh</summary><p>Use Clear error &amp; reconnect from the failed message. The saved error stays visible when reconnect, authentication, or deletion fails so the presenter can show the real state and retry safely.</p></details>
       </section>
     </main>
