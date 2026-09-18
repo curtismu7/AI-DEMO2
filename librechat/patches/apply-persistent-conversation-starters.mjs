@@ -77,6 +77,158 @@ writeFileSync(mcpRecoveryControllerPath, mcpRecoveryController);
 const mcpRecoveryControllerTest = readFileSync(`${overrideRoot}/McpRecoveryController.spec.ts`, 'utf8');
 writeFileSync(mcpRecoveryControllerTestPath, mcpRecoveryControllerTest);
 
+let messageContent = readFileSync('/app/client/src/components/Chat/Messages/Content/MessageContent.tsx', 'utf8');
+messageContent = replaceOnce(
+  messageContent,
+  "import { memo, Suspense, useMemo } from 'react';",
+  "import { memo, Suspense, useMemo, useState } from 'react';",
+  'message recovery state import',
+);
+messageContent = replaceOnce(
+  messageContent,
+  "import { useMessageContext } from '~/Providers';",
+  "import { useMessageContext, useMessagesOperations } from '~/Providers';",
+  'message recovery operations import',
+);
+messageContent = replaceOnce(
+  messageContent,
+  "import { useLocalize } from '~/hooks';",
+  "import { useLocalize, useMCPServerManager } from '~/hooks';",
+  'message recovery MCP manager import',
+);
+messageContent = replaceOnce(
+  messageContent,
+  "import Error from '~/components/Messages/Content/Error';",
+  "import Error from '~/components/Messages/Content/Error';\nimport { createMcpRecoveryController } from './McpRecoveryController';",
+  'message recovery controller import',
+);
+messageContent = replaceOnce(
+  messageContent,
+  `export const ErrorMessage = ({
+  text,
+  message,
+  className = '',
+}: Pick<TDisplayProps, 'text' | 'className'> & { message?: TMessage }) => {
+  if (text === ERROR_CONNECTION_TEXT) {
+    return <ConnectionError message={message} />;
+  }
+
+  return (
+    <Container message={message}>
+      <ErrorBox className={className}>
+        <Error text={text} />
+      </ErrorBox>
+    </Container>
+  );
+};`,
+  `const recoveryMessage = (status: string | undefined) => {
+  switch (status) {
+    case 'authentication-required':
+      return 'Authentication is required to reconnect. Complete the sign-in window, then try again.';
+    case 'no-server':
+      return 'No MCP server is selected for this chat. Select a server and try again.';
+    case 'reconnect-failed':
+      return 'The MCP server could not reconnect. Check the gateway and try again.';
+    case 'timeout':
+      return 'The MCP reconnect timed out. Check the gateway and try again.';
+    case 'delete-failed':
+      return 'The MCP server reconnected, but this error could not be cleared. Try again.';
+    case 'in-flight':
+      return 'A reconnect is already in progress.';
+    default:
+      return undefined;
+  }
+};
+
+export const ErrorMessage = ({
+  text,
+  message,
+  className = '',
+}: Pick<TDisplayProps, 'text' | 'className'> & { message?: TMessage }) => {
+  const { getMessages, setMessages } = useMessagesOperations();
+  const { initializeServer, mcpValues } = useMCPServerManager({
+    conversationId: message?.conversationId,
+  });
+  const [recoveryStatus, setRecoveryStatus] = useState<string>();
+  const [isRecovering, setIsRecovering] = useState(false);
+  const isMcpToolsUnavailable = text.includes('AGENT_EXPECTED_MCP_TOOLS_UNAVAILABLE');
+
+  const controller = useMemo(
+    () =>
+      createMcpRecoveryController({
+        serverNames: mcpValues ?? [],
+        initializeServer: async (serverName, force) => {
+          const result = await initializeServer(serverName, force);
+          return {
+            success: result?.success ?? false,
+            oauthRequired: result?.oauthRequired,
+          };
+        },
+        deleteMessage: async () => {
+          const conversationId = message?.conversationId;
+          const messageId = message?.messageId;
+          if (!conversationId || !messageId) {
+            throw new Error('Cannot clear a message without conversation and message IDs');
+          }
+
+          const response = await fetch(
+            '/api/messages/' + encodeURIComponent(conversationId) + '/' + encodeURIComponent(messageId),
+            { method: 'DELETE', credentials: 'include' },
+          );
+          if (!response.ok) {
+            throw new Error('Unable to clear the MCP error message');
+          }
+
+          const messages = getMessages();
+          if (messages) {
+            setMessages(messages.filter((currentMessage) => currentMessage.messageId !== messageId));
+          }
+        },
+        timeoutMs: 10_000,
+      }),
+    [getMessages, initializeServer, mcpValues, message?.conversationId, message?.messageId, setMessages],
+  );
+
+  if (text === ERROR_CONNECTION_TEXT) {
+    return <ConnectionError message={message} />;
+  }
+
+  const handleRecovery = async () => {
+    setIsRecovering(true);
+    const result = await controller.recover();
+    setRecoveryStatus(result.status);
+    setIsRecovering(false);
+  };
+
+  return (
+    <Container message={message}>
+      <ErrorBox className={className}>
+        <Error text={text} />
+        {isMcpToolsUnavailable && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-md border border-status-error-border px-2 py-1 text-xs font-medium text-text-primary hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={handleRecovery}
+              disabled={isRecovering}
+            >
+              {isRecovering ? 'Reconnecting…' : 'Clear error & reconnect'}
+            </button>
+            {recoveryMessage(recoveryStatus) && (
+              <span className="text-xs text-text-secondary" aria-live="polite">
+                {recoveryMessage(recoveryStatus)}
+              </span>
+            )}
+          </div>
+        )}
+      </ErrorBox>
+    </Container>
+  );
+};`,
+  'MCP recovery error UI',
+);
+writeFileSync('/app/client/src/components/Chat/Messages/Content/MessageContent.tsx', messageContent);
+
 let schedulePanel = readFileSync('/app/client/src/components/SidePanel/Schedules/SchedulePanel.tsx', 'utf8');
 schedulePanel = replaceOnce(
   schedulePanel,
