@@ -230,7 +230,7 @@
 .thresh-ctrl__flag-off {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #475569;
+  color: var(--th-text);
 }
 
 .thresh-ctrl__placement-row {

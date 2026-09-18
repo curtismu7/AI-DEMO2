@@ -59,13 +59,13 @@
   margin: 0;
   font-size: var(--font-size-xl);
   font-weight: 700;
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 .trism-panel-subtitle {
   margin: 4px 0 0;
   font-size: var(--font-size-sm);
-  color: #6b7280;
+  color: var(--th-text);
 }
 
 .trism-panel-header-right {
@@ -80,7 +80,7 @@
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   background: #f9fafb;
-  color: #374151;
+  color: var(--th-text);
   font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
@@ -104,7 +104,7 @@
   background: #f3f4f6;
   border-radius: 6px;
   font-size: var(--font-size-xl);
-  color: #6b7280;
+  color: var(--th-text);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -114,7 +114,7 @@
 
 .trism-panel-close:hover {
   background: #e5e7eb;
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 /* Content */
@@ -154,7 +154,7 @@
 
 .trism-nav-prev {
   background: #f3f4f6;
-  color: #374151;
+  color: var(--th-text);
 }
 
 .trism-nav-prev:hover:not(:disabled) {
@@ -206,13 +206,13 @@
 /* Glossary (inline) */
 .trism-glossary h4 {
   font-size: 16px;
-  color: #1f2937;
+  color: var(--th-text);
   margin: 0 0 8px;
 }
 
 .trism-glossary-intro {
   font-size: var(--font-size-sm);
-  color: #6b7280;
+  color: var(--th-text);
   margin: 0 0 16px;
 }
 
@@ -242,7 +242,7 @@
 
 .trism-glossary-def {
   font-size: var(--font-size-sm);
-  color: #4b5563;
+  color: var(--th-text);
   line-height: 1.5;
   margin: 0;
   padding-left: 0;

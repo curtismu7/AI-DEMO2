@@ -44,7 +44,7 @@
 
 .authz-engine-settings-note {
   font-size: 0.85rem;
-  color: var(--color-text-muted, #374151);
+  color: var(--color-text-muted, var(--th-text));
   margin: 0;
   line-height: 1.5;
 }
@@ -99,7 +99,7 @@
 
 .authz-engine-radio-desc {
   font-size: 0.8rem;
-  color: var(--color-text-muted, #374151);
+  color: var(--color-text-muted, var(--th-text));
   line-height: 1.4;
 }
 
@@ -132,7 +132,7 @@
 
 .authz-engine-creds-hint {
   font-size: 0.75rem;
-  color: var(--color-text-muted, #374151);
+  color: var(--color-text-muted, var(--th-text));
   font-style: italic;
   margin-top: 2px;
 }
@@ -226,7 +226,7 @@
   justify-content: center;
   gap: 16px;
   min-height: 260px;
-  color: var(--color-text-muted, #374151);
+  color: var(--color-text-muted, var(--th-text));
 }
 
 .authz-spinner {
@@ -264,7 +264,7 @@
 
 .authz-subtitle {
   font-size: 0.95rem;
-  color: var(--color-text-muted, #374151);
+  color: var(--color-text-muted, var(--th-text));
   margin: 0;
   line-height: 1.5;
 }
@@ -311,7 +311,7 @@
 
 .authz-banner-note {
   font-size: 0.85rem;
-  color: var(--color-text-muted, #374151);
+  color: var(--color-text-muted, var(--th-text));
   line-height: 1.5;
   max-width: 540px;
 }
@@ -383,7 +383,7 @@
 
 .authz-threshold-note {
   font-size: 0.75rem;
-  color: var(--color-text-muted, #374151);
+  color: var(--color-text-muted, var(--th-text));
   font-style: italic;
 }
 
@@ -408,7 +408,7 @@
 
 .authz-section-desc {
   font-size: 0.88rem;
-  color: var(--color-text-muted, #374151);
+  color: var(--color-text-muted, var(--th-text));
   margin: 0 0 16px;
   line-height: 1.5;
 }
@@ -456,7 +456,7 @@
 
 .authz-scenario-desc {
   font-size: 0.84rem;
-  color: var(--color-text-muted, #374151);
+  color: var(--color-text-muted, var(--th-text));
   line-height: 1.45;
   margin: 0;
 }
@@ -558,7 +558,7 @@
 
 .authz-result-meta {
   font-size: 0.78rem;
-  color: var(--color-text-muted, #374151);
+  color: var(--color-text-muted, var(--th-text));
 }
 
 /* ─── Buttons ────────────────────────────────────────────────────────────── */
@@ -716,7 +716,7 @@
 
 .authz-result-key {
   font-weight: 600;
-  color: var(--color-text-muted, #374151);
+  color: var(--color-text-muted, var(--th-text));
   min-width: 140px;
   flex-shrink: 0;
 }

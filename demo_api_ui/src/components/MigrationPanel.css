@@ -17,7 +17,7 @@
   cursor: pointer;
   font-size: var(--font-size-body);
   font-weight: 500;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--color-text-secondary, var(--th-text));
   margin-bottom: -1px;
   transition:
     color 0.15s,
@@ -25,7 +25,7 @@
 }
 
 .migration-mode-tab:hover {
-  color: var(--color-text, #111827);
+  color: var(--color-text, var(--th-text));
 }
 
 .migration-mode-tab.active {
@@ -37,13 +37,13 @@
 .migration-section-title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--color-text, #111827);
+  color: var(--color-text, var(--th-text));
   margin: 0 0 8px;
 }
 
 .migration-section-desc {
   font-size: var(--font-size-body);
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--color-text-secondary, var(--th-text));
   margin: 0 0 24px;
   line-height: 1.5;
 }
@@ -73,7 +73,7 @@
   flex: 1;
   font-size: var(--font-size-body);
   font-weight: 600;
-  color: var(--color-text, #111827);
+  color: var(--color-text, var(--th-text));
   line-height: 1.4;
 }
 
@@ -85,7 +85,7 @@
 .migration-step-note {
   font-size: var(--font-size-sm);
   font-weight: 400;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--color-text-secondary, var(--th-text));
   margin: 6px 0 0;
   line-height: 1.5;
 }
@@ -113,7 +113,7 @@
   flex: 1;
   font-family: var(--font-family-mono);
   font-size: var(--font-size-sm);
-  color: #1f2937;
+  color: var(--th-text);
   margin: 0;
   white-space: pre-wrap;
   word-break: break-all;
@@ -152,13 +152,13 @@
   background: #f9fafb;
   border: 1px solid var(--color-border, #e5e7eb);
   font-weight: 600;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--color-text-secondary, var(--th-text));
 }
 
 .migration-table td {
   padding: 6px 10px;
   border: 1px solid var(--color-border, #e5e7eb);
-  color: var(--color-text, #374151);
+  color: var(--color-text, var(--th-text));
   font-weight: 400;
 }
 
@@ -167,7 +167,7 @@
   padding-left: 20px;
   font-size: var(--font-size-sm);
   font-weight: 400;
-  color: var(--color-text-secondary, #374151);
+  color: var(--color-text-secondary, var(--th-text));
   line-height: 1.6;
 }
 

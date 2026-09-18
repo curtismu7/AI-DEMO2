@@ -146,6 +146,38 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-18 — Repository-wide dark-theme text contrast sweep
+
+- **Files changed:** `demo_api_ui/src/**/*.css`,
+  `demo_api_ui/src/App.css`, and the contrast/theme-ratchet tests.
+- **What was broken:** Many page and component styles still used legacy dark
+  neutral text literals or light-gray text aliases. Those values became dark
+  text on dark themed surfaces, beyond the originally reported welcome modal.
+- **What was fixed:** Replaced legacy neutral text declarations with the shared
+  high-contrast text token, migrated light-gray text aliases, and added
+  explicit themed ink to the remaining shell rules. The sweep reduced
+  light-only stylesheets from 133 to 67 and lowered the ratchet floor.
+- **Do not break:** Preserve accent/status colors, light-theme appearance,
+  modal behavior, theme switching, auth/session flows, and agent state.
+- **Verify:** `dashboardModalContrast.test.js` passes 6 tests; the themed
+  ground/stylesheet ratchets pass; `npm run build` must pass.
+
+### 2026-09-18 — Dark-theme page and modal text is bright and readable
+
+- **Files changed:** `demo_api_ui/src/index.css`,
+  `demo_api_ui/src/components/LoginSuccessModal.css`, and
+  `demo_api_ui/src/components/__tests__/dashboardModalContrast.test.js`.
+- **What was broken:** Shared dark-theme ink and legacy page aliases resolved
+  to dim slate or dark gray, so dashboard copy, chat text, and modal identity
+  fields disappeared against navy surfaces.
+- **What was fixed:** Dark-theme primary/body/muted/faint ink, legacy brand
+  aliases, and modal body text now resolve to bright white; legacy light-surface
+  aliases resolve to themed dark surfaces; the login-success modal uses modal
+  tokens instead of hard-coded dark text.
+- **Do not break:** Preserve theme switching, modal drag/resize/pop-out behavior,
+  status/accent colors, auth/session flows, and agent placement/state.
+- **Verify:** `dashboardModalContrast.test.js` passes 5 tests; `npm run build`
+  passes. Full UI unit run: 586 files passed, 4 pre-existing files failed.
 ### 2026-09-18 — Scope audit verifies application grants as well as resource scopes
 
 - **Files changed:** `demo_api_server/routes/scopeAudit.js` and its focused route tests.

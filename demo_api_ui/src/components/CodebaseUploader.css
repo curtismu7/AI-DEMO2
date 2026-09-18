@@ -9,7 +9,7 @@
   margin: 0 0 20px 0;
   font-size: var(--font-size-h3);
   font-weight: 600;
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 .codebase-uploader form {
@@ -27,7 +27,7 @@
 .form-group label {
   font-weight: 500;
   font-size: var(--font-size-body);
-  color: #374151;
+  color: var(--th-text);
 }
 
 .form-group input[type="text"],

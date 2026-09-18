@@ -40,7 +40,7 @@
 }
 
 .json-null {
-  color: #666666;
+  color: var(--th-text);
 }
 
 .json-brace,
@@ -70,5 +70,5 @@
 }
 
 :root[data-theme="dark"] .json-null {
-  color: #666666;
+  color: var(--th-text);
 }

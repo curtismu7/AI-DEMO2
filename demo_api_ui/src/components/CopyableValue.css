@@ -127,7 +127,7 @@
 
 .copyable-value-hint {
   font-size: var(--font-size-xs);
-  color: #6b7280;
+  color: var(--th-text);
   margin-top: 4px;
   line-height: 1.6;
 }

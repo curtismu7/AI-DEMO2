@@ -254,7 +254,7 @@
 }
 
 .liveDemo p {
-  color: #374151;
+  color: var(--th-text);
   line-height: 1.6;
   margin: 8px 0;
 }

@@ -24,7 +24,7 @@
 .device-selector__title {
   margin-bottom: 1.5rem;
   /* §0: dialogs use solid high-contrast text, not muted gray. */
-  color: #0f172a;
+  color: var(--th-text);
   font-size: 1rem;
   font-weight: 500;
 }
@@ -105,7 +105,7 @@
 
 .device-selector__setup-title {
   margin: 0 0 0.75rem;
-  color: #0f172a;
+  color: var(--th-text);
   font-size: 0.85rem;
   font-weight: 500;
 }
@@ -132,7 +132,7 @@
   background-color: #fff;
   cursor: pointer;
   font-size: 0.95rem;
-  color: #475569;
+  color: var(--th-text);
   transition: all 0.2s;
 }
 

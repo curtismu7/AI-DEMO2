@@ -8,4 +8,4 @@
 .demo-section-concept { margin: 0 0 8px; color: #344054; line-height: 1.5; }
 .demo-section-doc { font-size: var(--font-size-sm); }
 .demo-section-demo { margin-top: 12px; }
-.demo-section-note { margin: 8px 0 0; color: var(--color-text-muted, #374151); font-size: 0.875rem; }
+.demo-section-note { margin: 8px 0 0; color: var(--color-text-muted, var(--th-text)); font-size: 0.875rem; }
