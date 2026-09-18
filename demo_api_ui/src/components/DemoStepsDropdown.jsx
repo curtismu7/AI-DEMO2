@@ -237,7 +237,7 @@ export default function DemoStepsDropdown({
             </span>
           )}
           <span className="ba-demo-steps-popout__id">{uc.id}</span>
-          <span className="banking-chips-dropdown__chip-name">{uc.title}</span>
+          <span className="banking-chips-dropdown__chip-name">{uc.demoLabel || uc.title}</span>
           {uc.resourceServer && (
             <span
               className="ba-demo-steps-popout__rs-badge"

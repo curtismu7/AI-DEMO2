@@ -513,6 +513,8 @@ export default function BankingAgent({
   const headerMoreRef = useRef(null);
   const headerMorePopRef = useRef(null);
   const [headerMorePosition, setHeaderMorePosition] = useState(null);
+  const [headerMoreTheme, setHeaderMoreTheme] = useState("light");
+  const [headerMoreFontScale, setHeaderMoreFontScale] = useState("100");
   const [headerMoreSize, setHeaderMoreSize] = useState(() => ({
     width: Math.min(760, Math.max(560, window.innerWidth - 24)),
     height: Math.min(760, Math.max(420, window.innerHeight - 24)),
@@ -593,6 +595,27 @@ export default function BankingAgent({
           top: Math.max(8, startTop + (startSize.height - height)),
         }));
       }
+    };
+    const finish = () => {
+      window.removeEventListener("pointermove", update);
+      window.removeEventListener("pointerup", finish);
+    };
+    window.addEventListener("pointermove", update);
+    window.addEventListener("pointerup", finish, { once: true });
+  }, [headerMorePosition]);
+  const handleHeaderMoreDrag = useCallback((event) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startPosition = headerMorePosition || { top: 8, right: 8 };
+    const startTop = startPosition.top ?? 8;
+    const startRight = startPosition.right ?? 8;
+    const update = (moveEvent) => {
+      setHeaderMorePosition({
+        top: Math.max(8, Math.min(window.innerHeight - 80, startTop + moveEvent.clientY - startY)),
+        right: Math.max(8, Math.min(window.innerWidth - 80, startRight - moveEvent.clientX + startX)),
+      });
     };
     const finish = () => {
       window.removeEventListener("pointermove", update);
@@ -9562,6 +9585,7 @@ export default function BankingAgent({
             } else {
               setHitlChallengeId({
                 challengeId: cid,
+                mcpApp: useCaseId === "UC8" || useCaseId === "hitl-consent",
                 actionId: response.transactionType || "transfer",
                 snapshot: data.snapshot || null,
                 form: {
@@ -10150,7 +10174,7 @@ export default function BankingAgent({
                   {headerMoreOpen && createPortal(
                     <div
                       ref={headerMorePopRef}
-                      className="ba-header-more-pop"
+                      className={`ba-header-more-pop ba-header-more-pop--${headerMoreTheme} ba-header-more-pop--font-${headerMoreFontScale}`}
                       style={{
                         ...(headerMorePosition || {}),
                         width: headerMoreSize.width,
@@ -10158,10 +10182,7 @@ export default function BankingAgent({
                       }}
                     >
                       {[
-                        ["northwest", "nw"],
-                        ["northeast", "ne"],
-                        ["southwest", "sw"],
-                        ["southeast", "se"],
+                        ["top", "n"], ["right", "e"], ["bottom", "s"], ["left", "w"],
                       ].map(([label, direction]) => (
                         <button
                           key={direction}
@@ -10171,9 +10192,19 @@ export default function BankingAgent({
                           onPointerDown={(event) => handleHeaderMoreResize(event, direction)}
                         />
                       ))}
-                      <div className="ba-header-more-intro">
-                        <strong>Choose a view surface</strong>
-                        <span>Embedded views stay on this page. Pop-outs open a separate window.</span>
+                      <div className="ba-header-more-toolbar" onPointerDown={handleHeaderMoreDrag}>
+                        <div className="ba-header-more-intro">
+                          <strong>Demo controls</strong>
+                          <span>Choose one view, then tune only that view.</span>
+                        </div>
+                        <div className="ba-header-more-toolbar-actions" onPointerDown={(event) => event.stopPropagation()}>
+                          <button type="button" aria-label="Use black controls" className={headerMoreTheme === "dark" ? "selected" : ""} onClick={() => setHeaderMoreTheme("dark")}>Black</button>
+                          <button type="button" aria-label="Use white controls" className={headerMoreTheme === "light" ? "selected" : ""} onClick={() => setHeaderMoreTheme("light")}>White</button>
+                          <button type="button" aria-label="Decrease controls font size" onClick={() => setHeaderMoreFontScale("90")}>A−</button>
+                          <button type="button" aria-label="Increase controls font size" onClick={() => setHeaderMoreFontScale("115")}>A+</button>
+                          <button type="button" aria-label="Pop out demo controls" onClick={() => window.open(window.location.href, "agent-controls", "popup=yes,width=720,height=760")}>Pop out</button>
+                          <button type="button" aria-label="Close demo controls" onClick={() => setHeaderMoreOpen(false)}>×</button>
+                        </div>
                       </div>
                       <div className="ba-header-more-view-picker" role="group" aria-label="Evidence view">
                         <div className="ba-header-more-heading">What should appear?</div>
@@ -10192,6 +10223,26 @@ export default function BankingAgent({
                           ))}
                         </div>
                       </div>
+                      <div className="ba-header-more-context" aria-live="polite">
+                        <div className="ba-header-more-heading">{EVIDENCE_VIEW_OPTIONS.find((option) => option.value === quickConfigView)?.label} controls</div>
+                        {quickConfigView === "movie-reel" && (
+                          <>
+                            <Check variant="switch" className="ba-header-toggle-label" checked={showRfcInfo} onChange={(e) => chooseRfcInfo(e.target.checked)}>RFC info</Check>
+                            <Check variant="switch" className="ba-header-toggle-label" checked={showFilmstrip} onChange={(e) => { setShowFilmstrip(e.target.checked); window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", { detail: { on: e.target.checked } })); }}>Movie reel</Check>
+                          </>
+                        )}
+                        {quickConfigView === "simple-stepper" && <SurfaceSelector id="simple-step-surface-select" label="Simple stepper" value={simpleStepperSurface} onChange={(e) => chooseSimpleStepperSurface(e.target.value)} open={openSurfaceSelector === "simple-step-surface-select"} onToggle={setOpenSurfaceSelector} />}
+                        {quickConfigView === "sequence-view" && (
+                          <>
+                            <SurfaceSelector id="sequence-view-surface-select" label="Sequence view" value={sequenceSurface} onChange={(e) => chooseSequenceSurface(e.target.value)} open={openSurfaceSelector === "sequence-view-surface-select"} onToggle={setOpenSurfaceSelector} />
+                            <Check variant="switch" className="ba-header-toggle-label" checked={followSequenceFlow} onChange={(e) => chooseFollowSequenceFlow(e.target.checked)}>Follow flow</Check>
+                            <Check variant="switch" className="ba-header-toggle-label" checked={slowMode} onChange={(e) => { setSlowMode(e.target.checked); window.dispatchEvent(new CustomEvent("agent-slow-mode-toggle", { detail: { on: e.target.checked } })); }}>Slow mode</Check>
+                          </>
+                        )}
+                        {quickConfigView === "token-topology" && <SurfaceSelector id="topology-surface-select" label="Token topology" value={topologySurface} onChange={(e) => chooseTopologySurface(e.target.value)} open={openSurfaceSelector === "topology-surface-select"} onToggle={setOpenSurfaceSelector} />}
+                        {quickConfigView === "oauth-visualizer" && <SurfaceSelector id="oauth-visualizer-surface-select" label="OAuth visualizer" value={oauthVisualizerSurface} onChange={(e) => chooseOauthVisualizerSurface(e.target.value)} open={openSurfaceSelector === "oauth-visualizer-surface-select"} onToggle={setOpenSurfaceSelector} />}
+                      </div>
+                      <div className="ba-header-more-legacy" aria-hidden="true">
                       <div className="ba-header-more-heading">Display preferences</div>
                       <Check
                         variant="switch"
@@ -10450,6 +10501,7 @@ export default function BankingAgent({
                           DaVinci Orchestration
                         </button>
                       )}
+                      </div>
                     </div>,
                     document.body,
                   )}
@@ -11540,6 +11592,7 @@ export default function BankingAgent({
                 open
                 challengeId={hitlChallengeId.challengeId}
                 preloadedSnapshot={hitlChallengeId.snapshot}
+                mcpApp={hitlChallengeId.mcpApp}
                 user={effectiveUser}
                 onClose={() => setHitlChallengeId(null)}
                 onTransactionSuccess={(msg) => {
