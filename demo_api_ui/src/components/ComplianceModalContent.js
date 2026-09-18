@@ -136,7 +136,7 @@ export default function ComplianceModalContent({
       </div>
 
       {/* Footer */}
-      <div className="compliance-modal__footer" style={{ borderTop: '1px solid #e5e7eb', paddingTop: 8, marginTop: 8 }}>
+      <div className="compliance-modal__footer">
         <button
           type="button"
           className="btn btn-secondary btn-sm"

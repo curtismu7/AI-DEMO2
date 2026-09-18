@@ -2,7 +2,7 @@
 
 .compliance-modal {
   position: fixed;
-  background: #fff;
+  background: var(--modal-body-bg);
   border-radius: 8px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   display: flex;
@@ -29,13 +29,13 @@
   margin: 0;
   font-size: var(--font-size-body);
   font-weight: 600;
-  color: #1e3a8a;
+  color: var(--modal-body-text);
   flex: 1;
 }
 
 .compliance-modal__action-label {
   font-size: var(--font-size-2xs);
-  color: #1f2937;
+  color: var(--modal-body-text-secondary);
   font-weight: 500;
 }
 
@@ -48,13 +48,13 @@
 .compliance-modal__last-response {
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--th-border);
 }
 
 .compliance-modal__last-response-label {
   font-size: 10px;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--modal-body-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 6px;
@@ -62,7 +62,7 @@
 
 .compliance-modal__last-response-body {
   font-size: var(--font-size-sm);
-  color: #111827;
+  color: var(--modal-body-text);
   line-height: 1.5;
   word-break: break-word;
 }
@@ -70,7 +70,7 @@
 .compliance-modal__empty {
   text-align: center;
   padding: 20px 0;
-  color: #1f2937;
+  color: var(--modal-body-text-secondary);
   font-size: var(--font-size-sm);
   line-height: 1.5;
 }
@@ -82,12 +82,12 @@
 }
 
 .compliance-modal__group-badge {
-  background: #f3f4f6;
+  background: var(--th-bg-inset);
   padding: 8px 12px;
   border-radius: 4px;
   font-size: var(--font-size-xs);
   font-weight: 600;
-  color: #1f2937;
+  color: var(--modal-body-text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 8px;
@@ -102,46 +102,46 @@
   margin-bottom: 4px;
   border-radius: 4px;
   font-size: var(--font-size-sm);
-  color: #111827;
+  color: var(--modal-body-text);
   transition: background 0.15s ease;
 }
 
 .compliance-modal__item.pending {
-  color: #1f2937;
+  color: var(--modal-body-text-secondary);
 }
 
 .compliance-modal__item.done {
-  color: #059669;
+  color: var(--th-status-success-text);
 }
 
 .compliance-modal__item.error {
-  color: #dc2626;
+  color: var(--th-status-error-text);
 }
 
 .compliance-modal__item.active {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
 }
 
 .compliance-modal__item.applicable:not(.done):not(.error) {
-  background: #dbeafe;
-  color: #1e40af;
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
 }
 
 /* Not-in-path: the step was never applicable to this action — crossed out
    with a dashed outline so it reads "deliberately not needed", not "skipped".
    Must win over .pending (both apply to these rows). */
 .compliance-modal__item.not-in-path {
-  color: #64748b;
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
+  color: var(--modal-body-text-secondary);
+  background: var(--th-bg-inset);
+  border: 1px dashed var(--th-border-strong);
 }
 .compliance-modal__item.not-in-path .compliance-modal__label {
   text-decoration: line-through;
   text-decoration-thickness: 1.2px;
 }
 .compliance-modal__item.not-in-path .compliance-modal__icon {
-  color: #94a3b8;
+  color: var(--modal-body-text-secondary);
 }
 
 .compliance-modal__nip-tag {
@@ -150,8 +150,8 @@
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #64748b;
-  border: 1px dashed #94a3b8;
+  color: var(--modal-body-text-secondary);
+  border: 1px dashed var(--th-border-strong);
   border-radius: 999px;
   padding: 2px 8px;
   white-space: nowrap;
@@ -175,21 +175,21 @@
   margin-bottom: 6px;
   padding: 6px 8px;
   font-size: var(--font-size-2xs);
-  color: #1f2937;
-  background: #f3f4f6;
-  border-left: 2px dashed #d1d5db;
+  color: var(--modal-body-text-secondary);
+  background: var(--th-bg-inset);
+  border-left: 2px dashed var(--th-border-strong);
   border-radius: 3px;
   line-height: 1.4;
 }
 
 .compliance-modal__skip-note {
   font-size: var(--font-size-2xs);
-  color: #1f2937;
+  color: var(--modal-body-text-secondary);
   padding: 12px;
   margin-top: 12px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--th-border);
   line-height: 1.5;
-  background: #f9fafb;
+  background: var(--th-bg-inset);
   border-radius: 4px;
 }
 
@@ -197,10 +197,65 @@
   display: flex;
   gap: 8px;
   padding: 12px 20px;
-  border-top: 1px solid #e5e7eb;
-  background: #f9fafb;
+  padding-top: 8px;
+  margin-top: 8px;
+  border-top: 1px solid var(--th-border);
+  background: var(--modal-footer-bg);
   position: relative;
   z-index: 1;
+}
+
+/* Dedicated route used by the legacy compliance pop-out. Keep its separate
+   window shell on the same themed surface/ink pair as DraggableModal. */
+.compliance-modal-popout-root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--modal-overlay-bg);
+  color: var(--th-text);
+}
+
+.compliance-modal-popout-loading {
+  padding: 20px;
+  text-align: center;
+  font-size: var(--font-size-body);
+}
+
+.compliance-modal-popout-panel {
+  position: relative;
+  width: 90vw;
+  height: 90vh;
+  max-width: 500px;
+  max-height: 700px;
+  background: var(--modal-body-bg);
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.compliance-modal-popout-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border-strong);
+  border-radius: 6px;
+  color: var(--th-text);
+  cursor: pointer;
+  font-size: var(--font-size-xl);
+  line-height: 1;
+  padding: 4px 8px;
+}
+
+.compliance-modal-popout-close:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 /* Responsive */

@@ -2221,6 +2221,7 @@
 
 .token-modal {
   background: var(--th-bg-card);
+  color: var(--th-text);
   border-radius: 12px;
   max-width: 900px;
   width: 100%;
@@ -2247,13 +2248,13 @@
   margin: 0;
   font-size: 2rem;
   font-weight: 600;
-  color: #2c5282;
+  color: var(--th-text);
 }
 
 .close-btn {
   background: none;
   border: none;
-  color: white;
+  color: var(--th-text);
   font-size: 2rem;
   cursor: pointer;
   padding: 0;
@@ -2282,6 +2283,7 @@
   max-width: none;
   width: auto;
   border-radius: 0;
+  color: var(--th-text-body);
 }
 
 .token-info {
@@ -2291,7 +2293,7 @@
 }
 
 .token-section {
-  border: 1px solid #e1e5e9;
+  border: 1px solid var(--th-border);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -2303,7 +2305,7 @@
   font-size: 1.3rem;
   font-weight: 600;
   color: var(--th-text);
-  border-bottom: 1px solid #e1e5e9;
+  border-bottom: 1px solid var(--th-border);
 }
 
 .token-section > div {
@@ -2318,7 +2320,7 @@
 
 .token-raw-display {
   background: var(--th-bg-inset);
-  border: 1px solid #e1e5e9;
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   padding: 15px;
   font-family: inherit;
@@ -2343,7 +2345,7 @@
   gap: 12px;
   align-items: center;
   padding: 12px 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--th-border);
   font-size: 1.05rem;
 }
 
@@ -2361,7 +2363,7 @@
 
 .session-label {
   font-weight: 600;
-  color: #34495e;
+  color: var(--th-text-body);
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -2369,7 +2371,7 @@
 }
 
 .session-value {
-  color: #2c3e50;
+  color: var(--th-text);
   font-size: 0.9rem;
   word-break: break-word;
 }
@@ -2385,7 +2387,7 @@
 .token-field label {
   display: block;
   font-weight: 600;
-  color: #34495e;
+  color: var(--th-text-body);
   margin-bottom: 8px;
   font-size: 0.9rem;
   text-transform: uppercase;
@@ -2394,7 +2396,7 @@
 
 .token-json {
   background: var(--th-bg-inset);
-  border: 1px solid #e1e5e9;
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   padding: 15px;
   font-family: inherit;
@@ -2408,7 +2410,7 @@
 
 .token-raw {
   background: var(--th-bg-inset);
-  border: 1px solid #e1e5e9;
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   padding: 12px;
   font-family: inherit;
@@ -2420,13 +2422,13 @@
 }
 
 .token-value {
-  background: #e8f4fd;
-  border: 1px solid #bee5eb;
+  background: var(--th-status-info-bg);
+  border: 1px solid var(--th-status-info-border);
   border-radius: 6px;
   padding: 10px 15px;
   font-family: inherit;
   font-size: 0.9rem;
-  color: #0c5460;
+  color: var(--th-status-info-text);
   font-weight: 500;
 }
 
@@ -3427,6 +3429,7 @@
 /* ── Action drawer ───────────────────────────────────────────── */
 .ud-action-drawer {
   background: var(--th-bg-card);
+  color: var(--th-text);
   border-radius: 12px;
   border: 1px solid var(--brand-medium-gray);
   margin-bottom: 20px;
@@ -3438,9 +3441,10 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  color: var(--th-text);
   padding: 14px 18px;
-  background: var(--brand-light-gray);
-  border-bottom: 1px solid var(--brand-medium-gray);
+  background: var(--th-bg-inset);
+  border-bottom: 1px solid var(--th-border);
 }
 
 .ud-drawer-close {
@@ -3455,8 +3459,8 @@
 }
 
 .ud-drawer-close:hover {
-  background: var(--brand-light-gray);
-  color: #666666;
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .ud-action-form {
@@ -3471,7 +3475,7 @@
   display: block;
   font-size: 0.78rem;
   font-weight: 600;
-  color: #666666;
+  color: var(--th-text-body);
   margin-bottom: 5px;
 }
 
@@ -3483,7 +3487,7 @@
   border-radius: 7px;
   font-size: 0.85rem;
   background: var(--th-bg-card);
-  color: var(--brand-dark-gray);
+  color: var(--th-text);
   transition:
     border 0.15s,
     box-shadow 0.15s;
