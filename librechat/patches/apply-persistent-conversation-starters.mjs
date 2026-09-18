@@ -164,7 +164,6 @@ export const ErrorMessage = ({
   useLayoutEffect(() => {
     recoveryInputsRef.current = { serverNames: mcpValues ?? [], initializeServer };
   }, [initializeServer, mcpValues]);
-  const recoveryDeleteRef = useRef<(() => Promise<void>) | null>(null);
   const controllerRef = useRef<ReturnType<typeof createMcpRecoveryController> | null>(null);
   if (controllerRef.current === null) {
     controllerRef.current = createMcpRecoveryController({
@@ -179,13 +178,6 @@ export const ErrorMessage = ({
               oauthRequired: result?.oauthRequired,
             };
           },
-          deleteMessage: async () => {
-            const deleteMessage = recoveryDeleteRef.current;
-            if (!deleteMessage) {
-              throw new Error('Cannot clear an MCP error without a recovery snapshot');
-            }
-            await deleteMessage();
-          },
         };
       },
       timeoutMs: 10_000,
@@ -198,7 +190,7 @@ export const ErrorMessage = ({
   }
 
   const handleRecovery = async () => {
-    if (isRecovering || recoveryDeleteRef.current !== null) {
+    if (isRecovering) {
       return;
     }
 
@@ -222,15 +214,11 @@ export const ErrorMessage = ({
         setMessages(messages.filter((currentMessage) => currentMessage.messageId !== messageId));
       }
     };
-    recoveryDeleteRef.current = deleteMessage;
     setIsRecovering(true);
     try {
-      const result = await controller.recover();
+      const result = await controller.recover(deleteMessage);
       setRecoveryStatus(result.status);
     } finally {
-      if (recoveryDeleteRef.current === deleteMessage) {
-        recoveryDeleteRef.current = null;
-      }
       setIsRecovering(false);
     }
   };

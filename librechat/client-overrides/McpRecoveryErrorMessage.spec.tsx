@@ -95,6 +95,9 @@ describe('MCP recovery ErrorMessage', () => {
     rerender(<ErrorMessage text="AGENT_EXPECTED_MCP_TOOLS_UNAVAILABLE" message={secondMessage} />);
 
     expect(screen.getByRole('button', { name: 'Reconnecting…' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Reconnecting…' }));
+    expect(mockInitializeFirst).toHaveBeenCalledTimes(1);
+    expect(mockInitializeSecond).not.toHaveBeenCalled();
     mockResolveInitialization?.({ success: true });
 
     await waitFor(() =>

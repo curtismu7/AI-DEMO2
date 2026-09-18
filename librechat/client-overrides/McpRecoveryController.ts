@@ -8,7 +8,6 @@ export interface McpInitializationResult {
 export interface McpRecoveryInputs {
   serverNames: readonly string[] | (() => readonly string[]);
   initializeServer: (serverName: string, force: boolean) => Promise<McpInitializationResult>;
-  deleteMessage: () => Promise<void>;
 }
 
 export type McpRecoveryControllerOptions =
@@ -78,7 +77,7 @@ export function createMcpRecoveryController(options: McpRecoveryControllerOption
     return operation;
   }
 
-  async function recoverOnce(): Promise<RecoveryResult> {
+  async function recoverOnce(deleteMessage: () => Promise<void>): Promise<RecoveryResult> {
     const recoveryInputs = getRecoveryInputs(options);
     const normalizedServerNames = normalizeMcpServerNames(
       typeof recoveryInputs.serverNames === 'function'
@@ -109,7 +108,7 @@ export function createMcpRecoveryController(options: McpRecoveryControllerOption
     }
 
     try {
-      await recoveryInputs.deleteMessage();
+      await deleteMessage();
       return { status: 'recovered' };
     } catch {
       return { status: 'delete-failed' };
@@ -117,12 +116,12 @@ export function createMcpRecoveryController(options: McpRecoveryControllerOption
   }
 
   return {
-    async recover(): Promise<RecoveryResult> {
+    async recover(deleteMessage: () => Promise<void>): Promise<RecoveryResult> {
       if (inFlight) {
         return { status: 'in-flight' };
       }
 
-      const attempt = recoverOnce();
+      const attempt = recoverOnce(deleteMessage);
       inFlight = attempt;
       try {
         return await attempt;
