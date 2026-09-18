@@ -11,13 +11,16 @@ vi.mock('../../context/TokenChainContext', () => ({
 }));
 
 // -- Mock the panel so bar tests don't exercise portal/drag internals ----------
+let panelOpenStates = [];
 vi.mock('../SimpleStepperPanel', () => ({
-  default: ({ isOpen, onClose }) =>
-    isOpen ? (
+  default: ({ isOpen, onClose }) => {
+    panelOpenStates.push(isOpen);
+    return isOpen ? (
       <div data-testid="ssp-panel">
         <button type="button" onClick={onClose}>mock-close</button>
       </div>
-    ) : null,
+    ) : null;
+  },
 }));
 
 beforeEach(() => {
@@ -27,6 +30,7 @@ beforeEach(() => {
   }
   localStorage.clear();
   _mockCtx = null;
+  panelOpenStates = [];
 });
 
 function makeEvent(overrides) {
@@ -67,6 +71,7 @@ describe('SimpleStepperBar', () => {
     expect(screen.getByTestId('ssp-panel')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /hide/i }));
     expect(screen.queryByTestId('ssp-panel')).toBeNull();
+    expect(panelOpenStates).toEqual([false, true, false]);
   });
 
   it("the panel's onClose closes the panel and resets the toggle to Show", () => {

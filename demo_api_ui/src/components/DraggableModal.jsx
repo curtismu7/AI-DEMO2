@@ -121,6 +121,7 @@ export default function DraggableModal({
   autoPopOut = false,
 }) {
   const [popoutWin, setPopoutWin] = useState(null);
+  const [popoutTheme, setPopoutTheme] = useState(null);
   const [instanceId] = useState(() => `dm_${Math.random().toString(36).slice(2)}`);
 
   const initialPos = useCallback(
@@ -176,25 +177,27 @@ export default function DraggableModal({
     // The popout copies the parent's stylesheets, so --th-* resolves there —
     // but data-theme lives on the PARENT's <html> and is not copied, so every
     // popped-out panel rendered in light mode whatever the user had chosen.
-    const themeAttr = document.documentElement.getAttribute("data-theme");
-    const themeStamp = themeAttr ? ` data-theme="${themeAttr}"` : "";
+    const parentTheme = document.documentElement.dataset.theme || "light";
 
-    win.document.write(`<!DOCTYPE html><html${themeStamp}><head>
+    win.document.write(`<!DOCTYPE html><html data-theme="${parentTheme}"><head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>${title}</title>
 ${styleLinks}
 ${inlineStyles}
-<style>
-html,body{margin:0;padding:0;height:100%;background:#fff}
-#dm-root{display:flex;flex-direction:column;height:100%;overflow:hidden}
-</style>
-</head><body><div id="dm-root"></div></body></html>`);
+</head><body class="dm-popout-document"><div id="dm-root"></div></body></html>`);
     win.document.close();
     win.addEventListener("beforeunload", () => setPopoutWin(null));
+    setPopoutTheme(parentTheme);
     setPopoutWin(win);
     if (closeOnPopout && onClose) onClose();
   }, [isPoppedOut, popoutWin, size, pos, title, closeOnPopout, onClose]);
+
+  const handlePopoutThemeToggle = useCallback(() => {
+    const nextTheme = popoutTheme === "dark" ? "light" : "dark";
+    popoutWin.document.documentElement.dataset.theme = nextTheme;
+    setPopoutTheme(nextTheme);
+  }, [popoutTheme, popoutWin]);
 
   // Close popup window on unmount
   useEffect(
@@ -260,6 +263,23 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
         <div className="dm-titlebar dm-titlebar--static">
           <span className="dm-title">{title}</span>
           <div className="dm-controls">
+            <button
+              type="button"
+              className="dm-btn dm-theme-toggle"
+              onClick={handlePopoutThemeToggle}
+              title={
+                popoutTheme === "dark"
+                  ? "Switch to light mode"
+                  : "Switch to dark mode"
+              }
+              aria-label={
+                popoutTheme === "dark"
+                  ? "Switch to light mode"
+                  : "Switch to dark mode"
+              }
+            >
+              {popoutTheme === "dark" ? "☀️" : "🌙"}
+            </button>
             {onClose && (
               <button
                 type="button"

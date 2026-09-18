@@ -4,6 +4,20 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import SimpleStepperPanel from '../SimpleStepperPanel';
 
+const { draggableModalProps } = vi.hoisted(() => ({ draggableModalProps: [] }));
+
+vi.mock('../DraggableModal', () => ({
+  default: ({ isOpen, onClose, title, children, ...props }) => {
+    draggableModalProps.push({ isOpen, onClose, title, ...props });
+    return isOpen ? (
+      <div role="dialog" aria-label={title}>
+        <button type="button" aria-label="Close Simple Stepper" onClick={onClose}>Close</button>
+        {children}
+      </div>
+    ) : null;
+  },
+}));
+
 // -- Mock TokenChainContext (real one SSE-connects) ----------------------------
 let _mockCtx = null;
 vi.mock('../../context/TokenChainContext', () => ({
@@ -42,6 +56,7 @@ beforeEach(() => {
     localStorage.clear();
   }
   _mockCtx = null;
+  draggableModalProps.length = 0;
 });
 
 function makeEvent(overrides) {
@@ -85,6 +100,23 @@ describe('SimpleStepperPanel', () => {
     expect(rows[2].textContent).toMatch(/^2/);
   });
 
+  it('uses the shared modal with the Simple Stepper sizing and chrome contract', () => {
+    _mockCtx = { events: [makeEvent()] };
+    render(<SimpleStepperPanel isOpen onClose={() => {}} />);
+
+    expect(draggableModalProps).toContainEqual(expect.objectContaining({
+      isOpen: true,
+      title: 'Simple Stepper',
+      storageKey: 'sstp-modal',
+      noBackdrop: true,
+      footer: null,
+      defaultWidth: 560,
+      defaultHeight: 480,
+      minWidth: 360,
+      minHeight: 240,
+    }));
+  });
+
   it('marks the halted row and greys rows after it', () => {
     _mockCtx = {
       events: [
@@ -124,12 +156,4 @@ describe('SimpleStepperPanel', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('minimize button hides the table body, expand restores it', () => {
-    _mockCtx = { events: [makeEvent()] };
-    render(<SimpleStepperPanel isOpen onClose={() => {}} />);
-    fireEvent.click(screen.getByRole('button', { name: /minimize panel/i }));
-    expect(screen.queryByRole('table')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /expand panel/i }));
-    expect(screen.getByRole('table')).toBeTruthy();
-  });
 });
