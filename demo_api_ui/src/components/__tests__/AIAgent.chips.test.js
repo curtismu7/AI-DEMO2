@@ -632,6 +632,41 @@ describe("Header controls after the Actions dropdown removal", () => {
     expect(screen.getByRole("button", { name: /Movie reel/ })).toHaveAttribute("aria-pressed", "false");
   });
 
+  it("restores Demo controls choices after the agent remounts", async () => {
+    const first = renderAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
+    });
+    const sequenceCard = [...document.querySelectorAll(".ba-header-more-view-option")]
+      .find((button) => button.textContent.includes("Sequence view"));
+    fireEvent.click(sequenceCard);
+    fireEvent.click(screen.getByRole("checkbox", { name: /Movie reel/ }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Token topology surface" }));
+    });
+    fireEvent.click(screen.getByRole("option", { name: /^Pop-out\b/ }));
+    first.unmount();
+
+    renderAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
+    });
+
+    const restoredSequenceCard = [...document.querySelectorAll(".ba-header-more-view-option")]
+      .find((button) => button.textContent.includes("Sequence view"));
+    expect(restoredSequenceCard).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("checkbox", { name: /Movie reel/ })).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "Token topology surface" })).toHaveTextContent("Pop-out");
+  });
+
   it("keeps surface menus exclusive and leaves Pop-out available for every view", async () => {
     renderAgent({ user: customerUser, mode: "float" });
     await act(async () => {
