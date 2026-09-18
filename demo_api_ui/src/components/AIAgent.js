@@ -75,7 +75,7 @@ import JsonField from "./shared/JsonField";
 import AgentGreetingHero from "./AgentGreetingHero";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
-import DemoStepsDropdown from "./DemoStepsDropdown";
+import DemoStepsDropdown, { readStoredDemoStepsOpen } from "./DemoStepsDropdown";
 import AdminToolsDropdown from "./AdminToolsDropdown";
 import { markUseCaseCompleted, clearCompletedUseCases } from "../utils/useCaseDemoProgress";
 import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
@@ -661,7 +661,7 @@ export default function BankingAgent({
   /** Discovery popout — "All actions" overlay. */
   const [showDiscovery, setShowDiscovery] = useState(false);
   /** Demo steps popout — same list as /use-cases Demo section. */
-  const [showDemoSteps, setShowDemoSteps] = useState(false);
+  const [showDemoSteps, setShowDemoSteps] = useState(readStoredDemoStepsOpen);
   /** Admin tools popout — PingOne ops + banking customer-CRUD, admin-only. */
   const [showAdminTools, setShowAdminTools] = useState(false);
   const [discoverySearch, setDiscoverySearch] = useState("");
@@ -1582,6 +1582,8 @@ export default function BankingAgent({
 
   /** Pending HITL intent — shows AgentConsentModal (transaction mode) before OTP. */
   const [hitlPendingIntent, setHitlPendingIntent] = useState(null);
+  /** Safe toolbar preview for demonstrating the right-side approval drawer. */
+  const [demoApprovalOpen, setDemoApprovalOpen] = useState(false);
   const [a2aExplainUc, setA2aExplainUc] = useState(null);
   const [a2aExplainEvents, setA2aExplainEvents] = useState([]);
 
@@ -10144,6 +10146,17 @@ export default function BankingAgent({
                 {!pageOwnsAgentChrome && (
                 <button
                   type="button"
+                  className={`ba-actions-trigger${demoApprovalOpen ? " active" : ""}`}
+                  title={hitlPendingIntent ? "An approval request is already open" : "Open a safe demo approval drawer"}
+                  onClick={() => setDemoApprovalOpen(true)}
+                  disabled={Boolean(hitlPendingIntent)}
+                >
+                  Approval
+                </button>
+                )}
+                {!pageOwnsAgentChrome && (
+                <button
+                  type="button"
                   className={`ba-actions-trigger${showTokenChain ? " active" : ""}`}
                   title="View token exchange and authorization decisions (RFC 8693)"
                   onClick={() => setShowTokenChain(v => !v)}
@@ -10174,7 +10187,7 @@ export default function BankingAgent({
                   {headerMoreOpen && createPortal(
                     <div
                       ref={headerMorePopRef}
-                      className={`ba-header-more-pop ba-header-more-pop--${headerMoreTheme} ba-header-more-pop--font-${headerMoreFontScale}`}
+                      className={`ba-header-more-pop ba-header-more-pop--${headerMoreTheme} ba-header-more-pop--font-${headerMoreFontScale}${openSurfaceSelector ? " ba-header-more-pop--surface-open" : ""}`}
                       style={{
                         ...(headerMorePosition || {}),
                         width: headerMoreSize.width,
@@ -10777,6 +10790,17 @@ export default function BankingAgent({
                 </div>
                 </div>
               </DraggableModal>
+            )}
+
+            {demoApprovalOpen && !hitlPendingIntent && (
+              <AgentConsentModal
+                hitlContext={{
+                  tool: "extend_rental",
+                  reason: "Safe approval preview — accepting this demo closes the drawer and does not run a transaction.",
+                }}
+                onAccept={() => setDemoApprovalOpen(false)}
+                onDismiss={() => setDemoApprovalOpen(false)}
+              />
             )}
 
             {hitlPendingIntent &&

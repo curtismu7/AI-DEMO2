@@ -36,7 +36,7 @@
   cursor: pointer;
   border-radius: 0;
   transition: background 0.1s;
-  color: #374151;
+  color: var(--th-text);
   border: none;
   background: none;
   width: 100%;
@@ -113,7 +113,7 @@
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   cursor: pointer;
-  color: #374151;
+  color: var(--th-text);
 }
 
 .setup-download-btn:hover {
@@ -136,7 +136,7 @@
 
 .setup-step-subtitle {
   font-size: 0.85rem;
-  color: #6b7280;
+  color: var(--th-text);
   margin-bottom: 1.5rem;
 }
 
@@ -180,7 +180,7 @@
 
 .helix-substep-node .label {
   font-size: 0.65rem;
-  color: #6b7280;
+  color: var(--th-text);
   white-space: nowrap;
   text-align: center;
   max-width: 70px;
@@ -242,7 +242,7 @@
   border: 1px solid #cbd5e1;
   background: #f8fafc;
   cursor: pointer;
-  color: #374151;
+  color: var(--th-text);
 }
 
 .setup-btn.primary {
@@ -270,7 +270,7 @@
   display: block;
   font-size: 0.8rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--th-text);
   margin-bottom: 0.3rem;
 }
 
@@ -286,7 +286,7 @@
 
 .setup-field .hint {
   font-size: 0.7rem;
-  color: #6b7280;
+  color: var(--th-text);
   margin-top: 0.2rem;
 }
 
@@ -312,7 +312,7 @@
 .verify-panel-title {
   font-size: 0.72rem;
   font-weight: 700;
-  color: #374151;
+  color: var(--th-text);
   margin-bottom: 0.5rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -324,5 +324,5 @@
   gap: 0.4rem;
   font-size: 0.8rem;
   margin-bottom: 0.3rem;
-  color: #374151;
+  color: var(--th-text);
 }

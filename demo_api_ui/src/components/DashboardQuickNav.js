@@ -109,7 +109,7 @@ export default function DashboardQuickNav({ user }) {
         <button
           type="button"
           className="dashboard-quick-nav__btn"
-          aria-label="Learning Log"
+          aria-label="🪟 Learning Log"
           onClick={openLogPopout}
           title="Learning Log — open Learn mode in a new window"
         >

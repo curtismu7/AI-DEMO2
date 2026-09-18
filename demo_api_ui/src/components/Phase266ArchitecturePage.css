@@ -5,7 +5,7 @@
   background: #f8fafc;
   min-height: calc(100vh - 64px);
   font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 .p266-arch-header {
@@ -28,13 +28,13 @@
 .p266-arch-header h1 {
   font-size: var(--font-size-h1);
   font-weight: 700;
-  color: #0f172a;
+  color: var(--th-text);
   margin: 6px 0 4px 0;
 }
 
 .p266-arch-subtitle {
   font-size: var(--font-size-base);
-  color: #4b5563;
+  color: var(--th-text);
   margin: 0;
   line-height: 1.55;
   max-width: 760px;
@@ -83,13 +83,13 @@
 .p266-arch-notes h2 {
   font-size: var(--font-size-h3);
   font-weight: 700;
-  color: #0f172a;
+  color: var(--th-text);
   margin: 0 0 12px 0;
 }
 
 .p266-arch-spec-intro {
   font-size: var(--font-size-body);
-  color: #4b5563;
+  color: var(--th-text);
   margin: 0 0 16px 0;
   line-height: 1.55;
 }
@@ -118,7 +118,7 @@
 
 .p266-arch-spec-list dd {
   font-size: var(--font-size-sm);
-  color: #374151;
+  color: var(--th-text);
   line-height: 1.5;
   margin: 0;
   padding: 6px 0;
@@ -131,7 +131,7 @@
 
 .p266-arch-notes li {
   font-size: var(--font-size-body);
-  color: #374151;
+  color: var(--th-text);
   line-height: 1.6;
   margin-bottom: 12px;
 }
@@ -142,7 +142,7 @@
 
 .p266-arch-notes code {
   background: #f3f4f6;
-  color: #1f2937;
+  color: var(--th-text);
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
   padding: 1px 5px;

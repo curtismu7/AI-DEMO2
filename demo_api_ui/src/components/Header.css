@@ -3,7 +3,7 @@
 
 .app-top-header {
   background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  color: #1f2937;
+  color: var(--th-text);
   border-bottom: 1px solid #93c5fd;
   padding: clamp(8px, 1.2vw, 12px) 0;
 }
@@ -102,7 +102,7 @@
 .header-session-timer {
   font-size: 0.78rem;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--th-text);
   letter-spacing: 0.02em;
   white-space: nowrap;
 }

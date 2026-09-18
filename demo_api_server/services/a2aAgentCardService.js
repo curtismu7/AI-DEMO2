@@ -38,7 +38,7 @@ function specialistRpcUrl(vertical, cfg) {
  * @param {object} [cfg] configStore-like
  * @returns {object|null} AgentCard-shaped object for @a2a-js/sdk
  */
-function buildSpecialistAgentCard(vertical, cfg) {
+function buildSpecialistAgentCard(vertical, cfg, options = {}) {
   const specialist = specialistForVertical(vertical);
   if (!specialist) return null;
 
@@ -57,6 +57,7 @@ function buildSpecialistAgentCard(vertical, cfg) {
     securityRequirements: [],
   }));
 
+  const tenant = options.authenticated && options.tenantHandle ? options.tenantHandle : '';
   return {
     name: specialist.specialistName,
     description:
@@ -115,7 +116,7 @@ function buildSpecialistAgentCard(vertical, cfg) {
       {
         url: rpcUrl,
         protocolBinding: 'JSONRPC',
-        tenant: '',
+        tenant,
         protocolVersion: '1.0',
       },
     ],

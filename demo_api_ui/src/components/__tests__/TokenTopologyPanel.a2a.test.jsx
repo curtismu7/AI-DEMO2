@@ -172,6 +172,32 @@ describe('buildA2aTopology', () => {
     expect(screen.getByRole('button', { name: 'Request' })).toBeInTheDocument();
   });
 
+  it('hides the empty details pane and toggles the selected details pane', async () => {
+    const user = userEvent.setup();
+    act(() => {
+      tokenChainTraceStore.beginTrace({ prompt: 'Show my accounts' });
+    });
+    render(
+      <ThemeProvider>
+        <TokenTopologyPanel isOpen onClose={() => {}} />
+      </ThemeProvider>,
+    );
+
+    expect(screen.queryByText('Click a node to inspect its token details')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show details' })).toBeInTheDocument();
+
+    await user.click(screen.getByText('Website'));
+    expect(screen.getByText('Website — browser / UI app')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hide details' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Hide details' }));
+    expect(screen.queryByText('Website — browser / UI app')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show details' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Show details' }));
+    expect(screen.getByText('Website — browser / UI app')).toBeInTheDocument();
+  });
+
   it('clears the rendered topology back to an empty state', async () => {
     const user = userEvent.setup();
     act(() => {

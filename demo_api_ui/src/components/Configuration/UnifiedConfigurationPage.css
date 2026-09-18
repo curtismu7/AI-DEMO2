@@ -74,7 +74,7 @@
 
 .configuration-header__btn--secondary {
   background: var(--color-background-light, #f0f0f0);
-  color: var(--color-text-secondary, #374151);
+  color: var(--color-text-secondary, var(--th-text));
   border-color: var(--color-border, #dee2e6);
 }
 
@@ -91,7 +91,7 @@
 .configuration-header__btn.saving {
   background: var(--color-warning, #ffc107);
   border-color: var(--color-warning, #ffc107);
-  color: #0f172a;
+  color: var(--th-text);
 }
 
 .configuration-header__btn.saved {
@@ -140,7 +140,7 @@
   text-align: left;
   font-size: 0.875rem;
   font-weight: 500;
-  color: var(--color-text-secondary, #374151);
+  color: var(--color-text-secondary, var(--th-text));
 }
 .configuration-tab:focus-visible {
   outline: 2px solid var(--color-primary, #007bff);
@@ -229,7 +229,7 @@
 }
 .configuration-tab-desc-bar__text {
   font-size: 0.9rem;
-  color: var(--color-text-secondary, #374151);
+  color: var(--color-text-secondary, var(--th-text));
 }
 
 /* IDP Setup tab styles */
@@ -259,7 +259,7 @@
 .idp-setup-label {
   font-size: 0.9rem;
   font-weight: 600;
-  color: var(--color-text-secondary, #374151);
+  color: var(--color-text-secondary, var(--th-text));
   white-space: nowrap;
 }
 .idp-setup-value {
@@ -278,7 +278,7 @@
   font-size: 0.875rem;
   cursor: pointer;
   white-space: nowrap;
-  color: var(--color-text-secondary, #374151);
+  color: var(--color-text-secondary, var(--th-text));
 }
 .idp-copy-btn:hover {
   background: var(--color-border, #dee2e6);
@@ -295,7 +295,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--color-text-secondary, #374151);
+  color: var(--color-text-secondary, var(--th-text));
   margin: 0 0 0.75rem;
   padding-bottom: 0.25rem;
   border-bottom: 1px solid var(--color-border, #dee2e6);
@@ -359,12 +359,12 @@
 }
 .ff-flag-desc {
   font-size: 0.9rem;
-  color: var(--color-text-secondary, #374151);
+  color: var(--color-text-secondary, var(--th-text));
   margin: 0.25rem 0 0;
 }
 .ff-flag-impact {
   font-size: 0.875rem;
-  color: var(--color-text-secondary, #374151);
+  color: var(--color-text-secondary, var(--th-text));
   margin: 0.25rem 0 0;
 }
 .cfg-error-text {
@@ -403,7 +403,7 @@
 .section-navigation__title {
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--color-text-secondary, #374151);
+  color: var(--color-text-secondary, var(--th-text));
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin: 0 0 1rem 0;
@@ -425,7 +425,7 @@
   cursor: pointer;
   text-align: left;
   font-size: 0.875rem;
-  color: var(--color-text-secondary, #374151);
+  color: var(--color-text-secondary, var(--th-text));
   text-decoration: none;
   transition: all 0.15s ease-in-out;
   border-radius: 0 0.375rem 0.375rem 0;
@@ -650,7 +650,7 @@
 }
 
 .cfg-section-desc {
-  color: var(--brand-dark-gray, #374151);
+  color: var(--brand-dark-gray, var(--th-text));
   margin: 0 0 1.5rem;
   line-height: 1.5;
   font-size: 0.9rem;
@@ -667,7 +667,7 @@
 
 .cfg-field-help {
   font-size: 0.875rem;
-  color: var(--brand-medium-gray, #374151);
+  color: var(--brand-medium-gray, var(--th-text));
   margin: 0.25rem 0 0;
 }
 
@@ -691,7 +691,7 @@
   padding: 4px;
   font-size: 1rem;
   line-height: 1;
-  color: var(--brand-dark-gray, #374151);
+  color: var(--brand-dark-gray, var(--th-text));
 }
 
 /* Test connection row */
@@ -718,7 +718,7 @@
   color: #dc2626;
 }
 .cfg-test-result--testing {
-  color: var(--brand-medium-gray, #374151);
+  color: var(--brand-medium-gray, var(--th-text));
   font-weight: 400;
 }
 
@@ -775,7 +775,7 @@
   font-size: 0.875rem;
   font-weight: 500;
   text-align: center;
-  color: var(--brand-dark-gray, #374151);
+  color: var(--brand-dark-gray, var(--th-text));
 }
 
 /* ── Toggle + scopes (Phase 137 Plan 03) ─────────────────────── */
@@ -804,7 +804,7 @@
 
 .cfg-toggle-text {
   font-size: 0.9rem;
-  color: var(--brand-dark-gray, #374151);
+  color: var(--brand-dark-gray, var(--th-text));
 }
 
 .cfg-scopes-textarea {
@@ -827,7 +827,7 @@
 
 /* Ensure no stray placeholder paragraph gets styled as content */
 .configuration-section__content > p:only-child {
-  color: var(--brand-medium-gray, #374151);
+  color: var(--brand-medium-gray, var(--th-text));
   font-style: italic;
 }
 

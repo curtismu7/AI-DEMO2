@@ -37,6 +37,21 @@ describe('DraggableModal', () => {
     expect(dialog).toHaveClass('probe-class');
   });
 
+  it('anchors right-side drawers to the viewport edge', () => {
+    render(
+      <DraggableModal isOpen onClose={vi.fn()} title="Test" placement="right">
+        <p>body</p>
+      </DraggableModal>,
+    );
+
+    expect(screen.getByRole('dialog')).toHaveStyle({
+      left: 'auto',
+      right: '0px',
+      top: '0px',
+      height: '100vh',
+    });
+  });
+
   it('renders only dm-panel when no className is passed', () => {
     render(
       <DraggableModal isOpen onClose={vi.fn()} title="Test">

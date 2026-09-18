@@ -44,7 +44,7 @@
   border-radius: 7px;
   border: 1.5px solid #cbd5e1;
   background: #f1f5f9;
-  color: #475569;
+  color: var(--th-text);
   font-family: system-ui, sans-serif;
   text-align: center;
   padding: 4px 6px;

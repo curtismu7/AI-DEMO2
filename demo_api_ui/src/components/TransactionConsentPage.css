@@ -60,7 +60,7 @@
 .hitl-consent-banner__title {
   display: block;
   font-size: 0.95rem;
-  color: var(--brand-light-gray);
+  color: var(--th-text);
   letter-spacing: 0.02em;
   margin-bottom: 0.25rem;
 }
@@ -81,7 +81,7 @@
   cursor: pointer;
   border: none;
   background: #fbbf24;
-  color: #0f172a;
+  color: var(--th-text);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 

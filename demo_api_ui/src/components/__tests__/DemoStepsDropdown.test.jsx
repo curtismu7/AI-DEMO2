@@ -2,6 +2,8 @@
  * DemoStepsDropdown — agent header Demo steps menu.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import DemoStepsDropdown from '../DemoStepsDropdown';
 import apiClient from '../../services/apiClient';
@@ -56,6 +58,35 @@ describe('DemoStepsDropdown', () => {
     await waitFor(() => expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument());
     fireEvent.click(screen.getByTestId('demo-steps-stop-agent'));
     expect(onStopAgentClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the selected drawer affordances when open', async () => {
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument());
+
+    expect(screen.getByTestId('demo-steps-close')).toBeInTheDocument();
+    expect(screen.getByTestId('demo-steps-resize-handle')).toBeInTheDocument();
+    expect(screen.getByTestId('demo-steps-popout')).toHaveAttribute('data-placement', 'right-overlay');
+  });
+
+  it('stacks the drawer search above its actions when the drawer is narrow', () => {
+    const css = fs.readFileSync(
+      path.resolve(__dirname, '../AIAgent.css'),
+      'utf8',
+    );
+
+    expect(css).toMatch(
+      /@container\s*\(max-width:\s*460px\)[\s\S]*?\.ba-demo-steps-drawer \.ba-demo-steps-popout__header-actions[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\) auto/,
+    );
+    expect(css).toMatch(
+      /@container\s*\(max-width:\s*460px\)[\s\S]*?\.ba-demo-steps-drawer \.ba-demo-steps-popout__search[\s\S]*?grid-column:\s*1\s*\/\s*-1/,
+    );
   });
 
   it('omits the Stop Agent action when onStopAgentClick is not provided', async () => {

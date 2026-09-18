@@ -12,7 +12,7 @@
 }
 .iad-subtitle {
   font-size: 0.82rem;
-  color: #475569;
+  color: var(--th-text);
   margin-bottom: 20px;
 }
 
@@ -67,7 +67,7 @@
   font-size: 0.66rem;
   font-weight: 400;
   font-family: inherit;
-  color: #475569;
+  color: var(--th-text);
   display: block;
 }
 .iad-arrow--active .iad-arrow-line {
@@ -149,17 +149,17 @@
 .iad-node-icon {
   font-size: 1.15rem;
   font-weight: 800;
-  color: #0f172a;
+  color: var(--th-text);
   margin-bottom: 4px;
 }
 .iad-node-label {
   font-size: 0.82rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--th-text);
 }
 .iad-node-sublabel {
   font-size: 0.68rem;
-  color: #475569;
+  color: var(--th-text);
   margin-top: 3px;
 }
 

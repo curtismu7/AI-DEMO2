@@ -145,7 +145,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #374151;
+  color: var(--th-text);
   border-bottom: 1px solid #d1d5db;
   padding-bottom: 8px;
 }
@@ -171,14 +171,14 @@
 .adp-label {
   font-size: var(--font-size-2xs);
   font-weight: 600;
-  color: #6b7280;
+  color: var(--th-text);
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
 
 .adp-value {
   font-size: var(--font-size-sm);
-  color: #1f2937;
+  color: var(--th-text);
   word-break: break-word;
 }
 
@@ -270,7 +270,7 @@
 .adp-account-name {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 .adp-account-details {
@@ -290,14 +290,14 @@
 
 .adp-detail-label {
   font-weight: 600;
-  color: #6b7280;
+  color: var(--th-text);
   text-transform: uppercase;
   letter-spacing: 0.3px;
   font-size: var(--font-size-xs);
 }
 
 .adp-detail-value {
-  color: #1f2937;
+  color: var(--th-text);
   font-family: inherit;
   font-size: var(--font-size-xs);
   word-break: break-all;
@@ -458,5 +458,5 @@
 }
 
 .adp-rfc-sep {
-  color: #475569;
+  color: var(--th-text);
 }

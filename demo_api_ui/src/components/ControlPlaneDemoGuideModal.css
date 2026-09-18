@@ -4,7 +4,7 @@
   padding: 4px 2px 8px;
   font-size: var(--font-size-sm);
   line-height: 1.55;
-  color: #111827;
+  color: var(--th-text);
 }
 
 .cpg-lead {
@@ -23,7 +23,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #111827;
+  color: var(--th-text);
 }
 
 .cpg-body h4:first-of-type {
@@ -39,7 +39,7 @@
 }
 
 .cpg-steps li {
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 .cpg-steps code,
@@ -54,5 +54,5 @@
 
 .cpg-bonus {
   margin: 0;
-  color: #1f2937;
+  color: var(--th-text);
 }
