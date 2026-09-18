@@ -96,7 +96,7 @@ function loopbackSpecialistBase(vertical) {
 }
 
 /** The A2A message both paths send. `tool` is what the specialist authorizes against. */
-function buildWireMessage({ subtask, vertical, tool, toolArgs }) {
+function buildWireMessage({ subtask, vertical, tool, toolArgs, tenantHandle }) {
   return {
     messageId: crypto.randomUUID(),
     role: Role.ROLE_USER,
@@ -110,7 +110,7 @@ function buildWireMessage({ subtask, vertical, tool, toolArgs }) {
     ],
     contextId: '',
     taskId: '',
-    metadata: { vertical, demoLayer: 'a2a-protocol-wire', tool: tool || null, args: toolArgs || {} },
+    metadata: { vertical, demoLayer: 'a2a-protocol-wire', tool: tool || null, args: toolArgs || {}, tenant: tenantHandle || null },
     extensions: [],
     referenceTaskIds: [],
   };
@@ -281,7 +281,10 @@ async function sendA2aProtocolHandoff(opts = {}) {
   try {
     card = await withTimeout(
       async () => {
-        const signed = await getSignedCard(vertical, cfg);
+        const signed = await getSignedCard(vertical, cfg, {
+          authenticated: true,
+          tenantHandle: claims?.tenantHandle || null,
+        });
         if (!signed) throw new Error(`no Agent Card published for vertical "${vertical}"`);
         await cardVerifier(cfg)(signed);
         return signed;
@@ -315,6 +318,7 @@ async function sendA2aProtocolHandoff(opts = {}) {
       tokenEvents,
       card,
       baseUrl: opts.baseUrl || loopbackSpecialistBase(vertical),
+      tenantHandle: claims?.tenantHandle || null,
     })
     : () => sendInProcess({
       subjectToken,
@@ -328,6 +332,7 @@ async function sendA2aProtocolHandoff(opts = {}) {
       cfg,
       req: opts.req,
       sessionId: opts.sessionId,
+      tenantHandle: claims?.tenantHandle || null,
     });
 
   try {
@@ -353,7 +358,7 @@ async function sendA2aProtocolHandoff(opts = {}) {
 
 /** In-process SDK handler (default for UC2 — the BFF is HTTPS and loopback HTTP would fail). */
 async function sendInProcess({
-  subjectToken, claims, vertical, subtask, tool, toolArgs, tokenEvents, card, cfg, req, sessionId,
+  subjectToken, claims, vertical, subtask, tool, toolArgs, tokenEvents, card, cfg, req, sessionId, tenantHandle,
 }) {
   // Built with this call's context: the executor needs the bearer (its
   // Exchange #2 subject), the shared tokenEvents (so its a2a-agent2-actor /
@@ -385,12 +390,15 @@ async function sendInProcess({
     get actor() {
       return actor;
     },
+    get tenantId() {
+      return claims?.tenantId || null;
+    },
   };
 
   const sent = await built.handler.sendMessage(
     {
       tenant: '',
-      message: buildWireMessage({ subtask, vertical, tool, toolArgs }),
+      message: buildWireMessage({ subtask, vertical, tool, toolArgs, tenantHandle }),
       configuration: undefined,
       metadata: undefined,
     },
@@ -418,7 +426,7 @@ async function sendInProcess({
 
 /** Optional HTTP client (A2A_PROTOCOL_HTTP=1 or opts.baseUrl). Same delegated bearer. */
 async function sendViaHttp({
-  subjectToken, vertical, subtask, tool, toolArgs, tokenEvents, card, baseUrl,
+  subjectToken, vertical, subtask, tool, toolArgs, tokenEvents, card, baseUrl, tenantHandle,
 }) {
   const authFetch = createAuthenticatingFetchWithRetry(globalThis.fetch.bind(globalThis), {
     headers: async () => ({
@@ -435,7 +443,7 @@ async function sendViaHttp({
 
   const client = await factory.createFromUrl(baseUrl);
   const sent = await client.sendMessage({
-    message: buildWireMessage({ subtask, vertical, tool, toolArgs }),
+    message: buildWireMessage({ subtask, vertical, tool, toolArgs, tenantHandle }),
   });
 
   return finishHop({

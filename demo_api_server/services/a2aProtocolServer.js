@@ -12,7 +12,6 @@ const express = require('express');
 const { Role } = require('@a2a-js/sdk');
 const {
   DefaultRequestHandler,
-  InMemoryTaskStore,
   AgentEvent,
 } = require('@a2a-js/sdk/server');
 const { jsonRpcHandler } = require('@a2a-js/sdk/server/express');
@@ -30,6 +29,23 @@ const { exchangeAsSpecialist } = require('./a2aDelegationService');
 const { executeBffToolWithToken } = require('./bffMcpToolExecutor');
 const { parseToolResult } = require('./llmResponseContract');
 const { redactValue } = require('../utils/logRedact');
+const { createA2aTaskStore } = require('./lmdb/a2aTaskStore.lmdb');
+const { tenantMatches } = require('./a2aTenantService');
+
+const taskStores = new Map();
+function taskStoreFor(vertical) {
+  if (!taskStores.has(vertical)) {
+    let store;
+    const ensure = () => (store || (store = createA2aTaskStore()));
+    taskStores.set(vertical, new Proxy({}, {
+      get(_target, property) {
+        const value = ensure()[property];
+        return typeof value === 'function' ? value.bind(ensure()) : value;
+      },
+    }));
+  }
+  return taskStores.get(vertical);
+}
 
 function defaultConfigStore() {
   return require('./configStore');
@@ -208,6 +224,10 @@ function makeSpecialistExecutor(specialist, vertical = specialist.appKey, opts =
           ...fields,
         });
 
+      if (ctx.claims?.tenantHandle && !tenantMatches(ctx.claims.tenantHandle, meta.tenant)) {
+        return reply({ result: null, toolError: 'a2a_tenant_mismatch' });
+      }
+
       let tool;
       try {
         tool = assertSkillAllowed(specialist, meta.tool);
@@ -288,7 +308,7 @@ function createSpecialistProtocolHandler(vertical, cfg, ctx) {
   const subjectToken = ctx?.subjectToken || ctx?.req?.a2aPingOne?.token || null;
   const handler = new DefaultRequestHandler(
     card,
-    new InMemoryTaskStore(),
+    taskStoreFor(vertical),
     makeSpecialistExecutor(specialist, vertical, { subjectToken, ctx }),
   );
   return { handler, card, specialist };
@@ -313,9 +333,21 @@ function createA2aProtocolRouter(opts = {}) {
     }
     const base = `/${encodeURIComponent(vertical)}`;
 
-    router.get(`${base}/.well-known/agent-card.json`, async (_req, res) => {
+    router.get(`${base}/.well-known/agent-card.json`, async (req, res) => {
       const cfg = typeof getCfg === 'function' ? getCfg() : getCfg;
-      const card = await getSignedCard(vertical, cfg);
+      const auth = /^Bearer\s+(.+)$/i.exec(req.headers.authorization || '');
+      let options = {};
+      if (auth) {
+        try {
+          const claims = await require('../middleware/a2aPingOneBearer').verifyA2aBearer(auth[1].trim(), { vertical, cfg });
+          options = { authenticated: true, tenantHandle: claims.tenantHandle };
+        } catch (err) {
+          const e = err;
+          res.set('WWW-Authenticate', e.challenge || 'Bearer error="invalid_token"');
+          return res.status(e.status || 401).json({ error: e.message || 'unauthorized' });
+        }
+      }
+      const card = await getSignedCard(vertical, cfg, options);
       if (!card) return res.status(404).json({ error: 'no_specialist' });
       return res.json(card);
     });
@@ -331,9 +363,8 @@ function createA2aProtocolRouter(opts = {}) {
         // tests/a2aSpecialistRouterContext.test.js, which fails if this is
         // reverted to startup construction. req.a2aPingOne is set by the gate
         // above, which still runs first and is unchanged.
-        // ponytail: a fresh InMemoryTaskStore per request, so no task outlives
-        // the response — fine for this one-shot message/send hop; share a store
-        // per vertical if task polling is ever needed.
+        // The task store is shared per specialist and persists through LMDB;
+        // request-specific bearer/session/executor context remains per request.
         //
         // tokenEvents: [] here is real and per-request (fresh each call, never
         // shared across requests) — the specialist executor mutates this SAME

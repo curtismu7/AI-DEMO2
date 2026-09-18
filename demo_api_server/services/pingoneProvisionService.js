@@ -2506,6 +2506,26 @@ class PingOneProvisionService {
       }
       onStep(steps[steps.length - 1]);
 
+      // A2A tenant identity is intentionally explicit: PingOne projects the
+      // configured environment identifier into every A2A access token so the
+      // BFF can fail closed before serving cards or task state.
+      steps.push({ step: 'a2aTenantId-schema', icon: '🔧', message: 'Ensuring a2aTenantId user attribute...' });
+      onStep(steps[steps.length - 1]);
+      try {
+        await this._ensureUserSchemaAttribute('a2aTenantId', 'STRING', 'A2A tenant identifier');
+        const tenantId = String(config.envId || process.env.PINGONE_ENVIRONMENT_ID || '').trim();
+        if (!tenantId) throw new Error('PingOne environment id is not configured');
+        await Promise.all([
+          this.makeRequest('PATCH', `/users/${bankUserResult.user.id}`, { a2aTenantId: tenantId }),
+          this.makeRequest('PATCH', `/users/${bankAdminResult.user.id}`, { a2aTenantId: tenantId }),
+          this.makeRequest('PATCH', `/users/${bankDelegateResult.user.id}`, { a2aTenantId: tenantId }),
+        ]);
+        steps.push({ step: 'a2aTenantId-schema', icon: '✅', message: 'A2A tenant claim source configured on demo users' });
+      } catch (err) {
+        steps.push({ step: 'a2aTenantId-schema', icon: '⚠️', message: `A2A tenant claim step: ${err.message}` });
+      }
+      onStep(steps[steps.length - 1]);
+
       // Set isDelegate=true on demoDelegate (PATCH user). Uses partial-update
       // semantics — we only send the changed field.
       try {
@@ -3265,6 +3285,36 @@ class PingOneProvisionService {
             specScopes.map((name) => ({ name, description: `${spec.specialistName} — ${name} (A2A Exchange #2).` })),
           );
           pushScopeResultStep(steps, `a2a-${spec.appKey}-resource`, `${spec.specialistName} A2A MCP Gateway scopes`, a2aGwScopeResults);
+          onStep(steps[steps.length - 1]);
+
+          // Project the explicit PingOne user attribute into both audiences.
+          // The topology remains the source of truth for which scopes receive
+          // the claim; the resource attribute is the value expression.
+          try {
+            await this._setResourceAttribute(
+              specResourceResult.resource.id,
+              'a2a_tenant_id',
+              '${user.a2aTenantId}',
+            );
+            await this.setMappedClaims(
+              specResourceResult.resource.id,
+              _rawTopology.mappedClaims?.[
+                `Super Banking A2A Intermediate - ${spec.specialistName}`
+              ] || [{ scope: invokeScopeName, attributes: ['a2a_tenant_id'] }],
+            );
+            await this._setResourceAttribute(
+              a2aGwResourceResult.resource.id,
+              'a2a_tenant_id',
+              '${user.a2aTenantId}',
+            );
+            await this.setMappedClaims(
+              a2aGwResourceResult.resource.id,
+              _rawTopology.mappedClaims?.['Super Banking A2A MCP Gateway'] || [],
+            );
+            steps.push({ step: `a2a-${spec.appKey}-tenant-claim`, icon: '✅', message: `${spec.specialistName} A2A tenant claim mapping wired` });
+          } catch (tenantErr) {
+            steps.push({ step: `a2a-${spec.appKey}-tenant-claim`, icon: '⚠️', message: `${spec.specialistName} tenant claim step: ${tenantErr.message}` });
+          }
           onStep(steps[steps.length - 1]);
 
           // Agent 1 needs invokeScopeName on THIS specialist's intermediate to mint
