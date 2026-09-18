@@ -63,6 +63,7 @@ const P1_FORMS = {
         { type: "LABEL", key: "title-text", label: "Enter the passcode you received." },
         { type: "ERROR_DISPLAY" },
         { type: "TEXT", key: "otp", label: "Verification Code" },
+        { type: "FLOW_LINK", key: "cancel", label: "Cancel" },
         { type: "PROTECT", key: "deviceRisk" },
       ],
     },
@@ -180,6 +181,7 @@ describe("StepInspector", () => {
       { type: "RichTextCollector", category: "NoValueCollector" },
       { type: "ERROR_DISPLAY", category: "UnknownCollector" },
       { type: "TextCollector", category: "SingleValueCollector", key: "otp" },
+      { type: "FlowCollector", category: "ActionCollector", key: "cancel" },
       { type: "ProtectCollector", category: "SingleValueAutoCollector" },
     ];
     const { container } = render(
@@ -193,6 +195,8 @@ describe("StepInspector", () => {
     expect(tableText).toContain("Display-only rich text");
     expect(tableText).toContain("ERROR_DISPLAY");
     expect(tableText).toContain("page-owned placeholder");
+    expect(tableText).toContain("FlowCollector");
+    expect(tableText).toContain("branch");
     expect(tableText).toContain("ProtectCollector");
     expect(tableText).toContain("automatic security signal");
     expect(tableText).not.toContain("Not handled by this page");

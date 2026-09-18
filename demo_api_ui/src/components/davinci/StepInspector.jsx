@@ -178,6 +178,7 @@ function roleOf(field) {
         </>
       );
     case "FLOW_BUTTON":
+    case "FLOW_LINK":
       return (
         <>
           No value; a branch. It calls <code>client.flow({`{ action: "${key}" }`})()</code>, which posts{" "}
