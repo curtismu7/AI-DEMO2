@@ -15,43 +15,95 @@
 }
 
 .mcp-discovery-header { max-width: 1500px; margin: 0 auto 20px; align-items: flex-end; }
-.mcp-discovery-eyebrow { margin: 0 0 5px; color: var(--th-accent); font-size: var(--font-size-2xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.mcp-discovery-eyebrow { margin: 0 0 5px; color: var(--th-bg-emphasis); font-size: var(--font-size-2xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 .mcp-discovery-header h1 { margin: 0; color: var(--th-text); font-size: var(--font-size-2xl); }
 .mcp-discovery-subtitle { max-width: 720px; margin: 7px 0 0; color: var(--th-text-body); font-size: var(--font-size-body); }
 .mcp-discovery-updated { color: var(--th-text-body); font-size: var(--font-size-xs); white-space: nowrap; }
-.mcp-discovery-button { border: 1px solid var(--th-border-strong); border-radius: 6px; padding: 8px 12px; background: var(--th-bg-card); color: var(--th-text); font-size: var(--font-size-sm); font-weight: 700; cursor: pointer; }
-.mcp-discovery-button:hover:not(:disabled) { background: var(--th-bg-hover); }
+.mcp-discovery-button {
+  border: 1px solid var(--th-border-strong);
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+.mcp-discovery-button:hover:not(:disabled) {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
 .mcp-discovery-button:disabled { cursor: default; opacity: .6; }
-.mcp-discovery-button-primary { border-color: var(--th-accent); background: var(--th-accent); color: var(--th-text-on-accent); }
+.mcp-discovery-button-primary {
+  border-color: var(--th-bg-emphasis);
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
+}
 
 .mcp-discovery-error,
 .mcp-discovery-notice { max-width: 1500px; margin: 0 auto 14px; border: 1px solid var(--th-border-strong); border-radius: 6px; padding: 10px 14px; font-size: var(--font-size-sm); }
-.mcp-discovery-error { border-color: var(--th-status-error-border); background: var(--th-status-error-bg); color: var(--th-status-error-text); }
-.mcp-discovery-notice { background: var(--th-bg-inset); color: var(--th-text); }
+.mcp-discovery-error {
+  border-color: var(--th-status-error-border);
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+}
+.mcp-discovery-notice {
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
 
 .mcp-discovery-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; max-width: 1500px; margin: 0 auto 16px; }
-.mcp-discovery-summary-card { border: 1px solid var(--th-border); border-radius: 8px; padding: 14px 16px; background: var(--th-bg-card); }
+.mcp-discovery-summary-card {
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
 .mcp-discovery-summary-card span,
 .mcp-discovery-summary-card small { display: block; color: var(--th-text-body); font-size: var(--font-size-xs); }
 .mcp-discovery-summary-card strong { display: block; margin: 5px 0 2px; color: var(--th-text); font-size: var(--font-size-xl); }
 
 .mcp-discovery-grid { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(300px, .85fr); gap: 16px; max-width: 1500px; margin: 0 auto; }
-.mcp-discovery-panel { min-width: 0; border: 1px solid var(--th-border); border-radius: 8px; background: var(--th-bg-card); color: var(--th-text); }
+.mcp-discovery-panel {
+  min-width: 0;
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
 .mcp-discovery-panel-heading { padding: 16px 18px 12px; border-bottom: 1px solid var(--th-border); }
 .mcp-discovery-panel-heading h2 { margin: 0; color: var(--th-text); font-size: var(--font-size-lg); }
 .mcp-discovery-count { color: var(--th-text-body); font-size: var(--font-size-xs); white-space: nowrap; }
 .mcp-discovery-table-wrap { overflow-x: auto; }
 .mcp-discovery-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); }
-.mcp-discovery-table th { padding: 10px 12px; background: var(--th-bg-inset); color: var(--th-text-body); font-size: var(--font-size-xs); font-weight: 700; text-align: left; white-space: nowrap; }
+.mcp-discovery-table th {
+  padding: 10px 12px;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+}
 .mcp-discovery-table td { padding: 11px 12px; border-top: 1px solid var(--th-border); color: var(--th-text); vertical-align: top; }
 .mcp-discovery-table td strong,
 .mcp-discovery-table td small { display: block; }
 .mcp-discovery-table td small { margin-top: 3px; color: var(--th-text-body); font-size: var(--font-size-2xs); }
 .mcp-discovery-status { display: inline-block; border-radius: 999px; padding: 3px 7px; color: var(--th-text); font-size: var(--font-size-2xs); font-weight: 700; text-transform: capitalize; white-space: nowrap; }
-.mcp-discovery-status-healthy { background: var(--th-status-success-bg); color: var(--th-status-success-text); }
+.mcp-discovery-status-healthy {
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+}
 .mcp-discovery-status-degraded,
-.mcp-discovery-status-candidate { background: var(--th-status-warning-bg); color: var(--th-status-warning-text); }
-.mcp-discovery-status-offline { background: var(--th-status-error-bg); color: var(--th-status-error-text); }
+.mcp-discovery-status-candidate {
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+}
+.mcp-discovery-status-offline {
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+}
 .mcp-discovery-empty { margin: 0; padding: 30px 18px; color: var(--th-text-body); font-size: var(--font-size-sm); }
 .mcp-discovery-disclaimer { margin: 14px 18px; color: var(--th-text-body); font-size: var(--font-size-xs); line-height: 1.5; }
 .mcp-discovery-findings { display: grid; gap: 10px; margin: 0; padding: 0 18px 18px; list-style: none; }
