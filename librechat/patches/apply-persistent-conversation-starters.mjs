@@ -5,6 +5,10 @@ const testPath = '/app/client/src/components/Chat/__tests__/ChatView.spec.tsx';
 const scheduleCardPath = '/app/client/src/components/SidePanel/Schedules/ScheduleCard.tsx';
 const scheduleExplanationPath = '/app/client/src/components/SidePanel/Schedules/ScheduleExplanation.tsx';
 const scheduleExplanationTestPath = '/app/client/src/components/SidePanel/Schedules/__tests__/ScheduleExplanation.spec.tsx';
+const mcpErrorRecoveryPath = '/app/client/src/components/Chat/Messages/Content/McpErrorRecovery.ts';
+const mcpErrorRecoveryTestPath = '/app/client/src/components/Chat/Messages/Content/McpErrorRecovery.spec.ts';
+const mcpRecoveryControllerPath = '/app/client/src/components/Chat/Messages/Content/McpRecoveryController.ts';
+const mcpRecoveryControllerTestPath = '/app/client/src/components/Chat/Messages/Content/McpRecoveryController.spec.ts';
 const overrideRoot = '/tmp/client-overrides';
 
 function replaceOnce(source, before, after, label) {
@@ -60,6 +64,18 @@ writeFileSync(scheduleExplanationPath, scheduleExplanation);
 
 const scheduleExplanationTest = readFileSync(`${overrideRoot}/ScheduleExplanation.spec.tsx`, 'utf8');
 writeFileSync(scheduleExplanationTestPath, scheduleExplanationTest);
+
+const mcpErrorRecovery = readFileSync(`${overrideRoot}/McpErrorRecovery.ts`, 'utf8');
+writeFileSync(mcpErrorRecoveryPath, mcpErrorRecovery);
+
+const mcpErrorRecoveryTest = readFileSync(`${overrideRoot}/McpErrorRecovery.spec.ts`, 'utf8');
+writeFileSync(mcpErrorRecoveryTestPath, mcpErrorRecoveryTest);
+
+const mcpRecoveryController = readFileSync(`${overrideRoot}/McpRecoveryController.ts`, 'utf8');
+writeFileSync(mcpRecoveryControllerPath, mcpRecoveryController);
+
+const mcpRecoveryControllerTest = readFileSync(`${overrideRoot}/McpRecoveryController.spec.ts`, 'utf8');
+writeFileSync(mcpRecoveryControllerTestPath, mcpRecoveryControllerTest);
 
 let schedulePanel = readFileSync('/app/client/src/components/SidePanel/Schedules/SchedulePanel.tsx', 'utf8');
 schedulePanel = replaceOnce(
