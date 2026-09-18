@@ -57,6 +57,21 @@ describe('DemoStepsDropdown', () => {
     expect(onStopAgentClick).toHaveBeenCalledTimes(1);
   });
 
+  it('renders the selected drawer affordances when open', async () => {
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument());
+
+    expect(screen.getByTestId('demo-steps-close')).toBeInTheDocument();
+    expect(screen.getByTestId('demo-steps-resize-handle')).toBeInTheDocument();
+    expect(screen.getByTestId('demo-steps-popout')).toHaveAttribute('data-placement', 'right-overlay');
+  });
+
   it('omits the Stop Agent action when onStopAgentClick is not provided', async () => {
     render(
       <DemoStepsDropdown
