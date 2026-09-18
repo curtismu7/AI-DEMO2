@@ -146,6 +146,20 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-18 — MCP compliance checklist closes on browser refresh
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js` and
+`demo_api_ui/src/__tests__/ComplianceModalRefresh.test.js`.
+- **What was broken:** The compliance checklist and side-panel visibility were
+  restored from `localStorage`, so an open checklist reappeared after a browser
+  refresh.
+- **What was fixed:** Keep both visibility states transient for the current
+  page session; a fresh browser load starts with the checklist closed.
+- **Do not break:** Preserve compliance step tracking, checklist rendering,
+  side-panel selection during the current session, and unrelated UI settings.
+- **Verify:** `ComplianceModalRefresh.test.js`, the UI unit suite, and the UI
+  production build.
+
 ### 2026-09-18 — MCP account discovery uses the registered account-read scope
 
 - **Files changed:** `scope-topology.json`, MCP scope regression fixtures and
