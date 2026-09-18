@@ -3,15 +3,17 @@
 set -euo pipefail
 
 REPOSITORY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-LAUNCHER_HOST="${DEMO_LAUNCHER_HOST:-127.0.0.1}"
+LAUNCHER_HOST="127.0.0.1"
 LAUNCHER_PORT="${DEMO_LAUNCHER_PORT:-3090}"
 LAUNCHER_URL="http://${LAUNCHER_HOST}:${LAUNCHER_PORT}"
+export DEMO_LAUNCHER_HOST="${LAUNCHER_HOST}"
 
 cd "${REPOSITORY_ROOT}"
 ./run-docker.sh
+./run-docker.sh optional start demo-auth
 
 if ! curl --silent --fail --max-time 1 "${LAUNCHER_URL}/health" >/dev/null 2>&1; then
-  DEMO_LAUNCHER_HOST="${LAUNCHER_HOST}" DEMO_LAUNCHER_PORT="${LAUNCHER_PORT}" nohup node scripts/demo-launcher-server.mjs >/tmp/ai-demo-launcher.log 2>&1 &
+  DEMO_LAUNCHER_PORT="${LAUNCHER_PORT}" nohup node scripts/demo-launcher-server.mjs >/tmp/ai-demo-launcher.log 2>&1 &
   launcher_pid=$!
   for _ in 1 2 3 4 5 6 7 8 9 10; do
     if curl --silent --fail --max-time 1 "${LAUNCHER_URL}/health" >/dev/null 2>&1; then

@@ -146,6 +146,11 @@ function discardRequestBody(request) {
   }
 }
 
+function hasRawDotSegment(requestTarget) {
+  const rawPath = requestTarget.split(/[?#]/, 1)[0];
+  return rawPath.split('/').some((segment) => /^(?:\.|%2e){1,2}$/i.test(segment));
+}
+
 async function hasRequestBody(request) {
   if (request.headers['content-length'] && request.headers['content-length'] !== '0') {
     return true;
@@ -230,7 +235,12 @@ export function createLauncherServer({
   }
 
   return createServer(async (request, response) => {
-    const requestUrl = new URL(request.url ?? '/', 'http://127.0.0.1');
+    const requestTarget = request.url ?? '/';
+    if (hasRawDotSegment(requestTarget)) {
+      writeText(response, 404, 'Not found');
+      return;
+    }
+    const requestUrl = new URL(requestTarget, 'http://127.0.0.1');
     const { pathname } = requestUrl;
     const method = request.method ?? 'GET';
 

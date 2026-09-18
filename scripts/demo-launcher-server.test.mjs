@@ -163,6 +163,19 @@ test('rejects bodies, unsupported methods, and arbitrary proxy routes', async ()
   );
 });
 
+test('rejects raw dot-segment paths before URL normalization', async () => {
+  await withLauncher(
+    { probe: async () => ({ ok: true }) },
+    async (request) => {
+      for (const path of ['/../', '/%2e%2e', '/%2e%2e/index.html']) {
+        const response = await request(path);
+        assert.equal(response.statusCode, 404, path);
+        assert.equal(response.body, 'Not found', path);
+      }
+    },
+  );
+});
+
 test('rejects a foreign Origin before starting the stack', async () => {
   let startCalls = 0;
   await withLauncher(
