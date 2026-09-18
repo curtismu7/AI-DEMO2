@@ -14,7 +14,9 @@ import './SimpleStepperPanel.css';
 export default function SimpleStepperPanel({ isOpen, onClose }) {
   const ctx = useTokenChainOptional();
 
-  if (!ctx) return null;
+  // Keep the shared modal mounted only while visible. Its unmount cleanup owns
+  // the child-window close lifecycle after a pop-out.
+  if (!ctx || !isOpen) return null;
 
   const events = ctx.events ?? [];
   const haltedIdx = events.findIndex((ev, i) => isHaltedAt(events, i));
