@@ -223,6 +223,19 @@ resolve to `--th-*`. Leave them; they are the compatibility layer.
 Deliberately **not** aliased: `--pp-*`, because ProtocolPlayground themes via its
 own `.dark` class rather than `[data-theme]`. Do not "fix" it.
 
+### 2.1 Modal and pop-out surfaces
+
+Modal and pop-out surfaces must use the shared modal primitive (or a shared
+primitive built on its window and resize behavior). They must provide a real
+pop-out control and resizing, and their embedded and child-window shells must
+use the `--th-*` theme tokens for themeable surfaces, ink, and lines. A child
+window copies the current theme when it opens and may change its own
+`data-theme` without changing the parent page.
+
+Existing specialized surfaces are migrated when they are touched, or when
+their current behavior violates the hard UI contract. Do not rewrite them as
+unrelated cleanup.
+
 ---
 
 ## §3 Where we actually are

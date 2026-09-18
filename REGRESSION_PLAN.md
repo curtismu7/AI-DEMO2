@@ -35,6 +35,11 @@ truth — if the skill and this file disagree, this file wins.
   A glyph someone reached for once is not vocabulary — remove it instead.
 - **No muted modal text:** modals use solid high-contrast colors, never
   low-contrast gray hint text.
+- **Modal surface contract:** modal and pop-out surfaces use the shared modal
+  primitive, provide a real pop-out control and resizing, and use `--th-*`
+  theme tokens in both the embedded surface and any child window. Existing
+  specialized surfaces are migrated when touched or when they violate this
+  contract; do not rewrite them as unrelated cleanup.
 - **H1 — never mix a literal and a token for ink and ground in one rule.** Both
   sides come from `--th-*`, or both stay literal. A tokenised background with a
   literal `color` (or the reverse) is correct in exactly one theme: one half
