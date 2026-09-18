@@ -5144,20 +5144,124 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: var(--th-text);
   box-sizing: border-box;
 }
-.ba-topology-surface-row label {
+.ba-topology-surface-label {
   color: var(--th-text);
   font-size: var(--font-size-base);
   font-weight: 600;
 }
-.ba-topology-surface-row select {
-  min-width: 108px;
-  padding: 4px 7px;
+.ba-surface-selector {
+  position: relative;
+  width: min(260px, 62%);
+}
+.ba-surface-selector-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 54px;
+  padding: 9px 11px;
   border: 1px solid var(--th-border-strong);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--th-text);
   background: var(--th-bg-card);
-  font: inherit;
-  font-size: var(--font-size-xs);
+  text-align: left;
+  cursor: pointer;
+}
+.ba-surface-selector-trigger:hover:not(:disabled),
+.ba-surface-selector-trigger[aria-expanded="true"] {
+  border-color: var(--th-status-info);
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+.ba-surface-selector-trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.ba-surface-selector-trigger strong,
+.ba-surface-option strong {
+  display: block;
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 750;
+}
+.ba-surface-selector-trigger small,
+.ba-surface-option small {
+  display: block;
+  margin-top: 3px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  line-height: 1.3;
+}
+.ba-surface-selector-chevron {
+  flex: 0 0 auto;
+  color: var(--th-status-info);
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+}
+.ba-surface-selector-menu {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  z-index: 3;
+  display: grid;
+  width: 100%;
+  min-width: 238px;
+  overflow: hidden;
+  border: 1px solid var(--th-status-info);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  box-shadow: var(--shadow-lg);
+}
+.ba-surface-option {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--th-border);
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  text-align: left;
+  cursor: pointer;
+}
+.ba-surface-option:last-child { border-bottom: 0; }
+.ba-surface-option:hover,
+.ba-surface-option.is-selected {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+.ba-surface-option.is-selected {
+  box-shadow: inset 3px 0 0 var(--th-status-info);
+}
+.ba-surface-option-radio {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--th-border-strong);
+  border-radius: 50%;
+}
+.ba-surface-option.is-selected .ba-surface-option-radio {
+  border-color: var(--th-status-info);
+}
+.ba-surface-option.is-selected .ba-surface-option-radio::after {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--th-status-info);
+  content: "";
+}
+.ba-sequence-popout-detail {
+  max-height: min(36vh, 320px);
+  margin-top: 0.5rem;
+  overflow: auto;
+  border-top: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
 }
 .ba-header-more-pop .ba-actions-trigger .ba-surface-badge {
   margin-left: auto;
@@ -5188,6 +5292,48 @@ body > .banking-agent-float-root .banking-agent-panel {
   height: auto;
   padding: 7px 12px;
   font-size: var(--font-size-base);
+}
+.ba-header-more-view-picker {
+  padding: 10px 12px 12px;
+  border-bottom: 1px solid var(--th-border);
+}
+.ba-header-more-view-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.ba-header-more-view-option {
+  min-height: 58px;
+  padding: 7px 8px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: 7px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  text-align: left;
+  cursor: pointer;
+}
+.ba-header-more-view-option:hover,
+.ba-header-more-view-option.selected,
+.ba-header-more-view-option:focus-visible {
+  border-color: var(--th-status-info-text);
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+.ba-header-more-view-option.selected {
+  box-shadow: inset 0 -2px 0 var(--th-status-info-text);
+}
+.ba-header-more-view-option strong,
+.ba-header-more-view-option span {
+  display: block;
+}
+.ba-header-more-view-option strong {
+  font-size: var(--font-size-2xs);
+}
+.ba-header-more-view-option span {
+  margin-top: 3px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-3xs);
+  line-height: 1.25;
 }
 .ba-header-more-pop .ba-header-toggle-label {
   height: auto;

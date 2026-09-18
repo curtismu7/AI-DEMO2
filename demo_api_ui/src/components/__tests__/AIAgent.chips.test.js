@@ -486,7 +486,7 @@ describe("Header controls after the Actions dropdown removal", () => {
     expect(screen.getByRole("button", { name: /^Guide$/i })).toBeInTheDocument();
   });
 
-  it("offers a toggle for RFC info and four surface choices for each evidence view", async () => {
+  it("offers a toggle and readable surface choices for each evidence view", async () => {
     renderAgent({ user: customerUser, mode: "float" });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
@@ -500,34 +500,66 @@ describe("Header controls after the Actions dropdown removal", () => {
 
     for (const label of [
       "Agent flow diagram surface",
-      "Token topology",
+      "Token topology surface",
       "Simple step surface",
       "Sequence view surface",
       "OAuth Visualizer surface",
     ]) {
-      const select = screen.getByLabelText(label);
-      expect(select).toHaveValue("none");
-      expect([...select.options].map((option) => option.value)).toEqual([
-        "none",
-        "embedded",
-        "popout",
-        "both",
-      ]);
+      const trigger = screen.getByRole("button", { name: label });
+      expect(trigger).toHaveTextContent("Off");
+      await act(async () => {
+        fireEvent.click(trigger);
+      });
+      const options = screen.getByRole("listbox", { name: `${label} options` });
+      expect(options.querySelectorAll('[role="option"]')).toHaveLength(4);
+      expect(options).toHaveTextContent("Off");
+      expect(options).toHaveTextContent("Embedded");
+      expect(options).toHaveTextContent("Pop-out");
+      expect(options).toHaveTextContent("Both");
+      await act(async () => {
+        fireEvent.click(screen.getByRole("option", { name: /^Off\b/ }));
+      });
     }
 
     await act(async () => {
-      fireEvent.change(screen.getByLabelText("Sequence view surface"), { target: { value: "both" } });
+      fireEvent.click(screen.getByRole("button", { name: "Sequence view surface" }));
     });
-    expect(screen.getByLabelText("Agent flow diagram surface")).toBeDisabled();
-    expect(screen.getByLabelText("Token topology")).toBeDisabled();
-    expect(screen.getByLabelText("Simple step surface")).toBeDisabled();
-    expect(screen.getByLabelText("OAuth Visualizer surface")).toBeDisabled();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("option", { name: /^Both\b/ }));
+    });
+    expect(screen.getByRole("button", { name: "Agent flow diagram surface" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Token topology surface" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Simple step surface" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "OAuth Visualizer surface" })).toBeDisabled();
+    expect(screen.getByLabelText("Follow flow")).toBeChecked();
 
     await act(async () => {
-      fireEvent.change(screen.getByLabelText("Sequence view surface"), { target: { value: "popout" } });
+      fireEvent.click(screen.getByRole("button", { name: "Sequence view surface" }));
     });
-    expect(screen.getByLabelText("Agent flow diagram surface")).not.toBeDisabled();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("option", { name: /^Pop-out\b/ }));
+    });
+    expect(screen.getByRole("button", { name: "Agent flow diagram surface" })).not.toBeDisabled();
   });
+
+  it("lets Quick Config choose the evidence view before its surface", async () => {
+    renderAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
+    });
+
+    expect(screen.getByRole("button", { name: /Movie reel/ })).toHaveAttribute("aria-pressed", "true");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Simple stepper/ }));
+    });
+    expect(screen.getByRole("button", { name: /Simple stepper/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Movie reel/ })).toHaveAttribute("aria-pressed", "false");
+  });
+
 });
 
 // ─── Post-OAuth auto-open ────────────────────────────────────────────────────
