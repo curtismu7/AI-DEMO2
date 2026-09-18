@@ -141,6 +141,54 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-18 — DaVinci SDK execution reel separates masked live evidence from concept preview
+
+**Files changed:** `demo_api_ui/src/components/davinci/sdkExecutionEvents.js`,
+`demo_api_ui/src/components/davinci/SdkExecutionReel.jsx`,
+`demo_api_ui/src/components/davinci/SdkExecutionReel.css`,
+`demo_api_ui/src/components/davinci/CollapsibleCodeBlock.jsx`,
+`demo_api_ui/src/components/davinci/SdkLessonSections.jsx`,
+`demo_api_ui/src/pages/DavinciSdkLoginPage.jsx`, and
+`demo_api_ui/src/pages/DavinciSdkLoginPage.css`. Tests:
+`sdkExecutionEvents.test.js`, `SdkExecutionReel.test.jsx`,
+`CollapsibleCodeBlock.test.jsx`, `SdkLessonSections.test.jsx`,
+`StepInspector.test.jsx`, and `DavinciSdkLoginPage.steps.test.jsx`.
+
+**What was broken:** the orchestration lesson could show static SDK patterns and
+per-step inspection, but it did not make the actual sequence of DaVinci,
+browser SDK, and collector callbacks visible as one safe, chronological run.
+It also had no explicit boundary preventing concept data from being mistaken
+for current-browser execution evidence.
+
+**What was fixed:** `DavinciSdkLoginPage` appends semantic events only at its
+existing SDK and collector callback boundaries. `sdkExecutionEvents` normalizes
+and masks those callbacks before `SdkExecutionReel` renders them; raw secrets,
+PKCE values, nonce, state, interaction identifiers, authorization codes, and
+typed values never reach reel details. The separate concept preview uses only
+display-safe fixture events. Existing static code examples remain copyable and
+intact inside `CollapsibleCodeBlock` disclosures. `SdkLessonSections` records
+the P1 Forms rules: `RichTextCollector` is display-only, `ERROR_DISPLAY` is a
+page-owned error slot, and `ProtectCollector` is automatic rather than user
+input; it also preserves the immutable update and submit-versus-flow lessons.
+
+**Do not break:**
+- A live reel frame must be evidence captured from this browser run. Concept
+  preview events must stay visibly labeled and must never be presented as, or
+  mixed into, a live run.
+- Keep the existing static snippets and copy controls; collapsing their display
+  must not replace or alter their code content.
+- Preserve the existing DaVinci SDK callback, BFF exchange, collector rendering,
+  and Step Inspector behavior. The reel consumes their masked evidence; it does
+  not create a parallel client or simulated live execution path.
+- Keep P1 Forms collector semantics explicit: display and automatic collectors
+  do not become inputs, and collector values continue through
+  `client.update(collector)(value)`.
+
+**Verify:** run the six focused DaVinci Vitest suites in the Task 5 brief,
+`cd demo_api_ui && npm run build`, then `git diff --check`,
+`npm run topology:verify`, `npm run hygiene:check`, and `npm run authz:verify`
+from the repository root.
+
 ### 2026-09-17 — DaVinci SDK renders PingOne Forms display and security collectors
 
 **Files changed:** `demo_api_ui/src/components/davinci/CollectorField.jsx`,
