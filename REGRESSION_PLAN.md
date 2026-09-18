@@ -148,11 +148,11 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ### 2026-09-18 — DaVinci SDK logout return URI registered separately from login callback
 
-- **Files changed:** `demo_api_server/services/pingoneAppConfigService.js`, `demo_api_server/tests/services/pingoneAppConfigService.sdkLogout.test.js`, `demo_api_ui/src/components/davinci/SdkLessonSections.jsx`, `demo_api_ui/src/components/davinci/SdkExecutionReel.jsx`, `demo_api_ui/src/components/davinci/sdkExecutionEvents.js`, `demo_api_ui/src/pages/DavinciSdkLoginPage.jsx` and focused UI tests.
+- **Files changed:** `demo_api_server/services/pingoneAppConfigService.js`, `demo_api_server/tests/services/pingoneAppConfigService.sdkLogout.test.js`, `demo_api_ui/src/components/davinci/SdkLessonSections.jsx`, `demo_api_ui/src/components/davinci/SdkExecutionReel.jsx` and `.css`, `demo_api_ui/src/components/davinci/sdkExecutionEvents.js`, `demo_api_ui/src/pages/DavinciSdkLoginPage.jsx` and focused UI tests.
 - **What was broken:** The SDK app accepted `/davinci-orchestration-sdk` for OAuth login, but PingOne's separate `postLogoutRedirectUris` list omitted it, so sign-off returned `INVALID_DATA` for `post_logout_redirect_uri`.
-- **What was fixed:** Registered the exact local SDK return URI on the live SDK app and added a startup/periodic guard that merges the configured SDK return URI into that app's logout list without replacing existing entries. The orchestration lesson now explains the separate allowlists and the `INVALID_DATA` symptom; the execution reel records a data-free sign-off handoff across the redirect.
+- **What was fixed:** Registered the exact local SDK return URI on the live SDK app and added a startup/periodic guard that merges the configured SDK return URI into that app's logout list without replacing existing entries. The orchestration lesson now explains the separate allowlists and the `INVALID_DATA` symptom; the execution reel records a data-free sign-off handoff across the redirect. Selected reel-frame text inherits its high-contrast ink instead of the lesson's generic strong-text color.
 - **Do not break:** Preserve the SDK OAuth callback URI, public-client ID, BFF-held tokens, and existing admin/user logout URI guards.
-- **Verify:** SDK logout guard and UI unit tests, UI build, fresh PingOne app-config re-read, and a live sign-off redirect check.
+- **Verify:** SDK logout guard and UI unit tests, UI build, both-theme contrast audit, fresh PingOne app-config re-read, and a live sign-off redirect check.
 
 ### 2026-09-18 — Simple Stepper pop-out surface selection now opens a child window
 
