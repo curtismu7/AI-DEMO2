@@ -34,7 +34,7 @@
 
 .auth-btn--ghost {
   background: transparent;
-  color: #374151;
+  color: var(--th-text);
   border: 1px solid #e2e8f0;
   font-weight: 500;
   font-size: 0.9rem;

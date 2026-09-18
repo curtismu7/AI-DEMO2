@@ -67,7 +67,7 @@
   font-size: 0.9rem;
   font-weight: 600;
   margin: 0 0 12px 0;
-  color: var(--color-text-secondary, #666666);
+  color: var(--color-text-secondary, var(--th-text));
 }
 
 .emt-desc-main code {
@@ -82,7 +82,7 @@
 .emt-explainer {
   font-size: 0.84rem;
   line-height: 1.5;
-  color: var(--color-text-secondary, #475569);
+  color: var(--color-text-secondary, var(--th-text));
   background: rgba(59, 130, 246, 0.05);
   border-left: 2px solid var(--brand-navy, #1e3a5f);
   border-radius: 4px;
@@ -201,7 +201,7 @@
   padding: 8px 10px;
   background: rgba(59, 130, 246, 0.05);
   border-left: 2px solid var(--brand-navy);
-  color: var(--color-text-secondary, #666666);
+  color: var(--color-text-secondary, var(--th-text));
   border-radius: 4px;
 }
 

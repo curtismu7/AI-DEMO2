@@ -57,13 +57,13 @@
 .ec-badge--result          { background: #ccfbf1; color: #0f766e; }
 .ec-badge--error           { background: #fee2e2; color: #b91c1c; }
 /* Fallback for unknown types */
-.ec-badge--unknown         { background: #f3f4f6; color: #4b5563; }
+.ec-badge--unknown         { background: #f3f4f6; color: var(--th-text); }
 
 /* Message text */
 .ec-message {
   flex: 1;
   min-width: 0;
-  color: #111827;
+  color: var(--th-text);
   line-height: 1.45;
   word-break: break-word;
 }
@@ -96,7 +96,7 @@
   margin: 0;
   font-size: var(--font-size-xs);
   font-family: var(--font-mono);
-  color: #374151;
+  color: var(--th-text);
   white-space: pre-wrap;
   word-break: break-all;
   max-height: 240px;

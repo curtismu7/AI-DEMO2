@@ -91,7 +91,7 @@
 
 .stc-row--halted td {
   background: #fef2f2;
-  color: #111827;
+  color: var(--th-text);
 }
 
 .stc-row--halted .stc-step {

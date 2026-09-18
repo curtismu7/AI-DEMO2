@@ -47,7 +47,7 @@
    Solid high-contrast colors per REGRESSION_PLAN §0 (no muted modal text). ── */
 .dash-metric-detail__desc {
   margin-top: 0;
-  color: #475569;
+  color: var(--th-text);
   font-size: 0.95rem;
 }
 .dash-metric-detail__value-box {
@@ -75,7 +75,7 @@
   border-bottom: 1px solid #e5e7eb;
 }
 .dash-metric-detail__label {
-  color: #475569;
+  color: var(--th-text);
   font-weight: 500;
 }
 .dash-metric-detail__val {

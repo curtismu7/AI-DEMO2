@@ -6,7 +6,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: #475569;
+  color: var(--th-text);
 }
 .verdict__chip {
   font-size: 0.95rem;

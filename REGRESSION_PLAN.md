@@ -146,6 +146,22 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-18 — Repository-wide dark-theme text contrast sweep
+
+- **Files changed:** `demo_api_ui/src/**/*.css`,
+  `demo_api_ui/src/App.css`, and the contrast/theme-ratchet tests.
+- **What was broken:** Many page and component styles still used legacy dark
+  neutral text literals or light-gray text aliases. Those values became dark
+  text on dark themed surfaces, beyond the originally reported welcome modal.
+- **What was fixed:** Replaced legacy neutral text declarations with the shared
+  high-contrast text token, migrated light-gray text aliases, and added
+  explicit themed ink to the remaining shell rules. The sweep reduced
+  light-only stylesheets from 133 to 67 and lowered the ratchet floor.
+- **Do not break:** Preserve accent/status colors, light-theme appearance,
+  modal behavior, theme switching, auth/session flows, and agent state.
+- **Verify:** `dashboardModalContrast.test.js` passes 6 tests; the themed
+  ground/stylesheet ratchets pass; `npm run build` must pass.
+
 ### 2026-09-18 — Dark-theme page and modal text is bright and readable
 
 - **Files changed:** `demo_api_ui/src/index.css`,

@@ -3180,7 +3180,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   margin: 0;
   font-size: 0.8rem;
   font-weight: 700;
-  color: #666666;
+  color: var(--th-text);
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
@@ -3300,16 +3300,16 @@ body > .banking-agent-float-root .banking-agent-panel {
   --ba-input-bd: #b0bac6;
   background: var(--ba-input-bg);
   border-color: var(--ba-input-bd);
-  color: #111827;
+  color: var(--th-text);
 }
 .banking-agent-panel.ba-mode-inline.ba-embedded-bottom-dock
   .ba-input::placeholder {
-  color: #4b5563;
+  color: var(--th-text);
 }
 .banking-agent-panel.ba-mode-inline.ba-embedded-bottom-dock .ba-input:focus {
   border-color: #4169e1;
   background: #f1f4f8;
-  color: #111827;
+  color: var(--th-text);
 }
 
 .banking-agent-panel.ba-mode-inline.ba-embedded-bottom-dock
@@ -3830,7 +3830,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   max-width: 7.5rem;
   border-color: rgba(255, 255, 255, 0.35);
   background: rgba(15, 23, 42, 0.35);
-  color: var(--brand-light-gray);
+  color: var(--th-text);
 }
 
 .banking-agent-panel.ba-mode-inline.ba-split-column
@@ -4090,7 +4090,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-left-label {
   font-size: var(--font-size-xs);
   font-weight: 600;
-  color: var(--ba-text-secondary, #374151);
+  color: var(--ba-text-secondary, var(--th-text));
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 4px;
@@ -4099,7 +4099,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-left-label-secondary {
   font-size: 10px;
   font-weight: 500;
-  color: var(--ba-text-tertiary, #374151);
+  color: var(--ba-text-tertiary, var(--th-text));
   text-transform: uppercase;
   letter-spacing: 0.3px;
   margin: 8px 0 4px 0;
@@ -4417,7 +4417,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   .banking-agent-msg.assistant.typing
   .banking-agent-msg-bubble {
   background: #dddddd;
-  color: #666666;
+  color: var(--th-text);
 }
 
 /* ba-reasoning: sequential thinking */
@@ -5658,7 +5658,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   cursor: pointer;
   white-space: nowrap;
   border: 1.5px solid var(--insp-c, #64748b);
-  color: var(--insp-c, #475569);
+  color: var(--insp-c, var(--th-text));
 }
 .ba-insp-btn:hover {
   background: color-mix(in srgb, var(--insp-c, #64748b) 8%, #fff);
@@ -7077,7 +7077,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   font-weight: 600 !important;
 }
 .ba-agent-subtitle {
-  color: #4b5563 !important;
+  color: var(--th-text) !important;
   font-size: 0.72rem !important;
 }
 .ba-header .ba-tool-btn {

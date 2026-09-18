@@ -17,7 +17,7 @@
   border-radius: 999px;
   padding: 6px 14px;
   font-size: 12.5px;
-  color: #6b7280;
+  color: var(--th-text);
   white-space: nowrap;
 }
 .dc-flag-pill--on {
@@ -57,7 +57,7 @@
 }
 
 .dc-loading {
-  color: #6b7280;
+  color: var(--th-text);
   padding: 24px 0;
 }
 
@@ -196,7 +196,7 @@
 }
 .dc-config-card__meta {
   font-size: 11.5px;
-  color: #6b7280;
+  color: var(--th-text);
   margin: 4px 0 10px;
 }
 .dc-config-card__actions {
@@ -313,7 +313,7 @@
   cursor: pointer;
   padding: 2px 7px;
   font-size: 10px;
-  color: #6b7280;
+  color: var(--th-text);
   flex-shrink: 0;
 }
 .dc-expand-btn:hover {
@@ -338,7 +338,7 @@
   height: 26px;
   cursor: pointer;
   font-size: var(--font-size-sm);
-  color: #6b7280;
+  color: var(--th-text);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -398,7 +398,7 @@
   border: 1px solid #e2e8f0;
   cursor: pointer;
   background: #fff;
-  color: #374151;
+  color: var(--th-text);
 }
 .dc-btn-secondary:hover {
   background: #f1f5f9;

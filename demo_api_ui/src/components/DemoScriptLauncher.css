@@ -30,7 +30,7 @@
 .dsl-body {
   padding: 4px 2px 8px;
   line-height: 1.55;
-  color: #111827;
+  color: var(--th-text);
   background: #ffffff;
 }
 
@@ -50,7 +50,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #111827;
+  color: var(--th-text);
 }
 
 .dsl-body h4:first-of-type {
@@ -61,7 +61,7 @@
   font-weight: 700;
   text-transform: none;
   letter-spacing: 0;
-  color: #374151;
+  color: var(--th-text);
 }
 
 .dsl-list {
@@ -70,11 +70,11 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 .dsl-say {
-  color: #111827;
+  color: var(--th-text);
   font-style: italic;
 }
 
@@ -137,7 +137,7 @@
 .dsl-do,
 .dsl-see,
 .dsl-say-row {
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 .dsl-tag {
@@ -195,7 +195,7 @@
 .dsl-size-label {
   font-size: var(--font-size-2xs);
   font-weight: 700;
-  color: #374151;
+  color: var(--th-text);
 }
 
 .dsl-size-btn {
@@ -223,7 +223,7 @@
   min-width: 38px;
   font-size: var(--font-size-2xs);
   font-weight: 700;
-  color: #111827;
+  color: var(--th-text);
   text-align: center;
 }
 
@@ -231,7 +231,7 @@
   padding: 4px 14px;
   font-size: var(--font-size-sm);
   font-weight: 700;
-  color: #111827;
+  color: var(--th-text);
   background: #ffffff;
   border: 1px solid #d1d5db;
   border-radius: 6px;

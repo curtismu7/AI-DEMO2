@@ -107,7 +107,7 @@
 
 .vertical-switcher__tagline {
   font-size: 0.72rem;
-  color: var(--dash-muted, #999999);
+  color: var(--dash-muted, var(--th-text));
   white-space: nowrap;
 }
 

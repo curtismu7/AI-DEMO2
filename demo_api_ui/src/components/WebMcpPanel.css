@@ -73,7 +73,7 @@
 
 .webmcp-discovery-phase__label {
   font-size: var(--font-size-body);
-  color: #1f2937;
+  color: var(--th-text);
   font-weight: 500;
 }
 

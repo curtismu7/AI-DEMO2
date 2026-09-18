@@ -16,7 +16,7 @@
 .ssb-title {
   font-size: var(--font-size-xs);
   font-weight: 700;
-  color: #475569;
+  color: var(--th-text);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -32,7 +32,7 @@
   border-radius: 9999px;
   font-size: 10px;
   font-weight: 700;
-  color: #475569;
+  color: var(--th-text);
 }
 
 .ssb-toggle {

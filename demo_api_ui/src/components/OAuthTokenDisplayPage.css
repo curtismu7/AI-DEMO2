@@ -116,7 +116,7 @@
 .otdp-card-title {
   font-size: 0.875rem;
   font-weight: 700;
-  color: #475569;
+  color: var(--th-text);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.75rem;
@@ -253,7 +253,7 @@
 }
 
 .otdp-flow-desc {
-  color: #475569;
+  color: var(--th-text);
   font-size: 0.9rem;
   line-height: 1.6;
   margin: 0 0 1.75rem;
@@ -264,7 +264,7 @@
   padding: 0.1em 0.4em;
   border-radius: 3px;
   font-size: 0.875em;
-  color: #0f172a;
+  color: var(--th-text);
 }
 
 /* Step indicators */
@@ -320,7 +320,7 @@
   background: #e2e8f0;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #475569;
+  color: var(--th-text);
   flex-shrink: 0;
   margin-top: 0.25rem;
 }
