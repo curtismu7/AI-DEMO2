@@ -5138,6 +5138,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-header-more-toolbar-actions button.selected {
   border-color: var(--th-status-info);
   background: var(--th-status-info-bg);
+  color: var(--th-text);
 }
 .ba-header-more-context {
   display: grid;
