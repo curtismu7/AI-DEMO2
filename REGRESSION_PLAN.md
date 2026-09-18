@@ -144,6 +144,7 @@ read the configured host. A new browser origin must be added to ALL of:
 ### 2026-09-17 — DaVinci SDK renders PingOne Forms display and security collectors
 
 **Files changed:** `demo_api_ui/src/components/davinci/CollectorField.jsx`,
+`demo_api_ui/src/components/davinci/StepInspector.jsx`,
 `demo_api_ui/src/pages/DavinciSdkLoginPage.css`,
 `demo_api_ui/src/pages/DavinciSdkLoginPage.jsx`,
 `demo_api_ui/src/components/davinci/SdkLessonSections.jsx`, and their focused tests.
@@ -156,8 +157,8 @@ instead of the flow's instructional copy and automatic security step.
 **What was fixed:** Rich text is rendered as escaped text-only content,
 `ERROR_DISPLAY` remains an intentionally empty page-owned error slot, and
 `ProtectCollector` renders a non-interactive security status. The orchestration
-lesson now documents each shape and keeps a visible fallback for genuinely
-unknown collectors.
+lesson and Step Inspector now document each shape and keep a visible fallback
+for genuinely unknown collectors.
 
 **Do not break:** Keep `client.update(collector)` and `client.next()`/flow
 action semantics unchanged. Do not turn `RichTextCollector` into HTML, add

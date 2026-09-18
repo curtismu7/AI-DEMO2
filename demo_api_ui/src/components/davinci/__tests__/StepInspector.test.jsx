@@ -54,6 +54,21 @@ const ENTER_USERNAME = {
   },
 };
 
+const P1_FORMS = {
+  ...SIGN_ON,
+  form: {
+    name: "MFA Authentication - OTP",
+    components: {
+      fields: [
+        { type: "LABEL", key: "title-text", label: "Enter the passcode you received." },
+        { type: "ERROR_DISPLAY" },
+        { type: "TEXT", key: "otp", label: "Verification Code" },
+        { type: "PROTECT", key: "deviceRisk" },
+      ],
+    },
+  },
+};
+
 const collectorsOf = (form) =>
   form.form.components.fields.map((f) => ({
     key: f.key,
@@ -158,6 +173,29 @@ describe("StepInspector", () => {
     expect(cards[1].textContent).toContain('"eventType": "action"');
     expect(cards[1].textContent).toContain("Enter Username");
     expect(cards[1].textContent).toMatch(/stopped and returned that form/);
+  });
+
+  it("describes PingOne Forms display and automatic collectors in the step table", () => {
+    const p1Collectors = [
+      { type: "RichTextCollector", category: "NoValueCollector" },
+      { type: "ERROR_DISPLAY", category: "UnknownCollector" },
+      { type: "TextCollector", category: "SingleValueCollector", key: "otp" },
+      { type: "ProtectCollector", category: "SingleValueAutoCollector" },
+    ];
+    const { container } = render(
+      <StepInspector
+        steps={[{ ...STEPS[0], response: summarizeResponse(P1_FORMS), collectors: p1Collectors }]}
+      />,
+    );
+    const tableText = container.querySelector(".sdkl-step table").textContent;
+
+    expect(tableText).toContain("RichTextCollector");
+    expect(tableText).toContain("Display-only rich text");
+    expect(tableText).toContain("ERROR_DISPLAY");
+    expect(tableText).toContain("page-owned placeholder");
+    expect(tableText).toContain("ProtectCollector");
+    expect(tableText).toContain("automatic security signal");
+    expect(tableText).not.toContain("Not handled by this page");
   });
 
   it("never renders nonce, state, PKCE or interaction values", () => {
