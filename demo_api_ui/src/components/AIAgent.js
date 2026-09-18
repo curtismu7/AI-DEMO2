@@ -1559,6 +1559,8 @@ export default function BankingAgent({
 
   /** Pending HITL intent — shows AgentConsentModal (transaction mode) before OTP. */
   const [hitlPendingIntent, setHitlPendingIntent] = useState(null);
+  /** Safe toolbar preview for demonstrating the right-side approval drawer. */
+  const [demoApprovalOpen, setDemoApprovalOpen] = useState(false);
   const [a2aExplainUc, setA2aExplainUc] = useState(null);
   const [a2aExplainEvents, setA2aExplainEvents] = useState([]);
 
@@ -10120,6 +10122,17 @@ export default function BankingAgent({
                 {!pageOwnsAgentChrome && (
                 <button
                   type="button"
+                  className={`ba-actions-trigger${demoApprovalOpen ? " active" : ""}`}
+                  title={hitlPendingIntent ? "An approval request is already open" : "Open a safe demo approval drawer"}
+                  onClick={() => setDemoApprovalOpen(true)}
+                  disabled={Boolean(hitlPendingIntent)}
+                >
+                  Approval
+                </button>
+                )}
+                {!pageOwnsAgentChrome && (
+                <button
+                  type="button"
                   className={`ba-actions-trigger${showTokenChain ? " active" : ""}`}
                   title="View token exchange and authorization decisions (RFC 8693)"
                   onClick={() => setShowTokenChain(v => !v)}
@@ -10725,6 +10738,17 @@ export default function BankingAgent({
                 </div>
                 </div>
               </DraggableModal>
+            )}
+
+            {demoApprovalOpen && !hitlPendingIntent && (
+              <AgentConsentModal
+                hitlContext={{
+                  tool: "extend_rental",
+                  reason: "Safe approval preview — accepting this demo closes the drawer and does not run a transaction.",
+                }}
+                onAccept={() => setDemoApprovalOpen(false)}
+                onDismiss={() => setDemoApprovalOpen(false)}
+              />
             )}
 
             {hitlPendingIntent &&
