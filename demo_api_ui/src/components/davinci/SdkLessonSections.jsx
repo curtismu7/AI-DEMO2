@@ -350,13 +350,13 @@ const CATEGORIES = [
     "SubmitCollector, FlowCollector, ActionCollector, IdpCollector",
     "No value; a button. next(), flow({ action })(), or an external IdP.",
   ],
-  ["NoValueCollector", "read-only and rich text", "Display only; nothing is sent."],
+  ["NoValueCollector", "RichTextCollector", "Display-only content; render it as text and send nothing."],
   [
     "SingleValueAutoCollector, ObjectValueAutoCollector",
-    "PingOne Protect signals, FIDO2",
-    "No UI. The value is produced in code and sent with the step.",
+    "ProtectCollector, FIDO2",
+    "No input. The value is produced automatically and sent with the step.",
   ],
-  ["UnknownCollector", "any field the SDK does not recognise", "Render a visible fallback rather than dropping it."],
+  ["UnknownCollector", "ERROR_DISPLAY, any field the SDK does not recognise", "ERROR_DISPLAY is a page-owned placeholder; otherwise render a visible fallback rather than dropping it."],
 ];
 
 const FIELD_MAP = [
@@ -366,6 +366,10 @@ const FIELD_MAP = [
   ["SUBMIT_BUTTON", "SubmitCollector", "ActionCollector", "A button that calls next()"],
   ["BUTTON", "ActionCollector", "ActionCollector", "A generic continue button that calls next()"],
   ["FLOW_BUTTON", "FlowCollector", "ActionCollector", "A button that calls flow({ action: c.output.key })()"],
+  ["FLOW_LINK", "FlowCollector", "ActionCollector", "A branch link that calls flow({ action: c.output.key })()"],
+  ["LABEL", "RichTextCollector", "NoValueCollector", "Render text only; never inject collector content as HTML"],
+  ["ERROR_DISPLAY", "ERROR_DISPLAY", "UnknownCollector", "Render nothing; page-level and field-level errors own this slot"],
+  ["PROTECT", "ProtectCollector", "SingleValueAutoCollector", "Show status only; the SDK produces the security signal automatically"],
 ];
 
 const PINGONE_FORMS_OBJECT = `// client.getCollectors() on a PingOne Forms device-registration screen.
@@ -420,8 +424,14 @@ function Collectors({ client, onNode }) {
         return <SubmitButton key={collector.id} client={client} collector={collector} onNode={onNode} />;
       case "FlowCollector":
         return <FlowButton key={collector.id} client={client} collector={collector} onNode={onNode} />;
+      case "RichTextCollector":
+        return <p key={collector.id}>{collector.output?.label ?? collector.output?.content ?? collector.output?.value}</p>;
+      case "ERROR_DISPLAY":
+        return null;
+      case "ProtectCollector":
+        return <p key={collector.id}>Security check active</p>;
       default:
-        // Never render nothing: a missing field looks like a broken flow.
+        // Never render nothing for an unknown collector: a missing field looks like a broken flow.
         return <p key={collector.id}>Unsupported collector: {collector.type}</p>;
     }
   });
@@ -786,7 +796,8 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
           <code>DeviceAuthenticationCollector</code>, <code>FidoRegistrationCollector</code>,
           <code>QrCodeCollector</code>, and <code>PollingCollector</code>. These are structured or
           device-driven collectors, not ordinary inputs: use their SDK update, WebAuthn, QR, or
-          polling operation. Keep an unsupported collector visible while its renderer is added.
+          polling operation. Rich text and Protect signals are already handled as display-only and
+          automatic collectors; keep a visible fallback for truly unknown types.
         </p>
         <CodeBlock title="PingOne Forms device-registration collector" code={PINGONE_FORMS_OBJECT} language="json" />
         <h3>Every category</h3>

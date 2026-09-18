@@ -178,6 +178,7 @@ function roleOf(field) {
         </>
       );
     case "FLOW_BUTTON":
+    case "FLOW_LINK":
       return (
         <>
           No value; a branch. It calls <code>client.flow({`{ action: "${key}" }`})()</code>, which posts{" "}
@@ -185,15 +186,29 @@ function roleOf(field) {
           the form&rsquo;s values.
         </>
       );
+    case "LABEL":
+      return <>Display-only rich text. Render it as text; it sends no value.</>;
+    case "ERROR_DISPLAY":
+      return <>A page-owned placeholder. Render no input; the node or field error owns this slot.</>;
+    case "PROTECT":
+      return <>An automatic security signal. Render no input; the SDK produces and sends its value.</>;
     default:
       return <>Not handled by this page&rsquo;s renderer, which shows a visible fallback for it.</>;
   }
 }
 
+const COLLECTOR_TYPE_BY_FIELD = {
+  LABEL: "RichTextCollector",
+  ERROR_DISPLAY: "ERROR_DISPLAY",
+  PROTECT: "ProtectCollector",
+};
+
 /** Table rows: each DaVinci form field beside the collector the SDK built from it. */
 export function fieldRows(summary, collectors = []) {
   return (summary?.fields || []).map((f) => {
-    const c = collectors.find((x) => f.key != null && x.key === f.key);
+    const c =
+      (f.key != null ? collectors.find((x) => x.key === f.key) : null) ??
+      collectors.find((x) => x.type === COLLECTOR_TYPE_BY_FIELD[f.type]);
     return [
       <>
         <code>{f.type}</code> {f.key && <code>{f.key}</code>}

@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scheduled chats — control center mock</title>
+  <style>
+    :root {
+      --ink: #1d2733;
+      --muted: #687582;
+      --soft: #eef2f1;
+      --line: #d6dfdc;
+      --paper: #f7f8f6;
+      --panel: #ffffff;
+      --teal: #0b7771;
+      --teal-dark: #07534f;
+      --teal-wash: #e1f1ee;
+      --amber: #9a5a05;
+      --amber-wash: #fff1d7;
+      --red: #a33c36;
+      --red-wash: #fbe8e5;
+      --shadow: 0 14px 38px rgba(24, 47, 45, .09);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-width: 320px; background: var(--paper); }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #8bd2ca; outline-offset: 2px; }
+    .app { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
+    .sidebar { padding: 28px 18px; color: #dfeae8; background: #183a3a; }
+    .brand { margin: 0 10px 42px; color: #fff; font-size: 15px; font-weight: 700; letter-spacing: -.02em; }
+    .brand span { display: block; margin-top: 5px; color: #8eb5b0; font-size: 11px; font-weight: 500; letter-spacing: .04em; }
+    .nav-label { margin: 0 10px 10px; color: #79a39e; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    .nav-item { display: flex; align-items: center; gap: 10px; width: 100%; margin: 3px 0; padding: 11px 10px; border: 0; border-radius: 8px; color: #dfeae8; background: transparent; text-align: left; }
+    .nav-item:hover { background: rgba(255,255,255,.08); }
+    .nav-item.active { color: #fff; background: #286461; }
+    .nav-dot { width: 7px; height: 7px; border-radius: 50%; background: #80c9c1; }
+    .main { padding: 42px clamp(24px, 5vw, 72px) 64px; }
+    .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; max-width: 1120px; margin: 0 auto 34px; }
+    .eyebrow { margin-bottom: 10px; color: var(--teal); font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(30px, 4vw, 46px); line-height: 1; letter-spacing: -.055em; }
+    .lede { max-width: 580px; margin: 14px 0 0; color: var(--muted); font-size: 15px; line-height: 1.55; }
+    .primary { border: 0; border-radius: 7px; padding: 12px 16px; color: #fff; background: var(--teal); font-weight: 750; white-space: nowrap; }
+    .primary:hover { background: var(--teal-dark); }
+    .summary { display: grid; grid-template-columns: repeat(3, 1fr); max-width: 1120px; margin: 0 auto 24px; border: 1px solid var(--line); background: var(--panel); box-shadow: var(--shadow); }
+    .metric { padding: 17px 20px; border-right: 1px solid var(--line); }
+    .metric:last-child { border-right: 0; }
+    .metric-label { color: var(--muted); font-size: 12px; }
+    .metric-value { margin-top: 4px; font-size: 25px; font-weight: 800; letter-spacing: -.04em; }
+    .filters { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 1120px; margin: 0 auto 14px; }
+    .tabs { display: flex; gap: 4px; }
+    .tab { border: 0; border-bottom: 2px solid transparent; padding: 8px 10px; color: var(--muted); background: transparent; font-size: 13px; }
+    .tab.active { border-color: var(--teal); color: var(--teal-dark); font-weight: 800; }
+    .updated { color: var(--muted); font-size: 12px; }
+    .content { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 18px; max-width: 1120px; margin: 0 auto; align-items: start; }
+    .schedule-list { display: grid; gap: 12px; }
+    .schedule { border: 1px solid var(--line); border-left: 4px solid var(--teal); background: var(--panel); box-shadow: 0 4px 16px rgba(24, 47, 45, .05); }
+    .schedule.warning { border-left-color: var(--amber); }
+    .schedule.error { border-left-color: var(--red); }
+    .schedule-head { display: flex; justify-content: space-between; gap: 14px; padding: 19px 20px 7px; }
+    .schedule-name { margin: 0; font-size: 17px; letter-spacing: -.02em; }
+    .status { display: inline-flex; align-items: center; gap: 6px; height: 25px; padding: 0 9px; border-radius: 99px; font-size: 11px; font-weight: 800; white-space: nowrap; }
+    .status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .status.on { color: var(--teal-dark); background: var(--teal-wash); }
+    .status.paused { color: var(--muted); background: var(--soft); }
+    .status.attention { color: var(--amber); background: var(--amber-wash); }
+    .status.failed { color: var(--red); background: var(--red-wash); }
+    .explanation { margin: 0; padding: 0 20px 14px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .meta { display: flex; flex-wrap: wrap; gap: 7px 15px; padding: 0 20px 15px; color: var(--muted); font-size: 12px; }
+    .meta strong { color: var(--ink); font-weight: 700; }
+    .result { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin: 0 20px; padding: 12px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.4; }
+    .result b { color: var(--ink); }
+    .result .good { color: var(--teal-dark); font-weight: 800; }
+    .result .attention { color: var(--amber); font-weight: 800; }
+    .result .bad { color: var(--red); font-weight: 800; }
+    .actions { display: flex; justify-content: flex-end; gap: 7px; padding: 13px 20px 17px; }
+    .ghost { border: 1px solid var(--line); border-radius: 6px; padding: 8px 11px; color: var(--ink); background: #fff; font-size: 12px; font-weight: 750; }
+    .ghost:hover { border-color: var(--teal); color: var(--teal-dark); }
+    .danger { color: var(--red); }
+    .detail { position: sticky; top: 22px; border: 1px solid var(--line); background: #fff; box-shadow: var(--shadow); }
+    .detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding: 22px 22px 13px; border-bottom: 1px solid var(--line); }
+    .detail h2 { margin: 0; font-size: 21px; letter-spacing: -.04em; }
+    .close { border: 0; color: var(--muted); background: transparent; font-size: 20px; line-height: 1; }
+    .detail-section { padding: 17px 22px; border-bottom: 1px solid var(--line); }
+    .detail-section:last-child { border-bottom: 0; }
+    .detail-section h3 { margin: 0 0 8px; font-size: 12px; letter-spacing: .02em; }
+    .detail-section p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+    .callout { margin-top: 12px; padding: 11px 12px; border-left: 3px solid var(--amber); color: #704409; background: var(--amber-wash); font-size: 12px; line-height: 1.45; }
+    .field { display: grid; gap: 6px; margin-top: 11px; }
+    .field label { color: var(--muted); font-size: 11px; font-weight: 750; }
+    .field input, .field select { width: 100%; border: 1px solid var(--line); border-radius: 5px; padding: 9px 10px; color: var(--ink); background: #fff; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .detail .primary { width: 100%; margin-top: 14px; }
+    .history { display: grid; gap: 10px; margin-top: 11px; }
+    .history-row { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 11px; }
+    .history-row strong { color: var(--ink); }
+    .toast { position: fixed; right: 22px; bottom: 22px; display: none; max-width: 320px; padding: 13px 16px; border: 1px solid #9bc9c1; color: var(--teal-dark); background: #effaf7; box-shadow: var(--shadow); font-size: 13px; font-weight: 700; }
+    .toast.show { display: block; }
+    @media (max-width: 900px) { .app { grid-template-columns: 72px minmax(0, 1fr); } .sidebar { padding: 22px 10px; } .brand, .nav-label, .nav-item span:last-child { display: none; } .nav-item { justify-content: center; } .content { grid-template-columns: 1fr; } .detail { position: static; } }
+    @media (max-width: 600px) { .main { padding: 28px 15px 42px; } .topbar { display: block; } .topbar .primary { margin-top: 20px; } .summary { grid-template-columns: 1fr; } .metric { border-right: 0; border-bottom: 1px solid var(--line); } .metric:last-child { border-bottom: 0; } .filters { display: block; } .updated { display: block; margin-top: 10px; } .schedule-head { display: block; } .status { margin-top: 10px; } .actions { flex-wrap: wrap; justify-content: flex-start; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" aria-label="LibreChat navigation">
+      <p class="brand">LibreChat<span>CONTROL CENTER</span></p>
+      <p class="nav-label">Workspace</p>
+      <button class="nav-item"><i class="nav-dot"></i><span>New chat</span></button>
+      <button class="nav-item"><i class="nav-dot"></i><span>Chat history</span></button>
+      <button class="nav-item active" aria-current="page"><i class="nav-dot"></i><span>Scheduled chats</span></button>
+      <button class="nav-item"><i class="nav-dot"></i><span>Prompts</span></button>
+      <p class="nav-label" style="margin-top:34px">Account</p>
+      <button class="nav-item"><i class="nav-dot"></i><span>Settings</span></button>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <div class="eyebrow">Unattended workflows</div>
+          <h1>Scheduled chats</h1>
+          <p class="lede">Keep recurring demo runs visible, predictable, and easy to pause. Each schedule explains what it can do and what its last result actually means.</p>
+        </div>
+        <button class="primary" type="button" id="newSchedule">New schedule</button>
+      </header>
+
+      <section class="summary" aria-label="Schedule summary">
+        <div class="metric"><div class="metric-label">Schedules</div><div class="metric-value">3</div></div>
+        <div class="metric"><div class="metric-label">Enabled</div><div class="metric-value">0</div></div>
+        <div class="metric"><div class="metric-label">Needs attention</div><div class="metric-value">1</div></div>
+      </section>
+
+      <div class="filters">
+        <div class="tabs" role="tablist" aria-label="Schedule filters">
+          <button class="tab active" role="tab" aria-selected="true">All schedules</button>
+          <button class="tab" role="tab" aria-selected="false">Needs attention</button>
+        </div>
+        <span class="updated">Updated just now · America/Chicago</span>
+      </div>
+
+      <div class="content">
+        <section class="schedule-list" aria-label="Schedules">
+          <article class="schedule" data-name="Morning balance report">
+            <div class="schedule-head"><h2 class="schedule-name">Morning balance report</h2><span class="status paused">Paused</span></div>
+            <p class="explanation">Reads account balances and the five most recent transactions. This is read-only and creates a summary chat.</p>
+            <div class="meta"><span><strong>Everyday Banking</strong></span><span>Every day at <strong>08:00</strong></span><span>America/Chicago</span></div>
+            <div class="result"><span>Last run<br><b class="good">Success · chat created</b></span><span>Sep 14, 10:13 AM</span></div>
+            <div class="actions"><button class="ghost run" type="button">Run now</button><button class="ghost toggle" type="button">Enable</button><button class="ghost details" type="button">Details</button></div>
+          </article>
+
+          <article class="schedule error" data-name="Daily rentals check">
+            <div class="schedule-head"><h2 class="schedule-name">Daily rentals check</h2><span class="status failed">Needs connection</span></div>
+            <p class="explanation">Checks active equipment rentals through the Super Sports gateway. It needs a stored gateway sign-in before it can run.</p>
+            <div class="meta"><span><strong>Super Sports Policy Guardrails</strong></span><span>Every day at <strong>09:00</strong></span><span>America/Chicago</span></div>
+            <div class="result"><span>Last run<br><b class="bad">Failed · gateway sign-in required</b></span><span>Sep 14, 10:13 AM</span></div>
+            <div class="actions"><button class="ghost run" type="button">Run now</button><button class="ghost toggle" type="button">Enable</button><button class="ghost details" type="button">Details</button></div>
+          </article>
+
+          <article class="schedule warning" data-name="Weekly savings sweep">
+            <div class="schedule-head"><h2 class="schedule-name">Weekly savings sweep</h2><span class="status paused">Paused</span></div>
+            <p class="explanation">Attempts to transfer $750 from checking to savings. The run can pause for step-up approval; success does not mean money moved.</p>
+            <div class="meta"><span><strong>Money Movement</strong></span><span>Mondays at <strong>07:00</strong></span><span>America/Chicago</span></div>
+            <div class="result"><span>Last run<br><b class="attention">Completed · step-up required</b></span><span>Sep 14, 10:13 AM</span></div>
+            <div class="actions"><button class="ghost run" type="button">Run now</button><button class="ghost toggle" type="button">Enable</button><button class="ghost details" type="button">Details</button></div>
+          </article>
+        </section>
+
+        <aside class="detail" aria-label="Schedule details">
+          <div class="detail-head"><div><div class="eyebrow">Selected schedule</div><h2 id="detailTitle">Weekly savings sweep</h2></div><button class="close" type="button" aria-label="Close details">×</button></div>
+          <div class="detail-section"><h3>What it does</h3><p id="detailText">Attempts a $750 transfer from checking to savings through Money Movement. A run may complete while the transfer waits for additional authentication.</p><div class="callout">This schedule is paused. “Run now” runs once and does not enable the weekly cadence.</div></div>
+          <div class="detail-section"><h3>Run schedule</h3><div class="field-row"><div class="field"><label for="time">Time</label><input id="time" type="time" value="07:00"></div><div class="field"><label for="day">Day</label><select id="day"><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option></select></div></div><div class="field"><label for="timezone">Timezone</label><select id="timezone"><option>America/Chicago</option><option>America/New_York</option><option>America/Los_Angeles</option><option>UTC</option></select></div><button class="primary" type="button" id="save">Save changes</button></div>
+          <div class="detail-section"><h3>Last run</h3><p><strong style="color:var(--amber)">Completed with step-up required</strong><br>The transfer was attempted but did not complete without additional authentication.</p><div class="history"><div class="history-row"><span>Run status</span><strong>Success</strong></div><div class="history-row"><span>Business action</span><strong>Step-up required</strong></div><div class="history-row"><span>Chat</span><strong>Funds Transfer Request</strong></div></div></div>
+          <div class="detail-section"><h3>Technical details</h3><p>Agent: Money Movement<br>Prompt: “Transfer $750 from checking to savings.”</p></div>
+        </aside>
+      </div>
+    </main>
+  </div>
+  <div class="toast" role="status" aria-live="polite" id="toast"></div>
+  <script>
+    const toast = document.getElementById('toast');
+    const showToast = (message) => { toast.textContent = message; toast.classList.add('show'); window.clearTimeout(showToast.timer); showToast.timer = window.setTimeout(() => toast.classList.remove('show'), 2600); };
+    document.querySelectorAll('.run').forEach((button) => button.addEventListener('click', () => {
+      const name = button.closest('.schedule').dataset.name;
+      showToast(name === 'Weekly savings sweep' ? 'Run started. Step-up approval may be required.' : `Run started for ${name}.`);
+    }));
+    document.querySelectorAll('.toggle').forEach((button) => button.addEventListener('click', () => {
+      const paused = button.textContent === 'Enable';
+      button.textContent = paused ? 'Pause' : 'Enable';
+      const status = button.closest('.schedule').querySelector('.status');
+      status.textContent = paused ? 'Enabled' : 'Paused';
+      status.className = `status ${paused ? 'on' : 'paused'}`;
+      showToast(paused ? 'Schedule enabled.' : 'Schedule paused.');
+    }));
+    document.querySelectorAll('.details').forEach((button) => button.addEventListener('click', () => {
+      const name = button.closest('.schedule').dataset.name;
+      document.getElementById('detailTitle').textContent = name;
+      showToast(`Showing details for ${name}.`);
+    }));
+    document.getElementById('save').addEventListener('click', () => showToast('Schedule updated. Next run recalculated.'));
+    document.getElementById('newSchedule').addEventListener('click', () => showToast('Creation is intentionally out of scope for this mock.'));
+    document.querySelector('.close').addEventListener('click', () => showToast('Details panel would close here.'));
+    document.querySelectorAll('.tab').forEach((tab) => tab.addEventListener('click', () => { document.querySelectorAll('.tab').forEach((t) => { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); }); tab.classList.add('active'); tab.setAttribute('aria-selected', 'true'); }));
+  </script>
+</body>
+</html>

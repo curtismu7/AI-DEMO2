@@ -159,11 +159,11 @@ function readSurfacePreference(key, legacyKey, legacyValue) {
   return "none";
 }
 
-function SurfaceSelector({ id, label, value, onChange }) {
+function SurfaceSelector({ id, label, value, onChange, disabled = false }) {
   return (
     <div className="ba-topology-surface-row">
       <label htmlFor={id}>{label}</label>
-      <select id={id} aria-label={`${label} surface`} value={value} onChange={onChange}>
+      <select id={id} aria-label={`${label} surface`} value={value} onChange={onChange} disabled={disabled}>
         {SURFACE_OPTIONS.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
         ))}
@@ -173,6 +173,7 @@ function SurfaceSelector({ id, label, value, onChange }) {
 }
 import useLangchainProvider from "../hooks/useLangchainProvider";
 import { claimPendingNl, clampPanelPosition, makeReentrancyGuard, isAbortError, anySignal, isLocalModelTimeout, prewarmTierAndRetry, opportunisticPrewarm } from "./demoAgentSafety";
+import { isEmbeddedSurfaceDisabled, surfaceHasEmbedded } from "../utils/surfacePrecedence";
 import { BX_AGENT_PENDING_NL_KEY, BX_AGENT_PENDING_UC_ID_KEY, BX_AGENT_PENDING_FLAGS_KEY, BX_AGENT_PENDING_AUTH_KEY } from "../constants/agentPendingKeys";
 // AG-UI Step 3 — hooks (feature-flagged; only active when ff_agui_enabled=true)
 import { useAgentRun } from "../hooks/useAgentRun";
@@ -925,7 +926,7 @@ export default function BankingAgent({
   const [simpleStepperSurface, setSimpleStepperSurface] = useState(() => (
     readSurfacePreference("ba_simple_stepper_surface", "ba_show_simple_stepper")
   ));
-  const showSimpleStepper = simpleStepperSurface === "popout" || simpleStepperSurface === "both";
+  const showSimpleStepperPopout = simpleStepperSurface === "popout" || simpleStepperSurface === "both";
   // Always ON at mount. Hiding is deliberately NOT persisted: a single stray
   // click on the Movie reel switch used to write ba_show_filmstrip="0" to
   // localStorage, which hid the reel in that browser profile forever — across
@@ -956,14 +957,14 @@ export default function BankingAgent({
   const [oauthVisualizerSurface, setOauthVisualizerSurface] = useState(() => (
     readSurfacePreference("ba_oauth_visualizer_surface")
   ));
-  const showOauthVisualizer = oauthVisualizerSurface === "embedded" || oauthVisualizerSurface === "both";
+  const showSequenceDiagram = surfaceHasEmbedded(sequenceSurface);
+  const showOauthVisualizer = surfaceHasEmbedded(oauthVisualizerSurface) && !showSequenceDiagram;
   const showOauthVisualizerPopout = oauthVisualizerSurface === "popout" || oauthVisualizerSurface === "both";
   const chooseOauthVisualizerSurface = useCallback((surface) => {
     setOauthVisualizerSurface(surface);
     try { localStorage.setItem("ba_oauth_visualizer_surface", surface); } catch {}
     window.dispatchEvent(new CustomEvent("oauth-visualizer-surface-change", { detail: { surface } }));
   }, []);
-  const showSequenceDiagram = sequenceSurface === "embedded" || sequenceSurface === "both";
   const showSequencePopout = sequenceSurface === "popout" || sequenceSurface === "both";
   // "Slow mode" — paces the sequence diagram's step reveal for live narration.
   // Only meaningful while Sequence view is on; toggled off with it. Restored
@@ -1122,10 +1123,6 @@ export default function BankingAgent({
     setTopologySurface(surface);
     setShowInlineTokenTopology(embedded);
     window.dispatchEvent(new CustomEvent("agent-token-topology-toggle", { detail: { on: embedded } }));
-    if (embedded && showSequenceDiagram) {
-      setSequenceSurface("none");
-      window.dispatchEvent(new CustomEvent("agent-sequence-diagram-toggle", { detail: { on: false } }));
-    }
     if (popout) {
       setShowTokenTopology(true);
       window.dispatchEvent(new CustomEvent('token-topology-open'));
@@ -1133,7 +1130,7 @@ export default function BankingAgent({
       setShowTokenTopology(false);
       window.dispatchEvent(new CustomEvent("token-topology-close"));
     }
-  }, [showSequenceDiagram]);
+  }, []);
   const [showFloatingTokenChain, setShowFloatingTokenChain] = useState(false); // dispatches floating-token-chain-open; panel lives in App.js
 
   const [tokenChainWidth] = useState(() => {
@@ -1159,27 +1156,28 @@ export default function BankingAgent({
     if (agentUiMode === 'advanced') setShowTokenChain(true);
   }, [agentUiMode]);
 
-  /** Show/hide RFC info token-event messages in chat. Persisted. */
-  const [rfcInfoSurface, setRfcInfoSurface] = useState(() => (
-    readSurfacePreference("ba_rfc_info_surface", "ba_show_rfc_info")
-  ));
-  const showRfcInfo = rfcInfoSurface === "embedded" || rfcInfoSurface === "both";
-  const showRfcInfoPopout = rfcInfoSurface === "popout" || rfcInfoSurface === "both";
+  /** Show/hide RFC references in the selected step detail. Persisted. */
+  const [showRfcInfo, setShowRfcInfo] = useState(() => {
+    try {
+      const surface = localStorage.getItem("ba_rfc_info_surface");
+      return localStorage.getItem("ba_show_rfc_info") === "1" || surface === "embedded" || surface === "both";
+    } catch {
+      return false;
+    }
+  });
   useEffect(() => {
     try {
       localStorage.setItem("ba_show_rfc_info", String(showRfcInfo));
-      localStorage.setItem("ba_rfc_info_surface", rfcInfoSurface);
     } catch {}
-  }, [showRfcInfo, rfcInfoSurface]);
+  }, [showRfcInfo]);
 
-  const chooseRfcInfoSurface = useCallback((surface) => {
-    setRfcInfoSurface(surface);
+  const chooseRfcInfo = useCallback((on) => {
+    setShowRfcInfo(on);
     try {
-      localStorage.setItem("ba_rfc_info_surface", surface);
-      localStorage.setItem("ba_show_rfc_info", String(surface === "embedded" || surface === "both"));
+      localStorage.setItem("ba_show_rfc_info", String(on));
     } catch {}
     window.dispatchEvent(new CustomEvent("agent-rfc-info-toggle", {
-      detail: { on: surface === "embedded" || surface === "both", surface },
+      detail: { on },
     }));
   }, []);
 
@@ -2280,18 +2278,16 @@ export default function BankingAgent({
     }
     return map;
   }, [messages]);
-  // Transcript role filter, extracted so the recent-N cap below can slice it
-  // — identical predicate to what the render used inline before this fix.
+  // Transcript role filter, extracted so the recent-N cap below can slice it.
   const transcriptFilteredMsgs = useMemo(
     () =>
       messages.filter(
         (msg) =>
           msg.role === "user" ||
           msg.role === "assistant" ||
-          msg.role === "error" ||
-          (showRfcInfo && msg.role === "token-event"),
+          msg.role === "error",
       ),
-    [messages, showRfcInfo],
+    [messages],
   );
   const { hiddenCount: transcriptHiddenCount, visible: visibleFilteredMsgs } = windowTranscript(
     transcriptFilteredMsgs,
@@ -10021,17 +10017,21 @@ export default function BankingAgent({
                         <span>Embedded views stay on this page. Pop-outs open a separate window.</span>
                       </div>
                       <div className="ba-header-more-heading">Display preferences</div>
-                      <SurfaceSelector
-                        id="rfc-info-surface-select"
-                        label="RFC info"
-                        value={rfcInfoSurface}
-                        onChange={(e) => chooseRfcInfoSurface(e.target.value)}
-                      />
+                      <Check
+                        variant="switch"
+                        className="ba-header-toggle-label"
+                        checked={showRfcInfo}
+                        onChange={(e) => chooseRfcInfo(e.target.checked)}
+                        title="Show RFC references in the selected movie-reel or sequence step detail"
+                      >
+                        RFC info
+                      </Check>
                       <SurfaceSelector
                         id="agent-flow-surface-select"
                         label="Agent flow diagram"
                         value={agentFlowSurface}
                         onChange={(e) => chooseAgentFlowSurface(e.target.value)}
+                        disabled={isEmbeddedSurfaceDisabled("embedded", sequenceSurface)}
                       />
                       {/* Dark mode switch — drives data-theme on the document root, which the
                           dark-capable panels (Token Chain rail) key off. */}
@@ -10090,6 +10090,7 @@ export default function BankingAgent({
                           id="topology-surface-select"
                           value={topologySurface}
                           onChange={(e) => chooseTopologySurface(e.target.value)}
+                          disabled={isEmbeddedSurfaceDisabled("embedded", sequenceSurface)}
                           title="Choose where token topology appears"
                         >
                           <option value="none">Off</option>
@@ -10103,6 +10104,7 @@ export default function BankingAgent({
                         label="Simple step"
                         value={simpleStepperSurface}
                         onChange={(e) => chooseSimpleStepperSurface(e.target.value)}
+                        disabled={isEmbeddedSurfaceDisabled("embedded", sequenceSurface)}
                       />
                       <Check
                         variant="switch"
@@ -10127,11 +10129,6 @@ export default function BankingAgent({
                         onChange={(e) => {
                           chooseSequenceSurface(e.target.value);
                           const embedded = e.target.value === "embedded" || e.target.value === "both";
-                          if (embedded && showInlineTokenTopology) {
-                            setShowInlineTokenTopology(false);
-                            setTopologySurface(showTokenTopology ? "popout" : "none");
-                            window.dispatchEvent(new CustomEvent("agent-token-topology-toggle", { detail: { on: false } }));
-                          }
                           window.dispatchEvent(new CustomEvent("admin-sidenav-collapse-toggle", { detail: { collapsed: embedded } }));
                           if (!embedded && slowMode) {
                             setSlowMode(false);
@@ -10144,6 +10141,7 @@ export default function BankingAgent({
                         label="OAuth Visualizer"
                         value={oauthVisualizerSurface}
                         onChange={(e) => chooseOauthVisualizerSurface(e.target.value)}
+                        disabled={isEmbeddedSurfaceDisabled("embedded", sequenceSurface)}
                       />
                       {showSequenceDiagram && (
                         <Check
@@ -12717,13 +12715,12 @@ export default function BankingAgent({
         );
       })()}
       <TokenFlowDetailModal
-        isOpen={showTokenChain || showRfcInfoPopout}
+        isOpen={showTokenChain}
         onClose={() => {
           setShowTokenChain(false);
-          if (showRfcInfoPopout) chooseRfcInfoSurface(showRfcInfo ? "embedded" : "none");
         }}
       />
-      {(agentFlowSurface === "embedded" || agentFlowSurface === "both") && (
+      {(agentFlowSurface === "embedded" || agentFlowSurface === "both") && !showSequenceDiagram && (
         <AgentFlowDiagramPanel embedded />
       )}
       {showOauthVisualizer && (
@@ -12737,7 +12734,7 @@ export default function BankingAgent({
         onClose={() => chooseOauthVisualizerSurface(showOauthVisualizer ? "embedded" : "none")}
       />
       <SimpleStepperPanel
-        isOpen={showSimpleStepper}
+        isOpen={showSimpleStepperPopout}
         onClose={() => {
           // Persist, same as the "Simple step" switch. Without this the ✕ only
           // closed it for the current render and ba_show_simple_stepper stayed

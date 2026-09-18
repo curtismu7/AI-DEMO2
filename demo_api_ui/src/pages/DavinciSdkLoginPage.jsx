@@ -11,11 +11,10 @@
 // collectors, all from this browser's own run. The sections below it
 // (SdkLessonSections) teach the rest.
 //
-// Scope today: TextCollector, PasswordCollector, SubmitCollector, generic
-// ActionCollector and FlowCollector, enough to drive multi-screen flows whose
-// continue buttons use either action shape.
-// CollectorField renders a visible fallback for anything else rather than
-// omitting a field silently.
+// Scope today: interactive text, password, submit, action and flow collectors,
+// plus PingOne Forms' display-only rich text, error placeholder and automatic
+// Protect signal. CollectorField renders a visible fallback for anything else
+// rather than omitting a field silently.
 //
 // A successful sign-in does NOT leave this page. A "What just happened" modal
 // summarises the run and links into the lesson; closing it leaves you here,
@@ -41,12 +40,8 @@ const triggerOf = (c) =>
   c ? { type: c.type, key: c.output?.key ?? c.name, label: c.output?.label ?? null } : null;
 
 export default function DavinciSdkLoginPage() {
-  // loading | collecting | reused | signedIn | notConfigured | failed
+  // loading | collecting | completing | signedIn | notConfigured | failed
   const [phase, setPhase] = useState("loading");
-  // Who an existing PingOne session signed in as ({ username, userId, email }
-  // from the BFF), shown on the "reused" panel so the user can Continue as them
-  // or sign out to switch.
-  const [reusedAs, setReusedAs] = useState(null);
   // Who ended up signed in and HOW: "session" (an existing PingOne session
   // completed the flow with no screens) or "form" (the user submitted the
   // collectors). The summary tells the story of whichever actually happened.
@@ -140,6 +135,10 @@ export default function DavinciSdkLoginPage() {
     // The SDK owns the PKCE verifier; the BFF does the exchange and holds the
     // tokens, so the verifier has to travel with the code.
     const codeVerifier = takePkceVerifier(cfgRef.current.clientId);
+    // Do not render a local "Continue" action while this request is in flight.
+    // The authorization code is not a session until the BFF accepts it; the
+    // page must visibly wait for that callback before showing the run summary.
+    setPhase("completing");
     const result = await postCallback({ code, codeVerifier });
     // The BFF session exists now, but the app shell (TopNav, route guards)
     // re-checks it only on this event, so without it the page stayed signed-out
@@ -152,14 +151,7 @@ export default function DavinciSdkLoginPage() {
       userId: result?.userId || null,
       email: result?.email || null,
     };
-    // A reused PingOne session completed the flow without anyone typing a name,
-    // so say WHO it signed in as and offer to switch before going further.
-    if (reused) {
-      setReusedAs(profile);
-      setPhase("reused");
-      return;
-    }
-    showSignedIn(profile, "form");
+    showSignedIn(profile, reused ? "session" : "form");
   }, [showSignedIn]);
 
   // Ends the PingOne session (not this app's session) and returns here with a
@@ -321,7 +313,7 @@ export default function DavinciSdkLoginPage() {
       // Matches the side-nav label (sdkLoginHeadingMatchesNav.test.js). The nav
       // was once renamed while this heading was not, and the page stopped
       // looking like the orchestration app it is.
-      title="Davinci Orchestration SDK"
+      title="DaVinci Orchestration SDK"
       subtitle={
         <>
           The Ping Orchestration SDK runs a PingOne DaVinci flow, and this page draws each of the
@@ -349,36 +341,20 @@ export default function DavinciSdkLoginPage() {
 
         <div className="dvsdk-live">
           <div className="dvsdk-live-app">
+            <header className="dvsdk-login-header">
+              <p className="dvsdk-eyebrow">PingOne DaVinci</p>
+              <h2>Orchestration SDK Login</h2>
+              <p className="dvsdk-subtitle">
+                Sign in with the embedded orchestration form. Each screen comes from the live DaVinci flow.
+              </p>
+            </header>
             <div className="dvsdk-page">
               {phase === "loading" && <p className="dvsdk-status">Starting the flow...</p>}
 
-              {/* An existing PingOne session completed the flow with no screens. Say
-                  who it signed in as and let the user choose, rather than dropping
-                  them into the app as someone they may not have expected. */}
-              {phase === "reused" && (
+              {phase === "completing" && (
                 <div className="dvsdk-notice">
-                  <p className="dvsdk-notice-title">Signed in with your existing PingOne session</p>
-                  <p>
-                    {reusedAs?.username ? (
-                      <>
-                        You are signed in as <strong>{reusedAs.username}</strong>.
-                      </>
-                    ) : (
-                      "This browser was already signed in to PingOne, so no form was needed."
-                    )}
-                  </p>
-                  <div className="dvsdk-actions">
-                    <button
-                      type="button"
-                      className="dvsdk-retry"
-                      onClick={() => showSignedIn(reusedAs, "session")}
-                    >
-                      Continue
-                    </button>
-                    <button type="button" className="dvsdk-retry" onClick={signOut}>
-                      Sign out of PingOne and use a different account
-                    </button>
-                  </div>
+                  <p className="dvsdk-notice-title">Waiting for the authorization callback</p>
+                  <p>PingOne completed the flow. The app is waiting for the BFF to establish the session.</p>
                 </div>
               )}
 

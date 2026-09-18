@@ -60,6 +60,29 @@ describe('ClientRegistry persistence', () => {
     expect(second.getClient('dyn-1')).toBeUndefined();
   });
 
+  it('adopts a previously issued loopback client id after a restart', () => {
+    const registry = new ClientRegistry();
+    registry.initialize();
+
+    const client = registry.adoptClient(
+      'lm-studio-restarted-client',
+      'http://127.0.0.1:12345/oauth/callback',
+      'mcp:invoke read',
+    );
+
+    expect(client.client_id).toBe('lm-studio-restarted-client');
+    expect(client.token_endpoint_auth_method).toBe('none');
+    expect(registry.getClient(client.client_id)).toEqual(client);
+  });
+
+  it('rejects adoption of a non-loopback redirect', () => {
+    const registry = new ClientRegistry();
+    registry.initialize();
+
+    expect(() => registry.adoptClient('not-safe', 'https://attacker.example/callback'))
+      .toThrow(/loopback/i);
+  });
+
   it('does not persist statically-configured clients — config restores those', async () => {
     const storage = fakeStorage();
     const registry = new ClientRegistry();

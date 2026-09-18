@@ -162,7 +162,17 @@ export class OAuthRouter {
       return true;
     }
 
-    const client = await this.clientRegistry.resolveClient(clientId);
+    let client = await this.clientRegistry.resolveClient(clientId);
+    if (!client) {
+      // LM Studio keeps the DCR client_id across server restarts. Recovering a
+      // public client is safe only for a loopback redirect; non-loopback
+      // clients must still be explicitly registered or resolved via CIMD.
+      try {
+        client = this.clientRegistry.adoptClient(clientId, redirectUri);
+      } catch {
+        client = undefined;
+      }
+    }
     if (!client) {
       this.json(res, 400, { error: 'invalid_client', error_description: 'Unknown client_id' });
       return true;
