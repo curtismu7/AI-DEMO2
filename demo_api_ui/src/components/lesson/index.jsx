@@ -65,7 +65,8 @@ function exportPdf(title) {
  * @param {{ title: string, subtitle?: import('react').ReactNode,
  *   sections: Array<{ id: string, label: string }>, storageKey?: string,
  *   printExclude?: string[], headerNav?: import('react').ReactNode,
- *   pageClassName?: string, children: import('react').ReactNode }} props
+ *   pageClassName?: string, onSectionNavigate?: (id: string) => void,
+ *   children: import('react').ReactNode }} props
  */
 export function LessonLayout({
   title,
@@ -75,6 +76,7 @@ export function LessonLayout({
   printExclude = DEFAULT_PRINT_EXCLUDE,
   headerNav,
   pageClassName = "",
+  onSectionNavigate,
   children,
 }) {
   const [active, setActive] = useState(sections[0]?.id);
@@ -100,7 +102,13 @@ export function LessonLayout({
 
   const go = (id) => {
     setActive(id);
-    document.getElementById(id)?.scrollIntoView?.({ behavior: "smooth" });
+    onSectionNavigate?.(id);
+    const scroll = () => document.getElementById(id)?.scrollIntoView?.({ behavior: "smooth" });
+    if (onSectionNavigate) {
+      window.requestAnimationFrame?.(scroll) ?? scroll();
+    } else {
+      scroll();
+    }
   };
 
   return (

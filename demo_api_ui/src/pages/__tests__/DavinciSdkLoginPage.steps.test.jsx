@@ -151,6 +151,18 @@ describe("DavinciSdkLoginPage Step Inspector", () => {
     expect(container.textContent).not.toMatch(/SECRETNONCE|STATEVALUE|CHALLENGEVALUE|INTERACTION-SECRET/);
   });
 
+  it("keeps the form, execution evidence, and lessons in a compact workbench", async () => {
+    const { container, findByRole } = render(<DavinciSdkLoginPage />);
+
+    await waitFor(() => expect(container.querySelectorAll(".sdkl-step")).toHaveLength(1));
+    expect(container.querySelector(".dvsdk-workbench")).toBeTruthy();
+    expect(await findByRole("tab", { name: "Execution reel" })).toHaveAttribute("aria-selected", "true");
+    expect(container.querySelector('[role="tabpanel"][aria-label="Execution evidence"]')).toBeTruthy();
+
+    fireEvent.click(await findByRole("tab", { name: "Lessons" }));
+    expect(await findByRole("tabpanel", { name: "Lessons" })).not.toHaveAttribute("hidden");
+  });
+
   it("keeps the collector updater result while masking its live event and records next completion", async () => {
     const updateFailure = { error: { message: "SDK rejected this value" } };
     const { container, findByRole, findByText } = render(<DavinciSdkLoginPage />);

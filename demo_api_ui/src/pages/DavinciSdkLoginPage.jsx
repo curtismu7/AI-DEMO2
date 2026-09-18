@@ -65,6 +65,7 @@ export default function DavinciSdkLoginPage() {
   // The execution reel is separate from Step Inspector cards: it only records
   // display-safe events as the existing SDK paths actually occur.
   const [executionEvents, setExecutionEvents] = useState([]);
+  const [workbenchPanel, setWorkbenchPanel] = useState("execution");
 
   const clientRef = useRef(null);
   const cfgRef = useRef(null);
@@ -434,6 +435,9 @@ export default function DavinciSdkLoginPage() {
       }
       sections={SDK_LESSON_SECTIONS}
       storageKey="dvsdk-lesson-nav-width"
+      onSectionNavigate={(id) => {
+        if (id !== "try-it-live") setWorkbenchPanel("lessons");
+      }}
     >
       <Section id="try-it-live" title="Try It Live">
         <p>
@@ -450,7 +454,33 @@ export default function DavinciSdkLoginPage() {
           the first call with no form; sign out of PingOne to see the forms.
         </p>
 
-        <div className="dvsdk-live">
+        <div className="dvsdk-workbench" data-mobile-panel={workbenchPanel}>
+          <div className="dvsdk-workbench-mobile-tabs" role="tablist" aria-label="Live workbench">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={workbenchPanel === "form"}
+              onClick={() => setWorkbenchPanel("form")}
+            >
+              Form
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={workbenchPanel === "execution"}
+              onClick={() => setWorkbenchPanel("execution")}
+            >
+              Execution reel
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={workbenchPanel === "lessons"}
+              onClick={() => setWorkbenchPanel("lessons")}
+            >
+              Lessons
+            </button>
+          </div>
           <div className="dvsdk-live-app">
             <header className="dvsdk-login-header">
               <p className="dvsdk-eyebrow">PingOne DaVinci</p>
@@ -575,19 +605,54 @@ export default function DavinciSdkLoginPage() {
             </div>
           </div>
 
-          <div className="dvsdk-live-steps">
-            <h3>Step Inspector</h3>
-            <StepInspector steps={steps} />
-          </div>
+          <aside className="dvsdk-workbench-rail">
+            <div className="dvsdk-workbench-tabs" role="tablist" aria-label="Evidence and lessons">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={workbenchPanel === "execution"}
+                onClick={() => setWorkbenchPanel("execution")}
+              >
+                Execution reel
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={workbenchPanel === "lessons"}
+                onClick={() => setWorkbenchPanel("lessons")}
+              >
+                Lessons
+              </button>
+            </div>
 
-          <div className="dvsdk-live-reel">
-            <h3>Live execution evidence</h3>
-            <SdkExecutionReel events={executionEvents} />
-          </div>
+            <div
+              className="dvsdk-workbench-panel"
+              role="tabpanel"
+              aria-label="Execution evidence"
+              hidden={workbenchPanel !== "execution"}
+            >
+              <div className="dvsdk-live-steps">
+                <h3>Step Inspector</h3>
+                <StepInspector steps={steps} />
+              </div>
+
+              <div className="dvsdk-live-reel">
+                <h3>Live execution evidence</h3>
+                <SdkExecutionReel events={executionEvents} />
+              </div>
+            </div>
+
+            <div
+              className="dvsdk-workbench-panel dvsdk-workbench-lessons"
+              role="tabpanel"
+              aria-label="Lessons"
+              hidden={workbenchPanel !== "lessons"}
+            >
+              <SdkLessonSections config={cfgRef.current || {}} steps={steps} />
+            </div>
+          </aside>
         </div>
       </Section>
-
-      <SdkLessonSections config={cfgRef.current || {}} steps={steps} />
 
       {/* The run summary: what happened on this run, linking into the sections
           above. New storageKey so a size saved for the old, larger walkthrough

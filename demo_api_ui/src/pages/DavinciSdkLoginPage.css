@@ -7,15 +7,82 @@
    also sets its ink (§1.5), font sizes come from the scale (§8.1) and radii from
    the scale (§9.3). */
 
-/* Try It Live: the sign-in beside the Step Inspector. The sign-in column stays
-   in view while the cards grow, so the form and the step that produced it can
-   be read together. */
-.dvsdk-live {
+/* The live workbench keeps the form and evidence together on desktop. On small
+   screens the same surface becomes a three-tab workspace instead of a long
+   vertical page. */
+.dvsdk-workbench {
   display: grid;
-  grid-template-columns: minmax(300px, 440px) minmax(0, 1fr);
+  grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
   gap: 1.5rem;
   align-items: start;
   margin-top: 1rem;
+  color: var(--th-text-body);
+}
+
+.dvsdk-workbench-mobile-tabs {
+  display: none;
+}
+
+.dvsdk-workbench-rail {
+  min-width: 0;
+  max-height: calc(100vh - var(--topnav-height, 60px) - 2rem);
+  overflow: auto;
+  padding: 1rem;
+  color: var(--th-text-body);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+}
+
+.dvsdk-workbench-tabs,
+.dvsdk-workbench-mobile-tabs {
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.dvsdk-workbench-tabs {
+  display: flex;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--th-border);
+}
+
+.dvsdk-workbench-tabs button,
+.dvsdk-workbench-mobile-tabs button {
+  font: inherit;
+  font-weight: 700;
+  color: var(--th-text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.dvsdk-workbench-tabs button {
+  padding: 0.5rem 0.75rem;
+}
+
+.dvsdk-workbench-tabs button[aria-selected="true"],
+.dvsdk-workbench-mobile-tabs button[aria-selected="true"] {
+  color: var(--th-text-on-emphasis);
+  background: var(--th-bg-emphasis);
+  border-color: var(--th-border-strong);
+}
+
+.dvsdk-workbench-tabs button:focus-visible,
+.dvsdk-workbench-mobile-tabs button:focus-visible {
+  outline: 3px solid var(--th-focus-ring, var(--th-status-info-border));
+  outline-offset: 2px;
+}
+
+.dvsdk-workbench-panel[hidden] {
+  display: none;
+}
+
+.dvsdk-workbench-panel h3,
+.dvsdk-live-steps h3,
+.dvsdk-live-reel h3 {
+  color: var(--th-text);
 }
 
 /* The flow card: where the DaVinci flow's forms render, and the thing this page
@@ -66,8 +133,37 @@
 }
 
 @media (max-width: 900px) {
-  .dvsdk-live {
-    grid-template-columns: minmax(0, 1fr);
+  .dvsdk-workbench {
+    display: block;
+  }
+
+  .dvsdk-workbench-mobile-tabs {
+    display: flex;
+    margin-bottom: 1rem;
+    padding: 0.25rem;
+    background: var(--th-bg-card);
+    border: 1px solid var(--th-border);
+    border-radius: var(--radius-md);
+  }
+
+  .dvsdk-workbench-mobile-tabs button {
+    flex: 1;
+    padding: 0.6rem 0.5rem;
+  }
+
+  .dvsdk-workbench-rail {
+    max-height: none;
+    margin-top: 1rem;
+  }
+
+  .dvsdk-workbench[data-mobile-panel="form"] .dvsdk-workbench-rail,
+  .dvsdk-workbench[data-mobile-panel="execution"] .dvsdk-live-app,
+  .dvsdk-workbench[data-mobile-panel="lessons"] .dvsdk-live-app {
+    display: none;
+  }
+
+  .dvsdk-workbench[data-mobile-panel="form"] .dvsdk-live-app {
+    display: block;
   }
 
   .dvsdk-live-app {
