@@ -19,6 +19,7 @@ export function normalizeCandidate(input = {}) {
     endpoint: input.endpoint ? String(input.endpoint) : null,
     process: input.process ? { pid: input.process.pid ?? null, command: input.process.command ?? null } : null,
     container: input.container ? { name: input.container.name ?? null, service: input.container.service ?? null } : null,
+    sources: Array.isArray(input.sources) ? [...new Set(input.sources)] : [SOURCES.has(input.source) ? input.source : 'listener'],
   };
   const identity = JSON.stringify([
     candidate.source,
