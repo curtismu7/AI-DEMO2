@@ -92,11 +92,13 @@ async function withLauncher(options, run) {
 }
 
 test('exposes only the local demo service allowlist', () => {
+  const services = getAllowedServices();
   assert.deepEqual(
-    getAllowedServices().map(({ service }) => service),
+    services.map(({ service }) => service),
     ['LibreChat', 'MCP gateway', 'Authorization service', 'JWT verifier'],
   );
-  assert.ok(getAllowedServices().every(({ url }) => new URL(url).hostname === '127.0.0.1'));
+  assert.equal(services[0].url, 'http://127.0.0.1:3080/health');
+  assert.ok(services.every(({ url }) => new URL(url).hostname === '127.0.0.1'));
 });
 
 test('reports sanitized allowlisted status records', async () => {

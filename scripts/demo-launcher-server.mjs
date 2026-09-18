@@ -12,7 +12,7 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const defaultPagePath = resolve(repositoryRoot, 'docs/demo-launcher/index.html');
 
 const allowedServices = Object.freeze([
-  Object.freeze({ service: 'LibreChat', url: 'http://127.0.0.1:3080/api/health' }),
+  Object.freeze({ service: 'LibreChat', url: 'http://127.0.0.1:3080/health' }),
   Object.freeze({ service: 'MCP gateway', url: 'http://127.0.0.1:3005/health' }),
   Object.freeze({ service: 'Authorization service', url: 'http://127.0.0.1:9001/health' }),
   Object.freeze({ service: 'JWT verifier', url: 'http://127.0.0.1:8083/health' }),

@@ -11,6 +11,7 @@ test('documents the fixed local demo controls without exposing credentials', asy
   const html = await readFile(pagePath, 'utf8');
 
   assert.match(html, /Start LibreChat/);
+  assert.match(html, /rel="icon"/);
   assert.match(html, /Check services/);
   assert.match(html, /Open LibreChat/);
   assert.match(html, /local\.ping-devops\.com:4000/);
