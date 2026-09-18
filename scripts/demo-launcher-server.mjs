@@ -277,7 +277,7 @@ export function createLauncherServer({
       return;
     }
 
-    if (pathname === '/') {
+    if (pathname === '/' || pathname === '/index.html') {
       if (method !== 'GET') {
         response.setHeader('allow', 'GET');
         writeText(response, 405, 'Method not allowed');
