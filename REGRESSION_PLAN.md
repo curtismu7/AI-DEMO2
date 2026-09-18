@@ -146,6 +146,19 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-18 — Guided Demo Track polling no longer opens the global spinner
+
+- **Files changed:** `demo_api_ui/src/services/spinnerService.js` and
+  `demo_api_ui/src/services/__tests__/spinnerService.test.js`.
+- **What was broken:** The Guided Demo Track polls `/api/demo-track` and
+  `/api/demo-track/runs` every five seconds, but those polling requests were
+  not silent and could repeatedly surface the global loading modal.
+- **What was fixed:** Mark the Guided Demo Track API namespace as silent and
+  pin that contract with a spinner regression test.
+- **Do not break:** Preserve the track page's own loading/error states,
+  five-second refresh, run actions, and all auth/session behavior.
+- **Verify:** Focused spinner Vitest suite and the UI production build.
+
 ### 2026-09-18 — Repository-wide dark-theme text contrast sweep
 
 - **Files changed:** `demo_api_ui/src/**/*.css`,

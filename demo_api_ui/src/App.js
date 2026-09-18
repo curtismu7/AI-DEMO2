@@ -156,6 +156,7 @@ import FootprintPicksPage from "./pages/FootprintPicksPage";
 import FootprintMockGalleryPage from "./pages/FootprintMockGalleryPage";
 import FootprintLiveShellPage from "./pages/FootprintLiveShellPage";
 import TelemetryPage from "./pages/TelemetryPage";
+import McpObservabilityPage from "./pages/McpObservabilityPage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
 import PersonalAgentStudioPage from "./pages/PersonalAgentStudioPage";
@@ -1356,6 +1357,14 @@ function AppWithAuth() {
                                 ) : (
                                   <LandingPage user={user} onLogout={logout} />
                                 )
+                              }
+                            />
+                            <Route
+                              path="/mcp-observability"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <McpObservabilityPage />
+                                </RequireAdminLogin>
                               }
                             />
                             {/* === Admin routes ===
