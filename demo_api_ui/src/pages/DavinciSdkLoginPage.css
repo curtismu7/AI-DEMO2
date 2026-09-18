@@ -79,6 +79,14 @@
   margin-top: 0;
 }
 
+.dvsdk-live-reel {
+  grid-column: 1 / -1;
+}
+
+.lesson-section .dvsdk-live-reel h3 {
+  margin: 0 0 0.5rem;
+}
+
 .dvsdk-status {
   font-size: var(--font-size-md);
 }

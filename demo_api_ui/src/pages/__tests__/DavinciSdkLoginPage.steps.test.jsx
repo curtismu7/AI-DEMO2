@@ -61,6 +61,9 @@ const collectorsFor = (data) =>
     output: { key: f.key, label: f.label },
   }));
 
+const frameLabels = (container) =>
+  [...container.querySelectorAll(".sdk-reel-frame strong")].map((frame) => frame.textContent);
+
 describe("DavinciSdkLoginPage Step Inspector", () => {
   let current;
   let client;
@@ -119,6 +122,50 @@ describe("DavinciSdkLoginPage Step Inspector", () => {
 
     // The page itself now shows the form DaVinci stopped at.
     expect(await findByRole("button", { name: "Back" })).toBeTruthy();
+  });
+
+  it("streams display-safe start and flow evidence to the live reel without changing Step Inspector steps", async () => {
+    const { container, findByRole } = render(<DavinciSdkLoginPage />);
+
+    await waitFor(() => expect(container.querySelectorAll(".sdkl-step")).toHaveLength(1));
+    expect(await findByRole("status")).toHaveTextContent(/live execution/i);
+    expect(frameLabels(container)).toEqual([
+      "SDK starts the flow",
+      "DaVinci request",
+      "DaVinci returned continue",
+      "SDK collector snapshot",
+    ]);
+
+    fireEvent.click(await findByRole("button", { name: "Having trouble signing on?" }));
+
+    await waitFor(() => expect(container.querySelectorAll(".sdkl-step")).toHaveLength(2));
+    expect(frameLabels(container)).toContain("SDK follows FlowCollector");
+    expect(frameLabels(container)).toContain("DaVinci returned continue");
+    expect(frameLabels(container)).not.toContain("SDK updates collector");
+    expect(container.textContent).not.toMatch(/SECRETNONCE|STATEVALUE|CHALLENGEVALUE|INTERACTION-SECRET/);
+  });
+
+  it("keeps the collector updater result while masking its live event and records next completion", async () => {
+    const updateFailure = { error: { message: "SDK rejected this value" } };
+    const { container, findByRole, findByText } = render(<DavinciSdkLoginPage />);
+
+    await waitFor(() => expect(container.querySelectorAll(".sdkl-step")).toHaveLength(1));
+    client.update.mockImplementation(() => vi.fn(() => updateFailure));
+    fireEvent.change(await findByRole("textbox", { name: "Username" }), { target: { value: "unmasked-value" } });
+
+    expect(await findByText("SDK rejected this value")).toBeInTheDocument();
+    expect(frameLabels(container)).toContain("SDK updates collector");
+    expect(container.textContent).not.toContain("unmasked-value");
+
+    client.next.mockResolvedValue({ status: "success" });
+    client.getClient = () => ({ authorization: { code: "AUTHORIZATION-CODE" } });
+    sdk.postCallback.mockResolvedValue({ username: "demoUser" });
+    fireEvent.click(await findByRole("button", { name: "Sign On" }));
+
+    await waitFor(() => expect(frameLabels(container)).toContain("SDK completes the callback"));
+    expect(frameLabels(container)).toContain("SDK updates and advances form");
+    expect(await findByRole("button", { name: "What just happened?" })).toBeTruthy();
+    expect(container.textContent).not.toContain("AUTHORIZATION-CODE");
   });
 
   it("never puts nonce, state, PKCE or interaction values on the page", async () => {
