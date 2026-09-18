@@ -43,7 +43,7 @@
 }
 
 .uc-launcher__clear-progress:hover {
-  border-color: var(--color-text-secondary, #6b7280);
+  border-color: var(--color-text-secondary, var(--th-text));
 }
 
 .uc-launcher__stop-agent {
@@ -343,7 +343,7 @@
 .uc-run-btn--disabled,
 .uc-run-btn:disabled {
   background: var(--color-muted-bg, #e5e7eb);
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--color-text-secondary, var(--th-text));
   cursor: not-allowed;
 }
 
@@ -512,7 +512,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--color-text-secondary, var(--th-text));
   padding-top: 0.1rem;
 }
 

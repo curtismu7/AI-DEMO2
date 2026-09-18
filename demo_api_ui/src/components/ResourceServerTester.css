@@ -35,7 +35,7 @@
 }
 .rst-rules li.fail { background: #fef2f2; }
 .rst-rule-name { font-weight: 600; color: #1e293b; font-family: var(--font-mono); }
-.rst-rule-detail { color: #475569; }
+.rst-rule-detail { color: var(--th-text); }
 
 /* Error line (light theme) */
 .rst-error {
@@ -133,7 +133,7 @@
   padding: 8px 10px;
   border-left: 3px solid #2563eb;
   background: #eff6ff;
-  color: #475569;
+  color: var(--th-text);
   font-size: var(--font-size-2xs);
   line-height: 1.45;
 }

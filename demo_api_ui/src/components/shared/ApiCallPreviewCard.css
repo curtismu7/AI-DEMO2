@@ -3,7 +3,7 @@
 .acpc-method { padding: 2px 7px; border-radius: 3px; font-weight: 700; font-family: inherit; font-size: 0.72rem; }
 .acpc-method--post { background: #dcfce7; color: #15803d; }
 .acpc-method--get  { background: #dbeafe; color: #1d4ed8; }
-.acpc-endpoint { font-family: inherit; color: #374151; flex: 1; word-break: break-all; }
+.acpc-endpoint { font-family: inherit; color: var(--th-text); flex: 1; word-break: break-all; }
 .acpc-doc-link { font-size: 0.72rem; color: #2563eb; text-decoration: none; white-space: nowrap; }
 .acpc-doc-link:hover { text-decoration: underline; }
 .acpc-desc { padding: 4px 12px 6px; font-size: 0.75rem; color: #64748b; background: #f8fafc; border-top: 1px solid #f1f5f9; }

@@ -411,7 +411,7 @@
   border-radius: 12px;
   background: var(--brand-light-gray);
   border: 1px solid #dddddd;
-  color: #666666;
+  color: var(--th-text);
   font-family: inherit;
   display: inline-flex;
   align-items: center;
@@ -504,7 +504,7 @@
    dark mode. Surface and text move together or not at all. */
 .tcd-badge--exchanged {
   background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%);
-  color: #374151;
+  color: var(--th-text);
   border-color: #cbd5e1;
 }
 .tcd-badge--acquiring {
@@ -514,7 +514,7 @@
 }
 .tcd-badge--skipped {
   background: var(--brand-light-gray);
-  color: #666666;
+  color: var(--th-text);
   border-color: #cccccc;
 }
 .tcd-badge--notinpath {
@@ -531,7 +531,7 @@
 }
 .tcd-badge--waiting {
   background: linear-gradient(180deg, var(--brand-light-gray) 0%, #dddddd 100%);
-  color: #666666;
+  color: var(--th-text);
   border-color: var(--th-border-strong);
 }
 
@@ -572,7 +572,7 @@
 .tcd-token-type--unknown,
 .tcd-token-type--invalid {
   background: linear-gradient(180deg, var(--brand-light-gray) 0%, #dddddd 100%);
-  color: #666666;
+  color: var(--th-text);
   border-color: var(--th-border-strong);
 }
 
@@ -662,7 +662,7 @@
 
 .tcd-collapsible-header:hover {
   background: #e8eaed;
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 .tcd-collapsible-header::-webkit-details-marker {

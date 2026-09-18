@@ -18,7 +18,7 @@
   margin: 0;
   font-size: 16px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 .results-list {
@@ -62,7 +62,7 @@
 
 .file-path {
   font-weight: 600;
-  color: #1f2937;
+  color: var(--th-text);
   font-size: var(--font-size-body);
   word-break: break-all;
   flex: 1;
@@ -86,7 +86,7 @@
 
 .line-info {
   font-size: var(--font-size-2xs);
-  color: #6b7280;
+  color: var(--th-text);
 }
 
 .result-body {
@@ -103,7 +103,7 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
   line-height: 1.5;
-  color: #374151;
+  color: var(--th-text);
   overflow-x: auto;
   max-height: 300px;
   overflow-y: auto;
@@ -122,7 +122,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #6b7280;
+  color: var(--th-text);
   font-size: var(--font-size-body);
   min-height: 300px;
 }

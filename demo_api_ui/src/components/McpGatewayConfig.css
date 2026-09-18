@@ -312,7 +312,7 @@
 .mgc-field-label {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--text-secondary, #374151);
+  color: var(--text-secondary, var(--th-text));
   text-transform: uppercase;
   letter-spacing: 0.01em;
   line-height: 1.5;
@@ -326,7 +326,7 @@
   letter-spacing: 0.01em;
   font-family: inherit;
   background: var(--background, #fff);
-  color: var(--text, #111827);
+  color: var(--text, var(--th-text));
   width: 100%;
   box-sizing: border-box;
 }
@@ -337,7 +337,7 @@
 }
 .mgc-field-hint {
   font-size: var(--font-size-sm);
-  color: var(--text-secondary, #374151);
+  color: var(--text-secondary, var(--th-text));
   line-height: 1.6;
   margin-top: 2px;
 }
@@ -458,7 +458,7 @@
 }
 .mgc-wizard-step-circle--needs-input {
   background: #ffc107;
-  color: #374151;
+  color: var(--th-text);
 }
 .mgc-wizard-step-circle--pending {
   background: #e2e3e5;
@@ -483,7 +483,7 @@
 /* Phase 264 — Required badge */
 .mgc-badge--required {
   background: #ffc107;
-  color: #374151;
+  color: var(--th-text);
   font-size: var(--font-size-xs);
   font-weight: 600;
   padding: 2px 7px;

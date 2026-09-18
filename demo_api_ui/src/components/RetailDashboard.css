@@ -3,7 +3,7 @@
 .retail-section-title { font-size: var(--font-size-h3); font-weight: 600; margin: 0 0 12px; color: #1e293b; }
 .retail-product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
 .retail-product-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; background: #fff; display: flex; flex-direction: column; gap: 10px; }
-.retail-product-name { font-weight: 600; color: #0f172a; }
+.retail-product-name { font-weight: 600; color: var(--th-text); }
 .retail-product-meta { display: flex; justify-content: space-between; align-items: center; }
 .retail-product-price { font-weight: 700; color: var(--app-primary-red, #0046BE); }
 .retail-stock { font-size: var(--font-size-2xs); font-weight: 600; padding: 2px 8px; border-radius: 4px; }

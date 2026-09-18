@@ -215,7 +215,7 @@
   background: transparent;
   font-size: 0.78rem;
   font-weight: 500;
-  color: #999999;
+  color: var(--th-text);
   cursor: pointer;
   white-space: nowrap;
   border-bottom: 2px solid transparent;
@@ -261,7 +261,7 @@
 
 .ciba-section-desc {
   font-size: 0.85rem;
-  color: #4b5563;
+  color: var(--th-text);
   line-height: 1.55;
   margin: 0 0 0.75rem;
 }
@@ -270,7 +270,7 @@
   margin: 0 0 1.25rem;
   padding-left: 1.25rem;
   font-size: 0.85rem;
-  color: #374151;
+  color: var(--th-text);
   line-height: 1.55;
 }
 
@@ -316,7 +316,7 @@
   border: 1px solid #DDDDDD;
   border-radius: 8px;
   font-size: 0.8rem;
-  color: #374151;
+  color: var(--th-text);
   line-height: 1.45;
 }
 
@@ -371,7 +371,7 @@
   gap: 0.25rem;
   font-size: 0.8rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--th-text);
 }
 
 .ciba-input {
@@ -379,7 +379,7 @@
   border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 0.82rem;
-  color: #111827;
+  color: var(--th-text);
   outline: none;
   transition: border-color 0.15s;
 }
@@ -448,7 +448,7 @@
 
 .ciba-timer {
   font-size: 0.8rem;
-  color: #6b7280;
+  color: var(--th-text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -503,7 +503,7 @@
 
 .ciba-endpoint-desc {
   grid-column: 2;
-  color: #6b7280;
+  color: var(--th-text);
   font-size: 0.75rem;
   margin-top: 0.15rem;
 }
@@ -534,14 +534,14 @@
   gap: 0.75rem;
   align-items: flex-start;
   font-size: 0.82rem;
-  color: #374151;
+  color: var(--th-text);
   line-height: 1.5;
 }
 
 .ciba-setup-step p {
   margin: 0.2rem 0 0;
   font-size: 0.78rem;
-  color: #6b7280;
+  color: var(--th-text);
 }
 
 .ciba-setup-num {

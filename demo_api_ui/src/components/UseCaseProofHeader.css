@@ -26,13 +26,13 @@
   font-weight: 800;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: #475569;
+  color: var(--th-text);
 }
 .ucph__say {
   margin: 0.6rem 0 0;
   font-size: 0.95rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--th-text);
   background: #ccfbf1;
   border-radius: 8px;
   padding: 8px 11px;

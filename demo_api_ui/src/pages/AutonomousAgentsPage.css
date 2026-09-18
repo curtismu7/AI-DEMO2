@@ -5,7 +5,7 @@
   flex-direction: column;
   gap: 22px;
   max-width: 900px;
-  color: var(--th-text, #0f172a);
+  color: var(--th-text, var(--th-text));
   /* Explicit base. Without it the page inherited the shell's smaller size and
      every rule below was relative to something this page never chose — which is
      why it read small next to its own headings. */
@@ -99,7 +99,7 @@
   border-radius: 6px;
   border: 1px solid var(--th-border-strong, #c3cdd9);
   background: var(--th-bg-card, #ffffff);
-  color: var(--th-text, #0f172a);
+  color: var(--th-text, var(--th-text));
   cursor: pointer;
 }
 .aap-btn:disabled { opacity: 0.55; cursor: default; }
@@ -127,7 +127,7 @@
   border: 1px solid #a1620a;
   border-radius: 8px;
   background: #fdf3e2;
-  color: #0f172a;
+  color: var(--th-text);
 }
 .aap-parked-head { margin: 0; font-size: 14.5px; font-weight: 600; color: #a1620a; }
 .aap-parked-body { margin: 0; font-size: var(--font-size-body); line-height: 1.5; }
@@ -135,7 +135,7 @@
 
 .aap-gauge { display: flex; flex-direction: column; gap: 5px; }
 .aap-gauge-head { display: flex; justify-content: space-between; font-size: 13.5px; color: #6b5a3e; }
-.aap-gauge-head b { color: #0f172a; font-variant-numeric: tabular-nums; font-weight: 600; }
+.aap-gauge-head b { color: var(--th-text); font-variant-numeric: tabular-nums; font-weight: 600; }
 .aap-gauge-track { height: 7px; border-radius: 4px; background: rgba(161, 98, 10, 0.18); overflow: hidden; }
 /* Full bar on purpose: a parked run is by definition over its ceiling. */
 .aap-gauge-fill { height: 100%; width: 100%; background: #a1620a; }
@@ -177,7 +177,7 @@
   max-width: 70ch;
   font-size: 15.5px;
   line-height: 1.7;
-  color: var(--th-text, #0f172a);
+  color: var(--th-text, var(--th-text));
 }
 .aap-h3 { margin: 0 0 6px; font-size: var(--font-size-base); font-weight: 600; }
 .aap-points {
@@ -191,7 +191,7 @@
   line-height: 1.6;
   color: var(--th-text-muted, #556070);
 }
-.aap-points strong { color: var(--th-text, #0f172a); }
+.aap-points strong { color: var(--th-text, var(--th-text)); }
 
 .aap-compare {
   display: grid;
@@ -234,7 +234,7 @@
   line-height: 1.55;
   color: var(--th-text-muted, #556070);
 }
-.aap-use strong { color: var(--th-text, #0f172a); }
+.aap-use strong { color: var(--th-text, var(--th-text)); }
 
 /* ── Expanded run ──────────────────────────────────────────────────────── */
 .aap-chev {
@@ -276,7 +276,7 @@
 }
 @media (max-width: 640px) { .aap-kv { grid-template-columns: 1fr; gap: 2px; } }
 .aap-kv dt { color: var(--th-text-muted, #556070); }
-.aap-kv dd { margin: 0; color: var(--th-text, #0f172a); }
+.aap-kv dd { margin: 0; color: var(--th-text, var(--th-text)); }
 
 .aap-findings ul {
   margin: 0;
@@ -307,7 +307,7 @@
   border: 1px solid #a1620a;
   border-radius: 8px;
   background: #fdf3e2;
-  color: #0f172a;
+  color: var(--th-text);
   font-size: 14.5px;
   line-height: 1.55;
 }
