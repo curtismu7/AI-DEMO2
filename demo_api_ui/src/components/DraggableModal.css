@@ -344,9 +344,50 @@
 
 /* ── Pop-out window root layout ─────────────────────────────────────────── */
 
+.dm-popout-document {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--th-bg-page);
+  color: var(--th-text);
+}
+
+.dm-popout-document #dm-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
 .dm-popout-layout {
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.dm-popout-layout .dm-titlebar {
+  background: var(--th-bg-band);
+  color: var(--th-text-invert);
+}
+
+.dm-popout-layout .dm-btn {
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.dm-popout-layout .dm-btn:hover {
+  background: var(--th-bg-hover);
+}
+
+.dm-popout-layout .dm-body {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.dm-popout-layout .dm-footer {
+  background: var(--th-bg-inset);
+  border-top-color: var(--th-border);
 }
