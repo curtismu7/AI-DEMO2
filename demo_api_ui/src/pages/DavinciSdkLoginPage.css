@@ -250,6 +250,15 @@
   gap: 6px;
 }
 
+/* Keep collector labels and display-only DaVinci copy bright on the navy live
+   flow card even when a downstream lesson-shell rule sets a dark body ink. */
+.dvsdk-live-app .dvsdk-field,
+.dvsdk-live-app .dvsdk-label,
+.dvsdk-live-app .dvsdk-rich-text,
+.dvsdk-live-app .dvsdk-security-status {
+  color: var(--th-text-on-emphasis);
+}
+
 .dvsdk-label {
   font-size: var(--font-size-base);
   font-weight: 600;

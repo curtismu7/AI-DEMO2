@@ -152,8 +152,27 @@ export default function DavinciSdkLoginPage() {
         label: `DaVinci returned ${status || "a response"}`,
         codeKey: kind === "next" ? "update-next" : kind,
         detail: {
+          ...(request
+            ? {
+                method: request.method,
+                host: (() => {
+                  try { return new URL(request.url).host; } catch { return undefined; }
+                })(),
+                path: (() => {
+                  try { return new URL(request.url).pathname; } catch { return undefined; }
+                })(),
+                paramNames: (() => {
+                  try { return [...new URL(request.url).searchParams.keys()]; } catch { return []; }
+                })(),
+                responseMode: (() => {
+                  try { return new URL(request.url).searchParams.get("response_mode") || undefined; } catch { return undefined; }
+                })(),
+                body: request.body,
+              }
+            : {}),
           status,
           eventType: cached?.data?.eventName ?? cached?.data?.eventType,
+          response: summarizeResponse(cached?.data),
         },
       }),
     );
