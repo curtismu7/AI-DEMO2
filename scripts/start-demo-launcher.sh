@@ -5,6 +5,10 @@ set -euo pipefail
 REPOSITORY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LAUNCHER_HOST="127.0.0.1"
 LAUNCHER_PORT="${DEMO_LAUNCHER_PORT:-3090}"
+if ! [[ "${LAUNCHER_PORT}" =~ ^[0-9]+$ ]] || (( 10#${LAUNCHER_PORT} < 1 || 10#${LAUNCHER_PORT} > 65535 )); then
+  printf 'DEMO_LAUNCHER_PORT must be a decimal TCP port from 1 to 65535\n' >&2
+  exit 2
+fi
 LAUNCHER_URL="http://${LAUNCHER_HOST}:${LAUNCHER_PORT}"
 export DEMO_LAUNCHER_HOST="${LAUNCHER_HOST}"
 
