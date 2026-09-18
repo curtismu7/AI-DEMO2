@@ -5,14 +5,16 @@ const CHANGED_EVENT = 'demo-favorites-changed';
 
 // Seeded on first use so a fresh browser already has the two demo lanes.
 const DEFAULT_FAVORITES = [
-  { label: 'LLM Gateway', path: '/llm-gateway' },
+  { label: 'AI Guard', path: '/llm-gateway' },
   { label: 'AI Gateway Client', path: '/privilege-mcp-client' },
 ];
 
 // Turn a route path into a readable label for "Add this page", handling the
 // acronyms a naive Title Case would mangle (llm -> LLM, not Llm).
 const ACRONYMS = { llm: 'LLM', mcp: 'MCP', ai: 'AI', api: 'API', ui: 'UI', oauth: 'OAuth', hitl: 'HITL', a2a: 'A2A' };
+const FAVORITE_LABELS = { '/llm-gateway': 'AI Guard' };
 export function labelForPath(path) {
+  if (FAVORITE_LABELS[path]) return FAVORITE_LABELS[path];
   const seg = String(path || '').split('/').filter(Boolean).pop() || 'home';
   return seg
     .split('-')
@@ -30,7 +32,9 @@ export function getFavorites() {
     }
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [...DEFAULT_FAVORITES];
-    return parsed.filter((f) => f && typeof f.path === 'string' && typeof f.label === 'string');
+    return parsed
+      .filter((f) => f && typeof f.path === 'string' && typeof f.label === 'string')
+      .map((f) => (FAVORITE_LABELS[f.path] ? { ...f, label: FAVORITE_LABELS[f.path] } : f));
   } catch {
     return [...DEFAULT_FAVORITES];
   }
