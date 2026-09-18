@@ -1,8 +1,14 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
+import { createServer as createHttpServer } from 'node:http';
 import test from 'node:test';
 
-import { createLauncherServer, getAllowedServices, isLoopbackHost } from './demo-launcher-server.mjs';
+import {
+  createLauncherServer,
+  getAllowedServices,
+  isLoopbackHost,
+  listenOnLoopback,
+} from './demo-launcher-server.mjs';
 
 function createResponse() {
   const response = new EventEmitter();
@@ -23,11 +29,18 @@ function createResponse() {
   return response;
 }
 
-async function dispatch(launcher, path, { method = 'GET', body } = {}) {
+async function dispatch(launcher, path, { method = 'GET', body, headers = {} } = {}) {
   const request = new EventEmitter();
   request.method = method;
   request.url = path;
-  request.headers = body === undefined ? {} : { 'content-length': String(Buffer.byteLength(body)) };
+  request.headers = {
+    ...headers,
+    ...(body === undefined ? {} : { 'content-length': String(Buffer.byteLength(body)) }),
+  };
+  request.resumed = false;
+  request.resume = () => {
+    request.resumed = true;
+  };
   const response = createResponse();
   const finished = new Promise((resolve) => response.once('finish', resolve));
   launcher.listeners('request')[0](request, response);
@@ -142,11 +155,74 @@ test('rejects bodies, unsupported methods, and arbitrary proxy routes', async ()
     { probe: async () => ({ ok: true }) },
     async (request) => {
       assert.equal((await request('/api/start', { method: 'PUT' })).statusCode, 405);
-      assert.equal((await request('/api/start', { method: 'POST', body: 'start' })).statusCode, 400);
+      const bodyResponse = await request('/api/start', { method: 'POST', body: 'start' });
+      assert.equal(bodyResponse.statusCode, 400);
       assert.equal((await request('/api/proxy?url=http://example.com')).statusCode, 404);
       assert.equal((await request('/unknown')).statusCode, 404);
     },
   );
+});
+
+test('rejects a foreign Origin before starting the stack', async () => {
+  let startCalls = 0;
+  await withLauncher(
+    {
+      startStack: async () => {
+        startCalls += 1;
+      },
+    },
+    async (request) => {
+      const response = await request('/api/start', {
+        method: 'POST',
+        headers: {
+          origin: 'https://attacker.example',
+        },
+      });
+
+      assert.equal(response.statusCode, 403);
+      assert.equal(startCalls, 0);
+    },
+  );
+});
+
+test('rejects a cross-site browser signal without an Origin', async () => {
+  let startCalls = 0;
+  await withLauncher(
+    {
+      startStack: async () => {
+        startCalls += 1;
+      },
+    },
+    async (request) => {
+      const response = await request('/api/start', {
+        method: 'POST',
+        headers: { 'sec-fetch-site': 'cross-site' },
+      });
+
+      assert.equal(response.statusCode, 403);
+      assert.equal(startCalls, 0);
+    },
+  );
+});
+
+test('drains a rejected body-bearing request', async () => {
+  const launcher = createLauncherServer({ probe: async () => ({ ok: true }) });
+  const request = new EventEmitter();
+  request.method = 'POST';
+  request.url = '/api/start';
+  request.headers = { 'content-length': '5' };
+  request.resumed = false;
+  request.resume = () => {
+    request.resumed = true;
+  };
+  const response = createResponse();
+  const finished = new Promise((resolve) => response.once('finish', resolve));
+
+  launcher.listeners('request')[0](request, response);
+  await finished;
+
+  assert.equal(response.statusCode, 400);
+  assert.equal(request.resumed, true);
 });
 
 test('uses bounded probe and startup timeouts', async () => {
@@ -175,4 +251,19 @@ test('allows only loopback binding addresses', () => {
   assert.equal(isLoopbackHost('::1'), true);
   assert.equal(isLoopbackHost('0.0.0.0'), false);
   assert.equal(isLoopbackHost('localhost'), false);
+});
+
+test('binds a real listener only to an explicit loopback host', async (t) => {
+  const server = createHttpServer((_request, response) => response.end('ok'));
+  t.after(() => new Promise((resolveClose, rejectClose) => {
+    server.close((error) => (error ? rejectClose(error) : resolveClose()));
+  }));
+
+  await listenOnLoopback(server, 0, '127.0.0.1');
+  assert.equal(server.address().address, '127.0.0.1');
+
+  await assert.rejects(
+    () => listenOnLoopback(createHttpServer(), 0, '0.0.0.0'),
+    /loopback host/,
+  );
 });
