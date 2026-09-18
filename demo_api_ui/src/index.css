@@ -385,17 +385,28 @@ textarea {
   --th-bg-card: #131c2e;
   --th-bg-inset: #1b2540;
   --th-bg-band: #102847;
-  --th-text: #e2e8f0;
-  /* Same four levels, inverted for the dark ground. */
-  --th-text-body: #c7d2e0;
-  --th-text-muted: #94a3b8;
-  --th-text-faint: #6b7a90;
+  /* Readable ink must stay bright on every dark surface. The previous slate
+     ladder made inherited copy, labels, and helper text disappear against
+     dashboard and modal navies. Hierarchy now comes from size/weight, not
+     dimming the text until it fails contrast. */
+  --th-text: #ffffff;
+  --th-text-body: #ffffff;
+  --th-text-muted: #ffffff;
+  --th-text-faint: #ffffff;
   --th-text-invert: #ffffff;
   --th-border: #26304a;
   --th-border-strong: #34405e;
   --th-bg-hover: #1b2540;
   --th-bg-emphasis: #93c5fd;
   --th-text-on-emphasis: #0f172a;
+
+  /* Legacy aliases are used across older pages. Keep their surfaces and ink
+     on the same themed token family so dark mode cannot produce dark text on
+     a dark card. */
+  --brand-white: var(--th-bg-card);
+  --brand-light-gray: var(--th-bg-inset);
+  --brand-medium-gray: var(--th-border-strong);
+  --brand-dark-gray: var(--th-text-invert);
   --th-code-bg: #0b1220;
   --th-code-text: #e2e8f0;
 
@@ -417,8 +428,8 @@ textarea {
      modal kept a white body and a near-white footer in dark mode. The header
      was already dark, so only the surfaces below it needed a dark pair. */
   --modal-body-bg: #131c2e;
-  --modal-body-text: #e2e8f0;
-  --modal-body-text-secondary: #b6c2d4;
+  --modal-body-text: #ffffff;
+  --modal-body-text-secondary: #ffffff;
   --modal-footer-bg: #0f1729;
   --modal-footer-border: #26304a;
   --modal-border: 1px solid rgba(255, 255, 255, 0.09);

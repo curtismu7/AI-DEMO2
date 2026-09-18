@@ -146,6 +146,23 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-18 — Dark-theme page and modal text is bright and readable
+
+- **Files changed:** `demo_api_ui/src/index.css`,
+  `demo_api_ui/src/components/LoginSuccessModal.css`, and
+  `demo_api_ui/src/components/__tests__/dashboardModalContrast.test.js`.
+- **What was broken:** Shared dark-theme ink and legacy page aliases resolved
+  to dim slate or dark gray, so dashboard copy, chat text, and modal identity
+  fields disappeared against navy surfaces.
+- **What was fixed:** Dark-theme primary/body/muted/faint ink, legacy brand
+  aliases, and modal body text now resolve to bright white; legacy light-surface
+  aliases resolve to themed dark surfaces; the login-success modal uses modal
+  tokens instead of hard-coded dark text.
+- **Do not break:** Preserve theme switching, modal drag/resize/pop-out behavior,
+  status/accent colors, auth/session flows, and agent placement/state.
+- **Verify:** `dashboardModalContrast.test.js` passes 5 tests; `npm run build`
+  passes. Full UI unit run: 586 files passed, 4 pre-existing files failed.
+
 ### 2026-09-18 — MCP account discovery uses the registered account-read scope
 
 - **Files changed:** `scope-topology.json`, MCP scope regression fixtures and

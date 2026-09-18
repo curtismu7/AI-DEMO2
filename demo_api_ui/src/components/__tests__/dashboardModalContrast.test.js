@@ -8,6 +8,26 @@ function readCss(file) {
 }
 
 describe('dashboard modal contrast contract', () => {
+  it('keeps the shared dark theme ink bright across legacy page aliases', () => {
+    const css = readCss('../index.css');
+
+    expect(css).toContain('--th-text: #ffffff;');
+    expect(css).toContain('--th-text-body: #ffffff;');
+    expect(css).toContain('--th-text-muted: #ffffff;');
+    expect(css).toContain('--th-text-faint: #ffffff;');
+    expect(css).toContain('--brand-dark-gray: var(--th-text-invert);');
+    expect(css).toContain('--brand-light-gray: var(--th-bg-inset);');
+    expect(css).toContain('--modal-body-text: #ffffff;');
+    expect(css).toContain('--modal-body-text-secondary: #ffffff;');
+  });
+
+  it('keeps the login success identity modal on modal theme tokens', () => {
+    const css = readCss('LoginSuccessModal.css');
+
+    expect(css).toContain('color: var(--modal-body-text, #111827);');
+    expect(css).not.toMatch(/color:\s*#(?:0f172a|334155|475569)\b/);
+  });
+
   it('keeps the compliance checklist on theme-aware high-contrast tokens', () => {
     const css = readCss('ComplianceModal.css');
 
