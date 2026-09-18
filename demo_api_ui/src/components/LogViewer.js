@@ -376,7 +376,7 @@ const LogViewer = ({ isOpen, onClose, standalone = false, categoryFilter = '', i
                 }
                 style={{ fontSize: '16px', padding: '4px 10px' }}
               >
-                ⊞
+                🪟
               </button>
             )}
             {!standalone && <button className="close-button" onClick={() => { setSelfOpen(false); if (onClose) onClose(); }}>✕</button>}
