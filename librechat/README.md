@@ -171,6 +171,15 @@ below.
      `opensearch-privilege-gateway` and `privilege-opensearch22` (MCP settings →
      Connect → PingOne login). `opensearch-privilege-gateway` also needs the
      façade's Privilege leg signed in at `/privilege-mcp-client`.
+   - **Delegated gateway writes.** The façade exchanges the connected user's
+     plain MCP token server-side for an Agent Gateway token with the AI Agent
+     actor claim before forwarding agent-mediated calls such as
+     `create_transfer`. This lets UC7/UC8 reach their amount policy instead of
+     stopping at `missing_act`. The BFF must have
+     `PINGONE_AI_AGENT_ACTOR_CLIENT_ID` and
+     `PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET` configured; if that actor is not
+     configured, the gateway correctly preserves the plain-token
+     `missing_act` denial.
    - **Keep the port-forward up** for OpenSearch · Direct, once per Mac:
      `bash scripts/install-opensearch-port-forward-launchd.sh` (from the main
      checkout). It installs a launchd agent that restarts
