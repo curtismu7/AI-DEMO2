@@ -115,6 +115,34 @@ describe('MCP recovery controller', () => {
     jest.useRealTimers();
   });
 
+  test('does not start another initialization after a timeout until the original settles', async () => {
+    jest.useFakeTimers();
+    const resolvers: Array<(result: InitializeResult) => void> = [];
+    const initializeServer = jest.fn<Promise<InitializeResult>, [string, boolean]>(
+      () => new Promise((resolve) => {
+        resolvers.push(resolve);
+      }),
+    );
+    const { controller } = createController({ initializeServer, timeoutMs: 100 });
+
+    try {
+      const firstRecovery = controller.recover();
+      await jest.advanceTimersByTimeAsync(100);
+      await expect(firstRecovery).resolves.toEqual({ status: 'timeout' });
+
+      const laterRecovery = controller.recover();
+      await jest.advanceTimersByTimeAsync(0);
+
+      expect(initializeServer).toHaveBeenCalledTimes(1);
+      resolvers[0]({ success: true });
+      await expect(laterRecovery).resolves.toEqual({ status: 'in-flight' });
+    } finally {
+      resolvers.forEach((resolve) => resolve({ success: true }));
+      await jest.runAllTimersAsync();
+      jest.useRealTimers();
+    }
+  });
+
   test('keeps the message when one selected server fails', async () => {
     const initializeServer = jest.fn<Promise<InitializeResult>, [string, boolean]>()
       .mockResolvedValueOnce({ success: true })

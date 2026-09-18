@@ -15,13 +15,11 @@ export interface McpRecoveryControllerOptions {
 type InitializationOutcome = 'recovered' | 'authentication-required' | 'reconnect-failed' | 'timeout';
 
 function initializeWithTimeout(
-  initializeServer: McpRecoveryControllerOptions['initializeServer'],
-  serverName: string,
+  initialization: Promise<McpInitializationResult>,
   timeoutMs: number,
 ): Promise<InitializationOutcome> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  const initialization = Promise.resolve()
-    .then(() => initializeServer(serverName, true))
+  const outcome = initialization
     .then((result): InitializationOutcome => {
       if (result.oauthRequired) {
         return 'authentication-required';
@@ -34,7 +32,7 @@ function initializeWithTimeout(
     timeoutId = setTimeout(() => resolve('timeout'), timeoutMs);
   });
 
-  return Promise.race([initialization, timeout]).finally(() => {
+  return Promise.race([outcome, timeout]).finally(() => {
     if (timeoutId !== undefined) {
       clearTimeout(timeoutId);
     }
@@ -48,15 +46,31 @@ export function createMcpRecoveryController({
   timeoutMs,
 }: McpRecoveryControllerOptions) {
   let inFlight: Promise<RecoveryResult> | undefined;
+  const serverOperations = new Map<string, Promise<McpInitializationResult>>();
+
+  function initialize(serverName: string): Promise<McpInitializationResult> {
+    const operation = Promise.resolve().then(() => initializeServer(serverName, true));
+    serverOperations.set(serverName, operation);
+    const releaseOperation = () => {
+      if (serverOperations.get(serverName) === operation) {
+        serverOperations.delete(serverName);
+      }
+    };
+    operation.then(releaseOperation, releaseOperation);
+    return operation;
+  }
 
   async function recoverOnce(): Promise<RecoveryResult> {
     const normalizedServerNames = normalizeMcpServerNames(serverNames);
     if (normalizedServerNames.length === 0) {
       return { status: 'no-server' };
     }
+    if (normalizedServerNames.some((serverName) => serverOperations.has(serverName))) {
+      return { status: 'in-flight' };
+    }
 
     const results = await Promise.all(
-      normalizedServerNames.map((serverName) => initializeWithTimeout(initializeServer, serverName, timeoutMs)),
+      normalizedServerNames.map((serverName) => initializeWithTimeout(initialize(serverName), timeoutMs)),
     );
 
     if (results.includes('authentication-required')) {
