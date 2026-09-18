@@ -1,10 +1,8 @@
-/* Clears the 60px TopNav. At top:14px this overlay sat on the nav and covered
-   the Sign Out button — see UI_FINDINGS.md #2. */
+/* Keep the proof status clear of the dashboard controls. */
 .verified-banner {
   position: fixed;
-  top: 72px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 1rem;
+  bottom: 1rem;
   z-index: 9990;
   background: #fff;
   border: 1.5px solid #16a34a;
@@ -31,8 +29,8 @@
 .verified-banner-link { margin-left: auto; font-weight: 650; color: #2563eb; background: none; border: none; cursor: pointer; white-space: nowrap; }
 .verified-pill {
   position: fixed;
-  top: 72px;
-  right: 14px;
+  left: 1rem;
+  bottom: 1rem;
   z-index: 9990;
   background: #e9f7ef;
   color: #16a34a;
