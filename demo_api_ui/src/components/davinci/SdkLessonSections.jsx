@@ -366,6 +366,7 @@ const FIELD_MAP = [
   ["SUBMIT_BUTTON", "SubmitCollector", "ActionCollector", "A button that calls next()"],
   ["BUTTON", "ActionCollector", "ActionCollector", "A generic continue button that calls next()"],
   ["FLOW_BUTTON", "FlowCollector", "ActionCollector", "A button that calls flow({ action: c.output.key })()"],
+  ["FLOW_LINK", "FlowCollector", "ActionCollector", "A branch link that calls flow({ action: c.output.key })()"],
   ["LABEL", "RichTextCollector", "NoValueCollector", "Render text only; never inject collector content as HTML"],
   ["ERROR_DISPLAY", "ERROR_DISPLAY", "UnknownCollector", "Render nothing; page-level and field-level errors own this slot"],
   ["PROTECT", "ProtectCollector", "SingleValueAutoCollector", "Show status only; the SDK produces the security signal automatically"],
