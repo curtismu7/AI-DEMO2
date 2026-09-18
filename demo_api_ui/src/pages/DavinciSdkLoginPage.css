@@ -7,16 +7,125 @@
    also sets its ink (§1.5), font sizes come from the scale (§8.1) and radii from
    the scale (§9.3). */
 
-/* Try It Live: the sign-in beside the Step Inspector. The sign-in column stays
-   in view while the cards grow, so the form and the step that produced it can
-   be read together. */
-.dvsdk-live {
+/* The live workbench keeps the form and evidence together on desktop. On small
+   screens the same surface becomes a three-tab workspace instead of a long
+   vertical page. */
+.dvsdk-lesson-page .lesson-header { padding: 1.25rem 2rem; }
+.dvsdk-lesson-page .lesson-content { max-width: none; padding: 1.25rem 2rem; }
+.dvsdk-lesson-page #try-it-live { margin: 0; padding: 0; border: 0; }
+.dvsdk-lesson-page #try-it-live > p { max-width: 75ch; margin-bottom: 0.75rem; }
+
+.dvsdk-workbench {
   display: grid;
-  grid-template-columns: minmax(300px, 440px) minmax(0, 1fr);
+  grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
   gap: 1.5rem;
   align-items: start;
   margin-top: 1rem;
+  color: var(--th-text-body);
 }
+
+.dvsdk-workbench-mobile-tabs {
+  display: none;
+  color: var(--th-text-body);
+}
+
+.dvsdk-workbench-rail {
+  min-width: 0;
+  max-height: calc(100vh - var(--topnav-height, 60px) - 2rem);
+  overflow: auto;
+  padding: 1rem;
+  color: var(--th-text-body);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+}
+
+.dvsdk-workbench-tabs,
+.dvsdk-workbench-mobile-tabs {
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.dvsdk-workbench-tabs {
+  display: flex;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--th-border);
+}
+
+.dvsdk-workbench-tabs button,
+.dvsdk-workbench-mobile-tabs button {
+  font: inherit;
+  font-weight: 700;
+  color: var(--th-text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.dvsdk-workbench-tabs button {
+  padding: 0.5rem 0.75rem;
+}
+
+.dvsdk-workbench-tabs button[aria-selected="true"],
+.dvsdk-workbench-mobile-tabs button[aria-pressed="true"] {
+  color: var(--th-text-on-emphasis);
+  background: var(--th-bg-emphasis);
+  border-color: var(--th-border-strong);
+}
+
+.dvsdk-workbench-tabs button:focus-visible,
+.dvsdk-workbench-mobile-tabs button:focus-visible {
+  outline: 3px solid var(--th-status-info-border);
+  outline-offset: 2px;
+}
+
+.dvsdk-workbench-panel[hidden] {
+  display: none;
+}
+
+.dvsdk-workbench-panel h3,
+.dvsdk-live-steps h3,
+.dvsdk-live-reel h3 {
+  color: var(--th-text);
+}
+
+.dvsdk-call-log {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  color: var(--th-text);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+}
+.dvsdk-call-log summary { cursor: pointer; font-weight: 700; }
+.dvsdk-call-log .dvsdk-live-steps { margin-top: 1rem; }
+
+.dvsdk-workbench-lessons .lesson-section {
+  margin: 0 0 0.625rem;
+  padding: 0;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+}
+.dvsdk-workbench-lessons .lesson-section-disclosure > summary {
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  color: var(--th-text);
+  background: var(--th-bg-inset);
+  border-radius: var(--radius-md);
+}
+.dvsdk-workbench-lessons .lesson-section-disclosure[open] > summary {
+  border-bottom: 1px solid var(--th-border);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+.dvsdk-workbench-lessons .lesson-section-title {
+  display: inline;
+  margin: 0;
+  color: inherit;
+  font-size: var(--font-size-md);
+}
+.dvsdk-workbench-lessons .lesson-section-disclosure-body { padding: 1rem; }
 
 /* The flow card: where the DaVinci flow's forms render, and the thing this page
    is about, so it stands apart from the lesson around it. It sits on the
@@ -66,13 +175,51 @@
 }
 
 @media (max-width: 900px) {
-  .dvsdk-live {
-    grid-template-columns: minmax(0, 1fr);
+  .dvsdk-lesson-page .lesson-header,
+  .dvsdk-lesson-page .lesson-content { padding: 1rem; }
+  .dvsdk-workbench {
+    display: block;
+  }
+
+  .dvsdk-workbench-mobile-tabs {
+    display: flex;
+    margin-bottom: 1rem;
+    padding: 0.25rem;
+    color: var(--th-text-body);
+    background: var(--th-bg-card);
+    border: 1px solid var(--th-border);
+    border-radius: var(--radius-md);
+  }
+
+  .dvsdk-workbench-mobile-tabs button {
+    flex: 1;
+    padding: 0.6rem 0.5rem;
+  }
+
+  .dvsdk-workbench-rail {
+    max-height: none;
+    margin-top: 1rem;
+  }
+
+  .dvsdk-workbench[data-mobile-surface="form"] .dvsdk-workbench-rail,
+  .dvsdk-workbench[data-mobile-surface="inspector"] .dvsdk-live-app {
+    display: none;
+  }
+
+  .dvsdk-workbench[data-mobile-surface="form"] .dvsdk-live-app {
+    display: block;
   }
 
   .dvsdk-live-app {
     position: static;
   }
+}
+
+@media (max-width: 640px) {
+  .dvsdk-lesson-page .lesson-header-row { display: block; }
+  .dvsdk-lesson-page .lesson-header h1 { font-size: var(--font-size-2xl); }
+  .dvsdk-lesson-page .lesson-header-actions { justify-content: flex-start; margin: 0.75rem 0; }
+  .dvsdk-live-app { padding: 1rem; }
 }
 
 .lesson-section .dvsdk-live-steps h3 {
@@ -340,17 +487,31 @@
 
 .sdk-lesson-code > summary {
   padding: 0.65rem 0.8rem;
-  color: var(--th-link);
+  color: var(--th-status-info-text);
   font-weight: 600;
   cursor: pointer;
 }
 
 .sdk-lesson-code > summary:focus-visible {
-  outline: 2px solid var(--th-focus-ring);
+  outline: 2px solid var(--th-status-info-border);
   outline-offset: -2px;
 }
 
 .sdk-lesson-code > .lesson-code {
   margin: 0;
   border-top: 1px solid var(--th-border);
+}
+
+@media print {
+  .dvsdk-lesson-page #try-it-live > .lesson-section-title,
+  .dvsdk-lesson-page #try-it-live > p { display: none; }
+  .dvsdk-lesson-page .dvsdk-workbench { display: block; }
+  .dvsdk-lesson-page .dvsdk-workbench[data-mobile-surface] .dvsdk-workbench-rail {
+    display: block;
+    max-height: none;
+    overflow: visible;
+  }
+  .dvsdk-lesson-page .dvsdk-workbench-mobile-tabs,
+  .dvsdk-lesson-page .dvsdk-workbench-tabs { display: none; }
+  .dvsdk-lesson-page .lesson-section-disclosure-body { break-inside: avoid; }
 }
