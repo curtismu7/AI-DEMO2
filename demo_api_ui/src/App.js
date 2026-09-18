@@ -149,6 +149,7 @@ import AiControlPlanePage from "./pages/AiControlPlanePage";
 import ControlPlanePage from "./pages/ControlPlanePage";
 import AgentRegistryPage from "./pages/AgentRegistryPage";
 import CheckPage from "./pages/CheckPage";
+import McpDiscoveryPage from "./pages/McpDiscoveryPage";
 import TracingPage from "./pages/TracingPage";
 import TransactionTracePage from "./pages/TransactionTracePage";
 import AutonomousAgentsPage from "./pages/AutonomousAgentsPage";
@@ -986,6 +987,23 @@ function AppWithAuth() {
                           <CheckPage />
                         </main>
                       </>
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
+                />
+                <Route
+                  path="/mcp-discovery"
+                  element={
+                    loading ? null : user ? (
+                      <RequireAdminLogin user={user}>
+                        <>
+                          <TopNav user={user} onLogout={logout} />
+                          <main className="main-content">
+                            <McpDiscoveryPage />
+                          </main>
+                        </>
+                      </RequireAdminLogin>
                     ) : (
                       <SignInRequired />
                     )
