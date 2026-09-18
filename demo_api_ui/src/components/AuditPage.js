@@ -567,6 +567,9 @@ export default function AuditPage({ onClose } = {}) {
             <button type="button" className="audit-float-btn" onClick={() => fetchEvents()} disabled={loading} title="Refresh now" aria-label="Refresh now">
               {loading ? '…' : '↻'}
             </button>
+            <button type="button" className="audit-float-close" onClick={() => window.close()} title="Close" aria-label="Close audit window">
+              ✕
+            </button>
           </div>
         </div>
         <div className="audit-popout-content">{auditContent}</div>
@@ -596,7 +599,7 @@ export default function AuditPage({ onClose } = {}) {
             {loading ? '…' : '↻'}
           </button>
           <button type="button" className="audit-float-btn" onClick={openPopout} title="Open in new window (move to any screen)" aria-label="Pop out to new window">
-            ⧉
+            🪟
           </button>
           <button type="button" className="audit-float-close" onClick={() => onClose ? onClose() : navigate(-1)} title="Close" aria-label="Close audit log">
             ×

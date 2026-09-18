@@ -55,13 +55,13 @@ describe('AgentClientSkin', () => {
     const { rerender } = render(<AgentClientSkin {...baseProps} showPopOutButton={false} />);
     expect(screen.queryByText(/Pop Out/i)).toBeNull();
     rerender(<AgentClientSkin {...baseProps} showPopOutButton={true} />);
-    expect(screen.getByText(/Pop Out/i)).toBeTruthy();
+    expect(screen.getByText(/🪟 Pop Out/i)).toBeTruthy();
   });
 
   it('calls onPopOut when pop-out button clicked', () => {
     const onPopOut = vi.fn();
     render(<AgentClientSkin {...baseProps} showPopOutButton={true} onPopOut={onPopOut} />);
-    fireEvent.click(screen.getByText(/Pop Out/i));
+    fireEvent.click(screen.getByText(/🪟 Pop Out/i));
     expect(onPopOut).toHaveBeenCalled();
   });
 });

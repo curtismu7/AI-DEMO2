@@ -27,9 +27,9 @@ test("non-admin renders exactly 7 quick-nav buttons (matches the CSS 7x stack)",
     "Dashboard",
     "Agent",
     "Settings",
-    "Learning Log",
-    "API",
-    "Logs",
+    "🪟 Learning Log",
+    "🪟 API",
+    "🪟 Logs",
   ]);
 });
 
