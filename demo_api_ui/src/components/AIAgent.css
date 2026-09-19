@@ -8,6 +8,7 @@
 .banking-agent-panel {
   background: var(--th-bg-card) !important;
   background-color: var(--th-bg-card) !important;
+  color: var(--th-text);
 }
 /* ─── BankingAgent — theme-aware chat widget ────────────────────────────── */
 /* Royal blue primary (#4169E1) — distinct from slate / navy. */
@@ -281,6 +282,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   flex-direction: column;
   gap: 8px;
   background: var(--th-bg-card) !important;
+  color: var(--th-text);
 }
 
 .ba-left-label {
@@ -1439,6 +1441,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   .banking-agent-msg.assistant[data-source="attack-sim"]
   .banking-agent-msg-bubble {
   background: var(--th-bg-inset) !important;
+  color: var(--th-text);
   color: var(--th-text) !important;
   border-left: 3px solid #f59e0b !important;
 }
@@ -3180,7 +3183,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   margin: 0;
   font-size: 0.8rem;
   font-weight: 700;
-  color: #666666;
+  color: var(--th-text);
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
@@ -3300,16 +3303,16 @@ body > .banking-agent-float-root .banking-agent-panel {
   --ba-input-bd: #b0bac6;
   background: var(--ba-input-bg);
   border-color: var(--ba-input-bd);
-  color: #111827;
+  color: var(--th-text);
 }
 .banking-agent-panel.ba-mode-inline.ba-embedded-bottom-dock
   .ba-input::placeholder {
-  color: #4b5563;
+  color: var(--th-text);
 }
 .banking-agent-panel.ba-mode-inline.ba-embedded-bottom-dock .ba-input:focus {
   border-color: #4169e1;
   background: #f1f4f8;
-  color: #111827;
+  color: var(--th-text);
 }
 
 .banking-agent-panel.ba-mode-inline.ba-embedded-bottom-dock
@@ -3830,7 +3833,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   max-width: 7.5rem;
   border-color: rgba(255, 255, 255, 0.35);
   background: rgba(15, 23, 42, 0.35);
-  color: var(--brand-light-gray);
+  color: var(--th-text);
 }
 
 .banking-agent-panel.ba-mode-inline.ba-split-column
@@ -4090,7 +4093,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-left-label {
   font-size: var(--font-size-xs);
   font-weight: 600;
-  color: var(--ba-text-secondary, #374151);
+  color: var(--ba-text-secondary, var(--th-text));
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 4px;
@@ -4099,7 +4102,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-left-label-secondary {
   font-size: 10px;
   font-weight: 500;
-  color: var(--ba-text-tertiary, #374151);
+  color: var(--ba-text-tertiary, var(--th-text));
   text-transform: uppercase;
   letter-spacing: 0.3px;
   margin: 8px 0 4px 0;
@@ -4417,7 +4420,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   .banking-agent-msg.assistant.typing
   .banking-agent-msg-bubble {
   background: #dddddd;
-  color: #666666;
+  color: var(--th-text);
 }
 
 /* ba-reasoning: sequential thinking */
@@ -5093,6 +5096,32 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: var(--ba-surface, var(--th-bg-inset));
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
 }
+/* Quick Config uses the shared floating-panel shell for reliable mouse
+   dismissal, dragging, pop-out, and resize behavior. Keep the tray's content
+   styling, but let the shell own its frame and scrolling. */
+.fp-panel.ba-header-more-pop {
+  min-width: 0;
+  max-height: none;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.ba-header-more-pop > .fp-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 8px;
+  padding: 10px;
+  overflow-y: auto;
+}
+/* The tray has a user-controlled height. Keep its content at its natural size
+   so an expanded surface menu contributes to the scroll height instead of
+   shrinking neighboring rows into one another. */
+.ba-header-more-pop > :not(.ba-header-more-resize-handle) {
+  flex: 0 0 auto;
+}
+.ba-header-more-pop--surface-open .ba-topology-surface-row {
+  align-items: flex-start;
+}
 .ba-header-more-intro {
   display: flex;
   flex-direction: column;
@@ -5110,6 +5139,55 @@ body > .banking-agent-float-root .banking-agent-panel {
   font-size: var(--font-size-xs);
   line-height: 1.35;
 }
+.ba-header-more-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  cursor: move;
+  touch-action: none;
+}
+.ba-header-more-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 12px;
+}
+.ba-header-more-toolbar-actions button {
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-2xs);
+  cursor: pointer;
+}
+.ba-header-more-toolbar-actions button:hover,
+.ba-header-more-toolbar-actions button.selected {
+  border-color: var(--th-status-info);
+  background: var(--th-status-info-bg);
+  color: var(--th-text);
+}
+.ba-header-more-context {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--th-border);
+}
+.ba-header-more-legacy { display: none; }
+.ba-header-more-pop--dark {
+  --th-bg-card: #111827;
+  --th-bg-inset: #030712;
+  --th-bg-hover: #1f2937;
+  --th-text: #f9fafb;
+  --th-text-muted: #cbd5e1;
+  --th-border: #475569;
+  --th-border-strong: #94a3b8;
+}
+.ba-header-more-pop--font-90 { font-size: 90%; }
+.ba-header-more-pop--font-115 { font-size: 115%; }
 .ba-header-more-heading {
   width: 100%;
   margin-top: 2px;
@@ -5352,10 +5430,10 @@ body > .banking-agent-float-root .banking-agent-panel {
   outline: 2px solid var(--th-status-info);
   outline-offset: -2px;
 }
-.ba-header-more-resize-handle--nw { top: 0; left: 0; cursor: nwse-resize; }
-.ba-header-more-resize-handle--ne { top: 0; right: 0; cursor: nesw-resize; }
-.ba-header-more-resize-handle--sw { bottom: 0; left: 0; cursor: nesw-resize; }
-.ba-header-more-resize-handle--se { right: 0; bottom: 0; cursor: nwse-resize; }
+.ba-header-more-resize-handle--n { top: 0; left: 20px; right: 20px; width: auto; height: 8px; cursor: ns-resize; }
+.ba-header-more-resize-handle--e { top: 20px; right: 0; bottom: 20px; width: 8px; height: auto; cursor: ew-resize; }
+.ba-header-more-resize-handle--s { right: 20px; bottom: 0; left: 20px; width: auto; height: 8px; cursor: ns-resize; }
+.ba-header-more-resize-handle--w { top: 20px; bottom: 20px; left: 0; width: 8px; height: auto; cursor: ew-resize; }
 .ba-header-more-pop .ba-header-toggle-label {
   height: auto;
   min-height: 32px;
@@ -5679,7 +5757,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   cursor: pointer;
   white-space: nowrap;
   border: 1.5px solid var(--insp-c, #64748b);
-  color: var(--insp-c, #475569);
+  color: var(--insp-c, var(--th-text));
 }
 .ba-insp-btn:hover {
   background: color-mix(in srgb, var(--insp-c, #64748b) 8%, #fff);
@@ -6206,6 +6284,321 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 .ba-demo-steps-float .ba-demo-steps-popout__header {
   flex-shrink: 0;
+}
+
+/* Mission Control drawer — right-side overlay opened from the agent toolbar. */
+.ba-demo-steps-drawer__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 100060;
+  background: rgba(2, 6, 14, 0.52);
+}
+
+.ba-demo-steps-drawer {
+  position: fixed;
+  inset: 0 0 0 auto;
+  z-index: 100061;
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  min-width: 360px;
+  max-width: calc(100vw - 16px);
+  overflow: visible;
+  color: var(--th-text);
+  background: var(--th-bg-inset);
+  border-left: 1px solid var(--th-border-strong);
+  box-shadow: -24px 0 64px rgba(2, 6, 14, 0.35);
+  animation: ba-demo-steps-drawer-in 0.22s ease-out;
+}
+
+@keyframes ba-demo-steps-drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.ba-demo-steps-drawer__resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -5px;
+  z-index: 2;
+  width: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.ba-demo-steps-drawer__resize::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 3px;
+  height: 52px;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: var(--th-border-strong);
+}
+
+.ba-demo-steps-drawer__resize:hover::after,
+.ba-demo-steps-drawer__resize:focus-visible::after {
+  background: var(--th-status-info);
+}
+
+.ba-demo-steps-drawer .ba-demo-steps-popout__header {
+  flex: 0 0 auto;
+  gap: 14px;
+  padding: 20px 22px 16px;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border-bottom: 1px solid var(--th-border);
+}
+
+.ba-demo-steps-drawer__kicker,
+.ba-demo-steps-drawer__act-heading {
+  color: var(--th-status-info-text);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-3xs);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ba-demo-steps-drawer__title {
+  margin: 6px 0 4px;
+  color: var(--th-text);
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.ba-demo-steps-drawer__subtitle {
+  margin: 0;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+}
+
+.ba-demo-steps-drawer__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--th-border-strong);
+  border-radius: 7px;
+  color: var(--th-text);
+  background: transparent;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+}
+
+.ba-demo-steps-drawer__close:hover,
+.ba-demo-steps-drawer__close:focus-visible {
+  border-color: var(--th-status-info);
+  background: var(--th-bg-hover);
+  outline: none;
+}
+
+.ba-demo-steps-drawer__progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ba-demo-steps-drawer__progress-row .ba-demo-steps-popout__track {
+  flex: 1 1 auto;
+}
+
+.ba-demo-steps-drawer__time {
+  flex: 0 0 auto;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-3xs);
+}
+
+.ba-demo-steps-drawer .ba-demo-steps-popout__header-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 7px;
+}
+
+.ba-demo-steps-drawer .ba-demo-steps-popout__search-input {
+  min-height: 32px;
+  color: var(--th-text);
+  background: var(--th-bg-inset);
+  border-color: var(--th-border-strong);
+}
+
+.ba-demo-steps-drawer .ba-demo-steps-popout__search-input::placeholder {
+  color: var(--th-text-muted);
+}
+
+.ba-demo-steps-drawer .ba-demo-steps-popout__clear,
+.ba-demo-steps-drawer .ba-demo-steps-popout__stop-agent {
+  min-height: 32px;
+  padding: 5px 9px;
+  border-radius: 7px;
+  font-size: var(--font-size-3xs);
+}
+
+/* The drawer can be narrow even on a wide viewport after the presenter drags
+   its resize handle. Give search its own row instead of squeezing it beside
+   both action buttons. */
+@container (max-width: 460px) {
+  .ba-demo-steps-drawer .ba-demo-steps-popout__header-actions {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .ba-demo-steps-drawer .ba-demo-steps-popout__search {
+    grid-column: 1 / -1;
+  }
+}
+
+.ba-demo-steps-drawer__body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 17px 22px 28px;
+}
+
+.ba-demo-steps-drawer__act-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 9px;
+  color: var(--th-text-muted);
+}
+
+.ba-demo-steps-drawer__act-heading span:last-child {
+  color: var(--th-text-faint);
+  font-family: var(--font-mono);
+  letter-spacing: normal;
+}
+
+.ba-demo-steps-drawer .ba-demo-steps-popout__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  max-height: none;
+  padding: 0;
+  overflow: visible;
+}
+
+.ba-demo-steps-drawer .ba-demo-steps-popout__card-item {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: stretch;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.ba-demo-steps-drawer .banking-chips-dropdown__button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid var(--th-border);
+  border-radius: 9px;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  box-shadow: none;
+}
+
+.ba-demo-steps-drawer .banking-chips-dropdown__button:hover,
+.ba-demo-steps-drawer .banking-chips-dropdown__button:focus-visible,
+.ba-demo-steps-drawer .ba-demo-steps-popout__card--next .banking-chips-dropdown__button {
+  border-color: var(--th-status-info);
+  background: var(--th-bg-hover);
+  outline: none;
+}
+
+.ba-demo-steps-drawer .banking-chips-dropdown__button--done {
+  border-color: var(--th-status-success);
+  background: var(--th-status-success-bg);
+}
+
+.ba-demo-steps-drawer .ba-demo-steps-popout__id {
+  margin: 0;
+  padding: 2px 5px;
+  color: var(--th-status-info-text);
+  background: var(--th-status-info-bg);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-3xs);
+}
+
+.ba-demo-steps-drawer .banking-chips-dropdown__chip-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--th-text);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ba-demo-steps-drawer .banking-chips-dropdown__check {
+  position: static;
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--th-status-success);
+  border-radius: 999px;
+  color: var(--th-status-success-text);
+  background: var(--th-status-success-bg);
+  font-size: var(--font-size-3xs);
+}
+
+.ba-demo-steps-drawer .ba-demo-steps-popout__rs-badge {
+  margin-left: 0;
+  color: var(--th-text-muted);
+  background: var(--th-bg-inset);
+  font-size: var(--font-size-3xs);
+}
+
+.ba-demo-steps-drawer .ba-demo-steps-popout__explain,
+.ba-demo-steps-drawer .ba-demo-steps-popout__rar-toggle {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+}
+
+.ba-demo-steps-drawer .ba-demo-steps-popout__advanced {
+  margin-top: 18px;
+  border-top-color: var(--th-border);
+}
+
+@media (max-width: 680px) {
+  .ba-demo-steps-drawer {
+    min-width: 0;
+  }
+
+  .ba-demo-steps-drawer .ba-demo-steps-popout__header-actions {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .ba-demo-steps-drawer .ba-demo-steps-popout__stop-agent {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ba-demo-steps-drawer {
+    animation: none;
+  }
 }
 
 /* Admin Tools: 2-column grid override for compact 420px panel */
@@ -7098,7 +7491,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   font-weight: 600 !important;
 }
 .ba-agent-subtitle {
-  color: #4b5563 !important;
+  color: var(--th-text) !important;
   font-size: 0.72rem !important;
 }
 .ba-header .ba-tool-btn {

@@ -5,6 +5,7 @@ import SignInPrompt from '../components/SignInPrompt';
 import { useThemeOptional } from '../context/ThemeContext';
 import { buildA2aChainDetail } from '../utils/a2aChainDetail';
 import { A2A_RECORDED_RUN } from '../data/a2aRecordedRun';
+import A2AArchitectureDiagram from '../components/A2AArchitectureDiagram';
 import {
   buildA2aTeachingPanes,
   summarizeAgentCard,
@@ -82,6 +83,7 @@ function Section({ id, num, title, lead, children }) {
 export default function A2AProtocolLearningPage() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
   const [vertical, setVertical] = useState(DEFAULT_VERTICAL);
+  const [showArchitecture, setShowArchitecture] = useState(false);
 
   const [card, setCard] = useState(null);
   const [cardLive, setCardLive] = useState(false);
@@ -214,7 +216,16 @@ export default function A2AProtocolLearningPage() {
             ))}
           </select>
         </label>
+        <button
+          type="button"
+          className="a2l-architecture-btn"
+          onClick={() => setShowArchitecture(true)}
+        >
+          Show A2A implementation architecture
+        </button>
       </header>
+
+      {showArchitecture && <A2AArchitectureDiagram onClose={() => setShowArchitecture(false)} />}
 
       <Section
         id="layers"

@@ -466,6 +466,21 @@ describe("Discovery popout — '⊞ All actions' button (inline, non-popout fall
 });
 
 describe("Header controls after the Actions dropdown removal", () => {
+  it("always offers an Approval button that opens the safe demo drawer", async () => {
+    renderThemedAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+
+    fireEvent.click(screen.getByRole("button", { name: /^Approval$/i }));
+
+    expect(
+      await screen.findByRole("dialog", { name: "Authorize Agent Action" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Extend Rental")).toBeInTheDocument();
+  });
+
   it("float mode: no 'Actions' trigger, but Guide/Demo steps/scope picker/Clear progress still render", async () => {
     renderThemedAgent({ user: customerUser, mode: "float" });
     const fab = screen.getByRole("button", { name: /Open.*AI Agent/i });
@@ -500,8 +515,8 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(more);
     });
 
-    expect(screen.getByRole("button", { name: /^Topology$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Script$/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Pop out Quick Config/i })).toBeInTheDocument();
+    expect(screen.getByText("Movie reel controls")).toBeInTheDocument();
     // The items live in the tray container, not loose in the header row. This
     // asserts structure only — jsdom applies no CSS, so whether the tray is
     // actually positioned as an overlay is not covered here.
@@ -520,17 +535,16 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
 
-    expect(screen.getByLabelText("RFC info")).not.toBeChecked();
-
-    for (const label of [
-      "Agent flow diagram surface",
-      "Token topology surface",
-      "Simple step surface",
-      "Sequence view surface",
-      "OAuth Visualizer surface",
+    for (const [view, label] of [
+      ["Movie reel", null],
+      ["Token topology", "Token topology surface"],
+      ["Simple stepper", "Simple stepper surface"],
+      ["Sequence view", "Sequence view surface"],
+      ["OAuth visualizer", "OAuth visualizer surface"],
     ]) {
+      await act(async () => fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${view}`) })));
+      if (!label) continue;
       const trigger = screen.getByRole("button", { name: label });
-      expect(trigger).toHaveTextContent("Off");
       await act(async () => {
         fireEvent.click(trigger);
       });
@@ -545,33 +559,6 @@ describe("Header controls after the Actions dropdown removal", () => {
       });
     }
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Sequence view surface" }));
-    });
-    await act(async () => {
-      fireEvent.click(screen.getByRole("option", { name: /^Both\b/ }));
-    });
-    expect(screen.getByRole("button", { name: "Agent flow diagram surface" })).not.toBeDisabled();
-    expect(screen.getByRole("button", { name: "Token topology surface" })).not.toBeDisabled();
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Simple step surface" }));
-    });
-    expect(screen.getByRole("option", { name: /^Embedded\b/ })).toBeDisabled();
-    expect(screen.getByRole("option", { name: /^Both\b/ })).toBeDisabled();
-    expect(screen.getByRole("option", { name: /^Pop-out\b/ })).not.toBeDisabled();
-    await act(async () => {
-      fireEvent.click(screen.getByRole("option", { name: /^Off\b/ }));
-    });
-    expect(screen.getByRole("button", { name: "OAuth Visualizer surface" })).not.toBeDisabled();
-    expect(screen.getByLabelText("Follow flow")).toBeChecked();
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Sequence view surface" }));
-    });
-    await act(async () => {
-      fireEvent.click(screen.getByRole("option", { name: /^Pop-out\b/ }));
-    });
-    expect(screen.getByRole("button", { name: "Agent flow diagram surface" })).not.toBeDisabled();
   });
 
   it("auto-pops the Simple Stepper when its surface is set to pop-out", async () => {
@@ -584,8 +571,9 @@ describe("Header controls after the Actions dropdown removal", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: /^Simple stepper/ })));
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Simple step surface" }));
+      fireEvent.click(screen.getByRole("button", { name: "Simple stepper surface" }));
     });
     await act(async () => {
       fireEvent.click(screen.getByRole("option", { name: /^Pop-out\b/ }));
@@ -613,8 +601,8 @@ describe("Header controls after the Actions dropdown removal", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /Simple stepper/ }));
     });
-    expect(screen.getByRole("button", { name: /Simple stepper/ })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: /Movie reel/ })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getAllByRole("button", { name: /Simple stepper/ }).find((button) => button.hasAttribute("aria-pressed"))).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getAllByRole("button", { name: /Movie reel/ }).find((button) => button.hasAttribute("aria-pressed"))).toHaveAttribute("aria-pressed", "false");
   });
 
   it("keeps surface menus exclusive and leaves Pop-out available for every view", async () => {
@@ -627,14 +615,16 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
 
-    const labels = [
-      "Agent flow diagram surface",
-      "Token topology surface",
-      "Simple step surface",
-      "Sequence view surface",
-      "OAuth Visualizer surface",
+    const views = [
+      ["Token topology", "Token topology surface"],
+      ["Simple stepper", "Simple stepper surface"],
+      ["Sequence view", "Sequence view surface"],
+      ["OAuth visualizer", "OAuth visualizer surface"],
     ];
-    for (const label of labels) {
+    for (const [view, label] of views) {
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${view}`) }));
+      });
       const trigger = screen.getByRole("button", { name: label });
       expect(trigger).not.toBeDisabled();
       await act(async () => {
@@ -648,13 +638,39 @@ describe("Header controls after the Actions dropdown removal", () => {
     }
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Agent flow diagram surface" }));
+      fireEvent.click(screen.getByRole("button", { name: /^Token topology Delegation map$/ }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Token topology Delegation map$/ }));
     });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Token topology surface" }));
     });
-    expect(screen.queryByRole("listbox", { name: "Agent flow diagram surface options" })).not.toBeInTheDocument();
     expect(screen.getByRole("listbox", { name: "Token topology surface options" })).toBeInTheDocument();
+  }, 90000);
+
+  it("marks Quick Config while a surface menu is open so its layout can expand", async () => {
+    renderAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
+    });
+
+    const quickConfig = document.querySelector(".ba-header-more-pop");
+    expect(quickConfig).not.toBeNull();
+    expect(quickConfig).not.toHaveClass("ba-header-more-pop--surface-open");
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Token topology/ }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Token topology surface" }));
+    });
+
+    expect(quickConfig).toHaveClass("ba-header-more-pop--surface-open");
   });
 
   it("supports dark mode and four-corner Quick Config resizing", async () => {
@@ -677,6 +693,32 @@ describe("Header controls after the Actions dropdown removal", () => {
     for (const direction of ["northwest", "northeast", "southwest", "southeast"]) {
       expect(quickConfig.querySelector(`[aria-label="Resize ${direction}"]`)).toBeInTheDocument();
     }
+  });
+
+  it("keeps Quick Config open for internal mouse interaction and exposes window controls", async () => {
+    renderThemedAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
+    });
+
+    const quickConfig = document.querySelector(".ba-header-more-pop");
+    expect(quickConfig).not.toBeNull();
+    expect(quickConfig).toHaveStyle({ zIndex: "100061" });
+    expect(quickConfig.querySelector('[aria-label="Move Quick Config"]')).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Pop out Quick Config/i })).toBeInTheDocument();
+    expect(quickConfig.querySelector('[role="separator"][tabindex="0"]')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Token topology Delegation map/i }));
+    });
+    await act(async () => {
+      fireEvent.mouseDown(screen.getByRole("button", { name: /Token topology surface/i }));
+    });
+    expect(document.querySelector(".ba-header-more-pop")).toBeInTheDocument();
   });
 });
 

@@ -170,6 +170,7 @@ const {
     router: featureFlagsRoutes
 } = require('./routes/featureFlags');
 const mcpInspectorRoutes = require('./routes/mcpInspector');
+const mcpDiscoveryRoutes = require('./routes/mcpDiscovery');
 const mcpPingOneAdminAuthRoutes = require('./routes/mcpPingOneAdminAuth');
 const mcpPrivilegeAuthRoutes = require('./routes/mcpPrivilegeAuth');
 const mcpTrafficRoutes = require('./routes/mcpTraffic');
@@ -1063,6 +1064,7 @@ app.use('/api/admin/mgmt-api', authenticateToken, requireAdmin, mgmtApiRoutes);
 app.use('/api/admin/secret-rotation', authenticateToken, secretRotationRoutes);
 app.use('/api/admin/ping-ai-test-lab', authenticateToken, pingAiTestLabRoutes);
 app.use('/api/admin/config', adminConfigRoutes);
+app.use('/api/admin/mcp-discovery', mcpDiscoveryRoutes);
 
 // OpenAPI / Swagger UI. The document is introspected from this app's own router
 // (lib/openapiFromRoutes.js) rather than from per-route annotations, so it cannot
@@ -1372,6 +1374,7 @@ app.use('/api/mfa/test', mfaTestRoutes);
 app.use('/api/agent', agentIdentityRoutes);
 app.use('/api/agent', agentDelegationRoutes);
 app.use('/api/mcp', mcpDecisionPollingRoutes);
+app.use('/api/mcp/apps', require('./routes/mcpApps'));
 app.use('/api/mcp', mcpExchangeModeRoutes); // GET/POST /api/mcp/exchange-mode — UI ExchangeModeContext toggle
 app.use('/api/mcp/apikey', require('./routes/apiKeyExchange')); // POST /api/mcp/apikey/exchange — API key → bearer token
 app.use('/api/use-cases', require('./routes/useCases')); // read-only catalog is public; step-run routes self-gate with authenticateToken

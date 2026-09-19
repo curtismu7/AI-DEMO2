@@ -149,6 +149,7 @@ import AiControlPlanePage from "./pages/AiControlPlanePage";
 import ControlPlanePage from "./pages/ControlPlanePage";
 import AgentRegistryPage from "./pages/AgentRegistryPage";
 import CheckPage from "./pages/CheckPage";
+import McpDiscoveryPage from "./pages/McpDiscoveryPage";
 import TracingPage from "./pages/TracingPage";
 import TransactionTracePage from "./pages/TransactionTracePage";
 import AutonomousAgentsPage from "./pages/AutonomousAgentsPage";
@@ -156,6 +157,7 @@ import FootprintPicksPage from "./pages/FootprintPicksPage";
 import FootprintMockGalleryPage from "./pages/FootprintMockGalleryPage";
 import FootprintLiveShellPage from "./pages/FootprintLiveShellPage";
 import TelemetryPage from "./pages/TelemetryPage";
+import McpObservabilityPage from "./pages/McpObservabilityPage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
 import PersonalAgentStudioPage from "./pages/PersonalAgentStudioPage";
@@ -992,6 +994,23 @@ function AppWithAuth() {
                   }
                 />
                 <Route
+                  path="/mcp-discovery"
+                  element={
+                    loading ? null : user ? (
+                      <RequireAdminLogin user={user}>
+                        <>
+                          <TopNav user={user} onLogout={logout} />
+                          <main className="main-content">
+                            <McpDiscoveryPage />
+                          </main>
+                        </>
+                      </RequireAdminLogin>
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
+                />
+                <Route
                   path="/tracing"
                   element={
                     loading ? null : user ? (
@@ -1356,6 +1375,14 @@ function AppWithAuth() {
                                 ) : (
                                   <LandingPage user={user} onLogout={logout} />
                                 )
+                              }
+                            />
+                            <Route
+                              path="/mcp-observability"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <McpObservabilityPage />
+                                </RequireAdminLogin>
                               }
                             />
                             {/* === Admin routes ===

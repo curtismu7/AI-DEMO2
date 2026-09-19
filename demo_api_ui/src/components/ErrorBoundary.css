@@ -50,7 +50,7 @@
 .error-details summary {
   cursor: pointer;
   font-weight: 500;
-  color: #374151;
+  color: var(--th-text);
   padding: 8px;
   display: flex;
   align-items: center;
@@ -62,7 +62,7 @@
   padding: 2px 10px;
   font-size: var(--font-size-2xs);
   background: #e5e7eb;
-  color: #374151;
+  color: var(--th-text);
   border: 1px solid #d1d5db;
   border-radius: 4px;
   cursor: pointer;
@@ -77,7 +77,7 @@
 .error-details pre {
   margin: 12px 0 0 0;
   font-size: var(--font-size-xs);
-  color: #6b7280;
+  color: var(--th-text);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -91,7 +91,7 @@
 .error-details-agent strong {
   display: block;
   font-size: var(--font-size-xs);
-  color: #374151;
+  color: var(--th-text);
   margin-bottom: 4px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -133,7 +133,7 @@
 
 .btn-secondary {
   background: #e5e7eb;
-  color: #374151;
+  color: var(--th-text);
 }
 
 .btn-secondary:hover {

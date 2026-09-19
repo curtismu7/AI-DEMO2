@@ -411,7 +411,7 @@
   border-radius: 12px;
   background: var(--brand-light-gray);
   border: 1px solid #dddddd;
-  color: #666666;
+  color: var(--th-text);
   font-family: inherit;
   display: inline-flex;
   align-items: center;
@@ -504,7 +504,7 @@
    dark mode. Surface and text move together or not at all. */
 .tcd-badge--exchanged {
   background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%);
-  color: #374151;
+  color: var(--th-text);
   border-color: #cbd5e1;
 }
 .tcd-badge--acquiring {
@@ -514,7 +514,7 @@
 }
 .tcd-badge--skipped {
   background: var(--brand-light-gray);
-  color: #666666;
+  color: var(--th-text);
   border-color: #cccccc;
 }
 .tcd-badge--notinpath {
@@ -531,7 +531,7 @@
 }
 .tcd-badge--waiting {
   background: linear-gradient(180deg, var(--brand-light-gray) 0%, #dddddd 100%);
-  color: #666666;
+  color: var(--th-text);
   border-color: var(--th-border-strong);
 }
 
@@ -572,7 +572,7 @@
 .tcd-token-type--unknown,
 .tcd-token-type--invalid {
   background: linear-gradient(180deg, var(--brand-light-gray) 0%, #dddddd 100%);
-  color: #666666;
+  color: var(--th-text);
   border-color: var(--th-border-strong);
 }
 
@@ -662,7 +662,7 @@
 
 .tcd-collapsible-header:hover {
   background: #e8eaed;
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 .tcd-collapsible-header::-webkit-details-marker {
@@ -1657,6 +1657,40 @@ pre.tcd-jwt-dump.jh-dark {
   animation: dm-enter 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+.tci-panel[data-theme="light"] {
+  --modal-body-bg: #ffffff;
+  --modal-body-text: #1e293b;
+  --modal-header-bg: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  --modal-header-text: #ffffff;
+  --modal-header-sub: rgba(255, 255, 255, 0.65);
+  --modal-btn-bg: rgba(255, 255, 255, 0.12);
+  --modal-btn-bg-hover: rgba(255, 255, 255, 0.28);
+  --th-bg-card: #ffffff;
+  --th-bg-inset: #f8fafc;
+  --th-text: #1e293b;
+  --th-text-body: #334155;
+  --th-text-muted: #64748b;
+  --th-border: #e2e8f0;
+  --th-border-strong: #cbd5e1;
+}
+
+.tci-panel[data-theme="dark"] {
+  --modal-body-bg: #0f172a;
+  --modal-body-text: #f8fafc;
+  --modal-header-bg: linear-gradient(135deg, #0b1220 0%, #172554 100%);
+  --modal-header-text: #f8fafc;
+  --modal-header-sub: #cbd5e1;
+  --modal-btn-bg: rgba(148, 163, 184, 0.18);
+  --modal-btn-bg-hover: rgba(148, 163, 184, 0.34);
+  --th-bg-card: #17233d;
+  --th-bg-inset: #1e293b;
+  --th-text: #f8fafc;
+  --th-text-body: #dbe4f0;
+  --th-text-muted: #a7b4c7;
+  --th-border: #3c4f70;
+  --th-border-strong: #59729a;
+}
+
 /* ─── Inspector header ───────────────────────────────────────────────────── */
 .tci-header {
   display: flex;
@@ -1759,6 +1793,28 @@ pre.tcd-jwt-dump.jh-dark {
   contain: none;
   --tcd-ink: #1e293b;
   --tcd-muted: #374151;
+}
+
+.tci-panel[data-theme="dark"] .tci-body {
+  --tcd-ink: #f8fafc;
+  --tcd-muted: #cbd5e1;
+}
+
+.tci-panel[data-theme="dark"] .tcd-full-jwt {
+  background: #123b3c;
+  border-color: #2d8f8a;
+}
+
+.tci-panel[data-theme="dark"] .tcd-pill--may-act {
+  color: #bfdbfe;
+}
+
+.tci-panel[data-theme="dark"] .tcd-pill--act {
+  color: #99f6e4;
+}
+
+.tci-panel[data-theme="dark"] .tcd-pill--warn {
+  color: #fde68a;
 }
 
 /* Light-theme overrides for tcd-* components inside inspector */

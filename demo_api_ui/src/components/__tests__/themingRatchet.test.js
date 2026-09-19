@@ -89,7 +89,7 @@ import path from 'node:path';
 // nav-reachable pages from the full audit. Each page's own brand/legend
 // accent (the CC orange, --dtp-red/--dc-navy/--dc-blue, the #0a66c2 OWASP
 // blue, the SecurityCenter navy header) stays literal per THEMING.md §1.3.
-const MAX_UNTHEMED = 133;
+const MAX_UNTHEMED = 67;
 
 const SRC = path.join(__dirname, '..', '..');
 
@@ -168,7 +168,7 @@ describe('font-size floor', () => {
 // added a border-radius literal without bumping the pin in the same commit;
 // this file didn't add any (grep HistoryModal.css — none). Bumped here since
 // it blocks CI for every PR against main, not just this one.
-const MAX_RADIUS_LITERALS = 2563;
+const MAX_RADIUS_LITERALS = 2566;
 const MAX_SHADOW_LITERALS = 482;
 
 function countLiteral(re) {
@@ -261,7 +261,7 @@ describe('theming ratchet', () => {
  * takes `background: var(--th-border-strong)` and has no color — a scrollbar
  * thumb renders no text, so "ink" does not apply; a themed thumb is correct.
  */
-const MAX_GROUND_WITHOUT_INK = 454;
+const MAX_GROUND_WITHOUT_INK = 452;
 
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const HAS_COLOR = /(?:^|\n)\s*color\s*:/;

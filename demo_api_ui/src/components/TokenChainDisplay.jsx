@@ -27,6 +27,7 @@ import { PingProductChip, PingProductLegend } from './PingProductChip';
 import { productForEvent } from '../utils/pingProducts';
 import { clientAuthMethodLabel } from '../utils/clientAuthMethod';
 import { buildA2aChainDetail } from '../utils/a2aChainDetail';
+import "../styles/draggablePanel.css";
 
 const FETCH_COOLDOWN_MS = 5000; // Don't fetch more than once per 5 seconds
 
@@ -2680,7 +2681,7 @@ function openInNewWindow(event) {
  * Floats above the page as a draggable, resizable, collapsible inspector.
  * Rendered via createPortal into document.body so it can go off-screen.
  */
-function TokenInspectorPanel({ event, chainEvents, initialPos, onClose }) {
+export function TokenInspectorPanel({ event, chainEvents, initialPos, theme = "light", onClose }) {
   const { pos, size, handleDragStart, createResizeHandler } = useDraggablePanel(
     initialPos,
     { w: 800, h: 960 },
@@ -2691,6 +2692,7 @@ function TokenInspectorPanel({ event, chainEvents, initialPos, onClose }) {
   const panel = (
     <div
       className={`tci-panel${collapsed ? " tci-panel--collapsed" : ""}`}
+      data-theme={theme}
       style={{
         left: pos.x,
         top: pos.y,
@@ -5373,6 +5375,7 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
           event={inspectedEvent}
           chainEvents={currentEventsWithCc}
           initialPos={inspectorPos}
+          theme={theme}
           onClose={() => setInspectedEvent(null)}
         />
       )}

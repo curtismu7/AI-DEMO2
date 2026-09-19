@@ -1289,7 +1289,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-result-item-badge--err { color: #b91c1c; }
 .cur-ide[data-cur-theme="light"] .cur-policy-decision--confirmation_required,
 .cur-ide[data-cur-theme="light"] .cur-policy-decision--input_required { color: #b45309; }
-.cur-ide[data-cur-theme="light"] .cur-policy-decision span { color: #475569; }
+.cur-ide[data-cur-theme="light"] .cur-policy-decision span { color: var(--th-text); }
 /* The source rule carries !important, so the override must too. */
 .cur-ide[data-cur-theme="light"] .cur-settings-gear { color: #b91c1c !important; }
 .cur-ide[data-cur-theme="light"] .cur-settings-gear:hover { color: #991b1b !important; }

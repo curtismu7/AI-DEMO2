@@ -9,7 +9,7 @@
 .dc-steptime-label {
   font-size: 0.75rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--th-text);
   white-space: nowrap;
 }
 .dc-steptime-select {

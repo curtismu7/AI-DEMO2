@@ -23,6 +23,7 @@ const svc = require('../../services/facadeUpstreamExchange');
 const ENV = '01d89b06-66d5-430e-9f28-65636843788b';
 const TOKEN_URL = `https://auth.pingone.com/${ENV}/as/token`;
 const UPSTREAM_AUD = 'mcpserver.ping.demo';
+const AGENT_GATEWAY_AUD = 'agentgateway.ping.demo';
 
 describe('facade upstream token exchange', () => {
   const saved = {};
@@ -32,10 +33,14 @@ describe('facade upstream token exchange', () => {
     saved.cid = process.env.PINGONE_MCP_GATEWAY_CLIENT_ID;
     saved.sec = process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET;
     saved.region = process.env.PINGONE_REGION;
+    saved.agentId = process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID;
+    saved.agentSecret = process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET;
     process.env.PINGONE_ENVIRONMENT_ID = ENV;
     process.env.PINGONE_MCP_GATEWAY_CLIENT_ID = '6586d3de-b916-454c-84e5-6d21b572a534';
     process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET = 'shhh';
     process.env.PINGONE_REGION = 'com';
+    process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID = 'agent-client';
+    process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET = 'agent-secret';
     svc.__test.cache.clear();
   });
 
@@ -45,6 +50,8 @@ describe('facade upstream token exchange', () => {
       ['PINGONE_MCP_GATEWAY_CLIENT_ID', saved.cid],
       ['PINGONE_MCP_GATEWAY_CLIENT_SECRET', saved.sec],
       ['PINGONE_REGION', saved.region],
+      ['PINGONE_AI_AGENT_ACTOR_CLIENT_ID', saved.agentId],
+      ['PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET', saved.agentSecret],
     ];
     for (const [k, v] of pairs) {
       if (v === undefined) delete process.env[k];
@@ -120,5 +127,45 @@ describe('facade upstream token exchange', () => {
   test('a response with no access_token is an error, not an undefined bearer', async () => {
     axios.post.mockResolvedValue({ data: {} });
     await expect(svc.exchangeForUpstream('caller-token', UPSTREAM_AUD)).rejects.toThrow(/no access_token/);
+  });
+
+  test('mints an AI-agent actor token, then exchanges the caller for an act-bearing gateway token', async () => {
+    axios.post
+      .mockResolvedValueOnce({ data: { access_token: 'agent-cc', expires_in: 300 } })
+      .mockResolvedValueOnce({ data: { access_token: 'delegated-gateway', expires_in: 300 } });
+
+    const out = await svc.exchangeForAgentGateway('caller-token', ['agent:invoke', 'write', 'transfer']);
+
+    expect(out).toEqual({ accessToken: 'delegated-gateway', cached: false });
+    expect(axios.post).toHaveBeenCalledTimes(2);
+
+    const actorBody = new URLSearchParams(axios.post.mock.calls[0][1]);
+    expect(actorBody.get('grant_type')).toBe('client_credentials');
+    expect(actorBody.get('client_id')).toBe('agent-client');
+    expect(actorBody.get('client_secret')).toBe('agent-secret');
+    expect(actorBody.get('audience')).toBe(AGENT_GATEWAY_AUD);
+    expect(actorBody.get('scope')).toBe('agent:invoke');
+
+    const exchangeBody = new URLSearchParams(axios.post.mock.calls[1][1]);
+    expect(exchangeBody.get('grant_type')).toBe('urn:ietf:params:oauth:grant-type:token-exchange');
+    expect(exchangeBody.get('subject_token')).toBe('caller-token');
+    expect(exchangeBody.get('actor_token')).toBe('agent-cc');
+    expect(exchangeBody.get('resource')).toBe(AGENT_GATEWAY_AUD);
+    expect(exchangeBody.get('scope')).toBe('agent:invoke write transfer');
+    expect(exchangeBody.get('client_id')).toBe('agent-client');
+    expect(exchangeBody.get('client_secret')).toBe('agent-secret');
+  });
+
+  test('caches the delegated gateway token without re-minting the actor', async () => {
+    axios.post
+      .mockResolvedValueOnce({ data: { access_token: 'agent-cc', expires_in: 300 } })
+      .mockResolvedValueOnce({ data: { access_token: 'delegated-gateway', expires_in: 300 } });
+
+    const first = await svc.exchangeForAgentGateway('caller-token', ['agent:invoke', 'write']);
+    const second = await svc.exchangeForAgentGateway('caller-token', ['agent:invoke', 'write']);
+
+    expect(axios.post).toHaveBeenCalledTimes(2);
+    expect(first.cached).toBe(false);
+    expect(second).toEqual({ accessToken: 'delegated-gateway', cached: true });
   });
 });

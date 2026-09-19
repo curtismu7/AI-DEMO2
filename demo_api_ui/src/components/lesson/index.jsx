@@ -65,7 +65,9 @@ function exportPdf(title) {
  * @param {{ title: string, subtitle?: import('react').ReactNode,
  *   sections: Array<{ id: string, label: string }>, storageKey?: string,
  *   printExclude?: string[], headerNav?: import('react').ReactNode,
- *   pageClassName?: string, children: import('react').ReactNode }} props
+ *   pageClassName?: string, onSectionNavigate?: (id: string) => void,
+ *   showSectionNav?: boolean,
+ *   children: import('react').ReactNode }} props
  */
 export function LessonLayout({
   title,
@@ -75,6 +77,8 @@ export function LessonLayout({
   printExclude = DEFAULT_PRINT_EXCLUDE,
   headerNav,
   pageClassName = "",
+  onSectionNavigate,
+  showSectionNav = true,
   children,
 }) {
   const [active, setActive] = useState(sections[0]?.id);
@@ -100,7 +104,13 @@ export function LessonLayout({
 
   const go = (id) => {
     setActive(id);
-    document.getElementById(id)?.scrollIntoView?.({ behavior: "smooth" });
+    onSectionNavigate?.(id);
+    const scroll = () => document.getElementById(id)?.scrollIntoView?.({ behavior: "smooth" });
+    if (onSectionNavigate) {
+      window.requestAnimationFrame?.(scroll) ?? scroll();
+    } else {
+      scroll();
+    }
   };
 
   return (
@@ -136,7 +146,7 @@ export function LessonLayout({
           {headerNav && <div className="lesson-header-nav">{headerNav}</div>}
         </header>
         <div className="lesson-layout" style={{ "--lesson-nav-w": `${size}px` }}>
-          <nav className="lesson-sidebar" aria-label="Lesson sections">
+          {showSectionNav && <nav className="lesson-sidebar" aria-label="Lesson sections">
             {sections.map((s) => (
               <button
                 type="button"
@@ -148,8 +158,8 @@ export function LessonLayout({
                 {s.label}
               </button>
             ))}
-          </nav>
-          <div className="divider-drag-handle" aria-label="Resize section navigation" {...handleProps} />
+          </nav>}
+          {showSectionNav && <div className="divider-drag-handle" aria-label="Resize section navigation" {...handleProps} />}
           <main className="lesson-content">
             {children}
             <footer className="lesson-print-legal">
@@ -163,13 +173,22 @@ export function LessonLayout({
   );
 }
 
-export function Section({ id, title, children }) {
+export function Section({ id, title, children, collapsible = false }) {
   const printExclude = useContext(PrintExcludeContext);
   const className = printExclude.includes(id) ? "lesson-section lesson-no-print" : "lesson-section";
   return (
     <section id={id} className={className}>
-      <h2 className="lesson-section-title">{title}</h2>
-      {children}
+      {collapsible ? (
+        <details className="lesson-section-disclosure">
+          <summary><h2 className="lesson-section-title">{title}</h2></summary>
+          <div className="lesson-section-disclosure-body">{children}</div>
+        </details>
+      ) : (
+        <>
+          <h2 className="lesson-section-title">{title}</h2>
+          {children}
+        </>
+      )}
     </section>
   );
 }

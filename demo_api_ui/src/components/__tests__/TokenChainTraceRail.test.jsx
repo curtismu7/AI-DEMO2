@@ -3,6 +3,7 @@ import TokenChainTraceRail, {
   buildA2aTokenChainSteps,
   buildLiveTokenChainSteps,
 } from "../TokenChainTraceRail";
+import TokenChainNodeRail from "../TokenChainNodeRail";
 import { tokenChainTraceStore } from "../../services/tokenChainTrace/tokenChainTraceStore";
 
 vi.mock("../../context/TokenChainContext", () => ({
@@ -252,6 +253,65 @@ test("Live A2A chain shows the main and specialist agents as distinct steps", ()
     "a2a-agent-card",
     "a2a-protocol-message",
   ]);
+});
+
+test("A2A chain map explains exchange requests, responses, and actor communication", () => {
+  const tokenEvents = [
+    {
+      id: "a2a-exchange1",
+      status: "exchanged",
+      claims: { sub: "user-1", aud: ["a2a-intermediate-membership"], scope: "agent:invoke:membership", act: { sub: "main-agent" } },
+      exchangeRequest: {
+        grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+        audience: "a2a-intermediate-membership",
+        scope: "agent:invoke:membership",
+        has_actor_token: true,
+        actor_token: "eyJhbGciOiJub25lIn0.eyJzdWIiOiJhY3RvciJ9.signature",
+      },
+    },
+    {
+      id: "a2a-agent2-actor",
+      status: "acquired",
+      specialist: "Membership Specialist",
+      claims: { client_id: "specialist-agent", aud: ["a2a-intermediate-membership", "agent-card"], scope: "agent:invoke:membership" },
+    },
+    {
+      id: "a2a-exchange2",
+      status: "exchanged",
+      specialist: "Membership Specialist",
+      claims: {
+        sub: "user-1",
+        aud: ["mcpgateway-a2a"],
+        scope: "membership:read",
+        act: { sub: "specialist-agent", act: { sub: "main-agent" } },
+      },
+      exchangeRequest: {
+        grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+        audience: "mcpgateway-a2a",
+        scope: "membership:read",
+        has_actor_token: true,
+      },
+    },
+  ];
+
+  const steps = buildA2aTokenChainSteps([
+    { id: "a2a-agent1-actor", status: "acquired", claims: { client_id: "main-agent" } },
+    ...tokenEvents,
+    { id: "a2a-agent-card", status: "discovered", agentName: "Membership Specialist" },
+    { id: "a2a-protocol-message", status: "completed", agentName: "Membership Specialist" },
+  ]);
+
+  render(<TokenChainNodeRail steps={steps} activeId="a2a-exchange1" />);
+
+  expect(screen.getByText("aud a2a-intermediate-membership")).toBeInTheDocument();
+  expect(screen.getByText("aud a2a-intermediate-membership, agent-card")).toBeInTheDocument();
+  expect(screen.getByText("act +main-agent")).toBeInTheDocument();
+  expect(screen.getByText("scope membership:read")).toBeInTheDocument();
+  expect(screen.getByText("act depth 2")).toBeInTheDocument();
+  expect(steps.find((step) => step.id === "a2a-exchange1").detail.request.text).toContain("token-exchange");
+  expect(steps.find((step) => step.id === "a2a-exchange1").detail.request.text).not.toContain("eyJ");
+  expect(steps.find((step) => step.id === "a2a-exchange2").detail.response.text).toContain("membership:read");
+  expect(steps.find((step) => step.id === "a2a-exchange2").detail.response.text).not.toContain("eyJ");
 });
 
 test("Clear resets the rail to awaiting state for the next demo run", () => {
