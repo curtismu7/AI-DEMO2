@@ -12,7 +12,7 @@ const codeFor = {
   start: "const node = await client.start({ query: { nonce, acr_values: flowPolicyId } });",
   flow: "const node = await client.flow({ action })();",
   "update-next": "client.update(collector)(value);\nconst node = await client.next();",
-  logout: "// Requires a registered redirect URI.\nawait signOutOfPingOne(cfg);",
+  logout: "// Requires a registered redirect URI.\nawait signOutOfPingOne(cfg); // GET /as/signoff, then return to cfg.redirectUri",
 };
 
 function json(value) {
@@ -72,7 +72,7 @@ function FrameDetails({ event, compact = false }) {
   return (
     <section className="sdk-reel-detail" aria-label={`Selected frame: ${event.label}`}>
       <h4>{event.label}</h4>
-      <p>Frame {event.sequence} explains {event.codeKey === "logout" ? "how the app ends the PingOne session" : "the DaVinci and SDK boundary"} for this captured event.</p>
+      <p>Frame {event.sequence} {event.codeKey === "logout" ? "records the PingOne sign-off handoff; it does not prove the session ended." : "explains the DaVinci and SDK boundary for this captured event."}</p>
       <details open={compact}>
         <summary>Code</summary>
         <pre><code>{codeFor[event.codeKey] || "// This event was observed from the SDK trace."}</code></pre>

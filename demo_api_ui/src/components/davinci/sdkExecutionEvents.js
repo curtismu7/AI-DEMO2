@@ -221,4 +221,14 @@ export const PREVIEW_EVENTS = [
     codeKey: "update-next",
     detail: { status: "success" },
   }),
+  createOperationEvent({
+    id: "preview-5",
+    sequence: 5,
+    at: 5,
+    lane: "sdk",
+    kind: "logout",
+    label: "PingOne sign-off requested",
+    codeKey: "logout",
+    detail: { method: "GET", path: "/as/signoff", paramNames: ["client_id", "post_logout_redirect_uri"], status: "requested" },
+  }),
 ];
