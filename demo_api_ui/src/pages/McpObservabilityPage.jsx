@@ -37,7 +37,7 @@ function percentile(values, fraction) {
 }
 
 function isDenied(event) {
-  return event?.outcome === "failure" && event?.details?.alert === true && event?.details?.reason === "insufficient_scope";
+  return event?.outcome === "failure" && event?.details?.alert === true;
 }
 
 function normalizeAuditEvents(data) {
@@ -46,7 +46,7 @@ function normalizeAuditEvents(data) {
     eventId: event.eventId || `event-${index}`,
     operation: event.operation || "unknown",
     outcome: event.outcome || "unknown",
-    duration: Number.isFinite(Number(event.duration)) ? Number(event.duration) : null,
+    duration: event.duration == null || event.duration === "" ? null : (Number.isFinite(Number(event.duration)) ? Number(event.duration) : null),
     timestamp: event.timestamp || null,
   }));
 }
@@ -57,7 +57,6 @@ export function buildObservabilitySummary(events, summary, gatewayMetrics, healt
   const successful = safeNumber(byOutcome.success, events.filter((event) => event.outcome === "success").length);
   const durations = events.map((event) => event.duration).filter((value) => value != null);
   const denied = events.filter(isDenied).length;
-  const fallbackFailed = events.filter((event) => event.outcome === "failure").length;
   const gatewayAvailable = gatewayMetrics?.available === true;
   const components = health?.components || {};
 
@@ -65,7 +64,7 @@ export function buildObservabilitySummary(events, summary, gatewayMetrics, healt
     total,
     successRate: total ? (successful / total) * 100 : null,
     p95: percentile(durations, 0.95),
-    denied: denied || (fallbackFailed && !events.some((event) => event.details?.reason)),
+    denied,
     gatewayAvailable,
     healthStatus: health?.status || "unknown",
     serverHealth: [
@@ -117,10 +116,7 @@ function TraceDetail({ event, detail, loading }) {
       <div className="mcp-observability-waterfall">
         {loading && <div className="mcp-observability-trace-loading">Loading chain-of-custody trace…</div>}
         {!loading && hops.length > 0 && hops.map((hop, index) => <div className="mcp-observability-hop" key={`${hop.phase || "hop"}-${index}`}><span>{hop.phase || hop.op || "hop"}</span><i style={{ width: `${Math.max(8, Math.min(92, safeNumber(hop.durationMs, 24) / Math.max(1, safeNumber(event.duration, 100)) * 100))}%` }} /><b>{formatDuration(hop.durationMs)}</b></div>)}
-        {!loading && hops.length === 0 && <>
-          <div className="mcp-observability-hop"><span>gateway audit</span><i className="auth" style={{ width: "25%" }} /><b>{formatDuration(event.duration ? event.duration * 0.2 : null)}</b></div>
-          <div className="mcp-observability-hop"><span>{denied ? "P1AZ decision" : "MCP backend"}</span><i className={denied ? "policy" : "backend"} style={{ width: denied ? "18%" : "56%" }} /><b>{formatDuration(event.duration ? event.duration * 0.8 : null)}</b></div>
-        </>}
+        {!loading && hops.length === 0 && <div className="mcp-observability-trace-loading">Trace unavailable: no chain-of-custody hops were returned.</div>}
       </div>
       <div className="mcp-observability-trace-foot"><span>correlation <b>{event.correlationId || "—"}</b></span><span>duration <b>{formatDuration(event.duration)}</b></span></div>
     </div>
@@ -154,6 +150,7 @@ export default function McpObservabilityPage() {
       const nextEvents = normalizeAuditEvents(auditResult.value);
       setEvents(nextEvents);
       setSelectedId((current) => current || nextEvents[0]?.eventId || null);
+      setError(null);
     } else {
       setError("MCP audit data is unavailable. Check the admin session and BFF health.");
     }
@@ -203,7 +200,7 @@ export default function McpObservabilityPage() {
         <Metric label="Tool calls" value={loading ? "…" : formatNumber(overview.total)} note="durable MCP audit events" tone="cyan" />
         <Metric label="Success rate" value={overview.successRate == null ? "—" : `${overview.successRate.toFixed(1)}%`} note="derived from audit outcomes" />
         <Metric label="p95 latency" value={overview.p95 == null ? "—" : formatDuration(overview.p95)} note="from recent audited calls" tone={overview.p95 > 800 ? "warn" : ""} />
-        <Metric label="Denied calls" value={formatNumber(overview.denied)} note="insufficient scope decisions" tone={overview.denied ? "danger" : ""} />
+        <Metric label="Denied calls" value={formatNumber(overview.denied)} note="authorization decisions" tone={overview.denied ? "danger" : ""} />
       </section>
 
       <div className="mcp-observability-section-title"><h2>Traffic health</h2><span>auto-refresh 15s</span></div>

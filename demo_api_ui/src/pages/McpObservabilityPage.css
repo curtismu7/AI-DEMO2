@@ -70,7 +70,7 @@
 .mcp-observability-live { gap: 8px; color: var(--mcp-green); font-size: var(--font-size-2xs); font-family: var(--font-mono, var(--font-primary)); }
 .mcp-observability-button { border: 1px solid var(--mcp-strong-border); border-radius: 5px; background: var(--mcp-ground); color: var(--mcp-ink); cursor: pointer; padding: 7px 11px; font-size: var(--font-size-sm); }
 .mcp-observability-button:hover { background: var(--mcp-inset); }
-.mcp-observability-button--primary { border-color: var(--mcp-cyan); background: var(--mcp-cyan); color: #ffffff; font-weight: 700; }
+.mcp-observability-button--primary { border-color: var(--mcp-cyan); background: var(--mcp-cyan); color: var(--th-text-on-emphasis); font-weight: 700; }
 
 .mcp-observability-dot { display: inline-block; width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--mcp-quiet); }
 .mcp-observability-dot--healthy,

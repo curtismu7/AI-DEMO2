@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import McpObservabilityPage from "../McpObservabilityPage";
+import McpObservabilityPage, { buildObservabilitySummary } from "../McpObservabilityPage";
 import apiClient from "../../services/apiClient";
 
 vi.mock("../../services/apiClient", () => ({
@@ -54,6 +54,16 @@ beforeEach(() => {
 });
 
 describe("McpObservabilityPage", () => {
+  it("counts all alerting authorization failures and preserves missing durations", () => {
+    const summary = buildObservabilitySummary([
+      { eventId: "scope", outcome: "failure", duration: null, details: { alert: true, reason: "insufficient_scope" } },
+      { eventId: "step-up", outcome: "failure", duration: undefined, details: { alert: true, reason: "stepup_required" } },
+    ], { totalEvents: 2, byOutcome: { failure: 2 } }, { available: false }, {});
+
+    expect(summary.denied).toBe(2);
+    expect(summary.p95).toBeNull();
+  });
+
   it("loads live audit and metrics data into the operations view", async () => {
     render(<McpObservabilityPage />);
 
@@ -74,6 +84,7 @@ describe("McpObservabilityPage", () => {
 
     await waitFor(() => expect(apiClient.get).toHaveBeenCalledWith("/api/transaction-trace/c-7f9e2a", { _silent: true }));
     expect(screen.getAllByText(/c-7f9e2a/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Trace unavailable: no chain-of-custody hops were returned/i)).toBeInTheDocument();
     expect(user.setup).toBe(false);
   });
 });
