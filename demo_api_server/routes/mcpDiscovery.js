@@ -1,13 +1,12 @@
 'use strict';
 
 const express = require('express');
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 const defaultClient = require('../services/mcpDiscoveryClient');
 
-function createMcpDiscoveryRouter({ client = defaultClient, authenticate = authenticateToken, requireAdmin: injectedRequireAdmin } = {}) {
+function createMcpDiscoveryRouter({ client = defaultClient, authenticate = authenticateToken } = {}) {
   const router = express.Router();
-  const adminMiddleware = injectedRequireAdmin || requireAdmin;
-  router.use(authenticate, adminMiddleware);
+  router.use(authenticate);
 
   router.get('/inventory', async (_req, res) => {
     try {

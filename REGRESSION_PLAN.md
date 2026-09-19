@@ -146,6 +146,28 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-19 — MCP runtime discovery is user-accessible and wired in Docker
+
+**Files changed:** `demo_api_ui/src/App.js`,
+`demo_api_server/config/auth-requirements.json`,
+`demo_api_server/routes/mcpDiscovery.js`, `docker-compose.yml`,
+`standalone/mcp-discovery-agent/Dockerfile`, and focused regression tests.
+
+**What was broken:** `/mcp-discovery` and its BFF proxy were admin-gated even
+though discovery is read-only, and the Docker stack did not start the discovery
+agent or configure `MCP_DISCOVERY_AGENT_URL`, so signed-in users saw
+`mcp_discovery_unavailable`.
+
+**What was fixed:** the page and proxy now require a signed-in session only.
+Docker builds a read-only discovery-agent service, persists inventory metadata,
+and connects the BFF to it over the internal Compose network.
+
+**Do not break:** unauthenticated requests remain rejected; admin-only routes
+remain admin-gated; the discovery agent receives no credentials and never calls
+discovered tools.
+
+**Verify:** BFF focused tests, UI route test/build, and Compose wiring tests.
+
 ### 2026-09-18 — DaVinci SDK passkey authentication and signed-in actions
 
 - **Files changed:** `demo_api_ui/src/components/davinci/CollectorField.jsx`, `demo_api_ui/src/components/davinci/SdkLessonSections.jsx`, `demo_api_ui/src/pages/DavinciSdkLoginPage.jsx`, `demo_api_ui/src/pages/DavinciSdkLoginPage.css`, and focused tests.

@@ -997,14 +997,12 @@ function AppWithAuth() {
                   path="/mcp-discovery"
                   element={
                     loading ? null : user ? (
-                      <RequireAdminLogin user={user}>
-                        <>
-                          <TopNav user={user} onLogout={logout} />
-                          <main className="main-content">
-                            <McpDiscoveryPage />
-                          </main>
-                        </>
-                      </RequireAdminLogin>
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <McpDiscoveryPage />
+                        </main>
+                      </>
                     ) : (
                       <SignInRequired />
                     )

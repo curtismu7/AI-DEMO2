@@ -5,9 +5,10 @@ import { defaultScanOptions, runScan } from './src/scanner.mjs';
 import { createDiscoveryServer } from './src/server.mjs';
 
 const execFile = promisify(nodeExecFile);
+const runCommand = async (...args) => (await execFile(...args)).stdout;
 const config = defaultScanOptions();
 const store = createInventoryStore({ filePath: config.filePath });
-const scan = () => runScan({ ...config, execFile, store });
+const scan = () => runScan({ ...config, execFile: runCommand, store });
 
 if (process.argv.includes('--scan-once')) {
   console.log(JSON.stringify(await scan(), null, 2));

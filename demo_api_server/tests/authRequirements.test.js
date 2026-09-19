@@ -48,6 +48,10 @@ describe('auth-requirements SoT', () => {
     expect(authLevelForRoute('/no/such/route')).toBe('user');
   });
 
+  test('MCP discovery is available to any signed-in user', () => {
+    expect(authLevelForRoute('/mcp-discovery')).toBe('user');
+  });
+
   test('levels rank public < user < admin', () => {
     expect(compareLevels('public', 'user')).toBeLessThan(0);
     expect(compareLevels('admin', 'user')).toBeGreaterThan(0);
