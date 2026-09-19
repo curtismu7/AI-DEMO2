@@ -75,6 +75,16 @@
 .mcp-discovery-panel-heading { padding: 16px 18px 12px; border-bottom: 1px solid var(--th-border); }
 .mcp-discovery-panel-heading h2 { margin: 0; color: var(--th-text); font-size: var(--font-size-lg); }
 .mcp-discovery-count { color: var(--th-text-body); font-size: var(--font-size-xs); white-space: nowrap; }
+.mcp-discovery-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 14px;
+  border-bottom: 1px solid var(--th-border);
+  padding: 10px 18px;
+  color: var(--th-text-body);
+  font-size: var(--font-size-xs);
+}
+.mcp-discovery-legend strong { color: var(--th-text); }
 .mcp-discovery-table-wrap { overflow-x: auto; }
 .mcp-discovery-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); }
 .mcp-discovery-table th {

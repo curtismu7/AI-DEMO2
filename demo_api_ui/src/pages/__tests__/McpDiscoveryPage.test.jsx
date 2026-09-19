@@ -30,6 +30,11 @@ test('renders operational inventory and security findings without tool actions',
   expect(screen.getByText('Runtime inventory')).toBeInTheDocument();
   expect(screen.getByText('healthy MCP endpoints')).toBeInTheDocument();
   expect(screen.getByText('observed but unprobed')).toBeInTheDocument();
+  expect(screen.getByRole('columnheader', { name: 'Runtime type' })).toBeInTheDocument();
+  expect(screen.getByText('Compose service')).toBeInTheDocument();
+  expect(screen.getByText('Host process')).toBeInTheDocument();
+  expect(screen.getByText('MCP endpoint')).toBeInTheDocument();
+  expect(screen.getByText('Process candidate')).toBeInTheDocument();
   expect(screen.getByText('hidden instruction')).toBeInTheDocument();
   expect(screen.getByText(/These are heuristic signals/)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /call|invoke|execute/i })).not.toBeInTheDocument();
