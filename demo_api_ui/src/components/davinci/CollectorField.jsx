@@ -27,6 +27,7 @@
 // Anything unrecognised renders a visible fallback rather than nothing — an
 // unsupported collector that renders blank looks like a broken page.
 import { useCallback, useId, useState } from "react";
+import { fido } from "@forgerock/davinci-client";
 
 function DeviceRegistrationField({ collector, updater, serverError, busy }) {
   const id = useId();
@@ -35,7 +36,8 @@ function DeviceRegistrationField({ collector, updater, serverError, busy }) {
   // SDK updater. Forms may expose a first/default option while the SDK still
   // holds an empty value; requiring an explicit choice avoids submitting an
   // apparently-selected method as an empty device value.
-  const initial = collector?.input?.value || "";
+  const initialValue = collector?.input?.value;
+  const initial = typeof initialValue === "string" ? initialValue : initialValue?.id || "";
   const [value, setValue] = useState(initial);
   const [writeError, setWriteError] = useState(null);
   const error = writeError || serverError;
@@ -74,6 +76,50 @@ function DeviceRegistrationField({ collector, updater, serverError, busy }) {
         ))}
       </select>
       {error && <p className="dvsdk-field-error" id={`${id}-err`}>{error}</p>}
+    </div>
+  );
+}
+
+function FidoAuthenticationField({ collector, updater, serverError, busy }) {
+  const [working, setWorking] = useState(false);
+  const [error, setError] = useState(null);
+  const label = collector?.output?.label || "Use biometrics or security key";
+  const requestOptions = collector?.output?.config?.publicKeyCredentialRequestOptions
+    || collector?.output?.publicKeyCredentialRequestOptions;
+
+  const authenticate = useCallback(async () => {
+    setWorking(true);
+    setError(null);
+    try {
+      const result = await fido().authenticate(requestOptions);
+      if (result?.error) {
+        setError(result.message || "Authentication was not completed.");
+        return;
+      }
+      const updateResult = updater?.(result);
+      if (updateResult && "error" in updateResult) {
+        setError(updateResult.error?.message || "Could not accept the authentication result.");
+      }
+    } catch (err) {
+      setError(err?.message || "Authentication was not completed.");
+    } finally {
+      setWorking(false);
+    }
+  }, [requestOptions, updater]);
+
+  const displayError = error || serverError;
+  return (
+    <div className="dvsdk-field">
+      <button
+        type="button"
+        className="dvsdk-submit"
+        onClick={authenticate}
+        disabled={busy || working}
+        aria-busy={working ? "true" : undefined}
+      >
+        {working ? "Waiting for your device..." : label}
+      </button>
+      {displayError && <p className="dvsdk-field-error">{displayError}</p>}
     </div>
   );
 }
@@ -141,7 +187,11 @@ export default function CollectorField({ collector, updater, onSubmit, onFlow, o
     // PingOne Forms uses an object-valued device selector. update() accepts
     // option.value and maps it to the device type DaVinci expects.
     case "DeviceRegistrationCollector":
+    case "DeviceAuthenticationCollector":
       return <DeviceRegistrationField collector={collector} updater={updater} serverError={serverError} busy={busy} />;
+
+    case "FidoAuthenticationCollector":
+      return <FidoAuthenticationField collector={collector} updater={updater} serverError={serverError} busy={busy} />;
 
     case "TextCollector":
       return (
@@ -232,6 +282,8 @@ export default function CollectorField({ collector, updater, onSubmit, onFlow, o
 export const SUPPORTED_COLLECTORS = [
   "TextCollector",
   "DeviceRegistrationCollector",
+  "DeviceAuthenticationCollector",
+  "FidoAuthenticationCollector",
   "PasswordCollector",
   "ValidatedPasswordCollector",
   "SubmitCollector",

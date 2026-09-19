@@ -184,6 +184,7 @@ export default function DavinciSdkLoginPage() {
   // its collectors, which is what lets the form re-render with complaints.
   const syncFromClient = useCallback((client, node) => {
     const currentCollectors = client.getCollectors?.() || [];
+    const response = summarizeResponse(client.cache?.getLatestResponse?.()?.data);
     setCollectors(currentCollectors);
     setStep((n) => n + 1);
     const errs = {};
@@ -202,6 +203,7 @@ export default function DavinciSdkLoginPage() {
         codeKey: null,
         detail: {
           status: node?.status,
+          response: response ? { ...response, flowStatus: response.flowStatus || node?.status || null } : null,
           collectors: currentCollectors,
         },
       }),

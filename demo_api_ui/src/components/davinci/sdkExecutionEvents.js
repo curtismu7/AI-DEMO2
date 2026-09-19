@@ -47,6 +47,30 @@ function maskedCollectors(collectors) {
 
 function maskedResponse(response) {
   if (!response || typeof response !== "object" || Array.isArray(response)) return null;
+  // summarizeResponse() is already display-safe, but uses normalized keys
+  // rather than the raw DaVinci payload. Preserve those keys on the final
+  // collector snapshot so the reel shows the returned form instead of only
+  // a generic status.
+  if (Object.hasOwn(response, "flowStatus") || Object.hasOwn(response, "formName")) {
+    return {
+      ...(response.flowStatus ? { flowStatus: String(response.flowStatus) } : {}),
+      ...(response.capabilityName ? { capabilityName: String(response.capabilityName) } : {}),
+      ...(response.eventName ? { eventName: String(response.eventName) } : {}),
+      ...(Object.hasOwn(response, "hasInteractionId") ? { hasInteractionId: Boolean(response.hasInteractionId) } : {}),
+      ...(response.formName ? { formName: String(response.formName) } : {}),
+      ...(Array.isArray(response.fields)
+        ? { fields: response.fields.map((field) => ({
+            ...(field?.type ? { type: String(field.type) } : {}),
+            ...(field?.key ? { key: String(field.key) } : {}),
+            ...(field?.label ? { label: String(field.label) } : {}),
+          })) }
+        : {}),
+      ...(Array.isArray(response.links) ? { links: response.links.map(String) } : {}),
+      ...(Array.isArray(response.authorizeKeys) ? { authorizeKeys: response.authorizeKeys.map(String) } : {}),
+      ...(response.errorCode ? { errorCode: String(response.errorCode) } : {}),
+      ...(response.errorMessage ? { errorMessage: String(response.errorMessage) } : {}),
+    };
+  }
   return {
     ...(response.flowStatus ? { flowStatus: String(response.flowStatus) } : {}),
     ...(response.capabilityName ? { capabilityName: String(response.capabilityName) } : {}),
