@@ -11,6 +11,7 @@ import { useThemeOptional } from '../context/ThemeContext';
 import TokenExchangeFlowDiagram from './TokenExchangeFlowDiagram';
 import JsonHighlight from './shared/JsonHighlight';
 import { buildSequenceLayout, nextPlayIndex } from '../utils/stepReplay';
+import { buildA2aEvidenceRows } from '../utils/a2aChainDetail';
 import './AgentFlowDiagramPanel.css';
 
 const REPLAY_TICK_MS = 900;
@@ -140,6 +141,29 @@ export function TokenEventCard({ event, resolvedIdentity }) {
         </div>
       )}
     </div>
+  );
+}
+
+export function A2AProtocolTrace({ events }) {
+  const rows = buildA2aEvidenceRows(events);
+  if (!rows) return null;
+  const allRows = [...rows.identity, ...rows.wire];
+  return (
+    <section className="afd-token-section" aria-label="A2A protocol trace">
+      <div className="afd-token-header"><span>A2A Protocol Trace</span></div>
+      <div className="afd-tc-list">
+        {allRows.map((row) => (
+          <div className="afd-step-card" key={row.sourceId}>
+            <h3 className="afd-step-title">{row.name}</h3>
+            <p className="afd-step-detail">{row.desc}</p>
+            {row.requestSummary && <div className="afd-step-detail">Request: {row.requestSummary}</div>}
+            {row.responseSummary && <div className="afd-step-detail">Response: {row.responseSummary}</div>}
+            <span className={`afd-badge afd-badge--${row.status}`}>{row.status === 'error' ? 'Issue' : 'Observed'}</span>
+          </div>
+        ))}
+      </div>
+      <p className="afd-step-detail">{rows.responseBoundary}</p>
+    </section>
   );
 }
 
@@ -607,6 +631,7 @@ export default function AgentFlowDiagramPanel({ embedded = false, enabled = true
             </div>
           );
         })()}
+        {tokenChainCtx?.events?.length > 0 && <A2AProtocolTrace events={tokenChainCtx.events} />}
         
         {/* Login's sequence diagram now lives on its own page (/login-flow) —
             this panel goes back to just the live MCP tool-call steps. */}

@@ -33,20 +33,17 @@ describe('buildA2aTopology', () => {
     ]);
 
     expect(topology.identity.map((node) => node.name)).toEqual([
-      'Main agent',
-      'Exchange #1',
-      'Exchange #2',
-      'Investment Advisor',
+      'Main agent · main-agent',
+      'Exchange #1 · user + main actor',
+      'Exchange #2 · nested specialist delegation',
     ]);
     expect(topology.wire.map((node) => node.name)).toEqual([
-      'Main agent',
-      'PingOne wire bearer',
-      'Agent Card',
-      'A2A SendMessage',
-      'Investment Advisor',
+      'Agent Card · Investment Advisor discovery',
+      'SendMessage · Investment Advisor handoff',
     ]);
-    expect(topology.identity[2].desc).toContain('nested act');
-    expect(topology.wire[1].desc).toContain('Separate client-credentials token');
+    expect(topology.identity[2].desc).toContain('MCP');
+    expect(topology.wire[1].desc).toContain('JSON-RPC');
+    expect(topology.responseBoundary).toContain('No access token');
   });
 
   it('does not add an A2A lane to ordinary runs', () => {

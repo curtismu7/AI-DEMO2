@@ -223,12 +223,12 @@ export function buildA2aTokenChainSteps(tokenEvents) {
   const mainAgent = detail.generalist || "Main agent";
   const specialist = detail.specialist || "Specialist agent";
   const definitions = [
-    ["a2a-agent1-actor", `Main agent — ${mainAgent}`, "A2A"],
-    ["a2a-exchange1", "A2A Exchange #1 — user + main agent", "A2A"],
-    ["a2a-agent2-actor", `Specialist agent — ${specialist}`, "A2A"],
-    ["a2a-exchange2", "A2A Exchange #2 — nested specialist delegation", "A2A"],
-    ["a2a-agent-card", `Agent Card — ${specialist} discovery`, "A2A"],
-    ["a2a-protocol-message", `A2A SendMessage — ${specialist} handoff`, "A2A"],
+    ["a2a-agent1-actor", `Main agent — ${mainAgent} · client_credentials`, "A2A"],
+    ["a2a-exchange1", "A2A Exchange #1 — user + main agent · RFC 8693", "A2A"],
+    ["a2a-agent2-actor", `Specialist agent — ${specialist} · client_credentials`, "A2A"],
+    ["a2a-exchange2", "A2A Exchange #2 — nested specialist delegation · RFC 8693", "A2A"],
+    ["a2a-agent-card", `Agent Card — ${specialist} discovery · GET Agent Card`, "A2A"],
+    ["a2a-protocol-message", `A2A SendMessage — ${specialist} handoff · POST message/send → result/toolError`, "A2A"],
   ];
 
   return definitions.map(([id, title, lane]) => {

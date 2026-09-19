@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DraggableModal from './DraggableModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { MCP_STEP_IDS } from '../services/tokenChainTrace/buildTraceSteps';
-import { buildA2aChainDetail } from '../utils/a2aChainDetail';
+import { buildA2aEvidenceRows } from '../utils/a2aChainDetail';
 import { useTheme } from '../context/ThemeContext';
 import useDividerDrag from '../hooks/useDividerDrag';
 import './TokenTopologyPanel.css';
@@ -155,51 +155,11 @@ export function buildObservedTopology(steps) {
     });
 }
 
-function eventById(events, id) {
-  return (Array.isArray(events) ? events : []).find((event) => event?.id === id) || null;
-}
-
-function evidenceStatus(event) {
-  if (!event) return 'pending';
-  const status = String(event.status || '').toLowerCase();
-  return ['error', 'failed', 'failure', 'denied'].includes(status) ? 'error' : 'done';
-}
-
-function audience(event) {
-  const value = event?.claims?.aud;
-  if (Array.isArray(value)) return value[value.length - 1] || null;
-  return value || null;
-}
-
 export function buildA2aTopology(events) {
-  const detail = buildA2aChainDetail(events);
-  if (!detail.present) return null;
-
-  const exchange1 = eventById(events, 'a2a-exchange1');
-  const exchange2 = eventById(events, 'a2a-exchange2');
-  const wireBearer = eventById(events, 'a2a-protocol-bearer');
-  const agentCard = eventById(events, 'a2a-agent-card');
-  const message = eventById(events, 'a2a-protocol-message');
-  const specialist = detail.specialist || 'Specialist agent';
-
-  return {
-    identity: [
-      { id: 'a2a-main-identity', name: 'Main agent', desc: str(detail.generalist) || 'Generalist', status: exchange1 ? 'done' : 'pending' },
-      { id: 'a2a-exchange1', name: 'Exchange #1', desc: `RFC 8693 · user + main actor${audience(exchange1) ? ` · aud ${audience(exchange1)}` : ''}`, status: evidenceStatus(exchange1) },
-      { id: 'a2a-exchange2', name: 'Exchange #2', desc: `RFC 8693 · nested act${audience(exchange2) ? ` · aud ${audience(exchange2)}` : ''}`, status: evidenceStatus(exchange2) },
-      { id: 'a2a-specialist-identity', name: specialist, desc: 'Specialist identity used for delegated MCP authorization', status: evidenceStatus(exchange2) },
-    ],
-    wire: [
-      { id: 'a2a-main-wire', name: 'Main agent', desc: 'A2A client', status: wireBearer ? 'done' : 'pending' },
-      { id: 'a2a-wire-bearer', name: 'PingOne wire bearer', desc: `Separate client-credentials token${audience(wireBearer) ? ` · aud ${audience(wireBearer)}` : ''}`, status: evidenceStatus(wireBearer) },
-      { id: 'a2a-agent-card', name: 'Agent Card', desc: 'Specialist discovery', status: evidenceStatus(agentCard) },
-      { id: 'a2a-send-message', name: 'A2A SendMessage', desc: 'JSON-RPC handoff', status: evidenceStatus(message) },
-      { id: 'a2a-specialist-wire', name: specialist, desc: 'Specialist agent called by main agent', status: evidenceStatus(message) },
-    ],
-  };
+  return buildA2aEvidenceRows(events);
 }
 
-function EvidenceFlow({ label, nodes }) {
+function EvidenceFlow({ label, nodes, selectedId, onNodeClick }) {
   return (
     <section className="ttp-evidence-flow" aria-label={label}>
       <div className="ttp-evidence-label">{label}</div>
@@ -212,10 +172,23 @@ function EvidenceFlow({ label, nodes }) {
                 <span className="ttp-arrowhead">▶</span>
               </div>
             )}
-            <div className={`ttp-evidence-node ttp-evidence-node--${node.status}`}>
+            <div
+              className={`ttp-evidence-node ttp-evidence-node--${node.status}${selectedId === node.sourceId ? ' selected' : ''}`}
+              role="button"
+              tabIndex={0}
+              onClick={() => onNodeClick?.(node.sourceId)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onNodeClick?.(node.sourceId);
+                }
+              }}
+            >
               <span className="ttp-evidence-status">{node.status === 'done' ? '✓' : node.status === 'error' ? 'FAILED' : 'WAITING'}</span>
               <strong>{node.name}</strong>
               <span>{node.desc}</span>
+              {node.requestSummary && <small>Request: {node.requestSummary}</small>}
+              {node.responseSummary && <small>Response: {node.responseSummary}</small>}
             </div>
           </React.Fragment>
         ))}
@@ -648,6 +621,7 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
   const routingMode = trace.routingMode || (trace.llmDetail ? 'llm' : trace.phases?.length ? 'heuristic' : null);
   const prompt = trace.prompt || null;
   const a2aTopology = buildA2aTopology(trace.tokenEvents);
+  const a2aNodes = a2aTopology ? [...a2aTopology.identity, ...a2aTopology.wire] : [];
 
   const hasActivity = Boolean(
     trace.startedAt || trace.prompt || trace.tokenEvents?.length || trace.phases?.length ||
@@ -660,7 +634,9 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
   const visibleNodes = topologyNodes.slice(0, visibleCount);
   const { spine, branch, anchorId } = partitionSpineBranch(visibleNodes);
   const selectedStep = expandedId
-    ? topologyNodes.find((node) => node.id === expandedId)?.step || null
+    ? topologyNodes.find((node) => node.id === expandedId)?.step
+      || a2aNodes.find((node) => node.sourceId === expandedId)?.step
+      || null
     : null;
 
   // Align the tool-call branch under the spine node it hangs off. Measured
@@ -799,8 +775,9 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
             {a2aTopology && (
               <div className="ttp-a2a-topology">
                 <div className="ttp-a2a-heading"><strong>A2A: main agent calling specialist agent</strong><span>Identity and wire-protocol evidence are separate paths.</span></div>
-                <EvidenceFlow label="Identity path — RFC 8693 token exchanges for MCP authorization" nodes={a2aTopology.identity} />
-                <EvidenceFlow label="Wire path — Agent Card and JSON-RPC handoff" nodes={a2aTopology.wire} />
+                <EvidenceFlow label="Identity path — RFC 8693 token exchanges for MCP authorization" nodes={a2aTopology.identity} selectedId={expandedId} onNodeClick={handleNodeClick} />
+                <EvidenceFlow label="Wire path — Agent Card and JSON-RPC handoff" nodes={a2aTopology.wire} selectedId={expandedId} onNodeClick={handleNodeClick} />
+                <div className="ttp-a2a-boundary">{a2aTopology.responseBoundary}</div>
               </div>
             )}
           </div>
