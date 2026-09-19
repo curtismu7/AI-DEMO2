@@ -638,7 +638,10 @@ describe("Header controls after the Actions dropdown removal", () => {
     }
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /^Token topology/ }));
+      fireEvent.click(screen.getByRole("button", { name: /^Token topology Delegation map$/ }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Token topology Delegation map$/ }));
     });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Token topology surface" }));
@@ -704,11 +707,13 @@ describe("Header controls after the Actions dropdown removal", () => {
 
     const quickConfig = document.querySelector(".ba-header-more-pop");
     expect(quickConfig).not.toBeNull();
+    expect(quickConfig).toHaveStyle({ zIndex: "100061" });
     expect(quickConfig.querySelector('[aria-label="Move Quick Config"]')).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Pop out Quick Config/i })).toBeInTheDocument();
+    expect(quickConfig.querySelector('[role="separator"][tabindex="0"]')).toBeInTheDocument();
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /^Token topology/ }));
+      fireEvent.click(screen.getByRole("button", { name: /Token topology Delegation map/i }));
     });
     await act(async () => {
       fireEvent.mouseDown(screen.getByRole("button", { name: /Token topology surface/i }));

@@ -10127,6 +10127,7 @@ export default function BankingAgent({
                       defaultY={headerMorePosition?.top ?? null}
                       minWidth={Math.min(560, window.innerWidth - 16)}
                       minHeight={Math.min(420, window.innerHeight - 16)}
+                      zIndex={100061}
                       onClose={() => {
                         setHeaderMoreOpen(false);
                         setOpenSurfaceSelector(null);
