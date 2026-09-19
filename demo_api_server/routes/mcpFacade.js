@@ -40,6 +40,7 @@ const privilegeGatewaySession = require('../services/privilegeGatewaySession');
 const pingoneAdminSession = require('../services/pingoneAdminSession');
 const { privilegeGatewayBase } = require('../services/privilegeGatewayBase');
 const upstreamExchange = require('../services/facadeUpstreamExchange');
+const scopeTopology = require('../services/scopeTopology');
 
 const router = express.Router();
 const SERVICE = 'mcp-facade';
@@ -56,6 +57,7 @@ const DOORS = {
     authorizationServer: () => process.env.MCP_FACADE_AGENT_GATEWAY_AS || 'http://localhost:3005',
     scopes: ['read', 'write', 'transfer', 'mcp:invoke'],
     forwardCorrelation: true,
+    delegatedExchange: true,
   },
   agentless: {
     label: 'Privilege agentless',
@@ -879,6 +881,69 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
   // only loop it through a sign-in that cannot fix this: say a human has to
   // sign in instead.
   let upstreamHeaders = forwardHeaders(req, correlationId);
+  const inboundBearer = /^Bearer\s+(.+)$/i.exec(String(req.get('authorization') || '').trim())?.[1];
+
+  // LibreChat and LM Studio complete the façade's OAuth flow and therefore
+  // present a plain user token. Agent-mediated gateway tools need a stronger
+  // proof: Exchange #1 must add the configured AI Agent as actor before the
+  // gateway's missing_act policy gate runs. Keep the old relay available when
+  // the actor app is not configured so local discovery/tests remain usable, but
+  // never silently fall back after a configured exchange fails.
+  if (door.delegatedExchange && inboundBearer
+    && typeof upstreamExchange.isAgentGatewayConfigured === 'function'
+    && upstreamExchange.isAgentGatewayConfigured()) {
+    const delegatedScopes = [
+      'mcp:invoke',
+      ...(toolName ? scopeTopology.toolScopes(toolName) : []),
+    ];
+    const xStart = Date.now();
+    try {
+      const { accessToken, cached } = await upstreamExchange.exchangeForAgentGateway(
+        inboundBearer, delegatedScopes,
+      );
+      upstreamHeaders = { ...upstreamHeaders, authorization: `Bearer ${accessToken}` };
+      hop(correlationId, {
+        phase: 'token.exchange',
+        op: toolName || method,
+        status: 'ok',
+        durationMs: Date.now() - xStart,
+        details: {
+          rfc: 'RFC 8693',
+          exchangeStep: '1-exchange',
+          audiences: {
+            from: identityFromBearer(`Bearer ${inboundBearer}`).aud,
+            to: process.env.PINGONE_RESOURCE_AGENT_GATEWAY_URI || 'agentgateway.ping.demo',
+          },
+          scopes: delegatedScopes,
+          cached,
+          actor: 'AI Agent client credentials',
+        },
+      });
+    } catch (err) {
+      hop(correlationId, {
+        phase: 'token.exchange',
+        op: toolName || method,
+        status: 'error',
+        durationMs: Date.now() - xStart,
+        details: {
+          rfc: 'RFC 8693',
+          exchangeStep: '1-exchange',
+          reason: err.code || 'agent_exchange_failed',
+          error: { message: err.message },
+        },
+      });
+      return res.status(502).json({
+        jsonrpc: '2.0',
+        id: rpc.id ?? null,
+        error: {
+          code: -32003,
+          message: 'Agent Gateway token exchange failed',
+          data: { reason: err.code || 'agent_exchange_failed' },
+        },
+      });
+    }
+  }
+
   if (door.ownsUpstreamAuth) {
     const upstreamToken = await privilegeGatewaySession.getAccessToken(req.params.app);
     if (!upstreamToken) {
@@ -938,7 +1003,6 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
   const exchangeOn = configStore.getEffective('ff_facade_upstream_exchange') !== 'false';
   const upstreamAudience = door.upstreamAudience && door.upstreamAudience();
   if (!door.ownsUpstreamAuth && upstreamAudience) {
-    const inboundBearer = /^Bearer\s+(.+)$/i.exec(String(req.get('authorization') || '').trim())?.[1];
     // `from` comes off the caller's own token, so the trace names the real
     // audience being replaced rather than a configured guess.
     const fromAud = inboundBearer ? identityFromBearer(`Bearer ${inboundBearer}`).aud : null;

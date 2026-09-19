@@ -5,7 +5,6 @@
  * Testing + Attacks are separate collapsed groups on the Actions popout.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import FloatingPanel from './FloatingPanel';
 import {
   ADMIN_PRIMARY_USE_CASE_IDS,
   DEMO_ADVANCED_USE_CASE_IDS,
@@ -22,6 +21,26 @@ import {
 } from '../utils/useCaseDemoProgress';
 
 const RAR_QUICK_RESULT_KEY = 'rar_intent_quick_result';
+const DEMO_STEPS_DRAWER_OPEN_KEY = 'demo_steps_drawer_open_v1';
+const DEMO_STEPS_DRAWER_WIDTH_KEY = 'demo_steps_drawer_width_v1';
+
+export function readStoredDemoStepsOpen() {
+  try {
+    const value = window.localStorage.getItem(DEMO_STEPS_DRAWER_OPEN_KEY);
+    return value === null ? true : value === 'true';
+  } catch {
+    return true;
+  }
+}
+
+function readStoredDrawerWidth() {
+  try {
+    const width = Number(window.localStorage.getItem(DEMO_STEPS_DRAWER_WIDTH_KEY));
+    return Number.isFinite(width) ? Math.min(900, Math.max(360, width)) : 470;
+  } catch {
+    return 470;
+  }
+}
 
 /** UC14b's toggle: quick chat result (default) vs. the full /intent-binding-learning page. */
 function readRarQuickResult() {
@@ -50,7 +69,6 @@ export default function DemoStepsDropdown({
   onStopAgentClick,
 }) {
   const triggerRef = useRef(null);
-  const panelPosRef = useRef({ x: 0, y: 0 });
   const [primarySteps, setPrimarySteps] = useState([]);
   const [advancedSteps, setAdvancedSteps] = useState([]);
   const [rarQuickResult, setRarQuickResult] = useState(readRarQuickResult);
@@ -60,6 +78,8 @@ export default function DemoStepsDropdown({
   const [tick, setTick] = useState(0);
   const [explainUc, setExplainUc] = useState(null);
   const [query, setQuery] = useState('');
+  const [drawerWidth, setDrawerWidth] = useState(readStoredDrawerWidth);
+  const resizeRef = useRef(null);
 
   // finding #77: a vertical switch while the panel is open re-issues this
   // fetch before the previous vertical's request resolves — a monotonic
@@ -124,17 +144,54 @@ export default function DemoStepsDropdown({
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onOpenChange]);
 
-  /** Toggle the panel open/closed; capture trigger position for initial placement. */
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(DEMO_STEPS_DRAWER_OPEN_KEY, String(open));
+      window.localStorage.setItem(DEMO_STEPS_DRAWER_WIDTH_KEY, String(drawerWidth));
+    } catch {
+      // Private browsing can reject storage; the drawer still works in memory.
+    }
+  }, [drawerWidth, open]);
+
+  /** Toggle the right-side drawer from the existing agent toolbar. */
   function handleToggle() {
     if (disabled) return;
-    if (!open && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      const panelWidth = 760;
-      let x = rect.right - panelWidth;
-      if (x < 8) x = 8;
-      panelPosRef.current = { x, y: rect.bottom + 6 };
-    }
     onOpenChange(!open);
+  }
+
+  /** Resize from the drawer's left edge and remember the presenter's width. */
+  function handleResizeStart(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const target = event.currentTarget;
+    const startWidth = drawerWidth;
+    const startX = event.clientX;
+    resizeRef.current = { startWidth, startX };
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'ew-resize';
+    if (target.setPointerCapture && event.pointerId != null) {
+      try { target.setPointerCapture(event.pointerId); } catch { /* jsdom/browser edge */ }
+    }
+    const onMove = (moveEvent) => {
+      const { startWidth: initialWidth, startX: initialX } = resizeRef.current || {};
+      if (!initialWidth) return;
+      const nextWidth = Math.min(
+        900,
+        Math.max(360, initialWidth + (initialX - moveEvent.clientX)),
+      );
+      setDrawerWidth(nextWidth);
+    };
+    const onEnd = () => {
+      resizeRef.current = null;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      target.removeEventListener('pointermove', onMove);
+      target.removeEventListener('pointerup', onEnd);
+      target.removeEventListener('pointercancel', onEnd);
+    };
+    target.addEventListener('pointermove', onMove);
+    target.addEventListener('pointerup', onEnd);
+    target.addEventListener('pointercancel', onEnd);
   }
 
   /** Run a demo step and refresh checkmarks. */
@@ -153,13 +210,8 @@ export default function DemoStepsDropdown({
     });
   }
 
-  /**
-   * Open the explanation for a step. The popout must close first: it is
-   * z-index 100061 (`.ba-actions-popout`) and DraggableModal defaults to 9999,
-   * so leaving it open renders the modal behind the dropdown.
-   */
+  /** Open the explanation for a step without interrupting the presenter script. */
   function handleExplain(uc) {
-    onOpenChange(false);
     setExplainUc(uc);
   }
 
@@ -237,7 +289,7 @@ export default function DemoStepsDropdown({
             </span>
           )}
           <span className="ba-demo-steps-popout__id">{uc.id}</span>
-          <span className="banking-chips-dropdown__chip-name">{uc.title}</span>
+          <span className="banking-chips-dropdown__chip-name">{uc.demoLabel || uc.title}</span>
           {uc.resourceServer && (
             <span
               className="ba-demo-steps-popout__rs-badge"
@@ -290,27 +342,53 @@ export default function DemoStepsDropdown({
         aria-haspopup="dialog"
         data-testid="demo-steps-trigger"
       >
-        Demo steps {open ? '▴' : '▾'}
+        Demo steps
       </button>
       {open && (
-        <FloatingPanel
-          title="Demo Steps"
-          defaultX={panelPosRef.current.x}
-          defaultY={panelPosRef.current.y}
-          defaultWidth={760}
-          defaultHeight={420}
-          minWidth={420}
-          minHeight={250}
-          onClose={() => onOpenChange(false)}
-          className="ba-demo-steps-float"
+        <div
+          className="ba-demo-steps-drawer__scrim"
+          aria-hidden="true"
+          onMouseDown={() => onOpenChange(false)}
+          data-testid="demo-steps-scrim"
+        />
+      )}
+      {open && (
+        <aside
+          className="ba-demo-steps-drawer"
+          style={{ width: `${drawerWidth}px` }}
           role="dialog"
           aria-label="Demo steps"
           aria-modal="false"
           data-testid="demo-steps-popout"
+          data-placement="right-overlay"
         >
+          <button
+            type="button"
+            className="ba-demo-steps-drawer__resize"
+            onPointerDown={handleResizeStart}
+            aria-label="Resize Demo steps drawer"
+            title="Drag to resize"
+            data-testid="demo-steps-resize-handle"
+          />
           <div className="ba-demo-steps-popout__header">
             <div className="ba-demo-steps-popout__header-top">
-              {primarySteps.length > 0 && (
+              <div>
+                <div className="ba-demo-steps-drawer__kicker">Presenter mode</div>
+                <h2 className="ba-demo-steps-drawer__title">Mission Control</h2>
+                <p className="ba-demo-steps-drawer__subtitle">Run the trust story one proof at a time.</p>
+              </div>
+              <button
+                type="button"
+                className="ba-demo-steps-drawer__close"
+                onClick={() => onOpenChange(false)}
+                aria-label="Close Demo steps"
+                data-testid="demo-steps-close"
+              >
+                ✕
+              </button>
+            </div>
+            {primarySteps.length > 0 && (
+              <div className="ba-demo-steps-drawer__progress-row">
                 <span
                   className={`ba-demo-steps-popout__progress${
                     completedCount === primarySteps.length
@@ -321,14 +399,10 @@ export default function DemoStepsDropdown({
                 >
                   {completedCount} of {primarySteps.length} done
                 </span>
-              )}
-            </div>
-            {primarySteps.length > 0 && (
-              <div
-                className="ba-demo-steps-popout__track"
-                aria-hidden="true"
-              >
-                <i style={{ width: `${progressPct}%` }} />
+                <div className="ba-demo-steps-popout__track" aria-hidden="true">
+                  <i style={{ width: `${progressPct}%` }} />
+                </div>
+                <span className="ba-demo-steps-drawer__time">12 min</span>
               </div>
             )}
             <div className="ba-demo-steps-popout__header-actions">
@@ -398,30 +472,36 @@ export default function DemoStepsDropdown({
               No steps match “{query.trim()}”.
             </p>
           )}
-          <ul className="ba-demo-steps-popout__grid">
-            {filteredPrimary.map((row) => renderStep(row, { markNext: !q }))}
-          </ul>
-          {advancedSteps.length > 0 && (
-            <div className="ba-demo-steps-popout__advanced">
-              {!q && (
-                <button
-                  type="button"
-                  className="ba-demo-steps-popout__advanced-toggle"
-                  onClick={() => setAdvancedOpen((v) => !v)}
-                  aria-expanded={advancedOpen}
-                  data-testid="demo-steps-advanced-toggle"
-                >
-                  {advancedOpen ? '▾' : '▸'} More demos ({advancedSteps.length})
-                </button>
-              )}
-              {showAdvanced && (
-                <ul className="ba-demo-steps-popout__grid">
-                  {filteredAdvanced.map((row) => renderStep(row))}
-                </ul>
-              )}
+          <div className="ba-demo-steps-drawer__body">
+            <div className="ba-demo-steps-drawer__act-heading">
+              <span>Act 1 / Establish the agent</span>
+              <span>1 / 5</span>
             </div>
-          )}
-        </FloatingPanel>
+            <ul className="ba-demo-steps-popout__grid">
+            {filteredPrimary.map((row) => renderStep(row, { markNext: !q }))}
+            </ul>
+            {advancedSteps.length > 0 && (
+              <div className="ba-demo-steps-popout__advanced">
+                {!q && (
+                  <button
+                    type="button"
+                    className="ba-demo-steps-popout__advanced-toggle"
+                    onClick={() => setAdvancedOpen((v) => !v)}
+                    aria-expanded={advancedOpen}
+                    data-testid="demo-steps-advanced-toggle"
+                  >
+                    {advancedOpen ? '▾' : '▸'} More demos ({advancedSteps.length})
+                  </button>
+                )}
+                {showAdvanced && (
+                  <ul className="ba-demo-steps-popout__grid">
+                    {filteredAdvanced.map((row) => renderStep(row))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        </aside>
       )}
       {/* Rendered outside the popout so the explanation survives the
           outside-pointerdown close. */}
@@ -429,6 +509,7 @@ export default function DemoStepsDropdown({
         uc={explainUc}
         open={Boolean(explainUc)}
         a2aTokenEvents={a2aEventsForExplain(explainUc, tokenChainTraceStore)}
+        zIndex={100062}
         onClose={() => setExplainUc(null)}
       />
     </>

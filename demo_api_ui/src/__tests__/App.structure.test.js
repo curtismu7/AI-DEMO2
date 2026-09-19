@@ -115,6 +115,14 @@ describe("App.js — critical JSX placements", () => {
     expect(appSrc).toContain("<DashboardContent user={user} logout={logout} />");
   });
 
+  test("MCP discovery is a signed-in user route, not an admin role-switch route", () => {
+    const start = appSrc.indexOf('path="/mcp-discovery"');
+    expect(start).toBeGreaterThan(-1);
+    const block = appSrc.slice(start, appSrc.indexOf('path="/tracing"', start));
+    expect(block).toContain("<McpDiscoveryPage />");
+    expect(block).not.toContain("<RequireAdminLogin");
+  });
+
   test("MonitoringRoutes is rendered for /monitoring/*", () => {
     expect(appSrc).toContain("<MonitoringRoutes");
   });

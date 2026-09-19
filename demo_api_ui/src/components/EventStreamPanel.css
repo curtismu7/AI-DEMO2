@@ -161,7 +161,7 @@
   align-items: center;
   gap: 8px;
   margin: 10px 0 6px;
-  color: #6b7280;
+  color: var(--th-text);
   font-size: var(--font-size-xs);
 }
 

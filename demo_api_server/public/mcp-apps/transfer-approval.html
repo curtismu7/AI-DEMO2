@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Transfer approval</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; background: #101820; color: #e9f0f2; }
+    body { margin: 0; padding: 20px; background: #101820; }
+    .app { border: 1px solid #2c4650; border-radius: 14px; background: #14222a; padding: 20px; }
+    .eyebrow { color: #71e1d0; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { font-size: 22px; letter-spacing: -.03em; margin: 8px 0 18px; }
+    .copy { color: #a5b5bb; font-size: 13px; line-height: 1.5; margin-bottom: 18px; }
+    dl { display: grid; gap: 10px; margin: 0 0 18px; }
+    .row { display: flex; justify-content: space-between; gap: 18px; border-top: 1px solid #263b44; padding-top: 10px; font-size: 12px; }
+    dt { color: #82969d; } dd { margin: 0; text-align: right; color: #e9f0f2; }
+    .notice { border-left: 3px solid #f0bd72; background: rgba(240,189,114,.08); color: #d6c4a5; padding: 11px 12px; font-size: 12px; line-height: 1.45; margin-bottom: 18px; }
+    .actions { display: flex; gap: 9px; }
+    button { flex: 1; border: 1px solid #38515a; border-radius: 8px; padding: 10px; color: #e9f0f2; background: transparent; font: inherit; font-size: 12px; cursor: pointer; }
+    button:focus-visible { outline: 2px solid #71e1d0; outline-offset: 3px; }
+    button[data-action="approve"] { background: #71e1d0; color: #09201d; border-color: #71e1d0; font-weight: 650; }
+    button:disabled { opacity: .55; cursor: wait; }
+    .state { color: #71e1d0; font-size: 12px; min-height: 18px; margin-top: 13px; }
+  </style>
+</head>
+<body>
+  <main class="app" aria-labelledby="title">
+    <div class="eyebrow">MCP App · human approval</div>
+    <h1 id="title">Review this transfer</h1>
+    <p class="copy">The agent prepared this action, but it cannot move money until you explicitly approve it.</p>
+    <dl id="details"><div class="row"><dt>Loading request</dt><dd>…</dd></div></dl>
+    <div class="notice">This approval is bound to this transfer, this user, and this agent. It is recorded as a one-time decision.</div>
+    <div class="actions"><button type="button" data-action="reject">Reject</button><button type="button" data-action="approve">Approve transfer</button></div>
+    <div class="state" id="state" role="status" aria-live="polite"></div>
+  </main>
+  <script>
+    (() => {
+      const details = document.getElementById('details');
+          const state = document.getElementById('state');
+          const actionButtons = [...document.querySelectorAll('button[data-action]')];
+          let initialized = false;
+          let channelId = null;
+
+      function text(value) { return String(value ?? '—'); }
+      function render(payload) {
+        const snapshot = payload?.snapshot || {};
+        const accounts = Array.isArray(payload?.accounts) ? payload.accounts : [];
+        const accountName = (id) => accounts.find((account) => account.id === id)?.name || id;
+        details.innerHTML = '';
+        const rows = [
+          ['Amount', `$${Number(snapshot.amount || 0).toFixed(2)}`],
+          ['From', accountName(snapshot.fromAccountId)],
+          ['To', accountName(snapshot.toAccountId)],
+          ['Note', text(snapshot.description)],
+        ];
+        rows.forEach(([label, value]) => {
+          const row = document.createElement('div');
+          row.className = 'row';
+          row.innerHTML = `<dt>${label}</dt><dd>${text(value)}</dd>`;
+          details.appendChild(row);
+        });
+      }
+      function callTool(name) {
+        if (!initialized) return;
+        actionButtons.forEach((button) => { button.disabled = true; });
+        state.textContent = name === 'approve_transfer' ? 'Sending approval to the host…' : 'Recording rejection…';
+            window.parent.postMessage({
+              jsonrpc: '2.0',
+              method: 'tools/call',
+              channelId,
+              params: { name, arguments: { source: 'mcp-app' } },
+            }, '*');
+      }
+      window.addEventListener('message', (event) => {
+        if (event.source !== window.parent || !event.data) return;
+            if (event.data.type === 'mcp-app-host-init') {
+              initialized = true;
+              channelId = event.data.channelId || null;
+          render(event.data);
+          window.parent.postMessage({ type: 'mcp-app-ready' }, '*');
+        }
+      });
+      actionButtons.forEach((button) => button.addEventListener('click', () => callTool(`${button.dataset.action}_transfer`)));
+      window.parent.postMessage({ type: 'mcp-app-ready' }, '*');
+    })();
+  </script>
+</body>
+</html>

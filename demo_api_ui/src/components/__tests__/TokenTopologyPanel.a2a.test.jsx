@@ -33,20 +33,17 @@ describe('buildA2aTopology', () => {
     ]);
 
     expect(topology.identity.map((node) => node.name)).toEqual([
-      'Main agent',
-      'Exchange #1',
-      'Exchange #2',
-      'Investment Advisor',
+      'Main agent · main-agent',
+      'Exchange #1 · user + main actor',
+      'Exchange #2 · nested specialist delegation',
     ]);
     expect(topology.wire.map((node) => node.name)).toEqual([
-      'Main agent',
-      'PingOne wire bearer',
-      'Agent Card',
-      'A2A SendMessage',
-      'Investment Advisor',
+      'Agent Card · Investment Advisor discovery',
+      'SendMessage · Investment Advisor handoff',
     ]);
-    expect(topology.identity[2].desc).toContain('nested act');
-    expect(topology.wire[1].desc).toContain('Separate client-credentials token');
+    expect(topology.identity[2].desc).toContain('MCP');
+    expect(topology.wire[1].desc).toContain('JSON-RPC');
+    expect(topology.responseBoundary).toContain('No access token');
   });
 
   it('does not add an A2A lane to ordinary runs', () => {
@@ -170,6 +167,32 @@ describe('buildA2aTopology', () => {
     });
 
     expect(screen.getByRole('button', { name: 'Request' })).toBeInTheDocument();
+  });
+
+  it('hides the empty details pane and toggles the selected details pane', async () => {
+    const user = userEvent.setup();
+    act(() => {
+      tokenChainTraceStore.beginTrace({ prompt: 'Show my accounts' });
+    });
+    render(
+      <ThemeProvider>
+        <TokenTopologyPanel isOpen onClose={() => {}} />
+      </ThemeProvider>,
+    );
+
+    expect(screen.queryByText('Click a node to inspect its token details')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show details' })).toBeInTheDocument();
+
+    await user.click(screen.getByText('Website'));
+    expect(screen.getByText('Website — browser / UI app')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hide details' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Hide details' }));
+    expect(screen.queryByText('Website — browser / UI app')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show details' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Show details' }));
+    expect(screen.getByText('Website — browser / UI app')).toBeInTheDocument();
   });
 
   it('clears the rendered topology back to an empty state', async () => {

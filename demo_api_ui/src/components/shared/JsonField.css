@@ -8,7 +8,7 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  color: #475569;
+  color: var(--th-text);
   user-select: none;
 }
 
@@ -18,7 +18,7 @@
 
 .json-field-pre {
   background: #ffffff;
-  color: #1f2937;
+  color: var(--th-text);
   border: 1px solid #d1d5db;
   border-radius: 6px;
   padding: 10px;

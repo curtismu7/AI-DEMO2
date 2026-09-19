@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo Steps — UI directions</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; background:#080b12; color:#f4f7fb; }
+    body { margin:0; min-height:100vh; display:grid; place-items:center; background: radial-gradient(circle at 20% 0%, #18233a 0, transparent 38%), #080b12; }
+    main { width:min(920px, calc(100% - 48px)); padding:42px 0; }
+    .eyebrow { color:#8aa0c0; text-transform:uppercase; letter-spacing:.18em; font-size:11px; font-weight:700; }
+    h1 { margin:12px 0 10px; font-size:clamp(34px, 5vw, 62px); line-height:.98; letter-spacing:-.06em; max-width:700px; }
+    p { color:#9caac0; max-width:640px; line-height:1.6; margin:0 0 30px; }
+    .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+    a { display:block; text-decoration:none; color:inherit; padding:20px; min-height:170px; border:1px solid #26334a; background:#111827; border-radius:18px; transition:.2s ease; }
+    a:hover { transform:translateY(-4px); border-color:#7097ff; background:#162239; }
+    .num { color:#7fa0ff; font:700 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    h2 { font-size:20px; margin:34px 0 10px; letter-spacing:-.03em; }
+    .meta { color:#71819a; font-size:13px; line-height:1.5; }
+    @media (max-width:720px) { .grid { grid-template-columns:1fr; } main { width:min(100% - 32px, 520px); } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">Progressive trust / design study</div>
+    <h1>Three ways to make Demo Steps easier to run.</h1>
+    <p>The same 24-step demo, reorganized around three different jobs: presenting a live story, explaining the journey, or moving quickly by code and search.</p>
+    <section class="grid" aria-label="Mockup directions">
+      <a href="mission-control-drawer.html"><span class="num">00 / SELECTED DIRECTION</span><h2>Mission Control drawer</h2><div class="meta">The chosen rail, now as a right-side overlay opened from the existing agent toolbar.</div></a>
+      <a href="mission-control.html"><span class="num">01 / MISSION CONTROL</span><h2>Mission-control rail</h2><div class="meta">A focused operator view with Acts, progress, and a live detail pane.</div></a>
+      <a href="story-map.html"><span class="num">02 / STORY MAP</span><h2>Story-map canvas</h2><div class="meta">A visual narrative that makes the trust journey legible to an audience.</div></a>
+      <a href="command-palette.html"><span class="num">03 / COMMAND PALETTE</span><h2>Command-palette workspace</h2><div class="meta">A fast, searchable launcher for people who already know the system.</div></a>
+    </section>
+  </main>
+</body>
+</html>

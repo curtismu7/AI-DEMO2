@@ -122,7 +122,7 @@
   border: none;
   font-size: 1rem;
   font-weight: 600;
-  color: #999999;
+  color: var(--th-text);
   cursor: pointer;
   transition: all 0.2s ease;
   border-bottom: 3px solid transparent;
@@ -130,7 +130,7 @@
 
 .ssp-tab:hover {
   background: var(--brand-light-gray);
-  color: #666666;
+  color: var(--th-text);
 }
 
 .ssp-tab--active {
@@ -181,7 +181,7 @@
 
 .ssp-form-group label {
   font-weight: 600;
-  color: #374151;
+  color: var(--th-text);
   font-size: 0.875rem;
 }
 
@@ -224,7 +224,7 @@
 
 .ssp-role-label {
   font-weight: 600;
-  color: #374151;
+  color: var(--th-text);
   font-size: 0.875rem;
 }
 
@@ -268,7 +268,7 @@
 
 .ssp-role-desc {
   font-size: 0.875rem;
-  color: #999999;
+  color: var(--th-text);
 }
 
 /* Password Strength */
@@ -387,7 +387,7 @@
 .ssp-loading {
   text-align: center;
   padding: 3rem;
-  color: #999999;
+  color: var(--th-text);
   font-size: 1.1rem;
 }
 
@@ -413,7 +413,7 @@
 }
 
 .ssp-profile-section h3 {
-  color: #374151;
+  color: var(--th-text);
   margin: 0 0 1rem 0;
   font-size: 1.1rem;
   font-weight: 600;
@@ -434,7 +434,7 @@
 
 .ssp-info-label {
   font-weight: 600;
-  color: #999999;
+  color: var(--th-text);
 }
 
 .ssp-info-value {

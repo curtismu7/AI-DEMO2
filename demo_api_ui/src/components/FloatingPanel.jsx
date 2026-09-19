@@ -69,6 +69,7 @@ export default function FloatingPanel({
   className = '',
   minWidth = 280,
   minHeight = 200,
+  zIndex = 9000,
   onClose = null,
   ...rest
 }) {
@@ -148,6 +149,25 @@ export default function FloatingPanel({
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
+  }, [size, pos, minWidth, minHeight]);
+
+  const onResizeKeyDown = useCallback((e, dir) => {
+    if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) return;
+    e.preventDefault();
+    const step = e.shiftKey ? 48 : 16;
+    const horizontal = dir.includes("e") ? step : dir.includes("w") ? -step : 0;
+    const vertical = dir.includes("s") ? step : dir.includes("n") ? -step : 0;
+    const nextW = Math.max(minWidth, size.w + horizontal);
+    const nextH = Math.max(minHeight, size.h + vertical);
+    const appliedW = nextW - size.w;
+    const appliedH = nextH - size.h;
+    setSize({ w: nextW, h: nextH });
+    if (dir.includes("w") || dir.includes("n")) {
+      setPos({
+        x: dir.includes("w") ? pos.x - appliedW : pos.x,
+        y: dir.includes("n") ? pos.y - appliedH : pos.y,
+      });
+    }
   }, [size, pos, minWidth, minHeight]);
 
   // --- Pop-out: open new window and inject styles; children render via portal ---
@@ -258,31 +278,35 @@ export default function FloatingPanel({
           ? { bottom: 0, left: pos.x, width: size.w }
           : { top: pos.y, left: pos.x, width: size.w }),
         height: isCollapsed ? 'auto' : size.h,
-        zIndex: 9000,
+        zIndex,
       }}
     >
       {/* 8 resize handles */}
       {!isCollapsed && (
         <>
-          <div className="fp-handle fp-handle-n"  onMouseDown={(e) => onResizeStart(e, 'n')}  aria-hidden />
-          <div className="fp-handle fp-handle-ne" onMouseDown={(e) => onResizeStart(e, 'ne')} aria-hidden />
-          <div className="fp-handle fp-handle-e"  onMouseDown={(e) => onResizeStart(e, 'e')}  aria-hidden />
-          <div className="fp-handle fp-handle-se" onMouseDown={(e) => onResizeStart(e, 'se')} aria-hidden />
-          <div className="fp-handle fp-handle-s"  onMouseDown={(e) => onResizeStart(e, 's')}  aria-hidden />
-          <div className="fp-handle fp-handle-sw" onMouseDown={(e) => onResizeStart(e, 'sw')} aria-hidden />
-          <div className="fp-handle fp-handle-w"  onMouseDown={(e) => onResizeStart(e, 'w')}  aria-hidden />
-          <div className="fp-handle fp-handle-nw" onMouseDown={(e) => onResizeStart(e, 'nw')} aria-hidden />
+          {['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'].map((dir) => (
+            <div
+              key={dir}
+              className={`fp-handle fp-handle-${dir}`}
+              onMouseDown={(e) => onResizeStart(e, dir)}
+              onKeyDown={(e) => onResizeKeyDown(e, dir)}
+              role="separator"
+              tabIndex={0}
+              aria-label={`Resize ${{ n: 'north', ne: 'northeast', e: 'east', se: 'southeast', s: 'south', sw: 'southwest', w: 'west', nw: 'northwest' }[dir]}`}
+              aria-orientation={dir === 'n' || dir === 's' ? 'horizontal' : dir === 'e' || dir === 'w' ? 'vertical' : undefined}
+            />
+          ))}
         </>
       )}
 
       {/* Title bar */}
-      <div className="fp-titlebar" onPointerDown={onDragStart}>
+      <div className="fp-titlebar" onPointerDown={onDragStart} aria-label={`Move ${title}`}>
         <span className="fp-title">{title}</span>
         <div className="fp-controls">
           <button className="fp-btn" onClick={() => setIsCollapsed((c) => !c)} title={isCollapsed ? 'Expand' : 'Collapse'}>
             {isCollapsed ? '▼' : '▲'}
           </button>
-          <button className="fp-btn" onClick={handlePopOut} title="Pop out to new window">🪟</button>
+          <button className="fp-btn" onClick={handlePopOut} title="Pop out to new window" aria-label={`Pop out ${title}`}>🪟</button>
           {onClose && (
             <button type="button" className="fp-btn" onClick={onClose} title="Close">✕</button>
           )}

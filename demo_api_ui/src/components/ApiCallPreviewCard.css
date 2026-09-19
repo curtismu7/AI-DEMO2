@@ -41,7 +41,7 @@
 
 .api-preview-endpoint {
   font-size: 0.75rem;
-  color: #374151;
+  color: var(--th-text);
   word-break: break-all;
   font-family: inherit;
 }
@@ -67,7 +67,7 @@
 
 .api-preview-duration {
   font-size: 0.7rem;
-  color: #6b7280;
+  color: var(--th-text);
 }
 
 .api-preview-docs-link {
@@ -85,7 +85,7 @@
 .api-preview-card__label {
   font-size: 0.75rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--th-text);
   padding: 4px 12px;
   background: #f1f5f9;
   border-bottom: 1px solid #e2e8f0;

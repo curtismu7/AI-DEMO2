@@ -48,6 +48,7 @@ const ENTER_USERNAME = form("Enter Username", [
 
 const TYPES = {
   TEXT: ["TextCollector", "SingleValueCollector"],
+  PASSWORD: ["PasswordCollector", "SingleValueCollector"],
   SUBMIT_BUTTON: ["SubmitCollector", "ActionCollector"],
   FLOW_BUTTON: ["FlowCollector", "ActionCollector"],
 };
@@ -151,6 +152,37 @@ describe("DavinciSdkLoginPage Step Inspector", () => {
     expect(container.textContent).not.toMatch(/SECRETNONCE|STATEVALUE|CHALLENGEVALUE|INTERACTION-SECRET/);
   });
 
+  it("selects the new response and collector snapshot after Continue advances the form", async () => {
+    const nextForm = form("Enter Passcode", [
+      { type: "PASSWORD", key: "passcode", label: "Passcode" },
+      { type: "SUBMIT_BUTTON", key: "CONTINUE", label: "Continue" },
+    ]);
+    const { container, findByRole } = render(<DavinciSdkLoginPage />);
+    await waitFor(() => expect(container.querySelectorAll(".sdkl-step")).toHaveLength(1));
+    client.next.mockImplementation(async () => {
+      current = nextForm;
+      return { status: "continue" };
+    });
+
+    fireEvent.click(await findByRole("button", { name: "Sign On" }));
+
+    await waitFor(() => expect(container.querySelector(".sdk-reel-detail")).toHaveTextContent('"formName": "Enter Passcode"'));
+    expect(container.querySelector(".sdk-reel-detail")).toHaveTextContent('"flowStatus": "continue"');
+    expect(container.querySelector(".sdk-reel-detail")).toHaveTextContent("PasswordCollector");
+  });
+
+  it("keeps the form, execution evidence, and lessons in a compact workbench", async () => {
+    const { container, findByRole } = render(<DavinciSdkLoginPage />);
+
+    await waitFor(() => expect(container.querySelectorAll(".sdkl-step")).toHaveLength(1));
+    expect(container.querySelector(".dvsdk-workbench")).toBeTruthy();
+    expect(await findByRole("tab", { name: "Execution reel" })).toHaveAttribute("aria-selected", "true");
+    expect(container.querySelector('[role="tabpanel"][aria-label="Execution evidence"]')).toBeTruthy();
+
+    fireEvent.click(await findByRole("tab", { name: "Lessons" }));
+    expect(await findByRole("tabpanel", { name: "Lessons" })).not.toHaveAttribute("hidden");
+  });
+
   it("keeps the collector updater result while masking its live event and records next completion", async () => {
     const updateFailure = { error: { message: "SDK rejected this value" } };
     const { container, findByRole, findByText } = render(<DavinciSdkLoginPage />);
@@ -231,5 +263,81 @@ describe("DavinciSdkLoginPage Step Inspector", () => {
     const { container } = render(<DavinciSdkLoginPage />);
     await waitFor(() => expect(container.querySelectorAll(".sdkl-step")).toHaveLength(1));
     expect(container.textContent).not.toMatch(/SECRETNONCE|STATEVALUE|CHALLENGEVALUE|INTERACTION-SECRET/);
+  });
+
+  it("switches between live execution and collapsible lessons while keeping the form available", async () => {
+    const { container, findByRole, getByRole, queryByRole } = render(<DavinciSdkLoginPage />);
+
+    await waitFor(() => expect(container.querySelectorAll(".sdkl-step")).toHaveLength(1));
+    expect(getByRole("tab", { name: "Execution reel" })).toHaveAttribute("aria-selected", "true");
+    expect(getByRole("textbox", { name: "Username" })).toBeInTheDocument();
+
+    fireEvent.click(await findByRole("tab", { name: "Lessons" }));
+
+    expect(getByRole("tab", { name: "Lessons" })).toHaveAttribute("aria-selected", "true");
+    expect(queryByRole("tabpanel", { name: "Execution evidence" })).not.toBeInTheDocument();
+    expect(getByRole("tabpanel", { name: "Lessons" })).toBeInTheDocument();
+    expect(getByRole("textbox", { name: "Username" })).toBeInTheDocument();
+  });
+
+  it("starts on the live form on phones while keeping execution selected on desktop", async () => {
+    const { container, getByRole } = render(<DavinciSdkLoginPage />);
+    await waitFor(() => expect(container.querySelectorAll(".sdkl-step")).toHaveLength(1));
+
+    expect(container.querySelector(".dvsdk-workbench")).toHaveAttribute("data-mobile-surface", "form");
+    expect(getByRole("button", { name: "Live form", hidden: true })).toHaveAttribute("aria-pressed", "true");
+    expect(getByRole("tab", { name: "Execution reel" })).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.click(getByRole("button", { name: "Execution & lessons", hidden: true }));
+    expect(container.querySelector(".dvsdk-workbench")).toHaveAttribute("data-mobile-surface", "inspector");
+  });
+
+  it("uses the compact lesson panel instead of a second section sidebar", async () => {
+    const { container, getByRole, queryByRole } = render(<DavinciSdkLoginPage />);
+    await waitFor(() => expect(container.querySelectorAll(".sdkl-step")).toHaveLength(1));
+
+    expect(queryByRole("navigation", { name: "Lesson sections" })).not.toBeInTheDocument();
+    fireEvent.click(getByRole("tab", { name: "Lessons" }));
+    fireEvent.click(container.querySelector("#security summary"));
+
+    expect(getByRole("tabpanel", { name: "Lessons" })).toBeInTheDocument();
+    expect(container.querySelector("#security .lesson-section-disclosure")).toHaveAttribute("open");
+  });
+
+  it("records sign-out as a selectable execution frame", async () => {
+    startStatus = "success";
+    authorizationCode = "START-AUTHORIZATION-CODE";
+    sdk.postCallback.mockResolvedValue({ username: "demoUser" });
+    sdk.signOutOfPingOne.mockResolvedValue("https://auth.example/as/signoff");
+    const { findByRole, findByText } = render(<DavinciSdkLoginPage />);
+
+    fireEvent.click(await findByRole("button", { name: /Sign out of PingOne and use a different account/i }));
+
+    expect(await findByRole("button", { name: /frame .*PingOne sign-out begins/i })).toBeInTheDocument();
+    expect(await findByText(/registered redirect uri/i)).toBeInTheDocument();
+  });
+
+  it("expands collapsed lessons for PDF export and restores them afterward", async () => {
+    const { container } = render(<DavinciSdkLoginPage />);
+    await waitFor(() => expect(container.querySelectorAll(".sdkl-step")).toHaveLength(1));
+    expect(container.querySelector("#try-it-live")).not.toHaveClass("lesson-no-print");
+    expect(container.querySelector(".dvsdk-live-app")).toHaveClass("lesson-no-print");
+    expect(container.querySelector('[aria-label="Execution evidence"]')).toHaveClass("lesson-no-print");
+    const overview = container.querySelector("#overview .lesson-section-disclosure");
+    const codeBlock = container.querySelector(".sdk-lesson-code");
+    const lessonsPanel = container.querySelector(".dvsdk-workbench-lessons");
+    expect(overview).not.toHaveAttribute("open");
+    expect(codeBlock).not.toHaveAttribute("open");
+    expect(lessonsPanel).toHaveAttribute("hidden");
+
+    window.dispatchEvent(new Event("beforeprint"));
+    expect(overview).toHaveAttribute("open");
+    expect(codeBlock).toHaveAttribute("open");
+    expect(lessonsPanel).not.toHaveAttribute("hidden");
+
+    window.dispatchEvent(new Event("afterprint"));
+    expect(overview).not.toHaveAttribute("open");
+    expect(codeBlock).not.toHaveAttribute("open");
+    expect(lessonsPanel).toHaveAttribute("hidden");
   });
 });

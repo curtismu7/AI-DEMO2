@@ -27,6 +27,9 @@ let mockExchangeResult;
 let mockExchangeError;
 let mockExchangeCalls;
 let mockExchangeCached;
+let mockAgentConfigured;
+let mockAgentExchangeResult;
+let mockAgentExchangeCalls;
 
 let mockHops;
 jest.mock('../../services/lmdb/transactionLedger.lmdb', () => ({
@@ -38,14 +41,20 @@ jest.mock('../../services/configStore', () => ({
 }));
 jest.mock('../../services/facadeUpstreamExchange', () => ({
   isConfigured: () => mockIsConfigured,
+  isAgentGatewayConfigured: () => mockAgentConfigured,
   exchangeForUpstream: async (...args) => {
     mockExchangeCalls.push(args);
     if (mockExchangeError) throw mockExchangeError;
     return { accessToken: mockExchangeResult, cached: mockExchangeCached };
   },
+  exchangeForAgentGateway: async (...args) => {
+    mockAgentExchangeCalls.push(args);
+    return { accessToken: mockAgentExchangeResult, cached: false };
+  },
 }));
 
 const BANKING = '/mcp-facade/banking/mcp';
+const AGENT_GATEWAY = '/mcp-facade/agent-gateway/mcp';
 let lastUpstreamAuth;
 let upstreamServer;
 
@@ -58,6 +67,7 @@ beforeAll((done) => {
   });
   upstreamServer = app.listen(0, () => {
     process.env.MCP_FACADE_BANKING_URL = `http://127.0.0.1:${upstreamServer.address().port}/mcp`;
+    process.env.MCP_FACADE_AGENT_GATEWAY_URL = `http://127.0.0.1:${upstreamServer.address().port}/mcp`;
     done();
   });
 });
@@ -86,6 +96,9 @@ beforeEach(() => {
   mockExchangeError = null;
   mockExchangeCalls = [];
   mockExchangeCached = false;
+  mockAgentConfigured = false;
+  mockAgentExchangeResult = 'DELEGATED-GATEWAY-TOKEN';
+  mockAgentExchangeCalls = [];
   mockHops = [];
   lastUpstreamAuth = null;
 });
@@ -186,4 +199,24 @@ test('with the flag OFF the skip is recorded, so the D-05 refusal reads as a con
   expect(x.status).toBe('skipped');
   expect(x.details.reason).toBe('ff_facade_upstream_exchange=false');
   expect(x.details.consequence).toMatch(/D-05/);
+});
+
+test('agent-gateway exchanges a plain caller token before an agent-mediated tool call', async () => {
+  mockAgentConfigured = true;
+
+  const res = await request(facadeApp()).post(AGENT_GATEWAY)
+    .set('Authorization', 'Bearer CALLER-GATEWAY-TOKEN')
+    .send({ jsonrpc: '2.0', id: 8, method: 'tools/call', params: {
+      name: 'create_transfer', arguments: { amount: 300 },
+    } });
+
+  expect(res.status).toBe(200);
+  expect(mockAgentExchangeCalls).toEqual([
+    ['CALLER-GATEWAY-TOKEN', ['mcp:invoke', 'write', 'transfer']],
+  ]);
+  expect(lastUpstreamAuth).toBe('Bearer DELEGATED-GATEWAY-TOKEN');
+  const x = mockHops.find((h) => h.phase === 'token.exchange');
+  expect(x.status).toBe('ok');
+  expect(x.details.exchangeStep).toBe('1-exchange');
+  expect(x.details.actor).toBe('AI Agent client credentials');
 });

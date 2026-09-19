@@ -501,7 +501,7 @@
   font-family: "Segoe UI", system-ui, sans-serif;
   font-size: var(--font-size-2xs);
   background: #f4f6f8;
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 .afm-saas--zendesk { --brand: #03363d; --accent: #17494d; --rail: #fff; }
@@ -548,7 +548,7 @@
 }
 
 .afm-saas-card h4 { margin: 0 0 6px; font-size: var(--font-size-sm); }
-.afm-saas-card p { margin: 0; color: #6b7280; font-size: var(--font-size-xs); line-height: 1.4; }
+.afm-saas-card p { margin: 0; color: var(--th-text); font-size: var(--font-size-xs); line-height: 1.4; }
 .afm-saas--glean .afm-saas-card p { color: #94a3b8; }
 
 .afm-saas-agent {

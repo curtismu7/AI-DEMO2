@@ -5,7 +5,7 @@ FROM node:22-alpine
 # when the package's "Manage Actions access" list lacks this repo. BOTH are
 # required; one without the other fails the same way. Single-stage build, so
 # this is the final stage.
-LABEL org.opencontainers.image.source=https://github.com/curtismu7/AI-DEMO2
+LABEL org.opencontainers.image.source=https://github.com/cmuir_pingcorp/AI-DEMO2
 
 WORKDIR /app
 

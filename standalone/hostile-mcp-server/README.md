@@ -121,7 +121,7 @@ crashes with `exec format error`.
 
 ```bash
 docker buildx build --platform linux/arm64 --provenance=false \
-  -t ghcr.io/curtismu7/hostile-mcp-server:latest --push .
+  -t ghcr.io/cmuir_pingcorp/hostile-mcp-server:latest --push .
 kubectl apply -f k8s/deployment.yaml
 kubectl exec -n ping-devops-curtismuir deploy/hostile-mcp-server -- wget -qO- http://127.0.0.1:8899/health
 ```

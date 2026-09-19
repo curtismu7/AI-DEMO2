@@ -48,7 +48,7 @@ const { execFileSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const LABEL_KEY = 'org.opencontainers.image.source';
-const EXPECTED_URL = 'https://github.com/curtismu7/AI-DEMO2';
+const EXPECTED_URL = 'https://github.com/cmuir_pingcorp/AI-DEMO2';
 // LABEL_KEY is interpolated into a RegExp; its dots are wildcards otherwise.
 const ESCAPED_KEY = LABEL_KEY.replace(/\./g, '\\.');
 

@@ -1,0 +1,13 @@
+{
+  "name": "mcp-discovery-agent",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Read-only MCP runtime discovery and metadata inventory agent",
+  "license": "MIT",
+  "scripts": {
+    "start": "node index.mjs",
+    "scan": "node index.mjs --scan-once",
+    "test": "node --test"
+  }
+}

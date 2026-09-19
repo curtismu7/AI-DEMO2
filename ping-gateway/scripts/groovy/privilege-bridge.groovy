@@ -15,8 +15,8 @@
  * one, because Task 8 shipped there and Task 8b was deferred.
  *
  * WHAT IT DOES. Exactly what the Node bridge does, translated to IG: when the
- * bearer IS the configured shared secret, the caller's real token — forwarded by
- * Privilege in X-Subject-Token, which survives the hop with its value unmodified
+ * bearer IS the configured shared secret, the caller's real transaction token —
+ * forwarded by Privilege in tx-token, which survives the hop with its value unmodified
  * (measured, privilege/CURRENT-CONFIGURATION.md "Backend hop") — is swapped into
  * the Authorization header. Every downstream filter then runs unmodified on the
  * REAL delegated user: introspection, P1AZ, and the RFC 8693 exchange all see the
@@ -24,7 +24,7 @@
  *
  * SECURITY, and the two rules that matter most:
  *
- *  1. X-Subject-Token is honoured ONLY when the bearer equals the secret. From
+ *  1. tx-token is honoured ONLY when the bearer equals the secret. From
  *     any other caller the header is STRIPPED, not merely ignored — otherwise a
  *     forged value would still be sitting there for a downstream filter or the
  *     backend to read. (Same remove-before-use reasoning as
@@ -53,7 +53,7 @@ import org.forgerock.util.promise.Promises
 
 import java.security.MessageDigest
 
-def SUBJECT_HEADER = 'X-Subject-Token'
+def TRANSACTION_HEADER = 'tx-token'
 // A bearer slot is not a payload channel; refuse anything implausible for a JWT.
 def MAX_SUBJECT_TOKEN_BYTES = 8192
 def BRIDGE_MARKER = 'X-Privilege-Bridge'
@@ -78,10 +78,10 @@ def bridgeBearer = {
 request.headers.remove(BRIDGE_MARKER)
 
 if (!bridgeBearer) {
-    // Not the bridge. Strip the subject header so a forged identity cannot reach
+    // Not the bridge. Strip the transaction header so a forged identity cannot reach
     // any downstream filter or the backend, then carry on exactly as before —
     // this filter is invisible to every ordinary caller.
-    request.headers.remove(SUBJECT_HEADER)
+    request.headers.remove(TRANSACTION_HEADER)
     return next.handle(context, request)
 }
 
@@ -97,21 +97,21 @@ def reject = { String error, String detail ->
 }
 
 // A repeated header would let a caller smuggle two identities into one slot, so
-// refuse rather than guess which was meant (Node: subjectTokenFromHeaders).
-def subjectValues = request.headers.get(SUBJECT_HEADER)?.values ?: []
+// refuse rather than guess which was meant (Node: transactionTokenFromHeaders).
+def subjectValues = request.headers.get(TRANSACTION_HEADER)?.values ?: []
 if (subjectValues.size() > 1) {
-    request.headers.remove(SUBJECT_HEADER)
-    return reject('invalid_token', 'Privilege bridge presented more than one X-Subject-Token')
+    request.headers.remove(TRANSACTION_HEADER)
+    return reject('invalid_token', 'Privilege bridge presented more than one tx-token')
 }
 
 def subjectToken = (subjectValues.isEmpty() ? '' : (subjectValues[0] ?: '')).toString().trim()
-request.headers.remove(SUBJECT_HEADER)
+request.headers.remove(TRANSACTION_HEADER)
 
 if (!subjectToken) {
-    return reject('invalid_token', 'Privilege bridge presented no X-Subject-Token')
+    return reject('invalid_token', 'Privilege bridge presented no tx-token')
 }
 if (subjectToken.getBytes('UTF-8').length > MAX_SUBJECT_TOKEN_BYTES) {
-    return reject('invalid_token', 'Privilege bridge X-Subject-Token exceeds ' + MAX_SUBJECT_TOKEN_BYTES + ' bytes')
+    return reject('invalid_token', 'Privilege bridge tx-token exceeds ' + MAX_SUBJECT_TOKEN_BYTES + ' bytes')
 }
 
 // Swap the bridge credential out for the user's own token. Remove before add:

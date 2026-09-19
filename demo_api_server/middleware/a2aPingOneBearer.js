@@ -16,6 +16,7 @@
 const { validateToken } = require('../services/tokenValidationService');
 const oauthConfig = require('../config/oauth');
 const { specialistForVertical } = require('../config/a2aSpecialists');
+const { resolveA2aTenantId, tenantHandle } = require('../services/a2aTenantService');
 
 function defaultConfigStore() {
   return require('../services/configStore');
@@ -128,7 +129,9 @@ async function verifyA2aBearer(token, { vertical, cfg: cfgArg, deps = {} } = {})
   }
 
   if (!claims.sub) throw invalidToken('no subject (sub) on the delegated token');
-  return claims;
+  const tenantId = resolveA2aTenantId(claims);
+  if (!tenantId) throw invalidToken('no valid a2a tenant claim on the delegated token');
+  return { ...claims, tenantId, tenantHandle: tenantHandle(tenantId) };
 }
 
 /**
@@ -150,6 +153,8 @@ function requireA2aPingOneBearer(vertical) {
         claims,
         clientId: actorIdOf(claims.act),
         userSub: String(claims.sub),
+        tenantId: claims.tenantId,
+        tenantHandle: claims.tenantHandle,
       };
       return next();
     } catch (err) {
@@ -178,6 +183,9 @@ function pingOneA2aUserBuilder(req) {
     },
     get actor() {
       return info?.clientId || null;
+    },
+    get tenantId() {
+      return info?.tenantId || null;
     },
   });
 }

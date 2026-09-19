@@ -32,6 +32,7 @@ const { exchangeAsSpecialist } = require('../services/a2aDelegationService');
 const { executeBffToolWithToken } = require('../services/bffMcpToolExecutor');
 const { createA2aProtocolRouter } = require('../services/a2aProtocolServer');
 const { specialistForVertical } = require('../config/a2aSpecialists');
+const { tenantHandle } = require('../services/a2aTenantService');
 
 const TOOL = specialistForVertical('investment').tools[0];
 
@@ -42,6 +43,7 @@ const CLAIMS = {
   aud: ['a2a-intermediate-holdings.ping.demo'],
   scope: 'agent:invoke:holdings',
   act: { client_id: 'generalist-agent' },
+  a2a_tenant_id: 'tenant-a',
 };
 
 function fakeJwt(payload) {
@@ -72,7 +74,7 @@ function sendMessage(app, bearer) {
           messageId: 'ruling1-message-1',
           role: 'ROLE_USER',
           parts: [{ text: 'review my holdings' }],
-          metadata: { vertical: 'investment', tool: TOOL },
+          metadata: { vertical: 'investment', tool: TOOL, tenant: tenantHandle('tenant-a') },
         },
       },
     });

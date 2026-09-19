@@ -13,7 +13,7 @@ This is a **completely standalone** project — it can be handed to anyone and r
 One command bootstraps everything on a fresh Mac — no tooling required beforehand:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash
 ```
 
 It installs **Homebrew, git, Node 20, Python 3.12, Docker (OrbStack), mkcert, llama.cpp**, and any
@@ -40,7 +40,7 @@ asks **how you want to run** the demo:
 Non-interactive install (skip all prompts, defaults to local mode):
 
 ```bash
-ASSUME_YES=1 curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
+ASSUME_YES=1 curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash
 ```
 
 After install, start the demo any time with the launcher for your mode (e.g. `cd ~/AI-demo && ./run.sh`)
@@ -135,7 +135,7 @@ Runs everything directly as Node/Python processes on your Mac. **No Docker, no K
 
 ```bash
 # First-time setup
-curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash
 # Select option 1 — installs Node, Python, mkcert, and bootstraps PingOne automatically
 ```
 
@@ -319,7 +319,7 @@ Runs all services in a local Kubernetes cluster via OrbStack. Same images as pro
 
 ```bash
 # First-time setup
-curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash
 # Select option 2 — installs OrbStack, kubectl, and bootstraps PingOne
 ```
 
@@ -383,7 +383,7 @@ Deploys to the shared Ping SE DevOps cluster (`ping-dev-aws-us-east-2`). Images 
 
 ```bash
 # First-time setup
-curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash
 # Select option 3 — installs all tools above automatically
 ```
 
@@ -470,17 +470,17 @@ kubectl logs -n ping-devops-cmuir deploy/<name> --previous        # after a cras
 ### Fresh install (new machine)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash
 ```
 
 Prompts you to choose a run mode and installs all required tools + bootstraps PingOne automatically.
 
 ```bash
 # Install to a custom directory
-INSTALL_DIR=~/work/AI-demo curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
+INSTALL_DIR=~/work/AI-demo curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash
 
 # Non-interactive (skip all prompts)
-ASSUME_YES=1 curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
+ASSUME_YES=1 curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash
 ```
 
 ---
@@ -555,7 +555,7 @@ Full guide: [`docs/user-guide/helix-setup.md`](docs/user-guide/helix-setup.md).
 ASSUME_YES=1 ~/AI-demo/uninstall.sh   # skip all prompts
 ```
 
-Then re-install: `curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash`
+Then re-install: `curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash`
 
 ---
 

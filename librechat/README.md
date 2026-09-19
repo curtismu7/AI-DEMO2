@@ -149,13 +149,14 @@ below.
    - **Morning balance report** — Everyday Banking reads balances and
      transactions (daily 08:00 when enabled).
    - **Daily rentals check** — Super Sports Policy Guardrails on
-     `super-sports-gateway` (daily 09:00). Connect the seed account to that
-     door once first; with no stored sign-in the run fails the MCP check.
+     `Sports` (`super-sports-gateway`, daily 09:00). Sign in once; LibreChat
+     reconnects the stored session on startup. With no stored sign-in the run
+     fails the MCP check.
    - **Weekly savings sweep** — Money Movement, "Transfer $750 from checking to
      savings" (Mondays 07:00). The amount is above the consent threshold, so
      the run stops at human consent instead of moving money.
 
-   It also creates Super Sports Policy Guardrails (on `super-sports-gateway`)
+   It also creates Super Sports Policy Guardrails (on `Sports`)
    and three OpenSearch agents — OpenSearch · Direct, OpenSearch · via
    Privilege, OpenSearch · Privilege opensearch22 — with the same three
    starters, one per door.
@@ -167,10 +168,20 @@ below.
    CareConnect Policy Guardrails reuse `super-sports-gateway`: reads are
    permitted, transfers and record releases are denied by policy. Before using
    the gateway and Privilege agents:
-   - **Connect once** per LibreChat user to `super-sports-gateway`,
-     `opensearch-privilege-gateway` and `privilege-opensearch22` (MCP settings →
-     Connect → PingOne login). `opensearch-privilege-gateway` also needs the
+   - **Connect once** per LibreChat user to `Sports`, `OS Priv` and `OS22 Priv`
+     (MCP settings → Connect → PingOne login). LibreChat reconnects each stored
+     session at startup; connections are independent, so switching agents does
+     not require disconnecting another server. `OS Priv` also needs the
      façade's Privilege leg signed in at `/privilege-mcp-client`.
+   - **Delegated gateway writes.** The façade exchanges the connected user's
+     plain MCP token server-side for an Agent Gateway token with the AI Agent
+     actor claim before forwarding agent-mediated calls such as
+     `create_transfer`. This lets UC7/UC8 reach their amount policy instead of
+     stopping at `missing_act`. The BFF must have
+     `PINGONE_AI_AGENT_ACTOR_CLIENT_ID` and
+     `PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET` configured; if that actor is not
+     configured, the gateway correctly preserves the plain-token
+     `missing_act` denial.
    - **Keep the port-forward up** for OpenSearch · Direct, once per Mac:
      `bash scripts/install-opensearch-port-forward-launchd.sh` (from the main
      checkout). It installs a launchd agent that restarts
@@ -215,6 +226,8 @@ recreate a container whose compose-level config didn't change.
 
 A door showing `OAuth Required: true` at LibreChat startup is normal — it
 means the façade answered its RFC 9728 discovery correctly and LibreChat
-hasn't logged in yet, not an error. Only `Failed to inspect server "<door>"`
+hasn't logged in yet, not an error. After the first login, LibreChat reconnects
+only previously authorized sessions; it never starts a hidden OAuth poll for a
+user who has not signed in. Only `Failed to inspect server "<door>"`
 / `upstream_unavailable` in `docker logs librechat` means the door itself is
 actually unreachable.
