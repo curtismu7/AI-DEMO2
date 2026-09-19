@@ -21,6 +21,16 @@ const STATUS_TEXT = {
   error: "Error",
 };
 
+function evidenceText(value) {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
 export default function TokenChainPresenter({ steps, activeId, onSelect, onClose }) {
   const count = Array.isArray(steps) ? steps.length : 0;
   const index = count ? steps.findIndex((s) => s.id === activeId) : -1;
@@ -88,6 +98,10 @@ export default function TokenChainPresenter({ steps, activeId, onSelect, onClose
 
   const kv = Array.isArray(step.detail?.kv) ? step.detail.kv.slice(0, 6) : [];
   const rfcs = Array.isArray(step.detail?.rfcs) ? step.detail.rfcs : [];
+  const a2a = step.lane === "A2A";
+  const request = a2a ? evidenceText(step.detail?.request) : "";
+  const response = a2a ? evidenceText(step.detail?.response) : "";
+  const facts = a2a && Array.isArray(step.detail?.facts) ? step.detail.facts : [];
 
   // Portalled to <body>: the rail lives inside a `.section`, and app-level
   // descendant rules (`.section h2 { font-size: 1.15rem }`) out-specify a plain
@@ -140,6 +154,23 @@ export default function TokenChainPresenter({ steps, activeId, onSelect, onClose
           ))}
         </div>
       ) : null}
+
+      {a2a && facts.length > 0 ? (
+        <div className="tcp-rfcs" aria-label="A2A evidence facts">
+          {facts.map((fact) => <span className="tcp-rfc" key={fact}>{fact}</span>)}
+        </div>
+      ) : null}
+
+      {a2a && (request || response) ? (
+        <dl className="tcp-kv" aria-label="A2A request and response">
+          {request && <div className="tcp-kv-row"><dt>Request</dt><dd>{request}</dd></div>}
+          {response && <div className="tcp-kv-row"><dt>Response</dt><dd>{response}</dd></div>}
+        </dl>
+      ) : null}
+
+      {a2a && (
+        <p className="tcp-what">No access token crosses the A2A response boundary; only result or toolError returns.</p>
+      )}
 
       <div className="tcp-foot">
         <div className="tcp-bar" aria-hidden="true">

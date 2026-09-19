@@ -12,14 +12,15 @@
 // (SdkLessonSections) teach the rest.
 //
 // Scope today: interactive text, password, submit, action and flow collectors,
-// plus PingOne Forms' display-only rich text, error placeholder and automatic
-// Protect signal. CollectorField renders a visible fallback for anything else
+// plus PingOne Forms' display-only rich text, error placeholder, automatic
+// Protect signal and passkey authentication. CollectorField renders a visible fallback for anything else
 // rather than omitting a field silently.
 //
 // A successful sign-in does NOT leave this page. A "What just happened" modal
 // summarises the run and links into the lesson; closing it leaves you here,
 // signed in, with a way to reopen it or sign out to switch users.
 import { useCallback, useEffect, useRef, useState } from "react";
+import { fido } from "@forgerock/davinci-client";
 import CollectorField from "../components/davinci/CollectorField";
 import SdkExecutionReel from "../components/davinci/SdkExecutionReel";
 import SdkLessonSections, { SDK_LESSON_SECTIONS } from "../components/davinci/SdkLessonSections";
@@ -75,6 +76,8 @@ export default function DavinciSdkLoginPage() {
   // The execution reel is separate from Step Inspector cards: it only records
   // display-safe events as the existing SDK paths actually occur.
   const [executionEvents, setExecutionEvents] = useState([]);
+  const [workbenchPanel, setWorkbenchPanel] = useState("execution");
+  const [mobileSurface, setMobileSurface] = useState("form");
 
   const clientRef = useRef(null);
   const cfgRef = useRef(null);
@@ -83,6 +86,35 @@ export default function DavinciSdkLoginPage() {
   // StrictMode double-invokes effects; starting the flow twice would burn two
   // nonces and leave the first flow orphaned.
   const startedRef = useRef(false);
+
+  useEffect(() => {
+    let closedBeforePrint = [];
+    let hiddenLessonsPanel = null;
+    const expandLessons = () => {
+      const lessonsPanel = document.querySelector(".dvsdk-lesson-page .dvsdk-workbench-lessons");
+      if (lessonsPanel?.hidden) {
+        hiddenLessonsPanel = lessonsPanel;
+        lessonsPanel.hidden = false;
+      }
+      closedBeforePrint = [...document.querySelectorAll(
+        ".dvsdk-lesson-page .lesson-section-disclosure:not([open]), .dvsdk-lesson-page .sdk-lesson-code:not([open])",
+      )];
+      closedBeforePrint.forEach((section) => { section.open = true; });
+    };
+    const restoreLessons = () => {
+      closedBeforePrint.forEach((section) => { section.open = false; });
+      closedBeforePrint = [];
+      if (hiddenLessonsPanel) hiddenLessonsPanel.hidden = true;
+      hiddenLessonsPanel = null;
+    };
+    window.addEventListener("beforeprint", expandLessons);
+    window.addEventListener("afterprint", restoreLessons);
+    return () => {
+      window.removeEventListener("beforeprint", expandLessons);
+      window.removeEventListener("afterprint", restoreLessons);
+      restoreLessons();
+    };
+  }, []);
 
   const appendExecutionEvent = useCallback((event) => {
     if (!event) return;
@@ -131,8 +163,27 @@ export default function DavinciSdkLoginPage() {
         label: `DaVinci returned ${status || "a response"}`,
         codeKey: kind === "next" ? "update-next" : kind,
         detail: {
+          ...(request
+            ? {
+                method: request.method,
+                host: (() => {
+                  try { return new URL(request.url).host; } catch { return undefined; }
+                })(),
+                path: (() => {
+                  try { return new URL(request.url).pathname; } catch { return undefined; }
+                })(),
+                paramNames: (() => {
+                  try { return [...new URL(request.url).searchParams.keys()]; } catch { return []; }
+                })(),
+                responseMode: (() => {
+                  try { return new URL(request.url).searchParams.get("response_mode") || undefined; } catch { return undefined; }
+                })(),
+                body: request.body,
+              }
+            : {}),
           status,
           eventType: cached?.data?.eventName ?? cached?.data?.eventType,
+          response: summarizeResponse(cached?.data),
         },
       }),
     );
@@ -143,6 +194,7 @@ export default function DavinciSdkLoginPage() {
   // its collectors, which is what lets the form re-render with complaints.
   const syncFromClient = useCallback((client, node) => {
     const currentCollectors = client.getCollectors?.() || [];
+    const response = summarizeResponse(client.cache?.getLatestResponse?.()?.data);
     setCollectors(currentCollectors);
     setStep((n) => n + 1);
     const errs = {};
@@ -161,6 +213,7 @@ export default function DavinciSdkLoginPage() {
         codeKey: null,
         detail: {
           status: node?.status,
+          response: response ? { ...response, flowStatus: response.flowStatus || node?.status || null } : null,
           collectors: currentCollectors,
         },
       }),
@@ -231,6 +284,15 @@ export default function DavinciSdkLoginPage() {
   // signOutOfPingOne.
   const signOut = useCallback(() => {
     appendExecutionEvent(logoutReelEvent());
+    appendExecutionEvent(
+      createOperationEvent({
+        lane: "sdk",
+        kind: "logout.begin",
+        label: "PingOne sign-out begins",
+        codeKey: "logout",
+        detail: { status: "pending" },
+      }),
+    );
     // A browser redirect destroys this component. Keep only a timestamp so the
     // sign-off request remains visible in the reel when PingOne returns here.
     try { window.sessionStorage.setItem(LOGOUT_REEL_MARKER, String(Date.now())); } catch { /* storage unavailable */ }
@@ -435,10 +497,36 @@ export default function DavinciSdkLoginPage() {
     return result;
   }, [appendExecutionEvent]);
 
+  const authenticatePasskey = useCallback(async (collector) => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const assertion = await fido().authenticate(collector.output?.config?.publicKeyCredentialRequestOptions);
+      if (assertion?.error || !assertion?.assertionValue) {
+        throw new Error(assertion?.message || "Passkey authentication did not return an assertion.");
+      }
+      const updateError = collectorUpdater(collector)(assertion);
+      if (updateError?.error) {
+        throw new Error(updateError.error.message || "The SDK could not accept the passkey assertion.");
+      }
+      await submit(collector);
+    } catch (err) {
+      setMessage(err.message || "Passkey authentication failed.");
+    } finally {
+      setBusy(false);
+    }
+  }, [collectorUpdater, submit]);
+
   // From the modal's links: close it and bring that lesson section into view.
   const goToSection = useCallback((id) => {
     setShowWhatHappened(false);
-    document.getElementById(id)?.scrollIntoView?.({ behavior: "smooth" });
+    if (id !== "try-it-live") {
+      setWorkbenchPanel("lessons");
+      setMobileSurface("inspector");
+      const disclosure = document.getElementById(id)?.querySelector(".lesson-section-disclosure");
+      if (disclosure) disclosure.open = true;
+    }
+    window.requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView?.({ behavior: "smooth" }));
   }, []);
 
   return (
@@ -449,31 +537,40 @@ export default function DavinciSdkLoginPage() {
       title="DaVinci Orchestration SDK"
       subtitle={
         <>
-          The Ping Orchestration SDK runs a PingOne DaVinci flow, and this page draws each of the
-          flow&rsquo;s forms itself from collectors. No DaVinci-hosted screens, no widget. Try it
-          live, watch every step in the Step Inspector, then read how it works.
+          See the sign-in flow as it happens: the form, SDK calls, DaVinci responses, and collectors
+          share one workspace.
         </>
       }
       sections={SDK_LESSON_SECTIONS}
       storageKey="dvsdk-lesson-nav-width"
+      printExclude={["in-this-repo"]}
+      pageClassName="dvsdk-lesson-page"
+      showSectionNav={false}
     >
       <Section id="try-it-live" title="Try It Live">
         <p>
-          This is a working sign-in. The form is not a DaVinci page: the SDK fetched the flow&rsquo;s
-          current step as JSON, and this page drew it from the collectors. Each time the page calls
-          the SDK, the Step Inspector adds a card with the code that ran, the request the SDK sent,
-          DaVinci&rsquo;s answer, and the collectors it produced.
-        </p>
-        <p>
-          To watch the flow move from one DaVinci form to the next without signing in, click{" "}
-          <strong>Having trouble signing on?</strong>. That button is a FlowCollector: it sends the
-          flow back to DaVinci, which runs until its next screen, <strong>Enter Username</strong>,
-          and stops there. If this browser is already signed in to PingOne, the flow completes on
-          the first call with no form; sign out of PingOne to see the forms.
+          The SDK draws each DaVinci step from collectors. Select a reel frame for its code and
+          response. Choose <strong>Having trouble signing on?</strong> to see another form.
         </p>
 
-        <div className="dvsdk-live">
-          <div className="dvsdk-live-app">
+        <div className="dvsdk-workbench" data-mobile-surface={mobileSurface}>
+          <div className="dvsdk-workbench-mobile-tabs" role="group" aria-label="Mobile workspace">
+            <button
+              type="button"
+              aria-pressed={mobileSurface === "form"}
+              onClick={() => setMobileSurface("form")}
+            >
+              Live form
+            </button>
+            <button
+              type="button"
+              aria-pressed={mobileSurface === "inspector"}
+              onClick={() => setMobileSurface("inspector")}
+            >
+              Execution &amp; lessons
+            </button>
+          </div>
+          <div className="dvsdk-live-app lesson-no-print">
             <header className="dvsdk-login-header">
               <p className="dvsdk-eyebrow">PingOne DaVinci</p>
               <h2>Orchestration SDK Login</h2>
@@ -589,6 +686,7 @@ export default function DavinciSdkLoginPage() {
                         busy={busy}
                         onSubmit={() => submit(c)}
                         onFlow={() => takeFlow(c)}
+                        onFido={() => authenticatePasskey(c)}
                       />
                     );
                   })}
@@ -597,19 +695,52 @@ export default function DavinciSdkLoginPage() {
             </div>
           </div>
 
-          <div className="dvsdk-live-steps">
-            <h3>Step Inspector</h3>
-            <StepInspector steps={steps} />
-          </div>
+          <aside className="dvsdk-workbench-rail">
+            <div className="dvsdk-workbench-tabs" role="tablist" aria-label="Evidence and lessons">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={workbenchPanel === "execution"}
+                onClick={() => { setWorkbenchPanel("execution"); setMobileSurface("inspector"); }}
+              >
+                Execution reel
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={workbenchPanel === "lessons"}
+                onClick={() => { setWorkbenchPanel("lessons"); setMobileSurface("inspector"); }}
+              >
+                Lessons
+              </button>
+            </div>
 
-          <div className="dvsdk-live-reel">
-            <h3>Live execution evidence</h3>
-            <SdkExecutionReel events={executionEvents} />
-          </div>
+            <div
+              className="dvsdk-workbench-panel lesson-no-print"
+              role="tabpanel"
+              aria-label="Execution evidence"
+              hidden={workbenchPanel !== "execution"}
+            >
+              <div className="dvsdk-live-reel">
+                <SdkExecutionReel events={executionEvents} compact />
+              </div>
+              <details className="dvsdk-call-log">
+                <summary>Full SDK call log</summary>
+                <StepInspector steps={steps} />
+              </details>
+            </div>
+
+            <div
+              className="dvsdk-workbench-panel dvsdk-workbench-lessons"
+              role="tabpanel"
+              aria-label="Lessons"
+              hidden={workbenchPanel !== "lessons"}
+            >
+              <SdkLessonSections config={cfgRef.current || {}} steps={steps} />
+            </div>
+          </aside>
         </div>
       </Section>
-
-      <SdkLessonSections config={cfgRef.current || {}} steps={steps} />
 
       {/* The run summary: what happened on this run, linking into the sections
           above. New storageKey so a size saved for the old, larger walkthrough

@@ -27,6 +27,7 @@ import { PingProductChip, PingProductLegend } from './PingProductChip';
 import { productForEvent } from '../utils/pingProducts';
 import { clientAuthMethodLabel } from '../utils/clientAuthMethod';
 import { buildA2aChainDetail } from '../utils/a2aChainDetail';
+import "../styles/draggablePanel.css";
 
 const FETCH_COOLDOWN_MS = 5000; // Don't fetch more than once per 5 seconds
 
@@ -2602,6 +2603,9 @@ function openInNewWindow(event) {
     *{box-sizing:border-box;margin:0;padding:0}
     body{background:#ffffff;color:#1e293b;font:13px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:0}
     .header{background:#f8fafc;padding:14px 18px;display:flex;flex-direction:column;gap:2px;border-bottom:1px solid #e2e8f0}
+    .header-actions{display:flex;justify-content:flex-end;gap:6px;margin-bottom:4px}
+    .header-actions button{border:1px solid #cbd5e1;border-radius:5px;background:#fff;color:#334155;cursor:pointer;padding:3px 8px;font-size:12px}
+    .header-actions button:hover{background:#e2e8f0}
     .title{font-size:1rem;font-weight:800;color:#0f172a}
     .subtitle{font-size:0.78rem;color:#475569}
     .body{padding:16px;display:flex;flex-direction:column;gap:14px;overflow:auto;height:calc(100vh - 70px)}
@@ -2633,6 +2637,7 @@ function openInNewWindow(event) {
 </head>
 <body>
   <div class="header">
+    <div class="header-actions"><button type="button" onclick="window.close()" title="Close" aria-label="Close">✕</button></div>
     <div class="title">⊕ OAuth Token Inspector</div>
     <div class="subtitle"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${dotColor};margin-right:6px;vertical-align:middle"></span>${event.label}${event.status ? ` · ${event.status}` : ""}</div>
   </div>
@@ -2676,7 +2681,7 @@ function openInNewWindow(event) {
  * Floats above the page as a draggable, resizable, collapsible inspector.
  * Rendered via createPortal into document.body so it can go off-screen.
  */
-function TokenInspectorPanel({ event, chainEvents, initialPos, onClose }) {
+export function TokenInspectorPanel({ event, chainEvents, initialPos, theme = "light", onClose }) {
   const { pos, size, handleDragStart, createResizeHandler } = useDraggablePanel(
     initialPos,
     { w: 800, h: 960 },
@@ -2687,6 +2692,7 @@ function TokenInspectorPanel({ event, chainEvents, initialPos, onClose }) {
   const panel = (
     <div
       className={`tci-panel${collapsed ? " tci-panel--collapsed" : ""}`}
+      data-theme={theme}
       style={{
         left: pos.x,
         top: pos.y,
@@ -2722,7 +2728,7 @@ function TokenInspectorPanel({ event, chainEvents, initialPos, onClose }) {
             title="Pop out to new window (move to any screen)"
             aria-label="Pop out to new window"
           >
-            ⤢
+            🪟
           </button>
           <button
             type="button"
@@ -5369,6 +5375,7 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
           event={inspectedEvent}
           chainEvents={currentEventsWithCc}
           initialPos={inspectorPos}
+          theme={theme}
           onClose={() => setInspectedEvent(null)}
         />
       )}

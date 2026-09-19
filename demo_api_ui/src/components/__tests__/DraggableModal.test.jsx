@@ -37,6 +37,21 @@ describe('DraggableModal', () => {
     expect(dialog).toHaveClass('probe-class');
   });
 
+  it('anchors right-side drawers to the viewport edge', () => {
+    render(
+      <DraggableModal isOpen onClose={vi.fn()} title="Test" placement="right">
+        <p>body</p>
+      </DraggableModal>,
+    );
+
+    expect(screen.getByRole('dialog')).toHaveStyle({
+      left: 'auto',
+      right: '0px',
+      top: '0px',
+      height: '100vh',
+    });
+  });
+
   it('renders only dm-panel when no className is passed', () => {
     render(
       <DraggableModal isOpen onClose={vi.fn()} title="Test">
@@ -45,6 +60,17 @@ describe('DraggableModal', () => {
     );
     const dialog = screen.getByRole('dialog');
     expect(dialog.className.trim()).toBe('dm-panel');
+  });
+
+  it('uses the shared modal pop-out icon in the embedded title bar', () => {
+    render(
+      <DraggableModal isOpen onClose={vi.fn()} title="Test">
+        <p>body</p>
+      </DraggableModal>,
+    );
+
+    const popoutButton = screen.getByTitle('Pop out to new window');
+    expect(popoutButton).toHaveTextContent('🪟');
   });
 
   it('keeps pop-out theme changes scoped to the child document', () => {
@@ -75,6 +101,27 @@ describe('DraggableModal', () => {
       childDocument.querySelector('button[aria-label="Switch to dark mode"]'),
     ).toBeTruthy();
 
+  });
+
+  it('closes the child window when its upper-right close control is clicked', () => {
+    const childWindow = makeChildWindow();
+    const onClose = vi.fn();
+    vi.spyOn(window, 'open').mockReturnValue(childWindow);
+
+    render(
+      <DraggableModal isOpen onClose={onClose} title="Test">
+        <p>body</p>
+      </DraggableModal>,
+    );
+
+    fireEvent.click(screen.getByTitle('Pop out to new window'));
+    const closeButton = childWindow.document.querySelector('button[title="Close"]');
+    expect(closeButton).toBeTruthy();
+
+    fireEvent.click(closeButton);
+
+    expect(childWindow.close).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('keeps eight resize handles available in embedded mode', () => {

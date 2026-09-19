@@ -5,12 +5,17 @@ import SignInPrompt from '../components/SignInPrompt';
 import { useThemeOptional } from '../context/ThemeContext';
 import { buildA2aChainDetail } from '../utils/a2aChainDetail';
 import { A2A_RECORDED_RUN } from '../data/a2aRecordedRun';
+import A2AArchitectureDiagram from '../components/A2AArchitectureDiagram';
 import {
   buildA2aTeachingPanes,
   summarizeAgentCard,
   summarizeActChain,
   LAYER,
 } from './a2aTeachingPanes';
+import {
+  A2A_IMPLEMENTATION_STATUS,
+  A2A_LATEST_LESSONS,
+} from './a2aLearningLessons';
 import './A2AProtocolLearningPage.css';
 
 /**
@@ -78,6 +83,7 @@ function Section({ id, num, title, lead, children }) {
 export default function A2AProtocolLearningPage() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
   const [vertical, setVertical] = useState(DEFAULT_VERTICAL);
+  const [showArchitecture, setShowArchitecture] = useState(false);
 
   const [card, setCard] = useState(null);
   const [cardLive, setCardLive] = useState(false);
@@ -210,7 +216,16 @@ export default function A2AProtocolLearningPage() {
             ))}
           </select>
         </label>
+        <button
+          type="button"
+          className="a2l-architecture-btn"
+          onClick={() => setShowArchitecture(true)}
+        >
+          Show A2A implementation architecture
+        </button>
       </header>
+
+      {showArchitecture && <A2AArchitectureDiagram onClose={() => setShowArchitecture(false)} />}
 
       <Section
         id="layers"
@@ -241,6 +256,8 @@ export default function A2AProtocolLearningPage() {
         </div>
         <p className="a2l-links">
           Deeper on the concept: <Link to="/delegation-chain-value">Delegation Chain Value</Link>
+          {' · '}
+          <a href="https://a2a-protocol.org/latest/" target="_blank" rel="noreferrer">A2A learning hub</a>
           {' · '}
           <a href="https://a2a-protocol.org/v1.0.0/specification/" target="_blank" rel="noreferrer">A2A spec</a>
           {' · '}
@@ -372,6 +389,34 @@ export default function A2AProtocolLearningPage() {
             <code>live-http</code>.
           </li>
         </ul>
+      </Section>
+
+      <Section
+        id="latest-guidance"
+        num="8"
+        title="What the current A2A guidance adds"
+        lead="This demo proves a secure one-shot handoff. The current protocol guidance gives us the next lessons—and a clear boundary around what is implemented today."
+      >
+        <div className="a2l-lesson-grid">
+          {A2A_LATEST_LESSONS.map((lesson) => (
+            <article className="a2l-lesson" key={lesson.id}>
+              <h3>{lesson.title}</h3>
+              <p>{lesson.body}</p>
+              <a href={lesson.href} target="_blank" rel="noreferrer">Read the official lesson</a>
+            </article>
+          ))}
+        </div>
+        <div className="a2l-status-block">
+          <h3>Implementation status</h3>
+          <ul className="a2l-status-list">
+            {A2A_IMPLEMENTATION_STATUS.map((item) => (
+              <li key={item.id}>
+                <span className={`a2l-status-state a2l-status-state--${item.state}`}>{item.state}</span>
+                <span><b>{item.label}</b> — {item.detail}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </Section>
     </div>
   );

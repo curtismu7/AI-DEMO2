@@ -2,7 +2,7 @@
 .mcp-inspector-page .mcp-inspector {
   margin: 0;
   padding: 0;
-  color: #0f172a;
+  color: var(--th-text);
 }
 
 /* ── MCP Session History panel ── */
@@ -19,11 +19,11 @@
 }
 .mcp-history__count {
   font-size: 0.8rem;
-  color: #999999;
+  color: var(--th-text);
 }
 .mcp-history__empty {
   margin: 0;
-  color: #999999;
+  color: var(--th-text);
   font-size: 0.9rem;
 }
 .mcp-history__list {
@@ -88,7 +88,7 @@
   width: 100%;
   margin: 0.2rem 0 0;
   font-size: 0.8rem;
-  color: #666666;
+  color: var(--th-text);
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -132,7 +132,7 @@
 
 .mcp-inspector__subtitle {
   margin: 0;
-  color: #666666;
+  color: var(--th-text);
   font-size: 0.95rem;
   max-width: 42rem;
 }
@@ -218,7 +218,7 @@
 .mcp-inspector__note {
   margin: 0;
   font-size: 0.9rem;
-  color: #666666;
+  color: var(--th-text);
   line-height: 1.5;
 }
 
@@ -233,7 +233,7 @@
 .mcp-inspector__meta {
   margin: 0;
   font-size: 0.85rem;
-  color: #999999;
+  color: var(--th-text);
 }
 
 .mcp-inspector__row {
@@ -282,7 +282,7 @@
 }
 
 .mcp-inspector__desc {
-  color: #666666;
+  color: var(--th-text);
   font-size: 0.9rem;
   margin: 0 0 0.5rem;
 }
@@ -298,7 +298,7 @@
   font-size: 0.8rem;
   font-weight: 600;
   margin-bottom: 0.35rem;
-  color: #666666;
+  color: var(--th-text);
 }
 
 .mcp-inspector__textarea {
@@ -356,7 +356,7 @@
 }
 
 .mcp-inspector__muted {
-  color: #999999;
+  color: var(--th-text);
   font-size: 0.85rem;
   margin: 0.5rem 0 0;
 }
@@ -418,7 +418,7 @@
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #999999;
+  color: var(--th-text);
 }
 
 .mcp-inspector__dl {
@@ -439,11 +439,11 @@
 
 .mcp-inspector__dl dd {
   margin: 0.2rem 0 0;
-  color: #666666;
+  color: var(--th-text);
 }
 
 .mcp-inspector__dd-highlight {
-  color: #0f172a !important;
+  color: var(--th-text) !important;
   font-weight: 500;
 }
 

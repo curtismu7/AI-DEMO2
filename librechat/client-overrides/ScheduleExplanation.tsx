@@ -20,7 +20,7 @@ const EXPLANATIONS: Record<string, ScheduleExplanationCopy> = {
     summary: 'Checks active equipment rentals through the Super Sports gateway.',
     capability: 'Read-only. It needs the seed account connected to the gateway.',
     successMeaning: 'Success means the rentals response was recorded in a chat.',
-    recovery: 'Connect the seed account to super-sports-gateway, then run it again.',
+    recovery: 'Sign in to the Sports gateway once; LibreChat reconnects it on startup, then run it again.',
     tone: 'error',
   },
   'Weekly savings sweep': {

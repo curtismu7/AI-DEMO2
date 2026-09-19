@@ -37,7 +37,7 @@ import { adminConfigSafeView, applyAdminConfigUpdate, ADMIN_CONFIG_ALLOWED_KEYS 
 import { McpTokenExchangeClient } from '../auth/McpTokenExchangeClient';
 import { GatewayIntrospectionClient } from '../auth/GatewayIntrospectionClient';
 import { extractBearerToken, validateInboundToken, TokenValidationError, type DecodedGatewayToken } from '../tokenValidator';
-import { isPrivilegeBridgeBearer, subjectTokenFromHeaders } from '../auth/privilegeBridge';
+import { isPrivilegeBridgeBearer, transactionTokenHeaderState } from '../auth/privilegeBridge';
 import { guardToolsList } from '../pingAuthorizeGuard';
 import { getScopesForGatewayTool } from '../auth/toolScopes';
 import { extractCorrelationId } from '../correlationId';
@@ -721,7 +721,7 @@ export class GatewayServer {
 
     // Privilege bridge. When the PingOne Privilege AI Gateway fronts this one,
     // the Authorization header belongs to Privilege (the Agentic App's Static
-    // Token) and the caller's own token arrives in X-Subject-Token. Swap the
+    // Token) and the caller's own token arrives in tx-token. Swap the
     // subject in HERE, before validateInboundToken — which would reject the
     // secret at JWKS key selection — so every stage below (introspection, RFC
     // 8693 exchange, PingOne Authorize, the audit rail) runs on the real
@@ -734,8 +734,12 @@ export class GatewayServer {
     // deferred to resolvePrivilegeBridgeDiscovery() below, after parsing.
     let bridgeAwaitingMachineToken = false;
     if (isPrivilegeBridgeBearer(bearerToken, this.config.privilegeBridgeSecret)) {
-      const subjectToken = subjectTokenFromHeaders(req.headers);
-      if (subjectToken) bearerToken = subjectToken;
+      const subjectHeader = transactionTokenHeaderState(req.headers);
+      if (subjectHeader.present && !subjectHeader.value) {
+        this.sendUnauthorized(req, res, 'invalid_token', 'Privilege bridge presented an invalid tx-token');
+        return;
+      }
+      if (subjectHeader.value) bearerToken = subjectHeader.value;
       else bridgeAwaitingMachineToken = true;
     }
 
@@ -801,7 +805,7 @@ export class GatewayServer {
         // tool as the gateway's own machine identity because nobody was
         // attached is exactly the substitution this bridge must never make.
         this.sendUnauthorized(req, res, 'invalid_token',
-          `Privilege bridge presented no X-Subject-Token; ${method || 'this method'} requires a delegated user`);
+          `Privilege bridge presented no tx-token; ${method || 'this method'} requires a delegated user`);
         return;
       }
       try {

@@ -7,8 +7,9 @@ export const BANKING_TOOLS: McpToolDef[] = [
     name: 'list_banking_accounts',
     description: 'List all bank accounts for the authenticated user, including checking, savings, and credit card accounts with current balances.',
     inputSchema: { type: 'object', properties: {}, required: [] },
-    // `read` is the scope-topology.json scope for banking reads (same as the
-    // gateway's get_my_accounts). `banking:read` existed in no PingOne resource,
+    // `read` is the scope-topology.json scope for this legacy banking backend.
+    // The gateway's get_my_accounts uses the narrower `accounts:read` scope.
+    // `banking:read` existed in no PingOne resource,
     // so every call 403'd — scripts/check-tool-scope-registration.js carried it
     // as a known-bad declaration until the Privilege banking-mcp door routed them.
     requiredScopes: ['read'],

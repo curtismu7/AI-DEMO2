@@ -58,7 +58,7 @@
   margin: 0;
   font-size: 1.125rem;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--th-text);
 }
 
 .edu-drawer-close {
@@ -77,7 +77,7 @@
   font-size: 1.1rem;
   line-height: 1;
   cursor: pointer;
-  color: #666666;
+  color: var(--th-text);
   padding: 0;
   z-index: 1;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
@@ -127,7 +127,7 @@
 .edu-drawer-body h3 {
   font-size: 0.95rem;
   margin: 1rem 0 0.5rem;
-  color: #0f172a;
+  color: var(--th-text);
 }
 
 .edu-drawer-body h3:first-child {

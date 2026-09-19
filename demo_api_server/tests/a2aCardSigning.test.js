@@ -9,10 +9,22 @@ const {
   cardVerifier,
 } = require('../services/a2aCardSigningService');
 const { createA2aProtocolRouter } = require('../services/a2aProtocolServer');
+const { buildSpecialistAgentCard } = require('../services/a2aAgentCardService');
 
 const CFG = { getEffective: (k) => (k === 'PUBLIC_APP_URL' ? 'https://api.ping.demo:3001' : '') };
 
 describe('A2A Agent Card signing', () => {
+  test('keeps public cards tenant-neutral and exposes only an opaque tenant handle when authenticated', () => {
+    const publicCard = buildSpecialistAgentCard('investment', CFG);
+    const tenantCard = buildSpecialistAgentCard('investment', CFG, {
+      authenticated: true,
+      tenantHandle: 't_opaqueTenantHandle123456',
+    });
+    expect(publicCard.supportedInterfaces[0].tenant).toBe('');
+    expect(tenantCard.supportedInterfaces[0].tenant).toBe('t_opaqueTenantHandle123456');
+    expect(JSON.stringify(tenantCard)).not.toContain('tenant-a');
+  });
+
   test('publishes one Ed25519 verification key whose kid matches the signature', async () => {
     const jwks = publicJwks();
     expect(jwks.keys).toHaveLength(1);

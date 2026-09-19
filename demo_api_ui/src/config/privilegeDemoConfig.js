@@ -19,7 +19,7 @@ export const PRIVILEGE_DEMO = {
     'Demo Engineering hosts an always-on shared Privilege multi-tenant environment. Full workstation setup, PingOne onboarding, MFA, and the live presenter script (AWS AppRole, four-eyes approve, S3, VPC bundle, kill switch/sudo, Kubernetes) live in the SE1 shared-demo guide.',
   se1GuidePath: 'privilege/SE1-Privilege-Shared-Demo.md',
   se1GuideUrl:
-    'https://github.com/curtismu7/AI-DEMO2/blob/main/privilege/SE1-Privilege-Shared-Demo.md',
+    'https://github.com/cmuir_pingcorp/AI-DEMO2/blob/main/privilege/SE1-Privilege-Shared-Demo.md',
   agentEnvId: 'a32ebaed-d454-4f5a-9575-697cfcb6f822',
   personas: {
     platformAdmin: {

@@ -88,6 +88,7 @@ export function PopOutPortal({ win, children, rootId = "dm-root" }) {
  *   defaultHeight number (default 600)
  *   defaultX      number | null  (null = auto-centre)
  *   defaultY      number | null  (null = auto-centre)
+ *   placement     'center' | 'right' (default 'center')
  *   storageKey    string | null  (localStorage key for pos/size persistence)
  *   minWidth      number (default 320)
  *   minHeight     number (default 240)
@@ -109,6 +110,7 @@ export default function DraggableModal({
   defaultHeight = 600,
   defaultX = null,
   defaultY = null,
+  placement = "center",
   storageKey = null,
   minWidth = 320,
   minHeight = 240,
@@ -129,16 +131,20 @@ export default function DraggableModal({
       x:
         defaultX != null
           ? defaultX
+          : placement === "right"
+            ? Math.max(0, window.innerWidth - defaultWidth)
           : Math.max(0, Math.round((window.innerWidth - defaultWidth) / 2)),
       y:
         defaultY != null
           ? defaultY
+          : placement === "right"
+            ? 0
           : Math.max(
               0,
               Math.round((window.innerHeight - defaultHeight) / 2) - 30,
             ),
     }),
-    [defaultX, defaultY, defaultWidth, defaultHeight],
+    [defaultX, defaultY, defaultWidth, defaultHeight, placement],
   );
 
   const { pos, size, handleDragStart, createResizeHandler } = useDraggablePanel(
@@ -198,6 +204,11 @@ ${inlineStyles}
     popoutWin.document.documentElement.dataset.theme = nextTheme;
     setPopoutTheme(nextTheme);
   }, [popoutTheme, popoutWin]);
+
+  const handlePopoutClose = useCallback(() => {
+    if (popoutWin && !popoutWin.closed) popoutWin.close();
+    onClose?.();
+  }, [onClose, popoutWin]);
 
   // Close popup window on unmount
   useEffect(
@@ -284,8 +295,9 @@ ${inlineStyles}
               <button
                 type="button"
                 className="dm-btn"
-                onClick={onClose}
+                onClick={handlePopoutClose}
                 title="Close"
+                aria-label="Close"
               >
                 ✕
               </button>
@@ -341,10 +353,11 @@ ${inlineStyles}
         aria-label={title}
         aria-modal={noBackdrop ? undefined : "true"}
         style={{
-          left: pos.x,
-          top: pos.y,
+          left: placement === "right" ? "auto" : pos.x,
+          right: placement === "right" ? 0 : "auto",
+          top: placement === "right" ? 0 : pos.y,
           width: size.w,
-          height: size.h,
+          height: placement === "right" ? "100vh" : size.h,
           zIndex,
         }}
       >

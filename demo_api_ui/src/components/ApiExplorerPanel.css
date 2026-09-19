@@ -24,14 +24,14 @@
 .aep-method-badge--POST { background: #dcfce7; color: #166534; }
 .aep-method-badge--PUT { background: #fef3c7; color: #92400e; }
 .aep-method-badge--DELETE { background: #fee2e2; color: #991b1b; }
-.aep-method-badge--PATCH { background: #e2e8f0; color: #475569; }
-.aep-method-badge--OPTIONS { background: #e2e8f0; color: #475569; }
-.aep-method-badge--HEAD { background: #e2e8f0; color: #475569; }
+.aep-method-badge--PATCH { background: #e2e8f0; color: var(--th-text); }
+.aep-method-badge--OPTIONS { background: #e2e8f0; color: var(--th-text); }
+.aep-method-badge--HEAD { background: #e2e8f0; color: var(--th-text); }
 
 /* Tree item URL text */
 .aep-tree-url {
   font-size: var(--font-size-xs);
-  color: #475569;
+  color: var(--th-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

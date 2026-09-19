@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Quick Config surface selector</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+        background: #071322;
+        color: #f4f7ff;
+        --bg: #071322;
+        --panel: #101c30;
+        --panel-raised: #172640;
+        --line: #30486a;
+        --line-soft: #263b5a;
+        --muted: #b8c7dc;
+        --blue: #8dbfff;
+        --green: #58e0ad;
+        --green-bg: #10352d;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-width: 760px; background: radial-gradient(circle at 88% 0, #163b6d 0, transparent 40%), var(--bg); }
+      button { font: inherit; cursor: pointer; }
+      .page { max-width: 980px; margin: 0 auto; padding: 54px 34px 70px; }
+      .page-head { position: relative; }
+      .quick-config { position: absolute; top: -2px; right: 0; display: inline-flex; align-items: center; gap: 9px; padding: 9px 12px; border: 1px solid #52759c; border-radius: 9px; background: #10233d; color: #eff6ff; font-weight: 800; }
+      .quick-config:hover, .quick-config:focus-visible { border-color: var(--blue); background: #173258; }
+      .quick-config-badge { padding: 2px 6px; border: 1px solid var(--green); border-radius: 999px; color: var(--green); font-size: 11px; letter-spacing: .05em; }
+      h1 { max-width: 720px; margin: 0; font-size: clamp(34px, 5vw, 56px); line-height: 1.02; letter-spacing: -.055em; }
+      .intro { max-width: 700px; margin: 18px 0 0; color: var(--muted); font-size: 15px; line-height: 1.5; }
+      .selector-card { margin-top: 42px; padding: 24px; border: 1px solid var(--line); border-radius: 18px; background: #101c30f2; box-shadow: 0 24px 70px #02081499; }
+      .card-head { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; }
+      .eyebrow { color: var(--blue); font-size: 11px; font-weight: 900; letter-spacing: .1em; }
+      h2 { margin: 6px 0 0; font-size: 22px; letter-spacing: -.025em; }
+      .card-copy { max-width: 650px; margin: 8px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+      .surface-chip { flex: 0 0 auto; padding: 6px 10px; border: 1px solid var(--green); border-radius: 999px; color: var(--green); background: var(--green-bg); font-size: 11px; font-weight: 800; }
+      .field { margin-top: 22px; padding: 16px; border: 1px solid var(--line); border-radius: 13px; background: #0d192c; }
+      .field-title { font-size: 14px; font-weight: 850; }
+      .field-help { margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+      .view-field { margin-bottom: 14px; }
+      .view-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 14px; }
+      .view-option { min-height: 70px; padding: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel-raised); color: #f4f7ff; text-align: left; }
+      .view-option:hover, .view-option.selected, .view-option:focus-visible { border-color: var(--blue); background: #1b3555; }
+      .view-option.selected { box-shadow: inset 0 -3px 0 var(--blue); }
+      .view-option strong { display: block; font-size: 12px; }
+      .view-option span { display: block; margin-top: 5px; color: var(--muted); font-size: 10px; line-height: 1.3; }
+      .option-grid { display: grid; gap: 9px; margin-top: 14px; }
+      .option { display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: center; width: 100%; padding: 13px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-raised); color: #f4f7ff; text-align: left; }
+      .option:hover, .option.selected, .option:focus-visible { border-color: var(--blue); background: #1b3555; }
+      .option.selected { box-shadow: inset 3px 0 0 var(--blue); }
+      .radio { display: grid; place-items: center; width: 21px; height: 21px; border: 2px solid #6381a6; border-radius: 50%; }
+      .selected .radio { border-color: var(--blue); }
+      .selected .radio::after { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--blue); }
+      .option-name { font-size: 14px; font-weight: 850; }
+      .option-detail { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; line-height: 1.35; }
+      .key { padding: 3px 6px; border: 1px solid #4a607c; border-radius: 5px; color: #b9c9dc; font-size: 10px; font-weight: 800; }
+      .flow-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+      .flow-control { padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-raised); color: #f4f7ff; text-align: left; }
+      .flow-control.selected { border-color: var(--green); background: var(--green-bg); }
+      .flow-control strong { display: block; font-size: 13px; }
+      .flow-control span { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+      .preview { position: relative; height: 126px; margin-top: 18px; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: #0b1729; }
+      .preview::before, .preview::after { content: ""; position: absolute; top: 22px; bottom: 20px; width: 1px; background: #526b8b; }
+      .preview::before { left: 24%; } .preview::after { left: 73%; }
+      .lane { position: absolute; top: 9px; color: #9bb8da; font-size: 10px; font-weight: 850; }
+      .lane.one { left: 10%; } .lane.two { left: 61%; }
+      .flow { position: absolute; left: 24%; right: 27%; height: 2px; background: var(--blue); }
+      .flow::after { content: ""; position: absolute; right: 0; top: -4px; border: 5px solid transparent; border-right: 0; border-left-color: var(--blue); }
+      .flow.a { top: 54px; } .flow.b { top: 80px; opacity: .5; }
+      .mini-note { position: absolute; left: 31%; top: 97px; color: #f5ca79; font-size: 10px; font-weight: 700; }
+      :focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+      @media (max-width: 760px) { body { min-width: 0; } .page { padding: 28px 18px 46px; } .quick-config { position: static; margin-bottom: 24px; } .card-head { display: block; } .surface-chip { display: inline-block; margin-top: 14px; } }
+      @media (max-width: 760px) { .view-grid { grid-template-columns: repeat(2, 1fr); } }
+      @media (max-width: 520px) { .flow-controls { grid-template-columns: 1fr; } .view-grid { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="page-head">
+        <button class="quick-config" type="button" aria-label="Quick Config"><span>Quick Config</span><span class="quick-config-badge" aria-hidden="true">02</span></button>
+        <h1>Choose where the flow should appear</h1>
+        <p class="intro">A compact control panel for switching between embedded, pop-out, and combined evidence views without losing the active trace.</p>
+      </header>
+      <section class="selector-card" aria-labelledby="selector-title">
+        <div class="card-head"><div><div class="eyebrow">QUICK CONFIG · FLOW SURFACE</div><h2 id="selector-title">Radio list with flow controls</h2><p class="card-copy">The surface choice stays spacious, with the related placement controls directly below it.</p></div><span class="surface-chip">Both</span></div>
+        <div class="field view-field"><div class="field-title">What should appear?</div><div class="field-help">Pick the evidence view first. Its surface choice is set below.</div>
+          <div class="view-grid">
+            <button class="view-option selected" type="button"><strong>Movie reel</strong><span>Step-by-step live trace</span></button>
+            <button class="view-option" type="button"><strong>Simple stepper</strong><span>Compact current step</span></button>
+            <button class="view-option" type="button"><strong>Sequence view</strong><span>Actor-to-actor flow</span></button>
+            <button class="view-option" type="button"><strong>Token topology</strong><span>Delegation map</span></button>
+            <button class="view-option" type="button"><strong>OAuth visualizer</strong><span>Protocol walkthrough</span></button>
+          </div>
+        </div>
+        <div class="field"><div class="field-title">Where should it appear?</div><div class="field-help">The current selection is highlighted with both color and a radio indicator.</div>
+          <div class="option-grid">
+            <button class="option" type="button"><span class="radio"></span><span><span class="option-name">Off</span><span class="option-detail">Do not render the sequence view.</span></span><span class="key">1</span></button>
+            <button class="option" type="button"><span class="radio"></span><span><span class="option-name">Embedded</span><span class="option-detail">Place the flow below the agent panel.</span></span><span class="key">2</span></button>
+            <button class="option" type="button"><span class="radio"></span><span><span class="option-name">Pop-out</span><span class="option-detail">Use a separate resizable window for presenting.</span></span><span class="key">3</span></button>
+            <button class="option selected" type="button"><span class="radio"></span><span><span class="option-name">Both</span><span class="option-detail">Show the same live flow in both surfaces.</span></span><span class="key">4</span></button>
+          </div>
+          <div class="flow-controls"><button class="flow-control selected" type="button"><strong>Both</strong><span>Keep dashboard and presenter window visible.</span></button><button class="flow-control selected" type="button"><strong>Follow flow</strong><span>Keep the active step in view as the trace runs.</span></button></div>
+        </div>
+        <div class="preview" aria-label="Linked presentation preview"><span class="lane one">DASHBOARD</span><span class="lane two">POPOUT</span><i class="flow a"></i><i class="flow b"></i><span class="mini-note">same trace, two views</span></div>
+      </section>
+    </main>
+  </body>
+</html>

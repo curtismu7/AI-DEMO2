@@ -39,30 +39,20 @@ export default function ComplianceModalPopout() {
 
   if (!data) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center', fontSize: '14px', color: '#666' }}>
+      <div className="compliance-modal-popout-root compliance-modal-popout-loading">
         Loading compliance modal…
       </div>
     );
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ position: 'relative', width: '90vw', height: '90vh', maxWidth: '500px', maxHeight: '700px', background: '#fff', borderRadius: '8px', boxShadow: '0 4px 16px rgba(0, 0, 0, 0.15)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div className="compliance-modal-popout-root">
+      <div className="compliance-modal-popout-panel">
         {/* Close button — top right corner */}
         <button
           type="button"
           onClick={() => window.close()}
-          style={{
-            position: 'absolute',
-            top: '12px',
-            right: '12px',
-            background: 'none',
-            border: 'none',
-            fontSize: '24px',
-            cursor: 'pointer',
-            padding: '4px 8px',
-            zIndex: 1000,
-          }}
+          className="compliance-modal-popout-close"
           aria-label="Close window"
         >
           ✕

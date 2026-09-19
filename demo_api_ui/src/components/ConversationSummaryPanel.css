@@ -44,7 +44,7 @@
   padding: 1px 7px;
   border-radius: 9px;
   background: var(--ba-chip-bg, #eeeeee);
-  color: var(--ba-chip-txt, #333333);
+  color: var(--ba-chip-txt, var(--th-text));
   font-variant-numeric: tabular-nums;
 }
 
@@ -100,5 +100,5 @@
   border: 1px solid var(--ba-chip-bd, #cccccc);
   border-radius: 10px;
   background: var(--ba-chip-bg, #f4f4f4);
-  color: var(--ba-chip-txt, #333333);
+  color: var(--ba-chip-txt, var(--th-text));
 }

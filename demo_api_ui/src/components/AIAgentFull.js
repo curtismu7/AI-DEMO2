@@ -72,7 +72,7 @@ import JsonField from "./shared/JsonField";
 import AgentGreetingHero from "./AgentGreetingHero";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
-import DemoStepsDropdown from "./DemoStepsDropdown";
+import DemoStepsDropdown, { readStoredDemoStepsOpen } from "./DemoStepsDropdown";
 import AdminToolsDropdown from "./AdminToolsDropdown";
 import { markUseCaseCompleted, clearCompletedUseCases } from "../utils/useCaseDemoProgress";
 import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
@@ -476,7 +476,7 @@ export default function BankingAgentFull({
   /** Discovery popout — "All actions" overlay. */
   const [showDiscovery, setShowDiscovery] = useState(false);
   /** Demo steps popout — same list as /use-cases Demo section. */
-  const [showDemoSteps, setShowDemoSteps] = useState(false);
+  const [showDemoSteps, setShowDemoSteps] = useState(readStoredDemoStepsOpen);
   /** "direct" (today's BFF pipeline) or "privilege" (standalone Privilege AI
    * Gateway — no banking consent/HITL/kill-switch on this path). Shadows the
    * module-level `callMcpTool` import below for the rest of this component;
@@ -9304,6 +9304,7 @@ export default function BankingAgentFull({
             } else {
               setHitlChallengeId({
                 challengeId: cid,
+                mcpApp: useCaseId === "UC8" || useCaseId === "hitl-consent",
                 actionId: response.transactionType || "transfer",
                 snapshot: data.snapshot || null,
                 form: {
@@ -11234,6 +11235,7 @@ export default function BankingAgentFull({
                 open
                 challengeId={hitlChallengeId.challengeId}
                 preloadedSnapshot={hitlChallengeId.snapshot}
+                mcpApp={hitlChallengeId.mcpApp}
                 user={effectiveUser}
                 onClose={() => setHitlChallengeId(null)}
                 onTransactionSuccess={(msg) => {

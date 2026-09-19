@@ -115,6 +115,9 @@ test('the real docker-compose.yml parses into many services', () => {
   assert.ok(names.length > 20, `expected >20 services, got ${names.length}`);
   assert.ok(names.includes('demo-api-server'), 'demo-api-server must parse');
   assert.ok(names.includes('mcp-gateway'), 'mcp-gateway must parse');
+  assert.ok(names.includes('mcp-discovery-agent'), 'mcp-discovery-agent must parse');
+  assert.ok(text.includes('MCP_DISCOVERY_AGENT_URL: "http://mcp-discovery-agent:3910"'));
+  assert.ok(text.includes('MCP_DISCOVERY_STORE_PATH: "/data/inventory.json"'));
   // Self-comparison must be empty, or deploy-live would recreate the world.
   assert.deepStrictEqual(changedEnvServices(text, text), []);
 });

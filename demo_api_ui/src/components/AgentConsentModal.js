@@ -127,6 +127,8 @@ export default function AgentConsentModal({
       onClose={onDismiss}
       title={title}
       footer={footer}
+      placement="right"
+      className="acm-side-drawer"
       defaultWidth={560}
       defaultHeight={defaultModalHeight}
       storageKey="agent-consent-modal-v6"

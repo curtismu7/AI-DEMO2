@@ -22,6 +22,7 @@
 .gitignore
 .claude
 .zed-worktrees
+.worktrees
 
 # Runtime logs, caches, OS cruft, and test artifacts.
 **/*.log

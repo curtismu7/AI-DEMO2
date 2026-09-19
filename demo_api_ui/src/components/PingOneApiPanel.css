@@ -62,7 +62,7 @@
 
 .p1-api-panel-meta {
   font-size: 0.82rem;
-  color: #374151;
+  color: var(--th-text);
   margin-bottom: 6px;
   margin-top: 8px;
   background: #f8fafc;
@@ -74,7 +74,7 @@
 
 .p1-api-panel-meta strong {
   font-weight: 700;
-  color: #0f172a;
+  color: var(--th-text);
 }
 
 .p1-api-panel-body {
@@ -112,13 +112,13 @@
 }
 
 .p1-api-panel-header-key {
-  color: #475569;
+  color: var(--th-text);
   font-weight: 600;
   white-space: nowrap;
 }
 
 .p1-api-panel-header-val {
-  color: #0f172a;
+  color: var(--th-text);
   font-family: inherit;
   font-size: 0.8rem;
   word-break: break-all;

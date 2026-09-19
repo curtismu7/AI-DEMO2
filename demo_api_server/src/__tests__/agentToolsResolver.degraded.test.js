@@ -11,7 +11,7 @@ jest.mock('../../services/agentMcpTokenService', () => ({
 jest.mock('../../services/agentGatewayClient', () => ({
   listAvailableTools: jest.fn(),
   getLocalToolsCatalog: () => [
-    { name: 'get_my_accounts', requiredScopes: ['read'], readOnly: true },
+    { name: 'get_my_accounts', requiredScopes: ['accounts:read'], readOnly: true },
   ],
 }));
 

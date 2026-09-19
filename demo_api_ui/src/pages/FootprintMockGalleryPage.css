@@ -532,7 +532,7 @@
   gap: 10px;
 }
 .afm-box-tile-head h3 { margin: 4px 0 6px; font-size: var(--font-size-h3); letter-spacing: -0.02em; }
-.afm-box-tile-head p { margin: 0; color: var(--muted, #475569); font-size: var(--font-size-sm); line-height: 1.4; }
+.afm-box-tile-head p { margin: 0; color: var(--muted, var(--th-text)); font-size: var(--font-size-sm); line-height: 1.4; }
 .afm-box-kicker {
   font-size: 10px;
   font-weight: 700;
@@ -548,6 +548,6 @@
   background: #0b1220;
 }
 .afm-box-preview > * { height: 100%; transform: scale(0.92); transform-origin: top left; width: 108%; }
-.afm-box-meta { font-size: var(--font-size-2xs); color: var(--muted, #475569); display: grid; gap: 4px; }
-.afm-box-meta .lbl { font-weight: 700; color: var(--ink, #0f172a); margin-right: 6px; }
+.afm-box-meta { font-size: var(--font-size-2xs); color: var(--muted, var(--th-text)); display: grid; gap: 4px; }
+.afm-box-meta .lbl { font-weight: 700; color: var(--ink, var(--th-text)); margin-right: 6px; }
 .afm-box-tile .afm-live-btn { align-self: flex-start; }

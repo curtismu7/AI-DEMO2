@@ -149,7 +149,7 @@
 .confirm-modal-message {
   font-size: 0.9rem;
   line-height: 1.6;
-  color: var(--modal-body-text-secondary, #374151);
+  color: var(--modal-body-text-secondary, var(--th-text));
 }
 
 .dm-scroll::-webkit-scrollbar {

@@ -14,7 +14,7 @@
   /* EducationBar is a fixed top-right hamburger — no extra top padding for a full-width bar */
   padding: clamp(20px, 3vw, 36px) clamp(12px, 5vw, 64px) clamp(28px, 6vh, 120px);
   font-family: var(--font-primary);
-  background-color: var(--brand-light-gray);
+  background-color: var(--th-text);
   min-height: 100vh;
   color: var(--brand-dark-gray);
 }
@@ -574,7 +574,7 @@
 .embedded-banking-agent-lead {
   margin: 0 0 0.75rem;
   font-size: 0.9rem;
-  color: #999999;
+  color: var(--th-text);
 }
 
 /* Hero strip + light toolbar row (actions live below the blue header) */
@@ -1166,7 +1166,7 @@
   letter-spacing: 0.03em;
   font-size: 0.82rem;
   font-weight: 700;
-  color: #4b5563;
+  color: var(--th-text);
 }
 
 .account-summary-cell--mono {
@@ -1293,7 +1293,7 @@
 .account-demo-badge {
   font-size: 10px;
   background: #e5e7eb;
-  color: #374151;
+  color: var(--th-text);
   border-radius: 4px;
   padding: 2px 6px;
 }
@@ -1560,7 +1560,7 @@
 .form-hint.transfer-amount-hint {
   margin: 0.35rem 0 0;
   font-size: 0.8rem;
-  color: #999999;
+  color: var(--th-text);
   line-height: 1.35;
 }
 
@@ -1801,7 +1801,7 @@
 
 .tx-tab:hover {
   background: rgba(255, 255, 255, 0.7);
-  color: #111827;
+  color: var(--th-text);
 }
 
 .tx-tab--active {
@@ -1898,7 +1898,7 @@
 }
 
 .transaction-account {
-  color: #4b5563;
+  color: var(--th-text);
   font-weight: 500;
   font-size: 0.875rem;
 }
@@ -2221,6 +2221,7 @@
 
 .token-modal {
   background: var(--th-bg-card);
+  color: var(--th-text);
   border-radius: 12px;
   max-width: 900px;
   width: 100%;
@@ -2247,13 +2248,13 @@
   margin: 0;
   font-size: 2rem;
   font-weight: 600;
-  color: #2c5282;
+  color: var(--th-text);
 }
 
 .close-btn {
   background: none;
   border: none;
-  color: white;
+  color: var(--th-text);
   font-size: 2rem;
   cursor: pointer;
   padding: 0;
@@ -2282,6 +2283,7 @@
   max-width: none;
   width: auto;
   border-radius: 0;
+  color: var(--th-text-body);
 }
 
 .token-info {
@@ -2291,7 +2293,7 @@
 }
 
 .token-section {
-  border: 1px solid #e1e5e9;
+  border: 1px solid var(--th-border);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -2303,7 +2305,7 @@
   font-size: 1.3rem;
   font-weight: 600;
   color: var(--th-text);
-  border-bottom: 1px solid #e1e5e9;
+  border-bottom: 1px solid var(--th-border);
 }
 
 .token-section > div {
@@ -2318,7 +2320,7 @@
 
 .token-raw-display {
   background: var(--th-bg-inset);
-  border: 1px solid #e1e5e9;
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   padding: 15px;
   font-family: inherit;
@@ -2343,7 +2345,7 @@
   gap: 12px;
   align-items: center;
   padding: 12px 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--th-border);
   font-size: 1.05rem;
 }
 
@@ -2361,7 +2363,7 @@
 
 .session-label {
   font-weight: 600;
-  color: #34495e;
+  color: var(--th-text-body);
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -2369,7 +2371,7 @@
 }
 
 .session-value {
-  color: #2c3e50;
+  color: var(--th-text);
   font-size: 0.9rem;
   word-break: break-word;
 }
@@ -2385,7 +2387,7 @@
 .token-field label {
   display: block;
   font-weight: 600;
-  color: #34495e;
+  color: var(--th-text-body);
   margin-bottom: 8px;
   font-size: 0.9rem;
   text-transform: uppercase;
@@ -2394,7 +2396,7 @@
 
 .token-json {
   background: var(--th-bg-inset);
-  border: 1px solid #e1e5e9;
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   padding: 15px;
   font-family: inherit;
@@ -2408,7 +2410,7 @@
 
 .token-raw {
   background: var(--th-bg-inset);
-  border: 1px solid #e1e5e9;
+  border: 1px solid var(--th-border);
   border-radius: 6px;
   padding: 12px;
   font-family: inherit;
@@ -2420,13 +2422,13 @@
 }
 
 .token-value {
-  background: #e8f4fd;
-  border: 1px solid #bee5eb;
+  background: var(--th-status-info-bg);
+  border: 1px solid var(--th-status-info-border);
   border-radius: 6px;
   padding: 10px 15px;
   font-family: inherit;
   font-size: 0.9rem;
-  color: #0c5460;
+  color: var(--th-status-info-text);
   font-weight: 500;
 }
 
@@ -2811,7 +2813,7 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: #999999;
+  color: var(--th-text);
   margin-bottom: 6px;
 }
 
@@ -2819,7 +2821,7 @@
   margin: 0;
   font-size: 0.78rem;
   line-height: 1.45;
-  color: #999999;
+  color: var(--th-text);
 }
 
 .ud-profile-meta {
@@ -2831,7 +2833,7 @@
 }
 
 .user-dashboard--2026 .ud-profile-meta {
-  color: var(--dash-text, #1f2937);
+  color: var(--dash-text, var(--th-text));
   font-weight: 600;
 }
 
@@ -2843,25 +2845,25 @@
 .ud-insight-strip__text {
   margin: 0;
   font-size: 0.88rem;
-  color: var(--dash-muted, #999999);
+  color: var(--dash-muted, var(--th-text));
   line-height: 1.5;
 }
 
 /* Minimal “Apple-style” top bar (light surface) */
 .dashboard-header--surface {
   background: var(--dash-surface, #ffffff);
-  color: var(--dash-text, #0f172a);
+  color: var(--dash-text, var(--th-text));
   border-bottom: 1px solid var(--dash-border, rgba(15, 23, 42, 0.08));
   box-shadow: none;
 }
 
 .dashboard-header--surface .bank-name,
 .dashboard-header--surface .user-greeting {
-  color: var(--dash-text, #0f172a);
+  color: var(--dash-text, var(--th-text));
 }
 
 .dashboard-header--surface .user-email {
-  color: var(--dash-muted, #999999);
+  color: var(--dash-muted, var(--th-text));
   opacity: 1;
 }
 
@@ -3382,7 +3384,7 @@
   border-radius: 20px;
   border: 1px solid var(--brand-medium-gray);
   background: var(--brand-light-gray);
-  color: #666666;
+  color: var(--th-text);
   cursor: pointer;
   transition: background 0.15s;
 }
@@ -3427,6 +3429,7 @@
 /* ── Action drawer ───────────────────────────────────────────── */
 .ud-action-drawer {
   background: var(--th-bg-card);
+  color: var(--th-text);
   border-radius: 12px;
   border: 1px solid var(--brand-medium-gray);
   margin-bottom: 20px;
@@ -3438,9 +3441,10 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  color: var(--th-text);
   padding: 14px 18px;
-  background: var(--brand-light-gray);
-  border-bottom: 1px solid var(--brand-medium-gray);
+  background: var(--th-bg-inset);
+  border-bottom: 1px solid var(--th-border);
 }
 
 .ud-drawer-close {
@@ -3455,8 +3459,8 @@
 }
 
 .ud-drawer-close:hover {
-  background: var(--brand-light-gray);
-  color: #666666;
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .ud-action-form {
@@ -3471,7 +3475,7 @@
   display: block;
   font-size: 0.78rem;
   font-weight: 600;
-  color: #666666;
+  color: var(--th-text-body);
   margin-bottom: 5px;
 }
 
@@ -3483,7 +3487,7 @@
   border-radius: 7px;
   font-size: 0.85rem;
   background: var(--th-bg-card);
-  color: var(--brand-dark-gray);
+  color: var(--th-text);
   transition:
     border 0.15s,
     box-shadow 0.15s;
@@ -3648,7 +3652,7 @@
 
 .ud-hint-chip {
   font-size: 0.72rem;
-  color: #666666;
+  color: var(--th-text);
   background: var(--th-bg-card);
   border: 1px solid var(--brand-medium-gray);
   border-radius: 6px;
@@ -3681,7 +3685,7 @@
   justify-content: center;
   min-height: 60vh;
   gap: 16px;
-  color: #999999;
+  color: var(--th-text);
 }
 
 .ud-loading-spinner {
@@ -4023,7 +4027,7 @@
 .dashboard-header .token-info-btn:hover {
   background: #e2e8f0;
   border-color: var(--th-border-strong);
-  color: #111827;
+  color: var(--th-text);
 }
 .dashboard-header .logout-btn {
   background: var(--th-bg-inset);
@@ -4035,7 +4039,7 @@
   background: #e2e8f0;
   border-color: var(--th-border-strong);
   transform: none;
-  color: #111827;
+  color: var(--th-text);
 }
 
 /* 3. Token modal close button: dark on white header */

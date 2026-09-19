@@ -113,6 +113,14 @@ describe('spinnerService', () => {
     expect(spinner.getState().visible).toBe(false);
   });
 
+  it('never shows for guided demo track polling', async () => {
+    const { spinner } = await import('../spinnerService');
+    spinner.increment('GET', '/api/demo-track');
+    spinner.increment('GET', '/api/demo-track/runs');
+    vi.advanceTimersByTime(DEBOUNCE_MS * 2);
+    expect(spinner.getState().visible).toBe(false);
+  });
+
   /**
    * Regression for the leak that made re-enabling impossible: increment() had
    * no silent-URL guard while decrement() did, so polling routes ratcheted

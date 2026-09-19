@@ -782,7 +782,7 @@ const FLAG_REGISTRY = [
       'When **ON**, MCP tool calls enter the **PingOne Privilege AI Gateway** first, which applies its own ' +
       'per-application policy and then forwards to whichever Agent Gateway its Agentic App is registered ' +
       'against — so this **composes with** the Real PingOne Agent Gateway flag rather than replacing it. ' +
-      'Privilege owns the Authorization header on that hop, so the user token travels in `X-Subject-Token` ' +
+      'Privilege owns the Authorization header on that hop, so the user token travels in `tx-token` ' +
       'and the Agent Gateway rebuilds the delegated identity from it. Requires `MCP_PRIVILEGE_GATEWAY_URL` ' +
       '(or `MCP_FACADE_PRIVILEGE_GATEWAY_BASE`) and is **SE only** — the Agentic App backend must reach the ' +
       'Agent Gateway in-cluster.',

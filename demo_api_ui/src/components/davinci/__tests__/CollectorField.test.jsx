@@ -9,7 +9,15 @@
 // through the updater rather than by assignment, that an updater rejection is
 // surfaced, and that an unknown collector renders something visible.
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+
+const fido = vi.hoisted(() => ({
+  authenticate: vi.fn(),
+  register: vi.fn(),
+}));
+
+vi.mock("@forgerock/davinci-client", () => ({ fido: () => fido }));
+
 import CollectorField, { SUPPORTED_COLLECTORS } from "../CollectorField";
 
 const textCollector = {
@@ -77,6 +85,38 @@ const deviceRegistrationCollector = {
   },
 };
 
+const deviceAuthenticationCollector = {
+  category: "ObjectValueCollector",
+  type: "DeviceAuthenticationCollector",
+  id: "device-auth-0",
+  name: "deviceAuthentication",
+  input: { key: "deviceAuthentication", value: "", type: "DEVICE_AUTHENTICATION" },
+  output: {
+    key: "deviceAuthentication",
+    label: "Select Method",
+    type: "DEVICE_AUTHENTICATION",
+    options: [
+      { value: "EMAIL", type: "EMAIL", content: "Email" },
+      { value: "FIDO2", type: "FIDO2", content: "Biometrics/Security Key" },
+    ],
+  },
+};
+
+const fidoAuthenticationButtonCollector = {
+  category: "ObjectValueAutoCollector",
+  type: "FidoAuthenticationCollector",
+  id: "fido-auth-0",
+  name: "fidoAuthentication",
+  input: { key: "fidoAuthentication", value: {}, type: "FIDO_AUTHENTICATION" },
+  output: {
+    key: "fidoAuthentication",
+    type: "FIDO_AUTHENTICATION",
+    config: {
+      publicKeyCredentialRequestOptions: { challenge: [1, 2, 3], rpId: "ping-devops.com" },
+    },
+  },
+};
+
 const genericActionCollector = {
   category: "ActionCollector",
   type: "ActionCollector",
@@ -111,6 +151,19 @@ const protectCollector = {
   output: { key: "deviceRisk", label: "Device risk", type: "PROTECT" },
 };
 
+const fidoAuthenticationCollector = {
+  category: "ObjectValueAutoCollector",
+  type: "FidoAuthenticationCollector",
+  id: "fido-0",
+  name: "fido",
+  input: { key: "fido", value: {}, type: "FIDO2" },
+  output: {
+    key: "fido",
+    type: "FIDO2",
+    config: { action: "AUTHENTICATE", trigger: "button", publicKeyCredentialRequestOptions: { challenge: [1, 2, 3] } },
+  },
+};
+
 describe("CollectorField", () => {
   it("renders a TextCollector as a text input labelled from output.label", () => {
     render(<CollectorField collector={textCollector} updater={() => null} />);
@@ -138,6 +191,32 @@ describe("CollectorField", () => {
 
     expect(screen.getByLabelText("Choose a method")).toHaveValue("");
     expect(updater).not.toHaveBeenCalled();
+  });
+
+  it("renders a device authentication collector as an option selector", () => {
+    const updater = vi.fn(() => null);
+    render(<CollectorField collector={deviceAuthenticationCollector} updater={updater} />);
+
+    fireEvent.change(screen.getByLabelText("Select Method"), { target: { value: "FIDO2" } });
+
+    expect(updater).toHaveBeenCalledWith("FIDO2");
+    expect(screen.getByRole("option", { name: "Biometrics/Security Key" })).toBeInTheDocument();
+    expect(screen.queryByText(/Unsupported collector/)).toBeNull();
+  });
+
+  it("runs the SDK FIDO authentication ceremony and updates the collector", async () => {
+    const assertion = { assertionValue: { id: "credential-1" } };
+    fido.authenticate.mockResolvedValue(assertion);
+    const updater = vi.fn(() => null);
+    render(<CollectorField collector={fidoAuthenticationCollector} updater={updater} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /biometric|security key|passkey/i }));
+
+    await waitFor(() => expect(fido.authenticate).toHaveBeenCalledWith(
+      fidoAuthenticationCollector.output.config.publicKeyCredentialRequestOptions,
+    ));
+    expect(updater).toHaveBeenCalledWith(assertion);
+    expect(screen.queryByText(/Unsupported collector/)).toBeNull();
   });
 
   it("writes through the updater and never mutates the collector", () => {
@@ -226,6 +305,16 @@ describe("CollectorField", () => {
     expect(screen.queryByText(/Unsupported collector/)).toBeNull();
   });
 
+  it("offers a passkey action for FidoAuthenticationCollector instead of an unsupported warning", () => {
+    const onFido = vi.fn();
+    render(<CollectorField collector={fidoAuthenticationButtonCollector} onFido={onFido} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Use passkey" }));
+
+    expect(onFido).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText(/Unsupported collector/)).toBeNull();
+  });
+
   it("gives an action collector no input and no updater", () => {
     // ActionCollectors carry no value; CollectorValueType resolves to never.
     render(<CollectorField collector={submitCollector} onSubmit={() => {}} />);
@@ -289,6 +378,8 @@ describe("CollectorField", () => {
     expect(SUPPORTED_COLLECTORS).toEqual([
       "TextCollector",
       "DeviceRegistrationCollector",
+      "DeviceAuthenticationCollector",
+      "FidoAuthenticationCollector",
       "PasswordCollector",
       "ValidatedPasswordCollector",
       "SubmitCollector",

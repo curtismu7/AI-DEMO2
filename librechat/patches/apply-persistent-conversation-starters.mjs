@@ -5,6 +5,13 @@ const testPath = '/app/client/src/components/Chat/__tests__/ChatView.spec.tsx';
 const scheduleCardPath = '/app/client/src/components/SidePanel/Schedules/ScheduleCard.tsx';
 const scheduleExplanationPath = '/app/client/src/components/SidePanel/Schedules/ScheduleExplanation.tsx';
 const scheduleExplanationTestPath = '/app/client/src/components/SidePanel/Schedules/__tests__/ScheduleExplanation.spec.tsx';
+const mcpErrorRecoveryPath = '/app/client/src/components/Chat/Messages/Content/McpErrorRecovery.ts';
+const mcpErrorRecoveryTestPath = '/app/client/src/components/Chat/Messages/Content/McpErrorRecovery.spec.ts';
+const mcpRecoveryControllerPath = '/app/client/src/components/Chat/Messages/Content/McpRecoveryController.ts';
+const mcpRecoveryControllerTestPath = '/app/client/src/components/Chat/Messages/Content/McpRecoveryController.spec.ts';
+const mcpRecoveryErrorMessageTestPath = '/app/client/src/components/Chat/Messages/Content/McpRecoveryErrorMessage.spec.tsx';
+const mcpStartupReconnectPath = '/app/client/src/Providers/McpStartupReconnect.ts';
+const mcpStartupReconnectTestPath = '/app/client/src/Providers/McpStartupReconnect.spec.ts';
 const overrideRoot = '/tmp/client-overrides';
 
 function replaceOnce(source, before, after, label) {
@@ -60,6 +67,216 @@ writeFileSync(scheduleExplanationPath, scheduleExplanation);
 
 const scheduleExplanationTest = readFileSync(`${overrideRoot}/ScheduleExplanation.spec.tsx`, 'utf8');
 writeFileSync(scheduleExplanationTestPath, scheduleExplanationTest);
+
+const mcpErrorRecovery = readFileSync(`${overrideRoot}/McpErrorRecovery.ts`, 'utf8');
+writeFileSync(mcpErrorRecoveryPath, mcpErrorRecovery);
+
+const mcpErrorRecoveryTest = readFileSync(`${overrideRoot}/McpErrorRecovery.spec.ts`, 'utf8');
+writeFileSync(mcpErrorRecoveryTestPath, mcpErrorRecoveryTest);
+
+const mcpRecoveryController = readFileSync(`${overrideRoot}/McpRecoveryController.ts`, 'utf8');
+writeFileSync(mcpRecoveryControllerPath, mcpRecoveryController);
+
+const mcpRecoveryControllerTest = readFileSync(`${overrideRoot}/McpRecoveryController.spec.ts`, 'utf8');
+writeFileSync(mcpRecoveryControllerTestPath, mcpRecoveryControllerTest);
+
+const mcpRecoveryErrorMessageTest = readFileSync(`${overrideRoot}/McpRecoveryErrorMessage.spec.tsx`, 'utf8');
+writeFileSync(mcpRecoveryErrorMessageTestPath, mcpRecoveryErrorMessageTest);
+
+writeFileSync(mcpStartupReconnectPath, readFileSync(`${overrideRoot}/McpStartupReconnect.ts`, 'utf8'));
+writeFileSync(mcpStartupReconnectTestPath, readFileSync(`${overrideRoot}/McpStartupReconnect.spec.ts`, 'utf8'));
+
+let agentPanel = readFileSync('/app/client/src/Providers/AgentPanelContext.tsx', 'utf8');
+agentPanel = replaceOnce(
+  agentPanel,
+  "import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';",
+  "import React, { createContext, useContext, useState, useMemo, useEffect, useRef } from 'react';",
+  'startup reconnect React imports',
+);
+agentPanel = replaceOnce(
+  agentPanel,
+  "import store from '~/store';",
+  "import store from '~/store';\nimport { getStartupReconnectCandidates } from './McpStartupReconnect';",
+  'startup reconnect helper import',
+);
+agentPanel = replaceOnce(
+  agentPanel,
+  "  const { availableMCPServers, isLoading, availableMCPServersMap, connectionStatus } =\n    useMCPServerManager({ observeToolAuthorization });",
+  "  const {\n    availableMCPServers,\n    isLoading,\n    availableMCPServersMap,\n    connectionStatus,\n    initializeServer,\n  } = useMCPServerManager({ observeToolAuthorization });\n\n  const startupReconnectAttempted = useRef(new Set<string>());\n  useEffect(() => {\n    if (isLoading || availableMCPServers.length === 0) return;\n\n    const candidates = getStartupReconnectCandidates(availableMCPServers, connectionStatus);\n    for (const serverName of candidates) {\n      if (startupReconnectAttempted.current.has(serverName)) continue;\n      startupReconnectAttempted.current.add(serverName);\n      void initializeServer(serverName, false);\n    }\n  }, [availableMCPServers, connectionStatus, initializeServer, isLoading]);",
+  'startup reconnect effect',
+);
+writeFileSync('/app/client/src/Providers/AgentPanelContext.tsx', agentPanel);
+
+let messageContent = readFileSync('/app/client/src/components/Chat/Messages/Content/MessageContent.tsx', 'utf8');
+messageContent = replaceOnce(
+  messageContent,
+  "import { memo, Suspense, useMemo } from 'react';",
+  "import { memo, Suspense, useLayoutEffect, useMemo, useRef, useState } from 'react';",
+  'message recovery state import',
+);
+messageContent = replaceOnce(
+  messageContent,
+  "import { useMessageContext } from '~/Providers';",
+  "import { useMessageContext, useMessagesOperations } from '~/Providers';",
+  'message recovery operations import',
+);
+messageContent = replaceOnce(
+  messageContent,
+  "import { useLocalize } from '~/hooks';",
+  "import { useLocalize, useMCPServerManager } from '~/hooks';",
+  'message recovery MCP manager import',
+);
+messageContent = replaceOnce(
+  messageContent,
+  "import Error from '~/components/Messages/Content/Error';",
+  "import Error from '~/components/Messages/Content/Error';\nimport { createMcpRecoveryController } from './McpRecoveryController';",
+  'message recovery controller import',
+);
+messageContent = replaceOnce(
+  messageContent,
+  `export const ErrorMessage = ({
+  text,
+  message,
+  className = '',
+}: Pick<TDisplayProps, 'text' | 'className'> & { message?: TMessage }) => {
+  if (text === ERROR_CONNECTION_TEXT) {
+    return <ConnectionError message={message} />;
+  }
+
+  return (
+    <Container message={message}>
+      <ErrorBox className={className}>
+        <Error text={text} />
+      </ErrorBox>
+    </Container>
+  );
+};`,
+  `const recoveryMessage = (status: string | undefined) => {
+  switch (status) {
+    case 'authentication-required':
+      return 'Authentication is required to reconnect. Complete the sign-in window, then try again.';
+    case 'no-server':
+      return 'No MCP server is selected for this chat. Select a server and try again.';
+    case 'reconnect-failed':
+      return 'The MCP server could not reconnect. Check the gateway and try again.';
+    case 'timeout':
+      return 'The MCP reconnect timed out. Check the gateway and try again.';
+    case 'delete-failed':
+      return 'The MCP server reconnected, but this error could not be cleared. Try again.';
+    case 'in-flight':
+      return 'A reconnect is already in progress.';
+    default:
+      return undefined;
+  }
+};
+
+export const ErrorMessage = ({
+  text,
+  message,
+  className = '',
+}: Pick<TDisplayProps, 'text' | 'className'> & { message?: TMessage }) => {
+  const { getMessages, setMessages } = useMessagesOperations();
+  const { initializeServer, mcpValues } = useMCPServerManager({
+    conversationId: message?.conversationId,
+  });
+  const [recoveryStatus, setRecoveryStatus] = useState<string>();
+  const [isRecovering, setIsRecovering] = useState(false);
+  const isMcpToolsUnavailable = text.includes('AGENT_EXPECTED_MCP_TOOLS_UNAVAILABLE');
+
+  const recoveryInputsRef = useRef({
+    serverNames: mcpValues ?? [],
+    initializeServer,
+  });
+  useLayoutEffect(() => {
+    recoveryInputsRef.current = { serverNames: mcpValues ?? [], initializeServer };
+  }, [initializeServer, mcpValues]);
+  const controllerRef = useRef<ReturnType<typeof createMcpRecoveryController> | null>(null);
+  if (controllerRef.current === null) {
+    controllerRef.current = createMcpRecoveryController({
+      getRecoveryInputs: () => {
+        const { serverNames, initializeServer } = recoveryInputsRef.current;
+        return {
+          serverNames,
+          initializeServer: async (serverName, force) => {
+            const result = await initializeServer(serverName, force);
+            return {
+              success: result?.success ?? false,
+              oauthRequired: result?.oauthRequired,
+            };
+          },
+        };
+      },
+      timeoutMs: 10_000,
+    });
+  }
+  const controller = controllerRef.current;
+
+  if (text === ERROR_CONNECTION_TEXT) {
+    return <ConnectionError message={message} />;
+  }
+
+  const handleRecovery = async () => {
+    if (isRecovering) {
+      return;
+    }
+
+    const conversationId = message?.conversationId;
+    const messageId = message?.messageId;
+    const deleteMessage = async () => {
+      if (!conversationId || !messageId) {
+        throw new Error('Cannot clear a message without conversation and message IDs');
+      }
+
+      const response = await fetch(
+        '/api/messages/' + encodeURIComponent(conversationId) + '/' + encodeURIComponent(messageId),
+        { method: 'DELETE', credentials: 'include' },
+      );
+      if (!response.ok) {
+        throw new Error('Unable to clear the MCP error message');
+      }
+
+      const messages = getMessages();
+      if (messages) {
+        setMessages(messages.filter((currentMessage) => currentMessage.messageId !== messageId));
+      }
+    };
+    setIsRecovering(true);
+    try {
+      const result = await controller.recover(deleteMessage);
+      setRecoveryStatus(result.status);
+    } finally {
+      setIsRecovering(false);
+    }
+  };
+
+  return (
+    <Container message={message}>
+      <ErrorBox className={className}>
+        <Error text={text} />
+        {isMcpToolsUnavailable && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-md border border-status-error-border px-2 py-1 text-xs font-medium text-text-primary hover:bg-surface-secondary disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={handleRecovery}
+              disabled={isRecovering}
+            >
+              {isRecovering ? 'Reconnecting…' : 'Clear error & reconnect'}
+            </button>
+            {recoveryMessage(recoveryStatus) && (
+              <span className="text-xs text-text-secondary" aria-live="polite">
+                {recoveryMessage(recoveryStatus)}
+              </span>
+            )}
+          </div>
+        )}
+      </ErrorBox>
+    </Container>
+  );
+};`,
+  'MCP recovery error UI',
+);
+writeFileSync('/app/client/src/components/Chat/Messages/Content/MessageContent.tsx', messageContent);
 
 let schedulePanel = readFileSync('/app/client/src/components/SidePanel/Schedules/SchedulePanel.tsx', 'utf8');
 schedulePanel = replaceOnce(

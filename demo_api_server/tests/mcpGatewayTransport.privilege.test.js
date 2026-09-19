@@ -5,7 +5,7 @@
 // With Privilege in front, the bearer the CALLER presents is no longer the
 // bearer the hop needs: Privilege authenticates its own client and stamps the
 // configured Static Token into Authorization on its backend hop. The user's
-// exchanged token therefore has to travel in a header instead — X-Subject-Token,
+// exchanged token therefore has to travel in a header instead — tx-token,
 // which was measured surviving the hop unmodified on 2026-09-10 (see
 // privilege/CURRENT-CONFIGURATION.md, "Backend hop").
 //
@@ -54,12 +54,13 @@ describe('privilege-first MCP transport', () => {
     expect(resolved.url).toBe('https://mcpgw.example/agent-gateway/mcp');
   });
 
-  it('ON: the user token rides in X-Subject-Token, not the Authorization slot', async () => {
+  it('ON: the user token rides in tx-token, not the Authorization slot', async () => {
     const { transport, client } = load('true');
     await transport.callToolViaResolvedGateway('https://mcpgw.example/agent-gateway/mcp', 'USER-TOKEN', 'get_my_accounts', {}, {});
     const [, bearer, tool, , opts] = client.callToolViaGateway.mock.calls[0];
     expect(tool).toBe('get_my_accounts');
-    expect(opts.extraHeaders['X-Subject-Token']).toBe('USER-TOKEN');
+    expect(opts.extraHeaders['tx-token']).toBe('USER-TOKEN');
+    expect(opts.extraHeaders['X-Subject-Token']).toBeUndefined();
     // The INBOUND hop is an OAuth-protected door: it needs Privilege's own
     // session token. Sending nothing here answered `auth rejected:
     // missing/invalid bearer` against the live gateway 2026-09-10.
@@ -80,6 +81,16 @@ describe('privilege-first MCP transport', () => {
     });
     const opts = client.callToolViaGateway.mock.calls[0][4];
     expect(opts.extraHeaders['X-Active-Vertical']).toBe('banking');
-    expect(opts.extraHeaders['X-Subject-Token']).toBe('USER-TOKEN');
+    expect(opts.extraHeaders['tx-token']).toBe('USER-TOKEN');
+  });
+
+  it('ON: strips the retired subject-token header from stale options', async () => {
+    const { transport, client } = load('true');
+    await transport.callToolViaResolvedGateway('https://gw/mcp', 'USER-TOKEN', 'get_weather', {}, {
+      extraHeaders: { 'X-Subject-Token': 'STALE-TOKEN' },
+    });
+    const opts = client.callToolViaGateway.mock.calls[0][4];
+    expect(opts.extraHeaders['tx-token']).toBe('USER-TOKEN');
+    expect(opts.extraHeaders['X-Subject-Token']).toBeUndefined();
   });
 });

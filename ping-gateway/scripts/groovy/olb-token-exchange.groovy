@@ -132,7 +132,10 @@ def httpPostJson = { String url, String jsonBody, Map hdrs ->
     }
 }
 
-// ── Extract subject token from inbound Authorization header ───────────────────
+// ── Extract the effective transaction token from Authorization ────────────────
+// privilege-bridge.groovy has already replaced Privilege's static bearer with
+// the trusted tx-token before this exchange filter runs. Ordinary callers still
+// arrive here with their normal Authorization bearer.
 def authHeader = request.headers.getFirst('Authorization') ?: ''
 def subjectToken = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : ''
 

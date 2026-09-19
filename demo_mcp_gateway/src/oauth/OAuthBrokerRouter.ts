@@ -269,7 +269,7 @@ export class OAuthBrokerRouter {
     pingOneAuthorize.searchParams.set('code_challenge_method', 'S256');
     pingOneAuthorize.searchParams.set('resource', this.gatewayResourceUri);
     // Forward what the client asked for: the gateway's tool policy gates on
-    // these (get_my_accounts needs `read`; a token with only mcp:invoke is
+    // these (get_my_accounts needs `accounts:read`; a token with only mcp:invoke is
     // refused with insufficient_scope — seen live 2026-08-24). `mcp:invoke`
     // is always included because it is the scope c8392dc4's grant on the
     // Agent Gateway resource owns — the `resource` param alone does not

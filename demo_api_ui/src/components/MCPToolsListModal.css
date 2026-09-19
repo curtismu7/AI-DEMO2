@@ -34,7 +34,7 @@
 /* ─── Modal content (card) ──────────────────────────────────────────────── */
 
 .mcp-tools-modal-content {
-  background: white;
+  background: var(--modal-body-bg);
   border-radius: 8px;
   box-shadow: 0 25px 80px rgba(0, 0, 0, 0.25);
   max-width: 600px;
@@ -63,9 +63,9 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px;
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  color: #1f2937;
-  border-bottom: 1px solid #93c5fd;
+  background: var(--th-bg-inset);
+  color: var(--modal-body-text);
+  border-bottom: 1px solid var(--th-border);
   flex-shrink: 0;
 }
 
@@ -73,7 +73,7 @@
   margin: 0;
   font-size: var(--font-size-h3);
   font-weight: 600;
-  color: #1e3a8a;
+  color: var(--modal-body-text);
   line-height: 1.4;
 }
 
@@ -81,7 +81,7 @@
   background: none;
   border: none;
   font-size: var(--font-size-h1);
-  color: #6b7280;
+  color: var(--modal-body-text-secondary);
   cursor: pointer;
   padding: 0;
   width: 32px;
@@ -96,22 +96,24 @@
 }
 
 .mcp-tools-close-btn:hover {
-  background-color: #f3f4f6;
-  color: #1f2937;
+  background-color: var(--th-bg-hover);
+  color: var(--modal-body-text);
 }
 
 /* ─── Search bar ────────────────────────────────────────────────────────── */
 
 .mcp-tools-search-bar {
   padding: 16px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--th-border);
   flex-shrink: 0;
 }
 
 .mcp-tools-search-input {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--th-border-strong);
+  background: var(--modal-body-bg);
+  color: var(--modal-body-text);
   border-radius: 6px;
   font-size: var(--font-size-body);
   outline: none;
@@ -136,10 +138,11 @@
 .mcp-tool-item {
   padding: 12px;
   margin-bottom: 8px;
-  border: var(--inner-card-border, 1px solid #e5e7eb);
-  border-left: var(--inner-card-accent, 4px) solid #d1d5db;
+  color: var(--modal-body-text);
+  border: var(--inner-card-border, 1px solid var(--th-border));
+  border-left: var(--inner-card-accent, 4px) solid var(--th-border-strong);
   border-radius: var(--inner-card-radius, 8px);
-  background: linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
+  background: var(--th-bg-card);
   transition:
     background 0.2s,
     border-color 0.2s,
@@ -152,15 +155,16 @@
 }
 
 .mcp-tool-item:hover {
-  border-color: #bfdbfe;
-  border-left-color: #3b82f6;
+  border-color: var(--th-status-info-border);
+  border-left-color: var(--th-status-info);
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-  background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%);
+  background: var(--th-status-info-bg);
+  color: var(--modal-body-text);
   transform: translateX(2px);
 }
 
 .mcp-tool-item:focus {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--th-status-info);
   outline-offset: -2px;
 }
 
@@ -169,7 +173,7 @@
   align-items: center;
   font-size: var(--font-size-body);
   font-weight: 600;
-  color: #111827;
+  color: var(--modal-body-text);
   margin-bottom: 6px;
   gap: 8px;
 }
@@ -180,7 +184,7 @@
 
 .mcp-tool-description {
   font-size: var(--font-size-sm);
-  color: #6b7280;
+  color: var(--modal-body-text-secondary);
   margin: 6px 0 8px 0;
   line-height: 1.4;
 }
@@ -189,14 +193,14 @@
 
 .mcp-tool-inputs {
   font-size: var(--font-size-2xs);
-  color: #4b5563;
+  color: var(--modal-body-text-secondary);
 }
 
 .mcp-tool-inputs strong {
   display: block;
   margin-bottom: 4px;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--modal-body-text);
 }
 
 .mcp-tool-input-list {
@@ -207,20 +211,20 @@
 
 .mcp-tool-input-badge {
   display: inline-block;
-  background-color: #dbeafe;
-  color: #1e40af;
+  background-color: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
   padding: 3px 8px;
   border-radius: 4px;
   font-size: var(--font-size-xs);
   font-weight: 500;
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--th-status-info-border);
 }
 
 /* ─── Tool action hint ──────────────────────────────────────────────────── */
 
 .mcp-tool-action {
   font-size: var(--font-size-2xs);
-  color: #0284c7;
+  color: var(--th-status-info-text);
   font-weight: 500;
   margin-top: 6px;
   opacity: 0;
@@ -239,7 +243,7 @@
   justify-content: center;
   height: 150px;
   text-align: center;
-  color: #6b7280;
+  color: var(--modal-body-text-secondary);
   font-size: var(--font-size-body);
 }
 
@@ -247,7 +251,7 @@
 
 .mcp-tools-footer {
   padding: 16px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--th-border);
   display: flex;
   justify-content: flex-end;
   gap: 10px;
@@ -256,7 +260,7 @@
 
 .mcp-tools-close-btn-primary {
   background-color: var(--brand-navy-light);
-  color: white;
+  color: var(--th-text-invert);
   border: none;
   padding: 8px 16px;
   border-radius: 6px;
@@ -285,13 +289,13 @@
 }
 
 .mcp-tools-list::-webkit-scrollbar-thumb {
-  background-color: #d1d5db;
+  background-color: var(--th-border-strong);
   border-radius: 4px;
   transition: background-color 0.2s;
 }
 
 .mcp-tools-list::-webkit-scrollbar-thumb:hover {
-  background-color: #9ca3af;
+  background-color: var(--th-text-muted);
 }
 
 /* ─── Responsive design ─────────────────────────────────────────────────── */

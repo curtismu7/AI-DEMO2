@@ -153,6 +153,154 @@ read the configured host. A new browser origin must be added to ALL of:
 - **What was fixed:** Registered the exact local SDK return URI on the live SDK app and added a startup/periodic guard that merges the configured SDK return URI into that app's logout list without replacing existing entries. The orchestration lesson now explains the separate allowlists and the `INVALID_DATA` symptom; the execution reel records a data-free sign-off handoff across the redirect. Selected reel-frame text inherits its high-contrast ink instead of the lesson's generic strong-text color.
 - **Do not break:** Preserve the SDK OAuth callback URI, public-client ID, BFF-held tokens, and existing admin/user logout URI guards.
 - **Verify:** SDK logout guard and UI unit tests, UI build, both-theme contrast audit, fresh PingOne app-config re-read, and a live sign-off redirect check.
+### 2026-09-18 — MCP compliance checklist closes on browser refresh
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js` and
+`demo_api_ui/src/__tests__/ComplianceModalRefresh.test.js`.
+- **What was broken:** The compliance checklist and side-panel visibility were
+  restored from `localStorage`, so an open checklist reappeared after a browser
+  refresh.
+- **What was fixed:** Keep both visibility states transient for the current
+  page session; a fresh browser load starts with the checklist closed.
+- **Do not break:** Preserve compliance step tracking, checklist rendering,
+  side-panel selection during the current session, and unrelated UI settings.
+- **Verify:** `ComplianceModalRefresh.test.js`, the UI unit suite, and the UI
+  production build.
+### 2026-09-19 — MCP runtime discovery is user-accessible and wired in Docker
+
+**Files changed:** `demo_api_ui/src/App.js`,
+`demo_api_server/config/auth-requirements.json`,
+`demo_api_server/routes/mcpDiscovery.js`, `docker-compose.yml`,
+`standalone/mcp-discovery-agent/Dockerfile`, and focused regression tests.
+
+**What was broken:** `/mcp-discovery` and its BFF proxy were admin-gated even
+though discovery is read-only, and the Docker stack did not start the discovery
+agent or configure `MCP_DISCOVERY_AGENT_URL`, so signed-in users saw
+`mcp_discovery_unavailable`.
+
+**What was fixed:** the page and proxy now require a signed-in session only.
+Docker builds a read-only discovery-agent service, persists inventory metadata,
+and connects the BFF to it over the internal Compose network.
+
+**Do not break:** unauthenticated requests remain rejected; admin-only routes
+remain admin-gated; the discovery agent receives no credentials and never calls
+discovered tools.
+
+**Verify:** BFF focused tests, UI route test/build, and Compose wiring tests.
+
+### 2026-09-18 — DaVinci SDK passkey authentication and signed-in actions
+
+- **Files changed:** `demo_api_ui/src/components/davinci/CollectorField.jsx`, `demo_api_ui/src/components/davinci/SdkLessonSections.jsx`, `demo_api_ui/src/pages/DavinciSdkLoginPage.jsx`, `demo_api_ui/src/pages/DavinciSdkLoginPage.css`, and focused tests.
+- **What was broken:** `FidoAuthenticationCollector` appeared as unsupported on the live passkey screen; signed-in actions wrapped into uneven, cramped buttons.
+- **What was fixed:** A user-triggered passkey action uses the SDK FIDO helper, writes its assertion through `client.update()`, then advances with `client.next()`. Signed-in actions now stack at full card width.
+- **Do not break:** Keep assertion values out of execution evidence; preserve ACR selection, OAuth callback, BFF session handling, and PingOne logout.
+- **Verify:** Focused DaVinci Vitest suites, UI build, and rendered button contrast in both themes.
+
+### 2026-09-18 — Guided Demo Track polling no longer opens the global spinner
+
+- **Files changed:** `demo_api_ui/src/services/spinnerService.js` and
+  `demo_api_ui/src/services/__tests__/spinnerService.test.js`.
+- **What was broken:** The Guided Demo Track polls `/api/demo-track` and
+  `/api/demo-track/runs` every five seconds, but those polling requests were
+  not silent and could repeatedly surface the global loading modal.
+- **What was fixed:** Mark the Guided Demo Track API namespace as silent and
+  pin that contract with a spinner regression test.
+- **Do not break:** Preserve the track page's own loading/error states,
+  five-second refresh, run actions, and all auth/session behavior.
+- **Verify:** Focused spinner Vitest suite and the UI production build.
+
+### 2026-09-18 — Repository-wide dark-theme text contrast sweep
+
+- **Files changed:** `demo_api_ui/src/**/*.css`,
+  `demo_api_ui/src/App.css`, and the contrast/theme-ratchet tests.
+- **What was broken:** Many page and component styles still used legacy dark
+  neutral text literals or light-gray text aliases. Those values became dark
+  text on dark themed surfaces, beyond the originally reported welcome modal.
+- **What was fixed:** Replaced legacy neutral text declarations with the shared
+  high-contrast text token, migrated light-gray text aliases, and added
+  explicit themed ink to the remaining shell rules. The sweep reduced
+  light-only stylesheets from 133 to 67 and lowered the ratchet floor.
+- **Do not break:** Preserve accent/status colors, light-theme appearance,
+  modal behavior, theme switching, auth/session flows, and agent state.
+- **Verify:** `dashboardModalContrast.test.js` passes 6 tests; the themed
+  ground/stylesheet ratchets pass; `npm run build` must pass.
+
+### 2026-09-18 — Dark-theme page and modal text is bright and readable
+
+- **Files changed:** `demo_api_ui/src/index.css`,
+  `demo_api_ui/src/components/LoginSuccessModal.css`, and
+  `demo_api_ui/src/components/__tests__/dashboardModalContrast.test.js`.
+- **What was broken:** Shared dark-theme ink and legacy page aliases resolved
+  to dim slate or dark gray, so dashboard copy, chat text, and modal identity
+  fields disappeared against navy surfaces.
+- **What was fixed:** Dark-theme primary/body/muted/faint ink, legacy brand
+  aliases, and modal body text now resolve to bright white; legacy light-surface
+  aliases resolve to themed dark surfaces; the login-success modal uses modal
+  tokens instead of hard-coded dark text.
+- **Do not break:** Preserve theme switching, modal drag/resize/pop-out behavior,
+  status/accent colors, auth/session flows, and agent placement/state.
+- **Verify:** `dashboardModalContrast.test.js` passes 5 tests; `npm run build`
+  passes. Full UI unit run: 586 files passed, 4 pre-existing files failed.
+### 2026-09-18 — Scope audit verifies application grants as well as resource scopes
+
+- **Files changed:** `demo_api_server/routes/scopeAudit.js` and its focused route tests.
+- **What was broken:** The admin scope audit checked that resource scopes existed but did not verify that the normal PingOne applications had those scopes granted on the correct resource servers.
+- **What was fixed:** The read-only audit now reports expected application grants for the User App, Admin App, and MCP Exchanger, including missing scopes, missing applications, and resource-target mismatches. Provisioning and reconciliation behavior is unchanged.
+- **Do not break:** Preserve additive scope reconciliation, resource-scope reporting, customer/admin separation, and the existing POST scope-creation contract.
+- **Verify:** Focused `scopeAuditRoute.test.js`, syntax/diff checks, and topology verification.
+
+### 2026-09-18 — MCP account discovery uses the registered account-read scope
+
+- **Files changed:** `scope-topology.json`, MCP scope regression fixtures and
+  comments.
+- **What was broken:** `get_my_accounts` requested broad `read`, while the
+  deployed account-read path issued/recognized `accounts:read`; the MCP
+  resource and gateway scope mirrors did not carry the narrower scope, causing
+  the inspector to list the tool but reject its call as insufficient scope.
+- **What was fixed:** Make `accounts:read` the declared scope for
+  `get_my_accounts`, add it to the user/exchanger grants, and mirror it onto
+  the MCP Server and MCP Gateway resources. Existing broad `read` mappings for
+  other tools remain unchanged.
+- **Do not break:** Preserve RFC 8693 token exchange, gateway per-tool scope
+  enforcement, customer/admin separation, and write/transfer scope contracts.
+- **Verify:** Focused BFF scope tests, topology verification, and the full unit
+  suite.
+
+### 2026-09-18 — Dashboard modal and compliance pop-out text remains readable in dark mode
+
+- **Files changed:** `demo_api_ui/src/components/ComplianceModal.css`,
+  `demo_api_ui/src/components/ComplianceModalContent.js`,
+  `demo_api_ui/src/components/ComplianceModalPopout.js`,
+  `demo_api_ui/src/components/MCPToolsListModal.css`,
+  `demo_api_ui/src/components/UserDashboard.css`, and
+  `demo_api_ui/src/components/__tests__/dashboardModalContrast.test.js`.
+- **What was broken:** Compliance checklist rows, MCP tool descriptions, and
+  customer-dashboard modal/drawer states used hard-coded or muted light-theme
+  colors that became unreadable against dark modal surfaces; the legacy
+  compliance pop-out also used inline light-theme colors.
+- **What was fixed:** Use shared modal/theme tokens for modal surfaces, body
+  ink, secondary ink, borders, status states, nested token details, drawer
+  controls, and the compliance pop-out shell. Removed the footer's inline
+  themeable border style.
+- **Do not break:** Preserve checklist state semantics, status colors, modal
+  resizing/pop-out behavior, and the separate compliance pop-out data channel.
+- **Verify:** `dashboardModalContrast.test.js` and the UI build must pass.
+
+### 2026-09-18 — Simple Stepper pop-out remains selectable beside embedded Sequence view
+
+- **Files changed:** `demo_api_ui/src/components/AIAgent.js` and `demo_api_ui/src/components/__tests__/AIAgent.chips.test.js`.
+- **What was broken:** Persisting Sequence view as `embedded` disabled the entire Simple Stepper surface selector, making its independent `popout` option unreachable.
+- **What was fixed:** Disable only the conflicting `embedded` and `both` Simple Stepper options; keep `Off` and `Pop-out` selectable.
+- **Do not break:** Sequence remains the only embedded timeline; Simple Stepper pop-out still auto-opens through `DraggableModal`.
+- **Verify:** AIAgent surface-selection regression test and focused Simple Stepper/modal suite.
+
+### 2026-09-18 — Dashboard pop-outs share the 🪟 control and close their child window
+
+- **Files changed:** `demo_api_ui/src/components/DraggableModal.jsx`, `demo_api_ui/src/components/AuditPage.js`, `demo_api_ui/src/components/TokenChainDisplay.jsx`, dashboard quick-nav/log/token-detail/Personal Agent pop-out triggers, and focused tests.
+- **What was broken:** Dashboard pop-out controls used different glyphs or no glyph; the standalone Audit Trail and Token Inspector windows had no upper-right close control; shared modal close only changed parent state.
+- **What was fixed:** Standardize dashboard pop-out controls on `🪟`; add `✕` close controls to standalone windows; close the child window directly before notifying the parent.
+- **Do not break:** Preserve resize, light/dark theme, token data, and parent-window restore behavior.
+- **Verify:** Focused modal/Audit/Simple Stepper tests and the UI production build.
 
 ### 2026-09-18 — Simple Stepper pop-out surface selection now opens a child window
 
@@ -236,6 +384,41 @@ inputs for automatic collectors, or hide an unrecognised collector silently.
 **Verify:** `cd demo_api_ui && npm run test:unit` (changed DaVinci suites pass;
 the full run currently has six unrelated existing AIAgent assertion failures),
 `npm run build`, and the focused collector/lesson Vitest suites.
+### 2026-09-16 — Privilege-first MCP chain used an ambiguous identity header
+
+**Files changed:** `docs/superpowers/plans/2026-09-16-privilege-pinggateway-tx-token.md`,
+`demo_api_server/services/mcpGatewayTransport.js`,
+`demo_mcp_gateway/src/auth/privilegeBridge.ts`,
+`demo_mcp_gateway/src/server/GatewayServer.ts`,
+`demo_mcp_gateway/src/index.ts`,
+`ping-gateway/scripts/groovy/privilege-bridge.groovy`,
+`ping-gateway/scripts/groovy/olb-token-exchange.groovy`, focused tests, and
+Privilege configuration documentation.
+
+**What was broken:** the Privilege-first path carried the delegated user token
+as `X-Subject-Token`, while the intended two-gateway contract is a Privilege
+credential in `Authorization` and a separate transaction token forwarded to
+the downstream gateway. The mixed naming made it unclear which token
+PingGateway should evaluate and left stale header spellings easy to reintroduce.
+
+**What was fixed:** the active contract is now `Authorization` for the
+Privilege session/static bridge credential and `tx-token` for the delegated
+transaction token. Both gateway bridges consume the transaction token only
+after the bridge credential is trusted, then leave existing validation,
+authorization, and exchange behavior intact. Stale `X-Subject-Token` options
+are stripped from the BFF Privilege path.
+
+**Do not break:**
+- Privilege remains the first coarse policy and approval gate.
+- PingGateway evaluates and exchanges the transaction token, not the Privilege
+  credential.
+- Existing signature, issuer, expiry, audience, scope, actor-chain, P1AZ,
+  HITL, and token-custody checks remain fail-closed.
+
+**Verify:** focused BFF and Node bridge tests, Node gateway build, and
+PingGateway route checks pass. Broad topology/hygiene verification was attempted
+but the scope generator and regression process aborted with exit 134 before
+producing results in this environment.
 
 ### 2026-09-14 — Privilege Remote Agent now has a real, authenticated A2A backend
 
