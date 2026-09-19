@@ -16,6 +16,8 @@ const inventory = {
   records: [
     { id: 'healthy', displayName: 'Banking MCP', source: 'compose-service', sources: ['compose-service'], location: 'local', transport: 'streamable-http', endpoint: 'http://127.0.0.1:8080/mcp', status: 'healthy', protocolVersion: '2026-07-28', tools: [{ name: 'get_balance' }], securityFindings: [], probe: { latencyMs: 22 } },
     { id: 'candidate', displayName: 'Local stdio candidate', source: 'host-process', sources: ['host-process'], location: 'local', transport: 'stdio', endpoint: null, status: 'candidate', protocolVersion: null, tools: [], securityFindings: [{ kind: 'hidden-instruction', tool: 'bad_tool', detail: 'hidden instruction' }], probe: { latencyMs: null } },
+    { id: 'listener', displayName: 'Local listener', source: 'listener', sources: ['listener'], location: 'local', transport: 'streamable-http', endpoint: 'http://127.0.0.1:3910/mcp', status: 'offline', protocolVersion: null, tools: [], securityFindings: [], probe: { latencyMs: null } },
+    { id: 'remote', displayName: 'Remote MCP', source: 'remote-url', sources: ['remote-url'], location: 'remote', transport: 'streamable-http', endpoint: 'https://example.test/mcp', status: 'candidate', protocolVersion: null, tools: [], securityFindings: [], probe: { latencyMs: null } },
   ],
 };
 
@@ -35,6 +37,8 @@ test('renders operational inventory and security findings without tool actions',
   expect(screen.getByText('Host process')).toBeInTheDocument();
   expect(screen.getByText('MCP endpoint')).toBeInTheDocument();
   expect(screen.getByText('Process candidate')).toBeInTheDocument();
+  expect(screen.getByText('HTTP listener')).toBeInTheDocument();
+  expect(screen.getByText('Remote endpoint')).toBeInTheDocument();
   expect(screen.getByText('hidden instruction')).toBeInTheDocument();
   expect(screen.getByText(/These are heuristic signals/)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /call|invoke|execute/i })).not.toBeInTheDocument();

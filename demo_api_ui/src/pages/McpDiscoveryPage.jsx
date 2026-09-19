@@ -21,10 +21,10 @@ function sourceLabel(source) {
 }
 
 function runtimeType(record) {
+  if (record.source === 'listener') return 'HTTP listener';
+  if (record.location === 'remote' || ['remote-url', 'client-config'].includes(record.source)) return 'Remote endpoint';
   if (record.transport === 'stdio') return 'Process candidate';
   if (record.endpoint && ['streamable-http', 'sse'].includes(record.transport)) return 'MCP endpoint';
-  if (record.source === 'listener') return 'HTTP listener';
-  if (record.location === 'remote') return 'Remote endpoint';
   return 'Observed candidate';
 }
 
