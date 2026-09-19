@@ -396,6 +396,13 @@ const SCHEDULES = [
   { name: 'Weekly savings sweep', agent: 'Money Movement', prompt: 'Transfer $750 from checking to savings.', cadence: { frequency: 'weekly', hour: 7, minute: 0, daysOfWeek: [1] } },
 ];
 
+// Keep the seeded UI focused on the two active demo areas. The underlying
+// definitions above remain as source history, but rerunning this script must
+// not recreate removed Banking/CareConnect agents.
+const UI_AGENT_NAME = /^(OpenSearch|Super Sports|Demo Step · Super Sports|Handoff · Super Sports)/;
+const UI_AGENTS = AGENTS.filter((agent) => UI_AGENT_NAME.test(agent.name));
+const UI_AGENT_NAMES = new Set(UI_AGENTS.map((agent) => agent.name));
+
 async function call(method, path, { token, body } = {}) {
   const res = await fetch(`${LC}${path}`, {
     method,
@@ -431,7 +438,7 @@ async function main() {
 
   let failed = 0;
   const ids = new Map(); // agent name -> agent_… id, for handoff edges
-  for (const def of AGENTS) {
+  for (const def of UI_AGENTS) {
     const server = def.server || SERVER;
     const body = {
       name: def.name,
@@ -473,7 +480,7 @@ async function main() {
     console.log(`ok   ${def.name} (${agentId}) ${id ? 'updated' : 'created'}, public`);
   }
   // Edges name agents by id, so they are saved after every agent exists.
-  for (const def of AGENTS.filter((a) => a.handoffs)) {
+  for (const def of UI_AGENTS.filter((a) => a.handoffs)) {
     const from = ids.get(def.name);
     const edges = def.handoffs.map(({ to, description }) => ({ from, to: ids.get(to), edgeType: 'handoff', description }));
     if (!from || edges.some((e) => !e.to)) {
@@ -495,7 +502,7 @@ async function main() {
   const sched = await call('GET', '/api/schedules', { token });
   if (sched.status !== 200) throw new Error(`list schedules ${sched.status}: ${sched.text.slice(0, 200)}`);
   const haveSchedules = new Map((sched.json.schedules || []).map((s) => [s.name, s.id]));
-  for (const s of SCHEDULES) {
+  for (const s of SCHEDULES.filter((schedule) => UI_AGENT_NAMES.has(schedule.agent))) {
     const agentId = ids.get(s.agent);
     if (!agentId) {
       failed++;
@@ -525,7 +532,7 @@ async function main() {
 // more are deleted.
 async function seedPrompts(token) {
   const want = new Map();
-  for (const def of AGENTS) {
+  for (const def of UI_AGENTS) {
     def.conversation_starters.forEach((text, i) => {
       want.set(`${def.name} · ${text}`, {
         text,
