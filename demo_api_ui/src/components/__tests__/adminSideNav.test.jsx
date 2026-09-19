@@ -108,6 +108,34 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(screen.getAllByText("P1AZ Inspector").length).toBeGreaterThan(0);
   });
 
+  it("searching activity surfaces both activity destinations", () => {
+    renderNav();
+    const input = screen.getByLabelText(/search navigation/i);
+    fireEvent.change(input, { target: { value: "activity" } });
+    expect(screen.getByText("Activity Log")).toBeInTheDocument();
+    expect(screen.getByText("API Activity")).toBeInTheDocument();
+  });
+
+  it("searching api surfaces the persisted API activity page", () => {
+    renderNav();
+    const input = screen.getByLabelText(/search navigation/i);
+    fireEvent.change(input, { target: { value: "api" } });
+    expect(screen.getByText("API Activity").closest("a")).toHaveAttribute(
+      "href",
+      "/monitoring/api-activity",
+    );
+  });
+
+  it("searching discovery surfaces MCP Discovery", () => {
+    renderNav();
+    const input = screen.getByLabelText(/search navigation/i);
+    fireEvent.change(input, { target: { value: "discovery" } });
+    expect(screen.getByText("MCP Discovery").closest("a")).toHaveAttribute(
+      "href",
+      "/mcp-discovery",
+    );
+  });
+
   it("shows a local-only PAC Editor item under Authorize and opens the PAC editor", () => {
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
     renderNav();
