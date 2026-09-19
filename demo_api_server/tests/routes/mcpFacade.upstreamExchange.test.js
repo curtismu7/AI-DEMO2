@@ -212,7 +212,7 @@ test('agent-gateway exchanges a plain caller token before an agent-mediated tool
 
   expect(res.status).toBe(200);
   expect(mockAgentExchangeCalls).toEqual([
-    ['CALLER-GATEWAY-TOKEN', ['agent:invoke', 'write', 'transfer']],
+    ['CALLER-GATEWAY-TOKEN', ['mcp:invoke', 'write', 'transfer']],
   ]);
   expect(lastUpstreamAuth).toBe('Bearer DELEGATED-GATEWAY-TOKEN');
   const x = mockHops.find((h) => h.phase === 'token.exchange');

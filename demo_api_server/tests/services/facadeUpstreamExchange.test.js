@@ -24,6 +24,7 @@ const ENV = '01d89b06-66d5-430e-9f28-65636843788b';
 const TOKEN_URL = `https://auth.pingone.com/${ENV}/as/token`;
 const UPSTREAM_AUD = 'mcpserver.ping.demo';
 const AGENT_GATEWAY_AUD = 'agentgateway.ping.demo';
+const MCP_GATEWAY_AUD = 'mcpgateway.ping.demo';
 
 describe('facade upstream token exchange', () => {
   const saved = {};
@@ -35,12 +36,14 @@ describe('facade upstream token exchange', () => {
     saved.region = process.env.PINGONE_REGION;
     saved.agentId = process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID;
     saved.agentSecret = process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET;
+    saved.facadeAgentGatewayResource = process.env.MCP_FACADE_AGENT_GATEWAY_RESOURCE_URI;
     process.env.PINGONE_ENVIRONMENT_ID = ENV;
     process.env.PINGONE_MCP_GATEWAY_CLIENT_ID = '6586d3de-b916-454c-84e5-6d21b572a534';
     process.env.PINGONE_MCP_GATEWAY_CLIENT_SECRET = 'shhh';
     process.env.PINGONE_REGION = 'com';
     process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID = 'agent-client';
     process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET = 'agent-secret';
+    process.env.MCP_FACADE_AGENT_GATEWAY_RESOURCE_URI = MCP_GATEWAY_AUD;
     svc.__test.cache.clear();
   });
 
@@ -52,6 +55,7 @@ describe('facade upstream token exchange', () => {
       ['PINGONE_REGION', saved.region],
       ['PINGONE_AI_AGENT_ACTOR_CLIENT_ID', saved.agentId],
       ['PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET', saved.agentSecret],
+      ['MCP_FACADE_AGENT_GATEWAY_RESOURCE_URI', saved.facadeAgentGatewayResource],
     ];
     for (const [k, v] of pairs) {
       if (v === undefined) delete process.env[k];
@@ -134,7 +138,7 @@ describe('facade upstream token exchange', () => {
       .mockResolvedValueOnce({ data: { access_token: 'agent-cc', expires_in: 300 } })
       .mockResolvedValueOnce({ data: { access_token: 'delegated-gateway', expires_in: 300 } });
 
-    const out = await svc.exchangeForAgentGateway('caller-token', ['agent:invoke', 'write', 'transfer']);
+    const out = await svc.exchangeForAgentGateway('caller-token', ['mcp:invoke', 'write', 'transfer']);
 
     expect(out).toEqual({ accessToken: 'delegated-gateway', cached: false });
     expect(axios.post).toHaveBeenCalledTimes(2);
@@ -150,8 +154,9 @@ describe('facade upstream token exchange', () => {
     expect(exchangeBody.get('grant_type')).toBe('urn:ietf:params:oauth:grant-type:token-exchange');
     expect(exchangeBody.get('subject_token')).toBe('caller-token');
     expect(exchangeBody.get('actor_token')).toBe('agent-cc');
-    expect(exchangeBody.get('resource')).toBe(AGENT_GATEWAY_AUD);
-    expect(exchangeBody.get('scope')).toBe('agent:invoke write transfer');
+    expect(exchangeBody.get('audience')).toBe(MCP_GATEWAY_AUD);
+    expect(exchangeBody.get('resource')).toBeNull();
+    expect(exchangeBody.get('scope')).toBe('mcp:invoke write transfer');
     expect(exchangeBody.get('client_id')).toBe('agent-client');
     expect(exchangeBody.get('client_secret')).toBe('agent-secret');
   });
@@ -161,11 +166,23 @@ describe('facade upstream token exchange', () => {
       .mockResolvedValueOnce({ data: { access_token: 'agent-cc', expires_in: 300 } })
       .mockResolvedValueOnce({ data: { access_token: 'delegated-gateway', expires_in: 300 } });
 
-    const first = await svc.exchangeForAgentGateway('caller-token', ['agent:invoke', 'write']);
-    const second = await svc.exchangeForAgentGateway('caller-token', ['agent:invoke', 'write']);
+    const first = await svc.exchangeForAgentGateway('caller-token', ['mcp:invoke', 'write']);
+    const second = await svc.exchangeForAgentGateway('caller-token', ['mcp:invoke', 'write']);
 
     expect(axios.post).toHaveBeenCalledTimes(2);
     expect(first.cached).toBe(false);
     expect(second).toEqual({ accessToken: 'delegated-gateway', cached: true });
+  });
+
+  test('defaults the exchanged token to the local MCP gateway resource', async () => {
+    delete process.env.MCP_FACADE_AGENT_GATEWAY_RESOURCE_URI;
+    axios.post
+      .mockResolvedValueOnce({ data: { access_token: 'agent-cc', expires_in: 300 } })
+      .mockResolvedValueOnce({ data: { access_token: 'delegated-gateway', expires_in: 300 } });
+
+    await svc.exchangeForAgentGateway('caller-token', ['mcp:invoke']);
+
+    const exchangeBody = new URLSearchParams(axios.post.mock.calls[1][1]);
+    expect(exchangeBody.get('audience')).toBe(MCP_GATEWAY_AUD);
   });
 });
