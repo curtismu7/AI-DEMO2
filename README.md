@@ -6,6 +6,8 @@ Standalone AI-powered banking demo using PingOne for authentication and **RFC 86
 
 This is a **completely standalone** project — it can be handed to anyone and run independently.
 
+**Repository:** [github.com/cmuir_pingcorp/AI-DEMO2](https://github.com/cmuir_pingcorp/AI-DEMO2)
+
 **AI assistants / agents:** follow **[CLAUDE.md](CLAUDE.md)** (repo conventions, regression guard, verification).
 
 ## 🚀 Quick Start (brand-new machine)
