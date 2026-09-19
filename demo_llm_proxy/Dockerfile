@@ -2,7 +2,7 @@ FROM node:22-alpine
 
 # Half of what CI needs to push this image to GHCR. A package first pushed by
 # hand is owned by that user with `repository: NONE`; the first push carrying
-# this label links it (verified #2545: NONE -> curtismu7/AI-DEMO2).
+# this label links it to the canonical cmuir_pingcorp/AI-DEMO2 repository.
 #
 # The OTHER half is not in this repo and cannot be: on the package's settings
 # page, "Manage Actions access" -> Add Repository -> AI-DEMO2 -> Write. That
