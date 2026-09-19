@@ -436,7 +436,7 @@ is key selection, not policy.** `POST /mcp`, MCP `initialize`:
 |---|---|
 | no `Authorization` (Auth Mode **None**) | `401 invalid_token` — `Bearer token required` |
 | `Authorization: Bearer probe-static-1` (Auth Mode **Static Token**) | `401 invalid_token` — `Token has no kid header and the JWKS exposes 4 keys — cannot select a verification key unambiguously` |
-| the same, plus `X-Subject-Token: probe-subject` | byte-identical to the row above |
+| the same, plus `tx-token: probe-subject` | byte-identical to the row above |
 
 The second row is the load-bearing one. The rejection comes from
 `demo_mcp_gateway/src/tokenValidator.ts:221-226`, raised **inside**
@@ -449,7 +449,7 @@ and now measured rather than read: **the Node gateway cannot accept a Privilege
 backend-hop bearer without new code** (plan Task 8), and the bridge secret has
 to be matched *before* `validateInboundToken`, not inside it.
 
-The third row confirms the other half: `X-Subject-Token` is ignored today, which
+The third row confirms the other half: `tx-token` is ignored today, which
 is correct — no bridge exists yet, and a header from an arbitrary caller must
 never be trusted.
 
@@ -472,7 +472,7 @@ it receives, plus a policy naming the operator, then one real call from
 
 Two consequences, both load-bearing for the privilege-first plan:
 
-- **`X-Subject-Token` will reach the Agent Gateway.** The bridge can carry the
+- **`tx-token` will reach the Agent Gateway.** The bridge can carry the
   user's exchanged token, so the delegated identity survives the hop and Task 8
   can rebuild a real `act` chain rather than falling back to a machine subject.
 - **The bearer slot is genuinely empty under Auth Mode None**, which is exactly

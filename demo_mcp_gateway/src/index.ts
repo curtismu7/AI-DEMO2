@@ -52,6 +52,7 @@ import { GATEWAY_TOOLS } from './gatewayTools';
 import { recordToolsListBackendOutage, clearToolsListBackendOutage, formatToolsListBackendFailure } from './toolsListHealth';
 import { validateMethodAndShape, validateToolArgs } from './validation/mcpRequestValidation';
 import { isValidLogLevel, emitLogMessage, LoggingState } from './mcpLogging';
+import { isPrivilegeBridgeBearer, transactionTokenHeaderState } from './auth/privilegeBridge';
 
 // Phase 269 Plan 04: load encrypted vault entries into process.env BEFORE
 // loadConfig() runs. The vault populates MCP_GW_*, PROVIDER_*, HELIX_*, and
@@ -1182,7 +1183,19 @@ const wss = new WebSocket.Server({
 
 wss.on('connection', (ws, req) => {
   const authHeader = req.headers['authorization'];
-  const token = extractBearerToken(authHeader) || '';
+  const rawToken = extractBearerToken(authHeader) || '';
+  // Privilege owns Authorization on its backend hop. A WS caller that is the
+  // configured bridge must carry the delegated transaction token separately;
+  // ordinary callers continue to use Authorization unchanged.
+  let token = rawToken;
+  if (isPrivilegeBridgeBearer(rawToken, config.privilegeBridgeSecret)) {
+    const subjectHeader = transactionTokenHeaderState(req.headers);
+    if (subjectHeader.present && !subjectHeader.value) {
+      ws.close(1008, 'invalid tx-token');
+      return;
+    }
+    token = subjectHeader.value || rawToken;
+  }
 
   // MCP spec: notifications/cancelled. One registry per connection — request
   // ids are only unique within a connection, not globally. Populated around

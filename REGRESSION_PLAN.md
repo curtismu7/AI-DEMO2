@@ -334,6 +334,41 @@ inputs for automatic collectors, or hide an unrecognised collector silently.
 **Verify:** `cd demo_api_ui && npm run test:unit` (changed DaVinci suites pass;
 the full run currently has six unrelated existing AIAgent assertion failures),
 `npm run build`, and the focused collector/lesson Vitest suites.
+### 2026-09-16 — Privilege-first MCP chain used an ambiguous identity header
+
+**Files changed:** `docs/superpowers/plans/2026-09-16-privilege-pinggateway-tx-token.md`,
+`demo_api_server/services/mcpGatewayTransport.js`,
+`demo_mcp_gateway/src/auth/privilegeBridge.ts`,
+`demo_mcp_gateway/src/server/GatewayServer.ts`,
+`demo_mcp_gateway/src/index.ts`,
+`ping-gateway/scripts/groovy/privilege-bridge.groovy`,
+`ping-gateway/scripts/groovy/olb-token-exchange.groovy`, focused tests, and
+Privilege configuration documentation.
+
+**What was broken:** the Privilege-first path carried the delegated user token
+as `X-Subject-Token`, while the intended two-gateway contract is a Privilege
+credential in `Authorization` and a separate transaction token forwarded to
+the downstream gateway. The mixed naming made it unclear which token
+PingGateway should evaluate and left stale header spellings easy to reintroduce.
+
+**What was fixed:** the active contract is now `Authorization` for the
+Privilege session/static bridge credential and `tx-token` for the delegated
+transaction token. Both gateway bridges consume the transaction token only
+after the bridge credential is trusted, then leave existing validation,
+authorization, and exchange behavior intact. Stale `X-Subject-Token` options
+are stripped from the BFF Privilege path.
+
+**Do not break:**
+- Privilege remains the first coarse policy and approval gate.
+- PingGateway evaluates and exchanges the transaction token, not the Privilege
+  credential.
+- Existing signature, issuer, expiry, audience, scope, actor-chain, P1AZ,
+  HITL, and token-custody checks remain fail-closed.
+
+**Verify:** focused BFF and Node bridge tests, Node gateway build, and
+PingGateway route checks pass. Broad topology/hygiene verification was attempted
+but the scope generator and regression process aborted with exit 134 before
+producing results in this environment.
 
 ### 2026-09-14 — Privilege Remote Agent now has a real, authenticated A2A backend
 
