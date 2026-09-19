@@ -181,7 +181,7 @@ function SurfaceSelector({ id, label, value, onChange, disabled = false, disable
   const selected = SURFACE_OPTIONS.find((option) => option.value === value) || SURFACE_OPTIONS[0];
 
   return (
-    <div className="ba-topology-surface-row">
+    <div className={`ba-topology-surface-row${open ? " is-open" : ""}`}>
       <span className="ba-topology-surface-label">{label}</span>
       <div className="ba-surface-selector">
         <button
