@@ -264,25 +264,25 @@ export default function FloatingPanel({
       {/* 8 resize handles */}
       {!isCollapsed && (
         <>
-          <div className="fp-handle fp-handle-n"  onMouseDown={(e) => onResizeStart(e, 'n')}  aria-hidden />
-          <div className="fp-handle fp-handle-ne" onMouseDown={(e) => onResizeStart(e, 'ne')} aria-hidden />
-          <div className="fp-handle fp-handle-e"  onMouseDown={(e) => onResizeStart(e, 'e')}  aria-hidden />
-          <div className="fp-handle fp-handle-se" onMouseDown={(e) => onResizeStart(e, 'se')} aria-hidden />
-          <div className="fp-handle fp-handle-s"  onMouseDown={(e) => onResizeStart(e, 's')}  aria-hidden />
-          <div className="fp-handle fp-handle-sw" onMouseDown={(e) => onResizeStart(e, 'sw')} aria-hidden />
-          <div className="fp-handle fp-handle-w"  onMouseDown={(e) => onResizeStart(e, 'w')}  aria-hidden />
-          <div className="fp-handle fp-handle-nw" onMouseDown={(e) => onResizeStart(e, 'nw')} aria-hidden />
+          <div className="fp-handle fp-handle-n" onMouseDown={(e) => onResizeStart(e, 'n')} aria-label="Resize north" />
+          <div className="fp-handle fp-handle-ne" onMouseDown={(e) => onResizeStart(e, 'ne')} aria-label="Resize northeast" />
+          <div className="fp-handle fp-handle-e" onMouseDown={(e) => onResizeStart(e, 'e')} aria-label="Resize east" />
+          <div className="fp-handle fp-handle-se" onMouseDown={(e) => onResizeStart(e, 'se')} aria-label="Resize southeast" />
+          <div className="fp-handle fp-handle-s" onMouseDown={(e) => onResizeStart(e, 's')} aria-label="Resize south" />
+          <div className="fp-handle fp-handle-sw" onMouseDown={(e) => onResizeStart(e, 'sw')} aria-label="Resize southwest" />
+          <div className="fp-handle fp-handle-w" onMouseDown={(e) => onResizeStart(e, 'w')} aria-label="Resize west" />
+          <div className="fp-handle fp-handle-nw" onMouseDown={(e) => onResizeStart(e, 'nw')} aria-label="Resize northwest" />
         </>
       )}
 
       {/* Title bar */}
-      <div className="fp-titlebar" onPointerDown={onDragStart}>
+      <div className="fp-titlebar" onPointerDown={onDragStart} aria-label={`Move ${title}`}>
         <span className="fp-title">{title}</span>
         <div className="fp-controls">
           <button className="fp-btn" onClick={() => setIsCollapsed((c) => !c)} title={isCollapsed ? 'Expand' : 'Collapse'}>
             {isCollapsed ? '▼' : '▲'}
           </button>
-          <button className="fp-btn" onClick={handlePopOut} title="Pop out to new window">🪟</button>
+          <button className="fp-btn" onClick={handlePopOut} title="Pop out to new window" aria-label={`Pop out ${title}`}>🪟</button>
           {onClose && (
             <button type="button" className="fp-btn" onClick={onClose} title="Close">✕</button>
           )}

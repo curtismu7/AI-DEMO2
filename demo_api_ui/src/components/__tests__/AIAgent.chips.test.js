@@ -515,7 +515,7 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(more);
     });
 
-    expect(screen.getByRole("button", { name: "Pop out demo controls" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Pop out Quick Config/i })).toBeInTheDocument();
     expect(screen.getByText("Movie reel controls")).toBeInTheDocument();
     // The items live in the tray container, not loose in the header row. This
     // asserts structure only — jsdom applies no CSS, so whether the tray is
@@ -670,7 +670,7 @@ describe("Header controls after the Actions dropdown removal", () => {
     expect(quickConfig).toHaveClass("ba-header-more-pop--surface-open");
   });
 
-  it("supports black/white controls and four-edge Quick Config resizing", async () => {
+  it("supports dark mode and four-corner Quick Config resizing", async () => {
     renderThemedAgent({ user: customerUser, mode: "float" });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
@@ -681,15 +681,39 @@ describe("Header controls after the Actions dropdown removal", () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByLabelText("Use black controls"));
+      fireEvent.click(screen.getByLabelText("Dark mode"));
     });
-    expect(document.querySelector(".ba-header-more-pop")).toHaveClass("ba-header-more-pop--dark");
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
 
     const quickConfig = document.querySelector(".ba-header-more-pop");
     expect(quickConfig).not.toBeNull();
-    for (const direction of ["top", "right", "bottom", "left"]) {
+    for (const direction of ["northwest", "northeast", "southwest", "southeast"]) {
       expect(quickConfig.querySelector(`[aria-label="Resize ${direction}"]`)).toBeInTheDocument();
     }
+  });
+
+  it("keeps Quick Config open for internal mouse interaction and exposes window controls", async () => {
+    renderThemedAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
+    });
+
+    const quickConfig = document.querySelector(".ba-header-more-pop");
+    expect(quickConfig).not.toBeNull();
+    expect(quickConfig.querySelector('[aria-label="Move Quick Config"]')).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Pop out Quick Config/i })).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Token topology/ }));
+    });
+    await act(async () => {
+      fireEvent.mouseDown(screen.getByRole("button", { name: /Token topology surface/i }));
+    });
+    expect(document.querySelector(".ba-header-more-pop")).toBeInTheDocument();
   });
 });
 
