@@ -185,6 +185,18 @@ function agentGatewayAudience() {
     || 'agentgateway.ping.demo';
 }
 
+/**
+ * The AI-agent actor token is audienced at the Agent Gateway resource, but the
+ * exchanged token is sent to the MCP gateway that fronts the façade. Those are
+ * distinct resources in the two-exchange chain. Keep the target explicit so a
+ * local Node gateway and a deployed PingGateway can select their own resource.
+ */
+function agentGatewayResourceAudience() {
+  return process.env.MCP_FACADE_AGENT_GATEWAY_RESOURCE_URI
+    || configStore.getEffective('mcp_facade_agent_gateway_resource_uri')
+    || 'mcpgateway.ping.demo';
+}
+
 function isAgentGatewayConfigured() {
   return Boolean(resolveAgentGatewayClient());
 }
@@ -206,7 +218,7 @@ function withClientAuth(client, body) {
  * a subject-only audience swap would still arrive without an `act` claim and
  * would be denied as impersonation before tool-specific policy runs.
  */
-async function exchangeForAgentGateway(subjectToken, scopes = ['agent:invoke']) {
+async function exchangeForAgentGateway(subjectToken, scopes = ['mcp:invoke']) {
   if (!subjectToken) {
     const e = new Error('token exchange requires a subject token');
     e.code = 'exchange_no_subject';
@@ -221,19 +233,20 @@ async function exchangeForAgentGateway(subjectToken, scopes = ['agent:invoke']) 
     e.code = 'agent_exchange_not_configured';
     throw e;
   }
-  const audience = agentGatewayAudience();
+  const actorAudience = agentGatewayAudience();
+  const resourceAudience = agentGatewayResourceAudience();
   const requestedScopes = [...new Set(scopes.filter(Boolean))];
-  const key = cacheKey(subjectToken, audience, requestedScopes);
+  const key = cacheKey(subjectToken, resourceAudience, requestedScopes);
   const cached = readCache(key);
   if (cached) return { accessToken: cached, cached: true };
 
   const actorScope = configStore.getEffective('agent_gateway_cc_scope') || 'agent:invoke';
-  const actorKey = cacheKey(client.clientId, audience, [actorScope]);
+  const actorKey = cacheKey(client.clientId, actorAudience, [actorScope]);
   let actorToken = readCache(actorKey);
   if (!actorToken) {
     const actorBody = new URLSearchParams({
       grant_type: 'client_credentials',
-      audience,
+      audience: actorAudience,
       scope: actorScope,
     });
     const actorHeaders = withClientAuth(client, actorBody);
@@ -264,7 +277,9 @@ async function exchangeForAgentGateway(subjectToken, scopes = ['agent:invoke']) 
     actor_token: actorToken,
     actor_token_type: ACCESS_TOKEN_TYPE,
     requested_token_type: ACCESS_TOKEN_TYPE,
-    resource: audience,
+    // PingOne expects a single final resource as `audience`; `resource` is
+    // reserved for RFC 8707 multi-resource requests in this integration.
+    audience: resourceAudience,
     scope: requestedScopes.join(' '),
   });
   const exchangeHeaders = withClientAuth(client, exchangeBody);

@@ -10,6 +10,8 @@ const mcpErrorRecoveryTestPath = '/app/client/src/components/Chat/Messages/Conte
 const mcpRecoveryControllerPath = '/app/client/src/components/Chat/Messages/Content/McpRecoveryController.ts';
 const mcpRecoveryControllerTestPath = '/app/client/src/components/Chat/Messages/Content/McpRecoveryController.spec.ts';
 const mcpRecoveryErrorMessageTestPath = '/app/client/src/components/Chat/Messages/Content/McpRecoveryErrorMessage.spec.tsx';
+const mcpStartupReconnectPath = '/app/client/src/Providers/McpStartupReconnect.ts';
+const mcpStartupReconnectTestPath = '/app/client/src/Providers/McpStartupReconnect.spec.ts';
 const overrideRoot = '/tmp/client-overrides';
 
 function replaceOnce(source, before, after, label) {
@@ -80,6 +82,30 @@ writeFileSync(mcpRecoveryControllerTestPath, mcpRecoveryControllerTest);
 
 const mcpRecoveryErrorMessageTest = readFileSync(`${overrideRoot}/McpRecoveryErrorMessage.spec.tsx`, 'utf8');
 writeFileSync(mcpRecoveryErrorMessageTestPath, mcpRecoveryErrorMessageTest);
+
+writeFileSync(mcpStartupReconnectPath, readFileSync(`${overrideRoot}/McpStartupReconnect.ts`, 'utf8'));
+writeFileSync(mcpStartupReconnectTestPath, readFileSync(`${overrideRoot}/McpStartupReconnect.spec.ts`, 'utf8'));
+
+let agentPanel = readFileSync('/app/client/src/Providers/AgentPanelContext.tsx', 'utf8');
+agentPanel = replaceOnce(
+  agentPanel,
+  "import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';",
+  "import React, { createContext, useContext, useState, useMemo, useEffect, useRef } from 'react';",
+  'startup reconnect React imports',
+);
+agentPanel = replaceOnce(
+  agentPanel,
+  "import store from '~/store';",
+  "import store from '~/store';\nimport { getStartupReconnectCandidates } from './McpStartupReconnect';",
+  'startup reconnect helper import',
+);
+agentPanel = replaceOnce(
+  agentPanel,
+  "  const { availableMCPServers, isLoading, availableMCPServersMap, connectionStatus } =\n    useMCPServerManager({ observeToolAuthorization });",
+  "  const {\n    availableMCPServers,\n    isLoading,\n    availableMCPServersMap,\n    connectionStatus,\n    initializeServer,\n  } = useMCPServerManager({ observeToolAuthorization });\n\n  const startupReconnectAttempted = useRef(new Set<string>());\n  useEffect(() => {\n    if (isLoading || availableMCPServers.length === 0) return;\n\n    const candidates = getStartupReconnectCandidates(availableMCPServers, connectionStatus);\n    for (const serverName of candidates) {\n      if (startupReconnectAttempted.current.has(serverName)) continue;\n      startupReconnectAttempted.current.add(serverName);\n      void initializeServer(serverName, false);\n    }\n  }, [availableMCPServers, connectionStatus, initializeServer, isLoading]);",
+  'startup reconnect effect',
+);
+writeFileSync('/app/client/src/Providers/AgentPanelContext.tsx', agentPanel);
 
 let messageContent = readFileSync('/app/client/src/components/Chat/Messages/Content/MessageContent.tsx', 'utf8');
 messageContent = replaceOnce(
