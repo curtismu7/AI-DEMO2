@@ -80,14 +80,18 @@ function DeviceRegistrationField({ collector, updater, serverError, busy }) {
   );
 }
 
-function FidoAuthenticationField({ collector, updater, serverError, busy }) {
+function FidoAuthenticationField({ collector, updater, onFido, serverError, busy }) {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState(null);
-  const label = collector?.output?.label || "Use biometrics or security key";
+  const label = collector?.output?.label || "Use passkey";
   const requestOptions = collector?.output?.config?.publicKeyCredentialRequestOptions
     || collector?.output?.publicKeyCredentialRequestOptions;
 
   const authenticate = useCallback(async () => {
+    if (onFido) {
+      onFido();
+      return;
+    }
     setWorking(true);
     setError(null);
     try {
@@ -105,7 +109,7 @@ function FidoAuthenticationField({ collector, updater, serverError, busy }) {
     } finally {
       setWorking(false);
     }
-  }, [requestOptions, updater]);
+  }, [onFido, requestOptions, updater]);
 
   const displayError = error || serverError;
   return (
@@ -191,7 +195,7 @@ export default function CollectorField({ collector, updater, onSubmit, onFlow, o
       return <DeviceRegistrationField collector={collector} updater={updater} serverError={serverError} busy={busy} />;
 
     case "FidoAuthenticationCollector":
-      return <FidoAuthenticationField collector={collector} updater={updater} serverError={serverError} busy={busy} />;
+      return <FidoAuthenticationField collector={collector} updater={updater} onFido={onFido} serverError={serverError} busy={busy} />;
 
     case "TextCollector":
       return (
@@ -257,15 +261,6 @@ export default function CollectorField({ collector, updater, onSubmit, onFlow, o
     case "ProtectCollector":
       return <ProtectStatus />;
 
-    // The browser's WebAuthn prompt needs a user action. The page uses the
-    // SDK's FIDO helper, writes its assertion through update(), then advances.
-    case "FidoAuthenticationCollector":
-      return (
-        <button type="button" className="dvsdk-submit" onClick={onFido} disabled={busy}>
-          {busy ? "Opening passkey..." : "Use passkey"}
-        </button>
-      );
-
     default:
       return (
         <p className="dvsdk-unsupported">
@@ -292,5 +287,4 @@ export const SUPPORTED_COLLECTORS = [
   "RichTextCollector",
   "ERROR_DISPLAY",
   "ProtectCollector",
-  "FidoAuthenticationCollector",
 ];

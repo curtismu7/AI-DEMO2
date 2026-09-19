@@ -1299,10 +1299,7 @@ export default function BankingAgent({
   const chooseEvidenceView = useCallback((view) => {
     setQuickConfigView(view);
     try { localStorage.setItem("ba_quick_config_view", view); } catch {}
-    if (view === "movie-reel") {
-      setShowFilmstrip(true);
-      window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", { detail: { on: true } }));
-    } else if (view === "simple-stepper") {
+    if (view === "simple-stepper") {
       chooseSimpleStepperSurface(simpleStepperSurface === "none" ? "embedded" : simpleStepperSurface);
     } else if (view === "sequence-view") {
       chooseSequenceSurface(sequenceSurface === "none" ? "embedded" : sequenceSurface);
@@ -10188,7 +10185,7 @@ export default function BankingAgent({
                         {quickConfigView === "movie-reel" && (
                           <>
                             <Check variant="switch" className="ba-header-toggle-label" checked={showRfcInfo} onChange={(e) => chooseRfcInfo(e.target.checked)}>RFC info</Check>
-                            <Check variant="switch" className="ba-header-toggle-label" checked={showFilmstrip} onChange={(e) => { setShowFilmstrip(e.target.checked); window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", { detail: { on: e.target.checked } })); }}>Movie reel</Check>
+                            <Check variant="switch" className="ba-header-toggle-label" checked={showFilmstrip} onChange={(e) => { const next = e.target.checked; setShowFilmstrip(next); try { localStorage.setItem("ba_show_filmstrip", next ? "1" : "0"); } catch {} window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", { detail: { on: next } })); }}>Movie reel</Check>
                           </>
                         )}
                         {quickConfigView === "simple-stepper" && <SurfaceSelector id="simple-step-surface-select" label="Simple stepper" value={simpleStepperSurface} onChange={(e) => chooseSimpleStepperSurface(e.target.value)} open={openSurfaceSelector === "simple-step-surface-select"} onToggle={setOpenSurfaceSelector} />}
