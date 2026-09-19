@@ -153,13 +153,8 @@ export default function DemoStepsDropdown({
     });
   }
 
-  /**
-   * Open the explanation for a step. The popout must close first: it is
-   * z-index 100061 (`.ba-actions-popout`) and DraggableModal defaults to 9999,
-   * so leaving it open renders the modal behind the dropdown.
-   */
+  /** Open the explanation for a step without interrupting the presenter script. */
   function handleExplain(uc) {
-    onOpenChange(false);
     setExplainUc(uc);
   }
 
@@ -429,6 +424,7 @@ export default function DemoStepsDropdown({
         uc={explainUc}
         open={Boolean(explainUc)}
         a2aTokenEvents={a2aEventsForExplain(explainUc, tokenChainTraceStore)}
+        zIndex={100062}
         onClose={() => setExplainUc(null)}
       />
     </>

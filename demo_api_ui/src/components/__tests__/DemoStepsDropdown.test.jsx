@@ -167,7 +167,7 @@ describe('DemoStepsDropdown', () => {
     expect(screen.getByTestId('demo-steps-progress')).toHaveTextContent(`0 of ${total} done`);
   });
 
-  it('opens the explain modal from the per-step icon without running the step', async () => {
+  it('opens the explain modal from the per-step icon without closing Demo steps or running the step', async () => {
     const onSelect = vi.fn();
     const onOpenChange = vi.fn();
     render(
@@ -184,9 +184,9 @@ describe('DemoStepsDropdown', () => {
     expect(await screen.findByText('Long explanation for UC1')).toBeInTheDocument();
     // The icon explains only — running the step stays on the row button.
     expect(onSelect).not.toHaveBeenCalled();
-    // The popout MUST close: it is z-index 100061 and DraggableModal is 9999,
-    // so leaving it open renders the explanation behind the dropdown.
-    expect(onOpenChange).toHaveBeenCalledWith(false);
+    // The presenter keeps the script drawer open while inspecting an explanation.
+    expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalled();
   });
 
   it('treats a backend 400 unknown_vertical as "no demo steps", not an error', async () => {
