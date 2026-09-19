@@ -13,7 +13,7 @@ FROM node:22-alpine
 #
 # So for a NEW service: add this label AND grant Actions access. One without the
 # other fails identically, which is what made this take all day to pin down.
-LABEL org.opencontainers.image.source=https://github.com/curtismu7/AI-DEMO2
+LABEL org.opencontainers.image.source=https://github.com/cmuir_pingcorp/AI-DEMO2
 
 WORKDIR /app
 
