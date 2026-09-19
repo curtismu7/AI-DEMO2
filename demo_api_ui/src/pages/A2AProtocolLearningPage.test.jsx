@@ -30,6 +30,14 @@ vi.mock('./a2aTeachingPanes', () => ({
   LAYER: { IDENTITY: 'identity', WIRE: 'wire' },
 }));
 
+vi.mock('../components/A2AArchitectureDiagram', () => ({
+  default: ({ onClose }) => (
+    <div role="dialog" aria-label="A2A implementation architecture">
+      <button type="button" onClick={onClose}>Close architecture</button>
+    </div>
+  ),
+}));
+
 import A2AProtocolLearningPage from './A2AProtocolLearningPage';
 
 describe('A2A protocol learning lessons', () => {
@@ -58,5 +66,17 @@ describe('A2A protocol learning lessons', () => {
     expect(screen.getByRole('link', { name: /A2A learning hub/i })).toHaveAttribute(
       'href', 'https://a2a-protocol.org/latest/',
     );
+  });
+
+  it('opens the implementation architecture diagram from the learning hub', async () => {
+    const user = (await import('@testing-library/user-event')).default.setup();
+    render(
+      <MemoryRouter>
+        <A2AProtocolLearningPage />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole('button', { name: /show A2A implementation architecture/i }));
+    expect(screen.getByRole('dialog', { name: /A2A implementation architecture/i })).toBeInTheDocument();
   });
 });
