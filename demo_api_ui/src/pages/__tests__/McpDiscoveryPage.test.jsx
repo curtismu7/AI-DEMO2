@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import McpDiscoveryPage from '../McpDiscoveryPage';
 import { fetchMcpDiscoveryInventory, requestMcpDiscoveryScan } from '../../services/mcpDiscoveryService';
@@ -18,6 +18,7 @@ const inventory = {
     { id: 'candidate', displayName: 'Local stdio candidate', source: 'host-process', sources: ['host-process'], location: 'local', transport: 'stdio', endpoint: null, status: 'candidate', protocolVersion: null, tools: [], securityFindings: [{ kind: 'hidden-instruction', tool: 'bad_tool', detail: 'hidden instruction' }], probe: { latencyMs: null } },
     { id: 'listener', displayName: 'Local listener', source: 'listener', sources: ['listener'], location: 'local', transport: 'streamable-http', endpoint: 'http://127.0.0.1:3910/mcp', status: 'offline', protocolVersion: null, tools: [], securityFindings: [], probe: { latencyMs: null } },
     { id: 'remote', displayName: 'Remote MCP', source: 'remote-url', sources: ['remote-url'], location: 'remote', transport: 'streamable-http', endpoint: 'https://example.test/mcp', status: 'candidate', protocolVersion: null, tools: [], securityFindings: [], probe: { latencyMs: null } },
+    { id: 'configured-process', displayName: 'Configured local process', source: 'client-config', sources: ['client-config'], location: 'local', transport: 'stdio', endpoint: null, status: 'candidate', protocolVersion: null, tools: [], securityFindings: [], probe: { latencyMs: null } },
   ],
 };
 
@@ -36,9 +37,11 @@ test('renders operational inventory and security findings without tool actions',
   expect(screen.getByText('Compose service')).toBeInTheDocument();
   expect(screen.getByText('Host process')).toBeInTheDocument();
   expect(screen.getByText('MCP endpoint')).toBeInTheDocument();
-  expect(screen.getByText('Process candidate')).toBeInTheDocument();
   expect(screen.getByText('HTTP listener')).toBeInTheDocument();
   expect(screen.getByText('Remote endpoint')).toBeInTheDocument();
+  const configuredProcessRow = screen.getByText('Configured local process').closest('tr');
+  expect(within(configuredProcessRow).getByText('Configured client')).toBeInTheDocument();
+  expect(within(configuredProcessRow).getByText('Process candidate')).toBeInTheDocument();
   expect(screen.getByText('hidden instruction')).toBeInTheDocument();
   expect(screen.getByText(/These are heuristic signals/)).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /call|invoke|execute/i })).not.toBeInTheDocument();
