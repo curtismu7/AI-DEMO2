@@ -276,10 +276,10 @@ describe('LiveUseCaseWorkbenchPage', () => {
     await runCardMatching(/Wrong \/ insufficient scope/);
 
     await waitFor(() => {
-      expect(apiClient.post).toHaveBeenCalledWith(
-        '/api/demo/attack-sim/run',
-        expect.objectContaining({ sim: 'insufficient-scope', flowTraceId: expect.any(String) }),
-      );
+      expect(apiClient.post).toHaveBeenCalledWith('/api/demo/attack-sim/run', {
+        sim: 'insufficient-scope',
+        flowTraceId: expect.any(String),
+      });
     });
     expect(mockStore.beginTrace).toHaveBeenCalled();
     expect(mockStore.ingestTokenEvent).toHaveBeenCalledWith(

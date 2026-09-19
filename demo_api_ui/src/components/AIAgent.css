@@ -5122,6 +5122,55 @@ body > .banking-agent-float-root .banking-agent-panel {
   font-size: var(--font-size-xs);
   line-height: 1.35;
 }
+.ba-header-more-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  cursor: move;
+  touch-action: none;
+}
+.ba-header-more-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 12px;
+}
+.ba-header-more-toolbar-actions button {
+  min-height: 28px;
+  padding: 4px 8px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-2xs);
+  cursor: pointer;
+}
+.ba-header-more-toolbar-actions button:hover,
+.ba-header-more-toolbar-actions button.selected {
+  border-color: var(--th-status-info);
+  background: var(--th-status-info-bg);
+  color: var(--th-text);
+}
+.ba-header-more-context {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--th-border);
+}
+.ba-header-more-legacy { display: none; }
+.ba-header-more-pop--dark {
+  --th-bg-card: #111827;
+  --th-bg-inset: #030712;
+  --th-bg-hover: #1f2937;
+  --th-text: #f9fafb;
+  --th-text-muted: #cbd5e1;
+  --th-border: #475569;
+  --th-border-strong: #94a3b8;
+}
+.ba-header-more-pop--font-90 { font-size: 90%; }
+.ba-header-more-pop--font-115 { font-size: 115%; }
 .ba-header-more-heading {
   width: 100%;
   margin-top: 2px;
@@ -5364,10 +5413,10 @@ body > .banking-agent-float-root .banking-agent-panel {
   outline: 2px solid var(--th-status-info);
   outline-offset: -2px;
 }
-.ba-header-more-resize-handle--nw { top: 0; left: 0; cursor: nwse-resize; }
-.ba-header-more-resize-handle--ne { top: 0; right: 0; cursor: nesw-resize; }
-.ba-header-more-resize-handle--sw { bottom: 0; left: 0; cursor: nesw-resize; }
-.ba-header-more-resize-handle--se { right: 0; bottom: 0; cursor: nwse-resize; }
+.ba-header-more-resize-handle--n { top: 0; left: 20px; right: 20px; width: auto; height: 8px; cursor: ns-resize; }
+.ba-header-more-resize-handle--e { top: 20px; right: 0; bottom: 20px; width: 8px; height: auto; cursor: ew-resize; }
+.ba-header-more-resize-handle--s { right: 20px; bottom: 0; left: 20px; width: auto; height: 8px; cursor: ns-resize; }
+.ba-header-more-resize-handle--w { top: 20px; bottom: 20px; left: 0; width: 8px; height: auto; cursor: ew-resize; }
 .ba-header-more-pop .ba-header-toggle-label {
   height: auto;
   min-height: 32px;
@@ -6232,6 +6281,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   position: fixed;
   inset: 0 0 0 auto;
   z-index: 100061;
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   min-width: 360px;
@@ -6378,6 +6428,19 @@ body > .banking-agent-float-root .banking-agent-panel {
   padding: 5px 9px;
   border-radius: 7px;
   font-size: var(--font-size-3xs);
+}
+
+/* The drawer can be narrow even on a wide viewport after the presenter drags
+   its resize handle. Give search its own row instead of squeezing it beside
+   both action buttons. */
+@container (max-width: 460px) {
+  .ba-demo-steps-drawer .ba-demo-steps-popout__header-actions {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .ba-demo-steps-drawer .ba-demo-steps-popout__search {
+    grid-column: 1 / -1;
+  }
 }
 
 .ba-demo-steps-drawer__body {

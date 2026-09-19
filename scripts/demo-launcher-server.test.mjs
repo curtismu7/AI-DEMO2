@@ -25,7 +25,7 @@ test('default startup runs the fixed core, demo auth, and LibreChat commands in 
   assert.deepEqual(calls.map(({ command, args }) => ({ command, args })), [
     { command: './run-docker.sh', args: [] },
     { command: './run-docker.sh', args: ['optional', 'start', 'demo-auth'] },
-    { command: 'docker', args: ['compose', '-f', 'librechat/docker-compose.yml', 'up', '-d', 'api'] },
+    { command: 'docker', args: ['compose', '-f', 'librechat/docker-compose.yml', 'up', '-d', 'api', 'oauth-loopback'] },
   ]);
   assert.ok(calls.every(({ options }) => options.cwd && options.shell === false));
 });

@@ -2,6 +2,8 @@
  * DemoStepsDropdown — agent header Demo steps menu.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import DemoStepsDropdown from '../DemoStepsDropdown';
 import apiClient from '../../services/apiClient';
@@ -18,6 +20,7 @@ const CATALOG = DEMO_USE_CASE_IDS.map((id, i) => ({
   id,
   useCaseId: `slug-${id}`,
   title: `Title for ${id}`,
+  ...(id === 'UC8' ? { demoLabel: '✦ MCP App · transfer approval' } : {}),
   whatLong: `Long explanation for ${id}`,
   trigger: { type: 'chip', text: `prompt for ${id}` },
   // Insert a decoy so order-from-catalog ≠ demo script order
@@ -72,6 +75,20 @@ describe('DemoStepsDropdown', () => {
     expect(screen.getByTestId('demo-steps-popout')).toHaveAttribute('data-placement', 'right-overlay');
   });
 
+  it('stacks the drawer search above its actions when the drawer is narrow', () => {
+    const css = fs.readFileSync(
+      path.resolve(__dirname, '../AIAgent.css'),
+      'utf8',
+    );
+
+    expect(css).toMatch(
+      /@container\s*\(max-width:\s*460px\)[\s\S]*?\.ba-demo-steps-drawer \.ba-demo-steps-popout__header-actions[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\) auto/,
+    );
+    expect(css).toMatch(
+      /@container\s*\(max-width:\s*460px\)[\s\S]*?\.ba-demo-steps-drawer \.ba-demo-steps-popout__search[\s\S]*?grid-column:\s*1\s*\/\s*-1/,
+    );
+  });
+
   it('omits the Stop Agent action when onStopAgentClick is not provided', async () => {
     render(
       <DemoStepsDropdown
@@ -111,6 +128,18 @@ describe('DemoStepsDropdown', () => {
       'Explain step 9: UC2 — Title for UC2',
     );
     expect(screen.getByTestId('demo-step-UC-TOOL1')).toBeInTheDocument();
+  });
+
+  it('uses the MCP App demo label for the selected transfer approval step', async () => {
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-step-UC8')).toBeInTheDocument());
+    expect(screen.getByTestId('demo-step-UC8')).toHaveTextContent('✦ MCP App · transfer approval');
   });
 
   it('calls onSelect with the catalog entry when a step is clicked', async () => {

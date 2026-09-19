@@ -82,6 +82,7 @@ const SILENT_URL_PREFIXES = [
   '/api/logs',
   '/api/activity',
   '/api/demo-agent',
+  '/api/demo-track',
   '/api/langchain',
   '/api/transactions/consent-challenge',
   '/api/accounts',

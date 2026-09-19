@@ -24,11 +24,12 @@ const path = require('path');
 
 const ROOT = path.join(__dirname, '..', '..', '..');
 const ROUTE = path.join(ROOT, 'ping-gateway', 'config', 'routes', '01-mcp-olb.json');
+const JWKS_ROUTE = path.join(ROOT, 'ping-gateway', 'config', 'routes', '00-mcp-olb-jwks.json');
 const GROOVY = path.join(ROOT, 'ping-gateway', 'scripts', 'groovy', 'privilege-bridge.groovy');
 const GENERATOR = path.join(__dirname, '..', '..', 'scripts', 'refresh-service-envs.js');
 
-function filterNames() {
-  const route = JSON.parse(fs.readFileSync(ROUTE, 'utf8'));
+function filterNames(routePath = ROUTE) {
+  const route = JSON.parse(fs.readFileSync(routePath, 'utf8'));
   return route.handler.config.filters.map((f) => f.name);
 }
 
@@ -63,14 +64,30 @@ describe('PingGateway privilege bridge (Task 8b)', () => {
     expect(names.indexOf('TransactionHop')).toBeLessThan(names.indexOf('PrivilegeBridge'));
   });
 
+  test('is mounted before JWKS validation on the JWKS route', () => {
+    const route = JSON.parse(fs.readFileSync(JWKS_ROUTE, 'utf8'));
+    const names = filterNames(JWKS_ROUTE);
+    const bridge = route.handler.config.filters.find((f) => f.name === 'PrivilegeBridge');
+
+    expect(bridge).toMatchObject({
+      type: 'ScriptableFilter',
+      config: { file: 'privilege-bridge.groovy' },
+    });
+    expect(names.indexOf('TransactionHop')).toBeLessThan(names.indexOf('PrivilegeBridge'));
+    expect(names.indexOf('PrivilegeBridge')).toBeLessThan(names.indexOf('JwksTokenValidation'));
+    expect(names.indexOf('PrivilegeBridge')).toBeLessThan(names.indexOf('McpAudit'));
+  });
+
   test('the groovy honours the two rules that keep the header from being a forgery channel', () => {
     const src = fs.readFileSync(GROOVY, 'utf8');
+    expect(src).toContain("def TRANSACTION_HEADER = 'tx-token'");
+    expect(src).not.toContain('X-Subject-Token');
     // 1. An unset secret can never match — the failure mode that would turn
     //    missing config into an open door.
     expect(src).toMatch(/if\s*\(!secret\s*\|\|\s*!bearer\)\s*return false/);
-    // 2. A non-bridge caller's X-Subject-Token is STRIPPED, not merely ignored:
+    // 2. A non-bridge caller's tx-token is STRIPPED, not merely ignored:
     //    left in place, a downstream filter or the backend could still read it.
-    expect(src).toMatch(/request\.headers\.remove\(SUBJECT_HEADER\)/);
+    expect(src).toMatch(/request\.headers\.remove\(TRANSACTION_HEADER\)/);
     // Constant-time compare, not ==.
     expect(src).toContain('MessageDigest.isEqual');
     // Remove-before-add on Authorization, or Privilege's static token stays
@@ -82,7 +99,7 @@ describe('PingGateway privilege bridge (Task 8b)', () => {
     const src = fs.readFileSync(GROOVY, 'utf8');
     // GatewayServer.ts:716-723 refuses rather than inventing a machine subject.
     // The two gateways must not disagree about this.
-    expect(src).toContain('Privilege bridge presented no X-Subject-Token');
+    expect(src).toContain('Privilege bridge presented no tx-token');
   });
 
   test('refresh-service-envs emits the secret into ping-gateway/.env', () => {

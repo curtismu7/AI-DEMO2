@@ -1374,6 +1374,7 @@ app.use('/api/mfa/test', mfaTestRoutes);
 app.use('/api/agent', agentIdentityRoutes);
 app.use('/api/agent', agentDelegationRoutes);
 app.use('/api/mcp', mcpDecisionPollingRoutes);
+app.use('/api/mcp/apps', require('./routes/mcpApps'));
 app.use('/api/mcp', mcpExchangeModeRoutes); // GET/POST /api/mcp/exchange-mode — UI ExchangeModeContext toggle
 app.use('/api/mcp/apikey', require('./routes/apiKeyExchange')); // POST /api/mcp/apikey/exchange — API key → bearer token
 app.use('/api/use-cases', require('./routes/useCases')); // read-only catalog is public; step-run routes self-gate with authenticateToken

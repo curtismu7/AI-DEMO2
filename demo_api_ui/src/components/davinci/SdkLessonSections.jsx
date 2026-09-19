@@ -431,11 +431,43 @@ function Collectors({ client, onNode }) {
         return null;
       case "ProtectCollector":
         return <p key={collector.id}>Security check active</p>;
+      case "FidoAuthenticationCollector":
+        return <FidoButton key={collector.id} client={client} collector={collector} onNode={onNode} />;
       default:
         // Never render nothing for an unknown collector: a missing field looks like a broken flow.
         return <p key={collector.id}>Unsupported collector: {collector.type}</p>;
     }
   });
+}`;
+
+const CODE_FIDO = `import { useState } from "react";
+import { fido } from "@forgerock/davinci-client";
+
+function FidoButton({ client, collector, onNode }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const authenticate = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const options = collector.output.config.publicKeyCredentialRequestOptions;
+      const assertion = await fido().authenticate(options); // opens the browser prompt
+      if (assertion.error || !assertion.assertionValue) {
+        throw new Error(assertion.message || "No passkey assertion returned");
+      }
+      const updateError = client.update(collector)(assertion);
+      if (updateError?.error) throw new Error(updateError.error.message);
+      onNode(await client.next()); // send the assertion to DaVinci
+    } catch (cause) {
+      setError(cause.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return <>
+    <button type="button" onClick={authenticate} disabled={busy}>Use passkey</button>
+    {error && <p role="alert">{error}</p>}
+  </>;
 }`;
 
 const CODE_TEXT = `import { useState } from "react";
@@ -799,10 +831,12 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         <p>
           Later PingOne Forms screens can also produce <code>PhoneNumberCollector</code>,
           <code>DeviceAuthenticationCollector</code>, <code>FidoRegistrationCollector</code>,
-          <code>QrCodeCollector</code>, and <code>PollingCollector</code>. These are structured or
-          device-driven collectors, not ordinary inputs: use their SDK update, WebAuthn, QR, or
-          polling operation. Rich text and Protect signals are already handled as display-only and
-          automatic collectors; keep a visible fallback for truly unknown types.
+          <code>FidoAuthenticationCollector</code>, <code>QrCodeCollector</code>, and <code>PollingCollector</code>.
+          The live renderer handles FIDO authentication with a user-triggered WebAuthn prompt:
+          call <code>fido().authenticate()</code> with the collector&rsquo;s request options, pass the
+          returned assertion to <code>client.update(c)(assertion)</code>, then call <code>client.next()</code>.
+          Other device-driven collectors need their own SDK update, WebAuthn, QR, or polling
+          operation; keep a visible fallback until each is supported.
         </p>
         <CollapsibleCodeBlock title="PingOne Forms device-registration collector" code={PINGONE_FORMS_OBJECT} language="json" />
         <h3>Every category</h3>
@@ -818,6 +852,7 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         <CollapsibleCodeBlock title="FlowCollector" code={CODE_FLOW} language="jsx" />
         <CollapsibleCodeBlock title="Handle the node that comes back" code={CODE_NODE} language="js" />
         <CollapsibleCodeBlock title="Validated text fields" code={CODE_VALIDATE} language="js" />
+        <CollapsibleCodeBlock title="FIDO authentication collector" code={CODE_FIDO} language="jsx" />
         <h3>Rules that fail silently if you miss them</h3>
         <ul>
           <li>

@@ -1863,7 +1863,7 @@ router.get('/state', (req, res) => {
       // Agentic App's Static Token on its backend hop, and until that filter
       // existed PingGateway answered 401 to it ("Error discovering MCP server:
       // calling \"initialize\": Unauthorized" in the console). The filter swaps
-      // the caller's token in from X-Subject-Token, so P1AZ and the RFC 8693
+      // the caller's transaction token in tx-token, so P1AZ and the RFC 8693
       // exchange run on the real delegated user.
       //
       // Requires MCP_GW_PRIVILEGE_BRIDGE_SECRET on ping-gateway to equal that
