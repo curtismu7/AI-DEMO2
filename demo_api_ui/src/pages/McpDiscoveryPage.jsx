@@ -8,6 +8,26 @@ function statusLabel(status) {
   return String(status || 'unprobed').replace(/-/g, ' ');
 }
 
+const SOURCE_LABELS = {
+  'compose-service': 'Compose service',
+  'host-process': 'Host process',
+  listener: 'Local listener',
+  'remote-url': 'Remote URL',
+  'client-config': 'Configured client',
+};
+
+function sourceLabel(source) {
+  return SOURCE_LABELS[source] || statusLabel(source);
+}
+
+function runtimeType(record) {
+  if (record.source === 'listener') return 'HTTP listener';
+  if (record.location === 'remote' || record.source === 'remote-url') return 'Remote endpoint';
+  if (record.transport === 'stdio') return 'Process candidate';
+  if (record.endpoint && ['streamable-http', 'sse'].includes(record.transport)) return 'MCP endpoint';
+  return 'Observed candidate';
+}
+
 function formatTime(value) {
   if (!value) return 'Not yet scanned';
   return new Date(value).toLocaleTimeString();
@@ -84,14 +104,21 @@ export default function McpDiscoveryPage() {
             <div><p className="mcp-discovery-eyebrow">Operational view</p><h2 id="mcp-inventory-title">Discovered servers</h2></div>
             <span className="mcp-discovery-count">{records.length} records</span>
           </div>
+          <div className="mcp-discovery-legend" aria-label="Discovery legend">
+            <strong>How to read this:</strong>
+            <span>Source is where it was found.</span>
+            <span>Runtime type is what it represents.</span>
+            <span>Status is the latest probe result.</span>
+          </div>
           {loading && records.length === 0 ? <p className="mcp-discovery-empty">Scanning configured sources…</p> : records.length === 0 ? <p className="mcp-discovery-empty">No candidates found. Start the agent or configure a remote URL.</p> : (
             <div className="mcp-discovery-table-wrap">
               <table className="mcp-discovery-table">
-                <thead><tr><th>Status</th><th>Server</th><th>Source</th><th>Transport</th><th>Tools</th><th>Latency</th></tr></thead>
+                <thead><tr><th>Status</th><th>Server</th><th>Source</th><th>Runtime type</th><th>Transport</th><th>Tools</th><th>Latency</th></tr></thead>
                 <tbody>{records.map((record) => <tr key={record.id}>
                   <td><span className={`mcp-discovery-status mcp-discovery-status-${record.status}`}>{statusLabel(record.status)}</span></td>
                   <td><strong>{record.displayName}</strong><small>{record.endpoint || 'No endpoint — candidate only'}</small></td>
-                  <td>{(record.sources || [record.source]).join(', ')}</td>
+                  <td>{(record.sources || [record.source]).map(sourceLabel).join(', ')}</td>
+                  <td>{runtimeType(record)}</td>
                   <td>{statusLabel(record.transport)}</td>
                   <td>{record.tools?.length || 0}</td>
                   <td>{record.probe?.latencyMs == null ? '—' : `${record.probe.latencyMs} ms`}</td>
