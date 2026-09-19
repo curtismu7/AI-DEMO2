@@ -5,12 +5,13 @@
   z-index: 10056;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(165deg, var(--brand-light-gray) 0%, #eef2ff 100%);
-  border: 1px solid #c7d2fe;
+  background: var(--th-bg-page);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
   border-radius: 12px;
   box-shadow:
     0 20px 50px rgba(15, 23, 42, 0.18),
-    0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+    0 0 0 1px color-mix(in srgb, var(--th-text-invert) 60%, transparent) inset;
   overflow: hidden;
   font-family:
     system-ui,
@@ -36,6 +37,16 @@
   margin: 0.75rem 0;
 }
 
+.afd-panel--popout {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 .afd-panel--embedded .afd-header {
   cursor: default;
 }
@@ -45,7 +56,8 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.55rem 0.65rem 0.55rem 0.75rem;
-  background: rgba(255, 255, 255, 0.75);
+  background: var(--th-bg-card);
+  color: var(--th-text);
   border-bottom: 1px solid var(--th-border);
   cursor: grab;
   user-select: none;
@@ -73,14 +85,14 @@
   margin: 0;
   font-size: 0.9rem;
   font-weight: 700;
-  color: #1e1b4b;
+  color: var(--th-text);
   letter-spacing: -0.02em;
 }
 
 .afd-subtitle {
   display: block;
   font-size: 0.75rem;
-  color: #2563eb;
+  color: var(--th-status-info-text);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -91,6 +103,34 @@
   display: flex;
   gap: 0.25rem;
   flex-shrink: 0;
+}
+
+.afd-path-badge {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.afd-path-badge--oauth_bearer {
+  background: var(--th-status-info-bg);
+  border: 1px solid var(--th-status-info-border);
+  color: var(--th-status-info-text);
+}
+
+.afd-path-badge--api_key {
+  background: var(--th-status-warning-bg);
+  border: 1px solid var(--th-status-warning-border);
+  color: var(--th-status-warning-text);
+}
+
+.afd-path-badge--dual_token {
+  background: var(--th-status-success-bg);
+  border: 1px solid var(--th-status-success-border);
+  color: var(--th-status-success-text);
 }
 
 .afd-btn {
@@ -113,20 +153,45 @@
 }
 
 .afd-btn:hover {
-  background: var(--brand-light-gray);
+  background: var(--th-bg-hover);
   border-color: var(--th-border-strong);
 }
 
 .afd-btn--close:hover {
-  background: #fee2e2;
-  border-color: #fca5a5;
-  color: #b91c1c;
+  background: var(--th-status-error-bg);
+  border-color: var(--th-status-error-border);
+  color: var(--th-status-error-text);
+}
+
+.afd-placeholder {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 10056;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  font-size: 0.75rem;
+}
+
+.afd-placeholder-btn {
+  width: auto;
+  min-width: 0;
+  padding: 0 0.5rem;
+  font-size: 0.7rem;
 }
 
 .afd-body {
   flex: 1;
   overflow: auto;
   padding: 0.75rem 0.85rem 1rem;
+  color: var(--th-text);
 }
 
 .afd-hint {
@@ -135,7 +200,7 @@
   font-size: 0.75rem;
   line-height: 1.45;
   color: var(--th-text-muted);
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--th-bg-card);
   border-radius: 8px;
   border: 1px dashed var(--th-border-strong);
 }
@@ -172,7 +237,7 @@
 }
 
 .afd-step--pending .afd-step-dot {
-  background: var(--brand-light-gray);
+  background: var(--th-bg-inset);
   border-color: var(--th-border-strong);
 }
 
@@ -232,8 +297,8 @@
 }
 
 .afd-step--error .afd-step-card {
-  border-color: #fecaca;
-  background: #fffafa;
+  border-color: var(--th-status-error-border);
+  background: var(--th-status-error-bg);
 }
 
 .afd-step-title {
@@ -248,7 +313,7 @@
   margin: 0.25rem 0 0;
   font-size: 0.7rem;
   line-height: 1.45;
-  color: var(--th-text-faint);
+  color: var(--th-text-muted);
 }
 
 .afd-badge {
@@ -263,23 +328,23 @@
 }
 
 .afd-badge--pending {
-  background: var(--brand-light-gray);
-  color: var(--th-text-faint);
+  background: var(--th-bg-inset);
+  color: var(--th-text-muted);
 }
 
 .afd-badge--active {
-  background: #e0e7ff;
-  color: #4338ca;
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
 }
 
 .afd-badge--done {
-  background: #d1fae5;
-  color: #065f46;
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
 }
 
 .afd-badge--error {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
 }
 
 /* ─── Sequence diagram (login-style flows only — steps carry actor/toActor) ───
@@ -401,7 +466,7 @@
 
 .afd-step-protocol-row dd {
   margin: 0;
-  color: var(--th-text-faint);
+  color: var(--th-text-muted);
   word-break: break-word;
 }
 
@@ -427,7 +492,7 @@
 }
 
 .afd-replay-btn:hover {
-  background: var(--brand-light-gray);
+  background: var(--th-bg-hover);
 }
 
 .afd-replay-range {
@@ -529,7 +594,7 @@
 .afd-empty {
   margin: 0;
   font-size: 0.8rem;
-  color: var(--th-text-faint);
+  color: var(--th-text-muted);
   line-height: 1.5;
 }
 
@@ -545,7 +610,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #4338ca;
+  color: var(--th-status-info-text);
 }
 
 .afd-sse-list {
@@ -564,7 +629,7 @@
   margin-bottom: 0.25rem;
   font-size: 0.75rem;
   line-height: 1.35;
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--th-bg-card);
   border: 1px solid var(--th-border);
   border-radius: 8px;
 }
@@ -576,14 +641,14 @@
 
 .afd-sse-detail {
   font-size: 0.75rem;
-  color: var(--th-text-faint);
+  color: var(--th-text-muted);
   word-break: break-word;
 }
 
 .afd-token-section {
   margin-bottom: 1rem;
   padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--th-bg-card);
   border: 1px solid var(--th-border);
   border-radius: 8px;
 }
@@ -595,21 +660,21 @@
   margin-bottom: 0.5rem;
   font-size: 0.8rem;
   font-weight: 600;
-  color: var(--brand-dark-gray);
+  color: var(--th-text);
 }
 
 .afd-token-toggle {
   padding: 0.25rem 0.5rem;
   font-size: 0.7rem;
-  background: var(--brand-light-gray);
+  background: var(--th-bg-inset);
   border: 1px solid var(--th-border-strong);
   border-radius: 4px;
   cursor: pointer;
-  color: var(--th-text-muted);
+  color: var(--th-text-body);
 }
 
 .afd-token-toggle:hover {
-  background: #dddddd;
+  background: var(--th-bg-hover);
 }
 
 .afd-token-chain-compact {
@@ -623,7 +688,8 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.35rem;
-  background: var(--brand-light-gray);
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
   border: 1px solid var(--th-border);
   border-radius: 6px;
   font-size: 0.7rem;
@@ -657,13 +723,13 @@
 }
 
 .afd-token-user {
-  color: var(--th-text-faint);
+  color: var(--th-text-muted);
   font-family: inherit;
   font-size: 0.65rem;
 }
 
 .afd-token-more {
-  color: var(--th-text-faint);
+  color: var(--th-text-muted);
   font-size: 0.65rem;
   font-style: italic;
 }
@@ -677,14 +743,14 @@
 
 .afd-tc-empty {
   font-size: 0.75rem;
-  color: var(--th-text-faint);
+  color: var(--th-text-muted);
   margin: 4px 0;
 }
 
 .afd-tc-card {
   border: 1px solid var(--th-border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--th-bg-card);
   overflow: hidden;
   transition: border-color 0.15s;
 }
@@ -715,16 +781,16 @@
   letter-spacing: 0.04em;
 }
 .afd-tc-type--user_token {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
 }
 .afd-tc-type--agent_token {
-  background: #dbeafe;
-  color: #1e40af;
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
 }
 .afd-tc-type--exchanged_token {
-  background: #d1fae5;
-  color: #065f46;
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
 }
 .afd-tc-type--default {
   background: var(--th-bg-inset);
@@ -743,14 +809,14 @@
 .afd-tc-time {
   flex-shrink: 0;
   font-size: 0.65rem;
-  color: var(--th-text-faint);
+  color: var(--th-text-muted);
   font-variant-numeric: tabular-nums;
 }
 
 .afd-tc-chevron {
   flex-shrink: 0;
   font-size: var(--font-size-3xs);
-  color: var(--th-text-faint);
+  color: var(--th-text-muted);
 }
 
 .afd-tc-summary {
@@ -780,32 +846,32 @@
   color: var(--th-text-body);
 }
 .afd-tc-pill--act {
-  background: #dbeafe;
-  color: #1e40af;
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
 }
 .afd-tc-pill--aud {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
 }
 .afd-tc-pill--scope {
-  background: #ede9fe;
-  color: #5b21b6;
+  background: var(--th-bg-hover);
+  color: var(--th-text-body);
 }
 .afd-tc-pill--error {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
 }
 .afd-tc-pill--active {
-  background: #d1fae5;
-  color: #065f46;
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
 }
 .afd-tc-pill--acquired {
-  background: #d1fae5;
-  color: #065f46;
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
 }
 .afd-tc-pill--failed {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
 }
 
 /* Expanded detail */
@@ -825,7 +891,7 @@
 }
 
 .afd-tc-explanation--error {
-  color: #991b1b;
+  color: var(--th-status-error-text);
 }
 
 .afd-tc-section {
@@ -840,18 +906,18 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #2563eb;
+  color: var(--th-status-info-text);
 }
 
 .afd-tc-pre {
   margin: 0;
   padding: 6px 8px;
-  background: var(--th-bg-inset);
+  background: var(--th-code-bg);
   border: 1px solid var(--th-border);
   border-radius: 6px;
   font-size: 0.64rem;
   line-height: 1.55;
-  color: var(--th-text-body);
+  color: var(--th-code-text);
   overflow-x: auto;
   white-space: pre;
   font-family: inherit;

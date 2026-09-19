@@ -451,15 +451,15 @@ function Inspector({ step, topologyNodes, onClose, fontSize, setFontSize }) {
       </div>
 
       {/* Mini Interaction Map */}
-      <div className="ttp-insp-interaction-map" style={{ padding: '12px 14px', background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid #30363d', fontSize: '11px', textAlign: 'center', marginBottom: '8px' }}>
+      <div className="ttp-insp-interaction-map">
         {prevNode && (
-          <><span style={{ color: '#8b949e' }}>[{prevNode.icon}] {prevNode.name}</span> <span style={{ fontWeight: 'bold', margin: '0 4px' }}>→</span> </>
+          <><span className="ttp-map-neighbor">[{prevNode.icon}] {prevNode.name}</span> <span className="ttp-map-arrow">→</span> </>
         )}
-        <span style={{ color: '#a78bfa', border: '1px solid #a78bfa', borderRadius: '4px', padding: '2px 6px', fontWeight: 'bold' }}>
+        <span className="ttp-map-current">
           [{activeNode?.icon}] {activeNode?.name || 'Current'}
         </span>
         {nextNode && (
-          <> <span style={{ fontWeight: 'bold', margin: '0 4px' }}>→</span> <span style={{ color: '#8b949e' }}>[{nextNode.icon}] {nextNode.name}</span></>
+          <> <span className="ttp-map-arrow">→</span> <span className="ttp-map-neighbor">[{nextNode.icon}] {nextNode.name}</span></>
         )}
       </div>
 
@@ -516,7 +516,7 @@ function Inspector({ step, topologyNodes, onClose, fontSize, setFontSize }) {
               </div>
             )}
             {!narrative && !detail.decision && !statements && (
-              <div className="ttp-detail-text muted">Waiting for details...</div>
+              <div className="ttp-detail-text">Waiting for details...</div>
             )}
           </div>
         )}
@@ -525,19 +525,19 @@ function Inspector({ step, topologyNodes, onClose, fontSize, setFontSize }) {
             {spec.mandate && (
               <div className="ttp-detail-section">
                  <div className="ttp-detail-label">Role / Mandate</div>
-                 <div className="ttp-detail-text" style={{ fontSize: '13px', lineHeight: 1.5, color: '#c9d1d9' }}>{str(spec.mandate)}</div>
+                 <div className="ttp-detail-text ttp-overview-text">{str(spec.mandate)}</div>
               </div>
             )}
             {spec.why && (
               <div className="ttp-detail-section">
                  <div className="ttp-detail-label">Interaction / Why</div>
-                 <div className="ttp-detail-text" style={{ fontSize: '13px', lineHeight: 1.5, color: '#c9d1d9' }}>{str(spec.why)}</div>
+                 <div className="ttp-detail-text ttp-overview-text">{str(spec.why)}</div>
               </div>
             )}
             {spec.failure && (
-              <div className="ttp-detail-section" style={{ borderLeft: '3px solid #f87171', paddingLeft: '8px', marginTop: '16px' }}>
-                 <div className="ttp-detail-label" style={{ color: '#f87171', marginBottom: '4px' }}>Failure Mode</div>
-                 <div className="ttp-detail-text" style={{ fontSize: '12px', color: '#8b949e', lineHeight: 1.4 }}>{str(spec.failure)}</div>
+              <div className="ttp-detail-section ttp-failure-section">
+                 <div className="ttp-detail-label ttp-failure-label">Failure Mode</div>
+                 <div className="ttp-detail-text ttp-failure-text">{str(spec.failure)}</div>
               </div>
             )}
           </div>
@@ -604,6 +604,7 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
   // Start at the presentation-friendly size; the inspector controls can still
   // reduce or increase this per session.
   const [fontSize, setFontSize] = useState('large');
+  const [inspectorVisible, setInspectorVisible] = useState(false);
 
   useEffect(() => {
     return tokenChainTraceStore.subscribe(setStoreState);
@@ -616,10 +617,12 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
     if (trace.runId && trace.runId !== prevRunId.current) {
       prevRunId.current = trace.runId;
       setExpandedId(null);
+      setInspectorVisible(false);
     }
   }, [trace.runId]);
 
   const handleNodeClick = useCallback((nodeId) => {
+    setInspectorVisible(true);
     if (expandedId === nodeId) {
       setExpandedId(null);
     } else {
@@ -630,6 +633,16 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
   const handleClear = useCallback(() => {
     tokenChainTraceStore.reset();
     setExpandedId(null);
+    setInspectorVisible(false);
+  }, []);
+
+  const handleInspectorToggle = useCallback(() => {
+    setInspectorVisible((visible) => !visible);
+  }, []);
+
+  const handleInspectorClose = useCallback(() => {
+    setExpandedId(null);
+    setInspectorVisible(false);
   }, []);
 
   const routingMode = trace.routingMode || (trace.llmDetail ? 'llm' : trace.phases?.length ? 'heuristic' : null);
@@ -745,6 +758,16 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
             <button className="ttp-clear-btn" onClick={handleClear} title="Clear and restart">
               <span className="ttp-clear-icon">↺</span> Clear
             </button>
+            <button
+              type="button"
+              className="ttp-inspector-toggle"
+              onClick={handleInspectorToggle}
+              disabled={!hasActivity}
+              aria-label={inspectorVisible ? 'Hide details' : 'Show details'}
+              title={inspectorVisible ? 'Hide details' : 'Show details'}
+            >
+              <span aria-hidden="true">🔍</span>
+            </button>
           </div>
         </div>
 
@@ -781,9 +804,9 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
               </div>
             )}
           </div>
-          {selectedStep ? (
-            <div className="ttp-insp-pane" style={{ width: inspWidth }}><div className="ttp-resize-handle" {...inspHandleProps} /><Inspector step={selectedStep} topologyNodes={topologyNodes} onClose={() => setExpandedId(null)} fontSize={fontSize} setFontSize={setFontSize} /></div>
-          ) : hasActivity && (
+          {inspectorVisible && hasActivity && selectedStep ? (
+            <div className="ttp-insp-pane" style={{ width: inspWidth }}><div className="ttp-resize-handle" {...inspHandleProps} /><Inspector step={selectedStep} topologyNodes={topologyNodes} onClose={handleInspectorClose} fontSize={fontSize} setFontSize={setFontSize} /></div>
+          ) : inspectorVisible && hasActivity && (
             <div className="ttp-insp-pane" style={{ width: inspWidth }}><div className="ttp-resize-handle" {...inspHandleProps} /><div className="ttp-insp-empty"><div className="ttp-insp-empty-icon">🔑</div><div className="ttp-insp-empty-text">Click a node to inspect its token details</div></div></div>
           )}
         </div>

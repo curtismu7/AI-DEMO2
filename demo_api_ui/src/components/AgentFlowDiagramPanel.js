@@ -2,10 +2,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useDraggablePanel } from '../hooks/useDraggablePanel';
+import { PopOutPortal } from './DraggableModal';
 import { agentFlowDiagram } from '../services/agentFlowDiagramService';
 import { useExchangeMode } from '../context/ExchangeModeContext';
 import { useEducationUIOptional } from '../context/EducationUIContext';
 import { useTokenChainOptional } from '../context/TokenChainContext';
+import { useThemeOptional } from '../context/ThemeContext';
 import TokenExchangeFlowDiagram from './TokenExchangeFlowDiagram';
 import JsonHighlight from './shared/JsonHighlight';
 import { buildSequenceLayout, nextPlayIndex } from '../utils/stepReplay';
@@ -48,6 +50,7 @@ const EVENT_HOP_WHY = {
  * (same contract as TraceRail TraceStepCard; no click-to-reveal).
  */
 export function TokenEventCard({ event, resolvedIdentity }) {
+  const theme = useThemeOptional();
   function fmtSub(sub) {
     if (!sub) return null;
     const s = String(sub);
@@ -119,19 +122,19 @@ export function TokenEventCard({ event, resolvedIdentity }) {
           {event.exchangeRequest && (
             <section className="afd-tc-section">
               <h4 className="afd-tc-section-title">API Request</h4>
-              <pre className="afd-tc-pre"><JsonHighlight value={event.exchangeRequest} /></pre>
+              <pre className={`afd-tc-pre${theme.darkMode ? ' jh-dark' : ''}`}><JsonHighlight value={event.exchangeRequest} /></pre>
             </section>
           )}
           {(claims || event.jwtFullDecode) && (
             <section className="afd-tc-section">
               <h4 className="afd-tc-section-title">Token Claims (Response)</h4>
-              <pre className="afd-tc-pre"><JsonHighlight value={claims || event.jwtFullDecode} /></pre>
+            <pre className={`afd-tc-pre${theme.darkMode ? ' jh-dark' : ''}`}><JsonHighlight value={claims || event.jwtFullDecode} /></pre>
             </section>
           )}
           {event.jwtFullDecode?.header && (
             <section className="afd-tc-section">
               <h4 className="afd-tc-section-title">JWT Header</h4>
-              <pre className="afd-tc-pre"><JsonHighlight value={event.jwtFullDecode.header} /></pre>
+            <pre className={`afd-tc-pre${theme.darkMode ? ' jh-dark' : ''}`}><JsonHighlight value={event.jwtFullDecode.header} /></pre>
             </section>
           )}
         </div>
@@ -358,12 +361,6 @@ const AFD_PATH_LABELS = {
   dual_token:   'ACCESS + ID-TOKEN PATH',
 };
 
-const AFD_PATH_COLORS = {
-  oauth_bearer: { bg: '#dbeafe', border: '#004687', text: '#004687' },
-  api_key:      { bg: '#fef9c3', border: '#ca8a04', text: '#713f12' },
-  dual_token:   { bg: '#ccfbf1', border: '#0d9488', text: '#0d9488' },
-};
-
 /**
  * Floating, draggable, resizable live diagram: PingOne → Agent → BFF → MCP → tool.
  * State is driven by agentFlowDiagramService (bankingAgentService + BankingAgent).
@@ -372,6 +369,7 @@ export default function AgentFlowDiagramPanel({ embedded = false, enabled = true
   const [snap, setSnap] = useState(() => agentFlowDiagram.getState());
   const [showTokenChain, setShowTokenChain] = useState(false);
   const [showFlowDiagram, setShowFlowDiagram] = useState(false);
+  const [popoutWin, setPopoutWin] = useState(null);
   // Maximize is a separate on-top-of-the-hook flag, not a bigger drag size —
   // useDraggablePanel is shared by other floating panels, so its pos/size stay
   // exactly as the user left them underneath; maximizing only overrides the
@@ -380,10 +378,11 @@ export default function AgentFlowDiagramPanel({ embedded = false, enabled = true
   const { mode } = useExchangeMode();
   const edu = useEducationUIOptional();
   const tokenChainCtx = useTokenChainOptional();
+  const theme = useThemeOptional();
   const resolvedIdentity = tokenChainCtx?.resolvedIdentity ?? null;
   const credentialPath = tokenChainCtx?.events?.[0]?.credentialPath || 'oauth_bearer';
   const afdPathLabel = AFD_PATH_LABELS[credentialPath] || AFD_PATH_LABELS.oauth_bearer;
-  const afdPathColor = AFD_PATH_COLORS[credentialPath] || AFD_PATH_COLORS.oauth_bearer;
+  const isPoppedOut = Boolean(popoutWin && !popoutWin.closed);
 
   const { pos, size, handleDragStart, createResizeHandler } = useDraggablePanel(
     () => ({
@@ -415,8 +414,56 @@ export default function AgentFlowDiagramPanel({ embedded = false, enabled = true
   }, []);
 
   const handleClose = useCallback(() => {
+    if (popoutWin && !popoutWin.closed) popoutWin.close();
+    setPopoutWin(null);
     agentFlowDiagram.close();
-  }, []);
+  }, [popoutWin]);
+
+  const handlePopOut = useCallback(() => {
+    if (isPoppedOut) {
+      popoutWin.focus();
+      return;
+    }
+    const win = window.open(
+      '',
+      `agent_flow_${Date.now()}`,
+      `width=${Math.max(size.w, 420)},height=${Math.max(size.h, 520)},resizable=yes,scrollbars=yes`,
+    );
+    if (!win) return;
+    const styleLinks = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+      .map((el) => `<link rel="stylesheet" href="${el.href}">`)
+      .join('\n');
+    const inlineStyles = Array.from(document.querySelectorAll('style'))
+      .map((el) => `<style>${el.textContent}</style>`)
+      .join('\n');
+    const currentTheme = document.documentElement.dataset.theme || (theme.darkMode ? 'dark' : 'light');
+    win.document.write(`<!DOCTYPE html><html data-theme="${currentTheme}"><head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width,initial-scale=1" />
+      <title>Agent request flow</title>
+      ${styleLinks}
+      ${inlineStyles}
+      <style>html,body,#afd-popout-root{margin:0;width:100%;height:100%;overflow:hidden;background:var(--th-bg-page);}</style>
+    </head><body class="afd-popout-document"><div id="afd-popout-root"></div></body></html>`);
+    win.document.close();
+    try { win.history.pushState({}, '', '/agent-flow-popout'); } catch (_) {}
+    win.addEventListener('beforeunload', () => setPopoutWin(null));
+    setPopoutWin(win);
+  }, [isPoppedOut, popoutWin, size, theme.darkMode]);
+
+  const handlePopIn = useCallback(() => {
+    if (popoutWin && !popoutWin.closed) popoutWin.close();
+    setPopoutWin(null);
+  }, [popoutWin]);
+
+  useEffect(() => {
+    if (!popoutWin || popoutWin.closed) return;
+    popoutWin.document.documentElement.dataset.theme = theme.darkMode ? 'dark' : 'light';
+  }, [popoutWin, theme.darkMode]);
+
+  useEffect(() => () => {
+    if (popoutWin && !popoutWin.closed) popoutWin.close();
+  }, [popoutWin]);
 
   useEffect(() => {
     if (!snap.visible) return undefined;
@@ -431,10 +478,10 @@ export default function AgentFlowDiagramPanel({ embedded = false, enabled = true
 
   const { steps, hint, phase, toolName, serverEvents = [] } = snap;
 
-  const panel = (
+  const renderPanel = (popout = false) => (
     <div
-      className={`afd-panel${maximized ? ' afd-panel--maximized' : ''}${embedded ? ' afd-panel--embedded' : ''}`}
-      style={embedded || maximized ? undefined : {
+      className={`afd-panel${maximized && !popout ? ' afd-panel--maximized' : ''}${embedded && !popout ? ' afd-panel--embedded' : ''}${popout ? ' afd-panel--popout' : ''}`}
+      style={popout || embedded || maximized ? undefined : {
         position: 'fixed',
         left: pos.x,
         top: pos.y,
@@ -445,7 +492,7 @@ export default function AgentFlowDiagramPanel({ embedded = false, enabled = true
       aria-modal="false"
       aria-labelledby="afd-title"
     >
-      <div className="afd-header" onPointerDown={maximized ? undefined : handleDragStart}>
+      <div className="afd-header" onPointerDown={maximized || popout ? undefined : handleDragStart}>
         <span className="afd-header-icon" aria-hidden>
           🔀
         </span>
@@ -464,18 +511,7 @@ export default function AgentFlowDiagramPanel({ embedded = false, enabled = true
           </span>
           {/* Phase 266 R2: show credential path badge when a path is active */}
           {tokenChainCtx?.events?.length > 0 && (
-            <span style={{
-              display: 'inline-block',
-              marginTop: 2,
-              padding: '1px 6px',
-              borderRadius: 4,
-              fontSize: '0.6rem',
-              fontWeight: 700,
-              background: afdPathColor.bg,
-              border: `1px solid ${afdPathColor.border}`,
-              color: afdPathColor.text,
-              letterSpacing: 0.3,
-            }}>
+            <span className={`afd-path-badge afd-path-badge--${credentialPath}`}>
               {afdPathLabel}
             </span>
           )}
@@ -483,12 +519,30 @@ export default function AgentFlowDiagramPanel({ embedded = false, enabled = true
         <div className="afd-header-actions">
           <button
             type="button"
+            className="afd-btn afd-btn--theme"
+            onClick={theme.toggleDarkMode}
+            title={theme.darkMode ? 'Use light theme' : 'Use dark theme'}
+            aria-label={theme.darkMode ? 'Use light theme' : 'Use dark theme'}
+          >
+            {theme.darkMode ? '☀️' : '🌙'}
+          </button>
+          <button
+            type="button"
+            className="afd-btn"
+            onClick={popout ? handlePopIn : handlePopOut}
+            title={popout ? 'Bring panel back' : 'Pop out request flow'}
+            aria-label={popout ? 'Bring request flow back' : 'Pop out request flow'}
+          >
+            🪟
+          </button>
+          <button
+            type="button"
             className="afd-btn"
             onClick={() => setMaximized(v => !v)}
             title={maximized ? 'Restore' : 'Maximize'}
             aria-label={maximized ? 'Restore panel size' : 'Maximize panel'}
           >
-            {maximized ? '⤡' : '⤢'}
+            {maximized ? 'Restore' : 'Max'}
           </button>
           <button
             type="button"
@@ -497,10 +551,10 @@ export default function AgentFlowDiagramPanel({ embedded = false, enabled = true
             title="Clear diagram (keep panel open)"
             aria-label="Reset diagram"
           >
-            ↺
+            🔄
           </button>
           <button type="button" className="afd-btn afd-btn--close" onClick={handleClose} title="Close" aria-label="Close">
-            ×
+            ✕
           </button>
         </div>
       </div>
@@ -574,7 +628,7 @@ export default function AgentFlowDiagramPanel({ embedded = false, enabled = true
       </div>
 
       {/* 8-direction resize handles — meaningless at a fixed maximized size */}
-      {!maximized && (
+      {!maximized && !popout && (
         <>
           <div className="afd-rh afd-rh--n"   onMouseDown={createResizeHandler('n')}  aria-hidden />
           <div className="afd-rh afd-rh--ne"  onMouseDown={createResizeHandler('ne')} aria-hidden />
@@ -589,5 +643,22 @@ export default function AgentFlowDiagramPanel({ embedded = false, enabled = true
     </div>
   );
 
+  if (isPoppedOut) {
+    return (
+      <>
+        <PopOutPortal win={popoutWin} rootId="afd-popout-root">
+          {renderPanel(true)}
+        </PopOutPortal>
+        <div className="afd-placeholder" role="status">
+          <span>🪟 Agent request flow is open in another window.</span>
+          <button type="button" className="afd-btn afd-placeholder-btn" onClick={handlePopIn}>
+            Bring back
+          </button>
+        </div>
+      </>
+    );
+  }
+
+  const panel = renderPanel(false);
   return embedded ? panel : createPortal(panel, document.body);
 }

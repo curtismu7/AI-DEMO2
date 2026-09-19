@@ -146,6 +146,27 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-18 — DaVinci SDK passkey authentication and signed-in actions
+
+- **Files changed:** `demo_api_ui/src/components/davinci/CollectorField.jsx`, `demo_api_ui/src/components/davinci/SdkLessonSections.jsx`, `demo_api_ui/src/pages/DavinciSdkLoginPage.jsx`, `demo_api_ui/src/pages/DavinciSdkLoginPage.css`, and focused tests.
+- **What was broken:** `FidoAuthenticationCollector` appeared as unsupported on the live passkey screen; signed-in actions wrapped into uneven, cramped buttons.
+- **What was fixed:** A user-triggered passkey action uses the SDK FIDO helper, writes its assertion through `client.update()`, then advances with `client.next()`. Signed-in actions now stack at full card width.
+- **Do not break:** Keep assertion values out of execution evidence; preserve ACR selection, OAuth callback, BFF session handling, and PingOne logout.
+- **Verify:** Focused DaVinci Vitest suites, UI build, and rendered button contrast in both themes.
+
+### 2026-09-18 — Guided Demo Track polling no longer opens the global spinner
+
+- **Files changed:** `demo_api_ui/src/services/spinnerService.js` and
+  `demo_api_ui/src/services/__tests__/spinnerService.test.js`.
+- **What was broken:** The Guided Demo Track polls `/api/demo-track` and
+  `/api/demo-track/runs` every five seconds, but those polling requests were
+  not silent and could repeatedly surface the global loading modal.
+- **What was fixed:** Mark the Guided Demo Track API namespace as silent and
+  pin that contract with a spinner regression test.
+- **Do not break:** Preserve the track page's own loading/error states,
+  five-second refresh, run actions, and all auth/session behavior.
+- **Verify:** Focused spinner Vitest suite and the UI production build.
+
 ### 2026-09-18 — Repository-wide dark-theme text contrast sweep
 
 - **Files changed:** `demo_api_ui/src/**/*.css`,
@@ -321,6 +342,41 @@ inputs for automatic collectors, or hide an unrecognised collector silently.
 **Verify:** `cd demo_api_ui && npm run test:unit` (changed DaVinci suites pass;
 the full run currently has six unrelated existing AIAgent assertion failures),
 `npm run build`, and the focused collector/lesson Vitest suites.
+### 2026-09-16 — Privilege-first MCP chain used an ambiguous identity header
+
+**Files changed:** `docs/superpowers/plans/2026-09-16-privilege-pinggateway-tx-token.md`,
+`demo_api_server/services/mcpGatewayTransport.js`,
+`demo_mcp_gateway/src/auth/privilegeBridge.ts`,
+`demo_mcp_gateway/src/server/GatewayServer.ts`,
+`demo_mcp_gateway/src/index.ts`,
+`ping-gateway/scripts/groovy/privilege-bridge.groovy`,
+`ping-gateway/scripts/groovy/olb-token-exchange.groovy`, focused tests, and
+Privilege configuration documentation.
+
+**What was broken:** the Privilege-first path carried the delegated user token
+as `X-Subject-Token`, while the intended two-gateway contract is a Privilege
+credential in `Authorization` and a separate transaction token forwarded to
+the downstream gateway. The mixed naming made it unclear which token
+PingGateway should evaluate and left stale header spellings easy to reintroduce.
+
+**What was fixed:** the active contract is now `Authorization` for the
+Privilege session/static bridge credential and `tx-token` for the delegated
+transaction token. Both gateway bridges consume the transaction token only
+after the bridge credential is trusted, then leave existing validation,
+authorization, and exchange behavior intact. Stale `X-Subject-Token` options
+are stripped from the BFF Privilege path.
+
+**Do not break:**
+- Privilege remains the first coarse policy and approval gate.
+- PingGateway evaluates and exchanges the transaction token, not the Privilege
+  credential.
+- Existing signature, issuer, expiry, audience, scope, actor-chain, P1AZ,
+  HITL, and token-custody checks remain fail-closed.
+
+**Verify:** focused BFF and Node bridge tests, Node gateway build, and
+PingGateway route checks pass. Broad topology/hygiene verification was attempted
+but the scope generator and regression process aborted with exit 134 before
+producing results in this environment.
 
 ### 2026-09-14 — Privilege Remote Agent now has a real, authenticated A2A backend
 

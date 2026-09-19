@@ -1000,7 +1000,7 @@ async function main(deps = {}) {
     // privilege-bridge.groovy (Task 8b). MUST equal the Static Token on the
     // Privilege console's `agent-gateway` Agentic App: Privilege stamps that
     // token on its backend hop, and the filter swaps in the caller's real token
-    // from X-Subject-Token only when the bearer matches this. Empty disables the
+    // from tx-token only when the bearer matches this. Empty disables the
     // bridge and can never match, so an unset value degrades to today's 401
     // rather than opening a door.
     //

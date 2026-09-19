@@ -71,6 +71,24 @@ describe("maskExecutionDetail", () => {
       authorizationCode: "…",
     });
   });
+
+  it("keeps safe request and DaVinci response detail for the execution reel", () => {
+    const detail = maskExecutionDetail({
+      method: "GET",
+      host: "auth.example",
+      path: "/as/authorize",
+      responseMode: "pi.flow",
+      body: { parameters: { data: { formData: { username: "secret" } } } },
+      response: { flowStatus: "continue", formName: "Sign On", fields: [{ type: "TEXT", key: "username" }] },
+    });
+
+    expect(detail).toMatchObject({
+      responseMode: "pi.flow",
+      body: { parameters: { data: { formData: { username: "…" } } } },
+      response: { flowStatus: "continue", formName: "Sign On", fields: [{ type: "TEXT", key: "username" }] },
+    });
+    expect(JSON.stringify(detail)).not.toContain("secret");
+  });
 });
 
 describe("PREVIEW_EVENTS", () => {

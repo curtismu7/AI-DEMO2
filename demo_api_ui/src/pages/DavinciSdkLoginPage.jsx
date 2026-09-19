@@ -12,14 +12,15 @@
 // (SdkLessonSections) teach the rest.
 //
 // Scope today: interactive text, password, submit, action and flow collectors,
-// plus PingOne Forms' display-only rich text, error placeholder and automatic
-// Protect signal. CollectorField renders a visible fallback for anything else
+// plus PingOne Forms' display-only rich text, error placeholder, automatic
+// Protect signal and passkey authentication. CollectorField renders a visible fallback for anything else
 // rather than omitting a field silently.
 //
 // A successful sign-in does NOT leave this page. A "What just happened" modal
 // summarises the run and links into the lesson; closing it leaves you here,
 // signed in, with a way to reopen it or sign out to switch users.
 import { useCallback, useEffect, useRef, useState } from "react";
+import { fido } from "@forgerock/davinci-client";
 import CollectorField from "../components/davinci/CollectorField";
 import SdkExecutionReel from "../components/davinci/SdkExecutionReel";
 import SdkLessonSections, { SDK_LESSON_SECTIONS } from "../components/davinci/SdkLessonSections";
@@ -152,8 +153,27 @@ export default function DavinciSdkLoginPage() {
         label: `DaVinci returned ${status || "a response"}`,
         codeKey: kind === "next" ? "update-next" : kind,
         detail: {
+          ...(request
+            ? {
+                method: request.method,
+                host: (() => {
+                  try { return new URL(request.url).host; } catch { return undefined; }
+                })(),
+                path: (() => {
+                  try { return new URL(request.url).pathname; } catch { return undefined; }
+                })(),
+                paramNames: (() => {
+                  try { return [...new URL(request.url).searchParams.keys()]; } catch { return []; }
+                })(),
+                responseMode: (() => {
+                  try { return new URL(request.url).searchParams.get("response_mode") || undefined; } catch { return undefined; }
+                })(),
+                body: request.body,
+              }
+            : {}),
           status,
           eventType: cached?.data?.eventName ?? cached?.data?.eventType,
+          response: summarizeResponse(cached?.data),
         },
       }),
     );
@@ -164,6 +184,7 @@ export default function DavinciSdkLoginPage() {
   // its collectors, which is what lets the form re-render with complaints.
   const syncFromClient = useCallback((client, node) => {
     const currentCollectors = client.getCollectors?.() || [];
+    const response = summarizeResponse(client.cache?.getLatestResponse?.()?.data);
     setCollectors(currentCollectors);
     setStep((n) => n + 1);
     const errs = {};
@@ -182,6 +203,7 @@ export default function DavinciSdkLoginPage() {
         codeKey: null,
         detail: {
           status: node?.status,
+          response: response ? { ...response, flowStatus: response.flowStatus || node?.status || null } : null,
           collectors: currentCollectors,
         },
       }),
@@ -453,6 +475,26 @@ export default function DavinciSdkLoginPage() {
     return result;
   }, [appendExecutionEvent]);
 
+  const authenticatePasskey = useCallback(async (collector) => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const assertion = await fido().authenticate(collector.output?.config?.publicKeyCredentialRequestOptions);
+      if (assertion?.error || !assertion?.assertionValue) {
+        throw new Error(assertion?.message || "Passkey authentication did not return an assertion.");
+      }
+      const updateError = collectorUpdater(collector)(assertion);
+      if (updateError?.error) {
+        throw new Error(updateError.error.message || "The SDK could not accept the passkey assertion.");
+      }
+      await submit(collector);
+    } catch (err) {
+      setMessage(err.message || "Passkey authentication failed.");
+    } finally {
+      setBusy(false);
+    }
+  }, [collectorUpdater, submit]);
+
   // From the modal's links: close it and bring that lesson section into view.
   const goToSection = useCallback((id) => {
     setShowWhatHappened(false);
@@ -622,6 +664,7 @@ export default function DavinciSdkLoginPage() {
                         busy={busy}
                         onSubmit={() => submit(c)}
                         onFlow={() => takeFlow(c)}
+                        onFido={() => authenticatePasskey(c)}
                       />
                     );
                   })}

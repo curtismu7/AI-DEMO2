@@ -12,7 +12,7 @@
 
 **Corrected 2026-09-09** (nothing had been executed yet; each change is marked inline):
 - **D1 / Task 0 / Task 5 / Task 8** — the backend hop cannot use Auth Mode OAuth (it gates the *client* too and kills discovery, measured on `banking-mcp`), and the Agent Gateway accepts JWTs only (`tokenValidator.ts:221-226`; no opaque-token path, broker has no `client_credentials`). The bridge is therefore a **Static Token** shared secret, and Task 8 is required in every outcome.
-- **Task 0 COMPLETE 2026-09-10 — D1 resolved to outcome (a).** Privilege forwards custom request headers to the backend unchanged (measured with a live call through a throwaway Agentic App into a header-logging backend), and forwards **no** `Authorization` under Auth Mode None. So `X-Subject-Token` reaches the Agent Gateway and the delegated user identity survives the hop; the bearer slot must be filled by Auth Mode **Static Token**. Full method and the header table: `privilege/CURRENT-CONFIGURATION.md`, "Backend hop: what the Node gateway accepts". **Phase 2 has no unknowns left — execute Tasks 5–9 as written.**
+- **Task 0 COMPLETE 2026-09-10 — D1 resolved to outcome (a).** Privilege forwards custom request headers to the backend unchanged (measured with a live call through a throwaway Agentic App into a header-logging backend), and forwards **no** `Authorization` under Auth Mode None. So `tx-token` reaches the Agent Gateway and the delegated user identity survives the hop; the bearer slot must be filled by Auth Mode **Static Token**. Full method and the header table: `privilege/CURRENT-CONFIGURATION.md`, "Backend hop: what the Node gateway accepts". **Phase 2 has no unknowns left — execute Tasks 5–9 as written.**
 - **Task 2 / Task 3** — the resolver alias alone breaks the tool-calling reason loop (`reasoningGraph.ts:531` logs `unknown provider` and the BFF drops to heuristics) and leaves open-question answers off the lane (`geminiNlIntent.js:339-354, 869-876`). Both now have explicit steps.
 
 ## Global Constraints
@@ -95,12 +95,12 @@ Privilege is the **coarse, human-governed** gate (Privilege-tenant identity, app
 **D1 — Identity across the Privilege → Agent Gateway hop (the fork that gates Phase 2).** *(corrected 2026-09-09)*
 Privilege will not accept the demo-env user token inbound (§1.2), so the BFF's exchanged user token cannot simply *be* the bearer Privilege sees. Two constraints measured since the first draft bound the backend hop: **Auth Mode OAuth also gates the inbound client** (tokenless discovery 401s, console Tools panel empties — `privilege/CURRENT-CONFIGURATION.md`, "The call hop is a platform blocker", 2026-09-09), so the hop is Auth Mode **None** or **Static Token** only; and **the Agent Gateway accepts JWTs only** — measured live 2026-09-09 from inside the gateway pod: a non-JWT bearer answers `401 invalid_token` with `Token has no kid header and the JWKS exposes 4 keys`, raised in `_decodeAndVerify` (`demo_mcp_gateway/src/tokenValidator.ts:221-226`) **before any policy, audience or scope check**. (`Malformed JWT` at `:374` is only the fallback for a non-`TokenValidationError` throw and never fires for this input — an earlier draft of this line cited it wrongly.) Introspection runs after decode, and `OAuthBrokerRouter.ts:89-90` offers `authorization_code` only, so Privilege cannot mint a machine token from the broker either. Whatever Privilege puts in the bearer slot is therefore a static value the Agent Gateway must learn to recognise — Task 8 is required in **every** outcome.
 
-**DECIDED 2026-09-10: outcome (a), measured.** A custom header (`x-pingone-admin-token`, which the BFF adds in `fetchMcp`) arrived at a header-logging backend through the gateway with its value unmodified, while no `Authorization` header arrived at all. Build Tasks 6–8 with `X-Subject-Token`; do not build the degraded (b) shape. The table below is kept for the reasoning, not as an open question:
+**DECIDED 2026-09-10: outcome (a), measured.** A custom header (`x-pingone-admin-token`, which the BFF adds in `fetchMcp`) arrived at a header-logging backend through the gateway with its value unmodified, while no `Authorization` header arrived at all. Build Tasks 6–8 with `tx-token`; do not build the degraded (b) shape. The table below is kept for the reasoning, not as an open question:
 
 | Outcome | What Privilege does on the backend hop | Phase 2 shape |
 |---|---|---|
-| **(a) Header pass-through** — Privilege forwards custom request headers unchanged | Bearer = Static Token bridge secret; `X-Subject-Token: <exchanged user token>` rides alongside. Agent Gateway matches the bearer against `MCP_GW_PRIVILEGE_BRIDGE_SECRET` (constant-time), validates the subject token exactly like a bearer, and records the bridge as an `act` hop | Tasks 6–8 (recommended if measured) |
-| **(b) No header forwarding** | Same bridge secret, no user token. Agent Gateway maps the bridge to a machine subject with no user scope; banking tools DENY (`insufficient_scope`), weather/brave/opensearch pass | Ship Phase 2 with `X-Subject-Token` omitted (Task 7) and Task 8's machine-subject branch; make the banking DENY the demo beat ("Privilege let it through, Agent Gateway refused: no delegated user"). Raise header forwarding with Ping. |
+| **(a) Header pass-through** — Privilege forwards custom request headers unchanged | Bearer = Static Token bridge secret; `tx-token: <exchanged user token>` rides alongside. Agent Gateway matches the bearer against `MCP_GW_PRIVILEGE_BRIDGE_SECRET` (constant-time), validates the transaction token exactly like a bearer, and records the bridge as an `act` hop | Tasks 6–8 (recommended if measured) |
+| **(b) No header forwarding** | Same bridge secret, no user token. Agent Gateway maps the bridge to a machine subject with no user scope; banking tools DENY (`insufficient_scope`), weather/brave/opensearch pass | Ship Phase 2 with `tx-token` omitted (Task 7) and Task 8's machine-subject branch; make the banking DENY the demo beat ("Privilege let it through, Agent Gateway refused: no delegated user"). Raise header forwarding with Ping. |
 | **(c) Privilege forwards the inbound bearer verbatim** | The inbound bearer is Privilege's own opaque DCR token — not a JWT, never accepted | Not reachable; recorded so nobody re-tests it |
 
 Open detail the spike settles: whether the Static Token field must be a well-formed JWT. `privilege/PRIVILEGE-MCP.md:526-529` saw `JWT parsing failed … STaticToken` on the old `cyonproxy` binary. If the current build parses it too, mint the bridge secret as a long-lived self-signed JWT; the Agent Gateway still matches the whole string and never verifies its signature.
@@ -147,14 +147,14 @@ Open detail the spike settles: whether the Static Token field must be a well-for
   ```bash
   kubectl -n ping-devops-cmuir logs deploy/mcp-gateway -f | grep -E '\[GW\]|login_required|missing_sub|X-'
   ```
-  Expected under (c): a validated `sub` from the demo env. Expected under (a)/(b): `-32001 … login_required` (no usable bearer). Then repeat with the client sending a custom header `X-Subject-Token: probe` (the façade's `forwardHeaders` path in `mcpFacade.js:735-760` can carry it) and grep the Node gateway's raw request log for `x-subject-token`. Header present → (a) is possible.
+  Expected under (c): a validated `sub` from the demo env. Expected under (a)/(b): `-32001 … login_required` (no usable bearer). Then repeat with the client sending a custom header `tx-token: probe` (the façade's `forwardHeaders` path in `mcpFacade.js:735-760` can carry it) and grep the Node gateway's raw request log for `tx-token`. Header present → (a) is possible.
 
 - [ ] **Step 3: Measurement 2 — does a Static Token arrive verbatim, and must it be a JWT?** *(corrected 2026-09-09 — Auth Mode OAuth is dead here, see D1)*
   Edit `probe-agent-gateway` → Auth Mode **Static Token**, value `probe-static-1`. Re-run `tools/list`; grep the Node gateway's raw request log for `authorization: Bearer probe-static-1`. Record whether the console or the gateway rejects a non-JWT value (then retry with any self-signed JWT). Confirms the bearer slot Task 8 will match on.
 
 - [ ] **Step 4: Record the outcome** in `privilege/CURRENT-CONFIGURATION.md` under a new heading, including the literal log lines, then delete `probe-agent-gateway` from the console.
 
-- [ ] **Step 5: Decide.** (a) measured → execute Phase 2 in full. Only (b) → execute Tasks 5, 6, 7 with `X-Subject-Token` omitted, skip Task 8, and add the banking-DENY beat to the demo steps. Stop and report before Phase 2 either way — this is a user decision point (`ai-demo2-checkin-before-fixes`).
+- [ ] **Step 5: Decide.** (a) measured → execute Phase 2 in full. Only (b) → execute Tasks 5, 6, 7 with `tx-token` omitted, skip Task 8, and add the banking-DENY beat to the demo steps. Stop and report before Phase 2 either way — this is a user decision point (`ai-demo2-checkin-before-fixes`).
 
 ---
 
@@ -463,9 +463,9 @@ it('.env.example documents the Privilege-first posture', () => {
 
 **Interfaces:**
 - Consumes: `privilegeGatewaySession.getAccessToken()` / `.status()` (existing), `getMcpGatewayHttpUrl()` (Task 6).
-- Produces: `resolveMcpGatewayTransport()` → `{ kind: 'privilege', url }` when the Privilege-first flag is on. `callToolViaResolvedGateway()` for that kind sends `Authorization: Bearer <privilege session token>` and, when Task 0 measured (a), `X-Subject-Token: <exchanged user token>`; the `X-Act-Client-Id` / `X-May-Act-Sub` bridge headers are sent unchanged. When no session is armed it throws `{ code: 'privilege_session_unavailable', remedy: 'Sign in at /privilege-mcp-client' }` — the same contract the façade's 503 already carries (`mcpFacade.js:678-695`).
+- Produces: `resolveMcpGatewayTransport()` → `{ kind: 'privilege', url }` when the Privilege-first flag is on. `callToolViaResolvedGateway()` for that kind sends `Authorization: Bearer <privilege session token>` and, when Task 0 measured (a), `tx-token: <exchanged user token>`; the `X-Act-Client-Id` / `X-May-Act-Sub` bridge headers are sent unchanged. When no session is armed it throws `{ code: 'privilege_session_unavailable', remedy: 'Sign in at /privilege-mcp-client' }` — the same contract the façade's 503 already carries (`mcpFacade.js:678-695`).
 
-- [ ] **Step 1: Write the failing test** — mock `privilegeGatewaySession` and `mcpGatewayClient.callToolViaGateway`; assert (i) bearer is the session token, not the user token; (ii) `X-Subject-Token` equals the user token; (iii) no session → the coded error; (iv) flag off → `kind: 'demo'` and no new headers.
+- [ ] **Step 1: Write the failing test** — mock `privilegeGatewaySession` and `mcpGatewayClient.callToolViaGateway`; assert (i) bearer is the session token, not the user token; (ii) `tx-token` equals the user token; (iii) no session → the coded error; (iv) flag off → `kind: 'demo'` and no new headers.
 - [ ] **Step 2: Run** → FAIL.
 - [ ] **Step 3: Implement.**
 ```js
@@ -495,11 +495,11 @@ async function callToolViaResolvedGateway(gatewayUrl, bearerToken, tool, params 
   // Privilege is the bearer's audience; the user's exchanged token rides in a header
   // the Agent Gateway validates exactly like a bearer (Task 8). ponytail: one header,
   // no envelope format — revisit if Privilege ever forwards the inbound bearer itself.
-  const extraHeaders = { ...(opts.extraHeaders || {}), 'X-Subject-Token': bearerToken };
+  const extraHeaders = { ...(opts.extraHeaders || {}), 'tx-token': bearerToken };
   return callToolViaGateway(gatewayUrl, gatewayToken, tool, params, { ...opts, extraHeaders });
 }
 ```
-  In `callToolViaGateway`, merge `opts.extraHeaders` into the outbound headers where the actor-bridge headers are merged (`mcpGatewayClient.js:337`). If Task 0 chose (b), omit the `X-Subject-Token` line and keep everything else.
+  In `callToolViaGateway`, merge `opts.extraHeaders` into the outbound headers where the actor-bridge headers are merged (`mcpGatewayClient.js:337`). If Task 0 chose (b), omit the `tx-token` line and keep everything else.
 - [ ] **Step 4: Run** → PASS; also `CI=true npx jest tests/mcpGatewayTransport --forceExit` (bedrock routing tests must stay green — they load this file without configStore, hence the lazy require).
 - [ ] **Step 5: Commit.**
 
@@ -515,7 +515,7 @@ async function callToolViaResolvedGateway(gatewayUrl, bearerToken, tool, params 
 
 **Interfaces:**
 - Consumes: `validateInboundToken(token, audience)` (existing), `GatewayTokenPolicy` (existing).
-- Produces: when `config.privilegeBridgeSecret` is set **and** the raw bearer equals it (`crypto.timingSafeEqual`, checked **before** `validateInboundToken`, which would otherwise reject it at JWKS key selection — measured, see `privilege/CURRENT-CONFIGURATION.md`): with `X-Subject-Token` present, the subject token is run through `validateInboundToken` with the same audience and becomes `decoded` for the rest of the pipeline with `act` extended by `{ sub: 'privilege-bridge' }` (so P1AZ and the audit rail see Privilege as an actor hop); without it, `decoded` = `{ sub: 'privilege-bridge', aud, scope: '' }` so scope-gated tools DENY as `insufficient_scope` rather than `login_required`. Any failure of the subject token → the same `-32001 login_required` the bearer path emits. A bearer that is not the bridge secret **ignores** the header (it is never trusted from an arbitrary caller). Both transports (HTTP and WS).
+- Produces: when `config.privilegeBridgeSecret` is set **and** the raw bearer equals it (`crypto.timingSafeEqual`, checked **before** `validateInboundToken`, which would otherwise reject it at JWKS key selection — measured, see `privilege/CURRENT-CONFIGURATION.md`): with `tx-token` present, the transaction token is run through `validateInboundToken` with the same audience and becomes `decoded` for the rest of the pipeline with `act` extended by `{ sub: 'privilege-bridge' }` (so P1AZ and the audit rail see Privilege as an actor hop); without it, discovery remains subject to the existing bridge behavior. Any failure of the transaction token → the same `-32001 login_required` the bearer path emits. A bearer that is not the bridge secret **ignores** the header (it is never trusted from an arbitrary caller). Both transports (HTTP and WS).
 
 - [ ] **Step 1: Write the failing tests** — (i) bridge bearer + valid subject token → pipeline sees the user's `sub` and an `act` chain ending in the bridge; (ii) bridge bearer + bad subject token → `-32001`; (iii) non-bridge bearer + header → header ignored, original `sub` kept; (iv) config unset → header ignored, bridge bearer rejected as today; (v) bridge bearer, no header → machine subject, scope-gated tool → `insufficient_scope`.
 - [ ] **Step 2: Run** `npm test -- privilegeBridge` in `demo_mcp_gateway/` → FAIL.
@@ -540,11 +540,11 @@ export async function resolvePrivilegeBridge(
   return { ...user, act: { sub: BRIDGE, ...(user.act ? { act: user.act } : {}) } };
 }
 ```
-  Call `isPrivilegeBridgeBearer` **before** `validateInboundToken` on both paths (a bridge bearer never reaches the JWT decoder), reading `req.headers['x-subject-token']` (string, single value, ≤ 8 KB — reject otherwise). Do **not** relax `GatewayTokenPolicy`: the merged `act` chain already satisfies "act.sub non-empty", and `actChainDepth` grows by one — confirm the A2A depth tests in `__tests__` still pass.
+  Call `isPrivilegeBridgeBearer` **before** `validateInboundToken` on both paths (a bridge bearer never reaches the JWT decoder), reading `req.headers['tx-token']` (string, single value, ≤ 8 KB — reject otherwise). Do **not** relax `GatewayTokenPolicy`: the merged `act` chain already satisfies "act.sub non-empty", and `actChainDepth` grows by one — confirm the A2A depth tests in `__tests__` still pass.
 - [ ] **Step 4: Run** the gateway test suite → PASS. Rebuild the image (`demo_mcp_gateway` is not bind-mounted).
 - [ ] **Step 5: Commit.**
 
-**Task 8b (follow-on, not in this plan's scope):** the PingGateway route equivalent lives in `ping-gateway/` route config (`McpProtectionFilter` chain); the same rule applies — accept `X-Subject-Token` only when the introspected bearer's `sub` is the bridge. Design it once Task 8 is proven on the Node gateway.
+**Task 8b (follow-on, not in this plan's scope):** the PingGateway route equivalent lives in `ping-gateway/` route config (`McpProtectionFilter` chain); the same rule applies — accept `tx-token` only when the bridge credential matches. Design it once Task 8 is proven on the Node gateway.
 
 ### Task 9: Inventory, check, preflight
 
@@ -580,5 +580,5 @@ export async function resolvePrivilegeBridge(
 
 - **Coverage of the ask:** Privilege first for LLM → Tasks 1–4. Privilege first for MCP → Tasks 5–9. Agent Gateway "for the rest" → unchanged pipeline behind Privilege; Task 8 only *adds* an accepted input. Visibility/repro → Tasks 4, 9, 10.
 - **Placeholders:** none; the one deliberately open item (D1) is a measurement with a written decision rule (Task 0 Step 5), not a TBD.
-- **Type/name consistency:** `ff_privilege_llm_first` / `FF_PRIVILEGE_LLM_FIRST` (Tasks 1, 2, 4); `ff_mcp_gateway_privilege_first` / `FF_MCP_GATEWAY_PRIVILEGE_FIRST` / `MCP_PRIVILEGE_GATEWAY_URL` (Tasks 6, 7, 9); `X-Subject-Token` and `MCP_GW_PRIVILEGE_BRIDGE_SECRET` (Tasks 5, 7, 8); error codes `llm_privilege_first_unsupported`, `privilege_session_unavailable`.
+- **Type/name consistency:** `ff_privilege_llm_first` / `FF_PRIVILEGE_LLM_FIRST` (Tasks 1, 2, 4); `ff_mcp_gateway_privilege_first` / `FF_MCP_GATEWAY_PRIVILEGE_FIRST` / `MCP_PRIVILEGE_GATEWAY_URL` (Tasks 6, 7, 9); `tx-token` and `MCP_GW_PRIVILEGE_BRIDGE_SECRET` (Tasks 5, 7, 8); error codes `llm_privilege_first_unsupported`, `privilege_session_unavailable`.
 - **Known ceilings, stated:** no OpenAI dispatch in the BFF (refused loudly, Task 2); local models not governed (D2); MCP-first SE-only (D3); PingGateway header acceptance deferred (Task 8b); elicitation does not cross Privilege (§1.2), so HITL-via-elicitation tools will hang behind it — CIBA-based HITL is unaffected.

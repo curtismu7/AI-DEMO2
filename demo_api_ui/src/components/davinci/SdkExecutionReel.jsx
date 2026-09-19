@@ -61,9 +61,10 @@ function FrameDetails({ event, compact = false }) {
   const request = {
     ...(detail.method ? { method: detail.method, host: detail.host, path: detail.path } : {}),
     ...(detail.paramNames ? { parameterNames: detail.paramNames } : {}),
+    ...(detail.responseMode ? { responseMode: detail.responseMode } : {}),
     ...(detail.body ? { body: detail.body } : {}),
   };
-  const response = {
+  const response = detail.response || {
     ...(detail.status ? { status: detail.status } : {}),
     ...(detail.eventType ? { eventType: detail.eventType } : {}),
     ...(detail.actionKey ? { actionKey: detail.actionKey } : {}),
@@ -76,7 +77,7 @@ function FrameDetails({ event, compact = false }) {
         <summary>Code</summary>
         <pre><code>{codeFor[event.codeKey] || "// This event was observed from the SDK trace."}</code></pre>
       </details>
-      <details>
+      <details open={compact}>
         <summary>Request</summary>
         <pre><code>{json(request)}</code></pre>
       </details>

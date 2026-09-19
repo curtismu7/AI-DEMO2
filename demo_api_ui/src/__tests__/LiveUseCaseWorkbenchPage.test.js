@@ -24,6 +24,7 @@ vi.mock('../context/AgentUiModeContext', () => ({
 // the rail crashes on mount for every test in this file, not just the new one.
 const mockStore = vi.hoisted(() => ({
   beginTrace: vi.fn(),
+  bindFlowTrace: vi.fn(),
   ingestTokenEvents: vi.fn(),
   ingestTokenEvent: vi.fn(),
   ingestAuthorize: vi.fn(),
