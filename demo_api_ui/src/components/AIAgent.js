@@ -982,20 +982,10 @@ export default function BankingAgent({
       return { complianceStep: null, complianceSteps: [] };
     }
   });
-  const [showCompliancePanel, setShowCompliancePanel] = useState(() => {
-    try {
-      return localStorage.getItem("ba_show_compliance_panel") === "1";
-    } catch {
-      return false;
-    }
-  });
-  const [complianceSlideout, setComplianceSlideout] = useState(() => {
-    try {
-      return localStorage.getItem("ba_compliance_slideout") === "1";
-    } catch {
-      return false;
-    }
-  });
+  // The compliance checklist is transient run evidence. Do not restore its
+  // open state after a browser refresh; a new page load starts closed.
+  const [showCompliancePanel, setShowCompliancePanel] = useState(false);
+  const [complianceSlideout, setComplianceSlideout] = useState(false);
   const [simpleStepperSurface, setSimpleStepperSurface] = useState(() => (
     readSurfacePreference("ba_simple_stepper_surface", "ba_show_simple_stepper")
   ));
@@ -10237,12 +10227,6 @@ export default function BankingAgent({
                         checked={showCompliancePanel}
                         onChange={(e) => {
                           const newVal = e.target.checked;
-                          try {
-                            localStorage.setItem(
-                              "ba_show_compliance_panel",
-                              newVal ? "1" : "0",
-                            );
-                          } catch {}
                           if (newVal) setComplianceSlideout(true);
                           setShowCompliancePanel(newVal);
                         }}
@@ -10256,12 +10240,6 @@ export default function BankingAgent({
                           className="ba-header-toggle-label"
                           checked={complianceSlideout}
                           onChange={(e) => {
-                            try {
-                              localStorage.setItem(
-                                "ba_compliance_slideout",
-                                e.target.checked ? "1" : "0",
-                              );
-                            } catch {}
                             setComplianceSlideout(e.target.checked);
                           }}
                           title="Show compliance as side-panel overlay"
