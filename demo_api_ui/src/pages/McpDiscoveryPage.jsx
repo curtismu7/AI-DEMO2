@@ -28,6 +28,27 @@ function runtimeType(record) {
   return 'Observed candidate';
 }
 
+const SORT_COLUMNS = [
+  { key: 'status', label: 'Status', value: (record) => statusLabel(record.status) },
+  { key: 'server', label: 'Server', value: (record) => record.displayName },
+  { key: 'source', label: 'Source', value: (record) => (record.sources || [record.source]).map(sourceLabel).join(', ') },
+  { key: 'runtimeType', label: 'Runtime type', value: runtimeType },
+  { key: 'transport', label: 'Transport', value: (record) => statusLabel(record.transport) },
+  { key: 'tools', label: 'Tools', value: (record) => record.tools?.length || 0 },
+  { key: 'latency', label: 'Latency', value: (record) => record.probe?.latencyMs },
+];
+
+function compareSortValues(left, right) {
+  const leftMissing = left == null || left === '';
+  const rightMissing = right == null || right === '';
+  if (leftMissing || rightMissing) {
+    if (leftMissing && rightMissing) return 0;
+    return leftMissing ? 1 : -1;
+  }
+  if (typeof left === 'number' && typeof right === 'number') return left - right;
+  return String(left).localeCompare(String(right), undefined, { sensitivity: 'base' });
+}
+
 function formatTime(value) {
   if (!value) return 'Not yet scanned';
   return new Date(value).toLocaleTimeString();
@@ -38,6 +59,7 @@ export default function McpDiscoveryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [scanMessage, setScanMessage] = useState(null);
+  const [sort, setSort] = useState({ key: null, direction: 'ascending' });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,6 +76,19 @@ export default function McpDiscoveryPage() {
   useEffect(() => { load(); }, [load]);
 
   const records = inventory?.records || [];
+  const sortedRecords = useMemo(() => {
+    if (!sort.key) return records;
+    const column = SORT_COLUMNS.find(({ key }) => key === sort.key);
+    if (!column) return records;
+    return records
+      .map((record, index) => ({ record, index }))
+      .sort((left, right) => {
+        const comparison = compareSortValues(column.value(left.record), column.value(right.record));
+        if (comparison !== 0) return sort.direction === 'ascending' ? comparison : -comparison;
+        return left.index - right.index;
+      })
+      .map(({ record }) => record);
+  }, [records, sort]);
   const counts = useMemo(() => STATUS_ORDER.reduce((result, status) => {
     result[status] = records.filter((record) => record.status === status).length;
     return result;
@@ -70,6 +105,14 @@ export default function McpDiscoveryPage() {
       setScanMessage(err?.response?.data?.error || 'Scan could not be queued');
     }
   };
+
+  const toggleSort = (key) => {
+    setSort((current) => current.key === key
+      ? { key, direction: current.direction === 'ascending' ? 'descending' : 'ascending' }
+      : { key, direction: 'ascending' });
+  };
+
+  const sortIndicator = (key) => sort.key === key ? sort.direction : 'none';
 
   return (
     <main className="mcp-discovery-page">
@@ -113,8 +156,12 @@ export default function McpDiscoveryPage() {
           {loading && records.length === 0 ? <p className="mcp-discovery-empty">Scanning configured sources…</p> : records.length === 0 ? <p className="mcp-discovery-empty">No candidates found. Start the agent or configure a remote URL.</p> : (
             <div className="mcp-discovery-table-wrap">
               <table className="mcp-discovery-table">
-                <thead><tr><th>Status</th><th>Server</th><th>Source</th><th>Runtime type</th><th>Transport</th><th>Tools</th><th>Latency</th></tr></thead>
-                <tbody>{records.map((record) => <tr key={record.id}>
+                <thead><tr>{SORT_COLUMNS.map((column) => <th key={column.key} aria-sort={sortIndicator(column.key)}>
+                  <button type="button" className="mcp-discovery-sort-button" aria-label={`Sort by ${column.label}`} onClick={() => toggleSort(column.key)}>
+                    {column.label}<span className={`mcp-discovery-sort-indicator mcp-discovery-sort-indicator-${sortIndicator(column.key)}`} aria-hidden="true" />
+                  </button>
+                </th>)}</tr></thead>
+                <tbody>{sortedRecords.map((record) => <tr key={record.id}>
                   <td><span className={`mcp-discovery-status mcp-discovery-status-${record.status}`}>{statusLabel(record.status)}</span></td>
                   <td><strong>{record.displayName}</strong><small>{record.endpoint || 'No endpoint — candidate only'}</small></td>
                   <td>{(record.sources || [record.source]).map(sourceLabel).join(', ')}</td>

@@ -54,3 +54,20 @@ test('requests a manual rescan and reports the new scan id', async () => {
   await waitFor(() => expect(requestMcpDiscoveryScan).toHaveBeenCalledOnce());
   expect(await screen.findByText(/scan-2/)).toBeInTheDocument();
 });
+
+test('sorts records by a clicked column and toggles direction', async () => {
+  render(<McpDiscoveryPage />);
+  await waitFor(() => expect(screen.getByText('Banking MCP')).toBeInTheDocument());
+
+  const statusHeader = screen.getByRole('columnheader', { name: /Status/ });
+  const statusSort = within(statusHeader).getByRole('button', { name: 'Sort by Status' });
+  expect(statusHeader).toHaveAttribute('aria-sort', 'none');
+
+  fireEvent.click(statusSort);
+  expect(statusHeader).toHaveAttribute('aria-sort', 'ascending');
+  expect(screen.getAllByRole('row')[1]).toHaveTextContent('Local stdio candidate');
+
+  fireEvent.click(statusSort);
+  expect(statusHeader).toHaveAttribute('aria-sort', 'descending');
+  expect(screen.getAllByRole('row')[1]).toHaveTextContent('Local listener');
+});

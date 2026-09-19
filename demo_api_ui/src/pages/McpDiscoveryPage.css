@@ -96,6 +96,28 @@
   text-align: left;
   white-space: nowrap;
 }
+.mcp-discovery-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+}
+.mcp-discovery-sort-button:focus-visible { outline: 2px solid var(--th-bg-emphasis); outline-offset: 2px; }
+.mcp-discovery-sort-indicator { display: inline-block; width: 10px; height: 12px; position: relative; }
+.mcp-discovery-sort-indicator::before,
+.mcp-discovery-sort-indicator::after { position: absolute; left: 1px; border-right: 4px solid transparent; border-left: 4px solid transparent; content: ''; }
+.mcp-discovery-sort-indicator::before { top: 0; border-bottom: 4px solid var(--th-text-body); }
+.mcp-discovery-sort-indicator::after { bottom: 0; border-top: 4px solid var(--th-text-body); }
+.mcp-discovery-sort-indicator-ascending::after { opacity: .25; }
+.mcp-discovery-sort-indicator-ascending::before { border-bottom-color: var(--th-bg-emphasis); }
+.mcp-discovery-sort-indicator-descending::before { opacity: .25; }
+.mcp-discovery-sort-indicator-descending::after { border-top-color: var(--th-bg-emphasis); }
 .mcp-discovery-table td { padding: 11px 12px; border-top: 1px solid var(--th-border); color: var(--th-text); vertical-align: top; }
 .mcp-discovery-table td strong,
 .mcp-discovery-table td small { display: block; }
