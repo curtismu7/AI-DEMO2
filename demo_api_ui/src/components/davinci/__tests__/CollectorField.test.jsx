@@ -102,7 +102,7 @@ const deviceAuthenticationCollector = {
   },
 };
 
-const fidoAuthenticationCollector = {
+const fidoAuthenticationButtonCollector = {
   category: "ObjectValueAutoCollector",
   type: "FidoAuthenticationCollector",
   id: "fido-auth-0",
@@ -307,7 +307,7 @@ describe("CollectorField", () => {
 
   it("offers a passkey action for FidoAuthenticationCollector instead of an unsupported warning", () => {
     const onFido = vi.fn();
-    render(<CollectorField collector={fidoAuthenticationCollector} onFido={onFido} />);
+    render(<CollectorField collector={fidoAuthenticationButtonCollector} onFido={onFido} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Use passkey" }));
 
@@ -388,7 +388,6 @@ describe("CollectorField", () => {
       "RichTextCollector",
       "ERROR_DISPLAY",
       "ProtectCollector",
-      "FidoAuthenticationCollector",
     ]);
   });
 });

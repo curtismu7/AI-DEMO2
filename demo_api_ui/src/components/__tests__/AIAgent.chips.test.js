@@ -605,6 +605,48 @@ describe("Header controls after the Actions dropdown removal", () => {
     expect(screen.getAllByRole("button", { name: /Movie reel/ }).find((button) => button.hasAttribute("aria-pressed"))).toHaveAttribute("aria-pressed", "false");
   });
 
+  it("restores Demo controls choices after the agent remounts", async () => {
+    const first = renderAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
+    });
+    fireEvent.click(document.querySelectorAll(".ba-header-more-context input[type=checkbox]")[1]);
+    expect(localStorage.getItem("ba_show_filmstrip")).toBe("0");
+    const sequenceCard = [...document.querySelectorAll(".ba-header-more-view-option")]
+      .find((button) => button.textContent.includes("Sequence view"));
+    fireEvent.click(sequenceCard);
+    fireEvent.click(screen.getByRole("button", { name: /Token topology/ }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Token topology surface" }));
+    });
+    fireEvent.click(screen.getByRole("option", { name: /^Pop-out\b/ }));
+    fireEvent.click(sequenceCard);
+    first.unmount();
+
+    renderAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
+    });
+
+    const restoredSequenceCard = [...document.querySelectorAll(".ba-header-more-view-option")]
+      .find((button) => button.textContent.includes("Sequence view"));
+    expect(restoredSequenceCard).toHaveAttribute("aria-pressed", "true");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Movie reel/ }));
+    });
+    await waitFor(() => expect(document.querySelectorAll(".ba-header-more-context input[type=checkbox]")[1]).not.toBeChecked());
+    fireEvent.click(screen.getByRole("button", { name: /Token topology/ }));
+    expect(screen.getByRole("button", { name: "Token topology surface" })).toHaveTextContent("Pop-out");
+  });
+
   it("keeps surface menus exclusive and leaves Pop-out available for every view", async () => {
     renderAgent({ user: customerUser, mode: "float" });
     await act(async () => {

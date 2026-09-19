@@ -168,11 +168,20 @@ function readSurfacePreference(key, legacyKey, legacyValue) {
   return "none";
 }
 
+function readStoredSurface(key) {
+  try {
+    const saved = localStorage.getItem(key);
+    return SURFACE_OPTIONS.some((option) => option.value === saved) ? saved : "none";
+  } catch {
+    return "none";
+  }
+}
+
 function SurfaceSelector({ id, label, value, onChange, disabled = false, disabledValues = [], open = false, onToggle }) {
   const selected = SURFACE_OPTIONS.find((option) => option.value === value) || SURFACE_OPTIONS[0];
 
   return (
-    <div className="ba-topology-surface-row">
+    <div className={`ba-topology-surface-row${open ? " is-open" : ""}`}>
       <span className="ba-topology-surface-label">{label}</span>
       <div className="ba-surface-selector">
         <button
@@ -953,9 +962,13 @@ export default function BankingAgent({
   /** MCP auth mode from oauth status — consumer vs enterprise-managed. */
   const [mcpAuthMode, setMcpAuthMode] = useState("consumer");
   const [txErrorModal, setTxErrorModal] = useState(null); // { title, message } or null
-  const [agentFlowSurface, setAgentFlowSurface] = useState(() => (
-    agentFlowDiagram.getState().visible ? "popout" : "none"
-  ));
+  const [agentFlowSurface, setAgentFlowSurface] = useState(() => {
+    try {
+      const raw = localStorage.getItem("ba_agent_flow_surface");
+      if (SURFACE_OPTIONS.some((option) => option.value === raw)) return raw;
+    } catch {}
+    return agentFlowDiagram.getState().visible ? "popout" : "none";
+  });
   const agentFlowSurfaceRef = useRef(agentFlowSurface);
   agentFlowSurfaceRef.current = agentFlowSurface;
   const [complianceStripState, setComplianceStripState] = useState(() => {
@@ -987,23 +1000,24 @@ export default function BankingAgent({
     readSurfacePreference("ba_simple_stepper_surface", "ba_show_simple_stepper")
   ));
   const showSimpleStepperPopout = simpleStepperSurface === "popout" || simpleStepperSurface === "both";
-  // Always ON at mount. Hiding is deliberately NOT persisted: a single stray
-  // click on the Movie reel switch used to write ba_show_filmstrip="0" to
-  // localStorage, which hid the reel in that browser profile forever — across
-  // reloads, deploys and demos, invisible to everyone else and with no
-  // self-heal. That is the "the reel disappeared again" incident, twice. The
-  // toggle still works for the current session; a reload always brings it back.
+  // Restore the presenter's Movie reel choice across refreshes.
   const [showFilmstrip, setShowFilmstrip] = useState(() => {
     try {
-      // One-time cleanup of the stale flag so a browser poisoned before this
-      // change stops hiding the reel.
-      localStorage.removeItem("ba_show_filmstrip");
-      return true;
+      const saved = localStorage.getItem("ba_show_filmstrip");
+      return saved === null ? true : saved === "1";
     } catch {
       return true;
     }
   });
-  const [quickConfigView, setQuickConfigView] = useState("movie-reel");
+  const [quickConfigView, setQuickConfigView] = useState(() => {
+    try {
+      return EVIDENCE_VIEW_OPTIONS.some((option) => option.value === localStorage.getItem("ba_quick_config_view"))
+        ? localStorage.getItem("ba_quick_config_view")
+        : "movie-reel";
+    } catch {
+      return "movie-reel";
+    }
+  });
   // "Sequence view" — swaps the dashboard's right-column reel for a live
   // lifeline sequence diagram of the same trace data. Restored from the SAME key
   // UserDashboardPing2026 persists, because both components hold a copy of this
@@ -1178,11 +1192,12 @@ export default function BankingAgent({
   const [showTokenChain, setShowTokenChain] = useState(false);
   const [showTokenTopology, setShowTokenTopology] = useState(false); // dispatches token-topology-open; panel lives in App.js
   const [showInlineTokenTopology, setShowInlineTokenTopology] = useState(false);
-  const [topologySurface, setTopologySurface] = useState("none");
+  const [topologySurface, setTopologySurface] = useState(() => readStoredSurface("ba_token_topology_surface"));
   const chooseTopologySurface = useCallback((surface) => {
     const embedded = surface === "embedded" || surface === "both";
     const popout = surface === "popout" || surface === "both";
     setTopologySurface(surface);
+    try { localStorage.setItem("ba_token_topology_surface", surface); } catch {}
     setShowInlineTokenTopology(embedded);
     window.dispatchEvent(new CustomEvent("agent-token-topology-toggle", { detail: { on: embedded } }));
     if (popout) {
@@ -1249,6 +1264,7 @@ export default function BankingAgent({
     const popout = surface === "popout" || surface === "both";
     agentFlowSurfaceRef.current = surface;
     setAgentFlowSurface(surface);
+    try { localStorage.setItem("ba_agent_flow_surface", surface); } catch {}
     if (popout || embedded) agentFlowDiagram.open();
     else agentFlowDiagram.close();
     window.dispatchEvent(new CustomEvent("agent-flow-diagram-surface", {
@@ -1282,10 +1298,8 @@ export default function BankingAgent({
 
   const chooseEvidenceView = useCallback((view) => {
     setQuickConfigView(view);
-    if (view === "movie-reel") {
-      setShowFilmstrip(true);
-      window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", { detail: { on: true } }));
-    } else if (view === "simple-stepper") {
+    try { localStorage.setItem("ba_quick_config_view", view); } catch {}
+    if (view === "simple-stepper") {
       chooseSimpleStepperSurface(simpleStepperSurface === "none" ? "embedded" : simpleStepperSurface);
     } else if (view === "sequence-view") {
       chooseSequenceSurface(sequenceSurface === "none" ? "embedded" : sequenceSurface);
@@ -10171,7 +10185,7 @@ export default function BankingAgent({
                         {quickConfigView === "movie-reel" && (
                           <>
                             <Check variant="switch" className="ba-header-toggle-label" checked={showRfcInfo} onChange={(e) => chooseRfcInfo(e.target.checked)}>RFC info</Check>
-                            <Check variant="switch" className="ba-header-toggle-label" checked={showFilmstrip} onChange={(e) => { setShowFilmstrip(e.target.checked); window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", { detail: { on: e.target.checked } })); }}>Movie reel</Check>
+                            <Check variant="switch" className="ba-header-toggle-label" checked={showFilmstrip} onChange={(e) => { const next = e.target.checked; setShowFilmstrip(next); try { localStorage.setItem("ba_show_filmstrip", next ? "1" : "0"); } catch {} window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", { detail: { on: next } })); }}>Movie reel</Check>
                           </>
                         )}
                         {quickConfigView === "simple-stepper" && <SurfaceSelector id="simple-step-surface-select" label="Simple stepper" value={simpleStepperSurface} onChange={(e) => chooseSimpleStepperSurface(e.target.value)} open={openSurfaceSelector === "simple-step-surface-select"} onToggle={setOpenSurfaceSelector} />}
@@ -10280,13 +10294,11 @@ export default function BankingAgent({
                         checked={showFilmstrip}
                         onChange={(e) => {
                           const newVal = e.target.checked;
-                          // Deliberately NOT persisted — see the showFilmstrip
-                          // initializer. Session-only, so a reload always
-                          // restores the reel.
                           setShowFilmstrip(newVal);
+                          try { localStorage.setItem("ba_show_filmstrip", newVal ? "1" : "0"); } catch {}
                           window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", { detail: { on: newVal } }));
                         }}
-                        title="Show or hide the token chain movie reel for this session (returns on reload)"
+                        title="Show or hide the token chain movie reel; this choice is saved across reloads"
                       >
                         <>Movie reel <span className="ba-surface-badge" aria-hidden="true">Embedded</span></>
                       </Check>

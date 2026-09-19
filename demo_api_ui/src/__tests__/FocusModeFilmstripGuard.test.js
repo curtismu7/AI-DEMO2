@@ -64,14 +64,8 @@ describe("Focus Mode filmstrip guard", () => {
   // Locked 2026-08-17 (PR #1896): #1784 gated the float-mode filmstrip behind
   // ba_show_filmstrip === "1", default OFF — the filmstrip silently vanished
   // for every user who never touched the toggle. Default must stay ON.
-  //
-  // Strengthened 2026-08-25, third disappearance: defaulting ON was not enough
-  // while "off" was PERSISTED. One stray click wrote ba_show_filmstrip="0" to
-  // localStorage and hid the reel in that browser profile permanently — across
-  // reloads, redeploys and demos, invisible to everyone else, no self-heal.
-  // Hiding is now session-only React state and is never written to storage, so
-  // a reload always restores the reel. These two tests keep their original
-  // purpose (default ON) and additionally pin that no persistence returns.
+  // The presenter toggle is now intentionally persisted so the selected Demo
+  // controls survive a browser refresh, while an absent key still defaults ON.
   const aiAgent = read("../components/AIAgent.js");
 
   test("Ping2026 defaults the filmstrip ON with no storage read", () => {
@@ -79,14 +73,14 @@ describe("Focus Mode filmstrip guard", () => {
     expect(p2026).toMatch(/const \[showFilmstrip, setShowFilmstrip\] = useState\(true\)/);
   });
 
-  test("AIAgent's own Movie reel state defaults ON to match, unpersisted", () => {
-    expect(aiAgent).not.toMatch(/getItem\(\s*["']ba_show_filmstrip["']\s*\)/);
-    // The toggle must not write the flag back.
-    expect(aiAgent).not.toMatch(/setItem\(\s*["']ba_show_filmstrip["']/);
+  test("AIAgent restores the Movie reel preference and defaults ON", () => {
+    expect(aiAgent).toMatch(/getItem\(\s*["']ba_show_filmstrip["']\s*\)/);
+    expect(aiAgent).toMatch(/setItem\(\s*["']ba_show_filmstrip["']/);
+    expect(aiAgent).toMatch(/saved === null \? true : saved === "1"/);
   });
 
-  test("an already-poisoned browser is actively healed on mount", () => {
-    expect(aiAgent).toMatch(/removeItem\(\s*["']ba_show_filmstrip["']\s*\)/);
+  test("an explicit Movie reel off preference remains off after reload", () => {
+    expect(aiAgent).not.toMatch(/removeItem\(\s*["']ba_show_filmstrip["']\s*\)/);
   });
 
   // Locked 2026-08-18: the Focus Mode copy rendered UNCONDITIONALLY while only
