@@ -49,6 +49,10 @@ function compareSortValues(left, right) {
   return String(left).localeCompare(String(right), undefined, { sensitivity: 'base' });
 }
 
+function isMissingSortValue(value) {
+  return value == null || value === '';
+}
+
 function formatTime(value) {
   if (!value) return 'Not yet scanned';
   return new Date(value).toLocaleTimeString();
@@ -83,8 +87,13 @@ export default function McpDiscoveryPage() {
     return records
       .map((record, index) => ({ record, index }))
       .sort((left, right) => {
-        const comparison = compareSortValues(column.value(left.record), column.value(right.record));
-        if (comparison !== 0) return sort.direction === 'ascending' ? comparison : -comparison;
+        const leftValue = column.value(left.record);
+        const rightValue = column.value(right.record);
+        const comparison = compareSortValues(leftValue, rightValue);
+        if (comparison !== 0) {
+          const missingValueInvolved = isMissingSortValue(leftValue) || isMissingSortValue(rightValue);
+          return missingValueInvolved || sort.direction === 'ascending' ? comparison : -comparison;
+        }
         return left.index - right.index;
       })
       .map(({ record }) => record);

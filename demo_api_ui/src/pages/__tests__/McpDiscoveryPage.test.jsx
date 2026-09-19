@@ -71,3 +71,16 @@ test('sorts records by a clicked column and toggles direction', async () => {
   expect(statusHeader).toHaveAttribute('aria-sort', 'descending');
   expect(screen.getAllByRole('row')[1]).toHaveTextContent('Local listener');
 });
+
+test('keeps missing latency values at the end in both sort directions', async () => {
+  render(<McpDiscoveryPage />);
+  await waitFor(() => expect(screen.getByText('Banking MCP')).toBeInTheDocument());
+
+  const latencyHeader = screen.getByRole('columnheader', { name: /Latency/ });
+  const latencySort = within(latencyHeader).getByRole('button', { name: 'Sort by Latency' });
+  fireEvent.click(latencySort);
+  expect(screen.getAllByRole('row')[1]).toHaveTextContent('Banking MCP');
+
+  fireEvent.click(latencySort);
+  expect(screen.getAllByRole('row')[1]).toHaveTextContent('Banking MCP');
+});
