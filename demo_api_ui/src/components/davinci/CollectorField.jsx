@@ -4,7 +4,7 @@
 // exactly what the live flow's screens send, including PingOne Forms display
 // fields and automatic security signals: TextCollector, PasswordCollector,
 // SubmitCollector, FlowCollector, RichTextCollector, ERROR_DISPLAY, and
-// ProtectCollector.
+// ProtectCollector and FidoAuthenticationCollector.
 //
 // Shape follows Ping's own reactjs-todo-davinci sample: the page hands each
 // field its `updater` from `client.update(collector)` and the field writes
@@ -136,7 +136,7 @@ function ProtectStatus() {
   return <p className="dvsdk-security-status" role="status">Security check active</p>;
 }
 
-export default function CollectorField({ collector, updater, onSubmit, onFlow, serverError, busy }) {
+export default function CollectorField({ collector, updater, onSubmit, onFlow, onFido, serverError, busy }) {
   switch (collector?.type) {
     // PingOne Forms uses an object-valued device selector. update() accepts
     // option.value and maps it to the device type DaVinci expects.
@@ -207,6 +207,15 @@ export default function CollectorField({ collector, updater, onSubmit, onFlow, s
     case "ProtectCollector":
       return <ProtectStatus />;
 
+    // The browser's WebAuthn prompt needs a user action. The page uses the
+    // SDK's FIDO helper, writes its assertion through update(), then advances.
+    case "FidoAuthenticationCollector":
+      return (
+        <button type="button" className="dvsdk-submit" onClick={onFido} disabled={busy}>
+          {busy ? "Opening passkey..." : "Use passkey"}
+        </button>
+      );
+
     default:
       return (
         <p className="dvsdk-unsupported">
@@ -231,4 +240,5 @@ export const SUPPORTED_COLLECTORS = [
   "RichTextCollector",
   "ERROR_DISPLAY",
   "ProtectCollector",
+  "FidoAuthenticationCollector",
 ];

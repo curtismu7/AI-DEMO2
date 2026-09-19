@@ -396,9 +396,9 @@
 }
 
 .dvsdk-retry {
+  width: 100%;
   font: inherit;
   font-weight: 600;
-  margin-top: 10px;
   padding: 9px 16px;
   cursor: pointer;
   color: var(--th-text);
@@ -412,15 +412,26 @@
   background: var(--th-bg-hover);
 }
 
-/* Continue / "Sign out of PingOne and use a different account" sit together on
-   the reused-session panel and beside Try again on a userSessionMismatch. The
-   buttons carry their own margin-top, so this only spaces them sideways and
-   lets the long sign-out label wrap under Continue on a narrow screen. */
+/* Keep the signed-in and recovery actions aligned at the card's full width;
+   the long sign-out label wraps inside its own button on narrow screens. */
 .dvsdk-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  column-gap: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.dvsdk-actions .dvsdk-retry:first-child {
+  color: var(--th-text-on-emphasis);
+  background: var(--th-bg-emphasis);
+  border-color: var(--th-bg-emphasis);
+}
+
+.dvsdk-actions .dvsdk-retry:first-child:hover {
+  color: var(--th-text-on-emphasis);
+  background: var(--th-bg-emphasis);
+  border-color: var(--th-bg-emphasis);
+  filter: brightness(1.08);
 }
 
 /* The signed-in user's details from the BFF: username, PingOne user id, email.
