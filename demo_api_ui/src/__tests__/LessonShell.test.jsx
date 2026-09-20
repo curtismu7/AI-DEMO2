@@ -1,6 +1,8 @@
+import fs from "node:fs";
+import path from "node:path";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { AcademyLessonRoute } from "../App";
+import { AcademyLessonRoute } from "../routes/AcademyRoutes";
 import { SessionTokenProvider } from "../context/SessionTokenContext";
 import { ThemeProvider } from "../context/ThemeContext";
 import { getLesson } from "../learning/lessonCatalog";
@@ -12,12 +14,12 @@ vi.mock("../vertical/useVertical", () => ({
 }));
 
 const lesson = getLesson("delegation");
-const authRequirements = {
-  routes: {
-    "/academy/:lessonId": "public",
-    "/academy/:lessonId/:mode": "public",
-  },
-};
+const authRequirements = JSON.parse(
+  fs.readFileSync(
+    path.resolve(__dirname, "../../../demo_api_server/config/auth-requirements.json"),
+    "utf8",
+  ),
+);
 
 function renderShell(props = {}) {
   return render(
@@ -224,7 +226,7 @@ describe("LessonShell", () => {
     expect(authRequirements.routes["/academy/:lessonId/:mode"]).toBe("public");
 
     const { unmount } = renderAcademyRoute(["/academy/delegation"]);
-    expect(await screen.findByRole("banner")).toBeInTheDocument();
+    await waitFor(() => expect(document.querySelector("header.topnav")).toBeInTheDocument());
     expect(screen.getByTestId("location")).toHaveTextContent("/academy/delegation");
     expect(screen.getByRole("main")).toHaveClass("main-content");
     expect(screen.getAllByRole("main")).toHaveLength(1);
