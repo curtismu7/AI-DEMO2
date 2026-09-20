@@ -60,7 +60,7 @@
 .hitl-consent-banner__title {
   display: block;
   font-size: 0.95rem;
-  color: var(--brand-light-gray);
+  color: var(--th-text);
   letter-spacing: 0.02em;
   margin-bottom: 0.25rem;
 }
@@ -81,7 +81,7 @@
   cursor: pointer;
   border: none;
   background: #fbbf24;
-  color: #0f172a;
+  color: var(--th-text);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
@@ -256,7 +256,8 @@ body .transaction-consent-card__check input[type="checkbox"] {
   background: #eff6ff;
   border: 1px solid #bfdbfe;
   border-radius: 8px;
-  font-size: 0.7rem;
+  /* RFC guidance is the teaching payoff; keep it legible at twice the former size. */
+  font-size: 1.4rem;
   color: #1e40af;
   line-height: 1.45;
 }

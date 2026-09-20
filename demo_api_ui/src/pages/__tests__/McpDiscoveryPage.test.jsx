@@ -1,0 +1,104 @@
+import React from 'react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import McpDiscoveryPage from '../McpDiscoveryPage';
+import { fetchMcpDiscoveryInventory, requestMcpDiscoveryScan } from '../../services/mcpDiscoveryService';
+
+vi.mock('../McpDiscoveryPage.css', () => ({}), { virtual: true });
+vi.mock('../../services/mcpDiscoveryService', () => ({
+  fetchMcpDiscoveryInventory: vi.fn(),
+  requestMcpDiscoveryScan: vi.fn(),
+}));
+
+const inventory = {
+  scanId: 'scan-1',
+  scannedAt: '2026-09-18T15:00:00.000Z',
+  records: [
+    { id: 'healthy', displayName: 'Banking MCP', source: 'compose-service', sources: ['compose-service'], location: 'local', transport: 'streamable-http', endpoint: 'http://127.0.0.1:8080/mcp', status: 'healthy', protocolVersion: '2026-07-28', tools: [{ name: 'get_balance' }], securityFindings: [], probe: { latencyMs: 22 } },
+    { id: 'hostile', displayName: 'Hostile MCP fixture', source: 'remote-url', sources: ['remote-url'], location: 'remote', transport: 'streamable-http', endpoint: 'http://hostile-mcp:8899/', status: 'hostile', protocolVersion: '2025-11-25', tools: [{ name: 'poisoned_tool' }], securityFindings: [{ kind: 'hidden-instruction', tool: 'poisoned_tool', detail: 'instruction-tag in description' }], probe: { latencyMs: null } },
+    { id: 'candidate', displayName: 'Local stdio candidate', source: 'host-process', sources: ['host-process'], location: 'local', transport: 'stdio', endpoint: null, status: 'candidate', protocolVersion: null, tools: [], securityFindings: [{ kind: 'hidden-instruction', tool: 'bad_tool', detail: 'hidden instruction' }], probe: { latencyMs: null } },
+    { id: 'listener', displayName: 'Local listener', source: 'listener', sources: ['listener'], location: 'local', transport: 'streamable-http', endpoint: 'http://127.0.0.1:3910/mcp', status: 'offline', protocolVersion: null, tools: [], securityFindings: [], probe: { latencyMs: null } },
+    { id: 'remote', displayName: 'Remote MCP', source: 'remote-url', sources: ['remote-url'], location: 'remote', transport: 'streamable-http', endpoint: 'https://example.test/mcp', status: 'candidate', protocolVersion: null, tools: [], securityFindings: [], probe: { latencyMs: null } },
+    { id: 'configured-process', displayName: 'Configured local process', source: 'client-config', sources: ['client-config'], location: 'local', transport: 'stdio', endpoint: null, status: 'candidate', protocolVersion: null, tools: [], securityFindings: [], probe: { latencyMs: null } },
+  ],
+};
+
+beforeEach(() => {
+  fetchMcpDiscoveryInventory.mockResolvedValue(inventory);
+  requestMcpDiscoveryScan.mockResolvedValue({ scanId: 'scan-2' });
+});
+
+test('renders operational inventory and security findings without tool actions', async () => {
+  render(<McpDiscoveryPage />);
+  await waitFor(() => expect(screen.getByText('Banking MCP')).toBeInTheDocument());
+  expect(screen.getByText('Runtime inventory')).toBeInTheDocument();
+  expect(screen.getByText('healthy MCP endpoints')).toBeInTheDocument();
+  expect(screen.getByText('observed but unprobed')).toBeInTheDocument();
+  expect(screen.getByText('Hostile findings')).toBeInTheDocument();
+  expect(screen.getByText('servers with suspicious metadata')).toBeInTheDocument();
+  expect(screen.getByRole('columnheader', { name: 'Runtime type' })).toBeInTheDocument();
+  expect(screen.getByText('Compose service')).toBeInTheDocument();
+  expect(screen.getByText('Host process')).toBeInTheDocument();
+  expect(screen.getByText('MCP endpoint')).toBeInTheDocument();
+  expect(screen.getByText('HTTP listener')).toBeInTheDocument();
+  expect(screen.getAllByText('Remote endpoint').length).toBeGreaterThan(0);
+  const configuredProcessRow = screen.getByText('Configured local process').closest('tr');
+  expect(within(configuredProcessRow).getByText('Configured client')).toBeInTheDocument();
+  expect(within(configuredProcessRow).getByText('Process candidate')).toBeInTheDocument();
+  expect(screen.getByText('hidden instruction')).toBeInTheDocument();
+  expect(screen.getByText(/These are heuristic signals/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: /call|invoke|execute/i })).not.toBeInTheDocument();
+});
+
+test('requests a manual rescan and reports the new scan id', async () => {
+  render(<McpDiscoveryPage />);
+  await waitFor(() => expect(screen.getByText('Banking MCP')).toBeInTheDocument());
+  fireEvent.click(screen.getByRole('button', { name: 'Scan now' }));
+  await waitFor(() => expect(requestMcpDiscoveryScan).toHaveBeenCalledOnce());
+  expect(await screen.findByText(/scan-2/)).toBeInTheDocument();
+});
+
+test('sorts records by a clicked column and toggles direction', async () => {
+  render(<McpDiscoveryPage />);
+  await waitFor(() => expect(screen.getByText('Banking MCP')).toBeInTheDocument());
+
+  const statusHeader = screen.getByRole('columnheader', { name: /Status/ });
+  const statusSort = within(statusHeader).getByRole('button', { name: 'Sort by Status' });
+  expect(statusHeader).toHaveAttribute('aria-sort', 'none');
+
+  fireEvent.click(statusSort);
+  expect(statusHeader).toHaveAttribute('aria-sort', 'ascending');
+  expect(screen.getAllByRole('row')[1]).toHaveTextContent('Local stdio candidate');
+
+  fireEvent.click(statusSort);
+  expect(statusHeader).toHaveAttribute('aria-sort', 'descending');
+  expect(screen.getAllByRole('row')[1]).toHaveTextContent('Local listener');
+});
+
+test('keeps missing latency values at the end in both sort directions', async () => {
+  render(<McpDiscoveryPage />);
+  await waitFor(() => expect(screen.getByText('Banking MCP')).toBeInTheDocument());
+
+  const latencyHeader = screen.getByRole('columnheader', { name: /Latency/ });
+  const latencySort = within(latencyHeader).getByRole('button', { name: 'Sort by Latency' });
+  fireEvent.click(latencySort);
+  expect(screen.getAllByRole('row')[1]).toHaveTextContent('Banking MCP');
+
+  fireEvent.click(latencySort);
+  expect(screen.getAllByRole('row')[1]).toHaveTextContent('Banking MCP');
+});
+
+test('shows selected server details in the right panel', async () => {
+  render(<McpDiscoveryPage />);
+  await waitFor(() => expect(screen.getByText('Banking MCP')).toBeInTheDocument());
+
+  fireEvent.click(screen.getByText('Banking MCP'));
+
+  expect(screen.getByRole('heading', { name: 'Server details' })).toBeInTheDocument();
+  expect(screen.getByText('Docker Compose')).toBeInTheDocument();
+  expect(screen.getByText('streamable-http')).toBeInTheDocument();
+  expect(screen.getByText('2026-07-28')).toBeInTheDocument();
+  expect(screen.getAllByText('http://127.0.0.1:8080/mcp').length).toBeGreaterThan(1);
+  expect(screen.getByText('get_balance')).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Metadata findings' })).not.toBeInTheDocument();
+});

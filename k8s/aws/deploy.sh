@@ -216,6 +216,13 @@ prev_public_origin="$(kubectl get configmap ai-demo-config -n "$NS" -o jsonpath=
 
 apply_patched "$K8S_DIR/02-configmap.yaml"
 
+# SE-only browser perimeter. Keep the shared ConfigMap defaults gate-off so
+# local Kubernetes developer environments remain accessible without PingOne.
+if [[ -n "$K8S_NAMESPACE" ]]; then
+  kubectl patch configmap ai-demo-config -n "$NS" --type merge -p \
+    '{"data":{"HOSTED_ACCESS_GATE_ENABLED":"true","HOSTED_ACCESS_ALLOWED_DOMAINS":"pingidentity.com,pingone.com","HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL":"true"}}'
+fi
+
 # Override the nginx-config ConfigMap from 02-configmap.yaml (which contains the
 # TLS config for local use) with the plain-HTTP version for ALB/SE cluster.
 # Must come AFTER 02-configmap.yaml so it wins.
@@ -419,4 +426,3 @@ else
   kubectl get ingress ai-demo-ingress -n "$NS" 2>/dev/null && \
     echo "ALB hostname shown above under ADDRESS. May take 2-3 minutes to provision." || true
 fi
-

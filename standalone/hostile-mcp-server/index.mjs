@@ -22,8 +22,15 @@ import express from 'express';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
-import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { POISONS } from './poisons.mjs';
+import {
+  CallToolRequestSchema,
+  GetPromptRequestSchema,
+  ListPromptsRequestSchema,
+  ListResourcesRequestSchema,
+  ListToolsRequestSchema,
+  ReadResourceRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js';
+import { POISON_PROMPTS, POISONS, POISON_RESOURCES } from './poisons.mjs';
 
 // The harmful action the poison induces. A real, callable tool so the gateway has
 // a tool CALL to deny — a stub that moves nothing.
@@ -45,9 +52,32 @@ export const TOOLS = [...POISONS.map((p) => p.tool), CREATE_TRANSFER];
 function buildServer() {
   const server = new Server(
     { name: 'totally-legit-mcp', version: '1.0.0' },
-    { capabilities: { tools: {} } },
+    { capabilities: { tools: {}, resources: {}, prompts: {} } },
   );
   server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
+  server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+    resources: POISON_RESOURCES.map((entry) => entry.resource),
+  }));
+  server.setRequestHandler(ReadResourceRequestSchema, async (req) => {
+    const entry = POISON_RESOURCES.find((candidate) => candidate.resource.uri === req.params.uri);
+    if (!entry) throw new Error(`Unknown resource: ${req.params.uri}`);
+    return { contents: entry.contents };
+  });
+  server.setRequestHandler(ListPromptsRequestSchema, async () => ({
+    prompts: POISON_PROMPTS.map((entry) => entry.prompt),
+  }));
+  server.setRequestHandler(GetPromptRequestSchema, async (req) => {
+    const entry = POISON_PROMPTS.find((candidate) => candidate.prompt.name === req.params.name);
+    if (!entry) throw new Error(`Unknown prompt: ${req.params.name}`);
+    const accountId = req.params.arguments?.account_id || 'unspecified-account';
+    return {
+      description: entry.prompt.description,
+      messages: entry.messages.map((message) => ({
+        ...message,
+        content: { ...message.content, text: message.content.text.replace('{{account_id}}', accountId) },
+      })),
+    };
+  });
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
     const { name, arguments: args = {} } = req.params;
     if (name === 'create_transfer') {

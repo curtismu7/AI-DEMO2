@@ -88,6 +88,133 @@ function statusFromA2aEvent(event) {
   return ["error", "failed", "failure", "denied"].includes(status) ? "error" : "done";
 }
 
+const DISPLAY_CLAIMS = ["sub", "aud", "scope", "act", "may_act", "client_id"];
+
+function displayClaims(claims) {
+  if (!claims || typeof claims !== "object") return null;
+  return Object.fromEntries(
+    DISPLAY_CLAIMS
+      .filter((key) => claims[key] !== undefined)
+      .map((key) => [key, claims[key]]),
+  );
+}
+
+function audienceValue(claims) {
+  const audience = claims?.aud;
+  return Array.isArray(audience) ? audience.join(", ") : audience;
+}
+
+function actorSubject(act) {
+  return act && typeof act === "object" ? act.sub : null;
+}
+
+function actDepth(act) {
+  let depth = 0;
+  let current = act;
+  while (current && typeof current === "object") {
+    depth += 1;
+    current = current.act;
+  }
+  return depth;
+}
+
+const SENSITIVE_EVIDENCE_KEYS = new Set([
+  "access_token",
+  "actor_token",
+  "authorization",
+  "authorization_header",
+  "client_secret",
+  "cookie",
+  "id_token",
+  "refresh_token",
+  "subject_token",
+  "token",
+]);
+const JWT_PATTERN = /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g;
+
+function redactEvidence(value, key = "") {
+  if (SENSITIVE_EVIDENCE_KEYS.has(key.toLowerCase())) return "[redacted]";
+  if (typeof value === "string") return value.replace(JWT_PATTERN, "[redacted-jwt]");
+  if (Array.isArray(value)) return value.map((item) => redactEvidence(item));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([childKey, childValue]) => [
+        childKey,
+        redactEvidence(childValue, childKey),
+      ]),
+    );
+  }
+  return value;
+}
+
+function jsonPayload(title, value, head = "") {
+  return {
+    title,
+    text: `${head ? `${head}\n` : ""}${JSON.stringify(redactEvidence(value), null, 2)}`,
+  };
+}
+
+function a2aEvidence(event) {
+  if (!event) return { facts: [] };
+  const claims = event.claims || {};
+  const request = event.exchangeRequest || event.protocolRequest;
+  const responseClaims = displayClaims(claims);
+  const facts = [];
+
+  if (event.id === "a2a-agent1-actor") {
+    if (claims.client_id) facts.push(`actor ${claims.client_id}`);
+    facts.push("client_credentials");
+  } else if (event.id === "a2a-agent2-actor") {
+    if (claims.client_id) facts.push(`actor ${claims.client_id}`);
+    facts.push("client_credentials");
+  }
+
+  if (audienceValue(claims)) facts.push(`aud ${audienceValue(claims)}`);
+  if (claims.scope) facts.push(`scope ${claims.scope}`);
+  if (claims.act) {
+    const actor = actorSubject(claims.act);
+    if (actor) facts.push(`act +${actor}`);
+    const depth = actDepth(claims.act);
+    if (depth > 1) facts.push(`act depth ${depth}`);
+  }
+
+  let requestPayload;
+  if (event.exchangeRequest) {
+    requestPayload = jsonPayload("RFC 8693 token exchange request", event.exchangeRequest, "POST /as/token");
+  } else if (event.id === "a2a-agent1-actor" || event.id === "a2a-agent2-actor") {
+    requestPayload = jsonPayload(
+      "OAuth client credentials request",
+      {
+        grant_type: "client_credentials",
+        audience: claims.aud,
+        scope: claims.scope,
+      },
+      "POST /as/token",
+    );
+  } else if (event.id === "a2a-agent-card" && event.cardUrl) {
+    requestPayload = { title: "Agent Card discovery request", text: `GET ${event.cardUrl}` };
+  } else if (event.protocolRequest) {
+    requestPayload = jsonPayload("A2A JSON-RPC request", event.protocolRequest, "POST message/send");
+  }
+
+  let response;
+  if (responseClaims && Object.keys(responseClaims).length > 0) {
+    response = jsonPayload("PingOne token response (claims only)", responseClaims);
+  } else if (event.agentCard) {
+    response = jsonPayload("Agent Card response", {
+      name: event.agentCard.name,
+      version: event.agentCard.version,
+      protocolBinding: event.agentCard.protocolBinding,
+      skills: event.skills || event.agentCard.skills,
+      securitySchemes: Object.keys(event.agentCard.securitySchemes || {}),
+    });
+  } else if (event.protocolResponse) {
+    response = jsonPayload("A2A JSON-RPC response", event.protocolResponse);
+  }
+
+  return { facts, request: requestPayload || (request ? jsonPayload("A2A request", request) : undefined), response };
+}
+
 export function buildA2aTokenChainSteps(tokenEvents) {
   const events = Array.isArray(tokenEvents) ? tokenEvents : [];
   const detail = buildA2aChainDetail(events);
@@ -96,12 +223,12 @@ export function buildA2aTokenChainSteps(tokenEvents) {
   const mainAgent = detail.generalist || "Main agent";
   const specialist = detail.specialist || "Specialist agent";
   const definitions = [
-    ["a2a-agent1-actor", `Main agent — ${mainAgent}`, "A2A"],
-    ["a2a-exchange1", "A2A Exchange #1 — user + main agent", "A2A"],
-    ["a2a-agent2-actor", `Specialist agent — ${specialist}`, "A2A"],
-    ["a2a-exchange2", "A2A Exchange #2 — nested specialist delegation", "A2A"],
-    ["a2a-agent-card", `Agent Card — ${specialist} discovery`, "A2A"],
-    ["a2a-protocol-message", `A2A SendMessage — ${specialist} handoff`, "A2A"],
+    ["a2a-agent1-actor", `Main agent — ${mainAgent} · client_credentials`, "A2A"],
+    ["a2a-exchange1", "A2A Exchange #1 — user + main agent · RFC 8693", "A2A"],
+    ["a2a-agent2-actor", `Specialist agent — ${specialist} · client_credentials`, "A2A"],
+    ["a2a-exchange2", "A2A Exchange #2 — nested specialist delegation · RFC 8693", "A2A"],
+    ["a2a-agent-card", `Agent Card — ${specialist} discovery · GET Agent Card`, "A2A"],
+    ["a2a-protocol-message", `A2A SendMessage — ${specialist} handoff · POST message/send → result/toolError`, "A2A"],
   ];
 
   return definitions.map(([id, title, lane]) => {
@@ -116,8 +243,7 @@ export function buildA2aTokenChainSteps(tokenEvents) {
           ? `${title} was observed in this run.`
           : SKIPPED_STEP_REASONS[id],
         claims: event?.claims,
-        request: event?.exchangeRequest || event?.protocolRequest,
-        response: event?.protocolResponse || event?.agentCard,
+        ...a2aEvidence(event),
         tokenEvent: event || undefined,
       },
     };

@@ -662,6 +662,7 @@ describe('POST /llm/call — LM Studio lane', () => {
   beforeEach(() => {
     llmFetch.mockReset();
     process.env.LMSTUDIO_BASE_URL = 'http://lmstudio.test:1234';
+    process.env.LMSTUDIO_API_KEY = 'test-lm-token';
   });
   afterEach(() => { process.env = { ...env }; });
 
@@ -689,6 +690,21 @@ describe('POST /llm/call — LM Studio lane', () => {
 
     expect(res.status).toBe(502);
     expect(res.body.error).toMatch(/No model loaded/);
+  });
+
+  it('surfaces LM Studio authentication failures instead of mislabeling them as no model loaded', async () => {
+    llmFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      json: async () => ({ error: { message: 'An LM Studio API token is required' } }),
+    });
+
+    const res = await post({ provider: 'lmstudio', prompt: 'hi' });
+
+    expect(res.status).toBe(502);
+    expect(res.body.error).toMatch(/LM Studio.*401.*API token is required/);
+    expect(res.body.reachedProvider).toBe(true);
+    expect(llmFetch.mock.calls[0][1].headers.Authorization).toBe('Bearer test-lm-token');
   });
 
   it('502s when LM Studio is unreachable', async () => {

@@ -7,6 +7,64 @@ function byId(events, id) {
   return (Array.isArray(events) ? events : []).find((e) => e && e.id === id) || null;
 }
 
+const DISPLAY_CLAIMS = ['sub', 'aud', 'scope', 'act', 'client_id', 'iss', 'exp'];
+
+function displayClaims(event) {
+  return Object.fromEntries(
+    DISPLAY_CLAIMS
+      .filter((key) => event?.claims?.[key] != null)
+      .map((key) => [key, event.claims[key]]),
+  );
+}
+
+function shortRequest(event) {
+  if (!event) return null;
+  if (event.id === 'a2a-agent-card') return `GET ${event.cardUrl || '/.well-known/agent-card.json'}`;
+  if (event.id === 'a2a-protocol-message') return 'POST message/send · JSON-RPC';
+  if (event.exchangeRequest) return 'POST /as/token · RFC 8693 token exchange';
+  if (event.id === 'a2a-agent1-actor' || event.id === 'a2a-agent2-actor') return 'POST /as/token · client_credentials';
+  return null;
+}
+
+function shortResponse(event) {
+  if (!event) return null;
+  if (event.id === 'a2a-agent-card') return 'Agent Card response · skills and security scheme';
+  if (event.id === 'a2a-protocol-message') {
+    return event.protocolResponse?.error || event.error ? 'toolError' : 'result';
+  }
+  return 'PingOne token response · claims only';
+}
+
+function rowFor(event, name, desc, detail) {
+  if (!event) return null;
+  return {
+    id: event.id,
+    sourceId: event.id,
+    name,
+    desc,
+    status: ['error', 'failed', 'failure', 'denied'].includes(String(event.status || '').toLowerCase()) ? 'error' : 'done',
+    requestSummary: shortRequest(event),
+    responseSummary: shortResponse(event),
+    claims: displayClaims(event),
+    request: detail?.request || event.exchangeRequest || event.protocolRequest || null,
+    response: detail?.response || event.protocolResponse || null,
+    step: {
+      id: event.id,
+      title: name,
+      lane: 'A2A',
+      status: ['error', 'failed', 'failure', 'denied'].includes(String(event.status || '').toLowerCase()) ? 'error' : 'done',
+      detail: {
+        narrative: `${name} was observed in this run.`,
+        claims: displayClaims(event),
+        request: detail?.request || event.exchangeRequest || event.protocolRequest || null,
+        response: detail?.response || event.protocolResponse || null,
+        facts: [shortRequest(event), shortResponse(event)].filter(Boolean),
+        rfcs: event.exchangeRequest ? ['RFC 8693'] : [],
+      },
+    },
+  };
+}
+
 /** Shorten a client id / sub for diagram labels. */
 function shortId(v) {
   if (!v) return null;
@@ -209,5 +267,48 @@ export function buildA2aChainDetail(tokenEvents) {
     hops,
     agentCard,
     protocol,
+  };
+}
+
+/**
+ * Shared, source-linked presentation rows for topology, sequence, and legacy
+ * flow surfaces. Payloads are limited to the same redacted claims/request/
+ * response evidence used by the token rail; token strings never enter rows.
+ */
+export function buildA2aEvidenceRows(tokenEvents) {
+  const detail = buildA2aChainDetail(tokenEvents);
+  if (!detail.present) return null;
+
+  const events = Array.isArray(tokenEvents) ? tokenEvents : [];
+  const actor1 = byId(events, 'a2a-agent1-actor');
+  const exchange1 = byId(events, 'a2a-exchange1');
+  const actor2 = byId(events, 'a2a-agent2-actor');
+  const exchange2 = byId(events, 'a2a-exchange2');
+  const card = byId(events, 'a2a-agent-card');
+  const message = byId(events, 'a2a-protocol-message');
+  const cardDetail = card
+    ? {
+        request: { method: 'GET', url: card.cardUrl || '/.well-known/agent-card.json' },
+        response: {
+          name: card.agentCard?.name || card.agentName || null,
+          version: card.agentCard?.version || null,
+          skills: card.skills || card.agentCard?.skills || [],
+          securitySchemes: Object.keys(card.agentCard?.securitySchemes || {}),
+        },
+      }
+    : null;
+
+  return {
+    identity: [
+      rowFor(actor1, `Main agent · ${detail.generalist || 'generalist'}`, 'Actor identity · client_credentials', detail.hops[0]),
+      rowFor(exchange1, 'Exchange #1 · user + main actor', 'RFC 8693 · delegated bearer for A2A', detail.hops[1]),
+      rowFor(actor2, `Specialist agent · ${detail.specialist || 'specialist'}`, 'Actor identity · client_credentials', detail.hops[2]),
+      rowFor(exchange2, 'Exchange #2 · nested specialist delegation', 'RFC 8693 · delegated token for MCP', detail.hops[3]),
+    ].filter(Boolean),
+    wire: [
+      rowFor(card, `Agent Card · ${detail.specialist || 'specialist'} discovery`, 'Discovery · signed metadata and security scheme', cardDetail),
+      rowFor(message, `SendMessage · ${detail.specialist || 'specialist'} handoff`, `JSON-RPC · ${detail.protocol?.mode || 'transport not recorded'}`, detail.protocol),
+    ].filter(Boolean),
+    responseBoundary: 'No access token crosses the A2A response boundary; only result or toolError returns.',
   };
 }

@@ -108,6 +108,44 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(screen.getAllByText("P1AZ Inspector").length).toBeGreaterThan(0);
   });
 
+  it("searching activity surfaces both activity destinations", () => {
+    renderNav();
+    const input = screen.getByLabelText(/search navigation/i);
+    fireEvent.change(input, { target: { value: "activity" } });
+    expect(screen.getByText("Activity Log")).toBeInTheDocument();
+    expect(screen.getByText("API Activity")).toBeInTheDocument();
+  });
+
+  it("searching api surfaces the persisted API activity page", () => {
+    renderNav();
+    const input = screen.getByLabelText(/search navigation/i);
+    fireEvent.change(input, { target: { value: "api" } });
+    expect(screen.getByText("API Activity").closest("a")).toHaveAttribute(
+      "href",
+      "/monitoring/api-activity",
+    );
+  });
+
+  it("searching discovery surfaces MCP Discovery", () => {
+    renderNav();
+    const input = screen.getByLabelText(/search navigation/i);
+    fireEvent.change(input, { target: { value: "discovery" } });
+    expect(screen.getByText("MCP Discovery").closest("a")).toHaveAttribute(
+      "href",
+      "/mcp-discovery",
+    );
+  });
+
+  it("searching OAuth agents surfaces the AI-Gateway Shadow AI Detector page", () => {
+    renderNav();
+    fireEvent.change(screen.getByLabelText(/search navigation/i), { target: { value: "oauth agents" } });
+    expect(screen.getByText("AI-Gateway")).toBeInTheDocument();
+    expect(screen.getByText("Shadow AI Detector").closest("a")).toHaveAttribute(
+      "href",
+      "/ai-gateway/shadow-ai-detector",
+    );
+  });
+
   it("shows a local-only PAC Editor item under Authorize and opens the PAC editor", () => {
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
     renderNav();
@@ -140,6 +178,19 @@ describe("AdminSideNav — best-of-breed pass", () => {
     renderNavAsUser(customerUser);
     fireEvent.click(screen.getByRole("button", { name: /^Telemetry/ }));
     expect(screen.getByText("Health Check")).toBeInTheDocument();
+  });
+
+  it("shows MCP Runtime Inventory for a non-admin user and links to discovery", () => {
+    renderNavAsUser(customerUser);
+    fireEvent.click(screen.getByRole("button", { name: /^MCP & Gateways/ }));
+    const link = screen.getByText("MCP Runtime Inventory").closest("a");
+    expect(link).toHaveAttribute("href", "/mcp-discovery");
+  });
+
+  it("finds MCP Runtime Inventory by searching for runtime", () => {
+    renderNavAsUser(customerUser);
+    fireEvent.change(screen.getByLabelText(/search navigation/i), { target: { value: "runtime" } });
+    expect(screen.getByText("MCP Runtime Inventory")).toBeInTheDocument();
   });
 
   it("shows the Demo Config link for a non-admin user (no admin gate)", () => {
@@ -218,7 +269,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
   // bottom — "AI Agent Gateway" rendered below "Integration Tests", which reads
   // as missing rather than as reordered. Reported from the live demo.
   it("places a group the saved navOrder predates at its natural position, not last", async () => {
-    // A realistic stale order: no "AI Agent Gateway", and labels from groups
+    // A realistic stale order: no "AI-Gateway" or "AI Agent Gateway", and labels from groups
     // that have since been renamed.
     const staleOrder = [
       "Home", "Dashboard", "Demos", "Privilege MCP", "Themes", "AI Footprint",
@@ -251,10 +302,10 @@ describe("AdminSideNav — best-of-breed pass", () => {
     ).map((el) => el.textContent.trim());
     const idx = (l) => labels.indexOf(l);
 
-    // It sits directly after Dashboard — its position in allNavItems — because
+    // It sits after the new AI-Gateway group — its position in allNavItems — because
     // Dashboard is the nearest preceding sibling the saved order knows about.
     expect(idx("AI Agent Gateway")).toBeGreaterThan(-1);
-    expect(idx("AI Agent Gateway")).toBe(idx("Dashboard") + 1);
+    expect(idx("AI Agent Gateway")).toBe(idx("AI-Gateway") + 1);
     // And crucially NOT dumped at the bottom past everything ordered.
     expect(idx("AI Agent Gateway")).toBeLessThan(idx("Integration Tests"));
 

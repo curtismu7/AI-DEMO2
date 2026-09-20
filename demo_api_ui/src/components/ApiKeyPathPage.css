@@ -34,7 +34,7 @@
 .akp-title {
   font-size: var(--font-size-h2);
   font-weight: 600;
-  color: #1f2937;
+  color: var(--th-text);
   margin: 8px 0 0 0;
 }
 
@@ -47,7 +47,7 @@
 
 .akp-message {
   line-height: 1.55;
-  color: #374151;
+  color: var(--th-text);
   margin-bottom: 16px;
 }
 
@@ -64,7 +64,7 @@
 
 .akp-key-label {
   font-weight: 600;
-  color: #4b5563;
+  color: var(--th-text);
 }
 
 .akp-key-value {
@@ -78,7 +78,7 @@
 
 .akp-note {
   font-size: var(--font-size-sm);
-  color: #6b7280;
+  color: var(--th-text);
   margin-top: 12px;
   line-height: 1.5;
 }
@@ -115,7 +115,7 @@
 }
 
 .akp-loading {
-  color: #6b7280;
+  color: var(--th-text);
   padding: 20px;
   text-align: center;
 }
@@ -131,7 +131,7 @@
 .akp-learning-title {
   font-size: var(--font-size-body);
   font-weight: 700;
-  color: #111827;
+  color: var(--th-text);
   margin: 0 0 10px 0;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -139,7 +139,7 @@
 
 .akp-learning-intro {
   font-size: var(--font-size-sm);
-  color: #374151;
+  color: var(--th-text);
   margin: 0 0 14px 0;
   line-height: 1.6;
 }

@@ -68,7 +68,7 @@ export function PopOutPortal({ win, children, rootId = "dm-root" }) {
  * Features:
  *   - Drag from title bar
  *   - 8-direction resize from edges/corners
- *   - 🪟 pop-out to new browser window (React portal keeps state intact)
+ *   - pop-out to new browser window (React portal keeps state intact)
  *   - ✕ close button in title bar
  *   - Close button at bottom (default footer; pass footer={<…>} to customise,
  *     or footer={null} to suppress)
@@ -88,6 +88,7 @@ export function PopOutPortal({ win, children, rootId = "dm-root" }) {
  *   defaultHeight number (default 600)
  *   defaultX      number | null  (null = auto-centre)
  *   defaultY      number | null  (null = auto-centre)
+ *   placement     'center' | 'right' (default 'center')
  *   storageKey    string | null  (localStorage key for pos/size persistence)
  *   minWidth      number (default 320)
  *   minHeight     number (default 240)
@@ -109,6 +110,7 @@ export default function DraggableModal({
   defaultHeight = 600,
   defaultX = null,
   defaultY = null,
+  placement = "center",
   storageKey = null,
   minWidth = 320,
   minHeight = 240,
@@ -121,6 +123,7 @@ export default function DraggableModal({
   autoPopOut = false,
 }) {
   const [popoutWin, setPopoutWin] = useState(null);
+  const [popoutTheme, setPopoutTheme] = useState(null);
   const [instanceId] = useState(() => `dm_${Math.random().toString(36).slice(2)}`);
 
   const initialPos = useCallback(
@@ -128,16 +131,20 @@ export default function DraggableModal({
       x:
         defaultX != null
           ? defaultX
+          : placement === "right"
+            ? Math.max(0, window.innerWidth - defaultWidth)
           : Math.max(0, Math.round((window.innerWidth - defaultWidth) / 2)),
       y:
         defaultY != null
           ? defaultY
+          : placement === "right"
+            ? 0
           : Math.max(
               0,
               Math.round((window.innerHeight - defaultHeight) / 2) - 30,
             ),
     }),
-    [defaultX, defaultY, defaultWidth, defaultHeight],
+    [defaultX, defaultY, defaultWidth, defaultHeight, placement],
   );
 
   const { pos, size, handleDragStart, createResizeHandler } = useDraggablePanel(
@@ -176,25 +183,32 @@ export default function DraggableModal({
     // The popout copies the parent's stylesheets, so --th-* resolves there —
     // but data-theme lives on the PARENT's <html> and is not copied, so every
     // popped-out panel rendered in light mode whatever the user had chosen.
-    const themeAttr = document.documentElement.getAttribute("data-theme");
-    const themeStamp = themeAttr ? ` data-theme="${themeAttr}"` : "";
+    const parentTheme = document.documentElement.dataset.theme || "light";
 
-    win.document.write(`<!DOCTYPE html><html${themeStamp}><head>
+    win.document.write(`<!DOCTYPE html><html data-theme="${parentTheme}"><head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>${title}</title>
 ${styleLinks}
 ${inlineStyles}
-<style>
-html,body{margin:0;padding:0;height:100%;background:#fff}
-#dm-root{display:flex;flex-direction:column;height:100%;overflow:hidden}
-</style>
-</head><body><div id="dm-root"></div></body></html>`);
+</head><body class="dm-popout-document"><div id="dm-root"></div></body></html>`);
     win.document.close();
     win.addEventListener("beforeunload", () => setPopoutWin(null));
+    setPopoutTheme(parentTheme);
     setPopoutWin(win);
     if (closeOnPopout && onClose) onClose();
   }, [isPoppedOut, popoutWin, size, pos, title, closeOnPopout, onClose]);
+
+  const handlePopoutThemeToggle = useCallback(() => {
+    const nextTheme = popoutTheme === "dark" ? "light" : "dark";
+    popoutWin.document.documentElement.dataset.theme = nextTheme;
+    setPopoutTheme(nextTheme);
+  }, [popoutTheme, popoutWin]);
+
+  const handlePopoutClose = useCallback(() => {
+    if (popoutWin && !popoutWin.closed) popoutWin.close();
+    onClose?.();
+  }, [onClose, popoutWin]);
 
   // Close popup window on unmount
   useEffect(
@@ -260,12 +274,30 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
         <div className="dm-titlebar dm-titlebar--static">
           <span className="dm-title">{title}</span>
           <div className="dm-controls">
+            <button
+              type="button"
+              className="dm-btn dm-theme-toggle"
+              onClick={handlePopoutThemeToggle}
+              title={
+                popoutTheme === "dark"
+                  ? "Switch to light mode"
+                  : "Switch to dark mode"
+              }
+              aria-label={
+                popoutTheme === "dark"
+                  ? "Switch to light mode"
+                  : "Switch to dark mode"
+              }
+            >
+              {popoutTheme === "dark" ? "☀️" : "🌙"}
+            </button>
             {onClose && (
               <button
                 type="button"
                 className="dm-btn"
-                onClick={onClose}
+                onClick={handlePopoutClose}
                 title="Close"
+                aria-label="Close"
               >
                 ✕
               </button>
@@ -280,7 +312,7 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
       <>
         <PopOutPortal win={popoutWin}>{popoutContent}</PopOutPortal>
         <div className="dm-popout-placeholder">
-          <span>🪟 {title} — open in separate window</span>
+          <span>↗ {title} — open in separate window</span>
           <button
             type="button"
             className="dm-placeholder-btn"
@@ -321,10 +353,11 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
         aria-label={title}
         aria-modal={noBackdrop ? undefined : "true"}
         style={{
-          left: pos.x,
-          top: pos.y,
+          left: placement === "right" ? "auto" : pos.x,
+          right: placement === "right" ? 0 : "auto",
+          top: placement === "right" ? 0 : pos.y,
           width: size.w,
-          height: size.h,
+          height: placement === "right" ? "100vh" : size.h,
           zIndex,
         }}
       >
@@ -347,8 +380,9 @@ html,body{margin:0;padding:0;height:100%;background:#fff}
               className="dm-btn"
               onClick={handlePopOut}
               title="Pop out to new window"
+              aria-label="Pop out to new window"
             >
-              🪟
+              ↗
             </button>
             {onClose && (
               <button

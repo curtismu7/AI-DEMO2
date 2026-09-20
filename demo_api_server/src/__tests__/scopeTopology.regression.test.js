@@ -78,7 +78,7 @@ describe('BFF scopeTopology loader', () => {
 
   test('toolScopes(name) returns requiredScopes from manifest', () => {
     expect(topo.toolScopes('create_transfer')).toEqual(['write', 'transfer']);
-    expect(topo.toolScopes('get_my_accounts')).toEqual(['read']);
+    expect(topo.toolScopes('get_my_accounts')).toEqual(['accounts:read']);
   });
 
   test('toolScopes(unknown) falls back to [read]', () => {
@@ -87,6 +87,7 @@ describe('BFF scopeTopology loader', () => {
 
   test('appGrantedScopes returns manifest grants', () => {
     expect(topo.appGrantedScopes('Super Banking User App')).toContain('transfer');
+    expect(topo.appGrantedScopes('Super Banking User App')).toContain('accounts:read');
   });
 
   test('resourceScopes returns manifest resource scope list', () => {
@@ -152,7 +153,12 @@ describe('pingoneProvisionService derives resource scopes from the manifest', ()
     for (const s of ['read', 'write', 'transfer', 'mortgage:read']) {
       expect(gw).toContain(s);
     }
+    expect(gw).toContain('accounts:read');
     expect(topo.resourceMirroredScopes('Super Banking MCP Gateway')).toContain('read');
+  });
+
+  test('MCP Server mirrors the account-read scope used by get_my_accounts', () => {
+    expect(topo.resourceMirroredScopes('Super Banking MCP Server')).toContain('accounts:read');
   });
 
   test('User App grant array contains every Super Banking User App manifest scope', () => {

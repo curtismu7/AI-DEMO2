@@ -60,6 +60,20 @@
 
 .a2l-header { border-bottom: 1px solid var(--th-border); padding-bottom: 16px; margin-bottom: 8px; position: relative; }
 
+.a2l-architecture-btn {
+  display: block;
+  margin-top: 14px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: var(--font-size-sm);
+  font-weight: 650;
+  cursor: pointer;
+}
+.a2l-architecture-btn:hover { background: var(--th-bg-hover); }
+
 .a2l-vertical { display: inline-flex; align-items: center; gap: 8px; font-size: 0.9rem; }
 .a2l-vertical select {
   background: var(--th-bg-card);
@@ -174,7 +188,41 @@
 .a2l-caveats li { color: var(--th-text-body); max-width: 82ch; }
 .a2l-caveats code { background: var(--th-bg-inset); padding: 1px 5px; border-radius: 4px; }
 
+.a2l-lesson-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.a2l-lesson {
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.a2l-lesson h3 { margin: 0 0 8px; color: var(--th-text); font-size: var(--font-size-md); }
+.a2l-lesson p { margin: 0 0 10px; color: var(--th-text-body); }
+.a2l-lesson a { color: var(--th-text); font-size: var(--font-size-sm); font-weight: 600; }
+.a2l-status-block {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+}
+.a2l-status-block h3 { margin: 0 0 10px; color: var(--th-text); font-size: var(--font-size-md); }
+.a2l-status-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.a2l-status-list li { display: flex; align-items: baseline; gap: 9px; color: var(--th-text-body); }
+.a2l-status-state {
+  flex: 0 0 auto;
+  min-width: 58px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  text-align: center;
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.a2l-status-state--supported { background: var(--th-status-success-bg); color: var(--th-status-success-text); }
+.a2l-status-state--next { background: var(--th-status-info-bg); color: var(--th-status-info-text); }
+
 @media (max-width: 760px) {
+  .a2l-lesson-grid { grid-template-columns: 1fr; }
   .a2l-theme-toggle {
     position: static;
     display: inline-block;

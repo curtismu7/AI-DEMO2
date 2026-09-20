@@ -366,7 +366,7 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
             onClick={onPopOut}
             style={{ fontSize: 11, color: cfg.accentColor, cursor: 'pointer', border: `1px solid ${cfg.accentColor}`, borderRadius: 4, padding: '3px 8px', background: 'transparent', flexShrink: 0 }}
           >
-            Pop Out
+            🪟 Pop Out
           </button>
         )}
       </div>

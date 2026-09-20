@@ -87,9 +87,9 @@ const CHECKLIST = [
     "Grants the resource scopes this page requests, and those scopes decide the access token's audience.",
   ],
   [
-    "Signoff URL",
+    "Post-logout redirect URI",
     "Application › Configuration",
-    "A registered post_logout_redirect_uri lets /as/signoff return here when switching users.",
+    "Register the exact return URL in postLogoutRedirectUris. The OAuth redirectUris list is separate and does not authorize /as/signoff to return here.",
   ],
 ];
 
@@ -106,6 +106,14 @@ const SNIPPET_CORS = `# Part of the application object. PUT replaces the whole a
   "behavior": "ALLOW_SPECIFIC_ORIGINS",
   "origins": ["https://app.example.com"]
 }`;
+
+const SNIPPET_LOGOUT = `// cfg comes from POST /api/davinci-sdk-login/start.
+const discovery = await fetch(cfg.wellknown).then((response) => response.json());
+if (!discovery.end_session_endpoint) throw new Error("Sign-off endpoint unavailable");
+const url = new URL(discovery.end_session_endpoint);
+url.searchParams.set("post_logout_redirect_uri", cfg.redirectUri);
+url.searchParams.set("client_id", cfg.clientId);
+window.location.assign(url.toString()); // GET /as/signoff, then return here`;
 
 const PIFLOW_TABLE = [
   [
@@ -431,11 +439,43 @@ function Collectors({ client, onNode }) {
         return null;
       case "ProtectCollector":
         return <p key={collector.id}>Security check active</p>;
+      case "FidoAuthenticationCollector":
+        return <FidoButton key={collector.id} client={client} collector={collector} onNode={onNode} />;
       default:
         // Never render nothing for an unknown collector: a missing field looks like a broken flow.
         return <p key={collector.id}>Unsupported collector: {collector.type}</p>;
     }
   });
+}`;
+
+const CODE_FIDO = `import { useState } from "react";
+import { fido } from "@forgerock/davinci-client";
+
+function FidoButton({ client, collector, onNode }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const authenticate = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const options = collector.output.config.publicKeyCredentialRequestOptions;
+      const assertion = await fido().authenticate(options); // opens the browser prompt
+      if (assertion.error || !assertion.assertionValue) {
+        throw new Error(assertion.message || "No passkey assertion returned");
+      }
+      const updateError = client.update(collector)(assertion);
+      if (updateError?.error) throw new Error(updateError.error.message);
+      onNode(await client.next()); // send the assertion to DaVinci
+    } catch (cause) {
+      setError(cause.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return <>
+    <button type="button" onClick={authenticate} disabled={busy}>Use passkey</button>
+    {error && <p role="alert">{error}</p>}
+  </>;
 }`;
 
 const CODE_TEXT = `import { useState } from "react";
@@ -571,6 +611,11 @@ const TROUBLE = [
     "End the PingOne session at end_session_endpoint, then sign in. Don't force prompt=login",
   ],
   [
+    "Logout shows INVALID_DATA for post_logout_redirect_uri",
+    "The exact return URL is in redirectUris for login but missing from this application's separate postLogoutRedirectUris list",
+    "Register the exact scheme, host, port and path in postLogoutRedirectUris on the SDK app; preserve existing entries, then retry /as/signoff",
+  ],
+  [
     "Signed in, but this app's API answers 401",
     "Only openid profile email were requested, so the access token is for PingOne's own API",
     "Grant the app its resource scopes and request them",
@@ -613,7 +658,7 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
 
   return (
     <>
-      <Section id="overview" title="Overview">
+      <Section id="overview" title="Overview" collapsible>
         <p>
           The Ping Orchestration SDK for JavaScript, <code>@forgerock/davinci-client</code>, runs a
           PingOne DaVinci flow from your own page. PingOne hands the SDK each step of the flow as
@@ -633,7 +678,7 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         </p>
       </Section>
 
-      <Section id="how-its-wired" title="How It's Wired">
+      <Section id="how-its-wired" title="How It's Wired" collapsible>
         <p>
           The SDK never talks to &ldquo;DaVinci&rdquo; directly. It speaks OIDC to a PingOne
           application, and a <strong>flow policy assignment</strong> on that application is what
@@ -657,7 +702,7 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         )}
       </Section>
 
-      <Section id="pi-flow" title="pi.flow">
+      <Section id="pi-flow" title="pi.flow" collapsible>
         <p>
           <code>response_mode=pi.flow</code> is what makes a custom UI possible. It changes what
           PingOne does with the same <code>GET /as/authorize</code>:
@@ -686,7 +731,7 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         )}
       </Section>
 
-      <Section id="how-it-works" title="How It Works">
+      <Section id="how-it-works" title="How It Works" collapsible>
         <ol>
           <li>
             The page asks the BFF for configuration: <code>POST /api/davinci-sdk-login/start</code>{" "}
@@ -734,13 +779,13 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         </ol>
         <CollapsibleCodeBlock title="The node loop" code={SNIPPET_LOOP} language="js" />
         <p>
-          There is no callback into your app at any point: no webhook, no redirect, no JavaScript
+          During sign-in there is no callback into your app: no webhook, no redirect, no JavaScript
           success callback. Each step is an ordinary request and response made by the SDK&rsquo;s
           own <code>fetch</code> with <code>credentials: &apos;include&apos;</code>.
         </p>
       </Section>
 
-      <Section id="api-calls" title="API Calls">
+      <Section id="api-calls" title="API Calls" collapsible>
         <p>
           The calls on the wire, in order, from runs captured on this demo. Values that identify a
           user or a session are shown as <code>…</code>; each field also carries display properties
@@ -766,9 +811,19 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         <CollapsibleCodeBlock title="The flow completes" code={API_COMPLETED} language="json" />
         <h3>5. The code becomes a session</h3>
         <CollapsibleCodeBlock title="POST /api/davinci-sdk-login/callback" code={API_CALLBACK} language="http" />
+        <h3>6. Sign out of PingOne to switch users</h3>
+        <p>
+          Sign-out is a separate browser navigation, not a DaVinci collector step. The app calls
+          PingOne&rsquo;s <code>end_session_endpoint</code> with <code>client_id</code> and the
+          exact <code>post_logout_redirect_uri</code> from its public configuration. PingOne
+          checks that URI against the application&rsquo;s <code>postLogoutRedirectUris</code>,
+          not its login <code>redirectUris</code>. The browser returns to this page after sign-off;
+          the movie reel records the handoff without storing tokens or claiming the session ended.
+        </p>
+        <CollapsibleCodeBlock title="PingOne sign-off request" code={SNIPPET_LOGOUT} language="js" />
       </Section>
 
-      <Section id="the-flow" title="The Flow">
+      <Section id="the-flow" title="The Flow" collapsible>
         <p>
           The first form, then either path out of it: the branch that stops at the next form, or
           the submit that completes the flow. If PingOne already has a session for this browser,
@@ -777,7 +832,7 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         <MermaidFigure source={FLOW_SOURCE} label="Sequence of an Orchestration SDK sign-in" />
       </Section>
 
-      <Section id="collectors" title="Collectors">
+      <Section id="collectors" title="Collectors" collapsible>
         <p>
           A collector is the SDK&rsquo;s typed, read-only view of one field on the current form. You
           never parse DaVinci&rsquo;s form JSON yourself: you call{" "}
@@ -799,10 +854,12 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         <p>
           Later PingOne Forms screens can also produce <code>PhoneNumberCollector</code>,
           <code>DeviceAuthenticationCollector</code>, <code>FidoRegistrationCollector</code>,
-          <code>QrCodeCollector</code>, and <code>PollingCollector</code>. These are structured or
-          device-driven collectors, not ordinary inputs: use their SDK update, WebAuthn, QR, or
-          polling operation. Rich text and Protect signals are already handled as display-only and
-          automatic collectors; keep a visible fallback for truly unknown types.
+          <code>FidoAuthenticationCollector</code>, <code>QrCodeCollector</code>, and <code>PollingCollector</code>.
+          The live renderer handles FIDO authentication with a user-triggered WebAuthn prompt:
+          call <code>fido().authenticate()</code> with the collector&rsquo;s request options, pass the
+          returned assertion to <code>client.update(c)(assertion)</code>, then call <code>client.next()</code>.
+          Other device-driven collectors need their own SDK update, WebAuthn, QR, or polling
+          operation; keep a visible fallback until each is supported.
         </p>
         <CollapsibleCodeBlock title="PingOne Forms device-registration collector" code={PINGONE_FORMS_OBJECT} language="json" />
         <h3>Every category</h3>
@@ -818,6 +875,7 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         <CollapsibleCodeBlock title="FlowCollector" code={CODE_FLOW} language="jsx" />
         <CollapsibleCodeBlock title="Handle the node that comes back" code={CODE_NODE} language="js" />
         <CollapsibleCodeBlock title="Validated text fields" code={CODE_VALIDATE} language="js" />
+        <CollapsibleCodeBlock title="FIDO authentication collector" code={CODE_FIDO} language="jsx" />
         <h3>Rules that fail silently if you miss them</h3>
         <ul>
           <li>
@@ -851,15 +909,15 @@ export default function SdkLessonSections({ config = {}, steps = [] }) {
         </ul>
       </Section>
 
-      <Section id="security" title="Security">
+      <Section id="security" title="Security" collapsible>
         <TableBlock headers={["Control", "How"]} rows={SECURITY} />
       </Section>
 
-      <Section id="troubleshooting" title="Troubleshooting">
+      <Section id="troubleshooting" title="Troubleshooting" collapsible>
         <TableBlock headers={["Symptom", "Cause", "Fix"]} rows={TROUBLE} />
       </Section>
 
-      <Section id="in-this-repo" title="In This Repo">
+      <Section id="in-this-repo" title="In This Repo" collapsible>
         <TableBlock headers={["File", "Purpose"]} rows={REPO} />
         <p>
           More: the <a href="/orchestration-sdk">Orchestration SDK Guide</a> on this site, and

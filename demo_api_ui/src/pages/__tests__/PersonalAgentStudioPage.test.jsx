@@ -26,7 +26,7 @@ describe('PersonalAgentStudioPage', () => {
   it('shows Split and Pop Out buttons', () => {
     render(<PersonalAgentStudioPage />);
     expect(screen.getByText(/Split/i)).toBeTruthy();
-    expect(screen.getByText(/Pop Out/i)).toBeTruthy();
+    expect(screen.getByText(/🪟 Pop Out/i)).toBeTruthy();
   });
 
   it('starts in full-agent mode — security rail hidden', () => {
@@ -59,7 +59,7 @@ describe('PersonalAgentStudioPage', () => {
     // Mock window.open
     vi.stubGlobal('open', vi.fn(() => ({ document: { write: vi.fn(), close: vi.fn() } })));
     render(<PersonalAgentStudioPage />);
-    fireEvent.click(screen.getByText(/Pop Out/i));
+    fireEvent.click(screen.getByText(/🪟 Pop Out/i));
     expect(screen.getByText('Security Gates')).toBeTruthy();
     expect(screen.getByText(/active in external window/i)).toBeTruthy();
   });

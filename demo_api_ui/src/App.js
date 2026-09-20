@@ -76,6 +76,7 @@ import HealthcareAdminOps from "./components/HealthcareAdminOps";
 import KillSwitchConfirmModal from "./components/KillSwitchConfirmModal";
 import LandingPage from "./components/LandingPage";
 import LearningHub from "./components/LearningHub";
+import ShadowAiDetectorPage from "./pages/ShadowAiDetectorPage";
 import LlmConfigPage from "./components/LlmConfigPage";
 import LogoutPage from "./components/LogoutPage";
 import LoginSuccessModal from "./components/LoginSuccessModal";
@@ -149,6 +150,7 @@ import AiControlPlanePage from "./pages/AiControlPlanePage";
 import ControlPlanePage from "./pages/ControlPlanePage";
 import AgentRegistryPage from "./pages/AgentRegistryPage";
 import CheckPage from "./pages/CheckPage";
+import McpDiscoveryPage from "./pages/McpDiscoveryPage";
 import TracingPage from "./pages/TracingPage";
 import TransactionTracePage from "./pages/TransactionTracePage";
 import AutonomousAgentsPage from "./pages/AutonomousAgentsPage";
@@ -156,6 +158,7 @@ import FootprintPicksPage from "./pages/FootprintPicksPage";
 import FootprintMockGalleryPage from "./pages/FootprintMockGalleryPage";
 import FootprintLiveShellPage from "./pages/FootprintLiveShellPage";
 import TelemetryPage from "./pages/TelemetryPage";
+import McpObservabilityPage from "./pages/McpObservabilityPage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
 import PersonalAgentStudioPage from "./pages/PersonalAgentStudioPage";
@@ -915,12 +918,79 @@ function AppWithAuth() {
                     )
                   }
                 />
-                <Route path="/ai-products/core" element={<main className="ai-product-main"><PingAiProductPage product="core" /></main>} />
-                <Route path="/ai-products/gateway" element={<main className="ai-product-main"><PingAiProductPage product="gateway" /></main>} />
-                <Route path="/ai-products/authorize" element={<main className="ai-product-main"><PingAiProductPage product="authorize" /></main>} />
-                <Route path="/ai-products/privilege-llm" element={<main className="ai-product-main"><PingAiProductPage product="privilegeLlm" /></main>} />
-                <Route path="/ai-products/privilege-a2a" element={<main className="ai-product-main"><PingAiProductPage product="privilegeA2a" /></main>} />
-                <Route path="/ai-products/privilege-mcp" element={<main className="ai-product-main"><PingAiProductPage product="privilegeMcp" /></main>} />
+                <Route
+                  path="/ai-gateway/shadow-ai-detector"
+                  element={
+                    loading ? null : (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <ShadowAiDetectorPage />
+                        </main>
+                      </>
+                    )
+                  }
+                />
+                <Route
+                  path="/ai-products/core"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <main className="ai-product-main">
+                        <PingAiProductPage product="core" />
+                      </main>
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/ai-products/gateway"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <main className="ai-product-main">
+                        <PingAiProductPage product="gateway" />
+                      </main>
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/ai-products/authorize"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <main className="ai-product-main">
+                        <PingAiProductPage product="authorize" />
+                      </main>
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/ai-products/privilege-llm"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <main className="ai-product-main">
+                        <PingAiProductPage product="privilegeLlm" />
+                      </main>
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/ai-products/privilege-a2a"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <main className="ai-product-main">
+                        <PingAiProductPage product="privilegeA2a" />
+                      </main>
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/ai-products/privilege-mcp"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <main className="ai-product-main">
+                        <PingAiProductPage product="privilegeMcp" />
+                      </main>
+                    </AppShell>
+                  }
+                />
                 <Route
                   path="/reports"
                   element={<ReportsPageRoute user={user} logout={logout} />}
@@ -984,6 +1054,21 @@ function AppWithAuth() {
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
                           <CheckPage />
+                        </main>
+                      </>
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
+                />
+                <Route
+                  path="/mcp-discovery"
+                  element={
+                    loading ? null : user ? (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <McpDiscoveryPage />
                         </main>
                       </>
                     ) : (
@@ -1351,11 +1436,19 @@ function AppWithAuth() {
                             <Route
                               path="/"
                               element={
-                                user?.role === "admin" ? (
+                                user ? (
                                   <Dashboard user={user} onLogout={logout} />
                                 ) : (
                                   <LandingPage user={user} onLogout={logout} />
                                 )
+                              }
+                            />
+                            <Route
+                              path="/mcp-observability"
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <McpObservabilityPage />
+                                </RequireAdminLogin>
                               }
                             />
                             {/* === Admin routes ===

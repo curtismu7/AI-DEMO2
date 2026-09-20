@@ -732,6 +732,50 @@ gh release create v2.3.2 --generate-notes
 
 ### Deploying to Ping SE DevOps Cluster
 
+#### Hosted Ping employee access gate
+
+The `ai-demo.ping-devops.com` browser surface is denied by default. The nginx
+Ingress asks the BFF to validate a server-side approval on every browser
+request. Only the four exact customer/admin OAuth login/callback paths bypass
+that check. Public MCP hostnames are intentionally unchanged. The legacy
+unauthenticated PingOne/DaVinci webhook paths are blocked at this perimeter;
+do not expose them until handler-side authenticity validation is implemented.
+
+Both PingOne OAuth applications must issue `openid profile email` and map the
+`email` and boolean `email_verified` claims into the ID token or UserInfo
+response. The BFF accepts exact, case-normalized domains `pingidentity.com` and
+`pingone.com`; subdomains and lookalikes do not match. A verified claim is
+required. Test an ineligible identity only with a non-production PingOne test
+account—never place credentials or session cookies in the repository.
+
+Rollout order is BFF first, then ConfigMap/restart, then the OAuth-bypass
+Ingress, and finally the protected catch-all Ingress. Observe audit events
+before enabling enforcement. Login attempts and their single terminal outcome
+are emitted as `auth_lifecycle` events without tokens, authorization codes,
+nonces, or raw session IDs. In Loki:
+
+```logql
+{service="ai-demo-bff", category="auth_lifecycle"} | json | metadata_eventType="hosted_login"
+```
+
+Terminal reason codes are `allowed`, `domain_not_allowed`, `email_unverified`,
+`email_missing`, `email_malformed`, `subject_missing`, `oauth_provider_error`,
+`invalid_state`, `authorization_code_missing`, `nonce_mismatch`,
+`nonce_missing`, `token_exchange_failed`, `userinfo_failed`,
+`session_regenerate_failed`, `session_persist_failed`, and `callback_failed`.
+
+Run `npm run hosted-access:verify` before rollout. After rollout, anonymous
+smoke expects a PingOne redirect:
+
+```bash
+SE_NAMESPACE=ping-devops-<you> ./k8s/smoke.sh
+HOSTED_SMOKE_COOKIE='sid=<temporary-approved-session>' SE_NAMESPACE=ping-devops-<you> ./k8s/smoke.sh
+```
+
+Rollback in reverse risk order: remove the catch-all Ingress auth annotations,
+remove the OAuth-bypass Ingress, then set `HOSTED_ACCESS_GATE_ENABLED=false`
+and restart the BFF. Do not weaken the claim mapping or broaden the bypasses.
+
 ```bash
 # 1. Ensure prerequisites
 gh auth status

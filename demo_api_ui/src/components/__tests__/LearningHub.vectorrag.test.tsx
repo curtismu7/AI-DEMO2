@@ -17,3 +17,8 @@ test("Learning Hub lists the Weaviate vector-search card", () => {
     screen.getByText(/Vector Search & RAG \(Weaviate\)/i)
   ).toBeInTheDocument();
 });
+
+test("Learning Hub lists the Shadow AI Detector web page", () => {
+  render(<MemoryRouter><LearningHub /></MemoryRouter>);
+  expect(screen.getByRole("button", { name: /Shadow AI Detector/i })).toBeInTheDocument();
+});

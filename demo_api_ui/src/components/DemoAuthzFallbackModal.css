@@ -30,7 +30,7 @@
   margin: 0;
   font-size: var(--font-size-2xs);
   font-weight: 700;
-  color: #0f172a;
+  color: var(--th-text);
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }

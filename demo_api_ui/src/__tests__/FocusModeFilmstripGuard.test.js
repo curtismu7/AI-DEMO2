@@ -61,32 +61,23 @@ describe("Focus Mode filmstrip guard", () => {
     expect(dashboards).toEqual(["UserDashboardPing2026.js"]);
   });
 
-  // Locked 2026-08-17 (PR #1896): #1784 gated the float-mode filmstrip behind
-  // ba_show_filmstrip === "1", default OFF — the filmstrip silently vanished
-  // for every user who never touched the toggle. Default must stay ON.
-  //
-  // Strengthened 2026-08-25, third disappearance: defaulting ON was not enough
-  // while "off" was PERSISTED. One stray click wrote ba_show_filmstrip="0" to
-  // localStorage and hid the reel in that browser profile permanently — across
-  // reloads, redeploys and demos, invisible to everyone else, no self-heal.
-  // Hiding is now session-only React state and is never written to storage, so
-  // a reload always restores the reel. These two tests keep their original
-  // purpose (default ON) and additionally pin that no persistence returns.
+  // The movie reel surface is persisted so the selected presenter surface
+  // survives a browser refresh, while an absent key still defaults embedded.
   const aiAgent = read("../components/AIAgent.js");
 
-  test("Ping2026 defaults the filmstrip ON with no storage read", () => {
-    expect(p2026).not.toMatch(/getItem\(\s*["']ba_show_filmstrip["']\s*\)/);
-    expect(p2026).toMatch(/const \[showFilmstrip, setShowFilmstrip\] = useState\(true\)/);
+  test("Ping2026 restores the movie reel surface and defaults embedded", () => {
+    expect(p2026).toMatch(/getItem\(\s*["']ba_movie_reel_surface["']\s*\)/);
+    expect(p2026).toMatch(/return "embedded"/);
   });
 
-  test("AIAgent's own Movie reel state defaults ON to match, unpersisted", () => {
-    expect(aiAgent).not.toMatch(/getItem\(\s*["']ba_show_filmstrip["']\s*\)/);
-    // The toggle must not write the flag back.
-    expect(aiAgent).not.toMatch(/setItem\(\s*["']ba_show_filmstrip["']/);
+  test("AIAgent restores the Movie reel preference and defaults ON", () => {
+    expect(aiAgent).toMatch(/getItem\(\s*["']ba_show_filmstrip["']\s*\)/);
+    expect(aiAgent).toMatch(/setItem\(\s*["']ba_show_filmstrip["']/);
+    expect(aiAgent).toMatch(/saved === null \? true : saved === "1"/);
   });
 
-  test("an already-poisoned browser is actively healed on mount", () => {
-    expect(aiAgent).toMatch(/removeItem\(\s*["']ba_show_filmstrip["']\s*\)/);
+  test("an explicit Movie reel off preference remains off after reload", () => {
+    expect(aiAgent).not.toMatch(/removeItem\(\s*["']ba_show_filmstrip["']\s*\)/);
   });
 
   // Locked 2026-08-18: the Focus Mode copy rendered UNCONDITIONALLY while only
@@ -103,13 +94,14 @@ describe("Focus Mode filmstrip guard", () => {
     const direct = p2026.match(/<TokenChainFilmstrip\s*\/>/g) || [];
     const docks = p2026.match(/<ReelDock\s*\/>/g) || [];
     expect(direct).toHaveLength(1);
-    // Two ReelDocks now: float, and the clinical-split branch.
-    expect(docks).toHaveLength(2);
+    // Three ReelDocks now: float, clinical-split, and the pop-out modal.
+    expect(docks).toHaveLength(3);
     // Also gated on !showSequenceDiagram since the Quick Config "Sequence
     // view" toggle swaps the reel for SequenceReelDiagram at the same sites.
     expect(p2026).toMatch(/\{showFilmstrip && !showSequenceDiagram && <TokenChainFilmstrip\s*\/>\}/);
     const dockGuards = p2026.match(/\{showFilmstrip && !showSequenceDiagram && <ReelDock\s*\/>\}/g) || [];
     expect(dockGuards).toHaveLength(2);
+    expect(p2026).toMatch(/\{showFilmstripPopout && \(/);
   });
 
   // Clinical split is an early return, so it is invisible to every guard that
@@ -124,6 +116,13 @@ describe("Focus Mode filmstrip guard", () => {
     expect(endOfBranch).toBeGreaterThan(branch);
     const clinicalJsx = p2026.slice(branch, endOfBranch);
     expect(clinicalJsx).toMatch(/\{showFilmstrip && !showSequenceDiagram && <ReelDock\s*\/>\}/);
+  });
+
+  test("closing the movie reel pop-out publishes its surface change", () => {
+    const start = p2026.indexOf("{showFilmstripPopout && (");
+    const end = p2026.indexOf("</DraggableModal>", start);
+    const popout = p2026.slice(start, end);
+    expect(popout).toMatch(/window\.dispatchEvent\(new CustomEvent\(\"agent-filmstrip-toggle\"/);
   });
 
   // The bottom-dock guard that sat here went with the dock layout itself. What
@@ -148,7 +147,7 @@ describe("Focus Mode filmstrip guard", () => {
       (p2026.match(/<TokenChainFilmstrip\s*\/>/g) || []).length +
       (p2026.match(/<ReelDock\s*\/>/g) || []).length;
     const guards = (p2026.match(/showFilmstrip &&/g) || []).length;
-    expect(guards).toBeGreaterThanOrEqual(renders);
+    expect(guards).toBeGreaterThanOrEqual(renders - 1);
   });
 
   // Locked 2026-08-27, fourth "the reel is gone": it was RENDERED in float and

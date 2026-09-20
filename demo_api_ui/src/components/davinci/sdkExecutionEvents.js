@@ -47,20 +47,43 @@ function maskedCollectors(collectors) {
 
 function maskedResponse(response) {
   if (!response || typeof response !== "object" || Array.isArray(response)) return null;
-  const fields = Array.isArray(response.fields)
-    ? response.fields.map((field) => ({
-        ...(field?.type ? { type: String(field.type) } : {}),
-        ...(field?.key ? { key: String(field.key) } : {}),
-        ...(field?.label ? { label: String(field.label) } : {}),
-      }))
-    : [];
+  // summarizeResponse() is already display-safe, but uses normalized keys
+  // rather than the raw DaVinci payload. Preserve those keys on the final
+  // collector snapshot so the reel shows the returned form instead of only
+  // a generic status.
+  if (Object.hasOwn(response, "flowStatus") || Object.hasOwn(response, "formName")) {
+    return {
+      ...(response.flowStatus ? { flowStatus: String(response.flowStatus) } : {}),
+      ...(response.capabilityName ? { capabilityName: String(response.capabilityName) } : {}),
+      ...(response.eventName ? { eventName: String(response.eventName) } : {}),
+      ...(Object.hasOwn(response, "hasInteractionId") ? { hasInteractionId: Boolean(response.hasInteractionId) } : {}),
+      ...(response.formName ? { formName: String(response.formName) } : {}),
+      ...(Array.isArray(response.fields)
+        ? { fields: response.fields.map((field) => ({
+            ...(field?.type ? { type: String(field.type) } : {}),
+            ...(field?.key ? { key: String(field.key) } : {}),
+            ...(field?.label ? { label: String(field.label) } : {}),
+          })) }
+        : {}),
+      ...(Array.isArray(response.links) ? { links: response.links.map(String) } : {}),
+      ...(Array.isArray(response.authorizeKeys) ? { authorizeKeys: response.authorizeKeys.map(String) } : {}),
+      ...(response.errorCode ? { errorCode: String(response.errorCode) } : {}),
+      ...(response.errorMessage ? { errorMessage: String(response.errorMessage) } : {}),
+    };
+  }
   return {
     ...(response.flowStatus ? { flowStatus: String(response.flowStatus) } : {}),
     ...(response.capabilityName ? { capabilityName: String(response.capabilityName) } : {}),
     ...(response.eventName ? { eventName: String(response.eventName) } : {}),
     ...(Object.hasOwn(response, "hasInteractionId") ? { hasInteractionId: Boolean(response.hasInteractionId) } : {}),
     ...(response.formName ? { formName: String(response.formName) } : {}),
-    fields,
+    ...(Array.isArray(response.fields)
+      ? { fields: response.fields.map((field) => ({
+          ...(field?.type ? { type: String(field.type) } : {}),
+          ...(field?.key ? { key: String(field.key) } : {}),
+          ...(field?.label ? { label: String(field.label) } : {}),
+        })) }
+      : {}),
     ...(Array.isArray(response.links) ? { links: response.links.map(String) } : {}),
     ...(Array.isArray(response.authorizeKeys) ? { authorizeKeys: response.authorizeKeys.map(String) } : {}),
     ...(response.errorCode ? { errorCode: String(response.errorCode) } : {}),
@@ -74,7 +97,6 @@ export function maskExecutionDetail(detail) {
   const formData = maskedFormData(detail.formData);
   const body = maskedStepBody(parseBody(detail.body));
   const collectors = maskedCollectors(detail.collectors);
-  const response = maskedResponse(detail.response);
   return {
     ...(detail.method ? { method: String(detail.method).toUpperCase() } : {}),
     ...(detail.host ? { host: String(detail.host) } : {}),
@@ -89,7 +111,7 @@ export function maskExecutionDetail(detail) {
     ...(formData ? { formData } : {}),
     ...(body ? { body } : {}),
     ...(collectors ? { collectors } : {}),
-    ...(response ? { response } : {}),
+    ...(maskedResponse(detail.response) ? { response: maskedResponse(detail.response) } : {}),
     ...(Object.hasOwn(detail, "nonce") ? { nonce: maskedValue(detail.nonce) } : {}),
     ...(Object.hasOwn(detail, "state") ? { state: maskedValue(detail.state) } : {}),
     ...(Object.hasOwn(detail, "pkce") ? { pkce: maskedValue(detail.pkce) } : {}),
@@ -198,5 +220,15 @@ export const PREVIEW_EVENTS = [
     label: "SDK completes the callback",
     codeKey: "update-next",
     detail: { status: "success" },
+  }),
+  createOperationEvent({
+    id: "preview-5",
+    sequence: 5,
+    at: 5,
+    lane: "sdk",
+    kind: "logout",
+    label: "PingOne sign-off requested",
+    codeKey: "logout",
+    detail: { method: "GET", path: "/as/signoff", paramNames: ["client_id", "post_logout_redirect_uri"], status: "requested" },
   }),
 ];

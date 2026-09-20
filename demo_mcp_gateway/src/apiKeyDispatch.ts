@@ -254,6 +254,14 @@ export async function buildApiKeyToolResult(
             credentialPath: 'api_key',
             status: 'ok',
           },
+          ...(config.jitCredentialsEnabled ? [{
+            id: 'vault-key-inject',
+            label: `Vault bridge returned a route-bound API key for ${meta.routeSegment}`,
+            tokenType: 'api_key',
+            maskedValue: `...${backendLast4}`,
+            credentialPath: 'api_key',
+            status: 'ok',
+          }] : []),
           {
             id: 'evt-swap',
             label: 'Gateway swap: OAuth bearer dropped, service API key attached',

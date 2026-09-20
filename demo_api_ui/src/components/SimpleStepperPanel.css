@@ -1,122 +1,46 @@
 /* -- SimpleStepperPanel --------------------------------------------------------
    Namespace: sstp-  (avoids collision with ssp- from SelfServicePage; no overlap with ftcp- / tcd- / itcv- / ba-)
-   Floating draggable/resizable table panel popped out from SimpleStepperBar.
+   Table content rendered inside the shared DraggableModal shell.
    ----------------------------------------------------------------------------- */
-
-.sstp-card {
-  background: #fff;
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.22);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* -- Header (drag handle) ------------------------------------------------------ */
-
-.sstp-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: #f1f5f9;
-  border-bottom: 1px solid #e5e7eb;
-  cursor: grab;
-  user-select: none;
-  flex-shrink: 0;
-}
-
-.sstp-header:active {
-  cursor: grabbing;
-}
-
-.sstp-title {
-  font-size: var(--font-size-2xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #334155;
-}
-
-.sstp-count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 6px;
-  background: #eff6ff;
-  border-radius: 9999px;
-  font-size: 10px;
-  font-weight: 700;
-  color: #2563eb;
-}
-
-.sstp-controls {
-  margin-left: auto;
-  display: flex;
-  gap: 4px;
-}
-
-.sstp-btn {
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  border-radius: 6px;
-  width: 24px;
-  height: 24px;
-  font-size: var(--font-size-2xs);
-  line-height: 1;
-  cursor: pointer;
-  color: #475569;
-}
-
-.sstp-btn:hover {
-  background: #f8fafc;
-}
-
-.sstp-btn--close:hover {
-  background: #fef2f2;
-  color: #dc2626;
-  border-color: #fecaca;
-}
 
 /* -- Body / table ---------------------------------------------------------------- */
 
 .sstp-body {
   flex: 1;
   overflow: auto;
+  background: var(--th-bg-card);
+  color: var(--th-text);
 }
 
 .sstp-table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--font-size-sm);
-  color: #1e293b;
+  color: var(--th-text);
 }
 
 .sstp-table thead th {
   position: sticky;
   top: 0;
-  background: #f8fafc;
+  background: var(--th-bg-inset);
   text-align: left;
-  font-size: 10.5px;
+  font-size: var(--font-size-3xs);
   text-transform: uppercase;
   letter-spacing: 0.07em;
-  color: #64748b;
+  color: var(--th-text-muted);
   padding: 8px 12px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--th-border);
   z-index: 1;
 }
 
 .sstp-table td {
   padding: 8px 12px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--th-border);
   vertical-align: middle;
 }
 
 .sstp-num {
-  color: #64748b;
+  color: var(--th-text-muted);
   font-size: var(--font-size-2xs);
   width: 34px;
 }
@@ -132,61 +56,57 @@
 }
 
 .sstp-st--ok {
-  color: #16a34a;
+  color: var(--th-status-success-text);
 }
 
 .sstp-st--halt {
-  color: #dc2626;
+  color: var(--th-status-error-text);
   font-size: var(--font-size-2xs);
 }
 
 .sstp-st--skip {
-  color: #94a3b8;
+  color: var(--th-text-muted);
 }
 
 .sstp-st--acquiring {
-  color: #1d4ed8;
+  color: var(--th-status-info-text);
   font-size: var(--font-size-2xs);
 }
 
 .sstp-st--waiting {
-  color: #64748b;
+  color: var(--th-text-muted);
   font-size: var(--font-size-2xs);
 }
 
 .sstp-st--failed {
-  color: #dc2626;
+  color: var(--th-status-error-text);
   font-size: var(--font-size-2xs);
 }
 
 .sstp-st--notinpath {
-  color: #94a3b8;
+  color: var(--th-text-muted);
   font-size: var(--font-size-2xs);
 }
 
 /* Not-in-path row — step was never applicable to this run; crossed out,
    distinct from ghost ("queued but never ran") and halted rows. */
 .sstp-row--notinpath .sstp-step {
-  color: #94a3b8;
+  color: var(--th-text-muted);
   text-decoration: line-through;
   text-decoration-thickness: 1.2px;
 }
 
 /* Halted row — red wash, matches itcv halted semantics */
 .sstp-row--halted td {
-  background: #fef2f2;
+  background: var(--th-status-error-bg);
 }
 
 .sstp-row--halted .sstp-step {
-  color: #991b1b;
+  color: var(--th-status-error-text);
   font-weight: 600;
 }
 
 /* Ghost row — step after the halt; never ran */
-.sstp-row--ghost td {
-  opacity: 0.45;
-}
-
 .sstp-row--ghost .sstp-step {
   font-style: italic;
 }
@@ -195,7 +115,7 @@
 
 .sstp-empty {
   font-size: var(--font-size-2xs);
-  color: #94a3b8;
+  color: var(--th-text-muted);
   font-style: italic;
   padding: 16px;
 }

@@ -37,7 +37,7 @@
 .dc-zoom-label {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--th-text);
   min-width: 2.8rem;
   text-align: center;
 }
@@ -99,7 +99,7 @@
 .dc-ctrl-btn--next   { background: #004687; color: #fff; }
 .dc-ctrl-btn--next:hover:not(:disabled)   { background: #003366; }
 
-.dc-ctrl-btn--stop   { background: #e2e8f0; color: #475569; }
+.dc-ctrl-btn--stop   { background: #e2e8f0; color: var(--th-text); }
 .dc-ctrl-btn--stop:hover:not(:disabled)   { background: #cbd5e1; }
 
 .dc-ctrl-btn--prev   { background: #fff; color: #334155; border: 1px solid #e2e8f0; }
@@ -131,7 +131,7 @@
   align-items: center;
   gap: 0.4rem;
   font-size: 0.78rem;
-  color: #475569;
+  color: var(--th-text);
   transition: opacity 0.2s;
 }
 
@@ -163,7 +163,7 @@
   border: 2px solid #e5e7eb;
   border-radius: 5px;
   background: #ffffff;
-  color: #6b7280;
+  color: var(--th-text);
   font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
@@ -174,12 +174,12 @@
 
 .pfb-btn:not([data-active="true"]):hover {
   border-color: #9ca3af;
-  color: #374151;
+  color: var(--th-text);
 }
 
 .pfb-btn[data-active="true"] {
   background: #1f2937;
-  border-color: #1f2937;
+  border-color: var(--th-text);
   color: #ffffff;
 }
 

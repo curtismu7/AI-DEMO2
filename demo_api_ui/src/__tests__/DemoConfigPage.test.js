@@ -1,6 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
+import fs from "node:fs";
 
 import DemoConfigPage from "../components/DemoConfigPage";
 
@@ -70,6 +71,62 @@ describe("DemoConfigPage", () => {
     await waitFor(() => expect(screen.getByText(/of 3 visible/)).toBeInTheDocument());
     fireEvent.click(screen.getByLabelText("Monitoring"));
     expect(await screen.findByText(/1 of 3 visible/)).toBeInTheDocument();
+  });
+
+  it("filters groups and pages from the search field", async () => {
+    mockFetch();
+    render(<DemoConfigPage />);
+    await waitFor(() => expect(screen.getByText("Themes")).toBeInTheDocument());
+
+    fireEvent.change(screen.getByRole("searchbox", { name: /search groups and pages/i }), {
+      target: { value: "audit" },
+    });
+
+    expect(screen.getByText("Audit Trail")).toBeInTheDocument();
+    expect(screen.queryByText("Themes")).not.toBeInTheDocument();
+  });
+
+  it("collapses a visual section without changing its group selections", async () => {
+    mockFetch();
+    render(<DemoConfigPage />);
+    await waitFor(() => expect(screen.getByText("Themes")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: /core navigation/i }));
+
+    expect(screen.queryByText("Themes")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /core navigation/i })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+  });
+
+  it("shows page links for groups and child items", async () => {
+    mockFetch();
+    render(<DemoConfigPage />);
+    await waitFor(() => expect(screen.getByText("Monitoring")).toBeInTheDocument());
+    screen.getAllByRole("button", { name: "Expand" }).forEach((button) => fireEvent.click(button));
+
+    expect(screen.getAllByRole("columnheader", { name: "Page" })).toHaveLength(3);
+    expect(screen.getAllByRole("link", { name: /^Open / })).toHaveLength(6);
+    expect(screen.getByRole("link", { name: "Open Themes" })).toHaveAttribute("href", "/themes");
+    expect(screen.getByRole("link", { name: "Open Monitoring" })).toHaveAttribute("href", "/audit");
+    expect(screen.getByRole("link", { name: "Open Audit Trail" })).toHaveAttribute("href", "/audit");
+    expect(screen.getByRole("link", { name: "Open Activity Log" })).toHaveAttribute(
+      "href",
+      "/monitoring/activity-log",
+    );
+    expect(screen.getByRole("link", { name: "Open Authorize" })).toHaveAttribute("href", "/scope-audit");
+    expect(screen.getByRole("link", { name: "Open Scope Audit" })).toHaveAttribute("href", "/scope-audit");
+  });
+
+  it("keeps demo config surfaces on theme tokens in dark mode", () => {
+    const css = fs.readFileSync("src/components/DemoConfigPage.css", "utf8");
+
+    expect(css).toMatch(
+      /\/\* Theme overrides for the legacy light-first config controls\. \*\/[\s\S]*?background:\s*var\(--th-bg-card\)/,
+    );
+    expect(css).toMatch(/\/\* Theme overrides[\s\S]*?\.dc-reorder-btn[\s\S]*?border-color:\s*var\(--th-border\)/);
+    expect(css).toMatch(/\.dc-page \.dc-open-link\s*\{[^}]*color:\s*var\(--th-bg-emphasis\)/);
   });
 
   it("drags a child item from one group to another and saves it as childOrder", async () => {

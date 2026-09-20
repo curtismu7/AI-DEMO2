@@ -135,13 +135,13 @@ function jwksUrl(cfg) {
  * is deterministic for a given key and config.
  * @returns {Promise<object|null>} signed card, or null when the vertical has no specialist
  */
-async function getSignedCard(vertical, cfg) {
+async function getSignedCard(vertical, cfg, options = {}) {
   // Keyed on jwksUrl(cfg) too, not just vertical: the card and the signed
   // jku both derive from cfg, so a config change (PUBLIC_APP_URL) must not
   // serve a stale jku memoized under an old cfg.
-  const memoKey = `${vertical}|${jwksUrl(cfg)}`;
+  const memoKey = `${vertical}|${jwksUrl(cfg)}|${options.authenticated ? 'auth' : 'public'}|${options.tenantHandle || ''}`;
   if (_signed.has(memoKey)) return _signed.get(memoKey);
-  const card = buildSpecialistAgentCard(vertical, cfg);
+  const card = buildSpecialistAgentCard(vertical, cfg, options);
   if (!card) return null;
   const key = getCardSigningKey();
   const signer = generateAgentCardSignature(key.privateKey, {

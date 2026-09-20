@@ -41,6 +41,9 @@ spec:
         - configMapRef:
             name: ai-demo-config
         env:
+        # A2A_TENANT_REGISTRY_JSON is supplied by langchain-secrets. The
+        # process fails closed for direct customer bearer access when it is
+        # absent, while the separate Privilege txn-token path remains intact.
         # httpx honors SSL_CERT_FILE: combined system-roots + mkcert bundle so
         # the BFF tool callback (mkcert cert) verifies without breaking
         # external HTTPS. Mirrors the docker-compose wiring.

@@ -43,7 +43,7 @@
   padding: 0.28rem 0.6rem;
   font-size: 0.73rem;
   font-weight: 500;
-  color: var(--text-muted, #374151);
+  color: var(--text-muted, var(--th-text));
   text-decoration: none;
   border-radius: 4px 0 0 4px;
   white-space: nowrap;
@@ -54,7 +54,7 @@
     background 0.12s;
 }
 .demo-data-page__nav-link:hover {
-  color: var(--text-primary, #0f172a);
+  color: var(--text-primary, var(--th-text));
   background: var(--surface-hover, #f1f5f9);
 }
 .demo-data-page__nav-link--active {
@@ -87,7 +87,7 @@
   font-weight: 600;
   font-family: inherit;
   line-height: 1.25;
-  color: var(--dash-muted, #374151);
+  color: var(--dash-muted, var(--th-text));
   border: 1px dashed var(--dash-border, rgba(15, 23, 42, 0.18));
   border-radius: 8px;
   background: var(--dash-surface-2, var(--brand-light-gray));
@@ -113,14 +113,14 @@
 }
 
 .demo-data-loading {
-  color: var(--dash-muted, #374151);
+  color: var(--dash-muted, var(--th-text));
   margin: 0;
 }
 
 .demo-data-section h2 {
   font-size: 1rem;
   margin: 0 0 0.5rem;
-  color: #111827;
+  color: var(--th-text);
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -128,7 +128,7 @@
 .demo-data-hint {
   margin: 0 0 0.75rem;
   font-size: 0.82rem;
-  color: #374151;
+  color: var(--th-text);
   line-height: 1.5;
 }
 
@@ -142,7 +142,7 @@
 .demo-data-field span {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--th-text);
 }
 
 .demo-data-field input,
@@ -173,7 +173,7 @@
   border: 1px solid #d1d5db;
   border-radius: 8px;
   font-size: 0.78rem;
-  color: #374151;
+  color: var(--th-text);
 }
 
 .demo-data-readonly-meta code {
@@ -199,7 +199,7 @@
 
 .demo-data-field--checkbox span {
   font-weight: 500;
-  color: #374151;
+  color: var(--th-text);
 }
 
 .demo-data-accounts-header {
@@ -217,7 +217,7 @@
 
 .demo-data-accounts-hint {
   font-size: 0.8rem;
-  color: #374151;
+  color: var(--th-text);
 }
 
 /* ── Fixed type-slot grid ── */
@@ -269,7 +269,7 @@
 
 .demo-data-type-slot__num {
   font-size: 0.7rem;
-  color: #374151;
+  color: var(--th-text);
   background: #dddddd;
   border-radius: 4px;
   padding: 1px 5px;
@@ -291,7 +291,7 @@
   flex-shrink: 0;
   min-width: 68px;
   font-size: 0.8rem;
-  color: #666666;
+  color: var(--th-text);
 }
 
 .demo-data-field--inline input {
@@ -417,12 +417,12 @@
 .demo-data-agent-option-title {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #111827;
+  color: var(--th-text);
 }
 
 .demo-data-agent-option-desc {
   font-size: 0.78rem;
-  color: #374151;
+  color: var(--th-text);
   line-height: 1.45;
 }
 
@@ -516,7 +516,7 @@
 .demo-data-scope-label {
   font-weight: 600;
   font-size: 0.9rem;
-  color: var(--app-text-primary, #111827);
+  color: var(--app-text-primary, var(--th-text));
 }
 
 .demo-data-scope-code {
@@ -530,14 +530,14 @@
 
 .demo-data-scope-desc {
   font-size: 0.8rem;
-  color: var(--app-text-muted, #374151);
+  color: var(--app-text-muted, var(--th-text));
 }
 
 .demo-data-section__heading {
   font-size: 1rem;
   font-weight: 700;
   margin: 0 0 0.35rem;
-  color: var(--app-text-primary, #111827);
+  color: var(--app-text-primary, var(--th-text));
 }
 
 .demo-data-static-notice {
@@ -637,13 +637,13 @@
 .demo-data-agent-auth-card__title {
   font-weight: 600;
   font-size: 0.9rem;
-  color: var(--dash-text, #111827);
+  color: var(--dash-text, var(--th-text));
 }
 
 .demo-data-agent-auth-card__desc {
   font-size: 0.82rem;
   line-height: 1.45;
-  color: var(--dash-muted, #374151);
+  color: var(--dash-muted, var(--th-text));
 }
 
 .demo-data-agent-auth-detail {
@@ -659,7 +659,7 @@
   padding-left: 1.2rem;
   font-size: 0.85rem;
   line-height: 1.55;
-  color: var(--dash-muted, #374151);
+  color: var(--dash-muted, var(--th-text));
 }
 
 .demo-data-agent-auth-steps li {
@@ -701,5 +701,5 @@
 
 .demo-data-helix-hint {
   font-size: 0.85rem;
-  color: var(--dash-muted, #374151);
+  color: var(--dash-muted, var(--th-text));
 }

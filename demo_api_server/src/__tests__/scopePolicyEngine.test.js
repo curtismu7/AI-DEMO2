@@ -549,7 +549,7 @@ describe('Scope Policy Engine', () => {
 
     test('should validate tool-specific scope requirements', () => {
       const testCases = [
-        { tool: 'get_my_accounts', scopes: ['read'] },
+        { tool: 'get_my_accounts', scopes: ['accounts:read'] },
         { tool: 'create_transfer', scopes: ['write'] },
         // 'ai_agent' until 2026-09-09: it is a delegation signal on the user
         // token, stripped before the exchange, so it was never a scope this tool
@@ -565,13 +565,13 @@ describe('Scope Policy Engine', () => {
       });
     });
 
-    test('should handle scope alternatives for tools', () => {
+    test('should validate the registered account-read scope for account discovery', () => {
       const tool = 'get_my_accounts';
-      const alternativeScopes = ['read']; // Broad alternative
+      const accountReadScope = ['accounts:read'];
       
-      const result = validateScopesForTool(tool, alternativeScopes);
+      const result = validateScopesForTool(tool, accountReadScope);
       expect(result.valid).toBe(true);
-      expect(result.matchedScopes).toContain('read');
+      expect(result.matchedScopes).toContain('accounts:read');
     });
   });
 

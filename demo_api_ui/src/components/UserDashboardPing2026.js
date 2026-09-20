@@ -54,6 +54,7 @@ import Fido2Challenge from "./Fido2Challenge";
 import TokenChainTraceRail from "./TokenChainTraceRail";
 import { useSessionToken } from '../context/SessionTokenContext';
 import ConfirmModal from "./ConfirmModal";
+import DraggableModal from "./DraggableModal";
 import TransactionConsentModal from "./TransactionConsentModal";
 import WebMcpPanel from "./WebMcpPanel";
 import FloatingPanel from "./FloatingPanel";
@@ -214,14 +215,22 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     () => agentPlacement === "middle",
   );
 
-  // Always ON at mount — the hidden state is session-only and never persisted.
-  // See the matching initializer in AIAgent.js: a stray toggle used to write
-  // ba_show_filmstrip="0" to localStorage and hide the reel in that browser
-  // forever. The live toggle still arrives via the agent-filmstrip-toggle event
-  // below, so More › Movie reel keeps working for the current session.
-  const [showFilmstrip, setShowFilmstrip] = useState(true);
+  const [movieReelSurface, setMovieReelSurface] = useState(() => {
+    try {
+      const saved = localStorage.getItem("ba_movie_reel_surface");
+      if (["none", "embedded", "popout", "both"].includes(saved)) return saved;
+      return localStorage.getItem("ba_show_filmstrip") === "0" ? "none" : "embedded";
+    } catch {
+      return "embedded";
+    }
+  });
+  const showFilmstrip = movieReelSurface === "embedded" || movieReelSurface === "both";
+  const showFilmstripPopout = movieReelSurface === "popout" || movieReelSurface === "both";
   useEffect(() => {
-    const handler = (e) => setShowFilmstrip(!!e.detail?.on);
+    const handler = (e) => {
+      const surface = e.detail?.surface || (e.detail?.on ? "embedded" : "none");
+      setMovieReelSurface(surface);
+    };
     window.addEventListener("agent-filmstrip-toggle", handler);
     return () => window.removeEventListener("agent-filmstrip-toggle", handler);
   }, []);
@@ -293,6 +302,18 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       return false;
     }
   });
+  const [followFlow, setFollowFlow] = useState(() => {
+    try {
+      return localStorage.getItem("dashboard-sequence-follow-flow") !== "false";
+    } catch {
+      return true;
+    }
+  });
+  useEffect(() => {
+    const handler = (e) => setFollowFlow(e.detail?.on !== false);
+    window.addEventListener("agent-sequence-follow-flow-toggle", handler);
+    return () => window.removeEventListener("agent-sequence-follow-flow-toggle", handler);
+  }, []);
   useEffect(() => {
     const handler = (e) => setSlowMode(!!e.detail?.on);
     window.addEventListener("agent-slow-mode-toggle", handler);
@@ -3738,6 +3759,35 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           </div>
         </FloatingPanel>
       )}
+
+      {showFilmstripPopout && (
+        <DraggableModal
+          isOpen
+          onClose={() => {
+            const nextSurface = movieReelSurface === "both" ? "embedded" : "none";
+            setMovieReelSurface(nextSurface);
+            try {
+              localStorage.setItem("ba_movie_reel_surface", nextSurface);
+              localStorage.setItem("ba_show_filmstrip", nextSurface === "embedded" ? "1" : "0");
+            } catch {}
+            window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", {
+              detail: { on: nextSurface === "embedded", surface: nextSurface },
+            }));
+          }}
+          title="Movie reel"
+          defaultWidth={Math.min(1120, Math.max(640, window.innerWidth - 48))}
+          defaultHeight={Math.min(720, Math.max(420, window.innerHeight - 80))}
+          defaultX={Math.max(24, Math.round((window.innerWidth - Math.min(1120, Math.max(640, window.innerWidth - 48))) / 2))}
+          defaultY={40}
+          minWidth={560}
+          minHeight={360}
+          storageKey="movie-reel-popout"
+        >
+          <div className="dm-scroll">
+            <ReelDock />
+          </div>
+        </DraggableModal>
+      )}
     </>
   );
 
@@ -3765,8 +3815,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           {showSequenceDiagram && (
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}
+              onReset={() => setSelectedSeqStep(null)}
               selectedStepId={selectedSeqStep?.id}
               slowMode={slowMode}
+              followFlow={followFlow}
               onToggleSlowMode={() => setSlowMode(!slowMode)}
             />
           )}
@@ -3920,8 +3972,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           {showSequenceDiagram && (
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}
+              onReset={() => setSelectedSeqStep(null)}
               selectedStepId={selectedSeqStep?.id}
               slowMode={slowMode}
+              followFlow={followFlow}
               onToggleSlowMode={() => setSlowMode(!slowMode)}
             />
           )}
@@ -4003,8 +4057,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           {showSequenceDiagram && (
             <SequenceReelDiagram
               onSelectStep={setSelectedSeqStep}
+              onReset={() => setSelectedSeqStep(null)}
               selectedStepId={selectedSeqStep?.id}
               slowMode={slowMode}
+              followFlow={followFlow}
               onToggleSlowMode={() => setSlowMode(!slowMode)}
             />
           )}

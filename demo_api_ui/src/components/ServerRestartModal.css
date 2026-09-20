@@ -111,7 +111,7 @@
 /* Message text */
 .restart-message {
   font-size: var(--font-size-body);
-  color: var(--app-gray-700, #374151);
+  color: var(--app-gray-700, var(--th-text));
   margin: 0 0 8px;
   line-height: 1.4;
 }
@@ -119,7 +119,7 @@
 /* Attempt counter */
 .attempt-counter {
   font-size: var(--font-size-sm);
-  color: var(--app-gray-600, #4b5563);
+  color: var(--app-gray-600, var(--th-text));
   margin: 0;
   font-weight: 500;
 }
@@ -155,7 +155,7 @@
 /* Secondary button (gray) */
 .server-restart-content .btn-secondary {
   background-color: var(--app-gray-200, #e5e7eb);
-  color: var(--app-gray-900, #111827);
+  color: var(--app-gray-900, var(--th-text));
 }
 
 .server-restart-content .btn-secondary:hover {

@@ -60,8 +60,7 @@ function render(value) {
 
 function readRfcInfoEnabled() {
   try {
-    return localStorage.getItem("ba_show_rfc_info") === "1"
-      || ["embedded", "both"].includes(localStorage.getItem("ba_rfc_info_surface"));
+    return ["1", "true"].includes(localStorage.getItem("ba_show_rfc_info"));
   } catch {
     return false;
   }
@@ -150,7 +149,7 @@ function Payload({ label, title, text }) {
   );
 }
 
-export default function StepDetailPanel({ step, onInspect }) {
+export default function StepDetailPanel({ step, onInspect, fontSize = "large" }) {
   const [showRfcInfo, setShowRfcInfo] = useState(readRfcInfoEnabled);
   useEffect(() => {
     const handleRfcInfoToggle = (event) => setShowRfcInfo(!!event.detail?.on);
@@ -167,7 +166,7 @@ export default function StepDetailPanel({ step, onInspect }) {
   const ran = ["done", "active", "denied", "error"].includes(step.status);
 
   return (
-    <div className="sdp">
+    <div className="sdp" data-font-size={fontSize}>
       <div className="sdp-head">
         <h3 className="sdp-title">{step.title}</h3>
         <span className="sdp-lane">{laneLabel(step.lane)}</span>

@@ -16,7 +16,13 @@
   background: var(--th-bg-inset);
   padding: 10px 12px;
   margin-bottom: 10px;
+  /* Keep the detail pane calm and editorial: technical values stay readable
+     without switching the reader into a code-console typeface. */
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
+
+.sdp[data-font-size="small"] { zoom: 0.9; }
+.sdp[data-font-size="large"] { zoom: 1.25; }
 
 .sdp-head {
   display: flex;
@@ -84,8 +90,6 @@
   display: grid;
   grid-template-columns: minmax(90px, 25%) 1fr;
   gap: 8px;
-  /* monospace: token claim keys and values line up for scanning */
-  font-family: var(--font-mono);
   font-size: 11.5px;
 }
 
@@ -117,8 +121,6 @@
   display: grid;
   grid-template-columns: minmax(52px, 32%) 1fr;
   gap: 6px;
-  /* monospace: claim keys and values line up across the two columns */
-  font-family: var(--font-mono);
   font-size: 11.5px;
   padding: 1px 4px;
   border-radius: 3px;
@@ -156,7 +158,6 @@
 
 /* Form view only: the transport line that sits above the JSON body. */
 .sdp-payload-head {
-  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   color: var(--th-text-muted);
   margin-bottom: 4px;
@@ -165,8 +166,6 @@
 
 .sdp-pre {
   margin: 0;
-  /* monospace: raw HTTP request/response payloads */
-  font-family: var(--font-mono);
   /* This is the JSON half of the Form/JSON switch (StepDetailPanel passes it as
      `jsonView`), so it has to match the Form half's size — at 11.5px the same
      payload shrank when you flipped to JSON. Off the literal and onto the scale
@@ -250,5 +249,5 @@
 .sdp-stage[data-status="error"] { border-left-color: #ef4444; }
 .sdp-stage[data-status="notinpath"] { border-left-color: #cbd5e1; opacity: .65; }
 .sdp-stage-name { font-weight: 700; }
-.sdp-stage-result { color: var(--th-text-muted); margin-left: 6px; font-family: var(--font-mono); }
+.sdp-stage-result { color: var(--th-text-muted); margin-left: 6px; }
 .sdp-stage-note { display: block; color: var(--th-text-muted); font-size: 11.5px; margin-top: 1px; }

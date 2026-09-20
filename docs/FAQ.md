@@ -27,7 +27,7 @@ Answers for presenters, SEs and developers working with the Super Banking AI dem
 ### What's the one-line install?
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash
 ```
 
 Add `ASSUME_YES=1` before `bash` to skip the prompts; the installer then defaults to local mode.
@@ -44,7 +44,7 @@ It then installs the tools that mode needs (Homebrew, git, Node, Python, Docker 
 ### I'd rather clone it myself
 
 ```bash
-git clone https://github.com/curtismu7/AI-DEMO2.git
+git clone https://github.com/cmuir_pingcorp/AI-DEMO2.git
 cd AI-DEMO2
 npm run setup:fresh   # provisions PingOne apps, scopes, resources and demo users; writes the .env files
 ```

@@ -19,11 +19,14 @@
 #                              other deployment, so checking all of them there is a
 #                              guaranteed false positive, not a real signal). Unset (the
 #                              full-deploy path) checks every deployment, as before.
+#   HOSTED_SMOKE_COOKIE      — optional Cookie header from an approved PingOne
+#                              session; enables authenticated app/API/Grafana probes
 #
 # Checks (each prints PASS/FAIL; exits 1 if any failed):
 #   1. every deployment's rollout is complete
 #   2. no pod predates DEPLOY_START_EPOCH (when provided)
-#   3. GET $APP_URL/api/health returns "healthy"
+#   3. anonymous access redirects to PingOne login; with HOSTED_SMOKE_COOKIE,
+#      approved app/API/Grafana requests pass
 #   4. BFF vault-bridge service key == api-resource-server key (apikey-dispatch)
 #   5. llm-proxy answers /v1/models (LLM modes usable)
 #   6. authz sidecar canary: a McpToolsList decision with the gateway's own
@@ -109,14 +112,33 @@ else
   info "2/7 skipped (DEPLOY_START_EPOCH not set)"
 fi
 
-# ── 3. public health endpoint ─────────────────────────────────────────────────
-info "3/7 GET $APP_URL/api/health ..."
-HEALTH_OK=""
-for _ in 1 2 3; do
-  if curl -skf --max-time 15 "$APP_URL/api/health" | grep -q '"status":"healthy"'; then HEALTH_OK=1; break; fi
-  sleep 5
-done
-if [ -n "$HEALTH_OK" ]; then pass "api health is healthy"; else fail "$APP_URL/api/health not healthy"; fi
+# ── 3. hosted browser access boundary ─────────────────────────────────────────
+info "3/7 hosted browser access boundary ..."
+ANON_HEADERS=$(mktemp)
+curl -skS --max-time 15 -D "$ANON_HEADERS" -o /dev/null "$APP_URL/" || true
+ANON_CODE=$(awk 'toupper($1) ~ /^HTTP\// { code=$2 } END { print code }' "$ANON_HEADERS")
+ANON_LOCATION=$(awk 'BEGIN{IGNORECASE=1} /^location:/ { sub(/\r$/, ""); print substr($0, 11) }' "$ANON_HEADERS" | tail -1)
+rm -f "$ANON_HEADERS"
+if [ "$ANON_CODE" = "302" ] && echo "$ANON_LOCATION" | grep -q '/api/auth/oauth/user/login'; then
+  pass "anonymous app request redirects to PingOne user login"
+else
+  fail "anonymous app request was HTTP ${ANON_CODE:-unknown} location=${ANON_LOCATION:-missing}; expected PingOne login redirect"
+fi
+
+if [ -n "${HOSTED_SMOKE_COOKIE:-}" ]; then
+  AUTH_FAILED=""
+  for path in / /api/health /grafana; do
+    CODE=$(curl -skS --max-time 15 -o /dev/null -w '%{http_code}' -H "Cookie: $HOSTED_SMOKE_COOKIE" "$APP_URL$path" || echo 000)
+    case "$CODE" in 2??|3??) ;; *) AUTH_FAILED="$AUTH_FAILED $path=$CODE" ;; esac
+  done
+  if [ -z "$AUTH_FAILED" ]; then
+    pass "approved session reaches app, API, and Grafana"
+  else
+    fail "approved hosted session failed:$AUTH_FAILED"
+  fi
+else
+  warn "HOSTED_SMOKE_COOKIE not set; authenticated app/API/Grafana probes skipped"
+fi
 
 # ── 4. apikey-dispatch key alignment (bridge vs backend) ──────────────────────
 # The BFF vault bridge serves DEMO_API_RESOURCE_SERVER_KEY; api-resource-server
