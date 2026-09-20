@@ -152,6 +152,11 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         icon: "🌐",
       },
       {
+        label: "Agent Gateway Authorization",
+        description: "Follow delegated identity, runtime policy, MCP enforcement, and audit evidence in one live story",
+        icon: "⚖",
+      },
+      {
         label: "Computer Use Agent (CUA)",
         description: "Agents that interact with UI/UX",
         icon: "",
@@ -412,6 +417,7 @@ export default function LearningHub() {
       "MCP: MFA Gate on Tools": () => openEdu(EDU.MCP_PROTOCOL, "mfa-gate"),
       "MCP Elicitation": () => openEdu(EDU.MCP_ELICITATION, "what"),
       "Agent Gateway": () => openEdu(EDU.AGENT_GATEWAY, "overview"),
+      "Agent Gateway Authorization": () => navigate("/agent-gateway-authorization"),
       "Computer Use Agent (CUA)": () => openEdu(EDU.CUA, "what"),
       "Human-in-the-loop": () => openEdu(EDU.HUMAN_IN_LOOP, "what"),
       "Ping Agent Gateway Security": () =>

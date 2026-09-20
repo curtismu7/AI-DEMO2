@@ -10,7 +10,7 @@ export const NAV_PAGE_PATHS = {
   "Intent Inspector": "/intent-inspector",
   "Audit Agent": "/audit-agent",
   "AI Agent Gateway Guide": "/privilege-mcp-learning",
-  "Authorization Walkthrough": "/agent-gateway-authorization",
+  "Agent Gateway Authorization": "/agent-gateway-authorization",
   "AI Agent Gateway Diagrams": "/privilege-mcp-diagrams",
   "Agent IAM Core": "/ai-products/core",
   "Agent Gateway": "/ai-products/gateway",

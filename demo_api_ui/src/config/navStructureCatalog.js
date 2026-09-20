@@ -20,7 +20,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "Intent Inspector",
       "Audit Agent",
       "AI Agent Gateway Guide",
-      "Authorization Walkthrough",
+      "Agent Gateway Authorization",
       "AI Agent Gateway Diagrams",
     ],
   },

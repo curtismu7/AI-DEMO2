@@ -515,7 +515,12 @@ export default function AdminSideNav({
         { label: "Intent Inspector", path: "/intent-inspector", icon: "shld", adminOnly: true },
         { label: "Audit Agent", path: "/audit-agent", icon: "shld" },
         { label: "AI Agent Gateway Guide", path: "/privilege-mcp-learning", icon: "doc" },
-        { label: "Authorization Walkthrough", path: "/agent-gateway-authorization", icon: "doc" },
+        {
+          label: "Agent Gateway Authorization",
+          path: "/agent-gateway-authorization",
+          icon: "doc",
+          searchAlias: "agent authorization authorization walkthrough delegated access mcp tool policy PingOne Authorize P1AZ",
+        },
         { label: "AI Agent Gateway Diagrams", path: "/privilege-mcp-diagrams", icon: "arc" },
       ],
     },
