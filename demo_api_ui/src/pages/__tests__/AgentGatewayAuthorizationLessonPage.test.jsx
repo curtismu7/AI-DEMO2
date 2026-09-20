@@ -19,7 +19,7 @@ function renderPage() {
 describe("AgentGatewayAuthorizationLessonPage", () => {
   it("teaches the gateway and policy decision roles", () => {
     renderPage();
-    expect(screen.getByRole("heading", { name: /secure agent access/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /securing ai agent access using ping identity/i })).toBeInTheDocument();
     expect(screen.getAllByText("Agent Gateway", { exact: true }).length).toBeGreaterThan(0);
     expect(screen.getAllByText("PingOne Authorize", { exact: true }).length).toBeGreaterThan(0);
   });
