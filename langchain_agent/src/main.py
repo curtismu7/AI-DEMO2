@@ -251,11 +251,13 @@ class LangChainMCPApplication:
         from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
         from api.agui_run_handler import router as agui_router
         from api.a2a_handler import router as a2a_router
+        from api.a2a_handler import public_router as a2a_public_router
         from api.codegraph_handler import router as codegraph_router
 
         app = FastAPI(title="LangChain AG-UI", docs_url=None, redoc_url=None)
         app.include_router(agui_router)
         app.include_router(a2a_router)
+        app.include_router(a2a_public_router)
         app.include_router(codegraph_router, prefix="/codegraph")
 
         # Prometheus scrape target — unauthenticated, same posture as the
