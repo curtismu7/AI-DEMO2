@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from api.a2a_handler import (
+    public_router,
     router,
     set_agent,
     set_federated_token_validator,
@@ -23,6 +24,7 @@ class FakeAgent:
 def client():
     app = FastAPI()
     app.include_router(router)
+    app.include_router(public_router)
     return TestClient(app)
 
 
@@ -57,6 +59,15 @@ def test_agent_card_advertises_customer_oauth(monkeypatch):
         "https://idp.a.example/.well-known/openid-configuration",
         "https://idp.b.example/.well-known/openid-configuration",
     ]
+
+
+def test_agent_card_is_available_at_standard_host_level_path(monkeypatch):
+    monkeypatch.setenv("A2A_PUBLIC_URL", "https://agent.example/a2a/jsonrpc")
+
+    response = client().get("/.well-known/agent-card.json")
+
+    assert response.status_code == 200
+    assert response.json()["url"] == "https://agent.example/a2a/jsonrpc"
 
 
 def test_jsonrpc_accepts_allowlisted_customer_bearer_without_privilege_token():

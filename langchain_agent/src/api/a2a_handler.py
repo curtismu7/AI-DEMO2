@@ -19,6 +19,7 @@ from authentication.federated_token_validator import FederatedCaller, FederatedT
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/a2a")
+public_router = APIRouter()
 
 _agent: Optional[Any] = None
 _txn_validator: Callable[[str], dict[str, Any]] = validate_privilege_transaction_token
@@ -100,6 +101,13 @@ async def get_agent_card(request: Request) -> dict[str, Any]:
         "securityRequirements": [{"customerOAuth": ["agent:invoke"]}],
         "x-tenantOAuthMetadata": metadata_urls,
     }
+
+
+@public_router.get("/.well-known/agent-card.json")
+async def get_public_agent_card(request: Request) -> dict[str, Any]:
+    """Expose the standard host-level A2A discovery path for direct clients."""
+
+    return await get_agent_card(request)
 
 
 def _configured_metadata_urls() -> list[str]:
