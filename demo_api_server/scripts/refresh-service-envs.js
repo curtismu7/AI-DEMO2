@@ -907,6 +907,9 @@ async function main(deps = {}) {
     // container working.
     MCP_RESOURCE_SERVER_RESOURCE_URI: investAudList + ',mcpgateway.ping.demo',
     MCP_RESOURCE_SERVER_AUDIENCE: investAudList,
+    // The private account-context resolver and PingGateway must share the same
+    // service key. Keep it in the resource-server env as well as the gateway env.
+    MCP_RESOURCE_SERVER_API_KEY: fbVault('MCP_RESOURCE_SERVER_API_KEY') || fb('MCP_RESOURCE_SERVER_API_KEY'),
   }, [
     'This is the Invest MCP resource server (mcp-invest.ping.demo). It validates',
     'inbound access tokens via PINGONE_JWKS_URI and accepts requests for the',
