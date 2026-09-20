@@ -514,14 +514,16 @@ describe("Header controls after the Actions dropdown removal", () => {
     });
 
     for (const [view, label] of [
-      ["Movie reel", null],
+      ["Movie reel", "Movie reel surface"],
       ["Token topology", "Token topology surface"],
       ["Simple stepper", "Simple stepper surface"],
       ["Sequence view", "Sequence view surface"],
       ["OAuth visualizer", "OAuth visualizer surface"],
     ]) {
-      await act(async () => fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${view}`) })));
-      if (!label) continue;
+      const viewName = view === "Movie reel"
+        ? "^Movie reel Step-by-step live trace$"
+        : `^${view}`;
+      await act(async () => fireEvent.click(screen.getByRole("button", { name: new RegExp(viewName) })));
       const trigger = screen.getByRole("button", { name: label });
       await act(async () => {
         fireEvent.click(trigger);
@@ -575,12 +577,12 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
 
-    expect(screen.getByRole("button", { name: /Movie reel/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /^Movie reel Step-by-step live trace$/ })).toHaveAttribute("aria-pressed", "true");
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /Simple stepper/ }));
     });
     expect(screen.getAllByRole("button", { name: /Simple stepper/ }).find((button) => button.hasAttribute("aria-pressed"))).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getAllByRole("button", { name: /Movie reel/ }).find((button) => button.hasAttribute("aria-pressed"))).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: /^Movie reel Step-by-step live trace$/ })).toHaveAttribute("aria-pressed", "false");
   });
 
   it("restores Demo controls choices after the agent remounts", async () => {
@@ -592,7 +594,8 @@ describe("Header controls after the Actions dropdown removal", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
-    fireEvent.click(document.querySelectorAll(".ba-header-more-context input[type=checkbox]")[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Movie reel surface" }));
+    fireEvent.click(screen.getByRole("option", { name: /^Off\b/ }));
     expect(localStorage.getItem("ba_show_filmstrip")).toBe("0");
     const sequenceCard = [...document.querySelectorAll(".ba-header-more-view-option")]
       .find((button) => button.textContent.includes("Sequence view"));
@@ -620,9 +623,13 @@ describe("Header controls after the Actions dropdown removal", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /Movie reel/ }));
     });
+<<<<<<< HEAD
+    await waitFor(() => expect(screen.getByRole("button", { name: "Movie reel surface" })).toHaveTextContent("Embedded"));
+=======
     await waitFor(() => expect(document.querySelectorAll(".ba-header-more-context input[type=checkbox]")[1]).not.toBeChecked());
     expect(localStorage.getItem("dashboard-sequence-surface")).toBe("none");
     expect(restoredSequenceCard).toHaveAttribute("aria-pressed", "false");
+>>>>>>> origin/main
     fireEvent.click(screen.getByRole("button", { name: /Token topology/ }));
     expect(screen.getByRole("button", { name: "Token topology surface" })).toHaveTextContent("Pop-out");
   });
@@ -654,6 +661,7 @@ describe("Header controls after the Actions dropdown removal", () => {
     });
 
     const views = [
+      ["Movie reel", "Movie reel surface"],
       ["Token topology", "Token topology surface"],
       ["Simple stepper", "Simple stepper surface"],
       ["Sequence view", "Sequence view surface"],
@@ -661,7 +669,10 @@ describe("Header controls after the Actions dropdown removal", () => {
     ];
     for (const [view, label] of views) {
       await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${view}`) }));
+        const viewName = view === "Movie reel"
+          ? "^Movie reel Step-by-step live trace$"
+          : `^${view}`;
+        fireEvent.click(screen.getByRole("button", { name: new RegExp(viewName) }));
       });
       const trigger = screen.getByRole("button", { name: label });
       expect(trigger).not.toBeDisabled();
@@ -687,12 +698,46 @@ describe("Header controls after the Actions dropdown removal", () => {
     expect(screen.getByRole("listbox", { name: "Token topology surface options" })).toBeInTheDocument();
   }, 90000);
 
+<<<<<<< HEAD
+  it("dispatches the movie reel surface choice for the dashboard", async () => {
+    const surfaceChange = vi.fn();
+    window.addEventListener("agent-filmstrip-toggle", surfaceChange);
+    try {
+      renderAgent({ user: customerUser, mode: "float" });
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+      });
+      await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /^Movie reel Step-by-step live trace$/ }));
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Movie reel surface" }));
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole("option", { name: /^Pop-out\b/ }));
+      });
+
+      expect(surfaceChange).toHaveBeenCalledWith(expect.objectContaining({
+        detail: { on: false, surface: "popout" },
+      }));
+    } finally {
+      window.removeEventListener("agent-filmstrip-toggle", surfaceChange);
+    }
+  });
+
+  it("reflects movie reel surface changes coming from the dashboard", async () => {
+=======
   it("labels trace evidence views and keeps only the selected view embedded", async () => {
     localStorage.setItem("ba_simple_stepper_surface", "embedded");
     localStorage.setItem("dashboard-sequence-surface", "embedded");
     localStorage.setItem("ba_token_topology_surface", "both");
     localStorage.setItem("ba_oauth_visualizer_surface", "embedded");
 
+>>>>>>> origin/main
     renderAgent({ user: customerUser, mode: "float" });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
@@ -701,6 +746,25 @@ describe("Header controls after the Actions dropdown removal", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
+<<<<<<< HEAD
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Movie reel Step-by-step live trace$/ }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Movie reel surface" }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("option", { name: /^Pop-out\b/ }));
+    });
+    expect(screen.getByRole("button", { name: "Movie reel surface" })).toHaveTextContent("Pop-out");
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", {
+        detail: { on: false, surface: "none" },
+      }));
+    });
+    expect(screen.getByRole("button", { name: "Movie reel surface" })).toHaveTextContent("Off");
+=======
 
     expect(screen.getByRole("group", { name: "Trace evidence views" })).toBeInTheDocument();
 
@@ -712,6 +776,7 @@ describe("Header controls after the Actions dropdown removal", () => {
     expect(localStorage.getItem("dashboard-sequence-surface")).toBe("none");
     expect(localStorage.getItem("ba_token_topology_surface")).toBe("popout");
     expect(localStorage.getItem("ba_oauth_visualizer_surface")).toBe("none");
+>>>>>>> origin/main
   });
 
   it("marks Quick Config while a surface menu is open so its layout can expand", async () => {
