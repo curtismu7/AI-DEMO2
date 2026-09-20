@@ -92,6 +92,7 @@
   },
   "routes": {
     "/": "public",
+    "/academy/demos": "public",
     "/academy/journey": "public",
     "/academy/:lessonId": "public",
     "/academy/:lessonId/:mode": "public",

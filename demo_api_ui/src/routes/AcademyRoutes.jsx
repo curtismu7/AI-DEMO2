@@ -3,6 +3,7 @@ import TopNav from "../components/TopNav";
 import LessonShell from "../components/learning/LessonShell";
 import { getLesson } from "../learning/lessonCatalog";
 import GuidedJourneyPage from "../pages/GuidedJourneyPage";
+import StandaloneDemoLauncherPage from "../pages/StandaloneDemoLauncherPage";
 import AppShell from "./AppShell";
 
 export function normalizeAcademyMode(routeMode) {
@@ -54,6 +55,21 @@ export function GuidedJourneyRoute({
   return (
     <AppShell user={user} logout={logout}>
       <GuidedJourneyPage {...journeyProps} />
+    </AppShell>
+  );
+}
+
+export function StandaloneDemoLauncherRoute({
+  loading = false,
+  user,
+  logout,
+  launcherProps,
+}) {
+  if (loading) return null;
+
+  return (
+    <AppShell user={user} logout={logout}>
+      <StandaloneDemoLauncherPage {...launcherProps} />
     </AppShell>
   );
 }
