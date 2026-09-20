@@ -33,7 +33,7 @@ export function AgentIdentityAcademyRoute({ loading = false, user, logout }) {
   );
 }
 
-export function AcademyLessonRoute({ loading, user, logout }) {
+export function AcademyLessonRoute({ loading, user, logout, children }) {
   const { lessonId, mode: routeMode } = useParams();
   const navigate = useNavigate();
   const lesson = getLesson(lessonId);
@@ -60,9 +60,10 @@ export function AcademyLessonRoute({ loading, user, logout }) {
                 : undefined
             }
           >
-            {lesson.id === "delegation" ? (
-              <OAuthTokenExchangeLessonPage />
-            ) : (
+            {children ||
+              (lesson.id === "delegation" ? (
+                <OAuthTokenExchangeLessonPage />
+              ) : (
               <>
                 <p>{lesson.category}</p>
                 <p>{lesson.talkingPoints[0]}</p>
@@ -72,7 +73,7 @@ export function AcademyLessonRoute({ loading, user, logout }) {
                   ))}
                 </ul>
               </>
-            )}
+              ))}
           </LessonShell>
         </main>
       </>
