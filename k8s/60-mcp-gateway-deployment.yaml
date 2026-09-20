@@ -40,6 +40,7 @@ spec:
         app: ai-demo
         component: mcp-gateway
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: mcp-gateway
         image: ai-demo-k8-mcp-gateway:latest
@@ -52,6 +53,14 @@ spec:
           value: "production"
         - name: MCP_GW_PORT
           value: "3005"
+        # Bound per-agent/tool abuse before expensive introspection and policy
+        # calls. The limiter is shared by HTTP and WebSocket transports.
+        - name: GATEWAY_RATE_LIMIT_ENABLED
+          value: "true"
+        - name: GATEWAY_RATE_LIMIT_MAX_REQUESTS
+          value: "20"
+        - name: GATEWAY_RATE_LIMIT_WINDOW_MS
+          value: "60000"
         # NB: the gateway reads MCP_OLB_WS_URL / MCP_RESOURCE_SERVER_WS_URL (NOT the
         # MCP_GW_*-prefixed names). Those backend URLs are set in the
         # ai-demo-config configmap so every consumer gets the in-cluster value.
@@ -108,9 +117,10 @@ spec:
         # silent SSO reuse.
         - name: BFF_BROKER_PROMPT_URL
           value: "https://demo-api-server:3001/mcp-facade/broker-prompt"
-        # mkcert TLS on demo-api-server — same opt-in as MCP_GATEWAY_REJECT_UNAUTHORIZED.
-        - name: NODE_TLS_REJECT_UNAUTHORIZED
-          value: "0"
+        # Trust the deployment's mkcert root for the BFF's internal HTTPS hop.
+        # Do not disable Node's global TLS verification in the hosted gateway.
+        - name: NODE_EXTRA_CA_CERTS
+          value: "/certs/rootCA.pem"
         # OpenTelemetry → in-cluster Jaeger (k8s/73-jaeger-deployment.yaml).
         # Mirrors docker-compose: the bootstrap script is mounted at /otel from
         # the otel-instrument ConfigMap (created by the deploy scripts).
@@ -130,6 +140,9 @@ spec:
         volumeMounts:
         - name: otel-instrument
           mountPath: /otel
+          readOnly: true
+        - name: tls-certs
+          mountPath: /certs
           readOnly: true
         resources:
           requests:
@@ -226,6 +239,9 @@ spec:
       - name: otel-instrument
         configMap:
           name: otel-instrument
+      - name: tls-certs
+        secret:
+          secretName: tls-certs
       restartPolicy: Always
 ---
 apiVersion: v1

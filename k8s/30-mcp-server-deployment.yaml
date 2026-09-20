@@ -25,6 +25,7 @@ spec:
         app: ai-demo
         component: mcp-server
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: mcp-server
         image: ai-demo-k8-mcp-server:latest

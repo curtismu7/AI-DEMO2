@@ -25,6 +25,7 @@ spec:
         app: ai-demo
         component: api-server
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: api-server
         image: ai-demo-k8-api-server:latest
@@ -44,6 +45,16 @@ spec:
         # Decision logic: demo_api_server/utils/crashGuard.js.
         - name: CRASH_GUARD
           value: "1"
+        # Keep abuse controls active in the hosted deployment even though the
+        # demo BFF runs in development mode for its simulated authorizer.
+        - name: DISABLE_RATE_LIMIT
+          value: "false"
+        - name: RATE_LIMIT_MAX
+          value: "1200"
+        - name: RATE_LIMIT_AUTH_MAX
+          value: "30"
+        - name: RATE_LIMIT_AGENT_MAX
+          value: "20"
         # The internal-endpoint hardening in routes/vaultServiceKey.js and
         # routes/agentIdToken.js used to key off NODE_ENV=production, which the
         # line above deliberately prevents — so it never fired in-cluster and any

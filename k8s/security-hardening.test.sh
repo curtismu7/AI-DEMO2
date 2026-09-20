@@ -30,6 +30,21 @@ grep -q '169.254.169.254/32' "$HERE/01-namespace.yaml" \
 grep -q '169.254.170.2/32' "$HERE/01-namespace.yaml" \
   || fail "network policy must exclude the container metadata endpoint"
 
+grep -q 'DISABLE_RATE_LIMIT' "$HERE/20-api-server-deployment.yaml" \
+  || fail "BFF deployment must explicitly keep rate limiting enabled"
+grep -q 'RATE_LIMIT_AUTH_MAX' "$HERE/20-api-server-deployment.yaml" \
+  || fail "BFF deployment must bound OAuth abuse"
+grep -q 'GATEWAY_RATE_LIMIT_ENABLED' "$HERE/60-mcp-gateway-deployment.yaml" \
+  || fail "MCP gateway rate limiting must be enabled"
+! grep -q 'NODE_TLS_REJECT_UNAUTHORIZED' "$HERE/60-mcp-gateway-deployment.yaml" \
+  || fail "hosted MCP gateway must not disable global TLS verification"
+grep -q 'NODE_EXTRA_CA_CERTS' "$HERE/60-mcp-gateway-deployment.yaml" \
+  || fail "hosted MCP gateway must trust the internal CA explicitly"
+grep -q 'limit-rps: "5"' "$HERE/aws/se-ingress.yaml" \
+  || fail "OAuth ingress must be rate limited"
+grep -q 'automountServiceAccountToken: false' "$HERE/60-mcp-gateway-deployment.yaml" \
+  || fail "MCP gateway must not receive a service-account token"
+
 grep -q 'sha-\$(git -C "\$K8S_DIR" rev-parse HEAD)' "$HERE/aws/deploy.sh" \
   || fail "AWS deploy default image tag must be commit-addressed"
 grep -q 'sha-\$(git -C "\$BASEDIR" rev-parse HEAD)' "$ROOT/run-k8.sh" \
