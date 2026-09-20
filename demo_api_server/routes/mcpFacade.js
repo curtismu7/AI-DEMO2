@@ -1080,7 +1080,7 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
       // The caller's own header wins, so a caller that completed the PingOne
       // login acts as itself; the shared operator session is the fallback that
       // makes this door reachable without a browser at all.
-      ? await door.localHandler({ rpc, method, sessionIdIn: req.get('mcp-session-id'), delegatedToken: req.get('x-pingone-admin-token') || pingoneAdminSession.getAccessToken(), returnTo: '/privilege-mcp-client' })
+      ? await door.localHandler({ rpc, method, sessionIdIn: req.get('mcp-session-id'), delegatedToken: req.get('x-pingone-admin-token') || await pingoneAdminSession.getFreshAccessToken(), returnTo: '/privilege-mcp-client' })
       : await fetch(upstreamUrl, {
         method: 'POST',
         headers: upstreamHeaders,

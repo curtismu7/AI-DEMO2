@@ -1,0 +1,6 @@
+export const PROVENANCE = Object.freeze({
+  LIVE_CLOUD: "LIVE_CLOUD",
+  LIVE_LOCAL: "LIVE_LOCAL",
+  RECORDED: "RECORDED",
+  SIMULATED: "SIMULATED",
+});

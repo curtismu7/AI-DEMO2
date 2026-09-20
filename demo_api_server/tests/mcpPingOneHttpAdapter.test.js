@@ -29,12 +29,14 @@ function loadAdapter({ post } = {}) {
   jest.resetModules();
   const axiosPost = post || jest.fn();
   jest.doMock('axios', () => ({ post: axiosPost }));
+  const refreshAccessToken = jest.fn();
+  jest.doMock('../services/pingoneMcpTokenService', () => ({ refreshAccessToken }));
   // Minimal config so _mcpUrl() resolves without real env.
   jest.doMock('../services/configStore', () => ({
     getEffective: (k) => (k === 'PINGONE_ENVIRONMENT_ID' ? 'env-123' : k === 'PINGONE_REGION' ? 'com' : null),
   }));
   const adapter = require('../services/mcpPingOneHttpAdapter');
-  return { adapter, axiosPost };
+  return { adapter, axiosPost, refreshAccessToken };
 }
 
 // Build an axios.post mock that answers JSON-RPC by method.
@@ -113,6 +115,70 @@ describe('mcpPingOneHttpAdapter', () => {
       const { adapter } = loadAdapter({ post });
       const result = await adapter.callTool('x', {}, TOKEN);
       expect(result).toEqual({ content: [{ text: 'sse' }] });
+    });
+
+    it('refreshes an expired session token before calling hosted MCP', async () => {
+      const post = jsonRpcResponder({ 'tools/call': { content: [{ type: 'text', text: 'refreshed' }] } });
+      const { adapter, refreshAccessToken } = loadAdapter({ post });
+      refreshAccessToken.mockResolvedValue({
+        accessToken: 'delegated-pkce-token-2',
+        refreshToken: 'refresh-token-2',
+        expiresAt: Date.now() + 3600_000,
+      });
+      const session = {
+        pingoneMcpAdminToken: {
+          accessToken: TOKEN,
+          refreshToken: 'refresh-token-1',
+          clientId: 'pingone-mcp-server',
+          tokenEndpoint: 'https://auth.pingone.com/env/as/token',
+          expiresAt: Date.now() - 1,
+        },
+      };
+
+      await expect(adapter.callTool('listApplications', {}, session)).resolves.toEqual({
+        content: [{ type: 'text', text: 'refreshed' }],
+      });
+      expect(refreshAccessToken).toHaveBeenCalledWith({
+        refreshToken: 'refresh-token-1',
+        clientId: 'pingone-mcp-server',
+        tokenEndpoint: 'https://auth.pingone.com/env/as/token',
+      });
+      expect(post.mock.calls[0][2].headers.Authorization).toBe('Bearer delegated-pkce-token-2');
+      expect(session.pingoneMcpAdminToken.refreshToken).toBe('refresh-token-2');
+    });
+
+    it('refreshes once and retries when hosted MCP returns 401', async () => {
+      const post = jest.fn()
+        .mockImplementationOnce(async () => {
+          const error = new Error('expired');
+          error.response = { status: 401, data: 'Invalid authentication' };
+          throw error;
+        })
+        .mockImplementationOnce(async (_url, body) => ({
+          status: 200,
+          data: JSON.stringify({ jsonrpc: '2.0', id: body.id, result: { content: [{ type: 'text', text: 'retried' }] } }),
+        }));
+      const { adapter, refreshAccessToken } = loadAdapter({ post });
+      refreshAccessToken.mockResolvedValue({
+        accessToken: 'delegated-pkce-token-2',
+        refreshToken: 'refresh-token-2',
+        expiresAt: Date.now() + 3600_000,
+      });
+      const session = {
+        pingoneMcpAdminToken: {
+          accessToken: TOKEN,
+          refreshToken: 'refresh-token-1',
+          clientId: 'pingone-mcp-server',
+          tokenEndpoint: 'https://auth.pingone.com/env/as/token',
+          expiresAt: Date.now() + 3600_000,
+        },
+      };
+
+      await expect(adapter.callTool('listApplications', {}, session)).resolves.toEqual({
+        content: [{ type: 'text', text: 'retried' }],
+      });
+      expect(refreshAccessToken).toHaveBeenCalledTimes(1);
+      expect(post.mock.calls[1][2].headers.Authorization).toBe('Bearer delegated-pkce-token-2');
     });
   });
 

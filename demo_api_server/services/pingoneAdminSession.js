@@ -25,10 +25,11 @@
  * supplies its own `x-pingone-admin-token` still acts as itself and never
  * touches this store.
  *
- * NO REFRESH. The sign-in requests `scope: 'openid'` with no `offline_access`,
- * so PingOne returns no refresh token and this session simply expires (~1h).
- * Someone signs in again; there is nothing to renew. Deliberately in-memory:
- * an admin credential at rest would buy the demo nothing.
+ * REFRESHABLE, BUT STILL IN-MEMORY. The sign-in requests `offline_access` and
+ * stores the rotated refresh token server-side, allowing the BFF to renew the
+ * roughly one-hour access token without another browser login. The credential
+ * remains process-local; an admin credential at rest would be a separate
+ * persistence/security decision.
  *
  * PROCESS-LOCAL, so it assumes ONE BFF replica. Scale the BFF out without
  * request affinity and the callback can populate one process while a façade
@@ -44,6 +45,8 @@
 // Treat a token this close to expiry as already gone, so a call never races
 // the clock mid-request.
 const EXPIRY_SKEW_MS = 60_000;
+const REFRESH_SKEW_MS = 5 * 60_000;
+const { refreshAccessToken } = require('./pingoneMcpTokenService');
 
 /**
  * OFF unless a deployment opts in. The bearer the façade verifies is a generic
@@ -62,21 +65,33 @@ function sharedSessionEnabled() {
 }
 
 let current = null;
+let refreshInFlight = null;
 
 /**
  * Record the delegated PKCE token a human just established.
  * Called from the authorization-code callback, alongside the browser session.
  */
-function remember({ accessToken, expiresAt, expiresIn }) {
+function remember({ accessToken, expiresAt, expiresIn, refreshToken, clientId, tokenEndpoint }) {
   if (!accessToken) return;
   const resolvedExpiry = Number(expiresAt) > 0
     ? Number(expiresAt)
     : Date.now() + (Number(expiresIn) > 0 ? Number(expiresIn) * 1000 : 300_000);
-  current = { accessToken, expiresAt: resolvedExpiry };
+  current = {
+    ...(current || {}),
+    accessToken,
+    expiresAt: resolvedExpiry,
+  };
+  // A new login that did not receive offline access must not inherit the
+  // previous operator's refresh credential. Refresh responses always include
+  // these fields, so explicit undefined is meaningful here.
+  if (Object.prototype.hasOwnProperty.call(arguments[0], 'refreshToken')) current.refreshToken = refreshToken;
+  if (Object.prototype.hasOwnProperty.call(arguments[0], 'clientId')) current.clientId = clientId;
+  if (Object.prototype.hasOwnProperty.call(arguments[0], 'tokenEndpoint')) current.tokenEndpoint = tokenEndpoint;
 }
 
 function clear() {
   current = null;
+  refreshInFlight = null;
 }
 
 /**
@@ -105,4 +120,35 @@ function getAccessToken() {
   return status().ready ? current.accessToken : null;
 }
 
-module.exports = { remember, clear, clearIfCurrent, status, getAccessToken, sharedSessionEnabled };
+/**
+ * Return a usable access token, refreshing the hosted-MCP credential when it
+ * is close to expiry. Concurrent callers share one refresh request so rotated
+ * refresh tokens cannot race and invalidate one another.
+ */
+async function getFreshAccessToken() {
+  if (current && current.expiresAt - REFRESH_SKEW_MS > Date.now()) return current.accessToken;
+  if (!current?.refreshToken || !current.clientId || !current.tokenEndpoint) return null;
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = refreshAccessToken({
+    refreshToken: current.refreshToken,
+    clientId: current.clientId,
+    tokenEndpoint: current.tokenEndpoint,
+  }).then((next) => {
+    remember(next);
+    return next.accessToken;
+  }).finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
+}
+
+module.exports = {
+  remember,
+  clear,
+  clearIfCurrent,
+  status,
+  getAccessToken,
+  getFreshAccessToken,
+  sharedSessionEnabled,
+};

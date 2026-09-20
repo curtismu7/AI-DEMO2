@@ -12,21 +12,25 @@ const ADMIN_DEMO_STEPS = [
   {
     id: 'ADMIN1',
     title: 'List applications',
+    demoSurface: 'hosted-pingone-mcp',
     trigger: { type: 'chip', text: 'List all PingOne applications in this environment' },
   },
   {
     id: 'ADMIN2',
     title: 'List users',
+    demoSurface: 'hosted-pingone-mcp',
     trigger: { type: 'chip', text: 'List the users in my PingOne environment' },
   },
   {
     id: 'ADMIN3',
     title: 'List populations',
+    demoSurface: 'hosted-pingone-mcp',
     trigger: { type: 'chip', text: 'List the populations in my PingOne environment' },
   },
   {
     id: 'ADMIN4',
     title: 'Get environment',
+    demoSurface: 'hosted-pingone-mcp',
     trigger: { type: 'chip', text: 'Get the details of my PingOne environment' },
   },
   // ADMIN5-7 exist because ADMIN1-4 are four unconditional reads in a row —
@@ -36,6 +40,7 @@ const ADMIN_DEMO_STEPS = [
   {
     id: 'ADMIN5',
     title: 'Search users by prefix',
+    demoSurface: 'hosted-pingone-mcp',
     // queryPrompt: the UI intercepts this step and opens the username-filter
     // modal (AIAgent's userFilter prompt) instead of sending the text — the
     // presenter chooses the prefix live rather than demoing a hardcoded one.
@@ -46,6 +51,7 @@ const ADMIN_DEMO_STEPS = [
   {
     id: 'ADMIN6',
     title: 'Search applications by prefix',
+    demoSurface: 'hosted-pingone-mcp',
     // queryPrompt: same prompt-first contract as ADMIN5 — the UI opens the
     // shared prefix modal (app variant) so the presenter chooses the prefix
     // live. Text stays as the parse-ledger phrase and no-modal fallback.
@@ -53,6 +59,7 @@ const ADMIN_DEMO_STEPS = [
   },
   {
     id: 'ADMIN7',
+    demoSurface: 'hosted-pingone-mcp',
     // Title is the chip's visible label (requested wording). The trigger text
     // deliberately differs: "MCP" in a message matches an earlier BANKING
     // heuristic (mcp_tools) before the admin overlay runs, so the literal
@@ -66,26 +73,31 @@ const ADMIN_DEMO_STEPS = [
   {
     id: 'ADMIN8',
     title: 'Show resources and their scopes',
+    demoSurface: 'hosted-pingone-mcp',
     trigger: { type: 'chip', text: 'List the PingOne resources and their scopes' },
   },
   {
     id: 'ADMIN9',
     title: 'Show environment services',
+    demoSurface: 'hosted-pingone-mcp',
     trigger: { type: 'chip', text: 'Show the PingOne services enabled for this environment' },
   },
   {
     id: 'ADMIN10',
     title: 'List DaVinci flows',
+    demoSurface: 'hosted-pingone-mcp',
     trigger: { type: 'chip', text: 'List the DaVinci flows in this PingOne environment' },
   },
   {
     id: 'ADMIN11',
     title: 'List DaVinci applications',
+    demoSurface: 'hosted-pingone-mcp',
     trigger: { type: 'chip', text: 'List the DaVinci applications in this PingOne environment' },
   },
   {
     id: 'ADMIN12',
     title: 'List DaVinci connectors',
+    demoSurface: 'hosted-pingone-mcp',
     trigger: { type: 'chip', text: 'List the DaVinci connectors available in this PingOne environment' },
   },
   {

@@ -20,10 +20,11 @@
  * in. Roles ride on the SIGNED-IN USER, which is also what sizes the tool list:
  * an admin user sees ~73 tools, a plain user ~6.
  *
- * Consequence: every consumer of this adapter is SESSION-SCOPED. There is no
- * unattended path — a background job cannot call the hosted MCP server at all.
- * The hosted server is stateless: each JSON-RPC POST is self-contained, so there
- * is no `initialize` handshake or `Mcp-Session-Id` to track.
+ * Consequence: every consumer of this adapter is SESSION-SCOPED. A session
+ * carrying a refresh token can be renewed transparently; a raw bearer or an
+ * unattended caller without refresh credentials still cannot renew. The
+ * hosted server is stateless: each JSON-RPC POST is self-contained, so there
+ * is no upstream `initialize` handshake or `Mcp-Session-Id` to track.
  *
  * Drop-in for the old stdio adapter — exports `listTools()` and `callTool()`
  * with the same shapes the agent / pipeline / inspector already consume, with
@@ -35,6 +36,7 @@
 const axios = require('axios');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const configStore = require('./configStore');
+const { refreshAccessToken } = require('./pingoneMcpTokenService');
 
 const TIMEOUT_MS = 30_000;
 
@@ -152,6 +154,49 @@ function _delegatedToken(auth) {
     return t;
 }
 
+const REFRESH_SKEW_MS = 5 * 60_000;
+const refreshPromises = new WeakMap();
+
+function _tokenRecord(auth) {
+    if (!auth || typeof auth !== 'object') return null;
+    if (auth.pingoneMcpAdminToken && typeof auth.pingoneMcpAdminToken === 'object') {
+        return auth.pingoneMcpAdminToken;
+    }
+    return auth.accessToken ? auth : null;
+}
+
+function _canRefresh(auth) {
+    const record = _tokenRecord(auth);
+    return Boolean(record?.refreshToken && record.clientId && record.tokenEndpoint);
+}
+
+async function _refreshRecord(record) {
+    if (refreshPromises.has(record)) return refreshPromises.get(record);
+    const pending = refreshAccessToken({
+        refreshToken: record.refreshToken,
+        clientId: record.clientId,
+        tokenEndpoint: record.tokenEndpoint,
+    }).then((next) => {
+        record.accessToken = next.accessToken;
+        record.expiresAt = next.expiresAt;
+        record.refreshToken = next.refreshToken || record.refreshToken;
+        return record.accessToken;
+    }).finally(() => {
+        refreshPromises.delete(record);
+    });
+    refreshPromises.set(record, pending);
+    return pending;
+}
+
+async function _resolvedDelegatedToken(auth) {
+    const record = _tokenRecord(auth);
+    if (record && record.refreshToken && record.clientId && record.tokenEndpoint
+        && Number(record.expiresAt) - REFRESH_SKEW_MS <= Date.now()) {
+        return _refreshRecord(record);
+    }
+    return _delegatedToken(auth);
+}
+
 /**
  * Some MCP HTTP servers answer with text/event-stream even for a single result.
  * The PingOne server returns application/json today, but parse SSE defensively
@@ -168,9 +213,9 @@ function _extractJsonRpc(data) {
     throw new Error('PingOne MCP: unrecognized response framing');
 }
 
-async function _send(method, params, auth) {
+async function _send(method, params, auth, retriedAfter401 = false) {
     const id = ++_msgId;
-    const token = _delegatedToken(auth);
+    const token = await _resolvedDelegatedToken(auth);
     let resp;
     try {
         resp = await axios.post(
@@ -202,6 +247,10 @@ async function _send(method, params, auth) {
         // A bare "401 Invalid authentication" sent three separate investigations
         // after roles, app type and scopes, all of which were already correct.
         // Say which of the two 401s this is, because they need opposite actions.
+        if (status === 401 && !retriedAfter401 && _canRefresh(auth)) {
+            await _refreshRecord(_tokenRecord(auth));
+            return _send(method, params, auth, true);
+        }
         if (status === 401) msg += ` — ${_authDiagnosis(token)}`;
         const e = new Error(msg);
         e.code = 'pingone_mcp_http_error';

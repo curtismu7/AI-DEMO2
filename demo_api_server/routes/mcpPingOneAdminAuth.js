@@ -250,7 +250,7 @@ router.get('/login', requireSignedInSession, async (req, res) => {
         response_type: 'code',
         client_id: loopback.clientId,
         redirect_uri: loopback.redirectUri,
-        scope: 'openid',
+        scope: 'openid offline_access',
         state,
         code_challenge: codeChallenge,
         code_challenge_method: 'S256',
@@ -278,7 +278,7 @@ router.get('/login', requireSignedInSession, async (req, res) => {
       response_type: 'code',
       client_id: app.clientId,
       redirect_uri: redirectUri,
-      scope: 'openid',
+      scope: 'openid offline_access',
       state,
       code_challenge: codeChallenge,
       code_challenge_method: 'S256',
@@ -381,6 +381,9 @@ router.get('/callback', async (req, res) => {
     const expiresInMs = (resp.data.expires_in || 3600) * 1000;
     req.session.pingoneMcpAdminToken = {
       accessToken: resp.data.access_token,
+      refreshToken: resp.data.refresh_token,
+      clientId: app.clientId,
+      tokenEndpoint,
       expiresAt: Date.now() + expiresInMs,
     };
     const returnTo = pending.returnTo;
@@ -396,6 +399,9 @@ router.get('/callback', async (req, res) => {
       if (!err) {
         pingoneAdminSession.remember({
           accessToken: resp.data.access_token,
+          refreshToken: resp.data.refresh_token,
+          clientId: app.clientId,
+          tokenEndpoint,
           expiresAt: Date.now() + expiresInMs,
         });
       }
@@ -485,6 +491,9 @@ async function handleLoopbackCallback(req, res) {
     const expiresInMs = (resp.data.expires_in || 3600) * 1000;
     pingoneAdminSession.remember({
       accessToken: resp.data.access_token,
+      refreshToken: resp.data.refresh_token,
+      clientId: pending.clientId,
+      tokenEndpoint: pending.tokenEndpoint,
       expiresAt: Date.now() + expiresInMs,
     });
     return backTo('pingone_admin_login=success');

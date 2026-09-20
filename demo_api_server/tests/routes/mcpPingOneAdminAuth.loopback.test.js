@@ -78,13 +78,14 @@ describe('the pingone-admin door signs in over loopback with the built-in client
     expect(url.searchParams.get('code_challenge_method')).toBe('S256');
     // Same environment as the app session, so the demo user is a valid hint.
     expect(url.searchParams.get('login_hint')).toBe('demoUser');
+    expect(url.searchParams.get('scope')).toBe('openid offline_access');
   });
 
   test('the loopback callback redeems the code and publishes the token', async () => {
     const login = await request(buildApp()).get('/api/mcp/inspector/pingone-admin/login').expect(302);
     const state = new URL(login.headers.location).searchParams.get('state');
 
-    axios.post.mockResolvedValue({ data: { access_token: 'tok', expires_in: 3600 } });
+    axios.post.mockResolvedValue({ data: { access_token: 'tok', refresh_token: 'refresh-tok', expires_in: 3600 } });
     const res = await callLoopback(`/callback?code=abc&state=${state}`);
 
     expect(axios.post).toHaveBeenCalledTimes(1);
@@ -98,7 +99,7 @@ describe('the pingone-admin door signs in over loopback with the built-in client
     expect(body.get('client_secret')).toBeNull();
 
     expect(pingoneAdminSession.remember).toHaveBeenCalledWith(
-      expect.objectContaining({ accessToken: 'tok' }),
+      expect.objectContaining({ accessToken: 'tok', refreshToken: 'refresh-tok', clientId: BUILTIN }),
     );
     // Back to the app, not left on a dead localhost tab.
     expect(res.status).toBe(302);

@@ -539,6 +539,7 @@ describe('DemoStepsDropdown — pingone-admin vertical', () => {
     id,
     title: `Admin title for ${id}`,
     trigger: { type: 'chip', text: `admin prompt for ${id}` },
+    demoSurface: 'hosted-pingone-mcp',
   }));
 
   beforeEach(() => {
@@ -578,5 +579,18 @@ describe('DemoStepsDropdown — pingone-admin vertical', () => {
       '/api/use-cases',
       { params: { vertical: 'pingone-admin' }, _silent: true },
     ));
+  });
+
+  it('labels admin chips as the hosted PingOne MCP path', async () => {
+    render(
+      <DemoStepsDropdown
+        vertical="pingone-admin"
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-step-ADMIN1')).toBeInTheDocument());
+    expect(screen.getAllByText('Hosted MCP')).toHaveLength(13);
   });
 });
