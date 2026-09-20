@@ -87,3 +87,18 @@ test('keeps missing latency values at the end in both sort directions', async ()
   fireEvent.click(latencySort);
   expect(screen.getAllByRole('row')[1]).toHaveTextContent('Banking MCP');
 });
+
+test('shows selected server details in the right panel', async () => {
+  render(<McpDiscoveryPage />);
+  await waitFor(() => expect(screen.getByText('Banking MCP')).toBeInTheDocument());
+
+  fireEvent.click(screen.getByText('Banking MCP'));
+
+  expect(screen.getByRole('heading', { name: 'Server details' })).toBeInTheDocument();
+  expect(screen.getByText('Docker Compose')).toBeInTheDocument();
+  expect(screen.getByText('streamable-http')).toBeInTheDocument();
+  expect(screen.getByText('2026-07-28')).toBeInTheDocument();
+  expect(screen.getAllByText('http://127.0.0.1:8080/mcp').length).toBeGreaterThan(1);
+  expect(screen.getByText('get_balance')).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Metadata findings' })).not.toBeInTheDocument();
+});

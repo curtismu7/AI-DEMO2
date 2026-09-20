@@ -119,6 +119,16 @@
 .mcp-discovery-sort-indicator-descending::before { opacity: .25; }
 .mcp-discovery-sort-indicator-descending::after { border-top-color: var(--th-bg-emphasis); }
 .mcp-discovery-table td { padding: 11px 12px; border-top: 1px solid var(--th-border); color: var(--th-text); vertical-align: top; }
+.mcp-discovery-table tbody tr { cursor: pointer; }
+.mcp-discovery-table tbody tr:focus-visible { outline: 2px solid var(--th-bg-emphasis); outline-offset: -2px; }
+.mcp-discovery-table tbody tr:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+.mcp-discovery-row-selected {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
 .mcp-discovery-table td strong,
 .mcp-discovery-table td small { display: block; }
 .mcp-discovery-table td small { margin-top: 3px; color: var(--th-text-body); font-size: var(--font-size-2xs); }
@@ -150,6 +160,16 @@
 .mcp-discovery-findings li strong { color: var(--th-status-warning-text); font-size: var(--font-size-sm); }
 .mcp-discovery-findings li span { margin-top: 3px; color: var(--th-text); font-size: var(--font-size-xs); }
 .mcp-discovery-findings li p { margin: 5px 0 0; color: var(--th-text-body); font-size: var(--font-size-xs); line-height: 1.45; }
+.mcp-discovery-details { padding: 16px 18px 2px; }
+.mcp-discovery-details h3 { margin: 0 0 12px; color: var(--th-text); font-size: var(--font-size-md); }
+.mcp-discovery-details dl { display: grid; gap: 10px; margin: 0 0 20px; }
+.mcp-discovery-details dl div { display: grid; grid-template-columns: minmax(90px, .7fr) minmax(0, 1.3fr); gap: 12px; border-bottom: 1px solid var(--th-border); padding-bottom: 8px; }
+.mcp-discovery-details dt { color: var(--th-text-body); font-size: var(--font-size-xs); }
+.mcp-discovery-details dd { min-width: 0; margin: 0; color: var(--th-text); font-size: var(--font-size-xs); overflow-wrap: anywhere; }
+.mcp-discovery-tool-list { display: grid; gap: 8px; margin: 0 0 20px; padding: 0; list-style: none; }
+.mcp-discovery-tool-list li { display: grid; gap: 3px; border-left: 3px solid var(--th-bg-emphasis); padding: 7px 0 7px 10px; }
+.mcp-discovery-tool-list strong { color: var(--th-text); font-size: var(--font-size-sm); }
+.mcp-discovery-tool-list span { color: var(--th-text-body); font-size: var(--font-size-xs); line-height: 1.4; }
 .mcp-discovery-boundary { display: grid; gap: 4px; margin: 0 18px 18px; border-top: 1px solid var(--th-border); padding-top: 14px; color: var(--th-text-body); font-size: var(--font-size-xs); line-height: 1.45; }
 .mcp-discovery-boundary strong { color: var(--th-text); }
 
