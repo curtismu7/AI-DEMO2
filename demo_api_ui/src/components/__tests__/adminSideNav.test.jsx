@@ -142,6 +142,19 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(screen.getByText("Health Check")).toBeInTheDocument();
   });
 
+  it("shows MCP Runtime Inventory for a non-admin user and links to discovery", () => {
+    renderNavAsUser(customerUser);
+    fireEvent.click(screen.getByRole("button", { name: /^MCP & Gateways/ }));
+    const link = screen.getByText("MCP Runtime Inventory").closest("a");
+    expect(link).toHaveAttribute("href", "/mcp-discovery");
+  });
+
+  it("finds MCP Runtime Inventory by searching for runtime", () => {
+    renderNavAsUser(customerUser);
+    fireEvent.change(screen.getByLabelText(/search navigation/i), { target: { value: "runtime" } });
+    expect(screen.getByText("MCP Runtime Inventory")).toBeInTheDocument();
+  });
+
   it("shows the Demo Config link for a non-admin user (no admin gate)", () => {
     renderNavAsUser(customerUser);
     fireEvent.click(screen.getByRole("button", { name: /^Demos/ }));
