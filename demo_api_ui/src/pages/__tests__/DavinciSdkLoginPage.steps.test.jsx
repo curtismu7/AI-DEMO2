@@ -48,6 +48,7 @@ const ENTER_USERNAME = form("Enter Username", [
 
 const TYPES = {
   TEXT: ["TextCollector", "SingleValueCollector"],
+  PASSWORD: ["PasswordCollector", "SingleValueCollector"],
   SUBMIT_BUTTON: ["SubmitCollector", "ActionCollector"],
   FLOW_BUTTON: ["FlowCollector", "ActionCollector"],
 };
@@ -149,6 +150,26 @@ describe("DavinciSdkLoginPage Step Inspector", () => {
     expect(frameLabels(container)).toContain("DaVinci returned continue");
     expect(frameLabels(container)).not.toContain("SDK updates collector");
     expect(container.textContent).not.toMatch(/SECRETNONCE|STATEVALUE|CHALLENGEVALUE|INTERACTION-SECRET/);
+  });
+
+  it("selects the new response and collector snapshot after Continue advances the form", async () => {
+    const nextForm = form("Enter Passcode", [
+      { type: "PASSWORD", key: "passcode", label: "Passcode" },
+      { type: "SUBMIT_BUTTON", key: "CONTINUE", label: "Continue" },
+    ]);
+    const { container, findByRole } = render(<DavinciSdkLoginPage />);
+    await waitFor(() => expect(container.querySelectorAll(".sdkl-step")).toHaveLength(1));
+    client.next.mockImplementation(async () => {
+      current = nextForm;
+      return { status: "continue" };
+    });
+
+    fireEvent.click(await findByRole("button", { name: "Sign On" }));
+    expect(client.next).toHaveBeenCalled();
+
+    await waitFor(() => expect(container.querySelector(".sdk-reel-detail")).toHaveTextContent('"formName": "Enter Passcode"'));
+    expect(container.querySelector(".sdk-reel-detail")).toHaveTextContent('"status": "continue"');
+    expect(container.querySelector(".sdk-reel-detail")).toHaveTextContent("PasswordCollector");
   });
 
   it("keeps the collector updater result while masking its live event and records next completion", async () => {

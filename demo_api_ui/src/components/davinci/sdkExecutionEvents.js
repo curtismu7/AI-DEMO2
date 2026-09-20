@@ -45,12 +45,36 @@ function maskedCollectors(collectors) {
   }));
 }
 
+function maskedResponse(response) {
+  if (!response || typeof response !== "object" || Array.isArray(response)) return null;
+  const fields = Array.isArray(response.fields)
+    ? response.fields.map((field) => ({
+        ...(field?.type ? { type: String(field.type) } : {}),
+        ...(field?.key ? { key: String(field.key) } : {}),
+        ...(field?.label ? { label: String(field.label) } : {}),
+      }))
+    : [];
+  return {
+    ...(response.flowStatus ? { flowStatus: String(response.flowStatus) } : {}),
+    ...(response.capabilityName ? { capabilityName: String(response.capabilityName) } : {}),
+    ...(response.eventName ? { eventName: String(response.eventName) } : {}),
+    ...(Object.hasOwn(response, "hasInteractionId") ? { hasInteractionId: Boolean(response.hasInteractionId) } : {}),
+    ...(response.formName ? { formName: String(response.formName) } : {}),
+    fields,
+    ...(Array.isArray(response.links) ? { links: response.links.map(String) } : {}),
+    ...(Array.isArray(response.authorizeKeys) ? { authorizeKeys: response.authorizeKeys.map(String) } : {}),
+    ...(response.errorCode ? { errorCode: String(response.errorCode) } : {}),
+    ...(response.errorMessage ? { errorMessage: String(response.errorMessage) } : {}),
+  };
+}
+
 /** Returns only the allowlisted fields that are safe to display in the execution reel. */
 export function maskExecutionDetail(detail) {
   if (!detail || typeof detail !== "object" || Array.isArray(detail)) return {};
   const formData = maskedFormData(detail.formData);
   const body = maskedStepBody(parseBody(detail.body));
   const collectors = maskedCollectors(detail.collectors);
+  const response = maskedResponse(detail.response);
   return {
     ...(detail.method ? { method: String(detail.method).toUpperCase() } : {}),
     ...(detail.host ? { host: String(detail.host) } : {}),
@@ -65,6 +89,7 @@ export function maskExecutionDetail(detail) {
     ...(formData ? { formData } : {}),
     ...(body ? { body } : {}),
     ...(collectors ? { collectors } : {}),
+    ...(response ? { response } : {}),
     ...(Object.hasOwn(detail, "nonce") ? { nonce: maskedValue(detail.nonce) } : {}),
     ...(Object.hasOwn(detail, "state") ? { state: maskedValue(detail.state) } : {}),
     ...(Object.hasOwn(detail, "pkce") ? { pkce: maskedValue(detail.pkce) } : {}),

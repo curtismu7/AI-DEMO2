@@ -62,11 +62,18 @@ function FrameDetails({ event }) {
     ...(detail.paramNames ? { parameterNames: detail.paramNames } : {}),
     ...(detail.body ? { body: detail.body } : {}),
   };
-  const response = {
-    ...(detail.status ? { status: detail.status } : {}),
-    ...(detail.eventType ? { eventType: detail.eventType } : {}),
-    ...(detail.actionKey ? { actionKey: detail.actionKey } : {}),
-  };
+  const response = detail.response
+    ? {
+        ...detail.response,
+        ...((detail.response.flowStatus || detail.response.eventName)
+          ? { status: detail.response.flowStatus || detail.response.eventName }
+          : {}),
+      }
+    : {
+        ...(detail.status ? { status: detail.status } : {}),
+        ...(detail.eventType ? { eventType: detail.eventType } : {}),
+        ...(detail.actionKey ? { actionKey: detail.actionKey } : {}),
+      };
   return (
     <section className="sdk-reel-detail" aria-label={`Selected frame: ${event.label}`}>
       <h4>{event.label}</h4>

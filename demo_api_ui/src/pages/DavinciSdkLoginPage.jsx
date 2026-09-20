@@ -151,6 +151,7 @@ export default function DavinciSdkLoginPage() {
         codeKey: null,
         detail: {
           status: node?.status,
+          response: summarizeResponse(client.cache?.getLatestResponse?.()?.data),
           collectors: currentCollectors,
         },
       }),
