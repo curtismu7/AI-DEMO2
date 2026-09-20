@@ -7,10 +7,9 @@ const YAML = require('yaml');
 
 const ROOT = path.resolve(__dirname, '..');
 const REQUIRED_BYPASSES = [
-  '/api/auth/oauth/user/login',
-  '/api/auth/oauth/user/callback',
-  '/api/auth/oauth/login',
-  '/api/auth/oauth/callback',
+  '/api/auth/hosted-access/login',
+  '/api/auth/hosted-access/callback',
+  '/api/auth/hosted-access/logout',
 ];
 
 function loadDocuments(file) {
@@ -29,8 +28,8 @@ function verifyHostedAccess({ ingressFile, configFile, seDeployFile }) {
   if (!String(annotations['nginx.ingress.kubernetes.io/auth-url'] || '').endsWith('/api/auth/hosted-access/check')) {
     errors.push('ai-demo-ingress must use the hosted-access check as auth-url');
   }
-  if (!String(annotations['nginx.ingress.kubernetes.io/auth-signin'] || '').startsWith('https://ai-demo.ping-devops.com/api/auth/oauth/user/login')) {
-    errors.push('ai-demo-ingress must send unauthenticated browsers to PingOne user login');
+  if (!String(annotations['nginx.ingress.kubernetes.io/auth-signin'] || '').startsWith('https://ai-demo.ping-devops.com/api/auth/hosted-access/login')) {
+    errors.push('ai-demo-ingress must send unauthenticated browsers to the hosted front-door login');
   }
 
   const bypassRules = bypass?.spec?.rules || [];

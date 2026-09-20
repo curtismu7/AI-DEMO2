@@ -109,7 +109,10 @@ function stampHostedAccessApproval(session, decision, policy, approvedAt = Date.
 function hasCurrentHostedAccessApproval(session, policy = loadHostedAccessPolicy()) {
   if (!policy.enabled) return true;
   const approval = session?.hostedAccessApproval;
-  const subject = session?.user?.oauthId || session?.user?.sub || null;
+  const subject = session?.hostedAccessIdentity?.subject
+    || session?.user?.oauthId
+    || session?.user?.sub
+    || null;
   return !!(
     approval
     && approval.version === APPROVAL_VERSION

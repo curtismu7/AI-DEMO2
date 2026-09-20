@@ -6,10 +6,9 @@ const {
 } = require('../services/hostedAccessPolicy');
 
 const EXACT_BYPASSES = new Set([
-  'GET /api/auth/oauth/user/login',
-  'GET /api/auth/oauth/user/callback',
-  'GET /api/auth/oauth/login',
-  'GET /api/auth/oauth/callback',
+  'GET /api/auth/hosted-access/login',
+  'GET /api/auth/hosted-access/callback',
+  'GET /api/auth/hosted-access/logout',
   'GET /api/healthz',
 ]);
 
@@ -35,7 +34,7 @@ function createHostedAccessGate({
 } = {}) {
   return function hostedAccessGate(req, res, next) {
     if (!policy.enabled || isHostedAccessBypassPath(req.originalUrl || req.url, req.method)) return next();
-    if (hasApproval(req.session, policy)) return next();
+    if (hasApproval(req.hostedSession, policy)) return next();
     return res.status(401).send({ error: 'hosted_access_required' });
   };
 }
@@ -46,7 +45,7 @@ function hostedAccessCheck({
 } = {}) {
   return function check(req, res) {
     res.set('Cache-Control', 'no-store');
-    if (!policy.enabled || hasApproval(req.session, policy)) return res.status(204).end();
+    if (!policy.enabled || hasApproval(req.hostedSession, policy)) return res.status(204).end();
     return res.status(401).end();
   };
 }

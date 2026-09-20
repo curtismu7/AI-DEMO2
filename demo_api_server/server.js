@@ -57,7 +57,7 @@ const {
 } = require('./services/bffSessionGating');
 const { stampUseCaseId, stampVertical } = require('./services/useCaseTagging');
 const { deriveUseCaseId, resolveChipUseCaseId } = require('./config/useCases');
-const { createHostedSessionMiddleware, deriveHostedSessionSecret } = require('./middleware/hostedSession');
+const { MemoryStore: HostedMemoryStore, createHostedSessionMiddleware, deriveHostedSessionSecret } = require('./middleware/hostedSession');
 
 const express = require('express');
 const cors = require('cors');
@@ -530,7 +530,7 @@ app.use(sessionMiddleware);
 // express-session middleware because both response hooks would otherwise race
 // over req.session.
 app.use(createHostedSessionMiddleware({
-    store: sessionStore || new session.MemoryStore(),
+    store: sessionStore || new HostedMemoryStore(),
     secret: process.env.HOSTED_ACCESS_SESSION_SECRET
         || deriveHostedSessionSecret(process.env.SESSION_SECRET),
     production: isProduction,

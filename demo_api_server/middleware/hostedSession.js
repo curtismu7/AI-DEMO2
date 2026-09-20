@@ -7,6 +7,26 @@ const signature = require('cookie-signature');
 const COOKIE_NAME = 'hosted.sid';
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000;
 
+class MemoryStore {
+  constructor() {
+    this.records = new Map();
+  }
+
+  get(id, callback) {
+    callback(null, this.records.get(id) || null);
+  }
+
+  set(id, value, callback) {
+    this.records.set(id, value);
+    callback(null);
+  }
+
+  destroy(id, callback) {
+    this.records.delete(id);
+    callback(null);
+  }
+}
+
 function deriveHostedSessionSecret(sessionSecret) {
   return crypto.createHmac('sha256', sessionSecret || 'dev-session-secret-change-in-production')
     .update('ai-demo-hosted-front-door-session')
@@ -102,6 +122,7 @@ function createHostedSessionMiddleware({ store, secret, production = false } = {
 module.exports = {
   COOKIE_NAME,
   SESSION_TTL_MS,
+  MemoryStore,
   createHostedSessionMiddleware,
   deriveHostedSessionSecret,
 };

@@ -24,7 +24,7 @@ metadata:
     # Using https here attempts TLS against an HTTP port and makes the entire
     # hosted application fail closed.
     nginx.ingress.kubernetes.io/auth-url: "http://frontend.<<NAMESPACE>>.svc.cluster.local:4000/api/auth/hosted-access/check"
-    nginx.ingress.kubernetes.io/auth-signin: "https://ai-demo.ping-devops.com/api/auth/oauth/user/login?return_to=$escaped_request_uri"
+    nginx.ingress.kubernetes.io/auth-signin: "https://ai-demo.ping-devops.com/api/auth/hosted-access/login?return_to=$escaped_request_uri"
 spec:
   ingressClassName: nginx-public
   rules:
@@ -82,28 +82,21 @@ spec:
   - host: ai-demo.ping-devops.com
     http:
       paths:
-      - path: /api/auth/oauth/user/login
+      - path: /api/auth/hosted-access/login
         pathType: Exact
         backend:
           service:
             name: frontend
             port:
               number: 4000
-      - path: /api/auth/oauth/user/callback
+      - path: /api/auth/hosted-access/callback
         pathType: Exact
         backend:
           service:
             name: frontend
             port:
               number: 4000
-      - path: /api/auth/oauth/login
-        pathType: Exact
-        backend:
-          service:
-            name: frontend
-            port:
-              number: 4000
-      - path: /api/auth/oauth/callback
+      - path: /api/auth/hosted-access/logout
         pathType: Exact
         backend:
           service:

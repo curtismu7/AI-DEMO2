@@ -22,19 +22,19 @@ function response() {
 
 describe('hostedAccessGate', () => {
   test.each([
-    ['/api/auth/oauth/user/login', 'GET'],
-    ['/api/auth/oauth/user/callback', 'GET'],
-    ['/api/auth/oauth/login', 'GET'],
-    ['/api/auth/oauth/callback', 'GET'],
+    ['/api/auth/hosted-access/login', 'GET'],
+    ['/api/auth/hosted-access/callback', 'GET'],
+    ['/api/auth/hosted-access/logout', 'GET'],
     ['/api/healthz', 'GET'],
   ])('allows exact bypass %s %s', (path, method) => {
     expect(isHostedAccessBypassPath(path, method)).toBe(true);
   });
 
   test.each([
-    ['/api/auth/oauth/user/callback/extra', 'GET'],
-    ['/api/auth/oauth/user/login', 'POST'],
-    ['/api/auth/oauth/callback.evil', 'GET'],
+    ['/api/auth/hosted-access/callback/extra', 'GET'],
+    ['/api/auth/hosted-access/login', 'POST'],
+    ['/api/auth/hosted-access/callback.evil', 'GET'],
+    ['/api/auth/oauth/user/login', 'GET'],
     ['/api/use-cases', 'GET'],
   ])('rejects bypass confusion %s %s', (path, method) => {
     expect(isHostedAccessBypassPath(path, method)).toBe(false);
@@ -51,7 +51,7 @@ describe('hostedAccessGate', () => {
     createHostedAccessGate({
       policy: { enabled: true },
       hasApproval: () => true,
-    })({ originalUrl: '/api/use-cases', method: 'GET', session: {} }, response(), next);
+    })({ originalUrl: '/api/use-cases', method: 'GET', session: {}, hostedSession: {} }, response(), next);
     expect(next).toHaveBeenCalledTimes(1);
   });
 
@@ -60,7 +60,7 @@ describe('hostedAccessGate', () => {
     createHostedAccessGate({
       policy: { enabled: true },
       hasApproval: () => false,
-    })({ originalUrl: '/api/use-cases', method: 'GET', session: {} }, res, jest.fn());
+    })({ originalUrl: '/api/use-cases', method: 'GET', session: {}, hostedSession: {} }, res, jest.fn());
     expect(res.statusCode).toBe(401);
     expect(res.body).toEqual({ error: 'hosted_access_required' });
   });
@@ -70,7 +70,7 @@ describe('hostedAccessGate', () => {
     createHostedAccessGate({
       policy: { enabled: true },
       hasApproval: () => false,
-    })({ originalUrl: '/api/use-cases', method: 'GET', session: { user: { oauthId: 'sub-1' } } }, res, jest.fn());
+    })({ originalUrl: '/api/use-cases', method: 'GET', session: { user: { oauthId: 'sub-1' } }, hostedSession: {} }, res, jest.fn());
     expect(res.statusCode).toBe(401);
     expect(res.body).toEqual({ error: 'hosted_access_required' });
   });
@@ -81,14 +81,14 @@ describe('hostedAccessGate', () => {
     [{ enabled: true }, { user: { oauthId: 'sub-1' } }, 401],
   ])('check returns expected status %#', (policy, session, status) => {
     const res = response();
-    hostedAccessCheck({ policy, hasApproval: () => false })({ session }, res);
+    hostedAccessCheck({ policy, hasApproval: () => false })({ session, hostedSession: session }, res);
     expect(res.statusCode).toBe(status);
     expect(res.body).toBeNull();
   });
 
   test('check returns 204 for an approved session without profile data', () => {
     const res = response();
-    hostedAccessCheck({ policy: { enabled: true }, hasApproval: () => true })({ session: {} }, res);
+    hostedAccessCheck({ policy: { enabled: true }, hasApproval: () => true })({ session: {}, hostedSession: {} }, res);
     expect(res.statusCode).toBe(204);
     expect(res.body).toBeNull();
   });
