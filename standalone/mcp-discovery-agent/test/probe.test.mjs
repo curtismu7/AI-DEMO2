@@ -35,9 +35,9 @@ test('falls back to initialize when server discovery is unsupported', async (t) 
   const fixture = await fixtureServer(async (req, res) => {
     const body = await new Promise((resolve) => { let raw = ''; req.on('data', (chunk) => { raw += chunk; }); req.on('end', () => resolve(JSON.parse(raw))); });
     methods.push(body.method);
-    res.writeHead(body.method === 'server/discover' ? 404 : 200, { 'content-type': 'application/json' });
+    res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify(body.method === 'server/discover'
-      ? { jsonrpc: '2.0', id: body.id, error: { code: -32601, message: 'Method not found' } }
+      ? { jsonrpc: '2.0', id: body.id, error: { code: -32602, message: 'Invalid request parameters' } }
       : body.method === 'initialize'
         ? { jsonrpc: '2.0', id: body.id, result: { protocolVersion: '2025-11-25', capabilities: {}, serverInfo: { name: 'legacy', version: '1' } } }
         : { jsonrpc: '2.0', id: body.id, result: { tools: [] } }));

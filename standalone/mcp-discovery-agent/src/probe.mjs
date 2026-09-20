@@ -70,7 +70,7 @@ export async function probeHttpCandidate(candidate, options = {}) {
     try {
       discovery = await rpc(candidate.endpoint, 'server/discover', {}, { ...options, signal: controller.signal });
     } catch (error) {
-      if (!(error?.code === -32601 || /HTTP 404/.test(error.message))) throw error;
+      if (!(error?.code === -32601 || error?.code === -32602 || /HTTP 404/.test(error.message))) throw error;
       const initialized = await rpc(candidate.endpoint, 'initialize', {
         protocolVersion: '2025-11-25',
         capabilities: {},
