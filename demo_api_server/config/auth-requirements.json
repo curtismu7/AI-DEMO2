@@ -187,6 +187,7 @@
     "/invest-dual-auth": "public",
     "/langchain": "public",
     "/learning": "public",
+    "/ai-gateway/shadow-ai-detector": "public",
     "/llama-vscode-guide": "user",
     "/intent-inspector": "admin",
     "/llm-config": "admin",

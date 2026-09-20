@@ -76,6 +76,7 @@ import HealthcareAdminOps from "./components/HealthcareAdminOps";
 import KillSwitchConfirmModal from "./components/KillSwitchConfirmModal";
 import LandingPage from "./components/LandingPage";
 import LearningHub from "./components/LearningHub";
+import ShadowAiDetectorPage from "./pages/ShadowAiDetectorPage";
 import LlmConfigPage from "./components/LlmConfigPage";
 import LogoutPage from "./components/LogoutPage";
 import LoginSuccessModal from "./components/LoginSuccessModal";
@@ -912,6 +913,19 @@ function AppWithAuth() {
                         <TopNav user={user} onLogout={logout} />
                         <main className="main-content">
                           <LearningHub />
+                        </main>
+                      </>
+                    )
+                  }
+                />
+                <Route
+                  path="/ai-gateway/shadow-ai-detector"
+                  element={
+                    loading ? null : (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <ShadowAiDetectorPage />
                         </main>
                       </>
                     )

@@ -161,6 +161,7 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.co
 // load when nothing is saved. Ids must equal slugify(<group label>) from
 // `allNavItems` below — update both together when renaming a group.
 const AUTO_EXPAND_SECTIONS = [
+  { id: "ai-gateway", paths: ["/ai-gateway/shadow-ai-detector"] },
   { id: "customer-demos", paths: ["/agent-lifecycle"] },
   { id: "demos", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/demo-config", "/delegation", "/delegation-chain-value", "/a2a-protocol-learning"] },
   { id: "ai-agents", paths: ["/ai-control-plane", "/control-plane", "/agent-registry", "/agent", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
@@ -492,6 +493,18 @@ export default function AdminSideNav({
   const allNavItems = [
     { label: "Home", path: "/", icon: "home" },
     { label: "Dashboard", path: "/security-dashboard", icon: "dashboard", adminOnly: true },
+    {
+      label: "AI-Gateway",
+      icon: "shld",
+      children: [
+        {
+          label: "Shadow AI Detector",
+          path: "/ai-gateway/shadow-ai-detector",
+          icon: "dbg",
+          searchAlias: "shadow ai detector ai usage oauth agents sensitive data flows browser extension",
+        },
+      ],
+    },
     {
       label: "AI Agent Gateway",
       icon: "shld",
