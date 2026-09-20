@@ -1008,6 +1008,16 @@ export default function BankingAgent({
       return true;
     }
   });
+  useEffect(() => {
+    const handler = (event) => {
+      const surface = event.detail?.surface;
+      if (!SURFACE_OPTIONS.some((option) => option.value === surface)) return;
+      setMovieReelSurface(surface);
+      setShowFilmstrip(surface === "embedded" || surface === "both");
+    };
+    window.addEventListener("agent-filmstrip-toggle", handler);
+    return () => window.removeEventListener("agent-filmstrip-toggle", handler);
+  }, []);
   const [quickConfigView, setQuickConfigView] = useState(() => {
     try {
       return EVIDENCE_VIEW_OPTIONS.some((option) => option.value === localStorage.getItem("ba_quick_config_view"))

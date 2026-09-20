@@ -728,6 +728,34 @@ describe("Header controls after the Actions dropdown removal", () => {
     }
   });
 
+  it("reflects movie reel surface changes coming from the dashboard", async () => {
+    renderAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Movie reel Step-by-step live trace$/ }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Movie reel surface" }));
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("option", { name: /^Pop-out\b/ }));
+    });
+    expect(screen.getByRole("button", { name: "Movie reel surface" })).toHaveTextContent("Pop-out");
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", {
+        detail: { on: false, surface: "none" },
+      }));
+    });
+    expect(screen.getByRole("button", { name: "Movie reel surface" })).toHaveTextContent("Off");
+  });
+
   it("marks Quick Config while a surface menu is open so its layout can expand", async () => {
     renderAgent({ user: customerUser, mode: "float" });
     await act(async () => {
