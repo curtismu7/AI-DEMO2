@@ -397,7 +397,7 @@ aws_build() {
   check_ghcr_env
   check_docker
   local registry="ghcr.io/${GITHUB_OWNER}"
-  local tag="${IMAGE_TAG:-latest}"
+  local tag="${IMAGE_TAG:-sha-$(git -C "$BASEDIR" rev-parse HEAD)}"
 
   info "Logging in to GHCR..."
   # Logout first to clear any stale macOS keychain entry — a leftover credential

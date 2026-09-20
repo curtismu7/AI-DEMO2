@@ -4,6 +4,14 @@ metadata:
   name: ai-demo
   labels:
     app: ai-demo
+    # Start with audit/warn while the remaining legacy workloads are migrated
+    # to fully restricted pod security contexts. This prevents silent drift
+    # and gives admission operators actionable violations without breaking the
+    # existing demo stack immediately.
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: latest
 ---
 apiVersion: v1
 kind: ResourceQuota
@@ -45,7 +53,14 @@ spec:
         matchLabels:
           kubernetes.io/metadata.name: ai-demo
   # Allow egress to PingOne and external HTTPS/DNS
-  - to: []
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        # Do not permit compromised workloads to reach the AWS instance or
+        # container metadata endpoints through this broad egress rule.
+        except:
+        - 169.254.169.254/32
+        - 169.254.170.2/32
     ports:
     - protocol: TCP
       port: 443

@@ -825,9 +825,11 @@ if [ -f "$ASSET_ROOT/monitoring/prometheus.yml" ]; then
     grafana_pass="$(vault_get GRAFANA_ADMIN_PASSWORD)"
   fi
   if [ -z "$grafana_pass" ]; then
+    if [ "${SECURITY_HARDENED_DEPLOYMENT:-false}" = "true" ]; then
+      die "GRAFANA_ADMIN_PASSWORD must be set in the vault or environment for an AWS/SE deployment"
+    fi
     grafana_pass="ai-demo-grafana"
-    warn "  GRAFANA_ADMIN_PASSWORD unset and not in the vault — using the default. Set it before any long-lived deployment:"
-    warn "    printf %s '<password>' | node demo_api_server/scripts/vault.js set GRAFANA_ADMIN_PASSWORD"
+    warn "  GRAFANA_ADMIN_PASSWORD unset and not in the vault — using the local-development fallback only."
   fi
   # PingOne SSO client secret for "Demo AI App - Grafana Login". Empty is fine:
   # Grafana still starts and the local admin form still works, so a stack

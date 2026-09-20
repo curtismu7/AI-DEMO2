@@ -91,7 +91,7 @@ docker compose build banking-api-server ui mcp-server langchain-agent
 > `python3 scripts/build-codegraph.py --stage-src langchain_agent/repo-src`)
 > before `docker build`, or the image build fails at the COPY step.
 
-Images are tagged `:latest` with `imagePullPolicy: IfNotPresent`, so after a
+Local images are tagged `:latest` with `imagePullPolicy: IfNotPresent`, so after a
 rebuild the running pods must be recreated to pick up the new image. The helper
 script `k8s/update.sh` does both (rebuild + rollout restart) — see Maintenance.
 
@@ -305,7 +305,7 @@ kubectl get events -n ai-demo --sort-by='.lastTimestamp'
 
 ### Updates
 The simplest path is the helper script, which rebuilds the image(s) and rolls the
-matching deployment(s) — required because images are `:latest` / `IfNotPresent`:
+matching deployment(s) — required because local images are `:latest` / `IfNotPresent`:
 ```bash
 # Rebuild + restart everything
 ./k8s/update.sh
