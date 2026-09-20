@@ -107,7 +107,7 @@ export default function AgentGatewayAuthorizationLessonPage() {
 
   return (
     <LessonLayout
-      title="Secure Agent Access"
+      title="Securing AI Agent access using Ping Identity"
       subtitle="See how an Agent Gateway validates and enforces an agent request, while PingOne Authorize supplies the policy decision."
       sections={LESSON_SECTIONS}
       storageKey="agent-gateway-authorization-lesson-nav-width"
