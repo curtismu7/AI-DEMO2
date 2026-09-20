@@ -8,7 +8,7 @@ const EMPTY_TRACE = {
 };
 
 describe("buildTraceSteps — empty trace", () => {
-  test("returns the 17 happy-path steps (intent-binding omitted mid-flight), all pending", () => {
+  test("returns the 18 happy-path steps (intent-binding omitted mid-flight), all pending", () => {
     const steps = buildTraceSteps(EMPTY_TRACE);
     // Each MCP method is TWO requests: the credential-less one the gateway
     // refuses, then the authorized one. Both legs are their own hop.
@@ -25,12 +25,12 @@ describe("buildTraceSteps — empty trace", () => {
       "llm", "agent-token", "exchange",
       // tools/call's credential-less leg goes out after the Authorize gate and
       // before the authorized call reaches the gateway, so it is drawn there.
-      "authorize", "tools-call-challenge", "gateway", "api-key-swap", "mcp",
+      "authorize", "tools-call-challenge", "gateway", "vault-key-inject", "api-key-swap", "mcp",
       "api", "database", "reply",
     ]);
     expect(steps[0].status).toBe("done"); // website is inherently done
     expect(steps.slice(1).every((s) => s.status === "pending")).toBe(true);
-    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17]);
+    expect(steps.map((s) => s.num)).toEqual([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]);
   });
 
   test("each MCP method's challenge leg is drawn in wire order, just before the hop that carries its authorized call", () => {
@@ -943,6 +943,7 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const trace = { ...EMPTY_TRACE,
       tokenEvents: [
         { id: 'evt-inbound', tokenType: 'access_token', credentialPath: 'api_key', status: 'ok', label: 'Inbound user bearer received' },
+        { id: 'vault-key-inject', tokenType: 'api_key', maskedValue: '...0000', credentialPath: 'api_key', status: 'ok', label: 'Vault key injected by PingGateway → invest' },
         { id: 'evt-swap', tokenType: 'api_key', maskedValue: '...0000', credentialPath: 'api_key', status: 'ok', label: 'Gateway swap: OAuth bearer dropped, service API key attached' },
         { id: 'evt-backend', tokenType: 'api_key', credentialPath: 'api_key', status: 'ok', label: 'Outbound GET demo_data_service /invest' },
       ],
@@ -951,6 +952,7 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const steps = buildTraceSteps(trace);
     const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
     expect(byId['api-key-swap'].status).toBe('done');
+    expect(byId['vault-key-inject'].status).toBe('done');
     expect(JSON.stringify(byId['api-key-swap'].detail)).toContain('0000');
     expect(byId.api.status).toBe('done');
     const flat = JSON.stringify(byId.api.detail);

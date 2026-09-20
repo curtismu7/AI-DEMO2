@@ -2,6 +2,8 @@
  * DemoStepsDropdown — agent header Demo steps menu.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import fs from 'node:fs';
+import path from 'node:path';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import DemoStepsDropdown from '../DemoStepsDropdown';
 import apiClient from '../../services/apiClient';
@@ -18,6 +20,7 @@ const CATALOG = DEMO_USE_CASE_IDS.map((id, i) => ({
   id,
   useCaseId: `slug-${id}`,
   title: `Title for ${id}`,
+  ...(id === 'UC8' ? { demoLabel: '✦ MCP App · transfer approval' } : {}),
   whatLong: `Long explanation for ${id}`,
   trigger: { type: 'chip', text: `prompt for ${id}` },
   // Insert a decoy so order-from-catalog ≠ demo script order
@@ -55,6 +58,35 @@ describe('DemoStepsDropdown', () => {
     await waitFor(() => expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument());
     fireEvent.click(screen.getByTestId('demo-steps-stop-agent'));
     expect(onStopAgentClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the selected drawer affordances when open', async () => {
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument());
+
+    expect(screen.getByTestId('demo-steps-close')).toBeInTheDocument();
+    expect(screen.getByTestId('demo-steps-resize-handle')).toBeInTheDocument();
+    expect(screen.getByTestId('demo-steps-popout')).toHaveAttribute('data-placement', 'right-overlay');
+  });
+
+  it('stacks the drawer search above its actions when the drawer is narrow', () => {
+    const css = fs.readFileSync(
+      path.resolve(__dirname, '../AIAgent.css'),
+      'utf8',
+    );
+
+    expect(css).toMatch(
+      /@container\s*\(max-width:\s*460px\)[\s\S]*?\.ba-demo-steps-drawer \.ba-demo-steps-popout__header-actions[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\) auto/,
+    );
+    expect(css).toMatch(
+      /@container\s*\(max-width:\s*460px\)[\s\S]*?\.ba-demo-steps-drawer \.ba-demo-steps-popout__search[\s\S]*?grid-column:\s*1\s*\/\s*-1/,
+    );
   });
 
   it('omits the Stop Agent action when onStopAgentClick is not provided', async () => {
@@ -96,6 +128,18 @@ describe('DemoStepsDropdown', () => {
       'Explain step 9: UC2 — Title for UC2',
     );
     expect(screen.getByTestId('demo-step-UC-TOOL1')).toBeInTheDocument();
+  });
+
+  it('uses the MCP App demo label for the selected transfer approval step', async () => {
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-step-UC8')).toBeInTheDocument());
+    expect(screen.getByTestId('demo-step-UC8')).toHaveTextContent('✦ MCP App · transfer approval');
   });
 
   it('calls onSelect with the catalog entry when a step is clicked', async () => {
@@ -167,7 +211,7 @@ describe('DemoStepsDropdown', () => {
     expect(screen.getByTestId('demo-steps-progress')).toHaveTextContent(`0 of ${total} done`);
   });
 
-  it('opens the explain modal from the per-step icon without running the step', async () => {
+  it('opens the explain modal from the per-step icon without closing Demo steps or running the step', async () => {
     const onSelect = vi.fn();
     const onOpenChange = vi.fn();
     render(
@@ -184,9 +228,9 @@ describe('DemoStepsDropdown', () => {
     expect(await screen.findByText('Long explanation for UC1')).toBeInTheDocument();
     // The icon explains only — running the step stays on the row button.
     expect(onSelect).not.toHaveBeenCalled();
-    // The popout MUST close: it is z-index 100061 and DraggableModal is 9999,
-    // so leaving it open renders the explanation behind the dropdown.
-    expect(onOpenChange).toHaveBeenCalledWith(false);
+    // The presenter keeps the script drawer open while inspecting an explanation.
+    expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalled();
   });
 
   it('treats a backend 400 unknown_vertical as "no demo steps", not an error', async () => {

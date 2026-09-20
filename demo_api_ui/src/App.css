@@ -1917,6 +1917,7 @@
   margin: 3rem auto;
   padding: 1.5rem 1.75rem;
   background: var(--th-bg-card);
+  color: var(--th-text);
   border: 1px solid var(--th-border);
   border-radius: 10px;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
@@ -1971,6 +1972,21 @@
 
 .signin-prompt__btn--ghost:hover {
   background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+/* The interrupt lives inside DraggableModal's dark footer. Keep its secondary
+   action on the same quiet control surface in both themes instead of relying
+   on a transparent button over a theme-dependent footer. */
+.signin-modal .signin-prompt__btn--ghost {
+  background: var(--modal-btn-bg);
+  border-color: var(--modal-btn-bg-hover);
+  color: var(--modal-header-text);
+}
+
+.signin-modal .signin-prompt__btn--ghost:hover {
+  background: var(--modal-btn-bg-hover);
+  color: var(--modal-header-text);
 }
 
 /* Strip: same design as the card, for content that still renders below it.
@@ -2062,4 +2078,5 @@
 .divider-drag-handle:hover,
 .divider-drag-handle:active {
   background: var(--th-border-strong);
+  color: var(--th-text);
 }

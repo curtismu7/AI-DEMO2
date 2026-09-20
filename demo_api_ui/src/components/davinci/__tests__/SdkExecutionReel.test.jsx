@@ -27,6 +27,7 @@ const LIVE_EVENTS = [
       path: "/as/authorize",
       paramNames: ["response_mode", "nonce"],
       responseMode: "pi.flow",
+      body: { parameters: { data: { formData: { username: "…" } } } },
     },
   },
   {
@@ -38,7 +39,14 @@ const LIVE_EVENTS = [
     label: "DaVinci returns sign-on collectors",
     codeKey: "start",
     detail: {
+      method: "GET",
+      host: "auth.example",
+      path: "/as/authorize",
+      paramNames: ["response_mode", "nonce"],
+      responseMode: "pi.flow",
+      body: { parameters: { data: { formData: { username: "…" } } } },
       status: "continue",
+      response: { status: "continue", eventName: "continue", formName: "Sign On", fields: [{ type: "TEXT", key: "username" }] },
       collectors: [{ type: "TextCollector", category: "SingleValueCollector" }],
     },
   },
@@ -87,10 +95,13 @@ describe("SdkExecutionReel", () => {
 
     expect(screen.queryByRole("button", { name: "Debugger" })).not.toBeInTheDocument();
     expect(document.querySelector(".sdk-reel-lanes")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /frame 2: davinci authorize request/i }));
-    const detail = screen.getByRole("region", { name: /selected frame: davinci authorize request/i });
+    fireEvent.click(screen.getByRole("button", { name: /frame 3: davinci returns sign-on collectors/i }));
+    const detail = screen.getByRole("region", { name: /selected frame: davinci returns sign-on collectors/i });
     expect(within(detail).getByText("Code", { selector: "summary" }).closest("details")).toHaveAttribute("open");
+    expect(within(detail).getByText("Request", { selector: "summary" }).closest("details")).toHaveAttribute("open");
     expect(within(detail).getByText("DaVinci response", { selector: "summary" }).closest("details")).toHaveAttribute("open");
+    expect(detail).toHaveTextContent('"username": "…"');
+    expect(detail).toHaveTextContent('"formName": "Sign On"');
   });
 
   it("keeps only the movie reel when compact mode is requested", () => {
@@ -123,6 +134,7 @@ describe("SdkExecutionReel", () => {
     expect(within(detail).getByText("DaVinci response", { selector: "summary" })).toBeInTheDocument();
     expect(within(detail).getByText("Collectors", { selector: "summary" })).toBeInTheDocument();
     expect(detail).toHaveTextContent("/as/authorize");
+    expect(detail).toHaveTextContent('"response_mode"');
   });
 
   it("closes the selected detail with Escape and returns focus to its frame", () => {

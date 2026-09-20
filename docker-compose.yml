@@ -51,6 +51,38 @@ name: ai-demo
 
 services:
 
+  # ── Read-only MCP runtime discovery agent ──────────────────────────────────
+  # The BFF proxies inventory and scan requests here. It has Docker socket read
+  # access only so it can observe Compose services; it receives no credentials
+  # and never invokes discovered tools.
+  mcp-discovery-agent:
+    build:
+      context: ./standalone
+      dockerfile: mcp-discovery-agent/Dockerfile
+    image: ai-demo-mcp-discovery-agent:latest
+    container_name: ai-demo-mcp-discovery-agent
+    environment:
+      MCP_DISCOVERY_HOST: "0.0.0.0"
+      MCP_DISCOVERY_PORT: "3910"
+      MCP_DISCOVERY_STORE_PATH: "/data/inventory.json"
+      MCP_DISCOVERY_COMPOSE_HOST: "host.docker.internal"
+      MCP_DISCOVERY_REMOTE_URLS: "${MCP_DISCOVERY_REMOTE_URLS:-}"
+      MCP_DISCOVERY_CONFIG_PATHS: "${MCP_DISCOVERY_CONFIG_PATHS:-}"
+    volumes:
+      - mcp-discovery-data:/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    pid: host
+    networks:
+      - ai-demo
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3910/health').then(r => { if (!r.ok) process.exit(1); })"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   # ── Jaeger UI + OTLP collector (free local tracing backend) ────────────────
   jaeger:
     image: jaegertracing/all-in-one:1.62.0
@@ -262,6 +294,7 @@ services:
       # key is actually set. See demo_api_server/.env.example for the values.
     environment:
       NODE_ENV: development
+      MCP_DISCOVERY_AGENT_URL: "http://mcp-discovery-agent:3910"
       # Allow self-signed TLS (host.docker.internal MCP server)
       NODE_TLS_REJECT_UNAUTHORIZED: "0"
       # Turns on services/lokiForwarder.js — unset means no-op, so `./run.sh`
@@ -527,6 +560,10 @@ services:
       # surfacing "Could not parse: signal timed out"; a 3.8B-class model answers
       # in ~3s. Leave LLAMACPP_MODEL unset to use whatever llama-server reports.
       LLAMACPP_MODEL: "phi-4-mini-instruct"
+      # LM Studio may require authentication (LM Studio 0.4+). Keep both
+      # accepted names available to the BFF; empty means legacy no-auth mode.
+      LMSTUDIO_API_KEY: "${LMSTUDIO_API_KEY:-}"
+      LM_API_TOKEN: "${LM_API_TOKEN:-}"
       # Apple mlx-lm demo agent mode (host mlx_lm.server on :8098; Mac only).
       MLX_LM_BASE_URL: "http://host.docker.internal:8098"
       # Trust the mkcert root so the BFF can complete a TLS handshake with the
@@ -614,6 +651,8 @@ services:
       # Sole peer of the notebooklm sidecar — see that service for why.
       notebooklm-net:
     depends_on:
+      mcp-discovery-agent:
+        condition: service_healthy
       jaeger:
         condition: service_started
         required: false   # tracing profile — BFF starts without Jaeger when profile is off
@@ -2303,6 +2342,8 @@ networks:
     driver: bridge
 
 volumes:
+  # MCP discovery inventory — candidate metadata only, never credentials.
+  mcp-discovery-data:
   # BFF persistent LMDB store — survives `docker compose up --force-recreate`.
   ai-demo-bff-data:
   # RAG Code Search volumes

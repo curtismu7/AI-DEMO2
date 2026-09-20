@@ -27,6 +27,9 @@ const posthog = require('../services/posthog');
 const archEmit = require('../services/archEventEmitter');
 const { terminateAllUserSessions } = require('../services/pingOneSessionService');
 const { sanitizePostLoginReturnPath } = require('./oauthUser');
+const { loadHostedAccessPolicy, evaluateHostedIdentity, coherentHostedIdentityClaims, stampHostedAccessApproval, clearHostedAccessApproval } = require('../services/hostedAccessPolicy');
+const { startLoginAudit, resumeLoginAudit, finishLoginAudit } = require('../services/authAccessAuditService');
+const { sendAccessRestricted } = require('../middleware/hostedAccessGate');
 
 const _isProd = () => !!(process.env.REPL_ID || process.env.REPLIT_DEPLOYMENT || process.env.NODE_ENV === 'production');
 
@@ -68,6 +71,7 @@ router.get('/login', (req, res) => {
 
     // Generate state parameter for CSRF protection
     const state = oauthService.generateState();
+    startLoginAudit(req, 'admin', Date.now(), state);
 
     // Generate PKCE code_verifier and store in session
     const codeVerifier = oauthService.generateCodeVerifier();
@@ -82,6 +86,7 @@ router.get('/login', (req, res) => {
     const uriCheck = validateRedirectUriOrigin(redirectUri);
     if (!uriCheck.ok) {
       console.warn('[oauth] Redirect URI rejected:', uriCheck.reason, redirectUri);
+      finishLoginAudit(req, { outcome: 'failure', reasonCode: 'callback_failed' });
       return res.status(400).json({ error: 'invalid_redirect_uri', message: uriCheck.reason });
     }
 
@@ -118,6 +123,7 @@ router.get('/login', (req, res) => {
       
       if (!validation.valid) {
         console.warn('[oauth] Resource validation failed:', validation.errors);
+        finishLoginAudit(req, { outcome: 'failure', reasonCode: 'callback_failed' });
         return res.status(400).json({ 
           error: 'invalid_resource_selection', 
           message: validation.errors.join(', ')
@@ -166,12 +172,14 @@ router.get('/login', (req, res) => {
     req.session.save((err) => {
       if (err) {
         console.error('[oauth] Session save error before redirect:', err?.stack || String(err));
+        finishLoginAudit(req, { outcome: 'failure', reasonCode: 'session_persist_failed' });
         return res.status(500).json({ error: 'Failed to initiate OAuth login' });
       }
       res.redirect(authUrl);
     });
   } catch (error) {
     console.error('OAuth login error:', error?.stack || String(error));
+    finishLoginAudit(req, { outcome: 'failure', reasonCode: 'callback_failed' });
     res.status(500).json({ error: 'Failed to initiate OAuth login' });
   }
 });
@@ -183,6 +191,7 @@ router.get('/login', (req, res) => {
 router.get('/callback', async (req, res) => {
   try {
     const { code, state, error } = req.query;
+    resumeLoginAudit(req, state, 'admin');
 
     // Validate the request origin matches our expected deployment (defence-in-depth)
     const isProdDeployment = process.env.REPL_ID || process.env.REPLIT_DEPLOYMENT;
@@ -201,6 +210,7 @@ router.get('/callback', async (req, res) => {
       console.error('OAuth error:', error?.stack || String(error));
       logAppEvent('oauth', 'error', `OAuth callback error from PingOne: ${error}`,
         { tag: 'oauth/callback-error', metadata: { oauthError: error } });
+      finishLoginAudit(req, { outcome: 'failure', reasonCode: 'oauth_provider_error' });
       // Self-heal: if PingOne rejected the redirect_uri, patch it before next attempt.
       const errorDesc = String(req.query.error_description || '').toLowerCase();
       if (errorDesc.includes('redirect') || error === 'access_denied' || error === 'invalid_request') {
@@ -222,9 +232,16 @@ router.get('/callback', async (req, res) => {
       logAppEvent('oauth', 'warning', 'OAuth state mismatch — possible multi-tab race or CSRF attempt',
         { tag: 'oauth/state-mismatch', metadata: { sessionStatePresent: !!sessionState, cookieStatePresent: !!pkceCookie?.state } });
       clearPkceCookie(res, _isProd());
+      finishLoginAudit(req, { outcome: 'failure', reasonCode: 'invalid_state' });
       // Auto-retry login instead of showing error (multi-tab race)
       console.log('[oauth/callback] Auto-retrying login after invalid_state (multi-tab race)');
       return res.redirect(`${req.baseUrl}/login`);
+    }
+
+    if (!code) {
+      finishLoginAudit(req, { outcome: 'failure', reasonCode: 'authorization_code_missing' });
+      clearPkceCookie(res, _isProd());
+      return res.redirect(`${getFrontendOrigin()}/login?error=no_code`);
     }
 
     // Clear state, code_verifier and redirect URI from session and cookie
@@ -265,15 +282,18 @@ router.get('/callback', async (req, res) => {
     archEmit({ nodeId: 'n-bff', edgeId: 'e-browser-bff', label: 'OAuth callback: code exchange complete' });
 
     // Verify nonce in ID token to prevent ID token replay attacks (OIDC Core §3.1.2.7)
-    if (expectedNonce && tokenData.id_token) {
+    let idTokenClaims = {};
+    if (tokenData.id_token) {
       try {
-        const idPayload = JSON.parse(Buffer.from(tokenData.id_token.split('.')[1], 'base64url').toString());
-        if (!idPayload.nonce) {
-          console.warn('[oauth/callback] ID token has no nonce claim');
-        } else if (idPayload.nonce !== expectedNonce) {
+        idTokenClaims = JSON.parse(Buffer.from(tokenData.id_token.split('.')[1], 'base64url').toString());
+        if (expectedNonce && !idTokenClaims.nonce) {
+          finishLoginAudit(req, { outcome: 'failure', reasonCode: 'nonce_missing' });
+          return res.redirect(`${getFrontendOrigin()}/login?error=nonce_missing`);
+        } else if (expectedNonce && idTokenClaims.nonce !== expectedNonce) {
           console.error('[oauth/callback] Nonce mismatch — possible ID token replay attack');
           logAppEvent('oauth', 'error', 'OAuth nonce mismatch — possible ID token replay attack',
             { tag: 'oauth/nonce-mismatch' });
+          finishLoginAudit(req, { outcome: 'failure', reasonCode: 'nonce_mismatch' });
           return res.redirect(`${getFrontendOrigin()}/login?error=nonce_mismatch`);
         }
       } catch (e) {
@@ -281,9 +301,30 @@ router.get('/callback', async (req, res) => {
       }
     }
     const userInfo = await oauthService.getUserInfo(tokenData.access_token);
+    const mergedUserInfo = { ...idTokenClaims, ...userInfo };
+
+    const hostedAccessPolicy = loadHostedAccessPolicy();
+    const hostedIdentityClaims = coherentHostedIdentityClaims(idTokenClaims, userInfo);
+    const hostedAccessDecision = hostedAccessPolicy.enabled
+      ? evaluateHostedIdentity(hostedIdentityClaims, hostedAccessPolicy)
+      : null;
+    if (hostedAccessDecision && !hostedAccessDecision.allowed) {
+      finishLoginAudit(req, {
+        outcome: 'denied',
+        reasonCode: hostedAccessDecision.reason,
+        identity: hostedAccessDecision,
+      });
+      clearHostedAccessApproval(req.session);
+      delete req.session.oauthTokens;
+      delete req.session.user;
+      delete req.session.clientType;
+      delete req.session.oauthType;
+      clearAuthCookie(res, _isProd());
+      return sendAccessRestricted(res);
+    }
     
     // Create user object from OAuth data
-    const oauthUser = oauthService.createUserFromOAuth(userInfo);
+    const oauthUser = oauthService.createUserFromOAuth(mergedUserInfo);
     
     // Check if user already exists in our system
     let user = dataStore.getUserByUsername(oauthUser.username);
@@ -340,6 +381,8 @@ router.get('/callback', async (req, res) => {
     // this afterwards always lost the /login route's return_to and every admin
     // login landed on /admin. Mirrors the end-user callback (oauthUser.js).
     const postLoginReturnToPath = sanitizePostLoginReturnPath(req.session.postLoginReturnToPath) || null;
+    const hostedLoginAudit = req.session.hostedLoginAudit || null;
+    const hostedLoginAudits = req.session.hostedLoginAudits || null;
 
     // P3 — Session regenerate failure is now fatal (prevents session fixation).
     // If regenerate fails the user retries sign-in once; the UX cost is acceptable
@@ -350,11 +393,17 @@ router.get('/callback', async (req, res) => {
         logAppEvent('oauth', 'error', 'OAuth session regeneration failed',
           { tag: 'oauth/session-regen-failed', metadata: { error: regenErr.message } });
         clearAuthCookie(res, _isProd());
+        finishLoginAudit(req, { outcome: 'failure', reasonCode: 'session_regenerate_failed' });
         return res.redirect(`${redirectOrigin}/login?error=session_regenerate_failed`);
       }
       req.session.oauthTokens = oauthTokens;
       req.session.user = authedUser;
       req.session.clientType = clientType;
+      if (hostedLoginAudit) req.session.hostedLoginAudit = hostedLoginAudit;
+      if (hostedLoginAudits) req.session.hostedLoginAudits = hostedLoginAudits;
+      if (hostedAccessDecision) {
+        stampHostedAccessApproval(req.session, hostedAccessDecision, hostedAccessPolicy);
+      }
       archEmit({ nodeId: 'n-pingone', edgeId: 'e-bff-pingone', label: 'PingOne issued access + ID token' });
 
       // Record initial auth token into token chain so /api/token-chain/current reflects login
@@ -403,6 +452,7 @@ router.get('/callback', async (req, res) => {
       req.session.save((saveErr) => {
         if (saveErr) {
           console.error('[oauth/callback] Session save FAILED — aborting admin login:', saveErr.message);
+          finishLoginAudit(req, { outcome: 'failure', reasonCode: 'session_persist_failed' });
           return req.session.destroy((destroyErr) => {
             if (destroyErr) {
               console.error('[oauth/callback] session.destroy after failed save:', destroyErr.message);
@@ -412,6 +462,11 @@ router.get('/callback', async (req, res) => {
           });
         }
         console.debug('[oauth/callback] Session saved OK sid=' + (req.session?.id || '').slice(0, 8) + '…');
+        finishLoginAudit(req, {
+          outcome: 'success',
+          reasonCode: 'allowed',
+          identity: hostedAccessDecision || {},
+        });
         const _idTokenDecoded = decodeJwt(oauthTokens?.idToken);
         logAppEvent('oauth', 'info', `OAuth admin login success: ${authedUser?.username || authedUser?.email || 'unknown'}`,
           { tag: 'oauth/callback-success', username: authedUser?.username,
@@ -457,6 +512,7 @@ router.get('/callback', async (req, res) => {
     });
   } catch (error) {
     console.error('OAuth callback error:', error?.stack || String(error));
+    finishLoginAudit(req, { outcome: 'failure', reasonCode: 'callback_failed' });
     const detail = error.pingoneError || 'unknown';
     const desc   = error.pingoneDesc   || '';
     const query  = desc

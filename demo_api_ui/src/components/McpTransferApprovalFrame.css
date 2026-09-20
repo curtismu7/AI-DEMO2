@@ -1,0 +1,36 @@
+.mcp-transfer-app-frame {
+  min-height: 390px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--th-border-subtle, #d4dde4);
+  border-radius: var(--radius-lg);
+  background: var(--th-surface-raised, #f7f9fb);
+  color: var(--th-text, #172033);
+}
+
+.mcp-transfer-app-iframe {
+  display: block;
+  width: 100%;
+  min-height: 390px;
+  border: 0;
+}
+
+.mcp-transfer-app-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  color: var(--th-text-secondary, #425466);
+  background: var(--th-surface-raised, #f7f9fb);
+  font-size: var(--font-size-xs, 12px);
+}
+
+.mcp-transfer-app-fallback {
+  border: 1px solid var(--th-border-subtle, #d4dde4);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  color: var(--th-text-secondary, #425466);
+  background: var(--th-surface-raised, #f7f9fb);
+  font-size: var(--font-size-xs, 12px);
+}

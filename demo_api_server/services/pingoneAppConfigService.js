@@ -277,7 +277,7 @@ async function ensureLogoutUrisOnApp(appId, requiredUris, label) {
  * - Writes results to the disk activity log.
  * - Never throws.
  *
- * @returns {Promise<{ admin: object, user: object, adminLogout: object, userLogout: object }>}
+ * @returns {Promise<{ admin: object, user: object, adminLogout: object, userLogout: object, sdkLogout: object }>}
  */
 async function ensureAllRedirectUris() {
   const liveAdminUri = getAdminRedirectUri(null);
@@ -303,7 +303,7 @@ async function ensureAllRedirectUris() {
   const adminClientId = configStore.getEffective('admin_client_id') || null;
   const userClientId  = configStore.getEffective('user_client_id')  || null;
 
-  var results = { admin: null, user: null, adminLogout: null, userLogout: null };
+  var results = { admin: null, user: null, adminLogout: null, userLogout: null, sdkLogout: null };
 
   if (adminClientId) {
     results.admin = await ensureAllUrisOnApp(adminClientId, adminUris, 'admin');
@@ -331,7 +331,21 @@ async function ensureAllRedirectUris() {
     console.log('[redirect-uri-guard] user: skipped — user_client_id not configured');
   }
 
-  const anyError = [results.admin, results.user, results.adminLogout, results.userLogout]
+  // The SDK app uses its OAuth callback URL as its post-logout return URL.
+  // PingOne maintains those allowlists separately; the admin/user guard above
+  // does not cover this public client.
+  const sdkAppId = process.env.PINGONE_DAVINCI_LOGIN_APP_ID;
+  const sdkPublicBase = configStore.getEffective('pingone_public_app_url');
+  const sdkLogoutUri = configStore.getEffective('pingone_davinci_sdk_login_redirect_uri')
+    || (sdkPublicBase && `${String(sdkPublicBase).replace(/\/+$/, '')}/davinci-orchestration-sdk`);
+  if (sdkAppId && sdkLogoutUri) {
+    results.sdkLogout = await ensureLogoutUrisOnApp(sdkAppId, [sdkLogoutUri], 'davinci-sdk');
+    if (results.sdkLogout.error) console.warn('[logout-uri-guard] davinci-sdk WARN:', results.sdkLogout.error);
+  } else {
+    results.sdkLogout = { skipped: true, reason: 'SDK app ID or public redirect URI not configured' };
+  }
+
+  const anyError = [results.admin, results.user, results.adminLogout, results.userLogout, results.sdkLogout]
     .some((r) => r && (r.error || r.verifyFailed));
   const severity = anyError ? 'warn' : 'info';
 
@@ -343,6 +357,7 @@ async function ensureAllRedirectUris() {
     user: results.user,
     adminLogout: results.adminLogout,
     userLogout: results.userLogout,
+    sdkLogout: results.sdkLogout,
   });
 
   return results;

@@ -10,6 +10,7 @@
 .acp-panel {
   display: flex;
   flex-direction: column;
+  color: var(--th-text);
 }
 
 .acp-subtitle {

@@ -47,6 +47,18 @@ const MCP_PROTOCOL_VERSION  = '2025-11-25';
 // same value rather than keeping a second copy that can drift from the client
 // it is supposed to be imitating.
 const IG_MCP_PROTOCOL_VERSION = '2025-06-18';
+const SENSITIVE_REQUEST_HEADERS = new Set(['tx-token', 'x-subject-token']);
+
+function redactGatewayRequestHeaders(headers) {
+    return Object.fromEntries(
+        Object.entries(headers)
+            .filter(([key]) => key.toLowerCase() !== 'authorization')
+            .map(([key, value]) => [
+                key,
+                SENSITIVE_REQUEST_HEADERS.has(key.toLowerCase()) ? '[REDACTED]' : value,
+            ])
+    );
+}
 
 // api-key-disposition tools: PingGateway (IG) singles these out onto a dedicated
 // /mcp/apikey path so its route (00-mcp-apikey.json) hands them to the vault-key
@@ -348,7 +360,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     }
 
     // Caller-supplied headers (privilege-first sends the user's token here as
-    // X-Subject-Token — see mcpGatewayTransport). Merged BEFORE the internal
+    // tx-token — see mcpGatewayTransport). Merged BEFORE the internal
     // assignments below so this can never overwrite a header this module sets
     // for a security reason.
     if (opts.extraHeaders && typeof opts.extraHeaders === 'object') {
@@ -407,9 +419,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     const timeoutMs = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : DEFAULT_TIMEOUT_MS;
 
     console.log('[GW→PingGateway] REQUEST: url=%s method=POST', url);
-    console.log('[GW→PingGateway] HEADERS: %j', Object.fromEntries(
-        Object.entries(headers).filter(([k]) => k.toLowerCase() !== 'authorization')
-    ));
+    console.log('[GW→PingGateway] HEADERS: %j', redactGatewayRequestHeaders(headers));
     // Tool-call/response payloads can contain banking records — log them only when
     // explicitly opted in (MCP_GATEWAY_LOG_BODIES=true), not by default.
     if (process.env.MCP_GATEWAY_LOG_BODIES === 'true') {

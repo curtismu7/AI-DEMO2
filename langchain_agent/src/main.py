@@ -112,6 +112,20 @@ class LangChainMCPApplication:
 
             from api.a2a_handler import set_agent as set_a2a_agent
             set_a2a_agent(self.agent)
+            from api.a2a_handler import set_a2a_discovery_config, set_federated_token_validator
+            from authentication.federated_token_validator import (
+                FederatedTenantRegistry,
+                FederatedTokenValidator,
+            )
+            if self.config.a2a.tenant_registry_json:
+                registry = FederatedTenantRegistry.from_json(self.config.a2a.tenant_registry_json)
+                set_federated_token_validator(FederatedTokenValidator(registry))
+            else:
+                set_federated_token_validator(None)
+            set_a2a_discovery_config(
+                self.config.a2a.public_url,
+                [value.strip() for value in self.config.a2a.metadata_urls.split(",") if value.strip()],
+            )
 
             # AG-UI /run SSE endpoint: FastAPI on port 8888 (always active).
             from api.agui_run_handler import set_message_processor as set_agui_mp
@@ -237,11 +251,13 @@ class LangChainMCPApplication:
         from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
         from api.agui_run_handler import router as agui_router
         from api.a2a_handler import router as a2a_router
+        from api.a2a_handler import public_router as a2a_public_router
         from api.codegraph_handler import router as codegraph_router
 
         app = FastAPI(title="LangChain AG-UI", docs_url=None, redoc_url=None)
         app.include_router(agui_router)
         app.include_router(a2a_router)
+        app.include_router(a2a_public_router)
         app.include_router(codegraph_router, prefix="/codegraph")
 
         # Prometheus scrape target — unauthenticated, same posture as the
@@ -349,7 +365,11 @@ class LangChainMCPApplication:
             # every other /metrics route in this repo (monitoring/prometheus.yml
             # already trusts the internal network). This gate exists for
             # /run and /codegraph, not for metrics scraping.
-            if request.url.path == "/metrics" or request.url.path.startswith("/a2a/"):
+            if (
+                request.url.path == "/metrics"
+                or request.url.path == "/.well-known/agent-card.json"
+                or request.url.path.startswith("/a2a/")
+            ):
                 return await call_next(request)
             if _gate_disabled_reason is not None:
                 return _JSONResponse(

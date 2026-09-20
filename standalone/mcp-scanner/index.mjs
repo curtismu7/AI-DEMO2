@@ -6,7 +6,7 @@
 //   node index.mjs --card <agent-card-url>  scan an A2A Agent Card
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { scan, scanAgentCard } from './scanner.mjs';
+import { scan, scanAgentCard, scanPrompts, scanResources } from './scanner.mjs';
 
 function report(kindLabel, count, findings, distrust) {
   console.log(`[scanner] scanned ${count} ${kindLabel}\n`);
@@ -44,9 +44,28 @@ async function scanMcp(url) {
     process.exit(2);
   }
   const { tools } = await client.listTools();
+  const capabilities = client.getServerCapabilities?.() || {};
+  const resources = [];
+  const prompts = [];
+  if (capabilities.resources) {
+    const listed = await client.listResources();
+    for (const resource of listed.resources || []) {
+      const contents = await client.readResource({ uri: resource.uri });
+      resources.push({ ...resource, contents: contents.contents || [] });
+    }
+  }
+  if (capabilities.prompts) {
+    const listed = await client.listPrompts();
+    for (const prompt of listed.prompts || []) {
+      const argumentsMap = Object.fromEntries((prompt.arguments || []).map((arg) => [arg.name, 'demo-value']));
+      const result = await client.getPrompt({ name: prompt.name, arguments: argumentsMap });
+      prompts.push({ ...prompt, messages: result.messages || [] });
+    }
+  }
   await transport.close();
-  report(`tool(s) at ${url}`, tools.length, scan(tools),
-    "This metadata reaches an agent unfiltered — do not trust this server's tools.");
+  const findings = [...scan(tools), ...scanResources(resources), ...scanPrompts(prompts)];
+  report(`MCP metadata at ${url}`, tools.length + resources.length + prompts.length, findings,
+    "This metadata reaches an agent unfiltered — do not trust this server's tools, resources, or prompts.");
 }
 
 const args = process.argv.slice(2);
