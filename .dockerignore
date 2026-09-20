@@ -33,6 +33,20 @@
 **/.turbo
 test-results
 
+# Generated/UI-only artifacts are not inputs to any root-context image. Keeping
+# them out avoids sending stale bundles, screenshots, and test fixtures during
+# the UI image build.
+demo_api_ui/build
+demo_api_ui/evidence
+demo_api_ui/design
+demo_api_ui/e2e
+demo_api_ui/tests
+demo_api_ui/docs
+demo_api_ui/test-results
+
+# Local editor metadata is never a build input.
+.idea
+
 # Never bake live secrets into images (BFF now COPYs first-party trees into
 # /repo for the SE/K8 default code-search indexer; Compose still bind-mounts
 # ./:/repo over that path). Keep example envs.
