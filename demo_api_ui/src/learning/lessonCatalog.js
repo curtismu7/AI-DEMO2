@@ -14,6 +14,12 @@ const lesson = (details) => ({
   provenance: CLOUD_FIRST_PROVENANCE,
 });
 
+const REDACTED_RESULT = Object.freeze({
+  kind: "redacted",
+  valuesRedacted: true,
+  fields: ["status", "decision", "correlationId"],
+});
+
 export const lessonCatalog = Object.freeze([
   lesson({
     id: "login",
@@ -22,8 +28,8 @@ export const lessonCatalog = Object.freeze([
     category: "OAuth and identity",
     route: "/oauth-academy",
     standaloneRoute: "/oauth-academy",
-    run: { action: "login", exposesRawBearerToken: false },
-    evidence: { events: ["authorization", "code-exchange", "session"] },
+    run: { action: "login", exposesRawBearerToken: false, result: REDACTED_RESULT },
+    evidence: { events: ["authorization", "code-exchange", "session"], result: REDACTED_RESULT },
     fallback: { provenance: PROVENANCE.RECORDED, label: "Recorded login trace" },
     talkingPoints: [
       "PingOne authenticates the person while the BFF keeps browser tokens server-side.",
@@ -36,8 +42,8 @@ export const lessonCatalog = Object.freeze([
     category: "OAuth and delegation",
     route: "/token-exchange-tester",
     standaloneRoute: "/token-exchange-tester",
-    run: { action: "token-exchange", exposesRawBearerToken: false },
-    evidence: { events: ["subject-token", "actor-token", "delegated-token"] },
+    run: { action: "token-exchange", exposesRawBearerToken: false, result: REDACTED_RESULT },
+    evidence: { events: ["subject-token", "actor-token", "delegated-token"], result: REDACTED_RESULT },
     fallback: { provenance: PROVENANCE.RECORDED, label: "Recorded token-chain trace" },
     talkingPoints: [
       "RFC 8693 lets an agent act with narrowly scoped authority on behalf of a user.",
@@ -50,8 +56,8 @@ export const lessonCatalog = Object.freeze([
     category: "MCP and gateways",
     route: "/mcp-discovery",
     standaloneRoute: "/pingone-mcp-inspector",
-    run: { action: "mcp-discovery", exposesRawBearerToken: false },
-    evidence: { events: ["initialize", "tools-list", "tools-call"] },
+    run: { action: "mcp-discovery", exposesRawBearerToken: false, result: REDACTED_RESULT },
+    evidence: { events: ["initialize", "tools-list", "tools-call"], result: REDACTED_RESULT },
     fallback: { provenance: PROVENANCE.SIMULATED, label: "Simulated MCP exchange" },
     talkingPoints: [
       "MCP gives the agent a structured way to discover and invoke tools behind an enforced boundary.",
@@ -64,8 +70,8 @@ export const lessonCatalog = Object.freeze([
     category: "Authorization",
     route: "/agent-gateway-authorization",
     standaloneRoute: "/agent-gateway-inspector",
-    run: { action: "authorize-decision", exposesRawBearerToken: false },
-    evidence: { events: ["policy-input", "policy-decision", "gateway-enforcement"] },
+    run: { action: "authorize-decision", exposesRawBearerToken: false, result: REDACTED_RESULT },
+    evidence: { events: ["policy-input", "policy-decision", "gateway-enforcement"], result: REDACTED_RESULT },
     fallback: { provenance: PROVENANCE.SIMULATED, label: "Simulated policy decision" },
     talkingPoints: [
       "PingOne Authorize evaluates context at runtime so the gateway can permit or deny the tool call.",
@@ -77,9 +83,9 @@ export const lessonCatalog = Object.freeze([
     audience: "Sales engineers and risk teams",
     category: "Authorization and safety",
     route: "/use-cases/live",
-    standaloneRoute: "/ciba-approve",
-    run: { action: "hitl-step-up", exposesRawBearerToken: false },
-    evidence: { events: ["challenge", "approval", "step-up", "resumed-call"] },
+    standaloneRoute: "/use-cases/live",
+    run: { action: "hitl-step-up", exposesRawBearerToken: false, result: REDACTED_RESULT },
+    evidence: { events: ["challenge", "approval", "step-up", "resumed-call"], result: REDACTED_RESULT },
     fallback: { provenance: PROVENANCE.RECORDED, label: "Recorded approval trace" },
     talkingPoints: [
       "High-impact actions pause for explicit user approval and stronger authentication before they continue.",
@@ -92,8 +98,8 @@ export const lessonCatalog = Object.freeze([
     category: "Agent governance",
     route: "/agent-lifecycle",
     standaloneRoute: "/agent-registry",
-    run: { action: "agent-lifecycle", exposesRawBearerToken: false },
-    evidence: { events: ["registration", "invocation", "revocation", "denied-retry"] },
+    run: { action: "agent-lifecycle", exposesRawBearerToken: false, result: REDACTED_RESULT },
+    evidence: { events: ["registration", "invocation", "revocation", "denied-retry"], result: REDACTED_RESULT },
     fallback: { provenance: PROVENANCE.RECORDED, label: "Recorded lifecycle trace" },
     talkingPoints: [
       "Agents have an identity and lifecycle that can be constrained, revoked, and audited independently.",
@@ -106,8 +112,8 @@ export const lessonCatalog = Object.freeze([
     category: "AI concepts",
     route: "/ai-products/core",
     standaloneRoute: "/ai-products/core",
-    run: { action: "ai-architecture", exposesRawBearerToken: false },
-    evidence: { events: ["intent", "agent-routing", "tool-selection"] },
+    run: { action: "ai-architecture", exposesRawBearerToken: false, result: REDACTED_RESULT },
+    evidence: { events: ["intent", "agent-routing", "tool-selection"], result: REDACTED_RESULT },
     fallback: { provenance: PROVENANCE.RECORDED, label: "Recorded agent trace" },
     talkingPoints: [
       "The model chooses useful actions, while Ping controls the identity and authority of every action.",
@@ -120,8 +126,8 @@ export const lessonCatalog = Object.freeze([
     category: "AI safety",
     route: "/use-cases/live",
     standaloneRoute: "/use-cases/live",
-    run: { action: "threat-defense", exposesRawBearerToken: false },
-    evidence: { events: ["malicious-input", "detection", "policy-deny"] },
+    run: { action: "threat-defense", exposesRawBearerToken: false, result: REDACTED_RESULT },
+    evidence: { events: ["malicious-input", "detection", "policy-deny"], result: REDACTED_RESULT },
     fallback: { provenance: PROVENANCE.SIMULATED, label: "Simulated attack trace" },
     talkingPoints: [
       "Prompt injection and scope escalation are treated as authorization problems with observable enforcement points.",
@@ -134,8 +140,8 @@ export const lessonCatalog = Object.freeze([
     category: "Ping products",
     route: "/ai-products/core",
     standaloneRoute: "/ai-products/gateway",
-    run: { action: "product-map", exposesRawBearerToken: false },
-    evidence: { events: ["product-boundaries", "request-path"] },
+    run: { action: "product-map", exposesRawBearerToken: false, result: REDACTED_RESULT },
+    evidence: { events: ["product-boundaries", "request-path"], result: REDACTED_RESULT },
     fallback: { provenance: PROVENANCE.SIMULATED, label: "Architecture walkthrough" },
     talkingPoints: [
       "Each Ping product contributes at a distinct point in the identity, authorization, orchestration, or governance path.",

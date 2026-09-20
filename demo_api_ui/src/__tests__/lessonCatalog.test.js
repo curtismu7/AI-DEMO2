@@ -8,19 +8,55 @@ import {
 } from "../learning/lessonTypes";
 import { PROVENANCE } from "../learning/provenance";
 
+const REQUIRED_IDS = [
+  "login",
+  "delegation",
+  "mcp",
+  "authorize",
+  "hitl-step-up",
+  "lifecycle",
+  "ai-architecture",
+  "threat-defense",
+  "product-map",
+];
+
+const NON_EMPTY_STRING = expect.stringMatching(/\S/);
+
 describe("AI Security Academy lesson catalog", () => {
   test("exports an ordered catalog with complete launch and teaching contracts", () => {
     const ids = lessonCatalog.map((lesson) => lesson.id);
 
-    expect(ids.length).toBeGreaterThanOrEqual(9);
+    expect(ids).toEqual(REQUIRED_IDS);
     expect(new Set(ids).size).toBe(ids.length);
 
     for (const lesson of lessonCatalog) {
-      expect(lesson.title).toEqual(expect.any(String));
-      expect(lesson.audience).toEqual(expect.any(String));
-      expect(lesson.category).toEqual(expect.any(String));
-      expect(lesson.route).toMatch(/^\//);
-      expect(lesson.standaloneRoute).toMatch(/^\//);
+      expect(lesson.id).toEqual(NON_EMPTY_STRING);
+      expect(lesson.title).toEqual(NON_EMPTY_STRING);
+      expect(lesson.audience).toEqual(NON_EMPTY_STRING);
+      expect(lesson.category).toEqual(NON_EMPTY_STRING);
+      expect(lesson.route).toEqual(expect.stringMatching(/^\/\S/));
+      expect(lesson.standaloneRoute).toEqual(expect.stringMatching(/^\/\S/));
+      expect(lesson.run).toEqual({
+        action: NON_EMPTY_STRING,
+        exposesRawBearerToken: false,
+        result: {
+          kind: "redacted",
+          valuesRedacted: true,
+          fields: expect.arrayContaining([NON_EMPTY_STRING]),
+        },
+      });
+      expect(lesson.evidence).toEqual({
+        events: expect.arrayContaining([NON_EMPTY_STRING]),
+        result: {
+          kind: "redacted",
+          valuesRedacted: true,
+          fields: expect.arrayContaining([NON_EMPTY_STRING]),
+        },
+      });
+      expect(lesson.fallback).toEqual({
+        provenance: expect.any(String),
+        label: NON_EMPTY_STRING,
+      });
       expect(lesson.provenance).toEqual({
         primary: PROVENANCE.LIVE_CLOUD,
         fallback: expect.arrayContaining([
@@ -29,7 +65,9 @@ describe("AI Security Academy lesson catalog", () => {
           PROVENANCE.SIMULATED,
         ]),
       });
-      expect(lesson.talkingPoints.length).toBeGreaterThan(0);
+      expect(lesson.talkingPoints).toEqual(
+        expect.arrayContaining([NON_EMPTY_STRING]),
+      );
       expect(isLessonContractValid(lesson)).toBe(true);
     }
   });
@@ -58,8 +96,79 @@ describe("AI Security Academy lesson catalog", () => {
     };
 
     expect(validateLesson(invalidLesson)).toContain(
-      "run must not expose a raw bearer token",
+      "run.exposesRawBearerToken must be explicit boolean false",
     );
     expect(isLessonContractValid(invalidLesson)).toBe(false);
+  });
+
+  test.each([
+    ["missing safety metadata", { exposesRawBearerToken: undefined }],
+    ["non-boolean safety metadata", { exposesRawBearerToken: "false" }],
+  ])("rejects %s", (_name, safety) => {
+    const invalidLesson = {
+      ...lessonCatalog[0],
+      run: { ...lessonCatalog[0].run, ...safety },
+    };
+
+    expect(validateLesson(invalidLesson)).toContain(
+      "run.exposesRawBearerToken must be explicit boolean false",
+    );
+    expect(isLessonContractValid(invalidLesson)).toBe(false);
+  });
+
+  test.each([
+    ["missing id", { id: "" }],
+    ["missing run", { run: undefined }],
+    ["missing evidence", { evidence: undefined }],
+    ["malformed fallback", { fallback: { provenance: PROVENANCE.RECORDED } }],
+    ["empty talking point", { talkingPoints: ["   "] }],
+  ])("rejects %s", (_name, change) => {
+    const invalidLesson = { ...lessonCatalog[0], ...change };
+
+    expect(isLessonContractValid(invalidLesson)).toBe(false);
+    expect(validateLesson(invalidLesson).length).toBeGreaterThan(0);
+  });
+
+  test.each([
+    "access_token",
+    "refresh_token",
+    "Authorization: Bearer secret",
+    "client_secret",
+    "raw_session_credential",
+  ])("rejects token-shaped evidence declarations: %s", (field) => {
+    const invalidLesson = {
+      ...lessonCatalog[0],
+      evidence: {
+        ...lessonCatalog[0].evidence,
+        result: {
+          ...lessonCatalog[0].evidence.result,
+          fields: [field],
+        },
+      },
+    };
+
+    expect(validateLesson(invalidLesson)).toContain(
+      "run and evidence results must use redacted, non-credential fields",
+    );
+    expect(isLessonContractValid(invalidLesson)).toBe(false);
+  });
+
+  test("requires the selected fallback to be allowed by its provenance policy", () => {
+    const invalidLesson = {
+      ...lessonCatalog[0],
+      provenance: {
+        ...lessonCatalog[0].provenance,
+        fallback: [PROVENANCE.SIMULATED],
+      },
+    };
+
+    expect(validateLesson(invalidLesson)).toContain(
+      "selected fallback provenance must be allowed by the fallback policy",
+    );
+    expect(isLessonContractValid(invalidLesson)).toBe(false);
+  });
+
+  test("uses the live workbench as the direct HITL standalone launch target", () => {
+    expect(getLesson("hitl-step-up").standaloneRoute).toBe("/use-cases/live");
   });
 });
