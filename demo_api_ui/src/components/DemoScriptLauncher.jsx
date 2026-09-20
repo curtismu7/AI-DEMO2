@@ -269,6 +269,14 @@ export default function DemoScriptLauncher({ user }) {
               <li key={f}>{f}</li>
             ))}
           </ol>
+          <div className="dsl-academy-links">
+            <button type="button" className="dsl-nav-btn" onClick={() => goTo("/academy/journey")}>
+              Open Guided Journey →
+            </button>
+            <button type="button" className="dsl-nav-btn" onClick={() => goTo("/academy/demos")}>
+              Open Standalone Demos →
+            </button>
+          </div>
         </div>
       </DraggableModal>
     </>

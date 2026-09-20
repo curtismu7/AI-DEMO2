@@ -247,6 +247,8 @@ export const NAV_STRUCTURE_CATALOG = [
   {
     label: "Learn & Present",
     children: [
+      "AI Security Academy",
+      "Academy Standalone Demos",
       "Learning Hub",
       "Agentic Trust",
       "Agent Guardrails",

@@ -1107,6 +1107,18 @@ export default function AdminSideNav({
       label: "Learn & Present",
       icon: "ref",
       children: [
+        {
+          label: "AI Security Academy",
+          path: "/academy/journey",
+          icon: "ref",
+          searchAlias: "guided journey standalone demos PingOne OAuth AI security sales engineer presenter",
+        },
+        {
+          label: "Academy Standalone Demos",
+          path: "/academy/demos",
+          icon: "demo",
+          searchAlias: "standalone demo launcher live cloud PingOne presenter",
+        },
         { label: "Learning Hub", path: "/learning", icon: "doc" },
         { label: "Agentic Trust", path: "/agentic-trust", icon: "shld" },
         { label: "Agent Guardrails", path: "/agent-guardrails", icon: "pol" },
