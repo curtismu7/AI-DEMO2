@@ -8,10 +8,10 @@ const LABELS = Object.freeze({
 });
 
 export default function LessonProvenanceBadge({ provenance, detail }) {
-  const label = LABELS[provenance] || provenance || "UNKNOWN";
+  const label = LABELS[provenance] || (provenance ? provenance : "PREFERRED");
 
   return (
-    <div className="lesson-shell__provenance" data-provenance={provenance}>
+    <div className="lesson-shell__provenance" data-provenance={provenance || "PREFERRED"}>
       <span className="lesson-shell__provenance-label">{label}</span>
       {detail && <span className="lesson-shell__provenance-detail">{detail}</span>}
     </div>

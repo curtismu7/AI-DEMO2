@@ -134,6 +134,10 @@
   color: var(--th-status-error-text, var(--th-text));
 }
 
+.lesson-shell__run-state--reset-error {
+  color: var(--th-status-error-text, var(--th-text));
+}
+
 .lesson-shell__body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
@@ -226,6 +230,25 @@
   color: var(--th-text-body);
   font-size: var(--font-size-sm);
   line-height: 1.6;
+}
+
+.lesson-shell__empty-evidence,
+.lesson-shell__evidence-json {
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+}
+
+.lesson-shell__evidence-json {
+  max-height: 18rem;
+  margin: 1rem 0 0;
+  overflow: auto;
+  padding: 0.75rem;
+  background: var(--th-code-bg);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 760px) {

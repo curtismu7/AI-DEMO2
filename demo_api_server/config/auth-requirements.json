@@ -92,6 +92,8 @@
   },
   "routes": {
     "/": "public",
+    "/academy/:lessonId": "public",
+    "/academy/:lessonId/:mode": "public",
     "/a2a-protocol-learning": "public",
     "/accounts": "public",
     "/activity": "public",
