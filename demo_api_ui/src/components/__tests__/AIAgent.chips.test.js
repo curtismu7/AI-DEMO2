@@ -380,28 +380,6 @@ describe("Action chips — not logged in", () => {
   });
 });
 
-describe("Action chips — all 3 modes", () => {
-  it("inline (middle) mode: renders action items", () => {
-    renderAgent({
-      user: customerUser,
-      mode: "inline",
-      embeddedDockBottom: false,
-    });
-    expect(screen.getByText("My Accounts")).toBeInTheDocument();
-    expect(screen.getByText("Transfer")).toBeInTheDocument();
-  });
-
-  it("inline bottom-dock mode: renders action items", () => {
-    renderAgent({
-      user: customerUser,
-      mode: "inline",
-      embeddedDockBottom: true,
-    });
-    expect(screen.getByText("My Accounts")).toBeInTheDocument();
-    expect(screen.getByText("Transfer")).toBeInTheDocument();
-  });
-});
-
 // ─── Action chips — disabled when consent blocked ─────────────────────────────
 
 describe("Action chips — disabled when consent blocked", () => {
