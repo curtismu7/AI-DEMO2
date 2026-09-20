@@ -11,6 +11,8 @@ done
 grep -q 'variable "target"' "$TF_DIR/variables.tf"
 grep -q 'variable "retain_volumes"' "$TF_DIR/variables.tf"
 grep -q 'terraform_data' "$TF_DIR/main.tf"
+grep -Eq 'retain_volumes[[:space:]]*=[[:space:]]*var\.retain_volumes' "$TF_DIR/main.tf"
+grep -q 'AI_DEMO_RETAIN_VOLUMES = tostring(self.input.retain_volumes)' "$TF_DIR/main.tf"
 grep -q 'docker compose' "$TF_DIR/scripts/docker-up.sh"
 grep -q 'docker compose' "$TF_DIR/scripts/docker-down.sh"
 grep -q 'PingOne Environment ID' "$TF_DIR/README.md"

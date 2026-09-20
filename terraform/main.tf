@@ -11,9 +11,9 @@ locals {
   k8s_documents = var.target == "se" ? flatten([
     for file_name in fileset("${local.repo_root}/k8s", "*.yaml") : [
       for index, document in split("\n---", file("${local.repo_root}/k8s/${file_name}")) : {
-        key     = "${file_name}#${index}"
-        yaml    = document
-        is_pvc  = can(regex("(?m)^kind: PersistentVolumeClaim$", document))
+        key    = "${file_name}#${index}"
+        yaml   = document
+        is_pvc = can(regex("(?m)^kind: PersistentVolumeClaim$", document))
       }
       if !contains(local.k8s_excluded_files, file_name)
       && !(file_name == "01-namespace.yaml" && index == 0)
@@ -24,14 +24,15 @@ locals {
 resource "terraform_data" "docker_stack" {
   count = var.target == "docker" ? 1 : 0
   input = {
-    target          = var.target
-    project_name    = var.project_name
-    compose_file    = local.compose_path
+    target           = var.target
+    project_name     = var.project_name
+    compose_file     = local.compose_path
     compose_profiles = var.compose_profiles
-    build_images    = var.build_images
-    public_app_url  = var.public_app_url
-    compose_digest  = local.compose_digest
-    launcher_digest = local.launcher_digest
+    build_images     = var.build_images
+    public_app_url   = var.public_app_url
+    retain_volumes   = var.retain_volumes
+    compose_digest   = local.compose_digest
+    launcher_digest  = local.launcher_digest
   }
 
   triggers_replace = [
@@ -59,9 +60,9 @@ resource "terraform_data" "docker_stack" {
     command = "${path.module}/scripts/docker-down.sh"
 
     environment = {
-      AI_DEMO_COMPOSE_FILE = local.compose_path
-      AI_DEMO_PROJECT_NAME = var.project_name
-      AI_DEMO_RETAIN_VOLUMES = tostring(var.retain_volumes)
+      AI_DEMO_COMPOSE_FILE   = self.input.compose_file
+      AI_DEMO_PROJECT_NAME   = self.input.project_name
+      AI_DEMO_RETAIN_VOLUMES = tostring(self.input.retain_volumes)
     }
   }
 }
