@@ -1155,6 +1155,17 @@ def auditTrail = [
         rawResponse: authorizeFullResponse,
         reason     : authorizeFullResponse?.reason ?: null,
         statements : authorizeFullResponse?.statements ?: null,
+        // The account-context resolver is invoked by the P1AZ policy for
+        // tool calls. Keep this evidence in the gateway audit event so the
+        // demo trace can show the real private SQLite lookup without making
+        // a second request from the browser or BFF.
+        resolver   : (accountId && mcpMethod == 'tools/call') ? [
+            status   : 'resolved',
+            source   : 'sqlite',
+            userId   : sub ?: null,
+            accountId: accountId,
+            attributes: ['riskTier', 'balance', 'currency'],
+        ] : null,
     ],
     mcpAudit: mcpAudit,
     filterChain: [
