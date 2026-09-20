@@ -990,6 +990,15 @@ export default function BankingAgent({
     readSurfacePreference("ba_simple_stepper_surface", "ba_show_simple_stepper")
   ));
   const showSimpleStepperPopout = simpleStepperSurface === "popout" || simpleStepperSurface === "both";
+  const [movieReelSurface, setMovieReelSurface] = useState(() => {
+    try {
+      const saved = localStorage.getItem("ba_movie_reel_surface");
+      if (SURFACE_OPTIONS.some((option) => option.value === saved)) return saved;
+      return localStorage.getItem("ba_show_filmstrip") === "0" ? "none" : "embedded";
+    } catch {
+      return "embedded";
+    }
+  });
   // Restore the presenter's Movie reel choice across refreshes.
   const [showFilmstrip, setShowFilmstrip] = useState(() => {
     try {
@@ -1274,6 +1283,19 @@ export default function BankingAgent({
     }));
   }, []);
 
+  const chooseMovieReelSurface = useCallback((surface) => {
+    const embedded = surface === "embedded" || surface === "both";
+    setMovieReelSurface(surface);
+    setShowFilmstrip(embedded);
+    try {
+      localStorage.setItem("ba_movie_reel_surface", surface);
+      localStorage.setItem("ba_show_filmstrip", embedded ? "1" : "0");
+    } catch {}
+    window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", {
+      detail: { on: embedded, surface },
+    }));
+  }, []);
+
   const chooseSequenceSurface = useCallback((surface) => {
     const embedded = surface === "embedded" || surface === "both";
     setSequenceSurface(surface);
@@ -1291,6 +1313,8 @@ export default function BankingAgent({
     try { localStorage.setItem("ba_quick_config_view", view); } catch {}
     if (view === "simple-stepper") {
       chooseSimpleStepperSurface(simpleStepperSurface === "none" ? "embedded" : simpleStepperSurface);
+    } else if (view === "movie-reel") {
+      chooseMovieReelSurface(movieReelSurface === "none" ? "embedded" : movieReelSurface);
     } else if (view === "sequence-view") {
       chooseSequenceSurface(sequenceSurface === "none" ? "embedded" : sequenceSurface);
     } else if (view === "token-topology") {
@@ -1298,7 +1322,7 @@ export default function BankingAgent({
     } else if (view === "oauth-visualizer") {
       chooseOauthVisualizerSurface(oauthVisualizerSurface === "none" ? "embedded" : oauthVisualizerSurface);
     }
-  }, [chooseOauthVisualizerSurface, chooseSequenceSurface, chooseSimpleStepperSurface, chooseTopologySurface, oauthVisualizerSurface, sequenceSurface, simpleStepperSurface, topologySurface]);
+  }, [chooseMovieReelSurface, chooseOauthVisualizerSurface, chooseSequenceSurface, chooseSimpleStepperSurface, chooseTopologySurface, movieReelSurface, oauthVisualizerSurface, sequenceSurface, simpleStepperSurface, topologySurface]);
 
   const [followSequenceFlow, setFollowSequenceFlow] = useState(() => {
     try {
@@ -10175,7 +10199,14 @@ export default function BankingAgent({
                         {quickConfigView === "movie-reel" && (
                           <>
                             <Check variant="switch" className="ba-header-toggle-label" checked={showRfcInfo} onChange={(e) => chooseRfcInfo(e.target.checked)}>RFC info</Check>
-                            <Check variant="switch" className="ba-header-toggle-label" checked={showFilmstrip} onChange={(e) => { const next = e.target.checked; setShowFilmstrip(next); try { localStorage.setItem("ba_show_filmstrip", next ? "1" : "0"); } catch {} window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", { detail: { on: next } })); }}>Movie reel</Check>
+                            <SurfaceSelector
+                              id="movie-reel-surface-select"
+                              label="Movie reel"
+                              value={movieReelSurface}
+                              onChange={(e) => chooseMovieReelSurface(e.target.value)}
+                              open={openSurfaceSelector === "movie-reel-surface-select"}
+                              onToggle={setOpenSurfaceSelector}
+                            />
                           </>
                         )}
                         {quickConfigView === "simple-stepper" && <SurfaceSelector id="simple-step-surface-select" label="Simple stepper" value={simpleStepperSurface} onChange={(e) => chooseSimpleStepperSurface(e.target.value)} open={openSurfaceSelector === "simple-step-surface-select"} onToggle={setOpenSurfaceSelector} />}
@@ -10272,9 +10303,7 @@ export default function BankingAgent({
                         checked={showFilmstrip}
                         onChange={(e) => {
                           const newVal = e.target.checked;
-                          setShowFilmstrip(newVal);
-                          try { localStorage.setItem("ba_show_filmstrip", newVal ? "1" : "0"); } catch {}
-                          window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", { detail: { on: newVal } }));
+                          chooseMovieReelSurface(newVal ? "embedded" : "none");
                         }}
                         title="Show or hide the token chain movie reel; this choice is saved across reloads"
                       >

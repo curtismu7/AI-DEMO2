@@ -15,4 +15,12 @@ describe("Quick Config surface selector layout contract", () => {
     expect(menu).toMatch(/background:\s*#0f172a/);
     expect(menu).toMatch(/color:\s*#f8fafc/);
   });
+
+  it("keeps the floating panel content flexible while row sizing stays local", () => {
+    const content = css.match(/\.ba-header-more-pop > \.fp-content\s*\{([\s\S]*?)\}/)?.[1] || "";
+    const rowSizing = css.match(/\.ba-header-more-pop > :not\(\.ba-header-more-resize-handle\):not\(\.fp-content\)\s*\{([\s\S]*?)\}/)?.[1] || "";
+
+    expect(content).toMatch(/flex:\s*1\s+1\s+auto/);
+    expect(rowSizing).toMatch(/flex:\s*0\s+0\s+auto/);
+  });
 });
