@@ -6,7 +6,7 @@
 process.env.NODE_ENV = 'test';
 process.env.DEBUG_TOKENS = 'true';
 process.env.SKIP_TOKEN_SIGNATURE_VALIDATION = 'true';
-process.env.LMDB_PATH = process.env.LMDB_PATH || require('./lmdbTestDir').workerDir();
+process.env.LMDB_PATH = require('./lmdbTestDir').workerDir();
 process.env.SESSION_SECRET = 'test-session-secret';
 process.env.OAUTH_CLIENT_ID = 'test-client-id';
 process.env.OAUTH_CLIENT_SECRET = 'test-client-secret';
