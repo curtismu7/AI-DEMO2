@@ -3,6 +3,75 @@ import useDividerDrag from "../hooks/useDividerDrag";
 import "../styles/appShellPages.css";
 import "./DemoConfigPage.css";
 import { NAV_STRUCTURE_CATALOG, applyChildOrder } from "../config/navStructureCatalog";
+import { NAV_PAGE_PATHS } from "../config/navPagePaths";
+
+const SECTION_GROUPS = [
+  { label: "Core navigation", groups: ["Home", "Dashboard", "Themes"] },
+  {
+    label: "AI and demos",
+    groups: [
+      "AI-Gateway",
+      "AI Agent Gateway",
+      "AI Product Pages",
+      "Demos",
+      "AI Flows",
+      "Agent Studio (Preview)",
+      "Learn & Present",
+    ],
+  },
+  {
+    label: "Security and identity",
+    groups: [
+      "Inspectors",
+      "PingOne MCP",
+      "PingOne Sample Apps",
+      "PingOne Demo Apps",
+      "Delegation & Consent",
+      "Authorize",
+      "OAuth & Identity",
+      "Platform Admin",
+      "Industry Verticals",
+      "Users & Accounts",
+      "AI Attack Demos",
+    ],
+  },
+  {
+    label: "Operations and observability",
+    groups: [
+      "Monitoring",
+      "Telemetry",
+      "Diagrams",
+      "MCP & Gateways",
+      "Developer Tools",
+      "System Tools",
+      "Integration Tests",
+    ],
+  },
+];
+
+const SECTION_BY_GROUP = Object.fromEntries(
+  SECTION_GROUPS.flatMap((section) => section.groups.map((group) => [group, section.label])),
+);
+
+const NAV_PAGE_PATH_OVERRIDES = {
+  "AI Product Pages::PingOne Authorize": "/ai-products/authorize",
+  "Monitoring::PingOne Authorize": "/monitoring/p1az",
+  "OAuth & Identity::OAuth Debug": "/oauth-debug-logs",
+  "System Tools::OAuth Debug": "/configure?tab=debug",
+};
+
+function getPagePath(groupLabel, itemLabel) {
+  return NAV_PAGE_PATH_OVERRIDES[`${groupLabel}::${itemLabel}`] || NAV_PAGE_PATHS[itemLabel];
+}
+
+function matchesSearch(group, searchQuery) {
+  const query = searchQuery.trim().toLowerCase();
+  if (!query) return true;
+  return (
+    group.label.toLowerCase().includes(query) ||
+    (group.children || []).some((child) => child.toLowerCase().includes(query))
+  );
+}
 
 // Apply a saved navOrder (array of labels) to the catalog, appending any new
 // labels not yet in the saved order at the end.
@@ -26,6 +95,8 @@ export default function DemoConfigPage() {
   const [navOrder, setNavOrder] = useState(null);
   const [groups, setGroups] = useState(() => NAV_STRUCTURE_CATALOG);
   const [expandedGroups, setExpandedGroups] = useState({});
+  const [collapsedSections, setCollapsedSections] = useState({});
+  const [searchQuery, setSearchQuery] = useState("");
   const [activeConfigId, setActiveConfigId] = useState(null);
   const [configs, setConfigs] = useState([]);
   const [flagOn, setFlagOn] = useState(false);
@@ -323,6 +394,16 @@ export default function DemoConfigPage() {
   };
 
   const visibleCount = groups.filter((g) => !hiddenLabels.includes(g.label)).length;
+  const filteredGroups = groups.filter((group) => matchesSearch(group, searchQuery));
+  const groupedSections = SECTION_GROUPS.map((section) => ({
+    ...section,
+    groups: filteredGroups.filter((group) =>
+      (SECTION_BY_GROUP[group.label] || "Other") === section.label,
+    ),
+  }));
+  const otherGroups = filteredGroups.filter((group) => !SECTION_BY_GROUP[group.label]);
+  if (otherGroups.length > 0) groupedSections.push({ label: "Other", groups: otherGroups });
+  const hasSearchResults = groupedSections.some((section) => section.groups.length > 0);
 
   return (
     <div className="app-page dc-page">
@@ -362,99 +443,180 @@ export default function DemoConfigPage() {
               </span>
             </div>
 
-            <div className="dc-group-list">
-              {groups.map((group, index) => {
-                const isHidden = hiddenLabels.includes(group.label);
-                const isExpanded = !!expandedGroups[group.label];
-                const isDragTarget =
-                  dragOverIndex === index ||
-                  (childDropTarget &&
-                    childDropTarget.group === group.label &&
-                    childDropTarget.index === -1);
-
-                return (
-                  <div
-                    key={group.label}
-                    className={`dc-group-row${isHidden ? " dc-group-row--hidden" : ""}${isDragTarget ? " dc-group-row--drag-over" : ""}`}
-                    draggable
-                    onDragStart={(e) => onDragStart(e, index)}
-                    onDragOver={(e) => onGroupRowDragOver(e, group, index)}
-                    onDrop={(e) => onGroupRowDrop(e, group, index)}
-                    onDragEnd={onDragEnd}
+            <div className="dc-search-wrap">
+              <label className="dc-search-label" htmlFor="demo-config-search">
+                Search groups and pages
+              </label>
+              <div className="dc-search-input-wrap">
+                <span aria-hidden="true">🔍</span>
+                <input
+                  id="demo-config-search"
+                  type="search"
+                  role="searchbox"
+                  aria-label="Search groups and pages"
+                  placeholder="Search by group or page name"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    className="dc-search-clear"
+                    onClick={() => setSearchQuery("")}
+                    aria-label="Clear search"
                   >
-                    <div className="dc-group-row__main">
-                      <span className="dc-drag-handle" aria-hidden="true">⠿</span>
-                      <label className="dc-group-toggle">
-                        <input
-                          type="checkbox"
-                          checked={!isHidden}
-                          onChange={() => toggleLabel(group.label)}
-                          disabled={busy}
-                          aria-label={`Show ${group.label}`}
-                        />
-                        <span className="dc-group-label">{group.label}</span>
-                      </label>
-                      {group.children && group.children.length > 0 && (
-                        <button
-                          type="button"
-                          className="dc-expand-btn"
-                          onClick={() => toggleExpand(group.label)}
-                          aria-label={isExpanded ? "Collapse" : "Expand"}
-                        >
-                          {isExpanded ? "▲" : "▼"}
-                          <span className="dc-child-count">{group.children.length}</span>
-                        </button>
-                      )}
-                      <div className="dc-reorder-btns">
-                        <button
-                          type="button"
-                          className="dc-reorder-btn"
-                          onClick={() => moveGroup(index, -1)}
-                          disabled={busy || index === 0}
-                          aria-label="Move up"
-                          title="Move up"
-                        >↑</button>
-                        <button
-                          type="button"
-                          className="dc-reorder-btn"
-                          onClick={() => moveGroup(index, 1)}
-                          disabled={busy || index === groups.length - 1}
-                          aria-label="Move down"
-                          title="Move down"
-                        >↓</button>
-                      </div>
-                    </div>
-                    {isExpanded && group.children && (
-                      <ul
-                        className="dc-child-list"
-                        onDragOver={(e) => onChildDragOver(e, group.label, group.children.length)}
-                        onDrop={(e) => onChildDrop(e, group.label, null)}
-                      >
-                        {group.children.map((child, childIndex) => (
-                          <li
-                            key={child}
-                            className={`dc-child-item dc-child-item--draggable${
-                              childDropTarget &&
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="dc-group-list">
+              {groupedSections.map((section) => {
+                if (section.groups.length === 0) return null;
+                const isSectionOpen = searchQuery.trim() || !collapsedSections[section.label];
+                return (
+                  <section className="dc-section" key={section.label}>
+                    <button
+                      type="button"
+                      className="dc-section__toggle"
+                      onClick={() =>
+                        setCollapsedSections((prev) => ({
+                          ...prev,
+                          [section.label]: !prev[section.label],
+                        }))
+                      }
+                      aria-expanded={!!isSectionOpen}
+                    >
+                      <span>{section.label}</span>
+                      <span className="dc-section__meta">
+                        {section.groups.length} groups {isSectionOpen ? "▲" : "▼"}
+                      </span>
+                    </button>
+                    {isSectionOpen && (
+                      <div className="dc-section__body">
+                        {section.groups.map((group) => {
+                          const groupIndex = groups.indexOf(group);
+                          const isHidden = hiddenLabels.includes(group.label);
+                          const isExpanded = !!expandedGroups[group.label] || !!searchQuery.trim();
+                          const query = searchQuery.trim().toLowerCase();
+                          const showAllChildren = !query || group.label.toLowerCase().includes(query);
+                          const visibleChildren = (group.children || [])
+                            .map((child, childIndex) => ({ child, childIndex }))
+                            .filter(({ child }) =>
+                              showAllChildren || child.toLowerCase().includes(query),
+                            );
+                          const isDragTarget =
+                            dragOverIndex === groupIndex ||
+                            (childDropTarget &&
                               childDropTarget.group === group.label &&
-                              childDropTarget.index === childIndex
-                                ? " dc-child-item--drag-over"
-                                : ""
-                            }`}
-                            draggable
-                            onDragStart={(e) => onChildDragStart(e, group.label, child)}
-                            onDragOver={(e) => onChildDragOver(e, group.label, childIndex)}
-                            onDrop={(e) => onChildDrop(e, group.label, childIndex)}
-                            onDragEnd={onChildDragEnd}
-                          >
-                            <span className="dc-drag-handle" aria-hidden="true">⠿</span>
-                            {child}
-                          </li>
-                        ))}
-                      </ul>
+                              childDropTarget.index === -1);
+                          const groupPath = getPagePath(group.label, group.label);
+
+                          return (
+                            <div
+                              key={group.label}
+                              className={`dc-group-row${isHidden ? " dc-group-row--hidden" : ""}${isDragTarget ? " dc-group-row--drag-over" : ""}`}
+                              draggable={!searchQuery}
+                              onDragStart={(e) => onDragStart(e, groupIndex)}
+                              onDragOver={(e) => onGroupRowDragOver(e, group, groupIndex)}
+                              onDrop={(e) => onGroupRowDrop(e, group, groupIndex)}
+                              onDragEnd={onDragEnd}
+                            >
+                              <div className="dc-group-row__main">
+                                <span className="dc-drag-handle" aria-hidden="true">⠿</span>
+                                <label className="dc-group-toggle">
+                                  <input
+                                    type="checkbox"
+                                    checked={!isHidden}
+                                    onChange={() => toggleLabel(group.label)}
+                                    disabled={busy}
+                                    aria-label={`Show ${group.label}`}
+                                  />
+                                  <span className="dc-group-label">{group.label}</span>
+                                </label>
+                                {groupPath && (
+                                  <a className="dc-open-link" href={groupPath} aria-label={`Open ${group.label}`}>
+                                    Open
+                                  </a>
+                                )}
+                                {group.children && group.children.length > 0 && (
+                                  <button
+                                    type="button"
+                                    className="dc-expand-btn"
+                                    onClick={() => toggleExpand(group.label)}
+                                    aria-label={isExpanded ? "Collapse" : "Expand"}
+                                  >
+                                    {isExpanded ? "▲" : "▼"}
+                                    <span className="dc-child-count">{group.children.length}</span>
+                                  </button>
+                                )}
+                                <div className="dc-reorder-btns">
+                                  <button
+                                    type="button"
+                                    className="dc-reorder-btn"
+                                    onClick={() => moveGroup(groupIndex, -1)}
+                                    disabled={busy || groupIndex === 0}
+                                    aria-label="Move up"
+                                    title="Move up"
+                                  >↑</button>
+                                  <button
+                                    type="button"
+                                    className="dc-reorder-btn"
+                                    onClick={() => moveGroup(groupIndex, 1)}
+                                    disabled={busy || groupIndex === groups.length - 1}
+                                    aria-label="Move down"
+                                    title="Move down"
+                                  >↓</button>
+                                </div>
+                              </div>
+                              {isExpanded && group.children && (
+                                <ul
+                                  className="dc-child-list"
+                                  onDragOver={(e) => onChildDragOver(e, group.label, group.children.length)}
+                                  onDrop={(e) => onChildDrop(e, group.label, null)}
+                                >
+                                  {visibleChildren.map(({ child, childIndex }) => {
+                                    const childPath = getPagePath(group.label, child);
+                                    return (
+                                      <li
+                                        key={child}
+                                        className={`dc-child-item dc-child-item--draggable${
+                                          childDropTarget &&
+                                          childDropTarget.group === group.label &&
+                                          childDropTarget.index === childIndex
+                                            ? " dc-child-item--drag-over"
+                                            : ""
+                                        }`}
+                                        draggable={!searchQuery}
+                                        onDragStart={(e) => onChildDragStart(e, group.label, child)}
+                                        onDragOver={(e) => onChildDragOver(e, group.label, childIndex)}
+                                        onDrop={(e) => onChildDrop(e, group.label, childIndex)}
+                                        onDragEnd={onChildDragEnd}
+                                      >
+                                        <span className="dc-drag-handle" aria-hidden="true">⠿</span>
+                                        <span className="dc-child-label">{child}</span>
+                                        {childPath && (
+                                          <a className="dc-open-link" href={childPath} aria-label={`Open ${child}`}>
+                                            Open
+                                          </a>
+                                        )}
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
-                  </div>
+                  </section>
                 );
               })}
+              {!hasSearchResults && (
+                <div className="dc-no-results">No groups or pages match “{searchQuery}”.</div>
+              )}
             </div>
 
             <div className="dc-panel__actions">
