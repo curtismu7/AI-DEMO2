@@ -1,0 +1,192 @@
+.learning-lab {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+  color: var(--th-text);
+}
+
+.learning-lab__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 2rem;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--th-border);
+}
+
+.learning-lab__back {
+  color: var(--th-status-info-text);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.learning-lab__eyebrow {
+  margin: 1.25rem 0 0.35rem;
+  color: var(--th-status-warning-text);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.learning-lab__header h1 {
+  margin: 0;
+  font-size: clamp(1.7rem, 4vw, 2.5rem);
+}
+
+.learning-lab__header p:last-child {
+  max-width: 650px;
+  margin: 0.65rem 0 0;
+  color: var(--th-text-body);
+  line-height: 1.6;
+}
+
+.learning-lab__badge {
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--th-status-warning-border);
+  border-radius: var(--radius-sm);
+  color: var(--th-status-warning-text);
+  background: var(--th-status-warning-bg);
+  font-size: var(--font-size-3xs);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.learning-lab__panel {
+  padding: 1.5rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-card);
+  box-shadow: var(--th-shadow-sm);
+}
+
+.learning-lab__panel h2 {
+  margin-top: 0;
+}
+
+.learning-lab__panel p {
+  color: var(--th-text-body);
+  line-height: 1.55;
+}
+
+.learning-lab__flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 1.25rem 0;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.learning-lab button {
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--th-status-info-border);
+  border-radius: var(--radius-sm);
+  color: var(--th-status-info-text);
+  background: var(--th-status-info-bg);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.learning-lab button:hover {
+  filter: brightness(0.96);
+}
+
+.learning-lab__secondary {
+  color: var(--th-text-body) !important;
+  background: var(--th-bg-inset) !important;
+  border-color: var(--th-border) !important;
+}
+
+.learning-lab__button-row,
+.learning-lab__input-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.learning-lab label {
+  display: block;
+  margin: 1rem 0 0.35rem;
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.learning-lab input {
+  width: 160px;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  color: var(--th-text);
+  background: var(--th-bg);
+  font: inherit;
+}
+
+.learning-lab pre,
+.learning-lab code {
+  display: block;
+  overflow-x: auto;
+  padding: 0.85rem;
+  border-radius: var(--radius-sm);
+  color: var(--th-text-body);
+  background: var(--th-bg-inset);
+  font-size: var(--font-size-sm);
+}
+
+.learning-lab__result {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+}
+
+.learning-lab__result--success {
+  color: var(--th-status-success-text);
+  background: var(--th-status-success-bg);
+  border-color: var(--th-status-success-border);
+}
+
+.learning-lab__result--warning {
+  color: var(--th-status-warning-text);
+  background: var(--th-status-warning-bg);
+  border-color: var(--th-status-warning-border);
+}
+
+.learning-lab__result--danger {
+  color: var(--th-status-danger-text);
+  background: var(--th-status-danger-bg);
+  border-color: var(--th-status-danger-border);
+}
+
+.learning-lab__result small {
+  color: inherit;
+  opacity: 0.9;
+}
+
+.learning-lab__honesty {
+  margin: 1rem 0 0;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+@media (max-width: 640px) {
+  .learning-lab {
+    padding: 1.25rem 1rem 3rem;
+  }
+
+  .learning-lab__header {
+    display: block;
+  }
+
+  .learning-lab__badge {
+    display: inline-block;
+    margin-top: 1rem;
+  }
+}

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useEducationUI } from "../context/EducationUIContext";
 import { useDemoTour } from "../context/DemoTourContext";
 import { EDU } from "./education/educationIds";
@@ -19,6 +19,81 @@ interface LearningItem {
   label: string;
   description?: string;
   icon: string;
+}
+
+type LessonStatus = "LIVE" | "LIVE / CONFIG" | "SIMULATED" | "REFERENCE";
+
+interface LessonContract {
+  status: LessonStatus;
+  keywords?: string[];
+  lab?: string;
+}
+
+const LESSON_REGISTRY: Record<string, LessonContract> = {
+  "Guided Demo Tour": { status: "LIVE" },
+  "CIBA (OOB)": { status: "LIVE / CONFIG" },
+  "Token Exchange (RFC 8693)": { status: "LIVE", keywords: ["delegation", "BFF", "act", "aud", "scope", "token custody"] },
+  "PingOne Authorize": { status: "LIVE / CONFIG", keywords: ["P1AZ", "policy", "permit", "deny", "step-up", "decision"] },
+  "MCP Protocol": { status: "LIVE", keywords: ["tools/list", "tools/call", "MCP Inspector", "tool invocation"] },
+  "Agent-to-Agent (A2A)": { status: "LIVE", keywords: ["agent card", "nested act", "specialist", "delegation"] },
+  "Agent Gateway Authorization": { status: "LIVE", keywords: ["P1AZ", "delegated access", "MCP policy", "PERMIT", "DENY", "STEP-UP", "audit"] },
+  "Human-in-the-loop": { status: "LIVE / CONFIG", keywords: ["HITL", "approval", "consent", "CIBA", "sensitive action"] },
+  "Enterprise-Managed Auth (EMA)": { status: "LIVE / CONFIG" },
+  "Agent Kill Switch": { status: "LIVE" },
+  "Shadow AI Detector": { status: "LIVE / CONFIG" },
+  "WebMCP (Google)": { status: "LIVE / CONFIG" },
+  "PAR (RFC 9126)": { status: "SIMULATED", keywords: ["request_uri", "authorization request", "PKCE"], lab: "par" },
+  "RAR (RFC 9396)": { status: "SIMULATED", keywords: ["authorization_details", "transaction", "amount", "payee"], lab: "rar" },
+  "JWT Client Auth (RFC 7523)": { status: "SIMULATED", keywords: ["private_key_jwt", "client assertion", "token endpoint"], lab: "jwt-client-auth" },
+  "Step-up MFA": { status: "SIMULATED", keywords: ["strong authentication", "challenge", "sensitive action"], lab: "step-up" },
+};
+
+const RECOMMENDED_PATH = [
+  {
+    step: "01",
+    title: "Run one agent action",
+    detail: "Start with read, step-up, and deny outcomes in the same customer story.",
+    href: "/agent-gateway-authorization",
+    cta: "Run Agent Gateway Authorization",
+  },
+  {
+    step: "02",
+    title: "Inspect delegated identity",
+    detail: "See the user, agent, audience, scopes, and token exchanges behind the request.",
+    href: "/agent-flow-inspector",
+    cta: "Inspect token flow",
+  },
+  {
+    step: "03",
+    title: "Change the policy context",
+    detail: "Test how amount, destination, scope, and obligations change the decision.",
+    href: "/pingone-authorize?tab=guided",
+    cta: "Test Authorize decisions",
+  },
+  {
+    step: "04",
+    title: "Prove what happened",
+    detail: "Close the loop with the gateway event, approval state, tool result, and audit trace.",
+    href: "/transaction-trace",
+    cta: "Open transaction trace",
+  },
+];
+
+function lessonStatus(item: LearningItem): LessonStatus {
+  return LESSON_REGISTRY[item.label]?.status || "REFERENCE";
+}
+
+function lessonSearchText(category: LearningCategory, item: LearningItem): string {
+  return [
+    category.label,
+    item.label,
+    item.description,
+    lessonStatus(item),
+    ...(LESSON_REGISTRY[item.label]?.keywords || []),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
 }
 
 const LEARNING_CATEGORIES: LearningCategory[] = [
@@ -399,12 +474,12 @@ export default function LearningHub() {
       "Token Exchange (RFC 8693)": () => openEdu(EDU.TOKEN_EXCHANGE, "why"),
       "may_act / act claims": () => openEdu(EDU.MAY_ACT, "what"),
       "Actor Token (Agent)": () => openEdu(EDU.TOKEN_FLOW, "diagram"),
-      "Step-up MFA": () => openEdu(EDU.STEP_UP, "what"),
+      "Step-up MFA": () => navigate(`/learning-lab/${LESSON_REGISTRY["Step-up MFA"].lab}`),
       "Introspection (RFC 7662)": () => openEdu(EDU.INTROSPECTION, "why"),
       "PingOne Authorize": () => openEdu(EDU.PINGONE_AUTHORIZE, "what"),
-      "PAR (RFC 9126)": () => openEdu(EDU.PAR, "what"),
-      "RAR (RFC 9396)": () => openEdu(EDU.RAR, "what"),
-      "JWT Client Auth (RFC 7523)": () => openEdu(EDU.JWT_CLIENT_AUTH, "what"),
+      "PAR (RFC 9126)": () => navigate(`/learning-lab/${LESSON_REGISTRY["PAR (RFC 9126)"].lab}`),
+      "RAR (RFC 9396)": () => navigate(`/learning-lab/${LESSON_REGISTRY["RAR (RFC 9396)"].lab}`),
+      "JWT Client Auth (RFC 7523)": () => navigate(`/learning-lab/${LESSON_REGISTRY["JWT Client Auth (RFC 7523)"].lab}`),
       "OAuth: CIMD": () =>
         window.dispatchEvent(
           new CustomEvent("education-open-cimd", { detail: { tab: "what" } }),
@@ -490,9 +565,7 @@ export default function LearningHub() {
     return LEARNING_CATEGORIES.map((category) => ({
       ...category,
       items: category.items.filter(
-        (item) =>
-          item.label.toLowerCase().includes(query) ||
-          (item.description && item.description.toLowerCase().includes(query)),
+        (item) => lessonSearchText(category, item).includes(query),
       ),
     })).filter((category) => category.items.length > 0);
   }, [searchQuery]);
@@ -513,6 +586,10 @@ export default function LearningHub() {
   );
   const filteredItems = filteredCategories.reduce(
     (sum, cat) => sum + cat.items.length,
+    0,
+  );
+  const filteredLiveItems = filteredCategories.reduce(
+    (sum, cat) => sum + cat.items.filter((item) => lessonStatus(item).startsWith("LIVE")).length,
     0,
   );
 
@@ -560,6 +637,31 @@ export default function LearningHub() {
 
         <LearningHubAgent />
 
+        {!searchQuery && (
+          <section className="learning-hub__path" aria-labelledby="learning-hub-path-title">
+            <div className="learning-hub__path-header">
+              <div>
+                <span className="learning-hub__path-eyebrow">Recommended path</span>
+                <h2 id="learning-hub-path-title">Secure one agent action from identity to evidence</h2>
+              </div>
+              <p>
+                A four-stop customer story using the live surfaces already in this demo.
+                Run it in order, then branch into the topic cards below.
+              </p>
+            </div>
+            <div className="learning-hub__path-grid">
+              {RECOMMENDED_PATH.map((item) => (
+                <article className="learning-hub__path-card" key={item.step}>
+                  <span className="learning-hub__path-step">{item.step}</span>
+                  <h3>{item.title}</h3>
+                  <p>{item.detail}</p>
+                  <Link to={item.href}>{item.cta}</Link>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
         <div className="learning-hub__search">
           <input
             type="text"
@@ -582,7 +684,7 @@ export default function LearningHub() {
 
         {searchQuery && (
           <div className="learning-hub__search-results">
-            Found {filteredItems} of {totalItems} topics
+            Found {filteredItems} of {totalItems} topics · {filteredLiveItems} live or configured
           </div>
         )}
       </header>
@@ -600,20 +702,25 @@ export default function LearningHub() {
             <div className="learning-hub__cards">
               {category.items.map((item) => {
                 const itemId = `${category.id}__${item.label.replace(/\s+/g, "-").toLowerCase()}`;
+                const status = lessonStatus(item);
                 return (
                   <button
                     key={itemId}
                     className="learning-hub__card"
                     onClick={() => handleItemClick(category.id, item.label)}
                     type="button"
+                    data-lesson-status={status}
                   >
                     <div className="learning-hub__card-icon">
                       {item.icon}
                     </div>
                     <div className="learning-hub__card-content">
-                      <h3 className="learning-hub__card-title">
-                        {item.label}
-                      </h3>
+                      <div className="learning-hub__card-title-row">
+                        <h3 className="learning-hub__card-title">{item.label}</h3>
+                        <span className={`learning-hub__status learning-hub__status--${status.toLowerCase().replace(/\s+\/\s+/, "-")}`}>
+                          {status}
+                        </span>
+                      </div>
                       {item.description && (
                         <p className="learning-hub__card-description">
                           {item.description}

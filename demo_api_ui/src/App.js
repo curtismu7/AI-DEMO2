@@ -79,6 +79,7 @@ import LandingPage from "./components/LandingPage";
 import LearningHub from "./components/LearningHub";
 import { AcademyLessonRoute } from "./routes/AcademyRoutes";
 import ShadowAiDetectorPage from "./pages/ShadowAiDetectorPage";
+import LearningProtocolLabPage from "./pages/LearningProtocolLabPage";
 import LlmConfigPage from "./components/LlmConfigPage";
 import LogoutPage from "./components/LogoutPage";
 import LoginSuccessModal from "./components/LoginSuccessModal";
@@ -823,6 +824,10 @@ function AppWithAuth() {
                   element={
                     <AgentGatewayAuthorizationLessonPageRoute user={user} logout={logout} />
                   }
+                />
+                <Route
+                  path="/learning-lab/:lab"
+                  element={<LearningProtocolLabPage />}
                 />
                 <Route
                   path="/token-exchange-tester"
