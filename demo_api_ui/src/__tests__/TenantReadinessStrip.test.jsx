@@ -6,7 +6,7 @@ import TenantReadinessStrip from "../components/learning/TenantReadinessStrip";
 const readySnapshot = {
   environment: {
     provenance: PROVENANCE.LIVE_CLOUD,
-    label: "PingOne cloud tenant",
+    label: "Verified cloud services with local dependencies",
   },
   dependencies: [
     {
@@ -26,22 +26,22 @@ const readySnapshot = {
     {
       id: "davinci",
       label: "DaVinci",
-      status: "available",
-      provenance: PROVENANCE.LIVE_CLOUD,
-      detail: "Orchestration enabled",
+      status: "not-enabled",
+      provenance: PROVENANCE.RECORDED,
+      detail: "Orchestration flag is off",
     },
     {
       id: "privilege",
       label: "Privilege",
-      status: "available",
-      provenance: PROVENANCE.LIVE_CLOUD,
-      detail: "Remote gateway",
+      status: "not-enabled",
+      provenance: PROVENANCE.RECORDED,
+      detail: "Privilege flags are off",
     },
     {
       id: "mcp",
       label: "MCP",
       status: "available",
-      provenance: PROVENANCE.LIVE_CLOUD,
+      provenance: PROVENANCE.LIVE_LOCAL,
       detail: "Gateway and server reachable",
     },
     {
@@ -70,12 +70,15 @@ describe("TenantReadinessStrip", () => {
     );
 
     expect(await screen.findByText("Tenant ready")).toBeInTheDocument();
-    expect(screen.getByText("PingOne cloud tenant")).toBeInTheDocument();
+    expect(
+      screen.getByText("Verified cloud services with local dependencies"),
+    ).toBeInTheDocument();
     for (const dependency of readySnapshot.dependencies) {
       expect(screen.getByText(dependency.label)).toBeInTheDocument();
     }
-    expect(screen.getAllByText("LIVE CLOUD")).toHaveLength(5);
-    expect(screen.getByText("LIVE LOCAL")).toBeInTheDocument();
+    expect(screen.getAllByText("LIVE CLOUD")).toHaveLength(2);
+    expect(screen.getAllByText("LIVE LOCAL")).toHaveLength(2);
+    expect(screen.getAllByText("RECORDED")).toHaveLength(2);
     expect(screen.getByText("Checked 12:00:00 PM")).toBeInTheDocument();
   });
 
