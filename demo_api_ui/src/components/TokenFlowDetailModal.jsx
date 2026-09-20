@@ -397,7 +397,7 @@ const TOPO_SLOTS = [
   // every run. Step-up and intent-binding stay visible on the trace rail and
   // filmstrip, and fill this slot only when no authorize decision was recorded.
   { fallback: 'authorize', candidates: ['authorize', 'stepup', 'intent-binding'] },
-  { fallback: 'gateway',   candidates: ['api-key-swap', 'gateway'] },
+  { fallback: 'gateway',   candidates: ['vault-key-inject', 'api-key-swap', 'gateway'] },
   { fallback: 'mcp',       candidates: ['mcp', 'api'] },
 ];
 
@@ -412,6 +412,7 @@ const NODE_PRESENTATION = {
   'intent-binding':  { icon: 'IB', name: 'Intent Binding',   lane: 'AUTHZ',   label: 'cap checked' },
   stepup:            { icon: '\u26A0\uFE0F', name: 'Step-up required', lane: 'AUTHZ', label: 'human approval' },
   gateway:           { icon: 'GW', name: 'Gateway',          lane: 'GATEWAY', label: 'validated' },
+  'vault-key-inject': { icon: 'VK', name: 'Vault bridge',      lane: 'GATEWAY', label: 'route-bound key' },
   'api-key-swap':    { icon: 'KS', name: 'Credential Swap',  lane: 'GATEWAY', label: 'API key' },
   mcp:               { icon: 'M',  name: 'MCP Server',       lane: 'MCP',     label: 'tool call' },
   api:               { icon: 'RS', name: 'Resource Server',  lane: 'API',     label: 'backend' },

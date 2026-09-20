@@ -75,12 +75,12 @@ describe("topology slots — two-exchange mode", () => {
 });
 
 describe("topology slots — API-key path", () => {
-  it("surfaces the credential swap instead of a plain gateway node", () => {
+  it("surfaces the vault bridge instead of a plain gateway node", () => {
     const apiKey = [
       step("signin"), step("exchange"), step("authorize"),
-      step("api-key-swap"), step("gateway"), step("mcp"),
+      step("vault-key-inject"), step("api-key-swap"), step("gateway"), step("mcp"),
     ];
-    expect(ids(apiKey)).toContain("api-key-swap");
+    expect(ids(apiKey)).toContain("vault-key-inject");
   });
 });
 
@@ -110,7 +110,7 @@ describe("every resolvable node is presentable", () => {
   it("carries an icon, name, lane and a badge class that exists in CSS", () => {
     const everything = [
       "signin", "exchange", "exchange-1", "id-jag-redeemed", "agent-token",
-      "authorize", "stepup", "intent-binding", "gateway", "api-key-swap", "mcp", "api",
+      "authorize", "stepup", "intent-binding", "gateway", "vault-key-inject", "api-key-swap", "mcp", "api",
     ].map((id) => step(id));
 
     // Drive each slot to each of its candidates by running only that one.
@@ -121,7 +121,7 @@ describe("every resolvable node is presentable", () => {
       expect(node.icon, `${s.id} icon`).toBeTruthy();
       expect(node.name, `${s.id} name`).toBeTruthy();
       expect(node.badgeCls, `${s.id} badge`).toMatch(
-        /^tfd-badge-(PINGONE|BFF|AUTHZ|GATEWAY|MCP|API|AGENT|CHAT|LLM|HEURISTICS)$/,
+      /^tfd-badge-(PINGONE|BFF|AUTHZ|GATEWAY|MCP|API|AGENT|CHAT|LLM|HEURISTICS)$/,
       );
     }
   });

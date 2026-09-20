@@ -57,7 +57,7 @@ describe('gateway fetches a JIT credential per call', () => {
 
   test('ON: fetches per call and sends the minted credential, not the static key', async () => {
     const calls = stubCalls('minted.jwt.value');
-    await buildApiKeyToolResult('show_mortgage', 'user-1', undefined, withJit(true));
+    const out = await buildApiKeyToolResult('show_mortgage', 'user-1', undefined, withJit(true));
 
     const broker = calls.find((c) => c.url.includes('service-key'));
     expect(broker).toBeDefined();
@@ -66,6 +66,9 @@ describe('gateway fetches a JIT credential per call', () => {
     const backend = calls.find((c) => c.url.includes('/mortgage'));
     expect(backend?.cfg.headers['X-API-Key']).toBe('minted.jwt.value');
     expect(backend?.cfg.headers['X-API-Key']).not.toBe('static-key-from-env');
+    expect((out as any).result?._meta?.tokenEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'vault-key-inject', credentialPath: 'api_key' }),
+    ]));
   });
 
   test('ON: binds the credential to this tool and its backend route', async () => {

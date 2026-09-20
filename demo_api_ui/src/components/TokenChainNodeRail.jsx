@@ -63,6 +63,7 @@ const NODE_LABELS = {
   stepup: "Step-up",
   "intent-binding": "Intent bind",
   gateway: "Gateway",
+  "vault-key-inject": "Vault",
   "api-key-swap": "API key",
   mcp: "MCP",
   api: "Resource",

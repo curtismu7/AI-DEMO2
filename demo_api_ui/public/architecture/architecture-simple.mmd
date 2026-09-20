@@ -110,7 +110,8 @@ flowchart LR
     %% ── Phase 270: edges for newly-named services ─────────────────────
     Gateway -->|"WS MCP - exchanged Bearer<br/>tools/call"| MCPServer
     Gateway -->|"WS MCP - invest tools"| MCPInvest
-    Gateway -->|"X-API-Key (Path A)<br/>OAuth Bearer dropped"| Mortgage
+    Gateway -->|"GET /internal/vault/service-key<br/>route-bound API key"| BFF
+    Gateway -->|"X-API-Key + X-User-Sub (Path A)<br/>OAuth Bearer dropped"| Mortgage
     MCPServer -->|"REST - exchanged Bearer<br/>BankingAPIClient"| OAuthRS
     MCPServer -->|"RFC 7662 introspect<br/>RFC 8693 chained exchange"| AS
     MCPInvest -->|"REST - exchanged Bearer"| OAuthRS
