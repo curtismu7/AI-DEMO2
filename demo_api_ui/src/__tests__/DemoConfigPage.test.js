@@ -106,6 +106,7 @@ describe("DemoConfigPage", () => {
     await waitFor(() => expect(screen.getByText("Monitoring")).toBeInTheDocument());
     fireEvent.click(screen.getAllByRole("button", { name: "Expand" })[1]);
 
+    expect(screen.getAllByRole("columnheader", { name: "Page" })).toHaveLength(3);
     expect(screen.getByRole("link", { name: "Open Themes" })).toHaveAttribute("href", "/themes");
     expect(screen.getByRole("link", { name: "Open Audit Trail" })).toHaveAttribute("href", "/audit");
   });
