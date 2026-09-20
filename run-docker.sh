@@ -111,7 +111,7 @@ fi
 # docker-compose.yml, off unless started — because it held ~750 MiB of RAM for
 # dashboards most sessions never open.
 CORE_SERVICES=(
-  ui mcp-server mcp-resource-server mcp-weather mcp-brave api-resource-server mcp-proxy
+  ui mcp-discovery-agent mcp-server mcp-resource-server mcp-weather mcp-brave api-resource-server mcp-proxy
   ping-gateway langchain-agent agent-service hitl-service llm-proxy
   promptfoo-step-narration
 )
@@ -786,7 +786,7 @@ SERVICES=(
   "alloy|Alloy (log collector)|12345|http://localhost:12345/-/ready"
   "alertmanager|Alertmanager        |9093|http://localhost:9093/-/ready"
   "ui|UI (React / nginx)   |4000|https://local.ping-devops.com:4000"
-  "mcp-discovery-agent|MCP Discovery Agent |-|internal health only"
+  "mcp-discovery-agent|MCP Discovery Agent   |-|internal :3910"
   "mcp-server|MCP Server            |8080|http://localhost:8080"
   "mcp-gateway|MCP Gateway           |3005|http://localhost:3005"
   "mcp-proxy|MCP Proxy             |8895|http://localhost:8895"

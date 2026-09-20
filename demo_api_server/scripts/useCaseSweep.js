@@ -30,6 +30,9 @@
 
 
 const { listUseCases, VERTICALS, resolveUseCase } = require('../config/useCases');
+// This is a read-only offline sweep; do not open the persistent LMDB store
+// when it is run from a worktree or fresh-clone hygiene check.
+process.env.VERTICAL_MANIFEST_EPHEMERAL ||= '1';
 const {
   checkChipPrerequisites,
   requiredFlagsForUseCase,
