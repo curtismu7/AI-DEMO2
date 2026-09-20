@@ -1,8 +1,8 @@
 # AI-DEMO2 LM Studio workflow plugin
 
-This LM Studio plugin adds a per-chat workflow dropdown covering the 14 core
-Demo Steps, two Local model paths, three Handoff paths, and four OpenSearch use
-cases. It injects the selected workflow as
+This LM Studio plugin adds a per-chat workflow dropdown covering the same
+Super Sports and OpenSearch workflows shown in LibreChat: six Super Sports
+paths, one checkout handoff, and four OpenSearch use cases. It injects the selected workflow as
 context before each user message. Ordinary workflows expose no helper tools, so
 the model calls the selected MCP tool directly without setup loops.
 

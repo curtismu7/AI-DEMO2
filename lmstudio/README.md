@@ -10,8 +10,8 @@ cp lmstudio/mcp.json ~/.lmstudio/mcp.json   # then restart LM Studio
 ## Demo Steps parity
 
 `demo-steps.json` is the source manifest for the LM Studio workflow pack. It
-contains the same 14 focused Banking, Super Sports, and CareConnect steps, two
-local-model paths, three handoff paths, and four OpenSearch use cases, with
+contains the same Super Sports and OpenSearch workflows shown in LibreChat: six
+Super Sports paths, one checkout handoff, and four OpenSearch use cases, with
 their tool allowlists and conversation starters. All gateway-backed steps use `MCP AgentGateway-Banking`, so the
 recording façade, Agent Gateway authorization, and PingOne proof remain
 visible.

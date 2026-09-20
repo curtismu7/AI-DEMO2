@@ -5,7 +5,7 @@ import { WORKFLOWS } from './toolsProvider';
 export async function preprocess(ctl: PromptPreprocessorController, userMessage: ChatMessage): Promise<string> {
   const key = ctl.getPluginConfig(configSchematics).get('workflow');
   const demoMode = ctl.getPluginConfig(configSchematics).get('demoMode');
-  const workflow = WORKFLOWS[key] ?? WORKFLOWS['banking-everyday'];
+  const workflow = WORKFLOWS[key] ?? WORKFLOWS['sports-legacy'];
   return [
     `[AI-DEMO2 workflow: ${workflow.label}]`,
     workflow.handoffs?.length
