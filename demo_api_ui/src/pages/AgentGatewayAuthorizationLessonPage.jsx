@@ -192,7 +192,7 @@ export default function AgentGatewayAuthorizationLessonPage() {
         </div>
         <div className="agal-positioning">
           <strong>One security story, four responsibilities.</strong>
-          <p><b>AI Core</b> establishes the agent and delegated identity. <b>PingOne Authorize</b> decides whether this action is allowed now. <b>Agent Gateway</b> protects MCP traffic and enforces the result. <b>Privilege AI</b> governs the credentials, models, tools, and AI traffic the agent can use.</p>
+          <p><b>AI Core</b> establishes the agent credentials and delegated identity. <b>PingOne Authorize</b> decides whether this action is allowed now. <b>Agent Gateway</b> protects MCP traffic and enforces the result. <b>Privilege AI</b> extends the story with controls for models, tools, spend, and AI traffic.</p>
           <Link to="/privilege-for-ai">See the Privilege AI threat-control story</Link>
         </div>
       </Section>
