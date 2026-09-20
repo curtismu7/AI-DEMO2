@@ -1,4 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { SessionTokenProvider } from "../context/SessionTokenContext";
 import { ThemeProvider } from "../context/ThemeContext";
@@ -50,6 +52,14 @@ function renderJourney(initialEntry = "/academy/journey", props = {}) {
 }
 
 describe("GuidedJourneyPage", () => {
+  it("registers the production journey path with GuidedJourneyRoute", () => {
+    const appSource = readFileSync(resolve("src/App.js"), "utf8");
+
+    expect(appSource).toMatch(
+      /<Route\s+path="\/academy\/journey"\s+element=\{\s*<GuidedJourneyRoute\b[\s\S]*?\/>\s*\}\s*\/>/,
+    );
+  });
+
   it("advances through the ordered nine-step customer story", async () => {
     renderJourney();
     await screen.findByText("Needs attention");
