@@ -34,13 +34,13 @@ Ingress external-auth calls the front-door check endpoint. The BFF API gate
 
 Add exact routes:
 
-- `GET /api/auth/hosted/login` — starts the dedicated PingOne OIDC flow.
-- `GET /api/auth/hosted/callback` — validates state, PKCE, nonce, issuer,
+- `GET /api/auth/hosted-access/login` — starts the dedicated PingOne OIDC flow.
+- `GET /api/auth/hosted-access/callback` — validates state, PKCE, nonce, issuer,
   signature, audience, expiry, and verified identity policy; creates only the
   front-door approval session.
-- `GET /api/auth/hosted/check` — returns `204` for current admission,
+- `GET /api/auth/hosted-access/check` — returns `204` for current admission,
   `401` when absent, and `403` when present but invalidated.
-- `GET /api/auth/hosted/logout` — clears only the front-door session and
+- `GET /api/auth/hosted-access/logout` — clears only the front-door session and
   redirects to a sanitized hosted return path.
 
 The front-door client requests `openid profile email`. The policy requires
@@ -67,7 +67,7 @@ or through the dedicated front-door flow as needed by the browser.
 
 ## Kubernetes Routing
 
-Update the SE ingress `auth-signin` target to `/api/auth/hosted/login` and add a
+Update the SE ingress `auth-signin` target to `/api/auth/hosted-access/login` and add a
 separate exact-path bypass ingress for the front-door login and callback. The
 catch-all application and Grafana paths retain external-auth. The generic ALB
 manifest must not claim to provide this NGINX external-auth behavior; the SE
