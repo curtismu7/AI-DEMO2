@@ -291,22 +291,31 @@ function validateScopesForTool(toolName, requestedScopes) {
     };
   }
 
-  // Check if requested scopes include at least one required scope
-  const hasRequiredScope = requiredScopes.some(scope => requestedScopes.includes(scope));
+  // `read` is the canonical broad banking read scope. Account discovery
+  // historically used it before the topology introduced `accounts:read`, so
+  // keep that compatibility relationship explicit rather than broadening
+  // every feature-specific scope.
+  const compatibleScopes = requiredScopes.flatMap((scope) => (
+    scope === 'accounts:read' ? [scope, 'read'] : [scope]
+  ));
+
+  // Check if requested scopes include at least one required scope or its
+  // documented compatibility scope.
+  const hasRequiredScope = compatibleScopes.some(scope => requestedScopes.includes(scope));
   
   if (!hasRequiredScope) {
     return {
       valid: false,
-      errors: [`Tool ${toolName} requires one of: ${requiredScopes.join(', ')}`],
-      requiredScopes
+      errors: [`Tool ${toolName} requires one of: ${compatibleScopes.join(', ')}`],
+      requiredScopes: compatibleScopes
     };
   }
 
   return {
     valid: true,
     errors: [],
-    requiredScopes,
-    matchedScopes: requestedScopes.filter(scope => requiredScopes.includes(scope))
+    requiredScopes: compatibleScopes,
+    matchedScopes: requestedScopes.filter(scope => compatibleScopes.includes(scope))
   };
 }
 
