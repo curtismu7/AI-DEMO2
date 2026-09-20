@@ -158,3 +158,47 @@ test('rate limiting only applies to inference requests', () => {
   assert.strictEqual(isInferenceRoute({ method: 'GET', url: '/health' }), false);
   assert.strictEqual(isInferenceRoute({ method: 'GET', url: '/random-probe' }), false);
 });
+
+test('tool discovery answers from the request without selecting an LLM tier', async () => {
+  const { server } = router;
+  const ensureCallsBefore = ensure.calls.length;
+  await new Promise((resolve, reject) => {
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      const body = JSON.stringify({
+        model: 'gpt-oss-20b',
+        messages: [{ role: 'user', content: 'What tools can I use?' }],
+        tools: [{
+          type: 'function',
+          function: { name: 'list_rentals', description: 'List active rentals.' },
+        }],
+      });
+      const req = http.request({
+        hostname: '127.0.0.1',
+        port: address.port,
+        path: '/v1/chat/completions',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+      }, (res) => {
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => {
+          server.close(() => {
+            try {
+              assert.strictEqual(res.statusCode, 200);
+              const response = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+              assert.match(response.choices[0].message.content, /`list_rentals`/);
+              assert.strictEqual(ensure.calls.length, ensureCallsBefore);
+              resolve();
+            } catch (err) {
+              reject(err);
+            }
+          });
+        });
+      });
+      req.on('error', reject);
+      req.end(body);
+    });
+    server.once('error', reject);
+  });
+});

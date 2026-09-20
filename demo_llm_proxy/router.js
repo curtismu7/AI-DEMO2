@@ -10,6 +10,10 @@ const {
   modelFromRequest,
 } = require('./posthogAi');
 const { exporter: metricsExporter, requestDuration, requestErrors } = require('./metrics');
+const {
+  createToolDiscoveryResponse,
+  getToolDiscoveryRequest,
+} = require('./toolDiscoveryResponse');
 
 // ── Config ──────────────────────────────────────────────────────────────────
 // host.docker.internal lets the container reach llama-server processes running
@@ -566,6 +570,29 @@ const server = http.createServer((req, res) => {
   req.on('end', async () => {
     const bodyBuffer = Buffer.concat(chunks);
     lastRequestAt = Date.now();
+
+    // Every OpenAI-compatible client sends the tools available for this turn
+    // in the chat-completions body. Answer explicit discovery questions from
+    // that effective list so app agents, Onyx, and LibreChat behave the same,
+    // without loading a model or independently querying an MCP server under
+    // the wrong identity.
+    if (req.method === 'POST'
+      && new URL(req.url, 'http://llm-proxy').pathname === '/v1/chat/completions') {
+      let parsed = null;
+      try { parsed = JSON.parse(bodyBuffer.toString('utf8')); } catch { /* pass malformed JSON upstream */ }
+      const discovery = getToolDiscoveryRequest(parsed);
+      if (discovery) {
+        const response = createToolDiscoveryResponse(discovery);
+        res.writeHead(response.statusCode, {
+          'Content-Type': response.contentType,
+          'Cache-Control': 'no-store',
+        });
+        res.end(response.body);
+        console.log(`[proxy] POST /v1/chat/completions → local tool discovery (${discovery.tools.length} attached)`);
+        return;
+      }
+    }
+
     const { cls, via } = requiredClass(bodyBuffer);
     const routedCls = effectiveClass(cls);
 
@@ -659,4 +686,4 @@ process.on('SIGTERM', () => {
 } // end require.main === module
 
 // Exported for unit tests only (no effect on `node router.js`).
-module.exports = { TIERS, swapTo, smallestLoadedCovering, isInferenceRoute };
+module.exports = { TIERS, swapTo, smallestLoadedCovering, isInferenceRoute, server };

@@ -8,6 +8,7 @@
  * Admin and retail themes have their own describe blocks at the bottom.
  */
 const { parseHeuristic } = require('../../services/nlIntentParser');
+const { verticalManifest } = require('../../services/verticalManifest');
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -275,6 +276,30 @@ describe('nlIntentParser — amount parsing chips', () => {
 // ── MCP tools chip — never hijacked by education regex ────────────────────────
 
 describe('nlIntentParser — mcp_tools chip immunity to edu regex', () => {
+  it('"What tools can I use?" → mcp_tools for every visible vertical', () => {
+    verticalManifest.init();
+    for (const { id } of verticalManifest.list()) {
+      const r = parseHeuristic('What tools can I use?', id);
+      expect({ id, kind: r.kind, action: r.banking?.action }).toEqual({
+        id,
+        kind: 'banking',
+        action: 'mcp_tools',
+      });
+    }
+  });
+
+  it('does not treat quoted, translated, or negated MCP-tool text as discovery', () => {
+    for (const message of [
+      'Do not answer "What tools can I use?"; explain MCP instead.',
+      'Do not answer "What MCP tools can I use?"; explain MCP instead.',
+      'Translate "What MCP tools can I use?" to Spanish.',
+      'Do not list MCP tools; explain the protocol instead.',
+    ]) {
+      const r = parseHeuristic(message, 'banking');
+      expect({ message, action: r.banking?.action }).not.toEqual({ message, action: 'mcp_tools' });
+    }
+  });
+
   it('"list mcp tools" → mcp_tools (not education)', () => {
     const r = parseHeuristic('list mcp tools');
     expect(r.kind).toBe('banking');
@@ -295,6 +320,14 @@ describe('nlIntentParser — mcp_tools chip immunity to edu regex', () => {
 
   it('"what mcp tools are available" → mcp_tools', () => {
     expect(bank('what mcp tools are available').banking.action).toBe('mcp_tools');
+  });
+
+  it.each([
+    'list of mcp tools',
+    'please list mcp tools',
+    'please show available tools',
+  ])('explicit polite discovery phrase "%s" → mcp_tools', (message) => {
+    expect(bank(message).banking.action).toBe('mcp_tools');
   });
 
   it('"what is mcp" → education (not mcp_tools)', () => {
