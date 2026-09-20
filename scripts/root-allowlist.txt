@@ -135,4 +135,5 @@ start.sh
 stop.sh
 test-use-cases-api.sh
 tests
+terraform
 uninstall.sh

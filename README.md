@@ -28,6 +28,8 @@ asks **how you want to run** the demo:
 | **2** | **Kubernetes / OrbStack** (local cluster) | `./run-k8.sh` | + OrbStack, kubectl |
 | **3** | **Ping SE cluster** (shared AWS) | `./run-pingaws.sh` | + Docker Desktop, kubelogin, kubectx |
 | **4** | **Kubernetes / EKS** (self-managed) | `./run-k8.sh aws-all` | + OrbStack, AWS CLI |
+| **5** | **Local Docker + Terraform** | `cd terraform && terraform apply` | + Docker, Terraform |
+| **6** | **Ping SE + Terraform** (existing namespace) | `./terraform/deploy-se.sh` | + Docker, Terraform, kubectl |
 
 ¹ Local mode still uses Docker to run **PingGateway** (the MCP authorization gateway).
 
@@ -35,7 +37,7 @@ asks **how you want to run** the demo:
 
 1. **A PingOne Worker app** (role: *Identity Data Admin*) — create it once in the PingOne admin
    console. The installer **prompts for its Environment ID, Client ID, and Client Secret** and
-   provisions everything else automatically. (Press Enter to skip and use the browser form instead.)
+   provisions everything else automatically. These three Worker app values are required.
 2. **A Helix agent key** (optional) — to power the natural-language AI. Without it the agent runs
    in heuristic-only mode. See [Configure the AI agent (Helix)](#configure-the-ai-agent-helix).
 
@@ -47,6 +49,11 @@ ASSUME_YES=1 curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO
 
 After install, start the demo any time with the launcher for your mode (e.g. `cd ~/AI-demo && ./run.sh`)
 and open **`https://local.ping-devops.com:4000`**. Full details for each mode are in [How to Run](#how-to-run) below.
+
+Terraform handoff details, including the explicit Docker and SE commands, are in
+[terraform/README.md](terraform/README.md). Terraform's Docker target drives the
+existing Compose stack through lifecycle commands, so Compose remains the source
+of truth; Terraform does not track each container as a separate resource.
 
 ## Components
 
@@ -238,6 +245,29 @@ curl -sk https://api.ping.demo:3001/api/health/inventory/sizes   # per-container
 ```
 
 Compose profiles (same groups): `docker compose --profile rag up -d`, etc.
+
+#### Terraform-managed local Docker
+
+For users who want Terraform to own the local Docker stack lifecycle while
+keeping this repository's Compose service definitions as the source of truth:
+
+```bash
+./install.sh --mode docker-terraform
+
+cd ~/AI-demo/terraform
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+terraform validate
+terraform plan -out=ai-demo.tfplan
+terraform apply ai-demo.tfplan
+```
+
+The installer asks for the PingOne Environment ID, Worker Client ID, and
+Worker Client Secret before running PingOne bootstrap. Terraform keeps named
+Docker volumes by default; use `terraform destroy -var='retain_volumes=false'`
+only when local persistent data should also be removed. See
+[`terraform/README.md`](terraform/README.md) for profiles, status, logs, and
+destroy commands.
 
 #### Real vs demo Authorize / Agent Gateway
 

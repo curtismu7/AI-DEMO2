@@ -1,0 +1,17 @@
+# Copy to terraform.tfvars. This file must remain local and must not be committed.
+
+target          = "docker"
+project_name    = "ai-demo"
+compose_file    = "../docker-compose.yml"
+public_app_url  = "https://local.ping-devops.com:4000"
+build_images    = true
+retain_volumes  = true
+
+# Optional Compose profiles:
+# compose_profiles = ["agents", "tracing"]
+
+# SE example:
+# target             = "se"
+# namespace          = "ping-devops-alex" # must already exist
+# kubernetes_context = "us"
+# image_repository   = "ghcr.io/alex"
