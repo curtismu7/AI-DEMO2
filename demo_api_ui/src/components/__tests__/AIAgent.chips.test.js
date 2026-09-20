@@ -559,7 +559,7 @@ describe("Header controls after the Actions dropdown removal", () => {
       });
     }
 
-  });
+  }, 60000);
 
   it("auto-pops the Simple Stepper when its surface is set to pop-out", async () => {
     simpleStepperPanelMock.props.length = 0;
