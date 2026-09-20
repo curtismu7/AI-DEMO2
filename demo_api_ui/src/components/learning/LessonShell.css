@@ -1,0 +1,272 @@
+.lesson-shell {
+  min-height: 100%;
+  padding: 1.5rem clamp(1rem, 3vw, 3rem) 3rem;
+  background: var(--th-bg-page);
+  color: var(--th-text-body);
+}
+
+.lesson-shell__header,
+.lesson-shell__status-row,
+.lesson-shell__body {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+}
+
+.lesson-shell__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-card);
+}
+
+.lesson-shell__eyebrow {
+  margin: 0 0 0.35rem;
+  color: var(--th-status-info-text);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lesson-shell h1,
+.lesson-shell h2,
+.lesson-shell p {
+  color: var(--th-text);
+}
+
+.lesson-shell h1 {
+  margin: 0;
+  font-size: var(--font-size-h1);
+  line-height: 1.15;
+}
+
+.lesson-shell__audience {
+  margin: 0.65rem 0 0;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.lesson-shell__mode-toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-inset);
+}
+
+.lesson-shell__mode-toggle button,
+.lesson-shell__run-button,
+.lesson-shell__reset-button {
+  min-height: 2.5rem;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lesson-shell__mode-toggle button {
+  color: var(--th-text-muted);
+  background: transparent;
+}
+
+.lesson-shell__mode-toggle button:hover,
+.lesson-shell__mode-toggle button:focus-visible,
+.lesson-shell__mode-toggle button.is-active {
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border-color: var(--th-border-strong);
+}
+
+.lesson-shell button:focus-visible,
+.lesson-shell a:focus-visible {
+  outline: 2px solid var(--th-status-info);
+  outline-offset: 2px;
+}
+
+.lesson-shell__status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.lesson-shell__provenance {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+}
+
+.lesson-shell__provenance-label {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--th-status-success-border, var(--th-border-strong));
+  border-radius: var(--radius-sm);
+  color: var(--th-status-success-text, var(--th-text));
+  background: var(--th-status-success-bg, var(--th-bg-card));
+  font-size: var(--font-size-2xs);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.lesson-shell__provenance-detail,
+.lesson-shell__run-state {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.lesson-shell__run-state--complete {
+  color: var(--th-status-success-text, var(--th-text));
+}
+
+.lesson-shell__run-state--error {
+  color: var(--th-status-error-text, var(--th-text));
+}
+
+.lesson-shell__run-state--reset-error {
+  color: var(--th-status-error-text, var(--th-text));
+}
+
+.lesson-shell__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.lesson-shell__content,
+.lesson-shell__evidence {
+  min-width: 0;
+  padding: 1.25rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-card);
+}
+
+.lesson-shell--standalone .lesson-shell__content {
+  padding: 1rem;
+}
+
+.lesson-shell__content-inner {
+  min-height: 13rem;
+}
+
+.lesson-shell__actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--th-border);
+}
+
+.lesson-shell__run-button {
+  color: var(--th-text-invert);
+  background: var(--th-status-info);
+}
+
+.lesson-shell__run-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.lesson-shell__reset-button {
+  color: var(--th-text);
+  border-color: var(--th-border-strong);
+  background: var(--th-bg-card);
+}
+
+.lesson-shell__reset-button:hover {
+  background: var(--th-bg-hover);
+}
+
+.lesson-shell__explain-link {
+  margin-left: auto;
+  color: var(--th-status-info-text);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.lesson-shell__evidence {
+  align-self: start;
+  position: sticky;
+  top: calc(var(--topnav-height, 60px) + 1rem);
+}
+
+.lesson-shell__evidence-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--th-border);
+}
+
+.lesson-shell__evidence h2 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+
+.lesson-shell__evidence-heading span {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.lesson-shell__evidence-list {
+  margin: 1rem 0 0;
+  padding-left: 1.25rem;
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+}
+
+.lesson-shell__empty-evidence,
+.lesson-shell__evidence-json {
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+}
+
+.lesson-shell__evidence-json {
+  max-height: 18rem;
+  margin: 1rem 0 0;
+  overflow: auto;
+  padding: 0.75rem;
+  background: var(--th-code-bg);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .lesson-shell__header,
+  .lesson-shell__status-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .lesson-shell__body {
+    grid-template-columns: 1fr;
+  }
+
+  .lesson-shell__evidence {
+    position: static;
+  }
+
+  .lesson-shell__explain-link {
+    margin-left: 0;
+  }
+}

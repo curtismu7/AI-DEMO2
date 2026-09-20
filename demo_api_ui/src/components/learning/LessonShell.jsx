@@ -1,0 +1,182 @@
+import { isValidElement, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { PROVENANCE } from "../../learning/provenance";
+import LessonModeToggle from "./LessonModeToggle";
+import LessonProvenanceBadge from "./LessonProvenanceBadge";
+import "./LessonShell.css";
+
+const MODE_VALUES = new Set(["guided", "standalone"]);
+const PROVENANCE_VALUES = new Set(Object.values(PROVENANCE));
+
+export function normalizeLessonRunResult(result) {
+  if (
+    !result ||
+    typeof result !== "object" ||
+    !PROVENANCE_VALUES.has(result.provenance) ||
+    !("evidence" in result) ||
+    !("result" in result)
+  ) {
+    return null;
+  }
+
+  return {
+    provenance: result.provenance,
+    evidence: result.evidence,
+    result: result.result,
+    warnings: Array.isArray(result.warnings) ? result.warnings : [],
+  };
+}
+
+function getFallbackDetail(lesson) {
+  const fallback = lesson?.fallback;
+  if (!fallback) return "Fallback behavior is not configured yet.";
+  return `Fallback: ${fallback.label}`;
+}
+
+export default function LessonShell({ lesson, mode = "guided", children, evidence, onRun, onModeChange }) {
+  const initialMode = MODE_VALUES.has(mode) ? mode : "guided";
+  const [activeMode, setActiveMode] = useState(initialMode);
+  const [runState, setRunState] = useState(typeof onRun === "function" ? "ready" : "unavailable");
+  const [observedResult, setObservedResult] = useState(null);
+  const [runError, setRunError] = useState("");
+  const requestGeneration = useRef(0);
+
+  useEffect(() => {
+    if (MODE_VALUES.has(mode)) setActiveMode(mode);
+  }, [mode]);
+
+  const handleModeChange = (nextMode) => {
+    setActiveMode(nextMode);
+    onModeChange?.(nextMode);
+  };
+
+  const handleRun = async () => {
+    if (typeof onRun !== "function") return;
+    const generation = ++requestGeneration.current;
+    setRunState("running");
+    setObservedResult(null);
+    setRunError("");
+    try {
+      const normalized = normalizeLessonRunResult(await onRun({ lesson, mode: activeMode }));
+      if (generation !== requestGeneration.current) return;
+      if (!normalized) {
+        setRunState("error");
+        setRunError("No normalized run result was returned.");
+        return;
+      }
+      setObservedResult(normalized);
+      setRunState("complete");
+    } catch {
+      if (generation !== requestGeneration.current) return;
+      setRunState("error");
+      setRunError("Live run failed.");
+    }
+  };
+
+  const handleReset = async () => {
+    const generation = ++requestGeneration.current;
+    setObservedResult(null);
+    setRunError("");
+    if (typeof onRun !== "function") {
+      setRunState("ready");
+      return;
+    }
+    setRunState("resetting");
+    try {
+      await onRun({ lesson, mode: activeMode, reset: true });
+      if (generation === requestGeneration.current) setRunState("ready");
+    } catch {
+      if (generation !== requestGeneration.current) return;
+      setRunState("reset-error");
+      setRunError("Reset failed. The previous run may still be active.");
+    }
+  };
+
+  const explanationRoute = lesson?.route || "/learning";
+  const alternateRoute = lesson?.standaloneRoute || explanationRoute;
+  const observedEvidence = observedResult?.evidence;
+  const evidenceCount = Array.isArray(observedEvidence) ? observedEvidence.length : observedResult ? 1 : 0;
+
+  const renderEvidence = () => {
+    if (isValidElement(evidence)) return evidence;
+    if (Array.isArray(observedEvidence)) {
+      return (
+        <ol className="lesson-shell__evidence-list">
+          {observedEvidence.map((event, index) => <li key={`${String(event)}-${index}`}>{String(event)}</li>)}
+        </ol>
+      );
+    }
+    if (observedEvidence && typeof observedEvidence === "object") {
+      return <pre className="lesson-shell__evidence-json">{JSON.stringify(observedEvidence, null, 2)}</pre>;
+    }
+    return <p className="lesson-shell__empty-evidence">No observed evidence yet.</p>;
+  };
+
+  return (
+    <div className={`lesson-shell lesson-shell--${activeMode}`}>
+      <header className="lesson-shell__header">
+        <div>
+          <p className="lesson-shell__eyebrow">AI Security Academy</p>
+          <h1>{lesson?.title || "Lesson"}</h1>
+          <p className="lesson-shell__audience">For {lesson?.audience || "sales engineers and customer teams"}</p>
+        </div>
+        <LessonModeToggle mode={activeMode} onChange={handleModeChange} />
+      </header>
+
+      <div className="lesson-shell__status-row">
+        <LessonProvenanceBadge
+          provenance={observedResult?.provenance}
+          detail={
+            observedResult
+              ? `Observed run result. ${getFallbackDetail(lesson)}`
+              : "Policy: cloud tenant preferred. No live execution is connected."
+          }
+        />
+        <span
+          className={`lesson-shell__run-state lesson-shell__run-state--${runState}`}
+          role="status"
+          aria-live="polite"
+        >
+          {runState === "ready" && "Ready to run"}
+          {runState === "unavailable" && "Ready to configure"}
+          {runState === "running" && "Running"}
+          {runState === "resetting" && "Resetting"}
+          {runState === "complete" && "Run captured"}
+          {runState === "error" && runError}
+          {runState === "reset-error" && "Reset failed"}
+        </span>
+      </div>
+
+      <div className="lesson-shell__body">
+        <main className="lesson-shell__content" aria-label={`${lesson?.title || "Lesson"} content`}>
+          <div className="lesson-shell__content-inner">{children}</div>
+          <div className="lesson-shell__actions">
+            <button type="button" className="lesson-shell__run-button" onClick={handleRun} disabled={!onRun || runState === "running" || runState === "resetting"}>
+              {runState === "running" ? "Running…" : "Run live lesson"}
+            </button>
+            <button type="button" className="lesson-shell__reset-button" onClick={handleReset} disabled={runState === "resetting"}>
+              Reset demo
+            </button>
+            {activeMode === "standalone" ? (
+              <Link className="lesson-shell__explain-link" to={explanationRoute}>
+                Explain what just happened
+              </Link>
+            ) : (
+              <Link className="lesson-shell__explain-link" to={alternateRoute}>
+                Open standalone demo
+              </Link>
+            )}
+          </div>
+        </main>
+
+        <aside className="lesson-shell__evidence" aria-label="Lesson evidence">
+          <div className="lesson-shell__evidence-heading">
+            <h2>Evidence</h2>
+            <span>{evidenceCount} observed events</span>
+          </div>
+          {observedResult ? renderEvidence() : <p className="lesson-shell__empty-evidence">No observed evidence yet.</p>}
+        </aside>
+      </div>
+    </div>
+  );
+}
