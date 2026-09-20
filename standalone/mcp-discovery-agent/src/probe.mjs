@@ -113,7 +113,7 @@ export async function probeCandidate(candidate, options = {}) {
     const security = analyzeToolMetadata(result.tools);
     return {
       ...record,
-      status: 'healthy',
+      status: security.findings.length > 0 ? 'hostile' : 'healthy',
       probe: { lastAttemptAt: attemptedAt, lastSuccessAt: now(), latencyMs: Date.now() - started, errorCode: null },
       serverInfo: result.serverInfo,
       protocolVersion: result.protocolVersion,

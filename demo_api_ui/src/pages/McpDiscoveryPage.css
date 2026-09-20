@@ -52,7 +52,7 @@
   color: var(--th-text);
 }
 
-.mcp-discovery-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; max-width: 1500px; margin: 0 auto 16px; }
+.mcp-discovery-summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; max-width: 1500px; margin: 0 auto 16px; }
 .mcp-discovery-summary-card {
   border: 1px solid var(--th-border);
   border-radius: 8px;
@@ -131,6 +131,10 @@
 .mcp-discovery-status-candidate {
   background: var(--th-status-warning-bg);
   color: var(--th-status-warning-text);
+}
+.mcp-discovery-status-hostile {
+  background: #f9d4d4;
+  color: #8d1717;
 }
 .mcp-discovery-status-offline {
   background: var(--th-status-error-bg);

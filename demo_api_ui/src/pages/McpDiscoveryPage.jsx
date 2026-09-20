@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchMcpDiscoveryInventory, requestMcpDiscoveryScan } from '../services/mcpDiscoveryService';
 import './McpDiscoveryPage.css';
 
-const STATUS_ORDER = ['healthy', 'degraded', 'offline', 'candidate', 'unprobed'];
+const STATUS_ORDER = ['healthy', 'hostile', 'degraded', 'offline', 'candidate', 'unprobed'];
 
 function statusLabel(status) {
   return String(status || 'unprobed').replace(/-/g, ' ');
@@ -146,8 +146,9 @@ export default function McpDiscoveryPage() {
       <section className="mcp-discovery-summary" aria-label="Inventory summary">
         <div className="mcp-discovery-summary-card"><span>Verified servers</span><strong>{counts.healthy || 0}</strong><small>healthy MCP endpoints</small></div>
         <div className="mcp-discovery-summary-card"><span>Candidates</span><strong>{counts.candidate || 0}</strong><small>observed but unprobed</small></div>
-        <div className="mcp-discovery-summary-card"><span>Needs attention</span><strong>{(counts.degraded || 0) + (counts.offline || 0)}</strong><small>degraded or unreachable</small></div>
+        <div className="mcp-discovery-summary-card"><span>Needs attention</span><strong>{(counts.hostile || 0) + (counts.degraded || 0) + (counts.offline || 0)}</strong><small>hostile, degraded, or unreachable</small></div>
         <div className="mcp-discovery-summary-card"><span>Findings</span><strong>{findings.length}</strong><small>heuristic metadata flags</small></div>
+        <div className="mcp-discovery-summary-card"><span>Hostile findings</span><strong>{counts.hostile || 0}</strong><small>servers with suspicious metadata</small></div>
       </section>
 
       <div className="mcp-discovery-grid">
