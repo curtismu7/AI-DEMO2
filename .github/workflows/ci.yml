@@ -1,28 +1,11 @@
 name: CI
 
-# Actions minutes budget: this used to be a private repo on the Free plan
-# (2,000 min/month), which is why `push: branches:[main]` was dropped in favor
-# of a once-daily nightly — see git history for the original reasoning. The
-# repo is now public (confirmed 2026-08-22), which means unlimited free Actions
-# minutes, so that constraint no longer applies. Restored `push: branches:
-# [main]` per the revert note this comment used to end with: it catches the
-# rare case where two PRs are each green against main but conflict once both
-# land, within minutes of the merge instead of waiting up to 24h for the
-# nightly schedule. The nightly and workflow_dispatch triggers stay as a
-# belt-and-suspenders fallback (e.g. a merge that lands outside a PR).
+# Automatic triggers are intentionally disabled while this repository has no
+# available GitHub-hosted or self-hosted runner. Keeping the workflow manually
+# dispatchable preserves the checks for the day runners are enabled again.
 #
-#   pull_request  — the real gate. GitHub builds refs/pull/N/merge, i.e. the PR
-#                   ALREADY MERGED INTO main, so this tests the merge result
-#                   before it lands.
-#   push          — re-test main immediately after every merge.
-#   schedule      — nightly safety net on main (06:00 UTC).
-#   workflow_dispatch — run main on demand.
+#   workflow_dispatch — run main on demand once a runner is available.
 on:
-  pull_request:
-  push:
-    branches: [main]
-  schedule:
-    - cron: '0 6 * * *'   # 06:00 UTC daily, on main
   workflow_dispatch:
 
 concurrency:
