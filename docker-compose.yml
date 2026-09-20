@@ -560,10 +560,10 @@ services:
       # surfacing "Could not parse: signal timed out"; a 3.8B-class model answers
       # in ~3s. Leave LLAMACPP_MODEL unset to use whatever llama-server reports.
       LLAMACPP_MODEL: "phi-4-mini-instruct"
-      # LM Studio may require authentication (LM Studio 0.4+). Keep both
-      # accepted names available to the BFF; empty means legacy no-auth mode.
-      LMSTUDIO_API_KEY: "${LMSTUDIO_API_KEY:-}"
-      LM_API_TOKEN: "${LM_API_TOKEN:-}"
+      # LM Studio may require authentication (LM Studio 0.4+). The accepted
+      # names are supplied by demo_api_server/.env via env_file below; do not
+      # repeat them here because environment: overrides env_file, even when a
+      # shell variable is unset.
       # Apple mlx-lm demo agent mode (host mlx_lm.server on :8098; Mac only).
       MLX_LM_BASE_URL: "http://host.docker.internal:8098"
       # Trust the mkcert root so the BFF can complete a TLS handshake with the
