@@ -78,7 +78,7 @@ export default function LessonShell({ lesson, mode = "guided", children, evidenc
     setObservedResult(null);
     setRunError("");
     if (typeof onRun !== "function") {
-      setRunState("ready");
+      setRunState("unavailable");
       return;
     }
     setRunState("resetting");
@@ -148,7 +148,7 @@ export default function LessonShell({ lesson, mode = "guided", children, evidenc
       </div>
 
       <div className="lesson-shell__body">
-        <main className="lesson-shell__content" aria-label={`${lesson?.title || "Lesson"} content`}>
+        <section className="lesson-shell__content" aria-label={`${lesson?.title || "Lesson"} content`}>
           <div className="lesson-shell__content-inner">{children}</div>
           <div className="lesson-shell__actions">
             <button type="button" className="lesson-shell__run-button" onClick={handleRun} disabled={!onRun || runState === "running" || runState === "resetting"}>
@@ -167,7 +167,7 @@ export default function LessonShell({ lesson, mode = "guided", children, evidenc
               </Link>
             )}
           </div>
-        </main>
+        </section>
 
         <aside className="lesson-shell__evidence" aria-label="Lesson evidence">
           <div className="lesson-shell__evidence-heading">
