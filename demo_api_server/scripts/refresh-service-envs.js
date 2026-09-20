@@ -15,6 +15,7 @@
 
 const fs   = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const https = require('https');
 const http  = require('http');
 
@@ -631,6 +632,14 @@ async function main(deps = {}) {
   // clone with no vault behaves as it always did.
   const vaultSecrets = await loadVaultSecrets(['INTENT_TOKEN_SECRET', 'BFF_INTERNAL_SECRET']);
   const fbVault = (key) => vaultSecrets[key] || fb(key);
+  const existingResourceEnv = parseEnv(path.join(ROOT, 'demo_mcp_resource_server', '.env'));
+  // This key is local service configuration, not a PingOne application secret.
+  // Preserve it across refreshes, or mint it once when setting up a fresh stack,
+  // then write the same value to the resource server and PingGateway.
+  const mcpResourceServerApiKey = fbVault('MCP_RESOURCE_SERVER_API_KEY')
+    || fb('MCP_RESOURCE_SERVER_API_KEY')
+    || existingResourceEnv.MCP_RESOURCE_SERVER_API_KEY
+    || crypto.randomBytes(24).toString('hex');
 
   const creds = {
     mcpGatewayClientId:     apps.mcpGateway?.clientId     || fb('PINGONE_MCP_GATEWAY_CLIENT_ID'),
@@ -909,7 +918,7 @@ async function main(deps = {}) {
     MCP_RESOURCE_SERVER_AUDIENCE: investAudList,
     // The private account-context resolver and PingGateway must share the same
     // service key. Keep it in the resource-server env as well as the gateway env.
-    MCP_RESOURCE_SERVER_API_KEY: fbVault('MCP_RESOURCE_SERVER_API_KEY') || fb('MCP_RESOURCE_SERVER_API_KEY'),
+    MCP_RESOURCE_SERVER_API_KEY: mcpResourceServerApiKey,
   }, [
     'This is the Invest MCP resource server (mcp-invest.ping.demo). It validates',
     'inbound access tokens via PINGONE_JWKS_URI and accepts requests for the',
@@ -1036,7 +1045,7 @@ async function main(deps = {}) {
     // Private P1AZ resolver route: PingGateway injects this key before proxying
     // /authorize/account-context to the SQLite-backed resource server. Keep it
     // identical to the resource server's vault-backed key.
-    MCP_RESOURCE_SERVER_API_KEY:    fbVault('MCP_RESOURCE_SERVER_API_KEY') || fb('MCP_RESOURCE_SERVER_API_KEY'),
+    MCP_RESOURCE_SERVER_API_KEY:    mcpResourceServerApiKey,
     BFF_INTERNAL_SECRET:            fbVault('BFF_INTERNAL_SECRET') || 'dev-shared-secret-change-me',
     // Intent Token verification in scripts/groovy/p1az-decision.groovy resolves
     // `INTENT_TOKEN_SECRET ?: SESSION_SECRET`. Neither was emitted here, so the
