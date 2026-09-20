@@ -50,7 +50,7 @@ python3 test_server.py            # mapping check, no model/torch needed
 # --build-arg HF_TOKEN=hf_xxx --build-arg PROMPTGUARD_MODEL=meta-llama/Llama-Prompt-Guard-2-86M
 docker buildx build --platform linux/arm64 \
   --build-arg GIT_SHA=$(git rev-parse --short HEAD) \
-  -t ghcr.io/curtismu7/ai-demo-mcp-promptguard:latest --push .
+  -t ghcr.io/cmuir_pingcorp/ai-demo-mcp-promptguard:latest --push .
 ```
 
 Then add the sidecar to `pingone-privgateway-helm-main/agentless/sidecars.values.yaml`

@@ -177,7 +177,7 @@ Token custody for this flow is platform-side: the Copilot agent holds the short-
 | `dualtoken` | resource `/identity` | HTTP + Bearer | `user_profile_card` |
 | `bankingdata` | resource `/accounts`/`/transactions` | HTTP + Bearer | `demo_show_accounts` |
 
-The gateway picks the target by tool name, performs any required token exchange (re-audiencing), and forwards. The `apikey` route is intentional: it shows the gateway translating a delegated user token into a service API key at the trust boundary, so the downstream service never sees user identity.
+The gateway picks the target by tool name, performs any required token exchange (re-audiencing), and forwards. For the `apikey` route, it first calls the BFF's internal `/internal/vault/service-key` bridge with the tool and backend route, receives the route-bound API key, then drops the OAuth bearer and calls the backend with `X-API-Key` plus `X-User-Sub`. The bridge is allow-listed and server-side; the browser never receives the key.
 
 **Gateway selection.** `ff_mcp_gateway_pinggateway` (default `true`) selects between the **PingGateway** (`ping-gateway`, IG, host port 3036, internal 8080) and the **Node gateway** (`demo_mcp_gateway`, port 3005). Both warm their PingOne Authorize connection on startup. PingGateway performs its own RFC 8693 single-resource exchange and supports real→mock Authorize failover (switchable via `X-Authz-Simulated`).
 

@@ -9,7 +9,7 @@ FROM python:3.11-slim
 #
 # Must sit in the FINAL stage: a LABEL applies only to the stage it is in, and
 # no compose service sets `target:`, so the last stage is what gets built.
-LABEL org.opencontainers.image.source=https://github.com/curtismu7/AI-DEMO2
+LABEL org.opencontainers.image.source=https://github.com/cmuir_pingcorp/AI-DEMO2
 ENV GIT_SHA=$GIT_SHA
 
 WORKDIR /app

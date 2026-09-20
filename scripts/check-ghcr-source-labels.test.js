@@ -9,6 +9,10 @@ const {
 
 const LABEL = `LABEL ${LABEL_KEY}=${EXPECTED_URL}`;
 
+test('GHCR source gate targets the repository that publishes the images', () => {
+  assert.strictEqual(EXPECTED_URL, 'https://github.com/cmuir_pingcorp/AI-DEMO2');
+});
+
 test('single-stage build with the label passes', () => {
   const r = inspectDockerfile(`FROM node:22-alpine\n${LABEL}\nCMD ["node","x.js"]\n`);
   assert.strictEqual(r.present, true);

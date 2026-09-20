@@ -893,7 +893,7 @@ router.post(['/:door/mcp', '/:door/:app/mcp'], express.json({ limit: '1mb', type
     && typeof upstreamExchange.isAgentGatewayConfigured === 'function'
     && upstreamExchange.isAgentGatewayConfigured()) {
     const delegatedScopes = [
-      'agent:invoke',
+      'mcp:invoke',
       ...(toolName ? scopeTopology.toolScopes(toolName) : []),
     ];
     const xStart = Date.now();

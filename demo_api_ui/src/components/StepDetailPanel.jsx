@@ -60,8 +60,7 @@ function render(value) {
 
 function readRfcInfoEnabled() {
   try {
-    return localStorage.getItem("ba_show_rfc_info") === "1"
-      || ["embedded", "both"].includes(localStorage.getItem("ba_rfc_info_surface"));
+    return ["1", "true"].includes(localStorage.getItem("ba_show_rfc_info"));
   } catch {
     return false;
   }

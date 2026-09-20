@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MCP Control Room — Observability mock</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #e9edf2;
+      --muted: #8490a0;
+      --quiet: #566271;
+      --navy-950: #081019;
+      --navy-900: #0c1620;
+      --navy-850: #111d29;
+      --navy-800: #172533;
+      --line: #263645;
+      --line-soft: rgba(137, 157, 177, .16);
+      --cyan: #5ed6dc;
+      --cyan-dim: rgba(94, 214, 220, .13);
+      --amber: #e8b064;
+      --amber-dim: rgba(232, 176, 100, .13);
+      --red: #ec7c77;
+      --red-dim: rgba(236, 124, 119, .13);
+      --green: #6bd3a4;
+      --green-dim: rgba(107, 211, 164, .13);
+      --blue: #82a9f7;
+      --shadow: 0 22px 70px rgba(0, 0, 0, .25);
+      --radius: 8px;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--navy-950);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 13px;
+    }
+    button, input { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, input:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+    .app { min-height: 100vh; display: grid; grid-template-columns: 244px 1fr; }
+
+    aside {
+      position: sticky; top: 0; height: 100vh; padding: 25px 16px 18px;
+      background: #0b141d; border-right: 1px solid var(--line); display: flex; flex-direction: column;
+    }
+    .brand { display: flex; align-items: center; gap: 11px; padding: 0 11px 28px; }
+    .brand-mark { width: 28px; height: 28px; border: 1px solid var(--cyan); position: relative; transform: rotate(45deg); }
+    .brand-mark::before, .brand-mark::after { content: ""; position: absolute; background: var(--cyan); }
+    .brand-mark::before { width: 7px; height: 7px; left: 9px; top: 9px; }
+    .brand-mark::after { width: 1px; height: 30px; left: 13px; top: -2px; opacity: .55; }
+    .brand strong { font-size: 14px; letter-spacing: .02em; }
+    .brand small { display: block; color: var(--muted); font-size: 10px; margin-top: 3px; }
+    .nav-label { color: var(--quiet); font-size: 10px; letter-spacing: .13em; margin: 0 11px 8px; text-transform: uppercase; }
+    nav { display: grid; gap: 4px; }
+    nav button { border: 0; background: transparent; border-radius: 6px; color: var(--muted); cursor: pointer; text-align: left; padding: 11px 12px; display: flex; gap: 11px; align-items: center; }
+    nav button:hover, nav button.active { background: var(--navy-800); color: var(--ink); }
+    nav button.active { box-shadow: inset 2px 0 var(--cyan); }
+    .nav-icon { width: 15px; height: 15px; display: inline-grid; place-items: center; color: currentColor; }
+    .nav-icon::before { content: ""; display: block; width: 10px; height: 10px; border: 1px solid currentColor; border-radius: 3px; }
+    nav button:nth-child(2) .nav-icon::before { border-radius: 50%; }
+    nav button:nth-child(3) .nav-icon::before { border-radius: 0; transform: rotate(45deg) scale(.75); }
+    nav button:nth-child(4) .nav-icon::before { border-radius: 50% 50% 2px 2px; }
+    nav button:nth-child(5) .nav-icon::before { border-style: dashed; }
+    .side-bottom { margin-top: auto; border-top: 1px solid var(--line-soft); padding: 17px 11px 0; }
+    .stack-state { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px var(--green-dim); }
+    .side-bottom small { color: var(--quiet); display: block; margin-top: 10px; line-height: 1.5; }
+
+    main { min-width: 0; background: radial-gradient(circle at 86% 0%, rgba(43, 85, 108, .17), transparent 34%), var(--navy-950); }
+    header { height: 73px; padding: 0 30px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
+    .crumbs { color: var(--muted); font-size: 11px; }
+    .crumbs strong { color: var(--ink); font-weight: 600; }
+    .header-actions { display: flex; align-items: center; gap: 9px; }
+    .range { color: var(--muted); font-size: 11px; padding-right: 9px; border-right: 1px solid var(--line); }
+    .ghost, .primary { cursor: pointer; border-radius: 5px; padding: 8px 11px; border: 1px solid var(--line); background: var(--navy-850); }
+    .ghost:hover { border-color: #486072; }
+    .primary { background: var(--cyan); border-color: var(--cyan); color: #092126; font-weight: 700; }
+    .primary:hover { filter: brightness(1.08); }
+    .content { padding: 29px 30px 42px; max-width: 1600px; }
+    .page-intro { display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; margin-bottom: 25px; }
+    h1 { font-size: 25px; letter-spacing: -.035em; margin: 0; font-weight: 660; }
+    .lede { color: var(--muted); margin: 7px 0 0; max-width: 650px; line-height: 1.5; }
+    .live-chip { display: inline-flex; align-items: center; gap: 8px; color: var(--green); font-family: var(--mono); font-size: 10px; padding: 7px 10px; border: 1px solid rgba(107, 211, 164, .28); background: var(--green-dim); border-radius: 4px; white-space: nowrap; }
+    .live-chip .dot { width: 5px; height: 5px; box-shadow: none; }
+
+    .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 11px; margin-bottom: 19px; }
+    .metric { background: rgba(17, 29, 41, .86); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 17px 14px; min-height: 118px; position: relative; overflow: hidden; }
+    .metric::after { content: ""; position: absolute; right: -15px; bottom: -24px; width: 90px; height: 90px; border: 1px solid var(--line-soft); transform: rotate(45deg); opacity: .7; }
+    .metric-label { color: var(--muted); font-size: 11px; }
+    .metric-value { font-family: var(--mono); font-size: 26px; letter-spacing: -.06em; margin: 11px 0 7px; }
+    .metric-note { font-size: 10px; color: var(--muted); }
+    .metric-note b { color: var(--green); font-weight: 600; }
+    .metric.warn .metric-value, .metric.warn .metric-note b { color: var(--amber); }
+    .metric.danger .metric-value, .metric.danger .metric-note b { color: var(--red); }
+    .metric.cyan .metric-value { color: var(--cyan); }
+
+    .section-heading { display: flex; justify-content: space-between; align-items: center; margin: 22px 0 10px; }
+    .section-heading h2 { margin: 0; font-size: 13px; font-weight: 650; letter-spacing: .01em; }
+    .section-heading span { color: var(--quiet); font-family: var(--mono); font-size: 10px; }
+    .overview-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(290px, .8fr); gap: 12px; }
+    .panel { border: 1px solid var(--line); background: rgba(17, 29, 41, .82); border-radius: var(--radius); overflow: hidden; }
+    .panel-head { padding: 14px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
+    .panel-head strong { font-size: 12px; }
+    .panel-head small { color: var(--muted); font-size: 10px; }
+    .chart-wrap { height: 221px; padding: 14px 15px 13px; position: relative; }
+    .chart-grid { position: absolute; inset: 18px 16px 30px 44px; background: repeating-linear-gradient(to bottom, transparent 0, transparent 38px, var(--line-soft) 39px, transparent 40px); }
+    .chart-axis { position: absolute; left: 15px; top: 18px; bottom: 30px; display: flex; flex-direction: column; justify-content: space-between; color: var(--quiet); font: 9px var(--mono); }
+    .chart-labels { position: absolute; left: 44px; right: 16px; bottom: 12px; display: flex; justify-content: space-between; color: var(--quiet); font: 9px var(--mono); }
+    svg.chart { position: absolute; left: 44px; right: 16px; top: 19px; width: calc(100% - 60px); height: 164px; overflow: visible; }
+    .line-blue { fill: none; stroke: var(--cyan); stroke-width: 2.2; vector-effect: non-scaling-stroke; }
+    .line-amber { fill: none; stroke: var(--amber); stroke-width: 1.4; vector-effect: non-scaling-stroke; stroke-dasharray: 4 5; }
+    .chart-point { fill: var(--navy-850); stroke: var(--cyan); stroke-width: 2; }
+    .legend { position: absolute; right: 17px; top: 10px; display: flex; gap: 13px; color: var(--muted); font-size: 10px; }
+    .legend i { width: 16px; height: 2px; display: inline-block; vertical-align: middle; margin-right: 5px; background: var(--cyan); }
+    .legend i.amber { background: var(--amber); }
+    .server-list { padding: 4px 15px 9px; }
+    .server-row { display: grid; grid-template-columns: 9px 1fr auto; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line-soft); }
+    .server-row:last-child { border-bottom: 0; }
+    .server-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+    .server-dot.warn { background: var(--amber); }
+    .server-dot.red { background: var(--red); }
+    .server-name { font-weight: 600; font-size: 11px; }
+    .server-meta { color: var(--muted); font: 9px var(--mono); margin-top: 4px; }
+    .server-value { font: 10px var(--mono); color: var(--muted); text-align: right; }
+    .server-value strong { color: var(--ink); display: block; font-size: 11px; margin-bottom: 4px; }
+    .mono { font-family: var(--mono); }
+
+    .explorer { margin-top: 23px; }
+    .explorer-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(330px, .74fr); min-height: 386px; }
+    .request-list { border-right: 1px solid var(--line); }
+    .filterbar { padding: 11px 13px; display: flex; gap: 7px; border-bottom: 1px solid var(--line); }
+    .search { min-width: 0; flex: 1; background: #0d1822; border: 1px solid var(--line); border-radius: 4px; color: var(--ink); padding: 8px 10px; font-size: 11px; }
+    .filter-select { background: #0d1822; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); padding: 8px 9px; font-size: 10px; }
+    .request-row { width: 100%; border: 0; border-bottom: 1px solid var(--line-soft); cursor: pointer; background: transparent; padding: 13px 15px; text-align: left; display: grid; grid-template-columns: 8px 1fr auto; gap: 10px; align-items: start; }
+    .request-row:hover, .request-row.selected { background: rgba(94, 214, 220, .06); }
+    .request-row.selected { box-shadow: inset 2px 0 var(--cyan); }
+    .request-status { width: 7px; height: 7px; border-radius: 50%; margin-top: 4px; background: var(--green); }
+    .request-status.denied { background: var(--red); }
+    .request-status.pending { background: var(--amber); }
+    .request-title { font: 11px var(--mono); color: var(--ink); }
+    .request-sub { color: var(--muted); font-size: 10px; margin-top: 5px; }
+    .request-sub b { color: var(--blue); font-weight: 500; }
+    .request-time { font: 10px var(--mono); color: var(--quiet); }
+    .trace-detail { background: #0d1822; }
+    .trace-top { padding: 14px 16px 13px; border-bottom: 1px solid var(--line); }
+    .trace-top-line { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+    .trace-id { font: 10px var(--mono); color: var(--cyan); }
+    .trace-top h3 { font-size: 14px; margin: 11px 0 4px; }
+    .trace-top p { color: var(--muted); margin: 0; font-size: 10px; }
+    .trace-status { font-size: 10px; color: var(--green); padding: 5px 7px; border: 1px solid rgba(107, 211, 164, .3); background: var(--green-dim); border-radius: 4px; }
+    .waterfall { padding: 15px 16px 10px; }
+    .water-row { display: grid; grid-template-columns: 99px 1fr 41px; align-items: center; min-height: 34px; position: relative; }
+    .water-label { font-size: 10px; color: var(--muted); }
+    .water-track { height: 22px; position: relative; border-left: 1px solid var(--line); }
+    .water-bar { position: absolute; top: 5px; height: 12px; border-radius: 2px; background: var(--cyan); opacity: .9; }
+    .water-bar.auth { background: var(--amber); }
+    .water-bar.policy { background: var(--blue); }
+    .water-bar.backend { background: var(--green); }
+    .water-ms { font: 9px var(--mono); color: var(--quiet); text-align: right; }
+    .trace-footer { border-top: 1px solid var(--line); padding: 12px 16px 14px; display: flex; justify-content: space-between; gap: 15px; }
+    .trace-footer span { color: var(--muted); font-size: 10px; }
+    .trace-footer b { color: var(--ink); font: 10px var(--mono); font-weight: 500; }
+
+    .health-table { margin-top: 23px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border-bottom: 1px solid var(--line-soft); text-align: left; padding: 13px 14px; white-space: nowrap; }
+    th { color: var(--quiet); font-size: 10px; font-weight: 500; }
+    td { color: var(--muted); font: 10px var(--mono); }
+    td:first-child { color: var(--ink); font-family: var(--sans); font-weight: 600; }
+    tr:last-child td { border-bottom: 0; }
+    .tool { display: flex; align-items: center; gap: 8px; }
+    .tool-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+    .tool-dot.warn { background: var(--amber); }
+    .good { color: var(--green); }
+    .bad { color: var(--red); }
+    .caution { color: var(--amber); }
+    .table-action { color: var(--cyan); cursor: pointer; border: 0; background: transparent; padding: 0; font-size: 10px; }
+
+    .toast { position: fixed; right: 22px; bottom: 22px; background: var(--navy-800); border: 1px solid #40576a; color: var(--ink); border-radius: 5px; padding: 11px 14px; box-shadow: var(--shadow); font-size: 11px; opacity: 0; transform: translateY(8px); pointer-events: none; transition: .18s ease; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    @media (max-width: 1000px) {
+      .app { grid-template-columns: 70px 1fr; }
+      aside { padding-inline: 10px; }
+      .brand { justify-content: center; padding-inline: 0; }
+      .brand > div:last-child, .nav-label, nav button span:not(.nav-icon), .side-bottom { display: none; }
+      nav button { justify-content: center; padding: 11px 8px; }
+      .metric-grid { grid-template-columns: repeat(2, 1fr); }
+      .overview-grid, .explorer-layout { grid-template-columns: 1fr; }
+      .request-list { border-right: 0; border-bottom: 1px solid var(--line); }
+    }
+    @media (max-width: 660px) {
+      header { padding: 0 16px; }
+      .range { display: none; }
+      .content { padding: 22px 15px 30px; }
+      .page-intro { display: block; }
+      .live-chip { margin-top: 16px; }
+      .metric-grid { gap: 8px; }
+      .metric { padding: 13px; min-height: 105px; }
+      .metric-value { font-size: 21px; }
+      .filterbar { flex-wrap: wrap; }
+      .search { flex-basis: 100%; }
+      .filter-select { flex: 1; }
+      .explorer-layout { min-height: 0; }
+      .trace-detail { min-height: 355px; }
+      .table-wrap { overflow-x: auto; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div><strong>Control Room</strong><small>MCP observability</small></div>
+      </div>
+      <div class="nav-label">Workspace</div>
+      <nav aria-label="Main navigation">
+        <button class="active" type="button"><i class="nav-icon" aria-hidden="true"></i><span>Overview</span></button>
+        <button type="button"><i class="nav-icon" aria-hidden="true"></i><span>Request explorer</span></button>
+        <button type="button"><i class="nav-icon" aria-hidden="true"></i><span>Tool health</span></button>
+        <button type="button"><i class="nav-icon" aria-hidden="true"></i><span>Policy decisions</span></button>
+        <button type="button"><i class="nav-icon" aria-hidden="true"></i><span>Server registry</span></button>
+      </nav>
+      <div class="side-bottom">
+        <div class="stack-state"><span class="dot"></span> Local stack healthy</div>
+        <small>Last refreshed<br><span class="mono">18 Sep 2026 · 14:32:08</span></small>
+      </div>
+    </aside>
+
+    <main>
+      <header>
+        <div class="crumbs">Operations / <strong>MCP overview</strong></div>
+        <div class="header-actions">
+          <span class="range">Last 30 minutes</span>
+          <button class="ghost" id="refresh" type="button">Refresh</button>
+          <button class="primary" id="trace-button" type="button">Open live trace</button>
+        </div>
+      </header>
+
+      <div class="content">
+        <div class="page-intro">
+          <div>
+            <h1>MCP traffic, with the why attached</h1>
+            <p class="lede">A single view of server health, tool performance, and authorization outcomes across the agent gateway.</p>
+          </div>
+          <div class="live-chip"><span class="dot"></span> LIVE · 4 gateways connected</div>
+        </div>
+
+        <section class="metric-grid" aria-label="MCP overview metrics">
+          <article class="metric cyan"><div class="metric-label">Tool calls</div><div class="metric-value">12,480</div><div class="metric-note"><b>↑ 18.4%</b> vs previous window</div></article>
+          <article class="metric"><div class="metric-label">Success rate</div><div class="metric-value">98.7%</div><div class="metric-note"><b>+0.6 pts</b> since 14:00</div></article>
+          <article class="metric warn"><div class="metric-label">p95 latency</div><div class="metric-value">842 ms</div><div class="metric-note"><b>+120 ms</b> gateway policy overhead</div></article>
+          <article class="metric danger"><div class="metric-label">Denied calls</div><div class="metric-value">37</div><div class="metric-note"><b>11 missing scopes</b> · 6 step-up</div></article>
+        </section>
+
+        <div class="section-heading"><h2>Traffic health</h2><span>auto-refresh 15s</span></div>
+        <section class="overview-grid">
+          <article class="panel">
+            <div class="panel-head"><strong>Calls and p95 latency</strong><small>All MCP gateways</small></div>
+            <div class="chart-wrap">
+              <div class="chart-grid"></div><div class="chart-axis"><span>1.2s</span><span>800ms</span><span>400ms</span><span>0</span></div>
+              <div class="legend"><span><i></i>calls</span><span><i class="amber"></i>p95</span></div>
+              <svg class="chart" viewBox="0 0 600 164" preserveAspectRatio="none" role="img" aria-label="Calls and latency trending upward">
+                <polyline class="line-amber" points="0,116 50,122 100,112 150,118 200,105 250,110 300,90 350,98 400,80 450,85 500,66 550,72 600,56"></polyline>
+                <polyline class="line-blue" points="0,127 50,117 100,124 150,98 200,107 250,90 300,91 350,72 400,84 450,58 500,67 550,44 600,49"></polyline>
+                <circle class="chart-point" cx="600" cy="49" r="4"></circle>
+              </svg>
+              <div class="chart-labels"><span>13:55</span><span>14:05</span><span>14:15</span><span>14:25</span><span>14:32</span></div>
+            </div>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><strong>Server health</strong><small>4 of 4 online</small></div>
+            <div class="server-list">
+              <div class="server-row"><span class="server-dot"></span><div><div class="server-name">Agent Gateway</div><div class="server-meta">demo_mcp_gateway · :3005</div></div><div class="server-value"><strong>99.9%</strong>healthy</div></div>
+              <div class="server-row"><span class="server-dot"></span><div><div class="server-name">Banking MCP</div><div class="server-meta">oauth-mcp · :8080</div></div><div class="server-value"><strong>99.8%</strong>healthy</div></div>
+              <div class="server-row"><span class="server-dot warn"></span><div><div class="server-name">Investment resources</div><div class="server-meta">resource-server · :8081</div></div><div class="server-value"><strong class="caution">96.2%</strong>degraded</div></div>
+              <div class="server-row"><span class="server-dot"></span><div><div class="server-name">PingGateway</div><div class="server-meta">policy boundary · :8443</div></div><div class="server-value"><strong>100%</strong>healthy</div></div>
+            </div>
+          </article>
+        </section>
+
+        <section class="explorer">
+          <div class="section-heading"><h2>Request explorer</h2><span>12,480 requests · 37 denials</span></div>
+          <article class="panel explorer-layout">
+            <div class="request-list">
+              <div class="filterbar"><input class="search" id="search" type="search" placeholder="Search tool, user, correlation ID…" aria-label="Search requests" /><select class="filter-select" aria-label="Filter outcome"><option>All outcomes</option><option>Success</option><option>Denied</option><option>Pending</option></select><select class="filter-select" aria-label="Filter gateway"><option>All gateways</option><option>Agent Gateway</option><option>PingGateway</option></select></div>
+              <div id="requests">
+                <button class="request-row selected" type="button" data-request="transfer"><span class="request-status"></span><span><span class="request-title">transfer_funds</span><span class="request-sub"><b>maya.chen</b> · Agent Gateway · banking</span></span><span class="request-time">842ms</span></button>
+                <button class="request-row" type="button" data-request="portfolio"><span class="request-status"></span><span><span class="request-title">get_portfolio_summary</span><span class="request-sub"><b>jordan.lee</b> · PingGateway · investment</span></span><span class="request-time">204ms</span></button>
+                <button class="request-row" type="button" data-request="denied"><span class="request-status denied"></span><span><span class="request-title">approve_transfer</span><span class="request-sub"><b>alex.roberts</b> · Agent Gateway · banking</span></span><span class="request-time">118ms</span></button>
+                <button class="request-row" type="button" data-request="pending"><span class="request-status pending"></span><span><span class="request-title">create_claim</span><span class="request-sub"><b>sam.wilson</b> · Agent Gateway · insurance</span></span><span class="request-time">1.8s</span></button>
+              </div>
+            </div>
+            <div class="trace-detail" id="trace-detail">
+              <div class="trace-top"><div class="trace-top-line"><span class="trace-id">trace_01J8MCP7F4W2</span><span class="trace-status">SUCCESS</span></div><h3>transfer_funds</h3><p>maya.chen · on behalf of agent-olb-07 · banking</p></div>
+              <div class="waterfall">
+                <div class="water-row"><span class="water-label">token exchange</span><span class="water-track"><span class="water-bar auth" style="left: 2%; width: 19%;"></span></span><span class="water-ms">160ms</span></div>
+                <div class="water-row"><span class="water-label">gateway policy</span><span class="water-track"><span class="water-bar policy" style="left: 22%; width: 11%;"></span></span><span class="water-ms">92ms</span></div>
+                <div class="water-row"><span class="water-label">P1AZ decision</span><span class="water-track"><span class="water-bar policy" style="left: 34%; width: 9%;"></span></span><span class="water-ms">76ms</span></div>
+                <div class="water-row"><span class="water-label">HITL approval</span><span class="water-track"><span class="water-bar auth" style="left: 44%; width: 26%;"></span></span><span class="water-ms">212ms</span></div>
+                <div class="water-row"><span class="water-label">MCP backend</span><span class="water-track"><span class="water-bar backend" style="left: 72%; width: 19%;"></span></span><span class="water-ms">156ms</span></div>
+              </div>
+              <div class="trace-footer"><span>correlation ID <b>c-7f9e2a</b></span><span>total <b>842ms</b></span></div>
+            </div>
+          </article>
+        </section>
+
+        <section class="health-table">
+          <div class="section-heading"><h2>Tool health</h2><span>ranked by impact</span></div>
+          <article class="panel table-wrap"><table><thead><tr><th>Tool</th><th>Server</th><th>Calls</th><th>Error rate</th><th>p95</th><th>Denials</th><th>Last seen</th><th></th></tr></thead><tbody>
+            <tr><td><span class="tool"><i class="tool-dot"></i>transfer_funds</span></td><td>Banking MCP</td><td>1,248</td><td class="good">0.4%</td><td>842ms</td><td class="caution">18</td><td>12 sec ago</td><td><button class="table-action" type="button">Inspect</button></td></tr>
+            <tr><td><span class="tool"><i class="tool-dot"></i>get_portfolio_summary</span></td><td>Investment resources</td><td>3,902</td><td class="good">0.1%</td><td>204ms</td><td>0</td><td>8 sec ago</td><td><button class="table-action" type="button">Inspect</button></td></tr>
+            <tr><td><span class="tool"><i class="tool-dot warn"></i>approve_transfer</span></td><td>Banking MCP</td><td>284</td><td class="bad">4.9%</td><td class="caution">1.1s</td><td class="bad">19</td><td>1 min ago</td><td><button class="table-action" type="button">Inspect</button></td></tr>
+          </tbody></table></article>
+        </section>
+      </div>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite">Trace view refreshed</div>
+  <script>
+    const toast = document.getElementById('toast');
+    let toastTimer;
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    document.getElementById('refresh').addEventListener('click', () => showToast('Metrics refreshed just now'));
+    document.getElementById('trace-button').addEventListener('click', () => {
+      document.querySelector('.explorer').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      showToast('Live trace pinned to the explorer');
+    });
+
+    const traceData = {
+      transfer: { id: 'trace_01J8MCP7F4W2', status: 'SUCCESS', cls: '', title: 'transfer_funds', meta: 'maya.chen · on behalf of agent-olb-07 · banking', total: '842ms', cid: 'c-7f9e2a', bars: [['token exchange', 'auth', 2, 19, '160ms'], ['gateway policy', 'policy', 22, 11, '92ms'], ['P1AZ decision', 'policy', 34, 9, '76ms'], ['HITL approval', 'auth', 44, 26, '212ms'], ['MCP backend', 'backend', 72, 19, '156ms']] },
+      portfolio: { id: 'trace_01J8MCP7D18B', status: 'SUCCESS', cls: '', title: 'get_portfolio_summary', meta: 'jordan.lee · delegated agent-07 · investment', total: '204ms', cid: 'c-1a4d80', bars: [['token exchange', 'auth', 2, 11, '42ms'], ['gateway policy', 'policy', 14, 8, '31ms'], ['P1AZ decision', 'policy', 23, 7, '28ms'], ['MCP backend', 'backend', 32, 49, '103ms']] },
+      denied: { id: 'trace_01J8MCP7C91A', status: 'DENIED', cls: 'denied', title: 'approve_transfer', meta: 'alex.roberts · delegated agent-03 · banking', total: '118ms', cid: 'c-b45e91', bars: [['token exchange', 'auth', 2, 10, '39ms'], ['gateway policy', 'policy', 14, 9, '34ms'], ['P1AZ decision', 'policy', 24, 17, '45ms']] },
+      pending: { id: 'trace_01J8MCP7B02E', status: 'PENDING', cls: 'pending', title: 'create_claim', meta: 'sam.wilson · delegated agent-12 · insurance', total: '1.8s', cid: 'c-8ee21b', bars: [['token exchange', 'auth', 2, 11, '44ms'], ['gateway policy', 'policy', 14, 9, '38ms'], ['P1AZ decision', 'policy', 24, 8, '31ms'], ['HITL approval', 'auth', 33, 50, '1.7s']] }
+    };
+    function renderTrace(key) {
+      const item = traceData[key];
+      const detail = document.getElementById('trace-detail');
+      detail.innerHTML = `<div class="trace-top"><div class="trace-top-line"><span class="trace-id">${item.id}</span><span class="trace-status ${item.cls}">${item.status}</span></div><h3>${item.title}</h3><p>${item.meta}</p></div><div class="waterfall">${item.bars.map(([label, cls, left, width, ms]) => `<div class="water-row"><span class="water-label">${label}</span><span class="water-track"><span class="water-bar ${cls}" style="left:${left}%;width:${width}%;"></span></span><span class="water-ms">${ms}</span></div>`).join('')}</div><div class="trace-footer"><span>correlation ID <b>${item.cid}</b></span><span>total <b>${item.total}</b></span></div>`;
+    }
+    document.querySelectorAll('.request-row').forEach(row => row.addEventListener('click', () => {
+      document.querySelectorAll('.request-row').forEach(r => r.classList.remove('selected'));
+      row.classList.add('selected');
+      renderTrace(row.dataset.request);
+    }));
+    document.getElementById('search').addEventListener('input', event => {
+      const query = event.target.value.toLowerCase();
+      document.querySelectorAll('.request-row').forEach(row => row.hidden = !row.textContent.toLowerCase().includes(query));
+    });
+    document.querySelectorAll('nav button').forEach(button => button.addEventListener('click', () => {
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      button.classList.add('active');
+      showToast(`${button.querySelector('span:last-child').textContent} selected`);
+    }));
+    document.querySelectorAll('.table-action').forEach(button => button.addEventListener('click', () => showToast('Tool detail would open here')));
+  </script>
+</body>
+</html>

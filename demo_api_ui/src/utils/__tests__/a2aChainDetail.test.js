@@ -1,6 +1,6 @@
 // demo_api_ui/src/utils/__tests__/a2aChainDetail.test.js
 import { describe, it, expect } from 'vitest';
-import { buildA2aChainDetail } from '../a2aChainDetail';
+import { buildA2aChainDetail, buildA2aEvidenceRows } from '../a2aChainDetail';
 
 const runEvents = [
   {
@@ -86,5 +86,25 @@ describe('buildA2aChainDetail', () => {
   it('returns present:false for empty input without throwing', () => {
     expect(buildA2aChainDetail([]).present).toBe(false);
     expect(() => buildA2aChainDetail(undefined)).not.toThrow();
+  });
+
+  it('builds source-linked identity and wire rows without exposing token values', () => {
+    const rows = buildA2aEvidenceRows(runEvents);
+
+    expect(rows.identity.map((row) => row.sourceId)).toEqual([
+      'a2a-agent1-actor',
+      'a2a-exchange1',
+      'a2a-agent2-actor',
+      'a2a-exchange2',
+    ]);
+    expect(rows.wire.map((row) => row.sourceId)).toEqual([
+      'a2a-agent-card',
+      'a2a-protocol-message',
+    ]);
+    expect(rows.wire[0].requestSummary).toContain('GET');
+    expect(rows.wire[1].requestSummary).toContain('POST message/send');
+    expect(rows.wire[1].responseSummary).toContain('result');
+    expect(rows.responseBoundary).toContain('No access token');
+    expect(JSON.stringify(rows)).not.toContain('eyJ');
   });
 });

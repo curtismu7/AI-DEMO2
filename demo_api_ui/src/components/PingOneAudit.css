@@ -22,7 +22,7 @@
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 .pingone-audit-meta {
@@ -34,7 +34,7 @@
 
 .pingone-audit-timestamp {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--th-text);
 }
 
 .pingone-audit-button {
@@ -58,7 +58,7 @@
 
 .pingone-audit-button--secondary {
   background: #e5e7eb;
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 .pingone-audit-button--secondary:hover:not(:disabled) {
@@ -76,7 +76,7 @@
 .pingone-audit-empty {
   text-align: center;
   padding: 2rem 1rem;
-  color: #6b7280;
+  color: var(--th-text);
 }
 
 .pingone-audit-loading p,
@@ -125,7 +125,7 @@
 }
 
 .pingone-audit-empty p {
-  color: #4b5563;
+  color: var(--th-text);
   margin-bottom: 1rem;
 }
 
@@ -142,11 +142,11 @@
   margin: 0 0 1rem;
   font-size: 1rem;
   font-weight: 600;
-  color: #374151;
+  color: var(--th-text);
 }
 
 .pingone-audit-empty-message {
-  color: #6b7280;
+  color: var(--th-text);
   font-size: 0.95rem;
   margin: 0;
   padding: 1rem;
@@ -177,14 +177,14 @@
   padding: 0.75rem;
   text-align: left;
   font-weight: 600;
-  color: #374151;
+  color: var(--th-text);
   white-space: nowrap;
 }
 
 .pingone-audit-table td {
   padding: 0.75rem;
   border-bottom: 1px solid #e5e7eb;
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 .pingone-audit-table tbody tr:hover {
@@ -198,7 +198,7 @@
 /* Resource/status cells */
 .resource-name {
   font-weight: 500;
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 .audience-uri code {
@@ -206,12 +206,12 @@
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   font-size: 0.85rem;
-  color: #4b5563;
+  color: var(--th-text);
   word-break: break-word;
 }
 
 .auth-method {
-  color: #6b7280;
+  color: var(--th-text);
   font-size: 0.9rem;
 }
 
@@ -259,7 +259,7 @@
 .mismatches-info {
   margin-top: 0.5rem;
   font-size: 0.8rem;
-  color: #4b5563;
+  color: var(--th-text);
   font-weight: normal;
   text-align: left;
 }
@@ -271,7 +271,7 @@
 
 .mismatch-item strong {
   font-weight: 600;
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 /* Scopes table specific */
@@ -337,13 +337,13 @@
 .summary-label {
   font-size: 0.875rem;
   font-weight: 600;
-  color: #6b7280;
+  color: var(--th-text);
 }
 
 .summary-value {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #1f2937;
+  color: var(--th-text);
 }
 
 /* Responsive design */

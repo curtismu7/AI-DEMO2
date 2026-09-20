@@ -11,3 +11,4 @@
 - The canonical local browser origin is `local.ping-devops.com:4000`; do not add hardcoded `localhost` OAuth redirects. Read `REGRESSION_PLAN.md` for the complete origin/config list.
 - Do not treat a piped command’s exit status as proof of success; redirect output or inspect `PIPESTATUS`. Do not claim completion without fresh test/build evidence.
 - AI-DLC is opt-in only when the user says `Using AI-DLC,`; otherwise follow the normal workflow. PingOne provisioning/reset scripts mutate live state—read them before running.
+- Deployment policy: deploy only to local Docker. Never use the `curtismu7` GitHub/GHCR owner or deploy to a remote/SE Kubernetes cluster unless the user explicitly overrides this policy.

@@ -7,6 +7,7 @@ describe('favorites', () => {
   it('seeds the two demo lanes on first use', () => {
     const favs = getFavorites();
     expect(favs.map((f) => f.path)).toEqual(['/llm-gateway', '/privilege-mcp-client']);
+    expect(favs[0].label).toBe('AI Guard');
   });
 
   it('adds a page and does not duplicate it', () => {
@@ -14,6 +15,11 @@ describe('favorites', () => {
     addFavorite({ label: 'Audit Agent', path: '/audit-agent' });
     expect(getFavorites().filter((f) => f.path === '/audit-agent')).toHaveLength(1);
     expect(isFavorite('/audit-agent')).toBe(true);
+  });
+
+  it('updates the renamed gateway favorite in existing browser storage', () => {
+    localStorage.setItem('demo_header_favorites', JSON.stringify([{ label: 'LLM Gateway', path: '/llm-gateway' }]));
+    expect(getFavorites()[0].label).toBe('AI Guard');
   });
 
   it('removing a seeded favorite persists (does not re-seed)', () => {
@@ -25,7 +31,7 @@ describe('favorites', () => {
 
   it('derives a readable label, handling acronyms', () => {
     expect(labelForPath('/privilege-mcp-client')).toBe('Privilege MCP Client');
-    expect(labelForPath('/llm-gateway')).toBe('LLM Gateway');
+    expect(labelForPath('/llm-gateway')).toBe('AI Guard');
     expect(addFavorite({ path: '/intent-inspector' }).at(-1).label).toBe('Intent Inspector');
   });
 });

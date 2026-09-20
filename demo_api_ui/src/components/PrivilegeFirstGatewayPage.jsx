@@ -128,7 +128,7 @@ export default function PrivilegeFirstGatewayPage() {
             <text x="715" y="296" textAnchor="middle" className="pfg-t-spike">backend hop</text>
             <text x="715" y="310" textAnchor="middle" className="pfg-t-spike">Phase 0 decides</text>
             <text x="715" y="342" textAnchor="middle" className="pfg-t-mono-m">bridge token</text>
-            <text x="715" y="356" textAnchor="middle" className="pfg-t-mono-m">+ X-Subject-Token</text>
+            <text x="715" y="356" textAnchor="middle" className="pfg-t-mono-m">+ tx-token</text>
 
             <rect x="790" y="480" width="90" height="60" rx="4" className="pfg-box" />
             <text x="835" y="504" textAnchor="middle" className="pfg-t-b">mcp-server</text>
@@ -190,7 +190,7 @@ export default function PrivilegeFirstGatewayPage() {
 
             <path d="M170 84 H318" className="pfg-e" markerEnd="url(#pfg-ah)" />
             <text x="244" y="64" textAnchor="middle" className="pfg-t-mono-m">Bearer: bridge token</text>
-            <text x="244" y="78" textAnchor="middle" className="pfg-t-mono-m">X-Subject-Token: user</text>
+            <text x="244" y="78" textAnchor="middle" className="pfg-t-mono-m">tx-token: user</text>
 
             <rect x="320" y="44" width="260" height="80" rx="4" className="pfg-box-ag" />
             <text x="332" y="70" className="pfg-t-b">Agent Gateway sees</text>
@@ -227,7 +227,7 @@ export default function PrivilegeFirstGatewayPage() {
           <strong>The fork the plan stops at — settled 2026-09-10 as Outcome A.</strong> A live probe (throwaway
           Agentic App on Auth Mode None, pointed at a disposable header-logging backend) confirmed it: custom
           request headers reach the backend unchanged, so a header carrying the caller's exchanged token — such
-          as X-Subject-Token — survives this hop too, letting delegated user identity reach the Agent Gateway
+          as tx-token — survives this hop too, letting delegated user identity reach the Agent Gateway
           instead of collapsing to a machine subject. Auth Mode None itself forwards no Authorization header at
           all; a backend that needs a bearer on this hop requires Auth Mode Static Token instead. (x-forwarded-for
           preserves the real caller address; x-forwarded-host arrives empty — don't key logic on it.) What's left

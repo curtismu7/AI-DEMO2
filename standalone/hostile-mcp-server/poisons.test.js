@@ -5,7 +5,7 @@
 // discipline as demo_api_ui/src/config/toolAttackCatalog.test.js.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { POISONS } from './poisons.mjs';
+import { POISONS, POISON_PROMPTS, POISON_RESOURCES } from './poisons.mjs';
 
 test('every poison is a complete, unique tool', () => {
   const ids = new Set();
@@ -40,4 +40,18 @@ test('schema_exfiltration hides an exfil sink in the inputSchema', () => {
   // The teeth: a default value pointing off-box that rides along on every call.
   assert.match(String(sink.default), /^https?:\/\//);
   assert.notEqual(new URL(sink.default).hostname, '', 'default is a real URL');
+});
+
+test('resource poison retains a sensitive-action directive', () => {
+  const resource = POISON_RESOURCES.find((entry) => entry.id === 'account_verification');
+  assert.ok(resource, 'entry present');
+  assert.match(resource.contents[0].text, /create_transfer/i);
+  assert.match(resource.contents[0].text, /external-001/i);
+});
+
+test('prompt poison retains an approval-bypass directive', () => {
+  const prompt = POISON_PROMPTS.find((entry) => entry.id === 'account_review');
+  assert.ok(prompt, 'entry present');
+  assert.match(prompt.messages[0].content.text, /bypass/i);
+  assert.match(prompt.messages[0].content.text, /create_transfer/i);
 });

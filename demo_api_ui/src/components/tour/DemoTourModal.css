@@ -38,7 +38,7 @@
   border: none;
   cursor: pointer;
   font-size: 1.1rem;
-  color: #6b7280;
+  color: var(--th-text);
   padding: 0.125rem 0.25rem;
   border-radius: 4px;
   line-height: 1;
@@ -46,7 +46,7 @@
 }
 
 .demo-tour-close:hover {
-  color: #374151;
+  color: var(--th-text);
 }
 
 .demo-tour-body {
@@ -57,13 +57,13 @@
   font-size: 1rem;
   font-weight: 600;
   margin: 0 0 0.5rem;
-  color: #111827;
+  color: var(--th-text);
   line-height: 1.35;
 }
 
 .demo-tour-text {
   font-size: 0.875rem;
-  color: #374151;
+  color: var(--th-text);
   line-height: 1.55;
   margin: 0 0 0.5rem;
 }
@@ -92,7 +92,7 @@
 
 .demo-tour-hint {
   font-size: 0.78rem;
-  color: #6b7280;
+  color: var(--th-text);
   margin-top: 0.375rem;
   font-style: italic;
 }
@@ -108,7 +108,7 @@
 .demo-tour-btn-prev {
   background: none;
   border: 1px solid #e5e7eb;
-  color: #374151;
+  color: var(--th-text);
   border-radius: 6px;
   padding: 0.375rem 0.75rem;
   cursor: pointer;

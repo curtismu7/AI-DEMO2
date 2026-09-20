@@ -5,7 +5,7 @@ COPY client-overrides /tmp/client-overrides
 RUN npm ci \
     && node /tmp/apply-persistent-conversation-starters.mjs \
     && cd client \
-    && npm run test:ci -- ChatView.spec.tsx ScheduleExplanation.spec.tsx McpErrorRecovery.spec.ts McpRecoveryController.spec.ts --runInBand \
+    && npm run test:ci -- ChatView.spec.tsx ScheduleExplanation.spec.tsx McpErrorRecovery.spec.ts McpRecoveryController.spec.ts McpRecoveryErrorMessage.spec.tsx McpStartupReconnect.spec.ts --runInBand \
     && cd .. \
     && npm run build:client \
     && npm prune --omit=dev

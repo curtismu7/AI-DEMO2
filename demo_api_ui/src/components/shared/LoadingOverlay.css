@@ -74,7 +74,7 @@
 .lo-sub {
   margin: 0;
   font-size: 0.8125rem;
-  color: #999999;
+  color: var(--th-text);
   line-height: 1.4;
 }
 
@@ -110,7 +110,7 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
 }
 :root[data-theme="dark"] .lo-message {
-  color: var(--brand-light-gray);
+  color: var(--th-text);
 }
 :root[data-theme="dark"] .lo-sub {
   color: #94a3b8;
@@ -147,7 +147,7 @@
   line-height: 1.4;
   padding: 2px 0;
   font-family: inherit;
-  color: #475569;
+  color: var(--th-text);
   animation: lo-feed-in 0.2s ease;
 }
 
@@ -224,7 +224,7 @@
   background: #16202e;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
 }
-.lo-card--dark .lo-message { color: var(--brand-light-gray); }
+.lo-card--dark .lo-message { color: var(--th-text); }
 .lo-card--dark .lo-sub { color: #94a3b8; }
 .lo-card--dark .lo-endpoint { background: #1e3a5f; color: #93c5fd; }
 .lo-card--dark .lo-activity-feed { border-top-color: rgba(255, 255, 255, 0.1); }

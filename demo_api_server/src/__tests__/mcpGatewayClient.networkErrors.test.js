@@ -54,6 +54,36 @@ describe('mcpGatewayClient network error normalization', () => {
     });
   });
 
+  test('callToolViaGateway redacts transaction and legacy token headers in request logs', async () => {
+    axios.post = jest.fn().mockResolvedValue({
+      status: 200,
+      headers: {},
+      data: { result: { ok: true } },
+    });
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+    try {
+      await callToolViaGateway('https://api.ping.demo:3005', 'bearer-tok', 'get_my_accounts', {}, {
+        extraHeaders: {
+          'tx-token': 'user-secret-token',
+          'X-Subject-Token': 'legacy-secret-token',
+        },
+      });
+
+      const requestLog = logSpy.mock.calls.find(([message]) => message === '[GW→PingGateway] HEADERS: %j');
+      expect(requestLog).toBeDefined();
+      expect(requestLog[1]).toMatchObject({
+        'tx-token': '[REDACTED]',
+        'X-Subject-Token': '[REDACTED]',
+      });
+      expect(requestLog[1]).not.toHaveProperty('authorization');
+      expect(JSON.stringify(requestLog[1])).not.toContain('user-secret-token');
+      expect(JSON.stringify(requestLog[1])).not.toContain('legacy-secret-token');
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
+
   test('tryGetMcpGatewayHttpUrl returns null when unconfigured, URL when set', () => {
     const prev = process.env.MCP_DEMO_GATEWAY_URL;
     delete process.env.MCP_DEMO_GATEWAY_URL;

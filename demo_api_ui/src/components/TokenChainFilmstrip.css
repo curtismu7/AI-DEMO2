@@ -652,7 +652,7 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
 }
 
 .tcfs-dock-toggle:hover {
-  color: var(--th-text, #0f172a);
+  color: var(--th-text, var(--th-text));
   text-decoration: underline;
 }
 

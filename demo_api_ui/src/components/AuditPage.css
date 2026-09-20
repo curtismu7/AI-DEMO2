@@ -60,7 +60,7 @@
   background: none;
   border: 1px solid transparent;
   border-radius: 5px;
-  color: var(--color-text-secondary, #374151);
+  color: var(--color-text-secondary, var(--th-text));
   font-size: 1rem;
   cursor: pointer;
   padding: 2px 7px;
@@ -84,7 +84,7 @@
   background: none;
   border: 1px solid transparent;
   border-radius: 5px;
-  color: var(--color-text-secondary, #374151);
+  color: var(--color-text-secondary, var(--th-text));
   font-size: 1.3rem;
   cursor: pointer;
   line-height: 1;
@@ -104,7 +104,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: var(--color-text-secondary, #374151);
+  color: var(--color-text-secondary, var(--th-text));
   cursor: pointer;
 }
 
@@ -117,7 +117,7 @@
   background: var(--color-surface, #fff);
   border: 1px solid var(--color-border, #d1d5db);
   border-radius: 5px;
-  color: var(--color-text-secondary, #374151);
+  color: var(--color-text-secondary, var(--th-text));
   font-size: 0.8rem;
   padding: 2px 4px;
   cursor: pointer;
@@ -125,7 +125,7 @@
 
 .audit-last-updated {
   font-size: 0.75rem;
-  color: var(--color-text-secondary, #6b7280);
+  color: var(--color-text-secondary, var(--th-text));
   font-variant-numeric: tabular-nums;
   opacity: 0.75;
   margin-right: 2px;
@@ -243,7 +243,7 @@ body.admin-skin-p1 .audit-refresh-select {
 .audit-stat__label {
   display: block;
   font-size: 0.7rem;
-  color: var(--color-text-secondary, #374151);
+  color: var(--color-text-secondary, var(--th-text));
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin-top: 2px;
@@ -320,7 +320,7 @@ body.admin-skin-p1 .audit-refresh-select {
   text-align: left;
   padding: 9px 12px;
   font-weight: 600;
-  color: var(--color-text-secondary, #374151);
+  color: var(--color-text-secondary, var(--th-text));
   text-transform: uppercase;
   font-size: 0.72rem;
   letter-spacing: 0.05em;
@@ -335,7 +335,7 @@ body.admin-skin-p1 .audit-refresh-select {
 
 .audit-table__empty {
   text-align: center;
-  color: var(--color-text-secondary, #374151);
+  color: var(--color-text-secondary, var(--th-text));
   padding: 28px !important;
 }
 
@@ -352,14 +352,14 @@ body.admin-skin-p1 .audit-refresh-select {
 
 .audit-cell--time {
   white-space: nowrap;
-  color: var(--color-text-secondary, #374151);
+  color: var(--color-text-secondary, var(--th-text));
   font-size: 0.78rem;
 }
 
 .audit-cell--user {
   font-family: inherit;
   font-size: 0.78rem;
-  color: var(--color-text-secondary, #374151);
+  color: var(--color-text-secondary, var(--th-text));
   max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -544,7 +544,7 @@ tr.audit-detail-row > td {
   text-align: right;
   font-variant-numeric: tabular-nums;
   font-size: 0.85em;
-  color: var(--text-muted, #374151);
+  color: var(--text-muted, var(--th-text));
 }
 
 /* ── Token chain row styles ── */

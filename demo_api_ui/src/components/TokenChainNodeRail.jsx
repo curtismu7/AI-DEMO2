@@ -63,6 +63,7 @@ const NODE_LABELS = {
   stepup: "Step-up",
   "intent-binding": "Intent bind",
   gateway: "Gateway",
+  "vault-key-inject": "Vault",
   "api-key-swap": "API key",
   mcp: "MCP",
   api: "Resource",
@@ -101,6 +102,14 @@ function shorten(v, max = 18) {
 function NodeFact({ step }) {
   const d = step?.detail || {};
   const ran = ["done", "active", "denied", "error"].includes(step?.status);
+
+  if (ran && Array.isArray(d.facts) && d.facts.length > 0) {
+    return (
+      <span className="tcnr-node-facts">
+        {d.facts.map((fact) => <span className="tcnr-node-fact" key={fact}>{fact}</span>)}
+      </span>
+    );
+  }
 
   // Scope narrowing is the most legible change in the chain — but a ~130px map
   // card cannot hold nine scope chips, and it used to try: every `before` scope

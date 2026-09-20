@@ -48,6 +48,7 @@ POST /api/config/validation-mode
         IntrospectionHealth["GET /api/health/introspection
 RFC 7662 connectivity probe
 → 200 connected | 503 failed"]
+        VaultBridge["/internal/vault/service-key<br/>allow-listed BFF vault bridge<br/>gateway-only"]
 
         subgraph Middleware["Middleware Stack"]
             AuthMW["authenticateToken\nJWT validation / SKIP_TOKEN_SIGNATURE_VALIDATION"]
@@ -198,6 +199,7 @@ runtime switchable"]
     GwProxy -->|"WS MCP - exchanged Bearer"| MCPProtocol
     GwProxy -->|"WS MCP - invest tools"| MCPInvestSvc
     GwProxy -->|"X-API-Key + X-User-Sub (Path A)<br/>OAuth Bearer dropped"| MortgageSvc
+    GwProxy -->|"GET /internal/vault/service-key<br/>route-bound API key"| VaultBridge
     GwProxy -->|"Bearer + id_token (Path B)<br/>Bearer exchanged (Path C)"| BankingRS
     AuthRoutes -->|"prompt + user token"| AgentService
     AgentService -->|"WS exchanged Bearer"| GwProxy

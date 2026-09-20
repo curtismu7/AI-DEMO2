@@ -1,12 +1,13 @@
 /* demo_api_ui/src/components/ProofStrip.css */
 .proof-strip {
+  --proof-strip-ink: #17212e;
   margin-top: 8px;
   border-radius: 9px;
   padding: 8px 11px;
   font-size: 12.5px;
   border: 1px solid #16a34a;
   background: #e9f7ef;
-  color: #111827;
+  color: var(--proof-strip-ink);
 }
 .proof-strip--mismatch, .proof-strip--incomplete {
   border-color: #d97706;
@@ -18,7 +19,7 @@
   align-items: center;
   font-weight: 650;
   margin-bottom: 6px;
-  color: #111827;
+  color: var(--proof-strip-ink);
 }
 .proof-strip-chain {
   display: flex;

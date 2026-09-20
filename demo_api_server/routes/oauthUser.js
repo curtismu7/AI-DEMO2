@@ -20,6 +20,9 @@ const { terminateAllUserSessions } = require('../services/pingOneSessionService'
 const demoScenarioStore = require('../services/demoScenarioStore');
 const { verticalManifest } = require('../services/verticalManifest');
 const loginFlowTrace = require('../services/loginFlowTraceService');
+const { loadHostedAccessPolicy, evaluateHostedIdentity, coherentHostedIdentityClaims, stampHostedAccessApproval, hasCurrentHostedAccessApproval, clearHostedAccessApproval } = require('../services/hostedAccessPolicy');
+const { startLoginAudit, resumeLoginAudit, finishLoginAudit } = require('../services/authAccessAuditService');
+const { sendAccessRestricted } = require('../middleware/hostedAccessGate');
 
 const STEP_UP_TTL_MS = 5 * 60 * 1000; // 5 min step-up validity
 
@@ -186,7 +189,8 @@ router.get('/login', (req, res) => {
       const tokenNotExpired = !expiresAt || Date.now() < expiresAt;
       const isUserAuthenticated = !!(req.session.user && hasOAuthToken && tokenNotExpired && req.session.oauthType === 'user');
 
-      if (isUserAuthenticated) {
+      const policy = loadHostedAccessPolicy();
+      if (isUserAuthenticated && hasCurrentHostedAccessApproval(req.session, policy)) {
         // User already has an active session — honour return_to (e.g. /) instead of always going to /dashboard
         const returnPath = sanitizePostLoginReturnPath(req.query.return_to) || '/dashboard';
         console.log('[oauth/user/login] User already authenticated, redirecting to:', returnPath, req.session.user.email);
@@ -239,6 +243,7 @@ router.get('/login', (req, res) => {
     }
 
     const state = oauthService.generateState();
+    startLoginAudit(req, 'user', Date.now(), state);
     const codeVerifier = oauthService.generateCodeVerifier();
     const redirectUri = getUserRedirectUri(req);
 
@@ -246,6 +251,7 @@ router.get('/login', (req, res) => {
     const uriCheck = validateRedirectUriOrigin(redirectUri);
     if (!uriCheck.ok) {
       console.warn('[oauth/user] Redirect URI rejected:', uriCheck.reason, redirectUri);
+      finishLoginAudit(req, { outcome: 'failure', reasonCode: 'callback_failed' });
       return res.status(400).json({ error: 'invalid_redirect_uri', message: uriCheck.reason });
     }
 
@@ -326,6 +332,7 @@ router.get('/login', (req, res) => {
     });
   } catch (error) {
     console.error('OAuth login error:', error?.stack || String(error));
+    finishLoginAudit(req, { outcome: 'failure', reasonCode: 'callback_failed' });
     redirectEndUserOAuthSpaFailure(req, res, { error: 'oauth_init_failed' });
   }
 });
@@ -364,6 +371,7 @@ router.get('/silent-reauth', (req, res) => {
     req.session.silentReauth = true; // callback uses this to suppress full-error pages on login_required
 
     const state = oauthService.generateState();
+    startLoginAudit(req, 'user', Date.now(), state);
     const codeVerifier = oauthService.generateCodeVerifier();
     const redirectUri = getUserRedirectUri(req);
     const nonce = crypto.randomBytes(16).toString('hex');
@@ -408,6 +416,7 @@ router.get('/silent-reauth', (req, res) => {
 router.get('/callback', async (req, res) => {
   try {
     const { code, state, error } = req.query;
+    resumeLoginAudit(req, state, 'user');
 
     // Validate the request origin matches our expected deployment (defence-in-depth)
     const isProdDeployment = process.env.REPL_ID || process.env.REPLIT_DEPLOYMENT;
@@ -433,11 +442,13 @@ router.get('/callback', async (req, res) => {
         delete req.session.postLoginReturnToPath;
         clearPkceCookie(res, _isProd());
         appEventService.logEvent('auth_lifecycle', 'info', 'Silent reauth: PingOne SSO expired (login_required)', { tag: 'oauth/user/callback/silent' });
+        finishLoginAudit(req, { outcome: 'failure', reasonCode: 'oauth_provider_error' });
         return req.session.save(() =>
           res.redirect(`${getFrontendOrigin()}${returnPath}?silent_reauth_failed=1`)
         );
       }
       console.error('[oauth/user/callback] IdP error:', error, req.query.error_description || '');
+      finishLoginAudit(req, { outcome: 'failure', reasonCode: 'oauth_provider_error' });
       // If PingOne rejected the redirect_uri, fire the guard immediately so it
       // self-heals before the next login attempt — fire-and-forget, never blocks.
       const errorDesc = String(req.query.error_description || '').toLowerCase();
@@ -462,6 +473,7 @@ router.get('/callback', async (req, res) => {
     if (!state || state !== resolvedState) {
       console.error('[oauth/user/callback] Invalid state. session:', sessionState, 'cookie:', pkceCookie?.state, 'received:', state);
       clearPkceCookie(res, _isProd());
+      finishLoginAudit(req, { outcome: 'failure', reasonCode: 'invalid_state' });
       // Instead of showing an error, auto-retry login — the user clearly intended to sign in.
       // This handles the multi-tab race where tab B's login overwrites tab A's PKCE state.
       console.log('[oauth/user/callback] Auto-retrying login after invalid_state (multi-tab race)');
@@ -472,6 +484,7 @@ router.get('/callback', async (req, res) => {
     if (!code) {
       console.error('[oauth/user/callback] No authorization code (pi.flow may use a different callback shape than code flow)');
       clearPkceCookie(res, _isProd());
+      finishLoginAudit(req, { outcome: 'failure', reasonCode: 'authorization_code_missing' });
       return redirectEndUserOAuthSpaFailure(req, res, { error: 'no_code' });
     }
 
@@ -538,6 +551,7 @@ router.get('/callback', async (req, res) => {
     if (expectedNonce && idTokenClaims.nonce) {
       if (idTokenClaims.nonce !== expectedNonce) {
         console.error('[oauth/user/callback] Nonce mismatch — possible ID token replay attack');
+        finishLoginAudit(req, { outcome: 'failure', reasonCode: 'nonce_mismatch' });
         return redirectEndUserOAuthSpaFailure(req, res, { error: 'nonce_mismatch' });
       }
     } else if (expectedNonce && tokenData.id_token && !idTokenClaims.nonce) {
@@ -546,6 +560,7 @@ router.get('/callback', async (req, res) => {
       // failure (a replayed/forged ID token could simply omit it), so fail the
       // callback exactly like the nonce-mismatch path above — never warn-and-proceed.
       console.error('[oauth/user/callback] ID token missing nonce claim — nonce was requested');
+      finishLoginAudit(req, { outcome: 'failure', reasonCode: 'nonce_missing' });
       return redirectEndUserOAuthSpaFailure(req, res, { error: 'nonce_missing' });
     }
 
@@ -555,6 +570,26 @@ router.get('/callback', async (req, res) => {
     // Merge ID token claims as fallback for any userinfo gaps (e.g. email not in userinfo response).
     // userinfo takes priority; idTokenClaims fills only missing fields.
     const mergedUserInfo = { ...idTokenClaims, ...userInfo };
+
+    const hostedAccessPolicy = loadHostedAccessPolicy();
+    const hostedIdentityClaims = coherentHostedIdentityClaims(idTokenClaims, userInfo);
+    const hostedAccessDecision = hostedAccessPolicy.enabled
+      ? evaluateHostedIdentity(hostedIdentityClaims, hostedAccessPolicy)
+      : null;
+    if (hostedAccessDecision && !hostedAccessDecision.allowed) {
+      finishLoginAudit(req, {
+        outcome: 'denied',
+        reasonCode: hostedAccessDecision.reason,
+        identity: hostedAccessDecision,
+      });
+      clearHostedAccessApproval(req.session);
+      delete req.session.oauthTokens;
+      delete req.session.user;
+      delete req.session.clientType;
+      delete req.session.oauthType;
+      clearAuthCookie(res, _isProd());
+      return sendAccessRestricted(res);
+    }
 
     // Create user object from OAuth data
     const oauthUser = oauthService.createUserFromOAuth(mergedUserInfo);
@@ -676,6 +711,8 @@ router.get('/callback', async (req, res) => {
     // Preserve step-up return destination across session regeneration
     const stepUpReturnTo = req.session.stepUpReturnTo || null;
     const postLoginReturnToPath = sanitizePostLoginReturnPath(req.session.postLoginReturnToPath) || null;
+    const hostedLoginAudit = req.session.hostedLoginAudit || null;
+    const hostedLoginAudits = req.session.hostedLoginAudits || null;
 
     // Detect silent SSO: if PingOne returned in < 2 s the user had an active session
     // and was not prompted for credentials. Pass sso_silent=1 to the SPA so it can
@@ -711,6 +748,7 @@ router.get('/callback', async (req, res) => {
       if (regenErr) {
         console.error('[oauth/user/callback] Session regenerate FAILED — aborting login:', regenErr.message);
         clearAuthCookie(res, _isProd());
+        finishLoginAudit(req, { outcome: 'failure', reasonCode: 'session_regenerate_failed' });
         return redirectEndUserOAuthSpaFailure(
           req,
           res,
@@ -723,6 +761,11 @@ router.get('/callback', async (req, res) => {
       req.session.user = authedUser;
       req.session.clientType = clientType;
       req.session.oauthType = 'user';
+      if (hostedLoginAudit) req.session.hostedLoginAudit = hostedLoginAudit;
+      if (hostedLoginAudits) req.session.hostedLoginAudits = hostedLoginAudits;
+      if (hostedAccessDecision) {
+        stampHostedAccessApproval(req.session, hostedAccessDecision, hostedAccessPolicy);
+      }
       // D-01: clear pending agent intent — client handles replay via sessionStorage (BX_AGENT_PENDING_NL_KEY)
       delete req.session.pendingAgentIntent;
 
@@ -766,6 +809,7 @@ router.get('/callback', async (req, res) => {
       req.session.save((saveErr) => {
         if (saveErr) {
           console.error('[oauth/user/callback] Session save FAILED — aborting login (no _auth cookie):', saveErr.message);
+          finishLoginAudit(req, { outcome: 'failure', reasonCode: 'session_persist_failed' });
           return req.session.destroy((destroyErr) => {
             if (destroyErr) {
               console.error('[oauth/user/callback] session.destroy after failed save:', destroyErr.message);
@@ -780,6 +824,11 @@ router.get('/callback', async (req, res) => {
           });
         }
         console.log('[oauth/user/callback] Session saved OK sid=' + (req.session?.id || '').slice(0, 8) + '…');
+        finishLoginAudit(req, {
+          outcome: 'success',
+          reasonCode: 'allowed',
+          identity: hostedAccessDecision || {},
+        });
 
         // RFC 7662 — introspect at login so /api/tokens/session-preview shows
         // "active-token introspection" in the Token Chain before any tool call.
@@ -841,6 +890,7 @@ router.get('/callback', async (req, res) => {
     
   } catch (error) {
     console.error('OAuth callback error:', error?.stack || String(error));
+    finishLoginAudit(req, { outcome: 'failure', reasonCode: 'callback_failed' });
     const detail = error.pingoneError || 'unknown';
     const desc   = error.pingoneDesc   || '';
     redirectEndUserOAuthSpaFailure(req, res, {

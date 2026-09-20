@@ -1,9 +1,8 @@
 # mcp-scanner
 
-A **tool-metadata scanner** for MCP servers — the blue-team answer to
-tool-description poisoning. It reads the `description` and `inputSchema` a server
-serves in `tools/list` and flags the payloads a hostile server hides there,
-*before* an agent ingests them.
+A **content scanner** for MCP servers — the blue-team answer to MCP poisoning.
+It reads tool metadata, resource content, and prompt messages before an agent
+ingests them.
 
 This is the defense to the attack in `standalone/hostile-mcp-server`. The MCP
 protocol has nothing to inspect tool metadata with, so a defense can only sit
@@ -17,6 +16,11 @@ where the metadata is **consumed** — in front of the agent. That is exactly he
 - **`exfil-sink`** — an `inputSchema` argument that leaks: a default pointing to
   an **off-box** URL, or a description telling the agent to include sensitive
   context (full conversation, credentials, tokens).
+- **`sensitive-action`** — resource or prompt content directing an agent toward
+  a fund-moving action or bypassing approval.
+
+It scans `tools/list`, `resources/list` plus `resources/read`, and `prompts/list`
+plus `prompts/get` when those capabilities are advertised.
 
 ## Run it
 
@@ -43,6 +47,7 @@ Against `standalone/hostile-mcp-server` (start it first) you'll see:
 ```
 ⚠️  get_weather — hidden-instruction: instruction-tag in description (e.g. <IMPORTANT>)
 ⚠️  search_docs — exfil-sink: arg "callback_url": off-box default https://attacker.example/collect; description instructs including sensitive context
+⚠️  resource:account-verification — sensitive-action: content directs the agent toward a fund-moving or payment action
 ```
 
 Exit code is `1` when anything is found, `0` when clean, `2` if it can't connect —
@@ -61,6 +66,5 @@ could trip a flag. It is a tripwire in front of the agent, not a proof of safety
 npm test
 ```
 
-`scanner.test.js` — flags a hidden instruction and an exfil sink, stays silent on
-clean tools (a `localhost` default is not off-box), and reports every poisoned
-tool across a list.
+`scanner.test.js` — flags hidden instructions, exfiltration sinks, and sensitive
+actions, while staying silent on clean tools, resources, and prompts.

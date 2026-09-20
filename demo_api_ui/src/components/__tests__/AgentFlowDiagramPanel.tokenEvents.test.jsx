@@ -1,6 +1,6 @@
 // demo_api_ui/src/components/__tests__/AgentFlowDiagramPanel.tokenEvents.test.jsx
 import { render, screen } from '@testing-library/react';
-import { TokenEventCard } from '../AgentFlowDiagramPanel';
+import { A2AProtocolTrace, TokenEventCard } from '../AgentFlowDiagramPanel';
 
 const EVENT = {
   id: 'exchanged-token',
@@ -42,4 +42,19 @@ test('surfaces error pill and hop narrative on exchange-failed', () => {
   );
   expect(document.querySelector('.afd-tc-pill--error')?.textContent).toMatch(/invalid_scope/);
   expect(screen.getByText(/Token exchange failed/i)).toBeInTheDocument();
+});
+
+test('shows A2A request and response boundaries in the legacy flow panel', () => {
+  render(
+    <A2AProtocolTrace
+      events={[
+        { id: 'a2a-agent-card', agentName: 'Investment Advisor', cardUrl: '/agent-card', agentCard: { name: 'Investment Advisor' } },
+        { id: 'a2a-protocol-message', status: 'completed', agentName: 'Investment Advisor', mode: 'http', protocolRequest: { method: 'message/send' }, protocolResponse: { result: { status: 'completed' } } },
+      ]}
+    />,
+  );
+  expect(screen.getByRole('region', { name: 'A2A protocol trace' })).toBeInTheDocument();
+  expect(screen.getByText(/Request: POST message\/send/)).toBeInTheDocument();
+  expect(screen.getByText(/Response: result/)).toBeInTheDocument();
+  expect(screen.getByText(/No access token crosses/)).toBeInTheDocument();
 });

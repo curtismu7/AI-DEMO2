@@ -239,6 +239,24 @@ describe('GatewayServer — Plan 243-01 foundational tests', () => {
       expect(res.headers['www-authenticate']).toMatch(/Bearer/i);
     });
 
+    it('rejects a malformed tx-token instead of treating it as bridge discovery', async () => {
+      const bridgeConfig = { ...stubConfig, privilegeBridgeSecret: 'privilege-secret' };
+      const bridgeGateway = new GatewayServer({
+        config: bridgeConfig,
+        upstreamMcpUrl: 'http://127.0.0.1:19999',
+      });
+
+      const res = await supertest(bridgeGateway.httpServer)
+        .post('/mcp')
+        .set('Authorization', 'Bearer privilege-secret')
+        .set('tx-token', '   ')
+        .set('Content-Type', 'application/json')
+        .send(mcpBody);
+
+      expect(res.status).toBe(401);
+      expect(res.body.message).toMatch(/invalid tx-token/i);
+    });
+
     it('does not crash the gateway when emitting WWW-Authenticate on auth failure', async () => {
       // Verify gateway stays alive after multiple auth rejections
       for (let i = 0; i < 3; i++) {

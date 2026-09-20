@@ -17,7 +17,7 @@
   border-radius: 999px;
   padding: 6px 14px;
   font-size: 12.5px;
-  color: #6b7280;
+  color: var(--th-text);
   white-space: nowrap;
 }
 .dc-flag-pill--on {
@@ -57,7 +57,7 @@
 }
 
 .dc-loading {
-  color: #6b7280;
+  color: var(--th-text);
   padding: 24px 0;
 }
 
@@ -196,7 +196,7 @@
 }
 .dc-config-card__meta {
   font-size: 11.5px;
-  color: #6b7280;
+  color: var(--th-text);
   margin: 4px 0 10px;
 }
 .dc-config-card__actions {
@@ -258,7 +258,7 @@
   cursor: grabbing;
 }
 .dc-group-row--hidden {
-  opacity: 0.7;
+  opacity: 0.85;
   background: var(--th-bg-inset, #f1f5f9);
 }
 .dc-group-row--drag-over {
@@ -313,7 +313,7 @@
   cursor: pointer;
   padding: 2px 7px;
   font-size: 10px;
-  color: #6b7280;
+  color: var(--th-text);
   flex-shrink: 0;
 }
 .dc-expand-btn:hover {
@@ -338,7 +338,7 @@
   height: 26px;
   cursor: pointer;
   font-size: var(--font-size-sm);
-  color: #6b7280;
+  color: var(--th-text);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -398,7 +398,7 @@
   border: 1px solid #e2e8f0;
   cursor: pointer;
   background: #fff;
-  color: #374151;
+  color: var(--th-text);
 }
 .dc-btn-secondary:hover {
   background: #f1f5f9;
@@ -406,4 +406,207 @@
 .dc-btn-secondary:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+.dc-search-wrap {
+  margin: 0 0 16px;
+}
+.dc-search-label {
+  display: block;
+  color: var(--th-text);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.dc-search-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: 8px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  padding: 0 10px;
+}
+.dc-search-input-wrap:focus-within {
+  border-color: var(--th-bg-emphasis);
+  outline: 2px solid var(--th-bg-emphasis);
+  outline-offset: 1px;
+}
+.dc-search-input-wrap input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--th-text);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  padding: 9px 0;
+}
+.dc-search-input-wrap input::placeholder {
+  color: var(--th-text-muted);
+}
+.dc-search-clear {
+  border: 0;
+  background: transparent;
+  color: var(--th-text);
+  cursor: pointer;
+  padding: 3px 5px;
+}
+.dc-section {
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.dc-section + .dc-section {
+  margin-top: 10px;
+}
+.dc-section__toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 0;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  padding: 10px 12px;
+  text-align: left;
+}
+.dc-section__toggle:hover,
+.dc-section__toggle:focus-visible {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+.dc-section__meta {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dc-section__body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+.dc-page-table-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(82px, auto) auto auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px 2px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.dc-page-table-header [role="columnheader"]:nth-of-type(3) {
+  text-align: right;
+}
+.dc-page .dc-open-link {
+  color: var(--th-bg-emphasis);
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+.dc-page-link-placeholder {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  text-align: right;
+}
+.dc-page .dc-open-link:hover,
+.dc-page .dc-open-link:focus-visible {
+  color: var(--th-bg-emphasis);
+}
+.dc-child-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dc-no-results {
+  border: 1px dashed var(--th-border-strong);
+  border-radius: 8px;
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+  padding: 16px;
+  text-align: center;
+}
+
+.dc-section .dc-group-row {
+  border-color: var(--th-border);
+}
+.dc-section .dc-group-row__main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(82px, auto) auto auto;
+}
+.dc-section .dc-child-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 12px 8px 46px;
+}
+.dc-section .dc-child-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  color: var(--th-text-body);
+  background: var(--th-bg-inset);
+  border-color: var(--th-border);
+  padding: 5px 7px;
+}
+
+/* Theme overrides for the legacy light-first config controls. */
+.dc-flag-pill,
+.dc-panel,
+.dc-config-card,
+.dc-new-config,
+.dc-group-row {
+  background: var(--th-bg-card);
+  border-color: var(--th-border);
+  color: var(--th-text);
+}
+.dc-panel__actions,
+.dc-child-list {
+  border-color: var(--th-border);
+}
+.dc-config-card__actions button,
+.dc-new-config input,
+.dc-expand-btn,
+.dc-reorder-btn,
+.dc-btn-secondary {
+  border-color: var(--th-border);
+  color: var(--th-text);
+}
+.dc-new-config input,
+.dc-btn-secondary {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+.dc-expand-btn:hover,
+.dc-reorder-btn:hover:not(:disabled),
+.dc-btn-secondary:hover {
+  background: var(--th-bg-hover);
+  border-color: var(--th-border-strong);
+  color: var(--th-text);
+}
+.dc-group-row--hidden {
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+.dc-group-row--drag-over {
+  background: var(--th-bg-hover);
+  border-color: var(--th-bg-emphasis);
+  color: var(--th-text);
 }

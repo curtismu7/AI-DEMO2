@@ -38,6 +38,26 @@ describe("TokenChainPresenter", () => {
     expect(screen.getByText("RFC 6749")).toBeInTheDocument();
   });
 
+  it('shows A2A request, response, and the token boundary in the presenter', () => {
+    const a2aStep = {
+      id: 'a2a-protocol-message',
+      title: 'SendMessage · Investment Advisor handoff',
+      lane: 'A2A',
+      status: 'done',
+      detail: {
+        narrative: 'The specialist returned a protocol response.',
+        request: { method: 'message/send' },
+        response: { result: { status: 'completed' } },
+        facts: ['POST message/send · JSON-RPC', 'result'],
+      },
+    };
+    render(<TokenChainPresenter steps={[a2aStep]} activeId={a2aStep.id} onSelect={noop} onClose={noop} />);
+    expect(screen.getByText('Request')).toBeInTheDocument();
+    expect(screen.getAllByText(/message\/send/).length).toBeGreaterThan(0);
+    expect(screen.getByText('Response')).toBeInTheDocument();
+    expect(screen.getByText(/No access token crosses/)).toBeInTheDocument();
+  });
+
   it("states a step's status in words instead of colour alone", () => {
     render(<TokenChainPresenter steps={STEPS} activeId="stepup" onSelect={noop} onClose={noop} />);
     expect(screen.getByText("Not in this path")).toBeInTheDocument();

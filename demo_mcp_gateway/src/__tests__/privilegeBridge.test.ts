@@ -2,7 +2,7 @@
 //
 // With the PingOne Privilege AI Gateway in front, the Authorization header on
 // the backend hop belongs to Privilege: it stamps the Static Token configured
-// on the Agentic App. The caller's own token arrives in X-Subject-Token, which
+// on the Agentic App. The caller's own transaction token arrives in tx-token, which
 // was measured surviving that hop unmodified (privilege/CURRENT-CONFIGURATION.md,
 // "Backend hop", 2026-09-10).
 //
@@ -15,7 +15,11 @@
 // The security property under test: the header is trusted ONLY when the bearer
 // is the shared secret. From any other caller it is ignored outright.
 
-import { isPrivilegeBridgeBearer, subjectTokenFromHeaders } from '../auth/privilegeBridge';
+import {
+  isPrivilegeBridgeBearer,
+  transactionTokenFromHeaders,
+  transactionTokenHeaderState,
+} from '../auth/privilegeBridge';
 
 const SECRET = 'a'.repeat(64);
 
@@ -38,24 +42,40 @@ describe('isPrivilegeBridgeBearer', () => {
   });
 });
 
-describe('subjectTokenFromHeaders', () => {
-  test('reads the subject token', () => {
-    expect(subjectTokenFromHeaders({ 'x-subject-token': 'user.jwt.here' })).toBe('user.jwt.here');
+describe('transactionTokenFromHeaders', () => {
+  test('reads the transaction token', () => {
+    expect(transactionTokenFromHeaders({ 'tx-token': 'user.jwt.here' })).toBe('user.jwt.here');
   });
 
   test('absent header yields null', () => {
-    expect(subjectTokenFromHeaders({})).toBeNull();
+    expect(transactionTokenFromHeaders({})).toBeNull();
+  });
+
+  test('legacy subject-token header is not accepted', () => {
+    expect(transactionTokenFromHeaders({ 'x-subject-token': 'legacy.jwt.here' })).toBeNull();
   });
 
   test('an array-valued header is refused rather than silently joined', () => {
-    expect(subjectTokenFromHeaders({ 'x-subject-token': ['a', 'b'] })).toBeNull();
+    expect(transactionTokenFromHeaders({ 'tx-token': ['a', 'b'] })).toBeNull();
   });
 
   test('an oversized header is refused — a bearer slot is not a payload channel', () => {
-    expect(subjectTokenFromHeaders({ 'x-subject-token': 'x'.repeat(9000) })).toBeNull();
+    expect(transactionTokenFromHeaders({ 'tx-token': 'x'.repeat(9000) })).toBeNull();
   });
 
   test('whitespace-only is treated as absent', () => {
-    expect(subjectTokenFromHeaders({ 'x-subject-token': '   ' })).toBeNull();
+    expect(transactionTokenFromHeaders({ 'tx-token': '   ' })).toBeNull();
+  });
+});
+
+describe('transactionTokenHeaderState', () => {
+  test('distinguishes an absent header from an invalid present header', () => {
+    expect(transactionTokenHeaderState({})).toEqual({ present: false, value: null });
+    expect(transactionTokenHeaderState({ 'tx-token': '   ' })).toEqual({ present: true, value: null });
+  });
+
+  test('marks repeated and oversized headers invalid instead of treating them as absent', () => {
+    expect(transactionTokenHeaderState({ 'tx-token': ['a', 'b'] })).toEqual({ present: true, value: null });
+    expect(transactionTokenHeaderState({ 'tx-token': 'x'.repeat(9000) })).toEqual({ present: true, value: null });
   });
 });
