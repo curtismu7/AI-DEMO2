@@ -6,6 +6,8 @@ Standalone AI-powered banking demo using PingOne for authentication and **RFC 86
 
 This is a **completely standalone** project — it can be handed to anyone and run independently.
 
+**Repository:** [github.com/cmuir_pingcorp/AI-DEMO2](https://github.com/cmuir_pingcorp/AI-DEMO2)
+
 **AI assistants / agents:** follow **[CLAUDE.md](CLAUDE.md)** (repo conventions, regression guard, verification).
 
 ## 🚀 Quick Start (brand-new machine)
@@ -13,7 +15,7 @@ This is a **completely standalone** project — it can be handed to anyone and r
 One command bootstraps everything on a fresh Mac — no tooling required beforehand:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash
 ```
 
 It installs **Homebrew, git, Node 20, Python 3.12, Docker (OrbStack), mkcert, llama.cpp**, and any
@@ -26,6 +28,8 @@ asks **how you want to run** the demo:
 | **2** | **Kubernetes / OrbStack** (local cluster) | `./run-k8.sh` | + OrbStack, kubectl |
 | **3** | **Ping SE cluster** (shared AWS) | `./run-pingaws.sh` | + Docker Desktop, kubelogin, kubectx |
 | **4** | **Kubernetes / EKS** (self-managed) | `./run-k8.sh aws-all` | + OrbStack, AWS CLI |
+| **5** | **Local Docker + Terraform** | `cd terraform && terraform apply` | + Docker, Terraform |
+| **6** | **Ping SE + Terraform** (existing namespace) | `./terraform/deploy-se.sh` | + Docker, Terraform, kubectl |
 
 ¹ Local mode still uses Docker to run **PingGateway** (the MCP authorization gateway).
 
@@ -33,18 +37,23 @@ asks **how you want to run** the demo:
 
 1. **A PingOne Worker app** (role: *Identity Data Admin*) — create it once in the PingOne admin
    console. The installer **prompts for its Environment ID, Client ID, and Client Secret** and
-   provisions everything else automatically. (Press Enter to skip and use the browser form instead.)
+   provisions everything else automatically. These three Worker app values are required.
 2. **A Helix agent key** (optional) — to power the natural-language AI. Without it the agent runs
    in heuristic-only mode. See [Configure the AI agent (Helix)](#configure-the-ai-agent-helix).
 
 Non-interactive install (skip all prompts, defaults to local mode):
 
 ```bash
-ASSUME_YES=1 curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
+ASSUME_YES=1 curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash
 ```
 
 After install, start the demo any time with the launcher for your mode (e.g. `cd ~/AI-demo && ./run.sh`)
 and open **`https://local.ping-devops.com:4000`**. Full details for each mode are in [How to Run](#how-to-run) below.
+
+Terraform handoff details, including the explicit Docker and SE commands, are in
+[terraform/README.md](terraform/README.md). Terraform's Docker target drives the
+existing Compose stack through lifecycle commands, so Compose remains the source
+of truth; Terraform does not track each container as a separate resource.
 
 ## Components
 
@@ -135,7 +144,7 @@ Runs everything directly as Node/Python processes on your Mac. **No Docker, no K
 
 ```bash
 # First-time setup
-curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash
 # Select option 1 — installs Node, Python, mkcert, and bootstraps PingOne automatically
 ```
 
@@ -237,6 +246,97 @@ curl -sk https://api.ping.demo:3001/api/health/inventory/sizes   # per-container
 
 Compose profiles (same groups): `docker compose --profile rag up -d`, etc.
 
+#### Terraform deployment handoff
+
+Terraform supports two handoff targets. Local Docker uses the existing
+`docker-compose.yml` as the source of truth; Terraform owns the lifecycle
+commands, while Compose continues to define services, images, profiles,
+networks, and mounts. The SE target deploys into an existing namespace and does
+not create or delete that namespace.
+
+The installer asks for these required PingOne Worker app values before running
+bootstrap:
+
+- PingOne Environment ID
+- Worker Client ID
+- Worker Client Secret
+
+The Worker app needs the `Identity Data Admin` role. Do not put these secrets in
+`terraform.tfvars`; the installer and the existing secret-generation flow handle
+them separately.
+
+##### Local Docker with Terraform
+
+Install the tools and bootstrap the repository, selecting option **5**, or run:
+
+```bash
+./install.sh --mode docker-terraform
+```
+
+Then create a local, ignored Terraform variables file and deploy:
+
+```bash
+cd ~/AI-demo/terraform
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+terraform fmt -check -recursive
+terraform validate
+terraform plan -out=ai-demo.tfplan
+terraform apply ai-demo.tfplan
+```
+
+The example defaults to `build_images = true`. Set it to `false` when the
+required local images already exist and you only want Terraform to start the
+stack. Optional Compose profiles can be added, for example:
+
+```hcl
+compose_profiles = ["agents", "tracing"]
+```
+
+Check or operate the deployment:
+
+```bash
+terraform output status_command
+terraform output logs_command
+docker compose -p ai-demo -f ../docker-compose.yml ps
+terraform destroy                         # keeps named volumes by default
+terraform destroy -var='retain_volumes=false' # also removes persistent data
+```
+
+##### Ping SE namespace with Terraform
+
+The namespace must already exist and be assigned to the user. Authenticate to
+the SE cluster, build/push images, create namespace-scoped secrets, and run the
+Terraform wrapper:
+
+```bash
+./install.sh --mode se-terraform
+
+cd ~/AI-demo
+kubectl config use-context us
+gh auth login
+export GITHUB_OWNER=YOUR_GITHUB_OWNER
+./run-pingaws.sh build
+
+export SE_NAMESPACE=ping-devops-YOURNAME
+K8S_NAMESPACE="$SE_NAMESPACE" ./k8s/create-secrets.sh
+
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+# Set target = "se", namespace = "ping-devops-YOURNAME",
+# kubernetes_context = "us", and image_repository = "ghcr.io/YOUR_GITHUB_OWNER".
+./deploy-se.sh
+```
+
+`deploy-se.sh` prompts for the existing namespace when `SE_NAMESPACE` is not
+set, verifies namespace access and required secrets, then runs
+`terraform init`, `fmt`, `validate`, `plan`, and `apply`. Terraform does not
+create or delete the namespace. Kubernetes PVCs are retained by default; set
+`retain_volumes = false` only when persistent data should also be removed.
+
+See [`terraform/README.md`](terraform/README.md) for the complete variable
+reference, profiles, troubleshooting, status, logs, and teardown details.
+
 #### Real vs demo Authorize / Agent Gateway
 
 Two Quick Flags in the admin UI control which containers you need (they are **not**
@@ -319,7 +419,7 @@ Runs all services in a local Kubernetes cluster via OrbStack. Same images as pro
 
 ```bash
 # First-time setup
-curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash
 # Select option 2 — installs OrbStack, kubectl, and bootstraps PingOne
 ```
 
@@ -383,7 +483,7 @@ Deploys to the shared Ping SE DevOps cluster (`ping-dev-aws-us-east-2`). Images 
 
 ```bash
 # First-time setup
-curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash
 # Select option 3 — installs all tools above automatically
 ```
 
@@ -470,17 +570,17 @@ kubectl logs -n ping-devops-cmuir deploy/<name> --previous        # after a cras
 ### Fresh install (new machine)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash
 ```
 
 Prompts you to choose a run mode and installs all required tools + bootstraps PingOne automatically.
 
 ```bash
 # Install to a custom directory
-INSTALL_DIR=~/work/AI-demo curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
+INSTALL_DIR=~/work/AI-demo curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash
 
 # Non-interactive (skip all prompts)
-ASSUME_YES=1 curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash
+ASSUME_YES=1 curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash
 ```
 
 ---
@@ -555,7 +655,7 @@ Full guide: [`docs/user-guide/helix-setup.md`](docs/user-guide/helix-setup.md).
 ASSUME_YES=1 ~/AI-demo/uninstall.sh   # skip all prompts
 ```
 
-Then re-install: `curl -fsSL https://raw.githubusercontent.com/curtismu7/AI-DEMO2/main/install.sh | bash`
+Then re-install: `curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash`
 
 ---
 

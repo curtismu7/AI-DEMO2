@@ -10,7 +10,7 @@ import pytest
 
 from src.config.settings import (
     ConfigManager, AppConfig, PingOneConfig, SecurityConfig,
-    DevelopmentConfig, ProductionConfig, StagingConfig, TestConfig
+    DevelopmentConfig, ProductionConfig, StagingConfig, TestConfig, A2AConfig
 )
 
 
@@ -149,6 +149,28 @@ class TestConfigManager:
             assert config.pingone.base_url == "https://test.forgeblocks.com"
             assert config.langchain.openai_api_key == "test-openai-key"
             assert config.chat.agui_http_port == 8080
+
+    def test_loads_direct_a2a_configuration(self):
+        env_vars = {
+            "ENVIRONMENT": "development",
+            "PINGONE_BASE_URL": "https://test.forgeblocks.com",
+            "PINGONE_CLIENT_REGISTRATION_ENDPOINT": "https://test.forgeblocks.com/register",
+            "PINGONE_TOKEN_ENDPOINT": "https://test.forgeblocks.com/token",
+            "PINGONE_AUTHORIZATION_ENDPOINT": "https://test.forgeblocks.com/auth",
+            "PINGONE_REDIRECT_URI": "http://localhost:8080/callback",
+            "A2A_PUBLIC_URL": "https://agent.example/a2a/jsonrpc",
+            "A2A_TENANT_REGISTRY_JSON": '{"tenant":{"issuer":"https://idp.example","jwks_uri":"https://idp.example/jwks","audiences":["agent"],"scopes":["agent:invoke"]}}',
+            "A2A_REQUIRED_SCOPE": "agent:invoke",
+        }
+
+        with patch.dict(os.environ, env_vars, clear=True):
+            config = ConfigManager().load_config()
+
+        assert isinstance(config.a2a, A2AConfig)
+        assert config.a2a.public_url == "https://agent.example/a2a/jsonrpc"
+        assert "tenant" in config.a2a.tenant_registry_json
+        assert config.a2a.metadata_urls == ""
+        assert config.a2a.required_scope == "agent:invoke"
     
     def test_load_config_with_file(self):
         """Test loading configuration from JSON file."""

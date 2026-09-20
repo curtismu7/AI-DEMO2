@@ -40,6 +40,12 @@ function checkRateLimit(ip) {
   return entry.count <= RATE_LIMIT_MAX;
 }
 
+const INFERENCE_ROUTES = new Set(['/v1/chat/completions', '/v1/completions', '/v1/embeddings']);
+function isInferenceRoute(req) {
+  const pathname = new URL(req.url, 'http://llm-proxy').pathname;
+  return req.method === 'POST' && INFERENCE_ROUTES.has(pathname);
+}
+
 // Periodically evict expired entries so the map doesn't grow unbounded.
 setInterval(() => {
   const now = Date.now();
@@ -547,7 +553,7 @@ const server = http.createServer((req, res) => {
 
   // Per-IP rate limit — applied to inference routes only (not /health etc.).
   const clientIp = req.socket.remoteAddress || 'unknown';
-  if (!checkRateLimit(clientIp)) {
+  if (isInferenceRoute(req) && !checkRateLimit(clientIp)) {
     console.warn(`[proxy] rate-limited ${clientIp} (>${RATE_LIMIT_MAX} req/${RATE_LIMIT_WINDOW_MS}ms)`);
     res.writeHead(429, { 'Content-Type': 'application/json', 'Retry-After': Math.ceil(RATE_LIMIT_WINDOW_MS / 1000) });
     res.end(JSON.stringify({ error: 'rate_limit_exceeded', message: 'Too many requests. Please wait before retrying.' }));
@@ -653,4 +659,4 @@ process.on('SIGTERM', () => {
 } // end require.main === module
 
 // Exported for unit tests only (no effect on `node router.js`).
-module.exports = { TIERS, swapTo, smallestLoadedCovering };
+module.exports = { TIERS, swapTo, smallestLoadedCovering, isInferenceRoute };

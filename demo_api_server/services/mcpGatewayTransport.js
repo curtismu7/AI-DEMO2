@@ -50,7 +50,7 @@ async function callToolViaResolvedGateway(gatewayUrl, bearerToken, tool, params 
   //                                stamps the Agentic App's Static Token.
   //
   // So the bearer below is the Privilege session token, and the USER's token
-  // travels in X-Subject-Token — measured surviving that hop unmodified
+  // travels in tx-token — measured surviving custom headers on that hop unmodified
   // (privilege/CURRENT-CONFIGURATION.md, "Backend hop", 2026-09-10).
   const gatewayToken = await require('./privilegeGatewaySession').getAccessToken();
   if (!gatewayToken) {
@@ -62,7 +62,11 @@ async function callToolViaResolvedGateway(gatewayUrl, bearerToken, tool, params 
     err.remedy = 'Sign in at /privilege-mcp-client to arm the gateway session';
     throw err;
   }
-  const extraHeaders = { ...(opts.extraHeaders || {}), 'X-Subject-Token': bearerToken };
+  const extraHeaders = { ...(opts.extraHeaders || {}), 'tx-token': bearerToken };
+  // Do not carry the retired identity-header spelling into the new contract,
+  // even if a stale caller option supplied it.
+  delete extraHeaders['X-Subject-Token'];
+  delete extraHeaders['x-subject-token'];
   // Stamped at the START: the assembler orders hops by ts, so recording this on
   // completion would draw Privilege AFTER the gateway it sits in front of.
   const startedAt = new Date().toISOString();

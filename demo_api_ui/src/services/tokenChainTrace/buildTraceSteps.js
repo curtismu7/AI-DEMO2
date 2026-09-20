@@ -15,7 +15,7 @@ const LANES = {
   // A live intent-binding run pushes its authorization_details to PingOne first.
   "par-push": "PINGONE", "request-uri": "PINGONE",
   "intent-binding": "AUTHZ",
-  gateway: "GATEWAY", "api-key-swap": "GATEWAY",
+  gateway: "GATEWAY", "vault-key-inject": "VAULT", "api-key-swap": "GATEWAY",
   "tools-call-challenge": "MCP", mcp: "MCP", api: "API",
   database: "DATA", reply: "LLM",
 };
@@ -51,7 +51,7 @@ export function laneLabel(lane) {
 // list, so leaving them here drew the session as part of the invocation.
 // Wire order: the credential-less tools/call goes out before the authorized
 // call reaches the gateway. TraceMcpPanel renders this list in order.
-export const MCP_STEP_IDS = ["tools-call-challenge", "gateway", "api-key-swap", "mcp", "api", "database"];
+export const MCP_STEP_IDS = ["tools-call-challenge", "gateway", "vault-key-inject", "api-key-swap", "mcp", "api", "database"];
 
 const TITLES = {
   website: "Website — browser / UI app",
@@ -78,6 +78,7 @@ const TITLES = {
   "request-uri": "request_uri issued by PingOne",
   "intent-binding": "Intent Binding Check",
   gateway: "Agent Gateway — token validated",
+  "vault-key-inject": "Vault — route-bound API key",
   "api-key-swap": "API-key path — credential swap",
   "tools-call-challenge": "tools/call 401 — no token, gateway challenges",
   mcp: "MCP server — tool executes, token accepted",
@@ -109,6 +110,7 @@ const NARRATIVES = {
   "request-uri": "PingOne stores the pushed request and returns a request_uri that points at it. It does not check the amount; the intent cap is enforced afterwards.",
   "intent-binding": "Verifies the requested transfer against the declared RFC 9396 authorization_details cap.",
   gateway: "Ping Agent Gateway checks the delegated token before anything reaches the MCP server: introspection, audience binding, scope, delegation chain.",
+  "vault-key-inject": "The gateway asks the BFF's internal vault bridge for the API key bound to this tool route. The key stays server-side and is shown only as a masked value in the trace.",
   "api-key-swap": "Path A (api_key): the gateway drops the OAuth bearer and attaches a service API key (X-API-Key + X-User-Sub). The user's bearer never reaches the downstream service.",
   "tools-call-challenge": "The same handshake on invocation: the first tools/call carries no credential, and the gateway answers 401 with the WWW-Authenticate challenge rather than passing an anonymous call through to the MCP server. Nothing executes on this leg.",
   mcp: "The second tools/call carries the delegated token. Gateway forwards the JSON-RPC call; the MCP server re-validates the token, resolves the user from sub, and invokes the banking API with the delegated identity.",
@@ -309,6 +311,12 @@ const STEP_SPEC = {
     mandate: "RFC 6750 §3 requires a protected resource to reject an invalid token with 401 and a WWW-Authenticate challenge naming the error. RFC 7662 defines introspection for opaque tokens; RFC 9068 §4 lists what a JWT access token must be checked for locally — audience, expiry, scope and client_id.",
     why: "The gateway is the enforcement point in front of MCP: it re-validates audience, expiry, scope and the act chain so the MCP server is never the only thing between a forged token and the data. Introspection is issuer-scoped — it can only see tokens the introspecting client issued — which is why A2A specialist tokens are validated locally against JWKS instead.",
     failure: "Checking the signature but not the audience. A correctly signed token minted for a different resource server is still a valid JWT; only the aud check stops it from being replayed here.",
+  },
+  "vault-key-inject": {
+    refs: [],
+    mandate: "The BFF vault bridge is internal-only and allow-listed. It returns the service credential for the selected backend route, never a browser token or an unmasked key in trace data.",
+    why: "Credential mediation keeps the long-lived API key behind the BFF vault boundary. The gateway receives only what it needs for this request, then sends the downstream API key without the user's OAuth bearer.",
+    failure: "Calling the backend with a static key from the browser, or falling back to an unbound key when the vault bridge refuses the request. The correct behavior is to fail closed before the backend call.",
   },
   "api-key-swap": {
     refs: [
@@ -1524,14 +1532,32 @@ export function buildTraceSteps(trace) {
         "The Agent Gateway was not in this run's path.",
     } : {}));
 
-  // 8b. api-key-swap — Path A credential swap (evt-swap / evt-backend from gateway _meta)
+  // 8b. vault-key-inject — the gateway fetches the route-bound API key from
+  // the BFF's internal vault bridge before attaching it downstream.
   const evtSwap = findEvent(tokenEvents, "evt-swap");
+  const vaultKeyEvent = findEvent(tokenEvents, "vault-key-inject");
   const evtBackend = findEvent(tokenEvents, "evt-backend");
   const apiMetaEarly = (mcpResult && mcpResult._meta) || {};
   const apiKeyPath =
     apiMetaEarly.credentialPath === "api_key" ||
     !!(evtSwap || evtBackend) ||
     tokenEvents.some((e) => e && e.credentialPath === "api_key");
+  const vaultKeyDone = apiKeyPath && Boolean(vaultKeyEvent);
+  steps.push(makeStep("vault-key-inject",
+    authorizeFailed ? "notinpath" : vaultKeyDone ? "done" : traceComplete ? "notinpath" : "pending",
+    apiKeyPath ? {
+      kv: [
+        vaultKeyEvent ? ["vault bridge", vaultKeyEvent.label || "Route-bound API key returned"] : null,
+        vaultKeyEvent?.maskedValue ? ["masked key", vaultKeyEvent.maskedValue] : null,
+      ].filter(Boolean),
+      response: vaultKeyEvent
+        ? { title: "Vault bridge event", text: asJson(vaultKeyEvent) }
+        : undefined,
+    } : !vaultKeyDone && traceComplete ? {
+      narrative: "This run used the delegated OAuth bearer path — no API-key vault lookup occurred.",
+    } : {}));
+
+  // 8c. api-key-swap — Path A credential swap (evt-swap / evt-backend from gateway _meta)
   const apiKeySwapDone = apiKeyPath && (evtSwap || evtBackend || apiMetaEarly.credentialPath === "api_key");
   steps.push(makeStep("api-key-swap",
     authorizeFailed ? "notinpath" : apiKeySwapDone ? "done" : traceComplete ? "notinpath" : "pending",

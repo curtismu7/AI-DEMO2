@@ -57,6 +57,7 @@ mcpServers:
   #    /privilege-mcp-client after a gateway restart.
   opensearch-privilege-gateway:
     type: streamable-http
+    title: 'OS Priv'
     url: 'https://ai-demo.ping-devops.com/mcp-facade/privilege-gateway/opensearch22/mcp'
     timeout: 60000
 
@@ -64,6 +65,7 @@ mcpServers:
   #     opensearch + banking-mcp, 42 tools) — select a few from an Agent.
   aggregate-privilege-gateway:
     type: streamable-http
+    title: 'Aggregate Facade'
     url: 'https://ai-demo.ping-devops.com/mcp-facade/privilege-gateway/aggregate/mcp'
     timeout: 60000
 

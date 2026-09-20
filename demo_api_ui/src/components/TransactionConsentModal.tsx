@@ -15,6 +15,7 @@ import { useEducationUI } from "../context/EducationUIContext";
 import { EDU } from "./education/educationIds";
 import { useIndustryBranding } from "../context/IndustryBrandingContext";
 import DraggableModal from "./DraggableModal";
+import McpTransferApprovalFrame from "./McpTransferApprovalFrame";
 import DeviceSelector, { type Device, type EnrollableType } from "./DeviceSelector";
 import {
   registerPasskey,
@@ -60,6 +61,7 @@ interface TransactionConsentModalProps {
   // the server, which holds no challenge to confirm. Not implied by
   // preloadedSnapshot — real dashboard/HITL flows preload a real challenge.
   simulated?: boolean;
+  mcpApp?: boolean;
 }
 
 function accountSummaryLine(account: Account): string {
@@ -82,6 +84,7 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
   onDeclinedConfirmed,
   preloadedSnapshot = null,
   simulated = false,
+  mcpApp = false,
 }) => {
   const { preset } = useIndustryBranding() as any;
   const { open: openEducation } = useEducationUI();
@@ -313,8 +316,8 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
         ? "Where should we send the code?"
         : "Approve high-value transaction";
 
-  const handleConfirm = async () => {
-    if (!agreed || submitting || !snapshot || !challengeId || !user?.id) return;
+  const handleConfirm = async (fromApp = false) => {
+    if ((!agreed && !fromApp) || submitting || !snapshot || !challengeId || !user?.id) return;
     if (simulated) {
       notifySuccess("Simulation complete — no real transaction was made.");
       onTransactionSuccess("Simulation complete — no real transaction was made.");
@@ -1024,6 +1027,20 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
 
             {!loading && !loadFailed && snapshot && (
               <div className="transaction-consent-card transaction-consent-card--in-popup">
+                {mcpApp && (
+                  <>
+                    <McpTransferApprovalFrame
+                      snapshot={snapshot as unknown as Record<string, unknown>}
+                      accounts={accounts as unknown as Array<Record<string, unknown>>}
+                      onApprove={() => handleConfirm(true)}
+                      onReject={handleCancelClick}
+                      disabled={submitting}
+                    />
+                    <p className="transaction-consent-rfc-note">
+                      MCP App preview above. The standard approval controls remain available below as a fallback.
+                    </p>
+                  </>
+                )}
                 <table className="transaction-consent-card__kv">
                   <tbody>
                     {summaryLines.map((line) => {

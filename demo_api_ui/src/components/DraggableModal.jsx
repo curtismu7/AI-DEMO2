@@ -68,7 +68,7 @@ export function PopOutPortal({ win, children, rootId = "dm-root" }) {
  * Features:
  *   - Drag from title bar
  *   - 8-direction resize from edges/corners
- *   - 🪟 pop-out to new browser window (React portal keeps state intact)
+ *   - pop-out to new browser window (React portal keeps state intact)
  *   - ✕ close button in title bar
  *   - Close button at bottom (default footer; pass footer={<…>} to customise,
  *     or footer={null} to suppress)
@@ -88,6 +88,7 @@ export function PopOutPortal({ win, children, rootId = "dm-root" }) {
  *   defaultHeight number (default 600)
  *   defaultX      number | null  (null = auto-centre)
  *   defaultY      number | null  (null = auto-centre)
+ *   placement     'center' | 'right' (default 'center')
  *   storageKey    string | null  (localStorage key for pos/size persistence)
  *   minWidth      number (default 320)
  *   minHeight     number (default 240)
@@ -109,6 +110,7 @@ export default function DraggableModal({
   defaultHeight = 600,
   defaultX = null,
   defaultY = null,
+  placement = "center",
   storageKey = null,
   minWidth = 320,
   minHeight = 240,
@@ -129,16 +131,20 @@ export default function DraggableModal({
       x:
         defaultX != null
           ? defaultX
+          : placement === "right"
+            ? Math.max(0, window.innerWidth - defaultWidth)
           : Math.max(0, Math.round((window.innerWidth - defaultWidth) / 2)),
       y:
         defaultY != null
           ? defaultY
+          : placement === "right"
+            ? 0
           : Math.max(
               0,
               Math.round((window.innerHeight - defaultHeight) / 2) - 30,
             ),
     }),
-    [defaultX, defaultY, defaultWidth, defaultHeight],
+    [defaultX, defaultY, defaultWidth, defaultHeight, placement],
   );
 
   const { pos, size, handleDragStart, createResizeHandler } = useDraggablePanel(
@@ -306,7 +312,7 @@ ${inlineStyles}
       <>
         <PopOutPortal win={popoutWin}>{popoutContent}</PopOutPortal>
         <div className="dm-popout-placeholder">
-          <span>🪟 {title} — open in separate window</span>
+          <span>↗ {title} — open in separate window</span>
           <button
             type="button"
             className="dm-placeholder-btn"
@@ -347,10 +353,11 @@ ${inlineStyles}
         aria-label={title}
         aria-modal={noBackdrop ? undefined : "true"}
         style={{
-          left: pos.x,
-          top: pos.y,
+          left: placement === "right" ? "auto" : pos.x,
+          right: placement === "right" ? 0 : "auto",
+          top: placement === "right" ? 0 : pos.y,
           width: size.w,
-          height: size.h,
+          height: placement === "right" ? "100vh" : size.h,
           zIndex,
         }}
       >
@@ -373,8 +380,9 @@ ${inlineStyles}
               className="dm-btn"
               onClick={handlePopOut}
               title="Pop out to new window"
+              aria-label="Pop out to new window"
             >
-              🪟
+              ↗
             </button>
             {onClose && (
               <button

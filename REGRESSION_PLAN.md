@@ -93,6 +93,7 @@ minimal diff.
 | Float panel resize | `AIAgent.js` resize caps (`MAX_W`/`MAX_H` = 95% viewport, `MIN_W`/`MIN_H` = 280/220; drag itself intentionally unclamped for second-monitor use), `AIAgent.css` float-root/panel rules |
 | Agent mode taxonomy SSOT | `demo_api_ui/src/config/agentModes.js` — one client mode→provider table; must equal server `services/agentModeResolver.js` (guarded by `config/__tests__/agentModes.test.js`); don't re-inline in `AIAgent.js`/`AgentModeSelector.jsx` |
 | OAuth redirect origin | `routes/oauth*.js` — no `localhost` hardcodes |
+| Hosted Ping-domain access gate | `demo_api_server/services/hostedAccessPolicy.js`, `services/authAccessAuditService.js`, `middleware/hostedAccessGate.js`, `routes/hostedAccess.js`, `routes/oauthUser.js`, `routes/oauth.js`, `server.js`, `k8s/aws/deploy.sh`, `k8s/aws/se-ingress.yaml`, `scripts/check-hosted-access-ingress.js` — `ai-demo.ping-devops.com` requires a verified PingOne identity whose email domain is exactly `pingidentity.com` or `pingone.com`. Only the four exact OAuth login/callback paths bypass ingress auth; the BFF independently gates `/api`. Approval is server-side and policy-fingerprinted. Audit every attempt plus one terminal outcome, but never tokens, codes, nonces, or raw session IDs. Public MCP hosts stay outside this browser gate. Guarded by the hosted-access Jest suites and `npm run hosted-access:verify`. |
 | Clinical split dashboard (`ff_agent_clinical_split`) | `demo_api_ui/src/components/agent-clinical/` — `AgentClinicalHost.jsx` owns tab state + 1/2/3/4 keyboard; `TalkPane.jsx` hosts the inline agent (auto-open, `setClinicalSplit`) + `TokenAuditTimeline` (live `TokenChainContext` events); `InspectPane.jsx` wraps `ActivityLogPanel`; `TokensPane.jsx` embeds `UnifiedTokenFlowInspector`; `ConfigurePane.jsx` wraps `AuthorizeRulesPanel` + read-only runtime card. Legacy dashboard with the flag OFF must stay unchanged |
 | Code Explorer SSE | `demo_api_ui/nginx.conf`, `k8s/02-configmap.yaml` nginx-config, `k8s/aws/nginx-http-configmap.yaml`, `k8s/aws/se-ingress.yaml`, `demo_api_server/routes/codegraphProxy.js`, `langchain_agent/src/codegraph/agent.py` — `/api/codegraph/` must keep `proxy_buffering off` + 300s timeouts; agent must emit SSE keepalives while waiting on the LLM. Guarded by `scripts/check-codegraph-sse-nginx.js` + `k8s/smoke.sh` check 7 |
 | Code Explorer index DB | Demo index is **`.codegraph/demo-codegraph.db` only** — never `.codegraph/codegraph.db` (host CodeGraph product daemon). `CODEGRAPH_DB_PATH` / bake (`setup:fresh` / `run.sh` / `se-update-code.sh`) / Refresh must keep that split; `builder=demo-build-codegraph` marker required; FTS stopwords + retrieve blend required. Guarded by `npm run hygiene:check` + `npm run test:codegraph-index` (CI gates job), `scripts/check-codegraph-demo-index.js` (+ negatives), `langchain_agent/src/codegraph/index_guard.py`, + `langchain_agent/tests/test_codegraph_index_guard.py`, `langchain_agent/tests/test_build_codegraph.py`, `langchain_agent/tests/test_ensure_index.py`, `langchain_agent/tests/test_retrieve.py` |
@@ -103,6 +104,28 @@ minimal diff.
 | Airlines is THREE tiers, not two (locked 2026-08-27) | `scope-topology.json`, `demo_api_server/config/verticals/airlines/manifest.json`, `demo_mcp_resource_server/src/tools/airlinesTools.ts`. `get_airline_bookings` (plain, `airlines:read`) → `sensitive_airline_bookings` (**consent**, `airlines:read`+`sensitive:read`, chip "🔐 Sensitive reservations", `useCaseId: hitl-consent`) → `sensitive_passenger_record` (**A2A-only**, `read`+`a2aDelegatedScope: pnr:read`+`requiresAgentMediation`, chip `useCaseId: a2a-delegation`). Two different demos in one vertical. **Do not "align" `sensitive_airline_bookings` with the other ten `sensitive_*` tools** — those ten are one A2A specialist tool *per vertical* (`config/a2aSpecialists.js`), and airlines' slot is already `sensitive_passenger_record`. Adding `requiresAgentMediation` to it would DENY the consent chip with `missing_act` (`demo_authz_server/routes/decision.js` Rule ~721, `REQUIRE_ACT_FOR_AGENT_TOOLS` defaults on) and delete airlines' HITL-consent demo. See TECH_DEBT 2026-08-26 |
 | LLM token custody (locked 2026-09-11) | Nothing the LLM produces picks a credential, a destination, or a route around the MCP gateway and PingOne Authorize. `demo_api_server/services/agentReasoningClient.js` `runReasonLoop` runs only tools it offered and redacts JWTs from every result the model sees. `routes/agentTool.js` runs only the tools `routes/agentRun.js` offered to the session's run in flight, read from `services/agentRunContext.js` (never from the stored session, which a concurrent stale save can overwrite), and redacts the result. `services/mcpToolPipeline.js` honours the A2A `skipBffAuthorize` only when the gateway is authoritative, and puts the P1AZ decision that authorized the call on `mcp_error`: `gatewayDecision` from the gateway, or `bffDecision` from the BFF gate when there is no gateway. `services/a2aProtocolServer.js`'s A2A wire executor (`maybeServeLocally`) needs one of them to be PERMIT before serving a specialist tool locally when the gateway has no backend for it — this is the ONLY file that holds this gate now (Task 5 of the 2026-09-11 A2A hardening plan deleted the duplicate block from `services/demoAgentLangGraphService.js`); do not reintroduce it there. `services/simulatedAuthorizeService.js` accepts every gateway identity (`scopeTopology.mcpGatewayAudiences()`), as the cloud `HasValidMcpAudience` does. `config/verticals/pingone-admin/tools.js` `CALLABLE_TOOLS` caps `call_pingone_tool` (the read tools the chips use, plus `createUser` as a documented exception). `demo_mcp_jwt_verifier/server.py` fetches JWKS only from the `PINGONE_JWKS_URI` host. Do not drop an offered-tool check, and never run a tool that no P1AZ decision PERMITted. Guarded by `demo_api_server/tests/llmTokenCustody.regression.test.js`, `src/__tests__/mcpToolPipeline.authzBypass.test.js`, `src/__tests__/a2aExecution.test.js`, `src/__tests__/a2aSimulatedAuthorize.test.js`, `tests/oas/pingone-admin.test.js`, `demo_mcp_jwt_verifier/test_jwks_allowlist.py`, `demo_api_server/tests/a2aSpecialistExecutor.test.js`, `demo_api_server/tests/a2aSpecialistRouterContext.test.js`. Plan: `docs/superpowers/plans/2026-09-11-user-token-custody.md` |
 | A2A wire hop authentication (locked 2026-09-11) | `middleware/a2aPingOneBearer.js`'s `verifyA2aBearer` is the one gate every specialist call passes through: PingOne signature/issuer/exp via JWKS, audience = this specialist's own intermediate resource (RFC 8707 — a token minted for specialist A must not work on B), scope `agent:invoke:<appKey>`, `act` present and exactly one level deep (no `act` = a machine token with no user behind it; depth 2 = an Exchange #2 token replayed back into the hop), and the actor (`act.client_id`/`act.sub`) equal to the registered generalist — a bare client_credentials token has no `act` at all, so it fails the depth check one step earlier. `services/a2aProtocolServer.js`'s `assertSkillAllowed` then refuses any tool not in that specialist's own `config/a2aSpecialists.js` `tools` allowlist, before any token is minted. BOTH paths run the same `verifyA2aBearer` — the HTTP route via `requireA2aPingOneBearer`, and `services/a2aProtocolClient.js`'s in-process `sendA2aProtocolHandoff` calling it directly before `handler.sendMessage` — there is no way into a specialist that skips it. `services/a2aCardSigningService.js`'s `cardVerifier` accepts a signed Agent Card's `jku` ONLY when it equals our own JWKS URL (the /a2a/specialists/.well-known/jwks.json route, not a file); any other origin is refused outright and never fetched (blocks key substitution / SSRF). No token crosses the wire in either direction: the specialist performs its own Exchange #2 and tool call in-process, and `publishReply` sends `{ result, toolError }` only — never a token. A failed hop never soft-fails: `sendA2aProtocolHandoff` returns `{ ok: false, error, code }` for the caller to report, and the specialist executor replies with a `toolError` code rather than running anyway. When the gateway has no backend to forward to, `maybeServeLocally` falls back to serving the tool in-process only when `[gatewayDecision, bffDecision].some(PERMIT)` — the same two-decision gate as the "LLM token custody" row above, never a bare `gatewayDecision === 'PERMIT'`, because no-gateway mode never produces a gateway PERMIT. Guarded by `demo_api_server/tests/a2aBearerValidation.test.js`, `tests/a2aCardSigning.test.js`, `tests/a2aSpecialistExecutor.test.js` |
+
+---
+
+### 2026-09-19 — Hosted demo exposed the full browser surface without an employee-domain perimeter
+
+`ai-demo.ping-devops.com` previously allowed anonymous visitors to load the demo
+and reach public BFF routes. The fix adds defense in depth: ingress external auth
+requires a BFF-held approval, and the BFF independently blocks API requests
+without one. Both customer and admin OAuth callbacks evaluate verified PingOne
+claims before any local user mutation. Exact domain equality rejects subdomains
+and lookalikes; approval is invalidated by a policy fingerprint change.
+
+Every normal customer/admin login records an attempt and one terminal success,
+denial, or failure with source IP, user agent, correlation ID, hashed session ID,
+subject, normalized email/domain, duration, and a closed reason code. Tokens,
+authorization codes, nonces, and raw session IDs are excluded. Token validation,
+callback-origin handling, role resolution, and session-store callback discipline
+remain unchanged. The four exact OAuth bootstrap/callback paths are the only
+ingress bypasses. Unauthenticated legacy webhook handlers stay behind the
+perimeter. Public MCP hostnames and their authentication remain unchanged.
+
+**Verify:** `cd demo_api_server && CI=true npx jest src/__tests__/hostedAccessPolicy.test.js src/__tests__/authAccessAuditService.test.js src/__tests__/hostedAccessGate.test.js src/__tests__/oauthUser.hostedAccess.test.js src/__tests__/oauth.hostedAccess.test.js --forceExit`; `npm run hosted-access:verify`; `bash -n k8s/smoke.sh`; `npm run authz:verify`; `npm run topology:verify`.
 
 ---
 
@@ -145,6 +168,111 @@ read the configured host. A new browser origin must be added to ALL of:
 ---
 
 ## §4 — Bug Fix Log
+
+### 2026-09-20 — Flow Detail shows only PingOne product calls for a selected node
+
+**Files changed:** `demo_api_ui/src/components/TokenFlowDetailModal.jsx` and
+`.css`, plus `demo_api_ui/src/components/__tests__/TokenFlowDetailModal.pingoneProducts.test.jsx`.
+- **What was broken:** The Flow Detail inspector exposed broad token and claims
+  detail without a focused node-level view, and its local theme toggle was not
+  connected to the application's shared light/dark theme.
+- **What was fixed:** Clicking a pipeline node now shows only the PingOne
+  product call represented by that node (Authentication, Authorize, or MFA),
+  while non-PingOne nodes explicitly report that they make no PingOne call.
+  The theme button now uses the shared theme context and updates its label and
+  accessible name with the active mode.
+- **Do not break:** Keep token/claim detail in the existing full-detail views,
+  preserve the pipeline and topology interactions, and do not change browser
+  token custody or authorization behavior.
+- **Verify:** Focused Flow Detail tests, related Flow Detail tests, full UI
+  build, and UI unit suite (the suite retains three unrelated pre-existing
+  sequence/topology failures).
+
+### 2026-09-20 — Evidence view selection and RFC info toggle honor saved choices
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/StepDetailPanel.jsx`, and
+`demo_api_ui/src/components/__tests__/AIAgent.chips.test.js`.
+
+**What was broken:** Selecting Movie reel changed only the quick-view label;
+an older embedded Sequence view preference remained active and continued to
+render the sequence diagram. RFC info was also forced on by a stale
+`ba_rfc_info_surface` value even after the user turned the RFC info switch off.
+
+**What was fixed:** Selecting Movie reel now clears the embedded Sequence view.
+RFC details now follow the persisted `ba_show_rfc_info` switch as the single
+source of truth.
+
+**Do not break:** Keep the shared trace step registry, including the Vault
+API-key injection and API-key credential-swap steps, feeding the Movie reel,
+Sequence view, Simple Stepper, MCP trace, and Token Topology surfaces. Preserve
+the BFF token custody and gateway authorization flow.
+
+**Verify:** `AIAgent.chips.test.js`, the UI unit suite, and the UI production
+build.
+
+### 2026-09-18 — DaVinci SDK logout return URI registered separately from login callback
+
+- **Files changed:** `demo_api_server/services/pingoneAppConfigService.js`, `demo_api_server/tests/services/pingoneAppConfigService.sdkLogout.test.js`, `demo_api_ui/src/components/davinci/SdkLessonSections.jsx`, `demo_api_ui/src/components/davinci/SdkExecutionReel.jsx` and `.css`, `demo_api_ui/src/components/davinci/sdkExecutionEvents.js`, `demo_api_ui/src/pages/DavinciSdkLoginPage.jsx` and focused UI tests.
+- **What was broken:** The SDK app accepted `/davinci-orchestration-sdk` for OAuth login, but PingOne's separate `postLogoutRedirectUris` list omitted it, so sign-off returned `INVALID_DATA` for `post_logout_redirect_uri`.
+- **What was fixed:** Registered the exact local SDK return URI on the live SDK app and added a startup/periodic guard that merges the configured SDK return URI into that app's logout list without replacing existing entries. The orchestration lesson now explains the separate allowlists and the `INVALID_DATA` symptom; the execution reel records a data-free sign-off handoff across the redirect. Selected reel-frame text inherits its high-contrast ink instead of the lesson's generic strong-text color.
+- **Do not break:** Preserve the SDK OAuth callback URI, public-client ID, BFF-held tokens, and existing admin/user logout URI guards.
+- **Verify:** SDK logout guard and UI unit tests, UI build, both-theme contrast audit, fresh PingOne app-config re-read, and a live sign-off redirect check.
+### 2026-09-18 — MCP compliance checklist closes on browser refresh
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js` and
+`demo_api_ui/src/__tests__/ComplianceModalRefresh.test.js`.
+- **What was broken:** The compliance checklist and side-panel visibility were
+  restored from `localStorage`, so an open checklist reappeared after a browser
+  refresh.
+- **What was fixed:** Keep both visibility states transient for the current
+  page session; a fresh browser load starts with the checklist closed.
+- **Do not break:** Preserve compliance step tracking, checklist rendering,
+  side-panel selection during the current session, and unrelated UI settings.
+- **Verify:** `ComplianceModalRefresh.test.js`, the UI unit suite, and the UI
+  production build.
+### 2026-09-19 — MCP runtime discovery is user-accessible and wired in Docker
+
+**Files changed:** `demo_api_ui/src/App.js`,
+`demo_api_server/config/auth-requirements.json`,
+`demo_api_server/routes/mcpDiscovery.js`, `docker-compose.yml`,
+`standalone/mcp-discovery-agent/Dockerfile`, and focused regression tests.
+
+**What was broken:** `/mcp-discovery` and its BFF proxy were admin-gated even
+though discovery is read-only, and the Docker stack did not start the discovery
+agent or configure `MCP_DISCOVERY_AGENT_URL`, so signed-in users saw
+`mcp_discovery_unavailable`.
+
+**What was fixed:** the page and proxy now require a signed-in session only.
+Docker builds a read-only discovery-agent service, persists inventory metadata,
+and connects the BFF to it over the internal Compose network.
+
+**Do not break:** unauthenticated requests remain rejected; admin-only routes
+remain admin-gated; the discovery agent receives no credentials and never calls
+discovered tools.
+
+**Verify:** BFF focused tests, UI route test/build, and Compose wiring tests.
+
+### 2026-09-18 — DaVinci SDK passkey authentication and signed-in actions
+
+- **Files changed:** `demo_api_ui/src/components/davinci/CollectorField.jsx`, `demo_api_ui/src/components/davinci/SdkLessonSections.jsx`, `demo_api_ui/src/pages/DavinciSdkLoginPage.jsx`, `demo_api_ui/src/pages/DavinciSdkLoginPage.css`, and focused tests.
+- **What was broken:** `FidoAuthenticationCollector` appeared as unsupported on the live passkey screen; signed-in actions wrapped into uneven, cramped buttons.
+- **What was fixed:** A user-triggered passkey action uses the SDK FIDO helper, writes its assertion through `client.update()`, then advances with `client.next()`. Signed-in actions now stack at full card width.
+- **Do not break:** Keep assertion values out of execution evidence; preserve ACR selection, OAuth callback, BFF session handling, and PingOne logout.
+- **Verify:** Focused DaVinci Vitest suites, UI build, and rendered button contrast in both themes.
+
+### 2026-09-18 — Guided Demo Track polling no longer opens the global spinner
+
+- **Files changed:** `demo_api_ui/src/services/spinnerService.js` and
+  `demo_api_ui/src/services/__tests__/spinnerService.test.js`.
+- **What was broken:** The Guided Demo Track polls `/api/demo-track` and
+  `/api/demo-track/runs` every five seconds, but those polling requests were
+  not silent and could repeatedly surface the global loading modal.
+- **What was fixed:** Mark the Guided Demo Track API namespace as silent and
+  pin that contract with a spinner regression test.
+- **Do not break:** Preserve the track page's own loading/error states,
+  five-second refresh, run actions, and all auth/session behavior.
+- **Verify:** Focused spinner Vitest suite and the UI production build.
 
 ### 2026-09-18 — Repository-wide dark-theme text contrast sweep
 
@@ -321,6 +449,41 @@ inputs for automatic collectors, or hide an unrecognised collector silently.
 **Verify:** `cd demo_api_ui && npm run test:unit` (changed DaVinci suites pass;
 the full run currently has six unrelated existing AIAgent assertion failures),
 `npm run build`, and the focused collector/lesson Vitest suites.
+### 2026-09-16 — Privilege-first MCP chain used an ambiguous identity header
+
+**Files changed:** `docs/superpowers/plans/2026-09-16-privilege-pinggateway-tx-token.md`,
+`demo_api_server/services/mcpGatewayTransport.js`,
+`demo_mcp_gateway/src/auth/privilegeBridge.ts`,
+`demo_mcp_gateway/src/server/GatewayServer.ts`,
+`demo_mcp_gateway/src/index.ts`,
+`ping-gateway/scripts/groovy/privilege-bridge.groovy`,
+`ping-gateway/scripts/groovy/olb-token-exchange.groovy`, focused tests, and
+Privilege configuration documentation.
+
+**What was broken:** the Privilege-first path carried the delegated user token
+as `X-Subject-Token`, while the intended two-gateway contract is a Privilege
+credential in `Authorization` and a separate transaction token forwarded to
+the downstream gateway. The mixed naming made it unclear which token
+PingGateway should evaluate and left stale header spellings easy to reintroduce.
+
+**What was fixed:** the active contract is now `Authorization` for the
+Privilege session/static bridge credential and `tx-token` for the delegated
+transaction token. Both gateway bridges consume the transaction token only
+after the bridge credential is trusted, then leave existing validation,
+authorization, and exchange behavior intact. Stale `X-Subject-Token` options
+are stripped from the BFF Privilege path.
+
+**Do not break:**
+- Privilege remains the first coarse policy and approval gate.
+- PingGateway evaluates and exchanges the transaction token, not the Privilege
+  credential.
+- Existing signature, issuer, expiry, audience, scope, actor-chain, P1AZ,
+  HITL, and token-custody checks remain fail-closed.
+
+**Verify:** focused BFF and Node bridge tests, Node gateway build, and
+PingGateway route checks pass. Broad topology/hygiene verification was attempted
+but the scope generator and regression process aborted with exit 134 before
+producing results in this environment.
 
 ### 2026-09-14 — Privilege Remote Agent now has a real, authenticated A2A backend
 

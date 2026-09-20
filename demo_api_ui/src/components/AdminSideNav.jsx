@@ -161,12 +161,13 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.co
 // load when nothing is saved. Ids must equal slugify(<group label>) from
 // `allNavItems` below — update both together when renaming a group.
 const AUTO_EXPAND_SECTIONS = [
+  { id: "ai-gateway", paths: ["/ai-gateway/shadow-ai-detector"] },
   { id: "customer-demos", paths: ["/agent-lifecycle"] },
   { id: "demos", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/demo-config", "/delegation", "/delegation-chain-value", "/a2a-protocol-learning"] },
   { id: "ai-agents", paths: ["/ai-control-plane", "/control-plane", "/agent-registry", "/agent", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
   { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client", "/llm-gateway", "/llm-test", "/privilege-mcp-learning"] },
   { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
-  { id: "banking-mcp-gateways", paths: ["/agent-gateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities", "/agent-gateway-authorization"] },
+  { id: "banking-mcp-gateways", paths: ["/agent-gateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities", "/agent-gateway-authorization", "/mcp-discovery"] },
   { id: "pingone-demo-apps", paths: ["/self-service", "/pingone-test", "/mfa-test", "/token-exchange-tester", "/oauth-academy", "/oas-demo", "/privilege-demo", "/sdk-login"] },
   { id: "delegation-consent", paths: ["/transaction-consent", "/actor-token-education"] },
   { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
@@ -177,7 +178,7 @@ const AUTO_EXPAND_SECTIONS = [
   // breaks the single-section accordion.
   { id: "industry-verticals", paths: ["/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/university", "/admin/government", "/admin/manufacturing", "/admin/investment", "/admin/abercrombie-fitch", "/admin/verticals", "/path/mortgage"] },
   { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit"] },
-  { id: "telemetry", paths: ["/tracing", "/telemetry", "/transaction-trace", "/check"] },
+  { id: "telemetry", paths: ["/tracing", "/telemetry", "/transaction-trace", "/mcp-observability", "/check"] },
   { id: "agent-studio-preview", paths: ["/iga-for-ai", "/discovery-preview", "/privileges-gateway-preview", "/platform-gaps"] },
   { id: "ai-product-pages", paths: ["/ai-products"] },
   { id: "learn-present", paths: ["/learning", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide"] },
@@ -493,6 +494,18 @@ export default function AdminSideNav({
     { label: "Home", path: "/", icon: "home" },
     { label: "Dashboard", path: "/security-dashboard", icon: "dashboard", adminOnly: true },
     {
+      label: "AI-Gateway",
+      icon: "shld",
+      children: [
+        {
+          label: "Shadow AI Detector",
+          path: "/ai-gateway/shadow-ai-detector",
+          icon: "dbg",
+          searchAlias: "shadow ai detector ai usage oauth agents sensitive data flows browser extension",
+        },
+      ],
+    },
+    {
       label: "AI Agent Gateway",
       icon: "shld",
       children: [
@@ -662,6 +675,12 @@ export default function AdminSideNav({
       icon: "rte",
       children: [
         {
+          label: "MCP Discovery",
+          path: "/mcp-discovery",
+          icon: "find",
+          searchAlias: "mcp discovery inventory runtime servers",
+        },
+        {
           label: "Ping AI Test Lab",
           path: "/ping-ai-test-lab",
           icon: "tst",
@@ -672,6 +691,12 @@ export default function AdminSideNav({
           icon: "rte",
         },
         { label: "Capability Tour", path: "/agent-gateway-capabilities", icon: "shld" },
+        {
+          label: "MCP Runtime Inventory",
+          path: "/mcp-discovery",
+          icon: "mcp",
+          searchAlias: "runtime discovery servers host processes local listeners remote URLs",
+        },
       ],
     },
     {
@@ -955,6 +980,13 @@ export default function AdminSideNav({
           label: "Activity Log",
           path: "/monitoring/activity-log",
           icon: "log",
+          searchAlias: "activity live event stream",
+        },
+        {
+          label: "API Activity",
+          path: "/monitoring/api-activity",
+          icon: "api",
+          searchAlias: "api activity audit persisted records",
         },
         { label: "Run Reports", path: "/reports", icon: "rpt" },
         {
@@ -997,6 +1029,7 @@ export default function AdminSideNav({
         { label: "Service Graph", path: "/telemetry", icon: "log" },
         { label: "Tracing", path: "/tracing", icon: "log" },
         { label: "Transaction Trace", path: "/transaction-trace", icon: "log" },
+        { label: "MCP Observability", path: "/mcp-observability", icon: "log", adminOnly: true },
         {
           // External, so it uses the same action+window.open shape as PAC
           // Editor rather than a router path. Grafana holds PingGateway's own

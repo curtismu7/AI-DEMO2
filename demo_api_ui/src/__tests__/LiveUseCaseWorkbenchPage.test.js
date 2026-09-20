@@ -24,10 +24,12 @@ vi.mock('../context/AgentUiModeContext', () => ({
 // the rail crashes on mount for every test in this file, not just the new one.
 const mockStore = vi.hoisted(() => ({
   beginTrace: vi.fn(),
+  bindFlowTrace: vi.fn(),
   ingestTokenEvents: vi.fn(),
   ingestTokenEvent: vi.fn(),
   ingestAuthorize: vi.fn(),
   completeTrace: vi.fn(),
+  bindFlowTrace: vi.fn(),
   getState: vi.fn(() => ({ trace: { tokenEvents: [], phases: [] }, steps: [] })),
   subscribe: vi.fn(() => () => {}),
   reset: vi.fn(),
@@ -76,6 +78,7 @@ describe('LiveUseCaseWorkbenchPage', () => {
     apiClient.get.mockReset();
     apiClient.post.mockReset();
     mockSetSurfaceHostEl.mockClear();
+    mockStore.bindFlowTrace.mockClear();
     apiClient.get.mockResolvedValue({ data: { useCases: MOCK_USE_CASES } });
   });
 
@@ -275,7 +278,10 @@ describe('LiveUseCaseWorkbenchPage', () => {
     await runCardMatching(/Wrong \/ insufficient scope/);
 
     await waitFor(() => {
-      expect(apiClient.post).toHaveBeenCalledWith('/api/demo/attack-sim/run', { sim: 'insufficient-scope' });
+      expect(apiClient.post).toHaveBeenCalledWith(
+        '/api/demo/attack-sim/run',
+        expect.objectContaining({ sim: 'insufficient-scope', flowTraceId: expect.any(String) }),
+      );
     });
     expect(mockStore.beginTrace).toHaveBeenCalled();
     expect(mockStore.ingestTokenEvent).toHaveBeenCalledWith(
@@ -290,6 +296,6 @@ describe('LiveUseCaseWorkbenchPage', () => {
     expect(mockStore.ingestAuthorize).toHaveBeenCalledWith(
       expect.objectContaining({ decision: 'DENY', outcome: 'DENY' }),
     );
-    expect(mockStore.completeTrace).toHaveBeenCalledWith(false);
+    expect(mockStore.completeTrace).toHaveBeenCalledWith(false, expect.any(String));
   });
 });

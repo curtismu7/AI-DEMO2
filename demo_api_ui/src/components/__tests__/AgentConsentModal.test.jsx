@@ -11,8 +11,8 @@ import AgentConsentModal from '../AgentConsentModal';
 
 // Stub DraggableModal — renders children + footer inline so tests stay simple.
 vi.mock('../DraggableModal', () => ({
-  default: ({ children, footer, title }) => (
-    <div>
+  default: ({ children, footer, title, placement }) => (
+    <div data-placement={placement}>
       <div data-testid="modal-title">{title}</div>
       {children}
       <div data-testid="modal-footer">{footer}</div>
@@ -28,6 +28,21 @@ describe('AgentConsentModal — HITL mode (hitlContext)', () => {
   const onDismiss = vi.fn();
 
   beforeEach(() => { vi.clearAllMocks(); });
+
+  it('uses the right-side drawer placement for approval requests', () => {
+    render(
+      <AgentConsentModal
+        hitlContext={{ tool: 'create_transfer' }}
+        onAccept={onAccept}
+        onDismiss={onDismiss}
+      />,
+    );
+
+    expect(screen.getByTestId('modal-title').parentElement).toHaveAttribute(
+      'data-placement',
+      'right',
+    );
+  });
 
   it('shows "Authorize Agent Action" title and the tool name', () => {
     render(

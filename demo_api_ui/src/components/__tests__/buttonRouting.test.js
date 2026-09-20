@@ -265,7 +265,7 @@ describe("DashboardQuickNav", () => {
 
 	it("Learning Log button opens /logs?mode=learn in a popout window", () => {
 		renderAt(DashboardQuickNav, "/dashboard", { user: customerUser });
-		fireEvent.click(screen.getByRole("button", { name: /^learning log$/i }));
+		fireEvent.click(screen.getByRole("button", { name: /^🪟 learning log$/i }));
 		expect(windowOpenSpy).toHaveBeenCalledWith(
 			"/logs?mode=learn",
 			"BankingLogs",

@@ -14,6 +14,7 @@ sequenceDiagram
     participant PID as Ping Identity IDM/IAM
     participant AG as Agent Gateway
     participant PA as Ping Authorize
+    participant VAULT as BFF Vault Bridge
     participant HITL as HITL Service (demo_hitl_service)
     participant MCP as MCP OLB (demo_mcp_server)
     participant INV as MCP Invest (demo_mcp_resource_server)
@@ -108,6 +109,8 @@ sequenceDiagram
         Note over RS: banking_resource_server: bearer validated, SQLite query via bankingDb.getAccountsByUserId
         RS-->>AG: "200 OK: accounts (banking-resource-server.db)"
     else Path A: api_key — API-KEY PATH (demo_api_resource_server)
+        AG->>VAULT: GET /internal/vault/service-key<br/>(tool + route, internal secret)
+        VAULT-->>AG: Route-bound API key<br/>(masked in trace)
         Note over AG: banking-mortgage-read scope enforced, OAuth bearer dropped, X-API-Key and X-User-Sub injected, Gateway calls demo_api_resource_server port 8082 — Phase 267, no user token
     end
 

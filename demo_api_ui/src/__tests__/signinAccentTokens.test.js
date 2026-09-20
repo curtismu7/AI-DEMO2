@@ -80,6 +80,22 @@ describe('sign-in surfaces use one defined accent', () => {
     }
   });
 
+  it('keeps the sign-in modal secondary action readable in dark mode', () => {
+    const app = fs.readFileSync(path.join(SRC, 'App.css'), 'utf8');
+    expect(app).toMatch(
+      /\.signin-modal \.signin-prompt__btn--ghost\s*\{[^}]*background:\s*var\(--modal-btn-bg\)/,
+    );
+    expect(app).toMatch(
+      /\.signin-modal \.signin-prompt__btn--ghost\s*\{[^}]*color:\s*var\(--modal-header-text\)/,
+    );
+  });
+
+  it('uses a text icon for the draggable modal pop-out control', () => {
+    const modal = fs.readFileSync(path.join(SRC, 'components/DraggableModal.jsx'), 'utf8');
+    expect(modal).toContain('aria-label="Pop out to new window"');
+    expect(modal).not.toContain('🪟');
+  });
+
   it('references no undefined custom property anywhere in the app CSS', () => {
     // Widened from the sign-in surfaces to every stylesheet: the same silent
     // failure was found in the modal shell's neighbours (--p1-mono,

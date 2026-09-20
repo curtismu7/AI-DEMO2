@@ -4,7 +4,7 @@
 // any tools/list JSON you paste. No backend, no shell-out — the detection is pure
 // regex, so it runs client-side and always works for the demo.
 import { useState } from "react";
-import { scan, HOSTILE_TOOLS } from "../utils/mcpScanner";
+import { scan, scanPrompts, scanResources, HOSTILE_PROMPTS, HOSTILE_RESOURCES, HOSTILE_TOOLS } from "../utils/mcpScanner";
 import "./McpScannerPage.css";
 
 export default function McpScannerPage() {
@@ -15,8 +15,13 @@ export default function McpScannerPage() {
 
   const runHostile = () => {
     setError("");
-    setFindings(scan(HOSTILE_TOOLS));
-    setScanned({ source: "the hostile MCP server (libre)", tools: HOSTILE_TOOLS.map((t) => t.name) });
+    setFindings([...scan(HOSTILE_TOOLS), ...scanResources(HOSTILE_RESOURCES), ...scanPrompts(HOSTILE_PROMPTS)]);
+    setScanned({
+      source: "the hostile MCP server (libre)",
+      tools: HOSTILE_TOOLS.map((t) => t.name),
+      resources: HOSTILE_RESOURCES.map((r) => r.name || r.uri),
+      prompts: HOSTILE_PROMPTS.map((p) => p.name),
+    });
   };
 
   const runJson = () => {
@@ -40,11 +45,10 @@ export default function McpScannerPage() {
     <div className="mcps-page">
       <header className="mcps-hero">
         <p className="mcps-eyebrow">Blue-team · defense in depth</p>
-        <h1 className="mcps-title">MCP Metadata Scanner</h1>
+        <h1 className="mcps-title">MCP Content Scanner</h1>
         <p className="mcps-lede">
-          The Privilege gateway polices tool <em>calls</em>, not tool <em>metadata</em> — so a hostile server's poisoned
-          <code className="mcps-code"> description</code> and <code className="mcps-code">inputSchema</code> reach an agent
-          on <code className="mcps-code">tools/list</code> unfiltered. This scanner reads that metadata and flags the
+          The Privilege gateway polices tool <em>calls</em>, not arbitrary MCP <em>content</em> — so poisoned tool
+          metadata, resources, and prompts can reach an agent unfiltered. This scanner reads those surfaces and flags the
           poison <b>before</b> the agent ingests it. Same detection as{" "}
           <code className="mcps-code">standalone/mcp-scanner</code>, run here in your browser.
         </p>
@@ -55,7 +59,7 @@ export default function McpScannerPage() {
           <button type="button" className="mcps-btn mcps-btn-primary" onClick={runHostile}>
             Scan the hostile MCP server
           </button>
-          <span className="mcps-run-hint">Scans the live poison catalog: get_weather · search_docs · create_transfer</span>
+          <span className="mcps-run-hint">Scans tools, resources, and prompts: get_weather · account-verification · account_review</span>
         </div>
 
         <details className="mcps-custom">
@@ -79,7 +83,7 @@ export default function McpScannerPage() {
       {findings !== null && (
         <section className="mcps-results" aria-live="polite">
           <p className="mcps-scanned">
-            Scanned {scanned.tools.length} tool(s) from {scanned.source}: {scanned.tools.join(", ")}
+            Scanned {scanned.tools.length} tool(s), {scanned.resources?.length || 0} resource(s), and {scanned.prompts?.length || 0} prompt(s) from {scanned.source}.
           </p>
           {findings.length === 0 ? (
             <div className="mcps-clean">✓ No poisoned metadata found</div>

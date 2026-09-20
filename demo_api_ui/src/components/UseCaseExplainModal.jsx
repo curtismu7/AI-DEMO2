@@ -150,7 +150,7 @@ function A2aSection({ tokenEvents }) {
   );
 }
 
-export default function UseCaseExplainModal({ uc, open, onClose, a2aTokenEvents = [] }) {
+export default function UseCaseExplainModal({ uc, open, onClose, a2aTokenEvents = [], zIndex }) {
   const a2a = isA2aUseCase(uc);
   const facts = a2a ? extractA2aFacts(a2aTokenEvents) : null;
   // Prefer the live specialist tool from token events over a stale catalog primaryTool
@@ -182,6 +182,7 @@ export default function UseCaseExplainModal({ uc, open, onClose, a2aTokenEvents 
       defaultWidth={620}
       defaultHeight={680}
       storageKey="ucem-explain-modal"
+      zIndex={zIndex}
     >
       <div className="ucem__body dm-scroll">
 

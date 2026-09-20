@@ -11,7 +11,7 @@ import {
   listenOnLoopback,
 } from './demo-launcher-server.mjs';
 
-test('default startup runs core and demo auth commands in order', async () => {
+test('default startup runs the fixed core, demo auth, and LibreChat commands in order', async () => {
   const calls = [];
   const startStack = createDefaultStartStack((command, args, options) => {
     calls.push({ command, args, options });
@@ -25,6 +25,7 @@ test('default startup runs core and demo auth commands in order', async () => {
   assert.deepEqual(calls.map(({ command, args }) => ({ command, args })), [
     { command: './run-docker.sh', args: [] },
     { command: './run-docker.sh', args: ['optional', 'start', 'demo-auth'] },
+    { command: 'docker', args: ['compose', '-f', 'librechat/docker-compose.yml', 'up', '-d', 'api', 'oauth-loopback'] },
   ]);
   assert.ok(calls.every(({ options }) => options.cwd && options.shell === false));
 });
@@ -92,11 +93,13 @@ async function withLauncher(options, run) {
 }
 
 test('exposes only the local demo service allowlist', () => {
+  const services = getAllowedServices();
   assert.deepEqual(
-    getAllowedServices().map(({ service }) => service),
+    services.map(({ service }) => service),
     ['LibreChat', 'MCP gateway', 'Authorization service', 'JWT verifier'],
   );
-  assert.ok(getAllowedServices().every(({ url }) => new URL(url).hostname === '127.0.0.1'));
+  assert.equal(services[0].url, 'http://127.0.0.1:3080/health');
+  assert.ok(services.every(({ url }) => new URL(url).hostname === '127.0.0.1'));
 });
 
 test('reports sanitized allowlisted status records', async () => {
@@ -153,6 +156,7 @@ test('starts only through the injected fixed callback and exposes startup progre
     releaseStart = resolve;
   });
   let startCalls = 0;
+  let servicesReady = false;
 
   await withLauncher(
     {
@@ -160,7 +164,8 @@ test('starts only through the injected fixed callback and exposes startup progre
         startCalls += 1;
         await started;
       },
-      probe: async () => ({ ok: true }),
+      probe: async () => ({ ok: servicesReady }),
+      startupPollIntervalMs: 5,
     },
     async (request) => {
       const startResponse = await request('/api/start', { method: 'POST' });
@@ -176,6 +181,15 @@ test('starts only through the injected fixed callback and exposes startup progre
 
       releaseStart();
       await new Promise((resolve) => setTimeout(resolve, 0));
+      const pendingStatus = JSON.parse((await request('/api/status')).body);
+      assert.equal(pendingStatus.startup.status, 'starting');
+
+      const pendingDuplicateResponse = await request('/api/start', { method: 'POST' });
+      assert.equal(pendingDuplicateResponse.statusCode, 202);
+      assert.equal(startCalls, 1);
+
+      servicesReady = true;
+      await new Promise((resolve) => setTimeout(resolve, 15));
       const completedStatus = JSON.parse((await request('/api/status')).body);
       assert.equal(completedStatus.startup.status, 'ready');
     },
@@ -270,23 +284,46 @@ test('drains a rejected body-bearing request', async () => {
   assert.equal(request.resumed, true);
 });
 
-test('uses bounded probe and startup timeouts', async () => {
+test('keeps startup pending until all allowlisted readiness probes succeed', async () => {
+  let probeCalls = 0;
   await withLauncher(
     {
-      probe: () => new Promise(() => {}),
-      probeTimeoutMs: 10,
-      startStack: () => new Promise(() => {}),
-      startupTimeoutMs: 10,
+      startStack: async () => {},
+      probe: async () => ({ ok: ++probeCalls > 4 }),
+      startupPollIntervalMs: 5,
+      startupTimeoutMs: 100,
+    },
+    async (request) => {
+      assert.equal((await request('/api/start', { method: 'POST' })).statusCode, 202);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const pending = JSON.parse((await request('/api/status')).body);
+      assert.equal(pending.startup.status, 'starting');
+
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      const ready = JSON.parse((await request('/api/status')).body);
+      assert.equal(ready.startup.status, 'ready');
+    },
+  );
+});
+
+test('uses bounded probe and startup timeouts and reports only unavailable service names', async () => {
+  await withLauncher(
+    {
+      probe: async () => ({ ok: false, detail: 'token=must-not-appear' }),
+      startStack: async () => {},
+      startupPollIntervalMs: 5,
+      startupTimeoutMs: 25,
     },
     async (request) => {
       const failedStatus = await request('/api/status');
       assert.equal(failedStatus.statusCode, 503);
 
       assert.equal((await request('/api/start', { method: 'POST' })).statusCode, 202);
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await new Promise((resolve) => setTimeout(resolve, 40));
       const status = JSON.parse((await request('/api/status')).body);
       assert.equal(status.startup.status, 'failed');
-      assert.equal(status.startup.detail, 'startup timed out');
+      assert.equal(status.startup.detail, 'unavailable services: LibreChat, MCP gateway, Authorization service, JWT verifier');
+      assert.doesNotMatch(JSON.stringify(status), /token=/);
     },
   );
 });

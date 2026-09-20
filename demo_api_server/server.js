@@ -170,6 +170,7 @@ const {
     router: featureFlagsRoutes
 } = require('./routes/featureFlags');
 const mcpInspectorRoutes = require('./routes/mcpInspector');
+const mcpDiscoveryRoutes = require('./routes/mcpDiscovery');
 const mcpPingOneAdminAuthRoutes = require('./routes/mcpPingOneAdminAuth');
 const mcpPrivilegeAuthRoutes = require('./routes/mcpPrivilegeAuth');
 const mcpTrafficRoutes = require('./routes/mcpTraffic');
@@ -661,6 +662,12 @@ try {
 // Restore session user from signed _auth cookie when in-memory session is empty.
 app.use(restoreSessionFromCookie);
 
+// Hosted Kubernetes access gate. The ingress calls /check directly over the
+// ClusterIP; all other API paths are independently protected here so a future
+// ingress or port-forward cannot bypass the Ping-domain decision.
+app.use('/api/auth/hosted-access', require('./routes/hostedAccess'));
+app.use('/api', require('./middleware/hostedAccessGate').createHostedAccessGate());
+
 // RFC 6749 §6 — silently refresh near-expired end-user access tokens on
 // authenticated API routes so UIs never serve stale tokens to downstream services.
 // Include /api/auth/oauth so GET /api/auth/oauth/user/status (and admin /status) run
@@ -1063,6 +1070,7 @@ app.use('/api/admin/mgmt-api', authenticateToken, requireAdmin, mgmtApiRoutes);
 app.use('/api/admin/secret-rotation', authenticateToken, secretRotationRoutes);
 app.use('/api/admin/ping-ai-test-lab', authenticateToken, pingAiTestLabRoutes);
 app.use('/api/admin/config', adminConfigRoutes);
+app.use('/api/admin/mcp-discovery', mcpDiscoveryRoutes);
 
 // OpenAPI / Swagger UI. The document is introspected from this app's own router
 // (lib/openapiFromRoutes.js) rather than from per-route annotations, so it cannot
@@ -1108,6 +1116,9 @@ function redirectDocsToLoginIfNoSession(req, res, next) {
 // lib/docsAdminRedirect.js for why, and for the admin-signal parity rule.
 const { makeDocsAdminRedirect } = require('./lib/docsAdminRedirect');
 const redirectDocsToAdminModalIfNotAdmin = makeDocsAdminRedirect(sanitizePostLoginReturnPath);
+app.get('/api/docs/swagger-ui-header.js', (req, res) => {
+    res.type('application/javascript').sendFile(path.join(__dirname, 'public/swagger-ui-header.js'));
+});
 app.get('/api/openapi.json', redirectDocsToLoginIfNoSession, authenticateToken, requireAdmin, (req, res) => {
     res.json(openApiSpec());
 });
@@ -1122,7 +1133,60 @@ app.use(
     // fetch is same-origin so it carries the session cookie, and the spec stays
     // a single source both the page and any client can read.
     swaggerUi.setup(null, {
-        swaggerOptions: { url: '/api/openapi.json' },
+        swaggerOptions: {
+            url: '/api/openapi.json',
+            requestInterceptor: (request) => {
+                request.credentials = 'include';
+                return request;
+            },
+        },
+        customJs: '/api/docs/swagger-ui-header.js',
+        customCss: `
+            /* Authentication comes from the PingOne-backed session cookie. */
+            .swagger-ui .auth-wrapper,
+            .swagger-ui .authorization__btn {
+                display: none;
+            }
+            .swagger-demo-header {
+                align-items: center;
+                background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+                border-bottom: 1px solid #93c5fd;
+                color: #172554;
+                display: flex;
+                justify-content: space-between;
+                padding: 12px 24px;
+                gap: 16px;
+            }
+            .swagger-demo-header__brand {
+                align-items: center;
+                display: flex;
+                gap: 10px;
+                font-size: 18px;
+            }
+            .swagger-demo-header__logo {
+                font-size: 24px;
+                line-height: 1;
+            }
+            .swagger-demo-header__login {
+                background: #eff6ff;
+                border: 1px solid #93c5fd;
+                border-radius: 6px;
+                color: #172554;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 8px 12px;
+                text-decoration: none;
+            }
+            .swagger-demo-header__login:hover {
+                background: #dbeafe;
+            }
+            @media (max-width: 520px) {
+                .swagger-demo-header {
+                    align-items: flex-start;
+                    flex-direction: column;
+                }
+            }
+        `,
         customSiteTitle: 'Banking Demo BFF API',
     }),
 );
@@ -1372,6 +1436,7 @@ app.use('/api/mfa/test', mfaTestRoutes);
 app.use('/api/agent', agentIdentityRoutes);
 app.use('/api/agent', agentDelegationRoutes);
 app.use('/api/mcp', mcpDecisionPollingRoutes);
+app.use('/api/mcp/apps', require('./routes/mcpApps'));
 app.use('/api/mcp', mcpExchangeModeRoutes); // GET/POST /api/mcp/exchange-mode — UI ExchangeModeContext toggle
 app.use('/api/mcp/apikey', require('./routes/apiKeyExchange')); // POST /api/mcp/apikey/exchange — API key → bearer token
 app.use('/api/use-cases', require('./routes/useCases')); // read-only catalog is public; step-run routes self-gate with authenticateToken

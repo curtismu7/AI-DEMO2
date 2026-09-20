@@ -369,7 +369,7 @@ export default function PrivilegeMcpDiagramPage() {
       <p className="pmd-footer">
         Source:{" "}
         <a
-          href="https://github.com/curtismu7/AI-DEMO2/blob/main/privilege/PRIVILEGE-MCP.md"
+          href="https://github.com/cmuir_pingcorp/AI-DEMO2/blob/main/privilege/PRIVILEGE-MCP.md"
           className="pmd-link"
         >
           privilege/PRIVILEGE-MCP.md

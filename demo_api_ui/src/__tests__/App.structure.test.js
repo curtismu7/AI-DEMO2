@@ -70,8 +70,8 @@ describe("App.js — critical JSX placements", () => {
     const productRoutes = appSrc.match(/className="ai-product-main"/g);
     expect(productRoutes).toHaveLength(6);
     expect(appSrc).toContain('className="ai-product-main"');
-    expect(appSrc).toContain(
-      '<Route path="/ai-products/core" element={<main className="ai-product-main"><PingAiProductPage product="core" /></main>} />',
+    expect(appSrc).toMatch(
+      /<Route\s+path="\/ai-products\/core"[\s\S]*?<AppShell[\s\S]*?<main className="ai-product-main">/,
     );
   });
 
@@ -113,6 +113,14 @@ describe("App.js — critical JSX placements", () => {
 
   test("DashboardContent is rendered inside the /dashboard route", () => {
     expect(appSrc).toContain("<DashboardContent user={user} logout={logout} />");
+  });
+
+  test("MCP discovery is a signed-in user route, not an admin role-switch route", () => {
+    const start = appSrc.indexOf('path="/mcp-discovery"');
+    expect(start).toBeGreaterThan(-1);
+    const block = appSrc.slice(start, appSrc.indexOf('path="/tracing"', start));
+    expect(block).toContain("<McpDiscoveryPage />");
+    expect(block).not.toContain("<RequireAdminLogin");
   });
 
   test("MonitoringRoutes is rendered for /monitoring/*", () => {
@@ -381,6 +389,39 @@ describe("Render smoke — Router still rejects route-group component children",
     expect(violation).toBeUndefined();
 
     consoleErrorSpy.mockRestore();
+  });
+
+  test("setup pages render inside AppShell so they receive the shared header", async () => {
+    const publicRoutesSrc = fs.readFileSync(
+      path.resolve(__dirname, "../routes/PublicRoutes.js"),
+      "utf8",
+    );
+
+    expect(publicRoutesSrc).toMatch(
+      /path="pingone"\s+element=\{\s*<AppShell[\s\S]*?<PingOneSetupGuidePage \/>[\s\S]*?<\/AppShell>\s*\}\s*\/>/,
+    );
+    expect(publicRoutesSrc).toMatch(
+      /path="wizard"\s+element=\{\s*<AppShell[\s\S]*?<SetupWizard \/>[\s\S]*?<\/AppShell>\s*\}\s*\/>/,
+    );
+  });
+
+  test("AI product pages render inside AppShell so they retain vertical context", () => {
+    const productRoutes = [
+      ["core", "core"],
+      ["gateway", "gateway"],
+      ["authorize", "authorize"],
+      ["privilege-llm", "privilegeLlm"],
+      ["privilege-a2a", "privilegeA2a"],
+      ["privilege-mcp", "privilegeMcp"],
+    ];
+
+    for (const [pathSlug, product] of productRoutes) {
+      expect(appSrc).toMatch(
+        new RegExp(
+          `<Route\\s+path="/ai-products/${pathSlug}"[\\s\\S]*?<AppShell[\\s\\S]*?<PingAiProductPage product="${product}" \\/>[\\s\\S]*?<\\/AppShell>`,
+        ),
+      );
+    }
   });
 });
 

@@ -6,13 +6,14 @@ import { fileURLToPath } from 'node:url';
 
 const DEFAULT_PROBE_TIMEOUT_MS = 3_000;
 const DEFAULT_STARTUP_TIMEOUT_MS = 60_000;
+const DEFAULT_STARTUP_POLL_INTERVAL_MS = 500;
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 3090;
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const defaultPagePath = resolve(repositoryRoot, 'docs/demo-launcher/index.html');
 
 const allowedServices = Object.freeze([
-  Object.freeze({ service: 'LibreChat', url: 'http://127.0.0.1:3080/api/health' }),
+  Object.freeze({ service: 'LibreChat', url: 'http://127.0.0.1:3080/health' }),
   Object.freeze({ service: 'MCP gateway', url: 'http://127.0.0.1:3005/health' }),
   Object.freeze({ service: 'Authorization service', url: 'http://127.0.0.1:9001/health' }),
   Object.freeze({ service: 'JWT verifier', url: 'http://127.0.0.1:8083/health' }),
@@ -74,9 +75,9 @@ async function defaultProbe(service, { timeoutMs }) {
   }
 }
 
-function runStackCommand(args, spawnProcess) {
+function runCommand(command, args, spawnProcess) {
   return new Promise((resolveStart, rejectStart) => {
-    const child = spawnProcess('./run-docker.sh', args, {
+    const child = spawnProcess(command, args, {
       cwd: repositoryRoot,
       shell: false,
       stdio: 'inherit',
@@ -94,8 +95,9 @@ function runStackCommand(args, spawnProcess) {
 
 export function createDefaultStartStack(spawnProcess = spawn) {
   return async function defaultStartStack() {
-    await runStackCommand([], spawnProcess);
-    await runStackCommand(['optional', 'start', 'demo-auth'], spawnProcess);
+    await runCommand('./run-docker.sh', [], spawnProcess);
+    await runCommand('./run-docker.sh', ['optional', 'start', 'demo-auth'], spawnProcess);
+    await runCommand('docker', ['compose', '-f', 'librechat/docker-compose.yml', 'up', '-d', 'api', 'oauth-loopback'], spawnProcess);
   };
 }
 
@@ -179,12 +181,39 @@ function startupRecord(startup) {
   return { status: startup.status, detail: startup.detail };
 }
 
+function delay(milliseconds, signal) {
+  return new Promise((resolveDelay, rejectDelay) => {
+    if (signal.aborted) {
+      rejectDelay(signal.reason ?? new Error('Startup stopped'));
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolveDelay();
+    }, milliseconds);
+    const onAbort = () => {
+      clearTimeout(timer);
+      rejectDelay(signal.reason ?? new Error('Startup stopped'));
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+function unavailableServicesDetail(services) {
+  const unavailable = services
+    .filter((service) => service.status !== 'ready')
+    .map((service) => service.service);
+  return `unavailable services: ${(unavailable.length > 0 ? unavailable : getAllowedServices().map((service) => service.service)).join(', ')}`;
+}
+
 export function createLauncherServer({
   startStack = defaultStartStack,
   probe = defaultProbe,
   servePage = defaultStaticPage,
   probeTimeoutMs = DEFAULT_PROBE_TIMEOUT_MS,
   startupTimeoutMs = DEFAULT_STARTUP_TIMEOUT_MS,
+  startupPollIntervalMs = DEFAULT_STARTUP_POLL_INTERVAL_MS,
 } = {}) {
   let startup = { status: 'idle', detail: 'not started' };
   let startOperation = null;
@@ -211,22 +240,66 @@ export function createLauncherServer({
     return services;
   }
 
+  async function waitForServicesReady(signal, recordServices) {
+    while (!signal.aborted) {
+      const services = await checkServices();
+      recordServices(services);
+      if (services.every((service) => service.status === 'ready')) {
+        return services;
+      }
+      await delay(startupPollIntervalMs, signal);
+    }
+    throw signal.reason ?? new Error('Startup stopped');
+  }
+
   function beginStartup() {
     if (startOperation) {
       return;
     }
 
     startup = { status: 'starting', detail: 'fixed local startup is running' };
-    const operation = Promise.resolve().then(() => startStack());
+    const abortController = new AbortController();
+    let latestServices = getAllowedServices().map((service) => ({
+      service: service.service,
+      status: 'unavailable',
+      detail: 'readiness probe failed',
+    }));
+    const stackOperation = Promise.resolve().then(() => startStack());
+    let stackSettled = false;
+    stackOperation.then(
+      () => { stackSettled = true; },
+      () => { stackSettled = true; },
+    );
+    const readinessOperation = waitForServicesReady(abortController.signal, (services) => {
+      latestServices = services;
+    });
+    readinessOperation.catch(() => {});
+    const operation = withTimeout(
+      (async () => {
+        await stackOperation;
+        return readinessOperation;
+      })(),
+      startupTimeoutMs,
+      'Startup timed out',
+    );
     startOperation = operation;
     latestStartupOperation = operation;
     operation.finally(() => {
-      if (startOperation === operation) {
-        startOperation = null;
+      abortController.abort(new Error('Startup finished'));
+      if (stackSettled) {
+        if (startOperation === operation) {
+          startOperation = null;
+        }
+        return;
       }
+      stackOperation.finally(() => {
+        if (startOperation === operation) {
+          startOperation = null;
+        }
+      }).catch(() => {});
     }).catch(() => {});
 
-    withTimeout(operation, startupTimeoutMs, 'Startup timed out').then(
+    operation.then(
       () => {
         if (latestStartupOperation === operation) {
           startup = { status: 'ready', detail: 'startup completed' };
@@ -236,7 +309,9 @@ export function createLauncherServer({
         if (latestStartupOperation === operation) {
           startup = {
             status: 'failed',
-            detail: error?.message === 'Startup timed out' ? 'startup timed out' : 'startup failed',
+            detail: error?.message === 'Startup timed out'
+              ? unavailableServicesDetail(latestServices)
+              : 'startup failed',
           };
         }
       },

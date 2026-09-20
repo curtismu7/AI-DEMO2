@@ -23,6 +23,7 @@
     "snapshot:generate": "node snapshots/gen-authorize-snapshot.js",
     "topology:verify": "bash scripts/topology-verify.sh",
     "authz:verify": "node scripts/check-auth-requirements.js && node scripts/check-arming-no-auth-banner.js",
+    "hosted-access:verify": "node scripts/check-hosted-access-ingress.js && node --test scripts/check-hosted-access-ingress.test.js",
     "certs:ensure": "bash scripts/ensure-dev-certs.sh",
     "sync:status": "bash scripts/sync-status.sh",
     "sync:unblock": "bash scripts/park-main-edits.sh",

@@ -149,7 +149,32 @@
         "scope": "users:manage",
         "attributes": []
       }
-    ]
+    ],
+    "Super Banking A2A MCP Gateway": [
+      { "scope": "read", "attributes": ["a2a_tenant_id"] },
+      { "scope": "invest:read", "attributes": ["a2a_tenant_id"] },
+      { "scope": "holdings:read", "attributes": ["a2a_tenant_id"] },
+      { "scope": "records:read", "attributes": ["a2a_tenant_id"] },
+      { "scope": "tax:read", "attributes": ["a2a_tenant_id"] },
+      { "scope": "finaid:read", "attributes": ["a2a_tenant_id"] },
+      { "scope": "supplier:read", "attributes": ["a2a_tenant_id"] },
+      { "scope": "purchase:read", "attributes": ["a2a_tenant_id"] },
+      { "scope": "membership:read", "attributes": ["a2a_tenant_id"] },
+      { "scope": "payroll:read", "attributes": ["a2a_tenant_id"] },
+      { "scope": "pnr:read", "attributes": ["a2a_tenant_id"] },
+      { "scope": "identity:read", "attributes": ["a2a_tenant_id"] }
+    ],
+    "Super Banking A2A Intermediate - Investment Advisor": [{ "scope": "agent:invoke:investment", "attributes": ["a2a_tenant_id"] }],
+    "Super Banking A2A Intermediate - Records Specialist": [{ "scope": "agent:invoke:records", "attributes": ["a2a_tenant_id"] }],
+    "Super Banking A2A Intermediate - Purchase History Specialist": [{ "scope": "agent:invoke:purchase", "attributes": ["a2a_tenant_id"] }],
+    "Super Banking A2A Intermediate - Membership Specialist": [{ "scope": "agent:invoke:membership", "attributes": ["a2a_tenant_id"] }],
+    "Super Banking A2A Intermediate - Payroll Specialist": [{ "scope": "agent:invoke:payroll", "attributes": ["a2a_tenant_id"] }],
+    "Super Banking A2A Intermediate - Tax Records Specialist": [{ "scope": "agent:invoke:tax", "attributes": ["a2a_tenant_id"] }],
+    "Super Banking A2A Intermediate - Financial Aid Specialist": [{ "scope": "agent:invoke:finaid", "attributes": ["a2a_tenant_id"] }],
+    "Super Banking A2A Intermediate - Supplier Contract Specialist": [{ "scope": "agent:invoke:supplier", "attributes": ["a2a_tenant_id"] }],
+    "Super Banking A2A Intermediate - Holdings Specialist": [{ "scope": "agent:invoke:holdings", "attributes": ["a2a_tenant_id"] }],
+    "Super Banking A2A Intermediate - Passenger Records Specialist": [{ "scope": "agent:invoke:passenger", "attributes": ["a2a_tenant_id"] }],
+    "Super Banking A2A Intermediate - Identity Verification Specialist": [{ "scope": "agent:invoke:identity", "attributes": ["a2a_tenant_id"] }]
   },
   "aliases": { "banking:mcp:invoke": "mcp:invoke", "gateway:mcp:invoke": "mcp:invoke", "apikey:mcp:invoke": "mcp:invoke", "server:mcp:invoke": "mcp:invoke", "pinggateway:invoke": "mcp:invoke", "ai:agent": "ai:agent:read" },
   "scopes": {
