@@ -246,28 +246,96 @@ curl -sk https://api.ping.demo:3001/api/health/inventory/sizes   # per-container
 
 Compose profiles (same groups): `docker compose --profile rag up -d`, etc.
 
-#### Terraform-managed local Docker
+#### Terraform deployment handoff
 
-For users who want Terraform to own the local Docker stack lifecycle while
-keeping this repository's Compose service definitions as the source of truth:
+Terraform supports two handoff targets. Local Docker uses the existing
+`docker-compose.yml` as the source of truth; Terraform owns the lifecycle
+commands, while Compose continues to define services, images, profiles,
+networks, and mounts. The SE target deploys into an existing namespace and does
+not create or delete that namespace.
+
+The installer asks for these required PingOne Worker app values before running
+bootstrap:
+
+- PingOne Environment ID
+- Worker Client ID
+- Worker Client Secret
+
+The Worker app needs the `Identity Data Admin` role. Do not put these secrets in
+`terraform.tfvars`; the installer and the existing secret-generation flow handle
+them separately.
+
+##### Local Docker with Terraform
+
+Install the tools and bootstrap the repository, selecting option **5**, or run:
 
 ```bash
 ./install.sh --mode docker-terraform
+```
 
+Then create a local, ignored Terraform variables file and deploy:
+
+```bash
 cd ~/AI-demo/terraform
 cp terraform.tfvars.example terraform.tfvars
 terraform init
+terraform fmt -check -recursive
 terraform validate
 terraform plan -out=ai-demo.tfplan
 terraform apply ai-demo.tfplan
 ```
 
-The installer asks for the PingOne Environment ID, Worker Client ID, and
-Worker Client Secret before running PingOne bootstrap. Terraform keeps named
-Docker volumes by default; use `terraform destroy -var='retain_volumes=false'`
-only when local persistent data should also be removed. See
-[`terraform/README.md`](terraform/README.md) for profiles, status, logs, and
-destroy commands.
+The example defaults to `build_images = true`. Set it to `false` when the
+required local images already exist and you only want Terraform to start the
+stack. Optional Compose profiles can be added, for example:
+
+```hcl
+compose_profiles = ["agents", "tracing"]
+```
+
+Check or operate the deployment:
+
+```bash
+terraform output status_command
+terraform output logs_command
+docker compose -p ai-demo -f ../docker-compose.yml ps
+terraform destroy                         # keeps named volumes by default
+terraform destroy -var='retain_volumes=false' # also removes persistent data
+```
+
+##### Ping SE namespace with Terraform
+
+The namespace must already exist and be assigned to the user. Authenticate to
+the SE cluster, build/push images, create namespace-scoped secrets, and run the
+Terraform wrapper:
+
+```bash
+./install.sh --mode se-terraform
+
+cd ~/AI-demo
+kubectl config use-context us
+gh auth login
+export GITHUB_OWNER=YOUR_GITHUB_OWNER
+./run-pingaws.sh build
+
+export SE_NAMESPACE=ping-devops-YOURNAME
+K8S_NAMESPACE="$SE_NAMESPACE" ./k8s/create-secrets.sh
+
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+# Set target = "se", namespace = "ping-devops-YOURNAME",
+# kubernetes_context = "us", and image_repository = "ghcr.io/YOUR_GITHUB_OWNER".
+./deploy-se.sh
+```
+
+`deploy-se.sh` prompts for the existing namespace when `SE_NAMESPACE` is not
+set, verifies namespace access and required secrets, then runs
+`terraform init`, `fmt`, `validate`, `plan`, and `apply`. Terraform does not
+create or delete the namespace. Kubernetes PVCs are retained by default; set
+`retain_volumes = false` only when persistent data should also be removed.
+
+See [`terraform/README.md`](terraform/README.md) for the complete variable
+reference, profiles, troubleshooting, status, logs, and teardown details.
 
 #### Real vs demo Authorize / Agent Gateway
 
