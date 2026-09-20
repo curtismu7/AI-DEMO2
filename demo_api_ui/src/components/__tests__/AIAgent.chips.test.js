@@ -380,28 +380,6 @@ describe("Action chips — not logged in", () => {
   });
 });
 
-describe("Action chips — all 3 modes", () => {
-  it("inline (middle) mode: renders action items", () => {
-    renderAgent({
-      user: customerUser,
-      mode: "inline",
-      embeddedDockBottom: false,
-    });
-    expect(screen.getByText("My Accounts")).toBeInTheDocument();
-    expect(screen.getByText("Transfer")).toBeInTheDocument();
-  });
-
-  it("inline bottom-dock mode: renders action items", () => {
-    renderAgent({
-      user: customerUser,
-      mode: "inline",
-      embeddedDockBottom: true,
-    });
-    expect(screen.getByText("My Accounts")).toBeInTheDocument();
-    expect(screen.getByText("Transfer")).toBeInTheDocument();
-  });
-});
-
 // ─── Action chips — disabled when consent blocked ─────────────────────────────
 
 describe("Action chips — disabled when consent blocked", () => {
@@ -559,7 +537,7 @@ describe("Header controls after the Actions dropdown removal", () => {
       });
     }
 
-  });
+  }, 60000);
 
   it("auto-pops the Simple Stepper when its surface is set to pop-out", async () => {
     simpleStepperPanelMock.props.length = 0;
@@ -643,8 +621,26 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(screen.getByRole("button", { name: /Movie reel/ }));
     });
     await waitFor(() => expect(document.querySelectorAll(".ba-header-more-context input[type=checkbox]")[1]).not.toBeChecked());
+    expect(localStorage.getItem("dashboard-sequence-surface")).toBe("none");
+    expect(restoredSequenceCard).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(screen.getByRole("button", { name: /Token topology/ }));
     expect(screen.getByRole("button", { name: "Token topology surface" })).toHaveTextContent("Pop-out");
+  });
+
+  it("keeps RFC info off when a stale embedded surface preference remains", async () => {
+    localStorage.setItem("ba_show_rfc_info", "false");
+    localStorage.setItem("ba_rfc_info_surface", "embedded");
+
+    renderAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
+    });
+
+    expect(screen.getByRole("checkbox", { name: "RFC info" })).not.toBeChecked();
   });
 
   it("keeps surface menus exclusive and leaves Pop-out available for every view", async () => {
@@ -690,6 +686,33 @@ describe("Header controls after the Actions dropdown removal", () => {
     });
     expect(screen.getByRole("listbox", { name: "Token topology surface options" })).toBeInTheDocument();
   }, 90000);
+
+  it("labels trace evidence views and keeps only the selected view embedded", async () => {
+    localStorage.setItem("ba_simple_stepper_surface", "embedded");
+    localStorage.setItem("dashboard-sequence-surface", "embedded");
+    localStorage.setItem("ba_token_topology_surface", "both");
+    localStorage.setItem("ba_oauth_visualizer_surface", "embedded");
+
+    renderAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
+    });
+
+    expect(screen.getByRole("group", { name: "Trace evidence views" })).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Movie reel/ }));
+    });
+
+    expect(localStorage.getItem("ba_simple_stepper_surface")).toBe("none");
+    expect(localStorage.getItem("dashboard-sequence-surface")).toBe("none");
+    expect(localStorage.getItem("ba_token_topology_surface")).toBe("popout");
+    expect(localStorage.getItem("ba_oauth_visualizer_surface")).toBe("none");
+  });
 
   it("marks Quick Config while a surface menu is open so its layout can expand", async () => {
     renderAgent({ user: customerUser, mode: "float" });

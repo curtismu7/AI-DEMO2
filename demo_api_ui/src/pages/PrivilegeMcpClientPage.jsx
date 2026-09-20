@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FootprintSkinPicker } from '../components/aiFootprintMocks/FootprintSkinPicker';
+import HostileMcpDenialPanel from '../components/privilege/HostileMcpDenialPanel';
 import ToolsTable from '../components/privilege/ToolsTable';
 import JsonHighlight from '../components/shared/JsonHighlight';
 import JsonFormView from '../components/shared/JsonFormView';
@@ -1369,6 +1370,14 @@ export default function PrivilegeMcpClientPage() {
     return out;
   };
 
+  const runHostileMcpRequest = async ({ method, params }) => {
+    return api('/request', { method: 'POST', body: { method, params } });
+  };
+
+  const runHostileToolCall = async ({ name, arguments: args }) => {
+    return api('/tools/call', { method: 'POST', body: { name, arguments: args } });
+  };
+
   // Land on the Tools tab the first time tools are discovered — it is the point
   // of the page. Only once, so it never fights later navigation.
   useEffect(() => {
@@ -2284,7 +2293,13 @@ export default function PrivilegeMcpClientPage() {
 
           <div className="cur-editor-area">
             {visibleTab === 'chat' && (
-              <div className="cur-chat-panel">
+              <>
+                <HostileMcpDenialPanel
+                  tools={tools}
+                  onRequest={runHostileMcpRequest}
+                  onCall={runHostileToolCall}
+                />
+                <div className="cur-chat-panel">
                 <div className="cur-chat-messages">
                   {chatMessages.length === 0 && (
                     <div className="cur-chat-empty">
@@ -2334,7 +2349,8 @@ export default function PrivilegeMcpClientPage() {
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
                   </button>
                 </div>
-              </div>
+                </div>
+              </>
             )}
 
             {visibleTab === 'tools' && (

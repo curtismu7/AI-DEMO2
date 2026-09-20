@@ -59,8 +59,22 @@ import AuditAgentPage from "../pages/AuditAgentPage";
 export default function PublicRoutes({ user, logout }) {
   return (
     <Routes>
-      <Route path="pingone" element={<PingOneSetupGuidePage />} />
-      <Route path="wizard" element={<SetupWizard />} />
+      <Route
+        path="pingone"
+        element={
+          <AppShell user={user} logout={logout}>
+            <PingOneSetupGuidePage />
+          </AppShell>
+        }
+      />
+      <Route
+        path="wizard"
+        element={
+          <AppShell user={user} logout={logout}>
+            <SetupWizard />
+          </AppShell>
+        }
+      />
       <Route
         path=""
         element={

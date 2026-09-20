@@ -136,6 +136,16 @@ describe("AdminSideNav — best-of-breed pass", () => {
     );
   });
 
+  it("searching OAuth agents surfaces the AI-Gateway Shadow AI Detector page", () => {
+    renderNav();
+    fireEvent.change(screen.getByLabelText(/search navigation/i), { target: { value: "oauth agents" } });
+    expect(screen.getByText("AI-Gateway")).toBeInTheDocument();
+    expect(screen.getByText("Shadow AI Detector").closest("a")).toHaveAttribute(
+      "href",
+      "/ai-gateway/shadow-ai-detector",
+    );
+  });
+
   it("shows a local-only PAC Editor item under Authorize and opens the PAC editor", () => {
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
     renderNav();
@@ -259,7 +269,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
   // bottom — "AI Agent Gateway" rendered below "Integration Tests", which reads
   // as missing rather than as reordered. Reported from the live demo.
   it("places a group the saved navOrder predates at its natural position, not last", async () => {
-    // A realistic stale order: no "AI Agent Gateway", and labels from groups
+    // A realistic stale order: no "AI-Gateway" or "AI Agent Gateway", and labels from groups
     // that have since been renamed.
     const staleOrder = [
       "Home", "Dashboard", "Demos", "Privilege MCP", "Themes", "AI Footprint",
@@ -292,10 +302,10 @@ describe("AdminSideNav — best-of-breed pass", () => {
     ).map((el) => el.textContent.trim());
     const idx = (l) => labels.indexOf(l);
 
-    // It sits directly after Dashboard — its position in allNavItems — because
+    // It sits after the new AI-Gateway group — its position in allNavItems — because
     // Dashboard is the nearest preceding sibling the saved order knows about.
     expect(idx("AI Agent Gateway")).toBeGreaterThan(-1);
-    expect(idx("AI Agent Gateway")).toBe(idx("Dashboard") + 1);
+    expect(idx("AI Agent Gateway")).toBe(idx("AI-Gateway") + 1);
     // And crucially NOT dumped at the bottom past everything ordered.
     expect(idx("AI Agent Gateway")).toBeLessThan(idx("Integration Tests"));
 

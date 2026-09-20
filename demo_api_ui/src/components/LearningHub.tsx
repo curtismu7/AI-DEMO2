@@ -176,6 +176,11 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         description: "Session-scoped revocation, active-run audit trail, and what's a concept vs. shipped",
         icon: "⚠️",
       },
+      {
+        label: "Shadow AI Detector",
+        description: "What the browser extension observes about AI usage, OAuth agents, and sensitive data flows",
+        icon: "🔍",
+      },
     ],
   },
   {
@@ -414,6 +419,7 @@ export default function LearningHub() {
       "Enterprise-Managed Auth (EMA)": () =>
         openEdu(EDU.ENTERPRISE_MANAGED_AUTH, "overview"),
       "Agent Kill Switch": () => openEdu(EDU.KILL_SWITCH, "what"),
+      "Shadow AI Detector": () => navigate("/ai-gateway/shadow-ai-detector"),
     },
     "ping-ai-products": {
       "Agent IAM Core": () => navigate("/ai-products/core"),

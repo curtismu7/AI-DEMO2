@@ -29,4 +29,13 @@ describe('Swagger UI page header', () => {
         expect(server).toContain("app.get('/api/docs/swagger-ui-header.js'");
         expect(server).toContain('.swagger-demo-header');
     });
+
+    test('uses the signed-in browser session instead of exposing manual authorization', () => {
+        const server = fs.readFileSync(serverPath, 'utf8');
+
+        expect(server).toContain('requestInterceptor');
+        expect(server).toContain("request.credentials = 'include'");
+        expect(server).toContain('.swagger-ui .auth-wrapper');
+        expect(server).toContain('.swagger-ui .authorization__btn');
+    });
 });

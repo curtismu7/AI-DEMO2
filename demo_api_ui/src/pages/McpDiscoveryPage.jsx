@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchMcpDiscoveryInventory, requestMcpDiscoveryScan } from '../services/mcpDiscoveryService';
 import './McpDiscoveryPage.css';
 
-const STATUS_ORDER = ['healthy', 'degraded', 'offline', 'candidate', 'unprobed'];
+const STATUS_ORDER = ['healthy', 'hostile', 'degraded', 'offline', 'candidate', 'unprobed'];
 
 function statusLabel(status) {
   return String(status || 'unprobed').replace(/-/g, ' ');
@@ -26,6 +26,18 @@ function runtimeType(record) {
   if (record.transport === 'stdio') return 'Process candidate';
   if (record.endpoint && ['streamable-http', 'sse'].includes(record.transport)) return 'MCP endpoint';
   return 'Observed candidate';
+}
+
+function deploymentLabel(record) {
+  const deployment = String(record.deployment || record.deploymentType || '').toLowerCase();
+  if (deployment.includes('k8') || deployment.includes('kubernetes')) return 'Kubernetes';
+  if (deployment.includes('docker') || deployment.includes('compose')) return 'Docker Compose';
+  if (record.source === 'compose-service') return 'Docker Compose';
+  if (record.source === 'remote-url' || record.location === 'remote') return 'Remote host';
+  if (record.source === 'host-process') return 'Host process';
+  if (record.source === 'listener') return 'Host listener';
+  if (record.source === 'client-config') return 'Configured client';
+  return 'Not reported';
 }
 
 const SORT_COLUMNS = [
@@ -64,6 +76,7 @@ export default function McpDiscoveryPage() {
   const [error, setError] = useState(null);
   const [scanMessage, setScanMessage] = useState(null);
   const [sort, setSort] = useState({ key: null, direction: 'ascending' });
+  const [selectedRecordId, setSelectedRecordId] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -103,6 +116,7 @@ export default function McpDiscoveryPage() {
     return result;
   }, {}), [records]);
   const findings = records.flatMap((record) => (record.securityFindings || []).map((finding) => ({ ...finding, server: record.displayName })));
+  const selectedRecord = records.find((record) => record.id === selectedRecordId) || null;
 
   const scanNow = async () => {
     setScanMessage(null);
@@ -122,6 +136,15 @@ export default function McpDiscoveryPage() {
   };
 
   const sortIndicator = (key) => sort.key === key ? sort.direction : 'none';
+
+  const selectRecord = (record) => setSelectedRecordId(record.id);
+
+  const handleRecordKeyDown = (event, record) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      selectRecord(record);
+    }
+  };
 
   return (
     <main className="mcp-discovery-page">
@@ -146,8 +169,9 @@ export default function McpDiscoveryPage() {
       <section className="mcp-discovery-summary" aria-label="Inventory summary">
         <div className="mcp-discovery-summary-card"><span>Verified servers</span><strong>{counts.healthy || 0}</strong><small>healthy MCP endpoints</small></div>
         <div className="mcp-discovery-summary-card"><span>Candidates</span><strong>{counts.candidate || 0}</strong><small>observed but unprobed</small></div>
-        <div className="mcp-discovery-summary-card"><span>Needs attention</span><strong>{(counts.degraded || 0) + (counts.offline || 0)}</strong><small>degraded or unreachable</small></div>
+        <div className="mcp-discovery-summary-card"><span>Needs attention</span><strong>{(counts.hostile || 0) + (counts.degraded || 0) + (counts.offline || 0)}</strong><small>hostile, degraded, or unreachable</small></div>
         <div className="mcp-discovery-summary-card"><span>Findings</span><strong>{findings.length}</strong><small>heuristic metadata flags</small></div>
+        <div className="mcp-discovery-summary-card"><span>Hostile findings</span><strong>{counts.hostile || 0}</strong><small>servers with suspicious metadata</small></div>
       </section>
 
       <div className="mcp-discovery-grid">
@@ -170,7 +194,14 @@ export default function McpDiscoveryPage() {
                     {column.label}<span className={`mcp-discovery-sort-indicator mcp-discovery-sort-indicator-${sortIndicator(column.key)}`} aria-hidden="true" />
                   </button>
                 </th>)}</tr></thead>
-                <tbody>{sortedRecords.map((record) => <tr key={record.id}>
+                <tbody>{sortedRecords.map((record) => <tr
+                  key={record.id}
+                  className={selectedRecordId === record.id ? 'mcp-discovery-row-selected' : undefined}
+                  aria-selected={selectedRecordId === record.id}
+                  tabIndex={0}
+                  onClick={() => selectRecord(record)}
+                  onKeyDown={(event) => handleRecordKeyDown(event, record)}
+                >
                   <td><span className={`mcp-discovery-status mcp-discovery-status-${record.status}`}>{statusLabel(record.status)}</span></td>
                   <td><strong>{record.displayName}</strong><small>{record.endpoint || 'No endpoint — candidate only'}</small></td>
                   <td>{(record.sources || [record.source]).map(sourceLabel).join(', ')}</td>
@@ -184,7 +215,27 @@ export default function McpDiscoveryPage() {
           )}
         </section>
 
-        <section className="mcp-discovery-panel mcp-discovery-security" aria-labelledby="mcp-security-title">
+        {selectedRecord ? <section className="mcp-discovery-panel mcp-discovery-security" aria-labelledby="mcp-details-title">
+          <div className="mcp-discovery-panel-heading">
+            <div><p className="mcp-discovery-eyebrow">Selected server</p><h2 id="mcp-details-title">Server details</h2></div>
+            <span className={`mcp-discovery-status mcp-discovery-status-${selectedRecord.status}`}>{statusLabel(selectedRecord.status)}</span>
+          </div>
+          <div className="mcp-discovery-details">
+            <h3>{selectedRecord.displayName}</h3>
+            <dl>
+              <div><dt>Deployment</dt><dd>{deploymentLabel(selectedRecord)}</dd></div>
+              <div><dt>Interface</dt><dd>{selectedRecord.transport || 'Not reported'}</dd></div>
+              <div><dt>Runtime type</dt><dd>{runtimeType(selectedRecord)}</dd></div>
+              <div><dt>Protocol</dt><dd>{selectedRecord.protocolVersion || 'Not reported'}</dd></div>
+              <div><dt>Access URL</dt><dd>{selectedRecord.endpoint || 'Not reported'}</dd></div>
+            </dl>
+            <h3>Tools ({selectedRecord.tools?.length || 0})</h3>
+            {selectedRecord.tools?.length ? <ul className="mcp-discovery-tool-list">
+              {selectedRecord.tools.map((tool) => <li key={tool.name}><strong>{tool.name}</strong>{tool.description && <span>{tool.description}</span>}</li>)}
+            </ul> : <p className="mcp-discovery-empty">No tools reported.</p>}
+          </div>
+          <div className="mcp-discovery-boundary"><strong>Discovery boundary</strong><span>No credentials. No tool calls. Details reflect the latest read-only scan.</span></div>
+        </section> : <section className="mcp-discovery-panel mcp-discovery-security" aria-labelledby="mcp-security-title">
           <div className="mcp-discovery-panel-heading">
             <div><p className="mcp-discovery-eyebrow">Security view</p><h2 id="mcp-security-title">Metadata findings</h2></div>
             <span className="mcp-discovery-count">{findings.length} flags</span>
@@ -196,7 +247,7 @@ export default function McpDiscoveryPage() {
             </li>)}
           </ul>}
           <div className="mcp-discovery-boundary"><strong>Discovery boundary</strong><span>No credentials. No tool calls. Stdio processes remain candidates unless they expose an inspection channel.</span></div>
-        </section>
+        </section>}
       </div>
     </main>
   );

@@ -16,6 +16,7 @@
 export const NAV_ITEM_CATALOG = [
   "Home",
   "Dashboard",
+  "AI-Gateway",
   "AI Agent Gateway",
   "AI Product Pages",
   "Themes",

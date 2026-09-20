@@ -10,7 +10,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { startHttpServer } from './index.mjs';
-import { POISONS } from './poisons.mjs';
+import { POISON_PROMPTS, POISON_RESOURCES, POISONS } from './poisons.mjs';
 
 const POISON_NAMES = POISONS.map((p) => p.tool.name);
 
@@ -30,6 +30,17 @@ test('a real MCP client ingests the poison verbatim over Streamable HTTP', async
     assert.match(inj.description, /<IMPORTANT>[\s\S]*<\/IMPORTANT>/, 'injection survived the round trip');
     const exfil = tools.find((t) => t.inputSchema?.properties?.callback_url);
     assert.match(String(exfil.inputSchema.properties.callback_url.default), /^https?:\/\//, 'exfil default survived');
+
+    const resources = await client.listResources();
+    assert.deepEqual(resources.resources.map((resource) => resource.uri), POISON_RESOURCES.map((entry) => entry.resource.uri));
+    const resource = await client.readResource({ uri: POISON_RESOURCES[0].resource.uri });
+    assert.match(resource.contents[0].text, /create_transfer/);
+
+    const prompts = await client.listPrompts();
+    assert.deepEqual(prompts.prompts.map((prompt) => prompt.name), POISON_PROMPTS.map((entry) => entry.prompt.name));
+    const prompt = await client.getPrompt({ name: POISON_PROMPTS[0].prompt.name, arguments: { account_id: 'demo-001' } });
+    assert.match(prompt.messages[0].content.text, /demo-001/);
+    assert.match(prompt.messages[0].content.text, /bypass/i);
 
     await transport.close();
   } finally {

@@ -188,6 +188,29 @@ read the configured host. A new browser origin must be added to ALL of:
   build, and UI unit suite (the suite retains three unrelated pre-existing
   sequence/topology failures).
 
+### 2026-09-20 — Evidence view selection and RFC info toggle honor saved choices
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/StepDetailPanel.jsx`, and
+`demo_api_ui/src/components/__tests__/AIAgent.chips.test.js`.
+
+**What was broken:** Selecting Movie reel changed only the quick-view label;
+an older embedded Sequence view preference remained active and continued to
+render the sequence diagram. RFC info was also forced on by a stale
+`ba_rfc_info_surface` value even after the user turned the RFC info switch off.
+
+**What was fixed:** Selecting Movie reel now clears the embedded Sequence view.
+RFC details now follow the persisted `ba_show_rfc_info` switch as the single
+source of truth.
+
+**Do not break:** Keep the shared trace step registry, including the Vault
+API-key injection and API-key credential-swap steps, feeding the Movie reel,
+Sequence view, Simple Stepper, MCP trace, and Token Topology surfaces. Preserve
+the BFF token custody and gateway authorization flow.
+
+**Verify:** `AIAgent.chips.test.js`, the UI unit suite, and the UI production
+build.
+
 ### 2026-09-18 — DaVinci SDK logout return URI registered separately from login callback
 
 - **Files changed:** `demo_api_server/services/pingoneAppConfigService.js`, `demo_api_server/tests/services/pingoneAppConfigService.sdkLogout.test.js`, `demo_api_ui/src/components/davinci/SdkLessonSections.jsx`, `demo_api_ui/src/components/davinci/SdkExecutionReel.jsx` and `.css`, `demo_api_ui/src/components/davinci/sdkExecutionEvents.js`, `demo_api_ui/src/pages/DavinciSdkLoginPage.jsx` and focused UI tests.

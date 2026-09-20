@@ -23,6 +23,10 @@ anything. If it treats that metadata as trusted context, a malicious server can:
   itself (`search_docs` has a `callback_url` defaulting to an off-box host, with
   a description telling the agent to include full context), so the leak rides
   along on every call with no separate injection.
+- **`resource_poisoning`** — return an account-verification resource whose text
+  tells the agent to bypass approval and call `create_transfer`.
+- **`prompt_poisoning`** — return an account-review prompt whose message tells
+  the agent to bypass approval and call `create_transfer`.
 
 Nothing in the MCP protocol inspects tool metadata — a spike confirmed it
 arrives byte-for-byte. A defense can only sit where the metadata is **consumed**
@@ -60,6 +64,14 @@ whole demo: the client now holds the attacker's instructions in its context.
 - `create_transfer` — a **real, callable** tool (a stub — moves nothing). It is
   the harmful action the `get_weather` poison induces, and the tool CALL the
   Privilege gateway is meant to deny.
+- `mcp://hostile/account-verification` — **poisoned resource** returned by
+  `resources/read`.
+- `account_review` — **poisoned prompt** returned by `prompts/get`.
+
+Resources and prompts are deliberately returned successfully. The Privilege
+story begins when the content induces the `create_transfer` call: the direct
+path reaches the stub, while the Privilege path denies that same call. Privilege
+is not presented as a metadata sanitizer.
 
 ## Watch a real agent act on the poison
 

@@ -16,6 +16,7 @@
 # Usage:
 #   scripts/deploy-live.sh            sync, then deploy the synced range
 #   scripts/deploy-live.sh --dry-run  sync, then print what WOULD run
+#   scripts/deploy-live.sh --services=ui,demo-api-server  sync, then deploy only those services
 #   scripts/deploy-live.sh <old> <new>          deploy an explicit git range (no sync)
 
 set -euo pipefail
@@ -24,21 +25,35 @@ set -euo pipefail
 # and resolving via BASH_SOURCE silently diffed/restarted against whichever
 # worktree ran it instead of the main checkout Docker bind-mounts.
 cd "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+. "$(git rev-parse --show-toplevel)/scripts/deploy-live.serviceState.sh"
 
 DRY_RUN=0
-OLD="" NEW=""
-for a in "$@"; do
+OLD="" NEW="" TARGET_SERVICES="" TARGET_MODE=0
+while [ "$#" -gt 0 ]; do
+  a="$1"
   case "$a" in
     --dry-run) DRY_RUN=1 ;;
-    *) if [ -z "$OLD" ]; then OLD="$a"; elif [ -z "$NEW" ]; then NEW="$a"; fi ;;
+    --services=*) TARGET_SERVICES="${a#*=}"; TARGET_MODE=1 ;;
+    --services)
+      shift
+      [ "$#" -gt 0 ] || { echo "[deploy-live] --services requires a comma-separated value" >&2; exit 2; }
+      TARGET_SERVICES="$1"
+      TARGET_MODE=1 ;;
+    *) if [ -z "$OLD" ]; then OLD="$a"; elif [ -z "$NEW" ]; then NEW="$a"; else
+         echo "[deploy-live] unexpected argument: $a" >&2; exit 2
+       fi ;;
   esac
+  shift
 done
+TARGET_SERVICES="$(printf '%s' "$TARGET_SERVICES" | tr ',' ' ' | xargs 2>/dev/null || true)"
 
-# What the CONTAINERS last had deployed, not what the checkout was a moment ago.
-# Lives under .git/ deliberately: an untracked file in the working tree makes
-# sync-main-checkout.sh back off, which would break the very thing this script
-# runs first.
-STAMP="$(git rev-parse --path-format=absolute --git-common-dir)/deploy-live.last"
+# Deployment state lives under .git deliberately: an untracked file in the
+# working tree would make sync-main-checkout.sh back off. Per-service markers
+# are authoritative; the old global marker is retained only as a migration
+# fallback for services that have not been deployed since this change.
+GIT_COMMON_DIR="$(git rev-parse --path-format=absolute --git-common-dir)"
+STATE_ROOT="$GIT_COMMON_DIR/deploy-live"
+STAMP="$GIT_COMMON_DIR/deploy-live.last"
 
 # ── Serialize deploys ────────────────────────────────────────────────────────
 # One machine, one Docker project (`ai-demo`), one stamp file — but often several
@@ -86,18 +101,6 @@ if [ -z "$OLD" ]; then
   PRE="$(git rev-parse HEAD)"
   ./scripts/sync-main-checkout.sh
   NEW="$(git rev-parse HEAD)"
-  # Comparing against PRE is what made this script structurally unable to detect
-  # the case it exists for: the 15-minute launchd sync job has usually already
-  # advanced the checkout, so PRE == NEW and we reported "nothing to deploy"
-  # while the containers still ran the old code. Prefer the last SHA we actually
-  # deployed. Fall back to PRE when the stamp is missing (first run) or names a
-  # commit this repo no longer has (rebase, force-push, pruned branch).
-  if [ -s "$STAMP" ] && git cat-file -e "$(cat "$STAMP")^{commit}" 2>/dev/null; then
-    OLD="$(cat "$STAMP")"
-  else
-    OLD="$PRE"
-    STAMP_BOOTSTRAP=1
-  fi
 else
   NEW="${NEW:-$(git rev-parse HEAD)}"
 fi
@@ -132,48 +135,21 @@ assert_stack_health() {
   return 0
 }
 
-if [ "${STAMP_BOOTSTRAP:-0}" = "1" ] && [ "$OLD" != "$NEW" ]; then
-  # Same uncertainty as the OLD == NEW bootstrap branch below, but this side used
-  # to deploy silently: with no stamp, OLD fell back to the checkout's pre-sync
-  # HEAD — exactly the signal the stamp exists to replace, because the launchd
-  # sync usually advances the checkout first. Anything the containers were behind
-  # by BEFORE this run is not in PRE..NEW and gets skipped. Deploying the range is
-  # still the best effort available; claiming it is complete is not.
-  echo "[deploy-live] WARNING: no deploy stamp — deploying ${OLD:0:12}..${NEW:0:12} as a best effort."
-  echo "[deploy-live] Cannot tell whether the containers were current before this run. If anything"
-  echo "[deploy-live] looks stale afterwards, deploy an explicit range: scripts/deploy-live.sh <old-sha> ${NEW:0:12}"
-fi
-
-if [ "$OLD" = "$NEW" ]; then
-  if [ "${STAMP_BOOTSTRAP:-0}" = "1" ]; then
-    # No stamp yet, so "checkout did not move" is the ONLY signal available —
-    # and it is the unreliable one. Say so instead of reporting a clean no-op:
-    # if a sync already advanced the checkout, the containers may still be stale.
-    echo "[deploy-live] no deploy stamp yet and the checkout did not move this run."
-    echo "[deploy-live] Cannot tell whether the containers are current. If they look stale,"
-    echo "[deploy-live] deploy an explicit range: scripts/deploy-live.sh <old-sha> ${NEW:0:12}"
-    if [ "$DRY_RUN" = "1" ]; then
-      echo "[deploy-live] DRY RUN — would stamp ${NEW:0:12} for later runs to compare against."
-    else
-      printf '%s\n' "$NEW" > "$STAMP"
-      echo "[deploy-live] stamped ${NEW:0:12} — later runs will compare against it."
-    fi
-    assert_stack_health || exit 1
-    exit 0
-  fi
-  echo "[deploy-live] containers already serve ${NEW:0:12} — nothing to deploy"
-  assert_stack_health || exit 1
-  exit 0
-fi
-
-CHANGED="$(git diff --name-only "$OLD".."$NEW")"
-echo "[deploy-live] ${OLD:0:12} -> ${NEW:0:12} ($(wc -l <<<"$CHANGED" | tr -d ' ') files)"
+echo "[deploy-live] checkout at ${NEW:0:12}"
 
 # Compose service -> action, derived from docker-compose.yml (2026-08-03):
 # bind-mounted source => restart; baked COPY => build. Keep in step with compose.
 RESTART_SET=""
 BUILD_SET=""
 NOTES=""
+SERVICE_CANDIDATES="demo-api-server promptfoo-step-narration ui ping-gateway ping-mcpgw mcp-server mcp-gateway mcp-jwt-verifier mcp-proxy mcp-resource-server mcp-weather demo-mcp-code-search api-resource-server authz-server agent-service hitl-service langchain-agent llamaindex-agent mastra-agent openai-agent pydantic-agent ungoverned-agent mcp-brave prometheus alertmanager alloy grafana llm-proxy"
+[ -n "${TARGET_SERVICES// /}" ] || TARGET_SERVICES="$SERVICE_CANDIDATES"
+for _requested in $TARGET_SERVICES; do
+  case " $SERVICE_CANDIDATES " in
+    *" $_requested "*) ;;
+    *) echo "[deploy-live] unknown service in --services: $_requested" >&2; exit 2 ;;
+  esac
+done
 
 # Compose services that run-docker.sh deliberately does NOT manage.
 #
@@ -193,9 +169,8 @@ is_unmanaged_by_run_docker() { case "$UNMANAGED_BY_RUN_DOCKER" in *" $1 "*) retu
 
 # Returns non-zero, and schedules nothing, for a service run-docker.sh cannot
 # take — the ONE choke point, so a future caller cannot reintroduce the abort.
-# Returns non-zero, and schedules nothing, for a service run-docker.sh cannot
-# take — the ONE choke point, so a future caller cannot reintroduce the abort.
 add_restart() {
+  [ -z "${CURRENT_SERVICE:-}" ] || [ "$1" = "$CURRENT_SERVICE" ] || return 0
   if is_unmanaged_by_run_docker "$1"; then
     note "$1 needs recreating but run-docker.sh does not manage it — do it directly: docker compose up -d $1"
     return 1
@@ -203,9 +178,30 @@ add_restart() {
   case " $RESTART_SET " in *" $1 "*) ;; *) RESTART_SET="$RESTART_SET $1" ;; esac
   return 0
 }
-add_build()   { case " $BUILD_SET "   in *" $1 "*) ;; *) BUILD_SET="$BUILD_SET $1"   ;; esac; }
+add_build()   { [ -z "${CURRENT_SERVICE:-}" ] || [ "$1" = "$CURRENT_SERVICE" ] || return 0; case " $BUILD_SET "   in *" $1 "*) ;; *) BUILD_SET="$BUILD_SET $1"   ;; esac; }
 note()        { NOTES="${NOTES}[deploy-live] note: $1"$'\n'; }
 
+MANUAL_FILE="$(mktemp)"
+UNINITIALIZED_FILE="$(mktemp)"
+SERVICES_TO_STAMP=""
+for CURRENT_SERVICE in $SERVICE_CANDIDATES; do
+  deploy_live_service_selected "$CURRENT_SERVICE" || continue
+  SERVICE_OLD="$OLD"
+  if [ -z "$SERVICE_OLD" ]; then
+    SERVICE_OLD="$(deploy_live_service_old "$STATE_ROOT" "$CURRENT_SERVICE" "$STAMP")"
+  fi
+  if [ -z "$SERVICE_OLD" ]; then
+    SERVICE_OLD="${PRE:-$NEW}"
+    [ "$SERVICE_OLD" = "$NEW" ] && echo "$CURRENT_SERVICE" >> "$UNINITIALIZED_FILE"
+  elif ! git cat-file -e "$SERVICE_OLD^{commit}" 2>/dev/null; then
+    echo "[deploy-live] ignoring invalid stamp for $CURRENT_SERVICE; using the checkout pre-sync point"
+    SERVICE_OLD="${PRE:-$NEW}"
+    [ "$SERVICE_OLD" = "$NEW" ] && echo "$CURRENT_SERVICE" >> "$UNINITIALIZED_FILE"
+  fi
+  CHANGED="$(git diff --name-only "$SERVICE_OLD".."$NEW")"
+  if [ -n "$CHANGED" ]; then
+    echo "[deploy-live] $CURRENT_SERVICE ${SERVICE_OLD:0:12} -> ${NEW:0:12} ($(wc -l <<<"$CHANGED" | tr -d ' ') files)"
+  fi
 
 while IFS= read -r f; do
   [ -z "$f" ] && continue
@@ -282,6 +278,7 @@ while IFS= read -r f; do
       : ;; # self-polled every 30s — see the block comment above
     # ── needs a human decision ───────────────────────────────────────────────
     docker-compose.yml|docker-compose.*.yml)
+      echo "$CURRENT_SERVICE" >> "$MANUAL_FILE"
       note "compose file changed ($f) — decide the blast radius yourself (./run-docker.sh restart <svc> or full restart)" ;;
     *) : ;; # docs, tests, host-only scripts, snapshots — nothing to deploy
   esac
@@ -300,7 +297,7 @@ done <<<"$CHANGED"
 # deploy rather than warn. compose-env-diff.js answers which services changed.
 if grep -qx 'docker-compose.yml' <<<"$CHANGED"; then
   _old_compose="$(mktemp)"; _new_compose="$(mktemp)"
-  git show "$OLD:docker-compose.yml" > "$_old_compose" 2>/dev/null || : > "$_old_compose"
+  git show "$SERVICE_OLD:docker-compose.yml" > "$_old_compose" 2>/dev/null || : > "$_old_compose"
   git show "$NEW:docker-compose.yml" > "$_new_compose" 2>/dev/null || : > "$_new_compose"
   # Never let this fail silently: a swallowed error here restores exactly the
   # invisible staleness the block exists to end.
@@ -318,6 +315,8 @@ if grep -qx 'docker-compose.yml' <<<"$CHANGED"; then
   fi
   rm -f "$_old_compose" "$_new_compose"
 fi
+  SERVICES_TO_STAMP="$SERVICES_TO_STAMP $CURRENT_SERVICE"
+done
 
 # Only touch services whose container is actually running.
 running_containers="$(docker ps --format '{{.Names}}' 2>/dev/null || true)"
@@ -346,7 +345,8 @@ all_containers="$(docker ps -a --format '{{.Names}}' 2>/dev/null || true)"
 # which survive the subshell.
 BROKEN_FILE="$(mktemp)"
 SKIP_NOTES_FILE="$(mktemp)"
-trap 'rm -rf "$LOCK" "$BROKEN_FILE" "$SKIP_NOTES_FILE"' EXIT
+UNAVAILABLE_FILE="$(mktemp)"
+trap 'rm -rf "$LOCK" "$BROKEN_FILE" "$SKIP_NOTES_FILE" "$UNAVAILABLE_FILE" "$MANUAL_FILE" "$UNINITIALIZED_FILE"' EXIT
 
 filter_running() {
   local out="" svc name
@@ -363,6 +363,7 @@ filter_running() {
       echo "$svc" >> "$BROKEN_FILE"
       echo "[deploy-live] note: $svc changed but its container exists and is NOT running — it cannot take this deploy" >> "$SKIP_NOTES_FILE"
     else
+      echo "$svc" >> "$UNAVAILABLE_FILE"
       echo "[deploy-live] note: $svc changed but its container is not running — skipped (start it via run-docker.sh if wanted)" >> "$SKIP_NOTES_FILE"
     fi
   done
@@ -378,6 +379,26 @@ done
 [ -n "$NOTES" ] && printf '%s' "$NOTES"
 [ -s "$SKIP_NOTES_FILE" ] && cat "$SKIP_NOTES_FILE"
 BROKEN_SET="$(sort -u "$BROKEN_FILE" 2>/dev/null | tr '\n' ' ' | sed 's/ *$//')"
+MANUAL_SET="$(sort -u "$MANUAL_FILE" 2>/dev/null | tr '\n' ' ' | sed 's/ *$//')"
+UNAVAILABLE_SET="$(sort -u "$UNAVAILABLE_FILE" 2>/dev/null | tr '\n' ' ' | sed 's/ *$//')"
+UNINITIALIZED_SET="$(sort -u "$UNINITIALIZED_FILE" 2>/dev/null | tr '\n' ' ' | sed 's/ *$//')"
+NOT_UP=""
+
+stamp_successful_services() {
+  local svc
+  [ "$DRY_RUN" = "1" ] && return 0
+  for svc in $SERVICES_TO_STAMP; do
+    case " $BROKEN_SET $MANUAL_SET $UNAVAILABLE_SET $UNINITIALIZED_SET $NOT_UP " in
+      *" $svc "*) continue ;;
+    esac
+    deploy_live_write_service_stamp "$STATE_ROOT" "$svc" "$NEW"
+  done
+  # Keep the legacy marker useful for older checkouts and as the migration
+  # fallback, but never let a targeted deployment claim the whole stack.
+  if [ "$TARGET_MODE" = "0" ] && [ -z "${BROKEN_SET// /}" ] && [ -z "${MANUAL_SET// /}" ] && [ -z "${UNAVAILABLE_SET// /}" ] && [ -z "${UNINITIALIZED_SET// /}" ] && [ -z "${NOT_UP// /}" ]; then
+    printf '%s\n' "$NEW" > "$STAMP"
+  fi
+}
 
 if [ -z "${RESTART_SET// /}" ] && [ -z "${BUILD_SET// /}" ]; then
   # "Nothing to touch" is only good news when nothing NEEDED touching. If a
@@ -385,12 +406,12 @@ if [ -z "${RESTART_SET// /}" ] && [ -z "${BUILD_SET// /}" ]; then
   # would record those changes as deployed and every later run would skip them —
   # the stale-under-a-success-line failure this script exists to end.
   if [ -n "${BROKEN_SET// /}" ]; then
-    echo "[deploy-live] NOT stamping: $BROKEN_SET changed but is not running."
+    echo "[deploy-live] NOT stamping:${BROKEN_SET:+ $BROKEN_SET changed but is not running.}${MANUAL_SET:+ $MANUAL_SET requires manual recreation.}"
     echo "[deploy-live] Start it, then re-run — until then this range is undeployed:"
-    echo "[deploy-live]   ./run-docker.sh restart $BROKEN_SET"
+    [ -n "${BROKEN_SET// /}" ] && echo "[deploy-live]   ./run-docker.sh restart $BROKEN_SET"
     exit 1
   fi
-  [ "$DRY_RUN" = "1" ] || printf '%s\n' "$NEW" > "$STAMP"
+  stamp_successful_services
   echo "[deploy-live] no running service is affected by this range — done"
   assert_stack_health || exit 1
   exit 0
@@ -494,12 +515,11 @@ for _ in $(seq 1 15); do
 done
 if [ -n "${NOT_UP// /}" ] || [ -n "${BROKEN_SET// /}" ]; then
   echo "[deploy-live] deploy INCOMPLETE — not up:${NOT_UP:-  (none)}${BROKEN_SET:+  not running: $BROKEN_SET}"
-  echo "[deploy-live] stamp left at ${OLD:0:12} so the next run retries this range."
+  echo "[deploy-live] affected service stamps were left behind so the next run retries them."
   exit 1
 fi
-# Stamp first: the touched services DID take this range, and withholding the
-# stamp over an unrelated dead container would make later runs re-deploy code
-# that already landed. The non-zero exit is the escalation, not the stamp.
-printf '%s\n' "$NEW" > "$STAMP"
+# Stamp only services that completed successfully; an unrelated service can
+# remain behind without causing this service to rebuild on the next run.
+stamp_successful_services
 assert_stack_health || exit 1
 echo "[deploy-live] done — live stack serves ${NEW:0:12}"
