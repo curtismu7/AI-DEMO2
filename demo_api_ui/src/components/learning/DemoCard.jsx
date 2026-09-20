@@ -121,11 +121,7 @@ export default function DemoCard({
         </Link>
       </div>
 
-      {!availability.evidenceSupported && (
-        <p className="demo-card__action-status">
-          {availability.evidenceDetail}
-        </p>
-      )}
+      <p className="demo-card__action-status">{availability.evidenceDetail}</p>
 
       {statusText && (
         <p

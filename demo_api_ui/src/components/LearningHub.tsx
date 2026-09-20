@@ -637,29 +637,56 @@ export default function LearningHub() {
 
         <LearningHubAgent />
 
-        {!searchQuery && (
-          <section className="learning-hub__path" aria-labelledby="learning-hub-path-title">
-            <div className="learning-hub__path-header">
-              <div>
-                <span className="learning-hub__path-eyebrow">Recommended path</span>
-                <h2 id="learning-hub-path-title">Secure one agent action from identity to evidence</h2>
+        {!searchQuery.trim() && (
+          <>
+            <section className="learning-hub__academy-entry" aria-labelledby="learning-hub-academy-title">
+              <div className="learning-hub__academy-copy">
+                <span className="learning-hub__academy-eyebrow">AI Security Academy</span>
+                <h2 id="learning-hub-academy-title">See agent security controls work together</h2>
+                <p>
+                  Follow a guided customer story from agent identity and delegated access through
+                  policy, MCP enforcement, approval, and audit evidence. Every stop opens a working
+                  demo surface or a clearly labeled bounded evidence check.
+                </p>
+                <div className="learning-hub__academy-actions">
+                  <Link className="learning-hub__academy-primary" to="/academy/journey">
+                    Start guided journey
+                  </Link>
+                  <Link className="learning-hub__academy-secondary" to="/academy/demos">
+                    Open standalone demos
+                  </Link>
+                </div>
               </div>
-              <p>
-                A four-stop customer story using the live surfaces already in this demo.
-                Run it in order, then branch into the topic cards below.
-              </p>
-            </div>
-            <div className="learning-hub__path-grid">
-              {RECOMMENDED_PATH.map((item) => (
-                <article className="learning-hub__path-card" key={item.step}>
-                  <span className="learning-hub__path-step">{item.step}</span>
-                  <h3>{item.title}</h3>
-                  <p>{item.detail}</p>
-                  <Link to={item.href}>{item.cta}</Link>
-                </article>
-              ))}
-            </div>
-          </section>
+              <div className="learning-hub__academy-proof" aria-label="Academy learning outcomes">
+                <span>What you will prove</span>
+                <strong>Who acted, what was allowed, and what happened next.</strong>
+                <small>Live links, read-only evidence checks, and honest demo boundaries.</small>
+              </div>
+            </section>
+
+            <section className="learning-hub__path" aria-labelledby="learning-hub-path-title">
+              <div className="learning-hub__path-header">
+                <div>
+                  <span className="learning-hub__path-eyebrow">Recommended path</span>
+                  <h2 id="learning-hub-path-title">Secure one agent action from identity to evidence</h2>
+                </div>
+                <p>
+                  A four-stop customer story using the live surfaces already in this demo.
+                  Run it in order, then branch into the topic cards below.
+                </p>
+              </div>
+              <div className="learning-hub__path-grid">
+                {RECOMMENDED_PATH.map((item) => (
+                  <article className="learning-hub__path-card" key={item.step}>
+                    <span className="learning-hub__path-step">{item.step}</span>
+                    <h3>{item.title}</h3>
+                    <p>{item.detail}</p>
+                    <Link to={item.href}>{item.cta}</Link>
+                  </article>
+                ))}
+              </div>
+            </section>
+          </>
         )}
 
         <div className="learning-hub__search">
