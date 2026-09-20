@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { SessionTokenProvider } from "../context/SessionTokenContext";
 import { ThemeProvider } from "../context/ThemeContext";
 import { PROVENANCE } from "../learning/provenance";
@@ -20,6 +20,14 @@ const readiness = {
   ready: false,
   warnings: [],
 };
+
+function deferred() {
+  let resolve;
+  const promise = new Promise((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
 
 function LocationProbe() {
   const location = useLocation();
@@ -165,6 +173,36 @@ describe("GuidedJourneyPage", () => {
     expect(screen.getByText("0 captured lesson runs")).toBeInTheDocument();
   });
 
+  it("does not restore an in-flight result after the journey restarts", async () => {
+    const pendingRun = deferred();
+    renderJourney("/academy/journey?step=ai-architecture", {
+      executeLesson: () => pendingRun.promise,
+    });
+    await screen.findByText("Needs attention");
+
+    fireEvent.click(screen.getByRole("button", { name: "Run live lesson" }));
+    expect(screen.getByText("Running")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Restart journey" }));
+
+    await act(async () => {
+      pendingRun.resolve({
+        provenance: PROVENANCE.SIMULATED,
+        evidence: ["Stale architecture trace"],
+        result: { kind: "observation", status: "observed" },
+        warnings: [],
+      });
+      await pendingRun.promise;
+    });
+    for (let index = 0; index < 8; index += 1) {
+      fireEvent.click(screen.getByRole("button", { name: "Next step" }));
+    }
+
+    expect(screen.getByText("0 captured lesson runs")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Stale architecture trace"),
+    ).not.toBeInTheDocument();
+  });
+
   it("preserves non-cloud provenance in the journey evidence summary", async () => {
     const executeLesson = vi.fn().mockResolvedValue({
       provenance: PROVENANCE.SIMULATED,
@@ -186,6 +224,22 @@ describe("GuidedJourneyPage", () => {
     expect(screen.queryByText("LIVE CLOUD")).not.toBeInTheDocument();
   });
 
+  it("excludes the final summary stage from the itemized evidence count", async () => {
+    const executeLesson = vi.fn().mockResolvedValue({
+      provenance: PROVENANCE.SIMULATED,
+      evidence: ["Summary-stage architecture trace"],
+      result: { kind: "observation", status: "observed" },
+      warnings: [],
+    });
+    renderJourney("/academy/journey?step=product-map", { executeLesson });
+    await screen.findByText("Needs attention");
+
+    fireEvent.click(screen.getByRole("button", { name: "Run live lesson" }));
+    expect(await screen.findByText("Run captured")).toBeInTheDocument();
+
+    expect(screen.getByText("0 captured lesson runs")).toBeInTheDocument();
+  });
+
   it("keeps readiness and live-run failures explicit and non-cloud", async () => {
     const executeLesson = vi
       .fn()
@@ -203,19 +257,26 @@ describe("GuidedJourneyPage", () => {
     expect(screen.queryByText("LIVE CLOUD")).not.toBeInTheDocument();
   });
 
-  it("renders the journey inside the existing public route chrome", async () => {
+  it("matches the public journey route and renders its query deep link inside existing chrome", async () => {
     render(
       <ThemeProvider>
         <SessionTokenProvider>
-          <MemoryRouter initialEntries={["/academy/journey"]}>
-            <GuidedJourneyRoute
-              user={null}
-              logout={() => {}}
-              journeyProps={{
-                loadReadiness: () => Promise.resolve(readiness),
-                readinessPollIntervalMs: 0,
-              }}
-            />
+          <MemoryRouter initialEntries={["/academy/journey?step=authorize"]}>
+            <Routes>
+              <Route
+                path="/academy/journey"
+                element={
+                  <GuidedJourneyRoute
+                    user={null}
+                    logout={() => {}}
+                    journeyProps={{
+                      loadReadiness: () => Promise.resolve(readiness),
+                      readinessPollIntervalMs: 0,
+                    }}
+                  />
+                }
+              />
+            </Routes>
           </MemoryRouter>
         </SessionTokenProvider>
       </ThemeProvider>,
@@ -227,6 +288,9 @@ describe("GuidedJourneyPage", () => {
         level: 1,
         name: "Guided customer journey",
       }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "PingOne Authorize" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Go to dashboard" }),

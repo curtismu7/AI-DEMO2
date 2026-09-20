@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import JourneyProgress from "../components/learning/JourneyProgress";
 import JourneyStep from "../components/learning/JourneyStep";
@@ -57,6 +57,7 @@ export default function GuidedJourneyPage({
   const [skipped, setSkipped] = useState(() => new Set());
   const [runResults, setRunResults] = useState({});
   const [journeyGeneration, setJourneyGeneration] = useState(0);
+  const journeyGenerationRef = useRef(0);
 
   const selectStep = (index, options = {}) => {
     const next = steps[index];
@@ -87,6 +88,7 @@ export default function GuidedJourneyPage({
   };
 
   const handleRestart = () => {
+    journeyGenerationRef.current += 1;
     setCompleted(new Set());
     setSkipped(new Set());
     setRunResults({});
@@ -96,8 +98,10 @@ export default function GuidedJourneyPage({
 
   const handleRun = async ({ reset, ...input }) => {
     const lessonId = activeStep.lesson.id;
+    const requestGeneration = journeyGenerationRef.current;
     if (reset) {
       const result = await resetExecution(lessonId);
+      if (requestGeneration !== journeyGenerationRef.current) return result;
       setRunResults((current) => {
         const next = { ...current };
         delete next[lessonId];
@@ -107,12 +111,14 @@ export default function GuidedJourneyPage({
     }
 
     const result = await executeLesson(lessonId, input);
+    if (requestGeneration !== journeyGenerationRef.current) return result;
     setRunResults((current) => ({ ...current, [lessonId]: result }));
     return result;
   };
 
-  const capturedRuns = Object.values(runResults).filter(
-    (result) => result?.result?.status === "observed",
+  const evidenceSteps = steps.slice(0, -1);
+  const capturedRuns = evidenceSteps.filter(
+    (step) => runResults[step.lesson.id]?.result?.status === "observed",
   );
   const summary =
     activeIndex === steps.length - 1 ? (
@@ -134,7 +140,7 @@ export default function GuidedJourneyPage({
           </strong>
         </div>
         <ul>
-          {steps.slice(0, -1).map((step) => {
+          {evidenceSteps.map((step) => {
             const result = runResults[step.lesson.id];
             const observed = result?.result?.status === "observed";
             let detail = "Not visited";
