@@ -43,6 +43,25 @@ describe("LearningHub training path", () => {
     );
   });
 
+  it("puts the working AI Security Academy journey beside the learning path", () => {
+    render(
+      <MemoryRouter initialEntries={["/learning"]}>
+        <LearningHub />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("AI Security Academy", { exact: true })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /see agent security controls work together/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /start guided journey/i })).toHaveAttribute(
+      "href",
+      "/academy/journey",
+    );
+    expect(screen.getByRole("link", { name: /open standalone demos/i })).toHaveAttribute(
+      "href",
+      "/academy/demos",
+    );
+  });
+
   it("labels cards by execution status and searches protocol metadata", () => {
     render(
       <MemoryRouter initialEntries={["/learning"]}>
