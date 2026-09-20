@@ -1,0 +1,248 @@
+.shadow-detector-page {
+  --shadow-ink: var(--th-text);
+  --shadow-muted: var(--th-text-muted);
+  --shadow-line: var(--th-border);
+  --shadow-surface: var(--th-bg-card);
+  --shadow-accent: #de6257;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 3.5rem 2rem 5rem;
+  color: var(--shadow-ink);
+}
+
+.shadow-detector-hero {
+  max-width: 820px;
+  padding: 1.5rem 0 3rem;
+}
+
+.shadow-detector-kicker {
+  margin: 0 0 1rem;
+  color: var(--shadow-accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.shadow-detector-hero h1 {
+  margin: 0;
+  font-size: clamp(2.5rem, 6vw, 5.5rem);
+  line-height: 0.98;
+  letter-spacing: -0.06em;
+}
+
+.shadow-detector-lede {
+  max-width: 720px;
+  margin: 1.5rem 0 0;
+  color: var(--shadow-muted);
+  font-size: 1.18rem;
+  line-height: 1.65;
+}
+
+.shadow-detector-hero-note {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  max-width: 640px;
+  margin-top: 1.75rem;
+  padding: 1rem 1.1rem;
+  border-left: 3px solid var(--shadow-accent);
+  background: color-mix(in srgb, var(--shadow-accent) 9%, var(--shadow-surface));
+  line-height: 1.5;
+}
+
+.shadow-detector-section {
+  padding: 2.5rem 0;
+  border-top: 1px solid var(--shadow-line);
+}
+
+.shadow-detector-section-heading {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+  margin-bottom: 1.75rem;
+}
+
+.shadow-detector-index {
+  color: var(--shadow-accent);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding-top: 0.35rem;
+}
+
+.shadow-detector-section h2 {
+  margin: 0;
+  font-size: clamp(1.55rem, 3vw, 2.25rem);
+  letter-spacing: -0.03em;
+}
+
+.shadow-detector-section-heading p {
+  max-width: 650px;
+  margin: 0.55rem 0 0;
+  color: var(--shadow-muted);
+  line-height: 1.55;
+}
+
+.shadow-detector-signal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--shadow-line);
+  background: var(--shadow-line);
+}
+
+.shadow-detector-signal {
+  min-height: 220px;
+  padding: 1.5rem;
+  background: var(--shadow-surface);
+}
+
+.shadow-detector-signal:last-child {
+  grid-column: 1 / -1;
+}
+
+.shadow-detector-signal h3 {
+  margin: 0;
+  font-size: 1.12rem;
+}
+
+.shadow-detector-signal p {
+  margin: 0.8rem 0 1.5rem;
+  color: var(--shadow-muted);
+  line-height: 1.6;
+}
+
+.shadow-detector-signal dl {
+  margin: 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--shadow-line);
+}
+
+.shadow-detector-signal dt {
+  color: var(--shadow-accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.shadow-detector-signal dd {
+  margin: 0.35rem 0 0;
+  color: var(--shadow-muted);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.shadow-detector-score-table {
+  max-width: 780px;
+  border-top: 1px solid var(--shadow-line);
+}
+
+.shadow-detector-score-row {
+  display: grid;
+  grid-template-columns: 120px 100px minmax(0, 1fr);
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--shadow-line);
+}
+
+.shadow-detector-score-row span,
+.shadow-detector-score-row strong {
+  font-size: 0.95rem;
+}
+
+.shadow-detector-score-row span:last-child {
+  color: var(--shadow-muted);
+}
+
+.shadow-detector-score-row--critical strong,
+.shadow-detector-score-row--high strong {
+  color: var(--shadow-accent);
+}
+
+.shadow-detector-rule-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem 2.5rem;
+  max-width: 900px;
+  margin: 0;
+  padding-left: 1.2rem;
+  line-height: 1.55;
+}
+
+.shadow-detector-limits {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+  max-width: 900px;
+}
+
+.shadow-detector-limits p {
+  margin: 0;
+  color: var(--shadow-muted);
+  line-height: 1.65;
+}
+
+.shadow-detector-telemetry-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+  max-width: 900px;
+}
+
+.shadow-detector-telemetry-grid > div {
+  padding: 1.25rem;
+  border: 1px solid var(--shadow-line);
+  background: var(--shadow-surface);
+}
+
+.shadow-detector-telemetry-grid h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.shadow-detector-telemetry-grid p {
+  margin: 0.65rem 0 0;
+  color: var(--shadow-muted);
+  line-height: 1.6;
+}
+
+.shadow-detector-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--shadow-line);
+  color: var(--shadow-muted);
+  font-size: 0.82rem;
+}
+
+.shadow-detector-footer strong {
+  color: var(--shadow-ink);
+}
+
+@media (max-width: 700px) {
+  .shadow-detector-page {
+    padding: 2rem 1rem 3rem;
+  }
+
+  .shadow-detector-signal-grid,
+  .shadow-detector-rule-list,
+  .shadow-detector-limits,
+  .shadow-detector-telemetry-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .shadow-detector-signal:last-child {
+    grid-column: auto;
+  }
+
+  .shadow-detector-score-row {
+    grid-template-columns: 90px 70px minmax(0, 1fr);
+    gap: 0.55rem;
+  }
+}
