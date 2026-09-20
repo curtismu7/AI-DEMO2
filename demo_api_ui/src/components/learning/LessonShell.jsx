@@ -36,6 +36,14 @@ function getFallbackDetail(lesson) {
   return `Fallback: ${fallback.label}`;
 }
 
+function formatEvidence(event) {
+  if (!event || typeof event !== "object") return String(event);
+  if (typeof event.label === "string" && Number.isFinite(event.count)) {
+    return `${event.label}: ${event.count}`;
+  }
+  return JSON.stringify(event);
+}
+
 export default function LessonShell({ lesson, mode = "guided", children, evidence, onRun, onModeChange }) {
   const initialMode = MODE_VALUES.has(mode) ? mode : "guided";
   const [activeMode, setActiveMode] = useState(initialMode);
@@ -110,7 +118,7 @@ export default function LessonShell({ lesson, mode = "guided", children, evidenc
     if (Array.isArray(observedEvidence)) {
       return (
         <ol className="lesson-shell__evidence-list">
-          {observedEvidence.map((event, index) => <li key={`${String(event)}-${index}`}>{String(event)}</li>)}
+          {observedEvidence.map((event, index) => <li key={`${formatEvidence(event)}-${index}`}>{formatEvidence(event)}</li>)}
         </ol>
       );
     }

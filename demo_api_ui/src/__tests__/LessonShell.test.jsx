@@ -9,6 +9,16 @@ import { getLesson } from "../learning/lessonCatalog";
 import { PROVENANCE } from "../learning/provenance";
 import LessonShell from "../components/learning/LessonShell";
 
+const { runLesson, resetLesson } = vi.hoisted(() => ({
+  runLesson: vi.fn(),
+  resetLesson: vi.fn(),
+}));
+
+vi.mock("../services/lessonExecutionService", () => ({
+  runLesson,
+  resetLesson,
+}));
+
 vi.mock("../vertical/useVertical", () => ({
   useVertical: () => ({ pageManifest: null }),
 }));
@@ -67,6 +77,27 @@ function renderAcademyRoute(initialEntries) {
 }
 
 describe("LessonShell", () => {
+  it("connects an individual Academy lesson to the shared evidence runner", async () => {
+    runLesson.mockResolvedValueOnce({
+      provenance: PROVENANCE.LIVE_LOCAL,
+      evidence: [{ label: "Token events", status: "observed", count: 2 }],
+      result: { kind: "observation", status: "observed" },
+    });
+
+    renderAcademyRoute(["/academy/delegation/guided"]);
+
+    const runButton = screen.getByRole("button", { name: /Run live lesson/i });
+    expect(runButton).toBeEnabled();
+    fireEvent.click(runButton);
+
+    await waitFor(() => expect(screen.getByText("Run captured")).toBeInTheDocument());
+    expect(runLesson).toHaveBeenCalledWith("delegation", {
+      lesson: expect.objectContaining({ id: "delegation" }),
+      mode: "guided",
+    });
+    expect(screen.getByText("Token events: 2")).toBeInTheDocument();
+  });
+
   it("switches between guided and standalone presentation without remounting lesson content", () => {
     renderShell();
 

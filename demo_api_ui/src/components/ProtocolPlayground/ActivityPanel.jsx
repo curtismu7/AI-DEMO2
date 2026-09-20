@@ -157,6 +157,7 @@ export default function ActivityPanel({ results, error, dark = false }) {
             onClick={() => setPoppedOut(true)}
             disabled={poppedOut}
             title="Open the token chain in a window you can move and resize"
+            aria-label={poppedOut ? "Token chain is open in a window" : undefined}
           >
             🪟 Pop out
           </button>
@@ -184,6 +185,7 @@ export default function ActivityPanel({ results, error, dark = false }) {
         onClose={() => setPoppedOut(false)}
         title="Token chain"
         noBackdrop
+        disablePopOut={poppedOut}
         footer={null}
         defaultWidth={640}
         defaultHeight={560}
