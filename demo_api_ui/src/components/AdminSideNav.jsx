@@ -166,7 +166,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "ai-agents", paths: ["/ai-control-plane", "/control-plane", "/agent-registry", "/agent", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
   { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client", "/llm-gateway", "/llm-test", "/privilege-mcp-learning"] },
   { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
-  { id: "banking-mcp-gateways", paths: ["/agent-gateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities", "/agent-gateway-authorization"] },
+  { id: "banking-mcp-gateways", paths: ["/agent-gateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities", "/agent-gateway-authorization", "/mcp-discovery"] },
   { id: "pingone-demo-apps", paths: ["/self-service", "/pingone-test", "/mfa-test", "/token-exchange-tester", "/oauth-academy", "/oas-demo", "/privilege-demo", "/sdk-login"] },
   { id: "delegation-consent", paths: ["/transaction-consent", "/actor-token-education"] },
   { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
@@ -672,6 +672,12 @@ export default function AdminSideNav({
           icon: "rte",
         },
         { label: "Capability Tour", path: "/agent-gateway-capabilities", icon: "shld" },
+        {
+          label: "MCP Runtime Inventory",
+          path: "/mcp-discovery",
+          icon: "mcp",
+          searchAlias: "runtime discovery servers host processes local listeners remote URLs",
+        },
       ],
     },
     {

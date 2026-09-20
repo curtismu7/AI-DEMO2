@@ -88,6 +88,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "Ping AI Test Lab",
       "Agent Gateway Inspector",
       "Capability Tour",
+      "MCP Runtime Inventory",
     ],
   },
   {
