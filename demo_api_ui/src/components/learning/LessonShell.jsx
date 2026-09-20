@@ -7,20 +7,23 @@ import "./LessonShell.css";
 
 const MODE_VALUES = new Set(["guided", "standalone"]);
 const PROVENANCE_VALUES = new Set(Object.values(PROVENANCE));
+const RUN_RESULT_STATUSES = new Set(["observed", "no-evidence", "not-run", "unavailable"]);
 
 export function normalizeLessonRunResult(result) {
   if (
     !result ||
     typeof result !== "object" ||
-    !PROVENANCE_VALUES.has(result.provenance) ||
     !("evidence" in result) ||
-    !("result" in result)
+    !result.result ||
+    typeof result.result !== "object" ||
+    !RUN_RESULT_STATUSES.has(result.result.status) ||
+    (result.result.status === "observed" && !PROVENANCE_VALUES.has(result.provenance))
   ) {
     return null;
   }
 
   return {
-    provenance: result.provenance,
+    provenance: result.result.status === "observed" ? result.provenance : null,
     evidence: result.evidence,
     result: result.result,
     warnings: Array.isArray(result.warnings) ? result.warnings : [],
@@ -31,6 +34,14 @@ function getFallbackDetail(lesson) {
   const fallback = lesson?.fallback;
   if (!fallback) return "Fallback behavior is not configured yet.";
   return `Fallback: ${fallback.label}`;
+}
+
+function formatEvidence(event) {
+  if (!event || typeof event !== "object") return String(event);
+  if (typeof event.label === "string" && Number.isFinite(event.count)) {
+    return `${event.label}: ${event.count}`;
+  }
+  return JSON.stringify(event);
 }
 
 export default function LessonShell({ lesson, mode = "guided", children, evidence, onRun, onModeChange }) {
@@ -64,12 +75,17 @@ export default function LessonShell({ lesson, mode = "guided", children, evidenc
         setRunError("No normalized run result was returned.");
         return;
       }
+      if (normalized.result.status !== "observed") {
+        setRunState(normalized.result.status);
+        setRunError(normalized.warnings[0] || "No lesson evidence was captured.");
+        return;
+      }
       setObservedResult(normalized);
       setRunState("complete");
     } catch {
       if (generation !== requestGeneration.current) return;
       setRunState("error");
-      setRunError("Live run failed.");
+      setRunError("Evidence check failed.");
     }
   };
 
@@ -102,7 +118,7 @@ export default function LessonShell({ lesson, mode = "guided", children, evidenc
     if (Array.isArray(observedEvidence)) {
       return (
         <ol className="lesson-shell__evidence-list">
-          {observedEvidence.map((event, index) => <li key={`${String(event)}-${index}`}>{String(event)}</li>)}
+          {observedEvidence.map((event, index) => <li key={`${formatEvidence(event)}-${index}`}>{formatEvidence(event)}</li>)}
         </ol>
       );
     }
@@ -128,8 +144,10 @@ export default function LessonShell({ lesson, mode = "guided", children, evidenc
           provenance={observedResult?.provenance}
           detail={
             observedResult
-              ? `Observed run result. ${getFallbackDetail(lesson)}`
-              : "Policy: cloud tenant preferred. No live execution is connected."
+              ? `Observed evidence snapshot. ${getFallbackDetail(lesson)}`
+              : onRun
+                ? "Read-only evidence check connected. No lesson action runs here."
+                : "No direct evidence check is connected. Use the linked demo to run this lesson."
           }
         />
         <span
@@ -137,11 +155,13 @@ export default function LessonShell({ lesson, mode = "guided", children, evidenc
           role="status"
           aria-live="polite"
         >
-          {runState === "ready" && "Ready to run"}
-          {runState === "unavailable" && "Ready to configure"}
-          {runState === "running" && "Running"}
+          {runState === "ready" && "Ready to check evidence"}
+          {runState === "running" && "Checking evidence"}
           {runState === "resetting" && "Resetting"}
-          {runState === "complete" && "Run captured"}
+          {runState === "complete" && "Evidence captured"}
+          {runState === "no-evidence" && runError}
+          {runState === "not-run" && runError}
+          {runState === "unavailable" && (runError || "Ready to configure")}
           {runState === "error" && runError}
           {runState === "reset-error" && "Reset failed"}
         </span>
@@ -152,9 +172,9 @@ export default function LessonShell({ lesson, mode = "guided", children, evidenc
           <div className="lesson-shell__content-inner">{children}</div>
           <div className="lesson-shell__actions">
             <button type="button" className="lesson-shell__run-button" onClick={handleRun} disabled={!onRun || runState === "running" || runState === "resetting"}>
-              {runState === "running" ? "Running…" : "Run live lesson"}
+              {runState === "running" ? "Checking evidence…" : "Check live evidence"}
             </button>
-            <button type="button" className="lesson-shell__reset-button" onClick={handleReset} disabled={runState === "resetting"}>
+            <button type="button" className="lesson-shell__reset-button" onClick={handleReset} disabled={!onRun || runState === "resetting"}>
               Reset demo
             </button>
             {activeMode === "standalone" ? (

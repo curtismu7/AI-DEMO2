@@ -2,6 +2,14 @@ import { Navigate, useNavigate, useParams } from "react-router-dom";
 import TopNav from "../components/TopNav";
 import LessonShell from "../components/learning/LessonShell";
 import { getLesson } from "../learning/lessonCatalog";
+import GuidedJourneyPage from "../pages/GuidedJourneyPage";
+import StandaloneDemoLauncherPage from "../pages/StandaloneDemoLauncherPage";
+import {
+  canObserveLesson,
+  resetLesson,
+  runLesson,
+} from "../services/lessonExecutionService";
+import AppShell from "./AppShell";
 
 export function normalizeAcademyMode(routeMode) {
   if (routeMode === undefined) return "guided";
@@ -26,6 +34,14 @@ export function AcademyLessonRoute({ loading, user, logout }) {
             lesson={lesson}
             mode={mode}
             onModeChange={(nextMode) => navigate(`/academy/${lessonId}/${nextMode}`)}
+            onRun={
+              canObserveLesson(lesson.id)
+                ? ({ reset, ...input }) =>
+                    reset
+                      ? resetLesson(lesson.id)
+                      : runLesson(lesson.id, input)
+                : undefined
+            }
           >
             <p>{lesson.category}</p>
             <p>{lesson.talkingPoints[0]}</p>
@@ -38,5 +54,35 @@ export function AcademyLessonRoute({ loading, user, logout }) {
         </main>
       </>
     )
+  );
+}
+
+export function GuidedJourneyRoute({
+  loading = false,
+  user,
+  logout,
+  journeyProps,
+}) {
+  if (loading) return null;
+
+  return (
+    <AppShell user={user} logout={logout}>
+      <GuidedJourneyPage {...journeyProps} />
+    </AppShell>
+  );
+}
+
+export function StandaloneDemoLauncherRoute({
+  loading = false,
+  user,
+  logout,
+  launcherProps,
+}) {
+  if (loading) return null;
+
+  return (
+    <AppShell user={user} logout={logout}>
+      <StandaloneDemoLauncherPage {...launcherProps} />
+    </AppShell>
   );
 }

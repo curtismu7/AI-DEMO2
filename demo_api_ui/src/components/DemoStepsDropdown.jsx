@@ -435,6 +435,20 @@ export default function DemoStepsDropdown({
               </div>
             )}
             <div className="ba-demo-steps-popout__header-actions">
+              <div className="ba-demo-steps-popout__academy-links">
+                <a
+                  href="/academy/journey"
+                  className="ba-actions-trigger"
+                >
+                  Guided Journey
+                </a>
+                <a
+                  href="/academy/demos"
+                  className="ba-actions-trigger"
+                >
+                  Standalone Demos
+                </a>
+              </div>
               <div className="ba-demo-steps-popout__search">
                 <input
                   type="search"

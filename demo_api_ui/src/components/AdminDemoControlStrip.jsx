@@ -78,8 +78,8 @@ export default function AdminDemoControlStrip() {
       <button
         type="button"
         className="app-page-toolbar-btn"
-        title="Open Agent Demo Guide"
-        onClick={() => window.dispatchEvent(new CustomEvent("agent-demo-guide-open"))}
+        title="Open AI Security Academy"
+        onClick={() => navigate("/academy/journey")}
       >
         Guide
       </button>

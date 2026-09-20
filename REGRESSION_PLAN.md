@@ -169,6 +169,31 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-20 — Guided Journey restart invalidates pending lesson evidence
+
+**Files changed:** `demo_api_ui/src/pages/GuidedJourneyPage.jsx` and
+`demo_api_ui/src/__tests__/GuidedJourneyPage.test.jsx`.
+
+**What was broken:** Restart cleared the visible journey state, but an older
+lesson request could resolve afterward and repopulate the parent evidence
+summary. The summary-stage lesson was also included in the captured-run total
+without appearing in the itemized evidence rows.
+
+**What was fixed:** Journey restart now advances a parent request generation
+before clearing state, so completions from an older generation cannot mutate
+captured results. The captured-run total and itemized breakdown are both based
+on the eight evidence-bearing stages before the final summary. The public route
+test now resolves `/academy/journey` through a real React Router route mapping
+and verifies query deep-link rendering inside shared chrome.
+
+**Do not break:** A restarted journey must remain empty even when an earlier
+run settles late. Keep count and breakdown based on the same stages, preserve
+the public AppShell route and query deep links, and do not promote non-cloud
+provenance to live cloud.
+
+**Verify:** Focused Guided Journey and learning-contract Vitest suites,
+`npm run authz:verify`, and `cd demo_api_ui && npm run build`.
+
 ### 2026-09-20 — Flow Detail shows only PingOne product calls for a selected node
 
 **Files changed:** `demo_api_ui/src/components/TokenFlowDetailModal.jsx` and

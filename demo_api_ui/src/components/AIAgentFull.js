@@ -10149,17 +10149,19 @@ export default function BankingAgentFull({
                     </div>
                   )}
                 </div>
-                {/* Demo Guide trigger — stays inline. The 2026-07-24 Actions
+                {/* Academy trigger — stays inline. The 2026-07-24 Actions
                     dropdown removal deliberately moved header utility controls
                     out of a popout and inline; AIAgent.chips.test.js asserts
-                    Guide renders. It is not collapsed under More. On /admin the
-                    page's AdminDemoControlStrip hosts it instead. */}
+                    Guide renders. It is not collapsed under More. The route is
+                    the canonical presenter journey; the legacy compliance modal
+                    remains available from its pop-out route. On /admin the
+                    page's AdminDemoControlStrip hosts the same entry point. */}
                 {!pageOwnsAgentChrome && (
                 <button
                   type="button"
                   className={`ba-actions-trigger${showDemoGuide ? " active" : ""}`}
-                  title="Open Agent Demo Guide"
-                  onClick={() => setShowDemoGuide(true)}
+                  title="Open AI Security Academy"
+                  onClick={() => navigate("/academy/journey")}
                 >
                   Guide
                 </button>

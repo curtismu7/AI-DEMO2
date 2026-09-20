@@ -119,6 +119,7 @@ export default function DraggableModal({
   noBackdrop = false,
   closeLabel = "Close",
   closeOnPopout = false,
+  disablePopOut = false,
   singletonKey = null,
   autoPopOut = false,
 }) {
@@ -379,10 +380,11 @@ ${inlineStyles}
               type="button"
               className="dm-btn"
               onClick={handlePopOut}
+              disabled={disablePopOut || isPoppedOut}
               title="Pop out to new window"
               aria-label="Pop out to new window"
             >
-              ↗
+              {"\u{1FA9F}"}
             </button>
             {onClose && (
               <button
