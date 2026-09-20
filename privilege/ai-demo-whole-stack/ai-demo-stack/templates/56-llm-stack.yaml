@@ -295,10 +295,10 @@ spec:
               mountPath: /root/.cache/llama.cpp
           resources:
             requests:
-              memory: "2Gi"
+              memory: "8Gi"
               cpu: "500m"
             limits:
-              memory: "16Gi"
+              memory: "26Gi"
               cpu: "4000m"
           # First start downloads ~12GB from HF into the PVC then loads to RAM;
           # /health returns 503 the whole time. Without a startupProbe the
