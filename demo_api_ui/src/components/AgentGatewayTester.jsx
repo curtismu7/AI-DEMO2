@@ -342,7 +342,7 @@ function BusyTreeItem({ busy, disabled, onClick, dotColor, label, busyLabel }) {
   );
 }
 
-export default function AgentGatewayTester() {
+export default function AgentGatewayTester({ twoStep = false }) {
   const [tools, setTools] = useState(FALLBACK_TOOLS);
   const [toolsSource, setToolsSource] = useState('static');
   const [selectedTool, setSelectedTool] = useState(null);
@@ -499,8 +499,38 @@ export default function AgentGatewayTester() {
     setSending(true);
     setResp(null);
     try {
+      let authorizePreflight = null;
+      if (twoStep) {
+        const endpoint = active?.simulated
+          ? '/api/authorize/test-evaluate-mcp'
+          : '/api/authorize/test-mcp-live';
+        const body = active?.simulated
+          ? { toolName: selectedTool.name, ...(args.amount !== undefined ? { amount: args.amount } : {}) }
+          : {
+            parameters: {
+              DecisionContext: 'McpToolCall',
+              ToolName: selectedTool.name,
+              TokenAudience: active?.url || 'mcpgateway.ping.demo',
+              McpResourceUri: active?.url || 'mcpgateway.ping.demo',
+              Amount: args.amount !== undefined ? String(args.amount) : '',
+            },
+          };
+        const { data } = await apiClient.post(endpoint, body);
+        authorizePreflight = data;
+        if (data?.decision !== 'PERMIT') {
+          setResp({
+            ok: false,
+            twoStepBlocked: true,
+            authorizePreflight: data,
+            error: 'authorization_blocked',
+            message: 'MCP execution blocked: the authorization decision did not permit this tool call.',
+          });
+          setOutputTab('authorize');
+          return;
+        }
+      }
       const { data } = await apiClient.post('/api/mcp-gateway/test', { tool: selectedTool.name, args });
-      setResp(data);
+      setResp(authorizePreflight ? { ...data, authorizePreflight } : data);
       setOutputTab('result');
       const fresh = extractCapturedValues(selectedTool.name, unwrapMcpResult(data?.result ?? data?.rpcData));
       if (fresh.length) setCapturedValues((prev) => mergeCapturedValues(prev, fresh));
@@ -509,7 +539,7 @@ export default function AgentGatewayTester() {
     } finally {
       setSending(false);
     }
-  }, [selectedTool, argsText]);
+  }, [active, selectedTool, argsText, twoStep]);
 
   // Replay from the Token Chain TraceRail (?replay=<id>): select the tool this
   // run actually called, load its real arguments, and fire it. Two effects, not
@@ -621,7 +651,7 @@ export default function AgentGatewayTester() {
 
   const usePing = active?.usePingGateway;
   const simulated = active?.simulated;
-  const az = resp?.gwAuditTrail?.authorize || null;
+  const az = resp?.authorizePreflight || resp?.gwAuditTrail?.authorize || null;
   const mcpAudit = resp?.gwAuditTrail?.mcpAudit || null;
   const decision = resp?.decision || az?.decision || null;
   const isRateLimited = resp?.rateLimited || resp?.error === 'rate_limited' || resp?.httpStatus === 429;
@@ -894,7 +924,7 @@ export default function AgentGatewayTester() {
             </div>
             <div className="inspector-shell-form-actions inspector-shell-form-actions--top">
               <button className="inspector-shell-btn-call" onClick={send} disabled={sending}>
-                {sending ? 'Sending...' : 'Execute'}
+                {sending ? 'Sending...' : twoStep ? 'Authorize then execute' : 'Execute'}
               </button>
               <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
             </div>
@@ -954,7 +984,7 @@ export default function AgentGatewayTester() {
             </div>
             <div className="inspector-shell-form-actions">
               <button className="inspector-shell-btn-call" onClick={send} disabled={sending}>
-                {sending ? 'Sending...' : 'Execute'}
+                {sending ? 'Sending...' : twoStep ? 'Authorize then execute' : 'Execute'}
               </button>
               <button className="inspector-shell-btn-clear" onClick={clearForm}>Clear</button>
               {rateStatus?.aligned && (
@@ -1020,6 +1050,21 @@ export default function AgentGatewayTester() {
             </div>
           ) : resp ? (
             <>
+              {twoStep && (
+                <div
+                  data-testid="gateway-two-step-status"
+                  style={{ padding: '10px 14px', borderBottom: '1px solid #cbd5e1', fontSize: 12 }}
+                >
+                  <strong style={{ color: decision === 'PERMIT' ? '#16a34a' : '#dc2626' }}>
+                    Authorization: {decision || 'UNKNOWN'}
+                  </strong>
+                  <div style={{ marginTop: 4, color: '#475569' }}>
+                    {resp.twoStepBlocked
+                      ? 'MCP execution blocked — the downstream tool was not called.'
+                      : 'Authorization permitted the protected read; the tool ran through the Agent Gateway.'}
+                  </div>
+                </div>
+              )}
               <div className="inspector-shell-output-body">
                 {outputTab === 'form' && <JsonFormView value={resultValue} />}
                 {outputTab !== 'form' && (

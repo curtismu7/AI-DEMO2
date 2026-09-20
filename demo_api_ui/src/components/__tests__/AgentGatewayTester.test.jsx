@@ -155,6 +155,57 @@ test('clicking Execute posts to /api/mcp-gateway/test with the tool name and par
   expect(await screen.findByText('200 OK')).toBeInTheDocument();
 });
 
+test('two-step mode stops before MCP execution when authorization denies', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({
+      data: { tools: [{ name: 'get_my_accounts', description: 'List accounts.', inputSchema: { type: 'object', properties: {}, required: [] } }], _source: 'live' },
+    });
+    return Promise.resolve({ data: {} });
+  });
+  apiClient.post.mockResolvedValueOnce({ data: { ok: true, decision: 'DENY', reason: 'Missing scope' } });
+
+  render(<AgentGatewayTester twoStep />);
+  fireEvent.click(await screen.findByText('get_my_accounts'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Authorize then execute' })[0]);
+
+  await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith(
+    '/api/authorize/test-evaluate-mcp',
+    { toolName: 'get_my_accounts' },
+  ));
+  expect(apiClient.post).not.toHaveBeenCalledWith('/api/mcp-gateway/test', expect.anything());
+  expect(await screen.findByText(/MCP execution blocked/i)).toBeInTheDocument();
+});
+
+test('two-step mode executes the protected read only after authorization permits', async () => {
+  apiClient.get.mockImplementation((url) => {
+    if (url === '/api/mcp-gateway/active') return Promise.resolve({ data: ACTIVE_GATEWAY });
+    if (url === '/api/mcp/inspector/tools') return Promise.resolve({
+      data: { tools: [{ name: 'get_my_accounts', description: 'List accounts.', inputSchema: { type: 'object', properties: {}, required: [] } }], _source: 'live' },
+    });
+    return Promise.resolve({ data: {} });
+  });
+  apiClient.post
+    .mockResolvedValueOnce({ data: { ok: true, decision: 'PERMIT', reason: 'Read scope granted' } })
+    .mockResolvedValueOnce({ data: { ok: true, result: { accounts: [] }, durationMs: 42 } });
+
+  render(<AgentGatewayTester twoStep />);
+  fireEvent.click(await screen.findByText('get_my_accounts'));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Authorize then execute' })[0]);
+
+  await waitFor(() => expect(apiClient.post).toHaveBeenNthCalledWith(
+    1,
+    '/api/authorize/test-evaluate-mcp',
+    { toolName: 'get_my_accounts' },
+  ));
+  await waitFor(() => expect(apiClient.post).toHaveBeenNthCalledWith(
+    2,
+    '/api/mcp-gateway/test',
+    { tool: 'get_my_accounts', args: {} },
+  ));
+  expect(await screen.findByText('200 OK')).toBeInTheDocument();
+});
+
 test('clicking Refresh in the topbar actions re-fetches gateway state', async () => {
   render(<AgentGatewayTester />);
   await screen.findByText('Demo Agent Gateway | Authz: simulated');
