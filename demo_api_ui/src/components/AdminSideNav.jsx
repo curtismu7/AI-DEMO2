@@ -662,6 +662,12 @@ export default function AdminSideNav({
       icon: "rte",
       children: [
         {
+          label: "MCP Discovery",
+          path: "/mcp-discovery",
+          icon: "find",
+          searchAlias: "mcp discovery inventory runtime servers",
+        },
+        {
           label: "Ping AI Test Lab",
           path: "/ping-ai-test-lab",
           icon: "tst",
@@ -961,6 +967,13 @@ export default function AdminSideNav({
           label: "Activity Log",
           path: "/monitoring/activity-log",
           icon: "log",
+          searchAlias: "activity live event stream",
+        },
+        {
+          label: "API Activity",
+          path: "/monitoring/api-activity",
+          icon: "api",
+          searchAlias: "api activity audit persisted records",
         },
         { label: "Run Reports", path: "/reports", icon: "rpt" },
         {

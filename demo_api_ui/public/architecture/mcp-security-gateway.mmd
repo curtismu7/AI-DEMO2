@@ -21,6 +21,7 @@ flowchart LR
         BANKING_RS["banking_resource_server\n/identity (Path B: dual_token)\n/accounts /transactions (Path C: oauth_bearer)"]
         SQLITE[("SQLite\nbanking-resource-server.db")]
         API_KEY_BACKEND["demo_api_resource_server :8082\n(LIVE - Path A, Phase 267)\nAccepts: X-API-Key + X-User-Sub"]
+        VAULT["BFF vault bridge\n/internal/vault/service-key\nallow-listed, internal-only"]
     end
 
     subgraph Ping["Ping"]
@@ -39,6 +40,7 @@ flowchart LR
     GATEWAY -->|"Path B: Bearer + id_token\ndual_token - /identity"| BANKING_RS
     GATEWAY -->|"Path C: Bearer (RFC 8693 exchange)\noauth_bearer - /accounts /transactions"| BANKING_RS
     GATEWAY -->|"Path A: X-API-Key + X-User-Sub\napi_key - banking:mortgage:read scope gate"| API_KEY_BACKEND
+    GATEWAY -->|"Path A: fetch route-bound key\ninternal bridge"| VAULT
     BANKING_RS -.->|"reads accounts\n+ transactions"| SQLITE
 
     style GATEWAY fill:#c0392b,color:#fff,stroke:#922b21,font-weight:bold

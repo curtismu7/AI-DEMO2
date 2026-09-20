@@ -17,6 +17,10 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-buffering: "off"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    # Browser perimeter: every app request must carry a BFF session whose
+    # PingOne identity passed the exact hosted-domain policy.
+    nginx.ingress.kubernetes.io/auth-url: "https://frontend.<<NAMESPACE>>.svc.cluster.local:4000/api/auth/hosted-access/check"
+    nginx.ingress.kubernetes.io/auth-signin: "https://ai-demo.ping-devops.com/api/auth/oauth/user/login?return_to=$escaped_request_uri"
 spec:
   ingressClassName: nginx-public
   rules:
@@ -46,6 +50,51 @@ spec:
               number: 3000
       - path: /
         pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+---
+# Only the OAuth bootstrap and callback endpoints bypass ingress external auth.
+# They remain protected by state, PKCE, nonce, verified identity claims, and the
+# BFF's exact hosted-domain decision. Exact paths prevent broad /api/auth access.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-demo-oauth-bypass-ingress
+  namespace: <<NAMESPACE>>
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx-public
+  rules:
+  - host: ai-demo.ping-devops.com
+    http:
+      paths:
+      - path: /api/auth/oauth/user/login
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/auth/oauth/user/callback
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/auth/oauth/login
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/auth/oauth/callback
+        pathType: Exact
         backend:
           service:
             name: frontend
@@ -121,6 +170,42 @@ spec:
             name: ping-gateway
             port:
               number: 8080
+---
+# Direct LangChain A2A surface. This has its own host so the public Agent Card
+# and customer-IdP bearer contract cannot be confused with the Privilege MCP
+# gateway path above. Only the card and /a2a are routed here; health, metrics,
+# inspector, AG-UI /run, and MCP connections remain ClusterIP/internal.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: langchain-a2a-ingress
+  namespace: <<NAMESPACE>>
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "2m"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+spec:
+  ingressClassName: nginx-public
+  rules:
+  - host: langchain-a2a.ai-demo.ping-devops.com
+    http:
+      paths:
+      - path: /.well-known/agent-card.json
+        pathType: Exact
+        backend:
+          service:
+            name: langchain-agent
+            port:
+              number: 8888
+      - path: /a2a
+        pathType: Prefix
+        backend:
+          service:
+            name: langchain-agent
+            port:
+              number: 8888
 ---
 # The /mcpgw path-based Ingress that used to live here (ai-demo-mcpgw-ingress,
 # on this same shared host) is REMOVED as of 2026-08-13 — proven live to be

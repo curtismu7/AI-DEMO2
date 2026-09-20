@@ -85,6 +85,7 @@ export const NAV_STRUCTURE_CATALOG = [
   {
     label: "MCP & Gateways",
     children: [
+      "MCP Discovery",
       "Ping AI Test Lab",
       "Agent Gateway Inspector",
       "Capability Tour",
@@ -189,6 +190,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "Audit Trail",
       "Learning Log",
       "Activity Log",
+      "API Activity",
       "Run Reports",
       "Error Audit Log",
       "New Relic",
