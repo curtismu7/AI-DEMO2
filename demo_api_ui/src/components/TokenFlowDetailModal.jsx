@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DraggableModal from './DraggableModal';
+import { useThemeOptional } from '../context/ThemeContext';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { buildRunStory, pausedGateState, laneLabel } from '../services/tokenChainTrace/buildTraceSteps';
 import './TokenFlowDetailModal.css';
@@ -85,6 +86,37 @@ function buildClaims(step) {
   return null;
 }
 
+const PINGONE_DECISION_LABELS = {
+  McpFirstTool: 'MCP tool-call check',
+  TransactionAmount: 'transaction policy check',
+};
+
+/** Return only PingOne products called by the selected flow node. */
+export function resolvePingOneProductCalls(step) {
+  if (!step || step.status === 'notinpath') return [];
+
+  if (step.id === 'signin') {
+    return [{ product: 'PingOne Authentication', call: 'OIDC sign-in', status: step.status }];
+  }
+
+  if (step.id === 'authorize' || step.baseId === 'authorize') {
+    const decision = step.detail?.decision || {};
+    const outcome = decision.outcome || step.detail?.outcome || step.status;
+    const context = decision.decisionContext || step.detail?.decisionContext;
+    return [{
+      product: 'PingOne Authorize',
+      call: PINGONE_DECISION_LABELS[context] || context || 'policy decision',
+      status: String(outcome).toUpperCase(),
+    }];
+  }
+
+  if (step.id === 'stepup') {
+    return [{ product: 'PingOne MFA', call: 'step-up authentication', status: step.status }];
+  }
+
+  return [];
+}
+
 // ── Sub-components ─────────────────────────────────────────────────────────
 
 function StepRow({ step, num, selected, onClick }) {
@@ -155,117 +187,35 @@ function DetailCard({ step, num, selected, onClick }) {
 }
 
 function Inspector({ step, onClose }) {
-  const [tab, setTab] = useState('claims');
-
-  useEffect(() => { setTab('claims'); }, [step?.id]);
-
   if (!step) {
     return (
       <div className="tfd-insp-empty">
-        <div className="tfd-insp-empty-icon">🔑</div>
-        <div>Click a step to inspect its token</div>
+        <div className="tfd-insp-empty-icon">✦</div>
+        <div>Click a node to see its PingOne product call</div>
       </div>
     );
   }
 
-  const claims = buildClaims(step);
-  const rfcs = step.detail?.rfcs || step.rfcs || [];
-  const spec = step.detail?.spec;
-  const actClaim = step.id === 'exchange' && step.detail?.claims?.act;
+  const products = resolvePingOneProductCalls(step);
 
   return (
     <>
       <div className="tfd-insp-header">
-        <span className={inspBadgeCls(step.lane)}>{laneLabel(step.lane)}</span>
-        <span className="tfd-insp-title">{step.title}</span>
+        <span className="tfd-insp-title">PingOne products called</span>
         <button className="tfd-insp-close" onClick={onClose} title="Close inspector">✕</button>
       </div>
-      <div className="tfd-insp-tabs">
-        {claims && <button className={`tfd-insp-tab${tab==='claims'?' active':''}`} onClick={() => setTab('claims')}>Claims</button>}
-        <button className={`tfd-insp-tab${tab==='narrative'?' active':''}`} onClick={() => setTab('narrative')}>Why</button>
-        {spec && <button className={`tfd-insp-tab${tab==='spec'?' active':''}`} onClick={() => setTab('spec')}>RFC</button>}
-        {step.detail && <button className={`tfd-insp-tab${tab==='raw'?' active':''}`} onClick={() => setTab('raw')}>Raw</button>}
-      </div>
       <div className="tfd-insp-body">
-        {tab === 'claims' && claims && (
-          <>
-            <div className="tfd-insp-section">Token / Decision Claims</div>
-            <div className="tfd-claims-table">
-              {claims.map(({ k, v, cls }) => (
-                <div key={k} className="tfd-ct-row">
-                  <span className="tfd-ct-k">{k}</span>
-                  <span className={`tfd-ct-v${cls ? ' '+cls : ''}`}>{v}</span>
-                </div>
-              ))}
-            </div>
-            {actClaim && (
-              <div className="tfd-act-chip">
-                ✅ act · delegation chain intact — RFC 8693 §4.1
-              </div>
-            )}
-            {rfcs.length > 0 && (
-              <div className="tfd-rfc-tags">
-                {rfcs.map(r => <span key={r} className="tfd-rfc-pill">{r}</span>)}
-              </div>
-            )}
-          </>
-        )}
-
-        {tab === 'narrative' && (
-          <>
-            <div className="tfd-insp-section">What happens on this hop</div>
-            <div className="tfd-edu-box">
-              <div className="tfd-edu-title">{step.title}</div>
-              {step.detail?.narrative || 'No narrative available for this step.'}
-            </div>
-            {step.detail?.why && (
-              <div className="tfd-edu-box" style={{ marginTop: 0 }}>
-                <div className="tfd-edu-title">Why this run</div>
-                {step.detail.why}
-              </div>
-            )}
-          </>
-        )}
-
-        {tab === 'spec' && spec && (
-          <>
-            <div className="tfd-insp-section">Specification</div>
-            {spec.refs?.length > 0 && (
-              <div className="tfd-rfc-tags">
-                {spec.refs.map(r => (
-                  <a key={r.label} href={r.href} target="_blank" rel="noreferrer"
-                    className="tfd-rfc-pill" style={{ textDecoration: 'none' }}
-                    title={r.title}
-                  >{r.label}</a>
-                ))}
-              </div>
-            )}
-            {spec.mandate && (
-              <div className="tfd-edu-box">
-                <div className="tfd-edu-title">Mandate</div>
-                {spec.mandate}
-              </div>
-            )}
-            {spec.why && (
-              <div className="tfd-edu-box">
-                <div className="tfd-edu-title">Why this demo</div>
-                {spec.why}
-              </div>
-            )}
-            {spec.failure && (
-              <div className="tfd-edu-box" style={{ borderColor: 'rgba(248,81,73,.2)', background: 'rgba(248,81,73,.06)' }}>
-                <div className="tfd-edu-title" style={{ color: '#fca5a5' }}>Common failure</div>
-                {spec.failure}
-              </div>
-            )}
-          </>
-        )}
-
-        {tab === 'raw' && step.detail && (
-          <>
-            <div className="tfd-insp-section">Raw Step Detail</div>
-            <pre className="tfd-json-pre">{JSON.stringify(step.detail, null, 2)}</pre>
-          </>
+        <div className="tfd-insp-section">Selected node: {step.title}</div>
+        {products.length > 0 ? products.map(({ product, call, status }) => (
+          <div className="tfd-product-call" key={`${product}-${call}`}>
+            <div className="tfd-product-name">{product}</div>
+            <div className="tfd-product-call-name">{call}</div>
+            <span className={`tfd-product-status ${String(status).toLowerCase()}`}>{status}</span>
+          </div>
+        )) : (
+          <div className="tfd-insp-empty tfd-insp-empty--compact">
+            <div>This node does not call a PingOne product.</div>
+          </div>
         )}
       </div>
     </>
@@ -274,7 +224,7 @@ function Inspector({ step, onClose }) {
 
 // ── Scope Funnel ──────────────────────────────────────────────────────────
 
-function ScopeFunnel({ steps, trace }) {
+function ScopeFunnel({ steps, trace, onSelectStep }) {
   const findEv = (...ids) => (trace?.tokenEvents || []).find(e => e && ids.includes(e.id));
   const userTok  = findEv('user-token');
   const delegTok = findEv('exchanged-token', 'two-ex-final-token');
@@ -296,7 +246,7 @@ function ScopeFunnel({ steps, trace }) {
       <div className="tfd-funnel-row">
 
         {/* User Token */}
-        <div className="tfd-fhop">
+        <button type="button" className="tfd-fhop tfd-fhop-button" onClick={() => onSelectStep?.(steps.find(s => s.id === 'signin'))}>
           <div className="tfd-fhop-head">
             <span className="tfd-fhop-icon">👤</span>
             <span className="tfd-fhop-name">User Token</span>
@@ -307,12 +257,12 @@ function ScopeFunnel({ steps, trace }) {
               <span key={s} className="tfd-fscope tfd-fscope--kept">✓ {s}</span>
             ))}
           </div>
-        </div>
+        </button>
 
         <span className="tfd-farrow">→</span>
 
         {/* RFC 8693 Exchange */}
-        <div className="tfd-fhop tfd-fhop--exchange">
+        <button type="button" className="tfd-fhop tfd-fhop--exchange tfd-fhop-button" onClick={() => onSelectStep?.(exchStep)}>
           <div className="tfd-fhop-head">
             <span className="tfd-fhop-icon">TX</span>
             <span className="tfd-fhop-name">RFC 8693 Exchange</span>
@@ -322,12 +272,12 @@ function ScopeFunnel({ steps, trace }) {
             <span className="tfd-fscope tfd-fscope--narrowed">→ {delegScopes[0] || 'gateway:mcp:invoke'}</span>
             {exchAud && <span className="tfd-fscope tfd-fscope--narrowed">→ aud: {String(exchAud).replace('https://', '')}</span>}
           </div>
-        </div>
+        </button>
 
         <span className="tfd-farrow">→</span>
 
         {/* Delegated Token */}
-        <div className="tfd-fhop tfd-fhop--issued">
+        <button type="button" className="tfd-fhop tfd-fhop--issued tfd-fhop-button" onClick={() => onSelectStep?.(exchStep)}>
           <div className="tfd-fhop-head">
             <span className="tfd-fhop-icon">🔑</span>
             <span className="tfd-fhop-name">Delegated Token</span>
@@ -339,13 +289,13 @@ function ScopeFunnel({ steps, trace }) {
               <span key={s} className="tfd-fscope tfd-fscope--dropped">❌ {s}</span>
             ))}
           </div>
-        </div>
+        </button>
 
         {azCard && <span className="tfd-farrow">→</span>}
 
         {/* Authorize */}
         {azCard && (
-          <div className={`tfd-fhop tfd-fhop--${azCard.tone}`}>
+          <button type="button" className={`tfd-fhop tfd-fhop--${azCard.tone} tfd-fhop-button`} onClick={() => onSelectStep?.(azSteps.find(s => s.id === 'authorize'))}>
             <div className="tfd-fhop-head">
               <span className="tfd-fhop-icon">{AZ_CARD_ICON[azCard.tone]}</span>
               <span className="tfd-fhop-name">PingOne Authorize</span>
@@ -358,7 +308,7 @@ function ScopeFunnel({ steps, trace }) {
                 </span>
               </div>
             )}
-          </div>
+          </button>
         )}
       </div>
 
@@ -860,7 +810,7 @@ export default function TokenFlowDetailModal({ isOpen, onClose }) {
   const [inspOpen, setInspOpen] = useState(false);
   const [inspWidth, setInspWidth] = useState(420);
   const [footerOpen, setFooterOpen] = useState(null);
-  const [darkMode, setDarkMode] = useState(true);
+  const { darkMode, toggleDarkMode } = useThemeOptional();
   const dragging = useRef(false);
 
   const handleResizeStart = useCallback((e) => {
@@ -961,12 +911,12 @@ export default function TokenFlowDetailModal({ isOpen, onClose }) {
             Least Agency
           </button>
           <button
-            className="tfd-tab"
-            onClick={() => setDarkMode(d => !d)}
-            title="Toggle light/dark"
-            style={{ marginLeft: 'auto', background: 'transparent', width: 'auto', minWidth: 32, padding: '0 8px', fontSize: 16 }}
+            className="tfd-theme-btn"
+            onClick={toggleDarkMode}
+            aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
           >
-            {darkMode ? 'Light' : 'Dark'}
+            {darkMode ? '☀️ Light' : '🌙 Dark'}
           </button>
         </div>
 
@@ -1017,7 +967,7 @@ export default function TokenFlowDetailModal({ isOpen, onClose }) {
 
             {/* Scope funnel — only on Pipeline tab when exchange has run */}
             {view === 'simple' && (
-              <ScopeFunnel steps={steps} trace={trace} />
+              <ScopeFunnel steps={steps} trace={trace} onSelectStep={selectStep} />
             )}
 
             {/* Topology view */}

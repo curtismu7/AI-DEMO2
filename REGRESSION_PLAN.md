@@ -169,6 +169,25 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-20 — Flow Detail shows only PingOne product calls for a selected node
+
+**Files changed:** `demo_api_ui/src/components/TokenFlowDetailModal.jsx` and
+`.css`, plus `demo_api_ui/src/components/__tests__/TokenFlowDetailModal.pingoneProducts.test.jsx`.
+- **What was broken:** The Flow Detail inspector exposed broad token and claims
+  detail without a focused node-level view, and its local theme toggle was not
+  connected to the application's shared light/dark theme.
+- **What was fixed:** Clicking a pipeline node now shows only the PingOne
+  product call represented by that node (Authentication, Authorize, or MFA),
+  while non-PingOne nodes explicitly report that they make no PingOne call.
+  The theme button now uses the shared theme context and updates its label and
+  accessible name with the active mode.
+- **Do not break:** Keep token/claim detail in the existing full-detail views,
+  preserve the pipeline and topology interactions, and do not change browser
+  token custody or authorization behavior.
+- **Verify:** Focused Flow Detail tests, related Flow Detail tests, full UI
+  build, and UI unit suite (the suite retains three unrelated pre-existing
+  sequence/topology failures).
+
 ### 2026-09-18 — DaVinci SDK logout return URI registered separately from login callback
 
 - **Files changed:** `demo_api_server/services/pingoneAppConfigService.js`, `demo_api_server/tests/services/pingoneAppConfigService.sdkLogout.test.js`, `demo_api_ui/src/components/davinci/SdkLessonSections.jsx`, `demo_api_ui/src/components/davinci/SdkExecutionReel.jsx` and `.css`, `demo_api_ui/src/components/davinci/sdkExecutionEvents.js`, `demo_api_ui/src/pages/DavinciSdkLoginPage.jsx` and focused UI tests.
