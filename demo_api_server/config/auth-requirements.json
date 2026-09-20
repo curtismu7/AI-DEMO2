@@ -189,6 +189,7 @@
     "/invest-dual-auth": "public",
     "/langchain": "public",
     "/learning": "public",
+    "/learning-lab/:lab": "public",
     "/ai-gateway/shadow-ai-detector": "public",
     "/llama-vscode-guide": "user",
     "/intent-inspector": "admin",
