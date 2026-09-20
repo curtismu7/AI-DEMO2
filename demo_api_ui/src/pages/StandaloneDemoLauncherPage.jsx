@@ -6,16 +6,18 @@ import { getLesson } from "../learning/lessonCatalog";
 import { PROVENANCE } from "../learning/provenance";
 import {
   getTenantReadiness,
+  isObservationActionSupported,
   resetLesson,
   runLesson,
 } from "../services/lessonExecutionService";
 import "./StandaloneDemoLauncherPage.css";
 
-const SCENARIOS = Object.freeze([
+export const SCENARIOS = Object.freeze([
   {
     id: "delegated-access",
     title: "Delegated access",
     lessonId: "delegation",
+    evidenceAction: "token-exchange",
     durationMinutes: 5,
     dependencyIds: ["pingone", "mcp"],
     outcome:
@@ -32,6 +34,7 @@ const SCENARIOS = Object.freeze([
     id: "authorize-denial",
     title: "Authorize denial",
     lessonId: "authorize",
+    evidenceAction: null,
     durationMinutes: 4,
     dependencyIds: ["authorize"],
     outcome:
@@ -48,6 +51,7 @@ const SCENARIOS = Object.freeze([
     id: "ciba-approval",
     title: "CIBA and approval",
     lessonId: "hitl-step-up",
+    evidenceAction: null,
     durationMinutes: 6,
     dependencyIds: ["pingone", "authorize"],
     outcome:
@@ -64,6 +68,7 @@ const SCENARIOS = Object.freeze([
     id: "agent-revocation",
     title: "Agent revocation",
     lessonId: "lifecycle",
+    evidenceAction: null,
     durationMinutes: 5,
     dependencyIds: ["pingone"],
     outcome:
@@ -80,6 +85,7 @@ const SCENARIOS = Object.freeze([
     id: "mcp-discovery",
     title: "MCP discovery",
     lessonId: "mcp",
+    evidenceAction: "mcp-discovery",
     durationMinutes: 4,
     dependencyIds: ["mcp"],
     outcome:
@@ -96,6 +102,7 @@ const SCENARIOS = Object.freeze([
     id: "replay-defense",
     title: "Replay defense",
     lessonId: "threat-defense",
+    evidenceAction: null,
     durationMinutes: 3,
     dependencyIds: ["mcp"],
     outcome:
@@ -112,6 +119,7 @@ const SCENARIOS = Object.freeze([
     id: "prompt-injection-defense",
     title: "Prompt-injection defense",
     lessonId: "threat-defense",
+    evidenceAction: null,
     durationMinutes: 5,
     dependencyIds: ["authorize"],
     outcome:
@@ -128,6 +136,7 @@ const SCENARIOS = Object.freeze([
     id: "privilege-mcp",
     title: "Privilege MCP",
     lessonId: "product-map",
+    evidenceAction: null,
     durationMinutes: 6,
     dependencyIds: ["privilege", "mcp"],
     outcome:
@@ -144,6 +153,7 @@ const SCENARIOS = Object.freeze([
     id: "davinci-orchestration",
     title: "DaVinci orchestration",
     lessonId: "login",
+    evidenceAction: null,
     durationMinutes: 7,
     dependencyIds: ["davinci", "pingone"],
     outcome:
@@ -160,6 +170,7 @@ const SCENARIOS = Object.freeze([
     id: "audit-evidence",
     title: "Audit evidence",
     lessonId: "lifecycle",
+    evidenceAction: null,
     durationMinutes: 4,
     dependencyIds: ["pingone"],
     outcome:
@@ -208,10 +219,18 @@ function scenarioAvailability(scenario, lesson, readinessState) {
     readinessState.status === "loaded" &&
     dependencies.length === scenario.dependencyIds.length &&
     dependencies.every((item) => item.status === "available");
+  const evidenceSupported = isObservationActionSupported(
+    scenario.evidenceAction,
+  );
+  const evidenceDetail = evidenceSupported
+    ? "A direct, read-only evidence observation is connected for this scenario."
+    : "No scenario-specific evidence check is connected. Launch the demo and inspect evidence in that surface.";
 
   if (ready) {
     return {
       available: true,
+      evidenceSupported,
+      evidenceDetail,
       dependencies,
       provenance: lowestProvenance(dependencies, lesson.provenance.primary),
       detail: "Available from the current readiness checks.",
@@ -223,6 +242,8 @@ function scenarioAvailability(scenario, lesson, readinessState) {
     .map((item) => item.label);
   return {
     available: false,
+    evidenceSupported,
+    evidenceDetail,
     dependencies,
     provenance: lesson.fallback.provenance,
     detail: `${unavailable.join(", ") || "Live prerequisites"} unavailable. ${lesson.fallback.label} is the declared fallback and has not been started.`,
@@ -278,6 +299,7 @@ export default function StandaloneDemoLauncherPage({
 
   const handleCheckEvidence = async (entry) => {
     const { scenario, lesson } = entry;
+    if (!scenario.evidenceAction) return;
     const generation = (generations.current[scenario.id] || 0) + 1;
     generations.current[scenario.id] = generation;
     setActionStates((current) => ({
@@ -285,7 +307,10 @@ export default function StandaloneDemoLauncherPage({
       [scenario.id]: "checking",
     }));
     try {
-      const result = await executeLesson(lesson.id, { mode: "standalone" });
+      const result = await executeLesson(lesson.id, {
+        mode: "standalone",
+        action: scenario.evidenceAction,
+      });
       if (generations.current[scenario.id] !== generation) return;
       const observed = result?.result?.status === "observed";
       setRunResults((current) => ({

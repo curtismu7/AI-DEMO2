@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PROVENANCE } from "../learning/provenance";
 import {
+  canObserveLesson,
   getTenantReadiness,
+  isObservationActionSupported,
   resetLesson,
   runLesson,
 } from "../services/lessonExecutionService";
@@ -326,12 +328,14 @@ describe("runLesson observations", () => {
   const cases = [
     {
       lessonId: "login",
+      action: "login",
       endpoint: "/api/auth/oauth/user/status",
       data: { authenticated: true, oauthProvider: "pingone" },
       provenance: PROVENANCE.LIVE_LOCAL,
     },
     {
       lessonId: "delegation",
+      action: "token-exchange",
       endpoint: "/api/token-chain",
       data: {
         tokenChain: [{ type: "delegated" }],
@@ -347,6 +351,7 @@ describe("runLesson observations", () => {
     },
     {
       lessonId: "mcp",
+      action: "mcp-discovery",
       endpoint: "/api/admin/mcp-discovery/inventory",
       data: {
         records: [{ id: "mcp-1", status: "healthy", source: "remote-url" }],
@@ -355,43 +360,41 @@ describe("runLesson observations", () => {
     },
     {
       lessonId: "authorize",
+      action: "authorize-decision",
       endpoint: "/api/authorize/test-status",
       data: { activeEngine: "pingone", hasDecisionEndpointId: true },
       provenance: PROVENANCE.RECORDED,
     },
     {
       lessonId: "hitl-step-up",
+      action: "hitl-step-up",
       endpoint: "/api/app-events?category=authorize&limit=10",
       data: { events: [{ category: "authorize", severity: "info" }] },
       provenance: PROVENANCE.LIVE_LOCAL,
     },
     {
       lessonId: "lifecycle",
+      action: "agent-lifecycle",
       endpoint: "/api/agent/identity/status",
       data: { agentMapping: { id: "mapping-1" }, actorMcpEnabled: true },
       provenance: PROVENANCE.LIVE_LOCAL,
     },
     {
       lessonId: "ai-architecture",
+      action: "ai-architecture",
       endpoint: "/api/health/services",
       data: { services: { mcp_gateway: { up: true } } },
-      provenance: PROVENANCE.LIVE_LOCAL,
-    },
-    {
-      lessonId: "product-map",
-      endpoint: "/api/health/services",
-      data: { services: { mcp_server: { up: true } } },
       provenance: PROVENANCE.LIVE_LOCAL,
     },
   ];
 
   it.each(cases)(
     "labels $lessonId ambient GET evidence as an observation",
-    async ({ lessonId, endpoint, data, provenance }) => {
+    async ({ lessonId, action, endpoint, data, provenance }) => {
       apiClient.get.mockResolvedValue(response(data));
 
       const observed = await runLesson(lessonId, {
-        action: "unused-input",
+        action,
       });
 
       expect(apiClient.get).toHaveBeenCalledWith(endpoint, expect.any(Object));
@@ -408,6 +411,29 @@ describe("runLesson observations", () => {
       );
     },
   );
+
+  it("exposes only actions and lessons backed by direct observation mappings", () => {
+    expect(isObservationActionSupported("token-exchange")).toBe(true);
+    expect(isObservationActionSupported("mcp-discovery")).toBe(true);
+    expect(isObservationActionSupported("threat-defense")).toBe(false);
+    expect(isObservationActionSupported("product-map")).toBe(false);
+    expect(canObserveLesson("delegation")).toBe(true);
+    expect(canObserveLesson("threat-defense")).toBe(false);
+    expect(canObserveLesson("product-map")).toBe(false);
+  });
+
+  it("rejects a scenario action that does not match the lesson evidence mapping", async () => {
+    const observed = await runLesson("delegation", {
+      action: "mcp-discovery",
+    });
+
+    expect(apiClient.get).not.toHaveBeenCalled();
+    expect(observed).toMatchObject({
+      provenance: null,
+      result: { status: "not-run" },
+      evidence: [],
+    });
+  });
 
   it("does not report an empty cumulative token-chain snapshot as complete", async () => {
     apiClient.get.mockResolvedValue(

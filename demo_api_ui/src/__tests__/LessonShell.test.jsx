@@ -9,12 +9,14 @@ import { getLesson } from "../learning/lessonCatalog";
 import { PROVENANCE } from "../learning/provenance";
 import LessonShell from "../components/learning/LessonShell";
 
-const { runLesson, resetLesson } = vi.hoisted(() => ({
+const { canObserveLesson, runLesson, resetLesson } = vi.hoisted(() => ({
+  canObserveLesson: vi.fn(() => true),
   runLesson: vi.fn(),
   resetLesson: vi.fn(),
 }));
 
 vi.mock("../services/lessonExecutionService", () => ({
+  canObserveLesson,
   runLesson,
   resetLesson,
 }));
@@ -77,6 +79,13 @@ function renderAcademyRoute(initialEntries) {
 }
 
 describe("LessonShell", () => {
+  beforeEach(() => {
+    canObserveLesson.mockReset();
+    canObserveLesson.mockReturnValue(true);
+    runLesson.mockReset();
+    resetLesson.mockReset();
+  });
+
   it("connects an individual Academy lesson to the shared evidence runner", async () => {
     runLesson.mockResolvedValueOnce({
       provenance: PROVENANCE.LIVE_LOCAL,
@@ -86,11 +95,11 @@ describe("LessonShell", () => {
 
     renderAcademyRoute(["/academy/delegation/guided"]);
 
-    const runButton = screen.getByRole("button", { name: /Run live lesson/i });
+    const runButton = screen.getByRole("button", { name: /Check live evidence/i });
     expect(runButton).toBeEnabled();
     fireEvent.click(runButton);
 
-    await waitFor(() => expect(screen.getByText("Run captured")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Evidence captured")).toBeInTheDocument());
     expect(runLesson).toHaveBeenCalledWith("delegation", {
       lesson: expect.objectContaining({ id: "delegation" }),
       mode: "guided",
@@ -117,10 +126,10 @@ describe("LessonShell", () => {
       result: { kind: "observation", status: "observed" },
     });
     renderShell({ onRun });
-    fireEvent.click(screen.getByRole("button", { name: /Run live lesson/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Check live evidence/i }));
     await waitFor(() => expect(screen.getByText("LIVE CLOUD")).toBeInTheDocument());
 
-    expect(screen.getByText(/Observed run result/i)).toBeInTheDocument();
+    expect(screen.getByText(/Observed evidence snapshot/i)).toBeInTheDocument();
   });
 
   it("runs a lesson and resets presenter state", async () => {
@@ -131,12 +140,12 @@ describe("LessonShell", () => {
     });
     renderShell({ onRun });
 
-    fireEvent.click(screen.getByRole("button", { name: /Run live lesson/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Check live evidence/i }));
     expect(onRun).toHaveBeenCalledWith(expect.objectContaining({ lesson, mode: "guided" }));
-    await waitFor(() => expect(screen.getByText("Run captured")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Evidence captured")).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole("button", { name: /Reset demo/i }));
-    await waitFor(() => expect(screen.getByText("Ready to run")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Ready to check evidence")).toBeInTheDocument());
     expect(onRun).toHaveBeenLastCalledWith(expect.objectContaining({ reset: true, lesson }));
   });
 
@@ -144,15 +153,15 @@ describe("LessonShell", () => {
     renderShell();
 
     expect(screen.getByText("PREFERRED")).toBeInTheDocument();
-    expect(screen.getByText(/No live execution is connected/i)).toBeInTheDocument();
+    expect(screen.getByText(/No direct evidence check is connected/i)).toBeInTheDocument();
     expect(screen.queryByText("LIVE CLOUD")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Run live lesson/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Check live evidence/i })).toBeDisabled();
     expect(screen.getByText("Ready to configure")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Reset demo/i }));
     expect(screen.getByText("Ready to configure")).toBeInTheDocument();
-    expect(screen.queryByText("Ready to run")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Run live lesson/i })).toBeDisabled();
+    expect(screen.queryByText("Ready to check evidence")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Check live evidence/i })).toBeDisabled();
   });
 
   it("derives observed provenance and evidence from a normalized non-cloud result", async () => {
@@ -163,22 +172,22 @@ describe("LessonShell", () => {
     });
     renderShell({ onRun });
 
-    fireEvent.click(screen.getByRole("button", { name: /Run live lesson/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Check live evidence/i }));
     await waitFor(() => expect(screen.getByText("SIMULATED")).toBeInTheDocument());
 
     expect(screen.queryByText("LIVE CLOUD")).not.toBeInTheDocument();
     expect(screen.getByText("policy-deny")).toBeInTheDocument();
-    expect(screen.getByText("Run captured")).toBeInTheDocument();
+    expect(screen.getByText("Evidence captured")).toBeInTheDocument();
   });
 
   it("does not report completion when the runner returns no normalized result", async () => {
     const onRun = vi.fn().mockResolvedValue(undefined);
     renderShell({ onRun });
 
-    fireEvent.click(screen.getByRole("button", { name: /Run live lesson/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Check live evidence/i }));
     await waitFor(() => expect(screen.getByText(/No normalized run result/i)).toBeInTheDocument());
 
-    expect(screen.queryByText("Run captured")).not.toBeInTheDocument();
+    expect(screen.queryByText("Evidence captured")).not.toBeInTheDocument();
   });
 
   it.each([
@@ -203,14 +212,14 @@ describe("LessonShell", () => {
     });
     renderShell({ onRun });
 
-    fireEvent.click(screen.getByRole("button", { name: /Run live lesson/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Check live evidence/i }));
     await waitFor(() => expect(screen.getByText(warning)).toBeInTheDocument());
 
-    expect(screen.queryByText("Run captured")).not.toBeInTheDocument();
-    expect(screen.queryByText("Observed run result", { exact: false })).not.toBeInTheDocument();
+    expect(screen.queryByText("Evidence captured")).not.toBeInTheDocument();
+    expect(screen.queryByText("Observed evidence snapshot", { exact: false })).not.toBeInTheDocument();
     expect(screen.queryByText("LIVE CLOUD")).not.toBeInTheDocument();
     expect(screen.getByText("0 observed events")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Run live lesson/i })).toBeEnabled();
+    expect(screen.getByRole("button", { name: /Check live evidence/i })).toBeEnabled();
   });
 
   it("ignores a stale run completion after reset", async () => {
@@ -224,8 +233,8 @@ describe("LessonShell", () => {
     );
     renderShell({ onRun });
 
-    fireEvent.click(screen.getByRole("button", { name: /Run live lesson/i }));
-    await waitFor(() => expect(screen.getByText("Running")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /Check live evidence/i }));
+    await waitFor(() => expect(screen.getByText("Checking evidence")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: /Reset demo/i }));
 
     resolveRun({
@@ -234,9 +243,9 @@ describe("LessonShell", () => {
       result: { kind: "observation", status: "observed" },
     });
     resolveReset();
-    await waitFor(() => expect(screen.getByText("Ready to run")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Ready to check evidence")).toBeInTheDocument());
 
-    expect(screen.queryByText("Run captured")).not.toBeInTheDocument();
+    expect(screen.queryByText("Evidence captured")).not.toBeInTheDocument();
     expect(screen.queryByText("stale")).not.toBeInTheDocument();
   });
 
@@ -246,7 +255,7 @@ describe("LessonShell", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Reset demo/i }));
     await waitFor(() => expect(screen.getByText(/Reset failed/i)).toBeInTheDocument());
-    expect(screen.queryByText("Ready to run")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ready to check evidence")).not.toBeInTheDocument();
   });
 
   it("reports mode changes so the route can keep the URL synchronized", () => {
@@ -283,7 +292,7 @@ describe("LessonShell", () => {
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: /Run live lesson/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Check live evidence/i }));
     await waitFor(() => expect(screen.getByText("SIMULATED")).toBeInTheDocument());
     expect(screen.queryByText("LIVE CLOUD")).not.toBeInTheDocument();
   });
@@ -325,6 +334,18 @@ describe("LessonShell", () => {
     renderAcademyRoute(["/academy/delegation/sideways"]);
     await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/academy/delegation/guided"));
     expect(screen.getByRole("button", { name: "Guided Journey" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("disables lesson evidence controls when no direct observation exists", async () => {
+    canObserveLesson.mockReturnValue(false);
+
+    renderAcademyRoute(["/academy/threat-defense/guided"]);
+
+    expect(
+      await screen.findByRole("button", { name: "Check live evidence" }),
+    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Reset demo" })).toBeDisabled();
+    expect(runLesson).not.toHaveBeenCalled();
   });
 
   it("preserves child state while the presentation mode changes", async () => {

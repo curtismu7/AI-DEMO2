@@ -3,7 +3,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { MemoryRouter } from "react-router-dom";
 import { PROVENANCE } from "../learning/provenance";
-import StandaloneDemoLauncherPage from "../pages/StandaloneDemoLauncherPage";
+import StandaloneDemoLauncherPage, {
+  SCENARIOS,
+} from "../pages/StandaloneDemoLauncherPage";
+import { isObservationActionSupported } from "../services/lessonExecutionService";
 
 const dependencies = [
   {
@@ -129,6 +132,40 @@ describe("StandaloneDemoLauncherPage", () => {
     }
   });
 
+  it("maps evidence checks only to direct scenario observations", () => {
+    const mapped = SCENARIOS.filter((scenario) => scenario.evidenceAction);
+
+    expect(
+      mapped.map(({ id, evidenceAction }) => [id, evidenceAction]),
+    ).toEqual([
+      ["delegated-access", "token-exchange"],
+      ["mcp-discovery", "mcp-discovery"],
+    ]);
+    expect(
+      mapped.every((scenario) =>
+        isObservationActionSupported(scenario.evidenceAction),
+      ),
+    ).toBe(true);
+  });
+
+  it("disables unrelated evidence checks while keeping the live demo link", async () => {
+    renderLauncher();
+    await screen.findByText("Needs attention");
+
+    const card = screen.getByRole("article", {
+      name: "Prompt-injection defense",
+    });
+    expect(
+      within(card).getByRole("button", {
+        name: "Check Prompt-injection defense evidence",
+      }),
+    ).toBeDisabled();
+    expect(
+      within(card).getByText(/No scenario-specific evidence check is connected/i),
+    ).toBeInTheDocument();
+    expect(within(card).getByRole("link", { name: "Launch demo" })).toBeEnabled();
+  });
+
   it("filters scenarios by the category supplied by the lesson catalog", async () => {
     renderLauncher();
     await screen.findByText("Needs attention");
@@ -246,6 +283,7 @@ describe("StandaloneDemoLauncherPage", () => {
     expect(await within(card).findByText("RECORDED")).toBeInTheDocument();
     expect(executeLesson).toHaveBeenCalledWith("delegation", {
       mode: "standalone",
+      action: "token-exchange",
     });
 
     fireEvent.click(

@@ -4,7 +4,11 @@ import LessonShell from "../components/learning/LessonShell";
 import { getLesson } from "../learning/lessonCatalog";
 import GuidedJourneyPage from "../pages/GuidedJourneyPage";
 import StandaloneDemoLauncherPage from "../pages/StandaloneDemoLauncherPage";
-import { resetLesson, runLesson } from "../services/lessonExecutionService";
+import {
+  canObserveLesson,
+  resetLesson,
+  runLesson,
+} from "../services/lessonExecutionService";
 import AppShell from "./AppShell";
 
 export function normalizeAcademyMode(routeMode) {
@@ -30,8 +34,13 @@ export function AcademyLessonRoute({ loading, user, logout }) {
             lesson={lesson}
             mode={mode}
             onModeChange={(nextMode) => navigate(`/academy/${lessonId}/${nextMode}`)}
-            onRun={({ reset, ...input }) =>
-              reset ? resetLesson(lesson.id) : runLesson(lesson.id, input)
+            onRun={
+              canObserveLesson(lesson.id)
+                ? ({ reset, ...input }) =>
+                    reset
+                      ? resetLesson(lesson.id)
+                      : runLesson(lesson.id, input)
+                : undefined
             }
           >
             <p>{lesson.category}</p>

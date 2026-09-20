@@ -23,7 +23,6 @@ const OBSERVATION_ENDPOINTS = Object.freeze({
   "hitl-step-up": "/api/app-events?category=authorize&limit=10",
   "agent-lifecycle": "/api/agent/identity/status",
   "ai-architecture": "/api/health/services",
-  "product-map": "/api/health/services",
 });
 
 const silentRead = Object.freeze({ _silent: true, _noAuthBanner: true });
@@ -386,8 +385,20 @@ const OBSERVATION_NORMALIZERS = Object.freeze({
       evidence("Agent identity mapping", data.agentMapping ? 1 : 0),
     ]),
   "ai-architecture": (data) => serviceObservation(data),
-  "product-map": (data) => serviceObservation(data),
 });
+
+export function isObservationActionSupported(action) {
+  return Boolean(
+    OBSERVATION_ENDPOINTS[action] && OBSERVATION_NORMALIZERS[action],
+  );
+}
+
+export function canObserveLesson(lessonId) {
+  const lesson = getLesson(lessonId);
+  return Boolean(
+    lesson && isObservationActionSupported(lesson.run.action),
+  );
+}
 
 function unobservedResult(status, warning) {
   return {
@@ -404,22 +415,26 @@ function unobservedResult(status, warning) {
   };
 }
 
-export async function runLesson(lessonId, _input = {}) {
+export async function runLesson(lessonId, input = {}) {
   const lesson = getLesson(lessonId);
   if (!lesson) throw new Error(`Unknown lesson: ${lessonId}`);
 
-  const endpoint = OBSERVATION_ENDPOINTS[lesson.run.action];
-  if (!endpoint) {
+  const action = input.action || lesson.run.action;
+  if (
+    action !== lesson.run.action ||
+    !isObservationActionSupported(action)
+  ) {
     return unobservedResult(
       "not-run",
-      "No safe live-run endpoint is configured for this lesson.",
+      "No direct evidence observation is configured for this lesson and scenario.",
     );
   }
 
+  const endpoint = OBSERVATION_ENDPOINTS[action];
+
   try {
     const response = await apiClient.get(endpoint, silentRead);
-    const normalize = OBSERVATION_NORMALIZERS[lesson.run.action];
-    if (!normalize) throw new Error("unsupported_run_action");
+    const normalize = OBSERVATION_NORMALIZERS[action];
     return {
       correlationId: correlationIdFrom(response),
       ...normalize(response?.data || {}),

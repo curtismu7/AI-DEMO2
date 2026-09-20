@@ -180,7 +180,7 @@ describe("GuidedJourneyPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("7 completed steps")).toBeInTheDocument();
     expect(screen.getByText("1 skipped step")).toBeInTheDocument();
-    expect(screen.getByText("0 captured lesson runs")).toBeInTheDocument();
+    expect(screen.getByText("0 captured evidence checks")).toBeInTheDocument();
   });
 
   it("does not restore an in-flight result after the journey restarts", async () => {
@@ -190,8 +190,8 @@ describe("GuidedJourneyPage", () => {
     });
     await screen.findByText("Needs attention");
 
-    fireEvent.click(screen.getByRole("button", { name: "Run live lesson" }));
-    expect(screen.getByText("Running")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Check live evidence" }));
+    expect(screen.getByText("Checking evidence")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Restart journey" }));
 
     await act(async () => {
@@ -207,7 +207,7 @@ describe("GuidedJourneyPage", () => {
       fireEvent.click(screen.getByRole("button", { name: "Next step" }));
     }
 
-    expect(screen.getByText("0 captured lesson runs")).toBeInTheDocument();
+    expect(screen.getByText("0 captured evidence checks")).toBeInTheDocument();
     expect(
       screen.queryByText("Stale architecture trace"),
     ).not.toBeInTheDocument();
@@ -223,18 +223,18 @@ describe("GuidedJourneyPage", () => {
     renderJourney("/academy/journey?step=ai-architecture", { executeLesson });
     await screen.findByText("Needs attention");
 
-    fireEvent.click(screen.getByRole("button", { name: "Run live lesson" }));
-    expect(await screen.findByText("Run captured")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Check live evidence" }));
+    expect(await screen.findByText("Evidence captured")).toBeInTheDocument();
     for (let index = 0; index < 8; index += 1) {
       fireEvent.click(screen.getByRole("button", { name: "Next step" }));
     }
 
-    expect(screen.getByText("1 captured lesson run")).toBeInTheDocument();
+    expect(screen.getByText("1 captured evidence check")).toBeInTheDocument();
     expect(screen.getByText("SIMULATED")).toBeInTheDocument();
     expect(screen.queryByText("LIVE CLOUD")).not.toBeInTheDocument();
   });
 
-  it("excludes the final summary stage from the itemized evidence count", async () => {
+  it("does not offer an unrelated evidence check on the final summary stage", async () => {
     const executeLesson = vi.fn().mockResolvedValue({
       provenance: PROVENANCE.SIMULATED,
       evidence: ["Summary-stage architecture trace"],
@@ -244,10 +244,12 @@ describe("GuidedJourneyPage", () => {
     renderJourney("/academy/journey?step=product-map", { executeLesson });
     await screen.findByText("Needs attention");
 
-    fireEvent.click(screen.getByRole("button", { name: "Run live lesson" }));
-    expect(await screen.findByText("Run captured")).toBeInTheDocument();
-
-    expect(screen.getByText("0 captured lesson runs")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Check live evidence" }),
+    ).toBeDisabled();
+    expect(screen.getByText("Ready to configure")).toBeInTheDocument();
+    expect(screen.getByText("0 captured evidence checks")).toBeInTheDocument();
+    expect(executeLesson).not.toHaveBeenCalled();
   });
 
   it("keeps readiness and live-run failures explicit and non-cloud", async () => {
@@ -262,8 +264,8 @@ describe("GuidedJourneyPage", () => {
     expect(
       await screen.findByText("Readiness unavailable"),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Run live lesson" }));
-    expect(await screen.findByText("Live run failed.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Check live evidence" }));
+    expect(await screen.findByText("Evidence check failed.")).toBeInTheDocument();
     expect(screen.queryByText("LIVE CLOUD")).not.toBeInTheDocument();
   });
 

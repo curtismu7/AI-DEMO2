@@ -85,7 +85,7 @@ export default function LessonShell({ lesson, mode = "guided", children, evidenc
     } catch {
       if (generation !== requestGeneration.current) return;
       setRunState("error");
-      setRunError("Live run failed.");
+      setRunError("Evidence check failed.");
     }
   };
 
@@ -144,8 +144,10 @@ export default function LessonShell({ lesson, mode = "guided", children, evidenc
           provenance={observedResult?.provenance}
           detail={
             observedResult
-              ? `Observed run result. ${getFallbackDetail(lesson)}`
-              : "Policy: cloud tenant preferred. No live execution is connected."
+              ? `Observed evidence snapshot. ${getFallbackDetail(lesson)}`
+              : onRun
+                ? "Read-only evidence check connected. No lesson action runs here."
+                : "No direct evidence check is connected. Use the linked demo to run this lesson."
           }
         />
         <span
@@ -153,10 +155,10 @@ export default function LessonShell({ lesson, mode = "guided", children, evidenc
           role="status"
           aria-live="polite"
         >
-          {runState === "ready" && "Ready to run"}
-          {runState === "running" && "Running"}
+          {runState === "ready" && "Ready to check evidence"}
+          {runState === "running" && "Checking evidence"}
           {runState === "resetting" && "Resetting"}
-          {runState === "complete" && "Run captured"}
+          {runState === "complete" && "Evidence captured"}
           {runState === "no-evidence" && runError}
           {runState === "not-run" && runError}
           {runState === "unavailable" && (runError || "Ready to configure")}
@@ -170,9 +172,9 @@ export default function LessonShell({ lesson, mode = "guided", children, evidenc
           <div className="lesson-shell__content-inner">{children}</div>
           <div className="lesson-shell__actions">
             <button type="button" className="lesson-shell__run-button" onClick={handleRun} disabled={!onRun || runState === "running" || runState === "resetting"}>
-              {runState === "running" ? "Running…" : "Run live lesson"}
+              {runState === "running" ? "Checking evidence…" : "Check live evidence"}
             </button>
-            <button type="button" className="lesson-shell__reset-button" onClick={handleReset} disabled={runState === "resetting"}>
+            <button type="button" className="lesson-shell__reset-button" onClick={handleReset} disabled={!onRun || runState === "resetting"}>
               Reset demo
             </button>
             {activeMode === "standalone" ? (

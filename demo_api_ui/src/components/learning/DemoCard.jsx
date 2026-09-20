@@ -99,7 +99,11 @@ export default function DemoCard({
         <button
           type="button"
           onClick={onCheckEvidence}
-          disabled={!availability.available || busy}
+          disabled={
+            !availability.available ||
+            !availability.evidenceSupported ||
+            busy
+          }
           aria-label={`Check ${scenario.title} evidence`}
         >
           Check evidence
@@ -116,6 +120,12 @@ export default function DemoCard({
           Explain this
         </Link>
       </div>
+
+      {!availability.evidenceSupported && (
+        <p className="demo-card__action-status">
+          {availability.evidenceDetail}
+        </p>
+      )}
 
       {statusText && (
         <p

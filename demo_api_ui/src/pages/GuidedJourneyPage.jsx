@@ -6,6 +6,7 @@ import TenantReadinessStrip from "../components/learning/TenantReadinessStrip";
 import { getLesson } from "../learning/lessonCatalog";
 import { PROVENANCE } from "../learning/provenance";
 import {
+  canObserveLesson,
   getTenantReadiness,
   resetLesson,
   runLesson,
@@ -135,8 +136,8 @@ export default function GuidedJourneyPage({
             {skipped.size} skipped {skipped.size === 1 ? "step" : "steps"}
           </strong>
           <strong>
-            {capturedRuns.length} captured lesson{" "}
-            {capturedRuns.length === 1 ? "run" : "runs"}
+            {capturedRuns.length} captured evidence{" "}
+            {capturedRuns.length === 1 ? "check" : "checks"}
           </strong>
         </div>
         <ul>
@@ -196,7 +197,9 @@ export default function GuidedJourneyPage({
         step={activeStep}
         stepNumber={activeIndex + 1}
         totalSteps={steps.length}
-        onRun={handleRun}
+        onRun={
+          canObserveLesson(activeStep.lesson.id) ? handleRun : undefined
+        }
         summary={summary}
       />
 
