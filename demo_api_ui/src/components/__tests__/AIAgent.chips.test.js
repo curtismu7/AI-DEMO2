@@ -623,13 +623,8 @@ describe("Header controls after the Actions dropdown removal", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /Movie reel/ }));
     });
-<<<<<<< HEAD
-    await waitFor(() => expect(screen.getByRole("button", { name: "Movie reel surface" })).toHaveTextContent("Embedded"));
-=======
-    await waitFor(() => expect(document.querySelectorAll(".ba-header-more-context input[type=checkbox]")[1]).not.toBeChecked());
     expect(localStorage.getItem("dashboard-sequence-surface")).toBe("none");
     expect(restoredSequenceCard).toHaveAttribute("aria-pressed", "false");
->>>>>>> origin/main
     fireEvent.click(screen.getByRole("button", { name: /Token topology/ }));
     expect(screen.getByRole("button", { name: "Token topology surface" })).toHaveTextContent("Pop-out");
   });
@@ -698,7 +693,6 @@ describe("Header controls after the Actions dropdown removal", () => {
     expect(screen.getByRole("listbox", { name: "Token topology surface options" })).toBeInTheDocument();
   }, 90000);
 
-<<<<<<< HEAD
   it("dispatches the movie reel surface choice for the dashboard", async () => {
     const surfaceChange = vi.fn();
     window.addEventListener("agent-filmstrip-toggle", surfaceChange);
@@ -729,15 +723,12 @@ describe("Header controls after the Actions dropdown removal", () => {
     }
   });
 
-  it("reflects movie reel surface changes coming from the dashboard", async () => {
-=======
   it("labels trace evidence views and keeps only the selected view embedded", async () => {
     localStorage.setItem("ba_simple_stepper_surface", "embedded");
     localStorage.setItem("dashboard-sequence-surface", "embedded");
     localStorage.setItem("ba_token_topology_surface", "both");
     localStorage.setItem("ba_oauth_visualizer_surface", "embedded");
 
->>>>>>> origin/main
     renderAgent({ user: customerUser, mode: "float" });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
@@ -746,7 +737,26 @@ describe("Header controls after the Actions dropdown removal", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
-<<<<<<< HEAD
+
+    expect(screen.getByRole("group", { name: "Trace evidence views" })).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Movie reel Step-by-step live trace$/ }));
+    });
+    expect(localStorage.getItem("ba_simple_stepper_surface")).toBe("none");
+    expect(localStorage.getItem("dashboard-sequence-surface")).toBe("none");
+    expect(localStorage.getItem("ba_token_topology_surface")).toBe("popout");
+    expect(localStorage.getItem("ba_oauth_visualizer_surface")).toBe("none");
+  });
+
+  it("reflects movie reel surface changes coming from the dashboard", async () => {
+    renderAgent({ user: customerUser, mode: "float" });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Open.*AI Agent/i }));
+    });
+    await waitFor(() => screen.getByRole("dialog", { name: /AI Agent/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
+    });
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^Movie reel Step-by-step live trace$/ }));
     });
@@ -764,19 +774,6 @@ describe("Header controls after the Actions dropdown removal", () => {
       }));
     });
     expect(screen.getByRole("button", { name: "Movie reel surface" })).toHaveTextContent("Off");
-=======
-
-    expect(screen.getByRole("group", { name: "Trace evidence views" })).toBeInTheDocument();
-
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /^Movie reel/ }));
-    });
-
-    expect(localStorage.getItem("ba_simple_stepper_surface")).toBe("none");
-    expect(localStorage.getItem("dashboard-sequence-surface")).toBe("none");
-    expect(localStorage.getItem("ba_token_topology_surface")).toBe("popout");
-    expect(localStorage.getItem("ba_oauth_visualizer_surface")).toBe("none");
->>>>>>> origin/main
   });
 
   it("marks Quick Config while a surface menu is open so its layout can expand", async () => {
