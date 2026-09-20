@@ -30,6 +30,7 @@
   --srd-color-llm: color-mix(in oklab, #eb6834 60%, white);
   --srd-color-mcp: #1baf7a;
   --srd-color-gateway: color-mix(in oklab, #1baf7a 60%, white);
+  --srd-color-vault: color-mix(in oklab, #1baf7a 35%, white);
   --srd-color-pingone: #eda100;
   --srd-color-authz: color-mix(in oklab, #eda100 60%, white);
   --srd-color-bff: #e87ba4;
@@ -69,6 +70,7 @@
   --srd-color-llm: color-mix(in oklab, #ff6b4a 80%, white);
   --srd-color-mcp: #2ed9a3;
   --srd-color-gateway: color-mix(in oklab, #2ed9a3 80%, white);
+  --srd-color-vault: color-mix(in oklab, #2ed9a3 60%, white);
   --srd-color-pingone: #ffa500;
   --srd-color-authz: color-mix(in oklab, #ffa500 80%, white);
   --srd-color-bff: #ff5599;
@@ -304,6 +306,7 @@
 .srd-lane-llm { --srd-lane: var(--srd-color-llm); }
 .srd-lane-mcp { --srd-lane: var(--srd-color-mcp); }
 .srd-lane-gateway { --srd-lane: var(--srd-color-gateway); }
+.srd-lane-vault { --srd-lane: var(--srd-color-vault); }
 .srd-lane-pingone { --srd-lane: var(--srd-color-pingone); }
 .srd-lane-authz { --srd-lane: var(--srd-color-authz); }
 .srd-lane-bff { --srd-lane: var(--srd-color-bff); }

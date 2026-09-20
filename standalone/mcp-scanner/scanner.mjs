@@ -16,6 +16,8 @@ const INSTRUCTION_TAG = /<\/?\s*(important|system|secret|instructions?|admin)\s*
 const SECRECY = /\bdo not (tell|mention|inform|reveal|disclose|notify)\b/i;
 const AGENT_IMPERATIVE = /\b(ignore (all )?previous|before (calling|using) (any|another) tool|you must (always|first)|always call)\b/i;
 const LEAK_HINT = /\b(full (conversation )?context|credentials?|api[- ]?keys?|secrets?|passwords?|bearer|auth(entication)? tokens?|tokens?)\b/i;
+const SENSITIVE_ACTION = /\b(transfer|payment|payout|wire|remit)\b/i;
+const APPROVAL_BYPASS = /\b(bypass|skip|without|no)\b[^.\n]{0,40}\b(approval|consent|authorization)\b/i;
 
 // scan(tools) -> [{ tool, kind, detail }]. `tools` is an MCP tools/list array.
 export function scan(tools) {
@@ -34,6 +36,27 @@ export function scan(tools) {
     }
   }
   return findings;
+}
+
+export function scanResources(resources) {
+  return (resources || []).flatMap((resource) => {
+    const uriId = String(resource.uri || '').split('/').filter(Boolean).pop();
+    const label = `resource:${uriId || resource.name || '(unnamed)'}`;
+    const text = [resource.description, ...(resource.contents || []).map((content) => content.text || '')]
+      .filter(Boolean).join('\n');
+    return scanContent(label, text);
+  });
+}
+
+export function scanPrompts(prompts) {
+  return (prompts || []).flatMap((prompt) => {
+    const label = `prompt:${prompt.name || '(unnamed)'}`;
+    const text = [
+      prompt.description,
+      ...(prompt.messages || []).map((message) => message.content?.text || ''),
+    ].filter(Boolean).join('\n');
+    return scanContent(label, text);
+  });
 }
 
 // scanAgentCard(card) -> [{ tool, kind, detail }]. Same heuristics, applied to an
@@ -61,6 +84,19 @@ function describeInstruction(desc) {
   if (SECRECY.test(desc)) return 'description tells the agent to hide something from the user';
   if (AGENT_IMPERATIVE.test(desc)) return 'agent-directed imperative smuggled into the description';
   return null;
+}
+
+function scanContent(label, text) {
+  const findings = [];
+  const instruction = describeInstruction(text);
+  if (instruction) findings.push({ tool: label, kind: 'hidden-instruction', detail: instruction });
+  if (SENSITIVE_ACTION.test(text)) {
+    findings.push({ tool: label, kind: 'sensitive-action', detail: 'content directs the agent toward a fund-moving or payment action' });
+  }
+  if (APPROVAL_BYPASS.test(text)) {
+    findings.push({ tool: label, kind: 'sensitive-action', detail: 'content instructs the agent to bypass approval or consent' });
+  }
+  return findings;
 }
 
 function isOffBoxUrl(v) {

@@ -76,6 +76,7 @@ import HealthcareAdminOps from "./components/HealthcareAdminOps";
 import KillSwitchConfirmModal from "./components/KillSwitchConfirmModal";
 import LandingPage from "./components/LandingPage";
 import LearningHub from "./components/LearningHub";
+import ShadowAiDetectorPage from "./pages/ShadowAiDetectorPage";
 import LlmConfigPage from "./components/LlmConfigPage";
 import LogoutPage from "./components/LogoutPage";
 import LoginSuccessModal from "./components/LoginSuccessModal";
@@ -917,12 +918,79 @@ function AppWithAuth() {
                     )
                   }
                 />
-                <Route path="/ai-products/core" element={<main className="ai-product-main"><PingAiProductPage product="core" /></main>} />
-                <Route path="/ai-products/gateway" element={<main className="ai-product-main"><PingAiProductPage product="gateway" /></main>} />
-                <Route path="/ai-products/authorize" element={<main className="ai-product-main"><PingAiProductPage product="authorize" /></main>} />
-                <Route path="/ai-products/privilege-llm" element={<main className="ai-product-main"><PingAiProductPage product="privilegeLlm" /></main>} />
-                <Route path="/ai-products/privilege-a2a" element={<main className="ai-product-main"><PingAiProductPage product="privilegeA2a" /></main>} />
-                <Route path="/ai-products/privilege-mcp" element={<main className="ai-product-main"><PingAiProductPage product="privilegeMcp" /></main>} />
+                <Route
+                  path="/ai-gateway/shadow-ai-detector"
+                  element={
+                    loading ? null : (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <ShadowAiDetectorPage />
+                        </main>
+                      </>
+                    )
+                  }
+                />
+                <Route
+                  path="/ai-products/core"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <main className="ai-product-main">
+                        <PingAiProductPage product="core" />
+                      </main>
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/ai-products/gateway"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <main className="ai-product-main">
+                        <PingAiProductPage product="gateway" />
+                      </main>
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/ai-products/authorize"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <main className="ai-product-main">
+                        <PingAiProductPage product="authorize" />
+                      </main>
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/ai-products/privilege-llm"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <main className="ai-product-main">
+                        <PingAiProductPage product="privilegeLlm" />
+                      </main>
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/ai-products/privilege-a2a"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <main className="ai-product-main">
+                        <PingAiProductPage product="privilegeA2a" />
+                      </main>
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/ai-products/privilege-mcp"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <main className="ai-product-main">
+                        <PingAiProductPage product="privilegeMcp" />
+                      </main>
+                    </AppShell>
+                  }
+                />
                 <Route
                   path="/reports"
                   element={<ReportsPageRoute user={user} logout={logout} />}

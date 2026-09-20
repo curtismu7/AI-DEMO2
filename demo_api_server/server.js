@@ -1133,9 +1133,20 @@ app.use(
     // fetch is same-origin so it carries the session cookie, and the spec stays
     // a single source both the page and any client can read.
     swaggerUi.setup(null, {
-        swaggerOptions: { url: '/api/openapi.json' },
+        swaggerOptions: {
+            url: '/api/openapi.json',
+            requestInterceptor: (request) => {
+                request.credentials = 'include';
+                return request;
+            },
+        },
         customJs: '/api/docs/swagger-ui-header.js',
         customCss: `
+            /* Authentication comes from the PingOne-backed session cookie. */
+            .swagger-ui .auth-wrapper,
+            .swagger-ui .authorization__btn {
+                display: none;
+            }
             .swagger-demo-header {
                 align-items: center;
                 background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);

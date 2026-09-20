@@ -26,8 +26,8 @@
 #  10. Clones the repo (or pulls latest main on an existing checkout).
 #  11. Generates TLS certs for api.ping.demo into certs/.
 #  11b. Prompts for the PingOne Worker app creds (Environment ID, Client ID,
-#       Client Secret). Provided → setup runs hands-free via PINGONE_BOOTSTRAP_*;
-#       skipped → setup falls back to its browser cred form.
+#       Client Secret). Interactive setup requires all three values; scripted
+#       setup must provide the same PINGONE_BOOTSTRAP_* variables.
 #  12. Runs `npm run setup:fresh` — provisions PingOne, writes .env files,
 #      builds the codegraph index.
 #  13. Offers optional LLM provider setup (all skippable):
@@ -50,6 +50,7 @@
 #   BANKING_BRANCH    Branch to check out (default: main)
 #   DRY_RUN           Set to 1 to print commands without executing
 #   ASSUME_YES        Set to 1 to skip the confirmation prompt
+#   INSTALL_MODE      Set to local, docker-terraform, orbstack, se, or eks
 
 set -euo pipefail
 
@@ -82,6 +83,10 @@ is_valid_ping_email() {
   local email
   email="$(printf '%s' "${1:-}" | tr '[:upper:]' '[:lower:]' | tr -d ' "')"
   [[ -n "$email" && "$email" == *@pingidentity.com ]]
+}
+
+is_valid_k8s_namespace() {
+  [[ "${1:-}" =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]]
 }
 
 read_ping_email_install() {
@@ -147,6 +152,20 @@ install_gh_cli() {
   else
     warn "GitHub CLI (gh) not found. Install it for PR workflows: https://cli.github.com"
   fi
+}
+
+ensure_terraform() {
+  if command -v terraform >/dev/null 2>&1; then
+    ok "Terraform already installed."
+    return 0
+  fi
+  if command -v brew >/dev/null 2>&1; then
+    info "Terraform not found — installing via Homebrew..."
+    brew install terraform --quiet || fatal "Terraform install failed. Install it manually: https://developer.hashicorp.com/terraform/install"
+    ok "Terraform installed."
+    return 0
+  fi
+  fatal "Terraform is required for docker-terraform mode. Install it from https://developer.hashicorp.com/terraform/install"
 }
 
 # Install Node via nvm if missing or below the required major.
@@ -788,11 +807,10 @@ clone_or_update() {
 #
 # Bootstrap needs an existing PingOne Worker app (role: Identity Data Admin) to
 # call the Management API and provision everything else. That app is created by
-# hand in the PingOne console — we can't bootstrap it. Collect its creds here and
-# hand them to setup:fresh via the documented PINGONE_BOOTSTRAP_* env vars
-# (+ --non-interactive) so the user never has to touch the browser cred form.
-# Pressing Enter at the first prompt skips this and falls back to setup:fresh's
-# own form (which also reuses creds cached at ~/.ai-demo-creds).
+# hand in the PingOne console — we can't bootstrap it. Collect its credentials
+# here and hand them to setup:fresh via the documented PINGONE_BOOTSTRAP_* env
+# vars (+ --non-interactive). The installer deliberately has one credential
+# flow so a handoff recipient knows exactly which PingOne app is being used.
 NONINT_FLAG=""
 prompt_worker_creds() {
   # Already provided via env (scripted / CI) → honor and go non-interactive.
@@ -802,32 +820,30 @@ prompt_worker_creds() {
     return 0
   fi
 
+  if [[ -n "${PINGONE_BOOTSTRAP_ENV_ID:-}" || -n "${PINGONE_BOOTSTRAP_CLIENT_ID:-}" || -n "${PINGONE_BOOTSTRAP_CLIENT_SECRET:-}" ]]; then
+    fatal "PINGONE_BOOTSTRAP_ENV_ID, PINGONE_BOOTSTRAP_CLIENT_ID, and PINGONE_BOOTSTRAP_CLIENT_SECRET must be provided together."
+  fi
+
   echo ""
   echo "${BOLD}── PingOne worker-token credentials ────────────────────────────────${RESET}"
   echo ""
   echo "  Setup provisions PingOne using a ${BOLD}Worker app${RESET} you create once in the"
   echo "  PingOne admin console with the ${BOLD}Identity Data Admin${RESET} role."
-  echo "  Enter that app's credentials now to provision hands-free, or press Enter"
-  echo "  to skip and use setup's browser form instead."
-  if [[ -f "$HOME/.ai-demo-creds" ]]; then
-    echo "  ${DIM}(Cached creds found at ~/.ai-demo-creds — press Enter to reuse them.)${RESET}"
-  fi
+  echo "  Enter all three values now. They are required to provision PingOne."
   echo ""
 
   # Probe that /dev/tty is actually usable. On macOS `[[ -r /dev/tty ]]` is true
   # even with no controlling terminal (the open then fails "Device not
   # configured"), so test a real write and skip cleanly if it fails.
   if ! { : >/dev/tty; } 2>/dev/null; then
-    info "No interactive terminal — skipping inline cred prompt (setup uses env/cache or its form)."
-    return 0
+    fatal "PingOne worker credentials are required. Set PINGONE_BOOTSTRAP_ENV_ID, PINGONE_BOOTSTRAP_CLIENT_ID, and PINGONE_BOOTSTRAP_CLIENT_SECRET for a non-interactive install."
   fi
 
   local env_id="" region="" client_id="" client_secret=""
-  printf "  PingOne Environment ID (UUID) [Enter to skip]: " >/dev/tty
+  printf "  PingOne Environment ID (UUID): " >/dev/tty
   read -r env_id </dev/tty || true
   if [[ -z "$env_id" ]]; then
-    info "Skipped inline creds — setup will prompt (browser form) or reuse cache."
-    return 0
+    fatal "PingOne Environment ID is required."
   fi
 
   printf "  Region (com | eu | ca | asia | com.au) [com]: " >/dev/tty
@@ -842,8 +858,7 @@ prompt_worker_creds() {
   printf "\n" >/dev/tty
 
   if [[ -z "$client_id" || -z "$client_secret" ]]; then
-    warn "Client ID and Secret are both required — skipping inline creds; setup will prompt instead."
-    return 0
+    fatal "PingOne Worker Client ID and Client Secret are both required."
   fi
 
   export PINGONE_BOOTSTRAP_ENV_ID="$env_id"
@@ -864,9 +879,8 @@ run_setup() {
   # macOS ships bash 3.2, which incorrectly triggers `set -u` (nounset) on
   # `${arr[@]}` when the array is empty. Guard with `${arr[@]+"${arr[@]}"}`
   # so the expansion produces zero words instead of an unbound-var error.
-  # NONINT_FLAG is "--non-interactive" when prompt_worker_creds collected creds
-  # (exported as PINGONE_BOOTSTRAP_*), so bootstrap reads them from the env and
-  # skips its browser cred form. Empty otherwise → setup falls back to the form.
+  # NONINT_FLAG is always "--non-interactive" here because prompt_worker_creds
+  # requires the installer to collect all worker credentials before setup runs.
   if [[ "${DRY_RUN:-0}" == "1" ]]; then
     echo "  DRY: cd $dir && npm run setup:fresh -- --from-installer ${NONINT_FLAG} ${EXTRA_ARGS[*]+${EXTRA_ARGS[*]}}"
     return 0
@@ -1207,20 +1221,27 @@ main() {
   echo "                         ${DIM} cluster; needs your SE namespace + gh auth)${RESET}"
   echo "  ${BOLD}4)${RESET} Kubernetes / EKS      ${DIM}(./run-k8.sh aws-all — deploy to a self-managed EKS${RESET}"
   echo "                         ${DIM} cluster; needs GITHUB_OWNER, AWS_REGION, EKS_CLUSTER_NAME)${RESET}"
+  echo "  ${BOLD}5)${RESET} Local Docker + Terraform ${DIM}(Terraform lifecycle around docker-compose.yml)${RESET}"
+  echo "  ${BOLD}6)${RESET} Ping SE + Terraform   ${DIM}(Terraform deploy into an existing SE namespace)${RESET}"
   echo ""
 
-  local run_mode_answer=""
-  if [[ -r /dev/tty ]]; then
-    read -r -p "  Enter 1, 2, 3, or 4 [default: 1]: " run_mode_answer </dev/tty 2>/dev/null || true
+  local run_mode_answer="${INSTALL_MODE:-}"
+  DEPLOY_WITH_TERRAFORM=0
+  if [[ -z "$run_mode_answer" && -r /dev/tty ]]; then
+    read -r -p "  Enter 1, 2, 3, 4, 5, or 6 [default: 1]: " run_mode_answer </dev/tty 2>/dev/null || true
   fi
   [[ -z "$run_mode_answer" ]] && run_mode_answer="1"
 
   # Normalise: accept text aliases too
   case "$run_mode_answer" in
     1|local)                     RUN_MODE="local"     ;;
+    docker|docker-terraform)    RUN_MODE="docker"    ;;
+    se-terraform)               RUN_MODE="se"        ; DEPLOY_WITH_TERRAFORM=1 ;;
     2|orbstack|k8s|kubernetes)   RUN_MODE="orbstack"  ;;
     3|se|ping-se|pingse|se-cluster) RUN_MODE="se"     ;;
     4|eks|aws|cloud)             RUN_MODE="eks"       ;;
+    5)                           RUN_MODE="docker"    ; DEPLOY_WITH_TERRAFORM=1 ;;
+    6)                           RUN_MODE="se"        ; DEPLOY_WITH_TERRAFORM=1 ;;
     *)
       warn "Unrecognised choice '${run_mode_answer}' — defaulting to local."
       RUN_MODE="local"
@@ -1230,6 +1251,7 @@ main() {
 
   case "$RUN_MODE" in
     local)    ok "Run mode: ${BOLD}Local server${RESET} (./run.sh)" ;;
+    docker)   ok "Run mode: ${BOLD}Terraform-managed Docker${RESET} (./terraform)" ;;
     orbstack) ok "Run mode: ${BOLD}Kubernetes / OrbStack${RESET} (./run-k8.sh)" ;;
     se)       ok "Run mode: ${BOLD}Ping SE cluster${RESET} (./run-pingaws.sh)" ;;
     eks)      ok "Run mode: ${BOLD}Kubernetes / EKS${RESET} (./run-k8.sh aws-all)" ;;
@@ -1254,6 +1276,14 @@ main() {
       ensure_omlx         # optional Mac fast path for agent chip dev
       ensure_llm_launchd  # keep llama-server tiers alive across logins (macOS watchdog)
       ensure_codegraph_llamacpp  # Code Explorer requires tool-capable model
+      ;;
+    docker)
+      # Terraform-managed Docker uses the repository's Compose service graph,
+      # so Docker, Terraform, and the host LLM proxy are required.
+      ensure_orbstack
+      ensure_terraform
+      ensure_llamacpp
+      ensure_codegraph_llamacpp
       ;;
     orbstack)
       # K8s on OrbStack: needs Docker + kubectl. llama.cpp runs in-cluster.
@@ -1282,6 +1312,19 @@ main() {
       fi
       if [[ -n "${PING_EMAIL:-}" ]] && ! is_valid_ping_email "$PING_EMAIL"; then
         fatal "PING_EMAIL must be a @pingidentity.com address (personal email is not allowed)"
+      fi
+      if [[ "$DEPLOY_WITH_TERRAFORM" == "1" ]]; then
+        if [[ ! -r /dev/tty ]]; then
+          fatal "SE namespace is required for se-terraform mode. Set SE_NAMESPACE and re-run with an interactive terminal."
+        fi
+        local _se_namespace="${SE_NAMESPACE:-}"
+        if [[ -z "$_se_namespace" ]]; then
+          printf "  Existing SE Kubernetes namespace (Terraform will not create it): " >/dev/tty
+          read -r _se_namespace </dev/tty || true
+        fi
+        is_valid_k8s_namespace "$_se_namespace" || fatal "Invalid SE namespace: $_se_namespace"
+        export SE_NAMESPACE="$_se_namespace"
+        ok "SE namespace selected: $SE_NAMESPACE"
       fi
       ;;
     eks)
@@ -1426,7 +1469,7 @@ EOF
 
   setup_certs "$target"
 
-  # Collect PingOne worker-token creds (or skip → setup's browser form).
+  # Collect the required PingOne worker-token credentials before setup.
   prompt_worker_creds
 
   # For SE cluster, bootstrap PingOne with the public K8s URL so redirect URIs
@@ -1452,11 +1495,23 @@ EOF
     local)
       echo "  cd $target && ./run.sh"
       ;;
+    docker)
+      echo "  cd $target/terraform"
+      echo "  cp terraform.tfvars.example terraform.tfvars"
+      echo "  terraform init"
+      echo "  terraform plan -out=ai-demo.tfplan"
+      echo "  terraform apply ai-demo.tfplan"
+      ;;
     orbstack)
       echo "  cd $target && ./run-k8.sh"
       ;;
     se)
-      echo "  cd $target && ./run-pingaws.sh"
+      if [[ "$DEPLOY_WITH_TERRAFORM" == "1" ]]; then
+        echo "  cd $target/terraform"
+        echo "  ./deploy-se.sh"
+      else
+        echo "  cd $target && ./run-pingaws.sh"
+      fi
       echo ""
       echo "  This will:"
       echo "    1. Build all Docker images"
@@ -1492,6 +1547,19 @@ EOF
 }
 
 # Capture any extra args (e.g. tar archive path) to forward to setup:fresh.
-EXTRA_ARGS=("$@")
+# `--mode` is consumed by this installer and must never reach setup:fresh.
+EXTRA_ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --mode=*) INSTALL_MODE="${1#--mode=}" ;;
+    --mode)
+      shift
+      [[ $# -gt 0 ]] || fatal "--mode requires a value"
+      INSTALL_MODE="$1"
+      ;;
+    *) EXTRA_ARGS+=("$1") ;;
+  esac
+  shift
+done
 
 main

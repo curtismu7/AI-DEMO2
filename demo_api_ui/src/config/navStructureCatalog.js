@@ -8,6 +8,10 @@ export const NAV_STRUCTURE_CATALOG = [
   { label: "Home" },
   { label: "Dashboard" },
   {
+    label: "AI-Gateway",
+    children: ["Shadow AI Detector"],
+  },
+  {
     label: "AI Agent Gateway",
     children: [
       "Protocol Playground",
