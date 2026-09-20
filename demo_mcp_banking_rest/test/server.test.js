@@ -1,10 +1,8 @@
 'use strict';
 
-// This server has one job: forward GET /banking, /banking/:id and
-// /openapi/banking-rest.json to BANKING_UPSTREAM_URL, attaching X-API-Key on
-// the two data routes and omitting it on the public spec route. These tests
-// run a tiny fake upstream (no real mcp-resource-server needed) and assert
-// the proxy forwards status/body/headers correctly.
+// The banking routes proxy to BANKING_UPSTREAM_URL, while /users and its
+// OpenAPI document are self-contained for Privilege discovery testing. These
+// tests use a tiny fake upstream (no real mcp-resource-server needed).
 //
 // Run: node --test demo_mcp_banking_rest/test/
 
@@ -102,6 +100,48 @@ test('GET /openapi/banking-rest.json forwards WITHOUT X-API-Key', async () => {
       const res = await fetch(`${base}/openapi/banking-rest.json`);
       assert.strictEqual(res.status, 200);
       assert.strictEqual(seenKey, undefined);
+    });
+  } finally {
+    upstream.close();
+  }
+});
+
+test('GET /users returns the self-contained sample users without calling upstream', async () => {
+  let upstreamCalls = 0;
+  const upstream = await withFakeUpstream((req, res) => {
+    upstreamCalls += 1;
+    res.writeHead(500);
+    res.end();
+  });
+  try {
+    await withServer(upstream.address().port, async (base) => {
+      const res = await fetch(`${base}/users`);
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.headers.get('content-type'), 'application/json');
+      assert.deepStrictEqual(await res.json(), [{ id: 101, name: 'Jane Doe' }]);
+      assert.strictEqual(upstreamCalls, 0);
+    });
+  } finally {
+    upstream.close();
+  }
+});
+
+test('GET /openapi/simple-users.json describes the local listUsers operation', async () => {
+  const upstream = await withFakeUpstream((req, res) => res.end());
+  try {
+    await withServer(upstream.address().port, async (base) => {
+      const res = await fetch(`${base}/openapi/simple-users.json`);
+      assert.strictEqual(res.status, 200);
+      assert.strictEqual(res.headers.get('content-type'), 'application/json');
+
+      const spec = await res.json();
+      assert.strictEqual(spec.openapi, '3.0.3');
+      assert.deepStrictEqual(spec.servers, [{ url: 'http://localhost:8082' }]);
+      assert.strictEqual(spec.paths['/users'].get.operationId, 'listUsers');
+      assert.strictEqual(
+        spec.paths['/users'].get.responses['200'].content['application/json'].schema.type,
+        'array',
+      );
     });
   } finally {
     upstream.close();
