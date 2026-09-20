@@ -108,6 +108,15 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(screen.getAllByText("P1AZ Inspector").length).toBeGreaterThan(0);
   });
 
+  it("searching agent authorization surfaces the live walkthrough", () => {
+    renderNav();
+    fireEvent.change(screen.getByLabelText(/search navigation/i), { target: { value: "agent authorization" } });
+    expect(screen.getByText("Agent Gateway Authorization").closest("a")).toHaveAttribute(
+      "href",
+      "/agent-gateway-authorization",
+    );
+  });
+
   it("searching activity surfaces both activity destinations", () => {
     renderNav();
     const input = screen.getByLabelText(/search navigation/i);
