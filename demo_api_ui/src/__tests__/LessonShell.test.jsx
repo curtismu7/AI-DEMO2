@@ -1,16 +1,23 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
-import fs from "node:fs";
-import path from "node:path";
+import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { AcademyLessonRoute } from "../App";
+import { SessionTokenProvider } from "../context/SessionTokenContext";
+import { ThemeProvider } from "../context/ThemeContext";
 import { getLesson } from "../learning/lessonCatalog";
 import { PROVENANCE } from "../learning/provenance";
 import LessonShell from "../components/learning/LessonShell";
 
+vi.mock("../vertical/useVertical", () => ({
+  useVertical: () => ({ pageManifest: null }),
+}));
+
 const lesson = getLesson("delegation");
-const appSource = fs.readFileSync(path.resolve(__dirname, "../App.js"), "utf8");
-const authRequirements = JSON.parse(
-  fs.readFileSync(path.resolve(__dirname, "../../../demo_api_server/config/auth-requirements.json"), "utf8"),
-);
+const authRequirements = {
+  routes: {
+    "/academy/:lessonId": "public",
+    "/academy/:lessonId/:mode": "public",
+  },
+};
 
 function renderShell(props = {}) {
   return render(
@@ -20,6 +27,40 @@ function renderShell(props = {}) {
         <p>Shared lesson content</p>
       </LessonShell>
     </MemoryRouter>,
+  );
+}
+
+function LocationProbe() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  return (
+    <>
+      <output data-testid="location">{location.pathname}</output>
+      <button type="button" onClick={() => navigate(-1)}>Back</button>
+    </>
+  );
+}
+
+function renderAcademyRoute(initialEntries) {
+  return render(
+    <ThemeProvider>
+      <SessionTokenProvider>
+        <MemoryRouter initialEntries={initialEntries}>
+          <LocationProbe />
+          <Routes>
+            <Route
+              path="/academy/:lessonId/:mode"
+              element={<AcademyLessonRoute loading={false} user={null} logout={() => {}} />}
+            />
+            <Route
+              path="/academy/:lessonId"
+              element={<AcademyLessonRoute loading={false} user={null} logout={() => {}} />}
+            />
+            <Route path="/learning" element={<div data-testid="learning-redirect">Learning hub</div>} />
+          </Routes>
+        </MemoryRouter>
+      </SessionTokenProvider>
+    </ThemeProvider>,
   );
 }
 
@@ -74,6 +115,11 @@ describe("LessonShell", () => {
     expect(screen.queryByText("LIVE CLOUD")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Run live lesson/i })).toBeDisabled();
     expect(screen.getByText("Ready to configure")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Reset demo/i }));
+    expect(screen.getByText("Ready to configure")).toBeInTheDocument();
+    expect(screen.queryByText("Ready to run")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Run live lesson/i })).toBeDisabled();
   });
 
   it("derives observed provenance and evidence from a normalized non-cloud result", async () => {
@@ -173,17 +219,50 @@ describe("LessonShell", () => {
     expect(screen.queryByText("LIVE CLOUD")).not.toBeInTheDocument();
   });
 
-  it("registers public academy routes and their public chrome host", () => {
+  it("renders both public academy deep-link forms with one public chrome main", async () => {
     expect(authRequirements.routes["/academy/:lessonId"]).toBe("public");
     expect(authRequirements.routes["/academy/:lessonId/:mode"]).toBe("public");
-    expect(appSource).toMatch(/path="\/academy\/:lessonId\/:mode"[\s\S]*?AcademyLessonRoute/);
-    expect(appSource).toMatch(/path="\/academy\/:lessonId"[\s\S]*?AcademyLessonRoute/);
-    expect(appSource).toMatch(/function AcademyLessonRoute[\s\S]*?<TopNav user=\{user\}/);
-    expect(appSource).toMatch(/function AcademyLessonRoute[\s\S]*?<main className="main-content">/);
+
+    const { unmount } = renderAcademyRoute(["/academy/delegation"]);
+    expect(await screen.findByRole("banner")).toBeInTheDocument();
+    expect(screen.getByTestId("location")).toHaveTextContent("/academy/delegation");
+    expect(screen.getByRole("main")).toHaveClass("main-content");
+    expect(screen.getAllByRole("main")).toHaveLength(1);
+    unmount();
+
+    renderAcademyRoute(["/academy/delegation/standalone"]);
+    expect(await screen.findByRole("button", { name: "Demo mode" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("location")).toHaveTextContent("/academy/delegation/standalone");
+    expect(screen.getAllByRole("main")).toHaveLength(1);
   });
 
-  it("deliberately normalizes invalid academy modes instead of silently selecting guided", () => {
-    expect(appSource).toContain("normalizeAcademyMode");
-    expect(appSource).toMatch(/normalizeAcademyMode\(routeMode\)[\s\S]*?Navigate to=\{`\/academy\/\$\{lessonId\}\/guided`\}/);
+  it("keeps the mode URL synchronized through toggles and browser back navigation", async () => {
+    renderAcademyRoute(["/academy/delegation/guided"]);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Demo mode" }));
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/academy/delegation/standalone"));
+    expect(screen.getByRole("button", { name: "Demo mode" })).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/academy/delegation/guided"));
+    expect(screen.getByRole("button", { name: "Guided Journey" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("redirects invalid lessons to the learning hub and invalid modes to guided", async () => {
+    const { unmount } = renderAcademyRoute(["/academy/not-a-lesson"]);
+    expect(await screen.findByTestId("learning-redirect")).toBeInTheDocument();
+    unmount();
+
+    renderAcademyRoute(["/academy/delegation/sideways"]);
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/academy/delegation/guided"));
+    expect(screen.getByRole("button", { name: "Guided Journey" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("preserves child state while the presentation mode changes", async () => {
+    renderShell();
+    const input = screen.getByRole("textbox", { name: "lesson input" });
+    fireEvent.change(input, { target: { value: "preserve through route mode" } });
+    fireEvent.click(screen.getByRole("button", { name: "Demo mode" }));
+    expect(screen.getByRole("textbox", { name: "lesson input" })).toHaveValue("preserve through route mode");
   });
 });
