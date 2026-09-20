@@ -83,7 +83,7 @@ describe("LessonShell", () => {
     const onRun = vi.fn().mockResolvedValue({
       provenance: PROVENANCE.LIVE_CLOUD,
       evidence: ["delegated-token"],
-      result: { kind: "redacted" },
+      result: { kind: "observation", status: "observed" },
     });
     renderShell({ onRun });
     fireEvent.click(screen.getByRole("button", { name: /Run live lesson/i }));
@@ -96,7 +96,7 @@ describe("LessonShell", () => {
     const onRun = vi.fn().mockResolvedValue({
       provenance: PROVENANCE.LIVE_CLOUD,
       evidence: ["delegated-token"],
-      result: { kind: "redacted" },
+      result: { kind: "observation", status: "observed" },
     });
     renderShell({ onRun });
 
@@ -128,7 +128,7 @@ describe("LessonShell", () => {
     const onRun = vi.fn().mockResolvedValue({
       provenance: PROVENANCE.SIMULATED,
       evidence: ["policy-deny"],
-      result: { kind: "redacted" },
+      result: { kind: "observation", status: "observed" },
     });
     renderShell({ onRun });
 
@@ -150,6 +150,38 @@ describe("LessonShell", () => {
     expect(screen.queryByText("Run captured")).not.toBeInTheDocument();
   });
 
+  it.each([
+    {
+      status: "no-evidence",
+      warning: "No matching lesson evidence was observed.",
+    },
+    {
+      status: "not-run",
+      warning: "No safe lesson action is configured.",
+    },
+    {
+      status: "unavailable",
+      warning: "The observation endpoint is unavailable.",
+    },
+  ])("keeps a $status outcome non-captured and retryable", async ({ status, warning }) => {
+    const onRun = vi.fn().mockResolvedValue({
+      provenance: null,
+      evidence: [],
+      result: { kind: "observation", status },
+      warnings: [warning],
+    });
+    renderShell({ onRun });
+
+    fireEvent.click(screen.getByRole("button", { name: /Run live lesson/i }));
+    await waitFor(() => expect(screen.getByText(warning)).toBeInTheDocument());
+
+    expect(screen.queryByText("Run captured")).not.toBeInTheDocument();
+    expect(screen.queryByText("Observed run result", { exact: false })).not.toBeInTheDocument();
+    expect(screen.queryByText("LIVE CLOUD")).not.toBeInTheDocument();
+    expect(screen.getByText("0 observed events")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Run live lesson/i })).toBeEnabled();
+  });
+
   it("ignores a stale run completion after reset", async () => {
     let resolveRun;
     let resolveReset;
@@ -165,7 +197,11 @@ describe("LessonShell", () => {
     await waitFor(() => expect(screen.getByText("Running")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: /Reset demo/i }));
 
-    resolveRun({ provenance: PROVENANCE.LIVE_CLOUD, evidence: ["stale"], result: {} });
+    resolveRun({
+      provenance: PROVENANCE.LIVE_CLOUD,
+      evidence: ["stale"],
+      result: { kind: "observation", status: "observed" },
+    });
     resolveReset();
     await waitFor(() => expect(screen.getByText("Ready to run")).toBeInTheDocument());
 
@@ -202,7 +238,7 @@ describe("LessonShell", () => {
     const onRun = vi.fn().mockResolvedValue({
       provenance: PROVENANCE.SIMULATED,
       evidence: ["simulated-policy"],
-      result: { kind: "redacted" },
+      result: { kind: "observation", status: "observed" },
     });
     render(
       <MemoryRouter>
