@@ -75,7 +75,7 @@ opensearch:
 
 opensearchMcpServer:
   enabled: false
-  image: "cjmuir710/opensearch-mcp-server:latest"
+  image: "curtismuir/opensearch-mcp-server:latest"
   imagePullSecretName: "dockerhub-creds"
   resources:
     requests:
