@@ -15,7 +15,10 @@ const HEURISTICS = [
   // create_transfer and the chip would run a different tool than it declares.
   { re: /\bwire\b/, action: 'wire_transfer' },
   // mcp_tools (must be first to not interfere with other patterns)
-  { re: /\b(list|show|get|what).*(mcp.*tools?|tools?.*available|available.*tools?)\b|\btools?\s*(list|available)\b/, action: 'mcp_tools' },
+  {
+    re: /^(?:please\s+)?(?:(?:list|show|get)(?:\s+me)?\s+(?:of\s+)?(?:the\s+|my\s+)?(?:available\s+)?(?:mcp\s+)?tools?(?:\s+available)?(?:\s+from\s+.+)?|(?:what|which)\s+(?:mcp\s+)?tools?\s+(?:are\s+available(?:\s+to\s+me)?|do\s+i\s+have(?:\s+access\s+to)?)|(?:mcp\s+)?tools?(?:\s+(?:list|available))?)$/,
+    action: 'mcp_tools',
+  },
   // sensitive_account_details (must precede general accounts check)
   { re: /\b(sensitive account details|full account|routing number|account number|account details)\b/, action: 'sensitive_account_details' },
   // mortgage_demo (must precede balance check)

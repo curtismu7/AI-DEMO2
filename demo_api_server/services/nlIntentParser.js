@@ -661,15 +661,23 @@ function parseEducation(t) {
 const UNUSUAL_PATTERNS_RE =
   /\b(unusual|anomal\w*|suspicious|unexpected)\b.*\b(pattern|transaction|activity|purchase|charge|spend)|check for unusual|flag any unusual|spot unusual/;
 
+// Cross-vertical tool discovery. Keep presenter-friendly "can I use" wording
+// alongside the existing list/show/available phrases so the same question
+// works before any vertical plugin gets a chance to claim it.
+const MCP_TOOLS_RE =
+  /^(?:please\s+)?(?:(?:list|show|get)(?:\s+me)?\s+(?:of\s+)?(?:the\s+|my\s+)?(?:available\s+)?(?:mcp\s+)?tools?(?:\s+available)?(?:\s+from\s+.+)?|(?:what|which)\s+(?:mcp\s+)?tools?\s+(?:are\s+available(?:\s+to\s+me)?|do\s+i\s+have(?:\s+access\s+to)?)|(?:mcp\s+)?tools?(?:\s+(?:list|available))?)$/;
+const MCP_TOOLS_CAN_USE_RE =
+  /^(?:please\s+)?(?:what|which)\s+(?:mcp\s+)?tools?\s+(?:can|could|may)\s+i\s+(?:use|access)(?:\s+(?:right\s+now|currently))?[?.!]*$/;
+
+function isMcpToolsRequest(t) {
+  return MCP_TOOLS_RE.test(t) || MCP_TOOLS_CAN_USE_RE.test(t);
+}
+
 /**
  * @returns {{ kind: 'banking', banking: { action: string, params?: object } } | null}
  */
 function parseBanking(t) {
-  if (
-    /\b(list|show|get|what).*(mcp.*tools?|tools?.*available|available.*tools?)\b|\btools?\s*(list|available)\b/.test(
-      t,
-    )
-  ) {
+  if (isMcpToolsRequest(t)) {
     return { kind: "banking", banking: { action: "mcp_tools" } };
   }
   // Sensitive details first — must precede general accounts check
@@ -1022,11 +1030,7 @@ function parseHeuristic(
   // ALWAYS a banking action, never education. Runs before the what-is/explain guard and
   // before parseEducation so that phrases like "list of mcp tools" or the bare chip label
   // "MCP Tools" are never swallowed by the broad \bmcp\b education regex.
-  if (
-    /\b(list|show|get|what).*(mcp.*tools?|tools?.*available|available.*tools?)\b|\btools?\s*(list|available)\b|\bmcp\s+tools?\b/.test(
-      t,
-    )
-  ) {
+  if (isMcpToolsRequest(t)) {
     return { kind: "banking", banking: { action: "mcp_tools" } };
   }
 

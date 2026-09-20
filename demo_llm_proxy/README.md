@@ -104,6 +104,16 @@ docker run -p 8090:8090 -e LLAMA_HOST=host.docker.internal llm-gateway
 
 ## Endpoints
 
+### Tool discovery answers
+
+For `POST /v1/chat/completions`, explicit questions such as “What tools can I
+use?” are answered directly from that request's OpenAI-compatible `tools`
+array. This makes the answer follow the effective agent and vertical in clients
+such as Onyx and LibreChat without loading a model or querying an MCP server
+under a different identity. Both streaming and non-streaming responses use the
+normal OpenAI chat-completions shape. If the client attached no tools, the
+answer says so; all other prompts continue to the selected model unchanged.
+
 ### `/health` (GET)
 
 Check proxy and model health:
