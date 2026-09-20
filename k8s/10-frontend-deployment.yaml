@@ -27,6 +27,7 @@ spec:
         app: ai-demo
         component: frontend
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: frontend
         image: ai-demo-k8-ui:latest
