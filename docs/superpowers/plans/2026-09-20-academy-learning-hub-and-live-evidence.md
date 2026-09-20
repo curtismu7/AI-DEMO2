@@ -30,25 +30,25 @@
 - Consumes: existing `/academy/journey` and `/academy/demos` routes.
 - Produces: visible “AI Security Academy” entry with guided and standalone links, rendered when the Learning Hub search is empty.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add assertions that the Learning Hub renders the Academy entry, links to `/academy/journey` and `/academy/demos`, and preserves both light/dark theme labels.
 
-- [ ] **Step 2: Run the focused test and verify it fails**
+- [x] **Step 2: Run the focused test and verify it fails**
 
 Run: `cd demo_api_ui && npx vitest run src/components/__tests__/LearningHub.trainingPath.test.tsx`
 
 Expected: FAIL because the new Academy entry is not present.
 
-- [ ] **Step 3: Implement the minimal themed entry**
+- [x] **Step 3: Implement the minimal themed entry**
 
 Add a semantic section in `LearningHub.tsx` with two React Router links and add only the corresponding tokenized rules in `LearningHub.css`. Keep it outside filtered topic cards so search behavior remains unchanged.
 
-- [ ] **Step 4: Run the focused test and verify it passes**
+- [x] **Step 4: Run the focused test and verify it passes**
 
 Run the same focused Vitest command. Expected: PASS.
 
-- [ ] **Step 5: Commit Task 1**
+- [x] **Step 5: Commit Task 1**
 
 ```bash
 git add demo_api_ui/src/components/LearningHub.tsx demo_api_ui/src/components/LearningHub.css demo_api_ui/src/components/__tests__/LearningHub.trainingPath.test.tsx
@@ -65,23 +65,23 @@ git commit -m "feat(learning): add Academy entrypoint to Learning Hub"
 - Consumes: merged main checkout served through the canonical local origin.
 - Produces: browser evidence that the Learning Hub entry, side-nav search, guided journey, and standalone launcher render and link correctly.
 
-- [ ] **Step 1: Check the serving owner and stack generation**
+- [x] **Step 1: Check the serving owner and stack generation**
 
 Run: `npm run serve:worktree status` and `gen="$(npm run -s stack:generation)"`. If the stack is stopped, start the local Docker stack from the main checkout using the repository’s supported runner, then capture a fresh generation.
 
-- [ ] **Step 2: Run a Playwright reconnaissance check**
+- [x] **Step 2: Run a Playwright reconnaissance check**
 
 Navigate to `https://local.ping-devops.com:4000/learning`, wait for the app shell to settle, inspect the rendered DOM, and confirm the Academy links and Learning Hub search field. Then inspect the side nav and search for `standalone demos`.
 
-- [ ] **Step 3: Exercise the routes**
+- [x] **Step 3: Exercise the routes**
 
 Open `/academy/journey` and `/academy/demos`, confirm their headings and navigation links, and record console/page errors. Do not run mutating demo actions during this pass.
 
-- [ ] **Step 4: Recheck stack generation**
+- [x] **Step 4: Recheck stack generation**
 
 Run `npm run -s stack:generation -- --check "$gen"`. A non-zero result invalidates the browser findings and requires repeating the drive.
 
-- [ ] **Step 5: Run the Learning Hub contrast audit**
+- [x] **Step 5: Run the Learning Hub contrast audit**
 
 Use the repository’s existing contrast-audit workflow against the Learning Hub in both light and dark themes. Confirm H1 ink/ground, readable CTA text, and no font below the 10px token floor.
 
@@ -91,50 +91,44 @@ Use the repository’s existing contrast-audit workflow against the Learning Hub
 - Modify: `demo_api_ui/src/pages/StandaloneDemoLauncherPage.jsx`
 - Modify: `demo_api_ui/src/services/lessonExecutionService.js`
 - Modify: `demo_api_ui/src/components/learning/DemoCard.jsx`
-- Modify: `demo_api_ui/src/components/learning/LessonShell.jsx`
-- Modify: `demo_api_ui/src/pages/GuidedJourneyPage.jsx`
-- Modify: `demo_api_ui/src/routes/AcademyRoutes.jsx`
 - Test: `demo_api_ui/src/__tests__/StandaloneDemoLauncherPage.test.jsx`
 - Test: `demo_api_ui/src/__tests__/lessonExecutionService.test.js`
-- Test: `demo_api_ui/src/__tests__/LessonShell.test.jsx`
-- Test: `demo_api_ui/src/__tests__/GuidedJourneyPage.test.jsx`
 
 **Interfaces:**
-- Consumes: existing safe GET contracts such as `/api/authorize/recent-decisions`, `/api/app-events`, `/api/agent/identity/status`, `/api/privilege-mcp-simple/status`, and `/api/davinci-login/session-status`.
+- Consumes: existing safe GET contracts such as `/api/authorize/pingone-live-policy`, `/api/token-chain`, `/api/agent/identity/status`, `/api/privilege-mcp-simple/status`, and `/api/davinci-login/session-status`.
 - Produces: explicit `evidenceAction` scenario metadata, normalized observation results, and disabled evidence controls for scenarios whose live action would require a mutating or unavailable endpoint.
 
-- [ ] **Step 1: Write failing mapping and normalization tests**
+- [x] **Step 1: Write failing mapping and normalization tests**
 
 Add cases for direct evidence mappings: Authorize denial uses recent decision evidence, CIBA uses approval activity evidence, agent revocation uses lifecycle status evidence, Privilege MCP uses relay readiness evidence, DaVinci uses session-status evidence, and audit evidence uses the existing cumulative trace contract. Assert that every mapping is either supported by a normalizer or deliberately disabled with an explanatory detail.
 
-- [ ] **Step 2: Run focused tests and verify the new expectations fail**
+- [x] **Step 2: Run focused tests and verify the new expectations fail**
 
 Run: `cd demo_api_ui && npx vitest run src/__tests__/StandaloneDemoLauncherPage.test.jsx src/__tests__/lessonExecutionService.test.js src/__tests__/LessonShell.test.jsx src/__tests__/GuidedJourneyPage.test.jsx`
 
 Expected: FAIL because the new scenario actions and endpoint normalizers do not exist.
 
-- [ ] **Step 3: Implement the smallest read-only observation adapters**
+- [x] **Step 3: Implement the smallest read-only observation adapters**
 
 Extend `OBSERVATION_ENDPOINTS` and `OBSERVATION_NORMALIZERS`, keeping `runLesson` action validation strict. Add counts/status fields that describe exactly what was observed. Do not add POST calls, mutate tenant state, or label readiness as proof of a completed scenario action.
 
-- [ ] **Step 4: Implement scenario availability and UI copy**
+- [x] **Step 4: Implement scenario availability and UI copy**
 
 Set `evidenceAction` only for mappings backed by direct observations. Keep unsupported threat-defense or product-path actions disabled with a clear “Launch demo” path. Use “Check live evidence” and “read-only snapshot” language consistently.
 
-- [ ] **Step 5: Run focused tests and verify they pass**
+- [x] **Step 5: Run focused tests and verify they pass**
 
 Run the focused command from Step 2. Expected: PASS with no unrelated endpoint calls.
 
-- [ ] **Step 6: Run the full UI verification**
+- [x] **Step 6: Run the full UI verification**
 
 Run: `cd demo_api_ui && npm run test:unit && npm run build`
 
 Then run from the repository root: `npm run authz:verify`, `npm run topology:verify`, `npm run hygiene:check`, `git diff --check`, and `graphify update .`.
 
-- [ ] **Step 7: Commit Task 3 and prepare review**
+- [x] **Step 7: Commit Task 3 and prepare review**
 
 ```bash
 git add demo_api_ui/src/pages/StandaloneDemoLauncherPage.jsx demo_api_ui/src/services/lessonExecutionService.js demo_api_ui/src/components/learning/DemoCard.jsx demo_api_ui/src/components/learning/LessonShell.jsx demo_api_ui/src/pages/GuidedJourneyPage.jsx demo_api_ui/src/routes/AcademyRoutes.jsx demo_api_ui/src/__tests__/StandaloneDemoLauncherPage.test.jsx demo_api_ui/src/__tests__/lessonExecutionService.test.js demo_api_ui/src/__tests__/LessonShell.test.jsx demo_api_ui/src/__tests__/GuidedJourneyPage.test.jsx
 git commit -m "feat(academy): connect remaining scenario evidence"
 ```
-

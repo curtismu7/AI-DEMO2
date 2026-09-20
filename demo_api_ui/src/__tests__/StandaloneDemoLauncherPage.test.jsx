@@ -6,7 +6,10 @@ import { PROVENANCE } from "../learning/provenance";
 import StandaloneDemoLauncherPage, {
   SCENARIOS,
 } from "../pages/StandaloneDemoLauncherPage";
-import { isObservationActionSupported } from "../services/lessonExecutionService";
+import {
+  canObserveLesson,
+  isObservationActionSupported,
+} from "../services/lessonExecutionService";
 
 const dependencies = [
   {
@@ -139,11 +142,18 @@ describe("StandaloneDemoLauncherPage", () => {
       mapped.map(({ id, evidenceAction }) => [id, evidenceAction]),
     ).toEqual([
       ["delegated-access", "token-exchange"],
+      ["authorize-denial", "authorize-decision"],
+      ["ciba-approval", "hitl-step-up"],
+      ["agent-revocation", "agent-lifecycle"],
       ["mcp-discovery", "mcp-discovery"],
+      ["privilege-mcp", "privilege-status"],
+      ["davinci-orchestration", "davinci-session-status"],
+      ["audit-evidence", "audit-evidence"],
     ]);
     expect(
       mapped.every((scenario) =>
-        isObservationActionSupported(scenario.evidenceAction),
+        isObservationActionSupported(scenario.evidenceAction) &&
+          canObserveLesson(scenario.lessonId, scenario.evidenceAction),
       ),
     ).toBe(true);
   });
@@ -164,6 +174,27 @@ describe("StandaloneDemoLauncherPage", () => {
       within(card).getByText(/No scenario-specific evidence check is connected/i),
     ).toBeInTheDocument();
     expect(within(card).getByRole("link", { name: "Launch demo" })).toBeEnabled();
+  });
+
+  it("keeps bounded evidence language visible for readiness-only checks", async () => {
+    renderLauncher();
+    await screen.findByText("Needs attention");
+
+    expect(
+      within(screen.getByRole("article", { name: "Agent revocation" })).getByText(
+        /bounded identity mapping/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("article", { name: "Privilege MCP" })).getByText(
+        /relay readiness/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("article", { name: "Replay defense" })).getByText(
+        /no scenario-specific evidence check/i,
+      ),
+    ).toBeInTheDocument();
   });
 
   it("filters scenarios by the category supplied by the lesson catalog", async () => {

@@ -637,7 +637,7 @@ export default function LearningHub() {
 
         <LearningHubAgent />
 
-        {!searchQuery && (
+        {!searchQuery.trim() && (
           <>
             <section className="learning-hub__academy-entry" aria-labelledby="learning-hub-academy-title">
               <div className="learning-hub__academy-copy">

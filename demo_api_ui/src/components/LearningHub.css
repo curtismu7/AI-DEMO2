@@ -311,6 +311,7 @@
   border: 1px solid var(--th-border);
   border-left: 4px solid var(--th-status-success);
   border-radius: var(--radius-lg);
+  color: var(--th-text);
   box-shadow: var(--shadow-sm);
 }
 
@@ -355,16 +356,19 @@
   text-decoration: none;
 }
 
-.learning-hub__academy-primary {
+.learning-hub__academy-primary:link,
+.learning-hub__academy-primary:visited {
   background: var(--th-bg-emphasis);
   color: var(--th-text-on-emphasis);
 }
 
 .learning-hub__academy-primary:hover {
   background: var(--th-bg-band);
+  color: var(--th-text-on-emphasis);
 }
 
-.learning-hub__academy-secondary {
+.learning-hub__academy-secondary:link,
+.learning-hub__academy-secondary:visited {
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border-strong);
   color: var(--th-text);
@@ -372,6 +376,7 @@
 
 .learning-hub__academy-secondary:hover {
   background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .learning-hub__academy-proof {
@@ -383,6 +388,7 @@
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
+  color: var(--th-text);
 }
 
 .learning-hub__academy-proof span {
