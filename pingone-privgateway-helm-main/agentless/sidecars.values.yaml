@@ -51,7 +51,7 @@ extraContainers:
   # an API key and an empty envConfig, and the gateway log referenced no
   # `localhost:8080` at all (only 8083, for pingone-admin-local).
   - name: mcp-brave
-    image: ghcr.io/curtismu7/ai-demo-mcp-brave:latest
+    image: ghcr.io/cmuir_pingcorp/ai-demo-mcp-brave:sha-1c7152bb251fc1959e41b90f91b0ecb7dd69d7e2
     imagePullPolicy: Always
     env:
       - name: PORT
@@ -71,7 +71,7 @@ extraContainers:
       periodSeconds: 10
 
   - name: mcp-grafana
-    image: ghcr.io/curtismu7/ai-demo-mcp-grafana:latest
+    image: ghcr.io/cmuir_pingcorp/ai-demo-mcp-grafana:sha-1c7152bb251fc1959e41b90f91b0ecb7dd69d7e2
     imagePullPolicy: Always
     env:
       - name: PORT
@@ -93,13 +93,13 @@ extraContainers:
       periodSeconds: 10
 
   - name: mcp-banking-rest
-    image: ghcr.io/curtismu7/ai-demo-mcp-banking-rest:latest
+    image: ghcr.io/cmuir_pingcorp/ai-demo-mcp-banking-rest:sha-1c7152bb251fc1959e41b90f91b0ecb7dd69d7e2
     imagePullPolicy: Always
     env:
       - name: PORT
         value: "8082"
       - name: BANKING_UPSTREAM_URL
-        value: http://mcp-resource-server.ping-devops-cmuir.svc.cluster.local:8081
+        value: http://mcp-config-standalone-mcp-resource-server:8081
       - name: BANKING_API_KEY
         valueFrom:
           secretKeyRef:
@@ -123,7 +123,7 @@ extraContainers:
   # as an MCP elicitation, so a caller arriving through the gateway would hang
   # on "Waiting for authorization..." forever. Measured 2026-09-07.
   - name: mcp-pingone
-    image: ghcr.io/curtismu7/ai-demo-mcp-pingone:latest
+    image: ghcr.io/cmuir_pingcorp/ai-demo-mcp-pingone:sha-1c7152bb251fc1959e41b90f91b0ecb7dd69d7e2
     imagePullPolicy: Always
     env:
       - name: PORT
@@ -218,7 +218,7 @@ extraContainers:
   # :8085) once the image is proven, then delete guardrail-probe below.
   # Image is GATED-model-baked — see demo_mcp_promptguard/README.md to rebuild.
   - name: mcp-promptguard
-    image: ghcr.io/curtismu7/ai-demo-mcp-promptguard:latest
+    image: ghcr.io/cmuir_pingcorp/ai-demo-mcp-promptguard:sha-1c7152bb251fc1959e41b90f91b0ecb7dd69d7e2
     imagePullPolicy: Always
     env:
       - name: PORT
