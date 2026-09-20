@@ -4,7 +4,7 @@
 
 **Goal:** Add a separate PingOne admission session for the hosted browser surface while preserving the existing Demo User/Admin OAuth sessions and demo accounts.
 
-**Architecture:** A dedicated `hosted.sid` express-session cookie and store-backed session will carry only front-door approval. The existing `connect.sid` session continues to carry Demo User/Admin identity and tokens. NGINX external auth and the BFF API gate require the hosted session; existing application OAuth routes remain responsible for application login after admission.
+**Architecture:** A dedicated signed `hosted.sid` cookie and store-backed session adapter will carry only front-door approval. The existing `connect.sid` express-session session continues to carry Demo User/Admin identity and tokens. NGINX external auth and the BFF API gate require the hosted session; existing application OAuth routes remain responsible for application login after admission.
 
 **Tech Stack:** Node 22+, CommonJS, Express 4, express-session, LMDB session store, Jest 29, Kubernetes NGINX ingress, PingOne OIDC Authorization Code + PKCE.
 
@@ -23,7 +23,7 @@
 
 ---
 
-### Task 1: Add dedicated front-door configuration and session middleware
+### Task 1: Add dedicated front-door configuration and session adapter
 
 **Files:**
 - Create: `demo_api_server/config/hostedAccess.js`
@@ -33,7 +33,7 @@
 
 **Interfaces:**
 - `config/hostedAccess.js` exports lazy configuration for `HOSTED_ACCESS_CLIENT_ID`, `HOSTED_ACCESS_CLIENT_SECRET`, `HOSTED_ACCESS_REDIRECT_URI`, hosted OIDC scopes, and a dedicated cookie name.
-- `middleware/hostedSession.js` exports `createHostedSessionMiddleware({ store, secret, production })`, which loads a second express-session under `req.hostedSession` while preserving the existing `req.session` application session.
+- `middleware/hostedSession.js` exports `createHostedSessionMiddleware({ store, secret, production })`, which loads a signed, store-backed session under `req.hostedSession` without mounting a second express-session response hook.
 - `middleware/hostedSession.js` exports `saveHostedSession(req, callback)` and `destroyHostedSession(req, callback)` for explicit callback-safe persistence.
 
 - [ ] **Step 1: Write the failing session-isolation tests.**
@@ -57,9 +57,9 @@ Run: `cd demo_api_server && CI=true npx jest src/__tests__/hostedSession.test.js
 
 Expected: FAIL on the missing hosted-session middleware/interface, not on test discovery.
 
-- [ ] **Step 3: Implement the second express-session instance.**
+- [ ] **Step 3: Implement the store-backed hosted session adapter.**
 
-Use the existing `sessionStore`, `SESSION_SECRET`-derived secret, `httpOnly`, `secure`, `sameSite`, and 24-hour lifetime. Configure `name: 'hosted.sid'`. Wrap the middleware so the nested express-session object is assigned to `req.hostedSession` and the existing application session remains available as `req.session` for all existing routes.
+Use the existing `sessionStore`, a `SESSION_SECRET`-derived signing secret, `httpOnly`, `secure`, `sameSite`, and a 24-hour lifetime. Sign a random hosted session ID in a `hosted.sid` cookie. Load and save only the hosted session record through the generic store interface; never replace `req.session` and never store OAuth tokens in the hosted record.
 
 - [ ] **Step 4: Mount hosted session loading before the hosted routes and gate.**
 

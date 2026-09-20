@@ -55,10 +55,12 @@ browser-provided email/header/query value.
 ## Session Isolation
 
 Use a dedicated front-door session namespace/cookie, separate from the existing
-application session. Front-door logout must not log out the Demo User/Admin
-session, and Demo User/Admin logout must not grant or revoke front-door access
-unless explicitly designed to do so. The ingress check forwards only the
-front-door cookie to the BFF check endpoint.
+application session. The BFF uses a small signed-cookie, store-backed adapter
+for this session rather than mounting a second `express-session` middleware;
+this avoids two response hooks competing over `req.session`. Front-door logout
+must not log out the Demo User/Admin session, and Demo User/Admin logout must
+not grant or revoke front-door access unless explicitly designed to do so. The
+ingress check forwards only the front-door cookie to the BFF check endpoint.
 
 The exact front-door login/callback paths are the only public application
 perimeter bypasses. Existing application OAuth login/callback paths are not
