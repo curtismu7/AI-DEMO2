@@ -365,7 +365,11 @@ class LangChainMCPApplication:
             # every other /metrics route in this repo (monitoring/prometheus.yml
             # already trusts the internal network). This gate exists for
             # /run and /codegraph, not for metrics scraping.
-            if request.url.path == "/metrics" or request.url.path.startswith("/a2a/"):
+            if (
+                request.url.path == "/metrics"
+                or request.url.path == "/.well-known/agent-card.json"
+                or request.url.path.startswith("/a2a/")
+            ):
                 return await call_next(request)
             if _gate_disabled_reason is not None:
                 return _JSONResponse(
