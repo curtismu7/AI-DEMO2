@@ -60,8 +60,33 @@ const NAV_PAGE_PATH_OVERRIDES = {
   "System Tools::OAuth Debug": "/configure?tab=debug",
 };
 
+// A few sidebar entries launch an action instead of declaring a React Router
+// path. The config table still needs a useful destination for every row.
+const NAV_ACTION_PAGE_PATHS = {
+  "Demo Script": "/dashboard",
+  "PAC Editor": "http://127.0.0.1:9099",
+  "Prompt Injection": "/dashboard",
+  "HITL Bypass": "/dashboard",
+  "Indirect Injection": "/dashboard",
+  "Unauthorized Commitments": "/dashboard",
+  "Scope Abuse": "/dashboard",
+  "Intent Bypass": "/dashboard",
+  "Learning Log": "/logs?mode=learn",
+  LibreChat: "http://localhost:3080",
+  "API Docs (Swagger)": "/api/docs",
+  "API Reference (Scalar)": "/api/reference",
+};
+
 function getPagePath(groupLabel, itemLabel) {
-  return NAV_PAGE_PATH_OVERRIDES[`${groupLabel}::${itemLabel}`] || NAV_PAGE_PATHS[itemLabel];
+  return (
+    NAV_PAGE_PATH_OVERRIDES[`${groupLabel}::${itemLabel}`] ||
+    NAV_PAGE_PATHS[itemLabel] ||
+    NAV_ACTION_PAGE_PATHS[itemLabel]
+  );
+}
+
+function getGroupPath(group) {
+  return getPagePath(group.label, group.label) || getPagePath(group.label, group.children?.[0]);
 }
 
 function matchesSearch(group, searchQuery) {
@@ -518,7 +543,7 @@ export default function DemoConfigPage() {
                             (childDropTarget &&
                               childDropTarget.group === group.label &&
                               childDropTarget.index === -1);
-                          const groupPath = getPagePath(group.label, group.label);
+                          const groupPath = getGroupPath(group);
 
                           return (
                             <div
