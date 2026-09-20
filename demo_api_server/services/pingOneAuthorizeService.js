@@ -741,6 +741,9 @@ function buildMcpDelegationParameters({
   // the same gate the simulated engine and demo_authz_server already enforce.
   // Emitted only when present (absent → no resource-scoped gate, i.e. PERMIT).
   resourceOwnerId = null,
+  // Account selected by the tool call. P1AZ's Service resolver uses this
+  // together with UserId to retrieve account-level riskTier and balance.
+  accountId = null,
   // RAR (NNP-1) attested-authorization parity with the simulated engine. The
   // ceiling + permitted payees come from the token's azd (never the request body);
   // ToAccountId is the stated destination checked against them. Emitted only when
@@ -852,6 +855,7 @@ function buildMcpDelegationParameters({
     // `ResourceOwnerId NotEquals ''`, so any non-empty stand-in fires the
     // resource-owner DENY on every request.
     TransactionType: transactionType || '',
+    ...(accountId ? { AccountId: String(accountId) } : {}),
     ResourceOwnerId: resourceOwnerId || '',
     // Intent tokens are validated at the gateway, not here — this PEP has no
     // intent facts to report, and '' is how it says so.

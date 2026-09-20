@@ -89,6 +89,11 @@ export interface AuthzDecision {
 export interface ToolArgs {
   amount?: number;
   transaction_type?: string;
+  accountId?: string;
+  account_id?: string;
+  fromAccountId?: string;
+  from_account_id?: string;
+  toAccountId?: string;
   to_account_id?: string;
   [key: string]: unknown;
 }
@@ -215,6 +220,9 @@ export function buildAuthorizeParameters(
 ): Record<string, string> {
   const decisionContext = method === 'tools/call' ? 'McpToolCall' : 'McpRequest';
   const tokenScopes = (decoded.scope ?? '').split(' ').filter(Boolean);
+  const accountId = toolArgs?.accountId ?? toolArgs?.account_id
+    ?? toolArgs?.fromAccountId ?? toolArgs?.from_account_id
+    ?? toolArgs?.toAccountId ?? toolArgs?.to_account_id;
   // C1: the token's ACTUAL audience. Array ⇒ FULL space-joined list (matching
   // the Groovy gateway), not just aud[0]: mock Rule 0b-2's D-05 anti-bypass
   // splits TokenAudActual on whitespace, so a multi-aud [gateway, upstream]
@@ -251,6 +259,7 @@ export function buildAuthorizeParameters(
     TokenNbf: decoded.nbf ? String(decoded.nbf) : '',
     TokenIss: decoded.iss ?? '',
     TransactionType: toolArgs?.transaction_type ?? toolName ?? '',
+    ...(accountId ? { AccountId: String(accountId) } : {}),
     // Per-request facts every PEP states explicitly
     // (snapshots/p1azRequestContract.js `explicit`), so a decision request has
     // one shape whichever caller built it. These three are overwritten below
@@ -265,7 +274,7 @@ export function buildAuthorizeParameters(
     IntentTokenValid: '',
     IntentMatchesTool: '',
     IntentTokenError: '',
-    ToAccountId: toolArgs?.to_account_id ?? '',
+    ToAccountId: toolArgs?.toAccountId ?? toolArgs?.to_account_id ?? '',
     Vertical: vertical ?? '',
     // C1: every decision is evaluated at a point in time; the cloud Trust
     // Framework defines Timestamp but nothing was sending it.

@@ -89,6 +89,32 @@ describe('GET /banking/:id', () => {
   });
 });
 
+describe('GET /authorize/account-context', () => {
+  it('401s without the service key', async () => {
+    const r = await get('/authorize/account-context?userId=demo-user&accountId=acct-002');
+    expect(r.status).toBe(401);
+    expect(r.json.error).toBe('api_key_missing');
+  });
+
+  it('returns the selected account risk tier and balance', async () => {
+    const r = await get('/authorize/account-context?userId=demo-user&accountId=acct-002', 'test-banking-api-key');
+    expect(r.status).toBe(200);
+    expect(r.json).toEqual({
+      accountId: 'acct-002',
+      userId: 'demo-user',
+      riskTier: 'standard',
+      balance: 18540,
+      currency: 'USD',
+    });
+  });
+
+  it('does not return another user\'s selected account', async () => {
+    const r = await get('/authorize/account-context?userId=other-user&accountId=acct-002', 'test-banking-api-key');
+    expect(r.status).toBe(404);
+    expect(r.json.error).toBe('account_context_not_found');
+  });
+});
+
 describe('GET /openapi/banking-rest.json', () => {
   it('serves the OpenAPI doc unauthenticated', async () => {
     const r = await get('/openapi/banking-rest.json');

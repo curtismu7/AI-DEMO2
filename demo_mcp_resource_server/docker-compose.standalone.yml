@@ -9,7 +9,9 @@ services:
       dockerfile: Dockerfile
     container_name: banking-mcp-resource-server
     ports:
-      - "8081:8081"
+      # Keep the SQLite-backed resolver private to the host; callers should use
+      # the internal service network or a PingOne Authorize Gateway.
+      - "127.0.0.1:8081:8081"
     env_file:
       - .env
     environment:

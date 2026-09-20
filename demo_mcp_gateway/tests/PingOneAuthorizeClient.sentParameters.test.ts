@@ -66,6 +66,21 @@ describe('buildAuthorizeParameters — C1 canonical parameter set', () => {
     sub: 'u1', scope: 'read transfer', aud: GW, exp: 111, iat: 100, ...over,
   });
 
+  it('forwards the selected account id for P1AZ service resolution', () => {
+    const p = buildAuthorizeParameters(tok(), 'tools/call', GW, 'get_account_balance', {
+      account_id: 'acct-002',
+    });
+
+    expect(p.AccountId).toBe('acct-002');
+  });
+
+  it('forwards camelCase selected account arguments for P1AZ service resolution', () => {
+    const params = buildAuthorizeParameters(tok(), 'tools/call', 'mcpgateway.ping.demo', 'get_account_balance', {
+      accountId: 'acct-002',
+    });
+    expect(params.AccountId).toBe('acct-002');
+  });
+
   it('TokenAudience is the token\'s REAL aud, not the expected resource URI', () => {
     const p = buildAuthorizeParameters(tok({ aud: 'some-other-audience' }), 'tools/call', GW, 'create_transfer');
     expect(p.TokenAudience).toBe('some-other-audience');

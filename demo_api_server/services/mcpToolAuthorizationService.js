@@ -824,6 +824,7 @@ async function buildMcpFirstToolGateInputs({ req, tool, agentToken, userSub, use
   // Payee is sourced from toolParams (the agent's stated destination) to check against the
   // attested payee. Normalise both camelCase and snake_case field names.
   const toAccountId = toolParams?.toAccountId ?? toolParams?.to_account_id ?? null;
+  const accountId = toolParams?.accountId ?? toolParams?.account_id ?? toolParams?.fromAccountId ?? toolParams?.from_account_id ?? toAccountId;
 
   // Shared param shape for the simulated engine — used by the USE_SIMULATED
   // branch and, on a genuine PingOne failure, by the fallback path in catch.
@@ -846,6 +847,7 @@ async function buildMcpFirstToolGateInputs({ req, tool, agentToken, userSub, use
     rarMaxAmount,
     rarPermittedPayees,
     toAccountId,
+    accountId,
     useCaseId,
     // F5 — role as a policy INPUT. The live PingOne path already receives this;
     // omitting it here made the two engines evaluate DIFFERENT inputs for the
@@ -901,6 +903,7 @@ async function buildMcpFirstToolGateInputs({ req, tool, agentToken, userSub, use
     rarMaxAmount,
     rarPermittedPayees,
     toAccountId,
+    accountId,
     useCaseId,
     verticalId,
     // Contract C1 (F3) + role as policy input (F5).

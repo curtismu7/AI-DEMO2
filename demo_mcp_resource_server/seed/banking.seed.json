@@ -7,7 +7,8 @@
       "accountType": "checking",
       "balance": 4230.15,
       "currency": "USD",
-      "isActive": true
+      "isActive": true,
+      "riskTier": "standard"
     },
     {
       "id": "acct-002",
@@ -16,7 +17,8 @@
       "accountType": "savings",
       "balance": 18540.00,
       "currency": "USD",
-      "isActive": true
+      "isActive": true,
+      "riskTier": "standard"
     },
     {
       "id": "acct-003",
@@ -25,7 +27,8 @@
       "accountType": "credit_card",
       "balance": -842.50,
       "currency": "USD",
-      "isActive": true
+      "isActive": true,
+      "riskTier": "standard"
     }
   ]
 }

@@ -329,6 +329,7 @@ def toolName          = ''
 def transactionAmount = ''
 def transactionType   = ''
 def toAccountId       = ''
+def accountId         = ''
 // HITL retry receipt. `_hitl_challenge_id` is a gateway-internal control field the
 // agent echoes after a human approves; it must never reach the MCP tool, so the
 // forwarded entity is rewritten without it (parity with the Node gateway's
@@ -394,7 +395,8 @@ try {
             // transaction always overwrites it.
             transactionAmount = amt != null ? String.valueOf(amt) : '0'
             transactionType   = args?.transaction_type ?: toolName
-            toAccountId       = args?.to_account_id ?: ''
+            toAccountId       = args?.toAccountId ?: (args?.to_account_id ?: '')
+            accountId         = args?.accountId ?: (args?.account_id ?: (args?.fromAccountId ?: (args?.from_account_id ?: toAccountId)))
         }
     }
 } catch (Exception e) {
@@ -904,6 +906,7 @@ def parameters = [
     TransactionAmount: transactionAmount,
     TransactionType  : transactionType,
     ToAccountId      : toAccountId,
+    AccountId        : accountId,
     Vertical         : vertical,
     // Timestamp is a cloud Trust Framework attribute neither gateway was sending.
     // ISO-8601, matching the BFF (pingOneAuthorizeService.js:434 new Date().toISOString()).

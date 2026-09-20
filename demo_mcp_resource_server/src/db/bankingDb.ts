@@ -26,6 +26,15 @@ export interface Account {
   balance: number;
   currency: string;
   isActive: boolean;
+  riskTier: string;
+}
+
+export interface AuthorizationContext {
+  accountId: string;
+  userId: string;
+  riskTier: string;
+  balance: number;
+  currency: string;
 }
 
 const SCHEMA = `
@@ -36,7 +45,8 @@ CREATE TABLE IF NOT EXISTS accounts (
   accountType   TEXT NOT NULL,
   balance       REAL NOT NULL,
   currency      TEXT NOT NULL,
-  isActive      INTEGER NOT NULL
+  isActive      INTEGER NOT NULL,
+  riskTier      TEXT NOT NULL DEFAULT 'restricted'
 );
 `;
 
@@ -64,13 +74,13 @@ function seedIfEmpty(conn: DatabaseSync): void {
   const seed = JSON.parse(fs.readFileSync(file, 'utf8'));
 
   const insAccount = conn.prepare(
-    'INSERT INTO accounts (id, userId, accountNumber, accountType, balance, currency, isActive) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO accounts (id, userId, accountNumber, accountType, balance, currency, isActive, riskTier) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
   );
 
   conn.exec('BEGIN');
   try {
     for (const a of seed.accounts || []) {
-      insAccount.run(a.id, a.userId, a.accountNumber, a.accountType, a.balance, a.currency, a.isActive ? 1 : 0);
+      insAccount.run(a.id, a.userId, a.accountNumber, a.accountType, a.balance, a.currency, a.isActive ? 1 : 0, a.riskTier || 'restricted');
     }
     conn.exec('COMMIT');
   } catch (err) {
@@ -99,6 +109,10 @@ export function withDb<T>(fn: (db: DatabaseSync) => T): T {
     conn.exec('PRAGMA busy_timeout = 5000');
     conn.exec('PRAGMA foreign_keys = ON');
     conn.exec(SCHEMA);
+    const columns = conn.prepare('PRAGMA table_info(accounts)').all() as Array<{ name: string }>;
+    if (!columns.some((column) => column.name === 'riskTier')) {
+      conn.exec("ALTER TABLE accounts ADD COLUMN riskTier TEXT NOT NULL DEFAULT 'restricted'");
+    }
     seedIfEmpty(conn);
     return fn(conn);
   } finally {
@@ -116,6 +130,7 @@ export function listAccounts(userId: string): Account[] {
       balance: number;
       currency: string;
       isActive: number;
+      riskTier: string;
     }>;
     return rows.map((r) => ({ ...r, isActive: r.isActive === 1 }));
   });
@@ -132,8 +147,21 @@ export function getAccount(id: string, userId: string): Account | null {
           balance: number;
           currency: string;
           isActive: number;
+          riskTier: string;
         }
       | undefined;
     return row ? { ...row, isActive: row.isActive === 1 } : null;
   });
+}
+
+export function getAuthorizationContext(accountId: string, userId: string): AuthorizationContext | null {
+  const account = getAccount(accountId, userId);
+  if (!account || !account.isActive) return null;
+  return {
+    accountId: account.id,
+    userId: account.userId,
+    riskTier: account.riskTier,
+    balance: account.balance,
+    currency: account.currency,
+  };
 }
