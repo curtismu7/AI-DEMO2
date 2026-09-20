@@ -1,7 +1,9 @@
 /**
  * demo_mcp_banking_rest — thin REST proxy fronting demo_mcp_resource_server's
- * GET /banking, /banking/:id and /openapi/banking-rest.json, built to the same
- * shape as demo_mcp_grafana/demo_mcp_brave: zero dependencies, one file.
+ * GET /banking, /banking/:id and /openapi/banking-rest.json, plus a
+ * self-contained GET /users OpenAPI example for Privilege discovery testing.
+ * Built to the same shape as demo_mcp_grafana/demo_mcp_brave: zero
+ * dependencies, one file.
  *
  * Runs as an extraContainer inside the Privilege gateway pod. Unlike the MCP
  * catalog apps (Grafana, Brave), this backs an "Add OpenAPI MCP" application,
@@ -16,6 +18,44 @@ const http = require('node:http');
 const PORT = parseInt(process.env.PORT || '8082', 10);
 const UPSTREAM_URL = (process.env.BANKING_UPSTREAM_URL || '').replace(/\/+$/, '');
 const API_KEY = process.env.BANKING_API_KEY || '';
+const SAMPLE_USERS = [{ id: 101, name: 'Jane Doe' }];
+const SIMPLE_USERS_OPENAPI = {
+  openapi: '3.0.3',
+  info: {
+    title: 'Simple User API',
+    description: 'A minimal API example for validating Privilege OpenAPI discovery.',
+    version: '1.0.0',
+  },
+  servers: [{ url: 'http://localhost:8082' }],
+  paths: {
+    '/users': {
+      get: {
+        operationId: 'listUsers',
+        summary: 'Get a list of users',
+        responses: {
+          200: {
+            description: 'A successful response',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    required: ['id', 'name'],
+                    properties: {
+                      id: { type: 'integer', example: 101 },
+                      name: { type: 'string', example: 'Jane Doe' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+};
 
 /**
  * One GET against the real mcp-resource-server, over in-cluster DNS.
@@ -72,6 +112,12 @@ const server = http.createServer(async (req, res) => {
 
   if (req.url === '/health') {
     return send(res, 200, 'application/json', JSON.stringify({ ok: true, hasUpstream: !!UPSTREAM_URL, hasKey: !!API_KEY }));
+  }
+  if (req.url === '/users') {
+    return send(res, 200, 'application/json', JSON.stringify(SAMPLE_USERS));
+  }
+  if (req.url === '/openapi/simple-users.json') {
+    return send(res, 200, 'application/json', JSON.stringify(SIMPLE_USERS_OPENAPI));
   }
   if (req.url === '/openapi/banking-rest.json') return proxy(res, '/openapi/banking-rest.json', false);
   if (req.url === '/banking') return proxy(res, '/banking', true);

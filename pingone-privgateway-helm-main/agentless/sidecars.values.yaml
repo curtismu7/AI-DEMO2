@@ -179,7 +179,7 @@ extraContainers:
   #   mcp/openapi:latest ENTRYPOINT ["/openapimcp"]  (no shim)                     GET /mcp -> 405
   #
   # The binary itself is fine: POST /mcp `initialize` answers 200 and mints
-  # list_banking_accounts, get_banking_account and the three discovery tools.
+  # direct tools from the configured OpenAPI document plus discovery tools.
   # And POSTing `initialize` is exactly how this gateway discovers an MCP Server
   # app ("Error discovering MCP server: calling \"initialize\"" in cyonproxy.log,
   # over both /mcp and /sse). So we host the same binary ourselves and register
@@ -201,7 +201,7 @@ extraContainers:
       - name: OPENAPIMCP_ENDPOINT
         value: http://localhost:8082
       - name: OPENAPIMCP_SPEC_URL
-        value: http://localhost:8082/openapi/banking-rest.json
+        value: http://localhost:8082/openapi/simple-users.json
       - name: OPENAPIMCP_TOOL_MODE
         value: both
     ports:
