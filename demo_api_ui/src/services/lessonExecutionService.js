@@ -2,20 +2,20 @@ import { getLesson } from "../learning/lessonCatalog";
 import { PROVENANCE } from "../learning/provenance";
 import apiClient from "./apiClient";
 
-const presenterState = new Map();
-
 const READINESS_ENDPOINTS = Object.freeze({
-  health: "/api/health",
-  services: "/api/health/services",
+  identity: "/api/health/introspection",
+  credentials: "/api/health/readiness",
   flags: "/api/admin/feature-flags",
-  authorize: "/api/authorize/test-status",
+  authorize: "/api/authorize/policy-readiness",
   davinci: "/api/davinci-demo/config",
   privilege: "/api/privilege-mcp-simple/status",
-  gateway: "/api/mcp-gateway/active",
+  mcpGateway: "/api/health/mcp-gateway",
+  mcpServer: "/api/health/mcp-server",
+  gatewayConfig: "/api/mcp-gateway/active",
   vertical: "/api/verticals/active",
 });
 
-const RUN_ENDPOINTS = Object.freeze({
+const OBSERVATION_ENDPOINTS = Object.freeze({
   login: "/api/auth/oauth/user/status",
   "token-exchange": "/api/token-chain",
   "mcp-discovery": "/api/admin/mcp-discovery/inventory",
@@ -27,57 +27,21 @@ const RUN_ENDPOINTS = Object.freeze({
 });
 
 const silentRead = Object.freeze({ _silent: true, _noAuthBanner: true });
+const SNAPSHOT_WARNING = "Read-only snapshot; no lesson action was executed.";
 
 function flagValue(flags, id) {
   const value = flags.find((flag) => flag?.id === id)?.value;
   return value === true || value === "true";
 }
 
-function parseUrl(value) {
-  if (typeof value !== "string" || !value.trim()) return null;
+function isPingOneCloudEndpoint(value) {
+  if (typeof value !== "string") return false;
   try {
-    return new URL(value, "https://local.ping-devops.com");
+    const hostname = new URL(value).hostname.toLowerCase();
+    return /^auth\.pingone\.(com|eu|asia|ca|com\.au)$/.test(hostname);
   } catch {
-    return null;
-  }
-}
-
-function isPingOneCloudUrl(value) {
-  const hostname = parseUrl(value)?.hostname.toLowerCase() || "";
-  return /^auth\.pingone\.(com|eu|asia|ca|com\.au)$/.test(hostname);
-}
-
-function isRemoteHttpsUrl(value) {
-  const url = parseUrl(value);
-  if (!url || url.protocol !== "https:") return false;
-  const hostname = url.hostname.toLowerCase();
-  if (
-    hostname === "localhost" ||
-    hostname.endsWith(".local") ||
-    hostname.endsWith(".internal") ||
-    hostname === "127.0.0.1" ||
-    hostname === "0.0.0.0" ||
-    /^10\./.test(hostname) ||
-    /^192\.168\./.test(hostname) ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(hostname)
-  ) {
     return false;
   }
-  return hostname.includes(".");
-}
-
-function hasPingOneCloudSignal(value, depth = 0) {
-  if (depth > 6 || value == null) return false;
-  if (typeof value === "string") return isPingOneCloudUrl(value);
-  if (Array.isArray(value)) {
-    return value.some((entry) => hasPingOneCloudSignal(entry, depth + 1));
-  }
-  if (typeof value === "object") {
-    return Object.values(value).some((entry) =>
-      hasPingOneCloudSignal(entry, depth + 1),
-    );
-  }
-  return false;
 }
 
 function dependency(id, label, status, provenance, detail) {
@@ -93,6 +57,163 @@ async function readReadinessEndpoint(url) {
   }
 }
 
+function pingOneDependency(reads) {
+  const connected =
+    reads.identity.ok &&
+    reads.identity.data.status === "connected" &&
+    isPingOneCloudEndpoint(reads.identity.data.endpoint);
+  const configured =
+    reads.credentials.ok &&
+    reads.credentials.data.configured === true &&
+    reads.credentials.data.userOAuthConfigured === true;
+
+  if (connected) {
+    return dependency(
+      "pingone",
+      "PingOne",
+      "available",
+      PROVENANCE.LIVE_CLOUD,
+      "PingOne introspection health check connected",
+    );
+  }
+  if (configured) {
+    return dependency(
+      "pingone",
+      "PingOne",
+      "configured",
+      PROVENANCE.RECORDED,
+      "Credentials are configured; cloud connectivity is not verified",
+    );
+  }
+  return dependency(
+    "pingone",
+    "PingOne",
+    "unavailable",
+    PROVENANCE.RECORDED,
+    "PingOne cloud connectivity is not verified",
+  );
+}
+
+function authorizeDependency(reads, flags) {
+  const enabled = flagValue(flags, "ff_authorize_real");
+  const verified =
+    enabled && reads.authorize.ok && reads.authorize.data.readiness === "ready";
+
+  if (verified) {
+    return dependency(
+      "authorize",
+      "Authorize",
+      "available",
+      PROVENANCE.LIVE_CLOUD,
+      "PingOne Authorize policy readiness verified",
+    );
+  }
+  if (!enabled) {
+    return dependency(
+      "authorize",
+      "Authorize",
+      "available",
+      PROVENANCE.SIMULATED,
+      "Simulated policy engine selected",
+    );
+  }
+  return dependency(
+    "authorize",
+    "Authorize",
+    reads.authorize.ok ? "configured" : "unavailable",
+    PROVENANCE.RECORDED,
+    "Authorize is enabled, but cloud policy readiness is not verified",
+  );
+}
+
+function davinciDependency(reads, flags) {
+  const enabled = flagValue(flags, "ff_davinci_orchestration");
+  return dependency(
+    "davinci",
+    "DaVinci",
+    enabled ? (reads.davinci.ok ? "configured" : "unavailable") : "not-enabled",
+    PROVENANCE.RECORDED,
+    enabled
+      ? "DaVinci configuration observed; no live cloud health signal is available"
+      : "Orchestration flag is off",
+  );
+}
+
+function privilegeDependency(reads, flags) {
+  const enabled =
+    flagValue(flags, "ff_mcp_gateway_privilege_first") ||
+    flagValue(flags, "ff_privilege_llm_first");
+  if (!enabled) {
+    return dependency(
+      "privilege",
+      "Privilege",
+      "not-enabled",
+      PROVENANCE.RECORDED,
+      "Privilege flags are off",
+    );
+  }
+  if (reads.privilege.ok && reads.privilege.data.initialized === true) {
+    return dependency(
+      "privilege",
+      "Privilege",
+      "available",
+      PROVENANCE.LIVE_LOCAL,
+      "Local Privilege relay is initialized; cloud readiness is not verified",
+    );
+  }
+  return dependency(
+    "privilege",
+    "Privilege",
+    reads.privilege.ok ? "configured" : "unavailable",
+    PROVENANCE.RECORDED,
+    "Privilege target is configured but not initialized",
+  );
+}
+
+function mcpDependency(reads) {
+  const gatewayLive = reads.mcpGateway.ok && reads.mcpGateway.data.ok === true;
+  const serverLive = reads.mcpServer.ok && reads.mcpServer.data.ok === true;
+  if (gatewayLive || serverLive) {
+    return dependency(
+      "mcp",
+      "MCP",
+      "available",
+      PROVENANCE.LIVE_LOCAL,
+      "MCP liveness verified through the BFF",
+    );
+  }
+  if (reads.gatewayConfig.ok) {
+    return dependency(
+      "mcp",
+      "MCP",
+      "configured",
+      PROVENANCE.RECORDED,
+      "MCP configuration observed; liveness is not verified",
+    );
+  }
+  return dependency(
+    "mcp",
+    "MCP",
+    "unavailable",
+    PROVENANCE.RECORDED,
+    "MCP liveness is not verified",
+  );
+}
+
+function verticalDependency(reads) {
+  const id =
+    typeof reads.vertical.data.id === "string"
+      ? reads.vertical.data.id.trim()
+      : "";
+  return dependency(
+    "vertical",
+    "Selected vertical",
+    id ? "available" : "unavailable",
+    PROVENANCE.LIVE_LOCAL,
+    id || "No vertical selected",
+  );
+}
+
 export async function getTenantReadiness() {
   const entries = await Promise.all(
     Object.entries(READINESS_ENDPOINTS).map(async ([key, url]) => [
@@ -104,178 +225,41 @@ export async function getTenantReadiness() {
   const flags = Array.isArray(reads.flags.data.flags)
     ? reads.flags.data.flags
     : [];
-  const healthComponents = reads.health.data.components || {};
-  const pingOneResponded =
-    reads.health.ok &&
-    healthComponents.pingone_auth?.status === "healthy" &&
-    healthComponents.pingone_jwks?.status === "healthy";
-  const verifiedIdentityEndpoint =
-    healthComponents.token_introspection?.endpoint ||
-    healthComponents.token_revocation?.endpoint;
-  const pingOneCloud =
-    pingOneResponded && isPingOneCloudUrl(verifiedIdentityEndpoint);
-
-  const dependencies = [];
-  dependencies.push(
-    dependency(
-      "pingone",
-      "PingOne",
-      pingOneResponded ? "available" : "unavailable",
-      pingOneCloud ? PROVENANCE.LIVE_CLOUD : PROVENANCE.LIVE_LOCAL,
-      pingOneCloud
-        ? "Cloud identity endpoints verified"
-        : "Cloud identity endpoint not verified",
-    ),
-  );
-
-  const authorizeData = reads.authorize.data;
-  const authorizeSimulated =
-    authorizeData.activeEngine === "simulated" ||
-    authorizeData.simulatedMode === true;
-  const authorizeCloud =
-    authorizeData.activeEngine === "pingone" &&
-    authorizeData.pingoneConfigured === true &&
-    flagValue(flags, "ff_authorize_real") &&
-    pingOneCloud;
-  dependencies.push(
-    dependency(
-      "authorize",
-      "Authorize",
-      authorizeCloud || authorizeSimulated ? "available" : "unavailable",
-      authorizeCloud
-        ? PROVENANCE.LIVE_CLOUD
-        : authorizeSimulated
-          ? PROVENANCE.SIMULATED
-          : PROVENANCE.LIVE_LOCAL,
-      authorizeCloud
-        ? "Live PingOne policy engine"
-        : authorizeSimulated
-          ? "Simulated policy engine"
-          : "Live policy engine not ready",
-    ),
-  );
-
-  const davinciEnabled = flagValue(flags, "ff_davinci_orchestration");
-  const davinciCloud =
-    davinciEnabled &&
-    reads.davinci.ok &&
-    isPingOneCloudUrl(reads.davinci.data.wellknown);
-  dependencies.push(
-    dependency(
-      "davinci",
-      "DaVinci",
-      davinciEnabled
-        ? reads.davinci.ok
-          ? "available"
-          : "unavailable"
-        : "not-enabled",
-      davinciCloud
-        ? PROVENANCE.LIVE_CLOUD
-        : davinciEnabled
-          ? PROVENANCE.LIVE_LOCAL
-          : PROVENANCE.RECORDED,
-      davinciEnabled
-        ? davinciCloud
-          ? "Cloud orchestration configured"
-          : "Cloud orchestration not verified"
-        : "Orchestration flag is off",
-    ),
-  );
-
-  const privilegeEnabled =
-    flagValue(flags, "ff_mcp_gateway_privilege_first") ||
-    flagValue(flags, "ff_privilege_llm_first");
-  const privilegeCloud =
-    privilegeEnabled &&
-    reads.privilege.ok &&
-    isRemoteHttpsUrl(reads.privilege.data.mcpUrl);
-  dependencies.push(
-    dependency(
-      "privilege",
-      "Privilege",
-      privilegeEnabled
-        ? reads.privilege.ok
-          ? "available"
-          : "unavailable"
-        : "not-enabled",
-      privilegeCloud
-        ? PROVENANCE.LIVE_CLOUD
-        : privilegeEnabled
-          ? PROVENANCE.LIVE_LOCAL
-          : PROVENANCE.RECORDED,
-      privilegeEnabled
-        ? privilegeCloud
-          ? "Remote Privilege route configured"
-          : "Local Privilege route"
-        : "Privilege flags are off",
-    ),
-  );
-
-  const services = reads.services.data.services || {};
-  const mcpAvailable =
-    reads.services.ok &&
-    (services.mcp_gateway?.up === true || services.mcp_server?.up === true);
-  const mcpCloud =
-    mcpAvailable &&
-    reads.gateway.data.usePingGateway === true &&
-    isRemoteHttpsUrl(reads.gateway.data.url);
-  dependencies.push(
-    dependency(
-      "mcp",
-      "MCP",
-      mcpAvailable ? "available" : "unavailable",
-      mcpCloud ? PROVENANCE.LIVE_CLOUD : PROVENANCE.LIVE_LOCAL,
-      mcpCloud
-        ? "Remote PingOne Agent Gateway reachable"
-        : mcpAvailable
-          ? "Local MCP path reachable"
-          : "MCP path unavailable",
-    ),
-  );
-
-  const verticalId =
-    typeof reads.vertical.data.id === "string"
-      ? reads.vertical.data.id.trim()
-      : "";
-  dependencies.push(
-    dependency(
-      "vertical",
-      "Selected vertical",
-      verticalId ? "available" : "unavailable",
-      PROVENANCE.LIVE_LOCAL,
-      verticalId || "No vertical selected",
-    ),
-  );
-
-  const warnings = [];
-  if (pingOneResponded && !pingOneCloud) {
-    warnings.push(
-      "PingOne responded, but a PingOne cloud endpoint was not verified.",
-    );
-  }
-  for (const item of dependencies) {
-    if (item.status === "unavailable")
-      warnings.push(`${item.label} is unavailable.`);
-  }
-
-  const enabledCloudDependencies = dependencies.filter(
-    (item) => item.id !== "vertical" && item.status !== "not-enabled",
-  );
+  const dependencies = [
+    pingOneDependency(reads),
+    authorizeDependency(reads, flags),
+    davinciDependency(reads, flags),
+    privilegeDependency(reads, flags),
+    mcpDependency(reads),
+    verticalDependency(reads),
+  ];
+  const byId = Object.fromEntries(dependencies.map((item) => [item.id, item]));
+  const optionalCloudProductsEnabled =
+    byId.davinci.status !== "not-enabled" ||
+    byId.privilege.status !== "not-enabled";
+  const cloudVerified =
+    byId.pingone.provenance === PROVENANCE.LIVE_CLOUD &&
+    byId.authorize.provenance === PROVENANCE.LIVE_CLOUD;
   const ready = Boolean(
-    verticalId &&
-    pingOneCloud &&
-    enabledCloudDependencies.length > 0 &&
-    enabledCloudDependencies.every(
-      (item) =>
-        item.status === "available" &&
-        item.provenance === PROVENANCE.LIVE_CLOUD,
-    ),
+    cloudVerified &&
+    byId.mcp.status === "available" &&
+    byId.vertical.status === "available" &&
+    !optionalCloudProductsEnabled,
   );
+  const warnings = dependencies
+    .filter((item) => ["configured", "unavailable"].includes(item.status))
+    .map((item) => `${item.label}: ${item.detail}`);
 
   return {
-    environment: pingOneCloud
-      ? { provenance: PROVENANCE.LIVE_CLOUD, label: "PingOne cloud tenant" }
-      : { provenance: PROVENANCE.LIVE_LOCAL, label: "Local or mixed services" },
+    environment: cloudVerified
+      ? {
+          provenance: PROVENANCE.LIVE_CLOUD,
+          label: "Verified cloud services with local dependencies",
+        }
+      : {
+          provenance: PROVENANCE.LIVE_LOCAL,
+          label: "Local or configured services",
+        },
     dependencies,
     lastCheckedAt: new Date().toISOString(),
     ready,
@@ -292,183 +276,121 @@ function correlationIdFrom(response) {
   const fromBody =
     response?.data?.correlationId || response?.data?.correlation_id;
   const candidate = fromHeaders || fromBody;
-  if (
-    typeof candidate === "string" &&
+  return typeof candidate === "string" &&
     /^[a-zA-Z0-9._:-]{1,160}$/.test(candidate)
-  ) {
-    return candidate;
-  }
-  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
-  return `academy-${Date.now().toString(36)}`;
-}
-
-function redactedResult(status, decision = "OBSERVED") {
-  return { kind: "redacted", status, decision, valuesRedacted: true };
+    ? candidate
+    : null;
 }
 
 function count(value) {
   return Array.isArray(value) ? value.length : 0;
 }
 
-function observed(label, value) {
+function evidence(label, value) {
   return {
     label,
-    status: "observed",
+    status: value > 0 ? "observed" : "not-observed",
     count: Number.isFinite(value) ? value : 0,
   };
 }
 
-function normalizeRun(action, data) {
-  switch (action) {
-    case "login": {
-      const authenticated = data.authenticated === true;
-      return {
-        provenance: String(data.oauthProvider || "")
-          .toLowerCase()
-          .includes("pingone")
-          ? PROVENANCE.LIVE_CLOUD
-          : PROVENANCE.LIVE_LOCAL,
-        result: redactedResult(
-          authenticated ? "complete" : "not-authenticated",
-          authenticated ? "AUTHENTICATED" : "NOT_AUTHENTICATED",
-        ),
-        evidence: [observed("Authenticated session", authenticated ? 1 : 0)],
-        warnings: authenticated
-          ? []
-          : ["Sign in to capture live identity evidence."],
-      };
-    }
-    case "token-exchange": {
-      const tokenEvents = Number.isFinite(data.metadata?.totalEvents)
-        ? data.metadata.totalEvents
-        : count(data.tokenChain);
-      const mcpCalls = Number.isFinite(data.metadata?.totalMCPToolCalls)
-        ? data.metadata.totalMCPToolCalls
-        : count(data.mcpToolCallsChain);
-      const synthetic = data.metadata?.synthetic === true;
-      return {
-        provenance: synthetic
-          ? PROVENANCE.RECORDED
-          : hasPingOneCloudSignal(data)
-            ? PROVENANCE.LIVE_CLOUD
-            : PROVENANCE.LIVE_LOCAL,
-        result: redactedResult("complete"),
-        evidence: [
-          observed("Token events", tokenEvents),
-          observed("MCP tool calls", mcpCalls),
-        ],
-        warnings: synthetic
-          ? ["The token chain was reconstructed from session metadata."]
-          : [],
-      };
-    }
-    case "mcp-discovery": {
-      const records = Array.isArray(data.records) ? data.records : [];
-      const healthy = records.filter((record) => record?.status === "healthy");
-      const remote = healthy.some(
-        (record) =>
-          record?.location === "remote" ||
-          record?.source === "remote-url" ||
-          isRemoteHttpsUrl(record?.endpoint),
-      );
-      return {
-        provenance: remote ? PROVENANCE.LIVE_CLOUD : PROVENANCE.LIVE_LOCAL,
-        result: redactedResult("complete"),
-        evidence: [
-          observed("Discovered servers", records.length),
-          observed("Healthy servers", healthy.length),
-        ],
-        warnings: healthy.length ? [] : ["No healthy MCP server was observed."],
-      };
-    }
-    case "authorize-decision": {
-      const engine = data.activeEngine;
-      const provenance =
-        engine === "pingone"
-          ? PROVENANCE.LIVE_CLOUD
-          : engine === "simulated"
-            ? PROVENANCE.SIMULATED
-            : PROVENANCE.LIVE_LOCAL;
-      return {
-        provenance,
-        result: redactedResult(
-          engine === "pingone" || engine === "simulated"
-            ? "complete"
-            : "not-ready",
-          String(engine || "UNKNOWN").toUpperCase(),
-        ),
-        evidence: [
-          observed(
-            "Configured decision endpoint",
-            data.hasDecisionEndpointId ? 1 : 0,
-          ),
-        ],
-        warnings:
-          engine === "pending_config" || engine === "off"
-            ? ["Authorize is not ready for a live decision."]
-            : [],
-      };
-    }
-    case "hitl-step-up": {
-      const events = Array.isArray(data.events) ? data.events : [];
-      return {
-        provenance: hasPingOneCloudSignal(data)
-          ? PROVENANCE.LIVE_CLOUD
-          : PROVENANCE.LIVE_LOCAL,
-        result: redactedResult("complete"),
-        evidence: [observed("Authorization activity events", events.length)],
-        warnings: events.length
-          ? []
-          : ["No recent authorization activity was observed."],
-      };
-    }
-    case "agent-lifecycle": {
-      const mappingPresent = Boolean(data.agentMapping);
-      return {
-        provenance: hasPingOneCloudSignal(data.agentMapping)
-          ? PROVENANCE.LIVE_CLOUD
-          : PROVENANCE.LIVE_LOCAL,
-        result: redactedResult(
-          "complete",
-          mappingPresent ? "REGISTERED" : "UNREGISTERED",
-        ),
-        evidence: [observed("Agent identity mapping", mappingPresent ? 1 : 0)],
-        warnings: mappingPresent
-          ? []
-          : ["No agent identity mapping is registered for this session."],
-      };
-    }
-    case "ai-architecture":
-    case "product-map": {
-      const services = Object.values(data.services || {});
-      const available = services.filter(
-        (service) => service?.up === true,
-      ).length;
-      return {
-        provenance: PROVENANCE.LIVE_LOCAL,
-        result: redactedResult("complete"),
-        evidence: [
-          observed("Available services", available),
-          observed("Observed services", services.length),
-        ],
-        warnings: available ? [] : ["No supporting services were reachable."],
-      };
-    }
-    default:
-      return null;
-  }
+function observation(provenance, entries, warnings = []) {
+  const hasEvidence = entries.some((entry) => entry.count > 0);
+  return {
+    provenance,
+    result: {
+      kind: "observation",
+      status: hasEvidence ? "observed" : "no-evidence",
+      decision: "OBSERVED",
+      valuesRedacted: true,
+    },
+    evidence: entries,
+    warnings: [SNAPSHOT_WARNING, ...warnings],
+  };
 }
 
-function fallbackRun(lesson, warning) {
+function serviceObservation(data) {
+  const services = Object.values(data.services || {});
+  return observation(PROVENANCE.LIVE_LOCAL, [
+    evidence(
+      "Available services",
+      services.filter((service) => service?.up === true).length,
+    ),
+    evidence("Observed services", services.length),
+  ]);
+}
+
+const OBSERVATION_NORMALIZERS = Object.freeze({
+  login: (data) =>
+    observation(PROVENANCE.LIVE_LOCAL, [
+      evidence("Authenticated session", data.authenticated === true ? 1 : 0),
+    ]),
+  "token-exchange": (data) => {
+    // The BFF /api/token-chain endpoint owns server-side token scrubbing. This
+    // client projects only aggregate counts from that already-scrubbed contract.
+    const tokenEvents = Number.isFinite(data.metadata?.totalEvents)
+      ? data.metadata.totalEvents
+      : count(data.tokenChain);
+    const mcpCalls = Number.isFinite(data.metadata?.totalMCPToolCalls)
+      ? data.metadata.totalMCPToolCalls
+      : count(data.mcpToolCallsChain);
+    return observation(
+      data.metadata?.synthetic === true
+        ? PROVENANCE.RECORDED
+        : PROVENANCE.LIVE_LOCAL,
+      [
+        evidence("Token events", tokenEvents),
+        evidence("MCP tool calls", mcpCalls),
+      ],
+      ["Evidence is cumulative session history, not this lesson invocation."],
+    );
+  },
+  "mcp-discovery": (data) => {
+    const records = Array.isArray(data.records) ? data.records : [];
+    return observation(PROVENANCE.LIVE_LOCAL, [
+      evidence("Discovered servers", records.length),
+      evidence(
+        "Healthy servers",
+        records.filter((record) => record?.status === "healthy").length,
+      ),
+    ]);
+  },
+  "authorize-decision": (data) =>
+    observation(
+      data.activeEngine === "simulated"
+        ? PROVENANCE.SIMULATED
+        : PROVENANCE.RECORDED,
+      [
+        evidence(
+          "Configured decision endpoint",
+          data.hasDecisionEndpointId === true ? 1 : 0,
+        ),
+      ],
+      ["Authorize status is configuration evidence, not a policy decision."],
+    ),
+  "hitl-step-up": (data) =>
+    observation(PROVENANCE.LIVE_LOCAL, [
+      evidence("Authorization activity events", count(data.events)),
+    ]),
+  "agent-lifecycle": (data) =>
+    observation(PROVENANCE.LIVE_LOCAL, [
+      evidence("Agent identity mapping", data.agentMapping ? 1 : 0),
+    ]),
+  "ai-architecture": (data) => serviceObservation(data),
+  "product-map": (data) => serviceObservation(data),
+});
+
+function fallbackObservation(lesson, status, warning) {
   return {
     provenance: lesson.fallback.provenance,
-    correlationId: correlationIdFrom(null),
-    result: redactedResult("fallback", "NOT_RUN"),
-    evidence: lesson.evidence.events.map((label) => ({
-      label,
-      status: "not-observed",
-      count: 0,
-    })),
+    correlationId: null,
+    result: {
+      kind: "observation",
+      status,
+      decision: "NOT_RUN",
+      valuesRedacted: true,
+    },
+    evidence: lesson.evidence.events.map((label) => evidence(label, 0)),
     warnings: [warning],
   };
 }
@@ -477,38 +399,33 @@ export async function runLesson(lessonId, _input = {}) {
   const lesson = getLesson(lessonId);
   if (!lesson) throw new Error(`Unknown lesson: ${lessonId}`);
 
-  const endpoint = RUN_ENDPOINTS[lesson.run.action];
+  const endpoint = OBSERVATION_ENDPOINTS[lesson.run.action];
   if (!endpoint) {
-    const fallback = fallbackRun(
+    return fallbackObservation(
       lesson,
+      "not-run",
       "No safe live-run endpoint is configured for this lesson.",
     );
-    presenterState.set(lessonId, fallback);
-    return fallback;
   }
 
   try {
     const response = await apiClient.get(endpoint, silentRead);
-    const normalized = normalizeRun(lesson.run.action, response?.data || {});
-    if (!normalized) throw new Error("unsupported_run_action");
-    const result = {
+    const normalize = OBSERVATION_NORMALIZERS[lesson.run.action];
+    if (!normalize) throw new Error("unsupported_run_action");
+    return {
       correlationId: correlationIdFrom(response),
-      ...normalized,
+      ...normalize(response?.data || {}),
     };
-    presenterState.set(lessonId, result);
-    return result;
   } catch {
-    const fallback = fallbackRun(
+    return fallbackObservation(
       lesson,
-      `Live endpoint unavailable; using ${lesson.fallback.label}.`,
+      "unavailable",
+      `Observation endpoint unavailable; ${lesson.fallback.label} was not executed.`,
     );
-    presenterState.set(lessonId, fallback);
-    return fallback;
   }
 }
 
 export async function resetLesson(lessonId) {
   if (!getLesson(lessonId)) throw new Error(`Unknown lesson: ${lessonId}`);
-  presenterState.delete(lessonId);
-  return { lessonId, cleared: true };
+  return { lessonId, cleared: true, tenantMutated: false };
 }

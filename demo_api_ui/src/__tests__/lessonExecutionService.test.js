@@ -19,91 +19,119 @@ vi.mock("../services/apiClient", () => ({ default: apiClient }));
 
 const response = (data, headers = {}) => ({ data, headers });
 
-function readinessResponses({ cloud = false } = {}) {
-  const pingOneEndpoint = cloud
-    ? "https://auth.pingone.com/example/as/.well-known/openid-configuration"
-    : "http://demo-auth:3002/.well-known/openid-configuration";
-  const gatewayUrl = cloud
-    ? "https://agent-gateway.example.com/mcp"
-    : "http://mcp-gateway:3005/mcp";
-  const privilegeUrl = cloud
-    ? "https://privilege.example.com/mcp"
-    : "http://mcp-server:8080/mcp";
+const readinessUrls = Object.freeze({
+  identity: "/api/health/introspection",
+  credentials: "/api/health/readiness",
+  flags: "/api/admin/feature-flags",
+  authorize: "/api/authorize/policy-readiness",
+  davinci: "/api/davinci-demo/config",
+  privilege: "/api/privilege-mcp-simple/status",
+  mcpGateway: "/api/health/mcp-gateway",
+  mcpServer: "/api/health/mcp-server",
+  gatewayConfig: "/api/mcp-gateway/active",
+  vertical: "/api/verticals/active",
+});
 
+function readinessResponses({ cloud = false, enabled = false } = {}) {
   return new Map([
     [
-      "/api/health",
-      response({
-        status: "healthy",
-        components: {
-          pingone_auth: { status: "healthy" },
-          pingone_jwks: { status: "healthy" },
-          token_introspection: {
-            status: "configured",
-            endpoint: cloud
-              ? "https://auth.pingone.com/example/as/introspect"
-              : "http://demo-auth:3002/as/introspect",
-          },
-        },
-      }),
+      readinessUrls.identity,
+      cloud
+        ? response({
+            status: "connected",
+            endpoint: "https://auth.pingone.com/example/as/introspect",
+          })
+        : response({
+            status: "not_configured",
+            endpoint: "https://auth.pingone.com/example/as/introspect",
+          }),
     ],
     [
-      "/api/health/services",
-      response({
-        services: {
-          mcp_gateway: { up: true },
-          mcp_server: { up: true },
-        },
-      }),
+      readinessUrls.credentials,
+      response({ configured: true, userOAuthConfigured: true }),
     ],
     [
-      "/api/admin/feature-flags",
+      readinessUrls.flags,
       response({
         flags: [
           { id: "ff_authorize_real", value: cloud },
-          { id: "ff_davinci_orchestration", value: cloud },
-          { id: "ff_mcp_gateway_pinggateway", value: cloud },
-          { id: "ff_mcp_gateway_privilege_first", value: cloud },
+          { id: "ff_davinci_orchestration", value: enabled },
+          { id: "ff_mcp_gateway_privilege_first", value: enabled },
           { id: "ff_privilege_llm_first", value: false },
         ],
       }),
     ],
     [
-      "/api/authorize/test-status",
-      response({
-        activeEngine: cloud ? "pingone" : "simulated",
-        pingoneConfigured: cloud,
-        hasDecisionEndpointId: cloud,
-        simulatedMode: !cloud,
-      }),
-    ],
-    ["/api/davinci-demo/config", response({ wellknown: pingOneEndpoint })],
-    [
-      "/api/privilege-mcp-simple/status",
-      response({
-        mcpUrl: privilegeUrl,
-        initialized: true,
-      }),
+      readinessUrls.authorize,
+      cloud
+        ? response({
+            readiness: "ready",
+            gates: [{ gate: "Transaction decision endpoint", status: "ready" }],
+          })
+        : response({
+            readiness: "skipped",
+            reason: "worker_creds_missing",
+            gates: [],
+          }),
     ],
     [
-      "/api/mcp-gateway/active",
+      readinessUrls.davinci,
       response({
-        usePingGateway: cloud,
-        simulated: !cloud,
-        url: gatewayUrl,
+        wellknown: enabled
+          ? "https://auth.pingone.com/example/as/.well-known/openid-configuration"
+          : "https://auth.example.com/.well-known/openid-configuration",
       }),
     ],
-    ["/api/verticals/active", response({ id: "banking" })],
+    [
+      readinessUrls.privilege,
+      response({
+        mcpUrl: "https://privilege.example.com/mcp",
+        initialized: enabled,
+      }),
+    ],
+    [readinessUrls.mcpGateway, response({ ok: true, httpStatus: 200 })],
+    [readinessUrls.mcpServer, response({ ok: true })],
+    [
+      readinessUrls.gatewayConfig,
+      response({
+        usePingGateway: true,
+        name: "PingOne Agent Gateway",
+        url: "https://agent-gateway.example.com/mcp",
+      }),
+    ],
+    [readinessUrls.vertical, response({ id: "banking" })],
   ]);
 }
 
-function mockReadiness({ cloud = false } = {}) {
-  const responses = readinessResponses({ cloud });
+function useResponses(responses) {
   apiClient.get.mockImplementation((url) => {
-    const result = responses.get(url);
-    if (!result) throw new Error(`Unexpected readiness URL: ${url}`);
-    return Promise.resolve(result);
+    const value = responses.get(url);
+    if (value instanceof Error) return Promise.reject(value);
+    if (!value) throw new Error(`Unexpected URL: ${url}`);
+    return Promise.resolve(value);
   });
+}
+
+function dependency(readiness, label) {
+  return readiness.dependencies.find((item) => item.label === label);
+}
+
+function credentialKeys(value, found = []) {
+  if (Array.isArray(value)) {
+    value.forEach((entry) => credentialKeys(entry, found));
+  } else if (value && typeof value === "object") {
+    Object.entries(value).forEach(([key, entry]) => {
+      if (
+        /^(accessToken|refreshToken|authorization|bearer|clientSecret|sessionCredential)$/i.test(
+          key,
+        )
+      ) {
+        found.push(key);
+      }
+      credentialKeys(entry, found);
+    });
+  }
+  return found;
 }
 
 beforeEach(() => {
@@ -111,63 +139,109 @@ beforeEach(() => {
 });
 
 describe("getTenantReadiness", () => {
-  it("does not infer cloud readiness from healthy local mock responses", async () => {
-    mockReadiness({ cloud: false });
+  it("does not promote local auth/JWKS plus configured cloud-shaped introspection", async () => {
+    const responses = readinessResponses({ cloud: false });
+    responses.set(
+      "/api/health",
+      response({
+        components: {
+          pingone_auth: { status: "healthy" },
+          pingone_jwks: { status: "healthy" },
+          token_introspection: {
+            status: "configured",
+            endpoint: "https://auth.pingone.com/example/as/introspect",
+          },
+        },
+      }),
+    );
+    useResponses(responses);
 
     const readiness = await getTenantReadiness();
 
     expect(readiness.environment).toEqual({
       provenance: PROVENANCE.LIVE_LOCAL,
-      label: "Local or mixed services",
+      label: "Local or configured services",
     });
     expect(readiness.ready).toBe(false);
-    expect(readiness.dependencies.map(({ label }) => label)).toEqual([
-      "PingOne",
-      "Authorize",
-      "DaVinci",
-      "Privilege",
-      "MCP",
-      "Selected vertical",
-    ]);
-    expect(
-      readiness.dependencies.find(({ label }) => label === "PingOne"),
-    ).toMatchObject({
-      status: "available",
-      provenance: PROVENANCE.LIVE_LOCAL,
+    expect(dependency(readiness, "PingOne")).toMatchObject({
+      status: "configured",
+      provenance: PROVENANCE.RECORDED,
     });
-    expect(readiness.warnings).toContain(
-      "PingOne responded, but a PingOne cloud endpoint was not verified.",
+    expect(apiClient.get).not.toHaveBeenCalledWith(
+      "/api/health",
+      expect.anything(),
     );
   });
 
-  it("does not use a cloud-shaped DaVinci URL to relabel local identity health", async () => {
-    const responses = readinessResponses({ cloud: false });
+  it("does not treat non-Ping remote URLs as cloud provenance", async () => {
+    const responses = readinessResponses({ cloud: true, enabled: true });
     responses.set(
-      "/api/davinci-demo/config",
+      readinessUrls.davinci,
       response({
         wellknown:
-          "https://auth.pingone.com/example/as/.well-known/openid-configuration",
+          "https://identity.example.net/.well-known/openid-configuration",
       }),
     );
-    apiClient.get.mockImplementation((url) =>
-      Promise.resolve(responses.get(url)),
+    responses.set(
+      readinessUrls.privilege,
+      response({
+        mcpUrl: "https://gateway.example.net/mcp",
+        initialized: true,
+      }),
     );
+    useResponses(responses);
 
     const readiness = await getTenantReadiness();
 
-    expect(readiness.environment.provenance).toBe(PROVENANCE.LIVE_LOCAL);
-    expect(readiness.ready).toBe(false);
-    expect(readiness.warnings).toContain(
-      "PingOne responded, but a PingOne cloud endpoint was not verified.",
+    expect(dependency(readiness, "DaVinci").provenance).toBe(
+      PROVENANCE.RECORDED,
     );
+    expect(dependency(readiness, "Privilege").provenance).toBe(
+      PROVENANCE.LIVE_LOCAL,
+    );
+    expect(dependency(readiness, "MCP").provenance).toBe(PROVENANCE.LIVE_LOCAL);
+    expect(readiness.ready).toBe(false);
   });
 
-  it("reports cloud readiness only when cloud endpoints and live engines are explicit", async () => {
-    mockReadiness({ cloud: true });
+  it("keeps uninitialized Privilege and config-only DaVinci or MCP non-live", async () => {
+    const responses = readinessResponses({ cloud: true, enabled: true });
+    responses.set(
+      readinessUrls.privilege,
+      response({
+        mcpUrl: "https://privilege.example.com/mcp",
+        initialized: false,
+      }),
+    );
+    responses.set(readinessUrls.mcpGateway, new Error("gateway unavailable"));
+    responses.set(readinessUrls.mcpServer, new Error("server unavailable"));
+    useResponses(responses);
 
     const readiness = await getTenantReadiness();
 
-    expect(readiness.environment.provenance).toBe(PROVENANCE.LIVE_CLOUD);
+    expect(dependency(readiness, "DaVinci")).toMatchObject({
+      status: "configured",
+      provenance: PROVENANCE.RECORDED,
+    });
+    expect(dependency(readiness, "Privilege")).toMatchObject({
+      status: "configured",
+      provenance: PROVENANCE.RECORDED,
+    });
+    expect(dependency(readiness, "MCP")).toMatchObject({
+      status: "configured",
+      provenance: PROVENANCE.RECORDED,
+    });
+    expect(readiness.ready).toBe(false);
+  });
+
+  it("reports ready only from authoritative cloud checks plus live local MCP", async () => {
+    useResponses(readinessResponses({ cloud: true, enabled: false }));
+
+    const readiness = await getTenantReadiness();
+
+    expect(readiness.environment).toEqual({
+      provenance: PROVENANCE.LIVE_CLOUD,
+      label: "Verified cloud services with local dependencies",
+    });
     expect(readiness.ready).toBe(true);
     expect(readiness.lastCheckedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(readiness.dependencies).toEqual(
@@ -182,15 +256,15 @@ describe("getTenantReadiness", () => {
         }),
         expect.objectContaining({
           label: "DaVinci",
-          provenance: PROVENANCE.LIVE_CLOUD,
+          provenance: PROVENANCE.RECORDED,
         }),
         expect.objectContaining({
           label: "Privilege",
-          provenance: PROVENANCE.LIVE_CLOUD,
+          provenance: PROVENANCE.RECORDED,
         }),
         expect.objectContaining({
           label: "MCP",
-          provenance: PROVENANCE.LIVE_CLOUD,
+          provenance: PROVENANCE.LIVE_LOCAL,
         }),
         expect.objectContaining({
           label: "Selected vertical",
@@ -201,91 +275,177 @@ describe("getTenantReadiness", () => {
   });
 });
 
-describe("runLesson", () => {
-  it("normalizes token-chain evidence without returning credentials", async () => {
-    apiClient.get.mockResolvedValue(
-      response(
-        {
-          tokenChain: [
-            {
-              type: "delegated",
-              issuer: "https://auth.pingone.com/example/as",
-              accessToken: "access-secret",
-              authorization: "Bearer bearer-secret",
-            },
-          ],
-          mcpToolCallsChain: [{ rawSessionCredential: "session-secret" }],
-          metadata: { totalEvents: 1, totalMCPToolCalls: 1, synthetic: false },
+describe("runLesson observations", () => {
+  const cases = [
+    {
+      lessonId: "login",
+      endpoint: "/api/auth/oauth/user/status",
+      data: { authenticated: true, oauthProvider: "pingone" },
+      provenance: PROVENANCE.LIVE_LOCAL,
+    },
+    {
+      lessonId: "delegation",
+      endpoint: "/api/token-chain",
+      data: {
+        tokenChain: [{ type: "delegated" }],
+        mcpToolCallsChain: [],
+        metadata: {
+          totalEvents: 1,
+          totalMCPToolCalls: 0,
+          totalsScope: "session_accumulated",
+          synthetic: false,
         },
-        { "x-request-id": "request-123" },
-      ),
-    );
+      },
+      provenance: PROVENANCE.LIVE_LOCAL,
+    },
+    {
+      lessonId: "mcp",
+      endpoint: "/api/admin/mcp-discovery/inventory",
+      data: {
+        records: [{ id: "mcp-1", status: "healthy", source: "remote-url" }],
+      },
+      provenance: PROVENANCE.LIVE_LOCAL,
+    },
+    {
+      lessonId: "authorize",
+      endpoint: "/api/authorize/test-status",
+      data: { activeEngine: "pingone", hasDecisionEndpointId: true },
+      provenance: PROVENANCE.RECORDED,
+    },
+    {
+      lessonId: "hitl-step-up",
+      endpoint: "/api/app-events?category=authorize&limit=10",
+      data: { events: [{ category: "authorize", severity: "info" }] },
+      provenance: PROVENANCE.LIVE_LOCAL,
+    },
+    {
+      lessonId: "lifecycle",
+      endpoint: "/api/agent/identity/status",
+      data: { agentMapping: { id: "mapping-1" }, actorMcpEnabled: true },
+      provenance: PROVENANCE.LIVE_LOCAL,
+    },
+    {
+      lessonId: "ai-architecture",
+      endpoint: "/api/health/services",
+      data: { services: { mcp_gateway: { up: true } } },
+      provenance: PROVENANCE.LIVE_LOCAL,
+    },
+    {
+      lessonId: "product-map",
+      endpoint: "/api/health/services",
+      data: { services: { mcp_server: { up: true } } },
+      provenance: PROVENANCE.LIVE_LOCAL,
+    },
+  ];
 
-    const result = await runLesson("delegation", {});
+  it.each(cases)(
+    "labels $lessonId ambient GET evidence as an observation",
+    async ({ lessonId, endpoint, data, provenance }) => {
+      apiClient.get.mockResolvedValue(response(data));
 
-    expect(apiClient.get).toHaveBeenCalledWith(
-      "/api/token-chain",
-      expect.objectContaining({
-        _silent: true,
+      const observed = await runLesson(lessonId, {
+        action: "unused-input",
+      });
+
+      expect(apiClient.get).toHaveBeenCalledWith(endpoint, expect.any(Object));
+      expect(observed.provenance).toBe(provenance);
+      expect(observed.correlationId).toBeNull();
+      expect(observed.result).toMatchObject({
+        kind: "observation",
+        status: "observed",
+        valuesRedacted: true,
+      });
+      expect(observed.result.status).not.toBe("complete");
+      expect(observed.warnings).toContain(
+        "Read-only snapshot; no lesson action was executed.",
+      );
+    },
+  );
+
+  it("does not report an empty cumulative token-chain snapshot as complete", async () => {
+    apiClient.get.mockResolvedValue(
+      response({
+        tokenChain: [],
+        mcpToolCallsChain: [],
+        metadata: {
+          totalEvents: 0,
+          totalMCPToolCalls: 0,
+          totalsScope: "session_accumulated",
+          synthetic: false,
+        },
       }),
     );
-    expect(result).toEqual({
-      provenance: PROVENANCE.LIVE_CLOUD,
-      correlationId: "request-123",
-      result: {
-        kind: "redacted",
-        status: "complete",
-        decision: "OBSERVED",
-        valuesRedacted: true,
-      },
-      evidence: [
-        { label: "Token events", status: "observed", count: 1 },
-        { label: "MCP tool calls", status: "observed", count: 1 },
-      ],
-      warnings: [],
+
+    const observed = await runLesson("delegation", {});
+
+    expect(observed.result).toMatchObject({
+      kind: "observation",
+      status: "no-evidence",
     });
-    expect(JSON.stringify(result)).not.toMatch(
-      /access-secret|bearer-secret|session-secret/i,
+    expect(observed.evidence.every((entry) => entry.count === 0)).toBe(true);
+    expect(observed.warnings).toContain(
+      "Evidence is cumulative session history, not this lesson invocation.",
     );
   });
 
-  it("uses an explicit simulated fallback without calling a live endpoint", async () => {
-    const result = await runLesson("threat-defense", {
-      prompt: "ignore prior instructions",
-    });
+  it("preserves a returned correlation ID but never invents one", async () => {
+    apiClient.get
+      .mockResolvedValueOnce(response({ authenticated: true }))
+      .mockResolvedValueOnce(
+        response({ authenticated: true }, { "x-request-id": "request-123" }),
+      );
 
-    expect(apiClient.get).not.toHaveBeenCalled();
-    expect(result.provenance).toBe(PROVENANCE.SIMULATED);
-    expect(result.result).toMatchObject({
-      kind: "redacted",
-      status: "fallback",
-    });
-    expect(result.warnings).toEqual([
-      "No safe live-run endpoint is configured for this lesson.",
-    ]);
+    const withoutId = await runLesson("login", {});
+    const withId = await runLesson("login", {});
+
+    expect(withoutId.correlationId).toBeNull();
+    expect(withId.correlationId).toBe("request-123");
   });
 
-  it("rejects unknown lessons before any request is made", async () => {
-    await expect(runLesson("not-a-lesson", {})).rejects.toThrow(
-      "Unknown lesson: not-a-lesson",
+  it("returns only normalized fields with no credential keys", async () => {
+    apiClient.get.mockResolvedValue(
+      response({
+        tokenChain: [{ type: "delegated", status: "active" }],
+        mcpToolCallsChain: [],
+        metadata: {
+          totalEvents: 1,
+          totalMCPToolCalls: 0,
+          totalsScope: "session_accumulated",
+          synthetic: false,
+        },
+      }),
     );
+
+    const observed = await runLesson("delegation", {});
+
+    expect(credentialKeys(observed)).toEqual([]);
+  });
+
+  it("uses an explicit simulated observation when no safe live endpoint exists", async () => {
+    const observed = await runLesson("threat-defense", {});
+
     expect(apiClient.get).not.toHaveBeenCalled();
+    expect(observed).toMatchObject({
+      provenance: PROVENANCE.SIMULATED,
+      correlationId: null,
+      result: { kind: "observation", status: "not-run" },
+    });
   });
 });
 
 describe("resetLesson", () => {
-  it("clears presenter state without mutating tenant configuration", async () => {
-    apiClient.get.mockResolvedValue(
-      response({ authenticated: true, oauthProvider: "pingone" }),
-    );
+  it("is a pure reset contract with no hidden state or tenant mutation", async () => {
+    const before = await resetLesson("login");
+    apiClient.get.mockResolvedValue(response({ authenticated: true }));
     await runLesson("login", {});
-    vi.clearAllMocks();
+    const after = await resetLesson("login");
 
-    await expect(resetLesson("login")).resolves.toEqual({
+    expect(before).toEqual({
       lessonId: "login",
       cleared: true,
+      tenantMutated: false,
     });
-
+    expect(after).toEqual(before);
     expect(apiClient.post).not.toHaveBeenCalled();
     expect(apiClient.patch).not.toHaveBeenCalled();
     expect(apiClient.delete).not.toHaveBeenCalled();
