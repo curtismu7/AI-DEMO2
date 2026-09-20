@@ -1226,9 +1226,8 @@ export default function BankingAgent({
   /** Show/hide RFC references in the selected step detail. Persisted. */
   const [showRfcInfo, setShowRfcInfo] = useState(() => {
     try {
-      const surface = localStorage.getItem("ba_rfc_info_surface");
       const storedRfcInfo = localStorage.getItem("ba_show_rfc_info");
-      return (storedRfcInfo === "1" || storedRfcInfo === "true") || surface === "embedded" || surface === "both";
+      return storedRfcInfo === "1" || storedRfcInfo === "true";
     } catch {
       return false;
     }
@@ -1289,13 +1288,35 @@ export default function BankingAgent({
   const chooseEvidenceView = useCallback((view) => {
     setQuickConfigView(view);
     try { localStorage.setItem("ba_quick_config_view", view); } catch {}
-    if (view === "simple-stepper") {
+    const withoutEmbeddedSurface = (surface) => {
+      if (surface === "both") return "popout";
+      if (surface === "embedded") return "none";
+      return surface;
+    };
+    if (view === "movie-reel") {
+      chooseSimpleStepperSurface(withoutEmbeddedSurface(simpleStepperSurface));
+      chooseSequenceSurface(withoutEmbeddedSurface(sequenceSurface));
+      chooseTopologySurface(withoutEmbeddedSurface(topologySurface));
+      chooseOauthVisualizerSurface(withoutEmbeddedSurface(oauthVisualizerSurface));
+    } else if (view === "simple-stepper") {
+      chooseSequenceSurface(withoutEmbeddedSurface(sequenceSurface));
+      chooseTopologySurface(withoutEmbeddedSurface(topologySurface));
+      chooseOauthVisualizerSurface(withoutEmbeddedSurface(oauthVisualizerSurface));
       chooseSimpleStepperSurface(simpleStepperSurface === "none" ? "embedded" : simpleStepperSurface);
     } else if (view === "sequence-view") {
+      chooseSimpleStepperSurface(withoutEmbeddedSurface(simpleStepperSurface));
+      chooseTopologySurface(withoutEmbeddedSurface(topologySurface));
+      chooseOauthVisualizerSurface(withoutEmbeddedSurface(oauthVisualizerSurface));
       chooseSequenceSurface(sequenceSurface === "none" ? "embedded" : sequenceSurface);
     } else if (view === "token-topology") {
+      chooseSimpleStepperSurface(withoutEmbeddedSurface(simpleStepperSurface));
+      chooseSequenceSurface(withoutEmbeddedSurface(sequenceSurface));
+      chooseOauthVisualizerSurface(withoutEmbeddedSurface(oauthVisualizerSurface));
       chooseTopologySurface(topologySurface === "none" ? "embedded" : topologySurface);
     } else if (view === "oauth-visualizer") {
+      chooseSimpleStepperSurface(withoutEmbeddedSurface(simpleStepperSurface));
+      chooseSequenceSurface(withoutEmbeddedSurface(sequenceSurface));
+      chooseTopologySurface(withoutEmbeddedSurface(topologySurface));
       chooseOauthVisualizerSurface(oauthVisualizerSurface === "none" ? "embedded" : oauthVisualizerSurface);
     }
   }, [chooseOauthVisualizerSurface, chooseSequenceSurface, chooseSimpleStepperSurface, chooseTopologySurface, oauthVisualizerSurface, sequenceSurface, simpleStepperSurface, topologySurface]);
@@ -10150,11 +10171,11 @@ export default function BankingAgent({
                         </div>
                       </div>
                       <div className="ba-header-more-intro">
-                        <strong>Choose a view surface</strong>
+                        <strong>Choose a trace evidence view surface</strong>
                         <span>Embedded views stay on this page. Pop-outs open a separate window.</span>
                       </div>
-                      <div className="ba-header-more-view-picker" role="group" aria-label="Evidence view">
-                        <div className="ba-header-more-heading">What should appear?</div>
+                      <div className="ba-header-more-view-picker" role="group" aria-label="Trace evidence views">
+                        <div className="ba-header-more-heading">Trace evidence views</div>
                         <div className="ba-header-more-view-grid">
                           {EVIDENCE_VIEW_OPTIONS.map((option) => (
                             <button
@@ -10247,7 +10268,7 @@ export default function BankingAgent({
                           Side panel
                         </Check>
                       )}
-                      <div className="ba-header-more-heading">Evidence views</div>
+                      <div className="ba-header-more-heading">Trace evidence views</div>
                       <SurfaceSelector
                         id="topology-surface-select"
                         label="Token topology"
