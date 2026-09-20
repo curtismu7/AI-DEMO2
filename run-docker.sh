@@ -786,6 +786,7 @@ SERVICES=(
   "alloy|Alloy (log collector)|12345|http://localhost:12345/-/ready"
   "alertmanager|Alertmanager        |9093|http://localhost:9093/-/ready"
   "ui|UI (React / nginx)   |4000|https://local.ping-devops.com:4000"
+  "mcp-discovery-agent|MCP Discovery Agent |-|internal health only"
   "mcp-server|MCP Server            |8080|http://localhost:8080"
   "mcp-gateway|MCP Gateway           |3005|http://localhost:3005"
   "mcp-proxy|MCP Proxy             |8895|http://localhost:8895"

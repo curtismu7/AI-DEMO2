@@ -21,7 +21,10 @@ const ENTRY_URLS = [
 const server = await createServer({
   root,
   configFile: path.join(root, 'vite.config.js'),
-  server: { middlewareMode: true },
+  // This is an import-resolution probe, not a dev server. Disabling HMR keeps
+  // Vite from opening a websocket listener that the smoke test never uses and
+  // lets middleware-mode shutdown settle cleanly under Node 22.
+  server: { middlewareMode: true, hmr: false },
   appType: 'custom',
   logLevel: 'error',
 });
@@ -41,5 +44,11 @@ try {
   console.error(err?.stack || err);
   process.exitCode = 1;
 } finally {
-  await server.close();
+  // Vite's middleware-mode close can await an internal watcher indefinitely
+  // even after all transforms have completed. Bound cleanup so this probe's
+  // exit status reflects resolution, not an unrelated dev-server shutdown.
+  await Promise.race([
+    server.close(),
+    new Promise((resolve) => setTimeout(resolve, 1000)),
+  ]);
 }
