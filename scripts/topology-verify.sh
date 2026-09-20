@@ -25,6 +25,11 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# The vertical manifest resolver normally persists overlays in LMDB. Topology
+# verification is an offline, worktree-safe check and must not open a shared
+# developer database (or depend on a platform-specific LMDB native build).
+export VERTICAL_MANIFEST_EPHEMERAL=1
+
 fail=0
 step() { printf '\n\033[36m── %s ──\033[0m\n' "$1"; }
 

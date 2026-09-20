@@ -8,7 +8,9 @@ const { createScope } = require('./scope');
 const { createEvents } = require('./events');
 const { createSnapshot } = require('./snapshot');
 const { createPlugins } = require('./plugins');
-const store = require('../lmdb/verticalStore.lmdb');
+const store = process.env.VERTICAL_MANIFEST_EPHEMERAL === '1'
+  ? require('./ephemeralStore')
+  : require('../lmdb/verticalStore.lmdb');
 
 // admin-console: deprecated; admin: role-based overlay; oauth-teaching: reached
 // exclusively via its dedicated /oauth-academy page (pinned per-request through

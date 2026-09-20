@@ -50,6 +50,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+// This gate is read-only and runs without the application stack. Keep it
+// independent of the persistent LMDB environment used by the BFF.
+process.env.VERTICAL_MANIFEST_EPHEMERAL ||= '1';
 const { resolveFallbackChips } = require('../services/fallbackDataResolver');
 // VALID_VERTICAL_RE is imported, not re-declared: it is the shape check that
 // decides whether a bogus id can reach the agent path at all, and a local copy
