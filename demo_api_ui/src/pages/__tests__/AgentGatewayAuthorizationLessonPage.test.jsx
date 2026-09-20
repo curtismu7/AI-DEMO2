@@ -24,6 +24,18 @@ describe("AgentGatewayAuthorizationLessonPage", () => {
     expect(screen.getAllByText("PingOne Authorize", { exact: true }).length).toBeGreaterThan(0);
   });
 
+  it("frames the customer story and links each control to a live surface", () => {
+    renderPage();
+    expect(screen.getByRole("heading", { name: /make every agent action accountable/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /run the story live/i })).toBeInTheDocument();
+    expect(screen.getByText(/identity, delegated authority, runtime policy, and proof/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /run the banking agent/i })).toHaveAttribute("href", "/agent-flow-inspector");
+    expect(screen.getByRole("link", { name: /inspect gateway enforcement/i })).toHaveAttribute("href", "/agent-gateway-inspector");
+    expect(screen.getByRole("link", { name: /test authorize decisions/i })).toHaveAttribute("href", "/pingone-authorize?tab=guided");
+    expect(screen.getByRole("link", { name: /watch the token and audit trail/i })).toHaveAttribute("href", "/transaction-trace");
+    expect(screen.getByRole("link", { name: /see the privilege ai threat-control story/i })).toHaveAttribute("href", "/privilege-for-ai");
+  });
+
   it("runs scenarios and exposes the selected decision request", () => {
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: /transfer \$500/i }));

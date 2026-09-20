@@ -6,10 +6,46 @@ import "./AgentGatewayAuthorizationLessonPage.css";
 
 const LESSON_SECTIONS = [
   { id: "overview", label: "Overview" },
+  { id: "live-demo", label: "Run the story live" },
   { id: "concepts", label: "Key concepts" },
   { id: "flow", label: "Request flow" },
   { id: "try-it-live", label: "Try it" },
   { id: "summary", label: "What happened" },
+];
+
+const LIVE_DEMO_LINKS = [
+  {
+    id: "agent",
+    kicker: "Start with the action",
+    title: "Run the banking agent",
+    detail: "Ask the agent to read data or move money. The same user request drives the live identity and policy flow.",
+    href: "/agent-flow-inspector",
+    cta: "Run the banking agent",
+  },
+  {
+    id: "gateway",
+    kicker: "See the enforcement point",
+    title: "Inspect gateway enforcement",
+    detail: "Watch MCP traffic, token checks, scopes, actor identity, and the gateway’s decision before a tool is reached.",
+    href: "/agent-gateway-inspector",
+    cta: "Inspect gateway enforcement",
+  },
+  {
+    id: "authorize",
+    kicker: "Change the context",
+    title: "Test Authorize decisions",
+    detail: "Try the same operation with different amounts, destinations, scopes, and obligations to see policy respond in real time.",
+    href: "/pingone-authorize?tab=guided",
+    cta: "Test Authorize decisions",
+  },
+  {
+    id: "proof",
+    kicker: "Finish with evidence",
+    title: "Watch the token and audit trail",
+    detail: "Follow the delegated token chain, gateway event, policy outcome, approval step, and protected-resource result.",
+    href: "/transaction-trace",
+    cta: "Watch the token and audit trail",
+  },
 ];
 
 const FLOW_NODES = [
@@ -108,7 +144,7 @@ export default function AgentGatewayAuthorizationLessonPage() {
   return (
     <LessonLayout
       title="Securing AI Agent access using Ping Identity"
-      subtitle="See how an Agent Gateway validates and enforces an agent request, while PingOne Authorize supplies the policy decision."
+      subtitle="Give every AI action an identity, a policy decision, and an accountable outcome."
       sections={LESSON_SECTIONS}
       storageKey="agent-gateway-authorization-lesson-nav-width"
     >
@@ -116,16 +152,48 @@ export default function AgentGatewayAuthorizationLessonPage() {
         <div className="agal-hero">
           <div>
             <p className="agal-eyebrow">Agent Gateway + PingOne Authorize</p>
-            <h2>Authentication identifies the actor. Authorization decides the action.</h2>
+            <h2>Make every agent action accountable.</h2>
             <p>
-              Follow one MCP request from the user through the Agent Gateway, into PingOne Authorize, and back to the protected resource.
+              Secure the full journey from user intent to tool execution: establish who the agent is, delegate only the authority it needs, evaluate the request in context, and prove what happened.
             </p>
+            <div className="agal-hero-links">
+              <Link className="agal-primary-link" to="/agent-flow-inspector">Run the live story</Link>
+              <Link className="agal-secondary-link" to="/agent-gateway-inspector">Open the gateway inspector</Link>
+            </div>
           </div>
           <div className="agal-outcome-card">
             <span>Decision vocabulary</span>
             <strong>PERMIT · DENY · STEP-UP</strong>
             <small>The gateway enforces the returned outcome.</small>
           </div>
+        </div>
+      </Section>
+
+      <Section id="live-demo" title="Run the story live">
+        <div className="agal-live-intro">
+          <div>
+            <p className="agal-eyebrow">From identity to evidence</p>
+            <h2>See how and what Ping protects.</h2>
+          </div>
+          <p>
+            These surfaces are connected to the running demo. Follow identity, delegated authority, runtime policy, and proof from the first agent request to the final tool result.
+          </p>
+        </div>
+        <div className="agal-live-grid">
+          {LIVE_DEMO_LINKS.map((item, index) => (
+            <article className="agal-live-card" key={item.id}>
+              <span className="agal-live-index">0{index + 1}</span>
+              <p className="agal-live-kicker">{item.kicker}</p>
+              <h3>{item.title}</h3>
+              <p>{item.detail}</p>
+              <Link to={item.href}>{item.cta}</Link>
+            </article>
+          ))}
+        </div>
+        <div className="agal-positioning">
+          <strong>One security story, four responsibilities.</strong>
+          <p><b>AI Core</b> establishes the agent credentials and delegated identity. <b>PingOne Authorize</b> decides whether this action is allowed now. <b>Agent Gateway</b> protects MCP traffic and enforces the result. <b>Privilege AI</b> extends the story with controls for models, tools, spend, and AI traffic.</p>
+          <Link to="/privilege-for-ai">See the Privilege AI threat-control story</Link>
         </div>
       </Section>
 
@@ -183,7 +251,7 @@ export default function AgentGatewayAuthorizationLessonPage() {
           <div className="agal-card">
             <h3>Decision request</h3>
             <pre>{JSON.stringify({ actor: "demo-user", resource: "banking-mcp", operation: scenario.request.tool, context: scenario.request }, null, 2)}</pre>
-            <div className="agal-links"><Link to="/agent-gateway-capabilities">Open Agent Gateway Inspector</Link><Link to="/pingone-authorize?tab=guided">Open Authorize tester</Link></div>
+            <div className="agal-links"><Link to="/agent-gateway-inspector">Open Agent Gateway Inspector</Link><Link to="/pingone-authorize?tab=guided">Open Authorize tester</Link></div>
           </div>
         </div>
       </Section>
@@ -196,7 +264,7 @@ export default function AgentGatewayAuthorizationLessonPage() {
           <li>The gateway enforced the response: forward on PERMIT, pause for an obligation such as STEP-UP, or stop on DENY.</li>
           <li>The protected resource was reachable only after the enforcement boundary allowed the call.</li>
         </ol>
-        <div className="agal-next-step"><strong>Continue the demo</strong><p>Open the live inspector to inspect the captured token chain, gateway event, Authorize decision, and MCP result.</p><Link to="/agent-gateway-capabilities">Open the live evidence view</Link></div>
+        <div className="agal-next-step"><strong>Continue the demo</strong><p>Open the live inspector to inspect the captured token chain, gateway event, Authorize decision, and MCP result.</p><Link to="/transaction-trace">Open the live evidence view</Link></div>
       </Section>
     </LessonLayout>
   );
