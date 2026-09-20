@@ -495,6 +495,13 @@ export default function DemoConfigPage() {
                     </button>
                     {isSectionOpen && (
                       <div className="dc-section__body">
+                        <div className="dc-page-table-header" role="row">
+                          <span aria-hidden="true" />
+                          <span role="columnheader">Navigation item</span>
+                          <span role="columnheader">Page</span>
+                          <span aria-hidden="true" />
+                          <span aria-hidden="true" />
+                        </div>
                         {section.groups.map((group) => {
                           const groupIndex = groups.indexOf(group);
                           const isHidden = hiddenLabels.includes(group.label);
@@ -537,9 +544,10 @@ export default function DemoConfigPage() {
                                 </label>
                                 {groupPath && (
                                   <a className="dc-open-link" href={groupPath} aria-label={`Open ${group.label}`}>
-                                    Open
+                                    Open page
                                   </a>
                                 )}
+                                {!groupPath && <span className="dc-page-link-placeholder">—</span>}
                                 {group.children && group.children.length > 0 && (
                                   <button
                                     type="button"
@@ -598,9 +606,10 @@ export default function DemoConfigPage() {
                                         <span className="dc-child-label">{child}</span>
                                         {childPath && (
                                           <a className="dc-open-link" href={childPath} aria-label={`Open ${child}`}>
-                                            Open
+                                            Open page
                                           </a>
                                         )}
+                                        {!childPath && <span className="dc-page-link-placeholder">—</span>}
                                       </li>
                                     );
                                   })}
