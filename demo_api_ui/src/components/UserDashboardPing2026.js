@@ -3770,6 +3770,9 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               localStorage.setItem("ba_movie_reel_surface", nextSurface);
               localStorage.setItem("ba_show_filmstrip", nextSurface === "embedded" ? "1" : "0");
             } catch {}
+            window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", {
+              detail: { on: nextSurface === "embedded", surface: nextSurface },
+            }));
           }}
           title="Movie reel"
           defaultWidth={Math.min(1120, Math.max(640, window.innerWidth - 48))}

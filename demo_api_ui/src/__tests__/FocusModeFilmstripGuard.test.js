@@ -118,6 +118,13 @@ describe("Focus Mode filmstrip guard", () => {
     expect(clinicalJsx).toMatch(/\{showFilmstrip && !showSequenceDiagram && <ReelDock\s*\/>\}/);
   });
 
+  test("closing the movie reel pop-out publishes its surface change", () => {
+    const start = p2026.indexOf("{showFilmstripPopout && (");
+    const end = p2026.indexOf("</DraggableModal>", start);
+    const popout = p2026.slice(start, end);
+    expect(popout).toMatch(/window\.dispatchEvent\(new CustomEvent\(\"agent-filmstrip-toggle\"/);
+  });
+
   // The bottom-dock guard that sat here went with the dock layout itself. What
   // replaces it is the assertion that the layout cannot come back by accident:
   // two placements, and a persisted 'bottom' coerces rather than rendering a
