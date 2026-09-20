@@ -37,8 +37,12 @@ function flagValue(flags, id) {
 function isPingOneCloudEndpoint(value) {
   if (typeof value !== "string") return false;
   try {
-    const hostname = new URL(value).hostname.toLowerCase();
-    return /^auth\.pingone\.(com|eu|asia|ca|com\.au)$/.test(hostname);
+    const url = new URL(value);
+    const hostname = url.hostname.toLowerCase();
+    return (
+      url.protocol === "https:" &&
+      /^auth\.pingone\.(com|eu|asia|ca|com\.au)$/.test(hostname)
+    );
   } catch {
     return false;
   }
@@ -61,6 +65,7 @@ function pingOneDependency(reads) {
   const connected =
     reads.identity.ok &&
     reads.identity.data.status === "connected" &&
+    reads.identity.data.details?.httpStatus === 200 &&
     isPingOneCloudEndpoint(reads.identity.data.endpoint);
   const configured =
     reads.credentials.ok &&
@@ -297,15 +302,19 @@ function evidence(label, value) {
 function observation(provenance, entries, warnings = []) {
   const hasEvidence = entries.some((entry) => entry.count > 0);
   return {
-    provenance,
+    provenance: hasEvidence ? provenance : null,
     result: {
       kind: "observation",
       status: hasEvidence ? "observed" : "no-evidence",
-      decision: "OBSERVED",
+      decision: hasEvidence ? "OBSERVED" : "NO_EVIDENCE",
       valuesRedacted: true,
     },
     evidence: entries,
-    warnings: [SNAPSHOT_WARNING, ...warnings],
+    warnings: [
+      ...(hasEvidence ? [] : ["No lesson evidence was observed."]),
+      SNAPSHOT_WARNING,
+      ...warnings,
+    ],
   };
 }
 
@@ -380,17 +389,17 @@ const OBSERVATION_NORMALIZERS = Object.freeze({
   "product-map": (data) => serviceObservation(data),
 });
 
-function fallbackObservation(lesson, status, warning) {
+function unobservedResult(status, warning) {
   return {
-    provenance: lesson.fallback.provenance,
+    provenance: null,
     correlationId: null,
     result: {
       kind: "observation",
       status,
-      decision: "NOT_RUN",
+      decision: status === "not-run" ? "NOT_RUN" : "UNAVAILABLE",
       valuesRedacted: true,
     },
-    evidence: lesson.evidence.events.map((label) => evidence(label, 0)),
+    evidence: [],
     warnings: [warning],
   };
 }
@@ -401,8 +410,7 @@ export async function runLesson(lessonId, _input = {}) {
 
   const endpoint = OBSERVATION_ENDPOINTS[lesson.run.action];
   if (!endpoint) {
-    return fallbackObservation(
-      lesson,
+    return unobservedResult(
       "not-run",
       "No safe live-run endpoint is configured for this lesson.",
     );
@@ -417,8 +425,7 @@ export async function runLesson(lessonId, _input = {}) {
       ...normalize(response?.data || {}),
     };
   } catch {
-    return fallbackObservation(
-      lesson,
+    return unobservedResult(
       "unavailable",
       `Observation endpoint unavailable; ${lesson.fallback.label} was not executed.`,
     );

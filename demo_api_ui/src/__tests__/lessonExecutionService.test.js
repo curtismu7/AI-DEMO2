@@ -40,6 +40,7 @@ function readinessResponses({ cloud = false, enabled = false } = {}) {
         ? response({
             status: "connected",
             endpoint: "https://auth.pingone.com/example/as/introspect",
+            details: { httpStatus: 200, responseTime: 25 },
           })
         : response({
             status: "not_configured",
@@ -273,6 +274,52 @@ describe("getTenantReadiness", () => {
       ]),
     );
   });
+
+  it.each([400, 403, 404, 429])(
+    "rejects connected introspection health with upstream HTTP %i",
+    async (httpStatus) => {
+      const responses = readinessResponses({ cloud: true, enabled: false });
+      responses.set(
+        readinessUrls.identity,
+        response({
+          status: "connected",
+          endpoint: "https://auth.pingone.com/example/as/introspect",
+          details: { httpStatus, responseTime: 25 },
+        }),
+      );
+      useResponses(responses);
+
+      const readiness = await getTenantReadiness();
+
+      expect(readiness.ready).toBe(false);
+      expect(readiness.environment.provenance).toBe(PROVENANCE.LIVE_LOCAL);
+      expect(dependency(readiness, "PingOne")).toMatchObject({
+        status: "configured",
+        provenance: PROVENANCE.RECORDED,
+      });
+    },
+  );
+
+  it("rejects connected introspection health over plain HTTP", async () => {
+    const responses = readinessResponses({ cloud: true, enabled: false });
+    responses.set(
+      readinessUrls.identity,
+      response({
+        status: "connected",
+        endpoint: "http://auth.pingone.com/example/as/introspect",
+        details: { httpStatus: 200, responseTime: 25 },
+      }),
+    );
+    useResponses(responses);
+
+    const readiness = await getTenantReadiness();
+
+    expect(readiness.ready).toBe(false);
+    expect(dependency(readiness, "PingOne")).toMatchObject({
+      status: "configured",
+      provenance: PROVENANCE.RECORDED,
+    });
+  });
 });
 
 describe("runLesson observations", () => {
@@ -382,7 +429,9 @@ describe("runLesson observations", () => {
       kind: "observation",
       status: "no-evidence",
     });
+    expect(observed.provenance).toBeNull();
     expect(observed.evidence.every((entry) => entry.count === 0)).toBe(true);
+    expect(observed.warnings).toContain("No lesson evidence was observed.");
     expect(observed.warnings).toContain(
       "Evidence is cumulative session history, not this lesson invocation.",
     );
@@ -421,15 +470,32 @@ describe("runLesson observations", () => {
     expect(credentialKeys(observed)).toEqual([]);
   });
 
-  it("uses an explicit simulated observation when no safe live endpoint exists", async () => {
+  it("returns provenance-free not-run when no safe live endpoint exists", async () => {
     const observed = await runLesson("threat-defense", {});
 
     expect(apiClient.get).not.toHaveBeenCalled();
     expect(observed).toMatchObject({
-      provenance: PROVENANCE.SIMULATED,
+      provenance: null,
       correlationId: null,
       result: { kind: "observation", status: "not-run" },
+      evidence: [],
     });
+  });
+
+  it("returns provenance-free unavailable when an observation endpoint fails", async () => {
+    apiClient.get.mockRejectedValue(new Error("endpoint failed"));
+
+    const observed = await runLesson("login", {});
+
+    expect(observed).toMatchObject({
+      provenance: null,
+      correlationId: null,
+      result: { kind: "observation", status: "unavailable" },
+      evidence: [],
+    });
+    expect(observed.warnings).toContain(
+      "Observation endpoint unavailable; Recorded login trace was not executed.",
+    );
   });
 });
 

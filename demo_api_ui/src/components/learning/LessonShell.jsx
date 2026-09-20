@@ -7,20 +7,23 @@ import "./LessonShell.css";
 
 const MODE_VALUES = new Set(["guided", "standalone"]);
 const PROVENANCE_VALUES = new Set(Object.values(PROVENANCE));
+const RUN_RESULT_STATUSES = new Set(["observed", "no-evidence", "not-run", "unavailable"]);
 
 export function normalizeLessonRunResult(result) {
   if (
     !result ||
     typeof result !== "object" ||
-    !PROVENANCE_VALUES.has(result.provenance) ||
     !("evidence" in result) ||
-    !("result" in result)
+    !result.result ||
+    typeof result.result !== "object" ||
+    !RUN_RESULT_STATUSES.has(result.result.status) ||
+    (result.result.status === "observed" && !PROVENANCE_VALUES.has(result.provenance))
   ) {
     return null;
   }
 
   return {
-    provenance: result.provenance,
+    provenance: result.result.status === "observed" ? result.provenance : null,
     evidence: result.evidence,
     result: result.result,
     warnings: Array.isArray(result.warnings) ? result.warnings : [],
@@ -62,6 +65,11 @@ export default function LessonShell({ lesson, mode = "guided", children, evidenc
       if (!normalized) {
         setRunState("error");
         setRunError("No normalized run result was returned.");
+        return;
+      }
+      if (normalized.result.status !== "observed") {
+        setRunState(normalized.result.status);
+        setRunError(normalized.warnings[0] || "No lesson evidence was captured.");
         return;
       }
       setObservedResult(normalized);
@@ -138,10 +146,12 @@ export default function LessonShell({ lesson, mode = "guided", children, evidenc
           aria-live="polite"
         >
           {runState === "ready" && "Ready to run"}
-          {runState === "unavailable" && "Ready to configure"}
           {runState === "running" && "Running"}
           {runState === "resetting" && "Resetting"}
           {runState === "complete" && "Run captured"}
+          {runState === "no-evidence" && runError}
+          {runState === "not-run" && runError}
+          {runState === "unavailable" && (runError || "Ready to configure")}
           {runState === "error" && runError}
           {runState === "reset-error" && "Reset failed"}
         </span>
