@@ -18,7 +18,17 @@ async function readJson(response, maxBodyBytes) {
     chunks.push(value);
   }
   const body = Buffer.concat(chunks).toString('utf8');
-  return body ? JSON.parse(body) : {};
+  if (!body) return {};
+  const contentType = response.headers?.get?.('content-type') || '';
+  if (contentType.includes('text/event-stream')) {
+    const data = body
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice(5).trimStart())
+      .join('\n');
+    return data ? JSON.parse(data) : {};
+  }
+  return JSON.parse(body);
 }
 
 async function rpc(endpoint, method, params, { fetchImpl = fetch, signal, maxBodyBytes = MAX_BODY_BYTES } = {}) {
