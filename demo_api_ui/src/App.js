@@ -4,7 +4,6 @@ import {
   Route,
   BrowserRouter as Router,
   Routes,
-  useParams,
   useLocation,
   useNavigate,
 } from "react-router-dom";

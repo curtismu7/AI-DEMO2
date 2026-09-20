@@ -8,7 +8,7 @@ export function normalizeAcademyMode(routeMode) {
   return routeMode === "guided" || routeMode === "standalone" ? routeMode : null;
 }
 
-export function AcademyLessonRoute({ loading, user, logout }) {
+export function AcademyLessonRoute({ loading, user, logout, children }) {
   const { lessonId, mode: routeMode } = useParams();
   const navigate = useNavigate();
   const lesson = getLesson(lessonId);
@@ -27,13 +27,17 @@ export function AcademyLessonRoute({ loading, user, logout }) {
             mode={mode}
             onModeChange={(nextMode) => navigate(`/academy/${lessonId}/${nextMode}`)}
           >
-            <p>{lesson.category}</p>
-            <p>{lesson.talkingPoints[0]}</p>
-            <ul>
-              {lesson.talkingPoints.slice(1).map((point) => (
-                <li key={point}>{point}</li>
-              ))}
-            </ul>
+            {children || (
+              <>
+                <p>{lesson.category}</p>
+                <p>{lesson.talkingPoints[0]}</p>
+                <ul>
+                  {lesson.talkingPoints.slice(1).map((point) => (
+                    <li key={point}>{point}</li>
+                  ))}
+                </ul>
+              </>
+            )}
           </LessonShell>
         </main>
       </>

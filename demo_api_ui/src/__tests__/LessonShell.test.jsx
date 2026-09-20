@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { useState } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { AcademyLessonRoute } from "../routes/AcademyRoutes";
@@ -43,7 +44,17 @@ function LocationProbe() {
   );
 }
 
-function renderAcademyRoute(initialEntries) {
+function StatefulLessonContent() {
+  const [value, setValue] = useState("");
+  return (
+    <label>
+      Routed lesson note
+      <input aria-label="routed lesson note" value={value} onChange={(event) => setValue(event.target.value)} />
+    </label>
+  );
+}
+
+function renderAcademyRoute(initialEntries, child) {
   return render(
     <ThemeProvider>
       <SessionTokenProvider>
@@ -52,11 +63,11 @@ function renderAcademyRoute(initialEntries) {
           <Routes>
             <Route
               path="/academy/:lessonId/:mode"
-              element={<AcademyLessonRoute loading={false} user={null} logout={() => {}} />}
+              element={<AcademyLessonRoute loading={false} user={null} logout={() => {}}>{child}</AcademyLessonRoute>}
             />
             <Route
               path="/academy/:lessonId"
-              element={<AcademyLessonRoute loading={false} user={null} logout={() => {}} />}
+              element={<AcademyLessonRoute loading={false} user={null} logout={() => {}}>{child}</AcademyLessonRoute>}
             />
             <Route path="/learning" element={<div data-testid="learning-redirect">Learning hub</div>} />
           </Routes>
@@ -260,11 +271,17 @@ describe("LessonShell", () => {
     expect(screen.getByRole("button", { name: "Guided Journey" })).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("preserves child state while the presentation mode changes", async () => {
-    renderShell();
-    const input = screen.getByRole("textbox", { name: "lesson input" });
+  it("preserves stateful routed lesson content through mode navigation and browser back", async () => {
+    renderAcademyRoute(["/academy/delegation"], <StatefulLessonContent />);
+    const input = await screen.findByRole("textbox", { name: "routed lesson note" });
     fireEvent.change(input, { target: { value: "preserve through route mode" } });
+
     fireEvent.click(screen.getByRole("button", { name: "Demo mode" }));
-    expect(screen.getByRole("textbox", { name: "lesson input" })).toHaveValue("preserve through route mode");
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/academy/delegation/standalone"));
+    expect(screen.getByRole("textbox", { name: "routed lesson note" })).toHaveValue("preserve through route mode");
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/academy/delegation"));
+    expect(screen.getByRole("textbox", { name: "routed lesson note" })).toHaveValue("preserve through route mode");
   });
 });
