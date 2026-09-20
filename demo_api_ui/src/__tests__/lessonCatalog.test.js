@@ -153,6 +153,36 @@ describe("AI Security Academy lesson catalog", () => {
     expect(isLessonContractValid(invalidLesson)).toBe(false);
   });
 
+  test("rejects an authorization header added to the run descriptor", () => {
+    const invalidLesson = {
+      ...lessonCatalog[0],
+      run: {
+        ...lessonCatalog[0].run,
+        headers: { Authorization: "Bearer raw-secret" },
+      },
+    };
+
+    expect(isLessonContractValid(invalidLesson)).toBe(false);
+    expect(validateLesson(invalidLesson)).toContain(
+      "run contains unknown property: headers",
+    );
+  });
+
+  test("rejects a raw access token added to the evidence descriptor", () => {
+    const invalidLesson = {
+      ...lessonCatalog[0],
+      evidence: {
+        ...lessonCatalog[0].evidence,
+        rawAccessToken: "secret",
+      },
+    };
+
+    expect(isLessonContractValid(invalidLesson)).toBe(false);
+    expect(validateLesson(invalidLesson)).toContain(
+      "evidence contains unknown property: rawAccessToken",
+    );
+  });
+
   test("requires the selected fallback to be allowed by its provenance policy", () => {
     const invalidLesson = {
       ...lessonCatalog[0],

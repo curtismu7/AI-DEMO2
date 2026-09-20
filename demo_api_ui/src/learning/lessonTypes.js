@@ -20,6 +20,12 @@ const CREDENTIAL_DECLARATION =
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const isNonEmptyString = (value) => typeof value === "string" && value.trim().length > 0;
 
+function rejectUnknownKeys(value, allowedKeys, label) {
+  return Object.keys(value)
+    .filter((key) => !allowedKeys.includes(key))
+    .map((key) => `${label} contains unknown property: ${key}`);
+}
+
 function containsCredentialDeclaration(value, key = "") {
   if (CREDENTIAL_DECLARATION.test(key)) return true;
   if (typeof value === "string") return CREDENTIAL_DECLARATION.test(value);
@@ -38,6 +44,7 @@ function validateRedactedResult(result, label) {
   if (!isObject(result)) {
     return [`${label} must be a redacted result object`];
   }
+  errors.push(...rejectUnknownKeys(result, ["kind", "valuesRedacted", "fields"], label));
   if (result.kind !== "redacted") {
     errors.push(`${label}.kind must be redacted`);
   }
@@ -90,6 +97,7 @@ export function validateLesson(lesson) {
   if (!isObject(lesson.run)) {
     errors.push("lesson.run must be an object");
   } else {
+    errors.push(...rejectUnknownKeys(lesson.run, ["action", "exposesRawBearerToken", "result"], "run"));
     if (!isNonEmptyString(lesson.run.action)) {
       errors.push("run.action must be a non-empty string");
     }
@@ -102,6 +110,7 @@ export function validateLesson(lesson) {
   if (!isObject(lesson.evidence)) {
     errors.push("lesson.evidence must be an object");
   } else {
+    errors.push(...rejectUnknownKeys(lesson.evidence, ["events", "result"], "evidence"));
     if (
       !Array.isArray(lesson.evidence.events) ||
       lesson.evidence.events.length === 0 ||
