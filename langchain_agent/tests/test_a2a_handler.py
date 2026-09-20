@@ -1,7 +1,13 @@
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from api.a2a_handler import router, set_agent, set_transaction_token_validator
+from api.a2a_handler import (
+    router,
+    set_agent,
+    set_federated_token_validator,
+    set_transaction_token_validator,
+)
+from authentication.federated_token_validator import FederatedCaller, TokenValidationError
 from authentication.token_validator import TokenValidationError
 
 
@@ -35,6 +41,57 @@ def test_agent_card_advertises_privilege_compatible_jsonrpc(monkeypatch):
     assert card["protocolVersion"] == "0.3.0"
     assert card["preferredTransport"] == "JSONRPC"
     assert card["url"] == "https://gateway.example/langchainagent/a2a/jsonrpc"
+
+
+def test_agent_card_advertises_customer_oauth(monkeypatch):
+    monkeypatch.setenv("A2A_PUBLIC_URL", "https://agent.example/a2a/jsonrpc")
+    monkeypatch.setenv("A2A_TENANT_METADATA_URLS", "https://idp.a.example/.well-known/openid-configuration,https://idp.b.example/.well-known/openid-configuration")
+
+    response = client().get("/a2a/.well-known/agent-card.json")
+
+    assert response.status_code == 200
+    card = response.json()
+    assert card["url"] == "https://agent.example/a2a/jsonrpc"
+    assert card["securityRequirements"] == [{"customerOAuth": ["agent:invoke"]}]
+    assert card["x-tenantOAuthMetadata"] == [
+        "https://idp.a.example/.well-known/openid-configuration",
+        "https://idp.b.example/.well-known/openid-configuration",
+    ]
+
+
+def test_jsonrpc_accepts_allowlisted_customer_bearer_without_privilege_token():
+    fake = FakeAgent()
+    set_agent(fake)
+    set_federated_token_validator(
+        type("Validator", (), {"validate": lambda _self, token: FederatedCaller("tenant-a", "user-a", "a@example.test", ("agent:invoke",))})()
+    )
+    response = client().post(
+        "/a2a/jsonrpc",
+        headers={"Authorization": "Bearer customer-token"},
+        json={
+            "jsonrpc": "2.0",
+            "id": "customer-1",
+            "method": "message/send",
+            "params": {"message": {"parts": [{"text": "hello"}]}},
+        },
+    )
+
+    assert response.status_code == 200
+    assert fake.calls[0][0] == "hello"
+
+
+def test_jsonrpc_returns_403_for_customer_scope_failure():
+    set_federated_token_validator(
+        type("Validator", (), {"validate": lambda _self, token: (_ for _ in ()).throw(TokenValidationError("required scope missing: agent:invoke"))})()
+    )
+    response = client().post(
+        "/a2a/jsonrpc",
+        headers={"Authorization": "Bearer customer-token"},
+        json={"jsonrpc": "2.0", "id": "scope-1", "method": "message/send", "params": {}},
+    )
+
+    assert response.status_code == 403
+    assert response.headers["www-authenticate"].startswith("Bearer")
 
 
 def test_jsonrpc_requires_cryptographically_valid_privilege_token():

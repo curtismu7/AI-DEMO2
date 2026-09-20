@@ -112,6 +112,20 @@ class LangChainMCPApplication:
 
             from api.a2a_handler import set_agent as set_a2a_agent
             set_a2a_agent(self.agent)
+            from api.a2a_handler import set_a2a_discovery_config, set_federated_token_validator
+            from authentication.federated_token_validator import (
+                FederatedTenantRegistry,
+                FederatedTokenValidator,
+            )
+            if self.config.a2a.tenant_registry_json:
+                registry = FederatedTenantRegistry.from_json(self.config.a2a.tenant_registry_json)
+                set_federated_token_validator(FederatedTokenValidator(registry))
+            else:
+                set_federated_token_validator(None)
+            set_a2a_discovery_config(
+                self.config.a2a.public_url,
+                [value.strip() for value in self.config.a2a.metadata_urls.split(",") if value.strip()],
+            )
 
             # AG-UI /run SSE endpoint: FastAPI on port 8888 (always active).
             from api.agui_run_handler import set_message_processor as set_agui_mp

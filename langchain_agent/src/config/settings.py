@@ -84,6 +84,15 @@ class PrivilegeConfig:
 
 
 @dataclass
+class A2AConfig:
+    """Public direct-A2A authentication and discovery settings."""
+    public_url: str = ""
+    tenant_registry_json: str = ""
+    metadata_urls: str = ""
+    required_scope: str = "agent:invoke"
+
+
+@dataclass
 class LangChainConfig:
     """Configuration for LangChain agent."""
     model_name: str = "llama3.2"
@@ -164,6 +173,7 @@ class AppConfig:
     chat: ChatConfig
     langchain: LangChainConfig
     privilege: PrivilegeConfig = field(default_factory=PrivilegeConfig)
+    a2a: A2AConfig = field(default_factory=A2AConfig)
 
 
 class BaseEnvironmentConfig(ABC):
@@ -440,6 +450,15 @@ class ConfigManager:
             callback_port=int(get_env_value("PRIVILEGE_MCP_CALLBACK_PORT", "8765")),
         )
 
+        a2a_config = A2AConfig(
+            public_url=get_env_value("A2A_PUBLIC_URL", ""),
+            tenant_registry_json=get_env_value("A2A_TENANT_REGISTRY_JSON", ""),
+            metadata_urls=get_env_value("A2A_TENANT_METADATA_URLS", ""),
+            required_scope=get_env_value("A2A_REQUIRED_SCOPE", "agent:invoke"),
+        )
+        if a2a_config.required_scope.strip() == "":
+            raise ValueError("A2A_REQUIRED_SCOPE must not be empty")
+
         # Same plaintext-on-the-wire concern as HI-04 above: the token exchange
         # sends the auth code, PKCE verifier, and client_secret to token_url.
         # http:// there would ship credentials in clear text. Unlike the
@@ -522,6 +541,7 @@ class ConfigManager:
             chat=chat_config,
             langchain=langchain_config,
             privilege=privilege_config,
+            a2a=a2a_config,
         )
         
         # Validate configuration for the environment
