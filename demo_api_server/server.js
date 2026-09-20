@@ -1116,6 +1116,9 @@ function redirectDocsToLoginIfNoSession(req, res, next) {
 // lib/docsAdminRedirect.js for why, and for the admin-signal parity rule.
 const { makeDocsAdminRedirect } = require('./lib/docsAdminRedirect');
 const redirectDocsToAdminModalIfNotAdmin = makeDocsAdminRedirect(sanitizePostLoginReturnPath);
+app.get('/api/docs/swagger-ui-header.js', (req, res) => {
+    res.type('application/javascript').sendFile(path.join(__dirname, 'public/swagger-ui-header.js'));
+});
 app.get('/api/openapi.json', redirectDocsToLoginIfNoSession, authenticateToken, requireAdmin, (req, res) => {
     res.json(openApiSpec());
 });
@@ -1131,6 +1134,48 @@ app.use(
     // a single source both the page and any client can read.
     swaggerUi.setup(null, {
         swaggerOptions: { url: '/api/openapi.json' },
+        customJs: '/api/docs/swagger-ui-header.js',
+        customCss: `
+            .swagger-demo-header {
+                align-items: center;
+                background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+                border-bottom: 1px solid #93c5fd;
+                color: #172554;
+                display: flex;
+                justify-content: space-between;
+                padding: 12px 24px;
+                gap: 16px;
+            }
+            .swagger-demo-header__brand {
+                align-items: center;
+                display: flex;
+                gap: 10px;
+                font-size: 18px;
+            }
+            .swagger-demo-header__logo {
+                font-size: 24px;
+                line-height: 1;
+            }
+            .swagger-demo-header__login {
+                background: #eff6ff;
+                border: 1px solid #93c5fd;
+                border-radius: 6px;
+                color: #172554;
+                font-size: 14px;
+                font-weight: 600;
+                padding: 8px 12px;
+                text-decoration: none;
+            }
+            .swagger-demo-header__login:hover {
+                background: #dbeafe;
+            }
+            @media (max-width: 520px) {
+                .swagger-demo-header {
+                    align-items: flex-start;
+                    flex-direction: column;
+                }
+            }
+        `,
         customSiteTitle: 'Banking Demo BFF API',
     }),
 );
