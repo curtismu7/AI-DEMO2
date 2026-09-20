@@ -662,6 +662,12 @@ try {
 // Restore session user from signed _auth cookie when in-memory session is empty.
 app.use(restoreSessionFromCookie);
 
+// Hosted Kubernetes access gate. The ingress calls /check directly over the
+// ClusterIP; all other API paths are independently protected here so a future
+// ingress or port-forward cannot bypass the Ping-domain decision.
+app.use('/api/auth/hosted-access', require('./routes/hostedAccess'));
+app.use('/api', require('./middleware/hostedAccessGate').createHostedAccessGate());
+
 // RFC 6749 §6 — silently refresh near-expired end-user access tokens on
 // authenticated API routes so UIs never serve stale tokens to downstream services.
 // Include /api/auth/oauth so GET /api/auth/oauth/user/status (and admin /status) run
