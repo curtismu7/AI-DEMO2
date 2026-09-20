@@ -2,6 +2,8 @@ import { Navigate, useNavigate, useParams } from "react-router-dom";
 import TopNav from "../components/TopNav";
 import LessonShell from "../components/learning/LessonShell";
 import { getLesson } from "../learning/lessonCatalog";
+import GuidedJourneyPage from "../pages/GuidedJourneyPage";
+import AppShell from "./AppShell";
 
 export function normalizeAcademyMode(routeMode) {
   if (routeMode === undefined) return "guided";
@@ -42,5 +44,20 @@ export function AcademyLessonRoute({ loading, user, logout, children }) {
         </main>
       </>
     )
+  );
+}
+
+export function GuidedJourneyRoute({
+  loading = false,
+  user,
+  logout,
+  journeyProps,
+}) {
+  if (loading) return null;
+
+  return (
+    <AppShell user={user} logout={logout}>
+      <GuidedJourneyPage {...journeyProps} />
+    </AppShell>
   );
 }
