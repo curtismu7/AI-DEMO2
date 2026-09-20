@@ -80,11 +80,12 @@ metadata:
     app: ai-demo
     component: frontend
 spec:
-  type: NodePort
+  # The SE ingress is the only public entry point. A NodePort would expose the
+  # SPA and its proxy routes outside the ingress auth perimeter.
+  type: ClusterIP
   ports:
   - port: 4000
     targetPort: 3000
-    nodePort: 30400   # access at https://api.ping.demo:30400 (or use port-forward)
     protocol: TCP
     name: https
   selector:

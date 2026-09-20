@@ -181,7 +181,7 @@ if [[ -z "$GITHUB_OWNER" ]]; then
   [[ -z "$GITHUB_OWNER" ]] && die "Set GITHUB_OWNER (your GitHub username) — could not auto-detect from git remote"
 fi
 REGISTRY="ghcr.io/${GITHUB_OWNER}"
-TAG="${IMAGE_TAG:-latest}"
+TAG="${IMAGE_TAG:-sha-$(git -C "$BASEDIR" rev-parse HEAD)}"
 
 # Derive SE namespace (same logic as run-k8.sh)
 derive_ns() {

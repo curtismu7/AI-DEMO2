@@ -19,7 +19,11 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
     # Browser perimeter: every app request must carry a BFF session whose
     # PingOne identity passed the exact hosted-domain policy.
-    nginx.ingress.kubernetes.io/auth-url: "https://frontend.<<NAMESPACE>>.svc.cluster.local:4000/api/auth/hosted-access/check"
+    # The SE frontend Service targets nginx's plain-HTTP listener. The frontend
+    # then proxies this request to the BFF over its existing internal TLS hop.
+    # Using https here attempts TLS against an HTTP port and makes the entire
+    # hosted application fail closed.
+    nginx.ingress.kubernetes.io/auth-url: "http://frontend.<<NAMESPACE>>.svc.cluster.local:4000/api/auth/hosted-access/check"
     nginx.ingress.kubernetes.io/auth-signin: "https://ai-demo.ping-devops.com/api/auth/oauth/user/login?return_to=$escaped_request_uri"
 spec:
   ingressClassName: nginx-public

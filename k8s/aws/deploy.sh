@@ -8,7 +8,7 @@
 #
 # Required env vars:
 #   GITHUB_OWNER     — GitHub username or org (images at ghcr.io/OWNER/...)
-#   IMAGE_TAG        — Docker image tag to deploy (default: latest)
+#   IMAGE_TAG        — Docker image tag to deploy (default: sha-<current commit>)
 #
 # AWS EKS-only env vars:
 #   AWS_REGION          — e.g. us-east-1
@@ -32,7 +32,7 @@
 #   IMAGE_TAG=abc1234 ./k8s/aws/deploy.sh
 #
 # Usage (local sim):
-#   GITHUB_OWNER=myorg IMAGE_TAG=latest ./k8s/aws/deploy.sh
+#   GITHUB_OWNER=myorg IMAGE_TAG=sha-<full-commit> ./k8s/aws/deploy.sh
 
 set -euo pipefail
 
@@ -41,7 +41,9 @@ K8S_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # K8S_NAMESPACE: use pre-existing namespace (SE cluster) or default ai-demo (EKS/local)
 K8S_NAMESPACE="${K8S_NAMESPACE:-}"
 NS="${K8S_NAMESPACE:-ai-demo}"
-IMAGE_TAG="${IMAGE_TAG:-latest}"
+# CI publishes commit-addressed tags. Keep deployments reproducible by
+# defaulting to the current commit instead of a mutable :latest tag.
+IMAGE_TAG="${IMAGE_TAG:-sha-$(git -C "$K8S_DIR" rev-parse HEAD)}"
 
 # Environment first, then the git remote — the same fallback se-update-code.sh
 # already applies before it calls this script. Without it, se-update-config.sh
@@ -190,7 +192,9 @@ fi
 info "Creating secrets from demo_api_server/.env..."
 # MCPGW_APP_NAME: Privilege console app name (AI Security > Agentic Apps).
 # mcpgw binary routes /mcpgw/<app-name>/mcp — set to match the registered name.
-K8S_NAMESPACE="$NS" MCPGW_APP_NAME="${MCPGW_APP_NAME:-}" bash "$K8S_DIR/create-secrets.sh"
+K8S_NAMESPACE="$NS" \
+SECURITY_HARDENED_DEPLOYMENT=true \
+MCPGW_APP_NAME="${MCPGW_APP_NAME:-}" bash "$K8S_DIR/create-secrets.sh"
 
 # OTel bootstrap scripts mounted at /otel in every instrumented service
 # (mirrors docker-compose's ./scripts/ bind mounts).
