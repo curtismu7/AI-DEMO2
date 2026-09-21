@@ -8,6 +8,30 @@
 
 **Related design:** `docs/superpowers/specs/2026-09-20-academy-real-agent-lessons-design.md` contains the broader real-agent execution and BFF contract. This document focuses on integrating that curriculum into the existing app and turning the current HTML mock into a real in-app experience.
 
+## Boundary with the other Academy development
+
+There are two related but different developments. They should share contracts and lesson IDs, but they should not duplicate ownership.
+
+| Development | Primary ownership | Expected output | Must not duplicate |
+|---|---|---|---|
+| **Real-Agent Lessons** (`academy-real-design`) | Execution architecture and server-side behavior | BFF Academy endpoints, readiness, scenario adapters, live/recorded/mock run contract, event correlation, redaction, safe reset, real product integrations | Academy navigation, lesson presentation, duplicate inspectors, browser-side product calls |
+| **In-App Academy Integration** (this document) | User-facing Academy experience | Academy home, 13-lesson catalog, guided and standalone routes, lesson shell, diagrams, presenter flow, source/provenance controls, evidence timeline, product map, links to existing inspectors | A second agent runtime, authorization engine, token exchange implementation, broad tenant mutation, competing BFF APIs |
+
+The other development answers: **“How does a bounded Academy scenario execute safely and produce trustworthy evidence?”**
+
+This development answers: **“How does a user learn that scenario, launch it, understand each frame, and move to the right existing inspector?”**
+
+Integration rules:
+
+1. Use the other development's run/readiness/evidence contract rather than inventing a UI-specific API.
+2. Use the same canonical lesson IDs and catalog metadata in the guided journey, standalone launcher, and lesson routes.
+3. Keep live execution behind the BFF. The UI only starts, observes, cancels, and resets an owned run through the bounded API.
+4. Keep this work's Evidence Timeline and Ping Product Map as presentation components over evidence supplied by the execution layer; they must not independently infer or fabricate policy, token, or product events.
+5. Link to existing inspectors for deep evidence. Do not copy inspector logic into Academy components.
+6. If a real scenario is not yet available, render the lesson with Mock or Recorded provenance and a readiness explanation; do not create a second partial live implementation in the UI.
+
+The static HTML mock belongs to this integration development as a visual reference. It is not a competing execution path and should remain clearly labeled as a mock/review artifact until the React lesson route replaces it.
+
 ## Reviewable mock
 
 Open the current standalone HTML mock in a browser:
