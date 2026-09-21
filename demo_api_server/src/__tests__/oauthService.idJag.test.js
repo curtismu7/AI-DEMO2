@@ -17,6 +17,12 @@ const providerConfig = {
   pf_token_exchange_token_endpoint_auth_method: 'basic',
 };
 
+const idJagToken = [
+  Buffer.from(JSON.stringify({ typ: 'oauth-id-jag+jwt', alg: 'none' })).toString('base64url'),
+  Buffer.from(JSON.stringify({ iss: 'https://pf.example.com', sub: 'user-1', aud: 'https://downstream.example.test', exp: Math.floor(Date.now() / 1000) + 300 })).toString('base64url'),
+  'signature',
+].join('.');
+
 jest.mock('../../services/configStore', () => ({
   getOAuthProvider: () => providerConfig.oauth_provider,
   getEffective: (key) => providerConfig[key] || '',
@@ -36,7 +42,7 @@ describe('OAuthService.performIdJagExchange', () => {
   test('requests a real ID-JAG from PingFederate using the configured exchange client', async () => {
     axios.post.mockResolvedValue({
       data: {
-        access_token: 'pf-id-jag-token',
+        access_token: idJagToken,
         issued_token_type: 'urn:ietf:params:oauth:token-type:id-jag',
         token_type: 'N_A',
         expires_in: 300,
@@ -51,7 +57,7 @@ describe('OAuthService.performIdJagExchange', () => {
       ['accounts:read'],
     );
 
-    expect(result).toBe('pf-id-jag-token');
+    expect(result).toBe(idJagToken);
     expect(axios.post).toHaveBeenCalledTimes(1);
     const [url, bodyText, options] = axios.post.mock.calls[0];
     const body = new URLSearchParams(bodyText);
@@ -99,7 +105,7 @@ describe('OAuthService.performIdJagExchange', () => {
     });
 
     const result = await oauthService.redeemIdJag(
-      'pf-id-jag-token',
+      idJagToken,
       'https://api.example.test',
       ['accounts:read'],
     );
@@ -109,7 +115,7 @@ describe('OAuthService.performIdJagExchange', () => {
     const body = new URLSearchParams(bodyText);
     expect(url).toBe('https://as.example.test/token');
     expect(body.get('grant_type')).toBe('urn:ietf:params:oauth:grant-type:jwt-bearer');
-    expect(body.get('assertion')).toBe('pf-id-jag-token');
+    expect(body.get('assertion')).toBe(idJagToken);
     expect(body.get('scope')).toBe('accounts:read');
     expect(body.get('resource')).toBe('https://api.example.test');
     expect(body.get('client_id')).toBe('downstream-client');

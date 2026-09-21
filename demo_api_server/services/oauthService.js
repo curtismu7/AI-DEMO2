@@ -11,6 +11,7 @@ const { trackTokenEvent } = require('./tokenChainService');
 const configStore = require('./configStore');
 const { authMethodOrder, isInvalidClientError } = require('./pingOneTokenAuth');
 const clientAssertionService = require('./clientAssertionService');
+const { decodeJwt } = require('../utils/tokenUtils');
 
 // Utility function to decode and log OAuth token information
 const logTokenInfo = (token, context = '') => {
@@ -411,6 +412,16 @@ class OAuthService {
       if (!data.access_token) throw new Error('PingFederate ID-JAG response missing access_token');
       if (data.issued_token_type !== 'urn:ietf:params:oauth:token-type:id-jag') {
         throw new Error(`PingFederate response is not an ID-JAG (issued_token_type=${data.issued_token_type || 'missing'})`);
+      }
+      const decoded = decodeJwt(data.access_token);
+      const expectedIssuer = configStore.getEffective('pf_issuer');
+      const actualAudience = decoded?.claims?.aud;
+      const audienceMatches = actualAudience === audience ||
+        (Array.isArray(actualAudience) && actualAudience.includes(audience));
+      if (!decoded || decoded.header?.typ !== 'oauth-id-jag+jwt' || !decoded.claims?.sub ||
+          !decoded.claims?.iss || (expectedIssuer && decoded.claims.iss !== expectedIssuer) ||
+          !audienceMatches || !decoded.claims?.exp || decoded.claims.exp <= Math.floor(Date.now() / 1000)) {
+        throw new Error('PingFederate response failed ID-JAG issuer, audience, type, subject, or expiry validation');
       }
       _emitTokenExchangeEvent('ok', { ...telemetry, latencyMs: Date.now() - startTime });
       return data.access_token;

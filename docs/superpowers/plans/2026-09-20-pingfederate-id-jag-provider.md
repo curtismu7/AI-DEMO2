@@ -94,7 +94,7 @@
 - [x] Keep the existing PingOne fallback and issuer `/as` normalization limited to PingOne hosts.
 - [x] Validate that PF discovery provides issuer, authorization endpoint, token endpoint, and JWKS URI.
 - [x] Validate ID-JAG capability metadata when PF mode is enabled, including the requested-token-type metadata where PF publishes it.
-- [ ] Skip PingOne-only resource/JWKS host warnings in PF mode and add equivalent PF issuer/JWKS checks.
+- [x] Skip PingOne-only resource/JWKS host warnings in PF mode and add equivalent PF issuer/JWKS checks.
 - [x] Test issuer mismatch, HTTP discovery rejection in production, missing metadata, PF endpoint selection, and PingOne compatibility.
 - [x] Run the focused discovery/resolver tests and commit the provider-aware endpoint layer.
 
@@ -132,12 +132,12 @@
 - Preserve existing `performTokenExchange*` methods for PingOne mode.
 - Emit provider-neutral telemetry with `provider=pingfederate` and `requestedTokenType=id-jag`; never log assertion or token values.
 
-- [ ] Build the PF request with `grant_type=urn:ietf:params:oauth:grant-type:token-exchange`.
-- [ ] Set `requested_token_type=urn:ietf:params:oauth:token-type:id-jag`.
-- [ ] Send the configured subject-token type, defaulting to the PF refresh-token type when the PF deployment is configured for refresh-token-to-ID-JAG exchange.
-- [ ] Send the configured `audience`, `resource`, and least-privilege scope values.
+- [x] Build the PF request with `grant_type=urn:ietf:params:oauth:grant-type:token-exchange`.
+- [x] Set `requested_token_type=urn:ietf:params:oauth:token-type:id-jag`.
+- [x] Send the configured subject-token type, defaulting to the PF refresh-token type when the PF deployment is configured for refresh-token-to-ID-JAG exchange.
+- [x] Send the configured `audience`, `resource`, and least-privilege scope values.
 - [x] Authenticate the token-exchange client according to PF configuration.
-- [ ] Require a valid ID-JAG response and reject missing token type, malformed JWT, wrong issuer, wrong audience, wrong type header, expired timestamps, or missing required subject claims.
+- [x] Require a valid ID-JAG response and reject missing token type, malformed JWT, wrong issuer, wrong audience, wrong type header, expired timestamps, or missing required subject claims.
 - [x] Exchange the ID-JAG at the configured downstream AS when the architecture uses a two-party exchange; do not treat the ID-JAG itself as a final access token unless the downstream resource explicitly accepts it.
 - [x] Make PF exchange failure terminal in PF mode; do not invoke a simulated or local exchange fallback.
 - [x] Test request parameters, provider selection, downstream exchange, failure handling, and token redaction.

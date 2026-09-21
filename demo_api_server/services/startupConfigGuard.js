@@ -78,6 +78,8 @@ function effective(key) {
 /** Collect config issues (empty array = all good). Throws only on unreadable SoT. */
 function collectIssues() {
   const issues = [];
+  const oauthProvider = String(effective('OAUTH_PROVIDER') || 'pingone').toLowerCase();
+  const isPingFederate = oauthProvider === 'pingfederate';
 
   const topo = JSON.parse(fs.readFileSync(SERVICE_TOPOLOGY_PATH, 'utf8'));
   const usePingGateway = (() => {
@@ -143,11 +145,12 @@ function collectIssues() {
   // is logged out on the first agent prompt (a sibling of the aud-drift bug above;
   // the live configmap reverts this on redeploy). Flag a JWKS URL that resolves to
   // the management host.
-  const jwksUri =
-    effective('PINGONE_JWKS_URI') ||
-    (effective('PINGONE_ISSUER') ? `${effective('PINGONE_ISSUER').replace(/\/+$/, '')}/jwks` : '') ||
-    (effective('PINGONE_BASE_URL') ? `${effective('PINGONE_BASE_URL').replace(/\/+$/, '')}/jwks` : '');
-  if (jwksUri && (/\/v1\/environments\//.test(jwksUri) || /(^|\/\/)api\.pingone\.com\b/.test(jwksUri))) {
+  const jwksUri = isPingFederate
+    ? effective('PF_JWKS_URI')
+    : effective('PINGONE_JWKS_URI') ||
+      (effective('PINGONE_ISSUER') ? `${effective('PINGONE_ISSUER').replace(/\/+$/, '')}/jwks` : '') ||
+      (effective('PINGONE_BASE_URL') ? `${effective('PINGONE_BASE_URL').replace(/\/+$/, '')}/jwks` : '');
+  if (!isPingFederate && jwksUri && (/\/v1\/environments\//.test(jwksUri) || /(^|\/\/)api\.pingone\.com\b/.test(jwksUri))) {
     issues.push(
       `JWKS resolves to the Management API host ("${jwksUri}") — its /jwks returns 403, so every agent token ` +
       `signature check fails (401 → forced logout). Set PINGONE_JWKS_URI to the AUTH host OIDC JWKS ` +
@@ -159,10 +162,10 @@ function collectIssues() {
   // (auth.pingone.com/<env>/as/token). The Management API host (api.pingone.com)
   // returns 403 on /token. A stale or wrong OAUTH_TOKEN_ENDPOINT isn't caught until
   // the first OAuth flow, which surfaces as a generic 403 with no config pointer.
-  const tokenEndpoint =
-    effective('OAUTH_TOKEN_ENDPOINT') ||
-    effective('oauth_token_endpoint');
-  if (tokenEndpoint && ((/\/v1\/environments\//).test(tokenEndpoint) || (/(^|\/\/)api\.pingone\.com\b/).test(tokenEndpoint))) {
+  const tokenEndpoint = isPingFederate
+    ? effective('PF_TOKEN_ENDPOINT')
+    : effective('OAUTH_TOKEN_ENDPOINT') || effective('oauth_token_endpoint');
+  if (!isPingFederate && tokenEndpoint && ((/\/v1\/environments\//).test(tokenEndpoint) || (/(^|\/\/)api\.pingone\.com\b/).test(tokenEndpoint))) {
     issues.push(
       `OAUTH_TOKEN_ENDPOINT="${tokenEndpoint}" resolves to the Management API host — it returns 403 on ` +
       `/token, so every login and token-exchange fails. Set OAUTH_TOKEN_ENDPOINT to the AUTH host ` +
@@ -186,6 +189,17 @@ function collectIssues() {
       `Set MCP_GW_RESOURCE_URI (or PINGONE_RESOURCE_MCP_GATEWAY_URI) to the gateway resource URI ` +
       `registered in PingOne (e.g. https://mcpgateway.ping.demo).`,
     );
+  }
+
+  if (isPingFederate) {
+    const issuer = effective('PF_ISSUER');
+    if (!issuer) issues.push('OAUTH_PROVIDER=pingfederate requires PF_ISSUER for issuer validation');
+    if (issuer && !/^https:\/\//i.test(issuer)) {
+      issues.push(`PF_ISSUER="${issuer}" must use HTTPS`);
+    }
+    if (jwksUri && !/^https:\/\//i.test(jwksUri)) {
+      issues.push(`PF_JWKS_URI="${jwksUri}" must use HTTPS`);
+    }
   }
 
   return issues;
