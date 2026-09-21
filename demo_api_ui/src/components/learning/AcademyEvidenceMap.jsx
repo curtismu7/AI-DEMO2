@@ -13,7 +13,7 @@ const PRODUCT_LINKS = Object.freeze({
   "Agent Governance": "/agent-registry",
   "Agent IAM Core": "/oauth-academy",
   "Human approval": "/use-cases/live",
-  "MCP Gateway": "/privilege-mcp-learning",
+  "MCP Gateway": "/agent-gateway-inspector",
 });
 
 function stageState(lesson, stage) {

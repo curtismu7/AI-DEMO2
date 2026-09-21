@@ -186,13 +186,22 @@ function privilegeDependency(reads, flags) {
 function mcpDependency(reads) {
   const gatewayLive = reads.mcpGateway.ok && reads.mcpGateway.data.ok === true;
   const serverLive = reads.mcpServer.ok && reads.mcpServer.data.ok === true;
-  if (gatewayLive || serverLive) {
+  if (gatewayLive) {
     return dependency(
       "mcp",
       "MCP",
       "available",
       PROVENANCE.LIVE_LOCAL,
       "MCP liveness verified through the BFF",
+    );
+  }
+  if (serverLive && reads.gatewayConfig.ok) {
+    return dependency(
+      "mcp",
+      "MCP",
+      "configured",
+      PROVENANCE.RECORDED,
+      "MCP server is live, but the executable gateway path is not verified",
     );
   }
   if (reads.gatewayConfig.ok) {
@@ -527,7 +536,9 @@ function executionObservation(data, kind) {
   const decision = typeof data?.decision === "string" ? data.decision.toUpperCase() : null;
   const engine = data?.engine === "pingone" ? PROVENANCE.LIVE_CLOUD : PROVENANCE.LIVE_LOCAL;
   const label = kind === "policy-evaluation" ? "Policy decision" : "Banking read tool";
-  const hasEvidence = kind === "policy-evaluation" ? Boolean(decision) : Boolean(data);
+  const hasEvidence = kind === "policy-evaluation"
+    ? Boolean(decision)
+    : Boolean(data?.result && data?.ok !== false && !data?.error);
   return {
     provenance: hasEvidence ? engine : null,
     result: {

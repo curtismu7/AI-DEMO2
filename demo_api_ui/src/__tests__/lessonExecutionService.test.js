@@ -277,6 +277,19 @@ describe("getTenantReadiness", () => {
     );
   });
 
+  it("does not mark MCP executable when only the downstream server is healthy", async () => {
+    const responses = readinessResponses({ cloud: false });
+    responses.set(readinessUrls.mcpGateway, new Error("gateway unavailable"));
+    useResponses(responses);
+
+    const readiness = await getTenantReadiness();
+
+    expect(dependency(readiness, "MCP")).toMatchObject({
+      status: "configured",
+      provenance: PROVENANCE.RECORDED,
+    });
+  });
+
   it.each([400, 403, 404, 429])(
     "rejects connected introspection health with upstream HTTP %i",
     async (httpStatus) => {
@@ -526,6 +539,21 @@ describe("runLesson observations", () => {
     expect(result.evidence).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ label: "Banking read tool", count: 1 }),
+      ]),
+    );
+  });
+
+  it("does not claim a failed MCP response was executed", async () => {
+    apiClient.post.mockResolvedValueOnce(
+      response({ error: "tool_denied", ok: false }),
+    );
+
+    const result = await runLesson("mcp");
+
+    expect(result.result).toMatchObject({ status: "no-evidence", decision: "NO_EVIDENCE" });
+    expect(result.evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "Banking read tool", count: 0 }),
       ]),
     );
   });
