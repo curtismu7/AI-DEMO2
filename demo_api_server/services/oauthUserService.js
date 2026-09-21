@@ -3,6 +3,8 @@ const crypto = require('crypto');
 const { sanitizeAxiosCause } = require('../utils/sanitizeAxiosCause');
 const config = require('../config/oauthUser');
 const nrSegments = require('./nrSegments');
+const configStore = require('./configStore');
+const clientAssertionService = require('./clientAssertionService');
 const { isOAuthVerboseDebug } = require('../utils/oauthDebugFlags');
 const { verboseOAuthLog } = require('../utils/oauthVerboseLogger');
 
@@ -171,7 +173,15 @@ class OAuthUserService {
         redirect_uri: redirectUri || this.config.redirectUri,
         client_id: this.config.clientId,
       });
-      if (shouldSendClientSecret(this.config)) {
+      const authMethod = String(this.config.tokenEndpointAuthMethod || '').trim().toLowerCase();
+      const isPingFederate = configStore.getOAuthProvider?.() === 'pingfederate';
+      const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+      if (shouldSendClientSecret(this.config) && isPingFederate && authMethod === 'basic') {
+        headers.Authorization = `Basic ${Buffer.from(`${this.config.clientId}:${this.config.clientSecret}`).toString('base64')}`;
+      } else if (isPingFederate && authMethod === 'private_key_jwt') {
+        params.set('client_assertion_type', clientAssertionService.CLIENT_ASSERTION_TYPE);
+        params.set('client_assertion', clientAssertionService.buildClientAssertion(this.config.clientId, this.config.tokenEndpoint));
+      } else if (shouldSendClientSecret(this.config)) {
         params.set('client_secret', this.config.clientSecret);
       }
       if (codeVerifier) {
@@ -179,7 +189,7 @@ class OAuthUserService {
       }
       const response = await nrSegments.pingOneAuthenticate(() =>
         axios.post(this.config.tokenEndpoint, params.toString(), {
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          headers,
         })
       );
 

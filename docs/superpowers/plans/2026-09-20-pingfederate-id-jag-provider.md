@@ -111,9 +111,9 @@
 - Existing login methods continue to return the same normalized session token shape.
 - PF mode uses the active provider’s endpoints and client-auth method without changing session storage.
 
-- [ ] Send PF Authorization Code + PKCE requests using the PF client and canonical callback URI.
+- [x] Send PF Authorization Code + PKCE requests using the PF client and canonical callback URI.
 - [ ] Exchange the code at PF and normalize `access_token`, `id_token`, `refresh_token`, expiry, and user claims into the existing session structure.
-- [ ] Support PF’s configured token-endpoint authentication method, preferring private-key JWT or client secret according to PF configuration.
+- [x] Support PF’s configured token-endpoint authentication method, preferring private-key JWT or client secret according to PF configuration.
 - [ ] Preserve nonce/state/PKCE validation and hosted-access checks.
 - [ ] Ensure callback errors identify PF configuration failures without leaking response bodies or credentials.
 - [ ] Test successful PF login, issuer mismatch, missing email/subject, invalid state, PKCE failure, and token endpoint failure.
