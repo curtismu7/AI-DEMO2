@@ -7,11 +7,20 @@ FROM node:22-alpine
 # this is the final stage.
 LABEL org.opencontainers.image.source=https://github.com/cmuir_pingcorp/AI-DEMO2
 
-# TARGETARCH is set by buildx (arm64 on Graviton nodes, amd64 on x86).
+# TARGETARCH is retained for build metadata, but uname is authoritative here:
+# compose/buildx can produce a final image for one architecture while the
+# automatic build arg is inherited from the builder architecture. Downloading
+# kubectl from uname keeps the binary executable in the final image (including
+# on the arm64 SE nodes).
 ARG TARGETARCH
 RUN apk add --no-cache curl \
   && KVER="$(curl -L -s https://dl.k8s.io/release/stable.txt)" \
-  && curl -LO "https://dl.k8s.io/release/${KVER}/bin/linux/${TARGETARCH}/kubectl" \
+  && case "$(uname -m)" in \
+       x86_64) KARCH=amd64 ;; \
+       aarch64|arm64) KARCH=arm64 ;; \
+       *) echo "Unsupported image architecture: $(uname -m)" >&2; exit 1 ;; \
+     esac \
+  && curl -LO "https://dl.k8s.io/release/${KVER}/bin/linux/${KARCH}/kubectl" \
   && install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl \
   && rm kubectl
 
