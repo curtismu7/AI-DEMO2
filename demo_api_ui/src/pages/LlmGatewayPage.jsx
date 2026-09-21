@@ -815,8 +815,7 @@ export default function LlmGatewayPage() {
             ) : null}
             {busy ? (
               <p className="lgw-empty lgw-busy">
-                <PingIdentitySpinner size={22} aria-hidden="true" />
-                Sending through {TITLES[selected] || selected}&hellip;
+                <PingIdentitySpinner size={22} label={`Sending through ${TITLES[selected] || selected}…`} />
               </p>
             ) : null}
           </div>

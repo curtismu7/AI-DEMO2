@@ -80,8 +80,7 @@ export default function PingOneAudit() {
     return (
       <div className="pingone-audit-container">
         <div className="pingone-audit-loading">
-          <PingIdentitySpinner size={32} aria-hidden="true" />
-          <p>Auditing PingOne resources and scopes...</p>
+          <PingIdentitySpinner size={32} label="Auditing PingOne resources and scopes…" />
         </div>
       </div>
     );

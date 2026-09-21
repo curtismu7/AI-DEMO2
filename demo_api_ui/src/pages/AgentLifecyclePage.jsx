@@ -293,8 +293,9 @@ function StepUpSlot() {
       </button>
       {message && (
         <p className="alp-slot__status">
-          {phase === 'waiting-approval' && <PingIdentitySpinner size={20} aria-hidden="true" />}
-          {message}
+          {phase === 'waiting-approval'
+            ? <PingIdentitySpinner size={20} label={message} />
+            : message}
         </p>
       )}
     </section>

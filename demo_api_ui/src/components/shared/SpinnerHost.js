@@ -94,8 +94,7 @@ export default function SpinnerHost() {
         className={!spinnerDarkCard ? 'lo-card' : 'lo-card lo-card--dark'}
         style={{ borderTopColor: accentColor }}
       >
-        <PingIdentitySpinner size={spinnerSize} aria-hidden="true" />
-        <p className="lo-message">{message || 'Please wait…'}</p>
+        <PingIdentitySpinner size={spinnerSize} label={message || 'Please wait…'} />
         {activityLabel && (
           <code className="lo-endpoint">{activityLabel}</code>
         )}

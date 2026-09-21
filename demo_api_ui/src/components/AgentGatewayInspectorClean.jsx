@@ -268,8 +268,7 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
               <div className="inspector-clean-output-content" style={{ fontSize: `${outputFontSize}px` }}>
                 {running && !result && !error && (
                   <div style={{ color: 'var(--th-text-muted)', fontSize: '12px', padding: '20px', display: 'grid', placeItems: 'center', gap: '12px' }}>
-                    <PingIdentitySpinner size={72} aria-hidden="true" />
-                    Executing...
+                    <PingIdentitySpinner size={72} label="Executing…" />
                   </div>
                 )}
                 {!running && !result && !error && (

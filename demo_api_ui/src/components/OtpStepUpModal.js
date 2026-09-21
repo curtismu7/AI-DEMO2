@@ -1069,7 +1069,7 @@ export default function OtpStepUpModal({
           {/* Registering a passkey (WebAuthn create ceremony in progress) */}
           {p1Step === 'registering' && (
             <>
-              <PingIdentitySpinner size={48} className="otp-step-up-modal__spinner" aria-hidden="true" />
+              <PingIdentitySpinner size={48} className="otp-step-up-modal__spinner" label="Registering your passkey…" />
               <p style={{ textAlign: 'center', fontWeight: 500 }}>Registering your passkey…</p>
               <p className="otp-step-up-modal__hint">Approve with your device biometric or security key, then we&apos;ll verify automatically.</p>
             </>
@@ -1080,7 +1080,7 @@ export default function OtpStepUpModal({
           {/* Push Waiting */}
           {p1Step === 'push' && (
             <>
-              <PingIdentitySpinner size={48} className="otp-step-up-modal__spinner" aria-hidden="true" />
+              <PingIdentitySpinner size={48} className="otp-step-up-modal__spinner" label="Push notification sent to your device…" />
               <p style={{ textAlign: 'center', fontWeight: 500 }}>Push notification sent to your device</p>
               <p className="otp-step-up-modal__hint">Approve the notification on your phone</p>
             </>
@@ -1169,7 +1169,7 @@ export default function OtpStepUpModal({
 
         {stubShowRegistering && (
           <>
-            <PingIdentitySpinner size={48} className="otp-step-up-modal__spinner" aria-hidden="true" />
+            <PingIdentitySpinner size={48} className="otp-step-up-modal__spinner" label="Registering your passkey…" />
             <p style={{ textAlign: 'center', fontWeight: 500 }}>Registering your passkey…</p>
             <p className="otp-step-up-modal__hint">Approve with your device biometric or security key, then we&apos;ll verify automatically.</p>
           </>

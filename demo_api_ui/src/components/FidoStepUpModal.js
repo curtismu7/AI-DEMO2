@@ -98,8 +98,7 @@ export default function FidoStepUpModal({ show, onSubmit, onCancel, contextLine 
         <div className="otp-step-up-modal__fido-status">
           {isWaiting && (
             <>
-              <PingIdentitySpinner size={48} aria-hidden="true" />
-              <p className="otp-step-up-modal__status-text">Waiting for passkey verification…</p>
+              <PingIdentitySpinner size={48} label="Waiting for passkey verification…" />
               <p className="otp-step-up-modal__hint">Use your device's biometric scanner or PIN to verify</p>
             </>
           )}
@@ -111,8 +110,7 @@ export default function FidoStepUpModal({ show, onSubmit, onCancel, contextLine 
           )}
           {status === 'ready' && !isError && (
             <>
-              <PingIdentitySpinner size={48} aria-hidden="true" />
-              <p className="otp-step-up-modal__status-text">Initializing passkey verification…</p>
+              <PingIdentitySpinner size={48} label="Initializing passkey verification…" />
             </>
           )}
         </div>

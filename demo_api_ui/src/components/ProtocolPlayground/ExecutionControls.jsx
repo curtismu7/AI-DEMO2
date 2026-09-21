@@ -33,7 +33,7 @@ export default function ExecutionControls({
         >
           {isExecuting ? (
             <>
-              <PingIdentitySpinner size={18} aria-hidden="true" /> Executing
+              <PingIdentitySpinner size={18} label="Executing…" />
             </>
           ) : (
             'Execute All'

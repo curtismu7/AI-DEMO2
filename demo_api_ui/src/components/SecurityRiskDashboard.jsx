@@ -158,8 +158,7 @@ function StatusBadge({ status }) {
 function LoadingState() {
   return (
     <div className="srd-state">
-      <PingIdentitySpinner size={28} aria-hidden="true" />
-      Loading security posture…
+      <PingIdentitySpinner size={28} label="Loading security posture…" />
     </div>
   );
 }

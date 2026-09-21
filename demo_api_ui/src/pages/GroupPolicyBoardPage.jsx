@@ -97,7 +97,7 @@ export default function GroupPolicyBoardPage() {
         ) : null}
 
         {loading && rows.length === 0 ? (
-          <p className="gpb-loading" role="status"><PingIdentitySpinner size={20} aria-hidden="true" /> Asking PingOne Authorize…</p>
+          <p className="gpb-loading" role="status"><PingIdentitySpinner size={20} label="Asking PingOne Authorize…" /></p>
         ) : null}
 
         {rows.length > 0 ? (

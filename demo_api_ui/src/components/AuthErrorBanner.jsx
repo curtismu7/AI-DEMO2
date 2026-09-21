@@ -92,7 +92,7 @@ function AuthErrorBanner({
     return (
       <div className={`auth-error-banner transient ${className}`}>
         <div className="banner-content">
-          <PingIdentitySpinner size={24} aria-hidden="true" />
+          <PingIdentitySpinner size={24} label="Reconnecting…" />
           <div className="banner-text">
             <h3>Connecting...</h3>
             <p>We're having a temporary connection issue. Retrying...</p>

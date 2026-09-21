@@ -68,13 +68,10 @@ const CodeExplorerPage = () => {
     return (
       <div className="cex-wake-overlay">
         <div className="cex-wake-card">
-          <PingIdentitySpinner size={28} aria-hidden="true" />
-          <div className="cex-wake-title">Starting Code Explorer</div>
-          <div className="cex-wake-sub">
-            {serviceState === 'checking'
-              ? 'Checking service…'
-              : 'Spinning up the code search service — this takes ~20 s the first time.'}
-          </div>
+          <PingIdentitySpinner
+            size={28}
+            label={serviceState === 'checking' ? 'Checking Code Explorer…' : 'Starting Code Explorer…'}
+          />
         </div>
       </div>
     );

@@ -579,8 +579,7 @@ export default function AuthzTestPage() {
 		return (
 			<div className="authz-test-page">
 				<div className="authz-loading">
-					<PingIdentitySpinner size={32} aria-hidden="true" />
-					<p>Loading authorization status…</p>
+					<PingIdentitySpinner size={32} label="Loading authorization status…" />
 				</div>
 			</div>
 		);

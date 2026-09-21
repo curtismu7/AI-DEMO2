@@ -111,8 +111,7 @@ export default function ClientCredentialsResourcePage() {
     return (
       <div className="app-page-shell ccrsp-page">
         <div className="ccrsp-loading">
-          <PingIdentitySpinner size={36} aria-hidden="true" />
-          <p>Loading Client Credentials Resource Server…</p>
+          <PingIdentitySpinner size={36} label="Loading Client Credentials Resource Server…" />
         </div>
       </div>
     );

@@ -182,8 +182,7 @@ function StatusBadge({ status }) {
   const spinning = bucket === "acquiring";
   return (
     <span className={`tcd-badge tcd-badge--${bucket}`}>
-      {spinning ? <PingIdentitySpinner size={20} aria-hidden="true" /> : null}
-      {label}
+      {spinning ? <PingIdentitySpinner size={20} label={label} /> : label}
     </span>
   );
 }

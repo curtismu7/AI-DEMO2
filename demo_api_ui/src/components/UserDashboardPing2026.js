@@ -3448,7 +3448,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               className="otp-step-up-modal__body"
               style={{ textAlign: "center", padding: "1rem 0" }}
             >
-              <PingIdentitySpinner size={48} aria-hidden="true" />
+              <PingIdentitySpinner size={48} label="Waiting for approval…" />
               <p
                 className="otp-step-up-modal__lead"
                 style={{ marginTop: "1rem" }}
@@ -3846,7 +3846,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       <div className="main-content--auth-loading">
         <div className="auth-loading-card">
           <PingIdentitySpinner size={64} label="Loading your dashboard…" />
-          <div className="auth-loading-title">Loading your dashboard</div>
         </div>
       </div>
     );

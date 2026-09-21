@@ -51,10 +51,7 @@ export default function ServerRestartModal() {
       storageKey={null}
     >
       <div className="dm-scroll" style={{ textAlign: 'center' }}>
-        <PingIdentitySpinner size={40} aria-hidden="true" />
-        <p className="restart-message">
-          The server is temporarily unavailable. Reconnecting...
-        </p>
+        <PingIdentitySpinner size={40} label="Reconnecting to server…" />
         <p className="attempt-counter">
           Attempt {attemptCount} of {maxAttempts}
         </p>

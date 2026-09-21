@@ -372,8 +372,7 @@ function McpInspectorPageClean() {
             <div className="inspector-clean-panel-body">
               {source.loadingTools ? (
                 <div style={{ color: 'var(--inspector-text-tertiary)', padding: '20px', display: 'grid', placeItems: 'center', gap: '12px' }}>
-                  <PingIdentitySpinner size={56} aria-hidden="true" />
-                  Loading tools...
+                  <PingIdentitySpinner size={56} label="Loading tools…" />
                 </div>
               ) : source.tools.length === 0 ? (
                 <div style={{ color: 'var(--inspector-text-tertiary)', padding: '20px', textAlign: 'center' }}>
@@ -580,8 +579,7 @@ function McpInspectorPageClean() {
                   </>
                 ) : source.busy ? (
                   <div style={{ color: 'var(--inspector-text-secondary)', padding: '20px', display: 'grid', placeItems: 'center', gap: '12px' }}>
-                    <PingIdentitySpinner size={72} aria-hidden="true" />
-                    Calling...
+                    <PingIdentitySpinner size={72} label="Calling…" />
                   </div>
                 ) : (
                   <div style={{ color: 'var(--inspector-text-secondary)', padding: '20px', textAlign: 'center' }}>

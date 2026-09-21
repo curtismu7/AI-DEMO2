@@ -1171,8 +1171,7 @@ export default function PingOneTestPage() {
 		return (
 			<div className="pingone-test-page">
 				<div className="pingone-test-loading">
-					<PingIdentitySpinner size={28} aria-hidden="true" />
-					<p>Loading PingOne test environment...</p>
+					<PingIdentitySpinner size={28} label="Loading PingOne test environment…" />
 				</div>
 			</div>
 		);

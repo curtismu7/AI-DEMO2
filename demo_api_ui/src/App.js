@@ -689,9 +689,7 @@ function AppWithAuth() {
               {loading && pathname !== "/" && pathname !== "/dashboard" && (
                 <main className="main-content main-content--auth-loading">
                   <div className="auth-loading-card">
-                    <PingIdentitySpinner size={64} label="Checking session and preparing chat…" />
-                    <div className="auth-loading-title">Loading Agent</div>
-                    <div className="auth-loading-sub">Checking session and preparing chat...</div>
+                    <PingIdentitySpinner size={64} label="Loading Agent…" />
                   </div>
                 </main>
               )}

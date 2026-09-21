@@ -100,8 +100,7 @@ export default function VerticalSwitcher({ variant = 'nav' }) {
         </div>
         {switching && (
           <div className="vertical-switcher__loading" role="status" aria-live="polite">
-            <PingIdentitySpinner size={18} aria-hidden="true" />
-            Switching...
+            <PingIdentitySpinner size={18} label="Switching…" />
           </div>
         )}
         {variant === 'config' && activeId && (
@@ -130,8 +129,7 @@ export default function VerticalSwitcher({ variant = 'nav' }) {
       </select>
       {switching && (
         <span className="vertical-switcher__loading" role="status" aria-live="polite">
-            <PingIdentitySpinner size={18} aria-hidden="true" />
-          Switching...
+          <PingIdentitySpinner size={18} label="Switching…" />
         </span>
       )}
     </div>

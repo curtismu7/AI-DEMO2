@@ -196,8 +196,7 @@ export default function ResourceServerPage() {
     return (
       <div className="rsp-container">
         <div className="rsp-loading">
-          <PingIdentitySpinner size={36} aria-hidden="true" />
-          <p>Loading OIDC Resource Server…</p>
+          <PingIdentitySpinner size={36} label="Loading OIDC Resource Server…" />
         </div>
       </div>
     );

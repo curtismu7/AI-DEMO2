@@ -119,8 +119,7 @@ function StatusBadge({ status }) {
   if (status === 'acquiring') {
     return (
       <span className="token-chain-badge token-chain-badge--acquiring">
-        <PingIdentitySpinner size={20} aria-hidden="true" />
-        Acquiring…
+        <PingIdentitySpinner size={20} label="Acquiring…" />
       </span>
     );
   }

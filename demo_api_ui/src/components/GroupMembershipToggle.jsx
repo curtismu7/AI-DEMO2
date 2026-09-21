@@ -83,8 +83,7 @@ export default function GroupMembershipToggle({ onChange = null, verticalId = nu
   if (loading) {
     return (
       <div className="gmt-panel gmt-panel--loading" role="status" aria-live="polite">
-        <PingIdentitySpinner size={24} aria-hidden="true" />
-        <span>Reading live group membership from PingOne…</span>
+        <PingIdentitySpinner size={24} label="Reading group membership from PingOne…" />
       </div>
     );
   }
@@ -166,7 +165,7 @@ export default function GroupMembershipToggle({ onChange = null, verticalId = nu
           disabled={busy}
           aria-pressed={inGroup}
         >
-          {busy ? <><PingIdentitySpinner size={20} aria-hidden="true" /> Applying…</> : inGroup ? `Remove from ${privilegedGroup}` : `Add to ${privilegedGroup}`}
+          {busy ? <PingIdentitySpinner size={20} label="Applying…" /> : inGroup ? `Remove from ${privilegedGroup}` : `Add to ${privilegedGroup}`}
         </button>
 
         {error ? <div className="gmt-inline-error">⚠️ {error}</div> : null}

@@ -801,7 +801,7 @@ export default function PingCliPage() {
                     <div className="pingcli-cmd-top">
                       <span className="pingcli-cmd-label">
                         {isRunning && (
-                          <PingIdentitySpinner size={20} aria-hidden="true" />
+                          <PingIdentitySpinner size={20} label="Running…" />
                         )}
                         {label}
                       </span>
@@ -825,7 +825,7 @@ export default function PingCliPage() {
                       onClick={() => run(key)}
                     >
                       {isRunning && (
-                        <PingIdentitySpinner size={20} aria-hidden="true" />
+                        <PingIdentitySpinner size={20} label="Running…" />
                       )}
                       {runLabel}
                     </button>
@@ -858,10 +858,7 @@ export default function PingCliPage() {
             >
               {runStatus.phase === 'running' ? (
                 <>
-                  <PingIdentitySpinner size={20} aria-hidden="true" />
-                  <span>
-                    Running <strong>{runStatus.label}</strong>…
-                  </span>
+                  <PingIdentitySpinner size={20} label={`Running ${runStatus.label}…`} />
                 </>
               ) : (
                 <>

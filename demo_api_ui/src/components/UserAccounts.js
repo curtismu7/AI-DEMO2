@@ -62,8 +62,7 @@ export default function UserAccounts({ user }) {
     return (
       <div className="user-accounts">
         <div className="loading-state">
-          <PingIdentitySpinner size={32} aria-hidden="true" />
-          <p>Loading your accounts...</p>
+          <PingIdentitySpinner size={32} label="Loading your accounts…" />
         </div>
         <style jsx>{`
           .user-accounts {

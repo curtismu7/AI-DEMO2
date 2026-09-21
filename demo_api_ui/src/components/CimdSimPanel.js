@@ -831,11 +831,7 @@ Accept: application/json`}</CodeBlock>
               <div className="cimd-fetch-status">
                 {fetchStatus === 'loading' && (
                   <div className="cimd-fetch-spinner">
-                    <PingIdentitySpinner size={26} aria-hidden="true" />
-                    <span>
-                      Fetching metadata document from{' '}
-                      <strong>{cimdHost}</strong>…
-                    </span>
+                    <PingIdentitySpinner size={26} label={`Fetching metadata from ${cimdHost}…`} />
                   </div>
                 )}
               </div>

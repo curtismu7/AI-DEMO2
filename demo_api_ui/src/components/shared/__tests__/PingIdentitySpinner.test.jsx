@@ -1,5 +1,18 @@
 import { render, screen } from '@testing-library/react';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import PingIdentitySpinner from '../PingIdentitySpinner';
+
+const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+
+function sourceFiles(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) return sourceFiles(fullPath);
+    return /\.(?:js|jsx)$/.test(entry.name) ? [fullPath] : [];
+  });
+}
 
 describe('PingIdentitySpinner', () => {
   it('renders the Ping identity mark with an accessible loading label', () => {
@@ -16,5 +29,17 @@ describe('PingIdentitySpinner', () => {
     const spinner = document.querySelector('.ping-spinner');
     expect(spinner.style.getPropertyValue('--ping-spinner-size')).toBe('72px');
     expect(spinner).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('keeps runtime loading surfaces to one branded mark plus a short note', () => {
+    const violations = [];
+    for (const file of sourceFiles(SRC)) {
+      if (file.includes(`${path.sep}shared${path.sep}__tests__`)) continue;
+      const source = fs.readFileSync(file, 'utf8');
+      for (const match of source.matchAll(/<(?:PingIdentitySpinner|InlineSpinner)\b[\s\S]*?\/>/g)) {
+        if (!/\blabel\s*=/.test(match[0])) violations.push(path.relative(SRC, file));
+      }
+    }
+    expect([...new Set(violations)]).toEqual([]);
   });
 });

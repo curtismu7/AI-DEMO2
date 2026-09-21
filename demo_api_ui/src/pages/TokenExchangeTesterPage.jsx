@@ -258,7 +258,7 @@ export default function TokenExchangeTesterPage() {
               : 'tet-ready-card--bad'
         }`}>
           <div className="tet-ready-card__title">
-            {userReady.status === 'ready' ? '✅' : userReady.status === 'checking' ? <InlineSpinner /> : '❌'} Subject (User) Token
+            {userReady.status === 'ready' ? '✅' : userReady.status === 'checking' ? <InlineSpinner label="Checking user token…" /> : '❌'} Subject (User) Token
           </div>
           <div className="tet-ready-card__meta">{userReady.label || '—'}</div>
           {userReady.claims && renderClaims(userReady.claims)}
@@ -274,7 +274,7 @@ export default function TokenExchangeTesterPage() {
               : 'tet-ready-card--bad'
         }`}>
           <div className="tet-ready-card__title">
-            {agentReady.status === 'ready' ? '✅' : agentReady.status === 'checking' ? <InlineSpinner /> : '❌'} Agent Actor Token (CC)
+            {agentReady.status === 'ready' ? '✅' : agentReady.status === 'checking' ? <InlineSpinner label="Checking agent token…" /> : '❌'} Agent Actor Token (CC)
           </div>
           <div className="tet-ready-card__meta">{agentReady.label || '—'}</div>
           {agentReady.claims && renderClaims(agentReady.claims)}

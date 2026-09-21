@@ -100,8 +100,7 @@ export default function UserTransactions({ user }) {
     return (
       <div className="user-transactions">
         <div className="loading-state">
-          <PingIdentitySpinner size={32} aria-hidden="true" />
-          <p>Loading your transactions...</p>
+          <PingIdentitySpinner size={32} label="Loading your transactions…" />
         </div>
         <style jsx>{`
           .user-transactions {

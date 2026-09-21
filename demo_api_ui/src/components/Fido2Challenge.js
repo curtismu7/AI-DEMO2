@@ -128,7 +128,7 @@ export default function Fido2Challenge({ daId, deviceId, onSuccess, onCancel, on
           )}
           {status === 'waiting' && (
             <>
-              <PingIdentitySpinner size={48} aria-hidden="true" />
+              <PingIdentitySpinner size={48} label="Waiting for passkey verification…" />
               <p className="otp-step-up-modal__lead" style={{ marginTop: '1rem' }}>
                 Follow the prompt from your browser or device to verify with your{' '}
                 <strong>passkey or security key</strong>.
