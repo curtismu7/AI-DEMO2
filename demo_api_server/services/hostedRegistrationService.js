@@ -101,7 +101,19 @@ function createHostedRegistrationService({
     return publicRecord(record);
   }
 
-  return { request, verify, get: (id) => publicRecord(store.get(id)), list: () => store.list().map(publicRecord) };
+  return {
+    request,
+    verify,
+    get: (id) => publicRecord(store.get(id)),
+    update: (id, patch = {}) => {
+      const record = store.get(id);
+      if (!record) return null;
+      const updated = { ...record, ...patch, updatedAt: now() };
+      store.put(updated);
+      return publicRecord(updated);
+    },
+    list: () => store.list().map(publicRecord),
+  };
 }
 
 module.exports = {

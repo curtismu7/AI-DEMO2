@@ -447,6 +447,17 @@ class PingOneManagementService {
     }
   }
 
+  async removeUserFromGroup(userId, groupId) {
+    this.ensureInitialized();
+    try {
+      await axios.delete(`${this.baseURL}/users/${encodeURIComponent(userId)}/memberOfGroups/${encodeURIComponent(groupId)}`, { headers: this.getHeaders() });
+      return { success: true };
+    } catch (error) {
+      if (error.response?.status === 404) return { success: true };
+      return this.handleError(error, 'removeUserFromGroup');
+    }
+  }
+
   /**
    * Delete a user
    */

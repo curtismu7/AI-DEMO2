@@ -3,9 +3,11 @@
 const express = require('express');
 const { createHostedRegistrationService } = require('../services/hostedRegistrationService');
 const { sendHostedRegistrationAdminAlert } = require('../services/emailService');
+const { createHostedRegistrationProvisioningService } = require('../services/hostedRegistrationProvisioningService');
 
 const router = express.Router();
 const registrationService = createHostedRegistrationService();
+const provisioningService = createHostedRegistrationProvisioningService();
 
 function publicError(res, error, status = 400) {
   return res.status(status).json({ error });
@@ -31,6 +33,12 @@ router.post('/verify', async (req, res) => {
   const result = await registrationService.verify(req.body?.requestId, req.body?.otp);
   if (result.error === 'request_not_found') return publicError(res, result.error, 404);
   if (result.error) return publicError(res, result.error, result.error === 'invalid_otp' ? 400 : 409);
+  try {
+    const staged = await provisioningService.stage(result);
+    registrationService.update(result.id, { pingOneUserId: staged.pingOneUserId, groups: staged.groups });
+  } catch (error) {
+    console.warn('[hosted-registration] PingOne partial staging failed:', error.code || error.message);
+  }
   try {
     await sendHostedRegistrationAdminAlert(result);
   } catch (error) {
