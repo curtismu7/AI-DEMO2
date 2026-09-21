@@ -67,7 +67,7 @@ import {
   toast,
 } from "../utils/appToast";
 import { isPublicMarketingAgentPath, isPingOneAdminAgentRoute } from "../utils/embeddedAgentFabVisibility";
-import { runContextFromLocation } from "../utils/useCaseRunContext";
+import { useUseCaseRunContext } from "../utils/useCaseRunContext";
 import { runsSignedOut, authLevelOf, viewerMeetsUseCaseAuth } from "../utils/useCaseAuth";
 import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER, sourceLabel } from "../config/agentModes";
 import AccountDetailsPanel from "./AccountDetailsPanel";
@@ -1628,7 +1628,7 @@ export default function BankingAgent({
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const navigate = useNavigate();
   const location = useLocation();
-  const [runContext, setRunContext] = useState(null);
+  const runContext = useUseCaseRunContext(location);
   const [searchParams] = useSearchParams();
   // Current pathname reachable from effects that must not list it as a dep.
   const pathnameRef = useRef(location.pathname);
@@ -1735,16 +1735,12 @@ export default function BankingAgent({
       window.history.replaceState({}, "");
     }
     // Use-case launcher: consume triggerText + useCaseId from navigate state
-    const nextRunContext = runContextFromLocation(location);
-    if (nextRunContext) {
-      setRunContext(nextRunContext);
+    if (location.state?.triggerText) {
       if (location.state.useCaseId) {
         pendingUcIdRef.current = location.state.useCaseId;
       }
       setNlResumeAfterAuth(location.state.triggerText);
       window.history.replaceState({}, "");
-    } else if (location.pathname === '/dashboard') {
-      setRunContext(null);
     }
   }, [location.state]);
 
