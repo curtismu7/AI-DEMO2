@@ -117,6 +117,9 @@ const _SECRET_KEYS_RAW = [
   'pingone_client_jwt_private_key',
   'pingone_mgmt_private_key',
   'enterprise_idp_inspector_client_secret',
+  'PF_ADMIN_CLIENT_SECRET',
+  'PF_USER_CLIENT_SECRET',
+  'PF_TOKEN_EXCHANGE_CLIENT_SECRET',
   // Anyone holding a webhook.site-style URL can read every denied prompt sent to it.
   'EXTERNAL_GUARDRAIL_WEBHOOK_URL',
 ];
@@ -148,6 +151,7 @@ const BOOTSTRAP_ALLOWLIST = new Set([
   // even when .env has the correct values. Treat them as bootstrap-authoritative
   // so .env always wins when set.
   'oauth_issuer',
+  'oauth_provider',
   'oauth_authorization_endpoint',
   'oauth_token_endpoint',
   'oauth_userinfo_endpoint',
@@ -172,6 +176,20 @@ const BOOTSTRAP_ALLOWLIST = new Set([
   'pingone_worker_client_secret',
   'pingone_worker_token_client_id',
   'pingone_worker_token_client_secret',
+  'pf_issuer',
+  'pf_discovery_endpoint',
+  'pf_authorization_endpoint',
+  'pf_token_endpoint',
+  'pf_userinfo_endpoint',
+  'pf_jwks_uri',
+  'pf_admin_client_id',
+  'pf_admin_client_secret',
+  'pf_admin_redirect_uri',
+  'pf_user_client_id',
+  'pf_user_client_secret',
+  'pf_user_redirect_uri',
+  'pf_token_exchange_client_id',
+  'pf_token_exchange_client_secret',
 ]);
 
 // All known config keys with their defaults and whether they are public
@@ -548,6 +566,31 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   // RFC 9126 PAR — optional override; empty → oauthEndpointResolver derives …/as/par
   oauth_par_endpoint:            { public: true,  default: '' },
   oauth_discovery_enabled:       { public: true,  default: 'false' },
+  // Active browser/token provider. PingOne is the compatibility default;
+  // PingFederate mode is strict and uses the real PF ID-JAG path.
+  oauth_provider:                { public: true,  default: 'pingone' },
+  PF_ISSUER:                     { public: true,  default: '' },
+  PF_DISCOVERY_ENDPOINT:         { public: true,  default: '' },
+  PF_AUTHORIZATION_ENDPOINT:     { public: true,  default: '' },
+  PF_TOKEN_ENDPOINT:             { public: true,  default: '' },
+  PF_USERINFO_ENDPOINT:          { public: true,  default: '' },
+  PF_JWKS_URI:                   { public: true,  default: '' },
+  PF_ADMIN_CLIENT_ID:            { public: true,  default: '' },
+  PF_ADMIN_CLIENT_SECRET:        { public: false, default: '' },
+  PF_ADMIN_REDIRECT_URI:         { public: true,  default: '' },
+  PF_ADMIN_TOKEN_ENDPOINT_AUTH_METHOD: { public: true, default: 'basic' },
+  PF_USER_CLIENT_ID:             { public: true,  default: '' },
+  PF_USER_CLIENT_SECRET:         { public: false, default: '' },
+  PF_USER_REDIRECT_URI:          { public: true,  default: '' },
+  PF_USER_TOKEN_ENDPOINT_AUTH_METHOD: { public: true, default: 'basic' },
+  PF_TOKEN_EXCHANGE_CLIENT_ID:   { public: true,  default: '' },
+  PF_TOKEN_EXCHANGE_CLIENT_SECRET: { public: false, default: '' },
+  PF_TOKEN_EXCHANGE_TOKEN_ENDPOINT_AUTH_METHOD: { public: true, default: 'basic' },
+  PF_ID_JAG_ENABLED:             { public: true,  default: 'false' },
+  PF_ID_JAG_AUDIENCE:            { public: true,  default: '' },
+  PF_ID_JAG_RESOURCE:            { public: true,  default: '' },
+  PF_ID_JAG_SCOPE:               { public: true,  default: '' },
+  PF_ID_JAG_SUBJECT_TOKEN_TYPE:  { public: true,  default: 'urn:ietf:params:oauth:token-type:refresh_token' },
   oauth_admin_callback_path:     { public: true,  default: '/api/auth/oauth/callback' },
   oauth_user_callback_path:      { public: true,  default: '/api/auth/oauth/user/callback' },
   // Role claim mapping — which token claim contains role/group info?
@@ -1118,6 +1161,29 @@ const ENV_FALLBACK_MAP = {
   oauth_par_endpoint:            ['OAUTH_PAR_ENDPOINT', 'PINGONE_PAR_ENDPOINT'],
   pingone_par_endpoint:          ['PINGONE_PAR_ENDPOINT', 'OAUTH_PAR_ENDPOINT'],
   oauth_discovery_enabled:       ['OAUTH_DISCOVERY_ENABLED'],
+  oauth_provider:                ['OAUTH_PROVIDER'],
+  pf_issuer:                     ['PF_ISSUER'],
+  pf_discovery_endpoint:         ['PF_DISCOVERY_ENDPOINT'],
+  pf_authorization_endpoint:     ['PF_AUTHORIZATION_ENDPOINT'],
+  pf_token_endpoint:             ['PF_TOKEN_ENDPOINT'],
+  pf_userinfo_endpoint:          ['PF_USERINFO_ENDPOINT'],
+  pf_jwks_uri:                   ['PF_JWKS_URI'],
+  pf_admin_client_id:            ['PF_ADMIN_CLIENT_ID'],
+  pf_admin_client_secret:        ['PF_ADMIN_CLIENT_SECRET'],
+  pf_admin_redirect_uri:         ['PF_ADMIN_REDIRECT_URI'],
+  pf_admin_token_endpoint_auth_method: ['PF_ADMIN_TOKEN_ENDPOINT_AUTH_METHOD'],
+  pf_user_client_id:             ['PF_USER_CLIENT_ID'],
+  pf_user_client_secret:         ['PF_USER_CLIENT_SECRET'],
+  pf_user_redirect_uri:          ['PF_USER_REDIRECT_URI'],
+  pf_user_token_endpoint_auth_method: ['PF_USER_TOKEN_ENDPOINT_AUTH_METHOD'],
+  pf_token_exchange_client_id:   ['PF_TOKEN_EXCHANGE_CLIENT_ID'],
+  pf_token_exchange_client_secret: ['PF_TOKEN_EXCHANGE_CLIENT_SECRET'],
+  pf_token_exchange_token_endpoint_auth_method: ['PF_TOKEN_EXCHANGE_TOKEN_ENDPOINT_AUTH_METHOD'],
+  pf_id_jag_enabled:             ['PF_ID_JAG_ENABLED'],
+  pf_id_jag_audience:            ['PF_ID_JAG_AUDIENCE'],
+  pf_id_jag_resource:            ['PF_ID_JAG_RESOURCE'],
+  pf_id_jag_scope:               ['PF_ID_JAG_SCOPE'],
+  pf_id_jag_subject_token_type:  ['PF_ID_JAG_SUBJECT_TOKEN_TYPE'],
   oauth_admin_callback_path:       ['OAUTH_ADMIN_CALLBACK_PATH'],
   oauth_user_callback_path:        ['OAUTH_USER_CALLBACK_PATH'],
   oauth_role_claim_name:           ['OAUTH_ROLE_CLAIM_NAME'],
@@ -1679,6 +1745,21 @@ class ConfigStore {
   /** Config is always writable (LMDB). */
   isReadOnly() {
     return false;
+  }
+
+  /**
+   * Return the active OAuth provider. Provider selection is deliberately
+   * separate from authorize_mode: PF mode selects real PF OAuth/ID-JAG calls,
+   * while authorize_mode still selects the policy decision engine.
+   */
+  getOAuthProvider() {
+    const provider = String(this.getEffective('oauth_provider') || 'pingone')
+      .trim()
+      .toLowerCase();
+    if (provider !== 'pingone' && provider !== 'pingfederate') {
+      throw new Error(`Unsupported OAuth provider: ${provider}`);
+    }
+    return provider;
   }
 
   /** Storage type. */
