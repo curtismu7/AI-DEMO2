@@ -155,9 +155,9 @@ describe("AdminSideNav — best-of-breed pass", () => {
     );
   });
 
-  it("shows Agent Identity Academy under Learn & Present", () => {
+  it("shows Agent Identity Academy under Learn & Architecture", () => {
     renderNav();
-    fireEvent.click(screen.getByRole("button", { name: /^Learn & Present/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Learn & Architecture/ }));
     expect(screen.getByText("Agent Identity Academy").closest("a")).toHaveAttribute(
       "href",
       "/academy-identity-preview.html",
@@ -230,7 +230,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
       renderNavAsUser(customerUser);
-      fireEvent.click(screen.getByRole("button", { name: /^MCP & Gateways/ }));
+      fireEvent.click(screen.getByRole("button", { name: /^MCP Runtime & Discovery/ }));
 
       expect(errorSpy).not.toHaveBeenCalledWith(
         expect.stringContaining("Encountered two children with the same key"),
@@ -262,7 +262,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
 
   it("exposes LibreChat and LM Studio as personal-agent clients", () => {
     renderNav();
-    fireEvent.click(screen.getByRole("button", { name: /^Learn & Present/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Learn & Architecture/ }));
 
     expect(screen.getByRole("button", { name: "LibreChat (browser)" })).toBeInTheDocument();
     expect(screen.getByText("LM Studio (Mac)").closest("a")).toHaveAttribute(
@@ -274,7 +274,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
   it("opens LibreChat from the personal-agent navigation entry", () => {
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
     renderNav();
-    fireEvent.click(screen.getByRole("button", { name: /^Learn & Present/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Learn & Architecture/ }));
     fireEvent.click(screen.getByRole("button", { name: "LibreChat (browser)" }));
     expect(openSpy).toHaveBeenCalledWith("http://localhost:3080", "_blank", "noopener,noreferrer");
     openSpy.mockRestore();

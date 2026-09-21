@@ -56,6 +56,7 @@
   border: 1px solid var(--th-border);
   border-radius: var(--radius-lg);
   background: var(--th-bg-card);
+  color: var(--th-text);
 }
 
 .spinner-showcase__logo-tools h2 {
@@ -151,6 +152,7 @@
   border: 1px solid var(--th-border);
   border-radius: var(--radius-lg);
   background: var(--th-bg-card);
+  color: var(--th-text);
   box-shadow: var(--shadow-sm);
 }
 
@@ -188,6 +190,7 @@
   border: 1px dashed var(--th-border-strong);
   border-radius: var(--radius-md);
   background: var(--th-bg-inset);
+  color: var(--th-text);
 }
 
 .spinner-showcase__embedded-stage {
@@ -234,6 +237,7 @@
 .spinner-showcase__button:hover {
   background: var(--th-bg-emphasis);
   border-color: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
 }
 
 .spinner-showcase__button:focus-visible {
@@ -273,6 +277,7 @@
 .spinner-showcase__button--quiet:hover {
   background: var(--th-bg-inset);
   border-color: var(--th-text);
+  color: var(--th-text);
 }
 
 @media (max-width: 760px) {
