@@ -17,6 +17,11 @@ export function normalizeAcademyMode(routeMode) {
   return routeMode === "guided" || routeMode === "standalone" ? routeMode : null;
 }
 
+export function AcademyLegacyPrefixRoute() {
+  const { lessonId, mode } = useParams();
+  return <Navigate to={`/academy/${lessonId}/${mode}`} replace />;
+}
+
 export function AcademyLessonRoute({ loading, user, logout }) {
   const { lessonId, mode: routeMode } = useParams();
   const navigate = useNavigate();

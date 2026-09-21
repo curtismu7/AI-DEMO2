@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { AcademyLessonRoute } from "../routes/AcademyRoutes";
+import { AcademyLessonRoute, AcademyLegacyPrefixRoute } from "../routes/AcademyRoutes";
 import { SessionTokenProvider } from "../context/SessionTokenContext";
 import { ThemeProvider } from "../context/ThemeContext";
 import { getLesson } from "../learning/lessonCatalog";
@@ -70,6 +70,10 @@ function renderAcademyRoute(initialEntries) {
               path="/academy/:lessonId"
               element={<AcademyLessonRoute loading={false} user={null} logout={() => {}} />}
             />
+            <Route
+              path="/academy/academy/:lessonId/:mode"
+              element={<AcademyLegacyPrefixRoute />}
+            />
             <Route path="/learning" element={<div data-testid="learning-redirect">Learning hub</div>} />
           </Routes>
         </MemoryRouter>
@@ -105,6 +109,16 @@ describe("LessonShell", () => {
       mode: "guided",
     });
     expect(screen.getByText("Token events: 2")).toBeInTheDocument();
+  });
+
+  it("redirects the accidentally doubled Academy prefix", async () => {
+    renderAcademyRoute(["/academy/academy/delegation/guided"]);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent(
+        "/academy/delegation/guided",
+      ),
+    );
   });
 
   it("switches between guided and standalone presentation without remounting lesson content", () => {
