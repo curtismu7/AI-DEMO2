@@ -75,7 +75,7 @@ export default function SpinnerShowcasePage() {
                 <img src={logoSrc} alt="Uploaded logo preview" />
                 <span>Custom logo ready: {logoName}</span>
                 <button type="button" className="spinner-showcase__text-button" onClick={clearLogo}>
-                  Clear logo
+                  Use Ping logo
                 </button>
               </div>
             )}
