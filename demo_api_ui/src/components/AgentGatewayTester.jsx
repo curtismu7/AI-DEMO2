@@ -333,7 +333,7 @@ function BusyTreeItem({ busy, disabled, onClick, dotColor, label, busyLabel }) {
       }}
     >
       {busy ? (
-        <InlineSpinner size="sm" />
+        <InlineSpinner size="sm" label="Running…" />
       ) : (
         <span className="inspector-shell-tree-item__dot" style={{ background: dotColor }} />
       )}
@@ -718,7 +718,7 @@ export default function AgentGatewayTester({ twoStep = false }) {
             disabled={refreshing}
             onClick={handleRefresh}
           >
-            {refreshing ? <InlineSpinner size="sm" /> : 'Refresh'}
+            {refreshing ? <InlineSpinner size="sm" label="Refreshing…" /> : 'Refresh'}
           </button>
           <button
             className="inspector-shell-topbar__btn"

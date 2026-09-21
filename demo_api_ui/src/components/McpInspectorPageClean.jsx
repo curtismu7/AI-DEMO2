@@ -8,7 +8,7 @@ import { useThemeOptional } from '../context/ThemeContext';
 import useDividerDrag from '../hooks/useDividerDrag';
 import JsonHighlight from './shared/JsonHighlight';
 import JsonFormView from './shared/JsonFormView';
-import NeuralSpinner from './shared/NeuralSpinner';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 import apiClient from '../services/apiClient';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import './McpInspectorPage.clean.css';
@@ -372,8 +372,7 @@ function McpInspectorPageClean() {
             <div className="inspector-clean-panel-body">
               {source.loadingTools ? (
                 <div style={{ color: 'var(--inspector-text-tertiary)', padding: '20px', display: 'grid', placeItems: 'center', gap: '12px' }}>
-                  <NeuralSpinner size={56} />
-                  Loading tools...
+                  <PingIdentitySpinner size={56} label="Loading tools…" />
                 </div>
               ) : source.tools.length === 0 ? (
                 <div style={{ color: 'var(--inspector-text-tertiary)', padding: '20px', textAlign: 'center' }}>
@@ -580,8 +579,7 @@ function McpInspectorPageClean() {
                   </>
                 ) : source.busy ? (
                   <div style={{ color: 'var(--inspector-text-secondary)', padding: '20px', display: 'grid', placeItems: 'center', gap: '12px' }}>
-                    <NeuralSpinner size={72} />
-                    Calling...
+                    <PingIdentitySpinner size={72} label="Calling…" />
                   </div>
                 ) : (
                   <div style={{ color: 'var(--inspector-text-secondary)', padding: '20px', textAlign: 'center' }}>

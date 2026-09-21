@@ -23,6 +23,7 @@ import DraggableModal from "./DraggableModal";
 import JsonField from "./shared/JsonField";
 import FormJsonToggle from "./shared/FormJsonToggle";
 import { isEducationalPath } from "../utils/educationalPages";
+import PingIdentitySpinner from "./shared/PingIdentitySpinner";
 // A8 -- Ping product attribution
 import { PingProductChip, PingProductLegend } from './PingProductChip';
 import { productForEvent } from '../utils/pingProducts';
@@ -183,8 +184,7 @@ function StatusBadge({ status }) {
   const spinning = bucket === "acquiring";
   return (
     <span className={`tcd-badge tcd-badge--${bucket}`}>
-      {spinning ? <span className="tcd-spinner"></span> : null}
-      {label}
+      {spinning ? <PingIdentitySpinner size={20} label={label} /> : label}
     </span>
   );
 }

@@ -1,9 +1,8 @@
 // banking_api_ui/src/components/shared/__tests__/SpinnerHost.knobs.test.jsx
 /**
- * SpinnerHost used to hardcode its variant, size, dark card and feed. They now
- * come from configStore via useAppFlags (/configure → Appearance), and the risk
- * that introduces is a knob that silently stops being read — the overlay would
- * still render, just ignoring the setting, which no other test would catch.
+ * SpinnerHost reads its size, card, accent and feed settings from configStore
+ * via useAppFlags (/configure → Appearance). The visual itself is now the
+ * shared Ping identity mark for every configured variant.
  */
 import { render, screen } from '@testing-library/react';
 import SpinnerHost from '../SpinnerHost';
@@ -39,13 +38,13 @@ describe('SpinnerHost reads its knobs from config', () => {
     document.documentElement.style.removeProperty('--spinner-accent');
   });
 
-  it('defaults reproduce the pre-knob overlay: neural, 88px, dark card', () => {
+  it('renders the shared Ping identity mark at the configured size', () => {
     withFlags();
     render(<SpinnerHost />);
 
-    expect(document.querySelector('.ns').style.getPropertyValue('--ns-size')).toBe('88px');
+    expect(document.querySelector('.ping-spinner').style.getPropertyValue('--ping-spinner-size')).toBe('88px');
     expect(card().className).toContain('lo-card--dark');
-    expect(document.querySelector('.lo-spinner')).toBeNull();
+    expect(document.querySelector('.ping-spinner__mark')).not.toBeNull();
     // Paired with the feed-off case below: without this the toggle test would
     // pass just as well against a feed that never renders at all.
     expect(screen.getByText('seeded event')).toBeInTheDocument();
@@ -55,28 +54,27 @@ describe('SpinnerHost reads its knobs from config', () => {
     withFlags({ spinnerSize: 120 });
     render(<SpinnerHost />);
 
-    expect(document.querySelector('.ns').style.getPropertyValue('--ns-size')).toBe('120px');
+    expect(document.querySelector('.ping-spinner').style.getPropertyValue('--ping-spinner-size')).toBe('120px');
   });
 
-  it('classic swaps in the border ring and drops the dark card', () => {
+  it('keeps the Ping identity mark when an older variant is configured', () => {
     withFlags({ spinnerVariant: 'classic' });
     render(<SpinnerHost />);
 
-    expect(document.querySelector('.lo-spinner')).not.toBeNull();
-    expect(document.querySelector('.ns')).toBeNull();
-    expect(card().className).not.toContain('lo-card--dark');
+    expect(document.querySelector('.ping-spinner__mark')).not.toBeNull();
+    expect(document.querySelector('.lo-spinner')).toBeNull();
   });
 
-  it('dark card off gives the white card back, still neural', () => {
+  it('dark card off gives the white card back, still branded', () => {
     withFlags({ spinnerDarkCard: false });
     render(<SpinnerHost />);
 
     expect(card().className).not.toContain('lo-card--dark');
-    expect(document.querySelector('.ns')).not.toBeNull();
+    expect(document.querySelector('.ping-spinner__mark')).not.toBeNull();
   });
 
-  // The accent cannot be a prop (NeuralSpinner refuses inline colour), so it
-  // travels as a :root custom property the stylesheet reads through.
+  // The configured accent travels as a :root custom property so the shared
+  // Ping spinner uses the same color in every loading surface.
   it('an accent lands on :root and on the card border; empty clears it', () => {
     withFlags({ spinnerAccent: '#059669' });
     const { unmount } = render(<SpinnerHost />);
@@ -95,6 +93,6 @@ describe('SpinnerHost reads its knobs from config', () => {
     render(<SpinnerHost />);
 
     expect(screen.queryByText('seeded event')).toBeNull();
-    expect(document.querySelector('.ns')).not.toBeNull();
+    expect(document.querySelector('.ping-spinner__mark')).not.toBeNull();
   });
 });

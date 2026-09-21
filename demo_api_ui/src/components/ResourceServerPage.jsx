@@ -7,6 +7,7 @@ import { formatCurrency, formatDateTime } from '../utils/formatters';
 import { useThemeOptional } from '../context/ThemeContext';
 import './ResourceServerPage.css';
 import SignInPrompt from './SignInPrompt';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 
 const CLAIM_GLOSSARY = {
   sub: 'Subject — unique identifier of the authenticated user',
@@ -195,8 +196,7 @@ export default function ResourceServerPage() {
     return (
       <div className="rsp-container">
         <div className="rsp-loading">
-          <div className="rsp-spinner" />
-          <p>Loading OIDC Resource Server…</p>
+          <PingIdentitySpinner size={36} label="Loading OIDC Resource Server…" />
         </div>
       </div>
     );

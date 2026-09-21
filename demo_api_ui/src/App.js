@@ -109,6 +109,7 @@ import AuthorizeFallbackListener from "./components/AuthorizeFallbackListener";
 import SessionReauthBanner from "./components/SessionReauthBanner";
 import SportingGoodsAdminOps from "./components/SportingGoodsAdminOps";
 import SpinnerHost from "./components/shared/SpinnerHost";
+import PingIdentitySpinner from "./components/shared/PingIdentitySpinner";
 import DemoScriptLauncher from "./components/DemoScriptLauncher";
 import TokenSecurityTester from "./components/TokenSecurityTester";
 import TopNav from "./components/TopNav";
@@ -690,13 +691,7 @@ function AppWithAuth() {
               {loading && pathname !== "/" && pathname !== "/dashboard" && (
                 <main className="main-content main-content--auth-loading">
                   <div className="auth-loading-card">
-                    <div className="auth-loading-dots">
-                      <span className="auth-loading-dot" />
-                      <span className="auth-loading-dot" />
-                      <span className="auth-loading-dot" />
-                    </div>
-                    <div className="auth-loading-title">Loading Agent</div>
-                    <div className="auth-loading-sub">Checking session and preparing chat...</div>
+                    <PingIdentitySpinner size={64} label="Loading Agent…" />
                   </div>
                 </main>
               )}

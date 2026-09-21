@@ -24,7 +24,7 @@
   flex-shrink: 0;
   margin-top: 0.25rem;
   padding: 6px 14px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--th-border);
   background: var(--th-bg-card);
   color: var(--th-text);
@@ -54,7 +54,7 @@
   margin: 0 0 2rem;
   padding: 1.5rem;
   border: 1px solid #b7d7d1;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: linear-gradient(135deg, #effaf7, #f8fbff);
 }
 
@@ -87,14 +87,14 @@
   min-width: 0;
   padding: 0.75rem 1rem;
   border: 1px solid #8fbcb4;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font: inherit;
 }
 
 .learning-hub__rag-form button {
   padding: 0.75rem 1rem;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: #146c60;
   color: #fff;
   font-weight: 700;
@@ -114,7 +114,7 @@
 .learning-hub__rag-answer {
   margin-top: 1.25rem;
   padding: 1rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: #fff;
   border: 1px solid #cfe4e0;
 }
@@ -446,6 +446,7 @@
   border: 1px solid var(--th-border);
   border-left: 4px solid var(--th-status-info);
   border-radius: var(--radius-lg);
+  color: var(--th-text);
 }
 
 .learning-hub__path-header {
@@ -491,6 +492,7 @@
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
+  color: var(--th-text);
 }
 
 .learning-hub__path-step {

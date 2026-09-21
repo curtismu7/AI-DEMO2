@@ -42,7 +42,7 @@ describe('Frontend Auth Error Handling — Integration', () => {
       const { container } = render(<AuthErrorBanner error={error} />);
 
       expect(screen.getByText('Connecting...')).toBeInTheDocument();
-      expect(container.querySelector('.spinner')).toBeInTheDocument();
+      expect(container.querySelector('.ping-spinner')).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /contact support/i })).not.toBeInTheDocument();
     });
 

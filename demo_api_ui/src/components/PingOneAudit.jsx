@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import apiClient from '../services/apiClient';
 import './PingOneAudit.css';
 import SignInPrompt from './SignInPrompt';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 
 /**
  * PingOneAudit component — displays resource and scope validation results.
@@ -79,8 +80,7 @@ export default function PingOneAudit() {
     return (
       <div className="pingone-audit-container">
         <div className="pingone-audit-loading">
-          <div className="spinner" />
-          <p>Auditing PingOne resources and scopes...</p>
+          <PingIdentitySpinner size={32} label="Auditing PingOne resources and scopes…" />
         </div>
       </div>
     );

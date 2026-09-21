@@ -10,11 +10,13 @@
   display: flex;
   flex-direction: column;
   background: var(--th-bg-page);
+  color: var(--th-text);
 }
 
 /* Top bar */
 .inspector-shell-topbar {
   background: var(--th-bg-inset);
+  color: var(--th-text);
   border-bottom: 1px solid var(--th-border);
   padding: 10px 20px;
   display: flex;
@@ -82,6 +84,7 @@
 /* Column 1: left (tool tree / call list / preset list) */
 .inspector-shell-col-left {
   background: var(--th-bg-inset);
+  color: var(--th-text);
   border-right: 1px solid var(--th-border);
   display: flex;
   flex-direction: column;

@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ping identity spinner — approval mock</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #18202a;
+      --muted: #65717d;
+      --faint: #8f9aa4;
+      --ground: #eef2f5;
+      --surface: #ffffff;
+      --surface-2: #f7f9fa;
+      --line: #dce3e8;
+      --navy: #17324d;
+      --red: #e1251b;
+      --red-dark: #b71c15;
+      --green: #138a5b;
+      --shadow: 0 28px 70px rgba(20, 38, 55, .18);
+    }
+
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--ground); }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 0%, rgba(225, 37, 27, .10), transparent 27rem),
+        linear-gradient(145deg, #f5f7f8 0%, var(--ground) 60%, #e5ebef 100%);
+      font: 15px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button { font: inherit; }
+    .page { max-width: 1180px; margin: 0 auto; padding: 48px 28px 88px; }
+    .masthead { display: flex; justify-content: space-between; gap: 28px; align-items: end; margin-bottom: 28px; }
+    .kicker { margin: 0 0 10px; color: var(--red-dark); font-size: 12px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    h1 { max-width: 700px; margin: 0; color: var(--navy); font-size: clamp(34px, 6vw, 66px); line-height: .98; letter-spacing: -.055em; }
+    .lede { max-width: 54ch; margin: 16px 0 0; color: var(--muted); font-size: 16px; }
+    .approval-note { max-width: 240px; padding: 14px 16px; color: var(--muted); border: 1px solid rgba(23, 50, 77, .14); border-radius: 12px; background: rgba(255,255,255,.66); font-size: 12px; }
+    .approval-note strong { display: block; margin-bottom: 3px; color: var(--navy); font-size: 13px; }
+
+    .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 24px 0 14px; }
+    .toolbar-title { margin: 0; color: var(--navy); font-size: 16px; }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: end; }
+    .control {
+      border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; color: var(--muted); background: var(--surface);
+      cursor: pointer; font-size: 12px; transition: border-color .18s ease, color .18s ease, transform .18s ease;
+    }
+    .control:hover { border-color: var(--red); color: var(--red-dark); transform: translateY(-1px); }
+    .control:focus-visible { outline: 3px solid rgba(225, 37, 27, .26); outline-offset: 2px; }
+    .control[aria-pressed="true"] { border-color: var(--red); color: var(--red-dark); background: #fff7f6; }
+
+    .stage {
+      position: relative; min-height: 520px; overflow: hidden; border: 1px solid rgba(23, 50, 77, .14); border-radius: 18px;
+      background: #dce4e9; box-shadow: var(--shadow);
+    }
+    .app-shell { min-height: 520px; background: var(--surface-2); }
+    .app-topbar { display: flex; align-items: center; gap: 12px; height: 64px; padding: 0 24px; color: #fff; background: var(--navy); }
+    .mini-logo { width: 30px; height: 30px; border-radius: 7px; background: var(--red); box-shadow: 0 5px 14px rgba(0,0,0,.2); }
+    .app-topbar strong { font-size: 14px; letter-spacing: -.01em; }
+    .app-topbar span { margin-left: auto; opacity: .62; font-size: 12px; }
+    .app-body { display: grid; grid-template-columns: 190px 1fr; min-height: 456px; }
+    .sidebar { padding: 22px 16px; border-right: 1px solid var(--line); background: #f2f5f7; }
+    .side-line { height: 9px; width: 72%; margin: 0 0 17px; border-radius: 3px; background: #d5dee4; }
+    .side-line.active { width: 90%; background: rgba(225,37,27,.25); }
+    .content { padding: 30px clamp(20px, 5vw, 58px); }
+    .content h2 { margin: 0 0 6px; color: var(--navy); font-size: 24px; letter-spacing: -.035em; }
+    .content p { margin: 0 0 25px; color: var(--muted); }
+    .dashboard-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+    .metric { min-height: 108px; padding: 17px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+    .metric small { color: var(--faint); font-size: 11px; }
+    .metric strong { display: block; margin-top: 10px; color: var(--navy); font-size: 23px; }
+    .table-ghost { margin-top: 18px; padding: 18px; border: 1px solid var(--line); background: var(--surface); }
+    .table-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 10px; height: 28px; border-bottom: 1px solid #eef2f4; }
+    .table-row:last-child { border: 0; }
+    .table-row span { align-self: center; height: 7px; border-radius: 3px; background: #e1e7eb; }
+    .table-row span:first-child { background: #cfd9e0; }
+
+    .veil { position: absolute; inset: 0; display: grid; place-items: center; padding: 22px; background: rgba(11, 24, 36, .56); backdrop-filter: blur(3px); }
+    .spinner-card { width: min(390px, 100%); padding: 28px 28px 24px; border: 1px solid rgba(255,255,255,.22); border-radius: 17px; color: #fff; background: rgba(20, 35, 49, .94); box-shadow: 0 22px 44px rgba(0,0,0,.26); text-align: center; }
+    .spinner-mark-wrap { position: relative; width: 94px; height: 94px; margin: 0 auto 20px; display: grid; place-items: center; }
+    .spinner-mark-wrap::before, .spinner-mark-wrap::after { content: ""; position: absolute; border: 1px solid rgba(255,255,255,.22); border-radius: 50%; }
+    .spinner-mark-wrap::before { inset: 2px; animation: ring-breathe 1.8s ease-in-out infinite; }
+    .spinner-mark-wrap::after { inset: 13px; border-color: rgba(225, 37, 27, .52); animation: ring-orbit 2.8s linear infinite; border-left-color: transparent; border-bottom-color: transparent; }
+    .ping-mark { position: relative; z-index: 1; width: 54px; height: 54px; border-radius: 14px; background: var(--red); box-shadow: 0 0 0 8px rgba(225, 37, 27, .13), 0 12px 30px rgba(0,0,0,.24); animation: ping-dance 1.8s cubic-bezier(.45, .05, .35, 1) infinite; }
+    .ping-mark::before { content: "P"; position: absolute; inset: 0; display: grid; place-items: center; padding-top: 2px; color: #fff; font-size: 31px; font-weight: 850; letter-spacing: -.11em; }
+    .spinner-card h2 { margin: 0; font-size: 21px; letter-spacing: -.025em; }
+    .spinner-message { min-height: 24px; margin: 7px 0 18px; color: rgba(255,255,255,.72); font-size: 14px; }
+    .progress-line { width: 100%; height: 3px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.12); }
+    .progress-line span { display: block; width: 42%; height: 100%; border-radius: inherit; background: var(--red); animation: progress-sweep 1.45s ease-in-out infinite; }
+    .endpoint { margin: 17px 0 0; color: rgba(255,255,255,.42); font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .activity { margin-top: 19px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,.12); text-align: left; }
+    .activity-label { margin: 0 0 9px; color: rgba(255,255,255,.44); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+    .activity-row { display: flex; gap: 10px; align-items: baseline; margin: 7px 0; color: rgba(255,255,255,.7); font-size: 12px; }
+    .activity-row time { color: rgba(255,255,255,.38); font: 10px ui-monospace, monospace; }
+    .activity-row .dot { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: var(--red); }
+
+    .variants { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+    .variant { min-height: 162px; padding: 19px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.67); }
+    .variant h3 { margin: 0 0 5px; color: var(--navy); font-size: 15px; }
+    .variant p { margin: 0 0 17px; color: var(--muted); font-size: 12px; }
+    .inline-demo { display: flex; align-items: center; gap: 10px; color: var(--navy); font-weight: 650; }
+    .inline-mark { width: 24px; height: 24px; border-radius: 6px; background: var(--red); animation: ping-dance 1.8s cubic-bezier(.45, .05, .35, 1) infinite; }
+    .inline-mark::after { content: "P"; display: grid; height: 100%; place-items: center; color: #fff; font-size: 15px; font-weight: 850; }
+    .compact-demo { display: inline-flex; align-items: center; gap: 9px; padding: 8px 12px 8px 8px; border-radius: 999px; color: #fff; background: var(--navy); font-size: 12px; }
+    .compact-mark { width: 22px; height: 22px; border-radius: 6px; background: var(--red); animation: ping-dance 1.8s cubic-bezier(.45, .05, .35, 1) infinite; }
+    .compact-mark::after { content: "P"; display: grid; height: 100%; place-items: center; color: #fff; font-size: 14px; font-weight: 850; }
+    .accessibility { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 25px; padding: 16px 18px; border-left: 3px solid var(--green); background: rgba(255,255,255,.58); }
+    .accessibility p { margin: 0; color: var(--muted); font-size: 12px; }
+    .accessibility strong { color: var(--navy); }
+    .status { color: var(--green); font-weight: 750; white-space: nowrap; }
+
+    body[data-theme="dark"] { --ink: #e8eef4; --muted: #a6b2bd; --faint: #72808c; --ground: #091019; --surface: #14202a; --surface-2: #101a23; --line: #293b49; --navy: #eef4f7; --shadow: 0 28px 70px rgba(0,0,0,.34); background: radial-gradient(circle at 8% 0%, rgba(225,37,27,.17), transparent 27rem), #091019; }
+    body[data-theme="dark"] .approval-note, body[data-theme="dark"] .variant, body[data-theme="dark"] .accessibility { background: rgba(20,32,42,.72); }
+    body[data-theme="dark"] .stage { border-color: rgba(255,255,255,.14); }
+    body[data-theme="dark"] .sidebar { background: #0e1820; }
+    body[data-theme="dark"] .table-ghost, body[data-theme="dark"] .metric { background: #14202a; }
+    body[data-theme="dark"] .control { background: #14202a; }
+    body[data-theme="dark"] .control[aria-pressed="true"] { background: rgba(225,37,27,.12); }
+
+    @keyframes ping-dance {
+      0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
+      18% { transform: translateY(-5px) rotate(-7deg) scale(1.03); }
+      36% { transform: translateY(1px) rotate(5deg) scale(.97); }
+      55% { transform: translateY(-3px) rotate(0deg) scale(1.02); }
+      74% { transform: translateY(0) rotate(6deg) scale(.99); }
+    }
+    @keyframes ring-breathe { 0%, 100% { transform: scale(.96); opacity: .48; } 50% { transform: scale(1.05); opacity: .9; } }
+    @keyframes ring-orbit { to { transform: rotate(360deg); } }
+    @keyframes progress-sweep { 0% { transform: translateX(-120%); } 100% { transform: translateX(280%); } }
+
+    body[data-reduced="true"] *, body[data-reduced="true"] *::before, body[data-reduced="true"] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    @media (max-width: 720px) {
+      .page { padding: 28px 16px 56px; }
+      .masthead, .toolbar, .accessibility { align-items: start; flex-direction: column; }
+      .approval-note { max-width: none; }
+      .controls { justify-content: start; }
+      .app-body { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .dashboard-grid, .variants { grid-template-columns: 1fr; }
+      .stage, .app-shell { min-height: 620px; }
+      .app-topbar { padding: 0 16px; }
+      .content { padding: 24px 18px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="masthead">
+      <div>
+        <p class="kicker">Approval mock · global waiting state</p>
+        <h1>A little identity, while the system thinks.</h1>
+        <p class="lede">A Ping identity mark that dances instead of spinning: human enough to feel present, quiet enough to stay out of the way.</p>
+      </div>
+      <aside class="approval-note"><strong>Suggested default</strong>Full overlay with activity feed, shown only after the existing 2.5s debounce.</aside>
+    </header>
+
+    <section aria-labelledby="stage-title">
+      <div class="toolbar">
+        <h2 class="toolbar-title" id="stage-title">Full-screen overlay</h2>
+        <div class="controls" aria-label="Mock controls">
+          <button class="control" type="button" id="themeToggle" aria-pressed="false">Dark surface</button>
+          <button class="control" type="button" id="motionToggle" aria-pressed="false">Reduce motion</button>
+          <button class="control" type="button" id="stateToggle" aria-pressed="false">Show success state</button>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="app-shell" aria-label="Mock dashboard behind spinner">
+          <div class="app-topbar"><div class="mini-logo" aria-hidden="true"></div><strong>PingOne AI IAM Core</strong><span>Super Banking · demo environment</span></div>
+          <div class="app-body">
+            <aside class="sidebar" aria-hidden="true"><div class="side-line active"></div><div class="side-line"></div><div class="side-line"></div><div class="side-line"></div><div class="side-line" style="margin-top: 44px"></div><div class="side-line"></div></aside>
+            <div class="content">
+              <h2>Account overview</h2><p>Identity-aware banking operations at a glance.</p>
+              <div class="dashboard-grid"><div class="metric"><small>Available balance</small><strong>$12,480</strong></div><div class="metric"><small>Pending review</small><strong>03</strong></div><div class="metric"><small>Trust posture</small><strong>Strong</strong></div></div>
+              <div class="table-ghost" aria-hidden="true"><div class="table-row"><span></span><span></span><span></span></div><div class="table-row"><span></span><span></span><span></span></div><div class="table-row"><span></span><span></span><span></span></div><div class="table-row"><span></span><span></span><span></span></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="veil" id="veil">
+          <div class="spinner-card" role="status" aria-live="polite">
+            <div class="spinner-mark-wrap"><div class="ping-mark" aria-label="Ping identity"></div></div>
+            <h2 id="spinnerTitle">Working securely</h2>
+            <p class="spinner-message" id="spinnerMessage">Checking your authorization…</p>
+            <div class="progress-line" aria-hidden="true"><span></span></div>
+            <p class="endpoint" id="endpoint">POST /api/authorize · PingOne policy check</p>
+            <div class="activity" id="activity"><p class="activity-label">Recent activity</p><div class="activity-row"><span class="dot"></span><time>+0.7s</time><span>Session is active</span></div><div class="activity-row"><span class="dot"></span><time>+1.2s</time><span>Policy evaluation in progress</span></div><div class="activity-row"><span class="dot"></span><time>now</time><span>Waiting for decision</span></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="variants" aria-label="Smaller spinner variants">
+      <article class="variant"><h3>Inline page loading</h3><p>For table refreshes and local sections where a veil would feel too heavy.</p><div class="inline-demo"><span class="inline-mark" aria-hidden="true"></span><span>Loading transactions…</span></div></article>
+      <article class="variant"><h3>Compact request chip</h3><p>For persistent navigation or background work that should remain visible.</p><div class="compact-demo"><span class="compact-mark" aria-hidden="true"></span><span>Connecting to PingOne</span></div></article>
+      <article class="variant"><h3>Motion restraint</h3><p>Reduced motion holds the mark and removes the dance without hiding state.</p><div class="inline-demo"><span class="inline-mark" aria-hidden="true"></span><span>Still clear, still present</span></div></article>
+    </section>
+
+    <div class="accessibility"><p><strong>Built into the proposal:</strong> visible status text, screen-reader live region, keyboard-visible controls, responsive layout, and a reduced-motion path.</p><span class="status">✓ Ready for review</span></div>
+  </main>
+
+  <script>
+    const root = document.body;
+    const themeToggle = document.querySelector('#themeToggle');
+    const motionToggle = document.querySelector('#motionToggle');
+    const stateToggle = document.querySelector('#stateToggle');
+    const title = document.querySelector('#spinnerTitle');
+    const message = document.querySelector('#spinnerMessage');
+    const endpoint = document.querySelector('#endpoint');
+    const activity = document.querySelector('#activity');
+
+    themeToggle.addEventListener('click', () => {
+      const dark = root.dataset.theme !== 'dark';
+      root.dataset.theme = dark ? 'dark' : 'light';
+      themeToggle.setAttribute('aria-pressed', String(dark));
+      themeToggle.textContent = dark ? 'Light surface' : 'Dark surface';
+    });
+
+    motionToggle.addEventListener('click', () => {
+      const reduced = root.dataset.reduced !== 'true';
+      root.dataset.reduced = String(reduced);
+      motionToggle.setAttribute('aria-pressed', String(reduced));
+      motionToggle.textContent = reduced ? 'Restore motion' : 'Reduce motion';
+    });
+
+    stateToggle.addEventListener('click', () => {
+      const success = stateToggle.getAttribute('aria-pressed') !== 'true';
+      stateToggle.setAttribute('aria-pressed', String(success));
+      stateToggle.textContent = success ? 'Show waiting state' : 'Show success state';
+      title.textContent = success ? 'Access ready' : 'Working securely';
+      message.textContent = success ? 'Authorization approved.' : 'Checking your authorization…';
+      endpoint.textContent = success ? '200 OK · PingOne policy decision' : 'POST /api/authorize · PingOne policy check';
+      activity.innerHTML = success
+        ? '<p class="activity-label">Recent activity</p><div class="activity-row"><span class="dot"></span><time>now</time><span>Policy decision received</span></div><div class="activity-row"><span class="dot"></span><time>now</time><span>Session remains active</span></div>'
+        : '<p class="activity-label">Recent activity</p><div class="activity-row"><span class="dot"></span><time>+0.7s</time><span>Session is active</span></div><div class="activity-row"><span class="dot"></span><time>+1.2s</time><span>Policy evaluation in progress</span></div><div class="activity-row"><span class="dot"></span><time>now</time><span>Waiting for decision</span></div>';
+    });
+  </script>
+</body>
+</html>

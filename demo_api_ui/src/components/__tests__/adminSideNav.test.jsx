@@ -196,6 +196,21 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(link).toHaveAttribute("href", "/mcp-discovery");
   });
 
+  it("uses unique React keys for MCP entries that share a route", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      renderNavAsUser(customerUser);
+      fireEvent.click(screen.getByRole("button", { name: /^MCP & Gateways/ }));
+
+      expect(errorSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining("Encountered two children with the same key"),
+        expect.anything(),
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
   it("finds MCP Runtime Inventory by searching for runtime", () => {
     renderNavAsUser(customerUser);
     fireEvent.change(screen.getByLabelText(/search navigation/i), { target: { value: "runtime" } });
