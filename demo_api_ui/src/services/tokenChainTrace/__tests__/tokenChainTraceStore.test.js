@@ -13,6 +13,14 @@ test("beginTrace resets state and stores prompt", () => {
   expect(steps.find((s) => s.id === "prompt").status).toBe("done");
 });
 
+test("beginTrace records provenance without changing the runtime trace shape", () => {
+  tokenChainTraceStore.beginTrace({ prompt: "attack simulation", provenance: "mock" });
+  expect(tokenChainTraceStore.getState().trace.provenance).toBe("mock");
+
+  tokenChainTraceStore.beginTrace({ prompt: "live request", provenance: "unknown" });
+  expect(tokenChainTraceStore.getState().trace.provenance).toBe("live");
+});
+
 test("subscribe fires immediately and on ingest", () => {
   const seen = [];
   const unsub = tokenChainTraceStore.subscribe((snap) => seen.push(snap.steps.length));

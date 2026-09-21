@@ -372,6 +372,7 @@ export default function TransactionTracePage() {
                         externalSteps={facadeHopsToSequenceSteps(detail.hops || [])}
                         externalRunId={detail.correlationId}
                         externalTraceFinished
+                        provenance="recorded"
                         slowMode
                         selectedStepId={selectedHopSeq == null ? undefined : `facade-hop-${selectedHopSeq}`}
                         onSelectStep={(step) => setSelectedHopSeq(step.hopSeq ?? null)}

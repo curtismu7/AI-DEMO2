@@ -349,7 +349,7 @@ export default function LiveUseCaseWorkbenchPage() {
       typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
         ? crypto.randomUUID()
         : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-    tokenChainTraceStore.beginTrace({ prompt: `attack sim: ${uc.trigger.sim}`, flowTraceId });
+    tokenChainTraceStore.beginTrace({ prompt: `attack sim: ${uc.trigger.sim}`, flowTraceId, provenance: 'mock' });
     tokenChainTraceStore.bindFlowTrace(flowTraceId);
     const closeSse = openMcpFlowSse(flowTraceId, (event) => {
       if (event?.type === 'mcp-result') {
