@@ -2,8 +2,25 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useThemeOptional } from '../context/ThemeContext';
 import { useAgentGatewayInspector } from '../hooks/useAgentGatewayInspector';
 import { useInspectorFields } from '../context/InspectorFieldContext';
-import NeuralSpinner from './shared/NeuralSpinner';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
+import JsonFormView from './shared/JsonFormView';
+import JsonHighlight from './shared/JsonHighlight';
+import FormJsonToggle from './shared/FormJsonToggle';
 import './AgentGatewayInspectorClean.css';
+
+function InspectorJsonToggle({ value, ariaLabel, darkMode }) {
+  return (
+    <FormJsonToggle
+      value={value}
+      ariaLabel={ariaLabel}
+      jsonView={(
+        <pre className={darkMode ? 'jh-dark' : ''}>
+          <JsonHighlight value={value} deep />
+        </pre>
+      )}
+    />
+  );
+}
 
 export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
   const theme = useThemeOptional();
@@ -70,6 +87,7 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
   const [paramsText, setParamsText] = useState(() => JSON.stringify(parameters, null, 2));
   const [paramsError, setParamsError] = useState(false);
   const [outputFontSize, setOutputFontSize] = useState(13);
+  const [responseView, setResponseView] = useState('form');
 
   // Re-sync the text only when parameters change from outside the textarea
   // (tool switch, reel restore) — not on every keystroke's parse round-trip.
@@ -78,8 +96,6 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
     setParamsError(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTool, activeReelId]);
-
-  const highlightJSON = (json) => json.replace(/"([^"]+)":/g, '<span style="color: #0066cc;">\"$1\"</span>:').replace(/: "([^"]+)"/g, ': <span style="color: #009900;">\"$1\"</span>').replace(/: (\d+)/g, ': <span style="color: #cc6600;">$1</span>').replace(/: (true|false)/g, ': <span style="color: #993399;">$1</span>').replace(/: null/g, ': <span style="color: #666666;">null</span>');
 
   return (
     <div className="inspector-clean-page">
@@ -267,8 +283,7 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
               <div className="inspector-clean-output-content" style={{ fontSize: `${outputFontSize}px` }}>
                 {running && !result && !error && (
                   <div style={{ color: 'var(--th-text-muted)', fontSize: '12px', padding: '20px', display: 'grid', placeItems: 'center', gap: '12px' }}>
-                    <NeuralSpinner size={72} />
-                    Executing...
+                    <PingIdentitySpinner size={72} label="Executing…" />
                   </div>
                 )}
                 {!running && !result && !error && (
@@ -286,19 +301,49 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                 )}
 
                 {result && outputTab === 'response' && (
-                  <pre dangerouslySetInnerHTML={{ __html: highlightJSON(JSON.stringify(result.response || result, null, 2)) }} />
+                  <>
+                    <div className="inspector-clean-view-toggle" role="group" aria-label="Response view">
+                      <button
+                        type="button"
+                        className={responseView === 'form' ? 'active' : ''}
+                        aria-pressed={responseView === 'form'}
+                        onClick={() => setResponseView('form')}
+                      >
+                        Form
+                      </button>
+                      <button
+                        type="button"
+                        className={responseView === 'json' ? 'active' : ''}
+                        aria-pressed={responseView === 'json'}
+                        onClick={() => setResponseView('json')}
+                      >
+                        JSON
+                      </button>
+                    </div>
+                    {responseView === 'form' ? (
+                      <JsonFormView value={result.response || result} />
+                    ) : (
+                      <pre className={theme.darkMode ? 'jh-dark' : ''}>
+                        <JsonHighlight value={result.response || result} deep />
+                      </pre>
+                    )}
+                  </>
                 )}
 
                 {result && outputTab === 'request' && (
-                  <pre dangerouslySetInnerHTML={{ __html: highlightJSON(JSON.stringify({
-                        method: 'POST',
-                        url: '/api/agent-gateway/invoke',
-                        body: result.request || { tool: selectedTool, parameters },
-                      }, null, 2)) }} />
+                  <InspectorJsonToggle
+                    ariaLabel="Request view"
+                    darkMode={theme.darkMode}
+                    value={{
+                      method: 'POST',
+                      url: '/api/agent-gateway/invoke',
+                      body: result.request || { tool: selectedTool, parameters },
+                    }}
+                  />
                 )}
 
                 {result && outputTab === 'trace' && (
-                  <pre>{JSON.stringify(result.trace || {}, null, 2)}</pre>
+                  <InspectorJsonToggle ariaLabel="Trace view" darkMode={theme.darkMode} value={result.trace || {}} />
                 )}
 
                 {result && outputTab === 'logs' && (
@@ -306,18 +351,16 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                 )}
 
                 {result && outputTab === 'performance' && (
-                  <pre>
-                    {JSON.stringify(
-                      {
-                        durationMs: result.durationMs || 0,
-                        gatewayTime: result.gatewayTime || 0,
-                        toolTime: result.toolTime || 0,
-                        parseTime: result.parseTime || 0,
-                      },
-                      null,
-                      2,
-                    )}
-                  </pre>
+                  <InspectorJsonToggle
+                    ariaLabel="Performance view"
+                    darkMode={theme.darkMode}
+                    value={{
+                      durationMs: result.durationMs || 0,
+                      gatewayTime: result.gatewayTime || 0,
+                      toolTime: result.toolTime || 0,
+                      parseTime: result.parseTime || 0,
+                    }}
+                  />
                 )}
 
                 {result && outputTab === 'diff' && (
@@ -325,16 +368,14 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                     {invocationHistory.length < 2 ? (
                       <div style={{ color: 'var(--th-text-muted)' }}>Need at least 2 invocations to compare</div>
                     ) : (
-                      <pre>
-                        {JSON.stringify(
-                          {
-                            previous: invocationHistory[invocationHistory.length - 2],
-                            current: invocationHistory[invocationHistory.length - 1],
-                          },
-                          null,
-                          2,
-                        )}
-                      </pre>
+                      <InspectorJsonToggle
+                        ariaLabel="Diff view"
+                        darkMode={theme.darkMode}
+                        value={{
+                          previous: invocationHistory[invocationHistory.length - 2],
+                          current: invocationHistory[invocationHistory.length - 1],
+                        }}
+                      />
                     )}
                   </div>
                 )}

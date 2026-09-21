@@ -342,7 +342,7 @@ function OpenAIAgentsTab() {
         {`from agents import Agent, OpenAIChatCompletionsModel
 
 agent = Agent(
-  name="BankingAssistant",
+  name="Banking Agent",
   instructions=system_prompt,
   model=OpenAIChatCompletionsModel(
     model=model,
@@ -413,7 +413,7 @@ function MastraTab() {
 
 const agent = new Agent({
   tools: toolMap,
-  name: 'BankingAssistant',
+  name: 'Banking Agent',
   instructions: systemPrompt,
   model: createOpenAI({
     apiKey: cfg.llmApiKey,

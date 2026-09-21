@@ -289,6 +289,7 @@ textarea {
   --th-border: #dbe2ea;
   --th-border-strong: #c3cdd9;
   --th-bg-hover: #eef2f7;
+  --th-bg: var(--th-bg-page);
   /* Emphasis fill for the one button in a row that leads the group.
      MUST be declared per theme: a single value cannot work in both. The
      band navy reads 12.8:1 against white siblings in light but only
@@ -363,6 +364,7 @@ textarea {
      Read --app-primary-red-* for a primary action, --th-status-error for an
      error state — same literal today, different job. */
   --th-status-success: #16a34a;
+  --th-success: var(--th-status-success-text);
   --th-status-success-text: #166534;
   --th-status-success-bg: #dcfce7;
   --th-status-success-border: #86efac;
@@ -397,6 +399,7 @@ textarea {
   --th-border: #26304a;
   --th-border-strong: #34405e;
   --th-bg-hover: #1b2540;
+  --th-bg: var(--th-bg-page);
   --th-bg-emphasis: #93c5fd;
   --th-text-on-emphasis: #0f172a;
 
@@ -436,6 +439,7 @@ textarea {
 
   /* Status on the dark ground: lighter solid + text, deep tinted bg. */
   --th-status-success: #22c55e;
+  --th-success: var(--th-status-success-text);
   --th-status-success-text: #86efac;
   --th-status-success-bg: #0f2e1d;
   --th-status-success-border: #166534;
@@ -974,6 +978,161 @@ body {
   font-size: 0.75rem;
   color: var(--th-text);
   line-height: 1.4;
+}
+
+/* Hosted registration is intentionally public, so it does not render inside
+   the authenticated shell's form primitives. Keep its controls equally clear
+   and keyboard-friendly with a scoped card treatment. */
+.hosted-registration-page {
+  min-height: calc(100vh - var(--topnav-height));
+  display: grid;
+  place-items: center;
+  padding: clamp(2rem, 7vw, 5rem) 1.25rem;
+  background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 52%, #eef2ff 100%);
+  color: #172033;
+}
+
+.hosted-registration__card {
+  width: min(100%, 680px);
+  padding: clamp(1.5rem, 4vw, 3rem);
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #dbe4f0;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+
+.hosted-registration__eyebrow {
+  margin-bottom: 0.75rem;
+  color: var(--brand-navy);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hosted-registration__card h1 {
+  color: #172033;
+  font-size: clamp(1.75rem, 4vw, 2.35rem);
+  line-height: 1.1;
+}
+
+.hosted-registration__intro {
+  max-width: 46ch;
+  margin: 0.85rem 0 2rem;
+  color: #526176;
+  line-height: 1.6;
+}
+
+.hosted-registration__form {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.hosted-registration__field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.hosted-registration__field-row--phone {
+  grid-template-columns: minmax(7rem, 0.32fr) minmax(0, 1fr);
+}
+
+.hosted-registration__field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.hosted-registration__field label {
+  color: #334155;
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.hosted-registration__input {
+  width: 100%;
+  min-height: 2.8rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #b9c6d8;
+  border-radius: var(--radius-lg);
+  background: #fff;
+  color: #172033;
+  font-size: 1rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.hosted-registration__input::placeholder {
+  color: #8a99ad;
+}
+
+.hosted-registration__input:focus {
+  outline: none;
+  border-color: var(--brand-navy);
+  box-shadow: var(--shadow-sm);
+}
+
+.hosted-registration__input--code {
+  max-width: 13rem;
+  letter-spacing: 0.18em;
+}
+
+.hosted-registration__submit {
+  min-height: 2.9rem;
+  margin-top: 0.35rem;
+  padding: 0.7rem 1.1rem;
+  border: 1px solid var(--app-primary-red-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, var(--app-primary-red-mid), var(--app-primary-red));
+  color: var(--app-primary-btn-text);
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 700;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.hosted-registration__submit:hover {
+  background: linear-gradient(180deg, var(--app-primary-red), var(--app-primary-red-hover));
+  transform: translateY(-1px);
+}
+
+.hosted-registration__submit:focus-visible {
+  outline: 3px solid rgba(30, 64, 175, 0.35);
+  outline-offset: 2px;
+}
+
+.hosted-registration__success,
+.hosted-registration__error {
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius-lg);
+  line-height: 1.5;
+}
+
+.hosted-registration__success {
+  border: 1px solid #a7e3bf;
+  background: #effcf4;
+  color: #166534;
+}
+
+.hosted-registration__success p {
+  margin-top: 0.35rem;
+}
+
+.hosted-registration__error {
+  margin-top: 1rem;
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+  color: #991b1b;
+}
+
+@media (max-width: 560px) {
+  .hosted-registration__field-row,
+  .hosted-registration__field-row--phone {
+    grid-template-columns: 1fr;
+  }
+
+  .hosted-registration__input--code {
+    max-width: none;
+  }
 }
 
 .pagination {

@@ -32,6 +32,7 @@
 #   tracing    Jaeger OTLP backend
 #   demo-auth  Demo authz-server + demo mcp-gateway (auto via demo-sync)
 #   observability  Grafana + Prometheus + Loki + Alloy + Alertmanager — off by default
+#   spiffe     Local SPIRE workload identity stack — opt-in only
 #
 # Single-service commands take one OR MORE service names, e.g.
 #   ./run-docker.sh restart ui demo-api-server
@@ -117,14 +118,14 @@ CORE_SERVICES=(
 )
 
 # Optional groups — start on demand via `./run-docker.sh optional start <group>`.
-OPTIONAL_GROUP_NAMES=(rag agents tracing demo-auth mcpgw observability)
+OPTIONAL_GROUP_NAMES=(rag agents tracing demo-auth mcpgw observability spiffe)
 
 # Also brought up on every `start` / `restart` / `build` (core stack). Still
 # stoppable with `./run-docker.sh optional stop rag` without tearing down core.
 DEFAULT_OPTIONAL_GROUPS=(rag)
 
 # Compose profiles matching OPTIONAL_GROUP_NAMES (also used for `start full`).
-FULL_STACK_PROFILE_ARGS=(--profile rag --profile agents --profile tracing --profile demo-auth --profile mcpgw --profile observability)
+FULL_STACK_PROFILE_ARGS=(--profile rag --profile agents --profile tracing --profile demo-auth --profile mcpgw --profile observability --profile spiffe)
 
 # Teardown only. `notebooklm` is deliberately absent from FULL_STACK_PROFILE_ARGS
 # (it restart-loops without a host ~/.notebooklm cookie jar, so it is never
@@ -142,7 +143,8 @@ _optional_group_profiles() {
     demo-auth) echo "demo-auth" ;;
     mcpgw)     echo "mcpgw" ;;
     observability) echo "observability" ;;
-    all)       echo "rag agents tracing demo-auth mcpgw observability" ;;
+    spiffe)    echo "spiffe" ;;
+    all)       echo "rag agents tracing demo-auth mcpgw observability spiffe" ;;
     *) return 1 ;;
   esac
 }
@@ -167,6 +169,7 @@ _optional_group_services() {
     demo-auth) echo "authz-server mcp-gateway mcp-jwt-verifier" ;;
     mcpgw)     echo "ping-mcpgw mcpgw-nginx opensearch opensearch-mcp-server" ;;
     observability) echo "prometheus alertmanager loki alloy grafana" ;;
+    spiffe)    echo "spire-server spire-agent spire-registration spiffe-helper-bff spiffe-oidc-provider" ;;
     all)
       local g svc out=""
       for g in "${OPTIONAL_GROUP_NAMES[@]}"; do
@@ -188,6 +191,7 @@ _optional_group_desc() {
     demo-auth) echo "Demo Authorize AS + Demo Agent Gateway (Node mcp-gateway)" ;;
     mcpgw)     echo "PingOne Privilege MCPGW (JIT least-privilege + session recording) + OpenSearch sample backend" ;;
     observability) echo "Grafana + Prometheus + Loki + Alloy + Alertmanager (off by default)" ;;
+    spiffe)    echo "Local SPIRE workload identity stack (opt-in only)" ;;
     all)       echo "Every optional group" ;;
     *)         echo "Unknown group" ;;
   esac

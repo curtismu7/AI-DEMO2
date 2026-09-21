@@ -7,6 +7,7 @@ const OUTCOMES = Object.freeze(['started', 'success', 'denied', 'failure']);
 const REASON_CODES = Object.freeze([
   'allowed',
   'domain_not_allowed',
+  'group_not_allowed',
   'email_unverified',
   'email_missing',
   'email_malformed',
@@ -34,18 +35,23 @@ function sourceIp(req) {
 }
 
 function baseMetadata(req, audit) {
+  const sessionId = req?.hostedAudit ? req?.hostedSession?.id : req?.sessionID;
   return {
     eventType: 'hosted_login',
     loginType: audit.loginType,
     sourceIp: sourceIp(req),
     userAgent: String(req?.headers?.['user-agent'] || '').slice(0, 256) || null,
     correlationId: audit.correlationId || req?.correlationId || req?.id || null,
-    sessionHash: hashSessionId(req?.sessionID),
+    sessionHash: hashSessionId(sessionId),
   };
 }
 
+function auditSession(req) {
+  return req?.hostedAudit ? req?.hostedSession : req?.session;
+}
+
 function startLoginAudit(req, loginType, now = Date.now(), auditKey = null) {
-  if (!['user', 'admin'].includes(loginType)) throw new Error('Invalid hosted login type');
+  if (!['user', 'admin', 'frontdoor'].includes(loginType)) throw new Error('Invalid hosted login type');
   const audit = {
     loginType,
     startedAt: now,
@@ -53,11 +59,12 @@ function startLoginAudit(req, loginType, now = Date.now(), auditKey = null) {
     auditKey: auditKey || null,
     terminal: false,
   };
-  if (req?.session) {
-    req.session.hostedLoginAudit = audit;
+  const session = auditSession(req);
+  if (session) {
+    session.hostedLoginAudit = audit;
     if (auditKey) {
-      req.session.hostedLoginAudits = req.session.hostedLoginAudits || Object.create(null);
-      req.session.hostedLoginAudits[auditKey] = audit;
+      session.hostedLoginAudits = session.hostedLoginAudits || Object.create(null);
+      session.hostedLoginAudits[auditKey] = audit;
     }
   }
   appEventService.logEvent('auth_lifecycle', 'info', 'Hosted login started', {
@@ -75,12 +82,13 @@ function startLoginAudit(req, loginType, now = Date.now(), auditKey = null) {
 
 function resumeLoginAudit(req, auditKey, loginType) {
   const validKey = typeof auditKey === 'string' && /^[a-f0-9]{64}$/.test(auditKey);
-  const audits = req?.session?.hostedLoginAudits;
+  const session = auditSession(req);
+  const audits = session?.hostedLoginAudits;
   const audit = validKey && audits && Object.prototype.hasOwnProperty.call(audits, auditKey)
     ? audits[auditKey]
     : null;
   if (audit && !audit.terminal) {
-    req.session.hostedLoginAudit = audit;
+    session.hostedLoginAudit = audit;
     return audit;
   }
   return startLoginAudit(req, loginType, Date.now(), validKey ? auditKey : null);
@@ -89,7 +97,7 @@ function resumeLoginAudit(req, auditKey, loginType) {
 function finishLoginAudit(req, { outcome, reasonCode, identity = {} }, now = Date.now()) {
   if (!OUTCOMES.includes(outcome) || outcome === 'started') throw new Error('Invalid hosted login outcome');
   if (!REASON_CODES.includes(reasonCode)) throw new Error('Invalid hosted login reason code');
-  const audit = req?.session?.hostedLoginAudit;
+  const audit = auditSession(req)?.hostedLoginAudit;
   if (!audit || audit.terminal) return false;
   audit.terminal = true;
   const severity = outcome === 'success' ? 'info' : outcome === 'denied' ? 'warning' : 'error';

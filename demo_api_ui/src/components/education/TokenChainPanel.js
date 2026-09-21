@@ -5,6 +5,7 @@ import { useProofOfEnforcement } from '../../context/ProofOfEnforcementContext';
 import InspectorTabs from '../shared/InspectorTabs';
 import JsonView, { JSON_VIEW_TABS } from '../shared/JsonView';
 import './TokenChainPanel.css';
+import PingIdentitySpinner from '../shared/PingIdentitySpinner';
 
 /**
  * Illustrative RFC 8693 token chain: User token → agent → MCP / transaction tokens → resource.
@@ -118,8 +119,7 @@ function StatusBadge({ status }) {
   if (status === 'acquiring') {
     return (
       <span className="token-chain-badge token-chain-badge--acquiring">
-        <span className="token-chain-spinner" aria-hidden />
-        Acquiring…
+        <PingIdentitySpinner size={20} label="Acquiring…" />
       </span>
     );
   }

@@ -19,10 +19,19 @@ const OBSERVATION_ENDPOINTS = Object.freeze({
   login: "/api/auth/oauth/user/status",
   "token-exchange": "/api/token-chain",
   "mcp-discovery": "/api/admin/mcp-discovery/inventory",
-  "authorize-decision": "/api/authorize/test-status",
-  "hitl-step-up": "/api/app-events?category=authorize&limit=10",
+  "authorize-decision": "/api/authorize/pingone-live-policy",
+  "hitl-step-up": "/api/token-chain",
   "agent-lifecycle": "/api/agent/identity/status",
   "ai-architecture": "/api/health/services",
+  "privilege-status": "/api/privilege-mcp-simple/status",
+  "davinci-session-status": "/api/davinci-login/session-status",
+  "audit-evidence": "/api/token-chain",
+});
+
+const OBSERVATION_OVERRIDES = Object.freeze({
+  "product-map": ["privilege-status"],
+  login: ["davinci-session-status"],
+  lifecycle: ["audit-evidence"],
 });
 
 const silentRead = Object.freeze({ _silent: true, _noAuthBanner: true });
@@ -177,13 +186,22 @@ function privilegeDependency(reads, flags) {
 function mcpDependency(reads) {
   const gatewayLive = reads.mcpGateway.ok && reads.mcpGateway.data.ok === true;
   const serverLive = reads.mcpServer.ok && reads.mcpServer.data.ok === true;
-  if (gatewayLive || serverLive) {
+  if (gatewayLive) {
     return dependency(
       "mcp",
       "MCP",
       "available",
       PROVENANCE.LIVE_LOCAL,
       "MCP liveness verified through the BFF",
+    );
+  }
+  if (serverLive && reads.gatewayConfig.ok) {
+    return dependency(
+      "mcp",
+      "MCP",
+      "configured",
+      PROVENANCE.RECORDED,
+      "MCP server is live, but the executable gateway path is not verified",
     );
   }
   if (reads.gatewayConfig.ok) {
@@ -298,8 +316,12 @@ function evidence(label, value) {
   };
 }
 
-function observation(provenance, entries, warnings = []) {
-  const hasEvidence = entries.some((entry) => entry.count > 0);
+function observation(
+  provenance,
+  entries,
+  warnings = [],
+  hasEvidence = entries.some((entry) => entry.count > 0),
+) {
   return {
     provenance: hasEvidence ? provenance : null,
     result: {
@@ -326,6 +348,15 @@ function serviceObservation(data) {
     ),
     evidence("Observed services", services.length),
   ]);
+}
+
+function tokenChainData(data) {
+  return {
+    tokenEvents: Array.isArray(data.tokenChain) ? data.tokenChain : [],
+    mcpToolCalls: Array.isArray(data.mcpToolCallsChain)
+      ? data.mcpToolCallsChain
+      : [],
+  };
 }
 
 const OBSERVATION_NORMALIZERS = Object.freeze({
@@ -363,28 +394,109 @@ const OBSERVATION_NORMALIZERS = Object.freeze({
       ),
     ]);
   },
-  "authorize-decision": (data) =>
-    observation(
+  "authorize-decision": (data) => {
+    const decisions = Array.isArray(data.recentDecisions)
+      ? data.recentDecisions
+      : Array.isArray(data.decisions)
+        ? data.decisions
+        : [];
+    const denied = decisions.filter((decision) =>
+      [
+        decision?.decisionResponse?.decision,
+        decision?.decision,
+        decision?.outcome,
+        decision?.result?.decision,
+        decision?.result,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toUpperCase() === "DENY"),
+    ).length;
+    const provenance =
       data.activeEngine === "simulated"
         ? PROVENANCE.SIMULATED
-        : PROVENANCE.RECORDED,
+        : decisions.length > 0
+          ? PROVENANCE.LIVE_CLOUD
+          : PROVENANCE.RECORDED;
+    return observation(
+      provenance,
+      [
+        evidence("Recent policy decisions", decisions.length),
+        evidence("DENY decisions", denied),
+      ],
+      ["Recent decisions are observed history; no policy evaluation was run."],
+    );
+  },
+  "hitl-step-up": (data) => {
+    const { tokenEvents } = tokenChainData(data);
+    const cibaEvents = tokenEvents.filter(
+      (event) => event?.grantedVia === "ciba" || event?.id === "ciba-poll",
+    );
+    return observation(
+      PROVENANCE.LIVE_LOCAL,
+      [
+        evidence("CIBA approval events", cibaEvents.length),
+        evidence("Token-chain events", tokenEvents.length),
+      ],
+      ["CIBA evidence is cumulative session history; no approval was initiated."],
+      cibaEvents.length > 0,
+    );
+  },
+  "agent-lifecycle": (data) =>
+    observation(
+      PROVENANCE.LIVE_LOCAL,
+      [evidence("Agent identity mapping", data.agentMapping ? 1 : 0)],
+      [
+        "Identity mapping is bounded evidence; revocation and denied retry remain in the linked demo.",
+      ],
+    ),
+  "ai-architecture": (data) => serviceObservation(data),
+  "privilege-status": (data) =>
+    observation(
+      PROVENANCE.LIVE_LOCAL,
+      [
+        evidence("Privilege relay initialized", data.initialized === true ? 1 : 0),
+        evidence("Brokered token cached", data.tokenCached === true ? 1 : 0),
+      ],
+      [
+        "Relay readiness is bounded evidence; no privileged tool call was executed.",
+      ],
+    ),
+  "davinci-session-status": (data) =>
+    observation(
+      PROVENANCE.LIVE_LOCAL,
       [
         evidence(
-          "Configured decision endpoint",
-          data.hasDecisionEndpointId === true ? 1 : 0,
+          "DaVinci widget session",
+          data.davinciWidgetLogin === true ? 1 : 0,
         ),
+        evidence("DaVinci session needs refresh", data.needsRefresh === true ? 1 : 0),
       ],
-      ["Authorize status is configuration evidence, not a policy decision."],
+      [
+        "Session status is bounded evidence; orchestration steps remain in the linked demo.",
+      ],
     ),
-  "hitl-step-up": (data) =>
-    observation(PROVENANCE.LIVE_LOCAL, [
-      evidence("Authorization activity events", count(data.events)),
-    ]),
-  "agent-lifecycle": (data) =>
-    observation(PROVENANCE.LIVE_LOCAL, [
-      evidence("Agent identity mapping", data.agentMapping ? 1 : 0),
-    ]),
-  "ai-architecture": (data) => serviceObservation(data),
+  "audit-evidence": (data) => {
+    const { tokenEvents, mcpToolCalls } = tokenChainData(data);
+    const identityEvents = tokenEvents.filter(
+      (event) => ["auth", "exchange", "refresh", "revoke"].includes(event?.eventType),
+    );
+    const policyEvents = tokenEvents.filter(
+      (event) =>
+        event?.id === "authorize-decision" ||
+        event?.authorizeDecision ||
+        /authorize|policy/i.test(event?.description || ""),
+    );
+    return observation(
+      PROVENANCE.LIVE_LOCAL,
+      [
+        evidence("Token-chain events", tokenEvents.length),
+        evidence("Identity lifecycle events", identityEvents.length),
+        evidence("Policy decision records", policyEvents.length),
+        evidence("MCP tool-call records", mcpToolCalls.length),
+      ],
+      ["Audit history is cumulative session evidence; no new action was executed."],
+    );
+  },
 });
 
 export function isObservationActionSupported(action) {
@@ -393,10 +505,15 @@ export function isObservationActionSupported(action) {
   );
 }
 
-export function canObserveLesson(lessonId) {
+export function canObserveLesson(lessonId, action) {
   const lesson = getLesson(lessonId);
+  if (!lesson) return false;
+  if (lessonId === "product-map" && !action) return false;
+  const requestedAction = action || lesson.run.action;
   return Boolean(
-    lesson && isObservationActionSupported(lesson.run.action),
+    isObservationActionSupported(requestedAction) &&
+      (requestedAction === lesson.run.action ||
+        OBSERVATION_OVERRIDES[lessonId]?.includes(requestedAction)),
   );
 }
 
@@ -415,15 +532,79 @@ function unobservedResult(status, warning) {
   };
 }
 
+function executionObservation(data, kind) {
+  const decision = typeof data?.decision === "string" ? data.decision.toUpperCase() : null;
+  const engine = data?.engine === "pingone" ? PROVENANCE.LIVE_CLOUD : PROVENANCE.LIVE_LOCAL;
+  const label = kind === "policy-evaluation" ? "Policy decision" : "Banking read tool";
+  const hasEvidence = kind === "policy-evaluation"
+    ? Boolean(decision)
+    : Boolean(data?.result && data?.ok !== false && !data?.error);
+  return {
+    provenance: hasEvidence ? engine : null,
+    result: {
+      kind: "execution",
+      status: hasEvidence ? "observed" : "no-evidence",
+      decision: hasEvidence ? "EXECUTED" : "NO_EVIDENCE",
+      valuesRedacted: true,
+    },
+    evidence: [
+      evidence(label, hasEvidence ? 1 : 0),
+      ...(decision ? [evidence(`Decision: ${decision}`, 1)] : []),
+    ],
+    warnings: hasEvidence
+      ? []
+      : ["The execution endpoint returned no usable evidence."],
+  };
+}
+
+async function executeLesson(lesson) {
+  const config = lesson.execution;
+  if (!config) return null;
+
+  if (config.kind === "mcp-read") {
+    const response = await apiClient.post(
+      "/api/mcp/tool",
+      { tool: "get_my_accounts", params: {} },
+      silentRead,
+    );
+    return {
+      correlationId: correlationIdFrom(response),
+      ...executionObservation(response?.data, config.kind),
+    };
+  }
+
+  if (config.kind === "policy-evaluation") {
+    const response = await apiClient.post(
+      "/api/authorize/test-evaluate-mcp",
+      { toolName: "get_my_accounts", tokenScopes: "read" },
+      silentRead,
+    );
+    return {
+      correlationId: correlationIdFrom(response),
+      ...executionObservation(response?.data, config.kind),
+    };
+  }
+
+  return null;
+}
+
 export async function runLesson(lessonId, input = {}) {
   const lesson = getLesson(lessonId);
   if (!lesson) throw new Error(`Unknown lesson: ${lessonId}`);
 
+  if (lesson.execution && !input.action && input.execute !== false) {
+    try {
+      return await executeLesson(lesson);
+    } catch {
+      return unobservedResult(
+        "unavailable",
+        `${lesson.execution.label} endpoint unavailable; no protected action was completed.`,
+      );
+    }
+  }
+
   const action = input.action || lesson.run.action;
-  if (
-    action !== lesson.run.action ||
-    !isObservationActionSupported(action)
-  ) {
+  if (!canObserveLesson(lessonId, action)) {
     return unobservedResult(
       "not-run",
       "No direct evidence observation is configured for this lesson and scenario.",

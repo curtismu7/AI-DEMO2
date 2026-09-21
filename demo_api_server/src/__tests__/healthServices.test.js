@@ -53,3 +53,43 @@ describe('GET /api/health/services', () => {
     expect(res.body.services.agent_service.checks).toBeUndefined();
   });
 });
+
+describe('GET /api/health/llm-proxy/readyz', () => {
+  beforeEach(() => {
+    axios.get.mockReset();
+    process.env.LLM_PROXY_URL = 'http://llm-proxy:8090';
+  });
+
+  afterEach(() => {
+    delete process.env.LLM_PROXY_URL;
+  });
+
+  it('passes through safe readiness diagnostics and status', async () => {
+    axios.get.mockResolvedValue({
+      status: 200,
+      data: { ready: true, status: 'healthy', models: [{ name: 'phi', healthy: true }] },
+    });
+
+    const res = await request(app).get('/api/health/llm-proxy/readyz').expect(200);
+
+    expect(axios.get).toHaveBeenCalledWith('http://llm-proxy:8090/readyz', expect.objectContaining({
+      timeout: 3000,
+    }));
+    expect(res.body).toEqual({
+      ready: true,
+      status: 'healthy',
+      models: [{ name: 'phi', healthy: true }],
+      upstreamStatus: 200,
+    });
+  });
+
+  it('returns 503 with a private-safe reason when the proxy is unreachable', async () => {
+    const error = Object.assign(new Error('connection details must not escape'), { code: 'ECONNREFUSED' });
+    axios.get.mockRejectedValue(error);
+
+    const res = await request(app).get('/api/health/llm-proxy/readyz').expect(503);
+
+    expect(res.body).toEqual({ ready: false, status: 'unreachable', reason: 'ECONNREFUSED' });
+    expect(JSON.stringify(res.body)).not.toContain('connection details');
+  });
+});

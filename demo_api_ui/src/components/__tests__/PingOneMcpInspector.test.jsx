@@ -176,6 +176,22 @@ describe('PingOneMcpInspector — form and invoke', () => {
     await waitFor(() => expect(screen.getByText(/count/)).toBeInTheDocument());
   });
 
+  it('toggles the response between the default form view and highlighted JSON', async () => {
+    mockConnected([APP_TOOL]);
+    apiClient.post.mockResolvedValue({
+      data: { response: { count: 3, name: 'Applications' }, request: {}, timingsMs: { roundTrip: 5 } },
+    });
+    renderInspector();
+    await waitFor(() => screen.getByText('ListApplications'));
+    fireEvent.click(screen.getByText('ListApplications'));
+    fireEvent.click(screen.getAllByRole('button', { name: /Execute/ })[0]);
+    await waitFor(() => expect(screen.getByText('count')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: 'JSON' }));
+    expect(screen.getByText(/"count"/)).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'Output view' })).toBeInTheDocument();
+  });
+
   it('toggles Live: ON → OFF by PATCHing the feature flag', async () => {
     mockConnected();
     apiClient.patch.mockResolvedValue({ data: {} });

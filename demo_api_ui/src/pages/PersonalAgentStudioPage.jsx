@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import AgentClientSkin from '../components/AgentClientSkin';
+import PersonalAgentClientCards from '../components/learning/PersonalAgentClientCards';
 import SecurityRail from '../components/SecurityRail';
 import TokenChainFilmstrip from '../components/TokenChainFilmstrip';
 import { useTokenChainOptional } from '../context/TokenChainContext';
@@ -166,6 +167,8 @@ export default function PersonalAgentStudioPage() {
           </button>
         </div>
       </div>
+
+      <PersonalAgentClientCards />
 
       {/* Content area */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>

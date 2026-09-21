@@ -31,10 +31,9 @@
 #   kubectl scale deploy/llama-tier1 deploy/llama-tier3 deploy/llama-tier5 \
 #     deploy/embeddings -n <ns> --replicas=0
 #
-# tier3 (Llama-3-Groq-8B-Tool-Use) is deliberately NOT seeded: it is the
-# experimental A/B tier, runs at replicas 0, and the three tier models together
-# (12G + 2.5G + 4.9G) do not fit the 20Gi PVC. Add it to MODELS below, and grow
-# the PVC, only if you actually intend to run it.
+# The 8B tool-use tier is seeded because it is the default agent tier on the
+# memory-constrained cluster. The three tier models together (12G + 2.5G +
+# 4.9G) fit within the existing 20Gi model PVC.
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -80,6 +79,7 @@ spec:
               MODELS="
               /models/gpt-oss-20b-MXFP4.gguf|ggml-org/gpt-oss-20b-GGUF|gpt-oss-20b-MXFP4.gguf
               /models/microsoft_Phi-4-mini-instruct-Q4_K_M.gguf|bartowski/microsoft_Phi-4-mini-instruct-GGUF|microsoft_Phi-4-mini-instruct-Q4_K_M.gguf
+              /models/Llama-3-Groq-8B-Tool-Use-Q4_K_M.gguf|bartowski/Llama-3-Groq-8B-Tool-Use-GGUF|Llama-3-Groq-8B-Tool-Use-Q4_K_M.gguf
               /embed-models/nomic-embed-text-v1.5.Q8_0.gguf|nomic-ai/nomic-embed-text-v1.5-GGUF|nomic-embed-text-v1.5.Q8_0.gguf
               "
               echo "$MODELS" | while IFS='|' read -r dest repo file; do

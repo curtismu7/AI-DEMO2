@@ -506,6 +506,7 @@ function buildGwAuthorizeEventExtra(az) {
     filterChain: az.filterChain || null,
     policy: az.policy || null,
     policySource: az.policySource || null,
+    ...(az.resolver ? { resolver: az.resolver } : {}),
   };
 }
 
@@ -1455,6 +1456,14 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
       ? opts.scopeOverride
       : (MCP_TOOL_SCOPES[tool] || ['read'])
   ).slice();
+
+  // `read` is the backward-compatible broad banking scope for account
+  // discovery. Keep the topology's precise scope first so tokens carrying
+  // `accounts:read` remain least-privilege, while older tokens carrying only
+  // `read` can still exchange for the same read-only tool.
+  if (toolCandidateScopes.includes('accounts:read') && !toolCandidateScopes.includes('read')) {
+    toolCandidateScopes.push('read');
+  }
 
   // Classify tool as high-risk (write) so the UI can label the Token Chain accordingly.
   const isHighRiskTool = toolCandidateScopes.some(

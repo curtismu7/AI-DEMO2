@@ -86,7 +86,7 @@ describe('SimpleStepperPanel', () => {
     _mockCtx = {
       events: [
         makeEvent({ id: 'a', label: 'User Token' }),
-        makeEvent({ id: 'b', label: 'Agent Token' }),
+        makeEvent({ id: 'a2a-agent1-actor', label: 'old agent label' }),
       ],
     };
     render(<SimpleStepperPanel isOpen onClose={() => {}} />);
@@ -94,7 +94,7 @@ describe('SimpleStepperPanel', () => {
     const rows = screen.getAllByRole('row'); // 1 header + 2 body
     expect(rows.length).toBe(3);
     expect(screen.getByText('User Token')).toBeTruthy();
-    expect(screen.getByText('Agent Token')).toBeTruthy();
+    expect(screen.getByText('Banking Agent · Generalist agent actor')).toBeTruthy();
     // numbered in order
     expect(rows[1].textContent).toMatch(/^1/);
     expect(rows[2].textContent).toMatch(/^2/);

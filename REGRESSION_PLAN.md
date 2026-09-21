@@ -169,6 +169,70 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-21 — SDK-rendered Forms fields support conditional passkey autofill
+
+**Files changed:** `demo_api_ui/src/components/davinci/CollectorField.jsx`,
+`demo_api_ui/src/pages/DavinciSdkLoginPage.jsx`,
+`demo_api_ui/src/utils/passkeyCeremony.js`, and their focused tests.
+
+**What was broken:** The SDK renderer always emitted `autocomplete="username"`,
+and the DaVinci client reducer discarded the Forms metadata needed to opt a
+field into WebAuthn conditional UI. Passkeys therefore required a dedicated
+button even when a Forms field requested autofill.
+
+**What was fixed:** Raw Forms field metadata is merged back onto the matching
+SDK collector. Opted-in fields emit `autocomplete="username webauthn"` and
+start a top-level conditional WebAuthn ceremony; the assertion is formatted,
+written through the SDK updater, and the flow resumes. Unsupported browsers,
+missing options, and non-opted-in fields retain the existing fallback behavior.
+
+**Do not break:** Keep the hosted DaVinci widget unchanged, preserve explicit
+FIDO2 button authentication, and keep the BFF/session/token custody boundary.
+
+**Verify:** Focused DaVinci collector/page/passkey tests and the full UI unit
+suite plus `npm run build`.
+
+### 2026-09-21 — Personal Agent LM Studio action text lost contrast
+
+**Files changed:** `demo_api_ui/src/components/learning/PersonalAgentClientCards.jsx`,
+`demo_api_ui/src/components/learning/PersonalAgentClientCards.css`, and
+`demo_api_ui/src/components/learning/__tests__/PersonalAgentClientCards.test.jsx`.
+
+**What was broken:** The LM Studio setup link inherited the global anchor color,
+rendering blue text on the blue action background and making the label difficult
+to read.
+
+**What was fixed:** Navigational Personal Agent actions now receive explicit
+button treatment, including the shared inverted text token, so links and buttons
+have the same readable contrast in both themes.
+
+**Do not break:** Keep the LM Studio action as an internal route and LibreChat
+as an external launch; only the action presentation changed.
+
+**Verify:** `cd demo_api_ui && npm run test:unit --
+src/components/learning/__tests__/PersonalAgentClientCards.test.jsx --run`;
+`npm run build`; live computed-style check on the Academy Personal Agent step.
+
+### 2026-09-21 — Privilege hostile-content panel mixed page and app-shell themes
+
+**Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.css` and
+`demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.themeContrast.test.js`.
+
+**What was broken:** The Privilege page has its own Light/Dark toggle, but the
+hostile-content evidence panel used the global `--th-*` surface and ink tokens.
+With the page in dark mode and the app shell in light mode, the panel rendered
+dark text on a dark blue surface (or a pale surface inside the dark IDE shell).
+
+**What was fixed:** The panel now uses page-local ground, ink, muted, border,
+and emphasis tokens keyed by `.cur-ide[data-cur-theme]`, so both the panel and
+its evidence cards follow the page-local theme independently of the app shell.
+
+**Do not break:** Keep the Privilege page's local theme toggle, global app theme,
+hostile-content scenario behavior, and denial evidence semantics independent.
+
+**Verify:** Focused Privilege panel/theme Vitest tests, `npm run build`, and a
+live Playwright computed-style check in both page themes.
+
 ### 2026-09-20 — Guided Journey restart invalidates pending lesson evidence
 
 **Files changed:** `demo_api_ui/src/pages/GuidedJourneyPage.jsx` and

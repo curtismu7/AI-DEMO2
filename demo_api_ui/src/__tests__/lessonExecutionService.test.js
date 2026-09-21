@@ -277,6 +277,19 @@ describe("getTenantReadiness", () => {
     );
   });
 
+  it("does not mark MCP executable when only the downstream server is healthy", async () => {
+    const responses = readinessResponses({ cloud: false });
+    responses.set(readinessUrls.mcpGateway, new Error("gateway unavailable"));
+    useResponses(responses);
+
+    const readiness = await getTenantReadiness();
+
+    expect(dependency(readiness, "MCP")).toMatchObject({
+      status: "configured",
+      provenance: PROVENANCE.RECORDED,
+    });
+  });
+
   it.each([400, 403, 404, 429])(
     "rejects connected introspection health with upstream HTTP %i",
     async (httpStatus) => {
@@ -361,15 +374,21 @@ describe("runLesson observations", () => {
     {
       lessonId: "authorize",
       action: "authorize-decision",
-      endpoint: "/api/authorize/test-status",
-      data: { activeEngine: "pingone", hasDecisionEndpointId: true },
-      provenance: PROVENANCE.RECORDED,
+      endpoint: "/api/authorize/pingone-live-policy",
+      data: {
+        activeEngine: "pingone",
+        recentDecisions: [{ decision: "DENY" }],
+      },
+      provenance: PROVENANCE.LIVE_CLOUD,
     },
     {
       lessonId: "hitl-step-up",
       action: "hitl-step-up",
-      endpoint: "/api/app-events?category=authorize&limit=10",
-      data: { events: [{ category: "authorize", severity: "info" }] },
+      endpoint: "/api/token-chain",
+      data: {
+        tokenChain: [{ id: "ciba-poll", grantedVia: "ciba", eventType: "auth" }],
+        mcpToolCallsChain: [],
+      },
       provenance: PROVENANCE.LIVE_LOCAL,
     },
     {
@@ -384,6 +403,33 @@ describe("runLesson observations", () => {
       action: "ai-architecture",
       endpoint: "/api/health/services",
       data: { services: { mcp_gateway: { up: true } } },
+      provenance: PROVENANCE.LIVE_LOCAL,
+    },
+    {
+      lessonId: "product-map",
+      action: "privilege-status",
+      endpoint: "/api/privilege-mcp-simple/status",
+      data: { initialized: true, tokenCached: false },
+      provenance: PROVENANCE.LIVE_LOCAL,
+    },
+    {
+      lessonId: "login",
+      action: "davinci-session-status",
+      endpoint: "/api/davinci-login/session-status",
+      data: { davinciWidgetLogin: true, needsRefresh: false },
+      provenance: PROVENANCE.LIVE_LOCAL,
+    },
+    {
+      lessonId: "lifecycle",
+      action: "audit-evidence",
+      endpoint: "/api/token-chain",
+      data: {
+        tokenChain: [
+          { eventType: "auth", id: "auth-1" },
+          { eventType: "exchange", id: "authorize-decision", authorizeDecision: "DENY" },
+        ],
+        mcpToolCallsChain: [{ tool: "get_balance" }],
+      },
       provenance: PROVENANCE.LIVE_LOCAL,
     },
   ];
@@ -415,11 +461,143 @@ describe("runLesson observations", () => {
   it("exposes only actions and lessons backed by direct observation mappings", () => {
     expect(isObservationActionSupported("token-exchange")).toBe(true);
     expect(isObservationActionSupported("mcp-discovery")).toBe(true);
+    expect(isObservationActionSupported("privilege-status")).toBe(true);
+    expect(isObservationActionSupported("davinci-session-status")).toBe(true);
+    expect(isObservationActionSupported("audit-evidence")).toBe(true);
     expect(isObservationActionSupported("threat-defense")).toBe(false);
     expect(isObservationActionSupported("product-map")).toBe(false);
     expect(canObserveLesson("delegation")).toBe(true);
     expect(canObserveLesson("threat-defense")).toBe(false);
     expect(canObserveLesson("product-map")).toBe(false);
+    expect(canObserveLesson("product-map", "privilege-status")).toBe(true);
+    expect(canObserveLesson("login", "davinci-session-status")).toBe(true);
+    expect(canObserveLesson("lifecycle", "audit-evidence")).toBe(true);
+  });
+
+  it("normalizes nested PingOne denials and CIBA/audit token-chain evidence", async () => {
+    apiClient.get
+      .mockResolvedValueOnce(
+        response({
+          activeEngine: "pingone",
+          recentDecisions: [{ decisionResponse: { decision: "DENY" } }],
+        }),
+      )
+      .mockResolvedValueOnce(
+        response({
+          tokenChain: [{ id: "ciba-poll", grantedVia: "ciba", eventType: "auth" }],
+          mcpToolCallsChain: [],
+        }),
+      )
+      .mockResolvedValueOnce(
+        response({
+          tokenChain: [
+            { eventType: "auth", id: "auth-1" },
+            { eventType: "exchange", id: "authorize-decision", authorizeDecision: "DENY" },
+          ],
+          mcpToolCallsChain: [{ tool: "get_balance" }],
+        }),
+      );
+
+    const denial = await runLesson("authorize", { action: "authorize-decision" });
+    const ciba = await runLesson("hitl-step-up", { action: "hitl-step-up" });
+    const audit = await runLesson("lifecycle", { action: "audit-evidence" });
+
+    expect(denial.evidence).toContainEqual({
+      label: "DENY decisions",
+      status: "observed",
+      count: 1,
+    });
+    expect(ciba.evidence).toContainEqual({
+      label: "CIBA approval events",
+      status: "observed",
+      count: 1,
+    });
+    expect(audit.evidence).toEqual([
+      { label: "Token-chain events", status: "observed", count: 2 },
+      { label: "Identity lifecycle events", status: "observed", count: 2 },
+      { label: "Policy decision records", status: "observed", count: 1 },
+      { label: "MCP tool-call records", status: "observed", count: 1 },
+    ]);
+  });
+
+  it("executes the bounded MCP read demo through the BFF", async () => {
+    apiClient.post.mockResolvedValueOnce(
+      response({
+        result: { content: [{ type: "text", text: "accounts returned" }] },
+        correlationId: "mcp-demo-1",
+      }),
+    );
+
+    const result = await runLesson("mcp");
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      "/api/mcp/tool",
+      { tool: "get_my_accounts", params: {} },
+      expect.objectContaining({ _silent: true }),
+    );
+    expect(result.result).toMatchObject({ status: "observed", decision: "EXECUTED" });
+    expect(result.evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "Banking read tool", count: 1 }),
+      ]),
+    );
+  });
+
+  it("does not claim a failed MCP response was executed", async () => {
+    apiClient.post.mockResolvedValueOnce(
+      response({ error: "tool_denied", ok: false }),
+    );
+
+    const result = await runLesson("mcp");
+
+    expect(result.result).toMatchObject({ status: "no-evidence", decision: "NO_EVIDENCE" });
+    expect(result.evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "Banking read tool", count: 0 }),
+      ]),
+    );
+  });
+
+  it("executes the policy-only demo without calling the protected tool", async () => {
+    apiClient.post.mockResolvedValueOnce(
+      response({ decision: "DENY", engine: "simulated", correlationId: "policy-demo-1" }),
+    );
+
+    const result = await runLesson("authorize");
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      "/api/authorize/test-evaluate-mcp",
+      { toolName: "get_my_accounts", tokenScopes: "read" },
+      expect.objectContaining({ _silent: true }),
+    );
+    expect(result.result).toMatchObject({ status: "observed", decision: "EXECUTED" });
+    expect(result.evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "Policy decision", count: 1 }),
+      ]),
+    );
+  });
+
+  it("does not treat unrelated token-chain history as CIBA approval evidence", async () => {
+    apiClient.get.mockResolvedValue(
+      response({
+        tokenChain: [{ id: "auth-1", eventType: "auth" }],
+        mcpToolCallsChain: [],
+      }),
+    );
+
+    const observed = await runLesson("hitl-step-up", { action: "hitl-step-up" });
+
+    expect(observed.result).toMatchObject({
+      status: "no-evidence",
+      decision: "NO_EVIDENCE",
+    });
+    expect(observed.provenance).toBeNull();
+    expect(observed.evidence).toContainEqual({
+      label: "CIBA approval events",
+      status: "not-observed",
+      count: 0,
+    });
   });
 
   it("rejects a scenario action that does not match the lesson evidence mapping", async () => {
@@ -460,6 +638,25 @@ describe("runLesson observations", () => {
     expect(observed.warnings).toContain("No lesson evidence was observed.");
     expect(observed.warnings).toContain(
       "Evidence is cumulative session history, not this lesson invocation.",
+    );
+  });
+
+  it("labels bounded observations so a readiness snapshot is not presented as an action result", async () => {
+    apiClient.get.mockResolvedValue(
+      response({ initialized: true, tokenCached: false }),
+    );
+
+    const observed = await runLesson("product-map", {
+      action: "privilege-status",
+    });
+
+    expect(observed.result).toMatchObject({ status: "observed" });
+    expect(observed.evidence).toEqual([
+      { label: "Privilege relay initialized", status: "observed", count: 1 },
+      { label: "Brokered token cached", status: "not-observed", count: 0 },
+    ]);
+    expect(observed.warnings).toContain(
+      "Relay readiness is bounded evidence; no privileged tool call was executed.",
     );
   });
 

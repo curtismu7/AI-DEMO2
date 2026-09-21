@@ -1,6 +1,7 @@
 // banking_api_ui/src/components/UserAccounts.js
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 
 export default function UserAccounts({ user }) {
   const [accounts, setAccounts] = useState([]);
@@ -61,8 +62,7 @@ export default function UserAccounts({ user }) {
     return (
       <div className="user-accounts">
         <div className="loading-state">
-          <div className="spinner"></div>
-          <p>Loading your accounts...</p>
+          <PingIdentitySpinner size={32} label="Loading your accounts…" />
         </div>
         <style jsx>{`
           .user-accounts {

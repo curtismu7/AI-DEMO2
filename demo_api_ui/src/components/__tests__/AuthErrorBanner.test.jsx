@@ -93,7 +93,7 @@ describe('AuthErrorBanner', () => {
 
       const { container } = render(<AuthErrorBanner error={error} />);
 
-      const spinner = container.querySelector('.banner-icon.spinner');
+      const spinner = container.querySelector('.ping-spinner');
       expect(spinner).toBeInTheDocument();
     });
 

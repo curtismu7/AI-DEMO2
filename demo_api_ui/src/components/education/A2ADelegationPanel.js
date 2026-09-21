@@ -1,5 +1,6 @@
 // banking_api_ui/src/components/education/A2ADelegationPanel.js
 import React from 'react';
+import { AGENT_ROLES, PRIMARY_AGENT } from '../../config/agentTerminology';
 import EducationDrawer from '../shared/EducationDrawer';
 import { useEducationUI } from '../../context/EducationUIContext';
 import { EDU } from './educationIds';
@@ -60,8 +61,8 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
           <h3>Three (or more) actors in the chain</h3>
           <ul>
             <li><strong>The user (you)</strong> — who the action is <em>for</em>; still the subject of every token.</li>
-            <li><strong>Agent 1 — the generalist</strong> — coordinates and <em>delegates</em> the sub-task.</li>
-            <li><strong>Agent 2 — the specialist</strong> — actually performs the sensitive read, under a delegated identity.</li>
+            <li><strong>{PRIMARY_AGENT.displayName} — the {AGENT_ROLES.generalist}</strong> — coordinates and <em>delegates</em> the sub-task.</li>
+            <li><strong>The {AGENT_ROLES.specialist}</strong> — actually performs the sensitive read, under a delegated identity.</li>
           </ul>
           <Callout>
             <strong>The token never stops being yours.</strong> After delegation the token still has{' '}
@@ -115,7 +116,7 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
             <thead>
               <tr style={{ textAlign: 'left', borderBottom: '2px solid #e5e7eb' }}>
                 <th style={{ padding: '4px 8px' }}>Vertical</th>
-                <th style={{ padding: '4px 8px' }}>Specialist (Agent 2)</th>
+                <th style={{ padding: '4px 8px' }}>{AGENT_ROLES.specialist}</th>
                 <th style={{ padding: '4px 8px' }}>Sensitive task</th>
               </tr>
             </thead>
@@ -201,13 +202,13 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
           <h3>Official docs &amp; samples</h3>
           <ul>
             <li>
-              <a href="https://a2a-protocol.org/dev/tutorials/" target="_blank" rel="noopener noreferrer">
+              <a href="https://a2a-protocol.org/latest/tutorials/" target="_blank" rel="noopener noreferrer">
                 A2A tutorials
               </a>
             </li>
             <li>
-              <a href="https://a2a-protocol.org/v1.0.0/specification/" target="_blank" rel="noopener noreferrer">
-                A2A Protocol specification v1.0
+              <a href="https://a2a-protocol.org/latest/specification/" target="_blank" rel="noopener noreferrer">
+                Current A2A Protocol specification
               </a>
             </li>
             <li>
@@ -247,7 +248,7 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
               RFC 8693 — OAuth 2.0 Token Exchange
             </a>
             . Start with the{' '}
-            <a href="https://a2a-protocol.org/dev/tutorials/" target="_blank" rel="noopener noreferrer">
+            <a href="https://a2a-protocol.org/latest/tutorials/" target="_blank" rel="noopener noreferrer">
               A2A Protocol tutorials
             </a>{' '}
             for Agent Cards, skills, and authenticated clients.

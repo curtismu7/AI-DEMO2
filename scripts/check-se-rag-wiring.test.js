@@ -20,7 +20,10 @@ test('SE deploy applies and verifies the RAG stack', () => {
   assert.match(deploy, /weaviate embeddings \\\s*\n\s*mcp-code-search llamaindex-agent/);
   assert.match(deployRag, /ai-demo2-server/);
   assert.match(deployRag, /did not become ready/);
-  assert.equal((manifest.match(/replicas: 1/g) || []).length, 4);
+  // The RAG manifest now carries five independently deployed replicas;
+  // keep this wiring guard aligned with the manifest rather than masking a
+  // missing deployment behind the former four-replica count.
+  assert.equal((manifest.match(/replicas: 1/g) || []).length, 5);
   assert.match(localDeploy, /RAG stack enabled by default/);
   assert.match(localDeploy, /weaviate embeddings mcp-code-search llamaindex-agent/);
   assert.match(runK8, /--profile agents --profile demo-auth --profile rag build/);

@@ -195,6 +195,60 @@ describe('DemoMCPServer', () => {
     });
   });
 
+  describe('separate mTLS listener (MCP_MTLS_ENABLED)', () => {
+    const ORIGINAL_ENV = { ...process.env };
+
+    afterEach(() => {
+      process.env = { ...ORIGINAL_ENV };
+    });
+
+    it('keeps mTLS on the gateway port and adds a separate plain Privilege port', async () => {
+      process.env.MCP_MTLS_ENABLED = 'true';
+      process.env.MCP_MTLS_ALLOWED_SPIFFE_ID = 'spiffe://example.test/gateway';
+      process.env.MCP_PRIVILEGE_PORT = '0';
+
+      const splitServer = new DemoMCPServer(
+        { ...config, host: '127.0.0.1' },
+        mockAuthManager,
+        mockSessionManager,
+        mockToolProvider,
+      );
+      await splitServer.startServer();
+
+      expect(splitServer.getActualPort()).not.toBeNull();
+      expect(splitServer.getActualMtlsPort()).toBe(splitServer.getActualPort());
+      expect(splitServer.getActualPrivilegePort()).not.toBeNull();
+      expect(splitServer.getActualPrivilegePort()).not.toBe(splitServer.getActualPort());
+
+      const http = require('http');
+      const statusCode = await new Promise<number>((resolve, reject) => {
+        http.get(`http://127.0.0.1:${splitServer.getActualPrivilegePort()}/health`, (res: any) => {
+          res.resume();
+          res.once('end', () => resolve(res.statusCode));
+        }).once('error', reject);
+      });
+      expect(statusCode).toBe(200);
+
+      const https = require('https');
+      const protectedStatusCode = await new Promise<number>((resolve, reject) => {
+        https.get(
+          {
+            hostname: '127.0.0.1',
+            port: splitServer.getActualMtlsPort(),
+            path: '/mcp',
+            rejectUnauthorized: false,
+          },
+          (res: any) => {
+            res.resume();
+            res.once('end', () => resolve(res.statusCode));
+          },
+        ).once('error', reject);
+      });
+      expect(protectedStatusCode).toBe(403);
+      await splitServer.stopServer();
+    });
+  });
+
   describe('Connection Handling', () => {
     let serverPort: number;
 

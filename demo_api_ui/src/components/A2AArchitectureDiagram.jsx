@@ -1,13 +1,14 @@
 import React from 'react';
 import { useMermaidRender } from '../hooks/useMermaidRender';
+import { AGENT_ROLES, PRIMARY_AGENT } from '../config/agentTerminology';
 import './A2AArchitectureDiagram.css';
 
 export const A2A_ARCHITECTURE_DIAGRAM = `
 flowchart LR
     USER["User / Browser"]
 
-    subgraph APP["Super Sports Assistant"]
-        CHAT["Generalist agent"]
+    subgraph APP["${PRIMARY_AGENT.displayName}"]
+        CHAT["${AGENT_ROLES.generalist}"]
         CLIENT["A2A client<br/>message/send"]
         CHAT --> CLIENT
     end
@@ -23,9 +24,9 @@ flowchart LR
         EX1 --> EX2 --> AUTHZ
     end
 
-    subgraph SPECIALIST["A2A specialist"]
+    subgraph SPECIALIST["${AGENT_ROLES.specialist}"]
         GATE["Bearer gate<br/>issuer · audience · scope · act"]
-        AGENT["Specialist agent"]
+        AGENT["${AGENT_ROLES.specialist}"]
         GATE --> AGENT
     end
 

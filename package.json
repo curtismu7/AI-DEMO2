@@ -7,6 +7,7 @@
     "npm": ">=9"
   },
   "scripts": {
+    "spiffe:validate": "node scripts/validate-spiffe-profile.mjs",
     "lmstudio:sync-mcp": "node scripts/lmstudio-mcp-sync.js",
     "demo:launcher": "node scripts/demo-launcher-server.mjs",
     "demo:preflight": "node scripts/check-mcp-preflight.js",
@@ -68,6 +69,7 @@
     "pingone:bootstrap:legacy-manifest": "node scripts/pingone-bootstrap.js",
     "pingone:bootstrap:probe": "node scripts/pingone-bootstrap.js --probe",
     "export:learning": "node scripts/export-learning-hub.mjs",
+    "rag:index-learning-hub": "node scripts/index-learning-hub-documents.mjs",
     "publish:agent-guardrails": "node scripts/publish-agent-guardrails-page.mjs",
     "publish:agent-onboarding-flow": "node scripts/publish-agent-onboarding-flow-page.mjs",
     "publish:agent-onboarding-flow-compact": "node scripts/publish-agent-onboarding-flow-compact-page.mjs",

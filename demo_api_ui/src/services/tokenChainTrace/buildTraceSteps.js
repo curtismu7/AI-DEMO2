@@ -3,6 +3,11 @@
 
 import { EDU } from "../../components/education/educationIds";
 import { isPause, pauseObligationKind } from "./pauseObligation";
+import {
+  SPIFFE_BRIDGE_EVENT_IDS,
+  SPIFFE_BRIDGE_TRACE_KIND,
+} from "./spiffeBridgeSimulationModel";
+import { AGENT_ROLES, PRIMARY_AGENT } from "../../config/agentTerminology";
 
 const LANES = {
   website: "BROWSER", signin: "PINGONE", prompt: "CHAT", agent: "AGENT",
@@ -15,16 +20,24 @@ const LANES = {
   // A live intent-binding run pushes its authorization_details to PingOne first.
   "par-push": "PINGONE", "request-uri": "PINGONE",
   "intent-binding": "AUTHZ",
-  gateway: "GATEWAY", "vault-key-inject": "VAULT", "api-key-swap": "GATEWAY",
+  gateway: "GATEWAY", "p1az-resolver": "DATA", "vault-key-inject": "VAULT", "api-key-swap": "GATEWAY",
   "tools-call-challenge": "MCP", mcp: "MCP", api: "API",
   database: "DATA", reply: "LLM",
+  "spiffe-svid-presented": "AGENT",
+  "spiffe-svid-verified": "GATEWAY",
+  "spiffe-id-mapped": "GATEWAY",
+  "pingone-private-key-jwt": "PINGONE",
 };
 
 // What a lane is called on screen. The LLM and the heuristic router are both the
 // AI agent choosing a tool and composing the reply; which one ran is detail, not
 // a different actor. The keys stay as they are: they drive lane colours and CSS
 // classes.
-const LANE_LABELS = { LLM: "AI AGENT", HEURISTICS: "AI AGENT" };
+const LANE_LABELS = {
+  AGENT: "BANKING AGENT",
+  LLM: "BANKING AGENT",
+  HEURISTICS: "BANKING AGENT",
+};
 export function laneLabel(lane) {
   return LANE_LABELS[lane] || lane;
 }
@@ -57,14 +70,14 @@ const TITLES = {
   website: "Website — browser / UI app",
   signin: "Sign-in — User Token acquired",
   prompt: "Chatbot — prompt sent",
-  agent: "Agent service receives request",
+  agent: `${PRIMARY_AGENT.displayName} receives request`,
   // The node label is the part before the em dash, so the challenge legs read
   // as their own hop ("tools/list 401") while the authorized legs keep the
   // labels the topology diagram already used.
   "tools-list-challenge": "tools/list 401 — no token, gateway challenges",
   "tools-list": "tools/list — tool discovery, token accepted",
-  llm: "AI Agent — reasoning & tool choice",
-  "agent-token": "Agent identity token",
+  llm: `${PRIMARY_AGENT.displayName} · ${AGENT_ROLES.generalist} — reasoning & tool choice`,
+  "agent-token": `${PRIMARY_AGENT.displayName} identity token`,
   // Named, not numbered: "Token exchange" is the node label the topology
   // diagram and its tests have always used for the delegated exchange, so the
   // NEW hop gets the distinct name rather than renumbering the existing one.
@@ -77,6 +90,7 @@ const TITLES = {
   "par-push": "PAR push — authorization_details to PingOne",
   "request-uri": "request_uri issued by PingOne",
   "intent-binding": "Intent Binding Check",
+  "p1az-resolver": "P1AZ Resolver → SQLite account context",
   gateway: "Agent Gateway — token validated",
   "vault-key-inject": "Vault — route-bound API key",
   "api-key-swap": "API-key path — credential swap",
@@ -84,7 +98,11 @@ const TITLES = {
   mcp: "MCP server — tool executes, token accepted",
   api: "Resource server — backend app",
   database: "Database — data query",
-  reply: "AI Agent composes reply → chat",
+  reply: `${PRIMARY_AGENT.displayName} composes reply → chat`,
+  "spiffe-svid-presented": "Workload presents JWT-SVID",
+  "spiffe-svid-verified": "SPIFFE bridge verifies SVID",
+  "spiffe-id-mapped": "SPIFFE ID mapped to PingOne client",
+  "pingone-private-key-jwt": "PingOne assertion created — private_key_jwt",
 };
 
 // What each hop does — always shown when a step is expanded, even before its
@@ -95,11 +113,11 @@ const NARRATIVES = {
   website: "The browser hosts the UI and never holds a bearer token. It relies on the secure, HttpOnly session cookie from the BFF.",
   signin: "User authenticated via OIDC Authorization Code + PKCE. The BFF holds the User Token server-side — it never reaches the browser.",
   prompt: "The browser sends only the message — no tokens; the session cookie identifies the user to the BFF.",
-  agent: "BFF forwards to the agent. The agent loads conversation history and the gateway tool catalog (with required scopes), then prepares the LLM call.",
+  agent: `BFF forwards to the ${AGENT_ROLES.generalist}. The agent loads conversation history and the gateway tool catalog (with required scopes), then prepares the LLM call.`,
   "tools-list-challenge": "The first tools/list goes out with NO Authorization header. The gateway refuses it with 401 and a WWW-Authenticate challenge that names its realm and points at its RFC 9728 metadata — that pointer is how a client that arrives holding nothing learns which authorization server to go to.",
   "tools-list": "The second tools/list carries the agent token. PingOne Authorize filters the catalog per vertical and scope, so the model is only ever shown tools this caller may actually invoke.",
-  llm: "The agent sends the conversation to the LLM. The model returns a tool call — it never sees or holds any OAuth token.",
-  "agent-token": "BFF obtains a client-credentials token — the agent's own identity, separate from the user's.",
+  llm: `The ${AGENT_ROLES.generalist} sends the conversation to the LLM. The model returns a tool call — it never sees or holds any OAuth token.`,
+  "agent-token": `BFF obtains a client-credentials token — the ${PRIMARY_AGENT.displayName}'s own identity, separate from the user's.`,
   "exchange-1": "Two-exchange mode only. The first RFC 8693 call narrows the agent's OWN token before any user delegation happens, so the second exchange starts from least privilege rather than from the agent's full client-credentials scope.",
   exchange: "The delegated exchange. BFF exchanges subject (user) + actor (agent) for one delegated token: proof the agent acts FOR this user. Scope narrows to what the tool needs; audience binds to the gateway.",
   "id-jag-issued": "Enterprise-managed mode. The IdP evaluates IT policy and, only if it passes, signs an Identity Assertion JWT Authorization Grant naming this user, this MCP server and the scopes IT allows. A denied employee gets an error here and no assertion at all.",
@@ -109,6 +127,7 @@ const NARRATIVES = {
   "par-push": "The BFF pushes the authorization_details to PingOne's PAR endpoint over the back channel (RFC 9126), so the browser never carries them.",
   "request-uri": "PingOne stores the pushed request and returns a request_uri that points at it. It does not check the amount; the intent cap is enforced afterwards.",
   "intent-binding": "Verifies the requested transfer against the declared RFC 9396 authorization_details cap.",
+  "p1az-resolver": "PingOne Authorize called the private account-context resolver. The resolver queried SQLite for the selected account and returned the attributes used by policy.",
   gateway: "Ping Agent Gateway checks the delegated token before anything reaches the MCP server: introspection, audience binding, scope, delegation chain.",
   "vault-key-inject": "The gateway asks the BFF's internal vault bridge for the API key bound to this tool route. The key stays server-side and is shown only as a masked value in the trace.",
   "api-key-swap": "Path A (api_key): the gateway drops the OAuth bearer and attaches a service API key (X-API-Key + X-User-Sub). The user's bearer never reaches the downstream service.",
@@ -117,6 +136,10 @@ const NARRATIVES = {
   api: "The actual resource-server call made with the delegated bearer token.",
   database: "The backend application queries its data store. This hop appears as completed only when the tool result identifies a real SQL data source.",
   reply: "The tool result goes back to the LLM, which writes the reply the user sees in the chat.",
+  "spiffe-svid-presented": "The simulated workload presents a signed JWT-SVID containing its SPIFFE identity.",
+  "spiffe-svid-verified": "The bridge validates the SVID claims before accepting the workload identity.",
+  "spiffe-id-mapped": "An explicit allow-list maps the verified SPIFFE ID to one PingOne client registration.",
+  "pingone-private-key-jwt": "The bridge creates the short-lived private_key_jwt assertion PingOne would receive.",
 };
 
 // Static RFC references per hop — teaching content, shown regardless of evidence.
@@ -266,6 +289,12 @@ const STEP_SPEC = {
     mandate: "No IETF RFC governs the decision itself; this is attribute-based access control, whose model XACML 3.0 formalizes. The enforcement point never decides — it submits attributes (subject, actor, action, resource, context) to a decision point and obeys the verdict, which is PERMIT, DENY or INDETERMINATE, optionally carrying obligations.",
     why: "Policy runs before the tool, not inside it. Amount caps, actor checks and step-up demands live in one place a security team can change without redeploying the agent or the MCP server — and the decision id makes each verdict individually auditable.",
     failure: "Evaluating the wrong policy is invisible from the outside: a DENY proves the engine answered, not that YOUR rule fired. Always reconcile decisionContext and the decision id against the rule you expected to trigger.",
+  },
+  "p1az-resolver": {
+    refs: [],
+    mandate: "The policy decision may use external attributes, but the policy point must receive them through a controlled service boundary rather than trusting caller-supplied risk or balance values.",
+    why: "The resolver keeps account context private in SQLite and returns only the selected account's attributes to the P1AZ policy evaluation. The agent and browser never query this database directly.",
+    failure: "Treating account context in the request as authoritative. A caller can change a request parameter; the resolver must look up the account by user and account id before policy evaluates it.",
   },
   stepup: {
     refs: [
@@ -894,6 +923,25 @@ export function buildTraceSteps(trace) {
     ].filter(Boolean),
   } : {}));
 
+  // The SPIFFE bridge is a local teaching run, but it uses the same trace
+  // vocabulary as live agent runs so the movie reel and sequence diagram can
+  // show the identity handoff without inventing a second visualization path.
+  const isSpiffeBridgeTrace = tokenEvents.some((event) => event?.bridge === SPIFFE_BRIDGE_TRACE_KIND);
+  if (isSpiffeBridgeTrace) {
+    for (const id of SPIFFE_BRIDGE_EVENT_IDS) {
+      const event = tokenEvents.find((candidate) => candidate?.id === id);
+      const status = event
+        ? (event.status === "error" ? "error" : traceComplete ? "done" : event.status === "active" ? "active" : "done")
+        : traceComplete
+          ? "notinpath"
+          : "pending";
+      steps.push(makeStep(id, status, event ? {
+        tokenEvent: event,
+        kv: Object.entries(event.detail || {}).map(([key, value]) => [key, Array.isArray(value) ? value.join(", ") : String(value)]),
+      } : {}));
+    }
+  }
+
   // 3b. tools/list #1 — the credential-less discovery request the gateway
   // refuses with 401 + WWW-Authenticate. Its own hop, because it is a real
   // round trip to the gateway and the first half of the MCP handshake.
@@ -974,7 +1022,7 @@ export function buildTraceSteps(trace) {
           : "The BFF matched this prompt to a known intent and called the tool directly without LLM reasoning.",
       },
     });
-    llmStep.title = "AI Agent — intent match & tool choice";
+    llmStep.title = `${PRIMARY_AGENT.displayName} · ${AGENT_ROLES.generalist} — intent match & tool choice`;
     llmStep.lane = "HEURISTICS";
     steps.push(llmStep);
   } else {
@@ -1412,6 +1460,31 @@ export function buildTraceSteps(trace) {
   // introspection not enabled). That alone must not count as "seen" — only
   // real activity does.
   const gwAz = findEvent(tokenEvents, "gw-authorize");
+  const resolverEvidence = gwAz?.resolver || null;
+  if (resolverEvidence) {
+    const resolverStatus = resolverEvidence.status === "error"
+      ? "error"
+      : resolverEvidence.status === "resolved"
+        ? "done"
+        : traceComplete
+          ? "notinpath"
+          : "active";
+    const balance = resolverEvidence.balance != null
+      ? `${resolverEvidence.balance}${resolverEvidence.currency ? ` ${resolverEvidence.currency}` : ""}`
+      : null;
+    steps.push(makeStep("p1az-resolver", resolverStatus, {
+      kv: [
+        resolverEvidence.userId ? ["user", String(resolverEvidence.userId)] : null,
+        resolverEvidence.accountId ? ["account", String(resolverEvidence.accountId)] : null,
+        resolverEvidence.riskTier ? ["risk tier", String(resolverEvidence.riskTier)] : null,
+        balance ? ["balance", balance] : null,
+        resolverEvidence.source ? ["source", SQL_SOURCE_LABELS[String(resolverEvidence.source).toLowerCase()] || String(resolverEvidence.source)] : null,
+      ].filter(Boolean),
+      response: resolverEvidence.response
+        ? { title: "Resolver response", text: asJson(resolverEvidence.response) }
+        : undefined,
+    }));
+  }
   // The gateway is not one hop. It runs an ordered filter chain and publishes it
   // in X-Gw-Authorize-Trail, which mcpToolPipeline forwards on gw-filter-chain
   // (dedicated event) or as an extra on gw-authorize. Three of those stages are
@@ -1705,7 +1778,7 @@ export function buildTraceSteps(trace) {
         : undefined,
     } : {});
   if (isHeuristic) {
-    replyStep.title = "AI Agent composes reply → chat";
+    replyStep.title = `${PRIMARY_AGENT.displayName} composes reply → chat`;
     replyStep.lane = "HEURISTICS";
   }
   steps.push(replyStep);

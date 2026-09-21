@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import apiClient from "../services/apiClient";
+import PingIdentitySpinner from "./shared/PingIdentitySpinner";
 import "./SecurityRiskDashboard.css";
 
 const REFRESH_MS = 30_000;
@@ -157,8 +158,7 @@ function StatusBadge({ status }) {
 function LoadingState() {
   return (
     <div className="srd-state">
-      <span className="srd-spinner" />
-      Loading security posture…
+      <PingIdentitySpinner size={28} label="Loading security posture…" />
     </div>
   );
 }

@@ -532,6 +532,35 @@ router.get('/services', async (_req, res) => {
 });
 
 /**
+ * GET /llm-proxy/readyz
+ * Browser-safe proxy for the internal LLM gateway readiness endpoint.
+ * Keeps the Kubernetes service private while exposing current tier diagnostics
+ * through the BFF's same-origin health surface.
+ */
+router.get('/llm-proxy/readyz', async (_req, res) => {
+  const base = (process.env.LLM_PROXY_URL || process.env.LLAMACPP_BASE_URL || 'http://localhost:8090')
+    .replace(/\/+$/, '');
+  const url = `${base}/readyz`;
+  try {
+    const response = await axios.get(url, {
+      timeout: 3000,
+      validateStatus: () => true,
+    });
+    const status = response.status === 200 ? 200 : 503;
+    return res.status(status).json({
+      ...(response.data && typeof response.data === 'object' ? response.data : {}),
+      upstreamStatus: response.status,
+    });
+  } catch (error) {
+    return res.status(503).json({
+      ready: false,
+      status: 'unreachable',
+      reason: error.code || 'llm_proxy_unreachable',
+    });
+  }
+});
+
+/**
  * GET /readiness
  * Credential-level readiness: are the PingOne credentials configured?
  * Used by the import script health check and the UI import-verified banner.

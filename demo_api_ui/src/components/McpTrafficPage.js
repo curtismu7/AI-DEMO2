@@ -30,6 +30,7 @@ import McpParamSelect from './McpParamSelect';
 import McpParamToggle from './McpParamToggle';
 import McpParamSuggest from './McpParamSuggest';
 import McpParamText from './McpParamText';
+import FormJsonToggle from './shared/FormJsonToggle';
 
 const uuid = () =>
   (typeof window !== 'undefined' && window.crypto?.randomUUID?.()) ||
@@ -609,13 +610,7 @@ export default function McpTrafficPage({ embedded = false } = {}) {
                     <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', marginBottom: '6px' }}>
                       Server Response
                     </div>
-                    <pre style={{
-                      margin: 0, padding: '12px', borderRadius: '6px',
-                      background: '#f8fafc', border: '1px solid #e2e8f0',
-                      fontSize: '0.78rem', lineHeight: 1.6, color: '#1e293b',
-                      whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                      maxHeight: '420px', overflowY: 'auto',
-                    }}>{JSON.stringify(result, null, 2)}</pre>
+                    <FormJsonToggle value={result} ariaLabel="Server response view" />
                   </div>
                 )}
 

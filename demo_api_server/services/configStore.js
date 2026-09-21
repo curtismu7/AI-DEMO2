@@ -121,6 +121,9 @@ const _SECRET_KEYS_RAW = [
   'PF_USER_CLIENT_SECRET',
   'PF_TOKEN_EXCHANGE_CLIENT_SECRET',
   'PF_ID_JAG_REDEMPTION_CLIENT_SECRET',
+  'pingone_fraud_watch_agent_client_secret',
+  'pingone_balance_sweep_agent_client_secret',
+  'spiffe_bridge_private_key',
   // Anyone holding a webhook.site-style URL can read every denied prompt sent to it.
   'EXTERNAL_GUARDRAIL_WEBHOOK_URL',
 ];
@@ -395,10 +398,8 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   ff_private_key_jwt_token_exchange: { public: true, default: 'false' }, // BFF authenticates to token endpoint with signed JWT (RFC 7523) instead of client_secret
   ff_rfc9470_challenge:      { public: true, default: 'true'  }, // RFC 9470 step-up challenge support in authorization
   hitl_consent_mfa_mode:     { public: true, default: 'device_picker' }, // HITL consent MFA: 'device_picker' (SMS/email/passkey list, only at/above the
-                                                                  // step-up threshold — the demo default so $500+ shows the device picker), 'onetime' (a single emailed code), 'recognize'
-                                                                  // (face auth), anything else falls through to 'homegrown'. NOT 'multi': that
-                                                                  // value appeared here for a long time but transactionConsentChallenge.js has
-                                                                  // never tested for it, so setting it silently gave the homegrown path.
+                                                                  // step-up threshold — the demo default so $500+ shows the device picker), 'onetime' (a single PingOne email/SMS code), 'recognize'
+                                                                  // (face auth). Any other value safely falls back to PingOne one-time MFA.
   step_up_enabled:                 { public: true, default: 'false' }, // Step-up MFA gate; mirrored into runtimeSettings.stepUpEnabled (runtimeKey)
   ff_trat_mode:                    { public: true, default: 'true'  }, // Enrich RFC 8693 exchange with Transaction Token (TraT) claims — draft-oauth-transaction-tokens-for-agents-00
   mcp_step9_resource_uri:          { public: true, default: ''     }, // MCP server BANKING_API_RESOURCE_URI mirror — when set, Step 9 exchange event appears in token chain
@@ -729,6 +730,19 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   pingone_mgmt_client_secret:            { public: false, default: '' },
   pingone_mgmt_token_auth_method:        { public: true,  default: 'basic' },
   pingone_client_jwt_kid:                { public: true,  default: '' },
+  spiffe_svid_path:                      { public: true,  default: '' },
+  spiffe_key_path:                       { public: true,  default: '' },
+  spiffe_bundle_path:                    { public: true,  default: '' },
+  spiffe_trust_domain:                   { public: true,  default: 'bxfinance.demo' },
+  ff_spiffe_client_auth:                 { public: true,  default: 'false' },
+  ff_spiffe_pingone_bridge:               { public: true,  default: 'false' },
+  spiffe_bridge_private_key:              { public: false, default: '' },
+  spiffe_bridge_kid:                      { public: true,  default: '' },
+  spiffe_pingone_client_map:              { public: true,  default: '' },
+  pingone_fraud_watch_agent_client_id:     { public: true,  default: '' },
+  pingone_fraud_watch_agent_client_secret: { public: false, default: '' },
+  pingone_balance_sweep_agent_client_id:     { public: true,  default: '' },
+  pingone_balance_sweep_agent_client_secret: { public: false, default: '' },
   // Dedicated private_key_jwt app for RFC 8693 token exchange (PRIVATE_KEY_JWT client auth).
   // Gated by ff_private_key_jwt_token_exchange. Client ID and private key are encrypted
   // at rest (see SECRET_KEYS). kid is stamped into both the JWK and the assertion header.
@@ -1236,6 +1250,19 @@ const ENV_FALLBACK_MAP = {
   pingone_mcp_token_exchanger_cc_auth_method: ['PINGONE_MCP_TOKEN_EXCHANGER_CC_AUTH_METHOD', 'PINGONE_MCP_TOKEN_EXCHANGER_AUTH_METHOD', 'MCP_EXCHANGER_TOKEN_ENDPOINT_AUTH_METHOD', 'AGENT_TOKEN_ENDPOINT_AUTH_METHOD'],
   pingone_client_jwt_private_key:       ['PINGONE_CLIENT_JWT_PRIVATE_KEY'],
   pingone_client_jwt_kid:               ['PINGONE_CLIENT_JWT_KID'],
+  spiffe_svid_path:                     ['SPIFFE_SVID_PATH'],
+  spiffe_key_path:                      ['SPIFFE_KEY_PATH'],
+  spiffe_bundle_path:                   ['SPIFFE_BUNDLE_PATH'],
+  spiffe_trust_domain:                  ['SPIFFE_TRUST_DOMAIN'],
+  ff_spiffe_client_auth:                ['FF_SPIFFE_CLIENT_AUTH'],
+  ff_spiffe_pingone_bridge:              ['FF_SPIFFE_PINGONE_BRIDGE'],
+  spiffe_bridge_private_key:             ['SPIFFE_BRIDGE_PRIVATE_KEY'],
+  spiffe_bridge_kid:                     ['SPIFFE_BRIDGE_KID'],
+  spiffe_pingone_client_map:             ['SPIFFE_PINGONE_CLIENT_MAP'],
+  pingone_fraud_watch_agent_client_id:     ['PINGONE_FRAUD_WATCH_AGENT_CLIENT_ID'],
+  pingone_fraud_watch_agent_client_secret: ['PINGONE_FRAUD_WATCH_AGENT_CLIENT_SECRET'],
+  pingone_balance_sweep_agent_client_id:     ['PINGONE_BALANCE_SWEEP_AGENT_CLIENT_ID'],
+  pingone_balance_sweep_agent_client_secret: ['PINGONE_BALANCE_SWEEP_AGENT_CLIENT_SECRET'],
 
   // Introspection
   pingone_introspection_endpoint:       ['PINGONE_INTROSPECTION_ENDPOINT'],

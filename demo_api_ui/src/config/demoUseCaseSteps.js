@@ -24,7 +24,7 @@ export const DEMO_PRIMARY_USE_CASE_IDS = [
   'UC10',  // Cross-owner
   'UC13',  // Confused deputy
   'UC11',  // Bad client gateway
-  'UC20',  // Audit trail
+  'UC20',  // Agent observability / audit trail
   'UC18',  // Rate-limit / throttle burst
   // UC29 (OAuth introspection outage) is deliberately NOT in the script: the
   // Node gateway validates tokens by JWKS (GW_INTROSPECTION_ENABLED=false —

@@ -34,7 +34,7 @@ export const SCENARIOS = Object.freeze([
     id: "authorize-denial",
     title: "Authorize denial",
     lessonId: "authorize",
-    evidenceAction: null,
+    evidenceAction: "authorize-decision",
     durationMinutes: 4,
     dependencyIds: ["authorize"],
     outcome:
@@ -46,12 +46,14 @@ export const SCENARIOS = Object.freeze([
     ],
     resetBehavior:
       "Clear this card's evidence; restore any changed test input in the linked policy surface before the next run.",
+    evidenceDetail:
+      "Direct read-only recent-decision evidence; no new policy evaluation runs here.",
   },
   {
     id: "ciba-approval",
     title: "CIBA and approval",
     lessonId: "hitl-step-up",
-    evidenceAction: null,
+    evidenceAction: "hitl-step-up",
     durationMinutes: 6,
     dependencyIds: ["pingone", "authorize"],
     outcome:
@@ -63,12 +65,14 @@ export const SCENARIOS = Object.freeze([
     ],
     resetBehavior:
       "Clear captured evidence and cancel any pending approval in the linked demo before starting a fresh request.",
+    evidenceDetail:
+      "Direct read-only CIBA token-chain evidence; approval still runs in the linked demo.",
   },
   {
     id: "agent-revocation",
     title: "Agent revocation",
     lessonId: "lifecycle",
-    evidenceAction: null,
+    evidenceAction: "agent-lifecycle",
     durationMinutes: 5,
     dependencyIds: ["pingone"],
     outcome:
@@ -80,6 +84,8 @@ export const SCENARIOS = Object.freeze([
     ],
     resetBehavior:
       "Clear launcher evidence, then restore the demo agent in the linked registry before presenting the scenario again.",
+    evidenceDetail:
+      "Bounded identity mapping evidence; revocation and the denied retry remain in the linked demo.",
   },
   {
     id: "mcp-discovery",
@@ -135,8 +141,8 @@ export const SCENARIOS = Object.freeze([
   {
     id: "privilege-mcp",
     title: "Privilege MCP",
-    lessonId: "product-map",
-    evidenceAction: null,
+    lessonId: "privilege-mcp",
+    evidenceAction: "privilege-status",
     durationMinutes: 6,
     dependencyIds: ["privilege", "mcp"],
     outcome:
@@ -148,12 +154,14 @@ export const SCENARIOS = Object.freeze([
     ],
     resetBehavior:
       "Clear launcher evidence and end any temporary session in the linked Privilege demo before rerunning.",
+    evidenceDetail:
+      "Privilege relay readiness evidence; no privileged tool call or credential issuance runs here.",
   },
   {
     id: "davinci-orchestration",
     title: "DaVinci orchestration",
     lessonId: "login",
-    evidenceAction: null,
+    evidenceAction: "davinci-session-status",
     durationMinutes: 7,
     dependencyIds: ["davinci", "pingone"],
     outcome:
@@ -165,12 +173,14 @@ export const SCENARIOS = Object.freeze([
     ],
     resetBehavior:
       "Clear captured evidence, sign out of the linked flow, and restart the journey from its first screen.",
+    evidenceDetail:
+      "Bounded session-status evidence; orchestration steps remain in the linked DaVinci demo.",
   },
   {
-    id: "audit-evidence",
-    title: "Audit evidence",
-    lessonId: "lifecycle",
-    evidenceAction: null,
+    id: "observability",
+    title: "Observability",
+    lessonId: "evidence-timeline",
+    evidenceAction: "audit-evidence",
     durationMinutes: 4,
     dependencyIds: ["pingone"],
     outcome:
@@ -182,6 +192,8 @@ export const SCENARIOS = Object.freeze([
     ],
     resetBehavior:
       "Clear the launcher evidence and reset filters in the linked evidence view; source audit records remain intact.",
+    evidenceDetail:
+      "Read-only token-chain evidence; records may include activity from earlier sessions.",
   },
 ]);
 
@@ -223,7 +235,8 @@ function scenarioAvailability(scenario, lesson, readinessState) {
     scenario.evidenceAction,
   );
   const evidenceDetail = evidenceSupported
-    ? "A direct, read-only evidence observation is connected for this scenario."
+    ? scenario.evidenceDetail ||
+      "A direct, read-only evidence observation is connected for this scenario."
     : "No scenario-specific evidence check is connected. Launch the demo and inspect evidence in that surface.";
 
   if (ready) {

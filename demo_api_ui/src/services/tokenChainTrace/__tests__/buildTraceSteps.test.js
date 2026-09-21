@@ -122,6 +122,40 @@ describe("buildTraceSteps — Agent Gateway filter chain", () => {
   ];
   const gwStep = (steps) => steps.find((s) => s.id === "gateway");
 
+  test("renders the live P1AZ resolver as a distinct SQLite-backed step", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{
+        id: "gw-authorize",
+        status: "permit",
+        decision: "PERMIT",
+        resolver: {
+          status: "resolved",
+          source: "sqlite",
+          userId: "demo-user",
+          accountId: "acct-002",
+          riskTier: "standard",
+          balance: 18540,
+          currency: "USD",
+        },
+      }],
+    });
+    const resolver = steps.find((step) => step.id === "p1az-resolver");
+    expect(resolver).toMatchObject({
+      title: "P1AZ Resolver → SQLite account context",
+      lane: "DATA",
+      status: "done",
+    });
+    expect(resolver.detail.kv).toEqual([
+      ["user", "demo-user"],
+      ["account", "acct-002"],
+      ["risk tier", "standard"],
+      ["balance", "18540 USD"],
+      ["source", "SQLite"],
+    ]);
+    expect(steps.indexOf(resolver)).toBe(steps.findIndex((step) => step.id === "gateway") - 1);
+  });
+
   test("maps the gateway's stage vocabulary onto the rail's status vocabulary", () => {
     const stages = buildGatewayStages(CHAIN, null);
     expect(stages.map((s) => s.status)).toEqual(["done", "done", "done", "notinpath", "done"]);
@@ -913,11 +947,11 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
     expect(byId.agent.status).toBe("done");
     expect(byId.llm.status).toBe("done");
-    expect(byId.llm.title).toBe("AI Agent — intent match & tool choice");
+    expect(byId.llm.title).toBe("Banking Agent · Generalist agent — intent match & tool choice");
     expect(byId.llm.lane).toBe("HEURISTICS");
     expect(byId.llm.detail.response.text).toContain("view_coverage");
     expect(byId.reply.status).toBe("done");
-    expect(byId.reply.title).toBe("AI Agent composes reply → chat");
+    expect(byId.reply.title).toBe("Banking Agent composes reply → chat");
     expect(byId.reply.lane).toBe("HEURISTICS");
   });
 
@@ -934,7 +968,7 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(byId.llm.status).toBe("done");
     expect(byId.llm.lane).toBe("HEURISTICS");
     expect(byId.reply.status).toBe("done");
-    expect(byId.reply.title).toBe("AI Agent composes reply → chat");
+    expect(byId.reply.title).toBe("Banking Agent composes reply → chat");
     expect(byId.reply.lane).toBe("HEURISTICS");
     expect(byId.reply.detail.response.text).toContain("a1");
   });
@@ -1609,9 +1643,10 @@ describe("buildTraceSteps — approval gate pause is not a failed run", () => {
 });
 
 describe("laneLabel", () => {
-  test("shows the LLM and heuristics lanes as the AI agent and leaves other lanes alone", () => {
-    expect(laneLabel("HEURISTICS")).toBe("AI AGENT");
-    expect(laneLabel("LLM")).toBe("AI AGENT");
+  test("shows agent lanes as the Banking Agent and leaves other lanes alone", () => {
+    expect(laneLabel("AGENT")).toBe("BANKING AGENT");
+    expect(laneLabel("HEURISTICS")).toBe("BANKING AGENT");
+    expect(laneLabel("LLM")).toBe("BANKING AGENT");
     expect(laneLabel("GATEWAY")).toBe("GATEWAY");
   });
 });
