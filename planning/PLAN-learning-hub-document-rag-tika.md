@@ -1,6 +1,6 @@
 # Learning Hub Document RAG with Apache Tika
 
-Status: proposed for later development  
+Status: document-RAG MVP path implemented 2026-09-20 (Tika, extraction/chunking, metadata-aware Weaviate schema, async index/search/delete routes, authenticated BFF proxy, Learning Hub search/upload/citation panel, stale-chunk replacement, and repeatable seed importer).
 Target: Docker and Ping SE Kubernetes deployments  
 Primary demo surface: Learning Hub  
 Related systems: `demo_mcp_code_search`, Weaviate, embeddings, BFF, Learning Hub
