@@ -25,6 +25,7 @@ jest.mock('../../services/personalAgentCimdService', () => ({
     clientId: 'http://127.0.0.1:3001/api/cimd/personal-agents/reg-1/client-metadata.json',
     steps: [],
   }),
+  removePersonalAgentCimd: jest.fn().mockResolvedValue({ removed: true }),
   getPersonalAgentCimd: jest.fn().mockReturnValue(null),
 }));
 
@@ -177,6 +178,7 @@ describe('deleteAgentForUser', () => {
       `${BASE}/applications/app-1`,
       expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer mock-mgmt-token' }) })
     );
+    expect(personalAgentCimdService.removePersonalAgentCimd).toHaveBeenCalledWith(USER, 'app-1');
   });
 
   test('throws not_found when user has no agent', async () => {
@@ -406,6 +408,7 @@ describe('upgradeAgentForUser', () => {
     const result = await svc.upgradeAgentForUser(USER);
     expect(result.agent.type).toBe('AI_AGENT');
     expect(axios.delete).toHaveBeenCalledWith(expect.stringContaining('/applications/app-old'), expect.anything());
+    expect(personalAgentCimdService.removePersonalAgentCimd).toHaveBeenCalledWith(USER, 'app-old');
     const grantPost = axios.post.mock.calls.find(([url]) => url.includes('/applications/agent-new/grants'));
     expect(grantPost[1]).toEqual({ resource: { id: 'r-demo' }, scopes: [{ id: 's-read-0' }] });
   });

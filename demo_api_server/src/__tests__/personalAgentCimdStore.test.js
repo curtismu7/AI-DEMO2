@@ -25,6 +25,10 @@ test('persists, reads, lists, and clears public-safe personal-agent associations
   expect(store.get('sub-123')).toEqual(record);
   expect(store.loadAll()).toEqual([['sub-123', record]]);
 
+  store.remove('sub-123');
+  expect(store.get('sub-123')).toBeNull();
+
+  store.put(record);
   store.clearAll();
   expect(store.get('sub-123')).toBeNull();
   expect(store.loadAll()).toEqual([]);

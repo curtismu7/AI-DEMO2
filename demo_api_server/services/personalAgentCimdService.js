@@ -14,6 +14,14 @@ function displayName(user) {
   return user?.username || String(user?.email || 'user').split('@')[0];
 }
 
+function clientDisplayName(user) {
+  const safe = displayName(user)
+    .replace(/[^A-Za-z0-9 _-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return safe || 'user';
+}
+
 function baseUrl() {
   const origin = process.env.BFF_CIMD_ORIGIN || process.env.PUBLIC_APP_URL;
   if (origin) return origin.replace(/\/$/, '');
@@ -72,12 +80,17 @@ async function registerPersonalAgentCimd(user, pingoneAgent) {
   if (!pingoneAgent?.id) throw new Error('Personal agent CIMD registration requires a PingOne agent');
 
   const existing = store.get(key);
-  if (existing && existing.pingoneAgentId === pingoneAgent.id) {
+  if (existing && existing.pingoneAgentId === pingoneAgent.id && existing.status === 'registered') {
     return { ...publicRecord(existing), ok: existing.status === 'registered', mocked: true, created: false };
   }
 
   const registrationId = crypto.randomUUID();
-  const record = {
+  const record = existing && existing.pingoneAgentId === pingoneAgent.id ? {
+    ...existing,
+    status: 'pending',
+    steps: [],
+    registeredAt: new Date().toISOString(),
+  } : {
     userKey: key,
     pingoneAgentId: pingoneAgent.id,
     pingoneAgentName: pingoneAgent.name || `AI Agent - ${displayName(user)}`,
@@ -87,7 +100,7 @@ async function registerPersonalAgentCimd(user, pingoneAgent) {
     metadataUrl: metadataUrl(registrationId),
     clientId: metadataUrl(registrationId),
     metadata: {
-      client_name: `Personal AI Agent - ${displayName(user)}`,
+      client_name: `Personal AI Agent - ${clientDisplayName(user)}`,
       grant_types: ['client_credentials'],
       scope: PERSONAL_AGENT_SCOPES.join(' '),
       token_endpoint_auth_method: 'client_secret_basic',
@@ -115,6 +128,26 @@ async function registerPersonalAgentCimd(user, pingoneAgent) {
   }
 }
 
+async function removePersonalAgentCimd(user, pingoneAgentId) {
+  const key = userKey(user);
+  if (!key) return { removed: false };
+  const record = store.get(key);
+  if (!record || (pingoneAgentId && record.pingoneAgentId !== pingoneAgentId)) {
+    return { removed: false };
+  }
+
+  try {
+    oauthClientRegistry.deleteClient(record.clientId, {
+      deletedBy: 'personal-agent-cimd-cleanup',
+      sourceIP: 'bff',
+    });
+  } catch (err) {
+    if (err.status !== 404) throw err;
+  }
+  store.remove(key);
+  return { removed: true, registrationId: record.registrationId, clientId: record.clientId };
+}
+
 function metadataDocument(registrationId) {
   const record = getByRegistrationId(registrationId);
   if (!record) return null;
@@ -129,4 +162,5 @@ module.exports = {
   getByPingoneAgentId,
   metadataDocument,
   registerPersonalAgentCimd,
+  removePersonalAgentCimd,
 };

@@ -259,6 +259,11 @@ async function deleteAgentForUser(user) {
     throw Object.assign(new Error('Refusing to delete: app was not created by Agent Builder for this user'), { code: 'forbidden' });
   }
   await axios.delete(`${apiBase()}/applications/${raw.id}`, opts);
+  try {
+    await personalAgentCimdService.removePersonalAgentCimd(user, raw.id);
+  } catch (err) {
+    console.warn('[agentBuilder] CIMD cleanup failed after delete:', err?.message || String(err));
+  }
   recordAgentLifecycle('leaver', raw, user, 'agent-builder-delete');
 }
 
@@ -323,6 +328,11 @@ async function upgradeAgentForUser(user) {
   const grantList = Object.entries(grants).map(([resourceId, scopes]) => ({ resourceId, scopes }));
 
   await axios.delete(`${apiBase()}/applications/${raw.id}`, opts);
+  try {
+    await personalAgentCimdService.removePersonalAgentCimd(user, raw.id);
+  } catch (err) {
+    console.warn('[agentBuilder] CIMD cleanup failed during upgrade:', err?.message || String(err));
+  }
   const created = await createAgentForUser(user);
   if (grantList.length > 0) {
     await setAgentGrants(created.agent.id, grantList);

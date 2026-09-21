@@ -53,7 +53,7 @@ Follow-on implementation tasks:
 
 ### Task 1: Define the user-scoped CIMD registration contract
 
-**Status:** Complete — focused service and store tests pass.
+**Status:** Complete — focused service/store tests pass, including retry, cleanup, and safe-name behavior.
 
 **Files:**
 - Create: `demo_api_server/services/personalAgentCimdService.js`
@@ -90,7 +90,7 @@ Follow-on implementation tasks:
 
 ### Task 3: Trigger CIMD automatically after real PingOne agent creation
 
-**Status:** Complete — focused Agent Builder tests pass.
+**Status:** Complete — focused Agent Builder tests pass, including CIMD cleanup on delete and upgrade.
 
 **Files:**
 - Modify: `demo_api_server/services/agentBuilderService.js`
@@ -109,7 +109,7 @@ Follow-on implementation tasks:
 
 ### Task 4: Surface registration provenance in NHI inventory and Agent Builder UI
 
-**Status:** Complete — focused registry/UI tests pass and the UI build passes.
+**Status:** Complete — focused registry/UI tests pass and the UI build passes; Digital Assistant naming is aligned in the navigation and studio.
 
 **Files:**
 - Modify: `demo_api_server/services/agentRegistryService.js`
@@ -129,7 +129,7 @@ Follow-on implementation tasks:
 
 ### Task 5: Verify the protected end-to-end contract
 
-**Status:** Partial — focused checks pass; topology/authz checks are blocked by missing worktree dependencies (`lodash.mergewith`), and the full UI suite did not emit a final result within the bounded run.
+**Status:** Partial — focused checks pass; use-case generation/check passes; topology/authz checks are blocked by missing worktree dependencies (`lodash.mergewith` and gateway Jest), and the full UI suite was not run.
 
 **Files:**
 - No new production files.
@@ -139,3 +139,11 @@ Follow-on implementation tasks:
 - [ ] **Step 3: Run `npm run topology:verify` and `npm run authz:verify` if generated routes or use-case metadata changed.**
 - [ ] **Step 4: Run `graphify update .` from the worktree.**
 - [ ] **Step 5: Inspect `git diff`, confirm only intended paths are staged, and report evidence without claiming live PingOne verification unless the configured stack was exercised.**
+
+### Current execution note
+
+The PDF-aligned catalog entries and generated use-case docs are now implemented:
+`UC43` is Consumer & Partner Agent CIMD registration and `UC44` is Workload
+Agent: Digital Assistant OBO. Existing `UC38` remains the concrete airlines
+concierge scenario but is named as a Workload Agent: Digital Assistant flow;
+its legacy `useCaseId` remains unchanged for runtime compatibility.

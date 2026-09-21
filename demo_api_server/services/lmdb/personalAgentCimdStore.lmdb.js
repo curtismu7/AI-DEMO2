@@ -21,6 +21,10 @@ function get(userKey) {
   return db().get(userKey) || null;
 }
 
+function remove(userKey) {
+  db().removeSync(userKey);
+}
+
 function loadAll() {
   const records = [];
   for (const { key, value } of db().getRange()) records.push([key, value]);
@@ -32,4 +36,4 @@ function clearAll() {
   for (const key of store.getKeys()) store.removeSync(key);
 }
 
-module.exports = { put, get, loadAll, clearAll, DB_NAME };
+module.exports = { put, get, remove, loadAll, clearAll, DB_NAME };

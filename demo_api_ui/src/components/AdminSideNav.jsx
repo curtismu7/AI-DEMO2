@@ -619,7 +619,7 @@ export default function AdminSideNav({
         },
         {
           // Public on purpose (auth-requirements.json) — no adminOnly here.
-          label: "Personal Agent",
+          label: "Digital Assistant",
           path: "/personal-agent",
           icon: "agt",
         },

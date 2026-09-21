@@ -224,9 +224,12 @@ export default function AgentBuilderPage() {
               <div className="ab-authority-note" aria-label="CIMD registration">
                 <strong>CIMD registration</strong>
                 <p>
-                  Mocked — PingOne does not support CIMD. The BFF completed the CIMD
-                  registration facade automatically in the background.
+                  Mocked — PingOne does not support CIMD. The BFF {agent.cimd.status === 'registered' ? 'completed' : 'could not complete'}
+                  {' '}the CIMD registration facade automatically in the background.
                 </p>
+                {agent.cimd.status !== 'registered' && (
+                  <p><strong>CIMD registration failed; retrying is safe.</strong></p>
+                )}
                 <p>
                   The PingOne-backed agent identity remains the credential used for RFC 8693
                   token exchange and delegated tool calls.

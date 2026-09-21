@@ -5,6 +5,7 @@ jest.mock('../../services/lmdb/personalAgentCimdStore.lmdb', () => ({
   put: (record) => mockRecords.set(record.userKey, record),
   get: (userKey) => mockRecords.get(userKey) || null,
   loadAll: () => [...mockRecords.entries()],
+  remove: (userKey) => mockRecords.delete(userKey),
   clearAll: () => mockRecords.clear(),
 }));
 jest.mock('../../services/oauthClientRegistry', () => ({
@@ -20,6 +21,7 @@ jest.mock('../../services/oauthClientRegistry', () => ({
       ],
     };
   }),
+  deleteClient: jest.fn(),
   clearRegistry: jest.fn(),
 }));
 
@@ -71,5 +73,39 @@ describe('personal-agent CIMD facade', () => {
     await cimdService.registerPersonalAgentCimd(user, agent);
 
     expect(cimdService.getPersonalAgentCimd({ oauthId: 'other-sub', id: 'other-id' })).toBeNull();
+  });
+
+  test('retries a failed registration for the same user and agent', async () => {
+    oauthClientRegistry.registerClientByUrl.mockRejectedValueOnce(new Error('temporary registry outage'));
+
+    const failed = await cimdService.registerPersonalAgentCimd(user, agent);
+    expect(failed.status).toBe('failed');
+
+    const retried = await cimdService.registerPersonalAgentCimd(user, agent);
+    expect(retried.ok).toBe(true);
+    expect(retried.status).toBe('registered');
+    expect(retried.created).toBe(true);
+    expect(oauthClientRegistry.registerClientByUrl).toHaveBeenCalledTimes(2);
+  });
+
+  test('sanitizes username characters before mock registry validation', async () => {
+    const result = await cimdService.registerPersonalAgentCimd(
+      { ...user, username: 'alex.smith+demo' },
+      agent,
+    );
+
+    expect(result.metadata.client_name).toMatch(/^[A-Za-z0-9 _-]+$/);
+    expect(result.status).toBe('registered');
+  });
+
+  test('removes the mocked registration during agent cleanup', async () => {
+    const result = await cimdService.registerPersonalAgentCimd(user, agent);
+
+    expect(await cimdService.removePersonalAgentCimd(user, agent.id)).toMatchObject({ removed: true });
+    expect(oauthClientRegistry.deleteClient).toHaveBeenCalledWith(
+      result.clientId,
+      expect.objectContaining({ deletedBy: 'personal-agent-cimd-cleanup' }),
+    );
+    expect(cimdService.getPersonalAgentCimd(user)).toBeNull();
   });
 });

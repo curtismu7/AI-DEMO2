@@ -35,7 +35,7 @@ export const NAV_PAGE_PATHS = {
   "Agent & Token Flow History": "/agent-flow-inspector",
   "Login Flow Diagram": "/login-flow",
   "Autonomous Agents": "/autonomous-agents",
-  "Personal Agent": "/personal-agent",
+  "Digital Assistant": "/personal-agent",
   "Agent Lifecycle (guided demo)": "/agent-lifecycle",
   "Delegated Commerce (guided demo)": "/delegated-commerce",
   "Family Delegation": "/delegation",

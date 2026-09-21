@@ -210,6 +210,16 @@ describe('agentRegistryService.buildRegistry', () => {
     });
   });
 
+  test('keeps the PingOne source available when CIMD provenance storage fails', async () => {
+    agentBuilderService.getPersonalAgentCimdByAgentId.mockImplementation(() => {
+      throw new Error('CIMD store unavailable');
+    });
+
+    const out = await registry.buildRegistry();
+    expect(out.sources.pingone.up).toBe(true);
+    expect(out.rows.find((r) => r.id === 'app-1')).not.toHaveProperty('registrationStatus');
+  });
+
   test('flags scope drift when granted does not match the topology SSOT', async () => {
     // Topology expects agent:invoke + admin:read; PingOne granted only the first.
     const out = await registry.buildRegistry();

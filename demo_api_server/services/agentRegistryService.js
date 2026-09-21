@@ -87,7 +87,12 @@ async function pingOneAgents() {
     } catch {
       granted = [];
     }
-    const cimd = agentBuilderService.getPersonalAgentCimdByAgentId(app.id);
+    let cimd = null;
+    try {
+      cimd = agentBuilderService.getPersonalAgentCimdByAgentId(app.id);
+    } catch (err) {
+      console.warn('[agentRegistry] CIMD provenance unavailable:', err?.message || String(err));
+    }
     return {
       id: app.id,
       name: app.name,

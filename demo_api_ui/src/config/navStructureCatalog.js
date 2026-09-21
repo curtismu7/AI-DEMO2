@@ -61,7 +61,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "Agent & Token Flow History",
       "Login Flow Diagram",
       "Autonomous Agents",
-      "Personal Agent",
+      "Digital Assistant",
       "Agent Lifecycle (guided demo)",
       "Delegated Commerce (guided demo)",
       "Family Delegation",
