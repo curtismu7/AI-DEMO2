@@ -141,7 +141,7 @@ export const SCENARIOS = Object.freeze([
   {
     id: "privilege-mcp",
     title: "Privilege MCP",
-    lessonId: "product-map",
+    lessonId: "privilege-mcp",
     evidenceAction: "privilege-status",
     durationMinutes: 6,
     dependencyIds: ["privilege", "mcp"],
@@ -179,7 +179,7 @@ export const SCENARIOS = Object.freeze([
   {
     id: "audit-evidence",
     title: "Audit evidence",
-    lessonId: "lifecycle",
+    lessonId: "evidence-timeline",
     evidenceAction: "audit-evidence",
     durationMinutes: 4,
     dependencyIds: ["pingone"],

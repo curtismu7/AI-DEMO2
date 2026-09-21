@@ -110,6 +110,9 @@ describe("LessonShell", () => {
   it("switches between guided and standalone presentation without remounting lesson content", () => {
     renderShell();
 
+    expect(screen.getByRole("heading", { name: "Walkthrough" })).toBeInTheDocument();
+    expect(screen.getByText("Compare sub and act in the token-chain trace.")).toBeInTheDocument();
+
     const input = screen.getByRole("textbox", { name: "lesson input" });
     fireEvent.change(input, { target: { value: "customer scenario" } });
     fireEvent.click(screen.getByRole("button", { name: "Demo mode" }));
@@ -176,7 +179,7 @@ describe("LessonShell", () => {
     await waitFor(() => expect(screen.getByText("SIMULATED")).toBeInTheDocument());
 
     expect(screen.queryByText("LIVE CLOUD")).not.toBeInTheDocument();
-    expect(screen.getByText("policy-deny")).toBeInTheDocument();
+    expect(screen.getAllByText("policy-deny").length).toBeGreaterThan(0);
     expect(screen.getByText("Evidence captured")).toBeInTheDocument();
   });
 

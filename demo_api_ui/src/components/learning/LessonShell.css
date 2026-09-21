@@ -165,6 +165,76 @@
   min-height: 13rem;
 }
 
+.lesson-shell__walkthrough {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--th-border);
+}
+
+.lesson-shell__walkthrough-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.lesson-shell__walkthrough-heading h2 {
+  margin: 0.2rem 0 0;
+  color: var(--th-text);
+  font-size: var(--font-size-lg);
+}
+
+.lesson-shell__walkthrough-heading > span {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.lesson-shell__walkthrough-list {
+  display: grid;
+  gap: 0.7rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lesson-shell__walkthrough-list li {
+  display: grid;
+  grid-template-columns: 2rem 1fr;
+  gap: 0.75rem;
+  padding: 0.85rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+}
+
+.lesson-shell__walkthrough-number {
+  display: grid;
+  width: 1.8rem;
+  height: 1.8rem;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--th-status-info);
+  color: var(--th-text-invert);
+  font-weight: 700;
+}
+
+.lesson-shell__walkthrough-list h3 {
+  margin: 0;
+  color: var(--th-text);
+  font-size: var(--font-size-md);
+}
+
+.lesson-shell__walkthrough-list p {
+  margin: 0.35rem 0 0;
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+}
+
+.lesson-shell__walkthrough-demo {
+  color: var(--th-status-info-text) !important;
+}
+
 .lesson-shell__actions {
   display: flex;
   align-items: center;

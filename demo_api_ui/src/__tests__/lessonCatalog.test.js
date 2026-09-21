@@ -9,15 +9,19 @@ import {
 import { PROVENANCE } from "../learning/provenance";
 
 const REQUIRED_IDS = [
+  "agent-landscape",
   "login",
   "delegation",
+  "consumer-agent",
+  "customer-service-agent",
   "mcp",
   "authorize",
   "hitl-step-up",
-  "lifecycle",
-  "ai-architecture",
+  "a2a-delegation",
+  "privilege-mcp",
   "threat-defense",
-  "product-map",
+  "lifecycle",
+  "evidence-timeline",
 ];
 
 const NON_EMPTY_STRING = expect.stringMatching(/\S/);
@@ -68,6 +72,16 @@ describe("AI Security Academy lesson catalog", () => {
       expect(lesson.talkingPoints).toEqual(
         expect.arrayContaining([NON_EMPTY_STRING]),
       );
+      expect(lesson.walkthrough).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            title: NON_EMPTY_STRING,
+            explain: NON_EMPTY_STRING,
+            demonstrate: NON_EMPTY_STRING,
+          }),
+        ]),
+      );
+      expect(lesson.walkthrough.length).toBeGreaterThanOrEqual(3);
       expect(isLessonContractValid(lesson)).toBe(true);
     }
   });
@@ -75,6 +89,26 @@ describe("AI Security Academy lesson catalog", () => {
   test("returns a catalog entry by ID and null for an unknown lesson", () => {
     expect(getLesson(lessonCatalog[0].id)).toBe(lessonCatalog[0]);
     expect(getLesson("does-not-exist")).toBeNull();
+  });
+
+  test("maps each lesson to the company maturity journey and agent taxonomy", () => {
+    expect(lessonCatalog.every((lesson) => lesson.maturityStages.length > 0)).toBe(true);
+    expect(lessonCatalog.every((lesson) => lesson.agentCategory.length > 0)).toBe(true);
+    expect(lessonCatalog.every((lesson) => lesson.productRoles.length > 0)).toBe(true);
+    expect(getLesson("ai-architecture").id).toBe("agent-landscape");
+    expect(getLesson("product-map").id).toBe("evidence-timeline");
+  });
+
+  test("marks only the first live demos as executable", () => {
+    expect(getLesson("mcp").execution).toEqual({
+      kind: "mcp-read",
+      label: "Run banking read tool",
+    });
+    expect(getLesson("authorize").execution).toEqual({
+      kind: "policy-evaluation",
+      label: "Evaluate policy",
+    });
+    expect(lessonCatalog.filter((lesson) => lesson.execution)).toHaveLength(2);
   });
 
   test("rejects a fallback that is mislabeled as live cloud", () => {

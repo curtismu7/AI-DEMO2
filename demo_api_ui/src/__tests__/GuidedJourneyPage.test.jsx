@@ -60,17 +60,21 @@ describe("GuidedJourneyPage", () => {
     );
   });
 
-  it("advances through the ordered nine-step customer story", async () => {
+  it("advances through the ordered thirteen-step customer story", async () => {
     renderJourney();
     await screen.findByText("Needs attention");
 
     const stages = [
-      "Business problem",
+      "Discover agents",
       "PingOne login",
       "Delegation",
+      "Personal Agent",
+      "Digital Assistant",
       "MCP",
       "PingOne Authorize",
       "HITL and step-up",
+      "A2A delegation",
+      "Privilege MCP",
       "Attack defense",
       "Agent lifecycle",
       "Evidence summary",
@@ -87,7 +91,7 @@ describe("GuidedJourneyPage", () => {
     }
 
     expect(screen.getByTestId("location")).toHaveTextContent(
-      "/academy/journey?step=product-map",
+      "/academy/journey?step=evidence-timeline",
     );
     expect(screen.getByRole("button", { name: "Next step" })).toBeDisabled();
   });
@@ -101,7 +105,7 @@ describe("GuidedJourneyPage", () => {
       screen.getByRole("heading", { level: 2, name: "PingOne login" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Business problem, skipped" }),
+      screen.getByRole("button", { name: "Discover agents, skipped" }),
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Next step" }));
@@ -115,10 +119,10 @@ describe("GuidedJourneyPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Restart journey" }));
     expect(
-      screen.getByRole("heading", { level: 2, name: "Business problem" }),
+      screen.getByRole("heading", { level: 2, name: "Discover agents" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Business problem, current" }),
+      screen.getByRole("button", { name: "Discover agents, current" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "PingOne login, not started" }),
@@ -171,21 +175,21 @@ describe("GuidedJourneyPage", () => {
     await screen.findByText("Needs attention");
 
     fireEvent.click(screen.getByRole("button", { name: "Skip step" }));
-    for (let index = 0; index < 7; index += 1) {
+    for (let index = 0; index < 11; index += 1) {
       fireEvent.click(screen.getByRole("button", { name: "Next step" }));
     }
 
     expect(
       screen.getByRole("heading", { level: 2, name: "Evidence summary" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("7 completed steps")).toBeInTheDocument();
+    expect(screen.getByText("11 completed steps")).toBeInTheDocument();
     expect(screen.getByText("1 skipped step")).toBeInTheDocument();
     expect(screen.getByText("0 captured evidence checks")).toBeInTheDocument();
   });
 
   it("does not restore an in-flight result after the journey restarts", async () => {
     const pendingRun = deferred();
-    renderJourney("/academy/journey?step=ai-architecture", {
+    renderJourney("/academy/journey?step=agent-landscape", {
       executeLesson: () => pendingRun.promise,
     });
     await screen.findByText("Needs attention");
@@ -203,7 +207,7 @@ describe("GuidedJourneyPage", () => {
       });
       await pendingRun.promise;
     });
-    for (let index = 0; index < 8; index += 1) {
+    for (let index = 0; index < 12; index += 1) {
       fireEvent.click(screen.getByRole("button", { name: "Next step" }));
     }
 
@@ -220,12 +224,12 @@ describe("GuidedJourneyPage", () => {
       result: { kind: "observation", status: "observed" },
       warnings: [],
     });
-    renderJourney("/academy/journey?step=ai-architecture", { executeLesson });
+    renderJourney("/academy/journey?step=agent-landscape", { executeLesson });
     await screen.findByText("Needs attention");
 
     fireEvent.click(screen.getByRole("button", { name: "Check live evidence" }));
     expect(await screen.findByText("Evidence captured")).toBeInTheDocument();
-    for (let index = 0; index < 8; index += 1) {
+    for (let index = 0; index < 12; index += 1) {
       fireEvent.click(screen.getByRole("button", { name: "Next step" }));
     }
 
@@ -241,7 +245,7 @@ describe("GuidedJourneyPage", () => {
       result: { kind: "observation", status: "observed" },
       warnings: [],
     });
-    renderJourney("/academy/journey?step=product-map", { executeLesson });
+    renderJourney("/academy/journey?step=evidence-timeline", { executeLesson });
     await screen.findByText("Needs attention");
 
     expect(
@@ -264,7 +268,7 @@ describe("GuidedJourneyPage", () => {
     expect(
       await screen.findByText("Readiness unavailable"),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Check live evidence" }));
+    fireEvent.click(screen.getByRole("button", { name: "Run banking read tool" }));
     expect(await screen.findByText("Evidence check failed.")).toBeInTheDocument();
     expect(screen.queryByText("LIVE CLOUD")).not.toBeInTheDocument();
   });
