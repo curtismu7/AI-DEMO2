@@ -432,7 +432,7 @@
     "description": "Protocol flow: spiffe",
     "actors": [
       "workload-a",
-      "spire-agent",
+      "local-mock-issuer",
       "workload-b"
     ],
     "steps": [
@@ -440,16 +440,20 @@
         "id": "step-1",
         "actor": "workload-a",
         "fromActor": "workload-a",
-        "toActor": "spire-agent",
+        "toActor": "local-mock-issuer",
         "action": "POST /api/demo/spiffe/svid",
         "label": "POST /api/demo/spiffe/svid",
         "method": "POST",
         "endpoint": "/api/demo/spiffe/svid",
         "step": 1,
         "title": null,
-        "description": "Workload fetches its JWT-SVID from the (simulated) SPIRE agent.",
+        "description": "Demo workload requests a JWT-SVID from the local mock issuer using its registered workload ID and matching selectors. This P1 flow performs no runtime workload attestation.",
         "body": {
-          "spiffe_id": "spiffe://demo.local/service/payments"
+          "workload_id": "api",
+          "selector_context": {
+            "namespace": "demo",
+            "serviceAccount": "api"
+          }
         },
         "expected": {}
       },
@@ -477,9 +481,9 @@
       "url": "https://datatracker.ietf.org/doc/html/draft-ietf-oauth-spiffe-bearer-token-09",
       "label": "SPIFFE Bearer Token",
       "title": "SPIFFE",
-      "why": "SPIFFE gives workloads cryptographic identity from the platform itself: a SPIRE agent attests what the workload is (this pod, this binary, this node) and issues it a short-lived JWT-SVID. No API keys baked into images, no secrets in environment variables, automatic rotation.",
-      "example": "An employee badge issued by building security after checking your employment records — versus a door code taped under the desk. A leaked container image contains no credential worth stealing, because identity is attested at runtime, not stored.",
-      "ai": "Agent fleets scale up and down constantly. Platform-attested identity means each agent instance proves what it is without anyone provisioning or rotating a secret for it."
+      "why": "Real SPIFFE uses workload attestation to issue short-lived identities without distributing long-lived secrets. This P1 demo instead uses a local mock issuer that accepts only registered workload IDs with matching selector values; it does not attest the caller at runtime.",
+      "example": "The demo is like a training badge desk that checks a requested name and department against a registration list before issuing a short-lived badge. The supplied selectors must match, but the desk does not independently inspect or attest the workload presenting them.",
+      "ai": "Agent fleets benefit from short-lived workload identities and cryptographic verification. This P1 flow demonstrates those token and trust checks with a local mock issuer and registered selectors, not runtime workload attestation."
     }
   },
   "txn-tokens": {

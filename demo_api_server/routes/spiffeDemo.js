@@ -49,16 +49,18 @@ DEMO_REGISTRATIONS.forEach((registration) => {
 });
 
 /**
- * Workload fetches its JWT-SVID from the (simulated) SPIRE agent.
+ * Demo workload requests a JWT-SVID from the local mock issuer using its
+ * registered workload ID and matching selectors. This P1 flow performs no
+ * runtime workload attestation.
  *
  * @flow spiffe
  * @name SPIFFE
  * @rfc https://datatracker.ietf.org/doc/html/draft-ietf-oauth-spiffe-bearer-token-09 SPIFFE Bearer Token
- * @why SPIFFE gives workloads cryptographic identity from the platform itself: a SPIRE agent attests what the workload is (this pod, this binary, this node) and issues it a short-lived JWT-SVID. No API keys baked into images, no secrets in environment variables, automatic rotation.
- * @example An employee badge issued by building security after checking your employment records — versus a door code taped under the desk. A leaked container image contains no credential worth stealing, because identity is attested at runtime, not stored.
- * @ai Agent fleets scale up and down constantly. Platform-attested identity means each agent instance proves what it is without anyone provisioning or rotating a secret for it.
+ * @why Real SPIFFE uses workload attestation to issue short-lived identities without distributing long-lived secrets. This P1 demo instead uses a local mock issuer that accepts only registered workload IDs with matching selector values; it does not attest the caller at runtime.
+ * @example The demo is like a training badge desk that checks a requested name and department against a registration list before issuing a short-lived badge. The supplied selectors must match, but the desk does not independently inspect or attest the workload presenting them.
+ * @ai Agent fleets benefit from short-lived workload identities and cryptographic verification. This P1 flow demonstrates those token and trust checks with a local mock issuer and registered selectors, not runtime workload attestation.
  * @actor workload-a
- * @to spire-agent
+ * @to local-mock-issuer
  * @step 1
  * @body {"workload_id":"api","selector_context":{"namespace":"demo","serviceAccount":"api"}}
  */
