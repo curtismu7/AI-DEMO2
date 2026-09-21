@@ -182,7 +182,7 @@
 - Modify: appropriate local Docker/Kubernetes config templates after identifying the canonical variable source.
 - Test: configuration/hygiene checks and startup guard tests.
 
-- [ ] Add documented `OAUTH_PROVIDER=pingfederate` configuration with PF endpoint and client variables.
+- [x] Add documented `OAUTH_PROVIDER=pingfederate` configuration with PF endpoint and client variables.
 - [ ] Add the PF variables to local Docker and deployment secret templates without values.
 - [ ] Keep PingOne variables intact for the alternate mode and management APIs that still require PingOne.
 - [ ] Ensure PF mode does not require a PingOne environment ID merely to resolve browser OAuth endpoints.
