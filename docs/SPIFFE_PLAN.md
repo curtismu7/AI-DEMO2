@@ -1,7 +1,8 @@
 # SPIFFE / SPIRE — Implementation Plan (Super Banking demo)
 
-**Status:** Local Phase A/B foundation and flagged private_key_jwt wiring implemented. OIDC-provider composition and SPIFFE-ID mTLS verification are wired; public PingOne JWKS deployment and live end-to-end SVID rotation still require environment/tenant validation.
-**Last corrected:** 2026-08-17.
+**Status:** P1 parity mode is implemented with a local mock issuer. The real-SPIRE runtime
+described below is planned separately and is not part of P1.
+**Last corrected:** 2026-09-21.
 
 > **This document was rewritten because the previous version was wrong.** Its Phase 2
 > instructed the reader to "Create a JWT Issuer in PingOne → Security → JWT Issuers" so
@@ -37,6 +38,28 @@ The user-facing explanation of all of this now lives in the UI:
 
 ---
 
+## P1 parity mode and the real-SPIRE boundary
+
+P1 parity mode is implemented separately from the planned real-SPIRE runtime. Its local
+mock issuer accepts only registered mock workloads with matching supplied selectors, issues
+short-lived RS256 JWT-SVIDs, publishes a JWKS, verifies the cryptographic and trust-domain
+contract, and supports the flag-gated local RFC 8693 actor-token path. That actor-token path
+models PingFederate behavior. It is not proof of workload attestation, and the P1 HTTP route
+is not a SPIRE Workload API.
+
+The later real-SPIRE phase must add all of the following:
+
+1. SPIRE Server and Agent deployment.
+2. Workload registration and attestation using runtime selectors.
+3. `spiffe-helper` or SPIFFE Workload API integration for SVID delivery and rotation.
+4. SPIRE trust-bundle and OIDC discovery publication and consumption.
+5. X.509-SVID mTLS on service hops owned by this project.
+
+PingOne Cloud cannot consume a SPIRE SVID as an external actor token. Validation of that
+flow belongs to PingFederate; PingOne Cloud retains its supported client-credential path.
+
+---
+
 ## The blocking constraint: what PingOne can actually consume
 
 Verified against `docs.pingidentity.com` (reached via `llms.txt`) and the live
@@ -65,7 +88,8 @@ SPIRE's OIDC Discovery Provider, and have the workload sign its client assertion
 SPIRE-issued, auto-rotating RSA key. **The static `client_secret` is deleted.** The
 assertion's `iss`/`sub` remain the PingOne `client_id`; the SPIFFE ID is decorative.
 
-Everything below builds toward that, plus real SPIFFE mTLS on the hops we control.
+The phases below are the separate real-SPIRE plan. They are not claims about what P1 parity
+mode implements.
 
 ---
 

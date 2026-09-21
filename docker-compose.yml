@@ -930,7 +930,8 @@ services:
       # listener; MCP_MTLS_ON can now be enabled without breaking Privilege.
       MCP_MTLS_ENABLED: "${MCP_MTLS_ON:+true}"
       MCP_MTLS_GATEWAY_CERT_PATH: "/certs/gw-mtls/gw-client.crt"
-      MCP_MTLS_ALLOWED_SPIFFE_ID: "${MCP_MTLS_ALLOWED_SPIFFE_ID:-}"
+      # MCP_MTLS_ALLOWED_SPIFFE_ID is supplied by oauth-mcp/.env when needed;
+      # do not shadow that env_file value with an empty Compose default.
       # Step 9 (RFC 8693): the MCP server exchanges the gateway-scoped token for a
       # Demo API (enduser.ping.demo) resource-scoped one before calling the Banking
       # API — the MCP-spec hop. Uses a DEDICATED PingOne app, not the shared
@@ -1594,6 +1595,11 @@ services:
     environment:
       NODE_ENV: production
       AUTHZ_PORT: "9001"
+      # Local PingFederate-parity path for JWT-SVID actor tokens. Keep disabled
+      # unless explicitly enabled; the trust bundle is public verification data.
+      FF_SPIFFE_ACTOR_TOKEN: "${FF_SPIFFE_ACTOR_TOKEN:-false}"
+      SPIFFE_TRUST_DOMAIN: "${SPIFFE_TRUST_DOMAIN:-demo.local}"
+      SPIFFE_JWKS_URL: "${SPIFFE_JWKS_URL:-https://demo-api-server:3001/api/demo/spiffe/jwks}"
       # RFC 9396 RAR subset enforcement (routes/decision.js rule 3c). This was unset in
       # every deployment, which made RAR look enforced while nothing enforced it:
       # the BFF's ff_rar builds authorization_details and carries them in the TraT

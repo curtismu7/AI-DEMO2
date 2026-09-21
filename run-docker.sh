@@ -117,14 +117,14 @@ CORE_SERVICES=(
 )
 
 # Optional groups — start on demand via `./run-docker.sh optional start <group>`.
-OPTIONAL_GROUP_NAMES=(rag agents tracing demo-auth mcpgw observability)
+OPTIONAL_GROUP_NAMES=(rag agents tracing demo-auth mcpgw observability spiffe)
 
 # Also brought up on every `start` / `restart` / `build` (core stack). Still
 # stoppable with `./run-docker.sh optional stop rag` without tearing down core.
 DEFAULT_OPTIONAL_GROUPS=(rag)
 
 # Compose profiles matching OPTIONAL_GROUP_NAMES (also used for `start full`).
-FULL_STACK_PROFILE_ARGS=(--profile rag --profile agents --profile tracing --profile demo-auth --profile mcpgw --profile observability)
+FULL_STACK_PROFILE_ARGS=(--profile rag --profile agents --profile tracing --profile demo-auth --profile mcpgw --profile observability --profile spiffe)
 
 # Teardown only. `notebooklm` is deliberately absent from FULL_STACK_PROFILE_ARGS
 # (it restart-loops without a host ~/.notebooklm cookie jar, so it is never
@@ -142,7 +142,8 @@ _optional_group_profiles() {
     demo-auth) echo "demo-auth" ;;
     mcpgw)     echo "mcpgw" ;;
     observability) echo "observability" ;;
-    all)       echo "rag agents tracing demo-auth mcpgw observability" ;;
+    spiffe)    echo "spiffe" ;;
+    all)       echo "rag agents tracing demo-auth mcpgw observability spiffe" ;;
     *) return 1 ;;
   esac
 }
@@ -167,6 +168,7 @@ _optional_group_services() {
     demo-auth) echo "authz-server mcp-gateway mcp-jwt-verifier" ;;
     mcpgw)     echo "ping-mcpgw mcpgw-nginx opensearch opensearch-mcp-server" ;;
     observability) echo "prometheus alertmanager loki alloy grafana" ;;
+    spiffe)    echo "spire-server spire-agent spire-registration spiffe-helper-bff spiffe-oidc-provider" ;;
     all)
       local g svc out=""
       for g in "${OPTIONAL_GROUP_NAMES[@]}"; do
