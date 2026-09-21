@@ -21,6 +21,7 @@
   border: 1px solid var(--th-border);
   border-radius: var(--radius-lg);
   background: var(--th-bg-card);
+  color: var(--th-text);
 }
 
 .lesson-shell__eyebrow {
@@ -58,6 +59,7 @@
   border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
   background: var(--th-bg-inset);
+  color: var(--th-text);
 }
 
 .lesson-shell__mode-toggle button,
@@ -152,6 +154,7 @@
   border: 1px solid var(--th-border);
   border-radius: var(--radius-lg);
   background: var(--th-bg-card);
+  color: var(--th-text);
 }
 
 .lesson-shell--standalone .lesson-shell__content {
@@ -189,6 +192,7 @@
 }
 
 .lesson-shell__reset-button:hover {
+  color: var(--th-text);
   background: var(--th-bg-hover);
 }
 
@@ -244,6 +248,7 @@
   overflow: auto;
   padding: 0.75rem;
   background: var(--th-code-bg);
+  color: var(--th-text-body);
   border: 1px solid var(--th-border);
   border-radius: var(--radius-sm);
   font-family: var(--font-mono);

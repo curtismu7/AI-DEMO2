@@ -40,4 +40,17 @@ describe('buildGwAuthorizeEventExtra', () => {
     expect(extra.filterChain).toEqual([{ filter: 'P1AZDecision', result: 'blocked', decision: 'DENY' }]);
     expect(extra.policy).toEqual({ passed: true });
   });
+
+  it('forwards resolver evidence for the live P1AZ account-context step', () => {
+    const resolver = {
+      status: 'resolved',
+      source: 'sqlite',
+      userId: 'demo-user',
+      accountId: 'acct-002',
+      riskTier: 'standard',
+      balance: 18540,
+      currency: 'USD',
+    };
+    expect(buildGwAuthorizeEventExtra({ resolver }).resolver).toEqual(resolver);
+  });
 });

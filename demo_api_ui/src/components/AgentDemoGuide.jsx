@@ -18,7 +18,9 @@
  * 12. claim-diagnostics — Token claim analysis
  * 13. bff-intent-token — Intent Token binding (HMAC-bound prompt intent)
  *
- * Usage: Click "Guide" in the agent header to open this window.
+ * Usage: The agent header's Guide button opens the AI Security Academy.
+ * This legacy compliance view remains available from /demo-guide-popout and
+ * is retained as a detailed presenter reference for the Academy lessons.
  * Reference: See /architecture/flow for live compliance flow diagram.
  */
 

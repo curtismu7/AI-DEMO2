@@ -520,3 +520,7 @@ export function CibaApprovalPageRoute() {
 }
 
 export { LogoutPage, ComplianceModalPopout, DemoGuidePopout };
+export {
+  GuidedJourneyRoute,
+  StandaloneDemoLauncherRoute,
+} from "./AcademyRoutes";

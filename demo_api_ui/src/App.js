@@ -201,6 +201,8 @@ import PublicRoutes, {
   DavinciSdkLoginRoute,
   DavinciLoginGuidePageRoute,
   GraphifyPageRoute,
+  GuidedJourneyRoute,
+  StandaloneDemoLauncherRoute,
   IntentBindingLearningPageRoute,
   A2AProtocolLearningPageRoute,
   LiveUseCaseWorkbenchPageRoute,
@@ -923,6 +925,26 @@ function AppWithAuth() {
                         </main>
                       </>
                     )
+                  }
+                />
+                <Route
+                  path="/academy/journey"
+                  element={
+                    <GuidedJourneyRoute
+                      loading={loading}
+                      user={user}
+                      logout={logout}
+                    />
+                  }
+                />
+                <Route
+                  path="/academy/demos"
+                  element={
+                    <StandaloneDemoLauncherRoute
+                      loading={loading}
+                      user={user}
+                      logout={logout}
+                    />
                   }
                 />
                 <Route

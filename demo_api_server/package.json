@@ -50,6 +50,7 @@
     "data:preflight": "node scripts/importMigrationBundle.js --preflight-only",
     "pingone:bootstrap": "node scripts/bootstrapPingOne.js",
     "pingone:provision-groups": "node scripts/provisionVerticalGroups.js",
+    "pingone:provision-autonomous-agents": "node scripts/provisionAutonomousAgents.js",
     "pingone:bootstrap:ci": "node scripts/bootstrapPingOne.js --non-interactive",
     "pingone:setup:trat": "node scripts/setupTratClaims.js",
     "scopes:doc": "node scripts/generate-scope-doc.js",

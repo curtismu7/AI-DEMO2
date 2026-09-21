@@ -1,0 +1,114 @@
+.academy-learning-rail {
+  display: grid;
+  grid-template-columns: minmax(13rem, 0.34fr) minmax(0, 1fr);
+  gap: clamp(1rem, 3vw, 2rem);
+  padding: clamp(1.1rem, 2.5vw, 1.6rem);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+  color: var(--th-text-body);
+  background: var(--th-bg-card);
+}
+
+.academy-learning-rail__intro > p {
+  margin: 0 0 0.45rem;
+  color: var(--th-status-info-text);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+}
+
+.academy-learning-rail__intro h2 {
+  margin: 0;
+  color: var(--th-text);
+  font-size: var(--font-size-xl);
+  line-height: 1.15;
+}
+
+.academy-learning-rail__intro > span {
+  display: block;
+  max-width: 34ch;
+  margin-top: 0.7rem;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+.academy-learning-rail__resources {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--th-border);
+  background: var(--th-border);
+  color: var(--th-text-body);
+  gap: 1px;
+}
+
+.academy-learning-rail__group {
+  min-width: 0;
+  padding: 0.9rem;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
+}
+
+.academy-learning-rail__group h3 {
+  margin: 0 0 0.55rem;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.academy-learning-rail__group ul {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.academy-learning-rail__group li + li {
+  border-top: 1px solid var(--th-border);
+}
+
+.academy-learning-rail__group a,
+.academy-learning-rail__group button {
+  display: grid;
+  width: 100%;
+  gap: 0.15rem;
+  padding: 0.7rem 0.25rem;
+  border: 0;
+  color: var(--th-text);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+}
+
+.academy-learning-rail__group a:hover strong,
+.academy-learning-rail__group a:focus-visible strong,
+.academy-learning-rail__group button:hover strong,
+.academy-learning-rail__group button:focus-visible strong {
+  color: var(--th-status-info-text);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.academy-learning-rail__group strong {
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+}
+
+.academy-learning-rail__group span {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+}
+
+@media (max-width: 900px) {
+  .academy-learning-rail {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 680px) {
+  .academy-learning-rail__resources {
+    grid-template-columns: 1fr;
+  }
+}

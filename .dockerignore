@@ -15,6 +15,9 @@
 
 # Never copy host node_modules into an image; npm ci/npm install provides them.
 **/node_modules
+**/.venv
+**/.git
+**/.worktrees
 
 # VCS, agent worktrees, and editor scratch dirs — large and irrelevant to builds.
 # (.claude holds nested git worktrees; sending it as context was very expensive.)

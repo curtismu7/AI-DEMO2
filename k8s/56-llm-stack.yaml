@@ -2,7 +2,7 @@
 #
 # Swap mode: only ONE llama-server tier runs at a time. tier-manager scales
 # llama-tier1 (:8091, Phi-4-mini), llama-tier3 (:8093, Llama-3-Groq-8B-Tool-Use
-# — experimental), or llama-tier5 (:8096, gpt-oss-20b) on demand; llm-proxy
+# — the default tool-use tier), or llama-tier5 (:8096, gpt-oss-20b) on demand; llm-proxy
 # (:8090) routes agent/BFF traffic and triggers swaps.
 #
 # Consumers use LLAMACPP_BASE_URL=http://llm-proxy:8090 (configmap).
@@ -169,9 +169,8 @@ metadata:
     app: ai-demo
     component: llama-tier3
 spec:
-  # 0: tiers swap on a shared RWO model volume; llama-tier3 is an experimental
-  # evaluation tier (Llama-3-Groq-8B-Tool-Use) — scaled up only for A/B testing
-  # against the pinned llama-tier5 (gpt-oss-20b), never the default.
+  # 0: tiers swap on a shared RWO model volume; llama-tier3 is the default
+  # tool-use tier for this cluster. The tier-manager scales it up on demand.
   replicas: 0
   strategy:
     type: Recreate
@@ -200,8 +199,7 @@ spec:
             - "1"
             - "--jinja"
             # HuggingFace GGUF download into PVC cache (SE/AWS has no hostPath).
-            # NOT seeded by default — see 54-seed-llm-models.yaml. Scaling this
-            # tier up without adding it there gets a CrashLoopBackOff, on purpose.
+            # Seeded by 54-seed-llm-models.yaml before this tier is started.
             - "-m"
             - "/models/Llama-3-Groq-8B-Tool-Use-Q4_K_M.gguf"
           ports:
@@ -271,9 +269,9 @@ metadata:
     app: ai-demo
     component: llama-tier5
 spec:
-  # 1 replica: gpt-oss-20b is the tool-calling tier — with it absent, the proxy
-  # downgrades every agent LLM call to phi-4-mini, which cannot drive tools.
-  replicas: 1
+  # 0 replicas by default: the 20B tier is retained as an explicit opt-in but
+  # does not fit the standard cluster memory profile.
+  replicas: 0
   strategy:
     type: Recreate
   selector:
@@ -482,11 +480,11 @@ spec:
               value: "llama-tier3"
             - name: LLAMA_TIER5_HOST
               value: "llama-tier5"
-            # Pin to :8096 (gpt-oss-20b). The tiers swap (shared RWO model
-            # volume — only one runs at a time); pinning :8091 capped every
-            # agent LLM call to phi-4-mini, which cannot drive tool calls.
+            # Pin to :8093 (Llama-3-Groq-8B-Tool-Use). The tiers swap (shared
+            # RWO model volume — only one runs at a time); this keeps the
+            # tool-calling demo within the cluster's memory budget.
             - name: LLM_PROXY_PIN_TIER
-              value: "8096"
+              value: "8093"
           resources:
             requests:
               memory: "64Mi"

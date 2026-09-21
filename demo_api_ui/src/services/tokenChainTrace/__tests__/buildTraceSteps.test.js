@@ -122,6 +122,40 @@ describe("buildTraceSteps — Agent Gateway filter chain", () => {
   ];
   const gwStep = (steps) => steps.find((s) => s.id === "gateway");
 
+  test("renders the live P1AZ resolver as a distinct SQLite-backed step", () => {
+    const steps = buildTraceSteps({
+      ...EMPTY_TRACE,
+      tokenEvents: [{
+        id: "gw-authorize",
+        status: "permit",
+        decision: "PERMIT",
+        resolver: {
+          status: "resolved",
+          source: "sqlite",
+          userId: "demo-user",
+          accountId: "acct-002",
+          riskTier: "standard",
+          balance: 18540,
+          currency: "USD",
+        },
+      }],
+    });
+    const resolver = steps.find((step) => step.id === "p1az-resolver");
+    expect(resolver).toMatchObject({
+      title: "P1AZ Resolver → SQLite account context",
+      lane: "DATA",
+      status: "done",
+    });
+    expect(resolver.detail.kv).toEqual([
+      ["user", "demo-user"],
+      ["account", "acct-002"],
+      ["risk tier", "standard"],
+      ["balance", "18540 USD"],
+      ["source", "SQLite"],
+    ]);
+    expect(steps.indexOf(resolver)).toBe(steps.findIndex((step) => step.id === "gateway") - 1);
+  });
+
   test("maps the gateway's stage vocabulary onto the rail's status vocabulary", () => {
     const stages = buildGatewayStages(CHAIN, null);
     expect(stages.map((s) => s.status)).toEqual(["done", "done", "done", "notinpath", "done"]);

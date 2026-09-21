@@ -64,7 +64,7 @@ function resolveAgentCredentials(agentName) {
   }
   return {
     clientId: null, clientSecret: null, ownIdentity: false,
-    reason: `${prefix}_client_id/_secret are not configured — the agent's PingOne registration exists in scope-topology.json but has not been provisioned, so this run borrows the shared token-exchanger client`,
+    reason: `${prefix}_client_id/_secret are not configured — the agent's PingOne registration exists in scope-topology.json but has not been provisioned, so this run fails closed without minting a token`,
   };
 }
 

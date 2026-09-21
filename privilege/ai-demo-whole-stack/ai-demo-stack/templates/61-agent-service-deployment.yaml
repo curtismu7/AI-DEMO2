@@ -44,7 +44,7 @@ spec:
         - name: MCP_GATEWAY_URL
           value: "http://mcp-gateway:3005"
         - name: LLAMACPP_MODEL
-          value: "gpt-oss-20b"
+          value: "llama-3-groq-8b-tool-use"
         # OpenTelemetry → in-cluster Jaeger (k8s/73-jaeger-deployment.yaml).
         # Mirrors docker-compose: the bootstrap script is mounted at /otel from
         # the otel-instrument ConfigMap (created by the deploy scripts).

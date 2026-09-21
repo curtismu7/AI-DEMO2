@@ -58,7 +58,7 @@
   border: 1px solid var(--th-border);
   border-radius: var(--radius-lg);
   background: var(--th-bg-card);
-  box-shadow: var(--th-shadow-sm);
+  box-shadow: var(--shadow-sm);
 }
 
 .learning-lab__panel h2 {
@@ -123,7 +123,7 @@
   border: 1px solid var(--th-border);
   border-radius: var(--radius-sm);
   color: var(--th-text);
-  background: var(--th-bg);
+  background: var(--th-bg-page);
   font: inherit;
 }
 
@@ -160,9 +160,9 @@
 }
 
 .learning-lab__result--danger {
-  color: var(--th-status-danger-text);
-  background: var(--th-status-danger-bg);
-  border-color: var(--th-status-danger-border);
+  color: var(--th-status-error-text);
+  background: var(--th-status-error-bg);
+  border-color: var(--th-status-error-border);
 }
 
 .learning-lab__result small {
