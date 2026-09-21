@@ -160,23 +160,23 @@ Error discovering MCP server: calling "initialize": sending "initialize": Unauth
 This means the proxy connected to the control plane but the **upstream MCP server
 rejected the forwarded request**. Two causes:
 
-### Cause A — mTLS is enabled on the MCP server
+### Cause A — the Privilege backend is still pointed at the mTLS port
 
-The Privilege proxy doesn't carry the gateway mTLS client cert. The MCP server
-drops the connection as unauthorized.
+The Privilege proxy doesn't carry the gateway mTLS client cert. The MCP server's
+primary `8080` listener therefore rejects it when `MCP_MTLS_ON=1`.
 
 ```bash
 # Check:
 docker exec ai-demo-mcp-server env | grep MCP_MTLS
 ```
 
-Fix by clearing **`MCP_MTLS_ON`** in the root `.env`, not by exporting `MCP_MTLS_ENABLED`:
-`docker-compose.yml` sets `MCP_MTLS_ENABLED: "${MCP_MTLS_ON:+true}"` for every consumer, so
-a shell value is overwritten at container creation. One switch drives four services.
+Fix the MCP Server application's Backend Name in the Privilege console to
+`http://mcp-server:8081/mcp`, the dedicated plaintext compatibility listener.
+Keep `MCP_MTLS_ON=1` enabled for the gateway/PingGateway path on `mcp-server:8080`.
 
 ```bash
-# root .env: leave it empty for plaintext
-MCP_MTLS_ON=
+# root .env: mTLS remains enabled for the gateway/PingGateway hop
+MCP_MTLS_ON=1
 ```
 
 Then recreate — `restart` alone will not re-read `.env`. Do not run `docker compose up`
@@ -197,7 +197,7 @@ and returns 401 — the Privilege proxy has no delegated token for PingGateway.
 
 **Fix in the Privilege console:**
 1. Go to **AI Security → Agentic Apps** → your MCP Server app
-2. Set **MCP Server URL** to `http://mcp-server:8080/mcp` (internal compose DNS,
+2. Set **MCP Server URL** to `http://mcp-server:8081/mcp` (internal compose DNS,
    bypasses PingGateway — Privilege IS the security boundary, not PingGateway)
 3. **Auth Mode**: Static Token (leave the value blank) or None
 4. Click **Discover** — tools should appear within ~30s

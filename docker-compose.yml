@@ -848,6 +848,10 @@ services:
       TOKEN_STORAGE_PATH: "/app/data/tokens"
       MCP_SERVER_HOST: "0.0.0.0"
       MCP_SERVER_PORT: "8080"
+      # Privilege's private proxy cannot present the gateway mTLS client
+      # certificate. Keep its backend on a separate internal plaintext port;
+      # the primary :8080 listener remains the mTLS-protected gateway hop.
+      MCP_PRIVILEGE_PORT: "8081"
       # Opt-in TLS+ALPN listener for real HTTP/2 to the BFF's http2McpBridge.js.
       # Default off: when unset, no second port is bound, no cert is generated,
       # and the plain ws:// listener on MCP_SERVER_PORT is completely unaffected.
@@ -906,23 +910,24 @@ services:
       # ID-JAG minted for that resource — the demo-api-server side already
       # allow-lists the same URI via ENTERPRISE_MCP_RESOURCE_URIS.
       MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo,https://api.pingone.com,https://api.ping.demo:3036/mcp,http://localhost:8080/mcp"
-      # mTLS on the PingGateway -> MCP server hop. When on the server serves
-      # HTTPS (self-signed, regenerated each start) and REQUIRES a client cert
-      # whose SHA-256 matches MCP_MTLS_GATEWAY_CERT_PATH.
+      # mTLS on the gateway -> MCP server hop. When on the server serves HTTPS
+      # on :8080 (self-signed, regenerated each start) and REQUIRES a client
+      # cert whose SHA-256 matches MCP_MTLS_GATEWAY_CERT_PATH. Privilege uses
+      # the separate plaintext :8081 listener above because its proxy does not
+      # carry this client certificate.
       #
       # ONE SWITCH — `MCP_MTLS_ON` in the root .env — drives every side of the hop,
       # because they must move together or the channel breaks in both directions:
       #   this listener (here) · BFF ws/wss + audit hop (~L105) · Node mcp-gateway
       #   MCP_GW_OLB_WS_URL + client certs (~L493) · PingGateway PG_OLB_BACKEND_URL
       #   + keystore (~L1044).
-      # Set MCP_MTLS_ON=1 to turn mTLS on; leave it unset/empty for plaintext.
+      # Set MCP_MTLS_ON=1 to turn mTLS on for :8080; leave it unset/empty for
+      # the legacy all-plaintext mode. Privilege remains on :8081 in either mode.
       # `${MCP_MTLS_ON:+x}` is how a bare on/off switch becomes a scheme (http/https,
       # ws/wss) and a "true" without a second variable that can drift out of sync.
       #
-      # Currently OFF: 50dd52be (privilege-mcp) turned this listener plaintext while
-      # every client still dialled TLS, which killed the gateway->MCP hop
-      # ("Unsupported or unrecognized SSL message"). Re-enable with MCP_MTLS_ON=1
-      # once the Privilege MCP path works with an mTLS listener.
+      # The Privilege compatibility blocker is resolved by the dedicated :8081
+      # listener; MCP_MTLS_ON can now be enabled without breaking Privilege.
       MCP_MTLS_ENABLED: "${MCP_MTLS_ON:+true}"
       MCP_MTLS_GATEWAY_CERT_PATH: "/certs/gw-mtls/gw-client.crt"
       MCP_MTLS_ALLOWED_SPIFFE_ID: "${MCP_MTLS_ALLOWED_SPIFFE_ID:-}"
