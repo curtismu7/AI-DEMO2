@@ -114,6 +114,13 @@ export default function TopNav({ user, onLogout }) {
 
         {/* Left: Brand */}
         <div className="topnav-left">
+          <div className="topnav-ping-identity" aria-label="Ping Identity">
+            <img
+              src="/assets/ping-identity-logo.png"
+              alt="Ping Identity"
+              className="topnav-ping-identity-logo"
+            />
+          </div>
           <button
             type="button"
             className="topnav-brand"
