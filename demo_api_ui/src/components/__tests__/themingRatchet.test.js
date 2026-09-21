@@ -266,7 +266,7 @@ describe('theming ratchet', () => {
  */
 // Reconciled with the current main baseline after the MCP observability and
 // A2A console merges. New themed surfaces must still add their own ink.
-const MAX_GROUND_WITHOUT_INK = 467;
+const MAX_GROUND_WITHOUT_INK = 462;
 
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const HAS_COLOR = /(?:^|\n)\s*color\s*:/;
