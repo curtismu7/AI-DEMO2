@@ -33,6 +33,7 @@ function createHostedRegistrationService({
   sendOtp = sendHostedRegistrationOtp,
   otpTtlMs = OTP_TTL_MS,
   otpResendCooldownMs = OTP_RESEND_COOLDOWN_MS,
+  stageRegistration = null,
 } = {}) {
   function findByEmail(email) {
     return store.list().find((record) => record.email === email && !['rejected', 'expired'].includes(record.status));
@@ -71,7 +72,12 @@ function createHostedRegistrationService({
     record.lastOtpSentAt = now();
     record.updatedAt = now();
     store.put(record);
-    await sendOtp(email, otp);
+    if (stageRegistration && !record.pingOneUserId) {
+      const staged = await stageRegistration(record);
+      Object.assign(record, staged);
+      store.put(record);
+    }
+    await sendOtp(email, otp, record);
     return { requestId: record.id, status: record.status, email }; 
   }
 

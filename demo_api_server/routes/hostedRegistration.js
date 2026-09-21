@@ -6,8 +6,10 @@ const { sendHostedRegistrationAdminAlert } = require('../services/emailService')
 const { createHostedRegistrationProvisioningService } = require('../services/hostedRegistrationProvisioningService');
 
 const router = express.Router();
-const registrationService = createHostedRegistrationService();
 const provisioningService = createHostedRegistrationProvisioningService();
+const registrationService = createHostedRegistrationService({
+  stageRegistration: (record) => provisioningService.stage(record),
+});
 
 function publicError(res, error, status = 400) {
   return res.status(status).json({ error });

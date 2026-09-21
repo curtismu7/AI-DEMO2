@@ -16,8 +16,6 @@
 
 'use strict';
 
-const nodemailer = require('nodemailer');
-
 const axios = require('axios');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const configStore = require('./configStore');
@@ -329,49 +327,32 @@ async function sendOtpSms(userId, opts) {
   }
 }
 
-async function sendHostedRegistrationOtp(email, otp) {
-  const host = process.env.HOSTED_REGISTRATION_SMTP_HOST || process.env.SMTP_HOST;
-  const from = process.env.HOSTED_REGISTRATION_FROM || process.env.SMTP_FROM;
-  if (!host || !from) {
-    throw Object.assign(new Error('Hosted registration email delivery is not configured'), { code: 'registration_email_unconfigured' });
-  }
-  const transport = nodemailer.createTransport({
-    host,
-    port: Number(process.env.HOSTED_REGISTRATION_SMTP_PORT || process.env.SMTP_PORT || 587),
-    secure: String(process.env.HOSTED_REGISTRATION_SMTP_SECURE || process.env.SMTP_SECURE || '').toLowerCase() === 'true',
-    auth: process.env.HOSTED_REGISTRATION_SMTP_USER || process.env.SMTP_USER
-      ? { user: process.env.HOSTED_REGISTRATION_SMTP_USER || process.env.SMTP_USER, pass: process.env.HOSTED_REGISTRATION_SMTP_PASS || process.env.SMTP_PASS }
-      : undefined,
-  });
-  await transport.sendMail({
-    from,
-    to: email,
+async function sendHostedRegistrationOtp(email, otp, record = {}) {
+  const userId = record.pingOneUserId;
+  if (!userId) throw Object.assign(new Error('Hosted registration PingOne user is not staged'), { code: 'registration_user_unconfigured' });
+  await sendPingOneMessage(userId, {
     subject: 'AI Demo registration verification code',
-    text: `Your AI Demo registration verification code is ${otp}. It expires in 10 minutes.`,
+    body: `Your AI Demo registration verification code is ${otp}. It expires in 10 minutes.`,
   });
 }
 
 async function sendHostedRegistrationAdminAlert(record) {
-  const host = process.env.HOSTED_REGISTRATION_SMTP_HOST || process.env.SMTP_HOST;
-  const from = process.env.HOSTED_REGISTRATION_FROM || process.env.SMTP_FROM;
-  const to = process.env.HOSTED_REGISTRATION_ADMIN_EMAIL;
-  if (!host || !from || !to) {
-    throw Object.assign(new Error('Hosted registration admin email is not configured'), { code: 'registration_admin_email_unconfigured' });
-  }
-  const transport = nodemailer.createTransport({
-    host,
-    port: Number(process.env.HOSTED_REGISTRATION_SMTP_PORT || process.env.SMTP_PORT || 587),
-    secure: String(process.env.HOSTED_REGISTRATION_SMTP_SECURE || process.env.SMTP_SECURE || '').toLowerCase() === 'true',
-    auth: process.env.HOSTED_REGISTRATION_SMTP_USER || process.env.SMTP_USER
-      ? { user: process.env.HOSTED_REGISTRATION_SMTP_USER || process.env.SMTP_USER, pass: process.env.HOSTED_REGISTRATION_SMTP_PASS || process.env.SMTP_PASS }
-      : undefined,
-  });
-  await transport.sendMail({
-    from,
-    to,
+  const userId = process.env.HOSTED_REGISTRATION_ADMIN_USER_ID;
+  if (!userId) throw Object.assign(new Error('Hosted registration admin PingOne user is not configured'), { code: 'registration_admin_user_unconfigured' });
+  await sendPingOneMessage(userId, {
     subject: 'New AI Demo hosted-access registration',
-    text: `A verified PingIdentity registration request is waiting for approval.\n\nEmail: ${record.email}\nName: ${[record.firstName, record.lastName].filter(Boolean).join(' ') || '(not provided)'}\nRequested role: ${record.requestedRole}\nRequest ID: ${record.id}`,
+    body: `A verified PingIdentity registration request is waiting for approval.\n\nEmail: ${record.email}\nName: ${[record.firstName, record.lastName].filter(Boolean).join(' ') || '(not provided)'}\nRequested role: ${record.requestedRole}\nRequest ID: ${record.id}`,
   });
+}
+
+async function sendPingOneMessage(userId, { subject, body }) {
+  const envId = configStore.getEffective('PINGONE_ENVIRONMENT_ID');
+  const region = configStore.getEffective('PINGONE_REGION') || 'com';
+  const token = await getManagementToken();
+  if (!envId || !token) throw Object.assign(new Error('PingOne notification delivery is not configured'), { code: 'registration_email_unconfigured' });
+  await axios.post(`https://api.pingone.${region}/v1/environments/${envId}/users/${userId}/messages`, {
+    content: [{ deliveryMethod: 'Email', subject, body, charset: 'UTF-8' }],
+  }, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, timeout: 10000 });
 }
 
 module.exports = { sendTransactionConfirmation, sendOtpEmail, sendOtpSms, sendHostedRegistrationOtp, sendHostedRegistrationAdminAlert };
