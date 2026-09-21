@@ -24,6 +24,7 @@ import CollapsibleStepDetail from "./CollapsibleStepDetail";
 import OAuthVisualizerPanel from "./OAuthVisualizerPanel";
 import ReasoningPanel from './ReasoningPanel';
 import ConversationSummaryPanel from './ConversationSummaryPanel';
+import UseCaseRunContextCard from './UseCaseRunContextCard';
 import ProofStrip from './ProofStrip';
 import { navigateToCustomerOAuthForceLogin, requestSilentReauth, isAuthRequiredApiError, notifySessionExpiredIfNeeded, USER_SESSION_EXPIRED_MESSAGE } from "../utils/authUi";
 import { setAgentAuthorization } from "../services/agentAuthorizationService";
@@ -1626,6 +1627,7 @@ export default function BankingAgent({
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const navigate = useNavigate();
   const location = useLocation();
+  const [runContext, setRunContext] = useState(null);
   const [searchParams] = useSearchParams();
   // Current pathname reachable from effects that must not list it as a dep.
   const pathnameRef = useRef(location.pathname);
@@ -1733,6 +1735,11 @@ export default function BankingAgent({
     }
     // Use-case launcher: consume triggerText + useCaseId from navigate state
     if (location.state?.triggerText) {
+      setRunContext(location.state.runContext || {
+        source: 'use-cases',
+        useCaseId: location.state.useCaseId,
+        triggerText: location.state.triggerText,
+      });
       if (location.state.useCaseId) {
         pendingUcIdRef.current = location.state.useCaseId;
       }
@@ -9983,6 +9990,11 @@ export default function BankingAgent({
                       : splitChrome
                         ? `${brandShortName} Assistant`
                         : `${brandShortName} AI Agent`}
+                    {runContext && (
+                      <span className="ba-run-context-badge">
+                        Use Cases · {runContext.useCaseId || 'scenario'}
+                      </span>
+                    )}
                   </div>
                   <div className="ba-subtitle">
                     {isConfigEmbeddedFocus
@@ -12263,6 +12275,7 @@ export default function BankingAgent({
               </div>
             )}
             <div className="ba-right-col">
+              <UseCaseRunContextCard runContext={runContext} />
               {/* Live agent reasoning visibility (renders only while a run reports a phase) */}
               {aguiEnabled && <ReasoningPanel reasoningState={aguiState.reasoningState} />}
               {/* Earlier-in-this-conversation summaries (renders only when summaries exist) */}

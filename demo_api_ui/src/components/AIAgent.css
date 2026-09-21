@@ -919,6 +919,20 @@ body > .banking-agent-float-root .banking-agent-panel {
   margin: 0 0 2px;
   line-height: 1.35;
 }
+
+.ba-run-context-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border: 1px solid var(--th-status-info);
+  border-radius: var(--radius-pill);
+  color: var(--th-status-info-text);
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
+}
 .ba-subtitle {
   font-size: var(--font-size-2xs);
   color: var(--th-text) !important;
