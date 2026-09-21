@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import InspectorShell from '../components/shared/InspectorShell';
+import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import apiClient from '../services/apiClient';
 import './NotebookLmPage.css';
 
@@ -195,7 +196,7 @@ export default function NotebookLmPage() {
       </button>
       {asking && (
         <div className="nlm-progress" role="status" aria-live="polite">
-          <span className="nlm-spinner" aria-hidden="true" />
+          <PingIdentitySpinner size={22} aria-hidden="true" />
           <span>
             Searching the sources… {elapsed}s
             {elapsed >= 20 ? ' — long answers can take up to a minute' : ''}

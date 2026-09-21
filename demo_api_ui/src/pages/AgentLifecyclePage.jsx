@@ -1,4 +1,5 @@
 import React from 'react';
+import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import './AgentLifecyclePage.css';
 import { callMcpTool } from '../services/demoAgentService';
 import TokenChainTraceRail from '../components/TokenChainTraceRail';
@@ -292,7 +293,7 @@ function StepUpSlot() {
       </button>
       {message && (
         <p className="alp-slot__status">
-          {phase === 'waiting-approval' && <span className="alp-spinner" aria-hidden="true" />}
+          {phase === 'waiting-approval' && <PingIdentitySpinner size={20} aria-hidden="true" />}
           {message}
         </p>
       )}

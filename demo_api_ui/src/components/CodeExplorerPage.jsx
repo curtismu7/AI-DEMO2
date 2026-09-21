@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { spinner } from '../services/spinnerService';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 import { HeroSection } from './HeroSection';
 import { HERO_VARIANTS } from '../config/heroVariants';
 import { useThemeOptional } from '../context/ThemeContext';
@@ -67,7 +68,7 @@ const CodeExplorerPage = () => {
     return (
       <div className="cex-wake-overlay">
         <div className="cex-wake-card">
-          <div className="cex-wake-spinner" aria-hidden="true" />
+          <PingIdentitySpinner size={28} aria-hidden="true" />
           <div className="cex-wake-title">Starting Code Explorer</div>
           <div className="cex-wake-sub">
             {serviceState === 'checking'

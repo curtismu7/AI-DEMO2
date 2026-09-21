@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useVertical } from '../vertical/useVertical';
 import ThemeZonePanel from './ThemeZonePanel';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 import './VerticalSwitcher.css';
 
 /**
@@ -99,7 +100,7 @@ export default function VerticalSwitcher({ variant = 'nav' }) {
         </div>
         {switching && (
           <div className="vertical-switcher__loading" role="status" aria-live="polite">
-            <span className="vertical-switcher__spinner" aria-hidden="true" />
+            <PingIdentitySpinner size={18} aria-hidden="true" />
             Switching...
           </div>
         )}
@@ -129,7 +130,7 @@ export default function VerticalSwitcher({ variant = 'nav' }) {
       </select>
       {switching && (
         <span className="vertical-switcher__loading" role="status" aria-live="polite">
-          <span className="vertical-switcher__spinner" aria-hidden="true" />
+            <PingIdentitySpinner size={18} aria-hidden="true" />
           Switching...
         </span>
       )}

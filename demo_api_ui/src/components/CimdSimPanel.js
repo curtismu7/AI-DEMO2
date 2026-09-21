@@ -19,6 +19,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 import './CimdSimPanel.css';
 
 // ── Demo CIMD document (always available, uses current origin) ────────────────
@@ -830,7 +831,7 @@ Accept: application/json`}</CodeBlock>
               <div className="cimd-fetch-status">
                 {fetchStatus === 'loading' && (
                   <div className="cimd-fetch-spinner">
-                    <div className="cimd-spinner" />
+                    <PingIdentitySpinner size={26} aria-hidden="true" />
                     <span>
                       Fetching metadata document from{' '}
                       <strong>{cimdHost}</strong>…

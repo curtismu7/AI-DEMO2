@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import DraggableModal from './DraggableModal';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 import { registerPasskey, normalizePublicKeyRequestOptions } from '../utils/passkeyCeremony';
 import { normalizePhoneE164, describePasskeyRegistrationError, isPasskeySupported } from '../utils/mfaEnrollment';
 
@@ -1068,7 +1069,7 @@ export default function OtpStepUpModal({
           {/* Registering a passkey (WebAuthn create ceremony in progress) */}
           {p1Step === 'registering' && (
             <>
-              <div className="push-waiting-spinner" style={{ margin: '16px auto' }}></div>
+              <PingIdentitySpinner size={48} className="otp-step-up-modal__spinner" aria-hidden="true" />
               <p style={{ textAlign: 'center', fontWeight: 500 }}>Registering your passkey…</p>
               <p className="otp-step-up-modal__hint">Approve with your device biometric or security key, then we&apos;ll verify automatically.</p>
             </>
@@ -1079,7 +1080,7 @@ export default function OtpStepUpModal({
           {/* Push Waiting */}
           {p1Step === 'push' && (
             <>
-              <div className="push-waiting-spinner" style={{ margin: '16px auto' }}></div>
+              <PingIdentitySpinner size={48} className="otp-step-up-modal__spinner" aria-hidden="true" />
               <p style={{ textAlign: 'center', fontWeight: 500 }}>Push notification sent to your device</p>
               <p className="otp-step-up-modal__hint">Approve the notification on your phone</p>
             </>
@@ -1168,7 +1169,7 @@ export default function OtpStepUpModal({
 
         {stubShowRegistering && (
           <>
-            <div className="push-waiting-spinner" style={{ margin: '16px auto' }}></div>
+            <PingIdentitySpinner size={48} className="otp-step-up-modal__spinner" aria-hidden="true" />
             <p style={{ textAlign: 'center', fontWeight: 500 }}>Registering your passkey…</p>
             <p className="otp-step-up-modal__hint">Approve with your device biometric or security key, then we&apos;ll verify automatically.</p>
           </>

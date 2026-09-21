@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import SignInPrompt from './SignInPrompt';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 import { useThemeOptional } from '../context/ThemeContext';
 import './PingCliPage.css';
 
@@ -800,7 +801,7 @@ export default function PingCliPage() {
                     <div className="pingcli-cmd-top">
                       <span className="pingcli-cmd-label">
                         {isRunning && (
-                          <span className="pingcli-spinner" aria-hidden="true" />
+                          <PingIdentitySpinner size={20} aria-hidden="true" />
                         )}
                         {label}
                       </span>
@@ -824,7 +825,7 @@ export default function PingCliPage() {
                       onClick={() => run(key)}
                     >
                       {isRunning && (
-                        <span className="pingcli-spinner pingcli-spinner-on-dark" aria-hidden="true" />
+                        <PingIdentitySpinner size={20} aria-hidden="true" />
                       )}
                       {runLabel}
                     </button>
@@ -857,7 +858,7 @@ export default function PingCliPage() {
             >
               {runStatus.phase === 'running' ? (
                 <>
-                  <span className="pingcli-spinner pingcli-spinner-on-light" aria-hidden="true" />
+                  <PingIdentitySpinner size={20} aria-hidden="true" />
                   <span>
                     Running <strong>{runStatus.label}</strong>…
                   </span>

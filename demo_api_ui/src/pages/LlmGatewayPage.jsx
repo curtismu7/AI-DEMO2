@@ -20,6 +20,7 @@ import { ATTACK_CATEGORIES, GUARDRAIL_ATTACKS } from '../config/guardrailAttackC
 import BlockAgreementModal from '../components/BlockAgreementModal';
 import LlmGatewayReel from './LlmGatewayReel';
 import JsonHighlight from '../components/shared/JsonHighlight';
+import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import GatewayVerdicts from '../components/GatewayVerdicts';
 import './LlmGatewayPage.css';
 
@@ -814,7 +815,7 @@ export default function LlmGatewayPage() {
             ) : null}
             {busy ? (
               <p className="lgw-empty lgw-busy">
-                <span className="lgw-spinner" aria-hidden="true" />
+                <PingIdentitySpinner size={22} aria-hidden="true" />
                 Sending through {TITLES[selected] || selected}&hellip;
               </p>
             ) : null}

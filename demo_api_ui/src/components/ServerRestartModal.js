@@ -10,6 +10,7 @@
 
 import { useRestartModal } from '../services/bankingRestartNotificationService';
 import DraggableModal from './DraggableModal';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 import './ServerRestartModal.css';
 
 export default function ServerRestartModal() {
@@ -50,7 +51,7 @@ export default function ServerRestartModal() {
       storageKey={null}
     >
       <div className="dm-scroll" style={{ textAlign: 'center' }}>
-        <div className="restart-spinner" aria-label="Loading" aria-hidden="true" />
+        <PingIdentitySpinner size={40} aria-hidden="true" />
         <p className="restart-message">
           The server is temporarily unavailable. Reconnecting...
         </p>

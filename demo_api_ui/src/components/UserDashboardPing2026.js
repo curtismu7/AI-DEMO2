@@ -64,6 +64,7 @@ import OAuthTokenDisplayPage from "./OAuthTokenDisplayPage";
 import { useVertical } from "../vertical/useVertical";
 import RetailDashboard from "./RetailDashboard";
 import AgentClinicalHost from "./agent-clinical/AgentClinicalHost";
+import PingIdentitySpinner from "./shared/PingIdentitySpinner";
 
 /**
  * True when the server answered from its idempotency ledger rather than by
@@ -3447,7 +3448,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               className="otp-step-up-modal__body"
               style={{ textAlign: "center", padding: "1rem 0" }}
             >
-              <div className="push-waiting-spinner" />
+              <PingIdentitySpinner size={48} aria-hidden="true" />
               <p
                 className="otp-step-up-modal__lead"
                 style={{ marginTop: "1rem" }}
@@ -3844,11 +3845,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     return (
       <div className="main-content--auth-loading">
         <div className="auth-loading-card">
-          <div className="auth-loading-dots">
-            <span className="auth-loading-dot" />
-            <span className="auth-loading-dot" />
-            <span className="auth-loading-dot" />
-          </div>
+          <PingIdentitySpinner size={64} label="Loading your dashboard…" />
           <div className="auth-loading-title">Loading your dashboard</div>
         </div>
       </div>

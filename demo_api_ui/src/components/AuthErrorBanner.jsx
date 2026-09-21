@@ -11,6 +11,7 @@
  */
 
 import React, { useState } from 'react';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 import './AuthErrorBanner.css';
 
 function AuthErrorBanner({
@@ -91,7 +92,7 @@ function AuthErrorBanner({
     return (
       <div className={`auth-error-banner transient ${className}`}>
         <div className="banner-content">
-          <div className="banner-icon spinner">⟳</div>
+          <PingIdentitySpinner size={24} aria-hidden="true" />
           <div className="banner-text">
             <h3>Connecting...</h3>
             <p>We're having a temporary connection issue. Retrying...</p>

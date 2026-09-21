@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 import {
   formatPublicKeyCredentialAssertion,
   normalizePublicKeyRequestOptions,
@@ -127,7 +128,7 @@ export default function Fido2Challenge({ daId, deviceId, onSuccess, onCancel, on
           )}
           {status === 'waiting' && (
             <>
-              <div className="push-waiting-spinner" />
+              <PingIdentitySpinner size={48} aria-hidden="true" />
               <p className="otp-step-up-modal__lead" style={{ marginTop: '1rem' }}>
                 Follow the prompt from your browser or device to verify with your{' '}
                 <strong>passkey or security key</strong>.

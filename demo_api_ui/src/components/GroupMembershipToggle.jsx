@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import DraggableModal from "./DraggableModal";
 import apiClient from "../services/apiClient";
+import PingIdentitySpinner from "./shared/PingIdentitySpinner";
 import "./GroupMembershipToggle.css";
 
 /**
@@ -82,7 +83,7 @@ export default function GroupMembershipToggle({ onChange = null, verticalId = nu
   if (loading) {
     return (
       <div className="gmt-panel gmt-panel--loading" role="status" aria-live="polite">
-        <span className="gmt-loading-spinner" aria-hidden="true" />
+        <PingIdentitySpinner size={24} aria-hidden="true" />
         <span>Reading live group membership from PingOne…</span>
       </div>
     );
@@ -165,7 +166,7 @@ export default function GroupMembershipToggle({ onChange = null, verticalId = nu
           disabled={busy}
           aria-pressed={inGroup}
         >
-          {busy ? <><span className="gmt-spinner" aria-hidden="true" /> Applying…</> : inGroup ? `Remove from ${privilegedGroup}` : `Add to ${privilegedGroup}`}
+          {busy ? <><PingIdentitySpinner size={20} aria-hidden="true" /> Applying…</> : inGroup ? `Remove from ${privilegedGroup}` : `Add to ${privilegedGroup}`}
         </button>
 
         {error ? <div className="gmt-inline-error">⚠️ {error}</div> : null}

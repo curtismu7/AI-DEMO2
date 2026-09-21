@@ -13,6 +13,7 @@ import { useDemoRunner } from "./authz/useDemoRunner";
 import LivePolicyScenarios from "./authz/LivePolicyScenarios";
 import McpDelegationScenarios from "./authz/McpDelegationScenarios";
 import JsonHighlight from "./shared/JsonHighlight";
+import PingIdentitySpinner from "./shared/PingIdentitySpinner";
 
 // ---------------------------------------------------------------------------
 // Preset scenarios — cover all three decision branches
@@ -578,7 +579,7 @@ export default function AuthzTestPage() {
 		return (
 			<div className="authz-test-page">
 				<div className="authz-loading">
-					<div className="authz-spinner" />
+					<PingIdentitySpinner size={32} aria-hidden="true" />
 					<p>Loading authorization status…</p>
 				</div>
 			</div>

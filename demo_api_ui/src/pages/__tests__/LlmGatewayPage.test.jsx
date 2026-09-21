@@ -595,7 +595,7 @@ describe("LLM Gateway console", () => {
       const { container } = render(<LlmGatewayPage />);
       await ask("hello");
 
-      expect(container.querySelector(".lgw-spinner")).toBeInTheDocument();
+      expect(container.querySelector(".ping-spinner__mark")).toBeInTheDocument();
 
       resolveCall({
         ok: true,
@@ -607,7 +607,7 @@ describe("LLM Gateway console", () => {
       });
 
       expect(await screen.findByText("hi")).toBeInTheDocument();
-      expect(container.querySelector(".lgw-spinner")).not.toBeInTheDocument();
+      expect(container.querySelector(".ping-spinner__mark")).not.toBeInTheDocument();
     });
   });
 
