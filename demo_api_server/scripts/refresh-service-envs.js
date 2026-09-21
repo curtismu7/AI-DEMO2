@@ -750,8 +750,8 @@ async function main(deps = {}) {
     // for its PingOne federation hop. Keep them aligned with the existing
     // exchanger credentials so the public /authorize flow is configured in
     // generated deployments as well as local environments.
-    OAUTH_MCP_PINGONE_CLIENT_ID:     creds.mcpExchangerClientId,
-    OAUTH_MCP_PINGONE_CLIENT_SECRET: creds.mcpExchangerSecret,
+    OAUTH_MCP_PINGONE_CLIENT_ID:     fb('OAUTH_MCP_PINGONE_CLIENT_ID') || creds.mcpExchangerClientId,
+    OAUTH_MCP_PINGONE_CLIENT_SECRET: fb('OAUTH_MCP_PINGONE_CLIENT_SECRET') || creds.mcpExchangerSecret,
     PINGONE_INTROSPECTION_ENDPOINT:  `${asBase}/introspect`,
     PINGONE_AUTHORIZATION_ENDPOINT:  `${asBase}/authorize`,
     PINGONE_TOKEN_ENDPOINT:          `${asBase}/token`,

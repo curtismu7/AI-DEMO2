@@ -102,12 +102,12 @@ spec:
           valueFrom:
             secretKeyRef:
               name: mcp-secrets
-              key: PINGONE_CLIENT_ID
+              key: OAUTH_MCP_PINGONE_CLIENT_ID
         - name: OAUTH_MCP_PINGONE_CLIENT_SECRET
           valueFrom:
             secretKeyRef:
               name: mcp-secrets
-              key: PINGONE_CLIENT_SECRET
+              key: OAUTH_MCP_PINGONE_CLIENT_SECRET
         # Only these domains may serve a Client ID Metadata Document. The code
         # already refuses non-https, loopback and private-network literals, and
         # requires the document to claim the URL it was served from; this narrows
