@@ -480,11 +480,6 @@ spec:
               value: "llama-tier3"
             - name: LLAMA_TIER5_HOST
               value: "llama-tier5"
-            # Pin to :8093 (Llama-3-Groq-8B-Tool-Use). The tiers swap (shared
-            # RWO model volume — only one runs at a time); this keeps the
-            # tool-calling demo within the cluster's memory budget.
-            - name: LLM_PROXY_PIN_TIER
-              value: "8093"
           resources:
             requests:
               memory: "64Mi"
@@ -494,7 +489,7 @@ spec:
               cpu: "500m"
           readinessProbe:
             httpGet:
-              path: /health
+              path: /readyz
               port: 8090
             initialDelaySeconds: 5
             periodSeconds: 15

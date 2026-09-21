@@ -2391,6 +2391,9 @@ services:
       # Optional pin: LLM_PROXY_PIN_TIER=8096
       LLM_PROXY_IDLE_DECAY_MS: "${LLM_PROXY_IDLE_DECAY_MS:-0}"
       LLM_PROXY_PIN_TIER: "${LLM_PROXY_PIN_TIER:-}"
+      # Optional private LiteLLM fallback; disabled unless both values are set.
+      FF_LITELLM_FALLBACK: "${FF_LITELLM_FALLBACK:-false}"
+      LLM_PROXY_FALLBACK_URL: "${LLM_PROXY_FALLBACK_URL:-}"
       # Keep BOTH tiers loaded on hosts with enough RAM (≥32GB via residencyPolicy).
       # Costs ~14GB resident. Empty string = classic swap / pin-phi (24GB strategy).
       # Use ${VAR-default} (not :-) so an explicit empty from run-docker.sh is honored.
