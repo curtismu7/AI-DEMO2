@@ -34,6 +34,7 @@ function createHostedRegistrationAdminService({
       requestedRole: role,
       groups: provisioned.groups || (groupId ? [groupId] : []),
       pingOneUserId: provisioned.pingOneUserId || record.pingOneUserId,
+      mfaDeviceId: provisioned.smsDeviceId || record.mfaDeviceId || null,
       approvedAt: record.approvedAt || now(),
       approvedBy: record.approvedBy || adminId,
       updatedAt: now(),

@@ -2,6 +2,7 @@
 
 const { managementService } = require('./pingoneManagementService');
 const pingOneClientService = require('./pingOneClientService');
+const mfaService = require('./mfaService');
 
 async function ensureManagement() {
   const token = await pingOneClientService.getManagementToken();
@@ -9,7 +10,7 @@ async function ensureManagement() {
   return managementService;
 }
 
-function createHostedRegistrationProvisioningService({ management = null } = {}) {
+function createHostedRegistrationProvisioningService({ management = null, enrollSmsDevice = management?.enrollSmsDevice || mfaService.enrollSmsDevice } = {}) {
   async function stage(record, { partialGroupId = process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID } = {}) {
     const service = management || await ensureManagement();
     let user = record.pingOneUserId ? await service.getUser(record.pingOneUserId) : null;
@@ -74,6 +75,12 @@ function createHostedRegistrationProvisioningService({ management = null } = {})
       });
       if (!updated.success) throw Object.assign(new Error(updated.error || 'PingOne profile update failed'), { code: 'pingone_profile_failed' });
     }
+    let smsDeviceId = null;
+    if (record.phone && enrollSmsDevice) {
+      const device = await enrollSmsDevice(user.id, record.phone);
+      if (!device?.id) throw Object.assign(new Error('PingOne SMS MFA device enrollment failed'), { code: 'pingone_sms_mfa_failed' });
+      smsDeviceId = device.id;
+    }
     if (groupId) {
       const added = await service.addUserToGroup(user.id, groupId);
       if (!added.success) throw Object.assign(new Error(added.error || 'PingOne group assignment failed'), { code: 'pingone_group_failed' });
@@ -85,7 +92,7 @@ function createHostedRegistrationProvisioningService({ management = null } = {})
     }
     const enabled = await service.setUserCanAuthenticate(user.id, true);
     if (!enabled.success) throw Object.assign(new Error(enabled.error || 'PingOne user enable failed'), { code: 'pingone_enable_failed' });
-    return { pingOneUserId: user.id, groups: groupId ? [groupId] : [] };
+    return { pingOneUserId: user.id, groups: groupId ? [groupId] : [], smsDeviceId };
   }
 
   async function disable(record) {
