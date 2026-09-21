@@ -399,7 +399,7 @@ const SCHEDULES = [
 // Keep the seeded UI focused on the two active demo areas. The underlying
 // definitions above remain as source history, but rerunning this script must
 // not recreate removed Banking/CareConnect agents.
-const UI_AGENT_NAME = /^(OpenSearch|Super Sports|Demo Step · Super Sports|Handoff · Super Sports)/;
+const UI_AGENT_NAME = /^(OpenSearch|Privilege Aggregate|Super Sports|Demo Step · Super Sports|Handoff · Super Sports)/;
 const UI_AGENTS = AGENTS.filter((agent) => UI_AGENT_NAME.test(agent.name));
 const UI_AGENT_NAMES = new Set(UI_AGENTS.map((agent) => agent.name));
 
