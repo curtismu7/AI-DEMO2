@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import SpiffePingoneBridgePage from "./SpiffePingoneBridgePage";
 
@@ -13,5 +13,36 @@ describe("SpiffePingoneBridgePage", () => {
     expect(screen.getByRole("heading", { name: /private_key_jwt/i })).toBeInTheDocument();
     expect(screen.getByText(/Live SPIRE verification/)).toBeInTheDocument();
     expect(screen.getByText(/unknown or unmapped identities/i)).toBeInTheDocument();
+  });
+
+  it("opens the agent movie reel and can switch to sequence view", async () => {
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+    render(<SpiffePingoneBridgePage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /run simulated bridge/i }));
+
+    await waitFor(() => {
+      expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({ type: "banking-agent-open" }));
+      expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({
+        type: "agent-sequence-diagram-toggle",
+        detail: expect.objectContaining({ on: false, surface: "none" }),
+      }));
+      expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({
+        type: "agent-filmstrip-toggle",
+        detail: expect.objectContaining({ on: true }),
+      }));
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /show sequence view/i }));
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({
+      type: "agent-filmstrip-toggle",
+      detail: expect.objectContaining({ on: false, surface: "none" }),
+    }));
+    expect(dispatchSpy).toHaveBeenCalledWith(expect.objectContaining({
+      type: "agent-sequence-diagram-toggle",
+      detail: expect.objectContaining({ on: true }),
+    }));
+
+    dispatchSpy.mockRestore();
   });
 });

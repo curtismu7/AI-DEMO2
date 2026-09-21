@@ -1,4 +1,6 @@
+import { useState } from "react";
 import "./SpiffePingoneBridgePage.css";
+import { runSpiffeBridgeSimulation } from "../services/tokenChainTrace/spiffeBridgeSimulation";
 
 const HANDOFF_STEPS = [
   {
@@ -39,6 +41,43 @@ function StatusPill({ children, tone = "neutral" }) {
 }
 
 export default function SpiffePingoneBridgePage() {
+  const [isRunning, setIsRunning] = useState(false);
+  const [simulationStatus, setSimulationStatus] = useState("ready");
+
+  const openAgentSurface = (surface) => {
+    window.dispatchEvent(new CustomEvent("banking-agent-open"));
+    if (surface === "sequence") {
+      window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", {
+        detail: { on: false, surface: "none" },
+      }));
+      window.dispatchEvent(new CustomEvent("agent-sequence-diagram-toggle", {
+        detail: { on: true, surface: "both" },
+      }));
+    } else {
+      window.dispatchEvent(new CustomEvent("agent-sequence-diagram-toggle", {
+        detail: { on: false, surface: "none" },
+      }));
+      window.dispatchEvent(new CustomEvent("agent-filmstrip-toggle", {
+        detail: { on: true, surface: "both" },
+      }));
+    }
+  };
+
+  const runSimulation = async () => {
+    if (isRunning) return;
+    setIsRunning(true);
+    setSimulationStatus("running");
+    openAgentSurface("movie-reel");
+    try {
+      await runSpiffeBridgeSimulation();
+      setSimulationStatus("complete");
+    } catch {
+      setSimulationStatus("error");
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
   return (
     <div className="spiffe-bridge">
       <header className="spiffe-bridge__hero">
@@ -52,6 +91,26 @@ export default function SpiffePingoneBridgePage() {
         </div>
         <StatusPill tone="todo">TODO / simulated</StatusPill>
       </header>
+
+      <section className="spiffe-bridge__demo-controls" aria-labelledby="spiffe-bridge-demo-title">
+        <div>
+          <p className="spiffe-bridge__kicker">Interactive demo</p>
+          <h2 id="spiffe-bridge-demo-title">Watch the bridge handoff in the agent</h2>
+          <p>Everything here is local simulation. No SPIRE workload API or PingOne tenant is contacted.</p>
+        </div>
+        <div className="spiffe-bridge__demo-actions">
+          <button type="button" className="spiffe-bridge__button spiffe-bridge__button--primary" onClick={runSimulation} disabled={isRunning}>
+            {isRunning ? "Running simulated bridge…" : "Run simulated bridge"}
+          </button>
+          <button type="button" className="spiffe-bridge__button" onClick={() => openAgentSurface("movie-reel")}>
+            Open movie reel
+          </button>
+          <button type="button" className="spiffe-bridge__button" onClick={() => openAgentSurface("sequence")}>
+            Show sequence view
+          </button>
+        </div>
+        <span className="spiffe-bridge__demo-status" role="status">Simulation status: {simulationStatus}</span>
+      </section>
 
       <section className="spiffe-bridge__handoff" aria-labelledby="spiffe-bridge-flow-title">
         <div className="spiffe-bridge__section-heading">
