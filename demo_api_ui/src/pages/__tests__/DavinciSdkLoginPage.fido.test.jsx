@@ -13,12 +13,17 @@ vi.mock("../../lib/davinciSdkClient", () => ({
   takePkceVerifier: vi.fn(),
   signOutOfPingOne: vi.fn(),
 }));
+vi.mock("../../utils/passkeyCeremony", () => ({
+  authenticateWebAuthn: vi.fn(),
+}));
 
 import { fido } from "@forgerock/davinci-client";
 import * as sdk from "../../lib/davinciSdkClient";
+import { authenticateWebAuthn } from "../../utils/passkeyCeremony";
 import DavinciSdkLoginPage from "../DavinciSdkLoginPage";
 
 const options = { challenge: [1, 2, 3], rpId: "ping-devops.com" };
+const conditionalOptions = { challenge: [4, 5, 6], rpId: "ping-devops.com" };
 const collector = {
   category: "ObjectValueAutoCollector",
   type: "FidoAuthenticationCollector",
@@ -39,6 +44,7 @@ describe("DavinciSdkLoginPage passkey authentication", () => {
     authenticate = vi.fn();
     updater = vi.fn(() => null);
     fido.mockReturnValue({ authenticate });
+    authenticateWebAuthn.mockResolvedValue({ assertionValue: { id: "credential-conditional" } });
     client = {
       start: vi.fn().mockResolvedValue({ status: "continue" }),
       next: vi.fn().mockResolvedValue({ status: "continue" }),
@@ -90,5 +96,50 @@ describe("DavinciSdkLoginPage passkey authentication", () => {
     expect(await findByText("Assertion rejected")).toBeInTheDocument();
     expect(updater).toHaveBeenCalledWith(assertion);
     expect(client.next).not.toHaveBeenCalled();
+  });
+
+  it("starts conditional WebAuthn from an opted-in username collector", async () => {
+    const conditionalCollector = {
+      ...collector,
+      type: "TextCollector",
+      category: "SingleValueCollector",
+      id: "username-0",
+      name: "username",
+      input: { key: "username", value: "", type: "TEXT" },
+      output: {
+        key: "username",
+        label: "Username",
+        type: "TEXT",
+        autocomplete: "username",
+        enableConditionalWebAuthn: true,
+        conditionalWebAuthn: { publicKeyCredentialRequestOptions: conditionalOptions },
+      },
+    };
+    client.cache.getLatestResponse.mockReturnValue({
+      data: {
+        form: {
+          components: {
+            fields: [{
+              key: "username",
+              type: "TEXT",
+              autocomplete: "username",
+              enableConditionalWebAuthn: true,
+              conditionalWebAuthn: { publicKeyCredentialRequestOptions: conditionalOptions },
+            }],
+          },
+        },
+      },
+    });
+    // The SDK reducer drops unknown Forms metadata; the page must enrich the
+    // SDK collector from the raw response before rendering it.
+    client.getCollectors.mockReturnValue([{
+      ...conditionalCollector,
+      output: { key: "username", label: "Username", type: "TEXT" },
+    }]);
+    render(<DavinciSdkLoginPage />);
+
+    await waitFor(() => expect(authenticateWebAuthn).toHaveBeenCalledWith(conditionalOptions, expect.objectContaining({ mediation: "conditional" })));
+    expect(client.update).toHaveBeenCalledWith(conditionalCollector);
+    expect(client.next).toHaveBeenCalled();
   });
 });

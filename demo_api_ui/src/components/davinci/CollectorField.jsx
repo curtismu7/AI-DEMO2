@@ -26,8 +26,34 @@
 //
 // Anything unrecognised renders a visible fallback rather than nothing — an
 // unsupported collector that renders blank looks like a broken page.
-import { useCallback, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { fido } from "@forgerock/davinci-client";
+
+export function getConditionalWebAuthnConfig(collector) {
+  const output = collector?.output || {};
+  const input = collector?.input || {};
+  const config = output.config || {};
+  const conditionalConfig = output.conditionalWebAuthn || {};
+  const enabled = output.enableConditionalWebAuthn
+    ?? input.enableConditionalWebAuthn
+    ?? config.enableConditionalWebAuthn
+    ?? conditionalConfig.enableConditionalWebAuthn;
+  if (enabled !== true) return null;
+
+  const options = config.publicKeyCredentialRequestOptions
+    || conditionalConfig.publicKeyCredentialRequestOptions
+    || output.publicKeyCredentialRequestOptions
+    || input.publicKeyCredentialRequestOptions;
+  const autocomplete = output.autocomplete
+    || input.autocomplete
+    || config.autocomplete
+    || conditionalConfig.autocomplete
+    || "username";
+  return {
+    autocomplete: /(^|\s)webauthn$/.test(autocomplete) ? autocomplete : `${autocomplete} webauthn`,
+    options,
+  };
+}
 
 function DeviceRegistrationField({ collector, updater, serverError, busy }) {
   const id = useId();
@@ -131,10 +157,20 @@ function FidoAuthenticationField({ collector, updater, onFido, serverError, busy
 // Text-like input shared by the text and password cases. Holds the displayed
 // value locally and writes through to the SDK on every change, reporting an
 // updater rejection immediately rather than at submit.
-function TextLikeField({ collector, updater, type, autoComplete, serverError, validated }) {
+function TextLikeField({ collector, updater, type, autoComplete, serverError, validated, onConditionalWebAuthn }) {
   const id = useId();
+  const conditionalStarted = useRef(false);
   const [value, setValue] = useState(collector?.input?.value ?? "");
   const [writeError, setWriteError] = useState(null);
+  const conditional = getConditionalWebAuthnConfig(collector);
+
+  useEffect(() => {
+    if (!conditional?.options || !onConditionalWebAuthn || conditionalStarted.current) return undefined;
+    conditionalStarted.current = true;
+    const controller = new AbortController();
+    onConditionalWebAuthn(collector, { signal: controller.signal }).catch(() => {});
+    return () => controller.abort();
+  }, [collector, conditional, onConditionalWebAuthn]);
 
   const onChange = useCallback(
     (e) => {
@@ -159,7 +195,7 @@ function TextLikeField({ collector, updater, type, autoComplete, serverError, va
         className="dvsdk-input"
         type={type}
         name={collector?.name}
-        autoComplete={autoComplete}
+        autoComplete={conditional?.autocomplete || autoComplete}
         value={value}
         onChange={onChange}
         aria-invalid={error ? "true" : undefined}
@@ -186,7 +222,7 @@ function ProtectStatus() {
   return <p className="dvsdk-security-status" role="status">Security check active</p>;
 }
 
-export default function CollectorField({ collector, updater, onSubmit, onFlow, onFido, serverError, busy }) {
+export default function CollectorField({ collector, updater, onSubmit, onFlow, onFido, onConditionalWebAuthn, serverError, busy }) {
   switch (collector?.type) {
     // PingOne Forms uses an object-valued device selector. update() accepts
     // option.value and maps it to the device type DaVinci expects.
@@ -204,6 +240,7 @@ export default function CollectorField({ collector, updater, onSubmit, onFlow, o
           updater={updater}
           type="text"
           autoComplete={/user|email/i.test(String(collector?.name)) ? "username" : "on"}
+          onConditionalWebAuthn={onConditionalWebAuthn}
           serverError={serverError}
           validated={collector.category === "ValidatedSingleValueCollector"}
         />

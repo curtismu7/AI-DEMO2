@@ -29,6 +29,7 @@ import StepInspector, { summarizeResponse } from "../components/davinci/StepInsp
 import { createOperationEvent, normalizeTraceEntry } from "../components/davinci/sdkExecutionEvents";
 import DraggableModal from "../components/DraggableModal";
 import { LessonLayout, Section } from "../components/lesson";
+import { authenticateWebAuthn } from "../utils/passkeyCeremony";
 import {
   fetchSdkConfig,
   initClient,
@@ -41,6 +42,35 @@ import "./DavinciSdkLoginPage.css";
 // What the Step Inspector records about the collector a user clicked.
 const triggerOf = (c) =>
   c ? { type: c.type, key: c.output?.key ?? c.name, label: c.output?.label ?? null } : null;
+
+function enrichConditionalWebAuthnCollectors(collectors, response) {
+  const fields = response?.form?.components?.fields;
+  if (!Array.isArray(fields)) return collectors;
+
+  return collectors.map((collector, index) => {
+    const key = collector.output?.key ?? collector.name;
+    const field = fields.find((candidate) => candidate?.key === key) || fields[index];
+    if (!field) return collector;
+
+    const metadata = {};
+    for (const name of ["autocomplete", "enableConditionalWebAuthn", "publicKeyCredentialRequestOptions", "conditionalWebAuthn"]) {
+      if (field[name] !== undefined) metadata[name] = field[name];
+    }
+    if (field.config && typeof field.config === "object") metadata.config = field.config;
+    if (Object.keys(metadata).length === 0) return collector;
+
+    return {
+      ...collector,
+      output: {
+        ...collector.output,
+        ...metadata,
+        ...(metadata.config
+          ? { config: { ...collector.output?.config, ...metadata.config } }
+          : {}),
+      },
+    };
+  });
+}
 
 const LOGOUT_REEL_MARKER = "davinci-sdk-logout-reel";
 const logoutReelEvent = (at = Date.now()) => createOperationEvent({
@@ -193,8 +223,9 @@ export default function DavinciSdkLoginPage() {
   // getCollectors() is the supported accessor and an error node still carries
   // its collectors, which is what lets the form re-render with complaints.
   const syncFromClient = useCallback((client, node) => {
-    const currentCollectors = client.getCollectors?.() || [];
-    const response = summarizeResponse(client.cache?.getLatestResponse?.()?.data);
+    const rawResponse = client.cache?.getLatestResponse?.()?.data;
+    const currentCollectors = enrichConditionalWebAuthnCollectors(client.getCollectors?.() || [], rawResponse);
+    const response = summarizeResponse(rawResponse);
     setCollectors(currentCollectors);
     setStep((n) => n + 1);
     const errs = {};
@@ -517,6 +548,26 @@ export default function DavinciSdkLoginPage() {
     }
   }, [collectorUpdater, submit]);
 
+  const authenticateConditionalPasskey = useCallback(async (collector, { signal } = {}) => {
+    setBusy(true);
+    setMessage(null);
+    try {
+      const options = collector.output?.config?.publicKeyCredentialRequestOptions
+        || collector.output?.conditionalWebAuthn?.publicKeyCredentialRequestOptions
+        || collector.output?.publicKeyCredentialRequestOptions;
+      const assertion = await authenticateWebAuthn(options, { mediation: "conditional", signal });
+      const updateError = collectorUpdater(collector)(assertion);
+      if (updateError?.error) {
+        throw new Error(updateError.error.message || "The SDK could not accept the passkey assertion.");
+      }
+      await submit(collector);
+    } catch (err) {
+      if (err?.name !== "AbortError") setMessage(err.message || "Passkey authentication failed.");
+    } finally {
+      setBusy(false);
+    }
+  }, [collectorUpdater, submit]);
+
   // From the modal's links: close it and bring that lesson section into view.
   const goToSection = useCallback((id) => {
     setShowWhatHappened(false);
@@ -687,6 +738,7 @@ export default function DavinciSdkLoginPage() {
                         onSubmit={() => submit(c)}
                         onFlow={() => takeFlow(c)}
                         onFido={() => authenticatePasskey(c)}
+                        onConditionalWebAuthn={authenticateConditionalPasskey}
                       />
                     );
                   })}
