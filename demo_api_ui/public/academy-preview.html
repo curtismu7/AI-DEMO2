@@ -1,0 +1,1955 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Ping Academy — OAuth and A2A review mock</title>
+  <style>
+    :root {
+      --night: #07111f;
+      --slate: #101b2c;
+      --slate-raised: #17253a;
+      --ice: #eff7ff;
+      --mist: #9eb4ca;
+      --line: #2b425b;
+      --signal: #3fb8ff;
+      --amber: #ffbf47;
+      --mint: #5ce0b0;
+      --danger: #ff7f75;
+      --canvas-glow: rgba(63, 184, 255, 0.12);
+      --control-bg: rgba(7, 17, 31, 0.94);
+      --stage: #091525;
+      --reel: #0b1728;
+      --film: #050b13;
+      --film-line: #344b64;
+      --film-hole: #52657a;
+      --film-muted: #60758b;
+      --film-frame: #0a1421;
+      --film-revealed: #111f31;
+      --film-selected: #172941;
+      --film-live: #6f8295;
+      --film-waiting: #4f6377;
+      --code-text: #cfe4f7;
+      --panel-wash: rgba(16, 27, 44, 0.54);
+      --depth-shadow: rgba(0, 0, 0, 0.28);
+      --display: "Aptos Display", "Segoe UI Variable Display", "Segoe UI", sans-serif;
+      --body: "Aptos", "Segoe UI Variable Text", "Segoe UI", sans-serif;
+      --mono: "SFMono-Regular", "Cascadia Code", "Roboto Mono", monospace;
+    }
+
+    :root[data-theme="light"] {
+      --night: #f3f7fb;
+      --slate: #ffffff;
+      --slate-raised: #e7f0f7;
+      --ice: #12263a;
+      --mist: #53697d;
+      --line: #b8c9d8;
+      --signal: #006da8;
+      --amber: #8a5700;
+      --mint: #087757;
+      --danger: #b8322c;
+      --canvas-glow: rgba(0, 109, 168, 0.1);
+      --control-bg: rgba(243, 247, 251, 0.94);
+      --stage: #f8fbfd;
+      --reel: #eef4f8;
+      --film: #dbe5ec;
+      --film-line: #9fb4c5;
+      --film-hole: #71889b;
+      --film-muted: #667c8f;
+      --film-frame: #f6f9fb;
+      --film-revealed: #e7f1f7;
+      --film-selected: #d8ebf6;
+      --film-live: #4e6679;
+      --film-waiting: #64798b;
+      --code-text: #193a55;
+      --panel-wash: rgba(255, 255, 255, 0.72);
+      --depth-shadow: rgba(28, 58, 82, 0.14);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { background: var(--night); }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ice);
+      background:
+        radial-gradient(circle at 83% 2%, var(--canvas-glow), transparent 30rem),
+        var(--night);
+      font-family: var(--body);
+      line-height: 1.5;
+    }
+
+    button,
+    a { font: inherit; }
+
+    button { color: inherit; }
+
+    button:focus-visible,
+    a:focus-visible {
+      outline: 3px solid var(--amber);
+      outline-offset: 3px;
+    }
+
+    [hidden] { display: none !important; }
+
+    .shell {
+      width: min(1480px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 24px 0 72px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      min-height: 52px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: max-content;
+      font-family: var(--display);
+      font-weight: 680;
+      letter-spacing: -0.01em;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 31px;
+      height: 31px;
+      place-items: center;
+      border: 1px solid var(--signal);
+      color: var(--signal);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+
+    .review-stamp {
+      padding: 5px 9px;
+      border: 1px solid rgba(255, 191, 71, 0.45);
+      color: var(--amber);
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .topbar-note {
+      margin: 0 0 0 auto;
+      color: var(--mist);
+      font-size: 13px;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .theme-toggle {
+      min-height: 32px;
+      padding: 5px 10px;
+      border: 1px solid var(--line);
+      color: var(--ice);
+      background: var(--slate);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .control-deck {
+      position: sticky;
+      z-index: 20;
+      top: 0;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px;
+      padding: 18px 0;
+      background: var(--control-bg);
+      backdrop-filter: blur(14px);
+    }
+
+    .concept-tabs,
+    .mode-switch {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .concept-tab,
+    .mode-button {
+      min-height: 42px;
+      border: 1px solid transparent;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .concept-tab {
+      padding: 8px 18px;
+      color: var(--mist);
+      font-family: var(--display);
+      font-size: 16px;
+      font-weight: 650;
+    }
+
+    .concept-tab[aria-selected="true"] {
+      border-color: var(--line);
+      color: var(--ice);
+      background: var(--slate);
+      box-shadow: inset 0 -2px 0 var(--signal);
+    }
+
+    .mode-switch {
+      padding: 4px;
+      border: 1px solid var(--line);
+      background: var(--slate);
+    }
+
+    .mode-label {
+      padding: 0 8px;
+      color: var(--mist);
+      font-size: 12px;
+    }
+
+    .mode-button {
+      padding: 6px 12px;
+      color: var(--mist);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .mode-button[aria-pressed="true"] {
+      color: var(--night);
+      background: var(--ice);
+    }
+
+    .execution-lab {
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      background: var(--stage);
+      box-shadow: 0 28px 80px var(--depth-shadow);
+    }
+
+    .execution-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 32px;
+      align-items: end;
+      padding: clamp(24px, 4vw, 46px);
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(100deg, rgba(63, 184, 255, 0.08), transparent 46%);
+    }
+
+    .execution-kicker {
+      margin: 0 0 9px;
+      color: var(--signal);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .execution-head h1 {
+      max-width: 720px;
+      font-size: clamp(34px, 4.6vw, 68px);
+      line-height: 0.98;
+    }
+
+    .execution-summary {
+      max-width: 730px;
+      margin: 18px 0 0;
+      color: var(--mist);
+      font-size: 15px;
+    }
+
+    .source-control {
+      display: grid;
+      grid-template-columns: auto auto;
+      gap: 6px;
+      align-items: center;
+      min-width: 300px;
+      padding: 6px;
+      border: 1px solid var(--line);
+      background: var(--night);
+    }
+
+    .source-control > span {
+      grid-column: 1 / -1;
+      padding: 2px 7px;
+      color: var(--mist);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .source-control button {
+      min-height: 42px;
+      padding: 8px 16px;
+      border: 1px solid transparent;
+      color: var(--mist);
+      background: transparent;
+      cursor: pointer;
+      font-weight: 720;
+    }
+
+    .source-control button[aria-pressed="true"] {
+      border-color: var(--signal);
+      color: var(--night);
+      background: var(--signal);
+    }
+
+    body[data-run-source="real"] .source-control button[aria-pressed="true"] {
+      border-color: var(--mint);
+      background: var(--mint);
+    }
+
+    .run-canvas {
+      display: grid;
+      grid-template-columns: minmax(310px, 0.38fr) minmax(0, 0.62fr);
+      min-height: 610px;
+    }
+
+    .agent-console,
+    .reel-console {
+      min-width: 0;
+      background: var(--slate);
+    }
+
+    .agent-console {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--line);
+    }
+
+    .reel-console {
+      display: flex;
+      flex-direction: column;
+      background: var(--reel);
+    }
+
+    .console-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      min-height: 78px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .console-head > div { display: grid; gap: 4px; }
+
+    .console-head strong {
+      font-family: var(--display);
+      font-size: 19px;
+    }
+
+    .console-label {
+      color: var(--mist);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .console-state,
+    .reel-counter {
+      padding: 5px 8px;
+      border: 1px solid var(--line);
+      color: var(--mist);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .console-state--mock {
+      border-color: rgba(255, 191, 71, 0.5);
+      color: var(--amber);
+    }
+
+    .console-state--live {
+      border-color: rgba(92, 224, 176, 0.5);
+      color: var(--mint);
+    }
+
+    .conversation {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      gap: 18px;
+      padding: 24px 20px;
+    }
+
+    .message {
+      max-width: 88%;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+    }
+
+    .message span {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--mist);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .message p { margin: 0; font-size: 14px; }
+
+    .message--user {
+      align-self: flex-end;
+      border-color: rgba(63, 184, 255, 0.44);
+      background: rgba(63, 184, 255, 0.08);
+    }
+
+    .message--agent {
+      align-self: flex-start;
+      background: var(--slate-raised);
+    }
+
+    .agent-activity {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: auto;
+      padding: 12px;
+      border-top: 1px solid var(--line);
+      color: var(--mist);
+    }
+
+    .agent-activity p {
+      margin: 0;
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .activity-pulse {
+      flex: 0 0 auto;
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: var(--amber);
+      box-shadow: 0 0 0 0 rgba(255, 191, 71, 0.45);
+    }
+
+    .is-playing .activity-pulse { animation: pulse 1s infinite; }
+
+    @keyframes pulse {
+      70% { box-shadow: 0 0 0 8px rgba(255, 191, 71, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 191, 71, 0); }
+    }
+
+    .prompt-dock {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      padding: 14px;
+      border-top: 1px solid var(--line);
+      background: var(--night);
+    }
+
+    .prompt-dock > span {
+      overflow: hidden;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      color: var(--mist);
+      font-size: 13px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .prompt-dock button,
+    .proposed-run {
+      padding: 10px 16px;
+      border: 1px solid var(--signal);
+      color: var(--night);
+      background: var(--signal);
+      cursor: pointer;
+      font-weight: 760;
+    }
+
+    .reel-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .reel-controls button,
+    .reel-controls select {
+      min-height: 34px;
+      border: 1px solid var(--line);
+      color: var(--ice);
+      background: var(--slate);
+      cursor: pointer;
+    }
+
+    .reel-controls button { padding: 5px 11px; }
+    .reel-controls button:disabled { cursor: not-allowed; opacity: 0.4; }
+
+    .reel-controls label {
+      display: flex;
+      gap: 7px;
+      align-items: center;
+      margin-left: auto;
+      color: var(--mist);
+      font-size: 11px;
+    }
+
+    .film {
+      margin: 18px;
+      border: 1px solid var(--film-line);
+      background: var(--film);
+      box-shadow: inset 0 0 34px rgba(0, 0, 0, 0.55);
+    }
+
+    .film-perforations {
+      height: 17px;
+      background-image: radial-gradient(ellipse 7px 4px at center, var(--film-hole) 0 55%, transparent 60%);
+      background-position: 3px center;
+      background-size: 24px 12px;
+      opacity: 0.72;
+    }
+
+    .film-track {
+      display: grid;
+      grid-auto-columns: minmax(146px, 1fr);
+      grid-auto-flow: column;
+      gap: 1px;
+      overflow-x: auto;
+      min-height: 170px;
+      border-top: 1px solid var(--film-line);
+      border-bottom: 1px solid var(--film-line);
+      background: var(--film-line);
+    }
+
+    .film-frame {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 12px;
+      min-width: 146px;
+      padding: 14px;
+      border: 0;
+      color: var(--film-muted);
+      background: var(--film-frame);
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .film-frame.is-revealed { color: var(--ice); background: var(--film-revealed); }
+    .film-frame.is-selected { box-shadow: inset 0 -4px 0 var(--signal); background: var(--film-selected); }
+
+    .film-frame__number {
+      color: var(--signal);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .film-frame strong {
+      align-self: center;
+      font-family: var(--display);
+      font-size: 15px;
+      line-height: 1.15;
+    }
+
+    .film-frame small {
+      color: inherit;
+      font-family: var(--mono);
+      font-size: 9px;
+    }
+
+    .frame-detail {
+      display: grid;
+      grid-template-columns: minmax(130px, 0.28fr) 1fr;
+      gap: 24px;
+      margin: 0 18px 18px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      background: var(--slate);
+    }
+
+    .frame-detail h3 {
+      margin: 0;
+      font-family: var(--display);
+      font-size: 18px;
+    }
+
+    .frame-detail p {
+      margin: 0;
+      color: var(--mist);
+      font-size: 13px;
+    }
+
+    .frame-detail code {
+      display: block;
+      grid-column: 1 / -1;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      color: var(--mint);
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .source-note {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin: 0;
+      padding: 13px 18px;
+      border-top: 1px solid var(--line);
+      color: var(--mist);
+      font-size: 12px;
+    }
+
+    .source-note--real { color: var(--mint); }
+
+    .conversation--real {
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+
+    .real-agent-mark {
+      display: grid;
+      width: 64px;
+      height: 64px;
+      place-items: center;
+      border: 1px solid var(--mint);
+      color: var(--mint);
+      font-family: var(--mono);
+      font-size: 18px;
+    }
+
+    .conversation--real h2 {
+      margin: 2px 0 0;
+      font-family: var(--display);
+      font-size: 26px;
+    }
+
+    .conversation--real > p {
+      max-width: 420px;
+      margin: 0;
+      color: var(--mist);
+      font-size: 14px;
+    }
+
+    .live-contract {
+      display: grid;
+      gap: 8px;
+      width: 100%;
+      margin-top: 16px;
+      padding: 15px;
+      border: 1px solid var(--line);
+      text-align: left;
+    }
+
+    .live-contract span {
+      color: var(--mint);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .live-contract strong { font-size: 14px; }
+
+    .proposed-run {
+      margin: 0 14px 14px;
+      border-color: var(--mint);
+      background: var(--mint);
+    }
+
+    .live-reel-flow {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      margin: 18px;
+      border: 1px solid var(--line);
+      background: var(--line);
+    }
+
+    .live-reel-flow > div {
+      display: grid;
+      min-height: 112px;
+      padding: 14px;
+      background: var(--film-frame);
+    }
+
+    .live-reel-flow span {
+      color: var(--mist);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .live-reel-flow strong {
+      align-self: center;
+      color: var(--film-live);
+      font-family: var(--display);
+      font-size: 14px;
+    }
+
+    .live-reel-flow small {
+      color: var(--film-waiting);
+      font-family: var(--mono);
+      font-size: 9px;
+    }
+
+    .live-empty {
+      margin: auto 18px 18px;
+      padding: 28px;
+      border: 1px dashed var(--line);
+      text-align: center;
+    }
+
+    .live-empty strong { color: var(--mint); }
+    .live-empty p { margin: 8px 0 0; color: var(--mist); font-size: 13px; }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(270px, 0.5fr);
+      gap: clamp(32px, 7vw, 100px);
+      align-items: end;
+      min-height: 380px;
+      padding: clamp(52px, 8vw, 110px) 0 46px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .hero-kicker {
+      margin: 0 0 18px;
+      color: var(--signal);
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+
+    h1 {
+      max-width: 880px;
+      margin: 0;
+      font-family: var(--display);
+      font-size: clamp(44px, 6.6vw, 94px);
+      font-weight: 560;
+      letter-spacing: -0.055em;
+      line-height: 0.96;
+    }
+
+    .hero-summary {
+      display: grid;
+      gap: 22px;
+      padding-left: 22px;
+      border-left: 2px solid var(--signal);
+    }
+
+    .hero-summary p {
+      margin: 0;
+      color: var(--mist);
+      font-size: 16px;
+    }
+
+    .duration {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      color: var(--ice);
+    }
+
+    .duration strong {
+      font-family: var(--display);
+      font-size: 32px;
+      font-weight: 600;
+    }
+
+    .duration span {
+      color: var(--mist);
+      font-size: 13px;
+    }
+
+    .status-strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .status-cell {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 11px;
+      align-items: center;
+      padding: 18px 20px;
+      color: var(--mist);
+      font-size: 13px;
+    }
+
+    .status-cell + .status-cell { border-left: 1px solid var(--line); }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--mist);
+    }
+
+    .status-dot.mock { background: var(--amber); }
+    .status-dot.recorded { background: var(--signal); }
+    .status-dot.live { background: var(--mint); }
+
+    .section {
+      display: grid;
+      grid-template-columns: minmax(180px, 0.27fr) minmax(0, 0.73fr);
+      gap: clamp(28px, 6vw, 90px);
+      padding: 56px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .section-label {
+      margin: 0;
+      color: var(--mist);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .section-label strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--ice);
+      font-family: var(--display);
+      font-size: 19px;
+      font-weight: 650;
+    }
+
+    .section-body h2 {
+      max-width: 760px;
+      margin: 0 0 12px;
+      font-family: var(--display);
+      font-size: clamp(28px, 3.2vw, 46px);
+      font-weight: 560;
+      letter-spacing: -0.03em;
+      line-height: 1.08;
+    }
+
+    .section-lede {
+      max-width: 760px;
+      margin: 0 0 32px;
+      color: var(--mist);
+      font-size: 16px;
+    }
+
+    .handoff-rail {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: var(--line);
+    }
+
+    .handoff-rail::after {
+      position: absolute;
+      top: 0;
+      left: -28%;
+      width: 28%;
+      height: 3px;
+      content: "";
+      background: var(--signal);
+    }
+
+    .handoff-rail.is-running::after {
+      animation: scan 1.55s cubic-bezier(.3,.7,.2,1) forwards;
+    }
+
+    @keyframes scan {
+      to { transform: translateX(460%); }
+    }
+
+    .rail-stop {
+      min-height: 230px;
+      padding: 24px;
+      background: var(--slate);
+    }
+
+    .rail-stop.exchange { background: var(--slate-raised); }
+
+    .stop-number {
+      display: block;
+      margin-bottom: 42px;
+      color: var(--mist);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .rail-stop h3 {
+      margin: 0 0 10px;
+      font-family: var(--display);
+      font-size: 22px;
+      font-weight: 650;
+    }
+
+    .rail-stop p {
+      margin: 0;
+      color: var(--mist);
+      font-size: 14px;
+    }
+
+    .claim {
+      display: inline-block;
+      margin-top: 18px;
+      padding: 5px 7px;
+      color: var(--signal);
+      background: rgba(63, 184, 255, 0.08);
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .claim.amber {
+      color: var(--amber);
+      background: rgba(255, 191, 71, 0.08);
+    }
+
+    .claim.mint {
+      color: var(--mint);
+      background: rgba(92, 224, 176, 0.08);
+    }
+
+    .workbench-footer {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .run-button,
+    .live-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 9px 15px;
+      border: 1px solid var(--signal);
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .run-button {
+      color: var(--night);
+      background: var(--signal);
+      font-weight: 750;
+    }
+
+    .live-link {
+      color: var(--signal);
+      background: transparent;
+    }
+
+    .run-state {
+      flex: 1;
+      min-width: 220px;
+      margin: 0;
+      color: var(--mist);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .evidence-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .evidence-panel {
+      min-height: 245px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      background: var(--panel-wash);
+    }
+
+    .evidence-panel header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .evidence-panel h3 {
+      margin: 0;
+      font-family: var(--display);
+      font-size: 17px;
+    }
+
+    .source-tag {
+      padding: 4px 7px;
+      border: 1px solid var(--line);
+      color: var(--mist);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    pre {
+      overflow: auto;
+      margin: 0;
+      color: var(--code-text);
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.72;
+      white-space: pre-wrap;
+    }
+
+    .key { color: var(--signal); }
+    .value { color: var(--mint); }
+    .attention { color: var(--amber); }
+
+    .talk-track {
+      display: grid;
+      gap: 1px;
+      margin: 0;
+      padding: 0;
+      background: var(--line);
+      list-style: none;
+      counter-reset: talk;
+    }
+
+    .talk-track li {
+      display: grid;
+      grid-template-columns: 42px 1fr auto;
+      gap: 18px;
+      align-items: baseline;
+      padding: 20px;
+      background: var(--slate);
+      counter-increment: talk;
+    }
+
+    .talk-track li::before {
+      color: var(--signal);
+      content: counter(talk, decimal-leading-zero);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .talk-track strong {
+      font-family: var(--display);
+      font-size: 16px;
+    }
+
+    .talk-track span {
+      max-width: 520px;
+      color: var(--mist);
+      font-size: 13px;
+    }
+
+    .talk-track time {
+      color: var(--amber);
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .layer-stack { display: grid; gap: 16px; }
+
+    .protocol-layer {
+      display: grid;
+      grid-template-columns: 170px 1fr;
+      min-height: 190px;
+      border: 1px solid var(--line);
+      background: var(--slate);
+    }
+
+    .layer-name {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 22px;
+      border-right: 1px solid var(--line);
+    }
+
+    .layer-name strong {
+      font-family: var(--display);
+      font-size: 18px;
+    }
+
+    .layer-name span {
+      color: var(--mist);
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .layer-path {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: stretch;
+    }
+
+    .layer-step {
+      position: relative;
+      padding: 28px 22px;
+    }
+
+    .layer-step + .layer-step { border-left: 1px solid var(--line); }
+
+    .layer-step + .layer-step::before {
+      position: absolute;
+      top: 50%;
+      left: -5px;
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--signal);
+      content: "";
+      transform: translateY(-50%);
+    }
+
+    .protocol-layer.wire .layer-step + .layer-step::before { background: var(--amber); }
+
+    .layer-step code {
+      color: var(--signal);
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .protocol-layer.wire .layer-step code { color: var(--amber); }
+
+    .layer-step h3 {
+      margin: 14px 0 8px;
+      font-family: var(--display);
+      font-size: 18px;
+    }
+
+    .layer-step p {
+      margin: 0;
+      color: var(--mist);
+      font-size: 13px;
+    }
+
+    .decision {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 16px;
+      align-items: center;
+      margin-top: 18px;
+      padding: 18px;
+      border: 1px solid rgba(92, 224, 176, 0.44);
+      color: var(--mint);
+      background: rgba(92, 224, 176, 0.06);
+    }
+
+    .decision strong { font-family: var(--display); }
+    .decision span { color: var(--mist); font-size: 13px; }
+
+    .learning-rail {
+      display: grid;
+      grid-template-columns: minmax(180px, 0.27fr) minmax(0, 0.73fr);
+      gap: clamp(28px, 6vw, 90px);
+      padding: 56px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .learning-rail__intro h2 {
+      margin: 0;
+      font-family: var(--display);
+      font-size: 22px;
+      line-height: 1.15;
+    }
+
+    .learning-rail__intro p {
+      max-width: 28ch;
+      margin: 10px 0 0;
+      color: var(--mist);
+      font-size: 13px;
+    }
+
+    .learning-resources {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      border: 1px solid var(--line);
+      background: var(--line);
+    }
+
+    .learning-group {
+      min-width: 0;
+      padding: 18px;
+      background: var(--slate);
+    }
+
+    .learning-group h3 {
+      margin: 0 0 8px;
+      color: var(--mist);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .learning-group ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .learning-group li + li { border-top: 1px solid var(--line); }
+
+    .learning-group a {
+      display: grid;
+      gap: 2px;
+      padding: 11px 2px;
+      color: var(--ice);
+      text-decoration: none;
+    }
+
+    .learning-group a:hover strong,
+    .learning-group a:focus-visible strong {
+      color: var(--signal);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .learning-group strong {
+      font-family: var(--display);
+      font-size: 14px;
+    }
+
+    .learning-group span {
+      color: var(--mist);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      padding-top: 24px;
+      color: var(--mist);
+      font-size: 12px;
+    }
+
+    .footer p { margin: 0; }
+
+    body[data-mode="standalone"] [data-guided-only] { display: none !important; }
+
+    @media (max-width: 960px) {
+      .hero,
+      .section,
+      .learning-rail { grid-template-columns: 1fr; }
+      .hero { min-height: auto; }
+      .hero-summary { max-width: 650px; }
+      .execution-head,
+      .run-canvas { grid-template-columns: 1fr; }
+      .source-control { width: min(100%, 420px); }
+      .agent-console { border-right: 0; border-bottom: 1px solid var(--line); }
+      .protocol-layer { grid-template-columns: 1fr; }
+      .layer-name {
+        flex-direction: row;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+    }
+
+    @media (max-width: 720px) {
+      .shell { width: min(100% - 24px, 1480px); }
+      .topbar { flex-wrap: wrap; gap: 10px; padding-bottom: 10px; }
+      .topbar-note { display: none; }
+      .topbar-actions { margin-left: auto; }
+      .control-deck { position: static; grid-template-columns: 1fr; }
+      .concept-tabs,
+      .mode-switch { overflow-x: auto; }
+      .execution-head { padding: 24px 18px; }
+      .source-control { min-width: 0; }
+      .run-canvas { min-height: auto; }
+      .conversation { min-height: 350px; }
+      .reel-controls label { width: 100%; margin-left: 0; }
+      .frame-detail { grid-template-columns: 1fr; }
+      .frame-detail code { grid-column: auto; }
+      .live-reel-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .handoff-rail,
+      .status-strip,
+      .evidence-grid,
+      .layer-path,
+      .learning-resources { grid-template-columns: 1fr; }
+      .status-cell + .status-cell,
+      .layer-step + .layer-step { border-left: 0; border-top: 1px solid var(--line); }
+      .layer-step + .layer-step::before { top: -5px; left: 28px; transform: none; }
+      .talk-track li { grid-template-columns: 34px 1fr; }
+      .talk-track span,
+      .talk-track time { grid-column: 2; }
+      .footer { flex-direction: column; }
+    }
+
+    @media (max-width: 360px) {
+      .topbar-actions { width: 100%; justify-content: flex-end; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+      }
+    }
+  </style>
+</head>
+<body data-mode="guided" data-run-source="mock" data-concept="oauth">
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">P1</span>
+        <span>Ping Academy</span>
+      </div>
+      <p class="topbar-note">Sales-engineering story review</p>
+      <div class="topbar-actions">
+        <button class="theme-toggle" type="button" aria-pressed="false" data-theme-toggle>🌙 Dark mode</button>
+        <span class="review-stamp">Interactive mock</span>
+      </div>
+    </header>
+
+    <nav class="control-deck" aria-label="Preview controls">
+      <div class="concept-tabs" role="tablist" aria-label="Academy concept">
+        <button class="concept-tab" type="button" role="tab" aria-selected="true" aria-controls="oauth-panel" data-concept-target="oauth">OAuth token exchange</button>
+        <button class="concept-tab" type="button" role="tab" aria-selected="false" aria-controls="a2a-panel" data-concept-target="a2a">A2A delegation</button>
+      </div>
+      <div class="mode-switch" aria-label="Presentation length">
+        <span class="mode-label">Pacing</span>
+        <button class="mode-button" type="button" aria-pressed="true" data-mode-target="guided">Guided</button>
+        <button class="mode-button" type="button" aria-pressed="false" data-mode-target="standalone">5-minute demo</button>
+      </div>
+    </nav>
+
+    <section class="execution-lab" aria-labelledby="execution-title">
+      <header class="execution-head">
+        <div>
+          <p class="execution-kicker">Execution view</p>
+          <h1 id="execution-title">Watch the agent work, frame by frame.</h1>
+          <p class="execution-summary">Use a deterministic replay to teach the flow, or switch to the proposed real-agent layout to see where live evidence will appear.</p>
+        </div>
+        <div class="source-control" role="group" aria-label="Run source">
+          <span>Run source</span>
+          <button type="button" aria-pressed="true" data-source-target="mock">Mock replay</button>
+          <button type="button" aria-pressed="false" data-source-target="real">Real agent</button>
+        </div>
+      </header>
+
+      <div data-source-panel="mock">
+        <div class="run-canvas">
+          <article class="agent-console" aria-label="Mock agent conversation">
+            <header class="console-head">
+              <div>
+                <span class="console-label">Agent workspace</span>
+                <strong>Mock agent</strong>
+              </div>
+              <span class="console-state console-state--mock">Simulated</span>
+            </header>
+            <div class="conversation">
+              <div class="message message--user">
+                <span>You</span>
+                <p data-agent-user-message>Show my balance.</p>
+              </div>
+              <div class="message message--agent">
+                <span>Agent</span>
+                <p data-agent-plan>I’ll retrieve the balance using delegated access and show the evidence for every protected hop.</p>
+              </div>
+              <div class="agent-activity" aria-live="polite">
+                <span class="activity-pulse" aria-hidden="true"></span>
+                <p data-agent-activity>Ready to replay a complete OAuth agent turn.</p>
+              </div>
+            </div>
+            <div class="prompt-dock">
+              <span data-agent-prompt>show my balance</span>
+              <button type="button" data-start-mock>Run mock</button>
+            </div>
+          </article>
+
+          <article class="reel-console" aria-label="Mock movie reel">
+            <header class="console-head">
+              <div>
+                <span class="console-label">Transaction evidence</span>
+                <strong>Movie reel</strong>
+              </div>
+              <span class="reel-counter" data-reel-counter>0/7 frames</span>
+            </header>
+            <div class="reel-controls" role="group" aria-label="Movie reel playback">
+              <button type="button" data-reel-action="prev" disabled>Previous</button>
+              <button type="button" data-reel-action="play">Play</button>
+              <button type="button" data-reel-action="next">Next</button>
+              <label>Speed
+                <select data-reel-speed aria-label="Movie reel speed">
+                  <option value="1200">Normal</option>
+                  <option value="650">Fast</option>
+                  <option value="2200">Presenter</option>
+                </select>
+              </label>
+            </div>
+            <div class="film" aria-label="Agent run frames">
+              <div class="film-perforations" aria-hidden="true"></div>
+              <div class="film-track" data-reel-track></div>
+              <div class="film-perforations" aria-hidden="true"></div>
+            </div>
+            <section class="frame-detail" data-reel-detail hidden aria-live="polite"></section>
+          </article>
+        </div>
+        <p class="source-note"><span class="status-dot mock"></span>Everything in this view is deterministic and labeled as simulated.</p>
+      </div>
+
+      <div data-source-panel="real" hidden>
+        <div class="run-canvas">
+          <article class="agent-console agent-console--real" aria-label="Proposed real agent placement">
+            <header class="console-head">
+              <div>
+                <span class="console-label">Existing application component</span>
+                <strong>Our agent</strong>
+              </div>
+              <span class="console-state console-state--live">Live tenant</span>
+            </header>
+            <div class="conversation conversation--real">
+              <div class="real-agent-mark" aria-hidden="true">P1</div>
+              <h2>Your current agent mounts here.</h2>
+              <p>It will run the selected lesson prompt through the existing agent pipeline—not a second demo implementation.</p>
+              <div class="live-contract">
+                <span data-real-use-case>delegated-access-with-proof</span>
+                <strong data-real-prompt>“show my balance”</strong>
+              </div>
+            </div>
+            <button class="proposed-run" type="button" data-preview-live-run>Run with our agent</button>
+          </article>
+
+          <article class="reel-console reel-console--live" aria-label="Proposed live movie reel placement">
+            <header class="console-head">
+              <div>
+                <span class="console-label">Existing TokenChainFilmstrip component</span>
+                <strong>Live movie reel</strong>
+              </div>
+              <span class="reel-counter">Waiting for agent</span>
+            </header>
+            <div class="live-reel-flow" aria-label="Expected live evidence frames">
+              <div><span>01</span><strong>User prompt</strong><small>Waiting</small></div>
+              <div><span>02</span><strong>Agent route</strong><small>Waiting</small></div>
+              <div><span>03</span><strong>Token exchange</strong><small>Waiting</small></div>
+              <div><span>04</span><strong>Authorize</strong><small>Waiting</small></div>
+              <div><span>05</span><strong>Tool call</strong><small>Waiting</small></div>
+              <div><span>06</span><strong>Agent reply</strong><small>Waiting</small></div>
+            </div>
+            <div class="live-empty" data-live-preview-status>
+              <strong>Frames populate from real token-chain events.</strong>
+              <p>Select Run with our agent after this design is wired into the application route.</p>
+            </div>
+          </article>
+        </div>
+        <p class="source-note source-note--real"><span class="status-dot live"></span>Layout preview only. This static mock does not call your agent or PingOne tenant.</p>
+      </div>
+    </section>
+
+    <section id="oauth-panel" role="tabpanel" data-concept-panel="oauth">
+      <header class="hero">
+        <div>
+          <p class="hero-kicker">OAuth / RFC 8693 / delegated authority</p>
+          <h1>Turn one user session into the right token for each hop.</h1>
+        </div>
+        <div class="hero-summary">
+          <p data-mode-copy="guided">Build the mental model first, inspect the claims, then move into the live tenant and prove the exchange.</p>
+          <p data-mode-copy="standalone" hidden>Show the handoff, open the token, and land the value in under five minutes.</p>
+          <div class="duration"><strong data-mode-copy="guided">12–15</strong><strong data-mode-copy="standalone" hidden>5</strong><span>minutes</span></div>
+        </div>
+      </header>
+
+      <div class="status-strip" aria-label="Evidence types">
+        <div class="status-cell"><span class="status-dot mock"></span><span>This page is simulated for story review</span></div>
+        <div class="status-cell"><span class="status-dot recorded"></span><span>Recorded token evidence can back up the flow</span></div>
+        <div class="status-cell"><span class="status-dot live"></span><span>The Academy route runs against the app</span></div>
+      </div>
+
+      <section class="section">
+        <p class="section-label"><strong>The handoff</strong>Authority gets narrower</p>
+        <div class="section-body">
+          <h2>The original user token never becomes a universal agent credential.</h2>
+          <p class="section-lede">The exchange preserves who the user is and who is acting, while changing the audience and scopes for the next protected hop.</p>
+
+          <div class="handoff-rail" data-rail="oauth">
+            <article class="rail-stop">
+              <span class="stop-number">01 / User session</span>
+              <h3>Alice signs in</h3>
+              <p>The BFF holds the browser token and keeps it out of client-side code.</p>
+              <span class="claim">sub: alice</span>
+            </article>
+            <article class="rail-stop exchange">
+              <span class="stop-number">02 / PingOne exchange</span>
+              <h3>Agent requests a bounded token</h3>
+              <p>RFC 8693 binds the actor, target audience, and requested scope.</p>
+              <span class="claim amber">grant_type: token-exchange</span>
+            </article>
+            <article class="rail-stop">
+              <span class="stop-number">03 / MCP resource</span>
+              <h3>Only the right tool is reachable</h3>
+              <p>The downstream service receives a short-lived token made for this call.</p>
+              <span class="claim mint">aud: mcp · scope: accounts:read</span>
+            </article>
+          </div>
+
+          <div class="workbench-footer">
+            <button class="run-button" type="button" data-replay="oauth">Replay the mock exchange</button>
+            <p class="run-state" data-run-state="oauth" aria-live="polite">Ready — no live tenant calls will be made.</p>
+            <a class="live-link" href="/academy/delegation/guided" data-live-link="oauth">Open the live Academy lesson</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" data-guided-only>
+        <p class="section-label"><strong>Evidence</strong>What the audience inspects</p>
+        <div class="section-body">
+          <h2>Make the security value visible in the claims.</h2>
+          <p class="section-lede">The demo should not stop at “token issued.” It should prove the audience, narrowed scope, and actor chain that the resource validates.</p>
+          <div class="evidence-grid">
+            <article class="evidence-panel">
+              <header><h3>Exchange request</h3><span class="source-tag">Mock payload</span></header>
+              <pre><span class="key">grant_type</span>: <span class="value">urn:ietf:params:oauth:grant-type:token-exchange</span>
+<span class="key">subject_token</span>: [user access token]
+<span class="key">actor_token</span>: [banking agent credential]
+<span class="key">audience</span>: <span class="value">mcp-resource</span>
+<span class="key">scope</span>: <span class="attention">accounts:read</span></pre>
+            </article>
+            <article class="evidence-panel">
+              <header><h3>Issued token</h3><span class="source-tag">Mock decoded JWT</span></header>
+              <pre>{
+  <span class="key">"sub"</span>: <span class="value">"alice"</span>,
+  <span class="key">"aud"</span>: <span class="value">"mcp-resource"</span>,
+  <span class="key">"scope"</span>: <span class="attention">"accounts:read"</span>,
+  <span class="key">"act"</span>: { <span class="key">"sub"</span>: <span class="value">"banking-agent"</span> }
+}</pre>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <p class="section-label"><strong>Talk track</strong>What to say</p>
+        <div class="section-body">
+          <ol class="talk-track">
+            <li><strong>Start with the custody boundary.</strong><span>“The browser never hands a reusable user token to the agent.”</span><time>0:00</time></li>
+            <li><strong>Show authority narrowing.</strong><span>“PingOne mints a new token for one audience and the scopes this hop needs.”</span><time>1:15</time></li>
+            <li><strong>Inspect the actor chain.</strong><span>“The resource can see both the user and the agent acting for them.”</span><time>2:30</time></li>
+            <li><strong>Finish with enforcement.</strong><span>“A wrong audience, excess scope, or invalid actor chain is denied before the tool runs.”</span><time>4:00</time></li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="learning-rail" aria-labelledby="oauth-learning-title">
+        <div class="learning-rail__intro">
+          <p class="section-label"><strong id="oauth-learning-title">Keep learning</strong>Story, proof, source</p>
+          <h2>Move from the OAuth explanation to the evidence.</h2>
+          <p>These are the same destinations used by the Academy and Education Hub.</p>
+        </div>
+        <div class="learning-resources">
+          <div class="learning-group">
+            <h3>Education Hub</h3>
+            <ul>
+              <li><a href="/learning"><strong>Open the Education Hub</strong><span>RFC 8693, token flow, token chain, and PingOne Authorize.</span></a></li>
+            </ul>
+          </div>
+          <div class="learning-group">
+            <h3>In this app</h3>
+            <ul>
+              <li><a href="/oauth-academy" data-learning-link="oauth-hub"><strong>OAuth Academy</strong><span>Continue through the full teaching path.</span></a></li>
+              <li><a href="/token-exchange-tester"><strong>Token Exchange Tester</strong><span>Run the exchange against the configured tenant.</span></a></li>
+              <li><a href="/transaction-trace"><strong>Transaction trace</strong><span>Inspect the resulting evidence trail.</span></a></li>
+            </ul>
+          </div>
+          <div class="learning-group">
+            <h3>Official references</h3>
+            <ul>
+              <li><a href="https://www.rfc-editor.org/rfc/rfc8693" target="_blank" rel="noopener noreferrer" data-learning-link="oauth-standard"><strong>OAuth 2.0 Token Exchange</strong><span>RFC 8693 from the RFC Editor.</span></a></li>
+              <li><a href="https://docs.pingidentity.com/pingone/ai_agents/p1_ai_agents.html" target="_blank" rel="noopener noreferrer" data-learning-link="ping-ai-agents"><strong>PingOne AI Agents</strong><span>Official agent identity and delegated-access guidance.</span></a></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <section id="a2a-panel" role="tabpanel" data-concept-panel="a2a" hidden>
+      <header class="hero">
+        <div>
+          <p class="hero-kicker">A2A / Agent Card / nested delegation</p>
+          <h1>Let agents collaborate without losing the user or the rules.</h1>
+        </div>
+        <div class="hero-summary">
+          <p data-mode-copy="guided">Separate the protocol from the authority layer, then show how Ping preserves accountable delegation across both.</p>
+          <p data-mode-copy="standalone" hidden>Discover the specialist, delegate with a bounded token, and prove the handoff.</p>
+          <div class="duration"><strong data-mode-copy="guided">15–18</strong><strong data-mode-copy="standalone" hidden>5</strong><span>minutes</span></div>
+        </div>
+      </header>
+
+      <div class="status-strip" aria-label="Evidence types">
+        <div class="status-cell"><span class="status-dot mock"></span><span>Motion and payloads on this page are simulated</span></div>
+        <div class="status-cell"><span class="status-dot recorded"></span><span>The app includes a captured complete A2A run</span></div>
+        <div class="status-cell"><span class="status-dot live"></span><span>The walkthrough can call the configured specialist</span></div>
+      </div>
+
+      <section class="section">
+        <p class="section-label"><strong>Two layers</strong>Do not collapse them</p>
+        <div class="section-body">
+          <h2>A2A describes the conversation. OAuth governs the authority.</h2>
+          <p class="section-lede">The wire protocol helps one agent discover and message another. RFC 8693 and Ping policy determine whether that remote agent may act for this user.</p>
+
+          <div class="layer-stack" data-rail="a2a">
+            <article class="protocol-layer identity">
+              <div class="layer-name"><strong>Identity layer</strong><span>RFC 8693</span></div>
+              <div class="layer-path">
+                <div class="layer-step"><code>subject token</code><h3>User authorizes planner</h3><p>The user remains the subject of the delegated action.</p></div>
+                <div class="layer-step"><code>exchange 1</code><h3>Planner is the actor</h3><p>PingOne issues a token for the A2A intermediate audience.</p></div>
+                <div class="layer-step"><code>exchange 2</code><h3>Specialist gets less</h3><p>A nested actor chain and narrower scope reach the specialist.</p></div>
+              </div>
+            </article>
+            <article class="protocol-layer wire">
+              <div class="layer-name"><strong>Protocol layer</strong><span>A2A v1.0</span></div>
+              <div class="layer-path">
+                <div class="layer-step"><code>GET /.well-known/agent-card.json</code><h3>Discover capability</h3><p>The planner finds the investment specialist and supported skills.</p></div>
+                <div class="layer-step"><code>POST message:send</code><h3>Send the task</h3><p>The delegated bearer token travels with the protocol request.</p></div>
+                <div class="layer-step"><code>task + artifact</code><h3>Return the result</h3><p>The specialist completes only the action its token permits.</p></div>
+              </div>
+            </article>
+          </div>
+
+          <div class="decision"><strong>Permit</strong><span>User authority, planner identity, specialist identity, audience, and scope all match policy.</span></div>
+
+          <div class="workbench-footer">
+            <button class="run-button" type="button" data-replay="a2a">Replay the mock handoff</button>
+            <p class="run-state" data-run-state="a2a" aria-live="polite">Ready — using illustrative A2A and token evidence.</p>
+            <a class="live-link" href="/a2a-protocol-learning" data-live-link="a2a">Open the live A2A walkthrough</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" data-guided-only>
+        <p class="section-label"><strong>Evidence</strong>One handoff, two proofs</p>
+        <div class="section-body">
+          <h2>Show the protocol artifact beside the identity artifact.</h2>
+          <p class="section-lede">This keeps the audience from assuming that an Agent Card grants authority or that an OAuth token explains the task protocol.</p>
+          <div class="evidence-grid">
+            <article class="evidence-panel">
+              <header><h3>Agent Card discovery</h3><span class="source-tag">Recorded shape</span></header>
+              <pre>{
+  <span class="key">"name"</span>: <span class="value">"Investment specialist"</span>,
+  <span class="key">"url"</span>: <span class="value">"/a2a/specialists/investment"</span>,
+  <span class="key">"skills"</span>: [<span class="attention">"portfolio-summary"</span>],
+  <span class="key">"securitySchemes"</span>: { <span class="key">"oauth2"</span>: { ... } }
+}</pre>
+            </article>
+            <article class="evidence-panel">
+              <header><h3>Specialist token</h3><span class="source-tag">Recorded shape</span></header>
+              <pre>{
+  <span class="key">"sub"</span>: <span class="value">"alice"</span>,
+  <span class="key">"aud"</span>: <span class="value">"investment-specialist"</span>,
+  <span class="key">"scope"</span>: <span class="attention">"portfolio:read"</span>,
+  <span class="key">"act"</span>: {
+    <span class="key">"sub"</span>: <span class="value">"investment-specialist"</span>,
+    <span class="key">"act"</span>: { <span class="key">"sub"</span>: <span class="value">"banking-planner"</span> }
+  }
+}</pre>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <p class="section-label"><strong>Talk track</strong>What to say</p>
+        <div class="section-body">
+          <ol class="talk-track">
+            <li><strong>Draw the two-layer distinction.</strong><span>“A2A tells agents how to collaborate; it does not decide what they are allowed to do.”</span><time>0:00</time></li>
+            <li><strong>Discover the specialist.</strong><span>“The Agent Card advertises capability and protocol details, not blanket permission.”</span><time>1:00</time></li>
+            <li><strong>Follow the nested actors.</strong><span>“The specialist token still resolves back through the planner to the user.”</span><time>2:15</time></li>
+            <li><strong>Prove the policy boundary.</strong><span>“A rogue agent with a valid credential still fails if it is not authorized for this delegation.”</span><time>4:00</time></li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="learning-rail" aria-labelledby="a2a-learning-title">
+        <div class="learning-rail__intro">
+          <p class="section-label"><strong id="a2a-learning-title">Keep learning</strong>Story, proof, source</p>
+          <h2>Connect the A2A handoff to identity and policy.</h2>
+          <p>Use the app routes for the demo and the official sites for protocol depth.</p>
+        </div>
+        <div class="learning-resources">
+          <div class="learning-group">
+            <h3>Education Hub</h3>
+            <ul>
+              <li><a href="/learning"><strong>Open the Education Hub</strong><span>A2A delegation, nested token flow, and Authorize policy.</span></a></li>
+            </ul>
+          </div>
+          <div class="learning-group">
+            <h3>In this app</h3>
+            <ul>
+              <li><a href="/a2a-protocol-learning" data-learning-link="a2a-hub"><strong>A2A Protocol &amp; Identity</strong><span>Run the live or recorded walkthrough.</span></a></li>
+              <li><a href="/delegation-chain-value"><strong>Delegation Chain Value</strong><span>Use the short customer-value explanation.</span></a></li>
+              <li><a href="/ai-products/privilege-a2a"><strong>Privilege for AI — A2A</strong><span>Connect the implementation to the Ping product story.</span></a></li>
+            </ul>
+          </div>
+          <div class="learning-group">
+            <h3>Official references</h3>
+            <ul>
+              <li><a href="https://a2a-protocol.org/latest/specification/" target="_blank" rel="noopener noreferrer" data-learning-link="a2a-standard"><strong>A2A specification</strong><span>The current Agent2Agent protocol specification.</span></a></li>
+              <li><a href="https://a2a-protocol.org/latest/tutorials/" target="_blank" rel="noopener noreferrer" data-learning-link="a2a-tutorials"><strong>A2A tutorials</strong><span>Official clients, servers, and multi-agent examples.</span></a></li>
+              <li><a href="https://www.rfc-editor.org/rfc/rfc8693" target="_blank" rel="noopener noreferrer"><strong>RFC 8693</strong><span>The delegated-identity exchange standard.</span></a></li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <footer class="footer">
+      <p>Review mock — no credentials, tenants, or APIs are used on this page.</p>
+      <p>Designed for sequential training and short standalone demonstrations.</p>
+    </footer>
+  </main>
+
+  <script>
+    (() => {
+      const conceptButtons = [...document.querySelectorAll("[data-concept-target]")];
+      const conceptPanels = [...document.querySelectorAll("[data-concept-panel]")];
+      const modeButtons = [...document.querySelectorAll("[data-mode-target]")];
+      const modeCopies = [...document.querySelectorAll("[data-mode-copy]")];
+      const sourceButtons = [...document.querySelectorAll("[data-source-target]")];
+      const sourcePanels = [...document.querySelectorAll("[data-source-panel]")];
+      const reelTrack = document.querySelector("[data-reel-track]");
+      const reelCounter = document.querySelector("[data-reel-counter]");
+      const reelDetail = document.querySelector("[data-reel-detail]");
+      const reelPlay = document.querySelector('[data-reel-action="play"]');
+      const reelPrev = document.querySelector('[data-reel-action="prev"]');
+      const reelNext = document.querySelector('[data-reel-action="next"]');
+      const reelSpeed = document.querySelector("[data-reel-speed]");
+      const executionLab = document.querySelector(".execution-lab");
+      const themeToggle = document.querySelector("[data-theme-toggle]");
+
+      function setTheme(darkMode) {
+        document.documentElement.dataset.theme = darkMode ? "dark" : "light";
+        document.documentElement.style.colorScheme = darkMode ? "dark" : "light";
+        themeToggle.setAttribute("aria-pressed", String(darkMode));
+        themeToggle.textContent = darkMode ? "☀️ Light mode" : "🌙 Dark mode";
+        try {
+          window.localStorage.setItem("ba_dark_mode", String(darkMode));
+        } catch {
+          // The toggle still works for this session when storage is unavailable.
+        }
+      }
+
+      let storedDarkMode = false;
+      try {
+        storedDarkMode = window.localStorage.getItem("ba_dark_mode") === "true";
+      } catch {
+        storedDarkMode = false;
+      }
+      setTheme(storedDarkMode);
+      themeToggle.addEventListener("click", () => {
+        setTheme(document.documentElement.dataset.theme !== "dark");
+      });
+
+      const RUNS = {
+        oauth: {
+          prompt: "show my balance",
+          userMessage: "Show my balance.",
+          plan: "I’ll retrieve the balance using delegated access and show the evidence for every protected hop.",
+          useCase: "delegated-access-with-proof",
+          frames: [
+            { title: "User prompt", phase: "Agent input", summary: "The signed-in user asks the agent to read protected account data.", evidence: "prompt: show my balance" },
+            { title: "Agent route", phase: "Reasoning", summary: "The agent selects get_account_balance; it does not receive a reusable browser token.", evidence: "tool: get_account_balance" },
+            { title: "Subject token", phase: "Identity", summary: "The BFF supplies the user token from its server-side session for the exchange.", evidence: "sub: alice · issuer: PingOne" },
+            { title: "Token exchange", phase: "RFC 8693", summary: "PingOne mints a new token with the agent recorded as actor and a resource-specific audience.", evidence: "grant_type: token-exchange · act.sub: banking-agent" },
+            { title: "Authorize", phase: "Policy", summary: "Policy evaluates the user, actor, resource, action, audience, and requested scope.", evidence: "decision: PERMIT · policy: delegated-account-read" },
+            { title: "MCP tool", phase: "Execution", summary: "The gateway forwards only the scoped token and the permitted tool executes.", evidence: "aud: mcp-resource · scope: accounts:read" },
+            { title: "Agent reply", phase: "Response", summary: "The agent returns the balance with a complete attributable evidence trail.", evidence: "outcome: completed · tool result grounded" },
+          ],
+        },
+        a2a: {
+          prompt: "hand off to a specialist",
+          userMessage: "Hand this investment question off to a specialist.",
+          plan: "I’ll discover the investment specialist, delegate only the needed authority, and keep the user attached to every hop.",
+          useCase: "a2a-delegation",
+          frames: [
+            { title: "User prompt", phase: "Agent input", summary: "The user asks the generalist agent to involve a specialist.", evidence: "prompt: hand off to a specialist" },
+            { title: "Agent route", phase: "Orchestration", summary: "The generalist recognizes that the request requires the investment specialist.", evidence: "action: delegate_to_specialist" },
+            { title: "Agent Card", phase: "A2A discovery", summary: "The planner discovers the specialist’s endpoint, skills, and security requirements.", evidence: "GET /.well-known/agent-card.json" },
+            { title: "Exchange one", phase: "RFC 8693", summary: "PingOne creates the user-to-generalist delegated token for the intermediate audience.", evidence: "sub: alice · act.sub: banking-planner" },
+            { title: "Exchange two", phase: "Nested delegation", summary: "Authority narrows again and the specialist is added to the nested actor chain.", evidence: "aud: investment-specialist · scope: portfolio:read" },
+            { title: "A2A message", phase: "Protocol", summary: "The planner sends the task over A2A with the specialist bearer token.", evidence: "POST message:send · A2A-Version: 1.0" },
+            { title: "Authorize", phase: "Policy", summary: "Policy verifies both agent identities, the user, the chain depth, and the requested action.", evidence: "decision: PERMIT · ActChainDepth: 2" },
+            { title: "Specialist reply", phase: "Artifact", summary: "The specialist returns the permitted portfolio summary to the planner.", evidence: "task.state: completed · artifact: portfolio-summary" },
+          ],
+        },
+      };
+
+      let activeConcept = "oauth";
+      let revealedCount = 0;
+      let selectedFrame = -1;
+      let playing = false;
+      let playTimer = null;
+
+      function stopPlayback() {
+        playing = false;
+        window.clearTimeout(playTimer);
+        playTimer = null;
+        executionLab.classList.remove("is-playing");
+        reelPlay.textContent = revealedCount >= RUNS[activeConcept].frames.length ? "Replay" : "Play";
+      }
+
+      function renderReel() {
+        const run = RUNS[activeConcept];
+        reelTrack.innerHTML = run.frames.map((frame, index) => {
+          const revealed = index < revealedCount;
+          const selected = index === selectedFrame;
+          return `<button type="button" class="film-frame${revealed ? " is-revealed" : ""}${selected ? " is-selected" : ""}" data-frame-index="${index}">
+            <span class="film-frame__number">Frame ${String(index + 1).padStart(2, "0")}</span>
+            <strong>${revealed ? frame.title : "Waiting"}</strong>
+            <small>${revealed ? frame.phase : "Not reached"}</small>
+          </button>`;
+        }).join("");
+
+        reelCounter.textContent = `${revealedCount}/${run.frames.length} frames`;
+        reelPrev.disabled = revealedCount <= 0;
+        reelNext.disabled = revealedCount >= run.frames.length;
+
+        const frame = selectedFrame >= 0 ? run.frames[selectedFrame] : null;
+        reelDetail.hidden = !frame;
+        if (frame) {
+          reelDetail.innerHTML = `<h3>${frame.title}</h3><p>${frame.summary}</p><code>${frame.evidence}</code>`;
+          document.querySelector("[data-agent-activity]").textContent = `${selectedFrame + 1}/${run.frames.length} — ${frame.phase}: ${frame.title}`;
+        } else {
+          reelDetail.innerHTML = "";
+          document.querySelector("[data-agent-activity]").textContent = `Ready to replay a complete ${activeConcept === "oauth" ? "OAuth" : "A2A"} agent turn.`;
+        }
+
+        reelTrack.querySelectorAll("[data-frame-index]").forEach((button) => {
+          button.addEventListener("click", () => {
+            stopPlayback();
+            const index = Number(button.dataset.frameIndex);
+            revealedCount = Math.max(revealedCount, index + 1);
+            selectedFrame = index;
+            renderReel();
+          });
+        });
+      }
+
+      function stepReel(direction) {
+        const total = RUNS[activeConcept].frames.length;
+        if (direction > 0 && revealedCount < total) {
+          revealedCount += 1;
+          selectedFrame = revealedCount - 1;
+        } else if (direction < 0 && revealedCount > 0) {
+          revealedCount -= 1;
+          selectedFrame = revealedCount - 1;
+        }
+        renderReel();
+      }
+
+      function scheduleNextFrame() {
+        if (!playing) return;
+        if (revealedCount >= RUNS[activeConcept].frames.length) {
+          stopPlayback();
+          return;
+        }
+        stepReel(1);
+        playTimer = window.setTimeout(scheduleNextFrame, Number(reelSpeed.value));
+      }
+
+      function togglePlayback() {
+        if (playing) {
+          stopPlayback();
+          return;
+        }
+        if (revealedCount >= RUNS[activeConcept].frames.length) {
+          revealedCount = 0;
+          selectedFrame = -1;
+          renderReel();
+        }
+        playing = true;
+        executionLab.classList.add("is-playing");
+        reelPlay.textContent = "Pause";
+        scheduleNextFrame();
+      }
+
+      function configureRun(concept) {
+        const run = RUNS[concept];
+        activeConcept = concept;
+        document.body.dataset.concept = concept;
+        document.querySelector("[data-agent-user-message]").textContent = run.userMessage;
+        document.querySelector("[data-agent-plan]").textContent = run.plan;
+        document.querySelector("[data-agent-prompt]").textContent = run.prompt;
+        document.querySelector("[data-real-use-case]").textContent = run.useCase;
+        document.querySelector("[data-real-prompt]").textContent = `“${run.prompt}”`;
+        stopPlayback();
+        revealedCount = 0;
+        selectedFrame = -1;
+        renderReel();
+      }
+
+      function setConcept(concept) {
+        conceptButtons.forEach((button) => {
+          const active = button.dataset.conceptTarget === concept;
+          button.setAttribute("aria-selected", String(active));
+          button.tabIndex = active ? 0 : -1;
+        });
+        conceptPanels.forEach((panel) => {
+          panel.hidden = panel.dataset.conceptPanel !== concept;
+        });
+        configureRun(concept);
+      }
+
+      function setMode(mode) {
+        document.body.dataset.mode = mode;
+        modeButtons.forEach((button) => {
+          button.setAttribute("aria-pressed", String(button.dataset.modeTarget === mode));
+        });
+        modeCopies.forEach((copy) => {
+          copy.hidden = copy.dataset.modeCopy !== mode;
+        });
+      }
+
+      conceptButtons.forEach((button) => {
+        button.addEventListener("click", () => setConcept(button.dataset.conceptTarget));
+      });
+
+      modeButtons.forEach((button) => {
+        button.addEventListener("click", () => setMode(button.dataset.modeTarget));
+      });
+
+      sourceButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const source = button.dataset.sourceTarget;
+          document.body.dataset.runSource = source;
+          sourceButtons.forEach((candidate) => {
+            candidate.setAttribute("aria-pressed", String(candidate.dataset.sourceTarget === source));
+          });
+          sourcePanels.forEach((panel) => {
+            panel.hidden = panel.dataset.sourcePanel !== source;
+          });
+          if (source === "real") stopPlayback();
+        });
+      });
+
+      reelPrev.addEventListener("click", () => { stopPlayback(); stepReel(-1); });
+      reelNext.addEventListener("click", () => { stopPlayback(); stepReel(1); });
+      reelPlay.addEventListener("click", togglePlayback);
+      document.querySelector("[data-start-mock]").addEventListener("click", togglePlayback);
+      document.querySelector("[data-preview-live-run]").addEventListener("click", () => {
+        document.querySelector("[data-live-preview-status]").innerHTML = "<strong>Design preview only.</strong><p>The integrated version will dispatch this lesson prompt to the existing agent and stream its token-chain events into this reel.</p>";
+      });
+
+      configureRun("oauth");
+
+      document.querySelectorAll("[data-replay]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const concept = button.dataset.replay;
+          const rail = document.querySelector(`[data-rail="${concept}"]`);
+          const state = document.querySelector(`[data-run-state="${concept}"]`);
+          const labels = concept === "oauth"
+            ? ["Subject token accepted", "PingOne exchange evaluated", "Scoped MCP token issued"]
+            : ["Agent Card discovered", "Nested delegation evaluated", "A2A task permitted"];
+
+          rail.classList.remove("is-running");
+          void rail.offsetWidth;
+          rail.classList.add("is-running");
+          button.disabled = true;
+
+          labels.forEach((label, index) => {
+            window.setTimeout(() => {
+              state.textContent = `${index + 1}/3 — ${label}`;
+              if (index === labels.length - 1) button.disabled = false;
+            }, 380 * (index + 1));
+          });
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

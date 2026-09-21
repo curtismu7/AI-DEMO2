@@ -1,0 +1,305 @@
+.ote-lesson {
+  display: grid;
+  gap: 1rem;
+}
+
+.ote-hero,
+.ote-section,
+.ote-talk-track {
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
+}
+
+.ote-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(15rem, 0.75fr);
+  gap: 1.5rem;
+  padding: clamp(1.25rem, 3vw, 2.25rem);
+  background: linear-gradient(120deg, var(--th-bg-card) 0%, var(--th-bg-inset) 100%);
+  color: var(--th-text-body);
+}
+
+.ote-eyebrow {
+  margin: 0 0 0.5rem;
+  color: var(--th-status-info-text);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ote-hero h2,
+.ote-section h3,
+.ote-talk-track h3 {
+  margin: 0;
+  color: var(--th-text);
+  line-height: 1.15;
+}
+
+.ote-hero h2 {
+  max-width: 13ch;
+  font-size: clamp(var(--font-size-2xl), 4vw, var(--font-size-4xl));
+}
+
+.ote-hero__lede,
+.ote-section__heading > p,
+.ote-section__intro,
+.ote-talk-track li {
+  color: var(--th-text-body);
+  line-height: 1.6;
+}
+
+.ote-hero__lede {
+  max-width: 62ch;
+  margin: 1rem 0 0;
+  font-size: var(--font-size-md);
+}
+
+.ote-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1.5rem;
+}
+
+.ote-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.6rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.ote-button--primary {
+  color: var(--th-text-invert);
+  border-color: var(--th-status-info);
+  background: var(--th-status-info);
+}
+
+.ote-button--quiet {
+  color: var(--th-status-info-text);
+  background: var(--th-bg-card);
+}
+
+.ote-button:hover,
+.ote-button:focus-visible {
+  filter: brightness(1.06);
+}
+
+.ote-hero__proof {
+  display: grid;
+  align-content: center;
+  gap: 0.65rem;
+}
+
+.ote-proof-stat {
+  padding: 0.85rem 1rem;
+  border-left: 3px solid var(--th-border-strong);
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
+}
+
+.ote-proof-stat--accent {
+  border-left-color: var(--th-status-success);
+}
+
+.ote-proof-stat strong,
+.ote-proof-stat span {
+  display: block;
+}
+
+.ote-proof-stat strong {
+  color: var(--th-text);
+  font-size: var(--font-size-lg);
+}
+
+.ote-proof-stat span {
+  margin-top: 0.2rem;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+}
+
+.ote-section,
+.ote-talk-track {
+  padding: clamp(1.1rem, 2.5vw, 1.6rem);
+}
+
+.ote-section__heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.ote-section h3,
+.ote-talk-track h3 {
+  font-size: var(--font-size-xl);
+}
+
+.ote-section__heading > p {
+  max-width: 38ch;
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.ote-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.ote-flow__item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.ote-flow-card {
+  flex: 1;
+  min-height: 10.5rem;
+  padding: 1rem;
+  border-top: 3px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
+}
+
+.ote-flow-card--user { border-top-color: var(--th-status-info); }
+.ote-flow-card--exchange { border-top-color: var(--th-status-warning); }
+.ote-flow-card--downstream { border-top-color: var(--th-status-success); }
+
+.ote-flow-card__eyebrow {
+  color: var(--th-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  font-weight: 800;
+}
+
+.ote-flow-card h4,
+.ote-demo-card h4 {
+  margin: 0.45rem 0 0;
+  color: var(--th-text);
+  font-size: var(--font-size-md);
+}
+
+.ote-flow-card p,
+.ote-demo-card p {
+  margin: 0.6rem 0 0;
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+.ote-flow__arrow {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xl);
+}
+
+.ote-section--split {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.65fr) minmax(0, 1.35fr);
+  gap: 1.5rem;
+}
+
+.ote-section__intro {
+  margin: 0.75rem 0 0;
+  font-size: var(--font-size-sm);
+}
+
+.ote-demo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.ote-demo-card {
+  padding: 1rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
+}
+
+.ote-demo-card--live { border-color: var(--th-status-success-border); }
+.ote-demo-card--mock { border-color: var(--th-status-info-border); }
+
+.ote-demo-card__topline {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+}
+
+.ote-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: var(--radius-pill);
+  background: var(--th-status-success);
+  color: var(--th-text-body);
+}
+
+.ote-demo-card--mock .ote-dot {
+  background: var(--th-status-info);
+  color: var(--th-text-body);
+}
+
+.ote-demo-card ul {
+  margin: 0.8rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+}
+
+.ote-talk-track {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.7fr) minmax(0, 1.3fr);
+  gap: 1.5rem;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
+}
+
+.ote-talk-track ol {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0;
+  padding-left: 1.35rem;
+}
+
+.ote-talk-track strong { color: var(--th-text); }
+
+@media (max-width: 820px) {
+  .ote-hero,
+  .ote-section--split,
+  .ote-talk-track {
+    grid-template-columns: 1fr;
+  }
+
+  .ote-flow {
+    grid-template-columns: 1fr;
+  }
+
+  .ote-flow__item {
+    align-items: stretch;
+  }
+
+  .ote-flow__arrow {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .ote-demo-grid {
+    grid-template-columns: 1fr;
+  }
+}

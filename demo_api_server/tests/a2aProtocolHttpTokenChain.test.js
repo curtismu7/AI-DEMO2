@@ -58,6 +58,7 @@ const CLAIMS = {
   aud: ['a2a-intermediate-holdings.ping.demo'],
   scope: 'agent:invoke:holdings',
   act: { client_id: 'generalist-agent' },
+  a2a_tenant_id: 'tenant-investment',
 };
 
 function fakeJwt(payload) {
