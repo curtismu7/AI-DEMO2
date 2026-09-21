@@ -23,11 +23,17 @@ describe('oauthDiscoveryService', () => {
     jest.mock('axios');
     mockAxios = require('axios');
     delete process.env.OAUTH_ISSUER;
+    delete process.env.OAUTH_PROVIDER;
+    delete process.env.PF_ISSUER;
+    delete process.env.PF_ID_JAG_ENABLED;
     delete process.env.NODE_ENV;
   });
 
   afterEach(() => {
     delete process.env.OAUTH_ISSUER;
+    delete process.env.OAUTH_PROVIDER;
+    delete process.env.PF_ISSUER;
+    delete process.env.PF_ID_JAG_ENABLED;
     delete process.env.NODE_ENV;
   });
 
@@ -88,6 +94,20 @@ describe('oauthDiscoveryService', () => {
     );
   });
 
+  test('constructs PF discovery URL from PF_ISSUER in PingFederate mode', async () => {
+    process.env.OAUTH_PROVIDER = 'pingfederate';
+    process.env.PF_ISSUER = 'https://pf.example.com';
+    mockAxios.get.mockResolvedValue({ data: mockMetadata({ issuer: 'https://pf.example.com' }) });
+    discoveryService = require('../services/oauthDiscoveryService');
+
+    await discoveryService.fetchDiscoveryMetadata();
+
+    expect(mockAxios.get).toHaveBeenCalledWith(
+      'https://pf.example.com/.well-known/openid-configuration',
+      expect.objectContaining({ timeout: 5000 })
+    );
+  });
+
   // ── Test 5 ────────────────────────────────────────────────────────────────
   test('rejects http:// discovery URL in production', async () => {
     process.env.NODE_ENV = 'production';
@@ -139,6 +159,44 @@ describe('oauthDiscoveryService', () => {
     );
 
     expect(result).toBeNull();
+  });
+
+  test('rejects PF discovery when ID-JAG capability metadata is absent', async () => {
+    process.env.OAUTH_PROVIDER = 'pingfederate';
+    process.env.PF_ISSUER = 'https://pf.example.com';
+    process.env.PF_ID_JAG_ENABLED = 'true';
+    mockAxios.get.mockResolvedValue({ data: mockMetadata({ issuer: 'https://pf.example.com' }) });
+    discoveryService = require('../services/oauthDiscoveryService');
+
+    const result = await discoveryService.fetchDiscoveryMetadata(
+      'https://pf.example.com/.well-known/openid-configuration'
+    );
+
+    expect(result).toBeNull();
+  });
+
+  test('accepts PF discovery when ID-JAG capability metadata is advertised', async () => {
+    process.env.OAUTH_PROVIDER = 'pingfederate';
+    process.env.PF_ISSUER = 'https://pf.example.com';
+    process.env.PF_ID_JAG_ENABLED = 'true';
+    mockAxios.get.mockResolvedValue({
+      data: mockMetadata({
+        issuer: 'https://pf.example.com',
+        identity_chaining_requested_token_types_supported: [
+          'urn:ietf:params:oauth:token-type:id-jag',
+        ],
+        authorization_grant_profiles_supported: [
+          'urn:ietf:params:oauth:grant-profile:id-jag',
+        ],
+      }),
+    });
+    discoveryService = require('../services/oauthDiscoveryService');
+
+    const result = await discoveryService.fetchDiscoveryMetadata(
+      'https://pf.example.com/.well-known/openid-configuration'
+    );
+
+    expect(result).not.toBeNull();
   });
 
   // ── Test 9 ────────────────────────────────────────────────────────────────

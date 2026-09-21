@@ -2,6 +2,16 @@
 const axios = require('axios');
 const configStore = require('./configStore');
 
+const isPingFederate = () => configStore.getOAuthProvider?.() === 'pingfederate';
+
+function configuredIssuer() {
+  return configStore.getEffective(isPingFederate() ? 'pf_issuer' : 'oauth_issuer');
+}
+
+function requiresIdJag() {
+  return isPingFederate() && String(configStore.getEffective('pf_id_jag_enabled')).toLowerCase() === 'true';
+}
+
 /**
  * Fetches OIDC discovery metadata from the issuer's .well-known/openid-configuration.
  * Returns parsed metadata object, or null if discovery is unconfigured or fails.
@@ -13,7 +23,7 @@ const configStore = require('./configStore');
  */
 async function fetchDiscoveryMetadata(discoveryUrl) {
   if (!discoveryUrl) {
-    const issuer = configStore.getEffective('oauth_issuer');
+    const issuer = configuredIssuer();
     if (!issuer) return null;
     discoveryUrl = `${issuer.trim().replace(/\/$/, '')}/.well-known/openid-configuration`;
   }
@@ -38,13 +48,25 @@ async function fetchDiscoveryMetadata(discoveryUrl) {
     }
 
     // Validate issuer matches configured value
-    const configuredIssuer = configStore.getEffective('oauth_issuer');
-    if (configuredIssuer) {
+    const expectedIssuer = configuredIssuer();
+    if (expectedIssuer) {
       const norm = (s) => s.trim().replace(/\/$/, '');
-      if (norm(metadata.issuer) !== norm(configuredIssuer)) {
+      if (norm(metadata.issuer) !== norm(expectedIssuer)) {
         console.error(
-          `[oauth-discovery] Issuer mismatch — configured: ${norm(configuredIssuer)}, discovered: ${norm(metadata.issuer)}`
+          `[oauth-discovery] Issuer mismatch — configured: ${norm(expectedIssuer)}, discovered: ${norm(metadata.issuer)}`
         );
+        return null;
+      }
+    }
+
+    if (requiresIdJag()) {
+      const requestedTokenTypes = metadata.identity_chaining_requested_token_types_supported;
+      const grantProfiles = metadata.authorization_grant_profiles_supported;
+      const idJagType = 'urn:ietf:params:oauth:token-type:id-jag';
+      const idJagProfile = 'urn:ietf:params:oauth:grant-profile:id-jag';
+      if (!Array.isArray(requestedTokenTypes) || !requestedTokenTypes.includes(idJagType)
+        || !Array.isArray(grantProfiles) || !grantProfiles.includes(idJagProfile)) {
+        console.error('[oauth-discovery] PingFederate ID-JAG support is not advertised by discovery metadata');
         return null;
       }
     }
