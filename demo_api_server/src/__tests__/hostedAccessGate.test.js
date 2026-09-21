@@ -25,6 +25,10 @@ describe('hostedAccessGate', () => {
     ['/api/auth/hosted-access/login', 'GET'],
     ['/api/auth/hosted-access/callback', 'GET'],
     ['/api/auth/hosted-access/logout', 'GET'],
+    ['/api/auth/hosted-registration/request', 'POST'],
+    ['/api/auth/hosted-registration/verify', 'POST'],
+    ['/api/auth/hosted-registration/resend', 'POST'],
+    ['/api/auth/hosted-registration/status', 'GET'],
     ['/api/healthz', 'GET'],
   ])('allows exact bypass %s %s', (path, method) => {
     expect(isHostedAccessBypassPath(path, method)).toBe(true);
@@ -35,6 +39,7 @@ describe('hostedAccessGate', () => {
     ['/api/auth/hosted-access/login', 'POST'],
     ['/api/auth/hosted-access/callback.evil', 'GET'],
     ['/api/auth/oauth/user/login', 'GET'],
+    ['/api/auth/hosted-registration/request/extra', 'POST'],
     ['/api/use-cases', 'GET'],
   ])('rejects bypass confusion %s %s', (path, method) => {
     expect(isHostedAccessBypassPath(path, method)).toBe(false);

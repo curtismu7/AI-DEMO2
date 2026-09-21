@@ -9,6 +9,10 @@ const EXACT_BYPASSES = new Set([
   'GET /api/auth/hosted-access/login',
   'GET /api/auth/hosted-access/callback',
   'GET /api/auth/hosted-access/logout',
+  'POST /api/auth/hosted-registration/request',
+  'POST /api/auth/hosted-registration/verify',
+  'POST /api/auth/hosted-registration/resend',
+  'GET /api/auth/hosted-registration/status',
   'GET /api/healthz',
 ]);
 

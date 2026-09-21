@@ -679,7 +679,9 @@ app.use(restoreSessionFromCookie);
 // ClusterIP; all other API paths are independently protected here so a future
 // ingress or port-forward cannot bypass the Ping-domain decision.
 app.use('/api/auth/hosted-access', require('./routes/hostedAccess'));
+app.use('/api/auth/hosted-registration', require('./routes/hostedRegistration'));
 app.use('/api', require('./middleware/hostedAccessGate').createHostedAccessGate());
+app.use('/api/admin/hosted-registrations', authenticateToken, requireAdmin, require('./routes/hostedRegistrationAdmin'));
 
 // RFC 6749 §6 — silently refresh near-expired end-user access tokens on
 // authenticated API routes so UIs never serve stale tokens to downstream services.

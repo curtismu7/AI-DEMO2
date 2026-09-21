@@ -401,14 +401,49 @@ class PingOneManagementService {
   /**
    * Create a user
    */
-  async createUser({ populationId, username, email }) {
+  async createUser({ populationId, username, email, firstName, lastName, canAuthenticate = true }) {
     this.ensureInitialized();
-    const payload = { population: { id: populationId }, username, email };
+    const payload = {
+      population: { id: populationId }, username, email,
+      ...(firstName ? { name: { given: firstName, family: lastName || '' } } : {}),
+      account: { canAuthenticate },
+    };
     try {
       const response = await axios.post(`${this.baseURL}/users`, payload, { headers: this.getHeaders() });
       return { success: true, user: response.data, id: response.data.id };
     } catch (error) {
       return this.handleError(error, 'createUser');
+    }
+  }
+
+  async getUser(id) {
+    this.ensureInitialized();
+    try {
+      const response = await axios.get(`${this.baseURL}/users/${encodeURIComponent(id)}`, { headers: this.getHeaders() });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 404) return null;
+      return this.handleError(error, 'getUser');
+    }
+  }
+
+  async setUserCanAuthenticate(id, canAuthenticate) {
+    this.ensureInitialized();
+    try {
+      await axios.patch(`${this.baseURL}/users/${encodeURIComponent(id)}`, { account: { canAuthenticate: Boolean(canAuthenticate) } }, { headers: this.getHeaders() });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'setUserCanAuthenticate');
+    }
+  }
+
+  async addUserToGroup(userId, groupId) {
+    this.ensureInitialized();
+    try {
+      await axios.post(`${this.baseURL}/users/${encodeURIComponent(userId)}/memberOfGroups`, { group: { id: groupId } }, { headers: this.getHeaders() });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'addUserToGroup');
     }
   }
 

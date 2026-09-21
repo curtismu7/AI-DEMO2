@@ -1,0 +1,36 @@
+# Hosted Registration Approval Design
+
+## Goal
+
+Allow previously unknown Ping employees to request access without granting access until an administrator approves the request.
+
+## Rules
+
+- Registration accepts only addresses whose normalized domain is exactly `pingidentity.com`.
+- The applicant must prove control of the address with a short-lived, single-use email OTP.
+- OTP verification creates or advances a pending request; it never creates an approved application session.
+- The existing Demo User/Admin application accounts remain unchanged.
+- The approval queue is durable and administrator-only.
+- Approval enables or provisions the PingOne identity, assigns the selected hosted-access group, and sends activation instructions.
+- Rejection, disablement, and expiration remove hosted access and invalidate admission sessions.
+
+## Architecture
+
+The public request flow is served by the BFF at `/api/auth/hosted-registration/*`, outside the hosted application gate. Requests are stored in a dedicated LMDB database. OTPs are generated in the BFF, stored only as hashes with an expiry and attempt counter, and delivered using the existing PingOne user-message email facility when available; a configured development delivery adapter is used only for local tests.
+
+The administrator API is mounted under `/api/admin/hosted-registrations` and uses the existing application `authenticateToken` plus `requireAdmin` guards. It supports list, approve, reject, enable/disable, group/role update, resend, and audit-safe status changes. PingOne provisioning is isolated behind a service so the queue remains testable without live PingOne calls.
+
+The front-door hosted-access decision will require the approved group claim in addition to verified `pingidentity.com` email. Until group provisioning is configured, the existing domain-only behavior remains available only when the new group requirement flag is disabled.
+
+## UI
+
+- Public `/request-access` page: name, email, requested role, OTP entry, and status message.
+- Admin `/admin/hosted-registrations` page: filterable status table and approval actions.
+- Public registration routes are exact ingress bypasses; admin routes remain behind the existing application session and hosted admission gate.
+
+## Safety
+
+- Never log OTPs, passwords, activation tokens, or raw approval links.
+- Use generic responses for unknown/duplicate email addresses.
+- Rate-limit request, resend, and verify operations.
+- Approval is idempotent and records the acting application admin, timestamp, selected groups, and PingOne result.

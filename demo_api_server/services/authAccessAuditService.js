@@ -7,6 +7,7 @@ const OUTCOMES = Object.freeze(['started', 'success', 'denied', 'failure']);
 const REASON_CODES = Object.freeze([
   'allowed',
   'domain_not_allowed',
+  'group_not_allowed',
   'email_unverified',
   'email_missing',
   'email_malformed',

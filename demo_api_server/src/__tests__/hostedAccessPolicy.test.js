@@ -59,6 +59,19 @@ describe('hostedAccessPolicy', () => {
     )).toEqual({ sub: null, email: null, email_verified: false });
   });
 
+  test('can require membership in the approved hosted-access group', () => {
+    const policy = loadHostedAccessPolicy({
+      ...enabledEnv,
+      HOSTED_ACCESS_REQUIRED_GROUP_ID: 'group-hosted-users',
+    });
+    expect(evaluateHostedIdentity({
+      sub: 'user-1', email: 'person@pingidentity.com', email_verified: true, groups: [],
+    }, policy)).toMatchObject({ allowed: false, reason: 'group_not_allowed' });
+    expect(evaluateHostedIdentity({
+      sub: 'user-1', email: 'person@pingidentity.com', email_verified: true, groups: ['group-hosted-users'],
+    }, policy)).toMatchObject({ allowed: true });
+  });
+
   test.each([
     ['person@evilpingidentity.com', 'domain_not_allowed'],
     ['person@pingidentity.com.example.org', 'domain_not_allowed'],

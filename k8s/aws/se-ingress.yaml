@@ -103,6 +103,51 @@ spec:
             name: frontend
             port:
               number: 4000
+      - path: /api/auth/hosted-registration/request
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/auth/hosted-registration/verify
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/auth/hosted-registration/resend
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/auth/hosted-registration/status
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /request-access
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      # The registration page is a React SPA route. Its content-hashed JS/CSS
+      # files must also bypass the browser auth annotation or the public form
+      # loads HTML successfully but cannot boot.
+      - path: /assets
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
 ---
 # The public MCP door: an external agent (ChatGPT, Claude, LM Studio) reaches
 # oauth-mcp through PingGateway, which takes the per-tool PingOne Authorize
