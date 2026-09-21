@@ -530,7 +530,7 @@ In this project, `pingone_ai_agent_actor_scope` must be set to a single-resource
 
 ### Gotcha 6: `_cookie_session` Stub After Server Restart
 
-When the server restarts with `CLEAR_SESSIONS_ON_BOOT=true` (default), all LMDB sessions are wiped. The browser still has the old session cookie. On the next request, the session middleware cannot find the session in LMDB.
+When the server restarts with `CLEAR_SESSIONS_ON_BOOT=true`, all LMDB sessions are wiped. The browser still has the old session cookie. On the next request, the session middleware cannot find the session in LMDB. Normal restarts leave this option unset and preserve sessions.
 
 A separate `authStateCookie` (httpOnly, set at login time) preserves basic identity across restarts. The session middleware detects this case and restores a stub session with `accessToken: '_cookie_session'` — enough to recognize the user but not to make API calls.
 
@@ -538,7 +538,7 @@ A separate `authStateCookie` (httpOnly, set at login time) preserves basic ident
 
 **This is the correct behaviour** — it prevents stale tokens from being used after a restart.
 
-**To preserve sessions across restarts:** set `CLEAR_SESSIONS_ON_BOOT=false` in `.env`. The LMDB store will then serve the persisted sessions on startup.
+**To preserve sessions across restarts:** leave `CLEAR_SESSIONS_ON_BOOT` unset (or set it to `false`). The LMDB store will then serve the persisted sessions on startup.
 
 ---
 

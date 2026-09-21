@@ -69,9 +69,9 @@ session silently mints a fresh access token (see `middleware/tokenRefresh.js`).
 ### c) Kill the session(s)
 Sessions persist in LMDB (`services/lmdb/sessionStore.js`, db `sessions`). To
 force every user to re-authenticate, restart the BFF with
-`CLEAR_SESSIONS_ON_BOOT=true` (this is the **default**; it is currently set
-`false` on the deployment to preserve sessions — flip it for the restart, then
-restore). For a single agent, the kill switch already invalidates its sessions.
+`CLEAR_SESSIONS_ON_BOOT=true`. This is intentionally opt-in so ordinary
+restarts preserve sessions. For a single agent, the kill switch already
+invalidates its sessions.
 
 ## 3. Eradicate
 

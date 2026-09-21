@@ -2889,6 +2889,32 @@ hostile-content scenario behavior, and denial evidence semantics independent.
 **Verify:** Focused Privilege panel/theme Vitest tests, `npm run build`, and a
 live Playwright computed-style check in both page themes.
 
+### 2026-09-20 — Movie reel selection and local session persistence
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/__tests__/FocusModeFilmstripGuard.test.js`,
+`demo_api_server/server.js`, `demo_api_server/tests/sessionBootPersistence.test.js`,
+and the session-operation documentation/check comment updates.
+
+**What was broken:** Choosing Movie reel from the evidence-view picker never
+enabled it when it was off because an unreachable duplicate `movie-reel` branch
+contained the activation call. Separately, the BFF cleared every LMDB session
+on startup unless an opt-out variable was set, so ordinary local restarts made
+the browser log in again.
+
+**What was fixed:** The reachable Movie reel branch now restores its embedded
+surface when selected. Session-store wiping is now an explicit
+`CLEAR_SESSIONS_ON_BOOT=true` operation; normal restarts preserve the session
+cookie and LMDB session.
+
+**Do not break:** Keep the Movie reel surface choices (`none`, `embedded`,
+`popout`, `both`) and explicit off preference behavior. Keep deliberate boot
+session clearing available for incident response and clean demo runs. Do not
+change browser token custody or OAuth redirect origins.
+
+**Verify:** Focused Filmstrip Guard Vitest, session boot persistence Jest, full
+UI unit suite, and `npm run build`.
+
 ### 2026-09-20 — Guided Journey restart invalidates pending lesson evidence
 
 **Files changed:** `demo_api_ui/src/pages/GuidedJourneyPage.jsx` and

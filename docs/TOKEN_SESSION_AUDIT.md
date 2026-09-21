@@ -48,7 +48,7 @@ if (!s || s === 'dev-session-secret-change-in-production') {
 - `resave: false` — session not saved if not modified ✅
 - `saveUninitialized: false` — no session created for unauthenticated requests ✅
 
-**Boot clear:** On each restart, all persisted LMDB sessions are wiped (`CLEAR_SESSIONS_ON_BOOT=true` default). This forces re-authentication so stale tokens cannot linger. Opt out with `CLEAR_SESSIONS_ON_BOOT=false`.
+**Boot clear:** Persisted LMDB sessions survive ordinary restarts. Set `CLEAR_SESSIONS_ON_BOOT=true` explicitly when a clean re-authentication is required, such as incident response.
 
 **Session regeneration on login:** Both local login and OAuth callback call `req.session.regenerate()` before setting `req.session.user`, preventing session fixation attacks (CWE-384).
 
