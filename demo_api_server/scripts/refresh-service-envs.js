@@ -746,6 +746,12 @@ async function main(deps = {}) {
     PINGONE_BASE_URL:                `https://auth.pingone.${region}/${envId}`,
     PINGONE_CLIENT_ID:               creds.mcpExchangerClientId,
     PINGONE_CLIENT_SECRET:           creds.mcpExchangerSecret,
+    // The embedded external MCP OAuth broker uses explicit OAUTH_MCP_* names
+    // for its PingOne federation hop. Keep them aligned with the existing
+    // exchanger credentials so the public /authorize flow is configured in
+    // generated deployments as well as local environments.
+    OAUTH_MCP_PINGONE_CLIENT_ID:     creds.mcpExchangerClientId,
+    OAUTH_MCP_PINGONE_CLIENT_SECRET: creds.mcpExchangerSecret,
     PINGONE_INTROSPECTION_ENDPOINT:  `${asBase}/introspect`,
     PINGONE_AUTHORIZATION_ENDPOINT:  `${asBase}/authorize`,
     PINGONE_TOKEN_ENDPOINT:          `${asBase}/token`,
