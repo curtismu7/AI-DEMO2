@@ -31,7 +31,7 @@ export function openClientRegistrationEnabled(): boolean {
  * token gate existed to prevent, so open registration must not reintroduce it.
  */
 export function openRegistrationScope(): string {
-  return process.env.DCR_OPEN_REGISTRATION_SCOPE || 'mcp:invoke read';
+  return process.env.DCR_OPEN_REGISTRATION_SCOPE || 'mcp:invoke read openid';
 }
 
 /**

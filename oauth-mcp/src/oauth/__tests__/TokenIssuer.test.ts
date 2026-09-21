@@ -185,4 +185,20 @@ describe('TokenIssuer scope filtering', () => {
     const payloads = (jose.SignJWT as any).payloads as Record<string, unknown>[];
     expect(payloads[payloads.length - 1].scope).toBe('mcp:invoke read');
   });
+
+  it('issues an ID token with the OIDC claims and nonce for an openid code flow', async () => {
+    const issuer = await buildIssuer();
+    const response = await issuer.issueAuthorizationCode(
+      { client_id: 'oidc-client', client_name: 'OIDC client', grant_types: ['authorization_code'], redirect_uris: [], token_endpoint_auth_method: 'none', scope: 'openid mcp:invoke' },
+      'real-user',
+      'openid mcp:invoke',
+      undefined,
+      { email: 'user@example.test' },
+      'nonce-123',
+    );
+
+    expect(response.id_token).toBe('fake.jwt.token');
+    const payloads = (jose.SignJWT as any).payloads as Record<string, unknown>[];
+    expect(payloads[payloads.length - 1]).toMatchObject({ email: 'user@example.test', nonce: 'nonce-123' });
+  });
 });

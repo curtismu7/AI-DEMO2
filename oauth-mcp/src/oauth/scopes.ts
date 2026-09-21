@@ -32,6 +32,7 @@ export const GENERIC_MCP_SCOPES = ['mcp:invoke', 'read', 'write'] as const;
  * either document builds a request the other end accepts.
  */
 export const AUTHORIZATION_SERVER_SCOPES: string[] = [
+  'openid',
   ...BANKING_SCOPES,
   ...GENERIC_MCP_SCOPES,
 ];
