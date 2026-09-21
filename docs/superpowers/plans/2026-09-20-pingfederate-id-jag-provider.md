@@ -169,6 +169,7 @@
 - [x] Create the BFF OIDC clients `ai-demo-pf-user` and `ai-demo-pf-admin` with Authorization Code, PKCE S256, refresh-token/offline access, required scopes, and exact local callback URIs.
 - [x] Accept the local PF subscription agreement and initialize a fresh licensed PF profile; preserve the initialized instance outside Git as the profile source.
 - [x] Export an authenticated PingOne application inventory, including protocol, grants, redirect URIs, scopes, auth method, and application role; inventory contains `55` OIDC applications (`54` enabled) across web, worker, native, and AI-agent types. Do not copy management-only credentials as OIDC clients.
+- [x] Migrate only enabled PingOne applications; explicitly exclude enabled PingOne platform clients (Admin Console, Application Portal, and Self-Service/MyAccount) because they are PingOne-managed control-plane applications and are not portable PF demo clients.
 - [x] Create and verify the PF `Demo AI App - User Login` equivalent (`83572007-b2c7-4862-8197-dc225a9fb8e1`) with the canonical local callback, authorization-code and refresh-token grants.
 - [x] Create and verify the PF `PingOneAgent_agent` worker equivalent (`3c4954ad-0dca-4b27-835b-302db72f04e9`) with client-credentials grant and a PF-generated secret.
 - [ ] Stabilize the PF admin session and continue the remaining portable-client migration from this checkpoint.
