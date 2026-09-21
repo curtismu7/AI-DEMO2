@@ -53,13 +53,21 @@
   --ping-spinner-size: 88px;
   --ping-spinner-accent: var(--brand-error, var(--th-status-error));
   position: relative;
-  display: inline-grid;
-  width: var(--ping-spinner-size);
-  height: var(--ping-spinner-size);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   flex: 0 0 auto;
-  place-items: center;
   color: var(--ping-spinner-accent);
   vertical-align: middle;
+}
+
+.ping-spinner__visual {
+  position: relative;
+  display: grid;
+  width: var(--ping-spinner-size);
+  height: var(--ping-spinner-size);
+  flex: 0 0 var(--ping-spinner-size);
+  place-items: center;
 }
 
 .ping-spinner__mark {
@@ -101,9 +109,8 @@
 
 .ping-spinner--inline {
   display: inline-flex;
-  width: auto;
   height: auto;
-  gap: 0;
+  gap: 4px;
 }
 
 .ping-spinner--inline .ping-spinner__ring { display: none; }

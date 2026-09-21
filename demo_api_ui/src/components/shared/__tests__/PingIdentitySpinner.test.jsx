@@ -34,8 +34,12 @@ describe('PingIdentitySpinner', () => {
   it('dances the identity mark inside a stable red circle', () => {
     render(<PingIdentitySpinner label="Loading account details…" />);
 
-    expect(document.querySelector('.ping-spinner__ring--outer')).toBeInTheDocument();
-    expect(document.querySelector('.ping-spinner__mark--dancing')).toBeInTheDocument();
+    const visual = document.querySelector('.ping-spinner__visual');
+    const mark = document.querySelector('.ping-spinner__mark--dancing');
+    const label = document.querySelector('.ping-spinner__label');
+
+    expect(visual).toContainElement(mark);
+    expect(visual).not.toContainElement(label);
   });
 
   it('keeps runtime loading surfaces to one branded mark plus a short note', () => {
