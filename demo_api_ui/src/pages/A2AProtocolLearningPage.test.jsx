@@ -103,4 +103,15 @@ describe('A2A protocol learning lessons', () => {
 
     expect(screen.getByLabelText('Education selection')).toHaveTextContent('a2a-delegation:what');
   });
+
+  it('uses the current official A2A tutorials from the related learning rail', async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: /open the official A2A tutorials/i })).toHaveAttribute(
+        'href',
+        'https://a2a-protocol.org/latest/tutorials/',
+      );
+    });
+  });
 });

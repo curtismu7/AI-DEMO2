@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const previewPath = path.resolve(process.cwd(), "public/academy-preview.html");
 
-function loadPreview() {
+function loadPreview({ storedDarkMode } = {}) {
   expect(
     fs.existsSync(previewPath),
     "the reviewable Academy mock should ship as public/academy-preview.html",
@@ -14,6 +14,11 @@ function loadPreview() {
   return new JSDOM(fs.readFileSync(previewPath, "utf8"), {
     runScripts: "dangerously",
     url: "https://local.ping-devops.com:4000/academy-preview.html",
+    beforeParse(window) {
+      if (storedDarkMode !== undefined) {
+        window.localStorage.setItem("ba_dark_mode", String(storedDarkMode));
+      }
+    },
   });
 }
 
@@ -26,12 +31,23 @@ describe("Academy HTML preview", () => {
     expect(document.documentElement.dataset.theme).toBe("light");
     expect(toggle).not.toBeNull();
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    expect(toggle.textContent).toBe("🌙 Dark mode");
 
     toggle.click();
 
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    expect(toggle.textContent).toBe("☀️ Light mode");
     expect(localStorage.getItem("ba_dark_mode")).toBe("true");
+  });
+
+  it("restores a previously selected dark theme", () => {
+    const dom = loadPreview({ storedDarkMode: true });
+    const { document } = dom.window;
+
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(document.querySelector("[data-theme-toggle]").getAttribute("aria-pressed")).toBe("true");
+    expect(document.querySelector("[data-theme-toggle]").textContent).toBe("☀️ Light mode");
   });
 
   it("switches between the OAuth and A2A concept workbenches", () => {
@@ -98,6 +114,8 @@ describe("Academy HTML preview", () => {
       .toBe("/a2a-protocol-learning");
     expect(document.querySelector('[data-learning-link="a2a-standard"]').getAttribute("href"))
       .toBe("https://a2a-protocol.org/latest/specification/");
+    expect(document.querySelector('[data-learning-link="a2a-tutorials"]').getAttribute("href"))
+      .toBe("https://a2a-protocol.org/latest/tutorials/");
   });
 
   it("switches between mock replay and the real-agent layout preview", () => {

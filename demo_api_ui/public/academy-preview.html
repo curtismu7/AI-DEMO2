@@ -1243,7 +1243,9 @@
 
     @media (max-width: 720px) {
       .shell { width: min(100% - 24px, 1480px); }
+      .topbar { flex-wrap: wrap; gap: 10px; padding-bottom: 10px; }
       .topbar-note { display: none; }
+      .topbar-actions { margin-left: auto; }
       .control-deck { position: static; grid-template-columns: 1fr; }
       .concept-tabs,
       .mode-switch { overflow-x: auto; }
@@ -1269,6 +1271,10 @@
       .footer { flex-direction: column; }
     }
 
+    @media (max-width: 360px) {
+      .topbar-actions { width: 100%; justify-content: flex-end; }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after {
         scroll-behavior: auto !important;
@@ -1287,7 +1293,7 @@
       </div>
       <p class="topbar-note">Sales-engineering story review</p>
       <div class="topbar-actions">
-        <button class="theme-toggle" type="button" aria-pressed="false" data-theme-toggle>Dark mode</button>
+        <button class="theme-toggle" type="button" aria-pressed="false" data-theme-toggle>🌙 Dark mode</button>
         <span class="review-stamp">Interactive mock</span>
       </div>
     </header>
@@ -1674,7 +1680,7 @@
             <h3>Official references</h3>
             <ul>
               <li><a href="https://a2a-protocol.org/latest/specification/" target="_blank" rel="noopener noreferrer" data-learning-link="a2a-standard"><strong>A2A specification</strong><span>The current Agent2Agent protocol specification.</span></a></li>
-              <li><a href="https://a2a-protocol.org/dev/tutorials/" target="_blank" rel="noopener noreferrer"><strong>A2A tutorials</strong><span>Official clients, servers, and multi-agent examples.</span></a></li>
+              <li><a href="https://a2a-protocol.org/latest/tutorials/" target="_blank" rel="noopener noreferrer" data-learning-link="a2a-tutorials"><strong>A2A tutorials</strong><span>Official clients, servers, and multi-agent examples.</span></a></li>
               <li><a href="https://www.rfc-editor.org/rfc/rfc8693" target="_blank" rel="noopener noreferrer"><strong>RFC 8693</strong><span>The delegated-identity exchange standard.</span></a></li>
             </ul>
           </div>
@@ -1710,7 +1716,7 @@
         document.documentElement.dataset.theme = darkMode ? "dark" : "light";
         document.documentElement.style.colorScheme = darkMode ? "dark" : "light";
         themeToggle.setAttribute("aria-pressed", String(darkMode));
-        themeToggle.textContent = darkMode ? "Light mode" : "Dark mode";
+        themeToggle.textContent = darkMode ? "☀️ Light mode" : "🌙 Dark mode";
         try {
           window.localStorage.setItem("ba_dark_mode", String(darkMode));
         } catch {

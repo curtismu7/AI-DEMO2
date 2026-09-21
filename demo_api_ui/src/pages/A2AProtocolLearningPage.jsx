@@ -102,7 +102,7 @@ const A2A_EXTERNAL_LINKS = [
     ariaLabel: 'Read the A2A specification',
   },
   {
-    href: 'https://a2a-protocol.org/dev/tutorials/',
+    href: 'https://a2a-protocol.org/latest/tutorials/',
     label: 'A2A tutorials',
     detail: 'Official hands-on clients, servers, and multi-agent examples.',
     ariaLabel: 'Open the official A2A tutorials',
