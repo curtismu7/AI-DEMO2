@@ -24,6 +24,24 @@ const FLOW_STEPS = [
   },
 ];
 
+const DELEGATED_PROOF_STEPS = [
+  {
+    title: "Gateway authorization",
+    detail: "Ping Agent Gateway validates aud, scope, and act before the request can move downstream.",
+    tone: "gateway",
+  },
+  {
+    title: "Policy decision",
+    detail: "PingOne Authorize returns PERMIT, DENY, or STEP-UP for this user, agent, and action.",
+    tone: "policy",
+  },
+  {
+    title: "Tool execution",
+    detail: "Tool executes only after PERMIT, using the narrowed token and recording the result as evidence.",
+    tone: "tool",
+  },
+];
+
 const OAUTH_EDUCATION_LINKS = [
   {
     panelId: EDU.RFC_8693,
@@ -139,6 +157,32 @@ export default function OAuthTokenExchangeLessonPage() {
               {index < FLOW_STEPS.length - 1 ? <span className="ote-flow__arrow" aria-hidden="true">→</span> : null}
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="ote-section ote-proof-section" aria-labelledby="ote-proof-title">
+        <div className="ote-section__heading">
+          <div>
+            <p className="ote-eyebrow">Delegated access proof</p>
+            <h3 id="ote-proof-title">Gateway authorization and proof</h3>
+          </div>
+          <p>The token proves delegation; the policy decision proves whether this action is allowed.</p>
+        </div>
+        <div className="ote-proof-flow" aria-label="Delegated access authorization flow">
+          {DELEGATED_PROOF_STEPS.map((step, index) => (
+            <div className="ote-proof-flow__item" key={step.title}>
+              <article className={`ote-proof-card ote-proof-card--${step.tone}`}>
+                <span className="ote-proof-card__number">0{index + 1}</span>
+                <h4>{step.title}</h4>
+                <p>{step.detail}</p>
+              </article>
+              {index < DELEGATED_PROOF_STEPS.length - 1 ? <span className="ote-flow__arrow" aria-hidden="true">→</span> : null}
+            </div>
+          ))}
+        </div>
+        <div className="ote-proof-branch" role="note">
+          <strong>Deny or step-up</strong>
+          <span>Stop before tool execution, return the challenge, and require a new decision before retrying.</span>
         </div>
       </section>
 

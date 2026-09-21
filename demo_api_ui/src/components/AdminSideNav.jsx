@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { applyChildOrder } from "../config/navStructureCatalog";
 import useDividerDrag from "../hooks/useDividerDrag";
@@ -161,28 +161,17 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.co
 // load when nothing is saved. Ids must equal slugify(<group label>) from
 // `allNavItems` below — update both together when renaming a group.
 const AUTO_EXPAND_SECTIONS = [
-  { id: "ai-gateway", paths: ["/ai-gateway/shadow-ai-detector"] },
-  { id: "customer-demos", paths: ["/agent-lifecycle"] },
-  { id: "demos", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/demo-config", "/delegation", "/delegation-chain-value", "/a2a-protocol-learning"] },
-  { id: "ai-agents", paths: ["/ai-control-plane", "/control-plane", "/agent-registry", "/agent", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
-  { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client", "/llm-gateway", "/llm-test", "/privilege-mcp-learning"] },
-  { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
-  { id: "banking-mcp-gateways", paths: ["/agent-gateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities", "/agent-gateway-authorization", "/mcp-discovery"] },
-  { id: "pingone-demo-apps", paths: ["/self-service", "/pingone-test", "/mfa-test", "/token-exchange-tester", "/oauth-academy", "/oas-demo", "/privilege-demo", "/sdk-login"] },
+  { id: "ai-gateway", paths: ["/ai-gateway/shadow-ai-detector", "/privilege-mcp-client", "/llm-gateway", "/agent-gateway-authorization", "/code-search"] },
+  { id: "davinci", paths: ["/davinci-widget", "/davinci-login-guide", "/davinci-sdk-login", "/davinci-orchestration", "/davinci-orchestration-sdk", "/orchestration-sdk"] },
+  { id: "pingone-products", paths: ["/pingcli", "/sdk-login", "/samples/m2m-credentials", "/samples/custom-admin-role"] },
+  { id: "identity-journeys", paths: ["/self-service", "/samples/user-registration", "/samples/mfa-demo", "/login-flow", "/oauth-academy", "/oas-demo"] },
+  { id: "ai-experiences", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/agent-lifecycle", "/delegation-chain-value", "/a2a-protocol-learning", "/control-plane", "/ai-control-plane", "/agent-registry", "/agent-builder", "/agent-flow-inspector", "/agent-onboarding-flow", "/agent-onboarding-flow-subway", "/langchain", "/ungoverned-agent", "/servers", "/autonomous-agents", "/personal-agent", "/privilege-for-ai"] },
+  { id: "mcp-integrations", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/demo/enterprise-mcp", "/ping-ai-test-lab", "/agent-gateway-inspector", "/agent-gateway-capabilities", "/webmcp", "/mcp-scanner", "/personal-agent"] },
+  { id: "utilities", paths: ["/pingone-test", "/mfa-test", "/oauth-debug-logs", "/token-exchange-tester", "/mgmt-api", "/pingone-setup", "/mcp-discovery", "/check"] },
   { id: "delegation-consent", paths: ["/transaction-consent", "/actor-token-education"] },
   { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
-  { id: "users-accounts", paths: ["/users", "/accounts", "/transactions"] },
-  { id: "platform-admin", paths: ["/admin", "/admin/pingone"] },
-  // No "/admin" here — it belongs to platform-admin now that the dashboard
-  // is back on it. Listing a path in two sections expands both, which
-  // breaks the single-section accordion.
-  { id: "industry-verticals", paths: ["/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/university", "/admin/government", "/admin/manufacturing", "/admin/investment", "/admin/abercrombie-fitch", "/admin/verticals", "/path/mortgage"] },
-  { id: "monitoring", paths: ["/audit", "/monitoring", "/reports", "/error-audit"] },
-  { id: "telemetry", paths: ["/tracing", "/telemetry", "/transaction-trace", "/mcp-observability", "/check"] },
-  { id: "agent-studio-preview", paths: ["/iga-for-ai", "/discovery-preview", "/privileges-gateway-preview", "/platform-gaps"] },
-  { id: "ai-product-pages", paths: ["/ai-products"] },
-  { id: "learn-present", paths: ["/learning", "/personal-agent", "/privilege-mcp-client", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide", "/spiffe-pingone-bridge"] },
-  { id: "tests", paths: ["/resource-server", "/resource-server-cc"] },
+  { id: "administration", paths: ["/admin", "/admin/pingone", "/users", "/accounts", "/transactions", "/admin/banking", "/admin/healthcare", "/admin/retail", "/admin/sporting-goods", "/admin/workforce", "/admin/verticals", "/path/mortgage", "/configure", "/settings", "/client-registration"] },
+  { id: "observability", paths: ["/audit", "/monitoring", "/reports", "/error-audit", "/telemetry", "/tracing", "/transaction-trace", "/mcp-observability", "/check"] },
 ];
 
 // Load a role's saved expansion state, falling back to the path-based
@@ -219,6 +208,20 @@ const sectionIdOf = (item, index) =>
   item.id || slugify(item.label) || `i${index}`;
 const isLocalHost = () =>
   typeof window !== "undefined" && LOCAL_HOSTNAMES.has(window.location.hostname);
+
+const NAV_SECTION_LABELS = new Map([
+  ["Home", "Core"],
+  ["AI Gateway", "PingOne Platform"],
+  ["Identity Journeys", "Separate Areas"],
+]);
+
+const PRODUCT_CARD_GROUPS = new Set(["AI Gateway", "DaVinci", "PingOne Products"]);
+
+const navGroupClassName = (label) => {
+  if (PRODUCT_CARD_GROUPS.has(label)) return "admin-side-nav__group--product-card";
+  if (label === "Utilities") return "admin-side-nav__group--utility";
+  return "admin-side-nav__group--separate";
+};
 
 export default function AdminSideNav({
   user,
@@ -491,7 +494,7 @@ export default function AdminSideNav({
   // Main navigation items (some with submenus) — ALL ROUTES VERIFIED
   // Items with adminOnly: true stay visible to everyone but carry an "admin"
   // badge; non-admin clicks prompt an admin re-login (see adminPromptPath)
-  const allNavItems = [
+  const legacyNavItems = [
     { label: "Home", path: "/", icon: "home" },
     { label: "Dashboard", path: "/security-dashboard", icon: "dashboard", adminOnly: true },
     {
@@ -1058,9 +1061,9 @@ export default function AdminSideNav({
           path: "/architecture/system",
           icon: "arc",
         },
-        // Cross-listed: the canonical entry is Monitoring > System Flow. Same
+        // Cross-listed: the canonical entry is Observability > System Flow. Same
         // route, second door — a presenter hunting a system picture looks here,
-        // not under Monitoring. Distinct label so Demo Config (which hides by
+        // not under Observability. Distinct label so Demo Config (which hides by
         // label) can drop either door without taking the other with it.
         {
           label: "System Flow (Live)",
@@ -1085,6 +1088,7 @@ export default function AdminSideNav({
         { label: "Interactive Flow (Node)", path: "/architecture/flow", icon: ">" },
         { label: "Sequence Diagram (Node)", path: "/sequence-diagram", icon: "log" },
         { label: "Canvas Diagram (Node)", path: "/architecture/canvas", icon: "arc" },
+        { label: "Delegated Access Proof", path: "/academy/delegation/guided", icon: "lnk" },
         { label: "Agent Onboarding Flow (Node)", path: "/agent-onboarding-flow", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
         { label: "Agent Onboarding Flow Subway (Node)", path: "/agent-onboarding-flow-subway", icon: "arc", className: "admin-side-nav__item--onboarding-white" },
         { label: "Invest Dual-Auth (MM)", path: "/invest-dual-auth", icon: "rte" },
@@ -1210,6 +1214,230 @@ export default function AdminSideNav({
         },
       ],
     },
+  ];
+
+  // The sidebar is intentionally organized by user intent rather than by the
+  // order in which demos were added. Keep the existing item definitions above
+  // as the route/action registry, then compose the presentation groups here.
+  const legacyChildren = legacyNavItems.flatMap((item) => item.children || []);
+  const legacyFlat = legacyNavItems.filter((item) => !item.children);
+  const findLegacyItem = (label, path) => {
+    const match = [...legacyChildren, ...legacyFlat].find(
+      (item) => item.label === label && (!path || item.path === path),
+    );
+    if (!match) throw new Error(`Missing navigation item: ${label}`);
+    return match;
+  };
+  const renameLegacyItem = (label, nextLabel, path) => ({
+    ...findLegacyItem(label, path),
+    label: nextLabel,
+  });
+  const childrenFrom = (labels) => labels.map((entry) => {
+    if (typeof entry === "string") return findLegacyItem(entry);
+    if (entry.rename) return renameLegacyItem(entry.from, entry.rename, entry.path);
+    if (entry.path) return { ...entry, icon: entry.icon || "doc" };
+    return findLegacyItem(entry.label, entry.path);
+  });
+  const productGroup = (label, labels, icon = "shld") => ({
+    label,
+    icon,
+    children: childrenFrom(labels),
+  });
+
+  const allNavItems = [
+    findLegacyItem("Home"),
+    findLegacyItem("Dashboard"),
+    findLegacyItem("Themes"),
+    productGroup("AI Gateway", [
+      { from: "Shadow AI Detector", rename: "AI Guard" },
+      "Protocol Playground",
+      "AI Gateway Client",
+      "LLM Gateway",
+      "Intent Inspector",
+      "Audit Agent",
+      { from: "AI Agent Gateway Guide", rename: "AI Gateway Guide" },
+      "Agent Gateway Authorization",
+      { from: "AI Agent Gateway Diagrams", rename: "AI Gateway Diagrams" },
+      "Agent IAM Core",
+      "Agent Gateway",
+      { from: "PingOne Authorize", rename: "PingOne Authorize", path: "/ai-products/authorize" },
+      { from: "Privilege · LLM", rename: "AI Gateway · LLM" },
+      { from: "Privilege · A2A", rename: "AI Gateway · A2A" },
+      { from: "Privilege · MCP", rename: "AI Gateway · MCP" },
+      "Protected RAG",
+      { from: "Privilege Demo", rename: "AI Gateway Demo" },
+    ]),
+    productGroup("DaVinci", [
+      "DaVinci Widget",
+      { label: "DaVinci Login", path: "/davinci-login-guide" },
+      { label: "DaVinci SDK Login", path: "/davinci-sdk-login" },
+      { label: "DaVinci Orchestration", path: "/davinci-orchestration" },
+      "DaVinci Orchestration SDK",
+      "Orchestration SDK Guide",
+      "DaVinci Orchestration Overview",
+    ], "doc"),
+    productGroup("PingOne Products", [
+      { from: "Headless Identity Demo", rename: "Headless Identity / PingCLI" },
+      "SDK Login",
+      "M2M Client Credentials",
+      "Custom Admin Role",
+    ], "pol"),
+    productGroup("Identity Journeys", [
+      "Self-Service Registration",
+      "User Registration",
+      "Login with MFA",
+      { from: "Login Flow Diagram", rename: "Identity Journey Map" },
+      "OAuth Academy",
+      "OAS Demo",
+    ], "usr"),
+    productGroup("Authorize", [
+      "P1AZ Inspector",
+      "PAC Editor",
+      "Authorize Capabilities",
+      "Policy Decision Trace",
+      "Scope Audit",
+      "Scope Reference",
+      "Snapshot Import",
+      "Resource Server Checkpoint",
+    ], "pol"),
+    productGroup("Delegation & Consent", [
+      "Transaction Consent",
+      "Actor Token Education",
+      "Family Delegation",
+    ], "dlg"),
+    productGroup("Utilities", [
+      "PingOne Test",
+      "MFA Test",
+      "OAuth Debug",
+      "Token Exchange Tester",
+      "OAS Demo",
+      { from: "Mgmt API Runner", rename: "Management API Runner" },
+      "PingOne MCP Setup",
+      "MCP Discovery",
+      "Resource Server Checkpoint",
+      "Scope Reference",
+      "Snapshot Import",
+      "Health Check",
+    ], "tool"),
+    productGroup("AI Experiences", [
+      "Weather MCP",
+      "Brave Search MCP",
+      "Use Cases",
+      "Use Cases (Live)",
+      "Guided Demo Track",
+      "Delegation Chain Value",
+      "A2A Protocol & Identity",
+      "Group Policy Board",
+      "Demo Script",
+      "Agentic Control Plane",
+      "Agent Kill Switch",
+      "Agent Registry",
+      "PingOne Agent Builder",
+      "Agent & Token Flow History",
+      "Agent Onboarding Flow (Node)",
+      "Agent Onboarding Flow Subway (Node)",
+      "Autonomous Agents",
+      "Personal Agent",
+      "Agent Lifecycle (guided demo)",
+      "Delegated Commerce (guided demo)",
+      "LangChain Agent",
+      "Ungoverned Agent",
+      "NotebookLM Docs Oracle",
+      "Prompt Injection",
+      "HITL Bypass",
+      "Indirect Injection",
+      "Unauthorized Commitments",
+      "Scope Abuse",
+      "Intent Bypass",
+      "IGA for AI",
+      "Discovery",
+      { from: "AI Agent Gateway (Preview)", rename: "AI Gateway (Preview)" },
+      "Platform Gaps",
+      "AI Security Academy",
+      "Academy Standalone Demos",
+      "Agentic Trust",
+      "Agent Guardrails",
+      "OWASP Agent Risks",
+      { from: "Privilege for AI", rename: "AI Gateway for AI" },
+    ], "agt"),
+    productGroup("MCP & Integrations", [
+      "MCP Inspector",
+      "Agent Gateway Inspector",
+      "Enterprise-Managed MCP Auth",
+      "Ping AI Test Lab",
+      "Capability Tour",
+      "MCP Runtime Inventory",
+      "MCP Scanner",
+      "Personal Agent Clients",
+      "LibreChat (browser)",
+      "LM Studio (Mac)",
+    ], "mcp"),
+    productGroup("Developer Tools", [
+      "Code Explorer",
+      { from: "Graphify", rename: "Graphify" },
+      "Postman Collections",
+      "API Docs (Swagger)",
+      "API Reference (Scalar)",
+      "llama-vscode Guide",
+    ], "tst"),
+    productGroup("Observability", [
+      "Audit Trail",
+      "Learning Log",
+      "Activity Log",
+      "API Activity",
+      "Run Reports",
+      "Error Audit Log",
+      "New Relic",
+      "PingOne Events",
+      { from: "PingOne Authorize", rename: "PingOne Authorize Decisions", path: "/monitoring/p1az" },
+      "Token Exchange",
+      "System Flow",
+      "Service Graph",
+      "Tracing",
+      "Transaction Trace",
+      "MCP Observability",
+      "Grafana",
+    ], "log"),
+    productGroup("Architecture & Learning", [
+      "System Diagram (Node)",
+      "Overview Diagram (Node)",
+      "Token Flow (Interactive) (Node)",
+      "Token Chain Architecture (Node)",
+      "Interactive Flow (Node)",
+      "Sequence Diagram (Node)",
+      "Canvas Diagram (Node)",
+      "Delegated Access Proof",
+      "Invest Dual-Auth (MM)",
+      { from: "AI Agent Gateway (MM)", rename: "AI Gateway (MM)" },
+      { from: "Privilege-First Gateway (Node)", rename: "AI Gateway Enforcement (Node)" },
+      "Gateway vs P1AZ Enforcement (MM)",
+      "Resource Server Placement (MM)",
+      "Learning Hub",
+      "SPIFFE → PingOne Bridge (TODO)",
+      "llama-vscode Guide",
+    ], "arc"),
+    productGroup("Administration", [
+      "Feature Flags",
+      "LLM Config",
+      "Secret Rotation",
+      "App Configuration",
+      "Security Settings",
+      "CIMD Simulation",
+      "Demo Config",
+      { from: "Dashboard", rename: "PingOne Admin Dashboard", path: "/admin/pingone" },
+      "Banking Ops",
+      "Healthcare Ops",
+      "Retail Ops",
+      "Sporting Goods Ops",
+      "Workforce Ops",
+      "Vertical Editor",
+      "Mortgage Path",
+      "Users",
+      "Accounts",
+      "Transactions",
+      "OIDC Resource Server",
+      "CC Resource Server",
+    ], "cfg"),
   ];
 
   // Filter by role. adminOnly items are NOT hidden — they render with an
@@ -1487,7 +1715,7 @@ export default function AdminSideNav({
 
     if (hasChildren) {
       return (
-        <div key={itemKey} className="admin-side-nav__group">
+        <div key={itemKey} className={`admin-side-nav__group ${navGroupClassName(item.label)}`}>
           <button
             type="button"
             className={`admin-side-nav__item admin-side-nav__item--parent${isParentActive(item) ? " admin-side-nav__item--parent-active" : ""}${item.highlight ? " admin-side-nav__item--highlight-danger" : ""}`}
@@ -1668,10 +1896,11 @@ export default function AdminSideNav({
 
       {/* Ping2026 skin brand header — hidden by CSS unless body.admin-skin-p1 */}
       {!collapsed && (
-        <div className="admin-side-nav__ping-brand" aria-hidden="true">
-          <span className="admin-side-nav__ping-mark" />
+        <div className="admin-side-nav__ping-brand" aria-label="Super Banking PingOne platform demo">
+          <span className="admin-side-nav__ping-mark">P1</span>
           <span className="admin-side-nav__ping-wordmark">
-            Ping<strong>Identity</strong>
+            <strong>Super Banking</strong>
+            <small>PingOne platform demo</small>
           </span>
         </div>
       )}
@@ -1796,9 +2025,16 @@ export default function AdminSideNav({
 
         {/* Main Navigation Section */}
         <div className="admin-side-nav__section">
-          {visibleNavItems.map((item, idx) =>
-            renderNavItem(item, "nav", idx, !!navQuery),
-          )}
+          {visibleNavItems.map((item, idx) => (
+            <Fragment key={`nav-section-${item.label}`}>
+              {!collapsed && NAV_SECTION_LABELS.has(item.label) && (
+                <div className="admin-side-nav__section-label">
+                  {NAV_SECTION_LABELS.get(item.label)}
+                </div>
+              )}
+              {renderNavItem(item, "nav", idx, !!navQuery)}
+            </Fragment>
+          ))}
           {!collapsed && navQuery && visibleNavItems.length === 0 && (
             <div className="admin-side-nav__filter-empty">
               No matches for “{navFilter.trim()}”
