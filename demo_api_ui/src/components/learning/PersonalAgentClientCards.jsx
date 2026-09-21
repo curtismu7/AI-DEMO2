@@ -20,7 +20,7 @@ function ClientAction({ client }) {
   }
 
   return (
-    <Link className="personal-agent-client-cards__action" to={client.setupPath}>
+    <Link className="personal-agent-client-cards__action personal-agent-client-cards__action--link" to={client.setupPath}>
       {client.actionLabel}
     </Link>
   );

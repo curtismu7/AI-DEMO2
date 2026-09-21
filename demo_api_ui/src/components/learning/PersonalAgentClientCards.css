@@ -140,6 +140,10 @@
   filter: brightness(1.08);
 }
 
+.personal-agent-client-cards__action--link {
+  color: var(--th-text-invert) !important;
+}
+
 @media (max-width: 760px) {
   .personal-agent-client-cards__heading,
   .personal-agent-client-cards__grid {
