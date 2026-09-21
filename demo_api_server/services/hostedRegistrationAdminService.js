@@ -2,6 +2,7 @@
 
 const defaultStore = require('./lmdb/hostedRegistrationStore.lmdb');
 const { createHostedRegistrationProvisioningService } = require('./hostedRegistrationProvisioningService');
+const { sendHostedRegistrationConfirmation } = require('./emailService');
 
 const ROLE_GROUP_ENV = Object.freeze({
   user: 'HOSTED_ACCESS_USER_GROUP_ID',
@@ -11,6 +12,7 @@ const ROLE_GROUP_ENV = Object.freeze({
 function createHostedRegistrationAdminService({
   store = defaultStore,
   provisioner = createHostedRegistrationProvisioningService(),
+  sendConfirmation = sendHostedRegistrationConfirmation,
   now = Date.now,
 } = {}) {
   function get(id) {
@@ -40,6 +42,11 @@ function createHostedRegistrationAdminService({
       updatedAt: now(),
     };
     store.put(updated);
+    try {
+      await sendConfirmation(updated, { status: 'approved' });
+    } catch (error) {
+      console.warn('[hosted-registration] approval confirmation failed:', error.code || error.message);
+    }
     return updated;
   }
 

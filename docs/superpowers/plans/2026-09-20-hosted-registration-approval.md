@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Accept only exact normalized `pingidentity.com` email domains.
-- Never generate or store OTPs in the BFF; PingOne MFA owns the code and verification. Collect a country calling code plus local cell number, normalize and persist the resulting E.164 number with first and last name, then write the profile and silently enroll the SMS MFA device to PingOne at approval.
+- Never generate or store OTPs in the BFF; PingOne MFA owns the code, HTML delivery, and verification. Use the branded `strong_authentication` email variant for the OTP, then send a PingOne Notifications HTML confirmation after verification and approval. Collect a country calling code plus local cell number, normalize and persist the resulting E.164 number with first and last name, then write the profile and silently enroll the SMS MFA device to PingOne at approval.
 - Do not mutate the existing Demo User/Admin session or login flows.
 - Use the existing PingOne notification and management-service patterns.
 - Public hosted registration routes must remain exact and narrowly scoped.

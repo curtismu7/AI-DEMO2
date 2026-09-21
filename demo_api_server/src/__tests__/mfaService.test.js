@@ -268,6 +268,16 @@ describe('initiateOneTimeOtp', () => {
     const [, body] = axios.post.mock.calls[1];
     expect(body.selectedDevice.oneTime).toEqual({ type: 'SMS', phone: '+15551234567' });
   });
+
+  it('can select a custom PingOne notification variant for email OTP delivery', async () => {
+    mockWorkerTokenSuccess('wtok');
+    axios.post.mockResolvedValueOnce({ data: { id: 'da-ot-3', status: 'OTP_REQUIRED' } });
+    await mfaService.initiateOneTimeOtp('user-9', 'EMAIL', 'u@example.com', 'ignored', {
+      templateVariant: 'ai-demo-hosted-registration',
+    });
+    const [, body] = axios.post.mock.calls[1];
+    expect(body.notification).toEqual({ template: { variant: 'ai-demo-hosted-registration' } });
+  });
 });
 
 // ─── selectDevice ─────────────────────────────────────────────────────────────

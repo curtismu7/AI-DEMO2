@@ -12,9 +12,11 @@ jest.mock('../../services/hostedRegistrationService', () => ({
 }));
 jest.mock('../../services/emailService', () => ({
   sendHostedRegistrationAdminAlert: jest.fn(async () => {}),
+  sendHostedRegistrationConfirmation: jest.fn(async () => {}),
 }));
 
 const router = require('../../routes/hostedRegistration');
+const { sendHostedRegistrationConfirmation } = require('../../services/emailService');
 
 function app() {
   const server = express();
@@ -36,6 +38,10 @@ describe('hosted registration routes', () => {
       .send({ requestId: 'req-1', otp: '123456' });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ requestId: 'req-1', status: 'pending_approval' });
+    expect(sendHostedRegistrationConfirmation).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'req-1', status: 'pending_approval' }),
+      { status: 'pending_approval' },
+    );
   });
 
   test('status does not expose OTP or approval secrets', async () => {

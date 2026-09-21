@@ -1072,6 +1072,7 @@ async function initiateOneTimeOtp(
   deliveryType,
   contact,
   _userAccessToken,
+  options = {},
 ) {
   const authBase = _authBaseUrl();
   const workerToken = await _getWorkerToken();
@@ -1081,6 +1082,9 @@ async function initiateOneTimeOtp(
       : { type: "SMS", phone: contact };
   const url = `${authBase}/deviceAuthentications`;
   const reqBody = { user: { id: userId }, selectedDevice: { oneTime } };
+  if (options.templateVariant) {
+    reqBody.notification = { template: { variant: options.templateVariant } };
+  }
   const _debug = {
     request: {
       method: "POST",

@@ -8,6 +8,7 @@ const OTP_TTL_MS = 10 * 60 * 1000;
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
 const MAX_OTP_ATTEMPTS = 5;
 const EMAIL_PATTERN = /^[^\s@]+@pingidentity\.com$/i;
+const OTP_TEMPLATE_VARIANT = process.env.PINGONE_HOSTED_REGISTRATION_OTP_TEMPLATE_VARIANT || 'ai-demo-hosted-registration';
 
 function normalizeRegistrationEmail(value) {
   const email = String(value || '').trim().toLowerCase();
@@ -38,7 +39,7 @@ function createHostedRegistrationService({
   store = defaultStore,
   now = Date.now,
   generateId = () => crypto.randomBytes(18).toString('hex'),
-  startMfa = (record) => initiateOneTimeOtp(record.pingOneUserId, 'EMAIL', record.email),
+  startMfa = (record) => initiateOneTimeOtp(record.pingOneUserId, 'EMAIL', record.email, undefined, { templateVariant: OTP_TEMPLATE_VARIANT }),
   verifyMfa = (record, otp) => verifyOneTimeOtp(record.pingOneMfaId, otp),
   otpTtlMs = OTP_TTL_MS,
   otpResendCooldownMs = OTP_RESEND_COOLDOWN_MS,

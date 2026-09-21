@@ -2,7 +2,7 @@
 
 const express = require('express');
 const { createHostedRegistrationService } = require('../services/hostedRegistrationService');
-const { sendHostedRegistrationAdminAlert } = require('../services/emailService');
+const { sendHostedRegistrationAdminAlert, sendHostedRegistrationConfirmation } = require('../services/emailService');
 const { createHostedRegistrationProvisioningService } = require('../services/hostedRegistrationProvisioningService');
 
 const router = express.Router();
@@ -49,6 +49,7 @@ router.post('/verify', async (req, res) => {
   try {
     const staged = await provisioningService.stage(result);
     registrationService.update(result.id, { pingOneUserId: staged.pingOneUserId, groups: staged.groups });
+    result = { ...result, ...staged };
   } catch (error) {
     console.warn('[hosted-registration] PingOne partial staging failed:', error.code || error.message);
   }
@@ -56,6 +57,11 @@ router.post('/verify', async (req, res) => {
     await sendHostedRegistrationAdminAlert(result);
   } catch (error) {
     console.warn('[hosted-registration] admin notification failed:', error.code || error.message);
+  }
+  try {
+    await sendHostedRegistrationConfirmation(result, { status: 'pending_approval' });
+  } catch (error) {
+    console.warn('[hosted-registration] user confirmation failed:', error.code || error.message);
   }
   return res.status(200).json({ requestId: result.id, status: result.status });
 });

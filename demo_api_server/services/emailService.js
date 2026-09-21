@@ -327,6 +327,40 @@ async function sendOtpSms(userId, opts) {
   }
 }
 
+function buildHostedRegistrationEmailHtml({ firstName, email, status, appUrl = process.env.PUBLIC_APP_URL || 'https://ai-demo.ping-devops.com' }) {
+  const approved = status === 'approved';
+  const safeName = escapeHtml(firstName || 'there');
+  const safeEmail = escapeHtml(email);
+  const safeAppUrl = escapeHtml(appUrl);
+  const title = approved ? 'Your hosted demo access is approved' : 'Your access request is received';
+  const message = approved
+    ? 'Your PingOne identity is ready for the hosted demo. You can sign in whenever you are ready.'
+    : 'Your email is verified and your request is waiting for administrator approval. We will email you again when access is ready.';
+  const action = approved
+    ? `<p style="margin:24px 0;text-align:center"><a href="${safeAppUrl}" style="display:inline-block;padding:12px 22px;background:#dc2626;color:#fff;text-decoration:none;border-radius:6px;font-weight:bold">Open hosted demo</a></p>`
+    : '';
+
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#eef2f7;font-family:Arial,sans-serif;color:#172033">
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr><td align="center" style="padding:32px 16px">
+<table width="560" cellpadding="0" cellspacing="0" role="presentation" style="background:#fff;border:1px solid #dbe4f0;border-radius:12px;overflow:hidden">
+<tr><td style="background:#1e293b;padding:28px 32px"><div style="color:#93c5fd;font-size:12px;font-weight:bold;letter-spacing:1px">PINGONE AI IAM CORE</div><div style="color:#fff;font-size:24px;font-weight:bold;margin-top:8px">${title}</div></td></tr>
+<tr><td style="padding:32px"><p style="margin:0 0 16px;font-size:16px">Hi ${safeName},</p><p style="margin:0 0 12px;font-size:15px;line-height:1.6">${message}</p><p style="margin:0;color:#64748b;font-size:13px">Account: ${safeEmail}</p>${action}</td></tr>
+<tr><td style="padding:18px 32px;border-top:1px solid #e5e7eb;background:#f8fafc;color:#64748b;font-size:12px">PingOne AI IAM Core · Automated access notification</td></tr>
+</table></td></tr></table></body></html>`;
+}
+
+async function sendHostedRegistrationConfirmation(record, { status = 'pending_approval' } = {}) {
+  if (!record?.pingOneUserId) return false;
+  const approved = status === 'approved';
+  await sendPingOneMessage(record.pingOneUserId, {
+    subject: approved ? 'Your hosted demo access is approved' : 'Your hosted demo access request was received',
+    body: buildHostedRegistrationEmailHtml(record),
+  });
+  return true;
+}
+
 async function sendHostedRegistrationAdminAlert(record) {
   const userId = process.env.HOSTED_REGISTRATION_ADMIN_USER_ID;
   if (!userId) throw Object.assign(new Error('Hosted registration admin PingOne user is not configured'), { code: 'registration_admin_user_unconfigured' });
@@ -346,4 +380,11 @@ async function sendPingOneMessage(userId, { subject, body }) {
   }, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, timeout: 10000 });
 }
 
-module.exports = { sendTransactionConfirmation, sendOtpEmail, sendOtpSms, sendHostedRegistrationAdminAlert };
+module.exports = {
+  sendTransactionConfirmation,
+  sendOtpEmail,
+  sendOtpSms,
+  buildHostedRegistrationEmailHtml,
+  sendHostedRegistrationConfirmation,
+  sendHostedRegistrationAdminAlert,
+};
