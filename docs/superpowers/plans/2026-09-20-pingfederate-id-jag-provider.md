@@ -191,14 +191,14 @@
 - [x] Add PF variable names to the Kubernetes Secret template without values.
 - [x] Keep PingOne variables intact for the alternate mode and management APIs that still require PingOne.
 - [x] Ensure PF mode does not require a PingOne environment ID merely to resolve browser OAuth endpoints.
-- [ ] Run the remaining topology/config verification commands (hygiene passed; topology is currently blocked by the missing `demo_mcp_gateway` Jest dependency).
+- [x] Run the remaining topology/config verification commands (`hygiene:check`, `authz:verify`, and `topology:verify` passed after installing the gateway service dependencies).
 - [x] Commit deployment wiring separately from application behavior.
 
 ### Task 8: Verification and controlled rollout
 
 - [ ] Run focused BFF tests for provider selection, discovery, browser callback, ID-JAG exchange, token validation, and token custody.
 - [ ] Run `cd demo_api_server && CI=true npm test -- --forceExit` if shared OAuth/session/token-exchange code was changed broadly.
-- [ ] Run `npm run topology:verify` if resource URIs, service boundaries, or generated topology are affected.
+- [x] Run `npm run topology:verify` if resource URIs, service boundaries, or generated topology are affected.
 - [ ] Start the local stack with PF mode only through the approved worktree-serving workflow; do not run Docker Compose from this worktree.
 - [ ] Pin and verify stack generation before and after live browser validation.
 - [ ] Log in through PF at `https://local.ping-devops.com:4000`.
