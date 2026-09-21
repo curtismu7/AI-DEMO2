@@ -169,6 +169,26 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-21 — Privilege hostile-content panel mixed page and app-shell themes
+
+**Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.css` and
+`demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.themeContrast.test.js`.
+
+**What was broken:** The Privilege page has its own Light/Dark toggle, but the
+hostile-content evidence panel used the global `--th-*` surface and ink tokens.
+With the page in dark mode and the app shell in light mode, the panel rendered
+dark text on a dark blue surface (or a pale surface inside the dark IDE shell).
+
+**What was fixed:** The panel now uses page-local ground, ink, muted, border,
+and emphasis tokens keyed by `.cur-ide[data-cur-theme]`, so both the panel and
+its evidence cards follow the page-local theme independently of the app shell.
+
+**Do not break:** Keep the Privilege page's local theme toggle, global app theme,
+hostile-content scenario behavior, and denial evidence semantics independent.
+
+**Verify:** Focused Privilege panel/theme Vitest tests, `npm run build`, and a
+live Playwright computed-style check in both page themes.
+
 ### 2026-09-20 — Guided Journey restart invalidates pending lesson evidence
 
 **Files changed:** `demo_api_ui/src/pages/GuidedJourneyPage.jsx` and
