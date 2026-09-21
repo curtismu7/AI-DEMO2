@@ -499,6 +499,7 @@ export function isObservationActionSupported(action) {
 export function canObserveLesson(lessonId, action) {
   const lesson = getLesson(lessonId);
   if (!lesson) return false;
+  if (lessonId === "product-map" && !action) return false;
   const requestedAction = action || lesson.run.action;
   return Boolean(
     isObservationActionSupported(requestedAction) &&

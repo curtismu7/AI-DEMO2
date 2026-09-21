@@ -1,6 +1,7 @@
 import { isValidElement, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { PROVENANCE } from "../../learning/provenance";
+import AcademyEvidenceMap from "./AcademyEvidenceMap";
 import LessonModeToggle from "./LessonModeToggle";
 import LessonProvenanceBadge from "./LessonProvenanceBadge";
 import "./LessonShell.css";
@@ -197,6 +198,8 @@ export default function LessonShell({ lesson, mode = "guided", children, evidenc
           {observedResult ? renderEvidence() : <p className="lesson-shell__empty-evidence">No observed evidence yet.</p>}
         </aside>
       </div>
+
+      <AcademyEvidenceMap lesson={lesson} evidence={observedEvidence} />
     </div>
   );
 }

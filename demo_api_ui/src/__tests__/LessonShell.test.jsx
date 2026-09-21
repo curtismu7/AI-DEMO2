@@ -176,7 +176,7 @@ describe("LessonShell", () => {
     await waitFor(() => expect(screen.getByText("SIMULATED")).toBeInTheDocument());
 
     expect(screen.queryByText("LIVE CLOUD")).not.toBeInTheDocument();
-    expect(screen.getByText("policy-deny")).toBeInTheDocument();
+    expect(screen.getAllByText("policy-deny").length).toBeGreaterThan(0);
     expect(screen.getByText("Evidence captured")).toBeInTheDocument();
   });
 

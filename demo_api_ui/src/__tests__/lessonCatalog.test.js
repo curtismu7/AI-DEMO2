@@ -9,15 +9,19 @@ import {
 import { PROVENANCE } from "../learning/provenance";
 
 const REQUIRED_IDS = [
+  "agent-landscape",
   "login",
   "delegation",
+  "consumer-agent",
+  "customer-service-agent",
   "mcp",
   "authorize",
   "hitl-step-up",
-  "lifecycle",
-  "ai-architecture",
+  "a2a-delegation",
+  "privilege-mcp",
   "threat-defense",
-  "product-map",
+  "lifecycle",
+  "evidence-timeline",
 ];
 
 const NON_EMPTY_STRING = expect.stringMatching(/\S/);
@@ -75,6 +79,14 @@ describe("AI Security Academy lesson catalog", () => {
   test("returns a catalog entry by ID and null for an unknown lesson", () => {
     expect(getLesson(lessonCatalog[0].id)).toBe(lessonCatalog[0]);
     expect(getLesson("does-not-exist")).toBeNull();
+  });
+
+  test("maps each lesson to the company maturity journey and agent taxonomy", () => {
+    expect(lessonCatalog.every((lesson) => lesson.maturityStages.length > 0)).toBe(true);
+    expect(lessonCatalog.every((lesson) => lesson.agentCategory.length > 0)).toBe(true);
+    expect(lessonCatalog.every((lesson) => lesson.productRoles.length > 0)).toBe(true);
+    expect(getLesson("ai-architecture").id).toBe("agent-landscape");
+    expect(getLesson("product-map").id).toBe("evidence-timeline");
   });
 
   test("rejects a fallback that is mislabeled as live cloud", () => {
