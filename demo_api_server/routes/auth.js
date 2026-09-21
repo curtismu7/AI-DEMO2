@@ -170,6 +170,7 @@ router.get('/session', (req, res) => {
       role:      u.role,
     },
     authType: req.session.oauthType || req.session.tokenType || 'session',
+    expiresAt: req.session.oauthTokens?.expiresAt || req.session.cookie?.expires?.getTime?.() || null,
     cookieOnlyBffSession: false,
     sessionStoreError: req._sessionStoreError ?? null,
     sessionStoreHealthy: req._sessionStoreHealthy ?? null,

@@ -2889,6 +2889,27 @@ hostile-content scenario behavior, and denial evidence semantics independent.
 **Verify:** Focused Privilege panel/theme Vitest tests, `npm run build`, and a
 live Playwright computed-style check in both page themes.
 
+### 2026-09-20 — Top-menu session countdown restored
+
+**Files changed:** `demo_api_ui/src/services/sessionResolver.js`,
+`demo_api_ui/src/services/__tests__/sessionResolver.test.js`,
+`demo_api_server/routes/auth.js`, and
+`demo_api_server/src/__tests__/authSession.test.js`.
+
+**What was broken:** The global TopNav countdown only read expiry from the two
+OAuth status endpoints. Sessions resolved through the generic auth endpoint
+therefore appeared signed in but had no remaining-time value to display.
+
+**What was fixed:** The generic session response now includes the effective
+OAuth or session-cookie expiry, and the shared resolver uses it as a fallback
+after the OAuth-specific status endpoints.
+
+**Do not break:** OAuth-specific expiry and silent refresh precedence remain
+unchanged; the generic endpoint still exposes no access token or cookie value.
+
+**Verify:** Session resolver Vitest and BFF auth-session Jest suites, plus the
+UI build.
+
 ### 2026-09-20 — Movie reel selection and local session persistence
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`,

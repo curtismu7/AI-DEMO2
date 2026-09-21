@@ -10,7 +10,8 @@ vi.mock('../cachedStatusService', () => ({
   getCachedJson: vi.fn().mockResolvedValue({ data: { authenticated: false } }),
 }));
 
-import { resolveSessionUser } from '../sessionResolver';
+import { getCachedJson } from '../cachedStatusService';
+import { resolveSessionExpiry, resolveSessionUser } from '../sessionResolver';
 
 describe('resolveSessionUser timer cleanup', () => {
   beforeEach(() => {
@@ -24,5 +25,21 @@ describe('resolveSessionUser timer cleanup', () => {
   it('clears its 10s timeout guard once the fast (non-hung) path resolves', async () => {
     await resolveSessionUser();
     expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('uses the generic authenticated session expiry when OAuth status has no expiry', async () => {
+    const expiresAt = Date.now() + 60 * 60 * 1000;
+    getCachedJson.mockImplementation((url) => {
+      if (url === '/api/auth/session') {
+        return Promise.resolve({ data: { authenticated: true, authType: 'user', expiresAt } });
+      }
+      return Promise.resolve({ data: { authenticated: false } });
+    });
+
+    await expect(resolveSessionExpiry()).resolves.toEqual({
+      expiresAt,
+      sessionType: 'user',
+      staleSession: false,
+    });
   });
 });

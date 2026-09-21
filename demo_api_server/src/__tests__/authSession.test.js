@@ -180,6 +180,7 @@ describe('GET /api/auth/session — local session (username+password)', () => {
     const res = await agent.get('/api/auth/session');
     expect(res.body.cookieOnlyBffSession).toBe(false);
   });
+
 });
 
 describe('GET /api/auth/session — OAuth admin session', () => {
@@ -191,7 +192,7 @@ describe('GET /api/auth/session — OAuth admin session', () => {
     await agent.post('/__set-session').send({
       user:       OAUTH_ADMIN_USER,
       oauthType:  'admin',
-      oauthTokens: { accessToken: 'tok-admin-abc', tokenType: 'Bearer' },
+      oauthTokens: { accessToken: 'tok-admin-abc', tokenType: 'Bearer', expiresAt: Date.now() + 3600000 },
     });
   });
 
@@ -214,6 +215,12 @@ describe('GET /api/auth/session — OAuth admin session', () => {
   it('returns cookieOnlyBffSession: false when a real OAuth token is present', async () => {
     const res = await agent.get('/api/auth/session');
     expect(res.body.cookieOnlyBffSession).toBe(false);
+  });
+
+  it('returns the OAuth expiry for the global session countdown', async () => {
+    const res = await agent.get('/api/auth/session');
+    expect(res.body.expiresAt).toEqual(expect.any(Number));
+    expect(res.body.expiresAt).toBeGreaterThan(Date.now());
   });
 });
 

@@ -57,9 +57,10 @@ export async function resolveSessionUser() {
  * Shares the 3s cache via cachedStatusService.
  */
 export async function resolveSessionExpiry() {
-  const [admin, endUser] = await Promise.allSettled([
+  const [admin, endUser, generic] = await Promise.allSettled([
     getCachedJson('/api/auth/oauth/status'),
     getCachedJson('/api/auth/oauth/user/status'),
+    getCachedJson('/api/auth/session'),
   ]);
 
   const pairs = [
@@ -78,6 +79,22 @@ export async function resolveSessionExpiry() {
         oauthProvider: data.oauthProvider ?? null,
       };
     }
+  }
+
+  // The generic session endpoint also covers local sessions and cookie-backed
+  // auth paths that do not report through either OAuth status endpoint.
+  const genericData = generic.status === 'fulfilled' ? generic.value?.data : null;
+  if (genericData?.authenticated && genericData.expiresAt) {
+    const sessionType = genericData.authType === 'admin' || genericData.user?.role === 'admin'
+      ? 'admin'
+      : 'user';
+    return {
+      expiresAt: genericData.expiresAt,
+      sessionType,
+      staleSession: false,
+      hasRefreshToken: genericData.hasRefreshToken ?? false,
+      oauthProvider: genericData.oauthProvider ?? null,
+    };
   }
 
   // No active access token — retain the refresh-token signal for a still-live
