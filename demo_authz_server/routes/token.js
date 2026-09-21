@@ -168,6 +168,8 @@ module.exports = async function tokenHandler(req, res) {
         error_description: `actor_token_type ${SVID_ACTOR_TYPE} is not enabled (ff_spiffe_actor_token is off)`,
       });
     }
+    // The SVID audience is SPIFFE_TRUST_DOMAIN, independent of the downstream
+    // OAuth audience requested for the exchanged access token.
     const svid = await spiffeActorToken.verifySvid(actorToken);
     if (!svid.valid) {
       console.warn(`[AuthzServer/token] SVID actor_token refused: ${svid.reason}`);
@@ -176,6 +178,8 @@ module.exports = async function tokenHandler(req, res) {
         error_description: `actor_token is not a valid JWT-SVID: ${svid.reason}`,
       });
     }
+    // Only the verified workload identity may supply act.sub; never actor_sub
+    // or any other caller-supplied identity field from the exchange request.
     spiffeActClaim = svid.spiffeId;
   }
 

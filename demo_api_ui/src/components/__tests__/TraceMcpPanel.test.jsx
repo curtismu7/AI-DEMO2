@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import TraceMcpPanel from "../TraceMcpPanel";
 
 const STEPS = [
@@ -44,12 +44,12 @@ test("renders the FULL request, response and raw payload from mcpResult", () => 
   expect(screen.getAllByText(/get_balance/).length).toBeGreaterThan(0);
   expect(screen.getByText(/42 ms/)).toBeInTheDocument();
   expect(screen.getAllByText(/chk-001/).length).toBeGreaterThan(0);
-  // JsonHighlight splits "currency": "USD" across key/punct/string spans — assert on
-  // concatenated text content instead of a single text node.
-  expect(container.textContent).toMatch(/"currency":\s*"USD"/);
   expect(screen.getByText(/^Request$/)).toBeInTheDocument();
   expect(screen.getByText(/^Response$/)).toBeInTheDocument();
   expect(screen.getByText(/Raw payload/)).toBeInTheDocument();
+  expect(screen.getAllByRole('group', { name: /view$/i })).toHaveLength(3);
+  fireEvent.click(screen.getAllByRole('button', { name: 'JSON' })[1]);
+  expect(container.textContent).toMatch(/"currency":\s*"USD"/);
 });
 
 test("renders the delegated token card", () => {

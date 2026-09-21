@@ -134,7 +134,7 @@
   padding: 1.5rem;
   border: 1px solid var(--th-border);
   border-left: 4px solid #5b3fd6;
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
   background: var(--th-bg-card);
   color: var(--th-text);
 }
@@ -150,9 +150,9 @@
 .learning-hub__documents-search button { padding: .75rem 1rem; border: 0; border-radius: var(--radius-md); background: #5b3fd6; color: #fff; font-weight: 700; cursor: pointer; }
 .learning-hub__documents-search button:disabled { opacity: .6; cursor: wait; }
 .learning-hub__documents-count, .learning-hub__documents-status { color: var(--th-text-muted); font-size: var(--font-size-sm); }
-.learning-hub__documents-status { color: var(--th-status-success); font-weight: 700; }
+.learning-hub__documents-status { color: var(--th-status-success-text); font-weight: 700; }
 .learning-hub__documents-results { display: grid; gap: .75rem; margin-top: 1rem; }
-.learning-hub__documents-results article { padding: 1rem; border: 1px solid var(--th-border); border-radius: 8px; background: var(--th-bg-inset); }
+.learning-hub__documents-results article { padding: 1rem; border: 1px solid var(--th-border); border-radius: var(--radius-lg); background: var(--th-bg-inset); }
 .learning-hub__documents-results h3 { margin: 0; color: var(--th-text); }
 .learning-hub__documents-citation { margin: .25rem 0 .6rem; color: #5b3fd6 !important; font-weight: 700; }
 @media (max-width: 680px) { .learning-hub__documents-heading, .learning-hub__documents-search > div { flex-direction: column; } .learning-hub__documents-upload, .learning-hub__documents-search button { width: 100%; } }

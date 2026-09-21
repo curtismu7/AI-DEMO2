@@ -174,6 +174,8 @@ import NotebookLmPage from "./pages/NotebookLmPage";
 import AgenticAccessConsolePage from "./pages/AgenticAccessConsolePage";
 import PingAiProductPage from "./pages/PingAiProductPage";
 import AdminRoute from "./routes/AdminRoute";
+import HostedRegistrationPage from "./pages/HostedRegistrationPage";
+import HostedRegistrationAdminPage from "./pages/HostedRegistrationAdminPage";
 import { DashboardContent } from "./routes/CustomerRoutes";
 import EducationRoutes from "./routes/EducationRoutes";
 import MonitoringRoutes, {
@@ -694,6 +696,8 @@ function AppWithAuth() {
                 </main>
               )}
               <Routes>
+                <Route path="/request-access" element={<HostedRegistrationPage />} />
+                <Route path="/hosted-registrations" element={<AdminRoute user={user}><HostedRegistrationAdminPage /></AdminRoute>} />
                 {/* /setup/* sub-routes — no auth required */}
                 <Route
                   path="/setup/*"

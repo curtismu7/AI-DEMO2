@@ -9,6 +9,7 @@ const ACTOR_LABELS = {
   'token-exchanger': 'Exchanger',
   'human-approver': 'Approver',
   'spire-agent': 'SPIRE Agent',
+  'local-mock-issuer': 'Local Mock Issuer',
   'txn-token-service': 'TTS',
   'idp-a': 'IdP-A',
   'workload-a': 'Workload-A'

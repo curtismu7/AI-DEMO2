@@ -121,3 +121,18 @@ test('the real docker-compose.yml parses into many services', () => {
   // Self-comparison must be empty, or deploy-live would recreate the world.
   assert.deepStrictEqual(changedEnvServices(text, text), []);
 });
+
+test('the authz-server keeps SPIFFE actor-token parity explicit and off by default', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const YAML = require('yaml');
+  const text = fs.readFileSync(path.join(__dirname, '..', 'docker-compose.yml'), 'utf8');
+  const environment = YAML.parse(text).services['authz-server'].environment;
+
+  assert.strictEqual(environment.FF_SPIFFE_ACTOR_TOKEN, '${FF_SPIFFE_ACTOR_TOKEN:-false}');
+  assert.strictEqual(environment.SPIFFE_TRUST_DOMAIN, '${SPIFFE_TRUST_DOMAIN:-demo.local}');
+  assert.strictEqual(
+    environment.SPIFFE_JWKS_URL,
+    '${SPIFFE_JWKS_URL:-https://demo-api-server:3001/api/demo/spiffe/jwks}',
+  );
+});

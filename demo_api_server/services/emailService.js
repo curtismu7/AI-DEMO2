@@ -21,6 +21,12 @@ const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const configStore = require('./configStore');
 const { getTokenEndpoint } = require('./oauthEndpointResolver');
 
+const PING_IDENTITY_LOGO_URL = process.env.PING_IDENTITY_LOGO_URL
+  || 'https://ai-demo.ping-devops.com/assets/ping-identity-logo.png';
+const PING_NAVY = '#051727';
+const PING_RED = '#B3282D';
+const PING_CLOUD = '#FBFBFC';
+
 // ── Management token (reuses the worker client credentials) ──────────────────
 async function getManagementToken() {
   const envId        = configStore.getEffective('PINGONE_ENVIRONMENT_ID');
@@ -104,12 +110,13 @@ function buildEmailHtml({ type, amount, fromAccount, toAccount, newBalance, tran
 
   return `<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,sans-serif">
+<body style="margin:0;padding:0;background:${PING_CLOUD};font-family:Arial,sans-serif;color:${PING_NAVY}">
 <table width="100%" cellpadding="0" cellspacing="0">
   <tr><td align="center" style="padding:32px 16px">
-    <table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)">
-      <tr><td style="background:linear-gradient(135deg,#1a5d80,${color});padding:28px 32px">
-        <div style="color:#fff;font-size:13px;opacity:.8;margin-bottom:4px">Super Banking</div>
+    <table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #d8dee5;border-radius:12px;overflow:hidden">
+      <tr><td style="background:${PING_NAVY};padding:28px 32px">
+        <img src="${PING_IDENTITY_LOGO_URL}" width="72" height="72" alt="Ping Identity" style="display:block;width:72px;height:72px;border:0;border-radius:6px" />
+        <div style="color:${PING_CLOUD};font-size:13px;font-weight:700;letter-spacing:1px;margin-top:16px;margin-bottom:4px">PINGONE AI IAM CORE</div>
         <div style="color:#fff;font-size:22px;font-weight:700">${icon} ${label} Confirmation</div>
       </td></tr>
       <tr><td style="padding:28px 32px">
@@ -125,7 +132,7 @@ function buildEmailHtml({ type, amount, fromAccount, toAccount, newBalance, tran
           <tr><td style="color:#6b7280;padding:4px 0">Reference</td><td style="padding:4px 0"><code style="font-size:12px;background:#f3f4f6;padding:2px 6px;border-radius:4px">${safeTransactionId}</code></td></tr>
         </table>
       </td></tr>
-      <tr><td style="background:#f9fafb;padding:16px 32px;border-top:1px solid #e5e7eb">
+      <tr><td style="background:${PING_CLOUD};padding:16px 32px;border-top:1px solid #d8dee5">
         <p style="margin:0;color:#9ca3af;font-size:12px">This is an automated confirmation from Super Banking Demo. Do not reply to this email.</p>
       </td></tr>
     </table>
@@ -213,12 +220,13 @@ async function sendOtpEmail(userId, opts) {
 
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,sans-serif">
+<body style="margin:0;padding:0;background:${PING_CLOUD};font-family:Arial,sans-serif;color:${PING_NAVY}">
 <table width="100%" cellpadding="0" cellspacing="0">
   <tr><td align="center" style="padding:32px 16px">
-    <table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.1)">
-      <tr><td style="background:linear-gradient(135deg,#1a5d80,#dc2626);padding:28px 32px">
-        <div style="color:#fff;font-size:13px;opacity:.8;margin-bottom:4px">Super Banking — Security</div>
+    <table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border:1px solid #d8dee5;border-radius:12px;overflow:hidden">
+      <tr><td style="background:${PING_NAVY};padding:28px 32px">
+        <img src="${PING_IDENTITY_LOGO_URL}" width="72" height="72" alt="Ping Identity" style="display:block;width:72px;height:72px;border:0;border-radius:6px" />
+        <div style="color:${PING_CLOUD};font-size:13px;font-weight:700;letter-spacing:1px;margin-top:16px;margin-bottom:4px">PINGONE AI IAM CORE · SECURITY</div>
         <div style="color:#fff;font-size:22px;font-weight:700">🔒 Transaction Verification Code</div>
       </td></tr>
       <tr><td style="padding:28px 32px">
@@ -240,7 +248,7 @@ async function sendOtpEmail(userId, opts) {
           ⚠️ If you did not initiate this transaction, ignore this email and contact support immediately.
         </p>
       </td></tr>
-      <tr><td style="background:#f9fafb;padding:16px 32px;border-top:1px solid #e5e7eb">
+      <tr><td style="background:${PING_CLOUD};padding:16px 32px;border-top:1px solid #d8dee5">
         <p style="margin:0;color:#9ca3af;font-size:12px">This is an automated security message from Super Banking Demo. Do not reply.</p>
       </td></tr>
     </table>
@@ -327,4 +335,64 @@ async function sendOtpSms(userId, opts) {
   }
 }
 
-module.exports = { sendTransactionConfirmation, sendOtpEmail, sendOtpSms };
+function buildHostedRegistrationEmailHtml({ firstName, email, status, appUrl = process.env.PUBLIC_APP_URL || 'https://ai-demo.ping-devops.com' }) {
+  const approved = status === 'approved';
+  const safeName = escapeHtml(firstName || 'there');
+  const safeEmail = escapeHtml(email);
+  const safeAppUrl = escapeHtml(appUrl);
+  const title = approved ? 'Your hosted demo access is approved' : 'Your access request is received';
+  const message = approved
+    ? 'Your PingOne identity is ready for the hosted demo. You can sign in whenever you are ready.'
+    : 'Your email is verified and your request is waiting for administrator approval. We will email you again when access is ready.';
+  const action = approved
+    ? `<p style="margin:24px 0;text-align:center"><a href="${safeAppUrl}" style="display:inline-block;padding:12px 22px;background:${PING_RED};color:#fff;text-decoration:none;border-radius:6px;font-weight:bold">Open hosted demo</a></p>`
+    : '';
+
+  return `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:${PING_CLOUD};font-family:Arial,sans-serif;color:${PING_NAVY}">
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr><td align="center" style="padding:32px 16px">
+<table width="560" cellpadding="0" cellspacing="0" role="presentation" style="background:#fff;border:1px solid #d8dee5;border-radius:12px;overflow:hidden">
+<tr><td style="background:${PING_NAVY};padding:28px 32px"><img src="${PING_IDENTITY_LOGO_URL}" width="88" height="88" alt="Ping Identity" style="display:block;width:88px;height:88px;border:0;border-radius:6px" /><div style="color:${PING_CLOUD};font-size:12px;font-weight:bold;letter-spacing:1px;margin-top:18px">PINGONE AI IAM CORE</div><div style="color:#fff;font-size:24px;font-weight:bold;margin-top:8px">${title}</div></td></tr>
+<tr><td style="padding:32px"><p style="margin:0 0 16px;font-size:16px">Hi ${safeName},</p><p style="margin:0 0 12px;font-size:15px;line-height:1.6">${message}</p><p style="margin:0;color:#64748b;font-size:13px">Account: ${safeEmail}</p>${action}</td></tr>
+<tr><td style="padding:18px 32px;border-top:1px solid #d8dee5;background:${PING_CLOUD};color:#536273;font-size:12px">PingOne AI IAM Core · Automated access notification</td></tr>
+</table></td></tr></table></body></html>`;
+}
+
+async function sendHostedRegistrationConfirmation(record, { status = 'pending_approval' } = {}) {
+  if (!record?.pingOneUserId) return false;
+  const approved = status === 'approved';
+  await sendPingOneMessage(record.pingOneUserId, {
+    subject: approved ? 'Your hosted demo access is approved' : 'Your hosted demo access request was received',
+    body: buildHostedRegistrationEmailHtml(record),
+  });
+  return true;
+}
+
+async function sendHostedRegistrationAdminAlert(record) {
+  const userId = process.env.HOSTED_REGISTRATION_ADMIN_USER_ID;
+  if (!userId) throw Object.assign(new Error('Hosted registration admin PingOne user is not configured'), { code: 'registration_admin_user_unconfigured' });
+  await sendPingOneMessage(userId, {
+    subject: 'New AI Demo hosted-access registration',
+    body: `A verified PingIdentity registration request is waiting for approval.\n\nEmail: ${record.email}\nName: ${[record.firstName, record.lastName].filter(Boolean).join(' ') || '(not provided)'}\nRequested role: ${record.requestedRole}\nRequest ID: ${record.id}`,
+  });
+}
+
+async function sendPingOneMessage(userId, { subject, body }) {
+  const envId = configStore.getEffective('PINGONE_ENVIRONMENT_ID');
+  const region = configStore.getEffective('PINGONE_REGION') || 'com';
+  const token = await getManagementToken();
+  if (!envId || !token) throw Object.assign(new Error('PingOne notification delivery is not configured'), { code: 'registration_email_unconfigured' });
+  await axios.post(`https://api.pingone.${region}/v1/environments/${envId}/users/${userId}/messages`, {
+    content: [{ deliveryMethod: 'Email', subject, body, charset: 'UTF-8' }],
+  }, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, timeout: 10000 });
+}
+
+module.exports = {
+  sendTransactionConfirmation,
+  sendOtpEmail,
+  sendOtpSms,
+  buildHostedRegistrationEmailHtml,
+  sendHostedRegistrationConfirmation,
+  sendHostedRegistrationAdminAlert,
+};

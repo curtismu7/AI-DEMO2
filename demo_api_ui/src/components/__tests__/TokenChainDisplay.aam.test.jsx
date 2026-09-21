@@ -11,7 +11,7 @@
  * same named-export convention.
  */
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, test, expect } from "vitest";
 import { AamDecisionEduBox } from "../TokenChainDisplay";
 
@@ -76,8 +76,12 @@ describe("AamDecisionEduBox", () => {
 
   test("renders the captured Sideband request and response", () => {
     const { container } = render(<AamDecisionEduBox event={aamEvent()} />);
-    const code = container.querySelectorAll("pre.tcd-edu-code");
-    expect(code.length).toBe(2);
+    expect(screen.getAllByRole("group", { name: /Sideband .* view/ })).toHaveLength(2);
+    expect(container.querySelectorAll("pre.tcd-edu-code")).toHaveLength(0);
+    fireEvent.click(screen.getAllByRole("button", { name: "JSON" })[0]);
+    expect(container.querySelectorAll("pre.tcd-edu-code")).toHaveLength(1);
+    fireEvent.click(screen.getAllByRole("button", { name: "JSON" })[1]);
+    expect(container.querySelectorAll("pre.tcd-edu-code")).toHaveLength(2);
   });
 
   test("shows the redacted Authorization rather than a token", () => {
