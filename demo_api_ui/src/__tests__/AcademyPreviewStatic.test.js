@@ -18,6 +18,22 @@ function loadPreview() {
 }
 
 describe("Academy HTML preview", () => {
+  it("uses the app theme preference and lets the reviewer switch themes", () => {
+    const dom = loadPreview();
+    const { document, localStorage } = dom.window;
+    const toggle = document.querySelector("[data-theme-toggle]");
+
+    expect(document.documentElement.dataset.theme).toBe("light");
+    expect(toggle).not.toBeNull();
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+
+    toggle.click();
+
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    expect(localStorage.getItem("ba_dark_mode")).toBe("true");
+  });
+
   it("switches between the OAuth and A2A concept workbenches", () => {
     const dom = loadPreview();
     const { document } = dom.window;
@@ -33,6 +49,14 @@ describe("Academy HTML preview", () => {
     expect(oauthPanel.hidden).toBe(true);
     expect(a2aPanel.hidden).toBe(false);
     expect(a2aTab.getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("renders one panel for each concept", () => {
+    const dom = loadPreview();
+    const { document } = dom.window;
+
+    expect(document.querySelectorAll('[data-concept-panel="oauth"]')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-concept-panel="a2a"]')).toHaveLength(1);
   });
 
   it("switches the presentation between guided and standalone timing", () => {
@@ -58,6 +82,22 @@ describe("Academy HTML preview", () => {
       .toBe("/academy/delegation/guided");
     expect(document.querySelector('[data-live-link="a2a"]').getAttribute("href"))
       .toBe("/a2a-protocol-learning");
+  });
+
+  it("connects both concepts to matching app learning and official resources", () => {
+    const dom = loadPreview();
+    const { document } = dom.window;
+
+    expect(document.querySelector('[data-learning-link="oauth-hub"]').getAttribute("href"))
+      .toBe("/oauth-academy");
+    expect(document.querySelector('[data-learning-link="oauth-standard"]').getAttribute("href"))
+      .toBe("https://www.rfc-editor.org/rfc/rfc8693");
+    expect(document.querySelector('[data-learning-link="ping-ai-agents"]').getAttribute("href"))
+      .toBe("https://docs.pingidentity.com/pingone/ai_agents/p1_ai_agents.html");
+    expect(document.querySelector('[data-learning-link="a2a-hub"]').getAttribute("href"))
+      .toBe("/a2a-protocol-learning");
+    expect(document.querySelector('[data-learning-link="a2a-standard"]').getAttribute("href"))
+      .toBe("https://a2a-protocol.org/latest/specification/");
   });
 
   it("switches between mock replay and the real-agent layout preview", () => {

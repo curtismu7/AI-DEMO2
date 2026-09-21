@@ -1,4 +1,6 @@
 import { Link } from "react-router-dom";
+import RelatedLearningRail from "../components/learning/RelatedLearningRail";
+import { EDU } from "../components/education/educationIds";
 import "./OAuthTokenExchangeLessonPage.css";
 
 const FLOW_STEPS = [
@@ -19,6 +21,66 @@ const FLOW_STEPS = [
     title: "Scoped MCP token",
     detail: "The downstream token carries a narrower audience, scopes, and an act chain that the gateway can verify.",
     tone: "downstream",
+  },
+];
+
+const OAUTH_EDUCATION_LINKS = [
+  {
+    panelId: EDU.RFC_8693,
+    tabId: "overview",
+    label: "RFC 8693 deep dive",
+    detail: "Request, response, act claim, hops, and security guidance.",
+    ariaLabel: "Open RFC 8693 in Education Hub",
+  },
+  {
+    panelId: EDU.TOKEN_FLOW,
+    tabId: "diagram",
+    label: "Token flow",
+    detail: "Trace audiences, scopes, and custody through the app.",
+    ariaLabel: "Open token flow in Education Hub",
+  },
+  {
+    panelId: EDU.PINGONE_AUTHORIZE,
+    tabId: "what",
+    label: "PingOne Authorize",
+    detail: "See how policy decides over delegated identity.",
+    ariaLabel: "Open PingOne Authorize in Education Hub",
+  },
+];
+
+const OAUTH_APP_LINKS = [
+  {
+    to: "/oauth-academy",
+    label: "OAuth Academy",
+    detail: "Continue through the complete OAuth teaching path.",
+    ariaLabel: "Continue in OAuth Academy",
+  },
+  {
+    to: "/token-exchange-tester",
+    label: "Token Exchange Tester",
+    detail: "Run a real exchange and inspect its response.",
+    ariaLabel: "Run the Token Exchange Tester",
+  },
+  {
+    to: "/transaction-trace",
+    label: "Transaction trace",
+    detail: "Review the resulting evidence across protected hops.",
+    ariaLabel: "Open the transaction trace",
+  },
+];
+
+const OAUTH_EXTERNAL_LINKS = [
+  {
+    href: "https://www.rfc-editor.org/rfc/rfc8693",
+    label: "OAuth 2.0 Token Exchange",
+    detail: "The RFC 8693 specification from the RFC Editor.",
+    ariaLabel: "Read RFC 8693",
+  },
+  {
+    href: "https://docs.pingidentity.com/pingone/ai_agents/p1_ai_agents.html",
+    label: "PingOne AI Agents",
+    detail: "Official product guidance for agent identities and delegated access.",
+    ariaLabel: "Explore PingOne AI agents",
   },
 ];
 
@@ -121,6 +183,13 @@ export default function OAuthTokenExchangeLessonPage() {
           <li><strong>Authorization</strong> still decides whether this specific action is allowed right now.</li>
         </ol>
       </section>
+
+      <RelatedLearningRail
+        id="oauth-token-exchange"
+        educationLinks={OAUTH_EDUCATION_LINKS}
+        appLinks={OAUTH_APP_LINKS}
+        externalLinks={OAUTH_EXTERNAL_LINKS}
+      />
     </div>
   );
 }

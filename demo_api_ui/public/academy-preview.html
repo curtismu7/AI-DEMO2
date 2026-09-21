@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="light dark">
   <title>Ping Academy — OAuth and A2A review mock</title>
   <style>
     :root {
@@ -17,9 +17,54 @@
       --amber: #ffbf47;
       --mint: #5ce0b0;
       --danger: #ff7f75;
+      --canvas-glow: rgba(63, 184, 255, 0.12);
+      --control-bg: rgba(7, 17, 31, 0.94);
+      --stage: #091525;
+      --reel: #0b1728;
+      --film: #050b13;
+      --film-line: #344b64;
+      --film-hole: #52657a;
+      --film-muted: #60758b;
+      --film-frame: #0a1421;
+      --film-revealed: #111f31;
+      --film-selected: #172941;
+      --film-live: #6f8295;
+      --film-waiting: #4f6377;
+      --code-text: #cfe4f7;
+      --panel-wash: rgba(16, 27, 44, 0.54);
+      --depth-shadow: rgba(0, 0, 0, 0.28);
       --display: "Aptos Display", "Segoe UI Variable Display", "Segoe UI", sans-serif;
       --body: "Aptos", "Segoe UI Variable Text", "Segoe UI", sans-serif;
       --mono: "SFMono-Regular", "Cascadia Code", "Roboto Mono", monospace;
+    }
+
+    :root[data-theme="light"] {
+      --night: #f3f7fb;
+      --slate: #ffffff;
+      --slate-raised: #e7f0f7;
+      --ice: #12263a;
+      --mist: #53697d;
+      --line: #b8c9d8;
+      --signal: #006da8;
+      --amber: #8a5700;
+      --mint: #087757;
+      --danger: #b8322c;
+      --canvas-glow: rgba(0, 109, 168, 0.1);
+      --control-bg: rgba(243, 247, 251, 0.94);
+      --stage: #f8fbfd;
+      --reel: #eef4f8;
+      --film: #dbe5ec;
+      --film-line: #9fb4c5;
+      --film-hole: #71889b;
+      --film-muted: #667c8f;
+      --film-frame: #f6f9fb;
+      --film-revealed: #e7f1f7;
+      --film-selected: #d8ebf6;
+      --film-live: #4e6679;
+      --film-waiting: #64798b;
+      --code-text: #193a55;
+      --panel-wash: rgba(255, 255, 255, 0.72);
+      --depth-shadow: rgba(28, 58, 82, 0.14);
     }
 
     * { box-sizing: border-box; }
@@ -31,7 +76,7 @@
       min-width: 320px;
       color: var(--ice);
       background:
-        radial-gradient(circle at 83% 2%, rgba(63, 184, 255, 0.12), transparent 30rem),
+        radial-gradient(circle at 83% 2%, var(--canvas-glow), transparent 30rem),
         var(--night);
       font-family: var(--body);
       line-height: 1.5;
@@ -100,6 +145,23 @@
       font-size: 13px;
     }
 
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .theme-toggle {
+      min-height: 32px;
+      padding: 5px 10px;
+      border: 1px solid var(--line);
+      color: var(--ice);
+      background: var(--slate);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
     .control-deck {
       position: sticky;
       z-index: 20;
@@ -108,7 +170,7 @@
       grid-template-columns: 1fr auto;
       gap: 18px;
       padding: 18px 0;
-      background: rgba(7, 17, 31, 0.94);
+      background: var(--control-bg);
       backdrop-filter: blur(14px);
     }
 
@@ -169,8 +231,8 @@
     .execution-lab {
       margin-top: 12px;
       border: 1px solid var(--line);
-      background: #091525;
-      box-shadow: 0 28px 80px rgba(0, 0, 0, 0.28);
+      background: var(--stage);
+      box-shadow: 0 28px 80px var(--depth-shadow);
     }
 
     .execution-head {
@@ -264,7 +326,7 @@
     .reel-console {
       display: flex;
       flex-direction: column;
-      background: #0b1728;
+      background: var(--reel);
     }
 
     .console-head {
@@ -437,14 +499,14 @@
 
     .film {
       margin: 18px;
-      border: 1px solid #344b64;
-      background: #050b13;
+      border: 1px solid var(--film-line);
+      background: var(--film);
       box-shadow: inset 0 0 34px rgba(0, 0, 0, 0.55);
     }
 
     .film-perforations {
       height: 17px;
-      background-image: radial-gradient(ellipse 7px 4px at center, #52657a 0 55%, transparent 60%);
+      background-image: radial-gradient(ellipse 7px 4px at center, var(--film-hole) 0 55%, transparent 60%);
       background-position: 3px center;
       background-size: 24px 12px;
       opacity: 0.72;
@@ -457,9 +519,9 @@
       gap: 1px;
       overflow-x: auto;
       min-height: 170px;
-      border-top: 1px solid #344b64;
-      border-bottom: 1px solid #344b64;
-      background: #344b64;
+      border-top: 1px solid var(--film-line);
+      border-bottom: 1px solid var(--film-line);
+      background: var(--film-line);
     }
 
     .film-frame {
@@ -469,14 +531,14 @@
       min-width: 146px;
       padding: 14px;
       border: 0;
-      color: #60758b;
-      background: #0a1421;
+      color: var(--film-muted);
+      background: var(--film-frame);
       cursor: pointer;
       text-align: left;
     }
 
-    .film-frame.is-revealed { color: var(--ice); background: #111f31; }
-    .film-frame.is-selected { box-shadow: inset 0 -4px 0 var(--signal); background: #172941; }
+    .film-frame.is-revealed { color: var(--ice); background: var(--film-revealed); }
+    .film-frame.is-selected { box-shadow: inset 0 -4px 0 var(--signal); background: var(--film-selected); }
 
     .film-frame__number {
       color: var(--signal);
@@ -609,7 +671,7 @@
       display: grid;
       min-height: 112px;
       padding: 14px;
-      background: #0a1421;
+      background: var(--film-frame);
     }
 
     .live-reel-flow span {
@@ -620,13 +682,13 @@
 
     .live-reel-flow strong {
       align-self: center;
-      color: #6f8295;
+      color: var(--film-live);
       font-family: var(--display);
       font-size: 14px;
     }
 
     .live-reel-flow small {
-      color: #4f6377;
+      color: var(--film-waiting);
       font-family: var(--mono);
       font-size: 9px;
     }
@@ -897,7 +959,7 @@
       min-height: 245px;
       padding: 22px;
       border: 1px solid var(--line);
-      background: rgba(16, 27, 44, 0.54);
+      background: var(--panel-wash);
     }
 
     .evidence-panel header {
@@ -925,7 +987,7 @@
     pre {
       overflow: auto;
       margin: 0;
-      color: #cfe4f7;
+      color: var(--code-text);
       font-family: var(--mono);
       font-size: 12px;
       line-height: 1.72;
@@ -1071,6 +1133,83 @@
     .decision strong { font-family: var(--display); }
     .decision span { color: var(--mist); font-size: 13px; }
 
+    .learning-rail {
+      display: grid;
+      grid-template-columns: minmax(180px, 0.27fr) minmax(0, 0.73fr);
+      gap: clamp(28px, 6vw, 90px);
+      padding: 56px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .learning-rail__intro h2 {
+      margin: 0;
+      font-family: var(--display);
+      font-size: 22px;
+      line-height: 1.15;
+    }
+
+    .learning-rail__intro p {
+      max-width: 28ch;
+      margin: 10px 0 0;
+      color: var(--mist);
+      font-size: 13px;
+    }
+
+    .learning-resources {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      border: 1px solid var(--line);
+      background: var(--line);
+    }
+
+    .learning-group {
+      min-width: 0;
+      padding: 18px;
+      background: var(--slate);
+    }
+
+    .learning-group h3 {
+      margin: 0 0 8px;
+      color: var(--mist);
+      font-family: var(--mono);
+      font-size: 10px;
+    }
+
+    .learning-group ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .learning-group li + li { border-top: 1px solid var(--line); }
+
+    .learning-group a {
+      display: grid;
+      gap: 2px;
+      padding: 11px 2px;
+      color: var(--ice);
+      text-decoration: none;
+    }
+
+    .learning-group a:hover strong,
+    .learning-group a:focus-visible strong {
+      color: var(--signal);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .learning-group strong {
+      font-family: var(--display);
+      font-size: 14px;
+    }
+
+    .learning-group span {
+      color: var(--mist);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
     .footer {
       display: flex;
       justify-content: space-between;
@@ -1086,7 +1225,8 @@
 
     @media (max-width: 960px) {
       .hero,
-      .section { grid-template-columns: 1fr; }
+      .section,
+      .learning-rail { grid-template-columns: 1fr; }
       .hero { min-height: auto; }
       .hero-summary { max-width: 650px; }
       .execution-head,
@@ -1118,7 +1258,8 @@
       .handoff-rail,
       .status-strip,
       .evidence-grid,
-      .layer-path { grid-template-columns: 1fr; }
+      .layer-path,
+      .learning-resources { grid-template-columns: 1fr; }
       .status-cell + .status-cell,
       .layer-step + .layer-step { border-left: 0; border-top: 1px solid var(--line); }
       .layer-step + .layer-step::before { top: -5px; left: 28px; transform: none; }
@@ -1145,7 +1286,10 @@
         <span>Ping Academy</span>
       </div>
       <p class="topbar-note">Sales-engineering story review</p>
-      <span class="review-stamp">Interactive mock</span>
+      <div class="topbar-actions">
+        <button class="theme-toggle" type="button" aria-pressed="false" data-theme-toggle>Dark mode</button>
+        <span class="review-stamp">Interactive mock</span>
+      </div>
     </header>
 
     <nav class="control-deck" aria-label="Preview controls">
@@ -1375,6 +1519,37 @@
           </ol>
         </div>
       </section>
+
+      <section class="learning-rail" aria-labelledby="oauth-learning-title">
+        <div class="learning-rail__intro">
+          <p class="section-label"><strong id="oauth-learning-title">Keep learning</strong>Story, proof, source</p>
+          <h2>Move from the OAuth explanation to the evidence.</h2>
+          <p>These are the same destinations used by the Academy and Education Hub.</p>
+        </div>
+        <div class="learning-resources">
+          <div class="learning-group">
+            <h3>Education Hub</h3>
+            <ul>
+              <li><a href="/learning"><strong>Open the Education Hub</strong><span>RFC 8693, token flow, token chain, and PingOne Authorize.</span></a></li>
+            </ul>
+          </div>
+          <div class="learning-group">
+            <h3>In this app</h3>
+            <ul>
+              <li><a href="/oauth-academy" data-learning-link="oauth-hub"><strong>OAuth Academy</strong><span>Continue through the full teaching path.</span></a></li>
+              <li><a href="/token-exchange-tester"><strong>Token Exchange Tester</strong><span>Run the exchange against the configured tenant.</span></a></li>
+              <li><a href="/transaction-trace"><strong>Transaction trace</strong><span>Inspect the resulting evidence trail.</span></a></li>
+            </ul>
+          </div>
+          <div class="learning-group">
+            <h3>Official references</h3>
+            <ul>
+              <li><a href="https://www.rfc-editor.org/rfc/rfc8693" target="_blank" rel="noopener noreferrer" data-learning-link="oauth-standard"><strong>OAuth 2.0 Token Exchange</strong><span>RFC 8693 from the RFC Editor.</span></a></li>
+              <li><a href="https://docs.pingidentity.com/pingone/ai_agents/p1_ai_agents.html" target="_blank" rel="noopener noreferrer" data-learning-link="ping-ai-agents"><strong>PingOne AI Agents</strong><span>Official agent identity and delegated-access guidance.</span></a></li>
+            </ul>
+          </div>
+        </div>
+      </section>
     </section>
 
     <section id="a2a-panel" role="tabpanel" data-concept-panel="a2a" hidden>
@@ -1473,6 +1648,38 @@
           </ol>
         </div>
       </section>
+
+      <section class="learning-rail" aria-labelledby="a2a-learning-title">
+        <div class="learning-rail__intro">
+          <p class="section-label"><strong id="a2a-learning-title">Keep learning</strong>Story, proof, source</p>
+          <h2>Connect the A2A handoff to identity and policy.</h2>
+          <p>Use the app routes for the demo and the official sites for protocol depth.</p>
+        </div>
+        <div class="learning-resources">
+          <div class="learning-group">
+            <h3>Education Hub</h3>
+            <ul>
+              <li><a href="/learning"><strong>Open the Education Hub</strong><span>A2A delegation, nested token flow, and Authorize policy.</span></a></li>
+            </ul>
+          </div>
+          <div class="learning-group">
+            <h3>In this app</h3>
+            <ul>
+              <li><a href="/a2a-protocol-learning" data-learning-link="a2a-hub"><strong>A2A Protocol &amp; Identity</strong><span>Run the live or recorded walkthrough.</span></a></li>
+              <li><a href="/delegation-chain-value"><strong>Delegation Chain Value</strong><span>Use the short customer-value explanation.</span></a></li>
+              <li><a href="/ai-products/privilege-a2a"><strong>Privilege for AI — A2A</strong><span>Connect the implementation to the Ping product story.</span></a></li>
+            </ul>
+          </div>
+          <div class="learning-group">
+            <h3>Official references</h3>
+            <ul>
+              <li><a href="https://a2a-protocol.org/latest/specification/" target="_blank" rel="noopener noreferrer" data-learning-link="a2a-standard"><strong>A2A specification</strong><span>The current Agent2Agent protocol specification.</span></a></li>
+              <li><a href="https://a2a-protocol.org/dev/tutorials/" target="_blank" rel="noopener noreferrer"><strong>A2A tutorials</strong><span>Official clients, servers, and multi-agent examples.</span></a></li>
+              <li><a href="https://www.rfc-editor.org/rfc/rfc8693" target="_blank" rel="noopener noreferrer"><strong>RFC 8693</strong><span>The delegated-identity exchange standard.</span></a></li>
+            </ul>
+          </div>
+        </div>
+      </section>
     </section>
 
     <footer class="footer">
@@ -1497,6 +1704,30 @@
       const reelNext = document.querySelector('[data-reel-action="next"]');
       const reelSpeed = document.querySelector("[data-reel-speed]");
       const executionLab = document.querySelector(".execution-lab");
+      const themeToggle = document.querySelector("[data-theme-toggle]");
+
+      function setTheme(darkMode) {
+        document.documentElement.dataset.theme = darkMode ? "dark" : "light";
+        document.documentElement.style.colorScheme = darkMode ? "dark" : "light";
+        themeToggle.setAttribute("aria-pressed", String(darkMode));
+        themeToggle.textContent = darkMode ? "Light mode" : "Dark mode";
+        try {
+          window.localStorage.setItem("ba_dark_mode", String(darkMode));
+        } catch {
+          // The toggle still works for this session when storage is unavailable.
+        }
+      }
+
+      let storedDarkMode = false;
+      try {
+        storedDarkMode = window.localStorage.getItem("ba_dark_mode") === "true";
+      } catch {
+        storedDarkMode = false;
+      }
+      setTheme(storedDarkMode);
+      themeToggle.addEventListener("click", () => {
+        setTheme(document.documentElement.dataset.theme !== "dark");
+      });
 
       const RUNS = {
         oauth: {

@@ -6,6 +6,8 @@ import { useThemeOptional } from '../context/ThemeContext';
 import { buildA2aChainDetail } from '../utils/a2aChainDetail';
 import { A2A_RECORDED_RUN } from '../data/a2aRecordedRun';
 import A2AArchitectureDiagram from '../components/A2AArchitectureDiagram';
+import RelatedLearningRail from '../components/learning/RelatedLearningRail';
+import { EDU } from '../components/education/educationIds';
 import {
   buildA2aTeachingPanes,
   summarizeAgentCard,
@@ -45,6 +47,72 @@ const A2A_VERTICALS = [
   ['manufacturing', 'Manufacturing · Supplier Contract Specialist'],
   ['investment', 'Investment · Holdings Specialist'],
   ['airlines', 'Airlines · Passenger Records Specialist'],
+];
+
+const A2A_EDUCATION_LINKS = [
+  {
+    panelId: EDU.A2A_DELEGATION,
+    tabId: 'what',
+    label: 'A2A delegation',
+    detail: 'Connect nested act claims, protocol messages, and policy.',
+    ariaLabel: 'Open A2A delegation in Education Hub',
+  },
+  {
+    panelId: EDU.TOKEN_FLOW,
+    tabId: 'act-chain',
+    label: 'Nested token flow',
+    detail: 'Follow scope narrowing and actor depth across both agents.',
+    ariaLabel: 'Open nested token flow in Education Hub',
+  },
+  {
+    panelId: EDU.PINGONE_AUTHORIZE,
+    tabId: 'policy-mcp',
+    label: 'Authorize policy',
+    detail: 'Inspect the decision over user and agent-chain context.',
+    ariaLabel: 'Open A2A authorization policy in Education Hub',
+  },
+];
+
+const A2A_APP_LINKS = [
+  {
+    to: '/delegation-chain-value',
+    label: 'Delegation Chain Value',
+    detail: 'Use the short business-value explanation for the same chain.',
+    ariaLabel: 'Open Delegation Chain Value',
+  },
+  {
+    to: '/ai-products/privilege-a2a',
+    label: 'Privilege for AI — A2A',
+    detail: 'Connect this implementation to the Ping product story.',
+    ariaLabel: 'Open Privilege for AI A2A',
+  },
+  {
+    to: '/transaction-trace',
+    label: 'Transaction trace',
+    detail: 'Review the exchange, decision, and tool evidence together.',
+    ariaLabel: 'Open the A2A transaction trace',
+  },
+];
+
+const A2A_EXTERNAL_LINKS = [
+  {
+    href: 'https://a2a-protocol.org/latest/specification/',
+    label: 'A2A specification',
+    detail: 'The current Agent2Agent protocol specification.',
+    ariaLabel: 'Read the A2A specification',
+  },
+  {
+    href: 'https://a2a-protocol.org/dev/tutorials/',
+    label: 'A2A tutorials',
+    detail: 'Official hands-on clients, servers, and multi-agent examples.',
+    ariaLabel: 'Open the official A2A tutorials',
+  },
+  {
+    href: 'https://www.rfc-editor.org/rfc/rfc8693',
+    label: 'RFC 8693',
+    detail: 'The token-exchange standard behind delegated identity.',
+    ariaLabel: 'Read RFC 8693 for A2A delegation',
+  },
 ];
 
 function Json({ value }) {
@@ -259,7 +327,7 @@ export default function A2AProtocolLearningPage() {
           {' · '}
           <a href="https://a2a-protocol.org/latest/" target="_blank" rel="noreferrer">A2A learning hub</a>
           {' · '}
-          <a href="https://a2a-protocol.org/v1.0.0/specification/" target="_blank" rel="noreferrer">A2A spec</a>
+          <a href="https://a2a-protocol.org/latest/specification/" target="_blank" rel="noreferrer">A2A spec</a>
           {' · '}
           <a href="https://datatracker.ietf.org/doc/html/rfc8693" target="_blank" rel="noreferrer">RFC 8693</a>
         </p>
@@ -418,6 +486,13 @@ export default function A2AProtocolLearningPage() {
           </ul>
         </div>
       </Section>
+
+      <RelatedLearningRail
+        id="a2a-protocol"
+        educationLinks={A2A_EDUCATION_LINKS}
+        appLinks={A2A_APP_LINKS}
+        externalLinks={A2A_EXTERNAL_LINKS}
+      />
     </div>
   );
 }

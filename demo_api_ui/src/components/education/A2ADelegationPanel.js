@@ -206,8 +206,8 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
               </a>
             </li>
             <li>
-              <a href="https://a2a-protocol.org/v1.0.0/specification/" target="_blank" rel="noopener noreferrer">
-                A2A Protocol specification v1.0
+              <a href="https://a2a-protocol.org/latest/specification/" target="_blank" rel="noopener noreferrer">
+                Current A2A Protocol specification
               </a>
             </li>
             <li>
