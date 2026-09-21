@@ -10,7 +10,7 @@ const { getScopesForUserType, BANKING_SCOPES, COMPOUND_SCOPES } = require('./sco
 const endpointResolver = require('../services/oauthEndpointResolver');
 const { verticalManifest } = require('../services/verticalManifest');
 
-const isPingFederate = () => configStore.getOAuthProvider() === 'pingfederate';
+const isPingFederate = () => configStore.getOAuthProvider?.() === 'pingfederate';
 
 const config = {
   get environmentId()         { return configStore.getEffective('pingone_environment_id'); },

@@ -9,7 +9,7 @@ const configStore = require('../services/configStore');
 const { getScopesForUserType } = require('./scopes');
 const endpointResolver = require('../services/oauthEndpointResolver');
 
-const isPingFederate = () => configStore.getOAuthProvider() === 'pingfederate';
+const isPingFederate = () => configStore.getOAuthProvider?.() === 'pingfederate';
 
 const config = {
   get environmentId()          { return configStore.getEffective('pingone_environment_id'); },
