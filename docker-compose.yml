@@ -1589,6 +1589,11 @@ services:
     environment:
       NODE_ENV: production
       AUTHZ_PORT: "9001"
+      # Local PingFederate-parity path for JWT-SVID actor tokens. Keep disabled
+      # unless explicitly enabled; the trust bundle is public verification data.
+      FF_SPIFFE_ACTOR_TOKEN: "${FF_SPIFFE_ACTOR_TOKEN:-false}"
+      SPIFFE_TRUST_DOMAIN: "${SPIFFE_TRUST_DOMAIN:-demo.local}"
+      SPIFFE_JWKS_URL: "${SPIFFE_JWKS_URL:-https://demo-api-server:3001/api/demo/spiffe/jwks}"
       # RFC 9396 RAR subset enforcement (routes/decision.js rule 3c). This was unset in
       # every deployment, which made RAR look enforced while nothing enforced it:
       # the BFF's ff_rar builds authorization_details and carries them in the TraT

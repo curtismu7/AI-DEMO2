@@ -93,6 +93,22 @@ describe('token exchange with a JWT-SVID actor_token', () => {
     else process.env.SPIFFE_TRUST_DOMAIN = prev.trustDomain;
   });
 
+  test('flag unset: an SVID actor_token is rejected by default', async () => {
+    delete process.env.FF_SPIFFE_ACTOR_TOKEN;
+    const { handler } = load();
+    const res = fakeRes();
+    await handler({ body: {
+      grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+      subject_token: mintSubject(),
+      actor_token: mintSvid(),
+      actor_token_type: SVID_TYPE,
+      audience: 'mcpserver.ping.demo', scope: 'read',
+    } }, res);
+
+    assert.equal(res.statusCode, 400);
+    assert.equal(res.body.error, 'invalid_request');
+  });
+
   test('flag OFF: an SVID actor_token is rejected, not silently HS256-verified', async () => {
     process.env.FF_SPIFFE_ACTOR_TOKEN = 'false';
     const { handler } = load();
