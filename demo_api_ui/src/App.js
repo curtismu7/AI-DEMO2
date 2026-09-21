@@ -220,6 +220,7 @@ import PublicRoutes, {
   LlmTestPageRoute,
   IntentInspectorPageRoute,
   AuditAgentPageRoute,
+  SpiffePingoneBridgePageRoute,
   PingOneSetupPageRoute,
   M2mCredentialsSamplePageRoute,
   StandaloneIndexRoute,
@@ -926,6 +927,10 @@ function AppWithAuth() {
                       </>
                     )
                   }
+                />
+                <Route
+                  path="/spiffe-pingone-bridge"
+                  element={<SpiffePingoneBridgePageRoute user={user} logout={logout} />}
                 />
                 <Route
                   path="/academy/journey"

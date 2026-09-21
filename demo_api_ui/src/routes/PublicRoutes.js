@@ -55,6 +55,7 @@ import PrivilegeMcpClientPage from "../pages/PrivilegeMcpClientPage";
 import LlmGatewayCombinedPage from '../pages/LlmGatewayCombinedPage';
 import IntentInspectorPage from '../pages/IntentInspectorPage';
 import AuditAgentPage from "../pages/AuditAgentPage";
+import SpiffePingoneBridgePage from "../components/SpiffePingoneBridgePage";
 
 export default function PublicRoutes({ user, logout }) {
   return (
@@ -365,6 +366,14 @@ export function AuditAgentPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <AuditAgentPage />
+    </AppShell>
+  );
+}
+
+export function SpiffePingoneBridgePageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <SpiffePingoneBridgePage />
     </AppShell>
   );
 }
