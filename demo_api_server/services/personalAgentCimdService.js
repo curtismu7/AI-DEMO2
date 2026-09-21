@@ -36,6 +36,7 @@ function publicRecord(record) {
   if (!record) return null;
   return {
     userKey: record.userKey,
+    agentType: record.agentType || 'personal',
     pingoneAgentId: record.pingoneAgentId,
     pingoneAgentName: record.pingoneAgentName,
     registrationId: record.registrationId,
@@ -49,9 +50,18 @@ function publicRecord(record) {
   };
 }
 
-function getPersonalAgentCimd(user) {
+function getPersonalAgentCimd(user, options = {}) {
   const key = userKey(user);
-  return key ? publicRecord(store.get(key)) : null;
+  return key ? publicRecord(store.get(key, options.agentType || 'personal')) : null;
+}
+
+async function ensurePersonalAgentCimd(user, pingoneAgent, options = {}) {
+  const agentType = options.agentType || 'personal';
+  const existing = getPersonalAgentCimd(user, { agentType });
+  if (existing && existing.pingoneAgentId === pingoneAgent?.id && existing.status === 'registered') {
+    return { ...existing, ok: true, mocked: true, created: false };
+  }
+  return registerPersonalAgentCimd(user, pingoneAgent, { agentType });
 }
 
 function getByRegistrationId(registrationId) {
@@ -74,12 +84,13 @@ function metadataFor(record) {
   };
 }
 
-async function registerPersonalAgentCimd(user, pingoneAgent) {
+async function registerPersonalAgentCimd(user, pingoneAgent, options = {}) {
+  const agentType = options.agentType || 'personal';
   const key = userKey(user);
   if (!key) throw new Error('Personal agent CIMD registration requires a user subject');
   if (!pingoneAgent?.id) throw new Error('Personal agent CIMD registration requires a PingOne agent');
 
-  const existing = store.get(key);
+  const existing = store.get(key, agentType);
   if (existing && existing.pingoneAgentId === pingoneAgent.id && existing.status === 'registered') {
     return { ...publicRecord(existing), ok: existing.status === 'registered', mocked: true, created: false };
   }
@@ -92,6 +103,7 @@ async function registerPersonalAgentCimd(user, pingoneAgent) {
     registeredAt: new Date().toISOString(),
   } : {
     userKey: key,
+    agentType,
     pingoneAgentId: pingoneAgent.id,
     pingoneAgentName: pingoneAgent.name || `AI Agent - ${displayName(user)}`,
     registrationId,
@@ -100,7 +112,7 @@ async function registerPersonalAgentCimd(user, pingoneAgent) {
     metadataUrl: metadataUrl(registrationId),
     clientId: metadataUrl(registrationId),
     metadata: {
-      client_name: `Personal AI Agent - ${clientDisplayName(user)}`,
+      client_name: `${agentType === 'saas-embedded-worker' ? 'Website Worker' : 'Personal AI Agent'} - ${clientDisplayName(user)}`,
       grant_types: ['client_credentials'],
       scope: PERSONAL_AGENT_SCOPES.join(' '),
       token_endpoint_auth_method: 'client_secret_basic',
@@ -128,10 +140,11 @@ async function registerPersonalAgentCimd(user, pingoneAgent) {
   }
 }
 
-async function removePersonalAgentCimd(user, pingoneAgentId) {
+async function removePersonalAgentCimd(user, pingoneAgentId, options = {}) {
+  const agentType = options.agentType || 'personal';
   const key = userKey(user);
   if (!key) return { removed: false };
-  const record = store.get(key);
+  const record = store.get(key, agentType);
   if (!record || (pingoneAgentId && record.pingoneAgentId !== pingoneAgentId)) {
     return { removed: false };
   }
@@ -144,7 +157,7 @@ async function removePersonalAgentCimd(user, pingoneAgentId) {
   } catch (err) {
     if (err.status !== 404) throw err;
   }
-  store.remove(key);
+  store.remove(key, agentType);
   return { removed: true, registrationId: record.registrationId, clientId: record.clientId };
 }
 
@@ -158,6 +171,7 @@ module.exports = {
   PERSONAL_AGENT_SCOPES,
   userKey,
   getPersonalAgentCimd,
+  ensurePersonalAgentCimd,
   getByRegistrationId,
   getByPingoneAgentId,
   metadataDocument,

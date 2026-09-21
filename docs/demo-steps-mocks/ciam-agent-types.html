@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo Steps — CIAM Agent Types</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0f16;
+      --panel: #111823;
+      --panel-2: #151e2b;
+      --line: #273448;
+      --text: #edf3fb;
+      --muted: #8c9bb0;
+      --cyan: #7dd3fc;
+      --blue: #79a7ff;
+      --violet: #c3a6ff;
+      --orange: #ffbd79;
+      --green: #8ee0bd;
+      --danger: #ff938f;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); }
+    button { font: inherit; }
+    .shell { min-height: 100vh; display: grid; grid-template-columns: 248px minmax(0, 1fr); }
+    .sidebar { border-right: 1px solid var(--line); background: #0e141e; padding: 22px 16px; display: flex; flex-direction: column; gap: 22px; }
+    .brand { display: flex; align-items: center; gap: 10px; padding: 0 8px; }
+    .brand-mark { width: 28px; height: 28px; border: 1px solid var(--cyan); color: var(--cyan); display: grid; place-items: center; border-radius: 8px; font-weight: 800; font-size: 13px; }
+    .brand-name { font-size: 14px; font-weight: 750; letter-spacing: -.02em; }
+    .brand-sub { display: block; color: var(--muted); font-size: 10px; margin-top: 2px; }
+    .nav-label, .eyebrow { color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    .nav { display: grid; gap: 4px; }
+    .nav button { color: var(--muted); background: transparent; border: 0; text-align: left; border-radius: 7px; padding: 10px 12px; cursor: pointer; font-size: 12px; }
+    .nav button.active, .nav button:hover { color: var(--text); background: #182333; }
+    .nav button.active { box-shadow: inset 2px 0 0 var(--cyan); }
+    .side-note { margin-top: auto; border-top: 1px solid var(--line); padding: 16px 8px 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+    .side-note strong { display: block; color: var(--green); margin-bottom: 4px; font-size: 12px; }
+    .main { min-width: 0; padding: 28px clamp(20px, 4vw, 58px) 44px; }
+    .topbar { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; margin-bottom: 30px; }
+    h1 { margin: 8px 0 10px; max-width: 740px; font-size: clamp(32px, 4vw, 56px); line-height: .98; letter-spacing: -.065em; }
+    .lede { margin: 0; max-width: 640px; color: var(--muted); line-height: 1.6; font-size: 14px; }
+    .top-actions { display: flex; gap: 8px; }
+    .top-actions button { color: var(--text); border: 1px solid var(--line); background: var(--panel); padding: 9px 12px; border-radius: 7px; font-size: 11px; cursor: pointer; }
+    .top-actions button:hover { border-color: var(--blue); }
+    .journey { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-bottom: 28px; }
+    .journey-step { padding: 15px 14px 17px; border-right: 1px solid var(--line); position: relative; }
+    .journey-step:last-child { border-right: 0; }
+    .journey-step.active { background: #111e2c; }
+    .journey-step.active::after { content: ""; position: absolute; bottom: -1px; left: 14px; right: 14px; height: 2px; background: var(--cyan); }
+    .journey-num { color: var(--cyan); font: 700 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .journey-title { margin-top: 10px; font-weight: 750; font-size: 13px; }
+    .journey-copy { color: var(--muted); font-size: 11px; line-height: 1.45; margin-top: 5px; }
+    .workspace { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, .65fr); gap: 18px; align-items: start; }
+    .step-panel, .detail-panel { border: 1px solid var(--line); background: var(--panel); }
+    .panel-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 15px 17px; border-bottom: 1px solid var(--line); }
+    .panel-title { font-weight: 750; font-size: 13px; }
+    .panel-meta { color: var(--muted); font-size: 11px; }
+    .agent-lane { display: flex; gap: 7px; flex-wrap: wrap; padding: 14px 17px; background: #101a27; border-bottom: 1px solid var(--line); }
+    .lane-chip { border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 999px; padding: 7px 10px; font-size: 11px; cursor: pointer; }
+    .lane-chip:hover, .lane-chip.selected { color: var(--text); border-color: var(--cyan); background: #152b3a; }
+    .lane-chip .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; background: var(--muted); }
+    .lane-chip.consumer .dot { background: var(--violet); }
+    .lane-chip.assistant .dot { background: var(--cyan); }
+    .lane-chip.network .dot { background: var(--orange); }
+    .steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; padding: 17px; }
+    .step-card { position: relative; min-height: 150px; text-align: left; padding: 15px; color: var(--text); background: #131d2a; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; transition: border-color .18s ease, transform .18s ease, background .18s ease; }
+    .step-card:hover, .step-card.selected { border-color: var(--blue); background: #172437; transform: translateY(-2px); }
+    .step-card.completed { border-color: #356a5a; }
+    .step-card.completed::after { content: "✓"; position: absolute; top: 13px; right: 14px; color: var(--green); font-weight: 800; }
+    .step-id { color: var(--cyan); font: 700 10px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .step-card h2 { margin: 19px 0 9px; font-size: 16px; line-height: 1.1; letter-spacing: -.035em; }
+    .step-card p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 14px; }
+    .tag { border: 1px solid #34445b; color: #a9bad2; border-radius: 4px; padding: 4px 6px; font-size: 10px; }
+    .tag.mock { color: var(--violet); border-color: #55477a; }
+    .tag.real { color: var(--green); border-color: #356a5a; }
+    .tag.obo { color: var(--cyan); border-color: #2d6574; }
+    .detail-panel { position: sticky; top: 20px; background: #e8eef4; color: #15202b; border-color: #b8c7d6; }
+    .detail-panel .panel-head { border-color: #c6d1db; }
+    .detail-panel .eyebrow { color: #577087; }
+    .detail-body { padding: 21px 20px 22px; }
+    .detail-body h2 { margin: 8px 0 11px; font-size: 31px; line-height: .98; letter-spacing: -.06em; }
+    .detail-body > p { color: #536577; line-height: 1.6; font-size: 13px; margin: 0 0 18px; }
+    .evidence { border-top: 1px solid #bfccd7; border-bottom: 1px solid #bfccd7; padding: 15px 0; display: grid; gap: 10px; }
+    .evidence-row { display: flex; justify-content: space-between; gap: 10px; font-size: 11px; }
+    .evidence-row span:first-child { color: #65788a; }
+    .evidence-row strong { text-align: right; color: #1a3447; }
+    .run { width: 100%; margin-top: 20px; padding: 12px 14px; border: 0; border-radius: 6px; background: #152738; color: #f5fbff; font-weight: 800; cursor: pointer; }
+    .run:hover { background: #20435b; }
+    .status { margin-top: 14px; color: #5b7183; font-size: 11px; line-height: 1.5; }
+    .status strong { color: #1d5360; }
+    .footer-note { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 11px; margin-top: 22px; }
+    .footer-note strong { color: var(--green); }
+    @media (max-width: 980px) { .shell { grid-template-columns: 1fr; } .sidebar { display: none; } .workspace { grid-template-columns: 1fr; } .detail-panel { position: static; } }
+    @media (max-width: 620px) { .main { padding: 22px 14px 32px; } .topbar { display: block; } .top-actions { margin-top: 18px; } .journey { grid-template-columns: repeat(2, 1fr); } .journey-step:nth-child(2) { border-right: 0; } .journey-step:nth-child(-n+2) { border-bottom: 1px solid var(--line); } .steps { grid-template-columns: 1fr; padding: 12px; } }
+    @media (prefers-reduced-motion: reduce) { .step-card { transition: none; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">ID</div><div><span class="brand-name">Demo Steps</span><span class="brand-sub">CIAM control plane</span></div></div>
+      <div><div class="nav-label" style="padding:0 8px 8px">Workspace</div><nav class="nav"><button class="active">CIAM agent types</button><button>Progressive trust</button><button>Agent network</button><button>Evidence library</button></nav></div>
+      <div class="side-note"><strong>Live path</strong>Registration evidence is mocked only where PingOne lacks CIMD/DCR. Delegated execution stays real.</div>
+    </aside>
+    <main class="main">
+      <header class="topbar">
+        <div><div class="eyebrow">Demo Steps / CIAM</div><h1>One customer. Three agent identities.</h1><p class="lede">Use the chips below to move from registration, to delegated execution, to agent-to-agent trust — without losing the human behind the action.</p></div>
+        <div class="top-actions"><button id="reset">Reset</button><button id="stop">Stop agent</button></div>
+      </header>
+
+      <nav class="journey" aria-label="CIAM agent journey">
+        <div class="journey-step active"><div class="journey-num">01 / REGISTER</div><div class="journey-title">Establish ownership</div><div class="journey-copy">Create the identity and record its provenance.</div></div>
+        <div class="journey-step"><div class="journey-num">02 / DELEGATE</div><div class="journey-title">Act for the customer</div><div class="journey-copy">Preserve subject, actor, audience, and scope.</div></div>
+        <div class="journey-step"><div class="journey-num">03 / CONSTRAIN</div><div class="journey-title">Apply policy</div><div class="journey-copy">Gateway and Authorize decide before tools run.</div></div>
+        <div class="journey-step"><div class="journey-num">04 / PROVE</div><div class="journey-title">Leave evidence</div><div class="journey-copy">Inventory, lifecycle, and audit tell the same story.</div></div>
+      </nav>
+
+      <section class="workspace">
+        <section class="step-panel" aria-label="CIAM demo steps">
+          <div class="panel-head"><div><div class="panel-title">CIAM agent lanes</div><div class="panel-meta">Select a lane, then run a step</div></div><div class="panel-meta" id="count">0 / 6 complete</div></div>
+          <div class="agent-lane" role="tablist" aria-label="Agent type chips">
+            <button class="lane-chip consumer selected" data-lane="consumer"><span class="dot"></span>Consumer &amp; Partner</button>
+            <button class="lane-chip assistant" data-lane="assistant"><span class="dot"></span>Digital Assistant</button>
+            <button class="lane-chip network" data-lane="network"><span class="dot"></span>Agent Network</button>
+          </div>
+          <div class="steps">
+            <button class="step-card selected" data-lane="consumer" data-id="UC43" data-title="Register the agent" data-copy="Build the customer-facing agent. The BFF runs the CIMD facade automatically in the background and keeps the real PingOne association visible." data-mode="Mocked CIMD facade" data-proof="Owner + PingOne app + metadata URL" data-tags="CIMD facade|Public-safe metadata|NHI inventory">
+              <div class="step-id">UC43 · CONSUMER &amp; PARTNER</div><h2>Register the agent</h2><p>Show ownership and safe registration provenance.</p><div class="tags"><span class="tag mock">mocked CIMD</span><span class="tag">inventory</span></div>
+            </button>
+            <button class="step-card" data-lane="consumer" data-id="UC19" data-title="Inspect lifecycle" data-copy="Follow the agent from joiner to active identity. The CIMD record is supporting provenance, not a replacement for the PingOne agent id." data-mode="Real PingOne lifecycle" data-proof="Joiner event + agent id + owner" data-tags="NHI lifecycle|Ownership|Traceability">
+              <div class="step-id">UC19 · CONSUMER &amp; PARTNER</div><h2>Inspect lifecycle</h2><p>Show the identity as an owned NHI, not a one-off demo object.</p><div class="tags"><span class="tag real">PingOne-backed</span><span class="tag">lifecycle</span></div>
+            </button>
+            <button class="step-card" data-lane="assistant" data-id="UC44" data-title="Act on behalf of the customer" data-copy="Open Digital Assistant and send a request through the real invoke path. RFC 8693 preserves the customer as subject and the assistant as actor." data-mode="Real RFC 8693 OBO" data-proof="sub = customer · act = assistant" data-tags="OBO delegation|Gateway|PingOne Authorize">
+              <div class="step-id">UC44 · DIGITAL ASSISTANT</div><h2>Act on behalf of the customer</h2><p>Make the actor chain visible before the tool executes.</p><div class="tags"><span class="tag obo">RFC 8693 OBO</span><span class="tag real">real path</span></div>
+            </button>
+            <button class="step-card" data-lane="assistant" data-id="UC22" data-title="Challenge a sensitive action" data-copy="Ask the assistant to move miles or perform another sensitive operation. The action invokes stronger assurance without collapsing the agent into the user." data-mode="Real step-up / CIBA" data-proof="Human approval before sensitive tool" data-tags="Step-up|CIBA|Audit trail">
+              <div class="step-id">UC22 · DIGITAL ASSISTANT</div><h2>Challenge a sensitive action</h2><p>Re-involve the human at the policy boundary.</p><div class="tags"><span class="tag real">step-up / CIBA</span><span class="tag">human control</span></div>
+            </button>
+            <button class="step-card" data-lane="network" data-id="UC2" data-title="Delegate to a specialist" data-copy="Let a generalist agent hand off to a specialist with a narrower authority set. Show the nested actor chain and the specialist tool allowlist." data-mode="Real A2A delegation" data-proof="Nested act chain + narrowed scope" data-tags="A2A|Least privilege|Nested act">
+              <div class="step-id">UC2 · AGENT NETWORK</div><h2>Delegate to a specialist</h2><p>Extend customer attribution across a second agent hop.</p><div class="tags"><span class="tag obo">nested act</span><span class="tag real">A2A</span></div>
+            </button>
+            <button class="step-card" data-lane="network" data-id="UC2.6" data-title="Deny a mismatched agent" data-copy="Repeat the request with an unregistered or mismatched specialist. The call fails closed before the protected tool executes." data-mode="Real deny path" data-proof="Unregistered actor denied" data-tags="Fail closed|Actor verification|Authorize">
+              <div class="step-id">UC2.6 · AGENT NETWORK</div><h2>Deny a mismatched agent</h2><p>Prove that delegation is trust-bound, not just bearer access.</p><div class="tags"><span class="tag" style="color:var(--danger);border-color:#704547">deny</span><span class="tag">actor check</span></div>
+            </button>
+          </div>
+        </section>
+
+        <aside class="detail-panel" aria-live="polite">
+          <div class="panel-head"><div class="panel-title">Selected step</div><div class="eyebrow" id="selected-id">UC43</div></div>
+          <div class="detail-body"><div class="eyebrow" id="detail-lane">Consumer &amp; Partner Agent</div><h2 id="detail-title">Register the agent</h2><p id="detail-copy">Build the customer-facing agent. The BFF runs the CIMD facade automatically in the background and keeps the real PingOne association visible.</p><div class="evidence"><div class="evidence-row"><span>Execution model</span><strong id="detail-mode">Mocked CIMD facade</strong></div><div class="evidence-row"><span>Audience callout</span><strong id="detail-proof">Owner + PingOne app + metadata URL</strong></div><div class="evidence-row"><span>Evidence</span><strong id="detail-tags">CIMD facade · Public-safe metadata · NHI inventory</strong></div></div><button class="run" id="run">Run this step</button><div class="status" id="status"><strong>Ready.</strong> CIMD is automatic and explicitly labeled as mocked.</div></div>
+        </aside>
+      </section>
+      <div class="footer-note"><span><strong>6 chips</strong> / 3 agent lanes / 1 coherent CIAM story</span><span>Mock registration → real delegation → attributable action</span></div>
+    </main>
+  </div>
+  <script>
+    const cards = [...document.querySelectorAll('.step-card')];
+    const chips = [...document.querySelectorAll('.lane-chip')];
+    const labels = { consumer: 'Consumer & Partner Agent', assistant: 'Workload Agent: Digital Assistant', network: 'Agent Network' };
+    let selected = cards[0];
+    function render(card) {
+      selected = card;
+      cards.forEach((item) => item.classList.toggle('selected', item === card));
+      chips.forEach((chip) => chip.classList.toggle('selected', chip.dataset.lane === card.dataset.lane));
+      document.querySelector('#selected-id').textContent = card.dataset.id;
+      document.querySelector('#detail-lane').textContent = labels[card.dataset.lane];
+      document.querySelector('#detail-title').textContent = card.dataset.title;
+      document.querySelector('#detail-copy').textContent = card.dataset.copy;
+      document.querySelector('#detail-mode').textContent = card.dataset.mode;
+      document.querySelector('#detail-proof').textContent = card.dataset.proof;
+      document.querySelector('#detail-tags').textContent = card.dataset.tags.split('|').join(' · ');
+      document.querySelector('#status').innerHTML = card.dataset.lane === 'consumer'
+        ? '<strong>Ready.</strong> CIMD is automatic and explicitly labeled as mocked.'
+        : '<strong>Ready.</strong> This lane continues through the real PingOne-backed path.';
+    }
+    cards.forEach((card) => card.addEventListener('click', () => render(card)));
+    chips.forEach((chip) => chip.addEventListener('click', () => {
+      const first = cards.find((card) => card.dataset.lane === chip.dataset.lane);
+      if (first) render(first);
+    }));
+    document.querySelector('#run').addEventListener('click', () => {
+      selected.classList.add('completed');
+      document.querySelector('#count').textContent = `${document.querySelectorAll('.step-card.completed').length} / 6 complete`;
+      document.querySelector('#status').innerHTML = selected.dataset.lane === 'consumer'
+        ? '<strong>Facade complete.</strong> The PingOne association remains the execution identity.'
+        : '<strong>Evidence captured.</strong> Inspect the token chain and policy decision next.';
+    });
+    document.querySelector('#reset').addEventListener('click', () => {
+      cards.forEach((card) => card.classList.remove('completed'));
+      document.querySelector('#count').textContent = '0 / 6 complete';
+      render(cards[0]);
+    });
+    document.querySelector('#stop').addEventListener('click', (event) => {
+      event.currentTarget.textContent = event.currentTarget.textContent === 'Stop agent' ? 'Resume agent' : 'Stop agent';
+      document.querySelector('#status').innerHTML = event.currentTarget.textContent === 'Resume agent'
+        ? '<strong>Agent paused.</strong> No further demo step will run.'
+        : '<strong>Agent resumed.</strong> Select a chip to continue.';
+    });
+  </script>
+</body>
+</html>

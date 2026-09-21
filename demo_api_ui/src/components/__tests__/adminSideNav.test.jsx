@@ -73,7 +73,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
 
   it("exposes aria-expanded + aria-controls on expandable groups", () => {
     renderNav();
-    const monitoring = screen.getByRole("button", { name: /^Monitoring/ });
+    const monitoring = screen.getByRole("button", { name: /^Evidence & Governance/ });
     expect(monitoring.getAttribute("aria-expanded")).toBe("false");
     const controls = monitoring.getAttribute("aria-controls");
     expect(controls).toBeTruthy();
@@ -93,12 +93,12 @@ describe("AdminSideNav — best-of-breed pass", () => {
     renderNav();
     // present before filtering
     expect(screen.getByText("Themes")).toBeTruthy();
-    expect(screen.getByText("Monitoring")).toBeTruthy();
+    expect(screen.getByText("Evidence & Governance")).toBeTruthy();
     const input = screen.getByLabelText(/search navigation/i);
-    fireEvent.change(input, { target: { value: "monitor" } });
+    fireEvent.change(input, { target: { value: "evidence" } });
     // non-matching top-level item is filtered out; matching group remains
     expect(screen.queryByText("Themes")).toBeNull();
-    expect(screen.getByText("Monitoring")).toBeTruthy();
+    expect(screen.getByText("Evidence & Governance")).toBeTruthy();
   });
 
   it("searching \"authorize\" still surfaces the renamed P1AZ Inspector item", () => {
@@ -145,20 +145,33 @@ describe("AdminSideNav — best-of-breed pass", () => {
     );
   });
 
-  it("searching OAuth agents surfaces the AI-Gateway Shadow AI Detector page", () => {
+  it("searching OAuth agents surfaces the Agent Security Shadow AI Detector page", () => {
     renderNav();
     fireEvent.change(screen.getByLabelText(/search navigation/i), { target: { value: "oauth agents" } });
-    expect(screen.getByText("AI-Gateway")).toBeInTheDocument();
+    expect(screen.getByText("Agent Security & Enforcement")).toBeInTheDocument();
     expect(screen.getByText("Shadow AI Detector").closest("a")).toHaveAttribute(
       "href",
       "/ai-gateway/shadow-ai-detector",
     );
   });
 
+  it("searching Privilege surfaces the JIT access group and live entry points", () => {
+    renderNav();
+    fireEvent.change(screen.getByLabelText(/search navigation/i), {
+      target: { value: "privilege" },
+    });
+    expect(screen.getByText("PingOne Privilege & Privilege for AI")).toBeInTheDocument();
+    expect(screen.getByText("Privilege Demo — Request Access")).toBeInTheDocument();
+    expect(screen.getByText("Privilege MCP Client").closest("a")).toHaveAttribute(
+      "href",
+      "/privilege-mcp-client",
+    );
+  });
+
   it("shows a local-only PAC Editor item under Authorize and opens the PAC editor", () => {
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
     renderNav();
-    fireEvent.click(screen.getByRole("button", { name: /^Authorize/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^PingOne Authorize/ }));
     fireEvent.click(screen.getByRole("button", { name: "PAC Editor" }));
     expect(openSpy).toHaveBeenCalledWith(
       "http://127.0.0.1:9099",
@@ -185,13 +198,13 @@ describe("AdminSideNav — best-of-breed pass", () => {
 
   it("shows the Health Check nav item for a non-admin user (no admin gate)", () => {
     renderNavAsUser(customerUser);
-    fireEvent.click(screen.getByRole("button", { name: /^Telemetry/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Runtime Observability/ }));
     expect(screen.getByText("Health Check")).toBeInTheDocument();
   });
 
   it("shows MCP Runtime Inventory for a non-admin user and links to discovery", () => {
     renderNavAsUser(customerUser);
-    fireEvent.click(screen.getByRole("button", { name: /^MCP & Gateways/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^MCP Runtime & Discovery/ }));
     const link = screen.getByText("MCP Runtime Inventory").closest("a");
     expect(link).toHaveAttribute("href", "/mcp-discovery");
   });
@@ -204,19 +217,19 @@ describe("AdminSideNav — best-of-breed pass", () => {
 
   it("shows the Demo Config link for a non-admin user (no admin gate)", () => {
     renderNavAsUser(customerUser);
-    fireEvent.click(screen.getByRole("button", { name: /^Demos/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Agent Trust Journey/ }));
     expect(screen.getByText("Demo Config")).toBeInTheDocument();
   });
 
   it("shows a Use Cases (Live) link inside the Demos group, linking to /use-cases/live", () => {
     renderNav();
-    fireEvent.click(screen.getByRole("button", { name: /^Demos/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Agent Trust Journey/ }));
     const liveLink = screen.getByText("Use Cases (Live)").closest("a");
     expect(liveLink).toHaveAttribute("href", "/use-cases/live");
   });
 
   it("includes Delegated Commerce in the AI Flows customization catalog", () => {
-    const flows = NAV_STRUCTURE_CATALOG.find((group) => group.label === "AI Flows");
+    const flows = NAV_STRUCTURE_CATALOG.find((group) => group.label === "Agent Lifecycle & Flows");
     expect(flows.children).toContain("Delegated Commerce (guided demo)");
   });
 
@@ -229,7 +242,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
   it("Weather MCP and Brave Search MCP link to their showcase pages, not a demo/run POST", async () => {
     const apiClient = (await import("../../services/apiClient")).default;
     renderNav();
-    fireEvent.click(screen.getByRole("button", { name: /^Demos/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Agent Trust Journey/ }));
 
     expect(screen.getByText("Weather MCP").closest("a")).toHaveAttribute(
       "href",
@@ -261,7 +274,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
       }),
     );
     renderNav();
-    expect(await screen.findByText("Monitoring")).toBeInTheDocument();
+    expect(await screen.findByText("Evidence & Governance")).toBeInTheDocument();
     expect(screen.queryByText("Themes")).toBeNull();
     vi.unstubAllGlobals();
   });
@@ -278,7 +291,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
   // bottom — "AI Agent Gateway" rendered below "Integration Tests", which reads
   // as missing rather than as reordered. Reported from the live demo.
   it("places a group the saved navOrder predates at its natural position, not last", async () => {
-    // A realistic stale order: no "AI-Gateway" or "AI Agent Gateway", and labels from groups
+    // A realistic stale order: no renamed agent-security groups, and labels from groups
     // that have since been renamed.
     const staleOrder = [
       "Home", "Dashboard", "Demos", "Privilege MCP", "Themes", "AI Footprint",
@@ -304,22 +317,22 @@ describe("AdminSideNav — best-of-breed pass", () => {
       }),
     );
     renderNav();
-    await screen.findByText("AI Agent Gateway");
+    await screen.findByText("PingOne AI Agent Gateway");
 
     const labels = Array.from(
       document.querySelectorAll(".admin-side-nav__label"),
     ).map((el) => el.textContent.trim());
     const idx = (l) => labels.indexOf(l);
 
-    // It sits after the new AI-Gateway group — its position in allNavItems — because
+    // It sits after the agent-security group — its position in allNavItems — because
     // Dashboard is the nearest preceding sibling the saved order knows about.
-    expect(idx("AI Agent Gateway")).toBeGreaterThan(-1);
-    expect(idx("AI Agent Gateway")).toBe(idx("AI-Gateway") + 1);
+    expect(idx("PingOne AI Agent Gateway")).toBeGreaterThan(-1);
+    expect(idx("PingOne AI Agent Gateway")).toBe(idx("Agent Security & Enforcement") + 1);
     // And crucially NOT dumped at the bottom past everything ordered.
-    expect(idx("AI Agent Gateway")).toBeLessThan(idx("Integration Tests"));
+    expect(idx("PingOne AI Agent Gateway")).toBeLessThan(idx("Integration Tests"));
 
     // The user's explicit ordering is still honoured for what it does contain.
-    expect(idx("Demos")).toBeLessThan(idx("Themes"));
+    expect(idx("Agent Trust Journey")).toBeLessThan(idx("Themes"));
     vi.unstubAllGlobals();
   });
 

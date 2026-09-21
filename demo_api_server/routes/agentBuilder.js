@@ -47,7 +47,7 @@ router.get('/state', asyncRoute(async (req, res) => {
     svc.listResourcesForUser(user),
   ]);
   const granted = agent ? await svc.getAgentGrants(agent.id) : {};
-  const cimd = agent ? svc.getPersonalAgentCimd(user) : null;
+  const cimd = agent ? await svc.ensurePersonalAgentCimd(user, agent) : null;
   res.json({
     user: { username: user.username, email: user.email, sub: user.oauthId || user.id },
     agent: agent ? { ...agent, cimd } : null,

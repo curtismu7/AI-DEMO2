@@ -8,11 +8,11 @@ export const NAV_STRUCTURE_CATALOG = [
   { label: "Home" },
   { label: "Dashboard" },
   {
-    label: "AI-Gateway",
+    label: "Agent Security & Enforcement",
     children: ["Shadow AI Detector"],
   },
   {
-    label: "AI Agent Gateway",
+    label: "PingOne AI Agent Gateway",
     children: [
       "Protocol Playground",
       "AI Gateway Client",
@@ -25,7 +25,7 @@ export const NAV_STRUCTURE_CATALOG = [
     ],
   },
   {
-    label: "AI Product Pages",
+    label: "Identity for AI & NHI",
     children: [
       "Agent IAM Core",
       "Agent Gateway",
@@ -35,9 +35,22 @@ export const NAV_STRUCTURE_CATALOG = [
       "Privilege · MCP",
     ],
   },
+  {
+    label: "PingOne Privilege & Privilege for AI",
+    children: [
+      "Privilege Demo — Request Access",
+      "Privilege Demo — Setup",
+      "Privilege MCP Client",
+      "Privilege MCP Guide",
+      "Privilege MCP Architecture",
+      "Privilege-First Gateway",
+      "Privilege AI Gateway",
+      "Privilege for AI",
+    ],
+  },
   { label: "Themes" },
   {
-    label: "Demos",
+    label: "Agent Trust Journey",
     children: [
       "Weather MCP",
       "Brave Search MCP",
@@ -52,16 +65,18 @@ export const NAV_STRUCTURE_CATALOG = [
     ],
   },
   {
-    label: "AI Flows",
+    label: "Agent Lifecycle & Flows",
+    searchAlias: "personal agent digital assistant consumer partner employee workload saas embedded agent network ciam",
     children: [
       "Agentic Control Plane",
       "Agent Kill Switch",
-      "Agent Registry",
-      "PingOne Agent Builder",
+      "Agent Registry & NHI",
+      "Consumer & Partner Agent Builder",
       "Agent & Token Flow History",
       "Login Flow Diagram",
-      "Autonomous Agents",
-      "Digital Assistant",
+      "Workload Agents: Autonomous",
+      "Personal Agent: Digital Assistant",
+      "Website Worker",
       "Agent Lifecycle (guided demo)",
       "Delegated Commerce (guided demo)",
       "Family Delegation",
@@ -79,7 +94,7 @@ export const NAV_STRUCTURE_CATALOG = [
     ],
   },
   {
-    label: "PingOne MCP",
+    label: "MCP & Agent Gateways",
     children: [
       "MCP Inspector",
       "PingOne MCP Setup",
@@ -87,7 +102,7 @@ export const NAV_STRUCTURE_CATALOG = [
     ],
   },
   {
-    label: "MCP & Gateways",
+    label: "MCP Runtime & Discovery",
     children: [
       "MCP Discovery",
       "Ping AI Test Lab",
@@ -130,7 +145,7 @@ export const NAV_STRUCTURE_CATALOG = [
     ],
   },
   {
-    label: "Authorize",
+    label: "PingOne Authorize",
     children: [
       "P1AZ Inspector",
       "PAC Editor",
@@ -189,8 +204,9 @@ export const NAV_STRUCTURE_CATALOG = [
     ],
   },
   {
-    label: "Monitoring",
+    label: "Evidence & Governance",
     children: [
+      "Governance Timeline",
       "Audit Trail",
       "Learning Log",
       "Activity Log",
@@ -205,7 +221,7 @@ export const NAV_STRUCTURE_CATALOG = [
     ],
   },
   {
-    label: "Telemetry",
+    label: "Runtime Observability",
     children: [
       "Service Graph",
       "Tracing",
@@ -216,7 +232,7 @@ export const NAV_STRUCTURE_CATALOG = [
     ],
   },
   {
-    label: "Diagrams",
+    label: "Architecture & Reference",
     children: [
       "System Diagram (Node)",
       "System Flow (Live)",
@@ -245,7 +261,7 @@ export const NAV_STRUCTURE_CATALOG = [
     ],
   },
   {
-    label: "Learn & Present",
+    label: "Learn & Architecture",
     children: [
       "AI Security Academy",
       "Academy Standalone Demos",

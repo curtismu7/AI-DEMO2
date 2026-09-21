@@ -2130,6 +2130,34 @@ const RAW_USE_CASES = [
     },
     primaryTool: 'redeem_miles',
   },
+  {
+    id: 'UC45',
+    useCaseId: 'saas-embedded-worker',
+    track: 'foundations',
+    title: 'SaaS-Embedded Agent — Website Worker',
+    buyerStory: 'A SaaS website needs an embedded worker that acts for a signed-in customer while keeping its own workload identity and tenant context.',
+    pingOneSolution: 'PingOne provisions a distinct Website Worker identity; the BFF uses mocked CIMD registration for provenance and real delegated execution for every customer action.',
+    trigger: { type: 'link', path: '/embedded-worker', label: 'Open Website Worker demo' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'personal-agent-lookup', 'mcp-exchange', 'tool-dispatched'], activity: ['register', 'inventory', 'token', 'authorize', 'mcp'] },
+    codeRefs: [
+      'demo_api_server/routes/embeddedWorker.js',
+      'demo_api_server/services/agentBuilderService.js',
+      'demo_api_server/services/personalAgentCimdService.js',
+    ],
+    maturity: 'works',
+    owasp: { threats: ['T1', 'T9', 'T13'], sections: ['§4.1', '§4.2', '§4.3'] },
+    whatToSay: 'The Website Worker is embedded in the customer site, but PingOne still sees a distinct workload identity and the token chain preserves customer attribution.',
+    advanced: false,
+    whatLong: 'A customer signs in to a SaaS website and asks its embedded Website Worker to perform an action. The worker has a separate PingOne AI Agent identity and a separate CIMD/NHI association. The BFF verifies the worker, exchanges the customer authority for a delegated token, and sends the request through the existing gateway and Authorize path.',
+    businessValue: 'SaaS providers can embed helpful agents without conflating the website session, customer identity, and worker identity.',
+    productRoles: {
+      idp: 'Authenticates the customer and remains the source of the distinct Website Worker identity.',
+      gw: 'Validates and routes the worker request with the delegated customer context.',
+      authz: 'Evaluates the customer, worker actor, scopes, tenant context, and action policy.',
+    },
+    primaryTool: 'redeem_miles',
+  },
 ];
 
 function deepFreeze(o) {

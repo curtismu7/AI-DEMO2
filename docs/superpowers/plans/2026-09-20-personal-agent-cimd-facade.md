@@ -129,7 +129,10 @@ Follow-on implementation tasks:
 
 ### Task 5: Verify the protected end-to-end contract
 
-**Status:** Partial — focused checks pass; use-case generation/check passes; topology/authz checks are blocked by missing worktree dependencies (`lodash.mergewith` and gateway Jest), and the full UI suite was not run.
+**Status:** Complete — the worktree dependency paths were repaired using the
+existing local dependency trees; focused BFF/UI tests, UI build, use-case
+checks, `authz:verify`, and `topology:verify` pass. One Supertest route suite
+remains sandbox-limited because local socket binding returns `EPERM`.
 
 **Files:**
 - No new production files.
@@ -139,6 +142,13 @@ Follow-on implementation tasks:
 - [ ] **Step 3: Run `npm run topology:verify` and `npm run authz:verify` if generated routes or use-case metadata changed.**
 - [ ] **Step 4: Run `graphify update .` from the worktree.**
 - [ ] **Step 5: Inspect `git diff`, confirm only intended paths are staged, and report evidence without claiming live PingOne verification unless the configured stack was exercised.**
+
+### Task 6: Make the Digital Assistant operator flow real
+
+**Status:** Complete — inline and pop-out Digital Assistant clients use the
+real `/api/agent/invoke` route with `workload-digital-assistant-obo`; the legacy
+`personal-agent-concierge` slug remains accepted for compatibility. See the
+operator sequence in [`docs/use-cases/ciam-agent-types-demo.md`](../../use-cases/ciam-agent-types-demo.md).
 
 ### Current execution note
 

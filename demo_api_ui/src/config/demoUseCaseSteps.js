@@ -41,6 +41,209 @@ export const DEMO_PRIMARY_USE_CASE_IDS = [
 
 export const DEMO_ADVANCED_USE_CASE_IDS = [];
 
+/** Curated CIAM lane shown as its own live group on the use-case launcher. */
+export const CIAM_AGENT_TYPE_USE_CASE_IDS = [
+  'UC43',  // Consumer & Partner Agent — mocked CIMD registration
+  'UC44',  // Workload Agent: Digital Assistant — real OBO execution
+  'UC45',  // SaaS-Embedded Agent — Website Worker
+  'UC2',   // Agent Network — specialist delegation
+  'UC2.6', // Agent Network — mismatched actor denied
+];
+
+/** Presenter-friendly aliases used by Demo Steps search. */
+export const DEMO_USE_CASE_SEARCH_TERMS = {
+  UC24: ['public access', 'public catalog', 'nearby branches', 'no token'],
+  UC1: ['delegated access', 'balance', 'token exchange', 'rfc 8693', 'act claim', 'attribution'],
+  UC8: ['consent', 'human in the loop', 'hitl', 'transfer approval'],
+  UC7: ['mfa', 'multi-factor', 'step-up', 'strong authentication'],
+  UC14b: ['par', 'rar', 'rich authorization request', 'intent', 'amount cap', 'permit'],
+  UC14: ['par', 'rar', 'rich authorization request', 'intent violation', 'overage', 'deny'],
+  UC12: ['dpop', 'replay', 'token theft', 'proof'],
+  UC6: ['authorization deny', 'transfer denied', 'policy deny'],
+  UC2: ['a2a', 'agent-to-agent', 'delegation', 'specialist', 'nested actor'],
+  'UC2.5': ['a2a', 'orchestration', 'learning', 'specialist'],
+  'UC2.7': ['a2a', 'agent-to-agent', 'end to end', 'protocol', 'identity'],
+  UC22: ['ciba', 'out of band', 'decoupled approval', 'push approval'],
+  UC5: ['insufficient scope', 'scope deny', '403'],
+  UC10: ['cross-owner', 'account takeover', 'resource ownership'],
+  UC13: ['confused deputy', 'actor injection', 'rogue actor'],
+  UC11: ['bad client', 'wrong audience', 'malformed token', '401'],
+  UC20: ['audit', 'audit trail', 'evidence', 'logging'],
+  UC18: ['rate limit', 'throttle', 'burst'],
+  UC17: ['jit', 'just in time', 'ephemeral credentials', 'short-lived token', 'secretless'],
+  UC30: ['weather', 'texas permit', 'mcp'],
+  UC31: ['weather', 'out of scope', 'gateway deny', 'mcp'],
+  UC32: ['weather', 'live reconfigure', 'gateway scope', 'mcp'],
+  UC40: ['enterprise managed', 'mcp authorization', 'id-jag', 'managed agent'],
+  UC38: ['personal concierge', 'digital assistant', 'mfa', 'workload agent', 'delegation'],
+  'UC-TOOL1': ['protected rag', 'code search', 'retrieval', 'mcp'],
+  UC43: ['cimd', 'consumer agent', 'partner agent', 'agent registration', 'nhi inventory'],
+  UC44: ['obo', 'digital assistant', 'workload agent', 'delegated action', 'customer attribution'],
+  UC45: ['saas embedded', 'website worker', 'embedded agent', 'customer tenant', 'website identity', 'nhi'],
+  'UC2.6': ['a2a', 'mismatched actor', 'wrong actor', 'delegation deny'],
+  'UC-PAM-SETUP': ['privilege', 'pam', 'privilege setup', 'agent onboarding', 'mfa'],
+  'UC-PAM-SCRIPT': ['privilege', 'pam', 'jit access', 'approval', 'four eyes', 'session recording', 'kill switch', 'aws', 's3', 'vpc', 'kubernetes'],
+  UC25: ['privilege', 'enterprise managed mcp', 'id-jag', 'centralized access', 'group policy'],
+  'UC-LEARN11': ['privilege', 'privilege ai', 'llm gateway', 'prompt injection'],
+  'UC-TOOL3': ['privilege', 'privilege ai', 'llm gateway', 'prompt injection', 'virtual key'],
+};
+
+/** Existing Privilege lanes grouped for the presenter, without inventing routes. */
+export const PRIVILEGE_USE_CASE_IDS = [
+  'UC17',
+  'UC25',
+  'UC40',
+  'UC-PAM-SETUP',
+  'UC-PAM-SCRIPT',
+  'UC-LEARN11',
+  'UC-TOOL3',
+];
+
+/** Maturity-model journey groups for the presenter drawer. */
+export const DEMO_MATURITY_GROUPS = [
+  {
+    id: 'discover',
+    label: 'Discover agents',
+    shortLabel: 'Discover',
+    description: 'Find agents and make their activity visible.',
+    useCaseIds: ['UC24'],
+  },
+  {
+    id: 'register',
+    label: 'Register trusted agents',
+    shortLabel: 'Register',
+    description: 'Establish agent identities and trust relationships.',
+    useCaseIds: ['UC40', 'UC38'],
+  },
+  {
+    id: 'authenticate',
+    label: 'Authenticate & delegate',
+    shortLabel: 'Authenticate',
+    description: 'Prove the user, agent, consent, and delegation chain.',
+    useCaseIds: ['UC1', 'UC7', 'UC8', 'UC22'],
+  },
+  {
+    id: 'authorize',
+    label: 'Authorize agent actions',
+    shortLabel: 'Authorize',
+    description: 'Apply least privilege, policy, and intent controls.',
+    useCaseIds: ['UC2', 'UC2.5', 'UC2.7', 'UC5', 'UC6', 'UC10', 'UC13', 'UC14b', 'UC14'],
+  },
+  {
+    id: 'protect',
+    label: 'Protect traffic & resources',
+    shortLabel: 'Protect',
+    description: 'Protect gateways, MCP servers, and connected resources.',
+    useCaseIds: ['UC11', 'UC12', 'UC30', 'UC31', 'UC32', 'UC-TOOL1'],
+  },
+  {
+    id: 'govern',
+    label: 'Govern & prove activity',
+    shortLabel: 'Govern',
+    description: 'Show auditability, throttling, and accountability.',
+    useCaseIds: ['UC18', 'UC20'],
+  },
+];
+
+/**
+ * Persistent Mission Control shortcuts. This presenter taxonomy keeps the
+ * agent lanes and journey/control lanes available as one-click filters.
+ * Empty future lanes stay visible as the catalog grows.
+ */
+export const DEMO_MISSION_GROUPS = [
+  {
+    id: 'personal-agent',
+    label: 'Personal Agent',
+    shortLabel: 'Personal Agent',
+    description: 'Customer-owned personal agent registration and delegated execution.',
+    useCaseIds: ['UC43', 'UC44', 'UC38'],
+  },
+  {
+    id: 'digital-assistant',
+    label: 'Digital Assistant',
+    shortLabel: 'Digital Assistant',
+    description: 'Customer-facing assistant with OBO, MFA, and live authorization.',
+    useCaseIds: ['UC44', 'UC38', 'UC1', 'UC7', 'UC22'],
+  },
+  {
+    id: 'consumer-partner',
+    label: 'Consumer & Partner Agent',
+    shortLabel: 'Consumer & Partner',
+    description: 'CIAM registration, ownership, metadata, and NHI inventory.',
+    useCaseIds: ['UC43'],
+  },
+  {
+    id: 'employee-agent',
+    label: 'Employee Agent',
+    shortLabel: 'Employee Agent',
+    description: 'Employee-owned agent lane reserved for the next live registration flow.',
+    useCaseIds: [],
+  },
+  {
+    id: 'workload-agent',
+    label: 'Workload Agent',
+    shortLabel: 'Workload Agent',
+    description: 'Autonomous and delegated workload identities with governed actions.',
+    useCaseIds: ['UC38', 'UC40'],
+  },
+  {
+    id: 'saas-embedded-agent',
+    label: 'SaaS-Embedded Agent',
+    shortLabel: 'SaaS-Embedded',
+    description: 'Application-owned agent lane reserved for a future embedded flow.',
+    useCaseIds: ['UC45'],
+  },
+  {
+    id: 'agent-network',
+    label: 'Agent Network',
+    shortLabel: 'Agent Network',
+    description: 'A2A delegation, specialist scope narrowing, and actor mismatch denial.',
+    useCaseIds: ['UC2', 'UC2.5', 'UC2.6', 'UC2.7'],
+  },
+  {
+    id: 'discover',
+    label: 'Discover agents',
+    shortLabel: 'Discover',
+    description: 'Find agents and make their activity visible.',
+    useCaseIds: ['UC24'],
+  },
+  {
+    id: 'register',
+    label: 'Register trusted agents',
+    shortLabel: 'Register',
+    description: 'Establish agent identities and trust relationships.',
+    useCaseIds: ['UC40', 'UC38', 'UC43'],
+  },
+  {
+    id: 'authenticate',
+    label: 'Authenticate & delegate',
+    shortLabel: 'Authenticate',
+    description: 'Prove the user, agent, consent, and delegation chain.',
+    useCaseIds: ['UC1', 'UC7', 'UC8', 'UC22', 'UC38', 'UC44'],
+  },
+  {
+    id: 'authorize',
+    label: 'Authorize agent actions',
+    shortLabel: 'Authorize',
+    description: 'Apply least privilege, policy, intent, and actor controls.',
+    useCaseIds: ['UC2', 'UC2.5', 'UC2.6', 'UC2.7', 'UC5', 'UC6', 'UC10', 'UC13', 'UC14b', 'UC14'],
+  },
+  {
+    id: 'privilege',
+    label: 'Privilege & JIT',
+    shortLabel: 'Privilege & JIT',
+    description: 'Request, approve, broker, observe, and revoke privileged access.',
+    useCaseIds: PRIVILEGE_USE_CASE_IDS,
+  },
+  {
+    id: 'govern',
+    label: 'Govern & prove activity',
+    shortLabel: 'Govern',
+    description: 'Show auditability, throttling, accountability, and lifecycle evidence.',
+    useCaseIds: ['UC18', 'UC20'],
+  },
+];
+
 /**
  * 15-Min Security demo script — the exact tiles that script runs, in order,
  * gathered into one workbench group so the presenter doesn't hunt across

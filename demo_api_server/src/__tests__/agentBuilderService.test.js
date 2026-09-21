@@ -55,6 +55,7 @@ beforeEach(() => jest.clearAllMocks());
 describe('agent naming + lookup', () => {
   test('agentName is deterministic per user', () => {
     expect(svc.agentName(USER)).toBe('AI Agent - demoUser');
+    expect(svc.agentName(USER, 'saas-embedded-worker')).toBe('Website Worker - demoUser');
   });
 
   test('getAgentForUser returns null when no app matches', async () => {
@@ -77,6 +78,24 @@ describe('agent naming + lookup', () => {
 });
 
 describe('createAgentForUser', () => {
+  test('creates a distinct idempotent Website Worker identity', async () => {
+    mockGet({ '/applications': { _embedded: { applications: [] } } });
+    axios.post.mockResolvedValue({ data: {
+      id: 'worker-new', name: 'Website Worker - demoUser', type: 'AI_AGENT', enabled: true,
+    } });
+
+    const result = await svc.createEmbeddedWorkerForUser(USER);
+
+    expect(result.created).toBe(true);
+    expect(result.agent.name).toBe('Website Worker - demoUser');
+    expect(axios.post.mock.calls[0][1]).toMatchObject({ name: 'Website Worker - demoUser', type: 'AI_AGENT' });
+    expect(personalAgentCimdService.registerPersonalAgentCimd).toHaveBeenCalledWith(
+      USER,
+      expect.objectContaining({ id: 'worker-new' }),
+      { agentType: 'saas-embedded-worker' },
+    );
+  });
+
   test('creates a first-class AI_AGENT via /applications', async () => {
     mockGet({ '/applications': { _embedded: { applications: [] } } });
     axios.post.mockResolvedValue({ data: {

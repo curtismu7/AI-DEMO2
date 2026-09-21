@@ -36,8 +36,10 @@ function displayName(user) {
   return user.username || String(user.email || 'user').split('@')[0];
 }
 
-function agentName(user) {
-  return `AI Agent - ${displayName(user)}`;
+function agentName(user, agentType = 'personal') {
+  return agentType === 'saas-embedded-worker'
+    ? `Website Worker - ${displayName(user)}`
+    : `AI Agent - ${displayName(user)}`;
 }
 
 function markerFor(user) {
@@ -129,15 +131,15 @@ async function listApplicationsRaw(opts) {
 
 /** AI_AGENT apps appear in the standard applications list, so one lookup
  *  covers both first-class agents and WEB_APP fallbacks. */
-async function findAgentRaw(user, opts) {
-  const name = agentName(user);
+async function findAgentRaw(user, opts, agentType = 'personal') {
+  const name = agentName(user, agentType);
   const apps = await listApplicationsRaw(opts);
   return apps.find((a) => a.name === name) || null;
 }
 
-async function getAgentForUser(user) {
+async function getAgentForUser(user, agentType = 'personal') {
   const opts = await requestOptions();
-  const raw = await findAgentRaw(user, opts);
+  const raw = await findAgentRaw(user, opts, agentType);
   return raw ? summarizeAgent(raw) : null;
 }
 
@@ -176,15 +178,18 @@ function recordAgentLifecycle(eventType, agent, user, reason) {
 }
 
 async function createAgentForUser(user, overrides = {}) {
+  const agentType = overrides.agentType || 'personal';
   const opts = await requestOptions();
-  const existing = await findAgentRaw(user, opts);
+  const existing = await findAgentRaw(user, opts, agentType);
   if (existing) return { created: false, agent: summarizeAgent(existing) };
 
   async function withCimd(agent) {
     const summary = summarizeAgent(agent);
     let cimd;
     try {
-      cimd = await personalAgentCimdService.registerPersonalAgentCimd(user, summary);
+      cimd = agentType === 'personal'
+        ? await personalAgentCimdService.registerPersonalAgentCimd(user, summary)
+        : await personalAgentCimdService.registerPersonalAgentCimd(user, summary, { agentType });
     } catch (err) {
       // CIMD is a demo facade. A local registry/storage problem must not
       // turn a successful PingOne agent creation into a failed request.
@@ -202,7 +207,7 @@ async function createAgentForUser(user, overrides = {}) {
     return { created: true, agent: summary, cimd };
   }
 
-  const name = agentName(user);
+  const name = agentName(user, agentType);
   const description = markerFor(user);
 
   // First choice: a first-class AI agent — a standard application with
@@ -251,16 +256,20 @@ async function createAgentForUser(user, overrides = {}) {
   return withCimd(res.data);
 }
 
-async function deleteAgentForUser(user) {
+async function deleteAgentForUser(user, agentType = 'personal') {
   const opts = await requestOptions();
-  const raw = await findAgentRaw(user, opts);
+  const raw = await findAgentRaw(user, opts, agentType);
   if (!raw) throw Object.assign(new Error('No agent to delete'), { code: 'not_found' });
   if (!ownsObject(user, raw)) {
     throw Object.assign(new Error('Refusing to delete: app was not created by Agent Builder for this user'), { code: 'forbidden' });
   }
   await axios.delete(`${apiBase()}/applications/${raw.id}`, opts);
   try {
-    await personalAgentCimdService.removePersonalAgentCimd(user, raw.id);
+    if (agentType === 'personal') {
+      await personalAgentCimdService.removePersonalAgentCimd(user, raw.id);
+    } else {
+      await personalAgentCimdService.removePersonalAgentCimd(user, raw.id, { agentType });
+    }
   } catch (err) {
     console.warn('[agentBuilder] CIMD cleanup failed after delete:', err?.message || String(err));
   }
@@ -496,9 +505,12 @@ module.exports = {
   agentName,
   listApplicationsRaw,
   getAgentForUser: withSanitizedErrors(getAgentForUser),
+  getEmbeddedWorkerForUser: withSanitizedErrors((user) => getAgentForUser(user, 'saas-embedded-worker')),
   getPersonalAgentCimd: personalAgentCimdService.getPersonalAgentCimd,
+  ensurePersonalAgentCimd: personalAgentCimdService.ensurePersonalAgentCimd,
   getPersonalAgentCimdByAgentId: personalAgentCimdService.getByPingoneAgentId,
   createAgentForUser: withSanitizedErrors(createAgentForUser),
+  createEmbeddedWorkerForUser: withSanitizedErrors((user) => createAgentForUser(user, { agentType: 'saas-embedded-worker' })),
   deleteAgentForUser: withSanitizedErrors(deleteAgentForUser),
   upgradeAgentForUser: withSanitizedErrors(upgradeAgentForUser),
   listEnvironmentAgents: withSanitizedErrors(listEnvironmentAgents),

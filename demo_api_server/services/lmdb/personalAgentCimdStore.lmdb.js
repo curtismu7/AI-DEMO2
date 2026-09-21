@@ -13,16 +13,22 @@ function db() {
   return openEnv().openDB(DB_NAME, { encoding: 'json' });
 }
 
+function recordKey(userKey, agentType = 'personal') {
+  return `${userKey}:${agentType}`;
+}
+
 function put(record) {
-  db().putSync(record.userKey, record);
+  const agentType = record.agentType || 'personal';
+  db().putSync(recordKey(record.userKey, agentType), { ...record, agentType });
 }
 
-function get(userKey) {
-  return db().get(userKey) || null;
+function get(userKey, agentType = 'personal') {
+  return db().get(recordKey(userKey, agentType)) || db().get(userKey) || null;
 }
 
-function remove(userKey) {
-  db().removeSync(userKey);
+function remove(userKey, agentType = 'personal') {
+  db().removeSync(recordKey(userKey, agentType));
+  if (agentType === 'personal') db().removeSync(userKey);
 }
 
 function loadAll() {
@@ -36,4 +42,4 @@ function clearAll() {
   for (const key of store.getKeys()) store.removeSync(key);
 }
 
-module.exports = { put, get, remove, loadAll, clearAll, DB_NAME };
+module.exports = { put, get, remove, loadAll, clearAll, recordKey, DB_NAME };

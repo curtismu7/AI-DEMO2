@@ -1,0 +1,183 @@
+import { DEMO_MISSION_GROUPS } from './demoUseCaseSteps';
+
+const link = (label, href) => ({ label, href });
+
+const byId = Object.fromEntries(DEMO_MISSION_GROUPS.map((group) => [group.id, group]));
+
+const definitions = [
+  {
+    id: 'personal-agent',
+    product: 'Identity for AI & NHI',
+    inspectors: [
+      link('Agent Registry & NHI', '/agent-registry'),
+      link('Agent & Token Flow History', '/agent-flow-inspector'),
+      link('CIMD Simulation', '/client-registration'),
+    ],
+    diagrams: [
+      link('Agent Onboarding Flow', '/agent-onboarding-flow'),
+      link('Token Chain Architecture', '/architecture/token-chain'),
+      link('Agent Gateway Authorization', '/agent-gateway-authorization'),
+    ],
+  },
+  {
+    id: 'digital-assistant',
+    product: 'Identity for AI & NHI',
+    inspectors: [
+      link('Agent & Token Flow History', '/agent-flow-inspector'),
+      link('P1AZ Inspector', '/pingone-authorize'),
+      link('Intent Inspector', '/intent-inspector'),
+    ],
+    diagrams: [
+      link('Token Flow', '/architecture/token-flow'),
+      link('Token Chain Architecture', '/architecture/token-chain'),
+      link('Agent Gateway Authorization', '/agent-gateway-authorization'),
+    ],
+  },
+  {
+    id: 'consumer-partner',
+    product: 'Identity for AI & NHI',
+    inspectors: [
+      link('Consumer & Partner Agent Builder', '/agent-builder'),
+      link('Agent Registry & NHI', '/agent-registry'),
+      link('CIMD Simulation', '/client-registration'),
+    ],
+    diagrams: [
+      link('Agent Onboarding Flow', '/agent-onboarding-flow'),
+      link('Overview Diagram', '/architecture/overview'),
+    ],
+  },
+  {
+    id: 'employee-agent',
+    product: 'PingOne Privilege & Privilege for AI',
+    status: 'planned',
+    plannedReason: 'Employee agent registration and endpoint evidence are planned for a future live lane.',
+    inspectors: [
+      link('Privilege Demo — Request Access', '/privilege-demo?tab=script'),
+      link('Privilege MCP Client', '/privilege-mcp-client'),
+    ],
+    diagrams: [
+      link('Privilege-First Gateway', '/privilege-first-gateway'),
+      link('AI Agent Gateway', '/privilege-mcp-diagrams'),
+    ],
+  },
+  {
+    id: 'workload-agent',
+    product: 'PingOne AI Agent Gateway',
+    inspectors: [
+      link('Agent Gateway Authorization', '/agent-gateway-authorization'),
+      link('Token Exchange', '/monitoring/token-exchange'),
+      link('Agent & Token Flow History', '/agent-flow-inspector'),
+    ],
+    diagrams: [
+      link('Token Chain Architecture', '/architecture/token-chain'),
+      link('Gateway vs P1AZ Enforcement', '/gateway-enforcement-map'),
+      link('Resource Server Placement', '/resource-server-placement'),
+    ],
+  },
+  {
+    id: 'saas-embedded-agent',
+    product: 'Identity for AI & NHI',
+    status: 'live',
+    inspectors: [link('Agent Registry & NHI', '/agent-registry')],
+    diagrams: [link('Agent Onboarding Flow', '/agent-onboarding-flow')],
+    routes: [link('Open Website Worker', '/embedded-worker')],
+  },
+  {
+    id: 'agent-network',
+    product: 'PingOne AI Agent Gateway',
+    inspectors: [
+      link('Agent Gateway Inspector', '/agent-gateway-inspector'),
+      link('Agent & Token Flow History', '/agent-flow-inspector'),
+    ],
+    diagrams: [
+      link('A2A Protocol & Identity', '/a2a-protocol-learning'),
+      link('Token Chain Architecture', '/architecture/token-chain'),
+      link('Delegation Chain Value', '/delegation-chain-value'),
+    ],
+  },
+  {
+    id: 'discover',
+    product: 'MCP Runtime & Discovery',
+    inspectors: [
+      link('MCP Discovery', '/mcp-discovery'),
+      link('MCP Runtime Inventory', '/mcp-discovery'),
+      link('Agent Registry & NHI', '/agent-registry'),
+    ],
+    diagrams: [link('System Diagram', '/architecture/system'), link('Overview Diagram', '/architecture/overview')],
+  },
+  {
+    id: 'register',
+    product: 'Identity for AI & NHI',
+    inspectors: [
+      link('Agent Onboarding Flow', '/agent-onboarding-flow'),
+      link('CIMD Simulation', '/client-registration'),
+      link('Agent Registry & NHI', '/agent-registry'),
+    ],
+    diagrams: [link('Agent Onboarding Flow', '/agent-onboarding-flow-subway')],
+  },
+  {
+    id: 'authenticate',
+    product: 'Identity for AI & NHI',
+    inspectors: [
+      link('Login Flow Diagram', '/login-flow'),
+      link('Token Exchange', '/monitoring/token-exchange'),
+      link('P1AZ Inspector', '/pingone-authorize'),
+    ],
+    diagrams: [
+      link('Token Flow', '/architecture/token-flow'),
+      link('Sequence Diagram', '/sequence-diagram'),
+    ],
+  },
+  {
+    id: 'authorize',
+    product: 'PingOne Authorize',
+    inspectors: [
+      link('P1AZ Inspector', '/pingone-authorize'),
+      link('Policy Decision Trace', '/policy-decision-trace'),
+      link('Scope Audit', '/scope-audit'),
+      link('Agent Gateway Authorization', '/agent-gateway-authorization'),
+    ],
+    diagrams: [
+      link('Gateway vs P1AZ Enforcement', '/gateway-enforcement-map'),
+      link('Resource Server Placement', '/resource-server-placement'),
+    ],
+  },
+  {
+    id: 'privilege',
+    product: 'PingOne Privilege & Privilege for AI',
+    inspectors: [
+      link('Privilege Demo — Request Access', '/privilege-demo?tab=script'),
+      link('Privilege MCP Client', '/privilege-mcp-client'),
+      link('Privilege AI Gateway', '/llm-gateway'),
+    ],
+    diagrams: [
+      link('Privilege MCP Architecture', '/privilege-mcp-diagrams'),
+      link('Privilege-First Gateway', '/privilege-first-gateway'),
+      link('Privilege for AI', '/privilege-for-ai'),
+    ],
+  },
+  {
+    id: 'govern',
+    product: 'Evidence & Governance',
+    inspectors: [
+      link('Governance Timeline', '/governance-timeline'),
+      link('Audit Trail', '/audit-trail'),
+      link('Run Reports', '/reports'),
+      link('PingOne Events', '/monitoring/pingone-events'),
+    ],
+    diagrams: [
+      link('System Flow', '/monitoring/system-flow'),
+      link('Token Chain Architecture', '/architecture/token-chain'),
+    ],
+  },
+].map((definition) => ({
+  ...byId[definition.id],
+  status: definition.status || 'live',
+  ...definition,
+}));
+
+export const MISSION_CONTROL_CATALOG = definitions;
+
+export function getMissionControlGroup(id) {
+  return MISSION_CONTROL_CATALOG.find((group) => group.id === id) || null;
+}

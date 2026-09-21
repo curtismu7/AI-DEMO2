@@ -156,6 +156,22 @@ function readStoredCollapsed() {
   }
 }
 const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.com"]);
+const LEGACY_NAV_LABEL_ALIASES = {
+  "AI-Gateway": "Agent Security & Enforcement",
+  "AI Product Pages": "Identity for AI & NHI",
+  Demos: "Agent Trust Journey",
+  "AI Flows": "Agent Lifecycle & Flows",
+  "PingOne MCP": "MCP & Agent Gateways",
+  "MCP & Gateways": "MCP Runtime & Discovery",
+  Monitoring: "Evidence & Governance",
+  Telemetry: "Runtime Observability",
+  "Learn & Present": "Learn & Architecture",
+  "Agent Registry": "Agent Registry & NHI",
+  "PingOne Agent Builder": "Consumer & Partner Agent Builder",
+  "Autonomous Agents": "Workload Agents: Autonomous",
+  "Digital Assistant": "Workload Agent: Digital Assistant",
+};
+const normalizeNavLabel = (label) => LEGACY_NAV_LABEL_ALIASES[label] || label;
 
 // Auto-expand table: the group containing the current route opens on first
 // load when nothing is saved. Ids must equal slugify(<group label>) from
@@ -165,7 +181,8 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "customer-demos", paths: ["/agent-lifecycle"] },
   { id: "demos", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/demo-config", "/delegation", "/delegation-chain-value", "/a2a-protocol-learning"] },
   { id: "ai-agents", paths: ["/ai-control-plane", "/control-plane", "/agent-registry", "/agent", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
-  { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client", "/llm-gateway", "/llm-test", "/privilege-mcp-learning"] },
+  { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/llm-test"] },
+  { id: "privilege-jit", paths: ["/privilege-demo", "/privilege-mcp-client", "/privilege-mcp-diagrams", "/privilege-first-gateway", "/privilege-for-ai"] },
   { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
   { id: "banking-mcp-gateways", paths: ["/agent-gateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities", "/agent-gateway-authorization", "/mcp-discovery"] },
   { id: "pingone-demo-apps", paths: ["/self-service", "/pingone-test", "/mfa-test", "/token-exchange-tester", "/oauth-academy", "/oas-demo", "/privilege-demo", "/sdk-login"] },
@@ -494,7 +511,8 @@ export default function AdminSideNav({
     { label: "Home", path: "/", icon: "home" },
     { label: "Dashboard", path: "/security-dashboard", icon: "dashboard", adminOnly: true },
     {
-      label: "AI-Gateway",
+      id: "ai-gateway",
+      label: "Agent Security & Enforcement",
       icon: "shld",
       children: [
         {
@@ -506,7 +524,9 @@ export default function AdminSideNav({
       ],
     },
     {
-      label: "AI Agent Gateway",
+      id: "agent-gateway",
+      label: "PingOne AI Agent Gateway",
+      searchAlias: "AI Agent Gateway agent gateway gateway authorization agent runtime",
       icon: "shld",
       children: [
         { label: "Protocol Playground", path: "/protocol-playground", icon: "dbg" },
@@ -525,7 +545,8 @@ export default function AdminSideNav({
       ],
     },
     {
-      label: "AI Product Pages",
+      id: "identity-for-ai",
+      label: "Identity for AI & NHI",
       icon: "shld",
       children: [
         { label: "Agent IAM Core", path: "/ai-products/core", icon: "key" },
@@ -536,9 +557,66 @@ export default function AdminSideNav({
         { label: "Privilege · MCP", path: "/ai-products/privilege-mcp", icon: "mcp" },
       ],
     },
+    {
+      id: "privilege-jit",
+      label: "PingOne Privilege & Privilege for AI",
+      searchAlias: "Privilege JIT PAM just in time privilege for AI agent privilege",
+      icon: "vault",
+      children: [
+        {
+          label: "Privilege Demo — Request Access",
+          path: "/privilege-demo?tab=script",
+          icon: "key",
+          searchAlias: "Privilege PAM JIT just in time approval four eyes AWS S3 VPC Kubernetes session recording kill switch revoke",
+        },
+        {
+          label: "Privilege Demo — Setup",
+          path: "/privilege-demo?tab=setup",
+          icon: "cfg",
+          searchAlias: "Privilege PAM agent onboarding MFA setup shared environment",
+        },
+        {
+          label: "Privilege MCP Client",
+          path: "/privilege-mcp-client",
+          icon: "mcp",
+          searchAlias: "Privilege MCP gateway secretless access temporary credentials",
+        },
+        {
+          label: "Privilege MCP Guide",
+          path: "/privilege-mcp-learning",
+          icon: "doc",
+          searchAlias: "Privilege MCP gateway JIT least privilege session recording",
+        },
+        {
+          label: "Privilege MCP Architecture",
+          path: "/privilege-mcp-diagrams",
+          icon: "arc",
+          searchAlias: "Privilege gateway MCP session policy enforcement",
+        },
+        {
+          label: "Privilege-First Gateway",
+          path: "/privilege-first-gateway",
+          icon: "shld",
+          searchAlias: "Privilege agent gateway JIT least privilege",
+        },
+        {
+          label: "Privilege AI Gateway",
+          path: "/llm-gateway",
+          icon: "key",
+          searchAlias: "Privilege AI LLM gateway prompt injection PII virtual key",
+        },
+        {
+          label: "Privilege for AI",
+          path: "/privilege-for-ai",
+          icon: "shld",
+          searchAlias: "Privilege for AI agent security JIT credentials",
+        },
+      ],
+    },
     { label: "Themes", path: "/themes", icon: "cfg" },
     {
-      label: "Demos",
+      id: "demos",
+      label: "Agent Trust Journey",
       icon: "demo",
       children: [
         // Both were bare kickoff ACTIONS (or, for Brave, nothing at all): a click
@@ -574,7 +652,9 @@ export default function AdminSideNav({
         ]
       : []),
     {
-      label: "AI Flows",
+      id: "ai-agents",
+      label: "Agent Lifecycle & Flows",
+      searchAlias: "personal agent digital assistant consumer partner employee workload saas embedded agent network ciam",
       icon: "agt",
       children: [
         {
@@ -592,12 +672,12 @@ export default function AdminSideNav({
           introGate: true,
         },
         {
-          label: "Agent Registry",
+          label: "Agent Registry & NHI",
           path: "/agent-registry",
           icon: "sec",
         },
         {
-          label: "PingOne Agent Builder",
+          label: "Consumer & Partner Agent Builder",
           path: "/agent-builder",
           icon: "tool",
         },
@@ -613,16 +693,18 @@ export default function AdminSideNav({
         },
         {
           // Public on purpose (auth-requirements.json) — no adminOnly here.
-          label: "Autonomous Agents",
+          label: "Workload Agents: Autonomous",
           path: "/autonomous-agents",
           icon: "clk",
         },
         {
           // Public on purpose (auth-requirements.json) — no adminOnly here.
-          label: "Digital Assistant",
+          label: "Personal Agent: Digital Assistant",
+          searchAlias: "workload agent digital assistant personal agent ciam obo",
           path: "/personal-agent",
           icon: "agt",
         },
+        { label: "Website Worker", path: "/embedded-worker", icon: "agt", searchAlias: "saas embedded worker website agent ciam nhi customer tenant" },
         {
           label: "Agent Lifecycle (guided demo)",
           path: "/agent-lifecycle",
@@ -659,7 +741,8 @@ export default function AdminSideNav({
       ],
     },
     {
-      label: "PingOne MCP",
+      id: "pingone-mcp",
+      label: "MCP & Agent Gateways",
       icon: "mcp",
       children: [
         {
@@ -676,7 +759,8 @@ export default function AdminSideNav({
       ],
     },
     {
-      label: "MCP & Gateways",
+      id: "mcp-runtime",
+      label: "MCP Runtime & Discovery",
       icon: "rte",
       children: [
         {
@@ -776,7 +860,8 @@ export default function AdminSideNav({
       ],
     },
     {
-      label: "Authorize",
+      label: "PingOne Authorize",
+      searchAlias: "Authorize P1AZ policy decision authorization inspector",
       icon: "pol",
       children: [
         { label: "P1AZ Inspector", path: "/pingone-authorize", icon: "pol", searchAlias: "PingOne Authorize" },
@@ -966,9 +1051,12 @@ export default function AdminSideNav({
       ],
     },
     {
-      label: "Monitoring",
+      id: "monitoring",
+      label: "Evidence & Governance",
+      searchAlias: "governance timeline audit evidence events telemetry",
       icon: "log",
       children: [
+        { label: "Governance Timeline", path: "/governance-timeline", icon: "log", searchAlias: "governance identity authorization privilege evidence lifecycle" },
         { label: "Audit Trail", path: "/audit", icon: "srch", adminOnly: true },
         {
           label: "Learning Log",
@@ -1028,7 +1116,8 @@ export default function AdminSideNav({
       ],
     },
     {
-      label: "Telemetry",
+      id: "telemetry",
+      label: "Runtime Observability",
       icon: "log",
       children: [
         { label: "Service Graph", path: "/telemetry", icon: "log" },
@@ -1049,7 +1138,8 @@ export default function AdminSideNav({
       ],
     },
     {
-      label: "Diagrams",
+      label: "Architecture & Reference",
+      searchAlias: "diagrams architecture reference system flow token chain onboarding gateway privilege",
       icon: "arc",
       children: [
         {
@@ -1104,7 +1194,8 @@ export default function AdminSideNav({
       ],
     },
     {
-      label: "Learn & Present",
+      id: "learn-present",
+      label: "Learn & Architecture",
       icon: "ref",
       children: [
         {
@@ -1203,9 +1294,22 @@ export default function AdminSideNav({
   // Then filter by the user's Demo Config hidden-item selection — "Demo
   // Config" itself is never hideable (would lock the user out of undoing it).
   // Finally, apply the user's saved navOrder (from Demo Config reorder) when present.
+  const normalizedHiddenNavLabels = hiddenNavLabels.map(normalizeNavLabel);
+  const normalizedNavOrder = Array.isArray(navOrder)
+    ? navOrder.map(normalizeNavLabel)
+    : navOrder;
+  const normalizedChildOrder = childOrder && typeof childOrder === "object"
+    ? Object.fromEntries(
+        Object.entries(childOrder).map(([group, children]) => [
+          normalizeNavLabel(group),
+          Array.isArray(children) ? children.map(normalizeNavLabel) : children,
+        ]),
+      )
+    : childOrder;
+
   const filteredItems = allNavItems
     .filter((item) => !item.customerOnly || !isAdmin)
-    .filter((item) => item.label === "Demo Config" || !hiddenNavLabels.includes(item.label))
+    .filter((item) => item.label === "Demo Config" || !normalizedHiddenNavLabels.includes(item.label))
     // Same rules one level down, so labels that moved into a group (e.g. the
     // Demos children) keep honoring customerOnly and Demo Config hides.
     .map((item) =>
@@ -1215,14 +1319,14 @@ export default function AdminSideNav({
             children: item.children.filter(
               (child) =>
                 (!child.customerOnly || !isAdmin) &&
-                (child.label === "Demo Config" || !hiddenNavLabels.includes(child.label)),
+                (child.label === "Demo Config" || !normalizedHiddenNavLabels.includes(child.label)),
             ),
           }
         : item,
     );
   // Escape hatch: hiding the whole Demos group must never take the Demo Config
   // page's own link with it (the user could not undo the hide from the sidebar).
-  if (hiddenNavLabels.includes("Demos")) {
+  if (normalizedHiddenNavLabels.includes("Agent Trust Journey")) {
     filteredItems.push({ label: "Demo Config", path: "/demo-config", icon: "cfg", adminOnly: true });
   }
 
@@ -1231,15 +1335,15 @@ export default function AdminSideNav({
   // child can't be smuggled back in via childOrder. A group whose children all
   // moved away (and that has no path/action of its own) is dropped — rendering
   // it would produce a dead <Link to={undefined}>.
-  const childOrderedItems = applyChildOrder(filteredItems, childOrder).filter(
+  const childOrderedItems = applyChildOrder(filteredItems, normalizedChildOrder).filter(
     (item) =>
       !(Array.isArray(item.children) && item.children.length === 0 && !item.path && !item.action),
   );
 
   const navItems = (() => {
-    if (!Array.isArray(navOrder) || navOrder.length === 0) return childOrderedItems;
+    if (!Array.isArray(normalizedNavOrder) || normalizedNavOrder.length === 0) return childOrderedItems;
     const byLabel = Object.fromEntries(childOrderedItems.map((i) => [i.label, i]));
-    const result = navOrder.filter((l) => byLabel[l]).map((l) => byLabel[l]);
+    const result = normalizedNavOrder.filter((l) => byLabel[l]).map((l) => byLabel[l]);
     // Items the saved order predates keep their NATURAL position instead of
     // being appended to the end.
     //
@@ -1258,7 +1362,7 @@ export default function AdminSideNav({
     // user put it. Consecutive unknowns keep their relative order because each
     // one is in `result` by the time the next is placed.
     childOrderedItems.forEach((item, naturalIdx) => {
-      if (navOrder.includes(item.label)) return;
+      if (normalizedNavOrder.includes(item.label)) return;
       let insertAt = 0;
       for (let i = naturalIdx - 1; i >= 0; i--) {
         const at = result.indexOf(childOrderedItems[i]);
@@ -1512,7 +1616,7 @@ export default function AdminSideNav({
               )}
               {item.children.map((child) => {
                 const isAdminFeature = child.adminOnly || item.adminOnly;
-                const childKey = `${itemKey}-child-${child.path || child.action || child.label}`;
+                const childKey = `${itemKey}-child-${child.label}-${child.path || child.action || "item"}`;
                 return child.action ? (
                   <button
                     key={childKey}

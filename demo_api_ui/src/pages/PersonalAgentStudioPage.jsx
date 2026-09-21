@@ -80,7 +80,7 @@ export default function PersonalAgentStudioPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ prompt: text, vertical: 'airlines', useCaseId: 'personal-agent-concierge' }),
+        body: JSON.stringify({ prompt: text, vertical: 'airlines', useCaseId: 'workload-digital-assistant-obo' }),
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));

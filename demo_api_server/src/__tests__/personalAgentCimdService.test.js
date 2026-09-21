@@ -1,11 +1,15 @@
 'use strict';
 
 const mockRecords = new Map();
+const recordKey = (userKey, agentType = 'personal') => `${userKey}:${agentType}`;
 jest.mock('../../services/lmdb/personalAgentCimdStore.lmdb', () => ({
-  put: (record) => mockRecords.set(record.userKey, record),
-  get: (userKey) => mockRecords.get(userKey) || null,
+  put: (record) => mockRecords.set(recordKey(record.userKey, record.agentType), record),
+  get: (userKey, agentType) => mockRecords.get(recordKey(userKey, agentType)) || mockRecords.get(userKey) || null,
   loadAll: () => [...mockRecords.entries()],
-  remove: (userKey) => mockRecords.delete(userKey),
+  remove: (userKey, agentType) => {
+    mockRecords.delete(recordKey(userKey, agentType));
+    if (!agentType || agentType === 'personal') mockRecords.delete(userKey);
+  },
   clearAll: () => mockRecords.clear(),
 }));
 jest.mock('../../services/oauthClientRegistry', () => ({
@@ -69,6 +73,16 @@ describe('personal-agent CIMD facade', () => {
     expect(cimdStore.loadAll()).toHaveLength(1);
   });
 
+  test('keeps Personal Agent and Website Worker registrations separate', async () => {
+    const worker = { id: 'ping-worker-456', name: 'Website Worker - alex', type: 'AI_AGENT' };
+    await cimdService.registerPersonalAgentCimd(user, agent);
+    await cimdService.registerPersonalAgentCimd(user, worker, { agentType: 'saas-embedded-worker' });
+
+    expect(cimdService.getPersonalAgentCimd(user)).toMatchObject({ pingoneAgentId: agent.id, agentType: 'personal' });
+    expect(cimdService.getPersonalAgentCimd(user, { agentType: 'saas-embedded-worker' })).toMatchObject({ pingoneAgentId: worker.id, agentType: 'saas-embedded-worker' });
+    expect(cimdStore.loadAll()).toHaveLength(2);
+  });
+
   test('does not disclose another user\'s registration', async () => {
     await cimdService.registerPersonalAgentCimd(user, agent);
 
@@ -85,6 +99,20 @@ describe('personal-agent CIMD facade', () => {
     expect(retried.ok).toBe(true);
     expect(retried.status).toBe('registered');
     expect(retried.created).toBe(true);
+    expect(oauthClientRegistry.registerClientByUrl).toHaveBeenCalledTimes(2);
+  });
+
+  test('ensures a pending or failed registration is retried when the agent is used', async () => {
+    oauthClientRegistry.registerClientByUrl.mockRejectedValueOnce(new Error('temporary registry outage'));
+
+    const failed = await cimdService.registerPersonalAgentCimd(user, agent);
+    expect(failed.status).toBe('failed');
+
+    const ensured = await cimdService.ensurePersonalAgentCimd(user, agent);
+
+    expect(ensured.status).toBe('registered');
+    expect(ensured.ok).toBe(true);
+    expect(ensured.created).toBe(true);
     expect(oauthClientRegistry.registerClientByUrl).toHaveBeenCalledTimes(2);
   });
 
