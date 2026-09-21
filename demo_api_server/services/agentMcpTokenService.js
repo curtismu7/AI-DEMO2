@@ -1628,7 +1628,7 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   //
   // So: take the native path only when the tool actually lives on the OLB server.
   // Everything else falls through to the RFC 8693 stand-in below, unchanged.
-  if (configStore.getOAuthProvider() === 'pingfederate') {
+  if (configStore.getOAuthProvider?.() === 'pingfederate') {
     const pfToken = await resolvePingFederateIdJagToken(req, tokenEvents, {
       resource: mcpResourceUri,
       scope: finalScopes,
