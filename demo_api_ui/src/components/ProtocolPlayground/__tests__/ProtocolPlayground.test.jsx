@@ -106,6 +106,15 @@ describe('ProtocolPlayground wiring', () => {
     ).toBeInTheDocument();
   });
 
+  test('renders the local mock issuer with a friendly actor label', () => {
+    render(<ProtocolPlayground />);
+
+    fireEvent.click(screen.getByTitle('spiffe'));
+
+    expect(screen.getByText('Local Mock Issuer')).toBeInTheDocument();
+    expect(screen.queryByText('local-mock-issuer')).not.toBeInTheDocument();
+  });
+
   test('executing a flow renders results in the activity panel', async () => {
     render(<ProtocolPlayground />);
 
