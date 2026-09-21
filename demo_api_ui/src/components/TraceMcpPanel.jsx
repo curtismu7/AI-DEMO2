@@ -6,6 +6,7 @@ import React from "react";
 import TraceStepCard from "./TraceStepCard";
 import TraceTokenSummary from "./TraceTokenSummary";
 import JsonHighlight from "./shared/JsonHighlight";
+import FormJsonToggle from "./shared/FormJsonToggle";
 import { MCP_STEP_IDS } from "../services/tokenChainTrace/buildTraceSteps";
 
 export default function TraceMcpPanel({ steps, trace, onInspect, useCase = null }) {
@@ -46,11 +47,25 @@ export default function TraceMcpPanel({ steps, trace, onInspect, useCase = null 
             ))}
           </div>
           <h4>Request</h4>
-          <pre className="tctr-code"><JsonHighlight value={mcp.requestJson || { name: toolName }} /></pre>
+          <FormJsonToggle
+            value={mcp.requestJson || { name: toolName }}
+            ariaLabel="MCP request view"
+            jsonView={<pre className="tctr-code"><JsonHighlight value={mcp.requestJson || { name: toolName }} /></pre>}
+          />
           <h4>Response</h4>
-          <pre className="tctr-code">{response != null ? <JsonHighlight value={response} /> : "(no response body)"}</pre>
+          {response != null ? (
+            <FormJsonToggle
+              value={response}
+              ariaLabel="MCP response view"
+              jsonView={<pre className="tctr-code"><JsonHighlight value={response} /></pre>}
+            />
+          ) : <pre className="tctr-code">(no response body)</pre>}
           <h4>Raw payload</h4>
-          <pre className="tctr-code"><JsonHighlight value={mcp} /></pre>
+          <FormJsonToggle
+            value={mcp}
+            ariaLabel="MCP raw payload view"
+            jsonView={<pre className="tctr-code"><JsonHighlight value={mcp} /></pre>}
+          />
         </div>
       ) : (
         <div className="tctr-mcp-empty">No MCP tool call yet.</div>

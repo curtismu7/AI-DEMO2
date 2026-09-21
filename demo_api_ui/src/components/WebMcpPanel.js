@@ -22,6 +22,7 @@ import McpParamSelect from './McpParamSelect';
 import McpParamToggle from './McpParamToggle';
 import McpParamSuggest from './McpParamSuggest';
 import McpParamText from './McpParamText';
+import FormJsonToggle from './shared/FormJsonToggle';
 
 // Use the built-in Web Crypto / Node crypto.randomUUID() instead of the
 // `uuid` npm package — same output (RFC 4122 v4), no dependency, no Jest
@@ -708,7 +709,7 @@ export default function WebMcpPanel() {
                       )
                     )}
                     <h5>Server Response</h5>
-                    <pre>{JSON.stringify(result, null, 2)}</pre>
+                    <FormJsonToggle value={result} ariaLabel="Server response view" />
                   </div>
                 )}
 
