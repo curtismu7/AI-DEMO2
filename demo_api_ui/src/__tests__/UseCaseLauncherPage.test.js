@@ -342,6 +342,14 @@ describe('UseCaseLauncherPage', () => {
           triggerText: 'show my balance',
           type: 'chip',
           vertical: 'banking',
+          runContext: {
+            source: 'use-cases',
+            useCaseId: 'delegated-access-with-proof',
+            useCaseLabel: 'Delegated access with proof',
+            triggerText: 'show my balance',
+            expectedOutcome: 'PERMIT',
+            evidence: {},
+          },
         },
       }),
     );
@@ -637,6 +645,14 @@ describe('UseCaseLauncherPage', () => {
           triggerText: 'show my balance',
           type: 'chip',
           vertical: 'banking',
+          runContext: {
+            source: 'use-cases',
+            useCaseId: 'delegated-access-with-proof',
+            useCaseLabel: 'Delegated access with proof',
+            triggerText: 'show my balance',
+            expectedOutcome: 'PERMIT',
+            evidence: {},
+          },
         },
       }),
     );

@@ -424,7 +424,11 @@ export default function WebMcpPanel() {
                       key={p.phase}
                       className={`webmcp-discovery-phase webmcp-discovery-phase--${p.status || 'active'}`}
                     >
-                      <span className="webmcp-discovery-phase__status" aria-hidden="true" />
+                      {p.status === 'active' ? (
+                        <PingIdentitySpinner size={16} label="Discovering MCP tools…" aria-hidden="true" />
+                      ) : (
+                        <span className="webmcp-discovery-phase__status" aria-hidden="true" />
+                      )}
                       <div className="webmcp-discovery-phase__text">
                         <div className="webmcp-discovery-phase__label">{p.label}</div>
                         {p.technical && (
@@ -447,7 +451,11 @@ export default function WebMcpPanel() {
                       key={p.phase}
                       className={`webmcp-discovery-phase webmcp-discovery-phase--${p.status || 'active'}`}
                     >
-                      <span className="webmcp-discovery-phase__status" aria-hidden="true" />
+                      {p.status === 'active' ? (
+                        <PingIdentitySpinner size={16} label="Discovering MCP tools…" aria-hidden="true" />
+                      ) : (
+                        <span className="webmcp-discovery-phase__status" aria-hidden="true" />
+                      )}
                       <div className="webmcp-discovery-phase__text">
                         <div className="webmcp-discovery-phase__label">{p.label}</div>
                         {p.technical && (

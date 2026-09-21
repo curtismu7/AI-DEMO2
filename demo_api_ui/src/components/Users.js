@@ -9,6 +9,7 @@ import AdminSubPageShell from './AdminSubPageShell';
 import PageNav from './PageNav';
 import CreateUserPanel from './CreateUserPanel';
 import { useSortableTable, SortableTh, latestUpdate, dateOf } from '../hooks/useSortableTable';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 
 const USER_SORT_ACCESSORS = {
   updated: latestUpdate,
@@ -160,8 +161,8 @@ const Users = ({ user, onLogout }) => {
   if (loading && users.length === 0) {
     return (
       <AdminSubPageShell title="Users" lead="Search and manage user accounts.">
-        <div className="loading">
-          <div>Loading users...</div>
+        <div className="loading" role="status" aria-live="polite">
+          <PingIdentitySpinner size={32} label="Loading users…" />
         </div>
       </AdminSubPageShell>
     );

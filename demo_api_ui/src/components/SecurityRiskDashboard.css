@@ -539,19 +539,6 @@
 .srd-state--error strong {
   color: var(--srd-ink);
 }
-.srd-spinner {
-  width: 14px;
-  height: 14px;
-  border: 2px solid var(--srd-line);
-  border-top-color: var(--srd-blue);
-  border-radius: var(--radius-pill);
-  animation: srd-spin 0.8s linear infinite;
-}
-@keyframes srd-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
 @media (max-width: 1080px) {
   .srd-metric-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));

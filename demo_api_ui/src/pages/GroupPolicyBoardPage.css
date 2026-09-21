@@ -27,10 +27,8 @@
 .gpb-tool, .gpb-codes { font-size: .82rem; }
 .gpb-decision { display: inline-block; padding: 3px 9px; border-radius: 999px; border: 1px solid; font-size: .74rem; font-weight: 800; letter-spacing: .04em; }
 .gpb-loading { display: flex; align-items: center; gap: 10px; color: var(--th-text-muted); }
-.gpb-spinner, .gmt-loading-spinner { display: inline-block; width: 1rem; height: 1rem; border: 2px solid color-mix(in srgb, var(--th-status-info) 22%, transparent); border-top-color: var(--th-status-info); border-radius: 50%; animation: gpb-spin .7s linear infinite; }
 .gpb-error { display: flex; gap: 10px; align-items: flex-start; padding: 14px; border: 1px solid #d92d20; border-radius: 8px; background: color-mix(in srgb, #d92d20 10%, var(--th-bg-card)); margin-bottom: 14px; }
 .gpb-error-title { font-weight: 800; }
 .gpb-error-detail { color: var(--th-text-muted); font-size: .85rem; }
 .gpb-note { margin: 14px 0 0; padding: 12px 14px; border: 1px solid #c77b00; border-radius: 8px; background: color-mix(in srgb, #c77b00 10%, var(--th-bg-card)); color: var(--th-text); font-size: .86rem; line-height: 1.5; }
-@keyframes gpb-spin { to { transform: rotate(360deg); } }
 @media (max-width: 700px) { .gpb-page { padding-inline: 14px; } .gpb-table th, .gpb-table td { padding: 10px; } .gpb-theme-toggle { position: static; display: inline-block; margin-bottom: 12px; } }

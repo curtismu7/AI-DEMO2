@@ -854,21 +854,6 @@ body > .banking-agent-float-root .banking-agent-panel {
   border-bottom: 1px solid #fde68a;
 }
 
-.ba-reconnecting__spinner {
-  display: inline-block;
-  animation: ba-spin 1s linear infinite;
-  font-size: 1rem;
-  line-height: 1;
-}
-
-@keyframes ba-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
 
 /* ─── New header (ba-header) ─────────────────────────────────────────────── */
 .ba-header {
@@ -918,6 +903,20 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: var(--th-text) !important;
   margin: 0 0 2px;
   line-height: 1.35;
+}
+
+.ba-run-context-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border: 1px solid var(--th-status-info);
+  border-radius: var(--radius-pill);
+  color: var(--th-status-info-text);
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
 }
 .ba-subtitle {
   font-size: var(--font-size-2xs);

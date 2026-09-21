@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import apiClient from '../services/apiClient';
 import { notifyError } from '../utils/appToast';
 import SignInPrompt from './SignInPrompt';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 import ApiCallDisplay from './ApiCallDisplay';
 import './ActivityLogs.css';
 
@@ -183,7 +184,9 @@ const ActivityLogs = ({ user, onLogout }) => {
         <div className="activity-records-page__content">
           <h1 className="activity-records-page__title">Application Activity</h1>
           <p className="activity-records-page__lead">Persisted API activity and audit records.</p>
-          <div className="loading activity-records-page__loading"><div>Loading activity logs...</div></div>
+          <div className="loading activity-records-page__loading" role="status" aria-live="polite">
+            <PingIdentitySpinner size={32} label="Loading activity logs…" />
+          </div>
         </div>
       </div>
     );
