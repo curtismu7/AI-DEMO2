@@ -29,12 +29,14 @@ describe('hosted registration PingOne MFA OTP', () => {
       stageRegistration: async () => ({ pingOneUserId: 'user-123', groups: ['partial'] }),
     });
 
-    await service.request({ email: 'new.user@pingidentity.com' });
+    await service.request({ email: 'new.user@pingidentity.com', phone: '+14155550123' });
 
     expect(mfaService.initiateOneTimeOtp).toHaveBeenCalledWith(
       'user-123',
       'EMAIL',
       'new.user@pingidentity.com',
+      undefined,
+      { templateVariant: 'ai-demo-hosted-registration' },
     );
     expect(store.get('req-123')).toEqual(expect.objectContaining({
       pingOneMfaId: 'da-123',
@@ -51,7 +53,7 @@ describe('hosted registration PingOne MFA OTP', () => {
       stageRegistration: async () => ({ pingOneUserId: 'user-123', groups: ['partial'] }),
     });
 
-    await service.request({ email: 'new.user@pingidentity.com' });
+    await service.request({ email: 'new.user@pingidentity.com', phone: '+14155550123' });
     const result = await service.verify('req-123', '654321');
 
     expect(mfaService.verifyOneTimeOtp).toHaveBeenCalledWith('da-123', '654321');
