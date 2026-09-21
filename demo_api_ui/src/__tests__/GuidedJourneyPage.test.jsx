@@ -268,7 +268,7 @@ describe("GuidedJourneyPage", () => {
     expect(
       await screen.findByText("Readiness unavailable"),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Check live evidence" }));
+    fireEvent.click(screen.getByRole("button", { name: "Run banking read tool" }));
     expect(await screen.findByText("Evidence check failed.")).toBeInTheDocument();
     expect(screen.queryByText("LIVE CLOUD")).not.toBeInTheDocument();
   });
