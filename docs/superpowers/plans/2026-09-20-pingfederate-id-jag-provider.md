@@ -149,10 +149,10 @@
 - Modify only if needed: `demo_api_server/services/simulatedAuthorizeService.js`, `demo_api_server/services/pingOneAuthorizeService.js`, or their selector.
 - Test: existing `authorize_mode`/`ff_authorize_real` regression tests.
 
-- [ ] Confirm PF provider mode does not change `authorize_mode` semantics.
-- [ ] Confirm `authorize_mode=simulated` remains an explicit policy-engine choice, not an OAuth-provider fallback.
-- [ ] Confirm `OAUTH_PROVIDER=pingfederate` never routes token issuance through the local simulated service.
-- [ ] Add a regression test that fails if PF mode imports/calls the mock token or authorization path for token issuance.
+- [x] Confirm PF provider mode does not change `authorize_mode` semantics.
+- [x] Confirm `authorize_mode=simulated` remains an explicit policy-engine choice, not an OAuth-provider fallback.
+- [x] Confirm `OAUTH_PROVIDER=pingfederate` never routes token issuance through the local simulated service.
+- [x] Add a regression test that fails if PF mode imports/calls the mock token or authorization path for token issuance.
 - [ ] Run the authorization parity tests and commit only if a selector change is required.
 
 ### Task 6: Configure PingFederate
