@@ -8,6 +8,7 @@ import { navigateToAdminOAuthLogin } from '../utils/authUi';
 import AdminSubPageShell from './AdminSubPageShell';
 import PageNav from './PageNav';
 import { useSortableTable, SortableTh, dateOf } from '../hooks/useSortableTable';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 
 const ACCOUNT_TYPE_BADGE_COLORS = {
   checking: 'var(--brand-navy)',
@@ -68,8 +69,8 @@ const Accounts = ({ user, onLogout }) => {
   if (loading && accounts.length === 0) {
     return (
       <AdminSubPageShell title="Accounts" lead="View bank accounts in the demo environment.">
-        <div className="loading">
-          <div>Loading accounts...</div>
+        <div className="loading" role="status" aria-live="polite">
+          <PingIdentitySpinner size={32} label="Loading accounts…" />
         </div>
       </AdminSubPageShell>
     );

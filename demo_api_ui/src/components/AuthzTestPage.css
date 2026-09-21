@@ -229,19 +229,6 @@
   color: var(--color-text-muted, var(--th-text));
 }
 
-.authz-spinner {
-  width: 36px;
-  height: 36px;
-  border: 3px solid rgba(0, 0, 0, 0.1);
-  border-top-color: var(--color-primary, #005f99);
-  border-radius: 50%;
-  animation: authz-spin 0.8s linear infinite;
-}
-
-@keyframes authz-spin {
-  to { transform: rotate(360deg); }
-}
-
 /* ─── Header ─────────────────────────────────────────────────────────────── */
 .authz-header {
   margin-bottom: 24px;

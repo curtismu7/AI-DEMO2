@@ -134,22 +134,6 @@
   outline-offset: 2px;
 }
 
-.gmt-spinner {
-  display: inline-block;
-  width: 0.85rem;
-  height: 0.85rem;
-  margin-right: 0.4rem;
-  border: 2px solid rgba(255, 255, 255, 0.45);
-  border-top-color: #ffffff;
-  border-radius: 50%;
-  vertical-align: -0.12rem;
-  animation: gmt-spin 0.7s linear infinite;
-}
-
-@keyframes gmt-spin {
-  to { transform: rotate(360deg); }
-}
-
 .gmt-toggle--remove { background: #b3261e; }
 .gmt-toggle--remove:hover:not(:disabled) { background: #8f1e17; }
 
@@ -281,5 +265,4 @@
 .gmt-story { background: var(--th-bg-inset); border-color: var(--th-border); border-left-color: var(--th-status-info); }
 .gmt-story-title, .gmt-story-beats, .gmt-facts dd, .gmt-modal-body { color: var(--th-text); }
 .gmt-facts dt, .gmt-note, .gmt-error-detail { color: var(--th-text-muted); }
-.gmt-loading-spinner { flex: 0 0 auto; border-color: color-mix(in srgb, var(--th-status-info) 22%, transparent); border-top-color: var(--th-status-info); animation: gmt-spin .7s linear infinite; }
 .gmt-retry { background: var(--th-bg-card); border-color: var(--th-status-info); color: var(--th-status-info); }

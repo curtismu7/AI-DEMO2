@@ -854,21 +854,6 @@ body > .banking-agent-float-root .banking-agent-panel {
   border-bottom: 1px solid #fde68a;
 }
 
-.ba-reconnecting__spinner {
-  display: inline-block;
-  animation: ba-spin 1s linear infinite;
-  font-size: 1rem;
-  line-height: 1;
-}
-
-@keyframes ba-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
 
 /* ─── New header (ba-header) ─────────────────────────────────────────────── */
 .ba-header {

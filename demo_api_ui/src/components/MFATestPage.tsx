@@ -11,6 +11,7 @@ import MFATestCard from "./MFATestCard";
 import PingOneApiPanel from "./PingOneApiPanel";
 import MFALogsModal from "./MFALogsModal";
 import { useThemeOptional } from "../context/ThemeContext";
+import PingIdentitySpinner from "./shared/PingIdentitySpinner";
 
 interface PingOneUser {
   id: string;
@@ -1228,8 +1229,7 @@ const MFATestPage: FC = () => {
     return (
       <div className="mfa-test-page">
         <div className="mfa-test-loading">
-          <div className="spinner" />
-          <p>Loading MFA test environment...</p>
+          <PingIdentitySpinner size={40} label="Loading MFA test environment…" />
         </div>
       </div>
     );
