@@ -934,9 +934,9 @@ export const DEMO_SCENARIOS = [
         explanation:
           "Generalist agent delegates to a specialist agent — a second hop. Token chain nests a second act claim; scope narrows at each hop.",
         watch: [
-          "Rail: nested act chain — user, then Agent 1, then Agent 2",
+          "Rail: nested act chain — user, then the Banking Agent generalist, then a specialist agent",
           "Each hop gets less scope, not more",
-          "Say: Agent 2 acts for Agent 1, which acts for me. The whole delegation is provable.",
+          "Say: The specialist agent acts for the Banking Agent, which acts for me. The whole delegation is provable.",
         ],
       },
       {

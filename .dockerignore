@@ -35,6 +35,8 @@
 **/.vite
 **/.turbo
 test-results
+graphify-out
+.codegraph
 
 # Generated/UI-only artifacts are not inputs to any root-context image. Keeping
 # them out avoids sending stale bundles, screenshots, and test fixtures during

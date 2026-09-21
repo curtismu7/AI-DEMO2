@@ -8,6 +8,7 @@ import { MCP_STEP_IDS, buildRunStory } from "../services/tokenChainTrace/buildTr
 import { resolveInspectClaims } from "../services/tokenChainTrace/resolveInspectClaims";
 import { isFlagOn, shouldShowTrustTab } from "../utils/tokenChainTrust";
 import { buildA2aChainDetail } from "../utils/a2aChainDetail";
+import { AGENT_ROLES, PRIMARY_AGENT } from "../config/agentTerminology";
 import { useTokenChainOptional } from "../context/TokenChainContext";
 import { useProofOfEnforcementOptional } from "../context/ProofOfEnforcementContext";
 import TraceStepCard from "./TraceStepCard";
@@ -61,7 +62,7 @@ function readStoredViewMode() {
 
 const SKIPPED_STEP_REASONS = {
   signin: "No sign-in token evidence was recorded for this run.",
-  agent: "The agent service did not participate in this run.",
+  agent: "The Banking Agent did not participate in this run.",
   llm: "No LLM reasoning was used on this run.",
   "agent-token": "No separate agent identity token was acquired.",
   exchange: "Token exchange was skipped; no delegated token was issued.",
@@ -74,8 +75,8 @@ const SKIPPED_STEP_REASONS = {
   api: "No downstream resource-server call occurred.",
   database: "No SQL database access was observed for this run.",
   reply: "No final reply evidence was recorded.",
-  "a2a-agent1-actor": "The main agent identity token was not observed.",
-  "a2a-exchange1": "The user-to-main-agent exchange was not observed.",
+  "a2a-agent1-actor": "The Banking Agent identity token was not observed.",
+  "a2a-exchange1": "The user-to-generalist exchange was not observed.",
   "a2a-agent2-actor": "The specialist agent identity token was not observed.",
   "a2a-exchange2": "The nested specialist delegation exchange was not observed.",
   "a2a-agent-card": "Specialist Agent Card discovery was not observed.",
@@ -220,12 +221,12 @@ export function buildA2aTokenChainSteps(tokenEvents) {
   const detail = buildA2aChainDetail(events);
   if (!detail.present) return [];
   const byId = (id) => events.find((event) => event?.id === id) || null;
-  const mainAgent = detail.generalist || "Main agent";
-  const specialist = detail.specialist || "Specialist agent";
+  const mainAgent = detail.generalist || PRIMARY_AGENT.displayName;
+  const specialist = detail.specialist || AGENT_ROLES.specialist;
   const definitions = [
-    ["a2a-agent1-actor", `Main agent — ${mainAgent} · client_credentials`, "A2A"],
-    ["a2a-exchange1", "A2A Exchange #1 — user + main agent · RFC 8693", "A2A"],
-    ["a2a-agent2-actor", `Specialist agent — ${specialist} · client_credentials`, "A2A"],
+    ["a2a-agent1-actor", `${PRIMARY_AGENT.displayName} · ${AGENT_ROLES.generalist} — ${mainAgent} · client_credentials`, "A2A"],
+    ["a2a-exchange1", `A2A Exchange #1 — user + ${AGENT_ROLES.generalist} · RFC 8693`, "A2A"],
+    ["a2a-agent2-actor", `${AGENT_ROLES.specialist} — ${specialist} · client_credentials`, "A2A"],
     ["a2a-exchange2", "A2A Exchange #2 — nested specialist delegation · RFC 8693", "A2A"],
     ["a2a-agent-card", `Agent Card — ${specialist} discovery · GET Agent Card`, "A2A"],
     ["a2a-protocol-message", `A2A SendMessage — ${specialist} handoff · POST message/send → result/toolError`, "A2A"],

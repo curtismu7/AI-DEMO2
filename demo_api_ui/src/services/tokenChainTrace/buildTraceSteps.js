@@ -7,6 +7,7 @@ import {
   SPIFFE_BRIDGE_EVENT_IDS,
   SPIFFE_BRIDGE_TRACE_KIND,
 } from "./spiffeBridgeSimulationModel";
+import { AGENT_ROLES, PRIMARY_AGENT } from "../../config/agentTerminology";
 
 const LANES = {
   website: "BROWSER", signin: "PINGONE", prompt: "CHAT", agent: "AGENT",
@@ -32,7 +33,11 @@ const LANES = {
 // AI agent choosing a tool and composing the reply; which one ran is detail, not
 // a different actor. The keys stay as they are: they drive lane colours and CSS
 // classes.
-const LANE_LABELS = { LLM: "AI AGENT", HEURISTICS: "AI AGENT" };
+const LANE_LABELS = {
+  AGENT: "BANKING AGENT",
+  LLM: "BANKING AGENT",
+  HEURISTICS: "BANKING AGENT",
+};
 export function laneLabel(lane) {
   return LANE_LABELS[lane] || lane;
 }
@@ -65,14 +70,14 @@ const TITLES = {
   website: "Website — browser / UI app",
   signin: "Sign-in — User Token acquired",
   prompt: "Chatbot — prompt sent",
-  agent: "Agent service receives request",
+  agent: `${PRIMARY_AGENT.displayName} receives request`,
   // The node label is the part before the em dash, so the challenge legs read
   // as their own hop ("tools/list 401") while the authorized legs keep the
   // labels the topology diagram already used.
   "tools-list-challenge": "tools/list 401 — no token, gateway challenges",
   "tools-list": "tools/list — tool discovery, token accepted",
-  llm: "AI Agent — reasoning & tool choice",
-  "agent-token": "Agent identity token",
+  llm: `${PRIMARY_AGENT.displayName} · ${AGENT_ROLES.generalist} — reasoning & tool choice`,
+  "agent-token": `${PRIMARY_AGENT.displayName} identity token`,
   // Named, not numbered: "Token exchange" is the node label the topology
   // diagram and its tests have always used for the delegated exchange, so the
   // NEW hop gets the distinct name rather than renumbering the existing one.
@@ -93,7 +98,7 @@ const TITLES = {
   mcp: "MCP server — tool executes, token accepted",
   api: "Resource server — backend app",
   database: "Database — data query",
-  reply: "AI Agent composes reply → chat",
+  reply: `${PRIMARY_AGENT.displayName} composes reply → chat`,
   "spiffe-svid-presented": "Workload presents JWT-SVID",
   "spiffe-svid-verified": "SPIFFE bridge verifies SVID",
   "spiffe-id-mapped": "SPIFFE ID mapped to PingOne client",
@@ -108,11 +113,11 @@ const NARRATIVES = {
   website: "The browser hosts the UI and never holds a bearer token. It relies on the secure, HttpOnly session cookie from the BFF.",
   signin: "User authenticated via OIDC Authorization Code + PKCE. The BFF holds the User Token server-side — it never reaches the browser.",
   prompt: "The browser sends only the message — no tokens; the session cookie identifies the user to the BFF.",
-  agent: "BFF forwards to the agent. The agent loads conversation history and the gateway tool catalog (with required scopes), then prepares the LLM call.",
+  agent: `BFF forwards to the ${AGENT_ROLES.generalist}. The agent loads conversation history and the gateway tool catalog (with required scopes), then prepares the LLM call.`,
   "tools-list-challenge": "The first tools/list goes out with NO Authorization header. The gateway refuses it with 401 and a WWW-Authenticate challenge that names its realm and points at its RFC 9728 metadata — that pointer is how a client that arrives holding nothing learns which authorization server to go to.",
   "tools-list": "The second tools/list carries the agent token. PingOne Authorize filters the catalog per vertical and scope, so the model is only ever shown tools this caller may actually invoke.",
-  llm: "The agent sends the conversation to the LLM. The model returns a tool call — it never sees or holds any OAuth token.",
-  "agent-token": "BFF obtains a client-credentials token — the agent's own identity, separate from the user's.",
+  llm: `The ${AGENT_ROLES.generalist} sends the conversation to the LLM. The model returns a tool call — it never sees or holds any OAuth token.`,
+  "agent-token": `BFF obtains a client-credentials token — the ${PRIMARY_AGENT.displayName}'s own identity, separate from the user's.`,
   "exchange-1": "Two-exchange mode only. The first RFC 8693 call narrows the agent's OWN token before any user delegation happens, so the second exchange starts from least privilege rather than from the agent's full client-credentials scope.",
   exchange: "The delegated exchange. BFF exchanges subject (user) + actor (agent) for one delegated token: proof the agent acts FOR this user. Scope narrows to what the tool needs; audience binds to the gateway.",
   "id-jag-issued": "Enterprise-managed mode. The IdP evaluates IT policy and, only if it passes, signs an Identity Assertion JWT Authorization Grant naming this user, this MCP server and the scopes IT allows. A denied employee gets an error here and no assertion at all.",
@@ -1017,7 +1022,7 @@ export function buildTraceSteps(trace) {
           : "The BFF matched this prompt to a known intent and called the tool directly without LLM reasoning.",
       },
     });
-    llmStep.title = "AI Agent — intent match & tool choice";
+    llmStep.title = `${PRIMARY_AGENT.displayName} · ${AGENT_ROLES.generalist} — intent match & tool choice`;
     llmStep.lane = "HEURISTICS";
     steps.push(llmStep);
   } else {
@@ -1773,7 +1778,7 @@ export function buildTraceSteps(trace) {
         : undefined,
     } : {});
   if (isHeuristic) {
-    replyStep.title = "AI Agent composes reply → chat";
+    replyStep.title = `${PRIMARY_AGENT.displayName} composes reply → chat`;
     replyStep.lane = "HEURISTICS";
   }
   steps.push(replyStep);

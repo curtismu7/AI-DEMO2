@@ -8,6 +8,7 @@ import { A2A_RECORDED_RUN } from '../data/a2aRecordedRun';
 import A2AArchitectureDiagram from '../components/A2AArchitectureDiagram';
 import RelatedLearningRail from '../components/learning/RelatedLearningRail';
 import { EDU } from '../components/education/educationIds';
+import { RUN_PROVENANCE } from '../config/agentTerminology';
 import {
   buildA2aTeachingPanes,
   summarizeAgentCard,
@@ -120,7 +121,12 @@ function Json({ value }) {
 }
 
 function ProvenanceChip({ provenance }) {
-  return <span className={`a2l-prov a2l-prov--${provenance}`}>{provenance}</span>;
+  const label = provenance === 'live'
+    ? RUN_PROVENANCE.live
+    : provenance === 'mock'
+      ? RUN_PROVENANCE.mock
+      : RUN_PROVENANCE.recorded;
+  return <span className={`a2l-prov a2l-prov--${provenance}`}>{label}</span>;
 }
 
 function Pane({ pane }) {
@@ -255,7 +261,7 @@ export default function A2AProtocolLearningPage() {
   const identityPanes = panes.filter((p) => p.layer === LAYER.IDENTITY);
   const widePanes = panes.filter((p) => p.layer === LAYER.WIRE);
   const replayNote = isReplay
-    ? `Recorded run · captured ${A2A_RECORDED_RUN.capturedAt} · ${A2A_RECORDED_RUN.vertical}`
+    ? `${RUN_PROVENANCE.recorded} · captured ${A2A_RECORDED_RUN.capturedAt} · ${A2A_RECORDED_RUN.vertical}`
     : null;
 
   return (

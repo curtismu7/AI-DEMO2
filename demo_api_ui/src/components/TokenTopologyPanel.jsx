@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import DraggableModal from './DraggableModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
-import { MCP_STEP_IDS } from '../services/tokenChainTrace/buildTraceSteps';
+import { MCP_STEP_IDS, laneLabel } from '../services/tokenChainTrace/buildTraceSteps';
 import { buildA2aEvidenceRows } from '../utils/a2aChainDetail';
 import { useTheme } from '../context/ThemeContext';
 import useDividerDrag from '../hooks/useDividerDrag';
@@ -91,7 +91,7 @@ export function enforcementFor(step) {
 
 // Connector label — the lane the hop hands off to.
 export function edgeLabel(nextNode) {
-  return String(nextNode?.lane || '').toUpperCase() || null;
+  return laneLabel(String(nextNode?.lane || '').toUpperCase()) || null;
 }
 
 // The tool-call hops hang below the spine as a branch, the way a topology
@@ -330,7 +330,7 @@ function NodeBox({ node, step, selected, current, onClick, animateIn, nodeRef, g
         <div className="ttp-icon">{node.icon}</div>
         <div className="ttp-name">{node.name}</div>
         <div className="ttp-desc">{node.desc}</div>
-        <span className={`ttp-lane ttp-lane--${node.lane.toLowerCase()}`}>{node.lane}</span>
+        <span className={`ttp-lane ttp-lane--${node.lane.toLowerCase()}`}>{laneLabel(node.lane)}</span>
         {claims && (
           <div className="ttp-node-claims">
             {claims.slice(0, 3).map(({ k, v, cls }) => (
@@ -415,7 +415,7 @@ function Inspector({ step, topologyNodes, onClose, fontSize, setFontSize }) {
   return (
     <div className="ttp-insp">
       <div className="ttp-insp-header">
-        <span className={`ttp-lane ttp-lane--${(str(step.lane) || 'bff').toLowerCase()}`}>{str(step.lane)}</span>
+        <span className={`ttp-lane ttp-lane--${(str(step.lane) || 'bff').toLowerCase()}`}>{laneLabel(str(step.lane).toUpperCase() || 'BFF')}</span>
         <span className="ttp-insp-title">{str(step.title)}</span>
         <div className="ttp-insp-font-control" role="group" aria-label="Details font size">
           <button type="button" onClick={() => setFontSize('small')} aria-label="Decrease details font size" aria-pressed={fontSize === 'small'}>A−</button>

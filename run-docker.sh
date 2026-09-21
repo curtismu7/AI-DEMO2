@@ -32,6 +32,7 @@
 #   tracing    Jaeger OTLP backend
 #   demo-auth  Demo authz-server + demo mcp-gateway (auto via demo-sync)
 #   observability  Grafana + Prometheus + Loki + Alloy + Alertmanager — off by default
+#   spiffe     Local SPIRE workload identity stack — opt-in only
 #
 # Single-service commands take one OR MORE service names, e.g.
 #   ./run-docker.sh restart ui demo-api-server
@@ -190,6 +191,7 @@ _optional_group_desc() {
     demo-auth) echo "Demo Authorize AS + Demo Agent Gateway (Node mcp-gateway)" ;;
     mcpgw)     echo "PingOne Privilege MCPGW (JIT least-privilege + session recording) + OpenSearch sample backend" ;;
     observability) echo "Grafana + Prometheus + Loki + Alloy + Alertmanager (off by default)" ;;
+    spiffe)    echo "Local SPIRE workload identity stack (opt-in only)" ;;
     all)       echo "Every optional group" ;;
     *)         echo "Unknown group" ;;
   esac

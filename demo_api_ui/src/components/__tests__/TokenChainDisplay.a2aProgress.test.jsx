@@ -70,7 +70,7 @@ describe('Token Chain A2A progress controls', () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) });
     render(<TokenChainDisplay />);
 
-    expect(screen.getByText('Main agent called Investment Advisor')).toBeInTheDocument();
+    expect(screen.getByText('Banking Agent called Investment Advisor')).toBeInTheDocument();
     fireEvent.click(screen.getByText('View handoff'));
 
     expect(screen.getByRole('dialog', { name: /A2A main-agent to specialist handoff/i })).toBeInTheDocument();
