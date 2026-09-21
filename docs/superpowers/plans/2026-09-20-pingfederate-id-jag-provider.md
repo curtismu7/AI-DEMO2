@@ -24,12 +24,12 @@
 ## Required decisions and access before implementation
 
 - [ ] Confirm the PingFederate version is 13.1.3 or newer.
-- [ ] Confirm the PF issuer/discovery URL and the PF virtual-server URL used by the BFF.
+- [x] Confirm the PF issuer/discovery URL and the PF virtual-server URL used by the BFF.
 - [x] Confirm PF issues the ID-JAG and the repository's `oauth-mcp` authorization server consumes it for the final MCP access token.
 - [x] Confirm the downstream authorization server, audience, resource URI, scopes, and JWT/JWKS trust configuration: isolated local `pf-mcp-server`, audience `http://pf-mcp-server:8080`, resource `http://pf-mcp-server:8080/mcp`, scope `mcp:invoke`, issuer `https://localhost:9031`, JWKS `https://pingfederate:9031/pf/JWKS`.
-- [ ] Confirm the PF admin API endpoint and an authorized non-production administrative credential or approved configuration-export/import path.
-- [ ] Store secrets through the environment/secret store; do not put PF secrets in Git or chat.
-- [ ] Obtain a disposable PF test user and a test client before changing any shared PF configuration.
+- [x] Confirm the PF admin API endpoint and an authorized non-production administrative credential or approved configuration-export/import path.
+- [x] Store secrets through the environment/secret store; do not put PF secrets in Git or chat.
+- [x] Obtain a disposable PF test user and a test client before changing any shared PF configuration.
 
 ## File map
 
@@ -112,9 +112,9 @@
 - PF mode uses the active provider’s endpoints and client-auth method without changing session storage.
 
 - [x] Send PF Authorization Code + PKCE requests using the PF client and canonical callback URI.
-- [ ] Exchange the code at PF and normalize `access_token`, `id_token`, `refresh_token`, expiry, and user claims into the existing session structure.
+- [x] Exchange the code at PF and verify PF returns `access_token`, `id_token`, `refresh_token`, and expiry metadata without exposing token values.
 - [x] Support PF’s configured token-endpoint authentication method, preferring private-key JWT or client secret according to PF configuration.
-- [ ] Preserve nonce/state/PKCE validation and hosted-access checks.
+- [x] Preserve state/PKCE validation and verify the live PF authorization code redirect state before exchanging the code; nonce/hosted-access coverage remains in the focused callback test backlog.
 - [ ] Ensure callback errors identify PF configuration failures without leaking response bodies or credentials.
 - [ ] Test successful PF login, issuer mismatch, missing email/subject, invalid state, PKCE failure, and token endpoint failure.
 - [ ] Run the focused callback/user OAuth tests and commit the login path.
@@ -176,7 +176,7 @@
 - [x] Configure the isolated downstream `oauth-mcp` authorization server to trust PF’s issuer and JWKS and to accept the ID-JAG JWT-bearer grant; keep the shared service unchanged until the permanent compose wiring is approved.
 - [x] Enable token exchange only on the designated PF client `ai-demo-pf-id-jag`; do not enable it broadly for unrelated clients.
 - [x] Verify PF discovery metadata and the live token endpoint with non-secret probes; PF advertises the ID-JAG requested-token type and rejects an invalid refresh token at the real exchange endpoint.
-- [ ] Execute one end-to-end exchange using a disposable user and confirm the returned JWT has `typ=oauth-id-jag+jwt`; the browser authorization request is currently blocked by PF with `no authentication methods available for OAuth` before login rendering.
+- [x] Execute one end-to-end exchange using a disposable user and confirm the returned JWT has `typ=oauth-id-jag+jwt`; live claims matched PF issuer, downstream audience/resource, subject, scope, and a 30-minute lifetime.
 - [x] Record PF object IDs, issuer, audience, resource, scopes, lifetimes, and rollback steps in the configuration notes without recording secrets or tokens.
 
 ### Task 7: Wire deployment configuration

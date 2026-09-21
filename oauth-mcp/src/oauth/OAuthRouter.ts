@@ -500,8 +500,26 @@ export class OAuthRouter {
       ownIssuer: this.issuer,
       acceptedResources: resolveAudience(),
       getKey: (async (protectedHeader: unknown) => {
-        const { createRemoteJWKSet } = await getJose();
-        const keySet = createRemoteJWKSet(new URL(process.env.ENTERPRISE_IDP_JWKS_URL as string));
+        const jwksUrl = process.env.ENTERPRISE_IDP_JWKS_URL as string;
+        const { createRemoteJWKSet, importJWK } = await getJose();
+        const header = (protectedHeader || {}) as { alg?: string; kid?: string; x5t?: string };
+        const keySet = createRemoteJWKSet(new URL(jwksUrl));
+
+        // PingFederate's ID-JAG signing connection identifies certificate-backed
+        // keys with x5t. jose's remote-JWKS selector only disambiguates by kid,
+        // while PF publishes both a certificate and RS256 representation. Fetch
+        // the JWKS only for this PF-specific header and import the unique match.
+        if (header.x5t) {
+          const response = await axios.get<{ keys?: Array<Record<string, unknown>> }>(jwksUrl);
+          const matches = (response.data.keys || []).filter((key) =>
+            key.x5t === header.x5t && (!header.alg || !key.alg || key.alg === header.alg),
+          );
+          if (matches.length !== 1) {
+            throw new Error(`expected one JWKS key for x5t ${header.x5t}, found ${matches.length}`);
+          }
+          return importJWK(matches[0] as Parameters<typeof importJWK>[0], header.alg || 'RS256');
+        }
+
         return (keySet as unknown as (h: unknown) => Promise<never>)(protectedHeader);
       }) as VerifyOpts['getKey'],
     };
