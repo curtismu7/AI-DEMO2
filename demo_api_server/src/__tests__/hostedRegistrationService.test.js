@@ -27,6 +27,7 @@ describe('hostedRegistrationService', () => {
     expect(normalizeRegistrationPhone(' +1 214 555 0123 ')).toBe('+12145550123');
     expect(normalizeRegistrationPhone('214-555-0123')).toBe('+12145550123');
     expect(() => normalizeRegistrationPhone('214555')).toThrow('phone');
+    expect(normalizeRegistrationPhone('5550123', '+972')).toBe('+9725550123');
   });
 
   test('creates a pending OTP request through PingOne MFA', async () => {
@@ -41,7 +42,7 @@ describe('hostedRegistrationService', () => {
       },
     });
 
-    const result = await service.request({ email: 'alice@pingidentity.com', firstName: 'Alice', phone: '+1 214 555 0123' });
+    const result = await service.request({ email: 'alice@pingidentity.com', firstName: 'Alice', countryCode: '+1', phone: '214 555 0123' });
     const saved = backing.get(result.requestId);
     expect(result.status).toBe('otp_pending');
     expect(saved.pingOneMfaId).toBe('da-1');

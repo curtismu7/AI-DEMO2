@@ -7,7 +7,7 @@ Allow previously unknown Ping employees to request access without granting acces
 ## Rules
 
 - Registration accepts only addresses whose normalized domain is exactly `pingidentity.com`.
-- The applicant must provide first name, last name, and an E.164 cell number, then prove control of the address with a short-lived, single-use email OTP.
+- The applicant must provide first name, last name, country calling code, and local cell number. The service normalizes the combined phone number to E.164, then the applicant proves control of the address with a short-lived, single-use email OTP.
 - OTP verification creates or advances a pending request; it never creates an approved application session.
 - The existing Demo User/Admin application accounts remain unchanged.
 - The approval queue is durable and administrator-only.
@@ -16,7 +16,7 @@ Allow previously unknown Ping employees to request access without granting acces
 
 ## Architecture
 
-The public request flow is served by the BFF at `/api/auth/hosted-registration/*`, outside the hosted application gate. Requests are stored in a dedicated LMDB database. A disabled PingOne user is staged in the Partial group before a PingOne MFA email one-time-passcode transaction is started; the MFA transaction ID and local expiry/attempt metadata are stored, but the OTP itself is never generated or stored by the BFF. The submitted name and cell are written to PingOne at approval, including for an existing PingOne user, and a worker-token SMS MFA device is silently enrolled at that point. PingOne Notifications is used only for the administrator alert; no SMTP service is required.
+The public request flow is served by the BFF at `/api/auth/hosted-registration/*`, outside the hosted application gate. Requests are stored in a dedicated LMDB database. A disabled PingOne user is staged in the Partial group before a PingOne MFA email one-time-passcode transaction is started; the MFA transaction ID and local expiry/attempt metadata are stored, but the OTP itself is never generated or stored by the BFF. The submitted name and normalized international cell number are written to PingOne at approval, including for an existing PingOne user, and a worker-token SMS MFA device is silently enrolled at that point. PingOne Notifications is used only for the administrator alert; no SMTP service is required.
 
 The administrator API is mounted under `/api/admin/hosted-registrations` and uses the existing application `authenticateToken` plus `requireAdmin` guards. It supports list, approve, reject, enable/disable, group/role update, resend, and audit-safe status changes. PingOne provisioning is isolated behind a service so the queue remains testable without live PingOne calls.
 

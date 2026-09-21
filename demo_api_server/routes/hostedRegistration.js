@@ -21,6 +21,7 @@ router.post('/request', async (req, res) => {
       email: req.body?.email,
       firstName: req.body?.firstName,
       lastName: req.body?.lastName,
+      countryCode: req.body?.countryCode,
       phone: req.body?.phone,
       requestedRole: req.body?.requestedRole,
     });

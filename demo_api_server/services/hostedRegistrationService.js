@@ -15,9 +15,13 @@ function normalizeRegistrationEmail(value) {
   return email;
 }
 
-function normalizeRegistrationPhone(value) {
+function normalizeRegistrationPhone(value, countryCode = '+1') {
   let phone = String(value || '').trim().replace(/[\s().-]/g, '');
-  if (/^\d{10}$/.test(phone)) phone = `+1${phone}`;
+  const code = String(countryCode || '').trim().replace(/[\s().-]/g, '');
+  if (!phone.startsWith('+')) {
+    if (!/^\+\d{1,4}$/.test(code)) throw new Error('Country code must include + and 1-4 digits');
+    phone = `${code}${phone}`;
+  }
   if (!/^\+[1-9]\d{7,14}$/.test(phone)) {
     throw new Error('Cell phone must be an E.164 number');
   }
@@ -58,7 +62,7 @@ function createHostedRegistrationService({
       email,
       firstName: String(input.firstName || '').trim().slice(0, 80),
       lastName: String(input.lastName || '').trim().slice(0, 80),
-      phone: normalizeRegistrationPhone(input.phone),
+      phone: normalizeRegistrationPhone(input.phone, input.countryCode),
       requestedRole: String(input.requestedRole || 'user').trim().toLowerCase(),
       status: 'otp_pending',
       createdAt: now(),

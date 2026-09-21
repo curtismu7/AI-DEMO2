@@ -2,7 +2,7 @@ import { useState } from 'react';
 import apiClient from '../services/apiClient';
 
 export default function HostedRegistrationPage() {
-  const [form, setForm] = useState({ email: '', firstName: '', lastName: '', phone: '' });
+  const [form, setForm] = useState({ email: '', firstName: '', lastName: '', countryCode: '+1', phone: '' });
   const [requestId, setRequestId] = useState('');
   const [otp, setOtp] = useState('');
   const [status, setStatus] = useState('');
@@ -53,8 +53,10 @@ export default function HostedRegistrationPage() {
           <input id="registration-first-name" value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} required />
           <label htmlFor="registration-last-name">Last name</label>
           <input id="registration-last-name" value={form.lastName} onChange={(event) => setForm({ ...form, lastName: event.target.value })} required />
+          <label htmlFor="registration-country-code">Country code</label>
+          <input id="registration-country-code" type="tel" value={form.countryCode} onChange={(event) => setForm({ ...form, countryCode: event.target.value })} placeholder="+1" autoComplete="tel-country-code" required />
           <label htmlFor="registration-phone">Cell phone</label>
-          <input id="registration-phone" type="tel" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="+1 214 555 0123" autoComplete="tel" required />
+          <input id="registration-phone" type="tel" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} placeholder="214 555 0123" autoComplete="tel-national" required />
           <button type="submit">Send verification code</button>
         </form>
       )}
