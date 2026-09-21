@@ -4,6 +4,7 @@ import LessonShell from "../components/learning/LessonShell";
 import { getLesson } from "../learning/lessonCatalog";
 import GuidedJourneyPage from "../pages/GuidedJourneyPage";
 import StandaloneDemoLauncherPage from "../pages/StandaloneDemoLauncherPage";
+import OAuthTokenExchangeLessonPage from "../pages/OAuthTokenExchangeLessonPage";
 import {
   canObserveLesson,
   resetLesson,
@@ -43,13 +44,19 @@ export function AcademyLessonRoute({ loading, user, logout }) {
                 : undefined
             }
           >
-            <p>{lesson.category}</p>
-            <p>{lesson.talkingPoints[0]}</p>
-            <ul>
-              {lesson.talkingPoints.slice(1).map((point) => (
-                <li key={point}>{point}</li>
-              ))}
-            </ul>
+            {lesson.id === "delegation" ? (
+              <OAuthTokenExchangeLessonPage />
+            ) : (
+              <>
+                <p>{lesson.category}</p>
+                <p>{lesson.talkingPoints[0]}</p>
+                <ul>
+                  {lesson.talkingPoints.slice(1).map((point) => (
+                    <li key={point}>{point}</li>
+                  ))}
+                </ul>
+              </>
+            )}
           </LessonShell>
         </main>
       </>
