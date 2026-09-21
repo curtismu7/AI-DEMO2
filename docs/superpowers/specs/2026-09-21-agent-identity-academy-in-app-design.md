@@ -32,6 +32,87 @@ Integration rules:
 
 The static HTML mock belongs to this integration development as a visual reference. It is not a competing execution path and should remain clearly labeled as a mock/review artifact until the React lesson route replaces it.
 
+## Company naming and architecture alignment
+
+The naming and architecture in this section are guided by the supplied company reference:
+
+`/Users/cmuir/Downloads/ID4AI - Maturity Model - Architecture 501.pdf`
+
+The PDF is guidance for terminology and story structure. It is not an instruction to copy proprietary slide artwork, claim product capabilities that are not configured, or replace the repository's existing technical contracts.
+
+### Canonical maturity journey
+
+The Academy's top-level journey should follow the company direction:
+
+```text
+DISCOVER → REGISTER → AUTHENTICATE → AUTHORIZE → GOVERN
+```
+
+Use these five stages as the organizing spine for the curriculum and Evidence Timeline:
+
+- **Discover:** Where are my agents? Detect personal, enterprise, embedded, and unknown agents.
+- **Register:** Who are my agents? Establish ownership, agent identifiers, registration, metadata, and lifecycle state.
+- **Authenticate:** Is this agent who it says it is? Prove the human, client, workload, device, and delegated relationship.
+- **Authorize:** What can this agent do? Enforce least privilege, delegation, consent, policy, approvals, and resource-specific access.
+- **Govern:** Can I trust this agent and prove what it did? Maintain evidence, audit, risk signals, revocation, suspension, and compliance context.
+
+### Canonical agent taxonomy
+
+Use the company taxonomy in architecture diagrams, product maps, lesson metadata, and presenter language:
+
+| Company term | Meaning | Requested Academy scenario mapping |
+|---|---|---|
+| **Personal Agents** | Agents running on a user device at work or home; the enterprise observes and protects the resource boundary but does not own the agent's reasoning runtime. | Consumer/Personal Agent; external ChatGPT, Claude Desktop, or LM Studio; employee productivity/coding agent where applicable |
+| **Consumer & Partner Agents** | Personal agents acting on behalf of customers or partners in digital channels. | Consumer Agent: Personal Agent |
+| **Employee Agents** | Personal productivity agents used by employees on managed or unmanaged endpoints. | Employee Assistant when it is a user-side personal agent |
+| **Enterprise Agents** | Agents running in the cloud or an enterprise-controlled service boundary. | Customer Service Agent: Digital Assistant; enterprise-controlled assistant |
+| **Workload Agents** | Enterprise agents with an application/workload identity that can be authenticated, delegated to, and governed end to end. | Customer Service Agent: Digital Assistant when implemented as an application workload; A2A planner and specialist |
+| **SaaS-Embedded Agents** | Vendor-embedded agents running inside a SaaS application. | Third-party or embedded-agent scenarios when the app is the hosting boundary |
+
+The customer-facing labels in the requested curriculum remain valid for teaching. Where they differ from the company taxonomy, show the customer label first and the canonical category second—for example, **Customer Service Agent — an Enterprise/Workload Digital Assistant**. Do not use “Worker Agent” as a replacement for the company categories.
+
+### Architecture vocabulary
+
+Diagrams and evidence labels should use these concepts where they apply:
+
+- **User / person:** the human whose authority or consent is represented.
+- **Agent identity:** the client, personal agent, workload, device, or registered agent identifier.
+- **Agent IAM core:** authentication context, runtime context, and delegated token creation.
+- **Agent Gateway / Agent Broker:** the enforcement boundary that translates identity and delegation into safe access to MCP servers, APIs, agents, and data resources.
+- **Agent Authorize / policy engine:** fine-grained allow, deny, or escalate decisions for each agent action.
+- **Human in the loop:** consent, CIBA, step-up, approval, and high-impact-action controls.
+- **PingOne Privilege:** time-bound, secretless, scoped MCP or privileged-resource access with session visibility where configured.
+- **Agent Governance:** discovery, ownership, certification, lifecycle, revocation, audit, and risk evidence.
+
+These are conceptual roles in the Academy product map. A lesson must identify the actual configured application service or Ping product behind a role, and must label an explanatory or simulated role as `MOCK` or `UNSUPPORTED BY PINGONE` when no live implementation exists.
+
+### Mapping the requested lessons to the company journey
+
+| Academy lessons | Primary maturity stages | Architecture emphasis |
+|---|---|---|
+| Agent Landscape and Identity | Discover, Register | Four agent categories, ownership, runtime location, and trust boundary |
+| PingOne Login, OIDC, and PKCE | Authenticate | User authentication, client identity, authorization code flow, PKCE, and BFF session boundary |
+| OAuth Delegated Agent Access | Authenticate, Authorize | Delegation rather than impersonation; `sub`, `act`, audience, scopes, and token exchange |
+| Consumer Agent: Personal Agent | Discover, Register, Authenticate, Authorize | CIMD/DCR, client identification, OAuth/PKCE, consent, per-tool authentication, and external-agent boundary |
+| Customer Service Agent: Digital Assistant | Authenticate, Authorize | Enterprise/workload agent, explicit delegation, granular consent, customer-data access, and bounded action |
+| MCP Discovery and Tool Execution | Authorize, Govern | Agent traffic, gateway enforcement, tool/resource scope, execution evidence, and audit |
+| PingOne Authorize: Permit and Deny | Authorize | Fine-grained policy decision and enforcement at the protected resource boundary |
+| Human Approval, CIBA, Consent, and Step-Up | Authorize, Govern | Intent-sensitive escalation and strongly verified human approval |
+| A2A Agent Delegation | Authenticate, Authorize, Govern | Agent Cards, planner/specialist identities, nested delegation, protocol evidence, and audit |
+| Privilege MCP Protection | Authorize, Govern | Time-bound approval, secretless access, least agency, session visibility, and kill/end controls |
+| AI Threat Defense | Discover, Authenticate, Authorize, Govern | Prompt injection, replay, scope escalation, audience mismatch, detection, and deny evidence |
+| Agent Detection, Lifecycle, and Revocation | Discover, Register, Govern | Unknown-to-known transition, ownership, suspension, revocation, and denied retry |
+| Evidence Timeline and Ping Product Map | All five stages | Accountability from person and agent discovery through policy, execution, and governance |
+
+### Naming rules for implementation
+
+1. Prefer **Personal Agent**, **Enterprise Agent**, **Consumer & Partner Agent**, **Employee Agent**, **Workload Agent**, and **SaaS-Embedded Agent** in new diagrams and metadata.
+2. Retain **Consumer Agent**, **Customer Service Agent**, and **Employee Assistant** as presenter-friendly scenario names when they improve customer comprehension; pair them with the canonical taxonomy on first use.
+3. Use **delegation**, **on-behalf-of**, and **acting agent** language. Avoid describing delegated access as user impersonation.
+4. Keep **Agent Gateway/Agent Broker**, **Policy/Authorize**, **Privilege**, **MCP**, and **A2A** as separate architecture roles. The protocol transports a request; it does not by itself grant authority.
+5. Make the trust boundary visible in every architecture diagram: endpoint or external agent, identity/provider boundary, gateway/policy boundary, and protected resource.
+6. Use the evidence timeline to answer the company questions: where are the agents, who are they, are they authentic, what can they do, and what did they do.
+
 ## Reviewable mock
 
 Open the current standalone HTML mock in a browser:
