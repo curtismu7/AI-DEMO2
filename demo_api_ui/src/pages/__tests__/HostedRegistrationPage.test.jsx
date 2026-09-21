@@ -14,6 +14,7 @@ test('submits a PingIdentity email and then verifies the OTP', async () => {
   fireEvent.change(screen.getByLabelText(/last name/i), { target: { value: 'Example' } });
   fireEvent.change(screen.getByLabelText(/country code/i), { target: { value: '+1' } });
   fireEvent.change(screen.getByLabelText(/cell phone/i), { target: { value: '2145550123' } });
+  expect(screen.getByRole('button', { name: /send verification code/i })).toHaveClass('hosted-registration__submit');
   fireEvent.click(screen.getByRole('button', { name: /send verification code/i }));
   expect(await screen.findByLabelText(/verification code/i)).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText(/verification code/i), { target: { value: '123456' } });
