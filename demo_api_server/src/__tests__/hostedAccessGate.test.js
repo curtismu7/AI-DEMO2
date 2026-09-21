@@ -62,11 +62,27 @@ describe('hostedAccessGate', () => {
   });
 
   test.each(['demouser', 'demoadmin', 'DemoUser', 'DEMOADMIN'])('recognizes the protected demo bootstrap account %s', (username) => {
-    expect(isBootstrapApplicationSession({ user: { username } })).toBe(true);
+    expect(isBootstrapApplicationSession({
+      user: { username },
+      oauthType: 'user',
+      oauthTokens: { accessToken: 'real-oauth-token', expiresAt: Date.now() + 60_000 },
+    })).toBe(true);
   });
 
   test.each(['demo', 'demouser2', 'demoadmin@example.com', undefined])('does not recognize a different account %s', (username) => {
-    expect(isBootstrapApplicationSession({ user: { username } })).toBe(false);
+    expect(isBootstrapApplicationSession({
+      user: { username },
+      oauthType: 'user',
+      oauthTokens: { accessToken: 'real-oauth-token', expiresAt: Date.now() + 60_000 },
+    })).toBe(false);
+  });
+
+  test.each([
+    [{ user: { username: 'demouser' } }, 'missing OAuth credentials'],
+    [{ user: { username: 'demouser' }, oauthType: 'user', oauthTokens: { accessToken: '_cookie_session' } }, 'stub OAuth credential'],
+    [{ user: { username: 'demouser' }, oauthType: 'user', oauthTokens: { accessToken: 'real-token', expiresAt: Date.now() - 1 } }, 'expired OAuth credential'],
+  ])('does not permit a bootstrap name with %s', (session) => {
+    expect(isBootstrapApplicationSession(session)).toBe(false);
   });
 
   test('permits an authenticated demouser without hosted approval', () => {
@@ -74,7 +90,12 @@ describe('hostedAccessGate', () => {
     createHostedAccessGate({
       policy: { enabled: true },
       hasApproval: () => false,
-    })({ originalUrl: '/api/use-cases', method: 'GET', session: { user: { username: 'demouser' } }, hostedSession: {} }, response(), next);
+    })({
+      originalUrl: '/api/use-cases',
+      method: 'GET',
+      session: { user: { username: 'demouser' }, oauthType: 'user', oauthTokens: { accessToken: 'real-token' } },
+      hostedSession: {},
+    }, response(), next);
     expect(next).toHaveBeenCalledTimes(1);
   });
 
@@ -102,7 +123,7 @@ describe('hostedAccessGate', () => {
     [{ enabled: false }, {}, 204],
     [{ enabled: true }, {}, 401],
     [{ enabled: true }, { user: { oauthId: 'sub-1' } }, 401],
-    [{ enabled: true }, { user: { username: 'demoadmin' } }, 204],
+    [{ enabled: true }, { user: { username: 'demoadmin' }, oauthType: 'admin', oauthTokens: { accessToken: 'real-token' } }, 204],
   ])('check returns expected status %#', (policy, session, status) => {
     const res = response();
     hostedAccessCheck({ policy, hasApproval: () => false })({ session, hostedSession: session }, res);

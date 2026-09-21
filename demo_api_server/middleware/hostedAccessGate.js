@@ -32,8 +32,18 @@ function isHostedAccessBypassPath(path, method) {
 
 function isBootstrapApplicationSession(session) {
   const username = session?.user?.username;
+  const token = session?.oauthTokens?.accessToken;
+  const hasRealOAuthToken = typeof token === 'string'
+    && token.trim().length > 0
+    && token !== '_cookie_session';
+  const expiresAt = session?.oauthTokens?.expiresAt;
+  const tokenNotExpired = !expiresAt || Date.now() < expiresAt;
+  const authenticatedOAuthType = session?.oauthType === 'user' || session?.oauthType === 'admin';
   return typeof username === 'string'
-    && BOOTSTRAP_APPLICATION_USERNAMES.has(username.trim().toLowerCase());
+    && BOOTSTRAP_APPLICATION_USERNAMES.has(username.trim().toLowerCase())
+    && hasRealOAuthToken
+    && tokenNotExpired
+    && authenticatedOAuthType;
 }
 
 function sendAccessRestricted(res) {
