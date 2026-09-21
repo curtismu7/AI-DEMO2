@@ -1,5 +1,5 @@
 // Mock the axios instance the service creates at module load.
-const mockAxios = { get: jest.fn(), post: jest.fn(), patch: jest.fn(), delete: jest.fn() };
+const mockAxios = { get: jest.fn(), post: jest.fn(), patch: jest.fn(), put: jest.fn(), delete: jest.fn() };
 jest.mock('axios', () => ({ create: () => mockAxios }));
 
 const { managementService } = require('../services/pingoneManagementService');
@@ -69,6 +69,17 @@ describe('pingoneManagementService added methods', () => {
     expect(mockAxios.patch).toHaveBeenCalledWith(
       `${base()}/users/u1`,
       { name: { given: 'Alice', family: 'Example' }, mobilePhone: '+12145550123' },
+      { headers: managementService.getHeaders() },
+    );
+    expect(r).toEqual({ success: true });
+  });
+
+  it('setUserMfaEnabled PUTs the PingOne MFA flag', async () => {
+    mockAxios.put.mockResolvedValueOnce({ status: 204 });
+    const r = await managementService.setUserMfaEnabled('u1', true);
+    expect(mockAxios.put).toHaveBeenCalledWith(
+      `${base()}/users/u1/mfaEnabled`,
+      { mfaEnabled: true },
       { headers: managementService.getHeaders() },
     );
     expect(r).toEqual({ success: true });

@@ -25,7 +25,8 @@ describe('hostedRegistrationService', () => {
 
   test('normalizes an E.164 cell number', () => {
     expect(normalizeRegistrationPhone(' +1 214 555 0123 ')).toBe('+12145550123');
-    expect(() => normalizeRegistrationPhone('214-555-0123')).toThrow('phone');
+    expect(normalizeRegistrationPhone('214-555-0123')).toBe('+12145550123');
+    expect(() => normalizeRegistrationPhone('214555')).toThrow('phone');
   });
 
   test('creates a pending OTP request through PingOne MFA', async () => {

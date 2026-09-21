@@ -8,6 +8,7 @@ test('approval creates a disabled PingOne user, assigns the group, then enables 
     getUser: async () => null,
     createUser: async (input) => { calls.push(['create', input]); return { success: true, user: { id: 'p1-user' } }; },
     updateUserProfile: async (...args) => { calls.push(['profile', ...args]); return { success: true }; },
+    setUserMfaEnabled: async (...args) => { calls.push(['mfa', ...args]); return { success: true }; },
     addUserToGroup: async (...args) => { calls.push(['group', ...args]); return { success: true }; },
     setUserCanAuthenticate: async (...args) => { calls.push(['auth', ...args]); return { success: true }; },
   };
@@ -27,6 +28,7 @@ test('staging reuses an existing PingOne user matching the registration email', 
   const calls = [];
   const management = {
     findUserByEmail: async () => ({ id: 'existing-user' }),
+    setUserMfaEnabled: async (...args) => { calls.push(['mfa', ...args]); return { success: true }; },
     addUserToGroup: async (...args) => { calls.push(['group', ...args]); return { success: true }; },
     setUserCanAuthenticate: async (...args) => { calls.push(['auth', ...args]); return { success: true }; },
   };

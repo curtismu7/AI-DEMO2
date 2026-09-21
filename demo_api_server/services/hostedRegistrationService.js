@@ -16,7 +16,8 @@ function normalizeRegistrationEmail(value) {
 }
 
 function normalizeRegistrationPhone(value) {
-  const phone = String(value || '').trim().replace(/[\s().-]/g, '');
+  let phone = String(value || '').trim().replace(/[\s().-]/g, '');
+  if (/^\d{10}$/.test(phone)) phone = `+1${phone}`;
   if (!/^\+[1-9]\d{7,14}$/.test(phone)) {
     throw new Error('Cell phone must be an E.164 number');
   }

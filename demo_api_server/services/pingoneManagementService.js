@@ -415,12 +415,13 @@ class PingOneManagementService {
   /**
    * Create a user
    */
-  async createUser({ populationId, username, email, firstName, lastName, mobilePhone, canAuthenticate = true }) {
+  async createUser({ populationId, username, email, firstName, lastName, mobilePhone, mfaEnabled = false, canAuthenticate = true }) {
     this.ensureInitialized();
     const payload = {
       population: { id: populationId }, username, email,
       ...(firstName ? { name: { given: firstName, family: lastName || '' } } : {}),
       ...(mobilePhone ? { mobilePhone } : {}),
+      ...(mfaEnabled ? { mfaEnabled: true } : {}),
       account: { canAuthenticate },
     };
     try {
@@ -442,6 +443,16 @@ class PingOneManagementService {
       return { success: true };
     } catch (error) {
       return this.handleError(error, 'updateUserProfile');
+    }
+  }
+
+  async setUserMfaEnabled(id, enabled) {
+    this.ensureInitialized();
+    try {
+      await axios.put(`${this.baseURL}/users/${encodeURIComponent(id)}/mfaEnabled`, { mfaEnabled: Boolean(enabled) }, { headers: this.getHeaders() });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'setUserMfaEnabled');
     }
   }
 

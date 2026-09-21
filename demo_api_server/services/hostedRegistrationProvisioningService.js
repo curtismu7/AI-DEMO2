@@ -30,10 +30,15 @@ function createHostedRegistrationProvisioningService({ management = null } = {})
         firstName: record.firstName,
         lastName: record.lastName,
         mobilePhone: record.phone,
+        mfaEnabled: true,
         canAuthenticate: false,
       });
       if (!created.success) throw Object.assign(new Error(created.error || 'PingOne user creation failed'), { code: 'pingone_provision_failed' });
       user = created.user;
+    }
+    if (service.setUserMfaEnabled) {
+      const mfaEnabled = await service.setUserMfaEnabled(user.id, true);
+      if (!mfaEnabled.success) throw Object.assign(new Error(mfaEnabled.error || 'PingOne MFA enable failed'), { code: 'pingone_mfa_failed' });
     }
     if (partialGroupId) {
       const added = await service.addUserToGroup(user.id, partialGroupId);
