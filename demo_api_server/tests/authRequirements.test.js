@@ -37,6 +37,22 @@ describe('auth-requirements SoT', () => {
     }
   });
 
+  test('CIAM agent lanes use the maturity-model names and protected entry points', () => {
+    const consumer = USE_CASES.find((uc) => uc.id === 'UC43');
+    const assistant = USE_CASES.find((uc) => uc.id === 'UC44');
+
+    expect(consumer).toMatchObject({
+      title: 'Consumer & Partner Agent — CIMD registration',
+      trigger: { type: 'link', path: '/agent-builder' },
+    });
+    expect(assistant).toMatchObject({
+      title: 'Workload Agent: Digital Assistant — OBO',
+      trigger: { type: 'link', path: '/personal-agent' },
+    });
+    expect(authLevelForUseCaseId('UC43')).toBe('user');
+    expect(authLevelForUseCaseId('UC44')).toBe('user');
+  });
+
   test('admin demo steps require an admin token', () => {
     expect(authLevelForUseCaseId('ADMIN1')).toBe('admin');
   });

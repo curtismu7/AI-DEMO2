@@ -80,6 +80,7 @@ import LearningHub from "./components/LearningHub";
 import { AcademyLessonRoute, AcademyLegacyPrefixRoute } from "./routes/AcademyRoutes";
 import ShadowAiDetectorPage from "./pages/ShadowAiDetectorPage";
 import LearningProtocolLabPage from "./pages/LearningProtocolLabPage";
+import SpinnerShowcasePage from "./pages/SpinnerShowcasePage";
 import LlmConfigPage from "./components/LlmConfigPage";
 import LogoutPage from "./components/LogoutPage";
 import LoginSuccessModal from "./components/LoginSuccessModal";
@@ -167,6 +168,8 @@ import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
 import PersonalAgentStudioPage from "./pages/PersonalAgentStudioPage";
 import PersonalAgentClientWindow from "./pages/PersonalAgentClientWindow";
+import GovernanceTimelinePage from "./pages/GovernanceTimelinePage";
+import EmbeddedWorkerPage from "./pages/EmbeddedWorkerPage";
 import TransactionTraceEmbedPage from "./pages/TransactionTraceEmbedPage";
 import PingCliPage from "./components/PingCliPage";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
@@ -697,6 +700,7 @@ function AppWithAuth() {
               )}
               <Routes>
                 <Route path="/request-access" element={<HostedRegistrationPage />} />
+                <Route path="/spinner-showcase" element={<SpinnerShowcasePage />} />
                 <Route path="/hosted-registrations" element={<AdminRoute user={user}><HostedRegistrationAdminPage /></AdminRoute>} />
                 {/* /setup/* sub-routes — no auth required */}
                 <Route
@@ -707,6 +711,10 @@ function AppWithAuth() {
                 <Route
                   path="/monitoring/new-relic"
                   element={<NewRelicRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/governance-timeline"
+                  element={<GovernanceTimelinePage />}
                 />
                 {/* PingOne webhook events — public, same posture as New Relic */}
                 <Route
@@ -1353,6 +1361,14 @@ function AppWithAuth() {
                   element={
                     // Bare route for pop-out window — no nav shell.
                     <PersonalAgentClientWindow />
+                  }
+                />
+                <Route
+                  path="/embedded-worker"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <EmbeddedWorkerPage />
+                    </AppShell>
                   }
                 />
                 <Route

@@ -158,7 +158,7 @@ const UC12 = {
 const UC38 = {
   id: "UC38",
   useCaseId: "personal-agent-concierge",
-  title: "Personal Agent Concierge",
+  title: "Workload Agent: Digital Assistant — Personal Concierge",
   auth: "user",
   primaryTool: "redeem_miles",
   trigger: { type: "link", path: "/personal-agent" },

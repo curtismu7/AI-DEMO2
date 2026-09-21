@@ -7,9 +7,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ADMIN_PRIMARY_USE_CASE_IDS,
+  CIAM_AGENT_TYPE_USE_CASE_IDS,
+  DEMO_MISSION_GROUPS,
+  DEMO_MATURITY_GROUPS,
   DEMO_ADVANCED_USE_CASE_IDS,
   DEMO_PRIMARY_USE_CASE_IDS,
+  DEMO_USE_CASE_SEARCH_TERMS,
+  PRIVILEGE_USE_CASE_IDS,
 } from '../config/demoUseCaseSteps';
+import { getMissionControlGroup } from '../config/missionControlCatalog';
 import apiClient from '../services/apiClient';
 import { armTemporaryP1azFlags } from '../services/temporaryP1azFlags';
 import UseCaseExplainModal from './UseCaseExplainModal';
@@ -24,6 +30,8 @@ import {
 const RAR_QUICK_RESULT_KEY = 'rar_intent_quick_result';
 const DEMO_STEPS_DRAWER_OPEN_KEY = 'demo_steps_drawer_open_v1';
 const DEMO_STEPS_DRAWER_WIDTH_KEY = 'demo_steps_drawer_width_v1';
+const AGENT_TYPE_GROUP_ID = 'agent-types';
+const PRIVILEGE_GROUP_ID = 'privilege';
 
 export function readStoredDemoStepsOpen() {
   try {
@@ -72,6 +80,9 @@ export default function DemoStepsDropdown({
   const triggerRef = useRef(null);
   const [primarySteps, setPrimarySteps] = useState([]);
   const [advancedSteps, setAdvancedSteps] = useState([]);
+  const [ciamSteps, setCiamSteps] = useState([]);
+  const [privilegeSteps, setPrivilegeSteps] = useState([]);
+  const [activeGroup, setActiveGroup] = useState('all');
   const [rarQuickResult, setRarQuickResult] = useState(readRarQuickResult);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -109,6 +120,14 @@ export default function DemoStepsDropdown({
             .filter(Boolean);
         setPrimarySteps(mapIds(primaryIds, 0));
         setAdvancedSteps(mapIds(advancedIds, primaryIds.length));
+        const scriptedIds = new Set([...primaryIds, ...advancedIds]);
+        setCiamSteps(
+          mapIds(CIAM_AGENT_TYPE_USE_CASE_IDS, primaryIds.length + advancedIds.length)
+            .filter(({ uc }) => !scriptedIds.has(uc.id)),
+        );
+        setPrivilegeSteps(
+          mapIds(PRIVILEGE_USE_CASE_IDS, primaryIds.length + advancedIds.length + CIAM_AGENT_TYPE_USE_CASE_IDS.length),
+        );
       })
       .catch((err) => {
         if (reqId !== loadStepsReqIdRef.current) return;
@@ -120,6 +139,8 @@ export default function DemoStepsDropdown({
         }
         setPrimarySteps([]);
         setAdvancedSteps([]);
+        setCiamSteps([]);
+        setPrivilegeSteps([]);
       })
       .finally(() => {
         if (reqId === loadStepsReqIdRef.current) setLoading(false);
@@ -264,23 +285,58 @@ export default function DemoStepsDropdown({
   // Client-side filter on id + title. Progress above stays over the FULL
   // primary set — searching narrows what is shown, not what counts as done.
   const q = query.trim().toLowerCase();
+  const activeMissionGroup = DEMO_MISSION_GROUPS.find((group) => group.id === activeGroup);
+  const activeCatalogGroup = getMissionControlGroup(activeGroup);
+  const activeGroupIds = activeGroup === 'all'
+    ? null
+    : activeGroup === AGENT_TYPE_GROUP_ID
+      ? new Set(CIAM_AGENT_TYPE_USE_CASE_IDS)
+      : new Set(activeMissionGroup?.useCaseIds || DEMO_MATURITY_GROUPS.find((group) => group.id === activeGroup)?.useCaseIds || []);
+  const scopedPrimary = activeGroupIds
+    ? primarySteps.filter(({ uc }) => activeGroupIds.has(uc.id))
+    : primarySteps;
+  const scopedAdvanced = activeGroupIds
+    ? advancedSteps.filter(({ uc }) => activeGroupIds.has(uc.id))
+    : advancedSteps;
+  const ciamIds = new Set(CIAM_AGENT_TYPE_USE_CASE_IDS);
+  const scopedCiam = activeGroup === 'all' || activeGroup === AGENT_TYPE_GROUP_ID || activeMissionGroup?.useCaseIds?.some((id) => ciamIds.has(id))
+    ? ciamSteps.filter(({ uc }) => !activeGroupIds || activeGroupIds.has(uc.id))
+    : [];
+  const privilegeIds = new Set(PRIVILEGE_USE_CASE_IDS);
+  const scopedPrivilege = activeGroup === PRIVILEGE_GROUP_ID || activeMissionGroup?.useCaseIds?.some((id) => privilegeIds.has(id))
+    ? privilegeSteps.filter(({ uc }) => !activeGroupIds || activeGroupIds.has(uc.id))
+    : [];
   const matches = ({ uc }) =>
     !q ||
     uc.id.toLowerCase().includes(q) ||
-    (uc.title || '').toLowerCase().includes(q);
-  const filteredPrimary = primarySteps.filter(matches);
-  const filteredAdvanced = advancedSteps.filter(matches);
+    [
+      uc.title,
+      uc.demoLabel,
+      uc.useCaseId,
+      uc.trigger?.text,
+      uc.whatToSay,
+      uc.whatLong,
+      ...(DEMO_USE_CASE_SEARCH_TERMS[uc.id] || []),
+    ]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(q));
+  const filteredPrimary = scopedPrimary.filter(matches);
+  const filteredAdvanced = scopedAdvanced.filter(matches);
+  const ciamGroupQuery = q === 'ciam' || q === 'ciam agent' || q === 'ciam agent types';
+  const filteredCiam = ciamGroupQuery ? scopedCiam : scopedCiam.filter(matches);
+  const privilegeGroupQuery = q === 'privilege' || q === 'jit' || q === 'privileged access';
+  const filteredPrivilege = privilegeGroupQuery ? scopedPrivilege : scopedPrivilege.filter(matches);
   // A query surfaces matches regardless of the collapsed "More demos" state.
   const showAdvanced = q ? filteredAdvanced.length > 0 : advancedOpen;
   const noMatches =
-    q && filteredPrimary.length === 0 && filteredAdvanced.length === 0;
+    q && filteredPrimary.length === 0 && filteredAdvanced.length === 0 && filteredCiam.length === 0 && filteredPrivilege.length === 0;
 
   /**
    * Render one demo-step card (box style matching Actions grid).
    * @param {{ uc: object, stepNumber: number }} row
    * @param {{ markNext?: boolean }} [opts]
    */
-  function renderStep({ uc, stepNumber }, { markNext = false } = {}) {
+  function renderStep({ uc, stepNumber }, { markNext = false, testId } = {}) {
     const completed = completedIds.has(uc.id);
     const isNext = markNext && !completed && uc.id === nextPrimaryId;
     const btnClass = [
@@ -299,7 +355,7 @@ export default function DemoStepsDropdown({
           type="button"
           className={btnClass}
           onClick={() => handleSelect(uc, stepNumber)}
-          data-testid={`demo-step-${uc.id}`}
+          data-testid={testId || `demo-step-${uc.id}`}
         >
           {completed && (
             <span
@@ -538,6 +594,79 @@ export default function DemoStepsDropdown({
             </p>
           )}
           <div className="ba-demo-steps-drawer__body">
+            <div className="ba-demo-steps-popout__group-filter" role="group" aria-label="Demo step groups">
+              <button
+                type="button"
+                className="ba-demo-steps-popout__group-filter-button"
+                aria-pressed={activeGroup === 'all'}
+                data-testid="demo-steps-group-all"
+                onClick={() => setActiveGroup('all')}
+              >
+                All
+              </button>
+              {DEMO_MISSION_GROUPS.map((group) => (
+                <button
+                  key={group.id}
+                  type="button"
+                  className="ba-demo-steps-popout__group-filter-button"
+                  title={group.description}
+                  aria-pressed={activeGroup === group.id}
+                  data-testid={`demo-steps-group-${group.id}`}
+                  onClick={() => setActiveGroup(group.id)}
+                >
+                  {group.shortLabel}
+                </button>
+              ))}
+            </div>
+            {activeMissionGroup && filteredPrimary.length === 0 && filteredAdvanced.length === 0 && filteredCiam.length === 0 && filteredPrivilege.length === 0 && (
+              <div className="ba-demo-steps-popout__group-empty" data-testid="demo-steps-group-empty">
+                <strong>{activeMissionGroup.label}</strong>
+                <span>{activeMissionGroup.description}</span>
+                <small>{activeCatalogGroup?.status === 'live'
+                  ? 'The live experience is available below; use its link to run the embedded flow.'
+                  : 'This lane is a planned taxonomy entry; live steps will appear here when its flow is implemented.'}</small>
+              </div>
+            )}
+            {activeCatalogGroup && (
+              <section className="ba-demo-steps-popout__mission-links" data-testid="demo-steps-mission-links">
+                <div className="ba-demo-steps-popout__group-heading">
+                  <span>{activeCatalogGroup.product}</span>
+                  <span>{activeCatalogGroup.status === 'planned' ? 'planned lane' : 'inspect & explain'}</span>
+                </div>
+                <div className="ba-demo-steps-popout__mission-link-columns">
+                  <div>
+                    <strong>Inspectors</strong>
+                    <div className="ba-demo-steps-popout__mission-link-list">
+                      {activeCatalogGroup.inspectors.map((item) => (
+                        <a key={`${item.label}-${item.href}`} href={item.href}>
+                          {item.label}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <strong>Diagrams</strong>
+                    <div className="ba-demo-steps-popout__mission-link-list">
+                      {activeCatalogGroup.diagrams.map((item) => (
+                        <a key={`${item.label}-${item.href}`} href={item.href}>
+                          {item.label}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                  {activeCatalogGroup.routes?.length > 0 && (
+                    <div>
+                      <strong>Run</strong>
+                      <div className="ba-demo-steps-popout__mission-link-list">
+                        {activeCatalogGroup.routes.map((item) => (
+                          <a key={`${item.label}-${item.href}`} href={item.href}>{item.label}</a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
             <div className="ba-demo-steps-drawer__act-heading">
               <span>Act 1 / Establish the agent</span>
               <span>1 / 5</span>
@@ -564,6 +693,44 @@ export default function DemoStepsDropdown({
                   </ul>
                 )}
               </div>
+            )}
+            {filteredCiam.length > 0 && (
+              <section
+                className="ba-demo-steps-popout__ciam"
+                data-testid="demo-steps-ciam-group"
+              >
+                <div className="ba-demo-steps-popout__group-heading">
+                  <span>CIAM agent types</span>
+                  <span>live lanes</span>
+                </div>
+                <p className="ba-demo-steps-popout__group-intro">
+                  Run a personal, digital-assistant, or denied agent lane through the same live demo handler.
+                </p>
+                <ul className="ba-demo-steps-popout__grid">
+                  {filteredCiam.map((row) =>
+                    renderStep(row, { testId: `demo-step-ciam-${row.uc.id}` }),
+                  )}
+                </ul>
+              </section>
+            )}
+            {filteredPrivilege.length > 0 && (
+              <section
+                className="ba-demo-steps-popout__privilege"
+                data-testid="demo-steps-privilege-group"
+              >
+                <div className="ba-demo-steps-popout__group-heading">
+                  <span>Privilege & JIT Access</span>
+                  <span>temporary control</span>
+                </div>
+                <p className="ba-demo-steps-popout__group-intro">
+                  Request, approve, broker, observe, and revoke privileged agent access without standing credentials.
+                </p>
+                <ul className="ba-demo-steps-popout__grid">
+                  {filteredPrivilege.map((row) =>
+                    renderStep(row, { testId: `demo-step-privilege-${row.uc.id}` }),
+                  )}
+                </ul>
+              </section>
             )}
           </div>
         </aside>

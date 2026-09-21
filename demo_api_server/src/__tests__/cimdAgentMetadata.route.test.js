@@ -9,6 +9,16 @@
 const express = require('express');
 const request = require('supertest');
 
+jest.mock('../../services/personalAgentCimdService', () => ({
+  metadataDocument: (registrationId) => registrationId === 'reg-123' ? {
+    client_id: 'http://127.0.0.1:3001/api/cimd/personal-agents/reg-123/client-metadata.json',
+    client_name: 'Personal AI Agent - alex',
+    grant_types: ['client_credentials'],
+    scope: 'agent:invoke airlines:read airlines:write',
+    token_endpoint_auth_method: 'client_secret_basic',
+  } : null,
+}));
+
 const cimdAgentMetadataRoutes = require('../../routes/cimdAgentMetadata');
 const scopeTopology = require('../../services/scopeTopology');
 
@@ -60,6 +70,28 @@ describe('CIMD agent metadata routes', () => {
 
   test('unknown agent slug returns 404', async () => {
     const res = await request(makeApp()).get('/api/cimd/agents/no-such-agent/client-metadata.json');
+    expect(res.status).toBe(404);
+  });
+
+  test('serves a user-scoped personal-agent CIMD document without secrets', async () => {
+    const res = await request(makeApp()).get(
+      '/api/cimd/personal-agents/reg-123/client-metadata.json'
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body.client_id).toBe(
+      'http://127.0.0.1:3001/api/cimd/personal-agents/reg-123/client-metadata.json'
+    );
+    expect(res.body.grant_types).toEqual(['client_credentials']);
+    expect(res.body.scope).toContain('airlines:write');
+    expect(res.body).not.toHaveProperty('client_secret');
+  });
+
+  test('returns 404 for an unknown personal-agent registration', async () => {
+    const res = await request(makeApp()).get(
+      '/api/cimd/personal-agents/no-such-registration/client-metadata.json'
+    );
+
     expect(res.status).toBe(404);
   });
 });

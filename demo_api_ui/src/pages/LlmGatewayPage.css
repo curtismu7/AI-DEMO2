@@ -61,6 +61,7 @@
   color: var(--th-text);
   font-size: var(--font-size-sm);
   cursor: pointer;
+  text-decoration: none;
 }
 
 .lgw-theme:hover:not(:disabled) {
@@ -456,23 +457,6 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-/* Mirrors InspectorShell.css's spinner (.inspector-shell-spinner) — same
-   border-circle technique, sized and colored for this page's plain-text
-   busy line rather than a solid button. */
-.lgw-spinner {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border: 2px solid var(--th-border);
-  border-top-color: var(--th-text);
-  border-radius: 50%;
-  animation: lgw-spin 0.7s linear infinite;
-}
-
-@keyframes lgw-spin {
-  to { transform: rotate(360deg); }
 }
 
 .lgw-turn { display: flex; flex-direction: column; gap: 0.2rem; }

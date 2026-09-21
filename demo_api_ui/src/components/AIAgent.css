@@ -854,21 +854,6 @@ body > .banking-agent-float-root .banking-agent-panel {
   border-bottom: 1px solid #fde68a;
 }
 
-.ba-reconnecting__spinner {
-  display: inline-block;
-  animation: ba-spin 1s linear infinite;
-  font-size: 1rem;
-  line-height: 1;
-}
-
-@keyframes ba-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
 
 /* ─── New header (ba-header) ─────────────────────────────────────────────── */
 .ba-header {
@@ -918,6 +903,20 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: var(--th-text) !important;
   margin: 0 0 2px;
   line-height: 1.35;
+}
+
+.ba-run-context-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border: 1px solid var(--th-status-info);
+  border-radius: var(--radius-pill);
+  color: var(--th-status-info-text);
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  vertical-align: middle;
 }
 .ba-subtitle {
   font-size: var(--font-size-2xs);
@@ -6217,6 +6216,139 @@ body > .banking-agent-float-root .banking-agent-panel {
 
 .ba-demo-steps-popout__advanced-toggle:hover {
   background: rgba(65, 105, 225, 0.08);
+}
+
+.ba-demo-steps-popout__group-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.ba-demo-steps-popout__group-filter-button {
+  border: 1px solid var(--ba-border, var(--th-border));
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: var(--th-text-muted);
+  background: var(--th-bg-inset);
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ba-demo-steps-popout__group-filter-button:hover,
+.ba-demo-steps-popout__group-filter-button[aria-pressed="true"] {
+  border-color: var(--signin-accent, #6366f1);
+  color: var(--signin-accent, #6366f1);
+  background: color-mix(in srgb, var(--signin-accent, #6366f1) 10%, transparent);
+}
+
+.ba-demo-steps-popout__group-filter-button--ciam[aria-pressed="true"] {
+  border-color: var(--th-status-info, #2563eb);
+  color: var(--th-status-info, #2563eb);
+}
+
+.ba-demo-steps-popout__group-filter-button--privilege[aria-pressed="true"] {
+  border-color: var(--th-status-warning, #b45309);
+  color: var(--th-status-warning, #b45309);
+}
+
+.ba-demo-steps-popout__group-empty {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 14px;
+  border: 1px dashed var(--ba-border, var(--th-border));
+  border-radius: 10px;
+  padding: 12px;
+  color: var(--th-text-muted);
+  background: var(--th-bg-inset);
+  font-size: var(--font-size-2xs);
+}
+
+.ba-demo-steps-popout__group-empty strong {
+  color: var(--th-text);
+}
+
+.ba-demo-steps-popout__group-empty small {
+  font-size: var(--font-size-3xs);
+}
+
+.ba-demo-steps-popout__mission-links {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 14px;
+  border: 1px solid color-mix(in srgb, var(--signin-accent, #6366f1) 28%, var(--ba-border, var(--th-border)));
+  border-radius: 10px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--signin-accent, #6366f1) 4%, transparent);
+}
+
+.ba-demo-steps-popout__mission-link-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ba-demo-steps-popout__mission-link-columns strong {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-3xs);
+  text-transform: uppercase;
+}
+
+.ba-demo-steps-popout__mission-link-list {
+  display: grid;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.ba-demo-steps-popout__mission-link-list a {
+  color: var(--signin-accent, #6366f1);
+  font-size: var(--font-size-3xs);
+  text-decoration: none;
+}
+
+.ba-demo-steps-popout__mission-link-list a:hover {
+  text-decoration: underline;
+}
+
+.ba-demo-steps-popout__ciam {
+  margin-top: 18px;
+  border: 1px solid color-mix(in srgb, var(--signin-accent, #6366f1) 38%, var(--ba-border, var(--th-border)));
+  border-radius: 10px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--signin-accent, #6366f1) 6%, transparent);
+}
+
+.ba-demo-steps-popout__privilege {
+  margin-top: 18px;
+  border: 1px solid color-mix(in srgb, var(--th-status-warning, #b45309) 38%, var(--ba-border, var(--th-border)));
+  border-radius: 10px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--th-status-warning, #b45309) 6%, transparent);
+}
+
+.ba-demo-steps-popout__group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--ba-text, var(--th-text));
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.ba-demo-steps-popout__group-heading span:last-child {
+  color: var(--signin-accent, #6366f1);
+  font-size: var(--font-size-3xs);
+}
+
+.ba-demo-steps-popout__group-intro {
+  margin: 5px 0 9px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-3xs);
+  line-height: 1.45;
 }
 
 .ba-demo-steps-popout__title {

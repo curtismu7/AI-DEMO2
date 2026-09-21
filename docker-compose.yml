@@ -809,6 +809,7 @@ services:
         # is static nginx, so Vite must inline the value during `npm run build`.
         REACT_APP_POSTHOG_KEY: ${REACT_APP_POSTHOG_KEY:-}
         REACT_APP_POSTHOG_HOST: ${REACT_APP_POSTHOG_HOST:-}
+        REACT_APP_KIBANA_URL: ${REACT_APP_KIBANA_URL:-http://localhost:4180}
     container_name: ai-demo-ui
     ports:
       # Container listens on 4000 in both modes — nginx (production stage,

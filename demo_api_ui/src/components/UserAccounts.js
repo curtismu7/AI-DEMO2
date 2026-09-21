@@ -78,18 +78,6 @@ export default function UserAccounts({ user }) {
             min-height: 400px;
             gap: 1rem;
           }
-          .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid #f3f4f6;
-            border-top: 3px solid #4f46e5;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-          }
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
         `}</style>
       </div>
     );

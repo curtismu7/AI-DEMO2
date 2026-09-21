@@ -1907,6 +1907,7 @@ app.use('/api/security', securityMonitoringRoutes);
 const demoProvisioningRoutes = require('./routes/demoProvisioning');
 app.use('/api/demo', express.json(), demoProvisioningRoutes);
 app.use('/api/agent-builder', express.json(), require('./routes/agentBuilder')); // AgentBuilderPage — self-service per-user agent identity
+app.use('/api/embedded-worker', express.json(), require('./routes/embeddedWorker'));
 
 const demoAttackSeedsRoutes = require('./routes/demoAttackSeeds');
 app.use('/api/demo/attacks', express.json(), demoAttackSeedsRoutes);

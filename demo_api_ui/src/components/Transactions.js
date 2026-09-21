@@ -8,6 +8,7 @@ import { navigateToAdminOAuthLogin } from '../utils/authUi';
 import AdminSubPageShell from './AdminSubPageShell';
 import PageNav from './PageNav';
 import { useSortableTable, SortableTh, dateOf } from '../hooks/useSortableTable';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 
 // Transactions never get an updatedAt from the data layer, so "latest update" is the Date column.
 const TRANSACTION_SORT_ACCESSORS = {
@@ -80,8 +81,8 @@ const Transactions = ({ user, onLogout }) => {
   if (loading && transactions.length === 0) {
     return (
       <AdminSubPageShell title="Transactions" lead="Review transfers, deposits, and withdrawals.">
-        <div className="loading">
-          <div>Loading transactions...</div>
+        <div className="loading" role="status" aria-live="polite">
+          <PingIdentitySpinner size={32} label="Loading transactions…" />
         </div>
       </AdminSubPageShell>
     );

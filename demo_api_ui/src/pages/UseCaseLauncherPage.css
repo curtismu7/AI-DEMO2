@@ -147,6 +147,24 @@
   gap: 1rem;
 }
 
+.uc-track--ciam-agent-types {
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--signin-accent) 35%, var(--color-border, #e0e0e0));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--signin-accent) 5%, var(--color-surface, #fff));
+}
+
+.uc-track--ciam-agent-types .uc-track__heading {
+  border-bottom-color: var(--signin-accent);
+}
+
+.uc-track__intro {
+  margin: -0.35rem 0 1rem;
+  color: var(--color-text-secondary, #555);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .uc-track--happy-path .uc-track__heading {
   border-bottom-color: var(--signin-accent);
 }

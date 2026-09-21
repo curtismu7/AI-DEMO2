@@ -3,6 +3,7 @@ import bffAxios from '../services/bffAxios';
 import { resolveApiBaseUrl } from '../utils/resolveApiBaseUrl';
 import { navigateToCustomerOAuthLogin } from '../utils/authUi';
 import './RunReportPage.css';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 
 // Canned prompts per vertical — chosen to exercise the full auth → token-exchange
 // → MCP tool call pipeline so every step appears in the generated report.
@@ -239,7 +240,9 @@ export default function RunReportPage({ user }) {
       </header>
 
       {loading || demoRunning ? (
-        <div className="loading">{demoRunning ? 'Running demo flow…' : 'Loading history…'}</div>
+        <div className="loading" role="status" aria-live="polite">
+          <PingIdentitySpinner size={32} label={demoRunning ? 'Running demo flow…' : 'Loading history…'} />
+        </div>
       ) : runs.length === 0 ? (
         <div className="empty-state">
           <p>No reports yet. Click <strong>Run Demo Flow</strong> above to generate your first report.</p>

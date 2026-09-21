@@ -189,7 +189,7 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
     // registration), not intent-layer. If either fails we return immediately
     // without running the agent, so we don't burn LLM calls on an invalid setup.
     const requestedUseCaseId = typeof req.body?.useCaseId === 'string' ? req.body.useCaseId.trim() : null;
-    if (requestedUseCaseId === 'personal-agent-concierge') {
+    if (requestedUseCaseId === 'personal-agent-concierge' || requestedUseCaseId === 'workload-digital-assistant-obo' || requestedUseCaseId === 'saas-embedded-worker') {
       if (!req.user) {
         return res.status(401).json({ error: 'authentication_required', message: 'Sign in to use the personal agent concierge.' });
       }
@@ -215,9 +215,10 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
       }
 
       // Require a registered personal agent.
+      const agentType = requestedUseCaseId === 'saas-embedded-worker' ? 'saas-embedded-worker' : 'personal';
       let personalAgent = null;
       try {
-        personalAgent = req.session?.user ? await agentBuilderService.getAgentForUser(req.session.user) : null;
+        personalAgent = req.session?.user ? await agentBuilderService.getAgentForUser(req.session.user, agentType) : null;
       } catch (_err) {
         // Treat lookup failure as unregistered rather than a hard 502.
         personalAgent = null;
@@ -236,18 +237,27 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
         });
       }
 
+      // CIMD is a mocked registration facade. Retry a pending/failed facade
+      // record on agent use, but never let that optional evidence path block
+      // the real PingOne-backed delegation below.
+      try {
+        await agentBuilderService.ensurePersonalAgentCimd(req.session.user, personalAgent, { agentType });
+      } catch (err) {
+        console.warn('[agentInvokeRoute] CIMD retry failed:', err?.message || String(err));
+      }
+
       // Surface the personal agent identity in the Flow Inspector.
       req.tokenEvents.push(buildTokenEvent(
         'personal-agent-lookup',
-        `Personal Agent — ${personalAgent.name} (${personalAgent.type}) registered`,
+        `${agentType === 'saas-embedded-worker' ? 'Website Worker' : 'Personal Agent'} — ${personalAgent.name} (${personalAgent.type}) registered`,
         'active',
         null,
-        `BFF verified that a personal agent "${personalAgent.name}" (PingOne application ${personalAgent.id}) is registered for this user. ` +
+        `BFF verified that a ${agentType === 'saas-embedded-worker' ? 'website worker' : 'personal agent'} "${personalAgent.name}" (PingOne application ${personalAgent.id}) is registered for this user. ` +
           'The agent\'s scope grants were configured on the Agent Builder page. RFC 8693 token exchange will mint a delegated token with sub=user and act=agent, \'  ' +
           'scoped to airlines:read airlines:write — giving the agent authority to act on the premium flyer account on the user\'s behalf.',
         { agentId: personalAgent.id, agentName: personalAgent.name, agentType: personalAgent.type },
       ));
-      appEventService.logEvent('personal_agent', 'info', `UC38: personal agent "${personalAgent.name}" verified`,
+      appEventService.logEvent('personal_agent', 'info', `${requestedUseCaseId}: ${agentType === 'saas-embedded-worker' ? 'website worker' : 'personal agent'} "${personalAgent.name}" verified`,
         { tag: 'personal_agent/verified', metadata: { userId, agentId: personalAgent.id } });
     }
     // ─────────────────────────────────────────────────────────────────────────

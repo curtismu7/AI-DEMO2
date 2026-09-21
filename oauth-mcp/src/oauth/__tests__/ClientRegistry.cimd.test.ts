@@ -51,7 +51,7 @@ describe('Client ID Metadata Document resolution', () => {
 
     const client = await fetchClientIdMetadataDocument(CIMD_URL);
 
-    expect(client!.scope).toBe('mcp:invoke read');
+    expect(client!.scope).toBe('mcp:invoke read openid');
   });
 
   it('rejects a document whose client_id does not match the URL it came from', async () => {

@@ -7,7 +7,12 @@ import path from 'node:path';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import DemoStepsDropdown from '../DemoStepsDropdown';
 import apiClient from '../../services/apiClient';
-import { DEMO_USE_CASE_IDS, ADMIN_PRIMARY_USE_CASE_IDS } from '../../config/demoUseCaseSteps';
+import {
+  CIAM_AGENT_TYPE_USE_CASE_IDS,
+  PRIVILEGE_USE_CASE_IDS,
+  DEMO_USE_CASE_IDS,
+  ADMIN_PRIMARY_USE_CASE_IDS,
+} from '../../config/demoUseCaseSteps';
 import { armTemporaryP1azFlags } from '../../services/temporaryP1azFlags';
 
 vi.mock('../../services/apiClient', () => ({
@@ -170,6 +175,69 @@ describe('DemoStepsDropdown', () => {
       'Explain step 9: UC2 — Title for UC2',
     );
     expect(screen.getByTestId('demo-step-UC-TOOL1')).toBeInTheDocument();
+  });
+
+  it('shows the CIAM agent-type group as live demo chips', async () => {
+    const ciamCatalog = [
+      ...CATALOG,
+      ...CIAM_AGENT_TYPE_USE_CASE_IDS
+        .filter((id) => !DEMO_USE_CASE_IDS.includes(id))
+        .map((id) => ({
+          id,
+          title: `CIAM title for ${id}`,
+          trigger: { type: 'chip', text: `CIAM prompt for ${id}` },
+        })),
+    ];
+    apiClient.get.mockResolvedValueOnce({ data: { useCases: ciamCatalog } });
+    const onSelect = vi.fn();
+
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={onSelect}
+      />,
+    );
+
+    expect(await screen.findByTestId('demo-steps-ciam-group')).toBeInTheDocument();
+    expect(screen.getByText('CIAM agent types')).toBeInTheDocument();
+    expect(screen.getByTestId('demo-step-ciam-UC43')).toHaveTextContent('CIAM title for UC43');
+    expect(screen.getByTestId('demo-step-ciam-UC44')).toHaveTextContent('CIAM title for UC44');
+    expect(screen.getByTestId('demo-step-ciam-UC2.6')).toHaveTextContent('CIAM title for UC2.6');
+
+    fireEvent.click(screen.getByTestId('demo-step-ciam-UC44'));
+    expect(onSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'UC44' }),
+      expect.any(Number),
+      undefined,
+    );
+  });
+
+  it('keeps the 13 Mission Control groups visible and scopes Personal Agent in one click', async () => {
+    const ciamCatalog = [
+      ...CATALOG,
+      ...CIAM_AGENT_TYPE_USE_CASE_IDS
+        .filter((id) => !DEMO_USE_CASE_IDS.includes(id))
+        .map((id) => ({
+          id,
+          title: `CIAM title for ${id}`,
+          trigger: { type: 'chip', text: `CIAM prompt for ${id}` },
+        })),
+    ];
+    apiClient.get.mockResolvedValueOnce({ data: { useCases: ciamCatalog } });
+
+    render(<DemoStepsDropdown open onOpenChange={() => {}} onSelect={() => {}} />);
+
+    expect(await screen.findByTestId('demo-steps-group-personal-agent')).toBeInTheDocument();
+    expect(screen.getAllByTestId(/^demo-steps-group-/)).toHaveLength(14);
+    fireEvent.click(screen.getByTestId('demo-steps-group-personal-agent'));
+
+    expect(screen.getByTestId('demo-step-ciam-UC43')).toBeInTheDocument();
+    expect(screen.getByTestId('demo-step-ciam-UC44')).toBeInTheDocument();
+    expect(screen.getByTestId('demo-step-UC38')).toBeInTheDocument();
+    expect(screen.queryByTestId('demo-step-UC24')).not.toBeInTheDocument();
+    expect(screen.getByTestId('demo-steps-mission-links')).toHaveTextContent('Agent Onboarding Flow');
+    expect(screen.getByTestId('demo-steps-mission-links')).toHaveTextContent('Agent Registry & NHI');
   });
 
   it('uses the MCP App demo label for the selected transfer approval step', async () => {
@@ -335,6 +403,83 @@ describe('DemoStepsDropdown — search', () => {
     expect(shown.map((el) => el.getAttribute('data-testid'))).toEqual([
       'demo-step-UC13',
     ]);
+  });
+
+  it('filters on presenter-friendly use-case terms', async () => {
+    render(
+      <DemoStepsDropdown open onOpenChange={() => {}} onSelect={() => {}} />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument());
+
+    fireEvent.change(screen.getByTestId('demo-steps-search'), {
+      target: { value: 'mfa' },
+    });
+
+    expect(screen.getByTestId('demo-step-UC7')).toBeInTheDocument();
+    expect(screen.queryByTestId('demo-step-UC1')).not.toBeInTheDocument();
+  });
+
+  it('filters the live script by maturity-model group', async () => {
+    render(
+      <DemoStepsDropdown open onOpenChange={() => {}} onSelect={() => {}} />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId('demo-steps-group-authorize'));
+
+    expect(screen.getByTestId('demo-step-UC6')).toBeInTheDocument();
+    expect(screen.getByTestId('demo-step-UC14')).toBeInTheDocument();
+    expect(screen.queryByTestId('demo-step-UC1')).not.toBeInTheDocument();
+    expect(screen.getByTestId('demo-steps-group-authorize')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('shows the Privilege & JIT Access group from the shared catalog', async () => {
+    const privilegeCatalog = [
+      ...CATALOG,
+      ...PRIVILEGE_USE_CASE_IDS
+        .filter((id) => !DEMO_USE_CASE_IDS.includes(id))
+        .map((id) => ({
+          id,
+          title: `Privilege lane ${id}`,
+          trigger: { type: 'link', text: `Open Privilege ${id}` },
+        })),
+    ];
+    apiClient.get.mockResolvedValueOnce({ data: { useCases: privilegeCatalog } });
+
+    render(
+      <DemoStepsDropdown open onOpenChange={() => {}} onSelect={() => {}} />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId('demo-steps-group-privilege'));
+
+    expect(screen.getByTestId('demo-steps-privilege-group')).toBeInTheDocument();
+    expect(screen.getByTestId('demo-step-privilege-UC17')).toBeInTheDocument();
+    expect(screen.getByTestId('demo-step-privilege-UC-PAM-SCRIPT')).toBeInTheDocument();
+    expect(screen.queryByTestId('demo-step-UC1')).not.toBeInTheDocument();
+  });
+
+  it('finds the CIAM group when searching for its group label', async () => {
+    const ciamCatalog = [
+      ...CATALOG,
+      ...CIAM_AGENT_TYPE_USE_CASE_IDS
+        .filter((id) => !DEMO_USE_CASE_IDS.includes(id))
+        .map((id) => ({ id, title: `Agent lane ${id}` })),
+    ];
+    apiClient.get.mockResolvedValueOnce({ data: { useCases: ciamCatalog } });
+
+    render(
+      <DemoStepsDropdown open onOpenChange={() => {}} onSelect={() => {}} />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-step-ciam-UC43')).toBeInTheDocument());
+
+    fireEvent.change(screen.getByTestId('demo-steps-search'), {
+      target: { value: 'ciam' },
+    });
+
+    expect(screen.getByTestId('demo-steps-ciam-group')).toBeInTheDocument();
+    expect(screen.getByTestId('demo-step-ciam-UC43')).toBeInTheDocument();
+    expect(screen.queryByTestId('demo-step-UC1')).not.toBeInTheDocument();
   });
 
   it('shows a no-match message and clears back to the full list', async () => {

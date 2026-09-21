@@ -27,6 +27,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useSessionToken } from '../context/SessionTokenContext';
 import { useEventStream } from "../context/EventStreamContext";
 import EventStreamPanel from "./EventStreamPanel";
+import PingIdentitySpinner from "./shared/PingIdentitySpinner";
 
 import ApiCallsModal from "./ApiCallsModal";
 
@@ -417,7 +418,7 @@ const Dashboard = ({ user, onLogout }) => {
   if (loading) {
     return (
       <div className="loading" role="status" aria-live="polite">
-        <div>Loading dashboard…</div>
+        <PingIdentitySpinner size={40} label="Loading dashboard…" />
       </div>
     );
   }

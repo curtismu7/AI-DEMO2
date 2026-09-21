@@ -411,20 +411,6 @@
   color: #134e4a;
 }
 
-.cimd-spinner {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--th-border);
-  border-top: 2px solid #0d9488;
-  border-radius: 50%;
-  animation: cimd-spin 0.75s linear infinite;
-  flex-shrink: 0;
-}
-
-@keyframes cimd-spin {
-  to { transform: rotate(360deg); }
-}
-
 /* Validation checks */
 .cimd-checks {
   display: flex;
