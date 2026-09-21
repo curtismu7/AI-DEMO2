@@ -70,8 +70,8 @@ describe('buildA2aChainDetail', () => {
     expect(d.present).toBe(true);
     expect(d.specialist).toBe('Investment Advisor');
     expect(d.tool).toBe('get_portfolio_summary');
-    expect(d.diagramLines.some((l) => l.includes('Agent 1'))).toBe(true);
-    expect(d.diagramLines.some((l) => l.includes('Agent 2'))).toBe(true);
+    expect(d.diagramLines.some((l) => l.includes('Banking Agent'))).toBe(true);
+    expect(d.diagramLines.some((l) => l.includes('Specialist agent'))).toBe(true);
     expect(d.diagramLines.some((l) => l.includes('Agent Card'))).toBe(true);
     expect(d.hops).toHaveLength(4);
     expect(d.hops[0].request.grant_type).toBe('client_credentials');

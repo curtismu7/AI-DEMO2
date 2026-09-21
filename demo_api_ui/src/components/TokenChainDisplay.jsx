@@ -27,6 +27,7 @@ import { PingProductChip, PingProductLegend } from './PingProductChip';
 import { productForEvent } from '../utils/pingProducts';
 import { clientAuthMethodLabel } from '../utils/clientAuthMethod';
 import { buildA2aChainDetail } from '../utils/a2aChainDetail';
+import { AGENT_ROLES, PRIMARY_AGENT } from '../config/agentTerminology';
 import "../styles/draggablePanel.css";
 
 const FETCH_COOLDOWN_MS = 5000; // Don't fetch more than once per 5 seconds
@@ -1651,8 +1652,8 @@ function A2aDelegationEduBox({ event }) {
         <div className="tcd-edu-body">
           <p>
             {event.a2aRole === 'agent1-actor'
-              ? 'Generalist agent (Agent 1) authenticates as itself via client credentials. This actor token will be presented in Exchange #1 to build the delegation chain.'
-              : 'Specialist agent (Agent 2) authenticates as itself via client credentials. This actor token will be presented in Exchange #2 to nest a second actor in the chain.'}
+              ? `${PRIMARY_AGENT.displayName}, the ${AGENT_ROLES.generalist}, authenticates as itself via client credentials. This actor token will be presented in Exchange #1 to build the delegation chain.`
+              : `${AGENT_ROLES.specialist} authenticates as itself via client credentials. This actor token will be presented in Exchange #2 to nest a second actor in the chain.`}
           </p>
           {event.vertical && (
             <ul className="tcd-edu-checklist">
@@ -1723,8 +1724,8 @@ function A2aDelegationEduBox({ event }) {
         <div className="tcd-edu-body">
           <p>
             {isExchange1
-              ? 'User access token is exchanged with Agent 1’s actor token. Subject remains the user; act names Agent 1.'
-              : 'Agent 1’s delegated token is exchanged with Agent 2’s actor token, nesting the act chain.'}
+              ? `User access token is exchanged with ${PRIMARY_AGENT.displayName}’s actor token. Subject remains the user; act names the ${AGENT_ROLES.generalist}.`
+              : `${PRIMARY_AGENT.displayName}’s delegated token is exchanged with the ${AGENT_ROLES.specialist}’s actor token, nesting the act chain.`}
           </p>
         </div>
       </div>
@@ -1749,7 +1750,7 @@ function A2aChainOverview({ chainEvents }) {
         <div className="tcd-edu-box tcd-edu-box--ok">
           <div className="tcd-edu-box-hd">
             <span className="tcd-edu-icon">✅</span>
-            <strong>Main agent called a specialist agent</strong>
+            <strong>{PRIMARY_AGENT.displayName} called a {AGENT_ROLES.specialist}</strong>
           </div>
           <div className="tcd-edu-body">
             <ul className="tcd-edu-checklist">
@@ -1876,7 +1877,7 @@ function A2aHandoffChip({ events, onOpen }) {
       aria-haspopup="dialog"
     >
       <span className="tcd-a2a-chip__state">{state === "complete" ? "A2A complete" : state === "failed" ? "A2A failed" : "A2A in progress"}</span>
-      <span className="tcd-a2a-chip__call">Main agent called {specialist}</span>
+      <span className="tcd-a2a-chip__call">{PRIMARY_AGENT.displayName} called {specialist}</span>
       <span className="tcd-a2a-chip__toggle">View handoff</span>
     </button>
   );
@@ -3042,9 +3043,9 @@ const STEP_SUB_LABELS = {
   "resource-server-reply": "API Reply",
   "mcp-tool-result": "Tool Result",
   // A2A-specific event labels
-  "a2a-agent1-actor": "A2A Agent 1 Actor",
+  "a2a-agent1-actor": "A2A Generalist Agent Actor",
   "a2a-exchange1": "A2A Exchange #1",
-  "a2a-agent2-actor": "A2A Agent 2 Actor",
+  "a2a-agent2-actor": "A2A Specialist Agent Actor",
   "a2a-exchange2": "A2A Exchange #2 (Nested Act)",
   "a2a-exchange-failed": "A2A Delegation Failed",
   "a2a-protocol-bearer": "A2A Protocol Bearer",

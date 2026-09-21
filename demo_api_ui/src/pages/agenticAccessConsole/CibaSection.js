@@ -18,9 +18,9 @@ const AGENT_CARD_EXAMPLE = `{
 }`;
 
 const CIBA_APPROVALS = [
-  { agent: "BankingAssistant", action: "create_transfer $4,200", message: "Approve $4,200 transfer to Alex R.?", status: "APPROVED", approver: "self" },
+  { agent: "Banking Agent", action: "create_transfer $4,200", message: "Approve $4,200 transfer to Alex R.?", status: "APPROVED", approver: "self" },
   { agent: "Banking Agent", action: "create_transfer $12,500", message: "exceeds standing limit", status: "PENDING", approver: "manager (delegationService)" },
-  { agent: "langchain_agent", action: "create_withdrawal $900", message: "Approve $900 withdrawal?", status: "DENIED", approver: "self" },
+  { agent: "Banking Agent", action: "create_withdrawal $900", message: "Approve $900 withdrawal?", status: "DENIED", approver: "self" },
 ];
 
 function AppStatusBadge({ status }) {
@@ -127,8 +127,8 @@ export default function CibaSection({ user }) {
         </p>
         <pre className="aac-prompt-block">{AGENT_CARD_EXAMPLE}</pre>
         <p className="aac-card-body" style={{ marginTop: 10 }}>
-          Banking Assistant (Agent 1, generalist) delegates (scope <code>invest:read</code>)
-          to Investment Advisor (Agent 2, specialist).
+          Banking Agent (generalist) delegates (scope <code>invest:read</code>)
+          to Investment Advisor (specialist agent).
         </p>
         <div className="aac-chip-row">
           <span className="aac-badge aac-badge--neutral">UC2 — base nested-act chain</span>

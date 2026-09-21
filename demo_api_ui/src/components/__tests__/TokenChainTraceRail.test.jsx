@@ -234,7 +234,7 @@ test("Live A2A chain shows the main and specialist agents as distinct steps", ()
   ];
 
   const a2aSteps = buildA2aTokenChainSteps(tokenEvents);
-  expect(a2aSteps.some((step) => step.title.includes("Main agent — main-agent · client_credentials"))).toBe(true);
+  expect(a2aSteps.some((step) => step.title.includes("Banking Agent · Generalist agent — main-agent · client_credentials"))).toBe(true);
   expect(a2aSteps.some((step) => step.title.includes("Specialist agent — Investment Advisor · client_credentials"))).toBe(true);
   expect(a2aSteps.some((step) => step.title.includes("POST message/send → result/toolError"))).toBe(true);
 

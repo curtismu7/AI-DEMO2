@@ -40,8 +40,8 @@ export const DEMO_SCRIPT = {
           what:
             "Generalist agent hands the job to a specialist agent — delegation across a second hop.",
           expected:
-            "PERMIT; rail shows a nested act chain - user, then Agent 1, then Agent 2 - scope narrowed at each hop",
-          say: "The generalist agent hands the job to a specialist. Watch the token chain - a second exchange nests the act claim: Agent 2 acts for Agent 1, which acts for me. The whole delegation is provable, and each hop gets less scope, not more.",
+            "PERMIT; rail shows a nested act chain - user, then the Banking Agent generalist, then a specialist agent - scope narrowed at each hop",
+          say: "The Banking Agent generalist hands the job to a specialist. Watch the token chain - a second exchange nests the act claim: the specialist acts for the Banking Agent, which acts for me. The whole delegation is provable, and each hop gets less scope, not more.",
         },
         {
           ucId: "UC24",

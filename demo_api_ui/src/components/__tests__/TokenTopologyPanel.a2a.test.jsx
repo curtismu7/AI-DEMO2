@@ -33,8 +33,8 @@ describe('buildA2aTopology', () => {
     ]);
 
     expect(topology.identity.map((node) => node.name)).toEqual([
-      'Main agent · main-agent',
-      'Exchange #1 · user + main actor',
+      'Banking Agent · Generalist agent',
+      'Exchange #1 · user + Generalist agent',
       'Exchange #2 · nested specialist delegation',
     ]);
     expect(topology.wire.map((node) => node.name)).toEqual([
