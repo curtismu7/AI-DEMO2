@@ -3,6 +3,8 @@ import { useThemeOptional } from '../context/ThemeContext';
 import { useAgentGatewayInspector } from '../hooks/useAgentGatewayInspector';
 import { useInspectorFields } from '../context/InspectorFieldContext';
 import NeuralSpinner from './shared/NeuralSpinner';
+import JsonFormView from './shared/JsonFormView';
+import JsonHighlight from './shared/JsonHighlight';
 import './AgentGatewayInspectorClean.css';
 
 export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
@@ -70,6 +72,7 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
   const [paramsText, setParamsText] = useState(() => JSON.stringify(parameters, null, 2));
   const [paramsError, setParamsError] = useState(false);
   const [outputFontSize, setOutputFontSize] = useState(13);
+  const [responseView, setResponseView] = useState('form');
 
   // Re-sync the text only when parameters change from outside the textarea
   // (tool switch, reel restore) — not on every keystroke's parse round-trip.
@@ -78,8 +81,6 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
     setParamsError(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTool, activeReelId]);
-
-  const highlightJSON = (json) => json.replace(/"([^"]+)":/g, '<span style="color: #0066cc;">\"$1\"</span>:').replace(/: "([^"]+)"/g, ': <span style="color: #009900;">\"$1\"</span>').replace(/: (\d+)/g, ': <span style="color: #cc6600;">$1</span>').replace(/: (true|false)/g, ': <span style="color: #993399;">$1</span>').replace(/: null/g, ': <span style="color: #666666;">null</span>');
 
   return (
     <div className="inspector-clean-page">
@@ -286,7 +287,33 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                 )}
 
                 {result && outputTab === 'response' && (
-                  <pre dangerouslySetInnerHTML={{ __html: highlightJSON(JSON.stringify(result.response || result, null, 2)) }} />
+                  <>
+                    <div className="inspector-clean-view-toggle" role="group" aria-label="Response view">
+                      <button
+                        type="button"
+                        className={responseView === 'form' ? 'active' : ''}
+                        aria-pressed={responseView === 'form'}
+                        onClick={() => setResponseView('form')}
+                      >
+                        Form
+                      </button>
+                      <button
+                        type="button"
+                        className={responseView === 'json' ? 'active' : ''}
+                        aria-pressed={responseView === 'json'}
+                        onClick={() => setResponseView('json')}
+                      >
+                        JSON
+                      </button>
+                    </div>
+                    {responseView === 'form' ? (
+                      <JsonFormView value={result.response || result} />
+                    ) : (
+                      <pre className={theme.darkMode ? 'jh-dark' : ''}>
+                        <JsonHighlight value={result.response || result} deep />
+                      </pre>
+                    )}
+                  </>
                 )}
 
                 {result && outputTab === 'request' && (
