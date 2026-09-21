@@ -218,7 +218,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
       renderNavAsUser(customerUser);
-      fireEvent.click(screen.getByRole("button", { name: /^MCP & Gateways/ }));
+      fireEvent.click(screen.getByRole("button", { name: /^MCP & Integrations/ }));
 
       expect(errorSpy).not.toHaveBeenCalledWith(
         expect.stringContaining("Encountered two children with the same key"),
