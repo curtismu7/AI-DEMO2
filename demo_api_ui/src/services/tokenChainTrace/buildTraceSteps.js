@@ -15,7 +15,7 @@ const LANES = {
   // A live intent-binding run pushes its authorization_details to PingOne first.
   "par-push": "PINGONE", "request-uri": "PINGONE",
   "intent-binding": "AUTHZ",
-  gateway: "GATEWAY", "vault-key-inject": "VAULT", "api-key-swap": "GATEWAY",
+  gateway: "GATEWAY", "p1az-resolver": "DATA", "vault-key-inject": "VAULT", "api-key-swap": "GATEWAY",
   "tools-call-challenge": "MCP", mcp: "MCP", api: "API",
   database: "DATA", reply: "LLM",
 };
@@ -77,6 +77,7 @@ const TITLES = {
   "par-push": "PAR push — authorization_details to PingOne",
   "request-uri": "request_uri issued by PingOne",
   "intent-binding": "Intent Binding Check",
+  "p1az-resolver": "P1AZ Resolver → SQLite account context",
   gateway: "Agent Gateway — token validated",
   "vault-key-inject": "Vault — route-bound API key",
   "api-key-swap": "API-key path — credential swap",
@@ -109,6 +110,7 @@ const NARRATIVES = {
   "par-push": "The BFF pushes the authorization_details to PingOne's PAR endpoint over the back channel (RFC 9126), so the browser never carries them.",
   "request-uri": "PingOne stores the pushed request and returns a request_uri that points at it. It does not check the amount; the intent cap is enforced afterwards.",
   "intent-binding": "Verifies the requested transfer against the declared RFC 9396 authorization_details cap.",
+  "p1az-resolver": "PingOne Authorize called the private account-context resolver. The resolver queried SQLite for the selected account and returned the attributes used by policy.",
   gateway: "Ping Agent Gateway checks the delegated token before anything reaches the MCP server: introspection, audience binding, scope, delegation chain.",
   "vault-key-inject": "The gateway asks the BFF's internal vault bridge for the API key bound to this tool route. The key stays server-side and is shown only as a masked value in the trace.",
   "api-key-swap": "Path A (api_key): the gateway drops the OAuth bearer and attaches a service API key (X-API-Key + X-User-Sub). The user's bearer never reaches the downstream service.",
@@ -266,6 +268,12 @@ const STEP_SPEC = {
     mandate: "No IETF RFC governs the decision itself; this is attribute-based access control, whose model XACML 3.0 formalizes. The enforcement point never decides — it submits attributes (subject, actor, action, resource, context) to a decision point and obeys the verdict, which is PERMIT, DENY or INDETERMINATE, optionally carrying obligations.",
     why: "Policy runs before the tool, not inside it. Amount caps, actor checks and step-up demands live in one place a security team can change without redeploying the agent or the MCP server — and the decision id makes each verdict individually auditable.",
     failure: "Evaluating the wrong policy is invisible from the outside: a DENY proves the engine answered, not that YOUR rule fired. Always reconcile decisionContext and the decision id against the rule you expected to trigger.",
+  },
+  "p1az-resolver": {
+    refs: [],
+    mandate: "The policy decision may use external attributes, but the policy point must receive them through a controlled service boundary rather than trusting caller-supplied risk or balance values.",
+    why: "The resolver keeps account context private in SQLite and returns only the selected account's attributes to the P1AZ policy evaluation. The agent and browser never query this database directly.",
+    failure: "Treating account context in the request as authoritative. A caller can change a request parameter; the resolver must look up the account by user and account id before policy evaluates it.",
   },
   stepup: {
     refs: [
@@ -1412,6 +1420,31 @@ export function buildTraceSteps(trace) {
   // introspection not enabled). That alone must not count as "seen" — only
   // real activity does.
   const gwAz = findEvent(tokenEvents, "gw-authorize");
+  const resolverEvidence = gwAz?.resolver || null;
+  if (resolverEvidence) {
+    const resolverStatus = resolverEvidence.status === "error"
+      ? "error"
+      : resolverEvidence.status === "resolved"
+        ? "done"
+        : traceComplete
+          ? "notinpath"
+          : "active";
+    const balance = resolverEvidence.balance != null
+      ? `${resolverEvidence.balance}${resolverEvidence.currency ? ` ${resolverEvidence.currency}` : ""}`
+      : null;
+    steps.push(makeStep("p1az-resolver", resolverStatus, {
+      kv: [
+        resolverEvidence.userId ? ["user", String(resolverEvidence.userId)] : null,
+        resolverEvidence.accountId ? ["account", String(resolverEvidence.accountId)] : null,
+        resolverEvidence.riskTier ? ["risk tier", String(resolverEvidence.riskTier)] : null,
+        balance ? ["balance", balance] : null,
+        resolverEvidence.source ? ["source", SQL_SOURCE_LABELS[String(resolverEvidence.source).toLowerCase()] || String(resolverEvidence.source)] : null,
+      ].filter(Boolean),
+      response: resolverEvidence.response
+        ? { title: "Resolver response", text: asJson(resolverEvidence.response) }
+        : undefined,
+    }));
+  }
   // The gateway is not one hop. It runs an ordered filter chain and publishes it
   // in X-Gw-Authorize-Trail, which mcpToolPipeline forwards on gw-filter-chain
   // (dedicated event) or as an extra on gw-authorize. Three of those stages are

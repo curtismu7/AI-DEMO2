@@ -491,6 +491,7 @@ function buildGwAuthorizeEventExtra(az) {
     filterChain: az.filterChain || null,
     policy: az.policy || null,
     policySource: az.policySource || null,
+    ...(az.resolver ? { resolver: az.resolver } : {}),
   };
 }
 
