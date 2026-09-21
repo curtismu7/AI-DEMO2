@@ -26,13 +26,7 @@ const SPIFFE_ID = `spiffe://${TRUST_DOMAIN}/service/api`;
 const WORKLOAD_ID = 'api';
 const SELECTOR_CONTEXT = { namespace: 'demo', serviceAccount: 'api' };
 
-beforeEach(() => {
-  mockSpiffeWorkloadApi.registerWorkload({
-    workloadId: WORKLOAD_ID,
-    spiffeId: SPIFFE_ID,
-    selectors: SELECTOR_CONTEXT,
-  });
-});
+afterEach(() => jest.restoreAllMocks());
 
 function buildApp() {
   const app = express();
@@ -73,6 +67,17 @@ describe('POST /api/demo/spiffe/svid', () => {
     });
   });
 
+  test('issues an SVID for another fixed seeded workload', async () => {
+    const res = await issue({
+      workload_id: 'mcp-gateway',
+      selector_context: { namespace: 'demo', serviceAccount: 'mcp-gateway' },
+    });
+    const verified = await verify(res.body.svid);
+
+    expect(res.status).toBe(200);
+    expect(verified.body.peer_spiffe_id).toBe(`spiffe://${TRUST_DOMAIN}/service/mcp-gateway`);
+  });
+
   test('rejects an unknown workload with a stable authorization error', async () => {
     const res = await issue({ workload_id: 'unknown' });
 
@@ -105,6 +110,25 @@ describe('POST /api/demo/spiffe/svid', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('invalid_request');
+  });
+
+  test('rejects non-string selector values as malformed', async () => {
+    const res = await issue({
+      selector_context: { namespace: 'demo', serviceAccount: null },
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_request');
+  });
+
+  test('does not misreport an unexpected adapter failure as unauthorized', async () => {
+    jest.spyOn(mockSpiffeWorkloadApi, 'issueJwtSvid').mockImplementationOnce(() => {
+      throw new Error('unexpected signer failure');
+    });
+
+    const res = await issue();
+
+    expect(res.status).toBe(500);
   });
 });
 

@@ -4,6 +4,13 @@ const spiffeTrustDomain = require('./spiffeTrustDomain');
 
 const registrations = new Map();
 
+class WorkloadNotAuthorizedError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'WorkloadNotAuthorizedError';
+  }
+}
+
 function copyRegistration(registration) {
   return {
     workloadId: registration.workloadId,
@@ -41,7 +48,7 @@ function clearRegistrations() {
 function issueJwtSvid({ workloadId, selectorContext, audience } = {}) {
   const registration = registrations.get(workloadId);
   if (!registration) {
-    throw new Error(`workload ${workloadId} is not registered`);
+    throw new WorkloadNotAuthorizedError(`workload ${workloadId} is not registered`);
   }
 
   const context = selectorContext && typeof selectorContext === 'object'
@@ -53,7 +60,7 @@ function issueJwtSvid({ workloadId, selectorContext, audience } = {}) {
     && selectorKeys.every((key) => Object.hasOwn(context, key)
       && context[key] === registration.selectors[key]);
   if (!selectorsMatch) {
-    throw new Error(`selectors do not match registered workload ${workloadId}`);
+    throw new WorkloadNotAuthorizedError(`selectors do not match registered workload ${workloadId}`);
   }
 
   return spiffeTrustDomain.issueSvid(registration.spiffeId, { audience });
@@ -64,6 +71,7 @@ function listRegistrations() {
 }
 
 module.exports = {
+  WorkloadNotAuthorizedError,
   registerWorkload,
   clearRegistrations,
   issueJwtSvid,

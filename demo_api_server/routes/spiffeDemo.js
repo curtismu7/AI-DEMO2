@@ -68,7 +68,10 @@ router.post('/svid', express.json(), (req, res) => {
   const hasValidSelectors = selector_context
     && typeof selector_context === 'object'
     && !Array.isArray(selector_context)
-    && Object.keys(selector_context).length > 0;
+    && Object.keys(selector_context).length > 0
+    && Object.values(selector_context).every((value) => (
+      typeof value === 'string' && value.trim().length > 0
+    ));
   const hasValidAudience = audience === undefined
     || (typeof audience === 'string' && audience.length > 0);
   if (!hasValidWorkloadId || !hasValidSelectors || !hasValidAudience) {
@@ -85,8 +88,11 @@ router.post('/svid', express.json(), (req, res) => {
       selectorContext: selector_context,
       audience,
     });
-  } catch (_err) {
-    return res.status(403).json({ error: 'workload_not_authorized' });
+  } catch (err) {
+    if (err instanceof mockSpiffeWorkloadApi.WorkloadNotAuthorizedError) {
+      return res.status(403).json({ error: 'workload_not_authorized' });
+    }
+    throw err;
   }
 
   res.json({ svid, svid_type: 'jwt-svid', trust_domain: TRUST_DOMAIN });
