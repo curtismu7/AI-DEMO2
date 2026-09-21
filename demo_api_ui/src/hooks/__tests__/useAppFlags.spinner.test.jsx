@@ -6,7 +6,7 @@
  * sentinel: routes/adminConfig.js reads an empty string as "leave unchanged"
  * and skips the write, so '' could set an accent but never clear one.
  */
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { useAppFlags } from '../useAppFlags';
 
 const loadPublicConfig = vi.fn();
@@ -32,9 +32,12 @@ function Probe() {
 const flagsFor = async (cfg) => {
   loadPublicConfig.mockResolvedValue(cfg);
   render(<Probe />);
-  await waitFor(() =>
-    expect(JSON.parse(screen.getByTestId('flags').textContent).variant).toBeDefined(),
-  );
+  // Wait for the exact promise consumed by useAppFlags, then let React flush
+  // the state update. Waiting for `variant` was racy because its default value
+  // is already defined before loadPublicConfig resolves.
+  await act(async () => {
+    await loadPublicConfig.mock.results.at(-1).value;
+  });
   return JSON.parse(screen.getByTestId('flags').textContent);
 };
 

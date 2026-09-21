@@ -18,7 +18,7 @@ const renderStudio = () => render(
 describe('PersonalAgentStudioPage', () => {
   it('renders page title', () => {
     renderStudio();
-    expect(screen.getByText('Personal Agent')).toBeTruthy();
+    expect(screen.getByText('Digital Assistant')).toBeTruthy();
   });
 
   it('renders all skin tabs', () => {

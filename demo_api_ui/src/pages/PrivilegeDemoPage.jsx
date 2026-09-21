@@ -8,6 +8,7 @@ import {
   PRIVILEGE_DEMO,
   personaConsoleUrl,
 } from '../config/privilegeDemoConfig';
+import { KIBANA_URL, MCP_OBSERVABILITY_PATH } from '../config/observabilityLinks';
 import './PrivilegeDemoPage.css';
 
 /**
@@ -35,6 +36,8 @@ export default function PrivilegeDemoPage() {
           </div>
           <div className="pd-page__header-links">
             <Link to="/setup">Banking demo setup</Link>
+            <a href={KIBANA_URL} target="_blank" rel="noopener noreferrer">Kibana logs</a>
+            <Link to={MCP_OBSERVABILITY_PATH}>MCP observability</Link>
             <a href="/api/auth/oauth/user/login?return_to=%2Fprivilege-demo">Sign in</a>
             <button
               type="button"

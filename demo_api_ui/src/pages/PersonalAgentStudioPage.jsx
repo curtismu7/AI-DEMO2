@@ -10,7 +10,7 @@ const SKIN_LABELS = { privilege: 'Privilege', claude: 'Claude', 'claude-terminal
 const SKIN_DOT_COLORS = { privilege: '#0073e6', claude: '#d97941', 'claude-terminal': '#ffb454', gpt: '#10a37f', gemini: '#4285f4' };
 
 const INITIAL_MESSAGES = [
-  { role: 'agent', text: "Hello! I'm your personal agent. I can access your MileagePlus account and help manage your upcoming flights. What would you like to do today?" },
+  { role: 'agent', text: "Hello! I'm your digital assistant. I can access your MileagePlus account and help manage your upcoming flights. What would you like to do today?" },
 ];
 
 const DEFAULT_GATES = [
@@ -81,7 +81,7 @@ export default function PersonalAgentStudioPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ prompt: text, vertical: 'airlines', useCaseId: 'personal-agent-concierge' }),
+        body: JSON.stringify({ prompt: text, vertical: 'airlines', useCaseId: 'workload-digital-assistant-obo' }),
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
@@ -90,11 +90,11 @@ export default function PersonalAgentStudioPage() {
       })
       .then((data) => setMessages((prev) => [
         ...prev.filter((m) => !m.typing),
-        { role: 'agent', text: data.reply || 'The personal agent completed the request.' },
+        { role: 'agent', text: data.reply || 'The digital assistant completed the request.' },
       ]))
       .catch((error) => setMessages((prev) => [
         ...prev.filter((m) => !m.typing),
-        { role: 'agent', text: error.message || 'The personal agent could not complete the request.' },
+        { role: 'agent', text: error.message || 'The digital assistant could not complete the request.' },
       ]))
   }, []);
 
@@ -128,7 +128,7 @@ export default function PersonalAgentStudioPage() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--bg, #0f1117)' }}>
       {/* Page header */}
       <div style={{ background: 'var(--surface, #1a1d27)', borderBottom: '1px solid var(--border, #2e3347)', padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-        <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text, #e2e8f0)', marginRight: 8 }}>Personal Agent</span>
+        <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text, #e2e8f0)', marginRight: 8 }}>Digital Assistant</span>
 
         {/* Skin tabs */}
         <div style={{ display: 'flex', gap: 4, flex: 1 }}>

@@ -35,8 +35,10 @@ COPY llm-timeouts.json /llm-timeouts.json
 # supported no-op (posthogClient.js skips init).
 ARG REACT_APP_POSTHOG_KEY=
 ARG REACT_APP_POSTHOG_HOST=
+ARG REACT_APP_KIBANA_URL=http://localhost:4180
 ENV REACT_APP_POSTHOG_KEY=$REACT_APP_POSTHOG_KEY
 ENV REACT_APP_POSTHOG_HOST=$REACT_APP_POSTHOG_HOST
+ENV REACT_APP_KIBANA_URL=$REACT_APP_KIBANA_URL
 
 # Build the app
 RUN npm run build

@@ -47,6 +47,7 @@ import { armGroupMembership, restoreGroupMembershipAfterRun } from '../utils/gro
 import {
   DEMO_USE_CASE_IDS,
   DEMO_USE_CASE_LABEL,
+  CIAM_AGENT_TYPE_USE_CASE_IDS,
 } from '../config/demoUseCaseSteps';
 import { allRelatedUCIds as allAgentGatewayUCIds } from '../config/capabilityLedgers/agentGatewayCapabilities';
 import { allRelatedUCIds as allPingOneAuthorizeUCIds } from '../config/capabilityLedgers/pingOneAuthorizeCapabilities';
@@ -973,6 +974,15 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
   );
   const demoVisible = useMemo(() => demoAll.filter((uc) => matchesQuery(uc, query)), [demoAll, query]);
 
+  const ciamAgentTypeAll = useMemo(
+    () => CIAM_AGENT_TYPE_USE_CASE_IDS.map((id) => useCases.find((uc) => uc.id === id)).filter(Boolean),
+    [useCases],
+  );
+  const ciamAgentTypeVisible = useMemo(
+    () => ciamAgentTypeAll.filter((uc) => matchesQuery(uc, query)),
+    [ciamAgentTypeAll, query],
+  );
+
   const agentGatewayAll = useMemo(() => useCases.filter((uc) => agentGatewayIds.has(uc.id)), [useCases, agentGatewayIds]);
   const agentGatewayVisible = useMemo(() => agentGatewayAll.filter((uc) => matchesQuery(uc, query)), [agentGatewayAll, query]);
 
@@ -982,6 +992,7 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
   // what's in `items`.
   const hasAnyResults =
     demoVisible.length > 0 ||
+    ciamAgentTypeVisible.length > 0 ||
     happyPath.length > 0 ||
     agentGatewayVisible.length > 0 ||
     authorizeVisible.length > 0 ||
@@ -1222,6 +1233,37 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
           </section>
         );
       })}
+
+      {ciamAgentTypeVisible.length > 0 && (
+        <section className="uc-track uc-track--ciam-agent-types">
+          <h2 className="uc-track__heading">CIAM Agent Types — live demonstrations</h2>
+          <p className="uc-track__intro">
+            Select a lane, run the real agent flow, then inspect the dashboard evidence.
+            CIMD is explicitly mocked; delegated execution remains PingOne-backed.
+          </p>
+          <div className="uc-track__grid">
+            {ciamAgentTypeVisible.map((uc) => (
+              <UseCaseCard
+                key={uc.id}
+                uc={uc}
+                completed={completedIds.has(uc.id)}
+                onRun={handleRun}
+                onRunAttack={handleRunAttack}
+                onExplain={setExplainUc}
+                onOpen={handleOpen}
+                attackState={attackStates[uc.id]}
+                chipRunning={chipRun?.id === uc.id && chipRun.state === 'running'}
+                chipRunError={chipRun?.id === uc.id && chipRun.state === 'error' ? chipRun.msg : null}
+                chipNeedsLogin={chipRun?.id === uc.id && chipRun.state === 'needs-login' ? chipRun : null}
+                flagMap={effectiveFlagMap}
+                flagsLoading={flagsLoading}
+                onFlagsEnabled={handleFlagsEnabled}
+                onFlagsDisabled={handleFlagsDisabled}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* A7.1 — attack anatomy explainer, shown after any attack sim run */}
       <AttackAnatomyExplainer ucEntry={lastSimUcEntry} simResult={lastSimResult} />

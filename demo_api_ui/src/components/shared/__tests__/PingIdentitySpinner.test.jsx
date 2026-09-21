@@ -19,8 +19,7 @@ describe('PingIdentitySpinner', () => {
     render(<PingIdentitySpinner label="Checking authorization…" />);
 
     expect(screen.getByRole('status', { name: 'Checking authorization…' })).toBeInTheDocument();
-    expect(document.querySelector('.ping-spinner__mark')).not.toBeNull();
-    expect(document.querySelector('.ping-spinner__mark text')).toHaveTextContent('P');
+    expect(document.querySelector('.ping-spinner__default-mark')).toHaveAttribute('src', '/assets/ping-identity-logo.png');
   });
 
   it('uses the requested size and supports unlabeled decorative use', () => {
@@ -34,8 +33,12 @@ describe('PingIdentitySpinner', () => {
   it('dances the identity mark inside a stable red circle', () => {
     render(<PingIdentitySpinner label="Loading account details…" />);
 
-    expect(document.querySelector('.ping-spinner__ring--outer')).toBeInTheDocument();
-    expect(document.querySelector('.ping-spinner__mark--dancing')).toBeInTheDocument();
+    const visual = document.querySelector('.ping-spinner__visual');
+    const mark = document.querySelector('.ping-spinner__mark--dancing');
+    const label = document.querySelector('.ping-spinner__label');
+
+    expect(visual).toContainElement(mark);
+    expect(visual).not.toContainElement(label);
   });
 
   it('keeps runtime loading surfaces to one branded mark plus a short note', () => {

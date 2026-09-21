@@ -168,6 +168,8 @@ import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
 import PersonalAgentStudioPage from "./pages/PersonalAgentStudioPage";
 import PersonalAgentClientWindow from "./pages/PersonalAgentClientWindow";
+import GovernanceTimelinePage from "./pages/GovernanceTimelinePage";
+import EmbeddedWorkerPage from "./pages/EmbeddedWorkerPage";
 import TransactionTraceEmbedPage from "./pages/TransactionTraceEmbedPage";
 import PingCliPage from "./components/PingCliPage";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
@@ -709,6 +711,10 @@ function AppWithAuth() {
                 <Route
                   path="/monitoring/new-relic"
                   element={<NewRelicRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/governance-timeline"
+                  element={<GovernanceTimelinePage />}
                 />
                 {/* PingOne webhook events — public, same posture as New Relic */}
                 <Route
@@ -1355,6 +1361,14 @@ function AppWithAuth() {
                   element={
                     // Bare route for pop-out window — no nav shell.
                     <PersonalAgentClientWindow />
+                  }
+                />
+                <Route
+                  path="/embedded-worker"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <EmbeddedWorkerPage />
+                    </AppShell>
                   }
                 />
                 <Route

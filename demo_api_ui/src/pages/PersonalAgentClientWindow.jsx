@@ -19,14 +19,26 @@ export default function PersonalAgentClientWindow() {
 
   function handleSend(text) {
     setMessages((prev) => [...prev, { role: 'user', text }]);
-    // Simulate agent typing then response
     setMessages((prev) => [...prev, { role: 'agent', typing: true, text: '' }]);
-    setTimeout(() => {
-      setMessages((prev) => [
+    fetch('/api/agent/invoke', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ prompt: text, vertical: 'airlines', useCaseId: 'workload-digital-assistant-obo' }),
+    })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.message || data.error || `Request failed (${response.status})`);
+        return data;
+      })
+      .then((data) => setMessages((prev) => [
         ...prev.filter((m) => !m.typing),
-        { role: 'agent', text: "Got it — I'll pass that along through the delegation chain." },
-      ]);
-    }, 1400);
+        { role: 'agent', text: data.reply || 'The digital assistant completed the request.' },
+      ]))
+      .catch((error) => setMessages((prev) => [
+        ...prev.filter((m) => !m.typing),
+        { role: 'agent', text: error.message || 'The digital assistant could not complete the request.' },
+      ]));
   }
 
   return (

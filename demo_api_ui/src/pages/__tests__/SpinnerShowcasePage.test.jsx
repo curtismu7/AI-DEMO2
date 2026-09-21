@@ -29,7 +29,7 @@ describe('SpinnerShowcasePage', () => {
     expect(screen.queryByRole('dialog', { name: /full-page loading preview/i })).not.toBeInTheDocument();
   });
 
-  it('uses an uploaded image in both spinner examples and lets the user clear it', () => {
+  it('uses an uploaded image in both spinner examples and lets the user restore Ping', () => {
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true,
       value: vi.fn(() => 'blob:custom-logo'),
@@ -47,10 +47,26 @@ describe('SpinnerShowcasePage', () => {
     expect(document.querySelectorAll('.ping-spinner__custom-mark')).toHaveLength(2);
     expect(document.querySelector('.ping-spinner__custom-mark')).toHaveAttribute('src', 'blob:custom-logo');
 
-    fireEvent.click(screen.getByRole('button', { name: /clear logo/i }));
+    fireEvent.click(screen.getByRole('button', { name: /use ping logo/i }));
 
     expect(screen.queryByText(/custom logo ready/i)).not.toBeInTheDocument();
     expect(document.querySelectorAll('.ping-spinner__custom-mark')).toHaveLength(0);
+  });
+
+  it('restores the Ping logo after a custom logo is selected', () => {
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => 'blob:custom-logo'),
+    });
+    render(<SpinnerShowcasePage />);
+
+    const logo = new File(['logo'], 'my-logo.png', { type: 'image/png' });
+    fireEvent.change(screen.getByLabelText(/upload custom logo/i), { target: { files: [logo] } });
+    fireEvent.click(screen.getByRole('button', { name: /use ping logo/i }));
+
+    expect(screen.queryByText(/custom logo ready/i)).not.toBeInTheDocument();
+    expect(document.querySelectorAll('.ping-spinner__custom-mark')).toHaveLength(0);
+    expect(document.querySelectorAll('.ping-spinner__default-mark')).toHaveLength(2);
   });
 
   it('rejects non-image uploads with a helpful message', () => {
