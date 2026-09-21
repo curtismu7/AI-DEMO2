@@ -17,6 +17,13 @@ describe('runContextFromLocation', () => {
     expect(runContextFromLocation({ pathname: '/dashboard', state: null })).toBeNull();
   });
 
+  it('does not label an ordinary prompt-prefill as a Use Case launch', () => {
+    expect(runContextFromLocation({
+      pathname: '/dashboard',
+      state: { triggerText: 'show my balance' },
+    })).toBeNull();
+  });
+
   it('clears context after a route transition with null state', () => {
     const { result, rerender } = renderHook(
       ({ location }) => useUseCaseRunContext(location),

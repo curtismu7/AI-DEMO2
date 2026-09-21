@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 export function runContextFromLocation(location) {
   const state = location?.state;
-  if (!state?.triggerText) return null;
+  if (!state?.triggerText || (!state.runContext && !state.useCaseId)) return null;
 
   return state.runContext || {
     source: 'use-cases',
