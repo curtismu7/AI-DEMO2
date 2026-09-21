@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, it, expect, vi } from "vitest";
 
@@ -155,6 +155,23 @@ describe("AdminSideNav — best-of-breed pass", () => {
     );
   });
 
+  it("shows Agent Identity Academy under Learn & Present", () => {
+    renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^Learn & Present/ }));
+    expect(screen.getByText("Agent Identity Academy").closest("a")).toHaveAttribute(
+      "href",
+      "/academy-identity-preview.html",
+    );
+  });
+
+  it("finds Agent Identity Academy by its lesson concepts", () => {
+    renderNav();
+    fireEvent.change(screen.getByLabelText(/search navigation/i), {
+      target: { value: "CIMD" },
+    });
+    expect(screen.getByText("Agent Identity Academy")).toBeInTheDocument();
+  });
+
   it("shows a local-only PAC Editor item under Authorize and opens the PAC editor", () => {
     const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
     renderNav();
@@ -297,7 +314,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
     );
     renderNav();
     expect(await screen.findByText("Monitoring")).toBeInTheDocument();
-    expect(screen.queryByText("Themes")).toBeNull();
+    await waitFor(() => expect(screen.queryByText("Themes")).toBeNull());
     vi.unstubAllGlobals();
   });
 
