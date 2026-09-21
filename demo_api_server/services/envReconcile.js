@@ -175,6 +175,22 @@ const ENV_AGNOSTIC_KEYS = new Set([
   // EMA legs 1-2 seeded Inspector client identity — an application-level demo
   // credential, not tied to which PingOne environment is active.
   'enterprise_idp_inspector_client_id', 'enterprise_idp_inspector_client_secret',
+  // PingFederate provider configuration is independent of the active PingOne
+  // environment. Preserve it during PingOne env-id reconciliation.
+  'oauth_provider',
+  'pf_issuer', 'pf_discovery_endpoint', 'pf_authorization_endpoint',
+  'pf_token_endpoint', 'pf_par_endpoint', 'pf_userinfo_endpoint', 'pf_jwks_uri',
+  'pf_introspection_endpoint', 'pf_revocation_endpoint',
+  'pf_admin_client_id', 'pf_admin_client_secret', 'pf_admin_redirect_uri',
+  'pf_admin_token_endpoint_auth_method',
+  'pf_user_client_id', 'pf_user_client_secret', 'pf_user_redirect_uri',
+  'pf_user_token_endpoint_auth_method',
+  'pf_token_exchange_client_id', 'pf_token_exchange_client_secret',
+  'pf_token_exchange_token_endpoint_auth_method',
+  'pf_id_jag_enabled', 'pf_id_jag_audience', 'pf_id_jag_resource',
+  'pf_id_jag_scope', 'pf_id_jag_subject_token_type',
+  'pf_id_jag_redemption_token_endpoint', 'pf_id_jag_redemption_client_id',
+  'pf_id_jag_redemption_client_secret', 'pf_id_jag_redemption_auth_method',
   // ciba
   'ciba_enabled', 'ciba_token_delivery_mode', 'ciba_binding_message',
   'ciba_poll_interval_ms', 'ciba_auth_request_expiry',

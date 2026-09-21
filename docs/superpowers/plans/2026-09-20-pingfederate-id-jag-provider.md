@@ -196,7 +196,7 @@
 
 ### Task 8: Verification and controlled rollout
 
-- [ ] Run focused BFF tests for provider selection, discovery, browser callback, ID-JAG exchange, token validation, and token custody.
+- [x] Run focused BFF tests for provider selection, discovery, browser callback, ID-JAG exchange, token validation, and token custody (`9` suites, `40` tests passed); the full BFF run also covered the callback/auth/session/token-custody paths but exposed unrelated baseline failures.
 - [ ] Run `cd demo_api_server && CI=true npm test -- --forceExit` if shared OAuth/session/token-exchange code was changed broadly.
 - [x] Run `npm run topology:verify` if resource URIs, service boundaries, or generated topology are affected.
 - [ ] Start the local stack with PF mode only through the approved worktree-serving workflow; do not run Docker Compose from this worktree.
