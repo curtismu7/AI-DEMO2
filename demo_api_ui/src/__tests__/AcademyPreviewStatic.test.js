@@ -59,4 +59,40 @@ describe("Academy HTML preview", () => {
     expect(document.querySelector('[data-live-link="a2a"]').getAttribute("href"))
       .toBe("/a2a-protocol-learning");
   });
+
+  it("switches between mock replay and the real-agent layout preview", () => {
+    const dom = loadPreview();
+    const { document } = dom.window;
+    const realAgentButton = document.querySelector('[data-source-target="real"]');
+    const mockPanel = document.querySelector('[data-source-panel="mock"]');
+    const realPanel = document.querySelector('[data-source-panel="real"]');
+
+    expect(realAgentButton).not.toBeNull();
+    expect(mockPanel.hidden).toBe(false);
+    expect(realPanel.hidden).toBe(true);
+
+    realAgentButton.click();
+
+    expect(document.body.dataset.runSource).toBe("real");
+    expect(realAgentButton.getAttribute("aria-pressed")).toBe("true");
+    expect(mockPanel.hidden).toBe(true);
+    expect(realPanel.hidden).toBe(false);
+  });
+
+  it("steps through the movie reel and exposes the selected frame evidence", () => {
+    const dom = loadPreview();
+    const { document } = dom.window;
+    const nextButton = document.querySelector('[data-reel-action="next"]');
+    const counter = document.querySelector("[data-reel-counter]");
+    const detail = document.querySelector("[data-reel-detail]");
+
+    expect(nextButton).not.toBeNull();
+    expect(counter.textContent).toContain("0/");
+
+    nextButton.click();
+
+    expect(counter.textContent).toContain("1/");
+    expect(detail.hidden).toBe(false);
+    expect(detail.textContent.length).toBeGreaterThan(20);
+  });
 });
