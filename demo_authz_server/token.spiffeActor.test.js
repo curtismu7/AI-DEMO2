@@ -20,13 +20,14 @@ const express = require('express');
 const SECRET = 'test-authz-secret-not-a-real-one';
 const TRUST_DOMAIN = 'demo.local';
 const SPIFFE_ID = `spiffe://${TRUST_DOMAIN}/service/payments`;
+const CALLER_SUPPLIED_SPIFFE_ID = `spiffe://${TRUST_DOMAIN}/service/admin`;
 const SVID_TYPE = 'urn:ietf:params:oauth:token-type:jwt';
 
 const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
 const jwk = { ...publicKey.export({ format: 'jwk' }), kid: 'k1', alg: 'RS256', use: 'sig' };
 
-const mintSvid = () => jwt.sign(
-  { sub: SPIFFE_ID, iss: `spire-demo://${TRUST_DOMAIN}`, aud: [TRUST_DOMAIN] },
+const mintSvid = ({ audience = [TRUST_DOMAIN] } = {}) => jwt.sign(
+  { sub: SPIFFE_ID, iss: `spire-demo://${TRUST_DOMAIN}`, aud: audience },
   privateKey, { algorithm: 'RS256', expiresIn: 300, keyid: 'k1' },
 );
 const mintSubject = () => jwt.sign({ sub: 'user-123' }, SECRET, { algorithm: 'HS256', expiresIn: 300 });
@@ -54,6 +55,7 @@ describe('token exchange with a JWT-SVID actor_token', () => {
     secret: process.env.AUTHZ_JWT_SECRET,
     flag: process.env.FF_SPIFFE_ACTOR_TOKEN,
     port: process.env.AUTHZ_PORT,
+    trustDomain: process.env.SPIFFE_TRUST_DOMAIN,
   };
   let server;
 
@@ -68,7 +70,7 @@ describe('token exchange with a JWT-SVID actor_token', () => {
     const app = express();
     app.use(express.json());
     app.post('/governance/pap/alpha/policy/:workerId/decision', (req, res) => require('./routes/decision')(req, res));
-    await new Promise((resolve) => { server = app.listen(0, resolve); });
+    await new Promise((resolve, reject) => { server = app.listen(0, resolve); server.once('error', reject); });
     process.env.AUTHZ_PORT = String(server.address().port);
   });
 
@@ -78,12 +80,17 @@ describe('token exchange with a JWT-SVID actor_token', () => {
     else process.env.AUTHZ_PORT = prev.port;
   });
 
-  beforeEach(() => { process.env.AUTHZ_JWT_SECRET = SECRET; });
+  beforeEach(() => {
+    process.env.AUTHZ_JWT_SECRET = SECRET;
+    process.env.SPIFFE_TRUST_DOMAIN = TRUST_DOMAIN;
+  });
   afterEach(() => {
     if (prev.secret === undefined) delete process.env.AUTHZ_JWT_SECRET;
     else process.env.AUTHZ_JWT_SECRET = prev.secret;
     if (prev.flag === undefined) delete process.env.FF_SPIFFE_ACTOR_TOKEN;
     else process.env.FF_SPIFFE_ACTOR_TOKEN = prev.flag;
+    if (prev.trustDomain === undefined) delete process.env.SPIFFE_TRUST_DOMAIN;
+    else process.env.SPIFFE_TRUST_DOMAIN = prev.trustDomain;
   });
 
   test('flag OFF: an SVID actor_token is rejected, not silently HS256-verified', async () => {
@@ -100,10 +107,11 @@ describe('token exchange with a JWT-SVID actor_token', () => {
 
     // The SVID is RS256 and the legacy path verifies HS256 with AUTHZ_JWT_SECRET,
     // so it must fail rather than be mistaken for an ordinary actor token.
-    assert.notEqual(res.statusCode, 200);
+    assert.equal(res.statusCode, 400);
+    assert.equal(res.body.error, 'invalid_request');
   });
 
-  test('flag ON: a genuine SVID lands the spiffe:// id in act.sub', async () => {
+  test('flag ON: act.sub uses the verified SVID subject, not a caller-supplied value', async () => {
     process.env.FF_SPIFFE_ACTOR_TOKEN = 'true';
     const { handler } = load();
     const res = fakeRes();
@@ -112,13 +120,36 @@ describe('token exchange with a JWT-SVID actor_token', () => {
       subject_token: mintSubject(),
       actor_token: mintSvid(),
       actor_token_type: SVID_TYPE,
+      actor_sub: CALLER_SUPPLIED_SPIFFE_ID,
       audience: 'mcpserver.ping.demo', scope: 'read',
     } }, res);
 
     assert.equal(res.statusCode, 200, `expected 200, got ${res.statusCode}: ${JSON.stringify(res.body)}`);
-    const claims = jwt.decode(res.body.access_token);
+    const claims = jwt.verify(res.body.access_token, SECRET, { algorithms: ['HS256'] });
+    assert.equal(claims.sub, 'user-123');
+    assert.equal(claims.aud, 'mcpserver.ping.demo');
     assert.equal(claims.act?.sub, SPIFFE_ID);
+    assert.notEqual(claims.act?.sub, CALLER_SUPPLIED_SPIFFE_ID);
   });
+
+  for (const svidAudience of ['other.local', 'mcpserver.ping.demo']) {
+    test(`flag ON: SVID audience ${svidAudience} is an invalid_grant`, async () => {
+      process.env.FF_SPIFFE_ACTOR_TOKEN = 'true';
+      const { handler } = load();
+      const res = fakeRes();
+      await handler({ body: {
+        grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+        subject_token: mintSubject(),
+        actor_token: mintSvid({ audience: [svidAudience] }),
+        actor_token_type: SVID_TYPE,
+        audience: 'mcpserver.ping.demo', scope: 'read',
+      } }, res);
+
+      assert.equal(res.statusCode, 400);
+      assert.equal(res.body?.error, 'invalid_grant');
+      assert.equal(res.body.access_token, undefined);
+    });
+  }
 
   test('flag ON: a forged SVID is refused', async () => {
     process.env.FF_SPIFFE_ACTOR_TOKEN = 'true';
@@ -137,22 +168,25 @@ describe('token exchange with a JWT-SVID actor_token', () => {
       audience: 'mcpserver.ping.demo', scope: 'read',
     } }, res);
 
-    assert.notEqual(res.statusCode, 200);
+    assert.equal(res.statusCode, 400);
+    assert.equal(res.body.error, 'invalid_grant');
   });
 
-  test('flag ON: an ordinary HS256 actor_token still works — no regression', async () => {
-    process.env.FF_SPIFFE_ACTOR_TOKEN = 'true';
-    const { handler } = load();
-    const res = fakeRes();
-    await handler({ body: {
-      grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
-      subject_token: mintSubject(),
-      actor_token: jwt.sign({ sub: 'agent-1' }, SECRET, { algorithm: 'HS256', expiresIn: 300 }),
-      actor_token_type: 'urn:ietf:params:oauth:token-type:access_token',
-      audience: 'mcpserver.ping.demo', scope: 'read',
-    } }, res);
+  for (const flag of ['true', 'false']) {
+    test(`flag ${flag}: an ordinary HS256 actor_token still works — no regression`, async () => {
+      process.env.FF_SPIFFE_ACTOR_TOKEN = flag;
+      const { handler } = load();
+      const res = fakeRes();
+      await handler({ body: {
+        grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+        subject_token: mintSubject(),
+        actor_token: jwt.sign({ sub: 'agent-1' }, SECRET, { algorithm: 'HS256', expiresIn: 300 }),
+        actor_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+        audience: 'mcpserver.ping.demo', scope: 'read',
+      } }, res);
 
-    assert.equal(res.statusCode, 200, `expected 200, got ${res.statusCode}: ${JSON.stringify(res.body)}`);
-    assert.equal(jwt.decode(res.body.access_token).act?.sub, 'agent-1');
-  });
+      assert.equal(res.statusCode, 200, `expected 200, got ${res.statusCode}: ${JSON.stringify(res.body)}`);
+      assert.equal(jwt.decode(res.body.access_token).act?.sub, 'agent-1');
+    });
+  }
 });
