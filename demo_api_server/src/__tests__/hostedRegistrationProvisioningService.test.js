@@ -21,6 +21,21 @@ test('approval creates a disabled PingOne user, assigns the group, then enables 
   ]);
 });
 
+test('staging reuses an existing PingOne user matching the registration email', async () => {
+  const calls = [];
+  const management = {
+    findUserByEmail: async () => ({ id: 'existing-user' }),
+    addUserToGroup: async (...args) => { calls.push(['group', ...args]); return { success: true }; },
+    setUserCanAuthenticate: async (...args) => { calls.push(['auth', ...args]); return { success: true }; },
+  };
+  const service = createHostedRegistrationProvisioningService({ management });
+
+  const result = await service.stage({ email: 'cmuir@pingidentity.com' });
+
+  expect(result).toEqual({ pingOneUserId: 'existing-user', groups: [process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID || undefined].filter(Boolean) });
+  expect(calls.some(([op]) => op === 'create')).toBe(false);
+});
+
 test('disable turns off PingOne authentication for an approved user', async () => {
   const calls = [];
   const service = createHostedRegistrationProvisioningService({

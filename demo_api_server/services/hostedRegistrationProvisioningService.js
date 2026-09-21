@@ -16,6 +16,12 @@ function createHostedRegistrationProvisioningService({ management = null } = {})
     if (user?.success === false) {
       throw Object.assign(new Error(user.error || 'PingOne user lookup failed'), { code: 'pingone_lookup_failed' });
     }
+    if (!user && service.findUserByEmail) {
+      user = await service.findUserByEmail(record.email);
+      if (user?.success === false) {
+        throw Object.assign(new Error(user.error || 'PingOne user lookup failed'), { code: 'pingone_lookup_failed' });
+      }
+    }
     if (!user) {
       const created = await service.createUser({
         populationId: process.env.HOSTED_ACCESS_POPULATION_ID,

@@ -27,15 +27,36 @@ describe('pingoneManagementService added methods', () => {
     expect(r).toEqual({ success: true, users: [{ id: 'u1' }] });
   });
 
+  it('findUserByEmail filters users by exact email', async () => {
+    mockAxios.get.mockResolvedValueOnce({ data: { _embedded: { users: [{ id: 'u1', email: 'cmuir@pingidentity.com' }] } } });
+    const r = await managementService.findUserByEmail('cmuir@pingidentity.com');
+    expect(mockAxios.get).toHaveBeenCalledWith(
+      `${base()}/users?filter=email%20eq%20%22cmuir%40pingidentity.com%22&limit=1`,
+      { headers: managementService.getHeaders() },
+    );
+    expect(r).toEqual({ id: 'u1', email: 'cmuir@pingidentity.com' });
+  });
+
   it('createUser POSTs /users with population + name and returns id', async () => {
     mockAxios.post.mockResolvedValueOnce({ data: { id: 'u9', username: 'demo' } });
     const r = await managementService.createUser({ populationId: 'p1', username: 'demo', email: 'demo@example.com' });
     expect(mockAxios.post).toHaveBeenCalledWith(
       `${base()}/users`,
-      { population: { id: 'p1' }, username: 'demo', email: 'demo@example.com' },
+      { population: { id: 'p1' }, username: 'demo', email: 'demo@example.com', account: { canAuthenticate: true } },
       { headers: managementService.getHeaders() }
     );
     expect(r).toMatchObject({ success: true, id: 'u9' });
+  });
+
+  it('addUserToGroup POSTs the PingOne group membership shape', async () => {
+    mockAxios.post.mockResolvedValueOnce({ status: 201 });
+    const r = await managementService.addUserToGroup('u1', 'g1');
+    expect(mockAxios.post).toHaveBeenCalledWith(
+      `${base()}/users/u1/memberOfGroups`,
+      { id: 'g1' },
+      { headers: managementService.getHeaders() },
+    );
+    expect(r).toEqual({ success: true });
   });
 
   it('deleteApplication DELETEs /applications/:id', async () => {

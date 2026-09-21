@@ -398,6 +398,20 @@ class PingOneManagementService {
     }
   }
 
+  async findUserByEmail(email) {
+    this.ensureInitialized();
+    const filter = encodeURIComponent(`email eq "${String(email)}"`);
+    try {
+      const response = await axios.get(
+        `${this.baseURL}/users?filter=${filter}&limit=1`,
+        { headers: this.getHeaders() },
+      );
+      return response.data._embedded?.users?.[0] || null;
+    } catch (error) {
+      return this.handleError(error, 'findUserByEmail');
+    }
+  }
+
   /**
    * Create a user
    */
@@ -440,7 +454,7 @@ class PingOneManagementService {
   async addUserToGroup(userId, groupId) {
     this.ensureInitialized();
     try {
-      await axios.post(`${this.baseURL}/users/${encodeURIComponent(userId)}/memberOfGroups`, { group: { id: groupId } }, { headers: this.getHeaders() });
+      await axios.post(`${this.baseURL}/users/${encodeURIComponent(userId)}/memberOfGroups`, { id: groupId }, { headers: this.getHeaders() });
       return { success: true };
     } catch (error) {
       return this.handleError(error, 'addUserToGroup');
