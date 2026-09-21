@@ -1052,6 +1052,7 @@ select.cur-input { cursor: pointer; }
   color: #ccc;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
+  text-decoration: none;
 }
 .cur-flow-trigger:hover { border-color: #007acc; color: #fff; }
 

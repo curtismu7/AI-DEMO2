@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FootprintSkinPicker } from '../components/aiFootprintMocks/FootprintSkinPicker';
+import { KIBANA_URL } from '../config/observabilityLinks';
 import HostileMcpDenialPanel from '../components/privilege/HostileMcpDenialPanel';
 import ToolsTable from '../components/privilege/ToolsTable';
 import JsonHighlight from '../components/shared/JsonHighlight';
@@ -1909,6 +1910,7 @@ export default function PrivilegeMcpClientPage() {
           </button>
           <button className="cur-flow-trigger" onClick={clearActivity} title="Clear chat, events, and results for a fresh demo">Clear</button>
           <button className="cur-flow-trigger" onClick={() => setShowGuide(true)} title="Learning Guide">Guide</button>
+          <a className="cur-flow-trigger" href={KIBANA_URL} target="_blank" rel="noopener noreferrer" title="Open Privilege SIEM logs in Kibana">Logs</a>
           <button className="cur-flow-trigger cur-settings-gear" onClick={() => setShowSettings(true)} title="Settings">Settings</button>
           <button className="cur-flow-trigger" onClick={() => setShowFlowModal(true)}>Flow</button>
           {/* The provider lanes, their probes and the prove-the-policy prompt
