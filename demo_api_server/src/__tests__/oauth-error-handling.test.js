@@ -1,4 +1,5 @@
 const request = require('supertest');
+const axios = require('axios');
 const app = require('../../server');
 const { 
   OAuthError, 
@@ -214,6 +215,19 @@ describe('OAuth Error Handling', () => {
   });
 
   describe('OAuth Provider Health Check', () => {
+    it('uses an explicit discovery endpoint when the issuer is a public/browser URL', async () => {
+      const get = jest.spyOn(axios, 'get').mockResolvedValueOnce({ status: 200, data: { issuer: 'https://public.example' } });
+      const health = await checkOAuthProviderHealth({
+        issuer: 'https://public.example',
+        discoveryEndpoint: 'https://internal.example/.well-known/openid-configuration'
+      });
+
+      expect(health.healthy).toBe(true);
+      expect(health.endpoint).toBe('https://internal.example/.well-known/openid-configuration');
+      expect(get).toHaveBeenCalledWith('https://internal.example/.well-known/openid-configuration', expect.any(Object));
+      get.mockRestore();
+    });
+
     it('should check OAuth provider health', async () => {
       const mockConfig = {
         tokenValidation: {
