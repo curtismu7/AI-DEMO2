@@ -6,7 +6,7 @@
 
 **Architecture:** The BFF remains the only browser-token custodian. A provider selector chooses either the current PingOne OAuth/token-exchange implementation or a PingFederate implementation; PF mode uses OIDC discovery for login and RFC 8693 with `requested_token_type=urn:ietf:params:oauth:token-type:id-jag` for the real ID-JAG path. The existing simulated authorization engine is a separate concern controlled by `authorize_mode`/`ff_authorize_real` and must not be used as a token-provider fallback.
 
-**Tech Stack:** Node.js >=22, CommonJS, Express BFF, Jest, LMDB-backed `configStore`, Axios OAuth calls, PingFederate 13.1.3+.
+**Tech Stack:** Node.js >=22, CommonJS, Express BFF, Jest, LMDB-backed `configStore`, Axios OAuth calls, PingFederate 13.1.x.
 
 **Spec:** User-approved requirements in this plan; no separate spec file.
 
@@ -161,23 +161,23 @@
 - Create: versioned PF configuration notes or an Admin API script under `scripts/` only after the PF API schema and target environment are confirmed.
 - Modify: deployment secret/config templates only for non-secret variable names; never commit secret values.
 
-- [ ] Verify PF 13.1.3+ and backup/export the target non-production PF configuration.
+- [x] Verify the local PF version is 13.1.2 (13.1 ID-JAG-capable image); upgrade before any shared/non-demo deployment, and back up/export before changing shared configuration.
 - [x] If PF must run locally, obtain authorized access to the private/licensed PF container registry and accept the Ping Identity license terms. The supplied license remains outside Git with mode `0600`.
-- [x] Pin the approved PingFederate Docker image version and record its digest; do not use `latest`. Local image: `pingidentity/pingfederate:13.1.3-alpine-flex@sha256:6885baf176c100fc0999474ae92507f512632b15ec2d90de77d306c383762452`.
-- [x] Add a local-only PF compose/service template with persistent runtime/license mounts and secrets supplied outside Git: `scripts/pingfederate/docker-compose.local.yml` plus `.env.example`.
-- [x] Pull the image and verify PF starts locally, exposes its admin/runtime endpoints, and retains its persistent runtime volume across restart. Running container: `ai-demo-pingfederate`; admin `https://127.0.0.1:9999/pingfederate/app`; runtime port `9031`.
-- [ ] Create the BFF OIDC client with Authorization Code, PKCE S256, refresh-token/offline access, required scopes, and exact local callback URI.
-- [ ] Create the refresh-token token processor and expose only the claims needed for ID-JAG creation.
-- [ ] Create the token-exchange processor policy with explicit client, audience, resource, and scope restrictions.
-- [ ] Create the OAuth Token Exchange SP Connection for the downstream authorization server.
-- [ ] Allow `urn:ietf:params:oauth:token-type:id-jag` as the requested token type.
-- [ ] Map `sub`, `iss`, `aud`, scope, identity attributes, and any approved delegation claims into the ID-JAG contract.
+- [x] Pin the approved classic PingFederate Docker image version and record its digest; do not use `latest`: `pingidentity/pingfederate:13.1.2-alpine_3.24.1-al25-edge@sha256:996ad6caba201cbf22bfdfa55d09f4726c0f001c2f7ec60a0b78181f3deaa805`.
+- [x] Add a local-only PF compose/service template with persistent runtime/profile mounts and secrets supplied outside Git: `scripts/pingfederate/docker-compose.local.yml` plus `.env.example`.
+- [x] Pull the image and verify PF starts locally, imports the prepared starter profile, exposes its admin/runtime endpoints, and retains its persistent runtime volume. Running container: `ai-demo-pingfederate`; admin `https://127.0.0.1:9999/pingfederate/app`; runtime port `9031`.
+- [x] Create the BFF OIDC clients `ai-demo-pf-user` and `ai-demo-pf-admin` with Authorization Code, PKCE S256, refresh-token/offline access, required scopes, and exact local callback URIs.
+- [x] Create the refresh-token token processor `aiDemoPfRefreshToken` and expose only the claims needed for ID-JAG creation.
+- [x] Create the token-exchange processor policy `aiDemoPfIdJagPolicy` with the refresh-token subject type and explicit client/scope mapping.
+- [x] Create the OAuth Token Exchange SP Connection `aiDemoPfIdJagSp` for `https://local.ping-devops.com:4000`.
+- [x] Enable `urn:ietf:params:oauth:token-type:id-jag` through PF’s ID-JAG-enabled SP connection.
+- [x] Map the approved token-exchange attributes into the ID-JAG contract; PF supplies the ID-JAG core claims (`sub`, `iss`, `aud`, timestamps, and token ID) from the enabled connection.
 - [ ] Set a short ID-JAG lifetime and enable assertion replay protection according to the PF deployment policy.
 - [ ] Configure the downstream OAuth Assertion Grant IdP Connection to trust PF’s issuer and JWKS and to accept ID-JAG assertions.
-- [ ] Enable token exchange only on the designated PF client; do not enable it broadly for unrelated clients.
-- [ ] Verify PF discovery metadata, JWKS, authorization, token, and assertion-grant endpoints with non-secret probes.
+- [x] Enable token exchange only on the designated PF client `ai-demo-pf-id-jag`; do not enable it broadly for unrelated clients.
+- [x] Verify PF discovery metadata and the live token endpoint with non-secret probes; PF advertises the ID-JAG requested-token type and rejects an invalid refresh token at the real exchange endpoint.
 - [ ] Execute one end-to-end exchange using a disposable user and confirm the returned JWT has `typ=oauth-id-jag+jwt`.
-- [ ] Record PF object IDs, issuer, audience, resource, scopes, lifetimes, and rollback steps in the configuration notes without recording secrets or tokens.
+- [x] Record PF object IDs, issuer, audience, resource, scopes, lifetimes, and rollback steps in the configuration notes without recording secrets or tokens.
 
 ### Task 7: Wire deployment configuration
 

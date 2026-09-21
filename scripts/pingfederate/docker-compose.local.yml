@@ -5,17 +5,18 @@
 # workflow; do not run Docker Compose from an isolated worktree.
 #
 # Required external values:
-#   PINGFEDERATE_LICENSE_PATH       absolute path to pingfederate.lic
+#   PINGFEDERATE_PROFILE_PATH       absolute path to a prepared PF classic profile
 #   PINGFEDERATE_ADMIN_PASSWORD     local PF admin password
 #
-# Optional values are documented in .env.example. The license and password
-# must never be committed.
+# The prepared profile must contain the license at
+# instance/server/default/conf/pingfederate.lic. Keep the profile, license,
+# and password outside Git.
 
 name: ai-demo-pingfederate
 
 services:
   pingfederate:
-    image: ${PINGFEDERATE_IMAGE:-pingidentity/pingfederate:13.1.3-alpine-flex@sha256:6885baf176c100fc0999474ae92507f512632b15ec2d90de77d306c383762452}
+    image: ${PINGFEDERATE_IMAGE:-pingidentity/pingfederate:13.1.2-alpine_3.24.1-al25-edge@sha256:996ad6caba201cbf22bfdfa55d09f4726c0f001c2f7ec60a0b78181f3deaa805}
     container_name: ${PINGFEDERATE_CONTAINER_NAME:-ai-demo-pingfederate}
     restart: unless-stopped
     ports:
@@ -26,7 +27,7 @@ services:
       PING_IDENTITY_PASSWORD: ${PINGFEDERATE_ADMIN_PASSWORD:?set PINGFEDERATE_ADMIN_PASSWORD outside Git}
     volumes:
       - pingfederate-out:/opt/out
-      - ${PINGFEDERATE_LICENSE_PATH:?set PINGFEDERATE_LICENSE_PATH outside Git}:/opt/staging/license:ro
+      - ${PINGFEDERATE_PROFILE_PATH:?set PINGFEDERATE_PROFILE_PATH outside Git}:/opt/in:ro
     tmpfs:
       - /run/secrets
     networks:
