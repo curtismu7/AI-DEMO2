@@ -77,9 +77,10 @@ import HealthcareAdminOps from "./components/HealthcareAdminOps";
 import KillSwitchConfirmModal from "./components/KillSwitchConfirmModal";
 import LandingPage from "./components/LandingPage";
 import LearningHub from "./components/LearningHub";
-import { AcademyLessonRoute } from "./routes/AcademyRoutes";
+import { AcademyLessonRoute, AcademyLegacyPrefixRoute } from "./routes/AcademyRoutes";
 import ShadowAiDetectorPage from "./pages/ShadowAiDetectorPage";
 import LearningProtocolLabPage from "./pages/LearningProtocolLabPage";
+import SpinnerShowcasePage from "./pages/SpinnerShowcasePage";
 import LlmConfigPage from "./components/LlmConfigPage";
 import LogoutPage from "./components/LogoutPage";
 import LoginSuccessModal from "./components/LoginSuccessModal";
@@ -109,6 +110,7 @@ import AuthorizeFallbackListener from "./components/AuthorizeFallbackListener";
 import SessionReauthBanner from "./components/SessionReauthBanner";
 import SportingGoodsAdminOps from "./components/SportingGoodsAdminOps";
 import SpinnerHost from "./components/shared/SpinnerHost";
+import PingIdentitySpinner from "./components/shared/PingIdentitySpinner";
 import DemoScriptLauncher from "./components/DemoScriptLauncher";
 import TokenSecurityTester from "./components/TokenSecurityTester";
 import TopNav from "./components/TopNav";
@@ -175,6 +177,8 @@ import NotebookLmPage from "./pages/NotebookLmPage";
 import AgenticAccessConsolePage from "./pages/AgenticAccessConsolePage";
 import PingAiProductPage from "./pages/PingAiProductPage";
 import AdminRoute from "./routes/AdminRoute";
+import HostedRegistrationPage from "./pages/HostedRegistrationPage";
+import HostedRegistrationAdminPage from "./pages/HostedRegistrationAdminPage";
 import { DashboardContent } from "./routes/CustomerRoutes";
 import EducationRoutes from "./routes/EducationRoutes";
 import MonitoringRoutes, {
@@ -222,6 +226,7 @@ import PublicRoutes, {
   LlmTestPageRoute,
   IntentInspectorPageRoute,
   AuditAgentPageRoute,
+  SpiffePingoneBridgePageRoute,
   PingOneSetupPageRoute,
   M2mCredentialsSamplePageRoute,
   StandaloneIndexRoute,
@@ -689,17 +694,14 @@ function AppWithAuth() {
               {loading && pathname !== "/" && pathname !== "/dashboard" && (
                 <main className="main-content main-content--auth-loading">
                   <div className="auth-loading-card">
-                    <div className="auth-loading-dots">
-                      <span className="auth-loading-dot" />
-                      <span className="auth-loading-dot" />
-                      <span className="auth-loading-dot" />
-                    </div>
-                    <div className="auth-loading-title">Loading Agent</div>
-                    <div className="auth-loading-sub">Checking session and preparing chat...</div>
+                    <PingIdentitySpinner size={64} label="Loading Agent…" />
                   </div>
                 </main>
               )}
               <Routes>
+                <Route path="/request-access" element={<HostedRegistrationPage />} />
+                <Route path="/spinner-showcase" element={<SpinnerShowcasePage />} />
+                <Route path="/hosted-registrations" element={<AdminRoute user={user}><HostedRegistrationAdminPage /></AdminRoute>} />
                 {/* /setup/* sub-routes — no auth required */}
                 <Route
                   path="/setup/*"
@@ -934,6 +936,10 @@ function AppWithAuth() {
                   }
                 />
                 <Route
+                  path="/spiffe-pingone-bridge"
+                  element={<SpiffePingoneBridgePageRoute user={user} logout={logout} />}
+                />
+                <Route
                   path="/academy/journey"
                   element={
                     <GuidedJourneyRoute
@@ -952,6 +958,10 @@ function AppWithAuth() {
                       logout={logout}
                     />
                   }
+                />
+                <Route
+                  path="/academy/academy/:lessonId/:mode"
+                  element={<AcademyLegacyPrefixRoute />}
                 />
                 <Route
                   path="/academy/:lessonId/:mode"

@@ -30,6 +30,13 @@ describe('OAuth Endpoint Configuration', () => {
     delete process.env.OAUTH_DISCOVERY_ENDPOINT;
     delete process.env.OAUTH_PAR_ENDPOINT;
     delete process.env.PINGONE_PAR_ENDPOINT;
+    delete process.env.OAUTH_PROVIDER;
+    delete process.env.PF_ISSUER;
+    delete process.env.PF_DISCOVERY_ENDPOINT;
+    delete process.env.PF_AUTHORIZATION_ENDPOINT;
+    delete process.env.PF_TOKEN_ENDPOINT;
+    delete process.env.PF_USERINFO_ENDPOINT;
+    delete process.env.PF_JWKS_URI;
   });
 
   afterEach(() => {
@@ -42,6 +49,13 @@ describe('OAuth Endpoint Configuration', () => {
     delete process.env.OAUTH_DISCOVERY_ENDPOINT;
     delete process.env.OAUTH_PAR_ENDPOINT;
     delete process.env.PINGONE_PAR_ENDPOINT;
+    delete process.env.OAUTH_PROVIDER;
+    delete process.env.PF_ISSUER;
+    delete process.env.PF_DISCOVERY_ENDPOINT;
+    delete process.env.PF_AUTHORIZATION_ENDPOINT;
+    delete process.env.PF_TOKEN_ENDPOINT;
+    delete process.env.PF_USERINFO_ENDPOINT;
+    delete process.env.PF_JWKS_URI;
     delete process.env.PINGONE_ENVIRONMENT_ID;
     delete process.env.PINGONE_REGION;
   });
@@ -181,6 +195,25 @@ describe('OAuth Endpoint Configuration', () => {
     expect(endpoints.userinfo_endpoint).toBe('https://federate.example.com/idp/userinfo.openid');
     expect(endpoints.jwks_uri).toBe('https://federate.example.com/pf/JWKS');
     expect(endpoints.issuer).toBe('https://federate.example.com');
+  });
+
+  test('uses PF-specific endpoints exclusively in PingFederate provider mode', () => {
+    process.env.OAUTH_PROVIDER = 'pingfederate';
+    process.env.PF_ISSUER = 'https://pf.example.com';
+    process.env.PF_AUTHORIZATION_ENDPOINT = 'https://pf.example.com/as/authorization.oauth2';
+    process.env.PF_TOKEN_ENDPOINT = 'https://pf.example.com/as/token.oauth2';
+    process.env.PF_USERINFO_ENDPOINT = 'https://pf.example.com/idp/userinfo.openid';
+    process.env.PF_JWKS_URI = 'https://pf.example.com/pf/JWKS';
+    process.env.PINGONE_ENVIRONMENT_ID = 'must-not-be-used';
+
+    resolver = require('../services/oauthEndpointResolver');
+    const endpoints = resolver.getOAuthEndpoints();
+
+    expect(endpoints.authorization_endpoint).toBe('https://pf.example.com/as/authorization.oauth2');
+    expect(endpoints.token_endpoint).toBe('https://pf.example.com/as/token.oauth2');
+    expect(endpoints.userinfo_endpoint).toBe('https://pf.example.com/idp/userinfo.openid');
+    expect(endpoints.jwks_uri).toBe('https://pf.example.com/pf/JWKS');
+    expect(endpoints.issuer).toBe('https://pf.example.com');
   });
 
   // ── Test 8: Auth0 pattern ────────────────────────────────────────────────

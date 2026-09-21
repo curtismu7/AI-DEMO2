@@ -9,6 +9,8 @@ const configStore = require('../services/configStore');
 const { getScopesForUserType } = require('./scopes');
 const endpointResolver = require('../services/oauthEndpointResolver');
 
+const isPingFederate = () => configStore.getOAuthProvider?.() === 'pingfederate';
+
 const config = {
   get environmentId()          { return configStore.getEffective('pingone_environment_id'); },
   get _region()                { return configStore.getEffective('pingone_region') || 'com'; },
@@ -25,9 +27,15 @@ const config = {
   get issuer()                 { return endpointResolver.getIssuer(); },
 
   // Admin OAuth2 client
-  get clientId()               { return configStore.getEffective('admin_client_id'); },
-  get clientSecret()           { return configStore.getEffective('admin_client_secret'); },
-  get redirectUri()            { return configStore.getEffective('admin_redirect_uri'); },
+  get clientId()               {
+    return configStore.getEffective(isPingFederate() ? 'pf_admin_client_id' : 'admin_client_id');
+  },
+  get clientSecret()           {
+    return configStore.getEffective(isPingFederate() ? 'pf_admin_client_secret' : 'admin_client_secret');
+  },
+  get redirectUri()            {
+    return configStore.getEffective(isPingFederate() ? 'pf_admin_redirect_uri' : 'admin_redirect_uri');
+  },
 
   // CIBA — Client-Initiated Backchannel Authentication
   get cibaEndpoint()           { return `${this._base}/bc-authorize`; },
@@ -53,7 +61,9 @@ const config = {
    * Must match PingOne application "Token endpoint authentication method".
    */
   get tokenEndpointAuthMethod() {
-    const v = String(configStore.getEffective('admin_token_endpoint_auth_method') || 'basic').toLowerCase();
+    const v = String(configStore.getEffective(
+      isPingFederate() ? 'pf_admin_token_endpoint_auth_method' : 'admin_token_endpoint_auth_method'
+    ) || 'basic').toLowerCase();
     return v === 'post' ? 'post' : 'basic';
   },
 
@@ -62,4 +72,3 @@ const config = {
 };
 
 module.exports = config;
-

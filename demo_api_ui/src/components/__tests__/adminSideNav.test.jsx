@@ -209,6 +209,21 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(link).toHaveAttribute("href", "/mcp-discovery");
   });
 
+  it("uses unique React keys for MCP entries that share a route", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      renderNavAsUser(customerUser);
+      fireEvent.click(screen.getByRole("button", { name: /^MCP & Gateways/ }));
+
+      expect(errorSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining("Encountered two children with the same key"),
+        expect.anything(),
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
   it("finds MCP Runtime Inventory by searching for runtime", () => {
     renderNavAsUser(customerUser);
     fireEvent.change(screen.getByLabelText(/search navigation/i), { target: { value: "runtime" } });
@@ -226,6 +241,26 @@ describe("AdminSideNav — best-of-breed pass", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Agent Trust Journey/ }));
     const liveLink = screen.getByText("Use Cases (Live)").closest("a");
     expect(liveLink).toHaveAttribute("href", "/use-cases/live");
+  });
+
+  it("exposes LibreChat and LM Studio as personal-agent clients", () => {
+    renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^Learn & Present/ }));
+
+    expect(screen.getByRole("button", { name: "LibreChat (browser)" })).toBeInTheDocument();
+    expect(screen.getByText("LM Studio (Mac)").closest("a")).toHaveAttribute(
+      "href",
+      "/privilege-mcp-client?client=lm-studio",
+    );
+  });
+
+  it("opens LibreChat from the personal-agent navigation entry", () => {
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^Learn & Present/ }));
+    fireEvent.click(screen.getByRole("button", { name: "LibreChat (browser)" }));
+    expect(openSpy).toHaveBeenCalledWith("http://localhost:3080", "_blank", "noopener,noreferrer");
+    openSpy.mockRestore();
   });
 
   it("includes Delegated Commerce in the AI Flows customization catalog", () => {

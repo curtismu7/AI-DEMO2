@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FootprintSkinPicker } from '../components/aiFootprintMocks/FootprintSkinPicker';
+import { KIBANA_URL } from '../config/observabilityLinks';
 import HostileMcpDenialPanel from '../components/privilege/HostileMcpDenialPanel';
 import ToolsTable from '../components/privilege/ToolsTable';
 import JsonHighlight from '../components/shared/JsonHighlight';
 import JsonFormView from '../components/shared/JsonFormView';
+import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import DraggableModal from '../components/DraggableModal';
 import PrivilegeMcpLearningPage from './PrivilegeMcpLearningPage';
 import './PrivilegeMcpClientPage.css';
@@ -1908,6 +1910,7 @@ export default function PrivilegeMcpClientPage() {
           </button>
           <button className="cur-flow-trigger" onClick={clearActivity} title="Clear chat, events, and results for a fresh demo">Clear</button>
           <button className="cur-flow-trigger" onClick={() => setShowGuide(true)} title="Learning Guide">Guide</button>
+          <a className="cur-flow-trigger" href={KIBANA_URL} target="_blank" rel="noopener noreferrer" title="Open Privilege SIEM logs in Kibana">Logs</a>
           <button className="cur-flow-trigger cur-settings-gear" onClick={() => setShowSettings(true)} title="Settings">Settings</button>
           <button className="cur-flow-trigger" onClick={() => setShowFlowModal(true)}>Flow</button>
           {/* The provider lanes, their probes and the prove-the-policy prompt
@@ -1994,7 +1997,7 @@ export default function PrivilegeMcpClientPage() {
                     <span aria-hidden="true">✅</span> {user?.email || 'token held'}
                   </>
                 )}
-                {gatewayAuth === 'connecting' && <><span className="cur-spinner" aria-hidden="true" /> Signing in…</>}
+                {gatewayAuth === 'connecting' && <PingIdentitySpinner size={18} label="Signing in…" />}
                 {gatewayAuth === 'needed' && (
                   <>
                     <span aria-hidden="true">⚠️</span> Not signed in
@@ -2166,7 +2169,7 @@ export default function PrivilegeMcpClientPage() {
             <div className="cur-sidebar-header" style={{ marginTop: 12 }}>
               <span className="cur-sidebar-title">MCP TOOLS</span>
               {toolsLoading
-                ? <span className="cur-spinner" role="status" aria-label="Discovering tools" />
+                ? <PingIdentitySpinner size={18} label="Discovering tools…" />
                 : <span className="cur-scope-count">{tools.length}</span>}
             </div>
             {tools.length > 0 && (
@@ -2196,8 +2199,7 @@ export default function PrivilegeMcpClientPage() {
               ) : <div className="cur-empty-state">No tools match &quot;{toolSearch}&quot;</div>;
             })() : toolsLoading ? (
               <div className="cur-tools-waiting">
-                <span className="cur-spinner" aria-hidden="true" />
-                <span>Waiting for the AI Gateway to return tools...</span>
+                <PingIdentitySpinner size={24} label="Waiting for AI Gateway tools…" />
               </div>
             ) : blockedDetail ? (
               // Say WHY the list is empty. "No tools discovered yet" for a

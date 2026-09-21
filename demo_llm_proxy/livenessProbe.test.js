@@ -45,13 +45,31 @@ test('llm-proxy liveness does NOT use the dependency-aware /health', { skip }, (
   );
 });
 
-test('llm-proxy readiness still uses /health, so traffic waits for a backend', { skip }, () => {
+test('llm-proxy readiness uses /readyz, so traffic waits for a backend', { skip }, () => {
   const block = llmProxyBlock();
   const readiness = block.slice(block.indexOf('readinessProbe:'));
   const probePath = /path:\s*(\S+)/.exec(readiness);
 
   assert.ok(probePath, 'llm-proxy has no readinessProbe path');
-  assert.strictEqual(probePath[1], '/health');
+  assert.strictEqual(probePath[1], '/readyz');
+});
+
+test('the router actually serves /readyz', () => {
+  const src = fs.readFileSync(ROUTER, 'utf8');
+  assert.match(
+    src,
+    /req\.url === '\/readyz'/,
+    'router.js must handle /readyz so Kubernetes can diagnose backend readiness',
+  );
+});
+
+test('llm-proxy does not hard-pin the optional 8093 tier in Kubernetes', { skip }, () => {
+  const block = llmProxyBlock();
+  assert.doesNotMatch(
+    block,
+    /name: LLM_PROXY_PIN_TIER[\s\S]{0,120}value: "8093"/,
+    'the optional 8093 tier must not make the whole proxy unready',
+  );
 });
 
 test('readiness and liveness ask DIFFERENT questions', { skip }, () => {

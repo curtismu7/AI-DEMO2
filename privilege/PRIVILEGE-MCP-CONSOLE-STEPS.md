@@ -71,12 +71,13 @@ port 8680 answers nothing.
    | Field | Value |
    |---|---|
    | Frontend URL | `https://local.ping-devops.com:8680` |
-   | MCP Server URL | `http://mcp-server:8080/mcp` |
+   | MCP Server URL | `http://mcp-server:8081/mcp` |
    | Mesh Cluster | `ai-demo-se` (the gateway from step 1) |
 
    *Frontend URL* is where clients reach the gateway. *MCP Server URL* is where the gateway
-   forwards permitted calls — that hostname is Docker service DNS, resolved inside the
-   compose network, so it is correct as written and is not reachable from your browser.
+   forwards permitted calls — use the dedicated plaintext Privilege listener because the
+   Privilege proxy does not present the gateway mTLS client certificate. The gateway/PingGateway
+   mTLS path remains on `mcp-server:8080`.
 4. Author the tool policy you want to demo, and enable **session recording** if the demo
    should show it.
 

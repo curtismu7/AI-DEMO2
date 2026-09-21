@@ -5,6 +5,7 @@ import { useTokenChainOptional } from '../context/TokenChainContext';
 import { isHaltedAt, resolveStatusVisual } from './TokenChainDisplay';
 import { PingProductChip } from './PingProductChip';
 import { productForEvent } from '../utils/pingProducts';
+import { formatTraceEventLabel } from '../config/agentTerminology';
 import './SimpleStepperPanel.css';
 
 /**
@@ -69,7 +70,7 @@ export default function SimpleStepperPanel({ isOpen, onClose, autoPopOut = false
 /** One table row: # / Step / Product / Status. */
 function StepRow({ event, index, halted, didNotRun }) {
   const { bucket, label: statusLabel } = resolveStatusVisual(event.status);
-  const label = event.label || event.id || 'Step';
+  const label = formatTraceEventLabel(event);
   const product = productForEvent(event);
 
   let rowClass = '';

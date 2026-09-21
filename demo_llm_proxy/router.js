@@ -68,6 +68,12 @@ const tierHost = (envKey) => process.env[envKey] || HOST;
 // The tier-manager daemon on the HOST performs the actual llama-server
 // start/stop (this container cannot manage host processes).
 const TIER_MANAGER = process.env.TIER_MANAGER_URL || `http://${HOST}:8097`;
+const FALLBACK_ENABLED = ['1', 'true', 'yes', 'on'].includes(
+  String(process.env.FF_LITELLM_FALLBACK || '').toLowerCase(),
+);
+const FALLBACK_URL = FALLBACK_ENABLED
+  ? String(process.env.LLM_PROXY_FALLBACK_URL || '').replace(/\/+$/, '')
+  : '';
 const SWAP_TIMEOUT_MS = 180000;        // cold load of the 11GB gpt-oss can be slow
 const SWAP_POLL_MS = 1500;             // health-poll cadence while a swap is loading
 const DRAIN_MAX_MS = 30000;            // wait for in-flight requests before unloading
@@ -231,6 +237,17 @@ function requiredClass(bodyBuffer) {
   return { cls: classifyText(bodyBuffer.toString('utf8')), via: 'classified-raw' };
 }
 
+function isFallbackEligible(req, bodyBuffer) {
+  if (!FALLBACK_URL || req.method !== 'POST') return false;
+  if (new URL(req.url, 'http://llm-proxy').pathname !== '/v1/chat/completions') return false;
+  try {
+    const parsed = JSON.parse(bodyBuffer.toString('utf8'));
+    return !Array.isArray(parsed.tools) || parsed.tools.length === 0;
+  } catch {
+    return false;
+  }
+}
+
 // ── Health probes ───────────────────────────────────────────────────────────
 function probeTier(tier) {
   return new Promise((resolve) => {
@@ -245,12 +262,24 @@ function probeTier(tier) {
   });
 }
 
-async function checkHealth() {
-  const now = Date.now();
-  for (const tier of TIERS) {
-    if (now - tier.lastCheck < HEALTH_TTL_MS) continue;
-    tier.healthy = await probeTier(tier);
-    tier.lastCheck = now;
+let healthCheckInFlight = null;
+
+async function checkHealth(force = false) {
+  if (healthCheckInFlight) return healthCheckInFlight;
+
+  healthCheckInFlight = (async () => {
+    const now = Date.now();
+    for (const tier of TIERS) {
+      if (!force && now - tier.lastCheck < HEALTH_TTL_MS) continue;
+      tier.healthy = await probeTier(tier);
+      tier.lastCheck = now;
+    }
+  })();
+
+  try {
+    await healthCheckInFlight;
+  } finally {
+    healthCheckInFlight = null;
   }
 }
 
@@ -471,6 +500,13 @@ proxy.on('error', (err, req, res) => {
     req.proxyTarget.lastCheck = 0;
   }
   releaseTier(req);
+  if (req._fallbackTarget && !req._fallbackAttempted && !res.headersSent) {
+    req._fallbackAttempted = true;
+    req.proxyTarget = null;
+    console.warn(`[proxy] local backend failed; retrying eligible chat request via configured fallback`);
+    proxy.web(req, res, { target: req._fallbackTarget });
+    return;
+  }
   // Guard against writing headers after a partial/streamed response has begun,
   // which would throw ERR_HTTP_HEADERS_SENT and crash the proxy uncaught.
   if (!res.headersSent) {
@@ -483,6 +519,19 @@ proxy.on('error', (err, req, res) => {
 
 // Serializable view of a tier for the /health and /status endpoints.
 const modelSummary = (t) => ({ name: t.name, port: t.port, size: t.size, healthy: t.healthy, load: t.load });
+
+function readinessSnapshot() {
+  const ready = TIERS.some((t) => t.healthy);
+  return {
+    ready,
+    status: ready ? 'healthy' : 'degraded',
+    ...(ready ? {} : { reason: 'no_healthy_tier' }),
+    mode: 'swap',
+    pin: pinSummary(),
+    swapping: swapInFlight ? TIERS[swapInFlight.cls].name : null,
+    models: TIERS.map(modelSummary),
+  };
+}
 
 /** Active LLM_PROXY_PIN_TIER summary for BFF/UI — null when unset. */
 function pinSummary() {
@@ -511,16 +560,29 @@ const server = http.createServer((req, res) => {
 
   if (req.url === '/health' && req.method === 'GET') {
     checkHealth(); // fire-and-forget refresh
-    // Swap mode: exactly one tier loaded is the NORMAL state — healthy means
-    // at least one backend can serve.
-    const anyHealthy = TIERS.some((t) => t.healthy);
-    res.writeHead(anyHealthy ? 200 : 503, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      status: anyHealthy ? 'healthy' : 'degraded',
-      mode: 'swap',
-      pin: pinSummary(),
-      models: TIERS.map(modelSummary),
-    }));
+    const snapshot = readinessSnapshot();
+    res.writeHead(snapshot.ready ? 200 : 503, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(snapshot));
+    return;
+  }
+
+  // GET /readyz — dependency-aware readiness. Unlike /health, this endpoint
+  // performs an immediate probe so Kubernetes receives current tier state and
+  // actionable diagnostics instead of a stale cached 503.
+  if (req.url === '/readyz' && req.method === 'GET') {
+    checkHealth(true).then(() => {
+      const snapshot = readinessSnapshot();
+      res.writeHead(snapshot.ready ? 200 : 503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(snapshot));
+    }).catch((err) => {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        ready: false,
+        status: 'degraded',
+        reason: 'health_check_failed',
+        error: err.message,
+      }));
+    });
     return;
   }
 
@@ -570,6 +632,8 @@ const server = http.createServer((req, res) => {
   req.on('end', async () => {
     const bodyBuffer = Buffer.concat(chunks);
     lastRequestAt = Date.now();
+    req.bodyBuffer = bodyBuffer;
+    if (isFallbackEligible(req, bodyBuffer)) req._fallbackTarget = FALLBACK_URL;
 
     // Every OpenAI-compatible client sends the tools available for this turn
     // in the chat-completions body. Answer explicit discovery questions from
@@ -625,6 +689,15 @@ const server = http.createServer((req, res) => {
       selectedTier = await selectTier(routedCls);
     } catch (err) {
       console.error(`[proxy] tier selection failed: ${err.message}`);
+      // selectTier has already waited through the complete local warm-up and
+      // swap timeout before reaching this branch. Never race a cold local tier
+      // by falling back while it is still loading.
+      if (req._fallbackTarget && !req._fallbackAttempted) {
+        req._fallbackAttempted = true;
+        console.warn(`[proxy] no local tier available; routing eligible chat request via configured fallback`);
+        proxy.web(req, res, { target: req._fallbackTarget });
+        return;
+      }
       if (!res.headersSent) {
         res.writeHead(503, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'No model available', message: err.message }));
@@ -633,7 +706,7 @@ const server = http.createServer((req, res) => {
     }
 
     req.proxyTarget = selectedTier; // for load tracking
-    req.bodyBuffer = bodyBuffer;    // re-streamed in proxyReq (body was drained above)
+    // Re-streamed in proxyReq (body was drained above).
     req._aiStartedAt = Date.now();
     req._aiTraceId = crypto.randomUUID();
     req._aiRequestModel = modelFromRequest(bodyBuffer);
@@ -686,4 +759,12 @@ process.on('SIGTERM', () => {
 } // end require.main === module
 
 // Exported for unit tests only (no effect on `node router.js`).
-module.exports = { TIERS, swapTo, smallestLoadedCovering, isInferenceRoute, server };
+module.exports = {
+  TIERS,
+  swapTo,
+  smallestLoadedCovering,
+  isInferenceRoute,
+  isFallbackEligible,
+  readinessSnapshot,
+  server,
+};

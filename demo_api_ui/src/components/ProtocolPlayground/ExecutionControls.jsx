@@ -1,4 +1,5 @@
 import React from 'react';
+import PingIdentitySpinner from '../shared/PingIdentitySpinner';
 
 export default function ExecutionControls({
   onExecute,
@@ -32,7 +33,7 @@ export default function ExecutionControls({
         >
           {isExecuting ? (
             <>
-              <span className="pp-spinner" aria-hidden="true" /> Executing
+              <PingIdentitySpinner size={18} label="Executing…" />
             </>
           ) : (
             'Execute All'

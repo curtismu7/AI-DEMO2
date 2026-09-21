@@ -336,7 +336,7 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     };
     const { container } = render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
     const headers = [...container.querySelectorAll(".srd-actor-label")].map((t) => t.textContent);
-    expect(headers).toContain("AI AGENT");
+    expect(headers).toContain("BANKING AGENT");
     expect(headers).not.toContain("HEURISTICS");
   });
 

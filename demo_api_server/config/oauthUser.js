@@ -10,6 +10,8 @@ const { getScopesForUserType, BANKING_SCOPES, COMPOUND_SCOPES } = require('./sco
 const endpointResolver = require('../services/oauthEndpointResolver');
 const { verticalManifest } = require('../services/verticalManifest');
 
+const isPingFederate = () => configStore.getOAuthProvider?.() === 'pingfederate';
+
 const config = {
   get environmentId()         { return configStore.getEffective('pingone_environment_id'); },
   get _region()               { return configStore.getEffective('pingone_region') || 'com'; },
@@ -26,9 +28,15 @@ const config = {
   get issuer()                 { return endpointResolver.getIssuer(); },
 
   // End-user Web application client
-  get clientId()              { return configStore.getEffective('user_client_id'); },
-  get clientSecret()          { return configStore.getEffective('user_client_secret'); },
-  get redirectUri()           { return configStore.getEffective('user_redirect_uri'); },
+  get clientId()              {
+    return configStore.getEffective(isPingFederate() ? 'pf_user_client_id' : 'user_client_id');
+  },
+  get clientSecret()          {
+    return configStore.getEffective(isPingFederate() ? 'pf_user_client_secret' : 'user_client_secret');
+  },
+  get redirectUri()           {
+    return configStore.getEffective(isPingFederate() ? 'pf_user_redirect_uri' : 'user_redirect_uri');
+  },
   /**
    * How this client authenticates at the token endpoint, mirroring the PingOne
    * app's own `tokenEndpointAuthMethod`. Only 'none' is acted on: a PKCE-only
@@ -38,7 +46,11 @@ const config = {
    * Empty/unset keeps the historical behaviour (send the secret when one
    * exists), so this cannot change a confidential deployment.
    */
-  get tokenEndpointAuthMethod() { return configStore.getEffective('user_token_endpoint_auth_method'); },
+  get tokenEndpointAuthMethod() {
+    return configStore.getEffective(
+      isPingFederate() ? 'pf_user_token_endpoint_auth_method' : 'user_token_endpoint_auth_method'
+    );
+  },
 
   /**
    * OIDC + banking API scopes for authorize. Must yield ≥5 distinct scopes on the access token
@@ -91,4 +103,3 @@ const config = {
 };
 
 module.exports = config;
-

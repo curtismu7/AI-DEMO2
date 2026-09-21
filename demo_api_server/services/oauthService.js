@@ -11,6 +11,7 @@ const { trackTokenEvent } = require('./tokenChainService');
 const configStore = require('./configStore');
 const { authMethodOrder, isInvalidClientError } = require('./pingOneTokenAuth');
 const clientAssertionService = require('./clientAssertionService');
+const { decodeJwt } = require('../utils/tokenUtils');
 
 // Utility function to decode and log OAuth token information
 const logTokenInfo = (token, context = '') => {
@@ -141,7 +142,7 @@ function _emitTokenExchangeEvent(outcome, fields) {
   try {
     const {
       exchangeVariant, audience, scope, exchangeClientId, hasActorToken,
-      subjectTokenType, latencyMs, httpStatus, pingoneError,
+      subjectTokenType, latencyMs, httpStatus, pingoneError, provider,
     } = fields;
     // RFC 8707 multi-resource audience arrives as an array — join it so the
     // facet is a single string, never a raw array.
@@ -153,6 +154,7 @@ function _emitTokenExchangeEvent(outcome, fields) {
       exchangeClientId,
       hasActorToken: !!hasActorToken,
       subjectTokenType,
+      provider: provider || configStore.getOAuthProvider?.() || 'pingone',
     };
     if (outcome !== 'request') metadata.latencyMs = latencyMs;
     if (outcome === 'fail') {
@@ -161,8 +163,8 @@ function _emitTokenExchangeEvent(outcome, fields) {
     }
     const messages = {
       request: `RFC 8693 token exchange (${exchangeVariant}) → POST audience=${audienceStr}`,
-      ok: `RFC 8693 token exchange (${exchangeVariant}) ← PingOne OK audience=${audienceStr}`,
-      fail: `RFC 8693 token exchange (${exchangeVariant}) ← PingOne FAILED audience=${audienceStr}`,
+      ok: `RFC 8693 token exchange (${exchangeVariant}) ← ${metadata.provider} OK audience=${audienceStr}`,
+      fail: `RFC 8693 token exchange (${exchangeVariant}) ← ${metadata.provider} FAILED audience=${audienceStr}`,
     };
     appEventService.logEvent('token_exchange', outcome === 'fail' ? 'error' : 'info', messages[outcome],
       { tag: `token-exchange/${outcome}`, metadata });
@@ -344,6 +346,137 @@ class OAuthService {
       err.pingoneDesc  = pingoneDesc  || '';
       throw err;
     }
+  }
+
+  /**
+   * Request an Identity Assertion JWT Authorization Grant from PingFederate.
+   *
+   * PF mode is intentionally strict: it uses a PF-specific exchange client and
+   * requires the token endpoint to identify the response as an ID-JAG. This
+   * method never falls back to the PingOne exchange methods or a local mock.
+   *
+   * @param {string} subjectToken - Server-held PF subject token
+   * @param {string} subjectTokenType - RFC 8693 subject token type URI
+   * @param {string} audience - Downstream authorization server audience
+   * @param {string} resource - Downstream resource URI
+   * @param {string|string[]} scopes - Least-privilege requested scopes
+   * @returns {Promise<string>} The PF-issued ID-JAG JWT
+   */
+  async performIdJagExchange(subjectToken, subjectTokenType, audience, resource, scopes) {
+    if (!subjectToken) throw new Error('ID-JAG exchange requires a subject token');
+
+    const exchangeClientId = configStore.getEffective('pf_token_exchange_client_id');
+    const exchangeClientSecret = configStore.getEffective('pf_token_exchange_client_secret');
+    if (!exchangeClientId) throw new Error('PingFederate ID-JAG exchange client is not configured');
+
+    const scopeStr = Array.isArray(scopes) ? scopes.join(' ') : String(scopes || '');
+    const body = new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+      requested_token_type: 'urn:ietf:params:oauth:token-type:id-jag',
+      subject_token: subjectToken,
+      subject_token_type: subjectTokenType,
+      audience,
+      scope: scopeStr,
+      client_id: exchangeClientId,
+    });
+    if (resource) body.set('resource', resource);
+
+    const method = String(
+      configStore.getEffective('pf_token_exchange_token_endpoint_auth_method') || 'basic'
+    ).toLowerCase();
+    const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+    applyTokenEndpointAuth(
+      exchangeClientId,
+      exchangeClientSecret,
+      method,
+      body,
+      headers,
+      this.config.tokenEndpoint,
+    );
+
+    const telemetry = {
+      exchangeVariant: 'pf-id-jag',
+      audience,
+      scope: scopeStr,
+      exchangeClientId,
+      hasActorToken: false,
+      subjectTokenType,
+      provider: 'pingfederate',
+    };
+    _emitTokenExchangeEvent('request', telemetry);
+    const startTime = Date.now();
+
+    try {
+      const response = await axios.post(this.config.tokenEndpoint, body.toString(), { headers });
+      const data = response.data || {};
+      if (!data.access_token) throw new Error('PingFederate ID-JAG response missing access_token');
+      if (data.issued_token_type !== 'urn:ietf:params:oauth:token-type:id-jag') {
+        throw new Error(`PingFederate response is not an ID-JAG (issued_token_type=${data.issued_token_type || 'missing'})`);
+      }
+      const decoded = decodeJwt(data.access_token);
+      const expectedIssuer = configStore.getEffective('pf_issuer');
+      const actualAudience = decoded?.claims?.aud;
+      const audienceMatches = actualAudience === audience ||
+        (Array.isArray(actualAudience) && actualAudience.includes(audience));
+      if (!decoded || decoded.header?.typ !== 'oauth-id-jag+jwt' || !decoded.claims?.sub ||
+          !decoded.claims?.iss || (expectedIssuer && decoded.claims.iss !== expectedIssuer) ||
+          !audienceMatches || !decoded.claims?.exp || decoded.claims.exp <= Math.floor(Date.now() / 1000)) {
+        throw new Error('PingFederate response failed ID-JAG issuer, audience, type, subject, or expiry validation');
+      }
+      _emitTokenExchangeEvent('ok', { ...telemetry, latencyMs: Date.now() - startTime });
+      return data.access_token;
+    } catch (error) {
+      const pfData = error.response?.data || {};
+      const richErr = new Error(
+        `PingFederate ID-JAG exchange failed: ${pfData.error_description || pfData.error || error.message}`
+      );
+      richErr.httpStatus = error.response?.status;
+      richErr.pfError = pfData.error;
+      richErr.pfErrorDescription = pfData.error_description;
+      richErr.requestContext = { audience, resource, scope: scopeStr, client_id: exchangeClientId };
+      _emitTokenExchangeEvent('fail', {
+        ...telemetry,
+        latencyMs: Date.now() - startTime,
+        httpStatus: richErr.httpStatus,
+        pingoneError: pfData.error,
+      });
+      throw richErr;
+    }
+  }
+
+  /**
+   * Redeem a PF-issued ID-JAG at the explicitly configured downstream AS.
+   * An ID-JAG is an assertion, not an MCP bearer token; missing redemption
+   * configuration is therefore a hard error rather than a local/mock fallback.
+   */
+  async redeemIdJag(idJag, resource, scopes) {
+    if (!idJag) throw new Error('ID-JAG redemption requires an assertion');
+    const endpoint = configStore.getEffective('pf_id_jag_redemption_token_endpoint');
+    const clientId = configStore.getEffective('pf_id_jag_redemption_client_id');
+    const clientSecret = configStore.getEffective('pf_id_jag_redemption_client_secret');
+    if (!endpoint || !clientId) {
+      throw new Error('PF ID-JAG redemption token endpoint and client are not configured');
+    }
+    const scopeStr = Array.isArray(scopes) ? scopes.join(' ') : String(scopes || '');
+    const body = new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: idJag,
+      client_id: clientId,
+    });
+    if (resource) body.set('resource', resource);
+    if (scopeStr) body.set('scope', scopeStr);
+    const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+    applyTokenEndpointAuth(
+      clientId,
+      clientSecret,
+      String(configStore.getEffective('pf_id_jag_redemption_auth_method') || 'basic').toLowerCase(),
+      body,
+      headers,
+      endpoint,
+    );
+    const response = await axios.post(endpoint, body.toString(), { headers });
+    if (!response.data?.access_token) throw new Error('ID-JAG redemption response missing access_token');
+    return response.data.access_token;
   }
 
   /**

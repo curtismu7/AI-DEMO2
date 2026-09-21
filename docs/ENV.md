@@ -4,6 +4,52 @@
 
 Copy `demo_api_server/.env` to your deployment. All secrets are required.
 
+## OAuth provider selection
+
+The default remains PingOne:
+
+```dotenv
+OAUTH_PROVIDER=pingone
+```
+
+To use PingFederate for the browser login and ID-JAG token chain, set the
+following non-secret values and provide the secrets through the deployment
+secret store. Do not commit PF secrets or tokens.
+
+```dotenv
+OAUTH_PROVIDER=pingfederate
+PF_ISSUER=https://pf.example.com
+PF_DISCOVERY_ENDPOINT=https://pf.example.com/.well-known/openid-configuration
+PF_AUTHORIZATION_ENDPOINT=https://pf.example.com/as/authorization.oauth2
+PF_TOKEN_ENDPOINT=https://pf.example.com/as/token.oauth2
+PF_USERINFO_ENDPOINT=https://pf.example.com/idp/userinfo.openid
+PF_JWKS_URI=https://pf.example.com/pf/JWKS
+
+PF_ADMIN_CLIENT_ID=<bff-admin-client-id>
+PF_ADMIN_REDIRECT_URI=https://local.ping-devops.com:4000/api/auth/oauth/admin/callback
+PF_USER_CLIENT_ID=<bff-user-client-id>
+PF_USER_REDIRECT_URI=https://local.ping-devops.com:4000/api/auth/oauth/user/callback
+PF_TOKEN_EXCHANGE_CLIENT_ID=<pf-id-jag-client-id>
+PF_ID_JAG_ENABLED=true
+PF_ID_JAG_AUDIENCE=<downstream-authorization-server-issuer>
+PF_ID_JAG_RESOURCE=<mcp-resource-uri>
+PF_ID_JAG_SCOPE=<space-separated-least-privilege-scopes>
+PF_ID_JAG_SUBJECT_TOKEN_TYPE=urn:ietf:params:oauth:token-type:refresh_token
+PF_ID_JAG_REDEMPTION_TOKEN_ENDPOINT=<downstream-token-endpoint>
+PF_ID_JAG_REDEMPTION_CLIENT_ID=<downstream-client-id>
+```
+
+Secret-store variables are `PF_ADMIN_CLIENT_SECRET`, `PF_USER_CLIENT_SECRET`,
+`PF_TOKEN_EXCHANGE_CLIENT_SECRET`, and
+`PF_ID_JAG_REDEMPTION_CLIENT_SECRET`. The PF token-exchange and redemption
+authentication methods default to `basic`; set the corresponding
+`*_TOKEN_ENDPOINT_AUTH_METHOD` or `PF_ID_JAG_REDEMPTION_AUTH_METHOD` to `post`
+or `private_key_jwt` when that is how the PF client is configured.
+
+PF mode is intentionally fail-closed: the ID-JAG is redeemed only at the
+explicit downstream endpoint. It is never treated as a final MCP bearer and
+does not fall back to the PingOne or local mock exchange.
+
 ## Credential Variables (PingOne Apps)
 
 ### Core Apps

@@ -182,21 +182,6 @@
   color: var(--th-text);
 }
 
-.token-chain-spinner {
-  width: 11px;
-  height: 11px;
-  border: 2px solid #f59e0b;
-  border-top-color: transparent;
-  border-radius: 50%;
-  animation: token-chain-spin 0.75s linear infinite;
-}
-
-@keyframes token-chain-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 .token-chain-copy {
   flex-shrink: 0;
   width: 1.85rem;

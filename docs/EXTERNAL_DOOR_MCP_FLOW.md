@@ -124,6 +124,23 @@ Live response:
 
 Everything from here on uses these five endpoints.
 
+### 1c. OpenID Connect discovery and claims
+
+The same issuer also exposes OpenID Connect discovery at
+`/.well-known/openid-configuration`. It advertises the existing authorization,
+token, and JWKS endpoints plus `/userinfo`, and declares `openid` and RS256 ID
+tokens. There is intentionally no logout endpoint.
+
+When the client requests the `openid` scope, the authorization-code token
+response includes an ID token signed by the MCP server's `/jwks` key. The ID
+token contains `iss`, `sub`, `aud`, `iat`, `exp`, and the verified PingOne
+identity claims available to the broker; a request `nonce` is carried into the
+ID token.
+
+The client can call `GET` or `POST /userinfo` with the MCP access token as a
+Bearer token. The endpoint returns the verified subject and permitted identity
+claims. Tokens without the `openid` scope are rejected by the UserInfo endpoint.
+
 ---
 
 ## Phase 2 — Dynamic Client Registration (RFC 7591)
@@ -143,7 +160,7 @@ Request body (whatever the client sends — honored close to verbatim):
   "redirect_uris": ["http://127.0.0.1:6274/oauth/callback"],
   "grant_types": ["authorization_code", "refresh_token"],
   "token_endpoint_auth_method": "none",
-  "scope": "mcp:invoke read"
+  "scope": "mcp:invoke read openid"
 }
 ```
 
@@ -160,12 +177,12 @@ a pod restart), and returns 201:
   "grant_types": ["authorization_code", "refresh_token"],
   "redirect_uris": ["http://127.0.0.1:6274/oauth/callback"],
   "token_endpoint_auth_method": "none",
-  "scope": "mcp:invoke read"
+  "scope": "mcp:invoke read openid"
 }
 ```
 
 Note: `scope` is **pinned server-side** to `openRegistrationScope()`
-(`mcp:invoke read` by default), never taken from the request — the open-DCR
+(`mcp:invoke read openid` by default), never taken from the request — the open-DCR
 gate would otherwise let any anonymous caller mint itself write access.
 
 The client now has a `client_id`/`client_secret` it will use for every
@@ -295,7 +312,7 @@ Handled by `handleToken()` (`OAuthRouter.ts:275`). Validates PKCE, then calls
   "sub": "1aee74ae-3d09-4bcf-a69f-7e1bc225b761",
   "aud": "mcpserver.ping.demo",
   "client_id": "5487e831-6f0f-4d47-b3c7-402e277ebfe3",
-  "scope": "mcp:invoke read",
+    "scope": "openid mcp:invoke read",
   "jti": "<random>",
   "iat": ..., "exp": ... (1 hour)
 }
@@ -307,7 +324,7 @@ this JWT's `jti` alongside the real PingOne access token from Phase 3c-4 — the
 lookup Step 9 (Phase 7) uses later. Response:
 
 ```json
-{ "access_token": "<the JWT above>", "token_type": "Bearer", "expires_in": 3600, "scope": "mcp:invoke read" }
+{ "access_token": "<the JWT above>", "token_type": "Bearer", "expires_in": 3600, "scope": "openid mcp:invoke read", "id_token": "<OIDC ID token>" }
 ```
 
 **This JWT — not the real PingOne token — is what the client uses as its

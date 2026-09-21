@@ -28,6 +28,7 @@ function policyFingerprint(policy) {
   const canonical = JSON.stringify({
     enabled: policy.enabled,
     requireVerifiedEmail: policy.requireVerifiedEmail,
+    requiredGroupId: policy.requiredGroupId || '',
     domains: policy.domains,
   });
   return crypto.createHash('sha256').update(canonical).digest('hex');
@@ -40,10 +41,11 @@ function loadHostedAccessPolicy(env = process.env) {
     env.HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL,
     enabled,
   );
+  const requiredGroupId = String(env.HOSTED_ACCESS_REQUIRED_GROUP_ID || '').trim();
   if (enabled && domains.length === 0) {
     throw new Error('HOSTED_ACCESS_ALLOWED_DOMAINS is required when hosted access is enabled');
   }
-  const policy = { enabled, domains, requireVerifiedEmail };
+  const policy = { enabled, domains, requireVerifiedEmail, requiredGroupId };
   return {
     ...policy,
     domainSet: new Set(domains),
@@ -71,6 +73,10 @@ function evaluateHostedIdentity(claims = {}, policy = loadHostedAccessPolicy()) 
   const domain = match[2].toLowerCase();
   const email = `${match[1]}@${domain}`;
   if (!policy.domainSet.has(domain)) return denied('domain_not_allowed', { subject, email, domain });
+  if (policy.requiredGroupId) {
+    const groups = Array.isArray(claims.groups) ? claims.groups.map(String) : [];
+    if (!groups.includes(policy.requiredGroupId)) return denied('group_not_allowed', { subject, email, domain });
+  }
   if (!subject) return denied('subject_missing', { email, domain });
   return { allowed: true, reason: 'allowed', subject, email, domain };
 }
@@ -88,6 +94,7 @@ function coherentHostedIdentityClaims(idTokenClaims = {}, userInfo = {}) {
     sub: uiSub || idSub,
     email: source.email,
     email_verified: source.email_verified,
+    groups: Array.isArray(userInfo.groups) ? userInfo.groups : Array.isArray(idTokenClaims.groups) ? idTokenClaims.groups : [],
   };
 }
 
@@ -109,7 +116,10 @@ function stampHostedAccessApproval(session, decision, policy, approvedAt = Date.
 function hasCurrentHostedAccessApproval(session, policy = loadHostedAccessPolicy()) {
   if (!policy.enabled) return true;
   const approval = session?.hostedAccessApproval;
-  const subject = session?.user?.oauthId || session?.user?.sub || null;
+  const subject = session?.hostedAccessIdentity?.subject
+    || session?.user?.oauthId
+    || session?.user?.sub
+    || null;
   return !!(
     approval
     && approval.version === APPROVAL_VERSION

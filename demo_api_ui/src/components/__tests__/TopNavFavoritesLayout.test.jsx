@@ -54,6 +54,14 @@ vi.mock("../UserMenu", () => ({ default: () => null }));
 vi.mock("../VerticalSwitcher", () => ({ default: () => null }));
 
 describe("TopNav Favorites dropdown", () => {
+  it("renders the Ping Identity logo at the far left of the main header", () => {
+    render(<TopNav user={null} onLogout={vi.fn()} />);
+
+    const logo = screen.getByRole("img", { name: "Ping Identity" });
+    expect(logo).toHaveAttribute("src", "/assets/ping-identity-logo.png");
+    expect(logo.parentElement).toHaveClass("topnav-ping-identity");
+  });
+
   it("renders outside the horizontal scroll container so the dropdown is not clipped", () => {
     render(<TopNav user={null} onLogout={vi.fn()} />);
 

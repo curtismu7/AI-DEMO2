@@ -6,6 +6,7 @@ import { notifySessionExpiredIfNeeded } from '../utils/authUi';
 import { useThemeOptional } from '../context/ThemeContext';
 import SignInPrompt from './SignInPrompt';
 import ResourceServerTester, { CLIENT_CREDENTIALS_SOURCES } from './ResourceServerTester';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 import '../styles/appShellPages.css';
 import './ClientCredentialsResourcePage.css';
 
@@ -110,8 +111,7 @@ export default function ClientCredentialsResourcePage() {
     return (
       <div className="app-page-shell ccrsp-page">
         <div className="ccrsp-loading">
-          <div className="ccrsp-spinner" />
-          <p>Loading Client Credentials Resource Server…</p>
+          <PingIdentitySpinner size={36} label="Loading Client Credentials Resource Server…" />
         </div>
       </div>
     );

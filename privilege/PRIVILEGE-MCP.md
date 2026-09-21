@@ -696,10 +696,12 @@ writes the same objects.
 - **Do not run `docker compose up` directly** — a hook blocks it after repeated
   name-squatting collisions between parallel sessions. Use `./run-docker.sh`;
   `restart <svc>` force-recreates, so env changes are picked up.
-- **mTLS must be off for the console-configured backend to work.** `MCP_MTLS_ON` drives
-  four services at once; with it on, the app's `http://host.docker.internal:8080/mcp`
-  backend returns 403. Bearer enforcement is unchanged either way — only the transport
-  cert requirement goes.
+- **Privilege uses the dedicated plaintext backend listener.** Compose exposes
+  `mcp-server:8081/mcp` for the Privilege proxy because that proxy does not present the
+  gateway client certificate. `mcp-server:8080` remains the mTLS-protected gateway and
+  PingGateway hop when `MCP_MTLS_ON=1`; the two paths no longer compete for one port.
+  Update the MCP Server application's Backend Name in the Privilege console to
+  `http://mcp-server:8081/mcp` before discovery.
 
 ### The node receives config but never dispatches a discovery (open, 2026-08-03)
 

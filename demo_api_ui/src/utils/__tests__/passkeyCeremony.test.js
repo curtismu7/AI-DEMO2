@@ -1,9 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   b64ToBytes,
   bytesToB64,
   formatPublicKeyCredentialAssertion,
   normalizePublicKeyRequestOptions,
+  authenticateWebAuthn,
 } from "../passkeyCeremony";
 
 describe("b64ToBytes", () => {
@@ -91,6 +92,38 @@ describe("formatPublicKeyCredentialAssertion", () => {
     expect(formatted.id).toBe("cred-id");
     expect(formatted.rawId).toBe(bytesToB64(buf([1, 2])));
     expect(formatted.response.userHandle).toBe(bytesToB64(buf([6])));
+  });
+});
+
+describe("authenticateWebAuthn", () => {
+  it("passes conditional mediation outside publicKey and formats the assertion", async () => {
+    const credential = {
+      id: "conditional-credential",
+      rawId: new Uint8Array([1, 2]).buffer,
+      type: "public-key",
+      response: {
+        clientDataJSON: new Uint8Array([3]).buffer,
+        authenticatorData: new Uint8Array([4]).buffer,
+        signature: new Uint8Array([5]).buffer,
+        userHandle: null,
+      },
+    };
+    const get = vi.fn().mockResolvedValue(credential);
+    Object.defineProperty(navigator, "credentials", {
+      value: { get }, configurable: true,
+    });
+
+    const result = await authenticateWebAuthn(
+      { challenge: [1, 2, 3], rpId: "ping-devops.com" },
+      { mediation: "conditional" },
+    );
+
+    expect(get).toHaveBeenCalledWith(expect.objectContaining({
+      mediation: "conditional",
+      publicKey: expect.objectContaining({ rpId: "ping-devops.com" }),
+    }));
+    expect(get.mock.calls[0][0].publicKey).not.toHaveProperty("mediation");
+    expect(result.assertionValue.id).toBe("conditional-credential");
   });
 });
 

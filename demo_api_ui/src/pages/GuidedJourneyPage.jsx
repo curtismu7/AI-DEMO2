@@ -14,15 +14,19 @@ import {
 import "./GuidedJourneyPage.css";
 
 const JOURNEY_SEQUENCE = Object.freeze([
-  ["ai-architecture", "Business problem"],
+  ["agent-landscape", "Discover agents"],
   ["login", "PingOne login"],
   ["delegation", "Delegation"],
+  ["consumer-agent", "Personal Agent"],
+  ["customer-service-agent", "Digital Assistant"],
   ["mcp", "MCP"],
   ["authorize", "PingOne Authorize"],
   ["hitl-step-up", "HITL and step-up"],
+  ["a2a-delegation", "A2A delegation"],
+  ["privilege-mcp", "Privilege MCP"],
   ["threat-defense", "Attack defense"],
   ["lifecycle", "Agent lifecycle"],
-  ["product-map", "Evidence summary"],
+  ["evidence-timeline", "Evidence summary"],
 ]);
 
 const PROVENANCE_LABELS = Object.freeze({
@@ -198,7 +202,9 @@ export default function GuidedJourneyPage({
         stepNumber={activeIndex + 1}
         totalSteps={steps.length}
         onRun={
-          canObserveLesson(activeStep.lesson.id) ? handleRun : undefined
+          activeIndex < steps.length - 1 && canObserveLesson(activeStep.lesson.id)
+            ? handleRun
+            : undefined
         }
         summary={summary}
       />

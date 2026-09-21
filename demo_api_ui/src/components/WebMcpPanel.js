@@ -22,6 +22,8 @@ import McpParamSelect from './McpParamSelect';
 import McpParamToggle from './McpParamToggle';
 import McpParamSuggest from './McpParamSuggest';
 import McpParamText from './McpParamText';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
+import FormJsonToggle from './shared/FormJsonToggle';
 
 // Use the built-in Web Crypto / Node crypto.randomUUID() instead of the
 // `uuid` npm package — same output (RFC 4122 v4), no dependency, no Jest
@@ -409,13 +411,7 @@ export default function WebMcpPanel() {
           {loading && !selectedTool && (
             <div className="webmcp-loading">
               <div className="webmcp-loading__header">
-                <span className="webmcp-calling-spinner" aria-hidden="true" />
-                <span>
-                  Loading MCP tools — this can take a few seconds on a fresh
-                  session while the BFF verifies your token with PingOne,
-                  exchanges it for an MCP-scoped token, and opens the WebSocket
-                  to the MCP server.
-                </span>
+                <PingIdentitySpinner size={20} label="Loading MCP tools…" />
               </div>
               {discoveryPhases.length > 0 && (
                 <ol
@@ -428,7 +424,11 @@ export default function WebMcpPanel() {
                       key={p.phase}
                       className={`webmcp-discovery-phase webmcp-discovery-phase--${p.status || 'active'}`}
                     >
-                      <span className="webmcp-discovery-phase__status" aria-hidden="true" />
+                      {p.status === 'active' ? (
+                        <PingIdentitySpinner size={16} label="Discovering MCP tools…" aria-hidden="true" />
+                      ) : (
+                        <span className="webmcp-discovery-phase__status" aria-hidden="true" />
+                      )}
                       <div className="webmcp-discovery-phase__text">
                         <div className="webmcp-discovery-phase__label">{p.label}</div>
                         {p.technical && (
@@ -451,7 +451,11 @@ export default function WebMcpPanel() {
                       key={p.phase}
                       className={`webmcp-discovery-phase webmcp-discovery-phase--${p.status || 'active'}`}
                     >
-                      <span className="webmcp-discovery-phase__status" aria-hidden="true" />
+                      {p.status === 'active' ? (
+                        <PingIdentitySpinner size={16} label="Discovering MCP tools…" aria-hidden="true" />
+                      ) : (
+                        <span className="webmcp-discovery-phase__status" aria-hidden="true" />
+                      )}
                       <div className="webmcp-discovery-phase__text">
                         <div className="webmcp-discovery-phase__label">{p.label}</div>
                         {p.technical && (
@@ -663,16 +667,12 @@ export default function WebMcpPanel() {
                   disabled={loading}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}
                 >
-                  {loading && <span className="webmcp-btn-spinner" aria-hidden="true" />}
-                  {loading ? "Calling…" : "Call Tool"}
+                  {loading ? <PingIdentitySpinner size={18} label="Calling…" /> : "Call Tool"}
                 </button>
 
                 {loading && (
                   <div className="webmcp-calling-status">
-                    <span className="webmcp-calling-spinner" aria-hidden="true" />
-                    <span>
-                      Calling <strong>{selectedTool.name}</strong> — waiting for response…
-                    </span>
+                    <PingIdentitySpinner size={20} label={`Calling ${selectedTool.name}…`} />
                   </div>
                 )}
 
@@ -708,7 +708,7 @@ export default function WebMcpPanel() {
                       )
                     )}
                     <h5>Server Response</h5>
-                    <pre>{JSON.stringify(result, null, 2)}</pre>
+                    <FormJsonToggle value={result} ariaLabel="Server response view" />
                   </div>
                 )}
 

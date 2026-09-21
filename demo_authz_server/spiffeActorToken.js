@@ -98,7 +98,11 @@ async function verifySvid(svid) {
       continue; // malformed key in the bundle — try the next
     }
     try {
-      const claims = jwt.verify(svid, pub, { algorithms: ['RS256'], issuer: ISSUER });
+      const claims = jwt.verify(svid, pub, {
+        algorithms: ['RS256'],
+        issuer: ISSUER,
+        audience: TRUST_DOMAIN,
+      });
       if (!isSpiffeId(claims.sub)) {
         return { valid: false, spiffeId: null, reason: 'sub is not a SPIFFE ID in this trust domain' };
       }

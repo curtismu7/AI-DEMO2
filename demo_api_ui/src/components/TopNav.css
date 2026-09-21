@@ -31,6 +31,27 @@
   flex-shrink: 0;
 }
 
+/* Ping Identity palette from Brandfetch: #051727, #B3282D, #FBFBFC. */
+.topnav-ping-identity {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: #b3282d;
+  box-shadow: var(--shadow-sm);
+}
+
+.topnav-ping-identity-logo {
+  display: block;
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+}
+
 .topnav-hamburger {
   background: transparent;
   border: none;
@@ -81,6 +102,14 @@
   font-weight: 700;
   color: var(--brand-topnav-text, #ffffff);
   letter-spacing: -0.2px;
+}
+
+@media (max-width: 640px) {
+  .topnav-ping-identity,
+  .topnav-ping-identity-logo {
+    width: 36px;
+    height: 36px;
+  }
 }
 
 /* ─── Context chip (Customer / Admin / Setup) — always after brand ─── */
@@ -613,4 +642,3 @@
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
-

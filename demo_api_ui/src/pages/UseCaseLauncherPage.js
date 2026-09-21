@@ -845,6 +845,14 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
             triggerText: data.triggerText,
             type: data.type,
             vertical,
+            runContext: {
+              source: 'use-cases',
+              useCaseId: uc.useCaseId,
+              useCaseLabel: uc.title,
+              triggerText: uc.trigger?.text || data.triggerText,
+              expectedOutcome: uc.expectedOutcome,
+              evidence: uc.evidence,
+            },
           }
         });
       })

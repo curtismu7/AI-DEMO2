@@ -24,6 +24,25 @@ test('the "In this repo" tab labels the SPIFFE routes as illustrative, not real'
   expect(screen.getAllByText(/clientAssertionService\.js/).length).toBeGreaterThan(0);
 });
 
+test('states the complete P1 parity boundary', () => {
+  render(<SpiffePanel isOpen onClose={() => {}} />);
+
+  fireEvent.click(screen.getByRole('tab', { name: /in this repo/i }));
+
+  expect(screen.getByText(/P1 parity mode uses a local mock issuer/i)).toBeInTheDocument();
+  expect(screen.getByText(/cryptographic verification is real/i)).toBeInTheDocument();
+  expect(screen.getByText(/workload attestation is not real/i)).toBeInTheDocument();
+  expect(
+    screen.getByRole('heading', { name: /local actor-token exchange models PingFederate behavior/i }),
+  ).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('tab', { name: /what PingOne can consume/i }));
+
+  expect(
+    screen.getByText(/PingOne Cloud cannot consume a SPIRE SVID as an external actor token/i),
+  ).toBeInTheDocument();
+});
+
 test('the PingOne tab states the two hard blockers', () => {
   render(<SpiffePanel isOpen onClose={() => {}} />);
 

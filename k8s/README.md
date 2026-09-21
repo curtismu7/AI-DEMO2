@@ -736,17 +736,27 @@ gh release create v2.3.2 --generate-notes
 
 The `ai-demo.ping-devops.com` browser surface is denied by default. The nginx
 Ingress asks the BFF to validate a server-side approval on every browser
-request. Only the four exact customer/admin OAuth login/callback paths bypass
-that check. Public MCP hostnames are intentionally unchanged. The legacy
+request. Only the exact hosted OAuth and registration endpoints, plus the
+registration page's static assets, bypass that check. Public MCP hostnames are intentionally unchanged. The legacy
 unauthenticated PingOne/DaVinci webhook paths are blocked at this perimeter;
 do not expose them until handler-side authenticity validation is implemented.
 
-Both PingOne OAuth applications must issue `openid profile email` and map the
-`email` and boolean `email_verified` claims into the ID token or UserInfo
-response. The BFF accepts exact, case-normalized domains `pingidentity.com` and
-`pingone.com`; subdomains and lookalikes do not match. A verified claim is
-required. Test an ineligible identity only with a non-production PingOne test
+The hosted front-door PingOne OAuth application must issue `openid profile email`
+and map the `email`, boolean `email_verified`, and `groups` claims into the ID
+token or UserInfo response. The BFF accepts only exact, case-normalized
+`pingidentity.com` addresses for registration and front-door admission;
+subdomains and lookalikes do not match. A verified claim is required. The SE
+deployment also requires `HOSTED_ACCESS_REQUIRED_GROUP_ID`, which must be the
+PingOne group assigned to approved hosted users and present in the front-door
+identity's `groups` claim. Test an ineligible identity only with a non-production PingOne test
 account—never place credentials or session cookies in the repository.
+
+Set `HOSTED_ACCESS_CLIENT_ID` and `HOSTED_ACCESS_CLIENT_SECRET` in the BFF
+`.env` used by `k8s/create-secrets.sh`. The redirect URI defaults to
+`https://ai-demo.ping-devops.com/api/auth/hosted-access/callback`; register that
+exact URI in the hosted front-door PingOne application. This front door writes
+only its own admission cookie; the existing Demo User/Admin login remains the
+application account flow.
 
 Rollout order is BFF first, then ConfigMap/restart, then the OAuth-bypass
 Ingress, and finally the protected catch-all Ingress. Observe audit events

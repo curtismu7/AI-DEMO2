@@ -398,17 +398,103 @@ class PingOneManagementService {
     }
   }
 
+  async findUserByEmail(email) {
+    this.ensureInitialized();
+    const filter = encodeURIComponent(`email eq "${String(email)}"`);
+    try {
+      const response = await axios.get(
+        `${this.baseURL}/users?filter=${filter}&limit=1`,
+        { headers: this.getHeaders() },
+      );
+      return response.data._embedded?.users?.[0] || null;
+    } catch (error) {
+      return this.handleError(error, 'findUserByEmail');
+    }
+  }
+
   /**
    * Create a user
    */
-  async createUser({ populationId, username, email }) {
+  async createUser({ populationId, username, email, firstName, lastName, mobilePhone, mfaEnabled = false, canAuthenticate = true }) {
     this.ensureInitialized();
-    const payload = { population: { id: populationId }, username, email };
+    const payload = {
+      population: { id: populationId }, username, email,
+      ...(firstName ? { name: { given: firstName, family: lastName || '' } } : {}),
+      ...(mobilePhone ? { mobilePhone } : {}),
+      ...(mfaEnabled ? { mfaEnabled: true } : {}),
+      account: { canAuthenticate },
+    };
     try {
       const response = await axios.post(`${this.baseURL}/users`, payload, { headers: this.getHeaders() });
       return { success: true, user: response.data, id: response.data.id };
     } catch (error) {
       return this.handleError(error, 'createUser');
+    }
+  }
+
+  async updateUserProfile(id, { firstName, lastName, mobilePhone } = {}) {
+    this.ensureInitialized();
+    const payload = {};
+    if (firstName || lastName) payload.name = { given: firstName || '', family: lastName || '' };
+    if (mobilePhone) payload.mobilePhone = mobilePhone;
+    if (!Object.keys(payload).length) return { success: true };
+    try {
+      await axios.patch(`${this.baseURL}/users/${encodeURIComponent(id)}`, payload, { headers: this.getHeaders() });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'updateUserProfile');
+    }
+  }
+
+  async setUserMfaEnabled(id, enabled) {
+    this.ensureInitialized();
+    try {
+      await axios.put(`${this.baseURL}/users/${encodeURIComponent(id)}/mfaEnabled`, { mfaEnabled: Boolean(enabled) }, { headers: this.getHeaders() });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'setUserMfaEnabled');
+    }
+  }
+
+  async getUser(id) {
+    this.ensureInitialized();
+    try {
+      const response = await axios.get(`${this.baseURL}/users/${encodeURIComponent(id)}`, { headers: this.getHeaders() });
+      return response.data;
+    } catch (error) {
+      if (error.response?.status === 404) return null;
+      return this.handleError(error, 'getUser');
+    }
+  }
+
+  async setUserCanAuthenticate(id, canAuthenticate) {
+    this.ensureInitialized();
+    try {
+      await axios.patch(`${this.baseURL}/users/${encodeURIComponent(id)}`, { account: { canAuthenticate: Boolean(canAuthenticate) } }, { headers: this.getHeaders() });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'setUserCanAuthenticate');
+    }
+  }
+
+  async addUserToGroup(userId, groupId) {
+    this.ensureInitialized();
+    try {
+      await axios.post(`${this.baseURL}/users/${encodeURIComponent(userId)}/memberOfGroups`, { id: groupId }, { headers: this.getHeaders() });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'addUserToGroup');
+    }
+  }
+
+  async removeUserFromGroup(userId, groupId) {
+    this.ensureInitialized();
+    try {
+      await axios.delete(`${this.baseURL}/users/${encodeURIComponent(userId)}/memberOfGroups/${encodeURIComponent(groupId)}`, { headers: this.getHeaders() });
+      return { success: true };
+    } catch (error) {
+      if (error.response?.status === 404) return { success: true };
+      return this.handleError(error, 'removeUserFromGroup');
     }
   }
 

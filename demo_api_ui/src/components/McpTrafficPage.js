@@ -26,10 +26,12 @@ import {
   QUERY_SUGGESTIONS,
 } from '../constants/mcpFieldKeys';
 import AdminTokenNotice from './AdminTokenNotice';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 import McpParamSelect from './McpParamSelect';
 import McpParamToggle from './McpParamToggle';
 import McpParamSuggest from './McpParamSuggest';
 import McpParamText from './McpParamText';
+import FormJsonToggle from './shared/FormJsonToggle';
 
 const uuid = () =>
   (typeof window !== 'undefined' && window.crypto?.randomUUID?.()) ||
@@ -296,11 +298,7 @@ export default function McpTrafficPage({ embedded = false } = {}) {
       {loadingTools && (
         <div style={{ padding: '14px 24px', borderBottom: '1px solid var(--border-light,#e2e8f0)', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: discoveryPhases.length > 0 ? '12px' : 0 }}>
-            <span style={{
-              display: 'inline-block', width: '14px', height: '14px', borderRadius: '50%',
-              border: '2px solid #3b82f6', borderTopColor: 'transparent',
-              animation: 'mtp-spin 0.8s linear infinite', flexShrink: 0,
-            }} />
+            <PingIdentitySpinner size={22} label="Connecting to MCP server…" aria-hidden="true" />
             <span style={{ fontSize: '0.85rem', color: '#374151' }}>
               Connecting — verifying token, opening WebSocket to MCP server…
             </span>
@@ -548,13 +546,7 @@ export default function McpTrafficPage({ embedded = false } = {}) {
                     marginBottom: '16px',
                   }}
                 >
-                  {calling && (
-                    <span style={{
-                      display: 'inline-block', width: '12px', height: '12px', borderRadius: '50%',
-                      border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff',
-                      animation: 'mtp-spin 0.8s linear infinite',
-                    }} />
-                  )}
+                  {calling && <PingIdentitySpinner size={20} label="Calling MCP tool…" aria-hidden="true" />}
                   {calling ? 'Calling…' : 'Call Tool'}
                 </button>
 
@@ -609,13 +601,7 @@ export default function McpTrafficPage({ embedded = false } = {}) {
                     <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', marginBottom: '6px' }}>
                       Server Response
                     </div>
-                    <pre style={{
-                      margin: 0, padding: '12px', borderRadius: '6px',
-                      background: '#f8fafc', border: '1px solid #e2e8f0',
-                      fontSize: '0.78rem', lineHeight: 1.6, color: '#1e293b',
-                      whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                      maxHeight: '420px', overflowY: 'auto',
-                    }}>{JSON.stringify(result, null, 2)}</pre>
+                    <FormJsonToggle value={result} ariaLabel="Server response view" />
                   </div>
                 )}
 
@@ -631,7 +617,6 @@ export default function McpTrafficPage({ embedded = false } = {}) {
         </div>
       )}
 
-      <style>{'@keyframes mtp-spin { to { transform: rotate(360deg); } }'}</style>
     </div>
   );
 }

@@ -141,7 +141,7 @@ export const SCENARIOS = Object.freeze([
   {
     id: "privilege-mcp",
     title: "Privilege MCP",
-    lessonId: "product-map",
+    lessonId: "privilege-mcp",
     evidenceAction: "privilege-status",
     durationMinutes: 6,
     dependencyIds: ["privilege", "mcp"],
@@ -177,9 +177,9 @@ export const SCENARIOS = Object.freeze([
       "Bounded session-status evidence; orchestration steps remain in the linked DaVinci demo.",
   },
   {
-    id: "audit-evidence",
-    title: "Audit evidence",
-    lessonId: "lifecycle",
+    id: "observability",
+    title: "Observability",
+    lessonId: "evidence-timeline",
     evidenceAction: "audit-evidence",
     durationMinutes: 4,
     dependencyIds: ["pingone"],

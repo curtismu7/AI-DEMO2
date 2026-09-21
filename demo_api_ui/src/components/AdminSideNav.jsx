@@ -198,7 +198,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "telemetry", paths: ["/tracing", "/telemetry", "/transaction-trace", "/mcp-observability", "/check"] },
   { id: "agent-studio-preview", paths: ["/iga-for-ai", "/discovery-preview", "/privileges-gateway-preview", "/platform-gaps"] },
   { id: "ai-product-pages", paths: ["/ai-products"] },
-  { id: "learn-present", paths: ["/learning", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide"] },
+  { id: "learn-present", paths: ["/learning", "/personal-agent", "/privilege-mcp-client", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide", "/spiffe-pingone-bridge"] },
   { id: "tests", paths: ["/resource-server", "/resource-server-cc"] },
 ];
 
@@ -272,6 +272,7 @@ export default function AdminSideNav({
   // LibreChat is a separate app on :3080 (docker), reached as an external link —
   // same action+window.open shape as Grafana. It runs locally only.
   const libreChatUrl = "http://localhost:3080";
+  const lmStudioSetupPath = "/privilege-mcp-client?client=lm-studio";
 
   // Per-user sidebar customization (Demo Config page). Returns [] when
   // ff_sidebar_customization is OFF or the request fails — full nav either way.
@@ -1211,16 +1212,29 @@ export default function AdminSideNav({
           searchAlias: "standalone demo launcher live cloud PingOne presenter",
         },
         { label: "Learning Hub", path: "/learning", icon: "doc" },
+        { label: "SPIFFE → PingOne Bridge (TODO)", path: "/spiffe-pingone-bridge", icon: "syn", badge: "TODO" },
         { label: "Agentic Trust", path: "/agentic-trust", icon: "shld" },
         { label: "Agent Guardrails", path: "/agent-guardrails", icon: "pol" },
         { label: "OWASP Agent Risks", path: "/owasp", icon: "sec" },
         { label: "Privilege for AI", path: "/privilege-for-ai", icon: "shld" },
         { label: "MCP Scanner", path: "/mcp-scanner", icon: "dbg" },
         {
-          label: "LibreChat",
+          label: "Personal Agent Clients",
+          path: "/personal-agent",
+          icon: "agt",
+          searchAlias: "personal agent clients browser mac external local",
+        },
+        {
+          label: "LibreChat (browser)",
           icon: "chat",
-          searchAlias: "librechat mcp client agent chat privilege libre",
+          searchAlias: "librechat browser personal agent mcp client chat privilege libre",
           action: () => window.open(libreChatUrl, "_blank", "noopener,noreferrer"),
+        },
+        {
+          label: "LM Studio (Mac)",
+          path: lmStudioSetupPath,
+          icon: "agt",
+          searchAlias: "lm studio mac local personal agent model mcp",
         },
         {
           label: "llama-vscode Guide",
@@ -1616,7 +1630,11 @@ export default function AdminSideNav({
               )}
               {item.children.map((child) => {
                 const isAdminFeature = child.adminOnly || item.adminOnly;
-                const childKey = `${itemKey}-child-${child.label}-${child.path || child.action || "item"}`;
+                // A group may intentionally expose two labels for one route
+                // (for example MCP Discovery and MCP Runtime Inventory). The
+                // destination is not a unique React identity; keep the label
+                // in the key so both links retain their own identity.
+                const childKey = `${itemKey}-child-${slugify(child.label)}-${child.path || child.action || "action"}`;
                 return child.action ? (
                   <button
                     key={childKey}

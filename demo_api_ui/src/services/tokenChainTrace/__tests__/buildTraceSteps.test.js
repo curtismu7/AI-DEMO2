@@ -947,11 +947,11 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
     expect(byId.agent.status).toBe("done");
     expect(byId.llm.status).toBe("done");
-    expect(byId.llm.title).toBe("AI Agent — intent match & tool choice");
+    expect(byId.llm.title).toBe("Banking Agent · Generalist agent — intent match & tool choice");
     expect(byId.llm.lane).toBe("HEURISTICS");
     expect(byId.llm.detail.response.text).toContain("view_coverage");
     expect(byId.reply.status).toBe("done");
-    expect(byId.reply.title).toBe("AI Agent composes reply → chat");
+    expect(byId.reply.title).toBe("Banking Agent composes reply → chat");
     expect(byId.reply.lane).toBe("HEURISTICS");
   });
 
@@ -968,7 +968,7 @@ describe("buildTraceSteps — statuses from evidence", () => {
     expect(byId.llm.status).toBe("done");
     expect(byId.llm.lane).toBe("HEURISTICS");
     expect(byId.reply.status).toBe("done");
-    expect(byId.reply.title).toBe("AI Agent composes reply → chat");
+    expect(byId.reply.title).toBe("Banking Agent composes reply → chat");
     expect(byId.reply.lane).toBe("HEURISTICS");
     expect(byId.reply.detail.response.text).toContain("a1");
   });
@@ -1643,9 +1643,10 @@ describe("buildTraceSteps — approval gate pause is not a failed run", () => {
 });
 
 describe("laneLabel", () => {
-  test("shows the LLM and heuristics lanes as the AI agent and leaves other lanes alone", () => {
-    expect(laneLabel("HEURISTICS")).toBe("AI AGENT");
-    expect(laneLabel("LLM")).toBe("AI AGENT");
+  test("shows agent lanes as the Banking Agent and leaves other lanes alone", () => {
+    expect(laneLabel("AGENT")).toBe("BANKING AGENT");
+    expect(laneLabel("HEURISTICS")).toBe("BANKING AGENT");
+    expect(laneLabel("LLM")).toBe("BANKING AGENT");
     expect(laneLabel("GATEWAY")).toBe("GATEWAY");
   });
 });

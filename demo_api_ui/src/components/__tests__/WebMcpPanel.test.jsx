@@ -234,6 +234,9 @@ describe("WebMcpPanel — tool invocation", () => {
         screen.getByRole("heading", { level: 5, name: /^Server Response$/ }),
       ).toBeInTheDocument();
     });
+    expect(screen.getByRole("group", { name: "Server response view" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "JSON" }));
+    expect(screen.getByText(/account balance/)).toBeInTheDocument();
   });
 
   it("shows error section when callMcpTool rejects", async () => {

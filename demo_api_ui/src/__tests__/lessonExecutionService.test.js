@@ -277,6 +277,19 @@ describe("getTenantReadiness", () => {
     );
   });
 
+  it("does not mark MCP executable when only the downstream server is healthy", async () => {
+    const responses = readinessResponses({ cloud: false });
+    responses.set(readinessUrls.mcpGateway, new Error("gateway unavailable"));
+    useResponses(responses);
+
+    const readiness = await getTenantReadiness();
+
+    expect(dependency(readiness, "MCP")).toMatchObject({
+      status: "configured",
+      provenance: PROVENANCE.RECORDED,
+    });
+  });
+
   it.each([400, 403, 404, 429])(
     "rejects connected introspection health with upstream HTTP %i",
     async (httpStatus) => {
@@ -505,6 +518,64 @@ describe("runLesson observations", () => {
       { label: "Policy decision records", status: "observed", count: 1 },
       { label: "MCP tool-call records", status: "observed", count: 1 },
     ]);
+  });
+
+  it("executes the bounded MCP read demo through the BFF", async () => {
+    apiClient.post.mockResolvedValueOnce(
+      response({
+        result: { content: [{ type: "text", text: "accounts returned" }] },
+        correlationId: "mcp-demo-1",
+      }),
+    );
+
+    const result = await runLesson("mcp");
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      "/api/mcp/tool",
+      { tool: "get_my_accounts", params: {} },
+      expect.objectContaining({ _silent: true }),
+    );
+    expect(result.result).toMatchObject({ status: "observed", decision: "EXECUTED" });
+    expect(result.evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "Banking read tool", count: 1 }),
+      ]),
+    );
+  });
+
+  it("does not claim a failed MCP response was executed", async () => {
+    apiClient.post.mockResolvedValueOnce(
+      response({ error: "tool_denied", ok: false }),
+    );
+
+    const result = await runLesson("mcp");
+
+    expect(result.result).toMatchObject({ status: "no-evidence", decision: "NO_EVIDENCE" });
+    expect(result.evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "Banking read tool", count: 0 }),
+      ]),
+    );
+  });
+
+  it("executes the policy-only demo without calling the protected tool", async () => {
+    apiClient.post.mockResolvedValueOnce(
+      response({ decision: "DENY", engine: "simulated", correlationId: "policy-demo-1" }),
+    );
+
+    const result = await runLesson("authorize");
+
+    expect(apiClient.post).toHaveBeenCalledWith(
+      "/api/authorize/test-evaluate-mcp",
+      { toolName: "get_my_accounts", tokenScopes: "read" },
+      expect.objectContaining({ _silent: true }),
+    );
+    expect(result.result).toMatchObject({ status: "observed", decision: "EXECUTED" });
+    expect(result.evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "Policy decision", count: 1 }),
+      ]),
+    );
   });
 
   it("does not treat unrelated token-chain history as CIBA approval evidence", async () => {

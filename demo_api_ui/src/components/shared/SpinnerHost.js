@@ -4,17 +4,15 @@ import ReactDOM from 'react-dom';
 import { useSpinner } from '../../context/SpinnerContext';
 import { useAppFlags } from '../../hooks/useAppFlags';
 import { spinnerActivity } from '../../services/spinnerActivityService';
-import BusySpinner from './BusySpinner';
-import NeuralSpinner from './NeuralSpinner';
+import PingIdentitySpinner from './PingIdentitySpinner';
 import './LoadingOverlay.css';
 
 /**
  * Every knob below now comes from configStore via useAppFlags (/configure →
  * Appearance), not a constant here. The catalog defaults reproduce exactly what
  * these constants used to hardcode, so an untouched demo looks the same:
- *   spinner_variant       'neural' → NeuralSpinner token-ingress dial
- *                         'busy'   → BusySpinner telemetry radar
- *                         'classic'→ original <span className="lo-spinner"> ring
+ *   spinner_variant       retained for config compatibility; Ping identity is
+ *                         now the single shared spinner visual
  *   spinner_size          88
  *   spinner_accent        '' → --brand-navy
  *   spinner_dark_card     false → overlay follows the app's light/dark theme
@@ -24,7 +22,7 @@ import './LoadingOverlay.css';
 /**
  * Global spinner overlay — rendered once in App.js via createPortal.
  * Reads state from SpinnerContext (which subscribes to spinnerService).
- * Shows a full-screen overlay with a colored ring, contextual message,
+ * Shows a full-screen overlay with the Ping identity mark, contextual message,
  * the live API endpoint in a blue monospace chip, and (for admin users)
  * a scrolling activity feed of server events below.
  */
@@ -32,7 +30,6 @@ export default function SpinnerHost() {
   const { visible, message, color, endpoint } = useSpinner();
   const { appFlags } = useAppFlags();
   const {
-    spinnerVariant: variant,
     spinnerSize,
     spinnerAccent,
     spinnerDarkCard,
@@ -60,11 +57,8 @@ export default function SpinnerHost() {
     }
   }, [visible]);
 
-  // Publish the configured accent to :root so EVERY spinner picks it up — the
-  // inline ones in the inspectors as well as this overlay. It has to land on a
-  // variable NeuralSpinner's own `.ns { --ns-accent: ... }` reads through
-  // (--spinner-accent), because a value merely inherited from an ancestor
-  // loses to that declaration on the element itself.
+  // Publish the configured accent to :root so the shared Ping spinner uses it
+  // consistently in the overlay and inline loading states.
   useEffect(() => {
     const root = document.documentElement;
     if (spinnerAccent) root.style.setProperty('--spinner-accent', spinnerAccent);
@@ -97,23 +91,10 @@ export default function SpinnerHost() {
       aria-label={message || 'Loading…'}
     >
       <div
-        className={variant === 'classic' || !spinnerDarkCard ? 'lo-card' : 'lo-card lo-card--dark'}
+        className={!spinnerDarkCard ? 'lo-card' : 'lo-card lo-card--dark'}
         style={{ borderTopColor: accentColor }}
       >
-        {variant === 'classic' && (
-          <span
-            className="lo-spinner"
-            style={{ borderTopColor: accentColor }}
-            aria-hidden="true"
-          />
-        )}
-        {variant === 'busy' && (
-          <BusySpinner size={spinnerSize} accent={accentColor} aria-hidden="true" />
-        )}
-        {variant === 'neural' && (
-          <NeuralSpinner size={spinnerSize} />
-        )}
-        <p className="lo-message">{message || 'Please wait…'}</p>
+        <PingIdentitySpinner size={spinnerSize} label={message || 'Please wait…'} />
         {activityLabel && (
           <code className="lo-endpoint">{activityLabel}</code>
         )}

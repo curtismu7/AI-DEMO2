@@ -40,19 +40,6 @@
   margin-left: -17px;
 }
 
-.webmcp-discovery-phase--active .webmcp-discovery-phase__status {
-  /* Ring spinner: transparent fill, blue border with one transparent side,
-     rotated. A solid disc rotation isn't visually detectable, so the active
-     state needs a real border to make motion visible. */
-  background: transparent;
-  border: 2px solid #3b82f6;
-  border-top-color: transparent;
-  /* Box-shrinks slightly because border is now 2px wide. */
-  width: 8px;
-  height: 8px;
-  animation: webmcp-spin 0.9s linear infinite;
-}
-
 .webmcp-discovery-phase--success .webmcp-discovery-phase__status {
   background: #16a34a;
 }
@@ -163,23 +150,6 @@
 }
 
 
-/* ── Spinner / call button ──────────────────────────────────────────────── */
-
-@keyframes webmcp-spin {
-  to { transform: rotate(360deg); }
-}
-
-.webmcp-btn-spinner {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  border-top-color: var(--th-text-invert);
-  border-radius: 50%;
-  animation: webmcp-spin 0.7s linear infinite;
-  flex-shrink: 0;
-}
-
 .webmcp-calling-status {
   display: flex;
   align-items: center;
@@ -195,17 +165,6 @@
 
 .webmcp-calling-status strong {
   color: #1e3a8a;
-}
-
-.webmcp-calling-spinner {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid #bfdbfe;
-  border-top-color: #3b82f6;
-  border-radius: 50%;
-  animation: webmcp-spin 0.7s linear infinite;
-  flex-shrink: 0;
 }
 
 /* ── Pipeline events ────────────────────────────────────────────────────── */

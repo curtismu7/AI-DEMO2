@@ -67,7 +67,7 @@ export const A2A_RECORDED_RUN = {
     },
     {
       "id": "a2a-agent1-actor",
-      "label": "A2A — Agent 1 (generalist) Actor Token · client_credentials",
+      "label": "A2A — Banking Agent (generalist) Actor Token · client_credentials",
       "status": "acquired",
       "timestamp": "2026-08-29T18:13:54.191Z",
       "alg": "RS256",
@@ -86,13 +86,13 @@ export const A2A_RECORDED_RUN = {
         "org": "97ba44f2-f7ee-4144-aa95-9e636b57c096",
         "p1.rid": "c7387ad7-3b88-4620-8e1f-99f91e19cf82"
       },
-      "explanation": "The generalist agent authenticates as itself (RFC 6749 §4.4). This actor token names Agent 1 as the party acting on the user’s behalf in Exchange #1.",
+      "explanation": "The Banking Agent authenticates as itself (RFC 6749 §4.4). This actor token names the generalist agent as the party acting on the user’s behalf in Exchange #1.",
       "a2aRole": "agent1-actor",
       "vertical": "sporting-goods"
     },
     {
       "id": "a2a-exchange1",
-      "label": "A2A Exchange #1 — User → Agent 1 delegated token (RFC 8693 §2.1)",
+      "label": "A2A Exchange #1 — User → Banking Agent delegated token (RFC 8693 §2.1)",
       "status": "exchanged",
       "timestamp": "2026-08-29T18:13:54.380Z",
       "alg": "RS256",
@@ -117,7 +117,7 @@ export const A2A_RECORDED_RUN = {
         "env": "01d89b06-66d5-430e-9f28-65636843788b",
         "org": "97ba44f2-f7ee-4144-aa95-9e636b57c096"
       },
-      "explanation": "PingOne mints a delegated token: subject stays the user, act:{sub:agent1} records that Agent 1 is acting on their behalf. No may_act — the chain is the source of truth; whether the delegation is allowed is decided by Authorize.",
+      "explanation": "PingOne mints a delegated token: subject stays the user, act:{sub:agent1} records that the Banking Agent is acting on their behalf. No may_act — the chain is the source of truth; whether the delegation is allowed is decided by Authorize.",
       "a2aRole": "exchange1",
       "actPresent": true,
       "a2aSubtask": "hand off to a specialist to review the sensitive membership details",
@@ -134,7 +134,7 @@ export const A2A_RECORDED_RUN = {
     },
     {
       "id": "a2a-agent2-actor",
-      "label": "A2A — Membership Specialist (Agent 2) Actor Token · client_credentials",
+      "label": "A2A — Membership Specialist (specialist agent) Actor Token · client_credentials",
       "status": "acquired",
       "timestamp": "2026-08-29T18:13:54.576Z",
       "alg": "RS256",

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import InspectorShell from '../components/shared/InspectorShell';
+import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import apiClient from '../services/apiClient';
 import './NotebookLmPage.css';
 
@@ -194,12 +195,11 @@ export default function NotebookLmPage() {
         {asking ? 'Asking…' : 'Ask'}
       </button>
       {asking && (
-        <div className="nlm-progress" role="status" aria-live="polite">
-          <span className="nlm-spinner" aria-hidden="true" />
-          <span>
-            Searching the sources… {elapsed}s
-            {elapsed >= 20 ? ' — long answers can take up to a minute' : ''}
-          </span>
+        <div className="nlm-progress" aria-live="polite">
+          <PingIdentitySpinner
+            size={22}
+            label={`Searching the sources… ${elapsed}s${elapsed >= 20 ? ' — long answers can take up to a minute' : ''}`}
+          />
         </div>
       )}
     </form>

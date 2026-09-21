@@ -17,9 +17,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useThemeOptional } from '../context/ThemeContext';
 import useDividerDrag from '../hooks/useDividerDrag';
 import { ATTACK_CATEGORIES, GUARDRAIL_ATTACKS } from '../config/guardrailAttackCatalog';
+import { KIBANA_URL } from '../config/observabilityLinks';
 import BlockAgreementModal from '../components/BlockAgreementModal';
 import LlmGatewayReel from './LlmGatewayReel';
 import JsonHighlight from '../components/shared/JsonHighlight';
+import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import GatewayVerdicts from '../components/GatewayVerdicts';
 import './LlmGatewayPage.css';
 
@@ -616,6 +618,7 @@ export default function LlmGatewayPage() {
           >
             Presenter notes
           </button>
+          <a className="lgw-theme" href={KIBANA_URL} target="_blank" rel="noopener noreferrer" title="Open Privilege SIEM logs in Kibana">Kibana logs</a>
           <button
             type="button"
             className="lgw-theme"
@@ -814,8 +817,7 @@ export default function LlmGatewayPage() {
             ) : null}
             {busy ? (
               <p className="lgw-empty lgw-busy">
-                <span className="lgw-spinner" aria-hidden="true" />
-                Sending through {TITLES[selected] || selected}&hellip;
+                <PingIdentitySpinner size={22} label={`Sending through ${TITLES[selected] || selected}…`} />
               </p>
             ) : null}
           </div>

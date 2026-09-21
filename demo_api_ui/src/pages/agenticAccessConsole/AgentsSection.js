@@ -1,30 +1,31 @@
 import React, { useEffect, useState } from "react";
 import apiClient from "../../services/apiClient";
 import ExpandableRow from "./ExpandableRow";
+import { AGENT_ROLES, PRIMARY_AGENT } from "../../config/agentTerminology";
 
 const AGENTS = [
   {
     id: "openai_agent",
-    identity: "BankingAssistant",
+    identity: PRIMARY_AGENT.displayName,
     runtime: "openai_agent",
     framework: "OpenAI Agents SDK",
   },
   {
     id: "mastra_agent",
-    identity: "Banking Agent",
+    identity: PRIMARY_AGENT.displayName,
     runtime: "mastra_agent",
     framework: "Mastra",
     note: "id: banking-agent",
   },
   {
     id: "langchain_agent",
-    identity: "langchain_agent",
+    identity: PRIMARY_AGENT.displayName,
     runtime: "langchain_agent",
     framework: "LangGraph",
   },
   {
     id: "pydantic_agent",
-    identity: "pydantic_agent",
+    identity: PRIMARY_AGENT.displayName,
     runtime: "pydantic_agent",
     framework: "Pydantic AI",
   },
@@ -41,8 +42,8 @@ const RESOURCE_SERVER_TOOLS = [
 ];
 
 // Per-vertical A2A specialist registry — source: demo_api_server/config/a2aSpecialists.js.
-// Distinct from the 4 generalist runtimes above: a generalist (Agent 1) delegates
-// one narrow, sensitive read task to its vertical's specialist (Agent 2) over a
+// Distinct from the 4 generalist runtimes above: the Banking Agent delegates
+// one narrow, sensitive read task to its vertical's specialist over a
 // chained RFC 8693 exchange — see the Token Exchange and CIBA tabs.
 const SPECIALISTS = [
   { vertical: "banking", appKey: "investment", appName: "Super Banking Investment Advisor Agent", name: "Investment Advisor", tools: ["get_portfolio_summary", "get_investment_accounts", "get_investment_balance", "get_investment_transactions"], subtaskHint: "review the customer's investment positions" },
@@ -63,7 +64,8 @@ function SpecialistsPanel() {
     <div className="aac-section-block">
       <h3>Vertical specialists (A2A)</h3>
       <p className="aac-card-sub">
-        One specialist per vertical — the Agent 2 a generalist delegates a single
+        One {AGENT_ROLES.specialist.toLowerCase()} per vertical — the {AGENT_ROLES.generalist}
+        delegates a single
         sensitive read task to. Source: config/a2aSpecialists.js. Click a row for
         the full specialist detail.
       </p>

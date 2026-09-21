@@ -13,6 +13,11 @@ export interface TokenResponse {
   id_token?: string;
 }
 
+export interface UserInfoResult {
+  sub: string;
+  [claim: string]: unknown;
+}
+
 /** MCP_SERVER_RESOURCE_URI may be a comma-separated list (rollout: own backend
  *  URI + gateway URI while both token shapes are live) — jose needs an array
  *  to emit a multi-value `aud` claim, not the raw comma-joined string. */
@@ -95,6 +100,8 @@ export class TokenIssuer {
     subject: string,
     requestedScope: string,
     pingOneAccessToken?: string,
+    identityClaims: Record<string, unknown> = {},
+    nonce?: string,
   ): Promise<TokenResponse> {
     // Same intersection issueClientCredentials does: the scope that travelled
     // through /authorize is CLIENT-CONTROLLED input, so it must be clamped to
@@ -128,9 +135,42 @@ export class TokenIssuer {
       expiresAt: now + expiresIn,
       revoked: false,
       pingOneAccessToken,
+      identityClaims,
     });
 
-    return { access_token: token, token_type: 'Bearer', expires_in: expiresIn, scope };
+    const response: TokenResponse = { access_token: token, token_type: 'Bearer', expires_in: expiresIn, scope };
+    if (scope.split(' ').includes('openid')) {
+      const idToken = new jose.SignJWT({
+        ...identityClaims,
+        ...(nonce ? { nonce } : {}),
+      })
+        .setProtectedHeader({ alg: 'RS256', kid: this.keyManager.getKid() })
+        .setIssuer(this.issuer)
+        .setSubject(subject)
+        .setAudience(client.client_id)
+        .setIssuedAt(now)
+        .setExpirationTime(now + expiresIn);
+      response.id_token = await idToken.sign(this.keyManager.getPrivateKey());
+    }
+    return response;
+  }
+
+  async userInfo(token: string): Promise<UserInfoResult | null> {
+    try {
+      const { payload } = await jose.jwtVerify(token, this.keyManager.getPublicKey(), {
+        issuer: this.issuer,
+      });
+      const jti = payload.jti as string;
+      const tracked = this.tokenStore.introspect(jti);
+      if (!tracked || tracked.revoked || !tracked.scope.split(' ').includes('openid')) return null;
+      if (!payload.sub) return null;
+      return {
+        sub: payload.sub as string,
+        ...(tracked.identityClaims || {}),
+      };
+    } catch {
+      return null;
+    }
   }
 
   async introspect(token: string): Promise<Record<string, unknown>> {

@@ -1,0 +1,45 @@
+# Local-only PingFederate runtime.
+#
+# This file is deliberately separate from the demo stack compose file. Run it
+# from the repository's main checkout or through the approved worktree-serving
+# workflow; do not run Docker Compose from an isolated worktree.
+#
+# Required external values:
+#   PINGFEDERATE_PROFILE_PATH       absolute path to a prepared PF classic profile
+#   PINGFEDERATE_ADMIN_PASSWORD     local PF admin password
+#
+# The prepared profile must contain the license at
+# instance/server/default/conf/pingfederate.lic. Keep the profile, license,
+# and password outside Git.
+
+name: ai-demo-pingfederate
+
+services:
+  pingfederate:
+    image: ${PINGFEDERATE_IMAGE:-pingidentity/pingfederate:13.1.2-alpine_3.24.1-al25-edge@sha256:996ad6caba201cbf22bfdfa55d09f4726c0f001c2f7ec60a0b78181f3deaa805}
+    container_name: ${PINGFEDERATE_CONTAINER_NAME:-ai-demo-pingfederate}
+    restart: unless-stopped
+    ports:
+      - "${PINGFEDERATE_ADMIN_PORT:-9999}:9999"
+      - "${PINGFEDERATE_ENGINE_PORT:-9031}:9031"
+    environment:
+      PING_IDENTITY_ACCEPT_EULA: "YES"
+      PING_IDENTITY_PASSWORD: ${PINGFEDERATE_ADMIN_PASSWORD:?set PINGFEDERATE_ADMIN_PASSWORD outside Git}
+    volumes:
+      - pingfederate-out:/opt/out
+      - ${PINGFEDERATE_PROFILE_PATH:?set PINGFEDERATE_PROFILE_PATH outside Git}:/opt/in:ro
+    tmpfs:
+      - /run/secrets
+    networks:
+      ai-demo:
+        aliases:
+          - pingfederate
+
+networks:
+  ai-demo:
+    external: true
+    name: ${PINGFEDERATE_NETWORK_NAME:-ai-demo_ai-demo}
+
+volumes:
+  pingfederate-out:
+    name: ${PINGFEDERATE_VOLUME_NAME:-ai-demo-pingfederate-out}

@@ -23,7 +23,21 @@ function _fromCache(field) {
   return _discoveryCache?.[field] ?? null;
 }
 
+function _isPingFederate() {
+  return typeof configStore.getOAuthProvider === 'function'
+    && configStore.getOAuthProvider() === 'pingfederate';
+}
+
+function _configured(key, fallbackKey) {
+  return configStore.getEffective(key) || (fallbackKey ? configStore.getEffective(fallbackKey) : '');
+}
+
 function getAuthorizationEndpoint() {
+  if (_isPingFederate()) {
+    return _configured('pf_authorization_endpoint', 'oauth_authorization_endpoint')
+      || _fromCache('authorization_endpoint')
+      || '';
+  }
   const explicit = configStore.getEffective('oauth_authorization_endpoint');
   if (explicit) return explicit;
   const cached = _fromCache('authorization_endpoint');
@@ -33,6 +47,11 @@ function getAuthorizationEndpoint() {
 }
 
 function getTokenEndpoint() {
+  if (_isPingFederate()) {
+    return _configured('pf_token_endpoint', 'oauth_token_endpoint')
+      || _fromCache('token_endpoint')
+      || '';
+  }
   const explicit = configStore.getEffective('oauth_token_endpoint');
   if (explicit) return explicit;
   const cached = _fromCache('token_endpoint');
@@ -43,6 +62,11 @@ function getTokenEndpoint() {
 
 /** RFC 9126 PAR endpoint — same priority chain as getTokenEndpoint. */
 function getParEndpoint() {
+  if (_isPingFederate()) {
+    return _configured('pf_par_endpoint', 'oauth_par_endpoint')
+      || _fromCache('pushed_authorization_request_endpoint')
+      || '';
+  }
   const explicit = configStore.getEffective('oauth_par_endpoint')
     || configStore.getEffective('pingone_par_endpoint');
   if (explicit) return explicit;
@@ -53,6 +77,11 @@ function getParEndpoint() {
 }
 
 function getUserInfoEndpoint() {
+  if (_isPingFederate()) {
+    return _configured('pf_userinfo_endpoint', 'oauth_userinfo_endpoint')
+      || _fromCache('userinfo_endpoint')
+      || '';
+  }
   const explicit = configStore.getEffective('oauth_userinfo_endpoint');
   if (explicit) return explicit;
   const cached = _fromCache('userinfo_endpoint');
@@ -62,6 +91,11 @@ function getUserInfoEndpoint() {
 }
 
 function getJwksUri() {
+  if (_isPingFederate()) {
+    return _configured('pf_jwks_uri', 'oauth_jwks_uri')
+      || _fromCache('jwks_uri')
+      || '';
+  }
   const explicit = configStore.getEffective('oauth_jwks_uri');
   if (explicit) return explicit;
   const cached = _fromCache('jwks_uri');
@@ -71,6 +105,11 @@ function getJwksUri() {
 }
 
 function getIntrospectionEndpoint() {
+  if (_isPingFederate()) {
+    return _configured('pf_introspection_endpoint', 'oauth_introspection_endpoint')
+      || _fromCache('introspection_endpoint')
+      || '';
+  }
   const explicit = configStore.getEffective('oauth_introspection_endpoint');
   if (explicit) return explicit;
   const cached = _fromCache('introspection_endpoint');
@@ -80,6 +119,11 @@ function getIntrospectionEndpoint() {
 }
 
 function getRevocationEndpoint() {
+  if (_isPingFederate()) {
+    return _configured('pf_revocation_endpoint', 'oauth_revocation_endpoint')
+      || _fromCache('revocation_endpoint')
+      || '';
+  }
   const explicit = configStore.getEffective('oauth_revocation_endpoint');
   if (explicit) return explicit;
   const cached = _fromCache('revocation_endpoint');
@@ -115,6 +159,11 @@ function _normalizePingOneIssuer(issuer) {
 }
 
 function getIssuer() {
+  if (_isPingFederate()) {
+    return _configured('pf_issuer', 'oauth_issuer')
+      || _fromCache('issuer')
+      || '';
+  }
   const explicit = configStore.getEffective('oauth_issuer');
   if (explicit) return _normalizePingOneIssuer(explicit);
   const cached = _fromCache('issuer');
@@ -123,6 +172,12 @@ function getIssuer() {
 }
 
 function getDiscoveryEndpoint() {
+  if (_isPingFederate()) {
+    const explicit = _configured('pf_discovery_endpoint', 'oauth_discovery_endpoint');
+    if (explicit) return explicit;
+    const issuer = getIssuer();
+    return issuer ? `${issuer.replace(/\/+$/, '')}/.well-known/openid-configuration` : '';
+  }
   const explicit = configStore.getEffective('oauth_discovery_endpoint');
   if (explicit) return explicit;
   const region = configStore.getEffective('pingone_region') || 'com';

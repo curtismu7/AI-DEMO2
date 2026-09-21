@@ -106,6 +106,26 @@ export function formatPublicKeyCredentialAssertion(credential) {
   };
 }
 
+/**
+ * Run a WebAuthn assertion with browser conditional mediation and format it in
+ * the shape expected by a DaVinci FIDO2 collector.
+ *
+ * @param {object|string} rawOptions
+ * @param {{mediation?: string, signal?: AbortSignal}} [options]
+ * @returns {Promise<{assertionValue: object}>}
+ */
+export async function authenticateWebAuthn(rawOptions, { mediation, signal } = {}) {
+  if (!navigator.credentials) throw new Error("WebAuthn is not supported in this browser");
+  const publicKey = normalizePublicKeyRequestOptions(rawOptions);
+  const credential = await navigator.credentials.get({
+    publicKey,
+    ...(mediation ? { mediation } : {}),
+    ...(signal ? { signal } : {}),
+  });
+  if (!credential) throw new Error("No passkey credential was returned");
+  return { assertionValue: formatPublicKeyCredentialAssertion(credential) };
+}
+
 async function postJson(path, body) {
   const res = await fetch(`${apiBase}${path}`, {
     method: "POST",

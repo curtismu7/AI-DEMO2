@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './SearchResults.css';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 
 export default function SearchResults({ results, isLoading, error }) {
   const [expandedId, setExpandedId] = useState(null);
@@ -11,7 +12,9 @@ export default function SearchResults({ results, isLoading, error }) {
   if (isLoading) {
     return (
       <div className="search-results">
-        <div className="loading">Searching...</div>
+        <div className="loading" role="status" aria-live="polite">
+          <PingIdentitySpinner size={32} label="Searching…" />
+        </div>
       </div>
     );
   }

@@ -10,6 +10,7 @@
 import { createHmac } from 'crypto';
 import { IncomingMessage, ServerResponse } from 'http';
 import { Socket } from 'net';
+import axios from 'axios';
 
 const SIGNING_KEY = 'correct-signing-key';
 const IDP_ISSUER = 'https://idp.ping.demo';
@@ -27,7 +28,11 @@ jest.mock('jose', () => {
   const sign = (input: string, key: string) =>
     actualCrypto.createHmac('sha256', key).update(input).digest('base64url');
   return {
-    createRemoteJWKSet: () => async () => SIGNING_KEY,
+    createRemoteJWKSet: () => async (header: { x5t?: string }) => {
+      if (header?.x5t) throw new Error('multiple matching keys found in the JSON Web Key Set');
+      return SIGNING_KEY;
+    },
+    importJWK: async () => SIGNING_KEY,
     jwtVerify: async (
       token: string,
       keyOrResolver: unknown,
@@ -164,8 +169,9 @@ beforeEach(() => {
   process.env.MCP_SERVER_RESOURCE_URI = RESOURCE;
   process.env.ENTERPRISE_IDP_ISSUER = IDP_ISSUER;
   process.env.ENTERPRISE_IDP_JWKS_URL = 'https://api.ping.demo:3001/api/enterprise-idp/jwks';
+  jest.spyOn(axios, 'get').mockResolvedValue({ data: { keys: [{ x5t: 'pf-thumbprint', kty: 'RSA' }] } } as never);
 });
-afterEach(() => { process.env = { ...ORIG }; });
+afterEach(() => { jest.restoreAllMocks(); process.env = { ...ORIG }; });
 
 describe('OAuthRouter — ID-JAG jwt-bearer grant', () => {
   it('redeems a valid ID-JAG for an access token subjected to the assertion sub', async () => {
@@ -183,6 +189,20 @@ describe('OAuthRouter — ID-JAG jwt-bearer grant', () => {
       Buffer.from(String(res.body.access_token).split('.')[1], 'base64url').toString('utf8'),
     );
     expect(claims.sub).toBe('user-123');
+  });
+
+  it('redeems a PF-style ID-JAG identified by its x5t JWKS thumbprint', async () => {
+    const { router } = await buildRouter();
+    const res = await postToken(router, {
+      grant_type: JWT_BEARER_GRANT,
+      assertion: mintIdJag({}, { x5t: 'pf-thumbprint' }),
+      client_id: CLIENT.client_id,
+      client_secret: CLIENT.client_secret as string,
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.access_token).toBeTruthy();
+    expect(axios.get).toHaveBeenCalledWith(process.env.ENTERPRISE_IDP_JWKS_URL);
   });
 
   it('never widens scope beyond the assertion', async () => {

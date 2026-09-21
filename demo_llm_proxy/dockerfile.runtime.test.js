@@ -15,5 +15,9 @@ test('llm-proxy image copies every local runtime module imported by router.js', 
 test('tier-manager Dockerfile leaves kubectl architecture selection to the build target', () => {
   const dockerfile = fs.readFileSync(path.join(__dirname, 'Dockerfile.tier-manager'), 'utf8');
   assert.match(dockerfile, /ARG TARGETARCH\s*\n/);
-  assert.doesNotMatch(dockerfile, /ARG TARGETARCH=amd64/);
+  assert.match(
+    dockerfile,
+    /uname -m/,
+    'kubectl architecture must be derived from the final image runtime architecture',
+  );
 });

@@ -62,6 +62,7 @@ export interface ServerStats {
 export class DemoMCPServer extends EventEmitter {
   private server: WebSocket.Server | null = null;
   private httpServer: HttpServer | null = null;
+  private privilegeHttpServer: HttpServer | null = null;
   private tlsServer: http2.Http2SecureServer | null = null;
   private connections: Map<string, ConnectionInfo> = new Map();
   private messageHandler: MCPMessageHandler;
@@ -164,12 +165,13 @@ export class DemoMCPServer extends EventEmitter {
       // Create HTTP server for WebSocket upgrade and OAuth callbacks
       const mtlsEnabled = process.env.MCP_MTLS_ENABLED === 'true';
       const gatewayCertPath = process.env.MCP_MTLS_GATEWAY_CERT_PATH ?? '/tmp/gw-client.crt';
+      const spiffeGatewayId = process.env.MCP_MTLS_ALLOWED_SPIFFE_ID;
 
       if (mtlsEnabled) {
         const gatewayCertPem = fs.existsSync(gatewayCertPath)
           ? fs.readFileSync(gatewayCertPath, 'utf-8')
           : '';
-        const mtlsVerifier = createMtlsVerifier({ enabled: true, gatewayCertPem });
+        const mtlsVerifier = createMtlsVerifier({ enabled: true, gatewayCertPem: spiffeGatewayId ? '' : gatewayCertPem, allowedSpiffeId: spiffeGatewayId });
 
         const notAfterDate = new Date();
         notAfterDate.setDate(notAfterDate.getDate() + 1);
@@ -240,9 +242,22 @@ export class DemoMCPServer extends EventEmitter {
         });
       });
 
-      // Second, TLS+ALPN listener — opt-in, additive. Does NOT replace or modify
-      // the plain http.createServer listener above; ws:// on MCP_SERVER_PORT is
-      // unaffected whether or not this branch runs.
+      // Privilege's private proxy does not present the gateway mTLS client
+      // certificate. Keep that compatibility path on a separate, internal
+      // plaintext listener while the primary gateway port remains mTLS.
+      const privilegePort = process.env.MCP_PRIVILEGE_PORT;
+      if (privilegePort !== undefined) {
+        this.privilegeHttpServer = createServer((req, res) => {
+          this.handleHttpRequest(req, res);
+        });
+        await new Promise<void>((resolve, reject) => {
+          this.privilegeHttpServer!.once('error', reject);
+          this.privilegeHttpServer!.listen(parseInt(privilegePort || '8081', 10), this.config.host, () => resolve());
+        });
+      }
+
+      // Second, TLS+ALPN listener — opt-in, additive. This is independent of
+      // the mTLS gateway listener and is used by the BFF HTTP/2 bridge.
       if (process.env.MCP_TLS_ENABLED === 'true') {
         const tlsPort = parseInt(process.env.MCP_TLS_PORT || '8443', 10);
         // Independent self-signed cert — NOT shared with the MCP_MTLS_ENABLED
@@ -333,6 +348,12 @@ export class DemoMCPServer extends EventEmitter {
           this.httpServer!.close(() => {
             resolve();
           });
+        });
+      }
+
+      if (this.privilegeHttpServer) {
+        await new Promise<void>((resolve) => {
+          this.privilegeHttpServer!.close(() => resolve());
         });
       }
 
@@ -640,6 +661,18 @@ export class DemoMCPServer extends EventEmitter {
     }
 
     return null;
+  }
+
+  /** The mTLS listener is the primary MCP port when MCP_MTLS_ENABLED is true. */
+  getActualMtlsPort(): number | null {
+    return process.env.MCP_MTLS_ENABLED === 'true' ? this.getActualPort() : null;
+  }
+
+  /** Get the separate plaintext listener reserved for the Privilege proxy. */
+  getActualPrivilegePort(): number | null {
+    if (!this.privilegeHttpServer || !this.isRunning) return null;
+    const address = this.privilegeHttpServer.address();
+    return address && typeof address === 'object' ? address.port : null;
   }
 
   /**
@@ -1297,6 +1330,7 @@ export class DemoMCPServer extends EventEmitter {
     this.connections.clear();
     this.server = null;
     this.httpServer = null;
+    this.privilegeHttpServer = null;
     this.tlsServer = null;
     this.stats.activeConnections = 0;
   }

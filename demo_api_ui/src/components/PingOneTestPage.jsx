@@ -16,6 +16,7 @@ import { TokenColorLegend } from "./TokenColorSystem";
 import "./PingOneTestPage.css";
 import PingOneApiPanel from "./PingOneApiPanel";
 import ApiCallPreviewCard from "./ApiCallPreviewCard";
+import PingIdentitySpinner from "./shared/PingIdentitySpinner";
 
 // Configuration details for each test - what users need to verify in PingOne
 const TEST_CONFIG = {
@@ -1170,8 +1171,7 @@ export default function PingOneTestPage() {
 		return (
 			<div className="pingone-test-page">
 				<div className="pingone-test-loading">
-					<div className="spinner" />
-					<p>Loading PingOne test environment...</p>
+					<PingIdentitySpinner size={28} label="Loading PingOne test environment…" />
 				</div>
 			</div>
 		);

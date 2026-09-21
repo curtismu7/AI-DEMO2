@@ -1,6 +1,7 @@
 // banking_api_ui/src/components/UserTransactions.js
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
 import './UserTransactions.css';
 
 export default function UserTransactions({ user }) {
@@ -99,8 +100,7 @@ export default function UserTransactions({ user }) {
     return (
       <div className="user-transactions">
         <div className="loading-state">
-          <div className="spinner"></div>
-          <p>Loading your transactions...</p>
+          <PingIdentitySpinner size={32} label="Loading your transactions…" />
         </div>
         <style jsx>{`
           .user-transactions {
@@ -115,18 +115,6 @@ export default function UserTransactions({ user }) {
             justify-content: center;
             min-height: 400px;
             gap: 1rem;
-          }
-          .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid #f3f4f6;
-            border-top: 3px solid #4f46e5;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-          }
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
           }
         `}</style>
       </div>

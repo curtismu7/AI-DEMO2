@@ -7,11 +7,16 @@ const YAML = require('yaml');
 
 const ROOT = path.resolve(__dirname, '..');
 const REQUIRED_BYPASSES = [
-  '/api/auth/oauth/user/login',
-  '/api/auth/oauth/user/callback',
-  '/api/auth/oauth/login',
-  '/api/auth/oauth/callback',
+  '/api/auth/hosted-access/login',
+  '/api/auth/hosted-access/callback',
+  '/api/auth/hosted-access/logout',
+  '/api/auth/hosted-registration/request',
+  '/api/auth/hosted-registration/verify',
+  '/api/auth/hosted-registration/resend',
+  '/api/auth/hosted-registration/status',
+  '/request-access',
 ];
+const REQUIRED_PUBLIC_PREFIXES = ['/assets'];
 
 function loadDocuments(file) {
   return YAML.parseAllDocuments(fs.readFileSync(file, 'utf8')).map((doc) => doc.toJS());
@@ -29,8 +34,8 @@ function verifyHostedAccess({ ingressFile, configFile, seDeployFile }) {
   if (!String(annotations['nginx.ingress.kubernetes.io/auth-url'] || '').endsWith('/api/auth/hosted-access/check')) {
     errors.push('ai-demo-ingress must use the hosted-access check as auth-url');
   }
-  if (!String(annotations['nginx.ingress.kubernetes.io/auth-signin'] || '').startsWith('https://ai-demo.ping-devops.com/api/auth/oauth/user/login')) {
-    errors.push('ai-demo-ingress must send unauthenticated browsers to PingOne user login');
+  if (!String(annotations['nginx.ingress.kubernetes.io/auth-signin'] || '').startsWith('https://ai-demo.ping-devops.com/api/auth/hosted-access/login')) {
+    errors.push('ai-demo-ingress must send unauthenticated browsers to the hosted front-door login');
   }
 
   const bypassRules = bypass?.spec?.rules || [];
@@ -41,11 +46,16 @@ function verifyHostedAccess({ ingressFile, configFile, seDeployFile }) {
     errors.push('OAuth bypass ingress must not carry an auth-url annotation');
   }
   const actualBypasses = bypassPaths.map((entry) => entry.path).sort();
-  if (JSON.stringify(actualBypasses) !== JSON.stringify([...REQUIRED_BYPASSES].sort())) {
+  const actualExactBypasses = bypassPaths.filter((entry) => entry.pathType === 'Exact').map((entry) => entry.path).sort();
+  const actualPublicPrefixes = bypassPaths.filter((entry) => entry.pathType === 'Prefix').map((entry) => entry.path).sort();
+  if (JSON.stringify(actualExactBypasses) !== JSON.stringify([...REQUIRED_BYPASSES].sort())) {
     errors.push(`OAuth bypass paths must be exactly: ${REQUIRED_BYPASSES.join(', ')}`);
   }
-  if (bypassPaths.some((entry) => entry.pathType !== 'Exact')) {
-    errors.push('every OAuth bypass path must use pathType Exact');
+  if (JSON.stringify(actualPublicPrefixes) !== JSON.stringify([...REQUIRED_PUBLIC_PREFIXES].sort())) {
+    errors.push(`public static bypass paths must be exactly: ${REQUIRED_PUBLIC_PREFIXES.join(', ')}`);
+  }
+  if (bypassPaths.some((entry) => entry.pathType !== 'Exact' && entry.pathType !== 'Prefix')) {
+    errors.push('OAuth bypass paths must use pathType Exact or an explicitly approved public Prefix');
   }
   if (mcp?.metadata?.annotations?.['nginx.ingress.kubernetes.io/auth-url']) {
     errors.push('MCP public ingress must remain outside the hosted browser gate');
@@ -55,9 +65,11 @@ function verifyHostedAccess({ ingressFile, configFile, seDeployFile }) {
   if (config?.data?.HOSTED_ACCESS_GATE_ENABLED != null) errors.push('shared Kubernetes ConfigMap must leave hosted access disabled');
   const seDeploy = fs.readFileSync(seDeployFile, 'utf8');
   for (const required of [
-    '"HOSTED_ACCESS_GATE_ENABLED":"true"',
-    '"HOSTED_ACCESS_ALLOWED_DOMAINS":"pingidentity.com,pingone.com"',
-    '"HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL":"true"',
+    'HOSTED_ACCESS_GATE_ENABLED',
+    'HOSTED_ACCESS_ALLOWED_DOMAINS',
+    'pingidentity.com',
+    'HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL',
+    'HOSTED_ACCESS_REQUIRED_GROUP_ID',
   ]) {
     if (!seDeploy.includes(required)) errors.push(`SE deploy patch missing ${required}`);
   }
