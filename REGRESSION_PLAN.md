@@ -169,6 +169,29 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-21 — SDK-rendered Forms fields support conditional passkey autofill
+
+**Files changed:** `demo_api_ui/src/components/davinci/CollectorField.jsx`,
+`demo_api_ui/src/pages/DavinciSdkLoginPage.jsx`,
+`demo_api_ui/src/utils/passkeyCeremony.js`, and their focused tests.
+
+**What was broken:** The SDK renderer always emitted `autocomplete="username"`,
+and the DaVinci client reducer discarded the Forms metadata needed to opt a
+field into WebAuthn conditional UI. Passkeys therefore required a dedicated
+button even when a Forms field requested autofill.
+
+**What was fixed:** Raw Forms field metadata is merged back onto the matching
+SDK collector. Opted-in fields emit `autocomplete="username webauthn"` and
+start a top-level conditional WebAuthn ceremony; the assertion is formatted,
+written through the SDK updater, and the flow resumes. Unsupported browsers,
+missing options, and non-opted-in fields retain the existing fallback behavior.
+
+**Do not break:** Keep the hosted DaVinci widget unchanged, preserve explicit
+FIDO2 button authentication, and keep the BFF/session/token custody boundary.
+
+**Verify:** Focused DaVinci collector/page/passkey tests and the full UI unit
+suite plus `npm run build`.
+
 ### 2026-09-21 — Personal Agent LM Studio action text lost contrast
 
 **Files changed:** `demo_api_ui/src/components/learning/PersonalAgentClientCards.jsx`,

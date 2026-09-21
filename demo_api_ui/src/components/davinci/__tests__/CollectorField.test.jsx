@@ -170,6 +170,27 @@ describe("CollectorField", () => {
     expect(screen.getByLabelText("Username")).toHaveAttribute("type", "text");
   });
 
+  it("adds WebAuthn to autocomplete only when the Forms metadata opts in", () => {
+    render(
+      <CollectorField
+        collector={{
+          ...textCollector,
+          output: {
+            ...textCollector.output,
+            autocomplete: "username",
+            enableConditionalWebAuthn: true,
+          },
+        }}
+        updater={() => null}
+      />,
+    );
+
+    expect(screen.getByLabelText("Username")).toHaveAttribute(
+      "autocomplete",
+      "username webauthn",
+    );
+  });
+
   it("renders a PasswordCollector masked", () => {
     render(<CollectorField collector={passwordCollector} updater={() => null} />);
     expect(screen.getByLabelText("Password")).toHaveAttribute("type", "password");
