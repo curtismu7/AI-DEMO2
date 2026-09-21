@@ -111,6 +111,24 @@ export default defineConfig(({ mode }) => {
       ...reactAppDefines,
     },
 
+    // The BFF has its own older OpenTelemetry dependency tree. Vite can walk
+    // up from the UI package and pair the browser exporter with that tree's
+    // transformer, which omits the exporter's 0.222 metrics helper. Pin the
+    // shared transformer to the UI dependency tree so the browser packages
+    // stay on one compatible OpenTelemetry release line.
+    resolve: {
+      alias: {
+        '@opentelemetry/otlp-transformer': resolve(
+          __dirname,
+          'node_modules/@opentelemetry/otlp-transformer',
+        ),
+        '@azure/msal-common': resolve(
+          __dirname,
+          'node_modules/@azure/msal-common',
+        ),
+      },
+    },
+
     // Vitest's transform pipeline does not consume Vite 8's OXC JSX runtime
     // settings for test modules yet. Keep the automatic runtime there only;
     // production builds use OXC exclusively.

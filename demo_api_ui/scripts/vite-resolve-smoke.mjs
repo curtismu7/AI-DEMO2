@@ -18,6 +18,16 @@ const ENTRY_URLS = [
   '/src/pages/UseCaseLauncherPage.js',
 ];
 
+const OTEL_EXPORTER_ENTRY = path.join(
+  root,
+  'node_modules/@opentelemetry/exporter-trace-otlp-http/build/esm/platform/browser/OTLPTraceExporter.js',
+);
+
+const MSAL_BROWSER_ENTRY = path.join(
+  root,
+  'node_modules/@azure/msal-browser/dist/BrowserAuthError.mjs',
+);
+
 async function closeServer(server) {
   // Vite's middleware-mode close can remain pending when no HTTP listener was
   // started. Bound cleanup so Node exits with the smoke-test result instead of
@@ -47,6 +57,25 @@ async function main() {
         throw new Error(`Vite transform returned empty for ${url}`);
       }
       console.log(`✓ resolves ${url}`);
+    }
+    const otelTransformer = await server.pluginContainer.resolveId(
+      '@opentelemetry/otlp-transformer',
+      OTEL_EXPORTER_ENTRY,
+    );
+    const expectedTransformerRoot = path.join(root, 'node_modules');
+    if (!otelTransformer?.id?.startsWith(expectedTransformerRoot)) {
+      throw new Error(
+        `OpenTelemetry transformer resolved outside the UI dependency tree: ${otelTransformer?.id || 'unresolved'}`,
+      );
+    }
+    const msalCommon = await server.pluginContainer.resolveId(
+      '@azure/msal-common',
+      MSAL_BROWSER_ENTRY,
+    );
+    if (!msalCommon?.id?.startsWith(expectedTransformerRoot)) {
+      throw new Error(
+        `MSAL common resolved outside the UI dependency tree: ${msalCommon?.id || 'unresolved'}`,
+      );
     }
     console.log('vite-resolve-smoke: ok');
   } catch (err) {
