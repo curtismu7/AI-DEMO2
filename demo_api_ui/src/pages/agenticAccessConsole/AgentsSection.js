@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import apiClient from "../../services/apiClient";
 import ExpandableRow from "./ExpandableRow";
-import { AGENT_ROLES, PRIMARY_AGENT } from "../../config/agentTerminology";
+import { AGENT_METADATA_LABELS, AGENT_ROLES, PRIMARY_AGENT } from "../../config/agentTerminology";
 import {
   fetchA2aSpecialistRegistry,
   specialistRoleLabel,
@@ -52,7 +52,9 @@ function SpecialistsPanel({ specialists, loading, error }) {
       <p className="aac-card-sub">
         One {AGENT_ROLES.specialist.toLowerCase()} per vertical — the {AGENT_ROLES.generalist}
         delegates a single
-        sensitive read task to. Source: the server A2A specialist registry. Click
+        sensitive read task to. Source: the server A2A specialist registry. The registry is
+        the source for specialist identity and capability metadata; authorization is evaluated
+        separately by PingOne Authorize. Click
         a row for the full specialist detail.
       </p>
       <div className="aac-table-wrap">
@@ -137,9 +139,9 @@ export default function AgentsSection({ user }) {
     return (
       <div>
         <p className="aac-section-intro">
-          Real non-human identities from PingOne, the demo's own OAuth client
-          registry, and computed A2A Agent Cards. Select one to see its scopes
-          and lifecycle. <span className="aac-badge aac-badge--live">Live</span>
+          Real non-human {AGENT_METADATA_LABELS.identity.toLowerCase()} records from PingOne,
+          the demo's own OAuth client registry, and computed {AGENT_METADATA_LABELS.card}s.
+          Select one to see its scopes and lifecycle. <span className="aac-badge aac-badge--live">Live</span>
         </p>
 
         <div className="aac-grid-3">
@@ -152,7 +154,7 @@ export default function AgentsSection({ user }) {
               aria-pressed={r.id === selected.id}
             >
               <div className="aac-card-title">{r.name}</div>
-              <div className="aac-card-sub">{r.identityType} · {r.source}</div>
+              <div className="aac-card-sub">{AGENT_METADATA_LABELS.identity} · {r.identityType} · {r.source}</div>
               <div className="aac-card-body">
                 <span className="aac-badge aac-badge--neutral">{r.status || "unknown"}</span>{" "}
                 <ScopeStatusBadge status={r.scopeStatus} />
@@ -163,7 +165,7 @@ export default function AgentsSection({ user }) {
 
         {selected && (
           <div className="aac-card aac-detail-panel">
-            <div className="aac-card-title">{selected.name} — scopes &amp; lifecycle</div>
+            <div className="aac-card-title">{selected.name} — {AGENT_METADATA_LABELS.identity}, scopes &amp; lifecycle</div>
             <div className="aac-card-sub" style={{ marginTop: 8 }}>Granted scopes</div>
             <div className="aac-chip-row">
               {(selected.grantedScopes || []).length > 0
@@ -203,8 +205,9 @@ export default function AgentsSection({ user }) {
   return (
     <div>
       <p className="aac-section-intro">
-        Every runtime reaches the same 3 MCP servers — flat access, gated by policy
-        rather than by agent identity. Select an agent to see its reachable tools.
+        Each {AGENT_METADATA_LABELS.runtime.toLowerCase()} reaches the same 3 MCP servers —
+        access is gated by policy, not implied by the {AGENT_METADATA_LABELS.identity.toLowerCase()}.
+        Select a runtime to see its reachable tools.
       </p>
 
       <div className="aac-grid-3">
@@ -217,7 +220,7 @@ export default function AgentsSection({ user }) {
             aria-pressed={a.id === selected.id}
           >
             <div className="aac-card-title">{a.identity}</div>
-            <div className="aac-card-sub">{a.runtime} · {a.framework}</div>
+            <div className="aac-card-sub">{AGENT_METADATA_LABELS.runtime}: {a.runtime} · {a.framework}</div>
             {a.note && <div className="aac-card-sub">{a.note}</div>}
             <div className="aac-card-body">
               <span className="aac-badge aac-badge--live">Active</span>{" "}
@@ -229,7 +232,8 @@ export default function AgentsSection({ user }) {
 
       {selected && (
         <div className="aac-card aac-detail-panel">
-          <div className="aac-card-title">{selected.identity} — reachable MCP servers</div>
+          <div className="aac-card-title">{selected.identity} — {AGENT_METADATA_LABELS.runtime}: {selected.runtime}</div>
+          <div className="aac-card-sub" style={{ marginTop: 8 }}>Framework: {selected.framework}</div>
           <div className="aac-card-sub" style={{ marginTop: 8 }}>oauth-mcp (banking-mcp-server)</div>
           <div className="aac-chip-row">
             {OAUTH_MCP_TOOLS.map((t) => <span key={t} className="aac-chip">{t}</span>)}

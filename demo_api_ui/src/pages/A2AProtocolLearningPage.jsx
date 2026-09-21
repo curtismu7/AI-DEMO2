@@ -322,9 +322,15 @@ export default function A2AProtocolLearningPage() {
           <div className="a2l-layer">
             <h3>Identity — RFC 8693 delegation</h3>
             <p>
-              Who is acting for whom. PingOne mints a token whose <code>act</code> claim
+              Agent identity and delegated authority answer who is acting for whom.{' '}
+              PingOne mints a token whose <code>act</code> claim
               nests: the specialist acting for the generalist acting for the user. Scope
               narrows at each hop. This is what PingOne Authorize decides over.
+            </p>
+            <p>
+              Agent identity, Agent runtime, and delegated authority are separate: a runtime
+              can execute the flow, but only the token chain and PingOne Authorize establish
+              what the call may do.
             </p>
             <p className="a2l-meta">Layer 1 · <code>a2aDelegationService</code></p>
           </div>
@@ -332,8 +338,9 @@ export default function A2AProtocolLearningPage() {
             <h3>Wire protocol — Linux Foundation A2A</h3>
             <p>
               How the two agents talk. An Agent Card advertises the specialist&apos;s
-              skills; a JSON-RPC <code>message/send</code> carries the task. It
-              authenticates with its <strong>own</strong> PingOne bearer — not the
+              skills and protocol metadata; a JSON-RPC <code>message/send</code> carries the task.
+              Agent Cards describe capability and protocol metadata; they do not grant authority.
+              The handoff authenticates with its <strong>own</strong> PingOne bearer — not the
               nested-<code>act</code> token.
             </p>
             <p className="a2l-meta">Layer 2 · <code>@a2a-js/sdk</code> · <code>/a2a/specialists</code></p>

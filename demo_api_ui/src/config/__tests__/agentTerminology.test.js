@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  AGENT_METADATA_LABELS,
   AGENT_ROLES,
   EVIDENCE_FRAME_LABELS,
   PRIMARY_AGENT,
@@ -18,6 +19,15 @@ describe("agent terminology contract", () => {
       generalist: "Generalist agent",
       planner: "Planner",
       specialist: "Specialist agent",
+    });
+  });
+
+  it("keeps identity, runtime, card, and authority concepts distinct", () => {
+    expect(AGENT_METADATA_LABELS).toEqual({
+      identity: "Agent identity",
+      runtime: "Agent runtime",
+      card: "Agent Card",
+      authority: "Delegated authority",
     });
   });
 

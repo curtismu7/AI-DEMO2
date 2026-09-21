@@ -84,6 +84,12 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
             <code>act&#123;specialist, act&#123;generalist&#125;&#125;</code>. The resource server sees the{' '}
             <em>whole</em> chain of agents that acted on your behalf.
           </Callout>
+          <Callout color="#0f766e" bg="rgba(15,118,110,0.08)">
+            <strong>Keep the metadata separate.</strong> The Agent identity names the non-human
+            identity, the Agent runtime names the process or framework, and the Agent Card
+            advertises capability and protocol metadata. None of those alone grants delegated
+            authority; PingOne Authorize evaluates the token chain and policy at call time.
+          </Callout>
         </>
       ),
     },
@@ -144,7 +150,7 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
               ))}
             </tbody>
           </table>
-          {!specialists.length && <p style={{ color: '#6b7280' }}>The server specialist registry is unavailable; open the A2A learning page to inspect the live Agent Card.</p>}
+          {!specialists.length && <p style={{ color: '#6b7280' }}>The server specialist registry is unavailable; open the A2A learning page to inspect the live Agent Card. The card describes capability; PingOne Authorize still decides delegated authority.</p>}
           <h3>How it shows up</h3>
           <ol>
             <li><strong>Ask for sensitive data</strong> — e.g. &ldquo;show the sensitive record&rdquo;. The generalist can&apos;t read it directly.</li>
