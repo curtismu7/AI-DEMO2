@@ -8,6 +8,7 @@ import pino from 'pino';
 import { createEmbedder } from './embeddings';
 import { createStore } from './weaviateStore';
 import { createServer } from './server';
+import { createDocumentExtractor } from './documentExtractor';
 
 const log = pino({ name: 'code-search' });
 
@@ -18,6 +19,7 @@ const WEAVIATE_HOST = (process.env.WEAVIATE_URL || 'http://weaviate:8080').repla
   /^https?:\/\//,
   ''
 );
+const TIKA_URL = process.env.TIKA_URL || 'http://tika:9998';
 
 async function main(): Promise<void> {
   const embedder = createEmbedder({ baseUrl: EMBEDDING_URL, model: EMBEDDING_MODEL });
@@ -25,6 +27,7 @@ async function main(): Promise<void> {
 
   try {
     await store.ensureSchema();
+    await store.ensureDocumentSchema();
     log.info({ class: 'CodeChunk' }, 'Weaviate schema ready');
   } catch (err) {
     // Don't crash if Weaviate is slow to come up — health stays green and
@@ -32,7 +35,12 @@ async function main(): Promise<void> {
     log.warn({ err: (err as Error).message }, 'Could not ensure schema at startup');
   }
 
-  const app = createServer({ embedder, store });
+  const app = createServer({ embedder, store, documentExtractor: createDocumentExtractor({
+    baseUrl: TIKA_URL,
+    timeoutMs: Number(process.env.DOCUMENT_PARSE_TIMEOUT_MS || 30_000),
+    maxBytes: Number(process.env.DOCUMENT_MAX_BYTES || 10_485_760),
+    maxExtractedChars: Number(process.env.DOCUMENT_MAX_EXTRACTED_CHARS || 2_000_000),
+  }) });
   app.listen(PORT, () => {
     log.info(
       { port: PORT, embedding: EMBEDDING_URL, weaviate: WEAVIATE_HOST },

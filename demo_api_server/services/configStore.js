@@ -117,6 +117,8 @@ const _SECRET_KEYS_RAW = [
   'pingone_client_jwt_private_key',
   'pingone_mgmt_private_key',
   'enterprise_idp_inspector_client_secret',
+  'pingone_fraud_watch_agent_client_secret',
+  'pingone_balance_sweep_agent_client_secret',
   // Anyone holding a webhook.site-style URL can read every denied prompt sent to it.
   'EXTERNAL_GUARDRAIL_WEBHOOK_URL',
 ];
@@ -672,6 +674,15 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   pingone_mgmt_client_secret:            { public: false, default: '' },
   pingone_mgmt_token_auth_method:        { public: true,  default: 'basic' },
   pingone_client_jwt_kid:                { public: true,  default: '' },
+  spiffe_svid_path:                      { public: true,  default: '' },
+  spiffe_key_path:                       { public: true,  default: '' },
+  spiffe_bundle_path:                    { public: true,  default: '' },
+  spiffe_trust_domain:                   { public: true,  default: 'bxfinance.demo' },
+  ff_spiffe_client_auth:                 { public: true,  default: 'false' },
+  pingone_fraud_watch_agent_client_id:     { public: true,  default: '' },
+  pingone_fraud_watch_agent_client_secret: { public: false, default: '' },
+  pingone_balance_sweep_agent_client_id:     { public: true,  default: '' },
+  pingone_balance_sweep_agent_client_secret: { public: false, default: '' },
   // Dedicated private_key_jwt app for RFC 8693 token exchange (PRIVATE_KEY_JWT client auth).
   // Gated by ff_private_key_jwt_token_exchange. Client ID and private key are encrypted
   // at rest (see SECRET_KEYS). kid is stamped into both the JWK and the assertion header.
@@ -1149,6 +1160,15 @@ const ENV_FALLBACK_MAP = {
   pingone_mcp_token_exchanger_cc_auth_method: ['PINGONE_MCP_TOKEN_EXCHANGER_CC_AUTH_METHOD', 'PINGONE_MCP_TOKEN_EXCHANGER_AUTH_METHOD', 'MCP_EXCHANGER_TOKEN_ENDPOINT_AUTH_METHOD', 'AGENT_TOKEN_ENDPOINT_AUTH_METHOD'],
   pingone_client_jwt_private_key:       ['PINGONE_CLIENT_JWT_PRIVATE_KEY'],
   pingone_client_jwt_kid:               ['PINGONE_CLIENT_JWT_KID'],
+  spiffe_svid_path:                     ['SPIFFE_SVID_PATH'],
+  spiffe_key_path:                      ['SPIFFE_KEY_PATH'],
+  spiffe_bundle_path:                   ['SPIFFE_BUNDLE_PATH'],
+  spiffe_trust_domain:                  ['SPIFFE_TRUST_DOMAIN'],
+  ff_spiffe_client_auth:                ['FF_SPIFFE_CLIENT_AUTH'],
+  pingone_fraud_watch_agent_client_id:     ['PINGONE_FRAUD_WATCH_AGENT_CLIENT_ID'],
+  pingone_fraud_watch_agent_client_secret: ['PINGONE_FRAUD_WATCH_AGENT_CLIENT_SECRET'],
+  pingone_balance_sweep_agent_client_id:     ['PINGONE_BALANCE_SWEEP_AGENT_CLIENT_ID'],
+  pingone_balance_sweep_agent_client_secret: ['PINGONE_BALANCE_SWEEP_AGENT_CLIENT_SECRET'],
 
   // Introspection
   pingone_introspection_endpoint:       ['PINGONE_INTROSPECTION_ENDPOINT'],

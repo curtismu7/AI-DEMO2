@@ -164,12 +164,13 @@ export class DemoMCPServer extends EventEmitter {
       // Create HTTP server for WebSocket upgrade and OAuth callbacks
       const mtlsEnabled = process.env.MCP_MTLS_ENABLED === 'true';
       const gatewayCertPath = process.env.MCP_MTLS_GATEWAY_CERT_PATH ?? '/tmp/gw-client.crt';
+      const spiffeGatewayId = process.env.MCP_MTLS_ALLOWED_SPIFFE_ID;
 
       if (mtlsEnabled) {
         const gatewayCertPem = fs.existsSync(gatewayCertPath)
           ? fs.readFileSync(gatewayCertPath, 'utf-8')
           : '';
-        const mtlsVerifier = createMtlsVerifier({ enabled: true, gatewayCertPem });
+        const mtlsVerifier = createMtlsVerifier({ enabled: true, gatewayCertPem: spiffeGatewayId ? '' : gatewayCertPem, allowedSpiffeId: spiffeGatewayId });
 
         const notAfterDate = new Date();
         notAfterDate.setDate(notAfterDate.getDate() + 1);

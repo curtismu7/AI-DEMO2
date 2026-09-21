@@ -1,6 +1,6 @@
 # SPIFFE / SPIRE — Implementation Plan (Super Banking demo)
 
-**Status:** Phase 0 (education) shipped. Phases A–D not built.
+**Status:** Local Phase A/B foundation and flagged private_key_jwt wiring implemented. OIDC-provider composition and SPIFFE-ID mTLS verification are wired; public PingOne JWKS deployment and live end-to-end SVID rotation still require environment/tenant validation.
 **Last corrected:** 2026-08-17.
 
 > **This document was rewritten because the previous version was wrong.** Its Phase 2

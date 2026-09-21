@@ -11,6 +11,7 @@ import weaviate, { WeaviateClient } from 'weaviate-ts-client';
 import { globToMatcher } from './fileFilter';
 
 export const CLASS_NAME = 'CodeChunk';
+export const DOCUMENT_CLASS_NAME = 'LearningHubDocumentChunk';
 
 // Minimal shape of a single weaviate-ts-client batch result element; the client
 // returns one of these per submitted object, with per-object errors attached.
@@ -61,7 +62,18 @@ export interface Store {
   search(vector: number[], opts: SearchOptions): Promise<SearchHit[]>;
   listCodebases(): Promise<Codebase[]>;
   getCode(opts: { codebaseId: string; file: string; lineStart: number; lineEnd: number }): Promise<CodeRange | null>;
+  ensureDocumentSchema(): Promise<void>;
+  insertDocumentChunks(chunks: StoredDocumentChunk[]): Promise<void>;
+  searchDocuments(vector: number[], opts: DocumentSearchOptions): Promise<DocumentSearchHit[]>;
+  listDocuments(collectionId: string): Promise<DocumentSummary[]>;
+  replaceDocumentChunks?(collectionId: string, chunks: StoredDocumentChunk[]): Promise<void>;
+  deleteDocument?(collectionId: string, documentId: string): Promise<void>;
 }
+
+export interface StoredDocumentChunk { chunk_id: string; document_id: string; collection_id: string; title: string; text: string; document_hash?: string; media_type?: string; section?: string; page_number?: number; source_url?: string; source_path?: string; indexed_at?: string; vector: number[]; }
+export interface DocumentSearchOptions { collectionId: string; limit: number; }
+export interface DocumentSearchHit { chunk_id: string; document_id: string; title: string; text: string; section?: string; page_number?: number; source_url?: string; source_path?: string; relevance: number; }
+export interface DocumentSummary { document_id: string; title: string; chunks: number; source_url?: string; source_path?: string; }
 
 interface RawObject {
   file: string;
@@ -122,6 +134,19 @@ const SCHEMA = {
     { name: 'line_start', dataType: ['int'] },
     { name: 'line_end', dataType: ['int'] },
     { name: 'snippet', dataType: ['text'] },
+  ],
+};
+
+const DOCUMENT_SCHEMA = {
+  class: DOCUMENT_CLASS_NAME,
+  description: 'An extracted and embedded Learning Hub document chunk',
+  vectorizer: 'none',
+  properties: [
+    { name: 'chunk_id', dataType: ['text'] }, { name: 'document_id', dataType: ['text'] }, { name: 'document_hash', dataType: ['text'] },
+    { name: 'collection_id', dataType: ['text'] }, { name: 'title', dataType: ['text'] },
+    { name: 'text', dataType: ['text'] }, { name: 'media_type', dataType: ['text'] }, { name: 'section', dataType: ['text'] },
+    { name: 'page_number', dataType: ['int'] }, { name: 'source_url', dataType: ['text'] },
+    { name: 'source_path', dataType: ['text'] }, { name: 'indexed_at', dataType: ['date'] },
   ],
 };
 
@@ -250,6 +275,66 @@ export function createStore(host: string): Store {
       const result = stitchRange(chunks, opts.lineStart, opts.lineEnd);
       if (result === null) return null;
       return { file: opts.file, line_start: result.from, line_end: result.to, code: result.code };
+    },
+
+    async ensureDocumentSchema(): Promise<void> {
+      const schema = await client.schema.getter().do();
+      if (!(schema.classes ?? []).some((c) => c.class === DOCUMENT_CLASS_NAME)) {
+        await client.schema.classCreator().withClass(DOCUMENT_SCHEMA).do();
+      }
+    },
+
+    async insertDocumentChunks(chunks): Promise<void> {
+      if (!chunks.length) return;
+      let batcher = client.batch.objectsBatcher();
+      for (const c of chunks) batcher = batcher.withObject({ class: DOCUMENT_CLASS_NAME, properties: {
+        chunk_id: c.chunk_id, document_id: c.document_id, document_hash: c.document_hash ?? '', collection_id: c.collection_id, title: c.title,
+        text: c.text, media_type: c.media_type ?? '', section: c.section ?? '', page_number: c.page_number ?? 0, source_url: c.source_url ?? '', source_path: c.source_path ?? '', indexed_at: c.indexed_at ?? new Date().toISOString(),
+      }, vector: c.vector });
+      const results = (await batcher.do()) as unknown as BatchResultItem[];
+      const failed = (results ?? []).filter((r) => (r?.result?.errors?.error?.length ?? 0) > 0);
+      if (failed.length) throw new Error(`Weaviate document insert failed for ${failed.length}/${results.length} objects`);
+    },
+
+    async replaceDocumentChunks(collectionId, chunks) {
+      const oldIds: string[] = [];
+      for (const documentId of [...new Set(chunks.map((chunk) => chunk.document_id))]) {
+        const old = await client.graphql.get().withClassName(DOCUMENT_CLASS_NAME).withFields('_additional { id }')
+          .withWhere({ operator: 'And', operands: [
+            { path: ['collection_id'], operator: 'Equal', valueText: collectionId },
+            { path: ['document_id'], operator: 'Equal', valueText: documentId },
+          ] }).withLimit(500).do();
+        oldIds.push(...(old?.data?.Get?.[DOCUMENT_CLASS_NAME] ?? []).map((item: any) => item._additional?.id).filter(Boolean));
+      }
+      await this.insertDocumentChunks(chunks);
+      if (oldIds.length) await client.batch.objectsBatchDeleter().withClassName(DOCUMENT_CLASS_NAME).withWhere({ operator: 'Or', operands: oldIds.map((id) => ({ path: ['id'], operator: 'Equal', valueText: id })) }).do();
+    },
+
+    async deleteDocument(collectionId, documentId) {
+      await client.batch.objectsBatchDeleter().withClassName(DOCUMENT_CLASS_NAME).withWhere({ operator: 'And', operands: [
+        { path: ['collection_id'], operator: 'Equal', valueText: collectionId },
+        { path: ['document_id'], operator: 'Equal', valueText: documentId },
+      ] }).do();
+    },
+
+    async searchDocuments(vector, opts) {
+      const res = await client.graphql.get().withClassName(DOCUMENT_CLASS_NAME)
+        .withFields('chunk_id document_id title text document_hash media_type section page_number source_url source_path _additional { certainty }')
+        .withNearVector({ vector }).withWhere({ path: ['collection_id'], operator: 'Equal', valueText: opts.collectionId })
+        .withLimit(opts.limit).do();
+      return (res?.data?.Get?.[DOCUMENT_CLASS_NAME] ?? []).map((o: any) => ({ ...o, relevance: o._additional?.certainty ?? 0 }));
+    },
+
+    async listDocuments(collectionId) {
+      const res = await client.graphql.get().withClassName(DOCUMENT_CLASS_NAME)
+        .withFields('document_id title source_url source_path')
+        .withWhere({ path: ['collection_id'], operator: 'Equal', valueText: collectionId }).withLimit(500).do();
+      const map = new Map<string, DocumentSummary>();
+      for (const item of (res?.data?.Get?.[DOCUMENT_CLASS_NAME] ?? []) as any[]) {
+        const prior = map.get(item.document_id);
+        map.set(item.document_id, { document_id: item.document_id, title: item.title, chunks: (prior?.chunks ?? 0) + 1, source_url: item.source_url, source_path: item.source_path });
+      }
+      return [...map.values()].sort((a, b) => a.title.localeCompare(b.title));
     },
   };
 }

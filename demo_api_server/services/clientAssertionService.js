@@ -15,6 +15,7 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const configStore = require('./configStore');
+const spiffeWorkloadClient = require('./spiffeWorkloadClient');
 
 const CLIENT_ASSERTION_TYPE =
   'urn:ietf:params:oauth:client-assertion-type:jwt-bearer';
@@ -24,11 +25,13 @@ let _warnedNoKey = false;
 
 /** Raw PEM (PKCS#8) private key for admin client, or '' when unconfigured. */
 function getPrivateKeyPem() {
+  if (configStore.getEffective('ff_spiffe_client_auth') === 'true') return spiffeWorkloadClient.getSigningKeyPem();
   return (configStore.getEffective('pingone_client_jwt_private_key') || '').trim();
 }
 
 /** kid stamped into the JWK and the assertion JWT header for admin client. */
 function getKid() {
+  if (configStore.getEffective('ff_spiffe_client_auth') === 'true') return spiffeWorkloadClient.getKid();
   return (configStore.getEffective('pingone_client_jwt_kid') || '').trim() || undefined;
 }
 
