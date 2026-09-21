@@ -159,6 +159,34 @@ test('rate limiting only applies to inference requests', () => {
   assert.strictEqual(isInferenceRoute({ method: 'GET', url: '/random-probe' }), false);
 });
 
+test('readiness reports degraded state and tier diagnostics when no backend is healthy', () => {
+  const { readinessSnapshot, TIERS } = router;
+  for (const tier of TIERS) tier.healthy = false;
+
+  const snapshot = readinessSnapshot();
+
+  assert.strictEqual(snapshot.status, 'degraded');
+  assert.strictEqual(snapshot.ready, false);
+  assert.strictEqual(snapshot.reason, 'no_healthy_tier');
+  assert.deepStrictEqual(
+    snapshot.models.map(({ name, port, healthy }) => ({ name, port, healthy })),
+    TIERS.map(({ name, port, healthy }) => ({ name, port, healthy })),
+  );
+});
+
+test('readiness reports healthy state when any backend is healthy', () => {
+  const { readinessSnapshot, TIERS } = router;
+  for (const tier of TIERS) tier.healthy = false;
+  TIERS[0].healthy = true;
+
+  const snapshot = readinessSnapshot();
+
+  assert.strictEqual(snapshot.status, 'healthy');
+  assert.strictEqual(snapshot.ready, true);
+  assert.strictEqual(snapshot.reason, undefined);
+  assert.strictEqual(snapshot.models[0].healthy, true);
+});
+
 test('tool discovery answers from the request without selecting an LLM tier', async () => {
   const { server } = router;
   const ensureCallsBefore = ensure.calls.length;

@@ -245,12 +245,24 @@ function probeTier(tier) {
   });
 }
 
-async function checkHealth() {
-  const now = Date.now();
-  for (const tier of TIERS) {
-    if (now - tier.lastCheck < HEALTH_TTL_MS) continue;
-    tier.healthy = await probeTier(tier);
-    tier.lastCheck = now;
+let healthCheckInFlight = null;
+
+async function checkHealth(force = false) {
+  if (healthCheckInFlight) return healthCheckInFlight;
+
+  healthCheckInFlight = (async () => {
+    const now = Date.now();
+    for (const tier of TIERS) {
+      if (!force && now - tier.lastCheck < HEALTH_TTL_MS) continue;
+      tier.healthy = await probeTier(tier);
+      tier.lastCheck = now;
+    }
+  })();
+
+  try {
+    await healthCheckInFlight;
+  } finally {
+    healthCheckInFlight = null;
   }
 }
 
@@ -484,6 +496,19 @@ proxy.on('error', (err, req, res) => {
 // Serializable view of a tier for the /health and /status endpoints.
 const modelSummary = (t) => ({ name: t.name, port: t.port, size: t.size, healthy: t.healthy, load: t.load });
 
+function readinessSnapshot() {
+  const ready = TIERS.some((t) => t.healthy);
+  return {
+    ready,
+    status: ready ? 'healthy' : 'degraded',
+    ...(ready ? {} : { reason: 'no_healthy_tier' }),
+    mode: 'swap',
+    pin: pinSummary(),
+    swapping: swapInFlight ? TIERS[swapInFlight.cls].name : null,
+    models: TIERS.map(modelSummary),
+  };
+}
+
 /** Active LLM_PROXY_PIN_TIER summary for BFF/UI — null when unset. */
 function pinSummary() {
   if (PIN_TIER_INDEX < 0) return null;
@@ -511,16 +536,29 @@ const server = http.createServer((req, res) => {
 
   if (req.url === '/health' && req.method === 'GET') {
     checkHealth(); // fire-and-forget refresh
-    // Swap mode: exactly one tier loaded is the NORMAL state — healthy means
-    // at least one backend can serve.
-    const anyHealthy = TIERS.some((t) => t.healthy);
-    res.writeHead(anyHealthy ? 200 : 503, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      status: anyHealthy ? 'healthy' : 'degraded',
-      mode: 'swap',
-      pin: pinSummary(),
-      models: TIERS.map(modelSummary),
-    }));
+    const snapshot = readinessSnapshot();
+    res.writeHead(snapshot.ready ? 200 : 503, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(snapshot));
+    return;
+  }
+
+  // GET /readyz — dependency-aware readiness. Unlike /health, this endpoint
+  // performs an immediate probe so Kubernetes receives current tier state and
+  // actionable diagnostics instead of a stale cached 503.
+  if (req.url === '/readyz' && req.method === 'GET') {
+    checkHealth(true).then(() => {
+      const snapshot = readinessSnapshot();
+      res.writeHead(snapshot.ready ? 200 : 503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(snapshot));
+    }).catch((err) => {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        ready: false,
+        status: 'degraded',
+        reason: 'health_check_failed',
+        error: err.message,
+      }));
+    });
     return;
   }
 
@@ -686,4 +724,4 @@ process.on('SIGTERM', () => {
 } // end require.main === module
 
 // Exported for unit tests only (no effect on `node router.js`).
-module.exports = { TIERS, swapTo, smallestLoadedCovering, isInferenceRoute, server };
+module.exports = { TIERS, swapTo, smallestLoadedCovering, isInferenceRoute, readinessSnapshot, server };
