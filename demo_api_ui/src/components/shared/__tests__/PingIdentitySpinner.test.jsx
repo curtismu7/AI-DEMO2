@@ -19,8 +19,7 @@ describe('PingIdentitySpinner', () => {
     render(<PingIdentitySpinner label="Checking authorization…" />);
 
     expect(screen.getByRole('status', { name: 'Checking authorization…' })).toBeInTheDocument();
-    expect(document.querySelector('.ping-spinner__mark')).not.toBeNull();
-    expect(document.querySelector('.ping-spinner__mark text')).toHaveTextContent('P');
+    expect(document.querySelector('.ping-spinner__default-mark')).toHaveAttribute('src', '/assets/ping-identity-logo.png');
   });
 
   it('uses the requested size and supports unlabeled decorative use', () => {
