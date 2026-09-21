@@ -140,13 +140,17 @@ Get detailed model information:
 
 ### Optional private fallback
 
-Set `LLM_PROXY_FALLBACK_URL` to an OpenAI-compatible private gateway, such as a
-self-hosted LiteLLM instance. When configured, only non-tool
+Set `FF_LITELLM_FALLBACK=true` and `LLM_PROXY_FALLBACK_URL` to an
+OpenAI-compatible private gateway, such as a self-hosted LiteLLM instance. When
+configured, only non-tool
 `POST /v1/chat/completions` requests use it after local tier selection or
 forwarding fails. Tool-calling requests never fall back automatically, and an
-unset variable leaves the normal local-only behavior unchanged.
+an unset flag or URL leaves the normal local-only behavior unchanged. Local
+tier selection waits through the full model warm-up/swap timeout before this
+fallback path is considered.
 
 ```bash
+FF_LITELLM_FALLBACK=true \
 LLM_PROXY_FALLBACK_URL=http://litellm:4000 npm start
 ```
 

@@ -68,7 +68,12 @@ const tierHost = (envKey) => process.env[envKey] || HOST;
 // The tier-manager daemon on the HOST performs the actual llama-server
 // start/stop (this container cannot manage host processes).
 const TIER_MANAGER = process.env.TIER_MANAGER_URL || `http://${HOST}:8097`;
-const FALLBACK_URL = String(process.env.LLM_PROXY_FALLBACK_URL || '').replace(/\/+$/, '');
+const FALLBACK_ENABLED = ['1', 'true', 'yes', 'on'].includes(
+  String(process.env.FF_LITELLM_FALLBACK || '').toLowerCase(),
+);
+const FALLBACK_URL = FALLBACK_ENABLED
+  ? String(process.env.LLM_PROXY_FALLBACK_URL || '').replace(/\/+$/, '')
+  : '';
 const SWAP_TIMEOUT_MS = 180000;        // cold load of the 11GB gpt-oss can be slow
 const SWAP_POLL_MS = 1500;             // health-poll cadence while a swap is loading
 const DRAIN_MAX_MS = 30000;            // wait for in-flight requests before unloading
@@ -684,6 +689,9 @@ const server = http.createServer((req, res) => {
       selectedTier = await selectTier(routedCls);
     } catch (err) {
       console.error(`[proxy] tier selection failed: ${err.message}`);
+      // selectTier has already waited through the complete local warm-up and
+      // swap timeout before reaching this branch. Never race a cold local tier
+      // by falling back while it is still loading.
       if (req._fallbackTarget && !req._fallbackAttempted) {
         req._fallbackAttempted = true;
         console.warn(`[proxy] no local tier available; routing eligible chat request via configured fallback`);

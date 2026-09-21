@@ -36,6 +36,7 @@ test.before(async () => {
   delete process.env.LLM_PROXY_PIN_TIER;
   delete process.env.LLM_PROXY_RESIDENT_TIERS;
   process.env.LLM_PROXY_FALLBACK_URL = `http://127.0.0.1:19090`;
+  process.env.FF_LITELLM_FALLBACK = 'true';
 
   ensure = { active: 0, maxActive: 0, calls: [] };
 
