@@ -187,7 +187,7 @@
 - Test: configuration/hygiene checks and startup guard tests.
 
 - [x] Add documented `OAUTH_PROVIDER=pingfederate` configuration with PF endpoint and client variables.
-- [ ] Add the PF variables to local Docker and deployment secret templates without values.
+- [x] Add the PF variables to the local BFF environment template without values.
 - [ ] Keep PingOne variables intact for the alternate mode and management APIs that still require PingOne.
 - [ ] Ensure PF mode does not require a PingOne environment ID merely to resolve browser OAuth endpoints.
 - [ ] Run `npm run hygiene:check` and the relevant topology/config verification commands.
