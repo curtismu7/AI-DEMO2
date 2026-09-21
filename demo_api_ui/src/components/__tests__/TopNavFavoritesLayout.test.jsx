@@ -3,7 +3,14 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import TopNav from "../TopNav";
 
-const mockSessionToken = vi.hoisted(() => ({ hasActiveToken: false }));
+const mockSessionToken = vi.hoisted(() => ({
+  tokenSecondsLeft: null,
+  tokenLoading: false,
+  sessionType: null,
+  staleSession: false,
+  hasActiveToken: false,
+  openTokenModal: null,
+}));
 
 vi.mock("react-router-dom", () => ({
   useLocation: () => ({ pathname: "/dashboard" }),
@@ -11,14 +18,7 @@ vi.mock("react-router-dom", () => ({
 }));
 
 vi.mock("../../context/SessionTokenContext", () => ({
-  useSessionToken: () => ({
-    tokenSecondsLeft: null,
-    tokenLoading: false,
-    sessionType: null,
-    staleSession: false,
-    hasActiveToken: mockSessionToken.hasActiveToken,
-    openTokenModal: null,
-  }),
+  useSessionToken: () => mockSessionToken,
 }));
 
 vi.mock("../../context/ThemeContext", () => ({
@@ -85,5 +85,23 @@ describe("TopNav Favorites dropdown", () => {
     expect(document.querySelector(".fav-menu-dropdown")).toBeInTheDocument();
     expect(favoritesRoot?.parentElement).toHaveClass("topnav-right");
     expect(favoritesRoot?.parentElement).not.toHaveClass("topnav-right-scroll");
+  });
+
+  it("shows the remaining session time in the top menu", () => {
+    Object.assign(mockSessionToken, {
+      tokenSecondsLeft: 125,
+      sessionType: "user",
+      hasActiveToken: true,
+    });
+
+    render(<TopNav user={{ firstName: "Demo", lastName: "User", role: "customer" }} onLogout={vi.fn()} />);
+
+    expect(screen.getByText("2m 5s")).toBeInTheDocument();
+
+    Object.assign(mockSessionToken, {
+      tokenSecondsLeft: null,
+      sessionType: null,
+      hasActiveToken: false,
+    });
   });
 });
