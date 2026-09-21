@@ -18,6 +18,7 @@
 const express = require('express');
 const router = express.Router();
 const scopeTopology = require('../services/scopeTopology');
+const personalAgentCimdService = require('../services/personalAgentCimdService');
 
 /** 'Super Banking AI Agent' -> 'super-banking-ai-agent' */
 function slugify(appName) {
@@ -50,6 +51,19 @@ function selfBaseUrl() {
   const port = process.env.PORT || 3001;
   return `${scheme}://127.0.0.1:${port}`;
 }
+
+// GET /api/cimd/personal-agents/:registrationId/client-metadata.json
+// Public because the mocked AS resolves the document by URL. The document is
+// public-safe and contains no PingOne secret or user OAuth token.
+router.get('/personal-agents/:registrationId/client-metadata.json', (req, res) => {
+  const doc = personalAgentCimdService.metadataDocument(req.params.registrationId);
+  if (!doc) {
+    return res.status(404).json({ error: 'personal_agent_registration_not_found' });
+  }
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  return res.json(doc);
+});
 
 // GET /api/cimd/agents — agent list for the inspector UI.
 router.get('/agents', (req, res) => {

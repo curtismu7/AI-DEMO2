@@ -87,6 +87,7 @@ async function pingOneAgents() {
     } catch {
       granted = [];
     }
+    const cimd = agentBuilderService.getPersonalAgentCimdByAgentId(app.id);
     return {
       id: app.id,
       name: app.name,
@@ -98,6 +99,11 @@ async function pingOneAgents() {
       grantedScopes: granted,
       ...scopeStatusFor(app.name, granted),
       lifecycle: lifecycleFor(app.id),
+      ...(cimd ? {
+        registrationType: cimd.registrationType,
+        registrationStatus: cimd.status,
+        metadataUrl: cimd.metadataUrl,
+      } : {}),
     };
   }));
 }

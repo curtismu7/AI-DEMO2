@@ -220,6 +220,33 @@ export default function AgentBuilderPage() {
               <dt>Token auth</dt><dd>{agent.tokenEndpointAuthMethod || '—'}</dd>
               <dt>Created</dt><dd>{agent.createdAt ? new Date(agent.createdAt).toLocaleString() : '—'}</dd>
             </dl>
+            {agent.cimd && (
+              <div className="ab-authority-note" aria-label="CIMD registration">
+                <strong>CIMD registration</strong>
+                <p>
+                  Mocked — PingOne does not support CIMD. The BFF completed the CIMD
+                  registration facade automatically in the background.
+                </p>
+                <p>
+                  The PingOne-backed agent identity remains the credential used for RFC 8693
+                  token exchange and delegated tool calls.
+                </p>
+                {agent.cimd.metadataUrl && (
+                  <p>
+                    <a href={agent.cimd.metadataUrl}>Open client metadata document</a>
+                  </p>
+                )}
+                {Array.isArray(agent.cimd.steps) && agent.cimd.steps.length > 0 && (
+                  <ol>
+                    {agent.cimd.steps.map((step) => (
+                      <li key={step.step}>
+                        {step.step}: {step.status} ({step.engine || 'mock'})
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            )}
             {agent.fallback && (
               <p className="ab-note">Your agent is a standard OIDC app from before first-class
                 AI&nbsp;Agent support. Upgrade recreates it as a real <strong>AI_AGENT</strong> and

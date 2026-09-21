@@ -24,6 +24,7 @@ const { getManagementToken } = require('./pingOneClientService');
 const { getCanonicalPublicOrigin } = require('./vercelPublicUrl');
 const { sanitizeAxiosCause } = require('../utils/sanitizeAxiosCause');
 const agentLifecycleEvents = require('./agentLifecycleEvents');
+const personalAgentCimdService = require('./personalAgentCimdService');
 
 const BUILDER_MARKER = 'Created by Agent Builder for ';
 
@@ -179,6 +180,28 @@ async function createAgentForUser(user, overrides = {}) {
   const existing = await findAgentRaw(user, opts);
   if (existing) return { created: false, agent: summarizeAgent(existing) };
 
+  async function withCimd(agent) {
+    const summary = summarizeAgent(agent);
+    let cimd;
+    try {
+      cimd = await personalAgentCimdService.registerPersonalAgentCimd(user, summary);
+    } catch (err) {
+      // CIMD is a demo facade. A local registry/storage problem must not
+      // turn a successful PingOne agent creation into a failed request.
+      cimd = {
+        ok: false,
+        mocked: true,
+        created: false,
+        registrationType: 'cimd-facade',
+        status: 'failed',
+        metadataUrl: null,
+        clientId: null,
+        steps: [{ step: 'register', status: 'failed', engine: 'mock', detail: { error: err.message } }],
+      };
+    }
+    return { created: true, agent: summary, cimd };
+  }
+
   const name = agentName(user);
   const description = markerFor(user);
 
@@ -199,7 +222,7 @@ async function createAgentForUser(user, overrides = {}) {
     const res = await axios.post(`${apiBase()}/applications`, aiPayload, { ...opts, validateStatus: () => true });
     const agent = summarizeAgent(res.data);
     recordAgentLifecycle('joiner', agent, user, 'agent-builder');
-    return { created: true, agent };
+    return withCimd(res.data);
   } catch (err) {
     if (!isAgentTypeUnsupported(err)) throw err;
   }
@@ -225,7 +248,7 @@ async function createAgentForUser(user, overrides = {}) {
   const res = await axios.post(`${apiBase()}/applications`, payload, { ...opts, validateStatus: () => true });
   const agent = summarizeAgent(res.data);
   recordAgentLifecycle('joiner', agent, user, 'agent-builder');
-  return { created: true, agent };
+  return withCimd(res.data);
 }
 
 async function deleteAgentForUser(user) {
@@ -463,6 +486,8 @@ module.exports = {
   agentName,
   listApplicationsRaw,
   getAgentForUser: withSanitizedErrors(getAgentForUser),
+  getPersonalAgentCimd: personalAgentCimdService.getPersonalAgentCimd,
+  getPersonalAgentCimdByAgentId: personalAgentCimdService.getByPingoneAgentId,
   createAgentForUser: withSanitizedErrors(createAgentForUser),
   deleteAgentForUser: withSanitizedErrors(deleteAgentForUser),
   upgradeAgentForUser: withSanitizedErrors(upgradeAgentForUser),
