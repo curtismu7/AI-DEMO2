@@ -4,6 +4,7 @@ import {
   EVIDENCE_FRAME_LABELS,
   PRIMARY_AGENT,
   RUN_PROVENANCE,
+  formatTraceEventLabel,
   formatAgentLabel,
 } from "../agentTerminology";
 
@@ -42,6 +43,15 @@ describe("agent terminology contract", () => {
     );
     expect(formatAgentLabel("Membership Specialist")).toBe(
       "Membership Specialist",
+    );
+  });
+
+  it("normalizes trace labels while preserving unknown event labels", () => {
+    expect(formatTraceEventLabel({ id: "a2a-agent1-actor", label: "old label" })).toBe(
+      "Banking Agent · Generalist agent actor",
+    );
+    expect(formatTraceEventLabel({ id: "custom", label: "Custom evidence" })).toBe(
+      "Custom evidence",
     );
   });
 });

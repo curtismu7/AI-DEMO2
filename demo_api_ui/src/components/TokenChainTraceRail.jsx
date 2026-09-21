@@ -62,7 +62,7 @@ function readStoredViewMode() {
 
 const SKIPPED_STEP_REASONS = {
   signin: "No sign-in token evidence was recorded for this run.",
-  agent: "The agent service did not participate in this run.",
+  agent: "The Banking Agent did not participate in this run.",
   llm: "No LLM reasoning was used on this run.",
   "agent-token": "No separate agent identity token was acquired.",
   exchange: "Token exchange was skipped; no delegated token was issued.",
@@ -75,8 +75,8 @@ const SKIPPED_STEP_REASONS = {
   api: "No downstream resource-server call occurred.",
   database: "No SQL database access was observed for this run.",
   reply: "No final reply evidence was recorded.",
-  "a2a-agent1-actor": "The main agent identity token was not observed.",
-  "a2a-exchange1": "The user-to-main-agent exchange was not observed.",
+  "a2a-agent1-actor": "The Banking Agent identity token was not observed.",
+  "a2a-exchange1": "The user-to-generalist exchange was not observed.",
   "a2a-agent2-actor": "The specialist agent identity token was not observed.",
   "a2a-exchange2": "The nested specialist delegation exchange was not observed.",
   "a2a-agent-card": "Specialist Agent Card discovery was not observed.",

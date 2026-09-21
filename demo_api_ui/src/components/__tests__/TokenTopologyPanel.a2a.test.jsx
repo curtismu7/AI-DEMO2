@@ -100,7 +100,7 @@ describe('buildA2aTopology', () => {
     expect(screen.getByText('Website')).toBeInTheDocument();
     expect(screen.getByText('Chatbot')).toBeInTheDocument();
     expect(screen.getByText('Sign-in')).toBeInTheDocument();
-    expect(screen.getByText('Agent service receives request')).toBeInTheDocument();
+    expect(screen.getByText('Banking Agent receives request')).toBeInTheDocument();
     expect(firedNames(container)).toEqual(['Website', 'Chatbot']);
 
     act(() => {
@@ -108,9 +108,9 @@ describe('buildA2aTopology', () => {
     });
 
     // Heuristic routing lights up the agent and the (LLM-less) reasoning hop.
-    expect(screen.getByText('AI Agent')).toBeInTheDocument();
+    expect(screen.getAllByText('BANKING AGENT').length).toBeGreaterThan(0);
     expect(firedNames(container))
-      .toEqual(['Website', 'Chatbot', 'Agent service receives request', 'AI Agent']);
+      .toEqual(['Website', 'Chatbot', 'Banking Agent receives request', 'Banking Agent · Generalist agent']);
     // Sign-in still has no token evidence, so it stays dimmed.
     expect(firedNames(container)).not.toContain('Sign-in');
   });
