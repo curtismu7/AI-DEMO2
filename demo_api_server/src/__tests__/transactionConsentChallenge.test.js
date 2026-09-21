@@ -280,8 +280,14 @@ describe('confirmChallenge — PingOne MFA branch', () => {
     expect(req.session.stepUpVerified).toBeUndefined();
   });
 
-  test('homegrown mode — homegrown OTP path taken regardless of amount', async () => {
+  test('legacy mode — falls back to PingOne one-time MFA regardless of amount', async () => {
     const { txConsentFresh, mfaServiceFresh, configStoreFresh } = freshRequires();
+    mfaServiceFresh.getPingOneUserContact.mockResolvedValue({ email: 'u@example.com', mobilePhone: null });
+    mfaServiceFresh.initiateOneTimeOtp.mockResolvedValue({
+      id: 'da-onetime-legacy',
+      status: 'OTP_REQUIRED',
+      _embedded: { devices: [{ email: 'u@example.com' }] },
+    });
     const spy = jest.spyOn(configStoreFresh, 'getEffective').mockImplementation((key) => {
       if (key === 'hitl_consent_mfa_mode') return 'homegrown';
       if (key === 'confirm_stepup_threshold_usd') return '500';
@@ -298,7 +304,9 @@ describe('confirmChallenge — PingOne MFA branch', () => {
     spy.mockRestore();
     expect(mfaServiceFresh.initiateDeviceAuth).not.toHaveBeenCalled();
     expect(result.ok).toBe(true);
-    expect(result.mfaRequired).toBeUndefined();
+    expect(result.otpSent).toBe(true);
+    expect(mfaServiceFresh.initiateOneTimeOtp).toHaveBeenCalledWith('5', 'EMAIL', 'u@example.com', undefined);
+    expect(req.session.txConsentChallenges[`${CHALLENGE_ID}-homegrown`].oneTimePath).toBe(true);
   });
 
   // device-picker uses the user's session token, so a PingOne INVALID_TOKEN here is

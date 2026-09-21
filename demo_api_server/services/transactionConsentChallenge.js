@@ -5,7 +5,7 @@
  *
  * Flow after user ticks consent checkbox:
  *   1. POST /consent-challenge              → createChallenge()  → status: 'pending'
- *   2. POST /consent-challenge/:id/confirm  → sendOtp()          → status: 'otp_pending' + otpHash stored
+ *   2. POST /consent-challenge/:id/confirm  → PingOne MFA        → status: 'otp_pending' + daId stored
  *   3. POST /consent-challenge/:id/verify-otp → verifyOtp()      → status: 'confirmed'
  *   4. POST /transactions { consentChallengeId } → verifyAndConsumeChallenge() → executes
  */
@@ -384,10 +384,9 @@ function getChallenge(req, challengeId) {
 
 /**
  * confirmChallenge — user has ticked the consent checkbox and clicked "Agree".
- * Generates a 6-digit OTP, stores its hash in the session, and sends it
- * via PingOne email.  Challenge moves to status 'otp_pending'.
+ * Starts a PingOne MFA challenge. Challenge moves to status 'otp_pending'.
  *
- * NOTE: this function is async because it calls emailService.sendOtpEmail().
+ * NOTE: this function is async because it calls PingOne MFA.
  * The caller (route handler) must await it.
  *
  * @param {import('express').Request} req
@@ -464,6 +463,10 @@ async function _confirmChallengeImpl(req, challengeId, opts = {}) {
     return { ok: true, challengeId, mfaRequired: true, devices };
 
   } else if (mfaMode === 'onetime') {
+    // One-time and legacy/unknown modes all use PingOne MFA. Keeping the
+    // fallback here prevents a typo or stale setting from re-enabling the old
+    // BFF-generated OTP path, which generated and delivered codes outside of
+    // PingOne's MFA policy, lockout, and audit boundary.
     let contact, deliveryType;
     try {
       const { email, mobilePhone } = await mfaService.getPingOneUserContact(req.user.id);
@@ -517,44 +520,26 @@ async function _confirmChallengeImpl(req, challengeId, opts = {}) {
     return { ...otpResult, mode: 'onetime_fallback' };
   }
 
-  // homegrown: BFF-generated OTP delivered via emailService
-  // Generate OTP and store its hash
-  const otpPlain = generateOtp();
-  const otpSalt  = crypto.randomBytes(16).toString('hex');
-  ch.otpHash       = hashOtp(otpPlain, otpSalt);
-  ch.otpSalt       = otpSalt;
-  ch.otpAttempts   = 0;
-  ch.otpExpiresAt  = now + OTP_TTL_MS;
-  ch.status        = 'otp_pending';
-
-  console.log(`[ConsentChallenge] OTP generated challenge=${challengeId.slice(0, 8)}… user=${req.user.id}`);
-
-  // Send via PingOne email (fire and collect result — failure is surfaced to caller)
-  let otpSent = false;
-  let otpCodeFallback = null; // only set when email fails — returned to UI for demo display
+  // Legacy/unknown modes all use PingOne MFA. Keeping this fallback prevents
+  // a typo or stale setting from re-enabling the old BFF-generated OTP path,
+  // which generated and delivered codes outside PingOne's MFA policy,
+  // lockout, and audit boundary.
+  let contact, deliveryType;
   try {
-    const { sendOtpEmail } = require('./emailService');
-    const performer = dataStore.getUserById(req.user.id);
-    const userName = opts.userName ||
-      (performer ? `${performer.firstName} ${performer.lastName}`.trim() : null) ||
-      req.user.username || 'Valued Customer';
-    await sendOtpEmail(req.user.id, {
-      otpCode: otpPlain,
-      amount: ch.snapshot.amount,
-      transactionType: ch.snapshot.type,
-      userName,
-      expiresInMin: Math.ceil(OTP_TTL_MS / 60_000),
-    });
-    otpSent = true;
-  } catch (emailErr) {
-    // Email delivery unavailable (PingOne not configured or API error).
-    // Return the plaintext code so the UI can display it inline for demo purposes.
-    const detail = emailErr.response?.data ? JSON.stringify(emailErr.response.data) : emailErr.message;
-    console.warn(`[ConsentChallenge] OTP email failed (challenge=${challengeId.slice(0, 8)}…): ${detail}`);
-    otpCodeFallback = otpPlain;
+    const p = await mfaService.getPingOneUserContact(req.user.id);
+    if (p.email) { deliveryType = 'EMAIL'; contact = p.email; }
+    else if (p.mobilePhone) { deliveryType = 'SMS'; contact = p.mobilePhone; }
+  } catch (err) {
+    console.warn(`[ConsentChallenge] legacy MFA mode contact lookup failed: ${err.message}`);
+    return { ok: false, status: 502, json: { error: 'mfa_contact_lookup_failed', message: 'Could not look up MFA contact. Try again.' } };
   }
+  if (!contact) {
+    ch.oneTimePath = true;
+    ch.pendingContact = true;
+    return { ok: true, challengeId, needsContact: true };
+  }
+  return _initiateOnetimeOtp(ch, challengeId, deliveryType, contact, userAccessToken, req.user.id, now);
 
-  return { ok: true, challengeId, otpSent, otpExpiresAt: ch.otpExpiresAt, otpCodeFallback };
 }
 
 /**
