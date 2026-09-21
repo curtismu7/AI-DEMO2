@@ -166,6 +166,17 @@ export function isAuthRequiredApiError(status, body) {
     return true;
   }
 
+  // A use-case can be protected even while the browser still has a valid
+  // session (for example, an admin session attempting a customer-only UC7/UC8
+  // step). Keep that typed challenge inline; invalidating the global session
+  // here destroys the session the login flow is meant to preserve.
+  if (
+    typeof body.useCaseId === 'string' &&
+    (body.requiredAuth === 'user' || body.requiredAuth === 'admin')
+  ) {
+    return false;
+  }
+
   const code = normalizeErrorCode(body.error || body.code);
   const nestedCode = normalizeErrorCode(body.code);
   if (AUTH_REQUIRED_EXCLUSIONS.has(code) || AUTH_REQUIRED_EXCLUSIONS.has(nestedCode)) {

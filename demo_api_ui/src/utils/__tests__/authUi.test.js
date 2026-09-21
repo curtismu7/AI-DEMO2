@@ -58,6 +58,14 @@ describe('authUi', () => {
   });
 
   describe('isAuthRequiredApiError', () => {
+    it('does not treat a typed use-case auth challenge as session expiry', () => {
+      expect(isAuthRequiredApiError(401, {
+        requiresLogin: true,
+        requiredAuth: 'user',
+        useCaseId: 'delegated-access-with-proof',
+      })).toBe(false);
+    });
+
     it('matches overnight agent / BFF 401 shapes', () => {
       expect(isAuthRequiredApiError(401, { error: 'Session expired' })).toBe(true);
       expect(
@@ -194,6 +202,24 @@ describe('authUi', () => {
       });
 
       expect(handler).toHaveBeenCalled();
+      window.removeEventListener(SESSION_REAUTH_EVENT, handler);
+    });
+
+    it('does not invalidate a valid session for a typed use-case challenge', () => {
+      const handler = vi.fn();
+      window.addEventListener(SESSION_REAUTH_EVENT, handler);
+      window.history.pushState({}, '', '/use-cases');
+
+      notifySessionExpiredIfNeeded({
+        status: 401,
+        body: {
+          requiresLogin: true,
+          requiredAuth: 'user',
+          useCaseId: 'step-up-authentication',
+        },
+      });
+
+      expect(handler).not.toHaveBeenCalled();
       window.removeEventListener(SESSION_REAUTH_EVENT, handler);
     });
 

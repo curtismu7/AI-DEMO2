@@ -2889,6 +2889,26 @@ hostile-content scenario behavior, and denial evidence semantics independent.
 **Verify:** Focused Privilege panel/theme Vitest tests, `npm run build`, and a
 live Playwright computed-style check in both page themes.
 
+### 2026-09-20 — Use-case login challenges no longer clear valid sessions
+
+**Files changed:** `demo_api_ui/src/utils/authUi.js` and
+`demo_api_ui/src/utils/__tests__/authUi.test.js`.
+
+**What was broken:** UC7/UC8 returned a typed `requiresLogin` response. The
+global 401 handler treated that access-level challenge as an expired session,
+cleared the current React session, and then sent the user into the PingOne
+login flow without the original session state.
+
+**What was fixed:** Typed use-case challenges carrying `useCaseId` and
+`requiredAuth` remain inline login prompts. Genuine expired-session responses
+still invalidate the session and show re-authentication.
+
+**Do not break:** Keep the distinction between an access-level mismatch and an
+expired token; preserve admin/customer login routing and the existing OAuth
+session cookie.
+
+**Verify:** `authUi` Vitest, use-case login-prompt Vitest, and the UI build.
+
 ### 2026-09-20 — Top-menu session countdown restored
 
 **Files changed:** `demo_api_ui/src/services/sessionResolver.js`,
