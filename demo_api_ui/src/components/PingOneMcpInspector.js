@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import apiClient from '../services/apiClient';
 import { notifyError } from '../utils/appToast';
 import { formatAxiosError } from '../utils/formatAxiosError';
+import FormJsonToggle from './shared/FormJsonToggle';
 import JsonHighlight from './shared/JsonHighlight';
 import { useTheme } from '../context/ThemeContext';
 import './PingOneMcpInspector.css';
@@ -276,12 +277,19 @@ const PingOneMcpInspector = ({ user, onLogout }) => {
           {lastCall ? (
             <>
               <div className="p1mcp-output-body" style={{ fontSize: `${outputFontSize}px` }}>
-                <pre className="p1mcp-output-code">
-                  <JsonHighlight
-                    value={outputTab === 'response' ? lastCall.response : lastCall.request}
-                    deep
-                  />
-                </pre>
+                <FormJsonToggle
+                  value={outputTab === 'response' ? lastCall.response : lastCall.request}
+                  ariaLabel="Output view"
+                  defaultView="form"
+                  jsonView={(
+                    <pre className={`p1mcp-output-code${darkMode ? ' jh-dark' : ''}`}>
+                      <JsonHighlight
+                        value={outputTab === 'response' ? lastCall.response : lastCall.request}
+                        deep
+                      />
+                    </pre>
+                  )}
+                />
               </div>
               <div className="p1mcp-output-footer">
                 <span><strong>Status:</strong> {lastCall.error ? 'Error' : '200 OK'}</span>

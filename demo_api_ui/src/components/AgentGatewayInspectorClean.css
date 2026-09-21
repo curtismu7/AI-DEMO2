@@ -345,6 +345,33 @@ textarea {
   color: var(--th-text-body);
 }
 
+.inspector-clean-view-toggle {
+  display: inline-flex;
+  gap: 2px;
+  margin-bottom: 12px;
+  padding: 2px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-card);
+}
+
+.inspector-clean-view-toggle button {
+  padding: 5px 10px;
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 1px);
+  background: transparent;
+  color: var(--th-text-muted);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.inspector-clean-view-toggle button:hover,
+.inspector-clean-view-toggle button.active {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
 .inspector-clean-reel {
   background: var(--th-bg-card);
   border-top: 1px solid var(--th-border);
