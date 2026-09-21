@@ -191,7 +191,7 @@
 - [x] Add PF variable names to the Kubernetes Secret template without values.
 - [x] Keep PingOne variables intact for the alternate mode and management APIs that still require PingOne.
 - [x] Ensure PF mode does not require a PingOne environment ID merely to resolve browser OAuth endpoints.
-- [ ] Run `npm run hygiene:check` and the relevant topology/config verification commands.
+- [ ] Run the remaining topology/config verification commands (hygiene passed; topology is currently blocked by the missing `demo_mcp_gateway` Jest dependency).
 - [x] Commit deployment wiring separately from application behavior.
 
 ### Task 8: Verification and controlled rollout
