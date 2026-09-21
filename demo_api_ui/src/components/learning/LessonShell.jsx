@@ -196,7 +196,7 @@ export default function LessonShell({ lesson, mode = "guided", children, evidenc
           ) : null}
           <div className="lesson-shell__actions">
             <button type="button" className="lesson-shell__run-button" onClick={handleRun} disabled={!onRun || runState === "running" || runState === "resetting"}>
-              {runState === "running" ? "Checking evidence…" : "Check live evidence"}
+              {runState === "running" ? "Running demo…" : lesson?.execution?.label || "Check live evidence"}
             </button>
             <button type="button" className="lesson-shell__reset-button" onClick={handleReset} disabled={!onRun || runState === "resetting"}>
               Reset demo

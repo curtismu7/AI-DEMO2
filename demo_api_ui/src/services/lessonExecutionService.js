@@ -523,9 +523,74 @@ function unobservedResult(status, warning) {
   };
 }
 
+function executionObservation(data, kind) {
+  const decision = typeof data?.decision === "string" ? data.decision.toUpperCase() : null;
+  const engine = data?.engine === "pingone" ? PROVENANCE.LIVE_CLOUD : PROVENANCE.LIVE_LOCAL;
+  const label = kind === "policy-evaluation" ? "Policy decision" : "Banking read tool";
+  const hasEvidence = kind === "policy-evaluation" ? Boolean(decision) : Boolean(data);
+  return {
+    provenance: hasEvidence ? engine : null,
+    result: {
+      kind: "execution",
+      status: hasEvidence ? "observed" : "no-evidence",
+      decision: hasEvidence ? "EXECUTED" : "NO_EVIDENCE",
+      valuesRedacted: true,
+    },
+    evidence: [
+      evidence(label, hasEvidence ? 1 : 0),
+      ...(decision ? [evidence(`Decision: ${decision}`, 1)] : []),
+    ],
+    warnings: hasEvidence
+      ? []
+      : ["The execution endpoint returned no usable evidence."],
+  };
+}
+
+async function executeLesson(lesson) {
+  const config = lesson.execution;
+  if (!config) return null;
+
+  if (config.kind === "mcp-read") {
+    const response = await apiClient.post(
+      "/api/mcp/tool",
+      { tool: "get_my_accounts", params: {} },
+      silentRead,
+    );
+    return {
+      correlationId: correlationIdFrom(response),
+      ...executionObservation(response?.data, config.kind),
+    };
+  }
+
+  if (config.kind === "policy-evaluation") {
+    const response = await apiClient.post(
+      "/api/authorize/test-evaluate-mcp",
+      { toolName: "get_my_accounts", tokenScopes: "read" },
+      silentRead,
+    );
+    return {
+      correlationId: correlationIdFrom(response),
+      ...executionObservation(response?.data, config.kind),
+    };
+  }
+
+  return null;
+}
+
 export async function runLesson(lessonId, input = {}) {
   const lesson = getLesson(lessonId);
   if (!lesson) throw new Error(`Unknown lesson: ${lessonId}`);
+
+  if (lesson.execution && !input.action && input.execute !== false) {
+    try {
+      return await executeLesson(lesson);
+    } catch {
+      return unobservedResult(
+        "unavailable",
+        `${lesson.execution.label} endpoint unavailable; no protected action was completed.`,
+      );
+    }
+  }
 
   const action = input.action || lesson.run.action;
   if (!canObserveLesson(lessonId, action)) {

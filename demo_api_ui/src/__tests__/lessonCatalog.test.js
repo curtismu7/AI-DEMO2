@@ -99,6 +99,18 @@ describe("AI Security Academy lesson catalog", () => {
     expect(getLesson("product-map").id).toBe("evidence-timeline");
   });
 
+  test("marks only the first live demos as executable", () => {
+    expect(getLesson("mcp").execution).toEqual({
+      kind: "mcp-read",
+      label: "Run banking read tool",
+    });
+    expect(getLesson("authorize").execution).toEqual({
+      kind: "policy-evaluation",
+      label: "Evaluate policy",
+    });
+    expect(lessonCatalog.filter((lesson) => lesson.execution)).toHaveLength(2);
+  });
+
   test("rejects a fallback that is mislabeled as live cloud", () => {
     const invalidLesson = {
       ...lessonCatalog[0],
