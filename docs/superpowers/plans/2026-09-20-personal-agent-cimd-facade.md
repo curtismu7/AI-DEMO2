@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Automatically run the existing mocked CIMD registration when a user creates a personal PingOne agent, expose truthful registration evidence in the Agent Builder, and keep the final RFC 8693 path real PingOne-backed.
+**Goal:** Automatically run the existing mocked CIMD registration for the PDF-aligned Consumer & Partner Agent path, expose truthful registration evidence in the Agent Builder, and keep the final RFC 8693 path real PingOne-backed for the separate Workload Agent: Digital Assistant path.
 
-**Architecture:** Add a BFF-owned, user-scoped CIMD facade service. Agent creation remains the existing PingOne `AI_AGENT` flow; after creation, the service creates a non-secret metadata document, invokes the existing local `registerClientByUrl` mock, and persists only the association/provenance needed by the UI and registry. Personal-agent invocation continues to use the PingOne application id for actor credentials and RFC 8693 exchange.
+**Architecture:** Keep the PDF distinction between Personal Agents and Workload Agents. Personal/Consumer & Partner Agents use dynamic CIMD registration and Authorization Code delegation; Workload Agents such as the Digital Assistant are pre-registered and use their own PingOne identity with RFC 8693 OBO/token exchange. The current PingOne `AI_AGENT` implementation is therefore named and demonstrated as `Workload Agent: Digital Assistant`, not as a CIMD Personal Agent. Add a BFF-owned, user-scoped CIMD facade only for the Personal/Consumer & Partner lane, while preserving the existing real PingOne-backed workload-agent invocation.
 
 **Tech Stack:** Node.js/CommonJS, Express, Jest, LMDB-backed services, React/Vite/Vitest.
 
@@ -12,12 +12,44 @@
 
 ## Global Constraints
 
-- PingOne remains the issuer and actor identity for the final personal-agent RFC 8693 exchange.
+- PingOne remains the issuer and actor identity for the final Workload Agent: Digital Assistant RFC 8693 exchange.
 - CIMD/DCR behavior is explicitly mock-only because PingOne does not support it.
+- Use the maturity-model taxonomy: Employee Personal Agent, Consumer & Partner Agent, Workload Agent (Digital Assistant/Digital Worker), and SaaS-Embedded Agent.
+- Do not represent the Digital Assistant as merely a UI channel; it is a Workload Agent with a unique pre-registered identity acting OBO for the user.
+- Do not represent the server-side PingOne `AI_AGENT` as a CIMD Personal Agent; its current implementation belongs to the Workload Agent: Digital Assistant lane.
 - CIMD metadata must not expose client secrets or user OAuth tokens.
 - Keep existing Agent Builder ownership checks and lifecycle events intact.
 - UI changes must preserve the repository emoji allowlist and pass `npm run test:unit && npm run build`.
 - Work only in the isolated worktree and stage intended paths explicitly.
+
+## PDF-aligned CIAM use-case plan
+
+The reference architecture is `ID4AI - Maturity Model - Architecture 501`,
+especially the four-agent taxonomy and the Personal Agent versus Workload Agent
+delegation distinction.
+
+| Plan name | Reference architecture name | Registration/delegation | Demo emphasis |
+| --- | --- | --- | --- |
+| Employee Personal Agent | Employee Personal Agent | Dynamic CIMD; Authorization Code | Native/browser/coding agent on a user device |
+| Consumer & Partner Agent | Consumer & Partner Agent | Dynamic CIMD; user delegation | Customer-facing digital channel / new front door |
+| Workload Agent: Digital Assistant | Workload Agent: Digital Assistant | Pre-registered PingOne identity; RFC 8693 OBO | Assistant acts for the authenticated user |
+| Workload Agent: Digital Worker | Workload Agent: Digital Worker | Unique workload identity; client credentials/token exchange | Autonomous enterprise workload |
+| SaaS-Embedded Agent | SaaS-Embedded Agent | Vendor/application-managed identity | Future optional lane |
+
+The current Agent Builder implementation is mapped to **Workload Agent:
+Digital Assistant** because it creates a real PingOne `AI_AGENT` and uses RFC
+8693. The CIMD facade is retained as a registration demonstration for the
+Consumer & Partner Agent lane, but must not be used as evidence that the
+workload-agent registration is CIMD-native.
+
+Follow-on implementation tasks:
+
+- [ ] Add explicit catalog entries named `Consumer & Partner Agent` and `Workload Agent: Digital Assistant`.
+- [ ] Map existing UC38/Agent Builder CIMD evidence to the Consumer & Partner Agent registration story only where the facade is shown.
+- [ ] Map UC1, UC6, UC7, UC8, UC22, and UC26 to the Workload Agent: Digital Assistant OBO story.
+- [ ] Map UC2, UC2.5, UC2.6, UC2.7, UC3, UC4, and UC13 to the Workload Agent multi-agent delegation story.
+- [ ] Keep UC-NHI1 and UC-NHI2 cross-cutting across all workload-agent identities rather than duplicating them per agent type.
+- [ ] Add UI labels that distinguish `CIMD registration` from `PingOne workload-agent identity` and `RFC 8693 delegation`.
 
 ### Task 1: Define the user-scoped CIMD registration contract
 
