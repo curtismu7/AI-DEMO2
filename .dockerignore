@@ -35,7 +35,10 @@
 **/.vite
 **/.turbo
 test-results
-graphify-out
+# The BFF image consumes the generated knowledge bundles; exclude the rest of
+# the graph output while allowing those build inputs through.
+graphify-out/*
+!graphify-out/*.kb.json
 .codegraph
 
 # Generated/UI-only artifacts are not inputs to any root-context image. Keeping
