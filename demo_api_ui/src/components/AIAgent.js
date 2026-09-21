@@ -67,6 +67,7 @@ import {
   toast,
 } from "../utils/appToast";
 import { isPublicMarketingAgentPath, isPingOneAdminAgentRoute } from "../utils/embeddedAgentFabVisibility";
+import { runContextFromLocation } from "../utils/useCaseRunContext";
 import { runsSignedOut, authLevelOf, viewerMeetsUseCaseAuth } from "../utils/useCaseAuth";
 import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER, sourceLabel } from "../config/agentModes";
 import AccountDetailsPanel from "./AccountDetailsPanel";
@@ -1734,17 +1735,16 @@ export default function BankingAgent({
       window.history.replaceState({}, "");
     }
     // Use-case launcher: consume triggerText + useCaseId from navigate state
-    if (location.state?.triggerText) {
-      setRunContext(location.state.runContext || {
-        source: 'use-cases',
-        useCaseId: location.state.useCaseId,
-        triggerText: location.state.triggerText,
-      });
+    const nextRunContext = runContextFromLocation(location);
+    if (nextRunContext) {
+      setRunContext(nextRunContext);
       if (location.state.useCaseId) {
         pendingUcIdRef.current = location.state.useCaseId;
       }
       setNlResumeAfterAuth(location.state.triggerText);
       window.history.replaceState({}, "");
+    } else if (location.pathname === '/dashboard') {
+      setRunContext(null);
     }
   }, [location.state]);
 
