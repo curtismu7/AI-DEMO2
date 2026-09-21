@@ -27,16 +27,18 @@ export default function PingIdentitySpinner({
       aria-label={isDecorative ? undefined : (label || 'Loading')}
       {...ariaProps}
     >
-      <span className="ping-spinner__ring ping-spinner__ring--outer" aria-hidden="true" />
-      <span className="ping-spinner__ring ping-spinner__ring--inner" aria-hidden="true" />
-      {logoSrc ? (
-        <img className="ping-spinner__mark ping-spinner__mark--dancing ping-spinner__custom-mark" src={logoSrc} alt="" aria-hidden="true" />
-      ) : (
-        <svg className="ping-spinner__mark ping-spinner__mark--dancing" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-          <rect width="64" height="64" rx="14" fill="currentColor" />
-          <text x="32" y="42" textAnchor="middle" fontFamily="system-ui, -apple-system, sans-serif" fontSize="30" fontWeight="800" fill="#fff">P</text>
-        </svg>
-      )}
+      <span className="ping-spinner__visual" aria-hidden="true">
+        <span className="ping-spinner__ring ping-spinner__ring--outer" />
+        <span className="ping-spinner__ring ping-spinner__ring--inner" />
+        {logoSrc ? (
+          <img className="ping-spinner__mark ping-spinner__mark--dancing ping-spinner__custom-mark" src={logoSrc} alt="" />
+        ) : (
+          <svg className="ping-spinner__mark ping-spinner__mark--dancing" viewBox="0 0 64 64" focusable="false">
+            <rect width="64" height="64" rx="14" fill="currentColor" />
+            <text x="32" y="42" textAnchor="middle" fontFamily="system-ui, -apple-system, sans-serif" fontSize="30" fontWeight="800" fill="#fff">P</text>
+          </svg>
+        )}
+      </span>
       {label && <span className="ping-spinner__label">{label}</span>}
     </span>
   );
