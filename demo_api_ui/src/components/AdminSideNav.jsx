@@ -1526,7 +1526,11 @@ export default function AdminSideNav({
               )}
               {item.children.map((child) => {
                 const isAdminFeature = child.adminOnly || item.adminOnly;
-                const childKey = `${itemKey}-child-${child.path || child.action || child.label}`;
+                // A group may intentionally expose two labels for one route
+                // (for example MCP Discovery and MCP Runtime Inventory). The
+                // destination is not a unique React identity; keep the label
+                // in the key so both links retain their own identity.
+                const childKey = `${itemKey}-child-${slugify(child.label)}-${child.path || child.action || "action"}`;
                 return child.action ? (
                   <button
                     key={childKey}
