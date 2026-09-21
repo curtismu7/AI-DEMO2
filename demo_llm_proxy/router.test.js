@@ -35,6 +35,7 @@ test.before(async () => {
   delete process.env.LLAMA_TIER5_HOST;
   delete process.env.LLM_PROXY_PIN_TIER;
   delete process.env.LLM_PROXY_RESIDENT_TIERS;
+  process.env.LLM_PROXY_FALLBACK_URL = `http://127.0.0.1:19090`;
 
   ensure = { active: 0, maxActive: 0, calls: [] };
 
@@ -159,6 +160,39 @@ test('rate limiting only applies to inference requests', () => {
   assert.strictEqual(isInferenceRoute({ method: 'GET', url: '/random-probe' }), false);
 });
 
+test('fallback is limited to non-tool chat requests', () => {
+  const { isFallbackEligible } = router;
+
+  assert.strictEqual(
+    isFallbackEligible(
+      { method: 'POST', url: '/v1/chat/completions' },
+      Buffer.from(JSON.stringify({ model: 'phi-4-mini-instruct', messages: [{ role: 'user', content: 'hi' }] })),
+    ),
+    true,
+    'configured fallback accepts non-tool chat requests',
+  );
+  assert.strictEqual(
+    isFallbackEligible(
+      { method: 'POST', url: '/v1/chat/completions' },
+      Buffer.from(JSON.stringify({
+        model: 'phi-4-mini-instruct',
+        messages: [{ role: 'user', content: 'hi' }],
+        tools: [{ type: 'function', function: { name: 'transfer' } }],
+      })),
+    ),
+    false,
+    'tool-calling requests never use the fallback',
+  );
+  assert.strictEqual(
+    isFallbackEligible(
+      { method: 'POST', url: '/v1/completions' },
+      Buffer.from(JSON.stringify({ prompt: 'hi' })),
+    ),
+    false,
+    'legacy completions do not use the fallback',
+  );
+});
+
 test('readiness reports degraded state and tier diagnostics when no backend is healthy', () => {
   const { readinessSnapshot, TIERS } = router;
   for (const tier of TIERS) tier.healthy = false;
@@ -229,4 +263,55 @@ test('tool discovery answers from the request without selecting an LLM tier', as
     });
     server.once('error', reject);
   });
+});
+
+test('local backend failures fall back for eligible chat requests', async () => {
+  const { server, TIERS } = router;
+  const fallback = await listen(19090, (req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ choices: [{ message: { role: 'assistant', content: 'fallback response' } }] }));
+  });
+  const broken = await listen(19091, (req) => req.socket.destroy());
+  servers.push(fallback, broken);
+
+  const originalPort = TIERS[0].port;
+  TIERS[0].port = 19091;
+  TIERS[0].host = '127.0.0.1';
+  TIERS[0].healthy = true;
+
+  await new Promise((resolve, reject) => {
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      const body = JSON.stringify({
+        model: 'phi-4-mini-instruct',
+        messages: [{ role: 'user', content: 'hello' }],
+      });
+      const req = http.request({
+        hostname: '127.0.0.1',
+        port: address.port,
+        path: '/v1/chat/completions',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
+      }, (res) => {
+        const chunks = [];
+        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('end', () => {
+          server.close(() => {
+            try {
+              assert.strictEqual(res.statusCode, 200);
+              assert.match(Buffer.concat(chunks).toString('utf8'), /fallback response/);
+              resolve();
+            } catch (err) {
+              reject(err);
+            }
+          });
+        });
+      });
+      req.on('error', reject);
+      req.end(body);
+    });
+    server.once('error', reject);
+  });
+
+  TIERS[0].port = originalPort;
 });
