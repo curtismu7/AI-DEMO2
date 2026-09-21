@@ -22,8 +22,31 @@
 const express = require('express');
 const router = express.Router();
 const spiffeTrustDomain = require('../services/spiffeTrustDomain');
+const mockSpiffeWorkloadApi = require('../services/mockSpiffeWorkloadApi');
 
 const TRUST_DOMAIN = spiffeTrustDomain.TRUST_DOMAIN;
+
+const DEMO_REGISTRATIONS = [
+  {
+    workloadId: 'api',
+    spiffeId: `spiffe://${TRUST_DOMAIN}/service/api`,
+    selectors: { namespace: 'demo', serviceAccount: 'api' },
+  },
+  {
+    workloadId: 'mcp-gateway',
+    spiffeId: `spiffe://${TRUST_DOMAIN}/service/mcp-gateway`,
+    selectors: { namespace: 'demo', serviceAccount: 'mcp-gateway' },
+  },
+  {
+    workloadId: 'authz-server',
+    spiffeId: `spiffe://${TRUST_DOMAIN}/service/authz-server`,
+    selectors: { namespace: 'demo', serviceAccount: 'authz-server' },
+  },
+];
+
+DEMO_REGISTRATIONS.forEach((registration) => {
+  mockSpiffeWorkloadApi.registerWorkload(registration);
+});
 
 /**
  * Workload fetches its JWT-SVID from the (simulated) SPIRE agent.
@@ -37,14 +60,35 @@ const TRUST_DOMAIN = spiffeTrustDomain.TRUST_DOMAIN;
  * @actor workload-a
  * @to spire-agent
  * @step 1
- * @body {"spiffe_id":"spiffe://demo.local/service/payments"}
+ * @body {"workload_id":"api","selector_context":{"namespace":"demo","serviceAccount":"api"}}
  */
 router.post('/svid', express.json(), (req, res) => {
-  const { spiffe_id } = req.body || {};
-  if (!spiffe_id || !spiffe_id.startsWith(`spiffe://${TRUST_DOMAIN}/`)) {
-    return res.status(400).json({ error: 'invalid_request', error_description: `spiffe_id must be under trust domain ${TRUST_DOMAIN}` });
+  const { workload_id, selector_context, audience } = req.body || {};
+  const hasValidWorkloadId = typeof workload_id === 'string' && workload_id.length > 0;
+  const hasValidSelectors = selector_context
+    && typeof selector_context === 'object'
+    && !Array.isArray(selector_context)
+    && Object.keys(selector_context).length > 0;
+  const hasValidAudience = audience === undefined
+    || (typeof audience === 'string' && audience.length > 0);
+  if (!hasValidWorkloadId || !hasValidSelectors || !hasValidAudience) {
+    return res.status(400).json({
+      error: 'invalid_request',
+      error_description: 'workload_id and selector_context are required; audience must be a non-empty string when provided',
+    });
   }
-  const svid = spiffeTrustDomain.issueSvid(spiffe_id);
+
+  let svid;
+  try {
+    svid = mockSpiffeWorkloadApi.issueJwtSvid({
+      workloadId: workload_id,
+      selectorContext: selector_context,
+      audience,
+    });
+  } catch (_err) {
+    return res.status(403).json({ error: 'workload_not_authorized' });
+  }
+
   res.json({ svid, svid_type: 'jwt-svid', trust_domain: TRUST_DOMAIN });
 });
 

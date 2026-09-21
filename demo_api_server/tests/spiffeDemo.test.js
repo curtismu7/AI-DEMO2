@@ -18,9 +18,21 @@ const request = require('supertest');
 const express = require('express');
 
 const spiffeDemo = require('../routes/spiffeDemo');
+const mockSpiffeWorkloadApi = require('../services/mockSpiffeWorkloadApi');
+const spiffeTrustDomain = require('../services/spiffeTrustDomain');
 
 const TRUST_DOMAIN = 'demo.local';
-const SPIFFE_ID = `spiffe://${TRUST_DOMAIN}/service/payments`;
+const SPIFFE_ID = `spiffe://${TRUST_DOMAIN}/service/api`;
+const WORKLOAD_ID = 'api';
+const SELECTOR_CONTEXT = { namespace: 'demo', serviceAccount: 'api' };
+
+beforeEach(() => {
+  mockSpiffeWorkloadApi.registerWorkload({
+    workloadId: WORKLOAD_ID,
+    spiffeId: SPIFFE_ID,
+    selectors: SELECTOR_CONTEXT,
+  });
+});
 
 function buildApp() {
   const app = express();
@@ -28,11 +40,17 @@ function buildApp() {
   return app;
 }
 
-const issue = (spiffe_id = SPIFFE_ID) =>
-  request(buildApp()).post('/api/demo/spiffe/svid').send({ spiffe_id });
+const issue = (body = {}) =>
+  request(buildApp()).post('/api/demo/spiffe/svid').send({
+    workload_id: WORKLOAD_ID,
+    selector_context: SELECTOR_CONTEXT,
+    ...body,
+  });
 
 const verify = (svid, expected_trust_domain = TRUST_DOMAIN) =>
   request(buildApp()).post('/api/demo/spiffe/verify').send({ svid, expected_trust_domain });
+
+const issueTrusted = () => ({ body: { svid: spiffeTrustDomain.issueSvid(SPIFFE_ID) } });
 
 /** Swap a JWT's payload while keeping its original header and signature. */
 function tamper(svid, mutate) {
@@ -43,9 +61,56 @@ function tamper(svid, mutate) {
   return `${h}.${forged}.${s}`;
 }
 
+describe('POST /api/demo/spiffe/svid', () => {
+  test('issues an SVID for a registered workload with matching selectors', async () => {
+    const res = await issue({ audience: 'demo.local' });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({
+      svid: expect.any(String),
+      svid_type: 'jwt-svid',
+      trust_domain: TRUST_DOMAIN,
+    });
+  });
+
+  test('rejects an unknown workload with a stable authorization error', async () => {
+    const res = await issue({ workload_id: 'unknown' });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'workload_not_authorized' });
+  });
+
+  test('rejects selector mismatches with the same authorization error', async () => {
+    const res = await issue({
+      selector_context: { namespace: 'other', serviceAccount: 'api' },
+    });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: 'workload_not_authorized' });
+  });
+
+  test('does not let an arbitrary spiffe_id control the minted identity', async () => {
+    const res = await issue({ spiffe_id: `spiffe://${TRUST_DOMAIN}/service/admin` });
+    const verified = await verify(res.body.svid);
+
+    expect(res.status).toBe(200);
+    expect(verified.body.valid).toBe(true);
+    expect(verified.body.peer_spiffe_id).toBe(SPIFFE_ID);
+  });
+
+  test('keeps malformed workload requests at 400', async () => {
+    const res = await request(buildApp()).post('/api/demo/spiffe/svid').send({
+      spiffe_id: SPIFFE_ID,
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_request');
+  });
+});
+
 describe('POST /api/demo/spiffe/verify', () => {
   test('accepts a genuine SVID from the expected trust domain', async () => {
-    const { body } = await issue();
+    const { body } = issueTrusted();
     const res = await verify(body.svid);
 
     expect(res.status).toBe(200);
@@ -54,7 +119,7 @@ describe('POST /api/demo/spiffe/verify', () => {
   });
 
   test('rejects a tampered payload that keeps the original signature', async () => {
-    const { body } = await issue();
+    const { body } = issueTrusted();
     const forged = tamper(body.svid, (c) => { c.sub = 'spiffe://demo.local/service/admin'; });
 
     const res = await verify(forged);
@@ -62,7 +127,7 @@ describe('POST /api/demo/spiffe/verify', () => {
   });
 
   test('rejects an expired SVID', async () => {
-    const { body } = await issue();
+    const { body } = issueTrusted();
     const expired = tamper(body.svid, (c) => { c.exp = 1; });
 
     const res = await verify(expired);
@@ -70,14 +135,14 @@ describe('POST /api/demo/spiffe/verify', () => {
   });
 
   test('rejects an SVID from a foreign trust domain', async () => {
-    const { body } = await issue();
+    const { body } = issueTrusted();
     const res = await verify(body.svid, 'evil.example');
 
     expect(res.body.valid).toBe(false);
   });
 
   test('rejects a wrong issuer', async () => {
-    const { body } = await issue();
+    const { body } = issueTrusted();
     const forged = tamper(body.svid, (c) => { c.iss = 'spire-demo://evil.example'; });
 
     const res = await verify(forged);
