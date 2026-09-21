@@ -699,9 +699,32 @@ function AppWithAuth() {
                 </main>
               )}
               <Routes>
-                <Route path="/request-access" element={<HostedRegistrationPage />} />
-                <Route path="/spinner-showcase" element={<SpinnerShowcasePage />} />
-                <Route path="/hosted-registrations" element={<AdminRoute user={user}><HostedRegistrationAdminPage /></AdminRoute>} />
+                <Route
+                  path="/request-access"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <HostedRegistrationPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/spinner-showcase"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <SpinnerShowcasePage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/hosted-registrations"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <AdminRoute user={user}>
+                        <HostedRegistrationAdminPage />
+                      </AdminRoute>
+                    </AppShell>
+                  }
+                />
                 {/* /setup/* sub-routes — no auth required */}
                 <Route
                   path="/setup/*"
@@ -714,7 +737,11 @@ function AppWithAuth() {
                 />
                 <Route
                   path="/governance-timeline"
-                  element={<GovernanceTimelinePage />}
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <GovernanceTimelinePage />
+                    </AppShell>
+                  }
                 />
                 {/* PingOne webhook events — public, same posture as New Relic */}
                 <Route
@@ -837,7 +864,11 @@ function AppWithAuth() {
                 />
                 <Route
                   path="/learning-lab/:lab"
-                  element={<LearningProtocolLabPage />}
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <LearningProtocolLabPage />
+                    </AppShell>
+                  }
                 />
                 <Route
                   path="/token-exchange-tester"
