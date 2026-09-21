@@ -120,6 +120,7 @@ const _SECRET_KEYS_RAW = [
   'PF_ADMIN_CLIENT_SECRET',
   'PF_USER_CLIENT_SECRET',
   'PF_TOKEN_EXCHANGE_CLIENT_SECRET',
+  'PF_ID_JAG_REDEMPTION_CLIENT_SECRET',
   // Anyone holding a webhook.site-style URL can read every denied prompt sent to it.
   'EXTERNAL_GUARDRAIL_WEBHOOK_URL',
 ];
@@ -193,6 +194,9 @@ const BOOTSTRAP_ALLOWLIST = new Set([
   'pf_user_redirect_uri',
   'pf_token_exchange_client_id',
   'pf_token_exchange_client_secret',
+  'pf_id_jag_redemption_token_endpoint',
+  'pf_id_jag_redemption_client_id',
+  'pf_id_jag_redemption_client_secret',
 ]);
 
 // All known config keys with their defaults and whether they are public
@@ -597,6 +601,10 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   PF_ID_JAG_RESOURCE:            { public: true,  default: '' },
   PF_ID_JAG_SCOPE:               { public: true,  default: '' },
   PF_ID_JAG_SUBJECT_TOKEN_TYPE:  { public: true,  default: 'urn:ietf:params:oauth:token-type:refresh_token' },
+  PF_ID_JAG_REDEMPTION_TOKEN_ENDPOINT: { public: true, default: '' },
+  PF_ID_JAG_REDEMPTION_CLIENT_ID:      { public: true, default: '' },
+  PF_ID_JAG_REDEMPTION_CLIENT_SECRET:  { public: false, default: '' },
+  PF_ID_JAG_REDEMPTION_AUTH_METHOD:    { public: true, default: 'basic' },
   oauth_admin_callback_path:     { public: true,  default: '/api/auth/oauth/callback' },
   oauth_user_callback_path:      { public: true,  default: '/api/auth/oauth/user/callback' },
   // Role claim mapping — which token claim contains role/group info?
@@ -1193,6 +1201,10 @@ const ENV_FALLBACK_MAP = {
   pf_id_jag_resource:            ['PF_ID_JAG_RESOURCE'],
   pf_id_jag_scope:               ['PF_ID_JAG_SCOPE'],
   pf_id_jag_subject_token_type:  ['PF_ID_JAG_SUBJECT_TOKEN_TYPE'],
+  pf_id_jag_redemption_token_endpoint: ['PF_ID_JAG_REDEMPTION_TOKEN_ENDPOINT'],
+  pf_id_jag_redemption_client_id:      ['PF_ID_JAG_REDEMPTION_CLIENT_ID'],
+  pf_id_jag_redemption_client_secret:  ['PF_ID_JAG_REDEMPTION_CLIENT_SECRET'],
+  pf_id_jag_redemption_auth_method:    ['PF_ID_JAG_REDEMPTION_AUTH_METHOD'],
   oauth_admin_callback_path:       ['OAUTH_ADMIN_CALLBACK_PATH'],
   oauth_user_callback_path:        ['OAUTH_USER_CALLBACK_PATH'],
   oauth_role_claim_name:           ['OAUTH_ROLE_CLAIM_NAME'],

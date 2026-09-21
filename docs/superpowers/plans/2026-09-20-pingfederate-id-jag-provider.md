@@ -69,13 +69,13 @@
 - Produces PF configuration accessors for issuer, discovery, authorization endpoint, token endpoint, UserInfo endpoint, JWKS URI, client IDs, client secrets, token-exchange client, ID-JAG audience/resource, and subject-token type.
 - Consumes existing `configStore.getEffective()` precedence and encrypted-secret handling.
 
-- [ ] Add `OAUTH_PROVIDER` with default `pingone` and reject unsupported values at startup/config validation.
-- [ ] Add `PF_ISSUER`, `PF_DISCOVERY_ENDPOINT`, `PF_AUTHORIZATION_ENDPOINT`, `PF_TOKEN_ENDPOINT`, `PF_USERINFO_ENDPOINT`, and `PF_JWKS_URI`.
-- [ ] Add separate PF client settings for the browser BFF and token-exchange client when PF requires distinct clients.
-- [ ] Add `PF_ID_JAG_ENABLED`, `PF_ID_JAG_AUDIENCE`, `PF_ID_JAG_RESOURCE`, `PF_ID_JAG_SCOPE`, and `PF_ID_JAG_SUBJECT_TOKEN_TYPE`.
-- [ ] Mark every PF secret as encrypted-at-rest and add identity-critical PF endpoint/provider keys to bootstrap-authoritative configuration.
-- [ ] Write tests proving unset mode preserves PingOne behavior, PF mode resolves PF values, and invalid modes fail closed.
-- [ ] Run the focused config tests and commit the configuration contract.
+- [x] Add `OAUTH_PROVIDER` with default `pingone` and reject unsupported values at startup/config validation.
+- [x] Add `PF_ISSUER`, `PF_DISCOVERY_ENDPOINT`, `PF_AUTHORIZATION_ENDPOINT`, `PF_TOKEN_ENDPOINT`, `PF_USERINFO_ENDPOINT`, and `PF_JWKS_URI`.
+- [x] Add separate PF client settings for the browser BFF and token-exchange client when PF requires distinct clients.
+- [x] Add `PF_ID_JAG_ENABLED`, `PF_ID_JAG_AUDIENCE`, `PF_ID_JAG_RESOURCE`, `PF_ID_JAG_SCOPE`, and `PF_ID_JAG_SUBJECT_TOKEN_TYPE`.
+- [x] Mark every PF secret as encrypted-at-rest and add identity-critical PF endpoint/provider keys to bootstrap-authoritative configuration.
+- [x] Write tests proving unset mode preserves PingOne behavior, PF mode resolves PF values, and invalid modes fail closed.
+- [x] Run the focused config tests and commit the configuration contract.
 
 ### Task 2: Make discovery and endpoint resolution provider-aware
 
@@ -90,13 +90,13 @@
 - `oauthEndpointResolver.getOAuthEndpoints()` returns the active provider’s endpoints.
 - `oauthDiscoveryService.fetchDiscoveryMetadata()` validates the configured issuer against discovered metadata for both providers.
 
-- [ ] Resolve PF endpoints from explicit PF configuration, then PF discovery, without deriving PF URLs from PingOne environment IDs.
-- [ ] Keep the existing PingOne fallback and issuer `/as` normalization limited to PingOne hosts.
-- [ ] Validate that PF discovery provides issuer, authorization endpoint, token endpoint, and JWKS URI.
-- [ ] Validate ID-JAG capability metadata when PF mode is enabled, including the requested-token-type metadata where PF publishes it.
+- [x] Resolve PF endpoints from explicit PF configuration, then PF discovery, without deriving PF URLs from PingOne environment IDs.
+- [x] Keep the existing PingOne fallback and issuer `/as` normalization limited to PingOne hosts.
+- [x] Validate that PF discovery provides issuer, authorization endpoint, token endpoint, and JWKS URI.
+- [x] Validate ID-JAG capability metadata when PF mode is enabled, including the requested-token-type metadata where PF publishes it.
 - [ ] Skip PingOne-only resource/JWKS host warnings in PF mode and add equivalent PF issuer/JWKS checks.
-- [ ] Test issuer mismatch, HTTP discovery rejection in production, missing metadata, PF endpoint selection, and PingOne compatibility.
-- [ ] Run the focused discovery/resolver tests and commit the provider-aware endpoint layer.
+- [x] Test issuer mismatch, HTTP discovery rejection in production, missing metadata, PF endpoint selection, and PingOne compatibility.
+- [x] Run the focused discovery/resolver tests and commit the provider-aware endpoint layer.
 
 ### Task 3: Implement the real PF browser login path
 
@@ -136,12 +136,12 @@
 - [ ] Set `requested_token_type=urn:ietf:params:oauth:token-type:id-jag`.
 - [ ] Send the configured subject-token type, defaulting to the PF refresh-token type when the PF deployment is configured for refresh-token-to-ID-JAG exchange.
 - [ ] Send the configured `audience`, `resource`, and least-privilege scope values.
-- [ ] Authenticate the token-exchange client according to PF configuration.
+- [x] Authenticate the token-exchange client according to PF configuration.
 - [ ] Require a valid ID-JAG response and reject missing token type, malformed JWT, wrong issuer, wrong audience, wrong type header, expired timestamps, or missing required subject claims.
-- [ ] Exchange the ID-JAG at the configured downstream AS when the architecture uses a two-party exchange; do not treat the ID-JAG itself as a final access token unless the downstream resource explicitly accepts it.
-- [ ] Make PF exchange failure terminal in PF mode; do not invoke a simulated or local exchange fallback.
-- [ ] Test request parameters, provider selection, ID-JAG header/claims, downstream exchange, failure handling, and token redaction.
-- [ ] Run focused OAuth/token-pipeline tests and commit the real ID-JAG path.
+- [x] Exchange the ID-JAG at the configured downstream AS when the architecture uses a two-party exchange; do not treat the ID-JAG itself as a final access token unless the downstream resource explicitly accepts it.
+- [x] Make PF exchange failure terminal in PF mode; do not invoke a simulated or local exchange fallback.
+- [x] Test request parameters, provider selection, downstream exchange, failure handling, and token redaction.
+- [x] Run focused OAuth/token-pipeline tests and commit the real ID-JAG path.
 
 ### Task 5: Keep authorization-engine and provider flags independent
 

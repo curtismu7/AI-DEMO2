@@ -95,6 +95,21 @@ function _flagOn(key) {
   return v === true || v === 'true';
 }
 
+function resolvePfIdJagSubjectToken(req, subjectTokenType) {
+  const tokens = req?.session?.oauthTokens || {};
+  const type = String(subjectTokenType || 'urn:ietf:params:oauth:token-type:refresh_token');
+  const candidates = {
+    'urn:ietf:params:oauth:token-type:refresh_token': tokens.refreshToken,
+    'urn:ietf:params:oauth:token-type:id_token': tokens.idToken,
+    'urn:ietf:params:oauth:token-type:access_token': tokens.accessToken,
+  };
+  const token = candidates[type];
+  if (!token || token === '_cookie_session') {
+    throw new Error(`PF ID-JAG subject token is not available for type ${type}`);
+  }
+  return { token, type };
+}
+
 /**
  * Build RFC 9396 authorization_details from the tool name + parameters. Intent-bound,
  * constraint-based authorization: the agent is authorized for THIS specific action
@@ -1174,6 +1189,55 @@ async function maybeResolveNativeIdJagToken(req, tokenEvents, { resource, scope 
   return token.access_token || null;
 }
 
+async function resolvePingFederateIdJagToken(req, tokenEvents, { resource, scope } = {}) {
+  if (configStore.getOAuthProvider() !== 'pingfederate') return null;
+  if (!_flagOn('pf_id_jag_enabled')) {
+    throw new Error('PingFederate mode requires pf_id_jag_enabled=true; refusing the PingOne/mock exchange path');
+  }
+  const subjectType = configStore.getEffective('pf_id_jag_subject_token_type') ||
+    'urn:ietf:params:oauth:token-type:refresh_token';
+  const subject = resolvePfIdJagSubjectToken(req, subjectType);
+  const audience = configStore.getEffective('pf_id_jag_audience') || resource;
+  const idJagResource = configStore.getEffective('pf_id_jag_resource') || resource;
+  const configuredScope = configStore.getEffective('pf_id_jag_scope');
+  const scopes = configuredScope ? String(configuredScope).split(/\s+/).filter(Boolean) : (scope || []);
+  if (!audience) throw new Error('PF_ID_JAG_AUDIENCE or MCP resource is required for ID-JAG');
+  if (!idJagResource) throw new Error('PF_ID_JAG_RESOURCE or MCP resource is required for ID-JAG');
+
+  tokenEvents.push(buildTokenEvent(
+    'pf-id-jag-issuing',
+    'PingFederate ID-JAG — issuing',
+    'acquiring',
+    null,
+    'PingFederate is issuing an Identity Assertion JWT Authorization Grant. No PingOne exchange or local mock is used.',
+    { rfc: 'RFC 8693 · ID-JAG', provider: 'pingfederate', audience, resource: idJagResource }
+  ));
+  const idJag = await oauthService.performIdJagExchange(
+    subject.token, subject.type, audience, idJagResource, scopes
+  );
+  const issuedIdx = tokenEvents.findIndex(e => e.id === 'pf-id-jag-issuing');
+  if (issuedIdx !== -1) tokenEvents.splice(issuedIdx, 1);
+  tokenEvents.push(buildTokenEvent(
+    'pf-id-jag-issued',
+    'PingFederate ID-JAG — issued',
+    'active',
+    decodeJwtClaims(idJag),
+    'PingFederate issued the ID-JAG assertion for the configured downstream authorization server.',
+    { rfc: 'RFC 8693 · ID-JAG', provider: 'pingfederate', audience, resource: idJagResource }
+  ));
+
+  const downstreamToken = await oauthService.redeemIdJag(idJag, resource, scopes);
+  tokenEvents.push(buildTokenEvent(
+    'pf-id-jag-redeemed',
+    'Downstream AS — ID-JAG redeemed',
+    'exchanged',
+    decodeJwtClaims(downstreamToken),
+    'The configured downstream authorization server redeemed the PingFederate ID-JAG and issued the MCP access token.',
+    { rfc: 'RFC 7523 · ID-JAG', provider: 'pingfederate', resource }
+  ));
+  return downstreamToken;
+}
+
 async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   logger.debug(_CAT, `[AGENT_MCP] resolveAccessToken tool=${tool} session=${req.sessionID}`);
 
@@ -1564,6 +1628,14 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   //
   // So: take the native path only when the tool actually lives on the OLB server.
   // Everything else falls through to the RFC 8693 stand-in below, unchanged.
+  if (configStore.getOAuthProvider() === 'pingfederate') {
+    const pfToken = await resolvePingFederateIdJagToken(req, tokenEvents, {
+      resource: mcpResourceUri,
+      scope: finalScopes,
+    });
+    return { token: pfToken, tokenEvents, userSub, tratContextHeader: null };
+  }
+
   if (isEnterpriseManagedFlagOn() && isOlbBackedTool(tool)) {
     // Mode-aware, not the plain mcpResourceUri above: under this demo's default
     // PingGateway routing the gateway requires the pinggateway resource URI
@@ -2946,7 +3018,7 @@ function describeBlockedToken(resolved, tokenEvents) {
 module.exports = {
   // Exported for the ID-JAG-scope regression spec — the predicate decides whether
   // a per-server ID-JAG grant is even applicable to this tool.
-  __test: { isOlbBackedTool },
+  __test: { isOlbBackedTool, resolvePfIdJagSubjectToken },
   resolveMcpAccessToken,
   resolveMcpAccessTokenWithEvents,
   describeBlockedToken,
@@ -2966,6 +3038,7 @@ module.exports = {
   runTwoExchangeInteractiveTest,
   firstHttpResourceUri,
   maybeResolveNativeIdJagToken,
+  resolvePingFederateIdJagToken,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
