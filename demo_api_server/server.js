@@ -1462,6 +1462,7 @@ app.use('/api/support-agent', authenticateToken, supportAgentRoutes);
 app.use('/api/compliance-agent', authenticateToken, complianceAgentRoutes);
 // Code Search: RAG semantic search over uploaded codebases (proxies MCP server)
 app.use('/api/code-search', authenticateToken, require('./routes/codeSearch'));
+app.use('/api/document-rag', authenticateToken, require('./routes/documentRag'));
 // Intent authorization and unified agent invocation
 app.use('/api', intentAuthRoutes);
 app.use('/api', delegationGate, agentInvokeRoutes);

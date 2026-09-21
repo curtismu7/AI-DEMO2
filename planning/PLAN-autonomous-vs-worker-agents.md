@@ -1,6 +1,6 @@
 # Autonomous Agents vs Worker Agents — Identity Plan
 
-Status: proposal, 2026-08-26. Nothing implemented yet.
+Status: autonomous scheduler/CIBA/kill-switch runtime existed; dedicated PingOne agent provisioning and fail-closed credential wiring implemented 2026-09-20. Live tenant provisioning remains operator-triggered and intentionally not run here.
 
 **Decided 2026-08-26** (was open): two jobs, read-only first then the write job with Phase 3 · each autonomous agent gets its **own** PingOne `AI_AGENT` registration · CIBA stays **simulated** for launch.
 

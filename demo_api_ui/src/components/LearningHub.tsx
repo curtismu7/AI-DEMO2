@@ -5,6 +5,7 @@ import { useDemoTour } from "../context/DemoTourContext";
 import { EDU } from "./education/educationIds";
 import TokenChainTraceRail from "./TokenChainTraceRail";
 import LearningHubAgent from "./LearningHubAgent";
+import LearningHubDocuments from "./LearningHubDocuments";
 import { useThemeOptional } from "../context/ThemeContext";
 import "./LearningHub.css";
 
@@ -636,6 +637,7 @@ export default function LearningHub() {
         </a>
 
         <LearningHubAgent />
+        <LearningHubDocuments />
 
         {!searchQuery && (
           <section className="learning-hub__path" aria-labelledby="learning-hub-path-title">
