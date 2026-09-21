@@ -2,7 +2,7 @@
 
 const crypto = require('crypto');
 const defaultStore = require('./lmdb/hostedRegistrationStore.lmdb');
-const { sendHostedRegistrationOtp } = require('./emailService');
+const { initiateOneTimeOtp, verifyOneTimeOtp } = require('./mfaService');
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 const OTP_RESEND_COOLDOWN_MS = 60 * 1000;
@@ -15,22 +15,18 @@ function normalizeRegistrationEmail(value) {
   return email;
 }
 
-function hashOtp(otp) {
-  return crypto.createHash('sha256').update(String(otp)).digest('hex');
-}
-
 function publicRecord(record) {
   if (!record) return null;
-  const { otpHash, otpExpiresAt, otpAttempts, statusTokenHash, ...safe } = record;
+  const { otpExpiresAt, otpAttempts, statusTokenHash, pingOneMfaId, ...safe } = record;
   return safe;
 }
 
 function createHostedRegistrationService({
   store = defaultStore,
   now = Date.now,
-  generateOtp = () => String(crypto.randomInt(0, 1000000)).padStart(6, '0'),
   generateId = () => crypto.randomBytes(18).toString('hex'),
-  sendOtp = sendHostedRegistrationOtp,
+  startMfa = (record) => initiateOneTimeOtp(record.pingOneUserId, 'EMAIL', record.email),
+  verifyMfa = (record, otp) => verifyOneTimeOtp(record.pingOneMfaId, otp),
   otpTtlMs = OTP_TTL_MS,
   otpResendCooldownMs = OTP_RESEND_COOLDOWN_MS,
   stageRegistration = null,
@@ -64,9 +60,7 @@ function createHostedRegistrationService({
       pingOneUserId: null,
       groups: [],
     };
-    const otp = generateOtp();
     record.status = record.status === 'pending_approval' ? record.status : 'otp_pending';
-    record.otpHash = hashOtp(otp);
     record.otpExpiresAt = now() + otpTtlMs;
     record.otpAttempts = 0;
     record.lastOtpSentAt = now();
@@ -77,7 +71,15 @@ function createHostedRegistrationService({
       Object.assign(record, staged);
       store.put(record);
     }
-    await sendOtp(email, otp, record);
+    const mfaChallenge = await startMfa(record);
+    if (!mfaChallenge?.id) {
+      throw Object.assign(new Error('PingOne MFA did not return a device authentication ID'), {
+        code: 'registration_mfa_unconfigured',
+      });
+    }
+    record.pingOneMfaId = mfaChallenge.id;
+    record.updatedAt = now();
+    store.put(record);
     return { requestId: record.id, status: record.status, email }; 
   }
 
@@ -92,15 +94,25 @@ function createHostedRegistrationService({
       store.put(record);
       return { error: 'otp_expired' };
     }
-    record.otpAttempts += 1;
-    if (hashOtp(suppliedOtp) !== record.otpHash) {
+    let mfaResult;
+    try {
+      mfaResult = await verifyMfa(record, suppliedOtp);
+    } catch (error) {
+      record.otpAttempts += 1;
+      store.put(record);
+      if (error.status && error.status < 500) {
+        return { error: record.otpAttempts >= MAX_OTP_ATTEMPTS ? 'otp_locked' : 'invalid_otp' };
+      }
+      throw error;
+    }
+    if (mfaResult?.status !== 'COMPLETED') {
+      record.otpAttempts += 1;
       store.put(record);
       return { error: record.otpAttempts >= MAX_OTP_ATTEMPTS ? 'otp_locked' : 'invalid_otp' };
     }
     record.status = 'pending_approval';
     record.verifiedAt = now();
     record.updatedAt = now();
-    record.otpHash = null;
     record.otpExpiresAt = null;
     record.otpAttempts = 0;
     store.put(record);
@@ -128,5 +140,4 @@ module.exports = {
   MAX_OTP_ATTEMPTS,
   normalizeRegistrationEmail,
   createHostedRegistrationService,
-  hashOtp,
 };

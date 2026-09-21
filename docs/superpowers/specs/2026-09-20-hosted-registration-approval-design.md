@@ -16,7 +16,7 @@ Allow previously unknown Ping employees to request access without granting acces
 
 ## Architecture
 
-The public request flow is served by the BFF at `/api/auth/hosted-registration/*`, outside the hosted application gate. Requests are stored in a dedicated LMDB database. OTPs are generated in the BFF, stored only as hashes with an expiry and attempt counter, and delivered through the PingOne Notifications API. A disabled PingOne user is staged in the Partial group before delivery; no SMTP service is required.
+The public request flow is served by the BFF at `/api/auth/hosted-registration/*`, outside the hosted application gate. Requests are stored in a dedicated LMDB database. A disabled PingOne user is staged in the Partial group before a PingOne MFA email one-time-passcode transaction is started; the MFA transaction ID and local expiry/attempt metadata are stored, but the OTP itself is never generated or stored by the BFF. PingOne Notifications is used only for the administrator alert; no SMTP service is required.
 
 The administrator API is mounted under `/api/admin/hosted-registrations` and uses the existing application `authenticateToken` plus `requireAdmin` guards. It supports list, approve, reject, enable/disable, group/role update, resend, and audit-safe status changes. PingOne provisioning is isolated behind a service so the queue remains testable without live PingOne calls.
 

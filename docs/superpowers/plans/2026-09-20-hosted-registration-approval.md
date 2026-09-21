@@ -4,7 +4,7 @@
 
 **Goal:** Build an email-verified Ping employee registration queue with administrator approval before PingOne hosted access.
 
-**Architecture:** A durable LMDB-backed registration service owns pending requests and hashed OTP state. Public BFF routes handle request, verify, and status; admin routes call an isolated PingOne provisioning adapter. React adds a public request page and an admin approval page without changing Demo User/Admin accounts.
+**Architecture:** A durable LMDB-backed registration service owns pending requests and PingOne MFA transaction state. Public BFF routes handle request, verify, and status; admin routes call an isolated PingOne provisioning adapter. React adds a public request page and an admin approval page without changing Demo User/Admin accounts.
 
 **Tech Stack:** Node 22/CommonJS, Express, LMDB, Jest/Supertest, React, Vitest.
 
@@ -13,20 +13,20 @@
 ## Global Constraints
 
 - Accept only exact normalized `pingidentity.com` email domains.
-- Never store plaintext OTPs or passwords.
+- Never generate or store OTPs in the BFF; PingOne MFA owns the code and verification.
 - Do not mutate the existing Demo User/Admin session or login flows.
 - Use the existing PingOne notification and management-service patterns.
 - Public hosted registration routes must remain exact and narrowly scoped.
 
-### Task 1: Durable registration and OTP domain
+### Task 1: Durable registration and PingOne MFA domain
 
 **Files:**
 - Create: `demo_api_server/services/lmdb/hostedRegistrationStore.lmdb.js`
 - Create: `demo_api_server/services/hostedRegistrationService.js`
 - Test: `demo_api_server/src/__tests__/hostedRegistrationService.test.js`
 
-- [x] Write tests for exact domain acceptance, OTP expiry/hash/attempt limits, duplicate idempotency, and status transitions.
-- [x] Implement the LMDB store and service with generic OTP responses and no plaintext secret persistence.
+- [x] Write tests for exact domain acceptance, PingOne MFA transaction start/verification, expiry/attempt limits, duplicate idempotency, and status transitions.
+- [x] Implement the LMDB store and service with PingOne MFA transaction IDs and no OTP persistence.
 - [x] Run the focused test and verify it passes.
 
 ### Task 2: Public registration routes and email delivery
@@ -38,7 +38,7 @@
 - Test: `demo_api_server/src/__tests__/hostedRegistrationRoutes.test.js`
 
 - [x] Write tests for request, verify, resend, status, cooldown, and rejection of non-Ping emails.
-- [x] Implement exact public routes and SMTP delivery for OTPs/admin alerts.
+- [x] Implement exact public routes, PingOne MFA OTP delivery, and PingOne notification admin alerts.
 - [x] Mount routes before the hosted gate and add only exact registration bypasses.
 - [x] Run route and hosted-auth regression tests.
 

@@ -32,7 +32,15 @@ router.post('/request', async (req, res) => {
 });
 
 router.post('/verify', async (req, res) => {
-  const result = await registrationService.verify(req.body?.requestId, req.body?.otp);
+  let result;
+  try {
+    result = await registrationService.verify(req.body?.requestId, req.body?.otp);
+  } catch (error) {
+    if (error.code === 'mfa_service_auth_failed' || error.code === 'mfa_not_configured') {
+      return publicError(res, 'registration_mfa_unavailable', 503);
+    }
+    return publicError(res, 'registration_verification_unavailable', 503);
+  }
   if (result.error === 'request_not_found') return publicError(res, result.error, 404);
   if (result.error) return publicError(res, result.error, result.error === 'invalid_otp' ? 400 : 409);
   try {

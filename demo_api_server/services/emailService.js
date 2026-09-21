@@ -327,15 +327,6 @@ async function sendOtpSms(userId, opts) {
   }
 }
 
-async function sendHostedRegistrationOtp(email, otp, record = {}) {
-  const userId = record.pingOneUserId;
-  if (!userId) throw Object.assign(new Error('Hosted registration PingOne user is not staged'), { code: 'registration_user_unconfigured' });
-  await sendPingOneMessage(userId, {
-    subject: 'AI Demo registration verification code',
-    body: `Your AI Demo registration verification code is ${otp}. It expires in 10 minutes.`,
-  });
-}
-
 async function sendHostedRegistrationAdminAlert(record) {
   const userId = process.env.HOSTED_REGISTRATION_ADMIN_USER_ID;
   if (!userId) throw Object.assign(new Error('Hosted registration admin PingOne user is not configured'), { code: 'registration_admin_user_unconfigured' });
@@ -355,4 +346,4 @@ async function sendPingOneMessage(userId, { subject, body }) {
   }, { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, timeout: 10000 });
 }
 
-module.exports = { sendTransactionConfirmation, sendOtpEmail, sendOtpSms, sendHostedRegistrationOtp, sendHostedRegistrationAdminAlert };
+module.exports = { sendTransactionConfirmation, sendOtpEmail, sendOtpSms, sendHostedRegistrationAdminAlert };

@@ -22,22 +22,23 @@ describe('hostedRegistrationService', () => {
     expect(() => normalizeRegistrationEmail('alice@evilpingidentity.com')).toThrow('pingidentity.com');
   });
 
-  test('creates a pending OTP request without storing the plaintext code', async () => {
+  test('creates a pending OTP request through PingOne MFA', async () => {
     const backing = store();
-    const sent = [];
     const service = createHostedRegistrationService({
       store: backing,
       now: () => 1000,
-      generateOtp: () => '123456',
-      sendOtp: async (email, otp) => sent.push({ email, otp }),
+      stageRegistration: async () => ({ pingOneUserId: 'user-1', groups: ['partial'] }),
+      startMfa: async (record) => {
+        expect(record.email).toBe('alice@pingidentity.com');
+        return { id: 'da-1', status: 'OTP_REQUIRED' };
+      },
     });
 
     const result = await service.request({ email: 'alice@pingidentity.com', firstName: 'Alice' });
     const saved = backing.get(result.requestId);
     expect(result.status).toBe('otp_pending');
-    expect(sent).toEqual([{ email: 'alice@pingidentity.com', otp: '123456' }]);
-    expect(saved.otpHash).not.toBe('123456');
-    expect(saved.otp).toBeUndefined();
+    expect(saved.pingOneMfaId).toBe('da-1');
+    expect(saved.otpHash).toBeUndefined();
     expect(saved.status).toBe('otp_pending');
   });
 
@@ -46,13 +47,14 @@ describe('hostedRegistrationService', () => {
     const service = createHostedRegistrationService({
       store: backing,
       now: () => 1000,
-      generateOtp: () => '123456',
-      sendOtp: async () => {},
+      stageRegistration: async () => ({ pingOneUserId: 'user-1', groups: ['partial'] }),
+      startMfa: async () => ({ id: 'da-1', status: 'OTP_REQUIRED' }),
+      verifyMfa: async (_record, otp) => (otp === '123456' ? { status: 'COMPLETED' } : { status: 'FAILED' }),
     });
     const created = await service.request({ email: 'alice@pingidentity.com' });
 
     expect(await service.verify(created.requestId, '123456')).toMatchObject({ status: 'pending_approval' });
-    expect(backing.get(created.requestId).otpHash).toBeNull();
+    expect(backing.get(created.requestId).pingOneMfaId).toBe('da-1');
     expect(await service.verify(created.requestId, '123456')).toMatchObject({ error: 'invalid_request_state' });
   });
 
@@ -62,8 +64,9 @@ describe('hostedRegistrationService', () => {
     const service = createHostedRegistrationService({
       store: backing,
       now: () => now,
-      generateOtp: () => '123456',
-      sendOtp: async () => {},
+      stageRegistration: async () => ({ pingOneUserId: 'user-1', groups: ['partial'] }),
+      startMfa: async () => ({ id: 'da-1', status: 'OTP_REQUIRED' }),
+      verifyMfa: async () => ({ status: 'FAILED' }),
       otpTtlMs: 100,
     });
     const created = await service.request({ email: 'alice@pingidentity.com' });
@@ -84,8 +87,8 @@ describe('hostedRegistrationService', () => {
     const service = createHostedRegistrationService({
       store: backing,
       now: () => 1000,
-      generateOtp: () => '123456',
-      sendOtp: async () => { sent += 1; },
+      stageRegistration: async () => ({ pingOneUserId: 'user-1', groups: ['partial'] }),
+      startMfa: async () => { sent += 1; return { id: 'da-1', status: 'OTP_REQUIRED' }; },
     });
     const first = await service.request({ email: 'alice@pingidentity.com' });
     const second = await service.request({ email: 'ALICE@PINGIDENTITY.COM' });
