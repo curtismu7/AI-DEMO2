@@ -201,13 +201,13 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
           <h3>Official docs &amp; samples</h3>
           <ul>
             <li>
-              <a href="https://a2a-protocol.org/dev/tutorials/" target="_blank" rel="noopener noreferrer">
+              <a href="https://a2a-protocol.org/latest/tutorials/" target="_blank" rel="noopener noreferrer">
                 A2A tutorials
               </a>
             </li>
             <li>
-              <a href="https://a2a-protocol.org/v1.0.0/specification/" target="_blank" rel="noopener noreferrer">
-                A2A Protocol specification v1.0
+              <a href="https://a2a-protocol.org/latest/specification/" target="_blank" rel="noopener noreferrer">
+                Current A2A Protocol specification
               </a>
             </li>
             <li>
@@ -247,7 +247,7 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
               RFC 8693 — OAuth 2.0 Token Exchange
             </a>
             . Start with the{' '}
-            <a href="https://a2a-protocol.org/dev/tutorials/" target="_blank" rel="noopener noreferrer">
+            <a href="https://a2a-protocol.org/latest/tutorials/" target="_blank" rel="noopener noreferrer">
               A2A Protocol tutorials
             </a>{' '}
             for Agent Cards, skills, and authenticated clients.

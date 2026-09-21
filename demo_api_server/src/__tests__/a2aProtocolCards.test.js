@@ -17,6 +17,7 @@ const {
 } = require('../../config/a2aSpecialists');
 const { createA2aProtocolRouter } = require('../../services/a2aProtocolServer');
 const { requireA2aPingOneBearer } = require('../../middleware/a2aPingOneBearer');
+const { tenantHandle } = require('../../services/a2aTenantService');
 
 // requireA2aPingOneBearer now verifies the bearer's signature via
 // services/tokenValidationService (JWKS-based, same helper middleware/auth.js
@@ -76,6 +77,7 @@ describe('a2aAgentCardService', () => {
       aud: ['a2a-intermediate-purchase.ping.demo'],
       scope: 'agent:invoke:purchase',
       act: { client_id: GENERALIST_CLIENT_ID },
+      a2a_tenant_id: 'tenant-af',
     };
     validateToken.mockResolvedValueOnce(claims);
     const cfg = {
@@ -98,6 +100,7 @@ describe('a2aAgentCardService', () => {
             messageId: 'anf-message-1',
             role: 'ROLE_USER',
             parts: [{ text: 'Retrieve my A&F purchase history' }],
+            metadata: { tenant: tenantHandle('tenant-af') },
           },
         },
       });
@@ -185,6 +188,7 @@ describe('requireA2aPingOneBearer', () => {
       aud: ['a2a-intermediate-holdings.ping.demo'],
       scope: 'agent:invoke:holdings',
       act: { client_id: GENERALIST_CLIENT_ID },
+      a2a_tenant_id: 'tenant-investment',
     };
     validateToken.mockResolvedValueOnce(claims);
     const res = mockRes();
