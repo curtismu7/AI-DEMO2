@@ -2,6 +2,8 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import AgentGatewayInspectorClean from '../AgentGatewayInspectorClean';
 
+const inspectorState = vi.hoisted(() => ({ outputTab: 'response' }));
+
 vi.mock('../../hooks/useAgentGatewayInspector', () => ({
   useAgentGatewayInspector: () => ({
     selectedGateway: 'demo-mcp-gateway',
@@ -25,7 +27,7 @@ vi.mock('../../hooks/useAgentGatewayInspector', () => ({
       request: { tool: 'get_my_accounts' },
     },
     error: null,
-    outputTab: 'response',
+    outputTab: inspectorState.outputTab,
     setOutputTab: vi.fn(),
     invocationHistory: [],
     activeReelId: null,
@@ -47,5 +49,16 @@ describe('AgentGatewayInspectorClean response view', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Form' }));
     expect(screen.getByText('Decision')).toBeInTheDocument();
+  });
+
+  it('renders the request tab safely and provides a Form/JSON toggle', () => {
+    inspectorState.outputTab = 'request';
+    const { container } = render(<AgentGatewayInspectorClean />);
+
+    expect(screen.getByRole('group', { name: 'Request view' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'JSON' }));
+    expect(container.textContent).toMatch(/"method"/);
+    expect(container.querySelector('img')).toBeNull();
+    inspectorState.outputTab = 'response';
   });
 });

@@ -5,7 +5,22 @@ import { useInspectorFields } from '../context/InspectorFieldContext';
 import NeuralSpinner from './shared/NeuralSpinner';
 import JsonFormView from './shared/JsonFormView';
 import JsonHighlight from './shared/JsonHighlight';
+import FormJsonToggle from './shared/FormJsonToggle';
 import './AgentGatewayInspectorClean.css';
+
+function InspectorJsonToggle({ value, ariaLabel, darkMode }) {
+  return (
+    <FormJsonToggle
+      value={value}
+      ariaLabel={ariaLabel}
+      jsonView={(
+        <pre className={darkMode ? 'jh-dark' : ''}>
+          <JsonHighlight value={value} deep />
+        </pre>
+      )}
+    />
+  );
+}
 
 export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
   const theme = useThemeOptional();
@@ -317,15 +332,19 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                 )}
 
                 {result && outputTab === 'request' && (
-                  <pre dangerouslySetInnerHTML={{ __html: highlightJSON(JSON.stringify({
-                        method: 'POST',
-                        url: '/api/agent-gateway/invoke',
-                        body: result.request || { tool: selectedTool, parameters },
-                      }, null, 2)) }} />
+                  <InspectorJsonToggle
+                    ariaLabel="Request view"
+                    darkMode={theme.darkMode}
+                    value={{
+                      method: 'POST',
+                      url: '/api/agent-gateway/invoke',
+                      body: result.request || { tool: selectedTool, parameters },
+                    }}
+                  />
                 )}
 
                 {result && outputTab === 'trace' && (
-                  <pre>{JSON.stringify(result.trace || {}, null, 2)}</pre>
+                  <InspectorJsonToggle ariaLabel="Trace view" darkMode={theme.darkMode} value={result.trace || {}} />
                 )}
 
                 {result && outputTab === 'logs' && (
@@ -333,18 +352,16 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                 )}
 
                 {result && outputTab === 'performance' && (
-                  <pre>
-                    {JSON.stringify(
-                      {
-                        durationMs: result.durationMs || 0,
-                        gatewayTime: result.gatewayTime || 0,
-                        toolTime: result.toolTime || 0,
-                        parseTime: result.parseTime || 0,
-                      },
-                      null,
-                      2,
-                    )}
-                  </pre>
+                  <InspectorJsonToggle
+                    ariaLabel="Performance view"
+                    darkMode={theme.darkMode}
+                    value={{
+                      durationMs: result.durationMs || 0,
+                      gatewayTime: result.gatewayTime || 0,
+                      toolTime: result.toolTime || 0,
+                      parseTime: result.parseTime || 0,
+                    }}
+                  />
                 )}
 
                 {result && outputTab === 'diff' && (
@@ -352,16 +369,14 @@ export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
                     {invocationHistory.length < 2 ? (
                       <div style={{ color: 'var(--th-text-muted)' }}>Need at least 2 invocations to compare</div>
                     ) : (
-                      <pre>
-                        {JSON.stringify(
-                          {
-                            previous: invocationHistory[invocationHistory.length - 2],
-                            current: invocationHistory[invocationHistory.length - 1],
-                          },
-                          null,
-                          2,
-                        )}
-                      </pre>
+                      <InspectorJsonToggle
+                        ariaLabel="Diff view"
+                        darkMode={theme.darkMode}
+                        value={{
+                          previous: invocationHistory[invocationHistory.length - 2],
+                          current: invocationHistory[invocationHistory.length - 1],
+                        }}
+                      />
                     )}
                   </div>
                 )}
