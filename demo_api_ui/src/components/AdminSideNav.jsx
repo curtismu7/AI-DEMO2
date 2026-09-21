@@ -1206,6 +1206,13 @@ export default function AdminSideNav({
           searchAlias: "guided journey standalone demos PingOne OAuth AI security sales engineer presenter",
         },
         {
+          label: "Agent Identity Academy",
+          path: "/academy-identity-preview.html",
+          icon: "ref",
+          reloadDocument: true,
+          searchAlias: "Ping Academy agent identity OAuth AI A2A Personal Agent Digital Assistant Privilege MCP CIMD ID-JAG sales engineer",
+        },
+        {
           label: "Academy Standalone Demos",
           path: "/academy/demos",
           icon: "demo",
@@ -1650,6 +1657,7 @@ export default function AdminSideNav({
                   <Link
                     key={childKey}
                     to={child.path}
+                    reloadDocument={child.reloadDocument}
                     className={`admin-side-nav__item admin-side-nav__item--child${child.highlight ? " admin-side-nav__item--highlight-danger" : ""}${child.className ? ` ${child.className}` : ""} ${isActive(child.path) ? " admin-side-nav__item--active" : ""}`}
                     title={child.label}
                     aria-current={isActive(child.path) ? "page" : undefined}

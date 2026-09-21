@@ -264,6 +264,7 @@ export const NAV_STRUCTURE_CATALOG = [
     label: "Learn & Architecture",
     children: [
       "AI Security Academy",
+      "Agent Identity Academy",
       "Academy Standalone Demos",
       "Learning Hub",
       "SPIFFE → PingOne Bridge (TODO)",

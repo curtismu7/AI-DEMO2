@@ -106,6 +106,22 @@ describe('DemoStepsDropdown', () => {
     expect(screen.getByTestId('demo-steps-popout')).toHaveAttribute('data-placement', 'right-overlay');
   });
 
+  it('launches Agent Identity Academy from Demo steps', async () => {
+    render(
+      <DemoStepsDropdown
+        open
+        onOpenChange={() => {}}
+        onSelect={() => {}}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-steps-popout')).toBeInTheDocument());
+
+    expect(screen.getByRole('link', { name: 'Agent Identity Academy' })).toHaveAttribute(
+      'href',
+      '/academy-identity-preview.html',
+    );
+  });
+
   it('stacks the drawer search above its actions when the drawer is narrow', () => {
     const css = fs.readFileSync(
       path.resolve(__dirname, '../AIAgent.css'),

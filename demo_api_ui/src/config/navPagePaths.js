@@ -69,6 +69,7 @@ export const NAV_PAGE_PATHS = {
   "MFA Test": "/mfa-test",
   "Token Exchange Tester": "/token-exchange-tester",
   "OAuth Academy": "/oauth-academy",
+  "Agent Identity Academy": "/academy-identity-preview.html",
   "OAS Demo": "/oas-demo",
   "Privilege Demo": "/privilege-demo",
   "SDK Login": "/sdk-login",

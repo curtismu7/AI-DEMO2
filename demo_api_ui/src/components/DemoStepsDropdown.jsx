@@ -504,6 +504,12 @@ export default function DemoStepsDropdown({
                 >
                   Standalone Demos
                 </a>
+                <a
+                  href="/academy-identity-preview.html"
+                  className="ba-actions-trigger"
+                >
+                  Agent Identity Academy
+                </a>
               </div>
               <div className="ba-demo-steps-popout__search">
                 <input

@@ -6325,6 +6325,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border-radius: 10px;
   padding: 10px;
   background: color-mix(in srgb, var(--th-status-warning, #b45309) 6%, transparent);
+  color: var(--th-text);
 }
 
 .ba-demo-steps-popout__group-heading {
