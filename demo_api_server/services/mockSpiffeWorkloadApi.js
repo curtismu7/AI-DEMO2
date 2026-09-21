@@ -4,6 +4,14 @@ const spiffeTrustDomain = require('./spiffeTrustDomain');
 
 const registrations = new Map();
 
+function copyRegistration(registration) {
+  return {
+    workloadId: registration.workloadId,
+    spiffeId: registration.spiffeId,
+    selectors: { ...registration.selectors },
+  };
+}
+
 function registerWorkload({ workloadId, spiffeId, selectors } = {}) {
   if (typeof workloadId !== 'string' || workloadId.length === 0) {
     throw new Error('workloadId is required');
@@ -12,15 +20,18 @@ function registerWorkload({ workloadId, spiffeId, selectors } = {}) {
     throw new Error('spiffeId must be within the configured trust domain');
   }
   if (!selectors || typeof selectors !== 'object' || Array.isArray(selectors)
-    || Object.keys(selectors).length === 0) {
+    || Object.keys(selectors).length === 0
+    || Object.values(selectors).some((value) => value === undefined || value === null || value === '')) {
     throw new Error('selectors must be a non-empty object');
   }
 
-  registrations.set(workloadId, {
+  const registration = {
     workloadId,
     spiffeId,
     selectors: { ...selectors },
-  });
+  };
+  registrations.set(workloadId, registration);
+  return copyRegistration(registration);
 }
 
 function clearRegistrations() {
@@ -36,8 +47,11 @@ function issueJwtSvid({ workloadId, selectorContext, audience } = {}) {
   const context = selectorContext && typeof selectorContext === 'object'
     ? selectorContext
     : {};
-  const selectorsMatch = Object.entries(registration.selectors)
-    .every(([key, value]) => context[key] === value);
+  const selectorKeys = Object.keys(registration.selectors);
+  const contextKeys = Object.keys(context);
+  const selectorsMatch = selectorKeys.length === contextKeys.length
+    && selectorKeys.every((key) => Object.hasOwn(context, key)
+      && context[key] === registration.selectors[key]);
   if (!selectorsMatch) {
     throw new Error(`selectors do not match registered workload ${workloadId}`);
   }
@@ -46,11 +60,7 @@ function issueJwtSvid({ workloadId, selectorContext, audience } = {}) {
 }
 
 function listRegistrations() {
-  return [...registrations.values()].map((registration) => ({
-    workloadId: registration.workloadId,
-    spiffeId: registration.spiffeId,
-    selectors: { ...registration.selectors },
-  }));
+  return [...registrations.values()].map(copyRegistration);
 }
 
 module.exports = {
