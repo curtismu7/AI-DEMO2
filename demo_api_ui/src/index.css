@@ -289,6 +289,7 @@ textarea {
   --th-border: #dbe2ea;
   --th-border-strong: #c3cdd9;
   --th-bg-hover: #eef2f7;
+  --th-bg: var(--th-bg-page);
   /* Emphasis fill for the one button in a row that leads the group.
      MUST be declared per theme: a single value cannot work in both. The
      band navy reads 12.8:1 against white siblings in light but only
@@ -363,6 +364,7 @@ textarea {
      Read --app-primary-red-* for a primary action, --th-status-error for an
      error state — same literal today, different job. */
   --th-status-success: #16a34a;
+  --th-success: var(--th-status-success-text);
   --th-status-success-text: #166534;
   --th-status-success-bg: #dcfce7;
   --th-status-success-border: #86efac;
@@ -397,6 +399,7 @@ textarea {
   --th-border: #26304a;
   --th-border-strong: #34405e;
   --th-bg-hover: #1b2540;
+  --th-bg: var(--th-bg-page);
   --th-bg-emphasis: #93c5fd;
   --th-text-on-emphasis: #0f172a;
 
@@ -436,6 +439,7 @@ textarea {
 
   /* Status on the dark ground: lighter solid + text, deep tinted bg. */
   --th-status-success: #22c55e;
+  --th-success: var(--th-status-success-text);
   --th-status-success-text: #86efac;
   --th-status-success-bg: #0f2e1d;
   --th-status-success-border: #166534;
