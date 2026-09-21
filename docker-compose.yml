@@ -925,7 +925,8 @@ services:
       # once the Privilege MCP path works with an mTLS listener.
       MCP_MTLS_ENABLED: "${MCP_MTLS_ON:+true}"
       MCP_MTLS_GATEWAY_CERT_PATH: "/certs/gw-mtls/gw-client.crt"
-      MCP_MTLS_ALLOWED_SPIFFE_ID: "${MCP_MTLS_ALLOWED_SPIFFE_ID:-}"
+      # MCP_MTLS_ALLOWED_SPIFFE_ID is supplied by oauth-mcp/.env when needed;
+      # do not shadow that env_file value with an empty Compose default.
       # Step 9 (RFC 8693): the MCP server exchanges the gateway-scoped token for a
       # Demo API (enduser.ping.demo) resource-scoped one before calling the Banking
       # API — the MCP-spec hop. Uses a DEDICATED PingOne app, not the shared
