@@ -168,7 +168,7 @@
 - [x] Pull the image and verify PF starts locally, imports the prepared starter profile, exposes its admin/runtime endpoints, and retains its persistent runtime volume. Running container: `ai-demo-pingfederate`; admin `https://127.0.0.1:9999/pingfederate/app`; runtime port `9031`.
 - [x] Create the BFF OIDC clients `ai-demo-pf-user` and `ai-demo-pf-admin` with Authorization Code, PKCE S256, refresh-token/offline access, required scopes, and exact local callback URIs.
 - [x] Accept the local PF subscription agreement and initialize a fresh licensed PF profile; preserve the initialized instance outside Git as the profile source.
-- [ ] Export an authenticated PingOne application inventory, including protocol, grants, redirect URIs, scopes, auth method, and application role; do not copy management-only credentials as OIDC clients.
+- [x] Export an authenticated PingOne application inventory, including protocol, grants, redirect URIs, scopes, auth method, and application role; inventory contains `55` OIDC applications (`54` enabled) across web, worker, native, and AI-agent types. Do not copy management-only credentials as OIDC clients.
 - [ ] Create PF equivalents for every required PingOne OIDC application role: browser user/admin, token exchange, MCP/gateway, agent/A2A, CIBA, and authorization-worker clients.
 - [ ] Preserve exact redirect URIs, PKCE requirements, grant types, scopes, audiences/resources, and service-vs-user restrictions in the PF client migration matrix.
 - [ ] Generate fresh PF client secrets where migration cannot preserve them, place them only in the local secret store, and update the provider-specific configuration mapping without committing values.
