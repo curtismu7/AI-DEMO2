@@ -171,6 +171,29 @@ export default function LessonShell({ lesson, mode = "guided", children, evidenc
       <div className="lesson-shell__body">
         <section className="lesson-shell__content" aria-label={`${lesson?.title || "Lesson"} content`}>
           <div className="lesson-shell__content-inner">{children}</div>
+          {lesson?.walkthrough?.length ? (
+            <section className="lesson-shell__walkthrough" aria-label="Lesson walkthrough">
+              <div className="lesson-shell__walkthrough-heading">
+                <div>
+                  <p className="lesson-shell__eyebrow">Presenter guide</p>
+                  <h2>Walkthrough</h2>
+                </div>
+                <span>{lesson.walkthrough.length} steps</span>
+              </div>
+              <ol className="lesson-shell__walkthrough-list">
+                {lesson.walkthrough.map((step, index) => (
+                  <li key={step.title}>
+                    <span className="lesson-shell__walkthrough-number">{index + 1}</span>
+                    <div>
+                      <h3>{step.title}</h3>
+                      <p>{step.explain}</p>
+                      <p className="lesson-shell__walkthrough-demo"><strong>Show:</strong> {step.demonstrate}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
           <div className="lesson-shell__actions">
             <button type="button" className="lesson-shell__run-button" onClick={handleRun} disabled={!onRun || runState === "running" || runState === "resetting"}>
               {runState === "running" ? "Checking evidence…" : "Check live evidence"}

@@ -22,6 +22,7 @@ const lesson = (details) => ({
   maturityStages: details.maturityStages || [MATURITY_STAGES.AUTHORIZE],
   agentCategory: details.agentCategory || "Enterprise Agent",
   productRoles: details.productRoles || ["Agent Gateway / Broker"],
+  walkthrough: details.walkthrough || WALKTHROUGHS[details.id] || [],
   provenance: CLOUD_FIRST_PROVENANCE,
 });
 
@@ -29,6 +30,74 @@ const REDACTED_RESULT = Object.freeze({
   kind: "redacted",
   valuesRedacted: true,
   fields: ["status", "decision", "correlationId"],
+});
+
+const WALKTHROUGHS = Object.freeze({
+  "agent-landscape": [
+    { title: "Classify the agent", explain: "Separate Personal Agents from Enterprise Agents before choosing a control path.", demonstrate: "Compare the user-owned assistant with the enterprise Digital Assistant boundary." },
+    { title: "Place the identity boundary", explain: "CIAM identifies consumers and customers; Workforce identifies employees and operators.", demonstrate: "Map the person, agent, workload, and protected resource on the architecture view." },
+    { title: "Name the authority owner", explain: "The agent can request an action, but Ping controls identity, policy, and evidence.", demonstrate: "Open Agent Governance and show where registration and ownership are recorded." },
+  ],
+  login: [
+    { title: "Start the OIDC request", explain: "The person authenticates with PingOne while the client prepares a PKCE challenge.", demonstrate: "Show the authorization request, redirect, and returned code without exposing a token." },
+    { title: "Exchange the code", explain: "The verifier proves that the same client started the authorization flow.", demonstrate: "Trace the code exchange and identify the OIDC identity claims." },
+    { title: "Continue with a server session", explain: "The BFF keeps browser tokens server-side and gives the browser only a session boundary.", demonstrate: "Open the session evidence and point out the absence of a raw bearer token." },
+  ],
+  delegation: [
+    { title: "Identify the subject", explain: "The subject token represents the person or originating authority.", demonstrate: "Read sub and the original audience before exchange." },
+    { title: "Add the acting agent", explain: "The act claim records which agent is acting without changing who the subject is.", demonstrate: "Compare sub and act in the token-chain trace." },
+    { title: "Constrain the result", explain: "RFC 8693 exchange narrows scope and audience for the downstream resource.", demonstrate: "Show the delegated token's audience, scopes, and expiry." },
+  ],
+  "consumer-agent": [
+    { title: "Detect the external agent", explain: "A Personal Agent may run outside the enterprise and must be recognized before access is granted.", demonstrate: "Use the client view to identify ChatGPT, Claude Desktop, or LM Studio as the caller." },
+    { title: "Register the client", explain: "CIMD or DCR supplies client metadata so the connection has an accountable identity.", demonstrate: "Show the metadata, redirect, and client registration record." },
+    { title: "Consent per tool", explain: "Consent and tool authentication should be scoped to the requested capability, not the whole MCP server.", demonstrate: "Approve one read tool and show a separate denied tool call." },
+  ],
+  "customer-service-agent": [
+    { title: "Establish the customer context", explain: "The Digital Assistant operates inside an enterprise-controlled service boundary.", demonstrate: "Show the authenticated customer and the assistant identity together." },
+    { title: "Delegate the task", explain: "Explicit delegation limits the assistant to the customer-approved flight-search task.", demonstrate: "Request a cheap-flight search and inspect the delegated scopes." },
+    { title: "Protect high-impact actions", explain: "Booking or changing customer data pauses for consent, step-up, or human approval.", demonstrate: "Run the search, then trigger the approval checkpoint before booking." },
+  ],
+  mcp: [
+    { title: "Discover the server", explain: "The client initializes an MCP session and learns which tools exist.", demonstrate: "Show initialize and tools/list as separate evidence events." },
+    { title: "Inspect the requested tool", explain: "A tool name and arguments are data for policy evaluation, not permission by themselves.", demonstrate: "Open the request view and identify tool, resource, audience, and scopes." },
+    { title: "Execute behind the boundary", explain: "The gateway evaluates and forwards only an allowed call, then records the result.", demonstrate: "Invoke a safe read tool and inspect response, trace, and audit evidence." },
+  ],
+  authorize: [
+    { title: "Build policy input", explain: "Authorization evaluates person, agent, action, resource, scopes, and current context.", demonstrate: "Open the request and highlight each policy attribute." },
+    { title: "Evaluate permit or deny", explain: "PingOne Authorize makes an independent runtime decision.", demonstrate: "Run the same tool with permitted and denied policy inputs." },
+    { title: "Enforce at the gateway", explain: "The Agent Gateway stops denied calls before the protected tool runs.", demonstrate: "Compare the denied gateway trace with the downstream tool audit." },
+  ],
+  "hitl-step-up": [
+    { title: "Pause the action", explain: "A sensitive request becomes pending instead of running immediately.", demonstrate: "Trigger a booking or privileged action and show the pending state." },
+    { title: "Obtain stronger proof", explain: "Consent, CIBA, or step-up authentication confirms the human intent.", demonstrate: "Complete approval and identify the transaction and authentication evidence." },
+    { title: "Resume or deny", explain: "The gateway resumes only with a valid, unexpired approval bound to the request.", demonstrate: "Try approval, expiry, and denial paths and compare outcomes." },
+  ],
+  "a2a-delegation": [
+    { title: "Read the Agent Card", explain: "The card describes a specialist's capabilities and endpoint, not its authority.", demonstrate: "Open the card and identify the specialist skill and authentication requirements." },
+    { title: "Hand off the task", explain: "The primary agent delegates a bounded task to a specialist.", demonstrate: "Trace the handoff and compare the primary and specialist audiences." },
+    { title: "Audit nested delegation", explain: "Every nested hop must preserve subject, actor, scope, and audience constraints.", demonstrate: "Inspect the specialist result and its parent correlation ID." },
+  ],
+  "privilege-mcp": [
+    { title: "Protect the connection", explain: "The MCP connection is mediated so the agent never receives the protected credential path.", demonstrate: "Open the protected connection status and identify the enforcement boundary." },
+    { title: "Issue temporary access", explain: "Access is time-bound and scoped to the requested operation.", demonstrate: "Request temporary access and show its expiry and permitted tool." },
+    { title: "Revoke and audit", explain: "Credential isolation and audit evidence make the action reviewable after execution.", demonstrate: "Complete the operation, revoke access, and inspect the audit record." },
+  ],
+  "threat-defense": [
+    { title: "Inject the attack", explain: "Treat prompt injection and replay as untrusted input crossing a security boundary.", demonstrate: "Submit a malicious instruction and capture the normalized request." },
+    { title: "Check binding", explain: "Scope escalation and audience mismatch reveal when a token is being used outside its purpose.", demonstrate: "Change audience or scope and compare the policy inputs." },
+    { title: "Stop and explain", explain: "The gateway records which control stopped the request and why.", demonstrate: "Inspect the deny decision, reason, and correlation evidence." },
+  ],
+  lifecycle: [
+    { title: "Discover and register", explain: "Unknown agents become known through detection, ownership, and registration metadata.", demonstrate: "Create or identify an agent and show its owner and status." },
+    { title: "Operate under policy", explain: "Lifecycle status participates in authorization decisions during normal invocations.", demonstrate: "Invoke the registered agent and connect its identity to the call." },
+    { title: "Suspend and revoke", explain: "Revocation must prevent retry, not merely remove an entry from a catalog.", demonstrate: "Revoke the agent, retry the call, and inspect the denied evidence." },
+  ],
+  "evidence-timeline": [
+    { title: "Assemble the actors", explain: "Evidence connects person, agent, workload, and protected resource into one story.", demonstrate: "Start with the person and follow the agent identity through the request." },
+    { title: "Connect controls", explain: "Tokens, policy, approvals, protocols, and tools each contribute evidence.", demonstrate: "Filter the timeline by token, policy, approval, protocol, and tool." },
+    { title: "Assign product ownership", explain: "The product map identifies which Ping control owns each decision or boundary.", demonstrate: "Follow a timeline event to PingOne, Authorize, Gateway, Privilege, or Governance." },
+  ],
 });
 
 export const lessonCatalog = Object.freeze([

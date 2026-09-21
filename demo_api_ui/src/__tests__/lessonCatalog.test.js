@@ -72,6 +72,16 @@ describe("AI Security Academy lesson catalog", () => {
       expect(lesson.talkingPoints).toEqual(
         expect.arrayContaining([NON_EMPTY_STRING]),
       );
+      expect(lesson.walkthrough).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            title: NON_EMPTY_STRING,
+            explain: NON_EMPTY_STRING,
+            demonstrate: NON_EMPTY_STRING,
+          }),
+        ]),
+      );
+      expect(lesson.walkthrough.length).toBeGreaterThanOrEqual(3);
       expect(isLessonContractValid(lesson)).toBe(true);
     }
   });
