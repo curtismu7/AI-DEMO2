@@ -200,6 +200,21 @@ function collectIssues() {
     if (jwksUri && !/^https:\/\//i.test(jwksUri)) {
       issues.push(`PF_JWKS_URI="${jwksUri}" must use HTTPS`);
     }
+    const requiredPfSettings = [
+      ['PF_USER_CLIENT_ID', 'PF_USER_CLIENT_ID'],
+      ['PF_USER_REDIRECT_URI', 'PF_USER_REDIRECT_URI'],
+      ['PF_TOKEN_EXCHANGE_CLIENT_ID', 'PF_TOKEN_EXCHANGE_CLIENT_ID'],
+      ['PF_ID_JAG_AUDIENCE', 'PF_ID_JAG_AUDIENCE'],
+      ['PF_ID_JAG_RESOURCE', 'PF_ID_JAG_RESOURCE'],
+      ['PF_ID_JAG_REDEMPTION_TOKEN_ENDPOINT', 'PF_ID_JAG_REDEMPTION_TOKEN_ENDPOINT'],
+      ['PF_ID_JAG_REDEMPTION_CLIENT_ID', 'PF_ID_JAG_REDEMPTION_CLIENT_ID'],
+    ];
+    for (const [key, label] of requiredPfSettings) {
+      if (!effective(key)) issues.push(`OAUTH_PROVIDER=pingfederate requires ${label}`);
+    }
+    if (String(effective('PF_ID_JAG_ENABLED')).toLowerCase() !== 'true') {
+      issues.push('OAUTH_PROVIDER=pingfederate requires PF_ID_JAG_ENABLED=true');
+    }
   }
 
   return issues;

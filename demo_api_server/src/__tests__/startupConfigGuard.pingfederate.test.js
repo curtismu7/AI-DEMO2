@@ -36,4 +36,10 @@ describe('startupConfigGuard — PingFederate provider', () => {
     process.env.PF_ISSUER = 'http://pf.example.test';
     expect(guard.collectIssues().some((issue) => issue.includes('PF_ISSUER'))).toBe(true);
   });
+
+  test('fails fast when the PF ID-JAG chain is incomplete', () => {
+    const issues = guard.collectIssues();
+    expect(issues.some((issue) => issue.includes('PF_ID_JAG_ENABLED=true'))).toBe(true);
+    expect(issues.some((issue) => issue.includes('PF_ID_JAG_REDEMPTION_TOKEN_ENDPOINT'))).toBe(true);
+  });
 });
