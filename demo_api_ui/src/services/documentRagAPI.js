@@ -10,6 +10,10 @@ export async function searchDocuments(query, collectionId = 'learning-hub', limi
   return body.results || [];
 }
 
+export async function answerDocuments(query, collectionId = 'learning-hub') {
+  return request('/answer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, collection_id: collectionId }) });
+}
+
 export async function listDocuments(collectionId = 'learning-hub') {
   const body = await request(`/documents?collection_id=${encodeURIComponent(collectionId)}`);
   return body.documents || [];
