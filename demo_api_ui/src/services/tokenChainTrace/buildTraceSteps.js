@@ -3,6 +3,10 @@
 
 import { EDU } from "../../components/education/educationIds";
 import { isPause, pauseObligationKind } from "./pauseObligation";
+import {
+  SPIFFE_BRIDGE_EVENT_IDS,
+  SPIFFE_BRIDGE_TRACE_KIND,
+} from "./spiffeBridgeSimulationModel";
 
 const LANES = {
   website: "BROWSER", signin: "PINGONE", prompt: "CHAT", agent: "AGENT",
@@ -18,6 +22,10 @@ const LANES = {
   gateway: "GATEWAY", "p1az-resolver": "DATA", "vault-key-inject": "VAULT", "api-key-swap": "GATEWAY",
   "tools-call-challenge": "MCP", mcp: "MCP", api: "API",
   database: "DATA", reply: "LLM",
+  "spiffe-svid-presented": "AGENT",
+  "spiffe-svid-verified": "GATEWAY",
+  "spiffe-id-mapped": "GATEWAY",
+  "pingone-private-key-jwt": "PINGONE",
 };
 
 // What a lane is called on screen. The LLM and the heuristic router are both the
@@ -86,6 +94,10 @@ const TITLES = {
   api: "Resource server — backend app",
   database: "Database — data query",
   reply: "AI Agent composes reply → chat",
+  "spiffe-svid-presented": "Workload presents JWT-SVID",
+  "spiffe-svid-verified": "SPIFFE bridge verifies SVID",
+  "spiffe-id-mapped": "SPIFFE ID mapped to PingOne client",
+  "pingone-private-key-jwt": "PingOne assertion created — private_key_jwt",
 };
 
 // What each hop does — always shown when a step is expanded, even before its
@@ -119,6 +131,10 @@ const NARRATIVES = {
   api: "The actual resource-server call made with the delegated bearer token.",
   database: "The backend application queries its data store. This hop appears as completed only when the tool result identifies a real SQL data source.",
   reply: "The tool result goes back to the LLM, which writes the reply the user sees in the chat.",
+  "spiffe-svid-presented": "The simulated workload presents a signed JWT-SVID containing its SPIFFE identity.",
+  "spiffe-svid-verified": "The bridge validates the SVID claims before accepting the workload identity.",
+  "spiffe-id-mapped": "An explicit allow-list maps the verified SPIFFE ID to one PingOne client registration.",
+  "pingone-private-key-jwt": "The bridge creates the short-lived private_key_jwt assertion PingOne would receive.",
 };
 
 // Static RFC references per hop — teaching content, shown regardless of evidence.
@@ -901,6 +917,25 @@ export function buildTraceSteps(trace) {
       routingDetail?.action ? ["matched action", String(routingDetail.action)] : null,
     ].filter(Boolean),
   } : {}));
+
+  // The SPIFFE bridge is a local teaching run, but it uses the same trace
+  // vocabulary as live agent runs so the movie reel and sequence diagram can
+  // show the identity handoff without inventing a second visualization path.
+  const isSpiffeBridgeTrace = tokenEvents.some((event) => event?.bridge === SPIFFE_BRIDGE_TRACE_KIND);
+  if (isSpiffeBridgeTrace) {
+    for (const id of SPIFFE_BRIDGE_EVENT_IDS) {
+      const event = tokenEvents.find((candidate) => candidate?.id === id);
+      const status = event
+        ? (event.status === "error" ? "error" : traceComplete ? "done" : event.status === "active" ? "active" : "done")
+        : traceComplete
+          ? "notinpath"
+          : "pending";
+      steps.push(makeStep(id, status, event ? {
+        tokenEvent: event,
+        kv: Object.entries(event.detail || {}).map(([key, value]) => [key, Array.isArray(value) ? value.join(", ") : String(value)]),
+      } : {}));
+    }
+  }
 
   // 3b. tools/list #1 — the credential-less discovery request the gateway
   // refuses with 401 + WWW-Authenticate. Its own hop, because it is a real

@@ -51,6 +51,26 @@
 .spiffe-bridge__pill--real { color: var(--th-status-success-text); background: var(--th-status-success-bg); }
 .spiffe-bridge__pill--neutral { color: var(--spiffe-muted); }
 
+.spiffe-bridge__demo-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px 28px;
+  align-items: center;
+  margin-top: 26px;
+  padding: 20px;
+  border: 1px solid color-mix(in srgb, var(--th-status-info-text) 34%, var(--spiffe-line));
+  background: var(--spiffe-inset);
+  color: var(--spiffe-ink);
+}
+.spiffe-bridge__demo-controls h2 { margin: 0; font-size: var(--font-size-md); }
+.spiffe-bridge__demo-controls p:not(.spiffe-bridge__kicker) { margin: 8px 0 0; color: var(--spiffe-muted); font-size: var(--font-size-2xs); line-height: 1.45; }
+.spiffe-bridge__demo-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.spiffe-bridge__button { border: 1px solid var(--spiffe-line); border-radius: var(--radius-sm); padding: 9px 12px; background: var(--spiffe-card); color: var(--spiffe-ink); cursor: pointer; font: inherit; font-size: var(--font-size-2xs); font-weight: 700; }
+.spiffe-bridge__button:hover:not(:disabled) { border-color: var(--th-status-info-text); }
+.spiffe-bridge__button:disabled { cursor: wait; opacity: 0.65; }
+.spiffe-bridge__button--primary { border-color: var(--th-status-info-text); background: var(--th-status-info-text); color: var(--th-bg-card); }
+.spiffe-bridge__demo-status { grid-column: 1 / -1; color: var(--spiffe-muted); font-size: var(--font-size-3xs); text-transform: uppercase; letter-spacing: 0.08em; }
+
 .spiffe-bridge__handoff,
 .spiffe-bridge__config { padding: 32px 0; }
 .spiffe-bridge__section-heading { display: flex; justify-content: space-between; gap: 28px; align-items: end; margin-bottom: 18px; }
@@ -99,6 +119,9 @@
 @media (max-width: 640px) {
   .spiffe-bridge { padding: 24px 18px 36px; }
   .spiffe-bridge__hero, .spiffe-bridge__section-heading { display: block; }
+  .spiffe-bridge__demo-controls { display: block; }
+  .spiffe-bridge__demo-actions { justify-content: flex-start; margin-top: 16px; }
+  .spiffe-bridge__demo-status { display: block; margin-top: 14px; }
   .spiffe-bridge__hero .spiffe-bridge__pill { margin-top: 20px; }
   .spiffe-bridge__section-heading > p { margin-top: 10px; text-align: left; }
   .spiffe-bridge__flow, .spiffe-bridge__lower-grid { grid-template-columns: 1fr; }
