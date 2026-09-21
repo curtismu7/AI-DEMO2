@@ -153,7 +153,7 @@ jobs:
             python3 scripts/build-codegraph.py
             cp -f .codegraph/demo-codegraph.db langchain_agent/codegraph.db
           fi
-      - name: Build via compose, then push the sha tag
+      - name: Build via compose, then push sha and latest tags
         # Build through docker compose, NOT a bare buildx with an assumed
         # context. Build contexts vary and cannot be derived from sourceDir:
         # demo-api-server uses `context: .` (the repo root, because the BFF
@@ -170,14 +170,18 @@ jobs:
         # -p ai-demo-se matches SE_COMPOSE_PROJECT so the local tag equals the
         # map's localImage, including llm-proxy's explicit `image:` override.
         #
-        # NEVER :latest. Every SE deployment is imagePullPolicy: Always, so a
-        # moving :latest means the next restart of any pod — a crash, an
-        # eviction, a drain — silently pulls whatever was last merged. An
-        # immutable sha tag is inert until a human promotes it.
+        # Publish both tags. The immutable sha tag keeps deployments
+        # reproducible, while :latest remains available for shared/local
+        # namespaces and emergency recovery when a commit-specific image was
+        # not published.
         run: |
           set -euo pipefail
-          URI="ghcr.io/${{ github.repository_owner }}/${{ matrix.ghcrImage }}:sha-${{ github.sha }}"
+          BASE="ghcr.io/${{ github.repository_owner }}/${{ matrix.ghcrImage }}"
+          SHA_URI="$BASE:sha-${{ github.sha }}"
+          LATEST_URI="$BASE:latest"
           docker compose -p ai-demo-se -f docker-compose.yml --profile demo-auth \
             build "${{ matrix.composeService }}"
-          docker tag "${{ matrix.localImage }}:latest" "$URI"
-          docker push "$URI"
+          docker tag "${{ matrix.localImage }}:latest" "$SHA_URI"
+          docker tag "${{ matrix.localImage }}:latest" "$LATEST_URI"
+          docker push "$SHA_URI"
+          docker push "$LATEST_URI"
