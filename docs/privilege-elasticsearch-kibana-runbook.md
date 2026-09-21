@@ -80,6 +80,15 @@ Otherwise open the forwarded Kibana endpoint directly:
 http://localhost:5601
 ```
 
+## Login paths
+
+There are two different authentication paths:
+
+- **Kibana through the local proxy (`http://localhost:4180`)** — sign in with the configured PingOne user. This is the normal demo path.
+- **Elasticsearch REST API** — use the dedicated Elasticsearch ingestion or read-only account with HTTP Basic authentication. Retrieve its password from the deployment's secret store; do not copy it into this guide.
+
+Kibana and Elasticsearch credentials are not interchangeable. Do not use the `elastic` administrator account for Privilege ingestion or routine dashboard viewing. If Kibana presents an unexpected native Elastic login, confirm that you opened `http://localhost:4180` and that the local OAuth2 proxy and Kibana port-forward are running.
+
 ## Create a data view and view events
 
 1. Open **Analytics → Discover**.
