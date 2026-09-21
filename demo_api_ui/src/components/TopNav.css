@@ -40,9 +40,9 @@
   width: 42px;
   height: 42px;
   overflow: hidden;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: #b3282d;
-  box-shadow: 0 0 0 1px rgba(251, 251, 252, 0.2);
+  box-shadow: var(--shadow-sm);
 }
 
 .topnav-ping-identity-logo {
