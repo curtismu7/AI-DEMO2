@@ -72,7 +72,8 @@ const NAV_ACTION_PAGE_PATHS = {
   "Scope Abuse": "/dashboard",
   "Intent Bypass": "/dashboard",
   "Learning Log": "/logs?mode=learn",
-  LibreChat: "http://localhost:3080",
+  "LibreChat (browser)": "http://localhost:3080",
+  "LM Studio (Mac)": "/privilege-mcp-client?client=lm-studio",
   "API Docs (Swagger)": "/api/docs",
   "API Reference (Scalar)": "/api/reference",
 };

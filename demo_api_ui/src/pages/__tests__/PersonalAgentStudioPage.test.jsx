@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 
 // Mock TokenChainContext
 vi.mock('../../context/TokenChainContext', () => ({
@@ -8,14 +9,20 @@ vi.mock('../../context/TokenChainContext', () => ({
 
 import PersonalAgentStudioPage from '../PersonalAgentStudioPage';
 
+const renderStudio = () => render(
+  <MemoryRouter>
+    <PersonalAgentStudioPage />
+  </MemoryRouter>,
+);
+
 describe('PersonalAgentStudioPage', () => {
   it('renders page title', () => {
-    render(<PersonalAgentStudioPage />);
+    renderStudio();
     expect(screen.getByText('Personal Agent')).toBeTruthy();
   });
 
   it('renders all skin tabs', () => {
-    render(<PersonalAgentStudioPage />);
+    renderStudio();
     expect(screen.getByText('Privilege')).toBeTruthy();
     expect(screen.getByText('Claude')).toBeTruthy();
     expect(screen.getByText('Terminal')).toBeTruthy();
@@ -24,24 +31,24 @@ describe('PersonalAgentStudioPage', () => {
   });
 
   it('shows Split and Pop Out buttons', () => {
-    render(<PersonalAgentStudioPage />);
+    renderStudio();
     expect(screen.getByText(/Split/i)).toBeTruthy();
     expect(screen.getByText(/🪟 Pop Out/i)).toBeTruthy();
   });
 
   it('starts in full-agent mode — security rail hidden', () => {
-    render(<PersonalAgentStudioPage />);
+    renderStudio();
     expect(screen.queryByText('Security Gates')).toBeNull();
   });
 
   it('shows security rail after clicking Split', () => {
-    render(<PersonalAgentStudioPage />);
+    renderStudio();
     fireEvent.click(screen.getByText(/Split/i));
     expect(screen.getByText('Security Gates')).toBeTruthy();
   });
 
   it('hides security rail when Split clicked again', () => {
-    render(<PersonalAgentStudioPage />);
+    renderStudio();
     fireEvent.click(screen.getByText(/Split/i));
     expect(screen.getByText('Security Gates')).toBeTruthy();
     fireEvent.click(screen.getByText(/Split/i));
@@ -49,7 +56,7 @@ describe('PersonalAgentStudioPage', () => {
   });
 
   it('switches active skin tab', () => {
-    render(<PersonalAgentStudioPage />);
+    renderStudio();
     fireEvent.click(screen.getByText('Claude'));
     // AgentClientSkin renders Claude title
     expect(screen.getAllByText('Claude').length).toBeGreaterThan(0);
@@ -58,7 +65,7 @@ describe('PersonalAgentStudioPage', () => {
   it('shows popped-out placeholder and security rail after Pop Out', () => {
     // Mock window.open
     vi.stubGlobal('open', vi.fn(() => ({ document: { write: vi.fn(), close: vi.fn() } })));
-    render(<PersonalAgentStudioPage />);
+    renderStudio();
     fireEvent.click(screen.getByText(/🪟 Pop Out/i));
     expect(screen.getByText('Security Gates')).toBeTruthy();
     expect(screen.getByText(/active in external window/i)).toBeTruthy();
