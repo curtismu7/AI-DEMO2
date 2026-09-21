@@ -597,34 +597,6 @@
   outline-offset: 2px;
 }
 
-/* Loading States */
-.configuration-header__btn.saving {
-  position: relative;
-}
-
-.configuration-header__btn.saving::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 12px;
-  height: 12px;
-  margin: -6px 0 0 -6px;
-  border: 2px solid transparent;
-  border-top: 2px solid currentColor;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
 /* Print Styles */
 @media print {
   .configuration-header__actions,

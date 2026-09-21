@@ -576,22 +576,6 @@
   border-color: var(--th-border-strong);
 }
 
-.tcd-spinner {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border: 1.5px solid rgba(138, 105, 20, 0.3);
-  border-top-color: #8a6914;
-  border-radius: 50%;
-  animation: tcd-spin 0.7s linear infinite;
-}
-
-@keyframes tcd-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 /* ─── Event detail (expanded) ────────────────────────────────────────────── */
 .tcd-event-detail {
   margin: 6px 0 6px 0;

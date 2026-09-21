@@ -58,19 +58,6 @@
   color: #0c5460;
 }
 
-.auth-error-banner.transient .banner-icon.spinner {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 /* CONFIG ERROR: Danger red */
 .auth-error-banner.config {
   background-color: #f8d7da;

@@ -388,33 +388,6 @@
   line-height: 1;
 }
 
-/* ── Spinner inside running button ───────────────────── */
-.pingcli-spinner {
-  width: 11px;
-  height: 11px;
-  border: 2px solid color-mix(in srgb, var(--th-status-info) 30%, transparent);
-  border-top-color: var(--th-status-info);
-  border-radius: 50%;
-  animation: pingcli-spin 0.7s linear infinite;
-  flex-shrink: 0;
-}
-
-.pingcli-spinner-on-light {
-  width: 14px;
-  height: 14px;
-  border-color: color-mix(in srgb, var(--th-status-info) 25%, transparent);
-  border-top-color: var(--th-status-info);
-}
-
-.pingcli-spinner-on-dark {
-  border-color: rgba(255, 255, 255, 0.35);
-  border-top-color: var(--th-text-invert);
-}
-
-@keyframes pingcli-spin {
-  to { transform: rotate(360deg); }
-}
-
 /* ── Prerequisite steps (above response) ─────────────── */
 .pingcli-prereqs {
   color: var(--th-text);

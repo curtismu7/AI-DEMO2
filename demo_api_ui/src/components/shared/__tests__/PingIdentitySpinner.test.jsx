@@ -31,6 +31,13 @@ describe('PingIdentitySpinner', () => {
     expect(spinner).toHaveAttribute('aria-hidden', 'true');
   });
 
+  it('dances the identity mark inside a stable red circle', () => {
+    render(<PingIdentitySpinner label="Loading account details…" />);
+
+    expect(document.querySelector('.ping-spinner__ring--outer')).toBeInTheDocument();
+    expect(document.querySelector('.ping-spinner__mark--dancing')).toBeInTheDocument();
+  });
+
   it('keeps runtime loading surfaces to one branded mark plus a short note', () => {
     const violations = [];
     for (const file of sourceFiles(SRC)) {

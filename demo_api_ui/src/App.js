@@ -80,6 +80,7 @@ import LearningHub from "./components/LearningHub";
 import { AcademyLessonRoute, AcademyLegacyPrefixRoute } from "./routes/AcademyRoutes";
 import ShadowAiDetectorPage from "./pages/ShadowAiDetectorPage";
 import LearningProtocolLabPage from "./pages/LearningProtocolLabPage";
+import SpinnerShowcasePage from "./pages/SpinnerShowcasePage";
 import LlmConfigPage from "./components/LlmConfigPage";
 import LogoutPage from "./components/LogoutPage";
 import LoginSuccessModal from "./components/LoginSuccessModal";
@@ -697,6 +698,7 @@ function AppWithAuth() {
               )}
               <Routes>
                 <Route path="/request-access" element={<HostedRegistrationPage />} />
+                <Route path="/spinner-showcase" element={<SpinnerShowcasePage />} />
                 <Route path="/hosted-registrations" element={<AdminRoute user={user}><HostedRegistrationAdminPage /></AdminRoute>} />
                 {/* /setup/* sub-routes — no auth required */}
                 <Route
