@@ -25,8 +25,8 @@
 
 - [ ] Confirm the PingFederate version is 13.1.3 or newer.
 - [ ] Confirm the PF issuer/discovery URL and the PF virtual-server URL used by the BFF.
-- [ ] Confirm whether PF itself issues the final resource access token or whether another authorization server consumes the PF-issued ID-JAG.
-- [ ] Confirm the downstream authorization server, audience, resource URI, scopes, and JWT/JWKS trust configuration.
+- [x] Confirm PF issues the ID-JAG and the repository's `oauth-mcp` authorization server consumes it for the final MCP access token.
+- [x] Confirm the downstream authorization server, audience, resource URI, scopes, and JWT/JWKS trust configuration: isolated local `pf-mcp-server`, audience `http://pf-mcp-server:8080`, resource `http://pf-mcp-server:8080/mcp`, scope `mcp:invoke`, issuer `https://localhost:9031`, JWKS `https://pingfederate:9031/pf/JWKS`.
 - [ ] Confirm the PF admin API endpoint and an authorized non-production administrative credential or approved configuration-export/import path.
 - [ ] Store secrets through the environment/secret store; do not put PF secrets in Git or chat.
 - [ ] Obtain a disposable PF test user and a test client before changing any shared PF configuration.
@@ -52,7 +52,7 @@
 - Create/update: refresh-token token processor.
 - Create/update: token-exchange processor policy.
 - Create/update: OAuth Token Exchange SP Connection that permits ID-JAG issuance.
-- Create/update: OAuth Assertion Grant IdP Connection for the downstream AS that consumes the ID-JAG.
+- Create/update: OAuth Assertion Grant IdP Connection for the downstream AS that consumes the ID-JAG (`oauth-mcp`; its native JWT-bearer ID-JAG verifier is configured through `ENTERPRISE_IDP_ISSUER` and `ENTERPRISE_IDP_JWKS_URL`).
 - Configure: claim contracts, token lifetimes, issuer/audience/resource restrictions, signing keys, and audit masking.
 
 ### Task 1: Establish the provider contract and configuration keys
@@ -169,14 +169,14 @@
 - [x] Create the BFF OIDC clients `ai-demo-pf-user` and `ai-demo-pf-admin` with Authorization Code, PKCE S256, refresh-token/offline access, required scopes, and exact local callback URIs.
 - [x] Create the refresh-token token processor `aiDemoPfRefreshToken` and expose only the claims needed for ID-JAG creation.
 - [x] Create the token-exchange processor policy `aiDemoPfIdJagPolicy` with the refresh-token subject type and explicit client/scope mapping.
-- [x] Create the OAuth Token Exchange SP Connection `aiDemoPfIdJagSp` for `https://local.ping-devops.com:4000`.
+- [x] Create the OAuth Token Exchange SP Connection `aiDemoPfIdJagSp` and point it at the downstream `oauth-mcp` issuer/resource (`http://pf-mcp-server:8080` / `http://pf-mcp-server:8080/mcp`).
 - [x] Enable `urn:ietf:params:oauth:token-type:id-jag` through PF’s ID-JAG-enabled SP connection.
 - [x] Map the approved token-exchange attributes into the ID-JAG contract; PF supplies the ID-JAG core claims (`sub`, `iss`, `aud`, timestamps, and token ID) from the enabled connection.
 - [ ] Set a short ID-JAG lifetime and enable assertion replay protection according to the PF deployment policy.
-- [ ] Configure the downstream OAuth Assertion Grant IdP Connection to trust PF’s issuer and JWKS and to accept ID-JAG assertions.
+- [x] Configure the isolated downstream `oauth-mcp` authorization server to trust PF’s issuer and JWKS and to accept the ID-JAG JWT-bearer grant; keep the shared service unchanged until the permanent compose wiring is approved.
 - [x] Enable token exchange only on the designated PF client `ai-demo-pf-id-jag`; do not enable it broadly for unrelated clients.
 - [x] Verify PF discovery metadata and the live token endpoint with non-secret probes; PF advertises the ID-JAG requested-token type and rejects an invalid refresh token at the real exchange endpoint.
-- [ ] Execute one end-to-end exchange using a disposable user and confirm the returned JWT has `typ=oauth-id-jag+jwt`.
+- [ ] Execute one end-to-end exchange using a disposable user and confirm the returned JWT has `typ=oauth-id-jag+jwt`; the browser authorization request is currently blocked by PF with `no authentication methods available for OAuth` before login rendering.
 - [x] Record PF object IDs, issuer, audience, resource, scopes, lifetimes, and rollback steps in the configuration notes without recording secrets or tokens.
 
 ### Task 7: Wire deployment configuration
