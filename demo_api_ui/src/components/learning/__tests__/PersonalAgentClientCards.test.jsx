@@ -32,6 +32,9 @@ describe("PersonalAgentClientCards", () => {
       "href",
       "/privilege-mcp-client?client=lm-studio",
     );
+    expect(screen.getByRole("link", { name: "Open LM Studio setup" })).toHaveClass(
+      "personal-agent-client-cards__action--link",
+    );
     openSpy.mockRestore();
   });
 });

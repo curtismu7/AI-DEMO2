@@ -169,6 +169,27 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-21 — Personal Agent LM Studio action text lost contrast
+
+**Files changed:** `demo_api_ui/src/components/learning/PersonalAgentClientCards.jsx`,
+`demo_api_ui/src/components/learning/PersonalAgentClientCards.css`, and
+`demo_api_ui/src/components/learning/__tests__/PersonalAgentClientCards.test.jsx`.
+
+**What was broken:** The LM Studio setup link inherited the global anchor color,
+rendering blue text on the blue action background and making the label difficult
+to read.
+
+**What was fixed:** Navigational Personal Agent actions now receive explicit
+button treatment, including the shared inverted text token, so links and buttons
+have the same readable contrast in both themes.
+
+**Do not break:** Keep the LM Studio action as an internal route and LibreChat
+as an external launch; only the action presentation changed.
+
+**Verify:** `cd demo_api_ui && npm run test:unit --
+src/components/learning/__tests__/PersonalAgentClientCards.test.jsx --run`;
+`npm run build`; live computed-style check on the Academy Personal Agent step.
+
 ### 2026-09-20 — Guided Journey restart invalidates pending lesson evidence
 
 **Files changed:** `demo_api_ui/src/pages/GuidedJourneyPage.jsx` and
