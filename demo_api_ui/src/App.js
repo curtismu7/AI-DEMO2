@@ -77,7 +77,7 @@ import HealthcareAdminOps from "./components/HealthcareAdminOps";
 import KillSwitchConfirmModal from "./components/KillSwitchConfirmModal";
 import LandingPage from "./components/LandingPage";
 import LearningHub from "./components/LearningHub";
-import { AcademyLessonRoute, AcademyLegacyPrefixRoute } from "./routes/AcademyRoutes";
+import { AcademyLessonRoute, AcademyLegacyPrefixRoute, AgentIdentityAcademyRoute } from "./routes/AcademyRoutes";
 import ShadowAiDetectorPage from "./pages/ShadowAiDetectorPage";
 import LearningProtocolLabPage from "./pages/LearningProtocolLabPage";
 import SpinnerShowcasePage from "./pages/SpinnerShowcasePage";
@@ -953,6 +953,16 @@ function AppWithAuth() {
                   path="/academy/demos"
                   element={
                     <StandaloneDemoLauncherRoute
+                      loading={loading}
+                      user={user}
+                      logout={logout}
+                    />
+                  }
+                />
+                <Route
+                  path="/academy/identity"
+                  element={
+                    <AgentIdentityAcademyRoute
                       loading={loading}
                       user={user}
                       logout={logout}

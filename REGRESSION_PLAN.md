@@ -169,6 +169,35 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-21 — Agent Identity Academy bypassed the application header
+
+**Files changed:** `demo_api_ui/src/App.js`,
+`demo_api_ui/src/routes/AcademyRoutes.jsx`,
+`demo_api_ui/src/pages/AgentIdentityAcademyPage.jsx`,
+`demo_api_ui/src/pages/AgentIdentityAcademyPage.css`,
+`demo_api_ui/public/academy-identity-preview.html`, and Academy discovery-link,
+favorite, and test files.
+
+**What was broken:** Side navigation, search, Demo Steps, and favorites opened the
+static Academy prototype directly. That full-page navigation bypassed the React
+application shell, so the shared Ping header, session controls, and side
+navigation disappeared.
+
+**What was fixed:** The discovery surfaces now open `/academy/identity`, where
+the existing `AppShell` supplies the real `TopNav` and the single shared side
+navigation. The standalone Academy HTML remains directly available and is
+embedded without its duplicate prototype header. The parent theme is sent to
+the embedded lesson surface, and saved legacy favorites migrate to the in-app
+route.
+
+**Do not break:** Keep `/academy-identity-preview.html` usable as a standalone
+presentation, keep exactly one side navigation in the in-app route, and preserve
+the shared header's session, role-switch, favorites, and theme behavior.
+
+**Verify:** Focused Academy route/static/discovery/favorites tests;
+`cd demo_api_ui && npm run test:unit && npm run build`; live browser check on
+`/academy/identity` in both themes.
+
 ### 2026-09-21 — Public MCP OIDC metadata and userinfo passthrough
 
 **Files changed:** `ping-gateway/config/routes/00-mcp-oauth-bootstrap.json`.

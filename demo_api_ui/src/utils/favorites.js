@@ -3,9 +3,10 @@
 const STORAGE_KEY = 'demo_header_favorites';
 const CHANGED_EVENT = 'demo-favorites-changed';
 const AGENT_IDENTITY_ACADEMY_MIGRATION_KEY = 'demo_header_favorites_agent_identity_academy_v1';
+const LEGACY_AGENT_IDENTITY_ACADEMY_PATH = '/academy-identity-preview.html';
 const AGENT_IDENTITY_ACADEMY_FAVORITE = {
   label: 'Agent Identity Academy',
-  path: '/academy-identity-preview.html',
+  path: '/academy/identity',
 };
 
 // Seeded on first use so a fresh browser already has the primary demo lanes.
@@ -20,7 +21,8 @@ const DEFAULT_FAVORITES = [
 const ACRONYMS = { llm: 'LLM', mcp: 'MCP', ai: 'AI', api: 'API', ui: 'UI', oauth: 'OAuth', hitl: 'HITL', a2a: 'A2A' };
 const FAVORITE_LABELS = {
   '/llm-gateway': 'AI Guard',
-  '/academy-identity-preview.html': 'Agent Identity Academy',
+  [LEGACY_AGENT_IDENTITY_ACADEMY_PATH]: 'Agent Identity Academy',
+  '/academy/identity': 'Agent Identity Academy',
 };
 export function labelForPath(path) {
   if (FAVORITE_LABELS[path]) return FAVORITE_LABELS[path];
@@ -52,7 +54,18 @@ export function getFavorites() {
     }
     const normalized = parsed
       .filter((f) => f && typeof f.path === 'string' && typeof f.label === 'string')
-      .map((f) => (FAVORITE_LABELS[f.path] ? { ...f, label: FAVORITE_LABELS[f.path] } : f));
+      .map((f) => {
+        const path = f.path === LEGACY_AGENT_IDENTITY_ACADEMY_PATH
+          ? AGENT_IDENTITY_ACADEMY_FAVORITE.path
+          : f.path;
+        return FAVORITE_LABELS[path] ? { ...f, path, label: FAVORITE_LABELS[path] } : { ...f, path };
+      })
+      .filter((favorite, index, favorites) =>
+        favorites.findIndex((candidate) => candidate.path === favorite.path) === index,
+      );
+    if (normalized.some((favorite, index) => favorite.path !== parsed[index]?.path)) {
+      saveFavorites(normalized);
+    }
     if (localStorage.getItem(AGENT_IDENTITY_ACADEMY_MIGRATION_KEY) === '1') {
       return normalized;
     }

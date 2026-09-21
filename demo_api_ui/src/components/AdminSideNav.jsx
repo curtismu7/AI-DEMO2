@@ -1207,9 +1207,8 @@ export default function AdminSideNav({
         },
         {
           label: "Agent Identity Academy",
-          path: "/academy-identity-preview.html",
+          path: "/academy/identity",
           icon: "ref",
-          reloadDocument: true,
           searchAlias: "Ping Academy agent identity OAuth AI A2A Personal Agent Digital Assistant Privilege MCP CIMD ID-JAG sales engineer",
         },
         {

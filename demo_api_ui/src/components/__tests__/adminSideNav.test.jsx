@@ -160,7 +160,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Learn & Architecture/ }));
     expect(screen.getByText("Agent Identity Academy").closest("a")).toHaveAttribute(
       "href",
-      "/academy-identity-preview.html",
+      "/academy/identity",
     );
   });
 
