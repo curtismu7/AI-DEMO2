@@ -362,6 +362,13 @@ export class OAuthRouter {
       );
 
       pingOneAccessToken = tokenResponse.data.access_token as string;
+      // OIDC identity claims belong to the ID token. PingOne access tokens may
+      // be opaque or use a different signing profile, so verifying the access
+      // token here can fail even though the authorization-code exchange worked.
+      // Keep the access token for downstream use, but verify the ID token when
+      // the openid scope caused PingOne to return one.
+      const identityToken = tokenResponse.data.id_token as string | undefined;
+      const tokenToVerify = identityToken || pingOneAccessToken;
       const jwks = await createJwksKeySet();
       if (!jwks) {
         throw new Error('PingOne JWKS not configured (PINGONE_JWKS_URI / PINGONE_ISSUER / PINGONE_BASE_URL)');
@@ -374,8 +381,8 @@ export class OAuthRouter {
       // options object across jose versions, so branch rather than pass it in.
       const expectedIssuer = process.env.PINGONE_ISSUER;
       const { payload } = expectedIssuer
-        ? await jwtVerify(pingOneAccessToken, jwks, { issuer: expectedIssuer })
-        : await jwtVerify(pingOneAccessToken, jwks);
+        ? await jwtVerify(tokenToVerify, jwks, { issuer: expectedIssuer })
+        : await jwtVerify(tokenToVerify, jwks);
       if (!payload.sub) {
         throw new Error('PingOne access token has no sub claim');
       }
