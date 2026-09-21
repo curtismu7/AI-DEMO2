@@ -138,8 +138,10 @@ does not cover the `*.mcpgw.` frontend hosts.
 1. PingOne Privilege console → **AI Security > Agentic Apps** → **Add Application**.
 2. Select the **MCP Server** tile → **Integrate**.
 3. Set:
-   - **MCP Server URL**: `http://mcp-server:8080/mcp` (internal service DNS — same
-     name in Compose and Kubernetes). This is the **backend**
+   - **MCP Server URL**: `http://mcp-server:8081/mcp` (internal service DNS — same
+     name in Compose and Kubernetes). This is the **backend**. The dedicated 8081
+     listener is plaintext for Privilege compatibility; gateway/PingGateway mTLS
+     remains on the MCP server's primary 8080 listener.
    - **Auth Mode**: Static Token, token empty — this is upstream auth to our MCP
      server, which runs `MCP_AUTH_DISABLED=true`
 4. In **Mesh Cluster**, select the gateway you registered in step 1.
