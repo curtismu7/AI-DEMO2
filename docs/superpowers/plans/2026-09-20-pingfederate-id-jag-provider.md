@@ -162,6 +162,10 @@
 - Modify: deployment secret/config templates only for non-secret variable names; never commit secret values.
 
 - [ ] Verify PF 13.1.3+ and backup/export the target non-production PF configuration.
+- [ ] If PF must run locally, obtain authorized access to the private/licensed PF container registry and accept the Ping Identity license terms.
+- [ ] Pin the approved PingFederate Docker image version and record its digest; do not use `latest`.
+- [ ] Add a local-only PF compose/service template with persistent configuration/license volumes and secrets supplied outside Git.
+- [ ] Pull the image and verify PF starts locally, exposes its admin/runtime endpoints, and retains configuration across restart.
 - [ ] Create the BFF OIDC client with Authorization Code, PKCE S256, refresh-token/offline access, required scopes, and exact local callback URI.
 - [ ] Create the refresh-token token processor and expose only the claims needed for ID-JAG creation.
 - [ ] Create the token-exchange processor policy with explicit client, audience, resource, and scope restrictions.
