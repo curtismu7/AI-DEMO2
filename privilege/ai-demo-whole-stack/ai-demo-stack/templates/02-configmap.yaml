@@ -136,7 +136,7 @@ data:
   LLAMACPP_MODEL: "phi-4-mini-instruct"
   # Code Explorer: always talk to llm-proxy (never a raw llama-tierN URL). The
   # agent probes GET /health and pins model= to a currently healthy tier name
-  # (prefers gpt-oss-20b, then groq-tool-use, then phi). CODEGRAPH_LLM_PROVIDER
+  # (prefers the Groq tool-use tier, then phi). CODEGRAPH_LLM_PROVIDER
   # may be "auto"/"llamacpp"/"anthropic"/"helix"/…. CODEGRAPH_AGENT_MODE=
   # auto|react|retrieve — auto uses ReAct only for native tool-calling providers
   # (Anthropic/Groq/Google); Helix/llama.cpp/LM Studio use retrieve-then-answer
@@ -144,7 +144,7 @@ data:
   CODEGRAPH_LLM_PROVIDER: "auto"
   CODEGRAPH_AGENT_MODE: "auto"
   CODEGRAPH_LLAMACPP_BASE_URL: "http://llm-proxy:8090"
-  CODEGRAPH_MODEL: "gpt-oss-20b"
+  CODEGRAPH_MODEL: "llama-3-groq-8b-tool-use"
   # Apple mlx-lm demo agent mode — host mlx_lm.server on :8098 (Mac/OrbStack only).
   # BFF + agent-service reach the Mac host via host.docker.internal. On remote
   # clusters this URL is unreachable; the MLX agent mode stays greyed out.
