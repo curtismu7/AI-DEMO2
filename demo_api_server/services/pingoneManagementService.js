@@ -415,11 +415,12 @@ class PingOneManagementService {
   /**
    * Create a user
    */
-  async createUser({ populationId, username, email, firstName, lastName, canAuthenticate = true }) {
+  async createUser({ populationId, username, email, firstName, lastName, mobilePhone, canAuthenticate = true }) {
     this.ensureInitialized();
     const payload = {
       population: { id: populationId }, username, email,
       ...(firstName ? { name: { given: firstName, family: lastName || '' } } : {}),
+      ...(mobilePhone ? { mobilePhone } : {}),
       account: { canAuthenticate },
     };
     try {
@@ -427,6 +428,20 @@ class PingOneManagementService {
       return { success: true, user: response.data, id: response.data.id };
     } catch (error) {
       return this.handleError(error, 'createUser');
+    }
+  }
+
+  async updateUserProfile(id, { firstName, lastName, mobilePhone } = {}) {
+    this.ensureInitialized();
+    const payload = {};
+    if (firstName || lastName) payload.name = { given: firstName || '', family: lastName || '' };
+    if (mobilePhone) payload.mobilePhone = mobilePhone;
+    if (!Object.keys(payload).length) return { success: true };
+    try {
+      await axios.patch(`${this.baseURL}/users/${encodeURIComponent(id)}`, payload, { headers: this.getHeaders() });
+      return { success: true };
+    } catch (error) {
+      return this.handleError(error, 'updateUserProfile');
     }
   }
 

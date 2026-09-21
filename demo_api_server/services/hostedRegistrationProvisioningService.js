@@ -29,6 +29,7 @@ function createHostedRegistrationProvisioningService({ management = null } = {})
         email: record.email,
         firstName: record.firstName,
         lastName: record.lastName,
+        mobilePhone: record.phone,
         canAuthenticate: false,
       });
       if (!created.success) throw Object.assign(new Error(created.error || 'PingOne user creation failed'), { code: 'pingone_provision_failed' });
@@ -54,10 +55,19 @@ function createHostedRegistrationProvisioningService({ management = null } = {})
         email: record.email,
         firstName: record.firstName,
         lastName: record.lastName,
+        mobilePhone: record.phone,
         canAuthenticate: false,
       });
       if (!created.success) throw Object.assign(new Error(created.error || 'PingOne user creation failed'), { code: 'pingone_provision_failed' });
       user = created.user;
+    }
+    if (service.updateUserProfile) {
+      const updated = await service.updateUserProfile(user.id, {
+        firstName: record.firstName,
+        lastName: record.lastName,
+        mobilePhone: record.phone,
+      });
+      if (!updated.success) throw Object.assign(new Error(updated.error || 'PingOne profile update failed'), { code: 'pingone_profile_failed' });
     }
     if (groupId) {
       const added = await service.addUserToGroup(user.id, groupId);

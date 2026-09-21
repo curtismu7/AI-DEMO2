@@ -21,11 +21,13 @@ router.post('/request', async (req, res) => {
       email: req.body?.email,
       firstName: req.body?.firstName,
       lastName: req.body?.lastName,
+      phone: req.body?.phone,
       requestedRole: req.body?.requestedRole,
     });
     return res.status(202).json(result);
   } catch (error) {
     if (error.message?.includes('pingidentity.com')) return publicError(res, 'pingidentity_email_required');
+    if (error.message?.includes('Cell phone')) return publicError(res, 'cell_phone_required');
     if (error.code === 'registration_email_unconfigured') return publicError(res, 'registration_email_unavailable', 503);
     return publicError(res, 'registration_unavailable', 503);
   }

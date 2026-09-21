@@ -15,6 +15,14 @@ function normalizeRegistrationEmail(value) {
   return email;
 }
 
+function normalizeRegistrationPhone(value) {
+  const phone = String(value || '').trim().replace(/[\s().-]/g, '');
+  if (!/^\+[1-9]\d{7,14}$/.test(phone)) {
+    throw new Error('Cell phone must be an E.164 number');
+  }
+  return phone;
+}
+
 function publicRecord(record) {
   if (!record) return null;
   const { otpExpiresAt, otpAttempts, statusTokenHash, pingOneMfaId, ...safe } = record;
@@ -49,6 +57,7 @@ function createHostedRegistrationService({
       email,
       firstName: String(input.firstName || '').trim().slice(0, 80),
       lastName: String(input.lastName || '').trim().slice(0, 80),
+      phone: normalizeRegistrationPhone(input.phone),
       requestedRole: String(input.requestedRole || 'user').trim().toLowerCase(),
       status: 'otp_pending',
       createdAt: now(),
@@ -139,5 +148,6 @@ module.exports = {
   OTP_RESEND_COOLDOWN_MS,
   MAX_OTP_ATTEMPTS,
   normalizeRegistrationEmail,
+  normalizeRegistrationPhone,
   createHostedRegistrationService,
 };

@@ -1,5 +1,5 @@
 // Mock the axios instance the service creates at module load.
-const mockAxios = { get: jest.fn(), post: jest.fn(), delete: jest.fn() };
+const mockAxios = { get: jest.fn(), post: jest.fn(), patch: jest.fn(), delete: jest.fn() };
 jest.mock('axios', () => ({ create: () => mockAxios }));
 
 const { managementService } = require('../services/pingoneManagementService');
@@ -54,6 +54,21 @@ describe('pingoneManagementService added methods', () => {
     expect(mockAxios.post).toHaveBeenCalledWith(
       `${base()}/users/u1/memberOfGroups`,
       { id: 'g1' },
+      { headers: managementService.getHeaders() },
+    );
+    expect(r).toEqual({ success: true });
+  });
+
+  it('updateUserProfile PATCHes PingOne name and mobile phone fields', async () => {
+    mockAxios.patch.mockResolvedValueOnce({ status: 204 });
+    const r = await managementService.updateUserProfile('u1', {
+      firstName: 'Alice',
+      lastName: 'Example',
+      mobilePhone: '+12145550123',
+    });
+    expect(mockAxios.patch).toHaveBeenCalledWith(
+      `${base()}/users/u1`,
+      { name: { given: 'Alice', family: 'Example' }, mobilePhone: '+12145550123' },
       { headers: managementService.getHeaders() },
     );
     expect(r).toEqual({ success: true });

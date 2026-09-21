@@ -7,15 +7,17 @@ test('approval creates a disabled PingOne user, assigns the group, then enables 
   const management = {
     getUser: async () => null,
     createUser: async (input) => { calls.push(['create', input]); return { success: true, user: { id: 'p1-user' } }; },
+    updateUserProfile: async (...args) => { calls.push(['profile', ...args]); return { success: true }; },
     addUserToGroup: async (...args) => { calls.push(['group', ...args]); return { success: true }; },
     setUserCanAuthenticate: async (...args) => { calls.push(['auth', ...args]); return { success: true }; },
   };
   const service = createHostedRegistrationProvisioningService({ management });
-  const result = await service.approve({ email: 'alice@pingidentity.com', firstName: 'Alice', lastName: 'Example' }, { groupId: 'group-1' });
+  const result = await service.approve({ email: 'alice@pingidentity.com', firstName: 'Alice', lastName: 'Example', phone: '+12145550123' }, { groupId: 'group-1' });
 
   expect(result).toEqual({ pingOneUserId: 'p1-user', groups: ['group-1'] });
   expect(calls).toEqual([
     ['create', expect.objectContaining({ email: 'alice@pingidentity.com', canAuthenticate: false })],
+    ['profile', 'p1-user', expect.objectContaining({ firstName: 'Alice', lastName: 'Example', mobilePhone: '+12145550123' })],
     ['group', 'p1-user', 'group-1'],
     ['auth', 'p1-user', true],
   ]);

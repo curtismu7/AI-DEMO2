@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Accept only exact normalized `pingidentity.com` email domains.
-- Never generate or store OTPs in the BFF; PingOne MFA owns the code and verification.
+- Never generate or store OTPs in the BFF; PingOne MFA owns the code and verification. Store and persist the applicant's E.164 cell number with first and last name, then write the profile to PingOne at approval.
 - Do not mutate the existing Demo User/Admin session or login flows.
 - Use the existing PingOne notification and management-service patterns.
 - Public hosted registration routes must remain exact and narrowly scoped.
