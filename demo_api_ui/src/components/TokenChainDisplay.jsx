@@ -21,6 +21,7 @@ import TokenCard from "./TokenCard";
 import TokenChainDemoTrackTab from "./TokenChainDemoTrackTab";
 import DraggableModal from "./DraggableModal";
 import JsonField from "./shared/JsonField";
+import FormJsonToggle from "./shared/FormJsonToggle";
 import { isEducationalPath } from "../utils/educationalPages";
 // A8 -- Ping product attribution
 import { PingProductChip, PingProductLegend } from './PingProductChip';
@@ -2180,17 +2181,29 @@ export function AamDecisionEduBox({ event }) {
         {event.request ? (
           <>
             <div className="tcd-edu-detail">Sideband request</div>
-            <pre className="tcd-edu-code">
-              <JsonHighlight value={event.request} />
-            </pre>
+            <FormJsonToggle
+              value={event.request}
+              ariaLabel="Sideband request view"
+              jsonView={(
+                <pre className="tcd-edu-code">
+                  <JsonHighlight value={event.request} />
+                </pre>
+              )}
+            />
           </>
         ) : null}
         {event.response ? (
           <>
             <div className="tcd-edu-detail">Sideband response</div>
-            <pre className="tcd-edu-code">
-              <JsonHighlight value={event.response} />
-            </pre>
+            <FormJsonToggle
+              value={event.response}
+              ariaLabel="Sideband response view"
+              jsonView={(
+                <pre className="tcd-edu-code">
+                  <JsonHighlight value={event.response} />
+                </pre>
+              )}
+            />
           </>
         ) : null}
         <p>
