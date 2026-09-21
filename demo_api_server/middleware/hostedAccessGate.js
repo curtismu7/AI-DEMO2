@@ -16,12 +16,24 @@ const EXACT_BYPASSES = new Set([
   'GET /api/healthz',
 ]);
 
+// These are the two pre-existing demo identities used to administer and
+// demonstrate the app. They still require their normal application login;
+// this only prevents the hosted front-door gate from locking them out while
+// the hosted registration flow is being tested.
+const BOOTSTRAP_APPLICATION_USERNAMES = new Set(['demouser', 'demoadmin']);
+
 function pathname(value) {
   return String(value || '').split('?')[0];
 }
 
 function isHostedAccessBypassPath(path, method) {
   return EXACT_BYPASSES.has(`${String(method || 'GET').toUpperCase()} ${pathname(path)}`);
+}
+
+function isBootstrapApplicationSession(session) {
+  const username = session?.user?.username;
+  return typeof username === 'string'
+    && BOOTSTRAP_APPLICATION_USERNAMES.has(username.trim().toLowerCase());
 }
 
 function sendAccessRestricted(res) {
@@ -38,7 +50,7 @@ function createHostedAccessGate({
 } = {}) {
   return function hostedAccessGate(req, res, next) {
     if (!policy.enabled || isHostedAccessBypassPath(req.originalUrl || req.url, req.method)) return next();
-    if (hasApproval(req.hostedSession, policy)) return next();
+    if (hasApproval(req.hostedSession, policy) || isBootstrapApplicationSession(req.session)) return next();
     return res.status(401).send({ error: 'hosted_access_required' });
   };
 }
@@ -49,7 +61,7 @@ function hostedAccessCheck({
 } = {}) {
   return function check(req, res) {
     res.set('Cache-Control', 'no-store');
-    if (!policy.enabled || hasApproval(req.hostedSession, policy)) return res.status(204).end();
+    if (!policy.enabled || hasApproval(req.hostedSession, policy) || isBootstrapApplicationSession(req.session)) return res.status(204).end();
     return res.status(401).end();
   };
 }
@@ -58,5 +70,6 @@ module.exports = {
   createHostedAccessGate,
   hostedAccessCheck,
   isHostedAccessBypassPath,
+  isBootstrapApplicationSession,
   sendAccessRestricted,
 };

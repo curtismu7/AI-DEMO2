@@ -4,6 +4,7 @@ const {
   isHostedAccessBypassPath,
   createHostedAccessGate,
   hostedAccessCheck,
+  isBootstrapApplicationSession,
   sendAccessRestricted,
 } = require('../../middleware/hostedAccessGate');
 
@@ -60,6 +61,23 @@ describe('hostedAccessGate', () => {
     expect(next).toHaveBeenCalledTimes(1);
   });
 
+  test.each(['demouser', 'demoadmin', 'DemoUser', 'DEMOADMIN'])('recognizes the protected demo bootstrap account %s', (username) => {
+    expect(isBootstrapApplicationSession({ user: { username } })).toBe(true);
+  });
+
+  test.each(['demo', 'demouser2', 'demoadmin@example.com', undefined])('does not recognize a different account %s', (username) => {
+    expect(isBootstrapApplicationSession({ user: { username } })).toBe(false);
+  });
+
+  test('permits an authenticated demouser without hosted approval', () => {
+    const next = jest.fn();
+    createHostedAccessGate({
+      policy: { enabled: true },
+      hasApproval: () => false,
+    })({ originalUrl: '/api/use-cases', method: 'GET', session: { user: { username: 'demouser' } }, hostedSession: {} }, response(), next);
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
   test('returns 401 for an anonymous direct BFF request', () => {
     const res = response();
     createHostedAccessGate({
@@ -84,6 +102,7 @@ describe('hostedAccessGate', () => {
     [{ enabled: false }, {}, 204],
     [{ enabled: true }, {}, 401],
     [{ enabled: true }, { user: { oauthId: 'sub-1' } }, 401],
+    [{ enabled: true }, { user: { username: 'demoadmin' } }, 204],
   ])('check returns expected status %#', (policy, session, status) => {
     const res = response();
     hostedAccessCheck({ policy, hasApproval: () => false })({ session, hostedSession: session }, res);
