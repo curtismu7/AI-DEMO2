@@ -250,6 +250,7 @@ export const NAV_STRUCTURE_CATALOG = [
       "AI Security Academy",
       "Academy Standalone Demos",
       "Learning Hub",
+      "SPIFFE → PingOne Bridge (TODO)",
       "Agentic Trust",
       "Agent Guardrails",
       "OWASP Agent Risks",

@@ -181,7 +181,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "telemetry", paths: ["/tracing", "/telemetry", "/transaction-trace", "/mcp-observability", "/check"] },
   { id: "agent-studio-preview", paths: ["/iga-for-ai", "/discovery-preview", "/privileges-gateway-preview", "/platform-gaps"] },
   { id: "ai-product-pages", paths: ["/ai-products"] },
-  { id: "learn-present", paths: ["/learning", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide"] },
+  { id: "learn-present", paths: ["/learning", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide", "/spiffe-pingone-bridge"] },
   { id: "tests", paths: ["/resource-server", "/resource-server-cc"] },
 ];
 
@@ -1120,6 +1120,7 @@ export default function AdminSideNav({
           searchAlias: "standalone demo launcher live cloud PingOne presenter",
         },
         { label: "Learning Hub", path: "/learning", icon: "doc" },
+        { label: "SPIFFE → PingOne Bridge (TODO)", path: "/spiffe-pingone-bridge", icon: "syn", badge: "TODO" },
         { label: "Agentic Trust", path: "/agentic-trust", icon: "shld" },
         { label: "Agent Guardrails", path: "/agent-guardrails", icon: "pol" },
         { label: "OWASP Agent Risks", path: "/owasp", icon: "sec" },

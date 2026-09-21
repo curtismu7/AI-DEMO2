@@ -16,6 +16,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const configStore = require('./configStore');
 const spiffeWorkloadClient = require('./spiffeWorkloadClient');
+const spiffePingoneBridge = require('./spiffePingoneBridge');
 
 const CLIENT_ASSERTION_TYPE =
   'urn:ietf:params:oauth:client-assertion-type:jwt-bearer';
@@ -47,12 +48,15 @@ function getExchangerKid() {
 
 /** Feature flag: private_key_jwt requested. */
 function isFlagOn() {
-  return configStore.getEffective('ff_token_auth_private_key_jwt') === 'true';
+  return configStore.getEffective('ff_token_auth_private_key_jwt') === 'true' || configStore.getEffective('ff_spiffe_pingone_bridge') === 'true';
 }
 
 /** True when the flag is on AND a private key is actually configured. */
 function isPrivateKeyJwtEnabled() {
   if (!isFlagOn()) return false;
+  if (configStore.getEffective('ff_spiffe_pingone_bridge') === 'true') {
+    return Boolean((configStore.getEffective('spiffe_bridge_private_key') || '').trim());
+  }
   if (getPrivateKeyPem()) return true;
   if (!_warnedNoKey) {
     _warnedNoKey = true;
@@ -78,6 +82,9 @@ function resolveAuthMethod(configuredMethod) {
  * Header: { alg: RS256, kid }.
  */
 function buildClientAssertion(clientId, audience) {
+  if (configStore.getEffective('ff_spiffe_pingone_bridge') === 'true') {
+    return spiffePingoneBridge.buildClientAssertion({ svid: spiffeWorkloadClient.getJwtSvid(), audience, expectedClientId: clientId }).assertion;
+  }
   const pem = getPrivateKeyPem();
   if (!pem) throw new Error('private_key_jwt: no private key configured');
   if (!audience) throw new Error('private_key_jwt: missing token endpoint (aud)');
