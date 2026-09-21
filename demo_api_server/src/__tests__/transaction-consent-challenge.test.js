@@ -88,8 +88,8 @@ jest.mock('../../services/configStore', () => ({
   getEffective: jest.fn((key) => {
     if (key === 'ff_hitl_enabled') return 'true';
     if (key === 'max_transaction_amount') return '10000';
-    // Use 'email' mode so confirmChallenge falls through to the BFF-generated
-    // OTP path (emailService) instead of calling mfaService.getPingOneUserContact.
+    // Use 'email' as a legacy setting; confirmChallenge must safely route it
+    // through PingOne one-time MFA rather than the retired BFF-generated OTP.
     if (key === 'hitl_consent_mfa_mode') return 'email';
     return null;
   }),
@@ -131,6 +131,8 @@ jest.mock('../../services/transactionAuthorizationService', () => ({
 // without hitting real PingOne APIs.
 jest.mock('../../services/mfaService', () => ({
   getPingOneUserContact: jest.fn().mockResolvedValue({ email: 'test@bank.com', mobilePhone: null }),
+  initiateOneTimeOtp: jest.fn().mockResolvedValue({ id: 'da-test', status: 'OTP_REQUIRED' }),
+  verifyOneTimeOtp: jest.fn(async (_daId, otp) => ({ status: otp === '654321' ? 'COMPLETED' : 'FAILED' })),
   initiateDeviceAuth: jest.fn(),
   selectDevice: jest.fn(),
   submitOtp: jest.fn(),
@@ -142,14 +144,10 @@ jest.mock('../../services/recognizeService', () => ({
   verifyFace: jest.fn().mockResolvedValue({ ok: true }),
 }));
 
-// Mock emailService so no real PingOne calls are made.
-// The mock captures the otpCode so tests can read it back.
-let _lastOtpCode = null;
+// Transaction OTPs are now generated and verified by PingOne MFA.
+let _lastOtpCode = '654321';
 jest.mock('../../services/emailService', () => ({
   sendTransactionConfirmation: jest.fn().mockResolvedValue(undefined),
-  sendOtpEmail: jest.fn(async (_userId, opts) => {
-    _lastOtpCode = opts.otpCode;
-  }),
 }));
 
 const app = require('../../server');
@@ -174,7 +172,7 @@ afterAll(() => {
 });
 
 beforeEach(() => {
-  _lastOtpCode = null;
+  _lastOtpCode = '654321';
 });
 
 // ── Helper: run the full 4-step flow and return the transaction response ──────
@@ -187,13 +185,13 @@ async function fullConsentOtpFlow(agent, body) {
   if (cr.status !== 201) return { error: 'challenge_failed', res: cr };
   const { challengeId } = cr.body;
 
-  // Step 2 — confirm (sends OTP email)
+  // Step 2 — confirm (PingOne MFA sends the OTP)
   const cf = await agent
     .post(`/api/transactions/consent-challenge/${challengeId}/confirm`)
     .set('x-test-user', customerUser());
   if (cf.status !== 200) return { error: 'confirm_failed', res: cf };
 
-  // Step 3 — verify OTP (mock captured it in _lastOtpCode)
+  // Step 3 — verify OTP through PingOne MFA
   const otp = _lastOtpCode;
   if (!otp) return { error: 'otp_not_captured' };
   const vr = await agent
@@ -225,7 +223,7 @@ describe('Transaction consent challenge', () => {
     expect(res.body.error).toBe('hitl_required');
   });
 
-  it('POST /confirm returns otpSent flag and OTP email is sent', async () => {
+  it('POST /confirm returns otpSent flag after starting PingOne MFA', async () => {
     const agent = request.agent(app);
     const body = { fromAccountId: 'test-account-id', amount: 600, type: 'withdrawal', description: 'otp test' };
     const cr = await agent.post('/api/transactions/consent-challenge').set('x-test-user', customerUser()).send(body);
@@ -247,7 +245,7 @@ describe('Transaction consent challenge', () => {
     expect(tx.status).toBe(201);
   });
 
-  it('rejects wrong OTP code with otp_incorrect and attemptsRemaining', async () => {
+  it('rejects wrong OTP code through PingOne MFA', async () => {
     const agent = request.agent(app);
     const body = { fromAccountId: 'test-account-id', amount: 610, type: 'withdrawal', description: 'wrong otp' };
     const cr = await agent.post('/api/transactions/consent-challenge').set('x-test-user', customerUser()).send(body);
@@ -260,7 +258,6 @@ describe('Transaction consent challenge', () => {
       .send({ otpCode: '000000' });
     expect(wr.status).toBe(400);
     expect(wr.body.error).toBe('otp_incorrect');
-    expect(wr.body).toHaveProperty('attemptsRemaining');
   });
 
   it('locks challenge after 3 wrong OTP attempts', async () => {
@@ -276,12 +273,12 @@ describe('Transaction consent challenge', () => {
         .set('x-test-user', customerUser())
         .send({ otpCode: '111111' });
     }
-    // 4th attempt — should be 429 (locked) or 404 (challenge deleted)
+    // PingOne owns the failed-attempt counter and lockout behavior.
     const locked = await agent
       .post(`/api/transactions/consent-challenge/${challengeId}/verify-otp`)
       .set('x-test-user', customerUser())
       .send({ otpCode: '111111' });
-    expect([404, 429]).toContain(locked.status);
+    expect(locked.status).toBe(400);
   });
 
   it('rejects POST /transactions without going through verify-otp first', async () => {

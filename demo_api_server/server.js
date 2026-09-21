@@ -57,6 +57,7 @@ const {
 } = require('./services/bffSessionGating');
 const { stampUseCaseId, stampVertical } = require('./services/useCaseTagging');
 const { deriveUseCaseId, resolveChipUseCaseId } = require('./config/useCases');
+const { MemoryStore: HostedMemoryStore, createHostedSessionMiddleware, deriveHostedSessionSecret } = require('./middleware/hostedSession');
 
 const express = require('express');
 const cors = require('cors');
@@ -523,6 +524,18 @@ const sessionMiddleware = session({
 });
 app.use(sessionMiddleware);
 
+// The hosted admission session is deliberately separate from connect.sid. It
+// contains only the front-door approval and never the Demo User/Admin identity
+// or browser tokens. A custom store adapter is used instead of a second
+// express-session middleware because both response hooks would otherwise race
+// over req.session.
+app.use(createHostedSessionMiddleware({
+    store: sessionStore || new HostedMemoryStore(),
+    secret: process.env.HOSTED_ACCESS_SESSION_SECRET
+        || deriveHostedSessionSecret(process.env.SESSION_SECRET),
+    production: isProduction,
+}));
+
 // Session secret rotation detector: persist a hash of the current SESSION_SECRET
 // into configStore on first boot; on subsequent boots, compare and warn if changed.
 // A changed SESSION_SECRET invalidates all existing sessions silently — users get
@@ -666,7 +679,9 @@ app.use(restoreSessionFromCookie);
 // ClusterIP; all other API paths are independently protected here so a future
 // ingress or port-forward cannot bypass the Ping-domain decision.
 app.use('/api/auth/hosted-access', require('./routes/hostedAccess'));
+app.use('/api/auth/hosted-registration', require('./routes/hostedRegistration'));
 app.use('/api', require('./middleware/hostedAccessGate').createHostedAccessGate());
+app.use('/api/admin/hosted-registrations', authenticateToken, requireAdmin, require('./routes/hostedRegistrationAdmin'));
 
 // RFC 6749 §6 — silently refresh near-expired end-user access tokens on
 // authenticated API routes so UIs never serve stale tokens to downstream services.
