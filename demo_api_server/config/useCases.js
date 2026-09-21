@@ -545,7 +545,7 @@ const RAW_USE_CASES = [
     id: 'UC20',
     useCaseId: 'audit-trail',
     track: 'foundations',
-    title: 'Audit trail / traceability',
+    title: 'Agent observability and traceability',
     buyerStory: "Every agent action must be attributable end-to-end — who the agent was, who it acted for, and what it did.",
     pingOneSolution: 'Every token event and activity log is stamped with useCaseId and the act chain; both evidence panels reconstruct the full trace.',
     trigger: { type: 'chip', text: 'show my balance' },

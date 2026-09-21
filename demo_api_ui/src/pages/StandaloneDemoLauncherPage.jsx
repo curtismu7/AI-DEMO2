@@ -177,8 +177,8 @@ export const SCENARIOS = Object.freeze([
       "Bounded session-status evidence; orchestration steps remain in the linked DaVinci demo.",
   },
   {
-    id: "audit-evidence",
-    title: "Audit evidence",
+    id: "observability",
+    title: "Observability",
     lessonId: "evidence-timeline",
     evidenceAction: "audit-evidence",
     durationMinutes: 4,

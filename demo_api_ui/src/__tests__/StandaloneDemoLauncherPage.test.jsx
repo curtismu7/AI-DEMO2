@@ -70,7 +70,7 @@ const SCENARIO_TITLES = [
   "Prompt-injection defense",
   "Privilege MCP",
   "DaVinci orchestration",
-  "Audit evidence",
+  "Observability",
 ];
 
 function renderLauncher(props = {}) {
@@ -148,7 +148,7 @@ describe("StandaloneDemoLauncherPage", () => {
       ["mcp-discovery", "mcp-discovery"],
       ["privilege-mcp", "privilege-status"],
       ["davinci-orchestration", "davinci-session-status"],
-      ["audit-evidence", "audit-evidence"],
+      ["observability", "audit-evidence"],
     ]);
     expect(
       mapped.every((scenario) =>
