@@ -13,6 +13,7 @@ describe("NAV_ITEM_CATALOG", () => {
   it("includes core top-level sections", () => {
     expect(NAV_ITEM_CATALOG).toContain("Dashboard");
     expect(NAV_ITEM_CATALOG).toContain("Authorize");
-    expect(NAV_ITEM_CATALOG).toContain("Learn & Present");
+    expect(NAV_ITEM_CATALOG).toContain("Architecture & Learning");
+    expect(NAV_ITEM_CATALOG).toContain("AI Experiences");
   });
 });

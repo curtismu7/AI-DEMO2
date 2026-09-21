@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
@@ -54,12 +54,19 @@ function renderAt(path) {
   );
 }
 
-describe("AdminSideNav Telemetry group", () => {
-  it("lists Transaction Trace beside Tracing and Health Check", async () => {
+describe("AdminSideNav Observability group", () => {
+  it("lists Transaction Trace beside Tracing", async () => {
     renderAt("/transaction-trace");
     expect(await screen.findByText("Transaction Trace")).toBeInTheDocument();
     expect(screen.getByText("Tracing")).toBeInTheDocument();
-    expect(screen.getByText("Health Check")).toBeInTheDocument();
+  });
+
+  it("lists Health Check in Utilities", async () => {
+    renderAt("/check");
+    fireEvent.change(screen.getByRole("textbox", { name: "Search navigation" }), {
+      target: { value: "Health Check" },
+    });
+    expect(await screen.findByText("Health Check")).toBeInTheDocument();
   });
 
   it("links Transaction Trace to /transaction-trace, not /transactions", async () => {

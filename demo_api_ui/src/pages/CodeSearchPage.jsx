@@ -12,6 +12,29 @@ import './CodeSearchPage.css';
 /** Spinner hold key — the zip upload runs alongside CodebaseUploader's folder index. */
 const SPINNER_KEY = 'codebase-zip-upload';
 
+const PROTECTED_RAG_STEPS = [
+  {
+    title: 'Request',
+    detail: 'A user or agent asks a question against an indexed document set.',
+    tone: 'request',
+  },
+  {
+    title: 'Authorize retrieval',
+    detail: 'AI Gateway inspects the request, delegated identity, and code:search scope.',
+    tone: 'gateway',
+  },
+  {
+    title: 'Policy decision',
+    detail: 'PingOne Authorize permits retrieval only when the subject, agent, and resource policy align.',
+    tone: 'policy',
+  },
+  {
+    title: 'Grounded answer',
+    detail: 'The search boundary returns approved sources and a grounded answer with citations.',
+    tone: 'answer',
+  },
+];
+
 // Read the persisted codebase list once, synchronously, so the very first
 // render already has it. A load-on-mount useEffect instead starts from [] and,
 // under React StrictMode's double-effect invoke, the persist effect below fires
@@ -286,6 +309,31 @@ export function CodeSearchPage() {
           <span>code:search</span>
           <span>Policy decision</span>
           <span>Grounded source</span>
+        </div>
+      </section>
+      <section className="protected-rag-flow" aria-labelledby="protected-rag-flow-title">
+        <div className="protected-rag-flow-heading">
+          <div>
+            <span className="protected-rag-eyebrow">Authorization path</span>
+            <h2 id="protected-rag-flow-title">Protected RAG retrieval authorization flow</h2>
+          </div>
+          <p>Retrieval is a governed action, not a shortcut around the gateway.</p>
+        </div>
+        <div className="protected-rag-flow-track" aria-label="Protected RAG authorization flow">
+          {PROTECTED_RAG_STEPS.map((step, index) => (
+            <div className="protected-rag-flow-item" key={step.title}>
+              <article className={`protected-rag-flow-card protected-rag-flow-card--${step.tone}`}>
+                <span className="protected-rag-flow-number">0{index + 1}</span>
+                <h3>{step.title}</h3>
+                <p>{step.detail}</p>
+              </article>
+              {index < PROTECTED_RAG_STEPS.length - 1 ? <span className="protected-rag-flow-arrow" aria-hidden="true">→</span> : null}
+            </div>
+          ))}
+        </div>
+        <div className="protected-rag-denied" role="note">
+          <strong>Retrieval denied</strong>
+          <span>Stop before the document boundary, return the policy reason or step-up challenge, and do not generate an answer from unauthorized sources.</span>
         </div>
       </section>
       <div className="search-container" style={{ '--cs-left-w': `${leftPanelWidth}px` }}>

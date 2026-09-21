@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PingOne platform navigation — mock</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17263a;
+      --muted: #61728a;
+      --line: #d7e0ea;
+      --ground: #f5f8fb;
+      --panel: #ffffff;
+      --nav: #102238;
+      --nav-2: #172f4a;
+      --blue: #4e8fc7;
+      --blue-soft: #e5f1fb;
+      --gold: #c99635;
+      --gold-soft: #fff5df;
+      --green: #2f8c70;
+      --green-soft: #e5f5ef;
+      --shadow: 0 18px 45px rgba(17, 39, 64, .11);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: var(--ground); }
+    button { font: inherit; }
+    button:focus-visible, a:focus-visible { outline: 3px solid #91c8f0; outline-offset: 3px; }
+    .shell { min-height: 100vh; display: grid; grid-template-columns: 286px minmax(0, 1fr); }
+    .sidebar { color: #dbe8f5; background: var(--nav); padding: 24px 16px; }
+    .brand { display: flex; align-items: center; gap: 10px; margin: 0 10px 28px; color: #fff; font-weight: 800; letter-spacing: -.03em; }
+    .brand-mark { display: grid; place-items: center; width: 30px; height: 30px; color: #102238; background: #a7d2f2; border-radius: 8px; font-size: 12px; font-weight: 900; }
+    .brand small { display: block; margin-top: 2px; color: #9bb4cc; font-size: 10px; font-weight: 600; letter-spacing: .02em; }
+    .nav-label { margin: 20px 10px 7px; color: #8da8c1; font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    .nav-group { margin: 0 0 5px; border: 1px solid transparent; border-radius: 9px; overflow: hidden; }
+    .nav-group.open { border-color: #294765; background: rgba(23, 47, 74, .65); }
+    .nav-group-toggle, .nav-link { width: 100%; display: flex; align-items: center; gap: 10px; border: 0; color: #dbe8f5; background: transparent; text-align: left; cursor: pointer; }
+    .nav-group-toggle { justify-content: space-between; padding: 10px 11px; font-size: 13px; font-weight: 750; }
+    .nav-group-toggle:hover, .nav-link:hover { background: #1d3b5c; }
+    .nav-group-toggle .left { display: flex; align-items: center; gap: 10px; }
+    .chevron { color: #8eacc7; font-size: 12px; transition: transform .16s ease; }
+    .open .chevron { transform: rotate(90deg); }
+    .nav-icon { display: inline-grid; place-items: center; width: 22px; height: 22px; border: 1px solid #547897; border-radius: 6px; color: #a9d4f5; font-size: 10px; font-weight: 900; }
+    .nav-children { display: none; padding: 1px 7px 8px 42px; }
+    .open .nav-children { display: block; }
+    .nav-link { padding: 7px 8px; border-radius: 6px; color: #b8ccdf; font-size: 12px; }
+    .nav-link.active { color: #fff; background: #2b5a82; }
+    .nav-link .dot { width: 5px; height: 5px; border-radius: 50%; background: #7198b7; }
+    .nav-link.active .dot { background: #b7ddfa; }
+    .sidebar-note { margin: 28px 10px 0; padding-top: 15px; border-top: 1px solid #29435f; color: #8fa9c2; font-size: 11px; line-height: 1.5; }
+    main { max-width: 1480px; width: 100%; margin: auto; padding: 42px clamp(22px, 5vw, 76px) 70px; }
+    .eyebrow { color: var(--blue); font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { max-width: 700px; margin: 13px 0 10px; font-size: clamp(32px, 4vw, 58px); line-height: .98; letter-spacing: -.055em; }
+    .lede { max-width: 700px; margin: 0; color: var(--muted); font-size: 16px; line-height: 1.55; }
+    .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 30px 0 22px; }
+    .toolbar p { margin: 0; color: var(--muted); font-size: 13px; }
+    .view-pill { display: flex; gap: 3px; padding: 3px; border: 1px solid var(--line); border-radius: 8px; background: #edf2f7; }
+    .view-pill button { border: 0; border-radius: 6px; padding: 7px 10px; color: var(--muted); background: transparent; cursor: pointer; font-size: 12px; font-weight: 700; }
+    .view-pill button.active { color: var(--ink); background: #fff; box-shadow: 0 2px 8px rgba(22, 45, 70, .09); }
+    .content { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr); gap: 18px; align-items: start; }
+    .panel { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); box-shadow: var(--shadow); }
+    .panel-head { display: flex; justify-content: space-between; align-items: start; gap: 12px; padding: 21px 23px 17px; border-bottom: 1px solid var(--line); }
+    .panel-head h2 { margin: 0; font-size: 18px; letter-spacing: -.025em; }
+    .panel-head p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+    .status { padding: 6px 9px; border: 1px solid #b7dccf; border-radius: 99px; color: var(--green); background: var(--green-soft); font-size: 10px; font-weight: 800; white-space: nowrap; }
+    .map { padding: 18px; }
+    .nav-card { margin-bottom: 11px; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    .nav-card:last-child { margin-bottom: 0; }
+    .nav-card-head { display: flex; align-items: center; gap: 12px; padding: 14px 15px; }
+    .nav-card-head .nav-icon { width: 28px; height: 28px; color: #3e79aa; border-color: #a9cce7; background: var(--blue-soft); }
+    .nav-card-head h3 { margin: 0; font-size: 14px; }
+    .nav-card-head p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .nav-card-head button { margin-left: auto; border: 0; color: var(--blue); background: transparent; cursor: pointer; font-size: 11px; font-weight: 750; }
+    .nav-items { display: flex; flex-wrap: wrap; gap: 7px; padding: 0 15px 15px 55px; }
+    .nav-item { padding: 7px 9px; border: 1px solid #d7e5f0; border-radius: 6px; color: #315d80; background: #f5faff; font-size: 11px; }
+    .nav-item.featured { border-color: #dfc58c; color: #7d5a16; background: var(--gold-soft); }
+    .nav-card.davinci { border-color: #ddc487; }
+    .nav-card.davinci .nav-card-head .nav-icon { border-color: #e0c77e; color: #8c6518; background: var(--gold-soft); }
+    .nav-card.ai { border-color: #b9d8e9; }
+    .nav-card.utility .nav-card-head .nav-icon { border-color: #b9d8e9; color: #477a98; background: #edf7fb; }
+    .decision { padding: 21px; }
+    .decision h2 { margin: 0 0 7px; font-size: 16px; }
+    .decision > p { margin: 0 0 18px; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .rule { display: grid; grid-template-columns: 28px 1fr; gap: 11px; padding: 13px 0; border-top: 1px solid var(--line); }
+    .rule-mark { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 7px; color: #3d719b; background: var(--blue-soft); font-size: 11px; font-weight: 900; }
+    .rule strong { display: block; font-size: 12px; }
+    .rule span { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+    .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+    .legend span { padding: 6px 8px; border-radius: 6px; color: var(--muted); background: #f0f4f8; font-size: 10px; }
+    .legend .gold { color: #7d5a16; background: var(--gold-soft); }
+    .legend .green { color: #27755d; background: var(--green-soft); }
+    .mobile-menu { display: none; }
+    @media (max-width: 960px) { .shell { grid-template-columns: 1fr; } .sidebar { display: none; } .mobile-menu { display: block; margin-bottom: 23px; } .mobile-menu summary { cursor: pointer; color: var(--blue); font-size: 13px; font-weight: 800; } .mobile-menu .nav-group { margin-top: 12px; background: var(--nav); } .content { grid-template-columns: 1fr; } }
+    @media (max-width: 580px) { main { padding: 26px 15px 40px; } .toolbar { display: block; } .view-pill { margin-top: 12px; width: fit-content; } .nav-items { padding-left: 15px; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar" aria-label="Proposed side navigation">
+      <div class="brand"><span class="brand-mark">P1</span><span>Super Banking<small>PingOne platform demo</small></span></div>
+      <div class="nav-label">Core</div>
+      <button class="nav-link" type="button"><span class="dot"></span>Dashboard</button>
+      <div class="nav-label">PingOne platform</div>
+      <div class="nav-group open">
+        <button class="nav-group-toggle" type="button"><span class="left"><span class="nav-icon">P1</span>PingOne Products</span><span class="chevron">›</span></button>
+        <div class="nav-children">
+          <button class="nav-link active" type="button"><span class="dot"></span>AI Gateway</button>
+          <button class="nav-link" type="button"><span class="dot"></span>DaVinci</button>
+          <button class="nav-link" type="button"><span class="dot"></span>Headless Identity</button>
+          <button class="nav-link" type="button"><span class="dot"></span>SDK Login</button>
+        </div>
+      </div>
+      <div class="nav-group open">
+        <button class="nav-group-toggle" type="button"><span class="left"><span class="nav-icon">DV</span>DaVinci</span><span class="chevron">›</span></button>
+        <div class="nav-children">
+          <button class="nav-link active" type="button"><span class="dot"></span>DaVinci Widget</button>
+          <button class="nav-link" type="button"><span class="dot"></span>DaVinci Login</button>
+          <button class="nav-link" type="button"><span class="dot"></span>Orchestration SDK</button>
+          <button class="nav-link" type="button"><span class="dot"></span>SDK Guide</button>
+          <button class="nav-link" type="button"><span class="dot"></span>Orchestration Overview</button>
+        </div>
+      </div>
+      <div class="nav-group">
+        <button class="nav-group-toggle" type="button"><span class="left"><span class="nav-icon">UT</span>Utilities</span><span class="chevron">›</span></button>
+        <div class="nav-children"><button class="nav-link" type="button"><span class="dot"></span>PingOne Test</button><button class="nav-link" type="button"><span class="dot"></span>OAuth Debug</button><button class="nav-link" type="button"><span class="dot"></span>Token Exchange Tester</button></div>
+      </div>
+      <div class="nav-label">Separate areas</div>
+      <button class="nav-link" type="button"><span class="dot"></span>Identity Journeys</button>
+      <button class="nav-link" type="button"><span class="dot"></span>Authorize</button>
+      <button class="nav-link" type="button"><span class="dot"></span>Delegation &amp; Consent</button>
+      <button class="nav-link" type="button"><span class="dot"></span>Observability</button>
+      <p class="sidebar-note">Mock only. Labels and hierarchy are proposed for discussion; links are not connected.</p>
+    </aside>
+
+    <main>
+      <details class="mobile-menu"><summary>Show proposed navigation</summary><div class="nav-group open"><button class="nav-group-toggle" type="button"><span class="left"><span class="nav-icon">P1</span>PingOne Products</span><span class="chevron">›</span></button><div class="nav-children"><button class="nav-link active" type="button"><span class="dot"></span>AI Gateway</button><button class="nav-link" type="button"><span class="dot"></span>DaVinci</button><button class="nav-link" type="button"><span class="dot"></span>Headless Identity</button></div></div></details>
+      <div class="eyebrow">Navigation proposal</div>
+      <h1>PingOne capabilities, with a clear home.</h1>
+      <p class="lede">AI Gateway and DaVinci are presented as PingOne products. DaVinci keeps one dedicated submenu for every related experience, while utilities and customer journeys stay distinct.</p>
+      <div class="toolbar"><p>Click any group in the sidebar to preview its collapsed and expanded states.</p><div class="view-pill" role="group" aria-label="Preview focus"><button class="active" type="button" data-focus="all">All groups</button><button type="button" data-focus="products">Products</button><button type="button" data-focus="utilities">Utilities</button></div></div>
+      <div class="content">
+        <section class="panel" aria-labelledby="map-title">
+          <header class="panel-head"><div><h2 id="map-title">Proposed information architecture</h2><p>The left rail is the actual review target.</p></div><span class="status">Discussion mock</span></header>
+          <div class="map">
+            <article class="nav-card ai" data-card="products"><div class="nav-card-head"><span class="nav-icon">P1</span><div><h3>PingOne Products</h3><p>Product capabilities, not generic demos</p></div><button type="button" data-toggle-card="products">Collapse</button></div><div class="nav-items"><span class="nav-item">AI Gateway</span><span class="nav-item">AI Guard</span><span class="nav-item">AI Gateway Authorization</span><span class="nav-item">AI Gateway Inspector</span><span class="nav-item">AI Gateway Guide</span><span class="nav-item">Headless Identity / PingCLI</span><span class="nav-item">SDK Login</span></div></article>
+            <article class="nav-card davinci" data-card="davinci"><div class="nav-card-head"><span class="nav-icon">DV</span><div><h3>DaVinci</h3><p>One PingOne product group for the complete DaVinci story</p></div><button type="button" data-toggle-card="davinci">Collapse</button></div><div class="nav-items"><span class="nav-item featured">DaVinci Widget</span><span class="nav-item featured">DaVinci Login</span><span class="nav-item featured">DaVinci SDK Login</span><span class="nav-item featured">DaVinci Orchestration</span><span class="nav-item featured">DaVinci Orchestration SDK</span><span class="nav-item featured">Orchestration SDK Guide</span><span class="nav-item featured">DaVinci Orchestration Overview</span></div></article>
+            <article class="nav-card utility" data-card="utilities"><div class="nav-card-head"><span class="nav-icon">UT</span><div><h3>Utilities</h3><p>Testing, inspection, setup, and troubleshooting</p></div><button type="button" data-toggle-card="utilities">Collapse</button></div><div class="nav-items"><span class="nav-item">PingOne Test</span><span class="nav-item">MFA Test</span><span class="nav-item">OAuth Debug</span><span class="nav-item">Token Exchange Tester</span><span class="nav-item">OAS Demo</span><span class="nav-item">Management API Runner</span><span class="nav-item">Resource Server Checkpoint</span><span class="nav-item">Scope Reference</span><span class="nav-item">Snapshot Import</span><span class="nav-item">PingOne MCP Setup</span></div></article>
+            <article class="nav-card" data-card="separate"><div class="nav-card-head"><span class="nav-icon">ID</span><div><h3>Separate areas</h3><p>Kept outside the product grouping by intent</p></div><button type="button" data-toggle-card="separate">Collapse</button></div><div class="nav-items"><span class="nav-item">Identity Journeys</span><span class="nav-item">Authorize</span><span class="nav-item">Delegation &amp; Consent</span><span class="nav-item">Observability</span><span class="nav-item">AI education and attack demos</span></div></article>
+          </div>
+        </section>
+        <aside class="panel decision" aria-labelledby="decision-title">
+          <h2 id="decision-title">Naming decisions reflected here</h2>
+          <p>This mock intentionally makes the product boundary visible in the first screen.</p>
+          <div class="rule"><span class="rule-mark">01</span><div><strong>AI Gateway replaces Privilege</strong><span>“Privilege” is removed from the user-facing navigation. AI Guard is shown as a capability inside AI Gateway.</span></div></div>
+          <div class="rule"><span class="rule-mark">02</span><div><strong>DaVinci is a PingOne product</strong><span>It has its own top-level group so the SDK, widget, login, orchestration, and guides stay together.</span></div></div>
+          <div class="rule"><span class="rule-mark">03</span><div><strong>Headless Identity belongs with PingOne</strong><span>PingCLI and headless identity are product capabilities, not general-purpose utilities.</span></div></div>
+          <div class="rule"><span class="rule-mark">04</span><div><strong>Utilities are operational</strong><span>Testers, debuggers, setup pages, and reference tools are grouped by how they are used.</span></div></div>
+          <div class="legend"><span class="gold">DaVinci family</span><span class="green">Proposed boundary</span><span>Separate by intent</span></div>
+        </aside>
+      </div>
+    </main>
+  </div>
+  <script>
+    const cards = [...document.querySelectorAll('[data-card]')];
+    document.querySelectorAll('[data-toggle-card]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const card = button.closest('[data-card]');
+        const items = card.querySelector('.nav-items');
+        const hidden = items.hidden;
+        items.hidden = !hidden;
+        button.textContent = hidden ? 'Collapse' : 'Expand';
+      });
+    });
+    document.querySelectorAll('[data-focus]').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('[data-focus]').forEach((item) => item.classList.toggle('active', item === button));
+        const focus = button.dataset.focus;
+        cards.forEach((card) => { card.style.display = focus === 'all' || card.dataset.card === focus || (focus === 'products' && card.dataset.card === 'davinci') ? '' : 'none'; });
+      });
+    });
+    document.querySelectorAll('.nav-group-toggle').forEach((button) => {
+      button.addEventListener('click', () => button.closest('.nav-group').classList.toggle('open'));
+    });
+  </script>
+</body>
+</html>

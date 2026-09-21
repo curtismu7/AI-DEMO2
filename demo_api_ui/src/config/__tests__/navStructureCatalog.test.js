@@ -1,5 +1,5 @@
 // demo_api_ui/src/config/__tests__/navStructureCatalog.test.js
-import { applyChildOrder } from "../navStructureCatalog";
+import { applyChildOrder, NAV_STRUCTURE_CATALOG } from "../navStructureCatalog";
 
 const GROUPS = [
   { label: "Demos", children: ["Use Cases", "Demo Script"] },
@@ -52,5 +52,66 @@ describe("applyChildOrder", () => {
     expect(out[1].children.map((c) => c.label)).toEqual(["Use Cases", "MCP Inspector"]);
     expect(out[1].children[0].path).toBe("/use-cases");
     expect(out[2]).toBe(items[2]);
+  });
+});
+
+describe("PingOne platform navigation", () => {
+  const group = (label) => NAV_STRUCTURE_CATALOG.find((item) => item.label === label);
+
+  it("keeps DaVinci together as its own product group", () => {
+    expect(group("DaVinci").children).toEqual([
+      "DaVinci Widget",
+      "DaVinci Login",
+      "DaVinci SDK Login",
+      "DaVinci Orchestration",
+      "DaVinci Orchestration SDK",
+      "Orchestration SDK Guide",
+      "DaVinci Orchestration Overview",
+    ]);
+  });
+
+  it("places RAG inside AI Gateway and treats Headless Identity as a product", () => {
+    expect(group("AI Gateway").children).toContain("AI Guard");
+    expect(group("AI Gateway").children).toContain("Protected RAG");
+    expect(group("PingOne Products").children).toContain("Headless Identity / PingCLI");
+  });
+
+  it("provides a utility group for test, debug, and setup tools", () => {
+    expect(group("Utilities").children).toEqual([
+      "PingOne Test",
+      "MFA Test",
+      "OAuth Debug",
+      "Token Exchange Tester",
+      "Management API Runner",
+      "OAS Demo",
+      "PingOne MCP Setup",
+      "MCP Discovery",
+      "Resource Server Checkpoint",
+      "Scope Reference",
+      "Snapshot Import",
+      "Health Check",
+    ]);
+  });
+
+  it("keeps reports, logs, traces, and service-flow diagrams under Observability", () => {
+    expect(group("Observability").children).toEqual(expect.arrayContaining([
+      "Run Reports",
+      "Audit Trail",
+      "Tracing",
+      "System Flow",
+      "Service Graph",
+      "MCP Observability",
+    ]));
+  });
+
+  it("places use-case diagrams with the groups they explain", () => {
+    expect(group("Identity Journeys").children).toContain("Identity Journey Map");
+    expect(group("AI Experiences").children).toEqual(expect.arrayContaining([
+      "Agent Onboarding Flow (Node)",
+      "Agent Onboarding Flow Subway (Node)",
+    ]));
+    expect(group("Observability").children).toContain("System Flow");
+    expect(group("Architecture & Learning").children).not.toContain("System Flow (Live)");
+    expect(group("Architecture & Learning").children).not.toContain("Agent Onboarding Flow (Node)");
   });
 });
