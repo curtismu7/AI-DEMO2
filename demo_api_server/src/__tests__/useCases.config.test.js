@@ -98,6 +98,22 @@ describe('useCases catalog SoT', () => {
     expect(getUseCase('NOPE')).toBeUndefined();
   });
 
+  test('uses the approved consent and MFA terminology for UC1, UC7, and UC8', () => {
+    expect(getUseCase('UC1')).toMatchObject({
+      title: 'Delegated access (consent only)',
+      buyerStory: expect.stringMatching(/consent/i),
+      whatLong: expect.stringMatching(/consent[- ]only/i),
+    });
+    expect(getUseCase('UC7')).toMatchObject({
+      title: 'MFA step-up (HITL)',
+      pingOneSolution: expect.stringMatching(/MFA.*(?:HITL|human-in-the-loop)|(?:HITL|human-in-the-loop).*MFA/i),
+    });
+    expect(getUseCase('UC8')).toMatchObject({
+      title: 'MFA + HITL consent',
+      pingOneSolution: expect.stringMatching(/MFA.*(?:HITL|human-in-the-loop)|(?:HITL|human-in-the-loop).*MFA/i),
+    });
+  });
+
   test('resolveUseCase merges perVertical overrides over the base', () => {
     // UC7 carries a healthcare override for its trigger text + whatToSay.
     const base = getUseCase('UC7');

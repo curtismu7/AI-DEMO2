@@ -94,7 +94,7 @@ spec:
         # registration endpoint faces the internet, so a caller that walked in
         # off it does not get write.
         - name: DCR_OPEN_REGISTRATION_SCOPE
-          value: "mcp:invoke read"
+          value: "mcp:invoke read openid"
         # Only these domains may serve a Client ID Metadata Document. The code
         # already refuses non-https, loopback and private-network literals, and
         # requires the document to claim the URL it was served from; this narrows

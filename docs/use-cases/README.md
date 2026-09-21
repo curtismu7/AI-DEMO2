@@ -9,7 +9,7 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 
 ## Foundations
 
-- [**UC1** — Delegated access with proof](./delegated-access-with-proof.md) ✅ 🛡️
+- [**UC1** — Delegated access (consent only)](./delegated-access-with-proof.md) ✅ 🛡️
 - [**UC2** — A2A delegation](./a2a-delegation.md) ✅ 🛡️
 - [**UC2.5** — A2A Orchestrator — Interactive Learning](./a2a-orchestrator-learning.md) ✅ 🛡️
 - [**UC2.6** — A2A generalist mismatch](./a2a-generalist-mismatch.md) ✅ 🛡️
@@ -60,8 +60,8 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 
 ## Hitl
 
-- [**UC7** — Step-up required](./step-up-required.md) ✅ 🛡️
-- [**UC8** — HITL consent](./hitl-consent.md) ✅ 🛡️
+- [**UC7** — MFA step-up (HITL)](./step-up-required.md) ✅ 🛡️
+- [**UC8** — MFA + HITL consent](./hitl-consent.md) ✅ 🛡️
 - [**UC22** — CIBA out-of-band approval](./ciba-out-of-band-approval.md) 🚩 🛡️
 - [**UC27** — HITL consent bypass attempt](./hitl-consent-bypass-attempt.md) ✅ 🛡️
 

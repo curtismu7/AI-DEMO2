@@ -169,6 +169,23 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-21 — Public MCP OIDC metadata and userinfo passthrough
+
+**Files changed:** `ping-gateway/config/routes/00-mcp-oauth-bootstrap.json`.
+
+**What was broken:** The embedded MCP authorization server exposed OIDC discovery
+and `/userinfo`, but the public gateway bootstrap allowlist did not proxy those
+paths, so external clients received 404 responses.
+
+**What was fixed:** Added `openid-configuration` and `userinfo` to the
+unauthenticated OAuth bootstrap route. MCP data routes remain protected by their
+existing token validation and authorization handlers.
+
+**Do not break:** Keep `/introspect` and `/revoke` internal and preserve the
+external MCP gateway's authorization boundary.
+
+**Verify:** Gateway route topology check and live public discovery request.
+
 ### 2026-09-21 — SDK-rendered Forms fields support conditional passkey autofill
 
 **Files changed:** `demo_api_ui/src/components/davinci/CollectorField.jsx`,

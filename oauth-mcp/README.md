@@ -200,64 +200,40 @@ After adding the config, restart your AI client. The following tools should appe
 > See `/.well-known/mcp-server` on the running MCP server for the full tool list and auth info.
 
 
-## Vercel Deployment (HTTP Streamable Transport)
+## Public deployment (HTTP Streamable Transport)
 
-The MCP server's HTTP Streamable transport can be deployed as a Vercel serverless function.
-WebSocket transport is **not** supported on Vercel (stateless runtime).
+The production OAuth-enabled MCP server is hosted on the SE Kubernetes cluster.
+For the complete external-client flow, see
+[`docs/EXTERNAL_DOOR_MCP_FLOW.md`](../docs/EXTERNAL_DOOR_MCP_FLOW.md).
 
-### Endpoints Available on Vercel
+### Public endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/mcp` | POST | MCP JSON-RPC endpoint (HTTP Streamable) |
-| `/mcp` | DELETE | Session termination |
-| `/.well-known/oauth-protected-resource` | GET | RFC 9728 metadata |
-| `/.well-known/mcp-server` | GET | Public MCP discovery manifest |
-| `/mcp/health` | GET | Health check |
+| `https://cmuir-mcp.ping-devops.com/mcp` | POST | MCP JSON-RPC endpoint (Streamable HTTP) |
+| `https://cmuir-mcp.ping-devops.com/mcp` | DELETE | Session termination |
+| `https://cmuir-mcp.ping-devops.com/.well-known/oauth-protected-resource/mcp` | GET | RFC 9728 protected-resource metadata |
+| `https://cmuir-mcp.ping-devops.com/.well-known/mcp-server` | GET | Public MCP discovery manifest |
 
-### How It Works
+The MCP endpoint is protected by OAuth. Clients should begin with the MCP URL,
+perform RFC 9728/RFC 8414 discovery, dynamically register, and complete the
+PKCE login through PingOne. Client registration is open for supported external
+clients; the server pins newly registered clients to the read-only
+`mcp:invoke read openid` scopes.
 
-1. `vercel.json` routes `/mcp` and `/.well-known/*` to `api/mcp-handler.js`
-2. The handler initializes the MCP server's HTTP transport on cold start
-3. Each request is handled statelessly (no WebSocket, no long-lived connections)
-4. Sessions use the MCP-Session-Id header for continuity between requests
-
-### Required Environment Variables (Vercel Dashboard)
-
-```
-PINGONE_BASE_URL=https://auth.pingone.com/{envId}/as
-PINGONE_CLIENT_ID=your-client-id
-PINGONE_CLIENT_SECRET=your-client-secret
-PINGONE_INTROSPECTION_ENDPOINT=https://auth.pingone.com/{envId}/as/introspect
-PINGONE_AUTHORIZATION_ENDPOINT=https://auth.pingone.com/{envId}/as/authorize
-PINGONE_TOKEN_ENDPOINT=https://auth.pingone.com/{envId}/as/token
-BANKING_API_BASE_URL=https://bxfinance-demo.vercel.app/api
-MCP_RESOURCE_URL=https://bxfinance-demo.vercel.app
-MCP_ALLOWED_ORIGINS=https://bxfinance-demo.vercel.app
-ENCRYPTION_KEY=your-32-char-encryption-key
-```
-
-### Connecting External Clients
-
-For Claude Desktop or other MCP clients, use the HTTP Streamable transport URL:
+For Claude Desktop or other MCP clients that support native remote MCP OAuth,
+use the HTTP Streamable transport URL:
 
 ```json
 {
   "mcpServers": {
     "banking": {
-      "url": "https://bxfinance-demo.vercel.app/mcp",
+      "url": "https://cmuir-mcp.ping-devops.com/mcp",
       "transport": "streamable-http"
     }
   }
 }
 ```
-
-### Limitations
-
-- **No WebSocket support** — Vercel serverless functions are request/response only
-- **Cold start latency** — First request after idle ~2-5 seconds (MCP server initialization)
-- **30-second timeout** — Vercel Pro Plan maximum function duration
-- **Ephemeral sessions** — In-memory sessions don't persist across cold starts (use MCP-Session-Id header for continuity)
 
 ## License
 

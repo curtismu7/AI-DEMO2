@@ -9,7 +9,7 @@
 
 | ID | Title | Track | Maturity | OWASP | What to Enable |
 |---|---|---|---|---|---|
-| UC1 | [Delegated access with proof](./delegated-access-with-proof.md) | foundations | ✅ works | 🛡️ T8, T9 |  |
+| UC1 | [Delegated access (consent only)](./delegated-access-with-proof.md) | foundations | ✅ works | 🛡️ T8, T9 |  |
 | UC2 | [A2A delegation](./a2a-delegation.md) | foundations | ✅ works | 🛡️ T9, T13 |  |
 | UC2.5 | [A2A Orchestrator — Interactive Learning](./a2a-orchestrator-learning.md) | foundations | ✅ works | 🛡️ T9, T13 |  |
 | UC2.7 | [A2A end to end — protocol + identity](./a2a-protocol-walkthrough.md) | learn | ✅ works | 🛡️ T9, T13 |  |
@@ -22,8 +22,8 @@
 | UC35 | [Why was that blocked?](./ai-explain-last-denial.md) | foundations | ✅ works | 🛡️ T8 |  |
 | UC4 | [Overscoped agent](./overscoped-agent.md) | controls | ✅ works | 🛡️ T3 |  |
 | UC6 | [Authz denied](./authz-denied.md) | controls | ✅ works | 🛡️ T6 |  |
-| UC7 | [Step-up required](./step-up-required.md) | hitl | ✅ works | 🛡️ T10, T3 |  |
-| UC8 | [HITL consent](./hitl-consent.md) | hitl | ✅ works | 🛡️ T10 |  |
+| UC7 | [MFA step-up (HITL)](./step-up-required.md) | hitl | ✅ works | 🛡️ T10, T3 |  |
+| UC8 | [MFA + HITL consent](./hitl-consent.md) | hitl | ✅ works | 🛡️ T10 |  |
 | UC21 | [Entitlement-tiered capability](./entitlement-tiered-capability.md) | controls | ✅ works | 🛡️ T3 |  |
 | UC23 | [Progressive trust demo — presenter guide](./progressive-trust-demo.md) | demo | ✅ works | 🛡️ T8, T10 |  |
 | UC24 | [Act 1 — Public catalog access](./progressive-trust-public-access.md) | demo | ✅ works | 🛡️ T3 |  |

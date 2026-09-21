@@ -81,10 +81,10 @@ describe('OAuthRouter — open client registration (MCP_OPEN_CLIENT_REGISTRATION
     await router.handle(call.req, call.res);
 
     const parsed = JSON.parse(call.body);
-    expect(parsed.scope).toBe('mcp:invoke read');
+    expect(parsed.scope).toBe('mcp:invoke read openid');
     expect(parsed.scope).not.toContain('admin:write');
     // and the stored client carries the pinned scope, not the requested one
-    expect(clientRegistry.getClient(parsed.client_id)?.scope).toBe('mcp:invoke read');
+    expect(clientRegistry.getClient(parsed.client_id)?.scope).toBe('mcp:invoke read openid');
   });
 
   it('honours DCR_OPEN_REGISTRATION_SCOPE when the operator overrides it', async () => {
