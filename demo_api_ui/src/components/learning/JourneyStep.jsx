@@ -1,5 +1,6 @@
 import { useState } from "react";
 import LessonShell from "./LessonShell";
+import PersonalAgentClientCards from "./PersonalAgentClientCards";
 
 export default function JourneyStep({
   step,
@@ -39,6 +40,7 @@ export default function JourneyStep({
             ))}
           </ul>
         )}
+        {step.lesson.id === "consumer-agent" ? <PersonalAgentClientCards /> : null}
       </LessonShell>
     </article>
   );

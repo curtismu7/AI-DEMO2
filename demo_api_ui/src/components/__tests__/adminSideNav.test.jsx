@@ -215,6 +215,26 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(liveLink).toHaveAttribute("href", "/use-cases/live");
   });
 
+  it("exposes LibreChat and LM Studio as personal-agent clients", () => {
+    renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^Learn & Present/ }));
+
+    expect(screen.getByRole("button", { name: "LibreChat (browser)" })).toBeInTheDocument();
+    expect(screen.getByText("LM Studio (Mac)").closest("a")).toHaveAttribute(
+      "href",
+      "/privilege-mcp-client?client=lm-studio",
+    );
+  });
+
+  it("opens LibreChat from the personal-agent navigation entry", () => {
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+    renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^Learn & Present/ }));
+    fireEvent.click(screen.getByRole("button", { name: "LibreChat (browser)" }));
+    expect(openSpy).toHaveBeenCalledWith("http://localhost:3080", "_blank", "noopener,noreferrer");
+    openSpy.mockRestore();
+  });
+
   it("includes Delegated Commerce in the AI Flows customization catalog", () => {
     const flows = NAV_STRUCTURE_CATALOG.find((group) => group.label === "AI Flows");
     expect(flows.children).toContain("Delegated Commerce (guided demo)");

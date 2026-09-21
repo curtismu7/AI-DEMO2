@@ -151,6 +151,18 @@ describe("GuidedJourneyPage", () => {
     );
   });
 
+  it("shows the personal-agent client choices inside the guided journey", async () => {
+    renderJourney("/academy/journey?step=consumer-agent");
+    await screen.findByText("Needs attention");
+
+    expect(screen.getByRole("region", { name: "Personal agent clients" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open LibreChat" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open LM Studio setup" })).toHaveAttribute(
+      "href",
+      "/privilege-mcp-client?client=lm-studio",
+    );
+  });
+
   it("reveals customer talking points on demand", async () => {
     renderJourney("/academy/journey?step=login");
     await screen.findByText("Needs attention");

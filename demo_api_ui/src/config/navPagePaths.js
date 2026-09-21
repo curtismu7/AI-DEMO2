@@ -130,6 +130,8 @@ export const NAV_PAGE_PATHS = {
   "OWASP Agent Risks": "/owasp",
   "Privilege for AI": "/privilege-for-ai",
   "MCP Scanner": "/mcp-scanner",
+  "Personal Agent Clients": "/personal-agent",
+  "LM Studio (Mac)": "/privilege-mcp-client?client=lm-studio",
   "llama-vscode Guide": "/llama-vscode-guide",
   "Code Explorer": "/code-explorer",
   "Protected RAG": "/code-search",

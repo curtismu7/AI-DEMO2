@@ -181,7 +181,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "telemetry", paths: ["/tracing", "/telemetry", "/transaction-trace", "/mcp-observability", "/check"] },
   { id: "agent-studio-preview", paths: ["/iga-for-ai", "/discovery-preview", "/privileges-gateway-preview", "/platform-gaps"] },
   { id: "ai-product-pages", paths: ["/ai-products"] },
-  { id: "learn-present", paths: ["/learning", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide", "/spiffe-pingone-bridge"] },
+  { id: "learn-present", paths: ["/learning", "/personal-agent", "/privilege-mcp-client", "/agentic-trust", "/agent-guardrails", "/owasp", "/llama-vscode-guide", "/spiffe-pingone-bridge"] },
   { id: "tests", paths: ["/resource-server", "/resource-server-cc"] },
 ];
 
@@ -255,6 +255,7 @@ export default function AdminSideNav({
   // LibreChat is a separate app on :3080 (docker), reached as an external link —
   // same action+window.open shape as Grafana. It runs locally only.
   const libreChatUrl = "http://localhost:3080";
+  const lmStudioSetupPath = "/privilege-mcp-client?client=lm-studio";
 
   // Per-user sidebar customization (Demo Config page). Returns [] when
   // ff_sidebar_customization is OFF or the request fails — full nav either way.
@@ -1127,10 +1128,22 @@ export default function AdminSideNav({
         { label: "Privilege for AI", path: "/privilege-for-ai", icon: "shld" },
         { label: "MCP Scanner", path: "/mcp-scanner", icon: "dbg" },
         {
-          label: "LibreChat",
+          label: "Personal Agent Clients",
+          path: "/personal-agent",
+          icon: "agt",
+          searchAlias: "personal agent clients browser mac external local",
+        },
+        {
+          label: "LibreChat (browser)",
           icon: "chat",
-          searchAlias: "librechat mcp client agent chat privilege libre",
+          searchAlias: "librechat browser personal agent mcp client chat privilege libre",
           action: () => window.open(libreChatUrl, "_blank", "noopener,noreferrer"),
+        },
+        {
+          label: "LM Studio (Mac)",
+          path: lmStudioSetupPath,
+          icon: "agt",
+          searchAlias: "lm studio mac local personal agent model mcp",
         },
         {
           label: "llama-vscode Guide",
