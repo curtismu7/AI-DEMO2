@@ -135,3 +135,9 @@ The Kibana account needs read-only index monitoring permission for the SIEM and 
 - Do not commit credentials or place them in shell history.
 - Avoid indexing SIEM configuration objects containing passwords or tokens. If a credential was indexed, rotate it and remove or restrict the affected documents.
 - Prefer HTTPS and private network access for anything beyond local testing.
+
+## Related documentation
+
+- [Privilege demo setup](use-cases/privilege-demo-setup.md) — technical setup and environment prerequisites.
+- [SE1 Privilege shared-demo guide](../privilege/SE1-Privilege-Shared-Demo.md) — presenter workflow, onboarding, and live demo steps.
+- [Kibana PingOne SSO guide](kibana-pingone-sso.md) — local Kibana access through PingOne.
