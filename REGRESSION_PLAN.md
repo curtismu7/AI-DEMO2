@@ -169,6 +169,14 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-22 — Credential-rotation drift: stale admin-login secret invisible to the boot-time rotation check (PR #160)
+
+**Files changed:** `demo_api_server/services/configStore.js`, `demo_api_server/services/pingoneClientSecretPreflight.js` (new), `demo_api_server/scripts/rotateClientSecret.js` (new), `demo_api_server/server.js`.
+**What was broken:** `detectRotatedCredentials` watched a hand-maintained key list whose entry `pingone_admin_client_secret` does not exist in FIELD_DEFS — the live admin-login key is `admin_client_secret` (PINGONE_ADMIN_CLIENT_SECRET family). A rotated admin secret therefore survived every boot check; the failure surfaced only as `invalid_client` mid-browser-login. Worse: `PINGONE_ADMIN_CLIENT_SECRET` in `.env` shadows LMDB for this key (env wins for non-bootstrap keys), so both a stale `.env` AND a stale LMDB entry can silently poison the same credential.
+**What was fixed:** watchlist derived from ENV_FALLBACK_MAP × SECRET_KEYS + `_secret|_password|_api_key` suffix rule, comparing every env alias; new boot-time `pingoneClientSecretPreflight` reads `GET /applications/{id}/secret` via the worker and compares stored values (warn-and-continue; `PINGONE_PREFLIGHT_STRICT=true` = fatal; `PINGONE_CLIENT_SECRET_PREFLIGHT=false` disables); `scripts/rotateClientSecret.js` codifies rotation (note: the API **ignores** a posted secret and returns a server-generated one — capture the response).
+**Do not break:** `getEffective` tiering (Vault > LMDB > .env), bootstrap allowlist, `setConfig` semantics; both preflights must stay non-fatal by default and skip silently when credentials are unset.
+**Verify:** `CI=true npx jest tests/configStore.detectRotatedCredentials.test.js tests/pingoneClientSecretPreflight.test.js --forceExit`; live: corrupt `.env` admin secret → boot logs `secret_drift`, restore → ✅ match.
+
 ### 2026-09-22 — UC2 delegation under PingFederate: multi-issuer validation across the stack (PRs #148/#153/#157/#158)
 
 **Files changed:**
