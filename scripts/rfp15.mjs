@@ -1,0 +1,17 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch();
+const p = await b.newPage({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true });
+await p.goto('https://local.ping-devops.com:4000/dashboard', { waitUntil: 'domcontentloaded', timeout: 30000 });
+await p.waitForTimeout(9000);
+await p.locator('.ba-demo-steps-drawer__close').click({ force: true }).catch(() => {});
+await p.waitForTimeout(500);
+await p.locator('button:has-text("Sign In")').first().click({ force: true }).catch(() => {});
+await p.waitForURL(/9031/, { timeout: 20000 }).catch(() => {});
+await p.waitForTimeout(3000);
+await p.locator('#username').fill('demouser');
+await p.locator('#password').fill('Harbor29-Falcon7');
+await p.keyboard.press('Enter');
+await p.waitForTimeout(12000);
+await p.screenshot({ path: '/tmp/davinci.png' });
+console.log('url:', p.url().slice(0, 70));
+await b.close();
