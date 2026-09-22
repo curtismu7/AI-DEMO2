@@ -4,8 +4,9 @@ import jwt from 'jsonwebtoken';
 
 export interface DecodedToken {
   sub: string;
+  iss?: string;
   act?: { sub: string };
-  scope?: string;
+  scope?: string | string[];
   aud: string | string[];
   exp: number;
 }
@@ -27,6 +28,7 @@ function getJose(): Promise<JoseModule> {
   return josePromise;
 }
 let jwksKeySet: Awaited<ReturnType<JoseModule['createRemoteJWKSet']>> | null = null;
+let pfJwksKeySet: Awaited<ReturnType<JoseModule['createRemoteJWKSet']>> | null = null;
 async function getJwksKeySet() {
   if (jwksKeySet) return jwksKeySet;
   const jwksUri =
@@ -43,12 +45,39 @@ async function getJwksKeySet() {
   }
 }
 
+// Secondary issuer (PingFederate, 2026-09-22 A2A-under-PF): tokens whose iss
+// matches PF_ISSUER_URI verify against PF_JWKS_URI instead. Unset = PingOne-only.
+const PF_ISSUER = process.env.PF_ISSUER || process.env.PF_ISSUER_URI || '';
+const PF_JWKS_URI = process.env.PF_JWKS_URI || (PF_ISSUER ? `${PF_ISSUER}/JWKS` : null) || '';
+async function getJwksKeySetFor(iss: string | undefined) {
+  if (PF_ISSUER && iss === PF_ISSUER) {
+    if (pfJwksKeySet) return pfJwksKeySet;
+    if (!PF_JWKS_URI) return null;
+    try {
+      const { createRemoteJWKSet } = await getJose();
+      pfJwksKeySet = createRemoteJWKSet(new URL(PF_JWKS_URI));
+      return pfJwksKeySet;
+    } catch {
+      return null;
+    }
+  }
+  return getJwksKeySet();
+}
+
 export async function decodeAndValidate(token: string, expectedAud: string): Promise<DecodedToken> {
   // SECURITY (was: critical gap) — verify the signature against PingOne's JWKS
   // BEFORE trusting any claim. Previously this used an unsigned jwt.decode, so a
   // forged JWT with the right aud/scope was accepted. Fail-closed when JWKS is
   // configured; SKIP_TOKEN_SIGNATURE_VALIDATION=true downgrades to a warning.
-  const jwks = await getJwksKeySet();
+  // Pre-decode iss (unverified) only to SELECT the trust anchor — the actual
+  // verification below still validates signature/claims against that key set.
+  let issHint: string | undefined;
+  try {
+    issHint = (jwt.decode(token) as DecodedToken | null)?.iss;
+  } catch {
+    issHint = undefined;
+  }
+  const jwks = await getJwksKeySetFor(issHint);
   if (jwks) {
     try {
       const { jwtVerify } = await getJose();
@@ -57,7 +86,8 @@ export async function decodeAndValidate(token: string, expectedAud: string): Pro
       if (process.env.SKIP_TOKEN_SIGNATURE_VALIDATION === 'true') {
         console.warn('[invest] token signature verification FAILED but SKIP_TOKEN_SIGNATURE_VALIDATION=true — accepting:', err instanceof Error ? err.message : err);
       } else {
-        throw new TokenError('Token signature verification failed', 'invalid_token');
+        console.error('[invest] jwtVerify error:', err instanceof Error ? err.message : err);
+        throw new TokenError('Token signature verification failed: ' + (err instanceof Error ? err.message : err), 'invalid_token');
       }
     }
   } else {
@@ -98,5 +128,8 @@ export async function decodeAndValidate(token: string, expectedAud: string): Pro
 }
 
 export function extractScopes(decoded: DecodedToken): string[] {
+  // PingFederate ATM emits scope as a JSON array when multiple requested
+  // scopes are granted; PingOne emits a space-delimited string.
+  if (Array.isArray(decoded.scope)) return decoded.scope.map(String).filter(Boolean);
   return (decoded.scope || '').split(' ').filter(Boolean);
 }

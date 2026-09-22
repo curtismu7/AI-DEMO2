@@ -1154,6 +1154,11 @@ services:
       MCP_GW_RESOURCE_SERVER_WS_URL: "ws://mcp-resource-server:8081"
       MCP_GW_JWTVERIFIER_HTTP_URL: "http://mcp-jwt-verifier:8083"
       MCP_JWTVERIFIER_RESOURCE_URI: "mcp-jwt-verifier.ping.demo"
+      # Secondary issuer (PingFederate, 2026-09-22 A2A-under-PF): the WS path's
+      # validateInboundToken verifies PF-issued tokens against the PF JWKS.
+      # Unset/empty = PingOne-only.
+      PF_ISSUER_URI: "https://local.ping-devops.com:9031"
+      PF_JWKS_URI: "https://pf-client-migration-admin:9031/pf/JWKS"
       # Weather/Brave showcase backends — mirrors ping-gateway's PG_WEATHER_BACKEND_URL /
       # PG_BRAVE_BACKEND_URL (~L1100 below). Streamable HTTP, no RFC 8693 exchange
       # (see src/scopePolicies.ts) — the Node gateway forwards the caller's original
@@ -1422,6 +1427,9 @@ services:
       NODE_ENV: production
       MCP_SERVER_HOST: "0.0.0.0"
       MCP_SERVER_PORT: "8081"
+      # Trust the mkcert root so the PF JWKS fetch (PF_JWKS_URI below) verifies —
+      # PF's listener cert is mkcert-signed (2026-09-22 A2A-under-PF).
+      NODE_EXTRA_CA_CERTS: "/certs/ca-bundle-with-mkcert.pem"
       DEMO_API_BASE_URL: "https://demo-api-server:3001"
       # RFC 8693 rollout: gateway exchanges to this backend's own resource URI before
       # forwarding (aud=mcp-invest.ping.demo — the audience the PingOne resource
@@ -1433,7 +1441,17 @@ services:
       # Compose env wins over demo_mcp_resource_server/.env.
       # This server's OWN var — MCP_SERVER_RESOURCE_URI means the banking MCP
       # server's list everywhere else (TECH_DEBT 2026-08-16, T4).
-      MCP_RESOURCE_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo"
+      # PF-mode Ex3 note: PF reuses the persistent grant for identical TE
+      # requests, so the aud-conditional ATM expression doesn't take effect for
+      # a cached grant — the token keeps aud https://api.ping.demo:3036/mcp.
+      # Accepting it here keeps UC2 working under PF (the P1AZ decision at the
+      # gateway is the real gate).
+      MCP_RESOURCE_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,https://mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo,https://api.ping.demo:3036/mcp"
+      # Secondary issuer (PingFederate, 2026-09-22 A2A-under-PF): tokens issued
+      # by PF (the gateway's Exchange #3 under PF mode) verify against the PF
+      # JWKS. Unset/empty = PingOne-only.
+      PF_ISSUER: "https://local.ping-devops.com:9031"
+      PF_JWKS_URI: "https://local.ping-devops.com:9031/pf/JWKS"
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
       OTEL_SERVICE_NAME: "mcp-resource-server"
       NODE_OPTIONS: "-r /otel/otel-instrument.js"
@@ -1445,8 +1463,14 @@ services:
     env_file:
       - path: ./demo_mcp_resource_server/.env
         required: false
+    extra_hosts:
+      # PF_JWKS_URI hostname must match the PF cert SAN; inside the container
+      # that name needs to resolve to the host (PF published on 9031).
+      - "local.ping-devops.com:host-gateway"
     volumes:
       - ./scripts:/otel:ro  # dir mount: survives git pull replacing the file (a single-file bind mount pins the old inode and crash-loops node -r)
+      # mkcert CA bundle for the PF JWKS fetch (NODE_EXTRA_CA_CERTS above).
+      - ./certs:/certs:ro
       # Airlines SQLite database. Bind (not named volume) on purpose: the DB proof
       # is "edit airlines.db from the host with sqlite3 and the next chip click
       # shows the new value". Seeded on first open from the image's seed/ dir.
@@ -2001,6 +2025,12 @@ services:
       # Secrets + PingOne endpoints + resource ids (gitignored; .env.example is SoT).
       - path: ./ping-gateway/.env
         required: false
+    extra_hosts:
+      # PF_JWKS_URI host: the JVM requires the hostname to match the PF cert's
+      # SAN (local.ping-devops.com — the docker service name is NOT in the
+      # cert), but inside this container that name resolves to 127.0.0.1. Map
+      # it to the host, where docker publishes PF on 9031.
+      - "local.ping-devops.com:host-gateway"
     networks:
       - ai-demo
     depends_on:
