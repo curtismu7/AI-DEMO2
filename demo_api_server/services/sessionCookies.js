@@ -49,11 +49,26 @@ function clearAllAuthCookies(res, isProduction) {
  * @returns {string} full signoff redirect URL
  */
 function buildPingOneSignoffUrl(postLogoutUri, clientIdKey, idToken) {
+  const params = new URLSearchParams({ post_logout_redirect_uri: postLogoutUri });
+  if (idToken) params.set('id_token_hint', idToken);
+
+  // PingFederate mode: terminate the PF SSO session at PF's OIDC end-session
+  // endpoint with the PF user client. Redirecting to PingOne's signoff instead
+  // leaves the PF session alive, so the next /login silently re-authenticates
+  // as the previous user — logout appeared to do nothing.
+  if ((configStore.getOAuthProvider?.() || '') === 'pingfederate') {
+    const endpointResolver = require('./oauthEndpointResolver');
+    const endSession = endpointResolver.getEndSessionEndpoint
+      ? endpointResolver.getEndSessionEndpoint()
+      : '';
+    const clientId = configStore.getEffective('pf_user_client_id');
+    if (clientId) params.set('client_id', clientId);
+    if (endSession) return `${endSession}?${params.toString()}`;
+  }
+
   const envId = configStore.getEffective('pingone_environment_id');
   const region = configStore.getEffective('pingone_region') || 'com';
   const clientId = configStore.getEffective(clientIdKey);
-  const params = new URLSearchParams({ post_logout_redirect_uri: postLogoutUri });
-  if (idToken) params.set('id_token_hint', idToken);
   if (clientId) params.set('client_id', clientId);
   return `https://auth.pingone.${region}/${envId}/as/signoff?${params.toString()}`;
 }
