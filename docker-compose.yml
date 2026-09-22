@@ -840,6 +840,10 @@ services:
     container_name: ai-demo-mcp-server
     ports:
       - "8080:8080"
+    extra_hosts:
+      # PF publishes 9031 on the host; the mkcert SAN covers local.ping-devops.com
+      # (not any compose-network name), so the JWKS fetch must leave via the host.
+      - "local.ping-devops.com:host-gateway"
     environment:
       NODE_ENV: development
       # environments.ts defaults development mode to a relative
@@ -910,7 +914,7 @@ services:
       # addresses this server directly by its published host port can redeem an
       # ID-JAG minted for that resource — the demo-api-server side already
       # allow-lists the same URI via ENTERPRISE_MCP_RESOURCE_URIS.
-      MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo,https://api.pingone.com,https://api.ping.demo:3036/mcp,http://localhost:8080/mcp"
+      MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo,https://api.pingone.com,https://api.ping.demo:3036/mcp,http://localhost:8080/mcp,http://pf-mcp-server:8080/mcp"
       # mTLS on the gateway -> MCP server hop. When on the server serves HTTPS
       # on :8080 (self-signed, regenerated each start) and REQUIRES a client
       # cert whose SHA-256 matches MCP_MTLS_GATEWAY_CERT_PATH. Privilege uses

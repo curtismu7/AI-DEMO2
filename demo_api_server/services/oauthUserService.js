@@ -122,7 +122,15 @@ class OAuthUserService {
    * @param {string} [config.login_hint] - OIDC login hint (defaults to 'demoUser')
    * @param {boolean} [config.forcePiFlow] - Force pi.flow response type instead of code
    */
-  generateAuthorizationUrl({ state, codeVerifier, redirectUri, nonce, acr_values, prompt, max_age, login_hint = 'demoUser', forcePiFlow } = {}) {
+  generateAuthorizationUrl({ state, codeVerifier, redirectUri, nonce, acr_values, prompt, max_age, login_hint, forcePiFlow } = {}) {
+    // PingFederate disables (readonly) the username field on its login page when
+    // login_hint is present — users then can't correct the pre-filled identity
+    // and get a genuine "We didn't recognize the username or password" for
+    // whoever they actually are. Omit the hint in PF mode unless explicitly given.
+    const effectiveLoginHint =
+      login_hint !== undefined
+        ? login_hint
+        : (configStore.getOAuthProvider?.() === 'pingfederate' ? undefined : 'demoUser');
     console.log('[oauth-auth-url] authorizationEndpoint:', this.config.authorizationEndpoint);
     console.log('[oauth-auth-url] Generated with:', { redirectUri, nonce, acr_values, prompt, max_age });
     const usePiFlow = Boolean(forcePiFlow) || Boolean(this.config.authorizeUsesPiFlow);
@@ -137,7 +145,7 @@ class OAuthUserService {
       state: state,
       code_challenge: this.generateCodeChallenge(codeVerifier),
       code_challenge_method: 'S256',
-      login_hint
+      ...(effectiveLoginHint ? { login_hint: effectiveLoginHint } : {})
     });
 
     if (usePiFlow) {
