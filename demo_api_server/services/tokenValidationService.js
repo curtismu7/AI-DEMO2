@@ -154,8 +154,12 @@ async function validateToken(token, { jwksUri, issuer, audience, allowHttp = fal
       }
     }
   } else {
-    // No kid in token header — fall back to first RSA key (common in older IdP configurations).
-    jwk = keys.find((k) => k.kty === 'RSA');
+    // No kid in token header — PingFederate signs id-jag tokens with an x5t
+    // thumbprint instead (typ=oauth-id-jag+jwt, 2026-09-22 A2A-under-PF).
+    // Match on x5t first; fall back to the first RSA key (older IdPs).
+    const x5t = decoded.header.x5t;
+    jwk = (x5t && keys.find((k) => k.kty === 'RSA' && (k.x5t === x5t || (k.x5c && k.x5c[0] && x5t === k.x5c[0]))))
+      || keys.find((k) => k.kty === 'RSA');
   }
   if (!jwk) {
     throw new Error(`No matching JWKS key found (no kid in token, no RSA key in JWKS)`);
