@@ -9,7 +9,7 @@ describe('favorites', () => {
     expect(favs.map((f) => f.path)).toEqual([
       '/llm-gateway',
       '/privilege-mcp-client',
-      '/academy-identity-preview.html',
+      '/academy/identity',
     ]);
     expect(favs[0].label).toBe('AI Guard');
     expect(favs[2].label).toBe('Agent Identity Academy');
@@ -27,13 +27,25 @@ describe('favorites', () => {
     expect(getFavorites()[0].label).toBe('AI Guard');
   });
 
+  it('moves the legacy standalone Academy favorite to the in-app route', () => {
+    localStorage.setItem(
+      'demo_header_favorites',
+      JSON.stringify([{ label: 'Agent Identity Academy', path: '/academy-identity-preview.html' }]),
+    );
+    localStorage.setItem('demo_header_favorites_agent_identity_academy_v1', '1');
+
+    expect(getFavorites()).toEqual([
+      { label: 'Agent Identity Academy', path: '/academy/identity' },
+    ]);
+  });
+
   it('removing a seeded favorite persists (does not re-seed)', () => {
     getFavorites(); // seed
     removeFavorite('/llm-gateway');
     expect(isFavorite('/llm-gateway')).toBe(false);
     expect(getFavorites().map((f) => f.path)).toEqual([
       '/privilege-mcp-client',
-      '/academy-identity-preview.html',
+      '/academy/identity',
     ]);
   });
 
@@ -45,10 +57,10 @@ describe('favorites', () => {
 
     expect(getFavorites().map((f) => f.path)).toEqual([
       '/audit-agent',
-      '/academy-identity-preview.html',
+      '/academy/identity',
     ]);
 
-    removeFavorite('/academy-identity-preview.html');
+    removeFavorite('/academy/identity');
     expect(getFavorites().map((f) => f.path)).toEqual(['/audit-agent']);
   });
 
@@ -58,16 +70,16 @@ describe('favorites', () => {
   ])('repairs %s and still respects a later Academy removal', (_case, storedValue) => {
     localStorage.setItem('demo_header_favorites', storedValue);
 
-    expect(getFavorites().some((f) => f.path === '/academy-identity-preview.html')).toBe(true);
-    removeFavorite('/academy-identity-preview.html');
+    expect(getFavorites().some((f) => f.path === '/academy/identity')).toBe(true);
+    removeFavorite('/academy/identity');
 
-    expect(getFavorites().some((f) => f.path === '/academy-identity-preview.html')).toBe(false);
+    expect(getFavorites().some((f) => f.path === '/academy/identity')).toBe(false);
   });
 
   it('derives a readable label, handling acronyms', () => {
     expect(labelForPath('/privilege-mcp-client')).toBe('Privilege MCP Client');
     expect(labelForPath('/llm-gateway')).toBe('AI Guard');
-    expect(labelForPath('/academy-identity-preview.html')).toBe('Agent Identity Academy');
+    expect(labelForPath('/academy/identity')).toBe('Agent Identity Academy');
     expect(addFavorite({ path: '/intent-inspector' }).at(-1).label).toBe('Intent Inspector');
   });
 });

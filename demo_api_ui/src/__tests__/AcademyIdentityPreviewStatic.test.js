@@ -24,7 +24,7 @@ const lessonIds = [
   "evidence-map",
 ];
 
-function loadPreview({ storedDarkMode } = {}) {
+function loadPreview({ storedDarkMode, embedded = false } = {}) {
   expect(
     fs.existsSync(previewPath),
     "the ID4AI Academy mock should ship as public/academy-identity-preview.html",
@@ -32,7 +32,7 @@ function loadPreview({ storedDarkMode } = {}) {
 
   return new JSDOM(fs.readFileSync(previewPath, "utf8"), {
     runScripts: "dangerously",
-    url: "https://local.ping-devops.com:4000/academy-identity-preview.html",
+    url: `https://local.ping-devops.com:4000/academy-identity-preview.html${embedded ? "?embedded=1" : ""}`,
     beforeParse(window) {
       if (storedDarkMode !== undefined) {
         window.localStorage.setItem("ba_dark_mode", String(storedDarkMode));
@@ -344,6 +344,25 @@ describe("ID4AI Academy HTML preview", () => {
     expect(document.documentElement.dataset.theme).toBe("light");
     expect(localStorage.getItem("ba_dark_mode")).toBe("false");
     expect(toggle.textContent).toBe("🌙 Dark mode");
+  });
+
+  it("hides the prototype header when hosted by the application shell", () => {
+    const dom = loadPreview({ embedded: true });
+    const { document } = dom.window;
+
+    expect(document.documentElement.dataset.embedded).toBe("true");
+    expect(document.querySelector(".topbar")).toHaveAttribute("hidden");
+  });
+
+  it("accepts same-origin theme updates from the application shell", () => {
+    const dom = loadPreview({ embedded: true });
+
+    dom.window.dispatchEvent(new dom.window.MessageEvent("message", {
+      origin: dom.window.location.origin,
+      data: { type: "academy-theme", theme: "dark" },
+    }));
+
+    expect(dom.window.document.documentElement.dataset.theme).toBe("dark");
   });
 
   it("links to the Education Hub and matching live deep dives", () => {

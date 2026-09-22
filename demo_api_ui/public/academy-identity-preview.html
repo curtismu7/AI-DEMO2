@@ -215,6 +215,19 @@
         min-height: calc(100vh - 64px);
       }
 
+      html[data-embedded="true"] .topbar {
+        display: none;
+      }
+
+      html[data-embedded="true"] .academy-shell {
+        min-height: 100vh;
+      }
+
+      html[data-embedded="true"] .lesson-rail {
+        top: 0;
+        height: 100vh;
+      }
+
       .lesson-rail {
         position: sticky;
         top: 64px;
@@ -1931,14 +1944,26 @@
           selectFrame(next);
         });
 
+        const embedded = new URLSearchParams(window.location.search).get("embedded") === "1";
+        if (embedded) {
+          document.documentElement.dataset.embedded = "true";
+          document.querySelector(".topbar").hidden = true;
+        }
+
         const themeToggle = document.querySelector("[data-theme-toggle]");
-        function setTheme(dark) {
+        function setTheme(dark, persist = true) {
           document.documentElement.dataset.theme = dark ? "dark" : "light";
           themeToggle.setAttribute("aria-pressed", String(dark));
           themeToggle.textContent = dark ? "☀️ Light mode" : "🌙 Dark mode";
-          localStorage.setItem("ba_dark_mode", String(dark));
+          if (persist) localStorage.setItem("ba_dark_mode", String(dark));
         }
         themeToggle.addEventListener("click", () => setTheme(document.documentElement.dataset.theme !== "dark"));
+        window.addEventListener("message", (event) => {
+          if (event.origin !== window.location.origin) return;
+          if (event.data?.type !== "academy-theme") return;
+          if (event.data.theme !== "light" && event.data.theme !== "dark") return;
+          setTheme(event.data.theme === "dark", false);
+        });
         setTheme(localStorage.getItem("ba_dark_mode") === "true");
 
         renderLessonList();

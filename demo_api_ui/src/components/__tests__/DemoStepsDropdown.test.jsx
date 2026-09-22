@@ -118,7 +118,7 @@ describe('DemoStepsDropdown', () => {
 
     expect(screen.getByRole('link', { name: 'Agent Identity Academy' })).toHaveAttribute(
       'href',
-      '/academy-identity-preview.html',
+      '/academy/identity',
     );
   });
 

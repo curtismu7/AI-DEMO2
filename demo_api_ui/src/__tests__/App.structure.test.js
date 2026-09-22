@@ -139,6 +139,24 @@ describe("App.js — critical JSX placements", () => {
     expect(appSrc).toContain("<EducationRoutes user={user} logout={logout} />");
   });
 
+  test("normal public and training pages render inside AppShell", () => {
+    const shellRoutes = [
+      ["/request-access", "<HostedRegistrationPage />"],
+      ["/spinner-showcase", "<SpinnerShowcasePage />"],
+      ["/hosted-registrations", "<HostedRegistrationAdminPage />"],
+      ["/governance-timeline", "<GovernanceTimelinePage />"],
+      ["/learning-lab/:lab", "<LearningProtocolLabPage />"],
+    ];
+
+    for (const [routePath, page] of shellRoutes) {
+      expect(appSrc).toMatch(
+        new RegExp(
+          `<Route\\s+[\\s\\S]*?path="${routePath.replace("/", "\\/")}"[\\s\\S]*?<AppShell[\\s\\S]*?${page.replace(/[<>]/g, "\\$&")}[\\s\\S]*?<\\/AppShell>`,
+        ),
+      );
+    }
+  });
+
   test("Wildcard catch-all does NOT contain bare component wrappers around <Route>", () => {
     // React Router v6 requires <Route> elements to be DIRECT children of <Routes>.
     // A bare `<AdminRoutes ...>` or `<CustomerRoutes ...>` (no path prop) returning
