@@ -259,6 +259,10 @@ function resolveA2aConfig(cfgArg, specialist, scopeTopo) {
     agent2ClientId,
     agent2Secret,
     intermediateAud: pfAud ? 'https://' + intermediateAud : intermediateAud,
+    // PF only accepts audiences matching a registered SP resourceUri; the A2A
+    // gateway SP (mcpgateway-a2a.ping.demo) is that registered audience. The
+    // final MCP hop's stricter aud (https://api.ping.demo:3036/mcp) is pinned
+    // on the PF ATM mapping's aud attribute instead (runtime config).
     specialistAud: pfAud ? 'https://' + specialistAud : specialistAud,
     intermediateScope,
     agent2AuthMethod,
@@ -378,7 +382,7 @@ async function exchangeAsGeneralist(req, opts = {}) {
         agent1Actor,
         c.agent1ClientId,
         c.agent1Secret,
-        c.pfExchange ? c.pfExchange.audiencePrefix + c.intermediateAud : c.intermediateAud,
+        c.intermediateAud,
         [c.intermediateScope],
         c.exchangeAuthMethod,
         c.pfExchange ? { requestedTokenType: c.pfExchange.requestedTokenType } : {},
@@ -504,10 +508,17 @@ async function exchangeAsSpecialist(subjectToken, opts = {}) {
         agent2Actor,
         c.agent2ClientId,
         c.agent2Secret,
-        c.pfExchange ? c.pfExchange.audiencePrefix + c.specialistAud : c.specialistAud,
+        c.specialistAud,
         specialistScopes,
         c.exchangeAuthMethod,
-        c.pfExchange ? { requestedTokenType: c.pfExchange.requestedTokenType } : {},
+        c.pfExchange ? {
+          // PF forbids id-jag→id-jag ("may not be used as the subject_token when
+          // requesting a new id-jag"), but accepts an id-jag subject when the
+          // REQUESTED type is a plain access_token. The final MCP hop wants an
+          // access token anyway.
+          requestedTokenType: 'urn:ietf:params:oauth:token-type:access_token',
+          subjectTokenType: 'urn:ietf:params:oauth:token-type:id-jag',
+        } : {},
       ),
       { label: 'A2A Exchange #2', timeoutMs: exchangeTimeoutMs, attempts: exchangeAttempts, retryDelayMs, timers: deps.timers },
     );

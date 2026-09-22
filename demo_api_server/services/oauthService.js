@@ -1106,7 +1106,10 @@ class OAuthService {
     const body = new URLSearchParams({
       grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
       subject_token: subjectToken,
-      subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+      // PF id-jag output tokens (typ=oauth-id-jag+jwt) must be presented as
+      // id-jag subjects in a chained exchange — access_token typing is rejected
+      // ("An id-jag token may not be used as the subject", 2026-09-22).
+      subject_token_type: exchangeOptions.subjectTokenType || 'urn:ietf:params:oauth:token-type:access_token',
       // PingFederate's OAuth Token Exchange SP connections only issue id-jag
       // typed tokens — an access_token request 400s with invalid_request
       // "Invalid configuration" (2026-09-22 A2A-under-PF). PingOne ignores the
