@@ -28,6 +28,7 @@ const VALID_SIMS = [
   'impersonation-no-act',
   'rate-limit-burst',
   'introspection-down',
+  'raw-user-token-forwarding',
 ];
 
 router.post('/run', authenticateToken, async (req, res) => {

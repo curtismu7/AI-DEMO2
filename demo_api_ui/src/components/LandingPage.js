@@ -196,6 +196,7 @@ export default function LandingPage({ user, hasTopNav }) {
             <h1 className="landing-hero-headline">
               Secure Identity for AI-Powered Applications
             </h1>
+            <p className="landing-hero-zero-trust">ZERO TRUST</p>
             <p className="landing-hero-subheadline">
               A live reference implementation of PingOne OAuth 2.0, RFC 8693
               token delegation, and MCP-secured AI agents — built for enterprise

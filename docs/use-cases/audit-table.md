@@ -33,6 +33,7 @@
 | UC11 | [Bad client → agent gateway](./bad-client-gateway.md) | attacks | ✅ works | 🛡️ T9 |  |
 | UC13 | [Confused-deputy actor injection](./confused-deputy-actor-injection.md) | attacks | ✅ works | 🛡️ T13 |  |
 | UC16 | [Impersonation blocked (OBO required)](./impersonation-blocked.md) | attacks | ✅ works | 🛡️ T9 |  |
+| UC16b | [Raw user-token forwarding blocked (Zero Trust)](./raw-user-token-forwarding-blocked.md) | attacks | ✅ works | 🛡️ T9 |  |
 | UC17 | [JIT / ephemeral credentials](./jit-ephemeral-credentials.md) | controls | ✅ works | 🛡️ T3, T9 |  |
 | UC18 | [Rate-limit / resource-overload defense](./rate-limit-defense.md) | attacks | ✅ works | 🛡️ T4 |  |
 | UC30 | [Third-party MCP server, scoped at the gateway](./weather-mcp-texas-permit.md) | controls | ✅ works | 🛡️ T6 |  |
@@ -62,6 +63,7 @@
 | UC28 | [Tool set as the authorization boundary (Air Canada pattern)](./unauthorized-commitment-fee-waiver.md) | controls | ✅ works | 🛡️ T1 |  |
 | UC43 | [Consumer & Partner Agent — CIMD registration](./consumer-partner-agent-cimd-registration.md) | foundations | ✅ works | 🛡️ T1, T9 |  |
 | UC44 | [Workload Agent: Digital Assistant — OBO](./workload-digital-assistant-obo.md) | foundations | ✅ works | 🛡️ T1, T9, T13 |  |
+| UC45 | [SaaS-Embedded Agent — Website Worker](./saas-embedded-worker.md) | foundations | ✅ works | 🛡️ T1, T9, T13 |  |
 
 ## 🚩 Flag-gated (`flag:*`)
 
@@ -89,8 +91,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 53 |
+| ✅ Works | 55 |
 | 🚩 Flag-gated | 10 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 2 |
-| **Total** | **65** |
+| **Total** | **67** |

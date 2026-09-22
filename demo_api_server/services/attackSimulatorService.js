@@ -63,6 +63,7 @@ const SIM_USE_CASE_IDS = {
   'impersonation-no-act': 'impersonation-blocked',
   'rate-limit-burst': 'rate-limit-defense',
   'introspection-down': 'oauth-fail-closed',
+  'raw-user-token-forwarding': 'raw-user-token-forwarding-blocked',
 };
 
 /** Confused-deputy showcase rogue actor (parity with AIAgent.js + decision.confused-deputy.test.js). */
@@ -690,6 +691,10 @@ async function runAttackSim(sim, req, attackAmount) {
 
   if (sim === 'impersonation-no-act') {
     return _runImpersonationNoAct(subjectToken, useCaseId, tokenChainEvents);
+  }
+
+  if (sim === 'raw-user-token-forwarding') {
+    return _runRawUserTokenForwarding(subjectToken, useCaseId, tokenChainEvents, req);
   }
 
   // Should not be reached — route validates VALID_SIMS before calling here.
@@ -2150,6 +2155,95 @@ async function _runImpersonationNoAct(subjectToken, useCaseId, tokenChainEvents)
       'Authorize DENY (missing_act)',
     );
   }
+}
+
+/**
+ * raw-user-token-forwarding (UC16b) — self-arming demo of the Zero-Trust
+ * token-custody rule: the BFF NEVER forwards the raw user access token to MCP.
+ *
+ * The sim flips ff_skip_token_exchange ON (the deny path the BFF ships with),
+ * resolves one tool token through the PRODUCTION resolver, and returns the
+ * 403 user_token_forwarding_disabled block. The prior flag value is restored
+ * in a finally block — self-armed, one-click, no state leak.
+ *
+ * No network call is needed: the guard fires inside the BFF before any
+ * gateway or PingOne hop, which is exactly the demonstration point — the
+ * custody rule is enforced at the source, not downstream.
+ */
+async function _runRawUserTokenForwarding(subjectToken, useCaseId, tokenChainEvents, req) {
+  const sim = 'raw-user-token-forwarding';
+  const FLAG = 'ff_skip_token_exchange';
+  const priorValue = configStore.getEffective(FLAG);
+
+  tokenChainEvents.push(buildTokenEvent(
+    'user-token',
+    'User Token — session sign-in',
+    'active',
+    decodeJwtClaims(subjectToken),
+    "The signed-in user's raw access token. The agent attempts to hand THIS token directly to MCP — no exchange, no act claim, no scope narrowing.",
+  ));
+
+  let resolved = null;
+  let resolutionError = null;
+  try {
+    await configStore.setRaw({ [FLAG]: 'true' }, { persist: false });
+    const { resolveMcpAccessTokenWithEvents } = require('./agentMcpTokenService');
+    resolved = await resolveMcpAccessTokenWithEvents(req, 'get_my_accounts');
+  } catch (err) {
+    resolutionError = err;
+  } finally {
+    // Restore the EXACT prior value — the sim must never leave the deny path armed.
+    // persist:false mirrors the arm: in-memory only, LMDB untouched.
+    try {
+      await configStore.setRaw({ [FLAG]: priorValue ?? 'false' }, { persist: false });
+    } catch (restoreErr) {
+      console.error('[AttackSim/raw-user-token] FAILED to restore ff_skip_token_exchange:', restoreErr.message);
+    }
+  }
+
+  const blocked = resolved ? resolved.blocked : false;
+  const blockCode = resolved?.blockCode || (resolutionError ? 'token_resolution_threw' : null);
+
+  if (!blocked) {
+    tokenChainEvents.push(buildTokenEvent(
+      'sim-forwarding-unexpected-allow',
+      'Raw user token NOT blocked (unexpected)',
+      'warning',
+      null,
+      resolutionError
+        ? `Token resolution threw before the guard ran: ${resolutionError.message} — the custody block may not have been exercised.`
+        : 'The resolver returned a token without blocking — ff_skip_token_exchange may not have been honoured. The Zero-Trust custody rule may not be active.',
+    ));
+    stampUseCaseId(tokenChainEvents, useCaseId);
+    return {
+      sim, useCaseId, status: 200, errorCode: 'unexpected_allow',
+      reason: 'Resolver did not block raw user-token forwarding — the BFF custody rule may not be active',
+      tokenChainEvents,
+    };
+  }
+
+  // Pull the exchange-skipped event the guard emitted into its own event list.
+  const skippedEvents = (resolved.tokenEvents || []).filter((e) => e && e.id === 'exchange-skipped');
+  for (const ev of skippedEvents) tokenChainEvents.push(ev);
+
+  tokenChainEvents.push(buildTokenEvent(
+    'sim-forwarding-blocked',
+    'Zero Trust — raw user token forwarding BLOCKED',
+    'failed',
+    null,
+    `The BFF refused to forward the user token to MCP (HTTP ${resolved.blockHttpStatus || 403}, ` +
+      `${resolved.blockCode || 'user_token_forwarding_disabled'}). Only RFC 8693-exchanged, agent-scoped tokens with an act claim may leave the BFF.`,
+  ));
+  stampUseCaseId(tokenChainEvents, useCaseId);
+
+  return {
+    sim,
+    useCaseId,
+    status: resolved.blockHttpStatus || 403,
+    errorCode: resolved.blockCode || 'user_token_forwarding_disabled',
+    reason: resolved.blockMessage || 'Raw user-token forwarding to MCP is disabled. Use RFC 8693 token exchange instead.',
+    tokenChainEvents,
+  };
 }
 
 module.exports = {
