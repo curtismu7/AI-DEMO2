@@ -169,6 +169,36 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-22 — LMDB session writes silently lost at the mapSize ceiling (admin login loop)
+
+**Files changed:** `demo_api_server/services/lmdb/sessionStore.js`,
+`demo_api_server/services/lmdb/storeHealth.js` (new),
+`demo_api_server/routes/health.js`, `demo_api_server/services/lmdb/openEnv.js`,
+`scripts/compact-lmdb.sh`, `demo_api_server/src/__tests__/lmdbStoreHealth.test.js`.
+
+**What was broken:** data.mdb reached 237.6MB against the 128MB map (freelist
+churn; only ~24MB live). LMDB write paths failed and — combined with the
+cookie-stub fallback in `authStateCookie.js` — every admin login "succeeded",
+saved OK, and then vanished on the next request, presenting as an endless
+"Admin sign-in required" prompt. The only warning was a startup log line.
+
+**What was fixed:** (1) `storeHealth` module marks the store unhealthy on any
+session-write failure and clears on success; `/api/health/demo-status` now
+returns an `lmdb` block (`healthy`, `lastError`, `dataMdbBytes`,
+`dataMdbPctOfMap`). (2) The hourly session cleanup also logs the file
+high-water mark. (3) `scripts/compact-lmdb.sh` codifies the copy-compact
+runbook. (4) mapSize rationale documented in `openEnv.js` (128MB ≈ 5x measured
+live data — raise only after per-DB measurement).
+
+**Do not break:** the §1 session-store callback discipline — `cb(err)` on every
+failed store op, success callback outside the try. storeHealth is additive
+logging/flag only; it must never change callback semantics or swallow errors.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+src/__tests__/lmdbStoreHealth.test.js src/__tests__/lmdbSessionStore.doubleCallback.test.js
+tests/services/lmdbMapSizeWatch.test.js --forceExit` (14/14) and
+`curl -sk https://local.ping-devops.com:4000/api/health/demo-status | grep lmdb`.
+
 ### 2026-09-21 — Agent Identity Academy bypassed the application header
 
 **Files changed:** `demo_api_ui/src/App.js`,
