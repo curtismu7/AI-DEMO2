@@ -234,3 +234,6 @@ ping-mcpgw/config/pingone.env
 # a LIVE policy export, so machine-specific and large. The merger is source;
 # its output is not.
 snapshots/mcp-amount-bands.merged.snapshot.json
+
+# configStore LMDB runtime data (routes/configStore writes here)
+demo_api_server/data/config/
