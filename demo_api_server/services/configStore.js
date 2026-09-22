@@ -2565,28 +2565,32 @@ const configStore = new ConfigStore();
  * Callers are expected to log them and move on.
  */
 function detectRotatedCredentials() {
-  // Map: lowercase config key → canonical env var name
-  const WATCHLIST = [
-    ['pingone_admin_client_secret',              'PINGONE_ADMIN_CLIENT_SECRET'],
-    ['pingone_user_client_secret',               'PINGONE_USER_CLIENT_SECRET'],
-    ['pingone_authorize_worker_client_secret',   'PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET'],
-    ['pingone_management_client_secret',         'PINGONE_MANAGEMENT_CLIENT_SECRET'],
-    ['pingone_agent_client_id',                  'PINGONE_AGENT_CLIENT_ID'],
-    ['pingone_agent_client_secret',              'PINGONE_AGENT_CLIENT_SECRET'],
-    ['pingone_a2a_investment_agent_client_secret', 'PINGONE_A2A_INVESTMENT_AGENT_CLIENT_SECRET'],
-    ['pingone_a2a_records_agent_client_secret',  'PINGONE_A2A_RECORDS_AGENT_CLIENT_SECRET'],
-    ['pingone_a2a_purchase_agent_client_secret', 'PINGONE_A2A_PURCHASE_AGENT_CLIENT_SECRET'],
-    ['pingone_a2a_membership_agent_client_secret', 'PINGONE_A2A_MEMBERSHIP_AGENT_CLIENT_SECRET'],
-    ['pingone_a2a_payroll_agent_client_secret',  'PINGONE_A2A_PAYROLL_AGENT_CLIENT_SECRET'],
-    ['mcp_gw_client_secret',                    'MCP_GW_CLIENT_SECRET'],
-    ['gw_introspection_client_secret',          'GW_INTROSPECTION_CLIENT_SECRET'],
-    ['demo_password',                           'DEMO_USER_PASSWORD'],
-    ['demo_admin_password',                     'DEMO_ADMIN_PASSWORD'],
-  ];
+  // Derive the watchlist from ENV_FALLBACK_MAP × SECRET_KEYS instead of a
+  // hand-maintained table. The first version of this check missed
+  // admin_client_secret (the live admin-login key) because it watched a
+  // stale 'pingone_admin_client_secret' key name — a drift this derivation
+  // makes structurally impossible. Only keys with a canonical env alias in
+  // process.env are checked (an unset env var is nothing to compare against).
+  const seen = new Set();
+  const watchlist = [];
+  const isRotatableSecret = (key) =>
+    /(_secret|_password|_api_key)$/.test(key) || SECRET_KEYS.has(key.toUpperCase());
+  for (const [configKey, envAliases] of Object.entries(ENV_FALLBACK_MAP)) {
+    if (!isRotatableSecret(configKey)) continue;
+    for (const envKey of envAliases) {
+      if (envKey !== envKey.toUpperCase() || !/^[A-Z0-9_]+$/.test(envKey)) continue;
+      if (seen.has(envKey)) continue;
+      seen.add(envKey);
+      // One watch entry PER env alias: the caller may have set any alias (e.g.
+      // PINGONE_AI_CORE_CLIENT_SECRET or PINGONE_ADMIN_CLIENT_SECRET both feed
+      // admin_client_secret), and a rotated value can appear under any of them.
+      watchlist.push([configKey, envKey]);
+    }
+  }
 
   const warnings = [];
   try {
-    for (const [configKey, envKey] of WATCHLIST) {
+    for (const [configKey, envKey] of watchlist) {
       const envVal = (process.env[envKey] || '').trim();
       if (!envVal) continue; // not set in .env — nothing to compare
 

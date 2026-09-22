@@ -2969,6 +2969,22 @@ async function runBackgroundStartupTasks() {
         console.warn('[pingone-preflight] Skipped (non-fatal):', err.message);
     }
 
+    // ── Client-secret drift preflight ────────────────────────────────────────
+    // Compares the STORED admin/user login client secrets against what PingOne
+    // reports (worker reads GET /applications/{id}/secret). Catches a rotation
+    // done server-side that configStore didn't see — the failure class that
+    // otherwise surfaces only as invalid_client during a browser login.
+    try {
+        const { runClientSecretPreflight } = require('./services/pingoneClientSecretPreflight');
+        const sp = await runClientSecretPreflight();
+        if (!sp.ok && sp.fatal) {
+            console.error('[client-secret-preflight] Refusing to start (PINGONE_PREFLIGHT_STRICT): ' + sp.message);
+            process.exit(1);
+        }
+    } catch (err) {
+        console.warn('[client-secret-preflight] Skipped (non-fatal):', err.message);
+    }
+
     try {
         const { ensureAllRedirectUris } = require('./services/pingoneAppConfigService');
         await ensureAllRedirectUris();
