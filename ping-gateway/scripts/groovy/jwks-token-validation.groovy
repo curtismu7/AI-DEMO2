@@ -43,6 +43,12 @@ import java.security.spec.RSAPublicKeySpec
 
 def issuerUri          = System.getenv('PINGONE_ISSUER_URI') ?: ''
 def jwksUri            = System.getenv('PINGONE_JWKS_URI') ?: (issuerUri ? issuerUri + '/jwks' : '')
+// Secondary issuer (PingFederate, 2026-09-22 A2A-under-PF): PF-minted tokens
+// carry iss=https://...:9031 and are signed by the PF JWKS. When PF_ISSUER_URI
+// is configured, tokens whose iss matches are verified against PF_JWKS_URI
+// instead of the PingOne JWKS.
+def pfIssuerUri        = System.getenv('PF_ISSUER_URI') ?: ''
+def pfJwksUri          = System.getenv('PF_JWKS_URI') ?: (pfIssuerUri ? pfIssuerUri + '/JWKS' : '')
 def mockSecret         = System.getenv('AUTHZ_JWT_SECRET') ?: ''
 def mockIssuer         = System.getenv('AUTHZ_ISSUER_URI') ?: ''
 def gatewayResourceUri = System.getenv('PG_GATEWAY_RESOURCE_URI') ?: ''
@@ -114,21 +120,24 @@ try {
     return deny('undecodable_signature')
 }
 def alg = (jwtHeader['alg'] ?: '') as String
+def iss0 = (claims['iss'] ?: '') as String
 
 // ── 2. Signature verification, branched on alg ────────────────────────────────
-// JWKS fetch with ~5-minute cache in script globals (survives across requests).
-def fetchJwks = { boolean forceRefresh ->
+// Per-issuer JWKS fetch with ~5-minute cache in script globals (survives across
+// requests). Each issuer gets its own cache slot so adding PF doesn't thrash the
+// PingOne cache.
+def fetchJwksFor = { String uri, boolean forceRefresh ->
     long nowMs = System.currentTimeMillis()
-    def cache = globals._jwksCache
+    def cache = globals["_jwksCache_${uri}"]
     if (!forceRefresh && cache?.keys && nowMs < (cache.expiresAt as long)) {
         return cache.keys
     }
-    def conn = new URL(jwksUri).openConnection() as java.net.HttpURLConnection
+    def conn = new URL(uri).openConnection() as java.net.HttpURLConnection
     conn.connectTimeout = 5000
     conn.readTimeout    = 5000
     def keys = new JsonSlurper().parse(conn.inputStream)['keys'] ?: []
-    globals._jwksCache = [keys: keys, expiresAt: nowMs + 300_000L]
-    logger.info('[JWKS] fetched ' + keys.size() + ' key(s) from ' + jwksUri)
+    globals["_jwksCache_${uri}"] = [keys: keys, expiresAt: nowMs + 300_000L]
+    logger.info('[JWKS] fetched ' + keys.size() + ' key(s) from ' + uri)
     return keys
 }
 def rsaKeyFor = { Map jwk ->
@@ -142,11 +151,24 @@ def findJwk = { List keys, String kid ->
 }
 
 if (alg == 'RS256') {
-    if (!jwksUri) return deny('jwks_uri_not_configured')
+    // Pick the issuer/JWKS pair for this token: PF when PF_ISSUER_URI matches
+    // the token's iss, PingOne otherwise.
+    def isPfToken = pfIssuerUri && iss0 == pfIssuerUri
+    def activeJwksUri = isPfToken ? pfJwksUri : jwksUri
+    if (!activeJwksUri) return deny('jwks_uri_not_configured')
     def kid = jwtHeader['kid'] as String
+    // PF id-jag / ATM tokens carry x5t (no kid) — match by thumbprint first,
+    // then fall back to kid / single-RSA-key behavior.
+    def x5t = jwtHeader['x5t'] as String
+    def findJwkWithFallback = { List keys ->
+        def rsaKeys = keys.findAll { it['kty'] == 'RSA' && (it['use'] == 'sig' || !it['use']) }
+        if (kid) return rsaKeys.find { it['kid'] == kid }
+        if (x5t) return rsaKeys.find { it['x5t'] == x5t || (it['x5c'] && ((List) it['x5c'])[0] == x5t) }
+        return rsaKeys.size() == 1 ? rsaKeys[0] : null
+    }
     def jwk
     try {
-        jwk = findJwk(fetchJwks(false), kid)
+        jwk = findJwkWithFallback(fetchJwksFor(activeJwksUri, false))
         if (jwk == null) {
             // Key rotation: refetch on kid miss before rejecting — but at most
             // once per 60s (globals-throttled), so unauthenticated bogus-kid
@@ -167,7 +189,7 @@ if (alg == 'RS256') {
                 }
             }
             if (forceFetchWon) {
-                jwk = findJwk(fetchJwks(true), kid)
+                jwk = findJwkWithFallback(fetchJwksFor(activeJwksUri, true))
             }
         }
     } catch (Exception e) {
@@ -204,7 +226,8 @@ if (nbfClaim instanceof Number && now < (nbfClaim as long) - skew) return deny('
 
 def iss = (claims['iss'] ?: '') as String
 if (alg == 'RS256') {
-    if (!issuerUri || iss != issuerUri) return deny('issuer_mismatch')
+    def pfOk = pfIssuerUri && iss == pfIssuerUri
+    if (!pfOk && (!issuerUri || iss != issuerUri)) return deny('issuer_mismatch')
 } else if (mockIssuer) {
     if (iss != mockIssuer) return deny('issuer_mismatch')
 }
@@ -218,7 +241,12 @@ def audList = rawAud instanceof List ? rawAud.collect { it as String } : (rawAud
 def audOk = audList.any { it && (it == gatewayResourceUri || it == gatewayResourceId) }
 if (!audOk) return deny('audience_mismatch')
 
-def scopes = ((claims['scope'] ?: '') as String).tokenize(' ')
+// scope may be a space-delimited string (PingOne) or a JSON array (PingFederate
+// ATM emits the list form when multiple requested scopes are granted).
+def rawScope = claims['scope']
+def scopes = (rawScope instanceof List
+    ? rawScope.collect { it as String }
+    : ((rawScope ?: '') as String).tokenize(' '))
 if (!scopes.contains(requiredScope)) return deny('insufficient_scope')
 
 // ── 4. Success: expose claims to downstream filters, stamp the demo header ────

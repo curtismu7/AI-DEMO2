@@ -102,6 +102,13 @@ def SCOPE_FOR_TOOL = [
 def tokenEndpoint  = System.getenv('PINGONE_TOKEN_ENDPOINT') ?: ''
 def teClientId     = System.getenv('TE_CLIENT_ID') ?: ''
 def teClientSecret = System.getenv('TE_CLIENT_SECRET') ?: ''
+// PingFederate secondary issuer (2026-09-22 A2A-under-PF): a PF-issued subject
+// (id-jag) cannot be parsed by PingOne — route Exchange #3 to PF when the
+// subject's iss matches PF_ISSUER_URI.
+def pfIssuer        = System.getenv('PF_ISSUER_URI') ?: ''
+def pfTokenEndpoint = System.getenv('PF_TOKEN_ENDPOINT') ?: ''
+def pfTeClientId    = System.getenv('PF_TE_CLIENT_ID') ?: ''
+def pfTeClientSecret= System.getenv('PF_TE_CLIENT_SECRET') ?: ''
 def investAudience = System.getenv('PG_MCP_RESOURCE_SERVER_URI') ?: ''
 def investBaseUrl  = System.getenv('PG_INVEST_BACKEND_URL') ?: 'http://mcp-resource-server:8081'
 def investMcpUrl   = investBaseUrl.replaceAll('/+$', '') + '/mcp'
@@ -190,23 +197,47 @@ if (!tokenEndpoint || !teClientId || !teClientSecret || !investAudience) {
 // TE client holds grants on several; `audience=` alone is silently ignored and
 // the issued token keeps the gateway aud, which the backend then rejects.
 def wantScope = SCOPE_FOR_TOOL[toolName]
+// Pick the issuer pair for this subject (PF vs PingOne) — see env comment above.
+def subjectIss = ''
+def subjectTyp = ''
+try {
+    def p = subjectToken.split('\\.', -1)
+    if (p.length == 3) {
+        subjectIss = new JsonSlurper().parseText(new String(java.util.Base64.getUrlDecoder().decode(p[1]), 'UTF-8'))['iss'] ?: ''
+        subjectTyp = new JsonSlurper().parseText(new String(java.util.Base64.getUrlDecoder().decode(p[0]), 'UTF-8'))['typ'] ?: ''
+    }
+} catch (Exception ignored) {}
+logger.info('[InvestDispatch] iss=' + subjectIss + ' typ=' + subjectTyp + ' pf=' + pfIssuer + ' pfTE=' + (pfTeClientId ?: '(unset)'))
+def isPfSubject = pfIssuer && pfTokenEndpoint && subjectIss == pfIssuer
+// Only an id-jag-typed subject uses id-jag typing; PF ATM access tokens (typ=JWT)
+// must stay access_token or PF answers "Invalid Token".
+def subjectType = (subjectTyp == 'oauth-id-jag+jwt')
+    ? 'urn:ietf:params:oauth:token-type:id-jag'
+    : 'urn:ietf:params:oauth:token-type:access_token'
+def exEndpoint  = isPfSubject ? pfTokenEndpoint : tokenEndpoint
+def exClientId  = isPfSubject ? (pfTeClientId ?: teClientId) : teClientId
+def exClientSecret = isPfSubject ? (pfTeClientSecret ?: teClientSecret) : teClientSecret
 def params = [
     'grant_type'          : 'urn:ietf:params:oauth:grant-type:token-exchange',
     'subject_token'       : subjectToken,
-    'subject_token_type'  : 'urn:ietf:params:oauth:token-type:access_token',
+    'subject_token_type'  : subjectType,
     'requested_token_type': 'urn:ietf:params:oauth:token-type:access_token',
-    'resource'            : investAudience,
-    'client_id'           : teClientId,
-    'client_secret'       : teClientSecret,
+    // PF mode: resource OMITTED - PF reuses the cached persistent grant for
+    // this (client, subject, scope) key, whose token carries aud
+    // https://api.ping.demo:3036/mcp; the invest backend accepts that audience
+    // (compose env) and the P1AZ decision at the gateway is the real gate.
+    'resource'            : (isPfSubject ? null : investAudience),
+    'client_id'           : exClientId,
+    'client_secret'       : exClientSecret,
 ]
 if (wantScope) params['scope'] = wantScope
 
-def formBody = params.collect { k, v ->
+def formBody = params.findAll { it.value != null }.collect { k, v ->
     java.net.URLEncoder.encode(k, 'UTF-8') + '=' + java.net.URLEncoder.encode(v as String, 'UTF-8')
 }.join('&')
 
 logger.info('[InvestDispatch] tool=' + toolName + ' REQUEST → ' + tokenEndpoint + ' resource=' + investAudience + ' scope=' + (wantScope ?: '(omit)'))
-def exchangeResp = httpPostForm(tokenEndpoint, formBody)
+def exchangeResp = httpPostForm(exEndpoint, formBody)
 logger.info('[InvestDispatch] Exchange #3 HTTP ' + exchangeResp.code)
 
 if (exchangeResp.code != 200) {
@@ -234,6 +265,7 @@ if (!issuedToken) {
 // ── Forward the original JSON-RPC envelope to the resource server ─────────────
 def beResp = httpPostJson(investMcpUrl, bodyStr, issuedToken)
 logger.info('[InvestDispatch] backend ' + investMcpUrl + ' HTTP ' + beResp.code)
+if (beResp.code != 200) logger.warn('[InvestDispatch] backend body: ' + (beResp.body ?: '(empty)'))
 
 if (beResp.code == 0) {
     return Promises.newResultPromise(rpcError(rpcId, -32603, 'Invest backend unreachable'))

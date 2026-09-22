@@ -21,6 +21,14 @@ import org.forgerock.util.promise.Promises
 def tokenEndpoint   = System.getenv('PINGONE_TOKEN_ENDPOINT') ?: ''
 def teClientId      = System.getenv('TE_CLIENT_ID') ?: ''
 def teClientSecret  = System.getenv('TE_CLIENT_SECRET') ?: ''
+// PingFederate secondary issuer (2026-09-22 A2A-under-PF): when the inbound
+// subject token was issued by PF (iss == PF_ISSUER_URI), PingOne cannot parse
+// it ("Cannot parse token claims for subject_token"). Route Exchange #3 to the
+// PF token endpoint with the PF exchanger client instead.
+def pfIssuer        = System.getenv('PF_ISSUER_URI') ?: ''
+def pfTokenEndpoint = System.getenv('PF_TOKEN_ENDPOINT') ?: ''
+def pfTeClientId    = System.getenv('PF_TE_CLIENT_ID') ?: ''
+def pfTeClientSecret= System.getenv('PF_TE_CLIENT_SECRET') ?: ''
 def olbAudience     = System.getenv('PG_OLB_RESOURCE_URI') ?: ''
 def olbScope        = System.getenv('PG_OLB_SCOPE') ?: ''
 def mcpBaseUrl      = System.getenv('PG_OLB_BACKEND_URL') ?: 'http://mcp-server:8080'
@@ -159,7 +167,7 @@ if (!subjectToken) {
 // See docs/dual-exchange-broker.md.
 def issuedToken
 
-// ── Exchange #3: get OLB token from PingOne ───────────────────────────────────
+// ── Exchange #3: get OLB token from PingOne (or PF for PF-issued subjects) ────
 // RFC 8707: PingOne requires `resource=` to narrow to ONE resource server when
 // the TE client has grants on several — `audience=` alone is silently ignored
 // ("May not request scopes for multiple resources"), so the issued token keeps
@@ -171,14 +179,27 @@ def issuedToken
 // Forcing scope=mcp:invoke is WRONG — that name is also on mcpgateway.ping.demo,
 // so PingOne may return 200 with the WRONG aud (gateway) even with resource=
 // set. Node omits scope when subject∩mcpserver is empty; do the same here.
+// PF branch: subject_token_type must be id-jag when the subject is a PF id-jag
+// (access_token typing is rejected), and PF forbids id-jag→id-jag so the
+// requested type stays access_token.
+def tokenIss = ''
+try {
+    def h = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : ''
+    def p = h.split('\\.', -1)
+    if (p.length == 3) tokenIss = new JsonSlurper().parseText(new String(java.util.Base64.getUrlDecoder().decode(p[1]), 'UTF-8'))['iss'] ?: ''
+} catch (Exception ignored) {}
+def isPfSubject = pfIssuer && pfTokenEndpoint && tokenIss == pfIssuer
+def exEndpoint  = isPfSubject ? pfTokenEndpoint : tokenEndpoint
+def exClientId  = isPfSubject ? (pfTeClientId ?: teClientId) : teClientId
+def exClientSecret = isPfSubject ? (pfTeClientSecret ?: teClientSecret) : teClientSecret
 def params = [
     'grant_type'           : 'urn:ietf:params:oauth:grant-type:token-exchange',
     'subject_token'        : subjectToken,
-    'subject_token_type'   : 'urn:ietf:params:oauth:token-type:access_token',
+    'subject_token_type'   : (isPfSubject ? 'urn:ietf:params:oauth:token-type:id-jag' : 'urn:ietf:params:oauth:token-type:access_token'),
     'requested_token_type' : 'urn:ietf:params:oauth:token-type:access_token',
     'resource'             : olbAudience,
-    'client_id'            : teClientId,
-    'client_secret'        : teClientSecret,
+    'client_id'            : exClientId,
+    'client_secret'        : exClientSecret,
 ]
 if (olbScope?.trim()) {
     params['scope'] = olbScope.trim()
@@ -187,8 +208,8 @@ def formBody = params.collect { k, v ->
     java.net.URLEncoder.encode(k, 'UTF-8') + '=' + java.net.URLEncoder.encode(v as String, 'UTF-8')
 }.join('&')
 
-logger.info('[OlbExchange] REQUEST → ' + tokenEndpoint + ' resource=' + olbAudience + ' scope=' + (olbScope?.trim() ?: '(omit)'))
-def exchangeResp = httpPostForm(tokenEndpoint, formBody)
+logger.info('[OlbExchange] REQUEST → ' + exEndpoint + ' resource=' + olbAudience + ' scope=' + (olbScope?.trim() ?: '(omit)'))
+def exchangeResp = httpPostForm(exEndpoint, formBody)
 logger.info('[OlbExchange] RESPONSE HTTP ' + exchangeResp.code)
 
 if (exchangeResp.code != 200) {
