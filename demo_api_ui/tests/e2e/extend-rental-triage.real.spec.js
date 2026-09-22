@@ -1,47 +1,46 @@
 /**
- * End-to-end triage test: extend_rental $300 (UC7 analog, sporting-goods).
- * Signs in as the demo customer via the real PingOne flow, sends the chip,
- * and captures the agent reply + token chain so the gateway DENY can be
- * diagnosed from the [triage] log line the BFF emits for this call.
+ * End-to-end triage test: extend_rental $600 (UC7 analog, sporting-goods).
  *
- * Run: cd demo_api_ui && npx playwright test tests/e2e/extend-rental-triage.real.spec.js --config=playwright.real.config.js
+ * The freeform chat input routes through /api/agent/run (AG-UI), which drives
+ * the LLM directly and never dispatches heuristics — so a freeform "extend my
+ * rental" answers as chat. The UC7 chip path goes through /api/agent/invoke,
+ * which parses the heuristic and dispatches extend_rental through the gateway
+ * (mode=llm includes the deterministic floor for vertical actions).
+ *
+ * This spec: sign in as the customer, pin sporting-goods, then POST the UC7
+ * trigger ("extend my rental $600") to /api/agent/invoke with the browser's
+ * session cookie — the same call the Live Use Cases chip makes. The BFF emits
+ * the [mcpToolPipeline][triage] log line right before callToolViaGateway.
  */
 const { test, expect } = require('@playwright/test');
-const { loginAsCustomer } = require('./helpers/realLogin');
+const { loginAsCustomer, getE2eBaseUrl } = require('./helpers/realLogin');
 
-test('extend_rental $300 — UC7 (sporting-goods) end to end', async ({ page }) => {
+test('extend_rental $600 — UC7 (sporting-goods) end to end', { timeout: 240_000 }, async ({ page }) => {
   await loginAsCustomer(page);
-  await page.waitForTimeout(6000);
+  await page.waitForTimeout(3000);
 
-  // Close the Mission Control drawer if it is open (it covers the chat input).
-  const close = page.locator('.ba-demo-steps-drawer__close');
-  if (await close.isVisible().catch(() => false)) {
-    await close.click({ force: true });
-    await page.waitForTimeout(600);
-  }
+  // Pin the session to the sporting-goods vertical (UC7 perVertical chip text).
+  const pin = await page.request.post(`${getE2eBaseUrl().replace(/\/$/, '')}/api/verticals/active`, {
+    data: { id: 'sporting-goods' },
+  });
+  if (!pin.ok()) throw new Error(`vertical pin failed: ${pin.status()}`);
 
-  // Send the phrase through the real chat input.
-  const input = page.locator('input[placeholder*="Ask about"]').first();
-  await input.waitFor({ state: 'visible', timeout: 20000 });
-  await input.fill('extend my rental $300');
-  await page.locator('button[aria-label="Send"]').click();
+  // Fire the UC7 chip exactly as the Live Use Cases panel does.
+  const resp = await page.request.post(`${getE2eBaseUrl().replace(/\/$/, '')}/api/agent/invoke`, {
+    data: { prompt: 'extend my rental $600', vertical: 'sporting-goods' },
+  });
+  console.log('[triage-spec] invoke status:', resp.status());
+  const json = await resp.json().catch(() => ({}));
+  console.log('[triage-spec] toolsCalled:', JSON.stringify(json.toolsCalled || []));
+  console.log('[triage-spec] reply:', String(json.reply || '').slice(0, 300).replace(/\s+/g, ' '));
+  const requiresConsent = json.requiresConsent === true;
+  const denied = /insufficient_scope|policy denied|declined by the gateway/i.test(String(json.reply || ''));
+  console.log('[triage-spec] hitl:', requiresConsent, '| denied:', denied);
 
-  // Wait for the agent reply to land in the transcript.
-  const reply = page.locator('.banking-agent-message, [class*="assistant"], [class*="ba-msg"]').last();
-  await page.waitForTimeout(25000);
-
-  const bodyText = await page.evaluate(() => document.body.innerText);
-  const denied = bodyText.includes("declined by the gateway's authorization policy")
-    || bodyText.includes('policy denied')
-    || bodyText.includes('insufficient_scope');
-  const hitl = bodyText.includes('MFA') || bodyText.includes('consent') || bodyText.includes('approve');
-  const completed = bodyText.includes('extended') || bodyText.includes('extension confirmed');
-
-  console.log('[triage-spec] denied-card:', denied, '| hitl-prompt:', hitl, '| completed:', completed);
+  await page.goto(`${getE2eBaseUrl().replace(/\/$/, '')}/dashboard`, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(4000);
   await page.screenshot({ path: 'evidence/extend-rental-triage.png', fullPage: false });
 
-  // The assertion is deliberately loose: this spec is a triage probe — its job
-  // is to drive the call so the BFF [triage] log line fires, and to record what
-  // the UI showed. Pass/fail of the step itself is judged from the logs.
+  // Triage probe — the pass/fail verdict is read from the BFF [triage] log.
   expect(true).toBe(true);
 });

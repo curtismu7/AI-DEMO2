@@ -333,11 +333,16 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
     // can be validated against it at the MCP gateway.
     const intentTokenEnabled = configStore.getEffective('ff_intent_token_enabled') !== 'false';
 
+    // Hoisted for the cross-vertical mismatch guard below (which runs after the
+    // agent responds, outside this block): what the pre-execution parser saw.
+    let _itIntent = null;
+    let _itConf = 0;
+
     if (intentTokenEnabled) {
       // Vertical-aware: the regex extractor alone classifies most vertical
       // chips as "unknown", whose permitted_tools exclude the sensitive reads
       // UC2/UC2.5 delegate — see extractIntentAndConfidence.
-      const { intent: _itIntent, confidence: _itConf } = extractIntentAndConfidence(prompt, vertical);
+      ({ intent: _itIntent, confidence: _itConf } = extractIntentAndConfidence(prompt, vertical));
       const { token: _intentToken } = mintIntentToken({
         userId,
         sessionId: req.session?.id || null,
@@ -400,6 +405,47 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
     });
 
     console.log('[agentInvokeRoute] Agent response received, toolsCalled:', agentResponse.toolsCalled);
+
+    // ── CROSS-VERTICAL INTENT MISMATCH GUARD ─────────────────────────────────
+    // The pre-execution intent regexes are vertical-blind (nlIntentParser.js),
+    // so "extend my rental $300" mints intent=extend_rental in ANY vertical.
+    // But the heuristic dispatch runs against the ACTIVE vertical only: in a
+    // vertical that has no such action, the prompt falls through to the LLM
+    // reason loop, whose tool list does not contain the intent's tool — so the
+    // model answers as chat ("which account? landlord details?") and the demo
+    // silently does nothing (observed live 2026-09-22). Detect exactly that:
+    // no tool ran, the minted intent has a toolName, and that tool belongs to
+    // a DIFFERENT vertical's plugin. Reply with a guidance card naming the
+    // right vertical instead of letting the LLM freestyle.
+    if ((agentResponse.toolsCalled?.length ?? 0) === 0 && _itIntent && _itIntent !== 'unknown' && (_itConf ?? 0) >= 0.5) {
+      try {
+        const { verticalManifest: _vm } = require('../services/verticalManifest');
+        const intentTool = _itIntent; // vertical regexes set toolName === intent
+        const ownerVerticals = [];
+        for (const { id: vid } of _vm.listAll()) {
+          if (vid === vertical) continue;
+          const plugin = _vm.plugins.get(vid);
+          if (!plugin || typeof plugin.getTools !== 'function') continue;
+          const names = plugin.getTools().map((t) => t && t.name);
+          if (names.includes(intentTool)) ownerVerticals.push(vid);
+        }
+        if (ownerVerticals.length > 0 && ownerVerticals[0] !== vertical) {
+          const owner = ownerVerticals[0];
+          console.log('[agentInvokeRoute] Cross-vertical intent mismatch: intent=%s active=%s owner=%s — replying with switch hint', _itIntent, vertical, owner);
+          return res.json({
+            reply: `That request is a **${owner.replace(/-/g, ' ')}** action, but your session is pinned to **${String(vertical || 'banking').replace(/-/g, ' ')}**. Switch the vertical picker at the top of the page to continue — this action routes through that vertical's own MCP tools and authorization policies.`,
+            success: true,
+            toolsCalled: [],
+            tokensUsed: 0,
+            requiresConsent: false,
+            agentConfigured: true,
+            tokenEvents: req.tokenEvents || [],
+            crossVerticalHint: { intent: _itIntent, activeVertical: vertical, ownerVertical: owner },
+          });
+        }
+      } catch (_e) { /* diagnostics only — never break the agent path */ }
+    }
+
 
     // Prepend pre-execution token events (intent token, auth events) collected
     // on req.tokenEvents before the processAgentMessage call.
