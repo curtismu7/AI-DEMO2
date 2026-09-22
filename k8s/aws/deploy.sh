@@ -226,8 +226,11 @@ if [[ -n "$K8S_NAMESPACE" ]]; then
   if [[ -z "${HOSTED_ACCESS_REQUIRED_GROUP_ID:-}" ]]; then
     die "HOSTED_ACCESS_REQUIRED_GROUP_ID must be set before enabling hosted access"
   fi
+  # ALLOWED_DOMAINS includes pingone.com (demoUser's email domain) and
+  # REQUIRE_VERIFIED_EMAIL stays false — matching the live-patched configmap
+  # that fixed hosted-access logins; see REGRESSION_PLAN before changing.
   kubectl patch configmap ai-demo-config -n "$NS" --type merge -p \
-    "{\"data\":{\"HOSTED_ACCESS_GATE_ENABLED\":\"true\",\"HOSTED_ACCESS_ALLOWED_DOMAINS\":\"pingidentity.com\",\"HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL\":\"true\",\"HOSTED_ACCESS_REQUIRED_GROUP_ID\":\"${HOSTED_ACCESS_REQUIRED_GROUP_ID}\"}}"
+    "{\"data\":{\"HOSTED_ACCESS_GATE_ENABLED\":\"true\",\"HOSTED_ACCESS_ALLOWED_DOMAINS\":\"pingidentity.com,pingone.com\",\"HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL\":\"false\",\"HOSTED_ACCESS_REQUIRED_GROUP_ID\":\"${HOSTED_ACCESS_REQUIRED_GROUP_ID}\"}}"
 fi
 
 # Override the nginx-config ConfigMap from 02-configmap.yaml (which contains the
