@@ -8,9 +8,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ADMIN_PRIMARY_USE_CASE_IDS,
   CIAM_AGENT_TYPE_USE_CASE_IDS,
-  DEMO_MISSION_GROUPS,
-  DEMO_MATURITY_GROUPS,
   DEMO_ADVANCED_USE_CASE_IDS,
+  DEMO_JOURNEY_GROUPS,
   DEMO_PRIMARY_USE_CASE_IDS,
   DEMO_USE_CASE_SEARCH_TERMS,
   PRIVILEGE_USE_CASE_IDS,
@@ -285,13 +284,14 @@ export default function DemoStepsDropdown({
   // Client-side filter on id + title. Progress above stays over the FULL
   // primary set — searching narrows what is shown, not what counts as done.
   const q = query.trim().toLowerCase();
-  const activeMissionGroup = DEMO_MISSION_GROUPS.find((group) => group.id === activeGroup);
+  // Group filter chips mirror the 13 Guided Journey stages (/academy/journey).
+  const activeMissionGroup = DEMO_JOURNEY_GROUPS.find((group) => group.id === activeGroup);
   const activeCatalogGroup = getMissionControlGroup(activeGroup);
   const activeGroupIds = activeGroup === 'all'
     ? null
     : activeGroup === AGENT_TYPE_GROUP_ID
       ? new Set(CIAM_AGENT_TYPE_USE_CASE_IDS)
-      : new Set(activeMissionGroup?.useCaseIds || DEMO_MATURITY_GROUPS.find((group) => group.id === activeGroup)?.useCaseIds || []);
+      : new Set(activeMissionGroup?.useCaseIds || []);
   const scopedPrimary = activeGroupIds
     ? primarySteps.filter(({ uc }) => activeGroupIds.has(uc.id))
     : primarySteps;
@@ -539,7 +539,7 @@ export default function DemoStepsDropdown({
                 className="ba-demo-steps-popout__live-p1az"
                 onClick={handleLiveP1az}
                 disabled={liveP1azState === 'arming'}
-                title="Run the balance proof through PingOne Agent Gateway and live PingOne Authorize; flags restore after one minute"
+                title="Run the balance proof through PingGateway and live PingOne Authorize; flags restore after one minute"
                 data-testid="demo-live-p1az"
               >
                 {liveP1azState === 'arming'
@@ -604,7 +604,7 @@ export default function DemoStepsDropdown({
               >
                 All
               </button>
-              {DEMO_MISSION_GROUPS.map((group) => (
+              {DEMO_JOURNEY_GROUPS.map((group) => (
                 <button
                   key={group.id}
                   type="button"

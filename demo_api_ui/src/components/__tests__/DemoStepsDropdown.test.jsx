@@ -213,7 +213,7 @@ describe('DemoStepsDropdown', () => {
     );
   });
 
-  it('keeps the 13 Mission Control groups visible and scopes Personal Agent in one click', async () => {
+  it('keeps the 13 Guided Journey stage groups visible and scopes Personal Agent in one click', async () => {
     const ciamCatalog = [
       ...CATALOG,
       ...CIAM_AGENT_TYPE_USE_CASE_IDS
@@ -228,16 +228,15 @@ describe('DemoStepsDropdown', () => {
 
     render(<DemoStepsDropdown open onOpenChange={() => {}} onSelect={() => {}} />);
 
-    expect(await screen.findByTestId('demo-steps-group-personal-agent')).toBeInTheDocument();
+    expect(await screen.findByTestId('demo-steps-group-j-personal-agent')).toBeInTheDocument();
+    // 13 journey stages + the "All" chip.
     expect(screen.getAllByTestId(/^demo-steps-group-/)).toHaveLength(14);
-    fireEvent.click(screen.getByTestId('demo-steps-group-personal-agent'));
+    fireEvent.click(screen.getByTestId('demo-steps-group-j-personal-agent'));
 
     expect(screen.getByTestId('demo-step-ciam-UC43')).toBeInTheDocument();
     expect(screen.getByTestId('demo-step-ciam-UC44')).toBeInTheDocument();
     expect(screen.getByTestId('demo-step-UC38')).toBeInTheDocument();
     expect(screen.queryByTestId('demo-step-UC24')).not.toBeInTheDocument();
-    expect(screen.getByTestId('demo-steps-mission-links')).toHaveTextContent('Agent Onboarding Flow');
-    expect(screen.getByTestId('demo-steps-mission-links')).toHaveTextContent('Agent Registry & NHI');
   });
 
   it('uses the MCP App demo label for the selected transfer approval step', async () => {
@@ -419,21 +418,21 @@ describe('DemoStepsDropdown — search', () => {
     expect(screen.queryByTestId('demo-step-UC1')).not.toBeInTheDocument();
   });
 
-  it('filters the live script by maturity-model group', async () => {
+  it('filters the live script by Guided Journey stage group', async () => {
     render(
       <DemoStepsDropdown open onOpenChange={() => {}} onSelect={() => {}} />,
     );
     await waitFor(() => expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByTestId('demo-steps-group-authorize'));
+    fireEvent.click(screen.getByTestId('demo-steps-group-j-authorize'));
 
     expect(screen.getByTestId('demo-step-UC6')).toBeInTheDocument();
     expect(screen.getByTestId('demo-step-UC14')).toBeInTheDocument();
     expect(screen.queryByTestId('demo-step-UC1')).not.toBeInTheDocument();
-    expect(screen.getByTestId('demo-steps-group-authorize')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('demo-steps-group-j-authorize')).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('shows the Privilege & JIT Access group from the shared catalog', async () => {
+  it('shows the Privilege & JIT steps from the shared catalog under the Privilege MCP journey stage', async () => {
     const privilegeCatalog = [
       ...CATALOG,
       ...PRIVILEGE_USE_CASE_IDS
@@ -451,7 +450,7 @@ describe('DemoStepsDropdown — search', () => {
     );
     await waitFor(() => expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument());
 
-    fireEvent.click(screen.getByTestId('demo-steps-group-privilege'));
+    fireEvent.click(screen.getByTestId('demo-steps-group-j-privilege-mcp'));
 
     expect(screen.getByTestId('demo-steps-privilege-group')).toBeInTheDocument();
     expect(screen.getByTestId('demo-step-privilege-UC17')).toBeInTheDocument();

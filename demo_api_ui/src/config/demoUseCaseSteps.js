@@ -29,7 +29,7 @@ export const DEMO_PRIMARY_USE_CASE_IDS = [
   // UC29 (OAuth introspection outage) is deliberately NOT in the script: the
   // Node gateway validates tokens by JWKS (GW_INTROSPECTION_ENABLED=false —
   // RFC 7662 cannot cover its multi-issuer A2A tokens, see docker-compose.yml)
-  // and PingOne Agent Gateway has no outage toggle, so the sim cannot fire on this
+  // and PingGateway has no outage toggle, so the sim cannot fire on this
   // deployment. It stays in the catalog under Attacks, badged "Needs build".
   'UC30',  // Weather MCP — Texas permit
   'UC31',  // Weather MCP — out-of-scope deny
@@ -142,6 +142,107 @@ export const DEMO_MATURITY_GROUPS = [
     shortLabel: 'Govern',
     description: 'Show auditability, throttling, and accountability.',
     useCaseIds: ['UC18', 'UC20'],
+  },
+];
+
+/**
+ * Guided Journey stage groups — mirrors the 13 steps of the
+ * Guided customer journey (/academy/journey, GuidedJourneyPage
+ * JOURNEY_SEQUENCE) 1:1 so the Demo Steps drawer's group filter chips match
+ * that page's left rail. Each stage filters to the use cases that play the
+ * corresponding beat of the story.
+ */
+export const DEMO_JOURNEY_GROUPS = [
+  {
+    id: 'j-discover',
+    label: 'Discover agents',
+    shortLabel: 'Discover',
+    description: 'Find agents and make their activity visible.',
+    useCaseIds: ['UC24'],
+  },
+  {
+    id: 'j-login',
+    label: 'PingOne login',
+    shortLabel: 'Login',
+    description: 'OIDC/PKCE person login with the BFF holding browser tokens.',
+    useCaseIds: [],
+  },
+  {
+    id: 'j-delegation',
+    label: 'Delegation',
+    shortLabel: 'Delegation',
+    description: 'RFC 8693 delegated agent access with the act claim.',
+    useCaseIds: ['UC1'],
+  },
+  {
+    id: 'j-personal-agent',
+    label: 'Personal Agent',
+    shortLabel: 'Personal Agent',
+    description: 'Consumer-owned personal agent registration and delegated execution.',
+    useCaseIds: ['UC43', 'UC44', 'UC38'],
+  },
+  {
+    id: 'j-digital-assistant',
+    label: 'Digital Assistant',
+    shortLabel: 'Digital Assistant',
+    description: 'Enterprise Digital Assistant with OBO, MFA, and live authorization.',
+    useCaseIds: ['UC38', 'UC44', 'UC1', 'UC7', 'UC22'],
+  },
+  {
+    id: 'j-mcp',
+    label: 'MCP',
+    shortLabel: 'MCP',
+    description: 'MCP discovery and tool execution behind the gateway boundary.',
+    useCaseIds: ['UC30', 'UC31', 'UC32', 'UC-TOOL1', 'UC40'],
+  },
+  {
+    id: 'j-authorize',
+    label: 'PingOne Authorize',
+    shortLabel: 'Authorize',
+    description: 'Permit and deny policy decisions on agent actions.',
+    useCaseIds: ['UC6', 'UC14b', 'UC14', 'UC5', 'UC10', 'UC13'],
+  },
+  {
+    id: 'j-hitl',
+    label: 'HITL and step-up',
+    shortLabel: 'HITL & Step-up',
+    description: 'Human approval, consent, CIBA, and step-up authentication.',
+    useCaseIds: ['UC8', 'UC7', 'UC22'],
+  },
+  {
+    id: 'j-a2a',
+    label: 'A2A delegation',
+    shortLabel: 'A2A',
+    description: 'Agent-to-agent delegation, specialist handoff, and nested identity.',
+    useCaseIds: ['UC2', 'UC2.5', 'UC2.6', 'UC2.7'],
+  },
+  {
+    id: 'j-privilege-mcp',
+    label: 'Privilege MCP',
+    shortLabel: 'Privilege',
+    description: 'Privilege-protected MCP access — time-bound, scoped, auditable.',
+    useCaseIds: PRIVILEGE_USE_CASE_IDS,
+  },
+  {
+    id: 'j-threat-defense',
+    label: 'Attack defense',
+    shortLabel: 'Attacks',
+    description: 'Replay, bad client, throttle, and gateway deny outcomes.',
+    useCaseIds: ['UC12', 'UC11', 'UC18', 'UC31'],
+  },
+  {
+    id: 'j-lifecycle',
+    label: 'Agent lifecycle',
+    shortLabel: 'Lifecycle',
+    description: 'Registration, ownership, suspension, and revocation evidence.',
+    useCaseIds: ['UC20', 'UC43'],
+  },
+  {
+    id: 'j-evidence',
+    label: 'Evidence summary',
+    shortLabel: 'Evidence',
+    description: 'Assemble the defensible evidence timeline across products.',
+    useCaseIds: ['UC20'],
   },
 ];
 

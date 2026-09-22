@@ -5731,8 +5731,39 @@ body > .banking-agent-float-root .banking-agent-panel {
   }
 }
 
-/* Live Use Cases — equally bold violet CTA, sits next to Demo Steps */
-.ba-cta-live {
+/* Demo Steps trigger — floating/flat row (`.ba-hg--flat`) now matches the
+   embedded split-column CTA styled by `.ba-hg--demo` above. */
+.ba-hg--flat .ba-demo-steps-trigger {
+  height: 32px;
+  padding: 0 16px 0 26px;
+  border-radius: 8px;
+  border: 1px solid #15803d;
+  background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+  color: #fff;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  box-shadow:
+    0 3px 10px rgba(22, 163, 74, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  position: relative;
+}
+.ba-hg--flat .ba-demo-steps-trigger::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--th-bg-card);
+  animation: ba-cta-pulse 1.6s infinite;
+}
+.ba-hg--flat .ba-demo-steps-trigger:hover {
+  background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+}
+
+/* Live Use Cases — equally bold violet CTA, sits next to Demo Steps */.ba-cta-live {
   height: 32px;
   padding: 0 16px;
   border-radius: 8px;
@@ -6662,6 +6693,10 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-demo-steps-drawer .ba-demo-steps-popout__grid {
   display: grid;
   grid-template-columns: 1fr;
+  /* auto rows sized to the tallest item so every box in the slide-out is the
+     same size and fits the largest content, instead of each row hugging its
+     own (auto-sized) content. */
+  grid-auto-rows: 1fr;
   gap: 8px;
   max-height: none;
   padding: 0;
@@ -6682,6 +6717,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   width: 100%;
+  height: 100%;
   min-width: 0;
   align-items: center;
   gap: 9px;
@@ -6706,22 +6742,28 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: var(--th-status-success-bg);
 }
 
+/* When the ✓ check renders it becomes a 4th grid child; without an extra
+   column the label shifted onto the UC id badge. */
+.ba-demo-steps-drawer .banking-chips-dropdown__button--done {
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+}
+
 .ba-demo-steps-drawer .ba-demo-steps-popout__id {
   margin: 0;
   padding: 2px 5px;
   color: var(--th-status-info-text);
   background: var(--th-status-info-bg);
   font-family: var(--font-mono);
-  font-size: var(--font-size-3xs);
+  font-size: var(--font-size-2xs);
 }
 
 .ba-demo-steps-drawer .banking-chips-dropdown__chip-name {
   min-width: 0;
   overflow: hidden;
   color: var(--th-text);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-base);
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
