@@ -205,7 +205,15 @@ class OAuthService {
   // hardcoding a hint there pre-fills PingOne's login screen with the wrong
   // username, producing a genuine "incorrect username and password" once the
   // user submits credentials for whoever they actually are.
-  generateAuthorizationUrl(state, codeVerifier, redirectUri, nonce = null, loginHint = 'demoAdmin') {
+  generateAuthorizationUrl(state, codeVerifier, redirectUri, nonce = null, loginHint) {
+    // PingFederate disables (readonly) the username field when login_hint is
+    // present — same trap as oauthUserService's user login (see that fix). The
+    // 'demoAdmin' hint was a PingOne-hosted-page convenience; in PF mode it
+    // locked the admin username to a user that does not exist in the IdP.
+    // Default: PingOne keeps 'demoAdmin'; PF omits the hint entirely.
+    if (loginHint === undefined) {
+      loginHint = (configStore.getOAuthProvider?.() === 'pingfederate') ? null : 'demoAdmin';
+    }
     const usePiFlow = !!this.config.authorizeUsesPiFlow;
     const codeChallenge = this.generateCodeChallenge(codeVerifier);
     const responseType = usePiFlow ? 'pi.flow' : 'code';
