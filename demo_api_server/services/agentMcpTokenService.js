@@ -1200,8 +1200,18 @@ async function resolvePingFederateIdJagToken(req, tokenEvents, { resource, scope
   const subject = resolvePfIdJagSubjectToken(req, subjectType);
   const audience = configStore.getEffective('pf_id_jag_audience') || resource;
   const idJagResource = configStore.getEffective('pf_id_jag_resource') || resource;
+  // Per-tool scopes win: the caller resolved finalScopes = toolCandidateScopes ∩
+  // user token scopes (RFC 8693 §2.1). PF_ID_JAG_SCOPE is the fallback for
+  // discovery/generic calls where no tool-specific scopes were resolved.
+  // Previously configuredScope ALWAYS overrode finalScopes, so PF-mode tool
+  // tokens only ever carried mcp:invoke and every per-tool gateway check
+  // DENY'd with insufficient_scope (e.g. get_my_accounts: missing accounts:read).
   const configuredScope = configStore.getEffective('pf_id_jag_scope');
-  const scopes = configuredScope ? String(configuredScope).split(/\s+/).filter(Boolean) : (scope || []);
+  const toolScopes = Array.isArray(scope) ? scope.filter(Boolean) : [];
+  const configuredScopes = configuredScope ? String(configuredScope).split(/\s+/).filter(Boolean) : [];
+  const scopes = toolScopes.length > 0
+    ? [...new Set([...toolScopes, ...configuredScopes])]
+    : configuredScopes;
   if (!audience) throw new Error('PF_ID_JAG_AUDIENCE or MCP resource is required for ID-JAG');
   if (!idJagResource) throw new Error('PF_ID_JAG_RESOURCE or MCP resource is required for ID-JAG');
 
