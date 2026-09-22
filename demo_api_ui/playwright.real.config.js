@@ -75,6 +75,11 @@ module.exports = defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         ignoreHTTPSErrors: true,
+        // Headed: the headless-shell build for this Playwright version is a
+        // partial download (1.5MB, CDN-truncated) and launch fails on it. The
+        // full chromium build IS present, so force headed via channel to
+        // bypass the headless-shell requirement.
+        channel: 'chrome',
         launchOptions: {
           args: ['--host-resolver-rules=MAP api.ping.demo 127.0.0.1, MAP local.ping-devops.com 127.0.0.1'],
         },
