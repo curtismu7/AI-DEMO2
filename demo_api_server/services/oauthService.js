@@ -1107,7 +1107,11 @@ class OAuthService {
       grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
       subject_token: subjectToken,
       subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
-      requested_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+      // PingFederate's OAuth Token Exchange SP connections only issue id-jag
+      // typed tokens — an access_token request 400s with invalid_request
+      // "Invalid configuration" (2026-09-22 A2A-under-PF). PingOne ignores the
+      // parameter and issues access tokens, so the default stays.
+      requested_token_type: exchangeOptions.requestedTokenType || 'urn:ietf:params:oauth:token-type:access_token',
       scope: scopeStr,
       client_id: clientId,
     });

@@ -252,16 +252,25 @@ function resolveA2aConfig(cfgArg, specialist, scopeTopo) {
     'post'
   ).toLowerCase();
 
+  const pfAud = cfg.getOAuthProvider?.() === 'pingfederate';
   return {
     agent1ClientId,
     agent1Secret,
     agent2ClientId,
     agent2Secret,
-    intermediateAud,
-    specialistAud,
+    intermediateAud: pfAud ? 'https://' + intermediateAud : intermediateAud,
+    specialistAud: pfAud ? 'https://' + specialistAud : specialistAud,
     intermediateScope,
     agent2AuthMethod,
     exchangeAuthMethod,
+    // PingFederate mode: SP connections issue id-jag typed tokens only, and the
+    // resource URIs are registered with an https:// scheme (2026-09-22 A2A-under-PF).
+    // The https-prefixed audience is applied to intermediateAud/specialistAud above
+    // so the wire-bearer verifier (audienceMatches vs intermediateAud) sees the
+    // same form the ID-JAG carries.
+    pfExchange: pfAud ? {
+      requestedTokenType: 'urn:ietf:params:oauth:token-type:id-jag',
+    } : null,
   };
 }
 
@@ -369,9 +378,10 @@ async function exchangeAsGeneralist(req, opts = {}) {
         agent1Actor,
         c.agent1ClientId,
         c.agent1Secret,
-        c.intermediateAud,
+        c.pfExchange ? c.pfExchange.audiencePrefix + c.intermediateAud : c.intermediateAud,
         [c.intermediateScope],
         c.exchangeAuthMethod,
+        c.pfExchange ? { requestedTokenType: c.pfExchange.requestedTokenType } : {},
       ),
       { label: 'A2A Exchange #1', timeoutMs: exchangeTimeoutMs, attempts: exchangeAttempts, retryDelayMs, timers: deps.timers },
     );
@@ -494,9 +504,10 @@ async function exchangeAsSpecialist(subjectToken, opts = {}) {
         agent2Actor,
         c.agent2ClientId,
         c.agent2Secret,
-        c.specialistAud,
+        c.pfExchange ? c.pfExchange.audiencePrefix + c.specialistAud : c.specialistAud,
         specialistScopes,
         c.exchangeAuthMethod,
+        c.pfExchange ? { requestedTokenType: c.pfExchange.requestedTokenType } : {},
       ),
       { label: 'A2A Exchange #2', timeoutMs: exchangeTimeoutMs, attempts: exchangeAttempts, retryDelayMs, timers: deps.timers },
     );
