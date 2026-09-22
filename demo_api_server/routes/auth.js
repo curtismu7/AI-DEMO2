@@ -179,7 +179,10 @@ router.get('/session', (req, res) => {
 // Get current user
 router.get('/me', authenticateToken, (req, res) => {
   try {
-    const user = dataStore.getUserById(req.user.id);
+    // PingFederate tokens carry sub=username (not the local store's numeric id),
+    // so an id lookup can miss. Fall back to a username lookup before 404-ing.
+    const user = dataStore.getUserById(req.user.id)
+      || dataStore.getUserByUsername(req.user.username || req.user.sub);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
