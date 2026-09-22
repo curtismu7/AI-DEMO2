@@ -697,7 +697,7 @@ Then change each of the four `tokenEvents.push(deps.buildTokenEvent(...))` calls
 ```js
                 const gwIntrospectionEvent = deps.buildTokenEvent(
                     'gw-introspection',
-                    'PingGateway — Token Introspection (RFC 7662)',
+                    'PingOne Agent Gateway — Token Introspection (RFC 7662)',
                     status,
                     null,
                     desc,

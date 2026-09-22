@@ -51,7 +51,7 @@ until the service resolver and deny rule above are present in the target
 environment.
 
 `AccountId` is part of the generated P1AZ request contract. The BFF, Node MCP
-gateway, and PingGateway Groovy PEPs send it from the selected account tool
+gateway, and PingOne Agent Gateway Groovy PEPs send it from the selected account tool
 argument. The SQLite schema defaults newly inserted accounts to `restricted`,
 so a new account/user does not pass until it is explicitly assigned the
 `standard` tier.

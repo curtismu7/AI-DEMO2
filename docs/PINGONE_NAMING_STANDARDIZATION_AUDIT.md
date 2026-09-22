@@ -59,13 +59,13 @@ const BANKING_SCOPES = {
 // Current application naming in PingOne
 {
   admin: {
-    name: "Banking Demo Admin",                 // Inconsistent naming
+    name: "AI Demo Admin",                 // Inconsistent naming
     type: "WEB_APP",
     clientId: "PINGONE_ADMIN_CLIENT_ID",       // Good - consistent
     environment: "production"
   },
   user: {
-    name: "Banking Demo User",                 // Inconsistent naming
+    name: "AI Demo User",                 // Inconsistent naming
     type: "WEB_APP", 
     clientId: "PINGONE_USER_CLIENT_ID",        // Good - consistent
     environment: "production"
@@ -164,26 +164,26 @@ PINGONE_AUDIENCE_AI_AGENT=
 
 const STANDARDIZED_APPLICATION_NAMES = {
   admin: {
-    name: "Banking Demo Admin App Production",
-    displayName: "Banking Demo Admin",
+    name: "AI Demo Admin App Production",
+    displayName: "AI Demo Admin",
     description: "Backend-for-Frontend admin application for banking demo",
     type: "WEB_APP"
   },
   user: {
-    name: "Banking Demo User App Production", 
-    displayName: "Banking Demo User",
+    name: "AI Demo User App Production", 
+    displayName: "AI Demo User",
     description: "Customer-facing banking application",
     type: "WEB_APP"
   },
   agent: {
-    name: "Banking Demo Agent Service Production",
-    displayName: "Banking Demo Agent",
+    name: "AI Demo Agent Service Production",
+    displayName: "AI Demo Agent",
     description: "Agent service for RFC 8693 token exchange",
     type: "WORKER"
   },
   ai_agent: {
-    name: "Banking Demo AI Agent Service Production",
-    displayName: "Banking Demo AI Agent", 
+    name: "AI Demo AI Agent Service Production",
+    displayName: "AI Demo AI Agent", 
     description: "AI agent service for MCP tool integration",
     type: "WORKER"
   }
@@ -315,10 +315,10 @@ class NamingStandardizer {
 
   migrateApplicationNames() {
     const migrations = {
-      'Banking Demo Admin': 'Banking Demo Admin App Production',
-      'Banking Demo User': 'Banking Demo User App Production',
-      'Banking Agent': 'Banking Demo Agent Service Production',
-      'AI Agent': 'Banking Demo AI Agent Service Production'
+      'AI Demo Admin': 'AI Demo Admin App Production',
+      'AI Demo User': 'AI Demo User App Production',
+      'Banking Agent': 'AI Demo Agent Service Production',
+      'AI Agent': 'AI Demo AI Agent Service Production'
     };
 
     return migrations;
@@ -509,13 +509,13 @@ class NamingConventionValidator {
 
   suggestApplicationName(type) {
     const suggestions = {
-      'admin': 'Banking Demo Admin App Production',
-      'user': 'Banking Demo User App Production',
-      'agent': 'Banking Demo Agent Service Production',
-      'ai_agent': 'Banking Demo AI Agent Service Production'
+      'admin': 'AI Demo Admin App Production',
+      'user': 'AI Demo User App Production',
+      'agent': 'AI Demo Agent Service Production',
+      'ai_agent': 'AI Demo AI Agent Service Production'
     };
 
-    return suggestions[type] || 'Banking Demo Application Production';
+    return suggestions[type] || 'AI Demo Application Production';
   }
 }
 ```
@@ -577,7 +577,7 @@ class NamingConventionTests {
 
 ## Overview
 
-This document defines the standardized naming conventions for PingOne applications, resources, and scopes in the Banking Demo project.
+This document defines the standardized naming conventions for PingOne applications, resources, and scopes in the AI Demo project.
 
 ## Environment Variables
 
@@ -617,10 +617,10 @@ PINGONE_AUDIENCE_AI_AGENT=
 ```
 
 ### Examples
-- Banking Demo Admin App Production
-- Banking Demo User App Production
-- Banking Demo Agent Service Production
-- Banking Demo AI Agent Service Production
+- AI Demo Admin App Production
+- AI Demo User App Production
+- AI Demo Agent Service Production
+- AI Demo AI Agent Service Production
 
 ## Resource URIs
 

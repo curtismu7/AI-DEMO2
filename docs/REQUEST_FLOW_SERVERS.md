@@ -14,12 +14,12 @@ When a user submits a prompt in the chat UI, the request passes through the foll
 | 4 | **Agent** | 3006 | TypeScript / LangGraph | Reasoning loop; decides when to call tools, assembles final answer, streams SSE back to browser |
 | 5 | **LLM** | external | Anthropic API / LM Studio / llama.cpp | Large language model inference; called by the Agent on each reasoning step |
 | 6 | **PingOne** | external | Ping Identity (SaaS) | OAuth token issuance (login, client credentials, RFC 8693 token exchange) |
-| 7 | **Ping Agent Gateway** | 3005 | TypeScript | Authorization enforcement proxy; validates tokens, enforces policy, routes tool calls to upstream MCP servers |
+| 7 | **PingOne Agent Gateway** | 3005 | TypeScript | Authorization enforcement proxy; validates tokens, enforces policy, routes tool calls to upstream MCP servers |
 | 8 | **PingOne Authorization Server** | 9001 | Node.js (mock) | Two inline calls per tool request: (1) RFC 7662 token introspection — is the token active? (2) PingOne Authorize policy decision — PERMIT / DENY / HITL required. In production, replaced by real PingOne Authorize. |
 | 9 | **MCP Server** | 8080 | TypeScript / WebSocket | Primary banking MCP server; executes banking tools (accounts, transactions, transfers) |
-| 10 | **MCP Invest** | 8081 | TypeScript / WebSocket | Investment vertical MCP server; executes investment tools |
-| 11 | **Mortgage Service** | 8082 | Node.js / Express | API-key-authenticated resource server; serves mortgage, retail, healthcare, gear, and expense data. Called by Ping Agent Gateway via credential swap (OAuth bearer dropped, X-API-Key substituted) |
-| 12 | **HITL Service** | 3009 | Node.js | Consent challenge store; created by Ping Agent Gateway on INDETERMINATE, holds pending approval with 10-min TTL, verified on retry to confirm user/agent/tool binding before tool is released |
+| 10 | **Demo MCP Resource Server** | 8081 | TypeScript / WebSocket | Investment vertical MCP server; executes investment tools |
+| 11 | **Mortgage Resource Server** | 8082 | Node.js / Express | API-key-authenticated resource server; serves mortgage, retail, healthcare, gear, and expense data. Called by PingOne Agent Gateway via credential swap (OAuth bearer dropped, X-API-Key substituted) |
+| 12 | **HITL Service** | 3009 | Node.js | Consent challenge store; created by PingOne Agent Gateway on INDETERMINATE, holds pending approval with 10-min TTL, verified on retry to confirm user/agent/tool binding before tool is released |
 | 13 | **Redis** | 6379 | Redis | Pub/sub for HITL consent signalling across BFF instances. Falls back to in-process EventEmitter on single-instance deployments |
 
 ---
@@ -170,10 +170,10 @@ Agent :3006  POST /invoke
                                • subject_token = user access token
                                • actor_token   = BFF actor token (AGENT_OAUTH_CLIENT_ID)
                                • audience      = mcp-gw
-                               • returns delegated token (aud=mcp-gw, act.sub=agent)
+                               • returns MCP Gateway token (aud=mcp-gw, act.sub=agent)
                                │
                                ▼
-                           callToolViaGateway → Ping Agent Gateway :3005
+                           callToolViaGateway → PingOne Agent Gateway :3005
                                ├──▶ PingOne Authorization Server :9001  /as/introspect
                                │     RFC 7662 token introspection
                                │     is token active? (cached 30s dev / 5s prod)
@@ -185,8 +185,8 @@ Agent :3006  POST /invoke
                                │
                                │   (if PERMIT)
                                ├──▶ MCP Server :8080        banking tools  (WebSocket)
-                               ├──▶ MCP Invest :8081        investment tools  (WebSocket)
-                               └──▶ Mortgage Service :8082  credential swap
+                               ├──▶ Demo MCP Resource Server :8081        investment tools  (WebSocket)
+                               └──▶ Mortgage Resource Server :8082  credential swap
                                      OAuth bearer dropped → X-API-Key + X-User-Sub
                                      serves: mortgage / retail / healthcare / gear / expense
   │
@@ -196,7 +196,7 @@ Chat Interface :4000  (SSE stream back from Agent via BFF)
 
 **Tool execution note:** `executeTool` is a JavaScript closure passed into `runReasonLoop` — it is not an HTTP endpoint. The `:3006` service does NOT POST back to the BFF; all tool execution happens BFF-side via `executeBffTool → runMcpToolPipeline → callToolViaGateway`.
 
-**Token note:** The Ping Agent Gateway forwards the BFF-issued token unchanged to MCP Server and MCP Invest — no second RFC 8693 exchange occurs. The `aud=mcp-gw` token is valid at both the gateway and the downstream MCP servers by design.
+**Token note:** The PingOne Agent Gateway forwards the BFF-issued token unchanged to MCP Server and Demo MCP Resource Server — no second RFC 8693 exchange occurs. The `aud=mcp-gw` token is valid at both the gateway and the downstream MCP servers by design.
 
 ---
 
@@ -289,7 +289,7 @@ BFF :3001  POST /api/agent/invoke  (retry with consent signal)
 ### Path B — Gateway policy decision returns INDETERMINATE (LLM path)
 
 ```text
-Ping Agent Gateway :3005
+PingOne Agent Gateway :3005
   • PingOne Authorization Server returns INDETERMINATE (consent required)
   ├──▶ HITL Service :3009  POST /challenges
   │     • stores pending challenge (tool, userId, agentId, context, 10-min TTL)
@@ -319,12 +319,12 @@ BFF :3001  runMcpToolPipeline  (retry)
   │     • anti-replay: rejects cross-user or wrong-tool receipts
   │
   ▼
-Ping Agent Gateway :3005
+PingOne Agent Gateway :3005
   • sends HitlApproved=true to PingOne Authorization Server
   ├──▶ PingOne Authorization Server :9001  → returns PERMIT
   │
   ▼
-MCP Server :8080 / MCP Invest :8081 / Mortgage Service :8082
+MCP Server :8080 / Demo MCP Resource Server :8081 / Mortgage Resource Server :8082
   • tool call executes normally
   • result flows back to Agent → Chat Interface
 ```
@@ -408,10 +408,10 @@ BFF :3001  POST /api/mcp/tool  { tool: "<resolved tool>", params: <resolved para
   • RFC 8693 token exchange (subject_token=user, actor_token=agent, audience=mcp-gw)
   │                          ↕
   │                      PingOne (external)  POST /token
-  │                          returns delegated token (aud=mcp-gw, act.sub=agent)
+  │                          returns MCP Gateway token (aud=mcp-gw, act.sub=agent)
   │
   ▼
-Ping Agent Gateway :3005
+PingOne Agent Gateway :3005
   ├──▶ PingOne Authorization Server :9001  /as/introspect
   │     RFC 7662 token introspection
   │
@@ -499,11 +499,11 @@ curl -X PATCH http://localhost:3001/api/admin/feature-flags \
 
 - **PingOne Authorization Server** is a local mock of PingOne Authorize. In a production deployment, `PINGAUTHORIZE_ENDPOINT` points directly at PingOne Authorize and the sidecar is removed.
 - **Token introspection** is **on by default**. The gateway sends a `POST` to `GW_INTROSPECTION_ENDPOINT` with `token_type_hint=access_token` and client credentials via `client_secret_post` (Basic auth also supported). Defaults to `http://localhost:9001/as/introspect` (run.sh / docker-compose) or `http://127.0.0.1:9001/as/introspect` (k8s sidecar). Clear the variable to disable.
-- **Ping Agent Gateway forwards the token unchanged** — no second RFC 8693 exchange at the gateway. The BFF-issued token (`aud=mcp-gw`) is accepted by MCP Server and MCP Invest directly.
-- **Mortgage Service** uses a credential swap — OAuth bearer dropped at the gateway, replaced with `X-API-Key`. User identity forwarded as `X-User-Sub`. The API key (`DEMO_API_RESOURCE_SERVER_KEY`) is sourced from the encrypted vault at gateway startup; falls back to `'demo-mortgage-key-0000'` if the vault entry is absent.
+- **PingOne Agent Gateway forwards the token unchanged** — no second RFC 8693 exchange at the gateway. The BFF-issued token (`aud=mcp-gw`) is accepted by MCP Server and Demo MCP Resource Server directly.
+- **Mortgage Resource Server** uses a credential swap — OAuth bearer dropped at the gateway, replaced with `X-API-Key`. User identity forwarded as `X-User-Sub`. The API key (`DEMO_API_RESOURCE_SERVER_KEY`) is sourced from the encrypted vault at gateway startup; falls back to `'demo-mortgage-key-0000'` if the vault entry is absent.
 - **HITL Service** challenge is bound to a specific user, agent, and tool — the receipt is verified on retry to prevent replay attacks.
 - **Chat Interface** renders the consent modal (HITL) and MFA challenge UI, and is responsible for re-submitting requests after approval.
 - **Redis** is used only for HITL consent pub/sub across BFF instances. Falls back to in-process EventEmitter on single-instance deployments (HITL will not work across instances without Redis).
 - **Agent actor token** is acquired once via client credentials at Agent startup and cached until expiry — not fetched per tool call.
 - **NL intent LLM fallback** (Helix / Claude) is only called when the heuristic parser finds no match. Most common banking prompts are resolved locally.
-- **PingGateway (ForgeOps IG)** — a `ping-gateway/` directory contains an alternative deployment configuration using Ping Identity's Java-based API gateway in place of the Node.js Ping Agent Gateway. It is not active in the default Docker or run.sh setup. When deployed, it sits in front of the MCP servers and handles token introspection, PingOne Authorize policy decisions, and MCP routing via Groovy filter scripts — the same responsibilities as the Ping Agent Gateway. Set `MCP_GW_P1AZ_ENABLED=false` on the Node.js gateway when PingGateway is deployed to avoid double-calling the policy per request.
+- **PingOne Agent Gateway (ForgeOps IG)** — a `ping-gateway/` directory contains an alternative deployment configuration using Ping Identity's Java-based API gateway in place of the Node.js PingOne Agent Gateway. It is not active in the default Docker or run.sh setup. When deployed, it sits in front of the MCP servers and handles token introspection, PingOne Authorize policy decisions, and MCP routing via Groovy filter scripts — the same responsibilities as the PingOne Agent Gateway. Set `MCP_GW_P1AZ_ENABLED=false` on the Node.js gateway when PingOne Agent Gateway is deployed to avoid double-calling the policy per request.

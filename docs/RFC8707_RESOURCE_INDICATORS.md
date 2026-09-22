@@ -17,7 +17,7 @@ Resource Indicators are URIs that identify the specific resource server a token 
 
 ## RFC 8707 in Super Banking
 
-The Super Banking demo implements RFC 8707 across multiple resource servers:
+The AI Demo implements RFC 8707 across multiple resource servers:
 
 ```
 Resource Servers (Audiences):
@@ -308,7 +308,7 @@ Response: {"error":"invalid_scope","error_description":"Scope not allowed for re
 RFC 8707 works seamlessly with RFC 8693 Token Exchange:
 
 ```
-Subject Token (aud: ai-agent.pingdemo.com)
+User token (aud: ai-agent.pingdemo.com)
     |
     | Token Exchange
     v

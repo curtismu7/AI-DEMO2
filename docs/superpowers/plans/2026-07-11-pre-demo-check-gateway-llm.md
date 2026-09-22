@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add the two heavyweight backend checks that prove the **real Agent Gateway** path end-to-end (introspect → authorize → MCP tools/call through PingGateway, as the logged-in user) and the **deep LLM** probe (a real completion against every configured model). Both register as `heavy: true` so they slot into the Plan 1 engine with no engine changes.
+**Goal:** Add the two heavyweight backend checks that prove the **real Agent Gateway** path end-to-end (introspect → authorize → MCP tools/call through PingOne Agent Gateway, as the logged-in user) and the **deep LLM** probe (a real completion against every configured model). Both register as `heavy: true` so they slot into the Plan 1 engine with no engine changes.
 
-**Architecture:** `POST /api/check/run` is authenticated, so heavy checks act as the current user: they read the user's access token from `req.session.oauthTokens.accessToken`, mint a gateway-audience token via the existing `oauthService.performTokenExchange`, and call PingGateway through a shared client extracted from the existing test route. The deep-LLM check drives real `/v1/chat/completions` calls through the model proxy, accepting model swaps. The chip end-to-end check is **not** here — it is frontend-driven in Plan 3 because it needs the live browser session and mirrors the real UI path.
+**Architecture:** `POST /api/check/run` is authenticated, so heavy checks act as the current user: they read the user's access token from `req.session.oauthTokens.accessToken`, mint a gateway-audience token via the existing `oauthService.performTokenExchange`, and call PingOne Agent Gateway through a shared client extracted from the existing test route. The deep-LLM check drives real `/v1/chat/completions` calls through the model proxy, accepting model swaps. The chip end-to-end check is **not** here — it is frontend-driven in Plan 3 because it needs the live browser session and mirrors the real UI path.
 
 **Tech Stack:** Node.js, Express, Jest + supertest, `oauthService`, `configStore`, `pinggatewayTestRoutes` client, the `demo_llm_proxy`.
 
@@ -13,7 +13,7 @@
 - **Work in a git worktree, never the main checkout** (CLAUDE.md). Explicit staging; verify branch before commit.
 - **Emoji allowlist** (`⚠️ ✅ ❌ 🔐 ✕ ✓` only) in all code/tests.
 - Read/probe-only: never change flags/scopes/config. Gateway checks perform a **read-only** MCP tool call.
-- Reuse existing services: `oauthService.performTokenExchange(subjectToken, audience, scopes)`, `configStore.getEffective`, the PingGateway HTTP client.
+- Reuse existing services: `oauthService.performTokenExchange(subjectToken, audience, scopes)`, `configStore.getEffective`, the PingOne Agent Gateway HTTP client.
 - Depends on Plan 1 (`checkService`, `services/checks/registry`, `routes/check.js`, the `services/checks/index.js` require list). This plan adds files and registers new descriptors; it changes the check-run ctx to include `req`.
 
 ---
@@ -63,29 +63,29 @@ git commit -m "feat(check): pass authenticated req into check ctx for heavy chec
 
 ---
 
-### Task 2: Shared PingGateway client
+### Task 2: Shared PingOne Agent Gateway client
 
 **Files:**
 - Create: `demo_api_server/services/pingGatewayClient.js`
 - Test: `demo_api_server/tests/pingGatewayClient.test.js`
 
 **Interfaces:**
-- Produces: `callPingGateway(method, path, body?) => Promise<{ statusCode, body }>` — copied verbatim from the helper in `routes/pinggatewayTestRoutes.js` (same env: `PINGGATEWAY_URL || 'https://localhost:3036'`, TLS-permissive for the dev self-signed cert). This is a straight extraction so both the test route and the new check share one implementation.
+- Produces: `callPingOne Agent Gateway(method, path, body?) => Promise<{ statusCode, body }>` — copied verbatim from the helper in `routes/pinggatewayTestRoutes.js` (same env: `PINGGATEWAY_URL || 'https://localhost:3036'`, TLS-permissive for the dev self-signed cert). This is a straight extraction so both the test route and the new check share one implementation.
 
 - [ ] **Step 1: Confirm the source helper**
 
 Run: `cd demo_api_server && sed -n '20,66p' routes/pinggatewayTestRoutes.js`
-Expected: prints the full `callPingGateway` function body. Copy it exactly in Step 3.
+Expected: prints the full `callPingOne Agent Gateway` function body. Copy it exactly in Step 3.
 
 - [ ] **Step 2: Write the failing test**
 
 ```js
 // demo_api_server/tests/pingGatewayClient.test.js
 'use strict';
-const { callPingGateway } = require('../services/pingGatewayClient');
-test('callPingGateway is a function returning a promise', () => {
-  expect(typeof callPingGateway).toBe('function');
-  const p = callPingGateway('GET', '/nope').catch(() => 'rejected'); // no gateway in unit env
+const { callPingOne Agent Gateway } = require('../services/pingGatewayClient');
+test('callPingOne Agent Gateway is a function returning a promise', () => {
+  expect(typeof callPingOne Agent Gateway).toBe('function');
+  const p = callPingOne Agent Gateway('GET', '/nope').catch(() => 'rejected'); // no gateway in unit env
   expect(p).toBeInstanceOf(Promise);
   return expect(p).resolves.toBeDefined();
 });
@@ -93,7 +93,7 @@ test('callPingGateway is a function returning a promise', () => {
 
 - [ ] **Step 3: Create the client by extracting the helper**
 
-Create `services/pingGatewayClient.js` with the exact `callPingGateway` body from Step 1, wrapped as:
+Create `services/pingGatewayClient.js` with the exact `callPingOne Agent Gateway` body from Step 1, wrapped as:
 
 ```js
 'use strict';
@@ -101,11 +101,11 @@ const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 
-function callPingGateway(method, path, body = null) {
+function callPingOne Agent Gateway(method, path, body = null) {
   // ← paste the verbatim body from routes/pinggatewayTestRoutes.js (Step 1)
 }
 
-module.exports = { callPingGateway };
+module.exports = { callPingOne Agent Gateway };
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -117,7 +117,7 @@ Expected: PASS.
 
 ```bash
 git add demo_api_server/services/pingGatewayClient.js demo_api_server/tests/pingGatewayClient.test.js
-git commit -m "feat(check): extract shared PingGateway HTTP client"
+git commit -m "feat(check): extract shared PingOne Agent Gateway HTTP client"
 ```
 
 ---
@@ -130,7 +130,7 @@ git commit -m "feat(check): extract shared PingGateway HTTP client"
 - Test: `demo_api_server/tests/checks/gatewayCheck.test.js`
 
 **Interfaces:**
-- Consumes: `services/pingGatewayClient` → `callPingGateway`; `services/oauthService` → `performTokenExchange`; `services/configStore` → `getEffective`. Reads user token from `ctx.req.session.oauthTokens.accessToken`.
+- Consumes: `services/pingGatewayClient` → `callPingOne Agent Gateway`; `services/oauthService` → `performTokenExchange`; `services/configStore` → `getEffective`. Reads user token from `ctx.req.session.oauthTokens.accessToken`.
 - Produces one descriptor `gateway.real_path` `{ heavy: true, appliesWhen: flags => flags.ff_mcp_gateway_pinggateway === true, category: 'Agent Gateway' }`. Steps run in order; a failing hop stops the chain and reports which hop broke. Verdicts:
   - `skip` when no user session token (e.g. run without a live login).
   - `fail` when token exchange fails, or introspect not `active`, or authorize denies, or mcp-call returns no `result`.
@@ -147,11 +147,11 @@ Pick a read-only banking tool (e.g. a balance/read tool). Use its exact name as 
 ```js
 // demo_api_server/tests/checks/gatewayCheck.test.js
 'use strict';
-jest.mock('../../services/pingGatewayClient', () => ({ callPingGateway: jest.fn() }));
+jest.mock('../../services/pingGatewayClient', () => ({ callPingOne Agent Gateway: jest.fn() }));
 jest.mock('../../services/oauthService', () => ({ performTokenExchange: jest.fn() }));
 jest.mock('../../services/configStore', () => ({ getEffective: jest.fn(() => 'gw-aud') }));
 
-const { callPingGateway } = require('../../services/pingGatewayClient');
+const { callPingOne Agent Gateway } = require('../../services/pingGatewayClient');
 const oauth = require('../../services/oauthService');
 const { realPath } = require('../../services/checks/gatewayCheck');
 
@@ -167,7 +167,7 @@ describe('gatewayCheck.real_path', () => {
 
   test('passes when all three hops succeed', async () => {
     oauth.performTokenExchange.mockResolvedValue('gw-token');
-    callPingGateway
+    callPingOne Agent Gateway
       .mockResolvedValueOnce({ statusCode: 200, body: { active: true } })            // introspect
       .mockResolvedValueOnce({ statusCode: 200, body: { decision: 'PERMIT' } })       // authorize
       .mockResolvedValueOnce({ statusCode: 200, body: { result: { ok: true } } });    // mcp-call
@@ -178,7 +178,7 @@ describe('gatewayCheck.real_path', () => {
 
   test('fails and pinpoints the hop when introspect is not active', async () => {
     oauth.performTokenExchange.mockResolvedValue('gw-token');
-    callPingGateway.mockResolvedValueOnce({ statusCode: 200, body: { active: false } });
+    callPingOne Agent Gateway.mockResolvedValueOnce({ statusCode: 200, body: { active: false } });
     const r = await realPath.run(ctxWithToken);
     expect(r.status).toBe('fail');
     expect(r.detail).toMatch(/introspect/i);
@@ -198,7 +198,7 @@ describe('gatewayCheck.real_path', () => {
 ```js
 // demo_api_server/services/checks/gatewayCheck.js
 'use strict';
-const { callPingGateway } = require('../pingGatewayClient');
+const { callPingOne Agent Gateway } = require('../pingGatewayClient');
 const oauth = require('../oauthService');
 const configStore = require('../configStore');
 const { register } = require('./registry');
@@ -226,17 +226,17 @@ const realPath = {
     } catch (err) { return fail('token-exchange', err.message); }
 
     // Hop 1: introspection
-    let r = await callPingGateway('POST', '/introspect', { token: gwToken });
+    let r = await callPingOne Agent Gateway('POST', '/introspect', { token: gwToken });
     if (!(r.statusCode < 300 && r.body?.active)) return fail('introspect', `active=${r.body?.active} status=${r.statusCode}`);
     hops.push({ name: 'introspect', status: 'pass', detail: 'active=true' });
 
     // Hop 2: authorize
-    r = await callPingGateway('POST', '/authorize', { token: gwToken, resourceId: RESOURCE_ID });
+    r = await callPingOne Agent Gateway('POST', '/authorize', { token: gwToken, resourceId: RESOURCE_ID });
     if (!(r.statusCode < 300 && r.body?.decision === 'PERMIT')) return fail('authorize', `decision=${r.body?.decision} status=${r.statusCode}`);
     hops.push({ name: 'authorize', status: 'pass', detail: 'PERMIT' });
 
     // Hop 3: MCP tools/call
-    r = await callPingGateway('POST', '/mcp', { jsonrpc: '2.0', method: 'tools/call', params: { name: TOOL_NAME, arguments: {} } });
+    r = await callPingOne Agent Gateway('POST', '/mcp', { jsonrpc: '2.0', method: 'tools/call', params: { name: TOOL_NAME, arguments: {} } });
     if (!(r.statusCode < 300 && r.body?.result && !r.body?.error)) return fail('mcp-call', `status=${r.statusCode} error=${JSON.stringify(r.body?.error) || 'none'}`);
     hops.push({ name: 'mcp-call', status: 'pass', detail: 'tools/call result ok' });
 

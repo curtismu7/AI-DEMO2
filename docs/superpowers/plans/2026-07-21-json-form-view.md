@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a read-only "Form" output tab to three JSON-heavy inspector surfaces (PingGateway Inspector's JSON Config tab, PingOne MCP Inspector, Gateway Tester), each rendering the currently-shown JSON as labeled fields via one new shared component instead of raw text.
+**Goal:** Add a read-only "Form" output tab to three JSON-heavy inspector surfaces (PingOne Agent Gateway Inspector's JSON Config tab, PingOne MCP Inspector, Gateway Tester), each rendering the currently-shown JSON as labeled fields via one new shared component instead of raw text.
 
 **Architecture:** One new component, `JsonFormView` (`demo_api_ui/src/components/shared/`), recursively flattens any JSON value into label/value rows (nested objects → indented sub-groups, arrays → indexed sub-groups), with a heuristic "Key Values" summary section for name-matched fields (id, status, amount, url, ...) on top of a full "All Fields" tree below. It is wired into three existing components as an additional read-only view — no new data fetching, no new backend routes, no changes to existing save/validate/execute logic.
 
@@ -415,7 +415,7 @@ git commit -m "feat(json-form-view): add shared JsonFormView component"
 
 ---
 
-### Task 2: Wire Form view into `AgentGatewayConfigEditor` (PingGateway Inspector → JSON Config tab)
+### Task 2: Wire Form view into `AgentGatewayConfigEditor` (PingOne Agent Gateway Inspector → JSON Config tab)
 
 **Files:**
 - Modify: `demo_api_ui/src/components/AgentGatewayConfigEditor.jsx`

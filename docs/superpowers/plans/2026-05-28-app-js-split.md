@@ -170,7 +170,7 @@ export function useServerHealthCheck() {
             name: "Banking API Server",
             key: "api_server",
             up: false,
-            startCmd: "cd banking_api_server && npm start",
+            startCmd: "cd demo_api_server && npm start",
             description: "Express BFF",
             port: 3001,
           },
@@ -178,7 +178,7 @@ export function useServerHealthCheck() {
             name: "Banking MCP Server",
             key: "mcp_server",
             up: false,
-            startCmd: "cd banking_mcp_server && npm run dev",
+            startCmd: "cd demo_mcp_server && npm run dev",
             description: "MCP tool server",
             port: 8080,
           },
@@ -1445,8 +1445,8 @@ describe("CustomerRoutes.js — critical imports and placements", () => {
     expect(authIdx).toBeGreaterThan(webIdx);
   });
 
-  test("no stale banking_api_ui paths", () => {
-    expect(src).not.toContain("banking_api_ui");
+  test("no stale demo_api_ui paths", () => {
+    expect(src).not.toContain("demo_api_ui");
   });
 });
 
@@ -1466,8 +1466,8 @@ describe("AdminRoutes.js — critical imports", () => {
     expect(src).toContain('import Dashboard from "../components/Dashboard"');
   });
 
-  test("no stale banking_api_ui paths", () => {
-    expect(src).not.toContain("banking_api_ui");
+  test("no stale demo_api_ui paths", () => {
+    expect(src).not.toContain("demo_api_ui");
   });
 });
 
@@ -1487,8 +1487,8 @@ describe("MonitoringRoutes.js — critical imports", () => {
     expect(src).toContain('import ApiExplorerPanel from "../components/ApiExplorerPanel"');
   });
 
-  test("no stale banking_api_ui paths", () => {
-    expect(src).not.toContain("banking_api_ui");
+  test("no stale demo_api_ui paths", () => {
+    expect(src).not.toContain("demo_api_ui");
   });
 });
 
@@ -1504,8 +1504,8 @@ describe("EducationRoutes.js — critical imports", () => {
     expect(src).toContain('import ArchitectureTabsPanel from "../components/ArchitectureTabsPanel"');
   });
 
-  test("no stale banking_api_ui paths", () => {
-    expect(src).not.toContain("banking_api_ui");
+  test("no stale demo_api_ui paths", () => {
+    expect(src).not.toContain("demo_api_ui");
   });
 });
 ```
@@ -1549,10 +1549,10 @@ wc -l demo_api_ui/src/App.js
 ```
 Expected: under 400 lines (target ~250).
 
-- [ ] **Step 4: Verify no remaining banking_api_ui references**
+- [ ] **Step 4: Verify no remaining demo_api_ui references**
 
 ```bash
-grep -r "banking_api_ui" demo_api_ui/src/ --include="*.js" --include="*.jsx"
+grep -r "demo_api_ui" demo_api_ui/src/ --include="*.js" --include="*.jsx"
 ```
 Expected: no output.
 

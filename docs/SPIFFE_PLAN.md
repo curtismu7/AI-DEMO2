@@ -1,4 +1,4 @@
-# SPIFFE / SPIRE — Implementation Plan (Super Banking demo)
+# SPIFFE / SPIRE — Implementation Plan (AI Demo)
 
 **Status:** P1 parity mode is implemented with a local mock issuer. The real-SPIRE runtime
 described below is planned separately and is not part of P1.
@@ -7,7 +7,7 @@ described below is planned separately and is not part of P1.
 > **This document was rewritten because the previous version was wrong.** Its Phase 2
 > instructed the reader to "Create a JWT Issuer in PingOne → Security → JWT Issuers" so
 > PingOne would trust SPIRE-signed JWTs as `actor_token`. **That feature does not exist.**
-> The old version also named services (`banking_api_server`, `banking_mcp_server`) that
+> The old version also named services (`demo_api_server`, `demo_mcp_server`) that
 > were renamed, and an npm package (`@spiffe/spiffe-workload-api`) that is not published.
 > Everything below was verified against Ping's documentation, the live discovery document
 > for environment `01d89b06-66d5-430e-9f28-65636843788b`, the SPIRE GitHub releases API,

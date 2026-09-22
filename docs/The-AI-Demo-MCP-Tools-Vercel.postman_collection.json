@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "7c8d9e0f-1a2b-3c4d-5e6f-7a8b9c0d1e2f",
     "name": "The AI Demo — MCP Server Tools (Vercel)",
-    "description": "Direct HTTP calls to the The AI Demo MCP server deployed on Vercel (banking_mcp_server). Uses MCP_SERVER_URL_VERCEL by default.\n\nEndpoints documented here are served directly by the MCP server HTTP transport layer (HttpMCPTransport.ts). The MCP server is deployed at https://banking-mcp-server.vercel.app.\n\nUse the The-AI-Demo-Vercel environment for proper variable configuration.",
+    "description": "Direct HTTP calls to the The AI Demo MCP server deployed on Vercel (demo_mcp_server). Uses MCP_SERVER_URL_VERCEL by default.\n\nEndpoints documented here are served directly by the MCP server HTTP transport layer (HttpMCPTransport.ts). The MCP server is deployed at https://banking-mcp-server.vercel.app.\n\nUse the The-AI-Demo-Vercel environment for proper variable configuration.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [],

@@ -63,7 +63,7 @@ const COMPLIANCE_STEPS = [
   { id: 'agent-scope-aware-cache',label: '6.     Agent token exchange (actor + subject)',      explanation: 'After login/consent, BFF performs RFC 8693 token exchange: subject_token (user) + actor_token (agent) → narrowed MCP token with delegated scopes.', status: 'pending' },
   { id: 'gw-token-validation',    label: '7.     Exchanged token passes gateway validation',    explanation: 'MCP gateway validates the exchanged token has required delegated scopes (write, etc). Token is authenticated and authorized.', status: 'pending' },
   { id: 'tool-execution',         label: '8.     Tool executes on MCP server',                 explanation: 'Gateway forwards request to MCP server. Tool executes with delegated scopes and returns result. Execution is scoped to user + agent identity (act claim).', status: 'pending' },
-  { id: 'olb-resource-token',     label: '9.     MCP token forwarded to resource (OLB path)',  explanation: 'For intent-bound delegation (OLB), the Ping Agent Gateway forwards the BFF-issued token unchanged to the MCP Server. No second exchange — the token (aud=mcp-gw) is valid at the gateway and downstream MCP servers. The act claim (act.sub = agent client) is preserved throughout.', status: 'pending'    },
+  { id: 'olb-resource-token',     label: '9.     MCP token forwarded to resource (OLB path)',  explanation: 'For intent-bound delegation (OLB), the PingOne Agent Gateway forwards the BFF-issued token unchanged to the MCP Server. No second exchange — the token (aud=mcp-gw) is valid at the gateway and downstream MCP servers. The act claim (act.sub = agent client) is preserved throughout.', status: 'pending'    },
   { id: 'ui-gateway-consent',     label: '12.    UI shows GatewayConsentModal (HITL)',         explanation: 'For consent-required denials, UI renders GatewayConsentModal showing the transaction details and verification challenge to get user approval.', status: 'pending'    },
   { id: 'ui-auto-refire',         label: '12a.   UI auto-re-fires after login / consent',      explanation: 'After user authenticates or approves consent, UI automatically re-fires the original MCP tool call with the refreshed/exchanged token.', status: 'pending' },
   { id: 'claim-diagnostics',      label: '(diag) Claim/scope diagnostics',                    explanation: 'Optional diagnostics: inspect act, aud, scope claims on the MCP token; verify RFC 8693 exchange succeeded; log for audit/debugging.', status: 'pending'    },
@@ -159,7 +159,7 @@ function buildCompletedSteps(toolName, tokenEvents, ok, errorMessage) {
     },
     {
       id: 'mcp-gateway',
-      title: 'Ping Agent Gateway',
+      title: 'PingOne Agent Gateway',
       detail: exchanged
         ? `TX token received (aud: ${exchanged.audienceNarrowed || 'mcp-gw'}, act: agent1) — sidebanding to PingOne Authorize`
         : 'Routes tool call; sidebands to PingOne Authorize for scope/AUD/HITL decision',
@@ -438,7 +438,7 @@ export const agentFlowDiagram = {
       },
       {
         id: 'mcp-gateway',
-        title: 'Ping Agent Gateway',
+        title: 'PingOne Agent Gateway',
         detail: 'Receives TX token; sidebands to PingOne Authorize for scope/AUD/HITL check',
         status: 'pending',
       },

@@ -12,7 +12,7 @@
         </mxCell>
         
         <!-- React SPA -->
-        <mxCell id="react-spa" value="React SPA&#xa;(banking_api_ui)&#xa;• Dashboard&#xa;• Admin Panel&#xa;• Education Panels&#xa;• AI Agent FAB&#xa;• Self-Service UI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12" vertex="1" parent="1">
+        <mxCell id="react-spa" value="React SPA&#xa;(demo_api_ui)&#xa;• Dashboard&#xa;• Admin Panel&#xa;• Education Panels&#xa;• AI Agent FAB&#xa;• Self-Service UI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12" vertex="1" parent="1">
           <mxGeometry x="80" y="130" width="200" height="120" as="geometry" />
         </mxCell>
         
@@ -32,7 +32,7 @@
         </mxCell>
         
         <!-- Express Server -->
-        <mxCell id="express-server" value="Express Server&#xa;(banking_api_server)&#xa;• OAuth Flows&#xa;• Session Management&#xa;• Token Custodian&#xa;• MCP Proxy&#xa;• CIBA Gateway&#xa;• API Endpoints" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12" vertex="1" parent="1">
+        <mxCell id="express-server" value="Express Server&#xa;(demo_api_server)&#xa;• OAuth Flows&#xa;• Session Management&#xa;• Token Custodian&#xa;• MCP Proxy&#xa;• CIBA Gateway&#xa;• API Endpoints" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12" vertex="1" parent="1">
           <mxGeometry x="80" y="380" width="200" height="140" as="geometry" />
         </mxCell>
         
@@ -52,7 +52,7 @@
         </mxCell>
         
         <!-- MCP Server -->
-        <mxCell id="mcp-server" value="MCP Server&#xa;(banking_mcp_server)&#xa;• WebSocket Connections&#xa;• Tool Registry&#xa;• Tool Execution&#xa;• Auth Challenge Gating&#xa;• Request Routing&#xa;• Token Validation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12" vertex="1" parent="1">
+        <mxCell id="mcp-server" value="MCP Server&#xa;(demo_mcp_server)&#xa;• WebSocket Connections&#xa;• Tool Registry&#xa;• Tool Execution&#xa;• Auth Challenge Gating&#xa;• Request Routing&#xa;• Token Validation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12" vertex="1" parent="1">
           <mxGeometry x="80" y="650" width="200" height="140" as="geometry" />
         </mxCell>
         

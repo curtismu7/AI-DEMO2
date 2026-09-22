@@ -496,7 +496,7 @@ export default function AdminSideNav({
   // badge; non-admin clicks prompt an admin re-login (see adminPromptPath)
   const legacyNavItems = [
     { label: "Home", path: "/", icon: "home" },
-    { label: "Dashboard", path: "/security-dashboard", icon: "dashboard", adminOnly: true },
+    { label: "Security Dashboard", path: "/security-dashboard", icon: "dashboard", adminOnly: true },
     {
       label: "AI-Gateway",
       icon: "shld",
@@ -858,7 +858,7 @@ export default function AdminSideNav({
         // entry at all — it was reached by URL. The support console took
         // /admin, so this content moved to /admin/pingone and now has one.
         {
-          label: "Dashboard",
+          label: "PingOne Admin",
           path: "/admin/pingone",
           icon: "cfg",
           adminOnly: true,
@@ -1041,7 +1041,7 @@ export default function AdminSideNav({
         { label: "MCP Observability", path: "/mcp-observability", icon: "log", adminOnly: true },
         {
           // External, so it uses the same action+window.open shape as PAC
-          // Editor rather than a router path. Grafana holds PingGateway's own
+          // Editor rather than a router path. Grafana holds PingOne Agent Gateway's own
           // metrics and is where traces open now that the public /jaeger/
           // route is gone; without this entry you have to know the URL.
           label: "Grafana",
@@ -1246,7 +1246,7 @@ export default function AdminSideNav({
 
   const allNavItems = [
     findLegacyItem("Home"),
-    findLegacyItem("Dashboard"),
+    findLegacyItem("Security Dashboard"),
     findLegacyItem("Themes"),
     productGroup("AI Gateway", [
       { from: "Shadow AI Detector", rename: "AI Guard" },
@@ -1424,7 +1424,7 @@ export default function AdminSideNav({
       "Security Settings",
       "CIMD Simulation",
       "Demo Config",
-      { from: "Dashboard", rename: "PingOne Admin Dashboard", path: "/admin/pingone" },
+      "PingOne Admin",
       "Banking Ops",
       "Healthcare Ops",
       "Retail Ops",

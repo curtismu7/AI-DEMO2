@@ -9,7 +9,7 @@
 Make the two MCP gateways **behaviorally identical** so either can be the MCP
 enforcement point with no functional difference:
 
-- **PingOne Agent Gateway** — the real Ping Identity Gateway (IG / PingGateway
+- **PingOne Agent Gateway** — the real Ping Identity Gateway (IG / PingOne Agent Gateway
   2026.3), container `ai-demo-ping-gateway` (:3036→8080), config in
   `ping-gateway/`. Selected when `ff_mcp_gateway_pinggateway=true` (default).
 - **Demo Agent Gateway** — the homegrown Node gateway, container
@@ -45,7 +45,7 @@ counting** must happen at the gateway (the PEP).
 - **Cost:** author each rule twice (mock + real) to keep the Simulated-Authorize
   toggle at parity.
 
-### 🟩 PingGateway / IG (PEP-side crypto, protocol, stateful) — native filters + thin Groovy
+### 🟩 PingOne Agent Gateway / IG (PEP-side crypto, protocol, stateful) — native filters + thin Groovy
 - Inbound introspection + JWKS/HS256 validation — present (JWKS-route validation
   gap fixed in SP-0)
 - RFC 8693 token exchange to backends — present
@@ -227,7 +227,7 @@ source; `X-Authz-Simulated: false` + a real token via the harness is the gate.
 
 ## Appendix B — Native-filter verification (SP-0 task 6, done)
 
-Scanned `forgeops-public/images-base/ig:latest` = PingGateway **2026.3.0**
+Scanned `forgeops-public/images-base/ig:latest` = PingOne Agent Gateway **2026.3.0**
 (`/opt/gateway/lib/*.jar` via `jar tf`).
 
 - **ThrottlingFilter:** ✅ **NATIVE.** `org.forgerock.openig.filter.throttling.*`

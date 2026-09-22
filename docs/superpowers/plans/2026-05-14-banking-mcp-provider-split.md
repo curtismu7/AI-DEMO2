@@ -2,13 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Split `banking_mcp_server/src/tools/BankingToolProvider.ts` (1124 lines) into a ~250-line orchestrator plus four peer service modules (TokenResolver, JwtClaimVerifier, TransactionErrorMapper, TokenChainAuditor) and a `handlers/` subdirectory with one free-function handler per tool. No observable behavior change.
+**Goal:** Split `demo_mcp_server/src/tools/BankingToolProvider.ts` (1124 lines) into a ~250-line orchestrator plus four peer service modules (TokenResolver, JwtClaimVerifier, TransactionErrorMapper, TokenChainAuditor) and a `handlers/` subdirectory with one free-function handler per tool. No observable behavior change.
 
 **Architecture:** Approach B1 from the design spec. Each new module owns one responsibility. Tool handlers become top-level async functions called via a registry map. The provider's `executeTool` shrinks to a linear pipeline: validate → auth-challenge → resolve-token → verify-claims → dispatch → audit → error-handle. Public surface (constructor, `executeTool` signature, `BankingToolResult`) is unchanged.
 
-**Tech Stack:** TypeScript 5 strict mode, Node 20+, Jest with ts-jest, CommonJS modules. Compiled with `tsc` to `dist/`. Existing tests: `banking_mcp_server/tests/` (jest, classic `jest.mock(...)` pattern).
+**Tech Stack:** TypeScript 5 strict mode, Node 20+, Jest with ts-jest, CommonJS modules. Compiled with `tsc` to `dist/`. Existing tests: `demo_mcp_server/tests/` (jest, classic `jest.mock(...)` pattern).
 
-**Reference:** Design spec at [`docs/superpowers/specs/2026-05-14-banking-mcp-provider-split-design.md`](../specs/2026-05-14-banking-mcp-provider-split-design.md). All line-number references in this plan refer to `banking_mcp_server/src/tools/BankingToolProvider.ts` as of commit `6b5ba0b9`.
+**Reference:** Design spec at [`docs/superpowers/specs/2026-05-14-banking-mcp-provider-split-design.md`](../specs/2026-05-14-banking-mcp-provider-split-design.md). All line-number references in this plan refer to `demo_mcp_server/src/tools/BankingToolProvider.ts` as of commit `6b5ba0b9`.
 
 ---
 
@@ -18,7 +18,7 @@
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_mcp_server
+cd /Users/curtismuir/Development/banking/demo_mcp_server
 npm run build 2>&1 | tee /tmp/baseline-build.log
 npm test 2>&1 | tee /tmp/baseline-tests.log
 echo "exit=$?"
@@ -27,7 +27,7 @@ Expected: build exits 0, tests exit 0. The `/tmp/baseline-*` logs are the regres
 
 - [ ] **Step 0.2: Confirm protected-files acknowledgement**
 
-`banking_mcp_server/` is in `REGRESSION_PLAN.md` §1. Before any edit, state in the commit body for each commit:
+`demo_mcp_server/` is in `REGRESSION_PLAN.md` §1. Before any edit, state in the commit body for each commit:
 > "Refactor of BankingToolProvider.ts. No observable behavior change. Same constructor, same `executeTool` signature, same `BankingToolResult` shape, same error messages and log strings, same `tokenCache` keys, same env-var reads."
 
 If the build or integration tests behave differently after any step, stop and diff against `/tmp/baseline-*`.
@@ -36,7 +36,7 @@ If the build or integration tests behave differently after any step, stop and di
 
 ## File structure
 
-After this plan, `banking_mcp_server/src/tools/` contains:
+After this plan, `demo_mcp_server/src/tools/` contains:
 
 ```
 tools/
@@ -62,7 +62,7 @@ tools/
 
 New tests:
 ```
-banking_mcp_server/tests/tools/
+demo_mcp_server/tests/tools/
 ├── TokenResolver.test.ts           (new)
 ├── JwtClaimVerifier.test.ts        (new)
 ├── TransactionErrorMapper.test.ts  (new)
@@ -78,8 +78,8 @@ Existing tests remain unchanged: `tests/tools/BankingToolProvider.test.ts`, `tes
 Pure new files. Nothing imports them yet. Zero behavior change.
 
 **Files:**
-- Create: `banking_mcp_server/src/tools/handlers/types.ts`
-- Create: `banking_mcp_server/src/tools/handlers/results.ts`
+- Create: `demo_mcp_server/src/tools/handlers/types.ts`
+- Create: `demo_mcp_server/src/tools/handlers/results.ts`
 
 - [ ] **Step 1.1: Create `handlers/types.ts`**
 
@@ -127,7 +127,7 @@ export function createErrorResult(error: string): BankingToolResult {
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_mcp_server && npm run build
+cd /Users/curtismuir/Development/banking/demo_mcp_server && npm run build
 ```
 Expected: exit 0. No new warnings.
 
@@ -140,7 +140,7 @@ Expected: same pass count as `/tmp/baseline-tests.log`. No new failures.
 
 ```bash
 cd /Users/curtismuir/Development/banking
-git add banking_mcp_server/src/tools/handlers/types.ts banking_mcp_server/src/tools/handlers/results.ts
+git add demo_mcp_server/src/tools/handlers/types.ts demo_mcp_server/src/tools/handlers/results.ts
 git -c commit.gpgsign=false commit -m "$(cat <<'EOF'
 refactor(mcp): add handlers/types.ts and handlers/results.ts
 
@@ -163,9 +163,9 @@ EOF
 Lowest-coupling extraction first to validate the pattern. Pure function — no state.
 
 **Files:**
-- Create: `banking_mcp_server/src/tools/TransactionErrorMapper.ts`
-- Create: `banking_mcp_server/tests/tools/TransactionErrorMapper.test.ts`
-- Modify: `banking_mcp_server/src/tools/BankingToolProvider.ts` lines 850-931 (delete `handleTransactionBankingError`); lines 678-680, 715-717, 759-761 (replace call sites with imported function)
+- Create: `demo_mcp_server/src/tools/TransactionErrorMapper.ts`
+- Create: `demo_mcp_server/tests/tools/TransactionErrorMapper.test.ts`
+- Modify: `demo_mcp_server/src/tools/BankingToolProvider.ts` lines 850-931 (delete `handleTransactionBankingError`); lines 678-680, 715-717, 759-761 (replace call sites with imported function)
 
 - [ ] **Step 2.1: Write failing test `TransactionErrorMapper.test.ts`**
 
@@ -228,7 +228,7 @@ describe('mapTransactionError', () => {
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_mcp_server
+cd /Users/curtismuir/Development/banking/demo_mcp_server
 npx jest tests/tools/TransactionErrorMapper.test.ts
 ```
 Expected: FAIL — `Cannot find module '../../src/tools/TransactionErrorMapper'`.
@@ -347,7 +347,7 @@ Expected: 5 tests pass.
 
 - [ ] **Step 2.5: Update `BankingToolProvider.ts` to delegate**
 
-Open `banking_mcp_server/src/tools/BankingToolProvider.ts`.
+Open `demo_mcp_server/src/tools/BankingToolProvider.ts`.
 
 Add import near the top with the other tool imports (around line 12):
 ```typescript
@@ -383,7 +383,7 @@ Expected: build exits 0. Test count = baseline + 5 (the new mapper tests). Zero 
 
 ```bash
 cd /Users/curtismuir/Development/banking
-git add banking_mcp_server/src/tools/TransactionErrorMapper.ts banking_mcp_server/tests/tools/TransactionErrorMapper.test.ts banking_mcp_server/src/tools/BankingToolProvider.ts
+git add demo_mcp_server/src/tools/TransactionErrorMapper.ts demo_mcp_server/tests/tools/TransactionErrorMapper.test.ts demo_mcp_server/src/tools/BankingToolProvider.ts
 git -c commit.gpgsign=false commit -m "$(cat <<'EOF'
 refactor(mcp): extract TransactionErrorMapper from BankingToolProvider
 
@@ -406,9 +406,9 @@ EOF
 Highest-risk extraction. Copy the 120-line if/else verbatim into a class method. Behavior must be byte-identical.
 
 **Files:**
-- Create: `banking_mcp_server/src/tools/TokenResolver.ts`
-- Create: `banking_mcp_server/tests/tools/TokenResolver.test.ts`
-- Modify: `banking_mcp_server/src/tools/BankingToolProvider.ts` (replace lines 391-510 + delete `getUserTokenForScopes` 1101-1124)
+- Create: `demo_mcp_server/src/tools/TokenResolver.ts`
+- Create: `demo_mcp_server/tests/tools/TokenResolver.test.ts`
+- Modify: `demo_mcp_server/src/tools/BankingToolProvider.ts` (replace lines 391-510 + delete `getUserTokenForScopes` 1101-1124)
 
 - [ ] **Step 3.1: Write failing test `TokenResolver.test.ts`**
 
@@ -817,7 +817,7 @@ If `BankingToolProvider.test.ts` exercises any of the four token-resolution path
 
 ```bash
 cd /Users/curtismuir/Development/banking
-git add banking_mcp_server/src/tools/TokenResolver.ts banking_mcp_server/tests/tools/TokenResolver.test.ts banking_mcp_server/src/tools/BankingToolProvider.ts
+git add demo_mcp_server/src/tools/TokenResolver.ts demo_mcp_server/tests/tools/TokenResolver.test.ts demo_mcp_server/src/tools/BankingToolProvider.ts
 git -c commit.gpgsign=false commit -m "$(cat <<'EOF'
 refactor(mcp): extract TokenResolver from BankingToolProvider
 
@@ -842,9 +842,9 @@ EOF
 ## Task 4: Extract `JwtClaimVerifier.ts`
 
 **Files:**
-- Create: `banking_mcp_server/src/tools/JwtClaimVerifier.ts`
-- Create: `banking_mcp_server/tests/tools/JwtClaimVerifier.test.ts`
-- Modify: `banking_mcp_server/src/tools/BankingToolProvider.ts` (delete lines 26-41 module-level JWKS helpers; delete `SENSITIVE_HANDLERS` set lines 514-519; delete `decodeJwtPayload` lines 1023-1031; delete `assertTokenClaims` lines 1037-1096)
+- Create: `demo_mcp_server/src/tools/JwtClaimVerifier.ts`
+- Create: `demo_mcp_server/tests/tools/JwtClaimVerifier.test.ts`
+- Modify: `demo_mcp_server/src/tools/BankingToolProvider.ts` (delete lines 26-41 module-level JWKS helpers; delete `SENSITIVE_HANDLERS` set lines 514-519; delete `decodeJwtPayload` lines 1023-1031; delete `assertTokenClaims` lines 1037-1096)
 
 - [ ] **Step 4.1: Write failing test `JwtClaimVerifier.test.ts`**
 
@@ -1091,7 +1091,7 @@ Expected: build exits 0. All tests pass. Test count = baseline + 5 + 7 + 6 = bas
 
 ```bash
 cd /Users/curtismuir/Development/banking
-git add banking_mcp_server/src/tools/JwtClaimVerifier.ts banking_mcp_server/tests/tools/JwtClaimVerifier.test.ts banking_mcp_server/src/tools/BankingToolProvider.ts
+git add demo_mcp_server/src/tools/JwtClaimVerifier.ts demo_mcp_server/tests/tools/JwtClaimVerifier.test.ts demo_mcp_server/src/tools/BankingToolProvider.ts
 git -c commit.gpgsign=false commit -m "$(cat <<'EOF'
 refactor(mcp): extract JwtClaimVerifier from BankingToolProvider
 
@@ -1114,9 +1114,9 @@ EOF
 ## Task 5: Extract `TokenChainAuditor.ts`
 
 **Files:**
-- Create: `banking_mcp_server/src/tools/TokenChainAuditor.ts`
-- Create: `banking_mcp_server/tests/tools/TokenChainAuditor.test.ts`
-- Modify: `banking_mcp_server/src/tools/BankingToolProvider.ts` (delete `chainIndexBySession` field; delete `incrementChainIndex` lines 87-98; replace `clearSessionChainIndex` body with auditor delegation; replace lines 184-259 inline audit block with single `auditor.record(...)` call)
+- Create: `demo_mcp_server/src/tools/TokenChainAuditor.ts`
+- Create: `demo_mcp_server/tests/tools/TokenChainAuditor.test.ts`
+- Modify: `demo_mcp_server/src/tools/BankingToolProvider.ts` (delete `chainIndexBySession` field; delete `incrementChainIndex` lines 87-98; replace `clearSessionChainIndex` body with auditor delegation; replace lines 184-259 inline audit block with single `auditor.record(...)` call)
 
 - [ ] **Step 5.1: Write failing test `TokenChainAuditor.test.ts`**
 
@@ -1424,7 +1424,7 @@ Expected: build exits 0. All tests pass. Test count = baseline + 5 + 7 + 6 + 6 =
 
 ```bash
 cd /Users/curtismuir/Development/banking
-git add banking_mcp_server/src/tools/TokenChainAuditor.ts banking_mcp_server/tests/tools/TokenChainAuditor.test.ts banking_mcp_server/src/tools/BankingToolProvider.ts
+git add demo_mcp_server/src/tools/TokenChainAuditor.ts demo_mcp_server/tests/tools/TokenChainAuditor.test.ts demo_mcp_server/src/tools/BankingToolProvider.ts
 git -c commit.gpgsign=false commit -m "$(cat <<'EOF'
 refactor(mcp): extract TokenChainAuditor from BankingToolProvider
 
@@ -1452,12 +1452,12 @@ EOF
 Largest mechanical move. Each of the eight current `private async executeX` methods becomes a top-level function in one of four handler files. Provider's `executeSpecificTool` becomes a registry lookup.
 
 **Files:**
-- Create: `banking_mcp_server/src/tools/handlers/accountHandlers.ts`
-- Create: `banking_mcp_server/src/tools/handlers/transactionHandlers.ts`
-- Create: `banking_mcp_server/src/tools/handlers/identityHandlers.ts`
-- Create: `banking_mcp_server/src/tools/handlers/reasoningHandlers.ts`
-- Create: `banking_mcp_server/src/tools/handlers/index.ts`
-- Modify: `banking_mcp_server/src/tools/BankingToolProvider.ts` (delete all eight `executeX` private methods lines 555-839, 933-970; rewrite `executeSpecificTool` to use the handler map; delete `HITL_THRESHOLD_USD` line 63)
+- Create: `demo_mcp_server/src/tools/handlers/accountHandlers.ts`
+- Create: `demo_mcp_server/src/tools/handlers/transactionHandlers.ts`
+- Create: `demo_mcp_server/src/tools/handlers/identityHandlers.ts`
+- Create: `demo_mcp_server/src/tools/handlers/reasoningHandlers.ts`
+- Create: `demo_mcp_server/src/tools/handlers/index.ts`
+- Modify: `demo_mcp_server/src/tools/BankingToolProvider.ts` (delete all eight `executeX` private methods lines 555-839, 933-970; rewrite `executeSpecificTool` to use the handler map; delete `HITL_THRESHOLD_USD` line 63)
 
 - [ ] **Step 6.1: Create `handlers/accountHandlers.ts`**
 
@@ -1977,7 +1977,7 @@ If `BankingToolProvider.test.ts` breaks: examine why. Most likely it mocked `Ban
 
 ```bash
 cd /Users/curtismuir/Development/banking
-git add banking_mcp_server/src/tools/handlers/ banking_mcp_server/src/tools/BankingToolProvider.ts
+git add demo_mcp_server/src/tools/handlers/ demo_mcp_server/src/tools/BankingToolProvider.ts
 git -c commit.gpgsign=false commit -m "$(cat <<'EOF'
 refactor(mcp): extract per-tool handlers into handlers/
 
@@ -2003,7 +2003,7 @@ EOF
 Polish the now-thin provider: extract `handleExecutionError`, remove dead imports, tidy doc comments. After this step the file is ~250 lines.
 
 **Files:**
-- Modify: `banking_mcp_server/src/tools/BankingToolProvider.ts`
+- Modify: `demo_mcp_server/src/tools/BankingToolProvider.ts`
 
 - [ ] **Step 7.1: Extract `handleExecutionError`**
 
@@ -2090,7 +2090,7 @@ Expected: zero "is declared but its value is never read" warnings on this file. 
 
 Run:
 ```bash
-wc -l banking_mcp_server/src/tools/BankingToolProvider.ts
+wc -l demo_mcp_server/src/tools/BankingToolProvider.ts
 ```
 Expected: between 220 and 300 lines. (Spec target: ~250.) If significantly outside that range, re-inspect for dead code.
 
@@ -2098,7 +2098,7 @@ Expected: between 220 and 300 lines. (Spec target: ~250.) If significantly outsi
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_mcp_server
+cd /Users/curtismuir/Development/banking/demo_mcp_server
 npm run build 2>&1 | tee /tmp/final-build.log
 npm test 2>&1 | tee /tmp/final-tests.log
 echo "exit=$?"
@@ -2118,7 +2118,7 @@ Expected: exits 0. Confirms no consumer of `BankingToolProvider` (BFF, gateway, 
 
 ```bash
 cd /Users/curtismuir/Development/banking
-git add banking_mcp_server/src/tools/BankingToolProvider.ts
+git add demo_mcp_server/src/tools/BankingToolProvider.ts
 git -c commit.gpgsign=false commit -m "$(cat <<'EOF'
 refactor(mcp): final cleanup of BankingToolProvider (now ~250 lines)
 
@@ -2150,13 +2150,13 @@ EOF
     ```
   - `clearSessionChainIndex` still callable on the provider? Confirm via:
     ```bash
-    grep -n clearSessionChainIndex banking_mcp_server/src/tools/BankingToolProvider.ts
+    grep -n clearSessionChainIndex demo_mcp_server/src/tools/BankingToolProvider.ts
     ```
     Expected: one match (the public method).
 
 - [ ] **Update CHANGELOG.md** if the project enforces it (pre-commit hook on Step 1.5 warned about this). Add one line under `[Unreleased] → Changed`:
   ```
-  - banking_mcp_server: refactor BankingToolProvider into focused peer modules
+  - demo_mcp_server: refactor BankingToolProvider into focused peer modules
   ```
 
 - [ ] **Spot-check the final shape** — open `BankingToolProvider.ts` and confirm the only methods on the class are:

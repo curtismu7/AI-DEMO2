@@ -9,7 +9,7 @@
 ## 1. Goal
 
 Prove that **every built-in agent chip** in
-[`banking_api_ui/src/components/BankingChips.jsx`](../../../banking_api_ui/src/components/BankingChips.jsx)
+[`demo_api_ui/src/components/BankingChips.jsx`](../../../demo_api_ui/src/components/BankingChips.jsx)
 (the 6 `HEURISTIC_CHIPS` + the ~24 `LLM_CHIPS`) behaves correctly under three
 intent-routing conditions, AND that whenever a chip resolves to a banking tool
 the request traverses the **full non-skippable pipeline** with the token chain
@@ -47,14 +47,14 @@ Routing and the pipeline only meet on this NL message path, so the test's
 subject is the **NL message path** (not raw `/api/mcp/tool` in isolation).
 
 Key source references:
-- Routing decision: `banking_api_server/services/geminiNlIntent.js:237-377`
-- Heuristic parser: `banking_api_server/services/nlIntentParser.js:195-336`
-- Pipeline entry: `banking_api_server/server.js:1224-1425` (`POST /api/mcp/tool`)
-- Token exchange: `banking_api_server/services/agentMcpTokenService.js`
-- Authorize gate: `banking_api_server/services/mcpToolAuthorizationService.js:73-197`
-- Session gate: `banking_api_server/middleware/auth.js` (`requireSession` -> 401 `unauthenticated`)
+- Routing decision: `demo_api_server/services/geminiNlIntent.js:237-377`
+- Heuristic parser: `demo_api_server/services/nlIntentParser.js:195-336`
+- Pipeline entry: `demo_api_server/server.js:1224-1425` (`POST /api/mcp/tool`)
+- Token exchange: `demo_api_server/services/agentMcpTokenService.js`
+- Authorize gate: `demo_api_server/services/mcpToolAuthorizationService.js:73-197`
+- Session gate: `demo_api_server/middleware/auth.js` (`requireSession` -> 401 `unauthenticated`)
 - User token storage: `req.session.oauthTokens.accessToken`
-  (`banking_api_server/services/mcpWebSocketClient.js:76-89`)
+  (`demo_api_server/services/mcpWebSocketClient.js:76-89`)
 
 ## 3. The three routing conditions
 
@@ -79,10 +79,10 @@ Two existing, real observability surfaces, two sessions:
 | **Gateway routing leg** | app-events `category=gateway_path` / `mcp` | **Admin** | `GET /api/admin/app-events` |
 | Token chain updated | non-empty `tokenEvents`; new entries vs pre-call snapshot | Customer | `GET /api/token-chain` before/after diff |
 
-- `GET /api/token-chain` (`banking_api_server/routes/tokenChain.js:8`) is gated
+- `GET /api/token-chain` (`demo_api_server/routes/tokenChain.js:8`) is gated
   only by `authenticateToken` and auto-scoped to `req.user.id` — the same
   endpoint the SPA Token Chain panel consumes. Customer-safe.
-- `GET /api/admin/app-events` (`banking_api_server/routes/admin.js:1006`) needs
+- `GET /api/admin/app-events` (`demo_api_server/routes/admin.js:1006`) needs
   `requireAdmin` + `requireScopes(['banking:admin'])`. The admin session is a
   **read-only corroborator** for the two stages a customer cannot see.
 - Correlation is timestamp + `username` (stored per-event,
@@ -110,7 +110,7 @@ Run against the running `./run-demo.sh` stack.
 - Output: per-chip matrix
   `chip x {heuristic, helix, fallback} -> routed-by | tool | exchange✓ gateway✓ authorize✓ tokenchain✓`.
 
-### B. CI integration suite — `banking_api_server/tests/routes/allChips.pipeline.integration.test.js`
+### B. CI integration suite — `demo_api_server/tests/routes/allChips.pipeline.integration.test.js`
 
 supertest, deterministic, modeled on `tests/routes/hitlGateway.integration.test.js`.
 
@@ -131,7 +131,7 @@ supertest, deterministic, modeled on `tests/routes/hitlGateway.integration.test.
 - CI suite: deterministic pass under `npm test`, no network, no Helix.
 - Zero production code changed; read-only via `/api/token-chain` +
   `/api/admin/app-events` + `tokenEvents`.
-- UI build gate N/A (no `banking_api_ui` change).
+- UI build gate N/A (no `demo_api_ui` change).
 
 ## 7. Accepted risks
 

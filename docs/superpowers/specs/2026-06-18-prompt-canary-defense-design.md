@@ -6,7 +6,7 @@
 
 ## 1. Summary
 
-Add a deterministic **prompt-injection canary tripwire** to the Super Banking demo as a
+Add a deterministic **prompt-injection canary tripwire** to the AI Demo as a
 new teaching scenario. A per-session canary token is injected into the agent's system
 prompt; if that token ever surfaces in an outbound MCP **tool argument**, the agent was
 manipulated into exfiltrating its own instructions, and the call is blocked.

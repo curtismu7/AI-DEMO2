@@ -29,11 +29,11 @@ Short form for this note: PingOne issues and exchanges tokens; the authorization
 
 ## The smell
 
-`banking_api_server/services/agentMcpScopePolicy.js` and `banking_api_server/services/mcpToolAuthorizationService.js` encode a **local scope → tool map** with set-union match semantics (`isToolPermittedByAgentPolicy` uses `.some()` for OR). The earlier code review validated this logic as *correct as code* — and it is. But under the principle above it is **architecturally misplaced**: the BFF LangGraph agent is deciding *whether a tool is authorized for the caller's scopes* locally, instead of asking PingOne Authorize.
+`demo_api_server/services/agentMcpScopePolicy.js` and `demo_api_server/services/mcpToolAuthorizationService.js` encode a **local scope → tool map** with set-union match semantics (`isToolPermittedByAgentPolicy` uses `.some()` for OR). The earlier code review validated this logic as *correct as code* — and it is. But under the principle above it is **architecturally misplaced**: the BFF LangGraph agent is deciding *whether a tool is authorized for the caller's scopes* locally, instead of asking PingOne Authorize.
 
 This is not a bug (it produces correct answers today). It is a **design smell**: authorization policy is duplicated into the agent. Consequences:
 
-1. **Policy drift.** The local map must be hand-kept in sync with PingOne Authorize policy and with `banking_mcp_server`'s registry (already flagged separately as `MCP_TOOL_SCOPES` drift, WR-01 in the BFF review). Two+ sources of authorization truth.
+1. **Policy drift.** The local map must be hand-kept in sync with PingOne Authorize policy and with `demo_mcp_server`'s registry (already flagged separately as `MCP_TOOL_SCOPES` drift, WR-01 in the BFF review). Two+ sources of authorization truth.
 2. **Bypass surface.** Any path that reaches tool execution without re-consulting the authorization server trusts the local map. The map is the security boundary instead of PingOne Authorize being it.
 3. **Wrong layer.** The gateway already asks PingAuthorize per tool call (`PingOneAuthorizeClient.evaluate`). The BFF-side local check is redundant *and* authoritative-looking — a future reader cannot tell which is the real gate.
 
@@ -43,7 +43,7 @@ This is not a bug (it produces correct answers today). It is a **design smell**:
 
 The note originally assumed the gateway's PingAuthorize call was the only authoritative gate and the BFF local map was the BFF's *de facto* gate. Code tracing disproved this:
 
-1. **The BFF does NOT route through the gateway.** It dials `banking_mcp_server` directly (`mcpWebSocketClient.js`, `MCP_SERVER_URL` default `ws://localhost:8080`). The gateway (3005) is in the *other* agents' path (banking_agent_service, langchain_agent), not the BFF LangGraph agent's path.
+1. **The BFF does NOT route through the gateway.** It dials `demo_mcp_server` directly (`mcpWebSocketClient.js`, `MCP_SERVER_URL` default `ws://localhost:8080`). The gateway (3005) is in the *other* agents' path (banking_agent_service, langchain_agent), not the BFF LangGraph agent's path.
 2. **The BFF already asks the authorization server on every tool call.** `server.js:~1535` runs `mcpToolAuthorizationService.evaluateMcpFirstToolGate` on every MCP tool call (PingAuthorize or simulated; acts on PERMIT / DENY / HITL). This is the real, authoritative gate and it is independent of the local scope map.
 3. **`agentMcpScopePolicy.isToolPermittedByAgentPolicy` is a *second* check** invoked during token acquisition / tool-list filtering (`agentMcpTokenService.js:~912`), redundant with the authoritative gate. It is also used (legitimately) to decide which tools to *advertise* to the agent and is referenced by `configStore.js:~190` for scope-disable-blocks-tool.
 

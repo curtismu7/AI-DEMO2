@@ -12,22 +12,22 @@
 
 ## File Structure
 
-- `banking_api_server/routes/featureFlags.js` — **Modify.** Add one entry to `FLAG_REGISTRY`. No other backend change (GET/PUT routes + setup-page UI are generic over the registry).
-- `banking_api_ui/src/utils/dashboardLayout.js` — **Modify.** Add one pure helper `splitGridClass(showBankingInMiddle)` returning the CSS modifier class.
-- `banking_api_ui/src/utils/__tests__/dashboardLayout.test.js` — **Create.** Unit tests for `splitGridClass`.
-- `banking_api_ui/src/components/UserDashboard.js` — **Modify.** Add one `useState` + one `useEffect` to read the flag; apply `splitGridClass` to the middle-layout container; gate the banking `<main>` render on the flag.
-- `banking_api_ui/src/components/UserDashboard.css` — **Modify.** Add one modifier rule `.ud-body--dashboard-split3--no-banking` that collapses the 3-track grid to 2 tracks (plus the existing tablet/mobile breakpoints).
+- `demo_api_server/routes/featureFlags.js` — **Modify.** Add one entry to `FLAG_REGISTRY`. No other backend change (GET/PUT routes + setup-page UI are generic over the registry).
+- `demo_api_ui/src/utils/dashboardLayout.js` — **Modify.** Add one pure helper `splitGridClass(showBankingInMiddle)` returning the CSS modifier class.
+- `demo_api_ui/src/utils/__tests__/dashboardLayout.test.js` — **Create.** Unit tests for `splitGridClass`.
+- `demo_api_ui/src/components/UserDashboard.js` — **Modify.** Add one `useState` + one `useEffect` to read the flag; apply `splitGridClass` to the middle-layout container; gate the banking `<main>` render on the flag.
+- `demo_api_ui/src/components/UserDashboard.css` — **Modify.** Add one modifier rule `.ud-body--dashboard-split3--no-banking` that collapses the 3-track grid to 2 tracks (plus the existing tablet/mobile breakpoints).
 
 ---
 
 ### Task 1: Register the feature flag (backend)
 
 **Files:**
-- Modify: `banking_api_server/routes/featureFlags.js` (insert into `FLAG_REGISTRY`, before the closing `];` at line ~271, after the `ff_heuristic_enabled` block)
+- Modify: `demo_api_server/routes/featureFlags.js` (insert into `FLAG_REGISTRY`, before the closing `];` at line ~271, after the `ff_heuristic_enabled` block)
 
 - [ ] **Step 1: Add the flag entry**
 
-In `banking_api_server/routes/featureFlags.js`, locate the end of the `ff_heuristic_enabled` object (the block ending `defaultValue: true,\n  },` around line 269) and the closing `];` of `FLAG_REGISTRY` around line 271. Insert this new object as the last entry, immediately before `];`:
+In `demo_api_server/routes/featureFlags.js`, locate the end of the `ff_heuristic_enabled` object (the block ending `defaultValue: true,\n  },` around line 269) and the closing `];` of `FLAG_REGISTRY` around line 271. Insert this new object as the last entry, immediately before `];`:
 
 ```javascript
   // ── UI / Dashboard ─────────────────────────────────────────────────────────
@@ -51,7 +51,7 @@ In `banking_api_server/routes/featureFlags.js`, locate the end of the `ff_heuris
 
 - [ ] **Step 2: Verify the registry still parses and the flag is served**
 
-Run: `cd banking_api_server && node -e "const r=require('./routes/featureFlags'); console.log('loaded ok')"`
+Run: `cd demo_api_server && node -e "const r=require('./routes/featureFlags'); console.log('loaded ok')"`
 Expected: prints `loaded ok` with no syntax error.
 
 (If the BFF is running, `curl -s http://localhost:3001/api/admin/feature-flags | grep ff_show_banking_in_middle_agent` should show the flag and a `"UI / Dashboard"` category. This is optional — the require check is the gate.)
@@ -59,7 +59,7 @@ Expected: prints `loaded ok` with no syntax error.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add banking_api_server/routes/featureFlags.js
+git add demo_api_server/routes/featureFlags.js
 git commit -m "feat(ff): add ff_show_banking_in_middle_agent flag (default off)"
 ```
 
@@ -68,12 +68,12 @@ git commit -m "feat(ff): add ff_show_banking_in_middle_agent flag (default off)"
 ### Task 2: Pure grid-class helper (TDD)
 
 **Files:**
-- Modify: `banking_api_ui/src/utils/dashboardLayout.js`
-- Test: `banking_api_ui/src/utils/__tests__/dashboardLayout.test.js` (create)
+- Modify: `demo_api_ui/src/utils/dashboardLayout.js`
+- Test: `demo_api_ui/src/utils/__tests__/dashboardLayout.test.js` (create)
 
 - [ ] **Step 1: Write the failing test**
 
-Create `banking_api_ui/src/utils/__tests__/dashboardLayout.test.js`:
+Create `demo_api_ui/src/utils/__tests__/dashboardLayout.test.js`:
 
 ```javascript
 import { splitGridClass } from "../dashboardLayout";
@@ -99,12 +99,12 @@ describe("splitGridClass", () => {
 
 - [ ] **Step 2: Run the test to verify it fails**
 
-Run: `cd banking_api_ui && CI=true npx react-scripts test --watchAll=false src/utils/__tests__/dashboardLayout.test.js`
+Run: `cd demo_api_ui && CI=true npx react-scripts test --watchAll=false src/utils/__tests__/dashboardLayout.test.js`
 Expected: FAIL — `splitGridClass is not a function` / not exported.
 
 - [ ] **Step 3: Implement the helper**
 
-Append to `banking_api_ui/src/utils/dashboardLayout.js` (after the existing `setDashboardLayout` function, at end of file):
+Append to `demo_api_ui/src/utils/dashboardLayout.js` (after the existing `setDashboardLayout` function, at end of file):
 
 ```javascript
 
@@ -125,13 +125,13 @@ export function splitGridClass(showBankingInMiddle) {
 
 - [ ] **Step 4: Run the test to verify it passes**
 
-Run: `cd banking_api_ui && CI=true npx react-scripts test --watchAll=false src/utils/__tests__/dashboardLayout.test.js`
+Run: `cd demo_api_ui && CI=true npx react-scripts test --watchAll=false src/utils/__tests__/dashboardLayout.test.js`
 Expected: PASS — 3 passing tests.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add banking_api_ui/src/utils/dashboardLayout.js banking_api_ui/src/utils/__tests__/dashboardLayout.test.js
+git add demo_api_ui/src/utils/dashboardLayout.js demo_api_ui/src/utils/__tests__/dashboardLayout.test.js
 git commit -m "feat(dashboard): splitGridClass helper for no-banking middle layout"
 ```
 
@@ -140,7 +140,7 @@ git commit -m "feat(dashboard): splitGridClass helper for no-banking middle layo
 ### Task 3: CSS modifier — collapse split3 grid to two tracks
 
 **Files:**
-- Modify: `banking_api_ui/src/components/UserDashboard.css`
+- Modify: `demo_api_ui/src/components/UserDashboard.css`
 
 Context: the base rule at line 119 is
 `.ud-body.ud-body--dashboard-split3 { ... grid-template-columns: minmax(240px, 260px) 1fr minmax(360px, 420px); }`
@@ -148,7 +148,7 @@ Context: the base rule at line 119 is
 
 - [ ] **Step 1: Add the desktop modifier rule**
 
-In `banking_api_ui/src/components/UserDashboard.css`, immediately after the closing `}` of the `.ud-body.ud-body--dashboard-split3 { ... }` rule that ends at line 132, insert:
+In `demo_api_ui/src/components/UserDashboard.css`, immediately after the closing `}` of the `.ud-body.ud-body--dashboard-split3 { ... }` rule that ends at line 132, insert:
 
 ```css
 
@@ -175,7 +175,7 @@ Find the mobile media block containing `.ud-body.ud-body--dashboard-split3 { gri
 - [ ] **Step 4: Commit**
 
 ```bash
-git add banking_api_ui/src/components/UserDashboard.css
+git add demo_api_ui/src/components/UserDashboard.css
 git commit -m "feat(dashboard): split3 no-banking grid modifier (desktop + tablet)"
 ```
 
@@ -184,14 +184,14 @@ git commit -m "feat(dashboard): split3 no-banking grid modifier (desktop + table
 ### Task 4: Read the flag and gate the banking column (UserDashboard)
 
 **Files:**
-- Modify: `banking_api_ui/src/components/UserDashboard.js`
+- Modify: `demo_api_ui/src/components/UserDashboard.js`
   - Add `splitGridClass` to the existing `../utils/dashboardLayout` import (line ~26-28)
   - Add state + effect near the other dashboard state (after line 148, `middleAgentOpen`)
   - Apply class + gate render in the middle branch (lines ~2615-2666)
 
 - [ ] **Step 1: Extend the dashboardLayout import**
 
-In `banking_api_ui/src/components/UserDashboard.js`, the import around lines 26-28 is:
+In `demo_api_ui/src/components/UserDashboard.js`, the import around lines 26-28 is:
 
 ```javascript
 } from "../utils/dashboardLayout";
@@ -282,18 +282,18 @@ Leave the `else` branch (starting at line ~2667, the `// Bottom-dock or float mo
 
 - [ ] **Step 5: Build the UI (mandatory gate)**
 
-Run: `cd banking_api_ui && npm run build`
+Run: `cd demo_api_ui && npm run build`
 Expected: exit code **0**. (CLAUDE.md / REGRESSION_PLAN UI build gate.)
 
 - [ ] **Step 6: Run the helper test suite (regression check on touched util)**
 
-Run: `cd banking_api_ui && CI=true npx react-scripts test --watchAll=false src/utils/__tests__/dashboardLayout.test.js`
+Run: `cd demo_api_ui && CI=true npx react-scripts test --watchAll=false src/utils/__tests__/dashboardLayout.test.js`
 Expected: PASS — 3 passing tests.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add banking_api_ui/src/components/UserDashboard.js
+git add demo_api_ui/src/components/UserDashboard.js
 git commit -m "feat(dashboard): hide banking column in middle-agent layout behind ff_show_banking_in_middle_agent"
 ```
 
@@ -325,7 +325,7 @@ In `CHANGELOG.md`, under the `[Unreleased]` section's `Added` category (create t
 
 - [ ] **Step 3: Final build gate**
 
-Run: `cd banking_api_ui && npm run build`
+Run: `cd demo_api_ui && npm run build`
 Expected: exit code **0**.
 
 - [ ] **Step 4: Commit**

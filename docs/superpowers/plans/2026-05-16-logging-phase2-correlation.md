@@ -12,12 +12,12 @@
 
 ## Scope & Non-Negotiables
 
-- **Builds on Phase 1 (merged to `main`).** Each of banking_mcp_server, banking_mcp_gateway, banking_agent_service, banking_api_server already has a `teachLogger` with `.child(bindings)` and a `teachLog` singleton. HITL does NOT — Task 1 backfills it.
+- **Builds on Phase 1 (merged to `main`).** Each of demo_mcp_server, banking_mcp_gateway, banking_agent_service, demo_api_server already has a `teachLogger` with `.child(bindings)` and a `teachLog` singleton. HITL does NOT — Task 1 backfills it.
 - **No redaction.** Token/claim visibility remains an intentional teaching feature. `correlation_id` is additive metadata; nothing gets masked.
-- **REGRESSION_PLAN §1 files touched** (logging-context only, no auth/exchange logic change): `banking_api_server/middleware/correlationId.js` (extend, don't replace), `banking_mcp_server/src/auth/TokenIntrospector.ts` (no change — it inherits ALS), `rfc8693TokenExchangeService.js` (no logic change). Each task touching a §1 file states what it will NOT break; minimal diff. A REGRESSION_PLAN §4 Bug Fix Log entry is added in the final task.
+- **REGRESSION_PLAN §1 files touched** (logging-context only, no auth/exchange logic change): `demo_api_server/middleware/correlationId.js` (extend, don't replace), `demo_mcp_server/src/auth/TokenIntrospector.ts` (no change — it inherits ALS), `rfc8693TokenExchangeService.js` (no logic change). Each task touching a §1 file states what it will NOT break; minimal diff. A REGRESSION_PLAN §4 Bug Fix Log entry is added in the final task.
 - **The BFF already propagates `req.correlationId`** to the gateway as JSON-RPC `id` (`mcpGatewayClient.js:52`) and to the MCP server as `params.correlationId`/`initParams.correlationId` (`mcpWebSocketClient.js`, `http2McpBridge.js`). Phase 2 does NOT rebuild that — it makes downstream services *read* it and bind it to their loggers, and adds the explicit `X-Correlation-ID` HTTP header on the gateway hop for robustness.
-- **`correlationId` middleware already sets `req.correlationId`** (`banking_api_server/middleware/correlationId.js`, registered `server.js:376`). Phase 2 extends the BFF to run the request inside ALS and bridge to SSE.
-- No emojis except `⚠️ ✅ ❌`. No `banking_api_ui` edits in Phase 2 (the SSE event already carries fields the UI renders; we add `correlation_id` to the event payload — that is a server-side change; verify no UI build needed by confirming the UI does not type-validate the SSE payload shape — see Task 9 Step 1).
+- **`correlationId` middleware already sets `req.correlationId`** (`demo_api_server/middleware/correlationId.js`, registered `server.js:376`). Phase 2 extends the BFF to run the request inside ALS and bridge to SSE.
+- No emojis except `⚠️ ✅ ❌`. No `demo_api_ui` edits in Phase 2 (the SSE event already carries fields the UI renders; we add `correlation_id` to the event payload — that is a server-side change; verify no UI build needed by confirming the UI does not type-validate the SSE payload shape — see Task 9 Step 1).
 - ALS field name is **`correlation_id`** in every log line (snake_case, matches Phase 1 field vocabulary and the Python `SecureLogger` contract). The header is **`X-Correlation-ID`**. The JSON-RPC body field is **`correlationId`** (camelCase — matches what the BFF already sends).
 
 ## File Structure
@@ -28,11 +28,11 @@ Per Node/TS service, one new tiny ALS module + a one-spot teachLogger extension 
 |---|---|---|---|
 | banking_hitl_service | `src/correlationContext.js` (+ NEW `src/teachLogger.js` backfill) | new teachLogger reads ALS | `src/index.js` middleware |
 | banking_mcp_gateway | `src/correlationContext.ts` | `src/teachLogger.ts` reads ALS | HTTP `/mcp` + WS handler in `src/index.ts` / `src/server/GatewayServer.ts` |
-| banking_mcp_server | `src/utils/correlationContext.ts` | `src/utils/teachLogger.ts` reads ALS | `src/server/MCPMessageHandler.ts` (per message) |
+| demo_mcp_server | `src/utils/correlationContext.ts` | `src/utils/teachLogger.ts` reads ALS | `src/server/MCPMessageHandler.ts` (per message) |
 | banking_agent_service | `src/correlationContext.ts` | `src/teachLogger.ts` reads ALS | `src/reasonRoute.ts` handler |
-| banking_api_server | `utils/correlationContext.js` | `utils/teachLogger.js` reads ALS | extend `middleware/correlationId.js` |
+| demo_api_server | `utils/correlationContext.js` | `utils/teachLogger.js` reads ALS | extend `middleware/correlationId.js` |
 
-Outbound-forwarding edits: `banking_mcp_gateway/src/proxy.ts` (→ MCP `params.correlationId`), `banking_mcp_gateway/src/hitlClient.ts` (→ HITL body + header), `banking_mcp_gateway/src/middleware/authorizeMcpRequest.ts` (GwAuditTrail → log). SSE bridge: `banking_api_server/server.js` (publish functions + flowTrace binding).
+Outbound-forwarding edits: `banking_mcp_gateway/src/proxy.ts` (→ MCP `params.correlationId`), `banking_mcp_gateway/src/hitlClient.ts` (→ HITL body + header), `banking_mcp_gateway/src/middleware/authorizeMcpRequest.ts` (GwAuditTrail → log). SSE bridge: `demo_api_server/server.js` (publish functions + flowTrace binding).
 
 **Canonical ALS module shape** (language-adapted; identical semantics across services):
 
@@ -53,7 +53,7 @@ teachLogger reads `getCorrelationId()` and, when present, merges `{ correlation_
 - Create: `banking_hitl_service/src/teachLogger.js`
 - Test: `banking_hitl_service/tests/teachLogger.test.js`
 
-(HITL is plain-JS Express; Phase 1 skipped it. This ports the canonical CJS teachLogger from `banking_api_server/utils/teachLogger.js`, service name `hitl-service`.)
+(HITL is plain-JS Express; Phase 1 skipped it. This ports the canonical CJS teachLogger from `demo_api_server/utils/teachLogger.js`, service name `hitl-service`.)
 
 - [ ] **Step 1: Add pino**
 
@@ -137,7 +137,7 @@ Expected: FAIL — `Cannot find module '../src/teachLogger'`.
 
 - [ ] **Step 5: Create the CJS module**
 
-Read `banking_api_server/utils/teachLogger.js` for the canonical CJS implementation. Create `banking_hitl_service/src/teachLogger.js` with the **exact same body** (the `RESERVED` set, `safeFields`, `resolveLevel`, `wrap`, `createTeachLogger` with stream-first branch order, error passthrough, `module.exports = { createTeachLogger, teachLog }`), changing ONLY the singleton service name:
+Read `demo_api_server/utils/teachLogger.js` for the canonical CJS implementation. Create `banking_hitl_service/src/teachLogger.js` with the **exact same body** (the `RESERVED` set, `safeFields`, `resolveLevel`, `wrap`, `createTeachLogger` with stream-first branch order, error passthrough, `module.exports = { createTeachLogger, teachLog }`), changing ONLY the singleton service name:
 
 ```javascript
 const teachLog = createTeachLogger({ service: 'hitl-service' });
@@ -256,10 +256,10 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 3: Add the canonical AsyncLocalStorage correlation module (5 services)
 
 **Files:**
-- Create: `banking_api_server/utils/correlationContext.js`
+- Create: `demo_api_server/utils/correlationContext.js`
 - Create: `banking_hitl_service/src/correlationContext.js`
 - Create: `banking_mcp_gateway/src/correlationContext.ts`
-- Create: `banking_mcp_server/src/utils/correlationContext.ts`
+- Create: `demo_mcp_server/src/utils/correlationContext.ts`
 - Create: `banking_agent_service/src/correlationContext.ts`
 - Test: one test per service (paths below)
 
@@ -267,7 +267,7 @@ All five modules are functionally identical: an `AsyncLocalStorage` holding `{ c
 
 - [ ] **Step 1: Write the failing test (api-server, CJS — canonical)**
 
-Create `banking_api_server/__tests__/utils/correlationContext.test.js` (mirror the dir of the existing teachLogger test — if that lived at `src/__tests__/utils/`, use `src/__tests__/utils/correlationContext.test.js`; confirm with `ls banking_api_server/src/__tests__/utils 2>/dev/null || ls banking_api_server/__tests__/utils 2>/dev/null`):
+Create `demo_api_server/__tests__/utils/correlationContext.test.js` (mirror the dir of the existing teachLogger test — if that lived at `src/__tests__/utils/`, use `src/__tests__/utils/correlationContext.test.js`; confirm with `ls demo_api_server/src/__tests__/utils 2>/dev/null || ls demo_api_server/__tests__/utils 2>/dev/null`):
 
 ```javascript
 const { runWithCorrelation, getCorrelationId } = require('../../utils/correlationContext');
@@ -298,12 +298,12 @@ describe('correlationContext', () => {
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run (adjust path): `cd /Users/curtismuir/Development/banking/banking_api_server && npx jest <test-path> --testPathIgnorePatterns '/node_modules/'`
+Run (adjust path): `cd /Users/curtismuir/Development/banking/demo_api_server && npx jest <test-path> --testPathIgnorePatterns '/node_modules/'`
 Expected: FAIL — module not found. (The `--testPathIgnorePatterns` override is needed only if running from a worktree; from the main repo it is harmless.)
 
 - [ ] **Step 3: Create the CJS module (api-server)**
 
-Create `banking_api_server/utils/correlationContext.js`:
+Create `demo_api_server/utils/correlationContext.js`:
 
 ```javascript
 'use strict';
@@ -335,7 +335,7 @@ Create `banking_hitl_service/src/correlationContext.js` — **identical body** t
 
 Create these three with identical semantics (TS):
 
-`banking_mcp_gateway/src/correlationContext.ts`, `banking_mcp_server/src/utils/correlationContext.ts`, `banking_agent_service/src/correlationContext.ts`:
+`banking_mcp_gateway/src/correlationContext.ts`, `demo_mcp_server/src/utils/correlationContext.ts`, `banking_agent_service/src/correlationContext.ts`:
 
 ```typescript
 import { AsyncLocalStorage } from 'async_hooks';
@@ -357,7 +357,7 @@ export { als };
 
 Create matching tests (TS, same 3 cases) at:
 - `banking_mcp_gateway/tests/correlationContext.test.ts` (import `../src/correlationContext`)
-- `banking_mcp_server/tests/utils/correlationContext.test.ts` (import `../../src/utils/correlationContext`)
+- `demo_mcp_server/tests/utils/correlationContext.test.ts` (import `../../src/utils/correlationContext`)
 - `banking_agent_service/tests/correlationContext.test.ts` (import `../src/correlationContext`)
 
 TS test body (adjust import path per file):
@@ -393,7 +393,7 @@ Run each service's test (`npx jest tests/correlationContext.test.ts` / `tests/ut
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /Users/curtismuir/Development/banking && git add banking_api_server/utils/correlationContext.js banking_hitl_service/src/correlationContext.js banking_mcp_gateway/src/correlationContext.ts banking_mcp_server/src/utils/correlationContext.ts banking_agent_service/src/correlationContext.ts banking_api_server/**/correlationContext.test.js banking_hitl_service/tests/correlationContext.test.js banking_mcp_gateway/tests/correlationContext.test.ts banking_mcp_server/tests/utils/correlationContext.test.ts banking_agent_service/tests/correlationContext.test.ts && git commit -m "feat(logging): add AsyncLocalStorage correlation context to 5 services
+cd /Users/curtismuir/Development/banking && git add demo_api_server/utils/correlationContext.js banking_hitl_service/src/correlationContext.js banking_mcp_gateway/src/correlationContext.ts demo_mcp_server/src/utils/correlationContext.ts banking_agent_service/src/correlationContext.ts demo_api_server/**/correlationContext.test.js banking_hitl_service/tests/correlationContext.test.js banking_mcp_gateway/tests/correlationContext.test.ts demo_mcp_server/tests/utils/correlationContext.test.ts banking_agent_service/tests/correlationContext.test.ts && git commit -m "feat(logging): add AsyncLocalStorage correlation context to 5 services
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
@@ -404,14 +404,14 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 4: teachLogger auto-injects correlation_id from ALS (5 services)
 
 **Files:**
-- Modify: `banking_api_server/utils/teachLogger.js`, `banking_hitl_service/src/teachLogger.js`, `banking_mcp_gateway/src/teachLogger.ts`, `banking_mcp_server/src/utils/teachLogger.ts`, `banking_agent_service/src/teachLogger.ts`
+- Modify: `demo_api_server/utils/teachLogger.js`, `banking_hitl_service/src/teachLogger.js`, `banking_mcp_gateway/src/teachLogger.ts`, `demo_mcp_server/src/utils/teachLogger.ts`, `banking_agent_service/src/teachLogger.ts`
 - Test: extend each service's existing teachLogger test
 
 The change is identical in each: in the emit path, merge `{ correlation_id }` when `getCorrelationId()` returns a value. `correlation_id` must NOT be clobbered by caller fields (treat like a reserved key) and must appear on info/warn/debug/error/step.
 
 - [ ] **Step 1: Write the failing test (api-server first)**
 
-Append to `banking_api_server`'s existing teachLogger test (the file created in Phase 1 Task 6 — find it: `ls banking_api_server/src/__tests__/utils/teachLogger.test.js`):
+Append to `demo_api_server`'s existing teachLogger test (the file created in Phase 1 Task 6 — find it: `ls demo_api_server/src/__tests__/utils/teachLogger.test.js`):
 
 ```javascript
 const { runWithCorrelation } = require('../../utils/correlationContext');
@@ -454,7 +454,7 @@ Run the api-server teachLogger test. Expected: the 2 new cases FAIL (`correlatio
 
 - [ ] **Step 3: Implement in api-server teachLogger.js**
 
-In `banking_api_server/utils/teachLogger.js`:
+In `demo_api_server/utils/teachLogger.js`:
 - Add at top: `const { getCorrelationId } = require('./correlationContext');`
 - Add `'correlation_id'` to the `RESERVED` set (so a caller field named `correlation_id` is prefixed to `field_correlation_id` and cannot overwrite the real one).
 - In `wrap()`, introduce a helper that builds the per-line base fields and merges the ALS id. Concretely, change each method to spread an injected object. Replace the `wrap` method bodies so each emits `withCorrelation(safeFields(fields))`:
@@ -481,7 +481,7 @@ Run the api-server teachLogger test. Expected: all prior Phase-1 cases STILL pas
 
 - [ ] **Step 5: Apply the identical change to the other 4 services**
 
-For each of `banking_hitl_service/src/teachLogger.js` (CJS, `require('./correlationContext')`), `banking_mcp_gateway/src/teachLogger.ts`, `banking_mcp_server/src/utils/teachLogger.ts` (`import { getCorrelationId } from './correlationContext'` — note path: mcp-server module is in `src/utils/`, context is `src/utils/correlationContext` → `'./correlationContext'`), `banking_agent_service/src/teachLogger.ts`:
+For each of `banking_hitl_service/src/teachLogger.js` (CJS, `require('./correlationContext')`), `banking_mcp_gateway/src/teachLogger.ts`, `demo_mcp_server/src/utils/teachLogger.ts` (`import { getCorrelationId } from './correlationContext'` — note path: mcp-server module is in `src/utils/`, context is `src/utils/correlationContext` → `'./correlationContext'`), `banking_agent_service/src/teachLogger.ts`:
 - add the `getCorrelationId` import (TS: `import { getCorrelationId } from '<relative>';`),
 - add `'correlation_id'` to `RESERVED`,
 - add the `withCorrelation` helper and wrap each method exactly as Step 3.
@@ -492,18 +492,18 @@ Add the SAME 2 test cases to each service's existing teachLogger test (TS servic
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_mcp_server && npx tsc --noEmit && npx jest tests/utils/teachLogger.test.ts
+cd /Users/curtismuir/Development/banking/demo_mcp_server && npx tsc --noEmit && npx jest tests/utils/teachLogger.test.ts
 cd /Users/curtismuir/Development/banking/banking_mcp_gateway && npx tsc --noEmit && npx jest tests/teachLogger.test.ts
 cd /Users/curtismuir/Development/banking/banking_agent_service && npx tsc --noEmit && npx jest tests/teachLogger.test.ts
 cd /Users/curtismuir/Development/banking/banking_hitl_service && npx jest tests/teachLogger.test.js
-cd /Users/curtismuir/Development/banking/banking_api_server && npx jest src/__tests__/utils/teachLogger.test.js --testPathIgnorePatterns '/node_modules/'
+cd /Users/curtismuir/Development/banking/demo_api_server && npx jest src/__tests__/utils/teachLogger.test.js --testPathIgnorePatterns '/node_modules/'
 ```
 Expected: all PASS (Phase-1 cases + new correlation cases), all `tsc --noEmit` exit 0.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /Users/curtismuir/Development/banking && git add banking_api_server/utils/teachLogger.js banking_hitl_service/src/teachLogger.js banking_mcp_gateway/src/teachLogger.ts banking_mcp_server/src/utils/teachLogger.ts banking_agent_service/src/teachLogger.ts banking_api_server/src/__tests__/utils/teachLogger.test.js banking_hitl_service/tests/teachLogger.test.js banking_mcp_gateway/tests/teachLogger.test.ts banking_mcp_server/tests/utils/teachLogger.test.ts banking_agent_service/tests/teachLogger.test.ts && git commit -m "feat(logging): teachLogger auto-injects correlation_id from ALS (5 services)
+cd /Users/curtismuir/Development/banking && git add demo_api_server/utils/teachLogger.js banking_hitl_service/src/teachLogger.js banking_mcp_gateway/src/teachLogger.ts demo_mcp_server/src/utils/teachLogger.ts banking_agent_service/src/teachLogger.ts demo_api_server/src/__tests__/utils/teachLogger.test.js banking_hitl_service/tests/teachLogger.test.js banking_mcp_gateway/tests/teachLogger.test.ts demo_mcp_server/tests/utils/teachLogger.test.ts banking_agent_service/tests/teachLogger.test.ts && git commit -m "feat(logging): teachLogger auto-injects correlation_id from ALS (5 services)
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
@@ -514,19 +514,19 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 5: BFF — run requests inside ALS (extend correlationId middleware)
 
 **Files:**
-- Modify: `banking_api_server/middleware/correlationId.js`
-- Test: `banking_api_server/src/__tests__/middleware/correlationId.als.test.js` (mirror existing test dir)
+- Modify: `demo_api_server/middleware/correlationId.js`
+- Test: `demo_api_server/src/__tests__/middleware/correlationId.als.test.js` (mirror existing test dir)
 
 **REGRESSION_PLAN §1 file.** Will NOT break: existing header read/echo behavior (`req.requestId`, `req.correlationId`, `X-Request-ID`/`X-Correlation-ID` response headers). The ONLY change: after setting the id, invoke `next()` inside `runWithCorrelation(id, next)` so all downstream async work + teachLogger calls carry it. The middleware must remain synchronous-compatible (Express middleware signature unchanged).
 
 - [ ] **Step 1: Read the current middleware**
 
-Run: `cd /Users/curtismuir/Development/banking/banking_api_server && cat middleware/correlationId.js`
+Run: `cd /Users/curtismuir/Development/banking/demo_api_server && cat middleware/correlationId.js`
 Confirm it sets `req.requestId`/`req.correlationId`, echoes both response headers, then calls `next()`.
 
 - [ ] **Step 2: Write the failing test**
 
-Create `banking_api_server/src/__tests__/middleware/correlationId.als.test.js` (adjust dir to match existing test layout):
+Create `demo_api_server/src/__tests__/middleware/correlationId.als.test.js` (adjust dir to match existing test layout):
 
 ```javascript
 const correlationIdMiddleware = require('../../../middleware/correlationId');
@@ -575,7 +575,7 @@ Run the test. Expected: the ALS cases FAIL (`getCorrelationId()` undefined insid
 
 - [ ] **Step 4: Extend the middleware**
 
-Edit `banking_api_server/middleware/correlationId.js`: add `const { runWithCorrelation } = require('../utils/correlationContext');` at the top. Keep ALL existing lines that compute `id`, set `req.requestId`, `req.correlationId`, and the two `res.setHeader` calls EXACTLY as they are. Replace the final `next();` (or `return next();`) with:
+Edit `demo_api_server/middleware/correlationId.js`: add `const { runWithCorrelation } = require('../utils/correlationContext');` at the top. Keep ALL existing lines that compute `id`, set `req.requestId`, `req.correlationId`, and the two `res.setHeader` calls EXACTLY as they are. Replace the final `next();` (or `return next();`) with:
 
 ```javascript
 return runWithCorrelation(id, () => next());
@@ -591,14 +591,14 @@ Run the test. Expected: all 3 PASS.
 
 Run the existing correlation/oauth/session tests that exercise the middleware chain:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_api_server && npx jest --testPathPattern='correlation|oauthStatus|session' --testPathIgnorePatterns '/node_modules/' 2>&1 | tail -12
+cd /Users/curtismuir/Development/banking/demo_api_server && npx jest --testPathPattern='correlation|oauthStatus|session' --testPathIgnorePatterns '/node_modules/' 2>&1 | tail -12
 ```
 Expected: no NEW failures vs the pre-change baseline. If any pre-existing failure is unrelated, note it.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /Users/curtismuir/Development/banking && git add banking_api_server/middleware/correlationId.js banking_api_server/src/__tests__/middleware/correlationId.als.test.js && git commit -m "feat(api-server): run requests inside ALS correlation scope
+cd /Users/curtismuir/Development/banking && git add demo_api_server/middleware/correlationId.js demo_api_server/src/__tests__/middleware/correlationId.als.test.js && git commit -m "feat(api-server): run requests inside ALS correlation scope
 
 REGRESSION_PLAN §1: header read/echo + req.correlationId unchanged; only
 wraps next() in runWithCorrelation so teachLogger carries the id downstream.
@@ -723,8 +723,8 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 7: MCP server — read inbound correlationId, bind ALS per message
 
 **Files:**
-- Modify: `banking_mcp_server/src/server/MCPMessageHandler.ts` (and/or `src/server/HttpMCPTransport.ts` where the JSON-RPC message is first parsed)
-- Test: `banking_mcp_server/tests/correlation-binding.test.ts`
+- Modify: `demo_mcp_server/src/server/MCPMessageHandler.ts` (and/or `src/server/HttpMCPTransport.ts` where the JSON-RPC message is first parsed)
+- Test: `demo_mcp_server/tests/correlation-binding.test.ts`
 
 **Touches a §1-adjacent area (MCP message handling).** Will NOT change: handshake/lifecycle, tool dispatch, scope checks, `may_act`/`aud` enforcement (TokenIntrospector is unchanged — it inherits the ALS id automatically via the Phase-4 teachLogger change). Only adds: read `params.correlationId`/`initParams.correlationId` and wrap message handling in `runWithCorrelation`.
 
@@ -732,13 +732,13 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_mcp_server && grep -n "correlationId\|JSON.parse\|message.params\|initParams\|handleMessage\|MessageHandlerContext" src/server/MCPMessageHandler.ts src/server/HttpMCPTransport.ts | head -30
+cd /Users/curtismuir/Development/banking/demo_mcp_server && grep -n "correlationId\|JSON.parse\|message.params\|initParams\|handleMessage\|MessageHandlerContext" src/server/MCPMessageHandler.ts src/server/HttpMCPTransport.ts | head -30
 ```
 Identify the single earliest point where the parsed inbound message object is available for both initialize and tools/call, before auth/dispatch. Record the variable name + file:line.
 
 - [ ] **Step 2: Write the failing test**
 
-Create `banking_mcp_server/tests/correlation-binding.test.ts`:
+Create `demo_mcp_server/tests/correlation-binding.test.ts`:
 
 ```typescript
 import { getCorrelationId } from '../src/utils/correlationContext';
@@ -762,12 +762,12 @@ describe('mcp-server correlation extraction', () => {
 
 - [ ] **Step 3: Run to verify it fails**
 
-Run: `cd /Users/curtismuir/Development/banking/banking_mcp_server && npx jest tests/correlation-binding.test.ts`
+Run: `cd /Users/curtismuir/Development/banking/demo_mcp_server && npx jest tests/correlation-binding.test.ts`
 Expected: FAIL — `Cannot find module '../src/server/correlationFromMessage'`.
 
 - [ ] **Step 4: Create the pure helper**
 
-Create `banking_mcp_server/src/server/correlationFromMessage.ts`:
+Create `demo_mcp_server/src/server/correlationFromMessage.ts`:
 
 ```typescript
 import { randomUUID } from 'crypto';
@@ -801,14 +801,14 @@ At the earliest single point from Step 1 where the parsed message is available (
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_mcp_server && npx tsc --noEmit && npm run build 2>&1 | tail -3 && npx jest tests/correlation-binding.test.ts tests/utils/teachLogger.test.ts tests/auth/TokenIntrospector.teachlog.test.ts 2>&1 | tail -8 && npm test 2>&1 | tail -10
+cd /Users/curtismuir/Development/banking/demo_mcp_server && npx tsc --noEmit && npm run build 2>&1 | tail -3 && npx jest tests/correlation-binding.test.ts tests/utils/teachLogger.test.ts tests/auth/TokenIntrospector.teachlog.test.ts 2>&1 | tail -8 && npm test 2>&1 | tail -10
 ```
 Expected: tsc/build exit 0; new + Phase-1 tests pass; pre-existing MCP suite green (ignore known pre-existing failures unrelated to this change).
 
 - [ ] **Step 8: Commit**
 
 ```bash
-cd /Users/curtismuir/Development/banking && git add banking_mcp_server/src/server/correlationFromMessage.ts banking_mcp_server/src/server/MCPMessageHandler.ts banking_mcp_server/src/server/HttpMCPTransport.ts banking_mcp_server/tests/correlation-binding.test.ts && git commit -m "feat(mcp-server): bind inbound correlationId to ALS per message
+cd /Users/curtismuir/Development/banking && git add demo_mcp_server/src/server/correlationFromMessage.ts demo_mcp_server/src/server/MCPMessageHandler.ts demo_mcp_server/src/server/HttpMCPTransport.ts demo_mcp_server/tests/correlation-binding.test.ts && git commit -m "feat(mcp-server): bind inbound correlationId to ALS per message
 
 Handshake/dispatch/scope/may_act unchanged; TokenIntrospector inherits id via ALS.
 
@@ -931,8 +931,8 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 9: BFF — bridge correlation_id into the SSE token-chain stream
 
 **Files:**
-- Modify: `banking_api_server/server.js` (the `publishTokenEventsToSse` / `publishMcpResultToSse` functions ~1188-1222 and the flowTrace binding ~1265-1267)
-- Test: `banking_api_server/src/__tests__/services/sse-correlation.test.js`
+- Modify: `demo_api_server/server.js` (the `publishTokenEventsToSse` / `publishMcpResultToSse` functions ~1188-1222 and the flowTrace binding ~1265-1267)
+- Test: `demo_api_server/src/__tests__/services/sse-correlation.test.js`
 
 Adds `correlation_id` to every SSE event payload so the on-screen Token Chain and the server logs share one id. Does NOT change the SSE subscription key (`flowTraceId`) or the UI contract beyond an additive field.
 
@@ -940,13 +940,13 @@ Adds `correlation_id` to every SSE event payload so the on-screen Token Chain an
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking && grep -rn "token-event\|mcp-result\|EventSource\|openMcpFlowSse" banking_api_ui/src | head
+cd /Users/curtismuir/Development/banking && grep -rn "token-event\|mcp-result\|EventSource\|openMcpFlowSse" demo_api_ui/src | head
 ```
 Confirm the UI consumes SSE event fields permissively (reads known fields; does not reject unknown fields / has no TS interface that would fail the build on an extra field). If the UI has a strict TS type for the event that would break `npm run build`, note it — then Step 6 must also update that type (and a UI build gate is required). If the UI is permissive (expected — it's CRA JS), no UI build needed; record that finding.
 
 - [ ] **Step 2: Write the failing test**
 
-Create `banking_api_server/src/__tests__/services/sse-correlation.test.js` (adjust dir to match existing layout):
+Create `demo_api_server/src/__tests__/services/sse-correlation.test.js` (adjust dir to match existing layout):
 
 ```javascript
 const { runWithCorrelation } = require('../../../utils/correlationContext');
@@ -973,12 +973,12 @@ describe('SSE payload correlation', () => {
 
 - [ ] **Step 3: Run to verify it fails**
 
-Run (adjust path): `cd /Users/curtismuir/Development/banking/banking_api_server && npx jest src/__tests__/services/sse-correlation.test.js --testPathIgnorePatterns '/node_modules/'`
+Run (adjust path): `cd /Users/curtismuir/Development/banking/demo_api_server && npx jest src/__tests__/services/sse-correlation.test.js --testPathIgnorePatterns '/node_modules/'`
 Expected: FAIL — `Cannot find module '../../../services/sseCorrelation'`.
 
 - [ ] **Step 4: Create the payload builder**
 
-Create `banking_api_server/services/sseCorrelation.js`:
+Create `demo_api_server/services/sseCorrelation.js`:
 
 ```javascript
 'use strict';
@@ -1000,20 +1000,20 @@ Run the test. Expected: 2 PASS.
 
 - [ ] **Step 6: Use the builder in the SSE publish functions**
 
-In `banking_api_server/server.js`, in `publishTokenEventsToSse` and `publishMcpResultToSse` (~1188-1222), replace the inline payload object literals (`{ type: 'token-event', ...event }` / `{ type: 'mcp-result', ...}`) with `buildSsePayload('token-event', event)` / `buildSsePayload('mcp-result', <existing payload object>)`. Add `const { buildSsePayload } = require('./services/sseCorrelation');` near the other requires. Do NOT change the `flowTraceId` subscription key or `mcpFlowSseHub.publish` call signature — only the payload object construction changes. The MCP-tool HTTP handler already runs inside the BFF ALS scope (Task 5), so `getCorrelationId()` resolves to the same id present in the server logs for that request.
+In `demo_api_server/server.js`, in `publishTokenEventsToSse` and `publishMcpResultToSse` (~1188-1222), replace the inline payload object literals (`{ type: 'token-event', ...event }` / `{ type: 'mcp-result', ...}`) with `buildSsePayload('token-event', event)` / `buildSsePayload('mcp-result', <existing payload object>)`. Add `const { buildSsePayload } = require('./services/sseCorrelation');` near the other requires. Do NOT change the `flowTraceId` subscription key or `mcpFlowSseHub.publish` call signature — only the payload object construction changes. The MCP-tool HTTP handler already runs inside the BFF ALS scope (Task 5), so `getCorrelationId()` resolves to the same id present in the server logs for that request.
 
 - [ ] **Step 7: Tests + (conditional) UI build**
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_api_server && npx jest src/__tests__/services/sse-correlation.test.js --testPathIgnorePatterns '/node_modules/' 2>&1 | tail -6
+cd /Users/curtismuir/Development/banking/demo_api_server && npx jest src/__tests__/services/sse-correlation.test.js --testPathIgnorePatterns '/node_modules/' 2>&1 | tail -6
 ```
-Expected: PASS. If Step 1 found a strict UI TS type for the SSE event, also run `cd /Users/curtismuir/Development/banking/banking_api_ui && npm run build` and confirm exit 0; otherwise (permissive UI) no UI build is required — state that explicitly in the report.
+Expected: PASS. If Step 1 found a strict UI TS type for the SSE event, also run `cd /Users/curtismuir/Development/banking/demo_api_ui && npm run build` and confirm exit 0; otherwise (permissive UI) no UI build is required — state that explicitly in the report.
 
 - [ ] **Step 8: Commit**
 
 ```bash
-cd /Users/curtismuir/Development/banking && git add banking_api_server/services/sseCorrelation.js banking_api_server/server.js banking_api_server/src/__tests__/services/sse-correlation.test.js && git commit -m "feat(api-server): stamp correlation_id onto SSE token-chain events
+cd /Users/curtismuir/Development/banking && git add demo_api_server/services/sseCorrelation.js demo_api_server/server.js demo_api_server/src/__tests__/services/sse-correlation.test.js && git commit -m "feat(api-server): stamp correlation_id onto SSE token-chain events
 
 UI Token Chain and server logs now share one trace id. Subscription key
 (flowTraceId) unchanged; additive payload field only.
@@ -1028,11 +1028,11 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 **Files:**
 - Modify: `REGRESSION_PLAN.md` (§4 Bug Fix Log)
-- Test: `banking_api_server/src/__tests__/integration/correlation-e2e.test.js` (a focused integration test of the BFF ALS→teachLogger→SSE chain that does not require all services running)
+- Test: `demo_api_server/src/__tests__/integration/correlation-e2e.test.js` (a focused integration test of the BFF ALS→teachLogger→SSE chain that does not require all services running)
 
 - [ ] **Step 1: Write the BFF-local e2e test**
 
-Create `banking_api_server/src/__tests__/integration/correlation-e2e.test.js` (adjust dir):
+Create `demo_api_server/src/__tests__/integration/correlation-e2e.test.js` (adjust dir):
 
 ```javascript
 const { runWithCorrelation, getCorrelationId } = require('../../../utils/correlationContext');
@@ -1062,18 +1062,18 @@ describe('correlation end-to-end (BFF in-process)', () => {
 
 - [ ] **Step 2: Run it — must pass**
 
-Run (adjust path): `cd /Users/curtismuir/Development/banking/banking_api_server && npx jest src/__tests__/integration/correlation-e2e.test.js --testPathIgnorePatterns '/node_modules/'`
+Run (adjust path): `cd /Users/curtismuir/Development/banking/demo_api_server && npx jest src/__tests__/integration/correlation-e2e.test.js --testPathIgnorePatterns '/node_modules/'`
 Expected: PASS — proves the BFF chain (ALS → teachLogger correlation_id → SSE payload) is coherent and tokens stay visible.
 
 - [ ] **Step 3: Full Phase-2 sweep**
 
 Run and record each result:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_mcp_server && npx tsc --noEmit && npm run build 2>&1 | tail -1 && npx jest tests/utils/correlationContext.test.ts tests/correlation-binding.test.ts tests/utils/teachLogger.test.ts 2>&1 | tail -5
+cd /Users/curtismuir/Development/banking/demo_mcp_server && npx tsc --noEmit && npm run build 2>&1 | tail -1 && npx jest tests/utils/correlationContext.test.ts tests/correlation-binding.test.ts tests/utils/teachLogger.test.ts 2>&1 | tail -5
 cd /Users/curtismuir/Development/banking/banking_mcp_gateway && npx tsc --noEmit && npm run build 2>&1 | tail -1 && npx jest tests/correlationContext.test.ts tests/correlation-flow.test.ts tests/teachLogger.test.ts 2>&1 | tail -5
 cd /Users/curtismuir/Development/banking/banking_agent_service && npx tsc --noEmit && npx jest tests/correlationContext.test.ts tests/teachLogger.test.ts 2>&1 | tail -5
 cd /Users/curtismuir/Development/banking/banking_hitl_service && npx jest 2>&1 | tail -6
-cd /Users/curtismuir/Development/banking/banking_api_server && npx jest src/__tests__/utils/correlationContext.test.js src/__tests__/utils/teachLogger.test.js src/__tests__/middleware/correlationId.als.test.js src/__tests__/services/sse-correlation.test.js src/__tests__/integration/correlation-e2e.test.js --testPathIgnorePatterns '/node_modules/' 2>&1 | tail -6
+cd /Users/curtismuir/Development/banking/demo_api_server && npx jest src/__tests__/utils/correlationContext.test.js src/__tests__/utils/teachLogger.test.js src/__tests__/middleware/correlationId.als.test.js src/__tests__/services/sse-correlation.test.js src/__tests__/integration/correlation-e2e.test.js --testPathIgnorePatterns '/node_modules/' 2>&1 | tail -6
 ```
 All MUST pass; all tsc/build exit 0. Known pre-existing argon2 `vault.test.ts` (gateway) / `jwt` langchain failures are NOT in scope and NOT invoked by these commands. If anything else fails, STOP and report BLOCKED.
 
@@ -1093,7 +1093,7 @@ No emojis except ⚠️✅❌. Do not restructure §4 or touch other sections.
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/curtismuir/Development/banking && git add REGRESSION_PLAN.md banking_api_server/src/__tests__/integration/correlation-e2e.test.js && git commit -m "docs(regression): §4 entry — Logging Phase 2 cross-service correlation
+cd /Users/curtismuir/Development/banking && git add REGRESSION_PLAN.md demo_api_server/src/__tests__/integration/correlation-e2e.test.js && git commit -m "docs(regression): §4 entry — Logging Phase 2 cross-service correlation
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```

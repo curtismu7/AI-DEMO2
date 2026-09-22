@@ -1,4 +1,4 @@
-# How To Test: Prompt → LLM → PingGateway → P1AZ → HITL → Agent Response
+# How To Test: Prompt → LLM → PingOne Agent Gateway → P1AZ → HITL → Agent Response
 
 This guide extends the [read-only flow test](./llm-pinggateway-p1az-flow-test.md) with **Human-in-the-Loop (HITL)** consent. A consequential write (`create_transfer`) pauses the agent until PingOne Authorize returns a HITL obligation and the user approves via the consent modal.
 
@@ -38,7 +38,7 @@ sequenceDiagram
     participant UI as demo_api_ui
     participant BFF as demo_api_server
     participant LLM as langchain_agent
-    participant GW as Ping Agent Gateway
+    participant GW as PingOne Agent Gateway
     participant P1AZ as PingOne Authorize
     participant HITL as demo_hitl_service
     participant MCP as mcp-server
@@ -109,7 +109,7 @@ Open **Token Chain** and confirm:
 |----------|---------|
 | `user-token` | OIDC session token |
 | `exchanged-token` | RFC 8693 delegated token |
-| `mcp-gateway-route` | PingGateway introspect + route |
+| `mcp-gateway-route` | PingOne Agent Gateway introspect + route |
 | `gw-authorize` | P1AZ **INDETERMINATE** (HITL obligation) |
 | `gw-hitl-challenge-type` | Gateway signals `consent_required` |
 | *(after approve)* `gw-authorize` | P1AZ **PERMIT** with `HitlApproved` |
@@ -165,7 +165,7 @@ Output: `docs/screenshots/llm-pinggateway-p1az-hitl-flow/*.png` (6 files)
 
 - [UC8 — HITL consent](./hitl-consent.md)
 - [UC7 — Step-up required](./step-up-required.md) (MFA path for higher amounts)
-- [LLM → PingGateway → P1AZ (read-only)](./llm-pinggateway-p1az-flow-test.md)
+- [LLM → PingOne Agent Gateway → P1AZ (read-only)](./llm-pinggateway-p1az-flow-test.md)
 
 ## Code References
 

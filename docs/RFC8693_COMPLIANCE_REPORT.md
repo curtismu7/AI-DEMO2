@@ -1,4 +1,4 @@
-# RFC 8693 Compliance Report: Super Banking demo
+# RFC 8693 Compliance Report: AI Demo
 
 ## Achievement Status: ✅ 100% COMPLIANT
 
@@ -266,8 +266,8 @@ MCP Server
 ### Build Verification
 | Artifact | Size | Status |
 |----------|------|--------|
-| banking_api_ui JS | 371.02 kB | ✅ Clean |
-| banking_api_ui CSS | 60.5 kB | ✅ Clean |
+| demo_api_ui JS | 371.02 kB | ✅ Clean |
+| demo_api_ui CSS | 60.5 kB | ✅ Clean |
 | Build exit code | 0 | ✅ Success |
 
 ---
@@ -276,7 +276,7 @@ MCP Server
 
 **As of April 9, 2026:**
 
-The Super Banking demo is **100% compliant** with RFC 8693 (Token Exchange) across all required sections:
+The AI Demo is **100% compliant** with RFC 8693 (Token Exchange) across all required sections:
 
 - ✅ §2.1: Token Exchange Basics (single and multi-party delegation)
 - ✅ §2.2: Actor Token Support (client credentials grant)

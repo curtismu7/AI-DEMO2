@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "5026c0a5-299b-4a95-822d-3d509a2ceb0d",
     "name": "The AI Demo \u2014 MCP Server Tools",
-    "description": "Direct HTTP calls to the The AI Demo MCP server (banking_mcp_server). Use MCP_SERVER_URL in the shared The AI Demo environment.\n\nEndpoints documented here are served directly by the MCP server HTTP transport layer (HttpMCPTransport.ts). Start the MCP server with: cd banking_mcp_server && npm start",
+    "description": "Direct HTTP calls to the The AI Demo MCP server (demo_mcp_server). Use MCP_SERVER_URL in the shared The AI Demo environment.\n\nEndpoints documented here are served directly by the MCP server HTTP transport layer (HttpMCPTransport.ts). Start the MCP server with: cd demo_mcp_server && npm start",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [],

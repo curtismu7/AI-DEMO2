@@ -10,7 +10,7 @@ This guide provides comprehensive implementation details for OAuth 2.0 Token Exc
 | Concept | RFC 8693 | PingOne Implementation | Example |
 |---------|----------|---------------------|---------|
 | **Grant Type** | `urn:ietf:params:oauth:grant-type:token-exchange` | ✅ Fully supported | `grant_type=urn:ietf:params:oauth:grant-type:token-exchange` |
-| **Subject Token** | Token being exchanged | User's access_token | `subject_token=eyJ...` |
+| **User token** | Token being exchanged | User's access_token | `subject_token=eyJ...` |
 | **Actor Token** | Optional - acting party | Agent/BFF client credentials | `actor_token=eyJ...` |
 | **Audience** | Target resource server | MCP server URI | `audience=https://mcp-server.pingdemo.com` |
 | **Act Claim** | Delegation chain | `act.sub` = actor identity | `{"sub":"user123","act":{"sub":"client-456"}}` |
@@ -22,10 +22,10 @@ This guide provides comprehensive implementation details for OAuth 2.0 Token Exc
 ### Pattern 1: Simple Token Exchange (1-Exchange)
 
 **Use Case**: Exchange user token for MCP server access
-**When to Use**: Default Super Banking demo pattern
+**When to Use**: Default AI Demo pattern
 
 ```javascript
-// banking_api_server/services/agentMcpTokenService.js
+// demo_api_server/services/agentMcpTokenService.js
 async function exchangeUserTokenForMcpToken(userAccessToken, mcpResourceUri) {
   const tokenResponse = await fetch(`${pingoneBaseUrl}/${envId}/as/token`, {
     method: 'POST',
@@ -147,7 +147,7 @@ async function exchangeWithActor(userAccessToken, actorToken, mcpResourceUri) {
 
 ```json
 {
-  "name": "AI Demo MCP Server",
+  "name": "Demo MCP Server",
   "audience": "https://mcp-server.pingdemo.com",
   "scopes": [
     {
@@ -202,7 +202,7 @@ audience: 'https://auth.pingone.com'
 audience: 'https://mcp-server.pingdemo.com'
 ```
 
-### ❌ Pitfall 4: Expired Subject Token
+### ❌ Pitfall 4: Expired User token
 
 **Problem**: `invalid_grant` error
 
@@ -486,9 +486,9 @@ const tokenRequest = {
 - [PingOne Resources](https://docs.pingidentity.com/pingone/authorization_using_pingone_authorize/p1az_resources.html)
 
 ### Implementation Code
-- `banking_api_server/services/agentMcpTokenService.js`
-- `banking_api_server/services/oauthService.js`
-- `banking_api_server/middleware/tokenRefresh.js`
+- `demo_api_server/services/agentMcpTokenService.js`
+- `demo_api_server/services/oauthService.js`
+- `demo_api_server/middleware/tokenRefresh.js`
 
 ---
 

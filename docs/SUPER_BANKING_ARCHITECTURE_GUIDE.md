@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document provides a comprehensive overview of the Super Banking AI Banking Demo architecture, including all major components, their relationships, and key integration points. The architecture is designed as a three-layer stack with clear security boundaries and modern authentication patterns.
+This document provides a comprehensive overview of the Super Banking AI AI Demo architecture, including all major components, their relationships, and key integration points. The architecture is designed as a three-layer stack with clear security boundaries and modern authentication patterns.
 
 ## Architecture Diagram
 
@@ -18,7 +18,7 @@ The architecture diagram visualizes the complete system including:
 
 ### 1. Browser Layer
 
-**React SPA (`banking_api_ui`)**
+**React SPA (`demo_api_ui`)**
 - **Dashboard**: Main user interface for banking operations
 - **Admin Panel**: Administrative interface for system management
 - **Education Panels**: Interactive learning content for OAuth and security concepts
@@ -76,7 +76,7 @@ The MCP Gateway is the inline per-tool security enforcement point that sits betw
 
 ### 4. MCP Server Layer
 
-**MCP Server (`banking_mcp_server`)**
+**MCP Server (`demo_mcp_server`)**
 - **WebSocket Connections**: Real-time communication with frontend
 - **Tool Registry**: Dynamic tool registration and discovery
 - **Tool Execution**: Secure tool execution with authorization
@@ -274,9 +274,9 @@ The MCP Gateway is the inline per-tool security enforcement point that sits betw
 
 The `AUTHORIZE_MODE` env/configStore key selects the policy decision engine: `pingone` (strict, Docker default), `simulated` (fully offline), or `pingone-with-simulated-fallback`. The simulated `demo_authz_server` is held parity-equal to PingOne Authorize — any change to decision params, contexts, or response shape must be mirrored in both. The `ff_authorize_real` admin toggle switches the mode at runtime without a restart.
 
-### PingGateway (Alternative MCP Gateway, port 3036)
+### PingOne Agent Gateway (Alternative MCP Gateway, port 3036)
 
-PingGateway (Ping Identity IG) is the alternative MCP gateway, selected by `ff_mcp_gateway_pinggateway` (default true). Unlike the Node gateway it performs its own RFC 8693 single-resource exchange and a live-switchable real→mock Authorize failover via the `X-Authz-Simulated` header. It sends `UserId` + `McpResourceUri` in every `McpToolCall` Authorize request. The Node gateway (`demo_mcp_gateway`, port 3005) remains available for comparison.
+PingOne Agent Gateway (Ping Identity IG) is the alternative MCP gateway, selected by `ff_mcp_gateway_pinggateway` (default true). Unlike the Node gateway it performs its own RFC 8693 single-resource exchange and a live-switchable real→mock Authorize failover via the `X-Authz-Simulated` header. It sends `UserId` + `McpResourceUri` in every `McpToolCall` Authorize request. The Node gateway (`demo_mcp_gateway`, port 3005) remains available for comparison.
 
 ### Copilot Studio Integration (`agent_token_service`, port 8097)
 

@@ -2581,7 +2581,7 @@ const UnifiedConfigurationPage: FC<{
         <div className="cfg-section">
           <p className="cfg-section-desc">
             RFC 8693 Token Exchange lets the BFF swap a user access token for a
-            narrowly-scoped Ping Agent Gateway token. The resulting token carries an{" "}
+            narrowly-scoped PingOne Agent Gateway token. The resulting token carries an{" "}
             <code>act</code> claim showing who delegated and who is acting.
           </p>
           {state.pingoneEnvironmentId && (
@@ -3116,7 +3116,7 @@ const UnifiedConfigurationPage: FC<{
                 saveStatus: "idle",
               }))
             }
-            help="Shows/hides the token chain timeline panel on the dashboard. When enabled, you can see each token event as it happens: user access token → agent CC token → RFC 8693 exchange → MCP gateway token."
+            help="Shows/hides the token chain timeline panel on the dashboard. When enabled, you can see each token event as it happens: user access token → agent CC token → RFC 8693 exchange → MCP Gateway token."
           />
           <CfgField
             label="Max Token History to Display"

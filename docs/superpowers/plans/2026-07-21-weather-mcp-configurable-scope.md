@@ -61,7 +61,7 @@ In `demo_api_server/routes/featureFlags.js`, immediately after the existing
     name:         'Weather MCP — Allowed State',
     category:     'MCP / Agent',
     description:
-      'Which US state the Agent Gateway (PingGateway/IG) currently allows through the ' +
+      'Which US state the Agent Gateway (PingOne Agent Gateway/IG) currently allows through the ' +
       'weather-mcp showcase route (`/mcp/weather`). `tx-weather-scope.groovy` reads this ' +
       'live on every request via `GET /internal/feature-flags/weather-mcp-showcase`, so ' +
       'changing it here takes effect immediately, with no gateway restart — the SAME query ' +
@@ -736,8 +736,8 @@ In `demo_api_ui/src/config/capabilityLedgers/agentGatewayCapabilities.js`, the
 +     'the currently-allowed US state (Texas by default — configurable live, right on this ' +
 +     'card), entirely at the gateway — the demo policy the backend never sees. ' +
 +     'Live-toggleable via ff_weather_mcp_showcase / ff_weather_mcp_allowed_state.',
--   evidence: { code: 'PingGateway only — no Node mcp-gateway equivalent: ping-gateway/scripts/groovy/tx-weather-scope.groovy:1-140 · ping-gateway/config/routes/00-mcp-weather.json · demo_api_server/routes/weatherMcpFlag.js' },
-+   evidence: { code: 'PingGateway only — no Node mcp-gateway equivalent: ping-gateway/scripts/groovy/tx-weather-scope.groovy · ping-gateway/config/routes/00-mcp-weather.json · demo_api_server/routes/weatherMcpFlag.js · demo_api_server/routes/featureFlags.js' },
+-   evidence: { code: 'PingOne Agent Gateway only — no Node mcp-gateway equivalent: ping-gateway/scripts/groovy/tx-weather-scope.groovy:1-140 · ping-gateway/config/routes/00-mcp-weather.json · demo_api_server/routes/weatherMcpFlag.js' },
++   evidence: { code: 'PingOne Agent Gateway only — no Node mcp-gateway equivalent: ping-gateway/scripts/groovy/tx-weather-scope.groovy · ping-gateway/config/routes/00-mcp-weather.json · demo_api_server/routes/weatherMcpFlag.js · demo_api_server/routes/featureFlags.js' },
 ```
 
 - [ ] **Step 2: Update UC30/UC31 copy in `useCases.js`**

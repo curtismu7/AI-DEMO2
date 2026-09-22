@@ -9,7 +9,7 @@
 
 ## Why this doc exists
 
-The Super Banking demo enforces **entitlement tiers** (UC21) in two parallel implementations:
+The AI Demo enforces **entitlement tiers** (UC21) in two parallel implementations:
 
 | Implementation | Active | Tier logic |
 |---|---|---|

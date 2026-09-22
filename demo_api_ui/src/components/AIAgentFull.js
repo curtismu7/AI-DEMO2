@@ -6176,7 +6176,7 @@ export default function BankingAgentFull({
         addMessage(
           "token-event",
           [
-            ` Ping Agent Gateway — Policy Denial: \`${gwCode}`,
+            ` PingOne Agent Gateway — Policy Denial: \`${gwCode}`,
             `   Tool: \`${err.tool || actionId}`,
             `   Gateway error code: \`${gwCode}`,
             `   Message: ${gwMsg}`,

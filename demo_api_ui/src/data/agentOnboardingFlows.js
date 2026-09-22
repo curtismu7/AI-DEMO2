@@ -37,7 +37,7 @@ export const ROWS = [
           "Open Agent Studio",
           "Register Agent",
           "Register MCPs, Tools & Resources",
-          "Publish MCP to PingOne Agent Gateway MCP Security Gateway (automatic orchestration)",
+          "Publish MCP to PingOne Agent Gateway (automatic orchestration)",
         ],
       },
       {
@@ -94,7 +94,7 @@ export const ROWS = [
       legendNum: 6,
       items: [
         "Create identity & metadata",
-        "Publish MCP to PingOne Agent Gateway MCP Security Gateway",
+        "Publish MCP to PingOne Agent Gateway",
         "Publish FGA rules to PingAuthorize (as applies)",
         "Register in IGA for AI for governance",
         "Keep metadata synchronized across platforms",
@@ -109,7 +109,7 @@ export const ROWS = [
       {
         key: "privileges-gw",
         legendNum: 7,
-        title: "AI Agent Gateway",
+        title: "PingOne Agent Gateway",
         bullets: [
           "Policy enforcement for MCP access",
           "JIT access & secret injection",
@@ -120,7 +120,7 @@ export const ROWS = [
       {
         key: "pinggateway",
         legendNum: 7,
-        title: "PingOne Agent Gateway MCP Security Gateway",
+        title: "PingOne Agent Gateway",
         bullets: [
           "Secures all MCP communication",
           "Validates OAuth tokens",
@@ -153,12 +153,12 @@ export const ROWS = [
         title: "A. Privilege Discovery (Browser / Device Agents)",
         subtitle: "e.g., Claude Desktop, Cursor, VS Code, Browser AI, Device AI",
         bullets: [
-          "AI Agent Gateway detects unmanaged AI activity",
+          "PingOne Agent Gateway detects unmanaged AI activity",
           "Admin notified",
           "Admin reviews & approves onboarding",
           "Metadata synchronized to IGA",
         ],
-        note: "Privilege is the gateway for these MCPs. Traffic goes directly to AI Agent Gateway.",
+        note: "Privilege is the gateway for these MCPs. Traffic goes directly to PingOne Agent Gateway.",
       },
       {
         key: "cloud-discovery-iga",
@@ -263,7 +263,7 @@ export const FLOWS = {
       {
         id: "eu-7",
         title: "Secure Runtime",
-        narrative: "MCP requests flow through the AI Agent Gateway; enterprise policies control access to tools, APIs, and resources.",
+        narrative: "MCP requests flow through the PingOne Agent Gateway; enterprise policies control access to tools, APIs, and resources.",
         activeCardKeys: ["runtime", "privileges-gw", "pinggateway", "pingauthorize"],
       },
     ],
@@ -313,7 +313,7 @@ export const FLOWS = {
       {
         id: "dev-7",
         title: "Runtime",
-        narrative: "The agent securely accesses enterprise resources through the AI Agent Gateway.",
+        narrative: "The agent securely accesses enterprise resources through the PingOne Agent Gateway.",
         activeCardKeys: ["runtime", "privileges-gw", "pinggateway", "pingauthorize"],
       },
     ],
@@ -335,14 +335,14 @@ export const FLOWS = {
           },
           {
             id: "adm-bd-2",
-            title: "AI Agent Gateway detects unmanaged AI activity",
-            narrative: "The AI Agent Gateway observes MCP/API traffic and flags activity from an AI client it doesn't recognize.",
+            title: "PingOne Agent Gateway detects unmanaged AI activity",
+            narrative: "The PingOne Agent Gateway observes MCP/API traffic and flags activity from an AI client it doesn't recognize.",
             activeCardKeys: ["privileges-gw", "privilege-discovery"],
           },
           {
             id: "adm-bd-3",
             title: "Administrator is notified",
-            narrative: "The AI Agent Gateway raises an alert to the Identity/Security Administrator.",
+            narrative: "The PingOne Agent Gateway raises an alert to the Identity/Security Administrator.",
             activeCardKeys: ["entry-admin", "privileges-gw"],
           },
           {

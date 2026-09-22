@@ -14,7 +14,7 @@ runs a new Groovy filter (`tx-weather-scope.groovy`) that denies any `tools/call
 location argument isn't Texas, before reverse-proxying to the sidecar.
 
 **Tech Stack:** Node 20 (plain `http` + `child_process`, no framework, matching
-`demo_mcp_proxy`'s zero-dependency style plus one pinned npm dependency), PingGateway
+`demo_mcp_proxy`'s zero-dependency style plus one pinned npm dependency), PingOne Agent Gateway
 Groovy `ScriptableFilter` (`org.forgerock.http.protocol.*`), Docker Compose.
 
 ## Global Constraints
@@ -453,7 +453,7 @@ git commit -m "feat(mcp-weather): add compose service + wire ping-gateway backen
 - Produces: `/mcp/weather` reachable through `ping-gateway` (port `3036`), still with no
   Texas scoping — Task 5 adds that filter into this same route file.
 
-**Regression-guard invariant (state before Step 4a):** PingGateway selects among matching
+**Regression-guard invariant (state before Step 4a):** PingOne Agent Gateway selects among matching
 routes by the route's `"name"` field, sorted alphabetically — NOT by filename (confirmed via
 an in-repo comment in `00-mcp-apikey-jwks.json`: "IG selects by name, not filename"). Without
 Step 4a, `01-mcp-olb.json`'s catch-all condition (`^/mcp(?!/invest)`, name `mcp-olb-primary`)
@@ -591,7 +591,7 @@ the newest entry, directly after the "Reverse-chronological, newest first." line
 - `ping-gateway/config/routes/01-mcp-olb.json` — condition regex now excludes `/weather`
   alongside the existing `/invest` exclusion (`^/mcp(?!/invest|/weather)`).
 
-**What was broken:** PingGateway selects among matching routes by the route's `"name"`
+**What was broken:** PingOne Agent Gateway selects among matching routes by the route's `"name"`
 field, sorted alphabetically — not by filename. `00-mcp-weather.json` (name
 `mcp-weather-primary`) was added expecting its `00-` filename prefix to win priority over
 `01-mcp-olb.json` (name `mcp-olb-primary`), matching how `00-mcp-apikey.json` (name
@@ -827,11 +827,11 @@ git commit -m "feat(mcp-weather): add Texas-only geographic scope Groovy filter"
 Insert before the `echo "== Summary:` line at the end of the script:
 
 ```bash
-# ── Leg D: PingGateway weather route inbound protection (no token -> 401) ────
+# ── Leg D: PingOne Agent Gateway weather route inbound protection (no token -> 401) ────
 D_CODE="$(probe "$PG_URL/mcp/weather" -X POST -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":"1","method":"tools/list"}')"
 if [ -z "$D_CODE" ] || [ "$D_CODE" = "000" ]; then
-  echo "LIVE_E2E_BLOCKED: PingGateway not reachable at $PG_URL for the weather route."
+  echo "LIVE_E2E_BLOCKED: PingOne Agent Gateway not reachable at $PG_URL for the weather route."
 else
   ran=$((ran+1))
   if [ "$D_CODE" = "401" ]; then
@@ -851,7 +851,7 @@ if [ -n "${BANKING_TEST_TOKEN:-}" ]; then
     -H 'Content-Type: application/json' -H 'MCP-Protocol-Version: 2025-11-25' \
     -d '{"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"get_current_conditions","arguments":{"city_name":"Austin, TX"}}}')"
   if [ "$TX_CODE" = "200" ]; then
-    echo "PASS  Leg E1: Texas tools/call through PingGateway -> 200"
+    echo "PASS  Leg E1: Texas tools/call through PingOne Agent Gateway -> 200"
   else
     echo "FAIL  Leg E1: Texas tools/call -> $TX_CODE (expected 200)"
     fail=1
@@ -862,7 +862,7 @@ if [ -n "${BANKING_TEST_TOKEN:-}" ]; then
     -H 'Content-Type: application/json' -H 'MCP-Protocol-Version: 2025-11-25' \
     -d '{"jsonrpc":"2.0","id":"2","method":"tools/call","params":{"name":"get_current_conditions","arguments":{"city_name":"New York, NY"}}}')"
   if [ "$NONTX_CODE" = "403" ]; then
-    echo "PASS  Leg E2: non-Texas tools/call through PingGateway -> 403 (tx-weather-scope.groovy denying)"
+    echo "PASS  Leg E2: non-Texas tools/call through PingOne Agent Gateway -> 403 (tx-weather-scope.groovy denying)"
   else
     echo "FAIL  Leg E2: non-Texas tools/call -> $NONTX_CODE (expected 403)"
     fail=1
@@ -925,7 +925,7 @@ category):
     name:         'Weather MCP Showcase (Agent Gateway)',
     category:     'MCP / Agent',
     description:
-      'Controls whether the Agent Gateway (PingGateway/IG) weather-mcp showcase route ' +
+      'Controls whether the Agent Gateway (PingOne Agent Gateway/IG) weather-mcp showcase route ' +
       '(`/mcp/weather`) is enabled. This is a standalone gateway capability demo — a ' +
       'third-party MCP server fronted and scoped to Texas-only by the gateway — with no ' +
       'banking chat/agent wiring. `tx-weather-scope.groovy` calls this flag live on every ' +
@@ -1201,7 +1201,7 @@ the `AGENT_GATEWAY_CAPABILITIES` array, after the `mcp-validation` entry (same
     group: 'validate-audit',
     title: 'Scope a third-party MCP server',
     oneLiner: 'Fronts a third-party weather MCP server and denies any tool call outside Texas, entirely at the gateway — the demo policy the backend never sees. Live-toggleable via ff_weather_mcp_showcase.',
-    evidence: { code: 'PingGateway only — no Node mcp-gateway equivalent: ping-gateway/scripts/groovy/tx-weather-scope.groovy:1-N · ping-gateway/config/routes/00-mcp-weather.json · demo_api_server/routes/weatherMcpFlag.js' },
+    evidence: { code: 'PingOne Agent Gateway only — no Node mcp-gateway equivalent: ping-gateway/scripts/groovy/tx-weather-scope.groovy:1-N · ping-gateway/config/routes/00-mcp-weather.json · demo_api_server/routes/weatherMcpFlag.js' },
     relatedUCIds: [],
   },
 ```

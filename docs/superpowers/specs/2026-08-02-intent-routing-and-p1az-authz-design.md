@@ -1061,7 +1061,7 @@ fallback. P1AZ is an added path, not a replacement.
 ## ⚠️ Import hazard
 
 Reimporting the snapshot **reverts the `act` mapping** that was hand-fixed on the
-PingGateway resource via the Management API and never landed in git. Stage 2 must
+PingOne Agent Gateway resource via the Management API and never landed in git. Stage 2 must
 fold that mapping into `gen-authorize-snapshot.js`, or every import silently
 breaks the actor chain.
 

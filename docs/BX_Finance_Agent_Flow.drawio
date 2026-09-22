@@ -44,7 +44,7 @@
         <mxCell id="agent_name" value="LangChain Agent" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=14;fontStyle=1;fontColor=#ffffff;" vertex="1" parent="1">
           <mxGeometry x="276" y="350" width="248" height="22" as="geometry" />
         </mxCell>
-        <mxCell id="agent_sub" value="banking_api_server  ·  Express BFF" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=11;fontStyle=0;fontColor=#aaaaaa;" vertex="1" parent="1">
+        <mxCell id="agent_sub" value="demo_api_server  ·  Express BFF" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=11;fontStyle=0;fontColor=#aaaaaa;" vertex="1" parent="1">
           <mxGeometry x="276" y="373" width="248" height="20" as="geometry" />
         </mxCell>
         <mxCell id="agent_sub2" value="Vercel · Node.js" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;fontSize=10;fontStyle=2;fontColor=#888888;" vertex="1" parent="1">
@@ -73,7 +73,7 @@
         <mxCell id="mcp_lbl_top" value="MCP Server" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=13;fontStyle=1;fontColor=#ffffff;rotation=-90;" vertex="1" parent="1">
           <mxGeometry x="822" y="390" width="160" height="24" as="geometry" />
         </mxCell>
-        <mxCell id="mcp_sub_lbl" value="banking_mcp_server" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;fontColor=#888888;rotation=-90;" vertex="1" parent="1">
+        <mxCell id="mcp_sub_lbl" value="demo_mcp_server" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;fontColor=#888888;rotation=-90;" vertex="1" parent="1">
           <mxGeometry x="808" y="390" width="160" height="18" as="geometry" />
         </mxCell>
 
@@ -217,7 +217,7 @@
         </mxCell>
 
         <!-- ─── COPYRIGHT ─── -->
-        <mxCell id="copyright" value="©2025 Super Banking Demo" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=10;fontColor=#444455;" vertex="1" parent="1">
+        <mxCell id="copyright" value="©2025 AI Demo" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=10;fontColor=#444455;" vertex="1" parent="1">
           <mxGeometry x="16" y="876" width="200" height="16" as="geometry" />
         </mxCell>
 

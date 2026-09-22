@@ -69,9 +69,9 @@ Promote **`gw-mcp-audit`** onto the **gateway** (and/or mcp) step as request/res
 
 ### E2b — Data path: stamp denying / completing **filter stage**
 
-Today’s PingGateway trail (`p1az-decision.groovy`) has introspection + authorize + mcpAudit, but **not** the filter name (e.g. `McpProtectionFilter` vs `ScriptableFilter`/`p1az-decision` vs `OAuth2TokenExchangeFilter`). Node trail has stages (`introspection`, `policy`, `authorize`, `mtls`, `backend`) but TraceRail does not render them as a chain.
+Today’s PingOne Agent Gateway trail (`p1az-decision.groovy`) has introspection + authorize + mcpAudit, but **not** the filter name (e.g. `McpProtectionFilter` vs `ScriptableFilter`/`p1az-decision` vs `OAuth2TokenExchangeFilter`). Node trail has stages (`introspection`, `policy`, `authorize`, `mtls`, `backend`) but TraceRail does not render them as a chain.
 
-**Minimal contract** — add to `X-Gw-Audit-Trail` (both Node + PingGateway where feasible):
+**Minimal contract** — add to `X-Gw-Audit-Trail` (both Node + PingOne Agent Gateway where feasible):
 
 ```json
 {
@@ -89,7 +89,7 @@ Today’s PingGateway trail (`p1az-decision.groovy`) has introspection + authori
 | Runtime | Work |
 |---------|------|
 | **Node** `authorizeMcpRequest.ts` | On each early-return / success, set `auditTrail.denyingFilter` / append `filterChain` stages already implied by code order (introspection → policy → authorize → mtls → backend). |
-| **PingGateway** groovy / route | On deny paths in protection / validation / p1az scripts, set `denyingFilter` to the script/filter type; on success, `filterChain` with last hop `P1AZDecision` + `result: forwarded`. Full IG chain telemetry is optional — **minimum bar:** `denyingFilter` + authorize `statements` on every deny. |
+| **PingOne Agent Gateway** groovy / route | On deny paths in protection / validation / p1az scripts, set `denyingFilter` to the script/filter type; on success, `filterChain` with last hop `P1AZDecision` + `result: forwarded`. Full IG chain telemetry is optional — **minimum bar:** `denyingFilter` + authorize `statements` on every deny. |
 | **BFF** `mcpToolPipeline.js` | When building `gw-authorize` / new `gw-filter-chain` token event from trail, copy `denyingFilter` + `filterChain` onto the event extra. |
 
 **TraceRail:** gateway step `why` like:  
@@ -99,7 +99,7 @@ Today’s PingGateway trail (`p1az-decision.groovy`) has introspection + authori
 
 - Unit: buildTraceSteps with `gw-authorize` + `denyingFilter` + statements asserts why/kv.
 - Unit/integration: Node middleware sets `denyingFilter` on a forced DENY (extend existing `authzProvenanceGaps` or gateway deny test).
-- PingGateway: at least p1az deny path stamps `denyingFilter: "P1AZDecision"` (or ScriptableFilter name) in audit JSON.
+- PingOne Agent Gateway: at least p1az deny path stamps `denyingFilter: "P1AZDecision"` (or ScriptableFilter name) in audit JSON.
 
 ---
 
@@ -144,7 +144,7 @@ Today’s PingGateway trail (`p1az-decision.groovy`) has introspection + authori
 |----|--------|------|
 | **1** | E1 + E3 + E4 (UI-only from existing events) | Low | ✅ on PR |
 | **2** | E2a UI from existing statements/mcpAudit | Low | ✅ on PR |
-| **3** | E2b `denyingFilter` / `filterChain` on Node + PingGateway + BFF event mapping | Medium (gateway) | ✅ on PR |
+| **3** | E2b `denyingFilter` / `filterChain` on Node + PingOne Agent Gateway + BFF event mapping | Medium (gateway) | ✅ on PR |
 
 Do not mix E2b with unrelated gateway refactors.
 

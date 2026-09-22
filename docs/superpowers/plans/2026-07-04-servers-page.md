@@ -111,7 +111,7 @@ const SERVER_INVENTORY = [
     purpose: 'The demo web app, served over HTTPS.',
   },
   {
-    key: 'api-resource-server', name: 'Mortgage Service', container: 'ai-demo-api-resource-server',
+    key: 'api-resource-server', name: 'Mortgage Resource Server', container: 'ai-demo-api-resource-server',
     hostPort: 8082, internalPort: 8082, lang: 'Node', category: 'core', probe: true,
     candidates: candidates(env('API_RESOURCE_SERVER_URL'), 'http://api-resource-server:8082', 'http://localhost:8082'),
     purpose: 'Mock mortgage backend/business API.',
@@ -123,7 +123,7 @@ const SERVER_INVENTORY = [
     purpose: 'Primary MCP server — online-banking tools over WebSocket.',
   },
   {
-    key: 'mcp-resource-server', name: 'MCP Invest', container: 'ai-demo-mcp-resource-server',
+    key: 'mcp-resource-server', name: 'Demo MCP Resource Server', container: 'ai-demo-mcp-resource-server',
     hostPort: 8081, internalPort: 8081, lang: 'Node/TS', category: 'mcp', probe: true,
     candidates: candidates(normalizeWs(env('MCP_RESOURCE_SERVER_WS_URL')), 'http://mcp-resource-server:8081', 'http://localhost:8081'),
     purpose: 'Second MCP server exposing investment tools.',
@@ -135,11 +135,11 @@ const SERVER_INVENTORY = [
     purpose: 'Auth-enforcing MCP gateway — routes to mcp-server/mcp-resource-server, PingAuthorize introspection.',
   },
   {
-    key: 'ping-gateway', name: 'PingGateway (IG)', container: 'ai-demo-ping-gateway',
+    key: 'ping-gateway', name: 'PingOne Agent Gateway (IG)', container: 'ai-demo-ping-gateway',
     hostPort: 3036, internalPort: 8080, lang: 'Ping Identity IG', category: 'mcp', probe: true,
     healthPath: '/', acceptAnyStatus: true,
     candidates: candidates(env('MCP_PINGGATEWAY_URL'), 'http://ping-gateway:8080', 'http://localhost:3036'),
-    purpose: 'Alternative MCP gateway using the real PingGateway product (ff_mcp_gateway_pinggateway).',
+    purpose: 'Alternative MCP gateway using the real PingOne Agent Gateway product (ff_mcp_gateway_pinggateway).',
   },
   {
     key: 'mcp-proxy', name: 'MCP Proxy', container: 'ai-demo-mcp-proxy',

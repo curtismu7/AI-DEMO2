@@ -135,7 +135,7 @@ FIDO2/WebAuthn:
     },
     {
       id: 'exchange-modes',
-      label: 'Token Exchange Modes',
+      label: 'Token Chains',
       content: (
         <>
           <p>
@@ -154,7 +154,7 @@ FIDO2/WebAuthn:
             <li><strong>Flow</strong>: Single POST with <code>subject_token</code> (user T1) + <code>actor_token</code> (agent CC) → exchanged token with <code>act</code> claim</li>
             <li><strong>aud</strong>: <code>mcpgateway.ping.demo</code> (Agent Gateway)</li>
             <li><strong>subject_token may_act</strong>: <code>{`{"sub": "d21c5124-8ac5-43d1-81f2-31a7ec649b96"}`}</code></li>
-            <li><strong>Result</strong>: MCP gateway token with <code>act</code> claim showing agent identity</li>
+            <li><strong>Result</strong>: MCP Gateway token with <code>act</code> claim showing agent identity</li>
             <li><strong>Feature Flag</strong>: <code>USE_AGENT_ACTOR_FOR_MCP=true</code></li>
           </ul>
           

@@ -161,7 +161,7 @@ export function computeVerdict(trace, catalogEntry) {
   // too, so 'tool-dispatched' matched on a gateway 502 and UC30 rendered
   // "VERIFIED — Completed — get_weather dispatched" while the chat showed the
   // failure and the Token Chain header read RUN ERROR (2026-08-31: mcp-weather
-  // absent from the SE cluster, PingGateway 502 on UnknownHostException).
+  // absent from the SE cluster, PingOne Agent Gateway 502 on UnknownHostException).
   //
   // This has to sit AFTER `state`, not before it: 'error' does NOT mean "the run
   // went wrong". A satisfied deny-like expectation ends in error too, because

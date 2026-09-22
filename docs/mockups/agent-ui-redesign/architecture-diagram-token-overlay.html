@@ -818,7 +818,7 @@
         <li data-step="2" data-scn="B C">User opens chat → BFF's <code>resolveAgentTarget</code> selects the active runtime (LangChain / OpenAI / Mastra / Pydantic) from <code>configStore.llm_framework</code>.</li>
         <li data-step="3" data-scn="B C">Agent reasons via <code>demo_agent_service /run</code> → emits <code>STATE_DELTA</code> over <span class="mono">AG-UI SSE</span> → BFF → Browser.</li>
         <li data-step="4" data-scn="B C I K">Agent decides to call an MCP tool → BFF (optionally with <span class="mono">Token #2</span> actor token) performs <span class="mono">RFC 8693</span> → <span class="mono">MCP Gateway token (Token #3)</span>.</li>
-        <li data-step="5" data-scn="A B C D I K">BFF opens JSON-RPC over WebSocket to <code>demo_mcp_gateway</code> carrying Token #3.</li>
+        <li data-step="5" data-scn="A B C D I K">BFF opens JSON-RPC over WebSocket to <code>demo_mcp_gateway</code> (Demo Agent Gateway) carrying Token #3.</li>
         <li data-step="6" data-scn="B C D I K">Gateway introspects Token #3 → calls PingOne AAM (authorize policy): <b>PERMIT / DENY / INDETERMINATE</b>.</li>
         <li data-step="7" data-scn="D">INDETERMINATE → Gateway POSTs to <code>demo_hitl_service /challenges</code> and polls until a human decision arrives from the dashboard.</li>
         <li data-step="8" data-scn="A B C D I">PERMIT → Gateway performs another <span class="mono">RFC 8693</span> → <span class="mono">per-MCP server token (Token #4)</span> → executes tool. MCP servers call back to the BFF's banking API for data.</li>
@@ -931,7 +931,7 @@
 
       <!-- Gateway + HITL -->
       <div class="nbox gw" id="n-gateway" data-scn="A B C D I K" style="left: 1320px; top: 320px;">
-        <div class="row"><span class="title">demo_mcp_gateway</span><span class="port">:3005</span></div>
+        <div class="row"><span class="title">Demo Agent Gateway</span><span class="port">:3005</span></div>
         <div class="sub">JSON-RPC / WS<br/>RFC 8693 re-exchange<br/>PingAuthorize policy gate</div>
       </div>
       <div class="nbox hitl" id="n-hitl" data-scn="D" style="left: 1320px; top: 620px;">

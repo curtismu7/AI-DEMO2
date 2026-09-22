@@ -8,7 +8,7 @@
 
 AI-DEMO2 has two "front doors" an external MCP client can use to reach the banking tools:
 
-1. **Agent Gateway path** — `demo_mcp_gateway` (Node), default transport raw WebSocket, alt Streamable HTTP / PingGateway HTTP. Auth: PingOne bearer token with RFC 8707 audience binding.
+1. **Agent Gateway path** — `demo_mcp_gateway` (Node), default transport raw WebSocket, alt Streamable HTTP / PingOne Agent Gateway HTTP. Auth: PingOne bearer token with RFC 8707 audience binding.
 2. **Privilege path (agentless mode)** — PingOne Privilege Cloud's MCP Gateway. Auth: OAuth 2.0 Authorization Code + PKCE + `client_secret_basic`, streamed over HTTP.
 
 `langchain_agent`'s `MCPConnection` (`langchain_agent/src/mcp/connection.py`) already speaks the Agent Gateway path — WS and HTTP transports, PingOne bearer, audience binding — but has no Privilege support, and its production settings (`langchain_agent/src/settings.py:580-594`) hard-reject any URL that isn't `wss://` or `local://`, so it would reject the Privilege HTTPS endpoint outright.

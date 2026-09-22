@@ -1,12 +1,12 @@
 # Differences vs Ping IDAI docs
 
-Gap report: Super Banking demo vs [Securing AI agents with PingOne (delegation + least privilege)](https://developer.pingidentity.com/identity-for-ai/use-cases/idai-securing-agents-pingone.html).
+Gap report: AI Demo vs [Securing AI agents with PingOne (delegation + least privilege)](https://developer.pingidentity.com/identity-for-ai/use-cases/idai-securing-agents-pingone.html).
 
 Focus is what diverges — not a full feature inventory.
 
 ## Executive summary
 
-We implement the same security story (NHI agent, `may_act`/`act`, token exchange, PingGateway in front of MCP) but with a BFF-centric multi-hop design.
+We implement the same security story (NHI agent, `may_act`/`act`, token exchange, PingOne Agent Gateway in front of MCP) but with a BFF-centric multi-hop design.
 
 **Literal gaps vs the page are closed** for Agreement Prompt (D1) and demo-mode purity (D6 via IDAI-faithful preset). Remaining rows are intentional product packaging, different TE custody shape, or ahead of the tutorial (Authorize, HITL/CIBA).
 
@@ -26,10 +26,10 @@ We implement the same security story (NHI agent, `may_act`/`act`, token exchange
 |----|------|-------|----------|---------|--------|
 | D1 | Closed | Login-time Agent Consent (Agreement Prompt) | PingOne Agreement “Agent Consent” + authn policy Agent-Consent-Login with Agreement Prompt before delegated tokens. | Provisioned: Agreement + `Agent-Consent-Login` assigned to Super Banking User App (bootstrap + `scripts/ensureAgentConsentAgreement.js`). Copy mirrors AgentConsentModal; **HITL / CIBA / OTP kept** for high-risk tools. | Page-literal login ToS restored; runtime HITL remains stronger for transfers. |
 | D2 | Intentional | PingOne AI Agents product registration | Register under Applications → AI Agents; CC + refresh + token exchange; agent + test scopes. | Demo AI Agent is a standard OIDC WEB_APP with AC + CC + TE. Documented as intentional (admin UX differs; OAuth capabilities match). Separate MCP Gateway actor for hop 2. | No action required for security parity; see `PINGONE_APP_CONFIG.md` §5. |
-| D3 | Different | Who performs token exchange | Sample MCP agent process opens browser, then exchanges actor + subject tokens itself. | BFF is sole token custodian. Two-hop TE: BFF (user → mcpgateway) then PingGateway (→ mcpserver). LLM never holds user tokens. | Stricter custody than the tutorial sample; demos must use BFF/gateway path, not agent-local TE. |
+| D3 | Different | Who performs token exchange | Sample MCP agent process opens browser, then exchanges actor + subject tokens itself. | BFF is sole token custodian. Two-hop TE: BFF (user → mcpgateway) then PingOne Agent Gateway (→ mcpserver). LLM never holds user tokens. | Stricter custody than the tutorial sample; demos must use BFF/gateway path, not agent-local TE. |
 | D4 | Intentional | `McpProtectionFilter` / JWKS validation shape | Single `mcp.json` route: `OAuth2ResourceServerFilter` + `McpProtectionFilter` + `McpValidationFilter` + `McpAuditFilter`. | Audit + Validation on all 7. `McpProtectionFilter` on all 4 introspection routes. JWKS variants keep educational `jwks-token-validation.groovy` but emit RFC 9728 `resource_metadata` on 401. | Introspection paths match tutorial filter chain; JWKS path is an intentional educational tradeoff. |
 | D5 | Different | Resource / scope naming | Custom resources named `agent` + `test`; scopes `agent` / `test`; aud `https://ig.example.com:8443/mcp`. | `enduser` / `agentgateway` / `mcpgateway` / `mcpserver` audiences; `banking:*` and `gateway:mcp:invoke` scopes. | Same pattern (agent resource + backend resource + `may_act`→`act`); different names and multi-hop audiences. |
-| D6 | Closed | Demo weakeners vs tutorial purity | Cloud PingOne + PingGateway only; no inject/simulate shortcuts. | **IDAI-faithful preset** (`IDAI_FAITHFUL_DEMO_MODE.md` / Quick Flags): Ping GW ON, simulated Authorize OFF, JWKS OFF. `ff_inject_may_act` removed from code. | Use the preset for doc-faithful demos; lean/real flags remain available for teaching. |
+| D6 | Closed | Demo weakeners vs tutorial purity | Cloud PingOne + PingOne Agent Gateway only; no inject/simulate shortcuts. | **IDAI-faithful preset** (`IDAI_FAITHFUL_DEMO_MODE.md` / Quick Flags): Ping GW ON, simulated Authorize OFF, JWKS OFF. `ff_inject_may_act` removed from code. | Use the preset for doc-faithful demos; lean/real flags remain available for teaching. |
 | D7 | Exceeds | Fine-grained authz (doc “What’s next”) | Suggests adding PingOne Authorize with contextual signals after the basic TE+IG path. | Already on gateway: `p1az-decision.groovy`, RAR attrs, intent-token binding, live policy console, optional group deny. | Ahead of the tutorial; not a deficit. |
 | D8 | Exceeds | Per-action HITL / CIBA / step-up | Consent mainly via Agreement Prompt at agent login. | 428 HITL, OTP/passkey step-up, CIBA OOB popup for sensitive tools/transfers. | Richer runtime human approval than the tutorial. |
 
@@ -40,13 +40,13 @@ We implement the same security story (NHI agent, `may_act`/`act`, token exchange
 ### Ping tutorial
 
 ```
-Sample agent → browser login + Agreement → agent TE → PingGateway /mcp → MCP
+Sample agent → browser login + Agreement → agent TE → PingOne Agent Gateway /mcp → MCP
 ```
 
 ### Our demo
 
 ```
-User in banking UI → BFF holds T1 → TE#1 (mcpgateway) → PingGateway (protect / P1AZ / TE#2) → MCP
+User in banking UI → BFF holds T1 → TE#1 (mcpgateway) → PingOne Agent Gateway (protect / P1AZ / TE#2) → MCP
 ```
 
 Login still hits PingOne Agreement Prompt (User App + Agent-Consent-Login) before the session/BFF path can mint delegated tokens.
@@ -71,7 +71,7 @@ Login still hits PingOne Agreement Prompt (User App + Agent-Consent-Login) befor
 ### D3 · Different — Who performs token exchange
 
 - **Ping:** Sample MCP agent process opens browser, then exchanges actor + subject tokens itself.
-- **Ours:** BFF is sole token custodian. Two-hop TE: BFF (user → mcpgateway) then PingGateway (→ mcpserver). LLM never holds user tokens.
+- **Ours:** BFF is sole token custodian. Two-hop TE: BFF (user → mcpgateway) then PingOne Agent Gateway (→ mcpserver). LLM never holds user tokens.
 - **Impact:** Stricter custody than the tutorial sample; demos must use BFF/gateway path, not agent-local TE.
 - **Evidence:** `AUTHORIZATION_RULES.md` §6; `rfc8693TokenExchangeService.js`; `olb-token-exchange.groovy`
 
@@ -91,7 +91,7 @@ Login still hits PingOne Agreement Prompt (User App + Agent-Consent-Login) befor
 
 ### D6 · Closed — Demo weakeners
 
-- **Ping:** Cloud PingOne + PingGateway only.
+- **Ping:** Cloud PingOne + PingOne Agent Gateway only.
 - **Ours:** Use **Apply IDAI-faithful preset** in Quick Flags (Ping GW + Real P1AZ + Introspect). See `IDAI_FAITHFUL_DEMO_MODE.md`.
 - **Evidence:** `QuickFlagsPill.js` `IDAI_FAITHFUL_PRESET`; feature flags registry
 
@@ -112,7 +112,7 @@ Login still hits PingOne Agreement Prompt (User App + Agent-Consent-Login) befor
 | Banking chatbot on behalf of user | Embedded AI agent in Super Banking UI; PingOne tokens; MCP tools behind Agent Gateway. |
 | `may_act` → `act` chain of delegation | SpEL `may_act` on Demo API / MCP resources pointing at Demo AI Agent; exchanged tokens carry `act.sub`; `requireDelegation` enforces `act`. |
 | RFC 8693 token exchange | Implemented (two-hop). Actor + subject → downscoped audience tokens. |
-| PingGateway streaming + MCP audit/validation | `admin.json` `streamingEnabled: true`; `McpAuditFilter` + `McpValidationFilter` on all MCP routes. |
+| PingOne Agent Gateway streaming + MCP audit/validation | `admin.json` `streamingEnabled: true`; `McpAuditFilter` + `McpValidationFilter` on all MCP routes. |
 | Least-privilege tool access | Scopes + MCP first-tool gate + intent binding (stronger than tutorial’s single `test` scope). |
 | Login Agreement Prompt | Agent Consent + Agent-Consent-Login on User App (alongside HITL). |
 

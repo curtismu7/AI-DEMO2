@@ -53,7 +53,7 @@ for tool calls. Privilege A2A is stubbed for a later phase.
    is *not* covered by the banking demo's consent/HITL/kill-switch layer —
    Privilege's own policy is the only enforcement on this path. Full pipeline
    integration (Privilege as a third transport inside `mcpToolPipeline.js`, on
-   equal footing with PingGateway, threaded through Authorize/HITL/kill-switch)
+   equal footing with PingOne Agent Gateway, threaded through Authorize/HITL/kill-switch)
    is explicitly deferred — a `TECH_DEBT.md` entry, not part of this plan.
 5. **A2A:** a disabled UI row reading "Privilege A2A — coming later." No
    backend work.

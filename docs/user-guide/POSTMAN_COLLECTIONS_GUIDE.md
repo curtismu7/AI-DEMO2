@@ -11,7 +11,7 @@ This guide provides comprehensive instructions for using the Super Banking Postm
 **Audience**: Beginners, workshop attendees, developers learning token exchange
 
 **Structure**:
-- Step 1: Subject Token (Headless PKCE via pi.flow) - 4 sub-steps
+- Step 1: User token (Headless PKCE via pi.flow) - 4 sub-steps
 - Step 2: MCP Token (RFC 8693 Token Exchange #1)
 - Step 3: PingOne API Token (Client Credentials)
 - Step 4: User Lookup (PingOne Management API)

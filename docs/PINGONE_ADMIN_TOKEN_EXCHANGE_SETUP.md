@@ -75,7 +75,7 @@ Admin tokens require enhanced security measures due to elevated privileges:
 3. **Configure Basic Settings**
    ```
    Application Name: Super Banking Admin App
-   Description: Administrative interface for Super Banking demo
+   Description: Administrative interface for AI Demo
    Protocol: OIDC
    Application Type: Web
    ```
@@ -307,7 +307,7 @@ export const getAdminScopes = () => {
 Add admin-only tools to your MCP server:
 
 ```typescript
-// banking_mcp_server/src/tools/adminTools.ts
+// demo_mcp_server/src/tools/adminTools.ts
 export const adminTools = [
   {
     name: 'admin_list_all_users',
@@ -416,7 +416,7 @@ export const adminTools = [
 Register admin tools with proper scope validation:
 
 ```typescript
-// banking_mcp_server/src/registry.ts
+// demo_mcp_server/src/registry.ts
 export const registerAdminTools = () => {
   adminTools.forEach(tool => {
     mcpServer.addTool(tool.name, tool.description, tool.inputSchema, async (args) => {
@@ -510,7 +510,7 @@ export const registerAdminTools = () => {
 
 1. **Enable Admin Action Logging**
    ```javascript
-   // banking_api_server/services/adminAuditService.js
+   // demo_api_server/services/adminAuditService.js
    const logAdminAction = (action, adminSub, details) => {
      const auditEvent = {
        type: 'admin_action',
@@ -703,4 +703,4 @@ After completing this setup:
 4. **Regular Security Reviews** - Schedule periodic access reviews and audits
 5. **Backup and Recovery** - Ensure admin configuration is backed up
 
-This setup provides a secure, auditable foundation for administrative operations in the Super Banking demo while maintaining compliance with security best practices.
+This setup provides a secure, auditable foundation for administrative operations in the AI Demo while maintaining compliance with security best practices.

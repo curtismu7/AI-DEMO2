@@ -16,7 +16,7 @@ deploy status. Read this doc for **how the system works**; read that one for
 | Service | Role | Where |
 |---|---|---|
 | External client (LM Studio, MCP Inspector, Claude Desktop) | The "external agent" — runs outside the cluster, has never talked to this system before | The user's machine |
-| `ping-gateway` (PingGateway / ForgeRock IG) | Reverse proxy + authorization enforcement point for the internal `/mcp` path; NOT involved in OAuth AS endpoints | K8s pod, `ping-gateway` Service, port 8080 |
+| `ping-gateway` (PingOne Agent Gateway / ForgeRock IG) | Reverse proxy + authorization enforcement point for the internal `/mcp` path; NOT involved in OAuth AS endpoints | K8s pod, `ping-gateway` Service, port 8080 |
 | `mcp-server` (oauth-mcp) | Both the MCP tool server AND its own embedded OAuth 2.1 Authorization Server (DCR, `/authorize`, `/token`, `/jwks`, etc.) | K8s pod, `mcp-server` Service, port 8080 — **same pod/Service** serves both the internal path and the external door |
 | PingOne | The real, external identity provider — the actual login the user completes | `auth.pingone.com` / `apps.pingone.com`, tenant `01d89b06-66d5-430e-9f28-65636843788b` |
 | `demo_api_server` ("the Banking API") | The BFF — same REST API normal browser sessions use, reached here over Bearer instead of a session cookie | K8s pod, separate Service |

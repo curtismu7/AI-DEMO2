@@ -152,7 +152,7 @@ describe('demoUseCaseSteps', () => {
   });
 
   // UC29 cannot fire on this deployment (Node gateway validates by JWKS, no
-  // introspection hook; PingGateway has no outage toggle) — it must not be
+  // introspection hook; PingOne Agent Gateway has no outage toggle) — it must not be
   // put back into the script until that changes.
   it('does not script UC29 (introspection outage is not demonstrable here)', () => {
     expect(DEMO_PRIMARY_USE_CASE_IDS).not.toContain('UC29');

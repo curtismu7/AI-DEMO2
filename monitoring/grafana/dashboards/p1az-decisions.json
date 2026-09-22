@@ -1,7 +1,7 @@
 {
   "uid": "ai-demo-p1az-decisions",
   "title": "P1AZ Decisions",
-  "description": "PingOne Authorize (P1AZ) decisions on the MCP door — PingGateway logs one PERMIT/DENY line per tool call (o.f.o.f.S.P1AZDecision), and exposes nothing as a Prometheus metric for it, so every panel here reads Tier 2's Loki logs instead.",
+  "description": "PingOne Authorize (P1AZ) decisions on the MCP door — PingOne Agent Gateway logs one PERMIT/DENY line per tool call (o.f.o.f.S.P1AZDecision), and exposes nothing as a Prometheus metric for it, so every panel here reads Tier 2's Loki logs instead.",
   "tags": ["ai-demo", "p1az", "authorize"],
   "timezone": "browser",
   "schemaVersion": 39,
@@ -17,7 +17,7 @@
       "gridPos": { "h": 4, "w": 24, "x": 0, "y": 0 },
       "options": {
         "mode": "markdown",
-        "content": "PingGateway's Groovy P1AZDecision filter logs one line per MCP tool call — `[P1AZ] DECISION: PERMIT|DENY | backend=... | tool=... | method=... | vertical=... | obligation=...` — and never exports a matching Prometheus metric. Rather than add Groovy-side instrumentation to a protected authorization filter, every panel here is a LogQL query against Tier 2's Loki (Grafana Alloy tailing `ping-gateway`'s stdout), extracting `decision`/`tool`/`vertical` from the line at query time. No vertical/tool filter variable: Grafana's Loki datasource can only populate a variable dropdown from a real ingested label, and `vertical`/`tool` exist only as parsed fields — the by-vertical and by-tool panels below break it out as a legend instead. `obligation=hitl` marks a decision that also required human approval before the tool ran."
+        "content": "PingOne Agent Gateway's Groovy P1AZDecision filter logs one line per MCP tool call — `[P1AZ] DECISION: PERMIT|DENY | backend=... | tool=... | method=... | vertical=... | obligation=...` — and never exports a matching Prometheus metric. Rather than add Groovy-side instrumentation to a protected authorization filter, every panel here is a LogQL query against Tier 2's Loki (Grafana Alloy tailing `ping-gateway`'s stdout), extracting `decision`/`tool`/`vertical` from the line at query time. No vertical/tool filter variable: Grafana's Loki datasource can only populate a variable dropdown from a real ingested label, and `vertical`/`tool` exist only as parsed fields — the by-vertical and by-tool panels below break it out as a legend instead. `obligation=hitl` marks a decision that also required human approval before the tool ran."
       }
     },
     {

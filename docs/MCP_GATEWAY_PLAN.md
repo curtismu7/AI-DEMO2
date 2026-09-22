@@ -1,17 +1,17 @@
-> **Historical note (archived plan):** This document describes a design proposal for integrating the commercial PingGateway 2025.11.1 product. This plan was not executed as written. The implemented gateway is a custom TypeScript service (`demo_mcp_gateway`, port 3005). Refer to `ARCHITECTURE.md` for the current architecture.
+> **Historical note (archived plan):** This document describes a design proposal for integrating the commercial PingOne Agent Gateway 2025.11.1 product. This plan was not executed as written. The implemented gateway is a custom TypeScript service (`demo_mcp_gateway`, port 3005). Refer to `ARCHITECTURE.md` for the current architecture.
 
-# MCP security gateway plan (PingGateway + Super Banking)
+# MCP security gateway plan (PingOne Agent Gateway + Super Banking)
 
-This document extends the team’s MCP gateway architecture plan with **official Ping transfer-of-information (TOI) material** for **PingGateway 2025.11.1 — MCP Security Gateway**.  
-Use it together with the public tutorial: [MCP security gateway | PingGateway 2025.11](https://docs.pingidentity.com/pinggateway/2025.11/mcp/index.html).
+This document extends the team’s MCP gateway architecture plan with **official Ping transfer-of-information (TOI) material** for **PingOne Agent Gateway 2025.11.1 — MCP Security Gateway**.  
+Use it together with the public tutorial: [MCP security gateway | PingOne Agent Gateway 2025.11](https://docs.pingidentity.com/pinggateway/2025.11/mcp/index.html).
 
 ## Primary reference (internal PDF)
 
 | Item | Detail |
 |------|--------|
-| **Document** | PingGateway 2025.11.1 — MCP TOI (Transfer of Information) |
-| **Product / version** | PingGateway **2025.11.1** (deck dated **February 2026**; product line release **January 26, 2026**) |
-| **Local copy** | `/Users/cmuir/Documents/ai logos/PingGateway 2025.11.1 - MCP TOI.pdf` |
+| **Document** | PingOne Agent Gateway 2025.11.1 — MCP TOI (Transfer of Information) |
+| **Product / version** | PingOne Agent Gateway **2025.11.1** (deck dated **February 2026**; product line release **January 26, 2026**) |
+| **Local copy** | `/Users/cmuir/Documents/ai logos/PingOne Agent Gateway 2025.11.1 - MCP TOI.pdf` |
 
 **Note:** The PDF is marked *Confidential — do not distribute*. Do not republish slides verbatim outside Ping-approved channels; use this file for **paraphrased** planning notes and the **public** doc link above for shareable detail.
 
@@ -27,7 +27,7 @@ Use it together with the public tutorial: [MCP security gateway | PingGateway 20
 ### Business problem & Ping’s answer
 
 - **Challenge:** Teams want to expose services over MCP quickly; IAM/security need a **consistent, documented, adaptable** security model across all MCP-exposed assets.
-- **Solution:** **MCP Security Gateway** on PingGateway — security **in front of** MCP servers with **no coding** on the MCP server for gateway features.
+- **Solution:** **MCP Security Gateway** on PingOne Agent Gateway — security **in front of** MCP servers with **no coding** on the MCP server for gateway features.
 
 ### Gateway value (TOI)
 
@@ -54,7 +54,7 @@ Use it together with the public tutorial: [MCP security gateway | PingGateway 20
 
 ---
 
-## PingGateway MCP objects (2025.11.1 — TOI alignment)
+## PingOne Agent Gateway MCP objects (2025.11.1 — TOI alignment)
 
 These are the main building blocks called out in the TOI; match them to route JSON in the [public MCP tutorial](https://docs.pingidentity.com/pinggateway/2025.11/mcp/index.html).
 
@@ -85,7 +85,7 @@ TOI aligns with **RFC 9728**: MCP clients can discover RS constraints **before**
 
 - Tutorial: `https://docs.pingidentity.com/pinggateway/2025.11/mcp/`  
 - References: **McpAuditFilter**, **McpProtectionFilter**, **McpValidationFilter**  
-- **PingGateway Agent Gateway module** called out as related capability in the TOI deck.
+- **PingOne Agent Gateway (Agent Gateway module)** called out as related capability in the TOI deck.
 
 ### MCP flow with gateway (TOI)
 
@@ -94,13 +94,13 @@ TOI aligns with **RFC 9728**: MCP clients can discover RS constraints **before**
 
 ---
 
-## Application to Super Banking (`banking_mcp_server`)
+## Application to Super Banking (`demo_mcp_server`)
 
-| Super Banking | PingGateway MCP plan |
+| Super Banking | PingOne Agent Gateway MCP plan |
 |------------|----------------------|
-| **MCP server** (`banking_mcp_server`, WebSocket, Railway/Fly/Render) | Place **behind** PingGateway; clients use `wss://` / HTTPS URL on the gateway, not the raw host. |
+| **MCP server** (`demo_mcp_server`, WebSocket, Railway/Fly/Render) | Place **behind** PingOne Agent Gateway; clients use `wss://` / HTTPS URL on the gateway, not the raw host. |
 | **PingOne OAuth** | Configure tokens so **`aud` / audience** matches **`resourceId`** on **McpProtectionFilter** (`resourceIdPointer` aligned with your token shape). |
-| **SSE / streaming** | Public tutorial requires **`streamingEnabled: true`** in PingGateway admin config for MCP transports that use SSE. |
+| **SSE / streaming** | Public tutorial requires **`streamingEnabled: true`** in PingOne Agent Gateway admin config for MCP transports that use SSE. |
 | **Observability** | Consider **McpAuditFilter** + **Prometheus** MCP metrics from **McpValidationFilter** per TOI. |
 | **Throttling** | Optionally throttle by tool name (with **ScriptableFilter** if TOI correction applies). |
 
@@ -110,4 +110,4 @@ TOI aligns with **RFC 9728**: MCP clients can discover RS constraints **before**
 
 | Date | Change |
 |------|--------|
-| 2026-03-25 | Initial plan: merged earlier Super Banking gateway outline with PingGateway **2025.11.1 MCP TOI** PDF (local path above) and public 2025.11 MCP doc link. |
+| 2026-03-25 | Initial plan: merged earlier Super Banking gateway outline with PingOne Agent Gateway **2025.11.1 MCP TOI** PDF (local path above) and public 2025.11 MCP doc link. |

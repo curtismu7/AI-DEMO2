@@ -2,7 +2,7 @@
 
 How to run Super Banking so it matches the security *shape* of Ping’s
 [Securing AI agents with PingOne](https://developer.pingidentity.com/identity-for-ai/use-cases/idai-securing-agents-pingone.html)
-page: real PingGateway as PEP, live PingOne Authorize, introspection (not local JWKS).
+page: real PingOne Agent Gateway as PEP, live PingOne Authorize, introspection (not local JWKS).
 
 This is **operator guidance**, not a claim of page-literal parity. Known intentional
 differences (BFF-held tokens, multi-hop TE, WEB_APP vs AI Agents product UI) and closed
@@ -13,7 +13,7 @@ items (login Agreement Prompt, faithful preset) are listed in
 
 | Flag | IDAI-faithful value | Quick Flags label | Why |
 |------|---------------------|-------------------|-----|
-| Real PingOne Agent Gateway | **ON** (`true`) | Agent Gateway → Real PingOne | Ping doc uses PingGateway in front of MCP; `false` is mock outage fallback |
+| Real PingOne Agent Gateway | **ON** (`true`) | Agent Gateway → Real PingOne | Ping doc uses PingOne Agent Gateway in front of MCP; `false` is mock outage fallback |
 | Simulated Authorize | **OFF** | Authorize Engine → Real P1AZ | Live PingOne Authorize, not the in-process mock |
 | Token Validation JWKS | **OFF** | Token Validation → Introspect | Doc path introspects; JWKS is educational (no revocation) |
 
@@ -37,7 +37,7 @@ Same three toggles in Quick Flags or Admin → Feature Flags:
 
 ## Verify before the demo
 
-- [ ] PingGateway container healthy; MCP calls hit IG (not the mock Demo Agent Gateway).
+- [ ] PingOne Agent Gateway container healthy; MCP calls hit IG (not the mock Demo Agent Gateway).
 - [ ] A tool call shows a real PingOne Authorize decision (decision id / live policy), not simulated-only education copy.
 - [ ] No `X-Token-Validation: jwks` / `X-Token-Validation-Mode: jwks` on the happy path.
 - [ ] Optional: no-token request to gateway returns `401` with `WWW-Authenticate` (introspect routes use `McpProtectionFilter`; JWKS educational routes add `resource_metadata` only).

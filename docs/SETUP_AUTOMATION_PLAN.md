@@ -6,11 +6,11 @@ This complements (does not replace) today’s pieces:
 
 | Already exists | Role |
 |----------------|------|
-| [`/onboarding`](../banking_api_ui/src/components/Onboarding.js) | Static checklist → `/config` |
+| [`/onboarding`](../demo_api_ui/src/components/Onboarding.js) | Static checklist → `/config` |
 | [`scripts/setup-vercel-env.js`](../scripts/setup-vercel-env.js) + `npm run setup:vercel` | Vercel env wizard + optional `vercel env add` |
-| [`/config`](../banking_api_ui/src/components/Config.js) | Manual PingOne field entry |
-| [`POST /api/authorize/bootstrap-demo-endpoints`](../banking_api_server/routes/authorize.js) | Worker token → create/reuse **Authorize decision endpoints** + save IDs |
-| [`/demo-data`](../banking_api_ui/src/components/DemoDataPage.js) (admin) | Demo toggles, MCP scopes, Authorize bootstrap UI |
+| [`/config`](../demo_api_ui/src/components/Config.js) | Manual PingOne field entry |
+| [`POST /api/authorize/bootstrap-demo-endpoints`](../demo_api_server/routes/authorize.js) | Worker token → create/reuse **Authorize decision endpoints** + save IDs |
+| [`/demo-data`](../demo_api_ui/src/components/DemoDataPage.js) (admin) | Demo toggles, MCP scopes, Authorize bootstrap UI |
 | OAuth callbacks | **First login** creates **local** `dataStore` users (not PingOne user provisioning) |
 
 ---
@@ -74,7 +74,7 @@ Add `config/pingone-bootstrap.manifest.json` (or `.yaml`) describing:
 
 | Layer | Responsibility |
 |-------|------------------|
-| **`banking_api_server/services/pingoneBootstrapService.js`** (new) | Pure functions: `ensureResourceServer`, `ensureApplication`, `ensureUser`, … using `fetch` + worker token. |
+| **`demo_api_server/services/pingoneBootstrapService.js`** (new) | Pure functions: `ensureResourceServer`, `ensureApplication`, `ensureUser`, … using `fetch` + worker token. |
 | **`scripts/pingone-bootstrap.js`** (new) | CLI: load manifest, read env `PINGONE_BOOTSTRAP_WORKER_ID/SECRET` (or token), run all steps, print **summary JSON** (client IDs, redirect URIs to paste if needed). |
 | **`POST /api/setup/pingone/run`** (new route, gated) | Same logic as script; returns structured result for UI. |
 | **`SetupPage.js`** (new) + route `/setup` | Stepper UI: prerequisites → run bootstrap → copy env snippet → “Verify” buttons calling existing `/api/auth/debug`, `/api/admin/config`, optional probe MCP. |
@@ -147,7 +147,7 @@ Route: **`/setup`** (public or gated — see §3.3).
 8. **Verification**
    - Buttons: “Open admin login”, “Open user login”, “Probe MCP”, “Session debug JSON”.
 
-**Navigation:** Add **Setup** link on [`LandingPage`](../banking_api_ui/src/components/LandingPage.js) next to onboarding for unauthenticated users; add admin quick link from `/admin`.
+**Navigation:** Add **Setup** link on [`LandingPage`](../demo_api_ui/src/components/LandingPage.js) next to onboarding for unauthenticated users; add admin quick link from `/admin`.
 
 ---
 
@@ -155,7 +155,7 @@ Route: **`/setup`** (public or gated — see §3.3).
 
 ### Phase A — Documentation & manifest (1–2 PRs)
 
-- [ ] This plan + update [`Onboarding.js`](../banking_api_ui/src/components/Onboarding.js) to link **`/setup`** when automation exists.
+- [ ] This plan + update [`Onboarding.js`](../demo_api_ui/src/components/Onboarding.js) to link **`/setup`** when automation exists.
 - [ ] Add `config/pingone-bootstrap.manifest.json` with **commented** example matching current `configStore` field names.
 
 ### Phase B — `pingoneBootstrapService` + CLI (2–4 PRs)
@@ -173,7 +173,7 @@ Route: **`/setup`** (public or gated — see §3.3).
 
 ### Phase D — **Setup** React page (1–2 PRs)
 
-- [ ] `SetupPage.js`, route in [`App.js`](../banking_api_ui/src/App.js).
+- [ ] `SetupPage.js`, route in [`App.js`](../demo_api_ui/src/App.js).
 - [ ] Wire buttons to APIs; toasts + copy-to-clipboard for env snippets.
 
 ### Phase E — Hardening
@@ -204,7 +204,7 @@ Route: **`/setup`** (public or gated — see §3.3).
 ## 10. References (implementers)
 
 - PingOne Platform APIs — [Decision endpoints](https://developer.pingidentity.com/pingone-api/authorize/authorization-decisions/decision-endpoints.html) (create — already used in app).
-- Repo: [`pingOneAuthorizeService.js`](../banking_api_server/services/pingOneAuthorizeService.js), [`clientRegistration.js`](../banking_api_server/routes/clientRegistration.js), [`setup-vercel-env.js`](../scripts/setup-vercel-env.js).
+- Repo: [`pingOneAuthorizeService.js`](../demo_api_server/services/pingOneAuthorizeService.js), [`clientRegistration.js`](../demo_api_server/routes/clientRegistration.js), [`setup-vercel-env.js`](../scripts/setup-vercel-env.js).
 - Internal skill: **pingone-api-calls** (Management API patterns).
 
 ---

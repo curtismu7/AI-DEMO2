@@ -2,7 +2,7 @@
 
 **Scope:** which macOS-capable MCP clients (commercial, open source, and our own) can act as the "front door" into AI-DEMO2's MCP servers across **both** required paths:
 
-1. **Agent Gateway path** — the repo's own Node `demo_mcp_gateway` (or its PingGateway/IG variant), which fronts `oauth-mcp` / `demo_mcp_resource_server`.
+1. **Agent Gateway path** — the repo's own Node `demo_mcp_gateway` (or its PingOne Agent Gateway/IG variant), which fronts `oauth-mcp` / `demo_mcp_resource_server`.
 2. **Privilege path** — PingOne Privilege Cloud's MCP Gateway ("mcpgw" / AI Gateway), agent-mode or agentless-mode.
 
 ## TL;DR
@@ -16,7 +16,7 @@
 
 ## Plan
 
-1. **Point a client at the Agent Gateway's existing `/mcp` HTTP endpoint** — no server-side change needed, or route through PingGateway/IG (also HTTP), or accept that only our own WS-aware client can use the WS default. Either HTTP path unlocks every off-the-shelf client below.
+1. **Point a client at the Agent Gateway's existing `/mcp` HTTP endpoint** — no server-side change needed, or route through PingOne Agent Gateway/IG (also HTTP), or accept that only our own WS-aware client can use the WS default. Either HTTP path unlocks every off-the-shelf client below.
 2. **Pick one client to prove both doors** rather than surveying forever. Best current candidates, in order of native fit: **Cursor**, **Zed**, or **VS Code + GitHub Copilot Chat** — all have native OAuth 2.1+PKCE and Streamable HTTP, no self-signed-cert restriction, and support pre-registered (confidential) OAuth clients, which matches how PingOne apps are registered (no dynamic client registration in this stack).
 3. **Test Privilege-agentless first** — it's the closer-to-standard path. Point the chosen client at `https://cmuir-agentless-mcpgw.ping-devops.com/<app>/mcp` with the PingOne OAuth client id/secret from `pingone.env`.
 4. **Test Agent Gateway second** — same client, second server entry, `/mcp` over HTTPS, PingOne bearer token with the `MCP_GW_RESOURCE_URI` audience. The token must also pass the gateway's live RFC 7662 introspection (`active: true`), not just carry the right `aud` — a locally-crafted or expired/revoked token with a correct audience claim still gets rejected. DPoP (`REQUIRE_DPOP_PROOF`) is parked/off today — leave it off for this test; turning it on later will break every client below, since none currently implement DPoP.
@@ -27,9 +27,9 @@
 
 | | Agent Gateway path | Privilege path |
 |---|---|---|
-| **Service** | `demo_mcp_gateway` (Node, `demo_mcp_gateway/src/index.ts`) or PingGateway/IG variant (`ping-gateway/`, flag `ff_mcp_gateway_pinggateway`) | PingOne Privilege Cloud MCP Gateway ("mcpgw"), agent or agentless mode |
+| **Service** | `demo_mcp_gateway` (Node, `demo_mcp_gateway/src/index.ts`) or PingOne Agent Gateway/IG variant (`ping-gateway/`, flag `ff_mcp_gateway_pinggateway`) | PingOne Privilege Cloud MCP Gateway ("mcpgw"), agent or agentless mode |
 | **Default transport** | **WebSocket** (`demo_mcp_gateway/src/config.ts:289`, port 3005) — not an MCP-spec transport | Streamable HTTP |
-| **Alt transport** | Streamable HTTP `/mcp` (POST/GET/DELETE) — already live on the same port as the WS listener, no config change, or plain HTTPS via PingGateway (port 3036, now HTTPS) | n/a |
+| **Alt transport** | Streamable HTTP `/mcp` (POST/GET/DELETE) — already live on the same port as the WS listener, no config change, or plain HTTPS via PingOne Agent Gateway (port 3036, now HTTPS) | n/a |
 | **Endpoint (agentless)** | ws(s)://…:3005 or https://…:3036 | `https://cmuir-agentless-mcpgw.ping-devops.com/<app>/mcp` |
 | **Endpoint (agent mode)** | n/a | `https://opensearch.default.applications.procyon.ai:8643/mcp` |
 | **Client-side auth** | PingOne bearer token, RFC 8707 audience binding (`MCP_GW_RESOURCE_URI`), optional DPoP (parked, off by default) | Agentless: OAuth2 Auth Code + PKCE (S256) + `client_secret_basic`. Agent-mode: **none** — handled transparently by the installed macOS Privilege Agent (Secure Enclave identity) |
@@ -66,7 +66,7 @@ Two auth mechanisms sometimes discussed for these gateways are mostly moot for c
 
 ## Recommendation
 
-Start with **Cursor or Zed** against **Privilege-agentless** — that's the pairing with the fewest open questions (native OAuth+PKCE, no cert restrictions, no beta/Developer-Mode gates). In parallel, point the same client at the Agent Gateway's existing `/mcp` HTTP endpoint (or route through PingGateway, which already is HTTP) as a second server entry with a bearer token — no gateway-side change required. That proves "one real MCP client, both doors" without writing new client code. Only invest in extending `langchain_agent` or `standalone/mcp-demo-client-privilege` if the goal is specifically an *in-repo* client that covers both paths (e.g., for automated testing) rather than a general-purpose desktop client for people to use.
+Start with **Cursor or Zed** against **Privilege-agentless** — that's the pairing with the fewest open questions (native OAuth+PKCE, no cert restrictions, no beta/Developer-Mode gates). In parallel, point the same client at the Agent Gateway's existing `/mcp` HTTP endpoint (or route through PingOne Agent Gateway, which already is HTTP) as a second server entry with a bearer token — no gateway-side change required. That proves "one real MCP client, both doors" without writing new client code. Only invest in extending `langchain_agent` or `standalone/mcp-demo-client-privilege` if the goal is specifically an *in-repo* client that covers both paths (e.g., for automated testing) rather than a general-purpose desktop client for people to use.
 
 ---
 *Sources for third-party client claims (web research, August 2026):*

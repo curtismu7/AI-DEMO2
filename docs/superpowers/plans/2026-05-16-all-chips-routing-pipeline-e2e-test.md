@@ -6,23 +6,23 @@
 
 **Architecture:** Two deliverables. (1) A deterministic CI integration suite (supertest, no network, no Helix) covering Heuristics-only routing + the no-user-token 401 hard-fail. (2) A real-login Playwright e2e spec (under the existing `playwright.real.config.js` harness) that drives all chips through the real two-hop flow with a real PingOne customer session + an admin session corroborating Authorize/gateway from app-events. No production code is changed; all assertions read existing endpoints.
 
-**Tech Stack:** Node, Jest + supertest (CI suite, in `banking_api_server`), Playwright (`@playwright/test`, real spec in `banking_api_ui/tests/e2e`), existing `realLogin.js` fixtures.
+**Tech Stack:** Node, Jest + supertest (CI suite, in `demo_api_server`), Playwright (`@playwright/test`, real spec in `demo_api_ui/tests/e2e`), existing `realLogin.js` fixtures.
 
 ---
 
 ## Background facts (verified against source — do not re-research)
 
-- **Chip list source of truth:** `banking_api_ui/src/components/BankingChips.jsx`. `HEURISTIC_CHIPS` is a `const` array (6 entries); `LLM_CHIPS` is a `const` object keyed by group name, each value an array. **Neither is exported** and the file is JSX with `import` — a Node script CANNOT `require` it. Each chip entry shape: `{ id, label, message }`.
-- **Routing route:** `POST /api/banking-agent/nl` (`banking_api_server/routes/bankingAgentNl.js:15`). Body: `{ message, provider }`. Anonymous-friendly (no session required). Returns **`{ source, result }`**. `source ∈ { 'heuristic', 'helix', 'helix_fallback', 'ollama' }` — **this is the routing proof**. `result` is raw parser output: banking → `{ kind:'banking', banking:{ action, params } }`; education → `{ kind:'education', ... }`; unrecognized → `{ kind:'none', message }`. Empty message → 400 `{ error:'invalid_body' }`.
-- **Pipeline route:** `POST /api/mcp/tool` (`banking_api_server/server.js:1225`), middleware `requireSession`. Body `{ tool, params, flowTraceId }`. Success → `{ result, tokenEvents, activeModel, activeProvider }` (+ `mcpAuthorizeEvaluation` when present). No session → **401 `{ error:'unauthenticated', message:'A valid session is required. Please sign in.' }`** (`middleware/auth.js`). `tokenEvents[]` entry: `{ id, label, status, explanation, claims:{ aud, sub, scope, act, iat } }`.
+- **Chip list source of truth:** `demo_api_ui/src/components/BankingChips.jsx`. `HEURISTIC_CHIPS` is a `const` array (6 entries); `LLM_CHIPS` is a `const` object keyed by group name, each value an array. **Neither is exported** and the file is JSX with `import` — a Node script CANNOT `require` it. Each chip entry shape: `{ id, label, message }`.
+- **Routing route:** `POST /api/banking-agent/nl` (`demo_api_server/routes/bankingAgentNl.js:15`). Body: `{ message, provider }`. Anonymous-friendly (no session required). Returns **`{ source, result }`**. `source ∈ { 'heuristic', 'helix', 'helix_fallback', 'ollama' }` — **this is the routing proof**. `result` is raw parser output: banking → `{ kind:'banking', banking:{ action, params } }`; education → `{ kind:'education', ... }`; unrecognized → `{ kind:'none', message }`. Empty message → 400 `{ error:'invalid_body' }`.
+- **Pipeline route:** `POST /api/mcp/tool` (`demo_api_server/server.js:1225`), middleware `requireSession`. Body `{ tool, params, flowTraceId }`. Success → `{ result, tokenEvents, activeModel, activeProvider }` (+ `mcpAuthorizeEvaluation` when present). No session → **401 `{ error:'unauthenticated', message:'A valid session is required. Please sign in.' }`** (`middleware/auth.js`). `tokenEvents[]` entry: `{ id, label, status, explanation, claims:{ aud, sub, scope, act, iat } }`.
 - **Token exchange reads** `req.session.oauthTokens.accessToken`. `POST /api/auth/login` sets `req.session.user` but NOT `oauthTokens` (`tokenType:'local_session'`) — so local login passes `requireSession` but the RFC 8693 exchange has no subject token. **Real PingOne OAuth session is required for the live pipeline.**
 - **Customer-scoped observability:** `GET /api/token-chain` (`routes/tokenChain.js:8`), middleware `authenticateToken`, auto-scoped to `req.user.id`. Returns `{ tokenChain[], mcpToolCallsChain[], validationMode, metadata }`. `tokenChain` entry: `{ id, timestamp, eventType, tokenType, tokenSub, tokenAct, tokenAgent, scopes, audience, issuer, expiry, description, exchangeSteps[], userId }`. `mcpToolCallsChain` entry: `{ id, timestamp, toolName, success, duration, isDelegated, userSub, resultSummary }`.
 - **Admin-scoped observability:** `GET /api/admin/app-events` (`routes/admin.js:1006`), middleware `requireAdmin` + `requireScopes(['banking:admin'])`. Returns `{ events[], total, categories }`. Event: `{ id, timestamp, category, severity, message, tag, metadata, flowId, username }`. Relevant categories: token exchange = `token_exchange`; gateway routing = `gateway_path`; Authorize decision = `authorize`.
 - **Config write (for condition 3):** `POST /api/admin/config` (`routes/adminConfig.js:138`), admin-gated. Accepts only `FIELD_DEFS` keys; empty string = "leave unchanged". `helix_base_url` is a valid key. Masked GET will not return the live value, so restore must use a captured-known value, not a masked read.
-- **Real login fixtures:** `banking_api_ui/tests/e2e/helpers/realLogin.js` exports `loginAsCustomer(page)`, `loginAsAdmin(page)`, `requireRealLoginEnv()`, `requireAdminLoginEnv()`. Env vars: `E2E_CUSTOMER_USERNAME/PASSWORD`, `E2E_ADMIN_USERNAME/PASSWORD`, `E2E_BASE_URL`. Seeded demo users: `bankuser` / `bankadmin`, password `2Federate!`.
-- **Real e2e harness:** `banking_api_ui/playwright.real.config.js`, script `npm run test:e2e:real` (and `:real:local` with `E2E_BASE_URL=http://localhost:3000`). Existing real spec to mirror: `banking_api_ui/tests/e2e/banking-agent.real.spec.js`.
+- **Real login fixtures:** `demo_api_ui/tests/e2e/helpers/realLogin.js` exports `loginAsCustomer(page)`, `loginAsAdmin(page)`, `requireRealLoginEnv()`, `requireAdminLoginEnv()`. Env vars: `E2E_CUSTOMER_USERNAME/PASSWORD`, `E2E_ADMIN_USERNAME/PASSWORD`, `E2E_BASE_URL`. Seeded demo users: `bankuser` / `bankadmin`, password `2Federate!`.
+- **Real e2e harness:** `demo_api_ui/playwright.real.config.js`, script `npm run test:e2e:real` (and `:real:local` with `E2E_BASE_URL=http://localhost:3000`). Existing real spec to mirror: `demo_api_ui/tests/e2e/banking-agent.real.spec.js`.
 - **Helix creds are NOT in the vault.** `secrets.vault` holds OAuth/MCP secrets only (`grep -i helix secrets.vault` → empty). `helix_api_key` resolves (`configStore.js:886-900`) in order: (1) runtime configStore via `/setup` or `POST /api/admin/config`; (2) `HELIX_API_KEY` env var; (3) per-agent key file `<helix_agent_id>.json` (default `LLM2.json`) in repo root / `~/Documents` / `~/Downloads` via `helixAgentKeyLoader.js`; (4) committed `config/pingoneBackendDefaults`. **Consequence:** if Helix is unconfigured, the router falls back to heuristic — Condition 2 would FALSELY pass. The spec MUST gate Condition 2 on Helix actually being configured (Task 5 adds an explicit precondition probe that fails loudly, not a silent skip).
-- **CI integration model:** `banking_api_server/tests/routes/hitlGateway.integration.test.js` — real configStore, mocked session middleware + deep services, supertest.
+- **CI integration model:** `demo_api_server/tests/routes/hitlGateway.integration.test.js` — real configStore, mocked session middleware + deep services, supertest.
 
 ## Heuristic-resolvable chip set (verified against `nlIntentParser.js:195-336`)
 
@@ -41,26 +41,26 @@ All `LLM_CHIPS` messages (e.g. "What's my biggest purchase?", "How much did I sp
 
 ## File Structure
 
-- `banking_api_server/scripts/extractChips.js` — **Create.** Pure Node module: regex-extracts `HEURISTIC_CHIPS` + `LLM_CHIPS` entries from `BankingChips.jsx` and exports `{ heuristicChips, llmChips, allChips }` (flat `{id,label,message}[]`). Single source of truth for both deliverables. No JSX execution.
-- `banking_api_server/src/__tests__/extractChips.test.js` — **Create.** Unit test for the extractor.
-- `banking_api_server/tests/routes/allChips.pipeline.integration.test.js` — **Create.** CI suite: Heuristics-only routing for every chip + no-token 401 hard-fail. supertest.
-- `banking_api_ui/tests/e2e/all-chips-pipeline.real.spec.js` — **Create.** Playwright real spec: 3 routing conditions × all chips, dual-session skip-proof.
-- `banking_api_ui/tests/e2e/helpers/chipPipeline.js` — **Create.** Shared helper used by the real spec: drive one chip (nl → mcp/tool), assert the 4-stage trail, snapshot/diff token-chain.
+- `demo_api_server/scripts/extractChips.js` — **Create.** Pure Node module: regex-extracts `HEURISTIC_CHIPS` + `LLM_CHIPS` entries from `BankingChips.jsx` and exports `{ heuristicChips, llmChips, allChips }` (flat `{id,label,message}[]`). Single source of truth for both deliverables. No JSX execution.
+- `demo_api_server/src/__tests__/extractChips.test.js` — **Create.** Unit test for the extractor.
+- `demo_api_server/tests/routes/allChips.pipeline.integration.test.js` — **Create.** CI suite: Heuristics-only routing for every chip + no-token 401 hard-fail. supertest.
+- `demo_api_ui/tests/e2e/all-chips-pipeline.real.spec.js` — **Create.** Playwright real spec: 3 routing conditions × all chips, dual-session skip-proof.
+- `demo_api_ui/tests/e2e/helpers/chipPipeline.js` — **Create.** Shared helper used by the real spec: drive one chip (nl → mcp/tool), assert the 4-stage trail, snapshot/diff token-chain.
 
-No production files modified. No `banking_api_ui` source change → UI build gate N/A.
+No production files modified. No `demo_api_ui` source change → UI build gate N/A.
 
 ---
 
 ## Task 1: Chip extractor module
 
 **Files:**
-- Create: `banking_api_server/scripts/extractChips.js`
-- Test: `banking_api_server/src/__tests__/extractChips.test.js`
+- Create: `demo_api_server/scripts/extractChips.js`
+- Test: `demo_api_server/src/__tests__/extractChips.test.js`
 
 - [ ] **Step 1: Write the failing test**
 
 ```js
-// banking_api_server/src/__tests__/extractChips.test.js
+// demo_api_server/src/__tests__/extractChips.test.js
 'use strict';
 const { heuristicChips, llmChips, allChips } = require('../extractChips');
 
@@ -103,18 +103,18 @@ describe('extractChips', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_server && npx jest extractChips`
+Run: `cd demo_api_server && npx jest extractChips`
 Expected: FAIL — `Cannot find module '../extractChips'`.
 
 - [ ] **Step 3: Write minimal implementation**
 
 ```js
-// banking_api_server/scripts/extractChips.js
+// demo_api_server/scripts/extractChips.js
 'use strict';
 /**
  * Source-of-truth chip extractor.
  *
- * banking_api_ui/src/components/BankingChips.jsx is JSX with `import` and does
+ * demo_api_ui/src/components/BankingChips.jsx is JSX with `import` and does
  * NOT export its chip constants, so it cannot be require()'d from Node. This
  * module reads the file as text and regex-parses the two const literals:
  *   const HEURISTIC_CHIPS = [ { id, label, message }, ... ];
@@ -129,7 +129,7 @@ const path = require('path');
 
 const CHIPS_FILE = path.resolve(
   __dirname,
-  '../../banking_api_ui/src/components/BankingChips.jsx',
+  '../../demo_api_ui/src/components/BankingChips.jsx',
 );
 
 function readSource() {
@@ -205,13 +205,13 @@ module.exports.extract = extract;
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd banking_api_server && npx jest extractChips`
+Run: `cd demo_api_server && npx jest extractChips`
 Expected: PASS (3 tests).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add banking_api_server/scripts/extractChips.js banking_api_server/src/__tests__/extractChips.test.js
+git add demo_api_server/scripts/extractChips.js demo_api_server/src/__tests__/extractChips.test.js
 git commit -m "test(chips): chip extractor — single source of truth from BankingChips.jsx
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
@@ -222,14 +222,14 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 2: CI integration suite — Heuristics-only routing for every chip
 
 **Files:**
-- Create: `banking_api_server/tests/routes/allChips.pipeline.integration.test.js`
+- Create: `demo_api_server/tests/routes/allChips.pipeline.integration.test.js`
 
 This suite proves: under Heuristics-only, sending each chip's `message` to `/api/banking-agent/nl` returns `source:'heuristic'`, and the result is either a `kind:'banking'` action (heuristic chips and any LLM chip the heuristic recognizes) or `kind:'none'` with a hint (LLM chips the heuristic doesn't recognize) — never a 500, never a Helix call. Per-chip expectation is derived by running the real heuristic parser, not hardcoded.
 
 - [ ] **Step 1: Write the failing test**
 
 ```js
-// banking_api_server/tests/routes/allChips.pipeline.integration.test.js
+// demo_api_server/tests/routes/allChips.pipeline.integration.test.js
 'use strict';
 /**
  * CI integration suite — deterministic conditions only:
@@ -237,9 +237,9 @@ This suite proves: under Heuristics-only, sending each chip's `message` to `/api
  *   (2) No-user-token hard-fail on the pipeline (401, zero pipeline trail)
  *
  * Real Helix is NOT exercised here (non-deterministic / network) — that lives
- * in banking_api_ui/tests/e2e/all-chips-pipeline.real.spec.js.
+ * in demo_api_ui/tests/e2e/all-chips-pipeline.real.spec.js.
  *
- * Models banking_api_server/tests/routes/hitlGateway.integration.test.js:
+ * Models demo_api_server/tests/routes/hitlGateway.integration.test.js:
  * real configStore, mocked deep services, supertest.
  */
 const express = require('express');
@@ -306,7 +306,7 @@ describe('all-chips — Heuristics-only routing (CI, deterministic)', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_server && npx jest tests/routes/allChips.pipeline.integration.test.js`
+Run: `cd demo_api_server && npx jest tests/routes/allChips.pipeline.integration.test.js`
 Expected: FAIL initially only if Task 1 not present; otherwise this should drive out any real mismatch. If `parseHeuristic` is not exported, FAIL with `parseHeuristic is not a function` — fix by importing from the documented export at `nlIntentParser.js:338` (`module.exports = { parseHeuristic, ... }`; confirm name).
 
 - [ ] **Step 3: Make it pass (no production change expected)**
@@ -315,13 +315,13 @@ No production code changes. If a chip's runtime `source` is not `'heuristic'`, t
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd banking_api_server && npx jest tests/routes/allChips.pipeline.integration.test.js`
+Run: `cd demo_api_server && npx jest tests/routes/allChips.pipeline.integration.test.js`
 Expected: PASS — one row per chip + the heuristic-chips assertion.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add banking_api_server/tests/routes/allChips.pipeline.integration.test.js
+git add demo_api_server/tests/routes/allChips.pipeline.integration.test.js
 git commit -m "test(chips): CI suite — every chip routes via heuristic in Heuristics-only mode
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
@@ -332,7 +332,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 3: CI integration suite — no-user-token pipeline hard-fail
 
 **Files:**
-- Modify: `banking_api_server/tests/routes/allChips.pipeline.integration.test.js` (append a describe block)
+- Modify: `demo_api_server/tests/routes/allChips.pipeline.integration.test.js` (append a describe block)
 
 Proves the "cannot skip" rule's negative case: with no session user, `POST /api/mcp/tool` returns 401 BEFORE any token exchange / gateway / authorize, for a representative banking tool.
 
@@ -375,7 +375,7 @@ describe('pipeline hard-fail — no user token (CI, deterministic)', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_server && npx jest tests/routes/allChips.pipeline.integration.test.js -t "no user token"`
+Run: `cd demo_api_server && npx jest tests/routes/allChips.pipeline.integration.test.js -t "no user token"`
 Expected: FAIL only if `requireSession` is not a named export of `middleware/auth`. Confirm the export (CLAUDE.md + research show `requireSession` defined in `middleware/auth.js`). If it is not exported, import the middleware module and reference the function as exported (do NOT reimplement it).
 
 - [ ] **Step 3: Make it pass**
@@ -384,13 +384,13 @@ No production change. Correct only the `require`/destructure of `requireSession`
 
 - [ ] **Step 4: Run to verify it passes**
 
-Run: `cd banking_api_server && npx jest tests/routes/allChips.pipeline.integration.test.js`
+Run: `cd demo_api_server && npx jest tests/routes/allChips.pipeline.integration.test.js`
 Expected: PASS — all rows from Task 2 + the no-token block.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add banking_api_server/tests/routes/allChips.pipeline.integration.test.js
+git add demo_api_server/tests/routes/allChips.pipeline.integration.test.js
 git commit -m "test(chips): CI suite — no-token pipeline hard-fail (401, pipeline never entered)
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
@@ -401,14 +401,14 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 4: Real-spec shared helper — drive one chip + assert the 4-stage trail
 
 **Files:**
-- Create: `banking_api_ui/tests/e2e/helpers/chipPipeline.js`
+- Create: `demo_api_ui/tests/e2e/helpers/chipPipeline.js`
 
 Playwright `request` on a logged-in `page.context()` carries the session cookie automatically. This helper performs the two-hop flow for one chip and asserts the trail using customer-scoped `/api/token-chain` + `tokenEvents`. Admin app-events corroboration is a separate helper used only by the suite-level admin context.
 
 - [ ] **Step 1: Write the helper (no separate unit test — exercised by Task 5 spec)**
 
 ```js
-// banking_api_ui/tests/e2e/helpers/chipPipeline.js
+// demo_api_ui/tests/e2e/helpers/chipPipeline.js
 'use strict';
 /**
  * Drive a single chip through the real two-hop flow and assert it did NOT
@@ -523,13 +523,13 @@ module.exports = { runChip, assertAdminPipelineEvents };
 
 - [ ] **Step 2: Verify the helper parses (lint/load only)**
 
-Run: `cd banking_api_ui && node -e "require('./tests/e2e/helpers/chipPipeline.js'); console.log('ok')"`
+Run: `cd demo_api_ui && node -e "require('./tests/e2e/helpers/chipPipeline.js'); console.log('ok')"`
 Expected: prints `ok` (module loads; `@playwright/test` resolvable as a dev dep).
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add banking_api_ui/tests/e2e/helpers/chipPipeline.js
+git add demo_api_ui/tests/e2e/helpers/chipPipeline.js
 git commit -m "test(chips): e2e helper — drive one chip + 4-stage skip-proof assertions
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
@@ -540,14 +540,14 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 5: Real Playwright spec — 3 routing conditions × all chips, dual-session
 
 **Files:**
-- Create: `banking_api_ui/tests/e2e/all-chips-pipeline.real.spec.js`
+- Create: `demo_api_ui/tests/e2e/all-chips-pipeline.real.spec.js`
 
 Runs under `playwright.real.config.js` (`npm run test:e2e:real` / `:real:local`). Auto-skips without real-login env. Condition 3 mutates `helix_base_url` to a dead URL via the admin context and **restores it in `test.afterAll` unconditionally**.
 
 - [ ] **Step 1: Write the spec**
 
 ```js
-// banking_api_ui/tests/e2e/all-chips-pipeline.real.spec.js
+// demo_api_ui/tests/e2e/all-chips-pipeline.real.spec.js
 'use strict';
 /**
  * All-chips routing + non-skippable pipeline — REAL login, real Helix.
@@ -570,7 +570,7 @@ const {
   requireAdminLoginEnv,
 } = require('./helpers/realLogin');
 const { runChip, assertAdminPipelineEvents } = require('./helpers/chipPipeline');
-const { heuristicChips, allChips } = require('../../../banking_api_server/scripts/extractChips');
+const { heuristicChips, allChips } = require('../../../demo_api_server/scripts/extractChips');
 
 const BASE = process.env.E2E_BASE_URL || 'http://localhost:3000';
 
@@ -733,19 +733,19 @@ test.describe('all-chips routing + non-skippable pipeline (real)', () => {
 
 - [ ] **Step 2: Verify the spec is collected (not run) without env**
 
-Run: `cd banking_api_ui && npx playwright test all-chips-pipeline.real.spec.js --config=playwright.real.config.js --list`
+Run: `cd demo_api_ui && npx playwright test all-chips-pipeline.real.spec.js --config=playwright.real.config.js --list`
 Expected: spec listed; tests show as skipped when `requireRealLoginEnv()` is false (no credentials). No collection error (imports resolve).
 
 - [ ] **Step 3: Run for real against the local stack (manual gate)**
 
 Pre: `./run-demo.sh status` all healthy; export `E2E_BASE_URL=http://localhost:3000`, `E2E_CUSTOMER_USERNAME=bankuser`, `E2E_CUSTOMER_PASSWORD=2Federate!`, `E2E_ADMIN_USERNAME=bankadmin`, `E2E_ADMIN_PASSWORD=2Federate!` (or values from `tests/e2e/.env.e2e`).
-Run: `cd banking_api_ui && npm run test:e2e:real -- all-chips-pipeline.real.spec.js`
+Run: `cd demo_api_ui && npm run test:e2e:real -- all-chips-pipeline.real.spec.js`
 Expected: Conditions 1 & 3 green for heuristic chips with full trail; Condition 2 chips resolve+execute; no-token → 401. On any chip showing a result without a trail → that is a real "skip" finding; STOP and report (do not weaken assertions). Confirm afterAll restored `helix_base_url` (`./run-demo.sh tail all` shows no lingering `127.0.0.1:9` Helix errors).
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add banking_api_ui/tests/e2e/all-chips-pipeline.real.spec.js
+git add demo_api_ui/tests/e2e/all-chips-pipeline.real.spec.js
 git commit -m "test(chips): real e2e — 3 routing conditions x all chips, dual-session skip-proof
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
@@ -756,30 +756,30 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 6: Wire CI suite into the standard test run + document
 
 **Files:**
-- Modify: `banking_api_server/package.json` (add a script alias only if a chip-suite alias is wanted; the file-pattern already runs under `npm run test:api-server`)
+- Modify: `demo_api_server/package.json` (add a script alias only if a chip-suite alias is wanted; the file-pattern already runs under `npm run test:api-server`)
 - Modify: `REGRESSION_PLAN.md` §4 (Bug Fix Log) — only if any real routing/skip finding was fixed during execution. If no production bug was found, add NO entry (this is a test-only addition).
 
 - [ ] **Step 1: Confirm the CI suite runs under the existing aggregate**
 
-Run: `cd banking_api_server && npx jest tests/routes/allChips.pipeline.integration.test.js extractChips`
+Run: `cd demo_api_server && npx jest tests/routes/allChips.pipeline.integration.test.js extractChips`
 Expected: all green.
 
 - [ ] **Step 2: Add a focused npm script (convenience only)**
 
-In `banking_api_server/package.json` `scripts`, add:
+In `demo_api_server/package.json` `scripts`, add:
 ```json
 "test:chips": "jest extractChips tests/routes/allChips.pipeline.integration.test.js"
 ```
 
 - [ ] **Step 3: Verify the alias**
 
-Run: `cd banking_api_server && npm run test:chips`
+Run: `cd demo_api_server && npm run test:chips`
 Expected: all green.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add banking_api_server/package.json
+git add demo_api_server/package.json
 git commit -m "test(chips): add test:chips alias for the deterministic chip CI suite
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
@@ -789,9 +789,9 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ## Verification (definition of done)
 
-- `cd banking_api_server && npm run test:chips` → all green (extractor + Heuristics-only every-chip + no-token 401).
-- `cd banking_api_ui && npx playwright test all-chips-pipeline.real.spec.js --config=playwright.real.config.js --list` → spec collected, skips cleanly without creds.
+- `cd demo_api_server && npm run test:chips` → all green (extractor + Heuristics-only every-chip + no-token 401).
+- `cd demo_api_ui && npx playwright test all-chips-pipeline.real.spec.js --config=playwright.real.config.js --list` → spec collected, skips cleanly without creds.
 - Manual real run (stack up, creds set, **Helix configured** via `/setup` / `HELIX_API_KEY` / `LLM2.json` — NOT vault): Conditions 1 & 3 green for all heuristic chips WITH a full exchange→gateway→authorize→token-chain trail; Condition 2 gate passes (Helix probe returns `source=helix`) and chips resolve+execute; no-token → 401; `helix_base_url` restored after the run. If Helix is unconfigured, Condition 2 FAILS LOUDLY with remediation text (by design — never a silent skip or false green).
-- No production source files modified. No `banking_api_ui` source change → UI build gate not triggered. No REGRESSION_PLAN §4 entry unless a real production bug was found and fixed during execution.
+- No production source files modified. No `demo_api_ui` source change → UI build gate not triggered. No REGRESSION_PLAN §4 entry unless a real production bug was found and fixed during execution.
 - No emojis introduced anywhere (CLAUDE.md §4 — only ⚠️ ✅ ❌ permitted; none used here).
 ```

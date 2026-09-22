@@ -171,7 +171,7 @@ describe("buildTraceSteps — Agent Gateway filter chain", () => {
     expect(stages[4].name).toBe("Backend token exchange");
   });
 
-  test("labels the PingGateway filters a live IG run actually reports", () => {
+  test("labels the PingOne Agent Gateway filters a live IG run actually reports", () => {
     // Confirmed live on the focus-mode dashboard: the IG route emits these three
     // rather than the Node gateway's GatewayTokenPolicy/mTLS/BackendExchange.
     const stages = buildGatewayStages([
@@ -227,7 +227,7 @@ describe("buildTraceSteps — Agent Gateway filter chain", () => {
   });
 
   test("a gateway permit that reports only its filter chain is drawn as done", () => {
-    // PingGateway permits often publish nothing but X-Gw-Audit-Trail.
+    // PingOne Agent Gateway permits often publish nothing but X-Gw-Audit-Trail.
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,
       outcome: "ok",
@@ -977,7 +977,7 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const trace = { ...EMPTY_TRACE,
       tokenEvents: [
         { id: 'evt-inbound', tokenType: 'access_token', credentialPath: 'api_key', status: 'ok', label: 'Inbound user bearer received' },
-        { id: 'vault-key-inject', tokenType: 'api_key', maskedValue: '...0000', credentialPath: 'api_key', status: 'ok', label: 'Vault key injected by PingGateway → invest' },
+        { id: 'vault-key-inject', tokenType: 'api_key', maskedValue: '...0000', credentialPath: 'api_key', status: 'ok', label: 'Vault key injected by PingOne Agent Gateway → invest' },
         { id: 'evt-swap', tokenType: 'api_key', maskedValue: '...0000', credentialPath: 'api_key', status: 'ok', label: 'Gateway swap: OAuth bearer dropped, service API key attached' },
         { id: 'evt-backend', tokenType: 'api_key', credentialPath: 'api_key', status: 'ok', label: 'Outbound GET demo_data_service /invest' },
       ],
@@ -1093,7 +1093,7 @@ describe("buildTraceSteps — not-in-path steps once the trace completes", () =>
     expect(steps.find((s) => s.id === "stepup").status).not.toBe("active");
   });
 
-  test("gateway_hitl_required (live PingGateway consent gate) marks step-up active", () => {
+  test("gateway_hitl_required (live PingOne Agent Gateway consent gate) marks step-up active", () => {
     const steps = buildTraceSteps({
       ...EMPTY_TRACE,
       phases: [{ phase: "gateway_hitl_required", label: "", detail: "" }],

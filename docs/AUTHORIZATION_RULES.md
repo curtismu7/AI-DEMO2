@@ -1,4 +1,4 @@
-# Authorization Rules — Banking Demo
+# Authorization Rules — AI Demo
 
 > **Purpose:** Reference document for building and auditing PingOne authorization policies for this demo.
 > Contains the real client IDs, resource server audiences, scope definitions, delegation rules, and HITL/step-up thresholds.
@@ -46,7 +46,7 @@
 | Role | Resource Name | Resource ID | Audience (`aud`) |
 |---|---|---|---|
 | User access token (BFF) | Demo API | `9b0f9ae4-463c-458e-9c5e-7e1dd8e6323d` | `enduser.ping.demo` |
-| Agent gateway token | Demo Agent Gateway | `ed88ddf3-065c-456b-a87b-4b44af85d33e` | `agentgateway.ping.demo` |
+| MCP Gateway token | Demo Agent Gateway | `ed88ddf3-065c-456b-a87b-4b44af85d33e` | `agentgateway.ping.demo` |
 | MCP Gateway token | Demo MCP Gateway | `fb2d09cb-4f45-4c1a-abef-695fb0adfc86` | `mcpgateway.ping.demo` |
 | MCP Server token | Demo MCP Server | `8fb4d1a8-3896-4a26-bf56-b678f2fcf15e` | `mcpserver.ping.demo` |
 

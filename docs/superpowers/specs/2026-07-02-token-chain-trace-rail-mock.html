@@ -318,7 +318,7 @@ resource=<span class="hl">https://mcp-gw.ping.demo</span></code>
       <summary><span class="st-ic ok">✓</span><span class="st-title">8. Agent Gateway — token validated</span><span class="lane gw">GATEWAY</span><span class="st-time">+1.4s</span></summary>
       <div class="step-body">
         <h4>What happened</h4>
-        Ping Agent Gateway (MCP gateway) checks the delegated token before anything reaches the MCP server: signature, <code style="display:inline">iss</code>/<code style="display:inline">aud</code>/<code style="display:inline">exp</code>, required scope for the tool, and the <code style="display:inline">act</code> delegation chain.
+        PingOne Agent Gateway (MCP gateway) checks the delegated token before anything reaches the MCP server: signature, <code style="display:inline">iss</code>/<code style="display:inline">aud</code>/<code style="display:inline">exp</code>, required scope for the tool, and the <code style="display:inline">act</code> delegation chain.
         <h4>Validation checks</h4>
         <div class="kv">
           <span class="k">signature</span><span class="v">✓ JWKS kid=rsa-1</span>

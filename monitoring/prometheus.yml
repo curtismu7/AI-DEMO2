@@ -4,7 +4,7 @@
 # (same trick as ping-gateway-config), so there is exactly one copy of this
 # config in the repo and both deployment targets read it.
 #
-# PingGateway publishes Prometheus metrics on its admin connector by default —
+# PingOne Agent Gateway publishes Prometheus metrics on its admin connector by default —
 # nothing to add there. The Node MCP/resource servers below were OTel-traces-only
 # (a different pipeline, to Jaeger) until each grew its own small prom-client
 # /metrics route (see demo_mcp_gateway/src/metrics.ts and its siblings) — small
@@ -12,7 +12,7 @@
 # rather than adding new instrumentation surface.
 #
 # Every target below serves /metrics unauthenticated, same posture as
-# PingGateway's own admin connector. All stay cluster-internal; only Grafana is
+# PingOne Agent Gateway's own admin connector. All stay cluster-internal; only Grafana is
 # reachable from outside.
 
 global:
@@ -34,7 +34,7 @@ alerting:
 
 scrape_configs:
   - job_name: pinggateway
-    # Version is part of the path — PingGateway 2026.x dropped the older
+    # Version is part of the path — PingOne Agent Gateway 2026.x dropped the older
     # /openig prefix, so this is the current location, not a legacy alias.
     metrics_path: /metrics/prometheus/0.0.4
     static_configs:

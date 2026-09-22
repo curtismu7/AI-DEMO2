@@ -215,7 +215,7 @@ describe("App.js — critical JSX placements", () => {
 });
 
 // ─── Gateway decisions panel — the decision feed's only screen ───────────────
-// PingGateway posts every P1AZ decision to /internal/gateway-decision and the
+// PingOne Agent Gateway posts every P1AZ decision to /internal/gateway-decision and the
 // panel reads it back. The panel's old host (McpGatewayConfig) is not routed
 // anywhere, so without this mount the feed has no screen at all.
 

@@ -1,7 +1,7 @@
 {
   "uid": "ai-demo-agent-gateway",
   "title": "Agent Gateway",
-  "description": "demo_mcp_gateway only — a separate service from PingGateway (ping-gateway), not a synonym for it. Node/TypeScript, its own OAuth broker and admin routing topology, used by external MCP clients and A2A delegation flows. The browser demo chat's banking chips do NOT route through here — those go through PingGateway's PingOne Authorize path instead (see the P1AZ Decisions and PingGateway dashboards). Empty panels here usually mean whatever you just drove used that other path, not that this one is broken.",
+  "description": "demo_mcp_gateway only — a separate service from PingOne Agent Gateway (ping-gateway), not a synonym for it. Node/TypeScript, its own OAuth broker and admin routing topology, used by external MCP clients and A2A delegation flows. The browser demo chat's banking chips do NOT route through here — those go through PingOne Agent Gateway's PingOne Authorize path instead (see the P1AZ Decisions and PingOne Agent Gateway dashboards). Empty panels here usually mean whatever you just drove used that other path, not that this one is broken.",
   "tags": ["ai-demo", "mcp", "agent-gateway"],
   "timezone": "browser",
   "schemaVersion": 39,

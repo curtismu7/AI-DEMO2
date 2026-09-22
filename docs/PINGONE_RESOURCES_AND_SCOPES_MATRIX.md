@@ -1,7 +1,7 @@
 # PingOne Resources × Applications × Scopes — Complete Matrix
 
 **Canonical as of Phase 146 (Scope Vocabulary Alignment, D-02).**  
-Code source of truth: `banking_api_server/config/scopes.js`, `config/oauth.js`, `config/oauthUser.js`, `banking_api_server/SCOPE_VOCABULARY.md`.
+Code source of truth: `demo_api_server/config/scopes.js`, `config/oauth.js`, `config/oauthUser.js`, `demo_api_server/SCOPE_VOCABULARY.md`.
 
 ---
 

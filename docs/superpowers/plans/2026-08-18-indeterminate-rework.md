@@ -75,7 +75,7 @@ the intended pause is.
 - Consumers include `transactionConsentChallenge`, `mcpToolPipeline`,
   `simulatedAuthorizeService`, `pingOneAuthorizeService`, `attackSimulatorService`,
   `authorizeLearningDemos`, `mcpGatewayClient`, `demo_mcp_gateway/src/hitlClient.ts`,
-  and PingGateway's Groovy `p1az-decision`
+  and PingOne Agent Gateway's Groovy `p1az-decision`
 - REGRESSION_PLAN §1 protected: UC7 step-up, UC8 HITL consent
 
 ## Two ways to reach the same end state
@@ -196,7 +196,7 @@ Each phase ships independently and leaves the suite green.
      destructive call UNGATED — and the mock half survived only via the
      `simulated || failoverUsed` escape hatch on bare INDETERMINATE, which
      phase 4 would have silently killed along with the whole destructive-tool
-     confirmation gate on the PingGateway path. #2133 adds `ELICITATION` (+
+     confirmation gate on the PingOne Agent Gateway path. #2133 adds `ELICITATION` (+
      `st.type` read, explicit `obligations[]` preferred, matching the Node
      client exactly), routes `obligationKind == 'elicitation'` through the
      human-approval branch, and RETIRES the engine-aware escape hatch — the

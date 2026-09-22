@@ -54,7 +54,7 @@ Notable shifts in the 2026 Hype Cycle read:
 |---|---|---|---|---|
 | CIAM for AI Agents | New 2026 | Yes | Strong | **Agent IAM Core** + PingOne CIAM — agents as first-class identities alongside customer IAM; delegated on-behalf-of flows |
 | AI Agent Identity | New 2026 | Yes | Strong | **Agent IAM Core** — register, own, lifecycle, authenticate agents; token exchange / autonomous credentials |
-| Authorization Management Platforms | New 2026 | Yes | Strong | **PingOne Authorize** / **PingAuthorize** — fine-grained, contextual policy at the moment of action; **Agent Gateway** (PingGateway) for MCP/API enforcement |
+| Authorization Management Platforms | New 2026 | Yes | Strong | **PingOne Authorize** / **PingAuthorize** — fine-grained, contextual policy at the moment of action; **Agent Gateway** (PingOne Agent Gateway) for MCP/API enforcement |
 | Intent-Based Access Control | New 2026 | No | Partial | Authorize decision attributes + **PingOne Protect** risk scores; no dedicated “intent” product — compose intent/context into Authorize |
 | Workload Access Management | New 2026 | No | Partial | **Agent Privilege** — JIT credential injection for MCP/Git/K8s; Agent Gateway; workload patterns via PingFederate / PingOne M2M |
 | Identity Security Posture Management | New 2026 | Yes | Partial | No standalone “ISPM” SKU. Closest: **PingOne Protect** risk/fraud dashboards + **Agent IAM Core** agent inventory / ownership / disable |
@@ -96,7 +96,7 @@ Requires `PING_ONE_CREDENTIALS` on the environment BOM.
 | Component | Role | Gartner categories it supports |
 |---|---|---|
 | **[Agent IAM Core](https://www.pingidentity.com/en/product/agent-iam-core.html)** | First-class agent identity, ownership, delegation, runtime authz | CIAM for AI Agents, AI Agent Identity, Authorization Management (runtime), ISPM (lifecycle teaser) |
-| **Agent Gateway** | MCP/API enforcement layer (PingGateway) | Authorization Management Platforms, Workload Access |
+| **Agent Gateway** | MCP/API enforcement layer (PingOne Agent Gateway) | Authorization Management Platforms, Workload Access |
 | **Agent Detection** (via **[PingOne Protect](https://www.pingidentity.com/en/product/pingone-protect.html)**) | Classify human vs agentic traffic; risk predictors | Workforce Impersonation Detection, ISPM (risk posture), Intent/risk-aware access |
 | **[Agent Privilege](https://www.pingidentity.com/en/product/agent-privilege.html)** | JIT privilege for MCP, Git, SSH, RDP, K8s, DBs | Workload Access Management, AI agent least privilege |
 
@@ -110,7 +110,7 @@ Works alongside existing CIAM, Workforce, and B2B Ping deployments without re-pl
 |---|---|
 | Agent IAM Core | CIAM for AI Agents, AI Agent Identity |
 | PingOne Authorize / PingAuthorize | Authorization Management Platforms, Intent-Based Access (compose) |
-| Agent Gateway (PingGateway) | Authorization Management, Workload Access |
+| Agent Gateway (PingOne Agent Gateway) | Authorization Management, Workload Access |
 | PingOne Protect (+ Agent Detection) | Impersonation Detection, ISPM (posture signals), risk for IBAC |
 | PingOne DaVinci | Journey-Time Orchestration |
 | PingOne Credentials + Wallet SDKs | VCs, OID4VC, Decentralized Identity, Identity Wallets |

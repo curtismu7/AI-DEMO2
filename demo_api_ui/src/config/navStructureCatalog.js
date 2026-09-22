@@ -6,7 +6,7 @@
 
 export const NAV_STRUCTURE_CATALOG = [
   { label: "Home" },
-  { label: "Dashboard" },
+  { label: "Security Dashboard" },
   { label: "Themes" },
   { label: "AI Gateway", children: [
     "AI Guard", "Protocol Playground", "AI Gateway Client", "LLM Gateway", "Intent Inspector", "Audit Agent",
@@ -70,7 +70,7 @@ export const NAV_STRUCTURE_CATALOG = [
   ] },
   { label: "Administration", children: [
     "Feature Flags", "LLM Config", "Secret Rotation", "App Configuration", "Security Settings", "CIMD Simulation",
-    "Demo Config", "PingOne Admin Dashboard", "Banking Ops", "Healthcare Ops", "Retail Ops", "Sporting Goods Ops", "Workforce Ops",
+    "Demo Config", "PingOne Admin", "Banking Ops", "Healthcare Ops", "Retail Ops", "Sporting Goods Ops", "Workforce Ops",
     "Vertical Editor", "Mortgage Path", "Users", "Accounts", "Transactions", "OIDC Resource Server", "CC Resource Server",
   ] },
 ];

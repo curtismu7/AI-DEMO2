@@ -47,7 +47,7 @@
           <mxGeometry x="490" y="70" width="220" height="24" as="geometry" />
         </mxCell>
 
-        <mxCell id="req-arrives" value="API Request arrives&#xa;at BFF (banking_api_server)&#xa;Authorization: Bearer &lt;token&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef9e7;strokeColor=#f39c12;fontColor=#1a252f;fontStyle=1;" vertex="1" parent="1">
+        <mxCell id="req-arrives" value="API Request arrives&#xa;at BFF (demo_api_server)&#xa;Authorization: Bearer &lt;token&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef9e7;strokeColor=#f39c12;fontColor=#1a252f;fontStyle=1;" vertex="1" parent="1">
           <mxGeometry x="500" y="110" width="200" height="70" as="geometry" />
         </mxCell>
 

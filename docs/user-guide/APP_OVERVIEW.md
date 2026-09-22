@@ -181,7 +181,7 @@ Comprehensive breakdown of all **13 services** (Node.js, TypeScript, and Python)
 
 **Architecture Pattern:**
 - User → BFF (bearer token)
-- Gateway → Mortgage Service (API key)
+- Gateway → Mortgage Resource Server (API key)
 - The **gateway** swaps the user/agent bearer token for a service-specific API key at its trust boundary — the BFF never performs this swap
 - User has no visibility into mortgage APIs; only the gateway can invoke them
 
@@ -336,8 +336,8 @@ python3 -m venv .venv
       ├→ MCP Gateway (gw:3005)
       │  │  [gateway swaps token → API key at its trust boundary]
       │  ├→ MCP Server (mcp:8080) → BankingAPIClient → BFF /api/
-      │  ├→ MCP Invest (inv:8081)
-      │  ├→ Mortgage Service (mort:8082) [via gateway API-key swap]
+      │  ├→ Demo MCP Resource Server (inv:8081)
+      │  ├→ Mortgage Resource Server (mort:8082) [via gateway API-key swap]
       │  └→ Mock Authz Server (authz:9001) [policy decisions]
       │
       ├→ HITL Service (hitl:3009)

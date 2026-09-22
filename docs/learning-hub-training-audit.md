@@ -101,7 +101,7 @@ These topics have useful content but do not consistently give the learner a runn
 - Introspection (RFC 7662)
 - Agent Gateway pattern
 - Computer Use Agent
-- Ping Agent Gateway Security
+- PingOne Agent Gateway Security
 - SPIFFE / SVID Workload Identity
 - ID-JAG / Cross-App Access
 - Architecture Diagram

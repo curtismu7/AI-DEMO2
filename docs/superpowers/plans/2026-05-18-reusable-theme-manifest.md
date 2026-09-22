@@ -4,11 +4,11 @@
 
 **Goal:** Make one Theme Manifest per vertical the single source of truth for all theme-varying presentation, with banking as the first consumer and Best Buy retail as the first non-default theme, without touching the AI/OAuth/MCP pipeline.
 
-**Architecture:** A v2 JSON manifest at `banking_api_server/config/verticals/<id>.json` carries identity strings, CSS vars, terminology, agent persona/greeting, and dashboard config. The server serves the active manifest via the existing `/api/config/vertical` route. A single client `ThemeProvider`/`useTheme()` replaces `VerticalContext` + `IndustryBrandingContext`. Components that hardcode banking strings read the manifest instead. A `<ThemePicker>` (toolbar + config variants) lets users switch the server-wide active theme.
+**Architecture:** A v2 JSON manifest at `demo_api_server/config/verticals/<id>.json` carries identity strings, CSS vars, terminology, agent persona/greeting, and dashboard config. The server serves the active manifest via the existing `/api/config/vertical` route. A single client `ThemeProvider`/`useTheme()` replaces `VerticalContext` + `IndustryBrandingContext`. Components that hardcode banking strings read the manifest instead. A `<ThemePicker>` (toolbar + config variants) lets users switch the server-wide active theme.
 
 **Tech Stack:** Node/Express (CommonJS) BFF, React 18 (CRA, ES modules in `.js`), Jest + React Testing Library, Playwright (chip pipeline e2e).
 
-**Data-scope note (decided 2026-05-18):** Phase 1 is presentation-only. Real tool data is **intentionally NOT themed**: `banking_api_server/data/store.js` LMDB-backed accounts/transactions still return `"Checking"/"Savings"/"Deposit"`, and `banking_api_resource_server/mortgageServer.js` (api_key disposition via `show_mortgage`) still returns the hardcoded `$425,000 / 6.125%` mortgage payload. Under Best Buy the agent's tool calls return banking data; the retail experience is carried by `<RetailDashboard>`'s manifest mock data + chip labels + greeting. Relabeling returned data / real retail responses is the **Phase 2 boundary** — do not touch `store.js`, the mortgage service, the gateway, or MCP in this plan.
+**Data-scope note (decided 2026-05-18):** Phase 1 is presentation-only. Real tool data is **intentionally NOT themed**: `demo_api_server/data/store.js` LMDB-backed accounts/transactions still return `"Checking"/"Savings"/"Deposit"`, and `banking_api_resource_server/mortgageServer.js` (api_key disposition via `show_mortgage`) still returns the hardcoded `$425,000 / 6.125%` mortgage payload. Under Best Buy the agent's tool calls return banking data; the retail experience is carried by `<RetailDashboard>`'s manifest mock data + chip labels + greeting. Relabeling returned data / real retail responses is the **Phase 2 boundary** — do not touch `store.js`, the mortgage service, the gateway, or MCP in this plan.
 
 **TASK 17 DESCOPED (decided 2026-05-19, user-approved):** The original
 Task 17 (delete `IndustryBrandingContext`/`VerticalContext` shims +
@@ -25,9 +25,9 @@ single-source-of-truth goal is achieved: all theme state flows from the one
 `ThemeContext`; the shims are thin pass-throughs to it.
 
 **PLAN DEFECT + CORRECTION (discovered 2026-05-19 during Task 5 execution):**
-The plan's research **missed** that `banking_api_ui/src/context/ThemeContext.js`
+The plan's research **missed** that `demo_api_ui/src/context/ThemeContext.js`
 **already exists** as the light/dark-mode switcher, is mounted as
-`<ThemeProvider>` at the ROOT in `banking_api_ui/src/index.js:45`, and is
+`<ThemeProvider>` at the ROOT in `demo_api_ui/src/index.js:45`, and is
 consumed by 10+ files (`{ theme, toggleTheme, agentAppearance, ... }`).
 Corrections applied during execution:
 - **Task 5 (done):** `ThemeContext.js` was **merged** (light/dark API fully
@@ -51,14 +51,14 @@ Corrections applied during execution:
 
 ## File Structure
 
-**Server (`banking_api_server/`):**
+**Server (`demo_api_server/`):**
 - `config/verticals/banking.json` — migrate to schemaVersion 2 (default + fallback + real consumer)
 - `config/verticals/retail.json` — migrate to schemaVersion 2 (Best Buy identity/colors/strings)
 - `services/verticalConfigService.js` — add `getActiveManifest()` + schema validation in `loadVerticals()`
 - `routes/verticalConfig.js` — no logic change (PUT is already auth-only, not admin-only); add a clarifying comment
 - `src/__tests__/verticalConfigService.test.js` — **new** unit tests (manifest load, validation, fallback)
 
-**Client (`banking_api_ui/src/`):**
+**Client (`demo_api_ui/src/`):**
 - `context/ThemeContext.js` — **new** `ThemeProvider` + `useTheme()` (replaces both contexts)
 - `context/IndustryBrandingContext.js` — becomes a thin shim re-exporting from `useTheme()`
 - `context/VerticalContext.js` — becomes a thin shim re-exporting from `useTheme()`
@@ -82,7 +82,7 @@ Corrections applied during execution:
 ## Task 1: v2 manifest schema — banking.json
 
 **Files:**
-- Modify: `banking_api_server/config/verticals/banking.json`
+- Modify: `demo_api_server/config/verticals/banking.json`
 
 - [ ] **Step 1: Rewrite banking.json to schemaVersion 2**
 
@@ -97,7 +97,7 @@ Replace the entire file with (cssVars transcribed from the current effective `:r
     "headerTitle": "Super Banking",
     "documentTitle": "Super Banking · PingOne AI IAM Core",
     "logoAlt": "Super Banking logo",
-    "tagline": "AI-Powered Banking Demo",
+    "tagline": "AI-Powered AI Demo",
     "logoPath": "/super-bank-icon.png"
   },
   "theme": {
@@ -158,13 +158,13 @@ Note: `scopes`/`demoUsers` are retained verbatim (spec Section 2 constraint — 
 
 - [ ] **Step 2: Validate JSON parses**
 
-Run: `node -e "JSON.parse(require('fs').readFileSync('banking_api_server/config/verticals/banking.json','utf8')); console.log('OK')"`
+Run: `node -e "JSON.parse(require('fs').readFileSync('demo_api_server/config/verticals/banking.json','utf8')); console.log('OK')"`
 Expected: `OK`
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add banking_api_server/config/verticals/banking.json
+git add demo_api_server/config/verticals/banking.json
 git commit -m "feat(theme): banking.json v2 manifest schema"
 ```
 
@@ -173,7 +173,7 @@ git commit -m "feat(theme): banking.json v2 manifest schema"
 ## Task 2: v2 manifest schema — retail.json (Best Buy)
 
 **Files:**
-- Modify: `banking_api_server/config/verticals/retail.json`
+- Modify: `demo_api_server/config/verticals/retail.json`
 
 - [ ] **Step 1: Rewrite retail.json to schemaVersion 2 with Best Buy identity**
 
@@ -265,13 +265,13 @@ git commit -m "feat(theme): banking.json v2 manifest schema"
 
 - [ ] **Step 2: Validate JSON parses**
 
-Run: `node -e "JSON.parse(require('fs').readFileSync('banking_api_server/config/verticals/retail.json','utf8')); console.log('OK')"`
+Run: `node -e "JSON.parse(require('fs').readFileSync('demo_api_server/config/verticals/retail.json','utf8')); console.log('OK')"`
 Expected: `OK`
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add banking_api_server/config/verticals/retail.json
+git add demo_api_server/config/verticals/retail.json
 git commit -m "feat(theme): retail.json v2 manifest (Best Buy)"
 ```
 
@@ -280,12 +280,12 @@ git commit -m "feat(theme): retail.json v2 manifest (Best Buy)"
 ## Task 3: Server — getActiveManifest() + schema validation
 
 **Files:**
-- Modify: `banking_api_server/services/verticalConfigService.js`
-- Test: `banking_api_server/src/__tests__/verticalConfigService.test.js` (new)
+- Modify: `demo_api_server/services/verticalConfigService.js`
+- Test: `demo_api_server/src/__tests__/verticalConfigService.test.js` (new)
 
 - [ ] **Step 1: Write the failing test**
 
-Create `banking_api_server/src/__tests__/verticalConfigService.test.js`:
+Create `demo_api_server/src/__tests__/verticalConfigService.test.js`:
 
 ```javascript
 jest.mock('../../services/configStore', () => ({
@@ -336,7 +336,7 @@ describe('verticalConfigService v2', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_server && npx jest src/__tests__/verticalConfigService.test.js`
+Run: `cd demo_api_server && npx jest src/__tests__/verticalConfigService.test.js`
 Expected: FAIL — `svc.getActiveManifest is not a function`
 
 - [ ] **Step 3: Add validation + getActiveManifest to verticalConfigService.js**
@@ -380,13 +380,13 @@ Add `getActiveManifest` to the `module.exports` object.
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd banking_api_server && npx jest src/__tests__/verticalConfigService.test.js`
+Run: `cd demo_api_server && npx jest src/__tests__/verticalConfigService.test.js`
 Expected: PASS — 4 passed
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add banking_api_server/services/verticalConfigService.js banking_api_server/src/__tests__/verticalConfigService.test.js
+git add demo_api_server/services/verticalConfigService.js demo_api_server/src/__tests__/verticalConfigService.test.js
 git commit -m "feat(theme): getActiveManifest + v2 schema validation"
 ```
 
@@ -395,7 +395,7 @@ git commit -m "feat(theme): getActiveManifest + v2 schema validation"
 ## Task 4: Server — GET /api/config/vertical returns v2 manifest additively
 
 **Files:**
-- Modify: `banking_api_server/routes/verticalConfig.js`
+- Modify: `demo_api_server/routes/verticalConfig.js`
 
 - [ ] **Step 1: Update GET handler to return the manifest additively**
 
@@ -441,13 +441,13 @@ The PUT handler is already auth-only (no admin gate). Add above `router.put('/',
 
 - [ ] **Step 3: Run server tests**
 
-Run: `cd banking_api_server && npx jest src/__tests__/verticalConfigService.test.js`
+Run: `cd demo_api_server && npx jest src/__tests__/verticalConfigService.test.js`
 Expected: PASS (no regression)
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add banking_api_server/routes/verticalConfig.js
+git add demo_api_server/routes/verticalConfig.js
 git commit -m "feat(theme): serve v2 manifest additively; document PUT auth"
 ```
 
@@ -456,12 +456,12 @@ git commit -m "feat(theme): serve v2 manifest additively; document PUT auth"
 ## Task 5: Client — ThemeProvider / useTheme()
 
 **Files:**
-- Create: `banking_api_ui/src/context/ThemeContext.js`
-- Test: `banking_api_ui/src/components/__tests__/ThemeContext.test.js` (new)
+- Create: `demo_api_ui/src/context/ThemeContext.js`
+- Test: `demo_api_ui/src/components/__tests__/ThemeContext.test.js` (new)
 
 - [ ] **Step 1: Write the failing test**
 
-Create `banking_api_ui/src/components/__tests__/ThemeContext.test.js`:
+Create `demo_api_ui/src/components/__tests__/ThemeContext.test.js`:
 
 ```javascript
 import React from 'react';
@@ -498,13 +498,13 @@ test('useTheme exposes manifest fields and applies cssVars', async () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/ThemeContext.test.js`
+Run: `cd demo_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/ThemeContext.test.js`
 Expected: FAIL — cannot find module `../../context/ThemeContext`
 
 - [ ] **Step 3: Create ThemeContext.js**
 
 ```javascript
-// banking_api_ui/src/context/ThemeContext.js
+// demo_api_ui/src/context/ThemeContext.js
 import React, {
   createContext, useContext, useState, useEffect, useCallback, useMemo,
 } from 'react';
@@ -597,13 +597,13 @@ export function useTheme() {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd banking_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/ThemeContext.test.js`
+Run: `cd demo_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/ThemeContext.test.js`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add banking_api_ui/src/context/ThemeContext.js banking_api_ui/src/components/__tests__/ThemeContext.test.js
+git add demo_api_ui/src/context/ThemeContext.js demo_api_ui/src/components/__tests__/ThemeContext.test.js
 git commit -m "feat(theme): ThemeProvider/useTheme single context"
 ```
 
@@ -612,16 +612,16 @@ git commit -m "feat(theme): ThemeProvider/useTheme single context"
 ## Task 6: Wire ThemeProvider into App.js; make old contexts shims
 
 **Files:**
-- Modify: `banking_api_ui/src/App.js:111,114,1482-1486`
-- Modify: `banking_api_ui/src/context/IndustryBrandingContext.js`
-- Modify: `banking_api_ui/src/context/VerticalContext.js`
+- Modify: `demo_api_ui/src/App.js:111,114,1482-1486`
+- Modify: `demo_api_ui/src/context/IndustryBrandingContext.js`
+- Modify: `demo_api_ui/src/context/VerticalContext.js`
 
 - [ ] **Step 1: Make IndustryBrandingContext a shim**
 
-Replace the entire contents of `banking_api_ui/src/context/IndustryBrandingContext.js`:
+Replace the entire contents of `demo_api_ui/src/context/IndustryBrandingContext.js`:
 
 ```javascript
-// banking_api_ui/src/context/IndustryBrandingContext.js
+// demo_api_ui/src/context/IndustryBrandingContext.js
 // SHIM: superseded by ThemeContext. Kept so existing imports keep working
 // during incremental migration; removed in the cleanup task once unused.
 import { useTheme } from './ThemeContext';
@@ -644,10 +644,10 @@ export function useIndustryBranding() {
 
 - [ ] **Step 2: Make VerticalContext a shim**
 
-Replace the entire contents of `banking_api_ui/src/context/VerticalContext.js`:
+Replace the entire contents of `demo_api_ui/src/context/VerticalContext.js`:
 
 ```javascript
-// banking_api_ui/src/context/VerticalContext.js
+// demo_api_ui/src/context/VerticalContext.js
 // SHIM: superseded by ThemeContext. Removed in the cleanup task once unused.
 import { useTheme } from './ThemeContext';
 
@@ -691,18 +691,18 @@ At `App.js:1482-1486`, replace:
 
 - [ ] **Step 4: Build the UI**
 
-Run: `cd banking_api_ui && npm run build`
+Run: `cd demo_api_ui && npm run build`
 Expected: exit 0
 
 - [ ] **Step 5: Run the existing UI test suite (no regression)**
 
-Run: `cd banking_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/ThemeContext.test.js`
+Run: `cd demo_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/ThemeContext.test.js`
 Expected: PASS
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add banking_api_ui/src/App.js banking_api_ui/src/context/IndustryBrandingContext.js banking_api_ui/src/context/VerticalContext.js
+git add demo_api_ui/src/App.js demo_api_ui/src/context/IndustryBrandingContext.js demo_api_ui/src/context/VerticalContext.js
 git commit -m "refactor(theme): single ThemeProvider; old contexts become shims"
 ```
 
@@ -711,12 +711,12 @@ git commit -m "refactor(theme): single ThemeProvider; old contexts become shims"
 ## Task 7: DashboardHeader reads manifest identity (regression checkpoint)
 
 **Files:**
-- Modify: `banking_api_ui/src/components/DashboardHeader.js`
-- Test: `banking_api_ui/src/components/__tests__/DashboardHeader.theme.test.js` (new)
+- Modify: `demo_api_ui/src/components/DashboardHeader.js`
+- Test: `demo_api_ui/src/components/__tests__/DashboardHeader.theme.test.js` (new)
 
 - [ ] **Step 1: Write the failing test**
 
-Create `banking_api_ui/src/components/__tests__/DashboardHeader.theme.test.js`:
+Create `demo_api_ui/src/components/__tests__/DashboardHeader.theme.test.js`:
 
 ```javascript
 import React from 'react';
@@ -748,7 +748,7 @@ test('header renders manifest headerTitle and logo alt', async () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/DashboardHeader.theme.test.js`
+Run: `cd demo_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/DashboardHeader.theme.test.js`
 Expected: FAIL — finds hardcoded "Super Banking", not "Best Buy"
 
 - [ ] **Step 3: Update DashboardHeader.js**
@@ -794,18 +794,18 @@ export default DashboardHeader;
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd banking_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/DashboardHeader.theme.test.js`
+Run: `cd demo_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/DashboardHeader.theme.test.js`
 Expected: PASS
 
 - [ ] **Step 5: Build the UI**
 
-Run: `cd banking_api_ui && npm run build`
+Run: `cd demo_api_ui && npm run build`
 Expected: exit 0
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add banking_api_ui/src/components/DashboardHeader.js banking_api_ui/src/components/__tests__/DashboardHeader.theme.test.js
+git add demo_api_ui/src/components/DashboardHeader.js demo_api_ui/src/components/__tests__/DashboardHeader.theme.test.js
 git commit -m "feat(theme): DashboardHeader reads manifest identity"
 ```
 
@@ -814,7 +814,7 @@ git commit -m "feat(theme): DashboardHeader reads manifest identity"
 ## Task 8: Neutral index.html title (runtime title owned by ThemeProvider)
 
 **Files:**
-- Modify: `banking_api_ui/public/index.html:15,18`
+- Modify: `demo_api_ui/public/index.html:15,18`
 
 - [ ] **Step 1: Replace hardcoded title + og:title with neutral placeholder**
 
@@ -840,13 +840,13 @@ to:
 
 - [ ] **Step 2: Build the UI**
 
-Run: `cd banking_api_ui && npm run build`
+Run: `cd demo_api_ui && npm run build`
 Expected: exit 0
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add banking_api_ui/public/index.html
+git add demo_api_ui/public/index.html
 git commit -m "feat(theme): neutral static title; runtime title from manifest"
 ```
 
@@ -855,12 +855,12 @@ git commit -m "feat(theme): neutral static title; runtime title from manifest"
 ## Task 9: BankingAgent greeting from manifest (remove isRetail ternary)
 
 **Files:**
-- Modify: `banking_api_ui/src/components/BankingAgent.js:11,1534-1560,1643` + 5 `welcomeMessage(` call sites
-- Test: `banking_api_ui/src/components/__tests__/BankingAgent.greeting.test.js` (new)
+- Modify: `demo_api_ui/src/components/BankingAgent.js:11,1534-1560,1643` + 5 `welcomeMessage(` call sites
+- Test: `demo_api_ui/src/components/__tests__/BankingAgent.greeting.test.js` (new)
 
 - [ ] **Step 1: Write the failing test**
 
-Create `banking_api_ui/src/components/__tests__/BankingAgent.greeting.test.js`:
+Create `demo_api_ui/src/components/__tests__/BankingAgent.greeting.test.js`:
 
 ```javascript
 import { buildCustomerGreeting } from '../BankingAgent';
@@ -881,7 +881,7 @@ test('buildCustomerGreeting falls back when no manifest greeting', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/BankingAgent.greeting.test.js`
+Run: `cd demo_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/BankingAgent.greeting.test.js`
 Expected: FAIL — `buildCustomerGreeting` not exported
 
 - [ ] **Step 3: Add exported helper; remove isRetail ternary; drop industryPresetId param**
@@ -927,13 +927,13 @@ At the 5 `welcomeMessage(` call sites (lines ~2278, 2339, 2388, 2595, 2641): rep
 
 - [ ] **Step 4: Run test + build**
 
-Run: `cd banking_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/BankingAgent.greeting.test.js && npm run build`
+Run: `cd demo_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/BankingAgent.greeting.test.js && npm run build`
 Expected: tests PASS, build exit 0
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add banking_api_ui/src/components/BankingAgent.js banking_api_ui/src/components/__tests__/BankingAgent.greeting.test.js
+git add demo_api_ui/src/components/BankingAgent.js demo_api_ui/src/components/__tests__/BankingAgent.greeting.test.js
 git commit -m "feat(theme): agent greeting from manifest; remove isRetail ternary"
 ```
 
@@ -942,12 +942,12 @@ git commit -m "feat(theme): agent greeting from manifest; remove isRetail ternar
 ## Task 10: BankingChips labels overlaid from manifest (keys unchanged)
 
 **Files:**
-- Modify: `banking_api_ui/src/components/BankingChips.jsx:4-22`
-- Test: `banking_api_ui/src/components/__tests__/BankingChips.theme.test.js` (new)
+- Modify: `demo_api_ui/src/components/BankingChips.jsx:4-22`
+- Test: `demo_api_ui/src/components/__tests__/BankingChips.theme.test.js` (new)
 
 - [ ] **Step 1: Write the failing test**
 
-Create `banking_api_ui/src/components/__tests__/BankingChips.theme.test.js`:
+Create `demo_api_ui/src/components/__tests__/BankingChips.theme.test.js`:
 
 ```javascript
 import { applyChipLabels } from '../BankingChips';
@@ -973,7 +973,7 @@ test('applyChipLabels returns originals when no manifest chips', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/BankingChips.theme.test.js`
+Run: `cd demo_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/BankingChips.theme.test.js`
 Expected: FAIL — `applyChipLabels` not exported
 
 - [ ] **Step 3: Add applyChipLabels; consume useTheme for labels only**
@@ -1004,18 +1004,18 @@ Use `heuristicChips` instead of `HEURISTIC_CHIPS` in the render path (only the h
 
 - [ ] **Step 4: Run test + build**
 
-Run: `cd banking_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/BankingChips.theme.test.js && npm run build`
+Run: `cd demo_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/BankingChips.theme.test.js && npm run build`
 Expected: tests PASS, build exit 0
 
 - [ ] **Step 5: Run the skip-proof chip pipeline suite (hard gate)**
 
-Run: `cd banking_api_ui && npx playwright test all-chips-pipeline.real.spec.js`
-Expected: PASS — every chip still routes (no skips, no 401). If unavailable in the environment, run `cd banking_api_ui && npm run test:e2e:ui:smoke` and note the chip pipeline must be verified before merge.
+Run: `cd demo_api_ui && npx playwright test all-chips-pipeline.real.spec.js`
+Expected: PASS — every chip still routes (no skips, no 401). If unavailable in the environment, run `cd demo_api_ui && npm run test:e2e:ui:smoke` and note the chip pipeline must be verified before merge.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add banking_api_ui/src/components/BankingChips.jsx banking_api_ui/src/components/__tests__/BankingChips.theme.test.js
+git add demo_api_ui/src/components/BankingChips.jsx demo_api_ui/src/components/__tests__/BankingChips.theme.test.js
 git commit -m "feat(theme): chip labels from manifest; routing keys invariant"
 ```
 
@@ -1024,13 +1024,13 @@ git commit -m "feat(theme): chip labels from manifest; routing keys invariant"
 ## Task 11: RetailDashboard component (product/cart/orders, manifest-driven)
 
 **Files:**
-- Create: `banking_api_ui/src/components/RetailDashboard.js`
-- Create: `banking_api_ui/src/components/RetailDashboard.css`
-- Test: `banking_api_ui/src/components/__tests__/RetailDashboard.test.js` (new)
+- Create: `demo_api_ui/src/components/RetailDashboard.js`
+- Create: `demo_api_ui/src/components/RetailDashboard.css`
+- Test: `demo_api_ui/src/components/__tests__/RetailDashboard.test.js` (new)
 
 - [ ] **Step 1: Write the failing test**
 
-Create `banking_api_ui/src/components/__tests__/RetailDashboard.test.js`:
+Create `demo_api_ui/src/components/__tests__/RetailDashboard.test.js`:
 
 ```javascript
 import React from 'react';
@@ -1063,13 +1063,13 @@ test('renders nothing harmful when data missing', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/RetailDashboard.test.js`
+Run: `cd demo_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/RetailDashboard.test.js`
 Expected: FAIL — cannot find module `../RetailDashboard`
 
 - [ ] **Step 3: Create RetailDashboard.js**
 
 ```javascript
-// banking_api_ui/src/components/RetailDashboard.js
+// demo_api_ui/src/components/RetailDashboard.js
 // Phase 1 retail dashboard: product grid + local cart + recent orders.
 // Mock data comes from the theme manifest (manifest.dashboard.mockData).
 // No real persistence — Phase 2 owns real retail MCP tools.
@@ -1145,7 +1145,7 @@ export default function RetailDashboard({ data }) {
 - [ ] **Step 4: Create RetailDashboard.css**
 
 ```css
-/* banking_api_ui/src/components/RetailDashboard.css */
+/* demo_api_ui/src/components/RetailDashboard.css */
 .retail-dashboard { display: flex; flex-direction: column; gap: 24px; }
 .retail-section-title { font-size: 18px; font-weight: 600; margin: 0 0 12px; color: #1e293b; }
 .retail-product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
@@ -1167,13 +1167,13 @@ export default function RetailDashboard({ data }) {
 
 - [ ] **Step 5: Run test + build**
 
-Run: `cd banking_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/RetailDashboard.test.js && npm run build`
+Run: `cd demo_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/RetailDashboard.test.js && npm run build`
 Expected: tests PASS, build exit 0
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add banking_api_ui/src/components/RetailDashboard.js banking_api_ui/src/components/RetailDashboard.css banking_api_ui/src/components/__tests__/RetailDashboard.test.js
+git add demo_api_ui/src/components/RetailDashboard.js demo_api_ui/src/components/RetailDashboard.css demo_api_ui/src/components/__tests__/RetailDashboard.test.js
 git commit -m "feat(theme): RetailDashboard product/cart/orders component"
 ```
 
@@ -1182,11 +1182,11 @@ git commit -m "feat(theme): RetailDashboard product/cart/orders component"
 ## Task 12: UserDashboard branches on manifest.dashboard.kind
 
 **Files:**
-- Modify: `banking_api_ui/src/components/UserDashboard.js:2531` (DashboardHeader render area / `renderBankingMain`)
+- Modify: `demo_api_ui/src/components/UserDashboard.js:2531` (DashboardHeader render area / `renderBankingMain`)
 
 - [ ] **Step 1: Locate the main banking render**
 
-Run: `cd banking_api_ui && grep -n "renderBankingMain\|DashboardHeader\|splitGridClass(showBankingInMiddle)" src/components/UserDashboard.js | head`
+Run: `cd demo_api_ui && grep -n "renderBankingMain\|DashboardHeader\|splitGridClass(showBankingInMiddle)" src/components/UserDashboard.js | head`
 Expected: identifies the function/JSX that renders the banking account view (the `renderBankingMain` body).
 
 - [ ] **Step 2: Import useTheme and RetailDashboard**
@@ -1217,7 +1217,7 @@ At the point where the banking account view is rendered (the `renderBankingMain(
 
 - [ ] **Step 4: Build the UI**
 
-Run: `cd banking_api_ui && npm run build`
+Run: `cd demo_api_ui && npm run build`
 Expected: exit 0
 
 - [ ] **Step 5: Manual sanity (documented expectation)**
@@ -1227,7 +1227,7 @@ With banking active (default), the dashboard renders exactly as before (no retai
 - [ ] **Step 6: Commit**
 
 ```bash
-git add banking_api_ui/src/components/UserDashboard.js
+git add demo_api_ui/src/components/UserDashboard.js
 git commit -m "feat(theme): UserDashboard branches on manifest dashboard.kind"
 ```
 
@@ -1236,13 +1236,13 @@ git commit -m "feat(theme): UserDashboard branches on manifest dashboard.kind"
 ## Task 13: ThemePicker component (toolbar + config variants)
 
 **Files:**
-- Create: `banking_api_ui/src/components/ThemePicker.js`
-- Create: `banking_api_ui/src/components/ThemePicker.css`
-- Test: `banking_api_ui/src/components/__tests__/ThemePicker.test.js` (new)
+- Create: `demo_api_ui/src/components/ThemePicker.js`
+- Create: `demo_api_ui/src/components/ThemePicker.css`
+- Test: `demo_api_ui/src/components/__tests__/ThemePicker.test.js` (new)
 
 - [ ] **Step 1: Write the failing test**
 
-Create `banking_api_ui/src/components/__tests__/ThemePicker.test.js`:
+Create `demo_api_ui/src/components/__tests__/ThemePicker.test.js`:
 
 ```javascript
 import React from 'react';
@@ -1282,13 +1282,13 @@ test('lists themes and PUTs on change', async () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/ThemePicker.test.js`
+Run: `cd demo_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/ThemePicker.test.js`
 Expected: FAIL — cannot find module `../ThemePicker`
 
 - [ ] **Step 3: Create ThemePicker.js**
 
 ```javascript
-// banking_api_ui/src/components/ThemePicker.js
+// demo_api_ui/src/components/ThemePicker.js
 // Server-wide theme switcher. Same PUT /api/config/vertical path as the admin
 // Config UI (single source of truth). variant: 'toolbar' | 'config'.
 import React, { useEffect, useState } from 'react';
@@ -1348,7 +1348,7 @@ export default function ThemePicker({ variant = 'toolbar' }) {
 - [ ] **Step 4: Create ThemePicker.css**
 
 ```css
-/* banking_api_ui/src/components/ThemePicker.css */
+/* demo_api_ui/src/components/ThemePicker.css */
 .theme-picker { display: inline-flex; align-items: center; gap: 6px; }
 .theme-picker__label { font-size: 12px; font-weight: 600; color: #1e293b; }
 .theme-picker__select { font-size: 13px; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; min-height: 32px; cursor: pointer; }
@@ -1360,13 +1360,13 @@ export default function ThemePicker({ variant = 'toolbar' }) {
 
 - [ ] **Step 5: Run test + build**
 
-Run: `cd banking_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/ThemePicker.test.js && npm run build`
+Run: `cd demo_api_ui && npx react-scripts test --watchAll=false src/components/__tests__/ThemePicker.test.js && npm run build`
 Expected: tests PASS, build exit 0
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add banking_api_ui/src/components/ThemePicker.js banking_api_ui/src/components/ThemePicker.css banking_api_ui/src/components/__tests__/ThemePicker.test.js
+git add demo_api_ui/src/components/ThemePicker.js demo_api_ui/src/components/ThemePicker.css demo_api_ui/src/components/__tests__/ThemePicker.test.js
 git commit -m "feat(theme): ThemePicker switcher (toolbar + config variants)"
 ```
 
@@ -1375,7 +1375,7 @@ git commit -m "feat(theme): ThemePicker switcher (toolbar + config variants)"
 ## Task 14: Mount ThemePicker in UserDashboard toolbar
 
 **Files:**
-- Modify: `banking_api_ui/src/components/UserDashboard.js:2539` (the `dashboard-toolbar` row)
+- Modify: `demo_api_ui/src/components/UserDashboard.js:2539` (the `dashboard-toolbar` row)
 
 - [ ] **Step 1: Import ThemePicker**
 
@@ -1400,13 +1400,13 @@ Insert the picker as the first control so it sits near the top-left of the toolb
 
 - [ ] **Step 3: Build the UI**
 
-Run: `cd banking_api_ui && npm run build`
+Run: `cd demo_api_ui && npm run build`
 Expected: exit 0
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add banking_api_ui/src/components/UserDashboard.js
+git add demo_api_ui/src/components/UserDashboard.js
 git commit -m "feat(theme): mount ThemePicker in dashboard toolbar"
 ```
 
@@ -1415,11 +1415,11 @@ git commit -m "feat(theme): mount ThemePicker in dashboard toolbar"
 ## Task 15: Repoint Config UI industry picker to ThemePicker
 
 **Files:**
-- Modify: `banking_api_ui/src/components/Config.js:1710-1765` (the "Industry & branding" card)
+- Modify: `demo_api_ui/src/components/Config.js:1710-1765` (the "Industry & branding" card)
 
 - [ ] **Step 1: Locate the industry-branding block**
 
-Run: `cd banking_api_ui && grep -n "INDUSTRY_PRESETS\|ui_industry_preset\|Industry & branding\|applyIndustryId" src/components/Config.js | head`
+Run: `cd demo_api_ui && grep -n "INDUSTRY_PRESETS\|ui_industry_preset\|Industry & branding\|applyIndustryId" src/components/Config.js | head`
 Expected: confirms the card boundaries around lines 1710-1765 and the `INDUSTRY_PRESETS` import line.
 
 - [ ] **Step 2: Replace the preset radio grid with ThemePicker**
@@ -1440,13 +1440,13 @@ Leave the card heading/wrapper. Remove the now-unused `INDUSTRY_PRESETS` import 
 
 - [ ] **Step 3: Build the UI**
 
-Run: `cd banking_api_ui && npm run build`
+Run: `cd demo_api_ui && npm run build`
 Expected: exit 0
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add banking_api_ui/src/components/Config.js
+git add demo_api_ui/src/components/Config.js
 git commit -m "feat(theme): Config UI uses ThemePicker (one switch control)"
 ```
 
@@ -1455,25 +1455,25 @@ git commit -m "feat(theme): Config UI uses ThemePicker (one switch control)"
 ## Task 16: Delete orphan retail files
 
 **Files:**
-- Delete: `banking_api_ui/src/config/retailMockData.js`
-- Delete: `banking_api_ui/src/components/RetailModeBanner.js`
-- Delete: `banking_api_ui/src/components/RetailModeBanner.css`
+- Delete: `demo_api_ui/src/config/retailMockData.js`
+- Delete: `demo_api_ui/src/components/RetailModeBanner.js`
+- Delete: `demo_api_ui/src/components/RetailModeBanner.css`
 
 - [ ] **Step 1: Verify zero references remain**
 
-Run: `cd banking_api_ui && grep -rn "retailMockData\|RetailModeBanner\|RETAIL_PRODUCTS\|RETAIL_ORDERS\|ff_retail_mode" src/ ; echo "exit:$?"`
+Run: `cd demo_api_ui && grep -rn "retailMockData\|RetailModeBanner\|RETAIL_PRODUCTS\|RETAIL_ORDERS\|ff_retail_mode" src/ ; echo "exit:$?"`
 Expected: no output (grep exit 1) — nothing references these. If anything prints, fix that reference before deleting.
 
 - [ ] **Step 2: Delete the files**
 
 Run:
 ```bash
-git rm banking_api_ui/src/config/retailMockData.js banking_api_ui/src/components/RetailModeBanner.js banking_api_ui/src/components/RetailModeBanner.css
+git rm demo_api_ui/src/config/retailMockData.js demo_api_ui/src/components/RetailModeBanner.js demo_api_ui/src/components/RetailModeBanner.css
 ```
 
 - [ ] **Step 3: Build the UI**
 
-Run: `cd banking_api_ui && npm run build`
+Run: `cd demo_api_ui && npm run build`
 Expected: exit 0
 
 - [ ] **Step 4: Commit**
@@ -1487,14 +1487,14 @@ git commit -m "chore(theme): delete orphan Phase 225 retail files"
 ## Task 17: Remove context shims; finalize cleanup
 
 **Files:**
-- Delete: `banking_api_ui/src/context/IndustryBrandingContext.js`
-- Delete: `banking_api_ui/src/context/VerticalContext.js`
+- Delete: `demo_api_ui/src/context/IndustryBrandingContext.js`
+- Delete: `demo_api_ui/src/context/VerticalContext.js`
 - Modify: any remaining importers of those shims → import from `ThemeContext`
-- Modify: `banking_api_ui/src/config/industryPresets.js` (remove only if fully unreferenced)
+- Modify: `demo_api_ui/src/config/industryPresets.js` (remove only if fully unreferenced)
 
 - [ ] **Step 1: Find remaining importers of the shims**
 
-Run: `cd banking_api_ui && grep -rn "IndustryBrandingContext\|VerticalContext\|useIndustryBranding\|useVertical\|VerticalSwitcher" src/ | grep -v "context/ThemeContext"`
+Run: `cd demo_api_ui && grep -rn "IndustryBrandingContext\|VerticalContext\|useIndustryBranding\|useVertical\|VerticalSwitcher" src/ | grep -v "context/ThemeContext"`
 Expected: a list of files still importing the shims.
 
 - [ ] **Step 2: Migrate each importer to useTheme()**
@@ -1503,26 +1503,26 @@ For each file from Step 1: replace `useIndustryBranding()` usage of `preset.id`/
 
 - [ ] **Step 3: Verify shims and presets are unreferenced**
 
-Run: `cd banking_api_ui && grep -rn "IndustryBrandingContext\|VerticalContext\|industryPresets\|VerticalSwitcher" src/ ; echo "exit:$?"`
+Run: `cd demo_api_ui && grep -rn "IndustryBrandingContext\|VerticalContext\|industryPresets\|VerticalSwitcher" src/ ; echo "exit:$?"`
 Expected: no output (exit 1). If `industryPresets` still referenced, leave that file; only remove the shim contexts.
 
 - [ ] **Step 4: Delete unreferenced files**
 
 Run (only the ones Step 3 confirmed unreferenced):
 ```bash
-git rm banking_api_ui/src/context/IndustryBrandingContext.js banking_api_ui/src/context/VerticalContext.js
+git rm demo_api_ui/src/context/IndustryBrandingContext.js demo_api_ui/src/context/VerticalContext.js
 ```
-If `industryPresets.js` is fully unreferenced, also `git rm banking_api_ui/src/config/industryPresets.js` and `banking_api_ui/src/components/VerticalSwitcher.js` + `.css`.
+If `industryPresets.js` is fully unreferenced, also `git rm demo_api_ui/src/config/industryPresets.js` and `demo_api_ui/src/components/VerticalSwitcher.js` + `.css`.
 
 - [ ] **Step 5: Build + full UI tests**
 
-Run: `cd banking_api_ui && npm run build && npx react-scripts test --watchAll=false src/components/__tests__/`
+Run: `cd demo_api_ui && npm run build && npx react-scripts test --watchAll=false src/components/__tests__/`
 Expected: build exit 0; new theme tests PASS.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add -A banking_api_ui/src
+git add -A demo_api_ui/src
 git commit -m "chore(theme): remove context shims; single useTheme consumer path"
 ```
 
@@ -1538,24 +1538,24 @@ git commit -m "chore(theme): remove context shims; single useTheme consumer path
 Read `REGRESSION_PLAN.md` §0–1 first. Add one row to the §1 protected-files table:
 
 ```
-| banking_api_server/config/verticals/*.json + ThemeContext.js | Theme manifest is presentation-only (identity/cssVars/terminology/agent persona+greeting/dashboard). MUST NOT carry scopes/auth/secrets. PUT /api/config/vertical is intentionally any-authenticated (server-wide theme switch for customer-persona demo) — NOT an authz regression. Chip manifest entries change LABELS only; id/message routing keys are invariant (skip-proof chip pipeline). |
+| demo_api_server/config/verticals/*.json + ThemeContext.js | Theme manifest is presentation-only (identity/cssVars/terminology/agent persona+greeting/dashboard). MUST NOT carry scopes/auth/secrets. PUT /api/config/vertical is intentionally any-authenticated (server-wide theme switch for customer-persona demo) — NOT an authz regression. Chip manifest entries change LABELS only; id/message routing keys are invariant (skip-proof chip pipeline). |
 ```
 
 - [ ] **Step 2: Full server test run**
 
-Run: `cd banking_api_server && npx jest src/__tests__/verticalConfigService.test.js && npm run test:session`
+Run: `cd demo_api_server && npx jest src/__tests__/verticalConfigService.test.js && npm run test:session`
 Expected: vertical tests PASS; session suite unaffected.
 
 - [ ] **Step 3: Full UI build + theme tests**
 
-Run: `cd banking_api_ui && npm run build && npx react-scripts test --watchAll=false src/components/__tests__/ThemeContext.test.js src/components/__tests__/ThemePicker.test.js src/components/__tests__/RetailDashboard.test.js src/components/__tests__/DashboardHeader.theme.test.js src/components/__tests__/BankingChips.theme.test.js src/components/__tests__/BankingAgent.greeting.test.js`
+Run: `cd demo_api_ui && npm run build && npx react-scripts test --watchAll=false src/components/__tests__/ThemeContext.test.js src/components/__tests__/ThemePicker.test.js src/components/__tests__/RetailDashboard.test.js src/components/__tests__/DashboardHeader.theme.test.js src/components/__tests__/BankingChips.theme.test.js src/components/__tests__/BankingAgent.greeting.test.js`
 Expected: build exit 0; all theme tests PASS.
 
 - [ ] **Step 4: Reusability proof (acceptance check, then revert)**
 
-Create `banking_api_server/config/verticals/_probe.json` (copy retail.json, change `id` to `probe`, `displayName` to `Probe Theme`, one cssVar to a distinct color). Restart BFF, `PUT /api/config/vertical {"verticalId":"probe"}`, confirm the app reskins with zero component/CSS edits. Then `git checkout -- .` / delete `_probe.json` — it must NOT be committed.
+Create `demo_api_server/config/verticals/_probe.json` (copy retail.json, change `id` to `probe`, `displayName` to `Probe Theme`, one cssVar to a distinct color). Restart BFF, `PUT /api/config/vertical {"verticalId":"probe"}`, confirm the app reskins with zero component/CSS edits. Then `git checkout -- .` / delete `_probe.json` — it must NOT be committed.
 
-Run: `rm -f banking_api_server/config/verticals/_probe.json`
+Run: `rm -f demo_api_server/config/verticals/_probe.json`
 Expected: file removed; no source changes were needed to add it.
 
 - [ ] **Step 5: Commit docs**

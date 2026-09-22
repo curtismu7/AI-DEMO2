@@ -1,4 +1,4 @@
-# PingGateway Vault API-Key — Phase 2 (Invest App + Auth Evidence) Implementation Plan
+# PingOne Agent Gateway Vault API-Key — Phase 2 (Invest App + Auth Evidence) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development or superpowers:executing-plans to implement task-by-task. Steps use checkbox (`- [ ]`) syntax.
 

@@ -1,7 +1,7 @@
 {
   "uid": "ai-demo-pinggateway",
-  "title": "PingGateway",
-  "description": "Metrics PingGateway publishes about itself on its admin connector. Nothing here is computed by demo code.",
+  "title": "PingOne Agent Gateway",
+  "description": "Metrics PingOne Agent Gateway publishes about itself on its admin connector. Nothing here is computed by demo code.",
   "tags": [
     "ai-demo",
     "pinggateway",
@@ -50,7 +50,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "PingGateway counts its own work and publishes it on the admin connector (`:8085`, separate from the port serving routes). Prometheus scrapes it every 15s. **No value on this dashboard is derived from demo code.**\n\nOne caveat, verified live: `ig_mcp_error_total` does **not** count requests whose JSON-RPC envelope fails schema validation. The gateway rejects them with a 400 but the counter stays flat, so MCP error figures are a **floor, not a total**. See `TECH_DEBT.md`. Corroborate with the status-family panel, which counts every response."
+        "content": "PingOne Agent Gateway counts its own work and publishes it on the admin connector (`:8085`, separate from the port serving routes). Prometheus scrapes it every 15s. **No value on this dashboard is derived from demo code.**\n\nOne caveat, verified live: `ig_mcp_error_total` does **not** count requests whose JSON-RPC envelope fails schema validation. The gateway rejects them with a 400 but the counter stays flat, so MCP error figures are a **floor, not a total**. See `TECH_DEBT.md`. Corroborate with the status-family panel, which counts every response."
       }
     },
     {

@@ -8,7 +8,7 @@ This directory contains architecture and flow diagrams for the AI Demo project.
 | ---- | ----------- |
 | `architecture.mmd` | Full architecture diagram — all services, connections, and protocols |
 | `architecture-simple.mmd` | Simplified left-to-right architecture for the /architecture/overview page |
-| `mcp-security-gateway.mmd` | MCP Security Gateway — live PingGateway path with Authorize failover |
+| `mcp-security-gateway.mmd` | MCP Security Gateway — live PingOne Agent Gateway path with Authorize failover |
 | `ciba-stepup-sequence.mmd` | CIBA step-up authentication sequence |
 | `hitl-sequence.mmd` | Human-in-the-loop consent sequence |
 | `i4ai-ref-arch.mmd` | i4ai reference architecture |
@@ -97,7 +97,7 @@ All diagrams include comprehensive RFC annotations for:
 - Admin nav "Diagrams" section trimmed to the top 3 pages (System Diagram,
   Overview Diagram, Sequence Diagram); the other four entries are hidden but
   fully documented in [HIDDEN_DIAGRAMS.md](HIDDEN_DIAGRAMS.md), routes intact
-- `architecture.mmd` / `architecture-simple.mmd` / `i4ai-ref-arch.mmd`: PingGateway
+- `architecture.mmd` / `architecture-simple.mmd` / `i4ai-ref-arch.mmd`: PingOne Agent Gateway
   (IG, :3036) is now framed as the DEFAULT MCP gateway; `demo_mcp_gateway :3005`
   demoted to the opt-in demo-auth profile path
 - Authorize failover posture corrected: default is fail-closed
@@ -112,7 +112,7 @@ All diagrams include comprehensive RFC annotations for:
 ### 2026-06-18/19 — Architecture refresh
 
 - Added `agent_token_service` (Copilot Studio broker, :8097) to full and simple architecture diagrams
-- Added `PingGateway (IG, :3036)` as the default MCP gateway (ff_mcp_gateway_pinggateway) with real→mock Authorize failover
+- Added `PingOne Agent Gateway (IG, :3036)` as the default MCP gateway (ff_mcp_gateway_pinggateway) with real→mock Authorize failover
 - Added AG-UI SSE streaming (agentRun.js, ff_agui_enabled, decoded token-chain events)
 - Updated `mcp-security-gateway.mmd` title from "Potential Architecture" to "Live Architecture"; added UserId + McpResourceUri Authorize params and mock failover node
 - Fixed all GitHub download URLs to point at `curtismu7/AI-demo` (previously stale `curtismu7/banking-demo`)

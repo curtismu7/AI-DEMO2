@@ -227,7 +227,7 @@ the gateway's authorization policy — no changes were made"), but three other s
 broken at once: TopNav pill `AUTHZ-DENIED — INCOMPLETE / no evidence yet`, proof strip
 `Incomplete / Run failed before authorize-decision`, Token Chain badge red **RUN ERROR**.
 
-PingGateway's local backstop (`denyLocal`, `p1az-decision.groovy:444`) answers 403 with a bare
+PingOne Agent Gateway's local backstop (`denyLocal`, `p1az-decision.groovy:444`) answers 403 with a bare
 `{error, message, tool}` body and **no** `X-Gw-Audit-Trail`, so all ~8 of its reasons
 (`tier_amount_exceeded`, `insufficient_scope`, `invalid_iat`, …) arrived with no authorize
 evidence. Same chip on a PERMIT carried `gw-introspection` + `gw-authorize` + `gw-mcp-audit` +

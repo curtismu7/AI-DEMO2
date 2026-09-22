@@ -4,7 +4,7 @@
 
 **Goal:** Harden the startup process across all 8 services and `run.sh` so every failure surfaces immediately with actionable output, services start in dependency order, and each service validates its config before binding.
 
-**Architecture:** `run.sh` gains `wait_for_health` (port + HTTP 200 check with log-tail on timeout), a pre-launch env pass, and a tiered startup sequence. The three weakest services (HITL, mortgage, agent service) gain graceful shutdown drains; HITL, mortgage, and MCP Invest gain env validation startup warnings; HITL and agent service health endpoints gain `uptime`/`checks`; MCP Invest health endpoint gains `uptime`. The MCP server already has `/health` (returns HTTP 200) — no change needed there.
+**Architecture:** `run.sh` gains `wait_for_health` (port + HTTP 200 check with log-tail on timeout), a pre-launch env pass, and a tiered startup sequence. The three weakest services (HITL, mortgage, agent service) gain graceful shutdown drains; HITL, mortgage, and Demo MCP Resource Server gain env validation startup warnings; HITL and agent service health endpoints gain `uptime`/`checks`; Demo MCP Resource Server health endpoint gains `uptime`. The MCP server already has `/health` (returns HTTP 200) — no change needed there.
 
 **Tech Stack:** bash (run.sh), Node.js CommonJS (hitl, mortgage), TypeScript (mcp_resource_server, agent_service)
 
@@ -49,7 +49,7 @@
    * banking-hitl-service — entry point
    *
    * Standalone REST service for Human-in-the-Loop approval flows.
-   * Extracted from banking_api_server (transactionConsentChallenge.js + cibaService.js).
+   * Extracted from demo_api_server (transactionConsentChallenge.js + cibaService.js).
    *
    * REST API:
    *   POST   /challenges               — MCP Gateway creates a HITL challenge
@@ -603,7 +603,7 @@
   wait_for_port 3005         15 "MCP Gateway"        >/dev/null
   wait_for_port 3009         15 "HITL Service"       >/dev/null
   wait_for_port 3006         15 "Agent Service"      >/dev/null
-  wait_for_port 8081         15 "MCP Invest Server"  >/dev/null
+  wait_for_port 8081         15 "Demo MCP Resource Server Server"  >/dev/null
   wait_for_port 8082         10 "Demo Mortgage"      >/dev/null
   wait_for_port "${UI_PORT}" 60 "Demo UI"            >/dev/null
   sleep 1   # give LangChain agent a moment too
@@ -687,7 +687,7 @@
   fi
 
   if [[ -d "$BASEDIR/demo_mcp_resource_server" ]]; then
-    echo "[INVEST] Starting MCP Invest Server on :8081..."
+    echo "[INVEST] Starting Demo MCP Resource Server Server on :8081..."
     (
       cd "$BASEDIR/demo_mcp_resource_server"
       PORT=8081 npm start > "${LOG_INVEST}" 2>&1
@@ -696,7 +696,7 @@
   fi
 
   if [[ -d "$BASEDIR/demo_api_resource_server" ]]; then
-    echo "[MORTGAGE] Starting Mortgage Service on :8082..."
+    echo "[MORTGAGE] Starting Mortgage Resource Server on :8082..."
     (
       cd "$BASEDIR/demo_api_resource_server"
       API_RESOURCE_SERVER_PORT=8082 npm start > "${LOG_MORTGAGE}" 2>&1
@@ -742,7 +742,7 @@
 
   # Wait for Tier 3 services
   wait_for_health 3006 "/health" 15 "Agent Service"     "${LOG_AGENT_SVC}" >/dev/null
-  wait_for_health 8081 "/health" 15 "MCP Invest Server" "${LOG_INVEST}"    >/dev/null
+  wait_for_health 8081 "/health" 15 "Demo MCP Resource Server Server" "${LOG_INVEST}"    >/dev/null
   wait_for_health 8082 "/health" 10 "Demo Mortgage"     "${LOG_MORTGAGE}"  >/dev/null
   # UI: port-only (CRA has no /health endpoint)
   wait_for_port "${UI_PORT}" 90 "Demo UI" >/dev/null
@@ -823,8 +823,8 @@
     service_status_line "Demo API Server"      ${API_PORT}  "/api/healthz"  "${API_URL}"
     service_status_line "Demo MCP Server"      8080         "/health"        "ws://localhost:8080 (internal)"
     service_status_line "MCP Gateway"          3005         "/health"        "http://localhost:3005 (internal)"
-    service_status_line "MCP Invest Server"    8081         "/health"        "ws://localhost:8081 (internal)"
-    service_status_line "Mortgage Service"     8082         "/health"        "http://localhost:8082 (internal)"
+    service_status_line "Demo MCP Resource Server Server"    8081         "/health"        "ws://localhost:8081 (internal)"
+    service_status_line "Mortgage Resource Server"     8082         "/health"        "http://localhost:8082 (internal)"
     service_status_line "Agent Service"        3006         "/health"        "http://localhost:3006 (internal)"
     service_status_line "HITL Service"         3009         "/health"        "http://localhost:3009 (internal)"
     service_status_line "LangChain Agent"      8890         "/health"        "ws://localhost:8889 (chat WS)"

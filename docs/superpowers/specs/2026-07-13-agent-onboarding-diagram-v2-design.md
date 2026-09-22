@@ -25,7 +25,7 @@ Replace the 4-lane grid with a 6-row layout matching the reference image:
 2. **Agent Studio** (single, wide) — 3-column persona breakdown.
 3. **Orchestration bar** — 5-step "Agent Studio orchestrates onboarding across
    the Ping platform" sequence.
-4. **Governance row** (triple) — P1 Privileges MCP Gateway / PingGateway MCP
+4. **Governance row** (triple) — P1 Privileges MCP Gateway / PingOne Agent Gateway MCP
    Security Gateway / PingAuthorize.
 5. **Discovery + IGA row** (split) — Story A/B discovery boxes on the left,
    IGA for AI (wide) on the right.

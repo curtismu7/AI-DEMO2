@@ -1,7 +1,7 @@
 {
   "uid": "ai-demo-mcp-servers",
   "title": "MCP Servers",
-  "description": "The three backend MCP/resource servers: oauth-mcp (banking), demo_mcp_resource_server (invest/airlines/6 other verticals), demo_api_resource_server (mortgage). Sit behind BOTH gateways — Agent Gateway (demo_mcp_gateway) and PingGateway can each route here, depending on the demo flow. PingGateway answers some tool calls itself without ever forwarding (its own synthetic 'direct response' for certain verticals) — an empty panel here can mean that, not a gap; check the P1AZ Decisions dashboard's logs to see which path a given call actually took.",
+  "description": "The three backend MCP/resource servers: oauth-mcp (banking), demo_mcp_resource_server (invest/airlines/6 other verticals), demo_api_resource_server (mortgage). Sit behind BOTH gateways — Agent Gateway (demo_mcp_gateway) and PingOne Agent Gateway can each route here, depending on the demo flow. PingOne Agent Gateway answers some tool calls itself without ever forwarding (its own synthetic 'direct response' for certain verticals) — an empty panel here can mean that, not a gap; check the P1AZ Decisions dashboard's logs to see which path a given call actually took.",
   "tags": ["ai-demo", "mcp"],
   "timezone": "browser",
   "schemaVersion": 39,
@@ -24,7 +24,7 @@
       "id": 2,
       "type": "timeseries",
       "title": "Banking MCP server (oauth-mcp) — WebSocket messages by method (per 5 min)",
-      "description": "DemoMCPServer.processMessage — the WebSocket listener ONLY. PingGateway's OLB token exchange uses the separate HTTP transport instead (see the panel to the right) — a live demo exercised through PingGateway shows nothing here, by design, not a gap.",
+      "description": "DemoMCPServer.processMessage — the WebSocket listener ONLY. PingOne Agent Gateway's OLB token exchange uses the separate HTTP transport instead (see the panel to the right) — a live demo exercised through PingOne Agent Gateway shows nothing here, by design, not a gap.",
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 4 },
       "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
       "targets": [
@@ -40,7 +40,7 @@
       "id": 3,
       "type": "timeseries",
       "title": "Banking MCP server (oauth-mcp) — HTTP transport calls by path (per 5 min)",
-      "description": "HttpMCPTransport.handleRequest — Streamable HTTP + legacy SSE. This is the path PingGateway's OLB token exchange actually uses (confirmed via ping-gateway logs: 'Sending MCP initialize to http://mcp-server:8080/mcp'). Labeled by pathname, not JSON-RPC method — the method lives in the POST body, which the wrapped function reads as a stream.",
+      "description": "HttpMCPTransport.handleRequest — Streamable HTTP + legacy SSE. This is the path PingOne Agent Gateway's OLB token exchange actually uses (confirmed via ping-gateway logs: 'Sending MCP initialize to http://mcp-server:8080/mcp'). Labeled by pathname, not JSON-RPC method — the method lives in the POST body, which the wrapped function reads as a stream.",
       "gridPos": { "h": 8, "w": 8, "x": 8, "y": 4 },
       "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
       "targets": [
@@ -56,7 +56,7 @@
       "id": 4,
       "type": "timeseries",
       "title": "Invest/airlines resource server — messages by method (per 5 min)",
-      "description": "demo_mcp_resource_server/src/index.ts handleMessage — shared by the WebSocket listener and the HTTP MCP transport. Empty for tool calls PingGateway answers itself without forwarding (confirmed for sporting-goods list_gear/extend_rental via ping-gateway logs: '[OlbExchange] MCP direct response') — that's the gateway's own mock responder, not a gap here.",
+      "description": "demo_mcp_resource_server/src/index.ts handleMessage — shared by the WebSocket listener and the HTTP MCP transport. Empty for tool calls PingOne Agent Gateway answers itself without forwarding (confirmed for sporting-goods list_gear/extend_rental via ping-gateway logs: '[OlbExchange] MCP direct response') — that's the gateway's own mock responder, not a gap here.",
       "gridPos": { "h": 8, "w": 8, "x": 16, "y": 4 },
       "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
       "targets": [

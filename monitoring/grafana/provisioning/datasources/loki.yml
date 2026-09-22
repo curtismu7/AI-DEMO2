@@ -1,4 +1,4 @@
-# Loki as a third datasource, so BFF logs sit beside the PingGateway metrics
+# Loki as a third datasource, so BFF logs sit beside the PingOne Agent Gateway metrics
 # and the Jaeger traces rather than in `kubectl logs`.
 #
 # Unlike jaeger.yml this needs no env var: the service is named `loki` on both

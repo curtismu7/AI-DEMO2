@@ -131,12 +131,12 @@ Authorize decision** comes back. We reuse the existing force-live test path.
 ### Category: Agent Gateway (flag-driven + **specific real-path test**)
 
 The real PingOne Agent Gateway (IG) path must be proven end-to-end, not just
-pinged. We reuse the three graded PingGateway test endpoints in
+pinged. We reuse the three graded PingOne Agent Gateway test endpoints in
 `pinggatewayTestRoutes.js`, run in order so a failure pinpoints the exact hop:
 
 - **Gateway mode** — reports active gateway from `ff_mcp_gateway_pinggateway`
   (`ON` = real PingOne Agent Gateway / IG, `OFF` = Demo Agent Gateway). Badge:
-  **Real PingGateway** vs **Demo**.
+  **Real PingOne Agent Gateway** vs **Demo**.
 - **IG introspection (specific test)** — `POST /api/admin/pinggateway/test/introspect`
   with a freshly minted demo token; assert the IG returns an `active: true`
   introspection (proves McpProtectionFilter → introspection/JWKS config works).

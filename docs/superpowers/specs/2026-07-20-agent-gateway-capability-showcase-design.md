@@ -8,7 +8,7 @@ policy & metadata controls. An audit against this repo confirmed all seven
 underlying capabilities are implemented in both
 [`demo_mcp_gateway/src`](../../../demo_mcp_gateway/src) (Node reference
 gateway) and [`ping-gateway/scripts/groovy`](../../../ping-gateway/scripts/groovy)
-(PingGateway/IG parity), and that **PingGateway is already the default live
+(PingOne Agent Gateway/IG parity), and that **PingOne Agent Gateway is already the default live
 path** via `ff_mcp_gateway_pinggateway`
 ([docker-compose.yml:855](../../../docker-compose.yml#L855)) — Node is the
 offline/dev fallback, not what runs by default.
@@ -21,7 +21,7 @@ Two problems for a presenter today:
    **rate limiting has zero walkthrough coverage** and token transformation /
    OAuth fail-closed behavior are never called out on their own.
 2. Attribution is invisible. Nothing in the UI tells a viewer *which* gateway
-   (real PingGateway product vs. Node dev fallback) actually enforced a given
+   (real PingOne Agent Gateway product vs. Node dev fallback) actually enforced a given
    check, so the "real product does this" claim is asserted verbally instead
    of shown.
 
@@ -30,7 +30,7 @@ Two problems for a presenter today:
 Considered actually re-routing a demo call through both gateways at runtime
 and diffing the two audit trails. Rejected: RAR enforcement differs by
 mechanism between the two paths (Node does a local subset pre-check in
-`rarEnforce.ts`; PingGateway forwards RAR evidence straight to the PDP, no
+`rarEnforce.ts`; PingOne Agent Gateway forwards RAR evidence straight to the PDP, no
 Groovy equivalent exists), so a live "identical output" toggle would be
 misleading on the one capability where the paths genuinely aren't identical.
 A static, honest citation of both paths (including the one asterisk) serves

@@ -39,10 +39,10 @@
   ```
 
 **PingOne Application Settings (Development):**
-- OAuth Application: "Banking Demo - Development"
+- OAuth Application: "AI Demo - Development"
   - Audience field (OAuth settings): `https://banking-api.local`
   - Response Types: Authorization Code, Token Exchange
-  - Redirect URIs: `https://banking-api.local/callback`, `https://localhost:3001/callback`
+  - Redirect URIs: `https://banking-api.local/callback`, `https://local.ping-devops.com:4000/callback`
 
 **Testing:**
 ```bash
@@ -73,7 +73,7 @@ curl -X POST https://auth.pingone.com/.../oauth/token \
   ```
 
 **PingOne Application Settings (Staging):**
-- OAuth Application: "Banking Demo - Staging"
+- OAuth Application: "AI Demo - Staging"
   - Audience field: `https://banking-api.vercel.app`
   - Redirect URIs: `https://banking-api.vercel.app/callback`
 
@@ -99,7 +99,7 @@ curl -X POST https://auth.pingone.com/.../oauth/token \
   ```
 
 **PingOne Application Settings (Production):**
-- OAuth Application: "Banking Demo - Production"
+- OAuth Application: "AI Demo - Production"
   - Audience field: `https://banking-api-prod.example.com`
   - Redirect URIs: `https://banking-api-prod.example.com/callback`
   - Scopes: All required scopes enabled (transaction:read, transaction:write, etc.)
@@ -184,16 +184,16 @@ curl -X POST https://auth.pingone.com/.../oauth/token \
 
 ## PingOne Application Configuration Checklist
 
-### Banking Demo Sandbox App (Development)
+### AI Demo Sandbox App (Development)
 
 **Application Details:**
-- Name: `Banking Demo - Development`
+- Name: `AI Demo - Development`
 - Type: Web Application
 - Protocol: OpenID Connect
 
 **OAuth Settings:**
 - [ ] **Audience:** Set to `https://banking-api.local`
-- [ ] **Redirect URIs:** Include `https://banking-api.local/callback`, `https://localhost:3001/callback`
+- [ ] **Redirect URIs:** Include `https://banking-api.local/callback`, `https://local.ping-devops.com:4000/callback`
 - [ ] **Allowed Scopes:** Select all required scopes (see scope list below)
 - [ ] **Token Expiry:** Set to reasonable value (e.g., 1 hour for dev)
 - [ ] **Refresh Token:** Enabled (for long-running agent sessions)
@@ -209,7 +209,7 @@ curl -X POST https://auth.pingone.com/.../oauth/token \
 
 **Token Exchange Settings (RFC 8693):**
 - [ ] **Enable Token Exchange:** Enabled
-- [ ] **Subject Token Type:** `urn:ietf:params:oauth:token-type:jwt`
+- [ ] **User token Type:** `urn:ietf:params:oauth:token-type:jwt`
 - [ ] **Resource:** BFF API (or create resource if not exists)
 - [ ] **Requested Token Type:** Access token with delegated aud
 
@@ -229,10 +229,10 @@ curl -X POST https://auth.pingone.com/abc123.../oauth/token \
 # }
 ```
 
-### Banking Demo Production App
+### AI Demo Production App
 
 **Application Details:**
-- Name: `Banking Demo - Production`
+- Name: `AI Demo - Production`
 - Type: Web Application
 - Protocol: OpenID Connect
 
@@ -252,7 +252,7 @@ curl -X POST https://auth.pingone.com/abc123.../oauth/token \
 ## Aud Validation Points in Code
 
 ### 1. BFF Middleware Validation
-**File:** `banking_api_server/middleware/audValidationMiddleware.js`  
+**File:** `demo_api_server/middleware/audValidationMiddleware.js`  
 **When:** Every incoming request BEFORE route handler  
 **What:** Check `token.aud == expectedAud`  
 **Action if mismatch:** Return 401 Unauthorized  
@@ -267,7 +267,7 @@ if (token.aud !== expectedAud) {
 ```
 
 ### 2. Token Exchange Validation
-**File:** `banking_api_server/routes/token-exchange.js`  
+**File:** `demo_api_server/routes/token-exchange.js`  
 **When:** After receiving exchanged token from PingOne  
 **What:** Check `exchangedToken.aud` matches MCP server aud (if for MCP)  
 **Action if mismatch:** Reject exchange, log error  
@@ -280,7 +280,7 @@ if (exchangedToken.aud !== MCP_SERVER_AUD) {
 ```
 
 ### 3. MCP Gateway Validation
-**File:** `banking_mcp_server/mcp-gateway.js`  
+**File:** `demo_mcp_server/mcp-gateway.js`  
 **When:** WebSocket upgrade, before accepting token  
 **What:** Check `token.aud == MCP_SERVER_AUD`  
 **Action if mismatch:** Reject WebSocket upgrade (403 Forbidden)  

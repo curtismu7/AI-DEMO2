@@ -132,7 +132,7 @@
   font-size: var(--font-size-sm);
 }
 
-/* GatewayMcpMetrics — PingGateway's own counters, collapsed by default so the
+/* GatewayMcpMetrics — PingOne Agent Gateway's own counters, collapsed by default so the
    page still opens on the trace list. Literal colors match this file's
    convention rather than introducing theme tokens it does not otherwise use. */
 .gw-metrics {

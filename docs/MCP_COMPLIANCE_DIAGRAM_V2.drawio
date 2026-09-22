@@ -300,7 +300,7 @@
     <!-- ═══════════════════════════════════════════════════════════ -->
     <!-- SECTION E: OAUTH 2.1 / PKCE / OIDC (BFF) -->
     <!-- ═══════════════════════════════════════════════════════════ -->
-    <mxCell id="secE_hdr" value="OAUTH 2.1 / PKCE / OIDC — BFF (banking_api_server)" style="text;html=1;strokeColor=#0d6b3e;fillColor=#0d6b3e;align=left;verticalAlign=middle;fontColor=#ffffff;fontSize=11;fontStyle=1;spacingLeft=8;rounded=0;" vertex="1" parent="1">
+    <mxCell id="secE_hdr" value="OAUTH 2.1 / PKCE / OIDC — BFF (demo_api_server)" style="text;html=1;strokeColor=#0d6b3e;fillColor=#0d6b3e;align=left;verticalAlign=middle;fontColor=#ffffff;fontSize=11;fontStyle=1;spacingLeft=8;rounded=0;" vertex="1" parent="1">
       <mxGeometry x="20" y="826" width="1560" height="24" as="geometry" />
     </mxCell>
 
@@ -612,7 +612,7 @@
       <mxGeometry x="20" y="72" width="180" height="16" as="geometry"/>
     </mxCell>
 
-    <mxCell id="ov_ui" value="&lt;b&gt;React SPA&lt;/b&gt;&lt;br/&gt;banking_api_ui&lt;br/&gt;BankingAgent.js · Header.js" style="html=1;rounded=1;fillColor=#d1ecf1;strokeColor=#0c5460;strokeWidth=2;fontSize=10;whiteSpace=wrap;verticalAlign=middle;" vertex="1" parent="1">
+    <mxCell id="ov_ui" value="&lt;b&gt;React SPA&lt;/b&gt;&lt;br/&gt;demo_api_ui&lt;br/&gt;BankingAgent.js · Header.js" style="html=1;rounded=1;fillColor=#d1ecf1;strokeColor=#0c5460;strokeWidth=2;fontSize=10;whiteSpace=wrap;verticalAlign=middle;" vertex="1" parent="1">
       <mxGeometry x="20" y="92" width="200" height="68" as="geometry"/>
     </mxCell>
     <mxCell id="ov_llm" value="&lt;b&gt;LLM / AI Agent&lt;/b&gt;&lt;br/&gt;(Claude.ai, Cursor…)&lt;br/&gt;Issues MCP tool calls" style="html=1;rounded=1;fillColor=#d4edda;strokeColor=#0d6b3e;strokeWidth=2;fontSize=10;whiteSpace=wrap;verticalAlign=middle;" vertex="1" parent="1">
@@ -629,7 +629,7 @@
     </mxCell>
 
     <!-- ── ROW 1: BFF ──────────────────────────────────── -->
-    <mxCell id="ov_bff_label" value="BFF — banking_api_server  (Express, Node.js, port 3001)" style="text;html=1;fontStyle=1;fontSize=10;fillColor=none;strokeColor=none;fontColor=#1a1a2e;align=left;" vertex="1" parent="1">
+    <mxCell id="ov_bff_label" value="BFF — demo_api_server  (Express, Node.js, port 3001)" style="text;html=1;fontStyle=1;fontSize=10;fillColor=none;strokeColor=none;fontColor=#1a1a2e;align=left;" vertex="1" parent="1">
       <mxGeometry x="20" y="222" width="500" height="16" as="geometry"/>
     </mxCell>
     <mxCell id="ov_bff_bg" value="" style="rounded=1;fillColor=#f0f4ff;strokeColor=#3c5a99;strokeWidth=2;dashed=1;" vertex="1" parent="1">
@@ -754,7 +754,7 @@
     <mxCell id="0"/>
     <mxCell id="1" parent="0"/>
 
-    <mxCell id="bff_title" value="BFF (banking_api_server) — Compliance Detail" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#1a1a2e;" vertex="1" parent="1">
+    <mxCell id="bff_title" value="BFF (demo_api_server) — Compliance Detail" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;fontColor=#1a1a2e;" vertex="1" parent="1">
       <mxGeometry x="100" y="10" width="1500" height="34" as="geometry"/>
     </mxCell>
     <mxCell id="bff_sub" value="Each box shows the MCP / RFC / OAuth requirement enforced by that component.  Green=MUST | Blue=SHOULD | Orange=Opt-in" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontColor=#444444;" vertex="1" parent="1">

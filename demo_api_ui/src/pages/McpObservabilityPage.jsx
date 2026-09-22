@@ -69,7 +69,7 @@ export function buildObservabilitySummary(events, summary, gatewayMetrics, healt
     gatewayAvailable,
     healthStatus: health?.status || "unknown",
     serverHealth: [
-      { name: "PingGateway", detail: "policy boundary", status: gatewayAvailable ? "healthy" : "unavailable" },
+      { name: "PingOne Agent Gateway", detail: "policy boundary", status: gatewayAvailable ? "healthy" : "unavailable" },
       { name: "MCP server", detail: "configured resource", status: components.mcp_server?.status || "unknown" },
       { name: "PingOne JWKS", detail: "identity keys", status: components.pingone_jwks?.status || "unknown" },
     ],

@@ -236,7 +236,7 @@ const TOKEN_FLOW_SIMULATE_STEPS = [
   {
     regionIds: ["token-exchange-box", "mcp-gateway-tf"],
     colorClass: "active",
-    label: "Delegated token arrives at Ping Agent Gateway",
+    label: "Delegated token arrives at PingOne Agent Gateway",
     // A → AG  (i48, y=2427)
     stepArrow: { yPct: 47.8, xMinPct: 28.2, xMaxPct: 54.1 },
     token: {
@@ -286,7 +286,7 @@ const TOKEN_FLOW_SIMULATE_STEPS = [
   {
     regionIds: ["mcp-gateway-tf", "mcp-olb"],
     colorClass: "active",
-    label: "Ping Agent Gateway forwards token unchanged → MCP Server",
+    label: "PingOne Agent Gateway forwards token unchanged → MCP Server",
     // AG → MCP  (i82, y=3934)
     stepArrow: { yPct: 77.3, xMinPct: 40.6, xMaxPct: 54.3 },
     token: {
@@ -345,7 +345,7 @@ const TOKEN_FLOW_SIMULATE_STEPS = [
       _type: "mcp",
       status: "200 OK",
       data: '[{ "accountId":"ACC-001","balance":12450.00 },...]',
-      route: "Banking API → MCP Server → Ping Agent Gateway → Agent → Chatbot → User",
+      route: "Banking API → MCP Server → PingOne Agent Gateway → Agent → Chatbot → User",
     },
   },
 ];
@@ -492,7 +492,7 @@ const SCENARIO_STEPS_TF = {
     {
       regionIds: ["token-exchange-box", "mcp-gateway-tf"],
       colorClass: "active",
-      label: "Delegation token arrives at Ping Agent Gateway",
+      label: "Delegation token arrives at PingOne Agent Gateway",
       token: {
         type: "Delegated Token (inbound)",
         _type: "oauth",
@@ -507,7 +507,7 @@ const SCENARIO_STEPS_TF = {
     {
       regionIds: ["mcp-gateway-tf", "mcp-olb"],
       colorClass: "active",
-      label: "Ping Agent Gateway forwards token unchanged → MCP Server",
+      label: "PingOne Agent Gateway forwards token unchanged → MCP Server",
       token: {
         type: "Delegated Token (forwarded unchanged)",
         _type: "oauth",
@@ -764,7 +764,7 @@ const SCENARIO_STEPS_TF = {
         error: "insufficient_scope",
         error_description: "write scope required for create_transfer",
         "WWW-Authenticate": 'Bearer scope="write"',
-        note: "Ping Agent Gateway converts DENY to 403 — agent must NOT retry with same token",
+        note: "PingOne Agent Gateway converts DENY to 403 — agent must NOT retry with same token",
       },
     },
     {

@@ -922,7 +922,7 @@ git commit -m "feat(sdk-login): pop-out and embedded sign-in beside the centrali
 
 - [ ] **Step 1: Add the TECH_DEBT entry**
 
-Insert above `### [ ] 2026-09-13 — Raw PingGateway log window is open to any signed-in user`:
+Insert above `### [ ] 2026-09-13 — Raw PingOne Agent Gateway log window is open to any signed-in user`:
 
 ```markdown
 ### [ ] 2026-09-14 — /sdk-login embedded sign-in depends on a hand-set PingOne CORS setting

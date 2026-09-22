@@ -377,7 +377,7 @@ This creates a verifiable delegation chain: every downstream service can see "Ag
 ### PingOne Three-Token Chain
 
 ```
-1. User Access Token (AT)
+1. User token (AT)
    - Obtained via Authorization Code + PKCE
    - aud: enduser.ping.demo
    - Contains: may_act claim (which agent is authorized to act for this user)

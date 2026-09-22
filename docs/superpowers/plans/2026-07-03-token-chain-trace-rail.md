@@ -382,7 +382,7 @@ export function buildTraceSteps(trace) {
   steps.push(makeStep("gateway",
     gwDenied ? "error" : (gwAz || gwIntro) ? "done" : "pending",
     (gwAz || gwIntro) ? {
-      narrative: "Ping Agent Gateway checks the delegated token before anything reaches the MCP server: introspection, audience binding, scope, delegation chain.",
+      narrative: "PingOne Agent Gateway checks the delegated token before anything reaches the MCP server: introspection, audience binding, scope, delegation chain.",
       kv: [
         gwIntro ? ["introspection", gwIntro.status === "active" ? "✓ active" : String(gwIntro.status)] : null,
         gwAz ? ["authorize", `${gwAz.decision || "?"}${gwAz.url ? ` — ${gwAz.url}` : ""}`] : null,

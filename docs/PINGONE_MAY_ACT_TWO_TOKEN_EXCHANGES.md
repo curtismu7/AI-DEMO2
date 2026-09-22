@@ -1,7 +1,7 @@
 # PingOne: 2-Exchange Delegated Chain — Setup Guide
 
 > **RFC 8693 Terminology (Phase 188):** This document uses RFC 8693 primary terms.
-> - **Subject Token** (§2.1) = user's access token or ID token
+> - **User token** (§2.1) = user's access token or ID token
 > - **Actor Token** (§2.2) = agent's client-credentials token  
 > - **MCP-Scoped Access Token** (§3.2) = result of token exchange
 > See [TOKEN_TERMINOLOGY_GLOSSARY.md](TOKEN_TERMINOLOGY_GLOSSARY.md) for complete definitions.
@@ -76,7 +76,7 @@ Use the [1-exchange pattern](PINGONE_MAY_ACT_ONE_TOKEN_EXCHANGE.md) instead when
 
 | Object | 1-Exchange role | 2-Exchange role | Action |
 |--------|-----------------|-----------------|--------|
-| **Super Banking AI Agent Service** (resource server) | Subject Token audience | Subject Token audience | ✅ Reuse — no config change |
+| **Super Banking AI Agent Service** (resource server) | User token audience | User token audience | ✅ Reuse — no config change |
 | **Super Banking Agent Gateway** (resource server) | Banking App actor token audience | AI Agent actor token audience | ✅ Reuse — no config change |
 | **Super Banking MCP Server** (resource server) | Final MCP Token audience | Exchange #1 output audience | ✅ Reuse — same `act` expression works for both; PingOne checks `may_act.sub == actorToken.aud[0]` regardless of which UUID is in each field |
 | **Super Banking User App** (app) | OIDC login | OIDC login | ✅ Reuse — no change |
@@ -105,7 +105,7 @@ Human User (Banking App Login)
   |
   |  PKCE Authorization Code login - user authenticates normally
   |
-Subject Token  [TOKEN 1 - user's session token]
+User token  [TOKEN 1 - user's session token]
   { sub: "<user-id>",
     aud: ["https://ai-agent.pingdemo.com"],
     scope: "profile email banking:agent:invoke",
@@ -114,7 +114,7 @@ Subject Token  [TOKEN 1 - user's session token]
   |
   |  Token Exchange #1 (RFC 8693)
   |  AI Agent gets its own Actor Token via Client Credentials (aud: https://agent-gateway.pingdemo.com)
-  |  Exchanges: subject_token=Subject Token + actor_token=Agent Actor Token
+  |  Exchanges: subject_token=User token + actor_token=Agent Actor Token
   |  Exchanger: Super Banking AI Agent App (AI_AGENT_CLIENT_ID)
   |
 Agent Exchanged Token  [TOKEN 2 - agent-delegated token]
@@ -159,7 +159,7 @@ PERMIT - Banking Tools - PingOne Management API - Resource
         v
     Super Banking User App
         |
-        | 2. Subject Token (TOKEN 1)
+        | 2. User token (TOKEN 1)
         |    aud: https://ai-agent.pingdemo.com
         |    may_act: { sub: "AI_AGENT_CLIENT_ID" }
         v
@@ -216,7 +216,7 @@ PERMIT - Banking Tools - PingOne Management API - Resource
 ### ASCII Flow Diagram - Nested Delegation Chain
 
 ```
-TOKEN 1: Subject Token (User Session)
+TOKEN 1: User token (User Session)
 =====================================
 iss: https://auth.pingone.com/{envId}/as
 aud: ["https://ai-agent.pingdemo.com"]
@@ -259,13 +259,13 @@ act: {
 
 | Token | Audience | How issued | Exchanger |
 |-------|----------|------------|-----------|
-| **Subject Token** | `https://ai-agent.pingdemo.com` | PKCE login | PingOne (user auth) |
+| **User token** | `https://ai-agent.pingdemo.com` | PKCE login | PingOne (user auth) |
 | **Agent Exchanged Token** | `https://mcp-server.pingdemo.com` | RFC 8693 Exchange #1 | Super Banking AI Agent App |
 | **MCP Exchanged Token** | `https://resource-server.pingdemo.com` | RFC 8693 Exchange #2 | Super Banking MCP Token Exchanger App |
 
 > **Nested `act` chain:** Each exchange promotes the previous actor inward. `act.sub` = most recent exchanger (MCP App); `act.act.sub` = the one before (AI Agent). PAZ enforces each level as a named policy attribute.
 
-> **`may_act` → `act` transition:** `may_act` in the Subject Token declares who is *allowed* to perform Exchange #1. After exchange, that identity becomes the outer `act`. Exchange #2 nests a second `act` layer inside.
+> **`may_act` → `act` transition:** `may_act` in the User token declares who is *allowed* to perform Exchange #1. After exchange, that identity becomes the outer `act`. Exchange #2 nests a second `act` layer inside.
 
 ---
 
@@ -298,7 +298,7 @@ A draw.io diagram of the full 2-exchange token chain is included in this repo:
 
 | Request | What breaks if `openid` is included |
 |---------|-------------------------------------|
-| `/authorize` (Subject Token) | `invalid_scope` — `openid` conflicts with custom `resource=` audience |
+| `/authorize` (User token) | `invalid_scope` — `openid` conflicts with custom `resource=` audience |
 | Exchange #1 or #2 token requests | `invalid_scope` — token exchange does not support OIDC scopes |
 | Client Credentials (actor tokens) | `invalid_scope` — Web App type cannot request `openid` via CC |
 
@@ -340,11 +340,11 @@ A draw.io diagram of the full 2-exchange token chain is included in this repo:
 
 ---
 
-### 1a. Super Banking AI Agent Service *(Subject Token audience)*
+### 1a. Super Banking AI Agent Service *(User token audience)*
 
 > **If you have 1-exchange set up:** This resource server already exists. No configuration changes are needed — the `may_act` expression (`user.mayAct`) is identical. The only runtime difference is the value in `mayAct.sub` on user records: for 2-exchange it must be the **AI Agent App client ID** (`AI_AGENT_CLIENT_ID`).
 
-This resource server gives the Subject Token a meaningful audience URL and injects the `may_act` claim that authorizes the AI Agent to perform Exchange #1.
+This resource server gives the User token a meaningful audience URL and injects the `may_act` claim that authorizes the AI Agent to perform Exchange #1.
 
 Click **Add Resource** (or open the existing one) and fill in:
 
@@ -354,7 +354,7 @@ Click **Add Resource** (or open the existing one) and fill in:
 |-------|-------|
 | **Resource name** | `Super Banking AI Agent Service` |
 | **Audience** | `https://ai-agent.pingdemo.com` |
-| **Description** | `Audience resource server for the Super Banking AI Agent. The Subject Token issued at user login is scoped to this resource and carries the may_act claim that authorizes token exchange.` |
+| **Description** | `Audience resource server for the Super Banking AI Agent. The User token issued at user login is scoped to this resource and carries the may_act claim that authorizes token exchange.` |
 | **Access token time to live (seconds)** | `3600` |
 | **Token Introspection Endpoint Authentication Method** | `Client Secret Basic` |
 
@@ -393,7 +393,7 @@ Click **Save**.
 | Field | Value |
 |-------|-------|
 | **Scope name** | `banking:agent:invoke` |
-| **Description** | `Grants permission to invoke the Super Banking AI Agent on behalf of the authenticated user. Present on the Subject Token.` |
+| **Description** | `Grants permission to invoke the Super Banking AI Agent on behalf of the authenticated user. Present on the User token.` |
 
 Click **Save**.
 
@@ -401,7 +401,7 @@ Click **Save**.
 
 ### 1b. Super Banking Agent Gateway *(AI Agent actor token audience)*
 
-This resource server exists solely to give the AI Agent App a verifiable audience URI for its actor token. When the AI Agent requests a Client Credentials token scoped to `https://agent-gateway.pingdemo.com`, PingOne issues a token whose `aud` is this value. During Exchange #1, PingOne reads `actorToken.aud[0]` and compares it to `may_act.sub` on the Subject Token — they must match for the exchange to succeed.
+This resource server exists solely to give the AI Agent App a verifiable audience URI for its actor token. When the AI Agent requests a Client Credentials token scoped to `https://agent-gateway.pingdemo.com`, PingOne issues a token whose `aud` is this value. During Exchange #1, PingOne reads `actorToken.aud[0]` and compares it to `may_act.sub` on the User token — they must match for the exchange to succeed.
 
 > **If you have 1-exchange set up:** This resource server already exists (it was the Banking App's actor token audience). No changes needed — the URL and configuration are identical. Both patterns use this same audience for the actor identity check.
 
@@ -413,7 +413,7 @@ Click **Add Resource** (or confirm it exists) and fill in:
 |-------|-------|
 | **Resource name** | `Super Banking Agent Gateway` |
 | **Audience** | `https://agent-gateway.pingdemo.com` |
-| **Description** | `Audience resource server for the Super Banking AI Agent App actor token. The AI Agent obtains a Client Credentials token scoped to this audience and presents it as actor_token during Exchange #1. PingOne reads this token's aud[0] and compares it to may_act.sub on the user's Subject Token.` |
+| **Description** | `Audience resource server for the Super Banking AI Agent App actor token. The AI Agent obtains a Client Credentials token scoped to this audience and presents it as actor_token during Exchange #1. PingOne reads this token's aud[0] and compares it to may_act.sub on the user's User token.` |
 | **Access token time to live (seconds)** | `3600` |
 | **Token Introspection Endpoint Authentication Method** | `Client Secret Basic` |
 
@@ -465,7 +465,7 @@ Add one attribute:
 | **Expression** | `(#root.context.requestData.subjectToken?.may_act?.sub != null && #root.context.requestData.subjectToken?.may_act?.sub == #root.context.requestData.actorToken?.aud?.get(0))?#root.context.requestData.subjectToken?.may_act:null` |
 | **Required** | ✅ Yes |
 
-This compares `may_act.sub` in the Subject Token (the AI Agent's client ID UUID) against `aud[0]` of the actor token the AI Agent App presents. If they match, `may_act` is promoted to `act` in the Agent Exchanged Token. If they don't match — wrong app trying to exchange — `act` is `null` and the exchange fails because the attribute is required.
+This compares `may_act.sub` in the User token (the AI Agent's client ID UUID) against `aud[0]` of the actor token the AI Agent App presents. If they match, `may_act` is promoted to `act` in the Agent Exchanged Token. If they don't match — wrong app trying to exchange — `act` is `null` and the exchange fails because the attribute is required.
 
 > **Expression explained — null-safe SpEL:**
 > ```
@@ -601,7 +601,7 @@ Click **Save** after each scope.
 
 ---
 
-### 2a. Super Banking User App *(issues Subject Token)*
+### 2a. Super Banking User App *(issues User token)*
 
 > **If you have 1-exchange set up:** This app already exists. No grant type or redirect URI changes are needed. Confirm `banking:agent:invoke` is enabled on the Resources tab (it should be from 1-exchange setup). No attribute mapping changes needed.
 
@@ -626,8 +626,8 @@ Open (or create) the end-user OIDC application:
 | **PKCE enforcement** | `S256_REQUIRED` |
 | **Token endpoint auth method** | `CLIENT_SECRET_POST` |
 | **Redirect URIs** | `https://banking-demo-puce.vercel.app/api/auth/oauthuser/callback` (production) |
-| | `http://localhost:3000/api/auth/oauthuser/callback` (local dev) |
-| | `http://localhost:4000/api/auth/oauthuser/callback` (local dev — `run-demo.sh` port) |
+| | `https://local.ping-devops.com:4000/api/auth/oauthuser/callback` (local dev) |
+| | `https://local.ping-devops.com:4000/api/auth/oauthuser/callback` (local dev — `run-demo.sh` port) |
 
 > **Note:** PingOne allows multiple redirect URIs per app. Add all environments you intend to use. The URI sent in the authorize request must exactly match one of the registered values.
 
@@ -647,7 +647,7 @@ Click **Save**.
 
 This is the AI Agent's OAuth identity in PingOne. Its client ID UUID is what you store in `mayAct.sub` on user records — it is the identity PingOne checks has permission to perform Exchange #1. The app performs two calls:
 1. Gets its own Actor Token via Client Credentials (audience: `https://agent-gateway.pingdemo.com`) — proves its identity to PingOne during the exchange
-2. Performs Exchange #1: `subject_token` = Subject Token + `actor_token` = Agent Actor Token → Agent Exchanged Token scoped to `https://mcp-server.pingdemo.com`
+2. Performs Exchange #1: `subject_token` = User token + `actor_token` = Agent Actor Token → Agent Exchanged Token scoped to `https://mcp-server.pingdemo.com`
 
 In the PingOne console sidebar, expand **Applications** → select **AI Agents** → click **Add Application**:
 
@@ -656,7 +656,7 @@ In the PingOne console sidebar, expand **Applications** → select **AI Agents**
 | Field | Value |
 |-------|-------|
 | **Application name** | `Super Banking AI Agent App` |
-| **Description** | `OAuth identity for the Super Banking AI Agent. Performs Exchange #1 to obtain a delegation token scoped to the MCP Server. Its client ID UUID is stored as mayAct.sub on user records to authorize it to exchange Subject Tokens.` |
+| **Description** | `OAuth identity for the Super Banking AI Agent. Performs Exchange #1 to obtain a delegation token scoped to the MCP Server. Its client ID UUID is stored as mayAct.sub on user records to authorize it to exchange User tokens.` |
 | **Application type** | `Web App` — **do NOT select Worker** |
 | **Home Page URL** | *(leave blank — no UI)* |
 
@@ -680,7 +680,7 @@ In the PingOne console sidebar, expand **Applications** → select **AI Agents**
 Click **Save**, then:
 - Copy the **Client ID** → this is `AI_AGENT_CLIENT_ID` (env var)
 - Copy the **Client Secret** → this is `AI_AGENT_CLIENT_SECRET` (env var)
-- This UUID is also what you set as `mayAct.sub` on user records (Part 3b) — every user whose Subject Token should be exchangeable by the AI Agent must have `{ "sub": "<AI_AGENT_CLIENT_ID>" }` in their `mayAct` attribute
+- This UUID is also what you set as `mayAct.sub` on user records (Part 3b) — every user whose User token should be exchangeable by the AI Agent must have `{ "sub": "<AI_AGENT_CLIENT_ID>" }` in their `mayAct` attribute
 
 ---
 
@@ -740,8 +740,8 @@ If the app is missing, click **Add Application** → **Applications** category a
 | **PKCE enforcement** | `S256_REQUIRED` |
 | **Token endpoint auth method** | `CLIENT_SECRET_POST` |
 | **Redirect URIs** | `https://banking-demo-puce.vercel.app/api/auth/oauth/callback` |
-| | `http://localhost:3000/api/auth/oauth/callback` |
-| | `http://localhost:4000/api/auth/oauth/callback` |
+| | `https://local.ping-devops.com:4000/api/auth/oauth/callback` |
+| | `https://local.ping-devops.com:4000/api/auth/oauth/callback` |
 
 **Resources tab → Allowed scopes — enable:**
 
@@ -769,7 +769,7 @@ Click **Save**, then:
 |-------|-------|
 | **Attribute name** | `mayAct` |
 | **Display name** | `May Act` |
-| **Description** | `JSON object identifying the OAuth client authorized to exchange this user's Subject Token. Must match the client ID UUID of the authorized exchanger app.` |
+| **Description** | `JSON object identifying the OAuth client authorized to exchange this user's User token. Must match the client ID UUID of the authorized exchanger app.` |
 | **Type** | `JSON` |
 | **Required** | `No` |
 | **Unique** | `No` |
@@ -800,16 +800,16 @@ Content-Type: application/json
 { "mayAct": { "sub": "<AI_AGENT_CLIENT_ID>" } }
 ```
 
-**Option C — Super Banking Demo App (recommended):**
+**Option C — Super AI Demo App (recommended):**
 Navigate to `/demo-data` → **Token Exchange — may_act demo** section → select **2-Exchange — AI Agent Client ID** radio button → click **Enable may_act**.
 
 > **Common mistake:** Using a URL (e.g. `https://agent.example.com`) as `mayAct.sub` instead of the UUID. PingOne compares against `actorToken.aud[0]` which is the UUID — they will not match. Always use the client ID UUID.
 
 ---
 
-### 3c. Verify `may_act` in a Subject Token
+### 3c. Verify `may_act` in a User token
 
-After logging in, decode the Subject Token at [PingIdentity JWT Decoder](https://developer.pingidentity.com/en/tools/jwt-decoder.html) and confirm:
+After logging in, decode the User token at [PingIdentity JWT Decoder](https://developer.pingidentity.com/en/tools/jwt-decoder.html) and confirm:
 
 ```json
 {
@@ -841,7 +841,7 @@ client_id=AI_AGENT_CLIENT_ID
 &audience=https://agent-gateway.pingdemo.com
 ```
 
-Step 2 — Exchange Subject Token for Agent Exchanged Token:
+Step 2 — Exchange User token for Agent Exchanged Token:
 ```
 POST https://auth.pingone.com/{envId}/as/token
 Content-Type: application/x-www-form-urlencoded
@@ -849,7 +849,7 @@ Content-Type: application/x-www-form-urlencoded
 client_id=AI_AGENT_CLIENT_ID
 &client_secret=AI_AGENT_CLIENT_SECRET
 &grant_type=urn:ietf:params:oauth:grant-type:token-exchange
-&subject_token=<Subject Token>
+&subject_token=<User token>
 &subject_token_type=urn:ietf:params:oauth:token-type:access_token
 &actor_token=<Agent Actor Token>
 &actor_token_type=urn:ietf:params:oauth:token-type:access_token
@@ -950,20 +950,20 @@ PingOne stores a session cookie in Postman after a successful login. On the next
 |---------|-------|
 | Step 1 returns `status: COMPLETED` with no login prompt | Stale PingOne session cookie |
 | Step 4 test `may_act.sub present` **FAILS** | Token from cached session issued before `may_act` was configured |
-| Step 5b returns `invalid_grant` | Subject Token missing `may_act.sub = ai_agent_client_id` — set user's `mayAct` via Utility B, then re-run Steps 1–4 |
+| Step 5b returns `invalid_grant` | User token missing `may_act.sub = ai_agent_client_id` — set user's `mayAct` via Utility B, then re-run Steps 1–4 |
 | Step 6b returns `invalid_grant` | Agent Exchanged Token missing `act` claim — check `act` expression on Super Banking MCP Server resource server (Step 1c) |
 
 ### Run in order
 
-**Steps 1–4 — Subject Token (Authorization Code + PKCE via pi.flow)**
-Run 1a → 1b → 1c → 1d in sequence. Step 1d exchanges the auth code for the Subject Token. The test script decodes it, saves `subject_token` and `user_sub`, and validates `aud = https://ai-agent.pingdemo.com` and `may_act.sub = ai_agent_client_id`.
+**Steps 1–4 — User token (Authorization Code + PKCE via pi.flow)**
+Run 1a → 1b → 1c → 1d in sequence. Step 1d exchanges the auth code for the User token. The test script decodes it, saves `subject_token` and `user_sub`, and validates `aud = https://ai-agent.pingdemo.com` and `may_act.sub = ai_agent_client_id`.
 
 > If the `may_act` test fails: run **Utility B — Set mayAct** to write `{ "sub": "<AI_AGENT_CLIENT_ID>" }` onto the user record (requires `user_sub` from a prior run), then clear cookies and re-run Steps 1–4.
 
 **Step 5a — AI Agent Actor Token (Client Credentials)**
 The AI Agent App gets a CC token scoped to `https://agent-gateway.pingdemo.com`. Saved as `agent_actor_token`.
 
-**Step 5b — Exchange #1: Subject Token → Agent Exchanged Token**
+**Step 5b — Exchange #1: User token → Agent Exchanged Token**
 The AI Agent App exchanges `subject_token` + `agent_actor_token`. PingOne validates `may_act.sub == actorToken.aud[0]`. The test script saves `agent_exchanged_token` and validates `aud = https://mcp-server.pingdemo.com` and `act.sub = ai_agent_client_id`.
 
 **Step 6a — MCP Actor Token (Client Credentials)**
@@ -994,7 +994,7 @@ Decode any token at [PingIdentity JWT Decoder](https://developer.pingidentity.co
 echo "<token>" | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null | python3 -m json.tool
 ```
 
-**Subject Token** (Token 1):
+**User token** (Token 1):
 ```json
 {
   "aud": ["https://ai-agent.pingdemo.com"],

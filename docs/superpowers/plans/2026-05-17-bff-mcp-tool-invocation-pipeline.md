@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Extract the ~760-line `POST /api/mcp/tool` Express handler in `banking_api_server/server.js` into one pure orchestration module (`runMcpToolPipeline`) that returns a discriminated `Outcome`, leaving the route as a thin shell that only renders the outcome and owns SSE/flow-trace lifecycle.
+**Goal:** Extract the ~760-line `POST /api/mcp/tool` Express handler in `demo_api_server/server.js` into one pure orchestration module (`runMcpToolPipeline`) that returns a discriminated `Outcome`, leaving the route as a thin shell that only renders the outcome and owns SSE/flow-trace lifecycle.
 
 **Architecture:** Strict zero-behavior-change extraction per [ADR-0004](../../adr/0004-bff-mcp-tool-invocation-pipeline-seam.md). The pipeline is pure (no Express, no direct `require` of collaborators — all injected as `deps`). The Authorize gate stays *inside* the pipeline (injected) so its "runs on every call before the remote call" ordering (ADR-0003/T-2, REGRESSION_PLAN §1 row 56) is test-assertable. All three local-fallback hatches and `callToolLocal` move inside. SSE `emit` is an injected sink so per-phase events stay live (not batched — token-visibility-intentional). Verified by characterization tests pinning all exit paths GREEN *before and after* the move, then a live chip gate.
 
-**Tech Stack:** Node.js CommonJS, Express, Jest + supertest (`^7.2.2`), existing jest config at `banking_api_server/jest.config.js` (testMatch `**/src/__tests__/**/*.test.js`).
+**Tech Stack:** Node.js CommonJS, Express, Jest + supertest (`^7.2.2`), existing jest config at `demo_api_server/jest.config.js` (testMatch `**/src/__tests__/**/*.test.js`).
 
 ---
 
@@ -22,7 +22,7 @@ single most §4-incident-heavy path in the repo. Before any edit:
 - [ ] **Step 0c: Confirm branch.** Run: `cd /Users/curtismuir/Development/banking && git branch --show-current`
   Expected: a feature branch (not `main`). If `main`, create one: `git checkout -b feat/mcp-tool-pipeline-extraction`.
 
-- [ ] **Step 0d: Baseline the existing suite.** Run: `cd banking_api_server && npx jest mcpToolAuthorizationService r1LocalAuthzRemoval --silent 2>&1 | tail -5`
+- [ ] **Step 0d: Baseline the existing suite.** Run: `cd demo_api_server && npx jest mcpToolAuthorizationService r1LocalAuthzRemoval --silent 2>&1 | tail -5`
   Expected: existing tests PASS. Record the pass count — it must not drop later.
 
 ---
@@ -31,9 +31,9 @@ single most §4-incident-heavy path in the repo. Before any edit:
 
 | File | Responsibility | Action |
 |------|----------------|--------|
-| `banking_api_server/services/mcpToolPipeline.js` | The pure orchestration module. Exports `runMcpToolPipeline(ctx)` returning an `Outcome`. Zero Express. All collaborators arrive via `ctx.deps`. Owns the 6 phases + 3 local-fallback hatches + tokenEvents mutation + injected `emit`. | Create |
-| `banking_api_server/server.js:1230-1993` | The `POST /api/mcp/tool` route. After extraction: builds `ctx`, calls `runMcpToolPipeline`, renders the `Outcome` via one `renderOutcome` switch, owns `flowTrace` `finish`/`close` hooks and the HTTP/2 streaming branch. | Modify |
-| `banking_api_server/src/__tests__/mcpToolPipeline.characterization.test.js` | Characterization tests pinning every `Outcome` kind/status for the ~13 exit paths, with all `deps` mocked. Written BEFORE extraction against the new module's intended interface; proves the move changed nothing. | Create |
+| `demo_api_server/services/mcpToolPipeline.js` | The pure orchestration module. Exports `runMcpToolPipeline(ctx)` returning an `Outcome`. Zero Express. All collaborators arrive via `ctx.deps`. Owns the 6 phases + 3 local-fallback hatches + tokenEvents mutation + injected `emit`. | Create |
+| `demo_api_server/server.js:1230-1993` | The `POST /api/mcp/tool` route. After extraction: builds `ctx`, calls `runMcpToolPipeline`, renders the `Outcome` via one `renderOutcome` switch, owns `flowTrace` `finish`/`close` hooks and the HTTP/2 streaming branch. | Modify |
+| `demo_api_server/src/__tests__/mcpToolPipeline.characterization.test.js` | Characterization tests pinning every `Outcome` kind/status for the ~13 exit paths, with all `deps` mocked. Written BEFORE extraction against the new module's intended interface; proves the move changed nothing. | Create |
 
 ### The `Outcome` contract (locked — used by every task)
 
@@ -79,7 +79,7 @@ single most §4-incident-heavy path in the repo. Before any edit:
 ### Task 1: Characterization test scaffold + first pinned path (PingOne admin early-exit)
 
 **Files:**
-- Create: `banking_api_server/src/__tests__/mcpToolPipeline.characterization.test.js`
+- Create: `demo_api_server/src/__tests__/mcpToolPipeline.characterization.test.js`
 - (Module `services/mcpToolPipeline.js` does not exist yet — test must fail on import first.)
 
 - [ ] **Step 1: Write the failing test (scaffold + admin early-exit path)**
@@ -158,12 +158,12 @@ describe('runMcpToolPipeline — characterization (ADR-0004, zero behavior chang
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_server && npx jest mcpToolPipeline.characterization --silent 2>&1 | tail -8`
+Run: `cd demo_api_server && npx jest mcpToolPipeline.characterization --silent 2>&1 | tail -8`
 Expected: FAIL — `Cannot find module '../../services/mcpToolPipeline'`.
 
 - [ ] **Step 3: Create a minimal module stub that satisfies only this path**
 
-Create `banking_api_server/services/mcpToolPipeline.js`:
+Create `demo_api_server/services/mcpToolPipeline.js`:
 
 ```js
 'use strict';
@@ -202,14 +202,14 @@ module.exports = { runMcpToolPipeline };
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd banking_api_server && npx jest mcpToolPipeline.characterization --silent 2>&1 | tail -5`
+Run: `cd demo_api_server && npx jest mcpToolPipeline.characterization --silent 2>&1 | tail -5`
 Expected: PASS (1 test).
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd /Users/curtismuir/Development/banking
-git add banking_api_server/services/mcpToolPipeline.js banking_api_server/src/__tests__/mcpToolPipeline.characterization.test.js
+git add demo_api_server/services/mcpToolPipeline.js demo_api_server/src/__tests__/mcpToolPipeline.characterization.test.js
 git commit -m "test(mcp-pipeline): characterization scaffold + pin PingOne admin early-exit path
 
 Refs ADR-0004. Pure-extraction harness; module built path-by-path under
@@ -221,8 +221,8 @@ pinned tests so the later server.js swap is provably zero-behavior-change."
 ### Task 2: Pin + implement token-resolution phase (success + 5 error exits)
 
 **Files:**
-- Modify: `banking_api_server/src/__tests__/mcpToolPipeline.characterization.test.js`
-- Modify: `banking_api_server/services/mcpToolPipeline.js`
+- Modify: `demo_api_server/src/__tests__/mcpToolPipeline.characterization.test.js`
+- Modify: `demo_api_server/services/mcpToolPipeline.js`
 
 These five exits are the §4 hot spots. Code is copied **verbatim** from `server.js:1346-1532`.
 
@@ -324,7 +324,7 @@ Add inside the `describe` block:
 
 - [ ] **Step 2: Run to verify the new tests fail**
 
-Run: `cd banking_api_server && npx jest mcpToolPipeline.characterization --silent 2>&1 | tail -10`
+Run: `cd demo_api_server && npx jest mcpToolPipeline.characterization --silent 2>&1 | tail -10`
 Expected: FAIL — `runMcpToolPipeline: path not yet implemented`.
 
 - [ ] **Step 3: Implement the token-resolution phase verbatim from server.js:1346-1532**
@@ -436,14 +436,14 @@ In `services/mcpToolPipeline.js`, replace the final `throw new Error(...)` line 
 
 - [ ] **Step 4: Run to verify all token-phase tests pass**
 
-Run: `cd banking_api_server && npx jest mcpToolPipeline.characterization --silent 2>&1 | tail -6`
+Run: `cd demo_api_server && npx jest mcpToolPipeline.characterization --silent 2>&1 | tail -6`
 Expected: PASS for all `missing_exchange_scopes`, exchange-scope-error, pingoneError, TOKEN_INACTIVE, generic, no-bearer tests. (The two non-token tests `token resolve success` and the admin one still pass; tests that reach later phases will still error — that's expected until Task 3.)
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd /Users/curtismuir/Development/banking
-git add banking_api_server/services/mcpToolPipeline.js banking_api_server/src/__tests__/mcpToolPipeline.characterization.test.js
+git add demo_api_server/services/mcpToolPipeline.js demo_api_server/src/__tests__/mcpToolPipeline.characterization.test.js
 git commit -m "test(mcp-pipeline): pin token-resolution phase + 5 error exits (verbatim from server.js)
 
 The isExchangeScopeError classification + oauthId||id resolution are the
@@ -455,8 +455,8 @@ exact REGRESSION_PLAN §4 hot spots; copied byte-for-byte. Refs ADR-0004."
 ### Task 3: Pin + implement Authorize gate phase (inside the pipeline, injected)
 
 **Files:**
-- Modify: `banking_api_server/src/__tests__/mcpToolPipeline.characterization.test.js`
-- Modify: `banking_api_server/services/mcpToolPipeline.js`
+- Modify: `demo_api_server/src/__tests__/mcpToolPipeline.characterization.test.js`
+- Modify: `demo_api_server/services/mcpToolPipeline.js`
 
 This is the ADR-0003/T-2 invariant. The gate stays inside; the test asserts it
 runs before the remote call.
@@ -517,7 +517,7 @@ runs before the remote call.
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `cd banking_api_server && npx jest mcpToolPipeline.characterization -t "Authorize|gate" --silent 2>&1 | tail -8`
+Run: `cd demo_api_server && npx jest mcpToolPipeline.characterization -t "Authorize|gate" --silent 2>&1 | tail -8`
 Expected: FAIL — `authorize phase not yet implemented`.
 
 - [ ] **Step 3: Add `createPendingDecision` to the dep contract + implement the gate phase verbatim from server.js:1534-1627**
@@ -592,14 +592,14 @@ Add `createPendingDecision: jest.fn(() => ({ taskId: 't' }))` to `makeDeps()` de
 
 - [ ] **Step 4: Run to verify gate tests pass**
 
-Run: `cd banking_api_server && npx jest mcpToolPipeline.characterization -t "Authorize|gate" --silent 2>&1 | tail -6`
+Run: `cd demo_api_server && npx jest mcpToolPipeline.characterization -t "Authorize|gate" --silent 2>&1 | tail -6`
 Expected: PASS for all 6 gate tests; the order test shows `['gate','remote']` only once the remote phase exists (Task 4) — until then this specific test still errors. Re-run after Task 4. All earlier-phase tests still PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd /Users/curtismuir/Development/banking
-git add banking_api_server/services/mcpToolPipeline.js banking_api_server/src/__tests__/mcpToolPipeline.characterization.test.js
+git add demo_api_server/services/mcpToolPipeline.js demo_api_server/src/__tests__/mcpToolPipeline.characterization.test.js
 git commit -m "test(mcp-pipeline): pin Authorize gate phase inside pipeline (injected)
 
 Gate stays inside the seam per ADR-0003/T-2/T-7; injected so the
@@ -611,8 +611,8 @@ Gate stays inside the seam per ADR-0003/T-2/T-7; injected so the
 ### Task 4: Pin + implement introspection + remote-call + gateway-audit-merge + remote fallbacks
 
 **Files:**
-- Modify: `banking_api_server/src/__tests__/mcpToolPipeline.characterization.test.js`
-- Modify: `banking_api_server/services/mcpToolPipeline.js`
+- Modify: `demo_api_server/src/__tests__/mcpToolPipeline.characterization.test.js`
+- Modify: `demo_api_server/services/mcpToolPipeline.js`
 
 - [ ] **Step 1: Append failing tests (introspection variants + remote success + audit merge + scope/gateway/unreachable exits)**
 
@@ -706,7 +706,7 @@ Gate stays inside the seam per ADR-0003/T-2/T-7; injected so the
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `cd banking_api_server && npx jest mcpToolPipeline.characterization --silent 2>&1 | tail -8`
+Run: `cd demo_api_server && npx jest mcpToolPipeline.characterization --silent 2>&1 | tail -8`
 Expected: FAIL — `introspection+remote phase not yet implemented`.
 
 - [ ] **Step 3: Implement the final phase verbatim from server.js:1629-1989**
@@ -717,14 +717,14 @@ Add `getSessionAccessToken` to the dep contract (default `jest.fn(() => 'sess-to
 
 - [ ] **Step 4: Run the FULL characterization suite — every path GREEN**
 
-Run: `cd banking_api_server && npx jest mcpToolPipeline.characterization --silent 2>&1 | tail -6`
+Run: `cd demo_api_server && npx jest mcpToolPipeline.characterization --silent 2>&1 | tail -6`
 Expected: PASS — all tests across Tasks 1-4 (the order test from Task 3 now shows `['gate','remote']`). Zero failures.
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd /Users/curtismuir/Development/banking
-git add banking_api_server/services/mcpToolPipeline.js banking_api_server/src/__tests__/mcpToolPipeline.characterization.test.js
+git add demo_api_server/services/mcpToolPipeline.js demo_api_server/src/__tests__/mcpToolPipeline.characterization.test.js
 git commit -m "test(mcp-pipeline): pin introspection+remote+audit-merge+fallback phases
 
 Full Outcome union now characterized end-to-end with all deps injected.
@@ -736,7 +736,7 @@ Module is behaviorally complete; server.js swap is next. Refs ADR-0004."
 ### Task 5: Swap server.js route to call the pipeline (the actual extraction)
 
 **Files:**
-- Modify: `banking_api_server/server.js:1230-1993`
+- Modify: `demo_api_server/server.js:1230-1993`
 
 This is the only task that touches the live route. The pipeline already reproduces
 every path under green tests; here the 760-line body becomes a thin shell.
@@ -824,7 +824,7 @@ Keep the existing body-parse / `tool` validation / `flowTraceId` validation / `r
 
 - [ ] **Step 3: Run the characterization suite + the existing route guards (must all still pass)**
 
-Run: `cd banking_api_server && npx jest mcpToolPipeline.characterization mcpToolAuthorizationService r1LocalAuthzRemoval --silent 2>&1 | tail -6`
+Run: `cd demo_api_server && npx jest mcpToolPipeline.characterization mcpToolAuthorizationService r1LocalAuthzRemoval --silent 2>&1 | tail -6`
 Expected: PASS — characterization suite unchanged GREEN; `r1LocalAuthzRemoval` (the ADR-0003 invariant) and `mcpToolAuthorizationService` pass counts equal or exceed the Step 0d baseline.
 
 - [ ] **Step 4: Full BFF suite + lint, no regressions**
@@ -836,7 +836,7 @@ Expected: no NEW failures vs. a pre-change baseline. (Pre-existing unrelated fai
 
 ```bash
 cd /Users/curtismuir/Development/banking
-git add banking_api_server/server.js
+git add demo_api_server/server.js
 git commit -m "refactor(mcp-pipeline): server.js POST /api/mcp/tool is now a thin shell
 
 760-line handler -> ctx build + runMcpToolPipeline + renderOutcome. Pure
@@ -852,7 +852,7 @@ ARCHITECTURE-TRUTHS T-7, ADR-0003 (gate unchanged, still sole authoritative)."
 
 - [ ] **Step 1: Build the UI (CLAUDE.md non-negotiable #3 — required after any change that the UI exercises)**
 
-Run: `cd /Users/curtismuir/Development/banking/banking_api_ui && npm run build 2>&1 | tail -3`
+Run: `cd /Users/curtismuir/Development/banking/demo_api_ui && npm run build 2>&1 | tail -3`
 Expected: exit code 0. (No UI source changed, but this is the mandated gate; record the exit code.)
 
 - [ ] **Step 2: Start the stack**

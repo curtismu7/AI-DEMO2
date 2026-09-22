@@ -68,7 +68,7 @@ The encryption key is resolved in priority order: `CONFIG_ENCRYPTION_KEY` → `S
 
 **Decision: bundle `.env` in the archive.**
 
-The archive includes `banking_api_server/.env`. The import script writes it to disk before starting the health check. The user gets a working app immediately.
+The archive includes `demo_api_server/.env`. The import script writes it to disk before starting the health check. The user gets a working app immediately.
 
 **Security implications and mitigations:**
 
@@ -84,7 +84,7 @@ The archive includes `banking_api_server/.env`. The import script writes it to d
 ```
 banking-export-<timestamp>.tar.gz
 ├── manifest.json                     (metadata, version, file list)
-├── .env                              (full banking_api_server/.env)
+├── .env                              (full demo_api_server/.env)
 ├── persistent/
 │   ├── config.db
 │   ├── banking.db
@@ -100,7 +100,7 @@ banking-export-<timestamp>.tar.gz
 
 ## 2. Export script
 
-**File:** `banking_api_server/scripts/exportMigrationBundle.js`  
+**File:** `demo_api_server/scripts/exportMigrationBundle.js`  
 **npm script:** `"data:export": "node scripts/exportMigrationBundle.js"`  
 **Usage:** `npm run data:export` or `npm run data:export -- --out ./my-export.tar.gz`
 
@@ -139,7 +139,7 @@ Step 4 — Probe all .json files
     (Do not parse — just confirm readable)
 
 Step 5 — Collect .env
-  Check if banking_api_server/.env exists
+  Check if demo_api_server/.env exists
     If yes  → include in archive as .env
     If no   → log warning "No .env file found — archive will not include environment variables.
                The app will not start on the destination without a .env file."
@@ -195,14 +195,14 @@ Step 8 — Print summary
 ### 2b. Dependencies
 
 - `lmdb` — already in `package.json`, used only for read-only probe open/close
-- `tar` — **must be added** to `banking_api_server/package.json` (`npm install tar`). The `tar` npm package is not a Node built-in and is not currently installed. It provides a cross-platform streaming tar API and avoids spawning a shell `tar` process.
+- `tar` — **must be added** to `demo_api_server/package.json` (`npm install tar`). The `tar` npm package is not a Node built-in and is not currently installed. It provides a cross-platform streaming tar API and avoids spawning a shell `tar` process.
 - `node:zlib`, `node:stream`, `node:fs`, `node:path`, `node:os` — Node built-ins, no new packages beyond `tar`
 
 ---
 
 ## 3. Import script
 
-**File:** `banking_api_server/scripts/importMigrationBundle.js`  
+**File:** `demo_api_server/scripts/importMigrationBundle.js`  
 **npm script:** `"data:import": "node scripts/importMigrationBundle.js"`  
 **Usage:** `npm run data:import -- ./banking-export-2026-05-09T10-00-00.tar.gz`
 
@@ -210,7 +210,7 @@ Step 8 — Print summary
 
 ```
 Step 0 — Package pre-flight (NEW)
-  Run from banking_api_server/ directory.
+  Run from demo_api_server/ directory.
   
   Check 1 — node_modules present
     If ./node_modules/ does not exist:
@@ -222,7 +222,7 @@ Step 0 — Package pre-flight (NEW)
     try { require('tar') } catch
       → exit 1:
         "Required package 'tar' is not installed.
-         Run:  cd banking_api_server && npm install
+         Run:  cd demo_api_server && npm install
          Then retry the import."
   
   Check 3 — lmdb or lmdb loadable
@@ -230,13 +230,13 @@ Step 0 — Package pre-flight (NEW)
       try { require('lmdb') } catch
         → exit 1:
           "Neither lmdb nor lmdb is available.
-           Run:  cd banking_api_server && npm install && npm rebuild lmdb
+           Run:  cd demo_api_server && npm install && npm rebuild lmdb
            Then retry the import."
       → warn:
           "lmdb failed to load (native binary may need rebuild).
            Falling back to lmdb built-in.
            If import health check fails, run:
-             cd banking_api_server && npm rebuild lmdb"
+             cd demo_api_server && npm rebuild lmdb"
   
   Check 4 — lmdb native binary architecture match
     If lmdb loaded successfully:
@@ -244,7 +244,7 @@ Step 0 — Package pre-flight (NEW)
       catch (e if e.message includes 'wrong architecture' or 'invalid ELF')
         → exit 1:
           "lmdb native binary is built for a different CPU/Node version.
-           Run:  cd banking_api_server && npm rebuild lmdb
+           Run:  cd demo_api_server && npm rebuild lmdb
            Then retry the import."
   
   Print: "✓ Package pre-flight passed"
@@ -276,7 +276,7 @@ Step 4 — Warn if .env is absent from archive
   If manifest.hasEnv === false:
     Print:
       "This archive does not contain a .env file.
-       After import completes, copy your .env manually to banking_api_server/.env
+       After import completes, copy your .env manually to demo_api_server/.env
        making sure PINGONE_SESSION_SECRET matches the source machine.
        Without it, config.db will be unreadable and the app will not start correctly."
     Pause 3 seconds (let the user read it) then continue.
@@ -296,14 +296,14 @@ Step 5 — Create backup of existing data
        Fix the error and retry."
       exit 1
   
-  If banking_api_server/.env exists:
+  If demo_api_server/.env exists:
     fs.copyFileSync('.env', '.env.pre-import-<timestamp>')
     (backup existing .env before overwriting)
 
 Step 6 — Extract all files
   Extract the full archive:
     persistent/* → data/persistent/
-    .env         → banking_api_server/.env   (overwrites if exists — backup already made)
+    .env         → demo_api_server/.env   (overwrites if exists — backup already made)
     manifest.json → data/persistent/manifest-last-import.json  (audit trail)
   
   Explicitly verify each extracted file exists after extraction.
@@ -338,7 +338,7 @@ Step 7 — Post-import health check
        
        This should not happen if the .env was bundled with this archive.
        If you modified .env after importing, restore it from:
-         banking_api_server/.env.pre-import-<timestamp>
+         demo_api_server/.env.pre-import-<timestamp>
        
        To rollback all data:
          cp data/backups/pre-import-<timestamp>/* data/persistent/
@@ -384,7 +384,7 @@ Same as export: `lmdb` (health check), `tar` (extraction), Node built-ins. No ad
 
 ## 4. package.json additions
 
-In `banking_api_server/package.json`, add to the **scripts** section:
+In `demo_api_server/package.json`, add to the **scripts** section:
 
 ```json
 "data:export": "node scripts/exportMigrationBundle.js",
@@ -400,7 +400,7 @@ Add to the **dependencies** section:
 "tar": "^7.5.15"
 ```
 
-**Why `banking_api_server/package.json` and not the root:** The scripts run from inside `banking_api_server/` via `npm run data:export`. Node's `require('tar')` walks up from `banking_api_server/node_modules/` — it will find the root-level `tar` if a root `npm install` was run, but this is fragile on a fresh clone where only `banking_api_server/` dependencies are installed. Declaring it explicitly in `banking_api_server/package.json` makes the dependency self-contained.
+**Why `demo_api_server/package.json` and not the root:** The scripts run from inside `demo_api_server/` via `npm run data:export`. Node's `require('tar')` walks up from `demo_api_server/node_modules/` — it will find the root-level `tar` if a root `npm install` was run, but this is fragile on a fresh clone where only `demo_api_server/` dependencies are installed. Declaring it explicitly in `demo_api_server/package.json` makes the dependency self-contained.
 
 > Note: `tar ^7.5.15` is already present in the root `package.json`. Pin the same major version here for consistency.
 
@@ -408,7 +408,7 @@ Add to the **dependencies** section:
 
 ## 5. Tests
 
-**File:** `banking_api_server/scripts/__tests__/migrationBundle.test.js`
+**File:** `demo_api_server/scripts/__tests__/migrationBundle.test.js`
 
 | Test | What it verifies |
 |------|-----------------|
@@ -419,7 +419,7 @@ Add to the **dependencies** section:
 | Export opens .db files read-only when server is up | Mock port check to return 200; verify `{ readonly: true }` is passed to Database constructor |
 | Import refuses when server is running | Mock port check to return 200; verify exit 1 with write-lock message |
 | Import creates backup before writing | Verify `data/backups/pre-import-*/` created and contains original files |
-| Import writes .env to disk | Verify `banking_api_server/.env` exists and contains expected keys after import |
+| Import writes .env to disk | Verify `demo_api_server/.env` exists and contains expected keys after import |
 | Import backs up existing .env | Verify `.env.pre-import-<timestamp>` exists if .env was present before import |
 | Import health check catches AES mismatch | Mock `configStore.ensureInitialized()` to throw; verify exit 1 with SESSION_SECRET message and rollback instructions |
 | Import with corrupt archive exits 1 | Pass a truncated `.tar.gz`; verify non-zero exit with useful message |
@@ -436,7 +436,7 @@ Add to the **dependencies** section:
 4. Export succeeds with server running (read-only open) and with server stopped (normal open).
 5. `npm run data:import -- <path>` with server running → exits 1 before touching any file.
 6. Import creates `data/backups/pre-import-<timestamp>/` containing all pre-import files.
-7. Import writes the bundled `.env` to `banking_api_server/.env`; backs up any existing `.env` first.
+7. Import writes the bundled `.env` to `demo_api_server/.env`; backs up any existing `.env` first.
 8. After import on a clean machine: `configStore.isConfigured()` returns `true` in the health check step.
 9. After import with a valid archive, running `npm start` reaches `GET /api/health/readiness` (added in migration-onboarding-plan.md §3a) returning `configured: true` and `userOAuthConfigured: true`.
 10. Import with wrong or missing `SESSION_SECRET` → exits 1 with the rollback command printed — not a silent app startup failure.

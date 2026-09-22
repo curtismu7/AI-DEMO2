@@ -47,7 +47,7 @@ const NODES = [
   { id: 'n-mcp-resource-server', x: COL.services, y: ROW.mid, label: 'MCP Resource Server', sub: ':8081',
     tooltip: 'MCP Resource Server (:8081) — dedicated MCP resource server for investment and portfolio tools; separate instance for financial data' },
   { id: 'n-mortgage', x: COL.services, y: ROW.mid + NH + 10, label: 'API Resource Server', sub: ':8082',
-    tooltip: 'API Resource Server (:8082) — REST API resource server using API key auth; reached via Ping Agent Gateway Path A (api_key disposition)' },
+    tooltip: 'API Resource Server (:8082) — REST API resource server using API key auth; reached via PingOne Agent Gateway Path A (api_key disposition)' },
   { id: 'n-pingone', x: COL.external, y: ROW.mid, label: 'PingOne', sub: 'OAuth AS',
     tooltip: 'PingOne — OAuth 2.0 Authorization Server and Identity Provider; issues tokens, validates may_act for RFC 8693 token exchange, enforces PKCE' },
   { id: 'n-resource-server', x: COL.services, y: ROW.lower, label: 'Resource Server', sub: '/api/resource-server',

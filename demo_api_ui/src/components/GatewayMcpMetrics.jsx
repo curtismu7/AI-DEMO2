@@ -1,12 +1,12 @@
 /**
- * GatewayMcpMetrics — PingGateway's own MCP counters.
+ * GatewayMcpMetrics — PingOne Agent Gateway's own MCP counters.
  *
  * These numbers come from the gateway's admin connector, not from demo code:
- * PingGateway counts every MCP method it validated and every JSON-RPC error it
+ * PingOne Agent Gateway counts every MCP method it validated and every JSON-RPC error it
  * returned. Rendered on the tracing page because it is the same question at a
  * different resolution — traces show one request, these show all of them.
  *
- * Renders nothing when the gateway is absent: a demo stack without PingGateway
+ * Renders nothing when the gateway is absent: a demo stack without PingOne Agent Gateway
  * is a normal configuration, not a fault worth an empty panel.
  */
 
@@ -48,7 +48,7 @@ export default function GatewayMcpMetrics() {
   return (
     <details className="gw-metrics">
       <summary>
-        PingGateway MCP counters
+        PingOne Agent Gateway MCP counters
         <span className="gw-metrics-hint">
           {methods.reduce((n, m) => n + m.count, 0)} calls · {errors.reduce((n, e) => n + e.count, 0)} errors
         </span>

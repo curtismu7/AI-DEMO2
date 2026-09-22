@@ -1,7 +1,7 @@
 # Super Banking — UI Quality Criteria
 
 This document encodes the explicit, gradable standards for "professional banking UI" in Super Banking.
-It is the authoritative source for `banking_api_ui/tests/e2e/ui-quality.spec.js`.
+It is the authoritative source for `demo_api_ui/tests/e2e/ui-quality.spec.js`.
 
 Inspired by: https://www.anthropic.com/engineering/harness-design-long-running-apps
 > "Encode subjective criteria explicitly. Convert fuzzy requirements into concrete, gradable standards."
