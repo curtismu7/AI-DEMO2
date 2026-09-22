@@ -6808,3 +6808,73 @@ body::before {
   background-size: 72px auto;
   padding-right: 120px !important;
 }
+
+/* ── App-consistent chrome (matches ChaseTopNav) ─────────────────────────
+ * The consent/approval page shares the login theme's fixed dark bar. Restyle
+ * it as the main app's top nav: navy bar, Ping wordmark left, brand right —
+ * without verticals or any nav items. Also normalize the consent buttons:
+ * the bundled theme stretches them full-width; the app uses normal-size,
+ * separated buttons. */
+
+/* Header bar: brand block left (logo + product name), no nav/verticals. */
+body::before {
+  background-image: url("../images/ping-logo.svg");
+  background-repeat: no-repeat;
+  background-position: left 24px center;
+  background-size: 64px auto;
+  padding: 0 24px 0 104px !important;
+  align-items: center;
+  justify-content: flex-start;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background-color: #0f172a;
+}
+
+/* Consent buttons: normal size, side by side with a gap, not full-width. */
+.ping-buttons {
+  display: flex;
+  gap: 16px;
+  width: auto;
+  margin: 24px 0 0;
+}
+
+.ping-buttons .ping-button,
+.ping-buttons .ping-button.normal,
+.ping-buttons .ping-button.allow,
+.ping-buttons .ping-button.blue,
+.ping-buttons .ping-button.deny {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 120px;
+  height: 40px;
+  padding: 0 24px;
+  line-height: 40px;
+}
+
+.ping-buttons .ping-button.allow,
+.ping-buttons .ping-button.normal.allow {
+  background: #2563eb;
+  border: 0;
+}
+
+.ping-buttons .ping-button.allow:hover,
+.ping-buttons .ping-button.normal.allow:hover {
+  background: #1d4ed8;
+}
+
+.ping-buttons .ping-button.deny,
+.ping-buttons .ping-button.blue.deny {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+}
+
+.ping-buttons .ping-button.deny:hover,
+.ping-buttons .ping-button.blue.deny:hover {
+  background: #f1f5f9;
+  box-shadow: none;
+  text-decoration: none;
+}
