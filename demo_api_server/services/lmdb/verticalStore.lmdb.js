@@ -7,6 +7,8 @@
  *   overlay:<id>       -> DeepPartial<Manifest>
  *   active             -> string (vertical id)
  *   snapshot:<userId>  -> { activeId, overlays: { id -> overlay }, savedAt }
+ *   theme:<id>         -> { cssVars: { [var]: value }, savedAt }
+ *   logo:<id>          -> { data: base64 string, mimeType, savedAt }
  *
  * Values stored as JS objects (encoding: 'json'); no manual JSON parsing.
  */
@@ -68,6 +70,52 @@ function clearSnapshot(userId) {
   _db().removeSync(`snapshot:${userId}`);
 }
 
+// ---- Theme-zone overrides (moved from configStore vertical_theme_overrides_*) ----
+
+function getTheme(id) {
+  const v = _db().get(`theme:${id}`);
+  return v ? v : null;
+}
+
+function setTheme(id, theme) {
+  _db().putSync(`theme:${id}`, { ...theme, savedAt: Date.now() });
+}
+
+function clearTheme(id) {
+  _db().removeSync(`theme:${id}`);
+}
+
+function listThemeIds() {
+  const ids = [];
+  for (const { key } of _db().getRange({ start: 'theme:', end: 'theme;' })) {
+    ids.push(key.slice('theme:'.length));
+  }
+  return ids;
+}
+
+// ---- Uploaded logos ----
+
+function getLogo(id) {
+  const v = _db().get(`logo:${id}`);
+  return v ? v : null;
+}
+
+function setLogo(id, logo) {
+  _db().putSync(`logo:${id}`, { ...logo, savedAt: Date.now() });
+}
+
+function clearLogo(id) {
+  _db().removeSync(`logo:${id}`);
+}
+
+function listLogoIds() {
+  const ids = [];
+  for (const { key } of _db().getRange({ start: 'logo:', end: 'logo;' })) {
+    ids.push(key.slice('logo:'.length));
+  }
+  return ids;
+}
+
 // ---- Wipe (used by tests) ----
 
 function clearAll() {
@@ -81,5 +129,7 @@ module.exports = {
   getOverlay, setOverlay, clearOverlay, listOverlayIds,
   getActiveId, setActiveId,
   getSnapshot, setSnapshot, clearSnapshot,
+  getTheme, setTheme, clearTheme, listThemeIds,
+  getLogo, setLogo, clearLogo, listLogoIds,
   clearAll,
 };

@@ -3,7 +3,6 @@ const path = require('path');
 const fs = require('fs');
 const express = require('express');
 const { verticalManifest } = require('../services/verticalManifest');
-const configStore = require('../services/configStore');
 const { fetchBrand } = require('../services/brandfetch');
 
 const router = express.Router();
@@ -43,22 +42,8 @@ router.get('/me', (req, res) => {
     req.session.active_vertical = scope.activeId;
     if (typeof req.session.save === 'function') req.session.save(() => {});
   }
-  // Overlay per-vertical theme-zone overrides (set via /api/admin/vertical-themes).
-  // resolveForRequest returns a structuredClone, so mutating cssVars is safe.
-  // Blind merge — zone semantics live in the frontend registry (themeZones.js).
-  if (scope && scope.pageManifest && scope.activeId) {
-    const raw = configStore.get(`vertical_theme_overrides_${scope.activeId}`);
-    if (raw) {
-      try {
-        const overrides = JSON.parse(raw);
-        const theme = scope.pageManifest.theme || {};
-        scope.pageManifest.theme = {
-          ...theme,
-          cssVars: { ...(theme.cssVars || {}), ...overrides },
-        };
-      } catch { /* malformed blob — ignore, serve manifest defaults */ }
-    }
-  }
+  // Theme-zone overrides are merged inside resolver.resolve() (single merge
+  // point: seed ← overlay ← theme overrides). No route-level merging here.
   // Guests don't get demoUsers password hints or other sensitive manifest fields.
   if (!isAuthenticated && scope && scope.pageManifest) {
     scope.pageManifest = {
