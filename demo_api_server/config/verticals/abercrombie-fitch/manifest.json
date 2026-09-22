@@ -160,5 +160,29 @@
   "demoUsers": {
     "customer": { "hint": "demoUser", "passwordHint": "Tigers7&" },
     "admin": { "hint": "demoAdmin", "passwordHint": "Tigers7&" }
+  },
+  "capabilities": {
+    "adminOps": {
+      "lookupSlices": {
+        "orders": "orders",
+        "returns": "returns",
+        "support_tickets": "support_tickets",
+        "rewards": "rewards",
+        "gift_cards": "gift_cards"
+      },
+      "queueRules": [
+        {
+          "slice": "support_tickets",
+          "label": "Support",
+          "open": [
+            "open"
+          ],
+          "title": {
+            "field": "subject",
+            "fallback": "Ticket"
+          }
+        }
+      ]
+    }
   }
 }

@@ -223,6 +223,31 @@ const ManifestSchema = z.object({
     customer: z.object({ hint: z.string(), passwordHint: z.string() }).optional(),
     admin: z.object({ hint: z.string(), passwordHint: z.string() }).optional(),
   }).optional(),
+
+  // Admin ops surface declaration (T4): drives routes/adminVerticals.js route
+  // registration. A vertical without this block registers no /api/admin/<id>/*
+  // ops routes. `queueRule.title` is a JSON projection spec — { field, fallback }
+  // evaluated by the route, keeping the manifest plain data.
+  capabilities: z.object({
+    adminOps: z.object({
+      // 'banking' = the special global-accounts lookup; default 'plugin'.
+      lookupMode: z.enum(['plugin', 'banking']).optional().default('plugin'),
+      lookupSlices: z.record(z.string(), z.string()).optional(),
+      writes: z.array(z.object({
+        route: z.string().regex(/^[a-z0-9-]+(\/[a-z0-9-]+)*\/:id\/[a-z0-9-]+$/),
+        method: z.string().regex(/^[a-z]+$/, { message: 'lowercase HTTP method, e.g. "post"' }),
+        mutator: z.string().regex(/^[a-zA-Z]+$/),
+        noun: z.string().min(1),
+        sliceKey: z.string().optional(),
+      })).optional(),
+      queueRules: z.array(z.object({
+        slice: z.string(),
+        label: z.string(),
+        open: z.array(z.string()),
+        title: z.object({ field: z.string(), fallback: z.string() }),
+      })).optional(),
+    }).optional(),
+  }).optional(),
 });
 
 const MockDataSchema = z.record(z.string(), z.unknown());

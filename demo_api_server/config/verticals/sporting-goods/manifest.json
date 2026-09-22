@@ -343,5 +343,67 @@
       "hint": "demoAdmin",
       "passwordHint": "Tigers7&"
     }
+  },
+  "capabilities": {
+    "adminOps": {
+      "lookupSlices": {
+        "orders": "orders",
+        "rentals": "rentals",
+        "support_tickets": "support_tickets",
+        "coaching_sessions": "coaching_sessions",
+        "loyalty": "loyalty"
+      },
+      "writes": [
+        {
+          "route": "orders/:id/cancel",
+          "method": "post",
+          "mutator": "cancelOrder",
+          "noun": "order"
+        },
+        {
+          "route": "rentals/:id/return",
+          "method": "post",
+          "mutator": "returnRental",
+          "noun": "rental"
+        },
+        {
+          "route": "tickets/:id/resolve",
+          "method": "post",
+          "mutator": "resolveTicket",
+          "noun": "ticket"
+        },
+        {
+          "route": "coaching/:id/cancel",
+          "method": "post",
+          "mutator": "cancelCoaching",
+          "noun": "coaching session"
+        }
+      ],
+      "queueRules": [
+        {
+          "slice": "orders",
+          "label": "Orders",
+          "open": [
+            "processing"
+          ],
+          "title": {
+            "field": "product",
+            "fallback": "Order"
+          }
+        },
+        {
+          "slice": "support_tickets",
+          "label": "Support",
+          "open": [
+            "open",
+            "in_progress"
+          ],
+          "title": {
+            "field": "subject",
+            "fallback": "Ticket"
+          }
+        }
+      ]
+    }
   }
 }

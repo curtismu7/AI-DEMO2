@@ -606,3 +606,45 @@ describe('support queue', () => {
     }
   });
 });
+
+describe('capability-driven registration (T4)', () => {
+  const { verticalManifest } = require('../../services/verticalManifest');
+  verticalManifest.init();
+
+  // Every declared write route in every manifest must exist on the wire with
+  // the right shape — a manifest entry that fails to register is an invisible
+  // capability gap, so the parity check is the guard.
+  it('registers every declared write route and lookup per manifest capabilities', async () => {
+    const registered = new Set(
+      adminVerticals.stack.filter((l) => l.route).map((l) => `${Object.keys(l.route.methods)[0]} ${l.route.path}`),
+    );
+    for (const v of verticalManifest.listAll()) {
+      const seed = verticalManifest.loader.get(v.id);
+      const ops = seed?.manifest?.capabilities?.adminOps;
+      if (!ops) continue;
+      if (ops.lookupMode === 'banking' || ops.lookupSlices) {
+        expect(registered.has(`get /${v.id}/lookup`)).toBe(true); // ${v.id} lookup
+      }
+      for (const w of ops.writes || []) {
+        expect(registered.has(`${w.method} /${v.id}/${w.route}`)).toBe(true); // ${v.id} ${w.route}
+      }
+    }
+  });
+
+  // A vertical WITHOUT capabilities.adminOps registers no ops routes — proves
+  // the block is opt-in, not a default that a new vertical silently inherits.
+  it('a vertical without capabilities registers no ops routes', () => {
+    const withCaps = verticalManifest.listAll()
+      .filter((v) => verticalManifest.loader.get(v.id)?.manifest?.capabilities?.adminOps)
+      .map((v) => v.id);
+    expect(withCaps.length).toBeGreaterThan(0); // the check is meaningful
+    const registered = new Set(
+      adminVerticals.stack.filter((l) => l.route).map((l) => l.route.path),
+    );
+    for (const v of verticalManifest.listAll()) {
+      const seed = verticalManifest.loader.get(v.id);
+      if (seed?.manifest?.capabilities?.adminOps) continue;
+      expect([...registered].some((p) => p.startsWith(`/${v.id}/`))).toBe(false); // v.id
+    }
+  });
+});

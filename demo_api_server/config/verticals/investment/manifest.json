@@ -328,5 +328,16 @@
   "demoUsers": {
     "customer": { "hint": "demoUser", "passwordHint": "Tigers7&" },
     "admin": { "hint": "demoAdmin", "passwordHint": "Tigers7&" }
+  },
+  "capabilities": {
+    "adminOps": {
+      "lookupSlices": {
+        "portfolios": "portfolios",
+        "holdings": "holdings",
+        "trades": "trades",
+        "dividends": "dividends"
+      },
+      "queueRules": []
+    }
   }
 }

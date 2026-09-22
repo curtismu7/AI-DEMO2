@@ -235,5 +235,49 @@
   "demoUsers": {
     "customer": { "hint": "demoUser", "passwordHint": "Tigers7&" },
     "admin": { "hint": "demoAdmin", "passwordHint": "Tigers7&" }
+  },
+  "capabilities": {
+    "adminOps": {
+      "lookupSlices": {
+        "permits": "permits",
+        "payments": "payments",
+        "filings": "filings",
+        "inspections": "inspections",
+        "recordsRequests": "recordsRequests"
+      },
+      "writes": [
+        {
+          "route": "permits/:id/release",
+          "method": "post",
+          "mutator": "releaseRecord",
+          "noun": "permit",
+          "sliceKey": "permits"
+        }
+      ],
+      "queueRules": [
+        {
+          "slice": "recordsRequests",
+          "label": "Records requests",
+          "open": [
+            "in review"
+          ],
+          "title": {
+            "field": "requestType",
+            "fallback": "Request"
+          }
+        },
+        {
+          "slice": "inspections",
+          "label": "Inspections",
+          "open": [
+            "failed"
+          ],
+          "title": {
+            "field": "type",
+            "fallback": "Inspection"
+          }
+        }
+      ]
+    }
   }
 }
