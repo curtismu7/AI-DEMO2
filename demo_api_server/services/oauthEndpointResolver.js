@@ -118,11 +118,20 @@ function getIntrospectionEndpoint() {
   return base ? `${base}/introspect` : '';
 }
 
+function getEndSessionEndpoint() {
+  if (_isPingFederate()) {
+    return _configured('pf_end_session_endpoint')
+      || _fromCache('end_session_endpoint')
+      || `${getIssuer().replace(/\/+$/, '')}/idp/init_logout.openid`;
+  }
+  return '';
+}
+
 function getRevocationEndpoint() {
   if (_isPingFederate()) {
     return _configured('pf_revocation_endpoint', 'oauth_revocation_endpoint')
       || _fromCache('revocation_endpoint')
-      || '';
+      || `${getIssuer().replace(/\/+$/, '')}/as/revoke_token.oauth2`;
   }
   const explicit = configStore.getEffective('oauth_revocation_endpoint');
   if (explicit) return explicit;
@@ -250,6 +259,7 @@ module.exports = {
   getJwksUri,
   getIntrospectionEndpoint,
   getRevocationEndpoint,
+  getEndSessionEndpoint,
   getIssuer,
   getDiscoveryEndpoint,
   getOAuthEndpoints,
