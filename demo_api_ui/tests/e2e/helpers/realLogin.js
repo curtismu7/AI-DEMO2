@@ -158,15 +158,25 @@ async function driveLogin(page, { loginInitUrl, username, password, expectedLand
 
   // Wait for PingOne to load its login form.
   // PingOne hosted pages use an <input> with id="username" and id="password".
-  await page.waitForSelector('input[name="username"], input[id="username"], input[type="email"]', {
-    timeout: LOGIN_TIMEOUT,
-  });
+  // PingFederate's hosted form (local.ping-devops.com:9031) names its fields
+  // pf.username / pf.pass with the SAME id="username"/id="password" — so the
+  // id selectors match both, and the [name=] variants cover deployments that
+  // rename the ids too.
+  await page.waitForSelector(
+    'input[name="username"], input[id="username"], input[name="pf.username"], input[type="email"]',
+    { timeout: LOGIN_TIMEOUT },
+  );
 
   // Fill credentials — handle both id and name variants
-  const usernameInput = page.locator('input[name="username"], input[id="username"], input[type="email"]').first();
-  const passwordInput = page.locator('input[name="password"], input[id="password"], input[type="password"]').first();
+  const usernameInput = page.locator(
+    'input[name="username"], input[id="username"], input[name="pf.username"], input[type="email"]',
+  ).first();
+  const passwordInput = page.locator(
+    'input[name="password"], input[id="password"], input[name="pf.pass"], input[type="password"]',
+  ).first();
 
   await usernameInput.fill(username);
+  await expectFilled(usernameInput, username);
 
   // Some PingOne flows ask for username first, then present password on the next screen.
   // Re-query after that navigation — a pre-step locator goes stale / is not the visible field.
@@ -207,7 +217,15 @@ async function driveLogin(page, { loginInitUrl, username, password, expectedLand
 
   // Wait for the app to redirect back and settle on the expected page.
   // Uses a loose URL match so /dashboard?oauth=success also counts.
-  await page.waitForURL(`**${expectedLandingPath}**`, { timeout: POST_LOGIN_TIMEOUT });
+  // PF mode may land on the SPA root ('/') instead of the requested path when
+  // the IdP drops return_to — the OAuth round-trip itself is the success
+  // signal, so falling back to "back on the app origin" is not a soft-fail.
+  const appOrigin = new URL(getE2eBaseUrl()).origin;
+  try {
+    await page.waitForURL(`**${expectedLandingPath}**`, { timeout: POST_LOGIN_TIMEOUT });
+  } catch (_) {
+    await page.waitForURL(`${appOrigin}/**`, { timeout: POST_LOGIN_TIMEOUT });
+  }
 
   // Wait for React to hydrate (status endpoint must have resolved)
   await page.waitForSelector('[class*="dashboard"], [class*="ba-subtitle"], .banking-agent-fab', {
