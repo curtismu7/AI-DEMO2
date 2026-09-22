@@ -14,6 +14,7 @@ const DEFAULT_FAVORITES = [
   { label: 'AI Guard', path: '/llm-gateway' },
   { label: 'AI Gateway Client', path: '/privilege-mcp-client' },
   AGENT_IDENTITY_ACADEMY_FAVORITE,
+  { label: 'Guided Demo Tour', path: '/academy/journey' },
 ];
 
 // Turn a route path into a readable label for "Add this page", handling the
@@ -23,6 +24,7 @@ const FAVORITE_LABELS = {
   '/llm-gateway': 'AI Guard',
   [LEGACY_AGENT_IDENTITY_ACADEMY_PATH]: 'Agent Identity Academy',
   '/academy/identity': 'Agent Identity Academy',
+  '/academy/journey': 'Guided Demo Tour',
 };
 export function labelForPath(path) {
   if (FAVORITE_LABELS[path]) return FAVORITE_LABELS[path];

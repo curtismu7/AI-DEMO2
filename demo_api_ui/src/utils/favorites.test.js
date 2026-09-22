@@ -10,9 +10,11 @@ describe('favorites', () => {
       '/llm-gateway',
       '/privilege-mcp-client',
       '/academy/identity',
+      '/academy/journey',
     ]);
     expect(favs[0].label).toBe('AI Guard');
     expect(favs[2].label).toBe('Agent Identity Academy');
+    expect(favs[3].label).toBe('Guided Demo Tour');
   });
 
   it('adds a page and does not duplicate it', () => {
@@ -46,6 +48,7 @@ describe('favorites', () => {
     expect(getFavorites().map((f) => f.path)).toEqual([
       '/privilege-mcp-client',
       '/academy/identity',
+      '/academy/journey',
     ]);
   });
 
