@@ -169,6 +169,29 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-22 — UC2 delegation under PingFederate: multi-issuer validation across the stack (PRs #148/#153/#157/#158)
+
+**Files changed:**
+- `demo_api_server/services/oauthService.js` — `performTokenExchangeAs` honors `exchangeOptions.requestedTokenType` and `exchangeOptions.subjectTokenType` (PF SP connections only issue id-jag; PF forbids id-jag→id-jag, so chained Ex2 presents subject_type=id-jag requesting access_token).
+- `demo_api_server/services/a2aDelegationService.js` — `resolveA2aConfig` PF-mode: https-prefixed audiences, id-jag request types, `gateway:mcp:invoke` added to the Ex2 scope list.
+- `demo_api_server/services/tokenValidationService.js` — kid-less JWT headers (PF id-jag: typ=oauth-id-jag+jwt + x5t) match the JWKS key by x5t thumbprint before the first-RSA fallback.
+- `demo_api_server/middleware/auth.js` — `validatePingOneCoreToken` dual-issuer branch (iss=PF_ISSUER_URI → PF_JWKS_URI).
+- `demo_api_server/services/mcpWebSocketClient.js` — WS upgrade stamps `X-Token-Validation: jwks` in ping-gateway+jwks mode (the introspection route sends tokens to PingOne, which cannot parse PF tokens).
+- `ping-gateway/scripts/groovy/jwks-token-validation.groovy` — dual-issuer JWKS selection (per-issuer cache slots), x5t key matching, scope-as-array support.
+- `ping-gateway/scripts/groovy/p1az-decision.groovy` — scope array support; coerce PF's Java-toString inner act (`{sub=x}`) back to a Map so the nested act chain survives depth checks.
+- `ping-gateway/scripts/groovy/olb-token-exchange.groovy` + `invest-dispatch.groovy` — Exchange #3 routes to the PF token endpoint with PF exchanger creds when the subject iss is PF; id-jag subject typing only when the header typ is `oauth-id-jag+jwt` (PF rejects id-jag typing on ATM access tokens).
+- `demo_mcp_gateway/src/tokenValidator.ts`, `demo_mcp_resource_server/src/server/tokenValidator.ts` — dual-issuer JWKS selection (iss → PF_JWKS_URI) + scope-as-array.
+- `docker-compose.yml` — PF issuer/JWKS env for ping-gateway, mcp-gateway, mcp-resource-server; `local.ping-devops.com:host-gateway` extra_hosts (PF cert SAN); certs mount + `NODE_EXTRA_CA_CERTS` on the resource server; invest backend accepts the PingGateway audience.
+- `demo_api_server/.env.example`, `ping-gateway/.env.example` — document `PF_ISSUER_URI`/`PF_JWKS_URI`/`PF_TOKEN_ENDPOINT`/`PF_TE_*` and the widened `PINGONE_RESOURCE_MCP_RESOURCE_SERVER_URI`.
+
+**What was broken:** with `OAUTH_PROVIDER=pingfederate`, the whole UC2 chain (login → Ex1 id-jag → A2A wire bearer → Ex2 → P1AZ → Ex3 → invest backend) rejected PF-minted tokens at every hop — each validator trusted only PingOne's issuer/JWKS, and the Ex2 scope list lacked the gateway inbound scope. 
+
+**Do not break:** the PingOne path must stay byte-identical — every dual-issuer branch fires ONLY when the token's iss matches `PF_ISSUER_URI` (unset = PingOne-only, previous behavior). The gateway-native `act` claim still wins over the `X-Act-Client-Id` bridge. The invest backend accepting the PingGateway audience is a deliberate PF-mode concession: **PF reuses the persistent grant for identical TE requests, so aud-conditional ATM mapping expressions never take effect on a cached grant** — the P1AZ decision at the gateway is the real gate for that audience. The BFF `authenticateToken` dual-issuer branch verifies the PF signature and enforces the same aud/scope gates; do not widen `gwAuds` on banking write callbacks.
+
+**PF runtime config (live, not in repo):** TE processor policy mapping (id-jag subject, access_token actor) with a nested-act expression `{"sub": actor.client_id, "act": subject.act}`; ATM `aud`/`sub` extended attributes; JWT processor allowed-audiences (3036, mcp-invest, scheme-less + https a2a intermediates); gateway SP resourceUris; `a2a_tenant_id` extended attribute on all 12 A2A SP connections; `ff_mcp_gateway_jwks=true`.
+
+**Verify:** live E2E (PF mode): login → Ex1 id-jag (sub=demoUser, act={generalist}, aud=investment intermediate, a2a_tenant_id) → wire bearer PASS → Ex2 (nested act, aud=PingGateway) → P1AZ PERMIT (real backend) → Ex3 → invest backend 200 → real portfolio data (PF-01 / INV-8842, $184,320.55, ytd 11.4%). Reply: "Delegation complete — Investment Advisor retrieved get portfolio summary on your behalf (act-chain depth 2)." Re-verified after full rebuild from merged main. `cd demo_api_server && npx jest tests/a2aBearerValidation.test.js tests/a2aSpecialistExecutor.test.js src/__tests__/a2aExecution.test.js` → 21 pass.
+
 ### 2026-09-22 — Mission Control drawer: unreadable buttons + redundant P1AZ arming button
 
 **Files changed:** `demo_api_ui/src/components/DemoStepsDropdown.jsx`,
