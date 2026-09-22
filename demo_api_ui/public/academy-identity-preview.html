@@ -1386,6 +1386,7 @@
               Watch it live in the 15-min demo →
             </a>
             <nav class="learning-links" aria-label="Related learning">
+              <a href="/academy/journey">Guided Journey (live)</a>
               <a href="/learning">Education Hub</a>
               <a href="/oauth-academy">OAuth Academy</a>
               <a href="/ai-products/core">Ping product map</a>
@@ -1673,6 +1674,7 @@
         let activeLesson = lessons[0];
         let activeFrame = -1;
         let journeyComplete = false;
+        let realReady = false;
         const skippedLessons = new Set();
         const journeyResults = new Map();
         const startedLessons = new Set();
@@ -1683,14 +1685,16 @@
         }
 
         function sourceLabel() {
-          if (document.body.dataset.runSource === "real") return "REAL — UNAVAILABLE";
+          if (document.body.dataset.runSource === "real") return realReady ? "REAL" : "REAL — UNAVAILABLE";
           if (document.body.dataset.runSource === "recorded") return "RECORDED — UNAVAILABLE";
           return "MOCK";
         }
 
         function readyStatus() {
           if (document.body.dataset.runSource === "real") {
-            return "Real mode selected. Configure the required services to start.";
+            return realReady
+              ? "Real mode ready. Open the Guided Journey below for live evidence."
+              : "Real mode selected. Configure the required services to start.";
           }
           if (document.body.dataset.runSource === "recorded") {
             return "Recorded mode selected. Add a sanitized capture before replaying it.";
@@ -1779,10 +1783,16 @@
           const sourceBadge = document.querySelector("[data-source-badge]");
           sourceBadge.textContent = sourceLabel();
           runAction.disabled = source !== "mock";
-          if (source === "real") {
+          if (source === "real" && realReady) {
+            readiness.dataset.state = "ready";
+            text("[data-readiness-title]", "Real tenant is ready");
+            text("[data-readiness-copy]", "PingOne tenant is configured. Open the Guided Journey or the 15-min demo for live evidence.");
+            runAction.textContent = "Live demo below";
+            runAction.disabled = true;
+          } else if (source === "real") {
             readiness.dataset.state = "unavailable";
             text("[data-readiness-title]", "Real needs tenant setup");
-            text("[data-readiness-copy]", "Real mode is not configured in this static prototype. Mock remains available.");
+            text("[data-readiness-copy]", "PingOne tenant is not reachable from here. Mock remains available.");
             runAction.textContent = "Real run unavailable";
           } else if (source === "recorded") {
             readiness.dataset.state = "unavailable";
@@ -1918,6 +1928,35 @@
           activeFrame = -1;
           renderFrames();
           renderEvidence();
+          renderReadiness();
+          text("[data-run-status]", readyStatus());
+          if (source === "real") probeRealReadiness();
+        }
+
+        // Real mode probes the same tenant readiness endpoints the React
+        // Academy uses (read-only, same-origin). When the deployment actually
+        // has a configured tenant, Real reports ready and points at the live
+        // surfaces instead of the blanket "static prototype" refusal. Failure
+        // (standalone file://, BFF down) keeps the previous honest message.
+        let realProbeToken = 0;
+        async function probeRealReadiness() {
+          const token = ++realProbeToken;
+          if (document.body.dataset.runSource !== "real") return;
+          text("[data-readiness-title]", "Checking tenant readiness");
+          text("[data-readiness-copy]", "Probing the live tenant endpoints.");
+          let configured = false;
+          try {
+            const [readiness, introspection] = await Promise.all([
+              fetch("/api/health/readiness").then((r) => r.json()),
+              fetch("/api/health/introspection").then((r) => r.json()).catch(() => null),
+            ]);
+            configured = Boolean(readiness?.configured) &&
+              ["connected", "ok", true].includes(introspection?.status ?? introspection?.connected ?? true);
+          } catch {
+            configured = false;
+          }
+          if (token !== realProbeToken || document.body.dataset.runSource !== "real") return;
+          realReady = configured;
           renderReadiness();
           text("[data-run-status]", readyStatus());
         }
