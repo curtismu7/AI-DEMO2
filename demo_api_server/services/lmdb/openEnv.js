@@ -15,6 +15,15 @@ const _dbs = {};
 // all named DBs, and data.mdb never shrinks back on its own — so hitting it
 // looks like "the whole BFF broke", permanently. Raise only deliberately, after
 // measuring per-DB sizes (a compaction may be the actual fix).
+//
+// 2026-09-22 measured (post-incident): ~24MB live across all 29 named DBs
+// (reports 8.7MB, sessions 6.5MB, pingoneEvents 3.5MB, conversations 2.5MB,
+// rest <1MB each). 128MB ≈ 5x live data with per-store caps already in place
+// (mcpAudit 5000, pingoneEvents 2000, conversations 500/thread, session TTL
+// 24h + hourly prune). Freelist churn from expired sessions can inflate the
+// file 10x beyond live bytes, but never beyond the map — 128MB is adequate;
+// compaction (scripts/compact-lmdb.sh) reclaims it. Only raise if per-DB
+// measurement shows live data actually approaching 100MB.
 const MAP_SIZE = 128 * 1024 * 1024;
 const MAP_SIZE_WARN_FRACTION = 0.8;
 
