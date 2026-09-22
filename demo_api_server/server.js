@@ -1530,16 +1530,9 @@ app.use('/api/admin/agent-gateway', agentGatewayConfigRouter);
 // Agent Gateway Inspector — tool introspection and invocation
 app.use('/api/agent-gateway', agentGatewayInspectorRouter);
 app.use('/api/mcp/traffic', requireSession, mcpTrafficRoutes);
-// MCP Audit: admin-only route — proxies to MCP server /audit internal endpoint (D-11)
-app.use('/api/mcp/audit', (req, res, next) => {
-    if (!req.session ?.user || req.session.user.role !== 'admin') {
-        return res.status(401).json({
-            error: 'admin_required',
-            message: 'Admin session required to access audit log.'
-        });
-    }
-    next();
-}, mcpAuditRouter);
+// MCP Audit: read-only observability data for any signed-in user. Mutating and
+// prompt-flow admin surfaces remain separately gated below.
+app.use('/api/mcp/audit', requireSession, mcpAuditRouter);
 // Prompt Flow Inspector: admin-only route — reads transactionLedger.lmdb
 // filtered by correlationId. Same gate pattern as /api/mcp/audit above.
 app.use('/api/prompt-flow', (req, res, next) => {

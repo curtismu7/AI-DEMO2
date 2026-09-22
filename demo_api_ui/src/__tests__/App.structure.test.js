@@ -123,6 +123,14 @@ describe("App.js — critical JSX placements", () => {
     expect(block).not.toContain("<RequireAdminLogin");
   });
 
+  test("MCP observability is a signed-in user route, not an admin role-switch route", () => {
+    const start = appSrc.indexOf('path="/mcp-observability"');
+    expect(start).toBeGreaterThan(-1);
+    const block = appSrc.slice(start, start + 420);
+    expect(block).toContain("<McpObservabilityPage");
+    expect(block).not.toContain("<RequireAdminLogin");
+  });
+
   test("MonitoringRoutes is rendered for /monitoring/*", () => {
     expect(appSrc).toContain("<MonitoringRoutes");
   });

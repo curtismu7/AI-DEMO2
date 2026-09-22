@@ -305,7 +305,7 @@
     "/tracing": "user",
     "/transaction-consent": "public",
     "/transaction-trace": "user",
-    "/mcp-observability": "admin",
+    "/mcp-observability": "user",
     "/transaction-trace/embed/:correlationId": "public",
     "/transactions": "public",
     "/ungoverned-agent": "public",

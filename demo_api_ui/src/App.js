@@ -1507,9 +1507,7 @@ function AppWithAuth() {
                             <Route
                               path="/mcp-observability"
                               element={
-                                <RequireAdminLogin user={user}>
-                                  <McpObservabilityPage />
-                                </RequireAdminLogin>
+                                user ? <McpObservabilityPage /> : <SignInPrompt />
                               }
                             />
                             {/* === Admin routes ===
