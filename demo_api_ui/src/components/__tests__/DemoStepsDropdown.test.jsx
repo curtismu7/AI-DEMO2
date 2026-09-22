@@ -13,17 +13,12 @@ import {
   DEMO_USE_CASE_IDS,
   ADMIN_PRIMARY_USE_CASE_IDS,
 } from '../../config/demoUseCaseSteps';
-import { armTemporaryP1azFlags } from '../../services/temporaryP1azFlags';
 
 vi.mock('../../services/apiClient', () => ({
   default: {
     get: vi.fn(),
     post: vi.fn(),
   },
-}));
-
-vi.mock('../../services/temporaryP1azFlags', () => ({
-  armTemporaryP1azFlags: vi.fn(),
 }));
 
 const CATALOG = DEMO_USE_CASE_IDS.map((id, i) => ({
@@ -40,7 +35,6 @@ const CATALOG = DEMO_USE_CASE_IDS.map((id, i) => ({
 describe('DemoStepsDropdown', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    armTemporaryP1azFlags.mockResolvedValue(undefined);
     sessionStorage.clear();
     apiClient.get.mockResolvedValue({ data: { useCases: CATALOG } });
   });
@@ -56,24 +50,16 @@ describe('DemoStepsDropdown', () => {
     expect(screen.getByTestId('demo-steps-trigger')).toHaveTextContent(/Demo steps/);
   });
 
-  it('runs the live P1AZ balance step with temporary flags', async () => {
-    const onSelect = vi.fn();
+  it('does not render the legacy live-P1AZ arming button (flags are on by default)', async () => {
     render(
       <DemoStepsDropdown
         open
         onOpenChange={() => {}}
-        onSelect={onSelect}
+        onSelect={() => {}}
       />,
     );
-
-    const live = await screen.findByTestId('demo-live-p1az');
-    fireEvent.click(live);
-
-    await waitFor(() => expect(armTemporaryP1azFlags).toHaveBeenCalledTimes(1));
-    expect(onSelect).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'UC1' }),
-      2,
-    );
+    expect(await screen.findByTestId('demo-steps-popout')).toBeInTheDocument();
+    expect(screen.queryByTestId('demo-live-p1az')).not.toBeInTheDocument();
   });
 
   it('renders a Stop Agent action that calls onStopAgentClick when open', async () => {

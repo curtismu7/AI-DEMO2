@@ -6022,37 +6022,15 @@ body > .banking-agent-float-root .banking-agent-panel {
   text-transform: none;
   padding: 4px 10px;
   border-radius: 6px;
-  border: 1px solid #64748b;
-  background: transparent;
-  color: #f8fafc;
+  border: 1px solid var(--th-border-strong, #64748b);
+  background: var(--th-bg-inset, rgba(15, 23, 42, 0.55));
+  color: var(--th-text, #f8fafc);
   cursor: pointer;
 }
 
 .ba-demo-steps-popout__clear:hover {
-  border-color: var(--th-border);
+  border-color: var(--th-text, #e2e8f0);
   color: #fff;
-}
-
-.ba-demo-steps-popout__live-p1az {
-  min-height: 32px;
-  padding: 5px 9px;
-  border: 1px solid #38bdf8;
-  border-radius: 999px;
-  background: rgba(14, 116, 144, 0.22);
-  color: #e0f2fe;
-  font-size: var(--font-size-3xs);
-  font-weight: 750;
-  cursor: pointer;
-}
-
-.ba-demo-steps-popout__live-p1az:hover:not(:disabled) {
-  background: rgba(14, 116, 144, 0.42);
-  color: #fff;
-}
-
-.ba-demo-steps-popout__live-p1az:disabled {
-  cursor: wait;
-  opacity: 0.7;
 }
 
 .ba-demo-steps-popout__stop-agent {
@@ -6648,7 +6626,6 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .ba-demo-steps-drawer .ba-demo-steps-popout__clear,
-.ba-demo-steps-drawer .ba-demo-steps-popout__live-p1az,
 .ba-demo-steps-drawer .ba-demo-steps-popout__stop-agent {
   min-height: 32px;
   padding: 5px 9px;
