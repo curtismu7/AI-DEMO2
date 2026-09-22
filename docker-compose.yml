@@ -1573,6 +1573,18 @@ services:
       # RFC 8707 audience — must match demo_mcp_gateway's MCP_JWTVERIFIER_RESOURCE_URI
       # so the gateway's RFC 8693 re-exchange mints tokens this server accepts.
       MCP_JWTVERIFIER_RESOURCE_URI: "mcp-jwt-verifier.ping.demo"
+      # Secondary issuer (PingFederate, 2026-09-22 A2A-under-PF): server.py builds
+      # a second JWTVerifier for tokens whose iss matches PF_ISSUER. Unset = PingOne-only.
+      PF_ISSUER: "https://local.ping-devops.com:9031"
+      PF_JWKS_URI: "https://local.ping-devops.com:9031/pf/JWKS"
+      # Trust the mkcert root for the PF JWKS fetch (PF's listener cert is mkcert-signed).
+      SSL_CERT_FILE: "/certs/ca-bundle-with-mkcert.pem"
+    extra_hosts:
+      # PF_JWKS_URI hostname must match the PF cert SAN; inside the container that
+      # name needs to resolve to the host (PF published on 9031).
+      - "local.ping-devops.com:host-gateway"
+    volumes:
+      - ./certs:/certs:ro
     env_file:
       - path: ./demo_mcp_jwt_verifier/.env
         required: false   # copy demo_mcp_jwt_verifier/.env.example for PINGONE_JWKS_URI / PINGONE_ISSUER

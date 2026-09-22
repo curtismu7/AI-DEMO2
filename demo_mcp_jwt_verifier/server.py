@@ -27,19 +27,67 @@ load_dotenv()
 HTTP_TIMEOUT = float(os.environ.get("HTTP_TIMEOUT_SECONDS", "10"))
 MAX_JWKS_BYTES = int(os.environ.get("MAX_JWKS_RESPONSE_BYTES", "1048576"))
 
-# jwksUri / uri are chosen by the LLM, so only PingOne's own JWKS host is fetched.
-_ALLOWED_JWKS_HOST = urlparse(os.environ["PINGONE_JWKS_URI"]).hostname
+# jwksUri / uri are chosen by the LLM, so only known IdP JWKS hosts are fetched.
+_ALLOWED_JWKS_HOSTS = [urlparse(os.environ["PINGONE_JWKS_URI"]).hostname]
+# Secondary issuer (PingFederate, 2026-09-22 A2A-under-PF): tokens whose iss
+# matches PF_ISSUER are verified against the PF JWKS. Unset = PingOne-only.
+PF_ISSUER = os.environ.get("PF_ISSUER", os.environ.get("PF_ISSUER_URI", ""))
+PF_JWKS_URI = os.environ.get("PF_JWKS_URI") or (f"{PF_ISSUER}/JWKS" if PF_ISSUER else "")
+if PF_JWKS_URI:
+    _ALLOWED_JWKS_HOSTS.append(urlparse(PF_JWKS_URI).hostname)
 
 
 def _jwks_uri_allowed(uri: str) -> bool:
     parsed = urlparse(uri)
-    return parsed.scheme == "https" and parsed.hostname == _ALLOWED_JWKS_HOST
+    return parsed.scheme == "https" and parsed.hostname in _ALLOWED_JWKS_HOSTS
 
-auth = JWTVerifier(
+pingone_auth = JWTVerifier(
     jwks_uri=os.environ["PINGONE_JWKS_URI"],
     issuer=os.environ["PINGONE_ISSUER"],
     audience=os.environ["MCP_JWTVERIFIER_RESOURCE_URI"],
 )
+
+pf_auth = (
+    JWTVerifier(
+        jwks_uri=PF_JWKS_URI,
+        issuer=PF_ISSUER,
+        audience=os.environ["MCP_JWTVERIFIER_RESOURCE_URI"],
+    )
+    if PF_ISSUER and PF_JWKS_URI
+    else None
+)
+
+
+class DualIssuerJWTVerifier(JWTVerifier):
+    # Dispatch token verification by the (unverified) iss claim: PF-issued
+    # tokens go to the PF verifier, everything else to the PingOne one. Signature
+    # verification still happens inside each delegate against its own JWKS - the
+    # iss claim only SELECTS the trust anchor.
+
+    def __init__(self, primary, secondary, pf_issuer):
+        super().__init__(
+            jwks_uri=pingone_auth.jwks_uri,
+            issuer=pingone_auth.issuer,
+            audience=os.environ["MCP_JWTVERIFIER_RESOURCE_URI"],
+        )
+        self._pingone = pingone_auth
+        self._pf = pf_auth
+        self._pf_issuer = pf_issuer
+
+    async def load_access_token(self, token: str):
+        if not (self._pf and self._pf_issuer):
+            return await self._pingone.load_access_token(token)
+        # decode payload iss (unverified - selector only)
+        try:
+            payload = json.loads(_b64url_decode(token.split(".")[1]))
+            iss = payload.get("iss")
+        except Exception:
+            iss = None
+        verifier = self._pf if iss == self._pf_issuer else self._pingone
+        return await verifier.load_access_token(token)
+
+
+auth = DualIssuerJWTVerifier(pingone_auth, pf_auth, PF_ISSUER) if pf_auth else pingone_auth
 
 mcp = FastMCP(name="JWT Verifier", auth=auth)
 
