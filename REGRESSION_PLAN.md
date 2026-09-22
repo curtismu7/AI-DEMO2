@@ -169,6 +169,37 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-22 — Mission Control drawer: unreadable buttons + redundant P1AZ arming button
+
+**Files changed:** `demo_api_ui/src/components/DemoStepsDropdown.jsx`,
+`demo_api_ui/src/components/AIAgent.css` (PR #147).
+
+**What was broken:** the drawer header's "Run live P1AZ balance" pill was
+pale-blue text on a near-white ground and "Clear progress" was transparent
+with near-white text — both unreadable on the light drawer surface (§0
+contrast rule). Separately, the P1AZ button existed to arm
+`ff_authorize_real` + `ff_mcp_gateway_pinggateway` with a 60s restore lease,
+but both flags already default to `'true'` in `configStore.js`, so the
+button was dead weight and the lease could silently flip flags off
+mid-demo.
+
+**What was fixed:** removed the button, its `handleLiveP1az` handler and
+the `armTemporaryP1azFlags` import (the service itself stays — other
+callers/tests still use it); gave "Clear progress" themed
+`--th-text`/`--th-bg-inset`/`--th-border-strong` tokens so it reads in both
+light and dark themes.
+
+**Do not break:** UC1 still runs identically through `onSelect` — the
+drawer's step list is untouched; only the header action row changed.
+`armTemporaryP1azFlags` must keep its lease/restore semantics for its
+remaining callers.
+
+**Verify:** `cd demo_api_ui && npx vitest run
+src/components/__tests__/DemoStepsDropdown.test.jsx` (asserts
+`demo-live-p1az` is absent), `npm run build`; visual: Playwright spec
+against the live stack showed the drawer with only Clear progress + Stop
+Agent in the header.
+
 ### 2026-09-22 — PF-mode tool calls all DENY'd: per-tool scopes dropped at three links in the ID-JAG chain
 
 **Files changed:** `demo_api_server/services/agentMcpTokenService.js` (PR #143),
