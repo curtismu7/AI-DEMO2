@@ -3,14 +3,15 @@ import { MdArrowBack } from 'react-icons/md';
 import bffAxios from '../services/bffAxios';
 import { notifyError } from '../utils/appToast';
 import './NotificationsPanel.css';
+import { PRIMARY_AGENT } from '../config/agentTerminology';
 
 // The categories this demo can actually notify on. Keys are persisted verbatim
 // on the user record, so renaming one orphans a saved preference.
 export const NOTIFICATION_CATEGORIES = [
   {
     key: 'agentActivity',
-    label: 'AI agent activity',
-    detail: 'When an agent acts on your accounts on your behalf.',
+    label: `${PRIMARY_AGENT.displayName} activity`,
+    detail: `When ${PRIMARY_AGENT.displayName} acts on your accounts on your behalf.`,
   },
   {
     key: 'transfers',

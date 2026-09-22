@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import bffAxios from '../services/bffAxios';
 import { notifyError, notifySuccess } from '../utils/appToast';
+import { PRIMARY_AGENT } from '../config/agentTerminology';
 
 const DEFAULTS = {
   agentEnabled: true,
@@ -64,10 +65,10 @@ export default function AgentPermissionsCard({ user }) {
   return (
     <div className="up-card">
       <div className="up-card__header">
-        <span className="up-card__title">AI Agent Permissions</span>
+        <span className="up-card__title">{PRIMARY_AGENT.displayName} Permissions</span>
       </div>
       <p className="up-card__desc">
-        Set what your AI agent can and cannot do on your behalf.
+        Set what {PRIMARY_AGENT.displayName} can and cannot do on your behalf.
       </p>
 
       <div className="up-permissions-section">
