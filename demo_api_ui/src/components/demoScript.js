@@ -171,3 +171,28 @@ export const DEMO_SCRIPT_BEAT_BY_UC_ID = Object.fromEntries(
 export function findBeat(ucId) {
   return (ucId && DEMO_SCRIPT_BEAT_BY_UC_ID[ucId]) || null;
 }
+
+/**
+ * Academy lesson id -> the 15-min script beat that demonstrates the same
+ * control live. Bridges /academy/identity to the real demo: a lesson with an
+ * entry here can offer "watch it live in the 15-min demo". Keyed by the
+ * lesson `id` in public/academy-identity-preview.html — keep in sync when
+ * either side changes.
+ */
+export const DEMO_SCRIPT_BEAT_BY_ACADEMY_LESSON_ID = {
+  delegation: "UC1",        // delegated access baseline = "OAuth Delegated Agent Access"
+  a2a: "UC2",               // nested act chain = A2A specialist handoff
+  authorize: "UC6",         // policy ceiling DENY = "PingOne Authorize: Permit and Deny"
+  "human-approval": "UC8",  // HITL pause = "Human Approval, CIBA, Consent, and Step-Up"
+  "threat-defense": "UC12", // DPoP replay DENY = "AI Threat Defense"
+  lifecycle: "UC5",         // scope/kill-switch containment = "Agent Detection, Lifecycle, and Revocation"
+};
+
+/**
+ * The 15-min script beat that demonstrates an Academy lesson's control live,
+ * or null when the lesson has no scripted counterpart.
+ * @param {string|null|undefined} lessonId
+ */
+export function findBeatForAcademyLesson(lessonId) {
+  return (lessonId && DEMO_SCRIPT_BEAT_BY_ACADEMY_LESSON_ID[lessonId]) || null;
+}

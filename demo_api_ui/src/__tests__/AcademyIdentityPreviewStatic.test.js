@@ -422,4 +422,40 @@ describe("ID4AI Academy HTML preview", () => {
       "PingOne Privilege",
     );
   });
+
+  it("offers the matching 15-min demo beat only on lessons that have one", () => {
+    const dom = loadPreview();
+    const { document } = dom.window;
+    const liveDemo = document.querySelector('[data-link="live-demo"]');
+    const demoSay = document.querySelector("[data-demo-say]");
+
+    const withBeat = {
+      delegation: "UC1",
+      a2a: "UC2",
+      authorize: "UC6",
+      "human-approval": "UC8",
+      "threat-defense": "UC12",
+      lifecycle: "UC5",
+    };
+    Object.entries(withBeat).forEach(([lessonId, ucId]) => {
+      document.querySelector(`[data-lesson-target="${lessonId}"]`).click();
+      expect(liveDemo.hidden, `${lessonId} live link hidden`).toBe(false);
+      expect(liveDemo.getAttribute("href"), `${lessonId} live link href`).toBe(
+        "/use-cases/live",
+      );
+      expect(liveDemo.textContent, `${lessonId} live link names ${ucId}`).toContain(ucId);
+      expect(demoSay.hidden, `${lessonId} say line hidden`).toBe(false);
+      expect(demoSay.textContent, `${lessonId} say line content`).toContain("demo script");
+    });
+
+    const withoutBeat = [
+      "landscape", "login", "personal-agent", "digital-assistant", "mcp",
+      "privilege-mcp", "evidence-map",
+    ];
+    withoutBeat.forEach((lessonId) => {
+      document.querySelector(`[data-lesson-target="${lessonId}"]`).click();
+      expect(liveDemo.hidden, `${lessonId} live link hidden`).toBe(true);
+      expect(demoSay.hidden, `${lessonId} say line hidden`).toBe(true);
+    });
+  });
 });
