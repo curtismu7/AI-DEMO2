@@ -6,7 +6,7 @@
 
 **Architecture:** A single `scope-topology.json` at the repo root is the source of truth (scopes → resources → apps → tool deps). The gateway tool→scope map and the BFF RFC 8693 exchange map are *rewritten to derive* from it (clean structural fit). The imperative provisioning service gets two targeted `banking:transfer` additions plus a regression assertion that its scope arrays match the manifest (a deliberate, documented refinement of spec §3.3 — a wholesale derive-rewrite of a 2000-line REGRESSION_PLAN §1 file is out of safe-diff scope). `scopePolicyEngine` / `scopeAuditService` derive their scope sets from the manifest with manifest-keyed overlays for policy/audit-local metadata. A static jest test asserts every consumer agrees with the manifest; `verify-scope-configuration.js` gains a live-env diff. Generated docs replace the drifted `.planning` scope docs.
 
-**Tech Stack:** Node CommonJS (BFF, `banking_api_server`), TypeScript strict + `resolveJsonModule` (gateway, `banking_mcp_gateway`), Jest (both), JSON manifest + JSON Schema.
+**Tech Stack:** Node CommonJS (BFF, `demo_api_server`), TypeScript strict + `resolveJsonModule` (gateway, `banking_mcp_gateway`), Jest (both), JSON manifest + JSON Schema.
 
 ---
 
@@ -26,20 +26,20 @@ The regression test (Task 7) asserts equality **only within the class each tool 
 
 - **Create** `scope-topology.json` (repo root) — the manifest. One responsibility: declare scopes, resources, app grants, tool→scope deps.
 - **Create** `scope-topology.schema.json` (repo root) — JSON Schema constraining the manifest shape.
-- **Create** `banking_api_server/services/scopeTopology.js` — CommonJS loader: reads + schema-validates the manifest once, exposes typed accessors for BFF consumers.
+- **Create** `demo_api_server/services/scopeTopology.js` — CommonJS loader: reads + schema-validates the manifest once, exposes typed accessors for BFF consumers.
 - **Create** `banking_mcp_gateway/src/auth/scopeTopology.ts` — TS loader: imports the manifest JSON, exposes accessors for gateway consumers.
 - **Modify** `banking_mcp_gateway/src/auth/toolScopes.ts` — `TOOL_SCOPES` + `STEP_UP_TOOLS` derive from the TS loader; public API unchanged.
-- **Modify** `banking_api_server/services/mcpWebSocketClient.js` — `MCP_TOOL_SCOPES` derives from the JS loader; shape unchanged.
-- **Modify** `banking_api_server/services/pingoneProvisionService.js` — add `banking:transfer` to the main-resource scope array + User App grant (Admin inherits via `scopes.map`).
-- **Modify** `banking_api_server/services/scopePolicyEngine.js` — `SCOPE_TAXONOMY` scope ids + risk derive from manifest; ops kept as manifest-keyed overlay.
-- **Modify** `banking_api_server/services/scopeAuditService.js` — `SCOPE_REFERENCE_TABLE` derives from manifest apps via a pinned display-name map.
-- **Create** `banking_api_server/scripts/generate-scope-doc.js` — renders manifest → `docs/scope-topology.md`.
+- **Modify** `demo_api_server/services/mcpWebSocketClient.js` — `MCP_TOOL_SCOPES` derives from the JS loader; shape unchanged.
+- **Modify** `demo_api_server/services/pingoneProvisionService.js` — add `banking:transfer` to the main-resource scope array + User App grant (Admin inherits via `scopes.map`).
+- **Modify** `demo_api_server/services/scopePolicyEngine.js` — `SCOPE_TAXONOMY` scope ids + risk derive from manifest; ops kept as manifest-keyed overlay.
+- **Modify** `demo_api_server/services/scopeAuditService.js` — `SCOPE_REFERENCE_TABLE` derives from manifest apps via a pinned display-name map.
+- **Create** `demo_api_server/scripts/generate-scope-doc.js` — renders manifest → `docs/scope-topology.md`.
 - **Create** `docs/scope-topology.md` — generated reference (committed; regenerated, never hand-edited).
 - **Modify** `.planning/quick/2026-04-07-pingone-scopes-mapping.md` + 3 sibling scope docs + `.planning/quick/pingone-update-scopes-manual.md` — replace bodies with one-line pointer stubs.
-- **Modify** `banking_api_server/scripts/verify-scope-configuration.js` — add a `--manifest-diff` mode comparing live PingOne against the manifest.
-- **Create** `banking_api_server/src/__tests__/scopeTopology.regression.test.js` — the CI-blocking guard.
+- **Modify** `demo_api_server/scripts/verify-scope-configuration.js` — add a `--manifest-diff` mode comparing live PingOne against the manifest.
+- **Create** `demo_api_server/src/__tests__/scopeTopology.regression.test.js` — the CI-blocking guard.
 - **Create** `banking_mcp_gateway/tests/scopeTopology.test.ts` — gateway-side derive sanity (build-time TS guard).
-- **Modify** `banking_api_server/package.json` — add `"scopes:doc"` script.
+- **Modify** `demo_api_server/package.json` — add `"scopes:doc"` script.
 - **Modify** `REGRESSION_PLAN.md` — §4 Bug Fix Log entry + §1 protected-table rows for the manifest + regression test.
 
 ---
@@ -49,11 +49,11 @@ The regression test (Task 7) asserts equality **only within the class each tool 
 **Files:**
 - Create: `scope-topology.json`
 - Create: `scope-topology.schema.json`
-- Test: `banking_api_server/src/__tests__/scopeTopology.regression.test.js` (created here, grown across tasks)
+- Test: `demo_api_server/src/__tests__/scopeTopology.regression.test.js` (created here, grown across tasks)
 
 - [ ] **Step 1: Write the failing test (manifest exists + schema-valid)**
 
-Create `banking_api_server/src/__tests__/scopeTopology.regression.test.js`:
+Create `demo_api_server/src/__tests__/scopeTopology.regression.test.js`:
 
 ```javascript
 'use strict';
@@ -101,7 +101,7 @@ describe('scope-topology manifest', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_server && npx jest scopeTopology.regression -v`
+Run: `cd demo_api_server && npx jest scopeTopology.regression -v`
 Expected: FAIL — "manifest and schema files exist" fails (files not created yet).
 
 - [ ] **Step 3: Create the schema**
@@ -239,25 +239,25 @@ Apply that filter change to the test now.
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `cd banking_api_server && npx jest scopeTopology.regression -v`
+Run: `cd demo_api_server && npx jest scopeTopology.regression -v`
 Expected: PASS — all 3 tests green.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add scope-topology.json scope-topology.schema.json banking_api_server/src/__tests__/scopeTopology.regression.test.js
+git add scope-topology.json scope-topology.schema.json demo_api_server/src/__tests__/scopeTopology.regression.test.js
 git commit -m "feat(scopes): add scope-topology.json SSOT + schema + base regression test"
 ```
 
-(If `ajv` is not already a `banking_api_server` dependency, `cd banking_api_server && npm ls ajv`; it is a transitive dep of many tools but add `npm i -D ajv` if `require('ajv')` fails in Step 2, and include `package.json`/`package-lock.json` in this commit.)
+(If `ajv` is not already a `demo_api_server` dependency, `cd demo_api_server && npm ls ajv`; it is a transitive dep of many tools but add `npm i -D ajv` if `require('ajv')` fails in Step 2, and include `package.json`/`package-lock.json` in this commit.)
 
 ---
 
 ## Task 2: BFF manifest loader
 
 **Files:**
-- Create: `banking_api_server/services/scopeTopology.js`
-- Test: `banking_api_server/src/__tests__/scopeTopology.regression.test.js` (extend)
+- Create: `demo_api_server/services/scopeTopology.js`
+- Test: `demo_api_server/src/__tests__/scopeTopology.regression.test.js` (extend)
 
 - [ ] **Step 1: Write the failing test**
 
@@ -288,12 +288,12 @@ describe('BFF scopeTopology loader', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_server && npx jest scopeTopology.regression -v`
+Run: `cd demo_api_server && npx jest scopeTopology.regression -v`
 Expected: FAIL — `Cannot find module '../../services/scopeTopology'`.
 
 - [ ] **Step 3: Create the loader**
 
-Create `banking_api_server/services/scopeTopology.js`:
+Create `demo_api_server/services/scopeTopology.js`:
 
 ```javascript
 'use strict';
@@ -373,13 +373,13 @@ module.exports = {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd banking_api_server && npx jest scopeTopology.regression -v`
+Run: `cd demo_api_server && npx jest scopeTopology.regression -v`
 Expected: PASS — all loader tests green.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add banking_api_server/services/scopeTopology.js banking_api_server/src/__tests__/scopeTopology.regression.test.js
+git add demo_api_server/services/scopeTopology.js demo_api_server/src/__tests__/scopeTopology.regression.test.js
 git commit -m "feat(scopes): BFF scopeTopology loader with schema-validated accessors"
 ```
 
@@ -388,8 +388,8 @@ git commit -m "feat(scopes): BFF scopeTopology loader with schema-validated acce
 ## Task 3: BFF MCP_TOOL_SCOPES derives from manifest
 
 **Files:**
-- Modify: `banking_api_server/services/mcpWebSocketClient.js:42-70`
-- Test: `banking_api_server/src/__tests__/scopeTopology.regression.test.js` (extend)
+- Modify: `demo_api_server/services/mcpWebSocketClient.js:42-70`
+- Test: `demo_api_server/src/__tests__/scopeTopology.regression.test.js` (extend)
 
 - [ ] **Step 1: Write the failing test**
 
@@ -414,12 +414,12 @@ describe('MCP_TOOL_SCOPES derives from manifest', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_server && npx jest scopeTopology.regression -v`
+Run: `cd demo_api_server && npx jest scopeTopology.regression -v`
 Expected: FAIL — `MCP_TOOL_SCOPES.create_transfer` is `['banking:write']` (hardcoded), not `['banking:write','banking:transfer']`. **This is the transfer bug, caught by the test.**
 
 - [ ] **Step 3: Replace the hardcoded map with a manifest-derived one**
 
-In `banking_api_server/services/mcpWebSocketClient.js`, replace the entire `const MCP_TOOL_SCOPES = { ... };` block (lines 42-70, the object literal ending at the line before `function getMcpServerUrl()`) with:
+In `demo_api_server/services/mcpWebSocketClient.js`, replace the entire `const MCP_TOOL_SCOPES = { ... };` block (lines 42-70, the object literal ending at the line before `function getMcpServerUrl()`) with:
 
 ```javascript
 // MCP_TOOL_SCOPES is the BFF RFC 8693 exchange scope map. It now DERIVES from
@@ -438,18 +438,18 @@ Keep the surrounding comment block above line 42 (the "security gap — keep nam
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd banking_api_server && npx jest scopeTopology.regression -v`
+Run: `cd demo_api_server && npx jest scopeTopology.regression -v`
 Expected: PASS.
 
 - [ ] **Step 5: Run the broader BFF scope suites for regressions**
 
-Run: `cd banking_api_server && npx jest scopePolicyEngine scopeEnforcement scope-integration --silent`
+Run: `cd demo_api_server && npx jest scopePolicyEngine scopeEnforcement scope-integration --silent`
 Expected: PASS (scopePolicyEngine consumes `MCP_TOOL_SCOPES`; shape is unchanged so these stay green). If any fail, the consumer relied on a tool key the manifest omits — add that tool to the manifest with the correct `surface` and re-run.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add banking_api_server/services/mcpWebSocketClient.js banking_api_server/src/__tests__/scopeTopology.regression.test.js
+git add demo_api_server/services/mcpWebSocketClient.js demo_api_server/src/__tests__/scopeTopology.regression.test.js
 git commit -m "fix(scopes): MCP_TOOL_SCOPES derives from manifest; create_transfer now requests banking:transfer"
 ```
 
@@ -509,7 +509,7 @@ Create `banking_mcp_gateway/src/auth/scopeTopology.ts`:
 /**
  * scopeTopology.ts — gateway accessor for the repo-root scope-topology.json
  * SSOT. resolveJsonModule is enabled in tsconfig, so the manifest is imported
- * natively. Single source shared with the BFF (banking_api_server/services/
+ * natively. Single source shared with the BFF (demo_api_server/services/
  * scopeTopology.js reads the same file).
  */
 
@@ -595,8 +595,8 @@ git commit -m "refactor(gateway): TOOL_SCOPES + STEP_UP_TOOLS derive from scope-
 ## Task 5: Provisioning — add banking:transfer (targeted, §1-safe)
 
 **Files:**
-- Modify: `banking_api_server/services/pingoneProvisionService.js` (the `scopes` array feeding `createScopes` at ~line 1284; the User App grant at ~line 1474)
-- Test: `banking_api_server/src/__tests__/scopeTopology.regression.test.js` (extend)
+- Modify: `demo_api_server/services/pingoneProvisionService.js` (the `scopes` array feeding `createScopes` at ~line 1284; the User App grant at ~line 1474)
+- Test: `demo_api_server/src/__tests__/scopeTopology.regression.test.js` (extend)
 
 **REGRESSION_PLAN §1 note:** `pingoneProvisionService.js` is a protected OAuth/scope-path file. This task does NOT rewrite its imperative flow — it adds `banking:transfer` to two existing literal arrays and asserts (via test) those arrays match the manifest. State before editing: "I will not change resource-server creation order, grant call signatures, WORKER-app skip logic, or any non-`banking:transfer` scope. Only two array literals gain one string each."
 
@@ -633,12 +633,12 @@ describe('pingoneProvisionService scope arrays match manifest', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_server && npx jest scopeTopology.regression -v`
+Run: `cd demo_api_server && npx jest scopeTopology.regression -v`
 Expected: FAIL — `banking:transfer` not in the resource scopes array, not in the User App grant.
 
 - [ ] **Step 3: Add banking:transfer to the main resource scope array**
 
-In `banking_api_server/services/pingoneProvisionService.js`, find the `const scopes = [` array that feeds `createScopes(resourceResult.resource.id, scopes)` (~line 1267, the block containing `{ name: 'banking:read', description: 'Read access to banking data' },` and `{ name: 'banking:write', description: 'Write access to banking operations' },`). Add immediately after the `banking:write` line:
+In `demo_api_server/services/pingoneProvisionService.js`, find the `const scopes = [` array that feeds `createScopes(resourceResult.resource.id, scopes)` (~line 1267, the block containing `{ name: 'banking:read', description: 'Read access to banking data' },` and `{ name: 'banking:write', description: 'Write access to banking operations' },`). Add immediately after the `banking:write` line:
 
 ```javascript
         { name: 'banking:transfer', description: 'Execute fund transfers (elevated scope; gateway-enforced for create_transfer)' },
@@ -662,13 +662,13 @@ Replace with:
 
 - [ ] **Step 5: Run test to verify it passes**
 
-Run: `cd banking_api_server && npx jest scopeTopology.regression -v`
+Run: `cd demo_api_server && npx jest scopeTopology.regression -v`
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add banking_api_server/services/pingoneProvisionService.js banking_api_server/src/__tests__/scopeTopology.regression.test.js
+git add demo_api_server/services/pingoneProvisionService.js demo_api_server/src/__tests__/scopeTopology.regression.test.js
 git commit -m "fix(provision): provision banking:transfer scope + grant to User/Admin apps"
 ```
 
@@ -677,9 +677,9 @@ git commit -m "fix(provision): provision banking:transfer scope + grant to User/
 ## Task 6: scopePolicyEngine + scopeAuditService derive from manifest
 
 **Files:**
-- Modify: `banking_api_server/services/scopePolicyEngine.js` (`SCOPE_TAXONOMY`, ~line 18+)
-- Modify: `banking_api_server/services/scopeAuditService.js:7-13` (`SCOPE_REFERENCE_TABLE`)
-- Test: `banking_api_server/src/__tests__/scopeTopology.regression.test.js` (extend)
+- Modify: `demo_api_server/services/scopePolicyEngine.js` (`SCOPE_TAXONOMY`, ~line 18+)
+- Modify: `demo_api_server/services/scopeAuditService.js:7-13` (`SCOPE_REFERENCE_TABLE`)
+- Test: `demo_api_server/src/__tests__/scopeTopology.regression.test.js` (extend)
 
 - [ ] **Step 1: Write the failing test**
 
@@ -709,12 +709,12 @@ describe('scopePolicyEngine + scopeAuditService derive from manifest', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_server && npx jest scopeTopology.regression -v`
+Run: `cd demo_api_server && npx jest scopeTopology.regression -v`
 Expected: FAIL — `getAllScopes()` lacks `banking:transfer`; `SCOPE_REFERENCE_TABLE` has no `Super Banking User App` key (it has `Super Banking MCP Server` / `Super Banking Banking API` with stale lists).
 
 - [ ] **Step 3: Make SCOPE_TAXONOMY derive scope identity from the manifest (ops as overlay)**
 
-In `banking_api_server/services/scopePolicyEngine.js`, immediately after the existing `const { MCP_TOOL_SCOPES } = require('./mcpWebSocketClient');` line, add:
+In `demo_api_server/services/scopePolicyEngine.js`, immediately after the existing `const { MCP_TOOL_SCOPES } = require('./mcpWebSocketClient');` line, add:
 
 ```javascript
 const scopeTopology = require('./scopeTopology');
@@ -767,7 +767,7 @@ Then **delete** the existing hardcoded `const SCOPE_TAXONOMY = { ... };` literal
 
 - [ ] **Step 4: Make SCOPE_REFERENCE_TABLE derive from manifest apps**
 
-In `banking_api_server/services/scopeAuditService.js`, replace the literal (lines 6-13):
+In `demo_api_server/services/scopeAuditService.js`, replace the literal (lines 6-13):
 
 ```javascript
 // Flattened scope model: banking:read / banking:write replace granular scopes.
@@ -811,13 +811,13 @@ const SCOPE_REFERENCE_TABLE = {
 
 - [ ] **Step 5: Run tests**
 
-Run: `cd banking_api_server && npx jest scopeTopology.regression scopePolicyEngine scopeAudit --silent`
+Run: `cd demo_api_server && npx jest scopeTopology.regression scopePolicyEngine scopeAudit --silent`
 Expected: PASS — derived sets match the manifest; existing `scopePolicyEngine`/`scopeAudit` suites stay green (their public APIs are untouched; only the backing data is now manifest-sourced). If `scopeAudit.test.js` asserts the old stale `'Super Banking MCP Server'` key, that assertion encoded the bug — update that test's expectation to the manifest-derived `Super Banking User App`/`Super Banking Admin App` keys and note it in the commit.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add banking_api_server/services/scopePolicyEngine.js banking_api_server/services/scopeAuditService.js banking_api_server/src/__tests__/scopeTopology.regression.test.js
+git add demo_api_server/services/scopePolicyEngine.js demo_api_server/services/scopeAuditService.js demo_api_server/src/__tests__/scopeTopology.regression.test.js
 git commit -m "refactor(scopes): scopePolicyEngine + scopeAuditService derive scope sets from manifest"
 ```
 
@@ -826,7 +826,7 @@ git commit -m "refactor(scopes): scopePolicyEngine + scopeAuditService derive sc
 ## Task 7: The full cross-consumer regression assertion + negative proof
 
 **Files:**
-- Test: `banking_api_server/src/__tests__/scopeTopology.regression.test.js` (final assertions)
+- Test: `demo_api_server/src/__tests__/scopeTopology.regression.test.js` (final assertions)
 
 - [ ] **Step 1: Write the cross-consumer equality + negative test**
 
@@ -865,12 +865,12 @@ describe('cross-consumer scope equality (the guard)', () => {
 
 - [ ] **Step 2: Run the full regression suite**
 
-Run: `cd banking_api_server && npx jest scopeTopology.regression -v`
+Run: `cd demo_api_server && npx jest scopeTopology.regression -v`
 Expected: PASS — all describe blocks green, including the negative proof.
 
 - [ ] **Step 3: Run the broader critical suites**
 
-Run: `cd banking_api_server && npx jest scopeTopology scopePolicyEngine scopeEnforcement scope-integration configStore.envCoverage --silent`
+Run: `cd demo_api_server && npx jest scopeTopology scopePolicyEngine scopeEnforcement scope-integration configStore.envCoverage --silent`
 Expected: PASS across all.
 
 - [ ] **Step 4: Build the gateway**
@@ -881,7 +881,7 @@ Expected: tsc exit 0; full gateway suite green.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add banking_api_server/src/__tests__/scopeTopology.regression.test.js
+git add demo_api_server/src/__tests__/scopeTopology.regression.test.js
 git commit -m "test(scopes): cross-consumer equality guard + negative proof of transfer-bug detection"
 ```
 
@@ -890,11 +890,11 @@ git commit -m "test(scopes): cross-consumer equality guard + negative proof of t
 ## Task 8: Generated docs + collapse .planning scope docs
 
 **Files:**
-- Create: `banking_api_server/scripts/generate-scope-doc.js`
+- Create: `demo_api_server/scripts/generate-scope-doc.js`
 - Create: `docs/scope-topology.md`
-- Modify: `banking_api_server/package.json` (add `scopes:doc` script)
+- Modify: `demo_api_server/package.json` (add `scopes:doc` script)
 - Modify: `.planning/quick/2026-04-07-pingone-scopes-mapping.md`, `.planning/quick/2026-04-07-pingone-scopes-visual-reference.md`, `.planning/quick/2026-04-07-api-calls-and-token-exchange-scopes.md`, `.planning/quick/2026-04-07-code-verification-api-scopes.md`, `.planning/quick/pingone-update-scopes-manual.md`
-- Test: `banking_api_server/src/__tests__/scopeTopology.regression.test.js` (doc-sync assertion)
+- Test: `demo_api_server/src/__tests__/scopeTopology.regression.test.js` (doc-sync assertion)
 
 - [ ] **Step 1: Write the doc-sync failing test**
 
@@ -909,7 +909,7 @@ describe('generated scope doc is in sync', () => {
   test('docs/scope-topology.md matches a fresh render of the manifest', () => {
     const ROOT = path.resolve(__dirname, '../../../');
     const docPath = path.join(ROOT, 'docs/scope-topology.md');
-    const rendered = execSync('node banking_api_server/scripts/generate-scope-doc.js --stdout', {
+    const rendered = execSync('node demo_api_server/scripts/generate-scope-doc.js --stdout', {
       cwd: ROOT,
     }).toString();
     const onDisk = fs.readFileSync(docPath, 'utf8');
@@ -920,12 +920,12 @@ describe('generated scope doc is in sync', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_server && npx jest scopeTopology.regression -t "generated scope doc" -v`
+Run: `cd demo_api_server && npx jest scopeTopology.regression -t "generated scope doc" -v`
 Expected: FAIL — script and doc do not exist.
 
 - [ ] **Step 3: Create the generator**
 
-Create `banking_api_server/scripts/generate-scope-doc.js`:
+Create `demo_api_server/scripts/generate-scope-doc.js`:
 
 ```javascript
 'use strict';
@@ -994,13 +994,13 @@ if (process.argv.includes('--stdout')) {
 
 - [ ] **Step 4: Add the npm script and generate the doc**
 
-In `banking_api_server/package.json` `"scripts"`, add after `"pingone:bootstrap:ci"`:
+In `demo_api_server/package.json` `"scripts"`, add after `"pingone:bootstrap:ci"`:
 
 ```json
     "scopes:doc": "node scripts/generate-scope-doc.js",
 ```
 
-Run: `cd /Users/curtismuir/Development/banking && node banking_api_server/scripts/generate-scope-doc.js`
+Run: `cd /Users/curtismuir/Development/banking && node demo_api_server/scripts/generate-scope-doc.js`
 Expected: writes `docs/scope-topology.md`.
 
 - [ ] **Step 5: Collapse the .planning scope docs to stubs**
@@ -1026,13 +1026,13 @@ reference at [`docs/scope-topology.md`](../../docs/scope-topology.md).
 
 - [ ] **Step 6: Run the doc-sync test**
 
-Run: `cd banking_api_server && npx jest scopeTopology.regression -t "generated scope doc" -v`
+Run: `cd demo_api_server && npx jest scopeTopology.regression -t "generated scope doc" -v`
 Expected: PASS — on-disk doc equals fresh render.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add banking_api_server/scripts/generate-scope-doc.js docs/scope-topology.md banking_api_server/package.json .planning/quick/2026-04-07-pingone-scopes-mapping.md .planning/quick/2026-04-07-pingone-scopes-visual-reference.md .planning/quick/2026-04-07-api-calls-and-token-exchange-scopes.md .planning/quick/2026-04-07-code-verification-api-scopes.md .planning/quick/pingone-update-scopes-manual.md banking_api_server/src/__tests__/scopeTopology.regression.test.js
+git add demo_api_server/scripts/generate-scope-doc.js docs/scope-topology.md demo_api_server/package.json .planning/quick/2026-04-07-pingone-scopes-mapping.md .planning/quick/2026-04-07-pingone-scopes-visual-reference.md .planning/quick/2026-04-07-api-calls-and-token-exchange-scopes.md .planning/quick/2026-04-07-code-verification-api-scopes.md .planning/quick/pingone-update-scopes-manual.md demo_api_server/src/__tests__/scopeTopology.regression.test.js
 git commit -m "docs(scopes): generated docs/scope-topology.md + collapse drifted .planning scope docs to stubs"
 ```
 
@@ -1041,16 +1041,16 @@ git commit -m "docs(scopes): generated docs/scope-topology.md + collapse drifted
 ## Task 9: Live PingOne audit mode in verify-scope-configuration.js
 
 **Files:**
-- Modify: `banking_api_server/scripts/verify-scope-configuration.js`
+- Modify: `demo_api_server/scripts/verify-scope-configuration.js`
 
 - [ ] **Step 1: Read the existing script structure**
 
-Run: `cd banking_api_server && grep -n "async function main\|process.argv\|--fix\|requiredScopes\|getManagementToken\|module.exports" scripts/verify-scope-configuration.js | head -20`
+Run: `cd demo_api_server && grep -n "async function main\|process.argv\|--fix\|requiredScopes\|getManagementToken\|module.exports" scripts/verify-scope-configuration.js | head -20`
 Expected: identifies `main()`, the `--fix` arg handling, and the management-token helper to reuse.
 
 - [ ] **Step 2: Add a --manifest-diff branch**
 
-In `banking_api_server/scripts/verify-scope-configuration.js`, add near the top (after the existing requires):
+In `demo_api_server/scripts/verify-scope-configuration.js`, add near the top (after the existing requires):
 
 ```javascript
 const scopeTopology = require('../services/scopeTopology');
@@ -1087,13 +1087,13 @@ Wire into `main()`: if `--manifest-diff`, call `const n = await manifestDiff(tok
 
 - [ ] **Step 3: Smoke-run (no creds required to prove the branch wiring)**
 
-Run: `cd banking_api_server && node scripts/verify-scope-configuration.js --manifest-diff`
+Run: `cd demo_api_server && node scripts/verify-scope-configuration.js --manifest-diff`
 Expected: either the credential-missing error (if no mgmt creds in `.env`) OR a diff report. It must NOT crash with an unhandled exception; missing creds must exit non-zero with the existing credential message.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add banking_api_server/scripts/verify-scope-configuration.js
+git add demo_api_server/scripts/verify-scope-configuration.js
 git commit -m "feat(scopes): verify-scope-configuration --manifest-diff audits live PingOne vs SSOT"
 ```
 
@@ -1110,16 +1110,16 @@ In `REGRESSION_PLAN.md` §4, add a new entry per the existing template (read the
 
 - [ ] **Step 2: Add §1 protected-table rows**
 
-In `REGRESSION_PLAN.md` §1, add two rows matching the table's column format: `scope-topology.json` (the scope SSOT — any change requires re-running provisioning + the regression guard) and `banking_api_server/src/__tests__/scopeTopology.regression.test.js` (the CI-blocking scope-drift guard — must stay green; a skip/delete is a release blocker).
+In `REGRESSION_PLAN.md` §1, add two rows matching the table's column format: `scope-topology.json` (the scope SSOT — any change requires re-running provisioning + the regression guard) and `demo_api_server/src/__tests__/scopeTopology.regression.test.js` (the CI-blocking scope-drift guard — must stay green; a skip/delete is a release blocker).
 
 - [ ] **Step 3: Full verification sweep**
 
 Run:
 ```bash
 cd /Users/curtismuir/Development/banking
-( cd banking_api_server && npx jest scopeTopology scopePolicyEngine scopeEnforcement scope-integration configStore.envCoverage --silent )
+( cd demo_api_server && npx jest scopeTopology scopePolicyEngine scopeEnforcement scope-integration configStore.envCoverage --silent )
 ( cd banking_mcp_gateway && npm run build && npx jest --silent )
-( cd banking_api_ui && npm run build )
+( cd demo_api_ui && npm run build )
 ```
 Expected: BFF scope suites PASS; gateway tsc exit 0 + suite PASS; UI build exit 0 (UI untouched but the project rule requires the gate after any change set — confirm 0).
 
@@ -1134,7 +1134,7 @@ git commit -m "docs(regression): §4 Bug Fix Log + §1 rows for scope-topology S
 
 After merge, to fix the **running demo**:
 ```bash
-cd banking_api_server && npm run pingone:bootstrap   # idempotent; provisions banking:transfer + grants
+cd demo_api_server && npm run pingone:bootstrap   # idempotent; provisions banking:transfer + grants
 node scripts/verify-scope-configuration.js --manifest-diff   # confirm live env matches SSOT
 ```
 Then in the browser: **log out and log back in** as the demo user (existing tokens predate the grant and will not carry `banking:transfer`). Verify: agent "transfer $X" → Token Chain shows `banking:transfer` in the exchanged token scope → gateway PERMIT → transfer succeeds. Confirm deposit/withdrawal still succeed (regression check — they require only `banking:write`).

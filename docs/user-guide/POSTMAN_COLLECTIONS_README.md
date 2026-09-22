@@ -1,6 +1,6 @@
-# Postman Collections - Super Banking Demo
+# Postman Collections - Super AI Demo
 
-Postman collections and environments for testing the Super Banking demo application. The files referenced below live in [`docs/`](../) (relative to this file: `../<filename>`); further collections live in [`postman/`](../../postman/) (`../../postman/<filename>`).
+Postman collections and environments for testing the AI Demo application. The files referenced below live in [`docs/`](../) (relative to this file: `../<filename>`); further collections live in [`postman/`](../../postman/) (`../../postman/<filename>`).
 
 ## Environment Files
 

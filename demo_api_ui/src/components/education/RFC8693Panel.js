@@ -229,7 +229,7 @@ Content-Type: application/json
           <h4>Hop 1 — GW Delegated Token (Exchange #1)</h4>
           <p>
             After Exchange #1: <code>subject_token</code> = User Token, <code>actor_token</code> = Agent CC token.
-            Audience narrows to the Ping Agent Gateway. The <code>act</code> claim is added.
+            Audience narrows to the PingOne Agent Gateway. The <code>act</code> claim is added.
           </p>
           <pre className="edu-code">{`{
   "sub":   "user-abc123",           // preserved from Hop 0
@@ -245,7 +245,7 @@ Content-Type: application/json
 
           <h4>Hop 2 — MCP Server receives the same token (no re-exchange)</h4>
           <p>
-            The Ping Agent Gateway forwards the Exchange #1 token <strong>unchanged</strong> to the MCP Server.
+            The PingOne Agent Gateway forwards the Exchange #1 token <strong>unchanged</strong> to the MCP Server.
             No second RFC 8693 exchange occurs — the token issued by PingOne at Hop 1 is valid at
             both the gateway and the downstream MCP servers by design (<code>aud=mcp-gw</code> is accepted at both).
             The <code>act</code> claim is preserved end-to-end.
@@ -265,7 +265,7 @@ Content-Type: application/json
           <div className="edu-info-box">
             <strong>What changes hop-to-hop:</strong> Exchange #1 (at the BFF) narrows <code>aud</code> to
             <code>mcp-gw</code> and adds the <code>act</code> claim. After that, the token travels
-            unchanged — the Ping Agent Gateway is a passthrough, not a second exchange point.
+            unchanged — the PingOne Agent Gateway is a passthrough, not a second exchange point.
             <code>sub</code> always stays as the human user. <code>act.sub</code> is the audit trail
             proving the agent acted on the user's behalf.
           </div>

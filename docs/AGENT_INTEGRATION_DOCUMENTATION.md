@@ -116,7 +116,7 @@ The BFF (`agentInvokeRoute.js`) handles agent requests through the following pip
 // RFC 8693 Token Exchange
 class TokenExchangeService {
   async exchangeToken(subjectToken: string, scopes: string[]): Promise<ExchangeTokenResponse> {
-    // 1. Validate Subject Token
+    // 1. Validate User token
     const validation = await this.validateToken(subjectToken);
     
     // 2. Check Required Scopes

@@ -275,7 +275,7 @@ This converts "what would we lose" from a risk into the teaching material.
 - REGRESSION_PLAN §1 protected files (llmProviderResolver, agentMcpTokenService,
   bankingAgentLangGraphService) — pre-read required before edits; minimal diff.
 - No emojis except ⚠️ ✅ ❌.
-- UI build must exit 0 after any `banking_api_ui` change.
+- UI build must exit 0 after any `demo_api_ui` change.
 
 ## 7. Out of Scope
 
@@ -287,7 +287,7 @@ This converts "what would we lose" from a risk into the teaching material.
 
 **Build progress:** Slice **A** shipped (`llmProviderResolver` openai/anthropic
 pass-through; commit `7bf1595f`). Slice **B3** shipped — dev-token stage prop
-`banking_api_server/scripts/mint-gateway-token.js`: mints a real
+`demo_api_server/scripts/mint-gateway-token.js`: mints a real
 gateway-audience RFC 8693 token and prints ChatGPT Responses API + Claude
 `mcp_connector` snippets. Remaining: B1, C, the annotation overlay.
 
@@ -314,4 +314,4 @@ gateway-audience RFC 8693 token and prints ChatGPT Responses API + Claude
 - Gateway wiring (in-repo): `banking_mcp_gateway/src/server/GatewayServer.ts`,
   `tokenValidator.ts`, `auth/GatewayTokenPolicy.ts`,
   `auth/PingOneAuthorizeClient.ts`, `credentialSwap.ts`;
-  `banking_api_server/routes/oauthClients.js`
+  `demo_api_server/routes/oauthClients.js`

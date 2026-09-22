@@ -1,4 +1,4 @@
-# Token Flow — Super Banking demo
+# Token Flow — AI Demo
 
 Complete reference for OAuth token lifecycle: how tokens are obtained, what resource and scopes they carry, how they are exchanged (BFF-side RFC 8693 delegation), and how decoded claims reach the UI.
 
@@ -10,10 +10,10 @@ Complete reference for OAuth token lifecycle: how tokens are obtained, what reso
 
 | Token | Grant | Resource (audience) | Scopes |
 |-------|-------|---------------------|--------|
-| **User Access Token** (customer) | Auth Code + PKCE | `https://ai-agent.pingdemo.com` | `openid profile email offline_access banking:read banking:write banking:ai:agent` |
-| **Admin Access Token** | Auth Code | `https://ai-agent.pingdemo.com` | `openid profile email offline_access banking:read banking:write banking:admin banking:sensitive banking:ai:agent` |
-| **AI Agent Actor CC Token** *(exchange actor)* | Client Credentials | `https://agent-gateway.pingdemo.com` | Agent client's registered scopes |
-| **BFF-Exchanged MCP Token** *(single RFC 8693 result)* | RFC 8693 Exchange (BFF-side, one per tool call) | `https://resource-server.pingdemo.com` | Narrowed to tool-specific scope (see Tool → Scope table); carries nested `act` delegation chain |
+| **User token** (customer) | Auth Code + PKCE | `enduser.ping.demo` | `openid profile email offline_access banking:read banking:write banking:ai:agent` |
+| **Admin Access Token** | Auth Code | `enduser.ping.demo` | `openid profile email offline_access banking:read banking:write banking:admin banking:sensitive banking:ai:agent` |
+| **AI Agent Actor CC Token** *(exchange actor)* | Client Credentials | `agentgateway.ping.demo` | Agent client's registered scopes |
+| **BFF-Exchanged MCP Token** *(single RFC 8693 result)* | RFC 8693 Exchange (BFF-side, one per tool call) | `mcpserver.ping.demo` | Narrowed to tool-specific scope (see Tool → Scope table); carries nested `act` delegation chain |
 | **Worker Token** | Client Credentials | PingOne Management API | No scope in body (PingOne worker convention) |
 | **Refresh Token** | Returned with Auth Code (`offline_access`) | — | — |
 | **ID Token** | Returned with Auth Code (`openid`) | — | Identity claims |
@@ -67,8 +67,8 @@ Complete reference for OAuth token lifecycle: how tokens are obtained, what reso
 
 ```
 1. User login (Auth Code + PKCE)
-   PingOne → User Access Token
-   aud:    https://ai-agent.pingdemo.com
+   PingOne → User token
+   aud:    enduser.ping.demo
    scope:  openid profile email offline_access
            banking:read banking:write banking:ai:agent
    may_act.sub: PINGONE_AI_AGENT_CLIENT_ID  ← must be set in PingOne policy
@@ -97,7 +97,7 @@ Complete reference for OAuth token lifecycle: how tokens are obtained, what reso
 
 BFF-side RFC 8693 Exchange (one exchange per tool call)
    BFF gets AI Agent Actor CC Token
-   (Client Credentials → aud: https://agent-gateway.pingdemo.com)
+   (Client Credentials → aud: agentgateway.ping.demo)
 
    RFC 8693 POST {PingOne}/as/token:
    grant_type         = urn:ietf:params:oauth:grant-type:token-exchange
@@ -105,13 +105,13 @@ BFF-side RFC 8693 Exchange (one exchange per tool call)
    subject_token_type = urn:ietf:params:oauth:token-type:access_token
    actor_token        = AI Agent Actor CC Token
    actor_token_type   = urn:ietf:params:oauth:token-type:access_token
-   audience           = https://resource-server.pingdemo.com
+   audience           = mcpserver.ping.demo
    scope              = banking:read  (tool-specific)
    client_id          = PINGONE_AI_AGENT_CLIENT_ID
    ─────────────────────────────────────────────────────────────
    → BFF-Exchanged MCP Token
       sub:   <user's sub>  (preserved — RFC 8693 §3)
-      aud:   https://resource-server.pingdemo.com
+      aud:   mcpserver.ping.demo
       act:   { "sub": "ai-agent-client-id" }
       scope: banking:read  (narrowed to this tool)
 
@@ -195,7 +195,7 @@ Each `tokenEvent` shape:
 ```json
 {
   "id": "user-token",
-  "label": "User Access Token",
+  "label": "User token",
   "status": "active",
   "jwtFullDecode": { "header": {}, "claims": {} },
   "explanation": "User authenticated via Authorization Code + PKCE...",
@@ -227,7 +227,7 @@ Final MCP Token                      Gateway-Issued Upstream Token
 (aud = MCP_GW_RESOURCE_URI)      →   (aud = MCP_UPSTREAM_RESOURCE_URI)
            |                                       |
            v                                       v
-   banking-mcp-gateway                  banking_mcp_server
+   banking-mcp-gateway                  demo_mcp_server
    (port 3005)                          (port 8080)
 ```
 
@@ -238,7 +238,7 @@ Final MCP Token                      Gateway-Issued Upstream Token
 3. BFF: POST /mcp → banking-mcp-gateway
    Bearer: Final MCP Token (aud = MCP_GW_RESOURCE_URI)
    
-   Gateway pipeline (PingGateway filter chain equivalent):
+   Gateway pipeline (PingOne Agent Gateway filter chain equivalent):
    ├─ McpValidationFilter equivalent: Origin check, Accept header, JSON-RPC 2.0 format
    ├─ McpProtectionFilter equivalent: Decode + validate JWT (aud, exp, sub)
    │   GatewayTokenPolicy: reject if aud ∈ upstream URIs (D-05 anti-bypass)
@@ -315,12 +315,12 @@ Final MCP Token                      Gateway-Issued Upstream Token
 
 | Variable | Value | Purpose |
 |----------|-------|---------|
-| `ENDUSER_AUDIENCE` | `https://ai-agent.pingdemo.com` | User AT audience |
-| `AI_AGENT_INTERMEDIATE_AUDIENCE` | `https://ai-agent.pingdemo.com` | Exchange #1 intermediate token audience |
-| `AGENT_GATEWAY_AUDIENCE` | `https://agent-gateway.pingdemo.com` | AI Agent actor CC token audience |
-| `BANKING_API_RESOURCE_URI` | `https://resource-server.pingdemo.com` | Banking API resource server |
-| `PINGONE_RESOURCE_MCP_GATEWAY_URI` | `https://mcp-gateway.pingdemo.com` | MCP Exchanger CC token audience |
-| `PINGONE_RESOURCE_TWO_EXCHANGE_URI` | `https://resource-server.pingdemo.com` | Exchange #2 final MCP token audience |
+| `ENDUSER_AUDIENCE` | `enduser.ping.demo` | User AT audience |
+| `AI_AGENT_INTERMEDIATE_AUDIENCE` | `enduser.ping.demo` | Exchange #1 intermediate token audience |
+| `AGENT_GATEWAY_AUDIENCE` | `agentgateway.ping.demo` | AI Agent actor CC token audience |
+| `BANKING_API_RESOURCE_URI` | `mcpserver.ping.demo` | Banking API resource server |
+| `PINGONE_RESOURCE_MCP_GATEWAY_URI` | `mcpgateway.ping.demo` | MCP Exchanger CC token audience |
+| `PINGONE_RESOURCE_TWO_EXCHANGE_URI` | `mcpserver.ping.demo` | Exchange #2 final MCP token audience |
 
 ---
 
@@ -335,5 +335,5 @@ Final MCP Token                      Gateway-Issued Upstream Token
 | `demo_api_server/services/mcpWebSocketClient.js` | `MCP_TOOL_SCOPES` mapping |
 | `demo_api_server/routes/tokens.js` | `GET /api/tokens/session-preview`, `/chain`, `/userinfo` |
 | `demo_api_server/routes/ciba.js` | CIBA step-up flow |
-| `banking_api_ui/src/context/TokenChainContext.js` | Live token event state in UI |
-| `banking_api_ui/src/context/useFlowMilestones.js` | `addMilestone()` hook for flow timeline |
+| `demo_api_ui/src/context/TokenChainContext.js` | Live token event state in UI |
+| `demo_api_ui/src/context/useFlowMilestones.js` | `addMilestone()` hook for flow timeline |

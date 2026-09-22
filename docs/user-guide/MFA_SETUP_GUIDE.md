@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide explains how MFA step-up authentication works in the Super Banking demo and how to configure it. Step-up is driven by the **BFF** (`demo_api_server`) calling the PingOne **deviceAuthentications API** on the user's behalf. It elevates a session before sensitive operations (e.g. transfers, withdrawals, revealing full account numbers).
+This guide explains how MFA step-up authentication works in the AI Demo and how to configure it. Step-up is driven by the **BFF** (`demo_api_server`) calling the PingOne **deviceAuthentications API** on the user's behalf. It elevates a session before sensitive operations (e.g. transfers, withdrawals, revealing full account numbers).
 
 ## Implementation Approach
 
@@ -34,7 +34,7 @@ In short: **HITL consent approves one transaction; MFA step-up elevates the sess
 ## Prerequisites
 
 - A PingOne environment with administrative access
-- The Super Banking demo applications already configured
+- The AI Demo applications already configured
 - PingOne MFA available in your environment
 - A configured PingOne worker app (client credentials) — see "Worker token" below
 

@@ -73,6 +73,6 @@ All four remain reachable by direct URL; only the nav entries are commented out.
    `/sequence-diagram`) were never removed.
 
 If a restored page is used again, bring its service naming up to date first:
-the current defaults are PingGateway (IG, `:3036`) as the MCP gateway,
+the current defaults are PingOne Agent Gateway (IG, `:3036`) as the MCP gateway,
 llama.cpp via `demo_llm_proxy :8090` as the LLM, and fail-closed
 `AUTHORIZE_FAILOVER_MODE=deny` on Ping Authorize outage (see `DIAGRAMS.md`).

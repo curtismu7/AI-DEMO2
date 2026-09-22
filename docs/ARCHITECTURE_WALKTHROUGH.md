@@ -12,9 +12,9 @@ Super Banking is a three-layer stack. Each layer has a clear responsibility boun
 
 | Layer | Name | Role | Codebase location |
 |-------|------|------|-------------------|
-| **Browser** | React SPA (`banking_api_ui`) | Renders dashboard, admin panel, education panels, AI agent FAB | `banking_api_ui/src/` |
-| **BFF** | Express server (`banking_api_server`) | OAuth flows, session management, token custodian, MCP proxy, CIBA gateway | `banking_api_server/server.js`, `routes/`, `services/` |
-| **MCP Server** | TypeScript WebSocket server (`banking_mcp_server`) | Tool registry, tool execution, auth challenge gating | `banking_mcp_server/src/` |
+| **Browser** | React SPA (`demo_api_ui`) | Renders dashboard, admin panel, education panels, AI agent FAB | `demo_api_ui/src/` |
+| **BFF** | Express server (`demo_api_server`) | OAuth flows, session management, token custodian, MCP proxy, CIBA gateway | `demo_api_server/server.js`, `routes/`, `services/` |
+| **MCP Server** | TypeScript WebSocket server (`demo_mcp_server`) | Tool registry, tool execution, auth challenge gating | `demo_mcp_server/src/` |
 
 **External systems:**
 
@@ -54,8 +54,8 @@ This means a compromised browser session only exposes the session cookie — an 
 | MCP token | Derived via RFC 8693 exchange — BFF only | Created on demand; never stored in browser |
 
 **Code pointers:**
-- Token storage: `banking_api_server/services/oauthService.js`
-- Token exchange to MCP: `banking_api_server/services/agentMcpTokenService.js`
+- Token storage: `demo_api_server/services/oauthService.js`
+- Token exchange to MCP: `demo_api_server/services/agentMcpTokenService.js`
 - Session store: `express-session` backed by Upstash Redis on Vercel; LMDB or in-memory locally
 
 ### Security rationale

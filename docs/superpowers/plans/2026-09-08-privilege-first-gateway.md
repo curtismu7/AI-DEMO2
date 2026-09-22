@@ -6,7 +6,7 @@
 
 **Architecture:** No new services. The Privilege AI Gateway at `https://mcpgw.ai-demo.ping-devops.com` already fronts LLM providers (`/llm/<provider>/…` virtual keys) and MCP backends (`/<AgenticApp>/mcp`). Phase 1 makes the LLM virtual-key lanes the *default* path instead of an opt-in picker item. Phase 2 registers the Agent Gateway itself as a Privilege Agentic App and repoints the BFF's single MCP chokepoint at it, behind a flag. Phase 0 is a measurement spike that decides how identity crosses the Privilege → Agent Gateway hop, because the answer is not in any doc in this repo.
 
-**Tech Stack:** Node >= 22 CommonJS BFF (`demo_api_server`), Jest 29.7, PingOne Privilege console (user-side), PingGateway (`ping-gateway/`) and the Node gateway (`demo_mcp_gateway/`, TypeScript), Docker Compose + SE K8s (`ping-devops-cmuir`, gateway in `ping-devops-curtismuir`).
+**Tech Stack:** Node >= 22 CommonJS BFF (`demo_api_server`), Jest 29.7, PingOne Privilege console (user-side), PingOne Agent Gateway (`ping-gateway/`) and the Node gateway (`demo_mcp_gateway/`, TypeScript), Docker Compose + SE K8s (`ping-devops-cmuir`, gateway in `ping-devops-curtismuir`).
 
 **Spec:** This plan is its own spec — the user's ask was "Privilege as the first gateway, controls LLM/MCP, then Agent Gateway for the rest. Just a plan." Section 1 below records the current state it argues from (verified 2026-09-08, sources cited).
 
@@ -43,7 +43,7 @@ LLM today
 MCP today
   BFF → mcpToolPipeline.js → mcpGatewayTransport.resolveMcpGatewayTransport()
       → mcpGatewayClient.getMcpGatewayHttpUrl()  (mcpGatewayClient.js:1116 — THE chokepoint)
-          ff_mcp_gateway_pinggateway=true (default) → ping-gateway:8080 /mcp   (PingGateway, "Real PingOne Agent Gateway")
+          ff_mcp_gateway_pinggateway=true (default) → ping-gateway:8080 /mcp   (PingOne Agent Gateway, "Real PingOne Agent Gateway")
           false / forced tools                      → mcp-gateway:3005 /mcp    (Node demo gateway)
       → mcp-server:8080 / mcp-resource-server:8081 / mcp-weather / mcp-brave
   Privilege sits BESIDE this: façade doors `agentless` (banking-mcp) and `privilege-gateway` go
@@ -109,7 +109,7 @@ Open detail the spike settles: whether the Static Token field must be a well-for
 
 **D3 — Local Docker vs SE.** LLM-first works from local Docker today (the gateway is a public URL; Plan C proved it). MCP-first is **SE only**: the Agentic App backend must reach `ping-gateway.ping-devops-cmuir.svc.cluster.local:8080` from the gateway pod's namespace. Both flags default OFF; local runs keep today's paths.
 
-**D4 — Which Agent Gateway sits behind Privilege.** Whichever `ff_mcp_gateway_pinggateway` already selects. Task 8 implements the header acceptance in the Node gateway (where the actor-bridge precedent lives). The PingGateway route equivalent is listed as Task 8b and is blocked on the same spike outcome.
+**D4 — Which Agent Gateway sits behind Privilege.** Whichever `ff_mcp_gateway_pinggateway` already selects. Task 8 implements the header acceptance in the Node gateway (where the actor-bridge precedent lives). The PingOne Agent Gateway route equivalent is listed as Task 8b and is blocked on the same spike outcome.
 
 **D5 — Ungoverned agent** (`demo_ungoverned_agent`) deliberately bypasses everything and is untouched.
 
@@ -412,7 +412,7 @@ it('.env.example documents the Privilege-first posture', () => {
   | Field | Value |
   |---|---|
   | Application Name | `agent-gateway` |
-  | MCP Server URL | `http://ping-gateway.ping-devops-cmuir.svc.cluster.local:8080/mcp` (PingGateway lane) — or `http://mcp-gateway.ping-devops-cmuir.svc.cluster.local:3005/mcp` if Task 0 measured against the Node gateway and D4 lands there |
+  | MCP Server URL | `http://ping-gateway.ping-devops-cmuir.svc.cluster.local:8080/mcp` (PingOne Agent Gateway lane) — or `http://mcp-gateway.ping-devops-cmuir.svc.cluster.local:3005/mcp` if Task 0 measured against the Node gateway and D4 lands there |
   | Mesh Cluster | `ai-demo-cmuir` |
   | Auth Mode | **Static Token** = `MCP_GW_PRIVILEGE_BRIDGE_SECRET` (secrets path only; a JWT-shaped value if Task 0 Step 3 measured that the field is parsed) — *corrected 2026-09-09, OAuth mode gates the client too* |
 
@@ -431,7 +431,7 @@ it('.env.example documents the Privilege-first posture', () => {
 - Test: `demo_api_server/tests/mcpGatewayClient.privilegeFirst.test.js`
 
 **Interfaces:**
-- Produces: flag `ff_mcp_gateway_privilege_first` (default `'false'`, env `FF_MCP_GATEWAY_PRIVILEGE_FIRST`); env `MCP_PRIVILEGE_GATEWAY_URL` (default `${MCP_FACADE_PRIVILEGE_GATEWAY_BASE}/agent-gateway/mcp`, i.e. `https://mcpgw.ai-demo.ping-devops.com/agent-gateway/mcp`); `getMcpGatewayHttpUrl()` returns it when the flag is on, **before** the PingGateway branch.
+- Produces: flag `ff_mcp_gateway_privilege_first` (default `'false'`, env `FF_MCP_GATEWAY_PRIVILEGE_FIRST`); env `MCP_PRIVILEGE_GATEWAY_URL` (default `${MCP_FACADE_PRIVILEGE_GATEWAY_BASE}/agent-gateway/mcp`, i.e. `https://mcpgw.ai-demo.ping-devops.com/agent-gateway/mcp`); `getMcpGatewayHttpUrl()` returns it when the flag is on, **before** the PingOne Agent Gateway branch.
 
 - [ ] **Step 1: Write the failing test** — with `configStore.getEffective` mocked: flag on + URL set → the Privilege URL; flag on + URL unset → falls through to today's ladder and logs a warning; flag off → unchanged.
 - [ ] **Step 2: Run** → FAIL.
@@ -439,8 +439,8 @@ it('.env.example documents the Privilege-first posture', () => {
 ```js
     // Privilege-first: the Privilege AI Gateway is the first hop and forwards to
     // whichever Agent Gateway its Agentic App "agent-gateway" is registered
-    // against. Checked BEFORE the PingGateway flag so the two compose: Privilege
-    // in front, PingGateway behind. SE only — see plan D3.
+    // against. Checked BEFORE the PingOne Agent Gateway flag so the two compose: Privilege
+    // in front, PingOne Agent Gateway behind. SE only — see plan D3.
     if (configStore.getEffective('ff_mcp_gateway_privilege_first') === 'true') {
         const privUrl = process.env.MCP_PRIVILEGE_GATEWAY_URL
             || (process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE
@@ -544,7 +544,7 @@ export async function resolvePrivilegeBridge(
 - [ ] **Step 4: Run** the gateway test suite → PASS. Rebuild the image (`demo_mcp_gateway` is not bind-mounted).
 - [ ] **Step 5: Commit.**
 
-**Task 8b (follow-on, not in this plan's scope):** the PingGateway route equivalent lives in `ping-gateway/` route config (`McpProtectionFilter` chain); the same rule applies — accept `tx-token` only when the bridge credential matches. Design it once Task 8 is proven on the Node gateway.
+**Task 8b (follow-on, not in this plan's scope):** the PingOne Agent Gateway route equivalent lives in `ping-gateway/` route config (`McpProtectionFilter` chain); the same rule applies — accept `tx-token` only when the bridge credential matches. Design it once Task 8 is proven on the Node gateway.
 
 ### Task 9: Inventory, check, preflight
 
@@ -581,4 +581,4 @@ export async function resolvePrivilegeBridge(
 - **Coverage of the ask:** Privilege first for LLM → Tasks 1–4. Privilege first for MCP → Tasks 5–9. Agent Gateway "for the rest" → unchanged pipeline behind Privilege; Task 8 only *adds* an accepted input. Visibility/repro → Tasks 4, 9, 10.
 - **Placeholders:** none; the one deliberately open item (D1) is a measurement with a written decision rule (Task 0 Step 5), not a TBD.
 - **Type/name consistency:** `ff_privilege_llm_first` / `FF_PRIVILEGE_LLM_FIRST` (Tasks 1, 2, 4); `ff_mcp_gateway_privilege_first` / `FF_MCP_GATEWAY_PRIVILEGE_FIRST` / `MCP_PRIVILEGE_GATEWAY_URL` (Tasks 6, 7, 9); `tx-token` and `MCP_GW_PRIVILEGE_BRIDGE_SECRET` (Tasks 5, 7, 8); error codes `llm_privilege_first_unsupported`, `privilege_session_unavailable`.
-- **Known ceilings, stated:** no OpenAI dispatch in the BFF (refused loudly, Task 2); local models not governed (D2); MCP-first SE-only (D3); PingGateway header acceptance deferred (Task 8b); elicitation does not cross Privilege (§1.2), so HITL-via-elicitation tools will hang behind it — CIBA-based HITL is unaffected.
+- **Known ceilings, stated:** no OpenAI dispatch in the BFF (refused loudly, Task 2); local models not governed (D2); MCP-first SE-only (D3); PingOne Agent Gateway header acceptance deferred (Task 8b); elicitation does not cross Privilege (§1.2), so HITL-via-elicitation tools will hang behind it — CIBA-based HITL is unaffected.

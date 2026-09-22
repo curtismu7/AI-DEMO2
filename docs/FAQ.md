@@ -60,7 +60,7 @@ npm run setup:fresh   # provisions PingOne apps, scopes, resources and demo user
 
 - **Node 22 or later.** Every `package.json` declares `"node": ">=22"`. Some older docs still say Node 20.
 - **Python 3.11 or later**, for the Python agents.
-- **Docker Desktop or OrbStack.** Even local mode uses Docker to run PingGateway.
+- **Docker Desktop or OrbStack.** Even local mode uses Docker to run PingOne Agent Gateway.
 - **mkcert**, for local HTTPS.
 
 ---
@@ -81,7 +81,7 @@ Neither hostname is in public DNS, so both need the hosts entry. The installer g
 | Where | Command | Notes |
 | --- | --- | --- |
 | Your laptop, Docker (lean core) | `./run-docker.sh` | Stops everything, then starts the core stack plus Code Search. `./run-docker.sh start full` starts every service. |
-| Your laptop, native processes | `./run.sh` | Also `stop`, `restart`, `status`, `tail`. PingGateway still runs in Docker. |
+| Your laptop, native processes | `./run.sh` | Also `stop`, `restart`, `status`, `tail`. PingOne Agent Gateway still runs in Docker. |
 | Local Kubernetes (OrbStack) | `./run-k8.sh` | `./run-k8.sh aws-all` targets EKS. |
 | Ping SE cluster | `./run-pingaws.sh` | Serves `https://ai-demo.ping-devops.com`. Shared with other SEs. |
 
@@ -139,7 +139,7 @@ Never leave these on after a demo.
 
 | Flag | Default | Effect |
 | --- | --- | --- |
-| `ff_mcp_gateway_pinggateway` | ON | PingGateway is the MCP gateway. OFF switches to the Node gateway: run `./run-docker.sh optional start demo-auth` and then `./run-docker.sh demo-sync`. |
+| `ff_mcp_gateway_pinggateway` | ON | PingOne Agent Gateway is the MCP gateway. OFF switches to the Node gateway: run `./run-docker.sh optional start demo-auth` and then `./run-docker.sh demo-sync`. |
 | `ff_authorize_real` | ON | Real PingOne Authorize. OFF uses the local mock engine. |
 | `ff_hitl_enabled` | ON | Human approval for transfers. OFF removes the consent moment. |
 | `ff_prompt_injection_guard` | ON | Blocks common prompt-injection patterns before the model sees them. |
@@ -177,7 +177,7 @@ The mapping comes from the code, and the app names were checked against the envi
 | Customer can't sign in, or keeps landing back on sign-in | Demo AI App - User Login | `PINGONE_USER_CLIENT_ID` (also check you're on `local.ping-devops.com:4000`) |
 | Admin can't sign in | Demo AI App - Admin Login | `PINGONE_ADMIN_CLIENT_ID` |
 | Agent tool call fails at token exchange (`invalid_client`) | Demo AI App - AI Agent Actor, then Demo AI App - Token Exchanger | `PINGONE_AI_AGENT_ACTOR_CLIENT_ID`, `PINGONE_TOKEN_EXCHANGER_CLIENT_ID` |
-| PingGateway rejects the agent's token (401, token inactive) | Demo AI App - Token Exchanger (PingGateway introspects with it) | `INTROSPECT_CLIENT_ID`, a copy of the exchanger |
+| PingOne Agent Gateway rejects the agent's token (401, token inactive) | Demo AI App - Token Exchanger (PingOne Agent Gateway introspects with it) | `INTROSPECT_CLIENT_ID`, a copy of the exchanger |
 | Tool call fails after the gateway hop (401 or 502) | Demo AI App - MCP Gateway; for banking tools, also Demo AI App - MCP Step 9 Exchanger | `PINGONE_MCP_GATEWAY_CLIENT_ID` / `TE_CLIENT_ID`, `PINGONE_MCP_EXCHANGER_CLIENT_ID` |
 | PingOne Authorize decisions fail, "Missing PingOne worker credentials", or UC1 "Incomplete" after a secret rotation | Demo AI App - Introspection Worker (the operator worker) | `PINGONE_WORKER_CLIENT_ID`, copied to `P1AZ_WORKER_CLIENT_ID` |
 | CIBA approval (UC22) won't start | Demo AI App - Admin Login: the environment has no dedicated CIBA app, so CIBA falls back to it | `PINGONE_CIBA_CLIENT_ID` if set, otherwise `PINGONE_ADMIN_CLIENT_ID` |
@@ -196,17 +196,17 @@ The mapping comes from the code, and the app names were checked against the envi
 | Demo AI App - User Login | Customer sign-in (authorization code + PKCE) | `PINGONE_USER_CLIENT_ID` | BFF |
 | Demo AI App - Admin Login | Admin sign-in; CIBA fallback; Management API fallback | `PINGONE_ADMIN_CLIENT_ID` | BFF |
 | Demo AI App - AI Agent Actor | The agent's identity: actor in exchange #1, and the PAR client for intent binding | `PINGONE_AI_AGENT_ACTOR_CLIENT_ID` (aliases `PINGONE_AI_AGENT_CLIENT_ID`, `AI_AGENT_CLIENT_ID`) | BFF, langchain-agent |
-| Demo AI App - Token Exchanger | Performs the RFC 8693 exchanges for the gateway audience; PingGateway introspects with it | `PINGONE_TOKEN_EXCHANGER_CLIENT_ID` (falls back to `PINGONE_MCP_TOKEN_EXCHANGER_*`, `PINGONE_MCP_EXCHANGER_*`, `AGENT_OAUTH_CLIENT_*`) | BFF, PingGateway, banking MCP server, Node gateway, Authorize mock |
-| Demo AI App - MCP Gateway | The gateway's own identity; exchanges to the MCP server audience | `PINGONE_MCP_GATEWAY_CLIENT_ID`, `MCP_GW_CLIENT_ID`, `TE_CLIENT_ID` | PingGateway, Node gateway, BFF |
+| Demo AI App - Token Exchanger | Performs the RFC 8693 exchanges for the gateway audience; PingOne Agent Gateway introspects with it | `PINGONE_TOKEN_EXCHANGER_CLIENT_ID` (falls back to `PINGONE_MCP_TOKEN_EXCHANGER_*`, `PINGONE_MCP_EXCHANGER_*`, `AGENT_OAUTH_CLIENT_*`) | BFF, PingOne Agent Gateway, banking MCP server, Node gateway, Authorize mock |
+| Demo AI App - MCP Gateway | The gateway's own identity; exchanges to the MCP server audience | `PINGONE_MCP_GATEWAY_CLIENT_ID`, `MCP_GW_CLIENT_ID`, `TE_CLIENT_ID` | PingOne Agent Gateway, Node gateway, BFF |
 | Demo AI App - MCP Step 9 Exchanger | The banking MCP server's exchange to the banking API | `PINGONE_MCP_EXCHANGER_CLIENT_ID` | Banking MCP server (`oauth-mcp`) |
 | Demo AI App - *\<name\>* Specialist Agent, and Demo AI App - Investment Advisor Agent (11 apps in all) | Agent-to-agent specialists, one per vertical | `PINGONE_A2A_<KEY>_AGENT_CLIENT_ID` | BFF |
-| Demo AI App - Introspection Worker | The operator worker: PingOne Authorize calls, user and group lookups, provisioning, Management API | `PINGONE_WORKER_CLIENT_ID` (or `PINGONE_AUTHORIZE_WORKER_CLIENT_ID` if set); copied to `P1AZ_WORKER_CLIENT_ID` | BFF, PingGateway, Authorize mock |
+| Demo AI App - Introspection Worker | The operator worker: PingOne Authorize calls, user and group lookups, provisioning, Management API | `PINGONE_WORKER_CLIENT_ID` (or `PINGONE_AUTHORIZE_WORKER_CLIENT_ID` if set); copied to `P1AZ_WORKER_CLIENT_ID` | BFF, PingOne Agent Gateway, Authorize mock |
 | Demo AI App - Enterprise IdP Federation | The demo enterprise IdP for enterprise-managed MCP authorization | `ENTERPRISE_IDP_PINGONE_CLIENT_ID` | BFF (`routes/enterpriseIdp.js`) |
 | Demo AI App - DaVinci SDK Login | Public PKCE client for `/davinci-sdk-login` | `PINGONE_DAVINCI_LOGIN_APP_ID` | BFF, web app |
 | Claude Code - Banking Gateway | Public PKCE client for Claude Code and IDE MCP clients | `PINGONE_GATEWAY_MCP_OAUTH_CLIENT_ID`, `GATEWAY_OAUTH_BROKER_PINGONE_CLIENT_ID` | Node gateway OAuth broker, `.mcp.json` |
 | Demo AI App - Grafana Login | Grafana single sign-on | `GRAFANA_PINGONE_CLIENT_ID` | Grafana |
 | LibreChat Local Login - exploratory | LibreChat sign-in. A bad secret locks everyone out when auto-redirect is on. | `OPENID_CLIENT_ID` in `librechat/.env` | LibreChat |
-| Demo AI App - Onyx | Onyx sign-in, and its MCP action to PingGateway | Onyx's own config (`~/.config/onyx`), not this repo | Onyx |
+| Demo AI App - Onyx | Onyx sign-in, and its MCP action to PingOne Agent Gateway | Onyx's own config (`~/.config/onyx`), not this repo | Onyx |
 | Demo AI App - Agent Actor | Worker identity for the agent service; docs disagree on whether any exchange still uses it | `PINGONE_AGENT_CLIENT_ID` | agent-service |
 | Demo AI App - Fraud Watch Agent, Demo AI App - Balance Sweep Agent | Autonomous agent identities (client credentials) | `PINGONE_FRAUD_WATCH_AGENT_*`, `PINGONE_BALANCE_SWEEP_AGENT_*` | Privilege banking backend experiments |
 | Demo AI App - MCP Server Client | Banking MCP server identity; no runtime use found | none | — |
@@ -233,8 +233,8 @@ Most chip steps run the same **standard chain**:
 1. Demo AI App - User Login issues the customer's token.
 2. Demo AI App - AI Agent Actor is the actor in exchange #1.
 3. Demo AI App - Token Exchanger performs exchange #2 to the gateway audience.
-4. Demo AI App - MCP Gateway is PingGateway's identity for its exchange to the tool server.
-5. Demo AI App - Introspection Worker calls PingOne Authorize, from both the BFF and PingGateway.
+4. Demo AI App - MCP Gateway is PingOne Agent Gateway's identity for its exchange to the tool server.
+5. Demo AI App - Introspection Worker calls PingOne Authorize, from both the BFF and PingOne Agent Gateway.
 
 These are the 24 Demo Steps the agent shows for every customer vertical, in order.
 
@@ -258,8 +258,8 @@ These are the 24 Demo Steps the agent shows for every customer vertical, in orde
 | 16 | UC11 Bad client at the gateway | user | — | Wrong audience; the gateway returns 401 | User Login (the exchange client wasn't traced) |
 | 17 | UC20 Audit trail | user | `ff_mcp_gateway_pinggateway` | The UC1 chip with evidence tagging | Standard chain |
 | 18 | UC18 Rate-limit defense | user | — | A burst of calls; the gateway returns 429 | Token Exchanger |
-| 19 | UC30 Third-party MCP permitted | public | — | PingGateway policy permits the call | None (the weather route has no OAuth) |
-| 20 | UC31 Third-party MCP denied | public | — | PingGateway policy denies the call | None |
+| 19 | UC30 Third-party MCP permitted | public | — | PingOne Agent Gateway policy permits the call | None (the weather route has no OAuth) |
+| 20 | UC31 Third-party MCP denied | public | — | PingOne Agent Gateway policy denies the call | None |
 | 21 | UC32 Live-reconfigure the gateway policy | public | — | An admin setting the gateway reads live | None |
 | 22 | UC40 Enterprise-managed MCP (ID-JAG) | public | `ff_enterprise_managed_mcp_auth` | The demo IdP signs the grant (ID-JAG is mocked) after a group check | Enterprise IdP Federation, Introspection Worker (group lookup) |
 | 23 | UC38 Personal Agent Concierge | user | `ff_personal_agent_concierge` | MFA, a registered agent, then an exchange | User Login, Introspection Worker (creates the agent app); the exchange client wasn't traced |
@@ -288,7 +288,7 @@ The other 38 use cases in `demo_api_server/config/useCases.js` aren't Demo Steps
 
 ### Working in the repo
 
-- **Never run `docker compose up` from a git worktree.** A worktree has no `.env` files. Services start unconfigured while PingGateway still reports healthy. To try worktree code in the running stack, use `npm run serve:worktree here`, and hand it back with `npm run serve:worktree main`.
+- **Never run `docker compose up` from a git worktree.** A worktree has no `.env` files. Services start unconfigured while PingOne Agent Gateway still reports healthy. To try worktree code in the running stack, use `npm run serve:worktree here`, and hand it back with `npm run serve:worktree main`.
 - **A merged PR doesn't change the running demo until the main checkout syncs.** Docker bind-mounts the main checkout's files. A launchd job syncs every 15 minutes; `scripts/sync-main-checkout.sh` does it now, and `npm run sync:status` shows whether it's stale.
 - **Several sessions can share one stack.** Before and after a live UI run, pin the stack generation with `npm run -s stack:generation`. If the check fails, a container was recreated mid-run and the result doesn't count.
 

@@ -1,6 +1,6 @@
 # MFA Step-Up — Setup and Testing Guide
 
-> Quick guide for enrolling MFA devices and testing step-up authentication in the Super Banking demo. Step-up is driven by the BFF (`demo_api_server`) using the PingOne **deviceAuthentications API**.
+> Quick guide for enrolling MFA devices and testing step-up authentication in the AI Demo. Step-up is driven by the BFF (`demo_api_server`) using the PingOne **deviceAuthentications API**.
 
 ---
 

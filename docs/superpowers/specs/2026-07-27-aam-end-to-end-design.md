@@ -6,7 +6,7 @@ Related: PR #1025 (`ping-gateway/config/routes/04-aam-api-access.json`)
 
 ## Problem
 
-PR #1025 added the stock PingGateway AAM integration — the built-in
+PR #1025 added the stock PingOne Agent Gateway AAM integration — the built-in
 `PingAuthorizeFilter` posting to the PingOne Authorize Sideband API — as an IG
 route on `/aam`. It enforces correctly and fails closed, but it is invisible:
 nothing in the demo's tracing surfaces it, and it only works against a live

@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-14
 **Status:** Implemented (2026-05-15) — shipped across 7 commits `ff17d581`→`d15d54dd` on branch `refactor/mcp-provider-split`. Spec-vs-implementation audit passed: zero behavior drift, build 0, 110/110 tests green.
-**Scope:** Refactor `banking_mcp_server/src/tools/BankingToolProvider.ts` (1124 lines) into a thin orchestrator (~355 lines as built; original target ~250 — see "New BankingToolProvider shape" for why the boundary lands higher) plus focused peer modules. No behavior change.
+**Scope:** Refactor `demo_mcp_server/src/tools/BankingToolProvider.ts` (1124 lines) into a thin orchestrator (~355 lines as built; original target ~250 — see "New BankingToolProvider shape" for why the boundary lands higher) plus focused peer modules. No behavior change.
 **Out of scope:** `BankingToolRegistry.ts` merge (Approach C — deferred to a follow-up spec); all other oversized files in the repo.
 
 ---
@@ -37,7 +37,7 @@ Split it so each module has one job. Keep the public surface unchanged.
 
 ## File layout
 
-Target structure under `banking_mcp_server/src/tools/`:
+Target structure under `demo_mcp_server/src/tools/`:
 
 ```
 tools/
@@ -369,8 +369,8 @@ Per-handler unit tests for the eight tool handlers. Each handler is a mechanical
 
 ### Verification gate
 ```bash
-cd banking_mcp_server && npm run build    # must exit 0
-cd banking_mcp_server && npm test          # all existing + 4 new suites pass
+cd demo_mcp_server && npm run build    # must exit 0
+cd demo_mcp_server && npm test          # all existing + 4 new suites pass
 cd .. && npm test                           # full repo suite
 ```
 
@@ -386,7 +386,7 @@ cd .. && npm test                           # full repo suite
 | **JWKS key-set cache lifetime change** — today it's module-level (process lifetime). After extraction it becomes a `JwtClaimVerifier` instance field. If multiple providers were constructed, they'd each have their own JWKS cache. | Low | `BankingMCPServer.ts` instantiates the provider once at startup — single-instance reality matches instance-level cache. Confirmed by spot-check during planning. |
 | **Sensitive handler set drift** — if someone adds a new sensitive handler but only updates one location. | Low | After move, `SENSITIVE_HANDLERS` lives only in `JwtClaimVerifier.ts`. There is nowhere else to forget it. |
 | **`clearSessionChainIndex` call sites** — `BankingSessionManager` calls this method on session teardown. | Medium | Keep the public method on `BankingToolProvider` (it delegates to `auditor.clearSession`). Caller signatures unchanged. Confirm via repo-wide grep before merging. |
-| **REGRESSION_PLAN §1 protected directory** — `banking_mcp_server` is in the protected list. | Required step | Pre-edit: state explicitly which §1 invariants this refactor will not break. This is a refactor with no observable behavior change, so no §4 Bug Fix Log entry. If anything observable changes, that is a regression and we stop. |
+| **REGRESSION_PLAN §1 protected directory** — `demo_mcp_server` is in the protected list. | Required step | Pre-edit: state explicitly which §1 invariants this refactor will not break. This is a refactor with no observable behavior change, so no §4 Bug Fix Log entry. If anything observable changes, that is a regression and we stop. |
 
 ---
 

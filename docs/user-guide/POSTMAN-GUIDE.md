@@ -76,7 +76,7 @@ Use: **`The-AI-Demo-Advanced-Utilities`** + shared env
 | `stale flow_id` / `TIMEOUT` | pi.flow `flow_id` is valid for 120 seconds. Step 1b timed out. | Re-run Step 1 (Initiate Authorization) to start a new flow, then immediately run Step 2 (Submit Username + Password). |
 | `Variable not set` (pre-request script throws) | A required collection or environment variable is empty. | Read the error message — it names the missing variable. Open the environment editor and fill it in. |
 | `Environment not selected` | No environment is active in Postman — all `{{VARS}}` resolve to empty strings. | Select **The AI Demo — Shared** from the environment dropdown (top-right corner in Postman). |
-| `invalid_grant` on token exchange | Subject Token expired, `may_act` not set on user, or `resource` audience mismatch. | Re-run the login steps to get a fresh Subject Token. Verify Utility B (Set mayAct) has been run for the test user. Verify `ENDUSER_AUDIENCE` matches the resource URI registered in PingOne. |
+| `invalid_grant` on token exchange | User token expired, `may_act` not set on user, or `resource` audience mismatch. | Re-run the login steps to get a fresh User token. Verify Utility B (Set mayAct) has been run for the test user. Verify `ENDUSER_AUDIENCE` matches the resource URI registered in PingOne. |
 | PAZ returns 404 | `PAZ_DECISION_ENDPOINT_ID` is wrong or empty. | Find the correct UUID in PingOne Admin → Authorize → Decision Endpoints → copy it from the endpoint's URL. |
 | Token Revocation returns 401 | `MCP_CLIENT_ID` or `MCP_CLIENT_SECRET` is wrong. | Check MCP client credentials in the shared environment file. |
 | `invalid_token` on introspect | Token has expired or was revoked. | Re-run the flow to obtain a fresh token. |

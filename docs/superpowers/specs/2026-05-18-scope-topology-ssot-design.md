@@ -37,11 +37,11 @@ across ~6 locations, written in different phases, never reconciled:
 | Source | Owns | Drift state |
 |---|---|---|
 | `banking_mcp_gateway/src/auth/toolScopes.ts` `TOOL_SCOPES` | tool → enforced scopes | **Only one with `banking:transfer`** |
-| `banking_api_server/services/mcpWebSocketClient.js` `MCP_TOOL_SCOPES` | tool → RFC 8693 exchange scopes | `create_transfer` missing `banking:transfer` |
-| `banking_api_server/services/pingoneProvisionService.js` | scopes provisioned + app grants | `banking:transfer` absent entirely |
-| `banking_api_server/services/scopeAuditService.js` `SCOPE_REFERENCE_TABLE` | app → scopes (audit) | Stale: no `banking:transfer`, no `banking:mcp:invoke`, no `banking:mortgage:read` |
-| `banking_api_server/services/scopePolicyEngine.js` `SCOPE_TAXONOMY` | scope → risk/ops | Different scope set again |
-| `banking_api_server/scripts/verify-scope-configuration.js` | hardcoded `requiredScopes` | Yet another list |
+| `demo_api_server/services/mcpWebSocketClient.js` `MCP_TOOL_SCOPES` | tool → RFC 8693 exchange scopes | `create_transfer` missing `banking:transfer` |
+| `demo_api_server/services/pingoneProvisionService.js` | scopes provisioned + app grants | `banking:transfer` absent entirely |
+| `demo_api_server/services/scopeAuditService.js` `SCOPE_REFERENCE_TABLE` | app → scopes (audit) | Stale: no `banking:transfer`, no `banking:mcp:invoke`, no `banking:mortgage:read` |
+| `demo_api_server/services/scopePolicyEngine.js` `SCOPE_TAXONOMY` | scope → risk/ops | Different scope set again |
+| `demo_api_server/scripts/verify-scope-configuration.js` | hardcoded `requiredScopes` | Yet another list |
 | `.planning/quick/2026-04-07-*scope*.md` (×4) + `pingone-update-scopes-manual.md` | human reference | Hand-maintained, drifted |
 
 The `banking:transfer` 403 is a **symptom**. The fix is a single source of

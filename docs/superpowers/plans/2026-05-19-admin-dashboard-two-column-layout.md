@@ -13,11 +13,11 @@
 ### Task 1: Add the modifier class to `<main>` in Dashboard.js
 
 **Files:**
-- Modify: `banking_api_ui/src/components/Dashboard.js:557`
+- Modify: `demo_api_ui/src/components/Dashboard.js:557`
 
 Context: `agentPlacement` is already destructured from `useAgentUiMode()` at line 35. The `<main>` element at line 557 currently has no `className`.
 
-- [ ] **Step 1: Open `banking_api_ui/src/components/Dashboard.js` and locate line 557**
+- [ ] **Step 1: Open `demo_api_ui/src/components/Dashboard.js` and locate line 557**
 
 The current code looks like:
 ```jsx
@@ -38,14 +38,14 @@ Replace that line with:
 - [ ] **Step 3: Verify the build passes**
 
 ```bash
-cd banking_api_ui && npm run build 2>&1 | tail -5
+cd demo_api_ui && npm run build 2>&1 | tail -5
 ```
 Expected: `Successfully compiled.` (exit 0). If TypeScript/lint errors appear, fix them before proceeding.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add banking_api_ui/src/components/Dashboard.js
+git add demo_api_ui/src/components/Dashboard.js
 git commit -m "feat(admin-dashboard): add admin-dash-main--split class in Middle mode"
 ```
 
@@ -54,11 +54,11 @@ git commit -m "feat(admin-dashboard): add admin-dash-main--split class in Middle
 ### Task 2: Add two-column CSS to Dashboard.css
 
 **Files:**
-- Modify: `banking_api_ui/src/components/Dashboard.css` (append to end of file)
+- Modify: `demo_api_ui/src/components/Dashboard.css` (append to end of file)
 
 Context: `Dashboard.css` currently only contains `.dash-scope-injection-banner*` rules. The file is imported by `Dashboard.js`. The `<main>` element carries `admin-dash-main--split` when Middle is active. The Token Chain section has class `dash-shell-card dash-shell-card--token`. All other admin sections have class `dash-shell-card` only.
 
-- [ ] **Step 1: Append the following CSS to the end of `banking_api_ui/src/components/Dashboard.css`**
+- [ ] **Step 1: Append the following CSS to the end of `demo_api_ui/src/components/Dashboard.css`**
 
 ```css
 /* ── Admin dashboard: two-column layout in Middle mode ───────────────────── */
@@ -106,14 +106,14 @@ main.admin-dash-main--split .dash-shell-card:not(.dash-shell-card--token) {
 - [ ] **Step 2: Verify the build passes**
 
 ```bash
-cd banking_api_ui && npm run build 2>&1 | tail -5
+cd demo_api_ui && npm run build 2>&1 | tail -5
 ```
 Expected: `Successfully compiled.` (exit 0).
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add banking_api_ui/src/components/Dashboard.css
+git add demo_api_ui/src/components/Dashboard.css
 git commit -m "feat(admin-dashboard): two-column grid layout for Middle mode"
 ```
 
@@ -156,6 +156,6 @@ Set viewport to 900px wide. Verify both Middle and Float modes show a single col
 - [ ] **Step 6: Final build gate**
 
 ```bash
-cd banking_api_ui && npm run build 2>&1 | tail -5
+cd demo_api_ui && npm run build 2>&1 | tail -5
 ```
 Expected: exit 0.

@@ -2,7 +2,7 @@
 title: MCP Security Gateway — AI Demo (Live Architecture)
 ---
 %% Phase 266 R2 (2026-05-11): One gateway, three credential mechanisms.
-%% 2026-06-18: PingGateway (IG, :3036) is the default MCP gateway (ff_mcp_gateway_pinggateway=true).
+%% 2026-06-18: PingOne Agent Gateway (IG, :3036) is the default MCP gateway (ff_mcp_gateway_pinggateway=true).
 %% Authorize params now include UserId + McpResourceUri in every McpToolCall request.
 %% Authorize outage: fail-closed deny 503 by default (AUTHORIZE_FAILOVER_MODE=deny). Mock authz-server:9001
 %% failover (X-Authz-Simulated) is opt-in only (fallback_simulated / ff_authorize_real).
@@ -15,8 +15,8 @@ flowchart LR
 
     subgraph Customer["Customer Cloud"]
         direction TB
-        GATEWAY["MCP Gateway\nPingGateway (IG, :3036)\nff_mcp_gateway_pinggateway=true (default)"]
-        MCP_SERVER["AI Demo MCP Server\n:8080\nbalance · transfer\ntransactions · accounts"]
+        GATEWAY["MCP Gateway\nPingOne Agent Gateway (IG, :3036)\nff_mcp_gateway_pinggateway=true (default)"]
+        MCP_SERVER["Demo MCP Server\n:8080\nbalance · transfer\ntransactions · accounts"]
         GATEWAY <-->|"3. Adapt security to\ndownstream requirements"| MCP_SERVER
         BANKING_RS["banking_resource_server\n/identity (Path B: dual_token)\n/accounts /transactions (Path C: oauth_bearer)"]
         SQLITE[("SQLite\nbanking-resource-server.db")]

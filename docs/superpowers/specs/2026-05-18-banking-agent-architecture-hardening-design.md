@@ -15,11 +15,11 @@ Resolve the four architectural debts the safety-fixes work deliberately deferred
 
 ## Constraints / context
 
-- `banking_api_ui/src/` is CRA, ES modules + JSX in `.js`. Test runner is `react-scripts test` (bare jest skips Babel transform). UI build gate: `cd banking_api_ui && npm run build` exit 0.
+- `demo_api_ui/src/` is CRA, ES modules + JSX in `.js`. Test runner is `react-scripts test` (bare jest skips Babel transform). UI build gate: `cd demo_api_ui && npm run build` exit 0.
 - `BankingAgent.js` and `App.js` are REGRESSION_PLAN §1 protected. Phases 3 and 4 touch them; each must state preserved §1 invariants before editing and add a §4 Bug Fix Log entry.
 - Emoji rule: only `⚠️` `✅` `❌`.
 - The repo's working tree has long-standing unrelated dirty files; all commits must be scoped by pathspec/patch and verified with `git diff --cached --stat` before committing (a pre-commit hook can sweep untracked files; `--no-verify` is safe per project memory, the hook is advisory for our purposes).
-- Pure helpers live in `banking_api_ui/src/components/bankingAgentSafety.js` (created by the prior safety-fixes work) and are unit-tested in `banking_api_ui/src/__tests__/BankingAgent.safety.test.js`. New pure helpers extend these.
+- Pure helpers live in `demo_api_ui/src/components/bankingAgentSafety.js` (created by the prior safety-fixes work) and are unit-tested in `demo_api_ui/src/__tests__/BankingAgent.safety.test.js`. New pure helpers extend these.
 
 ## Execution model
 
@@ -31,24 +31,24 @@ Four sequential phases. Each phase: implement (TDD where a pure helper exists), 
 
 ### What is dead (verified post-merge, `fix/mcp-introspection-client-binding`)
 
-- `banking_api_ui/src/components/SideAgentDock.js`, `SideAgentDock.css`, `ResponsiveAgentDock.js` — zero references outside their own files (`grep` confirmed).
-- `right-dock` / `left-dock` placements — referenced only in `banking_api_ui/src/context/AgentUiModeContext.js` (JSDoc typedef line ~9; two `syncLegacyString` branches lines ~48/~52; `readState` validation lines ~73/~82) and `AgentUiModeContext.test.js` ("left-dock and right-dock placements" describe ~line 95). No component renders them — a user/scenario persisting `right-dock` reaches a state where no agent renders.
+- `demo_api_ui/src/components/SideAgentDock.js`, `SideAgentDock.css`, `ResponsiveAgentDock.js` — zero references outside their own files (`grep` confirmed).
+- `right-dock` / `left-dock` placements — referenced only in `demo_api_ui/src/context/AgentUiModeContext.js` (JSDoc typedef line ~9; two `syncLegacyString` branches lines ~48/~52; `readState` validation lines ~73/~82) and `AgentUiModeContext.test.js` ("left-dock and right-dock placements" describe ~line 95). No component renders them — a user/scenario persisting `right-dock` reaches a state where no agent renders.
 
 ### Also dead (verified, folded into Phase 1 per decision)
 
 - `banking-agent-ui-mode` CustomEvent — dispatched once at `AgentUiModeContext.js:139`, **zero listeners** anywhere in `src`. Pure dead emission.
-- `useChatWidget` (`banking_api_ui/src/hooks/useChatWidget.js`) — `isLocalhost` is hardcoded `false /* always use api.ping.demo */`, so the hook unconditionally early-returns `setIsInitialized(true)`; the entire widget-control body is unreachable. Imported + called at `UserDashboard.js:13` / `:516` where it does nothing.
+- `useChatWidget` (`demo_api_ui/src/hooks/useChatWidget.js`) — `isLocalhost` is hardcoded `false /* always use api.ping.demo */`, so the hook unconditionally early-returns `setIsInitialized(true)`; the entire widget-control body is unreachable. Imported + called at `UserDashboard.js:13` / `:516` where it does nothing.
 
 ### Approach
 
 - Delete the 3 orphan files (`SideAgentDock.js`, `SideAgentDock.css`, `ResponsiveAgentDock.js`).
 - `AgentUiModeContext.js`: remove `'right-dock' | 'left-dock'` from the typedef; delete the two `if (state.placement === 'right-dock'/'left-dock')` branches in `syncLegacyString`; tighten `readState` so an unknown/removed placement (including a stale `'right-dock'` from storage) falls back to the safe default `'bottom'`; delete the dead `new CustomEvent('banking-agent-ui-mode', …)` dispatch (~line 139) since nothing listens.
-- Delete `banking_api_ui/src/hooks/useChatWidget.js`; remove its `import` (`UserDashboard.js:13`) and its no-op call (`:516`). This is a no-behavior change (the hook does nothing) but `UserDashboard.js` is §1 — see §1/§4 below.
+- Delete `demo_api_ui/src/hooks/useChatWidget.js`; remove its `import` (`UserDashboard.js:13`) and its no-op call (`:516`). This is a no-behavior change (the hook does nothing) but `UserDashboard.js` is §1 — see §1/§4 below.
 - `AgentUiModeContext.test.js`: remove the "left-dock and right-dock placements" describe block (tests deleted behavior); add one test asserting a stored `{placement:'right-dock'}` is read back as the safe default (`bottom`), proving the no-render dead-end is closed. If any test references the `banking-agent-ui-mode` event, remove that assertion.
 
 ### Success criteria
 
-- `grep -rn 'SideAgentDock\|ResponsiveAgentDock\|right-dock\|left-dock\|banking-agent-ui-mode\|useChatWidget' banking_api_ui/src` returns nothing (excluding this spec / REGRESSION_PLAN history).
+- `grep -rn 'SideAgentDock\|ResponsiveAgentDock\|right-dock\|left-dock\|banking-agent-ui-mode\|useChatWidget' demo_api_ui/src` returns nothing (excluding this spec / REGRESSION_PLAN history).
 - Build exit 0; full agent suite green; `AgentUiModeContext` tests green incl. the new fallback test.
 - No behavior change for `middle`/`bottom`/`none` users (the CustomEvent had no listeners; `useChatWidget` was a no-op).
 
@@ -166,7 +166,7 @@ Highest. Mitigation = the staged none→bottom→middle→cleanup migration with
 
 ## Cross-phase testing
 
-After each phase: `cd banking_api_ui && npm run build` (exit 0) + `CI=true npx react-scripts test src/__tests__/BankingAgent.test.js src/__tests__/BankingAgent.safety.test.js src/__tests__/BankingAgent.integration.test.js src/__tests__/BankingAgent.chipRouting.test.js src/context/__tests__/AgentUiModeContext.test.js --watchAll=false` (98+ baseline green, plus new tests).
+After each phase: `cd demo_api_ui && npm run build` (exit 0) + `CI=true npx react-scripts test src/__tests__/BankingAgent.test.js src/__tests__/BankingAgent.safety.test.js src/__tests__/BankingAgent.integration.test.js src/__tests__/BankingAgent.chipRouting.test.js src/context/__tests__/AgentUiModeContext.test.js --watchAll=false` (98+ baseline green, plus new tests).
 
 ## Out of scope
 

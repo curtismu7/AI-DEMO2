@@ -281,7 +281,7 @@
               <div class="server-row"><span class="server-dot"></span><div><div class="server-name">Agent Gateway</div><div class="server-meta">demo_mcp_gateway · :3005</div></div><div class="server-value"><strong>99.9%</strong>healthy</div></div>
               <div class="server-row"><span class="server-dot"></span><div><div class="server-name">Banking MCP</div><div class="server-meta">oauth-mcp · :8080</div></div><div class="server-value"><strong>99.8%</strong>healthy</div></div>
               <div class="server-row"><span class="server-dot warn"></span><div><div class="server-name">Investment resources</div><div class="server-meta">resource-server · :8081</div></div><div class="server-value"><strong class="caution">96.2%</strong>degraded</div></div>
-              <div class="server-row"><span class="server-dot"></span><div><div class="server-name">PingGateway</div><div class="server-meta">policy boundary · :8443</div></div><div class="server-value"><strong>100%</strong>healthy</div></div>
+              <div class="server-row"><span class="server-dot"></span><div><div class="server-name">PingOne Agent Gateway</div><div class="server-meta">policy boundary · :8443</div></div><div class="server-value"><strong>100%</strong>healthy</div></div>
             </div>
           </article>
         </section>
@@ -290,10 +290,10 @@
           <div class="section-heading"><h2>Request explorer</h2><span>12,480 requests · 37 denials</span></div>
           <article class="panel explorer-layout">
             <div class="request-list">
-              <div class="filterbar"><input class="search" id="search" type="search" placeholder="Search tool, user, correlation ID…" aria-label="Search requests" /><select class="filter-select" aria-label="Filter outcome"><option>All outcomes</option><option>Success</option><option>Denied</option><option>Pending</option></select><select class="filter-select" aria-label="Filter gateway"><option>All gateways</option><option>Agent Gateway</option><option>PingGateway</option></select></div>
+              <div class="filterbar"><input class="search" id="search" type="search" placeholder="Search tool, user, correlation ID…" aria-label="Search requests" /><select class="filter-select" aria-label="Filter outcome"><option>All outcomes</option><option>Success</option><option>Denied</option><option>Pending</option></select><select class="filter-select" aria-label="Filter gateway"><option>All gateways</option><option>Agent Gateway</option><option>PingOne Agent Gateway</option></select></div>
               <div id="requests">
                 <button class="request-row selected" type="button" data-request="transfer"><span class="request-status"></span><span><span class="request-title">transfer_funds</span><span class="request-sub"><b>maya.chen</b> · Agent Gateway · banking</span></span><span class="request-time">842ms</span></button>
-                <button class="request-row" type="button" data-request="portfolio"><span class="request-status"></span><span><span class="request-title">get_portfolio_summary</span><span class="request-sub"><b>jordan.lee</b> · PingGateway · investment</span></span><span class="request-time">204ms</span></button>
+                <button class="request-row" type="button" data-request="portfolio"><span class="request-status"></span><span><span class="request-title">get_portfolio_summary</span><span class="request-sub"><b>jordan.lee</b> · PingOne Agent Gateway · investment</span></span><span class="request-time">204ms</span></button>
                 <button class="request-row" type="button" data-request="denied"><span class="request-status denied"></span><span><span class="request-title">approve_transfer</span><span class="request-sub"><b>alex.roberts</b> · Agent Gateway · banking</span></span><span class="request-time">118ms</span></button>
                 <button class="request-row" type="button" data-request="pending"><span class="request-status pending"></span><span><span class="request-title">create_claim</span><span class="request-sub"><b>sam.wilson</b> · Agent Gateway · insurance</span></span><span class="request-time">1.8s</span></button>
               </div>

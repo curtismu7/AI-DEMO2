@@ -68,7 +68,7 @@ Add after the MCP gateway flags block:
   name: 'Bedrock AgentCore Gateway',
   category: 'AWS / Bedrock',
   description: 'Route MCP tool calls through Amazon Bedrock AgentCore Gateway (EKS only). Complements Ping/demo gateway; does not replace local dev path.',
-  impact: 'OFF (default) = demo_mcp_gateway / PingGateway unchanged. ON + AWS_DEPLOYMENT=1 = AgentCore Gateway MCP endpoint.',
+  impact: 'OFF (default) = demo_mcp_gateway / PingOne Agent Gateway unchanged. ON + AWS_DEPLOYMENT=1 = AgentCore Gateway MCP endpoint.',
   type: 'boolean',
   defaultValue: false,
   warnIfEnabled: true,
@@ -371,7 +371,7 @@ AWS CLI / boto3 script: create AgentCore Gateway with MCP protocol `2025-11-25`.
 
 - [ ] **Step 2: register-mcp-target.sh**
 
-Register MCP target pointing at `https://<ALB>/mcp` (banking_mcp_server). OAuth via AgentCore Identity → PingOne. Authorization code grant (3LO).
+Register MCP target pointing at `https://<ALB>/mcp` (demo_mcp_server). OAuth via AgentCore Identity → PingOne. Authorization code grant (3LO).
 
 - [ ] **Step 3: sync-targets.sh**
 
@@ -518,5 +518,5 @@ P5: Task 13 → Task 14 (after P4)
 
 - Replacing local `demo_mcp_gateway`
 - Bedrock Knowledge Bases / Bedrock Agents runtime
-- Layering AgentCore in front of PingGateway
+- Layering AgentCore in front of PingOne Agent Gateway
 - Committing AWS credentials or PingOne policy mutations

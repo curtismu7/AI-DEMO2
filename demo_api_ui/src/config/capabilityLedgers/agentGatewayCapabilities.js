@@ -87,7 +87,7 @@ export const AGENT_GATEWAY_CAPABILITIES = [
     id: 'secrets-dotenvx',
     group: 'secrets',
     title: 'Load secrets via an open-source vault (dotenvx)',
-    oneLiner: 'The gateway, the banking MCP server, and the agent service each load their credentials from their OWN .env via the open-source @dotenvx/dotenvx loader with a strict name allowlist — the former cross-package argon2/KEK/DEK vault (secrets.vault + VAULT_PASSWORD) is gone. Agent Gateway (PingGateway) reads the same names straight from container env.',
+    oneLiner: 'The gateway, the banking MCP server, and the agent service each load their credentials from their OWN .env via the open-source @dotenvx/dotenvx loader with a strict name allowlist — the former cross-package argon2/KEK/DEK vault (secrets.vault + VAULT_PASSWORD) is gone. Agent Gateway (PingOne Agent Gateway) reads the same names straight from container env.',
     evidence: { code: 'Node Gateway: demo_mcp_gateway/src/vault.ts · MCP server: oauth-mcp/src/vault.ts · Agent service: demo_agent_service/src/vault.ts' },
     relatedUCIds: ['UC1'],
   },

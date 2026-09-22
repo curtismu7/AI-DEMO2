@@ -146,7 +146,7 @@ function StepUpSlot() {
           amount: 600,
           // Same bridge AIAgent.js/demoAgentService.js use for every other CIBA
           // retry: without the ORIGINAL gateway challengeId echoed back here,
-          // routes/ciba.js has nothing to mark approved, PingGateway's P1AZ
+          // routes/ciba.js has nothing to mark approved, PingOne Agent Gateway's P1AZ
           // decision re-asks fresh on retry, and CIBA approval loops forever.
           ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}),
         },

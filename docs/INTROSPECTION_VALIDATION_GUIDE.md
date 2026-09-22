@@ -1,6 +1,6 @@
 # Token Validation: Introspection vs JWT
 
-**How the Banking Demo validates OAuth tokens — choose the right strategy for your use case.**
+**How the AI Demo validates OAuth tokens — choose the right strategy for your use case.**
 
 ---
 
@@ -307,7 +307,7 @@ Both modes validate `aud` (audience) claim via `audValidationMiddleware` (Phase 
    WORKER_CLIENT_ID=<worker-app-id>
    WORKER_CLIENT_SECRET=<worker-secret>
    ```
-2. Start server: `npm run dev` (banking_api_server)
+2. Start server: `npm run dev` (demo_api_server)
 3. Navigate to **Config** → **Token Validation**
 4. Click **Test PingOne Connection** → verify `✓ Connected`
 
@@ -328,8 +328,8 @@ Both modes validate `aud` (audience) claim via `audValidationMiddleware` (Phase 
 
 - **RFC 7662:** OAuth 2.0 Token Introspection — https://tools.ietf.org/html/rfc7662
 - **RFC 6749:** OAuth 2.0 Authorization Framework — https://tools.ietf.org/html/rfc6749
-- **Phase 91:** Token introspection service — `banking_api_server/services/tokenIntrospectionService.js`
-- **Phase 96:** Audience (aud) claim validation — `banking_api_server/config/audConfigTemplate.js`
+- **Phase 91:** Token introspection service — `demo_api_server/services/tokenIntrospectionService.js`
+- **Phase 96:** Audience (aud) claim validation — `demo_api_server/config/audConfigTemplate.js`
 - **Phase 95:** Actor/Agent token terminology — `docs/ACTOR_TOKEN_TERMINOLOGY.md`
 - **PingOne Docs:** https://docs.pingidentity.com/pingone/
 

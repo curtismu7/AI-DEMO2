@@ -19,7 +19,7 @@ The final token contains a **delegation chain** proving: "MCP acted on behalf of
 
 | Term | Definition | Example |
 |------|-----------|---------|
-| **Subject Token** | Original user access token | User's OAuth 2.0 access token |
+| **User token** | Original user access token | User's OAuth 2.0 access token |
 | **Actor Token** | Credentials of entity acting on behalf | AI Agent's client credentials token |
 | **Exchanged Token** | Token resulting from exchange | Token with `act.sub` claim |
 | **act Claim** | Nested structure indicating delegation chain | `{act: {sub: "mcp-id", act: {sub: "agent-id"}}}` |

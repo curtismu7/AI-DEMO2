@@ -89,7 +89,7 @@ Use the provided verification script:
 
 ```bash
 # 1. Start the server
-cd banking_api_server
+cd demo_api_server
 npm start
 
 # 2. Log in via browser to obtain a session token

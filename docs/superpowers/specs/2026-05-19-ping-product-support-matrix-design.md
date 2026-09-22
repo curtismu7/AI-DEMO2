@@ -27,7 +27,7 @@ Three deliverables that work together:
 
 ## Data Module — `pingProductSupport.js`
 
-**Location:** `banking_api_ui/src/components/education/pingProductSupport.js`
+**Location:** `demo_api_ui/src/components/education/pingProductSupport.js`
 
 Single source of truth. No logic — pure data. Exports one constant `MATRIX`: an array of 13 row objects.
 
@@ -75,7 +75,7 @@ Single source of truth. No logic — pure data. Exports one constant `MATRIX`: a
 - ID-JAG / AIC: Tech preview only — `IdentityAssertionHandlerTechPreview` component and Identity Assertion auth node exist; no GA support. https://backstage.forgerock.com/docs/ig/2023.11/reference/IdentityAssertionHandlerTechPreview.html
 - ID-JAG / PF: Underlying primitives (RFC 8693 + RFC 7523) exist but the XAA profile is not shipped. No URL.
 - Identity Chaining / all: Draft reached -12 in early 2026 (near Proposed Standard); no vendor GA announced for any Ping product. No URL.
-- RFC 8707 / PingOne: Supported via PingGateway MCP security gateway; native PingOne SaaS support is workaround-based. https://docs.pingidentity.com/pinggateway/2026/mcp/index.html
+- RFC 8707 / PingOne: Supported via PingOne Agent Gateway MCP security gateway; native PingOne SaaS support is workaround-based. https://docs.pingidentity.com/pinggateway/2026/mcp/index.html
 - RFC 8707 / AIC: Requires an OAuth2 Access Token Modification script to set the aud claim; not a native toggle. No URL.
 - RFC 8707 / PF: Added in PF 12.1 (June 2024); resource parameter accepted on authorize/token endpoints. https://docs.pingidentity.com/pingfederate/latest/release_notes/pf_release_notes_121.html
 - PAR / PingOne: Dedicated PAR documentation; /par endpoint is a supported back-channel mechanism. https://docs.pingidentity.com/pingone/applications/p1_pushed_authorization_request.html
@@ -97,7 +97,7 @@ Single source of truth. No logic — pure data. Exports one constant `MATRIX`: a
 - SD-JWT VC / PingOne: PingOne Credentials service supports JWT VC and selective disclosure; full SD-JWT VC format not yet confirmed in product docs. https://docs.pingidentity.com/pingone/digital_credentials_using_pingone_credentials/p1_credentials_introduction.html
 - SD-JWT VC / AIC: NOWallet VC wallet integration announced H2 2024; production-grade SD-JWT VC in AIC not yet documented as GA. No URL.
 - SD-JWT VC / PF: No mention across PF 12.x release notes; VC support targets PingOne/AIC. No URL.
-- MCP / PingOne: PingGateway 2026 MCP Security Gateway module enforces OAuth 2.0 token validation for MCP servers. https://docs.pingidentity.com/pinggateway/2026/mcp/index.html
+- MCP / PingOne: PingOne Agent Gateway 2026 MCP Security Gateway module enforces OAuth 2.0 token validation for MCP servers. https://docs.pingidentity.com/pinggateway/2026/mcp/index.html
 - MCP / AIC: AIC MCP Server GA for sandbox/dev tenants; AIC acts as OAuth AS for MCP token issuance. https://developer.pingidentity.com/blog/introducing-the-aic-mcp-server/
 - MCP / PF: PingFederate is a valid OAuth AS for MCP resource servers via Dynamic Client Registration + token exchange; integration pattern, not a packaged feature. https://developer.pingidentity.com/identity-for-ai/agents/idai-securing-cloudflare-pingfed.html
 - OIDC 2.1 / PingOne: Implements all OIDC 2.1 behaviors (PKCE required, no implicit) but does not advertise formal OIDC 2.1 conformance. No URL.
@@ -108,7 +108,7 @@ Single source of truth. No logic — pure data. Exports one constant `MATRIX`: a
 
 ## Standalone Panel — `PingProductSupportMatrix.js`
 
-**Location:** `banking_api_ui/src/components/education/PingProductSupportMatrix.js`
+**Location:** `demo_api_ui/src/components/education/PingProductSupportMatrix.js`
 
 **Single tab** — no tab bar, just a titled panel body.
 
@@ -192,7 +192,7 @@ PING_PRODUCT_MATRIX: 'ping-product-matrix'
 ## File Structure
 
 ```
-banking_api_ui/src/components/education/
+demo_api_ui/src/components/education/
   pingProductSupport.js          ← NEW: data module (SSOT)
   PingProductSupportMatrix.js    ← NEW: standalone panel + ProductSupportRow export
   IdJagPanel.js                  ← MODIFIED: add Ping Products tab
@@ -216,7 +216,7 @@ banking_api_ui/src/components/education/
 
 ## Success Criteria
 
-- `cd banking_api_ui && npm run build` exits 0
+- `cd demo_api_ui && npm run build` exits 0
 - Matrix panel opens from education command palette with all 13 rows and 3 columns
 - Filter toggles correctly show/hide rows
 - Clicking a cell expands detail card; clicking again collapses it

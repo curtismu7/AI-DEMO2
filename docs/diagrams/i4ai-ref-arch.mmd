@@ -17,11 +17,11 @@ sequenceDiagram
     participant VAULT as BFF Vault Bridge
     participant HITL as HITL Service (demo_hitl_service)
     participant MCP as MCP OLB (demo_mcp_server)
-    participant INV as MCP Invest (demo_mcp_resource_server)
+    participant INV as Demo MCP Resource Server (demo_mcp_resource_server)
     participant RS as Resource Server (OAuth 2.1)
 
     Note over A: Agent = BFF in-process LangGraph agent, default, /api/banking-agent.<br/>demo_agent_service port 3006 and langchain_agent port 8888 are optional alternatives.
-    Note over AG: Agent Gateway = PingGateway (IG, port 3036) by default (ff_mcp_gateway_pinggateway=true).<br/>demo_mcp_gateway port 3005 is the opt-in demo-auth alternative (ff=false).<br/>Ping Authorize outage → fail-closed deny 503 (AUTHORIZE_FAILOVER_MODE=deny, default).
+    Note over AG: Agent Gateway = PingOne Agent Gateway (IG, port 3036) by default (ff_mcp_gateway_pinggateway=true).<br/>demo_mcp_gateway port 3005 is the opt-in demo-auth alternative (ff=false).<br/>Ping Authorize outage → fail-closed deny 503 (AUTHORIZE_FAILOVER_MODE=deny, default).
 
     Note over U,CB: User submits prompt (two paths)
     Note over U,CB: Path A: Click chip (e.g., "Balance") → Heuristic fast path<br/>Path B: Type natural language → Heuristic + LLM path
@@ -117,7 +117,7 @@ sequenceDiagram
     Note over AG,PID: Exchange token for MCP (standard path continues below)
     AG->>PID: "[33. Gateway → PingOne] Token exchange (subject_token: TX token, aud: mcp)"
     PID-->>AG: "[34. PingOne → Gateway] MCP token (sub: user, act: {sub: agent1}, aud: mcp, scope: balance)"
-    Note over AG,INV: Gateway routes by tool — OLB tools (check_balance, create_transfer) go to MCP OLB,<br/>investment tools (get_portfolio, get_holdings) go to MCP Invest. check_balance shown below.
+    Note over AG,INV: Gateway routes by tool — OLB tools (check_balance, create_transfer) go to MCP OLB,<br/>investment tools (get_portfolio, get_holdings) go to Demo MCP Resource Server. check_balance shown below.
     AG->>MCP: "[35. Gateway → MCP OLB] tools/call check_balance (JSON-RPC) with MCP token"
     Note over MCP,PID: Exchange token for Resource Server
     MCP->>PID: "[36. MCP → PingOne] Token exchange (subject_token: MCP token, aud: resource-server)"

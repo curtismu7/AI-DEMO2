@@ -2,7 +2,7 @@
  * ArchitectureFlowPage.js — /architecture/flow
  *
  * Interactive React Flow diagram matching the real banking demo code flow:
- *   Agent → Ping Agent Gateway → PingOne Authorization Server (McpRequest + McpToolCall)
+ *   Agent → PingOne Agent Gateway → PingOne Authorization Server (McpRequest + McpToolCall)
  *   → RFC 8693 Exchange #3 (backend-scoped) → MCP Server → Banking API
  *
  * Pause / Resume / Next-Step controls let you read each token card.
@@ -685,7 +685,7 @@ const SIMULATE_STEPS = [
     stepLabel:
       "Agent → Agent Gateway: tools/list (agent context only — no user)",
     description:
-      "The agent calls the Ping Agent Gateway with tools/list to discover which banking tools are available. At this stage, there is NO user context yet—only the agent's own identity.",
+      "The agent calls the PingOne Agent Gateway with tools/list to discover which banking tools are available. At this stage, there is NO user context yet—only the agent's own identity.",
     activeEdgeIds: ["agent-mcp"],
     edgeStyle: A,
     nodeBadges: { "mcp-gw": { aud: "agent1", _changed: ["aud"] } },
@@ -700,9 +700,9 @@ const SIMULATE_STEPS = [
     // 4
     nodeIds: ["mcp-gw", "pingauthorize"],
     colorClass: "active",
-    stepLabel: "Ping Agent Gateway → PingOne Authorization Server: introspect agent token (RFC 7662)",
+    stepLabel: "PingOne Agent Gateway → PingOne Authorization Server: introspect agent token (RFC 7662)",
     description:
-      "Before evaluating policy, the Ping Agent Gateway introspects the agent's CC token with PingOne Authorization Server to verify it is active and carries the required scope (mcp:invoke). Introspection happens first — policy decision comes next.",
+      "Before evaluating policy, the PingOne Agent Gateway introspects the agent's CC token with PingOne Authorization Server to verify it is active and carries the required scope (mcp:invoke). Introspection happens first — policy decision comes next.",
     activeEdgeIds: ["mcp-authz"],
     edgeStyle: A,
     nodeBadges: {},
@@ -716,7 +716,7 @@ const SIMULATE_STEPS = [
     // 5
     nodeIds: ["mcp-gw", "pingauthorize"],
     colorClass: "active",
-    stepLabel: "Ping Agent Gateway → PingOne Authorization Server: McpRequest policy decision",
+    stepLabel: "PingOne Agent Gateway → PingOne Authorization Server: McpRequest policy decision",
     description:
       "With the token confirmed active, the gateway sends the authorization request to PingOne Authorization Server to check if the agent is permitted to discover tools.",
     activeEdgeIds: ["mcp-authz"],
@@ -778,7 +778,7 @@ const SIMULATE_STEPS = [
     stepLabel:
       "Agent → Gateway: tools/call get_my_accounts (agent context only)",
     description:
-      "The agent calls the Ping Agent Gateway with tools/call to invoke get_my_accounts. However, the call still uses ONLY the agent's CC token (aud=agent1)—there is no user context yet.",
+      "The agent calls the PingOne Agent Gateway with tools/call to invoke get_my_accounts. However, the call still uses ONLY the agent's CC token (aud=agent1)—there is no user context yet.",
     activeEdgeIds: ["agent-mcp"],
     edgeStyle: A,
     nodeBadges: {},
@@ -795,7 +795,7 @@ const SIMULATE_STEPS = [
     colorClass: "active",
     stepLabel: "Agent Gateway → PingOne Authorization Server: McpToolCall authorization",
     description:
-      "The Ping Agent Gateway sends the tool call request to PingAuthorize to check if the agent is authorized to invoke get_my_accounts.",
+      "The PingOne Agent Gateway sends the tool call request to PingAuthorize to check if the agent is authorized to invoke get_my_accounts.",
     activeEdgeIds: ["mcp-authz"],
     edgeStyle: A,
     nodeBadges: {},
@@ -830,7 +830,7 @@ const SIMULATE_STEPS = [
     colorClass: "active-error",
     stepLabel: "Agent Gateway → Agent: 403 Forbidden",
     description:
-      'The Ping Agent Gateway returns HTTP 403 Forbidden to the agent with the error: "insufficient_scope: balance, no subject token". The agent must now get user consent before proceeding.',
+      'The PingOne Agent Gateway returns HTTP 403 Forbidden to the agent with the error: "insufficient_scope: balance, no subject token". The agent must now get user consent before proceeding.',
     activeEdgeIds: ["agent-mcp"],
     edgeStyle: { stroke: "#ef4444", strokeWidth: 2.5 },
     nodeBadges: {},
@@ -923,7 +923,7 @@ const SIMULATE_STEPS = [
     colorClass: "active",
     stepLabel: "Agent → PingOne: RFC 8693 token exchange (actor + subject)",
     description:
-      "The agent performs an RFC 8693 token exchange with PingOne. It exchanges the subject token (user) + actor token (agent CC) to obtain a single delegated token (TX token) for the Ping Agent Gateway. The TX token has sub=alice (user), act=agent1 (agent), and aud=mcp-gw (audience).",
+      "The agent performs an RFC 8693 token exchange with PingOne. It exchanges the subject token (user) + actor token (agent CC) to obtain a single delegated token (TX token) for the PingOne Agent Gateway. The TX token has sub=alice (user), act=agent1 (agent), and aud=mcp-gw (audience).",
     activeEdgeIds: ["agent-idp"],
     edgeStyle: A,
     nodeBadges: {},
@@ -957,7 +957,7 @@ const SIMULATE_STEPS = [
     colorClass: "active",
     stepLabel: "Agent → Gateway: tools/call with TX token",
     description:
-      "The agent retries the tools/call request, but this time with the TX token. The TX token proves both user identity (sub=alice) and agent delegation (act=agent1), scoped to the Ping Agent Gateway (aud=mcp-gw).",
+      "The agent retries the tools/call request, but this time with the TX token. The TX token proves both user identity (sub=alice) and agent delegation (act=agent1), scoped to the PingOne Agent Gateway (aud=mcp-gw).",
     activeEdgeIds: ["agent-mcp"],
     edgeStyle: A,
     nodeBadges: {
@@ -983,7 +983,7 @@ const SIMULATE_STEPS = [
     colorClass: "active",
     stepLabel: "Gateway → PingOne Authorization Server: introspect TX token (RFC 7662)",
     description:
-      "Before evaluating policy, the Ping Agent Gateway calls PingOne Authorization Server to introspect the TX token — verifying it is active, not expired, and carries the expected claims (sub, act, aud, scope). Introspection result is cached for 5s in production.",
+      "Before evaluating policy, the PingOne Agent Gateway calls PingOne Authorization Server to introspect the TX token — verifying it is active, not expired, and carries the expected claims (sub, act, aud, scope). Introspection result is cached for 5s in production.",
     activeEdgeIds: ["mcp-authz"],
     edgeStyle: A,
     nodeBadges: {},
@@ -1036,7 +1036,7 @@ const SIMULATE_STEPS = [
     nodeIds: ["mcp-gw", "idp-oauth-as"],
     colorClass: "active",
     stepLabel:
-      "Ping Agent Gateway → PingOne: RFC 8693 Exchange #3 — narrow to backend audience",
+      "PingOne Agent Gateway → PingOne: RFC 8693 Exchange #3 — narrow to backend audience",
     description:
       "Before forwarding to the MCP Server, the gateway performs its own RFC 8693 exchange — it trades the mcp-gw-audienced TX token for a new token scoped to the MCP Server's real resource URI (mcpserver.ping.demo). This is a real third exchange hop, not a passthrough.",
     activeEdgeIds: ["mcp-gw-idp"],
@@ -1068,7 +1068,7 @@ const SIMULATE_STEPS = [
     // 23
     nodeIds: ["mcp-gw", "mcp-server"],
     colorClass: "active",
-    stepLabel: "Ping Agent Gateway → MCP Server: forward backend-scoped token",
+    stepLabel: "PingOne Agent Gateway → MCP Server: forward backend-scoped token",
     description:
       "The gateway forwards the newly-exchanged token (aud=mcpserver.ping.demo) to the MCP Server.",
     activeEdgeIds: ["mcp-gw-server"],
@@ -1141,7 +1141,7 @@ const SIMULATE_STEPS = [
     colorClass: "active",
     stepLabel: "Results flow back: Banking API → MCP → Gateway → Agent → Chatbot → User",
     description:
-      'The account data flows back through the chain: Banking API → MCP Server → Ping Agent Gateway → Agent → Chatbot, and finally to the user. The chatbot displays the results in natural language: "Your checking account balance is $12,450.00."',
+      'The account data flows back through the chain: Banking API → MCP Server → PingOne Agent Gateway → Agent → Chatbot, and finally to the user. The chatbot displays the results in natural language: "Your checking account balance is $12,450.00."',
     activeEdgeIds: [],
     edgeStyle: A,
     nodeBadges: {},
@@ -1311,7 +1311,7 @@ const SCENARIO_STEPS_FLOW = {
     {
       nodeIds: ["agent", "mcp-gw"],
       colorClass: "active",
-      stepLabel: "Delegation token arrives at Ping Agent Gateway",
+      stepLabel: "Delegation token arrives at PingOne Agent Gateway",
       description:
         "The gateway validates the token before evaluating any policy: audience must equal mcp-gateway, and both sub and act.sub must be present — D-05 anti-bypass rejects a bare client_credentials token (no act at all) right here, one step before any depth check.",
       activeEdgeIds: ["agent-mcp"],
@@ -1368,7 +1368,7 @@ const SCENARIO_STEPS_FLOW = {
     {
       nodeIds: ["mcp-gw", "mcp-server"],
       colorClass: "active",
-      stepLabel: "Ping Agent Gateway forwards backend-scoped token → MCP Server",
+      stepLabel: "PingOne Agent Gateway forwards backend-scoped token → MCP Server",
       description:
         "The gateway forwards the newly-exchanged, backend-scoped token to the MCP Server. The server validates the narrowed audience directly — a token still carrying aud=mcp-gateway would be rejected here.",
       activeEdgeIds: ["mcp-gw-server"],
@@ -1711,7 +1711,7 @@ const SCENARIO_STEPS_FLOW = {
         error: "insufficient_scope",
         error_description: "write scope required for create_transfer",
         "WWW-Authenticate": 'Bearer scope="write"',
-        note: "Ping Agent Gateway converts DENY to 403 — agent must NOT retry with same token",
+        note: "PingOne Agent Gateway converts DENY to 403 — agent must NOT retry with same token",
       },
     },
     {

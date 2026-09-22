@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make all 7 Agent Gateway capabilities (validate & audit MCP requests, throttle & transform tokens, enforce OAuth/policy/metadata) visible and demoable — closing two real walkthrough gaps and adding honest PingGateway-vs-Node attribution — without touching real enforcement logic in either gateway.
+**Goal:** Make all 7 Agent Gateway capabilities (validate & audit MCP requests, throttle & transform tokens, enforce OAuth/policy/metadata) visible and demoable — closing two real walkthrough gaps and adding honest PingOne Agent Gateway-vs-Node attribution — without touching real enforcement logic in either gateway.
 
 **Architecture:** One new config file (`agentGatewayCapabilities.js`) is the single source of truth, read by a new standalone tour page, a reusable callout dropped into 5 existing panels, and a new additive strip section on `/use-cases`. Two small, isolated gateway changes (a 429 audit-visibility fix and a reused live-config-push mechanism for a new sim) close the only two capabilities with no live walkthrough coverage. Everything else is UI composition of data that already exists.
 
@@ -950,7 +950,7 @@ describe('AgentGatewayCapabilitiesTour', () => {
     expect(screen.getAllByTestId('capability-card')).toHaveLength(7);
   });
 
-  it('shows the node-only fallback note for RAR and no PingGateway evidence citation', () => {
+  it('shows the node-only fallback note for RAR and no PingOne Agent Gateway evidence citation', () => {
     render(<AgentGatewayCapabilitiesTour />);
     const rarCard = screen.getByTestId('capability-card-metadata-controls');
     expect(rarCard).toHaveTextContent(/No Groovy equivalent exists yet/);
@@ -984,7 +984,7 @@ function EnforcedByPill({ capability }) {
   }
   return (
     <span className="agct-pill agct-pill--pinggateway">
-      Enforced by PingGateway (default)
+      Enforced by PingOne Agent Gateway (default)
       <span className="agct-pill__fallback"> · Node (fallback)</span>
     </span>
   );
@@ -1008,7 +1008,7 @@ function CapabilityCard({ capability }) {
         <dd><code>{capability.evidence.node}</code></dd>
         {capability.evidence.pingGateway ? (
           <>
-            <dt>PingGateway</dt>
+            <dt>PingOne Agent Gateway</dt>
             <dd><code>{capability.evidence.pingGateway}</code></dd>
           </>
         ) : null}
@@ -1026,7 +1026,7 @@ export default function AgentGatewayCapabilitiesTour() {
       <h1>Agent Gateway — Capability Tour</h1>
       <p className="agct-intro">
         Every capability below is evidence-cited against the current code, not
-        asserted. &quot;Enforced by&quot; reflects the live PingGateway-default
+        asserted. &quot;Enforced by&quot; reflects the live PingOne Agent Gateway-default
         routing — Node is the offline/dev fallback.
       </p>
       {CAPABILITY_GROUPS.map((group) => (
@@ -1227,7 +1227,7 @@ Then locate that same group's child-items array (search this file for `"pinggate
 - [ ] **Step 4: Manual verification**
 
 Run: `cd demo_api_ui && npm start` (or the project's usual dev command), then navigate to `local.ping-devops.com:4000/agent-gateway-capabilities` while signed in as admin.
-Expected: the tour page renders with 7 cards under 3 group headings; the nav sidebar shows a "Capability Tour" entry under the same group as "PingGateway Inspector".
+Expected: the tour page renders with 7 cards under 3 group headings; the nav sidebar shows a "Capability Tour" entry under the same group as "PingOne Agent Gateway Inspector".
 
 - [ ] **Step 5: Commit**
 

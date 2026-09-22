@@ -1,13 +1,13 @@
 # PingOne Token Exchange Implementation Comparison
-## Super Banking Demo vs PingOne Documentation Requirements
+## Super AI Demo vs PingOne Documentation Requirements
 
-This document compares the Super Banking demo's token exchange implementation against PingOne's documented requirements and best practices.
+This document compares the AI Demo's token exchange implementation against PingOne's documented requirements and best practices.
 
 ---
 
 ## Executive Summary
 
-**Overall Compliance**: ✅ **EXCELLENT** - The Super Banking demo demonstrates textbook compliance with PingOne's token exchange requirements and RFC 8693 standards.
+**Overall Compliance**: ✅ **EXCELLENT** - The AI Demo demonstrates textbook compliance with PingOne's token exchange requirements and RFC 8693 standards.
 
 **Key Strengths**:
 - Perfect RFC 8693 parameter implementation
@@ -46,7 +46,7 @@ This document compares the Super Banking demo's token exchange implementation ag
 ### Code Evidence
 
 ```javascript
-// From: banking_api_server/services/oauthService.js
+// From: demo_api_server/services/oauthService.js
 const body = new URLSearchParams({
   grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
   subject_token: subjectToken,
@@ -77,10 +77,10 @@ const body = new URLSearchParams({
 
 ### ✅ **Client Authentication - PingOne Compliant**
 
-PingOne requires proper client authentication for token exchange requests. The Super Banking demo implements this correctly:
+PingOne requires proper client authentication for token exchange requests. The AI Demo implements this correctly:
 
 ```javascript
-// From: banking_api_server/services/oauthService.js
+// From: demo_api_server/services/oauthService.js
 const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
 applyAdminTokenEndpointClientAuth(this.config, body, headers);
 ```
@@ -93,7 +93,7 @@ applyAdminTokenEndpointClientAuth(this.config, body, headers);
 ### ✅ **Token Validation - Comprehensive**
 
 ```javascript
-// From: banking_api_server/services/tokenValidationService.js
+// From: demo_api_server/services/tokenValidationService.js
 async function validateToken(token, { jwksUri, issuer, audience } = {}) {
   // Decode header to get kid
   const decoded = jwt.decode(token, { complete: true });
@@ -143,7 +143,7 @@ and configure may_act policy so only the Backend-for-Frontend (BFF) can exchange
 
 **Super Banking Implementation**:
 ```javascript
-// From: banking_api_server/services/mcpToolAuthorizationService.js
+// From: demo_api_server/services/mcpToolAuthorizationService.js
 const actClientId = claims.act?.client_id || claims.act?.sub;
 // RFC 8693 §4.1 canonical: act.sub
 ```
@@ -154,7 +154,7 @@ const actClientId = claims.act?.client_id || claims.act?.sub;
 
 **Super Banking Implementation**:
 ```javascript
-// From: banking_api_server/services/agentMcpScopePolicy.js
+// From: demo_api_server/services/agentMcpScopePolicy.js
 const MCP_TOOL_SCOPES = {
   'banking:accounts:read': {
     description: 'Read account information',
@@ -189,7 +189,7 @@ const MCP_TOOL_SCOPES = {
 ### Code Evidence
 
 ```javascript
-// From: banking_api_server/services/oauthService.js
+// From: demo_api_server/services/oauthService.js
 } catch (error) {
   const pingoneData = error.response?.data || {};
   const httpStatus  = error.response?.status;
@@ -223,7 +223,7 @@ const MCP_TOOL_SCOPES = {
 
 **Super Banking Implementation**:
 ```javascript
-// From: banking_api_ui/src/components/education/TokenExchangePanel.js
+// From: demo_api_ui/src/components/education/TokenExchangePanel.js
 <div style={{
   background: '#14532d',
   border: '1px solid #16a34a',
@@ -247,7 +247,7 @@ const MCP_TOOL_SCOPES = {
 
 **Super Banking Implementation**:
 ```javascript
-// From: banking_api_server/services/agentMcpTokenService.js
+// From: demo_api_server/services/agentMcpTokenService.js
 const finalScopes = isToolPermittedByAgentPolicy(
   effectiveToolScopes,
   userScopes,
@@ -262,7 +262,7 @@ const finalScopes = isToolPermittedByAgentPolicy(
 
 **Super Banking Implementation**:
 ```javascript
-// From: banking_api_server/services/agentMcpTokenService.js
+// From: demo_api_server/services/agentMcpTokenService.js
 // Validate that the issued MCP access token's aud actually matches what was requested.
 const mcpTokenAud = mcpAccessTokenClaims?.aud;
 const audMatches = mcpTokenAud === mcpResourceUri ||
@@ -279,7 +279,7 @@ const audMatches = mcpTokenAud === mcpResourceUri ||
 
 **Super Banking Implementation**:
 ```javascript
-// From: banking_api_server/services/agentMcpTokenService.js
+// From: demo_api_server/services/agentMcpTokenService.js
 tokenEvents.push(buildTokenEvent(
   'exchange-in-progress',
   'Token Exchange (RFC 8693) → MCP Server',
@@ -312,7 +312,7 @@ tokenEvents.push(buildTokenEvent(
 
 **Super Banking Implementation**:
 ```javascript
-// From: banking_api_server/services/tokenValidationService.js
+// From: demo_api_server/services/tokenValidationService.js
 const jwksCache = new Map();
 const JWKS_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -342,7 +342,7 @@ async function fetchJwks(jwksUri) {
 
 **Super Banking Implementation**:
 ```javascript
-// From: banking_api_server/services/configStore.js
+// From: demo_api_server/services/configStore.js
 // Required for token exchange:
 - PINGONE_CLIENT_ID (BFF client)
 - PINGONE_CLIENT_SECRET (BFF client)
@@ -460,7 +460,7 @@ async function fetchJwks(jwksUri) {
 
 ## Conclusion
 
-The Super Banking demo's token exchange implementation demonstrates **exceptional compliance** with PingOne's requirements and RFC 8693 standards. The implementation is production-ready with:
+The AI Demo's token exchange implementation demonstrates **exceptional compliance** with PingOne's requirements and RFC 8693 standards. The implementation is production-ready with:
 
 - ✅ **Perfect RFC 8693 compliance**
 - ✅ **Comprehensive security practices**

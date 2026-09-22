@@ -65,7 +65,7 @@ const SOURCE_CONFIG = {
     toolKey: 'name',
     paramsKey: 'tool',
   },
-  // Gateway Showcase — the two third-party servers PingGateway scopes at the
+  // Gateway Showcase — the two third-party servers PingOne Agent Gateway scopes at the
   // edge, as one source. `serverKey` is what makes it different from the others:
   // each tool carries the server it came from, and invoke must send it back so
   // the BFF knows which door to knock on.

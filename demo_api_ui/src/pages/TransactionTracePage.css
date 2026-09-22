@@ -672,7 +672,7 @@
    and the app disagreed. The other three surfaces are --th-* now too, so dark
    follows the ThemeProvider attribute for free. */
 
-/* PingGateway MCP filter chain — which product filters handled the hop, in
+/* PingOne Agent Gateway MCP filter chain — which product filters handled the hop, in
    order. Neutral pills by default: these are informational, not verdicts, and
    must not compete with the PERMIT/DENY badge beside them. Self-contained
    backgrounds (same reasoning as .ttrace-inferred above) so they stay legible

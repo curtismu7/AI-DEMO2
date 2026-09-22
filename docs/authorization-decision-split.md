@@ -27,7 +27,7 @@ differs between them — that difference is itself a finding.
 `ff_mcp_gateway_pinggateway` (`demo_api_server/services/configStore.js:320`,
 default **`'true'`**) picks the gateway:
 
-- **Path B (DEFAULT): PingGateway / IG** — `ping-gateway/config/routes/*.json`,
+- **Path B (DEFAULT): PingOne Agent Gateway / IG** — `ping-gateway/config/routes/*.json`,
   policy call in `ping-gateway/scripts/groovy/p1az-decision.groovy`.
 - **Path A: Node gateway** — `demo_mcp_gateway/`, policy call in
   `src/auth/PingOneAuthorizeClient.ts`.
@@ -88,7 +88,7 @@ is always an **input** to the decision; HITL *challenge creation* is always a
 | RFC 8693 Exchange#3 | `McpTokenExchangeClient.ts:73` | 502 | no `actor_token` sent; issued token never validated (`:124`). |
 | Backend dispatch | `apiKeyDispatch.ts:142`, `dualTokenDispatch.ts:104` | -32401/-32500 | dual-token forwards the **inbound gateway-aud bearer unchanged** (`:114`) to a URI that `GatewayTokenPolicy.ts:105` blacklists. |
 
-### 3.2 PingGateway / IG (Path B, default)
+### 3.2 PingOne Agent Gateway / IG (Path B, default)
 
 | Decision | Where | Deny |
 |---|---|---|

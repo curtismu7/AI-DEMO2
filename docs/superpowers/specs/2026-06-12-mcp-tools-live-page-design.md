@@ -119,7 +119,7 @@ pages read one source, not a copy.
 `GET /api/mcp/inspector/tools`:
 
 - **Live mode** (`_source: 'mcp_server'`): banner
-  "LIVE — catalog from banking_mcp_server via tools/list". Live tools are
+  "LIVE — catalog from demo_mcp_server via tools/list". Live tools are
   merged by `name` with the local education metadata (category grouping,
   `displayName`, `requiredScopes`, `readOnly`, params descriptions); live
   `description` / `inputSchema` win where present. Live tools with no local

@@ -12,8 +12,8 @@ here so nobody rebuilds it.
 | # | Who | Subject → Audience |
 |---|---|---|
 | 1 | **BFF** | user token + AI Agent Actor (actor) → Agent Gateway (`agentgateway.ping.demo`) |
-| 2 | **BFF** | intermediate + MCP Exchanger (actor) → PingGateway (`PG_GATEWAY_RESOURCE_ID`) |
-| 3 | **PingGateway** | gateway-scoped token → backend MCP server (`PG_OLB_RESOURCE_URI`) |
+| 2 | **BFF** | intermediate + MCP Exchanger (actor) → PingOne Agent Gateway (`PG_GATEWAY_RESOURCE_ID`) |
+| 3 | **PingOne Agent Gateway** | gateway-scoped token → backend MCP server (`PG_OLB_RESOURCE_URI`) |
 
 P1AZ then authorizes; the MCP server validates. Neither mints tokens.
 
@@ -41,7 +41,7 @@ live on several resources at once, which PingOne refuses outright. The user saw
 the opaque `"That step couldn't be completed"`.
 
 The same constraint shapes the rest of the design: it is why Exchange #2 exists
-as a separate hop rather than being folded into #1, and why PingGateway's
+as a separate hop rather than being folded into #1, and why PingOne Agent Gateway's
 Exchange #3 needs its own token-exchange client — an app cannot hold two scopes
 of the same *name* across different resource grants.
 

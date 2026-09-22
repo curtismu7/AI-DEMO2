@@ -47,7 +47,7 @@
  * Use these instead of raw strings to prevent typos.
  */
 export const MCP_FIELD_KEYS = {
-  // PingGateway wizard fields
+  // PingOne Agent Gateway wizard fields
   PINGONE_ENV_URL:      'pingOneEnvUrl',
   PINGONE_RESOURCE_ID:  'pingOneResourceId',
   GATEWAY_URL:          'gatewayUrl',
@@ -1505,11 +1505,11 @@ In the Step 2 body (`{/* Step 2 — Configure Gateway Routes */}`), find the `<d
   />
 
   <CopyableValue
-    label="PingGateway Public URL"
+    label="PingOne Agent Gateway Public URL"
     fieldKey={MCP_FIELD_KEYS.GATEWAY_URL}
     required
     placeholder="https://ig.example.com:8443"
-    hint="The public HTTPS URL of your PingGateway instance. Maps to properties.gatewayUrl."
+    hint="The public HTTPS URL of your PingOne Agent Gateway instance. Maps to properties.gatewayUrl."
     onChange={(v) => {
       setGatewayUrl(v, null);
       setRouteForm((f) => ({ ...f, gatewayUrl: v }));
@@ -1568,7 +1568,7 @@ In the Step 3 body (`{/* Step 3 — Download Route File */}`), after the existin
     hint="The value you entered in Step 2 — used in the downloaded mcp.json"
   />
   <CopyableValue
-    label="PingGateway Public URL"
+    label="PingOne Agent Gateway Public URL"
     fieldKey={MCP_FIELD_KEYS.GATEWAY_URL}
     readOnly
     hint="The value you entered in Step 2 — used in the downloaded mcp.json"
@@ -1677,7 +1677,7 @@ Expected: `Compiled successfully.`
 
 Start the app with `./run.sh` from the repo root, then verify all 7 success criteria from the spec:
 
-1. Open `/mcp-gateway` → "Real PingGateway" tab → Step 2 → fill in `PingOne Resource ID` field → scroll to Step 3 → confirm it shows the value with "From Step 2" chip and a working copy button.
+1. Open `/mcp-gateway` → "Real PingOne Agent Gateway" tab → Step 2 → fill in `PingOne Resource ID` field → scroll to Step 3 → confirm it shows the value with "From Step 2" chip and a working copy button.
 2. Open `/mcp` (WebMcpPanel) → select `get_my_accounts` → call it → select `get_account_balance` → confirm `account_id` shows a dropdown of the user's accounts.
 3. Select `get_my_accounts` → confirm `account_type` renders as a dropdown (checking/savings/loan/credit/investment), not a text input.
 4. Select `freeze_account` → confirm `freeze` renders as Freeze / Unfreeze radio pair.

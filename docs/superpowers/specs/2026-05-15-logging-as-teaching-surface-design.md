@@ -85,13 +85,13 @@ logging) — so migration is repo-wide, not scope-limited.
   custodian; the browser never receives an `Authorization` header. The SSE /
   Token Chain stream is the *sanctioned* display path and is
   **regression-protected** — improve correlation into it, never break it.
-- REGRESSION_PLAN §1 files in scope (`banking_api_server/middleware/auth.js`,
-  `server.js`, `middleware/correlationId.js`, `banking_mcp_server`
+- REGRESSION_PLAN §1 files in scope (`demo_api_server/middleware/auth.js`,
+  `server.js`, `middleware/correlationId.js`, `demo_mcp_server`
   `TokenIntrospector.ts`): minimal diff; state what will not break before
   editing; §4 Bug Fix Log entry for the Python DEBUG f-string fix.
 - Emoji rule: only `⚠️ ✅ ❌` anywhere, including log strings.
-- UI build (`cd banking_api_ui && npm run build`) must exit 0 after any
-  `banking_api_ui` edit.
+- UI build (`cd demo_api_ui && npm run build`) must exit 0 after any
+  `demo_api_ui` edit.
 - No emoji/marketing-page edits; minimal-diff discipline throughout.
 
 ## 4. Architecture
@@ -282,7 +282,7 @@ services; same `<id>` visible in the UI Token Chain panel.
 - **`console.*` policy check:** a lint/grep gate enumerates remaining
   `console.*` sites; each must fall in an allowed category (bootstrap, crash
   handler, build/CLI script) or be migrated.
-- **UI build exit 0** after any `banking_api_ui` edit; targeted `npm test`
+- **UI build exit 0** after any `demo_api_ui` edit; targeted `npm test`
   for touched BFF logic.
 
 ## 8. Phasing (security-first ordering preserved, redefined as
@@ -331,31 +331,31 @@ at these sites. ~`file:line` — verify exact lines at implementation time.
 ### Stage 2 — Agent identity & actor token
 - `banking_agent_service/src/agentIdentity.ts:44-73` — client_credentials actor token (scope ai_agent), in-flight dedup
 - `banking_agent_service/src/agentIdentity.ts:75-125` — private_key_jwt / PKI fallback
-- `banking_api_server/services/agentCCTokenService.js:54-78,100-120` — BFF client_credentials + caching
+- `demo_api_server/services/agentCCTokenService.js:54-78,100-120` — BFF client_credentials + caching
 - `langchain_agent/src/agent/mcp_tool_provider.py:322-335` — agent token request inside tool run
 
 ### Stage 3 — User auth & session
-- `banking_api_server/services/oauthService.js:106-118,164-167` — PKCE verifier/challenge; verifier at exchange
-- `banking_api_server/services/pkceStateCookie.js:33-105` — HMAC PKCE cookie (serverless)
-- `banking_api_server/routes/oauth.js:65,78,82-84,185-198` — state+nonce mint + callback validation
-- `banking_api_server/routes/oauthUser.js:525-535` — id_token nonce validation
-- `banking_api_server/services/oauthService.js:155-227` — authorization_code → token exchange
-- `banking_api_server/services/jwksService.js:31-59` + `middleware/auth.js:499-528` — JWKS fetch + RS256 verify
-- `banking_api_server/routes/oauth.js:144-150` + `services/authStateCookie.js:75-218` — session save + cookie-fallback restore
+- `demo_api_server/services/oauthService.js:106-118,164-167` — PKCE verifier/challenge; verifier at exchange
+- `demo_api_server/services/pkceStateCookie.js:33-105` — HMAC PKCE cookie (serverless)
+- `demo_api_server/routes/oauth.js:65,78,82-84,185-198` — state+nonce mint + callback validation
+- `demo_api_server/routes/oauthUser.js:525-535` — id_token nonce validation
+- `demo_api_server/services/oauthService.js:155-227` — authorization_code → token exchange
+- `demo_api_server/services/jwksService.js:31-59` + `middleware/auth.js:499-528` — JWKS fetch + RS256 verify
+- `demo_api_server/routes/oauth.js:144-150` + `services/authStateCookie.js:75-218` — session save + cookie-fallback restore
 
 ### Stage 4 — RFC 8693 delegation
-- `banking_api_server/services/rfc8693TokenExchangeService.js:74-122` — subject+actor request, act validation (request+response in full here)
-- `banking_api_server/routes/agentDelegation.js:94-107` — scope narrowing (requested ∩ user)
-- `banking_api_server/services/subjectTokenService.js:76-79` — may_act requested
-- `banking_api_server/services/agentMcpTokenService.js:56-60,149-170,407-414` — scope sufficiency + token-event objects (claims-delta source)
-- `banking_api_server/middleware/auth.js:975-1017` — requireDelegation (act claim required)
+- `demo_api_server/services/rfc8693TokenExchangeService.js:74-122` — subject+actor request, act validation (request+response in full here)
+- `demo_api_server/routes/agentDelegation.js:94-107` — scope narrowing (requested ∩ user)
+- `demo_api_server/services/subjectTokenService.js:76-79` — may_act requested
+- `demo_api_server/services/agentMcpTokenService.js:56-60,149-170,407-414` — scope sufficiency + token-event objects (claims-delta source)
+- `demo_api_server/middleware/auth.js:975-1017` — requireDelegation (act claim required)
 
 ### Stage 5 — Resource-server enforcement
-- `banking_mcp_server/src/server/MCPMessageHandler.ts:147-202` — initialize / capability negotiation
-- `banking_mcp_server/src/server/MCPMessageHandler.ts:494-519` — lifecycle guard
-- `banking_mcp_server/src/server/MCPMessageHandler.ts:207-241` + `tools/toolScopeMap.ts:11-62` — scoped tools/list (least priv)
-- `banking_mcp_server/src/auth/TokenIntrospector.ts:30-66,90-122,166-185` — RFC 7662 introspection, aud, may_act, act audit
-- `banking_mcp_server/src/server/MCPMessageHandler.ts:315-351` — per-tool scope check (-32005 vs -32001)
+- `demo_mcp_server/src/server/MCPMessageHandler.ts:147-202` — initialize / capability negotiation
+- `demo_mcp_server/src/server/MCPMessageHandler.ts:494-519` — lifecycle guard
+- `demo_mcp_server/src/server/MCPMessageHandler.ts:207-241` + `tools/toolScopeMap.ts:11-62` — scoped tools/list (least priv)
+- `demo_mcp_server/src/auth/TokenIntrospector.ts:30-66,90-122,166-185` — RFC 7662 introspection, aud, may_act, act audit
+- `demo_mcp_server/src/server/MCPMessageHandler.ts:315-351` — per-tool scope check (-32005 vs -32001)
 - `banking_mcp_gateway/src/auth/GatewayTokenPolicy.ts:25-76` — sub/act.sub invariants + D-05 anti-bypass
 - `banking_mcp_gateway/src/auth/authorizeMcpRequestCore.ts:70-114` — transport-agnostic introspection+policy pipeline
 - `banking_mcp_resource_server/src/server/tokenValidator.ts:20-42` — local decode-validate variant (no introspection)
@@ -369,17 +369,17 @@ at these sites. ~`file:line` — verify exact lines at implementation time.
 ### Stage 7 — Human-in-the-loop
 - `banking_mcp_gateway/src/middleware/authorizeMcpRequest.ts:162-198` — Authorize evaluate (PERMIT/DENY/INDETERMINATE)
 - `banking_mcp_gateway/src/index.ts:459-513` — HITL challenge issue (-32002) + verify (replay-bound)
-- `banking_mcp_server/src/server/MCPMessageHandler.ts:354-403` — CIBA initiation; `:371-394` pending notify + blocking poll
+- `demo_mcp_server/src/server/MCPMessageHandler.ts:354-403` — CIBA initiation; `:371-394` pending notify + blocking poll
 
 ### Stage 8 — API request/response at each hop
 - BFF→PingOne: token/introspection/refresh/revoke service call sites (oauthService.js, tokenIntrospectionService.js, tokenRefresh.js, rfc8693TokenExchangeService.js)
 - agent→gateway / gateway→MCP / MCP→BFF: `proxy.ts:32-113`, `credentialSwap.ts`, MCP `BankingAPIClient` call sites
 
 ### Stage 9 — Visualization correlation
-- `banking_api_ui/src/services/bankingAgentService.js:77-151,128-143,268-299` — SSE open, token-event append, mcp-result custom event, merge
-- `banking_api_ui/src/context/TokenChainContext.js:23-112,193-215` — token-event state + SSE listener
-- `banking_api_ui/src/components/education/TokenChainPanel.js:11-104,155-200` — 5-step chain + decoded claims render
-- `banking_api_ui/src/components/BankingAgent.js:78-88` — credentialPath stamping (Phase 266 H2 audit list)
+- `demo_api_ui/src/services/bankingAgentService.js:77-151,128-143,268-299` — SSE open, token-event append, mcp-result custom event, merge
+- `demo_api_ui/src/context/TokenChainContext.js:23-112,193-215` — token-event state + SSE listener
+- `demo_api_ui/src/components/education/TokenChainPanel.js:11-104,155-200` — 5-step chain + decoded claims render
+- `demo_api_ui/src/components/BankingAgent.js:78-88` — credentialPath stamping (Phase 266 H2 audit list)
 
 > Note: `TokenIntrospector.ts`, `auth.js`, `oauth*.js`, `agentMcpTokenService.js`
 > are REGRESSION_PLAN §1 files — narration markers are *additive* log lines;

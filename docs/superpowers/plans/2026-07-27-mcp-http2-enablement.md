@@ -315,7 +315,7 @@ In `demo_api_server/services/http2McpBridge.js`, in `createHttp2Session` (around
     options.allowHTTP1 = true;
   } else if (parsed.protocol === 'https:') {
     // Same-network internal hop to demo_mcp_server's self-signed TLS+ALPN
-    // listener (MCP_TLS_ENABLED) — not a trust boundary. Matches PingGateway's
+    // listener (MCP_TLS_ENABLED) — not a trust boundary. Matches PingOne Agent Gateway's
     // own local-dev requireHttps:false pattern.
     options.rejectUnauthorized = false;
   }

@@ -43,11 +43,11 @@
 
 | Grant Type | Used for | Location |
 |---|---|---|
-| Authorization Code | User login | `banking_api_server/routes/auth.js` |
-| Client Credentials | Agent actor token (2-exchange path) | `banking_api_server/services/oauthService.js` |
-| Refresh Token | Silent session renewal | `banking_api_server/middleware/tokenRefresh.js` |
-| Token Exchange (RFC 8693) | MCP agent delegation | `banking_api_server/services/agentMcpTokenService.js` |
-| CIBA (OpenID extension) | Backchannel step-up | `banking_api_server/routes/ciba.js` |
+| Authorization Code | User login | `demo_api_server/routes/auth.js` |
+| Client Credentials | Agent actor token (2-exchange path) | `demo_api_server/services/oauthService.js` |
+| Refresh Token | Silent session renewal | `demo_api_server/middleware/tokenRefresh.js` |
+| Token Exchange (RFC 8693) | MCP agent delegation | `demo_api_server/services/agentMcpTokenService.js` |
+| CIBA (OpenID extension) | Backchannel step-up | `demo_api_server/routes/ciba.js` |
 
 ### How to demo
 
@@ -64,7 +64,7 @@
 
 ### How it's implemented
 
-- `code_verifier`: `crypto.randomBytes(64).toString('hex')` — `banking_api_server/services/oauthService.js`
+- `code_verifier`: `crypto.randomBytes(64).toString('hex')` — `demo_api_server/services/oauthService.js`
 - `code_challenge`: `base64url(sha256(verifier))`
 - Stored in `req.session.oauthCodeVerifier` + PKCE HMAC cookie (Vercel failsafe)
 - Verified in callback: `state` match + `code_verifier` retrieval before `POST /token`
@@ -135,9 +135,9 @@ audience      = <mcp_resource_uri>
 
 ### Key files
 
-- `banking_api_server/services/agentMcpTokenService.js` — orchestrates both paths
-- `banking_api_server/services/oauthService.js` — `performTokenExchange()`
-- `banking_api_server/server.js` — `/api/mcp/tool` proxy endpoint
+- `demo_api_server/services/agentMcpTokenService.js` — orchestrates both paths
+- `demo_api_server/services/oauthService.js` — `performTokenExchange()`
+- `demo_api_server/server.js` — `/api/mcp/tool` proxy endpoint
 
 ### What you can demo
 
@@ -159,7 +159,7 @@ Agent tool call → Token Chain → expand **Token Exchange** event → see subj
 ### How it's implemented
 
 - `may_act: { client_id: <bff_admin_client_id> }` — set in PingOne resource server attribute mappings
-- Checked by BFF before attempting exchange: `banking_api_server/services/agentMcpTokenService.js` `ff_inject_may_act` path
+- Checked by BFF before attempting exchange: `demo_api_server/services/agentMcpTokenService.js` `ff_inject_may_act` path
 - `act` claim in issued MCP token when 2-exchange path is used
 - Verified end-to-end in `docs/ACT_CLAIM_VERIFICATION.md`
 
@@ -177,8 +177,8 @@ Agent tool call → Token Chain → expand **Token Exchange** event → see subj
 
 ### How it's implemented
 
-- `banking_api_server/routes/auth.js` — logout handler calls `oauthService.revokeToken()` for both tokens
-- `banking_api_server/services/oauthService.js` — `POST /revoke` with Basic auth
+- `demo_api_server/routes/auth.js` — logout handler calls `oauthService.revokeToken()` for both tokens
+- `demo_api_server/services/oauthService.js` — `POST /revoke` with Basic auth
 
 ---
 
@@ -201,9 +201,9 @@ Admin → Token Inspect → paste any access token → BFF calls `POST /introspe
 
 ### How it's implemented
 
-- `banking_api_server/config/oauthUser.js` — `authorizeUsesPiFlow` / `use_par` flag
-- `banking_api_server/services/oauthService.js` — `submitPAR()` method
-- `banking_api_server/routes/auth.js` — PAR path in login handler
+- `demo_api_server/config/oauthUser.js` — `authorizeUsesPiFlow` / `use_par` flag
+- `demo_api_server/services/oauthService.js` — `submitPAR()` method
+- `demo_api_server/routes/auth.js` — PAR path in login handler
 
 ### What you can demo
 
@@ -222,7 +222,7 @@ Config → `use_par=true` → login → OAuth Log → see `POST /par` request be
 - Returns: `resource`, `authorization_servers[]`, `bearer_methods_supported`, `scopes_supported`, `jwks_uri`
 - CORS: `Access-Control-Allow-Origin: *`
 - Cache: `Cache-Control: public, max-age=3600`
-- File: `banking_api_server/routes/protectedResourceMetadata.js` (mounted at both `/.well-known/oauth-protected-resource` and `/api/rfc9728` in `server.js`)
+- File: `demo_api_server/routes/protectedResourceMetadata.js` (mounted at both `/.well-known/oauth-protected-resource` and `/api/rfc9728` in `server.js`)
 
 ### What you can demo
 
@@ -270,8 +270,8 @@ Navigate to `https://<your-app>/.well-known/oauth-protected-resource` — JSON r
 
 | Step | Location |
 |------|----------|
-| `POST /bc-authorize` | `banking_api_server/routes/ciba.js` |
-| Poll `POST /token grant_type=...ciba` | `banking_api_server/services/oauthService.js` |
+| `POST /bc-authorize` | `demo_api_server/routes/ciba.js` |
+| Poll `POST /token grant_type=...ciba` | `demo_api_server/services/oauthService.js` |
 | `authorization_pending` → retry | CIBA status handler with configurable interval |
 | `slow_down` → interval += 5 | Backoff implemented |
 | `access_denied` → abort | User rejected — error surfaced to agent |
@@ -290,10 +290,10 @@ Ask the Banking Agent to transfer >$500 → CIBA OTP email sent → enter code i
 
 ### How it's implemented
 
-- WebSocket server: `banking_mcp_server/src/` (TypeScript, `@modelcontextprotocol/sdk`)
+- WebSocket server: `demo_mcp_server/src/` (TypeScript, `@modelcontextprotocol/sdk`)
 - Tools registered: `get_my_accounts`, `get_account_balance`, `get_my_transactions`, `create_transfer`, `create_deposit`, `create_withdrawal`, `query_user_by_email`
 - Auth challenge gating: MCP server sends `401` challenge before executing write tools without a valid scoped token
-- BFF proxy: `banking_api_server/services/mcpWebSocketClient.js` — manages WS lifecycle, auth challenge response
+- BFF proxy: `demo_api_server/services/mcpWebSocketClient.js` — manages WS lifecycle, auth challenge response
 
 ### What you can demo
 

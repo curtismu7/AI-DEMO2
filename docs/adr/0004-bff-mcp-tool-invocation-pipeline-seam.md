@@ -4,7 +4,7 @@
 
 ## Context
 
-`POST /api/mcp/tool` in `banking_api_server/server.js` is the BFF agent's tool-call path
+`POST /api/mcp/tool` in `demo_api_server/server.js` is the BFF agent's tool-call path
 (ARCHITECTURE-TRUTHS T-7 — the agent that does **not** route through the gateway and runs
 its own authoritative PingAuthorize gate). It had grown to ~760 lines in a single Express
 handler: a PingOne-admin early-exit, RFC 8693 token resolution, a no-bearer branch, the

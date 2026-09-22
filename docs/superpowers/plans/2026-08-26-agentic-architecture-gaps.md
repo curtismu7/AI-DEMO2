@@ -58,7 +58,7 @@ a local fallback so nobody demos them as the control.
 
 Two gateways implement the same disposition **differently**:
 
-- **PingGateway / IG** (`ff_mcp_gateway_pinggateway` default ON) *does* broker:
+- **PingOne Agent Gateway / IG** (`ff_mcp_gateway_pinggateway` default ON) *does* broker:
   `ping-gateway/scripts/groovy/apikey-dispatch.groovy:130` fetches
   `{BFF_VAULT_KEY_URL}?name=DEMO_API_RESOURCE_SERVER_KEY` behind the
   `x-internal-gateway-secret` guard, then attaches the result as `X-API-Key` at `:143`.

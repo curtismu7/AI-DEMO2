@@ -15,7 +15,7 @@ Covers: `authSession` (including BFF store ping contract), `authStateCookie`,
 Run the full API server Jest suite (includes OAuth scope, step-up, and HITL flows):
 
 ```bash
-cd banking_api_server && npm test -- --forceExit
+cd demo_api_server && npm test -- --forceExit
 ```
 
 Run **only** before a release when changing:
@@ -28,13 +28,13 @@ Run **only** before a release when changing:
 Session-only (fastest):
 
 ```bash
-cd banking_api_ui && BANKING_API_BASE=http://127.0.0.1:3001 npm run test:e2e:session
+cd demo_api_ui && BANKING_API_BASE=http://127.0.0.1:3001 npm run test:e2e:session
 ```
 
 Full Playwright API config (includes `session-regression.spec.js` and other API specs):
 
 ```bash
-cd banking_api_ui && BANKING_API_BASE=http://127.0.0.1:3001 npm run test:e2e:api
+cd demo_api_ui && BANKING_API_BASE=http://127.0.0.1:3001 npm run test:e2e:api
 ```
 
 Adjust `BANKING_API_BASE` to your API port.

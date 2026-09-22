@@ -14,7 +14,7 @@ This audit report evaluates the current API configuration and management system,
 
 #### 1.1 Current Configuration Structure
 ```
-banking_api_server/
+demo_api_server/
   config/
     - oauth.js (OAuth2 configuration)
     - oauthUser.js (User OAuth configuration)

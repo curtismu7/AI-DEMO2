@@ -118,7 +118,7 @@ export const SCENARIOS = [
       { nodes: ['n-bff'],           edges: [],                    desc: 'BFF selects Path A: api_key disposition' },
       { nodes: ['n-mcp-gw'],        edges: ['e-bff-mcpgw'],       desc: 'MCP Gateway receives request; drops RFC 6750 Bearer token' },
       { nodes: ['n-mcp-gw'],        edges: [],                    desc: 'Gateway injects X-API-Key + X-User-Sub headers' },
-      { nodes: ['n-mortgage'],      edges: ['e-mcpgw-mortgage'],  desc: 'Request forwarded to Mortgage Service (:8082) with API key auth' },
+      { nodes: ['n-mortgage'],      edges: ['e-mcpgw-mortgage'],  desc: 'Request forwarded to Mortgage Resource Server (:8082) with API key auth' },
     ],
   },
   {
@@ -906,7 +906,7 @@ function ArchitectureSimSvg({ nodeStates = {}, edgeStates = {} }) {
 
       {/* Row 2: parallel services */}
       <SimNode id="n-agent"      x={COL.mcpGw}    y={ROW.mid} label="Agent Service" sub=":3006 / :8888"         state={ns('n-agent')} />
-      <SimNode id="n-mcp-resource-server" x={COL.services} y={ROW.mid} label="MCP Invest"    sub=":8081"                 state={ns('n-mcp-resource-server')} />
+      <SimNode id="n-mcp-resource-server" x={COL.services} y={ROW.mid} label="Demo MCP Resource Server"    sub=":8081"                 state={ns('n-mcp-resource-server')} />
       <SimNode id="n-mortgage"   x={COL.services} y={ROW.mid + NH + 10} label="Mortgage Svc" sub=":8082"        state={ns('n-mortgage')} />
       <SimNode id="n-pingone"    x={COL.external} y={ROW.mid} label="PingOne"        sub="OAuth AS"              state={ns('n-pingone')} />
 

@@ -325,7 +325,7 @@ export function EvaluatePanel({ endpointId, autoPreset, policiesState, pendingTe
   // MCP preset fields
   const [toolName, setToolName] = useState('transfer');
   const [tokenAudience, setTokenAudience] = useState('mcpgateway.ping.demo');
-  // Defaults mirror what the real PingGateway sends to the cloud "MCP First Tool" policy
+  // Defaults mirror what the real PingOne Agent Gateway sends to the cloud "MCP First Tool" policy
   // (p1az-decision.groovy), so the panel evaluates to PERMIT out of the box. The policy
   // needs BOTH: a valid delegated actor (act.sub = the AI Agent / PINGONE_AI_AGENT_CLIENT_ID;
   // blank -> mcp-invalid-actor) AND TokenAudience === McpResourceUri (the gateway sends the

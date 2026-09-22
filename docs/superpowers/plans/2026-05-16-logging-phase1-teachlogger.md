@@ -13,19 +13,19 @@
 ## Scope & Non-Negotiables
 
 - **No redaction of tokens/claims/PII.** Per the design (`docs/superpowers/specs/2026-05-15-logging-as-teaching-surface-design.md`) token visibility is an intentional teaching feature. `teachLogger` has **no** pino `redact` config. Tests assert visibility is *preserved*.
-- **REGRESSION_PLAN §1 files touched:** `banking_api_server/middleware/auth.js`, `banking_mcp_server/src/auth/TokenIntrospector.ts`, `langchain_agent` auth/token paths. Every task that touches them states what it will NOT break and keeps a minimal diff (logging-only; no auth logic change). The Python token-line fix gets a REGRESSION_PLAN §4 Bug Fix Log entry.
+- **REGRESSION_PLAN §1 files touched:** `demo_api_server/middleware/auth.js`, `demo_mcp_server/src/auth/TokenIntrospector.ts`, `langchain_agent` auth/token paths. Every task that touches them states what it will NOT break and keeps a minimal diff (logging-only; no auth logic change). The Python token-line fix gets a REGRESSION_PLAN §4 Bug Fix Log entry.
 - **Python token lines (613/614/620/982) clarification:** these use `{self._current_agent_token}`, and `AccessToken.__str__` (`langchain_agent/src/models/auth.py:117-121`) already returns `AccessToken(***masked***)`. They are **not leaking** today — they print a useless masked literal. The teaching-correct fix is `.masked_fingerprint()` (stable `sha256:<12>` correlation tag, already implemented at `auth.py:123`), matching line 334's existing pattern. We deliberately do **not** dump the raw JWT into debug lines: the full token is already fully visible on the Token Chain / SSE teaching surfaces, and `auth.py:113` BL-01 is a load-bearing protection against accidental token-in-logs elsewhere. This diverges from the spec's loose "print the real token clearly" wording; the design intent (a *useful, debuggable, teaching* token reference) is satisfied by the fingerprint + the existing visible surfaces.
-- **No emojis** except `⚠️ ✅ ❌`. **UI build** not affected in Phase 1 (no `banking_api_ui` edits).
+- **No emojis** except `⚠️ ✅ ❌`. **UI build** not affected in Phase 1 (no `demo_api_ui` edits).
 - pino version pinned to match across services: **`pino@^9.5.0`**, **`pino-pretty@^13.0.0`**.
 
 ## File Structure
 
 Per service, one new self-contained module (TS services compile via existing `tsc`):
 
-- `banking_mcp_server/src/utils/teachLogger.ts` — TS wrapper (this service already has `src/utils/Logger.ts`; teachLogger is additive, does not replace it in Phase 1).
+- `demo_mcp_server/src/utils/teachLogger.ts` — TS wrapper (this service already has `src/utils/Logger.ts`; teachLogger is additive, does not replace it in Phase 1).
 - `banking_mcp_gateway/src/teachLogger.ts` — TS wrapper.
 - `banking_agent_service/src/teachLogger.ts` — TS wrapper.
-- `banking_api_server/utils/teachLogger.js` — CJS wrapper (this service has `utils/logger.js`; teachLogger is additive).
+- `demo_api_server/utils/teachLogger.js` — CJS wrapper (this service has `utils/logger.js`; teachLogger is additive).
 - Python: no new file — modify `langchain_agent/src/log_utils/structured_logger.py` (disable filter) and `langchain_agent/src/agent/mcp_tool_provider.py` (token lines).
 
 Reference module shape (identical API across services; language-adapted):
@@ -41,24 +41,24 @@ teachLogger.child(bindings)           // returns logger with bound fields (Phase
 
 ---
 
-## Task 1: Add pino to banking_mcp_server and create teachLogger.ts
+## Task 1: Add pino to demo_mcp_server and create teachLogger.ts
 
 **Files:**
-- Modify: `banking_mcp_server/package.json` (dependencies)
-- Create: `banking_mcp_server/src/utils/teachLogger.ts`
-- Test: `banking_mcp_server/tests/utils/teachLogger.test.ts`
+- Modify: `demo_mcp_server/package.json` (dependencies)
+- Create: `demo_mcp_server/src/utils/teachLogger.ts`
+- Test: `demo_mcp_server/tests/utils/teachLogger.test.ts`
 
 - [ ] **Step 1: Install pino**
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_mcp_server && npm install pino@^9.5.0 pino-pretty@^13.0.0 --save
+cd /Users/curtismuir/Development/banking/demo_mcp_server && npm install pino@^9.5.0 pino-pretty@^13.0.0 --save
 ```
 Expected: `package.json` `dependencies` now contains `pino` and `pino-pretty`; exit 0.
 
 - [ ] **Step 2: Write the failing test**
 
-Create `banking_mcp_server/tests/utils/teachLogger.test.ts`:
+Create `demo_mcp_server/tests/utils/teachLogger.test.ts`:
 
 ```typescript
 import { Writable } from 'stream';
@@ -128,13 +128,13 @@ describe('teachLogger', () => {
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_mcp_server && npx jest tests/utils/teachLogger.test.ts
+cd /Users/curtismuir/Development/banking/demo_mcp_server && npx jest tests/utils/teachLogger.test.ts
 ```
 Expected: FAIL — `Cannot find module '../../src/utils/teachLogger'`.
 
 - [ ] **Step 4: Write minimal implementation**
 
-Create `banking_mcp_server/src/utils/teachLogger.ts`:
+Create `demo_mcp_server/src/utils/teachLogger.ts`:
 
 ```typescript
 import pino, { Logger } from 'pino';
@@ -203,7 +203,7 @@ export const teachLog = createTeachLogger({ service: 'mcp-server' });
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_mcp_server && npx jest tests/utils/teachLogger.test.ts
+cd /Users/curtismuir/Development/banking/demo_mcp_server && npx jest tests/utils/teachLogger.test.ts
 ```
 Expected: PASS — 4 tests green.
 
@@ -211,25 +211,25 @@ Expected: PASS — 4 tests green.
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_mcp_server && npm run typecheck
+cd /Users/curtismuir/Development/banking/demo_mcp_server && npm run typecheck
 ```
 Expected: exit 0, no TS errors.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /Users/curtismuir/Development/banking && git add banking_mcp_server/package.json banking_mcp_server/package-lock.json banking_mcp_server/src/utils/teachLogger.ts banking_mcp_server/tests/utils/teachLogger.test.ts && git commit -m "feat(mcp-server): add pino-based teachLogger (no redaction, teaching-visible)
+cd /Users/curtismuir/Development/banking && git add demo_mcp_server/package.json demo_mcp_server/package-lock.json demo_mcp_server/src/utils/teachLogger.ts demo_mcp_server/tests/utils/teachLogger.test.ts && git commit -m "feat(mcp-server): add pino-based teachLogger (no redaction, teaching-visible)
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
 
 ---
 
-## Task 2: Migrate banking_mcp_server TokenIntrospector to teachLogger
+## Task 2: Migrate demo_mcp_server TokenIntrospector to teachLogger
 
 **Files:**
-- Modify: `banking_mcp_server/src/auth/TokenIntrospector.ts` (lines ~33, ~45, ~75-80, ~115 per audit — verify exact lines)
-- Test: `banking_mcp_server/tests/auth/TokenIntrospector.teachlog.test.ts`
+- Modify: `demo_mcp_server/src/auth/TokenIntrospector.ts` (lines ~33, ~45, ~75-80, ~115 per audit — verify exact lines)
+- Test: `demo_mcp_server/tests/auth/TokenIntrospector.teachlog.test.ts`
 
 **REGRESSION_PLAN §1 file.** Will NOT break: introspection request/response logic, `may_act` enforcement, `aud` validation, error throw behavior. Change is logging-call replacement only — `console.log` → `teachLog.step/info`. Token/claim content stays fully visible (teaching).
 
@@ -237,13 +237,13 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_mcp_server && grep -n "console\.\(log\|error\|warn\)" src/auth/TokenIntrospector.ts
+cd /Users/curtismuir/Development/banking/demo_mcp_server && grep -n "console\.\(log\|error\|warn\)" src/auth/TokenIntrospector.ts
 ```
 Expected: lists the console.* sites (audit cited ~33, ~45, ~75-80, ~115). Record exact line numbers for Step 3.
 
 - [ ] **Step 2: Write the failing test**
 
-Create `banking_mcp_server/tests/auth/TokenIntrospector.teachlog.test.ts`:
+Create `demo_mcp_server/tests/auth/TokenIntrospector.teachlog.test.ts`:
 
 ```typescript
 // Verifies introspection still narrates the teaching steps AND keeps token
@@ -276,7 +276,7 @@ describe('TokenIntrospector logging migration', () => {
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_mcp_server && npx jest tests/auth/TokenIntrospector.teachlog.test.ts
+cd /Users/curtismuir/Development/banking/demo_mcp_server && npx jest tests/auth/TokenIntrospector.teachlog.test.ts
 ```
 Expected: FAIL — `console.*` matches present / no `teachLog.step`.
 
@@ -328,7 +328,7 @@ Do not alter any control flow, throw, or return. Only the logging calls change.
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_mcp_server && npx jest tests/auth/TokenIntrospector.teachlog.test.ts && npx jest --testPathPattern='TokenIntrospector' --testPathIgnorePatterns='teachlog'
+cd /Users/curtismuir/Development/banking/demo_mcp_server && npx jest tests/auth/TokenIntrospector.teachlog.test.ts && npx jest --testPathPattern='TokenIntrospector' --testPathIgnorePatterns='teachlog'
 ```
 Expected: migration test PASS; pre-existing TokenIntrospector tests still PASS (behavior unchanged).
 
@@ -336,14 +336,14 @@ Expected: migration test PASS; pre-existing TokenIntrospector tests still PASS (
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_mcp_server && npm run typecheck && npm run build
+cd /Users/curtismuir/Development/banking/demo_mcp_server && npm run typecheck && npm run build
 ```
 Expected: exit 0 both; `dist/index.js` regenerated.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /Users/curtismuir/Development/banking && git add banking_mcp_server/src/auth/TokenIntrospector.ts banking_mcp_server/tests/auth/TokenIntrospector.teachlog.test.ts && git commit -m "refactor(mcp-server): TokenIntrospector logs via teachLogger, narrate RFC 7662
+cd /Users/curtismuir/Development/banking && git add demo_mcp_server/src/auth/TokenIntrospector.ts demo_mcp_server/tests/auth/TokenIntrospector.teachlog.test.ts && git commit -m "refactor(mcp-server): TokenIntrospector logs via teachLogger, narrate RFC 7662
 
 REGRESSION_PLAN §1: introspection/may_act/aud logic unchanged; logging-only.
 
@@ -742,12 +742,12 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 6: Add pino + teachLogger (CJS) to banking_api_server
+## Task 6: Add pino + teachLogger (CJS) to demo_api_server
 
 **Files:**
-- Modify: `banking_api_server/package.json`
-- Create: `banking_api_server/utils/teachLogger.js`
-- Test: `banking_api_server/__tests__/utils/teachLogger.test.js`
+- Modify: `demo_api_server/package.json`
+- Create: `demo_api_server/utils/teachLogger.js`
+- Test: `demo_api_server/__tests__/utils/teachLogger.test.js`
 
 (Note: this service has `utils/logger.js` already; teachLogger is **additive** in Phase 1 — we do not replace `logger.js` or Morgan here. We only introduce the module and migrate the priority-1 RFC 8693 path in Task 7.)
 
@@ -755,7 +755,7 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_api_server && npm install pino@^9.5.0 pino-pretty@^13.0.0 --save
+cd /Users/curtismuir/Development/banking/demo_api_server && npm install pino@^9.5.0 pino-pretty@^13.0.0 --save
 ```
 Expected: exit 0.
 
@@ -763,13 +763,13 @@ Expected: exit 0.
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_api_server && ls __tests__ 2>/dev/null | head; cat jest.config.js 2>/dev/null | grep -i testmatch -A2
+cd /Users/curtismuir/Development/banking/demo_api_server && ls __tests__ 2>/dev/null | head; cat jest.config.js 2>/dev/null | grep -i testmatch -A2
 ```
 Expected: shows test dir/pattern. If tests live elsewhere (e.g. `tests/`), use that directory for the test file path in Step 3 instead of `__tests__/utils/`.
 
 - [ ] **Step 3: Write the failing test**
 
-Create `banking_api_server/__tests__/utils/teachLogger.test.js` (adjust dir per Step 2):
+Create `demo_api_server/__tests__/utils/teachLogger.test.js` (adjust dir per Step 2):
 
 ```javascript
 const { Writable } = require('stream');
@@ -820,13 +820,13 @@ describe('teachLogger (api-server)', () => {
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_api_server && npx jest __tests__/utils/teachLogger.test.js
+cd /Users/curtismuir/Development/banking/demo_api_server && npx jest __tests__/utils/teachLogger.test.js
 ```
 Expected: FAIL — module not found.
 
 - [ ] **Step 5: Create the CJS module**
 
-Create `banking_api_server/utils/teachLogger.js`:
+Create `demo_api_server/utils/teachLogger.js`:
 
 ```javascript
 'use strict';
@@ -883,14 +883,14 @@ module.exports = { createTeachLogger, teachLog };
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_api_server && npx jest __tests__/utils/teachLogger.test.js
+cd /Users/curtismuir/Development/banking/demo_api_server && npx jest __tests__/utils/teachLogger.test.js
 ```
 Expected: PASS — 4 green.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /Users/curtismuir/Development/banking && git add banking_api_server/package.json banking_api_server/package-lock.json banking_api_server/utils/teachLogger.js banking_api_server/__tests__/utils/teachLogger.test.js && git commit -m "feat(api-server): add pino-based teachLogger (CJS, no redaction, additive)
+cd /Users/curtismuir/Development/banking && git add demo_api_server/package.json demo_api_server/package-lock.json demo_api_server/utils/teachLogger.js demo_api_server/__tests__/utils/teachLogger.test.js && git commit -m "feat(api-server): add pino-based teachLogger (CJS, no redaction, additive)
 
 Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ```
@@ -900,8 +900,8 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>"
 ## Task 7: Narrate the BFF RFC 8693 exchange via teachLogger
 
 **Files:**
-- Modify: `banking_api_server/services/rfc8693TokenExchangeService.js` (~lines 74-122 per audit/spec Appendix A — verify)
-- Test: `banking_api_server/__tests__/services/rfc8693.teachlog.test.js` (adjust dir per Task 6 Step 2)
+- Modify: `demo_api_server/services/rfc8693TokenExchangeService.js` (~lines 74-122 per audit/spec Appendix A — verify)
+- Test: `demo_api_server/__tests__/services/rfc8693.teachlog.test.js` (adjust dir per Task 6 Step 2)
 
 This is the headline teaching moment (Stage 4). NOT a §1 file per the regression table, but it is delegation-critical: will NOT change exchange request construction, `act` validation, scope narrowing, or return value — narration is **additive** log lines only.
 
@@ -909,13 +909,13 @@ This is the headline teaching moment (Stage 4). NOT a §1 file per the regressio
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_api_server && grep -n "grant-type:token-exchange\|subject_token\|actor_token\|act\b\|console\." services/rfc8693TokenExchangeService.js | head -30
+cd /Users/curtismuir/Development/banking/demo_api_server && grep -n "grant-type:token-exchange\|subject_token\|actor_token\|act\b\|console\." services/rfc8693TokenExchangeService.js | head -30
 ```
 Expected: shows the request build (~74-90), act validation (~115-122). Record exact lines.
 
 - [ ] **Step 2: Write the failing test**
 
-Create `banking_api_server/__tests__/services/rfc8693.teachlog.test.js`:
+Create `demo_api_server/__tests__/services/rfc8693.teachlog.test.js`:
 
 ```javascript
 const { readFileSync } = require('fs');
@@ -943,7 +943,7 @@ describe('rfc8693TokenExchangeService narration', () => {
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_api_server && npx jest __tests__/services/rfc8693.teachlog.test.js
+cd /Users/curtismuir/Development/banking/demo_api_server && npx jest __tests__/services/rfc8693.teachlog.test.js
 ```
 Expected: FAIL — no teachLogger import / no narration.
 
@@ -989,14 +989,14 @@ teachLog.step(6, 9, 'claims delta (delegation)', {
 
 Run:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_api_server && npx jest __tests__/services/rfc8693.teachlog.test.js && npx jest --testPathPattern='rfc8693|tokenExchange' --testPathIgnorePatterns='teachlog'
+cd /Users/curtismuir/Development/banking/demo_api_server && npx jest __tests__/services/rfc8693.teachlog.test.js && npx jest --testPathPattern='rfc8693|tokenExchange' --testPathIgnorePatterns='teachlog'
 ```
 Expected: narration test PASS; existing exchange tests still PASS (behavior unchanged).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-cd /Users/curtismuir/Development/banking && git add banking_api_server/services/rfc8693TokenExchangeService.js banking_api_server/__tests__/services/rfc8693.teachlog.test.js && git commit -m "feat(api-server): narrate RFC 8693 exchange (request/response/claims-delta)
+cd /Users/curtismuir/Development/banking && git add demo_api_server/services/rfc8693TokenExchangeService.js demo_api_server/__tests__/services/rfc8693.teachlog.test.js && git commit -m "feat(api-server): narrate RFC 8693 exchange (request/response/claims-delta)
 
 Additive logging only; exchange request, act validation, scope narrowing,
 return value all unchanged.
@@ -1218,10 +1218,10 @@ Add a new §4 entry mirroring the existing template style, with content:
 
 Run each and confirm:
 ```bash
-cd /Users/curtismuir/Development/banking/banking_mcp_server && npm run typecheck && npm run build && npx jest tests/utils/teachLogger.test.ts tests/auth/TokenIntrospector.teachlog.test.ts
+cd /Users/curtismuir/Development/banking/demo_mcp_server && npm run typecheck && npm run build && npx jest tests/utils/teachLogger.test.ts tests/auth/TokenIntrospector.teachlog.test.ts
 cd /Users/curtismuir/Development/banking/banking_mcp_gateway && npx tsc --noEmit && npm run build && npx jest tests/teachLogger.test.ts tests/gateway-teachlog-migration.test.ts
 cd /Users/curtismuir/Development/banking/banking_agent_service && npx tsc --noEmit && npm run build && npx jest tests/teachLogger.test.ts
-cd /Users/curtismuir/Development/banking/banking_api_server && npx jest __tests__/utils/teachLogger.test.js __tests__/services/rfc8693.teachlog.test.js
+cd /Users/curtismuir/Development/banking/demo_api_server && npx jest __tests__/utils/teachLogger.test.js __tests__/services/rfc8693.teachlog.test.js
 cd /Users/curtismuir/Development/banking/langchain_agent && python -m pytest tests/test_logging_visibility.py tests/test_agent_token_log_lines.py -q
 ```
 Expected: all green, all builds exit 0.

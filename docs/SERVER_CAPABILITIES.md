@@ -163,9 +163,9 @@ MCP server that exposes JWT analysis as tools. Any agent or developer connected 
 ---
 
 ## ping-gateway
-**Role: PingGateway configuration (production gateway alternative)**
+**Role: PingOne Agent Gateway configuration (production gateway alternative)**
 
-Configuration and deployment scripts for PingGateway, the real PingOne product. Configured to do the same job as demo_mcp_gateway — receive inbound MCP requests, validate tokens against PingOne introspection, perform RFC 8693 token exchange, and forward to backend MCP servers. Exists alongside the Node.js gateway as a "what this looks like in production" comparison.
+Configuration and deployment scripts for PingOne Agent Gateway, the real PingOne product. Configured to do the same job as demo_mcp_gateway — receive inbound MCP requests, validate tokens against PingOne introspection, perform RFC 8693 token exchange, and forward to backend MCP servers. Exists alongside the Node.js gateway as a "what this looks like in production" comparison.
 
 ---
 

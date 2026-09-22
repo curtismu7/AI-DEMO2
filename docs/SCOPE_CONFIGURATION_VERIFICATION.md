@@ -54,7 +54,7 @@ PINGONE_RESOURCE_TWO_EXCHANGE_URI=mcpserver.ping.demo
 ### Option 1: Audit Only (no changes)
 
 ```bash
-cd banking_api_server
+cd demo_api_server
 npm run verify:scopes
 ```
 
@@ -285,7 +285,7 @@ const result = configStore.validateScopeAudience(
 1. **Test the agent:**
    ```bash
    # In a new terminal:
-   cd banking_api_ui
+   cd demo_api_ui
    npm start
    ```
    - Log in with user credentials
@@ -299,7 +299,7 @@ const result = configStore.validateScopeAudience(
 
 3. **Commit your changes:**
    ```bash
-   git add banking_api_server/.env
+   git add demo_api_server/.env
    git commit -m "Add scope verification and configStore updates (Phase 120)"
    ```
 
@@ -307,7 +307,7 @@ const result = configStore.validateScopeAudience(
 
 1. **Check logs:**
    ```bash
-   cd banking_api_server
+   cd demo_api_server
    npm start  # Run in a terminal to see logs
    ```
    - Look for scope-related errors

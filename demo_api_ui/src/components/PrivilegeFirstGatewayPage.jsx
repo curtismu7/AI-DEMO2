@@ -31,7 +31,7 @@ const FLAGS = [
   },
   {
     code: ["ff_mcp_gateway_privilege_first"],
-    text: "BFF MCP chokepoint routes to /agent-gateway/mcp on Privilege, checked before the PingGateway flag so the two compose. Default off. SE only.",
+    text: "BFF MCP chokepoint routes to /agent-gateway/mcp on Privilege, checked before the PingOne Agent Gateway flag so the two compose. Default off. SE only.",
   },
 ];
 
@@ -117,7 +117,7 @@ export default function PrivilegeFirstGatewayPage() {
 
             <rect x="790" y="252" width="390" height="158" rx="6" className="pfg-box-ag" />
             <text x="802" y="276" className="pfg-t-h">Agent Gateway</text>
-            <text x="802" y="294" className="pfg-t-mono-m">ping-gateway :8080 /mcp (PingGateway) — default lane</text>
+            <text x="802" y="294" className="pfg-t-mono-m">ping-gateway :8080 /mcp (PingOne Agent Gateway) — default lane</text>
             <text x="802" y="310" className="pfg-t-mono-m">mcp-gateway :3005 /mcp (Node) when that flag is off</text>
             <text x="802" y="330" className="pfg-t-m">identity: demo env 01d89b06… (user + act chain)</text>
             <text x="802" y="352" className="pfg-t">introspection · RFC 8693 exchange · aud on every hop</text>

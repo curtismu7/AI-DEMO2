@@ -25,7 +25,7 @@ describe('NAV_STRUCTURE_CATALOG covers composed AdminSideNav groups', () => {
 
   it('contains the product groups and renamed product vocabulary', () => {
     expect(NAV_STRUCTURE_CATALOG.map((g) => g.label)).toEqual([
-      'Home', 'Dashboard', 'Themes', 'AI Gateway', 'DaVinci', 'PingOne Products',
+      'Home', 'Security Dashboard', 'Themes', 'AI Gateway', 'DaVinci', 'PingOne Products',
       'Identity Journeys', 'Authorize', 'Delegation & Consent', 'Utilities',
       'AI Experiences', 'MCP & Integrations', 'Developer Tools',
       'Observability', 'Architecture & Learning', 'Administration',

@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import { FilterChain } from "../TransactionTracePage";
 import { GW_STAGE_META } from "../../services/tokenChainTrace/buildTraceSteps";
 
-// The PingGateway MCP filters are the product features this trace exists to
+// The PingOne Agent Gateway MCP filters are the product features this trace exists to
 // demonstrate. p1az-decision.groovy has always published them on the audit
 // trail, but transaction-hop.groovy did not forward them, so the reel showed
-// PingGateway's verdict with no sign of what produced it.
+// PingOne Agent Gateway's verdict with no sign of what produced it.
 describe("FilterChain", () => {
   const chain = [
     { filter: "McpValidationFilter", result: "passed" },

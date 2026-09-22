@@ -1,6 +1,6 @@
-# How To Test: Prompt → LLM → PingGateway → P1AZ → Dual-Token (Access + ID) Path
+# How To Test: Prompt → LLM → PingOne Agent Gateway → P1AZ → Dual-Token (Access + ID) Path
 
-This guide extends the [read-only banking flow](./llm-pinggateway-p1az-flow-test.md) with the **dual-token** disposition (`dual_token`). The agent calls `user_profile_card`; the Node MCP gateway (Path B) forwards **access token + id_token** to `banking_resource_server`, which decodes claims server-side (no raw JWT crosses the UI boundary). When PingGateway is the default gateway, the BFF still routes Path B tools to the Node gateway.
+This guide extends the [read-only banking flow](./llm-pinggateway-p1az-flow-test.md) with the **dual-token** disposition (`dual_token`). The agent calls `user_profile_card`; the Node MCP gateway (Path B) forwards **access token + id_token** to `banking_resource_server`, which decodes claims server-side (no raw JWT crosses the UI boundary). When PingOne Agent Gateway is the default gateway, the BFF still routes Path B tools to the Node gateway.
 
 **Last verified:** 2026-07-09 (k8s / OrbStack; live `user_profile_card` → `credentialPath=dual_token`)
 
@@ -36,7 +36,7 @@ sequenceDiagram
     participant UI as demo_api_ui
     participant BFF as demo_api_server
     participant LLM as langchain_agent
-    participant GW as Ping Agent Gateway
+    participant GW as PingOne Agent Gateway
     participant P1AZ as PingOne Authorize
     participant RS as banking_resource_server
 
@@ -57,7 +57,7 @@ sequenceDiagram
 | Hop | Component | What happens |
 |-----|-----------|--------------|
 | 1–3 | Same as banking read | Prompt → LLM → RFC 8693 exchange |
-| 4 | **PingGateway** | Routes `user_profile_card` to **dual_token** disposition |
+| 4 | **PingOne Agent Gateway** | Routes `user_profile_card` to **dual_token** disposition |
 | 5 | **P1AZ** | PERMIT when profile/banking scopes present |
 | 6 | **Credential forward** | Access + id_token forwarded (not swapped to API key) |
 | 7 | **Resource server** | Decodes claims server-side |

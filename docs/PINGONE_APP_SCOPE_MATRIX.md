@@ -4,7 +4,7 @@ Operational guide: which **PingOne OAuth / worker applications** match this code
 
 ⭐ **For comprehensive reference** showing all resource servers, complete app × resource × scope tables, and verification checklist, see **[`PINGONE_RESOURCES_AND_SCOPES_MATRIX.md`](PINGONE_RESOURCES_AND_SCOPES_MATRIX.md)** (Phase 69.1 scope naming, RFC 8693 exchange, audience binding, multi-resource scope patterns).
 
-**Source of truth in code:** `banking_api_server/config/oauth.js`, `config/oauthUser.js`, `config/scopes.js`, `services/configStore.js`, `services/oauthService.js` (token exchange), `utils/oauthAuthorizeResource.js` (authorize URL `resource` handling).
+**Source of truth in code:** `demo_api_server/config/oauth.js`, `config/oauthUser.js`, `config/scopes.js`, `services/configStore.js`, `services/oauthService.js` (token exchange), `utils/oauthAuthorizeResource.js` (authorize URL `resource` handling).
 
 ---
 
@@ -63,7 +63,7 @@ Other **`user_role`** values (`readonly`, `admin`, `ai_agent`) change the bankin
 
 The BFF sends **OIDC scopes + custom `banking:*` scopes** in a **single** `/authorize` request. PingOne may treat those as **multiple resource servers** if `resource` (RFC 8707) is used inconsistently.
 
-- **Implementation:** `buildPingOneAuthorizeResourceQueryParam` in `banking_api_server/utils/oauthAuthorizeResource.js` **does not** append `&resource=` on authorize when both OIDC and custom API scopes are present—avoiding PingOne's *"May not request scopes for multiple resources"* for that shape.
+- **Implementation:** `buildPingOneAuthorizeResourceQueryParam` in `demo_api_server/utils/oauthAuthorizeResource.js` **does not** append `&resource=` on authorize when both OIDC and custom API scopes are present—avoiding PingOne's *"May not request scopes for multiple resources"* for that shape.
 - **`ENDUSER_AUDIENCE`:** Still used for **post-issuance** JWT **`aud`** validation in `middleware/auth.js` where configured; it is **not** required on the authorize URL for this mixed-scope pattern.
 
 ---
@@ -158,7 +158,7 @@ Jest suites mock `/login` redirects and do not call PingOne's `/authorize`. **`i
 
 ## 8. `/pingone-test` Update buttons — automated PingOne setup
 
-The **PingOne Test Page** (`/pingone-test`) now includes **Update** buttons alongside each test card. These call the BFF endpoints above to **idempotently** configure PingOne — no manual admin console work required for the Super Banking demo.
+The **PingOne Test Page** (`/pingone-test`) now includes **Update** buttons alongside each test card. These call the BFF endpoints above to **idempotently** configure PingOne — no manual admin console work required for the AI Demo.
 
 | Button | Endpoint | What it does |
 |--------|----------|--------------|
@@ -185,5 +185,5 @@ The **PingOne Test Page** (`/pingone-test`) now includes **Update** buttons alon
 
 - [`PINGONE_AUTHORIZE_PLAN.md`](PINGONE_AUTHORIZE_PLAN.md) — Authorize product, decision endpoints, BFF overview.
 - [`PINGONE_RESOURCES_AND_SCOPES_MATRIX.md`](PINGONE_RESOURCES_AND_SCOPES_MATRIX.md) — **COMPREHENSIVE** resource servers, all applications, complete scope tables, troubleshooting. **START HERE** for authority on resource URIs, app configurations, and scope naming (Phase 69.1).
-- [`banking_api_server/OAUTH_SCOPE_CONFIGURATION.md`](../banking_api_server/OAUTH_SCOPE_CONFIGURATION.md) — scope names and user-type mappings (may overlap env var naming with older examples).
+- [`demo_api_server/OAUTH_SCOPE_CONFIGURATION.md`](../demo_api_server/OAUTH_SCOPE_CONFIGURATION.md) — scope names and user-type mappings (may overlap env var naming with older examples).
 - [`REGRESSION_PLAN.md`](../REGRESSION_PLAN.md) — audience / OAuth do-not-break notes.

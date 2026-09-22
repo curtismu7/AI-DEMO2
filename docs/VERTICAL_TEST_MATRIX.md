@@ -89,7 +89,7 @@ HITL is **always on by default**. The UI admin can toggle it off for demos, but 
 
 ---
 
-### Workforce (`workforce`) — Helix HR
+### Workforce (`workforce`) — WX Workforce
 | Chip | ID | Mode | Action | HITL? | Tool |
 |---|---|---|---|---|---|
 | My benefits | wf1 | both | view_benefits | No | view_benefits |

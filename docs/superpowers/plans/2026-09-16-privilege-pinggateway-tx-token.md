@@ -1,4 +1,4 @@
-# Privilege-First PingGateway Transaction-Token Plan
+# Privilege-First PingOne Agent Gateway Transaction-Token Plan
 
 ## Goal
 
@@ -15,14 +15,14 @@ Privilege AI Gateway
   forwards tx-token unchanged
         |
         v
-PingGateway / Agent Gateway
+PingOne Agent Gateway / Agent Gateway
   ignores the Privilege Authorization value for user authorization
   evaluates and exchanges tx-token
   sends the exchanged token downstream
 ```
 
 Privilege remains the coarse, first gate for the Agentic App, tools, approvals,
-time-box, and recording. PingGateway remains the fine-grained gate for the
+time-box, and recording. PingOne Agent Gateway remains the fine-grained gate for the
 transaction-token identity, audience, scopes, actor chain, token exchange, and
 PingOne Authorize decision.
 
@@ -30,7 +30,7 @@ PingOne Authorize decision.
 
 The repository already has `ff_mcp_gateway_privilege_first`, a Privilege
 gateway session, a shared bridge secret, and bridge handling in both the Node
-gateway and PingGateway. The earlier bridge called the second credential
+gateway and PingOne Agent Gateway. The earlier bridge called the second credential
 `X-Subject-Token`; the implemented contract uses `tx-token` and keeps the two
 credentials in separate roles.
 
@@ -64,7 +64,7 @@ credential; it is never decoded as the user.
    - preserve strict handling of repeated, empty, and oversized headers and
      ignore/strip `tx-token` from non-bridge callers.
 
-4. Update PingGateway:
+4. Update PingOne Agent Gateway:
    - change `privilege-bridge.groovy` to read and remove `tx-token` only after
      the bridge credential matches;
    - replace `Authorization` with the transaction token before
@@ -92,10 +92,10 @@ credential; it is never decoded as the user.
 
 ## Verification
 
-Run focused tests for the BFF transport, Node bridge, and PingGateway route
+Run focused tests for the BFF transport, Node bridge, and PingOne Agent Gateway route
 source; then run gateway build/tests and the repository topology/hygiene/authz
 checks. In SE, verify one permitted and one denied call and confirm the audit
-trail identifies Privilege and PingGateway as separate enforcement layers.
+trail identifies Privilege and PingOne Agent Gateway as separate enforcement layers.
 
 Required negative cases:
 
@@ -103,4 +103,4 @@ Required negative cases:
 - missing, repeated, oversized, expired, wrong-audience, and insufficient-scope
   `tx-token`;
 - non-bridge caller attempting to use `tx-token`;
-- Privilege policy denial before PingGateway is reached.
+- Privilege policy denial before PingOne Agent Gateway is reached.

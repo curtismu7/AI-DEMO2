@@ -14,7 +14,7 @@
 | 4 | Token refresh | First-class `refresh` from `token-refresh` | ✅ |
 | 5 | mTLS | First-class `mtls` from `gw-mtls` (out of gateway kv) | ✅ |
 | 6 | Dual-token | First-class `dual-token` when `credentialPath===dual_token` | ✅ |
-| 7 | Full filter chain | Expand Node/PingGateway `filterChain` on success | ✅ |
+| 7 | Full filter chain | Expand Node/PingOne Agent Gateway `filterChain` on success | ✅ |
 | 8 | RS HTTP | Prefer `_meta.resourceRequest`; stamp on api_key / dual_token / bankingdata / WS oauth | ✅ |
 | 9 | Per-UC why | Append `UC_WHY[useCaseId]` onto key step `why` lines | ✅ |
 

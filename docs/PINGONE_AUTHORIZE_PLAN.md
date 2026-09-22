@@ -11,7 +11,7 @@ This is NOT PingOne Advanced Identity Cloud (ForgeRock AM).
 
 ## What You Are Setting Up
 
-PingOne Authorize enforces policy decisions at two points in the Super Banking demo:
+PingOne Authorize enforces policy decisions at two points in the AI Demo:
 
 1. **Transaction authorization** — every transfer and withdrawal is evaluated by a PingOne Authorize policy before it executes. The policy returns PERMIT, DENY, or a step-up MFA obligation.
 2. **MCP first-tool gate** *(optional)* — the first MCP tool call per signed-in session is evaluated against a delegation policy. The policy validates the actor chain (`act.client_id`, nested `act.act.client_id`) and the resource audience before allowing the Super Banking AI Agent to execute tools.
@@ -35,8 +35,8 @@ Use this table as your single source of truth when filling in PingOne forms and 
 | Env var — MCP Endpoint ID | `PINGONE_AUTHORIZE_MCP_DECISION_ENDPOINT_ID` | `<decision endpoint ID — copy from PingOne after Step 5b>` |
 
 > **Applications from `PINGONE_MAY_ACT_SETUP.md` (already configured):**
-> - `Super Banking User` — issues Subject Tokens (PKCE login)
-> - `Super Banking Backend-for-Frontend (BFF) Admin` — exchanges Subject Token → MCP Token
+> - `Super Banking User` — issues User tokens (PKCE login)
+> - `Super Banking Backend-for-Frontend (BFF) Admin` — exchanges User token → MCP Token
 > - `Super Banking MCP Worker` — exchanges MCP Token → Resource Token
 >
 > The `Super Banking Authorize Worker` created below is **separate** — it holds the credentials the BFF uses exclusively for calling PingOne Authorize decision endpoints.
@@ -193,7 +193,7 @@ Click **Save**, then copy the **Decision Endpoint ID** — this becomes `PINGONE
 
 ## Part 6 — Configure Environment Variables
 
-Set these in your `.env` file (`banking_api_server/`) or as Vercel environment variables.
+Set these in your `.env` file (`demo_api_server/`) or as Vercel environment variables.
 
 | Variable | Where to find the value | Required? |
 |----------|------------------------|-----------|
@@ -284,8 +284,8 @@ Authorization uses a Bearer token obtained via Client Credentials from `Super Ba
 - [Authorization using PingOne Authorize — overview](https://docs.pingidentity.com/pingone/authorization_using_pingone_authorize/p1az_overview.html)
 - [PingOne Platform APIs — Decision Endpoints](https://developer.pingidentity.com/pingone-api/authorize/authorization-decisions/decision-endpoints.html)
 - [PINGONE_MAY_ACT_SETUP.md](PINGONE_MAY_ACT_SETUP.md) — OAuth apps, token chain, resource servers, scope configuration
-- `banking_api_server/services/pingOneAuthorizeService.js` — BFF implementation
-- `banking_api_server/services/simulatedAuthorizeService.js` — simulated Authorize for testing without PingOne
+- `demo_api_server/services/pingOneAuthorizeService.js` — BFF implementation
+- `demo_api_server/services/simulatedAuthorizeService.js` — simulated Authorize for testing without PingOne
 
 ---
 

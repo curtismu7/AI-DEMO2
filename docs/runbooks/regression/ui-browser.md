@@ -1,6 +1,6 @@
 # Regression — UI Browser Tests (Playwright)
 
-No live `banking_api_server` needed — `/api/*` is stubbed via Playwright route intercepts.
+No live `demo_api_server` needed — `/api/*` is stubbed via Playwright route intercepts.
 
 ## Smoke suite (fastest, runs in CI)
 
@@ -18,22 +18,22 @@ Specs included:
 
 ```bash
 # Customer dashboard only
-cd banking_api_ui && npm run test:e2e:customer
+cd demo_api_ui && npm run test:e2e:customer
 
 # Landing page only
-cd banking_api_ui && npm run test:e2e:landing
+cd demo_api_ui && npm run test:e2e:landing
 
 # Admin dashboard
-cd banking_api_ui && npm run test:e2e:admin
+cd demo_api_ui && npm run test:e2e:admin
 
 # Banking Agent (FAB, MCP action buttons, collapse)
-cd banking_api_ui && npm run test:e2e:agent
+cd demo_api_ui && npm run test:e2e:agent
 ```
 
 ## Full browser suite
 
 ```bash
-cd banking_api_ui && npm run test:e2e:ci
+cd demo_api_ui && npm run test:e2e:ci
 ```
 
 Includes admin dashboard, Banking Agent, security settings, session regression.

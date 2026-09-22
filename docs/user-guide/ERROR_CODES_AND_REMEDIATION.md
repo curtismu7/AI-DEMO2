@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document documents all OAuth token exchange error codes returned by the Super Banking demo, along with common causes and remediation steps per RFC 8693 §5.2.
+This document documents all OAuth token exchange error codes returned by the AI Demo, along with common causes and remediation steps per RFC 8693 §5.2.
 
 All error codes comply with RFC 8693 unless marked as "Custom" extensions.
 

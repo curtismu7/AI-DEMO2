@@ -16,7 +16,7 @@
         <mxCell id="lane-bff-bg" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;opacity=30;" value="" vertex="1">
           <mxGeometry height="960" width="280" x="220" y="80" as="geometry" />
         </mxCell>
-        <mxCell id="lane-bff-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#276821;rotation=-90;" value="BFF (banking_api_server)" vertex="1">
+        <mxCell id="lane-bff-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#276821;rotation=-90;" value="BFF (demo_api_server)" vertex="1">
           <mxGeometry height="960" width="40" x="220" y="80" as="geometry" />
         </mxCell>
         <mxCell id="lane-pingone-bg" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;opacity=30;" value="" vertex="1">
@@ -28,7 +28,7 @@
         <mxCell id="lane-mcp-bg" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;opacity=30;" value="" vertex="1">
           <mxGeometry height="960" width="240" x="820" y="80" as="geometry" />
         </mxCell>
-        <mxCell id="lane-mcp-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#6a3daa;rotation=-90;" value="MCP Server (banking_mcp_server)" vertex="1">
+        <mxCell id="lane-mcp-label" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#6a3daa;rotation=-90;" value="MCP Server (demo_mcp_server)" vertex="1">
           <mxGeometry height="960" width="40" x="820" y="80" as="geometry" />
         </mxCell>
         <mxCell id="lane-rs-bg" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;opacity=30;" value="" vertex="1">

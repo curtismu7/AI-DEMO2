@@ -1008,7 +1008,7 @@
       expect(fn).not.toContain("AppShell");
     });
 
-    test("no stale banking_api_ui paths", () => {
+    test("no stale demo_api_ui paths", () => {
   ```
   ```js
   // new
@@ -1030,7 +1030,7 @@
       expect(fn).toContain("PromptFlowInspector");
     });
 
-    test("no stale banking_api_ui paths", () => {
+    test("no stale demo_api_ui paths", () => {
   ```
 
   Edit 2 — inside `describe("App.js — critical JSX placements", ...)`, add a test right after `"EmbeddedAgentDock is rendered at App level"`:

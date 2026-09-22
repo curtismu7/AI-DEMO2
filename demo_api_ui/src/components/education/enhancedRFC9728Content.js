@@ -19,7 +19,7 @@ const STATUS_COLORS = {
 const SERVICE_NAMES = {
   bff:       { label: 'BFF (this server)', port: process.env.REACT_APP_API_PORT || 3001 },
   mcp_olb:   { label: 'MCP OLB Server',   port: 8080 },
-  mcp_gw:    { label: 'Ping Agent Gateway',      port: 3005 },
+  mcp_gw:    { label: 'PingOne Agent Gateway',      port: 3005 },
   mcp_resource_server: { label: 'MCP Resource Server', port: 8081 },
 };
 

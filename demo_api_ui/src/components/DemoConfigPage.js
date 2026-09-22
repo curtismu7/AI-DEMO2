@@ -6,7 +6,7 @@ import { NAV_STRUCTURE_CATALOG, applyChildOrder } from "../config/navStructureCa
 import { NAV_PAGE_PATHS } from "../config/navPagePaths";
 
 const SECTION_GROUPS = [
-  { label: "Core navigation", groups: ["Home", "Dashboard", "Themes"] },
+  { label: "Core navigation", groups: ["Home", "Security Dashboard", "Themes"] },
   {
     label: "AI and demos",
     groups: [

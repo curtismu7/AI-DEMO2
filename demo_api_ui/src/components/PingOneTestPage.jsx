@@ -54,7 +54,7 @@ const TEST_CONFIG = {
 		appType: "AI_AGENT",
 		requiredScopes: ["openid", "read", "write", "mcp:invoke"],
 		audience: "https://mcp-gateway.pingdemo.com",
-		spel: "2-exchange (dual-token): Single POST — T1 (user) as subject + Agent CC as actor → Ping Agent Gateway token with act claim",
+		spel: "2-exchange (dual-token): Single POST — T1 (user) as subject + Agent CC as actor → PingOne Agent Gateway token with act claim",
 		agentPrompt: "Transfer $500 from checking to savings on behalf of the user",
 	},
 	apps: {
@@ -688,7 +688,7 @@ export default function PingOneTestPage() {
 					url: appsUrl,
 				}, // legacy dispatch key — not user-facing; canonical: 1-exchange
 				"double-exchange": {
-					msg: "2-exchange (dual-token) needs Ping Agent Gateway alignment: MCP Token Exchanger app must have banking scopes, user token must carry may_act, and actor_token policy must allow gateway exchange. Fix: Applications → MCP Token Exchanger → Resources tab.",
+					msg: "2-exchange (dual-token) needs PingOne Agent Gateway alignment: MCP Token Exchanger app must have banking scopes, user token must carry may_act, and actor_token policy must allow gateway exchange. Fix: Applications → MCP Token Exchanger → Resources tab.",
 					url: appsUrl,
 				}, // legacy dispatch key — not user-facing; canonical: 2-exchange
 				apps: {
@@ -962,7 +962,7 @@ export default function PingOneTestPage() {
 		setExchange2Status("running");
 		setExchange2Error(null);
 		notifyInfo(
-			"Testing 2-exchange (dual-token): User + Agent CC → Ping Agent Gateway…",
+			"Testing 2-exchange (dual-token): User + Agent CC → PingOne Agent Gateway…",
 			{ toastId: "test-exchange2" },
 		);
 		try {
@@ -1063,7 +1063,7 @@ export default function PingOneTestPage() {
 		setExchange186Error(null);
 		try {
 			notifyInfo(
-				"Testing ID Token + Agent CC \u2192 Ping Agent Gateway Token (Phase 186)\u2026",
+				"Testing ID Token + Agent CC \u2192 PingOne Agent Gateway Token (Phase 186)\u2026",
 				{ toastId: "test-exchange-186" },
 			);
 			const { data } = await apiClient.get(
@@ -1086,7 +1086,7 @@ export default function PingOneTestPage() {
 			}
 			if (data.success)
 				notifySuccess(
-					"Phase 186: ID Token + Agent CC \u2192 Ping Agent Gateway token succeeded \u2713",
+					"Phase 186: ID Token + Agent CC \u2192 PingOne Agent Gateway token succeeded \u2713",
 				);
 		} catch (err) {
 			setExchange186Status("failed");
@@ -1742,8 +1742,8 @@ Authorization: Basic ${workerConfig.clientId && workerConfig.clientSecret ? "***
 						steps={[
 							"Token Exchange (RFC 8693) swaps one token for a narrower-scoped token without re-authenticating the user.",
 							"All three flows below are triggered the same way: the MCP server returns 401 → BFF performs the exchange → retries with the MCP token.",
-							"1) 2-Exchange (User Token + Agent CC): User access token as subject_token + AI Agent client-credentials token as actor_token → Ping Agent Gateway token with nested act claim proving agent identity.",
-							"2) 2-Exchange (ID Token + Agent CC): User ID token as subject_token (identity assertion) + Agent CC as actor_token → Ping Agent Gateway token with act claim. Combines OIDC identity with agent delegation. Requires ff_id_token_exchange feature flag.",
+							"1) 2-Exchange (User Token + Agent CC): User access token as subject_token + AI Agent client-credentials token as actor_token → PingOne Agent Gateway token with nested act claim proving agent identity.",
+							"2) 2-Exchange (ID Token + Agent CC): User ID token as subject_token (identity assertion) + Agent CC as actor_token → PingOne Agent Gateway token with act claim. Combines OIDC identity with agent delegation. Requires ff_id_token_exchange feature flag.",
 							"3) Simple Exchange (Access Token → MCP Token): User access token as subject_token only (no actor). Single RFC 8693 POST → MCP-scoped token. No act claim.",
 							"Key difference from #1 to #3: #1 proves which agent acted (act claim appears in MCP token); #3 is simpler but lacks agent provenance.",
 							"The MCP server validates act.client_id (flows 1 & 2) to confirm the correct agent client acted on behalf of the user.",
@@ -2067,7 +2067,7 @@ Authorization: Basic ${workerConfig.clientId && workerConfig.clientSecret ? "***
 								return (
 									<>
 										<TestCard
-											title={`2-Exchange: ${loginType === "admin" ? "Admin" : "User"} Token + Agent CC → Ping Agent Gateway (MCP 401-triggered)`}
+											title={`2-Exchange: ${loginType === "admin" ? "Admin" : "User"} Token + Agent CC → PingOne Agent Gateway (MCP 401-triggered)`}
 											status={exchange2Status}
 											error={exchange2Error}
 											onTest={testExchange2}
@@ -2092,7 +2092,7 @@ Authorization: Basic ${workerConfig.clientId && workerConfig.clientSecret ? "***
 												requestBody={exchange2PingoneReq.body}
 												responseBody={exchange2PingoneRes}
 												responseStatus={exchange2PingoneRes?.status_code ?? (exchange2PingoneRes?.error ? 400 : exchange2PingoneRes ? 200 : null)}
-												label="2-Exchange: User Token + Agent CC → Ping Agent Gateway"
+												label="2-Exchange: User Token + Agent CC → PingOne Agent Gateway"
 											/>
 										)}
 										{(exchange2SubjectDecoded || exchange2ActorDecoded) && (
@@ -2111,14 +2111,14 @@ Authorization: Basic ${workerConfig.clientId && workerConfig.clientSecret ? "***
 										)}
 										<TokenCard
 											decoded={exchange2Decoded}
-											title="Ping Agent Gateway Token (2-exchange)"
+											title="PingOne Agent Gateway Token (2-exchange)"
 											defaultExpanded
 										/>
 										<TokenLineageDiff
 											fromDecoded={authzDecoded}
 											toDecoded={exchange2Decoded}
 											fromLabel={t1Label}
-											toLabel="Ping Agent Gateway Token with act (2-exchange)"
+											toLabel="PingOne Agent Gateway Token with act (2-exchange)"
 											expectedChanges={[
 												"aud",
 												"scope",
@@ -2140,7 +2140,7 @@ Authorization: Basic ${workerConfig.clientId && workerConfig.clientSecret ? "***
 						{exchangeFlow === "id" && (
 						<div className="test-card-col">
 							<TestCard
-								title="2-Exchange: ID Token + Agent CC → Ping Agent Gateway (MCP 401-triggered)"
+								title="2-Exchange: ID Token + Agent CC → PingOne Agent Gateway (MCP 401-triggered)"
 								status={exchange186Status}
 								error={exchange186Error}
 								onTest={testExchange186}
@@ -2153,7 +2153,7 @@ Authorization: Basic ${workerConfig.clientId && workerConfig.clientSecret ? "***
 										"mcp:invoke",
 									],
 									audience: "mcpserver.ping.demo",
-									spel: "MCP server returns 401 → BFF uses ID token (subject) + Agent CC token (actor) → RFC 8693 dual exchange → Ping Agent Gateway token with act claim",
+									spel: "MCP server returns 401 → BFF uses ID token (subject) + Agent CC token (actor) → RFC 8693 dual exchange → PingOne Agent Gateway token with act claim",
 								}}
 							pingoneRequest={exchange186PingoneReq}
 							pingoneResponse={exchange186PingoneRes}
@@ -2170,7 +2170,7 @@ Authorization: Basic ${workerConfig.clientId && workerConfig.clientSecret ? "***
 									requestBody={exchange186PingoneReq.body}
 									responseBody={exchange186PingoneRes}
 									responseStatus={exchange186PingoneRes?.status_code ?? (exchange186PingoneRes?.error ? 400 : exchange186PingoneRes ? 200 : null)}
-									label="2-Exchange: ID Token + Agent CC → Ping Agent Gateway"
+									label="2-Exchange: ID Token + Agent CC → PingOne Agent Gateway"
 								/>
 							)}
 							{!ffIdTokenExchange && (
@@ -2206,7 +2206,7 @@ Authorization: Basic ${workerConfig.clientId && workerConfig.clientSecret ? "***
 							{exchange186Decoded && (
 								<TokenCard
 									decoded={exchange186Decoded}
-									title="Ping Agent Gateway Token (ID Token + Agent CC)"
+									title="PingOne Agent Gateway Token (ID Token + Agent CC)"
 									defaultExpanded
 								/>
 							)}
@@ -2215,7 +2215,7 @@ Authorization: Basic ${workerConfig.clientId && workerConfig.clientSecret ? "***
 									fromDecoded={exchange186SubjectDecoded}
 									toDecoded={exchange186Decoded}
 									fromLabel="User ID Token (Subject)"
-									toLabel="Ping Agent Gateway Token (ID Token 2-Exchange)"
+									toLabel="PingOne Agent Gateway Token (ID Token 2-Exchange)"
 									expectedChanges={[
 										"aud",
 										"scope",
@@ -2437,7 +2437,7 @@ Authorization: Basic ${workerConfig.clientId && workerConfig.clientSecret ? "***
 							failMsg={CONFIG_META.resourceMcpServerUri.failMsg}
 						/>
 						<TestCard
-							title="Ping Agent Gateway URI"
+							title="PingOne Agent Gateway URI"
 							value={config?.resourceMcpGatewayUri}
 							status={testResults.resourceMcpGatewayUri?.status || "pending"}
 							onTest={() =>

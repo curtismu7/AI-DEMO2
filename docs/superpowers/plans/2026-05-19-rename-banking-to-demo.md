@@ -13,9 +13,9 @@
 ## File Map
 
 ### Directories renamed (git mv)
-- `banking_api_server` → `demo_api_server`
-- `banking_api_ui` → `demo_api_ui`
-- `banking_mcp_server` → `demo_mcp_server`
+- `demo_api_server` → `demo_api_server`
+- `demo_api_ui` → `demo_api_ui`
+- `demo_mcp_server` → `demo_mcp_server`
 - `banking_mcp_gateway` → `demo_mcp_gateway`
 - `banking_hitl_service` → `demo_hitl_service`
 - `banking_agent_service` → `demo_agent_service`
@@ -23,15 +23,15 @@
 - `banking_api_resource_server` → `demo_api_resource_server`
 
 ### Root-level files updated (path strings only)
-- `package.json` — `cd banking_*` and `banking_api_server/scripts/*` entries
+- `package.json` — `cd banking_*` and `demo_api_server/scripts/*` entries
 - `run-demo.sh` — `SVC_LIST`, `cd "$BASEDIR/banking_*"`, env checks
 - `run.sh` — same as run-demo.sh (symlink/copy)
 - `run-tests.sh` — `cd "$ROOT/banking_*"`
 - `start.sh` — `cd "$BASEDIR/banking_*"`
 - `scripts/run-all-tests.sh` — `cd "$ROOT/banking_*"`
-- `scripts/build-diagrams.sh` — `banking_api_ui/public/...`
-- `scripts/run-node.sh` — `banking_api_server/server.js` check
-- `scripts/restore-vercel-env.sh` — `banking_api_server/.env` reads
+- `scripts/build-diagrams.sh` — `demo_api_ui/public/...`
+- `scripts/run-node.sh` — `demo_api_server/server.js` check
+- `scripts/restore-vercel-env.sh` — `demo_api_server/.env` reads
 - `scripts/quick-restore-vercel-env.sh` — same
 - `scripts/sync-vercel-env.sh` — comment reference
 - `.github/workflows/test.yml` — `working-directory:` and `cache-dependency-path:`
@@ -41,10 +41,10 @@
 - `scope-topology.json` — any `banking_*` path keys
 
 ### Cross-service require() paths updated (load-bearing — will break at runtime if missed)
-- `demo_mcp_gateway/src/vault.ts` — `require('../../banking_api_server/lib/vault')` → `../../demo_api_server/lib/vault`
+- `demo_mcp_gateway/src/vault.ts` — `require('../../demo_api_server/lib/vault')` → `../../demo_api_server/lib/vault`
 - `demo_mcp_server/src/vault.ts` — same pattern
-- `demo_agent_service/src/vault.ts` — `require('../../banking_api_server/lib/vault')` → `../../demo_api_server/lib/vault`
-- `demo_mcp_gateway/src/index.ts` — `../../banking_mcp_server/openapi/...` → `../../demo_mcp_server/openapi/...` and `../../banking_mcp_resource_server/openapi/...` → `../../demo_mcp_resource_server/openapi/...`
+- `demo_agent_service/src/vault.ts` — `require('../../demo_api_server/lib/vault')` → `../../demo_api_server/lib/vault`
+- `demo_mcp_gateway/src/index.ts` — `../../demo_mcp_server/openapi/...` → `../../demo_mcp_server/openapi/...` and `../../banking_mcp_resource_server/openapi/...` → `../../demo_mcp_resource_server/openapi/...`
 
 ### Not changed
 - `.planning/`, `.handoff/`, `docs/`, `.archive/`, `.claude/skills/` — historical docs
@@ -61,9 +61,9 @@
 
 ```bash
 cd /Users/curtismuir/Development/AI-Demo
-git mv banking_api_server demo_api_server
-git mv banking_api_ui demo_api_ui
-git mv banking_mcp_server demo_mcp_server
+git mv demo_api_server demo_api_server
+git mv demo_api_ui demo_api_ui
+git mv demo_mcp_server demo_mcp_server
 git mv banking_mcp_gateway demo_mcp_gateway
 git mv banking_hitl_service demo_hitl_service
 git mv banking_agent_service demo_agent_service
@@ -79,8 +79,8 @@ git status | grep -E "renamed:|demo_|banking_"
 
 Expected: 8 `renamed:` lines, e.g.:
 ```
-renamed:    banking_api_server -> demo_api_server
-renamed:    banking_api_ui -> demo_api_ui
+renamed:    demo_api_server -> demo_api_server
+renamed:    demo_api_ui -> demo_api_ui
 ...
 ```
 
@@ -99,7 +99,7 @@ git commit -m "refactor: git mv banking_* service dirs to demo_*"
 - [ ] **Step 1: Apply sed replacement**
 
 ```bash
-sed -i '' 's|banking_api_server|demo_api_server|g; s|banking_api_ui|demo_api_ui|g; s|banking_mcp_server|demo_mcp_server|g; s|banking_mcp_gateway|demo_mcp_gateway|g; s|banking_hitl_service|demo_hitl_service|g; s|banking_agent_service|demo_agent_service|g; s|banking_mcp_resource_server|demo_mcp_resource_server|g; s|banking_api_resource_server|demo_api_resource_server|g' package.json
+sed -i '' 's|demo_api_server|demo_api_server|g; s|demo_api_ui|demo_api_ui|g; s|demo_mcp_server|demo_mcp_server|g; s|banking_mcp_gateway|demo_mcp_gateway|g; s|banking_hitl_service|demo_hitl_service|g; s|banking_agent_service|demo_agent_service|g; s|banking_mcp_resource_server|demo_mcp_resource_server|g; s|banking_api_resource_server|demo_api_resource_server|g' package.json
 ```
 
 - [ ] **Step 2: Verify no banking_ refs remain**
@@ -134,13 +134,13 @@ git commit -m "refactor: update package.json paths banking_* → demo_*"
 - [ ] **Step 1: Apply sed to run-demo.sh**
 
 ```bash
-sed -i '' 's|banking_api_server|demo_api_server|g; s|banking_api_ui|demo_api_ui|g; s|banking_mcp_server|demo_mcp_server|g; s|banking_mcp_gateway|demo_mcp_gateway|g; s|banking_hitl_service|demo_hitl_service|g; s|banking_agent_service|demo_agent_service|g; s|banking_mcp_resource_server|demo_mcp_resource_server|g; s|banking_api_resource_server|demo_api_resource_server|g' run-demo.sh
+sed -i '' 's|demo_api_server|demo_api_server|g; s|demo_api_ui|demo_api_ui|g; s|demo_mcp_server|demo_mcp_server|g; s|banking_mcp_gateway|demo_mcp_gateway|g; s|banking_hitl_service|demo_hitl_service|g; s|banking_agent_service|demo_agent_service|g; s|banking_mcp_resource_server|demo_mcp_resource_server|g; s|banking_api_resource_server|demo_api_resource_server|g' run-demo.sh
 ```
 
 - [ ] **Step 2: Apply sed to run.sh**
 
 ```bash
-sed -i '' 's|banking_api_server|demo_api_server|g; s|banking_api_ui|demo_api_ui|g; s|banking_mcp_server|demo_mcp_server|g; s|banking_mcp_gateway|demo_mcp_gateway|g; s|banking_hitl_service|demo_hitl_service|g; s|banking_agent_service|demo_agent_service|g; s|banking_mcp_resource_server|demo_mcp_resource_server|g; s|banking_api_resource_server|demo_api_resource_server|g' run.sh
+sed -i '' 's|demo_api_server|demo_api_server|g; s|demo_api_ui|demo_api_ui|g; s|demo_mcp_server|demo_mcp_server|g; s|banking_mcp_gateway|demo_mcp_gateway|g; s|banking_hitl_service|demo_hitl_service|g; s|banking_agent_service|demo_agent_service|g; s|banking_mcp_resource_server|demo_mcp_resource_server|g; s|banking_api_resource_server|demo_api_resource_server|g' run.sh
 ```
 
 - [ ] **Step 3: Verify no banking_ path refs remain in either file**
@@ -179,7 +179,7 @@ git commit -m "refactor: update run-demo.sh + run.sh paths banking_* → demo_*"
 
 ```bash
 for f in run-tests.sh start.sh scripts/run-all-tests.sh scripts/build-diagrams.sh scripts/run-node.sh scripts/restore-vercel-env.sh scripts/quick-restore-vercel-env.sh scripts/sync-vercel-env.sh .github/workflows/test.yml; do
-  sed -i '' 's|banking_api_server|demo_api_server|g; s|banking_api_ui|demo_api_ui|g; s|banking_mcp_server|demo_mcp_server|g; s|banking_mcp_gateway|demo_mcp_gateway|g; s|banking_hitl_service|demo_hitl_service|g; s|banking_agent_service|demo_agent_service|g; s|banking_mcp_resource_server|demo_mcp_resource_server|g; s|banking_api_resource_server|demo_api_resource_server|g' "$f"
+  sed -i '' 's|demo_api_server|demo_api_server|g; s|demo_api_ui|demo_api_ui|g; s|demo_mcp_server|demo_mcp_server|g; s|banking_mcp_gateway|demo_mcp_gateway|g; s|banking_hitl_service|demo_hitl_service|g; s|banking_agent_service|demo_agent_service|g; s|banking_mcp_resource_server|demo_mcp_resource_server|g; s|banking_api_resource_server|demo_api_resource_server|g' "$f"
 done
 ```
 
@@ -208,7 +208,7 @@ git commit -m "refactor: update shell scripts + CI paths banking_* → demo_*"
 
 ```bash
 for f in .env.example .env.replit.example CLAUDE.md scope-topology.json; do
-  [ -f "$f" ] && sed -i '' 's|banking_api_server|demo_api_server|g; s|banking_api_ui|demo_api_ui|g; s|banking_mcp_server|demo_mcp_server|g; s|banking_mcp_gateway|demo_mcp_gateway|g; s|banking_hitl_service|demo_hitl_service|g; s|banking_agent_service|demo_agent_service|g; s|banking_mcp_resource_server|demo_mcp_resource_server|g; s|banking_api_resource_server|demo_api_resource_server|g' "$f"
+  [ -f "$f" ] && sed -i '' 's|demo_api_server|demo_api_server|g; s|demo_api_ui|demo_api_ui|g; s|demo_mcp_server|demo_mcp_server|g; s|banking_mcp_gateway|demo_mcp_gateway|g; s|banking_hitl_service|demo_hitl_service|g; s|banking_agent_service|demo_agent_service|g; s|banking_mcp_resource_server|demo_mcp_resource_server|g; s|banking_api_resource_server|demo_api_resource_server|g' "$f"
 done
 ```
 
@@ -242,48 +242,48 @@ These three `vault.ts` files and one `index.ts` contain runtime `require()` call
 - [ ] **Step 1: Fix demo_mcp_gateway/src/vault.ts**
 
 ```bash
-sed -i '' "s|../../banking_api_server/lib/vault|../../demo_api_server/lib/vault|g" demo_mcp_gateway/src/vault.ts
+sed -i '' "s|../../demo_api_server/lib/vault|../../demo_api_server/lib/vault|g" demo_mcp_gateway/src/vault.ts
 ```
 
 Verify:
 ```bash
-grep "banking_api_server" demo_mcp_gateway/src/vault.ts
+grep "demo_api_server" demo_mcp_gateway/src/vault.ts
 ```
 Expected: no output.
 
 - [ ] **Step 2: Fix demo_mcp_server/src/vault.ts**
 
 ```bash
-sed -i '' "s|../../banking_api_server/lib/vault|../../demo_api_server/lib/vault|g" demo_mcp_server/src/vault.ts
+sed -i '' "s|../../demo_api_server/lib/vault|../../demo_api_server/lib/vault|g" demo_mcp_server/src/vault.ts
 ```
 
 Verify:
 ```bash
-grep "banking_api_server" demo_mcp_server/src/vault.ts
+grep "demo_api_server" demo_mcp_server/src/vault.ts
 ```
 Expected: no output.
 
 - [ ] **Step 3: Fix demo_agent_service/src/vault.ts**
 
 ```bash
-sed -i '' "s|../../banking_api_server/lib/vault|../../demo_api_server/lib/vault|g" demo_agent_service/src/vault.ts
+sed -i '' "s|../../demo_api_server/lib/vault|../../demo_api_server/lib/vault|g" demo_agent_service/src/vault.ts
 ```
 
 Verify:
 ```bash
-grep "banking_api_server" demo_agent_service/src/vault.ts
+grep "demo_api_server" demo_agent_service/src/vault.ts
 ```
 Expected: no output.
 
 - [ ] **Step 4: Fix demo_mcp_gateway/src/index.ts openapi paths**
 
 ```bash
-sed -i '' "s|../../banking_mcp_server/openapi/|../../demo_mcp_server/openapi/|g; s|../../banking_mcp_resource_server/openapi/|../../demo_mcp_resource_server/openapi/|g" demo_mcp_gateway/src/index.ts
+sed -i '' "s|../../demo_mcp_server/openapi/|../../demo_mcp_server/openapi/|g; s|../../banking_mcp_resource_server/openapi/|../../demo_mcp_resource_server/openapi/|g" demo_mcp_gateway/src/index.ts
 ```
 
 Verify:
 ```bash
-grep "banking_mcp_server\|banking_mcp_resource_server" demo_mcp_gateway/src/index.ts
+grep "demo_mcp_server\|banking_mcp_resource_server" demo_mcp_gateway/src/index.ts
 ```
 Expected: no output (only comment text may remain, which is acceptable).
 
@@ -301,7 +301,7 @@ git commit -m "refactor: fix cross-service require() paths banking_* → demo_*"
 - [ ] **Step 1: Grep for any remaining load-bearing banking_ path refs**
 
 ```bash
-grep -rn "banking_api_server\|banking_api_ui\|banking_mcp_server\|banking_mcp_gateway\|banking_hitl_service\|banking_agent_service\|banking_mcp_resource_server\|banking_api_resource_server" \
+grep -rn "demo_api_server\|demo_api_ui\|demo_mcp_server\|banking_mcp_gateway\|banking_hitl_service\|banking_agent_service\|banking_mcp_resource_server\|banking_api_resource_server" \
   . \
   --include="*.sh" --include="*.json" --include="*.ts" --include="*.js" --include="*.yml" --include="*.yaml" \
   2>/dev/null \
@@ -314,7 +314,7 @@ Expected: only comment/string-literal lines (not `cd`, `require`, `working-direc
 
 ```bash
 ls -d demo_api_server demo_api_ui demo_mcp_server demo_mcp_gateway demo_hitl_service demo_agent_service demo_mcp_resource_server demo_api_resource_server
-ls -d banking_api_server banking_api_ui banking_mcp_server banking_mcp_gateway banking_hitl_service banking_agent_service banking_mcp_resource_server banking_api_resource_server 2>&1
+ls -d demo_api_server demo_api_ui demo_mcp_server banking_mcp_gateway banking_hitl_service banking_agent_service banking_mcp_resource_server banking_api_resource_server 2>&1
 ```
 
 Expected: first command lists all 8 dirs. Second command: `ls: cannot access ...` for every old name.
@@ -329,7 +329,7 @@ Expected: first command lists all 8 dirs. Second command: `ls: cannot access ...
 cd demo_api_ui && npm run build 2>&1 | tail -5
 ```
 
-Expected: `Compiled successfully.` and exit code 0. If it fails, check for any `banking_api_ui` import paths inside the React source (there shouldn't be any since those are internal to the folder).
+Expected: `Compiled successfully.` and exit code 0. If it fails, check for any `demo_api_ui` import paths inside the React source (there shouldn't be any since those are internal to the folder).
 
 - [ ] **Step 2: Build TypeScript services**
 
@@ -351,7 +351,7 @@ npm run test:mcp-server
 npm run test:ui
 ```
 
-Expected: all pass. If a test fails with `Cannot find module '../../banking_api_server/...'`, that's a test file with a hardcoded cross-service path — apply the same `sed` fix and add to the Task 6 commit (or a new commit).
+Expected: all pass. If a test fails with `Cannot find module '../../demo_api_server/...'`, that's a test file with a hardcoded cross-service path — apply the same `sed` fix and add to the Task 6 commit (or a new commit).
 
 - [ ] **Step 4: Run the naming validation test (should be unaffected)**
 
@@ -384,7 +384,7 @@ Check the memory file at `/Users/curtismuir/.claude/projects/-Users-curtismuir-D
 - [ ] **Step 3: Final clean grep sweep**
 
 ```bash
-grep -rn "banking_api_server\|banking_api_ui\|banking_mcp_server\|banking_mcp_gateway\|banking_hitl_service\|banking_agent_service\|banking_mcp_resource_server\|banking_api_resource_server" \
+grep -rn "demo_api_server\|demo_api_ui\|demo_mcp_server\|banking_mcp_gateway\|banking_hitl_service\|banking_agent_service\|banking_mcp_resource_server\|banking_api_resource_server" \
   . \
   --include="*.sh" --include="*.json" --include="*.ts" --include="*.js" --include="*.yml" \
   2>/dev/null \

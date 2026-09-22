@@ -224,7 +224,7 @@ describe('Error Code Mapping', () => {
 
 ## References
 
-- **ERROR_CODES**: `banking_api_server/services/configStore.js` (18+ codes)
+- **ERROR_CODES**: `demo_api_server/services/configStore.js` (18+ codes)
 - **Error Mapping**: `mapErrorToStructuredResponse()` in agentMcpTokenService.js
 - **Error Documentation**: `docs/ERROR_CODES_AND_REMEDIATION.md`
 - **RFC 8693 §5.2**: https://tools.ietf.org/html/rfc8693#section-5.2

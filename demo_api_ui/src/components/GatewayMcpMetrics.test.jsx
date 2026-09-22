@@ -29,7 +29,7 @@ describe("GatewayMcpMetrics", () => {
     mockFetch(payload());
     render(<GatewayMcpMetrics />);
 
-    expect(await screen.findByText("PingGateway MCP counters")).toBeInTheDocument();
+    expect(await screen.findByText("PingOne Agent Gateway MCP counters")).toBeInTheDocument();
     expect(screen.getByText("get_my_accounts")).toBeInTheDocument();
     expect(screen.getByText("-32600")).toBeInTheDocument();
     // 5 calls across both methods, 7 errors — the summary line the user sees collapsed.
@@ -43,7 +43,7 @@ describe("GatewayMcpMetrics", () => {
     expect(screen.getByText("1.48 s")).toBeInTheDocument();
   });
 
-  it("renders nothing when PingGateway is absent", async () => {
+  it("renders nothing when PingOne Agent Gateway is absent", async () => {
     mockFetch({ available: false, reason: "unreachable", methods: [], errors: [] });
     const { container } = render(<GatewayMcpMetrics />);
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());

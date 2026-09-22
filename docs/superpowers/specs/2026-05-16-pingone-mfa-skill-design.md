@@ -9,7 +9,7 @@
 Create a new authoritative skill, `.claude/skills/pingone-mfa/`, covering the
 **PingOne MFA Management API device lifecycle**. Content is sourced from
 `~/Development/oauthPlayground` (read-only, outside the banking repo) and
-grounded in the banking app's real `banking_api_server/services/mfaService.js`
+grounded in the banking app's real `demo_api_server/services/mfaService.js`
 and `routes/mfa.js` / `mfaStepUp.js` / `mfaTest.js`. Progressive disclosure:
 lean SKILL.md + bundled `reference/` files per device type.
 

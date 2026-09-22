@@ -53,7 +53,7 @@ export default function ExchangeModeToggle({ hideTable = false }) {
   return (
     <div className="emt-root">
       <div className={`emt-header emt-header--clickable${collapsed ? ' emt-header--collapsed' : ''}`} onClick={() => setCollapsed(c => !c)}>
-        <span className="emt-label">Token Exchange Mode</span>
+        <span className="emt-label">Token Chain</span>
         <div className="emt-header-right">
           {tokenMode ? (
             <span className={`emt-rfc${isTransaction ? ' emt-rfc--transaction' : ''}`}>

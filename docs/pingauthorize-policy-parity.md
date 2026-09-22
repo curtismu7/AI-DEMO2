@@ -2,12 +2,12 @@
 
 **Date added:** 2026-05-13
 **Companion to:** [docs/token-flow-audit.md](token-flow-audit.md)
-**Related code:** `banking_api_server/services/simulatedAuthorizeService.js` (Phase 1 enforcement),
-`banking_api_server/services/mcpToolAuthorizationService.js` (caller — picks the right expected aud per FF).
+**Related code:** `demo_api_server/services/simulatedAuthorizeService.js` (Phase 1 enforcement),
+`demo_api_server/services/mcpToolAuthorizationService.js` (caller — picks the right expected aud per FF).
 
 ## Why this doc exists
 
-The Super Banking demo runs **two parallel authorization-server (AS) implementations**, picked at runtime via `ff_authorize_real`:
+The AI Demo runs **two parallel authorization-server (AS) implementations**, picked at runtime via `ff_authorize_real`:
 
 | FF value | Active AS |
 |---|---|

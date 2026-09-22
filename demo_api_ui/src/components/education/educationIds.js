@@ -36,7 +36,7 @@ export const EDU = {
   SENSITIVE_DATA: "sensitive-data",
   /** AI platform landscape — AWS, Microsoft, Google, IBM, Anthropic, OpenAI tools overview and vendor comparison */
   AI_PLATFORM_LANDSCAPE: "ai-platform-landscape",
-  /** PingGateway MCP security — securing MCP servers with PingGateway, custom vs PingGateway comparison */
+  /** PingOne Agent Gateway MCP security — securing MCP servers with PingOne Agent Gateway, custom vs PingOne Agent Gateway comparison */
   PINGGATEWAY_MCP: "pinggateway-mcp",
   /** C4 architecture diagram — top-down architecture of the banking demo at 4 levels */
   ARCHITECTURE_DIAGRAM: "architecture-diagram",
@@ -54,7 +54,7 @@ export const EDU = {
   AI_PRIMER: "ai-primer",
   /** ID-JAG / Cross-App Access (XAA) — Identity Assertion JWT Authorization Grant — IETF draft, PingOne SSO, limitations */
   ID_JAG: "id-jag",
-  /** Glean Integration — Enterprise AI assistant with PingFed, PingOne Authorization Server, CIBA, and Ping Agent Gateway */
+  /** Glean Integration — Enterprise AI assistant with PingFed, PingOne Authorization Server, CIBA, and PingOne Agent Gateway */
   GLEAN: "glean",
   /** Weaviate Vector Search — Semantic search and RAG with vector embeddings */
   VECTOR_RAG: "vector-rag",

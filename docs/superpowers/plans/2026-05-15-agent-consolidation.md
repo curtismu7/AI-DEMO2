@@ -6,7 +6,7 @@
 
 **Architecture:** Two phases. Phase 1 builds a single shared `llmProviderResolver` and converges every provider-default site onto it (independently shippable, low risk). Phase 2 ports the in-process LangGraph graph into `banking_agent_service` (:3006) as a stateless reasoning oracle; the BFF drives a turn loop and remains the sole token custodian + HITL enforcer.
 
-**Tech Stack:** Node.js (CommonJS, `banking_api_server`), TypeScript (`banking_agent_service`), Jest, LangGraph (`@langchain/langgraph`), Express.
+**Tech Stack:** Node.js (CommonJS, `demo_api_server`), TypeScript (`banking_agent_service`), Jest, LangGraph (`@langchain/langgraph`), Express.
 
 **Spec:** `docs/superpowers/specs/2026-05-15-agent-consolidation-design.md`
 
@@ -15,21 +15,21 @@
 ## File Structure
 
 **Phase 1 (provider resolver):**
-- Create: `banking_api_server/services/llmProviderResolver.js` — the single resolution function
-- Create: `banking_api_server/tests/llmProviderResolver.regression.test.js` — resolver unit tests
-- Modify: `banking_api_server/services/agentBuilder.js` (~line 162) — call resolver
-- Modify: `banking_api_server/services/geminiNlIntent.js` (~line 234 doc, ~line 250 default) — call resolver, fix doc
-- Modify: `banking_api_server/routes/langchainConfig.js` (~line 165) — call resolver instead of `|| 'ollama'`
+- Create: `demo_api_server/services/llmProviderResolver.js` — the single resolution function
+- Create: `demo_api_server/tests/llmProviderResolver.regression.test.js` — resolver unit tests
+- Modify: `demo_api_server/services/agentBuilder.js` (~line 162) — call resolver
+- Modify: `demo_api_server/services/geminiNlIntent.js` (~line 234 doc, ~line 250 default) — call resolver, fix doc
+- Modify: `demo_api_server/routes/langchainConfig.js` (~line 165) — call resolver instead of `|| 'ollama'`
 
 **Phase 2 (:3006 LangGraph move):**
 - Create: `banking_agent_service/src/reasoningGraph.ts` — ported LangGraph graph (TS)
 - Create: `banking_agent_service/src/reasonRoute.ts` — `POST /api/agent/reason` handler
 - Modify: `banking_agent_service/src/index.ts` — replace `/api/agent/task`, delete token/MCP code
-- Create: `banking_api_server/services/agentReasoningClient.js` — BFF→:3006 HTTP client + turn loop
-- Modify: `banking_api_server/services/bankingAgentLangGraphService.js` — `processAgentMessage` calls the loop instead of in-process graph
-- Create: `banking_api_server/tests/agentReasoningLoop.regression.test.js` — loop + fallback + HITL-suspend tests
+- Create: `demo_api_server/services/agentReasoningClient.js` — BFF→:3006 HTTP client + turn loop
+- Modify: `demo_api_server/services/bankingAgentLangGraphService.js` — `processAgentMessage` calls the loop instead of in-process graph
+- Create: `demo_api_server/tests/agentReasoningLoop.regression.test.js` — loop + fallback + HITL-suspend tests
 - Modify: `CONTEXT.md` — agent glossary
-- Modify: `banking_api_ui/src/pages/LangChainPage.js` + placement-mode copy — narrative labels (Phase 2 final task)
+- Modify: `demo_api_ui/src/pages/LangChainPage.js` + placement-mode copy — narrative labels (Phase 2 final task)
 
 ---
 
@@ -38,13 +38,13 @@
 ### Task 1: Create the `llmProviderResolver` module (TDD)
 
 **Files:**
-- Create: `banking_api_server/services/llmProviderResolver.js`
-- Test: `banking_api_server/tests/llmProviderResolver.regression.test.js`
+- Create: `demo_api_server/services/llmProviderResolver.js`
+- Test: `demo_api_server/tests/llmProviderResolver.regression.test.js`
 
 - [ ] **Step 1: Write the failing test**
 
 ```javascript
-// banking_api_server/tests/llmProviderResolver.regression.test.js
+// demo_api_server/tests/llmProviderResolver.regression.test.js
 /**
  * Regression: one canonical provider resolver.
  * Rule (ARCHITECTURE-TRUTHS T-3): Heuristic runs upstream (not here).
@@ -85,13 +85,13 @@ describe('resolveLlmProvider', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_server && npx jest tests/llmProviderResolver.regression.test.js`
+Run: `cd demo_api_server && npx jest tests/llmProviderResolver.regression.test.js`
 Expected: FAIL — `Cannot find module '../services/llmProviderResolver'`
 
 - [ ] **Step 3: Write minimal implementation**
 
 ```javascript
-// banking_api_server/services/llmProviderResolver.js
+// demo_api_server/services/llmProviderResolver.js
 /**
  * Single canonical LLM provider resolver (ARCHITECTURE-TRUTHS T-3).
  *
@@ -131,13 +131,13 @@ module.exports = { resolveLlmProvider };
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd banking_api_server && npx jest tests/llmProviderResolver.regression.test.js`
+Run: `cd demo_api_server && npx jest tests/llmProviderResolver.regression.test.js`
 Expected: PASS — 5 passed
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add banking_api_server/services/llmProviderResolver.js banking_api_server/tests/llmProviderResolver.regression.test.js
+git add demo_api_server/services/llmProviderResolver.js demo_api_server/tests/llmProviderResolver.regression.test.js
 git commit -m "feat(llm): single canonical provider resolver (T-3)"
 ```
 
@@ -146,11 +146,11 @@ git commit -m "feat(llm): single canonical provider resolver (T-3)"
 ### Task 2: Converge `agentBuilder.js` onto the resolver
 
 **Files:**
-- Modify: `banking_api_server/services/agentBuilder.js:160-163`
+- Modify: `demo_api_server/services/agentBuilder.js:160-163`
 
 - [ ] **Step 1: Replace the inline default**
 
-In `banking_api_server/services/agentBuilder.js`, find (around line 160-163):
+In `demo_api_server/services/agentBuilder.js`, find (around line 160-163):
 
 ```javascript
         // Initialize LLM provider (Helix, Ollama, or others)
@@ -171,18 +171,18 @@ Replace with:
 
 - [ ] **Step 2: Run agent builder + existing agent tests to verify no regression**
 
-Run: `cd banking_api_server && npx jest agentBuilder bankingAgent --passWithNoTests`
+Run: `cd demo_api_server && npx jest agentBuilder bankingAgent --passWithNoTests`
 Expected: PASS (or no test files — that is acceptable here; behavior verified by Task 5 integration)
 
 - [ ] **Step 3: Syntax check**
 
-Run: `cd banking_api_server && node -c services/agentBuilder.js && echo OK`
+Run: `cd demo_api_server && node -c services/agentBuilder.js && echo OK`
 Expected: `OK`
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add banking_api_server/services/agentBuilder.js
+git add demo_api_server/services/agentBuilder.js
 git commit -m "refactor(agentBuilder): use central provider resolver, drop inline default"
 ```
 
@@ -191,11 +191,11 @@ git commit -m "refactor(agentBuilder): use central provider resolver, drop inlin
 ### Task 3: Converge `geminiNlIntent.js` onto the resolver + fix stale doc
 
 **Files:**
-- Modify: `banking_api_server/services/geminiNlIntent.js:234` (doc), `:250` (default)
+- Modify: `demo_api_server/services/geminiNlIntent.js:234` (doc), `:250` (default)
 
 - [ ] **Step 1: Fix the stale doc comment**
 
-In `banking_api_server/services/geminiNlIntent.js` around line 234, find:
+In `demo_api_server/services/geminiNlIntent.js` around line 234, find:
 
 ```javascript
  * @param {string} [provider='auto'] - 'auto' (heuristic→ollama), 'ollama' (skip heuristic), 'helix', etc.
@@ -226,18 +226,18 @@ Replace with:
 
 - [ ] **Step 3: Syntax check**
 
-Run: `cd banking_api_server && node -c services/geminiNlIntent.js && echo OK`
+Run: `cd demo_api_server && node -c services/geminiNlIntent.js && echo OK`
 Expected: `OK`
 
 - [ ] **Step 4: Run NL-intent-related tests**
 
-Run: `cd banking_api_server && npx jest geminiNlIntent nlIntent --passWithNoTests`
+Run: `cd demo_api_server && npx jest geminiNlIntent nlIntent --passWithNoTests`
 Expected: PASS (or no matching test files — acceptable)
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add banking_api_server/services/geminiNlIntent.js
+git add demo_api_server/services/geminiNlIntent.js
 git commit -m "refactor(nl-intent): central provider resolver + fix stale heuristic→ollama doc"
 ```
 
@@ -246,11 +246,11 @@ git commit -m "refactor(nl-intent): central provider resolver + fix stale heuris
 ### Task 4: Fix the Ollama-default in `routes/langchainConfig.js`
 
 **Files:**
-- Modify: `banking_api_server/routes/langchainConfig.js:165`
+- Modify: `demo_api_server/routes/langchainConfig.js:165`
 
 - [ ] **Step 1: Replace `|| 'ollama'` with the resolver**
 
-In `banking_api_server/routes/langchainConfig.js` around line 164-165, find:
+In `demo_api_server/routes/langchainConfig.js` around line 164-165, find:
 
 ```javascript
   const cfg = getLangchainConfig(req);
@@ -267,13 +267,13 @@ Replace with:
 
 - [ ] **Step 2: Syntax check**
 
-Run: `cd banking_api_server && node -c routes/langchainConfig.js && echo OK`
+Run: `cd demo_api_server && node -c routes/langchainConfig.js && echo OK`
 Expected: `OK`
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add banking_api_server/routes/langchainConfig.js
+git add demo_api_server/routes/langchainConfig.js
 git commit -m "fix(langchain-config): default to Helix via resolver, not Ollama"
 ```
 
@@ -287,7 +287,7 @@ git commit -m "fix(langchain-config): default to Helix via resolver, not Ollama"
 
 Run:
 ```bash
-cd banking_api_server && npx jest tests/llmProviderResolver.regression.test.js oauthStatus.regression oauthStatus.integration hitlRoute.regression hitlRoute.integration
+cd demo_api_server && npx jest tests/llmProviderResolver.regression.test.js oauthStatus.regression oauthStatus.integration hitlRoute.regression hitlRoute.integration
 ```
 Expected: all PASS (5 resolver + 38 critical = 43 passed)
 
@@ -295,7 +295,7 @@ Expected: all PASS (5 resolver + 38 critical = 43 passed)
 
 Run:
 ```bash
-cd banking_api_server && grep -rnE "\|\|\s*'(ollama|helix)'" services/agentBuilder.js services/geminiNlIntent.js routes/langchainConfig.js || echo "CLEAN — no inline provider defaults"
+cd demo_api_server && grep -rnE "\|\|\s*'(ollama|helix)'" services/agentBuilder.js services/geminiNlIntent.js routes/langchainConfig.js || echo "CLEAN — no inline provider defaults"
 ```
 Expected: `CLEAN — no inline provider defaults`
 
@@ -367,7 +367,7 @@ git -c commit.gpgsign=false commit -m "feat(agent-svc): add reasoningUnavailable
 
 - [ ] **Step 1: Check the versions the BFF already uses (match them)**
 
-Run: `cd banking_api_server && node -e "const p=require('./package.json'); console.log('langgraph', p.dependencies['@langchain/langgraph']); console.log('ollama', p.dependencies['@langchain/ollama']); console.log('core', p.dependencies['@langchain/core'])"`
+Run: `cd demo_api_server && node -e "const p=require('./package.json'); console.log('langgraph', p.dependencies['@langchain/langgraph']); console.log('ollama', p.dependencies['@langchain/ollama']); console.log('core', p.dependencies['@langchain/core'])"`
 Record the three version strings. Use these EXACT versions in Step 2 so :3006 and the BFF stay on the same LangChain.
 
 - [ ] **Step 2: Add the three deps to banking_agent_service/package.json**
@@ -395,7 +395,7 @@ git -c commit.gpgsign=false commit -m "build(agent-svc): add @langchain/{langgra
 
 ### Task 7b: Port the Helix HTTP flow into `helixClient.ts`
 
-A faithful TypeScript port of `banking_api_server/services/helixLlmService.js`
+A faithful TypeScript port of `demo_api_server/services/helixLlmService.js`
 `callHelixAgent` — the 3-step Helix Conversation API flow. Receives connection
 config per call; persists nothing; returns a `string` (Helix has no native
 tool-calling — that is handled in Task 7c).
@@ -479,7 +479,7 @@ Expected: FAIL — Cannot find module '../src/helixClient'
 
 Create `banking_agent_service/src/helixClient.ts`. Port `apiBase`,
 `extractValue`, and the create→post→poll flow EXACTLY from
-`banking_api_server/services/helixLlmService.js` (constant
+`demo_api_server/services/helixLlmService.js` (constant
 `HELIX_PATH = '/dpc/jas/helix/v1'`; auth header `x-api-key`; create body
 `{agent:{version:'published'}}`; post `Content-Type: 'application/json; async=false'`,
 body `{class:'start',content:{[promptFieldId]:prompt}}`; 30s poll at 1s
@@ -489,7 +489,7 @@ interval; agent message = `sender_role==='agent' && message_id!==queryId && valu
 
 ```typescript
 // banking_agent_service/src/helixClient.ts
-// Faithful TS port of banking_api_server/services/helixLlmService.js
+// Faithful TS port of demo_api_server/services/helixLlmService.js
 // callHelixAgent. 3-step Helix Conversation flow. No tokens, no persistence.
 // Returns a string (Helix has no native tool-calling — see helixToolAdapter).
 import type { ReasonMessage } from './reasonContract';
@@ -907,7 +907,7 @@ import type { ReasonRequest, ReasonResponse } from './reasonContract';
 import { helixReason, HelixUnparseableError } from './helixToolAdapter';
 import { callHelix } from './helixClient';
 
-// Matches banking_api_server agentBuilder.js DEFAULT_MODELS for the two
+// Matches demo_api_server agentBuilder.js DEFAULT_MODELS for the two
 // providers reachable here.
 const DEFAULT_MODELS: Record<string, string> = { ollama: 'llama3.2', helix: 'gpt-4o-mini' };
 
@@ -1048,13 +1048,13 @@ git -c commit.gpgsign=false commit -m "feat(agent-svc): /api/agent/reason (share
 ### Task 9: BFF reasoning client + turn loop (TDD)
 
 **Files:**
-- Create: `banking_api_server/services/agentReasoningClient.js`
-- Test: `banking_api_server/tests/agentReasoningLoop.regression.test.js`
+- Create: `demo_api_server/services/agentReasoningClient.js`
+- Test: `demo_api_server/tests/agentReasoningLoop.regression.test.js`
 
 - [ ] **Step 1: Write the failing test**
 
 ```javascript
-// banking_api_server/tests/agentReasoningLoop.regression.test.js
+// demo_api_server/tests/agentReasoningLoop.regression.test.js
 jest.mock('axios');
 const axios = require('axios');
 const { runReasonLoop } = require('../services/agentReasoningClient');
@@ -1101,13 +1101,13 @@ describe('runReasonLoop', () => {
 
 - [ ] **Step 2: Run to verify it fails**
 
-Run: `cd banking_api_server && npx jest tests/agentReasoningLoop.regression.test.js`
+Run: `cd demo_api_server && npx jest tests/agentReasoningLoop.regression.test.js`
 Expected: FAIL — Cannot find module '../services/agentReasoningClient'
 
 - [ ] **Step 3: Implement**
 
 ```javascript
-// banking_api_server/services/agentReasoningClient.js
+// demo_api_server/services/agentReasoningClient.js
 // BFF drives the reason loop and EXECUTES tools (token custody + HITL stay
 // here). :3006 only proposes tool calls / returns a final answer. On
 // reasoningUnavailable or transport failure → signal heuristic-fallback
@@ -1158,13 +1158,13 @@ retry doubles that; 70s covers worst case without hanging forever.
 
 - [ ] **Step 4: Run to verify it passes**
 
-Run: `cd banking_api_server && npx jest tests/agentReasoningLoop.regression.test.js`
+Run: `cd demo_api_server && npx jest tests/agentReasoningLoop.regression.test.js`
 Expected: PASS — 5 passed
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add banking_api_server/services/agentReasoningClient.js banking_api_server/tests/agentReasoningLoop.regression.test.js
+git add demo_api_server/services/agentReasoningClient.js demo_api_server/tests/agentReasoningLoop.regression.test.js
 git -c commit.gpgsign=false commit -m "feat(bff): BFF-driven reason loop (custody + cap stay BFF-side; reasoningUnavailable→heuristic)"
 ```
 
@@ -1173,7 +1173,7 @@ git -c commit.gpgsign=false commit -m "feat(bff): BFF-driven reason loop (custod
 ### Task 10: Wire `processAgentMessage` to the loop (heuristic + tool exec + HITL stay BFF-side)
 
 **Files:**
-- Modify: `banking_api_server/services/bankingAgentLangGraphService.js` (the LLM branch ≈ lines 432-477; the heuristic-first block ABOVE it is unchanged)
+- Modify: `demo_api_server/services/bankingAgentLangGraphService.js` (the LLM branch ≈ lines 432-477; the heuristic-first block ABOVE it is unchanged)
 
 - [ ] **Step 1: Replace in-process graph invocation with the loop**
 
@@ -1215,7 +1215,7 @@ null if the heuristic did not match). Replace the `createBankingAgent(...)` +
 
 - [ ] **Step 2: Extract three helpers (reuse existing tool defs verbatim — do NOT reinvent tools)**
 
-Open `banking_api_server/services/agentBuilder.js` lines 110-300 for the exact
+Open `demo_api_server/services/agentBuilder.js` lines 110-300 for the exact
 tool list + tool-node `tool.invoke(args, { configurable: { agentContext: {...} }})`
 shape. Add in `bankingAgentLangGraphService.js` (or a sibling helper file):
 - `buildToolSchemasForAgent({userId, req})` → `[{name, description, inputSchema}]`
@@ -1231,18 +1231,18 @@ These helpers MUST reuse existing tool definitions/executors verbatim.
 
 - [ ] **Step 3: Syntax check**
 
-Run: `cd banking_api_server && node -c services/bankingAgentLangGraphService.js && echo OK`
+Run: `cd demo_api_server && node -c services/bankingAgentLangGraphService.js && echo OK`
 Expected: `OK`
 
 - [ ] **Step 4: Critical suite (HITL must still pass)**
 
-Run: `cd banking_api_server && npx jest oauthStatus.regression oauthStatus.integration hitlRoute.regression hitlRoute.integration agentReasoningLoop`
+Run: `cd demo_api_server && npx jest oauthStatus.regression oauthStatus.integration hitlRoute.regression hitlRoute.integration agentReasoningLoop`
 Expected: all PASS (38 critical + 5 loop)
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add banking_api_server/services/bankingAgentLangGraphService.js
+git add demo_api_server/services/bankingAgentLangGraphService.js
 git -c commit.gpgsign=false commit -m "feat(bff): processAgentMessage drives :3006 reason loop; heuristic/HITL/custody unchanged"
 ```
 
@@ -1254,7 +1254,7 @@ git -c commit.gpgsign=false commit -m "feat(bff): processAgentMessage drives :30
 
 - [ ] **Step 1: Ensure shared secret + restart**
 
-Confirm `BFF_INTERNAL_SECRET` is set in `banking_api_server/.env` (reuse the
+Confirm `BFF_INTERNAL_SECRET` is set in `demo_api_server/.env` (reuse the
 existing `/internal/id-token` value; `banking_agent_service/.env` symlinks to
 it). Run: `./run-demo.sh restart 2>&1 | tail -5`
 Expected: services start; `./run-demo.sh status` shows Agent Service :3006 OK.
@@ -1296,7 +1296,7 @@ git -c commit.gpgsign=false commit -m "docs(regression): §4 entry — LangGraph
 ### Task 12: Narrative + labeling (presentation only)
 
 **Files:**
-- Modify: `CONTEXT.md`; `banking_api_ui/src/pages/LangChainPage.js`; placement-mode copy in `banking_api_ui/src/components/BankingAgent.js`
+- Modify: `CONTEXT.md`; `demo_api_ui/src/pages/LangChainPage.js`; placement-mode copy in `demo_api_ui/src/components/BankingAgent.js`
 
 - [ ] **Step 1: CONTEXT.md agent glossary**
 
@@ -1318,13 +1318,13 @@ views of one agent, not different agents. No behavior change.
 
 - [ ] **Step 4: UI build gate (MANDATORY — CLAUDE.md)**
 
-Run: `cd banking_api_ui && npm run build`
+Run: `cd demo_api_ui && npm run build`
 Expected: exit code 0.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add CONTEXT.md banking_api_ui/src/pages/LangChainPage.js banking_api_ui/src/components/BankingAgent.js
+git add CONTEXT.md demo_api_ui/src/pages/LangChainPage.js demo_api_ui/src/components/BankingAgent.js
 git -c commit.gpgsign=false commit -m "docs(narrative): one-agent story — glossary + /langchain + placement copy"
 ```
 

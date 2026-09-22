@@ -79,7 +79,7 @@ silently until the Upstash read catches up.
 ### P0 — Implement now (session unreliability in prod)
 
 #### 1. Add 4th retry in App.js
-**File:** `banking_api_ui/src/App.js`
+**File:** `demo_api_ui/src/App.js`
 
 ```js
 // Before (3 retries, 3.3s total)
@@ -95,7 +95,7 @@ An extra retry adds 3s of budget at minimal UX cost.
 ---
 
 #### 2. Token refresh middleware before banking/MCP routes
-**File:** `banking_api_server/server.js`
+**File:** `demo_api_server/server.js`
 
 ```js
 async function refreshIfExpired(req, res, next) {
@@ -127,7 +127,7 @@ banking agent calls silently fail while the user appears logged in.
 ### P1 — This week (user-facing breakage)
 
 #### 3. Force Upstash re-fetch on `_auth` cookie restore
-**File:** `banking_api_server/server.js`
+**File:** `demo_api_server/server.js`
 
 After the existing `_auth` cookie restore middleware, add:
 
@@ -154,7 +154,7 @@ restores full session capability without requiring user action.
 ---
 
 #### 4. Show "Reconnecting…" in BankingAgent when session is token-less
-**File:** `banking_api_ui/src/components/BankingAgent.js`
+**File:** `demo_api_ui/src/components/BankingAgent.js`
 
 When `/api/auth/session` returns `cookieOnlyBffSession: true`, display a visible
 reconnecting state in the agent panel instead of silently failing:
@@ -207,7 +207,7 @@ header, visible only when the user has multiple roles configured.
 
 #### 6. Local dev persistent sessions (optional)
 
-**File:** `banking_api_server/server.js`
+**File:** `demo_api_server/server.js`
 
 ```js
 // Add to .env.local:
@@ -230,7 +230,7 @@ docker run -d -p 6379:6379 redis:7-alpine
 
 #### 7. Move MCP server off Vercel (no cold-start guarantee)
 
-The `banking_mcp_server` uses persistent WebSocket connections. Vercel serverless
+The `demo_mcp_server` uses persistent WebSocket connections. Vercel serverless
 functions have a 10s timeout (Pro: 60s) and no persistent process. This means WebSocket
 connections are dropped on every Lambda recycle.
 
@@ -285,11 +285,11 @@ P3
 
 | File | P0 | P1 | P2 | P3 |
 |---|---|---|---|---|
-| `banking_api_ui/src/App.js` | retryDelays | — | — | — |
-| `banking_api_server/server.js` | refreshIfExpired middleware | Upstash re-fetch | switch endpoint | regenerate fatal |
-| `banking_api_ui/src/components/BankingAgent.js` | — | reconnecting banner | switch button | — |
-| `banking_api_server/routes/oauth.js` | — | — | switch callback | regenerate fatal |
-| `banking_api_server/routes/oauthUser.js` | — | — | switch callback | — |
+| `demo_api_ui/src/App.js` | retryDelays | — | — | — |
+| `demo_api_server/server.js` | refreshIfExpired middleware | Upstash re-fetch | switch endpoint | regenerate fatal |
+| `demo_api_ui/src/components/BankingAgent.js` | — | reconnecting banner | switch button | — |
+| `demo_api_server/routes/oauth.js` | — | — | switch callback | regenerate fatal |
+| `demo_api_server/routes/oauthUser.js` | — | — | switch callback | — |
 
 ---
 

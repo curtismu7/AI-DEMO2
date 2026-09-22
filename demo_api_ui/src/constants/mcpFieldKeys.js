@@ -5,7 +5,7 @@
  * Use these instead of raw strings to prevent typos.
  */
 export const MCP_FIELD_KEYS = {
-  // PingGateway wizard fields
+  // PingOne Agent Gateway wizard fields
   PINGONE_ENV_URL:      'pingOneEnvUrl',
   PINGONE_RESOURCE_ID:  'pingOneResourceId',
   GATEWAY_URL:          'gatewayUrl',

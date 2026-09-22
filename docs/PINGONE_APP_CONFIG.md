@@ -1,6 +1,6 @@
 # PingOne Application Configuration Reference
 
-> Required PingOne app settings for the Super Banking demo. Use the [Setup Wizard](/config → PingOne Setup tab) to auto-provision, or follow this guide for manual setup.
+> Required PingOne app settings for the AI Demo. Use the [Setup Wizard](/config → PingOne Setup tab) to auto-provision, or follow this guide for manual setup.
 
 ---
 

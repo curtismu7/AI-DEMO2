@@ -38,5 +38,5 @@ npm run test:session
 npm run test:e2e:ui:smoke
 
 # 3. Full Playwright suite (needs CRA dev-server or build)
-cd banking_api_ui && npm run test:e2e:ci
+cd demo_api_ui && npm run test:e2e:ci
 ```

@@ -99,7 +99,7 @@ does not fall back to the PingOne or local mock exchange.
 | `PINGONE_RESOURCE_MCP_GATEWAY_URI` | `mcpgateway.ping.demo` | MCP Gateway audience (token exchange target) |
 | `PINGONE_RESOURCE_MCP_SERVER_URI` | `mcpserver.ping.demo` | MCP Server audience |
 | `PINGONE_RESOURCE_AGENT_GATEWAY_URI` | `agentgateway.ping.demo` | Agent Gateway audience (Two-Exchange Step 1) |
-| `PINGONE_RESOURCE_MCP_RESOURCE_SERVER_URI` | `mcp-invest.ping.demo` | Investment vertical MCP scope target — the audience the PingOne "Demo MCP Invest" resource actually carries |
+| `PINGONE_RESOURCE_MCP_RESOURCE_SERVER_URI` | `mcp-invest.ping.demo` | Investment vertical MCP scope target — the audience the PingOne "Demo Demo MCP Resource Server" resource actually carries |
 | `PINGONE_RESOURCE_JWT_VERIFIER_URI` | `mcp-jwt-verifier.ping.demo` | JWT diagnostic tool resource |
 | `PINGONE_RESOURCE_A2A_INTERMEDIATE_<VERTICAL>_URI` | `a2a-intermediate-<vertical>.ping.demo` | A2A Delegation intermediary (per specialist) |
 

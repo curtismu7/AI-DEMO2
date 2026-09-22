@@ -94,7 +94,7 @@ checkService (selectChecks → runChecks → aggregateVerdict)
 - When `ff_mcp_gateway_pinggateway` is true: drop `heavy: true` on
   `gateway.real_path` (or invoke that hop sequence from
   `usecase.permit_accounts`) so the default run always includes a real
-  PingGateway PERMIT proof. When the flag is false, `usecase.permit_accounts`
+  PingOne Agent Gateway PERMIT proof. When the flag is false, `usecase.permit_accounts`
   uses the demo BFF / active-gateway path only.
 
 ### Gate — DENY (`usecase.deny_insufficient_scope`)
@@ -154,7 +154,7 @@ forwarded — extend the result shape).
 | Situation | nextAction |
 |-----------|------------|
 | No session on gate | Sign in with the demo user, open Demo check, Run again |
-| DENY unexpected permit | Gateway enforcement off or wrong path — check PingGateway / authorize feature flags |
+| DENY unexpected permit | Gateway enforcement off or wrong path — check PingOne Agent Gateway / authorize feature flags |
 | Servers down | Re-check SE pods / cluster status; retry when BFF and MCP are healthy |
 
 ## Sunset — Ping AI Test Lab

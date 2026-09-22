@@ -130,7 +130,7 @@ rather than a new umbrella group:
   entry. The "Banking MCP & Gateways" group loses "Demo MCP Inspector" (folded in).
   The "Monitoring" group loses "API Explorer" (folded in).
 - **Agent Gateway Tester** → **"Banking MCP & Gateways"** group, alongside the
-  existing "PingGateway Config" / "PingGateway Test" entries it's closest to in
+  existing "PingOne Agent Gateway Config" / "PingOne Agent Gateway Test" entries it's closest to in
   purpose. New nav entry — the component currently has none.
 - **PingOne Authorize** → stays in the **"Authorize"** group, same position as today.
 

@@ -22,13 +22,13 @@ implement banking tools. It owns: introspection, RFC 8693 re-exchange,
 PingAuthorize evaluation, HITL escalation, backend aggregation, and Phase 266
 credential disposition.
 
-Tools live in the **MCP servers**: `banking_mcp_server` (OLB, 8080) and
+Tools live in the **MCP servers**: `demo_mcp_server` (OLB, 8080) and
 `banking_mcp_resource_server` (8081). The gateway aggregates their `tools/list` and
 forwards `tools/call`; it appends only two presentation-layer entries
 (`special_offers`, `user_profile_card`).
 
 **Naive reading that is wrong:** "the gateway is where MCP tools are defined."
-It is not — `banking_mcp_server` owns the tool registry.
+It is not — `demo_mcp_server` owns the tool registry.
 
 - Where: [banking-mcp-gateway/SKILL.md](../.claude/skills/banking-mcp-gateway/SKILL.md) (entry, `router.ts`)
 - Code: `demo_mcp_gateway/src/router.ts` (route table, no tool bodies)
@@ -571,9 +571,9 @@ This selector has **no effect** on LLM provider, agent mode, or heuristic routin
 
 ---
 
-## T-16 — PingGateway performs its own RFC 8693 exchange and real→mock Authorize failover; it is selected by `ff_mcp_gateway_pinggateway`
+## T-16 — PingOne Agent Gateway performs its own RFC 8693 exchange and real→mock Authorize failover; it is selected by `ff_mcp_gateway_pinggateway`
 
-When `ff_mcp_gateway_pinggateway` is `true` (default), the system routes MCP tool calls through **PingGateway** (`ping-gateway`, Ping Identity IG, host port 3036, internal 8080) instead of the Node `demo_mcp_gateway` (:3005). The two gateways are equivalent from the security-pipeline perspective — both enforce Authorize, token validation, and HITL — but PingGateway differs in three ways:
+When `ff_mcp_gateway_pinggateway` is `true` (default), the system routes MCP tool calls through **PingOne Agent Gateway** (`ping-gateway`, Ping Identity IG, host port 3036, internal 8080) instead of the Node `demo_mcp_gateway` (:3005). The two gateways are equivalent from the security-pipeline perspective — both enforce Authorize, token validation, and HITL — but PingOne Agent Gateway differs in three ways:
 
 1. It performs its own single-resource RFC 8693 exchange to the upstream MCP server (the gateway is the exchange initiator for this path, not the BFF).
 2. It supports real→mock Authorize failover: real PingOne Authorize by default; switches to `demo_authz_server` (:9001) when `X-Authz-Simulated` is set.
@@ -582,13 +582,13 @@ When `ff_mcp_gateway_pinggateway` is `true` (default), the system routes MCP too
 **Naive reading that is wrong:** "there is one MCP gateway; `ff_mcp_gateway_pinggateway` changes a config option on it." There are two distinct gateway processes; the flag selects which process receives tool-call traffic.
 
 - Code: `ping-gateway/` (IG config, Groovy filters), `demo_api_server/services/mcpGatewayClient.js:1162` (`getMcpGatewayHttpUrl` — the single gateway-URL resolver; the flag must be evaluated here, not patched elsewhere)
-- Related: T-1 (the active gateway is the security choke point, regardless of which is selected), T-2 (Authorize is the authoritative decision — both gateways enforce it), T-4 (PingOne performs the RFC 8693 exchange — PingGateway requests it)
+- Related: T-1 (the active gateway is the security choke point, regardless of which is selected), T-2 (Authorize is the authoritative decision — both gateways enforce it), T-4 (PingOne performs the RFC 8693 exchange — PingOne Agent Gateway requests it)
 
 ---
 
 ## T-17 — Privilege-first is a chain, not a lane; it composes with the gateway flags rather than competing with them
 
-When `ff_mcp_gateway_privilege_first` is `true`, the **PingOne Privilege AI Gateway** is placed in **front of** whichever Agent Gateway the other flags already select. The call becomes a chain — Privilege → Agent Gateway (PingGateway *or* the Node gateway, per T-16) → MCP servers — not a third alternative lane beside them. `getMcpGatewayHttpUrl()` evaluates this flag **before** the PingGateway branch for exactly that reason: what sits behind Privilege is decided by the Agentic App's registered backend URL, not by this resolver.
+When `ff_mcp_gateway_privilege_first` is `true`, the **PingOne Privilege AI Gateway** is placed in **front of** whichever Agent Gateway the other flags already select. The call becomes a chain — Privilege → Agent Gateway (PingOne Agent Gateway *or* the Node gateway, per T-16) → MCP servers — not a third alternative lane beside them. `getMcpGatewayHttpUrl()` evaluates this flag **before** the PingOne Agent Gateway branch for exactly that reason: what sits behind Privilege is decided by the Agentic App's registered backend URL, not by this resolver.
 
 Three consequences that surprise people:
 
@@ -596,7 +596,7 @@ Three consequences that surprise people:
 2. **`tx-token` is honoured only from the bridge.** It is trusted only when the bearer equals the configured `MCP_GW_PRIVILEGE_BRIDGE_SECRET`; from any other caller it is ignored outright, so it can never assert an identity from outside. An unset secret disables the bridge entirely and can never match — including against an empty bearer. A bridge call carrying no subject token is **refused** for acting methods, while read-only discovery may use the gateway machine subject; a malformed present header is always rejected.
 3. **SE only, and off by default.** The Agentic App's backend must reach the Agent Gateway's in-cluster address, which holds only on the SE cluster (plan D3). Both `ff_privilege_llm_first` and `ff_mcp_gateway_privilege_first` default to `false`. An unresolvable Privilege URL logs a warning and **falls through to the next lane** rather than breaking every tool call on a box that has no Privilege gateway.
 
-**Naive reading that is wrong:** "`ff_mcp_gateway_privilege_first` picks Privilege instead of PingGateway, the way `ff_mcp_gateway_pinggateway` picks IG instead of the Node gateway." It does not replace either; it prepends a hop in front of whichever one T-16's flag already chose. Turning both on is a supported combination, not a conflict.
+**Naive reading that is wrong:** "`ff_mcp_gateway_privilege_first` picks Privilege instead of PingOne Agent Gateway, the way `ff_mcp_gateway_pinggateway` picks IG instead of the Node gateway." It does not replace either; it prepends a hop in front of whichever one T-16's flag already chose. Turning both on is a supported combination, not a conflict.
 
 **Known ceiling:** the `act` chain does not yet name Privilege as an actor hop. The user identity is correct and complete; what is missing is the audit claim that the call came *through* Privilege.
 

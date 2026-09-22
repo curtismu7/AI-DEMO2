@@ -31,7 +31,7 @@ OAuth calls fail with no obvious error
 
 ### The fix: `scripts/init-env.js` run as a `prestart` hook
 
-**Create:** `banking_api_server/scripts/init-env.js`  
+**Create:** `demo_api_server/scripts/init-env.js`  
 **Add to `package.json`:** `"prestart": "node scripts/init-env.js"`
 
 This runs automatically before every `npm start` and `npm run dev`. It is also called by `run-demo.sh` before launching the API server.
@@ -127,7 +127,7 @@ Every item below already exists. The implementation calls it directly — do not
 
 Do this first — it unblocks Steps 4 and 5 with no risk to existing routes.
 
-**Create:** `banking_api_server/services/credentialSchemas.js`
+**Create:** `demo_api_server/services/credentialSchemas.js`
 
 ```js
 const CREDENTIAL_SCHEMAS = {
@@ -168,7 +168,7 @@ const ACTION_REQUIREMENTS = {
 module.exports = { CREDENTIAL_SCHEMAS, ACTION_REQUIREMENTS };
 ```
 
-**Edit:** `banking_api_server/routes/configCredentials.js` — replace inline definitions:
+**Edit:** `demo_api_server/routes/configCredentials.js` — replace inline definitions:
 ```js
 const { CREDENTIAL_SCHEMAS, ACTION_REQUIREMENTS } = require('../services/credentialSchemas');
 ```
@@ -244,9 +244,9 @@ router.get('/packages', (req, res) => {
     ready,
     checks,
     remediation: {
-      node_modules: 'cd banking_api_server && npm install',
-      tar: 'cd banking_api_server && npm install',
-      lmdb_native_ok: 'cd banking_api_server && npm rebuild lmdb',
+      node_modules: 'cd demo_api_server && npm install',
+      tar: 'cd demo_api_server && npm install',
+      lmdb_native_ok: 'cd demo_api_server && npm rebuild lmdb',
     }
   });
 });
@@ -375,7 +375,7 @@ The UI calls `GET /api/health/packages` on mount. This endpoint (see §3c below)
 │  ✓  tar package available                                    │
 │  ✗  lmdb native binary needs rebuild              │
 │                                                              │
-│  Fix:  cd banking_api_server && npm rebuild lmdb  │
+│  Fix:  cd demo_api_server && npm rebuild lmdb  │
 │                                                    [Copy]   │
 └──────────────────────────────────────────────────────────────┘
 ```

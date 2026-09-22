@@ -777,7 +777,7 @@ interface ManifestWithResources { resources: Record<string, ResourceEntry>; }
 
 const BACKEND_RESOURCE_NAME: Record<'olb' | 'invest', string> = {
   olb: 'Super Banking MCP Server',
-  invest: 'Super Banking MCP Invest',
+  invest: 'Super AI Demo MCP Resource Server',
 };
 
 /** All scopes (native + mirrored) registered on a backend's resource server. */
@@ -787,7 +787,7 @@ export function resourceScopesForBackend(backend: 'olb' | 'invest'): string[] {
 }
 ```
 
-(`Super Banking MCP Invest` is added to the manifest in Task 8 — until then the function returns `[]` for invest, which the tests below cover via olb.)
+(`Super AI Demo MCP Resource Server` is added to the manifest in Task 8 — until then the function returns `[]` for invest, which the tests below cover via olb.)
 
 - [ ] **Step 2: Write the failing tests**
 
@@ -974,7 +974,7 @@ git commit -m "fix(gateway): RFC 8707 resource+scope token exchange, per-backend
 ### Task 8: PingOne provisioning — invest resource in topology + reconciler exchange #3 healing + LIVE GATE
 
 **Files:**
-- Modify: `scope-topology.json` (add `Super Banking MCP Invest` resource)
+- Modify: `scope-topology.json` (add `Super AI Demo MCP Resource Server` resource)
 - Modify: `demo_api_server/services/twoExchangeReconciler.js` (add exchange #3 pre-conditions)
 - Create: `demo_mcp_gateway/scripts/verifyExchange.ts` (live verification spike)
 - Test: live run of the spike (this is the gate)
@@ -988,14 +988,14 @@ git commit -m "fix(gateway): RFC 8707 resource+scope token exchange, per-backend
 In the `resources` object, after `"Super Banking MCP Server"`, add:
 
 ```json
-    "Super Banking MCP Invest": {
+    "Super AI Demo MCP Resource Server": {
       "uri": "mcp-resource-server.ping.demo",
       "scopes": ["mcp:invoke"],
       "mirroredScopes": ["invest:read", "read"]
     },
 ```
 
-Also add `"Super Banking MCP Invest": "Demo MCP Invest"` to `provisioning.resourceNames`.
+Also add `"Super AI Demo MCP Resource Server": "Demo Demo MCP Resource Server"` to `provisioning.resourceNames`.
 
 - [ ] **Step 2: Extend the reconciler**
 
@@ -1005,7 +1005,7 @@ In `twoExchangeReconciler.js`, following the existing pattern for pre-conditions
   //   Exchange #3 pre-conditions (Gateway token → backend MCP-server tokens):
   //     5. MCP Server resource has all mirroredScopes defined on it (usually
   //        already true — provisioned since Phase 243)
-  //     6. MCP Invest resource EXISTS (create if missing), with scopes +
+  //     6. Demo MCP Resource Server resource EXISTS (create if missing), with scopes +
   //        mirroredScopes from the topology
   //     7. MCP Gateway app is granted all scopes on BOTH backend resources
 ```
@@ -1013,7 +1013,7 @@ In `twoExchangeReconciler.js`, following the existing pattern for pre-conditions
 Implementation notes for the subagent (follow the file's existing helpers — read them first):
 
 - Resource lookup by name uses the provisioned display name (`resourceNames` mapping / `scopeTopology`) the same way pre-conditions 1-4 find `Super Banking Agent Gateway` / `Super Banking MCP Gateway`. Reuse that lookup.
-- Creating a missing resource: `await client.post('/resources', { name: '<display name>', audience: 'mcp-resource-server.ping.demo', approvalRequired: false })` then `_reconcileResourceScopes(client, resource.id, 'Super Banking MCP Invest', 'MCP Invest')`.
+- Creating a missing resource: `await client.post('/resources', { name: '<display name>', audience: 'mcp-resource-server.ping.demo', approvalRequired: false })` then `_reconcileResourceScopes(client, resource.id, 'Super AI Demo MCP Resource Server', 'Demo MCP Resource Server')`.
 - Granting the gateway app: reuse the existing grant-healing helper that pre-condition 2/4 uses (AI Agent → Agent Gateway, MCP Exchanger → MCP Gateway), with the app resolved from `PINGONE_MCP_GATEWAY_CLIENT_ID` (configStore) and the two backend resources.
 - Log with the existing `TAG` (`[TwoExchangeReconciler]`) `OK` / `Healed [...]` convention so the memory-documented troubleshooting flow still works.
 
@@ -1088,7 +1088,7 @@ Expected: `[olb] OK ... scope="read ..."` and `[invest] OK ... scope="invest:rea
 
 ```bash
 git add scope-topology.json demo_api_server/services/twoExchangeReconciler.js demo_mcp_gateway/scripts/verifyExchange.ts
-git commit -m "feat(provisioning): MCP Invest resource + exchange #3 reconciler healing + live gate script"
+git commit -m "feat(provisioning): Demo MCP Resource Server resource + exchange #3 reconciler healing + live gate script"
 ```
 
 ---

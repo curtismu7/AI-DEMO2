@@ -4,7 +4,7 @@
 
 The `/mcp/apikey` endpoint provides API-key-authenticated access to MCP tools, with **per-tool authorization** enforced by **PingOne Authorize (P1AZ)** decisions.
 
-**Routing:** `POST /mcp/apikey` → PingGateway (`00-mcp-apikey.json`) → MCP server
+**Routing:** `POST /mcp/apikey` → PingOne Agent Gateway (`00-mcp-apikey.json`) → MCP server
 
 ## Authorization Flow
 
@@ -17,7 +17,7 @@ POST /mcp/apikey
   ↓
 3. Create synthetic bearer token (signed JWT) for introspection
   ↓
-4. PingGateway RsFilterTokenResolver: Introspect token
+4. PingOne Agent Gateway RsFilterTokenResolver: Introspect token
   ↓
 5. Per-tool scope check: Enforce X-MCP-Tool scope requirement
   ↓
@@ -66,7 +66,7 @@ The `challengeType` field tells P1AZ to:
 
 ### 1. API Key Store
 
-Set `VALID_API_KEYS` in PingGateway environment:
+Set `VALID_API_KEYS` in PingOne Agent Gateway environment:
 
 ```bash
 export VALID_API_KEYS="sk-demo-key-001,sk-demo-key-002,sk-prod-key-003"
@@ -126,17 +126,17 @@ request.headers.remove(apiKeyHeader)
 
 ### 4. Per-Tool Scope Enforcement
 
-PingGateway's `RsFilterTokenResolver` enforces per-tool scopes by:
+PingOne Agent Gateway's `RsFilterTokenResolver` enforces per-tool scopes by:
 1. Introspecting the bearer token (via `PINGONE_INTROSPECTION_ENDPOINT`)
 2. Extracting the `scope` claim
 3. Comparing against the tool's `requiredScopes` in scope-topology.json
 4. Returning **403 Forbidden** if scopes are insufficient
 
-**Example:** If the token has `scope: 'read'` and the tool requires `['write', 'transfer']`, PingGateway returns 403.
+**Example:** If the token has `scope: 'read'` and the tool requires `['write', 'transfer']`, PingOne Agent Gateway returns 403.
 
 ### 5. P1AZ Decision Point
 
-When `PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID` is set, PingGateway can invoke P1AZ **after** token validation to make per-tool authorization decisions (e.g., amount-based consent, group membership).
+When `PINGONE_AUTHORIZE_DECISION_ENDPOINT_ID` is set, PingOne Agent Gateway can invoke P1AZ **after** token validation to make per-tool authorization decisions (e.g., amount-based consent, group membership).
 
 To enable:
 ```bash
@@ -220,7 +220,7 @@ curl -X POST https://api.ping.demo:3036/mcp/apikey \
 ### Phase 1: API Key Validation Only
 - Implement `apikey-dispatch.groovy` validation (current)
 - Forward to MCP server with API-key-mapped user context
-- PingGateway introspection + scope gating enforces per-tool access
+- PingOne Agent Gateway introspection + scope gating enforces per-tool access
 
 ### Phase 2: Bearer Token Generation
 - Map API keys to PingOne users/service accounts

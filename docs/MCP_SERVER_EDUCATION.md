@@ -205,7 +205,7 @@ Security Layers
 ### Tool Registration
 
 ```javascript
-// banking_mcp_server/src/tools/bankingTools.js
+// demo_mcp_server/src/tools/bankingTools.js
 
 const bankingTools = {
   get_accounts: {
@@ -343,7 +343,7 @@ User Query
 Banking App (BFF)
     |
     | 1. Validate user session
-    | 2. Check Subject Token
+    | 2. Check User token
     v
 AI Agent
     |
@@ -359,7 +359,7 @@ MCP Server Discovery
 AI Agent
     |
     | 5. Token Exchange (RFC 8693)
-    |    Subject Token -> MCP Token
+    |    User token -> MCP Token
     v
 PingOne Auth Server
     |

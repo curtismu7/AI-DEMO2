@@ -347,7 +347,7 @@ describe('a failed run is not reported as still waiting', () => {
     expect(v.missingSteps).toEqual(['authorize-decision', 'tool-dispatched']);
   });
 
-  // 2026-08-31: mcp-weather was absent from the SE cluster, so PingGateway 502'd
+  // 2026-08-31: mcp-weather was absent from the SE cluster, so PingOne Agent Gateway 502'd
   // on UnknownHostException. ingestMcpResult still stamps trace.mcpResult for a
   // failed call, so EVERY evidence step matched and UC30 rendered
   // "VERIFIED — Completed — get_weather dispatched" over a chat that said the

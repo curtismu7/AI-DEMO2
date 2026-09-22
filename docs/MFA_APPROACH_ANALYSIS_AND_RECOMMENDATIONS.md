@@ -9,7 +9,7 @@ This document analyzes the current MFA implementation approach and provides reco
 
 ### Current Approach: Direct PingOne MFA APIs
 
-**Implementation Location**: `banking_api_server/services/mfaService.js`
+**Implementation Location**: `demo_api_server/services/mfaService.js`
 
 **Architecture**:
 - Uses PingOne `deviceAuthentications` API directly
@@ -79,7 +79,7 @@ const result = await waitForPolicyCompletion(mfaChallenge.id);
 
 ### Option 2: CIBA (Client-Initiated Backchannel Authentication)
 
-**Current Implementation**: Already exists in `banking_api_server/routes/ciba.js`
+**Current Implementation**: Already exists in `demo_api_server/routes/ciba.js`
 
 **Architecture**:
 - Backchannel authentication initiated by application

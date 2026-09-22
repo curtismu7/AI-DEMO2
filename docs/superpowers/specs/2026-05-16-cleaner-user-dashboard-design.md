@@ -5,7 +5,7 @@
 
 ## Problem
 
-The customer dashboard (`banking_api_ui/src/components/UserDashboard.js`) shows a
+The customer dashboard (`demo_api_ui/src/components/UserDashboard.js`) shows a
 banking-info column in all three agent placement modes. The goal is a cleaner
 dashboard: banking information should come **only** from the agent response or a
 popout when the agent occupies the center column. The banking column must be
@@ -41,7 +41,7 @@ the column back flip one setup-page toggle (no rebuild — configStore-backed).
 
 ### 1. Backend: register the flag
 
-File: `banking_api_server/routes/featureFlags.js`
+File: `demo_api_server/routes/featureFlags.js`
 
 Add one entry to `FLAG_REGISTRY`:
 
@@ -63,7 +63,7 @@ operate generically over the registry. The setup-page UI
 
 ### 2. Frontend: read the flag in the dashboard
 
-File: `banking_api_ui/src/components/UserDashboard.js`
+File: `demo_api_ui/src/components/UserDashboard.js`
 
 Mirror the existing pattern already used in `BankingAgent.js` for
 `ff_heuristic_enabled`:
@@ -80,7 +80,7 @@ updates require admin), so the customer dashboard can read it — exactly as
 
 ### 3. Frontend: conditional render of the banking column
 
-File: `banking_api_ui/src/components/UserDashboard.js`, the middle-agent branch
+File: `demo_api_ui/src/components/UserDashboard.js`, the middle-agent branch
 beginning at line ~2615 (`agentPlacement === "middle" && middleAgentOpen`).
 
 That branch renders three children inside
@@ -99,7 +99,7 @@ untouched**.
 
 ### 4. CSS: two-track grid modifier
 
-File: `banking_api_ui/src/components/UserDashboard.css`
+File: `demo_api_ui/src/components/UserDashboard.css`
 
 Add a single modifier rule for `ud-body--dashboard-split3--no-banking` that
 overrides `grid-template-columns` so the layout reads as token rail + agent
@@ -128,7 +128,7 @@ entry per the template.
 
 ## Success Criteria
 
-- `cd banking_api_ui && npm run build` exits **0**.
+- `cd demo_api_ui && npm run build` exits **0**.
 - Middle mode, FF **off**: only Token Chain + Agent visible; no banking column;
   agent answers banking questions and the popout works.
 - Middle mode, FF **on** (toggled from the setup page, no rebuild): banking

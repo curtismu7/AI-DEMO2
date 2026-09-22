@@ -539,7 +539,7 @@ export default function DemoStepsDropdown({
                 className="ba-demo-steps-popout__live-p1az"
                 onClick={handleLiveP1az}
                 disabled={liveP1azState === 'arming'}
-                title="Run the balance proof through PingGateway and live PingOne Authorize; flags restore after one minute"
+                title="Run the balance proof through PingOne Agent Gateway and live PingOne Authorize; flags restore after one minute"
                 data-testid="demo-live-p1az"
               >
                 {liveP1azState === 'arming'

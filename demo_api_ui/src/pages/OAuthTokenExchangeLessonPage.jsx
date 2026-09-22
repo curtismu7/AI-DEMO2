@@ -27,7 +27,7 @@ const FLOW_STEPS = [
 const DELEGATED_PROOF_STEPS = [
   {
     title: "Gateway authorization",
-    detail: "Ping Agent Gateway validates aud, scope, and act before the request can move downstream.",
+    detail: "PingOne Agent Gateway validates aud, scope, and act before the request can move downstream.",
     tone: "gateway",
   },
   {

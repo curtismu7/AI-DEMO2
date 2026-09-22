@@ -2,7 +2,7 @@
 // with the corresponding entries in AdminSideNav.jsx.
 export const NAV_PAGE_PATHS = {
   Home: "/",
-  Dashboard: "/security-dashboard",
+  "Security Dashboard": "/security-dashboard",
   "Shadow AI Detector": "/ai-gateway/shadow-ai-detector",
   "AI Guard": "/ai-gateway/shadow-ai-detector",
   "Protocol Playground": "/protocol-playground",

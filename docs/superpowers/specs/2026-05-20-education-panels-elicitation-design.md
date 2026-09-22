@@ -132,9 +132,9 @@ In the Resource URIs section, add: "Each route or service enforces its own audie
 
 ---
 
-### PingGatewayMcpPanel — 3 edits
+### PingOne Agent GatewayMcpPanel — 3 edits
 
-**File:** `demo_api_ui/src/components/education/PingGatewayMcpPanel.js`
+**File:** `demo_api_ui/src/components/education/PingOne Agent GatewayMcpPanel.js`
 
 **`OverviewTab` — headline point:**  
 Add as the first paragraph: "**MCP servers contain no security logic.** Token validation, scope enforcement, protocol compliance, rate limiting, and audit all live in the gateway. The MCP server trusts that whatever reaches it has already been authorized — it focuses entirely on tool execution."
@@ -220,7 +220,7 @@ Add a redirect page note: "The redirect callback page (`/callback`) is intention
 | `src/components/AdminSideNav.jsx` | Add 1 nav item |
 | `src/components/education/MayActPanel.js` | 3 copy edits |
 | `src/components/education/TokenFlowPanel.js` | 3 copy edits |
-| `src/components/education/PingGatewayMcpPanel.js` | 3 copy edits |
+| `src/components/education/PingOne Agent GatewayMcpPanel.js` | 3 copy edits |
 | `src/components/education/PingOneAuthorizePanel.js` | 3 copy edits |
 | `src/components/education/HumanInLoopPanel.js` | 2 copy edits |
 | `src/components/education/StepUpPanel.js` | 2 copy edits |

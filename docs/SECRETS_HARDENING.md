@@ -32,7 +32,7 @@ docker compose up
 ```
 
 This script:
-1. Connects to 1Password vault "Banking Demo"
+1. Connects to 1Password vault "AI Demo"
 2. Exports each service's secrets as environment variables
 3. Exports to the current shell (no .env file created)
 4. Falls back to `.env.local` if 1Password unavailable

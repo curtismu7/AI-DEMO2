@@ -641,7 +641,7 @@ export default function SecurityRiskDashboard() {
             <p>
               {snapshot?.gateway?.available
                 ? `${snapshot.gateway.methods?.length || 0} metric families available`
-                : "PingGateway metrics unavailable"}
+                : "PingOne Agent Gateway metrics unavailable"}
             </p>
           </div>
         </div>

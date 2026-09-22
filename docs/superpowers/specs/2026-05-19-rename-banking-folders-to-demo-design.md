@@ -16,9 +16,9 @@ Rename the 8 `banking_*` service directories to `demo_*` without breaking any ru
 
 | Old name | New name |
 |---|---|
-| `banking_api_server` | `demo_api_server` |
-| `banking_api_ui` | `demo_api_ui` |
-| `banking_mcp_server` | `demo_mcp_server` |
+| `demo_api_server` | `demo_api_server` |
+| `demo_api_ui` | `demo_api_ui` |
+| `demo_mcp_server` | `demo_mcp_server` |
 | `banking_mcp_gateway` | `demo_mcp_gateway` |
 | `banking_hitl_service` | `demo_hitl_service` |
 | `banking_agent_service` | `demo_agent_service` |
@@ -55,15 +55,15 @@ These files contain **runtime `require()` calls** that cross into a sibling dire
 
 | File | Load-bearing reference |
 |---|---|
-| `demo_mcp_gateway/src/vault.ts` | `require('../../banking_api_server/lib/vault')` → `../../demo_api_server/lib/vault` |
+| `demo_mcp_gateway/src/vault.ts` | `require('../../demo_api_server/lib/vault')` → `../../demo_api_server/lib/vault` |
 | `demo_mcp_server/src/vault.ts` | Same pattern |
-| `demo_agent_service/src/vault.ts` | `require('../../banking_api_server/lib/vault')` → `../../demo_api_server/lib/vault` |
-| `demo_mcp_gateway/src/index.ts` | `join(__dirname, '../../banking_mcp_server/openapi/...')` and `../../banking_mcp_resource_server/openapi/...` |
+| `demo_agent_service/src/vault.ts` | `require('../../demo_api_server/lib/vault')` → `../../demo_api_server/lib/vault` |
+| `demo_mcp_gateway/src/index.ts` | `join(__dirname, '../../demo_mcp_server/openapi/...')` and `../../banking_mcp_resource_server/openapi/...` |
 | `demo_mcp_gateway/src/auth/scopeTopology.ts` | Path comment `../../../` is relative, no string to change |
 
 ### 4. Runtime log strings and comments — NOT changed
 
-Strings like `'server: banking_mcp_server'`, `'source: banking_api_resource_server'`, `'backend: banking_api_resource_server'` in JSON payloads or log output, and code comments, are left as-is. Scope: folders and paths only.
+Strings like `'server: demo_mcp_server'`, `'source: banking_api_resource_server'`, `'backend: banking_api_resource_server'` in JSON payloads or log output, and code comments, are left as-is. Scope: folders and paths only.
 
 ---
 
@@ -79,7 +79,7 @@ Strings like `'server: banking_mcp_server'`, `'source: banking_api_resource_serv
 
 ## Verification Criteria (definition of done)
 
-1. `grep -r "banking_api_ui\|banking_api_server\|banking_mcp_server\|banking_mcp_gateway\|banking_hitl_service\|banking_agent_service\|banking_mcp_resource_server\|banking_api_resource_server" . --include="*.sh" --include="*.json" --include="*.ts" --include="*.js" | grep -v "node_modules\|dist/\|\.archive\|\.planning\|\.handoff\|docs/\|\.claude/skills"` returns zero hits for path-style references (i.e. no `cd banking_*`, no `require('../../banking_*')`).
+1. `grep -r "demo_api_ui\|demo_api_server\|demo_mcp_server\|banking_mcp_gateway\|banking_hitl_service\|banking_agent_service\|banking_mcp_resource_server\|banking_api_resource_server" . --include="*.sh" --include="*.json" --include="*.ts" --include="*.js" | grep -v "node_modules\|dist/\|\.archive\|\.planning\|\.handoff\|docs/\|\.claude/skills"` returns zero hits for path-style references (i.e. no `cd banking_*`, no `require('../../banking_*')`).
 2. `cd demo_api_ui && npm run build` exits 0.
 3. `npm test` from repo root passes (same suite as before).
 4. `./run.sh status` shows all services healthy.

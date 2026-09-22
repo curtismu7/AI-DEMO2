@@ -13,7 +13,7 @@ The current startup process has several failure modes that make demos unreliable
 2. **Silent failures** — When a service times out, there's no log snippet shown. The user must manually find and tail the right log file.
 3. **Flat launch order** — All 8 services launch as a pile. Services that depend on the API server or gateway start before those dependencies are healthy.
 4. **`ensure_service_env` race** — Env symlinks are created just before each service launches, meaning a service can attempt to start before its `.env` is in place.
-5. **Inconsistent service hardening** — HITL, mortgage, and MCP Invest services have no env validation, weak/no graceful shutdown, and minimal health endpoint detail.
+5. **Inconsistent service hardening** — HITL, mortgage, and Demo MCP Resource Server services have no env validation, weak/no graceful shutdown, and minimal health endpoint detail.
 
 ---
 

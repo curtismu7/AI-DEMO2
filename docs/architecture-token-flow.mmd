@@ -45,9 +45,9 @@ flowchart LR
 
   EXT["External agent<br/>N8N · Bedrock · custom<br/>POST /api/agent/delegate"]:::agent
 
-  subgraph GW["Ping Agent Gateway · HITL"]
+  subgraph GW["Demo Agent Gateway · HITL"]
     direction TB
-    GATE["Ping Agent Gateway :3005<br/>JSON-RPC over WS<br/>token passthrough (no re-exchange)<br/>PingOne Authorize policy gate"]:::gw
+    GATE["Demo Agent Gateway :3005<br/>JSON-RPC over WS<br/>token passthrough (no re-exchange)<br/>PingOne Authorize policy gate"]:::gw
     HITL["HITL Service :3009<br/>POST /challenges · poll"]:::hitl
   end
 
@@ -79,7 +79,7 @@ flowchart LR
   %% External agent → BFF (scenario I)
   EXT -.->|"POST /api/agent/delegate"| SRV
 
-  %% BFF → Ping Agent Gateway (delegated token from RFC 8693 exchange, forwarded unchanged)
+  %% BFF → Demo Agent Gateway (delegated token from RFC 8693 exchange, forwarded unchanged)
   SRV -->|"WS · JSON-RPC + delegated token (aud=mcp-gw)"| GATE
 
   %% BFF → PingOne (RFC 8693 only — introspect happens at gateway, not BFF)

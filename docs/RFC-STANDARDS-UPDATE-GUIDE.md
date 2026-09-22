@@ -3,8 +3,8 @@
 **Status:** ✅ Education component complete. Ready to integrate into RFC-STANDARDS.md.
 
 **What was created:**
-1. ✅ Interactive React component with tabs: `banking_api_ui/src/components/OAuthSpecsEducationPanel.jsx`
-2. ✅ Component styles: `banking_api_ui/src/components/OAuthSpecsEducationPanel.css`
+1. ✅ Interactive React component with tabs: `demo_api_ui/src/components/OAuthSpecsEducationPanel.jsx`
+2. ✅ Component styles: `demo_api_ui/src/components/OAuthSpecsEducationPanel.css`
 3. ✅ Enhanced documentation: See content below
 
 ---
@@ -22,7 +22,7 @@ Replace sections in `docs/RFC-STANDARDS.md` with the enhanced version provided i
 
 ### Step 2: Integrate React Component into UI
 
-**Location:** `banking_api_ui/src/components/`  
+**Location:** `demo_api_ui/src/components/`  
 **Files ready to use:**
 - `OAuthSpecsEducationPanel.jsx` (component)
 - `OAuthSpecsEducationPanel.css` (styles)
@@ -44,7 +44,7 @@ export default function AdminSettingsPage() {
 ### Step 3: Build & Verify
 
 ```bash
-cd banking_api_ui
+cd demo_api_ui
 npm run build
 # Exit code must be 0
 ```
@@ -60,10 +60,10 @@ npm run build
 ```markdown
 ## Interactive Education Component
 
-📚 **For learners/evaluators:** The Banking Demo includes an interactive tabbed 
+📚 **For learners/evaluators:** The AI Demo includes an interactive tabbed 
 interface explaining each RFC standard:
 
-- **Location:** `banking_api_ui/src/components/OAuthSpecsEducationPanel.jsx`
+- **Location:** `demo_api_ui/src/components/OAuthSpecsEducationPanel.jsx`
 - **Access in UI:** Admin → Settings → OAuth Standards Education (when integrated)
 - **Features:**
   - ✅ Tabs for each implemented RFC
@@ -153,8 +153,8 @@ TOKEN_EXCHANGE_AUDIT_ENABLED=true       # Log transaction events
 ### Check Current Mode
 
 ```bash
-# banking_api_server/.env
-grep "TOKEN_EXCHANGE_MODE\|TOKEN_EXCHANGE_AUTO" banking_api_server/.env
+# demo_api_server/.env
+grep "TOKEN_EXCHANGE_MODE\|TOKEN_EXCHANGE_AUTO" demo_api_server/.env
 ```
 
 **Output if using RFC 8693 (default):**
@@ -174,11 +174,11 @@ TOKEN_EXCHANGE_AUTO_FALLBACK=true
 ```bash
 # Enable
 sed -i '' 's/^# TOKEN_EXCHANGE_MODE=transaction-tokens/TOKEN_EXCHANGE_MODE=transaction-tokens/' 
-banking_api_server/.env
+demo_api_server/.env
 
 # Disable (fallback to RFC 8693)
 sed -i '' 's/^TOKEN_EXCHANGE_MODE=transaction-tokens/# TOKEN_EXCHANGE_MODE=transaction-tokens/' 
-banking_api_server/.env
+demo_api_server/.env
 
 # Restart
 ./run-demo.sh
@@ -187,8 +187,8 @@ banking_api_server/.env
 ### Local Component Reference
 
 The interactive tabbed education guide is located at:
-- **React Component:** `banking_api_ui/src/components/OAuthSpecsEducationPanel.jsx`
-- **Styles:** `banking_api_ui/src/components/OAuthSpecsEducationPanel.css`
+- **React Component:** `demo_api_ui/src/components/OAuthSpecsEducationPanel.jsx`
+- **Styles:** `demo_api_ui/src/components/OAuthSpecsEducationPanel.css`
 - **Integration:** Import into Admin settings page for interactive RFC education
 ```
 
@@ -246,7 +246,7 @@ Tabs scroll horizontally on mobile. Active tab highlighted with blue underline. 
 
 ### In Code
 
-Flags are referenced in `banking_api_server/config/tokenExchangeConfig.js` (created in Phase 198):
+Flags are referenced in `demo_api_server/config/tokenExchangeConfig.js` (created in Phase 198):
 
 ```javascript
 // tokenExchangeConfig.js
@@ -278,8 +278,8 @@ TOKEN_EXCHANGE_AUDIT_ENABLED=false
 ## References
 
 **Component Files:**
-- Created: `banking_api_ui/src/components/OAuthSpecsEducationPanel.jsx` (298 lines)
-- Styles: `banking_api_ui/src/components/OAuthSpecsEducationPanel.css` (380 lines)
+- Created: `demo_api_ui/src/components/OAuthSpecsEducationPanel.jsx` (298 lines)
+- Styles: `demo_api_ui/src/components/OAuthSpecsEducationPanel.css` (380 lines)
 
 **Documentation Files:**
 - This guide: `docs/RFC-STANDARDS-UPDATE-GUIDE.md`
@@ -322,7 +322,7 @@ All diagrams should be stored in `.drawio` format per user preferences (see `doc
 
 **Build verification:**
 ```bash
-cd banking_api_ui && npm run build
+cd demo_api_ui && npm run build
 # Should exit with code 0
 ```
 
@@ -331,4 +331,4 @@ cd banking_api_ui && npm run build
 **Created:** 2026-04-20  
 **Author:** Claude (GitHub Copilot)  
 **Status:** Ready for integration  
-**Affected Files:** `docs/RFC-STANDARDS.md` (to be updated), `banking_api_ui/src/components/` (created)
+**Affected Files:** `docs/RFC-STANDARDS.md` (to be updated), `demo_api_ui/src/components/` (created)

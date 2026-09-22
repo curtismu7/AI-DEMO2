@@ -6,7 +6,7 @@
 
 **Architecture:** Introduce one server SSOT — an `agent_mode` configStore value — that deterministically maps to the existing `(provider, ff_heuristic_enabled)` primitives plus a new `external_wiring` value. The resolver and feature-flag stay the single low-level primitives (T-3 amended for *routing only*; server-side HITL/Authorize enforcement untouched). UI surfaces select a mode, not raw primitives.
 
-**Tech Stack:** Node/Express (banking_api_server, CJS), React/CRA (banking_api_ui), TypeScript gateway (banking_mcp_gateway), Jest.
+**Tech Stack:** Node/Express (demo_api_server, CJS), React/CRA (demo_api_ui), TypeScript gateway (banking_mcp_gateway), Jest.
 
 **Spec:** `docs/superpowers/specs/2026-05-18-five-mode-agent-provider-design.md`
 
@@ -16,19 +16,19 @@
 
 | File | Responsibility | Action |
 |---|---|---|
-| `banking_api_server/services/agentModeResolver.js` | NEW SSOT: map `agent_mode` → `{provider, heuristicRouting, externalWiring}`. Pure function. | Create |
-| `banking_api_server/tests/agentModeResolver.regression.test.js` | Hermetic tests for the mapping. | Create |
-| `banking_api_server/routes/langchainConfig.js` | Accept/return `agent_mode` + `external_wiring` in POST/GET; expose in status. | Modify |
-| `banking_api_server/services/bankingAgentLangGraphService.js` | Gate heuristic routing on resolved mode (not raw flag); Mode-1 no-match catalog message. | Modify |
-| `banking_api_server/services/nlIntentParser.js` | Export the capability catalog as a single source for the Mode-1 message. | Modify |
-| `banking_api_ui/src/hooks/useLangchainProvider.js` | Add `mode`, `externalWiring`, `MODE_OPTIONS`, `setMode`, `setExternalWiring`. | Modify |
-| `banking_api_ui/src/components/AgentModeSelector.jsx` | NEW shared 5-mode selector + 4/5 wiring sub-toggle + degraded banner. | Create |
-| `banking_api_ui/src/components/AgentModeSelector.css` | Styles for the selector + banner. | Create |
-| `banking_api_ui/src/components/Config.js` | Replace raw PROVIDERS `<select>` with `<AgentModeSelector>`. | Modify |
-| `banking_api_ui/src/components/BankingAgent.js` | Replace header provider `<select>` with `<AgentModeSelector compact>`. | Modify |
+| `demo_api_server/services/agentModeResolver.js` | NEW SSOT: map `agent_mode` → `{provider, heuristicRouting, externalWiring}`. Pure function. | Create |
+| `demo_api_server/tests/agentModeResolver.regression.test.js` | Hermetic tests for the mapping. | Create |
+| `demo_api_server/routes/langchainConfig.js` | Accept/return `agent_mode` + `external_wiring` in POST/GET; expose in status. | Modify |
+| `demo_api_server/services/bankingAgentLangGraphService.js` | Gate heuristic routing on resolved mode (not raw flag); Mode-1 no-match catalog message. | Modify |
+| `demo_api_server/services/nlIntentParser.js` | Export the capability catalog as a single source for the Mode-1 message. | Modify |
+| `demo_api_ui/src/hooks/useLangchainProvider.js` | Add `mode`, `externalWiring`, `MODE_OPTIONS`, `setMode`, `setExternalWiring`. | Modify |
+| `demo_api_ui/src/components/AgentModeSelector.jsx` | NEW shared 5-mode selector + 4/5 wiring sub-toggle + degraded banner. | Create |
+| `demo_api_ui/src/components/AgentModeSelector.css` | Styles for the selector + banner. | Create |
+| `demo_api_ui/src/components/Config.js` | Replace raw PROVIDERS `<select>` with `<AgentModeSelector>`. | Modify |
+| `demo_api_ui/src/components/BankingAgent.js` | Replace header provider `<select>` with `<AgentModeSelector compact>`. | Modify |
 | `banking_mcp_gateway` (none) | Live 4b/5b uses existing POST /mcp — no gateway change. | — |
-| `banking_api_server/services/platformAgentRuntime.js` | NEW: live platform-driven loop (OpenAI Responses API / Claude mcp_connector) against the gateway, for modes 4b/5b. | Create |
-| `banking_api_server/tests/platformAgentRuntime.regression.test.js` | Hermetic tests (mocked HTTP) for the platform loop request shape. | Create |
+| `demo_api_server/services/platformAgentRuntime.js` | NEW: live platform-driven loop (OpenAI Responses API / Claude mcp_connector) against the gateway, for modes 4b/5b. | Create |
+| `demo_api_server/tests/platformAgentRuntime.regression.test.js` | Hermetic tests (mocked HTTP) for the platform loop request shape. | Create |
 | `ARCHITECTURE-TRUTHS.md` | Amend T-3 (routing-only). | Modify |
 | `REGRESSION_PLAN.md` | §4 entry + §1 note (HITL enforcement unchanged). | Modify |
 
@@ -37,13 +37,13 @@
 ## Task 1: agentModeResolver (server SSOT)
 
 **Files:**
-- Create: `banking_api_server/services/agentModeResolver.js`
-- Test: `banking_api_server/tests/agentModeResolver.regression.test.js`
+- Create: `demo_api_server/services/agentModeResolver.js`
+- Test: `demo_api_server/tests/agentModeResolver.regression.test.js`
 
 - [ ] **Step 1: Write the failing test**
 
 ```javascript
-// banking_api_server/tests/agentModeResolver.regression.test.js
+// demo_api_server/tests/agentModeResolver.regression.test.js
 const { resolveAgentMode, AGENT_MODES } = require('../services/agentModeResolver');
 
 describe('resolveAgentMode', () => {
@@ -90,13 +90,13 @@ describe('resolveAgentMode', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_server && npx jest tests/agentModeResolver.regression.test.js`
+Run: `cd demo_api_server && npx jest tests/agentModeResolver.regression.test.js`
 Expected: FAIL — "Cannot find module '../services/agentModeResolver'"
 
 - [ ] **Step 3: Write minimal implementation**
 
 ```javascript
-// banking_api_server/services/agentModeResolver.js
+// demo_api_server/services/agentModeResolver.js
 /**
  * Single SSOT mapping the user-facing agent MODE to the low-level
  * primitives (LLM provider, heuristic ROUTING on/off, external wiring).
@@ -136,13 +136,13 @@ module.exports = { resolveAgentMode, AGENT_MODES, DEFAULT_MODE };
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd banking_api_server && npx jest tests/agentModeResolver.regression.test.js`
+Run: `cd demo_api_server && npx jest tests/agentModeResolver.regression.test.js`
 Expected: PASS — 8 passed
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add banking_api_server/services/agentModeResolver.js banking_api_server/tests/agentModeResolver.regression.test.js
+git add demo_api_server/services/agentModeResolver.js demo_api_server/tests/agentModeResolver.regression.test.js
 git commit -m "feat(agent): agentModeResolver SSOT for 5-mode model"
 ```
 
@@ -151,13 +151,13 @@ git commit -m "feat(agent): agentModeResolver SSOT for 5-mode model"
 ## Task 2: nlIntentParser capability catalog (single source for Mode-1 message)
 
 **Files:**
-- Modify: `banking_api_server/services/nlIntentParser.js` (no-match return ~line 325-335)
-- Test: `banking_api_server/tests/nlIntentParser.catalog.test.js` (Create)
+- Modify: `demo_api_server/services/nlIntentParser.js` (no-match return ~line 325-335)
+- Test: `demo_api_server/tests/nlIntentParser.catalog.test.js` (Create)
 
 - [ ] **Step 1: Write the failing test**
 
 ```javascript
-// banking_api_server/tests/nlIntentParser.catalog.test.js
+// demo_api_server/tests/nlIntentParser.catalog.test.js
 const parser = require('../services/nlIntentParser');
 
 describe('capability catalog', () => {
@@ -176,12 +176,12 @@ describe('capability catalog', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_server && npx jest tests/nlIntentParser.catalog.test.js`
+Run: `cd demo_api_server && npx jest tests/nlIntentParser.catalog.test.js`
 Expected: FAIL — `parser.CAPABILITY_CATALOG` undefined
 
 - [ ] **Step 3: Implement — add catalog export + builder, reuse in existing no-match**
 
-In `banking_api_server/services/nlIntentParser.js`, add near the top (after the `EDU` block):
+In `demo_api_server/services/nlIntentParser.js`, add near the top (after the `EDU` block):
 
 ```javascript
 // Single source for the deterministic capability list. The Mode-1
@@ -220,18 +220,18 @@ Add to `module.exports` (find the existing `module.exports = {` line and add the
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd banking_api_server && npx jest tests/nlIntentParser.catalog.test.js`
+Run: `cd demo_api_server && npx jest tests/nlIntentParser.catalog.test.js`
 Expected: PASS — 2 passed
 
 - [ ] **Step 5: Run the existing parser test to ensure no regression**
 
-Run: `cd banking_api_server && npx jest nlIntentParser`
+Run: `cd demo_api_server && npx jest nlIntentParser`
 Expected: PASS (pre-existing nlIntentParser suites still green; if a snapshot of the old message exists, update it to `buildCatalogMessage()` output)
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add banking_api_server/services/nlIntentParser.js banking_api_server/tests/nlIntentParser.catalog.test.js
+git add demo_api_server/services/nlIntentParser.js demo_api_server/tests/nlIntentParser.catalog.test.js
 git commit -m "feat(agent): CAPABILITY_CATALOG single-source for Mode-1 no-match message"
 ```
 
@@ -240,13 +240,13 @@ git commit -m "feat(agent): CAPABILITY_CATALOG single-source for Mode-1 no-match
 ## Task 3: Wire agent_mode into bankingAgentLangGraphService heuristic gate
 
 **Files:**
-- Modify: `banking_api_server/services/bankingAgentLangGraphService.js:513-546` (heuristic gate block)
-- Test: `banking_api_server/tests/agentMode.heuristicGate.test.js` (Create)
+- Modify: `demo_api_server/services/bankingAgentLangGraphService.js:513-546` (heuristic gate block)
+- Test: `demo_api_server/tests/agentMode.heuristicGate.test.js` (Create)
 
 - [ ] **Step 1: Write the failing test**
 
 ```javascript
-// banking_api_server/tests/agentMode.heuristicGate.test.js
+// demo_api_server/tests/agentMode.heuristicGate.test.js
 // Verifies the heuristic ROUTING gate now derives from resolveAgentMode,
 // and Mode-1 no-match yields the catalog message (no LLM fallthrough).
 const { resolveAgentMode } = require('../services/agentModeResolver');
@@ -273,7 +273,7 @@ describe('agent mode → heuristic routing gate', () => {
 
 - [ ] **Step 2: Run test to verify it fails or passes-trivially, then wire the gate**
 
-Run: `cd banking_api_server && npx jest tests/agentMode.heuristicGate.test.js`
+Run: `cd demo_api_server && npx jest tests/agentMode.heuristicGate.test.js`
 Expected: PASS for resolver assertions (Task 1 done); the gate-wiring is verified by Step 4 integration check.
 
 - [ ] **Step 3: Modify the heuristic gate in bankingAgentLangGraphService.js**
@@ -326,13 +326,13 @@ and, immediately AFTER the `if (heuristic && heuristic.kind === 'banking')` bloc
 
 - [ ] **Step 4: Run targeted + integration check**
 
-Run: `cd banking_api_server && npx jest tests/agentMode.heuristicGate.test.js agentReasoningLoop`
+Run: `cd demo_api_server && npx jest tests/agentMode.heuristicGate.test.js agentReasoningLoop`
 Expected: PASS (mode gate tests green; agent reasoning loop unaffected)
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add banking_api_server/services/bankingAgentLangGraphService.js banking_api_server/tests/agentMode.heuristicGate.test.js
+git add demo_api_server/services/bankingAgentLangGraphService.js demo_api_server/tests/agentMode.heuristicGate.test.js
 git commit -m "feat(agent): heuristic routing gate derives from agent_mode (T-3 amended, HITL untouched)"
 ```
 
@@ -341,13 +341,13 @@ git commit -m "feat(agent): heuristic routing gate derives from agent_mode (T-3 
 ## Task 4: langchainConfig route — accept/return agent_mode + external_wiring
 
 **Files:**
-- Modify: `banking_api_server/routes/langchainConfig.js` (POST handler ~line 122; GET status ~line 89-112)
-- Test: `banking_api_server/tests/langchainConfig.agentMode.test.js` (Create)
+- Modify: `demo_api_server/routes/langchainConfig.js` (POST handler ~line 122; GET status ~line 89-112)
+- Test: `demo_api_server/tests/langchainConfig.agentMode.test.js` (Create)
 
 - [ ] **Step 1: Write the failing test**
 
 ```javascript
-// banking_api_server/tests/langchainConfig.agentMode.test.js
+// demo_api_server/tests/langchainConfig.agentMode.test.js
 const request = require('supertest');
 const express = require('express');
 
@@ -394,7 +394,7 @@ describe('langchainConfig agent_mode', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_server && npx jest tests/langchainConfig.agentMode.test.js`
+Run: `cd demo_api_server && npx jest tests/langchainConfig.agentMode.test.js`
 Expected: FAIL — `res.body.agent_mode` undefined
 
 - [ ] **Step 3: Implement in langchainConfig.js**
@@ -450,25 +450,25 @@ In `GET /config/status` final `res.json({ ... })`, add (merge into the existing 
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd banking_api_server && npx jest tests/langchainConfig.agentMode.test.js`
+Run: `cd demo_api_server && npx jest tests/langchainConfig.agentMode.test.js`
 Expected: PASS — 2 passed
 
 - [ ] **Step 5: Run env coverage (configStore must map new keys)**
 
-Add `agent_mode` and `agent_external_wiring` to `envFallbackMap` in `banking_api_server/services/configStore.js` (find `envFallbackMap` object, add):
+Add `agent_mode` and `agent_external_wiring` to `envFallbackMap` in `demo_api_server/services/configStore.js` (find `envFallbackMap` object, add):
 
 ```javascript
       agent_mode:            ['AGENT_MODE'],
       agent_external_wiring: ['AGENT_EXTERNAL_WIRING'],
 ```
 
-Run: `cd banking_api_server && npx jest --testPathPattern='configStore.envCoverage' --no-coverage`
+Run: `cd demo_api_server && npx jest --testPathPattern='configStore.envCoverage' --no-coverage`
 Expected: PASS
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add banking_api_server/routes/langchainConfig.js banking_api_server/services/configStore.js banking_api_server/tests/langchainConfig.agentMode.test.js
+git add demo_api_server/routes/langchainConfig.js demo_api_server/services/configStore.js demo_api_server/tests/langchainConfig.agentMode.test.js
 git commit -m "feat(agent): langchainConfig accepts/returns agent_mode + external_wiring"
 ```
 
@@ -477,15 +477,15 @@ git commit -m "feat(agent): langchainConfig accepts/returns agent_mode + externa
 ## Task 5: platformAgentRuntime (live 4b/5b loop)
 
 **Files:**
-- Create: `banking_api_server/services/platformAgentRuntime.js`
-- Test: `banking_api_server/tests/platformAgentRuntime.regression.test.js`
+- Create: `demo_api_server/services/platformAgentRuntime.js`
+- Test: `demo_api_server/tests/platformAgentRuntime.regression.test.js`
 
 **Context:** Mode 4/5 with `external_wiring='platform'` drives the tool loop via OpenAI Responses API (ChatGPT) or Claude `mcp_connector` (Claude), pointing at the gateway POST /mcp with a BFF-minted gateway-audience token. This module builds + issues that request. The token is obtained via the existing `oauthService.performTokenExchange(subjectToken, gatewayAud, scopes)` (same helper as `scripts/mint-gateway-token.js`).
 
 - [ ] **Step 1: Write the failing test**
 
 ```javascript
-// banking_api_server/tests/platformAgentRuntime.regression.test.js
+// demo_api_server/tests/platformAgentRuntime.regression.test.js
 jest.mock('axios');
 const axios = require('axios');
 const { buildPlatformRequest } = require('../services/platformAgentRuntime');
@@ -515,13 +515,13 @@ describe('buildPlatformRequest', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_server && npx jest tests/platformAgentRuntime.regression.test.js`
+Run: `cd demo_api_server && npx jest tests/platformAgentRuntime.regression.test.js`
 Expected: FAIL — module not found
 
 - [ ] **Step 3: Implement**
 
 ```javascript
-// banking_api_server/services/platformAgentRuntime.js
+// demo_api_server/services/platformAgentRuntime.js
 /**
  * Live platform-driven runtime for agent modes 4b/5b (spec
  * 2026-05-18-five-mode-agent-provider §5). The PLATFORM (OpenAI
@@ -599,7 +599,7 @@ module.exports = { buildPlatformRequest, runPlatformLoop, OPENAI_RESPONSES_URL, 
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd banking_api_server && npx jest tests/platformAgentRuntime.regression.test.js`
+Run: `cd demo_api_server && npx jest tests/platformAgentRuntime.regression.test.js`
 Expected: PASS — 3 passed
 
 - [ ] **Step 5: Wire into bankingAgentLangGraphService (platform branch)**
@@ -642,13 +642,13 @@ In `bankingAgentLangGraphService.js`, immediately after the `_agentMode` resolut
 
 - [ ] **Step 6: Run targeted regression**
 
-Run: `cd banking_api_server && npx jest tests/platformAgentRuntime.regression.test.js agentReasoningLoop`
+Run: `cd demo_api_server && npx jest tests/platformAgentRuntime.regression.test.js agentReasoningLoop`
 Expected: PASS
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add banking_api_server/services/platformAgentRuntime.js banking_api_server/tests/platformAgentRuntime.regression.test.js banking_api_server/services/bankingAgentLangGraphService.js
+git add demo_api_server/services/platformAgentRuntime.js demo_api_server/tests/platformAgentRuntime.regression.test.js demo_api_server/services/bankingAgentLangGraphService.js
 git commit -m "feat(agent): live platform-driven runtime for modes 4b/5b (token chain intentionally degraded)"
 ```
 
@@ -657,13 +657,13 @@ git commit -m "feat(agent): live platform-driven runtime for modes 4b/5b (token 
 ## Task 6: useLangchainProvider hook — add mode + wiring
 
 **Files:**
-- Modify: `banking_api_ui/src/hooks/useLangchainProvider.js`
-- Test: `banking_api_ui/src/hooks/__tests__/useLangchainProvider.test.js` (Create)
+- Modify: `demo_api_ui/src/hooks/useLangchainProvider.js`
+- Test: `demo_api_ui/src/hooks/__tests__/useLangchainProvider.test.js` (Create)
 
 - [ ] **Step 1: Write the failing test**
 
 ```javascript
-// banking_api_ui/src/hooks/__tests__/useLangchainProvider.test.js
+// demo_api_ui/src/hooks/__tests__/useLangchainProvider.test.js
 import { renderHook, act, waitFor } from '@testing-library/react';
 import useLangchainProvider from '../useLangchainProvider';
 
@@ -693,12 +693,12 @@ test('hydrates mode + wiring; setMode posts and updates', async () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_ui && CI=true npx react-scripts test --watchAll=false --testPathPattern='useLangchainProvider'`
+Run: `cd demo_api_ui && CI=true npx react-scripts test --watchAll=false --testPathPattern='useLangchainProvider'`
 Expected: FAIL — `result.current.mode` undefined
 
 - [ ] **Step 3: Implement — add mode state to the hook**
 
-In `banking_api_ui/src/hooks/useLangchainProvider.js`:
+In `demo_api_ui/src/hooks/useLangchainProvider.js`:
 
 Replace the `PROVIDER_OPTIONS` export's helix label and add mode constants below it:
 
@@ -764,13 +764,13 @@ Add to the returned object:
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd banking_api_ui && CI=true npx react-scripts test --watchAll=false --testPathPattern='useLangchainProvider'`
+Run: `cd demo_api_ui && CI=true npx react-scripts test --watchAll=false --testPathPattern='useLangchainProvider'`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add banking_api_ui/src/hooks/useLangchainProvider.js banking_api_ui/src/hooks/__tests__/useLangchainProvider.test.js
+git add demo_api_ui/src/hooks/useLangchainProvider.js demo_api_ui/src/hooks/__tests__/useLangchainProvider.test.js
 git commit -m "feat(ui): useLangchainProvider exposes 5-mode model + external wiring"
 ```
 
@@ -779,14 +779,14 @@ git commit -m "feat(ui): useLangchainProvider exposes 5-mode model + external wi
 ## Task 7: AgentModeSelector component (shared selector + banner)
 
 **Files:**
-- Create: `banking_api_ui/src/components/AgentModeSelector.jsx`
-- Create: `banking_api_ui/src/components/AgentModeSelector.css`
-- Test: `banking_api_ui/src/components/__tests__/AgentModeSelector.test.jsx`
+- Create: `demo_api_ui/src/components/AgentModeSelector.jsx`
+- Create: `demo_api_ui/src/components/AgentModeSelector.css`
+- Test: `demo_api_ui/src/components/__tests__/AgentModeSelector.test.jsx`
 
 - [ ] **Step 1: Write the failing test**
 
 ```javascript
-// banking_api_ui/src/components/__tests__/AgentModeSelector.test.jsx
+// demo_api_ui/src/components/__tests__/AgentModeSelector.test.jsx
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import AgentModeSelector from '../AgentModeSelector';
 
@@ -817,13 +817,13 @@ test('shows degraded banner only when external mode + platform wiring', () => {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `cd banking_api_ui && CI=true npx react-scripts test --watchAll=false --testPathPattern='AgentModeSelector'`
+Run: `cd demo_api_ui && CI=true npx react-scripts test --watchAll=false --testPathPattern='AgentModeSelector'`
 Expected: FAIL — module not found
 
 - [ ] **Step 3: Implement the component**
 
 ```jsx
-// banking_api_ui/src/components/AgentModeSelector.jsx
+// demo_api_ui/src/components/AgentModeSelector.jsx
 import React from "react";
 import useLangchainProvider from "../hooks/useLangchainProvider";
 import "./AgentModeSelector.css";
@@ -886,7 +886,7 @@ export default function AgentModeSelector({ compact = false }) {
 ```
 
 ```css
-/* banking_api_ui/src/components/AgentModeSelector.css */
+/* demo_api_ui/src/components/AgentModeSelector.css */
 .ams { display: flex; flex-direction: column; gap: 8px; }
 .ams--compact { flex-direction: row; align-items: center; gap: 10px; }
 .ams-label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; }
@@ -906,13 +906,13 @@ export default function AgentModeSelector({ compact = false }) {
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cd banking_api_ui && CI=true npx react-scripts test --watchAll=false --testPathPattern='AgentModeSelector'`
+Run: `cd demo_api_ui && CI=true npx react-scripts test --watchAll=false --testPathPattern='AgentModeSelector'`
 Expected: PASS — 2 passed
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add banking_api_ui/src/components/AgentModeSelector.jsx banking_api_ui/src/components/AgentModeSelector.css banking_api_ui/src/components/__tests__/AgentModeSelector.test.jsx
+git add demo_api_ui/src/components/AgentModeSelector.jsx demo_api_ui/src/components/AgentModeSelector.css demo_api_ui/src/components/__tests__/AgentModeSelector.test.jsx
 git commit -m "feat(ui): AgentModeSelector — 5-mode selector + wiring sub-toggle + degraded banner"
 ```
 
@@ -921,8 +921,8 @@ git commit -m "feat(ui): AgentModeSelector — 5-mode selector + wiring sub-togg
 ## Task 8: Mount AgentModeSelector in Config.js + BankingAgent header
 
 **Files:**
-- Modify: `banking_api_ui/src/components/Config.js` (PROVIDERS `<select>` region ~531-664)
-- Modify: `banking_api_ui/src/components/BankingAgent.js` (header `<select>` ~6534-6556)
+- Modify: `demo_api_ui/src/components/Config.js` (PROVIDERS `<select>` region ~531-664)
+- Modify: `demo_api_ui/src/components/BankingAgent.js` (header `<select>` ~6534-6556)
 
 - [ ] **Step 1: Replace Config.js provider select with AgentModeSelector**
 
@@ -958,18 +958,18 @@ Remove the now-unused `useLangchainProvider` destructuring added in the earlier 
 
 - [ ] **Step 3: UI build gate (mandatory, must exit 0)**
 
-Run: `cd banking_api_ui && npm run build`
+Run: `cd demo_api_ui && npm run build`
 Expected: exit 0 (CRA "compiled successfully" / deployment hint)
 
 - [ ] **Step 4: Run UI unit tests for the two components**
 
-Run: `cd banking_api_ui && CI=true npx react-scripts test --watchAll=false --testPathPattern='AgentModeSelector|BankingAgent'`
+Run: `cd demo_api_ui && CI=true npx react-scripts test --watchAll=false --testPathPattern='AgentModeSelector|BankingAgent'`
 Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add banking_api_ui/src/components/Config.js banking_api_ui/src/components/BankingAgent.js
+git add demo_api_ui/src/components/Config.js demo_api_ui/src/components/BankingAgent.js
 git commit -m "feat(ui): mount AgentModeSelector in Config + BankingAgent header"
 ```
 
@@ -1014,17 +1014,17 @@ git commit -m "docs: amend T-3 (routing-only) + REGRESSION_PLAN §4 for five-mod
 
 - [ ] **Step 1: Server regression suite**
 
-Run: `cd banking_api_server && npx jest tests/agentModeResolver.regression tests/nlIntentParser.catalog tests/agentMode.heuristicGate tests/langchainConfig.agentMode tests/platformAgentRuntime.regression tests/llmProviderResolver.regression oauthStatus.regression hitlRoute.regression`
+Run: `cd demo_api_server && npx jest tests/agentModeResolver.regression tests/nlIntentParser.catalog tests/agentMode.heuristicGate tests/langchainConfig.agentMode tests/platformAgentRuntime.regression tests/llmProviderResolver.regression oauthStatus.regression hitlRoute.regression`
 Expected: ALL PASS (including the unchanged HITL/oauth regressions — proves §1 enforcement intact)
 
 - [ ] **Step 2: UI build gate**
 
-Run: `cd banking_api_ui && npm run build`
+Run: `cd demo_api_ui && npm run build`
 Expected: exit 0
 
 - [ ] **Step 3: UI unit suite (the pre-commit set)**
 
-Run: `cd banking_api_ui && npm run test:unit -- --watchAll=false --passWithNoTests --forceExit`
+Run: `cd demo_api_ui && npm run test:unit -- --watchAll=false --passWithNoTests --forceExit`
 Expected: all suites pass (App.session included — confirms no regression)
 
 - [ ] **Step 4: Manual smoke checklist (record results in the §4 entry)**
