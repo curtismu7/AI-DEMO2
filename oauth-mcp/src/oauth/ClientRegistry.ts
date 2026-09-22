@@ -187,8 +187,10 @@ export class ClientRegistry {
         redirect_uris: [],
         token_endpoint_auth_method: 'none',
         // Mirrors scope-topology.json's Super Banking MCP Server mirroredScopes
-        // that gateway tools require: `transfer` is what create_transfer needs.
-        scope: 'mcp:invoke read write transfer',
+        // in full: resolveScope() intersects the redemption request with this
+        // list, so a partial list silently drops per-tool scopes (accounts:read
+        // etc.) and every PF-mode tool call DENY'd with insufficient_scope.
+        scope: 'read accounts:read write transfer mortgage:read largepurchase:read records:read gear:read expense:read permits:read transcript:read tax:read finaid:read supplier:read purchase:read membership:read payroll:read holdings:read identity:read invest:read airlines:read airlines:write pnr:read ai:agent:read admin:read admin:write admin:delete users:read users:manage workorders:read sensitive:read code:search audit:read',
       },
     ];
     for (const c of defaults) {
