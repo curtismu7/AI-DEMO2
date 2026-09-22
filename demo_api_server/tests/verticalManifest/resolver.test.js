@@ -187,6 +187,23 @@ describe('resolver', () => {
       _configStoreState.vertical_theme_overrides_demo = '{ not json';
       expect(resolver.resolve('demo').theme.cssVars).toEqual({ '--x': '#000' });
     });
+
+    test('uploaded logo derives identity.logoUrl; absent logo leaves identity untouched', () => {
+      expect(resolver.resolve('demo').identity.logoUrl).toBeUndefined();
+      resolver.logos.put('demo', { data: 'aGk=', mimeType: 'image/png' });
+      expect(resolver.resolve('demo').identity.logoUrl).toBe('/api/verticals/demo/logo');
+      expect(resolver.resolve('demo').identity.displayName).toBe('Demo');
+      resolver.logos.clear('demo');
+      expect(resolver.resolve('demo').identity.logoUrl).toBeUndefined();
+    });
+
+    test('resolver cache invalidates on logo write', () => {
+      const before = resolver.resolve('demo');
+      resolver.logos.put('demo', { data: 'aGk=', mimeType: 'image/png' });
+      const after = resolver.resolve('demo');
+      expect(before.identity.logoUrl).toBeUndefined();
+      expect(after.identity.logoUrl).toBe('/api/verticals/demo/logo');
+    });
   });
 
   test('removeFromCache evicts both resolver cache and loader entry', () => {

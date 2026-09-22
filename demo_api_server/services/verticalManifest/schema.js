@@ -119,6 +119,10 @@ const ManifestSchema = z.object({
     logoAlt: z.string().optional(),
     tagline: z.string().optional(),
     logoPath: z.string().optional(),
+    // Derived by the resolver when an admin has uploaded a logo (logo:<id> in
+    // verticalStore); not settable via seeds/overlays. UI fallback chain:
+    // logoUrl -> logoPath -> default icon.
+    logoUrl: z.string().optional(),
     // Optional react-icons/md name (e.g. "MdLocalHospital") for the header brand
     // icon. Falls back to the default bank icon in the UI when absent/unknown.
     icon: z.string().optional(),

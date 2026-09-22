@@ -2,6 +2,7 @@
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
+const multer = require('multer');
 const { verticalManifest } = require('../services/verticalManifest');
 const { fetchBrand } = require('../services/brandfetch');
 
@@ -9,6 +10,15 @@ const router = express.Router();
 
 const PROTECTED_IDS = new Set(['banking', 'admin-console']);
 const ID_REGEX = /^[a-z][a-z0-9-]*$/;
+
+// Uploaded vertical logos — stored in verticalStore LMDB (logo:<id> keys), so a
+// skin is fully DB-configurable with no asset copies into demo_api_ui/public/.
+const LOGO_MIME_RE = /^image\/(png|jpeg|svg\+xml|webp)$/;
+const LOGO_MAX_BYTES = 2 * 1024 * 1024;
+const logoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: LOGO_MAX_BYTES, files: 1 },
+});
 
 function requireSession(req, res, next) {
   if (!req.user) return res.status(401).json({ error: 'unauthenticated' });
@@ -88,6 +98,51 @@ router.get('/stream', (req, res) => {
   // require auth — VerticalProvider falls back gracefully to /me after timeout.
   verticalManifest.events.onClient(req, res);
   // Don't end — the client keeps it open until they disconnect.
+});
+
+// ---- Uploaded logos ----
+
+function _knownVertical(id) {
+  return verticalManifest.listAll().some((v) => v.id === id);
+}
+
+// Wrapped mutators (resolver.logos) invalidate the resolver cache and fire
+// vertical-edited, mirroring resolver.themes. Raw store read for GET bytes.
+const logos = () => verticalManifest.resolver.logos;
+
+// GET the uploaded logo bytes. Public on purpose (matches /:id/hero): brand
+// chrome must render pre-login. 404 so the UI falls back to identity.logoPath /
+// the default icon.
+router.get('/:id/logo', requireValidId, (req, res) => {
+  const logo = verticalManifest.store.getLogo(req.params.id);
+  if (!logo) return res.status(404).json({ error: 'no uploaded logo' });
+  res.set('Content-Type', logo.mimeType);
+  res.set('Cache-Control', 'no-cache'); // skin changes must be visible immediately
+  res.send(Buffer.from(logo.data, 'base64'));
+});
+
+// POST an uploaded logo (multipart field "logo"). Admin-only: it changes what
+// every visitor sees for the vertical, like the overlay/theme write paths.
+router.post('/:id/logo', requireAdmin, requireValidId, logoUpload.single('logo'), (req, res) => {
+  const id = req.params.id;
+  if (!_knownVertical(id)) return res.status(404).json({ error: 'unknown id' });
+  if (!req.file) return res.status(400).json({ error: 'logo file required (multipart field "logo")' });
+  if (!LOGO_MIME_RE.test(req.file.mimetype)) {
+    return res.status(400).json({ error: 'logo must be image/png, image/jpeg, image/svg+xml, or image/webp' });
+  }
+  logos().put(id, {
+    data: req.file.buffer.toString('base64'),
+    mimeType: req.file.mimetype,
+  });
+  res.json({ ok: true, logoUrl: `/api/verticals/${id}/logo` });
+});
+
+// DELETE the uploaded logo — the vertical falls back to identity.logoPath.
+router.delete('/:id/logo', requireAdmin, requireValidId, (req, res) => {
+  const id = req.params.id;
+  if (!_knownVertical(id)) return res.status(404).json({ error: 'unknown id' });
+  logos().clear(id);
+  res.json({ ok: true });
 });
 
 /**

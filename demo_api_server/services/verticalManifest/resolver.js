@@ -120,6 +120,22 @@ function createResolver(loader, overlay, store, { onEvent } = { onEvent: () => {
     listIds: () => store.listThemeIds(),
   } : null;
 
+  // Wrapped logo mutators (same contract as wrappedThemes): cache invalidation
+  // + vertical-edited events. resolve() derives identity.logoUrl from logo:<id>.
+  const wrappedLogos = typeof store.setLogo === 'function' ? {
+    get: (id) => store.getLogo(id),
+    put: (id, logo) => {
+      store.setLogo(id, logo);
+      _bump(id);
+      onEvent('vertical-edited', { id });
+    },
+    clear: (id) => {
+      store.clearLogo(id);
+      _bump(id);
+      onEvent('vertical-edited', { id });
+    },
+  } : null;
+
   function resolve(id) {
     const seed = loader.get(id);
     if (!seed) return null;
@@ -142,6 +158,11 @@ function createResolver(loader, overlay, store, { onEvent } = { onEvent: () => {
         ...merged.theme,
         cssVars: { ...((merged.theme && merged.theme.cssVars) || {}), ...themeOverrides },
       };
+    }
+    // Uploaded logo (logo:<id>) wins over identity.logoPath — the UI's fallback
+    // chain is logoUrl -> logoPath -> default icon.
+    if (typeof store.getLogo === 'function' && merged.identity && store.getLogo(id)) {
+      merged.identity = { ...merged.identity, logoUrl: `/api/verticals/${id}/logo` };
     }
     // Force id and schemaVersion — overlay cannot change them.
     merged.id = seed.manifest.id;
@@ -206,7 +227,7 @@ function createResolver(loader, overlay, store, { onEvent } = { onEvent: () => {
     onEvent('vertical-switched', { activeId: id });
   }
 
-  return { resolve, reload, removeFromCache, activeId, activeIdFor, setActive, overlay: wrappedOverlay, themes: wrappedThemes, loader };
+  return { resolve, reload, removeFromCache, activeId, activeIdFor, setActive, overlay: wrappedOverlay, themes: wrappedThemes, logos: wrappedLogos, loader };
 }
 
 module.exports = { createResolver };
