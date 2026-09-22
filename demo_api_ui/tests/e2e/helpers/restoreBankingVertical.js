@@ -1,5 +1,5 @@
 // demo_api_ui/tests/e2e/helpers/restoreBankingVertical.js
-// Playwright globalTeardown: put the live stack's process-global vertical
+// Playwright globalTeardown: put the live stack's process-global vertical (default: airlines since 2026-09-22)
 // back on banking after *.real.spec.js runs (CareConnect / retail suites).
 'use strict';
 
@@ -53,7 +53,7 @@ async function restoreBankingVertical() {
   const base = process.env.E2E_API_BASE || 'https://api.ping.demo:3001';
   const r = await axios.post(
     `${base}/api/verticals/active`,
-    { id: 'banking' },
+    { id: process.env.E2E_RESTORE_VERTICAL || 'airlines' },
     { httpsAgent, headers: { Cookie: cookie }, validateStatus: () => true },
   );
   console.log(`[restoreBankingVertical] POST banking → HTTP ${r.status}`);
