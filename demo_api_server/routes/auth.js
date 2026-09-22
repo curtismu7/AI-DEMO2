@@ -179,10 +179,17 @@ router.get('/session', (req, res) => {
 // Get current user
 router.get('/me', authenticateToken, (req, res) => {
   try {
-    // PingFederate tokens carry sub=username (not the local store's numeric id),
-    // so an id lookup can miss. Fall back to a username lookup before 404-ing.
-    const user = dataStore.getUserById(req.user.id)
-      || dataStore.getUserByUsername(req.user.username || req.user.sub);
+    // PingFederate tokens carry sub as the IdP user key (PingOne UUID), not the
+    // local store's numeric id, and legacy store records can exist keyed by that
+    // UUID with stale roles. The session/callback path already reconciles identity
+    // by username (see routes/oauth.js), so prefer a username lookup and only fall
+    // back to id. PingOne tokens with UUID subs still resolve via the session
+    // user's username (also set from userinfo).
+    const sessionUser = req.session?.user;
+    const user = (sessionUser?.username && dataStore.getUserByUsername(sessionUser.username))
+      || (req.user.username && dataStore.getUserByUsername(req.user.username))
+      || dataStore.getUserById(req.user.id)
+      || dataStore.getUserByUsername(req.user.sub);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
