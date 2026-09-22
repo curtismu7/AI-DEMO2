@@ -1238,6 +1238,36 @@ const RAW_USE_CASES = [
     primaryTool: null,
   },
   {
+    id: 'UC16b',
+    useCaseId: 'raw-user-token-forwarding-blocked',
+    track: 'attacks',
+    title: 'Raw user-token forwarding blocked (Zero Trust)',
+    buyerStory: 'The agent must never hold or forward the user\'s raw access token — only scoped, exchanged agent tokens may leave the BFF.',
+    pingOneSolution: 'The BFF performs RFC 8693 token exchange and enforces ff_skip_token_exchange fail-closed: an attempt to resolve a tool token by raw user-token forwarding is blocked with 403 user_token_forwarding_disabled at the source.',
+    trigger: { type: 'attack', sim: 'raw-user-token-forwarding' },
+    expectedOutcome: 'DENY_403',
+    // BFF-level deny: the custody guard fires inside agentMcpTokenService BEFORE
+    // any gateway or Authorize call, so no 'authorize-decision' evidence exists.
+    evidence: { tokenChain: ['user-token', 'exchange-skipped'], activity: ['token'] },
+    codeRefs: [
+      'demo_api_server/services/agentMcpTokenService.js',
+      'demo_api_server/services/agentPreflightService.js',
+      'demo_api_server/services/bffMcpToolExecutor.js',
+    ],
+    maturity: 'works',
+    owasp: { threats: ['T9'], sections: ['§4.1.1'] },
+    whatToSay: 'The agent tried to hand MCP the user\'s own token — the BFF refused to forward it. Only exchanged, agent-scoped tokens with an act claim ever leave the BFF. Zero Trust.',
+    advanced: false,
+    whatLong: 'An agent attempts to call an MCP tool by presenting the user\'s raw access token directly — no RFC 8693 exchange, no act claim, no scope narrowing. The BFF is the sole browser-token custodian and enforces the custody rule fail-closed: ff_skip_token_exchange arms the deny path, and agentMcpTokenService blocks the resolution with 403 user_token_forwarding_disabled before any gateway or Authorize call is made. The sim self-arms the flag, runs the real production resolver, and restores the prior flag value afterward.',
+    businessValue: 'Token custody is enforced at the source, not downstream. The user token never crosses a process boundary to the agent runtime, the gateway, or the LLM context — eliminating confused-deputy and token-theft exposure at the widest attack surface: the agent itself.',
+    productRoles: {
+      idp:   'Issues the user access token the agent attempts to forward.',
+      bff:   'Refuses to forward the raw user token to MCP; only RFC 8693-exchanged, agent-scoped tokens leave the BFF (fail-closed ff_skip_token_exchange guard).',
+      gw:    'Never reached on this path — the block fires at the BFF source, which is the demonstration point.',
+    },
+    primaryTool: null,
+  },
+  {
     id: 'UC17',
     useCaseId: 'jit-ephemeral-credentials',
     track: 'controls',

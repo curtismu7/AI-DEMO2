@@ -22,6 +22,7 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC38** — Workload Agent: Digital Assistant — Personal Concierge](./personal-agent-concierge.md) 🚩 🛡️
 - [**UC43** — Consumer & Partner Agent — CIMD registration](./consumer-partner-agent-cimd-registration.md) ✅ 🛡️
 - [**UC44** — Workload Agent: Digital Assistant — OBO](./workload-digital-assistant-obo.md) ✅ 🛡️
+- [**UC45** — SaaS-Embedded Agent — Website Worker](./saas-embedded-worker.md) ✅ 🛡️
 
 ## Demo
 
@@ -57,6 +58,7 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC14** — PAR + RAR intent violation (pushed intent exceeded)](./par-rar-intent-violation.md) 🚩 🛡️
 - [**UC15** — Intent-token tampering](./intent-token-tampering.md) 🏗️ 🛡️
 - [**UC16** — Impersonation blocked (OBO required)](./impersonation-blocked.md) ✅ 🛡️
+- [**UC16b** — Raw user-token forwarding blocked (Zero Trust)](./raw-user-token-forwarding-blocked.md) ✅ 🛡️
 - [**UC18** — Rate-limit / resource-overload defense](./rate-limit-defense.md) ✅ 🛡️
 - [**UC29** — OAuth introspection outage — fail closed](./oauth-fail-closed.md) 🏗️ 🛡️
 

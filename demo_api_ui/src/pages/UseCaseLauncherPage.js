@@ -80,6 +80,7 @@ const RUNNABLE_SIMS = [
   'tampered-intent-token',
   'impersonation-no-act',
   'rate-limit-burst',
+  'raw-user-token-forwarding',
 ];
 
 /**
