@@ -118,33 +118,62 @@ describe("ID4AI Academy HTML preview", () => {
     });
   });
 
-  it("keeps Mock available while clearly disabling an unready Real run", () => {
+  it("keeps Mock available while Real reports probe result, and Recorded stays fixture-less", async () => {
     const dom = loadPreview();
     const { document } = dom.window;
-    const mockButton = document.querySelector('[data-source-target="mock"]');
     const realButton = document.querySelector('[data-source-target="real"]');
+    const mockButton = document.querySelector('[data-source-target="mock"]');
 
     expect(document.body.dataset.runSource).toBe("mock");
     expect(mockButton.disabled).toBe(false);
 
+    // Ready tenant: probe succeeds with configured endpoints.
+    dom.window.fetch = async (url) => {
+      if (url === "/api/health/readiness") {
+        return { json: async () => ({ configured: true }) };
+      }
+      if (url === "/api/health/introspection") {
+        return { json: async () => ({ status: "connected" }) };
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    };
     realButton.click();
+    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(document.body.dataset.runSource).toBe("real");
+    expect(document.querySelector("[data-readiness-title]").textContent).toBe(
+      "Real tenant is ready",
+    );
+    expect(document.querySelector("[data-readiness-copy]").textContent).not.toContain(
+      "not configured",
+    );
+    expect(document.querySelector("[data-source-badge]").textContent).toBe("REAL");
+    // Real never enables the in-page mock runner.
     expect(document.querySelector("[data-run-action]").disabled).toBe(true);
-    expect(document.querySelector("[data-readiness-copy]").textContent).toContain(
-      "Real mode is not configured",
-    );
-    expect(document.querySelector("[data-source-badge]").textContent).toBe(
-      "REAL — UNAVAILABLE",
-    );
     expect(document.querySelector('[data-source-target="mock"]').disabled).toBe(
       false,
     );
 
-    document.querySelector('[data-lesson-target="login"]').click();
-    expect(document.querySelector("[data-run-status]").textContent).toContain(
-      "Real mode selected",
+    // Unreachable tenant keeps the honest unavailable message.
+    const domDown = loadPreview();
+    const downDocument = domDown.window.document;
+    downDocument.defaultView.fetch = async () => {
+      throw new Error("connection refused");
+    };
+    downDocument.querySelector('[data-source-target="real"]').click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(downDocument.querySelector("[data-readiness-title]").textContent).toBe(
+      "Real needs tenant setup",
     );
+    expect(downDocument.querySelector("[data-source-badge]").textContent).toBe(
+      "REAL — UNAVAILABLE",
+    );
+
+    // Back on the ready dom: mock still works.
+    mockButton.click();
+    expect(document.body.dataset.runSource).toBe("mock");
+    expect(document.querySelector("[data-run-action]").disabled).toBe(false);
 
     document.querySelector('[data-source-target="recorded"]').click();
     expect(document.querySelector("[data-run-action]").disabled).toBe(true);
