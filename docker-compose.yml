@@ -648,6 +648,11 @@ services:
     # Mapping the name to the host lets that published port answer.
     extra_hosts:
       - "api.ping.demo:host-gateway"
+      # PF publishes 9031 on the host; the mkcert SAN covers local.ping-devops.com
+      # (not any compose-network name), so the BFF's PF issuer/discovery fetches
+      # (config/oauth.js, health oauth_provider probe) must leave via the host —
+      # same mapping mcp-server/ping-gateway/mcp-resource-server already carry.
+      - "local.ping-devops.com:host-gateway"
     group_add:
       - "0"
     networks:
