@@ -9,7 +9,7 @@ await p.locator('button:has-text("Sign In")').first().click({ force: true }).cat
 await p.waitForURL(/9031/, { timeout: 20000 }).catch(() => {});
 await p.waitForTimeout(3000);
 await p.locator('#username').fill('demoUser');
-await p.locator('#password').fill('Harbor29-Falcon9');
+await p.locator('#password').fill('DemoUser-2026!b');
 await p.keyboard.press('Enter');
 await p.waitForTimeout(12000);
 await p.screenshot({ path: '/tmp/davinci.png' });
