@@ -169,6 +169,55 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-22 — PF-mode tool calls all DENY'd: per-tool scopes dropped at three links in the ID-JAG chain
+
+**Files changed:** `demo_api_server/services/agentMcpTokenService.js` (PR #143),
+`oauth-mcp/src/oauth/ClientRegistry.ts` (PR #144), PingFederate runtime config
+(`aiDemoPfIdJagPolicy` scope fulfillment, `aiDemoPfIdJagSp`
+processorPolicyMappings scope, exchanger client `restrictedScopes`) — PF
+runtime config, not repo files.
+
+**What was broken:** with `OAUTH_PROVIDER=pingfederate`, every real tool
+call (e.g. `get_my_accounts`) reached the gateway with a final token whose
+scope was only `mcp:invoke`, so the scope backstop DENY'd everything with
+`insufficient_scope: missing accounts:read` while tool *discovery* (which
+needs no per-tool scopes) stayed green — masking the break (0 gateway
+PERMITs all day). Three links each dropped scopes:
+1. `resolvePingFederateIdJagToken` overrode the caller's resolved
+   per-tool scopes with `PF_ID_JAG_SCOPE` (mcp:invoke) unconditionally.
+2. PF's ID-JAG SP connection mapping passed requested scopes through
+   verbatim (`#context.OAuthScopes`), so unconsented scopes could leak;
+   the request-side fix (1) plus the exchanger client's
+   `restrictedScopes` cap is the enforceable bound — PF's TE mappings
+   cannot see the subject grant's scope (the refresh processor's
+   `scope` attr mirrors the request, and `#context.OAuthScopes` in the
+   SP mapping context is null).
+3. `oauth-mcp`'s `demo-bff-mcp-client` was registered with a 4-scope
+   subset, so `TokenIssuer.resolveScope()` dropped `accounts:read` from
+   the final token even when the ID-JAG carried it.
+
+**What was fixed:** (1) per-tool scopes (`toolCandidateScopes ∩ user
+token scopes`, same RFC 8693 §2.1 resolution as PingOne mode) now win,
+unioned with `PF_ID_JAG_SCOPE` as fallback; (2) SP mapping scope = the
+processor policy's `scope` attribute, which the policy fulfills from
+`#context.OAuthScopes` (requested), and the exchanger client
+(`f4dd707d`) is restricted to the demo scope set — escalation attempts
+beyond that list are rejected by PF; (3) `demo-bff-mcp-client` now
+registers the full `mirroredScopes` list from scope-topology.json.
+
+**Do not break:** `middleware/auth.js` aud checks untouched; the
+`requireNotAdmin` customer-only guards untouched; the two-exchange and
+native ID-JAG paths untouched (PF branch only); `resolveScope()`
+intersection kept — this fix widens the registered list, not the
+intersection logic.
+
+**Verify:** live `POST /api/mcp/tool {tool:get_my_accounts}` returns
+`success:true` with 4 real accounts, gateway audit `"decision":"PERMIT"`,
+final token scope `accounts:read read`; `tests/agentMcpTokenService.
+scopeNarrowingMisconfig.regression.test.js` + `llmTokenCustody` +
+`mcpToolPipeline.authzBypass` 22 pass; oauth-mcp `npm run test:unit`
+1151 pass.
+
 ### 2026-09-22 — LMDB session writes silently lost at the mapSize ceiling (admin login loop)
 
 **Files changed:** `demo_api_server/services/lmdb/sessionStore.js`,
