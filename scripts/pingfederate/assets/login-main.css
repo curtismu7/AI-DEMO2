@@ -6799,3 +6799,12 @@ body {
     padding: 10px 24px 28px;
   }
 }
+
+/* Demo login theme: Ping logo in the dark header bar. */
+body::before {
+  background-image: url("../images/ping-logo.svg");
+  background-repeat: no-repeat;
+  background-position: right 32px center;
+  background-size: 72px auto;
+  padding-right: 120px !important;
+}
