@@ -52,7 +52,11 @@ const VERTICALS = {
       UC2: /Delegation complete/i,
       'UC2.5': /Delegation complete/i,
       UC30: /Austin/,
-      UC31: /Miami/,
+      UC30: /Austin/,
+      // Gateway deny copy is policy-derived ("weather scope restricted to
+      // Texas…") and does not echo the requested city — pin the denial, not
+      // the city name.
+      UC31: /weather scope restricted to Texas/,
     },
   },
   // Confirmed live 2026-09-09 (90/90 across the three, signed in and out). No
@@ -69,6 +73,7 @@ const PAGE_HEADING = {
   '/agent-gateway-capabilities': 'Agent Gateway Inspector',
   '/demo/enterprise-mcp': 'Enterprise-Managed MCP Authorization',
   '/personal-agent': 'Personal Agent',
+  '/weather-mcp': 'Weather MCP',
 };
 
 const RUN_VERTICALS = (
