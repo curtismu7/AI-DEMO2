@@ -20,7 +20,7 @@ export const A2A_LATEST_LESSONS = [
   {
     id: 'discovery-and-card-security',
     title: 'An Agent Card is capability metadata',
-    body: 'Cards describe interfaces, skills, and authentication requirements. Keep secrets out of them, protect sensitive cards, verify signatures, and cache them with normal HTTP validators such as ETag.',
+    body: 'Cards describe interfaces, skills, and authentication requirements. They are capability metadata, not delegated authority: identity, runtime, and authorization stay in their own controls. Keep secrets out of cards, protect sensitive cards, verify signatures, and cache them with normal HTTP validators such as ETag.',
     href: 'https://a2a-protocol.org/latest/topics/agent-discovery/',
   },
   {

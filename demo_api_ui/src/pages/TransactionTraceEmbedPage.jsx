@@ -5,6 +5,7 @@
 // Reuses the trace page's hop cards + CSS; adds the MCP side of the call the
 // façade recorded: tools + descriptions, resources, request, response.
 import React, { useEffect, useState } from "react";
+import TraceProvenanceBadge from "../components/TraceProvenanceBadge";
 import { useParams } from "react-router-dom";
 import apiClient from "../services/apiClient";
 import { useThemeOptional } from "../context/ThemeContext";
@@ -134,6 +135,7 @@ export function HopFilmstrip({ hops, selectedSeq, onSelect, showService = true, 
       <header className="ttrace-filmstrip__header">
         <div>
           <h2>Movie reel</h2>
+          <TraceProvenanceBadge provenance="recorded" />
           {!collapsed ? <p>Each frame is a meaningful step in the request. Select a frame to inspect its recorded identity, decision, and payload.</p> : null}
         </div>
         <div className="ttrace-filmstrip__actions">

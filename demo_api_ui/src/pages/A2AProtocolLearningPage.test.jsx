@@ -79,6 +79,8 @@ describe('A2A protocol learning lessons', () => {
       expect(screen.getByRole('heading', { name: /An Agent Card is capability metadata/i })).toBeInTheDocument();
       expect(screen.getByRole('heading', { name: /Make routing explicit when agents are shared/i })).toBeInTheDocument();
     });
+    expect(screen.getByText(/Agent Cards describe capability and protocol metadata; they do not grant authority/i)).toBeInTheDocument();
+    expect(screen.getByText(/Agent identity, Agent runtime, and delegated authority are separate/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /A2A learning hub/i })).toHaveAttribute(
       'href', 'https://a2a-protocol.org/latest/',
     );

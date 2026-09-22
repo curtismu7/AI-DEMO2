@@ -115,6 +115,27 @@ function verticalsWithSpecialist() {
   return [...Object.keys(A2A_SPECIALISTS), ...Object.keys(A2A_SPECIALIST_ALIASES)];
 }
 
+/**
+ * Public display metadata for the A2A specialist directory.
+ * The directory intentionally contains no credentials or scope grants; the
+ * signed Agent Card remains the source for protocol capabilities.
+ */
+function specialistDirectory() {
+  return verticalsWithSpecialist().map((vertical) => {
+    const canonicalVertical = A2A_SPECIALIST_ALIASES[vertical] || vertical;
+    const specialist = A2A_SPECIALISTS[canonicalVertical];
+    return {
+      vertical,
+      canonicalVertical,
+      appKey: specialist.appKey,
+      appName: specialist.appName,
+      specialistName: specialist.specialistName,
+      tools: [...(specialist.tools || [])],
+      subtaskHint: specialist.subtaskHint,
+    };
+  });
+}
+
 /** Resolve the specialist for a vertical (null if none). */
 function specialistForVertical(vertical) {
   if (!vertical) return null;
@@ -155,6 +176,7 @@ const A2A_GATEWAY_RESOURCE_NAME = 'Super Banking A2A MCP Gateway';
 
 module.exports = {
   A2A_SPECIALISTS,
+  specialistDirectory,
   verticalsWithSpecialist,
   specialistForVertical,
   clientIdKey,

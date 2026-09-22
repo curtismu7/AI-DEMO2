@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from "react";
 import apiClient from "../../services/apiClient";
 import ExpandableRow from "./ExpandableRow";
-import { AGENT_ROLES, PRIMARY_AGENT } from "../../config/agentTerminology";
+import { AGENT_METADATA_LABELS, AGENT_ROLES, PRIMARY_AGENT } from "../../config/agentTerminology";
+import {
+  fetchA2aSpecialistRegistry,
+  specialistRoleLabel,
+} from "../../services/a2aSpecialistRegistry";
 
 const AGENTS = [
   {
@@ -41,33 +45,17 @@ const RESOURCE_SERVER_TOOLS = [
   "list_banking_accounts", "get_banking_account", "list_gear", "gear_order_status", "checkout",
 ];
 
-// Per-vertical A2A specialist registry — source: demo_api_server/config/a2aSpecialists.js.
-// Distinct from the 4 generalist runtimes above: the Banking Agent delegates
-// one narrow, sensitive read task to its vertical's specialist over a
-// chained RFC 8693 exchange — see the Token Exchange and CIBA tabs.
-const SPECIALISTS = [
-  { vertical: "banking", appKey: "investment", appName: "Super Banking Investment Advisor Agent", name: "Investment Advisor", tools: ["get_portfolio_summary", "get_investment_accounts", "get_investment_balance", "get_investment_transactions"], subtaskHint: "review the customer's investment positions" },
-  { vertical: "healthcare", appKey: "records", appName: "Super Banking Records Specialist Agent", name: "Records Specialist", tools: ["sensitive_patient_records"], subtaskHint: "retrieve the sensitive patient health record" },
-  { vertical: "retail", appKey: "purchase", appName: "Super Banking Purchase Specialist Agent", name: "Purchase History Specialist", tools: ["sensitive_order_history"], note: "aliased by abercrombie-fitch", subtaskHint: "review the sensitive order / purchase history" },
-  { vertical: "sporting-goods", appKey: "membership", appName: "Super Banking Membership Specialist Agent", name: "Membership Specialist", tools: ["sensitive_membership_details"], subtaskHint: "review the sensitive membership details" },
-  { vertical: "workforce", appKey: "payroll", appName: "Super Banking Payroll Specialist Agent", name: "Payroll Specialist", tools: ["sensitive_payroll_details"], subtaskHint: "review the sensitive payroll details" },
-  { vertical: "government", appKey: "tax", appName: "Super Banking Tax Records Specialist Agent", name: "Tax Records Specialist", tools: ["sensitive_tax_record"], subtaskHint: "retrieve the sensitive tax assessment record" },
-  { vertical: "university", appKey: "finaid", appName: "Super Banking Financial Aid Specialist Agent", name: "Financial Aid Specialist", tools: ["sensitive_student_finance"], subtaskHint: "review the sensitive student financial aid record" },
-  { vertical: "manufacturing", appKey: "supplier", appName: "Super Banking Supplier Contract Specialist Agent", name: "Supplier Contract Specialist", tools: ["sensitive_supplier_contract"], subtaskHint: "review the sensitive supplier contract terms" },
-  { vertical: "investment", appKey: "holdings", appName: "Super Banking Holdings Specialist Agent", name: "Holdings Specialist", tools: ["sensitive_holdings"], subtaskHint: "review the sensitive investment holdings" },
-  { vertical: "airlines", appKey: "passenger", appName: "Super Banking Passenger Records Specialist Agent", name: "Passenger Records Specialist", tools: ["sensitive_passenger_record"], subtaskHint: "retrieve the sensitive passenger record" },
-  { vertical: "admin", appKey: "identity", appName: "Super Banking Identity Verification Specialist Agent", name: "Identity Verification Specialist", tools: ["sensitive_customer_identity"], subtaskHint: "retrieve the customer's identity-verification (KYC) record" },
-];
-
-function SpecialistsPanel() {
+function SpecialistsPanel({ specialists, loading, error }) {
   return (
     <div className="aac-section-block">
       <h3>Vertical specialists (A2A)</h3>
       <p className="aac-card-sub">
         One {AGENT_ROLES.specialist.toLowerCase()} per vertical — the {AGENT_ROLES.generalist}
         delegates a single
-        sensitive read task to. Source: config/a2aSpecialists.js. Click a row for
-        the full specialist detail.
+        sensitive read task to. Source: the server A2A specialist registry. The registry is
+        the source for specialist identity and capability metadata; authorization is evaluated
+        separately by PingOne Authorize. Click
+        a row for the full specialist detail.
       </p>
       <div className="aac-table-wrap">
         <table className="aac-table">
@@ -79,15 +67,17 @@ function SpecialistsPanel() {
             </tr>
           </thead>
           <tbody>
-            {SPECIALISTS.map((s) => (
+            {specialists.map((s) => (
               <ExpandableRow
                 key={s.vertical}
                 detail={s}
                 cells={[
                   <th key="vertical" scope="row" className="aac-mono">{s.vertical}</th>,
                   <td key="name">
-                    {s.name}
-                    {s.note && <span className="aac-card-sub"> ({s.note})</span>}
+                    {specialistRoleLabel(s)}
+                    {s.canonicalVertical !== s.vertical && (
+                      <span className="aac-card-sub"> (alias of {s.canonicalVertical})</span>
+                    )}
                   </td>,
                   <td key="tools" className="aac-mono">{s.tools.join(", ")}</td>,
                 ]}
@@ -96,6 +86,8 @@ function SpecialistsPanel() {
           </tbody>
         </table>
       </div>
+      {loading && <p className="aac-card-sub">Loading specialist registry…</p>}
+      {error && <p className="aac-card-sub">Specialist registry unavailable.</p>}
     </div>
   );
 }
@@ -109,6 +101,9 @@ export default function AgentsSection({ user }) {
   const [registry, setRegistry] = useState(null);
   const [error, setError] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
+  const [specialists, setSpecialists] = useState([]);
+  const [specialistsLoading, setSpecialistsLoading] = useState(true);
+  const [specialistsError, setSpecialistsError] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -120,6 +115,22 @@ export default function AgentsSection({ user }) {
     return () => { cancelled = true; };
   }, [user]);
 
+  useEffect(() => {
+    let cancelled = false;
+    fetchA2aSpecialistRegistry()
+      .then((entries) => {
+        if (cancelled) return;
+        setSpecialists(entries);
+        setSpecialistsLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSpecialistsError(true);
+        setSpecialistsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
   const liveRows = registry?.rows || [];
   const showLive = !!user && !error && liveRows.length > 0;
 
@@ -128,9 +139,9 @@ export default function AgentsSection({ user }) {
     return (
       <div>
         <p className="aac-section-intro">
-          Real non-human identities from PingOne, the demo's own OAuth client
-          registry, and computed A2A Agent Cards. Select one to see its scopes
-          and lifecycle. <span className="aac-badge aac-badge--live">Live</span>
+          Real non-human {AGENT_METADATA_LABELS.identity.toLowerCase()} records from PingOne,
+          the demo's own OAuth client registry, and computed {AGENT_METADATA_LABELS.card}s.
+          Select one to see its scopes and lifecycle. <span className="aac-badge aac-badge--live">Live</span>
         </p>
 
         <div className="aac-grid-3">
@@ -143,7 +154,7 @@ export default function AgentsSection({ user }) {
               aria-pressed={r.id === selected.id}
             >
               <div className="aac-card-title">{r.name}</div>
-              <div className="aac-card-sub">{r.identityType} · {r.source}</div>
+              <div className="aac-card-sub">{AGENT_METADATA_LABELS.identity} · {r.identityType} · {r.source}</div>
               <div className="aac-card-body">
                 <span className="aac-badge aac-badge--neutral">{r.status || "unknown"}</span>{" "}
                 <ScopeStatusBadge status={r.scopeStatus} />
@@ -154,7 +165,7 @@ export default function AgentsSection({ user }) {
 
         {selected && (
           <div className="aac-card aac-detail-panel">
-            <div className="aac-card-title">{selected.name} — scopes &amp; lifecycle</div>
+            <div className="aac-card-title">{selected.name} — {AGENT_METADATA_LABELS.identity}, scopes &amp; lifecycle</div>
             <div className="aac-card-sub" style={{ marginTop: 8 }}>Granted scopes</div>
             <div className="aac-chip-row">
               {(selected.grantedScopes || []).length > 0
@@ -180,7 +191,11 @@ export default function AgentsSection({ user }) {
           </p>
         )}
 
-        <SpecialistsPanel />
+        <SpecialistsPanel
+          specialists={specialists}
+          loading={specialistsLoading}
+          error={specialistsError}
+        />
       </div>
     );
   }
@@ -190,8 +205,9 @@ export default function AgentsSection({ user }) {
   return (
     <div>
       <p className="aac-section-intro">
-        Every runtime reaches the same 3 MCP servers — flat access, gated by policy
-        rather than by agent identity. Select an agent to see its reachable tools.
+        Each {AGENT_METADATA_LABELS.runtime.toLowerCase()} reaches the same 3 MCP servers —
+        access is gated by policy, not implied by the {AGENT_METADATA_LABELS.identity.toLowerCase()}.
+        Select a runtime to see its reachable tools.
       </p>
 
       <div className="aac-grid-3">
@@ -204,7 +220,7 @@ export default function AgentsSection({ user }) {
             aria-pressed={a.id === selected.id}
           >
             <div className="aac-card-title">{a.identity}</div>
-            <div className="aac-card-sub">{a.runtime} · {a.framework}</div>
+            <div className="aac-card-sub">{AGENT_METADATA_LABELS.runtime}: {a.runtime} · {a.framework}</div>
             {a.note && <div className="aac-card-sub">{a.note}</div>}
             <div className="aac-card-body">
               <span className="aac-badge aac-badge--live">Active</span>{" "}
@@ -216,7 +232,8 @@ export default function AgentsSection({ user }) {
 
       {selected && (
         <div className="aac-card aac-detail-panel">
-          <div className="aac-card-title">{selected.identity} — reachable MCP servers</div>
+          <div className="aac-card-title">{selected.identity} — {AGENT_METADATA_LABELS.runtime}: {selected.runtime}</div>
+          <div className="aac-card-sub" style={{ marginTop: 8 }}>Framework: {selected.framework}</div>
           <div className="aac-card-sub" style={{ marginTop: 8 }}>oauth-mcp (banking-mcp-server)</div>
           <div className="aac-chip-row">
             {OAUTH_MCP_TOOLS.map((t) => <span key={t} className="aac-chip">{t}</span>)}
@@ -239,7 +256,11 @@ export default function AgentsSection({ user }) {
             : "Loading live agent registry…"}
       </p>
 
-      <SpecialistsPanel />
+      <SpecialistsPanel
+        specialists={specialists}
+        loading={specialistsLoading}
+        error={specialistsError}
+      />
     </div>
   );
 }

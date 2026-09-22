@@ -135,4 +135,27 @@ describe('A2A card + JWKS routes (served by createA2aProtocolRouter)', () => {
     expect(res.body.signatures.length).toBeGreaterThan(0);
     await expect(cardVerifier(CFG)(res.body)).resolves.toBeUndefined();
   });
+
+  test('GET /a2a/specialists/registry exposes registry-derived display metadata', async () => {
+    const res = await request(buildApp(CFG)).get('/a2a/specialists/registry');
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(expect.objectContaining({
+      specialists: expect.arrayContaining([
+        expect.objectContaining({
+          vertical: 'sporting-goods',
+          canonicalVertical: 'sporting-goods',
+          specialistName: 'Membership Specialist',
+          appKey: 'membership',
+          tools: ['sensitive_membership_details'],
+        }),
+        expect.objectContaining({
+          vertical: 'abercrombie-fitch',
+          canonicalVertical: 'retail',
+          specialistName: 'Purchase History Specialist',
+        }),
+      ]),
+    }));
+    expect(res.body.specialists.some((entry) => entry.clientSecret)).toBe(false);
+  });
 });

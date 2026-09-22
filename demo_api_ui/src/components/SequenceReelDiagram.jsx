@@ -27,6 +27,7 @@ import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTrac
 import { deriveLifelineSteps, deriveLifelineParticipants } from "../services/tokenChainTrace/deriveLifelineSteps";
 import { laneLabel } from "../services/tokenChainTrace/buildTraceSteps";
 import { buildA2aTokenChainSteps } from "./TokenChainTraceRail";
+import TraceProvenanceBadge from "./TraceProvenanceBadge";
 import "./SequenceReelDiagram.css";
 
 const COL_WIDTH = 140;
@@ -153,6 +154,7 @@ export default function SequenceReelDiagram({
   externalSteps,
   externalRunId,
   externalTraceFinished,
+  provenance,
   zoomStorageKey = ZOOM_KEY,
   initialZoom = ZOOM_DEFAULT,
   ariaLabel = "Live sequence diagram of this session's token chain",
@@ -195,6 +197,7 @@ export default function SequenceReelDiagram({
     return deriveLifelineSteps(happened);
   }, [steps]);
   const runId = externalRunId ?? snap.trace?.runId ?? null;
+  const runProvenance = provenance || snap.trace?.provenance || "live";
   const traceFinished = externalTraceFinished ?? (snap.trace?.outcome === "ok" || snap.trace?.outcome === "error");
 
   // Slow mode: reveal one step at a time on a timer instead of the full set
@@ -414,6 +417,7 @@ export default function SequenceReelDiagram({
   // press Next defeats the point.
   const toolbar = (position) => (
     <div className={`srd-toolbar srd-toolbar--${position}`}>
+      <TraceProvenanceBadge provenance={runProvenance} />
       <button type="button" className="srd-zoom-btn" onClick={() => handleZoom(-ZOOM_STEP)} title="Zoom out">
         −
       </button>

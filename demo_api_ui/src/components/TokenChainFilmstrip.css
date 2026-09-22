@@ -331,6 +331,7 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
 }
 
 .tcfs-title { font-size: var(--font-size-body); font-weight: 700; }
+.tcfs-title-group { display: flex; align-items: center; gap: 10px; }
 
 .tcfs-actions {
   margin-left: auto;

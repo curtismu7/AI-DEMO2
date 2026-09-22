@@ -26,6 +26,7 @@ import { SimpleStepper, DetailedStepper } from "./agent-clinical/TokensPane";
 import ClaimDetailsModal from "./ClaimDetailsModal";
 import TokenLegendModal from "./TokenLegendModal";
 import TokenChainDemoTrackTab from "./TokenChainDemoTrackTab";
+import TraceProvenanceBadge from "./TraceProvenanceBadge";
 import "./TokenChainTraceRail.css";
 
 // v2: the persist effect writes on mount, so every browser that has ever
@@ -524,6 +525,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
       <div className="tctr-head">
         <div className="tctr-title-group">
           <span className="tctr-title">Token Chain</span>
+          {hasTraceActivity ? <TraceProvenanceBadge provenance={trace.provenance} /> : null}
           {agentClass ? (
             <span
               className={`tctr-agent-class tctr-agent-class--${agentClass}`}
@@ -745,10 +747,11 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
             />
           ) : null}
           {presenting ? (
-            <TokenChainPresenter
-              steps={steps}
-              activeId={activeStepId}
-              onSelect={setActiveStepId}
+          <TokenChainPresenter
+            steps={steps}
+            activeId={activeStepId}
+            provenance={trace.provenance}
+            onSelect={setActiveStepId}
               onClose={() => setPresenting(false)}
             />
           ) : null}

@@ -10,6 +10,10 @@ import RelatedLearningRail from '../components/learning/RelatedLearningRail';
 import { EDU } from '../components/education/educationIds';
 import { RUN_PROVENANCE } from '../config/agentTerminology';
 import {
+  fetchA2aSpecialistRegistry,
+  specialistOptionLabel,
+} from '../services/a2aSpecialistRegistry';
+import {
   buildA2aTeachingPanes,
   summarizeAgentCard,
   summarizeActChain,
@@ -35,20 +39,6 @@ import './A2AProtocolLearningPage.css';
  */
 
 const DEFAULT_VERTICAL = 'sporting-goods';
-
-/** Verticals that have an A2A specialist. Mirrors config/a2aSpecialists.js. */
-const A2A_VERTICALS = [
-  ['sporting-goods', 'Super Sports · Membership Specialist'],
-  ['banking', 'Super Banking · Investment Advisor'],
-  ['healthcare', 'Healthcare · Records Specialist'],
-  ['retail', 'Retail · Purchase History Specialist'],
-  ['workforce', 'Workforce · Payroll Specialist'],
-  ['government', 'Government · Tax Records Specialist'],
-  ['university', 'University · Financial Aid Specialist'],
-  ['manufacturing', 'Manufacturing · Supplier Contract Specialist'],
-  ['investment', 'Investment · Holdings Specialist'],
-  ['airlines', 'Airlines · Passenger Records Specialist'],
-];
 
 const A2A_EDUCATION_LINKS = [
   {
@@ -158,6 +148,7 @@ export default function A2AProtocolLearningPage() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
   const [vertical, setVertical] = useState(DEFAULT_VERTICAL);
   const [showArchitecture, setShowArchitecture] = useState(false);
+  const [specialists, setSpecialists] = useState([]);
 
   const [card, setCard] = useState(null);
   const [cardLive, setCardLive] = useState(false);
@@ -169,6 +160,14 @@ export default function A2AProtocolLearningPage() {
   const [running, setRunning] = useState(false);
   const [needsAuth, setNeedsAuth] = useState(false);
   const [runError, setRunError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchA2aSpecialistRegistry()
+      .then((entries) => { if (!cancelled) setSpecialists(entries); })
+      .catch(() => { if (!cancelled) setSpecialists([]); });
+    return () => { cancelled = true; };
+  }, []);
 
   // ── Section 2: the Agent Card, live and unauthenticated ────────────────────
   useEffect(() => {
@@ -258,6 +257,16 @@ export default function A2AProtocolLearningPage() {
   const actChain = useMemo(() => summarizeActChain(detail), [detail]);
   const cardSummary = useMemo(() => summarizeAgentCard(card), [card]);
 
+  // Keep the page usable while the public directory is unavailable. The
+  // recorded card is evidence fallback, not a second specialist catalog.
+  const specialistOptions = specialists.length > 0
+    ? specialists
+    : [{
+        vertical: DEFAULT_VERTICAL,
+        specialistName: A2A_RECORDED_RUN.agentCard?.name || 'Specialist agent',
+        appName: A2A_RECORDED_RUN.agentCard?.name || 'Specialist agent',
+      }];
+
   const identityPanes = panes.filter((p) => p.layer === LAYER.IDENTITY);
   const widePanes = panes.filter((p) => p.layer === LAYER.WIRE);
   const replayNote = isReplay
@@ -283,10 +292,12 @@ export default function A2AProtocolLearningPage() {
           using this demo&apos;s own agent.
         </p>
         <label className="a2l-vertical">
-          <span>Specialist</span>
+          <span>Specialist agent</span>
           <select value={vertical} onChange={(e) => setVertical(e.target.value)}>
-            {A2A_VERTICALS.map(([id, label]) => (
-              <option key={id} value={id}>{label}</option>
+            {specialistOptions.map((specialist) => (
+              <option key={specialist.vertical} value={specialist.vertical}>
+                {specialistOptionLabel(specialist)}
+              </option>
             ))}
           </select>
         </label>
@@ -311,9 +322,15 @@ export default function A2AProtocolLearningPage() {
           <div className="a2l-layer">
             <h3>Identity — RFC 8693 delegation</h3>
             <p>
-              Who is acting for whom. PingOne mints a token whose <code>act</code> claim
+              Agent identity and delegated authority answer who is acting for whom.{' '}
+              PingOne mints a token whose <code>act</code> claim
               nests: the specialist acting for the generalist acting for the user. Scope
               narrows at each hop. This is what PingOne Authorize decides over.
+            </p>
+            <p>
+              Agent identity, Agent runtime, and delegated authority are separate: a runtime
+              can execute the flow, but only the token chain and PingOne Authorize establish
+              what the call may do.
             </p>
             <p className="a2l-meta">Layer 1 · <code>a2aDelegationService</code></p>
           </div>
@@ -321,8 +338,9 @@ export default function A2AProtocolLearningPage() {
             <h3>Wire protocol — Linux Foundation A2A</h3>
             <p>
               How the two agents talk. An Agent Card advertises the specialist&apos;s
-              skills; a JSON-RPC <code>message/send</code> carries the task. It
-              authenticates with its <strong>own</strong> PingOne bearer — not the
+              skills and protocol metadata; a JSON-RPC <code>message/send</code> carries the task.
+              Agent Cards describe capability and protocol metadata; they do not grant authority.
+              The handoff authenticates with its <strong>own</strong> PingOne bearer — not the
               nested-<code>act</code> token.
             </p>
             <p className="a2l-meta">Layer 2 · <code>@a2a-js/sdk</code> · <code>/a2a/specialists</code></p>
