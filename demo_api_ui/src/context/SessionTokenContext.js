@@ -23,6 +23,8 @@ export function SessionTokenProvider({ children }) {
   const [tokenLoading, setTokenLoading] = useState(true);
   const [sessionType, setSessionType] = useState(null);   // 'admin' | 'user' | null
   const [staleSession, setStaleSession] = useState(false); // user tokens gone, session alive
+  const [hasRefreshToken, setHasRefreshToken] = useState(false); // red "R" marker in token pill
+  const [oauthProvider, setOauthProvider] = useState(null);      // 'pingone' | 'pingfederate' | null
   // Page components register a fn that opens their token-detail modal; null on
   // routes that have no such modal (the pill then omits the "View Token" button).
   const [openTokenModal, setOpenTokenModal] = useState(null);
@@ -35,10 +37,14 @@ export function SessionTokenProvider({ children }) {
       setTokenExpiresAt(result?.expiresAt ?? null);
       setSessionType(result?.sessionType ?? null);
       setStaleSession(result?.staleSession ?? false);
+      setHasRefreshToken(result?.hasRefreshToken ?? false);
+      setOauthProvider(result?.oauthProvider ?? null);
     } catch {
       setTokenExpiresAt(null);
       setSessionType(null);
       setStaleSession(false);
+      setHasRefreshToken(false);
+      setOauthProvider(null);
     } finally {
       setTokenLoading(false);
     }
@@ -50,6 +56,8 @@ export function SessionTokenProvider({ children }) {
       setTokenExpiresAt(null);
       setSessionType(null);
       setStaleSession(false);
+      setHasRefreshToken(false);
+      setOauthProvider(null);
     };
     window.addEventListener('userAuthenticated', refreshTokenStatus);
     window.addEventListener('userLoggedOut', onLogout);
@@ -103,11 +111,13 @@ export function SessionTokenProvider({ children }) {
     tokenLoading,
     sessionType,
     staleSession,
+    hasRefreshToken,
+    oauthProvider,
     hasActiveToken,
     openTokenModal,
     registerTokenModalOpener,
     refreshTokenStatus,
-  }), [tokenSecondsLeft, tokenLoading, sessionType, staleSession, hasActiveToken, openTokenModal, registerTokenModalOpener, refreshTokenStatus]);
+  }), [tokenSecondsLeft, tokenLoading, sessionType, staleSession, hasRefreshToken, oauthProvider, hasActiveToken, openTokenModal, registerTokenModalOpener, refreshTokenStatus]);
 
   return (
     <SessionTokenContext.Provider value={value}>

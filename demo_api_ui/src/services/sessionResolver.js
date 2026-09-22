@@ -45,11 +45,14 @@ export async function resolveSessionUser() {
  * Resolve the current session's token-expiry info from the same OAuth status
  * endpoints and admin -> user precedence as resolveSessionUser.
  *
- * Returns { expiresAt, sessionType, staleSession } where:
+ * Returns { expiresAt, sessionType, staleSession, hasRefreshToken, oauthProvider } where:
  *   expiresAt    — ms epoch timestamp, or null if no authenticated session
  *   sessionType  — 'admin' | 'user' | null
  *   staleSession — true when the backend reports staleSession:true (tokens gone
  *                  but session record still alive — user needs to sign in again)
+ *   hasRefreshToken — true when the session holds a refresh token (token pill
+ *                     shows the red "R" marker)
+ *   oauthProvider   — 'pingone' | 'pingfederate' | null (active login provider)
  *
  * Shares the 3s cache via cachedStatusService.
  */
@@ -67,15 +70,21 @@ export async function resolveSessionExpiry() {
   for (const { settled, type } of pairs) {
     const data = settled.status === 'fulfilled' ? settled.value?.data : null;
     if (data?.authenticated && data.expiresAt) {
-      return { expiresAt: data.expiresAt, sessionType: type, staleSession: false };
+      return {
+        expiresAt: data.expiresAt,
+        sessionType: type,
+        staleSession: false,
+        hasRefreshToken: data.hasRefreshToken ?? false,
+        oauthProvider: data.oauthProvider ?? null,
+      };
     }
   }
 
   // No authenticated session — check if the user session is stale
   const endUserData = endUser.status === 'fulfilled' ? endUser.value?.data : null;
   if (endUserData?.staleSession) {
-    return { expiresAt: null, sessionType: 'user', staleSession: true };
+    return { expiresAt: null, sessionType: 'user', staleSession: true, hasRefreshToken: false, oauthProvider: null };
   }
 
-  return { expiresAt: null, sessionType: null, staleSession: false };
+  return { expiresAt: null, sessionType: null, staleSession: false, hasRefreshToken: false, oauthProvider: null };
 }

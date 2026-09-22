@@ -19,6 +19,7 @@ import QuickFlagsPill from "./QuickFlagsPill";
 import UserMenu from "./UserMenu";
 import FavoritesMenu from "./FavoritesMenu";
 import VerticalSwitcher from "./VerticalSwitcher";
+import OAuthProviderToggle from "./OAuthProviderToggle";
 import "./TopNav.css";
 
 // Curated react-icons/md set selectable per vertical via manifest identity.icon.
@@ -33,7 +34,7 @@ export default function TopNav({ user, onLogout }) {
   const location = useLocation();
   const { pageManifest } = useVertical();
   const identity = pageManifest?.identity;
-  const { tokenSecondsLeft, tokenLoading, sessionType, staleSession, hasActiveToken: tokenIsActive, openTokenModal } = useSessionToken();
+  const { tokenSecondsLeft, tokenLoading, sessionType, staleSession, hasRefreshToken, hasActiveToken: tokenIsActive, openTokenModal } = useSessionToken();
   const { darkMode, toggleDarkMode } = useTheme();
   const brandName = (identity && (identity.headerTitle || identity.displayName)) || 'AI Demo';
   // Per-vertical brand icon (manifest identity.icon); unknown/absent → bank icon.
@@ -102,6 +103,9 @@ export default function TopNav({ user, onLogout }) {
   const tokenExpiring = tokenSecondsLeft !== null && tokenSecondsLeft > 0 && tokenSecondsLeft < 300;
   const tokenExpired = tokenSecondsLeft !== null && tokenSecondsLeft <= 0;
   const hasActiveToken = !!user && tokenIsActive;
+  // Red "R" — the session's access token is backed by a refresh token (it will
+  // be silently refreshed near expiry rather than bouncing the user to login).
+  const showRefreshMarker = !!user && !staleSession && hasActiveToken && hasRefreshToken;
 
   const displayName =
     (user?.firstName && user?.lastName)
@@ -270,6 +274,15 @@ export default function TopNav({ user, onLogout }) {
                       </span>
                     )}
                     {displayName && <span className="topnav-token-pill__name">{displayName}</span>}
+                    {showRefreshMarker && (
+                      <span
+                        className="topnav-token-pill__refresh-marker"
+                        title="Refresh token present — access token refreshes automatically near expiry"
+                        aria-label="Refresh token present"
+                      >
+                        R
+                      </span>
+                    )}
                     <span className="topnav-token-pill__countdown">{formatCountdown(tokenSecondsLeft)}</span>
                     {openTokenModal && (
                       <button
@@ -318,6 +331,14 @@ export default function TopNav({ user, onLogout }) {
               absolutely positioned below this control, and the scroller's
               overflow clipping would hide it after the trigger opens it. */}
           <FavoritesMenu />
+
+          {/* OAuth provider toggle — visible to everyone. Switches the BFF's
+              login provider (PingOne ⇄ PingFederate) at runtime; no restart
+              needed because every OAuth config getter reads the provider
+              lazily. Changing provider invalidates the current token chain,
+              so the user is signed out after the switch. The component hides
+              itself if the BFF config endpoint is unreachable. */}
+          <OAuthProviderToggle />
 
           {/* Theme toggle — always visible (outside the scroll area) so it never
               scrolls off, and available to every page since TopNav is app-wide. */}

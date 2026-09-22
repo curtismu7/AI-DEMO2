@@ -1,0 +1,76 @@
+/* OAuthProviderToggle — P1 ⇄ PF switch in the top nav (admin-only).
+   Sits beside the theme toggle on the dark TopNav bar. */
+
+.oauth-provider-toggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  font-size: var(--font-size-2xs, 10px);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  transition: background 0.15s ease;
+}
+
+.oauth-provider-toggle__option {
+  padding: 6px 8px;
+  border-radius: var(--radius-pill);
+  color: rgba(255, 255, 255, 0.7);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+/* Compact pill highlight on the active side (no floating knob). */
+.oauth-provider-toggle__knob {
+  display: none;
+}
+
+.oauth-provider-toggle--pingone .oauth-provider-toggle__option:first-child {
+  background: #2767d2;
+  color: #fff;
+}
+
+/* PingFederate active: amber tint so the less-common mode is obvious. */
+.oauth-provider-toggle--pingfederate {
+  background: rgba(217, 119, 6, 0.25);
+  border-color: rgba(217, 119, 6, 0.6);
+}
+
+.oauth-provider-toggle--pingfederate .oauth-provider-toggle__option:last-child {
+  background: #d97706;
+  color: #fff;
+}
+
+.oauth-provider-toggle:disabled .oauth-provider-toggle__option {
+  animation: oauth-provider-toggle-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes oauth-provider-toggle-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Red "R" — refresh-token-present marker inside the TopNav token pill. */
+.topnav-token-pill__refresh-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: var(--radius-sm);
+  background: #dc2626;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+  cursor: help;
+}

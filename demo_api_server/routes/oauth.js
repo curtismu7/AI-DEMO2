@@ -601,6 +601,7 @@ router.get('/status', (req, res) => {
     // accessToken intentionally omitted — token stays on the backend (Backend-for-Frontend (BFF) pattern)
     tokenType: isAuthenticated ? req.session.oauthTokens.tokenType : null,
     expiresAt: isAuthenticated ? req.session.oauthTokens.expiresAt : null,
+    hasRefreshToken: isAuthenticated ? !!req.session.oauthTokens.refreshToken : false,
     clientType: isAuthenticated ? req.session.clientType : null
   });
 });
