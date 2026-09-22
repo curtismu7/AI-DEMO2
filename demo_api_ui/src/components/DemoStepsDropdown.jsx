@@ -16,7 +16,6 @@ import {
 } from '../config/demoUseCaseSteps';
 import { getMissionControlGroup } from '../config/missionControlCatalog';
 import apiClient from '../services/apiClient';
-import { armTemporaryP1azFlags } from '../services/temporaryP1azFlags';
 import UseCaseExplainModal from './UseCaseExplainModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { a2aEventsForExplain } from './demoStepsA2a';
@@ -90,7 +89,6 @@ export default function DemoStepsDropdown({
   const [explainUc, setExplainUc] = useState(null);
   const [query, setQuery] = useState('');
   const [drawerWidth, setDrawerWidth] = useState(readStoredDrawerWidth);
-  const [liveP1azState, setLiveP1azState] = useState('idle');
   const resizeRef = useRef(null);
 
   // finding #77: a vertical switch while the panel is open re-issues this
@@ -241,25 +239,6 @@ export default function DemoStepsDropdown({
   function handleClearProgress() {
     clearCompletedUseCases();
     setTick((n) => n + 1);
-  }
-
-  async function handleLiveP1az() {
-    const balanceStep = [...primarySteps, ...advancedSteps].find(({ uc }) => uc.id === 'UC1');
-    if (!balanceStep) {
-      setLiveP1azState('error');
-      return;
-    }
-    setLiveP1azState('arming');
-    try {
-      await armTemporaryP1azFlags({
-        onRestored: () => setLiveP1azState('idle'),
-      });
-      setLiveP1azState('active');
-      onOpenChange(false);
-      onSelect(balanceStep.uc, balanceStep.stepNumber);
-    } catch (_) {
-      setLiveP1azState('error');
-    }
   }
 
   // Counted over the primary steps only — that is the "scripted walkthrough"
@@ -534,22 +513,6 @@ export default function DemoStepsDropdown({
                   </button>
                 )}
               </div>
-              <button
-                type="button"
-                className="ba-demo-steps-popout__live-p1az"
-                onClick={handleLiveP1az}
-                disabled={liveP1azState === 'arming'}
-                title="Run the balance proof through PingGateway and live PingOne Authorize; flags restore after one minute"
-                data-testid="demo-live-p1az"
-              >
-                {liveP1azState === 'arming'
-                  ? 'Arming P1AZ…'
-                  : liveP1azState === 'active'
-                    ? 'Live P1AZ active'
-                    : liveP1azState === 'error'
-                      ? 'Retry live P1AZ'
-                      : 'Run live P1AZ balance'}
-              </button>
               <button
                 type="button"
                 className="ba-demo-steps-popout__clear"
