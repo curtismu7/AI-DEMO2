@@ -3,7 +3,20 @@
 const express = require('express');
 const request = require('supertest');
 
-jest.mock('../../services/hostedAccessOAuthService');
+jest.mock('../../services/hostedAccessOAuthService', () => ({
+  generateState: jest.fn(),
+  generateCodeVerifier: jest.fn(),
+  generateAuthorizationUrl: jest.fn(),
+  exchangeCodeForToken: jest.fn(),
+  validateIdentity: jest.fn(),
+}));
+jest.mock('../../services/pingOneUserLookupService', () => ({
+  resolvePingOneIdentifier: jest.fn(),
+}));
+jest.mock('../../config/hostedAccess', () => ({
+  clientId: 'front-door-client',
+  redirectUri: 'https://ai-demo.ping-devops.com/api/auth/hosted-access/callback',
+}));
 jest.mock('../../services/authAccessAuditService', () => ({
   startLoginAudit: jest.fn(),
   resumeLoginAudit: jest.fn(),
@@ -100,4 +113,46 @@ describe('hosted front-door OAuth', () => {
     expect(applicationSession).toEqual({ user: { id: 'demo-user' }, oauthTokens: { accessToken: 'demo-token' } });
   });
 
+  test('generateAuthorizationUrl appends login_hint when provided', () => {
+    jest.dontMock('../../services/hostedAccessOAuthService');
+    jest.doMock('../../config/hostedAccess', () => ({
+      clientId: 'front-door-client',
+      redirectUri: 'https://cb',
+      scopes: ['openid', 'profile'],
+      authorizationEndpoint: 'https://auth.pingone.com/authorize',
+    }));
+    const real = jest.requireActual('../../services/hostedAccessOAuthService');
+    const url = real.generateAuthorizationUrl({
+      state: 's', codeVerifier: 'v', redirectUri: 'https://cb', nonce: 'n',
+      loginHint: 'cmuir+demo-user@pingone.com',
+    });
+    expect(url).toContain('login_hint=cmuir%2Bdemo-user%40pingone.com');
+    const urlNoHint = real.generateAuthorizationUrl({ state: 's', codeVerifier: 'v', redirectUri: 'https://cb', nonce: 'n' });
+    expect(urlNoHint).not.toContain('login_hint');
+  });
+
+  test('login with identifier resolves user and passes it as login_hint', async () => {
+    const { resolvePingOneIdentifier } = require('../../services/pingOneUserLookupService');
+    resolvePingOneIdentifier.mockResolvedValue({ user: { username: 'cmuir+demo-user@pingone.com', email: 'cmuir+demo-user@pingone.com' }, error: null });
+    const hostedSession = { save: jest.fn((cb) => cb(null)) };
+    const res = await request(appFor({ hostedSession }))
+      .get('/api/auth/hosted-access/login')
+      .query({ identifier: 'cmuir+demo-user@pingone.com' });
+
+    expect(res.status).toBe(302);
+    expect(resolvePingOneIdentifier).toHaveBeenCalledWith('cmuir+demo-user@pingone.com');
+  });
+
+  test('login with unresolvable identifier starts OAuth without login_hint', async () => {
+    const { resolvePingOneIdentifier } = require('../../services/pingOneUserLookupService');
+    resolvePingOneIdentifier.mockResolvedValue({ user: null, error: 'not_found' });
+    const hostedSession = { save: jest.fn((cb) => cb(null)) };
+    const res = await request(appFor({ hostedSession }))
+      .get('/api/auth/hosted-access/login')
+      .query({ identifier: 'nobody@nowhere.example' });
+
+    expect(res.status).toBe(302);
+    expect(resolvePingOneIdentifier).toHaveBeenCalledWith('nobody@nowhere.example');
+    expect(String(res.headers.location)).not.toContain('login_hint');
+  });
 });

@@ -103,6 +103,54 @@ async function fetchPingOneUserByUsername(username) {
 }
 
 /**
+ * Add an email-filter variant of the username search: SCIM `email eq "..."`.
+ */
+async function fetchPingOneUserByEmail(email) {
+  const envId = configStore.getEffective('PINGONE_ENVIRONMENT_ID');
+  const region = configStore.getEffective('PINGONE_REGION') || 'com';
+  if (!envId || !email) {
+    return { user: null, error: 'not_configured' };
+  }
+  try {
+    const token = await getManagementToken();
+    const filter = `email eq "${escapeScimFilterValue(email)}"`;
+    const url = `https://api.pingone.${region}/v1/environments/${envId}/users`;
+    const { data } = await axios.get(url, {
+      params: { filter, limit: 5 },
+      headers: { Authorization: `Bearer ${token}` },
+      timeout: 12000,
+    });
+    const users = data?._embedded?.users || [];
+    if (users.length === 0) {
+      return { user: null, error: 'not_found' };
+    }
+    return { user: normalizePingOneUser(users[0]), error: null };
+  } catch (err) {
+    console.warn('[PingOneUserLookup] email search failed:', err.response?.status, err.response?.data || err.message);
+    return { user: null, error: err.response?.data?.message || err.message || 'request_failed' };
+  }
+}
+
+/**
+ * Resolve a free-form identifier (PingOne user ID, username, or email) to the
+ * canonical directory user. ID wins, then username, then email.
+ */
+async function resolvePingOneIdentifier(raw) {
+  const input = String(raw || '').trim();
+  if (!input) return { user: null, error: 'not_found' };
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input)) {
+    const byId = await fetchPingOneUserById(input);
+    if (byId.user) return byId;
+  }
+  const byName = await fetchPingOneUserByUsername(input);
+  if (byName.user) return byName;
+  if (/@/.test(input)) {
+    return fetchPingOneUserByEmail(input);
+  }
+  return { user: null, error: 'not_found' };
+}
+
+/**
  * Prefer PingOne user linked by oauthId (sub), then search by username.
  * @param {{ oauthId?: string, username?: string }} localUser
  */
@@ -173,5 +221,7 @@ module.exports = {
   phoneLast4Matches,
   fetchPingOneUserById,
   fetchPingOneUserByUsername,
+  fetchPingOneUserByEmail,
+  resolvePingOneIdentifier,
   fetchPingOneUsersWithPhone,
 };
