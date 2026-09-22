@@ -163,23 +163,23 @@ describe("GuidedJourneyPage", () => {
     );
   });
 
-  it("reveals customer talking points on demand", async () => {
+  it("hides customer talking points on demand", async () => {
     renderJourney("/academy/journey?step=login");
     await screen.findByText("Needs attention");
 
-    expect(
-      screen.queryByText(
-        /PingOne authenticates the person while the BFF keeps browser tokens server-side/i,
-      ),
-    ).not.toBeInTheDocument();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Show customer talking points" }),
-    );
     expect(
       screen.getByText(
         /PingOne authenticates the person while the BFF keeps browser tokens server-side/i,
       ),
     ).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Hide customer talking points" }),
+    );
+    expect(
+      screen.queryByText(
+        /PingOne authenticates the person while the BFF keeps browser tokens server-side/i,
+      ),
+    ).not.toBeInTheDocument();
   });
 
   it("summarizes journey progress on the evidence step", async () => {
