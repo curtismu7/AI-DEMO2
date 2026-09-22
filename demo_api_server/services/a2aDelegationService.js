@@ -473,6 +473,10 @@ async function exchangeAsSpecialist(subjectToken, opts = {}) {
   }
   const specialistScopes = deriveSpecialistScopes(specialist, scopeTopo);
   const c = resolveA2aConfig(cfg, specialist, scopeTopo);
+  // PF mode: the Ex2 token goes straight to ping-gateway, whose rsFilter (and
+  // jwks-token-validation.groovy) requires the gateway inbound scope
+  // gateway:mcp:invoke - topology-derived invest:read alone is insufficient.
+  if (c.pfExchange) specialistScopes.unshift('gateway:mcp:invoke');
 
   // The subject token (tAgent1) already carries the user as `sub` — decode it
   // rather than threading userSub through as a separate param.
