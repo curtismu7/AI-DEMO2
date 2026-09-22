@@ -233,30 +233,39 @@ fi
 # finished; browsers reported a network/timeout error. Status frames must arrive
 # within a few seconds even when the model is slow.
 info "7/7 Code Explorer SSE time-to-first-byte (expect status frame quickly)..."
-CG_TMP=$(mktemp)
-CG_META=$(mktemp)
-if curl -skN -o "$CG_TMP" -w '%{http_code} %{time_starttransfer}' \
-    --max-time 12 \
-    -X POST "$APP_URL/api/codegraph/query" \
-    -H 'Content-Type: application/json' \
-    -d '{"question":"smoke: how does oauth login work?"}' \
-    >"$CG_META" 2>/dev/null; then
-  :
-fi
-# Exit 28 (timeout) is OK — we only need early status frames, not the full answer.
-CG_CODE=$(awk '{print $1}' "$CG_META")
-CG_TTFB=$(awk '{print $2}' "$CG_META")
-rm -f "$CG_META"
-if [ "$CG_CODE" != "200" ]; then
-  fail "Code Explorer SSE HTTP $CG_CODE (expected 200) — agent/BFF path broken"
-elif ! grep -q '"type": "status"' "$CG_TMP"; then
-  fail "Code Explorer SSE returned 200 but no status frame — likely still buffered or agent not streaming"
-elif awk "BEGIN {exit !($CG_TTFB < 5)}"; then
-  pass "Code Explorer SSE TTFB ${CG_TTFB}s with status frame"
+if [ -z "${HOSTED_SMOKE_COOKIE:-}" ]; then
+  # The ingress deliberately redirects unauthenticated Code Explorer requests
+  # to PingOne. Without an approved session cookie this probe can only measure
+  # the auth boundary, not SSE behavior, so the authenticated check above is
+  # the correct gate for this probe.
+  warn "HOSTED_SMOKE_COOKIE not set; Code Explorer SSE probe skipped"
 else
-  fail "Code Explorer SSE TTFB ${CG_TTFB}s (>=5s) — nginx may be buffering /api/codegraph again"
+  CG_TMP=$(mktemp)
+  CG_META=$(mktemp)
+  if curl -skN -o "$CG_TMP" -w '%{http_code} %{time_starttransfer}' \
+      --max-time 12 \
+      -X POST "$APP_URL/api/codegraph/query" \
+      -H "Cookie: $HOSTED_SMOKE_COOKIE" \
+      -H 'Content-Type: application/json' \
+      -d '{"question":"smoke: how does oauth login work?"}' \
+      >"$CG_META" 2>/dev/null; then
+    :
+  fi
+  # Exit 28 (timeout) is OK — we only need early status frames, not the full answer.
+  CG_CODE=$(awk '{print $1}' "$CG_META")
+  CG_TTFB=$(awk '{print $2}' "$CG_META")
+  rm -f "$CG_META"
+  if [ "$CG_CODE" != "200" ]; then
+    fail "Code Explorer SSE HTTP $CG_CODE (expected 200) — agent/BFF path broken"
+  elif ! grep -q '"type": "status"' "$CG_TMP"; then
+    fail "Code Explorer SSE returned 200 but no status frame — likely still buffered or agent not streaming"
+  elif awk "BEGIN {exit !($CG_TTFB < 5)}"; then
+    pass "Code Explorer SSE TTFB ${CG_TTFB}s with status frame"
+  else
+    fail "Code Explorer SSE TTFB ${CG_TTFB}s (>=5s) — nginx may be buffering /api/codegraph again"
+  fi
+  rm -f "$CG_TMP"
 fi
-rm -f "$CG_TMP"
 
 # ── verdict ───────────────────────────────────────────────────────────────────
 echo ""
