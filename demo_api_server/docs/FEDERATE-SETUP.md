@@ -42,6 +42,9 @@ export PF_STANDARD_TOKEN_EXCHANGE_CLIENT_ID=<ordinary-exchange-client-id>
 export PF_STANDARD_TOKEN_EXCHANGE_CLIENT_SECRET=<ordinary-exchange-client-secret>
 export PF_STANDARD_TOKEN_EXCHANGE_TOKEN_ENDPOINT_AUTH_METHOD=basic
 export PF_STANDARD_TOKEN_EXCHANGE_ACTOR_SCOPE=agent:invoke
+export PF_AI_AGENT_ACTOR_CLIENT_ID=<pf-ai-agent-actor-client-id>
+export PF_AI_AGENT_ACTOR_CLIENT_SECRET=<pf-ai-agent-actor-client-secret>
+export PF_AI_AGENT_ACTOR_TOKEN_ENDPOINT_AUTH_METHOD=basic
 ```
 
 The standard PF exchange asks for an access token. Do not configure an ID-JAG-only
