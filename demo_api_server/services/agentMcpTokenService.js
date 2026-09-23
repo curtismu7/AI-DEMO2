@@ -1732,7 +1732,13 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
     });
     const token = await oauthService.performTokenExchangeAs(
       userToken, actorToken, pfConfig.clientId, pfConfig.clientSecret, mcpResourceUri,
-      finalScopes, pfConfig.authMethod, { requestedTokenType: 'urn:ietf:params:oauth:token-type:access_token' }
+      finalScopes, pfConfig.authMethod, {
+        requestedTokenType: 'urn:ietf:params:oauth:token-type:access_token',
+        // PF's dedicated standard exchange policy derives the final audience
+        // from requested scopes. Sending the PingOne mcpserver.ping.demo
+        // audience here is rejected by PF as invalid_target.
+        omitAudience: true,
+      }
     );
     tokenEvents.push(buildTokenEvent(
       'pf-standard-token-exchange',

@@ -305,6 +305,59 @@
 .pfj-step-nav button:disabled { opacity: 0.42; cursor: default; }
 .pfj-step-nav button:focus-visible { outline: 3px solid var(--th-status-info); outline-offset: 2px; }
 
+.pfj-protocol {
+  overflow: hidden;
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.pfj-protocol summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 16px;
+  color: var(--th-text);
+  font-size: var(--font-size-body);
+  font-weight: 750;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.pfj-protocol summary span {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
+.pfj-protocol summary:focus-visible { outline: 3px solid var(--th-status-info); outline-offset: -3px; }
+
+.pfj-protocol__body {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.8fr) minmax(0, 1.5fr);
+  gap: 14px;
+  padding: 0 14px 14px;
+}
+
+.pfj-protocol__token,
+.pfj-protocol__exchange article {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--th-border);
+  border-radius: 6px;
+  background: var(--th-bg-inset);
+}
+
+.pfj-protocol__heading { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.pfj-protocol__eyebrow { color: var(--th-status-info-text); font-size: var(--font-size-3xs); font-weight: 800; letter-spacing: 0.08em; }
+.pfj-protocol h3 { margin: 4px 0 10px; color: var(--th-text); font-size: var(--font-size-sm); }
+.pfj-protocol__mock { padding: 4px 7px; border: 1px solid var(--th-status-info); border-radius: 4px; color: var(--th-status-info-text); font-size: var(--font-size-3xs); font-weight: 800; }
+.pfj-protocol__exchange { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.pfj-protocol pre { max-height: 310px; overflow: auto; margin: 0; padding: 10px; border: 1px solid var(--th-border); border-radius: 5px; background: var(--th-bg-card); color: var(--th-text-body); font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: var(--font-size-xs); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pfj-protocol__token pre { margin-top: 12px; }
+
 .pfj-footnote {
   margin: -8px 0 0;
   color: var(--th-text-muted);
@@ -318,6 +371,7 @@
   .pfj-guide { align-items: flex-start; flex-direction: column; }
   .pfj-step-nav { align-self: flex-end; }
   .pfj-chain { gap: 5px; right: 10px; font-size: var(--font-size-2xs); }
+  .pfj-protocol__body { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 620px) {
@@ -331,6 +385,8 @@
   .pfj-guide p { font-size: var(--font-size-xs); }
   .pfj-step-nav { align-self: stretch; justify-content: space-between; }
   .pfj-chain { display: none; }
+  .pfj-protocol summary { align-items: flex-start; flex-direction: column; }
+  .pfj-protocol__exchange { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {
