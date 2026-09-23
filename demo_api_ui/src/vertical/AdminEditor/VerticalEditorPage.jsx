@@ -178,12 +178,12 @@ export function VerticalEditorPage() {
     }
   }, [id]);
 
-  const doClone = useCallback(async ({ newId, displayName }) => {
+  const doClone = useCallback(async ({ newId, displayName, cloneOverlay, cloneTheme }) => {
     const res = await fetch(`/api/verticals/${id}/clone`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ newId, displayName }),
+      body: JSON.stringify({ newId, displayName, cloneOverlay, cloneTheme }),
     });
     if (res.ok) {
       setShowClone(false);

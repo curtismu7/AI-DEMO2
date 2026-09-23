@@ -407,7 +407,7 @@ router.delete('/snapshot', requireAdmin, (req, res) => {
 
 router.post('/:sourceId/clone', requireAdmin, (req, res) => {
   const { sourceId } = req.params;
-  const { newId, displayName } = req.body || {};
+  const { newId, displayName, cloneOverlay, cloneTheme } = req.body || {};
   if (!ID_REGEX.test(sourceId)) return res.status(400).json({ error: 'invalid source id format' });
   if (!newId || !displayName) return res.status(400).json({ error: 'newId and displayName required' });
   if (!ID_REGEX.test(newId)) return res.status(400).json({ error: 'invalid id format' });
@@ -427,6 +427,25 @@ router.post('/:sourceId/clone', requireAdmin, (req, res) => {
   fs.writeFileSync(path.join(newDir, 'mock-data.json'), JSON.stringify(source.mockData || {}, null, 2));
 
   verticalManifest.loader.reload(newId);
+
+  // Runtime skin config lives in the DB stores (T1/T2), not the seed — copy it
+  // when asked so "Duplicate" produces a vertical that looks identical.
+  // Both stores are keyed by vertical id and validated on write, so a straight
+  // copy is safe; the clone's overlay is then edited independently.
+  if (cloneOverlay) {
+    const srcOverlay = verticalManifest.overlay.get(sourceId);
+    if (srcOverlay && Object.keys(srcOverlay).length > 0) {
+      verticalManifest.resolver.overlay.replaceRaw(newId, JSON.parse(JSON.stringify(srcOverlay)));
+    }
+  }
+  if (cloneTheme) {
+    const themes = verticalManifest.resolver.themes;
+    const srcTheme = themes && themes.get(sourceId);
+    if (srcTheme) themes.put(newId, { cssVars: { ...(srcTheme.cssVars || {}) } });
+    const srcLogo = verticalManifest.store.getLogo(sourceId);
+    if (srcLogo) verticalManifest.store.setLogo(newId, { ...srcLogo });
+  }
+
   verticalManifest.events.emit('vertical-list-changed', { ids: verticalManifest.list().map((v) => v.id) });
   res.status(201).json({ id: newId, displayName });
 });
