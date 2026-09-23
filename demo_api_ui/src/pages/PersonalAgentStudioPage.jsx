@@ -1,9 +1,12 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
+import apiClient from '../services/apiClient';
 import AgentClientSkin from '../components/AgentClientSkin';
 import PersonalAgentClientCards from '../components/learning/PersonalAgentClientCards';
 import SecurityRail from '../components/SecurityRail';
 import TokenChainFilmstrip from '../components/TokenChainFilmstrip';
 import { useTokenChainOptional } from '../context/TokenChainContext';
+import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 
 const SKINS = ['privilege', 'claude', 'claude-terminal', 'gpt', 'gemini'];
 const SKIN_LABELS = { privilege: 'Privilege', claude: 'Claude', 'claude-terminal': 'Terminal', gpt: 'ChatGPT', gemini: 'Gemini' };
@@ -61,18 +64,84 @@ const LAYOUT_STYLES = {
   popped: { agentFlex: '0 0 280px', railWidth: 'auto', railVisible: true, placeholderVisible: true },
 };
 
-export default function PersonalAgentStudioPage() {
+export default function PersonalAgentStudioPage({ scenario, vertical: selectedVertical, runNonce = 0 }) {
+  const location = useLocation();
+  const query = new URLSearchParams(location.search);
+  const routeId = query.get('useCase');
+  const routeVertical = query.get('vertical');
+  const vertical = selectedVertical || routeVertical || 'airlines';
+  const routeContextKey = routeVertical && ['UC38', 'UC44'].includes(routeId) ? `${routeId}:${vertical}` : null;
+  const [routeScenario, setRouteScenario] = useState(null);
+  const workloadScenario = scenario || (routeScenario?.key === routeContextKey ? routeScenario.useCase : null);
+  const [catalogLoadError, setCatalogLoadError] = useState(null);
+  const [catalogLoadAttempt, setCatalogLoadAttempt] = useState(0);
+  const [runState, setRunState] = useState({ status: 'idle', text: '' });
   const [layoutState, setLayoutState] = useState('full');
   const [activeSkin, setActiveSkin] = useState('privilege');
   const [theme, setTheme] = useState('dark');
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [replayGates, setReplayGates] = useState(null);
   const replayTimer = useRef(null);
+  const activeWorkloadRun = useRef(null);
+  const workloadContextKey = workloadScenario
+    ? `${workloadScenario.id}:${workloadScenario.useCaseId}:${vertical}:${workloadScenario.runPrompt}`
+    : null;
 
   const tokenChain = useTokenChainOptional();
+  const setTokenEvents = tokenChain?.setTokenEvents;
   const events = tokenChain?.events || [];
   const gates = deriveGates(events);
   const actClaim = extractActClaim(events);
+
+  useEffect(() => {
+    if (scenario || !routeContextKey) return;
+    let live = true;
+    setCatalogLoadError(null);
+    apiClient.get(`/api/use-cases/${routeId}?vertical=${encodeURIComponent(vertical)}`)
+      .then(({ data }) => { if (live) setRouteScenario({ key: routeContextKey, useCase: data.useCase }); })
+      .catch(() => { if (live) setCatalogLoadError(routeContextKey); });
+    return () => { live = false; };
+  }, [scenario, routeId, routeContextKey, vertical, catalogLoadAttempt]);
+
+  useEffect(() => {
+    setRunState({ status: 'idle', text: '' });
+    return () => {
+      activeWorkloadRun.current?.abort();
+      activeWorkloadRun.current = null;
+    };
+  }, [workloadContextKey]);
+
+  const executeWorkload = useCallback((uc) => {
+    if (!uc?.runPrompt || !uc?.useCaseId) return;
+    activeWorkloadRun.current?.abort();
+    const controller = new AbortController();
+    activeWorkloadRun.current = controller;
+    const isCurrentRun = () => activeWorkloadRun.current === controller && !controller.signal.aborted;
+    tokenChainTraceStore.beginTrace({ prompt: uc.runPrompt });
+    setTokenEvents?.(uc.primaryTool, []);
+    setRunState({ status: 'running', text: '' });
+    fetch('/api/agent/invoke', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      signal: controller.signal,
+      body: JSON.stringify({ prompt: uc.runPrompt, vertical, useCaseId: uc.useCaseId }),
+    }).then(async (response) => {
+      const data = await response.json().catch(() => ({}));
+      if (!isCurrentRun()) return null;
+      if (Array.isArray(data.tokenEvents)) setTokenEvents?.(uc.primaryTool, data.tokenEvents);
+      if (!response.ok) throw new Error(data.message || data.error || `Request failed (${response.status})`);
+      return data;
+    }).then((data) => {
+      if (isCurrentRun()) setRunState({ status: 'complete', text: data.reply || 'The workload agent completed the request.' });
+    }).catch((error) => {
+      if (isCurrentRun()) setRunState({ status: 'error', text: error.message || 'The workload agent could not complete the request.' });
+    });
+  }, [vertical, setTokenEvents]);
+
+  useEffect(() => {
+    if (runNonce > 0 && scenario) executeWorkload(scenario);
+  }, [runNonce, scenario, executeWorkload]);
 
   const handleSend = useCallback((text) => {
     setMessages((prev) => [...prev, { role: 'user', text }]);
@@ -81,7 +150,7 @@ export default function PersonalAgentStudioPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-        body: JSON.stringify({ prompt: text, vertical: 'airlines', useCaseId: 'workload-digital-assistant-obo' }),
+      body: JSON.stringify({ prompt: text, vertical: 'airlines' }),
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
@@ -123,6 +192,35 @@ export default function PersonalAgentStudioPage() {
   }
 
   const layout = LAYOUT_STYLES[layoutState] || LAYOUT_STYLES.full;
+  const workloadGates = workloadScenario && gates.map((gate, index) => {
+    if (index === 0 && workloadScenario.id === 'UC44') return { ...gate, name: 'Customer attribution', desc: 'Customer remains sub; workload agent appears in act' };
+    if (index === 2) return { ...gate, desc: 'Selected vertical action and policy' };
+    return gate;
+  });
+
+  if (routeContextKey && !workloadScenario) return (
+    <div className="workload-agents__run">
+      {catalogLoadError === routeContextKey ? <>
+        <p role="alert">The catalog action could not be loaded. Retry {routeId} for {vertical}, or choose another scenario or vertical.</p>
+        <button type="button" onClick={() => setCatalogLoadAttempt((attempt) => attempt + 1)}>Retry loading {routeId}</button>
+      </> : <p role="status">Loading {routeId} action for {vertical}…</p>}
+    </div>
+  );
+
+  if (workloadScenario) return (
+    <div className="workload-agents__run">
+      <h3>{workloadScenario.id}: {workloadScenario.title}</h3>
+      <p>{workloadScenario.id === 'UC38'
+        ? 'Customer MFA is checked before this protected write. The registered workload agent acts only after step-up succeeds.'
+        : 'This customer-data read keeps the signed-in customer as sub and the registered workload agent as act.'}</p>
+      <p>Action: <strong>{workloadScenario.primaryTool}</strong> · Prompt: <strong>{workloadScenario.runPrompt}</strong></p>
+      <button type="button" disabled={runState.status === 'running'} onClick={() => executeWorkload(workloadScenario)}>Run {workloadScenario.id} action</button>
+      <button type="button" onClick={() => window.open(`/personal-agent/client?skin=${activeSkin}&theme=${theme}&useCase=${workloadScenario.id}&vertical=${encodeURIComponent(vertical)}`, '_blank', 'width=480,height=700,left=200,top=100,resizable=yes')}>🪟 Open client window</button>
+      <p role="status">{runState.status === 'running' ? 'Running the selected action…' : runState.text || 'Ready to run the selected catalog action.'}</p>
+      <SecurityRail gates={workloadGates} actClaim={actClaim} tokenEvents={events} />
+      <TokenChainFilmstrip />
+    </div>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--bg, #0f1117)' }}>

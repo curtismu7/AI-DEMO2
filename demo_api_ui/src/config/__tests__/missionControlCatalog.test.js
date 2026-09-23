@@ -5,7 +5,7 @@ import {
 } from '../missionControlCatalog';
 
 describe('missionControlCatalog', () => {
-  it('defines the 12 presenter groups with product ownership', () => {
+  it('defines the 12 presenter groups with product ownership and without the SaaS lane', () => {
     expect(MISSION_CONTROL_CATALOG).toHaveLength(12);
     expect(MISSION_CONTROL_CATALOG.map((group) => group.id)).toEqual([
       'personal-agent',
@@ -36,8 +36,21 @@ describe('missionControlCatalog', () => {
     ]));
   });
 
-  it('keeps the employee lane planned', () => {
+  it('links the Personal Agent group to the Personal Agents page', () => {
+    expect(getMissionControlGroup('personal-agent').routes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ href: '/personal-agent' })]),
+    );
+  });
+
+  it('keeps the employee lane planned and omits the SaaS lane', () => {
     expect(getMissionControlGroup('employee-agent')).toMatchObject({ status: 'planned' });
     expect(getMissionControlGroup('saas-embedded-agent')).toBeNull();
   });
+
+  it('opens the Workload Agent page from its Run link', () => {
+    expect(getMissionControlGroup('workload-agent').routes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ href: '/workload-agents' })]),
+    );
+  });
+
 });

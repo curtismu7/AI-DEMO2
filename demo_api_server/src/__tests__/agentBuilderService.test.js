@@ -75,6 +75,51 @@ describe('agent naming + lookup', () => {
     const agent = await svc.getAgentForUser(USER);
     expect(agent).toMatchObject({ id: 'app-1', type: 'WEB_APP', fallback: true });
   });
+
+  test('getRuntimeForUser returns owned client credentials without exposing them in the public summary', async () => {
+    mockGet({
+      '/applications?limit=100': { _embedded: { applications: [{
+        id: 'agent-1', clientId: 'oauth-agent-client', name: 'AI Agent - demoUser', type: 'AI_AGENT', enabled: true,
+        description: 'Created by Agent Builder for sub-abc', grantTypes: ['CLIENT_CREDENTIALS'],
+        tokenEndpointAuthMethod: 'CLIENT_SECRET_POST',
+      }] } },
+      '/applications/agent-1/secret': { secret: 'private-agent-secret' },
+    });
+
+    const runtime = await svc.getRuntimeForUser(USER);
+
+    expect(runtime).toMatchObject({
+      agent: { id: 'agent-1', name: 'AI Agent - demoUser' },
+      clientId: 'oauth-agent-client', clientSecret: 'private-agent-secret', authMethod: 'post',
+    });
+    expect(runtime.agent).not.toHaveProperty('clientSecret');
+    expect(axios.get).toHaveBeenCalledWith(
+      `${BASE}/applications/agent-1/secret`,
+      expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer mock-mgmt-token' }) }),
+    );
+  });
+
+  test('getRuntimeForUser rejects an app without client credentials grant', async () => {
+    mockGet({
+      '/applications?limit=100': { _embedded: { applications: [{
+        id: 'agent-1', name: 'AI Agent - demoUser', type: 'WEB_APP', enabled: true,
+        description: 'Created by Agent Builder for sub-abc', grantTypes: ['AUTHORIZATION_CODE'],
+      }] } },
+    });
+    await expect(svc.getRuntimeForUser(USER)).rejects.toMatchObject({ code: 'workload_agent_not_client' });
+    expect(axios.get).not.toHaveBeenCalledWith(expect.stringContaining('/secret'), expect.anything());
+  });
+
+  test('getRuntimeForUser ignores a same-name app not owned by this customer', async () => {
+    mockGet({
+      '/applications?limit=100': { _embedded: { applications: [{
+        id: 'other-user-agent', name: 'AI Agent - demoUser', type: 'AI_AGENT',
+        description: 'Created by Agent Builder for another-user', grantTypes: ['CLIENT_CREDENTIALS'],
+      }] } },
+    });
+    await expect(svc.getRuntimeForUser(USER)).resolves.toBeNull();
+    expect(axios.get).not.toHaveBeenCalledWith(expect.stringContaining('/secret'), expect.anything());
+  });
 });
 
 describe('createAgentForUser', () => {

@@ -144,6 +144,7 @@
     "/architecture/canvas": "public",
     "/architecture/flow": "public",
     "/architecture/overview": "public",
+    "/architecture/pingfederate-id-jag": "public",
     "/architecture/reactflow-poc": "public",
     "/architecture/poc-compare": "public",
     "/architecture/phase-266": "public",
@@ -258,6 +259,7 @@
     "/pingone-setup": "public",
     "/pingone-test": "public",
     "/platform-gaps": "public",
+    "/promptfoo": "public",
     "/policy-decision-trace": "public",
     "/postman": "admin",
     "/privilege-demo": "public",
@@ -319,7 +321,8 @@
     "/user-accounts": "public",
     "/users": "admin",
     "/weather-mcp": "public",
-    "/webmcp": "public"
+    "/webmcp": "public",
+    "/workload-agents": "public"
   },
   "softAuthRoutes": [
     "/",

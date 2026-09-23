@@ -52,6 +52,25 @@ it('resolves request-scoped credentials for the claimed active registration', ()
   );
 });
 
+it('uses the verified workload-agent runtime for the request-scoped actor token', () => {
+  const workloadAgentRuntime = {
+    clientId: 'personal-agent-app',
+    clientSecret: 'server-only-personal-agent-secret',
+    authMethod: 'post',
+  };
+  expect(runtime.resolveAgentRuntime({ ...req(), workloadAgentRuntime })).toEqual(workloadAgentRuntime);
+  expect(store.get).not.toHaveBeenCalled();
+});
+
+it('does not apply consent from a different delegated-commerce app to a workload agent', () => {
+  const request = {
+    ...req(),
+    workloadAgentRuntime: { clientId: 'personal-agent-app', clientSecret: 'server-only-secret' },
+  };
+  expect(runtime.resolveConsentContext(request, 'checkout')).toBeNull();
+  expect(store.get).not.toHaveBeenCalled();
+});
+
 it('fails closed after customer revocation', () => {
   store.get.mockReturnValue({
     id: 'reg-1',

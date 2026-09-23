@@ -1462,6 +1462,18 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
     await resolveMcpTokenEnterpriseManaged(req, tokenEvents, { runScoped: runScopedEnterpriseDemo });
   }
 
+  // PingFederate's ID-JAG path currently has no input for the verified
+  // Agent Builder actor runtime. Do not return a user-scoped token while the
+  // Workload Agents UI claims that runtime supplied act.
+  if (req?.workloadAgentRuntime?.clientId && configStore.getOAuthProvider?.() === 'pingfederate') {
+    throwTokenResolutionError(
+      tokenEvents,
+      'workload_actor_provider_unsupported',
+      'Workload Agent actor binding currently requires the PingOne two-exchange path; PingFederate ID-JAG does not bind the selected agent.',
+      409,
+    );
+  }
+
   // ── ff_skip_token_exchange — deny raw user-token forwarding ───────────────
   // When ON we still do NOT forward the user access token to MCP. Instead we
   // surface an explicit block so demos can show that raw user tokens are not
@@ -1695,7 +1707,10 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
     return { token: pfToken, tokenEvents, userSub, tratContextHeader: null };
   }
 
-  if (runScopedEnterpriseDemo && configStore.getOAuthProvider?.() !== 'pingfederate' && isOlbBackedTool(tool)) {
+  if (!req?.workloadAgentRuntime
+      && runScopedEnterpriseDemo
+      && configStore.getOAuthProvider?.() !== 'pingfederate'
+      && isOlbBackedTool(tool)) {
     // Mode-aware, not the plain mcpResourceUri above: under this demo's default
     // PingGateway routing the gateway requires the pinggateway resource URI
     // (https://api.ping.demo:3036/mcp), not mcpserver.ping.demo — matching
@@ -1756,7 +1771,9 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   // 12-step AI agent security mandate: two RFC 8693 exchanges are ALWAYS required.
   // Session mode 'single' is a debug-only escape hatch; 'double' is the mandatory default.
   const sessionExchangeMode = req && req.session ? req.session.mcpExchangeMode : undefined;
-  const ffTwoExchange = sessionExchangeMode !== 'single';
+  // Workload Agents promise a cryptographic act identity, so they cannot use
+  // the debug single-exchange path even if the user's session selected it.
+  const ffTwoExchange = !!req?.workloadAgentRuntime || sessionExchangeMode !== 'single';
   if (ffTwoExchange) {
     return await _performTwoExchangeDelegation(
       tokenEvents, userToken, finalScopes, userSub, toolTrigger, mcpResourceUri, req, { ...opts, tool }

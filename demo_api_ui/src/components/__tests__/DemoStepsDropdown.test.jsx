@@ -255,6 +255,20 @@ describe('DemoStepsDropdown', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
+  it.each([
+    ['UC38', 'sporting-goods', '/workload-agents?useCase=UC38', '/workload-agents?useCase=UC38&vertical=sporting-goods'],
+    ['UC44', 'healthcare', '/workload-agents?vertical=banking&useCase=UC44', '/workload-agents?vertical=healthcare&useCase=UC44'],
+  ])('opens %s with the active vertical and canonical use case', async (id, vertical, path, expectedPath) => {
+    const onSelect = vi.fn();
+    const catalog = CATALOG.map((uc) => uc.id === id ? { ...uc, trigger: { type: 'link', path } } : uc);
+    if (id === 'UC44') catalog.push({ id, title: 'UC44', trigger: { type: 'link', path } });
+    apiClient.get.mockResolvedValue({ data: { useCases: catalog } });
+    render(<DemoStepsDropdown vertical={vertical} open onOpenChange={() => {}} onSelect={onSelect} />);
+    const step = await screen.findByTestId(id === 'UC44' ? 'demo-step-ciam-UC44' : 'demo-step-UC38');
+    fireEvent.click(step);
+    expect(onSelect.mock.calls[0][0].trigger.path).toBe(expectedPath);
+  });
+
   it('shows Clear progress even with nothing completed, and clears checkmarks on click', async () => {
     render(
       <DemoStepsDropdown
