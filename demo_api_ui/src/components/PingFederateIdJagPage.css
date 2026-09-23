@@ -82,6 +82,17 @@
 .pfj-diagram-tabs button.is-current { border-color: var(--th-border); border-bottom-color: #087d76; background: var(--th-bg-card); color: var(--th-text); }
 .pfj-diagram-tabs button:focus-visible { outline: 3px solid var(--th-status-info); outline-offset: 2px; }
 
+.pfj-toolbar {
+  padding: 8px 12px;
+  border: 1px solid var(--th-border);
+  border-radius: 7px;
+  background: var(--th-bg-card);
+}
+
+.pfj-toolbar .dc-toolbar {
+  margin: 0;
+}
+
 .pfj-diagram {
   position: relative;
   height: clamp(390px, 54vh, 560px);
@@ -176,6 +187,10 @@
   color: var(--pfj-accent);
   font-size: var(--font-size-xs);
   font-weight: 800;
+}
+
+:root[data-theme="dark"] .pfj-node__mark {
+  color: var(--th-text);
 }
 
 .pfj-node .react-flow__handle {
@@ -291,7 +306,7 @@
 
 .pfj-footnote {
   margin: -8px 0 0;
-  color: var(--th-text-faint);
+  color: var(--th-text-muted);
   font-size: var(--font-size-xs);
   line-height: 1.45;
 }

@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import EducationRoutes from "../../routes/EducationRoutes";
@@ -41,4 +41,36 @@ describe("PingFederate ID-JAG architecture", () => {
     expect(screen.getByText("Exchange 1 issues an ID-JAG")).toBeTruthy();
     expect(screen.getByText(/user remains sub/)).toBeTruthy();
   });
+
+  it("plays, pauses, steps, resets, and uses the selected step timer", () => {
+    vi.useFakeTimers();
+    try {
+      renderPage();
+      expect(screen.getByText("Step 1 / 6")).toBeTruthy();
+      const stepTime = screen.getByLabelText("Step time:");
+      fireEvent.change(stepTime, { target: { value: "800" } });
+      fireEvent.click(screen.getByRole("button", { name: "Simulate" }));
+      expect(screen.getByRole("button", { name: "Pause" })).toBeTruthy();
+      expect(stepTime.disabled).toBe(true);
+
+      act(() => vi.advanceTimersByTime(800));
+      expect(screen.getByText("Step 2 / 6")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+      fireEvent.click(screen.getByRole("button", { name: "Next →" }));
+      expect(screen.getByText("Step 3 / 6")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "← Prev" }));
+      expect(screen.getByText("Step 2 / 6")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Resume" }));
+      act(() => vi.advanceTimersByTime(800));
+      expect(screen.getByText("Step 3 / 6")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Stop" }));
+      expect(screen.getByRole("button", { name: "Simulate" })).toBeTruthy();
+      expect(screen.getByText("Step 3 / 6")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "↺ Reset" }));
+      expect(screen.getByText("Step 1 / 6")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
 });

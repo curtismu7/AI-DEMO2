@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -9,6 +9,7 @@ import {
   ReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { DEFAULT_STEP_MS, DiagramControls, STEP_TIME_OPTIONS } from "./diagram";
 import "./PingFederateIdJagPage.css";
 
 const DIAGRAMS = {
@@ -135,16 +136,95 @@ function buildEdges(diagram, activeStep) {
 export default function PingFederateIdJagPage() {
   const [diagramId, setDiagramId] = useState("jag");
   const [activeStep, setActiveStep] = useState(0);
+  const [simulating, setSimulating] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [stepMs, setStepMs] = useState(DEFAULT_STEP_MS);
+  const timerRef = useRef(null);
   const diagram = DIAGRAMS[diagramId];
   const step = diagram.steps[activeStep];
   const nodes = useMemo(() => buildNodes(diagram, step), [diagram, step]);
   const edges = useMemo(() => buildEdges(diagram, activeStep), [diagram, activeStep]);
+  const clearTimer = useCallback(() => {
+    if (timerRef.current !== null) {
+      window.clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const stopPlayback = useCallback(() => {
+    clearTimer();
+    setSimulating(false);
+    setPaused(false);
+  }, [clearTimer]);
+
+  const scheduleNext = useCallback((fromIndex) => {
+    timerRef.current = window.setTimeout(() => {
+      const nextIndex = fromIndex + 1;
+      if (nextIndex >= diagram.steps.length) {
+        timerRef.current = null;
+        setSimulating(false);
+        setPaused(false);
+        return;
+      }
+
+      setActiveStep(nextIndex);
+      if (nextIndex === diagram.steps.length - 1) {
+        timerRef.current = null;
+        setSimulating(false);
+        setPaused(false);
+      } else {
+        scheduleNext(nextIndex);
+      }
+    }, stepMs);
+  }, [diagram.steps.length, stepMs]);
+
+  useEffect(() => () => clearTimer(), [clearTimer]);
+
+  const goToStep = useCallback((index) => {
+    stopPlayback();
+    setActiveStep(index);
+  }, [stopPlayback]);
+
   const onNodeClick = useCallback((_event, node) => {
     const next = diagram.steps.findIndex((item) => item.active.includes(node.id));
-    if (next >= 0) setActiveStep(next);
-  }, [diagram]);
+    if (next >= 0) goToStep(next);
+  }, [diagram, goToStep]);
+
+  const onSimulate = () => {
+    clearTimer();
+    setActiveStep(0);
+    setSimulating(true);
+    setPaused(false);
+    if (diagram.steps.length > 1) scheduleNext(0);
+    else setSimulating(false);
+  };
+
+  const onPause = () => {
+    clearTimer();
+    setPaused(true);
+  };
+
+  const onResume = () => {
+    if (activeStep < diagram.steps.length - 1) {
+      setPaused(false);
+      scheduleNext(activeStep);
+    } else {
+      stopPlayback();
+    }
+  };
+
+  const onNext = () => {
+    clearTimer();
+    setActiveStep((current) => Math.min(current + 1, diagram.steps.length - 1));
+  };
+  const onPrev = () => {
+    clearTimer();
+    setActiveStep((current) => Math.max(current - 1, 0));
+  };
+  const onReset = () => goToStep(0);
 
   const selectDiagram = (id) => {
+    stopPlayback();
     setDiagramId(id);
     setActiveStep(0);
   };
@@ -165,6 +245,25 @@ export default function PingFederateIdJagPage() {
           <button key={id} type="button" role="tab" aria-selected={diagramId === id} className={diagramId === id ? "is-current" : ""} onClick={() => selectDiagram(id)}>{item.label}</button>
         ))}
       </nav>
+
+      <div className="pfj-toolbar">
+        <DiagramControls
+          currentStep={activeStep + 1}
+          totalSteps={diagram.steps.length}
+          isSimulating={simulating}
+          isPaused={paused}
+          onSimulate={onSimulate}
+          onPrev={onPrev}
+          onPause={onPause}
+          onResume={onResume}
+          onNext={onNext}
+          onStop={stopPlayback}
+          onReset={onReset}
+          stepTimeOptions={STEP_TIME_OPTIONS}
+          stepMs={stepMs}
+          onSetStepMs={setStepMs}
+        />
+      </div>
 
       <section className="pfj-diagram" aria-label={`Interactive ${diagram.label}`}>
         <div className="pfj-lane pfj-lane--top">Identity and delegation</div>
@@ -198,11 +297,11 @@ export default function PingFederateIdJagPage() {
           <div><h2>{step.title}</h2><p>{step.detail}</p></div>
         </div>
         <nav className="pfj-step-nav" aria-label={`${diagram.label} steps`}>
-          <button type="button" onClick={() => setActiveStep((n) => Math.max(0, n - 1))} disabled={activeStep === 0} aria-label="Previous step">‹</button>
+          <button type="button" onClick={() => goToStep(Math.max(activeStep - 1, 0))} disabled={activeStep === 0} aria-label="Previous step">‹</button>
           {diagram.steps.map((item, index) => (
-            <button key={item.title} type="button" className={index === activeStep ? "is-current" : ""} onClick={() => setActiveStep(index)} aria-label={`Step ${index + 1}: ${item.title}`} aria-current={index === activeStep ? "step" : undefined}>{index + 1}</button>
+            <button key={item.title} type="button" className={index === activeStep ? "is-current" : ""} onClick={() => goToStep(index)} aria-label={`Step ${index + 1}: ${item.title}`} aria-current={index === activeStep ? "step" : undefined}>{index + 1}</button>
           ))}
-          <button type="button" onClick={() => setActiveStep((n) => Math.min(diagram.steps.length - 1, n + 1))} disabled={activeStep === diagram.steps.length - 1} aria-label="Next step">›</button>
+          <button type="button" onClick={() => goToStep(Math.min(activeStep + 1, diagram.steps.length - 1))} disabled={activeStep === diagram.steps.length - 1} aria-label="Next step">›</button>
         </nav>
       </section>
 
