@@ -147,16 +147,14 @@ export function computeVerdict(trace, catalogEntry) {
   const actualOutcome = trace.authorize && trace.authorize.outcome;
   const expectedFamily = expected && EXPECTED_OUTCOME_FAMILY[expected];
   // UC22's first Authorize response is the STEP_UP decision that caused CIBA.
-  // Some successful write retries don't produce a second browser-visible
-  // Authorize evaluation, so the trace correctly retains INDETERMINATE even
-  // though the approved CIBA poll is followed by a completed tool dispatch.
-  // Treat that complete, approved CIBA sequence as the final PERMIT for this
-  // success narrative; approval or dispatch evidence alone is insufficient.
+  // A successful retry may retain the original challenge, or have no second
+  // browser-visible Authorize decision. Score the completed approval and write
+  // instead of requiring one particular shape for that first decision.
   const cibaApprovedAndDispatched =
     useCaseId === 'ciba-out-of-band-approval' &&
     expected === 'PERMIT' &&
-    decision === 'INDETERMINATE' &&
-    (actualOutcome === 'STEP_UP' || actualOutcome === 'HITL_REQUIRED') &&
+    decision !== 'DENY' &&
+    actualOutcome !== 'DENY' &&
     (trace.tokenEvents || []).some((event) =>
       event?.id === 'ciba-poll' && event.additionalData?.status === 'approved') &&
     !!trace.mcpResult &&

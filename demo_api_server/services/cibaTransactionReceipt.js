@@ -27,10 +27,12 @@ function key(userId, tool, amount, accounts = {}) {
 function record(userId, tool, amount, accounts = {}) {
   if (!userId || !tool || !Number.isFinite(Number(amount))) return;
   const k = key(userId, tool, amount, accounts);
-  if (receipts.get(k)?.proofType === 'ciba' && accounts.proofType !== 'ciba') return;
+  const existingProof = receipts.get(k)?.proofType;
+  if (existingProof === 'ciba' && accounts.proofType !== 'ciba') return;
+  if (existingProof === 'simulated_ciba' && !['ciba', 'simulated_ciba'].includes(accounts.proofType)) return;
   receipts.set(k, {
     expiresAt: Date.now() + TTL_MS,
-    proofType: accounts.proofType === 'ciba' ? 'ciba' : 'hitl',
+    proofType: ['ciba', 'simulated_ciba'].includes(accounts.proofType) ? accounts.proofType : 'hitl',
   });
 }
 

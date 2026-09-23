@@ -19,6 +19,10 @@ const { logEvent: logAppEvent } = require('./appEventService');
 const SIMULATED_EXPIRES_IN = 300;
 const SIMULATED_INTERVAL = 5;
 
+function isLocalSimulationEnabled() {
+  return process.env.NODE_ENV === 'development' && process.env.CIBA_LOCAL_SIMULATION === 'true';
+}
+
 /**
  * Mint a fake auth_req_id and initiation response, matching the shape of
  * cibaService.initiateBackchannelAuth()'s return value.
@@ -53,4 +57,5 @@ function isSimulatedApproved(pending) {
 module.exports = {
   initiateSimulated,
   isSimulatedApproved,
+  isLocalSimulationEnabled,
 };
