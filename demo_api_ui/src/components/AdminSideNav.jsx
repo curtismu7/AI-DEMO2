@@ -514,7 +514,7 @@ export default function AdminSideNav({
       icon: "shld",
       children: [
         { label: "Protocol Playground", path: "/protocol-playground", icon: "dbg" },
-        { label: "AI Gateway Client", path: "/privilege-mcp-client", icon: "shld" },
+        { label: "AI Guard Client", path: "/privilege-mcp-client", icon: "shld" },
         { label: "LLM Gateway", path: "/llm-gateway", icon: "key" },
         { label: "Intent Inspector", path: "/intent-inspector", icon: "shld", adminOnly: true },
         { label: "Audit Agent", path: "/audit-agent", icon: "shld" },
@@ -1252,7 +1252,7 @@ export default function AdminSideNav({
     productGroup("AI Gateway", [
       { from: "Shadow AI Detector", rename: "AI Guard" },
       "Protocol Playground",
-      "AI Gateway Client",
+      "AI Guard Client",
       "LLM Gateway",
       "Intent Inspector",
       "Audit Agent",

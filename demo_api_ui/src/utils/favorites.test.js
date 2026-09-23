@@ -13,6 +13,7 @@ describe('favorites', () => {
       '/academy/journey',
     ]);
     expect(favs[0].label).toBe('AI Guard');
+    expect(favs[1].label).toBe('AI Guard Client');
     expect(favs[2].label).toBe('Agent Identity Academy');
     expect(favs[3].label).toBe('Guided Demo Tour');
   });
@@ -27,6 +28,12 @@ describe('favorites', () => {
   it('updates the renamed gateway favorite in existing browser storage', () => {
     localStorage.setItem('demo_header_favorites', JSON.stringify([{ label: 'LLM Gateway', path: '/llm-gateway' }]));
     expect(getFavorites()[0].label).toBe('AI Guard');
+  });
+
+  it('updates the AI Guard Client favorite in existing browser storage', () => {
+    localStorage.setItem('demo_header_favorites', JSON.stringify([{ label: 'AI Gateway Client', path: '/privilege-mcp-client' }]));
+    localStorage.setItem('demo_header_favorites_agent_identity_academy_v1', '1');
+    expect(getFavorites()[0].label).toBe('AI Guard Client');
   });
 
   it('moves the legacy standalone Academy favorite to the in-app route', () => {
@@ -80,7 +87,7 @@ describe('favorites', () => {
   });
 
   it('derives a readable label, handling acronyms', () => {
-    expect(labelForPath('/privilege-mcp-client')).toBe('Privilege MCP Client');
+    expect(labelForPath('/privilege-mcp-client')).toBe('AI Guard Client');
     expect(labelForPath('/llm-gateway')).toBe('AI Guard');
     expect(labelForPath('/academy/identity')).toBe('Agent Identity Academy');
     expect(addFavorite({ path: '/intent-inspector' }).at(-1).label).toBe('Intent Inspector');
