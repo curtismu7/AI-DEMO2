@@ -110,12 +110,12 @@ describe("AdminSideNav — best-of-breed pass", () => {
   it("live-filters nav items by label", () => {
     renderNav();
     // present before filtering
-    expect(screen.getByText("Themes")).toBeTruthy();
+    expect(screen.getByText("Skin Studio")).toBeTruthy();
     expect(screen.getByText("Observability")).toBeTruthy();
     const input = screen.getByLabelText(/search navigation/i);
     fireEvent.change(input, { target: { value: "observability" } });
     // non-matching top-level item is filtered out; matching group remains
-    expect(screen.queryByText("Themes")).toBeNull();
+    expect(screen.queryByText("Skin Studio")).toBeNull();
     expect(screen.getByText("Observability")).toBeTruthy();
   });
 
@@ -307,7 +307,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
         if (String(url).includes("/api/user/nav-config")) {
           return Promise.resolve({
             ok: true,
-            json: () => Promise.resolve({ hiddenLabels: ["Themes"], activeConfigId: null, flagOn: true }),
+            json: () => Promise.resolve({ hiddenLabels: ["Skin Studio"], activeConfigId: null, flagOn: true }),
           });
         }
         return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
@@ -315,7 +315,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
     );
     renderNav();
     expect(await screen.findByText("Observability")).toBeInTheDocument();
-    expect(screen.queryByText("Themes")).toBeNull();
+    expect(screen.queryByText("Skin Studio")).toBeNull();
     vi.unstubAllGlobals();
   });
 
@@ -334,7 +334,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
     // A realistic stale order: no "AI Gateway", and labels from groups
     // that have since been renamed.
     const staleOrder = [
-      "Home", "Dashboard", "AI Experiences", "Utilities", "Themes",
+      "Home", "Dashboard", "AI Experiences", "Utilities", "Skin Studio",
       "Observability", "Administration",
     ];
     vi.stubGlobal(
@@ -367,12 +367,12 @@ describe("AdminSideNav — best-of-breed pass", () => {
     // It sits after Themes — its position in allNavItems — because
     // Dashboard is the nearest preceding sibling the saved order knows about.
     expect(idx("AI Gateway")).toBeGreaterThan(-1);
-    expect(idx("AI Gateway")).toBe(idx("Themes") + 1);
+    expect(idx("AI Gateway")).toBe(idx("Skin Studio") + 1);
     // And crucially NOT dumped at the bottom past everything ordered.
     expect(idx("AI Gateway")).toBeLessThan(idx("DaVinci"));
 
     // The user's explicit ordering is still honoured for what it does contain.
-    expect(idx("AI Experiences")).toBeLessThan(idx("Themes"));
+    expect(idx("AI Experiences")).toBeLessThan(idx("Skin Studio"));
     vi.unstubAllGlobals();
   });
 

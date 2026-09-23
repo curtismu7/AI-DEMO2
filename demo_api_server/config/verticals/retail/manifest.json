@@ -354,5 +354,67 @@
       "hint": "demoAdmin",
       "passwordHint": "Tigers7&"
     }
+  },
+  "capabilities": {
+    "adminOps": {
+      "lookupSlices": {
+        "orders": "orders",
+        "returns": "returns",
+        "subscriptions": "subscriptions",
+        "support_tickets": "support_tickets",
+        "rewards": "rewards"
+      },
+      "writes": [
+        {
+          "route": "orders/:id/cancel",
+          "method": "post",
+          "mutator": "cancelOrder",
+          "noun": "order"
+        },
+        {
+          "route": "subscriptions/:id/cancel",
+          "method": "post",
+          "mutator": "cancelSubscription",
+          "noun": "subscription"
+        },
+        {
+          "route": "tickets/:id/resolve",
+          "method": "post",
+          "mutator": "resolveTicket",
+          "noun": "ticket"
+        },
+        {
+          "route": "returns/:id/approve",
+          "method": "post",
+          "mutator": "approveReturn",
+          "noun": "return"
+        }
+      ],
+      "queueRules": [
+        {
+          "slice": "returns",
+          "label": "Returns",
+          "open": [
+            "pending"
+          ],
+          "title": {
+            "field": "product",
+            "fallback": "Return"
+          }
+        },
+        {
+          "slice": "support_tickets",
+          "label": "Support",
+          "open": [
+            "open",
+            "in progress"
+          ],
+          "title": {
+            "field": "subject",
+            "fallback": "Ticket"
+          }
+        }
+      ]
+    }
   }
 }

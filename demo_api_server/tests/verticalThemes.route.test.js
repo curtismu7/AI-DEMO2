@@ -1,27 +1,26 @@
 // demo_api_server/tests/verticalThemes.route.test.js
 'use strict';
 
-// In-memory configStore stub (mirrors get/setRaw string-blob semantics).
-const _store = {};
-jest.mock('../services/configStore', () => ({
-  get: jest.fn((k) => {
-    const v = _store[String(k).toUpperCase()];
-    return v !== undefined && v !== '' ? v : null;
-  }),
-  setRaw: jest.fn(async (data) => {
-    for (const [k, v] of Object.entries(data)) _store[String(k).toUpperCase()] = String(v);
-  }),
-}));
+// The routes now read/write the resolver's themes facade (backed by
+// verticalStore.lmdb theme:<id> keys since T2). Stub the verticalManifest
+// service with an in-memory facade that mirrors the wrappedThemes contract:
+// get/put/clear/listIds, where put stores { cssVars, savedAt }.
 
+const mockThemes = new Map();
 jest.mock('../services/verticalManifest', () => ({
   verticalManifest: {
     list: () => [{ id: 'banking' }, { id: 'healthcare' }],
     listAll: () => [{ id: 'banking' }, { id: 'healthcare' }],
+    resolver: {
+      themes: {
+        get: (id) => mockThemes.get(id) || null,
+        put: (id, theme) => mockThemes.set(id, { ...theme, savedAt: Date.now() }),
+        clear: (id) => mockThemes.delete(id),
+        listIds: () => [...mockThemes.keys()],
+      },
+    },
   },
 }));
-
-// The route is fully public — server.js mounts it with no auth middleware at
-// all — so there is no admin middleware to stub, and no req.user is required.
 
 const request = require('supertest');
 const express = require('express');
@@ -43,7 +42,7 @@ function buildAppNoAuth() {
   return app;
 }
 
-beforeEach(() => { for (const k of Object.keys(_store)) delete _store[k]; });
+beforeEach(() => { mockThemes.clear(); });
 
 describe('verticalThemes route', () => {
   test('PUT merges cssVars without clobbering existing zones', async () => {

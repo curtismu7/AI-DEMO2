@@ -235,5 +235,40 @@
   "demoUsers": {
     "customer": { "hint": "demoUser", "passwordHint": "Tigers7&" },
     "admin": { "hint": "demoAdmin", "passwordHint": "Tigers7&" }
+  },
+  "capabilities": {
+    "adminOps": {
+      "lookupSlices": {
+        "courses": "courses",
+        "billing": "billing",
+        "holds": "holds",
+        "financial_aid": "financial_aid",
+        "enrollmentHistory": "enrollmentHistory"
+      },
+      "queueRules": [
+        {
+          "slice": "holds",
+          "label": "Holds",
+          "open": [
+            "active"
+          ],
+          "title": {
+            "field": "holdType",
+            "fallback": "Hold"
+          }
+        },
+        {
+          "slice": "billing",
+          "label": "Billing",
+          "open": [
+            "unpaid"
+          ],
+          "title": {
+            "field": "description",
+            "fallback": "Charge"
+          }
+        }
+      ]
+    }
   }
 }

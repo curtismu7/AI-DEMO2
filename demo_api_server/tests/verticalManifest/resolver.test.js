@@ -33,6 +33,7 @@ const _configStoreState = { active_vertical: null };
 jest.mock('../../services/configStore', () => ({
   getEffective: (key) => _configStoreState[key] || null,
   setConfig: (data) => Object.assign(_configStoreState, data),
+  get: (key) => _configStoreState[key] || null,
 }));
 
 const store = require('../../services/lmdb/verticalStore.lmdb');
@@ -142,6 +143,67 @@ describe('resolver', () => {
 
   test('resolve returns null for unknown id', () => {
     expect(resolver.resolve('nope')).toBeNull();
+  });
+
+  describe('theme-zone overrides (T2 single merge point)', () => {
+    test('DB theme wins over seed cssVars; other vars untouched', () => {
+      store.setTheme('demo', { cssVars: { '--x': '#fff', '--y': '#123456' } });
+      const m = resolver.resolve('demo');
+      expect(m.theme.cssVars).toEqual({ '--x': '#fff', '--y': '#123456' });
+    });
+
+    test('no theme blob → seed cssVars unchanged', () => {
+      expect(resolver.resolve('demo').theme.cssVars).toEqual({ '--x': '#000' });
+    });
+
+    test('cache invalidates on theme write through resolver.themes', () => {
+      expect(resolver.resolve('demo').theme.cssVars['--x']).toBe('#000');
+      resolver.themes.put('demo', { cssVars: { '--x': '#fff' } });
+      expect(resolver.resolve('demo').theme.cssVars['--x']).toBe('#fff');
+    });
+
+    test('themes.put / themes.clear fire vertical-edited and invalidate cache', () => {
+      const events = [];
+      const r2 = createResolver(fakeLoader, overlay, store, { onEvent: (t, p) => events.push([t, p]) });
+      r2.themes.put('demo', { cssVars: { '--z': '#111' } });
+      r2.themes.clear('demo');
+      expect(events).toEqual([
+        ['vertical-edited', { id: 'demo' }],
+        ['vertical-edited', { id: 'demo' }],
+      ]);
+      expect(r2.resolve('demo').theme.cssVars).toEqual({ '--x': '#000' });
+    });
+
+    test('lazy migration: legacy configStore vertical_theme_overrides_<id> blob is migrated into theme:<id> once', () => {
+      _configStoreState.vertical_theme_overrides_demo = JSON.stringify({ '--x': '#migrated' });
+      expect(resolver.resolve('demo').theme.cssVars).toEqual({ '--x': '#migrated' });
+      // Migration moved it into the store...
+      expect(store.getTheme('demo').cssVars).toEqual({ '--x': '#migrated' });
+      // ...and blanked the legacy key (subsequent reads come from the store).
+      expect(_configStoreState.vertical_theme_overrides_demo).toBe('');
+    });
+
+    test('malformed legacy blob is ignored', () => {
+      _configStoreState.vertical_theme_overrides_demo = '{ not json';
+      expect(resolver.resolve('demo').theme.cssVars).toEqual({ '--x': '#000' });
+    });
+
+    test('uploaded logo derives identity.logoUrl; absent logo leaves identity untouched', () => {
+      expect(resolver.resolve('demo').identity.logoUrl).toBeUndefined();
+      resolver.logos.put('demo', { data: 'aGk=', mimeType: 'image/png' });
+      expect(resolver.resolve('demo').identity.logoUrl).toBe('/api/verticals/demo/logo');
+      expect(resolver.resolve('demo').identity.displayName).toBe('Demo');
+      resolver.logos.clear('demo');
+      expect(resolver.resolve('demo').identity.logoUrl).toBeUndefined();
+    });
+
+    test('resolver cache invalidates on logo write', () => {
+      const before = resolver.resolve('demo');
+      resolver.logos.put('demo', { data: 'aGk=', mimeType: 'image/png' });
+      const after = resolver.resolve('demo');
+      expect(before.identity.logoUrl).toBeUndefined();
+      expect(after.identity.logoUrl).toBe('/api/verticals/demo/logo');
+    });
   });
 
   test('removeFromCache evicts both resolver cache and loader entry', () => {

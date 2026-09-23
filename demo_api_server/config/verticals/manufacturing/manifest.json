@@ -236,5 +236,49 @@
   "demoUsers": {
     "customer": { "hint": "demoUser", "passwordHint": "Tigers7&" },
     "admin": { "hint": "demoAdmin", "passwordHint": "Tigers7&" }
+  },
+  "capabilities": {
+    "adminOps": {
+      "lookupSlices": {
+        "workOrders": "workOrders",
+        "maintenanceTickets": "maintenanceTickets",
+        "shipments": "shipments",
+        "qualityInspections": "qualityInspections",
+        "purchaseOrders": "purchaseOrders"
+      },
+      "writes": [
+        {
+          "route": "work-orders/:id/release",
+          "method": "post",
+          "mutator": "releaseWorkOrder",
+          "noun": "work order",
+          "sliceKey": "workOrders"
+        }
+      ],
+      "queueRules": [
+        {
+          "slice": "maintenanceTickets",
+          "label": "Maintenance",
+          "open": [
+            "open"
+          ],
+          "title": {
+            "field": "issue",
+            "fallback": "Ticket"
+          }
+        },
+        {
+          "slice": "purchaseOrders",
+          "label": "Purchase orders",
+          "open": [
+            "pending approval"
+          ],
+          "title": {
+            "field": "material",
+            "fallback": "Purchase order"
+          }
+        }
+      ]
+    }
   }
 }

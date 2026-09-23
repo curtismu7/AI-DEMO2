@@ -3,19 +3,6 @@
 const mergeWith = require('lodash.mergewith');
 const { ManifestSchema } = require('./schema');
 
-// CR-01 bridge: the legacy `active_vertical` configStore key is still read by
-// routes/accounts.js, routes/oauthUser.js, and data/store.js for account
-// reseeding. We mirror the new LMDB active id into configStore on every
-// setActive() so those legacy reads see the same value, and fall back to
-// configStore on read when LMDB is empty (fresh installs / first boot).
-let _configStore = null;
-function _getConfigStore() {
-  if (_configStore !== null) return _configStore;
-  try { _configStore = require('../configStore'); }
-  catch (_) { _configStore = false; }
-  return _configStore;
-}
-
 function arrayCustomizer(_, src) {
   if (Array.isArray(src)) return src;
 }
@@ -40,6 +27,43 @@ function createResolver(loader, overlay, store, { onEvent } = { onEvent: () => {
   function _bump(id) {
     versions.set(id, (versions.get(id) || 0) + 1);
     cache.delete(id);
+  }
+
+  // CR-01 bridge: the legacy `active_vertical` configStore key is still read by
+  // routes/accounts.js, routes/oauthUser.js, and data/store.js for account
+  // reseeding. We mirror the new LMDB active id into configStore on every
+  // setActive() so those legacy reads see the same value, and fall back to
+  // configStore on read when LMDB is empty (fresh installs / first boot).
+  // The legacy `vertical_theme_overrides_<id>` configStore keys are lazily
+  // migrated into store theme:<id> on first read (one-shot per vertical).
+  let _configStore = null;
+  function _getConfigStore() {
+    if (_configStore !== null) return _configStore;
+    try { _configStore = require('../configStore'); }
+    catch (_) { _configStore = false; }
+    return _configStore;
+  }
+
+  function _getThemeBlob(id) {
+    const own = typeof store.getTheme === 'function' ? store.getTheme(id) : null;
+    if (own) return own.cssVars || {};
+    // Lazy migration: pre-T2 blobs live in configStore; copy them into the
+    // verticalStore so the merge point has a single source of truth.
+    const cs = _getConfigStore();
+    if (cs && typeof cs.get === 'function') {
+      const raw = cs.get(`vertical_theme_overrides_${id}`);
+      if (raw) {
+        try {
+          const cssVars = JSON.parse(raw);
+          if (cssVars && typeof cssVars === 'object' && !Array.isArray(cssVars)) {
+            if (typeof store.setTheme === 'function') store.setTheme(id, { cssVars });
+            try { cs.setConfig({ [`vertical_theme_overrides_${id}`]: '' }); } catch (_) { /* ignore */ }
+            return cssVars;
+          }
+        } catch { /* malformed blob — fall through to defaults */ }
+      }
+    }
+    return {};
   }
 
   // Wrap overlay mutators so the resolver cache invalidates and events fire.
@@ -79,6 +103,39 @@ function createResolver(loader, overlay, store, { onEvent } = { onEvent: () => {
     },
   };
 
+  // Wrap theme mutators (if the store exposes them) so writes invalidate the
+  // resolver cache and fire events, mirroring the overlay wrappers.
+  const wrappedThemes = typeof store.setTheme === 'function' ? {
+    get: (id) => store.getTheme(id),
+    put: (id, theme) => {
+      store.setTheme(id, theme);
+      _bump(id);
+      onEvent('vertical-edited', { id });
+    },
+    clear: (id) => {
+      store.clearTheme(id);
+      _bump(id);
+      onEvent('vertical-edited', { id });
+    },
+    listIds: () => store.listThemeIds(),
+  } : null;
+
+  // Wrapped logo mutators (same contract as wrappedThemes): cache invalidation
+  // + vertical-edited events. resolve() derives identity.logoUrl from logo:<id>.
+  const wrappedLogos = typeof store.setLogo === 'function' ? {
+    get: (id) => store.getLogo(id),
+    put: (id, logo) => {
+      store.setLogo(id, logo);
+      _bump(id);
+      onEvent('vertical-edited', { id });
+    },
+    clear: (id) => {
+      store.clearLogo(id);
+      _bump(id);
+      onEvent('vertical-edited', { id });
+    },
+  } : null;
+
   function resolve(id) {
     const seed = loader.get(id);
     if (!seed) return null;
@@ -93,6 +150,20 @@ function createResolver(loader, overlay, store, { onEvent } = { onEvent: () => {
 
     const overlayValue = overlay.get(id);
     const merged = mergeWith({}, seed.manifest, overlayValue, arrayCustomizer);
+    // Theme-zone overrides (DB wins over seed cssVars). Blind merge — zone
+    // semantics live in the frontend registry (themeZones.js).
+    const themeOverrides = _getThemeBlob(id);
+    if (Object.keys(themeOverrides).length > 0) {
+      merged.theme = {
+        ...merged.theme,
+        cssVars: { ...((merged.theme && merged.theme.cssVars) || {}), ...themeOverrides },
+      };
+    }
+    // Uploaded logo (logo:<id>) wins over identity.logoPath — the UI's fallback
+    // chain is logoUrl -> logoPath -> default icon.
+    if (typeof store.getLogo === 'function' && merged.identity && store.getLogo(id)) {
+      merged.identity = { ...merged.identity, logoUrl: `/api/verticals/${id}/logo` };
+    }
     // Force id and schemaVersion — overlay cannot change them.
     merged.id = seed.manifest.id;
     merged.schemaVersion = 3;
@@ -156,7 +227,7 @@ function createResolver(loader, overlay, store, { onEvent } = { onEvent: () => {
     onEvent('vertical-switched', { activeId: id });
   }
 
-  return { resolve, reload, removeFromCache, activeId, activeIdFor, setActive, overlay: wrappedOverlay, loader };
+  return { resolve, reload, removeFromCache, activeId, activeIdFor, setActive, overlay: wrappedOverlay, themes: wrappedThemes, logos: wrappedLogos, loader };
 }
 
 module.exports = { createResolver };
