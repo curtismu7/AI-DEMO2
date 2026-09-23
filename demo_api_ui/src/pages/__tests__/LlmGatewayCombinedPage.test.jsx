@@ -5,6 +5,8 @@ import { fireEvent, render as renderUi, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import LlmGatewayCombinedPage from "../LlmGatewayCombinedPage";
 
+vi.mock("../AttackLabTab", () => ({ default: () => <h1>Attack Lab</h1> }));
+
 function render(ui, options) {
   return renderUi(<MemoryRouter>{ui}</MemoryRouter>, options);
 }
@@ -29,6 +31,19 @@ describe("LLM Gateway combined page", () => {
 
     expect(screen.getByRole("tab", { name: /raw request/i })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByLabelText(/^lane$/i)).toBeInTheDocument();
+  });
+
+  it("opens Attack Lab from its tab deep link", async () => {
+    mockFetch();
+    renderUi(
+      <MemoryRouter initialEntries={["/llm-gateway?tab=attacks"]}>
+        <LlmGatewayCombinedPage defaultTab="chat" />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("tab", { name: /attack lab/i })).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByRole("heading", { name: /attack lab/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^prompt$/i)).not.toBeInTheDocument();
   });
 
   it("switches tabs on click, unmounting the other view", async () => {
