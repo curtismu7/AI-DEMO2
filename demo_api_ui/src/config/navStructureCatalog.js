@@ -9,7 +9,7 @@ export const NAV_STRUCTURE_CATALOG = [
   { label: "Security Dashboard" },
   { label: "Skin Studio" },
   { label: "AI Gateway", children: [
-    "AI Guard", "Protocol Playground", "AI Gateway Client", "LLM Gateway", "Intent Inspector", "Audit Agent",
+    "AI Guard", "Protocol Playground", "AI Guard Client", "LLM Gateway", "Intent Inspector", "Audit Agent",
     "AI Gateway Guide", "Agent Gateway Authorization", "AI Gateway Diagrams", "Agent IAM Core",
     "Agent Gateway", "PingOne Authorize", "AI Gateway · LLM", "AI Gateway · A2A", "AI Gateway · MCP",
     "Protected RAG", "AI Gateway Demo",

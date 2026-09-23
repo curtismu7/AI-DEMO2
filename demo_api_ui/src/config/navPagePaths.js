@@ -6,7 +6,7 @@ export const NAV_PAGE_PATHS = {
   "Shadow AI Detector": "/ai-gateway/shadow-ai-detector",
   "AI Guard": "/ai-gateway/shadow-ai-detector",
   "Protocol Playground": "/protocol-playground",
-  "AI Gateway Client": "/privilege-mcp-client",
+  "AI Guard Client": "/privilege-mcp-client",
   "LLM Gateway": "/llm-gateway",
   "Intent Inspector": "/intent-inspector",
   "Audit Agent": "/audit-agent",
