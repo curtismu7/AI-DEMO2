@@ -1,10 +1,10 @@
 'use strict';
 
 jest.mock('../../services/llamacppLlmService', () => ({ callLlamaCpp: jest.fn() }));
-jest.mock('../../services/a2aDelegationService', () => ({ delegateToSpecialist: jest.fn() }));
+jest.mock('../../services/demoAgentLangGraphService', () => ({ executeA2aDelegation: jest.fn() }));
 
 const { callLlamaCpp } = require('../../services/llamacppLlmService');
-const { delegateToSpecialist } = require('../../services/a2aDelegationService');
+let { executeA2aDelegation } = require('../../services/demoAgentLangGraphService');
 const { orchestrateDelegation } = require('../../services/a2aOrchestratorService');
 
 const reqStub = { session: {} };
@@ -16,30 +16,33 @@ function jsonReply(obj) {
 describe('a2aOrchestratorService.orchestrateDelegation — LLM path', () => {
   beforeEach(() => {
     callLlamaCpp.mockReset();
-    delegateToSpecialist.mockReset();
+    executeA2aDelegation = require('../../services/demoAgentLangGraphService').executeA2aDelegation;
+    executeA2aDelegation.mockReset();
   });
 
   test('single-tool vertical (healthcare): decision only, no coordinator call, tool auto-picked', async () => {
     callLlamaCpp
       .mockResolvedValueOnce(jsonReply({ shouldDelegate: true, reason: 'sensitive record request', sensitivity: 'high' }));
-    delegateToSpecialist.mockResolvedValue({
-      token: 'tok', tokenEvents: [], claims: { act: { sub: 'agent2' } },
-      specialist: 'Records Specialist', scopes: ['read'], actChainDepth: 2,
-    });
+    executeA2aDelegation.mockResolvedValue(JSON.stringify({
+      delegated: true, specialist: 'Records Specialist', tool: 'sensitive_patient_records',
+      scopes: ['read'], actChainDepth: 2, result: { record: 'redacted-test-data' }, toolError: null,
+    }));
 
     const result = await orchestrateDelegation({
       req: reqStub, message: 'please pull the sensitive patient record', vertical: 'healthcare', userId: 'u1',
     });
 
     expect(callLlamaCpp).toHaveBeenCalledTimes(1); // decision only — coordinator skipped, no authorization stage exists
-    expect(delegateToSpecialist).toHaveBeenCalledWith(reqStub, {
-      vertical: 'healthcare',
-      tool: 'sensitive_patient_records',
-      subtask: 'please pull the sensitive patient record',
-    });
+    expect(executeA2aDelegation).toHaveBeenCalledWith('healthcare', expect.objectContaining({
+      tool: 'sensitive_patient_records', subtask: 'please pull the sensitive patient record',
+    }), expect.objectContaining({ req: reqStub }));
     expect(result.shouldDelegate).toBe(true);
     expect(result.authorized).toBe(true);
     expect(result.specialist).toBe('Records Specialist'); // delegationResult.specialist wins the spread merge
+    expect(result.actChainDepth).toBe(2);
+    expect(result.result).toEqual({ record: 'redacted-test-data' });
+    expect(result.success).toBe(true);
+    expect(result.token).toBeUndefined();
     expect(result.agentHeader).toContain('LLM (llama.cpp)');
   });
 
@@ -47,20 +50,19 @@ describe('a2aOrchestratorService.orchestrateDelegation — LLM path', () => {
     callLlamaCpp
       .mockResolvedValueOnce(jsonReply({ shouldDelegate: true, reason: 'investment question', sensitivity: 'medium' }))
       .mockResolvedValueOnce(jsonReply({ tool: 'get_investment_transactions', reasoning: 'user asked about past trades' }));
-    delegateToSpecialist.mockResolvedValue({
-      token: 'tok', tokenEvents: [], claims: {}, specialist: 'Investment Advisor', scopes: ['invest:read'], actChainDepth: 2,
-    });
+    executeA2aDelegation.mockResolvedValue(JSON.stringify({
+      delegated: true, specialist: 'Investment Advisor', tool: 'get_investment_transactions',
+      scopes: ['invest:read'], actChainDepth: 2, result: [], toolError: null,
+    }));
 
     const result = await orchestrateDelegation({
       req: reqStub, message: 'show me my recent investment transactions', vertical: 'banking', userId: 'u1',
     });
 
     expect(callLlamaCpp).toHaveBeenCalledTimes(2); // decision + coordinator
-    expect(delegateToSpecialist).toHaveBeenCalledWith(reqStub, {
-      vertical: 'banking',
-      tool: 'get_investment_transactions',
-      subtask: 'show me my recent investment transactions',
-    });
+    expect(executeA2aDelegation).toHaveBeenCalledWith('banking', expect.objectContaining({
+      tool: 'get_investment_transactions', subtask: 'show me my recent investment transactions',
+    }), expect.objectContaining({ req: reqStub }));
     expect(result.authorized).toBe(true);
   });
 
@@ -72,7 +74,7 @@ describe('a2aOrchestratorService.orchestrateDelegation — LLM path', () => {
     });
 
     expect(callLlamaCpp).toHaveBeenCalledTimes(1);
-    expect(delegateToSpecialist).not.toHaveBeenCalled();
+    expect(executeA2aDelegation).not.toHaveBeenCalled();
     expect(result.shouldDelegate).toBe(false);
     expect(result.agentHeader).toContain('LLM (llama.cpp)');
   });
@@ -87,34 +89,54 @@ describe('a2aOrchestratorService.orchestrateDelegation — LLM path', () => {
       .mockResolvedValueOnce(jsonReply({ shouldDelegate: true, reason: 'sensitive record request', sensitivity: 'high' }))
       // If a reviewer stage were reinstated it would consume this reply and refuse.
       .mockResolvedValueOnce(jsonReply({ approved: false, blockers: ['insufficient context'] }));
-    delegateToSpecialist.mockResolvedValue({
-      token: 'tok', tokenEvents: [], claims: {}, specialist: 'Records Specialist', scopes: ['read'], actChainDepth: 2,
-    });
+    executeA2aDelegation.mockResolvedValue(JSON.stringify({ delegated: true, tool: 'sensitive_patient_records', actChainDepth: 2, toolError: null }));
 
     const result = await orchestrateDelegation({
       req: reqStub, message: 'get the sensitive patient record', vertical: 'healthcare', userId: 'u1',
     });
 
     expect(callLlamaCpp).toHaveBeenCalledTimes(1);
-    expect(delegateToSpecialist).toHaveBeenCalled();
+    expect(executeA2aDelegation).toHaveBeenCalled();
     expect(result.authorized).toBe(true);
     // and the reason must describe what actually happened, not claim approval
     expect(result.reason).not.toContain('Delegation approved');
     expect(result.reason).toContain('PingOne Authorize decides');
+  });
+
+  test('depth-one delegation is incomplete and token-shaped helper fields are discarded', async () => {
+    callLlamaCpp.mockResolvedValueOnce(jsonReply({ shouldDelegate: true, reason: 'passenger record', sensitivity: 'high' }));
+    executeA2aDelegation.mockResolvedValue(JSON.stringify({
+      delegated: true,
+      specialist: 'Passenger Records Specialist',
+      tool: 'sensitive_passenger_record',
+      actChainDepth: 1,
+      result: null,
+      token: 'must-not-escape',
+      claims: { sub: 'must-not-escape-either' },
+    }));
+
+    const result = await orchestrateDelegation({
+      req: reqStub, message: 'delegate this to a specialist', vertical: 'airlines', userId: 'u1',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('invalid_a2a_act_chain_depth');
+    expect(result.actChainDepth).toBe(1);
+    expect(result.token).toBeUndefined();
+    expect(result.claims).toBeUndefined();
   });
 });
 
 describe('a2aOrchestratorService.orchestrateDelegation — heuristic fallback', () => {
   beforeEach(() => {
     callLlamaCpp.mockReset();
-    delegateToSpecialist.mockReset();
+    executeA2aDelegation = require('../../services/demoAgentLangGraphService').executeA2aDelegation;
+    executeA2aDelegation.mockReset();
   });
 
   test('LLM failure falls back to the keyword heuristic and still resolves specialist correctly', async () => {
     callLlamaCpp.mockRejectedValue(new Error('proxy unreachable'));
-    delegateToSpecialist.mockResolvedValue({
-      token: 'tok', tokenEvents: [], claims: {}, specialist: 'Investment Advisor', scopes: ['invest:read'], actChainDepth: 2,
-    });
+    executeA2aDelegation.mockResolvedValue(JSON.stringify({ delegated: true, actChainDepth: 2, toolError: null }));
 
     const result = await orchestrateDelegation({
       req: reqStub, message: 'please escalate to a specialist for my portfolio', vertical: 'banking', userId: 'u1',
@@ -124,7 +146,7 @@ describe('a2aOrchestratorService.orchestrateDelegation — heuristic fallback', 
     // (undefined, since a2aSpecialists entries have no .id), which made
     // specialistForVertical(undefined) return null downstream. Verify the fix:
     // the vertical itself is what's returned, so resolution succeeds.
-    expect(delegateToSpecialist).toHaveBeenCalledWith(reqStub, expect.objectContaining({ vertical: 'banking' }));
+    expect(executeA2aDelegation).toHaveBeenCalledWith('banking', expect.any(Object), expect.objectContaining({ req: reqStub }));
     expect(result.shouldDelegate).toBe(true);
     expect(result.agentHeader).toContain('Heuristic Fallback');
   });
@@ -136,13 +158,11 @@ describe('a2aOrchestratorService.orchestrateDelegation — heuristic fallback', 
     ['retail', 'access my sensitive order history'],
   ])('LLM failure still delegates the catalog UC2 prompt for %s', async (vertical, message) => {
     callLlamaCpp.mockRejectedValue(new Error('proxy unreachable'));
-    delegateToSpecialist.mockResolvedValue({
-      token: 'tok', tokenEvents: [], claims: {}, specialist: 'Specialist', scopes: ['read'], actChainDepth: 2,
-    });
+    executeA2aDelegation.mockResolvedValue(JSON.stringify({ delegated: true, actChainDepth: 2, toolError: null }));
 
     const result = await orchestrateDelegation({ req: reqStub, message, vertical, userId: 'u1' });
 
-    expect(delegateToSpecialist).toHaveBeenCalledWith(reqStub, expect.objectContaining({ vertical, subtask: message }));
+    expect(executeA2aDelegation).toHaveBeenCalledWith(vertical, expect.objectContaining({ subtask: message }), expect.objectContaining({ req: reqStub }));
     expect(result.shouldDelegate).toBe(true);
     expect(result.authorized).toBe(true);
   });
@@ -154,7 +174,7 @@ describe('a2aOrchestratorService.orchestrateDelegation — heuristic fallback', 
       req: reqStub, message: 'what is my balance', vertical: 'banking', userId: 'u1',
     });
 
-    expect(delegateToSpecialist).not.toHaveBeenCalled();
+    expect(executeA2aDelegation).not.toHaveBeenCalled();
     expect(result.shouldDelegate).toBe(false);
     expect(result.agentHeader).toContain('Heuristic Fallback');
   });

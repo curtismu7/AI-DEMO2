@@ -7968,7 +7968,11 @@ export default function BankingAgentFull({
           message: trigger.text,
           vertical: effectiveVerticalId,
         });
-        addMessage("assistant", `${stepLabel}\n${data?.reply || "The orchestrator returned no reply."}`);
+        const specialistResult = data?.delegationResult?.result;
+        const resultText = specialistResult == null
+          ? ""
+          : `\nSpecialist result:\n${typeof specialistResult === "string" ? specialistResult : JSON.stringify(specialistResult, null, 2)}`;
+        addMessage("assistant", `${stepLabel}\n${data?.reply || "The orchestrator returned no reply."}${resultText}`);
         if (data?.tokenEvents?.length) {
           appendTokenEvents(data.tokenEvents);
           try { tokenChainTraceStore.ingestTokenEvents(data.tokenEvents); } catch (_) {}
