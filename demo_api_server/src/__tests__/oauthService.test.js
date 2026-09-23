@@ -668,6 +668,8 @@ describe('token exchange — client authentication method', () => {
       await svcSingleton.performTokenExchangeAs('subj', 'actor', 'xch-client', 'xch-secret', 'https://aud', ['scope:x'], 'basic');
       const { params, headers } = lastPostCall();
       expect(params.get('client_secret')).toBeNull();
+      expect(params.get('audience')).toBe('https://aud');
+      expect(params.has('resource')).toBe(false);
       expect(headers.Authorization).toMatch(/^Basic /);
     });
 
