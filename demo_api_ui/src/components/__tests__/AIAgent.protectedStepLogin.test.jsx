@@ -252,6 +252,17 @@ describe("signed-in customer", () => {
       expect(screen.getByText(/needs an admin sign-in/i)).toBeInTheDocument();
     });
   });
+
+  it("allows an authenticated admin session for a user-level step", async () => {
+    const admin = { id: "a1", role: "admin", email: "a@test.com", username: "admin" };
+
+    renderAt("/dashboard", admin);
+    await runStep(UC1);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Running Demo step 1/i)).toBeInTheDocument();
+    });
+  });
 });
 
 /**
