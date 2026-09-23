@@ -33,4 +33,21 @@ describe('UseCaseRunContextCard', () => {
     expect(screen.getByText('Direct dashboard run')).toBeInTheDocument();
     expect(screen.getByText('No use case selected')).toBeInTheDocument();
   });
+
+  it('shows the selected Demo Track scenario', () => {
+    render(
+      <UseCaseRunContextCard
+        runContext={{
+          source: 'demo-track',
+          useCaseId: 'UC1',
+          useCaseLabel: 'Delegated access (consent only)',
+          triggerText: 'Show my reservations',
+        }}
+      />,
+    );
+
+    expect(screen.getByText('Launched from Demo Track')).toBeInTheDocument();
+    expect(screen.getByText('Delegated access (consent only)')).toBeInTheDocument();
+    expect(screen.getByText('Demo Track → Delegated access (consent only)')).toBeInTheDocument();
+  });
 });
