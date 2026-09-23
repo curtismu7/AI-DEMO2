@@ -53,7 +53,20 @@ export default function UnattendedRunsPanel({ isOpen, onClose }) {
     try {
       const res = await apiClient.post("/api/autonomous-runs/run");
       const run = res.data?.run;
-      if (run) setRuns((prev) => [{ ...run, tokenEventCount: (run.tokenEvents || []).length }, ...prev]);
+      if (run) {
+        setRuns((prev) => [{ ...run, tokenEventCount: (run.tokenEvents || []).length }, ...prev]);
+        notifySuccess(
+          run.status === "completed"
+            ? "Run completed — open it to replay the token chain"
+            : run.status === "parked"
+              ? "Over mandate — the run is waiting on approval"
+              : run.status === "denied"
+                ? "Refused by policy — nothing moved"
+                : `Run ${run.status}`,
+        );
+      } else {
+        notifyError("The run returned no result");
+      }
     } catch {
       notifyError("Could not start a run");
     } finally {
@@ -78,6 +91,7 @@ export default function UnattendedRunsPanel({ isOpen, onClose }) {
       await runNow();
     } catch {
       notifyError("Could not turn on autonomous agents");
+    } finally {
       setArming(false);
     }
   }
@@ -90,6 +104,9 @@ export default function UnattendedRunsPanel({ isOpen, onClose }) {
       defaultWidth={560}
       defaultHeight={460}
       storageKey="unattended-runs-panel"
+      // Above Quick Config's floating panel (z-index 100061) — this modal is
+      // opened FROM Quick Config, so it must land in front of it.
+      zIndex={100070}
     >
       {/* dm-scroll: `dm-body` is bare by contract — no padding, no scroll. */}
       <div className="dm-scroll uarp">
@@ -130,7 +147,23 @@ export default function UnattendedRunsPanel({ isOpen, onClose }) {
                   <button type="button" className="uarp-open" onClick={() => replay(run.runId)}>
                     <span className="uarp-job">{run.job}</span>
                     <span className="uarp-when">{new Date(run.startedAt).toLocaleString()}</span>
-                    <span className="uarp-desc">{describeRun(run)}</span>
+                    <span className="uarp-desc">
+                      {run.status} · {describeRun(run)}
+                      {/* Results — what the agent actually found/did, inline so
+                          the row is evidence, not just a label to click. */}
+                      {run.findings?.length ? (
+                        <span className="uarp-findings">
+                          {run.findings.map((f, i) => (
+                            <span key={f.transactionId || i} className="uarp-finding">
+                              {f.amount != null ? `${f.amount} — ` : ""}
+                              {f.description || f.fromName || f.transactionId}
+                              {f.reason ? ` (${f.reason})` : ""}
+                              {f.executed ? " — moved" : ""}
+                            </span>
+                          ))}
+                        </span>
+                      ) : null}
+                    </span>
                     <span className="uarp-trigger">{run.trigger}</span>
                   </button>
                 </li>
