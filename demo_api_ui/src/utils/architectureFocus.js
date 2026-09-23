@@ -27,7 +27,6 @@ export const FOCUS_GROUPS = {
       "HITLSvc",
       "LLM",
       "WeatherMcp",
-      "MastraAgent",
     ],
   },
   pingone: {

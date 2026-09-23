@@ -36,18 +36,12 @@ describe('resolveAgentTarget — framework port routing', () => {
 
   test('FRAMEWORK_PORTS is exported from the route module', () => {
     expect(FRAMEWORK_PORTS).toEqual({
-      langchain:     8888,
-      openai_agents: 8891,
-      mastra:        8892,
-      pydantic_ai:   8893,
+      langchain: 8888,
     });
   });
 
   test.each([
-    ['langchain',     8888],
-    ['openai_agents', 8891],
-    ['mastra',        8892],
-    ['pydantic_ai',   8893],
+    ['langchain', 8888],
   ])('llm_framework=%s → port %i', (framework, expectedPort) => {
     mockGetEffective.mockReturnValue(framework);
     expect(resolvePort(mockGetEffective('llm_framework'))).toBe(expectedPort);
@@ -68,14 +62,9 @@ describe('resolveAgentTarget — framework port routing', () => {
 describe('resolveAgentTarget — framework hostname routing', () => {
   afterEach(() => mockGetEffective.mockReset());
 
-  // Each framework runs in its own container (data/serverInventory.js) — a
-  // shared hostname across frameworks means non-langchain runs connect to
-  // langchain-agent's container, which doesn't listen on their port.
+  // The langchain agent runs in its own container (data/serverInventory.js).
   test.each([
-    ['langchain',     'langchain-agent'],
-    ['openai_agents', 'openai-agent'],
-    ['mastra',        'mastra-agent'],
-    ['pydantic_ai',   'pydantic-agent'],
+    ['langchain', 'langchain-agent'],
   ])('llm_framework=%s → hostname %s', (framework, expectedHost) => {
     mockGetEffective.mockReturnValue(framework);
     expect(resolveHost(mockGetEffective('llm_framework'))).toBe(expectedHost);
@@ -95,12 +84,12 @@ describe('resolveAgentTarget — auto framework selection', () => {
 
   test('llm_framework=auto calls agentFrameworkOrchestrator and routes to its pick', async () => {
     mockGetEffective.mockReturnValue('auto');
-    mockSelectFramework.mockResolvedValue('mastra');
+    mockSelectFramework.mockResolvedValue('langchain');
 
     const target = await agentRunRoute.__test.resolveAgentTarget({ message: 'hi', vertical: 'super_sports' });
 
     expect(mockSelectFramework).toHaveBeenCalledWith({ message: 'hi', vertical: 'super_sports' });
-    expect(target).toEqual({ hostname: FRAMEWORK_HOSTS.mastra, port: FRAMEWORK_PORTS.mastra });
+    expect(target).toEqual({ hostname: FRAMEWORK_HOSTS.langchain, port: FRAMEWORK_PORTS.langchain });
   });
 
   test('llm_framework=langchain (static) never calls agentFrameworkOrchestrator', async () => {

@@ -3,10 +3,9 @@
 #
 # LOCAL (OrbStack / Docker Desktop):
 #   ./run-k8.sh                          # kill stale procs + build images + deploy + forward
-#   ./run-k8.sh --agent=mastra           # same, but start mastra agent instead of langchain
 #   ./run-k8.sh build                    # build Docker images only
 #   ./run-k8.sh deploy                   # apply manifests (no build); restarts running pods + forward
-#   ./run-k8.sh deploy --agent=openai    #   and start the openai agent
+#   ./run-k8.sh deploy --agent=langchain #   start the langchain agent (default)
 #   ./run-k8.sh forward                  # kill stale procs, then port-forward all services
 #                                        #   (supervised: dropped forwards auto-respawn)
 #   ./run-k8.sh forward-api              # BFF :3001 only (for local Vite on :4000)
@@ -22,13 +21,11 @@
 #   ./run-k8.sh demo-sync                # align gateway deployments with admin Quick Flags
 #   ./run-k8.sh status                   # show pod/service status
 #   ./run-k8.sh restart                  # rebuild images + rolling redeploy + forward
-#   ./run-k8.sh restart --agent=pydantic #   and start the pydantic agent
 #   ./run-k8.sh destroy                  # delete the ai-demo namespace
 #
-# --agent=<name>  Choose which AI agent starts on deploy (default: langchain).
-#                 Valid: langchain | mastra | openai | pydantic
-#                 All other agents are scaled to 0. Use './k8s/deploy.sh agent <name>'
-#                 to switch agents after deploy without a full redeploy.
+# --agent=<name>  Choose which AI agent starts on deploy (only langchain).
+#                 Use './k8s/deploy.sh agent langchain' to switch agents after
+#                 deploy without a full redeploy.
 #
 # AWS simulation (local OrbStack, GHCR images — test the AWS image path locally):
 #   ./run-k8.sh sim          # aws-build + deploy GHCR images to local K8s + forward
@@ -176,8 +173,7 @@ kill_all() {
       info "Stopping Docker Compose ai-demo containers that publish demo ports..."
       (cd "$BASEDIR" && docker compose -f docker-compose.yml stop \
         demo-api-server ui mcp-server mcp-resource-server api-resource-server \
-        mcp-gateway agent-service hitl-service langchain-agent \
-        openai-agent mastra-agent pydantic-agent mcp-proxy \
+        mcp-gateway agent-service hitl-service langchain-agent mcp-proxy \
         2>/dev/null) || true
       # Force-remove any leftover publish on DEMO_PORTS (stopped containers can
       # still hold bindings briefly; compose rm is safer than killing OrbStack).
@@ -409,7 +405,6 @@ aws_build() {
   info "Building images..."
   # -p: build under the K8 project so prod-stage images never land on the dev
   # stack's ai-demo-* tags (see K8_COMPOSE_PROJECT above).
-  # --profile agents: openai/mastra/pydantic (IMAGE_MAP below).
   # --profile demo-auth: mcp-gateway + authz-server (also in IMAGE_MAP).
   # --profile rag: the two project-owned RAG services (IMAGE_MAP below).
   # Bare `compose build` skips profiled services → "No such image" on push.
@@ -419,7 +414,7 @@ aws_build() {
   (
     cd "$BASEDIR" || die "cannot cd to $BASEDIR"
     COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml \
-      --profile agents --profile demo-auth --profile rag build
+      --profile demo-auth --profile rag build
   ) || die "image build failed"
 
   # mcp-code-search and llamaindex-agent pin an explicit `image:` in
@@ -448,9 +443,6 @@ aws_build() {
     "ai-demo-k8-mcp-code-search:ai-demo-mcp-code-search"
     "ai-demo-k8-llamaindex-agent:ai-demo-llamaindex-agent"
     "ai-demo-k8-langchain-agent:ai-demo-langchain-agent"
-    "ai-demo-k8-openai-agent:ai-demo-openai-agent"
-    "ai-demo-k8-mastra-agent:ai-demo-mastra-agent"
-    "ai-demo-k8-pydantic-agent:ai-demo-pydantic-agent"
   )
 
   # Fail fast if any expected image is missing (avoids a partial GHCR push).

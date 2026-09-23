@@ -5,9 +5,6 @@ import apiClient from "../../services/apiClient";
 // live endpoint aggregates these; see the "Agentic Access Console" TECH_DEBT.md entry.
 const COVERAGE_BY_RUNTIME = [
   { runtime: "langchain_agent", framework: "LangGraph", servers: 3, tools: 54 },
-  { runtime: "openai_agent", framework: "OpenAI Agents SDK", servers: 3, tools: 54 },
-  { runtime: "pydantic_agent", framework: "Pydantic AI", servers: 3, tools: 54 },
-  { runtime: "mastra_agent", framework: "Mastra", servers: 3, tools: 54 },
 ];
 
 // Sorted by resource-server tool count, descending. Super Banking has none of
@@ -30,11 +27,11 @@ const VERTICAL_PREVIEW_COUNT = 5;
 
 // Signed-out fallback only — signed-in users get GET /api/authorize/recent-decisions.
 const RECENT_DECISIONS = [
-  { time: "14:02:11", agent: "openai_agent", tool: "create_transfer", scope: "transfer", decision: "PERMIT" },
-  { time: "14:01:47", agent: "mastra_agent", tool: "create_transfer", scope: "transfer", decision: "INDETERMINATE" },
+  { time: "14:02:11", agent: "langchain_agent", tool: "create_transfer", scope: "transfer", decision: "PERMIT" },
+  { time: "14:01:47", agent: "langchain_agent", tool: "create_transfer", scope: "transfer", decision: "INDETERMINATE" },
   { time: "13:58:03", agent: "langchain_agent", tool: "delete_customer", scope: "admin:delete", decision: "DENY" },
-  { time: "13:55:22", agent: "pydantic_agent", tool: "get_sensitive_account_details", scope: "sensitive:read", decision: "PERMIT" },
-  { time: "13:50:09", agent: "openai_agent", tool: "freeze_account", scope: "admin:write", decision: "DENY" },
+  { time: "13:55:22", agent: "langchain_agent", tool: "get_sensitive_account_details", scope: "sensitive:read", decision: "PERMIT" },
+  { time: "13:50:09", agent: "langchain_agent", tool: "freeze_account", scope: "admin:write", decision: "DENY" },
 ];
 
 function DecisionPill({ decision }) {

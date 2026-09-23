@@ -128,30 +128,6 @@ const SERVER_INVENTORY = [
     purpose: 'LangChain agent runtime — 8888 AG-UI SSE, 8890 health (loopback-only).',
   },
   {
-    key: 'openai-agent', name: 'OpenAI Agent', container: 'ai-demo-openai-agent',
-    hostPort: 8891, internalPort: 8891, lang: 'Python (uvicorn)', category: 'agents', sourceDir: 'openai_agent', probe: true,
-    // docker-compose.yml profiles:["agents"] — off by default in lean-core.
-    optional: true,
-    candidates: candidates('http://openai-agent:8891', 'http://localhost:8891'),
-    purpose: 'OpenAI-SDK agent runtime variant.',
-  },
-  {
-    key: 'mastra-agent', name: 'Mastra Agent', container: 'ai-demo-mastra-agent',
-    hostPort: 8892, internalPort: 8892, lang: 'Node/TS (Mastra)', category: 'agents', sourceDir: 'mastra_agent', probe: true,
-    // docker-compose.yml profiles:["agents"] — off by default in lean-core.
-    optional: true,
-    candidates: candidates('http://mastra-agent:8892', 'http://localhost:8892'),
-    purpose: 'Mastra agent runtime variant.',
-  },
-  {
-    key: 'pydantic-agent', name: 'Pydantic Agent', container: 'ai-demo-pydantic-agent',
-    hostPort: 8893, internalPort: 8893, lang: 'Python (uvicorn)', category: 'agents', sourceDir: 'pydantic_agent', probe: true,
-    // docker-compose.yml profiles:["agents"] — off by default in lean-core.
-    optional: true,
-    candidates: candidates('http://pydantic-agent:8893', 'http://localhost:8893'),
-    purpose: 'Pydantic-AI agent runtime variant.',
-  },
-  {
     key: 'hitl-service', name: 'HITL Service', container: 'ai-demo-hitl-service',
     hostPort: 3009, internalPort: 3009, lang: 'Node', category: 'authz', sourceDir: 'demo_hitl_service', probe: true,
     candidates: candidates(env('HITL_SERVICE_URL'), 'http://hitl-service:3009', 'http://localhost:3009'),

@@ -167,22 +167,13 @@ setInterval(() => {
 // LangChain agent serves AG-UI /run (SSE) on uvicorn :8888; :8890 is its
 // loopback-only health server.
 const FRAMEWORK_PORTS = {
-  langchain:     8888,
-  openai_agents: 8891,
-  mastra:        8892,
-  pydantic_ai:   8893,
+  langchain: 8888,
 };
 
-// Each framework runs in its own container with its own docker-network name
-// (see data/serverInventory.js) — only langchain's honors AGENT_SERVICE_HOST,
-// its original (pre-multi-framework) override knob. Any other framework
-// pinned to that same hostname reaches langchain-agent's container, which
-// doesn't listen on that framework's port — connection refused.
+// The langchain agent runs in its own container with the docker-network name
+// below; AGENT_SERVICE_HOST is the original (pre-multi-framework) override knob.
 const FRAMEWORK_HOSTS = {
-  langchain:     process.env.AGENT_SERVICE_HOST || 'langchain-agent',
-  openai_agents: 'openai-agent',
-  mastra:        'mastra-agent',
-  pydantic_ai:   'pydantic-agent',
+  langchain: process.env.AGENT_SERVICE_HOST || 'langchain-agent',
 };
 
 async function resolveAgentTarget({ message, vertical } = {}) {
@@ -608,7 +599,7 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
   // Step D: build the RunAgentInput payload
   // ---------------------------------------------------------------------------
   // Forward the active vertical's systemPromptFlavor to the agent service.
-  // The agent (LangChain / OpenAI Agents / Mastra / Pydantic AI) injects it
+  // The agent (LangChain) injects it
   // into the first turn so the LLM replies in the active vertical's voice
   // (e.g. CareConnect uses "appointments / coverage / records" instead of
   // banking terminology). Without this forwarding the agent falls back to a
@@ -802,10 +793,7 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
 });
 
 const FRAMEWORK_LABELS = {
-  langchain:     'LangChain / LangGraph',
-  openai_agents: 'OpenAI Agents SDK',
-  mastra:        'Mastra',
-  pydantic_ai:   'Pydantic AI',
+  langchain: 'LangChain / LangGraph',
 };
 
 // Derive a list-friendly summary from a trace's raw AG-UI events — status,

@@ -36,9 +36,6 @@ DEPLOYMENTS=(
   hitl-service
   mcp-resource-server
   api-resource-server
-  mastra-agent
-  openai-agent
-  pydantic-agent
 )
 
 all_current=true

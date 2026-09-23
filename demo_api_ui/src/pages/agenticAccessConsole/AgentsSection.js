@@ -9,29 +9,10 @@ import {
 
 const AGENTS = [
   {
-    id: "openai_agent",
-    identity: PRIMARY_AGENT.displayName,
-    runtime: "openai_agent",
-    framework: "OpenAI Agents SDK",
-  },
-  {
-    id: "mastra_agent",
-    identity: PRIMARY_AGENT.displayName,
-    runtime: "mastra_agent",
-    framework: "Mastra",
-    note: "id: banking-agent",
-  },
-  {
     id: "langchain_agent",
     identity: PRIMARY_AGENT.displayName,
     runtime: "langchain_agent",
     framework: "LangGraph",
-  },
-  {
-    id: "pydantic_agent",
-    identity: PRIMARY_AGENT.displayName,
-    runtime: "pydantic_agent",
-    framework: "Pydantic AI",
   },
 ];
 

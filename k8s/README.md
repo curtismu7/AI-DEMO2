@@ -60,9 +60,6 @@ Deployment name (`metadata.name`) — what `kubectl ... deployment/<name>` and
 | `hitl-service` | `62-hitl-service-deployment.yaml` | `./demo_hitl_service` | Human-in-the-loop consent service |
 | `mcp-resource-server` | `63-mcp-resource-server-deployment.yaml` | `./demo_mcp_resource_server` | Investment MCP server |
 | `api-resource-server` | `64-api-resource-server-deployment.yaml` | `./demo_api_resource_server` | Mortgage demo service |
-| `mastra-agent` | `65-mastra-agent-deployment.yaml` | `./mastra_agent` | Mastra agent runtime |
-| `openai-agent` | `66-openai-agent-deployment.yaml` | `./openai_agent` | OpenAI agent runtime |
-| `pydantic-agent` | `67-pydantic-agent-deployment.yaml` | `./pydantic_agent` | Pydantic-AI agent runtime |
 
 > Compose service names match the Deployment names, except the UI is `ui` in
 > `docker-compose.yml` but `frontend` in Kubernetes. `k8s/update.sh` accepts either.

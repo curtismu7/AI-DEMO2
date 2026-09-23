@@ -6,10 +6,8 @@ const SERVICES = [
   { key: 'bff', name: 'API Server', category: 'core', up: true, optional: false },
   { key: 'ui', name: 'UI', category: 'core', up: true, optional: false },
   { key: 'gw', name: 'MCP Gateway', category: 'mcp', up: false, optional: false },
-  // Compose-profile agent runtimes — off by default, expected absent.
-  { key: 'openai', name: 'OpenAI Agent', category: 'agents', up: false, optional: true },
-  { key: 'mastra', name: 'Mastra Agent', category: 'agents', up: false, optional: true },
-  { key: 'pydantic', name: 'Pydantic Agent', category: 'agents', up: false, optional: true },
+  // Compose-profile optional service — off by default, expected absent.
+  { key: 'rag', name: 'RAG Sidecar', category: 'rag', up: false, optional: true },
   // Never probed — outside both counts.
   { key: 'prop', name: 'Demo Prop', category: 'demo-prop', up: null, optional: false },
 ];
@@ -20,12 +18,12 @@ describe('serverCounts', () => {
       requiredUp: 2,
       requiredProbed: 3,
       optionalUp: 0,
-      optionalProbed: 3,
+      optionalProbed: 1,
     });
   });
 
   test('bringing an optional service up moves only the optional count', () => {
-    const withOptionalUp = SERVICES.map((s) => (s.key === 'mastra' ? { ...s, up: true } : s));
+    const withOptionalUp = SERVICES.map((s) => (s.key === 'rag' ? { ...s, up: true } : s));
     const counts = serverCounts(withOptionalUp);
     expect(counts.requiredUp).toBe(2);
     expect(counts.requiredProbed).toBe(3);
@@ -53,7 +51,7 @@ test('header reports required up with optional beside it, not folded into it', a
   await waitFor(() => expect(screen.getByText(/required up/)).toBeInTheDocument());
   const meta = screen.getByText(/required up/).textContent;
   expect(meta).toContain('2/3 required up');
-  expect(meta).toContain('(optional 0/3)');
-  // The old headline folded the three expected-absent agents into the denominator.
+  expect(meta).toContain('(optional 0/1)');
+  // The old headline folded the expected-absent optional agents into the denominator.
   expect(meta).not.toContain('2/6');
 });

@@ -60,13 +60,13 @@ describe('GET /api/agent/runs', () => {
       'run-new-failed',
       sseChunk({ type: 'RUN_STARTED', runId: 'run-new-failed', threadId: 'thread-b' }),
       'user-1',
-      'openai_agents',
+      'langchain',
     );
     agentRunModule().__test._recordTraceEvents(
       'run-new-failed',
       sseChunk({ type: 'RUN_ERROR', message: 'boom' }),
       'user-1',
-      'openai_agents',
+      'langchain',
     );
 
     agentRunModule().__test._recordTraceEvents(
@@ -94,7 +94,7 @@ describe('GET /api/agent/runs', () => {
 
     const failed = res.body.runs.find((r) => r.runId === 'run-new-failed');
     expect(failed.status).toBe('failed');
-    expect(failed.frameworkLabel).toBe('OpenAI Agents SDK');
+    expect(failed.frameworkLabel).toBe('LangChain / LangGraph');
   });
 
   test('an in-progress run (no RUN_FINISHED/RUN_ERROR yet) reports status in_progress', async () => {

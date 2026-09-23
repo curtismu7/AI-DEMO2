@@ -65,7 +65,7 @@ export const SCENARIOS = [
         nodes: ['n-browser'],
         edges: [],
         desc: 'User asks the agent a question — agent decides to call get_my_accounts.',
-        why: 'The AI agent (LangChain / OpenAI Agents / Mastra) translates natural language into structured MCP tool calls. It cannot access the database directly — every tool call must go through the gateway, which is the enforcement point.',
+        why: 'The AI agent (LangChain) translates natural language into structured MCP tool calls. It cannot access the database directly — every tool call must go through the gateway, which is the enforcement point.',
       },
       {
         nodes: ['n-bff'],
@@ -161,7 +161,7 @@ export const SCENARIOS = [
         nodes: ['n-bff'],
         edges: ['e-browser-bff'],
         desc: 'Browser → BFF: agent run dispatched; BFF loads user token from session.',
-        why: 'The BFF passes the user\'s access token securely to the Agent Service (LangChain / OpenAI Agents / Mastra). The agent service never stores credentials — it receives a token per-request, keeping secrets within the server-side trust boundary.',
+        why: 'The BFF passes the user\'s access token securely to the Agent Service (LangChain). The agent service never stores credentials — it receives a token per-request, keeping secrets within the server-side trust boundary.',
       },
       {
         nodes: ['n-mcp-gw'],

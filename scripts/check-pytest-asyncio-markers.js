@@ -16,8 +16,7 @@
  *
  * Strict-vs-auto is DERIVED, never hardcoded: a service is exempt only if one
  * of its pytest configs declares `asyncio_mode = auto`. Today that is
- * langchain_agent alone (pytest.ini). openai_agent and pydantic_agent ship no
- * pytest config at all, so pytest-asyncio defaults to strict there. Deriving
+ * langchain_agent alone (pytest.ini). Deriving
  * means this self-corrects both ways — add `asyncio_mode = auto` to a service
  * and its markers stop being required; delete it and they start being required
  * the same day.

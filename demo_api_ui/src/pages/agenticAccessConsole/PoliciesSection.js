@@ -18,13 +18,13 @@ const POLICY_RULES = [
 ];
 
 const DECISION_LOG = [
-  { time: "14:02:11", agent: "openai_agent", tool: "create_transfer", scope: "transfer", decision: "PERMIT" },
-  { time: "14:01:47", agent: "mastra_agent", tool: "create_transfer", scope: "transfer", decision: "INDETERMINATE" },
+  { time: "14:02:11", agent: "langchain_agent", tool: "create_transfer", scope: "transfer", decision: "PERMIT" },
+  { time: "14:01:47", agent: "langchain_agent", tool: "create_transfer", scope: "transfer", decision: "INDETERMINATE" },
   { time: "13:58:03", agent: "langchain_agent", tool: "delete_customer", scope: "admin:delete", decision: "DENY" },
-  { time: "13:55:22", agent: "pydantic_agent", tool: "get_sensitive_account_details", scope: "sensitive:read", decision: "PERMIT" },
-  { time: "13:50:09", agent: "openai_agent", tool: "freeze_account", scope: "admin:write", decision: "DENY" },
-  { time: "13:47:31", agent: "openai_agent", tool: "create_withdrawal", scope: "transfer", decision: "PERMIT" },
-  { time: "13:44:58", agent: "mastra_agent", tool: "adjust_balance", scope: "admin:write", decision: "DENY" },
+  { time: "13:55:22", agent: "langchain_agent", tool: "get_sensitive_account_details", scope: "sensitive:read", decision: "PERMIT" },
+  { time: "13:50:09", agent: "langchain_agent", tool: "freeze_account", scope: "admin:write", decision: "DENY" },
+  { time: "13:47:31", agent: "langchain_agent", tool: "create_withdrawal", scope: "transfer", decision: "PERMIT" },
+  { time: "13:44:58", agent: "langchain_agent", tool: "adjust_balance", scope: "admin:write", decision: "DENY" },
 ];
 
 const FILTERS = ["All", "Permit", "Deny", "Indeterminate"];

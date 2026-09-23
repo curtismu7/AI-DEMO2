@@ -20,9 +20,6 @@
 #   agent     langchain_agent     → ai-demo-langchain-agent    → langchain-agent
 #   agentsvc  demo_agent_service  → ai-demo-agent-service      → agent-service
 #   authz     demo_authz_server   → ai-demo-authz-server       → mcp-gateway (sidecar)
-#   mastra    mastra_agent        → ai-demo-mastra-agent       → mastra-agent
-#   openai    openai_agent        → ai-demo-openai-agent       → openai-agent
-#   pydantic  pydantic_agent      → ai-demo-pydantic-agent     → pydantic-agent
 #   hitl      demo_hitl_service   → ai-demo-hitl-service       → hitl-service
 #   invest    demo_mcp_resource_server     → ai-demo-mcp-resource-server         → mcp-resource-server
 #   mortgage  demo_api_resource_server → ai-demo-api-resource-server → api-resource-server
@@ -49,9 +46,6 @@ compose_svc() {
     agent)    echo "langchain-agent" ;;
     agentsvc) echo "agent-service" ;;
     authz)    echo "authz-server" ;;
-    mastra)   echo "mastra-agent" ;;
-    openai)   echo "openai-agent" ;;
-    pydantic) echo "pydantic-agent" ;;
     hitl)     echo "hitl-service" ;;
     invest)   echo "mcp-resource-server" ;;
     mortgage) echo "api-resource-server" ;;
@@ -70,9 +64,6 @@ ghcr_img() {
     agent)    echo "ai-demo-langchain-agent" ;;
     agentsvc) echo "ai-demo-agent-service" ;;
     authz)    echo "ai-demo-authz-server" ;;
-    mastra)   echo "ai-demo-mastra-agent" ;;
-    openai)   echo "ai-demo-openai-agent" ;;
-    pydantic) echo "ai-demo-pydantic-agent" ;;
     hitl)     echo "ai-demo-hitl-service" ;;
     invest)   echo "ai-demo-mcp-resource-server" ;;
     mortgage) echo "ai-demo-api-resource-server" ;;
@@ -113,9 +104,6 @@ k8s_dep() {
     agent)    echo "langchain-agent" ;;
     agentsvc) echo "agent-service" ;;
     authz)    echo "mcp-gateway" ;;
-    mastra)   echo "mastra-agent" ;;
-    openai)   echo "openai-agent" ;;
-    pydantic) echo "pydantic-agent" ;;
     hitl)     echo "hitl-service" ;;
     invest)   echo "mcp-resource-server" ;;
     mortgage) echo "api-resource-server" ;;
@@ -140,9 +128,6 @@ source_dir() {
     agent)    echo "langchain_agent" ;;
     agentsvc) echo "demo_agent_service" ;;
     authz)    echo "demo_authz_server" ;;
-    mastra)   echo "mastra_agent" ;;
-    openai)   echo "openai_agent" ;;
-    pydantic) echo "pydantic_agent" ;;
     hitl)     echo "demo_hitl_service" ;;
     invest)   echo "demo_mcp_resource_server" ;;
     mortgage) echo "demo_api_resource_server" ;;
@@ -156,7 +141,7 @@ source_dir() {
 # and push ALL" loop and the "roll every deployment" loop both iterate this list,
 # so a key missing here is silently skipped by a full deploy while still working
 # when named explicitly. agent-service was in all four maps but not this list.
-ALL_KEYS="bff frontend mcp gateway agent agentsvc authz mastra openai pydantic hitl invest mortgage llm brave"
+ALL_KEYS="bff frontend mcp gateway agent agentsvc authz hitl invest mortgage llm brave"
 
 # --print-map: emit the service map as JSON and exit. Must run BEFORE the
 # GITHUB_OWNER and derive_ns() blocks below — CI has no .env, and derive_ns

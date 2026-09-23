@@ -78,8 +78,8 @@ describe("Architecture diagram completeness", () => {
   const services = getServiceList();
   const mmds = loadAllMmdContent();
 
-  test("SVC_LIST parses to exactly 11 services", () => {
-    expect(services).toHaveLength(11);
+  test("SVC_LIST parses to exactly 10 services", () => {
+    expect(services).toHaveLength(10);
   });
 
   // Services known to be missing from the .mmd diagrams. Adding to this list

@@ -1,6 +1,6 @@
 /**
  * Support Agent Tools
- * 5 tools with Zod schemas for Mastra framework
+ * 5 tools with Zod schemas for the support agent
  */
 
 const { z } = require('zod');

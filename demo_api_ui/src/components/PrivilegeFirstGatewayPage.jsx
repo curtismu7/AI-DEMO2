@@ -68,7 +68,7 @@ export default function PrivilegeFirstGatewayPage() {
 
             <rect x="20" y="160" width="200" height="72" rx="4" className="pfg-box" />
             <text x="32" y="184" className="pfg-t-b">Sidecar agents</text>
-            <text x="32" y="202" className="pfg-t-m">openai · pydantic · mastra</text>
+            <text x="32" y="202" className="pfg-t-m">ag-ui runtime</text>
             <text x="32" y="218" className="pfg-t-m">LibreChat, agent-service :3006</text>
 
             <rect x="20" y="270" width="200" height="72" rx="4" className="pfg-box" />

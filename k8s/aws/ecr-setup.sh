@@ -25,9 +25,6 @@ REPOS=(
   ai-demo/mcp-resource-server
   ai-demo/api-resource-server
   ai-demo/langchain-agent
-  ai-demo/openai-agent
-  ai-demo/mastra-agent
-  ai-demo/pydantic-agent
 )
 
 for repo in "${REPOS[@]}"; do

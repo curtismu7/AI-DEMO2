@@ -26,7 +26,7 @@ test('SE deploy applies and verifies the RAG stack', () => {
   assert.equal((manifest.match(/replicas: 1/g) || []).length, 5);
   assert.match(localDeploy, /RAG stack enabled by default/);
   assert.match(localDeploy, /weaviate embeddings mcp-code-search llamaindex-agent/);
-  assert.match(runK8, /--profile agents --profile demo-auth --profile rag build/);
+  assert.match(runK8, /--profile demo-auth --profile rag build/);
   assert.match(runK8, /ai-demo-k8-mcp-code-search:ai-demo-mcp-code-search/);
   assert.match(runK8, /ai-demo-k8-llamaindex-agent:ai-demo-llamaindex-agent/);
 });

@@ -129,8 +129,9 @@ function main() {
   // Sanity pin on the PARSER, not the inventory: it reads serverInventory.js as
   // text, so a formatting change could silently make it match nothing and turn
   // every cross-check into a vacuous pass. Raise this when a service is added
-  // on purpose — 19 since mcp-brave (2026-09-03).
-  const EXPECTED_INVENTORY_ENTRIES = 19;
+  // on purpose — 16 after the openai/mastra/pydantic agent frameworks were
+  // removed (2026-09-22).
+  const EXPECTED_INVENTORY_ENTRIES = 16;
   if (inventoryCount !== EXPECTED_INVENTORY_ENTRIES) {
     console.error(
       `[service-map] FAIL — readInventory parsed ${inventoryCount} sourceDir entries, ` +
