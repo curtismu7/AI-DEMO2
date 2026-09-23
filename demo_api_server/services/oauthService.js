@@ -960,6 +960,7 @@ class OAuthService {
       configStore.getEffective('pingone_ai_agent_cc_auth_method') ||
       process.env.PINGONE_AI_AGENT_CC_AUTH_METHOD || 'post'
     ).toLowerCase();
+    const tokenEndpoint = runtime?.tokenEndpoint || this.config.tokenEndpoint;
     const order = authMethodOrder(configured);
     for (let i = 0; i < order.length; i++) {
       const method = order[i];
@@ -973,9 +974,9 @@ class OAuthService {
       if (actorScope) body.set('scope', actorScope);
       if (method === 'post') body.set('client_id', clientId);
       const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-      applyTokenEndpointAuth(clientId, clientSecret, method, body, headers);
+      applyTokenEndpointAuth(clientId, clientSecret, method, body, headers, tokenEndpoint);
       try {
-        const response = await axios.post(this.config.tokenEndpoint, body.toString(), { headers });
+        const response = await axios.post(tokenEndpoint, body.toString(), { headers });
         const at = response.data.access_token;
         if (!at) throw new Error('AI Agent client credentials response missing access_token');
         return at;
@@ -1115,6 +1116,7 @@ class OAuthService {
    */
   // Standard: token exchange always uses client_secret_basic (RFC 8693 + PingOne convention)
   async performTokenExchangeAs(subjectToken, actorToken, clientId, clientSecret, audience, scopes, method = 'basic', exchangeOptions = {}) {
+    const tokenEndpoint = exchangeOptions.tokenEndpoint || this.config.tokenEndpoint;
     const scopeStr = Array.isArray(scopes) ? scopes.join(' ') : scopes;
     const body = new URLSearchParams({
       grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
@@ -1145,7 +1147,7 @@ class OAuthService {
       body.set('actor_token_type', 'urn:ietf:params:oauth:token-type:access_token');
     }
     const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-    applyTokenEndpointAuth(clientId, clientSecret, method, body, headers);
+    applyTokenEndpointAuth(clientId, clientSecret, method, body, headers, tokenEndpoint);
     // exchangeClientId is the parameter clientId (the exchanger performing this
     // hop), not this.config.clientId — that distinction is the whole point of
     // the 2-exchange chain. clientSecret itself must never reach telemetry.
@@ -1160,7 +1162,7 @@ class OAuthService {
     _emitTokenExchangeEvent('request', telemetry);
     const startTime = Date.now();
     try {
-      const response = await axios.post(this.config.tokenEndpoint, body.toString(), { headers });
+      const response = await axios.post(tokenEndpoint, body.toString(), { headers });
       const exchanged = response.data.access_token;
       if (!exchanged) throw new Error('Token exchange response missing access_token');
       _emitTokenExchangeEvent('ok', { ...telemetry, latencyMs: Date.now() - startTime });

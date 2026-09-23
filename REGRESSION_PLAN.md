@@ -169,6 +169,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-23 — Standard PingFederate exchanges used PingOne's token endpoint
+
+**Files changed:** `demo_api_server/services/oauthService.js`, `services/pfStandardTokenExchangeService.js`, `docs/FEDERATE-SETUP.md`, and focused BFF tests.
+
+**What was broken:** the PF standard adapter supplied PF credentials but the shared OAuth helper still posted actor-token and exchange requests to the shared PingOne token endpoint.
+
+**What was fixed:** the shared helper accepts an optional provider token endpoint and retains its existing default. The PF adapter supplies `PF_TOKEN_ENDPOINT` for both actor client-credentials calls and both RFC 8693 exchanges. The PF final-token mapping now documents the verified nested OGNL `act` map expression. Standard PF keeps P1's two-exchange semantics; UC40 ID-JAG remains separate.
+
+**Do not break:** PingOne continues using the configured default endpoint and request behavior; PF standard uses PF endpoint/clients; UC40 ID-JAG remains opt-in and independent; browser tokens stay in the BFF.
+
+**Verify:** 2 focused BFF suites (66 tests), full repository unit runner (96 API tests plus UI Vite smoke), UI production build, topology verification, and four live local PF route exchanges validated `sub`, route-specific `aud`/`scope`, and nested MCP-service → AI-agent `act`. The live exchanges used an AI-agent client-credentials token as a subject stand-in; browser-driven “show my reservations” was unavailable because the shared browser daemon denied access.
+
 ### 2026-09-23 — UC2.5 reported a depth-one token exchange as complete and hid the specialist result
 
 **Files changed:** `demo_api_server/services/a2aOrchestratorService.js`,

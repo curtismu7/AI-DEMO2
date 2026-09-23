@@ -686,5 +686,25 @@ describe('token exchange — client authentication method', () => {
       expect(params.get('client_secret')).toBeNull();
       expect(headers.Authorization).toMatch(/^Basic /);
     });
+
+    it('uses an explicit provider token endpoint when supplied', async () => {
+      const pfTokenEndpoint = 'https://pf.example.test/as/token.oauth2';
+      await svcSingleton.performTokenExchangeAs(
+        'subj', 'actor', 'xch-client', 'xch-secret', 'https://aud', ['scope:x'], 'basic',
+        { tokenEndpoint: pfTokenEndpoint }
+      );
+      expect(axios.post.mock.calls.at(-1)[0]).toBe(pfTokenEndpoint);
+    });
+  });
+
+  describe('client-credentials provider token endpoint override', () => {
+    it('uses an explicit provider token endpoint when supplied', async () => {
+      const pfTokenEndpoint = 'https://pf.example.test/as/token.oauth2';
+      await svcSingleton.getAiAgentClientCredentialsToken({
+        clientId: 'pf-actor', clientSecret: 'pf-secret', authMethod: 'basic',
+        actorScope: 'agent:invoke', tokenEndpoint: pfTokenEndpoint,
+      });
+      expect(axios.post.mock.calls.at(-1)[0]).toBe(pfTokenEndpoint);
+    });
   });
 });

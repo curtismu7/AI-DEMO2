@@ -78,6 +78,7 @@ const scopeTopology = require('./scopeTopology');
 const { resolveAgentRuntime } = require('./delegatedCommerceRuntime');
 const enterpriseMcpPolicy = require('./enterpriseMcpPolicyService');
 const idJagService = require('./idJagService');
+const pfStandardTokenExchangeService = require('./pfStandardTokenExchangeService');
 const { isEnterpriseManagedFlagOn } = require('./enterpriseMcpMetadata');
 const {
   resolveActiveUseCaseId,
@@ -104,26 +105,6 @@ function shouldUsePfIdJagForRun(provider, useCaseId) {
 function resolvePfExchangeMode(provider, useCaseId) {
   if (provider !== 'pingfederate') return null;
   return shouldUsePfIdJagForRun(provider, useCaseId) ? 'id-jag' : 'standard';
-}
-
-function resolvePfStandardExchangeConfig(store = configStore) {
-  const get = (key) => store.getEffective(key);
-  const config = {
-    clientId: get('pf_standard_token_exchange_client_id'),
-    clientSecret: get('pf_standard_token_exchange_client_secret'),
-    authMethod: (get('pf_standard_token_exchange_token_endpoint_auth_method') || 'basic').toLowerCase(),
-    actorClientId: get('pf_ai_agent_actor_client_id'),
-    actorClientSecret: get('pf_ai_agent_actor_client_secret'),
-    actorAuthMethod: (get('pf_ai_agent_actor_token_endpoint_auth_method') || 'basic').toLowerCase(),
-    actorScope: get('pf_standard_token_exchange_actor_scope') || 'agent:invoke',
-  };
-  if (!config.clientId || !config.clientSecret) {
-    throw new Error('PingFederate standard access-token exchange is not configured. Set PF_STANDARD_TOKEN_EXCHANGE_CLIENT_ID and PF_STANDARD_TOKEN_EXCHANGE_CLIENT_SECRET.');
-  }
-  if (!config.actorClientId || !config.actorClientSecret) {
-    throw new Error('PingFederate AI Agent Actor is not configured. Set PF_AI_AGENT_ACTOR_CLIENT_ID and PF_AI_AGENT_ACTOR_CLIENT_SECRET.');
-  }
-  return config;
 }
 
 function resolvePfIdJagSubjectToken(req, subjectTokenType) {
@@ -625,6 +606,7 @@ function buildTratContext(req, tool, userSub, agentClientId, gatewayClientId, ex
  */
 async function pushJwksVerifyEvent(token, tokenEvents, eventId, tokenLabel) {
   try {
+    const issuerName = configStore.getOAuthProvider?.() === 'pingfederate' ? 'PingFederate' : 'PingOne';
     const verif = await tokenVerificationService.verifyExchangedToken(token);
     const isIntrospectionFallback = verif.fallbackMethod === 'introspection';
     const methodLabel = isIntrospectionFallback
@@ -632,9 +614,9 @@ async function pushJwksVerifyEvent(token, tokenEvents, eventId, tokenLabel) {
       : `${tokenLabel} — JWKS Cryptographic Signature Verification (RFC 7515)`;
     let explanation;
     if (verif.verified && !isIntrospectionFallback) {
-      explanation = `Signature verified ✅ — PingOne's public key (kid=${verif.kid}, alg=${verif.alg}) confirms this token is authentic and untampered since issuance. RFC 7515 §4.`;
+      explanation = `Signature verified ✅ — ${issuerName}'s public key (kid=${verif.kid}, alg=${verif.alg}) confirms this token is authentic and untampered since issuance. RFC 7515 §4.`;
     } else if (verif.verified && isIntrospectionFallback) {
-      explanation = `JWKS unavailable — fell back to RFC 7662 introspection ✅. PingOne confirmed the token is active. Cryptographic tamper-detection was skipped; acceptable here because the token was received directly from PingOne.`;
+      explanation = `JWKS unavailable — fell back to RFC 7662 introspection ✅. ${issuerName} confirmed the token is active. Cryptographic tamper-detection was skipped; acceptable here because the token was received directly from ${issuerName}.`;
     } else if (verif.warning) {
       explanation = `Signature check produced a warning (fail-open): ${verif.warning}.`;
     } else {
@@ -1734,37 +1716,19 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
     }
   }
 
-  // Ordinary PingFederate demo runs use their own access-token exchanger. The
-  // PF ID-JAG lane is selected only by UC40 above; do not let the shared default
-  // double-exchange path fall through to PingOne credentials in PF mode.
+  // Ordinary PingFederate demo runs use the shared two-exchange contract through
+  // the PF adapter. The PF ID-JAG lane is selected only by UC40 above.
   if (pfExchangeMode === 'standard') {
-    const pfConfig = resolvePfStandardExchangeConfig();
-    const actorToken = await oauthService.getAiAgentClientCredentialsToken({
-      clientId: pfConfig.actorClientId,
-      clientSecret: pfConfig.actorClientSecret,
-      authMethod: pfConfig.actorAuthMethod,
-      actorScope: pfConfig.actorScope,
-    });
-    const token = await oauthService.performTokenExchangeAs(
-      userToken, actorToken, pfConfig.clientId, pfConfig.clientSecret, mcpResourceUri,
-      finalScopes, pfConfig.authMethod, {
-        requestedTokenType: 'urn:ietf:params:oauth:token-type:access_token',
-        // PF's dedicated standard exchange policy derives the final audience
-        // from requested scopes. Sending the PingOne mcpserver.ping.demo
-        // audience here is rejected by PF as invalid_target.
-        omitAudience: true,
-      }
+    const pfConfig = pfStandardTokenExchangeService.resolveConfig();
+    let expectedFinalAudience = mcpResourceUri;
+    if (!opts.forceDirectMcpAudience) try {
+      expectedFinalAudience = require('./mcpToolAuthorizationService').resolveExpectedMcpResourceUri() || mcpResourceUri;
+    } catch { /* use configured MCP resource audience when the resolver is unavailable */ }
+
+    return await _performTwoExchangeDelegation(
+      tokenEvents, userToken, finalScopes, userSub, toolTrigger, mcpResourceUri, req,
+      { ...opts, tool, exchangeProvider: pfStandardTokenExchangeService, providerConfig: pfConfig, expectedFinalAudience }
     );
-    tokenEvents.push(buildTokenEvent(
-      'pf-standard-token-exchange',
-      'PingFederate standard access-token exchange',
-      'exchanged',
-      decodeJwtClaims(token),
-      'PingFederate issued an ordinary delegated access token for this non-ID-JAG demo run.',
-      { provider: 'pingfederate', rfc: 'RFC 8693', requestedTokenType: 'access_token', hasActorToken: !!actorToken }
-    ));
-    stampTokenEventsForUseCase(tokenEvents, activeUseCaseId);
-    return { token, tokenEvents, userSub, tratContextHeader: null };
   }
 
   // ── 2-Exchange delegation path ──────────────────────────────────────────────────
@@ -2525,7 +2489,11 @@ async function _performTwoExchangeDelegation(
   // ── RFC 8693 §2.1: Two-Exchange Delegation Configuration Validation
   let configResult;
   try {
-    configResult = configStore.validateTwoExchangeConfig();
+    if (opts.exchangeProvider) {
+      configResult = { providerConfig: opts.providerConfig };
+    } else {
+      configResult = configStore.validateTwoExchangeConfig();
+    }
   } catch (configErr) {
     tokenEvents.push(buildTokenEvent(
       'two-exchange-config-invalid',
@@ -2537,25 +2505,31 @@ async function _performTwoExchangeDelegation(
   }
 
   // Extract validated configuration - no hard-coded defaults
-  const agentRuntime = resolveAgentRuntime(req, { fallbackToDefault: true });
-  const aiAgentClientId       = agentRuntime?.clientId || configResult.credentials.aiAgentClientId;
-  const mcpExchangerClient    = configResult.credentials.mcpClientId;
-  const agentGatewayAud       = configResult.audiences.agentGatewayAud;
-  const intermediateAud       = configResult.audiences.intermediateAud;
-  const mcpGatewayAud         = configResult.audiences.mcpGatewayAud;
+  const provider = opts.exchangeProvider || null;
+  const providerConfig = opts.providerConfig || null;
+  const agentRuntime = provider ? null : resolveAgentRuntime(req, { fallbackToDefault: true });
+  const aiAgentClientId       = provider ? providerConfig.agentActorClientId : agentRuntime?.clientId || configResult.credentials.aiAgentClientId;
+  const mcpExchangerClient    = provider ? providerConfig.mcpActorClientId : configResult.credentials.mcpClientId;
+  const exchange1Client       = provider ? providerConfig.agentExchangeClientId : aiAgentClientId;
+  const exchange2Client       = provider ? providerConfig.mcpExchangeClientId : mcpExchangerClient;
+  const agentGatewayAud       = provider ? '(provider-defined)' : configResult.audiences.agentGatewayAud;
+  const intermediateAud       = provider ? providerConfig.intermediateAudience : configResult.audiences.intermediateAud;
+  const mcpGatewayAud         = provider ? '(provider-defined)' : configResult.audiences.mcpGatewayAud;
   const mcpServerAudForFallback = configStore.getEffective('pingone_resource_mcp_server_uri') || process.env.PINGONE_RESOURCE_MCP_SERVER_URI || '';
   // forceDirectMcpAudience: caller dials the MCP server directly — skip the gateway
   // health probe entirely and target the MCP server audience, not the gateway audience.
   const twoExFinalAud = opts.forceDirectMcpAudience
-    ? mcpServerAudForFallback
-    : await _resolveFinalMcpAudience(configResult.audiences.finalAud, mcpServerAudForFallback);
-  const aiAgentClientSecret   = agentRuntime?.clientSecret || configStore.getEffective('pingone_ai_agent_client_secret') || process.env.PINGONE_AI_AGENT_CLIENT_SECRET || process.env.AI_AGENT_CLIENT_SECRET;
-  const mcpExchangerSecret    = configStore.getEffective('pingone_mcp_token_exchanger_client_secret');
+    ? (provider ? mcpResourceUri : mcpServerAudForFallback)
+    : provider
+      ? opts.expectedFinalAudience
+      : await _resolveFinalMcpAudience(configResult.audiences.finalAud, mcpServerAudForFallback);
+  const aiAgentClientSecret   = provider ? providerConfig.agentActorClientSecret : agentRuntime?.clientSecret || configStore.getEffective('pingone_ai_agent_client_secret') || process.env.PINGONE_AI_AGENT_CLIENT_SECRET || process.env.AI_AGENT_CLIENT_SECRET;
+  const mcpExchangerSecret    = provider ? providerConfig.mcpActorClientSecret : configStore.getEffective('pingone_mcp_token_exchanger_client_secret');
   // ARCHITECTURE TRUTH: all PingOne client connections use client_secret_post.
   // Only the Worker Token CC client (oauthService.getAgentClientCredentialsToken*)
   // stays 'basic'. These are non-worker (AI agent / MCP exchanger) → default 'post'.
-  const aiAgentAuthMethod     = (agentRuntime?.authMethod || configStore.get('ai_agent_token_endpoint_auth_method') || process.env.AI_AGENT_TOKEN_ENDPOINT_AUTH_METHOD || 'post').toLowerCase();
-  const mcpExchangerAuthMethod = (configStore.get('mcp_exchanger_token_endpoint_auth_method') || process.env.PINGONE_MCP_TOKEN_EXCHANGER_CC_AUTH_METHOD || process.env.PINGONE_MCP_TOKEN_EXCHANGER_AUTH_METHOD || process.env.MCP_EXCHANGER_TOKEN_ENDPOINT_AUTH_METHOD || 'post').toLowerCase();
+  const aiAgentAuthMethod     = provider ? providerConfig.agentActorAuthMethod : (agentRuntime?.authMethod || configStore.get('ai_agent_token_endpoint_auth_method') || process.env.AI_AGENT_TOKEN_ENDPOINT_AUTH_METHOD || 'post').toLowerCase();
+  const mcpExchangerAuthMethod = provider ? providerConfig.mcpActorAuthMethod : (configStore.get('mcp_exchanger_token_endpoint_auth_method') || process.env.PINGONE_MCP_TOKEN_EXCHANGER_CC_AUTH_METHOD || process.env.PINGONE_MCP_TOKEN_EXCHANGER_AUTH_METHOD || process.env.MCP_EXCHANGER_TOKEN_ENDPOINT_AUTH_METHOD || 'post').toLowerCase();
 
   // ─ Step 1: AI Agent Actor Token (Client Credentials) ───────────────────────────
   tokenEvents.push(buildTokenEvent(
@@ -2563,8 +2537,9 @@ async function _performTwoExchangeDelegation(
     '2-Exchange #1 — AI Agent Actor Token (CC)',
     'acquiring',
     null,
-    `AI Agent App (${aiAgentClientId}) getting Client Credentials actor token. ` +
-      `Audience: ${agentGatewayAud} (Super Banking Agent Gateway).`,
+    provider
+      ? 'PingFederate AI-agent OAuth client is requesting a Client Credentials token for the first-hop actor role. The audience is determined by PF client policy.'
+      : `AI Agent App (${aiAgentClientId}) getting Client Credentials actor token. Audience: ${agentGatewayAud} (Super Banking Agent Gateway).`,
     { rfc: 'RFC 8693 §2.1 (actor_token)', exchangeStep: '1-actor' }
   ));
 
@@ -2576,8 +2551,12 @@ async function _performTwoExchangeDelegation(
     // scopes for multiple resources"`. Name the single Agent-Gateway scope
     // explicitly so PingOne narrows to one resource. Default matches the
     // provisioner grant (pingoneProvisionService.js Step 37a: agent:invoke).
-    const agentGatewayScope = configStore.getEffective('agent_gateway_cc_scope') || 'agent:invoke';
-    agentActorToken = await oauthService.getClientCredentialsTokenAs(aiAgentClientId, aiAgentClientSecret, agentGatewayAud, aiAgentAuthMethod, agentGatewayScope);
+    const agentGatewayScope = provider
+      ? providerConfig.agentActorScope
+      : configStore.getEffective('agent_gateway_cc_scope') || 'agent:invoke';
+    agentActorToken = provider
+      ? await provider.getActorToken(providerConfig, 'agent')
+      : await oauthService.getClientCredentialsTokenAs(aiAgentClientId, aiAgentClientSecret, agentGatewayAud, aiAgentAuthMethod, agentGatewayScope);
     const agentActorDecoded = decodeJwtClaims(agentActorToken);
     const actorIdx = tokenEvents.findIndex(e => e.id === 'two-ex-agent-actor-acquiring');
     if (actorIdx !== -1) tokenEvents.splice(actorIdx, 1);
@@ -2587,7 +2566,7 @@ async function _performTwoExchangeDelegation(
       'active',
       agentActorDecoded,
       `AI Agent App (${aiAgentClientId}) obtained its Client Credentials actor token. ` +
-        `aud=${agentGatewayAud}. Used as actor_token in Exchange #1.`,
+        `${provider ? 'Provider-validated actor token' : `aud=${agentGatewayAud}`}. Used as actor_token in Exchange #1.`,
       { rfc: 'RFC 8693 §2.1', exchangeStep: '1-actor' }
     ));
       // JWKS verify the AI Agent actor CC token
@@ -2600,7 +2579,9 @@ async function _performTwoExchangeDelegation(
       '2-Exchange #1 — AI Agent Actor Token ❌',
       'failed',
       null,
-      `AI Agent client credentials failed: ${err.message}.
+      provider
+        ? `PingFederate AI-agent actor-token request failed: ${err.message}. Verify PF_AI_AGENT_ACTOR_CLIENT_ID/SECRET, the PF token endpoint, and the client-credentials grant.`
+        : `AI Agent client credentials failed: ${err.message}.
       Remediation steps:
       1. Verify configStore has 'ai_agent_client_id' OR PINGONE_AI_AGENT_CLIENT_ID env var is set
       2. Verify PINGONE_AI_AGENT_CLIENT_SECRET OR AI_AGENT_CLIENT_SECRET env var is set
@@ -2627,8 +2608,9 @@ async function _performTwoExchangeDelegation(
   // to see in the Exchange #2 subject token before it will output them in the final token.
   // The agent:invoke scope is always included so the actor CC token selection stays
   // unambiguous (agent_gateway_cc_scope default).
-  const intermediateExchangeScope =
-    configStore.getEffective('two_exchange_intermediate_scope') || 'agent:invoke';
+  const intermediateExchangeScope = provider
+    ? providerConfig.agentActorScope
+    : configStore.getEffective('two_exchange_intermediate_scope') || 'agent:invoke';
   // Exchange #1 targets agentgateway.ping.demo. Only request scopes that exist on
   // that resource (native + mirroredScopes) so PingOne doesn't see a multi-resource
   // request. mcp:invoke lives on mcpgateway.ping.demo and must be excluded here.
@@ -2641,12 +2623,12 @@ async function _performTwoExchangeDelegation(
     '2-Exchange #1 — Subject Token → Agent Exchanged Token',
     'acquiring',
     null,
-    `Exchange #1 (RFC 8693): exchanger=${aiAgentClientId}, ` +
+    `Exchange #1 (RFC 8693): exchanger=${exchange1Client}, ` +
       `subject=Subject Token, ` +
-      `audience=${intermediateAud}, scope="${exchange1Scopes.join(' ')}" ` +
-      `(agent:invoke + tool scopes mirrored on Agent Gateway; carried into intermediate token for Exchange #2 narrowing).`,
+      `audience=${provider ? `PF policy-derived (expected ${intermediateAud})` : intermediateAud}, scope="${exchange1Scopes.join(' ')}" ` +
+      `${provider ? '(expected intermediate token audience; PF policy controls output).' : '(agent:invoke + tool scopes mirrored on Agent Gateway; carried into intermediate token for Exchange #2 narrowing).'}`,
     { rfc: 'RFC 8693', exchangeStep: '1-exchange',
-      exchangeRequest: { exchanger: aiAgentClientId, audience: intermediateAud, scope: exchange1Scopes.join(' ') } }
+      exchangeRequest: { exchanger: exchange1Client, audience: intermediateAud, audienceBehavior: provider ? 'policy-derived' : 'requested', scope: exchange1Scopes.join(' ') } }
   ));
 
   let agentExchangedToken;
@@ -2657,10 +2639,13 @@ async function _performTwoExchangeDelegation(
     // client has grants on multiple resource servers; `audience=` alone is
     // silently ignored and PingOne returns "May not request scopes for
     // multiple resources".
-    agentExchangedToken = await oauthService.performTokenExchangeAs(
-      userToken, agentActorToken, aiAgentClientId, aiAgentClientSecret, [intermediateAud], exchange1Scopes, aiAgentAuthMethod
-    );
+    agentExchangedToken = provider
+      ? await provider.performExchange(providerConfig, 'agent', userToken, agentActorToken, intermediateAud, exchange1Scopes)
+      : await oauthService.performTokenExchangeAs(
+        userToken, agentActorToken, aiAgentClientId, aiAgentClientSecret, [intermediateAud], exchange1Scopes, aiAgentAuthMethod
+      );
     const agentExchangedDecoded = decodeJwtClaims(agentExchangedToken);
+    if (provider) provider.validateIntermediateToken(agentExchangedToken, { userSub, audience: intermediateAud, scopes: exchange1Scopes });
     const agentExchangedClaims = agentExchangedDecoded?.claims;
     // Preserve exchangeRequest from the in-progress card before splice — TraceRail /
     // TokenChain teaching JSON would otherwise vanish on success (1-exchange keeps it).
@@ -2718,8 +2703,9 @@ async function _performTwoExchangeDelegation(
     '2-Exchange #2 — MCP Actor Token (CC)',
     'acquiring',
     null,
-    `MCP Service App (${mcpExchangerClient}) getting Client Credentials actor token. ` +
-      `Audience: ${mcpGatewayAud} (Super Banking MCP Gateway).`,
+    provider
+      ? 'PingFederate MCP-service OAuth client is requesting a Client Credentials token for the second-hop actor role. The audience is determined by PF client policy.'
+      : `MCP Service App (${mcpExchangerClient}) getting Client Credentials actor token. Audience: ${mcpGatewayAud} (Super Banking MCP Gateway).`,
     { rfc: 'RFC 8693 §2.1 (actor_token)', exchangeStep: '2-actor' }
   ));
 
@@ -2731,7 +2717,9 @@ async function _performTwoExchangeDelegation(
     // MCP-Gateway scope explicitly. Default matches the provisioner grant
     // (pingoneProvisionService.js Step 37b: mcp:invoke).
     const mcpGatewayScope = configStore.getEffective('mcp_gateway_cc_scope') || 'mcp:invoke';
-    mcpActorToken = await oauthService.getClientCredentialsTokenAs(mcpExchangerClient, mcpExchangerSecret, mcpGatewayAud, mcpExchangerAuthMethod, mcpGatewayScope);
+    mcpActorToken = provider
+      ? await provider.getActorToken(providerConfig, 'mcp')
+      : await oauthService.getClientCredentialsTokenAs(mcpExchangerClient, mcpExchangerSecret, mcpGatewayAud, mcpExchangerAuthMethod, mcpGatewayScope);
     const mcpActorDecoded = decodeJwtClaims(mcpActorToken);
     const mcpActorIdx = tokenEvents.findIndex(e => e.id === 'two-ex-mcp-actor-acquiring');
     if (mcpActorIdx !== -1) tokenEvents.splice(mcpActorIdx, 1);
@@ -2741,7 +2729,7 @@ async function _performTwoExchangeDelegation(
       'active',
       mcpActorDecoded,
       `MCP Service App (${mcpExchangerClient}) obtained its Client Credentials actor token. ` +
-        `aud=${mcpGatewayAud}. Used as actor_token in Exchange #2.`,
+        `${provider ? 'Provider-validated actor token' : `aud=${mcpGatewayAud}`}. Used as actor_token in Exchange #2.`,
       { rfc: 'RFC 8693 §2.1', exchangeStep: '2-actor' }
     ));
       // JWKS verify the MCP Service actor CC token
@@ -2754,7 +2742,9 @@ async function _performTwoExchangeDelegation(
       '2-Exchange #2 — MCP Actor Token ❌',
       'failed',
       null,
-      `MCP Service client credentials failed: ${err.message}.
+      provider
+        ? `PingFederate MCP-service actor-token request failed: ${err.message}. Verify PF_MCP_SERVICE_ACTOR_CLIENT_ID/SECRET, the PF token endpoint, and the client-credentials grant.`
+        : `MCP Service client credentials failed: ${err.message}.
       Remediation steps:
       1. Verify configStore has 'mcp_oauth_client_id' OR AGENT_OAUTH_CLIENT_ID env var is set
       2. Verify AGENT_OAUTH_CLIENT_SECRET env var is set
@@ -2863,11 +2853,14 @@ async function _performTwoExchangeDelegation(
     '2-Exchange #2 — Agent Exchanged Token → Final MCP Token',
     'acquiring',
     null,
-    `Exchange #2 (RFC 8693): exchanger=${mcpExchangerClient}, ` +
-      `subject=Agent Exchanged Token (act.sub must equal actor_token.aud[0]=${mcpExchangerClient}), ` +
-      `audience=${finalAudDisplay} (RFC 8707 multi-resource). act expression forwards act.sub from Agent Exchanged Token.`,
+    `Exchange #2 (RFC 8693): exchanger=${exchange2Client}, ` +
+      (provider
+        ? 'subject=Agent Intermediate Token, actor=PF MCP-service client. '
+        : `subject=Agent Exchanged Token (act.sub must equal actor_token.aud[0]=${mcpExchangerClient}), `) +
+      `audience=${provider ? `PF policy-derived (expected ${finalAudTarget})` : `${finalAudDisplay} (RFC 8707 multi-resource)`}. ` +
+      `${provider ? 'PF policy maps the resulting act claims.' : 'act expression forwards act.sub from Agent Exchanged Token.'}`,
     { rfc: 'RFC 8693 + RFC 8707', exchangeStep: '2-exchange',
-      exchangeRequest: { exchanger: mcpExchangerClient, audience: finalAudDisplay, scope: exchange2RequestedScopes.join(' ') } }
+      exchangeRequest: { exchanger: exchange2Client, audience: finalAudDisplay, audienceBehavior: provider ? 'policy-derived' : 'requested', scope: exchange2RequestedScopes.join(' ') } }
   ));
 
   let finalToken;
@@ -2907,11 +2900,17 @@ async function _performTwoExchangeDelegation(
     const ex2Scopes = usePingGatewayForExchange
       ? (isApikeyTool ? [apikeyInvokeScope, ...apikeyToolScopes] : [gatewayInvokeScope])
       : exchange2RequestedScopes;
-    finalToken = await oauthService.performTokenExchangeAs(
-      agentExchangedToken, mcpActorToken, mcpExchangerClient, mcpExchangerSecret, finalAudiences, ex2Scopes, mcpExchangerAuthMethod
-    );
+    finalToken = provider
+      ? await provider.performExchange(providerConfig, 'mcp', agentExchangedToken, mcpActorToken, finalAudiences, ex2Scopes)
+      : await oauthService.performTokenExchangeAs(
+        agentExchangedToken, mcpActorToken, mcpExchangerClient, mcpExchangerSecret, finalAudiences, ex2Scopes, mcpExchangerAuthMethod
+      );
     const finalDecoded = decodeJwtClaims(finalToken);
     const finalClaims  = finalDecoded?.claims;
+    if (provider) provider.validateFinalToken(finalToken, {
+      userSub, audience: finalAudTarget, scopes: ex2Scopes,
+      agentActorToken, mcpActorToken,
+    });
     // Preserve exchangeRequest across splice so TraceRail's exchange step keeps
     // its coloured request JSON (buildTraceSteps reads two-ex-final-token only).
     const ex2Idx = tokenEvents.findIndex(e => e.id === 'two-ex-exchange2-in-progress');
@@ -2947,7 +2946,7 @@ async function _performTwoExchangeDelegation(
             'Full delegation chain verified. PAZ can enforce both act.sub and act.act.sub as named policy attributes.'
           : finalClaims?.act?.sub
             ? `act.sub=${finalClaims.act.sub} (AI Agent identity preserved). ` +
-              'PingOne SpEL cannot construct fully-nested act objects — act.sub reflects the AI Agent as delegation initiator. ' +
+              `${provider ? 'This matches the supported non-nested delegated-token shape.' : 'PingOne SpEL cannot construct fully-nested act objects — act.sub reflects the AI Agent as delegation initiator.'} ` +
               'PAZ can enforce act.sub as a policy attribute. See docs/PINGONE_MAY_ACT_TWO_TOKEN_EXCHANGES.md §1e.'
             : 'act claim missing from Final Token — add the act expression to the Super Banking Resource Server to record the delegation chain (docs/PINGONE_MAY_ACT_TWO_TOKEN_EXCHANGES.md §1e).'),
       { rfc: 'RFC 8693', exchangeStep: '2-exchange', exchangeMethod: '2-exchange',
@@ -2956,7 +2955,7 @@ async function _performTwoExchangeDelegation(
         nestedActPresent: nestedActOk,
         audienceNarrowed: finalAudTarget, audMatches,
         audExpected: finalAudTarget, audActual: mcpTokenAud,
-        scopeNarrowed: effectiveToolScopes.join(' '),
+        scopeNarrowed: ex2Scopes.join(' '),
         ...(ex2ExchangeRequest ? { exchangeRequest: ex2ExchangeRequest } : {}) }
     ));
     // JWKS verify the final MCP token (result of Exchange #2)
@@ -3019,8 +3018,10 @@ async function _performTwoExchangeDelegation(
       'failed',
       null,
       `Exchange #2 failed: ${err.message}. ` +
-        'Check that act.sub on the Agent Exchanged Token matches AGENT_OAUTH_CLIENT_ID ' +
-        'and that the act expression on Super Banking MCP Server resource server is correct.',
+        (provider
+          ? 'Check the PF second-hop policy, MCP actor configuration, and output claim mapping.'
+          : 'Check that act.sub on the Agent Exchanged Token matches AGENT_OAUTH_CLIENT_ID ' +
+            'and that the act expression on Super Banking MCP Server resource server is correct.'),
       { error: err.message, httpStatus: err.httpStatus, pingoneError: err.pingoneError,
         pingoneErrorDescription: err.pingoneErrorDescription, exchangeStep: '2-exchange',
         ...(ex2ExchangeRequest ? { exchangeRequest: ex2ExchangeRequest } : {}) }
@@ -3127,7 +3128,7 @@ function describeBlockedToken(resolved, tokenEvents) {
 module.exports = {
   // Exported for the ID-JAG-scope regression spec — the predicate decides whether
   // a per-server ID-JAG grant is even applicable to this tool.
-  __test: { isOlbBackedTool, resolvePfIdJagSubjectToken, shouldUsePfIdJagForRun, resolvePfExchangeMode, resolvePfStandardExchangeConfig },
+  __test: { isOlbBackedTool, resolvePfIdJagSubjectToken, shouldUsePfIdJagForRun, resolvePfExchangeMode },
   resolveMcpAccessToken,
   resolveMcpAccessTokenWithEvents,
   describeBlockedToken,
