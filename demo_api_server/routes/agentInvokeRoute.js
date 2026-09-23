@@ -37,7 +37,9 @@ const configStore = require('../services/configStore');
 const appEventService = require('../services/appEventService');
 const { guardPromptInput } = require('../services/promptGuard');
 const mcpFlowSseHub = require('../services/mcpFlowSseHub');
-const { parseVerticalParam } = require('../services/nlIntentParser');
+const { parseVerticalParam, parseHeuristic, resolveVerticalCtx } = require('../services/nlIntentParser');
+const { toolForAction } = require('../services/stepVerificationExpectations');
+const { resolveAgentMode } = require('../services/agentModeResolver');
 const { stampUseCaseId, stampVertical } = require('../services/useCaseTagging');
 const { verticalManifest } = require('../services/verticalManifest');
 const reportStore = require('../services/lmdb/reportStore.lmdb');
@@ -191,6 +193,14 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
       if (prompt !== scenario.runPrompt) {
         return res.status(400).json({ error: 'invalid_workload_action' });
       }
+      const heuristic = parseHeuristic(scenario.runPrompt, verticalRaw, resolveVerticalCtx(verticalRaw), {});
+      const action = heuristic?.banking?.action || heuristic?.action;
+      if (!action || toolForAction(action, verticalRaw) !== scenario.primaryTool) {
+        return res.status(400).json({ error: 'invalid_workload_mapping' });
+      }
+      // Bind this catalog action to the deterministic dispatch even when the
+      // session selected LLM-only mode. No client-supplied tool name is used.
+      req.body.forceHeuristic = true;
     }
 
     const promptBlock = guardPromptInput(prompt);
@@ -221,7 +231,7 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
       // UC38 requires MFA — acr claim set by PingOne when acr_values was honoured.
       const tokenAcr = req.user.acr || '';
       const hasMfa = /multi.factor|multi_factor|mfa/i.test(String(tokenAcr));
-      if (requestedUseCaseId === 'personal-agent-concierge' && !hasMfa) {
+      if ((requestedUseCaseId === 'personal-agent-concierge' || requestedUseCaseId === 'saas-embedded-worker') && !hasMfa) {
         const stepUpAcr = configStore.getEffective('stepUpAcrValue') || 'Multi_Factor';
         appEventService.logEvent('personal_agent', 'info', 'UC38: MFA step-up required before delegation',
           { tag: 'personal_agent/step_up_required', metadata: { userId, tokenAcr } });
@@ -285,6 +295,14 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
         { tag: 'personal_agent/verified', metadata: { userId, agentId: personalAgent.id } });
     }
     // ─────────────────────────────────────────────────────────────────────────
+
+    // Platform wiring enters a separate runtime before processAgentMessage's
+    // heuristic gate. Check only after customer and registration verification.
+    if (isWorkloadAgent && resolveAgentMode(
+      configStore.getEffective('agent_mode'), configStore.getEffective('agent_external_wiring')
+    ).externalWiring === 'platform') {
+      return res.status(409).json({ error: 'workload_action_requires_bff_wiring' });
+    }
 
     // ── PHASE 1: PRE-EXECUTION INTENT GATING ──
     // Extract intent from prompt BEFORE calling agent

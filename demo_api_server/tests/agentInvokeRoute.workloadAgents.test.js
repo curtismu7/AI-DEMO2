@@ -2,7 +2,10 @@
 
 const express = require('express');
 const request = require('supertest');
-const { resolveUseCase } = require('../config/useCases');
+const { resolveUseCase, VERTICALS } = require('../config/useCases');
+const { parseHeuristic, resolveVerticalCtx } = require('../services/nlIntentParser');
+const { toolForAction } = require('../services/stepVerificationExpectations');
+const mockConfig = {};
 
 jest.mock('../middleware/auth', () => ({
   authenticateToken: (req, _res, next) => {
@@ -30,7 +33,13 @@ jest.mock('../services/demoAgentLangGraphService', () => ({
   processAgentMessage: jest.fn(async () => ({ reply: 'Policy path reached', success: true, toolsCalled: [], tokenEvents: [] })),
 }));
 jest.mock('../services/configStore', () => ({
-  getEffective: jest.fn((key) => ({ ff_intent_authorization_enabled: 'false', ff_intent_token_enabled: 'false' })[key]),
+  getEffective: jest.fn((key) => mockConfig[key] ?? ({ ff_intent_authorization_enabled: 'false', ff_intent_token_enabled: 'false' })[key]),
+}));
+jest.mock('../services/verticalMcpExecution', () => ({
+  executePluginToolViaMcp: jest.fn(async () => ({ out: { result: { items: [] }, render: 'text' } })),
+}));
+jest.mock('../services/agentReasoningClient', () => ({
+  runReasonLoop: jest.fn(async () => ({ ok: true, answer: 'LLM chose a tool', toolsCalled: [] })),
 }));
 jest.mock('../services/appEventService', () => ({ logEvent: jest.fn() }));
 jest.mock('../services/lmdb/reportStore.lmdb', () => ({ saveRun: jest.fn() }));
@@ -38,6 +47,7 @@ jest.mock('../services/lmdb/conversationStore.lmdb', () => ({ saveMessage: jest.
 
 const { processAgentMessage } = require('../services/demoAgentLangGraphService');
 const agentBuilderService = require('../services/agentBuilderService');
+const { runReasonLoop } = require('../services/agentReasoningClient');
 const app = express();
 app.use('/api', require('../routes/agentInvokeRoute'));
 
@@ -47,9 +57,21 @@ const invoke = (id, vertical = 'sporting-goods') => ({
   useCaseId: resolveUseCase(id, vertical).useCaseId,
 });
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  Object.keys(mockConfig).forEach((key) => delete mockConfig[key]);
+});
 
 describe('workload agent invoke contract', () => {
+  test.each(['UC38', 'UC44'])('%s catalog prompts resolve to their tool in every vertical', (id) => {
+    for (const vertical of VERTICALS) {
+      const scenario = resolveUseCase(id, vertical);
+      const heuristic = parseHeuristic(scenario.runPrompt, vertical, resolveVerticalCtx(vertical), {});
+      const action = heuristic?.banking?.action || heuristic?.action;
+      expect(toolForAction(action, vertical)).toBe(scenario.primaryTool);
+    }
+  });
+
   test.each(['UC38', 'UC44'])('%s requires a signed-in customer', async (id) => {
     const res = await request(app).post('/api/agent/invoke').send(invoke(id));
     expect(res.status).toBe(401);
@@ -86,6 +108,48 @@ describe('workload agent invoke contract', () => {
     const res = await request(app).post('/api/agent/invoke').set('Authorization', 'Bearer plain').send(invoke('UC44'));
     expect(res.status).toBe(200);
     expect(res.body.error).toBe('agent_not_registered');
+    expect(processAgentMessage).not.toHaveBeenCalled();
+  });
+
+  test('UC45 keeps its existing MFA step-up before worker execution', async () => {
+    const res = await request(app).post('/api/agent/invoke').set('Authorization', 'Bearer plain')
+      .send({ prompt: 'show my reservations', vertical: 'airlines', useCaseId: 'saas-embedded-worker' });
+    expect(res.status).toBe(200);
+    expect(res.body.error).toBe('step_up_required');
+    expect(agentBuilderService.getAgentForUser).not.toHaveBeenCalled();
+    expect(processAgentMessage).not.toHaveBeenCalled();
+  });
+
+  test.each(['UC38', 'UC44'])('%s dispatches its catalog tool even in BFF LLM-only mode', async (id) => {
+    mockConfig.agent_mode = 'gemini';
+    mockConfig.agent_external_wiring = 'bff';
+    mockConfig.ff_heuristic_enabled = 'false';
+    processAgentMessage.mockImplementationOnce((args) => {
+      expect(args.req.body.forceHeuristic).toBe(true);
+      return jest.requireActual('../services/demoAgentLangGraphService').processAgentMessage(args);
+    });
+    const body = invoke(id);
+    const res = await request(app).post('/api/agent/invoke').set('Authorization', 'Bearer mfa')
+      .send({ ...body, forceHeuristic: false });
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.toolsCalled).toEqual([resolveUseCase(id, body.vertical).primaryTool]);
+    expect(runReasonLoop).not.toHaveBeenCalled();
+  });
+
+  test('workload actions fail closed when platform wiring would bypass the heuristic constraint', async () => {
+    mockConfig.agent_mode = 'gemini';
+    mockConfig.agent_external_wiring = 'platform';
+    const res = await request(app).post('/api/agent/invoke').set('Authorization', 'Bearer plain').send(invoke('UC44'));
+    expect(res.status).toBe(409);
+    expect(processAgentMessage).not.toHaveBeenCalled();
+  });
+
+  test('anonymous UC44 still returns 401 when platform wiring is selected', async () => {
+    mockConfig.agent_mode = 'gemini';
+    mockConfig.agent_external_wiring = 'platform';
+    const res = await request(app).post('/api/agent/invoke').send(invoke('UC44'));
+    expect(res.status).toBe(401);
     expect(processAgentMessage).not.toHaveBeenCalled();
   });
 
