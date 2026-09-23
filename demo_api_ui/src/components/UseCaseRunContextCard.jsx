@@ -25,6 +25,7 @@ function humanizeUseCaseId(useCaseId) {
 export default function UseCaseRunContextCard({ runContext }) {
   const launchedFromUseCases = runContext?.source === 'use-cases';
   const launchedFromDemoTrack = runContext?.source === 'demo-track';
+  const launchedFromDemoSteps = runContext?.source === 'demo-steps';
   const evidence = evidenceItems(runContext?.evidence);
 
   return (
@@ -36,7 +37,9 @@ export default function UseCaseRunContextCard({ runContext }) {
               ? 'Launched from Use Cases'
               : launchedFromDemoTrack
                 ? 'Launched from Demo Track'
-                : 'Direct dashboard run'}
+                : launchedFromDemoSteps
+                  ? 'Launched from Demo Steps'
+                  : 'Direct dashboard run'}
           </div>
           <h2 className="ba-run-context-card__title">
             {runContext?.useCaseLabel
@@ -63,7 +66,7 @@ export default function UseCaseRunContextCard({ runContext }) {
             </div>
             <div>
               <dt>Source</dt>
-              <dd>{launchedFromDemoTrack ? 'Demo Track' : 'Use Cases'} → {runContext.useCaseLabel || runContext.useCaseId}</dd>
+              <dd>{launchedFromDemoTrack ? 'Demo Track' : launchedFromDemoSteps ? 'Demo Steps' : 'Use Cases'} → {runContext.useCaseLabel || runContext.useCaseId}</dd>
             </div>
           </dl>
           {evidence.length > 0 && (
