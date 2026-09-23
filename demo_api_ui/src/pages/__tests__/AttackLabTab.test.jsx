@@ -25,7 +25,7 @@ describe('AttackLabTab', () => {
   it('runs the non-mutating Tool Abuse scenario and reports the observed result', async () => {
     apiClient.post.mockResolvedValue({ data: {
       sim: 'cross-owner-account', status: 403, errorCode: 'resource_owner_mismatch',
-      tokenChainEvents: [{ id: 'authz-deny', status: 'deny', label: 'Resource owner check' }],
+      tokenChainEvents: [{ id: 'sim-cross-owner-denied', status: 'deny', label: 'Resource owner check' }],
     } });
     render(<AttackLabTab />);
     fireEvent.click(screen.getByRole('button', { name: 'Tool Abuse' }));
@@ -34,6 +34,8 @@ describe('AttackLabTab', () => {
     await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/api/demo/attack-sim/run', { sim: 'cross-owner-account' }));
     expect(await screen.findByText(/resource_owner_mismatch/i)).toBeInTheDocument();
     expect(screen.getByTestId('attack-lab-model-reached')).toHaveTextContent('No');
+    expect(screen.getByText(/account_id redacted/i)).toBeInTheDocument();
+    expect(screen.getByTestId('attack-lab-backend-reached')).toHaveTextContent('Yes');
   });
 
   it('reports tool poisoning policy and identity prerequisites before mounting its runner', () => {
@@ -91,5 +93,17 @@ describe('AttackLabTab', () => {
     expect(await screen.findByText(/MCP input schema rejected the arguments/i)).toBeInTheDocument();
     expect(screen.queryByText(/blocked by privilege/i)).not.toBeInTheDocument();
     expect(apiClient.post).toHaveBeenCalledWith('/api/mcp-gateway/test', expect.objectContaining({ tool: 'create_transfer' }));
+  });
+
+  it('preserves a top-level Privilege gateway decision from the MCP tester response', async () => {
+    apiClient.post.mockResolvedValue({ data: {
+      ok: false, decision: 'DENY', error: 'gateway_policy_denied', message: 'Policy denied tool call',
+    } });
+    render(<AttackLabTab />);
+    fireEvent.click(screen.getByRole('button', { name: 'Schema Violation' }));
+    fireEvent.click(screen.getByRole('button', { name: /run schema violation check/i }));
+
+    expect(await screen.findByText(/Privilege MCP Gateway: deny — Policy denied tool call/i)).toBeInTheDocument();
+    expect(screen.getByTestId('attack-lab-backend-reached')).toHaveTextContent('No');
   });
 });

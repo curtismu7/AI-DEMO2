@@ -23,17 +23,19 @@ function messageForError(error) {
 function schemaEvidence(data) {
   const error = String(data?.error || data?.message || '');
   const isLocalSchemaReject = /invalid arguments for tool|schema validation|input schema/i.test(error);
-  const gatewayDecision = data?.privilegeDecision || data?.authorize?.decision;
+  const gatewayDecision = data?.decision || data?.privilegeDecision || data?.authorize?.decision;
+  const gatewayReason = data?.message || data?.reason || data?.gatewayMessage || null;
   return {
     path: 'MCP client → MCP Gateway → tool input schema',
+    requestSummary: 'create_transfer arguments: invalid fixture payload (negative amount, invalid currency, null recipient, undocumented field)',
     enforcement: gatewayDecision
-      ? { component: 'Privilege MCP Gateway', outcome: String(gatewayDecision).toLowerCase(), reason: data?.reason || null }
+      ? { component: 'Privilege MCP Gateway', outcome: String(gatewayDecision).toLowerCase(), reason: gatewayReason }
       : isLocalSchemaReject
         ? { component: 'MCP input schema', outcome: 'rejected', reason: error }
         : null,
     modelReached: false,
-    backendReached: data?.backendReached === false ? false : null,
-    steps: [{ label: 'create_transfer arguments', outcome: isLocalSchemaReject ? 'rejected by MCP input schema' : 'response received' }],
+    backendReached: gatewayDecision || isLocalSchemaReject ? false : data?.backendReached === true ? true : data?.backendReached === false ? false : null,
+    steps: [{ label: 'create_transfer arguments', outcome: gatewayDecision ? `Privilege ${String(gatewayDecision).toLowerCase()}` : isLocalSchemaReject ? 'rejected by MCP input schema' : 'response received' }],
     detail: error || data?.result?.error || data?.message || 'No schema decision was reported.',
   };
 }
@@ -41,15 +43,20 @@ function schemaEvidence(data) {
 function abuseEvidence(data) {
   const decision = data?.authorize?.decision || data?.authorize?.outcome;
   const explicitlyDenied = Number(data?.status) === 403 || /deny|mismatch/i.test(String(data?.errorCode || ''));
+  const dataPlaneDenied = Array.isArray(data?.tokenChainEvents)
+    && data.tokenChainEvents.some((event) => event.id === 'sim-cross-owner-denied');
   return {
     path: 'BFF → token exchange → Authorize → MCP balance tool',
+    requestSummary: 'get_account_balance for a different owner’s account (account_id redacted)',
     enforcement: decision
       ? { component: data?.authorize?.engine || 'Authorization', outcome: String(decision).toLowerCase(), reason: data?.authorize?.reason || data?.reason || null }
       : explicitlyDenied
         ? { component: 'Authorization / resource-owner check', outcome: 'denied', reason: data?.reason || data?.errorCode || null }
         : null,
     modelReached: false,
-    backendReached: data?.backendReached === false ? false : null,
+    backendReached: decision
+      ? String(decision).toLowerCase() !== 'deny' && String(decision).toLowerCase() !== 'denied'
+      : dataPlaneDenied ? true : data?.backendReached === false ? false : null,
     steps: (Array.isArray(data?.tokenChainEvents) ? data.tokenChainEvents : [])
       .map((event) => ({ label: event.label || event.id || 'Pipeline event', outcome: event.status || 'observed' })),
     detail: data?.reason || data?.errorCode || `HTTP ${data?.status ?? 'unknown'}; no authorization decision reported.`,
@@ -85,13 +92,14 @@ function EvidencePanel({ evidence }) {
     <section className="attack-lab__evidence" aria-label="Attack run evidence" aria-live="polite">
       <h3>Observed result</h3>
       <p><strong>Path:</strong> {evidence.path}</p>
+      {evidence.requestSummary ? <p><strong>Request:</strong> {evidence.requestSummary}</p> : null}
       <p><strong>Enforcement:</strong> {evidence.enforcement
         ? evidence.enforcement.component === 'MCP input schema' && evidence.enforcement.outcome === 'rejected'
           ? `MCP input schema rejected the arguments${evidence.enforcement.reason ? ` — ${evidence.enforcement.reason}` : ''}`
           : `${evidence.enforcement.component}: ${evidence.enforcement.outcome}${evidence.enforcement.reason ? ` — ${evidence.enforcement.reason}` : ''}`
         : 'No gateway decision reported.'}</p>
       <p><strong>Provider/model reached:</strong> <span data-testid="attack-lab-model-reached">{evidence.modelReached === null ? 'Unknown / not reported' : evidence.modelReached ? 'Yes' : 'No'}</span></p>
-      <p><strong>Tool/backend reached:</strong> {evidence.backendReached === null ? 'Unknown / not reported' : evidence.backendReached ? 'Yes' : 'No'}</p>
+      <p><strong>Tool/backend reached:</strong> <span data-testid="attack-lab-backend-reached">{evidence.backendReached === null ? 'Unknown / not reported' : evidence.backendReached ? 'Yes' : 'No'}</span></p>
       {evidence.detail ? <p className="attack-lab__detail">{evidence.detail}</p> : null}
       <ol className="attack-lab__sequence" aria-label="Movie reel sequence">
         {(evidence.steps.length ? evidence.steps : [{ label: 'Enforcement result', outcome: evidence.outcome }]).map((step, index) => (

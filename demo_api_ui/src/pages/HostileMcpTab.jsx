@@ -55,6 +55,7 @@ export default function HostileMcpTab() {
   const [agentProvider, setAgentProvider] = useState('llamacpp');
   const [agentTask, setAgentTask] = useState("What's the weather in Denver?");
   const [agentOutcome, setAgentOutcome] = useState(null);
+  const [agentRunEvidence, setAgentRunEvidence] = useState(null);
 
   const log = (line) => setEvents((prev) => [...prev.slice(-40), { at: new Date(), line }]);
 
@@ -149,12 +150,22 @@ export default function HostileMcpTab() {
     setBusy(true);
     setError('');
     setAgentOutcome(null);
+    setAgentRunEvidence(null);
     try {
       const t0 = performance.now();
       const data = await api('/agent/run', { method: 'POST', body: { provider, task } });
       const latency = Math.round(performance.now() - t0);
       const observedOutcome = classifyHostileAgentOutcome(data);
+      const trace = Array.isArray(data.trace) ? data.trace : [];
       setAgentOutcome(observedOutcome);
+      setAgentRunEvidence({
+        provider,
+        modelReached: true,
+        backendReached: trace.some((step) => step.verdict === 'allowed')
+          ? true
+          : trace.length === 0 || trace.every((step) => step.verdict === 'denied')
+            ? false : null,
+      });
       log(`— agent run (${provider}, ${latency} ms) — task: "${task}"`);
       for (const step of data.trace || []) {
         log(step.verdict === 'denied'
@@ -168,6 +179,7 @@ export default function HostileMcpTab() {
     } catch (err) {
       const observedOutcome = classifyHostileAgentOutcome({ error: err.message });
       setAgentOutcome(observedOutcome);
+      setAgentRunEvidence({ provider, modelReached: null, backendReached: null });
       log(`✕ agent run — ${err.message}`);
       setError(err.message);
     } finally {
@@ -213,9 +225,16 @@ export default function HostileMcpTab() {
       </aside>
 
       {agentOutcome ? (
-        <p className={`hmc-outcome hmc-outcome--${agentOutcome.kind}`} role="status" aria-live="polite" data-testid="hostile-agent-outcome">
-          {hostileAgentOutcomeLabel(agentOutcome)}
-        </p>
+        <div className={`hmc-outcome hmc-outcome--${agentOutcome.kind}`} role="status" aria-live="polite" data-testid="hostile-agent-outcome">
+          <p>{hostileAgentOutcomeLabel(agentOutcome)}</p>
+          {agentRunEvidence ? (
+            <p className="hmc-reachability">
+              Model/provider reached: {agentRunEvidence.modelReached === null ? 'Unknown / not reported' : `Yes — ${agentRunEvidence.provider}`}<br />
+              Tool backend reached: {agentRunEvidence.backendReached === null ? 'Unknown / not reported'
+                : agentRunEvidence.backendReached ? 'Yes — at least one call was allowed' : 'No — no tool call was observed or calls were denied'}
+            </p>
+          ) : null}
+        </div>
       ) : null}
 
       {error ? <p className="hmc-error" role="alert">{error}</p> : null}

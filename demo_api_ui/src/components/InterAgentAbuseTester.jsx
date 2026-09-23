@@ -127,7 +127,7 @@ export default function InterAgentAbuseTester() {
                 <span className="iaa-row-label">{p.label}</span>
                 <span className="iaa-row-detail">{p.detail}</span>
               </div>
-              <div className="iaa-row-verdict">
+          <div className="iaa-row-verdict">
                 <span className="iaa-expect">expect {p.expectStatus} · {p.expectNote}</span>
                 {r && (
                   <span className={`iaa-badge iaa-badge--${state}`}>
@@ -135,6 +135,17 @@ export default function InterAgentAbuseTester() {
                   </span>
                 )}
                 {r?.message && <span className="iaa-msg">{r.message}</span>}
+                {r ? (
+                  <span className="iaa-msg">
+                    Model/provider: not involved. Specialist backend: {p.key === 'discovery'
+                      ? 'not invoked — public discovery only'
+                      : r.httpStatus === 401 || r.httpStatus === 403
+                        ? `not reached — wire gate returned HTTP ${r.httpStatus}`
+                        : r.httpStatus >= 200 && r.httpStatus < 300
+                          ? `reached — HTTP ${r.httpStatus}`
+                          : 'Unknown / not reported'}
+                  </span>
+                ) : null}
               </div>
             </li>
           );

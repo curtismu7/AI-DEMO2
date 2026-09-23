@@ -16,6 +16,7 @@ export function normalizeAttackEvidence(attackId, sourceResult, mode = 'determin
     attackId,
     mode,
     path: typeof source.path === 'string' ? source.path : 'Request path not reported',
+    requestSummary: typeof source.requestSummary === 'string' ? source.requestSummary : null,
     enforcement,
     outcome: enforcement?.outcome || 'not-evaluated',
     modelReached: typeof source.modelReached === 'boolean' ? source.modelReached : null,

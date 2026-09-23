@@ -51,4 +51,12 @@ describe('normalizeAttackEvidence', () => {
       backendReached: null,
     });
   });
+
+  it('preserves a safe request summary while normalizing evidence', () => {
+    const evidence = normalizeAttackEvidence('tool_abuse', {
+      requestSummary: 'get_account_balance for another owner (account_id redacted)',
+    });
+
+    expect(evidence.requestSummary).toMatch(/account_id redacted/);
+  });
 });

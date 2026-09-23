@@ -34,10 +34,12 @@ describe('InterAgentAbuseTester', () => {
     fireEvent.click(screen.getByRole('button', { name: /fire inter-agent abuse/i }));
 
     await waitFor(() => expect(screen.getByText(/HTTP 200/)).toBeInTheDocument()); // discovery
-    const denied = await screen.findAllByText(/HTTP 401/);
+    const denied = (await screen.findAllByText(/HTTP 401/)).filter((element) => element.classList.contains('iaa-badge'));
     expect(denied).toHaveLength(2); // no-bearer + forged-bearer
     expect(screen.queryByText(/❌/)).not.toBeInTheDocument();
     expect(screen.getAllByText(/✅/).length).toBe(3);
+    expect(screen.getAllByText(/Specialist backend: not reached — wire gate returned HTTP 401/i)).toHaveLength(2);
+    expect(screen.getAllByText(/Model\/provider: not involved/i)).toHaveLength(3);
   });
 
   it('marks the unauthorized call ❌ if the wire hop wrongly allows it (200)', async () => {
