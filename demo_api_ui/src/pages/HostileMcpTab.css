@@ -1,0 +1,247 @@
+/* HostileMcpTab — the Malicious MCP tab on /llm-gateway.
+   Same --th-* token discipline as LlmGatewayPage.css: every --th-* ground
+   states its ink on the same rule. Emoji use stays inside the project
+   allowlist (🛡). */
+
+.hmc {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+  min-height: 100%;
+  background: var(--th-bg-page);
+  color: var(--th-text);
+}
+
+.hmc-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.hmc-bar h1 {
+  margin: 0 0 0.25rem;
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--th-text);
+}
+
+.hmc-bar p {
+  margin: 0;
+  max-width: 72ch;
+  font-size: var(--font-size-base);
+  color: var(--th-text-body);
+}
+
+.hmc-bar code {
+  font-family: var(--font-mono);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  padding: 0 0.25rem;
+}
+
+.hmc-bar__side {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.hmc-btn {
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.hmc-btn:hover:not(:disabled) {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.hmc-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.hmc-btn--danger {
+  border-color: var(--th-status-error-border);
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+}
+
+.hmc-error {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--th-status-error);
+  border-radius: 0 4px 4px 0;
+  background: var(--th-bg-card);
+  color: var(--th-status-error-text);
+  font-size: var(--font-size-base);
+}
+
+.hmc-body {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .hmc-body { grid-template-columns: 1fr; }
+}
+
+.hmc-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.85rem;
+  border: 1px solid var(--th-border);
+  border-radius: 6px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.hmc-k {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--th-text-body);
+}
+
+.hmc-note {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-body);
+}
+
+.hmc-pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  margin-left: 0.4rem;
+}
+
+.hmc-pill--ok {
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
+  border: 1px solid var(--th-status-success-border);
+}
+
+.hmc-pill--warn {
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+  border: 1px solid var(--th-status-warning-border);
+}
+
+.hmc-pill--bad {
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
+  border: 1px solid var(--th-status-error-border);
+}
+
+.hmc-tool {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.hmc-tool--poison {
+  border-color: var(--th-status-warning-border);
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+}
+
+.hmc-tool__name {
+  font-weight: 700;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-base);
+}
+
+.hmc-tool__desc summary {
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+}
+
+.hmc-tool__desc pre {
+  margin: 0.35rem 0 0;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--th-border);
+  border-radius: 6px;
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.hmc-events {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: var(--font-size-sm);
+  color: var(--th-text);
+}
+
+.hmc-event {
+  overflow-wrap: anywhere;
+}
+
+.hmc-agent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--th-status-info-border);
+  border-radius: 8px;
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+}
+
+.hmc-agent .hmc-note {
+  color: inherit;
+}
+
+.hmc-agent__row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.hmc-agent__row select,
+.hmc-agent__row input {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--th-border);
+  border-radius: 4px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font: inherit;
+  font-size: var(--font-size-sm);
+}
+
+.hmc-agent__row input {
+  flex: 1;
+  min-width: 14rem;
+}

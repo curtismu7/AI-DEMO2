@@ -16,11 +16,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import LlmGatewayPage from './LlmGatewayPage';
 import LlmTestPage from './LlmTestPage';
+import HostileMcpTab from './HostileMcpTab';
 import './LlmGatewayCombinedPage.css';
 
 const TABS = [
   { key: 'chat', label: 'Chat console' },
   { key: 'raw', label: 'Raw request' },
+  { key: 'hostile', label: 'Malicious MCP' },
 ];
 
 // Every font-size in this page family (LlmGatewayCombinedPage.css,
@@ -115,7 +117,7 @@ export default function LlmGatewayCombinedPage({ defaultTab = 'chat' }) {
           </button>
         </div>
       </div>
-      {tab === 'chat' ? <LlmGatewayPage /> : <LlmTestPage />}
+      {tab === 'chat' ? <LlmGatewayPage /> : tab === 'hostile' ? <HostileMcpTab /> : <LlmTestPage />}
     </div>
   );
 }

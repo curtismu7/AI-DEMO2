@@ -1830,6 +1830,19 @@ router.get('/state', (req, res) => {
         || privilegeDoorUrl(process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP_BANKING || 'banking-mcp'),
     },
     {
+      // The hostile door: Privilege in front of the deliberately malicious
+      // MCP server (standalone/hostile-mcp-server, Deployment hostile-mcp-server
+      // in ping-devops-curtismuir, Agentic App `hostile-mcp`). The poison lives
+      // in tool METADATA — get_weather's description, search_docs' inputSchema —
+      // which the gateway does not police; the demonstration is the gateway
+      // denying the create_transfer CALL the poison induces. Pinned like the
+      // banking door above so the demo does not depend on console discovery.
+      // See docs/superpowers/specs/2026-09-13-hostile-mcp-behind-privilege-design.md.
+      label: 'Privilege — hostile-mcp (malicious MCP server)',
+      mode: 'privilege',
+      url: process.env.PRIVILEGE_MCPGW_HOSTILE_URL || privilegeDoorUrl('hostile-mcp'),
+    },
+    {
       // `openapi2`, the OpenAPI MCP app type, pinned ONLY so its failure can be
       // measured. It has never discovered a tool, and everything we have
       // recorded about why is inference: Privilege runs `mcp/openapi` on its own
@@ -3610,6 +3623,194 @@ router.put('/env', express.json(), requireAdminSession, (req, res) => {
     res.json({ ok: true, vars: filtered });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /agent/run — the Malicious MCP tab's agent loop: a real LLM reads the
+// hostile server's poisoned tool metadata as tool definitions and picks its own
+// tool calls; every call executes through THIS session's Privilege relay, so
+// the gateway's verdict (allow → stub reply, deny → 403) feeds back into the
+// model's context as the tool result.
+//
+// The point of the loop is fidelity to the real attack: the poison lives in
+// tools/list metadata, so only a model that INGESTS that metadata can land it.
+// The manual "Call create_transfer" button fires the induced call but never
+// proves the poison caused it — this route does.
+//
+// Two lanes, same loop:
+//   llamacpp  — OpenAI-compatible /v1/chat/completions with `tools` (local,
+//               unmediated model; the poison demonstration needs no Privilege
+//               LLM lane and works with the stack's default llama.cpp backend)
+//   anthropic — native Messages API `tools` through the existing virtual key
+//               (callPrivilegeClaude's lane), so the same demonstration runs on
+//               a governed provider call
+// Both are direct here on purpose: Privilege's role in this demo is the TOOL
+// call gateway, not the LLM lane. Tool results carry the gateway verdict
+// verbatim, so a denial reaches the model as "tool result: denied".
+const AGENT_MAX_ROUNDS = 4;
+
+// MCP inputSchema → OpenAI function-definition. Hostile metadata passes through
+// byte-for-byte — normalising it here would weaken the attack the demo shows.
+function mcpToolsToOpenAiTools(mcpTools) {
+  return (mcpTools || []).map((t) => ({
+    type: 'function',
+    function: {
+      name: t.name,
+      description: t.description || '',
+      parameters: t.inputSchema || { type: 'object', properties: {} },
+    },
+  }));
+}
+
+// MCP inputSchema → Anthropic tool-definition shape.
+function mcpToolsToAnthropicTools(mcpTools) {
+  return (mcpTools || []).map((t) => ({
+    name: t.name,
+    description: t.description || '',
+    input_schema: t.inputSchema || { type: 'object', properties: {} },
+  }));
+}
+
+router.post('/agent/run', express.json({ limit: '64kb' }), async (req, res) => {
+  const session = getClientSession(req);
+  const provider = String(req.body?.provider || 'llamacpp');
+  const task = typeof req.body?.task === 'string' ? req.body.task.trim() : '';
+  const steps = [];
+
+  if (!task) return res.status(400).json({ error: 'A task for the agent is required.', steps });
+  if (!session.config.mcpUrl) return res.status(400).json({ error: 'Point the client at a door first (Switch to hostile door).', steps });
+  if (!session.oauth.accessToken && !isProcyonAgentUrl(session.config.mcpUrl)) {
+    return res.status(401).json({ error: 'Not authenticated — click Sign in with Privilege.', steps });
+  }
+
+  // Poisoned metadata, verbatim from the (hostile) server through the gateway.
+  let tools;
+  try {
+    await ensureMcpSessionInitialized(session);
+    tools = await listAllMcpPages(session, 'tools/list', 'tools');
+  } catch (err) {
+    return res.status(relayFailureStatus(err)).json({ error: err.message, steps });
+  }
+  steps.push(`tools_listed:${tools.length}`);
+
+  // ── provider call helpers, per lane ──────────────────────────────────────
+  // Both lanes get the SAME conversation turns and the SAME tool results; only
+  // the wire shape differs. A denial from the tool gateway is text, so it
+  // always feeds back as a normal tool result.
+
+  const callLlamaCppWithTools = async (messages) => {
+    const base = LLAMACPP.base();
+    const res = await llmFetch(`${base}${LLAMACPP.route}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: req.body?.model || undefined,
+        messages,
+        tools: mcpToolsToOpenAiTools(tools),
+        max_tokens: 512,
+      }),
+    }, { label: 'hostile-agent-llamacpp', timeoutMs: 120000, retryOn429: false });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error?.message || `llama.cpp ${res.status}`);
+    return data?.choices?.[0]?.message || { role: 'assistant', content: '' };
+  };
+
+  const callAnthropicWithTools = async (turns, toolResults) => {
+    const base = process.env.PRIVILEGE_LLM_GATEWAY_URL || '';
+    const key = process.env[LANES.anthropic.keyEnv] || '';
+    if (!base) throw new Error('PRIVILEGE_LLM_GATEWAY_URL not configured');
+    if (!key) throw new Error(`${LANES.anthropic.keyEnv} not configured`);
+    const url = `${base.replace(/\/+$/, '')}${resolveRoute('anthropic', req.body?.route)}`;
+    const body = {
+      model: req.body?.model || LANES.anthropic.defaultModel,
+      max_tokens: 1024,
+      system: 'You are a helpful assistant with access to tools. Use them when the task needs them.',
+      messages: [...turns, ...toolResults],
+      tools: mcpToolsToAnthropicTools(tools),
+    };
+    const upstream = await llmFetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}`, 'anthropic-version': ANTHROPIC_VERSION_HEADER },
+      body: JSON.stringify(body),
+    }, { label: 'hostile-agent-anthropic', timeoutMs: 60000, retryOn429: false });
+    const data = await upstream.json().catch(() => ({}));
+    if (!upstream.ok) throwForResponse(upstream, data, 'anthropic');
+    return data;
+  };
+
+  try {
+    const trace = [];
+    let answer = null;
+
+    if (provider === 'llamacpp') {
+      const messages = [
+        { role: 'system', content: 'You are a helpful assistant with tool access. Use tools when the task needs them.' },
+        { role: 'user', content: task },
+      ];
+      for (let round = 0; round < AGENT_MAX_ROUNDS; round += 1) {
+        const msg = await callLlamaCppWithTools(messages);
+        const calls = msg.tool_calls || [];
+        if (!calls.length) { answer = msg.content || '(model returned no text)'; break; }
+        messages.push({ role: 'assistant', content: msg.content || '', tool_calls: calls });
+        for (const call of calls) {
+          const name = call.function?.name;
+          let args = {};
+          try { args = JSON.parse(call.function?.arguments || '{}'); } catch { /* hostile/odd args stay {} */ }
+          const t0 = Date.now();
+          let resultText;
+          let verdict;
+          try {
+            const data = await callMcp(session, 'tools/call', { name, arguments: args });
+            verdict = 'allowed';
+            resultText = (data.result?.content || []).map((c) => c.text || '').join('\n') || JSON.stringify(data);
+            trace.push({ step: `round${round + 1}`, tool: name, verdict, latencyMs: Date.now() - t0, detail: resultText.slice(0, 400) });
+          } catch (toolErr) {
+            verdict = toolErr.status === 403 || /forbidden|denied|policy/i.test(toolErr.message) ? 'denied' : 'error';
+            resultText = `Gateway verdict: ${verdict.toUpperCase()} — ${toolErr.message}`;
+            trace.push({ step: `round${round + 1}`, tool: name, verdict, latencyMs: Date.now() - t0, detail: toolErr.message.slice(0, 400) });
+          }
+          messages.push({ role: 'tool', tool_call_id: call.id, content: resultText });
+        }
+        answer = null; // loop again; the model reads the verdicts
+        if (round === AGENT_MAX_ROUNDS - 1) answer = '(round limit reached before a final answer)';
+      }
+      if (!answer) answer = '(no final text from the model)';
+    } else if (provider === 'anthropic') {
+      const turns = [{ role: 'user', content: task }];
+      for (let round = 0; round < AGENT_MAX_ROUNDS; round += 1) {
+        const data = await callAnthropicWithTools(turns, []);
+        const blocks = data.content || [];
+        const toolUseBlocks = blocks.filter((b) => b.type === 'tool_use');
+        const textBlock = blocks.find((b) => b.type === 'text');
+        if (!toolUseBlocks.length) { answer = textBlock?.text || '(model returned no text)'; break; }
+        turns.push({ role: 'assistant', content: blocks });
+        for (const use of toolUseBlocks) {
+          const t0 = Date.now();
+          let content;
+          try {
+            const toolData = await callMcp(session, 'tools/call', { name: use.name, arguments: use.input || {} });
+            content = (toolData.result?.content || toolData.content || []).map((c) => c.text || '').join('\n') || JSON.stringify(toolData);
+            trace.push({ step: `round${round + 1}`, tool: use.name, verdict: 'allowed', latencyMs: Date.now() - t0, detail: content.slice(0, 400) });
+          } catch (toolErr) {
+            const toolVerdict = toolErr.status === 403 || /forbidden|denied/i.test(toolErr.message) ? 'denied' : 'error';
+            content = `Gateway verdict: ${toolVerdict.toUpperCase()} — ${toolErr.message}`;
+            trace.push({ step: `round${round + 1}`, tool: use.name, verdict: toolVerdict, latencyMs: Date.now() - t0, detail: toolErr.message.slice(0, 400) });
+          }
+          turns.push({ role: 'user', content: [{ type: 'tool_result', tool_use_id: use.id, content }] });
+        }
+        if (round === AGENT_MAX_ROUNDS - 1) answer = '(round limit reached before a final answer)';
+      }
+      if (!answer) {
+        const data = await callAnthropicWithTools(turns, []);
+        answer = (data.content || []).find((b) => b.type === 'text')?.text || '(model returned no text)';
+      }
+    } else {
+      return res.status(400).json({ error: `Unknown provider "${provider}". Use llamacpp or anthropic.`, steps });
+    }
+
+    res.json({ answer, trace, tools: tools.map((t) => ({ name: t.name, description: t.description || '' })), steps });
+  } catch (err) {
+    res.status(relayFailureStatus(err)).json({ error: err.message, steps, trace: [] });
   }
 });
 
