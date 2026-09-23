@@ -32,6 +32,70 @@ async function loginViaBff({ envId, region, username, password, loginPath, callb
   const r2 = await axios.get(pingLoc, { maxRedirects: 0, validateStatus: () => true, httpsAgent });
   pCookies = merge(pCookies, (r2.headers['set-cookie'] || []).map(c=>c.split(';')[0]).join('; '));
   const loc2 = r2.headers.location || '';
+
+  // PingFederate deployments render the sign-on as an HTML form whose action is
+  // the resume URL (no redirect chain, no flowId). PingOne redirects to
+  // auth.pingone.com/.../flows/<id>. Branch on which shape came back.
+  const r2Body = typeof r2.data === 'string' ? r2.data : '';
+  const isPfForm = !loc2 && r2Body.includes('<form') && /pf\.username/.test(r2Body);
+
+  if (isPfForm) {
+    // PF hosted-form login: POST pf.username/pf.pass to the form action (a
+    // /as/<id>/resume URL), submit the consent page (scope checkboxes +
+    // pf.oauth.authz.consent=true), then follow the 302 chain to the callback.
+    const pfOrigin = new URL(pingLoc).origin;
+    const signonAction = new URL(r2Body.match(/<form[^>]*action="([^"]+)"/)[1], pfOrigin).href;
+    const hidden = {};
+    for (const m of r2Body.matchAll(/<input[^>]*name="([^"]+)"[^>]*value="([^"]*)"/g)) hidden[m[1]] = m[2];
+    const signonBody = new URLSearchParams({ ...hidden, 'pf.username': username, 'pf.pass': password, 'pf.ok': '' }).toString();
+    const r3 = await axios.post(signonAction, signonBody.toString(), {
+      maxRedirects: 0, validateStatus: () => true, httpsAgent,
+      headers: { Cookie: pCookies, 'Content-Type': 'application/x-www-form-urlencoded' },
+    });
+    pCookies = merge(pCookies, (r3.headers['set-cookie'] || []).map(c=>c.split(';')[0]).join('; '));
+    const html3 = String(r3.data);
+    if (html3.includes('We didn') || (r3.headers.location || '').includes('error_description=Authenti')) {
+      throw new Error('loginViaBff(PF): PingFederate rejected the credentials');
+    }
+    // Consent page (200) — find its form, echo all inputs incl. scope checkboxes.
+    if (html3.includes('Request for Approval') || html3.includes('allowButton')) {
+      const consentAction = new URL(html3.match(/<form[^>]*action="([^"]+)"/)[1], pfOrigin).href;
+      const b3 = new URLSearchParams();
+      if (html3.match(/name="check-user-approved-scope"/)) b3.set('check-user-approved-scope', 'true');
+      for (const m of html3.matchAll(/<input[^>]*name="scope"[^>]*value="([^"]*)"/g)) b3.append('scope', m[1]);
+      const csrf = (html3.match(/name="cSRFToken" value="([^"]*)"/) || [])[1];
+      if (csrf) b3.set('cSRFToken', csrf);
+      b3.set('pf.oauth.authz.consent', 'true');
+      const r4 = await axios.post(consentAction, b3.toString(), {
+        maxRedirects: 0, validateStatus: () => true, httpsAgent,
+        headers: { Cookie: pCookies, 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+      pCookies = merge(pCookies, (r4.headers['set-cookie'] || []).map(c=>c.split(';')[0]).join('; '));
+      const cbLoc = r4.headers.location || '';
+      if (!cbLoc) throw new Error('loginViaBff(PF): consent submit did not redirect');
+      const code = new URL(cbLoc).searchParams.get('code');
+      const errR = new URL(cbLoc).searchParams.get('error_description');
+      if (errR) throw new Error(`loginViaBff(PF): consent error: ${decodeURIComponent(errR)}`);
+      if (!code) throw new Error('loginViaBff(PF): no code after consent');
+      const callbackUrl = `${callbackPath}?code=${code}&state=${new URL(cbLoc).searchParams.get('state') || ''}`;
+      const r5 = await bff.get(callbackUrl, { headers: { Cookie: bffCookies } });
+      bffCookies = merge(bffCookies, extractBffCookies(r5));
+      const sidEntry = bffCookies.split('; ').find(p => p.startsWith('connect.sid='));
+      if (!sidEntry) throw new Error('loginViaBff(PF): no connect.sid in BFF cookies after callback');
+      return sidEntry;
+    }
+    // No consent screen — the sign-on POST itself should have redirected to the callback.
+    const cbLoc = r3.headers.location || '';
+    const code = cbLoc ? new URL(cbLoc).searchParams.get('code') : null;
+    if (!code) throw new Error('loginViaBff(PF): neither consent page nor callback redirect after sign-on');
+    const callbackUrl = `${callbackPath}?code=${code}&state=${new URL(cbLoc).searchParams.get('state') || ''}`;
+    const r5 = await bff.get(callbackUrl, { headers: { Cookie: bffCookies } });
+    bffCookies = merge(bffCookies, extractBffCookies(r5));
+    const sidEntry = bffCookies.split('; ').find(p => p.startsWith('connect.sid='));
+    if (!sidEntry) throw new Error('loginViaBff(PF): no connect.sid in BFF cookies after callback');
+    return sidEntry;
+  }
+
   let flowId;
   try { flowId = new URL(loc2).searchParams.get('flowId'); } catch(_) {}
   if (!flowId) {
