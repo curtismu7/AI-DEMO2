@@ -1,6 +1,6 @@
 # Privilege agent attack scenarios — design
 
-**Status:** Draft for review
+**Status:** Approved design; implementation decisions resolved
 **Date:** 2026-09-23
 
 ## Problem
@@ -75,8 +75,14 @@ two variants have distinct, verified outcomes and are useful to presenters.
 
 ## UI and run record
 
-The selector remains the entry point, but selection dispatches to the
-appropriate scenario runner rather than always populating the plain chat box.
+Keep the existing LLM Gateway chat console and transaction dashboard unchanged.
+Add a distinct Attack Lab tab in the `/llm-gateway` workspace, with one entry for
+each of the five requested attacks. Choosing an attack runs its appropriate
+existing or purpose-built scenario runner in that tab; it must not silently
+populate the ordinary chat prompt as a substitute for a tool or agent request.
+The existing five prompt catalog entries can remain available as prompt-only
+examples, clearly identified as prompts rather than enforcement tests.
+
 The scenario panel and movie-reel/sequence trace should include:
 
 - attack name and variant;
@@ -121,23 +127,28 @@ from the observed result, not only from the scenario's expected result.
 - Redesigning the whole LLM Gateway page or changing authentication/session
   behavior.
 
-## Decisions to confirm before implementation
+## Implementation decisions
 
-1. Is an accurately attributed local schema-validator rejection acceptable for
-   the Schema Violation demo when Privilege itself does not return a schema
-   verdict, or must all five scenarios require a Privilege verdict?
-2. Should the primary Tool Poisoning variant use poisoned `tools/list`
-   metadata, with tool-output poisoning retained as a separately labeled
-   variant?
-3. Which existing agent-to-agent authorization path and policy should be the
-   Inter-Agent Abuse source of truth in this page? The implementation should
-   reuse it rather than invent a parallel policy.
-4. Should the audience-facing demo require a configured live Anthropic model,
-   or should the deterministic fixture run be sufficient, with live mode
-   optional?
+1. A schema rejection by the MCP adapter is a valid demo result when labeled
+   exactly as local schema validation; it must not be called a Privilege policy
+   deny. If the configured Privilege gateway also returns a decision, show it
+   separately.
+2. Tool Poisoning's primary path uses the existing hostile MCP server's
+   poisoned `tools/list` metadata and downstream tool-call mediation. Do not
+   claim the gateway inspects or removes the metadata. Existing tool-output
+   poisoning remains available only if it can be clearly distinguished as a
+   separate variant.
+3. Inter-Agent Abuse reuses the existing A2A specialist/delegation path and its
+   current authorization policy; no parallel policy or synthetic agent verdict
+   is introduced. The run must disclose when the required agent path is not
+   configured or available.
+4. A deterministic, side-effect-free run is the default and must not depend on
+   a live Anthropic model. A live-model variant may be offered only where the
+   existing configured runner supports it, and its output must be labeled as
+   variable.
 
-These are implementation gates, not permission to weaken the truthfulness or
-side-effect-safety principles above.
+These choices preserve the truthfulness and side-effect-safety principles
+above. The banking transaction dashboard is explicitly outside this change.
 
 ## Current repository anchors
 
