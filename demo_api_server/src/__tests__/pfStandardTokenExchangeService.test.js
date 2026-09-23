@@ -27,6 +27,7 @@ const values = {
   pf_mcp_service_actor_client_secret: 'pf-mcp-actor-secret',
   pf_standard_mcp_actor_scope: 'mcp:invoke',
   pf_standard_intermediate_audience: 'https://pf.example.test/agent-intermediate',
+  pf_token_endpoint: 'https://pf.example.test/as/token.oauth2',
 };
 
 describe('PF standard token-exchange provider adapter', () => {
@@ -45,6 +46,7 @@ describe('PF standard token-exchange provider adapter', () => {
       agentActorClientId: 'pf-agent-actor',
       mcpActorClientId: 'pf-mcp-actor',
       intermediateAudience: values.pf_standard_intermediate_audience,
+      tokenEndpoint: values.pf_token_endpoint,
     }));
   });
 
@@ -60,6 +62,9 @@ describe('PF standard token-exchange provider adapter', () => {
     const config = service.resolveConfig();
     await expect(service.getActorToken(config, 'agent')).rejects.toThrow(/AI-agent actor identity mismatch/i);
     await expect(service.getActorToken(config, 'mcp')).resolves.toBeTruthy();
+    expect(mockGetAiAgentClientCredentialsToken).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      tokenEndpoint: values.pf_token_endpoint,
+    }));
   });
 
   test('requests access tokens from each PF policy without sending audience overrides', async () => {
@@ -70,12 +75,12 @@ describe('PF standard token-exchange provider adapter', () => {
     expect(mockPerformTokenExchangeAs).toHaveBeenNthCalledWith(
       1, 'subject', 'agent-actor', 'pf-agent-hop-client', 'pf-agent-hop-secret',
       config.intermediateAudience, ['agent:invoke'], 'basic',
-      expect.objectContaining({ requestedTokenType: 'urn:ietf:params:oauth:token-type:access_token', omitAudience: true })
+      expect.objectContaining({ requestedTokenType: 'urn:ietf:params:oauth:token-type:access_token', omitAudience: true, tokenEndpoint: values.pf_token_endpoint })
     );
     expect(mockPerformTokenExchangeAs).toHaveBeenNthCalledWith(
       2, 'intermediate', 'mcp-actor', 'pf-mcp-hop-client', 'pf-mcp-hop-secret',
       'https://api.ping.demo:3036/mcp', ['airlines:read'], 'basic',
-      expect.objectContaining({ requestedTokenType: 'urn:ietf:params:oauth:token-type:access_token', omitAudience: true })
+      expect.objectContaining({ requestedTokenType: 'urn:ietf:params:oauth:token-type:access_token', omitAudience: true, tokenEndpoint: values.pf_token_endpoint })
     );
   });
 

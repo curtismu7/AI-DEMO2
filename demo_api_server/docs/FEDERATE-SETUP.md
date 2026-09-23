@@ -38,7 +38,26 @@ second with a policy that issues the same effective final audience and requested
 scopes as PingOne. Both must accept an access-token subject and actor token, and
 both must return ordinary access tokens. The final policy should map the
 MCP-service actor and preserve the AI-agent actor from the intermediate token
-in the nested `act` claim. The BFF also accepts PingOne's documented flat
+in the nested `act` claim. Use this expression for the MCP actor's `sub` and
+the original agent actor's nested `act.sub` in the final access-token mapping:
+
+```text
+#{"sub": #this.get("tepp.mcp_actor_sub").toString(), "act": #{"sub": #this.get("tepp.agent_actor_sub").toString()}}
+```
+
+For the MCP policy's `agent_actor_sub` contract value, extract the subject token
+claim using this PF context expression (PF renders the nested claim as a map-like
+string in this policy context):
+
+```text
+#context.get("subjecttoken.act") != null ? #context.get("subjecttoken.act").toString().replace("{sub=", "").replace("}", "") : ""
+```
+
+Map the MCP actor identity from `#context.get("actortoken.client_id")`. Map the
+requested scopes from the OAuth scopes context and have the final mapping select
+the resource audience for the route. Avoid `Map.of` for the nested `act` claim;
+the OGNL map literal above is the form verified to serialize correctly in PF.
+The BFF also accepts PingOne's documented flat
 `act.sub` shape when it identifies the AI-agent actor. The actor identities are
 separate client-credentials applications.
 
@@ -64,7 +83,12 @@ export PF_MCP_SERVICE_ACTOR_CLIENT_ID=<pf-mcp-service-actor-client-id>
 export PF_MCP_SERVICE_ACTOR_CLIENT_SECRET=<pf-mcp-service-actor-client-secret>
 export PF_MCP_SERVICE_ACTOR_TOKEN_ENDPOINT_AUTH_METHOD=basic
 export PF_STANDARD_MCP_ACTOR_SCOPE=mcp:invoke
+export PF_TOKEN_ENDPOINT=https://federate.example.com:9031/as/token.oauth2
 ```
+
+`PF_TOKEN_ENDPOINT` is required for standard PF actor-token and token-exchange
+requests. It remains separate from the shared `OAUTH_TOKEN_ENDPOINT`, so PF
+login uses PF credentials against PF while PingOne keeps its own endpoint.
 
 Do not configure an ID-JAG-only SP connection as either ordinary exchange client.
 

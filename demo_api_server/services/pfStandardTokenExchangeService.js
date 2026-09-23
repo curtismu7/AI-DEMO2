@@ -23,6 +23,7 @@ function resolveConfig(store = configStore) {
     mcpActorAuthMethod: (get('pf_mcp_service_actor_token_endpoint_auth_method') || 'basic').toLowerCase(),
     mcpActorScope: get('pf_standard_mcp_actor_scope') || 'mcp:invoke',
     intermediateAudience: get('pf_standard_intermediate_audience'),
+    tokenEndpoint: get('pf_token_endpoint'),
   };
   const missing = Object.entries({
     PF_STANDARD_AGENT_EXCHANGE_CLIENT_ID: config.agentExchangeClientId,
@@ -34,6 +35,7 @@ function resolveConfig(store = configStore) {
     PF_MCP_SERVICE_ACTOR_CLIENT_ID: config.mcpActorClientId,
     PF_MCP_SERVICE_ACTOR_CLIENT_SECRET: config.mcpActorClientSecret,
     PF_STANDARD_INTERMEDIATE_AUDIENCE: config.intermediateAudience,
+    PF_TOKEN_ENDPOINT: config.tokenEndpoint,
   }).filter(([, value]) => !value).map(([name]) => name);
   if (missing.length) {
     const error = new Error(`PingFederate two-exchange delegation is not configured. Missing: ${missing.join(', ')}`);
@@ -92,7 +94,9 @@ async function getActorToken(config, role) {
   const authMethod = isAgent ? config.agentActorAuthMethod : config.mcpActorAuthMethod;
   const actorScope = isAgent ? config.agentActorScope : config.mcpActorScope;
   const description = isAgent ? 'AI-agent' : 'MCP-service';
-  const token = await oauthService.getAiAgentClientCredentialsToken({ clientId, clientSecret, authMethod, actorScope });
+  const token = await oauthService.getAiAgentClientCredentialsToken({
+    clientId, clientSecret, authMethod, actorScope, tokenEndpoint: config.tokenEndpoint,
+  });
   const decoded = assertAccessToken(token, `${description} actor-token request`);
   if (actorIdentity(decoded) !== clientId) throw new Error(`PingFederate ${description} actor identity mismatch`);
   if (!scopeSet(decoded.claims.scope).has(actorScope)) throw new Error(`PingFederate ${description} actor scope mismatch`);
@@ -112,6 +116,7 @@ function performExchange(config, hop, subjectToken, actorToken, audience, scopes
     {
       ...options,
       requestedTokenType: ACCESS_TOKEN_TYPE,
+      tokenEndpoint: config.tokenEndpoint,
       // PF policies derive the result audience. The audience argument is kept
       // for shared telemetry and claim validation, but is not sent to PF.
       omitAudience: true,
