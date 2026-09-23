@@ -74,6 +74,7 @@ export function useUseCaseRunContext(location) {
       const nextRunContext = {
         source: 'use-cases',
         useCaseId,
+        useCaseLabel: e.detail?.useCaseTitle,
         triggerText: e.detail?.message,
       };
       launchedThisMountRef.current = true;
@@ -109,13 +110,34 @@ export function useUseCaseRunContext(location) {
       persistRunContext(nextRunContext);
       setRunContext(nextRunContext);
     };
+    const onPromptRun = (e) => {
+      const prompt = e.detail?.prompt;
+      if (typeof prompt !== 'string' || !prompt.trim()) return;
+      const useCaseId = e.detail?.useCaseId || null;
+      // A selected scenario already carries its proper title and launch
+      // source from the selection event. Preserve that binding; only freeform
+      // dashboard prompts need a new title here.
+      if (useCaseId) return;
+      const nextRunContext = {
+        source: 'dashboard',
+        useCaseId: null,
+        useCaseLabel: prompt.trim(),
+        triggerText: prompt.trim(),
+      };
+      launchedThisMountRef.current = true;
+      eventBoundRef.current = true;
+      persistRunContext(nextRunContext);
+      setRunContext(nextRunContext);
+    };
     window.addEventListener('banking-agent-prefill', handler);
     window.addEventListener('agent-track-step-pick', onTrackStepPick);
     window.addEventListener('agent-demo-step-select', onDemoStepSelect);
+    window.addEventListener('agent-prompt-run', onPromptRun);
     return () => {
       window.removeEventListener('banking-agent-prefill', handler);
       window.removeEventListener('agent-track-step-pick', onTrackStepPick);
       window.removeEventListener('agent-demo-step-select', onDemoStepSelect);
+      window.removeEventListener('agent-prompt-run', onPromptRun);
     };
   }, []);
 
