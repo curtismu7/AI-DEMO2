@@ -689,6 +689,13 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
     const errorTokenEvents = Array.isArray(error.tokenEvents) && error.tokenEvents.length
       ? error.tokenEvents
       : (Array.isArray(req.tokenEvents) ? req.tokenEvents : []);
+    if (error.code === 'workload_actor_provider_unsupported') {
+      return res.status(409).json({
+        error: error.code,
+        message: error.message,
+        tokenEvents: errorTokenEvents,
+      });
+    }
     // Dead/expired user token: surface as 401 so the SPA can trigger re-auth
     // instead of treating it as a generic server error.
     if (error.code === 'TOKEN_INACTIVE') {
