@@ -192,6 +192,25 @@ the existing Demo Steps / Demo Track / Use Cases run bindings.
 
 **Verify:** `cd demo_api_ui && npm run build`.
 
+### 2026-09-23 — React StrictMode left CIBA agent pollers permanently inactive
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/AIAgentFull.js`, and
+`demo_api_ui/src/components/__tests__/AIAgent.cibaStepUp.test.js`.
+
+**What was broken:** React StrictMode replays effect setup and cleanup on mount.
+The CIBA listener cleanup marked the agent unmounted, but the next setup did not
+reset that flag, so every poll returned before contacting the BFF.
+
+**What was fixed:** reset the poller lifecycle flag whenever the listener effect
+sets up, and cover the StrictMode replay with a regression test.
+
+**Do not break:** the agent still trusts only `/api/auth/ciba/poll/:authReqId`
+before resuming the action; BFF approval, session, and token handling are
+unchanged.
+
+**Verify:** focused CIBA UI tests (20/20) and `npm run build` (exit 0).
+
 ### 2026-09-23 — Demo Steps runs left the dashboard use-case card unbound
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`,
@@ -260,10 +279,15 @@ be run in strict provider-matrix mode; it requires a login session, checks its
 issuer against the API's active issuer, requires the API provider to match the
 requested matrix leg, fails on vertical activation problems, and requires both
 actor/exchange hops plus successful tool dispatch.
-Run once per provider-configured API process, with a fresh login session each:
-`A2A_EXPECTED_OAUTH_PROVIDER=pingone CI=true npx jest tests/real/shared/a2a-delegation-live.test.js --runInBand`
+Run once per provider-configured API process, with fresh enduser and admin
+login sessions each. The strict matrix requires a dedicated admin session
+(`DEMO_ADMIN_USERNAME`/`DEMO_ADMIN_PASSWORD` or
+`PINGONE_TEST_ADMIN_USER`/`PINGONE_TEST_ADMIN_PASSWORD`) and verifies admin
+access separately from the enduser's 403 response. Set `RUN_REAL_TESTS=true`
+so the real-suite setup resolves and validates both personas:
+`RUN_REAL_TESTS=true A2A_EXPECTED_OAUTH_PROVIDER=pingone CI=true npx jest --config=jest.real.config.js tests/real/shared/a2a-delegation-live.test.js --runInBand`
 and
-`A2A_EXPECTED_OAUTH_PROVIDER=pingfederate CI=true npx jest tests/real/shared/a2a-delegation-live.test.js --runInBand`.
+`RUN_REAL_TESTS=true A2A_EXPECTED_OAUTH_PROVIDER=pingfederate CI=true npx jest --config=jest.real.config.js tests/real/shared/a2a-delegation-live.test.js --runInBand`.
 
 **Do not break:** OAuth callbacks and session persistence are unchanged; each
 run still uses the configured provider's endpoint, audiences, and exchange

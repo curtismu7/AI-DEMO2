@@ -208,9 +208,16 @@ function loadFromLmdb(oauthType) {
   }
 }
 
-async function resolveSession(persona = 'enduser') {
+function cachedSessionCookie(cache, persona, { ignoreCache = false } = {}) {
+  if (ignoreCache) return null;
+  const cookie = cache && cache[persona];
+  return cookie && cookie !== 'skip' ? cookie : null;
+}
+
+async function resolveSession(persona = 'enduser', { ignoreCache = false } = {}) {
   const cached = fs.existsSync(SESSION_CACHE) ? JSON.parse(fs.readFileSync(SESSION_CACHE, 'utf8')) : {};
-  if (cached[persona] && cached[persona] !== 'skip') return cached[persona];
+  const cachedCookie = cachedSessionCookie(cached, persona, { ignoreCache });
+  if (cachedCookie) return cachedCookie;
 
   const envId  = process.env.PINGONE_ENVIRONMENT_ID;
   const region = process.env.PINGONE_REGION || 'com';
@@ -256,4 +263,4 @@ async function resolveSession(persona = 'enduser') {
   return null;
 }
 
-module.exports = { resolveSession, loginViaBff, SESSION_CACHE };
+module.exports = { resolveSession, loginViaBff, cachedSessionCookie, SESSION_CACHE };

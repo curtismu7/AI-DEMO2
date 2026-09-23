@@ -1,6 +1,8 @@
 'use strict';
 
 const { exchangeAsGeneralist } = require('../services/a2aDelegationService');
+const { assertDedicatedAdminSession } = require('./real/helpers/a2aProviderMatrix');
+const { cachedSessionCookie } = require('./real/helpers/session');
 
 function jwt(claims) {
   const part = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
@@ -82,5 +84,34 @@ describe('A2A token provider follows the authenticated session issuer', () => {
       code: 'a2a_agent1_actor_failed',
       upstreamCode: 'invalid_client',
     });
+  });
+});
+
+describe('A2A provider-matrix admin session', () => {
+  test('requires a separately resolved admin login', () => {
+    expect(() => assertDedicatedAdminSession('pingone', 'enduser-cookie', null))
+      .toThrow(/requires a dedicated admin login session/i);
+  });
+
+  test('rejects reusing the end-user session as the admin persona', () => {
+    expect(() => assertDedicatedAdminSession('pingfederate', 'shared-cookie', 'shared-cookie'))
+      .toThrow(/must not reuse the end-user session/i);
+  });
+
+  test('accepts distinct end-user and admin sessions', () => {
+    expect(() => assertDedicatedAdminSession('pingone', 'enduser-cookie', 'admin-cookie'))
+      .not.toThrow();
+  });
+
+  test('does not impose matrix-only admin requirements on ordinary real suites', () => {
+    expect(() => assertDedicatedAdminSession('', 'enduser-cookie', 'enduser-cookie'))
+      .not.toThrow();
+  });
+
+  test('strict provider runs can bypass a cached session from another provider', () => {
+    expect(cachedSessionCookie({ enduser: 'old-provider-cookie' }, 'enduser', { ignoreCache: true }))
+      .toBeNull();
+    expect(cachedSessionCookie({ enduser: 'valid-cookie' }, 'enduser'))
+      .toBe('valid-cookie');
   });
 });
