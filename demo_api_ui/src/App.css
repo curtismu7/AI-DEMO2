@@ -1732,6 +1732,98 @@
   border: 0;
 }
 
+/* Dark mode — the method table above hard-codes light surfaces while its text
+   rides --th-text/--th-text-body, which flip to #ffffff in dark mode. Key the
+   dark palette to :root[data-theme="dark"] (THEMING convention) so rows keep a
+   dark ground under light ink. */
+:root[data-theme="dark"] .otp-step-up-modal__method-table {
+  background: var(--th-bg-inset);
+  border-color: var(--th-border);
+}
+:root[data-theme="dark"] .otp-step-up-modal__method-table thead th {
+  border-bottom-color: var(--th-border);
+}
+:root[data-theme="dark"] .otp-step-up-modal__method-table tbody tr + tr td {
+  border-top-color: var(--th-border);
+}
+:root[data-theme="dark"] .otp-step-up-modal__method-row:hover {
+  background: var(--th-bg-hover);
+}
+:root[data-theme="dark"] .otp-step-up-modal__method-row--setup td {
+  background: var(--th-bg-card);
+}
+:root[data-theme="dark"] .otp-step-up-modal__method-cta {
+  border-color: #7dd3fc;
+  background: var(--th-bg-card);
+  color: #7dd3fc;
+}
+:root[data-theme="dark"] .otp-step-up-modal__method-cta:hover:not(:disabled) {
+  background: #0ea5e9;
+  color: #ffffff;
+}
+:root[data-theme="dark"] .otp-step-up-modal__method-toggle {
+  color: #7dd3fc;
+}
+:root[data-theme="dark"] .otp-step-up-modal__method-toggle:hover {
+  color: #bae6fd;
+}
+:root[data-theme="dark"] .otp-step-up-modal__contact {
+  background: #0c2a44;
+  border-color: #155e75;
+  color: #7dd3fc;
+}
+:root[data-theme="dark"] .otp-step-up-modal__demo-box {
+  background: #3a2a10;
+  border-color: #92400e;
+  color: #fcd34d;
+}
+:root[data-theme="dark"] .otp-step-up-modal__demo-link {
+  color: #7dd3fc;
+}
+:root[data-theme="dark"] .otp-step-up-modal__demo-link:hover {
+  color: #bae6fd;
+}
+:root[data-theme="dark"] .otp-step-up-modal__identity-label {
+  color: #7dd3fc;
+}
+:root[data-theme="dark"] .otp-step-up-modal__rfc-footer {
+  background: #0c2a44;
+  border-color: #155e75;
+}
+:root[data-theme="dark"] .otp-step-up-modal__rfc-footer,
+:root[data-theme="dark"] .otp-step-up-modal__rfc-detail {
+  color: #7dd3fc;
+}
+:root[data-theme="dark"] .otp-step-up-modal__rfc-label {
+  color: #bae6fd;
+}
+:root[data-theme="dark"] .otp-step-up-modal__rfc-detail code {
+  background: #164e63;
+}
+:root[data-theme="dark"] .otp-step-up-modal__lead strong {
+  color: #9ec1ff;
+}
+:root[data-theme="dark"] .otp-step-up-modal__delivery-error {
+  background: #3a1414;
+  border-color: #7f1d1d;
+  color: #fca5a5;
+}
+:root[data-theme="dark"] .otp-step-up-modal__delivery-error strong {
+  color: #fecaca;
+}
+:root[data-theme="dark"] .otp-step-up-modal__input--error {
+  border-color: #dc2626;
+  background: #3a1414;
+}
+:root[data-theme="dark"] .otp-step-up-modal__btn-ghost,
+:root[data-theme="dark"] .otp-step-up-modal__btn-cancel {
+  background: var(--th-bg-inset);
+}
+:root[data-theme="dark"] .otp-step-up-modal__btn-ghost:hover:not(:disabled),
+:root[data-theme="dark"] .otp-step-up-modal__btn-cancel:hover {
+  background: var(--th-bg-hover);
+}
+
 /* Method toggle link (Phase 174-03) */
 .otp-step-up-modal__method-toggle {
   background: transparent;
