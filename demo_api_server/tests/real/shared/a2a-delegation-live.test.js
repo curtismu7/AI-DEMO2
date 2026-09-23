@@ -19,20 +19,38 @@
  */
 
 const { createBffClient } = require('../helpers/bffClient');
-const { verticalsWithSpecialist } = require('../../../config/a2aSpecialists');
+const { verticalsWithSpecialist, specialistForVertical } = require('../../../config/a2aSpecialists');
 const { resolveUseCase } = require('../../../config/useCases.js');
 
 const DENY_MARKERS = /denied by an authorization policy|insufficient scope|mcp_error|gateway_error|upstream error|could not be completed/i;
+const EXPECTED_PROVIDER = String(process.env.A2A_EXPECTED_OAUTH_PROVIDER || '').trim().toLowerCase();
+
+function tokenEventById(events, id) {
+  return (events || []).find((event) => event.id === id);
+}
+
+function assertProviderIssuer(issuer) {
+  expect(typeof issuer).toBe('string');
+  if (EXPECTED_PROVIDER === 'pingone') {
+    expect(issuer).toMatch(/^https:\/\/auth\.pingone\.[^/]+\/[^/]+\/as$/i);
+  } else if (EXPECTED_PROVIDER === 'pingfederate') {
+    expect(issuer).toBe(String(process.env.PF_ISSUER_URI || '').replace(/\/+$/, ''));
+  }
+}
 
 describe('A2A UC2 sensitive-delegation — every vertical, real pipeline (real)', () => {
   let client;
   let sessionOk = true;
 
   beforeAll(async () => {
-    skipIfNoSession();
+    if (!EXPECTED_PROVIDER) skipIfNoSession();
+    if (EXPECTED_PROVIDER && !['pingone', 'pingfederate'].includes(EXPECTED_PROVIDER)) {
+      throw new Error('A2A_EXPECTED_OAUTH_PROVIDER must be pingone or pingfederate');
+    }
     try {
       client = createBffClient('enduser');
-    } catch (_e) {
+    } catch (err) {
+      if (EXPECTED_PROVIDER) throw new Error(`${EXPECTED_PROVIDER} A2A provider-matrix run requires a valid enduser login session: ${err.message}`);
       sessionOk = false;
     }
   });
@@ -44,7 +62,7 @@ describe('A2A UC2 sensitive-delegation — every vertical, real pipeline (real)'
   for (const vertical of verticalsWithSpecialist()) {
     const chipText = resolveUseCase('UC2', vertical).trigger.text;
 
-    it(`${vertical}: "${chipText}" delegates and returns real data, not a DENY`, async () => {
+    it(`${EXPECTED_PROVIDER || 'configured provider'} / ${vertical}: "${chipText}" completes both exchanges and returns tool data`, async () => {
       if (!sessionOk) {
         console.warn(`[a2a-live] no session — skipping ${vertical}`);
         return;
@@ -66,6 +84,32 @@ describe('A2A UC2 sensitive-delegation — every vertical, real pipeline (real)'
       expect(inv.status).toBe(200);
       const reply = String(inv.data.reply || '');
       expect(reply).not.toMatch(DENY_MARKERS);
+
+      if (EXPECTED_PROVIDER) {
+        const events = inv.data.tokenEvents || [];
+        const userEvent = tokenEventById(events, 'user-token');
+        assertProviderIssuer(userEvent?.claims?.iss);
+
+        for (const [id, status] of [
+          ['a2a-agent1-actor', 'acquired'],
+          ['a2a-exchange1', 'exchanged'],
+          ['a2a-agent2-actor', 'acquired'],
+          ['a2a-exchange2', 'exchanged'],
+          ['tool-dispatched', 'success'],
+        ]) {
+          expect(tokenEventById(events, id)?.status).toBe(status);
+        }
+
+        const specialistTool = specialistForVertical(vertical)?.tools?.[0];
+        const toolsCalled = (inv.data.toolsCalled || []).map((tool) =>
+          typeof tool === 'string' ? tool : tool?.name || tool?.tool,
+        );
+        expect(toolsCalled).toContain('delegate_to_specialist');
+        expect(tokenEventById(events, 'a2a-exchange2')?.a2aTool).toBe(specialistTool);
+        expect(inv.data.success).toBe(true);
+        expect(reply).toMatch(/^Delegation complete/);
+        expect(reply.trim().length).toBeGreaterThan(0);
+      }
     });
   }
 });
