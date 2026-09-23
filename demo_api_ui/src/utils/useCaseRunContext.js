@@ -83,8 +83,26 @@ export function useUseCaseRunContext(location) {
       persistRunContext(nextRunContext);
       setRunContext(nextRunContext);
     };
+    const onTrackStepPick = (e) => {
+      const step = e.detail?.step;
+      if (!step?.stepId) return;
+      const nextRunContext = {
+        source: 'demo-track',
+        useCaseId: step.stepId,
+        useCaseLabel: step.title,
+        triggerText: step.buyerStory,
+      };
+      launchedThisMountRef.current = true;
+      eventBoundRef.current = true;
+      persistRunContext(nextRunContext);
+      setRunContext(nextRunContext);
+    };
     window.addEventListener('banking-agent-prefill', handler);
-    return () => window.removeEventListener('banking-agent-prefill', handler);
+    window.addEventListener('agent-track-step-pick', onTrackStepPick);
+    return () => {
+      window.removeEventListener('banking-agent-prefill', handler);
+      window.removeEventListener('agent-track-step-pick', onTrackStepPick);
+    };
   }, []);
 
   return runContext;
