@@ -17,6 +17,7 @@ import { useThemeOptional } from "../context/ThemeContext";
 import { useEventStream } from "../context/EventStreamContext";
 import TokenChainModal from "./TokenChainModal";
 import TokenFlowDetailModal from "./TokenFlowDetailModal";
+import UnattendedRunsPanel from "./UnattendedRunsPanel";
 import SimpleStepperPanel from "./SimpleStepperPanel";
 import AgentFlowDiagramPanel from "./AgentFlowDiagramPanel";
 import SequenceReelDiagram from "./SequenceReelDiagram";
@@ -1220,6 +1221,9 @@ export default function BankingAgent({
     }
   }, []);
   const [showFloatingTokenChain, setShowFloatingTokenChain] = useState(false); // dispatches floating-token-chain-open; panel lives in App.js
+  // Unattended runs — same DraggableModal the Token Chain rail mounts; hosted
+  // here so Quick Config can open it without the rail being on screen.
+  const [unattendedPanelOpen, setUnattendedPanelOpen] = useState(false);
 
   const [tokenChainWidth] = useState(() => {
     try {
@@ -2557,28 +2561,35 @@ export default function BankingAgent({
   const prevVerticalRef = useRef(null);
   useEffect(() => {
     const vid = themeManifest?.id ?? null;
-    if (vid !== prevVerticalRef.current) {
-      prevVerticalRef.current = vid;
-      if (isLoggedIn) {
-        fetchLiveAccounts();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        setMessages(
-          user
-            ? [
-                {
-                  id: `${Date.now()}-vsw`,
-                  role: "assistant",
-                  content: welcomeMessage(
-                    user,
-                    embeddedFocus,
-                    brandShortName,
-                    themeAgent && themeAgent.greeting,
-                  ),
-                },
-              ]
-            : [],
-        );
-      }
+    // First hydration (null → vertical) is NOT a switch — it's the initial
+    // manifest resolving right after an OAuth return, where the pending-NL
+    // resume effect may have already replayed the queued step. Wiping here
+    // threw the resumed conversation away and dropped the user back at the
+    // start of the agent (2026-09-23 demo incident). Only clear on a REAL
+    // switch (one non-null id → a different id).
+    const isInitialHydration = prevVerticalRef.current == null;
+    const isRealSwitch = !isInitialHydration && vid !== prevVerticalRef.current;
+    prevVerticalRef.current = vid;
+    if (!isRealSwitch) return;
+    if (isLoggedIn) {
+      fetchLiveAccounts();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      setMessages(
+        user
+          ? [
+              {
+                id: `${Date.now()}-vsw`,
+                role: "assistant",
+                content: welcomeMessage(
+                  user,
+                  embeddedFocus,
+                  brandShortName,
+                  themeAgent && themeAgent.greeting,
+                ),
+              },
+            ]
+          : [],
+      );
     }
   }, [themeManifest, isLoggedIn, fetchLiveAccounts]);
 
@@ -10483,6 +10494,34 @@ export default function BankingAgent({
                       >
                         <><span>Floating token chain</span><span className="ba-surface-badge" aria-hidden="true">Pop-out</span></>
                       </button>
+                      {/* OAuth Visualizer — same embedded/pop-out/both cycling as
+                          Token topology above; the panel pair lives at the bottom
+                          of this component alongside the other evidence surfaces. */}
+                      <button
+                        type="button"
+                        className={`ba-actions-trigger${oauthVisualizerSurface !== "none" ? " active" : ""}`}
+                        aria-label="OAuth Visualizer"
+                        title="OAuth Visualizer — explore grant types and token exchange step by step"
+                        onClick={() => {
+                          if (oauthVisualizerSurface === "none") chooseOauthVisualizerSurface("popout");
+                          else if (oauthVisualizerSurface === "popout") chooseOauthVisualizerSurface("embedded");
+                          else if (oauthVisualizerSurface === "embedded") chooseOauthVisualizerSurface("both");
+                          else chooseOauthVisualizerSurface("none");
+                        }}
+                      >
+                        <><span>OAuth Visualizer</span><span className="ba-surface-badge" aria-hidden="true">{oauthVisualizerSurface === "none" ? "Off" : oauthVisualizerSurface === "embedded" ? "Embedded" : oauthVisualizerSurface === "both" ? "Both" : "Pop-out"}</span></>
+                      </button>
+                      {/* Unattended runs — same panel the Token Chain rail opens;
+                          reachable here without opening the rail first. */}
+                      <button
+                        type="button"
+                        className="ba-actions-trigger"
+                        aria-label="Unattended runs"
+                        title="Unattended runs — replay a scheduled run that happened with nobody signed in"
+                        onClick={() => setUnattendedPanelOpen(true)}
+                      >
+                        <><span>Unattended runs</span><span className="ba-surface-badge" aria-hidden="true">Pop-out</span></>
+                      </button>
                       {/* Demo Script shortcut — opens the 15-min teleprompter without requiring sidebar nav */}
                       <button
                         type="button"
@@ -12968,6 +13007,7 @@ export default function BankingAgent({
           panelEl
         );
       })()}
+      <UnattendedRunsPanel isOpen={unattendedPanelOpen} onClose={() => setUnattendedPanelOpen(false)} />
       <TokenFlowDetailModal
         isOpen={showTokenChain}
         onClose={() => {

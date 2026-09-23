@@ -695,7 +695,7 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
     : topologyNodes.find((node) => node.step.status === 'active')?.id;
 
   const content = (
-      <div className="ttp-root" data-theme={darkMode ? 'dark' : 'light'} data-font-size={fontSize}>
+      <div className="ttp-root ttp-reel-layout" data-theme={darkMode ? 'dark' : 'light'} data-font-size={fontSize}>
         {/* Toolbar */}
         <div className="ttp-toolbar">
           <div className="ttp-toolbar-left">
@@ -749,45 +749,57 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
           </div>
         </div>
 
-        {/* Main: topology + inspector side-by-side */}
+        {/* Movie-reel layout: details on the right, context on top, and the
+            node reel pinned along the bottom edge like a film strip. Clicking
+            a box still opens its details in the right-hand inspector column. */}
         <div className={`ttp-body${selectedStep ? ' has-insp' : ''}`}>
+          {inspectorVisible && hasActivity && selectedStep ? (
+            <div className="ttp-insp-pane" style={{ width: inspWidth }}><div className="ttp-resize-handle" {...inspHandleProps} /><Inspector step={selectedStep} topologyNodes={topologyNodes} onClose={handleInspectorClose} fontSize={fontSize} setFontSize={setFontSize} /></div>
+          ) : inspectorVisible && hasActivity && (
+            <div className="ttp-insp-pane" style={{ width: inspWidth }}><div className="ttp-resize-handle" {...inspHandleProps} /><div className="ttp-insp-empty"><div className="ttp-insp-empty-icon">🔑</div><div className="ttp-insp-empty-text">Click a node to inspect its token details</div></div></div>
+          )}
           <div className="ttp-diagram" ref={diagramRef}>
+            {hasActivity && (
+              <div className="ttp-context">
+                <div className="ttp-label">Delegation context — enforcement callouts and A2A evidence for the run</div>
+                {a2aTopology && (
+                  <div className="ttp-a2a-topology">
+                    <div className="ttp-a2a-heading"><strong>A2A: main agent calling specialist agent</strong><span>Identity and wire-protocol evidence are separate paths.</span></div>
+                    <EvidenceFlow label="Identity path — RFC 8693 token exchanges for MCP authorization" nodes={a2aTopology.identity} selectedId={expandedId} onNodeClick={handleNodeClick} />
+                    <EvidenceFlow label="Wire path — Agent Card and JSON-RPC handoff" nodes={a2aTopology.wire} selectedId={expandedId} onNodeClick={handleNodeClick} />
+                    <div className="ttp-a2a-boundary">{a2aTopology.responseBoundary}</div>
+                  </div>
+                )}
+              </div>
+            )}
             {hasActivity ? (
-              <>
-                <div className="ttp-label">Live delegated pipeline — current step is highlighted; click any box for details</div>
-                <div className="ttp-graph">
-                  <NodeRow nodes={spine} className="ttp-spine" expandedId={expandedId} currentId={currentId} onNodeClick={handleNodeClick} nodeRefs={nodeRefs} />
-                  {branch.length > 0 && (
-                    <div className="ttp-branch" style={{ marginLeft: branchOffset }}>
-                      <div className="ttp-branch-elbow" aria-hidden="true" />
-                      <div className="ttp-branch-body">
-                        <div className="ttp-branch-label">Services &amp; Tools — delegated tool call</div>
-                        <NodeRow nodes={branch} expandedId={expandedId} currentId={currentId} onNodeClick={handleNodeClick} />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </>
+              <div className="ttp-idle ttp-context-hint">
+                <div>Click any box in the reel below for details.</div>
+              </div>
             ) : (
               <div className="ttp-idle">
                 <div>Run an agent flow to build the topology.</div>
                 <div>Nodes will appear as each hop produces evidence.</div>
               </div>
             )}
-            {a2aTopology && (
-              <div className="ttp-a2a-topology">
-                <div className="ttp-a2a-heading"><strong>A2A: main agent calling specialist agent</strong><span>Identity and wire-protocol evidence are separate paths.</span></div>
-                <EvidenceFlow label="Identity path — RFC 8693 token exchanges for MCP authorization" nodes={a2aTopology.identity} selectedId={expandedId} onNodeClick={handleNodeClick} />
-                <EvidenceFlow label="Wire path — Agent Card and JSON-RPC handoff" nodes={a2aTopology.wire} selectedId={expandedId} onNodeClick={handleNodeClick} />
-                <div className="ttp-a2a-boundary">{a2aTopology.responseBoundary}</div>
-              </div>
-            )}
           </div>
-          {inspectorVisible && hasActivity && selectedStep ? (
-            <div className="ttp-insp-pane" style={{ width: inspWidth }}><div className="ttp-resize-handle" {...inspHandleProps} /><Inspector step={selectedStep} topologyNodes={topologyNodes} onClose={handleInspectorClose} fontSize={fontSize} setFontSize={setFontSize} /></div>
-          ) : inspectorVisible && hasActivity && (
-            <div className="ttp-insp-pane" style={{ width: inspWidth }}><div className="ttp-resize-handle" {...inspHandleProps} /><div className="ttp-insp-empty"><div className="ttp-insp-empty-icon">🔑</div><div className="ttp-insp-empty-text">Click a node to inspect its token details</div></div></div>
-          )}
+          {hasActivity ? (
+            <div className="ttp-reel">
+              <div className="ttp-label">Live delegated pipeline — current step is highlighted; click any box for details</div>
+              <div className="ttp-graph">
+                <NodeRow nodes={spine} className="ttp-spine" expandedId={expandedId} currentId={currentId} onNodeClick={handleNodeClick} nodeRefs={nodeRefs} />
+                {branch.length > 0 && (
+                  <div className="ttp-branch" style={{ marginLeft: branchOffset }}>
+                    <div className="ttp-branch-elbow" aria-hidden="true" />
+                    <div className="ttp-branch-body">
+                      <div className="ttp-branch-label">Services &amp; Tools — delegated tool call</div>
+                      <NodeRow nodes={branch} expandedId={expandedId} currentId={currentId} onNodeClick={handleNodeClick} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
   );

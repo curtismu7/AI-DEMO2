@@ -932,6 +932,31 @@
   border-radius: var(--radius-md);
   overflow: hidden;
 }
+/* ── movie-reel layout: reel pinned to the bottom, details on the right ── */
+/* .ttp-reel-body replaces .ttp-body's row layout with a column: the diagram
+   (evidence/A2A context) fills the top, and the node reel sits along the
+   bottom edge like a film strip. The inspector pane stays the right-hand
+   column for click-a-box details. */
+.ttp-root.ttp-reel-layout .ttp-body {
+  flex-direction: row-reverse;
+}
+.ttp-reel {
+  flex-shrink: 0;
+  border-top: 1px solid #30363d;
+  padding: 10px 14px 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.ttp-reel .ttp-label { margin-bottom: 6px; }
+.ttp-reel .ttp-graph {
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 0;
+  width: max-content;
+  min-width: 100%;
+}
+.ttp-context { display: flex; flex-direction: column; gap: 10px; }
+.ttp-context-hint { padding: 0; align-items: flex-start; font-style: normal; }
 .ttp-inline .ttp-root { min-height: 360px; }
 .ttp-inline .ttp-toolbar { flex-wrap: wrap; gap: 8px; }
 .ttp-inline .ttp-toolbar-actions { flex-wrap: wrap; gap: 6px; }
