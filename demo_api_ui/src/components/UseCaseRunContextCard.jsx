@@ -45,7 +45,7 @@ export default function UseCaseRunContextCard({ runContext }) {
           <h2 className="ba-run-context-card__title">
             {runContext?.useCaseLabel
               || humanizeUseCaseId(runContext?.useCaseId)
-              || 'No use case selected'}
+              || 'Welcome'}
           </h2>
         </div>
         {runContext?.expectedOutcome && (
@@ -85,7 +85,7 @@ export default function UseCaseRunContextCard({ runContext }) {
         </>
       ) : (
         <p className="ba-run-context-card__summary">
-          Open a scenario from Use Cases to bind this dashboard to a named run and its expected evidence.
+          Ask a banking question or choose a scenario from Use Cases to run it here. This dashboard shows the authorization and tool evidence behind each run.
         </p>
       )}
     </section>
