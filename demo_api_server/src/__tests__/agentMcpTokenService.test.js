@@ -59,6 +59,9 @@ const sampleJwtAgentAccessToken = makeJwt({
   client_id: 'agent-client-id',
 });
 
+const sampleJwtPfAgentActorToken = makeJwt({ sub: 'pf-agent-actor', client_id: 'pf-agent-actor', aud: 'agent:invoke', scope: 'agent:invoke' });
+const sampleJwtPfMcpActorToken = makeJwt({ sub: 'pf-mcp-actor', client_id: 'pf-mcp-actor', aud: 'mcp:invoke', scope: 'mcp:invoke' });
+
 const sampleJwtMcpAccessToken = makeJwt({
   sub: USER_SUB,
   aud: 'mcp-resource-uri',
@@ -180,37 +183,79 @@ describe('resolveMcpAccessTokenWithEvents — PingFederate standard exchange aud
     configStore.getOAuthProvider.mockReturnValue('pingfederate');
     configStore.getEffective.mockImplementation((key) => ({
       pingone_resource_mcp_server_uri: 'mcpserver.ping.demo',
+      pf_standard_agent_exchange_client_id: 'pf-agent-hop-client',
+      pf_standard_agent_exchange_client_secret: 'pf-agent-hop-secret',
+      pf_standard_agent_exchange_token_endpoint_auth_method: 'basic',
+      pf_standard_intermediate_audience: 'https://pf.example.test/agent-intermediate',
       pf_standard_token_exchange_client_id: 'pf-standard-client',
       pf_standard_token_exchange_client_secret: 'pf-standard-secret',
       pf_standard_token_exchange_token_endpoint_auth_method: 'basic',
-      pf_ai_agent_actor_client_id: 'pf-actor-client',
+      pf_standard_token_exchange_actor_scope: 'agent:invoke',
+      pf_ai_agent_actor_client_id: 'pf-agent-actor',
       pf_ai_agent_actor_client_secret: 'pf-actor-secret',
       pf_ai_agent_actor_token_endpoint_auth_method: 'basic',
+      pf_mcp_service_actor_client_id: 'pf-mcp-actor',
+      pf_mcp_service_actor_client_secret: 'pf-mcp-actor-secret',
+      pf_mcp_service_actor_token_endpoint_auth_method: 'basic',
+      pf_standard_mcp_actor_scope: 'mcp:invoke',
     })[key] || null);
-    mockGetAiAgentClientCredentialsToken.mockResolvedValue(sampleJwtAgentAccessToken);
-    mockPerformTokenExchangeAs.mockResolvedValue(sampleJwtMcpAccessToken);
+    mockGetAiAgentClientCredentialsToken
+      .mockResolvedValueOnce(sampleJwtPfAgentActorToken)
+      .mockResolvedValueOnce(sampleJwtPfMcpActorToken);
+    mockPerformTokenExchangeAs.mockImplementation((subjectToken, actorToken, clientId, clientSecret, audience, scopes) => {
+      const actorClaims = JSON.parse(Buffer.from(actorToken.split('.')[1], 'base64url').toString('utf8'));
+      if (clientId === 'pf-agent-hop-client') {
+        return Promise.resolve(makeJwt({ sub: USER_SUB, aud: 'https://pf.example.test/agent-intermediate', scope: scopes.join(' ') }));
+      }
+      return Promise.resolve(makeJwt({
+        sub: USER_SUB,
+        aud: 'mcpserver.ping.demo',
+        scope: scopes.join(' '),
+        act: { sub: actorClaims.sub, act: { sub: 'pf-agent-actor' } },
+      }));
+    });
   });
 
   afterEach(() => configStore.getOAuthProvider.mockReturnValue('pingone'));
 
-  it('lets PF derive the resource audience from scopes on standard demo steps', async () => {
-    await resolveMcpAccessTokenWithEvents(makeReq(sampleJwtUserAccessToken), 'get_my_accounts');
+  it('uses two PF access-token exchanges and derives both audiences from the assigned policies', async () => {
+    const result = await resolveMcpAccessTokenWithEvents(makeReq(sampleJwtUserAccessToken), 'get_my_accounts');
 
-    expect(mockPerformTokenExchangeAs).toHaveBeenCalledWith(
-      sampleJwtUserAccessToken,
-      sampleJwtAgentAccessToken,
-      'pf-standard-client',
-      'pf-standard-secret',
-      'mcpserver.ping.demo',
-      expect.any(Array),
-      'basic',
-      expect.objectContaining({
-        requestedTokenType: 'urn:ietf:params:oauth:token-type:access_token',
-        omitAudience: true,
-      })
+    expect(mockPerformTokenExchangeAs).toHaveBeenCalledTimes(2);
+    expect(mockPerformTokenExchangeAs).toHaveBeenNthCalledWith(
+      1, sampleJwtUserAccessToken, sampleJwtPfAgentActorToken, 'pf-agent-hop-client', 'pf-agent-hop-secret',
+      'https://pf.example.test/agent-intermediate', expect.any(Array), 'basic',
+      expect.objectContaining({ requestedTokenType: 'urn:ietf:params:oauth:token-type:access_token', omitAudience: true })
     );
+    expect(mockPerformTokenExchangeAs).toHaveBeenNthCalledWith(
+      2, expect.any(String), sampleJwtPfMcpActorToken, 'pf-standard-client', 'pf-standard-secret',
+      'mcpserver.ping.demo', expect.any(Array), 'basic',
+      expect.objectContaining({ requestedTokenType: 'urn:ietf:params:oauth:token-type:access_token', omitAudience: true })
+    );
+    expect(result.tokenEvents.map((event) => event.id)).toEqual(expect.arrayContaining([
+      'two-ex-agent-actor', 'two-ex-exchange1', 'two-ex-mcp-actor', 'two-ex-final-token',
+    ]));
     expect(mockPerformTokenExchange).not.toHaveBeenCalled();
     expect(mockPerformTokenExchangeWithActor).not.toHaveBeenCalled();
+  });
+
+  it('keeps PF direct-MCP callers on the server audience even when gateway routing is enabled', async () => {
+    const originalGetEffective = configStore.getEffective.getMockImplementation();
+    configStore.getEffective.mockImplementation((key) => ({
+      ff_mcp_gateway_pinggateway: 'true',
+      pingone_resource_pinggateway_uri: 'https://api.ping.demo:3036/mcp',
+    })[key] || originalGetEffective(key));
+
+    const result = await resolveMcpAccessTokenWithEvents(
+      makeReq(sampleJwtUserAccessToken), 'get_my_accounts', { forceDirectMcpAudience: true }
+    );
+
+    expect(mockPerformTokenExchangeAs).toHaveBeenNthCalledWith(
+      2, expect.any(String), sampleJwtPfMcpActorToken, 'pf-standard-client', 'pf-standard-secret',
+      ['mcpserver.ping.demo'], ['server:mcp:invoke'], 'basic',
+      expect.objectContaining({ omitAudience: true })
+    );
+    expect(result.tokenEvents.find((event) => event.id === 'two-ex-final-token')?.audExpected).toBe('mcpserver.ping.demo');
   });
 });
 

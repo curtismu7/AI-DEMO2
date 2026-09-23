@@ -169,6 +169,38 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-23 — PF standard delegation used a different exchange shape from PingOne
+
+**Files changed:** `demo_api_server/services/agentMcpTokenService.js`,
+`services/pfStandardTokenExchangeService.js`, `services/configStore.js`,
+`env.example`, `docs/FEDERATE-SETUP.md`, and focused BFF tests.
+
+**What was broken:** ordinary PF demo steps took a provider-specific exchange
+path, so their token subject, audience, scopes, and actor chain could diverge
+from the shared PingOne two-exchange contract. The PF standard path also
+bypassed common exchange events and follow-on processing.
+
+**What was fixed:** both providers now use the shared two-exchange orchestration.
+PF-specific client credentials, policy-derived audiences, and endpoint calls
+stay in a provider adapter. PF results fail closed unless they preserve the
+user subject, requested audience/scopes, and MCP-service → AI-agent actor chain.
+UC40's PF ID-JAG branch remains separate.
+
+**Do not break:** PingOne request behavior; UC40-only PF ID-JAG; BFF-only token
+custody. Full live PF parity still requires the separately provisioned PF
+clients and per-hop policies described in `docs/FEDERATE-SETUP.md`.
+
+**Verify:** `CI=true ./node_modules/.bin/jest
+src/__tests__/agentMcpTokenService.test.js
+src/__tests__/agentMcpTokenService.pfCatalogParity.test.js
+src/__tests__/pfStandardTokenExchangeService.test.js
+src/__tests__/configStore-providerMode.test.js
+src/__tests__/oauthService.idJag.test.js
+src/__tests__/oauthService.test.js --runInBand --forceExit`
+(6 suites, 166 tests passed). The full BFF Jest command currently exits 134
+before Jest reports a suite result in this environment. PF direct-MCP audience
+selection and both P1-supported `act` result shapes have focused regressions.
+
 ### 2026-09-23 — CIBA approval lacked a verified, transaction-bound handoff
 
 **Files changed:** `demo_api_server/config/oauth.js`, `routes/ciba.js`,
