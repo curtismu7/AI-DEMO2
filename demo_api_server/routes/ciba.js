@@ -17,32 +17,42 @@
  *   Returns whether CIBA is enabled and the delivery mode.
  *
  * POST /api/auth/ciba/notify
- *   Ping-mode callback: PingOne calls this when the user approves.
- *   Marks the auth_req_id as approved in the session store.
+ *   Rejects ping-mode callbacks; this client implements poll mode only.
  *
  * POST /api/auth/ciba/cancel/:authReqId
  *   Allows the browser to cancel a pending CIBA request.
  */
 
 const express = require('express');
+const crypto = require('crypto');
 const router  = express.Router();
 const cibaService = require('../services/cibaService');
 const cibaSimulatedService = require('../services/cibaSimulatedService');
 const delegationService = require('../services/delegationService');
 const { authenticateToken } = require('../middleware/auth');
 const configStore = require('../services/configStore');
-const { PINGONE_OIDC_DEFAULT_SCOPES_SPACE } = require('../config/scopes');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const { trackTokenEvent } = require('../services/tokenChainService');
 const hitlServiceClient = require('../services/hitlServiceClient');
 const cibaTransactionReceipt = require('../services/cibaTransactionReceipt');
+const dataStore = require('../data/store');
 
 const STEP_UP_TTL_MS = 5 * 60 * 1000; // 5 min step-up validity
+const CIBA_DEFAULT_SCOPE = 'openid';
 const CIBA_TRANSACTION_TOOLS = Object.freeze({
   transfer: 'create_transfer',
   deposit: 'create_deposit',
   withdrawal: 'create_withdrawal',
 });
+const realPollInFlight = new Set();
+// A successful token exchange is one-time. Retain verified claims until the
+// session and HITL writes finish so a transient failure can be retried.
+const validatedPollResults = new Map();
+setInterval(() => {
+  for (const [id, value] of validatedPollResults) {
+    if (value.expiresAt <= Date.now()) validatedPollResults.delete(id);
+  }
+}, STEP_UP_TTL_MS).unref();
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -64,19 +74,22 @@ function _cibaEnabled(res) {
 // ---------------------------------------------------------------------------
 
 router.get('/status', (req, res) => {
-  const failoverMode = configStore.getEffective('ciba_failover_mode') || 'fallback_simulated';
+  const failoverMode = configStore.getEffective('ciba_failover_mode') || 'deny';
+  const realConfigured = Boolean(process.env.PINGONE_CIBA_CLIENT_ID && process.env.PINGONE_CIBA_CLIENT_SECRET);
+  const deliveryMode = configStore.getEffective('ciba_token_delivery_mode') || 'poll';
   res.json({
     enabled:      cibaService.isEnabled(),
-    deliveryMode: configStore.getEffective('ciba_token_delivery_mode') || 'poll',
+    deliveryMode,
     bindingMessage: configStore.getEffective('ciba_binding_message') || 'Banking App Authentication',
-    engine: cibaService.isEnabled() ? 'pingone' : 'unavailable',
+    engine: cibaService.isEnabled() && realConfigured && deliveryMode === 'poll' ? 'pingone' : 'unavailable',
     failoverMode,
     // Show PingOne admin steps needed if not enabled
-    setupRequired: !cibaService.isEnabled(),
-    setupSteps: !cibaService.isEnabled() ? [
+    setupRequired: !cibaService.isEnabled() || !realConfigured || deliveryMode !== 'poll',
+    setupSteps: !cibaService.isEnabled() || !realConfigured || deliveryMode !== 'poll' ? [
       'Set CIBA_ENABLED=true in your environment',
-      'Enable the CIBA grant type on your PingOne application',
-      'Configure DaVinci: email-only CIBA needs no MFA push; push path needs MFA policy + registered device',
+      'Provision a dedicated PingOne application with the CIBA grant and set PINGONE_CIBA_CLIENT_ID/SECRET',
+      'Attach a deployed DaVinci CIBA flow with an out-of-band approval channel',
+      'Configure the CIBA application for poll token delivery mode',
     ] : [],
   });
 });
@@ -90,7 +103,7 @@ router.get('/status', (req, res) => {
  * Client initiates a transfer that requires human review via separate device or email.
  *
  * Body: {
- *   scope?:           default includes offline_access when omitted (PingOne must allow it for refresh_token)
+ *   scope?:           defaults to openid
  *   binding_message?: 'Approve $500 transfer'   — shown in email or push (PingOne / DaVinci)
  *   acr_values?:      'Multi_factor'             — for step-up auth
  *   login_hint?:      'user@example.com'         — override from session email
@@ -133,9 +146,22 @@ router.post('/initiate', authenticateToken, async (req, res) => {
   // page). Purely additive — no validation beyond type coercion, since
   // these only ever populate a display string, never a policy decision.
   const amount = req.body.amount != null ? Number(req.body.amount) : null;
+  const transactionType = req.body.transaction_type;
   const fromAccountLabel = field('from_account_label', 'fromAccountLabel') || null;
   const toAccountLabel = field('to_account_label', 'toAccountLabel') || null;
+  const fromAccountId = field('from_account_id', 'fromAccountId') || null;
+  const toAccountId = field('to_account_id', 'toAccountId') || null;
   const hitlChallengeId = field('hitl_challenge_id', 'hitlChallengeId') || null;
+  if (CIBA_TRANSACTION_TOOLS[transactionType] && (
+    !Number.isFinite(amount) || amount <= 0
+    || (transactionType !== 'deposit' && !fromAccountId)
+    || (transactionType !== 'withdrawal' && !toAccountId)
+  )) {
+    return res.status(400).json({
+      error: 'invalid_transaction_context',
+      message: 'CIBA approval requires the exact transaction amount and account IDs.',
+    });
+  }
 
   let hitlChallenge = null;
   if (hitlChallengeId) {
@@ -146,12 +172,24 @@ router.post('/initiate', authenticateToken, async (req, res) => {
     }
     const requestUserId = req.user?.id || req.user?.sub;
     const challengeAmount = Number(hitlChallenge.context?.amount);
+    const challengeContext = hitlChallenge.context || {};
     if (
       hitlChallenge.status !== 'pending'
       || hitlChallenge.userId !== requestUserId
-      || (amount != null && (!Number.isFinite(challengeAmount) || challengeAmount !== amount))
+      || hitlChallenge.tool !== CIBA_TRANSACTION_TOOLS[transactionType]
+      || !Number.isFinite(challengeAmount) || challengeAmount !== amount
+      || (challengeContext.fromAccountId || null) !== fromAccountId
+      || (challengeContext.toAccountId || null) !== toAccountId
     ) {
       return res.status(400).json({ error: 'invalid_hitl_challenge' });
+    }
+  }
+
+  if (CIBA_TRANSACTION_TOOLS[transactionType]) {
+    const userId = req.user?.id || req.user?.sub;
+    const accountIds = [fromAccountId, toAccountId].filter(Boolean);
+    if (accountIds.some((id) => dataStore.getAccountById(id)?.userId !== userId)) {
+      return res.status(400).json({ error: 'invalid_transaction_accounts' });
     }
   }
 
@@ -166,6 +204,10 @@ router.post('/initiate', authenticateToken, async (req, res) => {
     // Strip control characters (log injection prevention)
     binding_message = binding_message.replace(new RegExp('[\\x00-\\x1f\\x7f]', 'g'), '');
   }
+  if (CIBA_TRANSACTION_TOOLS[transactionType] && Number.isFinite(amount) && amount > 0) {
+    binding_message = `Approve $${amount.toFixed(2)} ${transactionType} from ${fromAccountId || 'external'} to ${toAccountId || 'external'}. Code ${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
+    if (binding_message.length > 256) return res.status(400).json({ error: 'invalid_binding_message' });
+  }
 
   let result;
   let simulated = false;
@@ -173,18 +215,21 @@ router.post('/initiate', authenticateToken, async (req, res) => {
     result = await cibaService.initiateBackchannelAuth(
       loginHint,
       binding_message,
-      scope || PINGONE_OIDC_DEFAULT_SCOPES_SPACE,
+      scope || CIBA_DEFAULT_SCOPE,
       acr_values,
     );
   } catch (realErr) {
-    // Failover: PingOne's /as/bc-authorize can be unreachable OR entirely
-    // unrouted at the platform level (see the "Known gap" note in the ciba
-    // skill doc) — either way, fall back to the in-process simulated engine
-    // by default so the demo stays usable. Set ciba_failover_mode=deny to
-    // restore the old fail-loud behavior.
-    const failoverMode = configStore.getEffective('ciba_failover_mode') || 'fallback_simulated';
-    if (failoverMode !== 'fallback_simulated') {
+    // CIBA requires a real OP result. Simulated failover is an explicit
+    // development setting, never the default for transaction approval.
+    const failoverMode = configStore.getEffective('ciba_failover_mode') || 'deny';
+    if (failoverMode !== 'fallback_simulated' || CIBA_TRANSACTION_TOOLS[transactionType]) {
       console.error('[CIBA] initiate failed:', realErr.response?.data || realErr.message);
+      if (realErr.message === 'CIBA client credentials are not configured') {
+        return res.status(503).json({
+          error: 'ciba_not_configured',
+          message: 'Real CIBA requires a dedicated PingOne CIBA application and DaVinci flow.',
+        });
+      }
       const pingError = realErr.response?.data;
       return res.status(502).json({
         error:   pingError?.error || 'ciba_initiation_failed',
@@ -194,7 +239,7 @@ router.post('/initiate', authenticateToken, async (req, res) => {
     result = cibaSimulatedService.initiateSimulated(
       loginHint,
       binding_message,
-      scope || PINGONE_OIDC_DEFAULT_SCOPES_SPACE,
+      scope || CIBA_DEFAULT_SCOPE,
       acr_values,
     );
     simulated = true;
@@ -236,20 +281,25 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       initiatedAt: Date.now(),
       expiresAt:   Date.now() + result.expires_in * 1000,
       loginHint,
-      scope: scope || PINGONE_OIDC_DEFAULT_SCOPES_SPACE,
+      scope: scope || CIBA_DEFAULT_SCOPE,
       acr_values: acr_values || '',
       binding_message: binding_message || '',
       simulated,
+      pollIntervalMs: Math.max(5000, Number(result.interval || 5) * 1000),
+      enforcePollInterval: true,
+      nextPollAt: 0,
       amount,
       fromAccountLabel,
       toAccountLabel,
+      fromAccountId,
+      toAccountId,
       delegationId,
       hitlChallengeId,
       // The canonical HITL record is authoritative when present. A plain CIBA
       // step-up has no HITL challenge id, so retain only a recognized banking
       // transaction type for the exact downstream bearer-only write receipt.
       hitlChallengeTool: hitlChallenge?.tool
-        || CIBA_TRANSACTION_TOOLS[req.body.transaction_type]
+        || CIBA_TRANSACTION_TOOLS[transactionType]
         || null,
     };
 
@@ -259,6 +309,7 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       expires_in:  result.expires_in,
       interval:    result.interval,
       login_hint_display: loginHint.replace(/(.{2}).*@/, '$1***@'), // mask for display only
+      binding_message,
       engine: simulated ? 'simulated' : 'pingone',
     });
   } catch (err) {
@@ -369,6 +420,7 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
   }
 
   if (Date.now() > pending.expiresAt) {
+    validatedPollResults.delete(authReqId);
     delete req.session.cibaRequests[authReqId];
     return res.status(410).json({
       error:  'request_expired',
@@ -386,6 +438,10 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
   }
 
   if (pending.simulated) {
+    if (pending.hitlChallengeTool) {
+      delete req.session.cibaRequests[authReqId];
+      return res.status(403).json({ status: 'denied', error: 'real_ciba_required' });
+    }
     if (pending.deniedByUser) {
       delete req.session.cibaRequests[authReqId];
       return res.status(403).json({
@@ -438,20 +494,24 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
         return res.status(502).json({ error: 'hitl_approval_failed' });
       }
     }
-    if (pending.hitlChallengeTool && pending.amount != null) {
-      cibaTransactionReceipt.record(req.user?.id || req.user?.sub, pending.hitlChallengeTool, pending.amount);
-    }
-
     _markCibaApproved(pending);
-    req.session.stepUpVerified = Date.now() + STEP_UP_TTL_MS;
+    if (pending.hitlChallengeTool) req.session.stepUpVerified = Date.now() + STEP_UP_TTL_MS;
     // CIBA out-of-band approval IS a human-in-the-loop event, so it discharges
     // the separate HITL gate too (see mcpToolAuthorizationService.js's
     // hitlAlreadyVerified) — otherwise a checkout/transfer that trips both
     // step-up AND HITL clears step-up on retry but 428s forever on HITL.
     // Amount-bound (services/hitlCredit.js): record what was approved so the
     // credit only discharges consent for a transfer at or below this amount.
-    req.session.hitlVerified = Date.now() + STEP_UP_TTL_MS;
-    req.session.hitlApprovedAmount = pending.amount ?? null;
+    if (pending.hitlChallengeTool) {
+      req.session.hitlVerified = Date.now() + STEP_UP_TTL_MS;
+      req.session.hitlApprovedAmount = pending.amount;
+    }
+    if (pending.hitlChallengeTool) req.session.cibaApprovedTransaction = {
+      tool: pending.hitlChallengeTool,
+      amount: pending.amount,
+      fromAccountId: pending.fromAccountId,
+      toAccountId: pending.toAccountId,
+    };
 
     // Mirror the real path's token-chain tracking below so the "CIBA
     // Step-Up" tab and floating token-chain panel show an identical event —
@@ -483,53 +543,95 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
       console.warn('[CIBA] could not build token-chain event for simulated approval:', trackErr.message);
     }
 
-    return req.session.save((saveErr) => {
-      if (saveErr) console.error('[CIBA] session save error on simulated approval:', saveErr);
-      res.json({
-        status: 'approved',
-        scope:  pending.scope,
-        engine: 'simulated',
-      });
-    });
-  }
-
-  try {
-    const tokens = await cibaService.pollForTokens(authReqId);
-
-    if (pending.hitlChallengeId) {
-      try {
-        await hitlServiceClient.respondToChallenge(pending.hitlChallengeId, 'approved', req.id);
-      } catch (_) {
-        return res.status(502).json({ error: 'hitl_approval_failed' });
-      }
+    try {
+      await new Promise((resolve, reject) => req.session.save((saveErr) => {
+        if (saveErr) reject(saveErr);
+        else resolve();
+      }));
+    } catch (saveErr) {
+      console.error('[CIBA] session save error on simulated approval:', saveErr);
+      return res.status(503).json({ error: 'ciba_session_unavailable' });
     }
     if (pending.hitlChallengeTool && pending.amount != null) {
-      cibaTransactionReceipt.record(req.user?.id || req.user?.sub, pending.hitlChallengeTool, pending.amount);
+      cibaTransactionReceipt.record(req.user?.id || req.user?.sub, pending.hitlChallengeTool, pending.amount, {
+        fromAccountId: pending.fromAccountId, toAccountId: pending.toAccountId, proofType: 'ciba',
+      });
+    }
+    return res.json({ status: 'approved', scope: pending.scope, engine: 'simulated' });
+  }
+
+  if ((pending.enforcePollInterval && pending.nextPollAt > Date.now()) || realPollInFlight.has(authReqId)) {
+    return res.json({
+      status: 'pending', engine: 'pingone',
+      retry_after: Math.max(1, Math.ceil(((pending.nextPollAt || Date.now() + 5000) - Date.now()) / 1000)),
+    });
+  }
+  realPollInFlight.add(authReqId);
+  pending.pollIntervalMs = Number.isFinite(pending.pollIntervalMs) ? pending.pollIntervalMs : 5000;
+  pending.nextPollAt = Date.now() + pending.pollIntervalMs;
+  try {
+    let tokens;
+    let validated = validatedPollResults.get(authReqId);
+    if (validated && (validated.sessionId !== req.sessionID || validated.expiresAt <= Date.now())) {
+      validatedPollResults.delete(authReqId);
+      validated = null;
+    }
+    if (!validated) {
+      tokens = await cibaService.pollForTokens(authReqId);
+      let verifiedClaims;
+      try {
+        verifiedClaims = await cibaService.validateCibaIdToken(tokens.id_token, req.user?.sub || req.user?.id, pending.acr_values);
+      } catch (validationError) {
+        console.error('[CIBA] invalid identity result:', validationError.message);
+        delete req.session.cibaRequests[authReqId];
+        return res.status(502).json({ error: 'ciba_token_invalid' });
+      }
+      validated = {
+        claims: verifiedClaims,
+        sessionId: req.sessionID,
+        expiresAt: pending.expiresAt,
+        challengeApproved: false,
+      };
+      validatedPollResults.set(authReqId, validated);
     }
 
-    // Store tokens server-side (Backend-for-Frontend (BFF) pattern — never expose raw tokens to browser)
-    req.session.oauthTokens = {
-      accessToken:  tokens.access_token,
-      idToken:      tokens.id_token,
-      refreshToken: tokens.refresh_token,
-      expiresAt:    Date.now() + (tokens.expires_in || 3600) * 1000,
-      tokenType:    tokens.token_type || 'Bearer',
-      scope:        pending.scope,
-      grantedVia:   'ciba',
+    if (pending.hitlChallengeId && !validated.challengeApproved) {
+      try {
+        await hitlServiceClient.respondToChallenge(pending.hitlChallengeId, 'approved', req.id);
+        validated.challengeApproved = true;
+      } catch (_) {
+        return res.status(502).json({ status: 'pending', error: 'hitl_approval_failed', retry_after: Math.ceil(pending.pollIntervalMs / 1000) });
+      }
+    }
+    // CIBA authenticates this approval; its dedicated app token must not replace
+    // the user's banking session token or broaden the agent's delegated scopes.
+    req.session.cibaProof = {
+      subject: validated.claims.sub,
+      acr: validated.claims.acr || null,
+      authReqId,
+      approvedAt: Date.now(),
     };
 
     _markCibaApproved(pending);
-    req.session.stepUpVerified = Date.now() + STEP_UP_TTL_MS;
+    if (pending.hitlChallengeTool) req.session.stepUpVerified = Date.now() + STEP_UP_TTL_MS;
     // See the matching comment in the simulated branch above.
-    req.session.hitlVerified = Date.now() + STEP_UP_TTL_MS;
-    req.session.hitlApprovedAmount = pending.amount ?? null;
+    if (pending.hitlChallengeTool) {
+      req.session.hitlVerified = Date.now() + STEP_UP_TTL_MS;
+      req.session.hitlApprovedAmount = pending.amount;
+    }
+    if (pending.hitlChallengeTool) req.session.cibaApprovedTransaction = {
+      tool: pending.hitlChallengeTool,
+      amount: pending.amount,
+      fromAccountId: pending.fromAccountId,
+      toAccountId: pending.toAccountId,
+    };
 
     // Record the step-up in the token chain so the "CIBA Step-Up" tab and the
     // floating token-chain panel show the backchannel-granted token as a live
     // event. Fire-and-forget — a tracking failure must not break approval.
     try {
       const jwt = require('jsonwebtoken');
-      const claims = jwt.decode(tokens.access_token) || {};
+      const claims = tokens?.access_token ? jwt.decode(tokens.access_token) || {} : {};
       if (claims.sub) {
         trackTokenEvent({
           id: 'ciba-poll',
@@ -544,14 +646,23 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
       console.warn('[CIBA] could not decode token for chain tracking:', trackErr.message);
     }
 
-    req.session.save((saveErr) => {
-      if (saveErr) console.error('[CIBA] session save error on approval:', saveErr);
-      res.json({
-        status: 'approved',
-        scope:  pending.scope,
-        engine: 'pingone',
+    if (!validated.receiptRecorded && pending.hitlChallengeTool && pending.amount != null) {
+      cibaTransactionReceipt.record(req.user?.id || req.user?.sub, pending.hitlChallengeTool, pending.amount, {
+        fromAccountId: pending.fromAccountId, toAccountId: pending.toAccountId, proofType: 'ciba',
       });
-    });
+      validated.receiptRecorded = true;
+    }
+    try {
+      await new Promise((resolve, reject) => req.session.save((saveErr) => {
+        if (saveErr) reject(saveErr);
+        else resolve();
+      }));
+    } catch (saveErr) {
+      pending.pollOutcome = undefined;
+      return res.status(502).json({ status: 'pending', error: 'ciba_session_unavailable', retry_after: Math.ceil(pending.pollIntervalMs / 1000) });
+    }
+    validatedPollResults.delete(authReqId);
+    return res.json({ status: 'approved', scope: pending.scope, engine: 'pingone' });
   } catch (err) {
     const errorCode = err.response?.data?.error;
 
@@ -559,27 +670,34 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
       return res.json({ status: 'pending', engine: 'pingone' });
     }
     if (errorCode === 'slow_down') {
-      return res.json({ status: 'pending', slow_down: true, retry_after: 10, engine: 'pingone' });
+      pending.pollIntervalMs += 5000;
+      pending.nextPollAt = Date.now() + pending.pollIntervalMs;
+      return res.json({ status: 'pending', slow_down: true, retry_after: Math.ceil(pending.pollIntervalMs / 1000), engine: 'pingone' });
     }
 
-    // User denied or request expired at PingOne
-    delete req.session.cibaRequests?.[authReqId];
-    res.status(403).json({
-      status: 'denied',
-      error:  errorCode || 'access_denied',
-      message: err.response?.data?.error_description || 'The user denied the authentication request.',
+    // Keep live requests on transient OP/network errors so the client can retry.
+    const terminal = errorCode === 'expired_token' || errorCode === 'access_denied';
+    if (terminal) delete req.session.cibaRequests?.[authReqId];
+    res.status(errorCode === 'expired_token' ? 410 : errorCode === 'access_denied' ? 403 : 502).json({
+      status: terminal ? 'denied' : 'pending',
+      error:  errorCode || 'ciba_poll_failed',
+      retry_after: terminal ? undefined : Math.ceil(pending.pollIntervalMs / 1000),
+      message: errorCode === 'access_denied'
+        ? 'The user denied the authentication request.'
+        : errorCode === 'expired_token'
+          ? 'The CIBA authentication request expired.'
+          : 'CIBA authentication could not be completed.',
     });
+  } finally {
+    realPollInFlight.delete(authReqId);
   }
 });
 
 // ---------------------------------------------------------------------------
 // POST /api/auth/ciba/approve-now/:authReqId
 //
-// Demo convenience: lets the presenter skip the fallback engine's timed
-// auto-approve instead of waiting it out. Only valid for a pending.simulated
-// request — real CIBA must be approved on its real out-of-band channel, so
-// this route is a no-op (404) for a real pending request; the next /poll
-// call resolves it exactly as a timed auto-approve would.
+// Explicit approval for the local simulation only. Real CIBA must be approved
+// on the OpenID Provider's out-of-band channel.
 // ---------------------------------------------------------------------------
 
 /**
@@ -602,7 +720,7 @@ router.post('/approve-now/:authReqId', authenticateToken, (req, res) => {
     });
   }
 
-  pending.initiatedAt = Date.now() - cibaSimulatedService.SIMULATED_APPROVE_DELAY_MS;
+  pending.approvedByUser = true;
   req.session.save((saveErr) => {
     if (saveErr) console.error('[CIBA] session save error on approve-now:', saveErr);
     res.json({ ok: true });
@@ -645,6 +763,7 @@ router.post('/cancel/:authReqId', authenticateToken, (req, res) => {
   if (req.session.cibaRequests?.[authReqId]) {
     delete req.session.cibaRequests[authReqId];
   }
+  validatedPollResults.delete(authReqId);
   res.json({ ok: true });
 });
 
@@ -652,13 +771,8 @@ router.post('/cancel/:authReqId', authenticateToken, (req, res) => {
 // POST /api/auth/ciba/notify  — PingOne ping-mode callback (no session auth)
 // ---------------------------------------------------------------------------
 
-router.post('/notify', (req, res) => {
-  // In ping mode, PingOne sends a POST with the client_notification_token
-  // in the Authorization: Bearer header and the auth_req_id in the body.
-  // For now we acknowledge and note that ping-mode requires shared state (Redis).
-  // Poll mode is fully functional without this endpoint.
-  console.log('[CIBA] ping notification received:', req.body?.auth_req_id);
-  res.sendStatus(204);
+router.post('/notify', (_req, res) => {
+  res.status(501).json({ error: 'unsupported_delivery_mode', message: 'Configure CIBA poll delivery mode.' });
 });
 
 module.exports = router;

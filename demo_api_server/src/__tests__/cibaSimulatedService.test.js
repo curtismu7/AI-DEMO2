@@ -3,7 +3,6 @@
 const {
   initiateSimulated,
   isSimulatedApproved,
-  SIMULATED_APPROVE_DELAY_MS,
 } = require('../../services/cibaSimulatedService');
 
 describe('cibaSimulatedService.initiateSimulated()', () => {
@@ -26,34 +25,19 @@ describe('cibaSimulatedService.initiateSimulated()', () => {
 });
 
 describe('cibaSimulatedService.isSimulatedApproved()', () => {
-  beforeEach(() => {
-    jest.useFakeTimers();
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
   it('returns false immediately after initiation', () => {
     const pending = { initiatedAt: Date.now() };
     expect(isSimulatedApproved(pending)).toBe(false);
   });
 
-  it('returns false just before the approval delay elapses', () => {
+  it('does not approve merely because time passed', () => {
     const pending = { initiatedAt: Date.now() };
-    jest.advanceTimersByTime(SIMULATED_APPROVE_DELAY_MS - 1);
+    pending.initiatedAt -= 300_000;
     expect(isSimulatedApproved(pending)).toBe(false);
   });
 
-  it('returns true once the approval delay has elapsed', () => {
-    const pending = { initiatedAt: Date.now() };
-    jest.advanceTimersByTime(SIMULATED_APPROVE_DELAY_MS);
-    expect(isSimulatedApproved(pending)).toBe(true);
-  });
-
-  it('returns true well after the approval delay', () => {
-    const pending = { initiatedAt: Date.now() };
-    jest.advanceTimersByTime(SIMULATED_APPROVE_DELAY_MS + 60000);
+  it('returns true only after an explicit approval', () => {
+    const pending = { approvedByUser: true };
     expect(isSimulatedApproved(pending)).toBe(true);
   });
 });
