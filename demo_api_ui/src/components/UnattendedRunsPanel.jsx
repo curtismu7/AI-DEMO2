@@ -5,13 +5,14 @@ import React, { useEffect, useState } from "react";
 import DraggableModal from "./DraggableModal";
 import apiClient from "../services/apiClient";
 import { replayUnattendedRun, describeRun } from "../services/tokenChainTrace/replayUnattendedRun";
-import { notifyError } from "../utils/appToast";
+import { notifyError, notifySuccess } from "../utils/appToast";
 import "./UnattendedRunsPanel.css";
 
 export default function UnattendedRunsPanel({ isOpen, onClose }) {
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [disabled, setDisabled] = useState(false);
+  const [arming, setArming] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -60,6 +61,27 @@ export default function UnattendedRunsPanel({ isOpen, onClose }) {
     }
   }
 
+  // The demo user should not have to go find the flag toggle — enabling from
+  // here flips ff_autonomous_agents via the same public route the Autonomous
+  // Agents page uses, then fires a run so the demo shows the whole story.
+  async function enableAndRun() {
+    setArming(true);
+    try {
+      const res = await apiClient.post("/api/autonomous-runs/flag", { enabled: true });
+      const expiresIn = res.data?.armExpiresInMs;
+      notifySuccess(
+        typeof expiresIn === "number"
+          ? `Autonomous agents on — auto-disarms in ${Math.round(expiresIn / 60000)} min`
+          : "Autonomous agents on",
+      );
+      setDisabled(false);
+      await runNow();
+    } catch {
+      notifyError("Could not turn on autonomous agents");
+      setArming(false);
+    }
+  }
+
   return (
     <DraggableModal
       isOpen={isOpen}
@@ -72,10 +94,20 @@ export default function UnattendedRunsPanel({ isOpen, onClose }) {
       {/* dm-scroll: `dm-body` is bare by contract — no padding, no scroll. */}
       <div className="dm-scroll uarp">
         {disabled ? (
-          <p className="uarp-empty">
-            Autonomous agents are switched off. Turn on <code>ff_autonomous_agents</code> to
-            let a scheduled run happen.
-          </p>
+          <div className="uarp-disabled">
+            <p className="uarp-empty">
+              Autonomous agents are switched off. Turn on <code>ff_autonomous_agents</code> to
+              let a scheduled run happen.
+            </p>
+            <button
+              type="button"
+              className="uarp-run"
+              onClick={enableAndRun}
+              disabled={arming}
+            >
+              {arming ? "Turning on…" : "Turn on and run now"}
+            </button>
+          </div>
         ) : (
           <>
             <div className="uarp-head">

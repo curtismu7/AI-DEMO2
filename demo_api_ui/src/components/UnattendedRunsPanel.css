@@ -42,6 +42,13 @@
 }
 .uarp-run:disabled { opacity: 0.55; cursor: default; }
 
+.uarp-disabled {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
 .uarp-list {
   list-style: none;
   margin: 0;
