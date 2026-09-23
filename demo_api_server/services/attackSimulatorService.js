@@ -158,6 +158,30 @@ function _wrongAud() {
  * @returns {Promise<string>} exchanged access token
  */
 async function _exchangeSimToken(subjectToken, audience, scopes) {
+  // PingFederate mode: the subject token is a PF session artifact (refresh
+  // token), which PingOne cannot parse — route through the PF ID-JAG issuance
+  // + redemption chain instead, same as the live tool pipeline
+  // (agentMcpTokenService.resolvePingFederateIdJagToken). The ID-JAG aud comes
+  // from PF policy; the sim's deliberately-wrong-audience variants are handled
+  // by the redemptions endpoint/resource, so pass the target through.
+  if (configStore.getOAuthProvider?.() === 'pingfederate') {
+    // PF only accepts an `audience` param naming a configured Resource-AS SP
+    // connection (aiDemoPfIdJagSp: pf-mcp-server). Use the configured ID-JAG
+    // audience/resource, then redeem for the sim's target resource so the
+    // downstream token carries the audience the sim's control proves against.
+    const jagAud = configStore.getEffective('pf_id_jag_audience');
+    const jagResource = configStore.getEffective('pf_id_jag_resource') || jagAud;
+    // runAttackSim hands us the session ACCESS token (not the refresh token),
+    // so the subject type must match — the refresh-token mapping would reject it.
+    const idJag = await oauthService.performIdJagExchange(
+      subjectToken,
+      'urn:ietf:params:oauth:token-type:access_token',
+      jagAud,
+      jagResource,
+      scopes,
+    );
+    return oauthService.redeemIdJag(idJag, audience, scopes);
+  }
   const exchangerId = configStore.getEffective('pingone_mcp_token_exchanger_client_id');
   const exchangerCred = configStore.getEffective('pingone_mcp_token_exchanger_client_secret');
   if (exchangerId && exchangerCred) {
