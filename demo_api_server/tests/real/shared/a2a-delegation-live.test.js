@@ -21,21 +21,17 @@
 const { createBffClient } = require('../helpers/bffClient');
 const { verticalsWithSpecialist, specialistForVertical } = require('../../../config/a2aSpecialists');
 const { resolveUseCase } = require('../../../config/useCases.js');
+const {
+  assertActiveProvider,
+  assertProviderIssuer,
+  assertVerticalActivated,
+} = require('../helpers/a2aProviderMatrix');
 
 const DENY_MARKERS = /denied by an authorization policy|insufficient scope|mcp_error|gateway_error|upstream error|could not be completed/i;
 const EXPECTED_PROVIDER = String(process.env.A2A_EXPECTED_OAUTH_PROVIDER || '').trim().toLowerCase();
 
 function tokenEventById(events, id) {
   return (events || []).find((event) => event.id === id);
-}
-
-function assertProviderIssuer(issuer) {
-  expect(typeof issuer).toBe('string');
-  if (EXPECTED_PROVIDER === 'pingone') {
-    expect(issuer).toMatch(/^https:\/\/auth\.pingone\.[^/]+\/[^/]+\/as$/i);
-  } else if (EXPECTED_PROVIDER === 'pingfederate') {
-    expect(issuer).toBe(String(process.env.PF_ISSUER_URI || '').replace(/\/+$/, ''));
-  }
 }
 
 describe('A2A UC2 sensitive-delegation — every vertical, real pipeline (real)', () => {
@@ -46,6 +42,10 @@ describe('A2A UC2 sensitive-delegation — every vertical, real pipeline (real)'
     if (!EXPECTED_PROVIDER) skipIfNoSession();
     if (EXPECTED_PROVIDER && !['pingone', 'pingfederate'].includes(EXPECTED_PROVIDER)) {
       throw new Error('A2A_EXPECTED_OAUTH_PROVIDER must be pingone or pingfederate');
+    }
+    if (EXPECTED_PROVIDER) {
+      const activeProvider = require('../../../services/configStore').getOAuthProvider();
+      assertActiveProvider(EXPECTED_PROVIDER, activeProvider);
     }
     try {
       client = createBffClient('enduser');
@@ -72,6 +72,7 @@ describe('A2A UC2 sensitive-delegation — every vertical, real pipeline (real)'
         .then((r) => [200, 204].includes(r.status))
         .catch(() => false);
       if (!activated) {
+        assertVerticalActivated(false, EXPECTED_PROVIDER, vertical);
         console.warn(`[a2a-live] cannot switch live to '${vertical}' — skipping`);
         return;
       }
@@ -88,7 +89,8 @@ describe('A2A UC2 sensitive-delegation — every vertical, real pipeline (real)'
       if (EXPECTED_PROVIDER) {
         const events = inv.data.tokenEvents || [];
         const userEvent = tokenEventById(events, 'user-token');
-        assertProviderIssuer(userEvent?.claims?.iss);
+        const configuredIssuer = require('../../../services/oauthEndpointResolver').getIssuer();
+        assertProviderIssuer(EXPECTED_PROVIDER, userEvent?.claims?.iss, configuredIssuer);
 
         for (const [id, status] of [
           ['a2a-agent1-actor', 'acquired'],
