@@ -373,8 +373,20 @@ class OAuthService {
   async performIdJagExchange(subjectToken, subjectTokenType, audience, resource, scopes) {
     if (!subjectToken) throw new Error('ID-JAG exchange requires a subject token');
 
-    const exchangeClientId = configStore.getEffective('pf_token_exchange_client_id');
-    const exchangeClientSecret = configStore.getEffective('pf_token_exchange_client_secret');
+    // PF binds refresh tokens to the client that received them (OAuth §6 / PF
+    // processor policy). The BFF's session refresh token is minted to the User
+    // Login client, so the exchange MUST run as that same client — the migrated
+    // PingOne Token Exchanger client (f4dd707d…) is a different identity and PF
+    // rejects its attempt with "unknown, invalid, or expired refresh token".
+    // PingOne tolerated the cross-client exchange, which is why PingOne worked
+    // while PingFederate did not. Fall back to the explicit exchange client for
+    // deployments that mint the subject token with a dedicated PF client.
+    const userClientId = configStore.getEffective('pf_user_client_id');
+    const exchangeClientId = userClientId
+      || configStore.getEffective('pf_token_exchange_client_id');
+    const exchangeClientSecret = userClientId
+      ? configStore.getEffective('pf_user_client_secret')
+      : configStore.getEffective('pf_token_exchange_client_secret');
     if (!exchangeClientId) throw new Error('PingFederate ID-JAG exchange client is not configured');
 
     const scopeStr = Array.isArray(scopes) ? scopes.join(' ') : String(scopes || '');
@@ -390,6 +402,7 @@ class OAuthService {
     if (resource) body.set('resource', resource);
 
     const method = String(
+      configStore.getEffective('pf_user_token_endpoint_auth_method') ||
       configStore.getEffective('pf_token_exchange_token_endpoint_auth_method') || 'basic'
     ).toLowerCase();
     const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
