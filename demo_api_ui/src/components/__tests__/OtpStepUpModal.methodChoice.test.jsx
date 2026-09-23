@@ -72,7 +72,8 @@ describe('OtpStepUpModal method choice table', () => {
     fireEvent.click(screen.getByTestId('mfa-choose-sms'));
 
     expect(screen.getByTestId('mfa-sms-enroll-phone')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('+15551234567')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('5551234567')).toBeInTheDocument();
+    expect(screen.getByTestId('mfa-country-code')).toHaveValue('1');
     expect(screen.getByRole('button', { name: /Send activation code/i })).toBeInTheDocument();
   });
 
@@ -111,7 +112,7 @@ describe('OtpStepUpModal method choice table', () => {
     );
 
     fireEvent.click(screen.getByTestId('mfa-choose-sms'));
-    fireEvent.change(screen.getByPlaceholderText('+15551234567'), {
+    fireEvent.change(screen.getByPlaceholderText('5551234567'), {
       target: { value: '5551234567' },
     });
     fireEvent.click(screen.getByRole('button', { name: /Send activation code/i }));
