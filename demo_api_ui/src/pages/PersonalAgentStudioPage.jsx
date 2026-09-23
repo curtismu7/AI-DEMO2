@@ -6,6 +6,7 @@ import PersonalAgentClientCards from '../components/learning/PersonalAgentClient
 import SecurityRail from '../components/SecurityRail';
 import TokenChainFilmstrip from '../components/TokenChainFilmstrip';
 import { useTokenChainOptional } from '../context/TokenChainContext';
+import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 
 const SKINS = ['privilege', 'claude', 'claude-terminal', 'gpt', 'gemini'];
 const SKIN_LABELS = { privilege: 'Privilege', claude: 'Claude', 'claude-terminal': 'Terminal', gpt: 'ChatGPT', gemini: 'Gemini' };
@@ -83,6 +84,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   const replayTimer = useRef(null);
 
   const tokenChain = useTokenChainOptional();
+  const setTokenEvents = tokenChain?.setTokenEvents;
   const events = tokenChain?.events || [];
   const gates = deriveGates(events);
   const actClaim = extractActClaim(events);
@@ -99,6 +101,8 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
 
   const executeWorkload = useCallback((uc) => {
     if (!uc?.runPrompt || !uc?.useCaseId) return;
+    tokenChainTraceStore.beginTrace({ prompt: uc.runPrompt });
+    setTokenEvents?.(uc.primaryTool, []);
     setRunState({ status: 'running', text: '' });
     fetch('/api/agent/invoke', {
       method: 'POST',
@@ -107,11 +111,12 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       body: JSON.stringify({ prompt: uc.runPrompt, vertical, useCaseId: uc.useCaseId }),
     }).then(async (response) => {
       const data = await response.json().catch(() => ({}));
+      if (Array.isArray(data.tokenEvents)) setTokenEvents?.(uc.primaryTool, data.tokenEvents);
       if (!response.ok) throw new Error(data.message || data.error || `Request failed (${response.status})`);
       return data;
     }).then((data) => setRunState({ status: 'complete', text: data.reply || 'The workload agent completed the request.' }))
       .catch((error) => setRunState({ status: 'error', text: error.message || 'The workload agent could not complete the request.' }));
-  }, [vertical]);
+  }, [vertical, setTokenEvents]);
 
   useEffect(() => {
     if (runNonce > 0 && scenario) executeWorkload(scenario);
