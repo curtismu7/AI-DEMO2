@@ -155,27 +155,25 @@ export function computeVerdict(trace, catalogEntry) {
   const cibaApprovedAndDispatched =
     useCaseId === 'ciba-out-of-band-approval' &&
     expected === 'PERMIT' &&
-    (decision == null || decision === 'INDETERMINATE' || decision === 'PERMIT') &&
-    (actualOutcome == null || actualOutcome === 'STEP_UP' || actualOutcome === 'HITL_REQUIRED') &&
+    decision === 'INDETERMINATE' &&
+    (actualOutcome === 'STEP_UP' || actualOutcome === 'HITL_REQUIRED') &&
     (trace.tokenEvents || []).some((event) =>
       event?.id === 'ciba-poll' && event.additionalData?.status === 'approved') &&
     !!trace.mcpResult &&
     trace.mcpResult.status !== 'error' &&
     trace.mcpResult?.denied !== true &&
     trace.outcome === 'ok';
-  const effectiveDecision = cibaApprovedAndDispatched ? 'PERMIT' : decision;
-  const cibaExplicitlyDenied = useCaseId === 'ciba-out-of-band-approval'
-    && expected === 'PERMIT'
-    && actualOutcome === 'DENY';
-  const outcomeMatches = cibaExplicitlyDenied
-    ? false
+  const cibaSuccessExpected = useCaseId === 'ciba-out-of-band-approval' && expected === 'PERMIT';
+  const cibaExplicitlyDenied = cibaSuccessExpected && actualOutcome === 'DENY';
+  const outcomeMatches = cibaSuccessExpected
+    ? !cibaExplicitlyDenied && (decision === 'PERMIT' || cibaApprovedAndDispatched)
     : expectedIsDenyLike && expectedFamily && actualOutcome
       ? actualOutcome === expectedFamily
-      : !expected || !effectiveDecision
+      : !expected || !decision
         ? true
         : expectedIsDenyLike
-          ? effectiveDecision !== 'PERMIT'
-          : effectiveDecision === 'PERMIT';
+          ? decision !== 'PERMIT'
+          : decision === 'PERMIT';
   const state = outcomeMatches
     ? (expectedIsDenyLike ? 'denied-as-expected' : 'verified')
     : 'mismatch';

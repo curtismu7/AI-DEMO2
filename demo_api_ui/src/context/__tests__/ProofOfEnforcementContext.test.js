@@ -130,6 +130,20 @@ test('a CIBA approval cannot override a hard denial on the final authorization t
   expect(v.state).toBe('mismatch');
 });
 
+test('CIBA approval without a recorded authorization challenge does not infer a PERMIT', () => {
+  const v = computeVerdict({
+    tokenEvents: [
+      { id: 'authorize-decision' },
+      { id: 'ciba-poll', additionalData: { status: 'approved' } },
+    ],
+    authorize: {},
+    mcpResult: { tool: 'create_transfer', denied: false },
+    outcome: 'ok',
+  }, CATALOG.find((entry) => entry.useCaseId === 'ciba-out-of-band-approval'));
+
+  expect(v.state).toBe('mismatch');
+});
+
 test('a real RFC 8693 two-exchange trace (no literal "token-exchange" id) still matches the token-exchange evidence step', async () => {
   const { getByTestId } = render(
     <ProofOfEnforcementProvider vertical="banking">
