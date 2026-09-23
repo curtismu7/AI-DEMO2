@@ -169,6 +169,18 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-23 — Workload Agents: UC38 and UC44 shared the Airlines action and MFA gate
+
+**Files changed:** `demo_api_server/config/useCases.js`, `demo_api_server/routes/agentInvokeRoute.js`, `demo_api_server/config/auth-requirements.json`, `demo_api_ui/src/pages/WorkloadAgentsPage.jsx`, `demo_api_ui/src/pages/PersonalAgentStudioPage.jsx`, `demo_api_ui/src/pages/PersonalAgentClientWindow.jsx`, `demo_api_ui/src/components/DemoStepsDropdown.jsx`, `demo_api_ui/src/config/missionControlCatalog.js`, `demo_api_ui/src/App.js`, generated use-case docs, and focused tests.
+
+**What was broken:** UC38 and UC44 both opened the Airlines Personal Agent Studio and ran `redeem_miles`; the studio hardcoded the Airlines vertical and UC44 slug, while the BFF applied the same blanket MFA pre-check to both slugs. The two workload-agent stories therefore showed the same action and gate even though UC38 is an MFA-protected write and UC44 is an on-behalf-of customer-data read.
+
+**What was fixed:** `/workload-agents` now presents the two catalog scenarios across all 11 supported verticals, with the selected action and exact prompt visible before launch. UC38 resolves to each vertical's UC7 protected write and requires customer MFA before delegation. UC44 resolves to a distinct customer-owned read and uses normal gateway/Authorize policy without an extra blanket MFA pre-check. Mission Control and UC38/UC44 deep links open the page with use-case and vertical context. The page is public to read; `/api/agent/invoke` still requires an authenticated customer and a registered agent.
+
+**Do not break:** the browser sends only the canonical use-case slug, vertical, and catalog prompt; the BFF rejects a browser-selected tool, missing or unsupported vertical, cross-vertical prompt, or a mismatch with the resolved catalog action. It must never silently fall back to Airlines or the other scenario. UC38 still returns step-up before execution without MFA; UC44 remains eligible for policy-driven step-up or denial. The BFF keeps tokens, and the existing RFC 8693 exchange, gateway, and Authorize boundaries still govern execution. Legacy `/personal-agent` freeform callers retain their generic authenticated path, and UC45 retains its MFA gate.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/pages/__tests__/WorkloadAgentsPage.test.jsx src/pages/__tests__/PersonalAgentStudioPage.test.jsx src/pages/__tests__/PersonalAgentClientWindow.test.jsx src/components/__tests__/DemoStepsDropdown.test.jsx src/config/__tests__/missionControlCatalog.test.js`; `cd demo_api_server && CI=true npx jest tests/useCases.workloadAgents.test.js tests/agentInvokeRoute.workloadAgents.test.js --forceExit`; from the repository root, `npm run use-cases:check` and `npm run authz:verify`; `cd demo_api_ui && npm run build`. These local checks pin the catalog, route, and request behavior. They do not establish a live PingOne exchange or gateway/Authorize decision; check those against the running stack with test credentials before claiming live execution.
+
 ### 2026-09-22 — Credential-rotation drift: stale admin-login secret invisible to the boot-time rotation check (PR #160)
 
 **Files changed:** `demo_api_server/services/configStore.js`, `demo_api_server/services/pingoneClientSecretPreflight.js` (new), `demo_api_server/scripts/rotateClientSecret.js` (new), `demo_api_server/server.js`.
