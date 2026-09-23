@@ -72,6 +72,8 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   const routeContextKey = routeVertical && ['UC38', 'UC44'].includes(routeId) ? `${routeId}:${vertical}` : null;
   const [routeScenario, setRouteScenario] = useState(null);
   const workloadScenario = scenario || (routeScenario?.key === routeContextKey ? routeScenario.useCase : null);
+  const [catalogLoadError, setCatalogLoadError] = useState(null);
+  const [catalogLoadAttempt, setCatalogLoadAttempt] = useState(0);
   const [runState, setRunState] = useState({ status: 'idle', text: '' });
   const [layoutState, setLayoutState] = useState('full');
   const [activeSkin, setActiveSkin] = useState('privilege');
@@ -88,11 +90,12 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   useEffect(() => {
     if (scenario || !routeContextKey) return;
     let live = true;
+    setCatalogLoadError(null);
     apiClient.get(`/api/use-cases/${routeId}?vertical=${encodeURIComponent(vertical)}`)
       .then(({ data }) => { if (live) setRouteScenario({ key: routeContextKey, useCase: data.useCase }); })
-      .catch(() => { if (live) setRunState({ status: 'error', text: 'The catalog action could not be loaded.' }); });
+      .catch(() => { if (live) setCatalogLoadError(routeContextKey); });
     return () => { live = false; };
-  }, [scenario, routeId, routeContextKey, vertical]);
+  }, [scenario, routeId, routeContextKey, vertical, catalogLoadAttempt]);
 
   const executeWorkload = useCallback((uc) => {
     if (!uc?.runPrompt || !uc?.useCaseId) return;
@@ -170,8 +173,11 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   });
 
   if (routeContextKey && !workloadScenario) return (
-    <div className="workload-agents__run" role="status">
-      <p>Loading {routeId} action for {vertical}…</p>
+    <div className="workload-agents__run">
+      {catalogLoadError === routeContextKey ? <>
+        <p role="alert">The catalog action could not be loaded. Retry {routeId} for {vertical}, or choose another scenario or vertical.</p>
+        <button type="button" onClick={() => setCatalogLoadAttempt((attempt) => attempt + 1)}>Retry loading {routeId}</button>
+      </> : <p role="status">Loading {routeId} action for {vertical}…</p>}
     </div>
   );
 

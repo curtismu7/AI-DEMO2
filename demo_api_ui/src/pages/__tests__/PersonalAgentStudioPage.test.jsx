@@ -124,4 +124,18 @@ describe('PersonalAgentStudioPage', () => {
     expect(await screen.findByRole('button', { name: 'Run UC44 action' })).toBeTruthy();
     expect(screen.getByText(/get_account_balance/)).toBeTruthy();
   });
+
+  it('shows a failed direct-query catalog load and retries the selected action', async () => {
+    apiClient.get.mockReset();
+    apiClient.get.mockRejectedValueOnce(new Error('Catalog unavailable')).mockResolvedValueOnce({ data: { useCase: {
+      id: 'UC44', title: 'Customer read', useCaseId: 'workload-digital-assistant-obo',
+      primaryTool: 'get_account_balance', runPrompt: 'show my balance',
+    } } });
+    render(<MemoryRouter initialEntries={['/personal-agent?useCase=UC44&vertical=banking']}><PersonalAgentStudioPage /></MemoryRouter>);
+    expect(await screen.findByRole('alert')).toHaveTextContent('The catalog action could not be loaded.');
+    expect(screen.queryByText(/Loading UC44 action/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Retry loading UC44/i }));
+    expect(await screen.findByRole('button', { name: 'Run UC44 action' })).toBeTruthy();
+    expect(apiClient.get).toHaveBeenCalledTimes(2);
+  });
 });
