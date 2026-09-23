@@ -125,6 +125,7 @@ export const NAV_PAGE_PATHS = {
   "Interactive Flow (Node)": "/architecture/flow",
   "Sequence Diagram (Node)": "/sequence-diagram",
   "Canvas Diagram (Node)": "/architecture/canvas",
+  "PingFederate ID-JAG (Node)": "/architecture/pingfederate-id-jag",
   "Delegated Access Proof": "/academy/delegation/guided",
   "Agent Onboarding Flow (Node)": "/agent-onboarding-flow",
   "Agent Onboarding Flow Subway (Node)": "/agent-onboarding-flow-subway",

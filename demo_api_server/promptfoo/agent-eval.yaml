@@ -7,7 +7,7 @@ prompts:
   - "{{question}}"
 
 providers:
-  - id: agent-invoke-heuristics
+  - id: http
     label: Agent (heuristics)
     config:
       url: http://localhost:3001/api/agent/invoke
@@ -20,7 +20,7 @@ providers:
         provider: heuristics
       transformResponse: json.reply
 
-  - id: agent-invoke-llm
+  - id: http
     label: Agent (LLM)
     config:
       url: http://localhost:3001/api/agent/invoke
@@ -44,4 +44,4 @@ defaultTest:
     - type: not-icontains
       value: "mcp_authorize_unavailable"
 
-tests: promptfoo/agent-eval-tests.yaml
+tests: file://agent-eval-tests.yaml

@@ -724,7 +724,14 @@ async function buildMcpFirstToolGateInputs({ req, tool, agentToken, userSub, use
   // Single-use: consumed here so it cannot silently PERMIT a later,
   // unrelated tool call. Suppresses only the step-up escalation below --
   // DENY and HITL checks (which run first in every branch) are unaffected.
-  const stepUpAlreadyVerified = req.session?.stepUpVerified > Date.now();
+  const approvedTransaction = req.session?.cibaApprovedTransaction;
+  const stepUpAlreadyVerified = req.session?.stepUpVerified > Date.now()
+    && (!approvedTransaction || (
+      approvedTransaction.tool === tool
+      && Number(approvedTransaction.amount) === Number(toolAmount)
+      && approvedTransaction.fromAccountId === (toolParams?.fromAccountId ?? toolParams?.from_account_id ?? null)
+      && approvedTransaction.toAccountId === (toolParams?.toAccountId ?? toolParams?.to_account_id ?? null)
+    ));
   if (stepUpAlreadyVerified) {
     req.session.stepUpVerified = 0;
   }
@@ -751,7 +758,12 @@ async function buildMcpFirstToolGateInputs({ req, tool, agentToken, userSub, use
   const hitlAlreadyVerified = hitlCredit.claim(
     req.session,
     toolAmount != null && Number.isFinite(Number(toolAmount))
-      ? { amount: toolAmount }
+      ? {
+          amount: toolAmount,
+          tool,
+          fromAccountId: toolParams?.fromAccountId ?? toolParams?.from_account_id ?? null,
+          toAccountId: toolParams?.toAccountId ?? toolParams?.to_account_id ?? null,
+        }
       : {},
   );
   if (hitlAlreadyVerified) {
@@ -767,8 +779,11 @@ async function buildMcpFirstToolGateInputs({ req, tool, agentToken, userSub, use
     // look the approval up without a session. See cibaTransactionReceipt.js.
     // Only record AFTER amount-bound isFresh — never mint a receipt for an
     // amount the CIBA credit did not cover.
-    if (transactionType && toolAmount != null) {
-      cibaTransactionReceipt.record(policyUserId, tool, toolAmount);
+    if (transactionType && toolAmount != null && !req.session?.cibaApprovedTransaction) {
+      cibaTransactionReceipt.record(policyUserId, tool, toolAmount, {
+        fromAccountId: toolParams?.fromAccountId ?? toolParams?.from_account_id ?? null,
+        toAccountId: toolParams?.toAccountId ?? toolParams?.to_account_id ?? null,
+      });
     }
   }
 

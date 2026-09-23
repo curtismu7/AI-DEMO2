@@ -165,6 +165,17 @@ function localResultOutcome(result, tokenEvents, extraBodyFields) {
   };
 }
 
+function cibaTransactionContext(tool, params) {
+    const type = { create_transfer: 'transfer', create_deposit: 'deposit', create_withdrawal: 'withdrawal' }[tool];
+    if (!type || !params || typeof params !== 'object') return {};
+    return {
+        transactionType: type,
+        transaction_amount: params.amount,
+        fromAccountId: params.fromAccountId ?? params.from_account_id ?? null,
+        toAccountId: params.toAccountId ?? params.to_account_id ?? null,
+    };
+}
+
 /**
  * Detect a HITL / step-up signal embedded in an MCP tool RESULT's content.
  *
@@ -707,6 +718,7 @@ async function runMcpToolPipeline(ctx) {
             } catch (_) { /* SSE best-effort */ }
             return { kind: 'block', httpStatus: mcpAuthz.block.status, tokenEvents, body: {
                 ...mcpAuthz.block.body,
+                ...cibaTransactionContext(tool, params),
                 // 428 is a valid authorization precondition (step-up/HITL), not a
                 // failure — 403 (DENY) is the only genuine error status this block
                 // returns. Explicit so callers don't have to infer it from status.
@@ -1446,6 +1458,7 @@ async function runMcpToolPipeline(ctx) {
             }
             const stepUpBody = {
                 error: 'mcp_step_up_required',
+                ...cibaTransactionContext(tool, params),
                 isError: false,
                 error_description: 'PingOne Authorize requires additional authentication before this tool can run.',
                 tool,
@@ -1540,6 +1553,7 @@ async function runMcpToolPipeline(ctx) {
             if (declaredStepUpMethod) {
                 const stepUpBody = {
                     error: 'mcp_step_up_required',
+                    ...cibaTransactionContext(tool, params),
                     isError: false,
                     error_description: 'PingOne Authorize requires additional authentication before this tool can run.',
                     tool,

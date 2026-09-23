@@ -594,6 +594,10 @@ export default function BankingAgentFull({
   const cibaPollTimeoutsRef = useRef(new Map());
   const cibaUnmountedRef = useRef(false);
   useEffect(() => {
+    // React StrictMode replays effects with setup → cleanup → setup on mount.
+    // Cleanup marks this instance inactive; reset it whenever listeners are
+    // installed so the replayed instance can continue polling.
+    cibaUnmountedRef.current = false;
     const wakeCibaPoller = (event) => {
       try {
         const payload = JSON.parse(event.newValue || '{}');

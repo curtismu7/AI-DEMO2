@@ -147,8 +147,8 @@ function demoGroupsForUser(req) {
  * @param {import('express').Request} req
  * @returns {Promise<{ allowed: boolean, code?: string, httpStatus?: number, message?: string, matchDetail?: string }>}
  */
-async function checkPolicy(req) {
-  if (!isEnabled()) {
+async function checkPolicy(req, { runScoped = false } = {}) {
+  if (!runScoped && !isEnabled()) {
     return {
       allowed: false,
       code: 'enterprise_mcp_not_enabled',
@@ -158,7 +158,7 @@ async function checkPolicy(req) {
   }
 
   const cacheTtlMs = getCacheTtlMs();
-  const cache = req.session?.enterpriseMcpPolicyCache;
+  const cache = runScoped ? null : req.session?.enterpriseMcpPolicyCache;
   if (cacheTtlMs > 0 && cache && cache.expiresAt > Date.now() && cache.result) {
     return cache.result;
   }
@@ -222,7 +222,7 @@ async function checkPolicy(req) {
     await revokeHeldMcpToken(req);
   }
 
-  if (req.session) {
+  if (req.session && !runScoped) {
     req.session.enterpriseMcpPolicyCache = {
       result,
       expiresAt: Date.now() + cacheTtlMs,

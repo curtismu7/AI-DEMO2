@@ -1,0 +1,32 @@
+.workload-agents { min-height: 100%; padding: clamp(20px, 3vw, 44px); background: var(--th-bg-page); color: var(--th-text); }
+.workload-agents__intro { display: flex; justify-content: space-between; align-items: end; gap: 32px; max-width: 1380px; margin: 0 auto 28px; }
+.workload-agents__intro > div { max-width: 760px; }
+.workload-agents__kicker { margin: 0 0 10px; font-size: var(--font-size-xs); font-weight: 700; color: var(--th-text-muted); }
+.workload-agents h1 { margin: 0 0 12px; font-size: var(--font-size-4xl); line-height: 1.1; letter-spacing: -.035em; }
+.workload-agents__intro p:not(.workload-agents__kicker) { margin: 0; max-width: 68ch; color: var(--th-text-body); line-height: 1.55; }
+.workload-agents code { padding: 2px 5px; border-radius: 4px; background: var(--th-code-bg); color: var(--th-code-text); }
+.workload-agents__vertical { display: grid; gap: 8px; min-width: 200px; font-size: var(--font-size-xs); font-weight: 700; color: var(--th-text-body); }
+.workload-agents__vertical select { width: 100%; padding: 10px 12px; border: 1px solid var(--th-border-strong); border-radius: 8px; background: var(--th-bg-card); color: var(--th-text); font: inherit; }
+.workload-agents__choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; max-width: 1380px; margin: 0 auto 24px; }
+.workload-agents__choice { display: flex; flex-direction: column; min-width: 0; padding: 24px; border: 1px solid var(--th-border); border-radius: 14px; background: var(--th-bg-card); color: var(--th-text); }
+.workload-agents__choice.is-selected { border-color: var(--th-border-strong); box-shadow: inset 4px 0 0 var(--th-text); }
+.workload-agents__choice-head { display: flex; justify-content: space-between; gap: 12px; color: var(--th-text-muted); font-size: var(--font-size-xs); font-weight: 700; }
+.workload-agents__choice h2 { margin: 16px 0 8px; font-size: var(--font-size-xl); line-height: 1.25; }
+.workload-agents__choice p { margin: 0 0 12px; color: var(--th-text-body); line-height: 1.5; }
+.workload-agents__choice .workload-agents__cue { margin-bottom: 20px; font-weight: 600; color: var(--th-text); }
+.workload-agents__action { display: grid; grid-template-columns: 1fr 1.5fr; gap: 12px; margin: auto 0 20px; padding: 16px; border-radius: 8px; background: var(--th-bg-inset); color: var(--th-text); }
+.workload-agents__action dt { margin-bottom: 6px; font-size: var(--font-size-xs); color: var(--th-text-muted); }
+.workload-agents__action dd { margin: 0; overflow-wrap: anywhere; font-weight: 700; }
+.workload-agents__choice button, .workload-agents__run button { align-self: start; padding: 10px 16px; border: 1px solid var(--th-border-strong); border-radius: 8px; background: var(--th-text); color: var(--th-bg-card); font: inherit; font-weight: 700; cursor: pointer; }
+.workload-agents__choice button:disabled, .workload-agents__run button:disabled { opacity: .55; cursor: wait; }
+.workload-agents button:focus-visible, .workload-agents select:focus-visible { outline: 3px solid var(--th-status-info); outline-offset: 2px; }
+.workload-agents__execution { max-width: 1380px; margin: 0 auto; border: 1px solid var(--th-border); border-radius: 14px; overflow: hidden; background: var(--th-bg-card); color: var(--th-text); }
+.workload-agents__execution-head { display: flex; justify-content: space-between; gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--th-border); }
+.workload-agents__execution-head h2, .workload-agents__execution-head p { margin: 0; }
+.workload-agents__execution-head h2 { margin-bottom: 4px; font-size: var(--font-size-lg); }
+.workload-agents__execution-head p { color: var(--th-text-body); }
+.workload-agents__error { max-width: 1380px; margin: 0 auto 16px; color: var(--th-status-error-text); }
+.workload-agents__run { display: grid; gap: 12px; padding: 24px; background: var(--th-bg-card); color: var(--th-text); }
+.workload-agents__run h3, .workload-agents__run p { margin: 0; }
+.workload-agents__run p { color: var(--th-text-body); }
+@media (max-width: 800px) { .workload-agents h1 { font-size: var(--font-size-3xl); } .workload-agents__intro { align-items: stretch; flex-direction: column; } .workload-agents__choices { grid-template-columns: 1fr; } .workload-agents__execution-head { flex-direction: column; } }

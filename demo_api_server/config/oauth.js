@@ -38,7 +38,7 @@ const config = {
   },
 
   // CIBA — Client-Initiated Backchannel Authentication
-  get cibaEndpoint()           { return `${this._base}/bc-authorize`; },
+  get cibaEndpoint()           { return `${this._base}/cibaAuthorization`; },
 
   /** OIDC + banking scopes — enough distinct scopes for RFC 8693 MCP token narrowing. */
   get scopes() {

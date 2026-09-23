@@ -33,7 +33,7 @@ describe('guardrailAttackCatalog', () => {
   // exact confusion this field exists to remove.
   it('every entry declares a known effect', () => {
     for (const a of GUARDRAIL_ATTACKS) {
-      expect(['blocks', 'sanitizes', 'none'], `effect for ${a.id}`).toContain(a.effect);
+      expect(['blocks', 'sanitizes', 'none', 'unmeasured'], `effect for ${a.id}`).toContain(a.effect);
     }
   });
 

@@ -22,6 +22,7 @@ export default function PromptFooPage({ user }) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [expandedCase, setExpandedCase] = useState(null);
+  const [errorCopyStatus, setErrorCopyStatus] = useState('');
 
   useEffect(() => {
     let alive = true;
@@ -53,6 +54,19 @@ export default function PromptFooPage({ user }) {
     }
   };
 
+  const copyErrorDetails = async () => {
+    const details = [`Exit ${result.exitCode}: ${result.error}`, result.stderr]
+      .filter(Boolean)
+      .join('\n');
+    try {
+      await navigator.clipboard.writeText(details);
+      setErrorCopyStatus('copied');
+    } catch {
+      setErrorCopyStatus('failed');
+    }
+    window.setTimeout(() => setErrorCopyStatus(''), 2000);
+  };
+
   if (!user) return <SignInPrompt />;
 
   return (
@@ -70,7 +84,7 @@ export default function PromptFooPage({ user }) {
       <section className="promptfoo-page__suites">
         {error && <div className="promptfoo-page__error" role="alert">{error}</div>}
         {!suites.length && !error && (
-          <div className="promptfoo-page__loading"><PingIdentitySpinner /> Loading suites…</div>
+          <div className="promptfoo-page__loading"><PingIdentitySpinner label="Loading PromptFoo suites…" /> Loading suites…</div>
         )}
         {suites.map((s) => (
           <div key={s.key} className="promptfoo-page__suite" data-testid={`suite-${s.key}`}>
@@ -88,7 +102,7 @@ export default function PromptFooPage({ user }) {
               >
                 {running === s.key ? 'Running…' : 'Run eval'}
               </button>
-              {running === s.key && <PingIdentitySpinner />}
+              {running === s.key && <PingIdentitySpinner label={`Running ${s.label} evaluation…`} />}
             </div>
           </div>
         ))}
@@ -112,7 +126,17 @@ export default function PromptFooPage({ user }) {
             )}
             {result.error && (
               <div className="promptfoo-page__error">
-                Exit {result.exitCode}: {result.error}
+                <div className="promptfoo-page__error-header">
+                  <span>Exit {result.exitCode}: {result.error}</span>
+                  <button
+                    type="button"
+                    className="promptfoo-page__expand"
+                    onClick={copyErrorDetails}
+                    aria-label="Copy error details to clipboard"
+                  >
+                    {errorCopyStatus === 'copied' ? '✓ Copied' : errorCopyStatus === 'failed' ? 'Copy failed' : 'Copy'}
+                  </button>
+                </div>
                 {result.stderr && <pre>{result.stderr}</pre>}
               </div>
             )}

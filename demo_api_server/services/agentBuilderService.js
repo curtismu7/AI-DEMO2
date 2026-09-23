@@ -143,6 +143,40 @@ async function getAgentForUser(user, agentType = 'personal') {
   return raw ? summarizeAgent(raw) : null;
 }
 
+/** Resolve an owned client-credentials app for a real workload run.
+ * The secret is fetched server-side for this request and is never included in
+ * the public agent summary or persisted by this service. */
+async function getRuntimeForUser(user, agentType = 'personal') {
+  const opts = await requestOptions();
+  const raw = await findAgentRaw(user, opts, agentType);
+  if (!raw || !ownsObject(user, raw)) return null;
+  if (raw.enabled === false || !(raw.grantTypes || []).includes('CLIENT_CREDENTIALS') || !raw.clientId) {
+    throw Object.assign(new Error('The registered workload agent must be enabled and allow client_credentials.'), {
+      code: 'workload_agent_not_client',
+    });
+  }
+
+  const secretResponse = await axios.get(`${apiBase()}/applications/${raw.id}/secret`, opts);
+  const clientSecret = secretResponse.data?.secret;
+  if (!clientSecret) {
+    throw Object.assign(new Error('PingOne did not return a client secret for the registered workload agent.'), {
+      code: 'workload_agent_secret_unavailable',
+    });
+  }
+  const authMethod = String(raw.tokenEndpointAuthMethod || 'CLIENT_SECRET_POST').toUpperCase();
+  if (!['CLIENT_SECRET_POST', 'CLIENT_SECRET_BASIC'].includes(authMethod)) {
+    throw Object.assign(new Error('The registered workload agent must use client secret post or basic authentication.'), {
+      code: 'workload_agent_auth_method_unsupported',
+    });
+  }
+  return {
+    agent: summarizeAgent(raw),
+    clientId: raw.clientId,
+    clientSecret,
+    authMethod: authMethod === 'CLIENT_SECRET_BASIC' ? 'basic' : 'post',
+  };
+}
+
 /**
  * Create the user's agent. `overrides` carries config copied from an existing
  * agent via the picker: { grantTypes?: string[], tokenEndpointAuthMethod? }.
@@ -505,6 +539,7 @@ module.exports = {
   agentName,
   listApplicationsRaw,
   getAgentForUser: withSanitizedErrors(getAgentForUser),
+  getRuntimeForUser: withSanitizedErrors(getRuntimeForUser),
   getEmbeddedWorkerForUser: withSanitizedErrors((user) => getAgentForUser(user, 'saas-embedded-worker')),
   getPersonalAgentCimd: personalAgentCimdService.getPersonalAgentCimd,
   ensurePersonalAgentCimd: personalAgentCimdService.ensurePersonalAgentCimd,

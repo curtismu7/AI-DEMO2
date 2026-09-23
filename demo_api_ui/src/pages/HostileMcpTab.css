@@ -88,6 +88,33 @@
   font-size: var(--font-size-base);
 }
 
+.hmc-prereq,
+.hmc-outcome {
+  margin: 0.75rem 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+}
+
+.hmc-outcome--denied {
+  border-inline-start: 4px solid var(--th-status-success-border);
+}
+
+.hmc-outcome--allowed-stub,
+.hmc-outcome--user-not-found,
+.hmc-outcome--inconclusive,
+.hmc-outcome--unavailable {
+  border-inline-start: 4px solid var(--th-status-warning);
+}
+
+.hmc-outcome p { margin: 0; }
+.hmc-outcome p + p { margin-top: 0.5rem; }
+.hmc-reachability { color: var(--th-text-muted); }
+
 .hmc-body {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
