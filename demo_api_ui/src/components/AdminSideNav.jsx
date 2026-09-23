@@ -1292,7 +1292,10 @@ export default function AdminSideNav({
     ], "usr"),
     productGroup("Authorize", [
       "P1AZ Inspector",
-      "PAC Editor",
+      // PAC Editor is only registered on local hostnames (it opens a loopback
+      // editor via scripts/pac-edit.sh) — demanding it on any other hostname
+      // crashed the whole nav with "Missing navigation item" (2026-09-22).
+      ...(showPacEditorLink ? ["PAC Editor"] : []),
       "Authorize Capabilities",
       "Policy Decision Trace",
       "Scope Audit",

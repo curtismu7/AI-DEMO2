@@ -318,8 +318,10 @@ async function loginAsCustomerViaApiCookie(page) {
     sameSite: 'Lax',
   }]);
   await page.goto(`${base.replace(/\/$/, '')}/dashboard`, { waitUntil: 'domcontentloaded' });
+  // The SPA can take >30s to hydrate right after a stack restart (vite
+  // dev-server cold compile) — give it double the default window.
   await page.waitForSelector('[class*="dashboard"], [class*="ba-subtitle"], .banking-agent-fab', {
-    timeout: POST_LOGIN_TIMEOUT,
+    timeout: POST_LOGIN_TIMEOUT * 2,
   });
   return true;
 }
@@ -399,6 +401,7 @@ module.exports = {
   getE2eBaseUrl,
   waitForE2eBaseUrl,
   loginAsCustomer,
+  loginAsCustomerViaApiCookie,
   loginAsAdmin,
   saveCustomerSession,
   saveAdminSession,
