@@ -22,6 +22,7 @@ export default function PromptFooPage({ user }) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const [expandedCase, setExpandedCase] = useState(null);
+  const [errorCopyStatus, setErrorCopyStatus] = useState('');
 
   useEffect(() => {
     let alive = true;
@@ -51,6 +52,19 @@ export default function PromptFooPage({ user }) {
     } finally {
       setRunning(null);
     }
+  };
+
+  const copyErrorDetails = async () => {
+    const details = [`Exit ${result.exitCode}: ${result.error}`, result.stderr]
+      .filter(Boolean)
+      .join('\n');
+    try {
+      await navigator.clipboard.writeText(details);
+      setErrorCopyStatus('copied');
+    } catch {
+      setErrorCopyStatus('failed');
+    }
+    window.setTimeout(() => setErrorCopyStatus(''), 2000);
   };
 
   if (!user) return <SignInPrompt />;
@@ -112,7 +126,17 @@ export default function PromptFooPage({ user }) {
             )}
             {result.error && (
               <div className="promptfoo-page__error">
-                Exit {result.exitCode}: {result.error}
+                <div className="promptfoo-page__error-header">
+                  <span>Exit {result.exitCode}: {result.error}</span>
+                  <button
+                    type="button"
+                    className="promptfoo-page__expand"
+                    onClick={copyErrorDetails}
+                    aria-label="Copy error details to clipboard"
+                  >
+                    {errorCopyStatus === 'copied' ? '✓ Copied' : errorCopyStatus === 'failed' ? 'Copy failed' : 'Copy'}
+                  </button>
+                </div>
                 {result.stderr && <pre>{result.stderr}</pre>}
               </div>
             )}

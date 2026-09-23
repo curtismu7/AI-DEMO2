@@ -160,11 +160,11 @@
 }
 
 .promptfoo-page__error {
-  background: rgba(244, 67, 54, 0.08);
-  border: 1px solid rgba(244, 67, 54, 0.3);
+  background: var(--th-status-error-bg);
+  border: 1px solid var(--th-status-error-border);
   border-radius: 8px;
   padding: 0.75rem 1rem;
-  color: #c62828;
+  color: var(--th-status-error-text);
   font-size: 0.88rem;
   margin: 0.75rem 0;
 }
@@ -174,6 +174,13 @@
   font-size: 0.75rem;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.promptfoo-page__error-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .promptfoo-page__cli {
