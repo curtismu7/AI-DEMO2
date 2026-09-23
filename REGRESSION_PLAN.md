@@ -169,6 +169,29 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-23 — Local mock-phone CIBA approval could not finish a banking write
+
+**Files changed:** `demo_api_server/routes/ciba.js`, `routes/transactions.js`,
+`services/cibaSimulatedService.js`, `services/cibaTransactionReceipt.js`,
+`.env.example`, and `demo_api_ui/src/context/ProofOfEnforcementContext.js`.
+
+**What was broken:** the BFF rejected simulated banking requests at initiation
+and polling, so tapping Approve on the mock phone could never release the agent.
+The proof verdict also required one particular Authorize challenge shape even
+after an approved poll and successful dispatch.
+
+**What was fixed:** explicitly opt in to local simulation in development, carry
+the mock decision through polling and an amount and account bound, single-use
+receipt, and score a completed approved dispatch without depending on the first
+challenge's exact decision shape. The mock receipt remains distinct from real
+PingOne CIBA proof and cannot satisfy step-up outside the local opt-in.
+
+**Do not break:** a hard authorization DENY still blocks the write, a pending
+or failed dispatch cannot score as a success, and real CIBA stays the default.
+
+**Verify:** build `demo_api_ui`, inspect the active local CIBA status and the
+approved mock-phone request through the live agent flow.
+
 ### 2026-09-23 — CIBA approval lacked a verified, transaction-bound handoff
 
 **Files changed:** `demo_api_server/config/oauth.js`, `routes/ciba.js`,

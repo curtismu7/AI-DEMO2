@@ -74,14 +74,16 @@ function _cibaEnabled(res) {
 // ---------------------------------------------------------------------------
 
 router.get('/status', (req, res) => {
-  const failoverMode = configStore.getEffective('ciba_failover_mode') || 'deny';
+  const localSimulation = cibaSimulatedService.isLocalSimulationEnabled();
+  const failoverMode = localSimulation ? 'fallback_simulated' : 'deny';
   const realConfigured = Boolean(process.env.PINGONE_CIBA_CLIENT_ID && process.env.PINGONE_CIBA_CLIENT_SECRET);
   const deliveryMode = configStore.getEffective('ciba_token_delivery_mode') || 'poll';
   res.json({
     enabled:      cibaService.isEnabled(),
     deliveryMode,
     bindingMessage: configStore.getEffective('ciba_binding_message') || 'Banking App Authentication',
-    engine: cibaService.isEnabled() && realConfigured && deliveryMode === 'poll' ? 'pingone' : 'unavailable',
+    engine: cibaService.isEnabled() && realConfigured && deliveryMode === 'poll'
+      ? 'pingone' : localSimulation && cibaService.isEnabled() ? 'simulated' : 'unavailable',
     failoverMode,
     // Show PingOne admin steps needed if not enabled
     setupRequired: !cibaService.isEnabled() || !realConfigured || deliveryMode !== 'poll',
@@ -221,8 +223,7 @@ router.post('/initiate', authenticateToken, async (req, res) => {
   } catch (realErr) {
     // CIBA requires a real OP result. Simulated failover is an explicit
     // development setting, never the default for transaction approval.
-    const failoverMode = configStore.getEffective('ciba_failover_mode') || 'deny';
-    if (failoverMode !== 'fallback_simulated' || CIBA_TRANSACTION_TOOLS[transactionType]) {
+    if (!cibaSimulatedService.isLocalSimulationEnabled()) {
       console.error('[CIBA] initiate failed:', realErr.response?.data || realErr.message);
       if (realErr.message === 'CIBA client credentials are not configured') {
         return res.status(503).json({
@@ -438,7 +439,7 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
   }
 
   if (pending.simulated) {
-    if (pending.hitlChallengeTool) {
+    if (pending.hitlChallengeTool && !cibaSimulatedService.isLocalSimulationEnabled()) {
       delete req.session.cibaRequests[authReqId];
       return res.status(403).json({ status: 'denied', error: 'real_ciba_required' });
     }
@@ -513,11 +514,7 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
       toAccountId: pending.toAccountId,
     };
 
-    // Mirror the real path's token-chain tracking below so the "CIBA
-    // Step-Up" tab and floating token-chain panel show an identical event —
-    // never distinguishable from a real approval in the UI.
-    // `engine: 'simulated'` is stashed in additionalData for our own
-    // debugging only; CibaStepUpFlowPanel.jsx never renders additionalData.
+    // Track the local approval while retaining its simulated provenance.
     // No fake access token is ever stored in req.session.oauthTokens — the
     // step-up gate in routes/transactions.js only reads stepUpVerified.
     try {
@@ -530,9 +527,9 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
           eventType: 'auth',
           token: fakeAccessToken,
           userId: subject,
-          description: 'CIBA backchannel step-up approved (out-of-band)',
+          description: 'Local simulated CIBA approval',
           additionalData: {
-            grantedVia: 'ciba',
+            grantedVia: 'local_ciba_simulation',
             scope: pending.scope,
             engine: 'simulated',
             ...(approverUserId ? { approvedBy: approverUserId } : {}),
@@ -554,7 +551,7 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
     }
     if (pending.hitlChallengeTool && pending.amount != null) {
       cibaTransactionReceipt.record(req.user?.id || req.user?.sub, pending.hitlChallengeTool, pending.amount, {
-        fromAccountId: pending.fromAccountId, toAccountId: pending.toAccountId, proofType: 'ciba',
+        fromAccountId: pending.fromAccountId, toAccountId: pending.toAccountId, proofType: 'simulated_ciba',
       });
     }
     return res.json({ status: 'approved', scope: pending.scope, engine: 'simulated' });
@@ -720,9 +717,16 @@ router.post('/approve-now/:authReqId', authenticateToken, (req, res) => {
     });
   }
 
+  if (Date.now() > pending.expiresAt) return res.status(410).json({ error: 'request_expired' });
+  if (pending.deniedByUser) return res.status(409).json({ error: 'request_denied' });
+  if (!cibaSimulatedService.isLocalSimulationEnabled()) return res.status(403).json({ error: 'local_simulation_disabled' });
+
   pending.approvedByUser = true;
   req.session.save((saveErr) => {
-    if (saveErr) console.error('[CIBA] session save error on approve-now:', saveErr);
+    if (saveErr) {
+      console.error('[CIBA] session save error on approve-now:', saveErr);
+      return res.status(503).json({ error: 'ciba_session_unavailable' });
+    }
     res.json({ ok: true });
   });
 });
@@ -747,9 +751,15 @@ router.post('/deny/:authReqId', authenticateToken, (req, res) => {
     });
   }
 
+  if (Date.now() > pending.expiresAt) return res.status(410).json({ error: 'request_expired' });
+  if (pending.approvedByUser) return res.status(409).json({ error: 'request_approved' });
+
   pending.deniedByUser = true;
   req.session.save((saveErr) => {
-    if (saveErr) console.error('[CIBA] session save error on deny:', saveErr);
+    if (saveErr) {
+      console.error('[CIBA] session save error on deny:', saveErr);
+      return res.status(503).json({ error: 'ciba_session_unavailable' });
+    }
     res.json({ ok: true });
   });
 });
