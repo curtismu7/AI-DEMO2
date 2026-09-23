@@ -169,6 +169,27 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-23 — Dashboard run card retained stale scenario after refresh
+
+**Files changed:** `demo_api_ui/src/utils/useCaseRunContext.js` and
+`demo_api_ui/src/components/UseCaseRunContextCard.jsx`.
+
+**What was broken:** the dashboard restored its last scenario from
+`sessionStorage` after a browser reload. React Router can also retain the
+scenario in navigation state, so the card continued to show the previous title
+after refresh.
+
+**What was fixed:** an ordinary reload of `/dashboard` now clears the stored
+scenario and ignores stale navigation state. An OAuth success return still
+restores its queued scenario. The empty card now says “Welcome” and explains
+that prompts and scenarios run here with authorization and tool evidence.
+
+**Do not break:** preserve scenario context through an OAuth sign-in return and
+when a scenario is explicitly launched; only ordinary dashboard reloads reset
+the card.
+
+**Verify:** `cd demo_api_ui && npm run build`.
+
 ### 2026-09-23 — Separate ordinary PingFederate demo exchange from the UC40 ID-JAG run
 
 **Files changed:**
