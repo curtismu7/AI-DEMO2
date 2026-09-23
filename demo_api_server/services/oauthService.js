@@ -1134,7 +1134,8 @@ class OAuthService {
     if (exchangeOptions.tokenLifetime != null) {
       body.set('token_lifetime', String(exchangeOptions.tokenLifetime));
     }
-    applyAudienceParam(body, audience);
+    if (!exchangeOptions.omitAudience) applyAudienceParam(body, audience);
+    const audienceDescription = exchangeOptions.omitAudience ? '(policy-derived)' : audience;
     // Only include actor_token when provided (Exchange 1 is delegation-only, no actor)
     // NOTE: Even if actor_token is sent, PingOne may not include an `act` claim in the response
     // if the MCP resource's token policy isn't configured for delegation. This is expected behavior
@@ -1150,7 +1151,7 @@ class OAuthService {
     // the 2-exchange chain. clientSecret itself must never reach telemetry.
     const telemetry = {
       exchangeVariant: 'exchange-as',
-      audience,
+      audience: audienceDescription,
       scope: scopeStr,
       exchangeClientId: clientId,
       hasActorToken: !!actorToken,
@@ -1163,7 +1164,9 @@ class OAuthService {
       const exchanged = response.data.access_token;
       if (!exchanged) throw new Error('Token exchange response missing access_token');
       _emitTokenExchangeEvent('ok', { ...telemetry, latencyMs: Date.now() - startTime });
-      console.log(`[Exchange-As] client=${clientId} audience=${audience} scope="${scopeStr}"`);
+      console.log(
+        `[Exchange-As] client=${clientId} audience=${audienceDescription} scope="${scopeStr}"`
+      );
       return exchanged;
     } catch (error) {
       const pingoneData = error.response?.data || {};
@@ -1176,7 +1179,7 @@ class OAuthService {
       richErr.pingoneError            = pingoneData.error;
       richErr.pingoneErrorDescription = pingoneData.error_description;
       richErr.pingoneErrorDetail      = pingoneData.error_detail || pingoneData.details;
-      richErr.requestContext          = { audience, scope: scopeStr, client_id: clientId };
+      richErr.requestContext          = { audience: audienceDescription, scope: scopeStr, client_id: clientId };
       _emitTokenExchangeEvent('fail', {
         ...telemetry,
         latencyMs: Date.now() - startTime,
