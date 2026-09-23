@@ -150,7 +150,6 @@ import { useAppFlags } from "./hooks/useAppFlags";
 import { useAuth } from "./hooks/useAuth";
 import { useOAuthUrlCleanup } from "./hooks/useOAuthUrlCleanup";
 import { useServerHealthCheck } from "./hooks/useServerHealthCheck";
-import AdminThemesPage from "./pages/AdminThemesPage";
 import SkinStudioPage from "./pages/SkinStudioPage";
 import AiControlPlanePage from "./pages/AiControlPlanePage";
 import ControlPlanePage from "./pages/ControlPlanePage";
@@ -1735,10 +1734,10 @@ function AppWithAuth() {
                             />
                             <Route
                               path="/themes"
-                              // Fully public — no session/user gate. Matches the
-                              // backend, which mounts vertical-themes with no
-                              // auth middleware at all (see verticalThemes.js).
-                              element={<AdminThemesPage />}
+                              // Legacy alias — the Themes admin moved to the
+                              // Skin Studio (T7). Kept public to match the old
+                              // route; Skin Studio itself is admin-gated.
+                              element={<Navigate to="/admin/skin-studio" replace />}
                             />
                             <Route
                               path="/users"

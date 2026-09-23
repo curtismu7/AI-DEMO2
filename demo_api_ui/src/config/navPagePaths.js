@@ -24,7 +24,7 @@ export const NAV_PAGE_PATHS = {
   "AI Gateway · MCP": "/ai-products/privilege-mcp",
   "Protected RAG": "/code-search",
   "AI Gateway Demo": "/privilege-demo",
-  Themes: "/themes",
+  "Skin Studio": "/admin/skin-studio",
   "Weather MCP": "/weather-mcp",
   "Brave Search MCP": "/brave-mcp",
   "Use Cases": "/use-cases",

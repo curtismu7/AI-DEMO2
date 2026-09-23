@@ -540,7 +540,7 @@ export default function AdminSideNav({
         { label: "Privilege · MCP", path: "/ai-products/privilege-mcp", icon: "mcp" },
       ],
     },
-    { label: "Themes", path: "/themes", icon: "cfg" },
+    { label: "Skin Studio", path: "/admin/skin-studio", icon: "cfg" },
     {
       label: "Demos",
       icon: "demo",
@@ -1247,7 +1247,7 @@ export default function AdminSideNav({
   const allNavItems = [
     findLegacyItem("Home"),
     findLegacyItem("Security Dashboard"),
-    findLegacyItem("Themes"),
+    findLegacyItem("Skin Studio"),
     productGroup("AI Gateway", [
       { from: "Shadow AI Detector", rename: "AI Guard" },
       "Protocol Playground",
