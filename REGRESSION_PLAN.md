@@ -211,6 +211,14 @@ tests/a2aSpecialistToolRegistry.test.js tests/a2aProtocolHttpTokenChain.test.js
 tests/a2aSpecialistExecutor.test.js tests/a2aBearerValidation.test.js --forceExit`;
 provider matrix commands above require their respective live login sessions.
 
+### 2026-09-23 — Place the hostile MCP denial demo on the LLM Gateway page
+
+**Files changed:** `demo_api_ui/src/pages/HostileMcpTab.jsx`, `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx` + `.css`, `demo_api_ui/src/pages/__tests__/LlmGatewayCombinedPage.test.jsx`, `demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.themeContrast.test.js`, `demo_api_ui/src/components/privilege/HostileMcpDenialPanel.jsx` + `.css`.
+**What was broken:** the hostile MCP denial scenario was mounted in the chat view of `/privilege-mcp-client`, while `/llm-gateway` owns the malicious MCP demonstration.
+**What was fixed:** moved the scenario into the existing “Malicious MCP” tab on `/llm-gateway` and kept its reads and induced tool call on the same Privilege-backed MCP relay.
+**Do not break:** keep the scenario’s tool, resource, and prompt reads plus the induced call routed through the BFF MCP relay so the displayed decision remains a real Privilege result.
+**Verify:** `cd demo_api_ui && npx vitest run src/pages/__tests__/LlmGatewayCombinedPage.test.jsx src/pages/__tests__/PrivilegeMcpClientPage.themeContrast.test.js src/components/privilege/__tests__/HostileMcpDenialPanel.test.jsx` and `npm run build`.
+
 ### 2026-09-22 — Credential-rotation drift: stale admin-login secret invisible to the boot-time rotation check (PR #160)
 
 **Files changed:** `demo_api_server/services/configStore.js`, `demo_api_server/services/pingoneClientSecretPreflight.js` (new), `demo_api_server/scripts/rotateClientSecret.js` (new), `demo_api_server/server.js`.

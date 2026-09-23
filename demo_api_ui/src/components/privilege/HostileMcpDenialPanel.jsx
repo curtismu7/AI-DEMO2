@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { HOSTILE_MCP_SCENARIOS } from '../../config/hostileMcpScenarios';
+import './HostileMcpDenialPanel.css';
 
 function sourceText(source, payload) {
   if (source.kind === 'tool') return payload?.description || 'Tool metadata was not discovered yet.';
@@ -60,29 +61,29 @@ export default function HostileMcpDenialPanel({ tools = [], onRequest, onCall })
 
   const denied = privilegeResult && !privilegeResult.ok;
   return (
-    <section className="cur-hostile-panel" aria-labelledby="hostile-panel-title">
-      <div className="cur-hostile-panel__header">
+    <section className="hmd-panel" aria-labelledby="hostile-panel-title">
+      <div className="hmd-panel__header">
         <div>
-          <p className="cur-hostile-panel__eyebrow">Hostile MCP · Privilege backstop</p>
+          <p className="hmd-panel__eyebrow">Hostile MCP · Privilege backstop</p>
           <h2 id="hostile-panel-title">Content reaches the agent. Privilege stops the action.</h2>
           <p>Select poisoned tool, resource, or prompt content, then send the induced call through the current MCP path.</p>
         </div>
-        <label className="cur-field cur-hostile-panel__selector">
-          <span className="cur-field-label">Scenario</span>
-          <select aria-label="Hostile MCP scenario" className="cur-input" value={scenarioId} onChange={(event) => setScenarioId(event.target.value)}>
+        <label className="hmd-panel__selector">
+          <span>Scenario</span>
+          <select aria-label="Hostile MCP scenario" value={scenarioId} onChange={(event) => setScenarioId(event.target.value)}>
             {HOSTILE_MCP_SCENARIOS.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}
           </select>
         </label>
       </div>
-      <p className="cur-hostile-panel__summary">{scenario.summary}</p>
-      <button type="button" className="cur-btn cur-btn--primary" onClick={runScenario} disabled={busy || !onCall}>
+      <p className="hmd-panel__summary">{scenario.summary}</p>
+      <button type="button" className="hmd-panel__run" onClick={runScenario} disabled={busy || !onCall}>
         {busy ? 'Running scenario…' : 'Run denial scenario'}
       </button>
-      {error && <p className="cur-hostile-panel__error" role="alert">{error}</p>}
-      <div className="cur-hostile-panel__evidence">
+      {error && <p className="hmd-panel__error" role="alert">{error}</p>}
+      <div className="hmd-panel__evidence">
         <article>
           <h3>Hostile content</h3>
-          <span className="cur-hostile-panel__meta">{scenario.source.kind} · {scenario.source.label}</span>
+          <span className="hmd-panel__meta">{scenario.source.kind} · {scenario.source.label}</span>
           <pre>{sourcePayload ? sourceText(scenario.source, sourcePayload) : 'Run the scenario to fetch the hostile content.'}</pre>
         </article>
         <article>
@@ -93,7 +94,7 @@ export default function HostileMcpDenialPanel({ tools = [], onRequest, onCall })
           <h3>Induced action</h3>
           <pre>{inducedCall ? resultText(inducedCall) : 'No tool call attempted yet.'}</pre>
         </article>
-        <article className={denied ? 'cur-hostile-panel__decision cur-hostile-panel__decision--denied' : 'cur-hostile-panel__decision'}>
+        <article className={denied ? 'hmd-panel__decision hmd-panel__decision--denied' : 'hmd-panel__decision'}>
           <h3>Privilege decision</h3>
           {denied ? (
             <>

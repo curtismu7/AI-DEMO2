@@ -2,6 +2,7 @@
 // entries to the same subject. This pins that they are now one page,
 // switchable by tab, with each URL still opening the tab a bookmark expects.
 import { fireEvent, render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import LlmGatewayCombinedPage from "../LlmGatewayCombinedPage";
 
 function mockFetch() {
@@ -35,6 +36,16 @@ describe("LLM Gateway combined page", () => {
 
     expect(await screen.findByLabelText(/^lane$/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/^prompt$/i)).not.toBeInTheDocument();
+  });
+
+  it("shows the Privilege denial scenario in the Malicious MCP tab", async () => {
+    mockFetch();
+    render(<MemoryRouter><LlmGatewayCombinedPage defaultTab="chat" /></MemoryRouter>);
+
+    fireEvent.click(screen.getByRole("tab", { name: /malicious mcp/i }));
+
+    expect(await screen.findByRole("heading", { name: /content reaches the agent/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /run denial scenario/i })).toBeInTheDocument();
   });
 
   describe("text size control", () => {
