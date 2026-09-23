@@ -3,8 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import DraggableModal from "../components/DraggableModal";
 import "./CibaApprovalPage.css";
 
-// UC22's separate-device CIBA approval page. Opened in a new tab by
-// AIAgent.js when a CIBA request starts, sharing the same session cookie —
+// Local CIBA simulation approval page. Opened in a new tab by
+// AIAgent.js only for an explicitly simulated request, sharing the session cookie —
 // NOT a QR-code/device-flow page (CIBA's spec has no such concept; see
 // docs/superpowers/specs/2026-07-20-uc22-ciba-separate-device-approval-design.md).
 //
@@ -187,7 +187,7 @@ export default function CibaApprovalPage() {
       <DraggableModal
         isOpen
         onClose={closeApprovalTab}
-        title="PingOne Identity Verification"
+        title="Local CIBA Simulation"
         className="ciba-phone-modal"
         footer={footer}
         closeLabel="Close"
@@ -217,8 +217,9 @@ export default function CibaApprovalPage() {
 
           {status === "pending" && details && (
             <>
-              <div>A sign-in attempt needs your approval.</div>
+              <div>This local simulation needs your approval.</div>
               <div style={DETAIL_BOX_STYLE}>
+                {details.binding_message && <div>{details.binding_message}</div>}
                 {details.amount != null ? (
                   <>
                     Transfer: ${Number(details.amount).toFixed(2)}
@@ -226,9 +227,7 @@ export default function CibaApprovalPage() {
                     {details.from_account_label || "Account"} →{" "}
                     {details.to_account_label || "Account"}
                   </>
-                ) : (
-                  details.binding_message || "Approve this request"
-                )}
+                ) : null}
               </div>
             </>
           )}

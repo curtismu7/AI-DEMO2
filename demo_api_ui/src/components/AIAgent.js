@@ -5486,8 +5486,8 @@ export default function BankingAgent({
           pendingOtpActionRef.current = { actionId, form };
 
           // CIBA: out-of-band backchannel approval. No device-picker modal --
-          // initiate, then poll until the user approves elsewhere (or, on this
-          // environment, the simulated fallback auto-approves after ~60s). See
+          // initiate, then poll until the user approves through PingOne or an
+          // explicitly configured local simulation. See
           // docs/superpowers/specs/2026-07-19-uc22-ciba-step-up-override-design.md.
           if (normalized.step_up_method === "ciba") {
             // Open a blank tab now, before the initiate fetch, so the browser
@@ -5525,19 +5525,24 @@ export default function BankingAgent({
                     normalized.hitlChallengeId || normalized.hitl_challenge_id || undefined,
                   from_account_label: fromLabel,
                   to_account_label: toLabel,
+                  from_account_id: fromAccountId,
+                  to_account_id: toAccountId,
                 }),
               });
-              if (!initRes.ok)
-                throw new Error(`CIBA initiation failed: ${initRes.status}`);
-              const { auth_req_id, interval } = await initRes.json();
+              if (!initRes.ok) {
+                const failure = await initRes.json().catch(() => ({}));
+                throw new Error(failure.message || `CIBA initiation failed: ${initRes.status}`);
+              }
+              const { auth_req_id, interval, binding_message, engine } = await initRes.json();
               if (cibaTab) {
-                cibaTab.location.href = `/ciba-approve?authReqId=${encodeURIComponent(auth_req_id)}`;
+                if (engine === "simulated") cibaTab.location.href = `/ciba-approve?authReqId=${encodeURIComponent(auth_req_id)}`;
+                else cibaTab.close();
               }
               addMessage(
                 "assistant",
-                " Waiting for CIBA approval — this normally completes on a separate device. Click Approve to continue now, or it will continue automatically in about a minute.",
+                `Waiting for CIBA approval. Match this request on your authentication device: ${binding_message || "Banking request"}`,
                 `ciba-step-${Date.now()}`,
-                { showCibaApproveAction: true, cibaAuthReqId: auth_req_id },
+                { showCibaApproveAction: engine === "simulated", cibaAuthReqId: auth_req_id },
               );
               toast.dismiss(toastId);
               agentFlowDiagram.completeMfaChallenge(null); // Pending
@@ -5557,7 +5562,7 @@ export default function BankingAgent({
               if (cibaTab) cibaTab.close();
               addMessage(
                 "assistant",
-                "❌ Could not start CIBA approval. Please try again.",
+                `❌ Could not start CIBA approval: ${err.message}`,
                 `ciba-error-${Date.now()}`,
               );
               toast.dismiss(toastId);
@@ -6205,8 +6210,8 @@ export default function BankingAgent({
           );
           try {
             const apiBase = process.env.REACT_APP_API_URL || "";
-            const fromAccountId = err.fromAccountId || err.from_account_id;
-            const toAccountId = err.toAccountId || err.to_account_id;
+            const fromAccountId = err.fromAccountId || err.from_account_id || form.fromId || (actionId === "withdraw" ? form.accountId : null);
+            const toAccountId = err.toAccountId || err.to_account_id || form.toId || (actionId === "deposit" ? form.accountId : null);
             const fromLabel = liveAccounts?.find((a) => a.id === fromAccountId)?.name;
             const toLabel = liveAccounts?.find((a) => a.id === toAccountId)?.name;
             const initRes = await fetch(`${apiBase}/api/auth/ciba/initiate`, {
@@ -6216,7 +6221,7 @@ export default function BankingAgent({
               body: JSON.stringify({
                 binding_message: "Approve your banking transaction",
                 acr_values: err.step_up_acr || "",
-                amount: err.transaction_amount ?? undefined,
+                amount: err.transaction_amount ?? Number(form.amount),
                 transaction_type: resolveCibaTransactionType(
                   err.transactionType,
                   actionId,
@@ -6225,19 +6230,24 @@ export default function BankingAgent({
                   err.hitlChallengeId || err.hitl_challenge_id || undefined,
                 from_account_label: fromLabel,
                 to_account_label: toLabel,
+                from_account_id: fromAccountId,
+                to_account_id: toAccountId,
               }),
             });
-            if (!initRes.ok)
-              throw new Error(`CIBA initiation failed: ${initRes.status}`);
-            const { auth_req_id, interval } = await initRes.json();
+            if (!initRes.ok) {
+              const failure = await initRes.json().catch(() => ({}));
+              throw new Error(failure.message || `CIBA initiation failed: ${initRes.status}`);
+            }
+            const { auth_req_id, interval, binding_message, engine } = await initRes.json();
             if (cibaTab) {
-              cibaTab.location.href = `/ciba-approve?authReqId=${encodeURIComponent(auth_req_id)}`;
+              if (engine === "simulated") cibaTab.location.href = `/ciba-approve?authReqId=${encodeURIComponent(auth_req_id)}`;
+              else cibaTab.close();
             }
             addMessage(
               "assistant",
-              " Waiting for CIBA approval — this normally completes on a separate device. Click Approve to continue now, or it will continue automatically in about a minute.",
+              `Waiting for CIBA approval. Match this request on your authentication device: ${binding_message || "Banking request"}`,
               `ciba-step-${Date.now()}`,
-              { showCibaApproveAction: true, cibaAuthReqId: auth_req_id },
+              { showCibaApproveAction: engine === "simulated", cibaAuthReqId: auth_req_id },
             );
             toast.dismiss(toastId);
             agentFlowDiagram.completeMfaChallenge(null);
@@ -6255,7 +6265,7 @@ export default function BankingAgent({
             if (cibaTab) cibaTab.close();
             addMessage(
               "assistant",
-              "❌ Could not start CIBA approval. Please try again.",
+              `❌ Could not start CIBA approval: ${cibaErr.message}`,
               `ciba-error-${Date.now()}`,
             );
             toast.dismiss(toastId);
@@ -9328,10 +9338,10 @@ export default function BankingAgent({
   };
 
   /**
-   * Demo convenience: skip the CIBA fallback engine's timed auto-approve.
+   * Explicit approval for the local CIBA simulation.
    * The in-flight poll loop (pollCibaStepUp / pollCibaThenResumeNl) picks up
    * the approval on its next tick -- this only tells the backend to consider
-   * the request already due.
+   * the request approved.
    */
   const approveCibaNow = async (authReqId) => {
     if (!authReqId) return;
@@ -9398,11 +9408,15 @@ export default function BankingAgent({
         settled = true;
         return;
       }
-      if (res.status === 403 || res.status === 410) {
+      if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (res.status >= 500 && data.status === "pending") {
+          cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, Math.max(intervalMs, (data.retry_after || 5) * 1000)));
+          return;
+        }
         addMessage(
           "assistant",
-          `❌ ${data.message || "CIBA approval was denied or expired. Please try again."}`,
+          `❌ ${res.status === 401 ? "Your session expired. Sign in and start the approval again." : (data.message || "CIBA approval could not be completed. Start again.")}`,
           `ciba-denied-${Date.now()}`,
         );
         agentFlowDiagram.completeMfaChallenge(false);
@@ -9442,7 +9456,7 @@ export default function BankingAgent({
         return;
       }
       // still pending
-      cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
+      cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, Math.max(intervalMs, Number(data.retry_after || 0) * 1000)));
     };
     cibaPollersRef.current.set(authReqId, poll);
     cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
@@ -9471,8 +9485,8 @@ export default function BankingAgent({
     // CIBA: out-of-band backchannel approval, forced for the UC22 demo
     // use-case regardless of what the policy engine would otherwise show
     // (consent modal / device picker). No HITL/step-up modal here -- initiate,
-    // then poll until approved (or, on this environment, the simulated
-    // fallback auto-approves after ~60s), then resume the same NL request.
+    // then poll until approved by PingOne or the explicitly configured local
+    // simulation, then resume the same NL request.
     if (
       response.step_up_method === "ciba" &&
       (response.error === "step_up_required" || response.error === "mcp_step_up_required")
@@ -9505,18 +9519,24 @@ export default function BankingAgent({
               response.hitlChallengeId || response.hitl_challenge_id || undefined,
             from_account_label: fromLabel,
             to_account_label: toLabel,
+            from_account_id: fromAccountId,
+            to_account_id: toAccountId,
           }),
         });
-        if (!initRes.ok) throw new Error(`CIBA initiation failed: ${initRes.status}`);
-        const { auth_req_id, interval } = await initRes.json();
+        if (!initRes.ok) {
+          const failure = await initRes.json().catch(() => ({}));
+          throw new Error(failure.message || `CIBA initiation failed: ${initRes.status}`);
+        }
+        const { auth_req_id, interval, binding_message, engine } = await initRes.json();
         if (cibaTab) {
-          cibaTab.location.href = `/ciba-approve?authReqId=${encodeURIComponent(auth_req_id)}`;
+          if (engine === "simulated") cibaTab.location.href = `/ciba-approve?authReqId=${encodeURIComponent(auth_req_id)}`;
+          else cibaTab.close();
         }
         addMessage(
           "assistant",
-          " Waiting for CIBA approval — this normally completes on a separate device. Click Approve to continue now, or it will continue automatically in about a minute.",
+          `Waiting for CIBA approval. Match this request on your authentication device: ${binding_message || "Banking request"}`,
           `ciba-step-${Date.now()}`,
-          { showCibaApproveAction: true, cibaAuthReqId: auth_req_id },
+          { showCibaApproveAction: engine === "simulated", cibaAuthReqId: auth_req_id },
         );
         agentFlowDiagram.completeMfaChallenge(null);
         tokenChainTraceStore.ingestTokenEvent({
@@ -9530,7 +9550,7 @@ export default function BankingAgent({
       } catch (err) {
         console.error("[BankingAgent] CIBA initiation failed:", err);
         if (cibaTab) cibaTab.close();
-        addMessage("assistant", "❌ Could not start CIBA approval. Please try again.", `ciba-error-${Date.now()}`);
+        addMessage("assistant", `❌ Could not start CIBA approval: ${err.message}`, `ciba-error-${Date.now()}`);
         agentFlowDiagram.completeMfaChallenge(false);
       }
       return;
@@ -9814,11 +9834,15 @@ export default function BankingAgent({
         settled = true;
         return;
       }
-      if (res.status === 403 || res.status === 410) {
+      if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (res.status >= 500 && data.status === "pending") {
+          cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, Math.max(intervalMs, (data.retry_after || 5) * 1000)));
+          return;
+        }
         addMessage(
           "assistant",
-          `❌ ${data.message || "CIBA approval was denied or expired. Please try again."}`,
+          `❌ ${res.status === 401 ? "Your session expired. Sign in and start the approval again." : (data.message || "CIBA approval could not be completed. Start again.")}`,
           `ciba-denied-${Date.now()}`,
         );
         agentFlowDiagram.completeMfaChallenge(false);
@@ -9876,7 +9900,7 @@ export default function BankingAgent({
         return;
       }
       // still pending
-      cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
+      cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, Math.max(intervalMs, Number(data.retry_after || 0) * 1000)));
     };
     cibaPollersRef.current.set(authReqId, poll);
     cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));

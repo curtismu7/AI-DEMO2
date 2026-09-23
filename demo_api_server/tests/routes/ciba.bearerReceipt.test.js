@@ -11,19 +11,24 @@ jest.mock('../../middleware/auth', () => ({
 }));
 jest.mock('../../services/cibaService', () => ({
   isEnabled: () => true,
-  initiateBackchannelAuth: jest.fn().mockRejectedValue(new Error('use simulated fallback')),
+  initiateBackchannelAuth: jest.fn().mockResolvedValue({ auth_req_id: 'req-1', expires_in: 60, interval: 5 }),
+  pollForTokens: jest.fn().mockResolvedValue({ access_token: 'access-token', id_token: 'id-token' }),
+  validateCibaIdToken: jest.fn().mockResolvedValue({ sub: 'user-1' }),
 }));
 jest.mock('../../services/cibaSimulatedService', () => ({
   initiateSimulated: jest.fn(() => ({ auth_req_id: 'req-1', expires_in: 60, interval: 5 })),
   isSimulatedApproved: () => true,
 }));
 jest.mock('../../services/delegationService', () => ({ findActiveByDelegate: jest.fn() }));
-jest.mock('../../services/configStore', () => ({ getEffective: () => 'fallback_simulated' }));
+jest.mock('../../services/configStore', () => ({ getEffective: () => 'deny' }));
 jest.mock('../../services/hitlServiceClient', () => ({
   respondToChallenge: jest.fn(),
 }));
 jest.mock('../../services/cibaTransactionReceipt', () => ({
   record: jest.fn(),
+}));
+jest.mock('../../data/store', () => ({
+  getAccountById: (id) => ({ id, userId: 'user-1' }),
 }));
 jest.mock('../../services/tokenChainService', () => ({
   trackTokenEvent: jest.fn().mockResolvedValue(undefined),
@@ -53,6 +58,8 @@ describe('CIBA approved transaction receipt', () => {
     const initiated = await request(app).post('/api/auth/ciba/initiate').send({
       amount: 150,
       transaction_type: 'transfer',
+      from_account_id: 'checking-1',
+      to_account_id: 'savings-1',
     });
     expect(initiated.status).toBe(200);
 
@@ -60,7 +67,11 @@ describe('CIBA approved transaction receipt', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.status).toBe('approved');
-    expect(cibaTransactionReceipt.record).toHaveBeenCalledWith('user-1', 'create_transfer', 150);
+    expect(cibaTransactionReceipt.record).toHaveBeenCalledWith('user-1', 'create_transfer', 150, {
+      fromAccountId: 'checking-1',
+      toAccountId: 'savings-1',
+      proofType: 'ciba',
+    });
   });
 
   test('does not record a bearer receipt without a transaction tool', async () => {

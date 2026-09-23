@@ -169,6 +169,36 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-23 — CIBA approval lacked a verified, transaction-bound handoff
+
+**Files changed:** `demo_api_server/config/oauth.js`, `routes/ciba.js`,
+`routes/transactions.js`, `services/cibaService.js`,
+`services/cibaSimulatedService.js`, `services/cibaTransactionReceipt.js`,
+`services/hitlCredit.js`, `services/mcpToolAuthorizationService.js`,
+`demo_api_ui/src/components/AIAgent.js`, `src/pages/CibaApprovalPage.js`,
+and their existing focused test fixtures.
+
+**What was broken:** PingOne CIBA was sent to the wrong endpoint and silently
+fell back to a same-session mock that auto-approved. The real poll accepted an
+unvalidated ID token and replaced the banking login token. The agent's
+bearer-only transaction could not see CIBA's fresh authentication; its receipt
+matched only user, tool, and amount, so a different account pair could spend it.
+Session expiry left the UI polling a 401 indefinitely.
+
+**What was fixed:** use PingOne's documented CIBA endpoint and a dedicated
+CIBA client, default to fail-closed, validate the signed ID token and subject,
+respect poll intervals, retain the banking login token, and carry a single-use
+approval bound to the exact amount and account IDs through the bearer hop.
+The local simulation requires an explicit click and is labeled as simulation.
+An expired browser session terminates polling with a sign-in instruction.
+
+**Do not break:** banking tokens remain in the BFF; transaction DENY and
+canonical HITL receipt checks remain authoritative; a CIBA result for another
+subject, account pair, or amount cannot authorize a write. Real CIBA still
+requires a provisioned PingOne app and DaVinci flow.
+
+**Verify:** JS syntax, UI build, and focused local flow checks before merge.
+
 ### 2026-09-23 — Approved UC22 CIBA retry looped at the bearer-only transaction hop
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`,
