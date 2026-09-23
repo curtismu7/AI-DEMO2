@@ -253,16 +253,15 @@ describe("signed-in customer", () => {
     });
   });
 
-  it("does not treat an authenticated admin session as a customer session", async () => {
+  it("allows an authenticated admin session for a user-level step", async () => {
     const admin = { id: "a1", role: "admin", email: "a@test.com", username: "admin" };
 
     renderAt("/dashboard", admin);
     await runStep(UC1);
 
     await waitFor(() => {
-      expect(screen.getByText(/needs a customer sign-in/i)).toBeInTheDocument();
+      expect(screen.getByText(/Running Demo step 1/i)).toBeInTheDocument();
     });
-    expect(sendAgentMessage).not.toHaveBeenCalled();
   });
 });
 
