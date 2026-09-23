@@ -169,6 +169,40 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-23 — UC2.5 reported a depth-one token exchange as complete and hid the specialist result
+
+**Files changed:** `demo_api_server/services/a2aOrchestratorService.js`,
+`demo_api_server/routes/a2aAgentRoutes.js`, `demo_api_server/src/__tests__/a2aOrchestratorService.test.js`,
+`demo_api_server/tests/real/shared/a2a-delegation-live.test.js`,
+`demo_api_ui/src/components/AIAgent.js`, `demo_api_ui/src/components/AIAgentFull.js`,
+`demo_api_ui/src/components/__tests__/AIAgent.demoStepGate.test.jsx`.
+
+**What was broken:** UC2.5 called `delegateToSpecialist` directly, minting only
+the first delegated token, then returned HTTP success with an act-chain depth
+of 1. Its catalog contract requires both A2A exchanges and `tool-dispatched`.
+The UI also discarded the structured tool result, so even a successful specialist
+execution could show only a generic delegation sentence. The response shape
+could include the delegated token.
+
+**What was fixed:** the orchestrator now uses the same specialist wire handoff
+and PERMIT-gated tool executor as UC2. It reports success only when the specialist
+tool succeeds and the nested act-chain depth is exactly 2; response fields are
+whitelisted to exclude tokens and token claims. UC2.5 now renders the returned
+specialist result in the assistant message.
+
+**Do not break:** Exchange #2 stays inside the specialist executor; the bearer
+token never crosses back to the browser; tools remain PERMIT-gated; failed or
+depth-one runs cannot tick UC2.5 complete. UC2/UC2.5 remain separate
+provider-configured PingOne and PingFederate runs with fresh login sessions.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+src/__tests__/a2aOrchestratorService.test.js src/__tests__/a2aExecution.test.js
+tests/a2aSpecialistExecutor.test.js tests/a2aProviderSessionGuard.test.js
+--forceExit`; `cd demo_api_ui && npm run test:unit && npm run build`.
+The real suite also runs UC2.5 airlines under each provider when configured with
+`A2A_EXPECTED_OAUTH_PROVIDER`, requiring fresh customer/admin sessions and both
+exchange events plus tool dispatch. PingOne tenant-claim provisioning is not
+performed by this code change.
 ### 2026-09-23 — Workload Agents: UC38 and UC44 shared the Airlines action and MFA gate
 
 **Files changed:** `demo_api_server/config/useCases.js`, `demo_api_server/routes/agentInvokeRoute.js`, `demo_api_server/services/agentBuilderService.js`, `demo_api_server/services/delegatedCommerceRuntime.js`, `demo_api_server/services/agentMcpTokenService.js`, `demo_api_server/config/auth-requirements.json`, `demo_api_ui/src/pages/WorkloadAgentsPage.jsx`, `demo_api_ui/src/pages/WorkloadAgentsPage.css`, `demo_api_ui/src/pages/PersonalAgentStudioPage.jsx`, `demo_api_ui/src/pages/PersonalAgentClientWindow.jsx`, `demo_api_ui/src/components/DemoStepsDropdown.jsx`, `demo_api_ui/src/config/missionControlCatalog.js`, `demo_api_ui/src/App.js`, generated use-case docs, the deleted obsolete `demo_api_server/data/goldens/airlines/personal-agent-concierge.json` replay, and focused tests.

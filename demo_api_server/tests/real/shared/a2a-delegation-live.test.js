@@ -75,6 +75,53 @@ describe('A2A UC2 sensitive-delegation — every vertical, real pipeline (real)'
       .map((client) => client.post('/api/verticals/active', { id: 'banking' }).catch(() => {})));
   });
 
+  it(`${EXPECTED_PROVIDER || 'configured provider'} / UC2.5 airlines: orchestrator completes both exchanges and returns passenger data`, async () => {
+    if (!sessionOk) {
+      console.warn('[a2a-live] no session — skipping UC2.5 airlines');
+      return;
+    }
+
+    const vertical = 'airlines';
+    const client = enduserClient;
+    const activated = await client.post('/api/verticals/active', { id: vertical })
+      .then((r) => [200, 204].includes(r.status))
+      .catch(() => false);
+    if (!activated) {
+      assertVerticalActivated(false, EXPECTED_PROVIDER, vertical);
+      console.warn(`[a2a-live] cannot switch live to '${vertical}' — skipping UC2.5`);
+      return;
+    }
+
+    const uc = resolveUseCase('UC2.5', vertical);
+    const initialized = await client.post('/api/a2a/init', {});
+    expect(initialized.status).toBe(200);
+    const response = await client.post('/api/a2a/message', {
+      message: uc.trigger.text,
+      vertical,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.data.success).toBe(true);
+    expect(response.data.reply).toMatch(/^Delegation complete/);
+    expect(response.data.delegationResult.actChainDepth).toBe(2);
+    expect(response.data.delegationResult.tool).toBe('sensitive_passenger_record');
+    expect(response.data.delegationResult.result).not.toBeNull();
+    expect(response.data).not.toHaveProperty('delegationResult.token');
+    expect(JSON.stringify(response.data)).not.toMatch(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\./);
+
+    const events = response.data.tokenEvents || [];
+    assertProviderIssuer(EXPECTED_PROVIDER, tokenEventById(events, 'user-token')?.claims?.iss, require('../../../services/oauthEndpointResolver').getIssuer());
+    for (const [id, status] of [
+      ['a2a-agent1-actor', 'acquired'],
+      ['a2a-exchange1', 'exchanged'],
+      ['a2a-agent2-actor', 'acquired'],
+      ['a2a-exchange2', 'exchanged'],
+      ['tool-dispatched', 'success'],
+    ]) {
+      expect(tokenEventById(events, id)?.status).toBe(status);
+    }
+  });
+
   for (const vertical of verticalsWithSpecialist()) {
     const chipText = resolveUseCase('UC2', vertical).trigger.text;
 

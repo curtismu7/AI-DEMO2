@@ -12,19 +12,19 @@
  * model whether PingOne Authorize would approve, then blocked the delegation on
  * that guess — and on the live tier it guessed "no" every time, so this route
  * never delegated. Authorization belongs to the PDP, which decides for real one
- * hop later inside a2aDelegationService. Do not reinstate a predictive gate.
+ * hop later inside the specialist executor. Do not reinstate a predictive gate.
  *
  * config/a2aSpecialists.js maps each vertical to exactly ONE specialist, so the
  * real per-request ambiguity is not "which agent" but "which tool" that specialist
- * should be constrained to (delegateToSpecialist's opts.tool). Stage 2 is skipped
+ * should be constrained to the A2A executor's opts.tool. Stage 2 is skipped
  * when the specialist only exposes one tool (true for 7 of the 8 configured verticals).
  *
  * Any stage failure (proxy unreachable, invalid/unparseable JSON, schema mismatch)
  * aborts the whole LLM pipeline and falls back to the keyword heuristic below —
  * no partial LLM/heuristic mixing.
  *
- * Once approved, execution is handed off to a2aDelegationService, which performs
- * the actual RFC 8693 token exchange — untouched by this file.
+ * Once approved, execution is handed to the existing A2A wire executor. The
+ * specialist performs Exchange #2 and the PERMIT-gated tool call.
  */
 
 const {
@@ -38,7 +38,6 @@ const {
 
 const appEventService = require('./appEventService');
 const { specialistForVertical } = require('../config/a2aSpecialists');
-const { delegateToSpecialist } = require('./a2aDelegationService');
 const { callLlamaCpp } = require('./llamacppLlmService');
 const { repairAndParseJson } = require('./llmResponseContract');
 
@@ -160,9 +159,9 @@ async function llmOrchestration({ message, vertical }) {
 /**
  * Orchestrate an A2A delegation request: LLM-backed decision (falling back to
  * a keyword heuristic on any LLM failure) then execute delegation.
- * Returns: { shouldDelegate, specialist, scopes, authorized, token, tokenEvents, claims, agentHeader, metadata, error? }
+ * Returns routing, execution, result and token-event evidence; never a bearer token.
  */
-async function orchestrateDelegation({ req, message, vertical, userId, availableSpecialists = [] }) {
+async function orchestrateDelegation({ req, message, vertical, userId, availableSpecialists = [], tokenEvents = [] }) {
   appEventService.logEvent('a2a', 'info', 'A2A orchestration starting', {
     tag: 'a2a/orchestrate',
     metadata: { vertical, userId },
@@ -216,18 +215,50 @@ async function orchestrateDelegation({ req, message, vertical, userId, available
       return { ...orchestrationResult, token: null, tokenEvents: [], claims: null, error: errMsg, agentHeader, metadata };
     }
 
-    const delegationResult = await delegateToSpecialist(req, {
-      vertical: orchestrationResult.specialist,
+    // Use the same specialist wire handoff as the normal A2A agent path. That
+    // path lets the specialist perform Exchange #2 and dispatch its tool under
+    // the PERMIT gate; this orchestrator must not mint Exchange #2 itself.
+    const { executeA2aDelegation } = require('./demoAgentLangGraphService');
+    const executionJson = await executeA2aDelegation(orchestrationResult.specialist, {
       tool: orchestrationResult.tool,
       subtask: message,
-    });
+      args: {},
+    }, { req, tokenEvents, sessionId: req?.sessionID || '' });
+    let executionResult;
+    try {
+      executionResult = JSON.parse(executionJson);
+    } catch (_error) {
+      executionResult = { delegated: false, error: 'invalid_a2a_execution_response' };
+    }
+    // Treat this helper result as untrusted for response shaping: explicitly
+    // whitelist display/audit fields so bearer tokens or claims can never leak
+    // through /api/a2a/message, even if the helper contract changes later.
+    const delegationResult = Object.fromEntries(
+      ['delegated', 'specialist', 'vertical', 'specialistVertical', 'tool', 'actChainDepth', 'scopes', 'result', 'toolError', 'error', 'note', 'render']
+        .filter((key) => Object.hasOwn(executionResult, key))
+        .map((key) => [key, executionResult[key]]),
+    );
+    const executionSucceeded = delegationResult.delegated === true
+      && delegationResult.toolError == null
+      && delegationResult.actChainDepth === 2;
 
-    if (delegationResult.error) {
+    if (!executionSucceeded) {
+      const error = delegationResult.toolError
+        || delegationResult.error
+        || (delegationResult.actChainDepth !== 2 ? 'invalid_a2a_act_chain_depth' : 'a2a_tool_not_dispatched');
       appEventService.logEvent('a2a', 'error', 'A2A delegation execution failed', {
         tag: 'a2a/delegation_failed',
-        metadata: { error: delegationResult.error },
+        metadata: { error, actChainDepth: delegationResult.actChainDepth },
       });
-      return { ...orchestrationResult, ...delegationResult, agentHeader, metadata };
+      return {
+        ...orchestrationResult,
+        ...delegationResult,
+        tokenEvents,
+        success: false,
+        error,
+        agentHeader,
+        metadata,
+      };
     }
 
     appEventService.logEvent('a2a', 'info', 'A2A delegation successful', {
@@ -242,6 +273,8 @@ async function orchestrateDelegation({ req, message, vertical, userId, available
     return {
       ...orchestrationResult,
       ...delegationResult,
+      tokenEvents,
+      success: true,
       agentHeader,
       metadata: {
         ...metadata,
