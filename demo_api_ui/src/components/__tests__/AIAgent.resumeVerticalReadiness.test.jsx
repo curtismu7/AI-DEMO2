@@ -3,8 +3,8 @@
  * the vertical manifest with no way to tell "still loading" from "resolved to
  * none" (TECH_DEBT 2026-08-18 "held together by two tuned timeouts"). The
  * vertical context now reports verticalStatus, and the resume:
- *   - hands the question back IMMEDIATELY when the answer is concluded-empty
- *     ('resolved' / 'failed') — waiting cannot change a concluded answer;
+ *   - lets the BFF resolve the session's active vertical when the client has
+ *     concluded without one;
  *   - keeps waiting (deadline as backstop only) while status is 'loading'.
  */
 import React from "react";
@@ -135,7 +135,7 @@ function renderAgent(user = ADMIN) {
 const settle = async (ms = 400) => act(async () => { await new Promise((r) => setTimeout(r, ms)); });
 
 describe("queued-question resume vs vertical readiness", () => {
-  test("concluded-empty vertical hands the question back immediately, not after 8s", async () => {
+  test("concluded-empty client vertical delegates resolution to the BFF", async () => {
     mockVertical = { activeId: null, verticalStatus: "resolved" };
     sessionStorage.setItem("bx_agent_pending_nl", "What is my balance?");
     // The single resume observation seam (agent-resume-dispatch) must announce
@@ -148,23 +148,32 @@ describe("queued-question resume vs vertical readiness", () => {
     await settle();
     window.removeEventListener("agent-resume-dispatch", onDispatch);
 
-    // Well inside the old RESUME_VERTICAL_WAIT_MS window: already handed back.
-    expect(screen.getByText(HANDED_BACK)).toBeInTheDocument();
-    expect(sendAgentMessage).not.toHaveBeenCalled();
+    // The server resolves the vertical from this request's session. Do not
+    // discard a valid queued prompt just because the UI manifest is empty.
+    expect(sendAgentMessage).toHaveBeenCalledWith(
+      "What is my balance?",
+      null,
+      expect.objectContaining({ vertical: null }),
+    );
+    expect(screen.queryByText(HANDED_BACK)).not.toBeInTheDocument();
     expect(outcomes).toEqual([
-      expect.objectContaining({ outcome: "handed_back", exit: "vertical-unavailable", text: "What is my balance?" }),
+      expect.objectContaining({ outcome: "sent", exit: "resume-effect", text: "What is my balance?" }),
     ]);
   });
 
-  test("'failed' status also concludes — handed back immediately", async () => {
+  test("failed client vertical still lets the BFF resolve the session vertical", async () => {
     mockVertical = { activeId: null, verticalStatus: "failed" };
     sessionStorage.setItem("bx_agent_pending_nl", "What is my balance?");
 
     renderAgent();
-    await settle();
+    await settle(600);
 
-    expect(screen.getByText(HANDED_BACK)).toBeInTheDocument();
-    expect(sendAgentMessage).not.toHaveBeenCalled();
+    expect(sendAgentMessage).toHaveBeenCalledWith(
+      "What is my balance?",
+      null,
+      expect.objectContaining({ vertical: null }),
+    );
+    expect(screen.queryByText(HANDED_BACK)).not.toBeInTheDocument();
   });
 
   test("still-loading vertical keeps waiting (no premature hand-back, no premature send)", async () => {
@@ -205,7 +214,7 @@ describe("queued-question resume vs vertical readiness", () => {
     expect(sendAgentMessage).toHaveBeenCalledWith(
       "What is my balance?",
       null,
-      expect.anything(),
+      expect.objectContaining({ vertical: "banking" }),
     );
     expect(screen.queryByText(HANDED_BACK)).not.toBeInTheDocument();
     window.removeEventListener("agent-resume-dispatch", onDispatch);

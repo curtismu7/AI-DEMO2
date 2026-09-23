@@ -8584,13 +8584,11 @@ export default function BankingAgentFull({
     // indistinguishable from "this path was never watched", which is exactly the
     // ambiguity that cost two sessions hours on this defect.
     //
-    // The vertical context now says whether the question is still OPEN
-    // (verticalStatus 'loading') or ANSWERED with no vertical ('resolved' /
-    // 'failed'). Answered-empty hands the question back immediately — waiting
-    // out a wall-clock deadline cannot change a concluded answer. The
-    // RESUME_VERTICAL_WAIT_MS deadline remains only as a backstop for a signal
-    // that never arrives (the case the tuned timeout was originally papering
-    // over; see TECH_DEBT "held together by two tuned timeouts").
+    // Keep waiting while the vertical context is actively loading. If it
+    // concludes empty or fails, omit the client override and let the BFF resolve
+    // this request's session-pinned vertical (agentInvokeRoute uses
+    // resolver.activeIdFor(req)); handing the prompt back here dropped valid
+    // demo steps for signed-in sessions whose client manifest was unavailable.
     if (!effectiveVerticalId) {
       if (verticalStatus === 'loading') {
         if (resumeVerticalDeadlineRef.current == null) {
@@ -8604,18 +8602,6 @@ export default function BankingAgentFull({
           return () => clearTimeout(wait);
         }
       }
-      const stranded = nlResumeAfterAuth;
-      emitResumeDispatch("handed_back", { text: stranded, exit: "vertical-unavailable" });
-      resumeVerticalDeadlineRef.current = null;
-      setNlResumeAfterAuth(null);
-      pendingNlResumeRef.current = null;
-      setNlInput(stranded);
-      addMessage(
-        "assistant",
-        "I couldn't finish loading this workspace, so I haven't asked that yet — "
-          + "it's back in the box below, ready to send.",
-      );
-      return;
     }
     resumeVerticalDeadlineRef.current = null;
     const text = nlResumeAfterAuth;
