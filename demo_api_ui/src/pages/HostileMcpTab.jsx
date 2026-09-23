@@ -11,6 +11,7 @@
 // than implying a scan. The Privilege verdict shown is on the TOOL CALL only.
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import HostileMcpDenialPanel from '../components/privilege/HostileMcpDenialPanel';
 import './HostileMcpTab.css';
 
 const API_BASE = '/api/privilege-mcp';
@@ -197,6 +198,12 @@ export default function HostileMcpTab() {
       </header>
 
       {error ? <p className="hmc-error" role="alert">{error}</p> : null}
+
+      <HostileMcpDenialPanel
+        tools={tools}
+        onRequest={({ method, params }) => api('/request', { method: 'POST', body: { method, params } })}
+        onCall={({ name, arguments: args }) => api('/tools/call', { method: 'POST', body: { name, arguments: args } })}
+      />
 
       <div className="hmc-body">
         <section className="hmc-pane" aria-label="Poisoned tools">
