@@ -169,6 +169,48 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-23 — A2A provider/session drift could send a stale login into the wrong token endpoint
+
+**Files changed:** `demo_api_server/services/a2aDelegationService.js`,
+`demo_api_server/tests/a2aProviderSessionGuard.test.js`,
+`demo_api_server/tests/a2aProviderMatrixAssertions.test.js`,
+`demo_api_server/tests/real/helpers/a2aProviderMatrix.js`,
+`demo_api_server/tests/real/shared/a2a-delegation-live.test.js`.
+
+**What was broken:** the two-exchange chain selected PingOne vs PF from the
+process-wide `OAUTH_PROVIDER` setting, but did not compare that provider and its
+issuer with the signed-in session's access-token issuer. A browser retaining a
+session from the other login mode could therefore send its user token to the
+wrong provider endpoint and fail later as an opaque client-credential/token
+exchange error. Failures also combined actor-token acquisition and exchange
+errors into one stage, obscuring where the chain stopped. The prior live test
+could pass on a consent prompt or be skipped for missing login state.
+
+**What was fixed:** A2A now fails closed before actor-token minting when the
+session issuer is missing, unknown, from the other provider, or differs from
+the active provider's configured issuer. Actor-token and exchange failures
+carry a stable stage/code and the upstream code separately. The live suite can
+be run in strict provider-matrix mode; it requires a login session, checks its
+issuer against the API's active issuer, requires the API provider to match the
+requested matrix leg, fails on vertical activation problems, and requires both
+actor/exchange hops plus successful tool dispatch.
+Run once per provider-configured API process, with a fresh login session each:
+`A2A_EXPECTED_OAUTH_PROVIDER=pingone CI=true npx jest tests/real/shared/a2a-delegation-live.test.js --runInBand`
+and
+`A2A_EXPECTED_OAUTH_PROVIDER=pingfederate CI=true npx jest tests/real/shared/a2a-delegation-live.test.js --runInBand`.
+
+**Do not break:** OAuth callbacks and session persistence are unchanged; each
+run still uses the configured provider's endpoint, audiences, and exchange
+types. A provider mismatch must stop before either actor client-credentials
+request. The default live suite keeps its existing skip behavior when no
+session is available; strict matrix mode must never silently skip.
+
+**Verify:** `CI=true npx jest tests/a2aProviderMatrixAssertions.test.js
+tests/a2aProviderSessionGuard.test.js
+tests/a2aSpecialistToolRegistry.test.js tests/a2aProtocolHttpTokenChain.test.js
+tests/a2aSpecialistExecutor.test.js tests/a2aBearerValidation.test.js --forceExit`;
+provider matrix commands above require their respective live login sessions.
+
 ### 2026-09-23 — Place the hostile MCP denial demo on the LLM Gateway page
 
 **Files changed:** `demo_api_ui/src/pages/HostileMcpTab.jsx`, `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx` + `.css`, `demo_api_ui/src/pages/__tests__/LlmGatewayCombinedPage.test.jsx`, `demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.themeContrast.test.js`, `demo_api_ui/src/components/privilege/HostileMcpDenialPanel.jsx` + `.css`.

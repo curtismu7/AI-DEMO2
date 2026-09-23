@@ -68,6 +68,20 @@ function defaultAxios() {
   return require('axios');
 }
 
+function activeIssuer() {
+  return require('./oauthEndpointResolver').getIssuer();
+}
+
+function normalizeIssuer(issuer) {
+  return typeof issuer === 'string' ? issuer.replace(/\/+$/, '') : '';
+}
+
+function providerForIssuer(issuer, expectedPfIssuer) {
+  if (/^https:\/\/auth\.pingone\.[^/]+\/[^/]+\/as$/i.test(issuer)) return 'pingone';
+  if (expectedPfIssuer && issuer === normalizeIssuer(expectedPfIssuer)) return 'pingfederate';
+  return null;
+}
+
 function authzEndpoint() {
   return process.env.PINGAUTHORIZE_ENDPOINT || 'http://localhost:9001';
 }
@@ -350,6 +364,22 @@ async function exchangeAsGeneralist(req, opts = {}) {
     return { ...base, error: 'No user token in session for A2A delegation' };
   }
   const userDecoded = decodeJwt(userToken);
+  const issuer = normalizeIssuer(userDecoded?.claims?.iss);
+  if (!issuer) {
+    return { ...base, error: 'A2A session token issuer is missing' };
+  }
+  const expectedIssuer = normalizeIssuer((deps.getIssuer || activeIssuer)());
+  const activeProvider = cfg.getOAuthProvider?.() || 'pingone';
+  const issuerProvider = providerForIssuer(
+    issuer,
+    cfg.getEffective('pf_issuer') || process.env.PF_ISSUER_URI || (activeProvider === 'pingfederate' ? expectedIssuer : ''),
+  );
+  if (!issuerProvider) {
+    return { ...base, error: 'A2A session token issuer is not recognized' };
+  }
+  if (issuerProvider !== activeProvider || issuer !== expectedIssuer) {
+    return { ...base, error: 'A2A session provider does not match the active OAuth provider; sign in again with the active provider' };
+  }
   const userSub = userDecoded?.claims?.sub || null;
   // The A2A evidence contract starts with the authenticated subject. The
   // exchange events below prove each agent hop, but without this marker the
@@ -364,6 +394,7 @@ async function exchangeAsGeneralist(req, opts = {}) {
     { a2aRole: 'user-subject', vertical, userSub },
   ));
 
+  let stage = 'agent1_actor';
   try {
     // ── Exchange #1: user → Agent 1 delegated token (act:{agent1}) ───────────────
     const agent1Actor = await oauth.getAiAgentClientCredentialsToken();
@@ -376,6 +407,7 @@ async function exchangeAsGeneralist(req, opts = {}) {
       { a2aRole: 'agent1-actor', vertical },
     ));
 
+    stage = 'exchange1';
     const tAgent1 = await runExchange(
       () => oauth.performTokenExchangeAs(
         userToken,
@@ -435,8 +467,8 @@ async function exchangeAsGeneralist(req, opts = {}) {
       'A2A delegation failed',
       'failed',
       null,
-      `Chained RFC 8693 exchange failed: ${err.message}`,
-      { a2aRole: 'error', error: err.message, httpStatus: err.httpStatus || null },
+      `A2A delegation failed at ${stage}: ${err.message}`,
+      { a2aRole: 'error', stage, code: `a2a_${stage}_failed`, upstreamCode: err.code || null, error: err.message, httpStatus: err.httpStatus || err.response?.status || null },
     ));
     return { token: null, tokenEvents, userSub, vertical, error: err.message };
   }
@@ -482,6 +514,7 @@ async function exchangeAsSpecialist(subjectToken, opts = {}) {
   // rather than threading userSub through as a separate param.
   const userSub = decodeJwt(subjectToken)?.claims?.sub || null;
 
+  let stage = 'agent2_actor';
   try {
     // ── Exchange #2: Agent 1 token + Agent 2 (specialist) actor → nested act ─────
     // Agent 2's actor token targets its OWN intermediate audience (not the final
@@ -506,6 +539,7 @@ async function exchangeAsSpecialist(subjectToken, opts = {}) {
       { a2aRole: 'agent2-actor', vertical, specialist: specialist.specialistName },
     ));
 
+    stage = 'exchange2';
     const tInvest = await runExchange(
       () => oauth.performTokenExchangeAs(
         subjectToken,
@@ -603,8 +637,8 @@ async function exchangeAsSpecialist(subjectToken, opts = {}) {
       'A2A delegation failed',
       'failed',
       null,
-      `Chained RFC 8693 exchange failed: ${err.message}`,
-      { a2aRole: 'error', error: err.message, httpStatus: err.httpStatus || null },
+      `A2A delegation failed at ${stage}: ${err.message}`,
+      { a2aRole: 'error', stage, code: `a2a_${stage}_failed`, upstreamCode: err.code || null, error: err.message, httpStatus: err.httpStatus || err.response?.status || null },
     ));
     return { token: null, claims: null, error: err.message };
   }
