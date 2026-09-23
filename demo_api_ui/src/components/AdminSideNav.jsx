@@ -1164,6 +1164,7 @@ export default function AdminSideNav({
         { label: "Protected RAG", path: "/code-search", icon: "srch" },
         { label: "Graphify", path: "/graphify", icon: "arc" },
         { label: "Mgmt API Runner", path: "/mgmt-api", icon: "tool" },
+        { label: "PromptFoo Evals", path: "/promptfoo", icon: "tst" },
       ],
     },
     {

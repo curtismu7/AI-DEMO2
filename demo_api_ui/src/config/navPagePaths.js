@@ -151,6 +151,7 @@ export const NAV_PAGE_PATHS = {
   Graphify: "/graphify",
   "Mgmt API Runner": "/mgmt-api",
   "Management API Runner": "/mgmt-api",
+  "PromptFoo Evals": "/promptfoo",
   "Feature Flags": "/configure?tab=feature-flags",
   "LLM Config": "/llm-config",
   "Secret Rotation": "/secret-rotation",
