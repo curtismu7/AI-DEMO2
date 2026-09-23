@@ -808,7 +808,6 @@ SERVICES=(
   "api-resource-server|Mortgage Service     |8082|http://localhost:8082"
   "authz-server|Authz Server          |9001|http://localhost:9001"
   "promptfoo-step-narration|promptfoo (eval)      |-|./run-docker.sh promptfoo"
-  "notebooklm|NotebookLM Sidecar   |-|opt-in profile, no published port"
 )
 
 # True if $1 is one of the compose service names in SERVICES, OR a member of
