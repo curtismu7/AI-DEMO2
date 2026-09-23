@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useNavigate } from 'react-router-dom';
 
 // Mock TokenChainContext
 vi.mock('../../context/TokenChainContext', () => ({
@@ -92,5 +92,36 @@ describe('PersonalAgentStudioPage', () => {
     expect(await screen.findByText(/Customer MFA is checked before this protected write/i)).toBeTruthy();
     expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC38?vertical=sporting-goods');
     expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it('keeps legacy freeform prompts on the generic Airlines agent route', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ reply: 'Miles checked.' }) }));
+    renderStudio();
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'check my miles' } });
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
+      body: JSON.stringify({ prompt: 'check my miles', vertical: 'airlines' }),
+    })));
+    expect(await screen.findByText('Miles checked.')).toBeTruthy();
+  });
+
+  it('hides a stale catalog action while a changed query is loading', async () => {
+    let resolveSecond;
+    apiClient.get.mockImplementation((url) => url.includes('UC38')
+      ? Promise.resolve({ data: { useCase: { id: 'UC38', title: 'Protected action', useCaseId: 'personal-agent-concierge', primaryTool: 'extend_rental', runPrompt: 'extend my rental $600' } } })
+      : new Promise((resolve) => { resolveSecond = resolve; }));
+    function ChangeQuery() {
+      const navigate = useNavigate();
+      return <button onClick={() => navigate('/personal-agent?useCase=UC44&vertical=banking')}>Change query</button>;
+    }
+    render(<MemoryRouter initialEntries={['/personal-agent?useCase=UC38&vertical=sporting-goods']}><ChangeQuery /><PersonalAgentStudioPage /></MemoryRouter>);
+    expect(await screen.findByRole('button', { name: 'Run UC38 action' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Change query' }));
+    expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC44?vertical=banking');
+    expect(screen.queryByRole('button', { name: 'Run UC38 action' })).toBeNull();
+    expect(screen.queryByText('extend my rental $600')).toBeNull();
+    resolveSecond({ data: { useCase: { id: 'UC44', title: 'Customer read', useCaseId: 'workload-digital-assistant-obo', primaryTool: 'get_account_balance', runPrompt: 'show my balance' } } });
+    expect(await screen.findByRole('button', { name: 'Run UC44 action' })).toBeTruthy();
+    expect(screen.getByText(/get_account_balance/)).toBeTruthy();
   });
 });

@@ -69,8 +69,9 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   const routeId = query.get('useCase');
   const routeVertical = query.get('vertical');
   const vertical = selectedVertical || routeVertical || 'airlines';
+  const routeContextKey = routeVertical && ['UC38', 'UC44'].includes(routeId) ? `${routeId}:${vertical}` : null;
   const [routeScenario, setRouteScenario] = useState(null);
-  const workloadScenario = scenario || routeScenario;
+  const workloadScenario = scenario || (routeScenario?.key === routeContextKey ? routeScenario.useCase : null);
   const [runState, setRunState] = useState({ status: 'idle', text: '' });
   const [layoutState, setLayoutState] = useState('full');
   const [activeSkin, setActiveSkin] = useState('privilege');
@@ -85,13 +86,13 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   const actClaim = extractActClaim(events);
 
   useEffect(() => {
-    if (scenario || !routeVertical || !['UC38', 'UC44'].includes(routeId)) return;
+    if (scenario || !routeContextKey) return;
     let live = true;
     apiClient.get(`/api/use-cases/${routeId}?vertical=${encodeURIComponent(vertical)}`)
-      .then(({ data }) => { if (live) setRouteScenario(data.useCase); })
+      .then(({ data }) => { if (live) setRouteScenario({ key: routeContextKey, useCase: data.useCase }); })
       .catch(() => { if (live) setRunState({ status: 'error', text: 'The catalog action could not be loaded.' }); });
     return () => { live = false; };
-  }, [scenario, routeId, routeVertical, vertical]);
+  }, [scenario, routeId, routeContextKey, vertical]);
 
   const executeWorkload = useCallback((uc) => {
     if (!uc?.runPrompt || !uc?.useCaseId) return;
@@ -120,7 +121,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-        body: JSON.stringify({ prompt: text, vertical: 'airlines', useCaseId: 'workload-digital-assistant-obo' }),
+      body: JSON.stringify({ prompt: text, vertical: 'airlines' }),
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
@@ -167,6 +168,12 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     if (index === 2) return { ...gate, desc: 'Selected vertical action and policy' };
     return gate;
   });
+
+  if (routeContextKey && !workloadScenario) return (
+    <div className="workload-agents__run" role="status">
+      <p>Loading {routeId} action for {vertical}…</p>
+    </div>
+  );
 
   if (workloadScenario) return (
     <div className="workload-agents__run">

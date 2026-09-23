@@ -56,7 +56,7 @@ export default function PersonalAgentClientWindow() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ prompt: text, vertical: 'airlines', useCaseId: 'workload-digital-assistant-obo' }),
+      body: JSON.stringify({ prompt: text, vertical: 'airlines' }),
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));

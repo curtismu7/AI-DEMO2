@@ -51,9 +51,9 @@ describe('PersonalAgentClientWindow', () => {
       body: JSON.stringify({
         prompt: 'check my miles',
         vertical: 'airlines',
-        useCaseId: 'workload-digital-assistant-obo',
       }),
     })));
+    expect(await screen.findByText('Delegated action complete.')).toBeTruthy();
   });
 
   it('uses the catalog prompt and selected context in a workload pop-out', async () => {

@@ -13,6 +13,10 @@ const scenarios = {
   UC38: { id: 'UC38', useCaseId: 'personal-agent-concierge', title: 'Workload Agent: MFA-gated protected action', primaryTool: 'extend_rental', runPrompt: 'extend my rental $600' },
   UC44: { id: 'UC44', useCaseId: 'workload-digital-assistant-obo', title: 'Workload Agent: OBO customer-data read', primaryTool: 'list_gear', runPrompt: 'my gear' },
 };
+const bankingScenarios = {
+  UC38: { ...scenarios.UC38, primaryTool: 'create_transfer', runPrompt: 'transfer $600 from checking to savings' },
+  UC44: { ...scenarios.UC44, primaryTool: 'get_account_balance', runPrompt: 'show my balance' },
+};
 
 vi.mock('../../services/apiClient', () => ({
   default: { get: vi.fn() },
@@ -31,7 +35,7 @@ beforeEach(() => {
   apiClient.get.mockImplementation((url) => {
     if (url === '/api/verticals/list') return Promise.resolve({ data: verticals });
     const id = url.includes('/UC38?') ? 'UC38' : 'UC44';
-    return Promise.resolve({ data: { useCase: scenarios[id] } });
+    return Promise.resolve({ data: { useCase: url.includes('vertical=banking') ? bankingScenarios[id] : scenarios[id] } });
   });
 });
 
@@ -78,6 +82,22 @@ describe('WorkloadAgentsPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Run this demo: UC38/i }));
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
       body: JSON.stringify({ prompt: 'extend my rental $600', vertical: 'sporting-goods', useCaseId: 'personal-agent-concierge' }),
+    })));
+  });
+
+  it('updates both actions and the invoked prompt when the vertical changes', async () => {
+    renderPage();
+    const selector = await screen.findByRole('combobox', { name: /vertical/i });
+    await screen.findByText('list_gear');
+    fireEvent.change(selector, { target: { value: 'banking' } });
+    expect((await screen.findAllByText('create_transfer')).length).toBeGreaterThan(0);
+    expect(screen.getByText('get_account_balance')).toBeTruthy();
+    expect(screen.getAllByText('transfer $600 from checking to savings').length).toBeGreaterThan(0);
+    expect(screen.getByText('show my balance')).toBeTruthy();
+    expect(screen.queryByText('list_gear')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Run this demo: UC44/i }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
+      body: JSON.stringify({ prompt: 'show my balance', vertical: 'banking', useCaseId: 'workload-digital-assistant-obo' }),
     })));
   });
 });
