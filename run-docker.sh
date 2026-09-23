@@ -1514,18 +1514,25 @@ cmd_optional_status() {
 }
 
 cmd_optional_help() {
-  echo "  Optional groups:"
-  local g
-  for g in "${OPTIONAL_GROUP_NAMES[@]}" all; do
-    echo "    ${g}  — $(_optional_group_desc "${g}")"
-  done
+  echo "  Optional service groups (start/stop/status without tearing down core):"
+  echo "    Data and search:"
+  echo "      rag           — $(_optional_group_desc rag)"
+  echo "    Agent runtimes:"
+  echo "      agents        — $(_optional_group_desc agents)"
+  echo "    Security and gateways:"
+  echo "      spiffe        — $(_optional_group_desc spiffe)"
+  echo "      demo-auth     — $(_optional_group_desc demo-auth)"
+  echo "      mcpgw         — $(_optional_group_desc mcpgw)"
+  echo "    Observability and tracing:"
+  echo "      observability — $(_optional_group_desc observability)"
+  echo "      tracing       — $(_optional_group_desc tracing)"
+  echo "    all             — $(_optional_group_desc all)"
   echo ""
   echo "  Note: rag starts with core by default; observability does not. Use optional stop/start to toggle."
   echo "        Starting or stopping observability can recreate the BFF (~35s) to switch its Loki push."
   echo "  Examples:"
   echo "    ./run-docker.sh optional stop rag"
-  echo "    ./run-docker.sh optional start rag"
-  echo "    ./run-docker.sh optional start agents"
+  echo "    ./run-docker.sh optional start spiffe"
   echo "    ./run-docker.sh optional start observability"
   echo "    ./run-docker.sh optional status"
   echo ""
