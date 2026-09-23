@@ -237,10 +237,15 @@ be run in strict provider-matrix mode; it requires a login session, checks its
 issuer against the API's active issuer, requires the API provider to match the
 requested matrix leg, fails on vertical activation problems, and requires both
 actor/exchange hops plus successful tool dispatch.
-Run once per provider-configured API process, with a fresh login session each:
-`A2A_EXPECTED_OAUTH_PROVIDER=pingone CI=true npx jest tests/real/shared/a2a-delegation-live.test.js --runInBand`
+Run once per provider-configured API process, with fresh enduser and admin
+login sessions each. The strict matrix requires a dedicated admin session
+(`DEMO_ADMIN_USERNAME`/`DEMO_ADMIN_PASSWORD` or
+`PINGONE_TEST_ADMIN_USER`/`PINGONE_TEST_ADMIN_PASSWORD`) and verifies admin
+access separately from the enduser's 403 response. Set `RUN_REAL_TESTS=true`
+so the real-suite setup resolves and validates both personas:
+`RUN_REAL_TESTS=true A2A_EXPECTED_OAUTH_PROVIDER=pingone CI=true npx jest --config=jest.real.config.js tests/real/shared/a2a-delegation-live.test.js --runInBand`
 and
-`A2A_EXPECTED_OAUTH_PROVIDER=pingfederate CI=true npx jest tests/real/shared/a2a-delegation-live.test.js --runInBand`.
+`RUN_REAL_TESTS=true A2A_EXPECTED_OAUTH_PROVIDER=pingfederate CI=true npx jest --config=jest.real.config.js tests/real/shared/a2a-delegation-live.test.js --runInBand`.
 
 **Do not break:** OAuth callbacks and session persistence are unchanged; each
 run still uses the configured provider's endpoint, audiences, and exchange

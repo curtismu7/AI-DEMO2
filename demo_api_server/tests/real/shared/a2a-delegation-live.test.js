@@ -35,7 +35,8 @@ function tokenEventById(events, id) {
 }
 
 describe('A2A UC2 sensitive-delegation — every vertical, real pipeline (real)', () => {
-  let client;
+  let enduserClient;
+  let adminClient;
   let sessionOk = true;
 
   beforeAll(async () => {
@@ -48,15 +49,30 @@ describe('A2A UC2 sensitive-delegation — every vertical, real pipeline (real)'
       assertActiveProvider(EXPECTED_PROVIDER, activeProvider);
     }
     try {
-      client = createBffClient('enduser');
+      enduserClient = createBffClient('enduser');
+      if (EXPECTED_PROVIDER) {
+        adminClient = createBffClient('admin');
+        const [adminProbe, enduserProbe] = await Promise.all([
+          adminClient.get('/api/admin/stats'),
+          enduserClient.get('/api/admin/stats'),
+        ]);
+        if (adminProbe.status !== 200) {
+          throw new Error(`admin persona failed role probe (HTTP ${adminProbe.status})`);
+        }
+        if (enduserProbe.status !== 403) {
+          throw new Error(`enduser persona failed isolation probe (HTTP ${enduserProbe.status})`);
+        }
+      }
     } catch (err) {
-      if (EXPECTED_PROVIDER) throw new Error(`${EXPECTED_PROVIDER} A2A provider-matrix run requires a valid enduser login session: ${err.message}`);
+      if (EXPECTED_PROVIDER) throw new Error(`${EXPECTED_PROVIDER} A2A provider-matrix run requires valid enduser and dedicated admin login sessions: ${err.message}`);
       sessionOk = false;
     }
   });
 
   afterAll(async () => {
-    if (client) await client.post('/api/verticals/active', { id: 'banking' }).catch(() => {});
+    await Promise.all([enduserClient, adminClient]
+      .filter(Boolean)
+      .map((client) => client.post('/api/verticals/active', { id: 'banking' }).catch(() => {})));
   });
 
   for (const vertical of verticalsWithSpecialist()) {
@@ -67,6 +83,8 @@ describe('A2A UC2 sensitive-delegation — every vertical, real pipeline (real)'
         console.warn(`[a2a-live] no session — skipping ${vertical}`);
         return;
       }
+
+      const client = EXPECTED_PROVIDER && vertical === 'admin' ? adminClient : enduserClient;
 
       const activated = await client.post('/api/verticals/active', { id: vertical })
         .then((r) => [200, 204].includes(r.status))
