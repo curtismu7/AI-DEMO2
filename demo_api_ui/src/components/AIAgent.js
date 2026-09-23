@@ -10242,6 +10242,17 @@ export default function BankingAgent({
                               <span>{option.description}</span>
                             </button>
                           ))}
+                          {/* Not an evidence view — it opens the unattended-runs
+                              picker directly, but the grid is where demo users
+                              look for it. Styled as a view option on purpose. */}
+                          <button
+                            type="button"
+                            className="ba-header-more-view-option"
+                            onClick={() => setUnattendedPanelOpen(true)}
+                          >
+                            <strong>Unattended</strong>
+                            <span>Runs with nobody signed in</span>
+                          </button>
                         </div>
                       </div>
                       <div className="ba-header-more-context" aria-live="polite">
