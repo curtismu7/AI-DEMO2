@@ -15,6 +15,9 @@
 !demo_mcp_resource_server/openapi/**
 
 # Keep secrets, dependency trees, VCS data, and generated/runtime clutter out.
+demo_mcp_gateway/node_modules
+oauth-mcp/node_modules
+demo_mcp_resource_server/node_modules
 **/.git
 **/.git/**
 **/node_modules

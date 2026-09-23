@@ -12,6 +12,7 @@
 !snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json
 
 # Keep secrets, dependency trees, VCS data, and generated/runtime clutter out.
+demo_authz_server/node_modules
 **/.git
 **/.git/**
 **/node_modules

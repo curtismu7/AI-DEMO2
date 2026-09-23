@@ -40,6 +40,17 @@
 
 # Keep local credentials, dependencies, VCS metadata, generated artifacts,
 # logs, and caches out even when they live under an included source tree.
+demo_api_server/node_modules
+demo_api_ui/node_modules
+oauth-mcp/node_modules
+demo_mcp_gateway/node_modules
+demo_authz_server/node_modules
+demo_hitl_service/node_modules
+langchain_agent/node_modules
+llamaindex_agent/node_modules
+demo_llm_proxy/node_modules
+demo_mcp_code_search/node_modules
+ping-gateway/node_modules
 **/node_modules
 **/.git
 **/.worktrees
