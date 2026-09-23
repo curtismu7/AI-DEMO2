@@ -47,6 +47,21 @@ describe('enterpriseMcpPolicyService', () => {
     expect(result.code).toBe('enterprise_mcp_not_enabled');
   });
 
+  test('run-scoped policy checks work with the shared flag off and do not persist session state', async () => {
+    const session = {
+      populationId: 'banking-agents',
+      user: { oauthId: 'user-1', username: 'demoUser' },
+      agentConsentGiven: false,
+    };
+    const before = { ...session, user: { ...session.user } };
+    const req = { session };
+
+    const result = await enterpriseMcpPolicy.checkPolicy(req, { runScoped: true });
+
+    expect(result.allowed).toBe(true);
+    expect(session).toEqual(before);
+  });
+
   test('checkPolicy permits user in allowed group via PingOne API', async () => {
     configStore.getEffective.mockImplementation((key) => {
       if (key === 'ff_enterprise_managed_mcp_auth') return 'true';
