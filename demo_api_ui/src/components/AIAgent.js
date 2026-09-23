@@ -10589,7 +10589,9 @@ export default function BankingAgent({
                     if (next) setShowDiscovery(false);
                   }}
                   onSelect={(uc, stepNumber, opts) => {
-                    handleDemoStepSelect(uc, stepNumber, opts);
+                    window.dispatchEvent(new CustomEvent("agent-demo-step-select", {
+                      detail: { uc, stepNumber, opts },
+                    }));
                   }}
                 />
                 {/* Live Use-Case Workbench — same catalog, live/interactive mode */}

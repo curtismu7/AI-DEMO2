@@ -37,11 +37,9 @@ export function useUseCaseRunContext(location) {
   // (reload / OAuth sign-in redirect) the ref starts false again, so /dashboard
   // restores the session copy of the last launch.
   const launchedThisMountRef = useRef(false);
-  // Set when a run was bound via the banking-agent-prefill event (Use Cases
-  // workbench Run) rather than navigate state. The workbench does not navigate
-  // on Run — the user then routes to /dashboard with no state, which the
-  // location effect below would otherwise treat as "not a launch" and CLEAR
-  // the binding the event just created.
+  // Set when a run was bound by an event rather than navigate state. These
+  // launches do not navigate, so a later route to /dashboard has no state; the
+  // location effect below must preserve the event-bound context.
   const eventBoundRef = useRef(false);
 
   useEffect(() => {
@@ -58,7 +56,7 @@ export function useUseCaseRunContext(location) {
         setRunContext(null);
       } else {
         // Full page load straight onto /dashboard (router state is gone), or a
-        // workbench Run (event-bound) followed by routing here: restore the
+        // event-bound launch followed by routing here: restore the
         // launch binding from the session copy.
         setRunContext(readPersistedRunContext());
       }
@@ -97,11 +95,27 @@ export function useUseCaseRunContext(location) {
       persistRunContext(nextRunContext);
       setRunContext(nextRunContext);
     };
+    const onDemoStepSelect = (e) => {
+      const uc = e.detail?.uc;
+      if (!uc) return;
+      const nextRunContext = {
+        source: 'demo-steps',
+        useCaseId: uc.useCaseId || uc.id,
+        useCaseLabel: uc.title,
+        triggerText: uc.trigger?.text,
+      };
+      launchedThisMountRef.current = true;
+      eventBoundRef.current = true;
+      persistRunContext(nextRunContext);
+      setRunContext(nextRunContext);
+    };
     window.addEventListener('banking-agent-prefill', handler);
     window.addEventListener('agent-track-step-pick', onTrackStepPick);
+    window.addEventListener('agent-demo-step-select', onDemoStepSelect);
     return () => {
       window.removeEventListener('banking-agent-prefill', handler);
       window.removeEventListener('agent-track-step-pick', onTrackStepPick);
+      window.removeEventListener('agent-demo-step-select', onDemoStepSelect);
     };
   }, []);
 
