@@ -556,5 +556,12 @@ export const SCENARIOS = [
   },
 ];
 
+SCENARIOS.unshift({
+  id: 'full-architecture',
+  label: 'Run all the steps (full arch)',
+  group: 'Flows',
+  steps: SCENARIOS.filter(scenario => scenario.group === 'Flows').flatMap(scenario => scenario.steps),
+});
+
 export const SCENARIO_MAP = Object.fromEntries(SCENARIOS.map(s => [s.id, s]));
 export const DEFAULT_SCENARIO_ID = 'oauth-login';
