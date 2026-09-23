@@ -9,7 +9,7 @@ export const NAV_STRUCTURE_CATALOG = [
   { label: "Security Dashboard" },
   { label: "Skin Studio" },
   { label: "AI Gateway", children: [
-    "AI Guard", "Protocol Playground", "AI Gateway Client", "LLM Gateway", "Intent Inspector", "Audit Agent",
+    "AI Guard", "Protocol Playground", "AI Guard Client", "LLM Gateway", "Intent Inspector", "Audit Agent",
     "AI Gateway Guide", "Agent Gateway Authorization", "AI Gateway Diagrams", "Agent IAM Core",
     "Agent Gateway", "PingOne Authorize", "AI Gateway · LLM", "AI Gateway · A2A", "AI Gateway · MCP",
     "Protected RAG", "AI Gateway Demo",
@@ -53,7 +53,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Capability Tour", "MCP Runtime Inventory", "MCP Scanner", "Personal Agent Clients", "LibreChat (browser)", "LM Studio (Mac)",
   ] },
   { label: "Developer Tools", children: [
-    "Code Explorer", "Graphify", "Postman Collections", "API Docs (Swagger)", "API Reference (Scalar)", "llama-vscode Guide",
+    "Code Explorer", "Graphify", "Postman Collections", "API Docs (Swagger)", "API Reference (Scalar)", "llama-vscode Guide", "PromptFoo Evals",
   ] },
   { label: "Observability", children: [
     "Audit Trail", "Learning Log", "Activity Log", "API Activity", "Run Reports", "Error Audit Log", "New Relic",

@@ -1,0 +1,145 @@
+.attack-lab {
+  min-width: 0;
+  padding: 1.25rem;
+  background: var(--th-bg-page);
+  color: var(--th-text);
+}
+
+.attack-lab__header {
+  max-width: 68rem;
+  margin: 0 auto 1rem;
+}
+
+.attack-lab__header h1,
+.attack-lab__scenario h2,
+.attack-lab__evidence h3 {
+  margin: 0 0 0.5rem;
+  color: var(--th-text);
+  font-size: var(--font-size-2xl);
+}
+
+.attack-lab__header p,
+.attack-lab__scenario > p,
+.attack-lab__live p {
+  color: var(--th-text);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+}
+
+.attack-lab__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  max-width: 68rem;
+  margin: 0 auto 1rem;
+}
+
+.attack-lab__choice,
+.attack-lab__scenario > button,
+.attack-lab__live button {
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-base);
+  cursor: pointer;
+}
+
+.attack-lab__choice:hover,
+.attack-lab__scenario > button:hover:not(:disabled),
+.attack-lab__live button:hover:not(:disabled) {
+  background: var(--th-bg-hover);
+  color: var(--th-text);
+}
+
+.attack-lab__choice:focus-visible,
+.attack-lab__scenario button:focus-visible,
+.attack-lab__live button:focus-visible {
+  outline: 2px solid var(--th-border-strong);
+  outline-offset: 2px;
+}
+
+.attack-lab__choice.is-selected {
+  border-color: var(--th-text);
+  box-shadow: inset 0 -2px 0 var(--th-text);
+  font-weight: 700;
+}
+
+.attack-lab__scenario,
+.attack-lab__empty {
+  max-width: 68rem;
+  margin: 0 auto;
+  padding: 1rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.attack-lab__live pre,
+.attack-lab__detail {
+  overflow-wrap: anywhere;
+  padding: 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  white-space: pre-wrap;
+}
+
+.attack-lab__evidence {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--th-border);
+  color: var(--th-text);
+}
+
+.attack-lab__evidence p,
+.attack-lab__fixture,
+.attack-lab__attribution {
+  color: var(--th-text);
+  font-size: var(--font-size-base);
+  line-height: 1.45;
+}
+
+.attack-lab__sequence {
+  display: grid;
+  gap: 0.4rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.attack-lab__sequence li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0.75rem;
+  border-inline-start: 3px solid var(--th-border-strong);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-base);
+}
+
+.attack-lab__error {
+  margin: 1rem 0 0;
+  padding: 0.75rem;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font-size: var(--font-size-base);
+}
+
+.attack-lab button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+@media (max-width: 640px) {
+  .attack-lab { padding: 0.75rem; }
+  .attack-lab__choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .attack-lab__choice { min-height: 2.75rem; }
+  .attack-lab__sequence li { flex-direction: column; gap: 0.2rem; }
+}

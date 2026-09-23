@@ -688,7 +688,7 @@ export default function AgentGatewayTester({ twoStep = false }) {
   // ARE the payload, and a template would overwrite the very values that make it
   // an attack. If the live gateway filtered the tool out of its list, fall back to
   // a bare {name}: that Authorize hid it is itself the interesting result.
-  const pickAttack = (id) => {
+  const pickAttack = useCallback((id) => {
     setSelectedAttack(id);
     const attack = TOOL_ATTACKS.find((a) => a.id === id);
     if (!attack) return;
@@ -696,7 +696,15 @@ export default function AgentGatewayTester({ twoStep = false }) {
     setArgsText(JSON.stringify(attack.args, null, 2));
     setResp(null);
     setOutputTab('result');
-  };
+  }, [tools]);
+
+  const requestedAttack = new URLSearchParams(window.location.search).get('attack');
+  useEffect(() => {
+    if (requestedAttack && requestedAttack !== selectedAttack
+      && TOOL_ATTACKS.some((attack) => attack.id === requestedAttack)) {
+      pickAttack(requestedAttack);
+    }
+  }, [requestedAttack, selectedAttack, pickAttack]);
 
   const clearForm = () => {
     setArgsText('{}');

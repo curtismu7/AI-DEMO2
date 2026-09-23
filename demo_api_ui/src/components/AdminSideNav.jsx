@@ -514,7 +514,7 @@ export default function AdminSideNav({
       icon: "shld",
       children: [
         { label: "Protocol Playground", path: "/protocol-playground", icon: "dbg" },
-        { label: "AI Gateway Client", path: "/privilege-mcp-client", icon: "shld" },
+        { label: "AI Guard Client", path: "/privilege-mcp-client", icon: "shld" },
         { label: "LLM Gateway", path: "/llm-gateway", icon: "key" },
         { label: "Intent Inspector", path: "/intent-inspector", icon: "shld", adminOnly: true },
         { label: "Audit Agent", path: "/audit-agent", icon: "shld" },
@@ -1056,6 +1056,7 @@ export default function AdminSideNav({
       label: "Diagrams",
       icon: "arc",
       children: [
+        { label: "PingFederate ID-JAG (Node)", path: "/architecture/pingfederate-id-jag", icon: "arc" },
         {
           label: "System Diagram (Node)",
           path: "/architecture/system",
@@ -1164,6 +1165,7 @@ export default function AdminSideNav({
         { label: "Protected RAG", path: "/code-search", icon: "srch" },
         { label: "Graphify", path: "/graphify", icon: "arc" },
         { label: "Mgmt API Runner", path: "/mgmt-api", icon: "tool" },
+        { label: "PromptFoo Evals", path: "/promptfoo", icon: "tst" },
       ],
     },
     {
@@ -1251,7 +1253,7 @@ export default function AdminSideNav({
     productGroup("AI Gateway", [
       { from: "Shadow AI Detector", rename: "AI Guard" },
       "Protocol Playground",
-      "AI Gateway Client",
+      "AI Guard Client",
       "LLM Gateway",
       "Intent Inspector",
       "Audit Agent",
@@ -1402,6 +1404,7 @@ export default function AdminSideNav({
       "Grafana",
     ], "log"),
     productGroup("Architecture & Learning", [
+      "PingFederate ID-JAG (Node)",
       "System Diagram (Node)",
       "Overview Diagram (Node)",
       "Token Flow (Interactive) (Node)",

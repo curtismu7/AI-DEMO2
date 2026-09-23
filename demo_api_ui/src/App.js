@@ -173,6 +173,7 @@ import GovernanceTimelinePage from "./pages/GovernanceTimelinePage";
 import EmbeddedWorkerPage from "./pages/EmbeddedWorkerPage";
 import TransactionTraceEmbedPage from "./pages/TransactionTraceEmbedPage";
 import PingCliPage from "./components/PingCliPage";
+import PromptFooPage from "./components/PromptFooPage";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import NotebookLmPage from "./pages/NotebookLmPage";
 import AgenticAccessConsolePage from "./pages/AgenticAccessConsolePage";
@@ -1386,6 +1387,15 @@ function AppWithAuth() {
                     // Public route — no login required.
                     <AppShell user={user} logout={logout}>
                       <PingCliPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/promptfoo"
+                  element={
+                    // Public route — no login required (same pattern as /pingcli).
+                    <AppShell user={user} logout={logout}>
+                      <PromptFooPage user={user} />
                     </AppShell>
                   }
                 />

@@ -127,3 +127,31 @@ describe('OAuthService.performIdJagExchange', () => {
       .rejects.toThrow(/redemption token endpoint/i);
   });
 });
+
+describe('OAuthService PF standard access-token exchange', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  test('uses the caller-selected PF standard client and requests an access token', async () => {
+    axios.post.mockResolvedValue({ data: { access_token: 'pf-standard-access-token' } });
+    const standardClientId = 'pf-standard-client';
+    const result = await oauthService.performTokenExchangeAs(
+      'pf-user-access-token', 'pf-actor-token', standardClientId,
+      'pf-standard-secret', 'https://api.example.test', ['accounts:read'], 'basic',
+      { omitAudience: true }
+    );
+
+    expect(result).toBe('pf-standard-access-token');
+    const [url, bodyText, options] = axios.post.mock.calls[0];
+    const body = new URLSearchParams(bodyText);
+    expect(url).toBe('https://pf.example.com/as/token.oauth2');
+    expect(body.get('client_id')).toBe(standardClientId);
+    expect(body.get('requested_token_type')).toBe('urn:ietf:params:oauth:token-type:access_token');
+    expect(body.get('subject_token')).toBe('pf-user-access-token');
+    expect(body.get('actor_token')).toBe('pf-actor-token');
+    expect(body.has('audience')).toBe(false);
+    expect(body.has('resource')).toBe(false);
+    expect(body.get('scope')).toBe('accounts:read');
+    expect(options.headers.Authorization).toMatch(/^Basic /);
+    expect(bodyText).not.toContain('pf-exchange-client');
+  });
+});

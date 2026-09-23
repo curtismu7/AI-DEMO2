@@ -102,6 +102,8 @@ describe('MCP HITL credit amount-binding (write tools)', () => {
     expect(r.ran).toBe(true);
     expect(r.block).toBeUndefined();
     expect(r.permit).toBe(true);
-    expect(cibaTransactionReceipt.consume('u1', 'create_transfer', 50)).toBe(true);
+    expect(cibaTransactionReceipt.consume('u1', 'create_transfer', 50, {
+      fromAccountId: 'a1', toAccountId: 'a2',
+    })).toBe(true);
   });
 });

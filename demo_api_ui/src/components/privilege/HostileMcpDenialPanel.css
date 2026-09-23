@@ -1,0 +1,96 @@
+.hmd-panel {
+  padding: 1rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.hmd-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.hmd-panel__eyebrow,
+.hmd-panel__meta {
+  color: var(--th-text-body);
+  font-size: var(--font-size-2xs);
+}
+
+.hmd-panel h2,
+.hmd-panel h3 { margin: 0; }
+.hmd-panel h2 { font-size: var(--font-size-lg); }
+.hmd-panel h3 { font-size: var(--font-size-sm); }
+.hmd-panel__header p,
+.hmd-panel__summary,
+.hmd-panel__evidence p { color: var(--th-text-body); }
+.hmd-panel__header p { margin: 0.35rem 0 0; }
+.hmd-panel__summary { margin: 0.75rem 0; }
+
+.hmd-panel__selector {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 210px;
+  font-size: var(--font-size-sm);
+}
+
+.hmd-panel__selector select {
+  padding: 0.4rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+  font: inherit;
+}
+
+.hmd-panel__run {
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--th-status-info-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.hmd-panel__run:disabled { opacity: 0.6; cursor: not-allowed; }
+.hmd-panel__error,
+.hmd-panel__decision--denied strong { color: var(--th-status-error-text); }
+.hmd-panel__error { margin: 0.6rem 0 0; }
+
+.hmd-panel__evidence {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+}
+
+.hmd-panel__evidence article {
+  min-height: 7rem;
+  padding: 0.65rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.hmd-panel__meta { display: block; margin-top: 0.25rem; }
+.hmd-panel pre {
+  max-height: 9rem;
+  margin: 0.5rem 0 0;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--th-text);
+  font-size: var(--font-size-2xs);
+}
+
+.hmd-panel__decision--denied { border-color: var(--th-status-error-border) !important; }
+
+@media (max-width: 760px) {
+  .hmd-panel__header { display: block; }
+  .hmd-panel__selector { margin-top: 0.75rem; }
+  .hmd-panel__evidence { grid-template-columns: 1fr; }
+}

@@ -49,6 +49,56 @@ describe("LLM Gateway console", () => {
   // renders that same text as real DOM content, exposing the leak.
   afterEach(() => { window.localStorage.clear(); });
 
+  it.each([
+    ["tool_abuse", "/demo-track?step=attack-gauntlet"],
+    ["tool_poisoning", "/llm-gateway?tab=hostile"],
+    ["schema_violation", "/agent-gateway-capabilities?attack=schema_violation"],
+    ["inter_agent_abuse", "/delegation-chain-value"],
+  ])("routes %s to its real demo instead of sending it as a chat prompt", async (attackId, href) => {
+    mockFetch(() => new Promise(() => {}));
+    render(<LlmGatewayPage />);
+    await screen.findByText("/llm/anthropic/v1/messages");
+
+    fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: attackId } });
+
+    expect(screen.getByLabelText(/^prompt$/i)).toHaveValue("");
+    expect(screen.getByTestId("lgw-attack-demo-link")).toHaveAttribute("href", href);
+  });
+
+  it("does not restore a tool/agent attack as chat text after reload", async () => {
+    window.localStorage.setItem("lgw-attack-choice", "tool_abuse");
+    mockFetch(() => new Promise(() => {}));
+    render(<LlmGatewayPage />);
+    await screen.findByText("/llm/anthropic/v1/messages");
+
+    expect(screen.getByLabelText(/^prompt$/i)).toHaveValue("");
+    expect(screen.getByTestId("lgw-attack-demo-link")).toHaveAttribute("href", "/demo-track?step=attack-gauntlet");
+  });
+
+  it("uses a safe simulated sample for Malicious Content and keeps it on the Privilege LLM lane", async () => {
+    const attack = GUARDRAIL_ATTACKS.find((item) => item.id === "malicious_content");
+    expect(attack.payload).not.toMatch(/working python ransomware|recursively aes-encrypt/i);
+    expect(attack.payload).toMatch(/simulated|fictional|training sample/i);
+
+    mockFetch(() => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ response: "Simulated alert rendered.", provider: "anthropic" }),
+    }));
+    render(<LlmGatewayPage />);
+    await screen.findByText("/llm/anthropic/v1/messages");
+    fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: "malicious_content" } });
+
+    expect(screen.getByLabelText(/^prompt$/i)).toHaveValue(attack.payload);
+    expect(screen.queryByTestId("lgw-attack-demo-link")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+    await waitFor(() => {
+      expect(global.fetch.mock.calls.some(([url, options]) => (
+        String(url).endsWith("/llm/call") && JSON.parse(options.body).prompt === attack.payload
+      ))).toBe(true);
+    });
+  });
+
   it("lists each lane with its route and model, and names a missing key", async () => {
     mockFetch(() => new Promise(() => {}));
     render(<LlmGatewayPage />);
@@ -992,9 +1042,8 @@ describe("LLM Gateway console", () => {
     });
   });
 
-  // Run all: every Library attack through the selected Privilege lane and
-  // through llama.cpp, one call at a time (llama.cpp's proxy is one shared rate
-  // bucket), scored against what the catalog says each attack should produce.
+  // Run all chat attacks through the selected Privilege lane and llama.cpp.
+  // Tool/A2A rows stay in the scorecard but link to their separate runners.
   describe("run all attacks", () => {
     const EXPECTED_LABEL = { blocks: "Blocked", sanitizes: "Redacted", none: "No verdict" };
     const DENIED = () => ({
@@ -1040,10 +1089,10 @@ describe("LLM Gateway console", () => {
       });
       return state;
     }
-    const runAll = () => fireEvent.click(screen.getByRole("button", { name: /run all attacks/i }));
+    const runAll = () => fireEvent.click(screen.getByRole("button", { name: /run all chat attacks/i }));
     const whenDone = () => waitFor(() => expect(screen.getByTestId("lgw-scorecard")).toHaveAttribute("data-done", "true"));
 
-    it("fires every attack in catalog order, selected lane then llama.cpp, never two at once", async () => {
+    it("fires only chat attacks and links tool/A2A entries to their own runners", async () => {
       const state = mockRunAll();
       render(<LlmGatewayPage />);
       await screen.findByText("/llm/anthropic/v1/messages");
@@ -1051,9 +1100,16 @@ describe("LLM Gateway console", () => {
       runAll();
       await whenDone();
 
+      const chatAttacks = GUARDRAIL_ATTACKS.filter((attack) => !attack.demoPath);
       expect(state.calls.map((c) => [c.provider, c.prompt])).toEqual(
-        GUARDRAIL_ATTACKS.flatMap((a) => [["anthropic", a.payload], ["llamacpp", a.payload]]),
+        chatAttacks.flatMap((a) => [["anthropic", a.payload], ["llamacpp", a.payload]]),
       );
+      for (const attack of GUARDRAIL_ATTACKS.filter((item) => item.demoPath)) {
+        const row = screen.getByTestId(`lgw-score-${attack.id}`);
+        expect(within(row).getByText("Separate demo")).toBeInTheDocument();
+        expect(within(row).getAllByRole("link", { name: /open demo/i })).toHaveLength(2);
+        expect(within(row).getAllByRole("link", { name: /open demo/i })[0]).toHaveAttribute("href", attack.demoPath);
+      }
       expect(state.overlapped).toBe(false);
     });
 
@@ -1067,7 +1123,14 @@ describe("LLM Gateway console", () => {
 
       for (const a of GUARDRAIL_ATTACKS) {
         const row = screen.getByTestId(`lgw-score-${a.id}`);
-        expect(within(row).getByTestId("lgw-score-guarded"), a.id).toHaveTextContent(EXPECTED_LABEL[a.effect]);
+        if (a.demoPath) {
+          expect(within(row).getByText("Separate demo"), a.id).toBeInTheDocument();
+          continue;
+        }
+        expect(within(row).getByTestId("lgw-score-guarded"), a.id).toHaveTextContent(
+          a.effect === "unmeasured" ? "No verdict" : EXPECTED_LABEL[a.effect],
+        );
+        if (a.effect === "unmeasured") expect(within(row).getByText("Not measured")).toBeInTheDocument();
         expect(row, a.id).not.toHaveAttribute("data-mismatch", "true");
       }
     });
@@ -1138,7 +1201,7 @@ describe("LLM Gateway console", () => {
       render(<LlmGatewayPage />);
       await screen.findByText("/llm/anthropic/v1/messages");
 
-      expect(screen.getByRole("button", { name: /run all attacks/i })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /run all chat attacks/i })).toBeDisabled();
     });
 
     // The results belong to the lane that ran them. Switching lanes afterwards

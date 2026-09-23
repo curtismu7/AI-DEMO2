@@ -24,6 +24,9 @@ function humanizeUseCaseId(useCaseId) {
 
 export default function UseCaseRunContextCard({ runContext }) {
   const launchedFromUseCases = runContext?.source === 'use-cases';
+  const launchedFromDemoTrack = runContext?.source === 'demo-track';
+  const launchedFromDemoSteps = runContext?.source === 'demo-steps';
+  const launchedFromDashboard = !launchedFromUseCases && !launchedFromDemoTrack && !launchedFromDemoSteps;
   const evidence = evidenceItems(runContext?.evidence);
 
   return (
@@ -31,12 +34,18 @@ export default function UseCaseRunContextCard({ runContext }) {
       <div className="ba-run-context-card__header">
         <div>
           <div className="ba-run-context-card__eyebrow">
-            {launchedFromUseCases ? 'Launched from Use Cases' : 'Direct dashboard run'}
+            {launchedFromUseCases
+              ? 'Launched from Use Cases'
+              : launchedFromDemoTrack
+                ? 'Launched from Demo Track'
+                : launchedFromDemoSteps
+                  ? 'Launched from Demo Steps'
+                  : 'Direct dashboard run'}
           </div>
           <h2 className="ba-run-context-card__title">
             {runContext?.useCaseLabel
               || humanizeUseCaseId(runContext?.useCaseId)
-              || 'No use case selected'}
+              || 'Welcome'}
           </h2>
         </div>
         {runContext?.expectedOutcome && (
@@ -58,7 +67,7 @@ export default function UseCaseRunContextCard({ runContext }) {
             </div>
             <div>
               <dt>Source</dt>
-              <dd>Use Cases → {runContext.useCaseLabel || runContext.useCaseId}</dd>
+              <dd>{launchedFromDemoTrack ? 'Demo Track' : launchedFromDemoSteps ? 'Demo Steps' : launchedFromDashboard ? 'Dashboard' : 'Use Cases'} → {runContext.useCaseLabel || runContext.useCaseId}</dd>
             </div>
           </dl>
           {evidence.length > 0 && (
@@ -76,7 +85,7 @@ export default function UseCaseRunContextCard({ runContext }) {
         </>
       ) : (
         <p className="ba-run-context-card__summary">
-          Open a scenario from Use Cases to bind this dashboard to a named run and its expected evidence.
+          Ask a banking question or choose a scenario from Use Cases to run it here. This dashboard shows the authorization and tool evidence behind each run.
         </p>
       )}
     </section>

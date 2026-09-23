@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FootprintSkinPicker } from '../components/aiFootprintMocks/FootprintSkinPicker';
 import { KIBANA_URL } from '../config/observabilityLinks';
-import HostileMcpDenialPanel from '../components/privilege/HostileMcpDenialPanel';
 import ToolsTable from '../components/privilege/ToolsTable';
 import JsonHighlight from '../components/shared/JsonHighlight';
 import JsonFormView from '../components/shared/JsonFormView';
@@ -1372,14 +1371,6 @@ export default function PrivilegeMcpClientPage() {
     return out;
   };
 
-  const runHostileMcpRequest = async ({ method, params }) => {
-    return api('/request', { method: 'POST', body: { method, params } });
-  };
-
-  const runHostileToolCall = async ({ name, arguments: args }) => {
-    return api('/tools/call', { method: 'POST', body: { name, arguments: args } });
-  };
-
   // Land on the Tools tab the first time tools are discovered — it is the point
   // of the page. Only once, so it never fights later navigation.
   useEffect(() => {
@@ -2296,11 +2287,6 @@ export default function PrivilegeMcpClientPage() {
           <div className="cur-editor-area">
             {visibleTab === 'chat' && (
               <>
-                <HostileMcpDenialPanel
-                  tools={tools}
-                  onRequest={runHostileMcpRequest}
-                  onCall={runHostileToolCall}
-                />
                 <div className="cur-chat-panel">
                 <div className="cur-chat-messages">
                   {chatMessages.length === 0 && (

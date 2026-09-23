@@ -79,8 +79,6 @@ const mockGetMcpExchangerToken = jest.fn();
 const mockGetAiAgentClientCredentialsToken = jest.fn();
 const mockIsNativeIdJagEnabled = jest.fn(() => false);
 const mockMintAndRedeemIdJag = jest.fn();
-const mockGetOAuthProvider = jest.fn(() => 'pingone');
-
 jest.mock('../../services/oauthService', () => ({
   config: { clientId: 'bff-client-id' },
   getAgentClientCredentialsToken: (...args) => mockGetAgentClientCredentialsToken(...args),
@@ -124,7 +122,7 @@ jest.mock('../../services/configStore', () => {
   const actual = jest.requireActual('../../services/configStore');
   return {
     get: jest.fn((key) => null),
-    getOAuthProvider: (...args) => mockGetOAuthProvider(...args),
+    getOAuthProvider: jest.fn(() => 'pingone'),
     getEffective: jest.fn((key) => {
       if (key === 'PINGONE_RESOURCE_MCP_SERVER_URI') return '';
       return null;
@@ -180,6 +178,46 @@ describe('resolveMcpAccessTokenWithEvents — no session token', () => {
     const { token, tokenEvents } = await resolveMcpAccessTokenWithEvents(makeReq(null), 'get_my_accounts');
     expect(token).toBeNull();
     expect(tokenEvents).toHaveLength(0);
+  });
+});
+
+describe('resolveMcpAccessTokenWithEvents — PingFederate standard exchange audience', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    configStore.getOAuthProvider.mockReturnValue('pingfederate');
+    configStore.getEffective.mockImplementation((key) => ({
+      pingone_resource_mcp_server_uri: 'mcpserver.ping.demo',
+      pf_standard_token_exchange_client_id: 'pf-standard-client',
+      pf_standard_token_exchange_client_secret: 'pf-standard-secret',
+      pf_standard_token_exchange_token_endpoint_auth_method: 'basic',
+      pf_ai_agent_actor_client_id: 'pf-actor-client',
+      pf_ai_agent_actor_client_secret: 'pf-actor-secret',
+      pf_ai_agent_actor_token_endpoint_auth_method: 'basic',
+    })[key] || null);
+    mockGetAiAgentClientCredentialsToken.mockResolvedValue(sampleJwtAgentAccessToken);
+    mockPerformTokenExchangeAs.mockResolvedValue(sampleJwtMcpAccessToken);
+  });
+
+  afterEach(() => configStore.getOAuthProvider.mockReturnValue('pingone'));
+
+  it('lets PF derive the resource audience from scopes on standard demo steps', async () => {
+    await resolveMcpAccessTokenWithEvents(makeReq(sampleJwtUserAccessToken), 'get_my_accounts');
+
+    expect(mockPerformTokenExchangeAs).toHaveBeenCalledWith(
+      sampleJwtUserAccessToken,
+      sampleJwtAgentAccessToken,
+      'pf-standard-client',
+      'pf-standard-secret',
+      'mcpserver.ping.demo',
+      expect.any(Array),
+      'basic',
+      expect.objectContaining({
+        requestedTokenType: 'urn:ietf:params:oauth:token-type:access_token',
+        omitAudience: true,
+      })
+    );
+    expect(mockPerformTokenExchange).not.toHaveBeenCalled();
+    expect(mockPerformTokenExchangeWithActor).not.toHaveBeenCalled();
   });
 });
 
@@ -256,7 +294,7 @@ describe('resolveMcpAccessTokenWithEvents — R1: local scope allow-list no long
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockGetOAuthProvider.mockReturnValue('pingone');
+    configStore.getOAuthProvider.mockReturnValue('pingone');
     mockIsNativeIdJagEnabled.mockReturnValue(false);
     configStore.getEffective.mockImplementation((key) => {
       if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri') return 'https://mcp.example.com/api';
@@ -1018,7 +1056,7 @@ describe('resolveMcpAccessTokenWithEvents — 2-exchange delegation (ff_two_exch
     delete process.env.MCP_EXCHANGER_TOKEN_ENDPOINT_AUTH_METHOD;
 
     jest.clearAllMocks();
-    mockGetOAuthProvider.mockReturnValue('pingone');
+    configStore.getOAuthProvider.mockReturnValue('pingone');
     mockIsNativeIdJagEnabled.mockReturnValue(false);
 
     // Config: 2-exchange flag on, MCP URI set
@@ -1278,7 +1316,7 @@ describe('resolveMcpAccessTokenWithEvents — 2-exchange delegation (ff_two_exch
   });
 
   it('rejects workload actor binding in PingFederate ID-JAG mode', async () => {
-    mockGetOAuthProvider.mockReturnValue('pingfederate');
+    configStore.getOAuthProvider.mockReturnValue('pingfederate');
     const req = makeReq(sampleJwtUserAccessToken);
     req.workloadAgentRuntime = {
       clientId: 'personal-agent-client',

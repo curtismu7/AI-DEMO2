@@ -1,90 +1,35 @@
 // demo_api_ui/src/pages/EnterpriseMcpDemoPage.jsx
 //
-// /demo/enterprise-mcp — run the MCP Enterprise-Managed Authorization demo:
-// explain it, arm one flag, send the chip, watch the ID-JAG hops on the movie
-// roll, then put the flag back.
-//
-// Native ID-JAG is configured permanently in docker-compose on both services,
-// so this page flips exactly one boolean. See services/enterpriseMcpDemoFlags.js.
+// /demo/enterprise-mcp — run the MCP Enterprise-Managed Authorization demo.
+// UC40 travels with this run only; the BFF applies and discards its policy
+// context without changing shared feature flags or login configuration.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import TokenChainFilmstrip from "../components/TokenChainFilmstrip";
 import { EDU } from "../components/education/educationIds";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { useThemeOptional } from "../context/ThemeContext";
-import {
-  armEnterpriseMcpDemo,
-  resetEnterpriseMcpDemo,
-  readEnterpriseMcpDemoState,
-} from "../services/enterpriseMcpDemoFlags";
-import { notifyError, notifySuccess } from "../utils/appToast";
 import "./EnterpriseMcpDemoPage.css";
 
 const DEMO_CHIP = "show my balance";
 
 export default function EnterpriseMcpDemoPage() {
-  const [armed, setArmed] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [ran, setRan] = useState(false);
   // Optional variant on purpose: useEducationUI() THROWS outside its provider,
   // which would take the whole page down anywhere the provider is absent. Null
   // here simply hides the explainer buttons rather than shipping dead controls.
   const edu = useEducationUIOptional();
   const { darkMode, toggleDarkMode } = useThemeOptional();
-  useEffect(() => {
-    let alive = true;
-    readEnterpriseMcpDemoState().then((on) => { if (alive) setArmed(on); });
-    return () => { alive = false; };
-  }, []);
-
-  const handleArm = useCallback(async () => {
-    setBusy(true);
-    try {
-      await armEnterpriseMcpDemo();
-      setArmed(true);
-      notifySuccess("Enterprise-managed MCP auth is ON — run the scenario below.");
-    } catch {
-      notifyError("Could not arm the demo. You need to be signed in to change flags.");
-    } finally {
-      setBusy(false);
-    }
-  }, []);
-
-  const handleReset = useCallback(async () => {
-    setBusy(true);
-    try {
-      await resetEnterpriseMcpDemo();
-      setArmed(false);
-      setRan(false);
-      notifySuccess("Enterprise-managed MCP auth is OFF again.");
-    } catch {
-      notifyError("Could not reset the flag. Turn it off in Quick Flags before the next demo.");
-    } finally {
-      setBusy(false);
-    }
-  }, []);
-
   const handleRun = useCallback(() => {
     // Same mechanism LiveUseCaseWorkbenchPage uses to drive the agent.
     window.dispatchEvent(new CustomEvent("banking-agent-prefill", {
-      detail: { message: DEMO_CHIP, autoSend: true },
+      detail: { message: DEMO_CHIP, autoSend: true, useCaseId: "enterprise-managed-mcp-authorization" },
     }));
     setRan(true);
   }, []);
 
   return (
     <div className="emd-page">
-      {armed && (
-        // Standing banner, not just a button state. Silent staleness is the
-        // failure mode here: a flag left armed changes how the NEXT demo
-        // behaves with nothing on screen to explain why.
-        <div className="emd-armed-banner" role="status">
-          <span>⚠️ Enterprise-managed MCP auth is ARMED. Reset before running other demos.</span>
-          <button type="button" className="emd-btn emd-btn--reset" onClick={handleReset} disabled={busy}>
-            Reset now
-          </button>
-        </div>
-      )}
 
       <header className="emd-header">
         <button
@@ -131,32 +76,15 @@ export default function EnterpriseMcpDemoPage() {
           <button
             type="button"
             className="emd-btn emd-btn--primary"
-            onClick={handleArm}
-            disabled={busy || armed}
-          >
-            {armed ? "✓ Armed" : "1 — Turn on enterprise-managed auth"}
-          </button>
-          <button
-            type="button"
-            className="emd-btn"
             onClick={handleRun}
-            disabled={!armed || busy}
-            title={armed ? "" : "Arm the demo first"}
           >
-            2 — Send “{DEMO_CHIP}”
-          </button>
-          <button
-            type="button"
-            className="emd-btn emd-btn--reset"
-            onClick={handleReset}
-            disabled={busy || (!armed && !ran)}
-          >
-            3 — Reset when done
+            {ran ? "Run again" : `Run “${DEMO_CHIP}”`}
           </button>
         </div>
         <p className="emd-note">
-          Step 3 turns the flag off — always. It leaves the stack in its default state so the
-          next demo behaves normally, whether or not you armed it from this page.
+          This run carries the UC40 identity and requires a PingFederate login. Policy and
+          ID-JAG handling are selected for this run and discarded when it ends; ordinary demo
+          steps keep using the selected PingOne or PingFederate login mode.
         </p>
       </section>
 

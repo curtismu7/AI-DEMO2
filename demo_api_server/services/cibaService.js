@@ -24,24 +24,20 @@
  */
 
 const axios = require('axios');
-const crypto = require('crypto');
 const oauthConfig = require('../config/oauth');
 const configStore = require('./configStore');
-const { PINGONE_OIDC_DEFAULT_SCOPES_SPACE } = require('../config/scopes');
 const { logEvent: logAppEvent } = require('./appEventService');
 const { decodeJwt } = require('../utils/tokenUtils');
+const { validateToken } = require('./tokenValidationService');
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function _credentials() {
-  // Dedicated CIBA-only PingOne application (see docs/superpowers/plans/2026-07-20-ciba-real-platform-provisioning.md).
-  // Falls back to the admin login app's credentials so environments that
-  // haven't provisioned a dedicated CIBA app keep today's behavior
-  // (which fails over to cibaSimulatedService.js — see routes/ciba.js).
-  const clientId     = process.env.PINGONE_CIBA_CLIENT_ID     || oauthConfig.clientId;
-  const clientSecret  = process.env.PINGONE_CIBA_CLIENT_SECRET || oauthConfig.clientSecret;
+  // A separate CIBA app is required; the login app must retain its own grants.
+  const clientId     = process.env.PINGONE_CIBA_CLIENT_ID;
+  const clientSecret = process.env.PINGONE_CIBA_CLIENT_SECRET;
   if (!clientId || !clientSecret) {
     throw new Error('CIBA client credentials are not configured');
   }
@@ -56,10 +52,6 @@ function _sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function _generateNotificationToken() {
-  return crypto.randomBytes(32).toString('hex');
-}
-
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -69,11 +61,11 @@ function _generateNotificationToken() {
  *
  * @param {string} loginHint    User's email address or sub
  * @param {string} bindingMessage  Short string shown in the approval email or push (PingOne)
- * @param {string} scope        Space-separated OAuth scopes
+ * @param {string} scope        Space-separated OAuth scopes (defaults to openid)
  * @param {string} [acrValues]  ACR values for step-up (e.g. 'Multi_factor')
  * @returns {Promise<{ auth_req_id: string, expires_in: number, interval: number }>}
  */
-async function initiateBackchannelAuth(loginHint, bindingMessage, scope = PINGONE_OIDC_DEFAULT_SCOPES_SPACE, acrValues = '') {
+async function initiateBackchannelAuth(loginHint, bindingMessage, scope = 'openid', acrValues = '') {
   const endpoint = _cibaEndpoint();
   if (!endpoint) {
     throw new Error('PingOne environment not configured — cannot build CIBA endpoint');
@@ -94,12 +86,8 @@ async function initiateBackchannelAuth(loginHint, bindingMessage, scope = PINGON
     params.set('acr_values', acrValues);
   }
 
-  if (deliveryMode === 'ping') {
-    params.set('client_notification_token', _generateNotificationToken());
-    const notifyEndpoint = configStore.getEffective('ciba_notification_endpoint');
-    if (notifyEndpoint) {
-      params.set('client_notification_endpoint', notifyEndpoint);
-    }
+  if (deliveryMode !== 'poll') {
+    throw new Error('Only CIBA poll delivery mode is supported; configure the PingOne CIBA application for poll mode');
   }
 
   logAppEvent('auth_lifecycle', 'info', `CIBA: initiating backchannel auth for ${loginHint}`,
@@ -136,7 +124,7 @@ async function pollForTokens(authReqId) {
     auth_req_id: authReqId,
   });
 
-  const response = await axios.post(oauthConfig.tokenEndpoint, params.toString(), {
+  const response = await axios.post(`${oauthConfig._base}/token`, params.toString(), {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
       'Authorization': `Basic ${_credentials()}`,
@@ -145,6 +133,21 @@ async function pollForTokens(authReqId) {
   });
 
   return response.data; // { access_token, id_token, refresh_token, token_type, expires_in }
+}
+
+/** Verify that the CIBA result authenticates the user who initiated the request. */
+async function validateCibaIdToken(idToken, expectedSubject, requestedAcr = '') {
+  if (!idToken || !expectedSubject) throw new Error('CIBA identity result is incomplete');
+  const claims = await validateToken(idToken, {
+    jwksUri: `${oauthConfig._base}/jwks`,
+    issuer: oauthConfig._base,
+    audience: process.env.PINGONE_CIBA_CLIENT_ID,
+  });
+  if (claims.sub !== expectedSubject) throw new Error('CIBA subject does not match the initiating user');
+  if (requestedAcr && !String(requestedAcr).split(/\s+/).includes(claims.acr)) {
+    throw new Error('CIBA authentication context does not satisfy the requested step-up');
+  }
+  return claims;
 }
 
 /**
@@ -202,6 +205,7 @@ function isEnabled() {
 module.exports = {
   initiateBackchannelAuth,
   pollForTokens,
+  validateCibaIdToken,
   waitForApproval,
   isEnabled,
 };

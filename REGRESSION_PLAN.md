@@ -180,6 +180,284 @@ read the configured host. A new browser origin must be added to ALL of:
 **Do not break:** the browser sends only the canonical use-case slug, vertical, and catalog prompt; the BFF rejects a browser-selected tool, missing or unsupported vertical, cross-vertical prompt, or a mismatch with the resolved catalog action. It must never silently fall back to Airlines or the other scenario. UC38 still returns step-up before execution without MFA; UC44 remains eligible for policy-driven step-up or denial. The BFF keeps tokens and the request-local workload-app secret, and the existing RFC 8693 two-exchange, gateway, and Authorize boundaries still govern execution. The actor client ID must match the customer-owned PingOne app reported in the trace, and its secret must never enter browser responses or event metadata. The debug single-exchange session switch cannot remove a workload actor claim, native enterprise ID-JAG cannot bypass that actor, and PingFederate ID-JAG must fail closed for workload runs. A separate delegated-commerce registration cannot supply the workload consent decision. The trace names the selected vertical's action scopes; it must not claim Airlines scopes for every run. Legacy `/personal-agent` freeform callers retain the generic guest-tolerant invocation path by omitting the UC38/UC44 slugs; those workload branches require customer authentication. UC45 retains its MFA gate. Each workload run clears and replaces live token evidence, including structured failures, and an obsolete response cannot replace the selected run's evidence.
 
 **Verify:** `cd demo_api_ui && npx vitest run src/pages/__tests__/WorkloadAgentsPage.test.jsx src/pages/__tests__/PersonalAgentStudioPage.test.jsx src/pages/__tests__/PersonalAgentStudioPage.workloadEvidence.test.jsx src/pages/__tests__/PersonalAgentClientWindow.test.jsx src/components/__tests__/DemoStepsDropdown.test.jsx src/config/__tests__/missionControlCatalog.test.js`; `cd demo_api_server && CI=true npx jest tests/useCases.workloadAgents.test.js tests/agentInvokeRoute.workloadAgents.test.js src/__tests__/agentBuilderService.test.js tests/delegatedCommerceRuntime.test.js src/__tests__/agentMcpTokenService.test.js --forceExit`; from the repository root, `npm run use-cases:check` and `npm run authz:verify`; `cd demo_api_ui && npm run build`. These local checks pin the catalog, route, actor binding, evidence, exchange mode, and request behavior. They do not establish that the running PingOne worker can read the agent secret, that the per-user app has the necessary client-credentials grants, or a live PingOne exchange and gateway/Authorize decision; check those against the running stack with test credentials before claiming live execution.
+### 2026-09-23 — Local mock-phone CIBA approval could not finish a banking write
+
+**Files changed:** `demo_api_server/routes/ciba.js`, `routes/transactions.js`,
+`services/cibaSimulatedService.js`, `services/cibaTransactionReceipt.js`,
+`.env.example`, and `demo_api_ui/src/context/ProofOfEnforcementContext.js`.
+
+**What was broken:** the BFF rejected simulated banking requests at initiation
+and polling, so tapping Approve on the mock phone could never release the agent.
+The proof verdict also required one particular Authorize challenge shape even
+after an approved poll and successful dispatch.
+
+**What was fixed:** explicitly opt in to local simulation in development, carry
+the mock decision through polling and an amount and account bound, single-use
+receipt, and score a completed approved dispatch without depending on the first
+challenge's exact decision shape. The mock receipt remains distinct from real
+PingOne CIBA proof and cannot satisfy step-up outside the local opt-in.
+
+**Do not break:** a hard authorization DENY still blocks the write, a pending
+or failed dispatch cannot score as a success, and real CIBA stays the default.
+
+**Verify:** build `demo_api_ui`, inspect the active local CIBA status and the
+approved mock-phone request through the live agent flow.
+
+### 2026-09-23 — CIBA approval lacked a verified, transaction-bound handoff
+
+**Files changed:** `demo_api_server/config/oauth.js`, `routes/ciba.js`,
+`routes/transactions.js`, `services/cibaService.js`,
+`services/cibaSimulatedService.js`, `services/cibaTransactionReceipt.js`,
+`services/hitlCredit.js`, `services/mcpToolAuthorizationService.js`,
+`demo_api_ui/src/components/AIAgent.js`, `src/pages/CibaApprovalPage.js`,
+and their existing focused test fixtures.
+
+**What was broken:** PingOne CIBA was sent to the wrong endpoint and silently
+fell back to a same-session mock that auto-approved. The real poll accepted an
+unvalidated ID token and replaced the banking login token. The agent's
+bearer-only transaction could not see CIBA's fresh authentication; its receipt
+matched only user, tool, and amount, so a different account pair could spend it.
+Session expiry left the UI polling a 401 indefinitely.
+
+**What was fixed:** use PingOne's documented CIBA endpoint and a dedicated
+CIBA client, default to fail-closed, validate the signed ID token and subject,
+respect poll intervals, retain the banking login token, and carry a single-use
+approval bound to the exact amount and account IDs through the bearer hop.
+The local simulation requires an explicit click and is labeled as simulation.
+An expired browser session terminates polling with a sign-in instruction.
+
+**Do not break:** banking tokens remain in the BFF; transaction DENY and
+canonical HITL receipt checks remain authoritative; a CIBA result for another
+subject, account pair, or amount cannot authorize a write. Real CIBA still
+requires a provisioned PingOne app and DaVinci flow.
+
+**Verify:** JS syntax, UI build, and focused local flow checks before merge.
+
+### 2026-09-23 — Approved UC22 CIBA retry looped at the bearer-only transaction hop
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_server/routes/ciba.js`, and
+`demo_api_server/tests/routes/ciba.bearerReceipt.test.js`.
+
+**What was broken:** the gateway permitted the resumed `create_transfer`, but
+the banking MCP server's bearer-only `/api/transactions` call has no browser
+session to read CIBA's session proof. The CIBA request retained a downstream
+transaction receipt only when a separate canonical HITL challenge id existed;
+UC22's CIBA step-up had no such id and the transaction route re-issued the
+step-up challenge on every retry.
+
+**What was fixed:** the three agent CIBA initiation paths now pass the
+transaction type. The BFF stores only recognized transaction types alongside
+the approved amount and records the existing single-use `(user, tool, amount)`
+receipt after approval, with or without a separate HITL challenge. Canonical
+HITL challenge approval and validation remain unchanged.
+
+**Do not break:** receipts stay single-use and amount-bound; unknown
+transaction types create no bearer receipt; an invalid canonical HITL
+challenge still blocks approval. Keep browser tokens in the BFF.
+
+**Verify:** focused CIBA route regression test, focused CIBA UI tests, and UI build.
+
+### 2026-09-23 — Dashboard run card retained stale scenario after refresh
+
+**Files changed:** `demo_api_ui/src/utils/useCaseRunContext.js` and
+`demo_api_ui/src/components/UseCaseRunContextCard.jsx`.
+
+**What was broken:** the dashboard restored its last scenario from
+`sessionStorage` after a browser reload. React Router can also retain the
+scenario in navigation state, so the card continued to show the previous title
+after refresh.
+
+**What was fixed:** an ordinary reload of `/dashboard` now clears the stored
+scenario and ignores stale navigation state. An OAuth success return still
+restores its queued scenario. The empty card now says “Welcome” and explains
+that prompts and scenarios run here with authorization and tool evidence.
+
+**Do not break:** preserve scenario context through an OAuth sign-in return and
+when a scenario is explicitly launched; only ordinary dashboard reloads reset
+the card.
+
+**Verify:** `cd demo_api_ui && npm run build`.
+
+### 2026-09-23 — Separate ordinary PingFederate demo exchange from the UC40 ID-JAG run
+
+**Files changed:**
+- `demo_api_server/services/agentMcpTokenService.js` — select PF ID-JAG only for the explicit UC40 run; ordinary PF runs use a PF standard access-token exchanger.
+- `demo_api_server/services/oauthService.js`, `configStore.js`, and `envReconcile.js` — support separate PF standard exchange credentials and actor scope.
+- `demo_api_server/services/enterpriseMcpPolicyService.js` — add a per-run policy mode that bypasses shared caches/flags and does not write session state.
+- `demo_api_ui/src/pages/EnterpriseMcpDemoPage.jsx` — pass the UC40 catalog slug with the chip instead of modifying a shared flag.
+- `demo_api_server/env.example` and `docs/FEDERATE-SETUP.md` — document standard PF exchange configuration separately from ID-JAG.
+
+**What was broken:** every PF tool-token request entered ID-JAG, including ordinary demo steps. Once that unconditional branch was removed, the default two-exchange path would still read PingOne-only credentials. The UC40 page also armed a shared feature flag, which could change later runs.
+
+**What was fixed:** UC40 alone selects PF ID-JAG. Ordinary PF steps use a separately configured PF client and explicitly request an access token; P1 keeps its existing default flow. UC40 carries its identity on the run, evaluates policy without a global flag, and leaves consent/cache session fields untouched.
+
+**Do not break:** never infer ID-JAG from provider mode alone. Keep PF standard-exchange credentials distinct from the ID-JAG issuer/redemption credentials. Do not turn UC40 on through a shared flag or persist its run-only policy/consent state in the session. Ordinary demo-step provider parity must include all catalog use cases.
+
+**Verify:** focused BFF Jest suites for provider selection, catalog selection, OAuth exchange, policy, and PF login; focused UC40 UI Vitest suite; `cd demo_api_ui && npm run build`. Mocked tests do not prove live PF client/SP-connection provisioning; verify that separately in a read-only PF environment.
+
+### 2026-09-23 — Live run card kept the previous prompt title
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js`,
+`demo_api_ui/src/utils/useCaseRunContext.js`, and
+`demo_api_ui/src/components/UseCaseRunContextCard.jsx`.
+
+**What was broken:** the run-context card updated on scenario selection, but a
+new direct prompt did not replace the prior title. The Live Use-Case Workbench
+also sent only the use-case ID, so its latest run could lose the scenario's
+display title. Direct dashboard runs could be labeled as originating from Use
+Cases in the source row.
+
+**What was fixed:** prompt submissions now refresh the card when a direct
+dashboard prompt starts, workbench launches include the selected scenario title,
+and direct dashboard runs identify their source correctly. Existing named
+scenario titles and source labels remain bound to their launch selection.
+
+**Do not break:** prompt execution, auth and consent gates, token evidence, or
+the existing Demo Steps / Demo Track / Use Cases run bindings.
+
+**Verify:** `cd demo_api_ui && npm run build`.
+
+### 2026-09-23 — Approved CIBA action was reported as a proof mismatch
+
+**Files changed:** `demo_api_ui/src/context/ProofOfEnforcementContext.js` and
+`demo_api_ui/src/context/__tests__/ProofOfEnforcementContext.test.js`.
+
+**What was broken:** UC22's initial Authorize challenge remains
+`INDETERMINATE/STEP_UP` in the trace. The successful transaction retry can
+complete without emitting a second browser-visible Authorize decision, leaving
+the proof evaluator to compare that challenge against UC22's expected `PERMIT`
+and show `MISMATCH` even when CIBA was approved and the tool completed.
+
+**What was fixed:** for UC22 only, the verdict treats the challenge as
+discharged when the trace has an approved CIBA poll, a non-denied tool result,
+and a completed successful run. Pending/failed runs and hard DENY decisions
+remain mismatches.
+
+**Do not break:** hard authorization denials must never be overridden by CIBA
+approval, and an approval without a completed tool dispatch must not score as a
+PERMIT. Authorization gates and BFF session/token handling are unchanged.
+
+**Verify:** focused `ProofOfEnforcementContext.test.js` and `npm run build` in
+`demo_api_ui`.
+
+### 2026-09-23 — React StrictMode left CIBA agent pollers permanently inactive
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/AIAgentFull.js`, and
+`demo_api_ui/src/components/__tests__/AIAgent.cibaStepUp.test.js`.
+
+**What was broken:** React StrictMode replays effect setup and cleanup on mount.
+The CIBA listener cleanup marked the agent unmounted, but the next setup did not
+reset that flag, so every poll returned before contacting the BFF.
+
+**What was fixed:** reset the poller lifecycle flag whenever the listener effect
+sets up, and cover the StrictMode replay with a regression test.
+
+**Do not break:** the agent still trusts only `/api/auth/ciba/poll/:authReqId`
+before resuming the action; BFF approval, session, and token handling are
+unchanged.
+
+**Verify:** focused CIBA UI tests (20/20) and `npm run build` (exit 0).
+
+### 2026-09-23 — Demo Steps runs left the dashboard use-case card unbound
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/UseCaseRunContextCard.jsx`,
+`demo_api_ui/src/utils/useCaseRunContext.js`, and their focused tests.
+
+**What was broken:** the Demo Steps dropdown called `handleDemoStepSelect`
+directly, bypassing the event bridge used by the context card. The agent ran the
+scenario while the card remained at “No use case selected.”
+
+**What was fixed:** Demo Steps selection now goes through the existing
+`agent-demo-step-select` event. The context hook records the selected use-case
+ID, title, and prompt, and the card identifies the source as Demo Steps.
+
+**Do not break:** step execution still goes through the existing handler and
+its auth and consent gates. Demo Track, Use Cases, and direct dashboard context
+behavior remain intact.
+
+**Verify:** `cd demo_api_ui && npm run test:unit --
+src/components/__tests__/AIAgent.publicUseCase.test.jsx
+src/components/__tests__/UseCaseRunContextCard.test.jsx` and `npm run build`.
+
+### 2026-09-23 — Demo Track runs did not update the dashboard use-case card
+
+**Files changed:** `demo_api_ui/src/utils/useCaseRunContext.js`,
+`demo_api_ui/src/components/UseCaseRunContextCard.jsx`, and their focused tests.
+
+**What was broken:** selecting a guided Demo Track step started the agent flow
+without binding its use-case ID to the dashboard card, which stayed at “No use
+case selected.”
+
+**What was fixed:** Demo Track step picks now persist the step ID, title, and
+buyer story as the active run context. The card labels the source as Demo Track
+and shows the selected scenario.
+
+**Do not break:** Demo Track selection remains display-only here; agent step
+execution and the existing Use Cases launch binding are unchanged. Direct
+dashboard visits still show “No use case selected.”
+
+**Verify:** `cd demo_api_ui && npm run test:unit --
+src/utils/__tests__/useCaseRunContext.test.js
+src/components/__tests__/UseCaseRunContextCard.test.jsx` and `npm run build`.
+
+### 2026-09-23 — A2A provider/session drift could send a stale login into the wrong token endpoint
+
+**Files changed:** `demo_api_server/services/a2aDelegationService.js`,
+`demo_api_server/tests/a2aProviderSessionGuard.test.js`,
+`demo_api_server/tests/a2aProviderMatrixAssertions.test.js`,
+`demo_api_server/tests/real/helpers/a2aProviderMatrix.js`,
+`demo_api_server/tests/real/shared/a2a-delegation-live.test.js`.
+
+**What was broken:** the two-exchange chain selected PingOne vs PF from the
+process-wide `OAUTH_PROVIDER` setting, but did not compare that provider and its
+issuer with the signed-in session's access-token issuer. A browser retaining a
+session from the other login mode could therefore send its user token to the
+wrong provider endpoint and fail later as an opaque client-credential/token
+exchange error. Failures also combined actor-token acquisition and exchange
+errors into one stage, obscuring where the chain stopped. The prior live test
+could pass on a consent prompt or be skipped for missing login state.
+
+**What was fixed:** A2A now fails closed before actor-token minting when the
+session issuer is missing, unknown, from the other provider, or differs from
+the active provider's configured issuer. Actor-token and exchange failures
+carry a stable stage/code and the upstream code separately. The live suite can
+be run in strict provider-matrix mode; it requires a login session, checks its
+issuer against the API's active issuer, requires the API provider to match the
+requested matrix leg, fails on vertical activation problems, and requires both
+actor/exchange hops plus successful tool dispatch.
+Run once per provider-configured API process, with fresh enduser and admin
+login sessions each. The strict matrix requires a dedicated admin session
+(`DEMO_ADMIN_USERNAME`/`DEMO_ADMIN_PASSWORD` or
+`PINGONE_TEST_ADMIN_USER`/`PINGONE_TEST_ADMIN_PASSWORD`) and verifies admin
+access separately from the enduser's 403 response. Set `RUN_REAL_TESTS=true`
+so the real-suite setup resolves and validates both personas:
+`RUN_REAL_TESTS=true A2A_EXPECTED_OAUTH_PROVIDER=pingone CI=true npx jest --config=jest.real.config.js tests/real/shared/a2a-delegation-live.test.js --runInBand`
+and
+`RUN_REAL_TESTS=true A2A_EXPECTED_OAUTH_PROVIDER=pingfederate CI=true npx jest --config=jest.real.config.js tests/real/shared/a2a-delegation-live.test.js --runInBand`.
+
+**Do not break:** OAuth callbacks and session persistence are unchanged; each
+run still uses the configured provider's endpoint, audiences, and exchange
+types. A provider mismatch must stop before either actor client-credentials
+request. The default live suite keeps its existing skip behavior when no
+session is available; strict matrix mode must never silently skip.
+
+**Verify:** `CI=true npx jest tests/a2aProviderMatrixAssertions.test.js
+tests/a2aProviderSessionGuard.test.js
+tests/a2aSpecialistToolRegistry.test.js tests/a2aProtocolHttpTokenChain.test.js
+tests/a2aSpecialistExecutor.test.js tests/a2aBearerValidation.test.js --forceExit`;
+provider matrix commands above require their respective live login sessions.
+
+### 2026-09-23 — Place the hostile MCP denial demo on the LLM Gateway page
+
+**Files changed:** `demo_api_ui/src/pages/HostileMcpTab.jsx`, `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx` + `.css`, `demo_api_ui/src/pages/__tests__/LlmGatewayCombinedPage.test.jsx`, `demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.themeContrast.test.js`, `demo_api_ui/src/components/privilege/HostileMcpDenialPanel.jsx` + `.css`.
+**What was broken:** the hostile MCP denial scenario was mounted in the chat view of `/privilege-mcp-client`, while `/llm-gateway` owns the malicious MCP demonstration.
+**What was fixed:** moved the scenario into the existing “Malicious MCP” tab on `/llm-gateway` and kept its reads and induced tool call on the same Privilege-backed MCP relay.
+**Do not break:** keep the scenario’s tool, resource, and prompt reads plus the induced call routed through the BFF MCP relay so the displayed decision remains a real Privilege result.
+**Verify:** `cd demo_api_ui && npx vitest run src/pages/__tests__/LlmGatewayCombinedPage.test.jsx src/pages/__tests__/PrivilegeMcpClientPage.themeContrast.test.js src/components/privilege/__tests__/HostileMcpDenialPanel.test.jsx` and `npm run build`.
 
 ### 2026-09-22 — Credential-rotation drift: stale admin-login secret invisible to the boot-time rotation check (PR #160)
 

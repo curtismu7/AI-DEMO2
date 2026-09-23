@@ -10,7 +10,7 @@ prompts:
   - "{{question}}"
 
 providers:
-  - id: agent-invoke
+  - id: http
     label: Agent endpoint
     config:
       url: http://localhost:3001/api/agent/invoke

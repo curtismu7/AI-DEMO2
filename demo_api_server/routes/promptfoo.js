@@ -119,7 +119,7 @@ router.post('/run', async (req, res) => {
       suite: req.body.suite,
       exitCode: err ? (typeof err.code === 'number' ? err.code : 1) : 0,
       error: err ? String(err.message).slice(0, 500) : null,
-      stderr: err ? String(stderrTail(err)).slice(0, 2000) : null,
+      stderr: err ? stderrTail(stderr) : null,
       result,
     });
   });
@@ -129,8 +129,8 @@ function rtestCaseLabel(testCase) {
   return testCase?.vars ? JSON.stringify(testCase.vars).slice(0, 120) : '(case)';
 }
 
-function stderrTail(err) {
-  return err?.stderr ? String(err.stderr).slice(-2000) : '';
+function stderrTail(stderr) {
+  return stderr ? String(stderr).slice(-2000) : '';
 }
 
 module.exports = router;

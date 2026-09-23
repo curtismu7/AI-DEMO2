@@ -18,7 +18,7 @@ jest.mock('../../services/oauthService', () => ({
 }));
 
 const oauthService = require('../../services/oauthService');
-const { resolvePingFederateIdJagToken } = require('../../services/agentMcpTokenService');
+const { resolvePingFederateIdJagToken, __test } = require('../../services/agentMcpTokenService');
 
 const idJag = [
   Buffer.from(JSON.stringify({ typ: 'oauth-id-jag+jwt', alg: 'none' })).toString('base64url'),
@@ -31,6 +31,13 @@ describe('PingFederate provider isolation', () => {
     jest.clearAllMocks();
     oauthService.performIdJagExchange.mockResolvedValue(idJag);
     oauthService.redeemIdJag.mockResolvedValue('downstream-access-token');
+  });
+
+  test('selects ID-JAG only for the explicit enterprise-managed demo run', () => {
+    expect(__test.shouldUsePfIdJagForRun('pingfederate', 'enterprise-managed-mcp-authorization')).toBe(true);
+    expect(__test.shouldUsePfIdJagForRun('pingfederate', 'delegated-access-with-proof')).toBe(false);
+    expect(__test.shouldUsePfIdJagForRun('pingone', 'enterprise-managed-mcp-authorization')).toBe(false);
+    expect(__test.shouldUsePfIdJagForRun('pingfederate', null)).toBe(false);
   });
 
   test('uses PF ID-JAG methods and never the legacy exchange method', async () => {

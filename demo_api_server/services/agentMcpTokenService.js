@@ -95,6 +95,37 @@ function _flagOn(key) {
   return v === true || v === 'true';
 }
 
+const PF_ID_JAG_DEMO_USE_CASE = 'enterprise-managed-mcp-authorization';
+
+function shouldUsePfIdJagForRun(provider, useCaseId) {
+  return provider === 'pingfederate' && useCaseId === PF_ID_JAG_DEMO_USE_CASE;
+}
+
+function resolvePfExchangeMode(provider, useCaseId) {
+  if (provider !== 'pingfederate') return null;
+  return shouldUsePfIdJagForRun(provider, useCaseId) ? 'id-jag' : 'standard';
+}
+
+function resolvePfStandardExchangeConfig(store = configStore) {
+  const get = (key) => store.getEffective(key);
+  const config = {
+    clientId: get('pf_standard_token_exchange_client_id'),
+    clientSecret: get('pf_standard_token_exchange_client_secret'),
+    authMethod: (get('pf_standard_token_exchange_token_endpoint_auth_method') || 'basic').toLowerCase(),
+    actorClientId: get('pf_ai_agent_actor_client_id'),
+    actorClientSecret: get('pf_ai_agent_actor_client_secret'),
+    actorAuthMethod: (get('pf_ai_agent_actor_token_endpoint_auth_method') || 'basic').toLowerCase(),
+    actorScope: get('pf_standard_token_exchange_actor_scope') || 'agent:invoke',
+  };
+  if (!config.clientId || !config.clientSecret) {
+    throw new Error('PingFederate standard access-token exchange is not configured. Set PF_STANDARD_TOKEN_EXCHANGE_CLIENT_ID and PF_STANDARD_TOKEN_EXCHANGE_CLIENT_SECRET.');
+  }
+  if (!config.actorClientId || !config.actorClientSecret) {
+    throw new Error('PingFederate AI Agent Actor is not configured. Set PF_AI_AGENT_ACTOR_CLIENT_ID and PF_AI_AGENT_ACTOR_CLIENT_SECRET.');
+  }
+  return config;
+}
+
 function resolvePfIdJagSubjectToken(req, subjectTokenType) {
   const tokens = req?.session?.oauthTokens || {};
   const type = String(subjectTokenType || 'urn:ietf:params:oauth:token-type:refresh_token');
@@ -1053,8 +1084,8 @@ async function performDualModeTokenExchange(userToken, actorToken, mcpResourceUr
  * Enterprise-managed MCP path (Phase 2): IT policy gate + RFC 8693 as ID-JAG stand-in.
  * Throws with structured codes when policy denies or flag is off.
  */
-async function resolveMcpTokenEnterpriseManaged(req, tokenEvents) {
-  if (!isEnterpriseManagedFlagOn()) {
+async function resolveMcpTokenEnterpriseManaged(req, tokenEvents, { runScoped = false } = {}) {
+  if (!runScoped && !isEnterpriseManagedFlagOn()) {
     const err = new Error('Enterprise-managed MCP authorization is not enabled.');
     err.code = 'enterprise_mcp_not_enabled';
     err.httpStatus = 400;
@@ -1062,7 +1093,7 @@ async function resolveMcpTokenEnterpriseManaged(req, tokenEvents) {
     throw err;
   }
 
-  const policy = await enterpriseMcpPolicy.checkPolicy(req);
+  const policy = await enterpriseMcpPolicy.checkPolicy(req, { runScoped });
   if (!policy.allowed) {
     const err = new Error(policy.message || 'Enterprise MCP policy denied.');
     err.code = policy.code || 'enterprise_mcp_policy_denied';
@@ -1071,7 +1102,7 @@ async function resolveMcpTokenEnterpriseManaged(req, tokenEvents) {
     throw err;
   }
 
-  if (req.session && !req.session.agentConsentGiven) {
+  if (!runScoped && req.session && !req.session.agentConsentGiven) {
     req.session.agentConsentGiven = true;
     req.session.agentConsentedAt = new Date().toISOString();
     req.session.enterpriseMcpAutoConnect = true;
@@ -1261,6 +1292,13 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
     return { token: null, tokenEvents, userSub: null, need_auth: true, exchange_mode: '1-token', tratContextHeader: null };
   }
 
+  if (activeUseCaseId === PF_ID_JAG_DEMO_USE_CASE && configStore.getOAuthProvider?.() !== 'pingfederate') {
+    const err = new Error('The ID-JAG demo is a separate PingFederate login mode. Sign in through PingFederate, then run this demo step again.');
+    err.code = 'pf_id_jag_login_required';
+    err.httpStatus = 400;
+    throw err;
+  }
+
   const { userSub, userAccessTokenClaims: _rawUserClaims } = appendUserTokenEvent(tokenEvents, userToken, req);
 
   // ── Active-Token check (JWKS on the REAL user token) ──────────────────────
@@ -1419,8 +1457,9 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   }
   // ─────────────────────────────────────────────────────────────────────────
 
-  if (isEnterpriseManagedFlagOn()) {
-    await resolveMcpTokenEnterpriseManaged(req, tokenEvents);
+  const runScopedEnterpriseDemo = activeUseCaseId === PF_ID_JAG_DEMO_USE_CASE;
+  if (runScopedEnterpriseDemo) {
+    await resolveMcpTokenEnterpriseManaged(req, tokenEvents, { runScoped: runScopedEnterpriseDemo });
   }
 
   // PingFederate's ID-JAG path currently has no input for the verified
@@ -1659,7 +1698,8 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   //
   // So: take the native path only when the tool actually lives on the OLB server.
   // Everything else falls through to the RFC 8693 stand-in below, unchanged.
-  if (configStore.getOAuthProvider?.() === 'pingfederate') {
+  const pfExchangeMode = resolvePfExchangeMode(configStore.getOAuthProvider?.(), activeUseCaseId);
+  if (pfExchangeMode === 'id-jag') {
     const pfToken = await resolvePingFederateIdJagToken(req, tokenEvents, {
       resource: mcpResourceUri,
       scope: finalScopes,
@@ -1667,7 +1707,10 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
     return { token: pfToken, tokenEvents, userSub, tratContextHeader: null };
   }
 
-  if (!req?.workloadAgentRuntime && isEnterpriseManagedFlagOn() && isOlbBackedTool(tool)) {
+  if (!req?.workloadAgentRuntime
+      && runScopedEnterpriseDemo
+      && configStore.getOAuthProvider?.() !== 'pingfederate'
+      && isOlbBackedTool(tool)) {
     // Mode-aware, not the plain mcpResourceUri above: under this demo's default
     // PingGateway routing the gateway requires the pinggateway resource URI
     // (https://api.ping.demo:3036/mcp), not mcpserver.ping.demo — matching
@@ -1689,6 +1732,39 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
     if (nativeToken) {
       return { token: nativeToken, tokenEvents, userSub, tratContextHeader: null };
     }
+  }
+
+  // Ordinary PingFederate demo runs use their own access-token exchanger. The
+  // PF ID-JAG lane is selected only by UC40 above; do not let the shared default
+  // double-exchange path fall through to PingOne credentials in PF mode.
+  if (pfExchangeMode === 'standard') {
+    const pfConfig = resolvePfStandardExchangeConfig();
+    const actorToken = await oauthService.getAiAgentClientCredentialsToken({
+      clientId: pfConfig.actorClientId,
+      clientSecret: pfConfig.actorClientSecret,
+      authMethod: pfConfig.actorAuthMethod,
+      actorScope: pfConfig.actorScope,
+    });
+    const token = await oauthService.performTokenExchangeAs(
+      userToken, actorToken, pfConfig.clientId, pfConfig.clientSecret, mcpResourceUri,
+      finalScopes, pfConfig.authMethod, {
+        requestedTokenType: 'urn:ietf:params:oauth:token-type:access_token',
+        // PF's dedicated standard exchange policy derives the final audience
+        // from requested scopes. Sending the PingOne mcpserver.ping.demo
+        // audience here is rejected by PF as invalid_target.
+        omitAudience: true,
+      }
+    );
+    tokenEvents.push(buildTokenEvent(
+      'pf-standard-token-exchange',
+      'PingFederate standard access-token exchange',
+      'exchanged',
+      decodeJwtClaims(token),
+      'PingFederate issued an ordinary delegated access token for this non-ID-JAG demo run.',
+      { provider: 'pingfederate', rfc: 'RFC 8693', requestedTokenType: 'access_token', hasActorToken: !!actorToken }
+    ));
+    stampTokenEventsForUseCase(tokenEvents, activeUseCaseId);
+    return { token, tokenEvents, userSub, tratContextHeader: null };
   }
 
   // ── 2-Exchange delegation path ──────────────────────────────────────────────────
@@ -3051,7 +3127,7 @@ function describeBlockedToken(resolved, tokenEvents) {
 module.exports = {
   // Exported for the ID-JAG-scope regression spec — the predicate decides whether
   // a per-server ID-JAG grant is even applicable to this tool.
-  __test: { isOlbBackedTool, resolvePfIdJagSubjectToken },
+  __test: { isOlbBackedTool, resolvePfIdJagSubjectToken, shouldUsePfIdJagForRun, resolvePfExchangeMode, resolvePfStandardExchangeConfig },
   resolveMcpAccessToken,
   resolveMcpAccessTokenWithEvents,
   describeBlockedToken,
