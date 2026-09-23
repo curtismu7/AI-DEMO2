@@ -169,6 +169,27 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-23 — Demo Track runs did not update the dashboard use-case card
+
+**Files changed:** `demo_api_ui/src/utils/useCaseRunContext.js`,
+`demo_api_ui/src/components/UseCaseRunContextCard.jsx`, and their focused tests.
+
+**What was broken:** selecting a guided Demo Track step started the agent flow
+without binding its use-case ID to the dashboard card, which stayed at “No use
+case selected.”
+
+**What was fixed:** Demo Track step picks now persist the step ID, title, and
+buyer story as the active run context. The card labels the source as Demo Track
+and shows the selected scenario.
+
+**Do not break:** Demo Track selection remains display-only here; agent step
+execution and the existing Use Cases launch binding are unchanged. Direct
+dashboard visits still show “No use case selected.”
+
+**Verify:** `cd demo_api_ui && npm run test:unit --
+src/utils/__tests__/useCaseRunContext.test.js
+src/components/__tests__/UseCaseRunContextCard.test.jsx` and `npm run build`.
+
 ### 2026-09-23 — A2A provider/session drift could send a stale login into the wrong token endpoint
 
 **Files changed:** `demo_api_server/services/a2aDelegationService.js`,
