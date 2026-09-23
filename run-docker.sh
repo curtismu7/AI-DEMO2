@@ -768,14 +768,19 @@ if [[ "${_RUN_DOCKER_CMD_EARLY}" != "stop" && "${_RUN_DOCKER_CMD_EARLY}" != "hel
 fi
 unset _RUN_DOCKER_CMD_EARLY
 
-if [[ ! -f "${BASEDIR}/demo_api_server/.env" ]]; then
+case "${1:-start}" in
+  help|--help|-h) ;;
+  *)
+    if [[ ! -f "${BASEDIR}/demo_api_server/.env" ]]; then
   err "demo_api_server/.env not found."
   echo ""
   echo "  Run bootstrap first:"
   echo "    cd demo_api_server && npm run pingone:bootstrap"
   echo ""
   exit 1
-fi
+    fi
+    ;;
+esac
 
 # ── Service / port / log table (matches docker-compose.yml) ──────────────────
 SERVICES=(
@@ -1514,18 +1519,25 @@ cmd_optional_status() {
 }
 
 cmd_optional_help() {
-  echo "  Optional groups:"
-  local g
-  for g in "${OPTIONAL_GROUP_NAMES[@]}" all; do
-    echo "    ${g}  — $(_optional_group_desc "${g}")"
-  done
+  echo "  Optional service groups (start/stop/status without tearing down core):"
+  echo "    Data and search:"
+  echo "      rag           — $(_optional_group_desc rag)"
+  echo "    Identity and gateways:"
+  echo "      spiffe        — $(_optional_group_desc spiffe)"
+  echo "      demo-auth     — $(_optional_group_desc demo-auth)"
+  echo "      mcpgw         — $(_optional_group_desc mcpgw)"
+  echo "    Observability and tracing:"
+  echo "      observability — $(_optional_group_desc observability)"
+  echo "      tracing       — $(_optional_group_desc tracing)"
+  echo "    all             — $(_optional_group_desc all)"
+  echo "    Service-specific opt-in:"
+  echo "      notebooklm    — build explicitly with ./run-docker.sh build notebooklm (not started by full)"
   echo ""
   echo "  Note: rag starts with core by default; observability does not. Use optional stop/start to toggle."
   echo "        Starting or stopping observability can recreate the BFF (~35s) to switch its Loki push."
   echo "  Examples:"
   echo "    ./run-docker.sh optional stop rag"
-  echo "    ./run-docker.sh optional start rag"
-  echo "    ./run-docker.sh optional start agents"
+  echo "    ./run-docker.sh optional start spiffe"
   echo "    ./run-docker.sh optional start observability"
   echo "    ./run-docker.sh optional status"
   echo ""
@@ -1881,7 +1893,6 @@ cmd_help() {
   echo "    ./run-docker.sh demo-sync                   # apply Quick Flag toggles to containers"
   echo "    ./run-docker.sh optional stop rag           # free Code Search RAM when unused"
   echo "    ./run-docker.sh optional start rag          # re-enable Code Search"
-  echo "    ./run-docker.sh optional start agents       # alt agent frameworks"
   echo "    ./run-docker.sh optional start observability # Grafana + Prometheus + Loki, when needed"
   echo "    ./run-docker.sh optional status             # see what's running"
   echo "    DEMO_STACK=full ./run-docker.sh start       # env override for full stack"
