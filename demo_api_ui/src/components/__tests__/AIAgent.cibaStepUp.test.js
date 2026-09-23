@@ -138,16 +138,17 @@ const customerUser = {
   lastName: "User",
 };
 
-function renderAgent(props = {}) {
-  return render(
+function renderAgent(props = {}, strictMode = false) {
+  const agent = (
     <MemoryRouter>
       <ActivityNarrativeProvider>
         <ProofOfEnforcementProvider>
           <AIAgent {...props} />
         </ProofOfEnforcementProvider>
       </ActivityNarrativeProvider>
-    </MemoryRouter>,
+    </MemoryRouter>
   );
+  return render(strictMode ? <React.StrictMode>{agent}</React.StrictMode> : agent);
 }
 
 
@@ -231,6 +232,27 @@ describe("runAction mcp_step_up_required — CIBA vs MFA", () => {
 });
 
 describe("pollCibaStepUp — unmount cleanup", () => {
+  it("continues polling after React StrictMode's initial effect cleanup", async () => {
+    vi.useFakeTimers();
+    try {
+      callMcpTool.mockRejectedValue(stepUpError("ciba"));
+      renderAgent({ user: customerUser, mode: "inline" }, true);
+      await act(async () => {
+        fireEvent.click(screen.getByText("Account nickname"));
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      expect(called("/api/auth/ciba/initiate")).toBe(true);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000);
+      });
+
+      expect(called("/api/auth/ciba/poll/req-1")).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("clears the pending poll timer on unmount instead of continuing to poll a dead instance", async () => {
     vi.useFakeTimers();
     try {

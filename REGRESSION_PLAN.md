@@ -169,6 +169,25 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-23 — React StrictMode left CIBA agent pollers permanently inactive
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/AIAgentFull.js`, and
+`demo_api_ui/src/components/__tests__/AIAgent.cibaStepUp.test.js`.
+
+**What was broken:** React StrictMode replays effect setup and cleanup on mount.
+The CIBA listener cleanup marked the agent unmounted, but the next setup did not
+reset that flag, so every poll returned before contacting the BFF.
+
+**What was fixed:** reset the poller lifecycle flag whenever the listener effect
+sets up, and cover the StrictMode replay with a regression test.
+
+**Do not break:** the agent still trusts only `/api/auth/ciba/poll/:authReqId`
+before resuming the action; BFF approval, session, and token handling are
+unchanged.
+
+**Verify:** focused CIBA UI tests (20/20) and `npm run build` (exit 0).
+
 ### 2026-09-23 — Demo Steps runs left the dashboard use-case card unbound
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`,
