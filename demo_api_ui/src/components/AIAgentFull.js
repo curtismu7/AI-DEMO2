@@ -7930,7 +7930,9 @@ export default function BankingAgentFull({
         "assistant",
         stepAuth === "admin"
           ? `${stepLabel} needs an admin sign-in — it'll run as soon as you're in.`
-          : `${stepLabel} needs you signed in — it'll run as soon as you do.`,
+          : isAdminUser
+            ? `${stepLabel} needs a customer sign-in — you're currently signed in as an admin.`
+            : `${stepLabel} needs you signed in — it'll run as soon as you do.`,
         null,
         {
           showLoginPromptAction: true,

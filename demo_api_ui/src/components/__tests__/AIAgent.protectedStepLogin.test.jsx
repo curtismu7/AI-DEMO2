@@ -252,6 +252,18 @@ describe("signed-in customer", () => {
       expect(screen.getByText(/needs an admin sign-in/i)).toBeInTheDocument();
     });
   });
+
+  it("does not treat an authenticated admin session as a customer session", async () => {
+    const admin = { id: "a1", role: "admin", email: "a@test.com", username: "admin" };
+
+    renderAt("/dashboard", admin);
+    await runStep(UC1);
+
+    await waitFor(() => {
+      expect(screen.getByText(/needs a customer sign-in/i)).toBeInTheDocument();
+    });
+    expect(sendAgentMessage).not.toHaveBeenCalled();
+  });
 });
 
 /**

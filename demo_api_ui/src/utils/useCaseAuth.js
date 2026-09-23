@@ -41,5 +41,8 @@ export function viewerMeetsUseCaseAuth(uc, { isLoggedIn = false, isAdmin = false
   const level = authLevelOf(uc);
   if (level === 'public') return true;
   if (level === 'admin') return !!isAdmin;
-  return !!isLoggedIn;
+  // A user-level use case runs with a customer token. An admin session is
+  // authenticated, but it is not interchangeable with the customer session
+  // required by banking, workload-agent, and customer-data flows.
+  return !!isLoggedIn && !isAdmin;
 }
