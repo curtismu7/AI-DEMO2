@@ -169,6 +169,31 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-23 — Approved UC22 CIBA retry looped at the bearer-only transaction hop
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_server/routes/ciba.js`, and
+`demo_api_server/tests/routes/ciba.bearerReceipt.test.js`.
+
+**What was broken:** the gateway permitted the resumed `create_transfer`, but
+the banking MCP server's bearer-only `/api/transactions` call has no browser
+session to read CIBA's session proof. The CIBA request retained a downstream
+transaction receipt only when a separate canonical HITL challenge id existed;
+UC22's CIBA step-up had no such id and the transaction route re-issued the
+step-up challenge on every retry.
+
+**What was fixed:** the three agent CIBA initiation paths now pass the
+transaction type. The BFF stores only recognized transaction types alongside
+the approved amount and records the existing single-use `(user, tool, amount)`
+receipt after approval, with or without a separate HITL challenge. Canonical
+HITL challenge approval and validation remain unchanged.
+
+**Do not break:** receipts stay single-use and amount-bound; unknown
+transaction types create no bearer receipt; an invalid canonical HITL
+challenge still blocks approval. Keep browser tokens in the BFF.
+
+**Verify:** focused CIBA route regression test, focused CIBA UI tests, and UI build.
+
 ### 2026-09-23 — Dashboard run card retained stale scenario after refresh
 
 **Files changed:** `demo_api_ui/src/utils/useCaseRunContext.js` and

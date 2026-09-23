@@ -38,6 +38,11 @@ const hitlServiceClient = require('../services/hitlServiceClient');
 const cibaTransactionReceipt = require('../services/cibaTransactionReceipt');
 
 const STEP_UP_TTL_MS = 5 * 60 * 1000; // 5 min step-up validity
+const CIBA_TRANSACTION_TOOLS = Object.freeze({
+  transfer: 'create_transfer',
+  deposit: 'create_deposit',
+  withdrawal: 'create_withdrawal',
+});
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -240,7 +245,12 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       toAccountLabel,
       delegationId,
       hitlChallengeId,
-      hitlChallengeTool: hitlChallenge?.tool || null,
+      // The canonical HITL record is authoritative when present. A plain CIBA
+      // step-up has no HITL challenge id, so retain only a recognized banking
+      // transaction type for the exact downstream bearer-only write receipt.
+      hitlChallengeTool: hitlChallenge?.tool
+        || CIBA_TRANSACTION_TOOLS[req.body.transaction_type]
+        || null,
     };
 
     res.json({
@@ -427,9 +437,9 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
       } catch (_) {
         return res.status(502).json({ error: 'hitl_approval_failed' });
       }
-      if (pending.hitlChallengeTool && pending.amount != null) {
-        cibaTransactionReceipt.record(req.user?.id || req.user?.sub, pending.hitlChallengeTool, pending.amount);
-      }
+    }
+    if (pending.hitlChallengeTool && pending.amount != null) {
+      cibaTransactionReceipt.record(req.user?.id || req.user?.sub, pending.hitlChallengeTool, pending.amount);
     }
 
     _markCibaApproved(pending);
@@ -492,9 +502,9 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
       } catch (_) {
         return res.status(502).json({ error: 'hitl_approval_failed' });
       }
-      if (pending.hitlChallengeTool && pending.amount != null) {
-        cibaTransactionReceipt.record(req.user?.id || req.user?.sub, pending.hitlChallengeTool, pending.amount);
-      }
+    }
+    if (pending.hitlChallengeTool && pending.amount != null) {
+      cibaTransactionReceipt.record(req.user?.id || req.user?.sub, pending.hitlChallengeTool, pending.amount);
     }
 
     // Store tokens server-side (Backend-for-Frontend (BFF) pattern — never expose raw tokens to browser)

@@ -265,6 +265,20 @@ import {
   normalizeBankingParams,
   parseLogPrompt,
 } from "./agentFormatters";
+
+function resolveCibaTransactionType(transactionType, actionId) {
+  const aliases = {
+    transfer: "transfer",
+    transfer_600_test: "transfer",
+    create_transfer: "transfer",
+    deposit: "deposit",
+    create_deposit: "deposit",
+    withdraw: "withdrawal",
+    withdrawal: "withdrawal",
+    create_withdrawal: "withdrawal",
+  };
+  return aliases[transactionType] || aliases[actionId] || undefined;
+}
 // Re-export pure helpers kept on AIAgent's public surface for tests/consumers.
 export {
   formatResult,
@@ -5503,6 +5517,10 @@ export default function BankingAgent({
                   binding_message: "Approve your banking transaction",
                   acr_values: normalized.step_up_acr || "",
                   amount: normalized.transaction_amount ?? undefined,
+                  transaction_type: resolveCibaTransactionType(
+                    normalized.transactionType,
+                    actionId,
+                  ),
                   hitl_challenge_id:
                     normalized.hitlChallengeId || normalized.hitl_challenge_id || undefined,
                   from_account_label: fromLabel,
@@ -6199,6 +6217,10 @@ export default function BankingAgent({
                 binding_message: "Approve your banking transaction",
                 acr_values: err.step_up_acr || "",
                 amount: err.transaction_amount ?? undefined,
+                transaction_type: resolveCibaTransactionType(
+                  err.transactionType,
+                  actionId,
+                ),
                 hitl_challenge_id:
                   err.hitlChallengeId || err.hitl_challenge_id || undefined,
                 from_account_label: fromLabel,
@@ -9476,6 +9498,9 @@ export default function BankingAgent({
             binding_message: "Approve your banking transaction",
             acr_values: response.step_up_acr || "",
             amount: response.transactionAmount ?? undefined,
+            transaction_type: resolveCibaTransactionType(
+              response.transactionType,
+            ),
             hitl_challenge_id:
               response.hitlChallengeId || response.hitl_challenge_id || undefined,
             from_account_label: fromLabel,
