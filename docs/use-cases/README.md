@@ -19,9 +19,9 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC33** — My mortgage](./mortgage-delegated-access.md) ✅ 🛡️
 - [**UC34** — Spot unusual patterns](./ai-spot-unusual-patterns.md) ✅ 🛡️
 - [**UC35** — Why was that blocked?](./ai-explain-last-denial.md) ✅ 🛡️
-- [**UC38** — Workload Agent: Digital Assistant — Personal Concierge](./personal-agent-concierge.md) 🚩 🛡️
+- [**UC38** — Workload Agent: MFA-gated protected action](./personal-agent-concierge.md) 🚩 🛡️
 - [**UC43** — Consumer & Partner Agent — CIMD registration](./consumer-partner-agent-cimd-registration.md) ✅ 🛡️
-- [**UC44** — Workload Agent: Digital Assistant — OBO](./workload-digital-assistant-obo.md) ✅ 🛡️
+- [**UC44** — Workload Agent: OBO customer-data read](./workload-digital-assistant-obo.md) ✅ 🛡️
 - [**UC45** — SaaS-Embedded Agent — Website Worker](./saas-embedded-worker.md) ✅ 🛡️
 
 ## Demo
