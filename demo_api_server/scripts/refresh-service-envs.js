@@ -892,22 +892,6 @@ async function main(deps = {}) {
   ]);
   console.log('[refresh-envs] Wrote langchain_agent/.env');
 
-  // ── pydantic_agent/.env ───────────────────────────────────────────────────
-  writeEnvFile(path.join(ROOT, 'pydantic_agent', '.env'), {
-    ...shared,
-    PINGONE_TOKEN_ENDPOINT:   `${asBase}/token`,
-    BFF_INTERNAL_TOOL_URL:    'http://api-server:3001/internal/agent-tool',
-  });
-  console.log('[refresh-envs] Wrote pydantic_agent/.env');
-
-  // ── openai_agent/.env ────────────────────────────────────────────────────
-  writeEnvFile(path.join(ROOT, 'openai_agent', '.env'), {
-    ...shared,
-    PINGONE_TOKEN_ENDPOINT:   `${asBase}/token`,
-    BFF_INTERNAL_TOOL_URL:    'http://api-server:3001/internal/agent-tool',
-  });
-  console.log('[refresh-envs] Wrote openai_agent/.env');
-
   // ── demo_mcp_resource_server/.env ──────────────────────────────────────────────────
   writeEnvFile(path.join(ROOT, 'demo_mcp_resource_server', '.env'), {
     ...shared,

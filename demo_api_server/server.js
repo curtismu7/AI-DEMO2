@@ -1471,7 +1471,7 @@ app.use('/api/a2a', authenticateToken, a2aAgentRoutes);
 // A2A Protocol wire surface (Agent Cards + JSON-RPC). PingOne Bearer only —
 // no session cookie. Always mounted: A2A delegation is a required subsystem.
 app.use('/a2a/specialists', createA2aProtocolRouter());
-// Support Agent: customer support via Mastra framework
+// Support Agent: heuristic customer support
 app.use('/api/support-agent', authenticateToken, supportAgentRoutes);
 // Compliance Agent: transaction compliance checking via Pydantic AI
 app.use('/api/compliance-agent', authenticateToken, complianceAgentRoutes);

@@ -12,9 +12,7 @@
 #   ./k8s/deploy.sh rag on                  # start Code Search / RAG stack on demand
 #   ./k8s/deploy.sh yotuo on                # mount host GGUFs from .local/models (internal HD)
 #   ./k8s/deploy.sh stop                  # scale all workloads to 0 (keep config; frees memory)
-#   ./k8s/deploy.sh agent mastra          # switch active agent to mastra (others → 0)
 #   ./k8s/deploy.sh agent langchain       #   or switch back to langchain
-#   ./k8s/deploy.sh agent mastra off      # stop it (frees quota), don't start another
 #   ./k8s/deploy.sh demo-sync             # align gateway deployments with admin Quick Flags
 #   ./k8s/deploy.sh destroy               # delete the namespace and everything in it
 #
@@ -41,7 +39,7 @@ demo_init_terminal
 # Which AI agent to start (replicas:1). All others are scaled to 0.
 # Inherited from run-k8.sh via --agent=<name>, or set directly. Default: langchain.
 AGENT_SELECTION="${AGENT_SELECTION:-langchain}"
-ALL_AGENTS="langchain mastra openai pydantic"
+ALL_AGENTS="langchain"
 
 # Optional feature backends (investment + mortgage tools). They start normally
 # with `deploy`; `./k8s/deploy.sh extras off|on` stops/starts just these two to
@@ -187,9 +185,6 @@ deploy() {
   fi
   kubectl apply -f "$SCRIPT_DIR/61-agent-service-deployment.yaml"
   kubectl apply -f "$SCRIPT_DIR/40-agent-service-deployment.yaml"   # langchain agent
-  kubectl apply -f "$SCRIPT_DIR/65-mastra-agent-deployment.yaml"
-  kubectl apply -f "$SCRIPT_DIR/66-openai-agent-deployment.yaml"
-  kubectl apply -f "$SCRIPT_DIR/67-pydantic-agent-deployment.yaml"
   # Monitoring — MUST be applied before the frontend. nginx resolves the
   # literal upstream in `proxy_pass http://grafana` at STARTUP and exits if it
   # does not resolve ("host not found in upstream"), so a frontend that starts
@@ -233,7 +228,7 @@ deploy() {
   local _pids=() _deps=()
   for dep in jaeger mcp-server mcp-resource-server api-resource-server mcp-weather mcp-brave mcp-jwt-verifier hitl-service \
              demo-api-server ping-gateway agent-service \
-             langchain-agent mastra-agent openai-agent pydantic-agent frontend \
+             langchain-agent frontend \
              weaviate embeddings mcp-code-search llamaindex-agent; do
     kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s &
     _pids+=($!)
@@ -277,7 +272,7 @@ deploy() {
   fi
 
   info "Waiting for optional product rollouts..."
-  for dep in mcp-proxy weaviate embeddings mcp-code-search llamaindex-agent mastra-agent openai-agent pydantic-agent; do
+  for dep in mcp-proxy weaviate embeddings mcp-code-search llamaindex-agent; do
     kubectl rollout status "deployment/$dep" -n "$NS" --timeout=300s \
       || die "$dep failed to roll out"
   done
@@ -310,7 +305,7 @@ show_commands() {
   demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh rag [on|off]${RESET}      start/stop Code Search / RAG stack"
   demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh yotuo [on|off]${RESET}    mount host GGUFs from .local/models"
   demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh stop${RESET}              scale all workloads to 0"
-  demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh agent <name>${RESET}      switch agent [langchain|mastra|openai|pydantic]"
+  demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh agent <name>${RESET}      switch agent [langchain]"
   demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh demo-sync${RESET}         align gateways with Quick Flags"
   demo_box_row "${WHITE}" "${BOLD}./k8s/deploy.sh destroy${RESET}           delete namespace and all resources"
   demo_box_close "${WHITE}"
@@ -488,9 +483,6 @@ forward_specs_for_profile() {
         "svc/agent-service      3016:3006"
         "svc/hitl-service       3009:3009"
         "svc/langchain-agent    8888:8888 8890:8890"
-        "svc/openai-agent       8891:8891"
-        "svc/mastra-agent       8892:8892"
-        "svc/pydantic-agent     8893:8893"
       )
       ;;
   esac
@@ -858,7 +850,7 @@ _maybe_apply_yotuo_models() {
 # agent to 1 and all others to 0, then waits for the rollout to complete.
 agent_cmd() {
   local name="$1" action="${2:-on}"
-  [ -n "$name" ] || die "Usage: $0 agent <langchain|mastra|openai|pydantic> [on|off]"
+  [ -n "$name" ] || die "Usage: $0 agent <langchain> [on|off]"
   case " $ALL_AGENTS " in *" $name "*) ;; *) die "Unknown agent '$name'. Valid: $ALL_AGENTS" ;; esac
   local dep="${name}-agent"
   if [ "$action" = "off" ]; then

@@ -66,9 +66,9 @@ test('reports every offending key, not just the first', () => {
   assert.strictEqual(checkMap(bad, INVENTORY, IMAGES).length, 2);
 });
 
-test('readInventory parses all 19 sourceDir entries from serverInventory.js', () => {
+test('readInventory parses all 16 sourceDir entries from serverInventory.js', () => {
   const inventory = readInventory();
-  assert.strictEqual(Object.keys(inventory).length, 19);
+  assert.strictEqual(Object.keys(inventory).length, 16);
   assert.strictEqual(inventory.demo_api_server, 'api-server');
 });
 

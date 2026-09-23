@@ -1,13 +1,13 @@
 /**
  * Support Agent Service
- * Mastra framework for lightweight customer support Q&A
+ * Lightweight heuristic customer support Q&A
  */
 
 const { buildSupportSystemPrompt, SUPPORT_TOOLS } = require('../config/support');
 
 /**
  * Process a support message and return agent response
- * Uses Mastra framework for simpler tool-calling compared to LangGraph
+ * Uses direct tool-call mapping for simple support questions
  */
 async function processSupportMessage(message, sessionId, tokenEvents = []) {
   // Get actual model from proxy configuration
@@ -21,7 +21,7 @@ async function processSupportMessage(message, sessionId, tokenEvents = []) {
   }
 
   try {
-    // Map Mastra tools to handler functions
+    // Map support tools to handler functions
     const toolExecutors = {
       get_account_balance: async (args) => {
         const balances = {
@@ -130,10 +130,10 @@ async function processSupportMessage(message, sessionId, tokenEvents = []) {
       toolsCalled,
       tokenEvents,
       agentConfigured: true,
-      framework: 'mastra',
-      agentHeader: `🤖 [SUPPORT AGENT - Mastra - ${llmModel}]`,
+      framework: 'support',
+      agentHeader: `🤖 [SUPPORT AGENT - ${llmModel}]`,
       metadata: {
-        framework: 'Mastra',
+        framework: 'Heuristic support',
         model: llmModel,
         agentType: 'customer-support'
       }
@@ -146,10 +146,10 @@ async function processSupportMessage(message, sessionId, tokenEvents = []) {
       toolsCalled: [],
       tokenEvents,
       agentConfigured: true,
-      framework: 'mastra',
-      agentHeader: `🤖 [SUPPORT AGENT - Mastra - ${llmModel}]`,
+      framework: 'support',
+      agentHeader: `🤖 [SUPPORT AGENT - ${llmModel}]`,
       metadata: {
-        framework: 'Mastra',
+        framework: 'Heuristic support',
         model: llmModel,
         agentType: 'customer-support'
       }

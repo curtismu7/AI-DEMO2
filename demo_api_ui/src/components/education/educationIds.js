@@ -88,7 +88,7 @@ export const EDU = {
   AI_ATTACKS: "ai-attacks",
   /** Server Capabilities — plain-English description of every server: what it does, what it accepts, how it fits */
   SERVER_CAPABILITIES: "server-capabilities",
-  /** Agent Tech Comparison — technical comparison of LangChain, Mastra, OpenAI Agents, Pydantic AI with decision guide */
+  /** Agent Tech Comparison — technical breakdown of the LangChain agent runtime with decision guide */
   AGENT_TECH_COMPARISON: "agent-tech-comparison",
   /** Gartner Machine IAM Survey — top 5 findings and how this demo answers them */
   MACHINE_IAM_SURVEY: "machine-iam-survey",

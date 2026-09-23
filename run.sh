@@ -267,12 +267,6 @@ PID_JWTVERIFIER=/tmp/demo-mcp-jwt-verifier.pid
 LOG_JWTVERIFIER=/tmp/demo-mcp-jwt-verifier.log
 PID_MORTGAGE=/tmp/demo-mortgage.pid
 LOG_MORTGAGE=/tmp/demo-mortgage.log
-PID_OASDK=/tmp/demo-openai-agent.pid
-LOG_OASDK=/tmp/demo-openai-agent.log
-PID_MASTRA=/tmp/demo-mastra-agent.pid
-LOG_MASTRA=/tmp/demo-mastra-agent.log
-PID_PYDANTIC=/tmp/demo-pydantic-agent.pid
-LOG_PYDANTIC=/tmp/demo-pydantic-agent.log
 LOG_AUTH=/tmp/demo-authorize.log
 LOG_HELIX=/tmp/demo-helix.log
 LOG_PG=/tmp/demo-ping-gateway.log
@@ -287,7 +281,7 @@ fi
 # Defined once and referenced by both stop_listeners_on_demo_ports and
 # force_kill_listeners_on_demo_ports to avoid per-function drift.
 # LangChain ports: 8887 (FastAPI/CodeGraph), 8881 (health)
-DEMO_PORTS=(3001 4000 8080 8887 8881 3005 3006 3009 8081 8082 8891 8892 8893 8896 3036)
+DEMO_PORTS=(3001 4000 8080 8887 8881 3005 3006 3009 8081 8082 8896 3036)
 
 # Pre-create all log files so tail/log viewers work before services start.
 # We TRUNCATE here (not just touch) — services that get skipped or fail to relaunch
@@ -296,13 +290,13 @@ DEMO_PORTS=(3001 4000 8080 8887 8881 3005 3006 3009 8081 8082 8891 8892 8893 889
 if [[ "${1:-start}" == "start" || "${1:-start}" == "restart" || "${1:-start}" == "dev" || -z "${1:-}" ]]; then
   for _logf in "${LOG_API}" "${LOG_UI}" "${LOG_MCP}" "${LOG_AGENT}" "${LOG_MCP_TRAFFIC}" \
                "${LOG_GW}" "${LOG_HITL}" "${LOG_AGENT_SVC}" "${LOG_INVEST}" "${LOG_WEATHER}" "${LOG_JWTVERIFIER}" "${LOG_MORTGAGE}" "${LOG_AUTH}" \
-               "${LOG_HELIX}" "${LOG_OASDK}" "${LOG_MASTRA}" "${LOG_PYDANTIC}" "${LOG_PG}"; do
+               "${LOG_HELIX}" "${LOG_PG}"; do
     : > "${_logf}" 2>/dev/null || true
   done
 else
   touch "${LOG_API}" "${LOG_UI}" "${LOG_MCP}" "${LOG_AGENT}" "${LOG_MCP_TRAFFIC}" \
         "${LOG_GW}" "${LOG_HITL}" "${LOG_AGENT_SVC}" "${LOG_INVEST}" "${LOG_WEATHER}" "${LOG_JWTVERIFIER}" "${LOG_MORTGAGE}" "${LOG_AUTH}" \
-        "${LOG_HELIX}" "${LOG_OASDK}" "${LOG_MASTRA}" "${LOG_PYDANTIC}" 2>/dev/null || true
+        "${LOG_HELIX}" 2>/dev/null || true
 fi
 
 # Terminal colors (scripts/demo-terminal.sh — used by banner, status, tail_demo_logs)
@@ -677,8 +671,8 @@ _log_janitor_loop() {
   local keep_lines=5000
   local all_logs=(
     "${LOG_API}" "${LOG_MCP}" "${LOG_GW}" "${LOG_HITL}" "${LOG_AGENT_SVC}"
-    "${LOG_INVEST}" "${LOG_WEATHER}" "${LOG_JWTVERIFIER}" "${LOG_MORTGAGE}" "${LOG_OASDK}" "${LOG_MASTRA}"
-    "${LOG_PYDANTIC}" "${LOG_AGENT}" "${LOG_AUTH}" "${LOG_HELIX}"
+    "${LOG_INVEST}" "${LOG_WEATHER}" "${LOG_JWTVERIFIER}" "${LOG_MORTGAGE}"
+    "${LOG_AGENT}" "${LOG_AUTH}" "${LOG_HELIX}"
   )
   while true; do
     sleep 30
@@ -698,8 +692,8 @@ _log_janitor_loop() {
 tail_demo_logs() {
   local pre="${1:-}"
   [[ "${pre}" == "ALL" || "${pre}" == "All" ]] && pre="all"
-  local names=("Demo API" "Demo UI" "MCP Server" "LangChain Agent" "MCP Traffic" "MCP Gateway" "HITL Service" "Agent Service" "MCP Invest" "MCP Weather" "MCP JWT Verifier" "Demo Mortgage" "Authorize Server" "Helix LLM" "OpenAI Agents SDK" "Mastra Agent" "Pydantic AI Agent")
-  local logs=("${LOG_API}" "${LOG_UI}" "${LOG_MCP}" "${LOG_AGENT}" "${LOG_MCP_TRAFFIC}" "${LOG_GW}" "${LOG_HITL}" "${LOG_AGENT_SVC}" "${LOG_INVEST}" "${LOG_WEATHER}" "${LOG_JWTVERIFIER}" "${LOG_MORTGAGE}" "${LOG_AUTH}" "${LOG_HELIX}" "${LOG_OASDK}" "${LOG_MASTRA}" "${LOG_PYDANTIC}")
+  local names=("Demo API" "Demo UI" "MCP Server" "LangChain Agent" "MCP Traffic" "MCP Gateway" "HITL Service" "Agent Service" "MCP Invest" "MCP Weather" "MCP JWT Verifier" "Demo Mortgage" "Authorize Server" "Helix LLM")
+  local logs=("${LOG_API}" "${LOG_UI}" "${LOG_MCP}" "${LOG_AGENT}" "${LOG_MCP_TRAFFIC}" "${LOG_GW}" "${LOG_HITL}" "${LOG_AGENT_SVC}" "${LOG_INVEST}" "${LOG_WEATHER}" "${LOG_JWTVERIFIER}" "${LOG_MORTGAGE}" "${LOG_AUTH}" "${LOG_HELIX}")
   local count=${#names[@]}
   local all_opt=$((count + 1))
   local choice=""
@@ -917,9 +911,6 @@ print_status_table() {
   service_status_line "Agent Service"        3006         "/health"        "http://localhost:3006 (internal)"
   service_status_line "HITL Service"         3009         "/health"        "http://localhost:3009 (internal)"
   service_status_line "LangChain Agent"      8881         "/health"        "http://localhost:8887 (internal)"
-  service_status_line "OpenAI Agents SDK"    8891         "/health"        "http://localhost:8891 (internal)"
-  service_status_line "Mastra Agent"         8892         "/health"        "http://localhost:8892 (internal)"
-  service_status_line "Pydantic AI Agent"    8893         "/health"        "http://localhost:8893 (internal)"
   if port_listening 3036; then
     printf "  ${GREEN}${BOLD}  [OK]  %-24s${RESET}  ${MAGENTA}:%-6s${RESET}  ${GREEN}%-10s${RESET}  ${YELLOW}%s${RESET}\n" \
       "PingGateway (IG)" "3036" "port-up" "http://localhost:3036 (MCP gateway)"
@@ -947,7 +938,7 @@ print_status_table() {
 cmd_stop() {
   echo "[STOP] Stopping Demo services (run.sh)..."
   set +e
-  for pid_file in "$PID_API" "$PID_MCP" "$PID_AUTHZ" "$PID_GW" "$PID_HITL" "$PID_AGENT_SVC" "$PID_INVEST" "$PID_WEATHER" "$PID_JWTVERIFIER" "$PID_MORTGAGE" "$PID_AGENT" "$PID_UI" "$PID_OASDK" "$PID_MASTRA" "$PID_PYDANTIC" "$PID_LOG_JANITOR"; do
+  for pid_file in "$PID_API" "$PID_MCP" "$PID_AUTHZ" "$PID_GW" "$PID_HITL" "$PID_AGENT_SVC" "$PID_INVEST" "$PID_WEATHER" "$PID_JWTVERIFIER" "$PID_MORTGAGE" "$PID_AGENT" "$PID_UI" "$PID_LOG_JANITOR"; do
     if [[ -f "$pid_file" ]]; then
       PID=$(cat "$pid_file" 2>/dev/null || true)
       rm -f "$pid_file"
@@ -963,7 +954,7 @@ cmd_stop() {
     docker compose -f "$BASEDIR/ping-gateway/docker-compose.yml" down --remove-orphans \
       >> "${LOG_PG}" 2>&1 || true
   fi
-  echo "   Sweeping ports (API :${API_PORT}, UI :${UI_PORT}, MCP :8080, AuthzServer :9001, GW :3005, Agent :3006, HITL :3009, Invest :8081, Weather :8896, Mortgage :8082, LangChain :8887/8881, OASDK :8891, Mastra :8892, Pydantic :8893, PingGateway :3036)…"
+  echo "   Sweeping ports (API :${API_PORT}, UI :${UI_PORT}, MCP :8080, AuthzServer :9001, GW :3005, Agent :3006, HITL :3009, Invest :8081, Weather :8896, Mortgage :8082, LangChain :8887/8881, PingGateway :3036)…"
   stop_listeners_on_demo_ports
   sleep 1
   force_kill_listeners_on_demo_ports
@@ -1053,9 +1044,6 @@ cmd_help() {
   echo "    Demo MCP Server      :8080
     MCP Gateway          :3005"
   echo "    LangChain Agent      :8887 (FastAPI/CodeGraph) :8881 (health)"
-  echo "    OpenAI Agents SDK    :8891"
-  echo "    Mastra Agent         :8892"
-  echo "    Pydantic AI Agent    :8893"
   echo ""
   echo -e "${WHITE}${BOLD}  Log Files:${RESET}"
   echo "    ${LOG_API}"
@@ -1185,7 +1173,7 @@ preflight_checks
 
 # ── Auto-kill any existing Banking services before (re)starting ─────────────
 _any_running=false
-for _chk_port in ${API_PORT} ${UI_PORT} 8080 8887 8881 8891 8892 8893; do
+for _chk_port in ${API_PORT} ${UI_PORT} 8080 8887 8881; do
   if port_listening "$_chk_port"; then
     _any_running=true
     break
@@ -1194,7 +1182,7 @@ done
 if [[ "$_any_running" == "true" ]]; then
   echo -e "${YELLOW}  [SPIN]  Stopping existing Demo services…${RESET}"
   set +e
-  for _pf in "$PID_API" "$PID_MCP" "$PID_AUTHZ" "$PID_GW" "$PID_HITL" "$PID_AGENT_SVC" "$PID_INVEST" "$PID_WEATHER" "$PID_JWTVERIFIER" "$PID_AGENT" "$PID_UI" "$PID_OASDK" "$PID_MASTRA" "$PID_PYDANTIC" "$PID_LOG_JANITOR"; do
+  for _pf in "$PID_API" "$PID_MCP" "$PID_AUTHZ" "$PID_GW" "$PID_HITL" "$PID_AGENT_SVC" "$PID_INVEST" "$PID_WEATHER" "$PID_JWTVERIFIER" "$PID_AGENT" "$PID_UI" "$PID_LOG_JANITOR"; do
     if [[ -f "$_pf" ]]; then
       _pid=$(cat "$_pf" 2>/dev/null || true)
       rm -f "$_pf"
@@ -1214,9 +1202,9 @@ fi
 # (tsc) when dist/index.js is missing. SVC_INSTALL_FLAGS handles services that
 # need extra `npm install` flags. Loud failure on any error — silent skips here
 # are exactly how we got cryptic MODULE_NOT_FOUND in service logs.
-SVC_LIST=(demo_api_server oauth-mcp       demo_api_ui demo_mcp_gateway demo_hitl_service demo_agent_service demo_mcp_resource_server demo_mcp_weather demo_api_resource_server mastra_agent demo_authz_server)
-SVC_BUILD=(""                "ts"               ""       "ts"                ""                   "ts"                  "ts"               ""                 ""                    "ts"          "")
-SVC_INSTALL_FLAGS=("--legacy-peer-deps" ""                 ""       ""                  ""                   ""                    ""                 ""                 ""                    ""            "")
+SVC_LIST=(demo_api_server oauth-mcp       demo_api_ui demo_mcp_gateway demo_hitl_service demo_agent_service demo_mcp_resource_server demo_mcp_weather demo_api_resource_server demo_authz_server)
+SVC_BUILD=(""                "ts"               ""       "ts"                ""                   "ts"                  "ts"               ""                 ""                    "")
+SVC_INSTALL_FLAGS=("--legacy-peer-deps" ""                 ""       ""                  ""                   ""                    ""                 ""                 ""                    "")
 
 # Decide whether a Node service needs `npm install`. Prints a short human reason
 # and returns 0 when install is needed; returns 1 (no output) when in sync.
@@ -1279,14 +1267,13 @@ for i in "${!SVC_LIST[@]}"; do
   fi
 done
 
-# ── Python agent dependency check (openai_agent + pydantic_agent) ────────────
+# ── Python agent dependency check ────────────────────────────────────────────
 # These services were silently crashing on a missing-deps or stub-venv state
 # because they weren't in SVC_LIST. CLAUDE.md warns explicitly about silent
 # skips here. We verify each .venv exists AND has a working python binary
-# (a stub venv with no bin/python is what crashed pydantic_agent last run),
 # then install requirements.txt. Loud failure on any error.
-# Prefer Python 3.12+ for agent venvs — some packages (openai-agents>=0.17)
-# require 3.10+ and system Python on macOS is often 3.9.
+# Prefer Python 3.12+ for agent venvs — some packages require 3.10+ and
+# system Python on macOS is often 3.9.
 _pick_python() {
   for _py in python3.13 python3.12 python3.11 python3.10 python3; do
     if command -v "$_py" &>/dev/null; then
@@ -1301,7 +1288,7 @@ _pick_python() {
 }
 PY_CMD="$(_pick_python)"
 
-PY_AGENTS=(langchain_agent openai_agent pydantic_agent demo_mcp_jwt_verifier)
+PY_AGENTS=(langchain_agent demo_mcp_jwt_verifier)
 for svc in "${PY_AGENTS[@]}"; do
   [[ -d "$BASEDIR/$svc" ]] || continue
   venv_python="$BASEDIR/$svc/.venv/bin/python"
@@ -1757,37 +1744,6 @@ if [[ -f "$BASEDIR/langchain_agent/src/main.py" ]]; then
   echo $! > "$PID_AGENT"
 fi
 
-# ── OpenAI Agents SDK (port 8891) ────────────────────────────────────────────
-# Launches unconditionally — the dep-install loop above will exit non-zero
-# before this point if openai_agent/.venv is missing or broken. A file-
-# existence guard here would silently skip launch and produce the "no agent"
-# class of failure CLAUDE.md warns about.
-echo "[OASDK] Starting OpenAI Agents SDK service (:8891)..."
-(
-  cd "$BASEDIR/openai_agent"
-  .venv/bin/python -m src.main >> "$LOG_OASDK" 2>&1
-) &
-echo $! > "$PID_OASDK"
-
-# ── Mastra Agent (port 8892) ─────────────────────────────────────────────────
-# Mastra is in SVC_LIST above — install + build are guaranteed before this
-# point. Launch unconditionally; if dist/index.js is missing, MODULE_NOT_FOUND
-# in the log is a clearer failure than a silent skip.
-echo "[MASTRA] Starting Mastra Agent (:8892)..."
-(
-  cd "$BASEDIR/mastra_agent"
-  node dist/index.js >> "$LOG_MASTRA" 2>&1
-) &
-echo $! > "$PID_MASTRA"
-
-# ── Pydantic AI Agent (port 8893) ────────────────────────────────────────────
-echo "[PYDANTIC] Starting Pydantic AI Agent (:8893)..."
-(
-  cd "$BASEDIR/pydantic_agent"
-  .venv/bin/python -m src.main >> "$LOG_PYDANTIC" 2>&1
-) &
-echo $! > "$PID_PYDANTIC"
-
 # ── LM Studio auto-configure ─────────────────────────────────────────────────
 # If LM Studio's local server is running (default :1234), ensure the target
 # model is loaded so the demo works without manual setup. Non-blocking —
@@ -1862,9 +1818,6 @@ echo -e "${MAGENTA}${BOLD}  │${RESET}  [PORT]  Demo API Server           :${AP
 echo -e "${MAGENTA}${BOLD}  │${RESET}  [WEB]  Demo UI (React)        :${UI_PORT}  ${YELLOW}(${PROTO_LABEL})${RESET}"
 echo -e "${MAGENTA}${BOLD}  │${RESET}  [BOT]  Demo MCP Server           :8080  ${YELLOW}(WebSocket)${RESET}"
 echo -e "${MAGENTA}${BOLD}  │${RESET}  [CHAIN]  LangChain Agent    :8887  ${YELLOW}(AG-UI)${RESET}  :8890  ${YELLOW}(health)${RESET}"
-echo -e "${MAGENTA}${BOLD}  │${RESET}  [OASDK]  OpenAI Agents SDK         :8891${RESET}"
-echo -e "${MAGENTA}${BOLD}  │${RESET}  [MASTRA] Mastra Agent               :8892${RESET}"
-echo -e "${MAGENTA}${BOLD}  │${RESET}  [PYDANTIC] Pydantic AI Agent        :8893${RESET}"
 echo -e "${MAGENTA}${BOLD}  └─────────────────────────────────────────────────────────────┘${RESET}"
 echo ""
 echo -e "${GREEN}${BOLD}  ┌─ URLS ──────────────────────────────────────────────────────┐${RESET}"

@@ -62,9 +62,6 @@ const DEMO_BRAINS = [
 
 const ALL_FRAMEWORKS = [
   ["langchain_agent", "LangChain / LangGraph", "8888", "Default — llm_framework=langchain"],
-  ["openai_agent", "OpenAI Agents SDK", "8891", "llm_framework=openai_agents"],
-  ["mastra_agent", "Mastra", "8892", "llm_framework=mastra"],
-  ["pydantic_agent", "Pydantic AI", "8893", "llm_framework=pydantic_ai"],
   ["llamaindex_agent", "LlamaIndex", "8894", "RAG profile — not llm_framework"],
   ["compliance_agent", "Compliance (Pydantic AI)", "3007", "AML specialist microservice"],
 ];

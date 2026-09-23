@@ -52,26 +52,6 @@ fi
 step "langchain_agent/frontend — CRA Jest (stable subset; full: npm test in that package)"
 ( cd "$ROOT/langchain_agent/frontend" && npm run test:ci ) || FAILED=1
 
-# ── New agents (openai/pydantic/mastra) — unit suites ────────────────────────
-# Skip Python ones if the venv hasn't been provisioned (./run.sh creates it);
-# fail loudly on missing pytest, not on a venv-not-set-up state.
-step "openai_agent — pytest (unit)"
-if [[ -x "$ROOT/openai_agent/.venv/bin/python" ]]; then
-  ( cd "$ROOT/openai_agent" && .venv/bin/python -m pytest tests/ -q ) || FAILED=1
-else
-  echo "⚠ openai_agent/.venv missing — run ./run.sh once to provision it; skipping"
-fi
-
-step "pydantic_agent — pytest (unit)"
-if [[ -x "$ROOT/pydantic_agent/.venv/bin/python" ]]; then
-  ( cd "$ROOT/pydantic_agent" && .venv/bin/python -m pytest tests/ -q ) || FAILED=1
-else
-  echo "⚠ pydantic_agent/.venv missing — run ./run.sh once to provision it; skipping"
-fi
-
-step "mastra_agent — Jest (unit)"
-( cd "$ROOT/mastra_agent" && npm test ) || FAILED=1
-
 echo ""
 if [ "$FAILED" -ne 0 ]; then
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

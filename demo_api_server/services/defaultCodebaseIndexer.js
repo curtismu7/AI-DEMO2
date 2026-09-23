@@ -29,9 +29,6 @@ const CODEBASE_PIECES = [
     roots: [
       'langchain_agent',
       'llamaindex_agent',
-      'openai_agent',
-      'pydantic_agent',
-      'mastra_agent',
     ],
   },
   { id: 'ai-demo2-llm-proxy', name: 'LLM Proxy', roots: ['demo_llm_proxy'] },

@@ -43,7 +43,7 @@ const NODES = [
   { id: 'n-mcp-server', x: COL.services, y: ROW.top, label: 'MCP Server', sub: ':8080',
     tooltip: 'MCP Server (:8080) — executes banking tools; validates token aud and scopes per tool; checks act claim for delegated agent authority' },
   { id: 'n-agent', x: COL.mcpGw, y: ROW.mid, label: 'Agent Service', sub: ':3006 / :8888',
-    tooltip: 'Agent Service — LangChain (:8888) / OpenAI Agents (:8891) / Mastra (:8892) / Pydantic AI (:8893) / LM Studio (:3006); translates natural language to MCP tool calls' },
+    tooltip: 'Agent Service — LangChain (:8888) / LM Studio (:3006); translates natural language to MCP tool calls' },
   { id: 'n-mcp-resource-server', x: COL.services, y: ROW.mid, label: 'MCP Resource Server', sub: ':8081',
     tooltip: 'MCP Resource Server (:8081) — dedicated MCP resource server for investment and portfolio tools; separate instance for financial data' },
   { id: 'n-mortgage', x: COL.services, y: ROW.mid + NH + 10, label: 'API Resource Server', sub: ':8082',
