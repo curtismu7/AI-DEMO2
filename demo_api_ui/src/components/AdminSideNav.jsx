@@ -1056,6 +1056,7 @@ export default function AdminSideNav({
       label: "Diagrams",
       icon: "arc",
       children: [
+        { label: "PingFederate ID-JAG (Node)", path: "/architecture/pingfederate-id-jag", icon: "arc" },
         {
           label: "System Diagram (Node)",
           path: "/architecture/system",
@@ -1403,6 +1404,7 @@ export default function AdminSideNav({
       "Grafana",
     ], "log"),
     productGroup("Architecture & Learning", [
+      "PingFederate ID-JAG (Node)",
       "System Diagram (Node)",
       "Overview Diagram (Node)",
       "Token Flow (Interactive) (Node)",
