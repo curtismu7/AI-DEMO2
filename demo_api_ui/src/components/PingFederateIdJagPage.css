@@ -85,8 +85,9 @@
 .pfj-toolbar {
   padding: 8px 12px;
   border: 1px solid var(--th-border);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
+  color: var(--th-text);
 }
 
 .pfj-toolbar .dc-toolbar {
