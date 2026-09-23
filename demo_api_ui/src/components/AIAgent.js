@@ -6681,7 +6681,15 @@ export default function BankingAgent({
     } catch (_) {}
   }
 
+  function bindPromptRunContext(text, useCaseId) {
+    if (!text?.trim()) return;
+    window.dispatchEvent(new CustomEvent("agent-prompt-run", {
+      detail: { prompt: text.trim(), useCaseId: useCaseId || null },
+    }));
+  }
+
   function sendAsNlInner(text, useCaseId) {
+    bindPromptRunContext(text, useCaseId);
     nrLog('ui.agent_message', { useCaseId: useCaseId || null, length: text ? text.length : 0 });
     // A typed message is a new turn: start a fresh token-chain trace with the
     // user's actual prompt so the trace rail shows "Pipeline — <prompt>" and
@@ -8536,6 +8544,8 @@ export default function BankingAgent({
       addMessage("assistant", AGENT_CONSENT_BLOCK_USER_MESSAGE);
       return;
     }
+
+    bindPromptRunContext(text, pendingUcIdRef.current);
 
     // New typed turn: start a fresh token-chain trace with the user's prompt
     // (same as sendAsNlInner — the chat input box routes here, not there).
@@ -10589,7 +10599,9 @@ export default function BankingAgent({
                     if (next) setShowDiscovery(false);
                   }}
                   onSelect={(uc, stepNumber, opts) => {
-                    handleDemoStepSelect(uc, stepNumber, opts);
+                    window.dispatchEvent(new CustomEvent("agent-demo-step-select", {
+                      detail: { uc, stepNumber, opts },
+                    }));
                   }}
                 />
                 {/* Live Use-Case Workbench — same catalog, live/interactive mode */}

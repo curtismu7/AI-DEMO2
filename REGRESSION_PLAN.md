@@ -186,6 +186,72 @@ read the configured host. A new browser origin must be added to ALL of:
 
 **Verify:** focused BFF Jest suites for provider selection, catalog selection, OAuth exchange, policy, and PF login; focused UC40 UI Vitest suite; `cd demo_api_ui && npm run build`. Mocked tests do not prove live PF client/SP-connection provisioning; verify that separately in a read-only PF environment.
 
+### 2026-09-23 — Live run card kept the previous prompt title
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js`,
+`demo_api_ui/src/utils/useCaseRunContext.js`, and
+`demo_api_ui/src/components/UseCaseRunContextCard.jsx`.
+
+**What was broken:** the run-context card updated on scenario selection, but a
+new direct prompt did not replace the prior title. The Live Use-Case Workbench
+also sent only the use-case ID, so its latest run could lose the scenario's
+display title. Direct dashboard runs could be labeled as originating from Use
+Cases in the source row.
+
+**What was fixed:** prompt submissions now refresh the card when a direct
+dashboard prompt starts, workbench launches include the selected scenario title,
+and direct dashboard runs identify their source correctly. Existing named
+scenario titles and source labels remain bound to their launch selection.
+
+**Do not break:** prompt execution, auth and consent gates, token evidence, or
+the existing Demo Steps / Demo Track / Use Cases run bindings.
+
+**Verify:** `cd demo_api_ui && npm run build`.
+
+### 2026-09-23 — Demo Steps runs left the dashboard use-case card unbound
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/UseCaseRunContextCard.jsx`,
+`demo_api_ui/src/utils/useCaseRunContext.js`, and their focused tests.
+
+**What was broken:** the Demo Steps dropdown called `handleDemoStepSelect`
+directly, bypassing the event bridge used by the context card. The agent ran the
+scenario while the card remained at “No use case selected.”
+
+**What was fixed:** Demo Steps selection now goes through the existing
+`agent-demo-step-select` event. The context hook records the selected use-case
+ID, title, and prompt, and the card identifies the source as Demo Steps.
+
+**Do not break:** step execution still goes through the existing handler and
+its auth and consent gates. Demo Track, Use Cases, and direct dashboard context
+behavior remain intact.
+
+**Verify:** `cd demo_api_ui && npm run test:unit --
+src/components/__tests__/AIAgent.publicUseCase.test.jsx
+src/components/__tests__/UseCaseRunContextCard.test.jsx` and `npm run build`.
+
+### 2026-09-23 — Demo Track runs did not update the dashboard use-case card
+
+**Files changed:** `demo_api_ui/src/utils/useCaseRunContext.js`,
+`demo_api_ui/src/components/UseCaseRunContextCard.jsx`, and their focused tests.
+
+**What was broken:** selecting a guided Demo Track step started the agent flow
+without binding its use-case ID to the dashboard card, which stayed at “No use
+case selected.”
+
+**What was fixed:** Demo Track step picks now persist the step ID, title, and
+buyer story as the active run context. The card labels the source as Demo Track
+and shows the selected scenario.
+
+**Do not break:** Demo Track selection remains display-only here; agent step
+execution and the existing Use Cases launch binding are unchanged. Direct
+dashboard visits still show “No use case selected.”
+
+**Verify:** `cd demo_api_ui && npm run test:unit --
+src/utils/__tests__/useCaseRunContext.test.js
+src/components/__tests__/UseCaseRunContextCard.test.jsx` and `npm run build`.
+
 ### 2026-09-23 — A2A provider/session drift could send a stale login into the wrong token endpoint
 
 **Files changed:** `demo_api_server/services/a2aDelegationService.js`,

@@ -333,7 +333,7 @@ export default function LiveUseCaseWorkbenchPage() {
           setGlanceRecent('Transfer');
         }
         window.dispatchEvent(new CustomEvent('banking-agent-prefill', {
-          detail: { message: data.triggerText, autoSend: true, useCaseId: data.useCaseId },
+          detail: { message: data.triggerText, autoSend: true, useCaseId: data.useCaseId, useCaseTitle: uc.title },
         }));
       })
       .catch((err) => {
