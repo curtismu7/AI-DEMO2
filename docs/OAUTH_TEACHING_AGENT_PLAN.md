@@ -5,7 +5,7 @@ servers and assets AI-Demo already has.
 **Core realization:** AI-Demo is already a teaching platform — it has the explainers, the live
 visualizations, and the real operations. **It's missing the teacher.** This plan adds that agent
 persona and wires it to the existing assets. We build a *conductor*, not an orchestra.
-**Status:** Plan (no code yet). Date: June 2026.
+**Status:** P1–P4 shipped in the repository; P5 curriculum/skill hardening remains. Verified 2026-09-21.
 
 ---
 
@@ -239,6 +239,9 @@ P1 alone gives a working teacher persona; each phase adds a verb's depth.
 
 ## 12. First step
 
-P1 — scaffold the `oauth-teaching` vertical (manifest + plugin + Helix directive + heuristics) and
-verify the teacher persona answers in-character across the existing chat UI. That proves the seam
-before we wire the EXPLAIN/SHOW/DEMONSTRATE verbs.
+P1–P4 are implemented: the `oauth-teaching` vertical, manifest/plugin, Helix directive and
+heuristics, EXPLAIN/SHOW tools, token inspection, real token-exchange/scope-denial/HITL
+demonstrations, and the OAuth Academy page are all present and covered by focused tests.
+
+P5 remains: package the curriculum/checkpoint behavior as a reusable teaching skill and verify
+the ordered OAuth 2.0/2.1 + OIDC learning path end to end.
