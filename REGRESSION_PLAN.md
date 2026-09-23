@@ -169,6 +169,29 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-23 — Live run card kept the previous prompt title
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js`,
+`demo_api_ui/src/utils/useCaseRunContext.js`, and
+`demo_api_ui/src/components/UseCaseRunContextCard.jsx`.
+
+**What was broken:** the run-context card updated on scenario selection, but a
+new direct prompt did not replace the prior title. The Live Use-Case Workbench
+also sent only the use-case ID, so its latest run could lose the scenario's
+display title. Direct dashboard runs could be labeled as originating from Use
+Cases in the source row.
+
+**What was fixed:** prompt submissions now refresh the card when a direct
+dashboard prompt starts, workbench launches include the selected scenario title,
+and direct dashboard runs identify their source correctly. Existing named
+scenario titles and source labels remain bound to their launch selection.
+
+**Do not break:** prompt execution, auth and consent gates, token evidence, or
+the existing Demo Steps / Demo Track / Use Cases run bindings.
+
+**Verify:** `cd demo_api_ui && npm run build`.
+
 ### 2026-09-23 — Demo Steps runs left the dashboard use-case card unbound
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`,
