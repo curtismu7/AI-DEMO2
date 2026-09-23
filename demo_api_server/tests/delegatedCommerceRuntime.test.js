@@ -62,6 +62,15 @@ it('uses the verified workload-agent runtime for the request-scoped actor token'
   expect(store.get).not.toHaveBeenCalled();
 });
 
+it('does not apply consent from a different delegated-commerce app to a workload agent', () => {
+  const request = {
+    ...req(),
+    workloadAgentRuntime: { clientId: 'personal-agent-app', clientSecret: 'server-only-secret' },
+  };
+  expect(runtime.resolveConsentContext(request, 'checkout')).toBeNull();
+  expect(store.get).not.toHaveBeenCalled();
+});
+
 it('fails closed after customer revocation', () => {
   store.get.mockReturnValue({
     id: 'reg-1',

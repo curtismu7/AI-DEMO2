@@ -1683,7 +1683,9 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   // 12-step AI agent security mandate: two RFC 8693 exchanges are ALWAYS required.
   // Session mode 'single' is a debug-only escape hatch; 'double' is the mandatory default.
   const sessionExchangeMode = req && req.session ? req.session.mcpExchangeMode : undefined;
-  const ffTwoExchange = sessionExchangeMode !== 'single';
+  // Workload Agents promise a cryptographic act identity, so they cannot use
+  // the debug single-exchange path even if the user's session selected it.
+  const ffTwoExchange = !!req?.workloadAgentRuntime || sessionExchangeMode !== 'single';
   if (ffTwoExchange) {
     return await _performTwoExchangeDelegation(
       tokenEvents, userToken, finalScopes, userSub, toolTrigger, mcpResourceUri, req, { ...opts, tool }

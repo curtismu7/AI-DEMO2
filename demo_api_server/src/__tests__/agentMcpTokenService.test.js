@@ -1207,6 +1207,29 @@ describe('resolveMcpAccessTokenWithEvents — 2-exchange delegation (ff_two_exch
     expect(token).toBeDefined();
   });
 
+  it('workload agent runtime requires 2-exchange even when session mode is single', async () => {
+    const req = makeReq(sampleJwtUserAccessToken);
+    req.workloadAgentRuntime = {
+      clientId: 'personal-agent-client',
+      clientSecret: 'personal-agent-secret',
+      authMethod: 'post',
+    };
+
+    const { token } = await resolveMcpAccessTokenWithEvents(req, 'get_my_accounts');
+
+    expect(token).toBe(finalMcpJwt);
+    expect(mockGetClientCredentialsTokenAs).toHaveBeenCalledTimes(2);
+    expect(mockGetClientCredentialsTokenAs).toHaveBeenNthCalledWith(
+      1,
+      'personal-agent-client',
+      'personal-agent-secret',
+      expect.any(String),
+      'post',
+      expect.any(String),
+    );
+    expect(mockGetAiAgentClientCredentialsToken).not.toHaveBeenCalled();
+  });
+
   // ── F4 — audMatches was computed and then discarded ───────────────────────
   // A final token whose aud does not carry the requested audience was minted,
   // logged with "❌ mismatch", and then SENT — failing downstream at the

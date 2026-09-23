@@ -90,6 +90,12 @@ function resolveAgentRuntime(req, { requireActive = true, fallbackToDefault = fa
 }
 
 function resolveConsentContext(req, tool) {
+  // A workload run's actor is the separately verified Agent Builder app, not
+  // an unrelated delegated-commerce registration left in this session. The
+  // workload app's own OAuth grants and gateway/Authorize policy remain the
+  // authority for its request.
+  if (req?.workloadAgentRuntime?.clientId) return null;
+
   const registrationId = req?.session?.delegatedCommerceRegistrationId;
   if (!registrationId) return null;
   const registration = store.get(registrationId);
