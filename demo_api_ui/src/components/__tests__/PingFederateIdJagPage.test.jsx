@@ -42,6 +42,34 @@ describe("PingFederate ID-JAG architecture", () => {
     expect(screen.getByText(/user remains sub/)).toBeTruthy();
   });
 
+  it("shows step-synced mock claims and API exchanges in both architecture views", () => {
+    renderPage();
+    const panel = screen.getByText("Protocol details").closest("details");
+    expect(panel).toBeTruthy();
+    fireEvent.click(screen.getByText("Protocol details"));
+    expect(screen.getByText(/MOCK DATA — NOT A REAL TOKEN/)).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Step 2: Exchange 1 issues an ID-JAG" }));
+    expect(panel.textContent).toContain("requested_token_type");
+    expect(panel.textContent).toContain("oauth:token-type:id-jag");
+    fireEvent.click(screen.getByRole("button", { name: "Step 5: PingOne Authorize permits the action" }));
+    expect(panel.textContent).toContain('"decision": "PERMIT"');
+    fireEvent.click(screen.getByRole("button", { name: "Step 6: Exchange 3 reaches the investment resource" }));
+    expect(panel.textContent).toContain("Exchange 3 + investment MCP call");
+    expect(panel.textContent).toContain('"method": "tools/call"');
+
+    fireEvent.click(screen.getByRole("tab", { name: "PingFederate architecture" }));
+    expect(screen.getByText("PingFederate in the system")).toBeTruthy();
+    expect(panel.textContent).toContain("MOCK DATA — NOT A REAL TOKEN");
+    expect(panel.textContent).toContain("Browser sign-in redirect");
+    fireEvent.click(screen.getByRole("button", { name: "Step 2: PingFederate issues delegated identity" }));
+    expect(panel.textContent).toContain("Exchange 1 · issue ID-JAG");
+    fireEvent.click(screen.getByRole("button", { name: "Step 5: PingOne Authorize makes the decision" }));
+    expect(panel.textContent).toContain('"decision": "PERMIT"');
+    fireEvent.click(screen.getByRole("button", { name: "Step 6: Investment MCP returns the result" }));
+    expect(panel.textContent).toContain('"method": "tools/call"');
+  });
+
   it("plays, pauses, steps, resets, and uses the selected step timer", () => {
     vi.useFakeTimers();
     try {
