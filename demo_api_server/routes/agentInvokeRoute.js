@@ -45,6 +45,8 @@ const conversationStore = require('../services/lmdb/conversationStore.lmdb');
 const { mintIntentToken } = require('../services/intentTokenService');
 const { buildTokenEvent, decodeJwtClaims, resolveMcpAccessTokenWithEvents, buildSessionPreviewTokenEvents } = require('../services/agentMcpTokenService');
 const agentBuilderService = require('../services/agentBuilderService');
+const { USE_CASES, VERTICALS, resolveUseCase } = require('../config/useCases');
+const scopeTopology = require('../services/scopeTopology');
 const { nrTransactionMiddleware } = require('../middleware/nrTransactionMiddleware');
 
 const router = express.Router();
@@ -168,6 +170,29 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
       || verticalManifest.resolver.activeIdFor(req)
       || null;
 
+    const requestedUseCaseId = typeof req.body?.useCaseId === 'string' ? req.body.useCaseId.trim() : null;
+    const catalogUseCase = requestedUseCaseId && USE_CASES.find((entry) => entry.useCaseId === requestedUseCaseId);
+    if (req.body?.useCaseId != null && !catalogUseCase) {
+      return res.status(400).json({ error: 'invalid_use_case' });
+    }
+    if (req.body?.toolName !== undefined) {
+      return res.status(400).json({ error: 'tool_selection_not_allowed' });
+    }
+    const isWorkloadAgent = requestedUseCaseId === 'personal-agent-concierge'
+      || requestedUseCaseId === 'workload-digital-assistant-obo';
+    if (isWorkloadAgent) {
+      const scenario = VERTICALS.includes(verticalRaw) && catalogUseCase.perVertical?.[verticalRaw]
+        ? resolveUseCase(catalogUseCase.id, verticalRaw)
+        : null;
+      if (!scenario?.primaryTool || !scenario.runPrompt ||
+          !scopeTopology.allTools().includes(scenario.primaryTool)) {
+        return res.status(400).json({ error: 'invalid_workload_mapping' });
+      }
+      if (prompt !== scenario.runPrompt) {
+        return res.status(400).json({ error: 'invalid_workload_action' });
+      }
+    }
+
     const promptBlock = guardPromptInput(prompt);
     if (promptBlock) {
       return res.status(promptBlock.status).json(promptBlock.body);
@@ -188,16 +213,15 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
     // Must run before intent gating: the checks are identity-layer (MFA + agent
     // registration), not intent-layer. If either fails we return immediately
     // without running the agent, so we don't burn LLM calls on an invalid setup.
-    const requestedUseCaseId = typeof req.body?.useCaseId === 'string' ? req.body.useCaseId.trim() : null;
     if (requestedUseCaseId === 'personal-agent-concierge' || requestedUseCaseId === 'workload-digital-assistant-obo' || requestedUseCaseId === 'saas-embedded-worker') {
       if (!req.user) {
         return res.status(401).json({ error: 'authentication_required', message: 'Sign in to use the personal agent concierge.' });
       }
 
-      // Require MFA — acr claim set by PingOne when acr_values was honoured.
+      // UC38 requires MFA — acr claim set by PingOne when acr_values was honoured.
       const tokenAcr = req.user.acr || '';
       const hasMfa = /multi.factor|multi_factor|mfa/i.test(String(tokenAcr));
-      if (!hasMfa) {
+      if (requestedUseCaseId === 'personal-agent-concierge' && !hasMfa) {
         const stepUpAcr = configStore.getEffective('stepUpAcrValue') || 'Multi_Factor';
         appEventService.logEvent('personal_agent', 'info', 'UC38: MFA step-up required before delegation',
           { tag: 'personal_agent/step_up_required', metadata: { userId, tokenAcr } });
