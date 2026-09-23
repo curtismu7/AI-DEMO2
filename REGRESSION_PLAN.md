@@ -192,6 +192,29 @@ the existing Demo Steps / Demo Track / Use Cases run bindings.
 
 **Verify:** `cd demo_api_ui && npm run build`.
 
+### 2026-09-23 — Approved CIBA action was reported as a proof mismatch
+
+**Files changed:** `demo_api_ui/src/context/ProofOfEnforcementContext.js` and
+`demo_api_ui/src/context/__tests__/ProofOfEnforcementContext.test.js`.
+
+**What was broken:** UC22's initial Authorize challenge remains
+`INDETERMINATE/STEP_UP` in the trace. The successful transaction retry can
+complete without emitting a second browser-visible Authorize decision, leaving
+the proof evaluator to compare that challenge against UC22's expected `PERMIT`
+and show `MISMATCH` even when CIBA was approved and the tool completed.
+
+**What was fixed:** for UC22 only, the verdict treats the challenge as
+discharged when the trace has an approved CIBA poll, a non-denied tool result,
+and a completed successful run. Pending/failed runs and hard DENY decisions
+remain mismatches.
+
+**Do not break:** hard authorization denials must never be overridden by CIBA
+approval, and an approval without a completed tool dispatch must not score as a
+PERMIT. Authorization gates and BFF session/token handling are unchanged.
+
+**Verify:** focused `ProofOfEnforcementContext.test.js` and `npm run build` in
+`demo_api_ui`.
+
 ### 2026-09-23 — React StrictMode left CIBA agent pollers permanently inactive
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`,

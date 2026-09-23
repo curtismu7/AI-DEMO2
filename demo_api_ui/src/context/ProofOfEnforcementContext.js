@@ -146,13 +146,36 @@ export function computeVerdict(trace, catalogEntry) {
   // went green on a HITL approval gate (and vice versa).
   const actualOutcome = trace.authorize && trace.authorize.outcome;
   const expectedFamily = expected && EXPECTED_OUTCOME_FAMILY[expected];
-  const outcomeMatches = expectedIsDenyLike && expectedFamily && actualOutcome
-    ? actualOutcome === expectedFamily
-    : !expected || !decision
-      ? true
-      : expectedIsDenyLike
-        ? decision !== 'PERMIT'
-        : decision === 'PERMIT';
+  // UC22's first Authorize response is the STEP_UP decision that caused CIBA.
+  // Some successful write retries don't produce a second browser-visible
+  // Authorize evaluation, so the trace correctly retains INDETERMINATE even
+  // though the approved CIBA poll is followed by a completed tool dispatch.
+  // Treat that complete, approved CIBA sequence as the final PERMIT for this
+  // success narrative; approval or dispatch evidence alone is insufficient.
+  const cibaApprovedAndDispatched =
+    useCaseId === 'ciba-out-of-band-approval' &&
+    expected === 'PERMIT' &&
+    (decision == null || decision === 'INDETERMINATE' || decision === 'PERMIT') &&
+    (actualOutcome == null || actualOutcome === 'STEP_UP' || actualOutcome === 'HITL_REQUIRED') &&
+    (trace.tokenEvents || []).some((event) =>
+      event?.id === 'ciba-poll' && event.additionalData?.status === 'approved') &&
+    !!trace.mcpResult &&
+    trace.mcpResult.status !== 'error' &&
+    trace.mcpResult?.denied !== true &&
+    trace.outcome === 'ok';
+  const effectiveDecision = cibaApprovedAndDispatched ? 'PERMIT' : decision;
+  const cibaExplicitlyDenied = useCaseId === 'ciba-out-of-band-approval'
+    && expected === 'PERMIT'
+    && actualOutcome === 'DENY';
+  const outcomeMatches = cibaExplicitlyDenied
+    ? false
+    : expectedIsDenyLike && expectedFamily && actualOutcome
+      ? actualOutcome === expectedFamily
+      : !expected || !effectiveDecision
+        ? true
+        : expectedIsDenyLike
+          ? effectiveDecision !== 'PERMIT'
+          : effectiveDecision === 'PERMIT';
   const state = outcomeMatches
     ? (expectedIsDenyLike ? 'denied-as-expected' : 'verified')
     : 'mismatch';
