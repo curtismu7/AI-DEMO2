@@ -22,6 +22,7 @@ import {
 } from "../utils/appToast";
 import { navigateToCustomerOAuthLogin, SESSION_REAUTH_EVENT } from "../utils/authUi";
 import { normalizePhoneE164, pickPreferredDevice, isPasskeySupported } from "../utils/mfaEnrollment";
+import { COUNTRY_CODES, DEFAULT_COUNTRY_CODE, composePhone } from "../utils/countryCodes";
 import {
   getDashboardLayout,
   setDashboardLayout,
@@ -501,6 +502,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   // SMS enrollment sub-flow inside the enroll modal: 'choose' | 'phone' | 'otp'
   const [smsEnrollStep, setSmsEnrollStep] = useState("choose");
   const [smsEnrollPhone, setSmsEnrollPhone] = useState("");
+  const [smsCountryCode, setSmsCountryCode] = useState(DEFAULT_COUNTRY_CODE);
   const [smsEnrollOtp, setSmsEnrollOtp] = useState("");
   const [smsEnrollDeviceId, setSmsEnrollDeviceId] = useState(null);
   const autoInitiateTimerRef = useRef(null); // [t1, t2, t3] setTimeout IDs
@@ -1174,7 +1176,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
 
   /** POST /enroll/sms-init — PingOne texts an activation code to the phone. */
   const handleEnrollSmsInit = useCallback(async () => {
-    const phone = normalizePhoneE164(smsEnrollPhone);
+    const phone = normalizePhoneE164(composePhone(smsCountryCode, smsEnrollPhone));
     if (!phone || phone.length < 10) {
       setEnrollError("Enter a phone number in E.164 format, e.g. +15551234567");
       return;
@@ -3645,20 +3647,34 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
                     className="otp-step-up-modal__lead"
                     htmlFor="enroll-sms-phone"
                   >
-                    Mobile number (E.164 format)
+                    Mobile number
                   </label>
-                  <input
-                    id="enroll-sms-phone"
-                    className="otp-step-up-modal__input"
-                    type="tel"
-                    placeholder="+15551234567"
-                    value={smsEnrollPhone}
-                    onChange={(e) => setSmsEnrollPhone(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleEnrollSmsInit();
-                    }}
-                    data-testid="enroll-sms-phone"
-                  />
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <select
+                      className="otp-step-up-modal__input"
+                      style={{ width: 130, flex: "0 0 auto" }}
+                      value={smsCountryCode}
+                      onChange={(e) => setSmsCountryCode(e.target.value)}
+                      aria-label="Country code"
+                      data-testid="mfa-country-code"
+                    >
+                      {COUNTRY_CODES.map((c) => (
+                        <option key={c.code} value={c.code}>{c.label}</option>
+                      ))}
+                    </select>
+                    <input
+                      id="enroll-sms-phone"
+                      className="otp-step-up-modal__input"
+                      type="tel"
+                      placeholder="5551234567"
+                      value={smsEnrollPhone}
+                      onChange={(e) => setSmsEnrollPhone(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleEnrollSmsInit();
+                      }}
+                      data-testid="enroll-sms-phone"
+                    />
+                  </div>
                   <div
                     className="otp-step-up-modal__actions"
                     style={{ flexDirection: "column", gap: "0.75rem" }}

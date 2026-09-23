@@ -4,6 +4,7 @@ import { navigateToCustomerOAuthLogin } from '../utils/authUi';
 import SignInPrompt from './SignInPrompt';
 import { loadPublicConfig } from '../services/configService';
 import { describePasskeyRegistrationError } from '../utils/mfaEnrollment';
+import { COUNTRY_CODES, DEFAULT_COUNTRY_CODE, composePhone } from '../utils/countryCodes';
 import { useThemeOptional } from '../context/ThemeContext';
 import './SecurityCenter.css';
 
@@ -57,6 +58,7 @@ export default function SecurityCenter({ user }) {
   const [enrolling, setEnrolling] = useState(false);
   const [enrollType, setEnrollType] = useState(null);
   const [enrollPhone, setEnrollPhone] = useState('');
+  const [enrollCountryCode, setEnrollCountryCode] = useState(DEFAULT_COUNTRY_CODE);
   const [enrollSmsStep, setEnrollSmsStep] = useState('phone');
   const [enrollSmsDeviceId, setEnrollSmsDeviceId] = useState(null);
   const [enrollOtp, setEnrollOtp] = useState('');
@@ -234,7 +236,7 @@ export default function SecurityCenter({ user }) {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: enrollPhone.trim() }),
+        body: JSON.stringify({ phone: composePhone(enrollCountryCode, enrollPhone.trim()) }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -397,15 +399,30 @@ export default function SecurityCenter({ user }) {
           )}
           {enrollSmsStep === 'phone' ? (
             <>
-              <input
-                type="tel"
-                className="rename-input"
-                style={{ width: '100%', maxWidth: 240, boxSizing: 'border-box' }}
-                placeholder="+1 555 000 0000"
-                value={enrollPhone}
-                onChange={e => setEnrollPhone(e.target.value)}
-                disabled={enrollBusy}
-              />
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <select
+                  className="rename-input"
+                  style={{ width: 130, boxSizing: 'border-box' }}
+                  value={enrollCountryCode}
+                  onChange={e => setEnrollCountryCode(e.target.value)}
+                  disabled={enrollBusy}
+                  aria-label="Country code"
+                  data-testid="mfa-country-code"
+                >
+                  {COUNTRY_CODES.map((c) => (
+                    <option key={c.code} value={c.code}>{c.label}</option>
+                  ))}
+                </select>
+                <input
+                  type="tel"
+                  className="rename-input"
+                  style={{ width: '100%', maxWidth: 240, boxSizing: 'border-box' }}
+                  placeholder="555 000 0000"
+                  value={enrollPhone}
+                  onChange={e => setEnrollPhone(e.target.value)}
+                  disabled={enrollBusy}
+                />
+              </div>
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                 <button
                   type="button"

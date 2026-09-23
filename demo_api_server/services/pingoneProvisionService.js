@@ -1529,8 +1529,9 @@ class PingOneProvisionService {
   async createUser(username, firstName, lastName, email) {
     const existing = await this.findUserByUsername(username);
     if (existing) {
-      return { 
-        exists: true, 
+      await this.setUserMfaEnabled(existing.id);
+      return {
+        exists: true,
         user: existing,
         resourceKey: `user:${existing.id}`
       };
@@ -1548,8 +1549,9 @@ class PingOneProvisionService {
     };
 
     const response = await this.makeRequest('POST', '/users', data);
-    return { 
-      exists: false, 
+    await this.setUserMfaEnabled(response.data.id);
+    return {
+      exists: false,
       user: response.data,
       resourceKey: `user:${response.data.id}`
     };
@@ -1565,6 +1567,28 @@ class PingOneProvisionService {
       return users[0] || null;
     } catch (error) {
       return null;
+    }
+  }
+
+  /**
+   * Enable MFA on a user. Every demo user must be MFA-capable or the HITL
+   * step-up / passkey flows fail with PingOne MFA_DISABLED. Runs on create
+   * AND on rerun so manually-disabled users get healed.
+   */
+  async setUserMfaEnabled(userId) {
+    try {
+      await this.makeRequest(
+        'PUT',
+        `/users/${userId}/mfaEnabled`,
+        { mfaEnabled: true },
+        { 'Content-Type': 'application/json' }
+      );
+      return { ok: true };
+    } catch (err) {
+      // Not fatal: MFA-disabled users only break step-up, and a 400 here may
+      // mean MFA is already enabled (PingOne is not idempotent on this PUT).
+      console.warn(`[provision] setUserMfaEnabled(${userId}) failed (continuing): ${err.message}`);
+      return { ok: false };
     }
   }
 
