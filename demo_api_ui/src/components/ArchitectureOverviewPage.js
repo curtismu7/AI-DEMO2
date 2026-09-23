@@ -184,10 +184,10 @@ export default function ArchitectureOverviewPage() {
       <div className="aov-inner">
         <div className="aov-header-row">
           <div>
-            <h1>Architecture Overview</h1>
+            <h1>PingOne AI Banking Architecture</h1>
             <p className="aov-subtitle">
-              Interactive simulation of request flows through the banking demo system. For the step-by-step
-              token-exchange walkthrough, see{' '}
+              Run the protected request path from browser to Vault, PingOne, MCP, and the Banking Resource Server.
+              For the deeper token-exchange walkthrough, see{' '}
               <a href="/sequence-diagram">
                 /sequence-diagram
               </a>.

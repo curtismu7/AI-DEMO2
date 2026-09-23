@@ -15,6 +15,13 @@ function evidenceItems(evidence = {}) {
   ])];
 }
 
+function humanizeUseCaseId(useCaseId) {
+  if (!useCaseId) return '';
+  return useCaseId
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export default function UseCaseRunContextCard({ runContext }) {
   const launchedFromUseCases = runContext?.source === 'use-cases';
   const evidence = evidenceItems(runContext?.evidence);
@@ -27,7 +34,9 @@ export default function UseCaseRunContextCard({ runContext }) {
             {launchedFromUseCases ? 'Launched from Use Cases' : 'Direct dashboard run'}
           </div>
           <h2 className="ba-run-context-card__title">
-            {runContext?.useCaseLabel || 'No use case selected'}
+            {runContext?.useCaseLabel
+              || humanizeUseCaseId(runContext?.useCaseId)
+              || 'No use case selected'}
           </h2>
         </div>
         {runContext?.expectedOutcome && (

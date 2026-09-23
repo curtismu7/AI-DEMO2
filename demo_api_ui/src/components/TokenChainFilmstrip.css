@@ -27,17 +27,21 @@
   display: grid;
   /* The agent takes the wider half: the spotlight is static intro copy until a
      step is picked, while the transcript is the thing being read the whole demo. */
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  /* Agent : spotlight split is driven by --ud-focus-agent-frac (the agent
+     track's fr value against a fixed 1fr spotlight; 1fr = agent takes half the
+     row by default). Drag-resizable. */
+  grid-template-columns: minmax(0, var(--ud-focus-agent-frac, 1fr)) minmax(0, 1fr);
   grid-template-areas:
     "strip strip"
     "agent spotlight"
+    "resize resize"
     "chain chain";
   /* Rows size to content, except the agent/spotlight row which takes the rest.
      Without this the strip row inherited the stretch and grew far beyond its
      content. The agent row also carries a floor: on a 13" laptop an expanded
      22-step chain is ~240px of `auto`, and it took every one of those pixels
      out of the transcript. */
-  grid-template-rows: auto minmax(220px, 1fr) minmax(0, auto);
+  grid-template-rows: auto minmax(220px, 1fr) auto minmax(0, auto);
   align-items: stretch;
   /* `1fr` only means "take the rest" if the grid itself is bounded, and nothing
      ever bounded it. The grid grew to the agent transcript's intrinsic height
@@ -201,8 +205,11 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
   overflow-y: auto;
 }
 
-/* The column's drag-to-resize width handle fights a two-column grid. */
-.dashboard-content.ud-body.ud-focus-mode > .ud-agent-column .ud-agent-column__resize-handle { display: none; }
+/* The px-width drag handle was replaced in focus mode: the same right-edge
+   handle now drives the fr split (--ud-focus-agent-frac), so it stays visible.
+   The old conflict was with a fixed px column in a 2-col grid; the fr vars
+   replaced that layout. */
+.dashboard-content.ud-body.ud-focus-mode > .ud-agent-column .ud-agent-column__resize-handle { display: block; }
 
 /* display:contents so the two regions below become grid items of the dashboard
    rather than of the filmstrip — one component, both halves of the layout. */
@@ -222,14 +229,30 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
 
 /* Capped, and it scrolls itself. An expanded 22-step chain is ~240px of `auto`
    row, taken straight out of the transcript on a laptop; the cap is what stops
-   a longer run from taking more. Tall screens still get the full 240px. */
+   a longer run from taking more. Tall screens still get the full 240px.
+   --ud-focus-chain-h is the drag-resized height (unset = this clamp applies). */
 .tcfs-chain {
   grid-area: chain;
   min-width: 0;
   border-top: 1px solid var(--th-border);
   background: var(--th-bg-card);
-  max-height: clamp(112px, 26vh, 240px);
+  max-height: var(--ud-focus-chain-h, clamp(112px, 26vh, 240px));
   overflow-y: auto;
+}
+
+/* Full-width drag handle between the agent/spotlight row and the chain row. */
+.ud-focus-chain-resize {
+  grid-area: resize;
+  height: 6px;
+  cursor: ns-resize;
+  background: transparent;
+  border-top: 1px solid var(--th-border);
+  transition: background 0.15s;
+  z-index: 10;
+}
+.ud-focus-chain-resize:hover,
+.ud-focus-chain-resize:focus-visible {
+  background: rgba(52, 152, 219, 0.35);
 }
 
 .tcfs-spotlight-empty {
@@ -296,9 +319,10 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
   .user-dashboard--2026
     .dashboard-content.ud-body.ud-focus-mode:not(.ud-middle-collapsed) {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "agent" "spotlight" "chain";
+    grid-template-areas: "strip" "agent" "spotlight" "resize" "chain";
   }
   .tcfs-spotlight { border-left: 0; border-top: 1px solid var(--th-border); }
+  .ud-focus-chain-resize { display: none; }
 }
 
 /* Phone: the rule above still loses grid-template-columns to
@@ -315,7 +339,7 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
 @media (max-width: 768px) {
   .dashboard-content.ud-focus-mode {
     grid-template-columns: 1fr !important;
-    grid-template-areas: "strip" "agent" "spotlight" "chain" !important;
+    grid-template-areas: "strip" "agent" "spotlight" "resize" "chain" !important;
     height: auto !important;
   }
 }
