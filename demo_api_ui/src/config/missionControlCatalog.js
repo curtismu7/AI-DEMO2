@@ -18,6 +18,7 @@ const definitions = [
       link('Token Chain Architecture', '/architecture/token-chain'),
       link('Agent Gateway Authorization', '/agent-gateway-authorization'),
     ],
+    routes: [link('Open Personal Agents', '/personal-agent')],
   },
   {
     id: 'digital-assistant',

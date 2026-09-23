@@ -36,6 +36,12 @@ describe('missionControlCatalog', () => {
     ]));
   });
 
+  it('links the Personal Agent group to the Personal Agents page', () => {
+    expect(getMissionControlGroup('personal-agent').routes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ href: '/personal-agent' })]),
+    );
+  });
+
   it('keeps the employee lane planned and omits the SaaS lane', () => {
     expect(getMissionControlGroup('employee-agent')).toMatchObject({ status: 'planned' });
     expect(getMissionControlGroup('saas-embedded-agent')).toBeNull();
