@@ -196,6 +196,7 @@ const ATTACK_EFFECT = {
   blocks: 'Privilege blocks this before the model sees it.',
   sanitizes: 'The model answers, and Privilege redacts the matched values inside the reply.',
   none: 'No Privilege verdict fires for this one — any refusal you see is the model\u2019s own.',
+  unmeasured: 'This safe sample has not been measured against the current policy. The observed result after Send is authoritative.',
 };
 
 // Privilege's own denial body never names the policy or rule it matched —
@@ -226,7 +227,7 @@ const MANUAL_ATTACK = '__manual__';
 
 // Run all scores each attack's guarded result against the catalog's measured
 // `effect`, so a policy that quietly stopped firing shows up as a mismatch.
-const EFFECT_LABEL = { blocks: 'Blocked', sanitizes: 'Redacted', none: 'No verdict' };
+const EFFECT_LABEL = { blocks: 'Blocked', sanitizes: 'Redacted', none: 'No verdict', unmeasured: 'Not measured' };
 
 function scoreKind(d) {
   if (!d) return null;
@@ -250,6 +251,10 @@ function firstLine(text) {
 
 function payloadFor(id) {
   return (GUARDRAIL_ATTACKS.find((a) => a.id === id) || {}).payload || '';
+}
+
+function attackFor(id) {
+  return GUARDRAIL_ATTACKS.find((attack) => attack.id === id) || null;
 }
 
 function attackFromUrl() {
@@ -309,7 +314,9 @@ export default function LlmGatewayPage() {
   // The dropdown's choice persists across reloads; the prompt box must be seeded
   // from the same key or the two load out of sync — select reads "Prompt Injection",
   // box is empty, and re-picking that option fires no change event.
-  const [prompt, setPrompt] = useState(() => payloadFor(initialAttack));
+  const [prompt, setPrompt] = useState(() => (
+    attackFor(initialAttack)?.demoPath ? '' : payloadFor(initialAttack)
+  ));
   const [busy, setBusy] = useState(false);
   const [turns, setTurns] = useState([]);
   const [decision, setDecision] = useState(null);
@@ -499,10 +506,9 @@ export default function LlmGatewayPage() {
     }
   }, [prompt, busy, selected, modelByLane, selectedAttack, record, compareOn, callLane]);
 
-  // Run all: every Library attack through the selected lane, then llama.cpp,
-  // strictly one call at a time — llama.cpp's :8090 proxy is one shared rate
-  // bucket, and a 429 there reads exactly like a dead lane. Stop is checked
-  // before every call, so nothing goes out after it is pressed.
+  // Run all chat-compatible attacks through the selected lane, then llama.cpp.
+  // Tool/A2A threats remain visible in the scorecard with links to their proper
+  // runners; they must never be disguised as chat prompts.
   const runAll = useCallback(async () => {
     if (busy || !canRunAll) return;
     const model = (modelByLane[selected] || '').trim();
@@ -524,6 +530,7 @@ export default function LlmGatewayPage() {
     try {
       for (let i = 0; i < rows.length; i += 1) {
         const { attack } = rows[i];
+        if (attack.demoPath) continue;
         if (stopRef.current) break;
         const guarded = await callLane(selected, model, attack.payload, attack.id);
         put(i, 'guarded', guarded);
@@ -550,6 +557,9 @@ export default function LlmGatewayPage() {
   // One scorecard cell. Clicking it puts that call in Last decision and opens
   // its full reply below the table.
   const scoreCell = (turn, side, attack, mismatch) => {
+    if (!turn && attack.demoPath) {
+      return <a className="lgw-score__ms" href={attack.demoPath}>Open demo</a>;
+    }
     if (!turn) return <span className="lgw-score__ms">{scorecard.done ? 'not run' : '…'}</span>;
     const ms = turn.decision.latencyMs;
     return (
@@ -795,7 +805,9 @@ export default function LlmGatewayPage() {
                   <tbody>
                     {scorecard.rows.map((r) => {
                       const kind = scoreKind(r.guarded?.decision);
-                      const mismatch = Boolean(kind) && kind !== r.attack.effect;
+                      const mismatch = Boolean(kind)
+                        && r.attack.effect !== 'unmeasured'
+                        && kind !== r.attack.effect;
                       return (
                         <tr
                           key={r.attack.id}
@@ -804,7 +816,7 @@ export default function LlmGatewayPage() {
                           className={mismatch ? 'is-mismatch' : undefined}
                         >
                           <td>{r.attack.label}</td>
-                          <td>{EFFECT_LABEL[r.attack.effect]}</td>
+                          <td>{r.attack.demoPath ? 'Separate demo' : EFFECT_LABEL[r.attack.effect]}</td>
                           <td>{scoreCell(r.guarded, 'guarded', r.attack, mismatch)}</td>
                           <td>{scoreCell(r.unguarded, 'unguarded', r.attack, false)}</td>
                         </tr>
@@ -830,7 +842,8 @@ export default function LlmGatewayPage() {
                 const id = e.target.value;
                 setSelectedAttack(id);
                 window.localStorage.setItem('lgw-attack-choice', id);
-                setPrompt(id === MANUAL_ATTACK ? '' : payloadFor(id));
+                const attack = attackFor(id);
+                setPrompt(id === MANUAL_ATTACK || attack?.demoPath ? '' : payloadFor(id));
                 setSendError('');
               }}
             >
@@ -844,7 +857,18 @@ export default function LlmGatewayPage() {
                 </optgroup>
               ))}
             </select>
-            <span className="lgw-attacks__note">Fills the prompt below — review it, then Send.</span>
+            <span className="lgw-attacks__note">{attackFor(selectedAttack)?.demoPath
+              ? 'This threat needs a tool or delegated-agent request; it is not sent as chat text.'
+              : 'Fills the prompt below — review it, then Send.'}</span>
+            {attackFor(selectedAttack)?.demoPath ? (
+              <a
+                className="lgw-theme"
+                href={attackFor(selectedAttack).demoPath}
+                data-testid="lgw-attack-demo-link"
+              >
+                {attackFor(selectedAttack).demoCta || 'Open matching demo'}
+              </a>
+            ) : null}
             <button
               type="button"
               className="lgw-theme"
@@ -864,13 +888,13 @@ export default function LlmGatewayPage() {
                 onClick={runAll}
                 disabled={busy || !canRunAll}
                 title={canRunAll
-                  ? 'Fire every attack through this lane and through llama.cpp, one call at a time, and score each against what it should do'
+                  ? 'Fire every chat attack through this lane and through llama.cpp; tool and agent threats link to their separate demos'
                   : 'Needs a Privilege lane with a key selected, and a llama.cpp lane'}
               >
-                Run all attacks
+                Run all chat attacks
               </button>
             )}
-            {selectedAttack && ATTACK_EFFECT[(GUARDRAIL_ATTACKS.find((a) => a.id === selectedAttack) || {}).effect] ? (
+            {selectedAttack && !attackFor(selectedAttack)?.demoPath && ATTACK_EFFECT[(GUARDRAIL_ATTACKS.find((a) => a.id === selectedAttack) || {}).effect] ? (
               <span className="lgw-attacks__effect" data-testid="lgw-attack-effect">
                 {ATTACK_EFFECT[(GUARDRAIL_ATTACKS.find((a) => a.id === selectedAttack) || {}).effect]}
               </span>

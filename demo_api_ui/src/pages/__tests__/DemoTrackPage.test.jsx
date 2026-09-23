@@ -79,6 +79,7 @@ function mockApi() {
 
 describe("DemoTrackPage", () => {
   beforeEach(() => { vi.clearAllMocks(); mockApi(); });
+  afterEach(() => window.history.replaceState({}, "", "/"));
 
   it("renders acts, steps, progress dots and the filled slot from the live run", async () => {
     render(<DemoTrackPage />);
@@ -91,6 +92,13 @@ describe("DemoTrackPage", () => {
     // gauntlet score 1/2 from run.gauntlet (visible when gauntlet step expanded via click)
     fireEvent.click(screen.getByText("Attack gauntlet"));
     expect(await screen.findByText(/1 \/ 2 blocked/)).toBeInTheDocument();
+  });
+
+  it("opens the attack gauntlet from the Tool Abuse demo deep link", async () => {
+    window.history.pushState({}, "", "/demo-track?step=attack-gauntlet");
+    render(<DemoTrackPage />);
+
+    expect(await screen.findByText("Wrong scope")).toBeInTheDocument();
   });
 
   it("expands a step on click and shows its takeaway when both slots filled (history run)", async () => {

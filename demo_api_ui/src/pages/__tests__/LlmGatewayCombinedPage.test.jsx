@@ -1,9 +1,15 @@
 // /llm-gateway and /llm-test used to be two separate pages with two nav
 // entries to the same subject. This pins that they are now one page,
 // switchable by tab, with each URL still opening the tab a bookmark expects.
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render as renderUi, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import LlmGatewayCombinedPage from "../LlmGatewayCombinedPage";
+
+vi.mock("../AttackLabTab", () => ({ default: () => <h1>Attack Lab</h1> }));
+
+function render(ui, options) {
+  return renderUi(<MemoryRouter>{ui}</MemoryRouter>, options);
+}
 
 function mockFetch() {
   global.fetch = vi.fn(() => new Promise(() => {}));
@@ -27,6 +33,19 @@ describe("LLM Gateway combined page", () => {
     expect(screen.getByLabelText(/^lane$/i)).toBeInTheDocument();
   });
 
+  it("opens Attack Lab from its tab deep link", async () => {
+    mockFetch();
+    renderUi(
+      <MemoryRouter initialEntries={["/llm-gateway?tab=attacks"]}>
+        <LlmGatewayCombinedPage defaultTab="chat" />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("tab", { name: /attack lab/i })).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByRole("heading", { name: /attack lab/i })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^prompt$/i)).not.toBeInTheDocument();
+  });
+
   it("switches tabs on click, unmounting the other view", async () => {
     mockFetch();
     render(<LlmGatewayCombinedPage defaultTab="chat" />);
@@ -40,12 +59,24 @@ describe("LLM Gateway combined page", () => {
 
   it("shows the Privilege denial scenario in the Malicious MCP tab", async () => {
     mockFetch();
-    render(<MemoryRouter><LlmGatewayCombinedPage defaultTab="chat" /></MemoryRouter>);
+    render(<LlmGatewayCombinedPage defaultTab="chat" />);
 
     fireEvent.click(screen.getByRole("tab", { name: /malicious mcp/i }));
 
     expect(await screen.findByRole("heading", { name: /content reaches the agent/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /run denial scenario/i })).toBeInTheDocument();
+  });
+
+  it("opens the Malicious MCP tab from an attack-library deep link", async () => {
+    mockFetch();
+    renderUi(
+      <MemoryRouter initialEntries={["/llm-gateway?tab=hostile"]}>
+        <LlmGatewayCombinedPage defaultTab="chat" />
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("heading", { name: /content reaches the agent/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /malicious mcp/i })).toHaveAttribute("aria-selected", "true");
   });
 
   describe("text size control", () => {

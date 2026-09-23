@@ -38,6 +38,6 @@ describe('missionControlCatalog', () => {
 
   it('keeps the employee lane planned', () => {
     expect(getMissionControlGroup('employee-agent')).toMatchObject({ status: 'planned' });
-    expect(getMissionControlGroup('saas-embedded-agent')).toBeUndefined();
+    expect(getMissionControlGroup('saas-embedded-agent')).toBeNull();
   });
 });

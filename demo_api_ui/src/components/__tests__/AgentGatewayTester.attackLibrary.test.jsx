@@ -18,6 +18,8 @@ vi.mock('../../services/apiClient', () => ({
 const POISONING = TOOL_ATTACKS.find((a) => a.id === 'tool_poisoning');
 
 describe('Agent Gateway Tester attack library', () => {
+  afterEach(() => window.history.replaceState({}, '', '/'));
+
   it('lists every tool attack in the catalog', async () => {
     render(<AgentGatewayTester />);
     const select = await screen.findByLabelText(/attack library/i);
@@ -37,6 +39,17 @@ describe('Agent Gateway Tester attack library', () => {
     expect(screen.getByPlaceholderText('{}')).toHaveValue(
       JSON.stringify(POISONING.args, null, 2),
     );
+  });
+
+  it('preselects the requested attack when opened from an attack-library deep link', async () => {
+    window.history.pushState({}, '', '/agent-gateway-capabilities?attack=schema_violation');
+    render(<AgentGatewayTester />);
+
+    expect(await screen.findByLabelText(/attack library/i)).toHaveValue('schema_violation');
+    expect(screen.getByPlaceholderText('{}')).toHaveValue(
+      JSON.stringify(TOOL_ATTACKS.find((attack) => attack.id === 'schema_violation').args, null, 2),
+    );
+
   });
 
   // An attack's measured effect must be SHOWN, not left blank — a blank would

@@ -14,15 +14,18 @@
 // larger diff to get wrong. Only one tab is mounted at a time, so there is no
 // double-polling and no duplicate DOM ids while a tab is inactive.
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import LlmGatewayPage from './LlmGatewayPage';
 import LlmTestPage from './LlmTestPage';
 import HostileMcpTab from './HostileMcpTab';
+import AttackLabTab from './AttackLabTab';
 import './LlmGatewayCombinedPage.css';
 
 const TABS = [
   { key: 'chat', label: 'Chat console' },
   { key: 'raw', label: 'Raw request' },
   { key: 'hostile', label: 'Malicious MCP' },
+  { key: 'attacks', label: 'Attack Lab' },
 ];
 
 // Every font-size in this page family (LlmGatewayCombinedPage.css,
@@ -49,8 +52,17 @@ function loadScale() {
 }
 
 export default function LlmGatewayCombinedPage({ defaultTab = 'chat' }) {
-  const [tab, setTab] = useState(defaultTab);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get('tab');
+  const initialTab = TABS.some((item) => item.key === requestedTab) ? requestedTab : defaultTab;
+  const [tab, setTab] = useState(initialTab);
   const [scale, setScale] = useState(loadScale);
+
+  useEffect(() => {
+    if (TABS.some((item) => item.key === requestedTab) && requestedTab !== tab) {
+      setTab(requestedTab);
+    }
+  }, [requestedTab, tab]);
 
   // Base px values read once from the real stylesheet rather than hardcoded,
   // so this keeps working if THEMING.md's scale ever changes those numbers.
@@ -87,7 +99,14 @@ export default function LlmGatewayCombinedPage({ defaultTab = 'chat' }) {
               role="tab"
               aria-selected={tab === t.key}
               className={`lgwc-tab${tab === t.key ? ' is-active' : ''}`}
-              onClick={() => setTab(t.key)}
+              onClick={() => {
+                setTab(t.key);
+                setSearchParams((current) => {
+                  const next = new URLSearchParams(current);
+                  next.set('tab', t.key);
+                  return next;
+                }, { replace: true });
+              }}
             >
               {t.label}
             </button>
@@ -117,7 +136,10 @@ export default function LlmGatewayCombinedPage({ defaultTab = 'chat' }) {
           </button>
         </div>
       </div>
-      {tab === 'chat' ? <LlmGatewayPage /> : tab === 'hostile' ? <HostileMcpTab /> : <LlmTestPage />}
+      {tab === 'chat' ? <LlmGatewayPage />
+        : tab === 'hostile' ? <HostileMcpTab />
+          : tab === 'attacks' ? <AttackLabTab />
+            : <LlmTestPage />}
     </div>
   );
 }
