@@ -167,6 +167,7 @@ import McpObservabilityPage from "./pages/McpObservabilityPage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
 import PersonalAgentStudioPage from "./pages/PersonalAgentStudioPage";
+import WorkloadAgentsPage from "./pages/WorkloadAgentsPage";
 import PersonalAgentClientWindow from "./pages/PersonalAgentClientWindow";
 import GovernanceTimelinePage from "./pages/GovernanceTimelinePage";
 import EmbeddedWorkerPage from "./pages/EmbeddedWorkerPage";
@@ -1394,6 +1395,14 @@ function AppWithAuth() {
                     // Public route — no login required (same pattern as /pingcli).
                     <AppShell user={user} logout={logout}>
                       <PersonalAgentStudioPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/workload-agents"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <WorkloadAgentsPage />
                     </AppShell>
                   }
                 />

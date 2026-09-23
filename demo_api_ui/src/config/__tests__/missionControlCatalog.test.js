@@ -42,6 +42,12 @@ describe('missionControlCatalog', () => {
     );
   });
 
+  it('opens the Workload Agent page from its Run link', () => {
+    expect(getMissionControlGroup('workload-agent').routes).toEqual(
+      expect.arrayContaining([expect.objectContaining({ href: '/workload-agents' })]),
+    );
+  });
+
   it('keeps the employee lane planned and omits the SaaS lane', () => {
     expect(getMissionControlGroup('employee-agent')).toMatchObject({ status: 'planned' });
     expect(getMissionControlGroup('saas-embedded-agent')).toBeNull();

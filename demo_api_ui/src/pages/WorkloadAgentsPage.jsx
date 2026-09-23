@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
+import { useVertical } from '../vertical/useVertical';
 import PersonalAgentStudioPage from './PersonalAgentStudioPage';
 import './WorkloadAgentsPage.css';
 
@@ -16,8 +17,9 @@ const SUPPORTED_VERTICALS = new Set([
 export default function WorkloadAgentsPage() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { activeId } = useVertical();
   const params = new URLSearchParams(location.search);
-  const vertical = params.get('vertical') || 'sporting-goods';
+  const vertical = params.get('vertical') || activeId || 'banking';
   const selectedId = params.get('useCase') === 'UC44' ? 'UC44' : 'UC38';
   const [verticals, setVerticals] = useState([]);
   const [catalog, setCatalog] = useState({ vertical: null, cases: {} });

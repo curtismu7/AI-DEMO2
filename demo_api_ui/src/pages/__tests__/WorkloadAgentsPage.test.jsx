@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import WorkloadAgentsPage from '../WorkloadAgentsPage';
+import { VerticalContext } from '../../vertical/VerticalProvider';
 
 const verticals = [
   'banking', 'healthcare', 'retail', 'abercrombie-fitch', 'government',
@@ -25,8 +26,8 @@ vi.mock('../../context/TokenChainContext', () => ({ useTokenChainOptional: () =>
 
 import apiClient from '../../services/apiClient';
 
-function renderPage(route = '/workload-agents?useCase=UC38&vertical=sporting-goods') {
-  return render(<MemoryRouter initialEntries={[route]}><WorkloadAgentsPage /></MemoryRouter>);
+function renderPage(route = '/workload-agents?useCase=UC38&vertical=sporting-goods', activeId = null) {
+  return render(<MemoryRouter initialEntries={[route]}><VerticalContext.Provider value={{ activeId }}><WorkloadAgentsPage /></VerticalContext.Provider></MemoryRouter>);
 }
 
 beforeEach(() => {
@@ -40,6 +41,18 @@ beforeEach(() => {
 });
 
 describe('WorkloadAgentsPage', () => {
+  it('uses the active vertical for a direct link without a vertical query', async () => {
+    renderPage('/workload-agents?useCase=UC44', 'healthcare');
+    expect((await screen.findByRole('combobox', { name: /vertical/i })).value).toBe('healthcare');
+    expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC44?vertical=healthcare');
+  });
+
+  it('uses banking when a direct link has no vertical and no active selection', async () => {
+    renderPage('/workload-agents');
+    expect((await screen.findByRole('combobox', { name: /vertical/i })).value).toBe('banking');
+    expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC38?vertical=banking');
+  });
+
   it('offers all 11 supported verticals and respects the explicit deep link', async () => {
     renderPage();
     const selector = await screen.findByRole('combobox', { name: /vertical/i });
