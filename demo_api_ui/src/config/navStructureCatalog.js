@@ -53,7 +53,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Capability Tour", "MCP Runtime Inventory", "MCP Scanner", "Personal Agent Clients", "LibreChat (browser)", "LM Studio (Mac)",
   ] },
   { label: "Developer Tools", children: [
-    "Code Explorer", "Graphify", "Postman Collections", "API Docs (Swagger)", "API Reference (Scalar)", "llama-vscode Guide",
+    "Code Explorer", "Graphify", "Postman Collections", "API Docs (Swagger)", "API Reference (Scalar)", "llama-vscode Guide", "PromptFoo Evals",
   ] },
   { label: "Observability", children: [
     "Audit Trail", "Learning Log", "Activity Log", "API Activity", "Run Reports", "Error Audit Log", "New Relic",
