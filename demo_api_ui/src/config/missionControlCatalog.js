@@ -75,14 +75,6 @@ const definitions = [
     ],
   },
   {
-    id: 'saas-embedded-agent',
-    product: 'Identity for AI & NHI',
-    status: 'live',
-    inspectors: [link('Agent Registry & NHI', '/agent-registry')],
-    diagrams: [link('Agent Onboarding Flow', '/agent-onboarding-flow')],
-    routes: [link('Open Website Worker', '/embedded-worker')],
-  },
-  {
     id: 'agent-network',
     product: 'PingOne AI Agent Gateway',
     inspectors: [
