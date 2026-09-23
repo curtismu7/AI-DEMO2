@@ -12,6 +12,88 @@ import "@xyflow/react/dist/style.css";
 import { DEFAULT_STEP_MS, DiagramControls, STEP_TIME_OPTIONS } from "./diagram";
 import "./PingFederateIdJagPage.css";
 
+const MOCK = "MOCK DATA — NOT A REAL TOKEN";
+// Exchange samples follow the UC2 A2A delegation path in a2aDelegationService:
+// PF mode requests an ID-JAG while preserving the generalist actor token.
+const PROTOCOL_DETAILS = [
+  {
+    token: "No delegated token yet",
+    claims: { note: "The browser holds a session cookie; OAuth tokens stay in the BFF." },
+    requestTitle: "Portfolio request",
+    request: { method: "POST /api/rpc", headers: { "Content-Type": "application/json", Cookie: "[MOCK SESSION COOKIE]" }, body: { jsonrpc: "2.0", id: "demo-1", method: "tools/call", params: { name: "get_portfolio_summary", vertical: "banking" } } },
+    responseTitle: "BFF response",
+    response: { jsonrpc: "2.0", id: "demo-1", result: { content: [{ type: "text", text: "[MOCK portfolio result after the delegated call completes]" }] } },
+  },
+  {
+    token: "ID-JAG · decoded claim preview",
+    claims: { typ: "oauth-id-jag+jwt", iss: "https://pingfederate.example.invalid", sub: "user-123", act: { sub: "generalist-agent" }, aud: "investment-intermediate", resource: "https://investment-mcp.example.invalid", scope: "agent:invoke:investment", exp: "[mock expiry]" },
+    requestTitle: "Exchange 1 · issue ID-JAG",
+    request: { method: "POST /as/token.oauth2 · application/x-www-form-urlencoded", body: { grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", requested_token_type: "urn:ietf:params:oauth:token-type:id-jag", subject_token: "[MOCK USER ACCESS TOKEN]", subject_token_type: "urn:ietf:params:oauth:token-type:access_token", actor_token: "[MOCK GENERALIST ACTOR TOKEN]", actor_token_type: "urn:ietf:params:oauth:token-type:access_token", audience: "investment-intermediate", scope: "agent:invoke:investment" } },
+    responseTitle: "PingFederate response",
+    response: { issued_token_type: "urn:ietf:params:oauth:token-type:id-jag", token_type: "N_A", access_token: "[MOCK ID-JAG — see decoded claims]", expires_in: 300 },
+  },
+  {
+    token: "ID-JAG · A2A bearer preview",
+    claims: { sub: "user-123", act: { sub: "generalist-agent" }, aud: "investment-intermediate", scope: "agent:invoke:investment", exp: "[mock expiry]" },
+    requestTitle: "A2A handoff to specialist",
+    request: { method: "POST /a2a/specialists/banking · JSON-RPC", headers: { Authorization: "Bearer [MOCK ID-JAG]", "A2A-Version": "1.0" }, body: { jsonrpc: "2.0", id: "handoff-1", method: "message/send", params: { message: { role: "user", parts: [{ text: "Retrieve the portfolio summary" }], metadata: { vertical: "banking", demoLayer: "a2a-protocol-wire", tool: "get_portfolio_summary", args: { account_id: "acct-demo-01" } } } } } },
+    responseTitle: "Gateway validation",
+    response: { status: "accepted", checks: ["issuer and signature", "audience", "expiry", "delegated actor"] },
+  },
+  {
+    token: "Investment access token · nested actor preview",
+    claims: { sub: "user-123", act: { sub: "investment-advisor", act: { sub: "generalist-agent" } }, aud: "investment-mcp", scope: "portfolio:read", exp: "[mock expiry]" },
+    requestTitle: "Exchange 2 · build act chain",
+    request: { method: "POST /as/token.oauth2 · application/x-www-form-urlencoded", body: { grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", requested_token_type: "urn:ietf:params:oauth:token-type:access_token", subject_token: "[MOCK ID-JAG]", subject_token_type: "urn:ietf:params:oauth:token-type:id-jag", actor_token: "[MOCK INVESTMENT ADVISOR TOKEN]", actor_token_type: "urn:ietf:params:oauth:token-type:access_token", audience: "investment-mcp", scope: "portfolio:read" } },
+    responseTitle: "PingFederate response",
+    response: { issued_token_type: "urn:ietf:params:oauth:token-type:access_token", token_type: "Bearer", access_token: "[MOCK NESTED-ACTOR ACCESS TOKEN]", expires_in: 300 },
+  },
+  {
+    token: "Delegated identity · policy input",
+    claims: { sub: "user-123", act: { sub: "investment-advisor", act: { sub: "generalist-agent" } }, action: "get_portfolio_summary", resource: "investment-mcp" },
+    requestTitle: "Authorize the requested action",
+    request: { method: "POST PingOne Authorize /decision", body: { subject: "user-123", actor_chain: ["generalist-agent", "investment-advisor"], action: "get_portfolio_summary", resource: "investment-mcp" } },
+    responseTitle: "Policy decision",
+    response: { decision: "PERMIT", reason: "policy matched" },
+  },
+  {
+    token: "Resource access token · mock claims",
+    claims: { sub: "user-123", act: { sub: "investment-advisor", act: { sub: "generalist-agent" } }, aud: "investment-mcp", scope: "portfolio:read", exp: "[mock expiry]" },
+    requestTitle: "Exchange 3 + investment MCP call",
+    request: { exchange_3: { method: "POST /as/token.oauth2", body: { grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", subject_token: "[MOCK NESTED-ACTOR TOKEN]", subject_token_type: "urn:ietf:params:oauth:token-type:access_token", requested_token_type: "urn:ietf:params:oauth:token-type:access_token", resource: "https://investment-mcp.example.invalid", scope: "portfolio:read" } }, resource_call: { method: "POST /mcp · JSON-RPC", headers: { Authorization: "Bearer [MOCK RESOURCE ACCESS TOKEN]" }, body: { jsonrpc: "2.0", id: "tool-1", method: "tools/call", params: { name: "get_portfolio_summary", arguments: { account_id: "acct-demo-01" } } } } },
+    responseTitle: "Token + tool responses",
+    response: { exchange_3: { token_type: "Bearer", access_token: "[MOCK RESOURCE ACCESS TOKEN]", expires_in: 300 }, resource_call: { jsonrpc: "2.0", id: "tool-1", result: { content: [{ type: "text", text: "[MOCK portfolio summary]" }] } } },
+  },
+];
+
+const PF_LOGIN_PROTOCOL = {
+  token: "No delegated token yet",
+  claims: { note: "OAuth tokens stay in the BFF; the browser receives a session cookie." },
+  requestTitle: "Browser sign-in redirect",
+  request: { method: "GET PingFederate /as/authorization.oauth2", query: { response_type: "code", client_id: "[MOCK CLIENT ID]", redirect_uri: "[BFF CALLBACK URI]", scope: "openid profile", code_challenge: "[MOCK PKCE CHALLENGE]", state: "[MOCK STATE]" } },
+  responseTitle: "Authorization + BFF callback",
+  response: { pingFederate: { status: "302 Found", location: "[BFF callback]?code=[MOCK AUTHORIZATION CODE]&state=[MOCK STATE]" }, bff: { status: "302 Found", set_cookie: "[HTTP-only session cookie]", browser_tokens: "none" } },
+};
+
+function ProtocolDetails({ diagramId, stepIndex }) {
+  const example = diagramId === "pingfederate" && stepIndex === 0 ? PF_LOGIN_PROTOCOL : PROTOCOL_DETAILS[stepIndex];
+  return (
+    <details className="pfj-protocol">
+      <summary>Protocol details <span>Mock tokens · API request / response</span></summary>
+      <div className="pfj-protocol__body">
+        <div className="pfj-protocol__token">
+          <div className="pfj-protocol__heading"><div><span className="pfj-protocol__eyebrow">TOKEN PREVIEW</span><h3>{example.token}</h3></div><span className="pfj-protocol__mock">{MOCK}</span></div>
+          <pre>{JSON.stringify(example.claims, null, 2)}</pre>
+        </div>
+        <div className="pfj-protocol__exchange">
+          <article><span className="pfj-protocol__eyebrow">REQUEST</span><h3>{example.requestTitle}</h3><pre>{JSON.stringify(example.request, null, 2)}</pre></article>
+          <article><span className="pfj-protocol__eyebrow">RESPONSE</span><h3>{example.responseTitle}</h3><pre>{JSON.stringify(example.response, null, 2)}</pre></article>
+        </div>
+      </div>
+    </details>
+  );
+}
+
 const DIAGRAMS = {
   jag: {
     label: "ID-JAG flow",
@@ -304,6 +386,8 @@ export default function PingFederateIdJagPage() {
           <button type="button" onClick={() => goToStep(Math.min(activeStep + 1, diagram.steps.length - 1))} disabled={activeStep === diagram.steps.length - 1} aria-label="Next step">›</button>
         </nav>
       </section>
+
+      <ProtocolDetails diagramId={diagramId} stepIndex={activeStep} />
 
       {diagramId === "jag" && <p className="pfj-footnote">Exchange 2 presents the ID-JAG as subject_token and requests access_token, matching PingFederate’s token-exchange behavior.</p>}
     </main>
