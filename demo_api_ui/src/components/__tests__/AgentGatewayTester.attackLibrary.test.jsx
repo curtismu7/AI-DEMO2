@@ -42,7 +42,7 @@ describe('Agent Gateway Tester attack library', () => {
   });
 
   it('preselects the requested attack when opened from an attack-library deep link', async () => {
-    window.history.pushState({}, '', '/agent-gateway-inspector?subtab=tester&attack=schema_violation');
+    window.history.pushState({}, '', '/agent-gateway-capabilities?attack=schema_violation');
     render(<AgentGatewayTester />);
 
     expect(await screen.findByLabelText(/attack library/i)).toHaveValue('schema_violation');

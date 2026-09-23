@@ -202,7 +202,7 @@ export const GUARDRAIL_ATTACKS = [
     label: 'Schema Violation',
     effect: 'none',
     payload: 'Submit tool arguments that violate the advertised input schema.',
-    demoPath: '/agent-gateway-inspector?subtab=tester&attack=schema_violation',
+    demoPath: '/agent-gateway-capabilities?attack=schema_violation',
     demoCta: 'Open Agent Gateway Tester',
     whatToSay: 'Malformed tool arguments are checked on the MCP tool path. The tester shows the actual schema-boundary response; it is not a chat detector verdict.',
     pointAt: 'The schema validator response and confirmation that the tool did not execute.',

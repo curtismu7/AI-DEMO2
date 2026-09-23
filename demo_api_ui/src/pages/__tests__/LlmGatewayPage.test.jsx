@@ -52,7 +52,7 @@ describe("LLM Gateway console", () => {
   it.each([
     ["tool_abuse", "/demo-track?step=attack-gauntlet"],
     ["tool_poisoning", "/llm-gateway?tab=hostile"],
-    ["schema_violation", "/agent-gateway-inspector?subtab=tester&attack=schema_violation"],
+    ["schema_violation", "/agent-gateway-capabilities?attack=schema_violation"],
     ["inter_agent_abuse", "/delegation-chain-value"],
   ])("routes %s to its real demo instead of sending it as a chat prompt", async (attackId, href) => {
     mockFetch(() => new Promise(() => {}));
