@@ -38,7 +38,7 @@ describe('InterAgentAbuseTester', () => {
     expect(denied).toHaveLength(2); // no-bearer + forged-bearer
     expect(screen.queryByText(/❌/)).not.toBeInTheDocument();
     expect(screen.getAllByText(/✅/).length).toBe(3);
-    expect(screen.getAllByText(/Specialist backend: not reached — wire gate returned HTTP 401/i)).toHaveLength(2);
+    expect(screen.getAllByText(/Specialist execution: not reached — wire gate returned HTTP 401/i)).toHaveLength(2);
     expect(screen.getAllByText(/Model\/provider: not involved/i)).toHaveLength(3);
   });
 
@@ -49,5 +49,6 @@ describe('InterAgentAbuseTester', () => {
 
     // The two RPC probes expected 401 but got 200 -> two failures.
     await waitFor(() => expect(screen.getAllByText(/❌/).length).toBe(2));
+    expect(screen.getAllByText(/Specialist execution: unknown — endpoint returned HTTP 200; execution not reported/i)).toHaveLength(2);
   });
 });

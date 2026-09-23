@@ -34,7 +34,7 @@ describe('AttackLabTab', () => {
     await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/api/demo/attack-sim/run', { sim: 'cross-owner-account' }));
     expect(await screen.findByText(/resource_owner_mismatch/i)).toBeInTheDocument();
     expect(screen.getByTestId('attack-lab-model-reached')).toHaveTextContent('No');
-    expect(screen.getByText(/account_id redacted/i)).toBeInTheDocument();
+    expect(screen.getByText(/different owner’s account \(account_id redacted\)/i)).toBeInTheDocument();
     expect(screen.getByTestId('attack-lab-backend-reached')).toHaveTextContent('Yes');
   });
 
@@ -105,5 +105,16 @@ describe('AttackLabTab', () => {
 
     expect(await screen.findByText(/Privilege MCP Gateway: deny — Policy denied tool call/i)).toBeInTheDocument();
     expect(screen.getByTestId('attack-lab-backend-reached')).toHaveTextContent('No');
+  });
+
+  it('reports schema request values from the actual catalog payload and leaves PERMIT reachability unknown', async () => {
+    apiClient.post.mockResolvedValue({ data: { ok: false, decision: 'PERMIT', message: 'Gateway permitted the request' } });
+    render(<AttackLabTab />);
+    fireEvent.click(screen.getByRole('button', { name: 'Schema Violation' }));
+    fireEvent.click(screen.getByRole('button', { name: /run schema violation check/i }));
+
+    expect(await screen.findByText(/"amount":"one hundred dollars"/i)).toBeInTheDocument();
+    expect(screen.getByText(/"override_limits":true/i)).toBeInTheDocument();
+    expect(screen.getByTestId('attack-lab-backend-reached')).toHaveTextContent('Unknown / not reported');
   });
 });

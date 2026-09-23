@@ -52,7 +52,7 @@ describe('HostileMcpTab live-run reporting', () => {
 
     expect(await screen.findByTestId('hostile-agent-outcome')).toHaveTextContent(/privilege allowed create_transfer.*stub ran and moved no money/i);
     expect(screen.getByText(/Model\/provider reached: Yes — llamacpp/i)).toBeInTheDocument();
-    expect(screen.getByText(/Tool backend reached: Yes — at least one call was allowed/i)).toBeInTheDocument();
+    expect(screen.getByText(/Tool-call backend: Yes — at least one call was allowed/i)).toBeInTheDocument();
     expect(screen.queryByText(/privilege denied create_transfer/i)).not.toBeInTheDocument();
   });
 
@@ -61,7 +61,8 @@ describe('HostileMcpTab live-run reporting', () => {
     await startAgentRun();
 
     expect(await screen.findByText(/Model\/provider reached: Yes — llamacpp/i)).toBeInTheDocument();
-    expect(screen.getByText(/Tool backend reached: No — no tool call was observed/i)).toBeInTheDocument();
+    expect(screen.getByText(/MCP tool metadata server reached: Yes/i)).toBeInTheDocument();
+    expect(screen.getByText(/Tool-call backend: Not evaluated — no tool invocation appeared in the trace/i)).toBeInTheDocument();
   });
 
   it('shows the required manual policy check before any run', async () => {

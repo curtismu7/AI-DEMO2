@@ -158,13 +158,15 @@ export default function HostileMcpTab() {
       const observedOutcome = classifyHostileAgentOutcome(data);
       const trace = Array.isArray(data.trace) ? data.trace : [];
       setAgentOutcome(observedOutcome);
+      const toolCallBackend = trace.some((step) => step.verdict === 'allowed')
+        ? 'yes'
+        : trace.length === 0 ? 'not-evaluated'
+          : trace.every((step) => step.verdict === 'denied') ? 'no' : 'unknown';
       setAgentRunEvidence({
         provider,
         modelReached: true,
-        backendReached: trace.some((step) => step.verdict === 'allowed')
-          ? true
-          : trace.length === 0 || trace.every((step) => step.verdict === 'denied')
-            ? false : null,
+        metadataServerReached: true,
+        toolCallBackend,
       });
       log(`— agent run (${provider}, ${latency} ms) — task: "${task}"`);
       for (const step of data.trace || []) {
@@ -179,7 +181,7 @@ export default function HostileMcpTab() {
     } catch (err) {
       const observedOutcome = classifyHostileAgentOutcome({ error: err.message });
       setAgentOutcome(observedOutcome);
-      setAgentRunEvidence({ provider, modelReached: null, backendReached: null });
+      setAgentRunEvidence({ provider, modelReached: null, metadataServerReached: null, toolCallBackend: 'unknown' });
       log(`✕ agent run — ${err.message}`);
       setError(err.message);
     } finally {
@@ -230,8 +232,12 @@ export default function HostileMcpTab() {
           {agentRunEvidence ? (
             <p className="hmc-reachability">
               Model/provider reached: {agentRunEvidence.modelReached === null ? 'Unknown / not reported' : `Yes — ${agentRunEvidence.provider}`}<br />
-              Tool backend reached: {agentRunEvidence.backendReached === null ? 'Unknown / not reported'
-                : agentRunEvidence.backendReached ? 'Yes — at least one call was allowed' : 'No — no tool call was observed or calls were denied'}
+              MCP tool metadata server reached: {agentRunEvidence.metadataServerReached === null ? 'Unknown / not reported'
+                : 'Yes — tools/list loaded before the model run'}<br />
+              Tool-call backend: {agentRunEvidence.toolCallBackend === 'yes' ? 'Yes — at least one call was allowed'
+                : agentRunEvidence.toolCallBackend === 'no' ? 'No — all observed calls were denied before the tool backend'
+                  : agentRunEvidence.toolCallBackend === 'not-evaluated' ? 'Not evaluated — no tool invocation appeared in the trace'
+                    : 'Unknown / not reported'}
             </p>
           ) : null}
         </div>

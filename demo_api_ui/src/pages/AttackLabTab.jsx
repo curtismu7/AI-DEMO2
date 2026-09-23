@@ -20,22 +20,24 @@ function messageForError(error) {
   return error?.response?.data?.error || error?.response?.data?.message || error?.message || 'Request failed.';
 }
 
-function schemaEvidence(data) {
+function schemaEvidence(data, request) {
   const error = String(data?.error || data?.message || '');
   const isLocalSchemaReject = /invalid arguments for tool|schema validation|input schema/i.test(error);
   const gatewayDecision = data?.decision || data?.privilegeDecision || data?.authorize?.decision;
+  const normalizedDecision = String(gatewayDecision || '').toLowerCase();
+  const gatewayDenied = ['deny', 'denied', 'block', 'blocked'].includes(normalizedDecision);
   const gatewayReason = data?.message || data?.reason || data?.gatewayMessage || null;
   return {
     path: 'MCP client → MCP Gateway → tool input schema',
-    requestSummary: 'create_transfer arguments: invalid fixture payload (negative amount, invalid currency, null recipient, undocumented field)',
+    requestSummary: `${request?.tool || 'create_transfer'} arguments: ${JSON.stringify(request?.args || {})}`,
     enforcement: gatewayDecision
       ? { component: 'Privilege MCP Gateway', outcome: String(gatewayDecision).toLowerCase(), reason: gatewayReason }
       : isLocalSchemaReject
         ? { component: 'MCP input schema', outcome: 'rejected', reason: error }
         : null,
     modelReached: false,
-    backendReached: gatewayDecision || isLocalSchemaReject ? false : data?.backendReached === true ? true : data?.backendReached === false ? false : null,
-    steps: [{ label: 'create_transfer arguments', outcome: gatewayDecision ? `Privilege ${String(gatewayDecision).toLowerCase()}` : isLocalSchemaReject ? 'rejected by MCP input schema' : 'response received' }],
+    backendReached: gatewayDenied || isLocalSchemaReject ? false : data?.backendReached === true ? true : data?.backendReached === false ? false : null,
+    steps: [{ label: 'create_transfer arguments', outcome: gatewayDecision ? `Privilege ${normalizedDecision}` : isLocalSchemaReject ? 'rejected by MCP input schema' : 'response received' }],
     detail: error || data?.result?.error || data?.message || 'No schema decision was reported.',
   };
 }
@@ -138,11 +140,12 @@ export default function AttackLabTab() {
         setEvidence(normalizeAttackEvidence(selectedId, abuseEvidence(data), 'deterministic'));
       } else if (selectedId === 'schema_violation') {
         const attack = TOOL_ATTACKS.find((item) => item.id === selectedId);
+        const request = { tool: attack.tool, args: attack.args };
         try {
-          const { data } = await apiClient.post('/api/mcp-gateway/test', { tool: attack.tool, args: attack.args });
-          setEvidence(normalizeAttackEvidence(selectedId, schemaEvidence(data), 'deterministic'));
+          const { data } = await apiClient.post('/api/mcp-gateway/test', request);
+          setEvidence(normalizeAttackEvidence(selectedId, schemaEvidence(data, request), 'deterministic'));
         } catch (requestError) {
-          setEvidence(normalizeAttackEvidence(selectedId, schemaEvidence(requestError.response?.data || { error: messageForError(requestError) }), 'deterministic'));
+          setEvidence(normalizeAttackEvidence(selectedId, schemaEvidence(requestError.response?.data || { error: messageForError(requestError) }, request), 'deterministic'));
         }
       } else if (selectedId === 'malicious_content') {
         try {
