@@ -169,6 +169,23 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-23 — Separate ordinary PingFederate demo exchange from the UC40 ID-JAG run
+
+**Files changed:**
+- `demo_api_server/services/agentMcpTokenService.js` — select PF ID-JAG only for the explicit UC40 run; ordinary PF runs use a PF standard access-token exchanger.
+- `demo_api_server/services/oauthService.js`, `configStore.js`, and `envReconcile.js` — support separate PF standard exchange credentials and actor scope.
+- `demo_api_server/services/enterpriseMcpPolicyService.js` — add a per-run policy mode that bypasses shared caches/flags and does not write session state.
+- `demo_api_ui/src/pages/EnterpriseMcpDemoPage.jsx` — pass the UC40 catalog slug with the chip instead of modifying a shared flag.
+- `demo_api_server/env.example` and `docs/FEDERATE-SETUP.md` — document standard PF exchange configuration separately from ID-JAG.
+
+**What was broken:** every PF tool-token request entered ID-JAG, including ordinary demo steps. Once that unconditional branch was removed, the default two-exchange path would still read PingOne-only credentials. The UC40 page also armed a shared feature flag, which could change later runs.
+
+**What was fixed:** UC40 alone selects PF ID-JAG. Ordinary PF steps use a separately configured PF client and explicitly request an access token; P1 keeps its existing default flow. UC40 carries its identity on the run, evaluates policy without a global flag, and leaves consent/cache session fields untouched.
+
+**Do not break:** never infer ID-JAG from provider mode alone. Keep PF standard-exchange credentials distinct from the ID-JAG issuer/redemption credentials. Do not turn UC40 on through a shared flag or persist its run-only policy/consent state in the session. Ordinary demo-step provider parity must include all catalog use cases.
+
+**Verify:** focused BFF Jest suites for provider selection, catalog selection, OAuth exchange, policy, and PF login; focused UC40 UI Vitest suite; `cd demo_api_ui && npm run build`. Mocked tests do not prove live PF client/SP-connection provisioning; verify that separately in a read-only PF environment.
+
 ### 2026-09-23 — A2A provider/session drift could send a stale login into the wrong token endpoint
 
 **Files changed:** `demo_api_server/services/a2aDelegationService.js`,

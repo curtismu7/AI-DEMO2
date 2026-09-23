@@ -29,6 +29,24 @@ Same settings as Admin Client but with a distinct Client ID/Secret. Use the same
 
 ## Step 2: Configure BFF Environment
 
+### Ordinary demo-step exchange client
+
+Create a separate PingFederate client for ordinary Demo Steps. It must be allowed to
+perform RFC 8693 access-token exchange and (if delegated actor claims are required)
+client-credentials grant for the configured actor scope. This client is used by PF
+login for ordinary demo steps; it is distinct from the ID-JAG issuer/redemption
+configuration, which is selected only by the explicit Enterprise-Managed MCP demo.
+
+```bash
+export PF_STANDARD_TOKEN_EXCHANGE_CLIENT_ID=<ordinary-exchange-client-id>
+export PF_STANDARD_TOKEN_EXCHANGE_CLIENT_SECRET=<ordinary-exchange-client-secret>
+export PF_STANDARD_TOKEN_EXCHANGE_TOKEN_ENDPOINT_AUTH_METHOD=basic
+export PF_STANDARD_TOKEN_EXCHANGE_ACTOR_SCOPE=agent:invoke
+```
+
+The standard PF exchange asks for an access token. Do not configure an ID-JAG-only
+SP connection as this ordinary exchange client.
+
 ```bash
 # ── IDP endpoints ──────────────────────────────────────────────────────
 # Option A: auto-discover (recommended if Federate has .well-known/openid-configuration)

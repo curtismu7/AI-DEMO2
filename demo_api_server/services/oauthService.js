@@ -969,7 +969,7 @@ class OAuthService {
       // client_credentials request that would span both ("May not request scopes for
       // multiple resources"). agent:invoke pins the token to the Agent Gateway resource —
       // the correct actor audience for the Two-Exchange Step 1.
-      const actorScope = (configStore.getEffective('pingone_ai_agent_actor_scope') || 'agent:invoke').trim();
+      const actorScope = (runtime?.actorScope || configStore.getEffective('pingone_ai_agent_actor_scope') || 'agent:invoke').trim();
       if (actorScope) body.set('scope', actorScope);
       if (method === 'post') body.set('client_id', clientId);
       const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };

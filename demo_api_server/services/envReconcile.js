@@ -187,6 +187,8 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'pf_user_token_endpoint_auth_method',
   'pf_token_exchange_client_id', 'pf_token_exchange_client_secret',
   'pf_token_exchange_token_endpoint_auth_method',
+  'pf_standard_token_exchange_client_id', 'pf_standard_token_exchange_client_secret',
+  'pf_standard_token_exchange_token_endpoint_auth_method', 'pf_standard_token_exchange_actor_scope',
   'pf_id_jag_enabled', 'pf_id_jag_audience', 'pf_id_jag_resource',
   'pf_id_jag_scope', 'pf_id_jag_subject_token_type',
   'pf_id_jag_redemption_token_endpoint', 'pf_id_jag_redemption_client_id',
