@@ -151,6 +151,7 @@ import { useAuth } from "./hooks/useAuth";
 import { useOAuthUrlCleanup } from "./hooks/useOAuthUrlCleanup";
 import { useServerHealthCheck } from "./hooks/useServerHealthCheck";
 import AdminThemesPage from "./pages/AdminThemesPage";
+import SkinStudioPage from "./pages/SkinStudioPage";
 import AiControlPlanePage from "./pages/AiControlPlanePage";
 import ControlPlanePage from "./pages/ControlPlanePage";
 import AgentRegistryPage from "./pages/AgentRegistryPage";
@@ -1717,6 +1718,18 @@ function AppWithAuth() {
                               element={
                                 <RequireAdminLogin user={user}>
                                   <VerticalEditorPage />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            <Route
+                              path="/admin/skin-studio"
+                              // Admin-gated like /admin/verticals: logo upload and
+                              // duplicate are admin write surfaces. Theme picks via
+                              // ThemeZonePanel are publicly writable on the backend
+                              // (deliberate — see verticalThemes.js) and remain so.
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <SkinStudioPage />
                                 </RequireAdminLogin>
                               }
                             />
