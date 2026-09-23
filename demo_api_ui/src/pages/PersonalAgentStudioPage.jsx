@@ -82,6 +82,10 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [replayGates, setReplayGates] = useState(null);
   const replayTimer = useRef(null);
+  const activeWorkloadRun = useRef(null);
+  const workloadContextKey = workloadScenario
+    ? `${workloadScenario.id}:${workloadScenario.useCaseId}:${vertical}:${workloadScenario.runPrompt}`
+    : null;
 
   const tokenChain = useTokenChainOptional();
   const setTokenEvents = tokenChain?.setTokenEvents;
@@ -99,8 +103,20 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     return () => { live = false; };
   }, [scenario, routeId, routeContextKey, vertical, catalogLoadAttempt]);
 
+  useEffect(() => {
+    setRunState({ status: 'idle', text: '' });
+    return () => {
+      activeWorkloadRun.current?.abort();
+      activeWorkloadRun.current = null;
+    };
+  }, [workloadContextKey]);
+
   const executeWorkload = useCallback((uc) => {
     if (!uc?.runPrompt || !uc?.useCaseId) return;
+    activeWorkloadRun.current?.abort();
+    const controller = new AbortController();
+    activeWorkloadRun.current = controller;
+    const isCurrentRun = () => activeWorkloadRun.current === controller && !controller.signal.aborted;
     tokenChainTraceStore.beginTrace({ prompt: uc.runPrompt });
     setTokenEvents?.(uc.primaryTool, []);
     setRunState({ status: 'running', text: '' });
@@ -108,14 +124,19 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
+      signal: controller.signal,
       body: JSON.stringify({ prompt: uc.runPrompt, vertical, useCaseId: uc.useCaseId }),
     }).then(async (response) => {
       const data = await response.json().catch(() => ({}));
+      if (!isCurrentRun()) return null;
       if (Array.isArray(data.tokenEvents)) setTokenEvents?.(uc.primaryTool, data.tokenEvents);
       if (!response.ok) throw new Error(data.message || data.error || `Request failed (${response.status})`);
       return data;
-    }).then((data) => setRunState({ status: 'complete', text: data.reply || 'The workload agent completed the request.' }))
-      .catch((error) => setRunState({ status: 'error', text: error.message || 'The workload agent could not complete the request.' }));
+    }).then((data) => {
+      if (isCurrentRun()) setRunState({ status: 'complete', text: data.reply || 'The workload agent completed the request.' });
+    }).catch((error) => {
+      if (isCurrentRun()) setRunState({ status: 'error', text: error.message || 'The workload agent could not complete the request.' });
+    });
   }, [vertical, setTokenEvents]);
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { useState } from 'react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import PersonalAgentStudioPage from '../PersonalAgentStudioPage';
 import { TokenChainProvider, useTokenChain } from '../../context/TokenChainContext';
@@ -11,6 +12,13 @@ const scenario = {
   useCaseId: 'workload-digital-assistant-obo',
   primaryTool: 'list_gear',
   runPrompt: 'my gear',
+};
+const firstScenario = {
+  id: 'UC38',
+  title: 'MFA-gated protected action',
+  useCaseId: 'personal-agent-concierge',
+  primaryTool: 'extend_rental',
+  runPrompt: 'extend my rental $600',
 };
 
 function EvidenceProbe() {
@@ -28,6 +36,19 @@ function renderWorkload() {
       <PersonalAgentStudioPage scenario={scenario} vertical="sporting-goods" />
     </TokenChainProvider>
   </MemoryRouter>);
+}
+
+function SwitchingWorkload({ keyed }) {
+  const [selected, setSelected] = useState('A');
+  const first = selected === 'A';
+  return <>
+    <button type="button" onClick={() => setSelected('B')}>Switch scenario</button>
+    <PersonalAgentStudioPage
+      key={keyed ? selected : 'shared'}
+      scenario={first ? firstScenario : scenario}
+      vertical={first ? 'sporting-goods' : 'banking'}
+    />
+  </>;
 }
 
 beforeEach(() => {
@@ -76,5 +97,48 @@ describe('PersonalAgentStudioPage workload evidence', () => {
     expect(await screen.findByText('Complete MFA.')).toBeTruthy();
     expect(screen.getByTestId('live-token-events')).toHaveTextContent('mfa');
     expect(tokenChainTraceStore.getState().trace.tokenEvents.map((event) => event.id)).toContain('mfa');
+  });
+
+  it.each([
+    ['unmounted error', true, false],
+    ['retained error', false, false],
+    ['retained success', false, true],
+  ])('ignores a late %s after switching scenarios', async (_label, keyed, lateSuccess) => {
+    const pending = {};
+    vi.stubGlobal('fetch', vi.fn((url, options) => {
+      if (url !== '/api/agent/invoke') return Promise.resolve({ ok: false, status: 401, json: async () => ({}) });
+      const { useCaseId } = JSON.parse(options.body);
+      return new Promise((resolve) => { pending[useCaseId] = resolve; });
+    }));
+    render(<MemoryRouter>
+      <TokenChainProvider activePath="/workload-agents">
+        <EvidenceProbe />
+        <SwitchingWorkload keyed={keyed} />
+      </TokenChainProvider>
+    </MemoryRouter>);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run UC38 action' }));
+    expect(pending['personal-agent-concierge']).toBeTypeOf('function');
+    fireEvent.click(screen.getByRole('button', { name: 'Switch scenario' }));
+    expect(screen.getByRole('button', { name: 'Run UC44 action' })).not.toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Run UC44 action' }));
+    await act(async () => {
+      pending['workload-digital-assistant-obo']({ ok: true, json: async () => ({ reply: 'B reply', tokenEvents: [{ id: 'b-event', status: 'success' }] }) });
+    });
+    expect(await screen.findByText('B reply')).toBeTruthy();
+    expect(screen.getByTestId('live-token-events')).toHaveTextContent('b-event');
+
+    // The mock deliberately resolves A even if production aborts its fetch.
+    await act(async () => {
+      pending['personal-agent-concierge'](lateSuccess
+        ? { ok: true, json: async () => ({ reply: 'A late reply', tokenEvents: [{ id: 'a-event', status: 'success' }] }) }
+        : { ok: false, status: 428, json: async () => ({ message: 'A late error', tokenEvents: [{ id: 'a-event', status: 'required' }] }) });
+    });
+    expect(screen.getByTestId('live-token-events')).not.toHaveTextContent('a-event');
+    expect(tokenChainTraceStore.getState().trace.tokenEvents.map((event) => event.id)).toContain('b-event');
+    expect(tokenChainTraceStore.getState().trace.tokenEvents.map((event) => event.id)).not.toContain('a-event');
+    expect(screen.getByText('B reply')).toBeTruthy();
+    expect(screen.queryByText('A late error')).toBeNull();
+    expect(screen.queryByText('A late reply')).toBeNull();
   });
 });
