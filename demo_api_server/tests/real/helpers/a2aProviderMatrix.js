@@ -29,4 +29,22 @@ function assertActiveProvider(expected, actual) {
   }
 }
 
-module.exports = { assertProviderIssuer, assertVerticalActivated, assertActiveProvider };
+function assertDedicatedAdminSession(provider, enduserCookie, adminCookie) {
+  if (!provider) return;
+  if (!enduserCookie || enduserCookie === 'skip') {
+    throw new Error(`${provider} A2A provider-matrix requires a valid end-user login session`);
+  }
+  if (!adminCookie || adminCookie === 'skip') {
+    throw new Error(`${provider} A2A provider-matrix requires a dedicated admin login session`);
+  }
+  if (adminCookie === enduserCookie) {
+    throw new Error(`${provider} A2A provider-matrix admin session must not reuse the end-user session`);
+  }
+}
+
+module.exports = {
+  assertProviderIssuer,
+  assertVerticalActivated,
+  assertActiveProvider,
+  assertDedicatedAdminSession,
+};
