@@ -182,20 +182,21 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
     }
     const isWorkloadAgent = requestedUseCaseId === 'personal-agent-concierge'
       || requestedUseCaseId === 'workload-digital-assistant-obo';
+    let workloadScenario = null;
     if (isWorkloadAgent) {
-      const scenario = VERTICALS.includes(verticalRaw) && catalogUseCase.perVertical?.[verticalRaw]
+      workloadScenario = VERTICALS.includes(verticalRaw) && catalogUseCase.perVertical?.[verticalRaw]
         ? resolveUseCase(catalogUseCase.id, verticalRaw)
         : null;
-      if (!scenario?.primaryTool || !scenario.runPrompt ||
-          !scopeTopology.allTools().includes(scenario.primaryTool)) {
+      if (!workloadScenario?.primaryTool || !workloadScenario.runPrompt ||
+          !scopeTopology.allTools().includes(workloadScenario.primaryTool)) {
         return res.status(400).json({ error: 'invalid_workload_mapping' });
       }
-      if (prompt !== scenario.runPrompt) {
+      if (prompt !== workloadScenario.runPrompt) {
         return res.status(400).json({ error: 'invalid_workload_action' });
       }
-      const heuristic = parseHeuristic(scenario.runPrompt, verticalRaw, resolveVerticalCtx(verticalRaw), {});
+      const heuristic = parseHeuristic(workloadScenario.runPrompt, verticalRaw, resolveVerticalCtx(verticalRaw), {});
       const action = heuristic?.banking?.action || heuristic?.action;
-      if (!action || toolForAction(action, verticalRaw) !== scenario.primaryTool) {
+      if (!action || toolForAction(action, verticalRaw) !== workloadScenario.primaryTool) {
         return res.status(400).json({ error: 'invalid_workload_mapping' });
       }
       // Bind this catalog action to the deterministic dispatch even when the
@@ -251,11 +252,27 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
       // Require a registered personal agent.
       const agentType = requestedUseCaseId === 'saas-embedded-worker' ? 'saas-embedded-worker' : 'personal';
       let personalAgent = null;
+      let workloadAgentRuntime = null;
+      let runtimeLookupFailed = false;
       try {
-        personalAgent = req.session?.user ? await agentBuilderService.getAgentForUser(req.session.user, agentType) : null;
+        if (req.session?.user && isWorkloadAgent) {
+          workloadAgentRuntime = await agentBuilderService.getRuntimeForUser(req.session.user, agentType);
+          personalAgent = workloadAgentRuntime?.agent || null;
+        } else {
+          personalAgent = req.session?.user ? await agentBuilderService.getAgentForUser(req.session.user, agentType) : null;
+        }
       } catch (_err) {
+        runtimeLookupFailed = isWorkloadAgent;
         // Treat lookup failure as unregistered rather than a hard 502.
         personalAgent = null;
+      }
+
+      if (runtimeLookupFailed) {
+        return res.status(409).json({
+          error: 'workload_agent_runtime_unavailable',
+          message: 'The registered workload agent is not ready to run. It must be enabled, support client_credentials, and have a readable PingOne client secret.',
+          tokenEvents: req.tokenEvents || [],
+        });
       }
 
       if (!personalAgent) {
@@ -271,6 +288,17 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
         });
       }
 
+      if (isWorkloadAgent) {
+        // Request-local BFF credentials bind the actual OAuth actor_token to
+        // the same customer-owned PingOne app checked above. Never send these
+        // credentials in the response or token-event metadata.
+        req.workloadAgentRuntime = {
+          clientId: workloadAgentRuntime.clientId,
+          clientSecret: workloadAgentRuntime.clientSecret,
+          authMethod: workloadAgentRuntime.authMethod,
+        };
+      }
+
       // CIMD is a mocked registration facade. Retry a pending/failed facade
       // record on agent use, but never let that optional evidence path block
       // the real PingOne-backed delegation below.
@@ -281,14 +309,21 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
       }
 
       // Surface the personal agent identity in the Flow Inspector.
+      const workloadScopes = workloadScenario
+        ? scopeTopology.toolScopes(workloadScenario.primaryTool)
+        : null;
+      const scopeDescription = workloadScopes?.length
+        ? `The selected ${vertical} action uses ${workloadScenario.primaryTool} and requires ${workloadScopes.join(', ')}. `
+        : '';
       req.tokenEvents.push(buildTokenEvent(
         'personal-agent-lookup',
         `${agentType === 'saas-embedded-worker' ? 'Website Worker' : 'Personal Agent'} — ${personalAgent.name} (${personalAgent.type}) registered`,
         'active',
         null,
-        `BFF verified that a ${agentType === 'saas-embedded-worker' ? 'website worker' : 'personal agent'} "${personalAgent.name}" (PingOne application ${personalAgent.id}) is registered for this user. ` +
-          'The agent\'s scope grants were configured on the Agent Builder page. RFC 8693 token exchange will mint a delegated token with sub=user and act=agent, \'  ' +
-          'scoped to airlines:read airlines:write — giving the agent authority to act on the premium flyer account on the user\'s behalf.',
+        `BFF verified that the customer-owned ${agentType === 'saas-embedded-worker' ? 'website worker' : 'personal agent'} "${personalAgent.name}" (PingOne application ${personalAgent.id}${isWorkloadAgent ? `, OAuth client ${workloadAgentRuntime.clientId}` : ''}) is registered. ` +
+          (isWorkloadAgent
+            ? `${scopeDescription}This same application supplies the client-credentials actor token for RFC 8693; the customer remains the subject, and gateway/Authorize policy decides whether the action is permitted.`
+            : 'The existing agent registration and delegation checks remain in effect.'),
         { agentId: personalAgent.id, agentName: personalAgent.name, agentType: personalAgent.type },
       ));
       appEventService.logEvent('personal_agent', 'info', `${requestedUseCaseId}: ${agentType === 'saas-embedded-worker' ? 'website worker' : 'personal agent'} "${personalAgent.name}" verified`,

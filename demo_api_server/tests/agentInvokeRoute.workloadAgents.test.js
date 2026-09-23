@@ -5,6 +5,7 @@ const request = require('supertest');
 const { resolveUseCase, VERTICALS } = require('../config/useCases');
 const { parseHeuristic, resolveVerticalCtx } = require('../services/nlIntentParser');
 const { toolForAction } = require('../services/stepVerificationExpectations');
+const scopeTopology = require('../services/scopeTopology');
 const mockConfig = {};
 
 jest.mock('../middleware/auth', () => ({
@@ -27,6 +28,10 @@ jest.mock('../middleware/agentSessionMiddleware', () => ({
 }));
 jest.mock('../services/agentBuilderService', () => ({
   getAgentForUser: jest.fn(async () => ({ id: 'registered-agent', name: 'Assistant', type: 'personal' })),
+  getRuntimeForUser: jest.fn(async () => ({
+    agent: { id: 'registered-agent-app', name: 'Assistant', type: 'personal' },
+    clientId: 'registered-agent-oauth-client', clientSecret: 'runtime-secret', authMethod: 'post',
+  })),
   ensurePersonalAgentCimd: jest.fn(async () => {}),
 }));
 jest.mock('../services/demoAgentLangGraphService', () => ({
@@ -90,8 +95,18 @@ describe('workload agent invoke contract', () => {
     const body = invoke('UC38');
     const res = await request(app).post('/api/agent/invoke').set('Authorization', 'Bearer mfa').send(body);
     expect(res.status).toBe(200);
-    expect(agentBuilderService.getAgentForUser).toHaveBeenCalledWith(expect.any(Object), 'personal');
-    expect(processAgentMessage).toHaveBeenCalledWith(expect.objectContaining({ message: body.prompt, vertical: body.vertical, isGuest: false }));
+    expect(agentBuilderService.getRuntimeForUser).toHaveBeenCalledWith(expect.any(Object), 'personal');
+    expect(processAgentMessage).toHaveBeenCalledWith(expect.objectContaining({
+      message: body.prompt, vertical: body.vertical, isGuest: false,
+      req: expect.objectContaining({ workloadAgentRuntime: expect.objectContaining({
+        clientId: 'registered-agent-oauth-client', clientSecret: 'runtime-secret',
+      }) }),
+    }));
+    const registrationEvent = res.body.tokenEvents.find((event) => event.id === 'personal-agent-lookup');
+    expect(registrationEvent.explanation).toContain('PingOne application registered-agent-app, OAuth client registered-agent-oauth-client');
+    expect(registrationEvent.explanation).toContain(scopeTopology.toolScopes(resolveUseCase('UC38', body.vertical).primaryTool).join(' '));
+    expect(registrationEvent.explanation).not.toContain('airlines:read airlines:write');
+    expect(JSON.stringify(res.body)).not.toContain('runtime-secret');
   });
 
   test('UC44 without MFA verifies registration and continues to normal agent policy', async () => {
@@ -99,15 +114,24 @@ describe('workload agent invoke contract', () => {
     const res = await request(app).post('/api/agent/invoke').set('Authorization', 'Bearer plain').send(body);
     expect(res.status).toBe(200);
     expect(res.body.error).toBeUndefined();
-    expect(agentBuilderService.getAgentForUser).toHaveBeenCalledWith(expect.any(Object), 'personal');
+    expect(agentBuilderService.getRuntimeForUser).toHaveBeenCalledWith(expect.any(Object), 'personal');
     expect(processAgentMessage).toHaveBeenCalledWith(expect.objectContaining({ message: body.prompt, vertical: body.vertical, isGuest: false }));
   });
 
   test('UC44 still requires a registered workload agent', async () => {
-    agentBuilderService.getAgentForUser.mockResolvedValueOnce(null);
+    agentBuilderService.getRuntimeForUser.mockResolvedValueOnce(null);
     const res = await request(app).post('/api/agent/invoke').set('Authorization', 'Bearer plain').send(invoke('UC44'));
     expect(res.status).toBe(200);
     expect(res.body.error).toBe('agent_not_registered');
+    expect(processAgentMessage).not.toHaveBeenCalled();
+  });
+
+  test('UC44 fails closed when PingOne cannot provide the registered agent runtime', async () => {
+    agentBuilderService.getRuntimeForUser.mockRejectedValueOnce(new Error('secret endpoint denied'));
+    const res = await request(app).post('/api/agent/invoke').set('Authorization', 'Bearer plain').send(invoke('UC44'));
+    expect(res.status).toBe(409);
+    expect(res.body).toMatchObject({ error: 'workload_agent_runtime_unavailable' });
+    expect(res.body.message).not.toContain('secret endpoint denied');
     expect(processAgentMessage).not.toHaveBeenCalled();
   });
 

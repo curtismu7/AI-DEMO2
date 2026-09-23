@@ -35,6 +35,14 @@ function removeCredentials(registrationId) {
 }
 
 function resolveAgentRuntime(req, { requireActive = true, fallbackToDefault = false } = {}) {
+  // agentInvokeRoute sets this only after authenticating the customer and
+  // resolving the exact customer-owned Agent Builder application. Its
+  // server-fetched secret remains request-scoped and takes precedence over a
+  // separate delegated-commerce registration for workload UC38/UC44 runs.
+  if (req?.workloadAgentRuntime?.clientId && req?.workloadAgentRuntime?.clientSecret) {
+    return { ...req.workloadAgentRuntime };
+  }
+
   const registrationId = req?.session?.delegatedCommerceRegistrationId;
   if (!registrationId) return null;
 
