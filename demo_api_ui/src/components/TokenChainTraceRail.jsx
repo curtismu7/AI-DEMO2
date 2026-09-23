@@ -19,7 +19,6 @@ import DemoTrackBand from "./DemoTrackBand";
 import TokenChainPresenter from "./TokenChainPresenter";
 import TraceTokenSummary from "./TraceTokenSummary";
 import { deriveAgentClass, AGENT_CLASS_LABEL, AGENT_CLASS_TITLE } from "../services/tokenChainTrace/deriveAgentClass";
-import UnattendedRunsPanel from "./UnattendedRunsPanel";
 import TraceMcpPanel from "./TraceMcpPanel";
 import TraceTrustPanel from "./TraceTrustPanel";
 import { SimpleStepper, DetailedStepper } from "./agent-clinical/TokensPane";
@@ -505,7 +504,6 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
   });
   const inspectClaims = inspectType ? resolveInspectClaims(trace.tokenEvents, inspectType) : null;
   const agentClass = deriveAgentClass(trace.tokenEvents);
-  const [unattendedOpen, setUnattendedOpen] = useState(false);
   const hasTraceActivity = Boolean(
     trace.startedAt || trace.prompt || (trace.tokenEvents && trace.tokenEvents.length) ||
     (trace.phases && trace.phases.length) || trace.mcpResult || trace.authorize ||
@@ -536,14 +534,9 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
           ) : null}
         </div>
         <div className="tctr-toolbar">
-          <button
-            type="button"
-            className="tctr-back-btn"
-            onClick={() => setUnattendedOpen(true)}
-            title="Replay a scheduled run that happened with nobody signed in"
-          >
-            Unattended
-          </button>
+          {/* Unmoved from Quick Config on purpose: the rail toolbar had its own
+              "Unattended" button once; Quick Config's "Unattended runs" entry
+              (AIAgent.js) is now the only trigger for that panel. */}
           {tab !== "chain" ? (
             <button
               type="button"
@@ -794,7 +787,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
       <ClaimDetailsModal isOpen={!!inspectType} tokenType={inspectType || "user"}
         liveClaims={inspectClaims} onClose={() => setInspectType(null)} />
       <TokenLegendModal isOpen={legendOpen} onClose={() => setLegendOpen(false)} />
-      <UnattendedRunsPanel isOpen={unattendedOpen} onClose={() => setUnattendedOpen(false)} />
+
     </div>
   );
 }
