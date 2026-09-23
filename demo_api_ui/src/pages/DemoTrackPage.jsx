@@ -130,6 +130,12 @@ export default function DemoTrackPage() {
     return () => clearInterval(t);
   }, [load]);
 
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('step') === 'attack-gauntlet') {
+      setExpanded('attack-gauntlet');
+    }
+  }, []);
+
   const isLive = viewRunId === "live";
   const run = useMemo(() => {
     if (!state) return null;

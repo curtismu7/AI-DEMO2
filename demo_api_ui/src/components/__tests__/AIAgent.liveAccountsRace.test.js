@@ -162,11 +162,11 @@ describe("fetchLiveAccounts stale-response race (rapid vertical switch)", () => 
   it("applies the newer vertical's accounts even when an older request's response resolves later", async () => {
     const { rerender } = renderAgent({ user: customerUser, mode: "inline" });
 
-    // On mount, both the login effect AND the vertical-switch effect's first
-    // run (prevVerticalRef starts null) fire fetchLiveAccounts for vertical-a.
-    await waitFor(() => expect(accountsResolvers.length).toBe(2));
+    // Initial hydration is not a vertical switch; the login effect issues one
+    // request for vertical-a.
+    await waitFor(() => expect(accountsResolvers.length).toBe(1));
 
-    // Switch vertical — the vertical-switch effect fires a third request.
+    // Switch vertical — the vertical-switch effect issues the second request.
     useVertical.mockReturnValue(verticalMock("vertical-b"));
     rerender(
       <MemoryRouter>
@@ -177,11 +177,11 @@ describe("fetchLiveAccounts stale-response race (rapid vertical switch)", () => 
         </ProofOfEnforcementProvider>
       </MemoryRouter>,
     );
-    await waitFor(() => expect(accountsResolvers.length).toBe(3));
+    await waitFor(() => expect(accountsResolvers.length).toBe(2));
 
     // Resolve the NEWEST (vertical-b, 3rd request) FIRST...
     await act(async () => {
-      accountsResolvers[2]({
+      accountsResolvers[1]({
         ok: true,
         json: async () => ({
           accounts: [{ id: "acc-b-chk", accountType: "checking", balance: 222 }],
@@ -195,12 +195,6 @@ describe("fetchLiveAccounts stale-response race (rapid vertical switch)", () => 
     // account.
     await act(async () => {
       accountsResolvers[0]({
-        ok: true,
-        json: async () => ({
-          accounts: [{ id: "acc-a-chk", accountType: "checking", balance: 111 }],
-        }),
-      });
-      accountsResolvers[1]({
         ok: true,
         json: async () => ({
           accounts: [{ id: "acc-a-chk", accountType: "checking", balance: 111 }],

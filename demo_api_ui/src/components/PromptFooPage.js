@@ -70,7 +70,7 @@ export default function PromptFooPage({ user }) {
       <section className="promptfoo-page__suites">
         {error && <div className="promptfoo-page__error" role="alert">{error}</div>}
         {!suites.length && !error && (
-          <div className="promptfoo-page__loading"><PingIdentitySpinner /> Loading suites…</div>
+          <div className="promptfoo-page__loading"><PingIdentitySpinner label="Loading PromptFoo suites…" /> Loading suites…</div>
         )}
         {suites.map((s) => (
           <div key={s.key} className="promptfoo-page__suite" data-testid={`suite-${s.key}`}>
@@ -88,7 +88,7 @@ export default function PromptFooPage({ user }) {
               >
                 {running === s.key ? 'Running…' : 'Run eval'}
               </button>
-              {running === s.key && <PingIdentitySpinner />}
+              {running === s.key && <PingIdentitySpinner label={`Running ${s.label} evaluation…`} />}
             </div>
           </div>
         ))}
