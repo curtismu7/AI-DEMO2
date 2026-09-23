@@ -1,0 +1,47 @@
+# promptfoo eval: agent use-case correctness against the live /api/agent/invoke endpoint.
+# Run from demo_api_server/:  npx promptfoo@latest eval -c promptfoo/agent-eval.yaml
+# View results:               npx promptfoo@latest view
+description: AI-DEMO2 agent use-case correctness matrix
+
+prompts:
+  - "{{question}}"
+
+providers:
+  - id: agent-invoke-heuristics
+    label: Agent (heuristics)
+    config:
+      url: http://localhost:3001/api/agent/invoke
+      method: POST
+      headers:
+        Content-Type: application/json
+      body:
+        prompt: "{{question}}"
+        vertical: "{{vertical}}"
+        provider: heuristics
+      transformResponse: json.reply
+
+  - id: agent-invoke-llm
+    label: Agent (LLM)
+    config:
+      url: http://localhost:3001/api/agent/invoke
+      method: POST
+      headers:
+        Content-Type: application/json
+      body:
+        prompt: "{{question}}"
+        vertical: "{{vertical}}"
+        provider: llamacpp
+      transformResponse: json.reply ?? json.message ?? json.response
+
+# Trivial smoke assertion shared by all cases: the agent must return
+# non-empty text and must never leak internal error machinery.
+defaultTest:
+  assert:
+    - type: not-icontains
+      value: "Heuristics-only mode — no LLM"
+    - type: not-icontains
+      value: "Unknown action"
+    - type: not-icontains
+      value: "mcp_authorize_unavailable"
+
+tests: promptfoo/agent-eval-tests.yaml

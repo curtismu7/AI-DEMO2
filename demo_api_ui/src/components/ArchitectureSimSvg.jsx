@@ -33,12 +33,14 @@ const cy = (y) => y + NH / 2;
 const ABOVE_RS = 308;
 
 // ── Nodes — id, position and label copied from the original SimNode calls ──
-const NODES = [
+export const ARCHITECTURE_NODES = [
   { id: 'n-browser', x: COL.browser, y: ROW.top, label: 'Browser', sub: 'port 4000',
     tooltip: "User's browser — holds only an httpOnly session cookie; no tokens are ever stored client-side" },
   { id: 'n-bff', x: COL.bff, y: ROW.top, label: 'BFF', sub: 'demo_api_server :3001',
     tooltip: 'Backend For Frontend — sole OAuth token custodian; resolves session cookie to access token; never exposes tokens to the browser' },
-  { id: 'n-mcp-gw', x: COL.mcpGw, y: ROW.top, label: 'Agent Gateway', sub: 'Agent Gateway :3036',
+  { id: 'n-vault', x: COL.bff, y: 112, label: 'Vault / Secrets', sub: 'protected credentials',
+    tooltip: 'Vault / secrets boundary — stores OAuth client secrets, encryption keys, and service credentials; nothing is sent to the browser' },
+  { id: 'n-mcp-gw', x: COL.mcpGw, y: ROW.top, label: 'MCP Gateway', sub: 'PingGateway :3036',
     tooltip: 'Agent Gateway — central enforcement point; default is the real product (:3036, ff_mcp_gateway_pinggateway=true); demo Node Gateway (:3005) is the opt-in demo-auth path; introspects token then consults PingOne Authorize before every tool call; validates aud (D-05 anti-bypass)' },
   { id: 'n-mcp-server', x: COL.services, y: ROW.top, label: 'MCP Server', sub: ':8080',
     tooltip: 'MCP Server (:8080) — executes banking tools; validates token aud and scopes per tool; checks act claim for delegated agent authority' },
@@ -50,8 +52,10 @@ const NODES = [
     tooltip: 'API Resource Server (:8082) — REST API resource server using API key auth; reached via PingOne Agent Gateway Path A (api_key disposition)' },
   { id: 'n-pingone', x: COL.external, y: ROW.mid, label: 'PingOne', sub: 'OAuth AS',
     tooltip: 'PingOne — OAuth 2.0 Authorization Server and Identity Provider; issues tokens, validates may_act for RFC 8693 token exchange, enforces PKCE' },
-  { id: 'n-resource-server', x: COL.services, y: ROW.lower, label: 'Resource Server', sub: '/api/resource-server',
+  { id: 'n-resource-server', x: COL.services, y: ROW.lower, label: 'Banking Resource Server', sub: '/api/resource-server',
     tooltip: 'Resource Server (/api/resource-server) — validates access tokens independently; serves banking data; used in Path B (dual-token) and Path C (oauth_bearer) dispositions' },
+  { id: 'n-banking-data', x: COL.external, y: ROW.bot, label: 'Banking Data Store', sub: 'accounts + transactions',
+    tooltip: 'Protected banking data — accounts, transactions, and audit records returned only after Resource Server validation' },
   { id: 'n-pingauthorize', x: COL.external, y: ROW.lower, label: 'PingOne Authorization Server', sub: 'cloud PDP',
     tooltip: 'PingOne Authorization Server — policy decision point (PDP); returns PERMIT, DENY, or INDETERMINATE for every MCP tool call; real cloud Authorize by default (outage → fail-closed deny 503); mock at :9001 is opt-in via ff_authorize_real / AUTHORIZE_FAILOVER_MODE=fallback_simulated' },
   { id: 'n-hitl', x: COL.services, y: ROW.bot, label: 'HITL Service', sub: ':3009',
@@ -73,17 +77,23 @@ const COL_LABELS = [
 // JSX. Multi-segment edges (routed around the resource-server row, or fanned
 // out from the same node side) become one polyline each instead of two or
 // three separate <line> elements sharing a state.
-const EDGES = [
+export const ARCHITECTURE_EDGES = [
   { id: 'e-browser-bff', source: 'n-browser', target: 'n-bff',
     points: [[COL.browser + NW, cy(ROW.top)], [COL.bff, cy(ROW.top)]] },
   { id: 'e-bff-mcpgw', source: 'n-bff', target: 'n-mcp-gw',
     points: [[COL.bff + NW, cy(ROW.top)], [COL.mcpGw, cy(ROW.top)]] },
+  { id: 'e-bff-vault', source: 'n-bff', target: 'n-vault',
+    points: [[cx(COL.bff), ROW.top + NH], [cx(COL.bff), 112]] },
   { id: 'e-mcpgw-mcpserver', source: 'n-mcp-gw', target: 'n-mcp-server',
     points: [[COL.mcpGw + NW, cy(ROW.top)], [COL.services, cy(ROW.top)]] },
   { id: 'e-mcpgw-mortgage', source: 'n-mcp-gw', target: 'n-mortgage',
     points: [[cx(COL.mcpGw), ROW.top + NH], [cx(COL.mcpGw), cy(ROW.mid + NH + 10)], [COL.services, cy(ROW.mid + NH + 10)]] },
   { id: 'e-mcpgw-resourceserver', source: 'n-mcp-gw', target: 'n-resource-server',
     points: [[COL.mcpGw + NW, cy(ROW.lower)], [COL.services, cy(ROW.lower)]] },
+  { id: 'e-mcpserver-resource-server', source: 'n-mcp-server', target: 'n-resource-server',
+    points: [[COL.services + NW, cy(ROW.top)], [COL.services + NW + 50, cy(ROW.top)], [COL.services + NW + 50, cy(ROW.lower)], [COL.services + NW, cy(ROW.lower)]] },
+  { id: 'e-resource-server-banking-data', source: 'n-resource-server', target: 'n-banking-data',
+    points: [[COL.services + NW, cy(ROW.lower)], [COL.external, cy(ROW.bot)]] },
   { id: 'e-bff-pingone', source: 'n-bff', target: 'n-pingone',
     points: [[cx(COL.bff), ROW.top + NH], [cx(COL.bff), cy(ROW.mid)], [COL.external, cy(ROW.mid)]] },
   { id: 'e-mcpgw-pingone', source: 'n-mcp-gw', target: 'n-pingone',
@@ -108,7 +118,7 @@ const FLOW_NODES = [
     id: c.id, type: 'colLabel', position: { x: c.x, y: COL_LABEL_Y }, width: NW, height: 16,
     data: { label: c.label },
   })),
-  ...NODES.map((n) => ({
+  ...ARCHITECTURE_NODES.map((n) => ({
     id: n.id, type: 'sim', position: { x: n.x, y: n.y }, width: NW, height: NH,
     data: { label: n.label, sub: n.sub, tooltip: n.tooltip },
   })),
@@ -172,7 +182,7 @@ function ArchitectureSimSvg({ nodeStates = {}, edgeStates = {} }) {
     [nodeStates],
   );
   const flowEdges = useMemo(
-    () => EDGES.map((e) => ({ ...e, type: 'sim', data: { ...e, state: edgeStates[e.id] ?? 'idle' } })),
+    () => ARCHITECTURE_EDGES.map((e) => ({ ...e, type: 'sim', data: { ...e, state: edgeStates[e.id] ?? 'idle' } })),
     [edgeStates],
   );
 

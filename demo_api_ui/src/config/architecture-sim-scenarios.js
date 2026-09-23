@@ -74,6 +74,12 @@ export const SCENARIOS = [
         why: 'The browser never sends OAuth tokens. The BFF resolves the cookie to the user\'s access token server-side. There is no Bearer token on the wire from the browser, so network interception yields nothing useful.',
       },
       {
+        nodes: ['n-vault'],
+        edges: ['e-bff-vault'],
+        desc: 'BFF → Vault: protected client secrets and service credentials are resolved server-side.',
+        why: 'Vault is part of the trust boundary. OAuth client secrets, encryption keys, and service credentials stay outside the browser and are only read by the BFF when the request needs them.',
+      },
+      {
         nodes: ['n-mcp-gw'],
         edges: ['e-bff-mcpgw'],
         desc: 'BFF → PingOne Agent Gateway: tool call forwarded with the user access token.',
@@ -98,9 +104,21 @@ export const SCENARIOS = [
         why: 'The MCP Server validates aud matches its own resource URI before executing anything. The act claim in the narrowed token identifies which AI agent invoked this — the audit trail shows both who the user is AND which agent acted on their behalf. Delegation, not impersonation.',
       },
       {
+        nodes: ['n-resource-server'],
+        edges: ['e-mcpserver-resource-server'],
+        desc: 'MCP Server → Banking Resource Server: the protected API validates audience and scopes again.',
+        why: 'The Resource Server is an independent enforcement boundary. It does not trust the UI, the agent, or the MCP server alone; it validates the bearer token for its own audience and required scopes before serving banking data.',
+      },
+      {
+        nodes: ['n-banking-data'],
+        edges: ['e-resource-server-banking-data'],
+        desc: 'Resource Server → Banking Data Store: accounts and transactions are read only after validation.',
+        why: 'The data store is not directly reachable from the browser or agent. The Resource Server is the only component allowed to translate an authorized tool request into a banking data operation.',
+      },
+      {
         nodes: ['n-browser'],
-        edges: ['e-mcpgw-mcpserver'],
-        desc: 'Tool result returns: MCP Server → Gateway → BFF → browser. ✅',
+        edges: [],
+        desc: 'Tool result returns through the BFF to the browser. ✅',
         why: 'Token events are emitted at each hop so the Token Chain UI can show the full delegation chain: user token → exchanged token → tool result. This is how you prove to an auditor that the agent only touched what it was authorised to touch.',
       },
     ],

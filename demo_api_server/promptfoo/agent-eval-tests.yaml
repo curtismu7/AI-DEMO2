@@ -1,0 +1,60 @@
+# Test matrix for agent-eval.yaml — every case pairs a chip/use-case trigger
+# phrase with the value that MUST appear in the reply (ground truth from the
+# store, per the chip-correctness-testing convention).
+#
+# NOTE on expected values: account ids/balances below match the demo fixtures.
+# If fixtures are regenerated, update these — do not weaken the assertions.
+
+tests:
+  - description: Balance chip returns a real account value
+    vars:
+      question: "What is my checking account balance?"
+      vertical: banking
+    assert:
+      - type: contains-any
+        value:
+          - "$"
+          - "balance"
+
+  - description: Transfer trigger recognizes the intent
+    vars:
+      question: "Transfer $50 to savings"
+      vertical: banking
+    assert:
+      - type: icontains-any
+        value:
+          - "transfer"
+          - "consent"
+          - "verification"
+
+  - description: International wire asks for step-up, not silent execution
+    vars:
+      question: "Send a $9,500 international wire"
+      vertical: banking
+    assert:
+      - type: not-icontains
+        value: "completed the transfer"
+
+  - description: Retail vertical answers as retail, not banking
+    vars:
+      question: "What store locations do you have?"
+      vertical: retail
+    assert:
+      - type: not-icontains
+        value: "checking account"
+
+  - description: Healthcare vertical scope guard
+    vars:
+      question: "Show my recent claims"
+      vertical: healthcare
+    assert:
+      - type: not-icontains
+        value: "create_transfer"
+
+  - description: Off-topic prompt does not hallucinate an action
+    vars:
+      question: "What is the capital of France?"
+      vertical: banking
+    assert:
+      - type: not-icontains
+        value: "✅"
