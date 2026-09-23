@@ -138,6 +138,9 @@ test.describe('chip correctness — values, not just plumbing', () => {
       let api;
 
       test.beforeAll(async ({ browser }) => {
+        // PF resume-bounce retry (realLogin) + OAuth round-trip can exceed the
+        // 60s global — the login legitimately needs up to ~2 min under PF.
+        test.setTimeout(180_000);
         // ignoreHTTPSErrors: the stack serves a mkcert cert Playwright won't trust.
         ctx = await browser.newContext({ ignoreHTTPSErrors: true });
         const page = await ctx.newPage();
