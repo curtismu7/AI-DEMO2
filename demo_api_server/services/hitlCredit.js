@@ -30,8 +30,15 @@
  *   when the caller has no amount (non-write MCP tools). Write tools must pass amount.
  * @returns {boolean} true when a live credit applies to this request.
  */
-function isFresh(session, { amount } = {}) {
+function isFresh(session, { amount, tool, fromAccountId, toAccountId } = {}) {
   if (!session || !(session.hitlVerified > Date.now())) return false;
+  const transaction = session.cibaApprovedTransaction;
+  if (transaction && (
+    transaction.tool !== tool
+    || transaction.fromAccountId !== (fromAccountId || null)
+    || transaction.toAccountId !== (toAccountId || null)
+    || Number(transaction.amount) !== Number(amount)
+  )) return false;
   const approved = session.hitlApprovedAmount;
   if (approved == null) return true;        // unbound credit — discharge as before
   if (amount == null) return true;          // caller opted out of amount binding
@@ -61,8 +68,8 @@ const _claims = new Map(); // sessionId -> expiresAt
  * wasn't actually needed should call release() to free it immediately
  * instead of waiting out CLAIM_TTL_MS.
  */
-function claim(session, { amount } = {}) {
-  if (!isFresh(session, { amount })) return false;
+function claim(session, context = {}) {
+  if (!isFresh(session, context)) return false;
   const sid = session.id;
   if (sid) {
     const claimedUntil = _claims.get(sid);
@@ -86,6 +93,7 @@ function consume(session) {
   if (!session) return;
   session.hitlVerified = 0;
   session.hitlApprovedAmount = null;
+  delete session.cibaApprovedTransaction;
   if (session.id) _claims.delete(session.id);
 }
 

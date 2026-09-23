@@ -32,7 +32,7 @@ const MOCK_CONFIG = {
   clientId:               'test-admin-client-id',
   clientSecret:           'test-admin-client-secret',
   redirectUri:            'https://banking-demo-puce.vercel.app/api/auth/oauth/callback',
-  cibaEndpoint:           'https://auth.pingone.com/env-test-111/as/bc-authorize',
+  cibaEndpoint:           'https://auth.pingone.com/env-test-111/as/cibaAuthorization',
   scopes:                 ['openid', 'profile', 'email'],
   sessionSecret:          'test-sess-secret',
   adminRole:              'admin',

@@ -16,7 +16,6 @@
 const crypto = require('crypto');
 const { logEvent: logAppEvent } = require('./appEventService');
 
-const SIMULATED_APPROVE_DELAY_MS = 60_000;
 const SIMULATED_EXPIRES_IN = 300;
 const SIMULATED_INTERVAL = 5;
 
@@ -42,18 +41,16 @@ function initiateSimulated(loginHint, bindingMessage, scope, acrValues) {
 }
 
 /**
- * True once enough time has passed since initiation to "auto-approve" the
- * simulated request.
+ * A local simulation requires an explicit approval action.
  *
- * @param {{ initiatedAt: number }} pending — the session's cibaRequests[authReqId] record
+ * @param {{ approvedByUser?: boolean }} pending — the session's cibaRequests[authReqId] record
  * @returns {boolean}
  */
 function isSimulatedApproved(pending) {
-  return Date.now() - pending.initiatedAt >= SIMULATED_APPROVE_DELAY_MS;
+  return pending.approvedByUser === true;
 }
 
 module.exports = {
   initiateSimulated,
   isSimulatedApproved,
-  SIMULATED_APPROVE_DELAY_MS,
 };

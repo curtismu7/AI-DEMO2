@@ -1,36 +1,75 @@
 'use strict';
 
 /**
- * Short-lived, single-use receipts recording that CIBA out-of-band approval
- * (routes/ciba.js) already discharged HITL for one specific pending write.
+ * Short-lived, single-use receipts for one specific pending write. Real CIBA
+ * receipts are distinguished from ordinary HITL consent so only verified
+ * out-of-band authentication can satisfy a step-up policy.
  *
- * The MCP/agent execution path (demo_mcp_server's BankingAPIClient) calls
+ * The MCP/agent execution path (oauth-mcp's BankingAPIClient) calls
  * back into POST /api/transactions over a bearer token only — no session
  * cookie — so the session-based hitlVerified bypass in routes/transactions.js
- * can never see it there. Keyed by (userId, tool, amount) instead of session,
- * since that bearer-token request only carries the decoded token's user id.
+ * can never see it there. Bind the receipt to the subject, tool, amount, and
+ * both account IDs; a different transfer cannot spend the approval.
  */
 
 const TTL_MS = 5 * 60 * 1000; // mirrors ciba.js's STEP_UP_TTL_MS
 
 const receipts = new Map();
+const claims = new Map();
 
-function key(userId, tool, amount) {
-  return `${userId}:${tool}:${Number(amount).toFixed(2)}`;
+function key(userId, tool, amount, accounts = {}) {
+  return JSON.stringify([
+    userId, tool, Number(amount).toFixed(2),
+    accounts.fromAccountId || null, accounts.toAccountId || null,
+  ]);
 }
 
-function record(userId, tool, amount) {
+function record(userId, tool, amount, accounts = {}) {
   if (!userId || !tool || !Number.isFinite(Number(amount))) return;
-  receipts.set(key(userId, tool, amount), Date.now() + TTL_MS);
+  const k = key(userId, tool, amount, accounts);
+  if (receipts.get(k)?.proofType === 'ciba' && accounts.proofType !== 'ciba') return;
+  receipts.set(k, {
+    expiresAt: Date.now() + TTL_MS,
+    proofType: accounts.proofType === 'ciba' ? 'ciba' : 'hitl',
+  });
+}
+
+/** Reserve a receipt while authorization and the balance write run. */
+function claim(userId, tool, amount, accounts = {}) {
+  if (!Number.isFinite(Number(amount))) return null;
+  const k = key(userId, tool, amount, accounts);
+  const receipt = receipts.get(k);
+  if (!receipt || receipt.expiresAt <= Date.now() || claims.has(k)) return null;
+  const ticket = { key: k, nonce: Symbol('ciba-receipt'), proofType: receipt.proofType };
+  claims.set(k, ticket.nonce);
+  return ticket;
+}
+
+function release(ticket) {
+  if (ticket && claims.get(ticket.key) === ticket.nonce) claims.delete(ticket.key);
+}
+
+function isClaimValid(ticket) {
+  return Boolean(ticket && claims.get(ticket.key) === ticket.nonce
+    && receipts.get(ticket.key)?.expiresAt > Date.now());
+}
+
+function consumeClaim(ticket) {
+  if (!ticket || claims.get(ticket.key) !== ticket.nonce) return false;
+  claims.delete(ticket.key);
+  receipts.delete(ticket.key);
+  return true;
 }
 
 /** Single-use: consumes and returns true only if a still-valid receipt exists. */
-function consume(userId, tool, amount) {
-  const k = key(userId, tool, amount);
-  const expiresAt = receipts.get(k);
-  if (expiresAt === undefined) return false;
+function consume(userId, tool, amount, accounts = {}) {
+  if (!Number.isFinite(Number(amount))) return false;
+  const k = key(userId, tool, amount, accounts);
+  const receipt = receipts.get(k);
+  if (receipt === undefined) return false;
   receipts.delete(k);
-  return expiresAt > Date.now();
+  claims.delete(k);
+  return receipt.expiresAt > Date.now();
 }
 
 // A receipt whose bearer-token retry never happens (abandoned retry, amount
@@ -40,10 +79,10 @@ function consume(userId, tool, amount) {
 // process. Mirrors the periodic-sweep pattern in http2McpBridge.js.
 function _sweepExpired() {
   const now = Date.now();
-  for (const [k, expiresAt] of receipts) {
-    if (expiresAt <= now) receipts.delete(k);
+  for (const [k, receipt] of receipts) {
+    if (receipt.expiresAt <= now) receipts.delete(k);
   }
 }
 setInterval(_sweepExpired, TTL_MS).unref();
 
-module.exports = { record, consume, _receiptCountForTests: () => receipts.size };
+module.exports = { record, claim, release, isClaimValid, consumeClaim, consume, _receiptCountForTests: () => receipts.size };

@@ -44,9 +44,9 @@ describe('CibaApprovalPage — initial loading state', () => {
     expect(screen.getByText(/Loading approval request/i)).toBeInTheDocument();
   });
 
-  it('renders the "PingOne Identity Verification" modal title', () => {
+  it('labels the local approval as a simulation', () => {
     renderPage();
-    expect(screen.getByTestId('modal-title')).toHaveTextContent('PingOne Identity Verification');
+    expect(screen.getByTestId('modal-title')).toHaveTextContent('Local CIBA Simulation');
   });
 });
 

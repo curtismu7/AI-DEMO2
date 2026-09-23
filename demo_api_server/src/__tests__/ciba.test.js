@@ -28,6 +28,7 @@ const session  = require('express-session');
 jest.mock('../../services/cibaService', () => ({
   initiateBackchannelAuth: jest.fn(),
   pollForTokens:           jest.fn(),
+  validateCibaIdToken:     jest.fn().mockResolvedValue({ sub: 'test-user' }),
   waitForApproval:         jest.fn(),
   isEnabled:               jest.fn(),
 }));
@@ -35,7 +36,6 @@ jest.mock('../../services/cibaService', () => ({
 jest.mock('../../services/cibaSimulatedService', () => ({
   initiateSimulated: jest.fn(),
   isSimulatedApproved: jest.fn(),
-  SIMULATED_APPROVE_DELAY_MS: 60_000,
 }));
 
 jest.mock('../../services/tokenChainService', () => ({
@@ -57,6 +57,7 @@ jest.mock('../../services/configStore', () => ({
       ciba_token_delivery_mode:  'poll',
       ciba_binding_message:      'Banking App Authentication',
       ciba_notification_endpoint: null,
+      ciba_failover_mode: 'fallback_simulated',
     };
     return defaults[key] ?? null;
   }),
@@ -86,7 +87,6 @@ const cibaSimulatedService = require('../../services/cibaSimulatedService');
 const configStore = require('../../services/configStore');
 const { trackTokenEvent } = require('../../services/tokenChainService');
 const cibaRouter  = require('../../routes/ciba');
-const { PINGONE_OIDC_DEFAULT_SCOPES_SPACE } = require('../../config/scopes');
 
 // ── Auth headers ──────────────────────────────────────────────────────────────
 
@@ -142,8 +142,8 @@ describe('GET /api/auth/ciba/status', () => {
     expect(res.body.enabled).toBe(true);
     expect(res.body.deliveryMode).toBe('poll');
     expect(res.body.bindingMessage).toBe('Banking App Authentication');
-    expect(res.body.setupRequired).toBe(false);
-    expect(res.body.setupSteps).toHaveLength(0);
+    expect(res.body.setupRequired).toBe(true);
+    expect(res.body.setupSteps.length).toBeGreaterThan(0);
   });
 
   it('returns enabled:false and setup steps when CIBA is disabled', async () => {
@@ -347,13 +347,13 @@ describe('POST /api/auth/ciba/initiate', () => {
     );
   });
 
-  it('defaults scope to PINGONE_OIDC_DEFAULT_SCOPES_SPACE when not provided', async () => {
+  it('defaults the CIBA request to the openid scope', async () => {
     await request(buildApp())
       .post('/api/auth/ciba/initiate')
       .set('x-test-user', USER_HDR)
       .send({});
     const callArgs = cibaService.initiateBackchannelAuth.mock.calls[0];
-    expect(callArgs[2]).toBe(PINGONE_OIDC_DEFAULT_SCOPES_SPACE);
+    expect(callArgs[2]).toBe('openid');
   });
 
   // ── PingOne errors ────────────────────────────────────────────────────────
@@ -394,7 +394,7 @@ describe('POST /api/auth/ciba/initiate', () => {
 
   // ── Simulated failover (default behavior) ───────────────────────────────────
 
-  it('falls back to the simulated engine by default when the real bc-authorize call fails', async () => {
+  it('uses the simulated engine when failover is explicitly enabled', async () => {
     cibaService.initiateBackchannelAuth.mockRejectedValue(new Error('ECONNREFUSED'));
     cibaSimulatedService.initiateSimulated.mockReturnValue({
       auth_req_id: 'sim-abc123',
@@ -859,8 +859,11 @@ describe('CIBA full OTP flow simulation — sequential poll cycle', () => {
     jest.clearAllMocks();
     cibaService.isEnabled.mockReturnValue(true);
   });
+  afterEach(() => jest.restoreAllMocks());
 
   it('completes the full pending → approved cycle on a single agent', async () => {
+    let now = Date.now();
+    jest.spyOn(Date, 'now').mockImplementation(() => now);
     // ── Step 1: Initiate ────────────────────────────────────────────────────
     cibaService.initiateBackchannelAuth.mockResolvedValue({
       auth_req_id: FLOW_AUTH_REQ_ID,
@@ -891,6 +894,7 @@ describe('CIBA full OTP flow simulation — sequential poll cycle', () => {
 
     expect(poll1.status).toBe(200);
     expect(poll1.body.status).toBe('pending');
+    now += 5000;
 
     // ── Step 3: Poll 2 — user opened the email but hasn't clicked yet ───────
     const pending2 = { response: { data: { error: 'authorization_pending' } } };
@@ -902,6 +906,7 @@ describe('CIBA full OTP flow simulation — sequential poll cycle', () => {
 
     expect(poll2.status).toBe(200);
     expect(poll2.body.status).toBe('pending');
+    now += 5000;
 
     // ── Step 4: Poll 3 — user clicked approval link (OTP verified) ──────────
     // This simulates the user approving via the PingOne email link
@@ -913,7 +918,7 @@ describe('CIBA full OTP flow simulation — sequential poll cycle', () => {
 
     expect(poll3.status).toBe(200);
     expect(poll3.body.status).toBe('approved');
-    expect(poll3.body.scope).toBe(PINGONE_OIDC_DEFAULT_SCOPES_SPACE);
+    expect(poll3.body.scope).toBe('openid');
 
     // Tokens never exposed to browser
     expect(poll3.body.access_token).toBeUndefined();
@@ -928,10 +933,12 @@ describe('CIBA full OTP flow simulation — sequential poll cycle', () => {
 
     expect(poll4.status).toBe(200);
     expect(poll4.body.status).toBe('approved');
-    expect(poll4.body.scope).toBe(PINGONE_OIDC_DEFAULT_SCOPES_SPACE);
+    expect(poll4.body.scope).toBe('openid');
   });
 
   it('completes the full pending → denied cycle', async () => {
+    let now = Date.now();
+    jest.spyOn(Date, 'now').mockImplementation(() => now);
     cibaService.initiateBackchannelAuth.mockResolvedValue({
       auth_req_id: FLOW_AUTH_REQ_ID,
       expires_in: 300,
@@ -952,6 +959,7 @@ describe('CIBA full OTP flow simulation — sequential poll cycle', () => {
     });
     const p1 = await agent.set('x-test-user', USER_HDR).get(`/api/auth/ciba/poll/${FLOW_AUTH_REQ_ID}`);
     expect(p1.body.status).toBe('pending');
+    now += 5000;
 
     // Poll 2: user explicitly denied
     cibaService.pollForTokens.mockRejectedValueOnce({
@@ -1056,23 +1064,21 @@ describe('POST /api/auth/ciba/approve-now/:authReqId', () => {
     expect(res.status).toBe(404);
   });
 
-  it('makes an immediate poll return approved for a simulated pending request, instead of waiting out the timer', async () => {
+  it('makes an immediate poll return approved only after the simulated user approves', async () => {
     cibaService.isEnabled.mockReturnValue(true);
     cibaSimulatedService.initiateSimulated.mockClear();
     cibaSimulatedService.initiateSimulated.mockReturnValue({
       auth_req_id: 'sim-approve-now', expires_in: 300, interval: 5,
     });
     cibaService.initiateBackchannelAuth.mockRejectedValue(new Error('ECONNREFUSED'));
-    // Real timing semantics, driven by the (mocked) delay constant — proves
-    // approve-now's rewritten initiatedAt is what flips this, not a stub.
     cibaSimulatedService.isSimulatedApproved.mockImplementation(
-      (pending) => Date.now() - pending.initiatedAt >= cibaSimulatedService.SIMULATED_APPROVE_DELAY_MS,
+      (pending) => pending.approvedByUser === true,
     );
 
     const agent = request.agent(buildApp());
     await agent.set('x-test-user', USER_HDR).post('/api/auth/ciba/initiate').send({});
 
-    // Without approve-now, an immediate poll is still pending (delay not elapsed).
+    // Without an explicit approval, the request remains pending.
     const beforePoll = await agent
       .set('x-test-user', USER_HDR)
       .get('/api/auth/ciba/poll/sim-approve-now');
@@ -1163,18 +1169,18 @@ describe('POST /api/auth/ciba/deny/:authReqId', () => {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 describe('POST /api/auth/ciba/notify', () => {
-  it('returns 204 and is accessible without any authentication', async () => {
+  it('rejects unsupported ping callbacks without authentication', async () => {
     const res = await request(buildApp())
       .post('/api/auth/ciba/notify')
       .send({ auth_req_id: MOCK_AUTH_REQ_ID });
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(501);
   });
 
-  it('returns 204 with empty body', async () => {
+  it('rejects unsupported ping callbacks with empty body', async () => {
     const res = await request(buildApp())
       .post('/api/auth/ciba/notify')
       .send({});
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(501);
   });
 });
 
