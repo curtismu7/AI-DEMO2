@@ -71,7 +71,7 @@ describe('demoUseCaseSteps', () => {
     expect(groupedIds).toHaveLength(DEMO_USE_CASE_IDS.length);
   });
 
-  it('keeps all 12 Mission Control shortcuts visible in the agreed order', () => {
+  it('keeps all 12 Mission Control shortcuts visible in the agreed order without the SaaS lane', () => {
     expect(DEMO_MISSION_GROUPS).toHaveLength(12);
     expect(DEMO_MISSION_GROUPS.map((group) => group.id)).toEqual([
       'personal-agent',

@@ -80,7 +80,8 @@ const mockGetClientCredentialsTokenAs = jest.fn();
 const mockPerformTokenExchangeAs = jest.fn();
 const mockGetMcpExchangerToken = jest.fn();
 const mockGetAiAgentClientCredentialsToken = jest.fn();
-
+const mockIsNativeIdJagEnabled = jest.fn(() => false);
+const mockMintAndRedeemIdJag = jest.fn();
 jest.mock('../../services/oauthService', () => ({
   config: { clientId: 'bff-client-id' },
   getAgentClientCredentialsToken: (...args) => mockGetAgentClientCredentialsToken(...args),
@@ -151,7 +152,13 @@ jest.mock('../../services/configStore', () => {
   };
 });
 
+jest.mock('../../services/idJagService', () => ({
+  isNativeIdJagEnabled: (...args) => mockIsNativeIdJagEnabled(...args),
+  mintAndRedeem: (...args) => mockMintAndRedeemIdJag(...args),
+}));
+
 const configStore = require('../../services/configStore');
+const enterpriseMcpPolicy = require('../../services/enterpriseMcpPolicyService');
 const { resolveMcpAccessTokenWithEvents, buildSessionPreviewTokenEvents } = require('../../services/agentMcpTokenService');
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -332,6 +339,8 @@ describe('resolveMcpAccessTokenWithEvents — R1: local scope allow-list no long
 
   beforeEach(() => {
     jest.clearAllMocks();
+    configStore.getOAuthProvider.mockReturnValue('pingone');
+    mockIsNativeIdJagEnabled.mockReturnValue(false);
     configStore.getEffective.mockImplementation((key) => {
       if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri') return 'https://mcp.example.com/api';
       // Pre-R1 this config (write absent) made the local veto throw
@@ -1092,6 +1101,8 @@ describe('resolveMcpAccessTokenWithEvents — 2-exchange delegation (ff_two_exch
     delete process.env.MCP_EXCHANGER_TOKEN_ENDPOINT_AUTH_METHOD;
 
     jest.clearAllMocks();
+    configStore.getOAuthProvider.mockReturnValue('pingone');
+    mockIsNativeIdJagEnabled.mockReturnValue(false);
 
     // Config: 2-exchange flag on, MCP URI set
     configStore.getEffective.mockImplementation((key) => {
@@ -1291,6 +1302,76 @@ describe('resolveMcpAccessTokenWithEvents — 2-exchange delegation (ff_two_exch
     expect(mockGetClientCredentialsTokenAs).not.toHaveBeenCalled();
     // 1-exchange was taken — token is defined
     expect(token).toBeDefined();
+  });
+
+  it('workload agent runtime requires 2-exchange even when session mode is single', async () => {
+    const req = makeReq(sampleJwtUserAccessToken);
+    req.workloadAgentRuntime = {
+      clientId: 'personal-agent-client',
+      clientSecret: 'personal-agent-secret',
+      authMethod: 'post',
+    };
+
+    const { token } = await resolveMcpAccessTokenWithEvents(req, 'get_my_accounts');
+
+    expect(token).toBe(finalMcpJwt);
+    expect(mockGetClientCredentialsTokenAs).toHaveBeenCalledTimes(2);
+    expect(mockGetClientCredentialsTokenAs).toHaveBeenNthCalledWith(
+      1,
+      'personal-agent-client',
+      'personal-agent-secret',
+      expect.any(String),
+      'post',
+      expect.any(String),
+    );
+    expect(mockGetAiAgentClientCredentialsToken).not.toHaveBeenCalled();
+  });
+
+  it('workload agent skips native enterprise ID-JAG so its actor uses two-exchange', async () => {
+    mockIsNativeIdJagEnabled.mockReturnValue(true);
+    const policySpy = jest.spyOn(enterpriseMcpPolicy, 'checkPolicy').mockResolvedValue({ allowed: true });
+    configStore.getEffective.mockImplementation((key) => {
+      if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri') return TWO_EX_MCP_RESOURCE;
+      if (key === 'ff_enterprise_managed_mcp_auth') return 'true';
+      if (key === 'enterprise_idp_issuer' || key === 'enterprise_idp_jwks_url') return 'configured';
+      if (key === 'ff_two_exchange_delegation') return 'true';
+      return null;
+    });
+    const req = makeReq(sampleJwtUserAccessToken);
+    req._mockToken = makeJwt({
+      sub: USER_SUB,
+      aud: 'banking_enduser',
+      scope: 'openid profile email offline_access read write',
+      iss: 'https://auth.pingone.com/test-env/as',
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      iat: Math.floor(Date.now() / 1000),
+    });
+    req.workloadAgentRuntime = {
+      clientId: 'personal-agent-client',
+      clientSecret: 'personal-agent-secret',
+      authMethod: 'post',
+    };
+
+    const { token } = await resolveMcpAccessTokenWithEvents(req, 'create_transfer');
+
+    expect(token).toBe(finalMcpJwt);
+    expect(mockMintAndRedeemIdJag).not.toHaveBeenCalled();
+    expect(mockGetClientCredentialsTokenAs).toHaveBeenCalledTimes(2);
+    policySpy.mockRestore();
+  });
+
+  it('rejects workload actor binding in PingFederate ID-JAG mode', async () => {
+    configStore.getOAuthProvider.mockReturnValue('pingfederate');
+    const req = makeReq(sampleJwtUserAccessToken);
+    req.workloadAgentRuntime = {
+      clientId: 'personal-agent-client',
+      clientSecret: 'personal-agent-secret',
+      authMethod: 'post',
+    };
+
+    await expect(resolveMcpAccessTokenWithEvents(req, 'get_my_accounts')).rejects.toMatchObject({
+      code: 'workload_actor_provider_unsupported', httpStatus: 409,
+    });
   });
 
   // ── F4 — audMatches was computed and then discarded ───────────────────────

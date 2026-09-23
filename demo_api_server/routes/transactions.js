@@ -640,7 +640,9 @@ router.post('/', authenticateToken, idempotency, async (req, res) => {
       res.once('finish', () => cibaTransactionReceipt.release(cibaReceiptClaim));
       res.once('close', () => cibaTransactionReceipt.release(cibaReceiptClaim));
     }
-    const cibaProofFresh = cibaReceiptClaim?.proofType === 'ciba';
+    const cibaProofFresh = cibaReceiptClaim?.proofType === 'ciba'
+      || (cibaReceiptClaim?.proofType === 'simulated_ciba'
+        && require('../services/cibaSimulatedService').isLocalSimulationEnabled());
     const sessionCibaReceiptFresh = Boolean(approvedTransaction && matchesCibaTransaction && cibaProofFresh);
     if (matchesCibaTransaction && (!approvedTransaction || sessionCibaReceiptFresh)
       && req.session?.stepUpVerified > Date.now()) {
