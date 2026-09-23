@@ -216,6 +216,7 @@ export default function ArchitectureOverviewPage() {
         <div className="aov-legend">
           {[
             { className: 'app', label: 'Client' },
+            { className: 'bff', label: 'BFF / Vault' },
             { className: 'identity', label: 'Ping Identity' },
             { className: 'gateway', label: 'Gateway' },
             { className: 'data', label: 'Resources' },

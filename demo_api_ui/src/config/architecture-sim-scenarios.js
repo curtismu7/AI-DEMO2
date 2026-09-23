@@ -81,7 +81,7 @@ export const SCENARIOS = [
       },
       {
         nodes: ['n-pingone'],
-        edges: ['e-mcpgw-pingone'],
+        edges: ['e-bff-pingone'],
         desc: 'BFF → PingOne: RFC 8693 token exchange narrows the token for the target resource.',
         why: 'The BFF performs the token exchange before the downstream call. PingOne applies the tenant’s configured delegation rules, and the receiving service validates the resulting token for its own audience and permissions.',
       },
@@ -333,7 +333,7 @@ export const SCENARIOS = [
       },
       {
         nodes: ['n-pingone'],
-        edges: ['e-mcpgw-pingone'],
+        edges: ['e-bff-pingone'],
         desc: 'PingOne issues a narrowed Bearer token: aud=banking-resource-server, limited scopes.',
         why: 'The new token carries only the scopes needed for this endpoint (e.g. read), the act claim preserving agent delegation, and an expiry no longer than the original token. The original broad access token is discarded — it never reaches the Resource Server.',
       },
@@ -487,7 +487,7 @@ export const SCENARIOS = [
       },
       {
         nodes: ['n-pingone'],
-        edges: ['e-mcpgw-pingone'],
+        edges: ['e-bff-pingone'],
         desc: 'PingOne issues narrowed token. User does not hold admin scope — it is not included in the exchange result.',
         why: 'PingOne calculates the granted scopes as the intersection of: (a) scopes requested by the exchanger, and (b) scopes the subject token actually carries. The standard user\'s token never had admin — so the narrowed MCP token won\'t either, regardless of what the attacker requests.',
       },
