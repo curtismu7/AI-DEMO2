@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
+vi.mock('../../services/apiClient', () => ({ default: { get: vi.fn() } }));
+import apiClient from '../../services/apiClient';
+
 // Stub window.location.search
 Object.defineProperty(window, 'location', {
   writable: true,
@@ -11,6 +14,8 @@ import PersonalAgentClientWindow from '../PersonalAgentClientWindow';
 
 describe('PersonalAgentClientWindow', () => {
   beforeEach(() => {
+    window.location.search = '?skin=privilege&theme=dark';
+    apiClient.get.mockReset();
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ reply: 'Delegated action complete.' }),
@@ -49,5 +54,19 @@ describe('PersonalAgentClientWindow', () => {
         useCaseId: 'workload-digital-assistant-obo',
       }),
     })));
+  });
+
+  it('uses the catalog prompt and selected context in a workload pop-out', async () => {
+    window.location.search = '?skin=privilege&theme=dark&useCase=UC38&vertical=sporting-goods';
+    apiClient.get.mockResolvedValue({ data: { useCase: {
+      id: 'UC38', title: 'Workload Agent: MFA-gated protected action', useCaseId: 'personal-agent-concierge',
+      primaryTool: 'extend_rental', runPrompt: 'extend my rental $600',
+    } } });
+    render(<PersonalAgentClientWindow />);
+    fireEvent.click(await screen.findByRole('button', { name: /Run UC38 action/i }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
+      body: JSON.stringify({ prompt: 'extend my rental $600', vertical: 'sporting-goods', useCaseId: 'personal-agent-concierge' }),
+    })));
+    expect(screen.queryByRole('textbox')).toBeNull();
   });
 });

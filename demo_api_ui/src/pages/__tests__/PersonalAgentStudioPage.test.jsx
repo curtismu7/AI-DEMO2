@@ -1,13 +1,15 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 // Mock TokenChainContext
 vi.mock('../../context/TokenChainContext', () => ({
   useTokenChainOptional: () => ({ events: [] }),
 }));
+vi.mock('../../services/apiClient', () => ({ default: { get: vi.fn() } }));
 
 import PersonalAgentStudioPage from '../PersonalAgentStudioPage';
+import apiClient from '../../services/apiClient';
 
 const renderStudio = () => render(
   <MemoryRouter>
@@ -69,5 +71,26 @@ describe('PersonalAgentStudioPage', () => {
     fireEvent.click(screen.getByText(/🪟 Pop Out/i));
     expect(screen.getByText('Security Gates')).toBeTruthy();
     expect(screen.getByText(/active in external window/i)).toBeTruthy();
+  });
+
+  it('launches only the supplied catalog action for a workload run', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ reply: 'Read complete.' }) }));
+    render(<MemoryRouter><PersonalAgentStudioPage scenario={{ id: 'UC44', useCaseId: 'workload-digital-assistant-obo', primaryTool: 'list_gear', runPrompt: 'my gear' }} vertical="sporting-goods" runNonce={1} /></MemoryRouter>);
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
+      body: JSON.stringify({ prompt: 'my gear', vertical: 'sporting-goods', useCaseId: 'workload-digital-assistant-obo' }),
+    })));
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(await screen.findByText('Read complete.')).toBeTruthy();
+  });
+
+  it('loads a direct workload query with scenario-specific opening context', async () => {
+    apiClient.get.mockResolvedValue({ data: { useCase: {
+      id: 'UC38', title: 'Workload Agent: MFA-gated protected action', useCaseId: 'personal-agent-concierge',
+      primaryTool: 'extend_rental', runPrompt: 'extend my rental $600',
+    } } });
+    render(<MemoryRouter initialEntries={['/personal-agent?useCase=UC38&vertical=sporting-goods']}><PersonalAgentStudioPage /></MemoryRouter>);
+    expect(await screen.findByText(/Customer MFA is checked before this protected write/i)).toBeTruthy();
+    expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC38?vertical=sporting-goods');
+    expect(screen.queryByRole('textbox')).toBeNull();
   });
 });
