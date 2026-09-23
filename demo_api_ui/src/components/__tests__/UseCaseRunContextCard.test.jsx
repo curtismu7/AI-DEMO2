@@ -50,4 +50,20 @@ describe('UseCaseRunContextCard', () => {
     expect(screen.getByText('Delegated access (consent only)')).toBeInTheDocument();
     expect(screen.getByText('Demo Track → Delegated access (consent only)')).toBeInTheDocument();
   });
+
+  it('labels a scenario selected from Demo Steps', () => {
+    render(
+      <UseCaseRunContextCard
+        runContext={{
+          source: 'demo-steps',
+          useCaseId: 'progressive-trust-public-access',
+          useCaseLabel: 'Act 1 — Public catalog access',
+          triggerText: 'What branches are near me?',
+        }}
+      />,
+    );
+
+    expect(screen.getByText('Launched from Demo Steps')).toBeInTheDocument();
+    expect(screen.getByText('Demo Steps → Act 1 — Public catalog access')).toBeInTheDocument();
+  });
 });

@@ -175,6 +175,7 @@ function jsonResponse(body) {
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
   apiPatch.mockReset();
   apiPatch.mockResolvedValue({ data: {} });
   sendAgentMessage.mockReset();
@@ -224,6 +225,15 @@ async function runStep(uc) {
 }
 
 describe("public demo step, signed out", () => {
+  it("binds the selected Demo Steps scenario to the dashboard run card", async () => {
+    renderSignedOut();
+    await runStep(UC24);
+
+    expect(await screen.findByText("Launched from Demo Steps")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Act 1 — Public catalog access" })).toBeInTheDocument();
+    expect(screen.getByText("Demo Steps → Act 1 — Public catalog access")).toBeInTheDocument();
+  });
+
   it("never PATCHes the admin feature-flag route", async () => {
     // Sanity: this use case DOES have flags to arm, so a passing assertion
     // below means the gate skipped them, not that there was nothing to skip.

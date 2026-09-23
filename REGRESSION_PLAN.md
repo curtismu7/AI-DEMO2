@@ -169,6 +169,28 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-23 — Demo Steps runs left the dashboard use-case card unbound
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/UseCaseRunContextCard.jsx`,
+`demo_api_ui/src/utils/useCaseRunContext.js`, and their focused tests.
+
+**What was broken:** the Demo Steps dropdown called `handleDemoStepSelect`
+directly, bypassing the event bridge used by the context card. The agent ran the
+scenario while the card remained at “No use case selected.”
+
+**What was fixed:** Demo Steps selection now goes through the existing
+`agent-demo-step-select` event. The context hook records the selected use-case
+ID, title, and prompt, and the card identifies the source as Demo Steps.
+
+**Do not break:** step execution still goes through the existing handler and
+its auth and consent gates. Demo Track, Use Cases, and direct dashboard context
+behavior remain intact.
+
+**Verify:** `cd demo_api_ui && npm run test:unit --
+src/components/__tests__/AIAgent.publicUseCase.test.jsx
+src/components/__tests__/UseCaseRunContextCard.test.jsx` and `npm run build`.
+
 ### 2026-09-23 — Demo Track runs did not update the dashboard use-case card
 
 **Files changed:** `demo_api_ui/src/utils/useCaseRunContext.js`,
