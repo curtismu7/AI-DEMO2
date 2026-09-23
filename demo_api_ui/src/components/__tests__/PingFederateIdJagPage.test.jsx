@@ -73,4 +73,38 @@ describe("PingFederate ID-JAG architecture", () => {
     }
   });
 
+  it("cancels playback when a presenter selects a guide step", () => {
+    vi.useFakeTimers();
+    try {
+      renderPage();
+      fireEvent.change(screen.getByLabelText("Step time:"), { target: { value: "800" } });
+      fireEvent.click(screen.getByRole("button", { name: "Simulate" }));
+      fireEvent.click(screen.getByRole("button", { name: "Step 3: Carry the ID-JAG to PingGateway" }));
+
+      expect(screen.getByText("Step 3 / 6")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Simulate" })).toBeTruthy();
+      act(() => vi.advanceTimersByTime(800));
+      expect(screen.getByText("Step 3 / 6")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("cancels playback and resets when the presenter switches views", () => {
+    vi.useFakeTimers();
+    try {
+      renderPage();
+      fireEvent.change(screen.getByLabelText("Step time:"), { target: { value: "800" } });
+      fireEvent.click(screen.getByRole("button", { name: "Simulate" }));
+      fireEvent.click(screen.getByRole("tab", { name: "PingFederate architecture" }));
+
+      expect(screen.getByText("Step 1 / 6")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Simulate" })).toBeTruthy();
+      act(() => vi.advanceTimersByTime(800));
+      expect(screen.getByText("Step 1 / 6")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
 });
