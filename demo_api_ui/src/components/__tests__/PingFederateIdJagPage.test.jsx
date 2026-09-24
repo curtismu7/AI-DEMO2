@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import EducationRoutes from "../../routes/EducationRoutes";
-import { DIAGRAMS } from "../PingFederateIdJagPage";
+import { buildEdges, DIAGRAMS } from "../PingFederateIdJagPage";
 
 vi.mock("../../routes/AppShell", () => ({ default: ({ children }) => children }));
 
@@ -62,8 +62,12 @@ describe("PingFederate ID-JAG architecture", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Step 6: User sends an AI request" }));
     expect(panel.textContent).toContain("/api/agent/invoke");
+    expect(panel.textContent).toContain('"prompt": "Show my account balance"');
+    expect(panel.textContent).not.toContain('"message": "Show my account balance"');
     fireEvent.click(screen.getByRole("button", { name: "Step 7: Agent Service proposes a tool call" }));
     expect(panel.textContent).toContain("/api/agent/reason");
+    expect(panel.textContent).toContain('"messages": [');
+    expect(panel.textContent).toContain('"tools": [');
     expect(panel.textContent).toContain("BFF validates and executes the proposed tool");
     fireEvent.click(screen.getByRole("button", { name: "Step 8: BFF authorizes and routes the MCP call" }));
     expect(panel.textContent).toContain("PingOne Authorize");
@@ -71,6 +75,10 @@ describe("PingFederate ID-JAG architecture", () => {
     fireEvent.click(screen.getByRole("button", { name: "Step 9: MCP result returns to the user" }));
     expect(panel.textContent).toContain('"method": "tools/call"');
     expect(panel.textContent).toContain("[MOCK MCP RESULT]");
+    expect(DIAGRAMS.pingfederate.links).toContainEqual(expect.objectContaining({ id: "mcp-result", source: "mcp", target: "gateway" }));
+    expect(DIAGRAMS.pingfederate.links).toContainEqual(expect.objectContaining({ id: "gateway-result", source: "gateway", target: "bff" }));
+    expect(DIAGRAMS.pingfederate.steps[8].links).toContain("session");
+    expect(DIAGRAMS.pingfederate.steps[8].links).toContain("gateway-result");
   });
 
   it("keeps the mid-page controls connected to the same playback state", () => {
@@ -123,6 +131,14 @@ describe("PingFederate ID-JAG architecture", () => {
     fireEvent.click(screen.getByRole("button", { name: "Step 4: Side 2 · submit ID-JAG for validation" }));
     expect(screen.getAllByText(/JWT bearer assertion/).length).toBeGreaterThan(0);
     expect(screen.getByText(/issuer\/signature, audience, expiry/)).toBeTruthy();
+  });
+
+  it("keeps inactive edge labels visible in the ID-JAG view", () => {
+    const jagLabels = buildEdges(DIAGRAMS.jag, 0, false).map(({ label }) => label);
+    const pfLabels = buildEdges(DIAGRAMS.pingfederate, 0, true).map(({ label }) => label);
+    expect(jagLabels).toContain("JWT bearer grant");
+    expect(jagLabels).toContain("policy");
+    expect(pfLabels).not.toContain("tool proposal");
   });
 
   it("shows step-synced mock claims and API exchanges in the ID-JAG view", () => {
