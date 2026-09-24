@@ -921,7 +921,15 @@ function AppWithAuth() {
                   element={<SdkLoginPageRoute user={user} logout={logout} />}
                 />
                 <Route path="/sdk-login/callback" element={<SdkLoginCallbackRoute />} />
-                <Route path="/protect-auth-demo" element={<PingOneProtectBrowserDemo popout />} />
+                <Route
+                  path="/protect-auth-demo"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <PingOneProtectBrowserDemo />
+                    </AppShell>
+                  }
+                />
+                <Route path="/protect-auth-demo/popout" element={<PingOneProtectBrowserDemo popout />} />
                 <Route path="/davinci-login/callback" element={<DavinciLoginCallbackRoute user={user} logout={logout} />} />
                 <Route path="/davinci-login/confirmed" element={<DavinciLoginConfirmedRoute user={user} logout={logout} />} />
                 <Route path="/davinci-orchestration-sdk" element={<DavinciSdkLoginRoute user={user} logout={logout} />} />

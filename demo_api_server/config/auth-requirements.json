@@ -279,6 +279,7 @@
     "/privileges-gateway-preview": "public",
     "/profile": "public",
     "/protect-auth-demo": "public",
+    "/protect-auth-demo/popout": "public",
     "/protocol-playground": "user",
     "/request-access": "public",
     "/reports": "public",

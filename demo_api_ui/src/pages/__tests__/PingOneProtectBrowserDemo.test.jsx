@@ -67,7 +67,7 @@ describe("PingOneProtectBrowserDemo", () => {
     render(<MemoryRouter><PingOneProtectBrowserDemo /></MemoryRouter>);
 
     fireEvent.click(screen.getByRole("button", { name: /open protect demo pop-out/i }));
-    expect(open).toHaveBeenCalledWith("/protect-auth-demo?popout=1", "pingone-protect-auth", expect.stringContaining("popup"));
+    expect(open).toHaveBeenCalledWith("/protect-auth-demo/popout", "pingone-protect-auth", expect.stringContaining("popup"));
     expect(screen.getByRole("button", { name: /switch to (light|dark) theme/i })).toBeInTheDocument();
   });
 });

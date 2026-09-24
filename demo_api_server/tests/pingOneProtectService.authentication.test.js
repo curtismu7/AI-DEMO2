@@ -44,7 +44,7 @@ describe('createBrowserRiskEvaluation', () => {
       {
         event: {
           ip: '203.0.113.9',
-          user: { id: 'alice@example.com', type: 'PING_ONE', name: 'alice@example.com' },
+          user: { id: 'alice@example.com', type: 'EXTERNAL', name: 'alice@example.com', email: 'alice@example.com' },
           browser: { userAgent: 'Demo Browser/1.0' },
           flow: { type: 'AUTHENTICATION' },
           session: { id: 'session-1' },
@@ -55,6 +55,25 @@ describe('createBrowserRiskEvaluation', () => {
       { headers: { Authorization: 'Bearer worker-access-token' }, timeout: 10000 },
     );
     expect(result).toEqual(expectedEvaluation);
+  });
+
+  test('uses an external identity for a username supplied by the standalone demo', async () => {
+    axios.post.mockResolvedValue({ data: { id: 'evaluation-username', result: { level: 'LOW' } } });
+
+    await createBrowserRiskEvaluation({
+      userId: 'demouser',
+      ip: '203.0.113.9',
+      userAgent: 'Demo Browser/1.0',
+      signalsData: '{"device":"signals"}',
+      targetResourceId: 'public-client-1',
+      sessionId: 'session-1',
+    });
+
+    expect(axios.post.mock.calls[0][1].event.user).toEqual({
+      id: 'demouser',
+      type: 'EXTERNAL',
+      name: 'demouser',
+    });
   });
 
   test('does not include signals or Worker credentials in a Protect error', async () => {

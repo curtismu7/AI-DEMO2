@@ -59,7 +59,7 @@ export default function PingOneProtectBrowserDemo({ popout = false }) {
 
   const openPopout = () => {
     const popup = window.open(
-      "/protect-auth-demo?popout=1",
+      "/protect-auth-demo/popout",
       "pingone-protect-auth",
       "popup,width=640,height=820,resizable=yes,scrollbars=yes",
     );
