@@ -15,9 +15,11 @@ function resultText(result) {
 export default function HostileMcpDenialPanel({ tools = [], onRequest, onCall }) {
   const [scenarioId, setScenarioId] = useState(HOSTILE_MCP_SCENARIOS[0].id);
   const [sourcePayload, setSourcePayload] = useState(null);
+  const [sourceExchange, setSourceExchange] = useState(null);
   const [scannerFinding, setScannerFinding] = useState(null);
   const [inducedCall, setInducedCall] = useState(null);
   const [privilegeResult, setPrivilegeResult] = useState(null);
+  const [actionExchange, setActionExchange] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const scenario = HOSTILE_MCP_SCENARIOS.find((entry) => entry.id === scenarioId) || HOSTILE_MCP_SCENARIOS[0];
@@ -26,31 +28,46 @@ export default function HostileMcpDenialPanel({ tools = [], onRequest, onCall })
     setBusy(true);
     setError('');
     setSourcePayload(null);
+    setSourceExchange(null);
     setPrivilegeResult(null);
+    setActionExchange(null);
     setInducedCall(null);
     setScannerFinding(scenario.scanner);
     try {
       let payload = null;
+      let sourceRequest;
+      let sourceResponse;
       if (scenario.source.kind === 'tool') {
         payload = tools.find((tool) => tool.name === scenario.source.label) || null;
+        sourceRequest = { method: 'POST', path: '/api/privilege-mcp/tools/list', body: {} };
+        sourceResponse = payload ? { tool: { name: payload.name, description: payload.description, inputSchema: payload.inputSchema } } : null;
       } else if (onRequest) {
-        const response = await onRequest({ method: scenario.source.method, params: scenario.source.params });
-        payload = response?.result || response;
+        const request = { method: scenario.source.method, params: scenario.source.params };
+        sourceRequest = { method: 'POST', path: '/api/privilege-mcp/request', body: request };
+        sourceResponse = await onRequest(request);
+        payload = sourceResponse?.result || sourceResponse;
       }
+      setSourceExchange({ request: sourceRequest, response: sourceResponse });
       setSourcePayload(payload);
       setInducedCall(scenario.inducedCall);
+      const actionRequest = { method: 'POST', path: '/api/privilege-mcp/tools/call', body: scenario.inducedCall };
       try {
         const response = await onCall(scenario.inducedCall);
         setPrivilegeResult({ ok: true, response });
+        setActionExchange({ request: actionRequest, response });
       } catch (callError) {
-        setPrivilegeResult({
-          ok: false,
+        const response = {
           status: callError.status,
           code: callError.code,
           reason: callError.reason || callError.message,
           provider: callError.provider,
           route: callError.route,
+        };
+        setPrivilegeResult({
+          ok: false,
+          ...response,
         });
+        setActionExchange({ request: actionRequest, response });
       }
     } catch (runError) {
       setError(runError.message || 'Scenario could not run.');
@@ -106,6 +123,29 @@ export default function HostileMcpDenialPanel({ tools = [], onRequest, onCall })
           ) : <p>No gateway decision yet.</p>}
         </article>
       </div>
+      {(sourceExchange || actionExchange) ? (
+        <details className="hmd-panel__details">
+          <summary>Request and response details</summary>
+          {sourceExchange ? (
+            <section>
+              <h3>Hostile content lookup</h3>
+              <h4>Request</h4>
+              <pre>{JSON.stringify(sourceExchange.request, null, 2)}</pre>
+              <h4>Response</h4>
+              <pre>{JSON.stringify(sourceExchange.response, null, 2)}</pre>
+            </section>
+          ) : null}
+          {actionExchange ? (
+            <section>
+              <h3>Induced tool call through Privilege</h3>
+              <h4>Request</h4>
+              <pre>{JSON.stringify(actionExchange.request, null, 2)}</pre>
+              <h4>Response</h4>
+              <pre>{JSON.stringify(actionExchange.response, null, 2)}</pre>
+            </section>
+          ) : null}
+        </details>
+      ) : null}
     </section>
   );
 }

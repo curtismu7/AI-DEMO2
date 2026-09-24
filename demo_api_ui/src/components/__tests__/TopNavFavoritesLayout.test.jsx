@@ -3,6 +3,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import TopNav from "../TopNav";
 
+const mockSessionToken = vi.hoisted(() => ({ hasActiveToken: false }));
+
 vi.mock("react-router-dom", () => ({
   useLocation: () => ({ pathname: "/dashboard" }),
   useNavigate: () => vi.fn(),
@@ -14,7 +16,7 @@ vi.mock("../../context/SessionTokenContext", () => ({
     tokenLoading: false,
     sessionType: null,
     staleSession: false,
-    hasActiveToken: false,
+    hasActiveToken: mockSessionToken.hasActiveToken,
     openTokenModal: null,
   }),
 }));
@@ -54,6 +56,18 @@ vi.mock("../UserMenu", () => ({ default: () => null }));
 vi.mock("../VerticalSwitcher", () => ({ default: () => null }));
 
 describe("TopNav Favorites dropdown", () => {
+  it("renders session controls from the shared active-token flag", () => {
+    mockSessionToken.hasActiveToken = false;
+    const { rerender } = render(<TopNav user={null} onLogout={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Sign In" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign Out" })).not.toBeInTheDocument();
+
+    mockSessionToken.hasActiveToken = true;
+    rerender(<TopNav user={{ role: "customer", username: "demo-user" }} onLogout={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Switch to admin" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign Out" })).toBeInTheDocument();
+  });
+
   it("renders the Ping Identity logo at the far left of the main header", () => {
     render(<TopNav user={null} onLogout={vi.fn()} />);
 

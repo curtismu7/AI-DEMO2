@@ -29,6 +29,8 @@ function schemaEvidence(data, request) {
   const gatewayReason = data?.message || data?.reason || data?.gatewayMessage || null;
   return {
     path: 'MCP client → MCP Gateway → tool input schema',
+    requestPayload: JSON.stringify({ method: 'POST', path: '/api/mcp-gateway/test', body: request }, null, 2),
+    detailLabel: 'Observed response',
     requestSummary: `${request?.tool || 'create_transfer'} arguments: ${JSON.stringify(request?.args || {})}`,
     enforcement: gatewayDecision
       ? { component: 'Privilege MCP Gateway', outcome: String(gatewayDecision).toLowerCase(), reason: gatewayReason }
@@ -38,17 +40,39 @@ function schemaEvidence(data, request) {
     modelReached: false,
     backendReached: gatewayDenied || isLocalSchemaReject ? false : data?.backendReached === true ? true : data?.backendReached === false ? false : null,
     steps: [{ label: 'create_transfer arguments', outcome: gatewayDecision ? `Privilege ${normalizedDecision}` : isLocalSchemaReject ? 'rejected by MCP input schema' : 'response received' }],
-    detail: error || data?.result?.error || data?.message || 'No schema decision was reported.',
+    detail: JSON.stringify(safeAttackResponse(data), null, 2),
   };
 }
 
-function abuseEvidence(data) {
+function safeAttackResponse(data) {
+  const safe = {};
+  for (const key of ['sim', 'useCaseId', 'status', 'errorCode', 'reason', 'error', 'message', 'validator', 'decision', 'privilegeDecision', 'backendReached']) {
+    if (data?.[key] !== undefined) safe[key] = data[key];
+  }
+  if (data?.authorize && typeof data.authorize === 'object') {
+    safe.authorize = Object.fromEntries(['decision', 'outcome', 'engine', 'reason']
+      .filter((key) => data.authorize[key] !== undefined)
+      .map((key) => [key, data.authorize[key]]));
+  }
+  if (Array.isArray(data?.tokenChainEvents)) {
+    safe.tokenChainEvents = data.tokenChainEvents.map((event) => ({
+      id: event.id || null,
+      label: event.label || null,
+      status: event.status || null,
+    }));
+  }
+  return safe;
+}
+
+function abuseEvidence(data, request) {
   const decision = data?.authorize?.decision || data?.authorize?.outcome;
   const explicitlyDenied = Number(data?.status) === 403 || /deny|mismatch/i.test(String(data?.errorCode || ''));
   const dataPlaneDenied = Array.isArray(data?.tokenChainEvents)
     && data.tokenChainEvents.some((event) => event.id === 'sim-cross-owner-denied');
   return {
     path: 'BFF → token exchange → Authorize → MCP balance tool',
+    requestPayload: JSON.stringify(request, null, 2),
+    detailLabel: 'Observed response (sensitive fields omitted)',
     requestSummary: 'get_account_balance for a different owner’s account (account_id redacted)',
     enforcement: decision
       ? { component: data?.authorize?.engine || 'Authorization', outcome: String(decision).toLowerCase(), reason: data?.authorize?.reason || data?.reason || null }
@@ -61,22 +85,26 @@ function abuseEvidence(data) {
       : dataPlaneDenied ? true : data?.backendReached === false ? false : null,
     steps: (Array.isArray(data?.tokenChainEvents) ? data.tokenChainEvents : [])
       .map((event) => ({ label: event.label || event.id || 'Pipeline event', outcome: event.status || 'observed' })),
-    detail: data?.reason || data?.errorCode || `HTTP ${data?.status ?? 'unknown'}; no authorization decision reported.`,
+    detail: JSON.stringify(safeAttackResponse(data), null, 2),
   };
 }
 
-function maliciousContentEvidence(data) {
+function maliciousContentEvidence(data, request) {
   const body = data?.data || data;
   const reply = String(body?.reply || '');
   const code = String(body?.code || '');
   const policyDenied = code === 'llm_policy_denied';
-  const redacted = /\[REDACTED:/i.test(reply);
+  const redactionCount = (reply.match(/\[REDACTED:[^\]]+\]/gi) || []).length;
+  const redacted = redactionCount > 0;
   return {
     path: 'Privilege LLM Gateway → selected provider',
+    requestPayload: request ? JSON.stringify(request, null, 2) : null,
+    detailLabel: 'Gateway response',
+    redactionCount,
     enforcement: policyDenied
       ? { component: 'Privilege LLM Gateway', outcome: 'denied', reason: body?.reason || body?.error || null }
       : redacted
-        ? { component: 'Privilege LLM Gateway', outcome: 'sanitized', reason: 'The returned text contains a Privilege redaction marker.' }
+        ? { component: 'Privilege LLM Gateway', outcome: 'sanitized', reason: `The returned text contains ${redactionCount} Privilege redaction marker${redactionCount === 1 ? '' : 's'}.` }
         : null,
     modelReached: typeof body?.reachedProvider === 'boolean' ? body.reachedProvider : null,
     backendReached: null,
@@ -95,6 +123,21 @@ function EvidencePanel({ evidence }) {
       <h3>Observed result</h3>
       <p><strong>Path:</strong> {evidence.path}</p>
       {evidence.requestSummary ? <p><strong>Request:</strong> {evidence.requestSummary}</p> : null}
+      {evidence.requestPayload ? (
+        <details className="attack-lab__details">
+          <summary>Request and response details</summary>
+          <div>
+            <h4>Request sent</h4>
+            <pre className="attack-lab__detail">{evidence.requestPayload}</pre>
+          </div>
+          {evidence.detail ? (
+            <div>
+              <h4>{evidence.detailLabel || 'Observed response'}</h4>
+              <pre className="attack-lab__detail">{evidence.detail}</pre>
+            </div>
+          ) : null}
+        </details>
+      ) : null}
       <p><strong>Enforcement:</strong> {evidence.enforcement
         ? evidence.enforcement.component === 'MCP input schema' && evidence.enforcement.outcome === 'rejected'
           ? `MCP input schema rejected the arguments${evidence.enforcement.reason ? ` — ${evidence.enforcement.reason}` : ''}`
@@ -102,7 +145,17 @@ function EvidencePanel({ evidence }) {
         : 'No gateway decision reported.'}</p>
       <p><strong>Provider/model reached:</strong> <span data-testid="attack-lab-model-reached">{evidence.modelReached === null ? 'Unknown / not reported' : evidence.modelReached ? 'Yes' : 'No'}</span></p>
       <p><strong>Tool/backend reached:</strong> <span data-testid="attack-lab-backend-reached">{evidence.backendReached === null ? 'Unknown / not reported' : evidence.backendReached ? 'Yes' : 'No'}</span></p>
-      {evidence.detail ? <p className="attack-lab__detail">{evidence.detail}</p> : null}
+      {evidence.detail && !evidence.requestPayload ? evidence.detailLabel ? (
+        <div>
+          <h4>{evidence.detailLabel}</h4>
+          <pre className="attack-lab__detail">{evidence.detail}</pre>
+        </div>
+      ) : <p className="attack-lab__detail">{evidence.detail}</p> : null}
+      {evidence.redactionCount > 0 ? (
+        <p className="attack-lab__attribution">
+          Privilege returned {evidence.redactionCount} [REDACTED:…] marker{evidence.redactionCount === 1 ? '' : 's'}; original matched values are not included in this response.
+        </p>
+      ) : null}
       <ol className="attack-lab__sequence" aria-label="Movie reel sequence">
         {(evidence.steps.length ? evidence.steps : [{ label: 'Enforcement result', outcome: evidence.outcome }]).map((step, index) => (
           <li key={`${step.label}-${index}`}>
@@ -136,8 +189,9 @@ export default function AttackLabTab() {
     setError('');
     try {
       if (selectedId === 'tool_abuse') {
-        const { data } = await apiClient.post('/api/demo/attack-sim/run', { sim: 'cross-owner-account' });
-        setEvidence(normalizeAttackEvidence(selectedId, abuseEvidence(data), 'deterministic'));
+        const request = { method: 'POST', path: '/api/demo/attack-sim/run', body: { sim: 'cross-owner-account' } };
+        const { data } = await apiClient.post(request.path, request.body);
+        setEvidence(normalizeAttackEvidence(selectedId, abuseEvidence(data, request), 'deterministic'));
       } else if (selectedId === 'schema_violation') {
         const attack = TOOL_ATTACKS.find((item) => item.id === selectedId);
         const request = { tool: attack.tool, args: attack.args };
@@ -148,16 +202,20 @@ export default function AttackLabTab() {
           setEvidence(normalizeAttackEvidence(selectedId, schemaEvidence(requestError.response?.data || { error: messageForError(requestError) }, request), 'deterministic'));
         }
       } else if (selectedId === 'malicious_content') {
+        const request = {
+          method: 'POST',
+          path: '/api/privilege-mcp/llm/call',
+          body: { provider: 'anthropic', prompt: MALICIOUS_CONTENT_SAMPLE },
+        };
         try {
-          const { data } = await apiClient.post('/api/privilege-mcp/llm/call', { provider: 'anthropic', prompt: MALICIOUS_CONTENT_SAMPLE });
-          setEvidence(normalizeAttackEvidence(selectedId, maliciousContentEvidence(data), 'live-model'));
+          const { data } = await apiClient.post(request.path, request.body);
+          setEvidence(normalizeAttackEvidence(selectedId, maliciousContentEvidence(data, request), 'live-model'));
         } catch (requestError) {
           const data = requestError.response?.data || { error: messageForError(requestError), reachedProvider: requestError.response?.data?.reachedProvider };
-          const checked = maliciousContentEvidence(data);
+          const checked = maliciousContentEvidence(data, request);
+          setEvidence(normalizeAttackEvidence(selectedId, checked, 'live-model'));
           if (requestError.response?.status === 503 || /not configured/i.test(String(data?.error || ''))) {
             setError(`Unavailable: ${data.error || 'Privilege LLM provider is not configured.'}`);
-          } else {
-            setEvidence(normalizeAttackEvidence(selectedId, checked, 'live-model'));
           }
         }
       }
@@ -210,7 +268,7 @@ export default function AttackLabTab() {
             <div className="attack-lab__live">
               <p>Live content check through Privilege using Anthropic. The sample contains no working link or executable content.</p>
               <pre>{MALICIOUS_CONTENT_SAMPLE}</pre>
-              <p>Fixture only — not sent to Privilege. Select Run to make a live request.</p>
+              <p>{evidence?.requestPayload ? 'This request was sent to Privilege; the request and returned result appear below.' : 'Example prompt only — it is sent to Privilege when you run the check.'}</p>
               <button type="button" onClick={run} disabled={busy}>{busy ? 'Running…' : 'Run live content check'}</button>
             </div>
           ) : null}

@@ -122,6 +122,27 @@
   white-space: pre-wrap;
 }
 
+.attack-lab__details {
+  margin: 0.75rem 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.attack-lab__details summary,
+.hmc-details summary,
+.hmd-panel__details summary,
+.iaa-details summary {
+  color: var(--th-text);
+  cursor: pointer;
+  font-size: var(--font-size-base);
+  font-weight: 600;
+}
+
+.attack-lab__details h4 { margin: 0.75rem 0 0.25rem; color: var(--th-text); }
+
 .attack-lab__evidence {
   margin-top: 1rem;
   padding-top: 1rem;

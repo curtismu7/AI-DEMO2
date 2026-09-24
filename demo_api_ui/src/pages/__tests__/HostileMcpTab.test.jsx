@@ -54,6 +54,12 @@ describe('HostileMcpTab live-run reporting', () => {
     expect(screen.getByText(/Model\/provider reached: Yes — llamacpp/i)).toBeInTheDocument();
     expect(screen.getByText(/Tool-call backend: Yes — at least one call was allowed/i)).toBeInTheDocument();
     expect(screen.queryByText(/privilege denied create_transfer/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/"path": "\/api\/privilege-mcp\/agent\/run"/)).toBeInTheDocument();
+    expect(screen.getByText(/"provider": "llamacpp"/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Transferred \$500 to external-001/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/"verdict": "allowed"/)).toBeInTheDocument();
+    expect(screen.getByText(/"path": "\/api\/privilege-mcp\/tools\/list"/)).toBeInTheDocument();
+    expect(screen.getAllByText(/poisoned metadata/).length).toBeGreaterThan(0);
   });
 
   it('reports provider reachability and no backend call when the model returns without choosing a tool', async () => {

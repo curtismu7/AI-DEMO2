@@ -40,6 +40,10 @@ describe('InterAgentAbuseTester', () => {
     expect(screen.getAllByText(/✅/).length).toBe(3);
     expect(screen.getAllByText(/Specialist execution: not reached — wire gate returned HTTP 401/i)).toHaveLength(2);
     expect(screen.getAllByText(/Model\/provider: not involved/i)).toHaveLength(3);
+    expect(screen.getAllByText(/"path": "\/a2a\/specialists\/sporting-goods"/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/"method": "POST"/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/message\/send/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/PingOne signature verification/).length).toBeGreaterThan(0);
   });
 
   it('marks the unauthorized call ❌ if the wire hop wrongly allows it (200)', async () => {

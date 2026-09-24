@@ -82,3 +82,24 @@
 .iaa-badge--bad { color: var(--th-status-error-text); }
 
 .iaa-msg { max-width: 42ch; text-align: right; }
+
+.iaa-details {
+  width: 100%;
+  margin-top: 0.4rem;
+  color: var(--th-text);
+}
+
+.iaa-details h4 { margin: 0.5rem 0 0.2rem; color: var(--th-text); font-size: var(--font-size-sm); }
+.iaa-details pre {
+  max-height: 12rem;
+  margin: 0.2rem 0;
+  padding: 0.6rem;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+}
