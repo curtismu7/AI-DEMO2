@@ -161,9 +161,9 @@ For full environment variable details, see [ENV_VARS.md](ENV_VARS.md).
 | `zsh: no such file or directory: ./run.sh` | You're not in the repo root | `cd /path/to/AI-Demo` first |
 | `api.ping.demo` doesn't resolve | `/etc/hosts` entry missing | `echo '127.0.0.1 api.ping.demo' \| sudo tee -a /etc/hosts` |
 | Browser shows certificate error | Certs not generated or CA not trusted | Run `mkcert -install` and `mkdir -p certs && cd certs && mkcert api.ping.demo localhost 127.0.0.1` |
-| Services won't start (MODULE_NOT_FOUND) | Node version mismatch or missing build step | Verify `node --version` is v20+; try `./run.sh stop && ./run.sh` |
+| Services won't start (MODULE_NOT_FOUND) | Node version mismatch or missing build step | Verify `node --version` is v22+; try `./run.sh stop && ./run.sh` |
 | `/configure` shows blank fields after import | `.env` encryption key mismatch | Re-run `npm run setup:fresh` with the same archive |
-| `lmdb` binary error | Node version mismatch (binaries built for different Node major) | `nvm use 20 && cd demo_api_server && npm rebuild lmdb` |
+| `lmdb` binary error | Node version mismatch (binaries built for different Node major) | `nvm use 22 && cd demo_api_server && npm rebuild lmdb` |
 
 ## Stopping Services
 
