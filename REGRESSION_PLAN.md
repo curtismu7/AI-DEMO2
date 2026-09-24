@@ -169,6 +169,24 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — Switching trace evidence views left Movie reel embedded
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`REGRESSION_PLAN.md`.
+
+**What was broken:** selecting Simple stepper, Sequence view, Token topology,
+or OAuth visualizer did not clear the default embedded Movie reel. The
+single-embedded-view guard then showed its conflict prompt instead of the
+selected view's controls.
+
+**What was fixed:** switching to any non-Movie-reel view now clears the Movie
+reel's embedded state while preserving a pop-out choice.
+
+**Do not break:** only one trace evidence view may be embedded; selecting a
+different view must keep its own surface controls available.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build`.
+
 ### 2026-09-23 — Quick Config resolves multiple embedded trace views
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`, `REGRESSION_PLAN.md`.

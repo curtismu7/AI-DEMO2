@@ -738,6 +738,10 @@ describe("Header controls after the Actions dropdown removal", () => {
       fireEvent.click(screen.getByRole("button", { name: /^Quick Config$/i }));
     });
 
+    expect(screen.getByRole("group", { name: "Choose one embedded trace view" })).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Keep Movie reel embedded" }));
+    });
     expect(screen.getByRole("group", { name: "Trace evidence views" })).toBeInTheDocument();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /^Movie reel Step-by-step live trace$/ }));
