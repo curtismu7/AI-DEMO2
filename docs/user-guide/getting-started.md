@@ -6,7 +6,7 @@ Get the multi-vertical AI-agent-security demo running locally in 5 minutes. (The
 
 ## Prerequisites
 
-- **Node.js 20 or newer** (20, 22, or 24 LTS all work)
+- **Node.js 22 or newer**
 - **Git** (to clone the repository)
 - **mkcert** (for local HTTPS certificates) — `brew install mkcert` on macOS
 - **sudo access** (to add a line to `/etc/hosts`)
@@ -14,15 +14,15 @@ Get the multi-vertical AI-agent-security demo running locally in 5 minutes. (The
 ### Verify Node.js
 
 ```bash
-node --version    # Should show v20.x, v22.x, or v24.x
+node --version    # Should show v22.x or newer
 npm --version     # Should show 9 or newer
 ```
 
-If you don't have Node 20+ installed, follow the [Node.js setup](#node-version-setup) section below before proceeding.
+If you don't have Node 22+ installed, follow the [Node.js setup](#node-version-setup) section below before proceeding.
 
 ## Node Version Setup
 
-If `node --version` shows older than v20, install Node via nvm:
+If `node --version` shows older than v22, install Node via nvm:
 
 ```bash
 # Install nvm (one-time, if not already installed)
@@ -36,10 +36,10 @@ EOF
 
 # Reload your shell and install Node
 source ~/.zshrc
-nvm install 20 && nvm use 20
+nvm install 22 && nvm use 22
 ```
 
-Then verify: `node --version` should show `v20.x` or newer.
+Then verify: `node --version` should show `v22.x` or newer.
 
 ## One-Time Machine Setup
 
@@ -195,4 +195,3 @@ For detailed setup troubleshooting, see:
 - **[README.md § Troubleshooting](../../README.md#troubleshooting-new-machine-setup)** — Machine setup issues
 - **[docs/SETUP.md](SETUP.md)** — Full PingOne configuration reference
 - **[demo_api_server/.env.example](../../demo_api_server/.env.example)** — Complete environment variable documentation
-

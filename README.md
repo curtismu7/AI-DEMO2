@@ -18,7 +18,7 @@ One command bootstraps everything on a fresh Mac — no tooling required beforeh
 curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash
 ```
 
-It installs **Homebrew, git, Node 20, Python 3.12, Docker (OrbStack), mkcert, llama.cpp**, and any
+It installs **Homebrew, git, Node 22, Python 3.12, Docker (OrbStack), mkcert, llama.cpp**, and any
 mode-specific tools, then clones the repo, generates TLS certs, and provisions PingOne. It first
 asks **how you want to run** the demo:
 
@@ -140,7 +140,7 @@ Four deployment modes are supported. Pick the one that matches your environment.
 
 Runs everything directly as Node/Python processes on your Mac. **No Docker, no Kubernetes, no containers.** This is the lightest-weight option.
 
-**Prerequisites:** Node 20+, Python 3.11+, mkcert
+**Prerequisites:** Node 22+, Python 3.11+, mkcert
 
 ```bash
 # First-time setup
@@ -270,8 +270,12 @@ them separately.
 Install the tools and bootstrap the repository, selecting option **5**, or run:
 
 ```bash
-./install.sh --mode docker-terraform
+./install.sh --mode docker-terraform --deployment-only
 ```
+
+`--deployment-only` skips optional LLM and editor/developer MCP configuration;
+PingOne bootstrap still runs. For noninteractive bootstrap, also set
+`ASSUME_YES=1` and the three `PINGONE_BOOTSTRAP_*` credential variables.
 
 Then create a local, ignored Terraform variables file and deploy:
 
@@ -305,12 +309,13 @@ terraform destroy -var='retain_volumes=false' # also removes persistent data
 
 ##### Ping SE namespace with Terraform
 
-The namespace must already exist and be assigned to the user. Authenticate to
-the SE cluster, build/push images, create namespace-scoped secrets, and run the
-Terraform wrapper:
+The namespace must already exist and be assigned to the user. The guided
+installer needs Node.js 22+, Python 3.10+, Git, Docker, Terraform 1.6+, kubectl,
+`kubelogin`, and `gh`. The deployer needs access to the existing namespace, GHCR
+publish access, and a PingOne Worker app with `Identity Data Admin`.
 
 ```bash
-./install.sh --mode se-terraform
+SE_NAMESPACE=ping-devops-YOURNAME ./install.sh --mode se-terraform --deployment-only
 
 cd ~/AI-demo
 kubectl config use-context us
@@ -318,15 +323,16 @@ gh auth login
 export GITHUB_OWNER=YOUR_GITHUB_OWNER
 ./run-pingaws.sh build
 
-export SE_NAMESPACE=ping-devops-YOURNAME
-K8S_NAMESPACE="$SE_NAMESPACE" ./k8s/create-secrets.sh
-
 cd terraform
 cp terraform.tfvars.example terraform.tfvars
-# Set target = "se", namespace = "ping-devops-YOURNAME",
-# kubernetes_context = "us", and image_repository = "ghcr.io/YOUR_GITHUB_OWNER".
+# For plans/teardown, set target = "se", namespace, kubernetes_context,
+# and image_repository in terraform.tfvars to match this SE deployment.
 ./deploy-se.sh
 ```
+
+`deploy-se.sh` derives the image repository as `ghcr.io/$GITHUB_OWNER` and
+creates namespace secrets from the bootstrap output. Set `IMAGE_REPOSITORY` if
+you push to another registry/repository.
 
 `deploy-se.sh` prompts for the existing namespace when `SE_NAMESPACE` is not
 set, verifies namespace access and required secrets, then runs
@@ -415,7 +421,7 @@ docker compose logs -f --tail=100 demo-api-server    # last 100 lines + follow
 
 Runs all services in a local Kubernetes cluster via OrbStack. Same images as production — useful for testing K8s manifests locally before pushing to AWS.
 
-**Prerequisites:** OrbStack with Kubernetes enabled, `kubectl`, Node 20+, Python 3.11+, mkcert
+**Prerequisites:** OrbStack with Kubernetes enabled, `kubectl`, Node 22+, Python 3.11+, mkcert
 
 ```bash
 # First-time setup

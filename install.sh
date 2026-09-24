@@ -12,7 +12,7 @@
 #        • K8s / EKS       (./run-k8.sh aws-all) — Docker + kubectl + AWS CLI
 #   2. Installs Homebrew if missing (macOS).
 #   3. Installs git via Homebrew if missing.
-#   4. Installs nvm + Node 20 if Node is missing or below v20.
+#   4. Installs nvm + Node 22 if Node is missing or below v22.
 #   5. Installs GitHub CLI (gh) — used for GHCR image pushes on the EKS path.
 #   6. Installs Python 3.12 via Homebrew if Python 3.10+ is not present
 #      (required by the AI agent services on all paths).
@@ -51,6 +51,7 @@
 #   DRY_RUN           Set to 1 to print commands without executing
 #   ASSUME_YES        Set to 1 to skip the confirmation prompt
 #   INSTALL_MODE      Set to local, docker-terraform, orbstack, se, or eks
+#   --deployment-only skips optional LLM and editor/developer MCP setup.
 
 set -euo pipefail
 
@@ -59,8 +60,9 @@ set -euo pipefail
 REPO_URL="${REPO_URL:-https://github.com/cmuir_pingcorp/AI-DEMO2.git}"
 BRANCH="${BANKING_BRANCH:-main}"
 DEFAULT_DIR_NAME="AI-demo"
-NODE_REQUIRED_MAJOR="20"
-NODE_MIN_MAJOR="20"
+NODE_REQUIRED_MAJOR="22"
+NODE_MIN_MAJOR="22"
+DEPLOYMENT_ONLY="${DEPLOYMENT_ONLY:-0}"
 
 # ── Style ─────────────────────────────────────────────────────────────────────
 
@@ -1243,6 +1245,9 @@ main() {
       RUN_MODE="local"
       ;;
   esac
+  if [[ "$DEPLOYMENT_ONLY" == "1" && "$DEPLOY_WITH_TERRAFORM" != "1" ]]; then
+    fatal "--deployment-only is available only with Docker + Terraform or SE + Terraform mode."
+  fi
   export RUN_MODE
 
   case "$RUN_MODE" in
@@ -1257,7 +1262,7 @@ main() {
   # ── Pre-flight — install what this run mode needs ──────────────────────────
   ensure_homebrew    # must be first; all brew installs depend on it
   ensure_git
-  ensure_node        # installs nvm + Node 20 if missing or too old
+  ensure_node        # installs nvm + Node 22 if missing or too old
   install_gh_cli
   ensure_python      # Python 3.10+ for the AI agents (all modes)
   ensure_mkcert      # mkcert binary + root CA trust (all modes need TLS certs)
@@ -1275,11 +1280,13 @@ main() {
       ;;
     docker)
       # Terraform-managed Docker uses the repository's Compose service graph,
-      # so Docker, Terraform, and the host LLM proxy are required.
+      # so Docker and Terraform are required.
       ensure_orbstack
       ensure_terraform
-      ensure_llamacpp
-      ensure_codegraph_llamacpp
+      if [[ "$DEPLOYMENT_ONLY" != "1" ]]; then
+        ensure_llamacpp
+        ensure_codegraph_llamacpp
+      fi
       ;;
     orbstack)
       # K8s on OrbStack: needs Docker + kubectl. llama.cpp runs in-cluster.
@@ -1291,7 +1298,9 @@ main() {
       # No OrbStack K8s needed — the SE cluster is already provisioned.
       ensure_docker_desktop
       ensure_se_k8s_tools
-      ensure_codegraph_llamacpp  # Code Explorer — host llama.cpp, docker compose points at host
+      if [[ "$DEPLOYMENT_ONLY" != "1" ]]; then
+        ensure_codegraph_llamacpp  # Code Explorer — host llama.cpp, docker compose points at host
+      fi
       # Capture the user's Ping email now so run-k8.sh se-deploy can derive
       # the namespace without prompting later.
       if [[ -z "${PING_EMAIL:-}" ]]; then
@@ -1310,11 +1319,11 @@ main() {
         fatal "PING_EMAIL must be a @pingidentity.com address (personal email is not allowed)"
       fi
       if [[ "$DEPLOY_WITH_TERRAFORM" == "1" ]]; then
-        if [[ ! -r /dev/tty ]]; then
-          fatal "SE namespace is required for se-terraform mode. Set SE_NAMESPACE and re-run with an interactive terminal."
-        fi
         local _se_namespace="${SE_NAMESPACE:-}"
         if [[ -z "$_se_namespace" ]]; then
+          if [[ ! -r /dev/tty ]]; then
+            fatal "SE namespace is required for se-terraform mode. Set SE_NAMESPACE for non-interactive setup."
+          fi
           printf "  Existing SE Kubernetes namespace (Terraform will not create it): " >/dev/tty
           read -r _se_namespace </dev/tty || true
         fi
@@ -1476,12 +1485,15 @@ EOF
     run_setup "$target"
   fi
 
-  configure_llm_providers "$target"
-
-  configure_pingone_mcp "$target"
-  build_dev_mcp "$target"
-  set_gateway_scheme "$target"
-  configure_cursor_mcp "$target"
+  if [[ "$DEPLOYMENT_ONLY" != "1" ]]; then
+    configure_llm_providers "$target"
+    configure_pingone_mcp "$target"
+    build_dev_mcp "$target"
+    set_gateway_scheme "$target"
+    configure_cursor_mcp "$target"
+  else
+    info "Deployment-only setup selected; skipped optional LLM and editor/developer MCP configuration."
+  fi
 
   echo ""
   ok "AI Demo installed at: $target"
@@ -1548,6 +1560,7 @@ EXTRA_ARGS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --mode=*) INSTALL_MODE="${1#--mode=}" ;;
+    --deployment-only) DEPLOYMENT_ONLY=1 ;;
     --mode)
       shift
       [[ $# -gt 0 ]] || fatal "--mode requires a value"
