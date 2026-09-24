@@ -170,7 +170,7 @@ afterEach(() => {
 
 describe("Inline agent handles AI Attacks drawer events (no isInline early return)", () => {
   it("banking-agent-prefill with autoSend submits the message through the NL pipeline", async () => {
-    renderInlineAgent();
+    const { container } = renderInlineAgent();
 
     act(() => {
       window.dispatchEvent(
@@ -181,9 +181,11 @@ describe("Inline agent handles AI Attacks drawer events (no isInline early retur
     });
 
     // Handler defers 80ms then sendAsNl adds the user turn to the transcript.
-    expect(
-      await screen.findByText(/Transfer \$1000 to savings/, {}, { timeout: 3000 }),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(container.querySelector('.banking-agent-messages')?.textContent).toMatch(
+        /Transfer \$1000 to savings/,
+      );
+    }, { timeout: 3000 });
   });
 
   it("banking-run-showcase runs the showcase attack in the inline agent", async () => {
@@ -210,7 +212,7 @@ describe("Inline agent handles AI Attacks drawer events (no isInline early retur
       });
     });
 
-    renderInlineAgent();
+    const { container } = renderInlineAgent();
 
     act(() => {
       window.dispatchEvent(
@@ -221,13 +223,17 @@ describe("Inline agent handles AI Attacks drawer events (no isInline early retur
     });
 
     // runDrawerAttackRef echoes the run as a user turn before seeding.
-    expect(
-      await screen.findByText(/Run attack: Prompt Injection/, {}, { timeout: 3000 }),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(container.querySelector('.banking-agent-messages')?.textContent).toMatch(
+        /Run attack: Prompt Injection/,
+      );
+    }, { timeout: 3000 });
     // Assistant outcome must render even with RFC info off (was token-event → silent).
-    expect(
-      await screen.findByText(/Injection planted in your transaction history/, {}, { timeout: 3000 }),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(container.querySelector('.banking-agent-messages')?.textContent).toMatch(
+        /Injection planted in your transaction history/,
+      );
+    }, { timeout: 3000 });
   });
 
   // authz_deny / atk_hitl_replay ported from the old Actions dropdown's
@@ -330,15 +336,17 @@ describe("Agent presence flag + pending-attack replay", () => {
       }),
     );
 
-    renderInlineAgent();
+    const { container } = renderInlineAgent();
 
     await waitFor(() =>
       expect(sessionStorage.getItem("banking-agent-pending-attack")).toBeNull(),
     );
     // Replay defers 300ms then submits through the same NL pipeline.
-    expect(
-      await screen.findByText(/Transfer \$1000 to savings/, {}, { timeout: 3000 }),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(container.querySelector('.banking-agent-messages')?.textContent).toMatch(
+        /Transfer \$1000 to savings/,
+      );
+    }, { timeout: 3000 });
   });
 
   it("replays a pending showcase attack from sessionStorage", async () => {

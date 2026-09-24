@@ -43,7 +43,7 @@
   flex: 0 0 auto;
   padding: 10px 14px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text);
   font-size: var(--font-size-sm);
@@ -53,9 +53,9 @@
 .pfj-provider-badge span {
   width: 9px;
   height: 9px;
-  border-radius: 50%;
+  border-radius: var(--radius-pill);
   background: #087d76;
-  box-shadow: 0 0 0 4px rgba(8, 125, 118, 0.13);
+  box-shadow: var(--shadow-sm);
 }
 
 .pfj-diagram-tabs {
@@ -69,7 +69,7 @@
   padding: 8px 12px;
   border: 1px solid transparent;
   border-bottom: 2px solid transparent;
-  border-radius: 5px 5px 0 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
   background: transparent;
   color: var(--th-text-muted);
   font: inherit;
@@ -100,10 +100,11 @@
   min-height: 370px;
   overflow: hidden;
   border: 1px solid var(--th-border);
-  border-radius: 9px;
+  border-radius: var(--radius-lg);
   background:
     linear-gradient(180deg, transparent 0 57%, color-mix(in srgb, var(--th-bg-inset) 62%, transparent) 57% 100%),
     var(--pfj-canvas);
+  color: var(--th-text);
 }
 
 .pfj-diagram .react-flow {
@@ -140,17 +141,17 @@
   padding: 12px 13px;
   border: 1px solid var(--th-border-strong);
   border-left: 4px solid var(--pfj-accent, #526b7a);
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text);
-  box-shadow: 0 5px 18px rgba(26, 51, 67, 0.09);
+  box-shadow: var(--shadow-md);
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
 .pfj-node.is-active {
   border-color: var(--pfj-accent, #126c83);
   border-left-width: 5px;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pfj-accent, #126c83) 17%, transparent), 0 7px 21px rgba(26, 51, 67, 0.12);
+  box-shadow: var(--shadow-lg);
 }
 
 .pfj-node--request { --pfj-accent: #5c6f8a; }
@@ -183,7 +184,7 @@
   place-items: center;
   width: 34px;
   height: 34px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: color-mix(in srgb, var(--pfj-accent) 14%, var(--th-bg-card));
   color: var(--pfj-accent);
   font-size: var(--font-size-xs);
@@ -217,8 +218,9 @@
 .pfj-chain span {
   padding: 5px 8px;
   border: 1px solid var(--th-border);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: var(--th-bg-card);
+  color: var(--th-text);
 }
 
 .pfj-chain b { color: var(--th-status-info-text); }
@@ -226,7 +228,7 @@
 .pfj-diagram .react-flow__controls {
   overflow: hidden;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   box-shadow: none;
 }
 
@@ -234,6 +236,7 @@
   border-bottom-color: var(--th-border);
   background: var(--th-bg-card);
   fill: var(--th-text);
+  color: var(--th-text);
 }
 
 .pfj-guide {
@@ -243,8 +246,9 @@
   gap: 20px;
   padding: 15px 18px;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
+  color: var(--th-text);
 }
 
 .pfj-guide__copy {
@@ -257,7 +261,7 @@
 .pfj-step-count {
   flex: 0 0 auto;
   padding: 4px 7px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--th-bg-inset);
   color: var(--th-status-info-text);
   font-variant-numeric: tabular-nums;
@@ -292,7 +296,7 @@
   height: 32px;
   padding: 0 7px;
   border: 1px solid var(--th-border);
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   background: var(--th-bg-card);
   color: var(--th-text-body);
   font: inherit;
@@ -300,7 +304,7 @@
   cursor: pointer;
 }
 
-.pfj-step-nav button:hover:not(:disabled) { background: var(--th-bg-hover); }
+.pfj-step-nav button:hover:not(:disabled) { background: var(--th-bg-hover); color: var(--th-text); }
 .pfj-step-nav button.is-current { border-color: #087d76; background: #087d76; color: #fff; }
 .pfj-step-nav button:disabled { opacity: 0.42; cursor: default; }
 .pfj-step-nav button:focus-visible { outline: 3px solid var(--th-status-info); outline-offset: 2px; }
@@ -308,7 +312,7 @@
 .pfj-protocol {
   overflow: hidden;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text);
 }
@@ -346,16 +350,17 @@
   min-width: 0;
   padding: 13px;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--th-bg-inset);
+  color: var(--th-text);
 }
 
 .pfj-protocol__heading { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .pfj-protocol__eyebrow { color: var(--th-status-info-text); font-size: var(--font-size-3xs); font-weight: 800; letter-spacing: 0.08em; }
 .pfj-protocol h3 { margin: 4px 0 10px; color: var(--th-text); font-size: var(--font-size-sm); }
-.pfj-protocol__mock { padding: 4px 7px; border: 1px solid var(--th-status-info); border-radius: 4px; color: var(--th-status-info-text); font-size: var(--font-size-3xs); font-weight: 800; }
+.pfj-protocol__mock { padding: 4px 7px; border: 1px solid var(--th-status-info); border-radius: var(--radius-sm); color: var(--th-status-info-text); font-size: var(--font-size-3xs); font-weight: 800; }
 .pfj-protocol__exchange { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.pfj-protocol pre { max-height: 310px; overflow: auto; margin: 0; padding: 10px; border: 1px solid var(--th-border); border-radius: 5px; background: var(--th-bg-card); color: var(--th-text-body); font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: var(--font-size-xs); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pfj-protocol pre { max-height: 310px; overflow: auto; margin: 0; padding: 10px; border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg-card); color: var(--th-text-body); font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .pfj-protocol__token pre { margin-top: 12px; }
 
 .pfj-footnote {

@@ -169,6 +169,23 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-23 — TopNav referenced an unbound active-token flag
+
+**Files changed:** `demo_api_ui/src/components/TopNav.js`.
+
+**What was broken:** the session-action JSX read `hasActiveToken`, but the
+component did not destructure it from `useSessionToken()`, causing every route
+that rendered `TopNav` to crash with a `ReferenceError`.
+
+**What was fixed:** bind the existing `hasActiveToken` value from the session
+context; token and role-selection behavior are unchanged.
+
+**Do not break:** keep the active-token signal sourced from
+`SessionTokenContext`; preserve the existing sign-in, sign-out, and role-switch
+conditions.
+
+**Verify:** `TopNavFavoritesLayout.test.jsx` and `cd demo_api_ui && npm run build`.
+
 ### 2026-09-23 — Refresh-token marker disappeared when access token expired
 
 **Files changed:** `demo_api_server/routes/oauth.js`,

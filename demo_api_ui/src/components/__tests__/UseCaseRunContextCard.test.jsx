@@ -30,8 +30,8 @@ describe('UseCaseRunContextCard', () => {
   it('labels a dashboard opened without a launcher scenario', () => {
     render(<UseCaseRunContextCard runContext={null} />);
 
-    expect(screen.getByText('Direct dashboard run')).toBeInTheDocument();
-    expect(screen.getByText('No use case selected')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Welcome' })).toBeInTheDocument();
+    expect(screen.getByText(/Ask a banking question or choose a scenario/i)).toBeInTheDocument();
   });
 
   it('shows the selected Demo Track scenario', () => {

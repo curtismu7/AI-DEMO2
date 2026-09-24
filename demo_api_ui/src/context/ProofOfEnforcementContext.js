@@ -154,7 +154,7 @@ export function computeVerdict(trace, catalogEntry) {
     useCaseId === 'ciba-out-of-band-approval' &&
     expected === 'PERMIT' &&
     decision !== 'DENY' &&
-    actualOutcome !== 'DENY' &&
+    actualOutcome === 'STEP_UP' &&
     (trace.tokenEvents || []).some((event) =>
       event?.id === 'ciba-poll' && event.additionalData?.status === 'approved') &&
     !!trace.mcpResult &&

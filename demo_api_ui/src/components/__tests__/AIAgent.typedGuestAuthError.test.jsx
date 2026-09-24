@@ -156,7 +156,7 @@ describe("the queued question", () => {
   it("is persisted verbatim so it survives the sign-in redirect", async () => {
     // Start clean: the run has not failed yet, so the visitor can type.
     mockAgentError = null;
-    const { rerender } = renderAgent(null);
+    const { rerender, container } = renderAgent(null);
 
     const input = await screen.findByPlaceholderText(/Ask about|Message/i);
     fireEvent.change(input, { target: { value: "What is my account balance?" } });
@@ -167,7 +167,9 @@ describe("the queued question", () => {
 
     // The user's turn is on screen — that is what addMessage captured.
     await waitFor(() => {
-      expect(screen.getByText("What is my account balance?")).toBeInTheDocument();
+      expect(container.querySelector('.banking-agent-messages')?.textContent).toContain(
+        "What is my account balance?",
+      );
     });
 
     // Now the run fails for want of a session.
