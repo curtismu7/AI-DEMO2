@@ -50,6 +50,8 @@ describe("PingFederate ID-JAG architecture", () => {
     expect(panel).toBeTruthy();
     fireEvent.click(screen.getByText("Protocol details"));
     expect(screen.getByText(/MOCK DATA — NOT A REAL TOKEN/)).toBeTruthy();
+    expect(panel.textContent).toContain('"useCaseId": "enterprise-managed-mcp-authorization"');
+    expect(panel.textContent).toContain('"threadId": "[MOCK THREAD ID]"');
 
     fireEvent.click(screen.getByRole("button", { name: "Step 2: Side 1 · PingFederate validates the upstream token" }));
     expect(panel.textContent).toContain("requested_token_type");
@@ -63,6 +65,7 @@ describe("PingFederate ID-JAG architecture", () => {
     expect(panel.textContent).toContain("MOCK LOCAL MCP ACCESS TOKEN");
     fireEvent.click(screen.getByRole("button", { name: "Step 6: Call the protected MCP tool" }));
     expect(panel.textContent).toContain('"method": "tools/call"');
+    expect(panel.textContent).toContain("Bearer [MOCK LOCAL MCP ACCESS TOKEN]");
 
     fireEvent.click(screen.getByRole("tab", { name: "PingFederate architecture" }));
     expect(screen.getByText("PingFederate in the system")).toBeTruthy();
