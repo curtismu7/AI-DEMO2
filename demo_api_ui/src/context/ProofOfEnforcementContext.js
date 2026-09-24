@@ -153,6 +153,7 @@ export function computeVerdict(trace, catalogEntry) {
   const cibaApprovedAndDispatched =
     useCaseId === 'ciba-out-of-band-approval' &&
     expected === 'PERMIT' &&
+    actualOutcome === 'STEP_UP' &&
     decision !== 'DENY' &&
     actualOutcome !== 'DENY' &&
     (trace.tokenEvents || []).some((event) =>

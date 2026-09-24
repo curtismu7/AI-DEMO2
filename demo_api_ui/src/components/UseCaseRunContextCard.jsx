@@ -45,7 +45,7 @@ export default function UseCaseRunContextCard({ runContext }) {
           <h2 className="ba-run-context-card__title">
             {runContext?.useCaseLabel
               || humanizeUseCaseId(runContext?.useCaseId)
-              || 'Welcome'}
+              || 'No use case selected'}
           </h2>
         </div>
         {runContext?.expectedOutcome && (
