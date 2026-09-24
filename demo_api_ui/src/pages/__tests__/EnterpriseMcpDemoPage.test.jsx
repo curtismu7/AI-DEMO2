@@ -1,5 +1,8 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 vi.mock("../../components/TokenChainFilmstrip", () => ({ default: () => <div data-testid="filmstrip" /> }));
 
@@ -26,5 +29,14 @@ describe("EnterpriseMcpDemoPage", () => {
       useCaseId: "enterprise-managed-mcp-authorization",
     });
     window.removeEventListener("banking-agent-prefill", heard);
+  });
+
+  it("keeps the primary run button high contrast in both themes", () => {
+    const cssPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../EnterpriseMcpDemoPage.css");
+    const css = fs.readFileSync(cssPath, "utf8");
+    const primaryRule = css.match(/\.emd-btn--primary\s*\{([^}]*)\}/)?.[1] ?? "";
+
+    expect(primaryRule).toContain("color: #fff");
+    expect(primaryRule).toContain("var(--signin-accent");
   });
 });
