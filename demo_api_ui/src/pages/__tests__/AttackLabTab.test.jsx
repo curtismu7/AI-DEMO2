@@ -10,6 +10,19 @@ vi.mock('../../components/InterAgentAbuseTester', () => ({ default: () => <h3>In
 describe('AttackLabTab', () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it('orients presenters to the deck and the observed enforcement point for each scenario', () => {
+    render(<AttackLabTab />);
+
+    fireEvent.click(screen.getByText('How to present this lab'));
+
+    expect(screen.getByText(/Slides 1, 5, 6, and 7/i)).toBeInTheDocument();
+    expect(screen.getByText(/Tool Abuse: authorization and resource-owner check/i)).toBeInTheDocument();
+    expect(screen.getByText(/Tool Poisoning: poisoned metadata leads to a downstream tool-call decision/i)).toBeInTheDocument();
+    expect(screen.getByText(/Schema Violation: MCP input schema unless Privilege reports its own decision/i)).toBeInTheDocument();
+    expect(screen.getByText(/Inter-Agent Abuse: A2A wire gate/i)).toBeInTheDocument();
+    expect(screen.getByText(/Malicious Content: live Privilege LLM Gateway response/i)).toBeInTheDocument();
+  });
+
   it('offers the five requested scenarios without running them on selection', () => {
     render(<AttackLabTab />);
 

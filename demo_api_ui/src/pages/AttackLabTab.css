@@ -26,6 +26,40 @@
   line-height: 1.5;
 }
 
+.attack-lab__presenter-guide {
+  max-width: 68rem;
+  margin: 0 auto 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+}
+
+.attack-lab__presenter-guide summary {
+  color: var(--th-text);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.attack-lab__presenter-guide summary:focus-visible {
+  outline: 2px solid var(--th-border-strong);
+  outline-offset: 3px;
+}
+
+.attack-lab__presenter-guide div {
+  color: var(--th-text);
+}
+
+.attack-lab__presenter-guide ul {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.5rem 0;
+  padding-inline-start: 1.25rem;
+}
+
 .attack-lab__choices {
   display: flex;
   flex-wrap: wrap;

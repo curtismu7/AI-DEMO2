@@ -175,6 +175,20 @@ export default function AttackLabTab() {
         <h1>Attack Lab</h1>
         <p>Run each attack on the boundary that can actually evaluate it. Results show observed enforcement, not the model's opinion.</p>
       </header>
+      <details className="attack-lab__presenter-guide">
+        <summary>How to present this lab</summary>
+        <div>
+          <p>Use slides 1, 5, 6, and 7 to frame the gateway, its actions, the model and MCP paths, and audit evidence. Then describe only what this run reports.</p>
+          <ul>
+            <li>Tool Abuse: authorization and resource-owner check.</li>
+            <li>Tool Poisoning: poisoned metadata leads to a downstream tool-call decision.</li>
+            <li>Schema Violation: MCP input schema unless Privilege reports its own decision.</li>
+            <li>Inter-Agent Abuse: A2A wire gate.</li>
+            <li>Malicious Content: live Privilege LLM Gateway response.</li>
+          </ul>
+          <p>A model refusal, local validation error, or missing gateway verdict is not an AIGuard block.</p>
+        </div>
+      </details>
       <nav className="attack-lab__choices" aria-label="Attack scenarios">
         {ATTACKS.map((attack) => (
           <button key={attack.id} type="button" aria-pressed={selectedId === attack.id}
