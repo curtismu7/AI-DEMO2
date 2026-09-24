@@ -17,6 +17,7 @@ const JOURNEY_SEQUENCE = Object.freeze([
   ["agent-landscape", "Discover agents"],
   ["login", "PingOne login"],
   ["delegation", "Delegation"],
+  ["multi-party-delegation", "Multi-party delegation"],
   ["consumer-agent", "Personal Agent"],
   ["customer-service-agent", "Digital Assistant"],
   ["mcp", "MCP"],
