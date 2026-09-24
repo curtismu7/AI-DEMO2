@@ -4,7 +4,6 @@ import {
   BackgroundVariant,
   Controls,
   Handle,
-  MarkerType,
   Position,
   ReactFlow,
 } from "@xyflow/react";
@@ -13,63 +12,64 @@ import { DEFAULT_STEP_MS, DiagramControls, STEP_TIME_OPTIONS } from "./diagram";
 import "./PingFederateIdJagPage.css";
 
 const MOCK = "MOCK DATA — NOT A REAL TOKEN";
-// Exchange samples follow the UC2 A2A delegation path in a2aDelegationService:
-// PF mode requests an ID-JAG while preserving the generalist actor token.
+// These samples follow the PF ID-JAG lane in agentMcpTokenService: the BFF
+// exchanges its server-held refresh token at PF, then redeems the ID-JAG at the
+// separately configured downstream MCP authorization server with JWT bearer.
 const PROTOCOL_DETAILS = [
   {
     token: "No delegated token yet",
-    claims: { note: "The browser holds a session cookie; OAuth tokens stay in the BFF." },
-    requestTitle: "Portfolio request",
-    request: { method: "POST /api/rpc", headers: { "Content-Type": "application/json", Cookie: "[MOCK SESSION COOKIE]" }, body: { jsonrpc: "2.0", id: "demo-1", method: "tools/call", params: { name: "get_portfolio_summary", vertical: "banking" } } },
+    claims: { note: "The browser holds a session cookie. The BFF keeps the refresh token and all exchanged tokens server-side." },
+    requestTitle: "Enterprise-managed MCP request",
+    request: { method: "POST /api/agent/run", headers: { "Content-Type": "application/json", Cookie: "[MOCK SESSION COOKIE]" }, body: { message: "Show my account balance", useCase: "UC40 · enterprise-managed MCP authorization" } },
     responseTitle: "BFF response",
-    response: { jsonrpc: "2.0", id: "demo-1", result: { content: [{ type: "text", text: "[MOCK portfolio result after the delegated call completes]" }] } },
+    response: { status: "processing", browser_tokens: "none", next: "BFF obtains a downstream MCP access token" },
+  },
+  {
+    token: "Upstream refresh token · BFF-held",
+    claims: { source: "PingFederate user session", token_type: "urn:ietf:params:oauth:token-type:refresh_token", custody: "BFF only · never sent to the browser" },
+    requestTitle: "Side 1 · exchange upstream token",
+    request: { method: "POST /as/token.oauth2 · application/x-www-form-urlencoded", body: { grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", requested_token_type: "urn:ietf:params:oauth:token-type:id-jag", subject_token: "[MOCK PF REFRESH TOKEN]", subject_token_type: "urn:ietf:params:oauth:token-type:refresh_token", audience: "[DOWNSTREAM MCP AS]", resource: "[MCP RESOURCE URI]", scope: "accounts:read" } },
+    responseTitle: "PingFederate validates subject token",
+    response: { result: "refresh token accepted by PF token-exchange policy", next: "PF maps user attributes and creates an audience-bound ID-JAG" },
   },
   {
     token: "ID-JAG · decoded claim preview",
-    claims: { typ: "oauth-id-jag+jwt", iss: "https://pingfederate.example.invalid", sub: "user-123", act: { sub: "generalist-agent" }, aud: "investment-intermediate", resource: "https://investment-mcp.example.invalid", scope: "agent:invoke:investment", exp: "[mock expiry]" },
-    requestTitle: "Exchange 1 · issue ID-JAG",
-    request: { method: "POST /as/token.oauth2 · application/x-www-form-urlencoded", body: { grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", requested_token_type: "urn:ietf:params:oauth:token-type:id-jag", subject_token: "[MOCK USER ACCESS TOKEN]", subject_token_type: "urn:ietf:params:oauth:token-type:access_token", actor_token: "[MOCK GENERALIST ACTOR TOKEN]", actor_token_type: "urn:ietf:params:oauth:token-type:access_token", audience: "investment-intermediate", scope: "agent:invoke:investment" } },
-    responseTitle: "PingFederate response",
-    response: { issued_token_type: "urn:ietf:params:oauth:token-type:id-jag", token_type: "N_A", access_token: "[MOCK ID-JAG — see decoded claims]", expires_in: 300 },
+    claims: { typ: "oauth-id-jag+jwt", iss: "https://pingfederate.example.invalid", sub: "user-123", aud: "https://mcp-as.example.invalid", resource: "https://mcp.example.invalid", scope: "accounts:read", exp: "[mock expiry]" },
+    requestTitle: "Side 1 · PingFederate issues ID-JAG",
+    request: { event: "successful response to the upstream exchange", note: "ID-JAG is returned in access_token; issued_token_type identifies it as an ID-JAG" },
+    responseTitle: "PingFederate token response",
+    response: { access_token: "[MOCK ID-JAG — see decoded claims]", issued_token_type: "urn:ietf:params:oauth:token-type:id-jag", token_type: "N_A", expires_in: 300 },
   },
   {
-    token: "ID-JAG · A2A bearer preview",
-    claims: { sub: "user-123", act: { sub: "generalist-agent" }, aud: "investment-intermediate", scope: "agent:invoke:investment", exp: "[mock expiry]" },
-    requestTitle: "A2A handoff to specialist",
-    request: { method: "POST /a2a/specialists/banking · JSON-RPC", headers: { Authorization: "Bearer [MOCK ID-JAG]", "A2A-Version": "1.0" }, body: { jsonrpc: "2.0", id: "handoff-1", method: "message/send", params: { message: { role: "user", parts: [{ text: "Retrieve the portfolio summary" }], metadata: { vertical: "banking", demoLayer: "a2a-protocol-wire", tool: "get_portfolio_summary", args: { account_id: "acct-demo-01" } } } } } },
-    responseTitle: "Gateway validation",
-    response: { status: "accepted", checks: ["issuer and signature", "audience", "expiry", "delegated actor"] },
+    token: "ID-JAG · presented as assertion",
+    claims: { assertion_type: "ID-JAG", presented_as: "JWT bearer assertion", audience: "https://mcp-as.example.invalid", resource: "https://mcp.example.invalid" },
+    requestTitle: "Side 2 · redeem ID-JAG at resource AS",
+    request: { method: "POST [CONFIGURED MCP AS TOKEN ENDPOINT] · application/x-www-form-urlencoded", body: { grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: "[MOCK ID-JAG]", client_id: "[MOCK REDEMPTION CLIENT]", resource: "https://mcp.example.invalid", scope: "accounts:read" } },
+    responseTitle: "MCP authorization server validates the ID-JAG",
+    response: { checks: ["trusted issuer / signature", "audience for this AS", "expiry and required claims"], result: "accepted · issue a local MCP access token" },
   },
   {
-    token: "Investment access token · nested actor preview",
-    claims: { sub: "user-123", act: { sub: "investment-advisor", act: { sub: "generalist-agent" } }, aud: "investment-mcp", scope: "portfolio:read", exp: "[mock expiry]" },
-    requestTitle: "Exchange 2 · build act chain",
-    request: { method: "POST /as/token.oauth2 · application/x-www-form-urlencoded", body: { grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", requested_token_type: "urn:ietf:params:oauth:token-type:access_token", subject_token: "[MOCK ID-JAG]", subject_token_type: "urn:ietf:params:oauth:token-type:id-jag", actor_token: "[MOCK INVESTMENT ADVISOR TOKEN]", actor_token_type: "urn:ietf:params:oauth:token-type:access_token", audience: "investment-mcp", scope: "portfolio:read" } },
-    responseTitle: "PingFederate response",
-    response: { issued_token_type: "urn:ietf:params:oauth:token-type:access_token", token_type: "Bearer", access_token: "[MOCK NESTED-ACTOR ACCESS TOKEN]", expires_in: 300 },
+    token: "MCP access token · issued by resource AS",
+    claims: { token_type: "Bearer", sub: "user-123", aud: "https://mcp.example.invalid", scope: "accounts:read", exp: "[mock expiry]" },
+    requestTitle: "Side 2 · access token response",
+    request: { event: "successful JWT bearer grant response", note: "The ID-JAG is an assertion, not the bearer token used on MCP calls." },
+    responseTitle: "MCP authorization server response",
+    response: { token_type: "Bearer", access_token: "[MOCK LOCAL MCP ACCESS TOKEN]", scope: "accounts:read", expires_in: 300 },
   },
   {
-    token: "Delegated identity · policy input",
-    claims: { sub: "user-123", act: { sub: "investment-advisor", act: { sub: "generalist-agent" } }, action: "get_portfolio_summary", resource: "investment-mcp" },
-    requestTitle: "Authorize the requested action",
-    request: { method: "POST PingOne Authorize /decision", body: { subject: "user-123", actor_chain: ["generalist-agent", "investment-advisor"], action: "get_portfolio_summary", resource: "investment-mcp" } },
-    responseTitle: "Policy decision",
-    response: { decision: "PERMIT", reason: "policy matched" },
-  },
-  {
-    token: "Resource access token · mock claims",
-    claims: { sub: "user-123", act: { sub: "investment-advisor", act: { sub: "generalist-agent" } }, aud: "investment-mcp", scope: "portfolio:read", exp: "[mock expiry]" },
-    requestTitle: "Exchange 3 + investment MCP call",
-    request: { exchange_3: { method: "POST /as/token.oauth2", body: { grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", subject_token: "[MOCK NESTED-ACTOR TOKEN]", subject_token_type: "urn:ietf:params:oauth:token-type:access_token", requested_token_type: "urn:ietf:params:oauth:token-type:access_token", resource: "https://investment-mcp.example.invalid", scope: "portfolio:read" } }, resource_call: { method: "POST /mcp · JSON-RPC", headers: { Authorization: "Bearer [MOCK RESOURCE ACCESS TOKEN]" }, body: { jsonrpc: "2.0", id: "tool-1", method: "tools/call", params: { name: "get_portfolio_summary", arguments: { account_id: "acct-demo-01" } } } } },
-    responseTitle: "Token + tool responses",
-    response: { exchange_3: { token_type: "Bearer", access_token: "[MOCK RESOURCE ACCESS TOKEN]", expires_in: 300 }, resource_call: { jsonrpc: "2.0", id: "tool-1", result: { content: [{ type: "text", text: "[MOCK portfolio summary]" }] } } },
+    token: "Local MCP access token · BFF-held",
+    claims: { sub: "user-123", aud: "https://mcp.example.invalid", scope: "accounts:read", custody: "BFF only" },
+    requestTitle: "Authorized MCP tool call",
+    request: { method: "POST /mcp · JSON-RPC", headers: { Authorization: "Bearer [MOCK LOCAL MCP ACCESS TOKEN]" }, body: { jsonrpc: "2.0", id: "tool-1", method: "tools/call", params: { name: "get_account_balance", arguments: { account_id: "acct-demo-01" } } } },
+    responseTitle: "MCP resource response",
+    response: { jsonrpc: "2.0", id: "tool-1", result: { content: [{ type: "text", text: "[MOCK account balance]" }] }, browser_tokens: "none · BFF returns the result" },
   },
 ];
 
 const PF_LOGIN_PROTOCOL = {
-  token: "No delegated token yet",
-  claims: { note: "OAuth tokens stay in the BFF; the browser receives a session cookie." },
-  requestTitle: "Browser sign-in redirect",
+  token: "No OAuth token in browser",
+  claims: { note: "The browser holds a session cookie; the BFF stores the PingFederate refresh token." },
+  requestTitle: "PingFederate user sign-in",
   request: { method: "GET PingFederate /as/authorization.oauth2", query: { response_type: "code", client_id: "[MOCK CLIENT ID]", redirect_uri: "[BFF CALLBACK URI]", scope: "openid profile", code_challenge: "[MOCK PKCE CHALLENGE]", state: "[MOCK STATE]" } },
   responseTitle: "Authorization + BFF callback",
   response: { pingFederate: { status: "302 Found", location: "[BFF callback]?code=[MOCK AUTHORIZATION CODE]&state=[MOCK STATE]" }, bff: { status: "302 Found", set_cookie: "[HTTP-only session cookie]", browser_tokens: "none" } },
@@ -98,74 +98,75 @@ const DIAGRAMS = {
   jag: {
     label: "ID-JAG flow",
     title: "ID-JAG token journey",
-    intro: "Follow the signed delegation token from issuance to the protected investment call.",
+    intro: "Two sides: PingFederate issues the ID-JAG; the downstream MCP authorization server validates and redeems it.",
     badge: "ID-JAG · urn:ietf:params:oauth:token-type:id-jag",
-    chain: ["user", "generalist", "Investment Advisor"],
+    chain: ["upstream refresh token", "PingFederate ID-JAG", "MCP access token"],
     steps: [
-      { title: "Start the delegated request", detail: "The user asks the AI agent to retrieve a sensitive investment portfolio.", active: ["user", "bff"], links: ["request"] },
-      { title: "Exchange 1 issues an ID-JAG", detail: "The BFF asks PingFederate for an ID-JAG. The user remains sub, the generalist agent is in act, and the audience is the investment intermediate.", active: ["bff", "pingfed"], links: ["issue"] },
-      { title: "Carry the ID-JAG to PingGateway", detail: "PingFederate signs the ID-JAG; the agent presents it as the bearer token on the A2A request. PingGateway validates its issuer and signature.", active: ["pingfed", "jag", "gateway"], links: ["mint", "bearer"] },
-      { title: "Exchange 2 builds the act chain", detail: "PingGateway presents the ID-JAG as subject_token and requests an access_token from PingFederate. The returned token nests the Investment Advisor and generalist actors over the user.", active: ["gateway", "pingfed"], links: ["ex2"] },
-      { title: "PingOne Authorize permits the action", detail: "PingGateway sends the delegated identity and MCP action to PingOne Authorize (P1AZ). A PERMIT decision allows the request to continue.", active: ["gateway", "authorize"], links: ["policy"] },
-      { title: "Exchange 3 reaches the investment resource", detail: "PingGateway obtains a resource access token from PingFederate, calls Investment MCP, and returns the real portfolio result.", active: ["gateway", "pingfed", "invest"], links: ["ex3", "tool"] },
+      { title: "Start the UC40 MCP request", detail: "The BFF receives the user's request and keeps OAuth tokens out of the browser. The UC40 PingFederate lane uses its server-held refresh token as the upstream subject.", active: ["user", "bff"], links: ["request"] },
+      { title: "Side 1 · PingFederate validates the upstream token", detail: "The BFF sends a token-exchange request with the refresh token, its token type, the downstream audience/resource, and requested scopes. PingFederate's token-exchange policy validates the refresh token.", active: ["bff", "pingfed"], links: ["issue"] },
+      { title: "PingFederate issues the ID-JAG", detail: "After validation and attribute mapping, PingFederate returns a signed ID-JAG to the BFF. Its audience identifies the downstream authorization server; its resource and scope constrain the MCP access being requested.", active: ["pingfed", "jag", "bff"], links: ["mint", "return"] },
+      { title: "Side 2 · submit ID-JAG for validation", detail: "The BFF sends the ID-JAG to the configured downstream MCP authorization server as the JWT bearer assertion. That server validates the assertion against its trust configuration, including issuer/signature, audience, expiry, and required claims.", active: ["bff", "jag", "mcpas"], links: ["return", "redeem"] },
+      { title: "Downstream AS issues its local access token", detail: "A successful JWT bearer grant returns a resource-specific MCP access token. The ID-JAG was the grant assertion; the newly issued access token is what authorizes the protected call.", active: ["mcpas", "bff", "gateway"], links: ["local-token"] },
+      { title: "Call the protected MCP tool", detail: "The BFF uses the downstream access token for the MCP request. PingGateway and PingOne Authorize apply the configured access-token and action policy checks before the MCP resource returns data.", active: ["bff", "gateway", "authorize", "invest"], links: ["policy", "tool"] },
     ],
     participants: [
-      { id: "user", title: "User + agent", subtitle: "UC2 · portfolio request", role: "request" },
-      { id: "bff", title: "Demo BFF", subtitle: "trusted exchange client", role: "runtime" },
-      { id: "pingfed", title: "PingFederate", subtitle: "issuer + token exchange", role: "identity" },
-      { id: "jag", title: "ID-JAG", subtitle: "sub=demoUser · act=generalist", role: "token" },
-      { id: "gateway", title: "PingGateway", subtitle: "A2A · delegated MCP", role: "gateway" },
-      { id: "authorize", title: "PingOne Authorize", subtitle: "P1AZ · PERMIT", role: "policy" },
-      { id: "invest", title: "Investment MCP", subtitle: "get portfolio summary", role: "resource" },
+      { id: "user", title: "User + agent", subtitle: "UC40 · MCP request", role: "request" },
+      { id: "bff", title: "Demo BFF", subtitle: "token custodian · OAuth client", role: "runtime" },
+      { id: "pingfed", title: "PingFederate", subtitle: "Side 1 · validates + issues", role: "identity" },
+      { id: "jag", title: "ID-JAG", subtitle: "signed JWT assertion", role: "token" },
+      { id: "mcpas", title: "MCP Authorization Server", subtitle: "Side 2 · validates + redeems", role: "mcpas" },
+      { id: "gateway", title: "PingGateway", subtitle: "access-token enforcement", role: "gateway" },
+      { id: "authorize", title: "PingOne Authorize", subtitle: "action policy · PERMIT", role: "policy" },
+      { id: "invest", title: "MCP resource", subtitle: "protected tools", role: "resource" },
     ],
     links: [
-      { id: "request", source: "user", target: "bff", label: "UC2 request" },
-      { id: "issue", source: "bff", target: "pingfed", label: "Ex1 · request ID-JAG" },
+      { id: "request", source: "user", target: "bff", label: "UC40 request" },
+      { id: "issue", source: "bff", target: "pingfed", label: "Side 1 · refresh_token exchange" },
       { id: "mint", source: "pingfed", target: "jag", label: "signed ID-JAG" },
-      { id: "bearer", source: "jag", target: "gateway", label: "A2A bearer" },
-      { id: "ex2", source: "gateway", target: "pingfed", label: "Ex2 · ID-JAG → access_token", sourceHandle: "top", targetHandle: "top" },
-      { id: "policy", source: "gateway", target: "authorize", label: "policy check" },
-      { id: "ex3", source: "gateway", target: "pingfed", label: "Ex3 · resource token", sourceHandle: "bottom", targetHandle: "bottom" },
-      { id: "tool", source: "gateway", target: "invest", label: "MCP tool call" },
+      { id: "return", source: "jag", target: "bff", label: "ID-JAG to BFF", sourceHandle: "top", targetHandle: "top" },
+      { id: "redeem", source: "bff", target: "mcpas", label: "Side 2 · JWT bearer assertion" },
+      { id: "local-token", source: "mcpas", target: "bff", label: "local MCP access token", sourceHandle: "bottom", targetHandle: "bottom" },
+      { id: "policy", source: "gateway", target: "authorize", label: "authorize tool action" },
+      { id: "tool", source: "gateway", target: "invest", label: "MCP call · access token" },
     ],
   },
   pingfederate: {
     label: "PingFederate architecture",
     title: "PingFederate in the system",
-    intro: "See where the PingFederate agent, gateway, policy service, and investment API connect.",
+    intro: "See both ID-JAG sides: PingFederate issues the assertion, then the MCP authorization server validates it and issues its own token.",
     badge: "PingFederate · identity and token services",
-    chain: ["user", "generalist", "Investment Advisor"],
+    chain: ["refresh token", "ID-JAG assertion", "MCP access token"],
     steps: [
-      { title: "The user signs in", detail: "The browser session is established through the BFF. OAuth tokens remain server-side; the browser uses its session cookie.", active: ["user", "bff"], links: ["login"] },
-      { title: "PingFederate issues delegated identity", detail: "The BFF uses its trusted token-exchange connection to obtain the user-bound ID-JAG from PingFederate.", active: ["bff", "pingfed"], links: ["mint"] },
-      { title: "The generalist agent delegates", detail: "The generalist agent calls PingGateway with the ID-JAG. PingGateway is the MCP enforcement point for the A2A request.", active: ["pingfed", "generalist", "gateway"], links: ["agent-jag", "a2a"] },
-      { title: "PingFederate expands delegation", detail: "PingGateway returns to PingFederate for Exchange 2. The access token carries the nested user → generalist → Investment Advisor act chain.", active: ["gateway", "pingfed"], links: ["ex2"] },
-      { title: "PingOne Authorize makes the decision", detail: "PingGateway asks P1AZ to evaluate the user, actor chain, and requested MCP action. In this successful path, P1AZ returns PERMIT.", active: ["gateway", "authorize"], links: ["policy"] },
-      { title: "Investment MCP returns the result", detail: "After Exchange 3 obtains the resource token from PingFederate, PingGateway forwards the permitted call to Investment MCP.", active: ["gateway", "pingfed", "invest"], links: ["ex3", "tool"] },
+      { title: "User signs in with PingFederate", detail: "The browser receives a BFF session cookie. The refresh token remains in the BFF session and never enters the browser.", active: ["user", "bff", "pingfed"], links: ["login"] },
+      { title: "Side 1 · PingFederate validates the refresh token", detail: "For UC40, the BFF calls PingFederate's token endpoint using token exchange and requests an ID-JAG for the configured MCP authorization server and resource.", active: ["bff", "pingfed"], links: ["issue"] },
+      { title: "PingFederate returns the ID-JAG", detail: "PingFederate validates the upstream refresh token, applies its processor policy, then signs and returns an audience-bound ID-JAG to the BFF.", active: ["pingfed", "jag", "bff"], links: ["mint", "return"] },
+      { title: "Side 2 · MCP AS validates the ID-JAG", detail: "The BFF submits the ID-JAG in a JWT bearer grant to the configured downstream MCP authorization server. The MCP AS validates the assertion before accepting the grant.", active: ["bff", "jag", "mcpas"], links: ["redeem"] },
+      { title: "MCP AS issues its own access token", detail: "The downstream authorization server returns a scoped MCP access token. That local token, not the ID-JAG, is used for the protected MCP call.", active: ["mcpas", "bff", "gateway"], links: ["local-token"] },
+      { title: "Gateway authorizes and forwards the call", detail: "PingGateway and PingOne Authorize evaluate the downstream access token and requested action, then the MCP resource returns the tool result.", active: ["gateway", "authorize", "invest"], links: ["policy", "tool"] },
     ],
     participants: [
-      { id: "user", title: "User", subtitle: "portfolio request", role: "request" },
-      { id: "bff", title: "Demo BFF", subtitle: "OAuth client · session custodian", role: "runtime" },
-      { id: "pingfed", title: "PingFederate", subtitle: "ID-JAG issuer · token endpoint", role: "identity" },
-      { id: "generalist", title: "Generalist agent", subtitle: "A2A delegation source", role: "agent" },
-      { id: "gateway", title: "PingGateway", subtitle: "Agent Gateway · MCP enforcement", role: "gateway" },
-      { id: "authorize", title: "PingOne Authorize", subtitle: "policy decision · PERMIT", role: "policy" },
-      { id: "invest", title: "Investment MCP", subtitle: "protected portfolio tools", role: "resource" },
+      { id: "user", title: "User + agent", subtitle: "UC40 request", role: "request" },
+      { id: "bff", title: "Demo BFF", subtitle: "session + token custodian", role: "runtime" },
+      { id: "pingfed", title: "PingFederate", subtitle: "IdP AS · Side 1", role: "identity" },
+      { id: "jag", title: "ID-JAG", subtitle: "signed authorization assertion", role: "token" },
+      { id: "mcpas", title: "MCP Authorization Server", subtitle: "resource AS · Side 2", role: "mcpas" },
+      { id: "gateway", title: "PingGateway", subtitle: "MCP access-token enforcement", role: "gateway" },
+      { id: "authorize", title: "PingOne Authorize", subtitle: "tool action policy", role: "policy" },
+      { id: "invest", title: "MCP resource", subtitle: "protected tools", role: "resource" },
     ],
     links: [
       { id: "login", source: "user", target: "bff", label: "sign-in · session" },
-      { id: "mint", source: "bff", target: "pingfed", label: "Ex1 · ID-JAG" },
-      { id: "agent-jag", source: "pingfed", target: "generalist", label: "delegated identity" },
-      { id: "a2a", source: "generalist", target: "gateway", label: "A2A · ID-JAG bearer" },
-      { id: "ex2", source: "gateway", target: "pingfed", label: "Ex2 · nested-act token", sourceHandle: "top", targetHandle: "top" },
-      { id: "policy", source: "gateway", target: "authorize", label: "authorize action" },
-      { id: "ex3", source: "gateway", target: "pingfed", label: "Ex3 · resource token", sourceHandle: "bottom", targetHandle: "bottom" },
-      { id: "tool", source: "gateway", target: "invest", label: "permitted MCP call" },
+      { id: "issue", source: "bff", target: "pingfed", label: "Side 1 · refresh_token exchange" },
+      { id: "mint", source: "pingfed", target: "jag", label: "signed ID-JAG" },
+      { id: "return", source: "jag", target: "bff", label: "ID-JAG to BFF", sourceHandle: "top", targetHandle: "top" },
+      { id: "redeem", source: "bff", target: "mcpas", label: "Side 2 · JWT bearer grant" },
+      { id: "local-token", source: "mcpas", target: "bff", label: "local MCP access token", sourceHandle: "bottom", targetHandle: "bottom" },
+      { id: "policy", source: "gateway", target: "authorize", label: "authorize tool action" },
+      { id: "tool", source: "gateway", target: "invest", label: "MCP call · access token" },
     ],
   },
 };
-
-const NODE_MARKS = { request: "01", runtime: "BFF", identity: "PF", token: "JAG", agent: "AI", gateway: "IG", policy: "P1AZ", resource: "MCP" };
+const NODE_MARKS = { request: "01", runtime: "BFF", identity: "PF", token: "JAG", agent: "AI", gateway: "IG", policy: "P1AZ", mcpas: "AS", resource: "MCP" };
 const ParticipantNode = memo(function ParticipantNode({ data, selected }) {
   return (
     <div className={`pfj-node pfj-node--${data.role}${selected ? " is-active" : ""}`}>
@@ -184,8 +185,23 @@ const ParticipantNode = memo(function ParticipantNode({ data, selected }) {
 
 const NODE_TYPES = { participant: ParticipantNode };
 
+function ArrowDefs() {
+  return (
+    <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
+      <defs>
+        <marker id="pfj-arrow-on" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8 z" fill="#126c83" />
+        </marker>
+        <marker id="pfj-arrow-off" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8 z" fill="#93a8b7" />
+        </marker>
+      </defs>
+    </svg>
+  );
+}
+
 function buildNodes(diagram, step) {
-  const gap = diagram.participants.length > 6 ? 220 : 230;
+  const gap = diagram.participants.length > 6 ? 215 : 230;
   return diagram.participants.map((participant, index) => ({
     id: participant.id,
     type: "participant",
@@ -204,7 +220,7 @@ function buildEdges(diagram, activeStep) {
       ...link,
       type: "smoothstep",
       animated: active,
-      markerEnd: { type: MarkerType.ArrowClosed, color: active ? "#126c83" : "#93a8b7" },
+      markerEnd: `url(#pfj-arrow-${active ? "on" : "off"})`,
       style: { stroke: active ? "#126c83" : "#b1c0c9", strokeWidth: active ? 2.7 : 1.4 },
       labelStyle: { fill: active ? "#07566d" : "#617684", fontWeight: active ? 700 : 500, fontSize: 11 },
       labelBgStyle: { fill: "var(--pfj-canvas)", fillOpacity: 0.96 },
@@ -315,7 +331,7 @@ export default function PingFederateIdJagPage() {
     <main className="pfj-page" data-testid="pingfederate-id-jag-page">
       <header className="pfj-header">
         <div>
-          <p className="pfj-kicker">UC2 · Agent delegation</p>
+          <p className="pfj-kicker">UC40 · Enterprise-managed MCP authorization</p>
           <h1>{diagram.title}</h1>
           <p className="pfj-intro">{diagram.intro}</p>
         </div>
@@ -348,8 +364,9 @@ export default function PingFederateIdJagPage() {
       </div>
 
       <section className="pfj-diagram" aria-label={`Interactive ${diagram.label}`}>
-        <div className="pfj-lane pfj-lane--top">Identity and delegation</div>
-        <div className="pfj-lane pfj-lane--bottom">Policy decision and protected resource</div>
+        <ArrowDefs />
+        <div className="pfj-lane pfj-lane--top">ID-JAG issuance and grant redemption</div>
+        <div className="pfj-lane pfj-lane--bottom">Gateway policy and protected resource</div>
         <ReactFlow
           key={diagramId}
           nodes={nodes}
@@ -389,7 +406,7 @@ export default function PingFederateIdJagPage() {
 
       <ProtocolDetails diagramId={diagramId} stepIndex={activeStep} />
 
-      {diagramId === "jag" && <p className="pfj-footnote">Exchange 2 presents the ID-JAG as subject_token and requests access_token, matching PingFederate’s token-exchange behavior.</p>}
+      {diagramId === "jag" && <p className="pfj-footnote">Two distinct servers validate two distinct credentials: PingFederate validates the upstream token during Side 1; the downstream MCP authorization server validates the ID-JAG during Side 2. The returned MCP access token is used for the resource call.</p>}
     </main>
   );
 }
