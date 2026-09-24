@@ -6746,7 +6746,8 @@ export default function BankingAgent({
     // retrieve user lists", reported live on ADMIN5). The vertical's own
     // route (sendAgentMessage → sendToAdminAgent) carries the admin toolset
     // and the heuristic-first gate.
-    if (aguiEnabled && activeLlmProvider && effectiveVerticalId !== "pingone-admin") {
+    if (aguiEnabled && activeLlmProvider && effectiveVerticalId !== "pingone-admin"
+      && useCaseId !== "protect-agent-dispatch-risk") {
       // Stable thread ID for the session (persists across HITL resumes).
       // runId is per-message so each turn is distinct.
       if (!aguiThreadIdRef.current) {
