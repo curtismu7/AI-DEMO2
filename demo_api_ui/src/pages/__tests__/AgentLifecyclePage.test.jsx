@@ -46,6 +46,8 @@ describe('AgentLifecyclePage', () => {
   it('renders the title and the registration video slot', () => {
     render(<AgentLifecyclePage />);
     expect(screen.getByText('Agent Lifecycle')).toBeInTheDocument();
+    expect(screen.getByText(/A user registers a Banking Agent/i)).toBeInTheDocument();
+    expect(screen.getByText(/one Banking Agent's full access lifecycle/i)).toBeInTheDocument();
     expect(
       screen.getByText(/1\. Register agent \+ scoped consent/),
     ).toBeInTheDocument();
