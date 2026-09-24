@@ -52,6 +52,9 @@ export const NAV_STRUCTURE_CATALOG = [
     "MCP Inspector", "Agent Gateway Inspector", "Enterprise-Managed MCP Auth", "Ping AI Test Lab",
     "Capability Tour", "MCP Runtime Inventory", "MCP Scanner", "Personal Agent Clients", "LibreChat (browser)", "LM Studio (Mac)",
   ] },
+  { label: "PingFederate ID-JAG", children: [
+    "Run ID-JAG Demo", "How ID-JAG Works", "ID-JAG Diagram",
+  ] },
   { label: "Developer Tools", children: [
     "Code Explorer", "Graphify", "Postman Collections", "API Docs (Swagger)", "API Reference (Scalar)", "llama-vscode Guide", "PromptFoo Evals",
   ] },
