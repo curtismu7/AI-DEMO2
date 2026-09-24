@@ -26,6 +26,18 @@ deploy_live_service_selected() {
   esac
 }
 
+# SPIFFE is an opt-in profile and is outside deploy-live's service map. Its
+# `created` containers are outside this default-stack health gate; restarting
+# and unhealthy SPIFFE services remain visible, and the SPIFFE profile has its
+# own focused validator and startup checks.
+deploy_live_created_service_is_optional_profile() {
+  case "$1" in
+    ai-demo-spire-server|ai-demo-spire-registration|ai-demo-spire-agent|ai-demo-spiffe-helper-bff|ai-demo-spiffe-oidc-provider)
+      return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 deploy_live_write_service_stamp() {
   local state_root="$1" service="$2" sha="$3" stamp
   stamp="$(deploy_live_service_stamp "$state_root" "$service")"
