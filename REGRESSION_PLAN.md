@@ -169,6 +169,25 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — Token chain node selection hid its detail below the map
+
+**Files changed:** `demo_api_ui/src/components/TokenChainTraceRail.jsx`,
+`demo_api_ui/src/components/TokenChainTraceRail.css`, and the focused trace-rail
+test.
+
+**What was broken:** selecting a node in Chain Map rendered its detail after the
+map, where it could be missed in the admin dashboard's constrained viewport.
+
+**What was fixed:** the selected node's full detail now sits beside the map on
+wider layouts and below it on narrow layouts, with its own scroll area for long
+evidence.
+
+**Do not break:** keep the existing trace projection, claim redaction, and token
+inspection flow unchanged; Step Detail remains available as its own view.
+
+**Verify:** focused `TokenChainTraceRail` Vitest suite and the UI production
+build.
+
 ### 2026-09-24 — DaVinci widget policy leaked into Orchestration SDK
 
 **Files changed:** `demo_api_server/config/davinci.js`,

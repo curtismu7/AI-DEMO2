@@ -77,6 +77,20 @@ test("Live starts empty and Classic keeps the complete fixed catalog as fallback
   expect(screen.getByText(/Exchange Mode Details/)).toBeInTheDocument();
 });
 
+test("selecting a chain node shows its detail beside the map", () => {
+  localStorage.setItem("tctr_chain_view", "map");
+  render(<TokenChainTraceRail />);
+
+  openMore();
+  fireEvent.click(screen.getByRole("button", { name: "Classic" }));
+  fireEvent.click(screen.getByText("Sign-in"));
+
+  const mapLayout = document.querySelector(".tctr-map-layout");
+  expect(mapLayout).not.toBeNull();
+  expect(mapLayout.querySelector(".tcnr")).toBeInTheDocument();
+  expect(mapLayout.querySelector(".sdp-title")).toHaveTextContent(/Sign-in — User Token acquired/);
+});
+
 test("steps update from the store and expand to show detail", () => {
   render(<TokenChainTraceRail />);
   act(() => tokenChainTraceStore.beginTrace({ prompt: "transfer $250 to savings" }));
