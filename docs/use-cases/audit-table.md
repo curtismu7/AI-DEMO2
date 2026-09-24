@@ -58,6 +58,7 @@
 | UC-LEARN8 | [Enterprise-Managed MCP Authorization](./enterprise-managed-mcp-auth.md) | learn | ✅ works |  |  |
 | UC-LEARN9 | [ID-JAG / Cross-App Access](./id-jag-cross-app-access.md) | learn | ✅ works |  |  |
 | UC-LEARN10 | [Orchestration SDK (Custom UI)](./orchestration-sdk.md) | learn | ✅ works |  |  |
+| UC-LEARN12 | [PingFederate DaVinci Integration Kit](./pingfederate-davinci-integration-kit.md) | learn | ✅ works |  |  |
 | UC-LEARN11 | [Privilege LLM — prompt injection blocked](./privilege-llm-prompt-injection.md) | learn | ✅ works | 🛡️ T5 |  |
 | UC27 | [HITL consent bypass attempt](./hitl-consent-bypass-attempt.md) | hitl | ✅ works | 🛡️ T5 |  |
 | UC28 | [Tool set as the authorization boundary (Air Canada pattern)](./unauthorized-commitment-fee-waiver.md) | controls | ✅ works | 🛡️ T1 |  |
@@ -77,6 +78,7 @@
 | UC25 | [Enterprise-managed MCP access](./enterprise-managed-mcp-access.md) | controls | 🚩 flag-gated (ff_enterprise_managed_mcp_auth) | 🛡️ T8, T9 |  |
 | UC39 | [Centralized MCP revocation](./enterprise-mcp-revocation.md) | controls | 🚩 flag-gated (ff_enterprise_managed_mcp_auth) | 🛡️ T8, T9 |  |
 | UC40 | [Enterprise-Managed MCP Authorization (native ID-JAG)](./enterprise-managed-mcp-authorization.md) | controls | 🚩 flag-gated (ff_enterprise_managed_mcp_auth) | 🛡️ T8, T9 |  |
+| UC36 | [PingOne Protect — detect AI agent dispatch](./protect-agent-dispatch-risk.md) | controls | 🚩 flag-gated (ff_protect_agent_dispatch) |  |  |
 | UC37 | [Verified Trust — signed agent assertion on A2A delegation](./verified-trust-a2a-assertion.md) | controls | 🚩 flag-gated (ff_verified_trust_a2a) | 🛡️ T9, T13 |  |
 | UC38 | [Workload Agent: MFA-gated protected action](./personal-agent-concierge.md) | foundations | 🚩 flag-gated (ff_personal_agent_concierge) | 🛡️ T1, T9 |  |
 
@@ -91,8 +93,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 55 |
-| 🚩 Flag-gated | 10 |
+| ✅ Works | 56 |
+| 🚩 Flag-gated | 11 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 2 |
-| **Total** | **67** |
+| **Total** | **69** |

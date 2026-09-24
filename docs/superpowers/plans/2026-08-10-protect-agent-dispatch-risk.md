@@ -1,5 +1,7 @@
 # PingOne Protect Agent-Dispatch Risk Evaluation Implementation Plan
 
+> **Status: implemented (2026-09-24).** UC36 now runs through the live integration in `demo_api_server/services/pingOneProtectService.js` and `routes/agentInvokeRoute.js`, with the Demo Steps chip and trace. The implementation follows current PingOne API semantics: Protect returns `result.level` and optional `result.recommendedAction` (not `ALLOW` / `CHALLENGE` / `BLOCK`); Signals data is sent as `event.sdk.signals.data`; and the evaluation is updated to `SUCCESS` or `FAILED`. The code also applies a clearly labeled local dispatch policy: HIGH risk and deny-style recommendations block dispatch, and unknown risk levels fail closed. A failed completion update is shown in the trace as `UPDATE_FAILED`; it cannot reverse an action that already ran. This plan is retained as historical design context; its task checklist and proposed middleware/package structure were superseded.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Wire a PingOne Protect risk evaluation into the point where a human's browser request triggers an AI agent action, so the demo can show Coupa's "detect an agent acting outside approved bounds" and "agentic AI / bot detection" asks running against a live Protect risk evaluation — not a diagram.

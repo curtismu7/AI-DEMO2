@@ -34,6 +34,7 @@ export const DEMO_PRIMARY_USE_CASE_IDS = [
   'UC30',  // Weather MCP — Texas permit
   'UC31',  // Weather MCP — out-of-scope deny
   'UC32',  // Weather MCP — live-reconfigure the gateway scope
+  'UC36',  // PingOne Protect — detect AI agent dispatch
   'UC40',  // Enterprise-Managed MCP Authorization — native ID-JAG walkthrough
   'UC38',  // Workload Agent: Digital Assistant — MFA + RFC 8693 delegation
   'UC-TOOL1', // Protected RAG — code:search + PingOne Authorize
@@ -74,6 +75,7 @@ export const DEMO_USE_CASE_SEARCH_TERMS = {
   UC30: ['weather', 'texas permit', 'mcp'],
   UC31: ['weather', 'out of scope', 'gateway deny', 'mcp'],
   UC32: ['weather', 'live reconfigure', 'gateway scope', 'mcp'],
+  UC36: ['pingone protect', 'bot detection', 'ai agent detection', 'signals sdk', 'agent dispatch risk'],
   UC40: ['enterprise managed', 'mcp authorization', 'id-jag', 'managed agent'],
   UC38: ['personal concierge', 'digital assistant', 'mfa', 'workload agent', 'delegation'],
   'UC-TOOL1': ['protected rag', 'code search', 'retrieval', 'mcp'],
@@ -134,7 +136,7 @@ export const DEMO_MATURITY_GROUPS = [
     label: 'Protect traffic & resources',
     shortLabel: 'Protect',
     description: 'Protect gateways, MCP servers, and connected resources.',
-    useCaseIds: ['UC11', 'UC12', 'UC30', 'UC31', 'UC32', 'UC-TOOL1'],
+    useCaseIds: ['UC11', 'UC12', 'UC30', 'UC31', 'UC32', 'UC36', 'UC-TOOL1'],
   },
   {
     id: 'govern',
@@ -228,7 +230,7 @@ export const DEMO_JOURNEY_GROUPS = [
     label: 'Attack defense',
     shortLabel: 'Attacks',
     description: 'Replay, bad client, throttle, and gateway deny outcomes.',
-    useCaseIds: ['UC12', 'UC11', 'UC18', 'UC31'],
+    useCaseIds: ['UC12', 'UC11', 'UC18', 'UC31', 'UC36'],
   },
   {
     id: 'j-lifecycle',

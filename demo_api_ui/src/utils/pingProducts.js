@@ -1,11 +1,12 @@
 // Ping product registry for A8 attribution.
-// 4 products, SVG-dot chips, no emoji.
+// Ping products, SVG-dot chips, no emoji.
 
 export const PING_PRODUCTS = {
   idp:   { id: 'idp',   label: 'PingOne',                cssClass: 'pp--idp'   },
   mfa:   { id: 'mfa',   label: 'PingOne MFA',            cssClass: 'pp--mfa'   },
   gw:    { id: 'gw',    label: 'PingOne Agent Gateway',  cssClass: 'pp--gw'    },
   authz: { id: 'authz', label: 'PingOne Authorize',      cssClass: 'pp--authz' },
+  protect: { id: 'protect', label: 'PingOne Protect',     cssClass: 'pp--protect' },
   privilege: { id: 'privilege', label: 'PingOne Privilege', cssClass: 'pp--privilege' },
 };
 
@@ -86,6 +87,7 @@ const STEP_MAP = {
   // PingOne Authorize -- policy decisions
   'gw-authorize':                  'authz',
   'authorize-decision':            'authz', // catalog slug
+  'protect-risk-evaluation':       'protect', // catalog slug
   // tool-hitl defaults to authz; productForEvent refines by challengeType
   'tool-hitl':                     'authz',
 };

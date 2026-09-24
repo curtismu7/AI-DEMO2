@@ -536,6 +536,7 @@ export default function AdminSideNav({
         { label: "Agent IAM Core", path: "/ai-products/core", icon: "key" },
         { label: "Agent Gateway", path: "/ai-products/gateway", icon: "shld" },
         { label: "PingOne Authorize", path: "/ai-products/authorize", icon: "pol" },
+        { label: "PingOne Protect", path: "/ai-products/protect", icon: "shld" },
         { label: "Privilege · LLM", path: "/ai-products/privilege-llm", icon: "key" },
         { label: "Privilege · A2A", path: "/ai-products/privilege-a2a", icon: "lnk" },
         { label: "Privilege · MCP", path: "/ai-products/privilege-mcp", icon: "mcp" },
@@ -1266,6 +1267,7 @@ export default function AdminSideNav({
     ]),
     productGroup("DaVinci", ["DaVinci SDK"], "doc"),
     productGroup("PingOne Products", [
+      { from: "PingOne Protect", rename: "PingOne Protect", path: "/ai-products/protect" },
       { from: "Headless Identity Demo", rename: "Headless Identity / PingCLI" },
       "SDK Login",
       "M2M Client Credentials",

@@ -2064,9 +2064,34 @@ const RAW_USE_CASES = [
 
   // --- COUPA/NIQ GAP-CLOSURE DEMO (Protect risk-eval + Verified Trust A2A assertion) ---
   // Keep UC36/UC37 adjacent — same source research, same track, meant to be browsed
-  // as a pair. UC36 (Protect) is not built yet — see docs/superpowers/plans/
-  // 2026-08-10-protect-agent-dispatch-risk.md Task 6; insert it above this comment,
-  // before UC37, when it lands.
+  // as a pair.
+  {
+    id: 'UC36',
+    useCaseId: 'protect-agent-dispatch-risk',
+    track: 'controls',
+    title: 'PingOne Protect — detect AI agent dispatch',
+    buyerStory: 'A signed-in user can be impersonated by automation that drives the browser. The application needs a risk signal before it dispatches an agent action.',
+    pingOneSolution: 'The browser Signals SDK collects device and AI-agent signals. The BFF submits them to PingOne Protect and applies a local dispatch policy to the returned risk level and recommended action.',
+    trigger: { type: 'chip', text: 'show my balance' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'protect-risk-evaluation', 'tool-dispatched'], activity: ['token', 'protect', 'mcp'] },
+    codeRefs: [
+      'demo_api_server/services/pingOneProtectService.js',
+      'demo_api_server/routes/agentInvokeRoute.js',
+      'demo_api_ui/src/services/demoAgentService.js',
+    ],
+    maturity: 'flag:ff_protect_agent_dispatch',
+    whatToSay: 'Protect evaluates browser Signals before the agent dispatches. This run shows the provider risk and recommendation, then the demo policy decision.',
+    advanced: false,
+    whatLong: 'The web Signals SDK detects AI agents and gathers device signals. The browser sends the SDK payload to the BFF with the agent request. The BFF evaluates it through PingOne Protect using the environment default risk policy. HIGH risk and deny-style Protect recommendations (including BOT_MITIGATION) are blocked by the demo dispatch policy; missing or unrecognized risk levels also fail closed. Other recognized results proceed to the existing authorization and MCP pipeline. The BFF reports SUCCESS or FAILED back to Protect after dispatch.',
+    businessValue: 'Adds a provider-side behavioral and bot-detection signal at the agent dispatch boundary, while preserving the existing authorization checks for the requested action.',
+    primaryTool: 'get_account_balance',
+    perVertical: READ_PER_VERTICAL,
+    productRoles: {
+      idp: 'PingOne authenticates the user whose session starts the agent request.',
+      protect: 'Signals SDK data is evaluated before the BFF allows agent dispatch.',
+    },
+  },
   {
     id: 'UC37',
     useCaseId: 'verified-trust-a2a-assertion',
