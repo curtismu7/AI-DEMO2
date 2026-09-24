@@ -10,6 +10,7 @@ describe('config/davinci', () => {
     'PINGONE_DAVINCI_TRANSACTION_COMPANY_ID', 'PINGONE_DAVINCI_TRANSACTION_APP_ID',
     'PINGONE_DAVINCI_TRANSACTION_FLOW_ID', 'PINGONE_DAVINCI_LOGIN_APP_ID',
     'PINGONE_DAVINCI_LOGIN_FLOW_ID_V1', 'PINGONE_DAVINCI_LOGIN_FLOW_ID_V2',
+    'PINGONE_DAVINCI_LOGIN_POLICY_ID_V1', 'PINGONE_DAVINCI_SDK_POLICY_ID',
     'DAVINCI_WEBHOOK_URL',
   ];
   const saved = {};
@@ -36,6 +37,13 @@ describe('config/davinci', () => {
     process.env.PINGONE_DAVINCI_LOGIN_FLOW_ID_V1 = 'flow-v1';
     process.env.PINGONE_DAVINCI_LOGIN_FLOW_ID_V2 = 'flow-v2';
     expect(davinci.login).toEqual({ appId: 'login-app', flowIdV1: 'flow-v1', flowIdV2: 'flow-v2' });
+  });
+
+  test('keeps the widget policy separate from the SDK redirect policy', () => {
+    process.env.PINGONE_DAVINCI_LOGIN_POLICY_ID_V1 = 'widget-policy';
+    process.env.PINGONE_DAVINCI_SDK_POLICY_ID = 'redirect-policy';
+    expect(davinci.login.policyIdV1).toBe('widget-policy');
+    expect(davinci.sdk.policyId).toBe('redirect-policy');
   });
 
   test('webhookUrl uses DAVINCI_WEBHOOK_URL when set, ignoring pingone_public_app_url', () => {
