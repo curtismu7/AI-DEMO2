@@ -169,6 +169,28 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — OAuth login reused a session issued by the previous provider
+
+**Files changed:** `demo_api_server/routes/oauthUser.js` and
+`demo_api_server/tests/oauthUser.test.js`.
+
+**What was broken:** after changing the global login provider, `/login` reused
+any unexpired end-user session without checking its issuer. The BFF then sent a
+PingOne token to PingFederate, or a PingFederate token to PingOne, and the
+token-exchange endpoint rejected it (`issuer was not recognized`).
+
+**What was fixed:** reuse a session only when its recorded OAuth provider
+matches the selected provider. On mismatch, clear the old server-side tokens
+and auth cookie before starting the selected provider's login flow.
+
+**Do not break:** keep the BFF as the browser-token custodian; preserve normal
+same-provider session reuse, the P1/PF authorization endpoints, and the RFC 8693
+exchange and Authorize gates.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest
+tests/oauthUser.test.js --forceExit --runInBand` — 26 passed, including both
+provider-switch directions and same-provider reuse.
+
 ### 2026-09-24 — OAuth provider switch returned to home
 
 **Files changed:** `demo_api_ui/src/components/OAuthProviderToggle.jsx`.
