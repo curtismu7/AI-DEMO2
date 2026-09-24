@@ -1,5 +1,10 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Section, LessonLayout, Lede, OnThisRun, Status } from "../components/lesson";
+import apiClient from "../services/apiClient";
+import { markCameFromUseCases } from "../utils/fromUseCasesNav";
+import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
+import { useVertical } from "../vertical/useVertical";
 import "./PingAiProductPage.css";
 
 const PRODUCTS = {
@@ -127,6 +132,24 @@ const PRODUCTS = {
     sections: ["Overview", "MCP risks", "Agent runs", "Protection path", "Takeaway"],
     takeaway: "Treat MCP as a real application boundary: protect both what the agent discovers and what it invokes.",
   },
+  protect: {
+    title: "PingOne Protect",
+    eyebrow: "Risk signals before agent dispatch",
+    accent: "protect",
+    subtitle: "Evaluate browser and device risk before an authenticated user request reaches an AI agent.",
+    lede: "PingOne Protect adds behavioral risk context to the agent dispatch boundary. The browser Signals SDK supplies device and bot signals, and the BFF asks Protect to evaluate the signed-in user’s request before it can reach an agent tool.",
+    capabilities: [
+      ["Collect browser signals", "The Signals SDK gathers device and AI-agent indicators in the browser and sends its payload only to the BFF."],
+      ["Evaluate request context", "The BFF submits the signed-in user, client IP, browser, session, and available Signals data to PingOne Protect."],
+      ["Combine configured predictors", "Depending on the tenant's risk policy and available context, Protect can use Bot Detection, New Device, IP Reputation, User Velocity, Geovelocity Anomaly, and Adversary-in-the-Middle predictors."],
+      ["Return risk evidence", "Protect returns a risk level, recommended action, and available bot-detection details for the request. The active tenant policy determines which predictors contribute."],
+      ["Gate agent dispatch", "The demo blocks HIGH risk and deny-style recommendations such as BOT_MITIGATION, then fails closed if Protect returns an unknown level."],
+    ],
+    runExamples: [],
+    flow: ["Browser Signals SDK", "BFF risk evaluation", "PingOne Protect", "Dispatch policy", "Authorized agent tool"],
+    sections: ["Overview", "Risk signals", "Run the demo", "Evaluation path", "Takeaway"],
+    takeaway: "Evaluate risk before an agent acts, then keep the existing authorization and MCP controls in the path for requests that continue.",
+  },
 };
 
 const NAV = [
@@ -136,12 +159,75 @@ const NAV = [
   ["privilegeLlm", "Privilege · LLM"],
   ["privilegeA2a", "Privilege · A2A"],
   ["privilegeMcp", "Privilege · MCP"],
+  ["protect", "PingOne Protect"],
 ];
 
 const slug = (key) => `/ai-products/${key.replace(/([A-Z])/g, "-$1").toLowerCase()}`;
 
+const PROTECT_USE_CASE = {
+  id: "UC36",
+  useCaseId: "protect-agent-dispatch-risk",
+  title: "PingOne Protect — detect AI agent dispatch",
+  trigger: { type: "chip", text: "show my balance" },
+  primaryTool: "get_account_balance",
+  expectedOutcome: "PERMIT",
+  evidence: { tokenChain: ["user-token", "protect-risk-evaluation", "tool-dispatched"], activity: ["token", "protect", "mcp"] },
+  maturity: "flag:ff_protect_agent_dispatch",
+};
+
 export default function PingAiProductPage({ product = "core" }) {
   const data = PRODUCTS[product] || PRODUCTS.core;
+  const navigate = useNavigate();
+  const { activeId } = useVertical();
+  const [runState, setRunState] = useState("idle");
+  const [runError, setRunError] = useState("");
+
+  const runProtectDemo = async () => {
+    const vertical = activeId || "banking";
+    setRunState("running");
+    setRunError("");
+
+    const flags = requiredFlagsForUseCase(PROTECT_USE_CASE);
+    if (flags.length) {
+      const updates = Object.fromEntries(flags.map((flag) => [flag, true]));
+      try {
+        await apiClient.patch("/api/admin/feature-flags", { updates }, { _noAuthBanner: true });
+      } catch (error) {
+        // Match the use-case launcher: a non-admin cannot arm a flag, but an
+        // already-enabled demo remains runnable and the BFF is authoritative.
+        console.warn("[PingAiProductPage] Could not auto-enable Protect demo flags:", error.message);
+      }
+    }
+
+    try {
+      const { data: run } = await apiClient.post("/api/use-cases/demo/run", {
+        useCaseId: PROTECT_USE_CASE.useCaseId,
+        vertical,
+      });
+      await apiClient.post("/api/verticals/active", { id: vertical });
+      markCameFromUseCases();
+      navigate("/dashboard", {
+        state: {
+          useCaseId: run.useCaseId,
+          triggerText: run.triggerText,
+          type: run.type,
+          vertical,
+          runContext: {
+            source: "use-cases",
+            useCaseId: PROTECT_USE_CASE.useCaseId,
+            useCaseLabel: PROTECT_USE_CASE.title,
+            triggerText: PROTECT_USE_CASE.trigger.text,
+            expectedOutcome: PROTECT_USE_CASE.expectedOutcome,
+            evidence: PROTECT_USE_CASE.evidence,
+          },
+        },
+      });
+    } catch (error) {
+      setRunState("error");
+      setRunError(error?.response?.data?.message || error.message || "Could not start the PingOne Protect demo.");
+    }
+  };
+
   return (
     <LessonLayout
       pageClassName="pai-lesson-page"
@@ -171,16 +257,30 @@ export default function PingAiProductPage({ product = "core" }) {
       </Section>
 
       <Section id={data.sections[2].toLowerCase().replaceAll(" ", "-")} title={data.sections[2]}>
-        <div className="pai-run-grid">
-          {data.runExamples.map(([title, description, path]) => <Link className="pai-run" key={title} to={path}><span className="pai-run__label">Open agent run</span><h3>{title}</h3><p>{description}</p><span className="pai-run__arrow" aria-hidden="true">→</span></Link>)}
-        </div>
+        {product === "protect" && (
+          <div className="pai-protect-action">
+            <p>Run UC36 with the active vertical. The dashboard will collect Signals, evaluate the request, and show whether the Protect result permits or blocks agent dispatch.</p>
+            <button type="button" onClick={runProtectDemo} disabled={runState === "running"} aria-busy={runState === "running"}>
+              {runState === "running" ? "Starting Protect demo…" : "Run PingOne Protect demo"}
+            </button>
+            {runError && <p className="pai-protect-action__error" role="alert">{runError}</p>}
+          </div>
+        )}
+        {data.runExamples.length > 0 && (
+          <div className="pai-run-grid">
+            {data.runExamples.map(([title, description, path]) => <Link className="pai-run" key={title} to={path}><span className="pai-run__label">Open agent run</span><h3>{title}</h3><p>{description}</p><span className="pai-run__arrow" aria-hidden="true">→</span></Link>)}
+          </div>
+        )}
       </Section>
 
       <Section id={data.sections[3].toLowerCase().replaceAll(" ", "-")} title={data.sections[3]}>
         <div className="pai-flow" aria-label={`${data.title} flow`}>
           {data.flow.map((node, index) => <div className="pai-flow__item" key={node}><span>{node}</span>{index < data.flow.length - 1 && <i aria-hidden="true" />}</div>)}
         </div>
-        <OnThisRun title="Architecture note"><p><Status ok>Boundary defined</Status> This page explains the product’s role in an AI security architecture. Live demo routes and inspectors remain available in the navigation.</p></OnThisRun>
+        <OnThisRun title="Architecture note"><p><Status ok>Boundary defined</Status> {product === "protect" ? "Predictor results depend on the risk policy configured in your PingOne environment and the event context available to it. PingOne Protect returns the risk result; this demo applies the dispatch decision." : "This page explains the product’s role in an AI security architecture. Live demo routes and inspectors remain available in the navigation."}</p>
+          {product === "protect" && <p>Protect also prioritizes a routable public client IP for IP-based signals; when the request IP is private, Signals data can help identify the user’s public IP.</p>}
+          {product === "protect" && <p><a href="https://docs.pingidentity.com/pingone/threat_protection_using_pingone_protect/p1_protect_risk_predictors.html" target="_blank" rel="noreferrer">Read PingOne Protect predictor guidance</a></p>}
+        </OnThisRun>
       </Section>
 
       <Section id="takeaway" title={data.sections[4]}>

@@ -1061,6 +1061,16 @@ function AppWithAuth() {
                   }
                 />
                 <Route
+                  path="/ai-products/protect"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <main className="ai-product-main">
+                        <PingAiProductPage product="protect" />
+                      </main>
+                    </AppShell>
+                  }
+                />
+                <Route
                   path="/ai-products/privilege-llm"
                   element={
                     <AppShell user={user} logout={logout}>

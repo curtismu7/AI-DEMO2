@@ -16,6 +16,7 @@ export const NAV_PAGE_PATHS = {
   "Agent IAM Core": "/ai-products/core",
   "Agent Gateway": "/ai-products/gateway",
   "PingOne Authorize": "/ai-products/authorize",
+  "PingOne Protect": "/ai-products/protect",
   "Privilege · LLM": "/ai-products/privilege-llm",
   "Privilege · A2A": "/ai-products/privilege-a2a",
   "Privilege · MCP": "/ai-products/privilege-mcp",

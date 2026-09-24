@@ -77,6 +77,7 @@
 | UC25 | [Enterprise-managed MCP access](./enterprise-managed-mcp-access.md) | controls | 🚩 flag-gated (ff_enterprise_managed_mcp_auth) | 🛡️ T8, T9 |  |
 | UC39 | [Centralized MCP revocation](./enterprise-mcp-revocation.md) | controls | 🚩 flag-gated (ff_enterprise_managed_mcp_auth) | 🛡️ T8, T9 |  |
 | UC40 | [Enterprise-Managed MCP Authorization (native ID-JAG)](./enterprise-managed-mcp-authorization.md) | controls | 🚩 flag-gated (ff_enterprise_managed_mcp_auth) | 🛡️ T8, T9 |  |
+| UC36 | [PingOne Protect — detect AI agent dispatch](./protect-agent-dispatch-risk.md) | controls | 🚩 flag-gated (ff_protect_agent_dispatch) |  |  |
 | UC37 | [Verified Trust — signed agent assertion on A2A delegation](./verified-trust-a2a-assertion.md) | controls | 🚩 flag-gated (ff_verified_trust_a2a) | 🛡️ T9, T13 |  |
 | UC38 | [Workload Agent: MFA-gated protected action](./personal-agent-concierge.md) | foundations | 🚩 flag-gated (ff_personal_agent_concierge) | 🛡️ T1, T9 |  |
 
@@ -92,7 +93,7 @@
 | Status | Count |
 |---|---|
 | ✅ Works | 55 |
-| 🚩 Flag-gated | 10 |
+| 🚩 Flag-gated | 11 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 2 |
-| **Total** | **67** |
+| **Total** | **68** |
