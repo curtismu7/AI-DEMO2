@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import EducationRoutes from "../../routes/EducationRoutes";
-import { DIAGRAMS } from "../PingFederateIdJagPage";
+import { buildEdges, DIAGRAMS } from "../PingFederateIdJagPage";
 
 vi.mock("../../routes/AppShell", () => ({ default: ({ children }) => children }));
 
@@ -29,19 +29,20 @@ function topControls() {
 }
 
 describe("PingFederate ID-JAG architecture", () => {
-  it("shows standard PingFederate Authorization Code + PKCE login as a separate view", () => {
+  it("shows PingFederate login followed by the complete AI request path", () => {
     renderPage();
     expect(screen.getByText("2 token exchanges")).toBeTruthy();
-    fireEvent.click(screen.getByRole("tab", { name: "PingFederate login, 1 code exchange" }));
+    fireEvent.click(screen.getByRole("tab", { name: "PingFederate login, PF login + agent authorization" }));
 
     expect(screen.getByRole("heading", { name: "PingFederate standard login" })).toBeTruthy();
-    expect(DIAGRAMS.pingfederate.chain).toEqual(["Authorization request", "Authorization code", "BFF session"]);
-    expect(DIAGRAMS.pingfederate.steps).toHaveLength(5);
-    expect(DIAGRAMS.pingfederate.steps.some((step) => /ID-JAG|Side 1|Side 2|JWT bearer/.test(`${step.title} ${step.detail}`))).toBe(false);
+    expect(DIAGRAMS.pingfederate.chain).toContain("Agent Service");
+    expect(DIAGRAMS.pingfederate.steps).toHaveLength(9);
+    expect(DIAGRAMS.pingfederate.participants.map(({ id }) => id)).toEqual(expect.arrayContaining(["agent", "gateway", "authorize", "mcp"]));
+    expect(DIAGRAMS.pingfederate.steps.some((step) => /PingOne Authorize permits/.test(`${step.title} ${step.detail}`))).toBe(true);
 
     const panel = screen.getByText("Protocol details").closest("details");
     expect(panel.open).toBe(true);
-    expect(screen.getByText("1 code exchange")).toBeTruthy();
+    expect(screen.getByText("PF login + agent authorization")).toBeTruthy();
     expect(panel.textContent).toContain("code_challenge_method");
     expect(panel.textContent).toContain("S256");
 
@@ -58,6 +59,29 @@ describe("PingFederate ID-JAG architecture", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Step 5: BFF establishes the application session" }));
     expect(panel.textContent).toContain("[HTTP-only session cookie]");
+
+    fireEvent.click(screen.getByRole("button", { name: "Step 6: User sends an AI request" }));
+    expect(panel.textContent).toContain("/api/agent/invoke");
+    expect(panel.textContent).toContain('"prompt": "Show my account balance"');
+    expect(panel.textContent).not.toContain('"message": "Show my account balance"');
+    fireEvent.click(screen.getByRole("button", { name: "Step 7: Agent Service proposes a tool call" }));
+    expect(panel.textContent).toContain("/api/agent/reason");
+    expect(panel.textContent).toContain('"messages": [');
+    expect(panel.textContent).toContain('"tools": [');
+    expect(panel.textContent).toContain('"inputSchema": {');
+    expect(panel.textContent).not.toContain('"function": {');
+    expect(panel.textContent).toContain("BFF validates and executes the proposed tool");
+    fireEvent.click(screen.getByRole("button", { name: "Step 8: BFF authorizes and routes the MCP call" }));
+    expect(panel.textContent).toContain("PingOne Authorize");
+    expect(panel.textContent).toContain("two RFC 8693 exchanges");
+    fireEvent.click(screen.getByRole("button", { name: "Step 9: MCP result returns to the user" }));
+    expect(panel.textContent).toContain('"method": "tools/call"');
+    expect(panel.textContent).toContain("[MOCK MCP RESULT]");
+    expect(DIAGRAMS.pingfederate.links).toContainEqual(expect.objectContaining({ id: "mcp-result", source: "mcp", target: "gateway" }));
+    expect(DIAGRAMS.pingfederate.links).toContainEqual(expect.objectContaining({ id: "gateway-result", source: "gateway", target: "bff" }));
+    expect(DIAGRAMS.pingfederate.steps[8].links).toContain("gateway-result");
+    expect(DIAGRAMS.pingfederate.links).toContainEqual(expect.objectContaining({ id: "answer", source: "bff", target: "user", label: "AI response" }));
+    expect(DIAGRAMS.pingfederate.steps[8].links).toContain("answer");
   });
 
   it("keeps the mid-page controls connected to the same playback state", () => {
@@ -90,16 +114,16 @@ describe("PingFederate ID-JAG architecture", () => {
     expect(screen.getByText("ID-JAG token journey")).toBeTruthy();
     expect(container.querySelector(".react-flow")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("tab", { name: "PingFederate login, 1 code exchange" }));
+    fireEvent.click(screen.getByRole("tab", { name: "PingFederate login, PF login + agent authorization" }));
     expect(screen.getByRole("heading", { name: "PingFederate standard login" })).toBeTruthy();
-    expect(screen.getByText(/OIDC · Authorization Code \+ PKCE/)).toBeTruthy();
+    expect(screen.getByText(/Login: PingFederate · Runtime policy: PingOne Authorize/)).toBeTruthy();
     expect(screen.getByText("PingFederate")).toBeTruthy();
   });
 
   it("shows both ID-JAG sides: upstream validation and downstream assertion redemption", () => {
     renderPage();
     expect(screen.getByText("2 token exchanges")).toBeTruthy();
-    expect(screen.getByText("1 code exchange")).toBeTruthy();
+    expect(screen.getByText("PF login + agent authorization")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Step 2: Side 1 · PingFederate validates the upstream token" }));
     expect(screen.getByText(/token-exchange policy validates the refresh token/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Step 3: PingFederate issues the ID-JAG" }));
@@ -110,6 +134,14 @@ describe("PingFederate ID-JAG architecture", () => {
     fireEvent.click(screen.getByRole("button", { name: "Step 4: Side 2 · submit ID-JAG for validation" }));
     expect(screen.getAllByText(/JWT bearer assertion/).length).toBeGreaterThan(0);
     expect(screen.getByText(/issuer\/signature, audience, expiry/)).toBeTruthy();
+  });
+
+  it("keeps inactive edge labels visible in the ID-JAG view", () => {
+    const jagLabels = buildEdges(DIAGRAMS.jag, 0, false).map(({ label }) => label);
+    const pfLabels = buildEdges(DIAGRAMS.pingfederate, 0, true).map(({ label }) => label);
+    expect(jagLabels).toContain("JWT bearer grant");
+    expect(jagLabels).toContain("policy");
+    expect(pfLabels).not.toContain("tool proposal");
   });
 
   it("shows step-synced mock claims and API exchanges in the ID-JAG view", () => {
@@ -194,12 +226,12 @@ describe("PingFederate ID-JAG architecture", () => {
       renderPage();
       fireEvent.change(topControls().getByLabelText("Step time:"), { target: { value: "800" } });
       fireEvent.click(topControls().getByRole("button", { name: "Simulate" }));
-      fireEvent.click(screen.getByRole("tab", { name: "PingFederate login, 1 code exchange" }));
+      fireEvent.click(screen.getByRole("tab", { name: "PingFederate login, PF login + agent authorization" }));
 
-      expect(topControls().getByText("Step 1 / 5")).toBeTruthy();
+      expect(topControls().getByText("Step 1 / 9")).toBeTruthy();
       expect(topControls().getByRole("button", { name: "Simulate" })).toBeTruthy();
       act(() => vi.advanceTimersByTime(800));
-      expect(topControls().getByText("Step 1 / 5")).toBeTruthy();
+      expect(topControls().getByText("Step 1 / 9")).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }

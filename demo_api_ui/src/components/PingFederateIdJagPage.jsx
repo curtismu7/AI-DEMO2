@@ -107,6 +107,41 @@ const PF_LOGIN_PROTOCOL = [
     responseTitle: "Signed-in browser session",
     response: { status: "302 Found", set_cookie: "[HTTP-only session cookie]", browser_tokens: "none" },
   },
+  {
+    token: "BFF session cookie · browser-held",
+    claims: { browser: "HTTP-only session cookie", access_tokens: "none in browser", next: "signed-in user submits a natural-language request" },
+    requestTitle: "User asks the AI agent",
+    request: { method: "POST /api/agent/invoke", headers: { "Content-Type": "application/json", Cookie: "[MOCK SESSION COOKIE]" }, body: { prompt: "Show my account balance", threadId: "[MOCK THREAD ID]" } },
+    responseTitle: "BFF starts agent run",
+    response: { status: "processing", session: "validated by BFF", token_custody: "server-side" },
+  },
+  {
+    token: "No user token sent to Agent Service",
+    claims: { service: "demo_agent_service · :3006", responsibility: "reasoning and tool proposal only", token_custody: "BFF" },
+    requestTitle: "BFF requests agent reasoning",
+    request: { method: "POST /api/agent/reason", headers: { "x-internal-gateway-secret": "[REDACTED]" }, body: { messages: [{ role: "user", content: "Show my account balance" }], tools: [{ name: "get_account_balance", description: "Return the balance for an account", inputSchema: { type: "object", properties: { account_id: { type: "string" } }, required: ["account_id"] } }], provider: "[CONFIGURED PROVIDER]", model: "[CONFIGURED MODEL]" } },
+    responseTitle: "Agent proposes an MCP tool call",
+    response: { toolCall: { name: "get_account_balance", arguments: { account_id: "[MOCK ACCOUNT ID]" } }, next: "BFF validates and executes the proposed tool" },
+  },
+  {
+    token: "Agent + MCP actor tokens · BFF-held",
+    claims: { provider: "PingFederate", flow: "standard two-exchange delegation", custody: "BFF only", note: "Separate from the earlier OIDC login code exchange" },
+    requestTitle: "BFF delegates MCP access through PingFederate",
+    request: { method: "POST /as/token.oauth2", exchanges: [
+      { step: "1 · user subject + agent actor", grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", subject_token: "[MOCK USER TOKEN]", actor_token: "[MOCK AGENT ACTOR TOKEN]", audience: "[INTERMEDIATE RESOURCE]" },
+      { step: "2 · intermediate subject + MCP actor", grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", subject_token: "[MOCK AGENT-EXCHANGED TOKEN]", actor_token: "[MOCK MCP ACTOR TOKEN]", audience: "[PINGGATEWAY RESOURCE]", scope: "accounts:read" },
+    ] },
+    responseTitle: "PingFederate-backed delegation completes",
+    response: { result: "two RFC 8693 exchanges", mcp_access_token: "[MOCK MCP ACCESS TOKEN]", custody: "BFF only", authorization: "PingGateway checks token; PingOne Authorize evaluates action policy" },
+  },
+  {
+    token: "MCP access token · BFF-held",
+    claims: { aud: "[PINGGATEWAY RESOURCE]", scope: "accounts:read", custody: "BFF only", policyDecision: "PingOne Authorize → PERMIT", browser: "session cookie only · no tokens" },
+    requestTitle: "BFF sends authorized MCP call",
+    request: { method: "POST /mcp · JSON-RPC", headers: { Authorization: "Bearer [MOCK MCP ACCESS TOKEN]" }, body: { jsonrpc: "2.0", id: "tool-1", method: "tools/call", params: { name: "get_account_balance", arguments: { account_id: "[MOCK ACCOUNT ID]" } } }, route: "PingGateway → PingOne Authorize PERMIT → MCP server" },
+    responseTitle: "MCP result returns through BFF",
+    response: { status: "200 OK", result: "[MOCK MCP RESULT]", path: "MCP server → PingGateway → BFF → browser", token_exposure: "none" },
+  },
 ];
 
 function ProtocolDetails({ diagramId, stepIndex }) {
@@ -169,23 +204,31 @@ export const DIAGRAMS = {
   },
   pingfederate: {
     label: "PingFederate login",
-    exchangeSummary: "1 code exchange",
+    exchangeSummary: "PF login + agent authorization",
     title: "PingFederate standard login",
-    intro: "Standard OpenID Connect sign-in with Authorization Code + PKCE. PingFederate authenticates the user; the BFF redeems the code and keeps tokens server-side.",
-    badge: "OIDC · Authorization Code + PKCE",
-    lanes: ["Browser redirect and PingFederate authentication", "BFF token exchange and application session"],
-    chain: ["Authorization request", "Authorization code", "BFF session"],
+    intro: "PingFederate handles OIDC login. The signed-in user then follows the full AI path: BFF → agent service → PingGateway → PingOne Authorize → MCP server.",
+    badge: "Login: PingFederate · Runtime policy: PingOne Authorize",
+    lanes: ["Standard PingFederate OIDC login", "AI request · BFF-mediated authorization and MCP call"],
+    chain: ["PingFederate login", "BFF session", "Agent Service", "PingGateway + P1AZ", "MCP server"],
     steps: [
       { title: "Start sign-in with the BFF", detail: "The BFF creates state, nonce, and a PKCE verifier, then redirects the browser to PingFederate's authorization endpoint with the S256 challenge.", active: ["user", "bff"], links: ["start", "authorize"] },
       { title: "User authenticates with PingFederate", detail: "The browser follows the redirect to PingFederate. The user authenticates there under the configured policy; credentials do not pass through the BFF.", active: ["user", "pingfed"], links: ["authenticate", "credentials"] },
       { title: "PingFederate returns an authorization code", detail: "After authentication, PingFederate redirects the browser to the BFF callback with a short-lived code and the original state. The BFF validates state and the callback before redeeming the code.", active: ["user", "pingfed", "bff"], links: ["callback"] },
       { title: "BFF exchanges code for tokens", detail: "The BFF authenticates with its configured PingFederate client-authentication method, then posts the code and original PKCE verifier. It validates the returned ID token, including stored nonce, signature, issuer, audience, and expiry.", active: ["bff", "pingfed"], links: ["token", "tokens"] },
       { title: "BFF establishes the application session", detail: "The BFF retains the PingFederate tokens server-side and gives the browser an HTTP-only session cookie. OAuth tokens stay out of browser JavaScript.", active: ["bff", "user"], links: ["session"] },
+      { title: "User sends an AI request", detail: "The signed-in browser posts the user's prompt to the BFF with its session cookie. PingFederate was the login provider; PingOne Authorize is used later for runtime access policy.", active: ["user", "bff"], links: ["prompt"] },
+      { title: "Agent Service proposes a tool call", detail: "The BFF asks the reasoning-only Agent Service for a tool proposal. The agent does not receive user OAuth tokens or call MCP directly; the BFF remains the tool executor.", active: ["bff", "agent"], links: ["reason", "proposal"] },
+      { title: "BFF authorizes and routes the MCP call", detail: "The BFF completes the standard two-exchange agent delegation through the PingFederate adapter, then sends the scoped token to PingGateway. PingOne Authorize evaluates the tool action and must permit it before the MCP resource call.", active: ["bff", "pingfed", "gateway", "authorize"], links: ["delegate", "delegated-token", "gateway-call", "policy"] },
+      { title: "MCP result returns to the user", detail: "After PingOne Authorize permits the action, PingGateway forwards the tool call to the MCP server. The MCP result returns through PingGateway and the BFF to the browser; tokens remain server-side.", active: ["bff", "gateway", "authorize", "mcp", "user"], links: ["tool", "mcp-result", "gateway-result", "answer"] },
     ],
     participants: [
-      { id: "user", title: "User / browser", subtitle: "sign-in experience", role: "request", position: { x: 40, y: 220 } },
-      { id: "bff", title: "Demo BFF", subtitle: "OIDC client · state + PKCE", role: "runtime", position: { x: 420, y: 220 } },
-      { id: "pingfed", title: "PingFederate", subtitle: "authorize + token endpoints", role: "identity", position: { x: 800, y: 220 } },
+      { id: "user", title: "User / browser", subtitle: "PF sign-in · AI request", role: "request", position: { x: 0, y: 120 } },
+      { id: "bff", title: "Demo BFF", subtitle: "OIDC client · token custodian", role: "runtime", position: { x: 270, y: 120 } },
+      { id: "pingfed", title: "PingFederate", subtitle: "login · standard token exchange", role: "identity", position: { x: 540, y: 120 } },
+      { id: "agent", title: "Agent Service", subtitle: "reasoning · tool proposal", role: "agent", position: { x: 270, y: 350 } },
+      { id: "gateway", title: "PingGateway", subtitle: "MCP token enforcement", role: "gateway", position: { x: 540, y: 350 } },
+      { id: "authorize", title: "PingOne Authorize", subtitle: "runtime action policy", role: "policy", position: { x: 810, y: 350 } },
+      { id: "mcp", title: "MCP Server", subtitle: "protected tools · resource", role: "resource", position: { x: 1080, y: 350 } },
     ],
     links: [
       { id: "start", source: "user", target: "bff", label: "sign in" },
@@ -196,6 +239,17 @@ export const DIAGRAMS = {
       { id: "token", source: "bff", target: "pingfed", label: "code + verifier" },
       { id: "tokens", source: "pingfed", target: "bff", label: "ID / access / refresh" },
       { id: "session", source: "bff", target: "user", label: "HTTP-only cookie" },
+      { id: "prompt", source: "user", target: "bff", label: "prompt + session" },
+      { id: "reason", source: "bff", target: "agent", label: "reason request" },
+      { id: "proposal", source: "agent", target: "bff", label: "tool proposal" },
+      { id: "delegate", source: "bff", target: "pingfed", label: "2-exchange delegation", sourceHandle: "bottom", targetHandle: "bottom" },
+      { id: "delegated-token", source: "pingfed", target: "bff", label: "scoped access token", sourceHandle: "bottom", targetHandle: "bottom" },
+      { id: "gateway-call", source: "bff", target: "gateway", label: "MCP request + token" },
+      { id: "policy", source: "gateway", target: "authorize", label: "action policy check" },
+      { id: "tool", source: "gateway", target: "mcp", label: "permitted MCP tool call" },
+      { id: "mcp-result", source: "mcp", target: "gateway", label: "MCP tool result" },
+      { id: "gateway-result", source: "gateway", target: "bff", label: "result to BFF", sourceHandle: "top", targetHandle: "bottom" },
+      { id: "answer", source: "bff", target: "user", label: "AI response", sourceHandle: "bottom", targetHandle: "bottom" },
     ],
   },
 };
@@ -244,12 +298,13 @@ function buildNodes(diagram, step) {
   }));
 }
 
-function buildEdges(diagram, activeStep) {
+export function buildEdges(diagram, activeStep, activeLabelsOnly = false) {
   const activeLinks = diagram.steps[activeStep].links;
   return diagram.links.map((link) => {
     const active = activeLinks.includes(link.id);
     return {
       ...link,
+      label: activeLabelsOnly && !active ? "" : link.label,
       type: "smoothstep",
       animated: active,
       markerEnd: `url(#pfj-arrow-${active ? "on" : "off"})`,
@@ -273,7 +328,7 @@ export default function PingFederateIdJagPage() {
   const diagram = DIAGRAMS[diagramId];
   const step = diagram.steps[activeStep];
   const nodes = useMemo(() => buildNodes(diagram, step), [diagram, step]);
-  const edges = useMemo(() => buildEdges(diagram, activeStep), [diagram, activeStep]);
+  const edges = useMemo(() => buildEdges(diagram, activeStep, diagramId === "pingfederate"), [diagram, diagramId, activeStep]);
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) {
       window.clearTimeout(timerRef.current);
