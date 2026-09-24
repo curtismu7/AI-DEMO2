@@ -2,7 +2,7 @@
 set -eu
 
 SERVER_SOCKET=/run/spire/server/private/api.sock
-NODE_SPIFFE_ID="spiffe://bxfinance.demo/spire/agent"
+NODE_SPIFFE_ID="spiffe://bxfinance.demo/node/agent"
 
 until spire-server healthcheck -socketPath "$SERVER_SOCKET" >/dev/null 2>&1; do
   sleep 2
