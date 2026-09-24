@@ -24,7 +24,7 @@ ensure_entry() {
       -selector "$SELECTOR" -x509SVIDTTL 3600
   else
     case "$EXISTING" in
-      *"entry not found"*)
+      *"code = NotFound"*"entry not found"*)
         spire-server entry create -socketPath "$SERVER_SOCKET" \
           -entryID "$ENTRY_ID" -spiffeID "$SPIFFE_ID" \
           -parentID "$NODE_SPIFFE_ID" -selector "$SELECTOR" \

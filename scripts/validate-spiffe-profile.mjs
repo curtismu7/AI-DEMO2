@@ -42,7 +42,9 @@ if (!entries.includes('-x509SVIDTTL 3600') || entries.includes('-ttl 3600')) {
   failures.push('registration entries must use the current X509 SVID TTL flag');
 }
 if (!entries.includes('spire-server entry update')) failures.push('registration job must update stable entries on rerun');
-if (!entries.includes('entry not found')) failures.push('registration job must create workload entries missing on first run');
+if (!entries.includes('code = NotFound') || !entries.includes('entry not found')) {
+  failures.push('registration job must create workload entries only for SPIRE NotFound errors');
+}
 if (!entries.includes('NODE_SPIFFE_ID="spiffe://bxfinance.demo/node/agent"')) {
   failures.push('registration job must use a stable agent parent ID');
 }
