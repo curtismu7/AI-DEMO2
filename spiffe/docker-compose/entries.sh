@@ -53,13 +53,13 @@ verify_entry() {
 }
 
 ensure_entry "1239638f-e0d4-464c-b222-b5c9a603bad7" \
-  spiffe://bxfinance.demo/bff docker:label:com.ai-demo.spiffe-workload=bff
+  spiffe://bxfinance.demo/bff docker:label:com.ai-demo.spiffe-workload:bff
 ensure_entry "45b76c4f-409b-41f4-8a87-d12743c75140" \
-  spiffe://bxfinance.demo/agent docker:label:com.ai-demo.spiffe-workload=agent
+  spiffe://bxfinance.demo/agent docker:label:com.ai-demo.spiffe-workload:agent
 ensure_entry "75faf632-fbf5-4715-a3b8-e82eda4fc663" \
-  spiffe://bxfinance.demo/mcp-gateway docker:label:com.ai-demo.spiffe-workload=mcp-gateway
+  spiffe://bxfinance.demo/mcp-gateway docker:label:com.ai-demo.spiffe-workload:mcp-gateway
 ensure_entry "7f484bba-3c2a-428b-8114-0726e3f2d8a0" \
-  spiffe://bxfinance.demo/mcp-server docker:label:com.ai-demo.spiffe-workload=mcp-server
+  spiffe://bxfinance.demo/mcp-server docker:label:com.ai-demo.spiffe-workload:mcp-server
 
 for ENTRY_ID in \
   1239638f-e0d4-464c-b222-b5c9a603bad7 \
@@ -70,10 +70,10 @@ for ENTRY_ID in \
 done
 
 verify_entry "1239638f-e0d4-464c-b222-b5c9a603bad7" \
-  spiffe://bxfinance.demo/bff docker:label:com.ai-demo.spiffe-workload=bff
+  spiffe://bxfinance.demo/bff docker:label:com.ai-demo.spiffe-workload:bff
 verify_entry "45b76c4f-409b-41f4-8a87-d12743c75140" \
-  spiffe://bxfinance.demo/agent docker:label:com.ai-demo.spiffe-workload=agent
+  spiffe://bxfinance.demo/agent docker:label:com.ai-demo.spiffe-workload:agent
 verify_entry "75faf632-fbf5-4715-a3b8-e82eda4fc663" \
-  spiffe://bxfinance.demo/mcp-gateway docker:label:com.ai-demo.spiffe-workload=mcp-gateway
+  spiffe://bxfinance.demo/mcp-gateway docker:label:com.ai-demo.spiffe-workload:mcp-gateway
 verify_entry "7f484bba-3c2a-428b-8114-0726e3f2d8a0" \
-  spiffe://bxfinance.demo/mcp-server docker:label:com.ai-demo.spiffe-workload=mcp-server
+  spiffe://bxfinance.demo/mcp-server docker:label:com.ai-demo.spiffe-workload:mcp-server

@@ -31,6 +31,10 @@ if (!/spire-registration:[\s\S]*?dockerfile:\s*Dockerfile\.registration/.test(co
 if (!/spire-agent:[\s\S]*?dockerfile:\s*Dockerfile\.agent/.test(compose)) {
   failures.push('spire-agent must use the shell-enabled agent image');
 }
+const agentService = compose.match(/^  spire-agent:\n([\s\S]*?)(?=^  [a-zA-Z0-9_-]+:[ \t]*$)/m)?.[1] || '';
+if (!/^    pid: host$/m.test(agentService)) {
+  failures.push('SPIRE Docker workload attestation requires the agent to share the host PID namespace');
+}
 if (!compose.includes('FF_SPIFFE_CLIENT_AUTH')) failures.push('BFF SPIFFE client-auth flag is not wired');
 const helperService = compose.match(/^  spiffe-helper-bff:\n([\s\S]*?)(?=^  [a-zA-Z0-9_-]+:[ \t]*$)/m)?.[1] || '';
 if (!helperService.includes('com.ai-demo.spiffe-workload: bff')) {
@@ -61,6 +65,17 @@ if (!entries.includes('code = NotFound') || !entries.includes('entry not found')
 }
 if (!entries.includes('NODE_SPIFFE_ID="spiffe://bxfinance.demo/node/agent"')) {
   failures.push('registration job must use a stable agent parent ID');
+}
+for (const selector of [
+  'docker:label:com.ai-demo.spiffe-workload:bff',
+  'docker:label:com.ai-demo.spiffe-workload:agent',
+  'docker:label:com.ai-demo.spiffe-workload:mcp-gateway',
+  'docker:label:com.ai-demo.spiffe-workload:mcp-server',
+]) {
+  if (!entries.includes(selector)) failures.push(`registration job is missing Docker label selector ${selector}`);
+}
+if (/docker:label:com\.ai-demo\.spiffe-workload=/.test(entries)) {
+  failures.push('Docker workload label selectors must use key:value syntax');
 }
 if (!entries.includes('Missing or mismatched registration entry')) failures.push('registration job must verify entry parent and selector');
 if (!/KeyManager\s+"disk"\s*\{\s*plugin_data\s*\{\s*directory\s*=/.test(agentConfig)) {
