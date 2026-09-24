@@ -1,5 +1,6 @@
 .pfj-explainer {
-  --pfj-explainer-accent: #087d76;
+  --pfj-explainer-accent: var(--th-status-info-text);
+  --pfj-explainer-primary-bg: #087d76;
   display: flex;
   flex-direction: column;
   gap: 28px;
@@ -84,13 +85,35 @@
   text-decoration: none;
 }
 
-.pfj-explainer__primary { background: var(--pfj-explainer-accent); color: #fff; }
+.pfj-explainer__primary { background: var(--pfj-explainer-primary-bg); color: #fff; }
 .pfj-explainer__secondary {
   border: 1px solid var(--th-border-strong);
   background: var(--th-bg-card);
   color: var(--th-text);
 }
 .pfj-explainer__actions a:focus-visible { outline: 3px solid var(--th-status-info); outline-offset: 2px; }
+
+/* end-user-nano applies global link ink, so keep both CTA states readable. */
+.App.end-user-nano .pfj-explainer__actions a.pfj-explainer__primary:is(
+  :link,
+  :visited,
+  :hover,
+  :focus,
+  :active
+) {
+  color: #fff;
+  text-decoration: none;
+}
+.App.end-user-nano .pfj-explainer__actions a.pfj-explainer__secondary:is(
+  :link,
+  :visited,
+  :hover,
+  :focus,
+  :active
+) {
+  color: var(--th-text);
+  text-decoration: none;
+}
 
 .pfj-explainer__definition,
 .pfj-explainer__boundary {

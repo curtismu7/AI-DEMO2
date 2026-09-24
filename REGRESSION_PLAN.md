@@ -169,6 +169,24 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — ID-JAG explainer CTAs and dark accent failed contrast
+
+**Files changed:** `demo_api_ui/src/pages/PingFederateIdJagExplainerPage.css`,
+`REGRESSION_PLAN.md`.
+
+**What was broken:** end-user-nano's global link color overrode the explainer's
+CTA colors, and its fixed teal accent was too dark for step labels in dark mode.
+
+**What was fixed:** scoped link-state rules preserve readable CTA ink; the
+explainer accent now follows the light/dark-aware info-text token while the
+primary button keeps its high-contrast teal background.
+
+**Do not break:** both CTA labels and all four step numbers remain readable in
+light and dark themes; no inline themeable styles.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build`; Playwright
+contrast audit on `/pingfederate-id-jag` in both themes.
+
 ### 2026-09-24 — Switching trace evidence views left Movie reel embedded
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`,
