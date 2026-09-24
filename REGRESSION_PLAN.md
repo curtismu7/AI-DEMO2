@@ -257,6 +257,86 @@ change; switching paths must not weaken gateway authorization or tool policy.
 
 **Verify:** `cd demo_api_ui && npm run build`.
 
+### 2026-09-23 — Standard PingFederate exchanges used PingOne's token endpoint
+
+**Files changed:** `demo_api_server/services/oauthService.js`, `services/pfStandardTokenExchangeService.js`, `docs/FEDERATE-SETUP.md`, and focused BFF tests.
+
+**What was broken:** the PF standard adapter supplied PF credentials but the shared OAuth helper still posted actor-token and exchange requests to the shared PingOne token endpoint.
+
+**What was fixed:** the shared helper accepts an optional provider token endpoint and retains its existing default. The PF adapter supplies `PF_TOKEN_ENDPOINT` for both actor client-credentials calls and both RFC 8693 exchanges. The PF final-token mapping now documents the verified nested OGNL `act` map expression. Standard PF keeps P1's two-exchange semantics; UC40 ID-JAG remains separate.
+
+**Do not break:** PingOne continues using the configured default endpoint and request behavior; PF standard uses PF endpoint/clients; UC40 ID-JAG remains opt-in and independent; browser tokens stay in the BFF.
+
+**Verify:** 2 focused BFF suites (66 tests), full repository unit runner (96 API tests plus UI Vite smoke), UI production build, topology verification, and four live local PF route exchanges validated `sub`, route-specific `aud`/`scope`, and nested MCP-service → AI-agent `act`. The live exchanges used an AI-agent client-credentials token as a subject stand-in; browser-driven “show my reservations” was unavailable because the shared browser daemon denied access.
+
+### 2026-09-23 — UC2.5 reported a depth-one token exchange as complete and hid the specialist result
+
+**Files changed:** `demo_api_server/services/a2aOrchestratorService.js`,
+`demo_api_server/routes/a2aAgentRoutes.js`, `demo_api_server/src/__tests__/a2aOrchestratorService.test.js`,
+`demo_api_server/tests/real/shared/a2a-delegation-live.test.js`,
+`demo_api_ui/src/components/AIAgent.js`, `demo_api_ui/src/components/AIAgentFull.js`,
+`demo_api_ui/src/components/__tests__/AIAgent.demoStepGate.test.jsx`.
+
+**What was broken:** UC2.5 called `delegateToSpecialist` directly, minting only
+the first delegated token, then returned HTTP success with an act-chain depth
+of 1. Its catalog contract requires both A2A exchanges and `tool-dispatched`.
+The UI also discarded the structured tool result, so even a successful specialist
+execution could show only a generic delegation sentence. The response shape
+could include the delegated token.
+
+**What was fixed:** the orchestrator now uses the same specialist wire handoff
+and PERMIT-gated tool executor as UC2. It reports success only when the specialist
+tool succeeds and the nested act-chain depth is exactly 2; response fields are
+whitelisted to exclude tokens and token claims. UC2.5 now renders the returned
+specialist result in the assistant message.
+
+**Do not break:** Exchange #2 stays inside the specialist executor; the bearer
+token never crosses back to the browser; tools remain PERMIT-gated; failed or
+depth-one runs cannot tick UC2.5 complete. UC2/UC2.5 remain separate
+provider-configured PingOne and PingFederate runs with fresh login sessions.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+src/__tests__/a2aOrchestratorService.test.js src/__tests__/a2aExecution.test.js
+tests/a2aSpecialistExecutor.test.js tests/a2aProviderSessionGuard.test.js
+--forceExit`; `cd demo_api_ui && npm run test:unit && npm run build`.
+The real suite also runs UC2.5 airlines under each provider when configured with
+`A2A_EXPECTED_OAUTH_PROVIDER`, requiring fresh customer/admin sessions and both
+exchange events plus tool dispatch. PingOne tenant-claim provisioning is not
+performed by this code change.
+### 2026-09-23 — Workload Agents: UC38 and UC44 shared the Airlines action and MFA gate
+
+**Files changed:** `demo_api_server/config/useCases.js`, `demo_api_server/routes/agentInvokeRoute.js`, `demo_api_server/services/agentBuilderService.js`, `demo_api_server/services/delegatedCommerceRuntime.js`, `demo_api_server/services/agentMcpTokenService.js`, `demo_api_server/config/auth-requirements.json`, `demo_api_ui/src/pages/WorkloadAgentsPage.jsx`, `demo_api_ui/src/pages/WorkloadAgentsPage.css`, `demo_api_ui/src/pages/PersonalAgentStudioPage.jsx`, `demo_api_ui/src/pages/PersonalAgentClientWindow.jsx`, `demo_api_ui/src/components/DemoStepsDropdown.jsx`, `demo_api_ui/src/config/missionControlCatalog.js`, `demo_api_ui/src/App.js`, generated use-case docs, the deleted obsolete `demo_api_server/data/goldens/airlines/personal-agent-concierge.json` replay, and focused tests.
+
+**What was broken:** UC38 and UC44 both opened the Airlines Personal Agent Studio and ran `redeem_miles`; the studio hardcoded the Airlines vertical and UC44 slug, while the BFF applied the same blanket MFA pre-check to both slugs. The two workload-agent stories therefore showed the same action and gate even though UC38 is an MFA-protected write and UC44 is an on-behalf-of customer-data read. The BFF's registration check also did not bind that registered per-user PingOne application to the `act` identity actually used for token exchange, and the new runner left its security rail on empty or previous-run token evidence.
+
+**What was fixed:** `/workload-agents` now presents the two catalog scenarios across all 11 supported verticals, with the selected action and exact prompt visible before launch. UC38 resolves to each vertical's UC7 protected write and requires customer MFA before delegation. UC44 resolves to a distinct customer-owned read and uses normal gateway/Authorize policy without an extra blanket MFA pre-check. Mission Control and UC38/UC44 deep links open the page with use-case and vertical context. For UC38/UC44, the BFF verifies the customer's owned, enabled client-credentials app, reads its secret with the PingOne Management API on the server, and binds that request-local runtime to the RFC 8693 actor token using the app's OAuth client ID; it does not persist or return the secret. Workload runs require two-exchange mode even when the session selected debug single-exchange, and ignore consent attached to a different delegated-commerce app in that session. Workload requests skip native enterprise ID-JAG so they retain the selected actor; PingFederate ID-JAG workload requests fail closed until that path supports actor binding. The run's token events clear stale evidence and populate the security rail/filmstrip. The page is public to read; the UC38/UC44 branches of `/api/agent/invoke` require an authenticated customer and a registered agent.
+
+**Do not break:** the browser sends only the canonical use-case slug, vertical, and catalog prompt; the BFF rejects a browser-selected tool, missing or unsupported vertical, cross-vertical prompt, or a mismatch with the resolved catalog action. It must never silently fall back to Airlines or the other scenario. UC38 still returns step-up before execution without MFA; UC44 remains eligible for policy-driven step-up or denial. The BFF keeps tokens and the request-local workload-app secret, and the existing RFC 8693 two-exchange, gateway, and Authorize boundaries still govern execution. The actor client ID must match the customer-owned PingOne app reported in the trace, and its secret must never enter browser responses or event metadata. The debug single-exchange session switch cannot remove a workload actor claim, native enterprise ID-JAG cannot bypass that actor, and PingFederate ID-JAG must fail closed for workload runs. A separate delegated-commerce registration cannot supply the workload consent decision. The trace names the selected vertical's action scopes; it must not claim Airlines scopes for every run. Legacy `/personal-agent` freeform callers retain the generic guest-tolerant invocation path by omitting the UC38/UC44 slugs; those workload branches require customer authentication. UC45 retains its MFA gate. Each workload run clears and replaces live token evidence, including structured failures, and an obsolete response cannot replace the selected run's evidence.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/pages/__tests__/WorkloadAgentsPage.test.jsx src/pages/__tests__/PersonalAgentStudioPage.test.jsx src/pages/__tests__/PersonalAgentStudioPage.workloadEvidence.test.jsx src/pages/__tests__/PersonalAgentClientWindow.test.jsx src/components/__tests__/DemoStepsDropdown.test.jsx src/config/__tests__/missionControlCatalog.test.js`; `cd demo_api_server && CI=true npx jest tests/useCases.workloadAgents.test.js tests/agentInvokeRoute.workloadAgents.test.js src/__tests__/agentBuilderService.test.js tests/delegatedCommerceRuntime.test.js src/__tests__/agentMcpTokenService.test.js --forceExit`; from the repository root, `npm run use-cases:check` and `npm run authz:verify`; `cd demo_api_ui && npm run build`. These local checks pin the catalog, route, actor binding, evidence, exchange mode, and request behavior. They do not establish that the running PingOne worker can read the agent secret, that the per-user app has the necessary client-credentials grants, or a live PingOne exchange and gateway/Authorize decision; check those against the running stack with test credentials before claiming live execution.
+### 2026-09-23 — Local mock-phone CIBA approval could not finish a banking write
+
+**Files changed:** `demo_api_server/routes/ciba.js`, `routes/transactions.js`,
+`services/cibaSimulatedService.js`, `services/cibaTransactionReceipt.js`,
+`.env.example`, and `demo_api_ui/src/context/ProofOfEnforcementContext.js`.
+
+**What was broken:** the BFF rejected simulated banking requests at initiation
+and polling, so tapping Approve on the mock phone could never release the agent.
+The proof verdict also required one particular Authorize challenge shape even
+after an approved poll and successful dispatch.
+
+**What was fixed:** explicitly opt in to local simulation in development, carry
+the mock decision through polling and an amount and account bound, single-use
+receipt, and score a completed approved dispatch without depending on the first
+challenge's exact decision shape. The mock receipt remains distinct from real
+PingOne CIBA proof and cannot satisfy step-up outside the local opt-in.
+
+**Do not break:** a hard authorization DENY still blocks the write, a pending
+or failed dispatch cannot score as a success, and real CIBA stays the default.
+
+**Verify:** build `demo_api_ui`, inspect the active local CIBA status and the
+approved mock-phone request through the live agent flow.
+
 ### 2026-09-23 — CIBA approval lacked a verified, transaction-bound handoff
 
 **Files changed:** `demo_api_server/config/oauth.js`, `routes/ciba.js`,

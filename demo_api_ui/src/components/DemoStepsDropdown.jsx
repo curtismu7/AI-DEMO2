@@ -217,7 +217,13 @@ export default function DemoStepsDropdown({
   /** Run a demo step and refresh checkmarks. */
   function handleSelect(uc, stepNumber) {
     onOpenChange(false);
-    onSelect(uc, stepNumber, uc.id === 'UC14b' ? { quickResult: rarQuickResult } : undefined);
+    let selectedUc = uc;
+    if (['UC38', 'UC44'].includes(uc.id) && uc.trigger?.type === 'link' && uc.trigger.path) {
+      const url = new URL(uc.trigger.path, window.location.origin);
+      url.searchParams.set('vertical', vertical);
+      selectedUc = { ...uc, trigger: { ...uc.trigger, path: `${url.pathname}${url.search}${url.hash}` } };
+    }
+    onSelect(selectedUc, stepNumber, uc.id === 'UC14b' ? { quickResult: rarQuickResult } : undefined);
     setTick((n) => n + 1);
   }
 

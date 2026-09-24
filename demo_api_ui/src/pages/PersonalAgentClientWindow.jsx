@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import AgentClientSkin from '../components/AgentClientSkin';
+import apiClient from '../services/apiClient';
+import './WorkloadAgentsPage.css';
 
 const GREETINGS = {
   privilege: "Hello! I'm your Privilege AI assistant. I can access your MileagePlus account and help manage your upcoming flights.",
@@ -12,6 +14,36 @@ export default function PersonalAgentClientWindow() {
   const params = new URLSearchParams(window.location.search);
   const skin = params.get('skin') || 'privilege';
   const theme = params.get('theme') || 'dark';
+  const routeId = params.get('useCase');
+  const vertical = params.get('vertical');
+  const workloadRoute = vertical && ['UC38', 'UC44'].includes(routeId);
+  const [scenario, setScenario] = useState(null);
+  const [runState, setRunState] = useState({ status: 'idle', text: '' });
+
+  useEffect(() => {
+    if (!workloadRoute) return;
+    let live = true;
+    apiClient.get(`/api/use-cases/${routeId}?vertical=${encodeURIComponent(vertical)}`)
+      .then(({ data }) => { if (live) setScenario(data.useCase); })
+      .catch(() => { if (live) setRunState({ status: 'error', text: 'The catalog action could not be loaded.' }); });
+    return () => { live = false; };
+  }, [workloadRoute, routeId, vertical]);
+
+  function handleWorkloadRun() {
+    if (!scenario?.runPrompt || !scenario?.useCaseId) return;
+    setRunState({ status: 'running', text: '' });
+    fetch('/api/agent/invoke', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ prompt: scenario.runPrompt, vertical, useCaseId: scenario.useCaseId }),
+    }).then(async (response) => {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || data.error || `Request failed (${response.status})`);
+      return data;
+    }).then((data) => setRunState({ status: 'complete', text: data.reply || 'The workload agent completed the request.' }))
+      .catch((error) => setRunState({ status: 'error', text: error.message || 'The workload agent could not complete the request.' }));
+  }
 
   const [messages, setMessages] = useState([
     { role: 'agent', text: GREETINGS[skin] || GREETINGS.privilege },
@@ -24,7 +56,7 @@ export default function PersonalAgentClientWindow() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ prompt: text, vertical: 'airlines', useCaseId: 'workload-digital-assistant-obo' }),
+      body: JSON.stringify({ prompt: text, vertical: 'airlines' }),
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
@@ -40,6 +72,17 @@ export default function PersonalAgentClientWindow() {
         { role: 'agent', text: error.message || 'The digital assistant could not complete the request.' },
       ]));
   }
+
+  if (workloadRoute) return (
+    <main className="workload-agents workload-agents__run">
+      <h1>{scenario?.title || 'Loading workload action…'}</h1>
+      <p>{routeId} · {vertical} · {scenario?.primaryTool || 'Loading action'}</p>
+      <p>{routeId === 'UC38' ? 'Customer MFA is checked before this protected write.' : 'The registered agent reads customer-owned data on behalf of the signed-in customer.'}</p>
+      <p>{scenario?.runPrompt || 'Loading catalog prompt'}</p>
+      <button type="button" disabled={!scenario || runState.status === 'running'} onClick={handleWorkloadRun}>Run {routeId} action</button>
+      <p role="status">{runState.status === 'running' ? 'Running the selected action…' : runState.text || 'Ready to run the selected catalog action.'}</p>
+    </main>
+  );
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
