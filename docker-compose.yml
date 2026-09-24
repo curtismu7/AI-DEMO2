@@ -716,6 +716,7 @@ services:
       - spiffe-agent-socket:/run/spire-agent/sockets
       - spiffe-bootstrap:/run/spire-bootstrap
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    pid: host
     networks:
       - ai-demo
     restart: unless-stopped
@@ -737,6 +738,8 @@ services:
       - ai-demo
 
   spiffe-helper-bff:
+    labels:
+      com.ai-demo.spiffe-workload: bff
     profiles: ["spiffe"]
     image: ghcr.io/spiffe/spiffe-helper:0.11.0
     container_name: ai-demo-spiffe-helper-bff
