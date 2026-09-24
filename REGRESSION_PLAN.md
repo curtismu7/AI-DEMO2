@@ -169,6 +169,94 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-23 — Refresh-token marker disappeared when access token expired
+
+**Files changed:** `demo_api_server/routes/oauth.js`,
+`demo_api_server/routes/oauthUser.js`, `demo_api_ui/src/services/sessionResolver.js`,
+`demo_api_ui/src/components/TopNav.js`, `REGRESSION_PLAN.md`.
+
+**What was broken:** the status endpoints reported `hasRefreshToken` only while
+the access token was authenticated, and the top bar required an active access
+token to display the red R. An expired token or transient refresh failure hid
+the fact that the BFF still held a refresh token.
+
+**What was fixed:** admin and user status now report refresh-token presence as
+a boolean for their OAuth session, including stale sessions. The shared top-bar
+red R is shown whenever that boolean is true, including on dashboard and Agent
+routes, and goes away when the refresh token is cleared.
+
+**Do not break:** raw refresh tokens remain server-side; only a boolean reaches
+the UI. P1/PF admin and user session selection and automatic refresh stay
+separate.
+
+**Verify:** syntax checks for touched server files and `cd demo_api_ui && npm
+run build`.
+
+### 2026-09-23 — Auto-refresh used the wrong OAuth client for admin sessions
+
+**Files changed:** `demo_api_server/middleware/tokenRefresh.js`,
+`demo_api_server/middleware/agentSessionMiddleware.js`,
+`demo_api_server/services/oauthUserService.js`,
+`demo_api_ui/src/services/demoAgentService.js`,
+`demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`, `REGRESSION_PLAN.md`.
+
+**What was broken:** proactive and agent-session refresh always used the user
+OAuth client, even for admin sessions. PingFederate user refresh also omitted
+the configured Basic or `private_key_jwt` client authentication. The AI Guard
+client did not request `offline_access`, so issuers that could refresh never
+returned a refresh token.
+
+**What was fixed:** both middleware paths now select the issuer client by
+`oauthType` (with the session role as a fallback). PingFederate user refresh
+uses the same token endpoint authentication method as authorization-code
+exchange. The Agent manual refresh tries the current session type first. The AI
+Guard flow requests `offline_access` in both PF and P1 flows,
+while preserving the advertised MCP scopes. Existing main-app P1 and PF scope
+configuration continues to request `offline_access`.
+
+**Do not break:** refresh-token rotation, durable session saves, OAuth client
+separation between admin and user, or configured P1/PF token endpoint auth.
+
+**Verify:** syntax checks for the changed server JavaScript modules and
+`cd demo_api_ui && npm run build`.
+
+### 2026-09-23 — Repeated tool discovery reopened gateway sign-in prompt
+
+**Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
+`REGRESSION_PLAN.md`.
+
+**What was broken:** every `tools/list` 401 reopened the sign-in modal, so retrying
+Get MCP Tools repeatedly interrupted the user with the same prompt.
+
+**What was fixed:** show at most one automatic sign-in prompt per app during a
+page visit. Switching apps allows a separate prompt, and explicitly choosing
+Sign in starts a fresh attempt.
+
+**Do not break:** per-app OAuth tokens remain isolated; 401s still set the
+identity to signed out; users still explicitly request tool discovery; policy
+decisions remain server-side.
+
+**Verify:** `cd demo_api_ui && npm run build`.
+
+### 2026-09-23 — Client path switch changed the selected AI Gateway app
+
+**Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`.
+
+**What was broken:** each path remembered its own MCP app. Switching from
+Direct `opensearch` to Privilege could silently select `aggregate`, so a policy
+configured for `opensearch` did not apply to the request. The previous path's
+403 banner also remained visible and was attributed to the newly selected app.
+
+**What was fixed:** switching paths now keeps the selected app when the
+destination has a matching door, then clears the prior denial and closes its
+modal. A new denial on the selected app can still show normally.
+
+**Do not break:** a denial remains visible until a successful refresh or path
+change; switching paths must not weaken gateway authorization or tool policy.
+
+**Verify:** `cd demo_api_ui && npm run build`.
+
 ### 2026-09-24 — Local demo-auth startup allowed token-exchanger credentials to drift
 
 **Files changed:** `scripts/check-mcp-gateway-credential-parity.js`,

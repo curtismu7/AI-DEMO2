@@ -80,10 +80,20 @@ export async function resolveSessionExpiry() {
     }
   }
 
-  // No authenticated session — check if the user session is stale
+  // No active access token — retain the refresh-token signal for a still-live
+  // login session. A failed/transient refresh must not hide the red R while the
+  // BFF still has a refresh token it can use on the next request.
+  const adminData = admin.status === 'fulfilled' ? admin.value?.data : null;
   const endUserData = endUser.status === 'fulfilled' ? endUser.value?.data : null;
-  if (endUserData?.staleSession) {
-    return { expiresAt: null, sessionType: 'user', staleSession: true, hasRefreshToken: false, oauthProvider: null };
+  const staleData = adminData?.staleSession ? adminData : endUserData?.staleSession ? endUserData : null;
+  if (staleData) {
+    return {
+      expiresAt: staleData.expiresAt ?? null,
+      sessionType: staleData.sessionType || (staleData === adminData ? 'admin' : 'user'),
+      staleSession: true,
+      hasRefreshToken: Boolean(staleData.hasRefreshToken),
+      oauthProvider: staleData.oauthProvider ?? null,
+    };
   }
 
   return { expiresAt: null, sessionType: null, staleSession: false, hasRefreshToken: false, oauthProvider: null };

@@ -1,7 +1,13 @@
 'use strict';
 
 const oauthUserService = require('../services/oauthUserService');
+const oauthService = require('../services/oauthService');
 const tokenChainService = require('../services/tokenChainService');
+
+function oauthServiceForSession(session) {
+  const oauthType = session?.oauthType || (session?.user?.role === 'admin' ? 'admin' : 'user');
+  return oauthType === 'admin' ? oauthService : oauthUserService;
+}
 
 /**
  * In-memory guards to prevent thundering-herd refresh attempts.
@@ -89,7 +95,7 @@ async function refreshIfExpiring(req, res, next) {
 
     try {
       console.log('[tokenRefresh] Access token expiring soon (or expired), refreshing...');
-      const tokenData = await oauthUserService.refreshAccessToken(tokens.refreshToken);
+      const tokenData = await oauthServiceForSession(req.session).refreshAccessToken(tokens.refreshToken);
 
       req.session.oauthTokens = {
         ...tokens,
