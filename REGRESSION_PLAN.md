@@ -169,6 +169,22 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-23 — React Flow's custom shadow value tripped the shadow ratchet
+
+**Files changed:** `demo_api_ui/src/components/TokenTopologyPanel.css` and
+`REGRESSION_PLAN.md`.
+
+**What was broken:** the React Flow controls' `--xy-controls-button-box-shadow`
+used a literal shadow value, pushing the design-token shadow count one over its
+ratchet ceiling after the topology panel landed.
+
+**What was fixed:** the control shadow now uses the shared `--shadow-sm` token.
+
+**Do not break:** retain the React Flow controls' subtle elevation while keeping
+the UI shadow-literal ratchet at or below its existing ceiling.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build`.
+
 ### 2026-09-23 — Spinner Ping P escaped the red circle
 
 **Files changed:** `demo_api_ui/src/components/shared/PingIdentitySpinner.jsx`,
