@@ -236,6 +236,25 @@ ratchet ceiling after the topology panel landed.
 the UI shadow-literal ratchet at or below its existing ceiling.
 
 **Verify:** `cd demo_api_ui && npm run test:unit && npm run build`.
+### 2026-09-24 — Setup pages render unreadable white surfaces in dark mode
+
+**Files changed:** `demo_api_ui/src/components/Configuration/UnifiedConfigurationPage.css`,
+`demo_api_ui/src/components/Configuration/UnifiedConfigurationPage.tsx`,
+`demo_api_ui/src/components/SetupPage.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** `/configure` kept white page, tab, and section surfaces while
+dark mode changed ink to white; quick-start examples and several setup controls
+also used fixed colors that failed against the opposite theme's surface.
+
+**What was fixed:** setup and configuration surfaces now use paired `--th-*`
+surface and ink tokens, including active navigation, status panels, helper text,
+scenario cards, and form controls. Quick-start examples no longer use inline ink.
+
+**Do not break:** light and dark theme text/surface pairs must remain above 4.5:1;
+setup navigation, configuration fields, save behavior, and setup flow are unchanged.
+
+**Verify:** contrast ratios calculated from the light/dark token values; both
+themes' edited text/surface pairs exceed 4.5:1. `cd demo_api_ui && npm run build`.
 
 ### 2026-09-23 — Spinner Ping P escaped the red circle
 
