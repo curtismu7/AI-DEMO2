@@ -46,8 +46,13 @@ The Elasticsearch cluster must enable its anonymous realm with the username
 `kibana_shared` and role `kibana_shared`. The role should grant:
 
 - `monitor` cluster access;
-- `read` and `view_index_metadata` on `ping-siem-events*`;
+- `read` and `view_index_metadata` on `ping-siem-events*` and
+  `pingfederate-logs-*`;
 - read-only access to `.kibana*` and `.tasks` so Kibana can render saved objects.
+
+The PF Filebeat sidecar uses a separate ingestion account. Grant it `monitor`
+cluster access and `create_doc` plus `auto_configure` on `pingfederate-logs-*`
+only.
 
 Keep the Elasticsearch and PingOne secrets in Kubernetes Secrets or local
 environment storage. Do not commit them to this repository.

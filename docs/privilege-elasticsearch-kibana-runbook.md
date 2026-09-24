@@ -119,6 +119,53 @@ After events appear in Discover, use **Dashboard → Create dashboard** and add 
 
 The shared account used for this local setup is intentionally read-only. If **Create data view** or dashboard editing is unavailable, an administrator must create the data view and dashboards, or the account must be granted Kibana editor privileges.
 
+## Add local PingFederate logs
+
+The local PF log collector runs as a separate Filebeat container so it can
+attach to an already-running PF container. It reads `server.log` and
+`audit.log`, including uncompressed rotated files, from the PF output volume.
+It sends events to the same Elasticsearch deployment under
+`pingfederate-logs-YYYY.MM.DD`; Privilege SIEM events remain in
+`ping-siem-events`.
+
+Copy `scripts/pingfederate/.env.example` to the untracked
+`scripts/pingfederate/.env` file, then set these values before starting the PF
+Compose stack:
+
+```bash
+ELASTIC_STACK_VERSION='<same version as Elasticsearch>'
+ELASTICSEARCH_URL='https://<elasticsearch-host>:9200'
+ELASTICSEARCH_USERNAME='<dedicated PingFederate log-ingestion user>'
+ELASTICSEARCH_PASSWORD='<password from the secret store>'
+```
+
+Start the collector from the main checkout after configuring the values in
+`scripts/pingfederate/.env`:
+
+```bash
+docker compose --env-file scripts/pingfederate/.env \
+  -f scripts/pingfederate/docker-compose.logs.local.yml up -d
+```
+
+`PINGFEDERATE_LOG_VOLUME_NAME` must match the volume mounted at `/opt/out` in
+the running PF container. The example targets the current local container's
+`ai-demo-pingfederate-bootstrap` volume.
+
+The URL must be reachable from Docker. When Elasticsearch is only reachable
+inside Kubernetes, use an approved reachable endpoint or forward its service
+to the host and use `host.docker.internal` from the Filebeat container. Do not
+use Kibana's port-forward as the Elasticsearch endpoint.
+
+The ingestion user needs `monitor` cluster access plus `create_doc` and
+`auto_configure` on `pingfederate-logs-*`. The shared Kibana role needs `read`
+and `view_index_metadata` on that index pattern. Keep those permissions
+separate from the existing Privilege SIEM index permissions, and store the
+credentials outside Git.
+
+In Kibana, create or select a data view named `pingfederate-logs-*` and use
+`@timestamp` as its time field. The events include `service: pingfederate` and
+`event.dataset: pingfederate.server` or `pingfederate.audit` for filtering.
+
 ## Troubleshooting
 
 ### `first path segment in URL cannot contain colon`
