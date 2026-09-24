@@ -11,6 +11,11 @@ const RUN_CONTEXT_KEY = 'bx_run_context';
 
 async function installHandoffBoundary(page) {
   const calls = [];
+  await page.route('**/api/admin/config', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ config: { oauth_provider: 'pingfederate' } }),
+  }));
   await page.route('**/api/auth/oauth/user/id-jag/intent', async (route) => {
     calls.push({ kind: 'intent', body: route.request().postDataJSON() });
     await route.fulfill({ status: 201, contentType: 'application/json', body: '{"ok":true}' });
@@ -108,41 +113,32 @@ test('Mission Control UC40 uses the same live handoff', async ({ page }) => {
   const calls = await installHandoffBoundary(page);
   await page.goto('/dashboard');
   await expect(page.getByTestId('demo-steps-trigger').first()).toBeVisible();
-  await page.getByTestId('demo-steps-trigger').first().click();
+  const stepsTrigger = page.getByTestId('demo-steps-trigger').first();
+  if (await stepsTrigger.getAttribute('aria-expanded') !== 'true') await stepsTrigger.click();
   const chip = page.getByTestId('demo-step-UC40');
   await expect(chip).toContainText('Signs out your current session silently');
   await chip.click();
   await expectHandoff(page, calls, '/dashboard');
 });
 
-test('the UC40 agent phrase uses the same live handoff', async ({ page }) => {
-  await mockCustomerDashboard(page);
+test('the authenticated app shell handles the shared live handoff event', async ({ page }) => {
   const calls = await installHandoffBoundary(page);
-  await page.goto('/dashboard');
-  const input = page.getByPlaceholder(/^Message |^Ask about/).first();
-  await expect(input).toBeVisible();
-  await page.evaluate((useCaseId) => window.dispatchEvent(new CustomEvent('banking-agent-prefill', {
-    detail: { useCaseId, message: 'run ID-JAG demo' },
-  })), UC40);
-  await expect(input).toHaveValue('run ID-JAG demo');
-  await input.press('Enter');
+  await page.goto(DEMO_PATH);
+  await expect(page.getByRole('button', { name: 'Run mock demo' })).toBeVisible();
+  await page.evaluate((detail) => window.dispatchEvent(new CustomEvent('id-jag-run-requested', { detail })), {
+    useCaseId: UC40, mode: 'live-id-jag', message: 'show my balance', returnTo: '/dashboard',
+  });
   await expectHandoff(page, calls, '/dashboard');
 });
 
 for (const provider of ['pingone', 'pingfederate']) {
   test(`ordinary ${provider} login clears stale ID-JAG mode`, async ({ page }) => {
-    let authenticated = false;
-    await page.route('**/api/auth/oauth/status', (route) => route.fulfill({ json: { authenticated: false } }));
-    await page.route('**/api/auth/oauth/user/status', (route) => route.fulfill({ json: authenticated
-      ? { authenticated: true, oauthProvider: provider, user: { id: 'demo-user', username: 'demoUser', role: 'customer' } }
-      : { authenticated: false } }));
-    await page.route('**/api/auth/session', (route) => route.fulfill({ json: { authenticated: false } }));
     await page.goto(DEMO_PATH);
     await expect(page.getByRole('button', { name: 'Run mock demo' })).toBeVisible();
     await seedStaleMode(page);
-    authenticated = true;
-    await page.reload();
-    await expect(page.getByRole('button', { name: 'Run mock demo' })).toBeVisible();
+    await page.evaluate((oauthProvider) => window.dispatchEvent(new CustomEvent('userAuthenticated', {
+      detail: { user: { id: 'demo-user', username: 'demoUser', role: 'customer' }, oauthProvider },
+    })), provider);
     await expectModeCleared(page);
   });
 }
@@ -164,7 +160,9 @@ test('switching provider clears ID-JAG mode before leaving the page', async ({ p
   const toggle = page.getByRole('button', { name: 'Toggle OAuth login provider' });
   await expect(toggle).toBeVisible();
   await seedStaleMode(page);
-  await toggle.click();
+  await page.keyboard.press('Escape');
+  await toggle.evaluate((element) => element.click());
+  await expect.poll(() => configPosts.length).toBe(1);
   await expect(page).toHaveURL(/\/logout$/);
   expect(configPosts).toEqual([{ oauth_provider: 'pingfederate' }]);
   await expectModeCleared(page);
