@@ -35,6 +35,8 @@ if (!compose.includes('FF_SPIFFE_CLIENT_AUTH')) failures.push('BFF SPIFFE client
 
 const entries = fs.readFileSync(path.join(root, 'spiffe/docker-compose/entries.sh'), 'utf8');
 const agentConfig = fs.readFileSync(path.join(root, 'spiffe/docker-compose/spire-agent.conf'), 'utf8');
+const helperConfig = fs.readFileSync(path.join(root, 'spiffe/docker-compose/helper-bff.conf'), 'utf8');
+const oidcConfig = fs.readFileSync(path.join(root, 'spiffe/docker-compose/oidc-discovery-provider.conf'), 'utf8');
 for (const id of ['spiffe://bxfinance.demo/bff', 'spiffe://bxfinance.demo/agent', 'spiffe://bxfinance.demo/mcp-gateway', 'spiffe://bxfinance.demo/mcp-server']) {
   if (!entries.includes(id)) failures.push(`registration entry is missing ${id}`);
 }
@@ -51,6 +53,30 @@ if (!entries.includes('NODE_SPIFFE_ID="spiffe://bxfinance.demo/node/agent"')) {
 if (!entries.includes('Missing or mismatched registration entry')) failures.push('registration job must verify entry parent and selector');
 if (!/KeyManager\s+"disk"\s*\{\s*plugin_data\s*\{\s*directory\s*=/.test(agentConfig)) {
   failures.push('SPIRE agent disk key manager must configure its directory');
+}
+if (!agentConfig.includes('docker_socket_path = "unix:///var/run/docker.sock"')) {
+  failures.push('SPIRE agent Docker attestor must use a unix socket address');
+}
+for (const setting of [
+  'agent_address = "/run/spire-agent/sockets/agent.sock"',
+  'cert_dir = "/run/spiffe"',
+  'svid_file_name = "svid.pem"',
+  'svid_key_file_name = "svid.key"',
+  'svid_bundle_file_name = "bundle.pem"',
+  'jwt_svids = [{ jwt_audience = "bxfinance.demo", jwt_svid_file_name = "svid.jwt" }]',
+  'daemon_mode = true',
+]) {
+  if (!helperConfig.includes(setting)) failures.push(`SPIFFE helper config is missing ${setting}`);
+}
+for (const setting of [
+  'allow_insecure_scheme = true',
+  'insecure_addr = "0.0.0.0:8443"',
+  'domains = ["spiffe-oidc-provider"]',
+]) {
+  if (!oidcConfig.includes(setting)) failures.push(`OIDC discovery provider config is missing ${setting}`);
+}
+if (!/server_api\s*\{\s*address\s*=\s*"unix:\/\/\/run\/spire\/server\/private\/api\.sock"/.test(oidcConfig)) {
+  failures.push('OIDC discovery provider config must use the SPIRE Server API socket');
 }
 
 if (failures.length) {
