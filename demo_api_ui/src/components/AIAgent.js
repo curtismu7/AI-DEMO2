@@ -1467,6 +1467,10 @@ export default function BankingAgent({
   const [heuristicEnabled, setHeuristicEnabled] = useState(true);
   /** Whether the floating results panel is enabled (ff_agent_results_panel). false = panel hidden; results inline only. */
   const [agentResultsPanelEnabled, setAgentResultsPanelEnabled] = useState(false);
+  // PingOne Admin tool output is a directory/tool result surface: keep the
+  // structured records visible in the floating results panel even when the
+  // optional banking results flag is off.
+  const showAgentResultsPanel = agentResultsPanelEnabled || effectiveVerticalId === "pingone-admin";
   /** Whether AG-UI streaming is enabled (ff_agui_enabled). false = legacy sendAgentMessage path. */
   const [aguiEnabled, setAguiEnabled] = useState(false);
   /** Whether activity narration is enabled (ff_activity_narration). Controls visibility of the always-on panel. */
@@ -3864,18 +3868,21 @@ export default function BankingAgent({
   }
 
   // Route an agent response's verticalResult to its renderer and return the
-  // addMessage `extra` for inline display. The render descriptor is resolved
-  // from the active manifest (the mapping verticals provide). When the floating
-  // Results Panel is enabled it owns the card; otherwise the card renders inline
-  // under the reply bubble ("results inline only" — the documented default).
-  // Mutually exclusive so the same card never shows twice.
+  // addMessage `extra` for inline display. Long or truncated record lists stay
+  // in the conversation flow so they can use its scroll area; shorter results
+  // use the floating panel when enabled. Mutually exclusive so the same card
+  // never shows twice.
   function verticalResultExtra(response) {
     const vr = response?.verticalResult;
     if (!vr) return {};
     // Use server-embedded descriptor first (A2A results from another vertical carry it
     // because the active pageManifest belongs to the host vertical, not the specialist).
     const descriptor = vr.descriptor || pageManifest?.render?.[vr.render] || null;
-    if (agentResultsPanelEnabled) {
+    const rows = Array.isArray(vr.data?.rows) ? vr.data.rows : [];
+    const isLongRecordList = rows.length > 5
+      || vr.data?.rowsTruncated
+      || (Number.isFinite(vr.data?.totalCount) && vr.data.totalCount > rows.length);
+    if (showAgentResultsPanel && !isLongRecordList) {
       setResultPanel({
         type: "vertical",
         title: descriptor?.title || "Result",
@@ -3885,6 +3892,7 @@ export default function BankingAgent({
       });
       return {};
     }
+    if (isLongRecordList) setResultPanel(null);
     return { verticalResult: { descriptor, data: vr.data, terminology } };
   }
 
@@ -10087,7 +10095,7 @@ export default function BankingAgent({
       )}
 
       {/* Results panel — sits to the left of the agent (portal-renders over page; works in all modes) */}
-      {effectiveIsOpen && resultPanel && agentResultsPanelEnabled && (
+      {effectiveIsOpen && resultPanel && showAgentResultsPanel && (
         <ResultsPanel
           panel={resultPanel}
           onClose={() => setResultPanel(null)}

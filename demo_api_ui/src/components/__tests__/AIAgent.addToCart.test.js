@@ -317,4 +317,110 @@ describe("productGrid card renders from a real NL response and Add to Cart dispa
     });
     expect(screen.queryByText(/"productId"/)).not.toBeInTheDocument();
   });
+
+  it("opens the PingOne results panel with returned user rows when the floating panel flag is off", async () => {
+    useVertical.mockReturnValue({
+      ...DEFAULT_VERTICAL_MOCK,
+      pageManifest: {
+        render: {
+          call_pingone_tool: {
+            type: "fieldList",
+            title: "PingOne MCP Result",
+            fields: [{ label: "Tool", path: "tool" }],
+          },
+        },
+      },
+    });
+    demoAgentNlService.parseNaturalLanguage.mockResolvedValue({
+      source: "heuristic",
+      result: {
+        kind: "vertical",
+        action: "call_pingone_tool",
+        vertical: "pingone-admin",
+        params: { name: "listUsers" },
+      },
+    });
+    demoAgentService.sendAgentMessage.mockResolvedValue({
+      success: true,
+      reply: "I found the PingOne users.",
+      verticalResult: {
+        descriptor: {
+          type: "fieldList",
+          title: "PingOne MCP Result",
+          fields: [{ label: "Tool", path: "tool" }],
+        },
+        data: {
+          tool: "listUsers",
+          rows: [{ username: "alice", email: "alice@example.com", enabled: true }],
+          totalCount: 1,
+        },
+      },
+    });
+
+    renderAgent({ user: customerUser, mode: "inline", forceVertical: "pingone-admin" });
+    const input = screen.getByPlaceholderText(/^Message |^Ask about/);
+    fireEvent.change(input, { target: { value: "show all users" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(document.querySelector(".banking-agent-results-panel")).toBeInTheDocument();
+      expect(screen.getByText("alice")).toBeInTheDocument();
+    });
+  });
+
+  it("shows long PingOne user lists inline in the agent conversation", async () => {
+    useVertical.mockReturnValue({
+      ...DEFAULT_VERTICAL_MOCK,
+      pageManifest: {
+        render: {
+          call_pingone_tool: {
+            type: "fieldList",
+            title: "PingOne MCP Result",
+            fields: [{ label: "Tool", path: "tool" }],
+          },
+        },
+      },
+    });
+    demoAgentNlService.parseNaturalLanguage.mockResolvedValue({
+      source: "heuristic",
+      result: {
+        kind: "vertical",
+        action: "call_pingone_tool",
+        vertical: "pingone-admin",
+        params: { name: "listUsers" },
+      },
+    });
+    demoAgentService.sendAgentMessage.mockResolvedValue({
+      success: true,
+      reply: "I found the PingOne users.",
+      verticalResult: {
+        descriptor: {
+          type: "fieldList",
+          title: "PingOne MCP Result",
+          fields: [{ label: "Tool", path: "tool" }],
+        },
+        data: {
+          tool: "listUsers",
+          rows: Array.from({ length: 8 }, (_, index) => ({
+            username: `user${index + 1}`,
+            email: `user${index + 1}@example.com`,
+          })),
+          totalCount: 37,
+          rowsTruncated: true,
+        },
+      },
+    });
+
+    renderAgent({ user: customerUser, mode: "inline", forceVertical: "pingone-admin" });
+    const input = screen.getByPlaceholderText(/^Message |^Ask about/);
+    fireEvent.change(input, { target: { value: "show all users" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(document.querySelector(".banking-agent-results-panel")).not.toBeInTheDocument();
+      expect(document.querySelector(".vertical-result-rows")).toBeInTheDocument();
+      expect(screen.getByText("Showing 8 of 37 users")).toBeInTheDocument();
+      expect(screen.getByText("user8")).toBeInTheDocument();
+    });
+  });
 });

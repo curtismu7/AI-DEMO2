@@ -169,6 +169,27 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — PingOne Admin agent results had no inspectable records
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/VerticalResult.jsx`, and focused UI tests.
+
+**What was broken:** the floating result panel was disabled by default, and the
+PingOne Admin field-list renderer showed only a summary, hiding the rows returned
+by tools such as `listUsers`.
+
+**What was fixed:** PingOne Admin results render structured rows with total
+counts and an explicit preview notice when truncated. Short results use the
+floating panel; long or truncated lists render inline in the scrollable agent
+conversation so the full preview remains reachable. Other verticals still follow
+the floating results feature flag.
+
+**Do not break:** preserve the PingOne Admin tool allowlist, authorization,
+query filters, token custody, and the server's bounded rows sent to the agent.
+
+**Verify:** focused `VerticalResult` and `AIAgent.addToCart` Vitest suites and
+the UI production build.
+
 ### 2026-09-24 — Token chain node selection hid its detail below the map
 
 **Files changed:** `demo_api_ui/src/components/TokenChainTraceRail.jsx`,
