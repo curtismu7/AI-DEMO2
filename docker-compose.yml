@@ -689,11 +689,11 @@ services:
     volumes:
       - ./spiffe/docker-compose/spire-server.conf:/etc/spire/server.conf:ro
       - spiffe-server-data:/opt/spire/data/server
-      - spiffe-server-socket:/run/spire-server/private
+      - spiffe-server-api-socket:/run/spire/server/private
     networks:
       - ai-demo
     healthcheck:
-      test: ["CMD", "/opt/spire/bin/spire-server", "healthcheck", "-socketPath", "/run/spire-server/private/api.sock"]
+      test: ["CMD", "/opt/spire/bin/spire-server", "healthcheck", "-socketPath", "/run/spire/server/private/api.sock"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -727,7 +727,7 @@ services:
         condition: service_healthy
     volumes:
       - ./spiffe/docker-compose/entries.sh:/etc/spire/entries.sh:ro
-      - spiffe-server-socket:/run/spire-server/private
+      - spiffe-server-api-socket:/run/spire/server/private
       - spiffe-bootstrap:/run/spire-bootstrap
     networks:
       - ai-demo
@@ -762,7 +762,7 @@ services:
         condition: service_healthy
     volumes:
       - ./spiffe/docker-compose/oidc-discovery-provider.conf:/etc/spiffe/oidc-discovery-provider.conf:ro
-      - spiffe-server-socket:/run/spire-server/private
+      - spiffe-server-api-socket:/run/spire/server/private
       - spiffe-agent-socket:/run/spire-agent/sockets
     networks:
       - ai-demo
@@ -2395,7 +2395,7 @@ networks:
 
 volumes:
   spiffe-server-data:
-  spiffe-server-socket:
+  spiffe-server-api-socket:
   spiffe-bootstrap:
   spiffe-agent-data:
   spiffe-agent-socket:
