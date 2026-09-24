@@ -22,10 +22,12 @@
 // Status (active/done/error) is a SEPARATE encoding layered on top (motion,
 // dash, weight) — it never overrides the lane's hue, or "each step is a
 // different color" would collapse back into "each status is a color".
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef, useContext } from "react";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { deriveLifelineSteps, deriveLifelineParticipants } from "../services/tokenChainTrace/deriveLifelineSteps";
 import { laneLabel } from "../services/tokenChainTrace/buildTraceSteps";
+import { VerticalContext } from "../vertical/VerticalProvider";
+import { sequenceDiagramLabel } from "./sequenceDiagramLabels";
 import { buildA2aTokenChainSteps } from "./TokenChainTraceRail";
 import TraceProvenanceBadge from "./TraceProvenanceBadge";
 import "./SequenceReelDiagram.css";
@@ -144,6 +146,10 @@ function laneClass(lane) {
   return `srd-lane-${String(lane || "").toLowerCase()}`;
 }
 
+function actorLabelNeedsFit(label) {
+  return String(label || "").length > 12;
+}
+
 export default function SequenceReelDiagram({
   onSelectStep,
   onReset,
@@ -159,6 +165,9 @@ export default function SequenceReelDiagram({
   initialZoom = ZOOM_DEFAULT,
   ariaLabel = "Live sequence diagram of this session's token chain",
 }) {
+  const verticalContext = useContext(VerticalContext);
+  const pageManifest = verticalContext?.pageManifest;
+  const verticalName = pageManifest?.identity?.displayName;
   const [snap, setSnap] = useState(() => tokenChainTraceStore.getState());
   useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
 
@@ -193,8 +202,10 @@ export default function SequenceReelDiagram({
 
   const allLifelineSteps = useMemo(() => {
     const happened = steps.filter((step) => HAPPENED.has(step.status));
-    if (!happened.some((step) => !SESSION_STEP_IDS.has(step.id))) return [];
-    return deriveLifelineSteps(happened);
+    const failureIndex = happened.findIndex((step) => step.status === "error");
+    const visibleSteps = failureIndex === -1 ? happened : happened.slice(0, failureIndex + 1);
+    if (!visibleSteps.some((step) => !SESSION_STEP_IDS.has(step.id))) return [];
+    return deriveLifelineSteps(visibleSteps);
   }, [steps]);
   const runId = externalRunId ?? snap.trace?.runId ?? null;
   const runProvenance = provenance || snap.trace?.provenance || "live";
@@ -537,11 +548,22 @@ export default function SequenceReelDiagram({
         >
           {participants.map((lane) => {
             const x = colX(lane);
+            const label = sequenceDiagramLabel(laneLabel(lane), verticalName);
+            const fitLabel = actorLabelNeedsFit(label);
+            const fitAttrs = fitLabel
+              ? { textLength: ACTOR_BOX_W - 8, lengthAdjust: "spacingAndGlyphs" }
+              : {};
             return (
               <g key={lane} className={laneClass(lane)}>
                 <rect x={x - ACTOR_BOX_W / 2} y="4" width={ACTOR_BOX_W} height="48" rx="8" className="srd-actor-box" />
-                <text x={x} y="34" textAnchor="middle" className="srd-actor-label">
-                  {laneLabel(lane)}
+                <text
+                  x={x}
+                  y="34"
+                  textAnchor="middle"
+                  className={`srd-actor-label${fitLabel ? " srd-actor-label--fit" : ""}`}
+                  {...fitAttrs}
+                >
+                  {label}
                 </text>
                 <line x1={x} y1="52" x2={x} y2={footerY} className="srd-lifeline" />
                 {/* The cast again at the foot of the lifelines: during a tall
@@ -555,8 +577,14 @@ export default function SequenceReelDiagram({
                   rx="8"
                   className="srd-actor-box srd-actor-box--footer"
                 />
-                <text x={x} y={footerY + 30} textAnchor="middle" className="srd-actor-label srd-actor-label--footer">
-                  {laneLabel(lane)}
+                <text
+                  x={x}
+                  y={footerY + 30}
+                  textAnchor="middle"
+                  className={`srd-actor-label srd-actor-label--footer${fitLabel ? " srd-actor-label--fit" : ""}`}
+                  {...fitAttrs}
+                >
+                  {label}
                 </text>
               </g>
             );
@@ -572,12 +600,13 @@ export default function SequenceReelDiagram({
             const isActive = step.status === "active" && !traceFinished;
             const stepLaneClass = laneClass(step.type === "note" ? step.lane : step.to);
             const groupClass = `${statusClass} ${stepLaneClass}${isSelected ? " srd-selected" : ""}`;
+            const displayLabel = sequenceDiagramLabel(step.label, verticalName);
             const setStepRef = (el) => {
               if (step.id === activeStepId) activeStepRef.current = el;
             };
             if (step.type === "note") {
               const x = colX(step.lane);
-              const noteW = noteBoxWidth(step.label);
+              const noteW = noteBoxWidth(displayLabel);
               return (
                 <g
                   key={step.id}
@@ -585,7 +614,7 @@ export default function SequenceReelDiagram({
                   className={groupClass}
                   onClick={() => selectStep(step.id)}
                   role="button"
-                  aria-label={step.label}
+                  aria-label={displayLabel}
                   tabIndex={0}
                   onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && selectStep(step.id)}
                 >
@@ -595,7 +624,7 @@ export default function SequenceReelDiagram({
                   <rect x={0} y={y - ROW_HEIGHT / 2} width={width} height={ROW_HEIGHT} className="srd-hitbox" />
                   <rect x={x - noteW / 2} y={y - 14} width={noteW} height="28" rx="5" className="srd-note-box" />
                   <text x={x} y={y + 5} textAnchor="middle" className="srd-note-label">
-                    {step.label}
+                    {displayLabel}
                   </text>
                   {isActive && <circle cx={x} cy={y} r="6" className="srd-active-pulse" />}
                 </g>
@@ -603,7 +632,7 @@ export default function SequenceReelDiagram({
             }
             const fromX = colX(step.from);
             const toX = colX(step.to);
-            const labelW = labelBoxWidth(step.label);
+            const labelW = labelBoxWidth(displayLabel);
             return (
               <g
                 key={step.id}
@@ -611,7 +640,7 @@ export default function SequenceReelDiagram({
                 className={groupClass}
                 onClick={() => selectStep(step.id)}
                 role="button"
-                aria-label={step.label}
+                aria-label={displayLabel}
                 tabIndex={0}
                 onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && selectStep(step.id)}
               >
@@ -640,7 +669,7 @@ export default function SequenceReelDiagram({
                   className="srd-label-box"
                 />
                 <text x={(fromX + toX) / 2} y={y - 8} textAnchor="middle" className="srd-arrow-label">
-                  {step.label}
+                  {displayLabel}
                 </text>
                 {isActive && (
                   <circle r="4" className="srd-active-dot">
