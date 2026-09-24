@@ -235,7 +235,7 @@ function getClientSession(req) {
     // misconfiguration. An operator pointing at a gateway that does NOT
     // self-advertise still sets it by hand, and beginOAuthFlow now says so by
     // name instead of authorizing with an empty client_id.
-    const oauthDefaults = { clientId: '', scopes: 'openid profile email' };
+    const oauthDefaults = { clientId: '', scopes: 'openid profile email offline_access' };
     const modeConfigs = {
       direct: { ...oauthDefaults, mcpUrl: DEFAULT_DIRECT_MCP_URL() },
       privilege: { ...oauthDefaults, mcpUrl: DEFAULT_PRIVILEGE_MCP_URL() },
@@ -1622,9 +1622,15 @@ async function beginOAuthFlow(session, req, { callbackPath, callbackOrigin } = {
   // A resource that advertises its own scopes wins over the session default:
   // requesting "openid profile email" at a door that exists to hand out
   // `audit:read` would defeat the narrowing the door was built for.
-  const requestedScopes = advertisedScopes?.length
-    ? advertisedScopes.join(' ')
-    : session.config.scopes;
+  const requestedScopes = [...new Set([
+    ...(advertisedScopes?.length
+      ? advertisedScopes
+      : String(session.config.scopes || '').split(/\s+/).filter(Boolean)),
+    // Refresh tokens are issued only when the authorization server and its
+    // client registration permit offline_access. Ask on both PingOne and PF
+    // flows even when metadata leaves this standard scope out of its list.
+    'offline_access',
+  ])].join(' ');
   authUrl.searchParams.set('scope', requestedScopes);
   authUrl.searchParams.set('redirect_uri', redirectUri);
   authUrl.searchParams.set('state', oauthState);
@@ -1903,11 +1909,9 @@ router.get('/state', (req, res) => {
     // stored in gatewayConfigs, which round-trips through POST /config.
     clientHints: CLIENT_HINTS(),
     // hasRefreshToken is a BOOLEAN, never the token: it says whether an expiring
-    // session can recover silently or will bounce the user to login. The
-    // agentless gateway's AS omits offline_access from scopes_supported and
-    // returns no refresh_token (measured 2026-09-08), so this reads false there
-    // and refreshAccessToken() dead-ends — that is the "asked to log in over and
-    // over" symptom, not a bug in this relay.
+    // session can recover silently or will bounce the user to login. The flow
+    // requests offline_access; if the authorization server/client registration
+    // does not grant it, this remains false and reauthentication is required.
     oauth: { authenticated: Boolean(session.oauth.accessToken), source: session.oauth.source || null, expiresAt: session.oauth.expiresAt, scope: session.oauth.scope || '', hasRefreshToken: Boolean(session.oauth.refreshToken) },
     // The façade's privilege-gateway door runs on server-side gateway tokens,
     // one per Agentic App, that expire hourly (services/privilegeGatewaySession.js).
@@ -2067,9 +2071,9 @@ router.post('/auth/start', express.json(), async (req, res) => {
  * @flow privilege-ai-gateway
  * @name Privilege AI Gateway sign-in
  * @rfc https://datatracker.ietf.org/doc/html/rfc7636 RFC 7636 PKCE
- * @why The code comes back to this app, which redeems it with the PKCE verifier it kept. What returns is deliberately thin: an access token and its lifetime, with no id_token even when openid is requested, and no refresh token — the gateway's metadata does not advertise offline_access. So the session cannot renew itself silently, and an expired token means signing in again rather than refreshing.
+ * @why The code comes back to this app, which redeems it with the PKCE verifier it kept. The flow requests offline_access so an issuer configured for refresh tokens can return one; this session keeps it server-side and rotates it when refreshing the access token.
  * @example Handing back the numbered stub from your coat check. The stub alone is useless to anyone else, and the only thing you get back is the coat — no receipt, no record you can show elsewhere.
- * @ai This is where an agent's delegated session actually begins, and where it ends: with no refresh token, a long-running agent must expect re-authentication rather than assume a session it can keep alive.
+ * @ai This is where an agent's delegated session begins; when the issuer grants offline_access, its refresh token lets the BFF renew the access token without another browser login.
  * @actor privilege-gateway
  * @to client-app
  * @step 2
@@ -2253,7 +2257,7 @@ router.get('/facade-link', async (req, res) => {
       config: {
         mcpUrl: `${privilegeGatewayBase()}/${app}/mcp`,
         clientId: '',
-        scopes: 'openid profile email',
+        scopes: 'openid profile email offline_access',
       },
       gatewayMode: 'privilege',
     };

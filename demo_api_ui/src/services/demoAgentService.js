@@ -19,6 +19,7 @@ import { addMilestone, updateMilestoneStatus } from "./milestonesStore";
 import { createLogger } from "./logger";
 import { anySignal } from "../components/demoAgentSafety";
 import { adminCustomerContext } from "./adminCustomerContext";
+import { resolveSessionExpiry } from "./sessionResolver";
 import {
   isAuthRequiredApiError,
   normalizeAuthFailure,
@@ -85,11 +86,15 @@ function throwIfNetworkError(err, context) {
 // ─── Session refresh (RFC 6749 §6) — same endpoints as Backend-for-Frontend (BFF) auto-refresh ───────
 
 /**
- * Tries end-user refresh, then admin refresh. Does not log the user out.
+ * Refreshes through the client matching the current admin/user session first.
+ * Does not log the user out.
  * @returns {Promise<{ ok: boolean, expiresAt?: number }>}
  */
 export async function refreshOAuthSession() {
-  const endpoints = ["/api/auth/oauth/user/refresh", "/api/auth/oauth/refresh"];
+  const session = await resolveSessionExpiry();
+  const endpoints = session.sessionType === 'admin'
+    ? ["/api/auth/oauth/refresh", "/api/auth/oauth/user/refresh"]
+    : ["/api/auth/oauth/user/refresh", "/api/auth/oauth/refresh"];
   for (const url of endpoints) {
     const res = await fetch(url, {
       method: "POST",

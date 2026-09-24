@@ -5,6 +5,12 @@
  */
 
 const oauthUserService = require('../services/oauthUserService');
+const oauthService = require('../services/oauthService');
+
+function oauthServiceForSession(session) {
+  const oauthType = session?.oauthType || (session?.user?.role === 'admin' ? 'admin' : 'user');
+  return oauthType === 'admin' ? oauthService : oauthUserService;
+}
 
 /**
  * Concurrent-refresh guards for the agent-family routes (/api/agent,
@@ -80,7 +86,7 @@ const refreshOAuthSession = async (req) => {
   }
 
   const refreshPromise = (async () => {
-    const tokenData = await oauthUserService.refreshAccessToken(tokens.refreshToken);
+    const tokenData = await oauthServiceForSession(req.session).refreshAccessToken(tokens.refreshToken);
     req.session.oauthTokens.accessToken = tokenData.access_token;
     req.session.oauthTokens.refreshToken = tokenData.refresh_token || tokens.refreshToken;
     req.session.oauthTokens.expiresAt = Date.now() + (tokenData.expires_in || 3600) * 1000;

@@ -277,10 +277,20 @@ class OAuthUserService {
       refresh_token: refreshToken,
       client_id: this.config.clientId,
     });
-    if (shouldSendClientSecret(this.config)) body.set('client_secret', this.config.clientSecret);
+    const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+    const authMethod = String(this.config.tokenEndpointAuthMethod || '').trim().toLowerCase();
+    const isPingFederate = configStore.getOAuthProvider?.() === 'pingfederate';
+    if (shouldSendClientSecret(this.config) && isPingFederate && authMethod === 'basic') {
+      headers.Authorization = `Basic ${Buffer.from(`${this.config.clientId}:${this.config.clientSecret}`).toString('base64')}`;
+    } else if (isPingFederate && authMethod === 'private_key_jwt') {
+      body.set('client_assertion_type', clientAssertionService.CLIENT_ASSERTION_TYPE);
+      body.set('client_assertion', clientAssertionService.buildClientAssertion(this.config.clientId, this.config.tokenEndpoint));
+    } else if (shouldSendClientSecret(this.config)) {
+      body.set('client_secret', this.config.clientSecret);
+    }
     try {
       const response = await axios.post(this.config.tokenEndpoint, body.toString(), {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers,
         timeout: 10000,
       });
       console.log('[TokenRefresh] End-user access token refreshed successfully');

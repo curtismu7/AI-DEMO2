@@ -309,7 +309,7 @@ export default function PrivilegeMcpClientPage() {
   // by itself. It is consumed once, then stripped.
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [config, setConfig] = useState({ mcpUrl: '', clientId: '', scopes: 'openid profile email', llmUrl: 'http://127.0.0.1:11434', llmModel: 'llama3.2:1b' });
+  const [config, setConfig] = useState({ mcpUrl: '', clientId: '', scopes: 'openid profile email offline_access', llmUrl: 'http://127.0.0.1:11434', llmModel: 'llama3.2:1b' });
   // Per-mode "what actually supplies the OAuth client", from /state. Only read
   // when the Client ID field is blank, which is the normal state for every door
   // shipped here (they all self-advertise and register their own client).
@@ -367,6 +367,10 @@ export default function PrivilegeMcpClientPage() {
   const [rawRpcResult, setRawRpcResult] = useState('');
   const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [showSignInModal, setShowSignInModal] = useState(false);
+  // A repeated tools/list 401 should not reopen the sign-in modal on every
+  // click. Keep one prompt per app for this page visit; changing apps changes
+  // the key, and the explicit Sign in control starts a fresh attempt.
+  const signInPromptedForRef = useRef(null);
   // The gateway answers a policy denial with a bare "Forbidden" and writes
   // nothing to its own log, so the modal has to assemble its own evidence:
   // the door and identity we already know, plus a live probe of the other doors.
@@ -410,6 +414,9 @@ export default function PrivilegeMcpClientPage() {
   // Façade/Privilege. Every isGatewayAuthChallenge() call site routes through
   // here instead of the raw setter so this stays in one place, not seven.
   const requestSignIn = (reason) => {
+    const promptKey = `${gatewayMode}:${config.mcpUrl}`;
+    if (signInPromptedForRef.current === promptKey) return;
+    signInPromptedForRef.current = promptKey;
     // The rail note alone lost the room: it renders three rows down from the
     // failure and reads as description, not as the next action. Raise a modal
     // over it too -- the note stays, so nothing that keys on it changes.
@@ -1063,6 +1070,7 @@ export default function PrivilegeMcpClientPage() {
   };
 
   const startAuth = async () => {
+    signInPromptedForRef.current = null;
     try {
       await api('/config', { method: 'POST', body: config });
       await startAuthRedirect();
