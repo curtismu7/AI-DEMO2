@@ -1,5 +1,5 @@
 import React from "react";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import EducationRoutes from "../../routes/EducationRoutes";
@@ -24,7 +24,33 @@ function renderPage() {
   );
 }
 
+function topControls() {
+  return within(screen.getByRole("group", { name: "Top diagram controls" }));
+}
+
 describe("PingFederate ID-JAG architecture", () => {
+  it("keeps the mid-page controls connected to the same playback state", () => {
+    vi.useFakeTimers();
+    try {
+      renderPage();
+      const midControls = screen.getByRole("group", { name: "Mid-page diagram controls" });
+      const topControls = screen.getByRole("group", { name: "Top diagram controls" });
+      const midStepTime = within(midControls).getByLabelText("Step time:");
+
+      fireEvent.change(midStepTime, { target: { value: "800" } });
+      fireEvent.click(within(midControls).getByRole("button", { name: "Simulate" }));
+      expect(within(topControls).getByRole("button", { name: "Pause" })).toBeTruthy();
+      expect(within(topControls).getByLabelText("Step time:")).toBeDisabled();
+
+      act(() => vi.advanceTimersByTime(800));
+      expect(within(topControls).getByText("Step 2 / 6")).toBeTruthy();
+      fireEvent.click(within(midControls).getByRole("button", { name: "Pause" }));
+      expect(within(topControls).getByRole("button", { name: "Resume" })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("renders both interactive React Flow views", () => {
     const { container } = renderPage();
     expect(screen.getByRole("tab", { name: "ID-JAG flow" }).getAttribute("aria-selected")).toBe("true");
@@ -94,28 +120,28 @@ describe("PingFederate ID-JAG architecture", () => {
     vi.useFakeTimers();
     try {
       renderPage();
-      expect(screen.getByText("Step 1 / 6")).toBeTruthy();
-      const stepTime = screen.getByLabelText("Step time:");
+      expect(topControls().getByText("Step 1 / 6")).toBeTruthy();
+      const stepTime = topControls().getByLabelText("Step time:");
       fireEvent.change(stepTime, { target: { value: "800" } });
-      fireEvent.click(screen.getByRole("button", { name: "Simulate" }));
-      expect(screen.getByRole("button", { name: "Pause" })).toBeTruthy();
+      fireEvent.click(topControls().getByRole("button", { name: "Simulate" }));
+      expect(topControls().getByRole("button", { name: "Pause" })).toBeTruthy();
       expect(stepTime.disabled).toBe(true);
 
       act(() => vi.advanceTimersByTime(800));
-      expect(screen.getByText("Step 2 / 6")).toBeTruthy();
-      fireEvent.click(screen.getByRole("button", { name: "Pause" }));
-      fireEvent.click(screen.getByRole("button", { name: "Next →" }));
-      expect(screen.getByText("Step 3 / 6")).toBeTruthy();
-      fireEvent.click(screen.getByRole("button", { name: "← Prev" }));
-      expect(screen.getByText("Step 2 / 6")).toBeTruthy();
-      fireEvent.click(screen.getByRole("button", { name: "Resume" }));
+      expect(topControls().getByText("Step 2 / 6")).toBeTruthy();
+      fireEvent.click(topControls().getByRole("button", { name: "Pause" }));
+      fireEvent.click(topControls().getByRole("button", { name: "Next →" }));
+      expect(topControls().getByText("Step 3 / 6")).toBeTruthy();
+      fireEvent.click(topControls().getByRole("button", { name: "← Prev" }));
+      expect(topControls().getByText("Step 2 / 6")).toBeTruthy();
+      fireEvent.click(topControls().getByRole("button", { name: "Resume" }));
       act(() => vi.advanceTimersByTime(800));
-      expect(screen.getByText("Step 3 / 6")).toBeTruthy();
-      fireEvent.click(screen.getByRole("button", { name: "Stop" }));
-      expect(screen.getByRole("button", { name: "Simulate" })).toBeTruthy();
-      expect(screen.getByText("Step 3 / 6")).toBeTruthy();
-      fireEvent.click(screen.getByRole("button", { name: "↺ Reset" }));
-      expect(screen.getByText("Step 1 / 6")).toBeTruthy();
+      expect(topControls().getByText("Step 3 / 6")).toBeTruthy();
+      fireEvent.click(topControls().getByRole("button", { name: "Stop" }));
+      expect(topControls().getByRole("button", { name: "Simulate" })).toBeTruthy();
+      expect(topControls().getByText("Step 3 / 6")).toBeTruthy();
+      fireEvent.click(topControls().getByRole("button", { name: "↺ Reset" }));
+      expect(topControls().getByText("Step 1 / 6")).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }
@@ -125,14 +151,14 @@ describe("PingFederate ID-JAG architecture", () => {
     vi.useFakeTimers();
     try {
       renderPage();
-      fireEvent.change(screen.getByLabelText("Step time:"), { target: { value: "800" } });
-      fireEvent.click(screen.getByRole("button", { name: "Simulate" }));
+      fireEvent.change(topControls().getByLabelText("Step time:"), { target: { value: "800" } });
+      fireEvent.click(topControls().getByRole("button", { name: "Simulate" }));
       fireEvent.click(screen.getByRole("button", { name: "Step 3: PingFederate issues the ID-JAG" }));
 
-      expect(screen.getByText("Step 3 / 6")).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Simulate" })).toBeTruthy();
+      expect(topControls().getByText("Step 3 / 6")).toBeTruthy();
+      expect(topControls().getByRole("button", { name: "Simulate" })).toBeTruthy();
       act(() => vi.advanceTimersByTime(800));
-      expect(screen.getByText("Step 3 / 6")).toBeTruthy();
+      expect(topControls().getByText("Step 3 / 6")).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }
@@ -142,14 +168,14 @@ describe("PingFederate ID-JAG architecture", () => {
     vi.useFakeTimers();
     try {
       renderPage();
-      fireEvent.change(screen.getByLabelText("Step time:"), { target: { value: "800" } });
-      fireEvent.click(screen.getByRole("button", { name: "Simulate" }));
+      fireEvent.change(topControls().getByLabelText("Step time:"), { target: { value: "800" } });
+      fireEvent.click(topControls().getByRole("button", { name: "Simulate" }));
       fireEvent.click(screen.getByRole("tab", { name: "PingFederate architecture" }));
 
-      expect(screen.getByText("Step 1 / 6")).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Simulate" })).toBeTruthy();
+      expect(topControls().getByText("Step 1 / 6")).toBeTruthy();
+      expect(topControls().getByRole("button", { name: "Simulate" })).toBeTruthy();
       act(() => vi.advanceTimersByTime(800));
-      expect(screen.getByText("Step 1 / 6")).toBeTruthy();
+      expect(topControls().getByText("Step 1 / 6")).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }

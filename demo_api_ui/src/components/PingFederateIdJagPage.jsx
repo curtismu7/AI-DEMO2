@@ -328,6 +328,23 @@ export default function PingFederateIdJagPage() {
     setActiveStep(0);
   };
 
+  const controlProps = {
+    currentStep: activeStep + 1,
+    totalSteps: diagram.steps.length,
+    isSimulating: simulating,
+    isPaused: paused,
+    onSimulate,
+    onPrev,
+    onPause,
+    onResume,
+    onNext,
+    onStop: stopPlayback,
+    onReset,
+    stepTimeOptions: STEP_TIME_OPTIONS,
+    stepMs,
+    onSetStepMs: setStepMs,
+  };
+
   return (
     <main className="pfj-page" data-testid="pingfederate-id-jag-page">
       <header className="pfj-header">
@@ -345,23 +362,8 @@ export default function PingFederateIdJagPage() {
         ))}
       </nav>
 
-      <div className="pfj-toolbar">
-        <DiagramControls
-          currentStep={activeStep + 1}
-          totalSteps={diagram.steps.length}
-          isSimulating={simulating}
-          isPaused={paused}
-          onSimulate={onSimulate}
-          onPrev={onPrev}
-          onPause={onPause}
-          onResume={onResume}
-          onNext={onNext}
-          onStop={stopPlayback}
-          onReset={onReset}
-          stepTimeOptions={STEP_TIME_OPTIONS}
-          stepMs={stepMs}
-          onSetStepMs={setStepMs}
-        />
+      <div className="pfj-toolbar" role="group" aria-label="Top diagram controls">
+        <DiagramControls {...controlProps} />
       </div>
 
       <section className="pfj-diagram" aria-label={`Interactive ${diagram.label}`}>
@@ -404,6 +406,10 @@ export default function PingFederateIdJagPage() {
           <button type="button" onClick={() => goToStep(Math.min(activeStep + 1, diagram.steps.length - 1))} disabled={activeStep === diagram.steps.length - 1} aria-label="Next step">›</button>
         </nav>
       </section>
+
+      <div className="pfj-toolbar" role="group" aria-label="Mid-page diagram controls">
+        <DiagramControls {...controlProps} />
+      </div>
 
       <ProtocolDetails diagramId={diagramId} stepIndex={activeStep} />
 
