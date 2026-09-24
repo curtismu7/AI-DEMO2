@@ -34,8 +34,20 @@ if (!/spire-agent:[\s\S]*?dockerfile:\s*Dockerfile\.agent/.test(compose)) {
 if (!compose.includes('FF_SPIFFE_CLIENT_AUTH')) failures.push('BFF SPIFFE client-auth flag is not wired');
 
 const entries = fs.readFileSync(path.join(root, 'spiffe/docker-compose/entries.sh'), 'utf8');
+const agentConfig = fs.readFileSync(path.join(root, 'spiffe/docker-compose/spire-agent.conf'), 'utf8');
 for (const id of ['spiffe://bxfinance.demo/bff', 'spiffe://bxfinance.demo/agent', 'spiffe://bxfinance.demo/mcp-gateway', 'spiffe://bxfinance.demo/mcp-server']) {
   if (!entries.includes(id)) failures.push(`registration entry is missing ${id}`);
+}
+if (!entries.includes('-x509SVIDTTL 3600') || entries.includes('-ttl 3600')) {
+  failures.push('registration entries must use the current X509 SVID TTL flag');
+}
+if (!entries.includes('spire-server entry update')) failures.push('registration job must update stable entries on rerun');
+if (!entries.includes('NODE_SPIFFE_ID="spiffe://bxfinance.demo/spire/agent"')) {
+  failures.push('registration job must use a stable agent parent ID');
+}
+if (!entries.includes('Missing or mismatched registration entry')) failures.push('registration job must verify entry parent and selector');
+if (!/KeyManager\s+"disk"\s*\{\s*plugin_data\s*\{\s*directory\s*=/.test(agentConfig)) {
+  failures.push('SPIRE agent disk key manager must configure its directory');
 }
 
 if (failures.length) {
