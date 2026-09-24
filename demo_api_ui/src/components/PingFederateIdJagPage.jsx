@@ -34,7 +34,7 @@ const PROTOCOL_DETAILS = [
   },
   {
     token: "ID-JAG · decoded claim preview",
-    claims: { typ: "oauth-id-jag+jwt", iss: "https://pingfederate.example.invalid", sub: "user-123", aud: "https://mcp-as.example.invalid", resource: "https://mcp.example.invalid", scope: "accounts:read", exp: "[mock expiry]" },
+    claims: { header: { alg: "RS256", typ: "oauth-id-jag+jwt" }, claims: { iss: "https://pingfederate.example.invalid", sub: "user-123", aud: "https://mcp-as.example.invalid", resource: "https://mcp.example.invalid", scope: "accounts:read", jti: "[mock single-use ID]", iat: "[mock issued-at]", exp: "[mock expiry]" } },
     requestTitle: "Side 1 · PingFederate issues ID-JAG",
     request: { event: "successful response to the upstream exchange", note: "ID-JAG is returned in access_token; issued_token_type identifies it as an ID-JAG" },
     responseTitle: "PingFederate token response",
@@ -46,7 +46,7 @@ const PROTOCOL_DETAILS = [
     requestTitle: "Side 2 · redeem ID-JAG at resource AS",
     request: { method: "POST [CONFIGURED MCP AS TOKEN ENDPOINT] · application/x-www-form-urlencoded", body: { grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: "[MOCK ID-JAG]", client_id: "[MOCK REDEMPTION CLIENT]", resource: "https://mcp.example.invalid", scope: "accounts:read" } },
     responseTitle: "MCP authorization server validates the ID-JAG",
-    response: { checks: ["trusted issuer / signature", "audience for this AS", "expiry and required claims"], result: "accepted · issue a local MCP access token" },
+    response: { checks: ["RS256 signature from trusted IdP JWKS", "issuer + audience + expiry", 'typ = "oauth-id-jag+jwt"', "resource is served by this MCP AS", "jti is present and not previously redeemed"], result: "accepted · issue a local MCP access token" },
   },
   {
     token: "MCP access token · issued by resource AS",
@@ -94,7 +94,7 @@ function ProtocolDetails({ diagramId, stepIndex }) {
   );
 }
 
-const DIAGRAMS = {
+export const DIAGRAMS = {
   jag: {
     label: "ID-JAG flow",
     title: "ID-JAG token journey",
@@ -105,30 +105,30 @@ const DIAGRAMS = {
       { title: "Start the UC40 MCP request", detail: "The BFF receives the user's request and keeps OAuth tokens out of the browser. The UC40 PingFederate lane uses its server-held refresh token as the upstream subject.", active: ["user", "bff"], links: ["request"] },
       { title: "Side 1 · PingFederate validates the upstream token", detail: "The BFF sends a token-exchange request with the refresh token, its token type, the downstream audience/resource, and requested scopes. PingFederate's token-exchange policy validates the refresh token.", active: ["bff", "pingfed"], links: ["issue"] },
       { title: "PingFederate issues the ID-JAG", detail: "After validation and attribute mapping, PingFederate returns a signed ID-JAG to the BFF. Its audience identifies the downstream authorization server; its resource and scope constrain the MCP access being requested.", active: ["pingfed", "jag", "bff"], links: ["mint", "return"] },
-      { title: "Side 2 · submit ID-JAG for validation", detail: "The BFF sends the ID-JAG to the configured downstream MCP authorization server as the JWT bearer assertion. That server validates the assertion against its trust configuration, including issuer/signature, audience, expiry, and required claims.", active: ["bff", "jag", "mcpas"], links: ["return", "redeem"] },
+      { title: "Side 2 · submit ID-JAG for validation", detail: "The BFF sends the ID-JAG to the configured downstream MCP authorization server as a JWT bearer assertion. The MCP AS checks issuer/signature, audience, expiry, ID-JAG type, its resource allowlist, and the single-use jti.", active: ["bff", "jag", "mcpas"], links: ["return", "redeem"] },
       { title: "Downstream AS issues its local access token", detail: "A successful JWT bearer grant returns a resource-specific MCP access token. The ID-JAG was the grant assertion; the newly issued access token is what authorizes the protected call.", active: ["mcpas", "bff", "gateway"], links: ["local-token"] },
       { title: "Call the protected MCP tool", detail: "The BFF sends the MCP request to PingGateway with the downstream access token. PingGateway and PingOne Authorize apply the configured access-token and action policy checks before the MCP resource returns data.", active: ["bff", "gateway", "authorize", "invest"], links: ["dispatch", "policy", "tool"] },
     ],
     participants: [
-      { id: "user", title: "User + agent", subtitle: "UC40 · MCP request", role: "request" },
-      { id: "bff", title: "Demo BFF", subtitle: "token custodian · OAuth client", role: "runtime" },
-      { id: "pingfed", title: "PingFederate", subtitle: "Side 1 · validates + issues", role: "identity" },
-      { id: "jag", title: "ID-JAG", subtitle: "signed JWT assertion", role: "token" },
-      { id: "mcpas", title: "MCP Authorization Server", subtitle: "Side 2 · validates + redeems", role: "mcpas" },
-      { id: "gateway", title: "PingGateway", subtitle: "access-token enforcement", role: "gateway" },
-      { id: "authorize", title: "PingOne Authorize", subtitle: "action policy · PERMIT", role: "policy" },
-      { id: "invest", title: "MCP resource", subtitle: "protected tools", role: "resource" },
+      { id: "user", title: "User + agent", subtitle: "UC40 · MCP request", role: "request", position: { x: 0, y: 130 } },
+      { id: "bff", title: "Demo BFF", subtitle: "token custodian · OAuth client", role: "runtime", position: { x: 220, y: 130 } },
+      { id: "pingfed", title: "PingFederate", subtitle: "Side 1 · validates + issues", role: "identity", position: { x: 440, y: 130 } },
+      { id: "jag", title: "ID-JAG", subtitle: "signed JWT assertion", role: "token", position: { x: 660, y: 130 } },
+      { id: "mcpas", title: "MCP Authorization Server", subtitle: "Side 2 · validates + redeems", role: "mcpas", position: { x: 880, y: 130 } },
+      { id: "gateway", title: "PingGateway", subtitle: "access-token enforcement", role: "gateway", position: { x: 220, y: 340 } },
+      { id: "authorize", title: "PingOne Authorize", subtitle: "action policy · PERMIT", role: "policy", position: { x: 550, y: 340 } },
+      { id: "invest", title: "MCP resource", subtitle: "protected tools", role: "resource", position: { x: 880, y: 340 } },
     ],
     links: [
-      { id: "request", source: "user", target: "bff", label: "UC40 request" },
-      { id: "issue", source: "bff", target: "pingfed", label: "Side 1 · refresh_token exchange" },
-      { id: "mint", source: "pingfed", target: "jag", label: "signed ID-JAG" },
-      { id: "return", source: "jag", target: "bff", label: "ID-JAG to BFF", sourceHandle: "top", targetHandle: "top" },
-      { id: "redeem", source: "bff", target: "mcpas", label: "Side 2 · JWT bearer assertion" },
-      { id: "local-token", source: "mcpas", target: "bff", label: "local MCP access token", sourceHandle: "bottom", targetHandle: "bottom" },
-      { id: "dispatch", source: "bff", target: "gateway", label: "MCP request · bearer access token" },
-      { id: "policy", source: "gateway", target: "authorize", label: "authorize tool action" },
-      { id: "tool", source: "gateway", target: "invest", label: "MCP call · access token" },
+      { id: "request", source: "user", target: "bff", label: "request" },
+      { id: "issue", source: "bff", target: "pingfed", label: "Ex1" },
+      { id: "mint", source: "pingfed", target: "jag", label: "" },
+      { id: "return", source: "jag", target: "bff", label: "JAG → BFF", sourceHandle: "top", targetHandle: "top" },
+      { id: "redeem", source: "bff", target: "mcpas", label: "JWT bearer grant", sourceHandle: "bottom", targetHandle: "bottom" },
+      { id: "local-token", source: "mcpas", target: "bff", label: "local AT", sourceHandle: "top", targetHandle: "top" },
+      { id: "dispatch", source: "bff", target: "gateway", label: "access token", sourceHandle: "bottom", targetHandle: "top" },
+      { id: "policy", source: "gateway", target: "authorize", label: "policy" },
+      { id: "tool", source: "gateway", target: "invest", label: "tool call" },
     ],
   },
   pingfederate: {
@@ -141,30 +141,30 @@ const DIAGRAMS = {
       { title: "User signs in with PingFederate", detail: "The browser receives a BFF session cookie. The refresh token remains in the BFF session and never enters the browser.", active: ["user", "bff", "pingfed"], links: ["login"] },
       { title: "Side 1 · PingFederate validates the refresh token", detail: "For UC40, the BFF calls PingFederate's token endpoint using token exchange and requests an ID-JAG for the configured MCP authorization server and resource.", active: ["bff", "pingfed"], links: ["issue"] },
       { title: "PingFederate returns the ID-JAG", detail: "PingFederate validates the upstream refresh token, applies its processor policy, then signs and returns an audience-bound ID-JAG to the BFF.", active: ["pingfed", "jag", "bff"], links: ["mint", "return"] },
-      { title: "Side 2 · MCP AS validates the ID-JAG", detail: "The BFF submits the ID-JAG in a JWT bearer grant to the configured downstream MCP authorization server. The MCP AS validates the assertion before accepting the grant.", active: ["bff", "jag", "mcpas"], links: ["redeem"] },
+      { title: "Side 2 · MCP AS validates the ID-JAG", detail: "The BFF submits the ID-JAG in a JWT bearer grant to the configured downstream MCP authorization server. The MCP AS checks issuer/signature, audience, expiry, ID-JAG type, resource allowlist, and single-use jti before accepting the grant.", active: ["bff", "jag", "mcpas"], links: ["return", "redeem"] },
       { title: "MCP AS issues its own access token", detail: "The downstream authorization server returns a scoped MCP access token. That local token, not the ID-JAG, is used for the protected MCP call.", active: ["mcpas", "bff", "gateway"], links: ["local-token"] },
       { title: "Gateway authorizes and forwards the call", detail: "The BFF sends the MCP request with the downstream access token. PingGateway and PingOne Authorize evaluate that token and requested action, then the MCP resource returns the tool result.", active: ["bff", "gateway", "authorize", "invest"], links: ["dispatch", "policy", "tool"] },
     ],
     participants: [
-      { id: "user", title: "User + agent", subtitle: "UC40 request", role: "request" },
-      { id: "bff", title: "Demo BFF", subtitle: "session + token custodian", role: "runtime" },
-      { id: "pingfed", title: "PingFederate", subtitle: "IdP AS · Side 1", role: "identity" },
-      { id: "jag", title: "ID-JAG", subtitle: "signed authorization assertion", role: "token" },
-      { id: "mcpas", title: "MCP Authorization Server", subtitle: "resource AS · Side 2", role: "mcpas" },
-      { id: "gateway", title: "PingGateway", subtitle: "MCP access-token enforcement", role: "gateway" },
-      { id: "authorize", title: "PingOne Authorize", subtitle: "tool action policy", role: "policy" },
-      { id: "invest", title: "MCP resource", subtitle: "protected tools", role: "resource" },
+      { id: "user", title: "User + agent", subtitle: "UC40 request", role: "request", position: { x: 0, y: 130 } },
+      { id: "bff", title: "Demo BFF", subtitle: "session + token custodian", role: "runtime", position: { x: 220, y: 130 } },
+      { id: "pingfed", title: "PingFederate", subtitle: "IdP AS · Side 1", role: "identity", position: { x: 440, y: 130 } },
+      { id: "jag", title: "ID-JAG", subtitle: "signed authorization assertion", role: "token", position: { x: 660, y: 130 } },
+      { id: "mcpas", title: "MCP Authorization Server", subtitle: "resource AS · Side 2", role: "mcpas", position: { x: 880, y: 130 } },
+      { id: "gateway", title: "PingGateway", subtitle: "MCP access-token enforcement", role: "gateway", position: { x: 220, y: 340 } },
+      { id: "authorize", title: "PingOne Authorize", subtitle: "tool action policy", role: "policy", position: { x: 550, y: 340 } },
+      { id: "invest", title: "MCP resource", subtitle: "protected tools", role: "resource", position: { x: 880, y: 340 } },
     ],
     links: [
-      { id: "login", source: "user", target: "bff", label: "sign-in · session" },
-      { id: "issue", source: "bff", target: "pingfed", label: "Side 1 · refresh_token exchange" },
-      { id: "mint", source: "pingfed", target: "jag", label: "signed ID-JAG" },
-      { id: "return", source: "jag", target: "bff", label: "ID-JAG to BFF", sourceHandle: "top", targetHandle: "top" },
-      { id: "redeem", source: "bff", target: "mcpas", label: "Side 2 · JWT bearer grant" },
-      { id: "local-token", source: "mcpas", target: "bff", label: "local MCP access token", sourceHandle: "bottom", targetHandle: "bottom" },
-      { id: "dispatch", source: "bff", target: "gateway", label: "MCP request · bearer access token" },
-      { id: "policy", source: "gateway", target: "authorize", label: "authorize tool action" },
-      { id: "tool", source: "gateway", target: "invest", label: "MCP call · access token" },
+      { id: "login", source: "user", target: "bff", label: "sign-in" },
+      { id: "issue", source: "bff", target: "pingfed", label: "Ex1" },
+      { id: "mint", source: "pingfed", target: "jag", label: "" },
+      { id: "return", source: "jag", target: "bff", label: "JAG → BFF", sourceHandle: "top", targetHandle: "top" },
+      { id: "redeem", source: "bff", target: "mcpas", label: "JWT bearer grant", sourceHandle: "bottom", targetHandle: "bottom" },
+      { id: "local-token", source: "mcpas", target: "bff", label: "local AT", sourceHandle: "top", targetHandle: "top" },
+      { id: "dispatch", source: "bff", target: "gateway", label: "access token", sourceHandle: "bottom", targetHandle: "top" },
+      { id: "policy", source: "gateway", target: "authorize", label: "policy" },
+      { id: "tool", source: "gateway", target: "invest", label: "tool call" },
     ],
   },
 };
@@ -203,11 +203,10 @@ function ArrowDefs() {
 }
 
 function buildNodes(diagram, step) {
-  const gap = diagram.participants.length > 6 ? 215 : 230;
-  return diagram.participants.map((participant, index) => ({
+  return diagram.participants.map((participant) => ({
     id: participant.id,
     type: "participant",
-    position: { x: 26 + index * gap, y: participant.id === "authorize" ? 325 : 142 },
+    position: participant.position || { x: 26, y: 142 },
     data: { ...participant, mark: NODE_MARKS[participant.role] },
     selected: step.active.includes(participant.id),
     draggable: false,
@@ -224,7 +223,7 @@ function buildEdges(diagram, activeStep) {
       animated: active,
       markerEnd: `url(#pfj-arrow-${active ? "on" : "off"})`,
       style: { stroke: active ? "#126c83" : "#b1c0c9", strokeWidth: active ? 2.7 : 1.4 },
-      labelStyle: { fill: active ? "#07566d" : "#617684", fontWeight: active ? 700 : 500, fontSize: 11 },
+      labelStyle: { fill: active ? "var(--th-status-info-text)" : "var(--th-text-muted)", fontWeight: active ? 700 : 500, fontSize: 11 },
       labelBgStyle: { fill: "var(--pfj-canvas)", fillOpacity: 0.96 },
       labelBgPadding: [5, 7],
       labelBgBorderRadius: 4,
@@ -376,7 +375,7 @@ export default function PingFederateIdJagPage() {
           nodeTypes={NODE_TYPES}
           onNodeClick={onNodeClick}
           fitView
-          fitViewOptions={{ padding: 0.13, minZoom: 0.42, maxZoom: 1 }}
+          fitViewOptions={{ padding: 0.13, minZoom: 0.42, maxZoom: 0.9 }}
           minZoom={0.35}
           maxZoom={1.4}
           nodesDraggable={false}

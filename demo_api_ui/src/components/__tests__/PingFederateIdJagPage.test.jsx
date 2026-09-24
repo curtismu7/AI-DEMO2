@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import EducationRoutes from "../../routes/EducationRoutes";
+import { DIAGRAMS } from "../PingFederateIdJagPage";
 
 vi.mock("../../routes/AppShell", () => ({ default: ({ children }) => children }));
 
@@ -39,6 +40,13 @@ describe("PingFederate ID-JAG architecture", () => {
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: "Step 2: Side 1 · PingFederate validates the upstream token" }));
     expect(screen.getByText(/token-exchange policy validates the refresh token/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Step 3: PingFederate issues the ID-JAG" }));
+    for (const diagram of Object.values(DIAGRAMS)) {
+      expect(diagram.links).toContainEqual(expect.objectContaining({ id: "return", source: "jag", target: "bff" }));
+      expect(diagram.steps[2].links).toContain("return");
+      expect(diagram.steps[3].links).toContain("return");
+    }
+    expect(screen.getByText(/returns a signed ID-JAG to the BFF/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Step 4: Side 2 · submit ID-JAG for validation" }));
     expect(screen.getAllByText(/JWT bearer assertion/).length).toBeGreaterThan(0);
     expect(screen.getByText(/issuer\/signature, audience, expiry/)).toBeTruthy();
@@ -61,6 +69,8 @@ describe("PingFederate ID-JAG architecture", () => {
     fireEvent.click(screen.getByRole("button", { name: "Step 4: Side 2 · submit ID-JAG for validation" }));
     expect(panel.textContent).toContain("jwt-bearer");
     expect(panel.textContent).toContain("MCP authorization server validates the ID-JAG");
+    expect(panel.textContent).toContain("RS256 signature from trusted IdP JWKS");
+    expect(panel.textContent).toContain("jti is present and not previously redeemed");
     fireEvent.click(screen.getByRole("button", { name: "Step 5: Downstream AS issues its local access token" }));
     expect(panel.textContent).toContain("MOCK LOCAL MCP ACCESS TOKEN");
     fireEvent.click(screen.getByRole("button", { name: "Step 6: Call the protected MCP tool" }));
