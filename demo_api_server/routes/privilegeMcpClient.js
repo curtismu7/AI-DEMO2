@@ -48,6 +48,17 @@ const DEFAULT_DIRECT_BANKING_MCP_URL = () =>
   process.env.PRIVILEGE_DIRECT_BANKING_MCP_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/banking/mcp`;
 const DEFAULT_DIRECT_PINGONE_MCP_URL = () =>
   process.env.PRIVILEGE_DIRECT_PINGONE_MCP_URL || `${PUBLIC_APP_ORIGIN()}/mcp-facade/pingone-admin/mcp`;
+// PingOne's hosted MCP server uses browser authorization code + PKCE. Keep it
+// as a separate Direct door so its external OAuth credential never shares the
+// local façade's broker session.
+const DEFAULT_DIRECT_PINGONE_HOSTED_MCP_URL = () => {
+  const environmentId = process.env.PINGONE_ENVIRONMENT_ID;
+  const region = process.env.PINGONE_REGION || 'com';
+  return process.env.PRIVILEGE_DIRECT_PINGONE_HOSTED_MCP_URL
+    || (environmentId ? `https://mcp.pingone.${region}/admin/${environmentId}/mcp` : '');
+};
+const DEFAULT_DIRECT_PINGONE_HOSTED_MCP_CLIENT_ID = () =>
+  process.env.PINGONE_MCP_OAUTH_CLIENT_ID || '';
 // Straight at the AI Gateway: policy enforced, but the client registers with the
 // gateway, whose registry is in memory — a restart breaks it.
 const DEFAULT_PRIVILEGE_MCP_URL = () =>
@@ -1789,6 +1800,12 @@ router.get('/state', (req, res) => {
       label: 'Direct — PingOne Admin',
       mode: 'direct',
       url: DEFAULT_DIRECT_PINGONE_MCP_URL(),
+    },
+    {
+      label: 'Direct — PingOne Hosted MCP',
+      mode: 'direct',
+      url: DEFAULT_DIRECT_PINGONE_HOSTED_MCP_URL(),
+      clientId: DEFAULT_DIRECT_PINGONE_HOSTED_MCP_CLIENT_ID(),
     },
     {
       label: '2 · Privilege — direct to the AI Gateway',

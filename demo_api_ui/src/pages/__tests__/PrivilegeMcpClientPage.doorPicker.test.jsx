@@ -142,6 +142,35 @@ describe("titlebar door picker", () => {
     expect(posted[0].mcpUrl).toBe(BRAVE);
   });
 
+  it("carries a preset OAuth client ID when switching to a hosted Direct door", async () => {
+    const hosted = "https://mcp.pingone.com/admin/env-123/mcp";
+    const posted = mockApi({
+      gatewayMode: "direct",
+      mcpUrl: AGENT,
+      presets: [
+        { label: "1 · Direct — no Privilege in the path", mode: "direct", url: AGENT },
+        {
+          label: "Direct — PingOne Hosted MCP",
+          mode: "direct",
+          url: hosted,
+          clientId: "eec33861-dc73-4ca2-93c7-9ceb45174825",
+        },
+      ],
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Settings" })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.change(screen.getByLabelText("Gateway Preset"), { target: { value: hosted } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(posted.length).toBeGreaterThan(0));
+    expect(posted[0]).toMatchObject({
+      mcpUrl: hosted,
+      clientId: "eec33861-dc73-4ca2-93c7-9ceb45174825",
+    });
+  });
+
   it("Facade mode gets the same plain doors as Direct, alongside its own Privilege-gated apps", async () => {
     const FACADE_ORIGIN = "https://ai-demo.example.com";
     const OPENSEARCH_DIRECT = `${FACADE_ORIGIN}/mcp-facade/opensearch/mcp`;

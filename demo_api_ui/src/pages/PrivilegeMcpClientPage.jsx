@@ -924,7 +924,10 @@ export default function PrivilegeMcpClientPage() {
     const nextConfig = {
       ...config,
       ...savedConfig,
-      ...(matchingDoor ? { mcpUrl: matchingDoor.url } : {}),
+      ...(matchingDoor ? {
+        mcpUrl: matchingDoor.url,
+        clientId: matchingDoor.clientId || '',
+      } : {}),
     };
     const prevMode = gatewayMode;
     const prevConfig = config;
@@ -1184,7 +1187,12 @@ export default function PrivilegeMcpClientPage() {
   };
 
   const switchDoor = async (mcpUrl) => {
-    const next = { ...config, mcpUrl };
+    const preset = presets.find((item) => item.url === mcpUrl);
+    const next = {
+      ...config,
+      mcpUrl,
+      ...(preset ? { clientId: preset.clientId || '' } : {}),
+    };
     try {
       const saved = await api('/config', { method: 'POST', body: next });
       setConfig(next);
@@ -1800,7 +1808,12 @@ export default function PrivilegeMcpClientPage() {
                         const nextMode = preset.mode || gatewayMode;
                         const savedConfig = gatewayConfigs[nextMode] || {};
                         setGatewayMode(nextMode);
-                        setConfig({ ...config, ...savedConfig, mcpUrl: preset.url });
+                        setConfig({
+                          ...config,
+                          ...savedConfig,
+                          mcpUrl: preset.url,
+                          clientId: preset.clientId || '',
+                        });
                       }}
                     >
                       <option value="">Custom</option>
