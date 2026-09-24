@@ -302,6 +302,7 @@ function buildEdges(diagram, activeStep) {
     const active = activeLinks.includes(link.id);
     return {
       ...link,
+      label: active ? link.label : "",
       type: "smoothstep",
       animated: active,
       markerEnd: `url(#pfj-arrow-${active ? "on" : "off"})`,
