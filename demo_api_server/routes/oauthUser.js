@@ -184,6 +184,11 @@ router.get('/login', (req, res) => {
     }
 
     const forceLogin = req.query.force === 'true';
+    const selectedProvider = configStore.getOAuthProvider?.() || 'pingone';
+    const sessionProvider = req.session.user?.oauthProvider;
+    const sessionProviderMatches = selectedProvider === 'pingfederate'
+      ? sessionProvider === 'pingfederate'
+      : sessionProvider === 'pingone_sso';
 
     if (!forceLogin) {
       // Check if user already has an active session
@@ -191,7 +196,13 @@ router.get('/login', (req, res) => {
       const hasOAuthToken = !!(token && token !== '_cookie_session');
       const expiresAt = req.session.oauthTokens?.expiresAt;
       const tokenNotExpired = !expiresAt || Date.now() < expiresAt;
-      const isUserAuthenticated = !!(req.session.user && hasOAuthToken && tokenNotExpired && req.session.oauthType === 'user');
+      const isUserAuthenticated = !!(
+        req.session.user
+        && hasOAuthToken
+        && tokenNotExpired
+        && req.session.oauthType === 'user'
+        && sessionProviderMatches
+      );
 
       const policy = loadHostedAccessPolicy();
       if (isUserAuthenticated && hasCurrentHostedAccessApproval(req.session, policy)) {
@@ -199,6 +210,16 @@ router.get('/login', (req, res) => {
         const returnPath = sanitizePostLoginReturnPath(req.query.return_to) || '/dashboard';
         console.log('[oauth/user/login] User already authenticated, redirecting to:', returnPath, req.session.user.email);
         return res.redirect(`${getFrontendOrigin()}${returnPath}`);
+      }
+      if (req.session.user && hasOAuthToken && !sessionProviderMatches) {
+        console.info(
+          `[oauth/user/login] Clearing session from ${sessionProvider || 'unknown'} before login with ${selectedProvider}`
+        );
+        delete req.session.oauthTokens;
+        delete req.session.user;
+        delete req.session.clientType;
+        delete req.session.oauthType;
+        clearAuthCookie(res, _isProd());
       }
     } else {
       // Force re-authentication: clear existing tokens so the callback treats this as a fresh login
