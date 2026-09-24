@@ -64,7 +64,7 @@
 }
 
 .setup-step-item.locked {
-  color: var(--th-text-faint);
+  color: var(--th-text-muted);
   cursor: not-allowed;
 }
 
