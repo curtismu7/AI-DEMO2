@@ -453,6 +453,46 @@ the card.
 
 **Verify:** focused BFF Jest suites for provider selection, catalog selection, OAuth exchange, policy, and PF login; focused UC40 UI Vitest suite; `cd demo_api_ui && npm run build`. Mocked tests do not prove live PF client/SP-connection provisioning; verify that separately in a read-only PF environment.
 
+### 2026-09-23 — Sequence diagram labels clipped and continued after failure
+
+**Files changed:** `demo_api_ui/src/components/SequenceReelDiagram.jsx`,
+`demo_api_ui/src/components/SequenceReelDiagram.css`, and
+`demo_api_ui/src/components/__tests__/SequenceReelDiagram.slowReveal.test.jsx`.
+
+**What was broken:** long participant titles overflowed their fixed-width actor
+boxes, and the diagram included later successful hops after an earlier step
+failed, including an Authorize denial.
+
+**What was fixed:** long actor labels now use a compact font and fit to the
+available box width. The first failed step remains visible and all later steps
+are omitted from the sequence diagram.
+
+**Do not break:** preserve the failed step and its detail, keep successful
+sequences unchanged, and leave authorization enforcement in the existing
+pipeline untouched.
+
+**Verify:** focused `SequenceReelDiagram` Vitest suites (67 pass) and
+`cd demo_api_ui && npm run build`.
+
+### 2026-09-23 — Sequence diagram used banking labels in every vertical
+
+**Files changed:** `demo_api_ui/src/components/SequenceReelDiagram.jsx`,
+`demo_api_ui/src/components/sequenceDiagramLabels.js`, and its focused test.
+
+**What was broken:** the shared trace model labels agent lanes and messages as
+`Banking Agent`, so the live sequence diagram showed banking terminology for
+United Airlines and every other active vertical.
+
+**What was fixed:** the sequence diagram now derives its agent label from the
+active vertical manifest and replaces the shared banking labels at render time.
+While the manifest is unresolved, it uses the neutral `AI Agent` label.
+
+**Do not break:** keep the vertical's existing trace lanes, message ordering,
+and auth/session behavior unchanged; never display banking-specific agent
+labels in a non-banking vertical.
+
+**Verify:** `cd demo_api_ui && npm run test:unit` and `npm run build`.
+
 ### 2026-09-23 — Live run card kept the previous prompt title
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`,

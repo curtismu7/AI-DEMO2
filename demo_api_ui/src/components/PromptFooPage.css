@@ -20,7 +20,7 @@
 .promptfoo-page__hint code {
   background: var(--bg-subtle, rgba(127, 127, 127, 0.12));
   padding: 0.1rem 0.35rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.85em;
 }
 
@@ -38,7 +38,7 @@
   gap: 1rem;
   padding: 1rem 1.25rem;
   border: 1px solid var(--border-subtle, rgba(127, 127, 127, 0.25));
-  border-radius: 10px;
+  border-radius: var(--radius-lg);
   background: var(--bg-card, #fff);
 }
 
@@ -68,7 +68,7 @@
 .promptfoo-page__run-btn {
   padding: 0.5rem 1.1rem;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: var(--accent, #6c2bd9);
   color: #fff;
   font-weight: 600;
@@ -140,7 +140,7 @@
 .promptfoo-page__expand {
   background: none;
   border: 1px solid var(--border-subtle, rgba(127, 127, 127, 0.3));
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 0.15rem 0.6rem;
   font-size: 0.78rem;
   cursor: pointer;
@@ -151,7 +151,7 @@
   margin: 0.5rem 0 0;
   padding: 0.6rem;
   background: var(--bg-subtle, rgba(127, 127, 127, 0.08));
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 0.78rem;
   white-space: pre-wrap;
   word-break: break-word;
@@ -162,7 +162,7 @@
 .promptfoo-page__error {
   background: var(--th-status-error-bg);
   border: 1px solid var(--th-status-error-border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 0.75rem 1rem;
   color: var(--th-status-error-text);
   font-size: 0.88rem;
@@ -197,7 +197,7 @@
   background: var(--bg-code, #16161f);
   color: #d4d4d8;
   padding: 1rem;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   overflow-x: auto;
   font-size: 0.82rem;
   line-height: 1.6;

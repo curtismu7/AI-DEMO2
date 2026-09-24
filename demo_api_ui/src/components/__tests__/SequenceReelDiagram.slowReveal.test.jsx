@@ -26,6 +26,7 @@ vi.mock("../../services/tokenChainTrace/tokenChainTraceStore", () => ({
 }));
 
 import SequenceReelDiagram from "../SequenceReelDiagram";
+import { VerticalContext } from "../../vertical/VerticalProvider";
 
 const DEFAULT_MS = 2600;
 const noop = () => {};
@@ -325,7 +326,24 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     for (const hidden of ["agent", "llm", "api-key-swap"]) expect(titles).not.toContain(hidden);
   });
 
-  it("labels the heuristics lane as the AI agent", () => {
+  it("stops the sequence after the first failed step", () => {
+    store.state = {
+      steps: [
+        step("prompt", "CHAT", "done", "Chatbot — prompt sent"),
+        step("authorize", "AUTHZ", "error", "PingOne Authorize — policy decision"),
+        step("mcp", "MCP", "done", "MCP server — tool executes"),
+        step("reply", "CHAT", "done", "AI Agent composes reply → chat"),
+      ],
+      trace: { runId: 2, outcome: "error" },
+    };
+    const { container } = render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
+    const titles = [...container.querySelectorAll('g[role="button"] text')].map((t) => t.textContent);
+    expect(titles).toContain("PingOne Authorize — policy decision");
+    expect(titles).not.toContain("MCP server — tool executes");
+    expect(titles).not.toContain("AI Agent composes reply → chat");
+  });
+
+  it("uses a neutral agent label until the vertical manifest is available", () => {
     store.state = {
       steps: [
         step("prompt", "CHAT", "done"),
@@ -336,11 +354,29 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     };
     const { container } = render(<SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />);
     const headers = [...container.querySelectorAll(".srd-actor-label")].map((t) => t.textContent);
-    expect(headers).toContain("BANKING AGENT");
+    expect(headers).toContain("AI AGENT");
     expect(headers).not.toContain("HEURISTICS");
   });
 
-  it("draws the A2A hops right after the tool choice, with their status", () => {
+  it("labels agent lanes with the active vertical name", () => {
+    store.state = {
+      steps: [step("prompt", "CHAT", "done"), step("llm", "HEURISTICS", "done")],
+      trace: { runId: 1, outcome: "ok" },
+    };
+    const { container } = render(
+      <VerticalContext.Provider value={{ pageManifest: { identity: { displayName: "United Airlines" } } }}>
+        <SequenceReelDiagram slowMode={false} onToggleSlowMode={noop} />
+      </VerticalContext.Provider>,
+    );
+    const headers = [...container.querySelectorAll(".srd-actor-label")].map((t) => t.textContent);
+    const unitedLabel = [...container.querySelectorAll(".srd-actor-label")].find(
+      (label) => label.textContent === "UNITED AIRLINES AGENT",
+    );
+    expect(unitedLabel).toHaveClass("srd-actor-label--fit");
+    expect(unitedLabel).toHaveAttribute("textLength");
+  });
+
+  it("stops at a failed A2A hop after drawing it", () => {
     store.state = {
       steps: [
         step("prompt", "CHAT", "done"),
@@ -361,7 +397,8 @@ describe("SequenceReelDiagram slow-mode reveal", () => {
     const labels = rows.map((g) => g.querySelector("text")?.textContent || "");
     const at = (text) => labels.findIndex((l) => l.includes(text));
     expect(at("A2A Exchange #1")).toBe(at("llm") + 1);
-    expect(at("A2A Exchange #2")).toBe(at("reply") - 1);
+    expect(at("A2A Exchange #2")).toBeGreaterThan(at("A2A Exchange #1"));
+    expect(at("reply")).toBe(-1);
     expect(rows[at("A2A Exchange #2")].getAttribute("class")).toContain("srd-status-error");
     // Hops with no event stay pending and are not drawn.
     expect(labels.some((l) => l.includes("Agent Card"))).toBe(false);
