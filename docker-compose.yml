@@ -738,8 +738,6 @@ services:
       - ai-demo
 
   spiffe-helper-bff:
-    labels:
-      com.ai-demo.spiffe-workload: bff
     profiles: ["spiffe"]
     labels:
       com.ai-demo.spiffe-workload: bff
