@@ -236,6 +236,12 @@
   margin-bottom: 1.5rem !important;
 }
 
+/* The current Success template includes optional profile rows whose linked
+   values can resolve empty. Hide those labels until the tenant supplies data. */
+:is(.dvl-live-app, .dvl-popout-card) .dvl-widget .end-user-nano p:has(> strong:empty) {
+  display: none;
+}
+
 /* Keep the retry focus ring visible against the live card. */
 .dvl-live-app .dvl-retry:focus-visible {
   outline: 2px solid var(--th-status-info);
