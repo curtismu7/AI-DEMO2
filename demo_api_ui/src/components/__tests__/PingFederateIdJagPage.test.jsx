@@ -68,6 +68,8 @@ describe("PingFederate ID-JAG architecture", () => {
     expect(panel.textContent).toContain("/api/agent/reason");
     expect(panel.textContent).toContain('"messages": [');
     expect(panel.textContent).toContain('"tools": [');
+    expect(panel.textContent).toContain('"inputSchema": {');
+    expect(panel.textContent).not.toContain('"function": {');
     expect(panel.textContent).toContain("BFF validates and executes the proposed tool");
     fireEvent.click(screen.getByRole("button", { name: "Step 8: BFF authorizes and routes the MCP call" }));
     expect(panel.textContent).toContain("PingOne Authorize");
@@ -77,8 +79,9 @@ describe("PingFederate ID-JAG architecture", () => {
     expect(panel.textContent).toContain("[MOCK MCP RESULT]");
     expect(DIAGRAMS.pingfederate.links).toContainEqual(expect.objectContaining({ id: "mcp-result", source: "mcp", target: "gateway" }));
     expect(DIAGRAMS.pingfederate.links).toContainEqual(expect.objectContaining({ id: "gateway-result", source: "gateway", target: "bff" }));
-    expect(DIAGRAMS.pingfederate.steps[8].links).toContain("session");
     expect(DIAGRAMS.pingfederate.steps[8].links).toContain("gateway-result");
+    expect(DIAGRAMS.pingfederate.links).toContainEqual(expect.objectContaining({ id: "answer", source: "bff", target: "user", label: "AI response" }));
+    expect(DIAGRAMS.pingfederate.steps[8].links).toContain("answer");
   });
 
   it("keeps the mid-page controls connected to the same playback state", () => {

@@ -119,7 +119,7 @@ const PF_LOGIN_PROTOCOL = [
     token: "No user token sent to Agent Service",
     claims: { service: "demo_agent_service · :3006", responsibility: "reasoning and tool proposal only", token_custody: "BFF" },
     requestTitle: "BFF requests agent reasoning",
-    request: { method: "POST /api/agent/reason", headers: { "x-internal-gateway-secret": "[REDACTED]" }, body: { messages: [{ role: "user", content: "Show my account balance" }], tools: [{ type: "function", function: { name: "get_account_balance", description: "Return the balance for an account", parameters: { type: "object", properties: { account_id: { type: "string" } }, required: ["account_id"] } } }], provider: "[CONFIGURED PROVIDER]", model: "[CONFIGURED MODEL]" } },
+    request: { method: "POST /api/agent/reason", headers: { "x-internal-gateway-secret": "[REDACTED]" }, body: { messages: [{ role: "user", content: "Show my account balance" }], tools: [{ name: "get_account_balance", description: "Return the balance for an account", inputSchema: { type: "object", properties: { account_id: { type: "string" } }, required: ["account_id"] } }], provider: "[CONFIGURED PROVIDER]", model: "[CONFIGURED MODEL]" } },
     responseTitle: "Agent proposes an MCP tool call",
     response: { toolCall: { name: "get_account_balance", arguments: { account_id: "[MOCK ACCOUNT ID]" } }, next: "BFF validates and executes the proposed tool" },
   },
@@ -219,7 +219,7 @@ export const DIAGRAMS = {
       { title: "User sends an AI request", detail: "The signed-in browser posts the user's prompt to the BFF with its session cookie. PingFederate was the login provider; PingOne Authorize is used later for runtime access policy.", active: ["user", "bff"], links: ["prompt"] },
       { title: "Agent Service proposes a tool call", detail: "The BFF asks the reasoning-only Agent Service for a tool proposal. The agent does not receive user OAuth tokens or call MCP directly; the BFF remains the tool executor.", active: ["bff", "agent"], links: ["reason", "proposal"] },
       { title: "BFF authorizes and routes the MCP call", detail: "The BFF completes the standard two-exchange agent delegation through the PingFederate adapter, then sends the scoped token to PingGateway. PingOne Authorize evaluates the tool action and must permit it before the MCP resource call.", active: ["bff", "pingfed", "gateway", "authorize"], links: ["delegate", "delegated-token", "gateway-call", "policy"] },
-      { title: "MCP result returns to the user", detail: "After PingOne Authorize permits the action, PingGateway forwards the tool call to the MCP server. The MCP result returns through PingGateway and the BFF to the browser; tokens remain server-side.", active: ["bff", "gateway", "authorize", "mcp", "user"], links: ["tool", "mcp-result", "gateway-result", "session"] },
+      { title: "MCP result returns to the user", detail: "After PingOne Authorize permits the action, PingGateway forwards the tool call to the MCP server. The MCP result returns through PingGateway and the BFF to the browser; tokens remain server-side.", active: ["bff", "gateway", "authorize", "mcp", "user"], links: ["tool", "mcp-result", "gateway-result", "answer"] },
     ],
     participants: [
       { id: "user", title: "User / browser", subtitle: "PF sign-in · AI request", role: "request", position: { x: 0, y: 120 } },
@@ -249,6 +249,7 @@ export const DIAGRAMS = {
       { id: "tool", source: "gateway", target: "mcp", label: "permitted MCP tool call" },
       { id: "mcp-result", source: "mcp", target: "gateway", label: "MCP tool result" },
       { id: "gateway-result", source: "gateway", target: "bff", label: "result to BFF", sourceHandle: "top", targetHandle: "bottom" },
+      { id: "answer", source: "bff", target: "user", label: "AI response", sourceHandle: "bottom", targetHandle: "bottom" },
     ],
   },
 };
