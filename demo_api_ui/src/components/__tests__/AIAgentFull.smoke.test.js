@@ -43,6 +43,7 @@ vi.mock("../../services/demoAgentNlService", () => ({
   parseNaturalLanguage: vi.fn().mockResolvedValue({ source: "local", result: { kind: "none" } }),
 }));
 
+const sendAgentMessage = vi.fn().mockResolvedValue({ success: true, reply: "Done." });
 vi.mock("../../services/demoAgentService", () => ({
   getMyAccounts: vi.fn().mockResolvedValue([]),
   getAccountBalance: vi.fn().mockResolvedValue({ balance: 100 }),
@@ -53,7 +54,7 @@ vi.mock("../../services/demoAgentService", () => ({
   refreshOAuthSession: vi.fn().mockResolvedValue({}),
   warmupAuthz: vi.fn().mockResolvedValue({}),
   callMcpTool: vi.fn().mockResolvedValue({ success: true }),
-  sendAgentMessage: vi.fn().mockResolvedValue({ success: true, reply: "Done." }),
+  sendAgentMessage: (...args) => sendAgentMessage(...args),
   fetchAgentTools: vi.fn().mockResolvedValue({ availableTools: [], vertical: null, allowWrite: true }),
 }));
 
@@ -137,6 +138,7 @@ beforeEach(() => {
   mockManifest = { id: "healthcare", identity: { displayName: "CareConnect" } };
   bffGet.mockReset();
   bffGet.mockResolvedValue({ data: {} });
+  sendAgentMessage.mockClear();
   global.fetch = vi.fn(() =>
     Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) }),
   );
@@ -232,5 +234,19 @@ describe("AIAgentFull smoke", () => {
       }),
     ));
     expect(sessionStorage.getItem(ID_JAG_REPLAYED_KEY)).toBe("1");
+  });
+
+  it("carries validated UC40 mode through non-streaming NL to agent dispatch", async () => {
+    sessionStorage.setItem(ID_JAG_VALIDATED_CALLBACK_KEY, JSON.stringify({
+      idJagCallbackValidated: true, useCaseId: ID_JAG_USE_CASE_ID,
+      mode: "live-id-jag", message: "show my balance",
+    }));
+    global.fetch = vi.fn((url) => String(url).includes("/api/demo-agent/nl")
+      ? Promise.resolve({ ok: true, status: 200, json: async () => ({ source: "heuristic", result: { kind: "vertical", vertical: "healthcare", action: "show_health_record", params: {} } }) })
+      : Promise.resolve({ ok: true, status: 200, json: async () => ({}) }));
+    renderAgent({ user: { id: "u1", role: "customer" }, mode: "inline" }, "/dashboard");
+    await waitFor(() => expect(sendAgentMessage).toHaveBeenCalledWith(
+      "show my balance", null, expect.objectContaining({ useCaseId: ID_JAG_USE_CASE_ID, mode: "live-id-jag" }),
+    ));
   });
 });

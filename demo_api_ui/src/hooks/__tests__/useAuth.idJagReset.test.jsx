@@ -97,3 +97,13 @@ test('completed live trace consumes the server run grant once and retains eviden
   await waitFor(() => expect(bffAxios.post).toHaveBeenCalledWith('/api/auth/oauth/user/id-jag/complete'));
   expect(bffAxios.post).toHaveBeenCalledTimes(1);
 });
+
+test('failed native trace with only PF issuance clears the server grant and callback state', async () => {
+  sessionStorage.setItem(ID_JAG_VALIDATED_CALLBACK_KEY, JSON.stringify({ useCaseId: ID_JAG_USE_CASE_ID, mode: RUN_MODES.LIVE_ID_JAG }));
+  renderHook(() => useAuth());
+  const listener = tokenChainTraceStore.subscribe.mock.calls[0][0];
+  act(() => listener({ trace: { runId: 43, mode: RUN_MODES.LIVE_ID_JAG, provenance: RUN_MODES.LIVE_ID_JAG,
+    outcome: 'error', tokenEvents: [{ id: 'pf-id-jag-issued', provider: 'pingfederate' }] } }));
+  await waitFor(() => expect(bffAxios.post).toHaveBeenCalledWith('/api/auth/oauth/user/id-jag/complete'));
+  await waitFor(() => expect(sessionStorage.getItem(ID_JAG_VALIDATED_CALLBACK_KEY)).toBeNull());
+});

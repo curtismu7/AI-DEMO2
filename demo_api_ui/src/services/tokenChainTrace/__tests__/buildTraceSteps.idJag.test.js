@@ -95,6 +95,13 @@ describe("ID-JAG provenance", () => {
 });
 
 describe("buildTraceSteps — native ID-JAG", () => {
+  test("partial issuance evidence keeps the PF lane and marks failed redemption", () => {
+    const steps = buildTraceSteps({ ...EMPTY_TRACE, provenance: "live-id-jag", mode: "live-id-jag",
+      outcome: "error", tokenEvents: [pfEvents()[0]] });
+    expect(steps.find((step) => step.id === "id-jag-issued")).toMatchObject({ status: "done", lane: "PINGFEDERATE" });
+    expect(steps.find((step) => step.id === "id-jag-redeemed")).toMatchObject({ status: "error" });
+  });
+
   test("adds both ID-JAG hops when the events are present", () => {
     const ids = buildTraceSteps(pfTrace()).map((s) => s.id);
     expect(ids).toContain("id-jag-issued");

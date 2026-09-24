@@ -1792,7 +1792,7 @@ export default function BankingAgent({
       if (e.detail?.autoSend) {
         setIsOpen(true); // no-op for inline (effectiveIsOpen is already true)
         // Defer so the panel mounts and runDrawerAttackRef points at the live closure.
-        const tid = setTimeout(() => runDrawerAttackRef.current?.({ message: msg, useCaseId: e.detail?.useCaseId }), 80);
+        const tid = setTimeout(() => runDrawerAttackRef.current?.({ message: msg, useCaseId: e.detail?.useCaseId, mode: e.detail?.mode }), 80);
         timerIds.push(tid);
         return;
       }
@@ -1933,8 +1933,8 @@ export default function BankingAgent({
   //                    Security Showcase panel when it was removed.
   useEffect(() => {
     runDrawerAttackRef.current = (detail = {}) => {
-      const { message, showcase, label, useCaseId } = detail;
-      if (message) { sendAsNl(message, useCaseId); return; }
+      const { message, showcase, label, useCaseId, mode } = detail;
+      if (message) { sendAsNl(message, useCaseId, mode); return; }
       if (!showcase) return;
       if (SHOWCASE_RUN_ACTION[showcase]) { runAction(SHOWCASE_RUN_ACTION[showcase]); return; }
       if (showcase === "authz_deny") {
@@ -3987,7 +3987,7 @@ export default function BankingAgent({
     // useCaseId/vertical: threaded from the chip/dispatch caller so the tool
     // call carries proof-of-enforcement context (mirrors callMcpTool's own
     // useCaseId/vertical opts — see demoAgentService.js).
-    const { skipUserLabel = false, isRefire = false, nlSource = null, hitlRetryChallengeId = null, useCaseId = null, vertical = null } = opts;
+    const { skipUserLabel = false, isRefire = false, nlSource = null, hitlRetryChallengeId = null, useCaseId = null, mode = null, vertical = null } = opts;
     const resultExtra = nlSource ? { source: nlSource } : {};
     const label = ACTIONS.find((a) => a.id === actionId)?.label || actionId;
     if (!skipUserLabel) {
@@ -4412,7 +4412,7 @@ export default function BankingAgent({
           break;
         case "balance":
           toast.update(toastId, { render: " Calling get_account_balance…" });
-          response = await getAccountBalance(form.accountId, { useCaseId, vertical });
+          response = await getAccountBalance(form.accountId, { useCaseId, vertical, mode });
           break;
         case "account_nickname":
           toast.update(toastId, { render: " Calling get_account_nickname…" });
@@ -6731,7 +6731,7 @@ export default function BankingAgent({
     }));
   }
 
-  function sendAsNlInner(text, useCaseId) {
+  function sendAsNlInner(text, useCaseId, mode) {
     bindPromptRunContext(text, useCaseId);
     nrLog('ui.agent_message', { useCaseId: useCaseId || null, length: text ? text.length : 0 });
     // A typed message is a new turn: start a fresh token-chain trace with the
@@ -6739,7 +6739,10 @@ export default function BankingAgent({
     // the prompt step lights up (demoAgentService's chip path only begins a
     // trace when none was started in the last 60s).
     try {
-      tokenChainTraceStore.beginTrace({ prompt: text });
+      tokenChainTraceStore.beginTrace({ prompt: text,
+        ...(useCaseId === 'enterprise-managed-mcp-authorization' && mode === 'live-id-jag'
+          ? { provenance: 'live-id-jag', mode } : {}),
+      });
     } catch (_) { /* display-only */ }
     // AG-UI path (ff_agui_enabled=true): stream via POST /api/agent/run
     // The old NL pipeline is bypassed entirely when this flag is on.
@@ -6851,7 +6854,7 @@ export default function BankingAgent({
       // have produced, and dispatch through the same path. source='clarify'
       // so the token-chain panel can label it correctly.
       const syntheticResult = buildClarificationResult(pc, merged);
-      dispatchNlResult(syntheticResult, "clarify", text)
+      dispatchNlResult(syntheticResult, "clarify", text, pc.useCaseId || useCaseId, pc.mode || mode)
         .catch((err) => { if (!isAbortError(err)) reportNlFailure(err); })
         .finally(() => nlSendGuardRef.current.release());
       return;
@@ -6872,6 +6875,7 @@ export default function BankingAgent({
           message: text,
           provider: activeLlmProvider || "heuristic",
           vertical: effectiveVerticalId,
+          ...(useCaseId ? { useCaseId } : {}),
         }),
         signal: anySignal([AbortSignal.timeout(activeLlmProvider === "anthropic-lmstudio" || activeLlmProvider === "llamacpp" || activeLlmProvider === "mlx" || activeLlmProvider === "helix" ? 60000 : 15000), signal]),
       })
@@ -6894,12 +6898,16 @@ export default function BankingAgent({
             heuristicSaved: !source || source === "heuristic",
           });
           // Pure-mode provider unavailable → ask before using heuristics (#1).
-          if (maybeDeferToHeuristicPrompt({ result, source, text, llm_attempted, llm_not_configured })) {
+          if (maybeDeferToHeuristicPrompt({ result, source, text, llm_attempted, llm_not_configured, useCaseId, mode })) {
+            if (mode === 'live-id-jag') tokenChainTraceStore.completeTrace(false);
             return undefined;
           }
-          return dispatchNlResult(result, source || "heuristic", text);
+          return dispatchNlResult(result, source || "heuristic", text, useCaseId, mode);
         })
-        .catch((err) => { if (!isAbortError(err)) reportNlFailure(err); })
+        .catch((err) => {
+          if (mode === 'live-id-jag') tokenChainTraceStore.completeTrace(false);
+          if (!isAbortError(err)) reportNlFailure(err);
+        })
         .finally(() => {
           setNlLoading(false);
           nlSendGuardRef.current.release();
@@ -6908,10 +6916,10 @@ export default function BankingAgent({
   }
 
   // Sends text through the full NL pipeline (same path as typing in the chat box).
-  function sendAsNl(text, useCaseId) {
+  function sendAsNl(text, useCaseId, mode) {
     if (!nlSendGuardRef.current.tryAcquire()) return;
     try {
-      sendAsNlInner(text, useCaseId);
+      sendAsNlInner(text, useCaseId, mode);
     } catch (e) {
       // Synchronous failure before any async release path ran — free the
       // guard so the send box doesn't stay locked. (Parity with
@@ -7136,7 +7144,7 @@ export default function BankingAgent({
    * stash the heuristic result and surface an explicit "use Heuristics?" prompt.
    * Returns true when it deferred (caller must skip its own dispatch).
    */
-  function maybeDeferToHeuristicPrompt({ result, source, text, llm_attempted, llm_not_configured }) {
+  function maybeDeferToHeuristicPrompt({ result, source, text, llm_attempted, llm_not_configured, useCaseId, mode }) {
     if (!PURE_LLM_MODES.includes(agentProviderMode)) return false;
     // Any non-heuristic source is a real LLM answer.
     if (source && source !== "heuristic") return false;
@@ -7162,7 +7170,7 @@ export default function BankingAgent({
       `⚠️ ${label} is selected but ${why} right now. I didn't fall back automatically. ` +
         `Want me to answer with the built-in Heuristics instead?`,
     );
-    setPendingLlmFallback({ result, source: "heuristic", text });
+    setPendingLlmFallback({ result, source: "heuristic", text, useCaseId, mode });
     return true;
   }
 
@@ -7208,9 +7216,13 @@ export default function BankingAgent({
   async function dispatchNlResult(...args) {
     try {
       const out = await dispatchNlResultInner(...args);
+      if (args[4] === 'live-id-jag' && !tokenChainTraceStore.getState().trace.outcome) {
+        tokenChainTraceStore.completeTrace(false);
+      }
       try { agentFlowDiagram.completeReply(true); } catch (_) { /* display-only */ }
       return out;
     } catch (err) {
+      if (args[4] === 'live-id-jag') tokenChainTraceStore.completeTrace(false);
       try { agentFlowDiagram.completeReply(false); } catch (_) { /* display-only */ }
       throw err;
     }
@@ -7221,6 +7233,7 @@ export default function BankingAgent({
     _source = "heuristic",
     nlUserText = "",
     useCaseId = undefined,
+    mode = undefined,
   ) {
     // A /nl error envelope (e.g. the Vite proxy's 502 {"error":"proxy_error"}
     // while the BFF restarts) parses as JSON but carries no `result`, so all
@@ -7497,7 +7510,7 @@ export default function BankingAgent({
         return;
       }
       if (action === "accounts" || action === "transactions") {
-        await runAction(action, {}, { skipUserLabel: true, nlSource: _source, useCaseId, vertical: effectiveVerticalId });
+        await runAction(action, {}, { skipUserLabel: true, nlSource: _source, useCaseId, mode, vertical: effectiveVerticalId });
       } else if (action === "balance" && (p.accountId || p.accountType)) {
         let resolvedId = p.accountId;
         if (!resolvedId && p.accountType) {
@@ -7510,7 +7523,7 @@ export default function BankingAgent({
           await runAction(
             "balance",
             { accountId: resolvedId },
-            { skipUserLabel: true, nlSource: _source, useCaseId, vertical: effectiveVerticalId },
+            { skipUserLabel: true, nlSource: _source, useCaseId, mode, vertical: effectiveVerticalId },
           );
         } else {
           addMessage(
@@ -7604,13 +7617,15 @@ export default function BankingAgent({
         // amount=$50 still works on the next turn.
         setPendingClarification({
           action,
+          useCaseId,
+          mode,
           partialParams: p || {},
           asked: questions[action],
           clarifyOptions: acctTypes,
           amountOptions,
         });
       } else {
-        await runAction(action, p, { skipUserLabel: true, nlSource: _source, useCaseId, vertical: effectiveVerticalId });
+        await runAction(action, p, { skipUserLabel: true, nlSource: _source, useCaseId, mode, vertical: effectiveVerticalId });
       }
       return;
     }
@@ -7627,6 +7642,7 @@ export default function BankingAgent({
           _source,
           nlUserText,
           useCaseId,
+          mode,
         );
       }
       if (CLIENT_DISPATCHED_VERTICAL_ACTIONS.has(result.action)) {
@@ -7635,6 +7651,7 @@ export default function BankingAgent({
           skipUserLabel: true,
           nlSource: _source,
           useCaseId,
+          mode,
           vertical: verticalId,
         });
         return;
@@ -7672,6 +7689,7 @@ export default function BankingAgent({
           vertical: isPingOneAdminTool ? "pingone-admin" : verticalId,
           consentGiven: !!result.consentGiven,
           ...(useCaseId ? { useCaseId } : {}),
+          ...(mode === 'live-id-jag' ? { mode } : {}),
         };
         const response = await sendAgentMessage(agentMessage, null, {
           ...verticalOpts,
@@ -10221,7 +10239,7 @@ export default function BankingAgent({
                       onClick={async () => {
                         const pend = pendingLlmFallback;
                         setPendingLlmFallback(null);
-                        await dispatchNlResult(pend.result, "heuristic", pend.text);
+                        await dispatchNlResult(pend.result, "heuristic", pend.text, pend.useCaseId, pend.mode);
                       }}
                     >Use Heuristics</button>
                     <button

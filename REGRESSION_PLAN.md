@@ -169,6 +169,26 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — PF callback lost UC40 and failed runs lost their trace
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`, `AIAgentFull.js`,
+`demo_api_ui/src/services/demoAgentService.js`, token-chain trace rendering,
+and focused tests.
+
+**What was broken:** Callback prefill carried UC40 and live ID-JAG mode, but
+non-streaming NL and tool dispatch dropped them. A failed issuance or redemption
+then looked like an ordinary run and left its server grant pending.
+
+**What was fixed:** Both agent variants pass the validated run identity to the
+BFF request. Agent and direct-tool traces start in PF ID-JAG mode, preserve
+partial events, and settle on failure so the completion subscriber clears the
+grant. Partial steps show the failed hop.
+
+**Do not break:** Ordinary agent requests, mock replay, and server-side UC40
+provider checks.
+
+**Verify:** Focused UC40 agent, service, trace, and cleanup Vitest; UI build.
+
 ### 2026-09-24 — ID-JAG live launch with PingOne selected had no recovery message
 
 **Files changed:** `demo_api_ui/src/hooks/useAuth.js`,

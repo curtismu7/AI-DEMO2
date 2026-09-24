@@ -1171,12 +1171,13 @@ export function buildTraceSteps(trace) {
   const idJagRedeemed = pfIdJag
     ? validatedPfEvent("pf-id-jag-redeemed")
     : mockIdJag ? findEvent(tokenEvents, "id-jag-redeemed") : null;
-  const nativeIdJag = Boolean(idJagIssued || idJagRedeemed);
+  const nativeIdJag = Boolean(pfIdJag || mockIdJag);
 
   if (idJagIssued) {
-    steps.push({ ...makeStep("id-jag-issued", "done", {
+    steps.push({ ...makeStep("id-jag-issued", idJagIssued.status === "failed" ? "error" : "done", {
       narrative: mockIdJag ? "Mock replay: sample issuance evidence only. No identity provider issued a grant." : NARRATIVES["id-jag-issued"],
       why: mockIdJag ? "Mock replay: sample ID-JAG issuance; no live grant was minted."
+        : idJagIssued.status === "failed" ? "PingFederate rejected ID-JAG issuance for this run."
         : "IT policy passed, so PingFederate signed an ID-JAG for this user"
           + (idJagIssued.resource ? ` scoped to ${idJagIssued.resource}` : "")
           + ". A denied employee would have received an error here instead, with no assertion issued.",
@@ -1194,10 +1195,17 @@ export function buildTraceSteps(trace) {
       lane: pfIdJag ? "PINGFEDERATE" : "PINGONE" });
   }
 
+  if (pfIdJag && !idJagIssued) {
+    steps.push({ ...makeStep("id-jag-issued", trace.outcome === "error" ? "error" : "pending", {
+      why: trace.outcome === "error" ? "PingFederate did not issue an ID-JAG for this run." : "Waiting for PingFederate issuance evidence.",
+    }), title: "PingFederate ID-JAG issued", lane: "PINGFEDERATE" });
+  }
+
   if (idJagRedeemed) {
-    steps.push({ ...makeStep("id-jag-redeemed", "done", {
+    steps.push({ ...makeStep("id-jag-redeemed", idJagRedeemed.status === "failed" ? "error" : "done", {
       narrative: mockIdJag ? "Mock replay: sample redemption evidence only. No authorization server issued a token." : NARRATIVES["id-jag-redeemed"],
       why: mockIdJag ? "Mock replay: sample redemption; no live MCP access token was issued."
+        : idJagRedeemed.status === "failed" ? "The MCP authorization server rejected the ID-JAG redemption."
         : "The MCP authorization server verified the assertion against the IdP JWKS and issued its own "
           + "access token. No browser redirect to an MCP authorize endpoint was involved.",
       response: idJagRedeemed.claims
@@ -1210,6 +1218,13 @@ export function buildTraceSteps(trace) {
       inspectToken: "mcp",
       tokenEvent: idJagRedeemed,
     }), title: mockIdJag ? "Mock replay — ID-JAG redeemed" : "PingFederate ID-JAG redeemed" });
+  }
+
+  if (pfIdJag && !idJagRedeemed) {
+    steps.push({ ...makeStep("id-jag-redeemed", !idJagIssued ? "notinpath" : trace.outcome === "error" ? "error" : "pending", {
+      why: !idJagIssued ? "No ID-JAG was issued to redeem." : trace.outcome === "error"
+        ? "The MCP authorization server did not redeem the issued ID-JAG." : "Waiting for redemption evidence.",
+    }), title: "PingFederate ID-JAG redeemed" });
   }
 
   steps.push(makeStep("exchange",
