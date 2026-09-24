@@ -172,6 +172,8 @@ response with no text rather than returning an empty string.
 
 ## Related
 
+- [Privilege AIGuard training guide](privilege-aiguard-training.md) — deck-to-demo
+  presenter flow, Attack Lab attribution, and pre-session checks.
 - The agent modes `privilege_llm` and `privilege_claude` use the same service
   through [`services/geminiNlIntent.js`](../demo_api_server/services/geminiNlIntent.js)
   and are unaffected by the panel.
