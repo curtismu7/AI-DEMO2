@@ -5,7 +5,7 @@
 # Why this exists: npm run scripts inherit whatever Node major the shell has
 # active. On a shell where nvm hasn't been sourced (fresh terminal, no
 # ~/.zshrc bootstrap, CI runner, etc.), `node --version` is often the
-# system Node 18 — and our scripts pre-flight a Node 20+ floor and exit.
+# system Node 18 — and our scripts pre-flight a Node 22+ floor and exit.
 # Users then have to source nvm by hand and re-run, which is exactly the
 # kind of friction setup:fresh exists to eliminate.
 #
@@ -13,8 +13,8 @@
 #   "reset": "bash scripts/run-node.sh demo_api_server/scripts/setupFresh.js --clean --reset-pingone"
 #
 # Behavior:
-#   1. If current Node major >= 20, exec the script as-is.
-#   2. Otherwise, source nvm and `nvm use 20` (or the major from
+#   1. If current Node major >= 22, exec the script as-is.
+#   2. Otherwise, source nvm and `nvm use 22` (or the major from
 #      package.json#engines.node), then exec the script.
 #   3. If nvm isn't installed or can't switch, print a clear error matching
 #      the one our Node scripts already print, and exit 1.
@@ -32,16 +32,16 @@ shift
 
 # Resolve required Node major from root package.json#engines.node. Accepts
 # "20.x", ">=20", "20", ">=20.0.0" — first digit run wins. Defaults to 20.
-NODE_MIN=20
+NODE_MIN=22
 if command -v node >/dev/null 2>&1; then
   parsed=$(node -e "
     try {
       const e = require('${BASEDIR}/package.json').engines;
       const m = e && e.node && String(e.node).match(/(\\d+)/);
-      process.stdout.write(m ? m[1] : '20');
-    } catch (_) { process.stdout.write('20'); }
-  " 2>/dev/null || echo 20)
-  NODE_MIN="${parsed:-20}"
+      process.stdout.write(m ? m[1] : '22');
+    } catch (_) { process.stdout.write('22'); }
+  " 2>/dev/null || echo 22)
+  NODE_MIN="${parsed:-22}"
 fi
 
 current_major() {

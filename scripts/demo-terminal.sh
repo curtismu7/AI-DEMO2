@@ -206,7 +206,7 @@ demo_detect_launchers() {
   LAUNCHERS_DETECTED=1
   local ver major kubecfg
 
-  # ── ./run.sh — Node >= NODE_MIN_VERSION (20) and python3 on PATH.
+  # ── ./run.sh — Node >= NODE_MIN_VERSION (22) and python3 on PATH.
   LAUNCHER_NATIVE_OK=0
   LAUNCHER_NATIVE_WHY=""
   if ! command -v node >/dev/null 2>&1; then
@@ -217,8 +217,8 @@ demo_detect_launchers() {
     ver="$(node --version 2>/dev/null || true)"
     major="${ver#v}"
     major="$(_demo_int "${major%%.*}")"
-    if [[ "${major}" -lt 20 ]]; then
-      LAUNCHER_NATIVE_WHY="node ${ver} is below the required v20"
+    if [[ "${major}" -lt 22 ]]; then
+      LAUNCHER_NATIVE_WHY="node ${ver} is below the required v22"
     else
       LAUNCHER_NATIVE_OK=1
       LAUNCHER_NATIVE_WHY="starts every service natively — no lean mode"
