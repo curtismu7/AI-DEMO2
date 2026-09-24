@@ -696,6 +696,10 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
         tokenEvents: errorTokenEvents,
       });
     }
+    if (error.code === 'id_jag_login_required' || error.code === 'id_jag_provider_required') {
+      return res.status(401).json({ error: error.code, message: error.message,
+        loginTarget: error.loginTarget, tokenEvents: errorTokenEvents });
+    }
     // Dead/expired user token: surface as 401 so the SPA can trigger re-auth
     // instead of treating it as a generic server error.
     if (error.code === 'TOKEN_INACTIVE') {

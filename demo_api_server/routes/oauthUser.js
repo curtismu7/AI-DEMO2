@@ -25,6 +25,12 @@ const { startLoginAudit, resumeLoginAudit, finishLoginAudit } = require('../serv
 const { sendAccessRestricted } = require('../middleware/hostedAccessGate');
 
 const STEP_UP_TTL_MS = 5 * 60 * 1000; // 5 min step-up validity
+const ID_JAG_RUN_TTL_MS = 5 * 60 * 1000;
+const ID_JAG_RUN_COOKIE = '_id_jag_run';
+const ID_JAG_USE_CASE = 'enterprise-managed-mcp-authorization';
+// A handoff crosses session.destroy() during RP logout. The opaque cookie is only
+// a lookup key; the bounded intent itself stays server-side and is consumed once.
+const pendingIdJagRuns = new Map();
 
 const _isProd = () => !!(process.env.REPL_ID || process.env.REPLIT_DEPLOYMENT || process.env.NODE_ENV === 'production');
 
@@ -39,6 +45,71 @@ function sanitizePostLoginReturnPath(raw) {
   if (!t.startsWith('/') || t.startsWith('//') || t.length > 160) return null;
   if (!/^[/a-zA-Z0-9._~-]+$/.test(t)) return null;
   return t;
+}
+
+function idJagCookieNonce(req) {
+  const cookie = String(req?.headers?.cookie || '').split(';').map((part) => part.trim())
+    .find((part) => part.startsWith(`${ID_JAG_RUN_COOKIE}=`));
+  const nonce = cookie?.slice(ID_JAG_RUN_COOKIE.length + 1) || '';
+  return /^[a-f0-9]{32}$/.test(nonce) ? nonce : null;
+}
+
+function pendingIdJagRun(req) {
+  const nonce = idJagCookieNonce(req);
+  if (!nonce) return null;
+  const intent = pendingIdJagRuns.get(nonce);
+  if (!intent) return null;
+  if (Date.now() - intent.createdAt >= ID_JAG_RUN_TTL_MS) {
+    pendingIdJagRuns.delete(nonce);
+    return null;
+  }
+  return intent;
+}
+
+function setPendingIdJagRun(req, intent) {
+  const returnTo = sanitizePostLoginReturnPath(intent?.returnTo);
+  if (intent?.useCaseId !== ID_JAG_USE_CASE || intent?.mode !== 'live-id-jag'
+    || typeof intent?.message !== 'string' || !intent.message.trim()
+    || intent.message.length > 256 || /[\x00-\x1f\x7f]/.test(intent.message)
+    || !returnTo || returnTo !== intent.returnTo) {
+    throw new Error('invalid_id_jag_intent');
+  }
+  clearPendingIdJagRun(req);
+  for (const [nonce, entry] of pendingIdJagRuns) {
+    if (Date.now() - entry.createdAt >= ID_JAG_RUN_TTL_MS) pendingIdJagRuns.delete(nonce);
+  }
+  const saved = { useCaseId: ID_JAG_USE_CASE, mode: 'live-id-jag', message: intent.message.trim(),
+    returnTo, createdAt: Date.now(), nonce: crypto.randomBytes(16).toString('hex') };
+  pendingIdJagRuns.set(saved.nonce, saved);
+  if (req.session) req.session.pendingIdJagNonce = saved.nonce;
+  return saved;
+}
+
+function consumePendingIdJagRun(req) {
+  const intent = pendingIdJagRun(req);
+  if (!intent) return null;
+  if (req.session?.pendingIdJagNonce && req.session.pendingIdJagNonce !== intent.nonce) return null;
+  pendingIdJagRuns.delete(intent.nonce);
+  if (req.session) delete req.session.pendingIdJagNonce;
+  return intent;
+}
+
+function clearPendingIdJagRun(req) {
+  const nonce = idJagCookieNonce(req) || req.session?.pendingIdJagNonce;
+  if (nonce) pendingIdJagRuns.delete(nonce);
+  if (req.session) delete req.session.pendingIdJagNonce;
+}
+
+function claimPendingIdJagRunForLogin(req, returnTo) {
+  const intent = pendingIdJagRun(req);
+  if (!intent || configStore.getOAuthProvider?.() !== 'pingfederate'
+    || intent.returnTo !== sanitizePostLoginReturnPath(returnTo)) return null;
+  if (req.session) req.session.pendingIdJagNonce = intent.nonce;
+  return intent;
+}
+
+function clearIdJagCookie(res) {
+  res.clearCookie(ID_JAG_RUN_COOKIE, { httpOnly: true, secure: _isProd(), sameSite: _isProd() ? 'none' : 'lax', path: '/' });
 }
 
 /**
@@ -164,8 +235,50 @@ router.get('/login-trace/:id', (req, res) => {
   res.json({ steps: loginFlowTrace.finish(req.params.id) });
 });
 
+router.post('/id-jag/intent', (req, res) => {
+  if (req.get('origin') !== getFrontendOrigin()) return res.status(403).json({ error: 'invalid_origin' });
+  let intent;
+  try { intent = setPendingIdJagRun(req, req.body); }
+  catch { return res.status(400).json({ error: 'invalid_id_jag_intent' }); }
+  res.cookie(ID_JAG_RUN_COOKIE, intent.nonce, {
+    httpOnly: true, secure: _isProd(), sameSite: _isProd() ? 'none' : 'lax',
+    maxAge: ID_JAG_RUN_TTL_MS, path: '/',
+  });
+  req.session.save((err) => {
+    if (err) {
+      clearPendingIdJagRun(req);
+      clearIdJagCookie(res);
+      return res.status(500).json({ error: 'session_persist_failed' });
+    }
+    return res.status(201).json({ useCaseId: intent.useCaseId, mode: intent.mode, returnTo: intent.returnTo });
+  });
+});
+
+router.get('/id-jag/pending', (req, res) => {
+  const intent = pendingIdJagRun(req);
+  res.json(intent
+    ? { pending: true, useCaseId: intent.useCaseId, mode: intent.mode, message: intent.message, returnTo: intent.returnTo }
+    : { pending: false });
+});
+
 router.get('/login', (req, res) => {
   try {
+    const continuingIdJag = !!req.session.pendingIdJagNonce && !!req.session.oauthState
+      && pendingIdJagRun(req)?.nonce === req.session.pendingIdJagNonce;
+    const liveIdJag = req.query.mode === 'live-id-jag' || continuingIdJag;
+    const claimedIdJag = liveIdJag
+      ? claimPendingIdJagRunForLogin(req, req.query.return_to || req.session.postLoginReturnToPath)
+      : null;
+    if (liveIdJag && !claimedIdJag) {
+      clearPendingIdJagRun(req);
+      clearIdJagCookie(res);
+      return res.redirect(`${getFrontendOrigin()}/pingfederate-id-jag/demo?error=id_jag_provider_required`);
+    }
+    if (!liveIdJag) {
+      clearPendingIdJagRun(req);
+      clearIdJagCookie(res);
+      delete req.session.idJagRunIntent;
+    }
     const _mask = (v, n) => v ? v.slice(0, n) + '...' : 'MISSING';
     console.log('[oauth/user/login] env_id=%s  user_client_id=%s  user_secret=%s  authorize_pi.flow=%s',
       _mask(configStore.getEffective('pingone_environment_id'), 8),
@@ -176,10 +289,11 @@ router.get('/login', (req, res) => {
 
     // Guard: end-user flow needs user client + env (not admin_client_id)
     if (!configStore.isUserOAuthConfigured()) {
+      if (liveIdJag) { clearPendingIdJagRun(req); clearIdJagCookie(res); }
       return res.redirect(`${getFrontendOrigin()}/config?error=not_configured`);
     }
 
-    const forceLogin = req.query.force === 'true';
+    const forceLogin = req.query.force === 'true' || liveIdJag;
 
     if (!forceLogin) {
       // Check if user already has an active session
@@ -250,6 +364,7 @@ router.get('/login', (req, res) => {
     // Validate redirect_uri domain matches the expected deployment origin
     const uriCheck = validateRedirectUriOrigin(redirectUri);
     if (!uriCheck.ok) {
+      if (liveIdJag) { clearPendingIdJagRun(req); clearIdJagCookie(res); }
       console.warn('[oauth/user] Redirect URI rejected:', uriCheck.reason, redirectUri);
       finishLoginAudit(req, { outcome: 'failure', reasonCode: 'callback_failed' });
       return res.status(400).json({ error: 'invalid_redirect_uri', message: uriCheck.reason });
@@ -312,6 +427,7 @@ router.get('/login', (req, res) => {
     req.session.oauthRedirectUri = redirectUri;
     req.session.oauthNonce = nonce;
     req.session.oauthType = 'user'; // Distinguish from admin OAuth
+    req.session.oauthLoginProvider = configStore.getOAuthProvider?.() || 'pingone';
     req.session.oauthLoginTraceId = loginTraceId;
 
     // Vercel / serverless: also persist PKCE data in a signed cookie so the
@@ -432,6 +548,8 @@ router.get('/callback', async (req, res) => {
 
     // Check for OAuth errors (PingOne sends error + optional error_description)
     if (error) {
+      clearPendingIdJagRun(req);
+      clearIdJagCookie(res);
       // login_required from a prompt=none silent-reauth attempt is expected when the
       // PingOne SSO session has expired. Redirect the SPA to its return path with a
       // flag so it can show the manual "Sign in again" button without an error page.
@@ -471,6 +589,8 @@ router.get('/callback', async (req, res) => {
     const resolvedState = sessionState || pkceCookie?.state;
 
     if (!state || state !== resolvedState) {
+      clearPendingIdJagRun(req);
+      clearIdJagCookie(res);
       console.error('[oauth/user/callback] Invalid state. session:', sessionState, 'cookie:', pkceCookie?.state, 'received:', state);
       clearPkceCookie(res, _isProd());
       finishLoginAudit(req, { outcome: 'failure', reasonCode: 'invalid_state' });
@@ -482,6 +602,8 @@ router.get('/callback', async (req, res) => {
 
     // Validate code parameter
     if (!code) {
+      clearPendingIdJagRun(req);
+      clearIdJagCookie(res);
       console.error('[oauth/user/callback] No authorization code (pi.flow may use a different callback shape than code flow)');
       clearPkceCookie(res, _isProd());
       finishLoginAudit(req, { outcome: 'failure', reasonCode: 'authorization_code_missing' });
@@ -550,11 +672,15 @@ router.get('/callback', async (req, res) => {
     // Verify nonce in ID token to prevent ID token replay attacks (OIDC Core §3.1.2.7)
     if (expectedNonce && idTokenClaims.nonce) {
       if (idTokenClaims.nonce !== expectedNonce) {
+        clearPendingIdJagRun(req);
+        clearIdJagCookie(res);
         console.error('[oauth/user/callback] Nonce mismatch — possible ID token replay attack');
         finishLoginAudit(req, { outcome: 'failure', reasonCode: 'nonce_mismatch' });
         return redirectEndUserOAuthSpaFailure(req, res, { error: 'nonce_mismatch' });
       }
     } else if (expectedNonce && tokenData.id_token && !idTokenClaims.nonce) {
+      clearPendingIdJagRun(req);
+      clearIdJagCookie(res);
       // OIDC Core §3.1.3.7: when the client sent a nonce it MUST verify a matching
       // one is present in the ID token. A missing nonce here is a verification
       // failure (a replayed/forged ID token could simply omit it), so fail the
@@ -577,6 +703,8 @@ router.get('/callback', async (req, res) => {
       ? evaluateHostedIdentity(hostedIdentityClaims, hostedAccessPolicy)
       : null;
     if (hostedAccessDecision && !hostedAccessDecision.allowed) {
+      clearPendingIdJagRun(req);
+      clearIdJagCookie(res);
       finishLoginAudit(req, {
         outcome: 'denied',
         reasonCode: hostedAccessDecision.reason,
@@ -711,6 +839,18 @@ router.get('/callback', async (req, res) => {
     // Preserve step-up return destination across session regeneration
     const stepUpReturnTo = req.session.stepUpReturnTo || null;
     const postLoginReturnToPath = sanitizePostLoginReturnPath(req.session.postLoginReturnToPath) || null;
+    const loginProvider = req.session.oauthLoginProvider || configStore.getOAuthProvider?.() || 'pingone';
+    const hadIdJagHandoff = !!req.session.pendingIdJagNonce;
+    const validatedIdJagIntent = hadIdJagHandoff && loginProvider === 'pingfederate'
+      && configStore.getOAuthProvider?.() === 'pingfederate'
+      && pendingIdJagRun(req)?.returnTo === postLoginReturnToPath
+      ? consumePendingIdJagRun(req) : null;
+    if (hadIdJagHandoff && !validatedIdJagIntent) {
+      clearPendingIdJagRun(req);
+      clearIdJagCookie(res);
+      return redirectEndUserOAuthSpaFailure(req, res, { error: 'id_jag_provider_required' }, '/pingfederate-id-jag/demo');
+    }
+    clearIdJagCookie(res);
     const hostedLoginAudit = req.session.hostedLoginAudit || null;
     const hostedLoginAudits = req.session.hostedLoginAudits || null;
 
@@ -746,6 +886,8 @@ router.get('/callback', async (req, res) => {
     // P3 — failure is now fatal (abort login) to eliminate the session fixation risk.
     req.session.regenerate((regenErr) => {
       if (regenErr) {
+        clearPendingIdJagRun(req);
+        clearIdJagCookie(res);
         console.error('[oauth/user/callback] Session regenerate FAILED — aborting login:', regenErr.message);
         clearAuthCookie(res, _isProd());
         finishLoginAudit(req, { outcome: 'failure', reasonCode: 'session_regenerate_failed' });
@@ -761,6 +903,8 @@ router.get('/callback', async (req, res) => {
       req.session.user = authedUser;
       req.session.clientType = clientType;
       req.session.oauthType = 'user';
+      req.session.oauthProvider = loginProvider;
+      if (validatedIdJagIntent) req.session.idJagRunIntent = validatedIdJagIntent;
       if (hostedLoginAudit) req.session.hostedLoginAudit = hostedLoginAudit;
       if (hostedLoginAudits) req.session.hostedLoginAudits = hostedLoginAudits;
       if (hostedAccessDecision) {
@@ -889,6 +1033,8 @@ router.get('/callback', async (req, res) => {
     });
     
   } catch (error) {
+    clearPendingIdJagRun(req);
+    clearIdJagCookie(res);
     console.error('OAuth callback error:', error?.stack || String(error));
     finishLoginAudit(req, { outcome: 'failure', reasonCode: 'callback_failed' });
     const detail = error.pingoneError || 'unknown';
@@ -1019,7 +1165,12 @@ router.get('/status', (req, res) => {
       hideSuccessScreen: req.session.user.hideSuccessScreen || false,
       notificationPrefs: req.session.user.notificationPrefs || null
     } : null,
-    oauthProvider: isAuthenticated ? req.session.user.oauthProvider : null,
+    oauthProvider: isAuthenticated ? (req.session.oauthProvider || req.session.user.oauthProvider) : null,
+    idJagRunIntent: isAuthenticated && req.session.idJagRunIntent?.mode === 'live-id-jag'
+      && Date.now() - req.session.idJagRunIntent.createdAt < ID_JAG_RUN_TTL_MS
+      ? { useCaseId: ID_JAG_USE_CASE, mode: 'live-id-jag', message: req.session.idJagRunIntent.message,
+          returnTo: req.session.idJagRunIntent.returnTo }
+      : null,
     // accessToken intentionally omitted — token stays on the backend (Backend-for-Frontend (BFF) pattern)
     tokenType: isAuthenticated ? req.session.oauthTokens.tokenType : null,
     expiresAt: isAuthenticated ? req.session.oauthTokens.expiresAt : null,
@@ -1587,4 +1738,10 @@ router.post('/agent-permissions', (req, res) => {
 
 module.exports = router;
 module.exports.sanitizePostLoginReturnPath = sanitizePostLoginReturnPath;
+module.exports.setPendingIdJagRun = setPendingIdJagRun;
+module.exports.consumePendingIdJagRun = consumePendingIdJagRun;
+module.exports.clearPendingIdJagRun = clearPendingIdJagRun;
+module.exports.claimPendingIdJagRunForLogin = claimPendingIdJagRunForLogin;
+module.exports.pendingIdJagRun = pendingIdJagRun;
+module.exports.clearIdJagCookie = clearIdJagCookie;
 module.exports.sanitizeStepUpReturnTo = sanitizeStepUpReturnTo;

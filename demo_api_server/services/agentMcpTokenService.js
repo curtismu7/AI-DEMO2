@@ -97,6 +97,29 @@ function _flagOn(key) {
 }
 
 const PF_ID_JAG_DEMO_USE_CASE = 'enterprise-managed-mcp-authorization';
+const PF_ID_JAG_LOGIN_TARGET = '/api/auth/oauth/user/login?mode=live-id-jag&return_to=%2Fpingfederate-id-jag%2Fdemo';
+
+function assertPfIdJagRunAllowed(req, useCaseId) {
+  if (useCaseId !== PF_ID_JAG_DEMO_USE_CASE) return;
+  const session = req?.session || {};
+  const effectiveProvider = configStore.getOAuthProvider?.();
+  const sessionProvider = session.oauthProvider || session.user?.oauthProvider;
+  const code = sessionProvider !== 'pingfederate' || effectiveProvider !== 'pingfederate'
+    ? 'id_jag_provider_required'
+    : 'id_jag_login_required';
+  const intent = session.idJagRunIntent;
+  if (session.oauthType === 'user' && code === 'id_jag_login_required'
+    && intent?.mode === 'live-id-jag' && intent.useCaseId === PF_ID_JAG_DEMO_USE_CASE
+    && Number.isFinite(intent.createdAt) && Date.now() - intent.createdAt < 5 * 60 * 1000
+    && Date.now() >= intent.createdAt && /^[a-f0-9]{32}$/.test(intent.nonce || '')) return;
+  const err = new Error(code === 'id_jag_provider_required'
+    ? 'PingFederate login is required for the ID-JAG demo.'
+    : 'Start the live ID-JAG run and complete PingFederate login before running UC40.');
+  err.code = code;
+  err.httpStatus = 401;
+  err.loginTarget = PF_ID_JAG_LOGIN_TARGET;
+  throw err;
+}
 
 function shouldUsePfIdJagForRun(provider, useCaseId) {
   return provider === 'pingfederate' && useCaseId === PF_ID_JAG_DEMO_USE_CASE;
@@ -1204,6 +1227,7 @@ async function maybeResolveNativeIdJagToken(req, tokenEvents, { resource, scope 
 }
 
 async function resolvePingFederateIdJagToken(req, tokenEvents, { resource, scope } = {}) {
+  assertPfIdJagRunAllowed(req, PF_ID_JAG_DEMO_USE_CASE);
   if (configStore.getOAuthProvider() !== 'pingfederate') return null;
   if (!_flagOn('pf_id_jag_enabled')) {
     throw new Error('PingFederate mode requires pf_id_jag_enabled=true; refusing the PingOne/mock exchange path');
@@ -1234,7 +1258,7 @@ async function resolvePingFederateIdJagToken(req, tokenEvents, { resource, scope
     'acquiring',
     null,
     'PingFederate is issuing an Identity Assertion JWT Authorization Grant. No PingOne exchange or local mock is used.',
-    { rfc: 'RFC 8693 · ID-JAG', provider: 'pingfederate', audience, resource: idJagResource }
+    { rfc: 'RFC 8693 · ID-JAG', provider: 'pingfederate', audience, resource: idJagResource, provenance: 'live-id-jag', mode: 'id-jag' }
   ));
   const idJag = await oauthService.performIdJagExchange(
     subject.token, subject.type, audience, idJagResource, scopes
@@ -1247,7 +1271,7 @@ async function resolvePingFederateIdJagToken(req, tokenEvents, { resource, scope
     'active',
     decodeJwtClaims(idJag),
     'PingFederate issued the ID-JAG assertion for the configured downstream authorization server.',
-    { rfc: 'RFC 8693 · ID-JAG', provider: 'pingfederate', audience, resource: idJagResource }
+    { rfc: 'RFC 8693 · ID-JAG', provider: 'pingfederate', audience, resource: idJagResource, provenance: 'live-id-jag', mode: 'id-jag' }
   ));
 
   const downstreamToken = await oauthService.redeemIdJag(idJag, resource, scopes);
@@ -1257,7 +1281,7 @@ async function resolvePingFederateIdJagToken(req, tokenEvents, { resource, scope
     'exchanged',
     decodeJwtClaims(downstreamToken),
     'The configured downstream authorization server redeemed the PingFederate ID-JAG and issued the MCP access token.',
-    { rfc: 'RFC 7523 · ID-JAG', provider: 'pingfederate', resource }
+    { rfc: 'RFC 7523 · ID-JAG', provider: 'pingfederate', resource, provenance: 'live-id-jag', mode: 'id-jag' }
   ));
   return downstreamToken;
 }
@@ -1267,18 +1291,12 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
 
   const tokenEvents = [];
   const activeUseCaseId = resolveActiveUseCaseId(req);
+  assertPfIdJagRunAllowed(req, activeUseCaseId);
   let userToken = getSessionBearerForMcp(req);
 
   if (!userToken) {
     logger.warn(_CAT, `[AGENT_MCP] No user token in session for tool=${tool}`);
     return { token: null, tokenEvents, userSub: null, need_auth: true, exchange_mode: '1-token', tratContextHeader: null };
-  }
-
-  if (activeUseCaseId === PF_ID_JAG_DEMO_USE_CASE && configStore.getOAuthProvider?.() !== 'pingfederate') {
-    const err = new Error('The ID-JAG demo is a separate PingFederate login mode. Sign in through PingFederate, then run this demo step again.');
-    err.code = 'pf_id_jag_login_required';
-    err.httpStatus = 400;
-    throw err;
   }
 
   const { userSub, userAccessTokenClaims: _rawUserClaims } = appendUserTokenEvent(tokenEvents, userToken, req);
@@ -1686,7 +1704,8 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
       resource: mcpResourceUri,
       scope: finalScopes,
     });
-    return { token: pfToken, tokenEvents, userSub, tratContextHeader: null };
+    return { token: pfToken, tokenEvents, userSub, tratContextHeader: null,
+      mode: 'id-jag', provenance: 'live-id-jag' };
   }
 
   if (!req?.workloadAgentRuntime
@@ -3128,7 +3147,7 @@ function describeBlockedToken(resolved, tokenEvents) {
 module.exports = {
   // Exported for the ID-JAG-scope regression spec — the predicate decides whether
   // a per-server ID-JAG grant is even applicable to this tool.
-  __test: { isOlbBackedTool, resolvePfIdJagSubjectToken, shouldUsePfIdJagForRun, resolvePfExchangeMode },
+  __test: { isOlbBackedTool, resolvePfIdJagSubjectToken, shouldUsePfIdJagForRun, resolvePfExchangeMode, assertPfIdJagRunAllowed },
   resolveMcpAccessToken,
   resolveMcpAccessTokenWithEvents,
   describeBlockedToken,
