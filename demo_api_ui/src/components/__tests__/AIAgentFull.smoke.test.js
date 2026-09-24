@@ -8,7 +8,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom";
 import { ActivityNarrativeProvider } from "../../context/ActivityNarrativeContext";
 import { ProofOfEnforcementProvider } from "../../context/ProofOfEnforcementContext";
-import { clearIdJagRunState, ID_JAG_USE_CASE_ID, USE_CASE_RUN_CONTEXT_KEY } from "../../utils/idJagRunMode";
+import { clearIdJagRunState, ID_JAG_REPLAYED_KEY, ID_JAG_USE_CASE_ID, ID_JAG_VALIDATED_CALLBACK_KEY, USE_CASE_RUN_CONTEXT_KEY } from "../../utils/idJagRunMode";
 
 vi.mock("../../context/IndustryBrandingContext", () => ({
   useIndustryBranding: () => ({
@@ -214,5 +214,23 @@ describe("AIAgentFull smoke", () => {
     } finally {
       window.removeEventListener("banking-agent-prefill", onPrefill);
     }
+  });
+
+  it("sends the saved PF callback prompt after a late full-agent mount", async () => {
+    sessionStorage.setItem(ID_JAG_VALIDATED_CALLBACK_KEY, JSON.stringify({
+      idJagCallbackValidated: true,
+      useCaseId: ID_JAG_USE_CASE_ID,
+      mode: "live-id-jag",
+      message: "show my balance",
+    }));
+    renderAgent({ user: { id: "u1", role: "customer" }, mode: "inline" }, "/dashboard");
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+      "/api/demo-agent/nl",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining('"message":"show my balance"'),
+      }),
+    ));
+    expect(sessionStorage.getItem(ID_JAG_REPLAYED_KEY)).toBe("1");
   });
 });

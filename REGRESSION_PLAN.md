@@ -169,6 +169,29 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — ID-JAG callback replay and logout status fallback
+
+**Files changed:** `demo_api_ui/src/hooks/useIdJagAgentLauncher.js`,
+`demo_api_ui/src/components/AIAgent.js`, `AIAgentFull.js`, `LogoutPage.js`,
+and their focused tests; `demo_api_server/src/__tests__/idJagRunIntent.test.js`.
+
+**What was broken:** A saved PF callback could be marked replayed before a
+late-mounted agent installed its prefill listener. A failed pending-status read
+on the logout landing silently took the ordinary return path.
+
+**What was fixed:** The agent signals listener readiness before the saved
+callback is dispatched and consumed. When the pending-status read fails, a
+validated local live intent supplies the PF login target; the BFF still checks
+the verified one-shot continuation. An explicit `pending: false` remains an
+ordinary logout.
+
+**Do not break:** Ordinary PingOne/PF login and logout, the server provider
+guard, and UC40's one-shot replay.
+
+**Verify:** Focused AIAgent, AIAgentFull, and LogoutPage Vitest; the BFF
+`idJagRunIntent` continuation test; `cd demo_api_ui && npm run build`.
+
+
 ### 2026-09-24 — PF ID-JAG launch stopped at the UI event
 
 - **Files changed:** `demo_api_ui/src/hooks/useAuth.js`, `src/components/{LogoutPage,OAuthProviderToggle}.jsx`, `src/context/SessionTokenContext.js`, ID-JAG run helpers, `demo_api_server/routes/oauthUser.js`, and focused tests.

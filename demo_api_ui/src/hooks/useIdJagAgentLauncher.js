@@ -13,16 +13,22 @@ const isLaunchPhrase = (text) => /^(?:run (?:the )?demo|run (?:the )?id[- ]jag d
 /** Each agent supplies its own active-use-case reader; launch and replay policy stay shared. */
 export function useIdJagAgentLauncher({ pathname, readUseCaseId }) {
   const replayedRef = useRef(false);
+  const prefillReadyRef = useRef(false);
+  const pendingCallbackRef = useRef(null);
+  const replayCallbackRef = useRef(null);
 
   useEffect(() => {
     const onLaunch = () => {
       replayedRef.current = false;
+      pendingCallbackRef.current = null;
       try { sessionStorage.removeItem(ID_JAG_REPLAYED_KEY); } catch { /* storage unavailable */ }
     };
     const onAuthenticated = (event) => {
       const detail = event.detail;
       if (detail?.idJagCallbackValidated !== true || detail.useCaseId !== ID_JAG_USE_CASE_ID
         || detail.mode !== RUN_MODES.LIVE_ID_JAG || !detail.message || replayedRef.current) return;
+      pendingCallbackRef.current = detail;
+      if (!prefillReadyRef.current) return;
       try {
         if (sessionStorage.getItem(ID_JAG_REPLAYED_KEY) === '1') return;
         sessionStorage.setItem(ID_JAG_REPLAYED_KEY, '1');
@@ -36,6 +42,7 @@ export function useIdJagAgentLauncher({ pathname, readUseCaseId }) {
         mode: RUN_MODES.LIVE_ID_JAG,
       } }));
     };
+    replayCallbackRef.current = onAuthenticated;
     window.addEventListener('id-jag-run-requested', onLaunch);
     window.addEventListener('userAuthenticated', onAuthenticated);
     // The app's auth hook may validate the callback before this agent mounts.
@@ -45,10 +52,17 @@ export function useIdJagAgentLauncher({ pathname, readUseCaseId }) {
       if (saved) onAuthenticated({ detail: JSON.parse(saved) });
     } catch { /* storage unavailable or stale data */ }
     return () => {
+      replayCallbackRef.current = null;
       window.removeEventListener('id-jag-run-requested', onLaunch);
       window.removeEventListener('userAuthenticated', onAuthenticated);
     };
   }, []);
+
+  const onPrefillListenerReady = () => {
+    prefillReadyRef.current = true;
+    if (pendingCallbackRef.current) replayCallbackRef.current?.({ detail: pendingCallbackRef.current });
+    return () => { prefillReadyRef.current = false; };
+  };
 
   const launchDemoStep = (uc) => {
     if (uc?.id !== 'UC40' || uc.useCaseId !== ID_JAG_USE_CASE_ID) return false;
@@ -73,5 +87,5 @@ export function useIdJagAgentLauncher({ pathname, readUseCaseId }) {
     return true;
   };
 
-  return { launchDemoStep, launchPhrase };
+  return { launchDemoStep, launchPhrase, onPrefillListenerReady };
 }

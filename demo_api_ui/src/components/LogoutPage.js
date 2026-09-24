@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { navigateToCustomerOAuthForceLogin } from '../utils/authUi';
 import bffAxios from '../services/bffAxios';
-import { clearIdJagRunState } from '../utils/idJagRunMode';
+import { clearIdJagRunState, ID_JAG_PENDING_INTENT_KEY, ID_JAG_USE_CASE_ID, RUN_MODES } from '../utils/idJagRunMode';
 import { notifyError } from '../utils/appToast';
 import './LogoutPage.css';
 
@@ -21,7 +21,17 @@ export default function LogoutPage() {
       try { returnTo = sessionStorage.getItem('logoutReturnTo') || '/'; } catch { /* storage unavailable */ }
       let pending = null;
       try { pending = (await bffAxios.get('/api/auth/oauth/user/id-jag/pending')).data; }
-      catch { /* normal logout still clears the session */ }
+      catch {
+        // The verified server intent remains authoritative at login. A failed
+        // status read must not turn an explicit live handoff into normal logout.
+        try {
+          const saved = JSON.parse(sessionStorage.getItem(ID_JAG_PENDING_INTENT_KEY) || 'null');
+          if (saved?.useCaseId === ID_JAG_USE_CASE_ID && saved.mode === RUN_MODES.LIVE_ID_JAG
+            && ['/pingfederate-id-jag/demo', '/dashboard'].includes(saved.returnTo)) {
+            pending = { pending: true, mode: saved.mode, returnTo: saved.returnTo };
+          }
+        } catch { /* no usable client handoff; ordinary logout continues */ }
+      }
       try {
         await bffAxios.post('/api/auth/clear-session');
         if (cancelled) return;

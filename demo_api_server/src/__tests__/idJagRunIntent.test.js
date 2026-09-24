@@ -113,6 +113,26 @@ describe('one-shot ID-JAG login intent', () => {
     expect(activeRouter.pendingIdJagRun({ headers: { cookie } })).toBeNull();
   });
 
+  test('PF login claims a verified continuation after clear-session without a pending-status read', async () => {
+    const saved = oauthUserRouter.setPendingIdJagRun({ session: {}, headers: {} }, intent);
+    const cookie = `_id_jag_run=${saved.nonce}`;
+    expect(oauthUserRouter.markVerifiedIdJagLogoutContinuation({
+      session: { pendingIdJagNonce: saved.nonce }, headers: { cookie },
+    })).toBe(true);
+    jest.spyOn(configStore, 'getOAuthProvider').mockReturnValue('pingfederate');
+    jest.spyOn(configStore, 'isUserOAuthConfigured').mockReturnValue(true);
+    jest.spyOn(oauthUserService, 'generateState').mockReturnValue('state-status-outage');
+    jest.spyOn(oauthUserService, 'generateCodeVerifier').mockReturnValue('verifier-status-outage');
+    jest.spyOn(oauthUserService, 'generateAuthorizationUrl').mockReturnValue('https://pf.example.test/as/authorization.oauth2');
+
+    const cleared = await request(require('../../server')).post('/api/auth/clear-session').set('Cookie', cookie);
+    expect(cleared.status).toBe(200);
+    const login = await request(appFor({})).get('/api/auth/oauth/user/login')
+      .query({ mode: 'live-id-jag', return_to: intent.returnTo }).set('Cookie', cookie);
+    expect(login.status).toBe(302);
+    expect(login.headers.location).toBe('https://pf.example.test/as/authorization.oauth2');
+  });
+
   test('route exposes only a same-origin one-shot handoff and rejects another origin', async () => {
     const originalGetEffective = configStore.getEffective.bind(configStore);
     jest.spyOn(configStore, 'getEffective').mockImplementation((key) => key === 'public_app_url'

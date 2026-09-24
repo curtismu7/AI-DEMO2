@@ -1359,7 +1359,7 @@ export default function BankingAgentFull({
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const navigate = useNavigate();
   const location = useLocation();
-  const { launchDemoStep: launchIdJagDemoStep, launchPhrase: launchIdJagPhrase } = useIdJagAgentLauncher({
+  const { launchDemoStep: launchIdJagDemoStep, launchPhrase: launchIdJagPhrase, onPrefillListenerReady } = useIdJagAgentLauncher({
     pathname: location.pathname,
     readUseCaseId: () => {
       try { return JSON.parse(sessionStorage.getItem(USE_CASE_RUN_CONTEXT_KEY) || 'null')?.useCaseId; }
@@ -1509,7 +1509,9 @@ export default function BankingAgentFull({
     };
     const timerIds = [];
     window.addEventListener("banking-agent-prefill", handler);
+    const stopIdJagReplay = onPrefillListenerReady();
     return () => {
+      stopIdJagReplay();
       window.removeEventListener("banking-agent-prefill", handler);
       timerIds.forEach(clearTimeout);
     };

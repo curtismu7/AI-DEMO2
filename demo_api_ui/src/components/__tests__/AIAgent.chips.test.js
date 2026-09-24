@@ -29,7 +29,7 @@ import * as configService from "../../services/configService";
 import * as demoAgentService from "../../services/demoAgentService";
 import * as agentAccessConsent from "../../services/agentAccessConsent";
 import { useVertical } from "../../vertical/useVertical";
-import { clearIdJagRunState, ID_JAG_USE_CASE_ID } from "../../utils/idJagRunMode";
+import { clearIdJagRunState, ID_JAG_REPLAYED_KEY, ID_JAG_USE_CASE_ID, ID_JAG_VALIDATED_CALLBACK_KEY } from "../../utils/idJagRunMode";
 
 const simpleStepperPanelMock = vi.hoisted(() => ({ props: [] }));
 
@@ -278,6 +278,32 @@ describe("ID-JAG agent phrases", () => {
       });
     } finally {
       window.removeEventListener("banking-agent-prefill", onPrefill);
+    }
+  });
+
+  it("sends the saved PF callback prompt after a late agent mount", async () => {
+    sessionStorage.setItem(ID_JAG_VALIDATED_CALLBACK_KEY, JSON.stringify({
+      idJagCallbackValidated: true,
+      useCaseId: ID_JAG_USE_CASE_ID,
+      mode: "live-id-jag",
+      message: "show my balance",
+    }));
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ source: "heuristic", result: { kind: "none" } }),
+    });
+    try {
+      renderAgent({ user: customerUser, mode: "inline" }, { route: "/dashboard" });
+      await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith(
+        "/api/demo-agent/nl",
+        expect.objectContaining({
+          method: "POST",
+          body: expect.stringContaining('"message":"show my balance"'),
+        }),
+      ));
+      expect(sessionStorage.getItem(ID_JAG_REPLAYED_KEY)).toBe("1");
+    } finally {
+      fetchSpy.mockRestore();
     }
   });
 });
