@@ -162,7 +162,7 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.co
 // `allNavItems` below — update both together when renaming a group.
 const AUTO_EXPAND_SECTIONS = [
   { id: "ai-gateway", paths: ["/ai-gateway/shadow-ai-detector", "/privilege-mcp-client", "/llm-gateway", "/agent-gateway-authorization", "/code-search"] },
-  { id: "davinci", paths: ["/davinci-widget", "/davinci-login-guide", "/davinci-sdk-login", "/davinci-orchestration", "/davinci-orchestration-sdk", "/orchestration-sdk"] },
+  { id: "davinci", paths: ["/davinci-sdk", "/davinci-widget", "/davinci-orchestration-sdk", "/pingfederate-davinci-kit"] },
   { id: "pingone-products", paths: ["/pingcli", "/sdk-login", "/samples/m2m-credentials", "/samples/custom-admin-role"] },
   { id: "identity-journeys", paths: ["/self-service", "/samples/user-registration", "/samples/mfa-demo", "/login-flow", "/oauth-academy", "/oas-demo"] },
   { id: "ai-experiences", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/agent-lifecycle", "/delegation-chain-value", "/a2a-protocol-learning", "/control-plane", "/ai-control-plane", "/agent-registry", "/agent-builder", "/agent-flow-inspector", "/agent-onboarding-flow", "/agent-onboarding-flow-subway", "/langchain", "/ungoverned-agent", "/servers", "/autonomous-agents", "/personal-agent", "/privilege-for-ai"] },
@@ -755,13 +755,7 @@ export default function AdminSideNav({
         { label: "OAS Demo", path: "/oas-demo", icon: "pol" },
         { label: "Privilege Demo", path: "/privilege-demo", icon: "shld" },
         { label: "SDK Login", path: "/sdk-login", icon: "mbl" },
-        { label: "DaVinci Widget", path: "/davinci-widget", icon: "doc" },
-        { label: "DaVinci Orchestration SDK", path: "/davinci-orchestration-sdk", icon: "mbl" },
-        { label: "Orchestration SDK Guide", path: "/orchestration-sdk", icon: "sec" },
-        // Was reachable only from the agent header's More menu with DaVinci Mode
-        // on, so nobody could find the repo's own DaVinci explainer. It is a
-        // static page with no API calls; listing it here costs nothing.
-        { label: "DaVinci Orchestration Overview", path: "/davinci-orchestration", icon: "pol" },
+        { label: "DaVinci SDK", path: "/davinci-sdk", icon: "sec" },
       ],
     },
     {
@@ -1270,15 +1264,7 @@ export default function AdminSideNav({
       "Protected RAG",
       { from: "Privilege Demo", rename: "AI Gateway Demo" },
     ]),
-    productGroup("DaVinci", [
-      "DaVinci Widget",
-      { label: "DaVinci Login", path: "/davinci-login-guide" },
-      { label: "DaVinci SDK Login", path: "/davinci-sdk-login" },
-      { label: "DaVinci Orchestration", path: "/davinci-orchestration" },
-      "DaVinci Orchestration SDK",
-      "Orchestration SDK Guide",
-      "DaVinci Orchestration Overview",
-    ], "doc"),
+    productGroup("DaVinci", ["DaVinci SDK"], "doc"),
     productGroup("PingOne Products", [
       { from: "Headless Identity Demo", rename: "Headless Identity / PingCLI" },
       "SDK Login",
