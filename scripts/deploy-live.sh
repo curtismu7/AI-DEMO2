@@ -111,8 +111,9 @@ fi
 # per-range check on every subsequent run, so the skip sustained itself forever.
 # This asserts the WHOLE compose project on every terminal path. A container that
 # does not exist is a profiled service deliberately off; one in `created` was
-# asked for and never started — nothing legitimate leaves it there. `exited` may
-# be an operator's deliberate stop mid-debug, so it warns rather than fails.
+# asked for and never started — except for the opt-in SPIFFE profile, whose
+# containers are outside deploy-live's service map. `exited` may be an operator's
+# deliberate stop mid-debug, so it warns rather than fails.
 assert_stack_health() {
   local rows name state status created="" unhealthy="" stopped=""
   rows="$(docker ps -a --filter label=com.docker.compose.project=ai-demo \
@@ -120,7 +121,10 @@ assert_stack_health() {
   while IFS=$'\t' read -r name state status; do
     [ -z "$name" ] && continue
     case "$state" in
-      created|restarting) created="$created $name" ;;
+      created)
+        deploy_live_created_service_is_optional_profile "$name" && continue
+        created="$created $name" ;;
+      restarting) created="$created $name" ;;
       exited|paused|dead) stopped="$stopped $name" ;;
       running) case "$status" in *"(unhealthy)"*) unhealthy="$unhealthy $name" ;; esac ;;
     esac
