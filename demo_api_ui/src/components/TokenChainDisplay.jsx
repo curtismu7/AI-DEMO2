@@ -5,7 +5,7 @@ import { useTokenChainOptional } from "../context/TokenChainContext";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { useDraggablePanel } from "../hooks/useDraggablePanel";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
-import { isMockIdJagTrace, isNativeIdJagTrace } from "../services/tokenChainTrace/buildTraceSteps";
+import { isMockIdJagTrace, isNativeIdJagTrace, resolveTraceProvenance } from "../services/tokenChainTrace/buildTraceSteps";
 import TraceProvenanceBadge from "./TraceProvenanceBadge";
 import JsonHighlight, { tokenize, formatJson } from "./shared/JsonHighlight";
 import JsonView, { JSON_VIEW_TABS } from "./shared/JsonView";
@@ -4899,7 +4899,7 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
             <div className="tcd-header-title-row">
               <div className="tcd-header-title">
                 Token Chain
-                {(mockIdJag || nativeIdJag) && <TraceProvenanceBadge provenance={mockIdJag ? "mock-id-jag" : "live-id-jag"} />}
+                {(mockIdJag || nativeIdJag) && <TraceProvenanceBadge provenance={resolveTraceProvenance(idJagTrace)} />}
                 {!mockIdJag && !nativeIdJag && (ctx?.mcpAuthMode === "enterprise-managed" || ctx?.mcpAuthMode === "enterprise") && (
                   <span
                     className="tcd-badge tcd-badge--exchanged"

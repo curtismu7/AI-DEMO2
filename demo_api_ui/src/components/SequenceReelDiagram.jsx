@@ -25,7 +25,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef, useContext } from "react";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { deriveLifelineSteps, deriveLifelineParticipants } from "../services/tokenChainTrace/deriveLifelineSteps";
-import { laneLabel, isNativeIdJagTrace, isMockIdJagTrace } from "../services/tokenChainTrace/buildTraceSteps";
+import { laneLabel, isNativeIdJagTrace, isMockIdJagTrace, resolveTraceProvenance } from "../services/tokenChainTrace/buildTraceSteps";
 import { VerticalContext } from "../vertical/VerticalProvider";
 import { sequenceDiagramLabel } from "./sequenceDiagramLabels";
 import { buildA2aTokenChainSteps } from "./TokenChainTraceRail";
@@ -208,8 +208,7 @@ export default function SequenceReelDiagram({
     return deriveLifelineSteps(visibleSteps);
   }, [steps]);
   const runId = externalRunId ?? snap.trace?.runId ?? null;
-  const runProvenance = provenance || (isMockIdJagTrace(snap.trace) ? "mock-id-jag"
-    : isNativeIdJagTrace(snap.trace) ? "live-id-jag" : snap.trace?.provenance) || "live";
+  const runProvenance = provenance || resolveTraceProvenance(snap.trace);
   const traceFinished = externalTraceFinished ?? (["ok", "error", "mock-success"].includes(snap.trace?.outcome));
 
   // Slow mode: reveal one step at a time on a timer instead of the full set

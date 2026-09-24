@@ -48,6 +48,26 @@ test("mock replay replaces a live trace, publishes safe evidence, and records no
   unsubscribe();
 });
 
+test("mock replay ignores untagged late live evidence until a new run begins", () => {
+  tokenChainTraceStore.replayTrace(createMockIdJagTrace());
+  const before = tokenChainTraceStore.getState().trace;
+  tokenChainTraceStore.ingestTokenEvent({ id: "late-user-token", status: "active" });
+  tokenChainTraceStore.ingestTokenEvents([{ id: "late-exchange", status: "exchanged" }]);
+  tokenChainTraceStore.ingestPhases([{ phase: "request_accepted" }]);
+  tokenChainTraceStore.ingestMcpResult({ tool: "late_tool", result: { ok: true } });
+  tokenChainTraceStore.ingestAuthorizeEvaluations([{ decision: "PERMIT" }]);
+  tokenChainTraceStore.ingestApprovalDeclined();
+  tokenChainTraceStore.completeTrace(false);
+  window.dispatchEvent(new CustomEvent("mcp-tool-result-sse", {
+    detail: { tool: "late_sse_tool", result: { ok: true }, mcpAuthorizeEvaluation: { decision: "PERMIT" } },
+  }));
+  expect(tokenChainTraceStore.getState().trace).toEqual(before);
+
+  tokenChainTraceStore.beginTrace({ prompt: "new live run" });
+  tokenChainTraceStore.ingestTokenEvent({ id: "new-live-token", status: "active" });
+  expect(tokenChainTraceStore.getState().trace.tokenEvents.map((event) => event.id)).toContain("new-live-token");
+});
+
 test("subscribe fires immediately and on ingest", () => {
   const seen = [];
   const unsub = tokenChainTraceStore.subscribe((snap) => seen.push(snap.steps.length));

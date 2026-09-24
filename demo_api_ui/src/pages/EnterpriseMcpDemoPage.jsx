@@ -14,7 +14,6 @@ const DEMO_CHIP = "show my balance";
 
 export default function EnterpriseMcpDemoPage() {
   const [runMode, setRunMode] = useState(null);
-  const [mockTrace, setMockTrace] = useState(null);
   // Optional variant on purpose: useEducationUI() THROWS outside its provider,
   // which would take the whole page down anywhere the provider is absent. Null
   // here simply hides the explainer buttons rather than shipping dead controls.
@@ -27,12 +26,11 @@ export default function EnterpriseMcpDemoPage() {
       returnTo: "/pingfederate-id-jag/demo",
     });
     if (intent) {
-      setMockTrace(null);
       setRunMode(RUN_MODES.LIVE_ID_JAG);
     }
   }, []);
   const handleMockRun = useCallback(() => {
-    setMockTrace(requestMockIdJagReplay());
+    requestMockIdJagReplay();
     setRunMode(RUN_MODES.MOCK_ID_JAG);
   }, []);
 
@@ -106,28 +104,11 @@ export default function EnterpriseMcpDemoPage() {
 
       <section className="emd-card emd-card--film">
         <h2>Token chain</h2>
-        {mockTrace ? (
-          <div className="emd-mock-trace" aria-label="Mock ID-JAG token chain">
-            <p className="emd-mock-badge">Mock replay — no login or live tokens</p>
-            <ol className="emd-mock-steps">
-              {mockTrace.tokenEvents.map((event) => (
-                <li key={event.id}>
-                  <strong>{event.label}</strong>
-                  <span>Issuer: {event.claims.iss} · Audience: {event.claims.aud} · Scope: {event.claims.scope}</span>
-                </li>
-              ))}
-              <li><strong>Mock MCP tool response</strong><span>{mockTrace.mcpResult.result.balance}</span></li>
-            </ol>
-          </div>
-        ) : (
-          <>
-            <p className="emd-note">
-              Watch for <code>ID-JAG issued</code> and <code>ID-JAG redeemed</code> in the live trace.
-              An ordinary exchange is labeled as a stand-in.
-            </p>
-            <TokenChainFilmstrip />
-          </>
-        )}
+        <p className="emd-note">
+          Watch for <code>ID-JAG issued</code> and <code>ID-JAG redeemed</code> in the trace.
+          Mock replay shows sample steps; an ordinary exchange is labeled as a stand-in.
+        </p>
+        <TokenChainFilmstrip />
       </section>
     </div>
   );

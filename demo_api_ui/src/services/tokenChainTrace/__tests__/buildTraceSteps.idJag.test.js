@@ -1,4 +1,4 @@
-import { buildTraceSteps, isNativeIdJagTrace, isMockIdJagTrace } from "../buildTraceSteps";
+import { buildRunStory, buildTraceSteps, isNativeIdJagTrace, isMockIdJagTrace } from "../buildTraceSteps";
 import { createMockIdJagTrace } from "../../../utils/idJagMockTrace";
 
 /**
@@ -64,6 +64,22 @@ describe("ID-JAG provenance", () => {
     expect(steps.find((step) => step.id === "id-jag-issued").title).toMatch(/Mock replay/i);
     expect(steps.find((step) => step.id === "id-jag-issued").detail.response.text).toContain("mock-pingfederate");
     expect(steps.find((step) => step.id === "id-jag-redeemed").title).toMatch(/Mock replay/i);
+  });
+
+  test("mock browser and prompt details describe a replay, and the run story is complete", () => {
+    const trace = createMockIdJagTrace();
+    const steps = buildTraceSteps(trace);
+    const browser = steps.find((step) => step.id === "website");
+    const prompt = steps.find((step) => step.id === "prompt");
+    expect(browser.detail.narrative).toMatch(/mock|sample|replay/i);
+    expect(browser.detail.narrative).not.toMatch(/sending requests over HTTP/i);
+    expect(prompt.detail.request?.title).not.toMatch(/actual/i);
+    expect(prompt.detail.request?.text ?? "").not.toMatch(/POST \/api\/agent\/run/i);
+    const mcp = steps.find((step) => step.id === "mcp");
+    expect(mcp.detail.why).toMatch(/mock|sample|replay/i);
+    expect(mcp.detail.request?.title).not.toMatch(/actual/i);
+    expect(buildRunStory(trace, steps)).toMatchObject({ outcome: "ok" });
+    expect(buildRunStory(trace, steps).headline).toMatch(/mock replay.*complete/i);
   });
 
   test("PF events create native hops; ordinary traces omit them", () => {

@@ -2,6 +2,7 @@ import { render, screen, act } from "@testing-library/react";
 import TokenChainFilmstrip from "../TokenChainFilmstrip";
 import TokenChainTraceRail from "../TokenChainTraceRail";
 import { tokenChainTraceStore } from "../../services/tokenChainTrace/tokenChainTraceStore";
+import { createMockIdJagTrace } from "../../utils/idJagMockTrace";
 
 /**
  * Every flow surface must be able to SHOW the ID-JAG hops.
@@ -102,5 +103,21 @@ describe("trace rail stepper shows ID-JAG", () => {
     seedStandInTrace();
     expect(screen.queryByText(/ID-JAG issued/i)).toBeNull();
     expect(screen.queryByText(/ID-JAG redeemed/i)).toBeNull();
+  });
+
+  it("uses the validated PF pair for the rail badge when beginTrace had ordinary provenance", () => {
+    render(<TokenChainTraceRail />);
+    act(() => tokenChainTraceStore.beginTrace({ prompt: "show my balance" }));
+    act(() => tokenChainTraceStore.ingestTokenEvents(ID_JAG_EVENTS));
+    expect(screen.getByText("PingFederate ID-JAG", { selector: ".trace-provenance" })).toBeInTheDocument();
+    expect(screen.queryByText("Live run", { selector: ".trace-provenance" })).not.toBeInTheDocument();
+  });
+
+  it("shows a completed mock replay in the shared rail story", () => {
+    render(<TokenChainTraceRail />);
+    act(() => tokenChainTraceStore.replayTrace(createMockIdJagTrace()));
+    expect(screen.getByText("Mock replay", { selector: ".trace-provenance" })).toBeInTheDocument();
+    expect(document.querySelector(".tctr-story")).toHaveClass("tctr-story--ok");
+    expect(document.querySelector(".tctr-story-headline")).toHaveTextContent(/mock replay.*complete/i);
   });
 });

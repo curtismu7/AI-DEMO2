@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { clearIdJagRunState, ID_JAG_PENDING_INTENT_KEY } from "../../utils/idJagRunMode";
+import { tokenChainTraceStore } from "../../services/tokenChainTrace/tokenChainTraceStore";
 
 vi.mock("../../components/TokenChainFilmstrip", () => ({ default: () => <div data-testid="filmstrip" /> }));
 
@@ -13,6 +14,7 @@ describe("EnterpriseMcpDemoPage", () => {
   beforeEach(() => {
     clearIdJagRunState();
     sessionStorage.clear();
+    tokenChainTraceStore.reset();
   });
 
   afterEach(() => vi.unstubAllGlobals());
@@ -66,9 +68,12 @@ describe("EnterpriseMcpDemoPage", () => {
       expect(fetchSpy).not.toHaveBeenCalled();
       expect(sessionStorage.getItem(ID_JAG_PENDING_INTENT_KEY)).toBeNull();
       expect(screen.getByRole("status").textContent).toBe("Mock replay — no login or live tokens");
-      expect(screen.getByText(/Mock PingFederate issued an ID-JAG/)).toBeTruthy();
-      expect(screen.getByText(/Mock MCP authorization server redeemed the ID-JAG/)).toBeTruthy();
-      expect(screen.getByText(/Mock balance: 1,234 points/)).toBeTruthy();
+      const trace = tokenChainTraceStore.getState().trace;
+      expect(trace.tokenEvents.map((event) => event.label)).toEqual([
+        "Mock PingFederate issued an ID-JAG",
+        "Mock MCP authorization server redeemed the ID-JAG",
+      ]);
+      expect(trace.mcpResult.result.balance).toBe("Mock balance: 1,234 points");
     } finally {
       events.forEach((name) => window.removeEventListener(name, heard[name]));
     }

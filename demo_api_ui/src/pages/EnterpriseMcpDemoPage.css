@@ -152,33 +152,6 @@
   font-weight: 600;
 }
 
-.emd-mock-trace {
-  margin-top: 0.75rem;
-  padding: 0.85rem;
-  border: 1px solid var(--th-border);
-  border-radius: 7px;
-  background: var(--th-bg-inset);
-  color: var(--th-text);
-}
-
-.emd-mock-badge {
-  margin: 0 0 0.75rem;
-  color: var(--th-status-info-text);
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-}
-
-.emd-mock-steps {
-  margin: 0;
-  padding-left: 1.35rem;
-  font-size: var(--font-size-sm);
-  line-height: 1.5;
-}
-
-.emd-mock-steps li { margin-bottom: 0.65rem; }
-.emd-mock-steps li:last-child { margin-bottom: 0; }
-.emd-mock-steps span { display: block; color: var(--th-text-muted); }
-
 .emd-note {
   margin: 0.75rem 0 0;
   max-width: 78ch;

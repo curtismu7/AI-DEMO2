@@ -9,7 +9,7 @@
 // in the narrowest column on screen.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
-import { MCP_STEP_IDS, isMockIdJagTrace, isNativeIdJagTrace } from "../services/tokenChainTrace/buildTraceSteps";
+import { MCP_STEP_IDS, resolveTraceProvenance } from "../services/tokenChainTrace/buildTraceSteps";
 import { resolveInspectClaims } from "../services/tokenChainTrace/resolveInspectClaims";
 import { isFlagOn, shouldShowTrustTab } from "../utils/tokenChainTrust";
 import { useTokenChainOptional } from "../context/TokenChainContext";
@@ -152,8 +152,7 @@ export default function TokenChainFilmstrip() {
   }, [moreOpen]);
 
   const { trace } = snap;
-  const traceProvenance = isMockIdJagTrace(trace) ? "mock-id-jag"
-    : isNativeIdJagTrace(trace) ? "live-id-jag" : trace.provenance;
+  const traceProvenance = resolveTraceProvenance(trace);
   const classicSteps = snap.steps;
   const steps = useMemo(
     () => (viewMode === "classic" ? classicSteps : buildLiveTokenChainSteps(classicSteps, trace)),

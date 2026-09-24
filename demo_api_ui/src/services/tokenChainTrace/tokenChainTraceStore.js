@@ -54,11 +54,13 @@ let activeFlowTraceId = null;
 let explicitlyReset = false;
 const listeners = new Set();
 
-// True when `flowTraceId` identifies a DIFFERENT run than the one that owns the
-// trace right now. Untagged evidence (no flowTraceId) and the brief window
-// before a run binds its id are accepted — this only drops evidence that a
-// prior run positively stamped with its own id, which is the cross-run leak.
+const isMockReplayActive = () => trace.mode === "mock-id-jag" && trace.provenance === "mock-id-jag";
+
+// Reject all late evidence while a mock replay owns the view. For live runs,
+// only a positively different flowTraceId is foreign; untagged events remain
+// accepted because existing passive listeners do not all stamp an id.
 function isForeignRun(flowTraceId) {
+  if (isMockReplayActive()) return true;
   if (flowTraceId == null) return false;
   if (explicitlyReset) return true;
   return (
@@ -215,6 +217,7 @@ export const tokenChainTraceStore = {
   },
   ingestPhases(serverEvents) {
     if (!Array.isArray(serverEvents) || !serverEvents.length) return;
+    if (isMockReplayActive()) return;
     ensureTrace();
     // Keep any carried MFA phase (beginTrace seeded it from the trace this
     // run resumes) that this run's own stream does not repeat — a resumed
@@ -304,6 +307,7 @@ export const tokenChainTraceStore = {
   },
   ingestAuthorizeEvaluations(list) {
     if (!Array.isArray(list) || !list.length) return;
+    if (isMockReplayActive()) return;
     ensureTrace();
     trace.authorizeEvaluations = list;
     emit();
@@ -342,6 +346,7 @@ export const tokenChainTraceStore = {
   },
   /** The human refused a step-up / HITL approval gate — nothing was executed. */
   ingestApprovalDeclined() {
+    if (isMockReplayActive()) return;
     ensureTrace();
     trace.approvalOutcome = "declined";
     emit();
