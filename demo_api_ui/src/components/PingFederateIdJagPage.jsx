@@ -144,11 +144,36 @@ const PF_LOGIN_PROTOCOL = [
   },
 ];
 
-function ProtocolDetails({ diagramId, stepIndex }) {
+function LearningPanel({ learning }) {
+  return (
+    <section className="pfj-learning" aria-labelledby="pfj-learning-title">
+      <div className="pfj-learning__intro">
+        <span className="pfj-protocol__eyebrow">THE IMPORTANT IDEAS</span>
+        <h3 id="pfj-learning-title">Understand this flow</h3>
+        <p>{learning.summary}</p>
+      </div>
+      <div className="pfj-learning__points">
+        {learning.points.map((point, index) => (
+          <article key={point.title}>
+            <span className="pfj-learning__number">{String(index + 1).padStart(2, "0")}</span>
+            <div><h4>{point.title}</h4><p>{point.body}</p></div>
+          </article>
+        ))}
+      </div>
+      <nav className="pfj-learning__docs" aria-label="PingFederate learning links">
+        <h4>Learn from PingFederate documentation</h4>
+        <div>{learning.docs.map((doc) => <a key={doc.label} href={doc.href} target="_blank" rel="noreferrer">{doc.label}<span aria-hidden="true"> ↗</span></a>)}</div>
+      </nav>
+    </section>
+  );
+}
+
+function ProtocolDetails({ diagramId, stepIndex, learning }) {
   const example = diagramId === "pingfederate" ? PF_LOGIN_PROTOCOL[stepIndex] : PROTOCOL_DETAILS[stepIndex];
   return (
     <details open className="pfj-protocol">
       <summary>Protocol details <span>Mock tokens · API request / response</span></summary>
+      <LearningPanel learning={learning} />
       <div className="pfj-protocol__body">
         <div className="pfj-protocol__token">
           <div className="pfj-protocol__heading"><div><span className="pfj-protocol__eyebrow">TOKEN PREVIEW</span><h3>{example.token}</h3></div><span className="pfj-protocol__mock">{MOCK}</span></div>
@@ -172,6 +197,19 @@ export const DIAGRAMS = {
     badge: "ID-JAG · urn:ietf:params:oauth:token-type:id-jag",
     lanes: ["ID-JAG issuance and grant redemption", "Gateway policy and protected resource"],
     chain: ["upstream refresh token", "PingFederate ID-JAG", "MCP access token"],
+    learning: {
+      summary: "ID-JAG has two distinct validation sides. PingFederate validates the refresh token and issues the ID-JAG; the resource authorization server validates that assertion when it redeems it.",
+      points: [
+        { title: "Side 1 · issue", body: "The BFF sends its server-held refresh token to PingFederate in an OAuth token-exchange request. PingFederate validates it under the configured processor policy, then issues a signed ID-JAG whose audience identifies the receiving authorization server." },
+        { title: "Side 2 · validate and redeem", body: "The BFF presents the ID-JAG as a JWT bearer assertion to the downstream MCP authorization server. That server validates the issuer and signature, audience, expiry, ID-JAG type, resource and replay identifier, then returns its own local access token." },
+        { title: "Use the right token", body: "The ID-JAG is a short-lived delegation assertion, not the credential sent to the MCP API. The BFF uses the newly issued resource-scoped access token for the PingGateway call; PingOne Authorize evaluates the action policy." },
+      ],
+      docs: [
+        { label: "OAuth grant types", href: "https://docs.pingidentity.com/pingfederate/13.1/introduction_to_pingfederate/pf_grant_types.html" },
+        { label: "Refresh token → ID-JAG setup", href: "https://docs.pingidentity.com/pingfederate/13.1/administrators_reference_guide/pf_configuring_refresh_token_to_idjag_exchange.html" },
+        { label: "JWT bearer assertion setup", href: "https://docs.pingidentity.com/pingfederate/13.1/administrators_reference_guide/pf_configuring_oauth_assertion_grant_idp_connection.html" },
+      ],
+    },
     steps: [
       { title: "Start the UC40 MCP request", detail: "The BFF receives the user's request and keeps OAuth tokens out of the browser. The UC40 PingFederate lane uses its server-held refresh token as the upstream subject.", active: ["user", "bff"], links: ["request"] },
       { title: "Side 1 · PingFederate validates the upstream token", detail: "The BFF sends a token-exchange request with the refresh token, its token type, the downstream audience/resource, and requested scopes. PingFederate's token-exchange policy validates the refresh token.", active: ["bff", "pingfed"], links: ["issue"] },
@@ -210,6 +248,19 @@ export const DIAGRAMS = {
     badge: "Login: PingFederate · Runtime policy: PingOne Authorize",
     lanes: ["Standard PingFederate OIDC login", "AI request · BFF-mediated authorization and MCP call"],
     chain: ["PingFederate login", "BFF session", "Agent Service", "PingGateway + P1AZ", "MCP server"],
+    learning: {
+      summary: "This comparison uses standard PingFederate OIDC login. After login, the BFF runs the AI request and performs the app's separate agent-delegation exchanges before calling the protected MCP tool.",
+      points: [
+        { title: "Login · authenticate once", body: "The BFF starts OIDC Authorization Code with PKCE. PingFederate authenticates the user and returns a code; the BFF redeems it, validates the ID token and keeps OAuth tokens server-side behind an HTTP-only browser session." },
+        { title: "Agent · propose, BFF executes", body: "The BFF sends the prompt to the reasoning-only Agent Service. The agent proposes a tool call; it does not receive the user's OAuth tokens or call MCP. The BFF owns credentials and executes the approved request." },
+        { title: "Delegation · two exchanges after login", body: "The two agent exchanges happen after login. The standard PingFederate adapter performs two RFC 8693 exchanges to construct a scoped MCP access token for the agent action. These runtime delegation exchanges are separate from the earlier OIDC code exchange and from the ID-JAG flow in the other tab." },
+        { title: "Policy · protect the MCP action", body: "PingGateway enforces the access token and calls PingOne Authorize. PingOne Authorize evaluates the action policy; PingFederate is the login provider in this view." },
+      ],
+      docs: [
+        { label: "OAuth grant types", href: "https://docs.pingidentity.com/pingfederate/13.1/introduction_to_pingfederate/pf_grant_types.html" },
+        { label: "OIDC authorization endpoint", href: "https://docs.pingidentity.com/pingfederate/13.1/developers_reference_guide/pf_authorization_endpoint.html" },
+      ],
+    },
     steps: [
       { title: "Start sign-in with the BFF", detail: "The BFF creates state, nonce, and a PKCE verifier, then redirects the browser to PingFederate's authorization endpoint with the S256 challenge.", active: ["user", "bff"], links: ["start", "authorize"] },
       { title: "User authenticates with PingFederate", detail: "The browser follows the redirect to PingFederate. The user authenticates there under the configured policy; credentials do not pass through the BFF.", active: ["user", "pingfed"], links: ["authenticate", "credentials"] },
@@ -501,7 +552,7 @@ export default function PingFederateIdJagPage() {
         <DiagramControls {...controlProps} />
       </div>
 
-      <ProtocolDetails diagramId={diagramId} stepIndex={activeStep} />
+      <ProtocolDetails diagramId={diagramId} stepIndex={activeStep} learning={diagram.learning} />
 
       {diagramId === "jag" && <p className="pfj-footnote">Two distinct servers validate two distinct credentials: PingFederate validates the upstream token during Side 1; the downstream MCP authorization server validates the ID-JAG during Side 2. The returned MCP access token is used for the resource call.</p>}
     </main>
