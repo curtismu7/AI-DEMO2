@@ -266,16 +266,6 @@ const FLAG_REGISTRY = [
     defaultValue: true,
   },
 
-  // ── Agent Security ──────────────────────────────────────────────────────────
-  {
-    id:           'ff_protect_agent_dispatch',
-    name:         'PingOne Protect — evaluate agent dispatch risk (UC36)',
-    category:     'Agent Security',
-    description:  'When ON, collect Signals SDK data for UC36 and evaluate browser/device risk with PingOne Protect before the agent can dispatch a tool. HIGH risk and deny-style recommendations are blocked; unknown results fail closed.',
-    impact:       'OFF (default) = no Protect calls. ON = UC36 requires a signed-in user and successful Protect evaluation before dispatch; the BFF reports the final SUCCESS/FAILED outcome to Protect.',
-    type:         'boolean',
-    defaultValue: false,
-  },
   {
     id:           'ff_require_act_for_agent_tools',
     name:         'Require agent act claim (UC16 — impersonation block)',

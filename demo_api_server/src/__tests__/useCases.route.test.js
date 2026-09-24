@@ -11,12 +11,12 @@ function makeApp() {
 }
 
 describe('GET /api/use-cases', () => {
-  test('lists all 69 use cases, defaulting to banking', async () => {
+  test('lists all 68 use cases, defaulting to banking', async () => {
     const res = await request(makeApp()).get('/api/use-cases');
     expect(res.status).toBe(200);
     expect(res.body.vertical).toBe('banking');
-    // Includes UC36 (PingOne Protect agent-dispatch risk) on current mainline.
-    expect(res.body.useCases).toHaveLength(69);
+    expect(res.body.useCases).toHaveLength(68);
+    expect(res.body.useCases.some((useCase) => useCase.id === 'UC36')).toBe(false);
   });
 
   test('resolves per-vertical when ?vertical= is given', async () => {

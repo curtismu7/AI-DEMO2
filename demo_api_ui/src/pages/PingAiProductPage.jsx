@@ -130,21 +130,20 @@ const PRODUCTS = {
   },
   protect: {
     title: "PingOne Protect",
-    eyebrow: "Risk-based browser authentication",
+    eyebrow: "Browser risk evaluation",
     accent: "protect",
-    subtitle: "Use browser Signals to shape the next step in an OIDC sign-in.",
-    lede: "The PingOne Signals SDK gathers browser context. A BFF sends that payload to PingOne Protect before this demo begins OIDC, then follows the risk result with normal sign-in, MFA step-up, or a block.",
+    subtitle: "Send browser Signals to PingOne Protect and inspect its risk response.",
+    lede: "This standalone demo collects browser context with the PingOne Signals SDK, sends the payload to PingOne Protect through the BFF, and displays the returned evaluation. It does not start a sign-in or dispatch an agent action.",
     capabilities: [
       ["Collect browser Signals", "The Signals SDK collects device context when the user runs this demo; its raw payload is sent only to the BFF."],
-      ["Evaluate sign-in risk", "The BFF adds the client IP, browser, user, OIDC client, and session context before calling PingOne Protect."],
-      ["Choose the next step", "Low continues to OIDC, Medium requests PingOne MFA, and High stops before the authorization redirect."],
-      ["Report the outcome", "After sign-in, the BFF sends SUCCESS or FAILED completion feedback to Protect."],
-      ["Keep credentials server-side", "The browser never receives the Worker token or Protect evaluation ID."],
+      ["Evaluate browser risk", "The BFF adds request context and calls PingOne Protect with the collected Signals payload."],
+      ["Inspect the response", "See the returned risk level, recommended action, and available bot-detection details."],
+      ["Keep credentials server-side", "The browser never receives the Protect Worker token or raw evaluation details."],
     ],
     runExamples: [],
-    flow: ["Browser Signals SDK", "BFF risk evaluation", "PingOne Protect", "OIDC or MFA step-up", "Success or block"],
-    sections: ["Overview", "Risk signals", "Run the demo", "Sign-in path", "Takeaway"],
-    takeaway: "Use risk signals to choose the right authentication step before this demo redirects the browser to PingOne.",
+    flow: ["Browser Signals SDK", "BFF request", "PingOne Protect", "Risk response in the page"],
+    sections: ["Overview", "Risk signals", "Run the demo", "Evaluation path", "Takeaway"],
+    takeaway: "Evaluate browser risk in a standalone page and inspect the Protect response without changing an authentication or agent flow.",
   },
 };
 
@@ -204,7 +203,7 @@ export default function PingAiProductPage({ product = "core" }) {
         <div className="pai-flow" aria-label={`${data.title} flow`}>
           {data.flow.map((node, index) => <div className="pai-flow__item" key={node}><span>{node}</span>{index < data.flow.length - 1 && <i aria-hidden="true" />}</div>)}
         </div>
-        <OnThisRun title="Architecture note"><p><Status ok>Boundary defined</Status> {product === "protect" ? "PingOne Protect evaluates risk; this demo application applies the Low, Medium, or High next step before browser OIDC begins." : "This page explains the product’s role in an AI security architecture. Live demo routes and inspectors remain available in the navigation."}</p>
+        <OnThisRun title="Architecture note"><p><Status ok>Boundary defined</Status> {product === "protect" ? "The page collects browser Signals, sends them through the BFF to PingOne Protect, and displays the returned evaluation. It does not make sign-in, MFA, or agent-dispatch decisions." : "This page explains the product’s role in an AI security architecture. Live demo routes and inspectors remain available in the navigation."}</p>
           {product === "protect" && <p><a href="https://docs.pingidentity.com/pingone/threat_protection_using_pingone_protect/p1_protect_risk_predictors.html" target="_blank" rel="noreferrer">Read PingOne Protect predictor guidance</a></p>}
         </OnThisRun>
       </Section>

@@ -10,14 +10,15 @@ jest.mock('../services/pingOneClientService', () => ({
 
 const axios = require('axios');
 const pingOneClientService = require('../services/pingOneClientService');
-const { createAuthenticationEvaluation } = require('../services/pingOneProtectService');
+const { createBrowserRiskEvaluation } = require('../services/pingOneProtectService');
 
-describe('createAuthenticationEvaluation', () => {
+describe('createBrowserRiskEvaluation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetEffective.mockImplementation((key) => ({
       PINGONE_REGION: 'com',
       PINGONE_ENVIRONMENT_ID: 'environment-1',
+      PINGONE_SDK_DEMO_CLIENT_ID: 'public-client-1',
     })[key]);
   });
 
@@ -28,7 +29,7 @@ describe('createAuthenticationEvaluation', () => {
     };
     axios.post.mockResolvedValue({ data: expectedEvaluation });
 
-    const result = await createAuthenticationEvaluation({
+    const result = await createBrowserRiskEvaluation({
       userId: 'alice@example.com',
       ip: '203.0.113.9',
       userAgent: 'Demo Browser/1.0',
@@ -47,7 +48,7 @@ describe('createAuthenticationEvaluation', () => {
           browser: { userAgent: 'Demo Browser/1.0' },
           flow: { type: 'AUTHENTICATION' },
           session: { id: 'session-1' },
-          targetResource: { id: 'public-client-1', name: 'PingOne Protect browser OIDC demo' },
+          targetResource: { id: 'public-client-1', name: 'PingOne Protect browser risk evaluation demo' },
           sdk: { signals: { data: '{"device":"signals"}' } },
         },
       },
@@ -63,7 +64,7 @@ describe('createAuthenticationEvaluation', () => {
       config: { headers: { Authorization: 'Bearer worker-access-token' } },
     });
 
-    await expect(createAuthenticationEvaluation({
+    await expect(createBrowserRiskEvaluation({
       userId: 'alice',
       ip: '203.0.113.9',
       userAgent: 'Demo Browser/1.0',
@@ -81,7 +82,7 @@ describe('createAuthenticationEvaluation', () => {
   test('rejects a response without a risk evaluation ID', async () => {
     axios.post.mockResolvedValue({ data: { result: { level: 'LOW' } } });
 
-    await expect(createAuthenticationEvaluation({
+    await expect(createBrowserRiskEvaluation({
       userId: 'alice', ip: '203.0.113.9', userAgent: 'browser',
       signalsData: 'signals', targetResourceId: 'client', sessionId: 'session',
     })).rejects.toThrow('PingOne Protect did not return a risk evaluation ID');

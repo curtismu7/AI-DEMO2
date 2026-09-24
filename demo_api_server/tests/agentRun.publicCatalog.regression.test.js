@@ -152,14 +152,15 @@ describe('agentRun — UC24 public catalog short-circuit', () => {
     expect(res.body.need_auth).toBe(true);
   });
 
-  test('UC36 cannot dispatch through AG-UI while PingOne Protect is enabled', async () => {
+  test('legacy UC36 requests use ordinary agent authentication instead of a Protect agent gate', async () => {
     const res = await post({
       ...runBody('show my balance'),
       useCaseId: 'protect-agent-dispatch-risk',
     });
 
-    expect(res.status).toBe(409);
-    expect(res.body.error).toBe('protect_requires_gated_agent_invoke');
+    expect(res.status).toBe(401);
+    expect(res.body.need_auth).toBe(true);
+    expect(res.body.error).not.toBe('protect_requires_gated_agent_invoke');
     expect(agentCalls).toHaveLength(0);
   });
 });

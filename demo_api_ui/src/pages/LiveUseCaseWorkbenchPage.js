@@ -87,8 +87,8 @@ const DEMO_ID_SET = new Set([
   ...DEMO_ADVANCED_USE_CASE_IDS,
 ]);
 
-// UC37 (Verified Trust) stays in its compact companion section. UC36 is now
-// part of the primary Protect workbench and Demo Steps catalog.
+// UC37 (Verified Trust) stays in its compact companion section. PingOne Protect
+// runs from its standalone browser evaluation page, outside the agent workbench.
 const COUPA_NIQ_ID_SET = new Set(['UC37']);
 
 /**

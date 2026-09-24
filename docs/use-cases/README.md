@@ -46,7 +46,6 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC39** — Centralized MCP revocation](./enterprise-mcp-revocation.md) 🚩 🛡️
 - [**UC40** — Enterprise-Managed MCP Authorization (native ID-JAG)](./enterprise-managed-mcp-authorization.md) 🚩 🛡️
 - [**UC28** — Tool set as the authorization boundary (Air Canada pattern)](./unauthorized-commitment-fee-waiver.md) ✅ 🛡️
-- [**UC36** — PingOne Protect — detect AI agent dispatch](./protect-agent-dispatch-risk.md) 🚩
 - [**UC37** — Verified Trust — signed agent assertion on A2A delegation](./verified-trust-a2a-assertion.md) 🚩 🛡️
 
 ## Attacks

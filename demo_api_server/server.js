@@ -1431,7 +1431,7 @@ app.get('/api/davinci-demo/config', (req, res) => {
 // SDK demo token store — LMDB-backed custom storage adapter for @forgerock/oidc-client
 // (see routes/sdkDemoTokens.js). Mounted here, next to the public config endpoint.
 app.use('/api/sdk-demo', require('./routes/sdkDemoTokens'));
-// Browser OIDC demo's PingOne Protect preflight evaluation and completion.
+// Standalone PingOne Protect browser risk evaluation demo.
 app.use('/api/protect-auth', require('./routes/protectAuthentication'));
 
 // DaVinci login callback route — exchanges OIDC code for tokens and establishes session

@@ -1,15 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { completeProtectAuthentication, evaluateProtectAuthentication } from "../protectAuthenticationService";
+import { evaluateProtectBrowserRisk } from "../protectAuthenticationService";
 
 afterEach(() => vi.unstubAllGlobals());
 
-describe("Protect browser authentication API", () => {
+describe("Protect browser evaluation API", () => {
   it("posts user identity and Signals to the BFF with same-origin CSRF protection", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ flowId: "opaque-flow", level: "MEDIUM", recommendedAction: "MFA" }) });
+    const result = { level: "MEDIUM", recommendedAction: "MFA", botDetection: { level: "LOW", status: "COMPLETE" } };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => result });
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(evaluateProtectAuthentication({ userId: "alice@example.com", signalsData: "signals" })).resolves.toEqual({
-      flowId: "opaque-flow", level: "MEDIUM", recommendedAction: "MFA",
+    await expect(evaluateProtectBrowserRisk({ userId: "alice@example.com", signalsData: "signals" })).resolves.toEqual({
+      level: "MEDIUM", recommendedAction: "MFA", botDetection: { level: "LOW", status: "COMPLETE" },
     });
     expect(fetchMock).toHaveBeenCalledWith("/api/protect-auth/evaluations", expect.objectContaining({
       method: "POST",
@@ -19,10 +20,9 @@ describe("Protect browser authentication API", () => {
     }));
   });
 
-  it("surfaces BFF completion errors", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 502, json: async () => ({ error: "protect_completion_failed" }) }));
-
-    await expect(completeProtectAuthentication({ flowId: "flow", completionStatus: "SUCCESS" }))
-      .rejects.toThrow("Protect authentication update failed (502)");
+  it("does not require an authentication completion handle for an evaluation response", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ level: "HIGH", recommendedAction: "DENY" }) }));
+    await expect(evaluateProtectBrowserRisk({ userId: "alice", signalsData: "signals" }))
+      .resolves.toEqual({ level: "HIGH", recommendedAction: "DENY" });
   });
 });

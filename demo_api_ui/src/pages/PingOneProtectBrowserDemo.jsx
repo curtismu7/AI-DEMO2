@@ -1,10 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
 import { useThemeOptional } from "../context/ThemeContext";
-import { getSdkClient, isSdkError } from "../lib/oidcSdkClient";
 import { collectPingOneSignals } from "../lib/pingOneSignalsSdk";
-import { PROTECT_AUTH_FLOW_KEY } from "../lib/protectAuthFlow";
-import { completeProtectAuthentication, evaluateProtectAuthentication } from "../services/protectAuthenticationService";
+import { evaluateProtectBrowserRisk } from "../services/protectAuthenticationService";
 import "./PingOneProtectBrowserDemo.css";
 
 function ThemeIcon({ dark }) {
@@ -21,73 +18,40 @@ function ThemeIcon({ dark }) {
 }
 
 export default function PingOneProtectBrowserDemo({ popout = false }) {
-  const location = useLocation();
   const { darkMode, toggleDarkMode } = useThemeOptional();
-  const result = new URLSearchParams(location.search).get("result");
   const [userId, setUserId] = useState("");
   const [busy, setBusy] = useState(false);
-  const [stage, setStage] = useState(result === "success" ? "success" : result === "error" ? "callback-error" : "ready");
+  const [stage, setStage] = useState("ready");
   const [risk, setRisk] = useState(null);
-  const [error, setError] = useState(result === "error" ? "Sign-in did not complete. Run the demo again." : "");
+  const [error, setError] = useState("");
 
   const statusCopy = useMemo(() => ({
-    ready: "Signals are collected only when you run the demo.",
+    ready: "Signals are collected only when you run an evaluation.",
     collecting: "Collecting browser Signals…",
-    evaluating: "Evaluating sign-in risk with PingOne Protect…",
-    redirecting: risk?.level === "MEDIUM" ? "Medium risk. Continue with PingOne MFA…" : "Low risk. Continue to PingOne sign-in…",
-    success: "Sign-in completed successfully.",
-    blocked: "Sign-in blocked",
-    "callback-error": "Sign-in did not complete",
-  })[stage], [risk?.level, stage]);
+    evaluating: "Sending Signals to PingOne Protect…",
+    complete: "Protect returned a risk evaluation.",
+  })[stage], [stage]);
 
-  const runSignIn = useCallback(async (event) => {
+  const runEvaluation = useCallback(async (event) => {
     event.preventDefault();
     const normalizedUser = userId.trim();
     if (!normalizedUser) {
-      setError("Enter your PingOne username or email.");
+      setError("Enter a username or email to evaluate.");
       return;
     }
     setError("");
     setRisk(null);
     setBusy(true);
-    let pendingFlowId;
     try {
       setStage("collecting");
       const signalsData = await collectPingOneSignals();
       setStage("evaluating");
-      const resultFromProtect = await evaluateProtectAuthentication({ userId: normalizedUser, signalsData });
-      setRisk(resultFromProtect);
-      if (resultFromProtect.level === "HIGH") {
-        setStage("blocked");
-        return;
-      }
-      pendingFlowId = resultFromProtect.flowId;
-      const configResponse = await fetch("/api/sdk-demo/config", { headers: { Accept: "application/json" } });
-      if (!configResponse.ok) throw new Error("Could not load OIDC demo config (HTTP " + configResponse.status + ")");
-      const config = await configResponse.json();
-      const client = await getSdkClient();
-      if (isSdkError(client)) throw new Error(client.error || "Could not initialize the OIDC client");
-      const query = { login_hint: normalizedUser };
-      if (resultFromProtect.level === "MEDIUM") {
-        query.acr_values = config.stepUpAcrValue || "Multi_Factor";
-        query.max_age = "0";
-      }
-      const url = await client.authorize.url({ query });
-      if (typeof url !== "string") throw new Error(url?.error || "Could not start PingOne sign-in");
-      sessionStorage.setItem(PROTECT_AUTH_FLOW_KEY, JSON.stringify({
-        version: 1,
-        flowId: resultFromProtect.flowId,
-        returnTo: popout ? "popout" : "product",
-        userId: normalizedUser,
-        issuedAt: Date.now(),
-      }));
-      setStage("redirecting");
-      window.location.href = url;
+      const result = await evaluateProtectBrowserRisk({ userId: normalizedUser, signalsData });
+      setRisk(result);
+      setStage("complete");
     } catch (runError) {
-      if (pendingFlowId) await completeProtectAuthentication({ flowId: pendingFlowId, completionStatus: "FAILED" }).catch(() => {});
-      try { sessionStorage.removeItem(PROTECT_AUTH_FLOW_KEY); } catch { /* session storage may be disabled */ }
       setStage("ready");
-      setError(runError?.message || "Could not run PingOne Protect sign-in.");
+      setError(runError?.message || "Could not evaluate this browser with PingOne Protect.");
     } finally {
       setBusy(false);
     }
@@ -105,12 +69,12 @@ export default function PingOneProtectBrowserDemo({ popout = false }) {
 
   const DemoSurface = popout ? "main" : "section";
   return (
-    <DemoSurface className={popout ? "p1p-auth p1p-auth--popout" : "p1p-auth"} data-testid="protect-auth-demo" aria-label={popout ? undefined : "PingOne Protect browser sign-in demo"}>
+    <DemoSurface className={popout ? "p1p-auth p1p-auth--popout" : "p1p-auth"} data-testid="protect-auth-demo" aria-label={popout ? undefined : "PingOne Protect browser evaluation demo"}>
       <header className="p1p-auth__header">
         <div>
-          <p className="p1p-auth__eyebrow">PingOne Protect · Browser authentication</p>
-          <h2>{popout ? "Risk-based sign-in" : "Run a browser sign-in"}</h2>
-          <p>PingOne Signals gathers browser context. The BFF sends it to Protect before the demo starts OIDC.</p>
+          <p className="p1p-auth__eyebrow">PingOne Protect · Browser risk evaluation</p>
+          <h2>Evaluate browser risk</h2>
+          <p>PingOne Signals collects browser context. The BFF sends the payload to PingOne Protect and returns the risk response. This page does not sign in a user or run an agent action.</p>
         </div>
         <div className="p1p-auth__actions">
           <button type="button" className="p1p-auth__icon-button" onClick={toggleDarkMode} aria-label={"Switch to " + (darkMode ? "light" : "dark") + " theme"} title={"Switch to " + (darkMode ? "light" : "dark") + " theme"}>
@@ -121,37 +85,34 @@ export default function PingOneProtectBrowserDemo({ popout = false }) {
         </div>
       </header>
 
-      <div className="p1p-auth__outcomes" aria-label="Risk outcomes">
-        <div><strong>Low</strong><span>Continue to sign-in</span></div>
-        <div><strong>Medium</strong><span>Require PingOne MFA</span></div>
-        <div><strong>High</strong><span>Block sign-in</span></div>
+      <div className="p1p-auth__outcomes" aria-label="Risk levels">
+        <div><strong>Low</strong><span>Lower evaluated risk</span></div>
+        <div><strong>Medium</strong><span>Elevated evaluated risk</span></div>
+        <div><strong>High</strong><span>Higher evaluated risk</span></div>
       </div>
 
-      {stage === "success" ? (
-        <section className="p1p-auth__result p1p-auth__result--success" role="status">
-          <h3>Sign-in successful</h3>
-          <p>PingOne authenticated the user after the Protect risk check.</p>
-          <button type="button" className="p1p-auth__secondary" onClick={() => { setStage("ready"); setRisk(null); setError(""); }}>Run another sign-in</button>
-        </section>
-      ) : stage === "blocked" ? (
-        <section className="p1p-auth__result p1p-auth__result--blocked" role="alert">
-          <h3>Sign-in blocked</h3>
-          <p>PingOne Protect returned High risk. The OIDC authorization request was not started.</p>
-          <button type="button" className="p1p-auth__secondary" onClick={() => { setStage("ready"); setRisk(null); }}>Try again</button>
-        </section>
-      ) : (
-        <form className="p1p-auth__form" onSubmit={runSignIn}>
-          <label htmlFor="p1p-auth-user">PingOne username or email</label>
-          <input id="p1p-auth-user" name="userId" autoComplete="username" value={userId} onChange={(event) => setUserId(event.target.value)} disabled={busy} />
-          <button className="p1p-auth__run-chip" type="submit" disabled={busy}>
-            {busy ? "Running Protect check…" : "Run PingOne Protect sign-in"}
-          </button>
-          <p className="p1p-auth__status" role="status">{statusCopy}</p>
-          {risk && stage === "redirecting" && <p className="p1p-auth__risk">Protect result: {risk.level}</p>}
-          {error && <p className="p1p-auth__error" role="alert">{error}</p>}
-        </form>
-      )}
-      <p className="p1p-auth__note">This demo gates its own OIDC redirect using the Protect result. It does not change the policy on PingOne&rsquo;s hosted authorization service.</p>
+      <form className="p1p-auth__form" onSubmit={runEvaluation}>
+        <label htmlFor="p1p-auth-user">Username or email to evaluate</label>
+        <input id="p1p-auth-user" name="userId" autoComplete="username" value={userId} onChange={(event) => setUserId(event.target.value)} disabled={busy} />
+        <button className="p1p-auth__run-chip" type="submit" disabled={busy}>
+          {busy ? "Running Protect evaluation…" : "Run PingOne Protect evaluation"}
+        </button>
+        <p className="p1p-auth__status" role="status">{statusCopy}</p>
+        {error && <p className="p1p-auth__error" role="alert">{error}</p>}
+      </form>
+
+      {risk && <section className="p1p-auth__result" role="region" aria-label="Protect risk evaluation response" aria-live="polite">
+        <h3>Protect evaluation response</h3>
+        <dl className="p1p-auth__response">
+          <div><dt>Risk level</dt><dd>{risk.level}</dd></div>
+          <div><dt>Recommended action</dt><dd>{risk.recommendedAction || "Not returned"}</dd></div>
+          {risk.botDetection?.level && <div><dt>Bot detection level</dt><dd>{risk.botDetection.level}</dd></div>}
+          {risk.botDetection?.status && <div><dt>Bot detection status</dt><dd>{risk.botDetection.status}</dd></div>}
+          {risk.botDetection?.detectedRuleId && <div><dt>Detected rule</dt><dd>{risk.botDetection.detectedRuleId}</dd></div>}
+        </dl>
+        <button type="button" className="p1p-auth__secondary" onClick={() => { setStage("ready"); setRisk(null); setError(""); }}>Run another evaluation</button>
+      </section>}
+      <p className="p1p-auth__note">The raw Signals payload stays out of the page response and URL. No OIDC redirect or agent invocation is started.</p>
     </DemoSurface>
   );
 }

@@ -1,72 +1,65 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import PingOneProtectBrowserDemo from "../PingOneProtectBrowserDemo";
-import { evaluateProtectAuthentication } from "../../services/protectAuthenticationService";
+import { evaluateProtectBrowserRisk } from "../../services/protectAuthenticationService";
 import { collectPingOneSignals } from "../../lib/pingOneSignalsSdk";
 import { getSdkClient } from "../../lib/oidcSdkClient";
 
 vi.mock("../../services/protectAuthenticationService", () => ({
-  evaluateProtectAuthentication: vi.fn(),
-  completeProtectAuthentication: vi.fn(),
+  evaluateProtectBrowserRisk: vi.fn(),
 }));
 vi.mock("../../lib/pingOneSignalsSdk", () => ({ collectPingOneSignals: vi.fn() }));
-vi.mock("../../lib/oidcSdkClient", () => ({ getSdkClient: vi.fn(), isSdkError: (value) => Boolean(value?.error) }));
+vi.mock("../../lib/oidcSdkClient", () => ({ getSdkClient: vi.fn() }));
 
 describe("PingOneProtectBrowserDemo", () => {
-  let authorizeUrl;
-
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStorage.clear();
-    authorizeUrl = vi.fn().mockResolvedValue("https://auth.pingone.com/authorize?state=test");
     collectPingOneSignals.mockResolvedValue("private-signals-payload");
-    getSdkClient.mockResolvedValue({ authorize: { url: authorizeUrl } });
-    evaluateProtectAuthentication.mockResolvedValue({ flowId: "opaque-flow", level: "LOW", recommendedAction: "ALLOW" });
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ stepUpAcrValue: "Multi_Factor" }) }));
+    evaluateProtectBrowserRisk.mockResolvedValue({
+      level: "LOW",
+      recommendedAction: "ALLOW",
+      botDetection: { level: "LOW", status: "COMPLETE", detectedRuleId: "rule-1" },
+    });
   });
 
-  it("runs Signals and Protect before starting the normal PKCE OIDC flow for LOW", async () => {
+  it("collects Signals, evaluates with Protect, and displays the response without starting OIDC", async () => {
     render(<MemoryRouter><PingOneProtectBrowserDemo /></MemoryRouter>);
-    fireEvent.change(screen.getByLabelText(/pingone username or email/i), { target: { value: "alice@example.com" } });
-    fireEvent.click(screen.getByRole("button", { name: /run pingone protect sign-in/i }));
+    fireEvent.change(screen.getByLabelText(/username or email to evaluate/i), { target: { value: "alice@example.com" } });
+    fireEvent.click(screen.getByRole("button", { name: /run pingone protect evaluation/i }));
 
-    await waitFor(() => expect(evaluateProtectAuthentication).toHaveBeenCalledWith({ userId: "alice@example.com", signalsData: "private-signals-payload" }));
-    expect(authorizeUrl).toHaveBeenCalledWith({ query: { login_hint: "alice@example.com" } });
-    expect(sessionStorage.getItem("protect-auth-flow-v1")).toContain("opaque-flow");
+    expect(await screen.findByRole("region", { name: /protect risk evaluation response/i })).toHaveTextContent("LOW");
+    expect(screen.getByRole("region", { name: /protect risk evaluation response/i })).toHaveTextContent("ALLOW");
+    expect(screen.getByRole("region", { name: /protect risk evaluation response/i })).toHaveTextContent("COMPLETE");
+    expect(collectPingOneSignals).toHaveBeenCalledOnce();
+    expect(evaluateProtectBrowserRisk).toHaveBeenCalledWith({ userId: "alice@example.com", signalsData: "private-signals-payload" });
+    expect(getSdkClient).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem("protect-auth-flow-v1")).toBeNull();
     expect(document.body.textContent).not.toContain("private-signals-payload");
   });
 
-  it("requests PingOne MFA step-up for MEDIUM risk", async () => {
-    evaluateProtectAuthentication.mockResolvedValue({ flowId: "opaque-flow", level: "MEDIUM", recommendedAction: "MFA" });
+  it.each(["LOW", "MEDIUM", "HIGH"])("shows the Protect %s response as an evaluation result", async (level) => {
+    evaluateProtectBrowserRisk.mockResolvedValue({ level, recommendedAction: "REVIEW" });
     render(<MemoryRouter><PingOneProtectBrowserDemo /></MemoryRouter>);
-    fireEvent.change(screen.getByLabelText(/pingone username or email/i), { target: { value: "alice@example.com" } });
-    fireEvent.click(screen.getByRole("button", { name: /run pingone protect sign-in/i }));
+    fireEvent.change(screen.getByLabelText(/username or email to evaluate/i), { target: { value: "alice@example.com" } });
+    fireEvent.click(screen.getByRole("button", { name: /run pingone protect evaluation/i }));
 
-    await waitFor(() => expect(authorizeUrl).toHaveBeenCalledWith({
-      query: { login_hint: "alice@example.com", acr_values: "Multi_Factor", max_age: "0" },
-    }));
-  });
-
-  it("shows a High-risk block without initiating OIDC", async () => {
-    evaluateProtectAuthentication.mockResolvedValue({ level: "HIGH", recommendedAction: "DENY" });
-    render(<MemoryRouter><PingOneProtectBrowserDemo /></MemoryRouter>);
-    fireEvent.change(screen.getByLabelText(/pingone username or email/i), { target: { value: "alice@example.com" } });
-    fireEvent.click(screen.getByRole("button", { name: /run pingone protect sign-in/i }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(/sign-in blocked/i);
-    expect(authorizeUrl).not.toHaveBeenCalled();
+    const response = await screen.findByRole("region", { name: /protect risk evaluation response/i });
+    expect(response).toHaveTextContent(level);
+    expect(response).toHaveTextContent("REVIEW");
+    expect(getSdkClient).not.toHaveBeenCalled();
   });
 
   it("fails closed when Signals collection fails", async () => {
     collectPingOneSignals.mockRejectedValue(new Error("Signals unavailable"));
     render(<MemoryRouter><PingOneProtectBrowserDemo /></MemoryRouter>);
-    fireEvent.change(screen.getByLabelText(/pingone username or email/i), { target: { value: "alice@example.com" } });
-    fireEvent.click(screen.getByRole("button", { name: /run pingone protect sign-in/i }));
+    fireEvent.change(screen.getByLabelText(/username or email to evaluate/i), { target: { value: "alice@example.com" } });
+    fireEvent.click(screen.getByRole("button", { name: /run pingone protect evaluation/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Signals unavailable");
-    expect(evaluateProtectAuthentication).not.toHaveBeenCalled();
-    expect(authorizeUrl).not.toHaveBeenCalled();
+    expect(evaluateProtectBrowserRisk).not.toHaveBeenCalled();
+    expect(getSdkClient).not.toHaveBeenCalled();
   });
 
   it("opens a standalone pop-out and exposes a theme toggle", () => {

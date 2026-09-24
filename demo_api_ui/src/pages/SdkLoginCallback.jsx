@@ -2,8 +2,6 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSdkClient, isSdkError } from "../lib/oidcSdkClient";
 import { isSdkLoginPopup, POPUP_RESULT_TYPE } from "../lib/sdkLoginPopup";
-import { completeProtectAuthentication } from "../services/protectAuthenticationService";
-import { clearProtectAuthFlow, protectAuthReturnPath, protectIdentityMatches, readProtectAuthFlow } from "../lib/protectAuthFlow";
 
 // OIDC redirect callback for the SDK centralized-login demo.
 // PingOne redirects here with ?code&state. We exchange the code for tokens via the
@@ -47,11 +45,9 @@ export default function SdkLoginCallback() {
         const code = params.get("code");
         const state = params.get("state");
         const oauthErr = params.get("error");
-        const protectFlow = readProtectAuthFlow();
-
         // Pop-out sign-in: hand the result to /sdk-login and close. The opener
         // does the exchange — it holds the SDK's state + PKCE verifier.
-        if (!protectFlow && isSdkLoginPopup()) {
+        if (isSdkLoginPopup()) {
           window.opener.postMessage(
             {
               type: POPUP_RESULT_TYPE,
@@ -69,12 +65,6 @@ export default function SdkLoginCallback() {
         }
 
         if (oauthErr) {
-          if (protectFlow) {
-            await completeProtectAuthentication({ flowId: protectFlow.flowId, completionStatus: "FAILED" }).catch(() => {});
-            clearProtectAuthFlow();
-            navigate(protectAuthReturnPath(protectFlow, "error"), { replace: true });
-            return;
-          }
           throw new Error(params.get("error_description") || oauthErr);
         }
         if (!code) {
@@ -108,29 +98,11 @@ export default function SdkLoginCallback() {
             // usually a stale or replayed callback.
             throw new Error(result.error || "Token exchange failed.");
           }
-          if (protectFlow) {
-            const tokens = await client.token.get();
-            if (isSdkError(tokens) || !protectIdentityMatches(protectFlow.userId, tokens.idToken)) {
-              await client.token.revoke().catch(() => {});
-              throw new Error("The PingOne account did not match the identifier evaluated by Protect.");
-            }
-            await completeProtectAuthentication({ flowId: protectFlow.flowId, completionStatus: "SUCCESS" });
-            clearProtectAuthFlow();
-            navigate(protectAuthReturnPath(protectFlow, "success"), { replace: true });
-            return;
-          }
           navigate("/sdk-login", { replace: true });
         } finally {
           exchangedCodes.delete(code);
         }
       } catch (err) {
-        const protectFlow = readProtectAuthFlow();
-        if (protectFlow) {
-          await completeProtectAuthentication({ flowId: protectFlow.flowId, completionStatus: "FAILED" }).catch(() => {});
-          clearProtectAuthFlow();
-          navigate(protectAuthReturnPath(protectFlow, "error"), { replace: true });
-          return;
-        }
         // This is a demo: a technical error page (state mismatch, an already-used
         // link, a stale callback) isn't useful to anyone. Clear whatever local
         // token state might be lingering and drop the visitor straight back on

@@ -116,6 +116,31 @@
   border-radius: var(--radius-lg);
 }
 
+.p1p-auth__response {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+}
+
+.p1p-auth__response > div {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) 1.2fr;
+  gap: 0.75rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--th-border);
+}
+
+.p1p-auth__response dt {
+  color: var(--th-text-body);
+}
+
+.p1p-auth__response dd {
+  margin: 0;
+  color: var(--th-text);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
 .p1p-auth__form label {
   color: var(--th-text);
   font-size: var(--font-size-sm);
@@ -176,11 +201,6 @@
   font-size: var(--font-size-lg);
 }
 
-.p1p-auth__result--success {
-  border-inline-start: 4px solid #198754;
-}
-
-.p1p-auth__result--blocked,
 .p1p-auth__error {
   border-inline-start: 4px solid #b42318;
 }
