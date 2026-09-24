@@ -6,7 +6,7 @@ Approved design for implementation planning.
 
 ## Goal
 
-Make the PingFederate ID-JAG demo an explicit, reversible run mode: an explicit Run action, Mission Control chip, or recognized agent phrase silently signs out the current session, sends the user through PingFederate login, runs UC40 through the native PingFederate ID-JAG path, and shows ID-JAG-specific evidence only for that run.
+Make the PingFederate ID-JAG demo an explicit, reversible run mode: an explicit live Run action, Mission Control chip, or recognized agent phrase silently signs out the current session, sends the user through PingFederate login, runs UC40 through the native PingFederate ID-JAG path, and shows ID-JAG-specific evidence only for that run. Keep a separate mock replay on the same page so the teaching flow remains demoable when PF, the agent, or the downstream authorization server is unavailable.
 
 ## Current gap
 
@@ -21,12 +21,13 @@ The existing unified logout endpoint already clears the local session and choose
 - Do not make the browser a token custodian; ID-JAG and exchanged access tokens remain BFF/server-side.
 - Do not make `ff_enterprise_managed_mcp_auth` the sole source of run identity. The flag may enable capability, but the run mode must be explicit and scoped.
 - Do not show native ID-JAG nodes for a mock/stand-in or ordinary exchange trace.
+- Do not let the mock replay call the BFF agent, PF, downstream authorization server, logout endpoint, or live feature-flag/configuration APIs.
 - Do not leave the ID-JAG feature flag or pending run state active after a normal PingOne/PingFederate login or logout.
 - Preserve the project emoji allowlist and existing UI theme/accessibility rules.
 
 ## Recommended architecture
 
-### 1. Explicit launcher and pending run intent
+### 1. Explicit launchers and pending run intent
 
 Create one UI launcher contract for the ID-JAG demo. It accepts the target return path and emits/stores a bounded run intent containing:
 
@@ -39,9 +40,11 @@ Create one UI launcher contract for the ID-JAG demo. It accepts the target retur
 }
 ```
 
-The page Run button, Mission Control UC40 chip, and recognized agent phrases (`run demo`, `run ID-JAG demo`, `enterprise managed MCP`, and `show my balance` when explicitly launched from UC40) all call the same launcher. The launcher clears stale client run context and the ID-JAG flag before starting the unified logout flow, then preserves only the pending intent needed for the login callback.
+The page Live Run button, Mission Control UC40 chip, and recognized agent phrases (`run demo`, `run ID-JAG demo`, `enterprise managed MCP`, and `show my balance` when explicitly launched from UC40) all call the same live launcher. The launcher clears stale client run context and the ID-JAG flag before starting the unified logout flow, then preserves only the pending intent needed for the login callback.
 
 The launcher must be idempotent while a logout/login handoff is in progress so repeated phrases or clicks cannot create competing OAuth states.
+
+The page also exposes a separate `Run mock demo` action. It uses a deterministic client-side fixture through the existing trace/visualization model and is explicitly labeled `Mock replay — no login or live tokens`. It must not arm the live ID-JAG flag, alter the active provider, clear the user's session, or send a banking-agent prefill event. The mock action is available even when no user is authenticated.
 
 ### 2. Provider-aware logout and PingFederate login handoff
 
@@ -76,7 +79,7 @@ After the login handoff, the pending message is replayed once, with the UC40 ID-
 
 ### 5. Dynamic visual evidence
 
-Use the trace’s authoritative provenance/mode, not a global flag, to decide what is shown.
+Use the trace’s authoritative provenance/mode, not a global flag, to decide what is shown. The trace must distinguish at least `live-id-jag`, `mock-id-jag`, and ordinary/stand-in provenance so the UI never presents a replay as proof of a live PF exchange.
 
 For an actual PF ID-JAG run, show:
 
@@ -85,6 +88,8 @@ For an actual PF ID-JAG run, show:
 - ID-JAG redemption/validation by the downstream authorization server;
 - the resulting MCP access-token/tool-call path;
 - labels indicating native PF ID-JAG rather than an RFC 8693 stand-in.
+
+For the mock replay, show the same conceptual ID-JAG issuance, redemption, and tool-call nodes, but mark the run as `Mock replay` in the page header, movie reel, token chain, and sequence diagram. Use safe fixture claims such as `iss: mock-pingfederate`, `aud: mock-mcp-authorization-server`, and a visibly non-production run identifier; never display copied live claims or imply that PF signed the fixture.
 
 For ordinary PingOne, ordinary PingFederate, mock, or stand-in runs, omit the native ID-JAG nodes and retain the current exchange visualization. The same predicate should drive the movie reel/filmstrip, token-chain cards, sequence diagram, run-story text, and any provider badges so the screens cannot disagree.
 
@@ -101,6 +106,8 @@ Reset on all of these boundaries:
 - cancelled/failed ID-JAG login;
 - completed or abandoned UC40 run.
 
+Starting the mock replay resets only the prior visualization/run story. It must not log out the user or reset the live provider/feature-flag state, so a presenter can switch between mock explanation and live execution without an unexpected authentication transition.
+
 Reset includes the one-shot pending intent, client run context, ID-JAG-only visual state, and `ff_enterprise_managed_mcp_auth` when that flag was armed for the run. The capability remains configurable for other use cases, but stale UC40 mode cannot affect them.
 
 ## Error handling
@@ -115,6 +122,8 @@ Reset includes the one-shot pending intent, client run context, ID-JAG-only visu
 
 ### UI unit tests
 
+- mock action is available while signed out and does not call auth, agent, BFF, or feature-flag APIs;
+- mock trace is labeled as mock in every visualization and cannot be mistaken for a live PF run;
 - shared launcher creates the correct one-shot pending intent and calls logout;
 - page Run button, Mission Control chip, and agent phrases use the shared launcher;
 - UC40 context replays once after successful PF callback;
@@ -137,12 +146,13 @@ On `https://local.ping-devops.com:4000` with the local Docker stack:
 
 1. Start from an active PingOne or ordinary PF session.
 2. Open `/pingfederate-id-jag/demo`; confirm no logout occurs on page load.
-3. Click the explicit Run button; confirm silent logout, PF login, and return to the run.
-4. Confirm the agent executes `show my balance` only after PF login and the trace contains PF ID-JAG issuance and redemption.
-5. Repeat from Mission Control and by saying “run ID-JAG demo” and “run demo” in the UC40 context.
-6. Log in normally through PingOne and ordinary PF; confirm ID-JAG nodes, pending context, and run-only flag are gone.
-7. Run the existing UI unit/build checks, focused BFF tests, `npm run topology:verify`, `npm run hygiene:check`, and `npm run authz:verify` where affected.
-8. Use Playwright for the browser flow and capture a screenshot/artifact under `output/playwright/` if the environment permits it.
+3. Click `Run mock demo` while signed out; confirm the fixture completes without navigation, login, network calls, or flag changes, and every visual is labeled `Mock replay`.
+4. Click the explicit Live Run button; confirm silent logout, PF login, and return to the run.
+5. Confirm the agent executes `show my balance` only after PF login and the trace contains PF ID-JAG issuance and redemption.
+6. Repeat from Mission Control and by saying “run ID-JAG demo” and “run demo” in the UC40 context.
+7. Log in normally through PingOne and ordinary PF; confirm ID-JAG nodes, pending context, and run-only flag are gone.
+8. Run the existing UI unit/build checks, focused BFF tests, `npm run topology:verify`, `npm run hygiene:check`, and `npm run authz:verify` where affected.
+9. Use Playwright for the browser flow and capture a screenshot/artifact under `output/playwright/` if the environment permits it.
 
 ## Alternatives considered
 
