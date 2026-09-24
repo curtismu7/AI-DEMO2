@@ -7,9 +7,10 @@
 }
 
 .token-chain-acc {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--th-border);
   border-radius: 0.5rem;
-  background: #fff;
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
   margin-bottom: 0.75rem;
   overflow: hidden;
 }
@@ -22,7 +23,7 @@
   text-align: left;
   padding: 0.65rem 0.85rem;
   border: none;
-  background: #fafafa;
+  background: var(--th-bg-inset);
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--th-text);
@@ -30,7 +31,8 @@
 }
 
 .token-chain-acc-head:hover {
-  background: #f3f4f6;
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .token-chain-acc-icon {
@@ -49,17 +51,19 @@
   font-size: 0.78rem;
   color: var(--th-text);
   line-height: 1.55;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--th-border);
 }
 
 .token-chain-acc-body--muted {
-  background: #fff;
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
 }
 
 .token-chain-card {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--th-border);
   border-radius: 0.5rem;
-  background: #fff;
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
   overflow: hidden;
 }
 
@@ -72,12 +76,14 @@
   text-align: left;
   padding: 0.75rem 0.85rem;
   border: none;
-  background: #fff;
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
   cursor: pointer;
 }
 
 .token-chain-card-head:hover {
-  background: #fafafa;
+  background: var(--th-bg-hover);
+  color: var(--th-text-body);
 }
 
 .token-chain-card-title {
@@ -104,9 +110,10 @@
 }
 
 .token-chain-item {
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--th-border);
   border-radius: 0.45rem;
-  background: #f9fafb;
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
   overflow: hidden;
 }
 
@@ -133,7 +140,7 @@
 }
 
 .token-chain-expand:hover {
-  background: #DDDDDD;
+  background: var(--th-bg-hover);
   color: var(--th-text);
 }
 
@@ -168,17 +175,17 @@
 }
 
 .token-chain-badge--active {
-  background: #d1fae5;
-  color: #047857;
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
 }
 
 .token-chain-badge--acquiring {
-  background: #fef3c7;
-  color: #b45309;
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
 }
 
 .token-chain-badge--waiting {
-  background: #f3f4f6;
+  background: var(--th-bg-inset);
   color: var(--th-text);
 }
 
@@ -186,9 +193,9 @@
   flex-shrink: 0;
   width: 1.85rem;
   height: 1.85rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--th-border-strong);
   border-radius: 0.35rem;
-  background: #fff;
+  background: var(--th-bg-card);
   cursor: pointer;
   font-size: 0.75rem;
   line-height: 1;
@@ -197,15 +204,15 @@
 }
 
 .token-chain-copy:hover {
-  background: #eff6ff;
-  border-color: #93c5fd;
-  color: var(--brand-navy);
+  background: var(--th-status-info-bg);
+  border-color: var(--th-status-info-border);
+  color: var(--th-status-info-text);
 }
 
 .token-chain-detail {
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--th-border);
   padding: 0.55rem 0.65rem 0.65rem 2.25rem;
-  background: #fff;
+  background: var(--th-bg-card);
   font-size: 0.75rem;
   color: var(--th-text);
   line-height: 1.55;
@@ -214,8 +221,9 @@
 .token-chain-detail pre {
   margin: 0.4rem 0 0;
   padding: 0.5rem 0.55rem;
-  background: var(--brand-light-gray);
-  border: 1px solid #DDDDDD;
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  border: 1px solid var(--th-border);
   border-radius: 0.35rem;
   font-size: 0.68rem;
   overflow: auto;
@@ -232,8 +240,9 @@
 
 /* Current / active phase highlight */
 .token-chain-item--current {
-  border-color: #2563eb;
-  background: #eff6ff;
+  border-color: var(--th-status-info-border);
+  background: var(--th-status-info-bg);
+  color: var(--th-text-body);
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
 }
 
@@ -250,7 +259,7 @@
 }
 
 .token-chain-label--current {
-  color: #1d4ed8;
+  color: var(--th-status-info-text);
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -261,7 +270,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #2563eb;
+  background: var(--th-status-info);
   flex-shrink: 0;
   animation: token-chain-dot-pulse 1.4s ease-in-out infinite;
 }

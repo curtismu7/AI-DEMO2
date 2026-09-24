@@ -169,6 +169,27 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — Learning Hub pages follow the platform light/dark theme
+
+**Files changed:** Learning Hub, OAuth Academy, shared education drawer and
+token-chain styles; Agent Gateway Authorization, Intent Binding, Learning
+Protocol Lab, and Privilege MCP lesson styles; theme ratchet tests.
+
+**What was broken:** Hub and lesson surfaces retained fixed light or dark
+palettes, and some pages paired themed grounds with ink that did not follow the
+same theme. The shared drawer could show white text on its white light surface.
+
+**What was fixed:** themeable surfaces and ink now use paired `--th-*` tokens;
+the Hub link no longer uses inline themeable styles; status, code, drawer, and
+token-chain surfaces follow the active platform theme.
+
+**Do not break:** all Hub content and linked lessons must follow the platform's
+`data-theme` state. Keep each tokenized ground paired with tokenized ink; do not
+add `prefers-color-scheme` rules or inline themeable styles.
+
+**Verify:** focused UI/theme tests and the UI build; live computed-style
+inspection was unavailable in the original run.
+
 ### 2026-09-24 — ID-JAG explainer CTAs and dark accent failed contrast
 
 **Files changed:** `demo_api_ui/src/pages/PingFederateIdJagExplainerPage.css`,
