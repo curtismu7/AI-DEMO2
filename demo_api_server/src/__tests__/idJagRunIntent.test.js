@@ -117,7 +117,8 @@ describe('one-shot ID-JAG login intent', () => {
     const originalGetEffective = configStore.getEffective.bind(configStore);
     jest.spyOn(configStore, 'getEffective').mockImplementation((key) => key === 'public_app_url'
       ? 'https://local.ping-devops.com:4000' : originalGetEffective(key));
-    const app = appFor();
+    const session = {};
+    const app = appFor(session);
     const rejected = await request(app).post('/api/auth/oauth/user/id-jag/intent')
       .set('Origin', 'https://evil.example').send(intent);
     expect(rejected.status).toBe(403);
@@ -128,6 +129,9 @@ describe('one-shot ID-JAG login intent', () => {
     expect(accepted.body).not.toHaveProperty('nonce');
     const cookie = accepted.headers['set-cookie'].find((entry) => entry.startsWith('_id_jag_run='));
     expect(cookie).toMatch(/HttpOnly/);
+    const pendingBeforeLogout = await request(app).get('/api/auth/oauth/user/id-jag/pending').set('Cookie', cookie);
+    expect(pendingBeforeLogout.body).toEqual({ pending: false });
+    expect(oauthUserRouter.markVerifiedIdJagLogoutContinuation({ session, headers: { cookie } })).toBe(true);
     const pending = await request(app).get('/api/auth/oauth/user/id-jag/pending').set('Cookie', cookie);
     expect(pending.body).toEqual(expect.objectContaining({ pending: true, returnTo: intent.returnTo }));
   });
@@ -139,7 +143,20 @@ describe('one-shot ID-JAG login intent', () => {
     jest.spyOn(configStore, 'getOAuthProvider').mockReturnValue('pingone');
     expect(oauthUserRouter.claimPendingIdJagRunForLogin(req, intent.returnTo)).toBeNull();
     configStore.getOAuthProvider.mockReturnValue('pingfederate');
+    expect(oauthUserRouter.claimPendingIdJagRunForLogin(req, intent.returnTo)).toBeNull();
+    expect(oauthUserRouter.markVerifiedIdJagLogoutContinuation(req)).toBe(true);
+    expect(oauthUserRouter.consumeVerifiedIdJagLogoutContinuation(req)).toBe(true);
     expect(oauthUserRouter.claimPendingIdJagRunForLogin(req, intent.returnTo)).toEqual(saved);
+  });
+
+  test('pending status is hidden until the logout boundary was completed', async () => {
+    const session = {};
+    const saved = oauthUserRouter.setPendingIdJagRun({ session, headers: {} }, intent);
+    const cookie = `_id_jag_run=${saved.nonce}`;
+    const app = appFor(session);
+    expect((await request(app).get('/api/auth/oauth/user/id-jag/pending').set('Cookie', cookie)).body.pending).toBe(false);
+    expect(oauthUserRouter.markVerifiedIdJagLogoutContinuation({ session, headers: { cookie } })).toBe(true);
+    expect((await request(app).get('/api/auth/oauth/user/id-jag/pending').set('Cookie', cookie)).body.pending).toBe(true);
   });
 
   test('normal login clears the handoff before starting ordinary OAuth', async () => {
@@ -150,6 +167,49 @@ describe('one-shot ID-JAG login intent', () => {
       .set('Cookie', `_id_jag_run=${saved.nonce}`);
     expect(res.status).toBe(302);
     expect(oauthUserRouter.pendingIdJagRun({ headers: { cookie: `_id_jag_run=${saved.nonce}` } })).toBeNull();
+  });
+
+  test('status publishes live callback intent only for an authenticated PF user', async () => {
+    const session = { user: { id: 'u1', username: 'demo' }, oauthType: 'user', oauthProvider: 'pingfederate',
+      oauthTokens: { accessToken: 'access', expiresAt: Date.now() + 60000 },
+      idJagRunIntent: { ...intent, nonce: 'a'.repeat(32), createdAt: Date.now() } };
+    jest.spyOn(configStore, 'getOAuthProvider').mockReturnValue('pingfederate');
+    const app = appFor(session);
+    expect((await request(app).get('/api/auth/oauth/user/status')).body.idJagRunIntent).toMatchObject(intent);
+    session.oauthProvider = 'pingone';
+    expect((await request(app).get('/api/auth/oauth/user/status')).body.idJagRunIntent).toBeNull();
+    session.oauthProvider = 'pingfederate';
+    configStore.getOAuthProvider.mockReturnValue('pingone');
+    expect((await request(app).get('/api/auth/oauth/user/status')).body.idJagRunIntent).toBeNull();
+  });
+
+  test('completed live run consumes its session grant once', async () => {
+    const originalGetEffective = configStore.getEffective.bind(configStore);
+    jest.spyOn(configStore, 'getEffective').mockImplementation((key) => key === 'public_app_url'
+      ? 'https://local.ping-devops.com:4000' : originalGetEffective(key));
+    const session = { oauthType: 'user', oauthProvider: 'pingfederate',
+      idJagRunIntent: { ...intent, nonce: 'a'.repeat(32), createdAt: Date.now() } };
+    const app = appFor(session);
+    const first = await request(app).post('/api/auth/oauth/user/id-jag/complete')
+      .set('Origin', 'https://local.ping-devops.com:4000');
+    expect(first.status).toBe(200);
+    expect(session.idJagRunIntent).toBeUndefined();
+    const second = await request(app).post('/api/auth/oauth/user/id-jag/complete')
+      .set('Origin', 'https://local.ping-devops.com:4000');
+    expect(second.status).toBe(200);
+  });
+
+  test('failed launch can cancel its pending handoff without logging out', async () => {
+    const originalGetEffective = configStore.getEffective.bind(configStore);
+    jest.spyOn(configStore, 'getEffective').mockImplementation((key) => key === 'public_app_url'
+      ? 'https://local.ping-devops.com:4000' : originalGetEffective(key));
+    const session = {};
+    const saved = oauthUserRouter.setPendingIdJagRun({ session, headers: {} }, intent);
+    const cookie = `_id_jag_run=${saved.nonce}`;
+    const res = await request(appFor(session)).post('/api/auth/oauth/user/id-jag/cancel')
+      .set('Origin', 'https://local.ping-devops.com:4000').set('Cookie', cookie);
+    expect(res.status).toBe(200);
+    expect(oauthUserRouter.pendingIdJagRun({ headers: { cookie } })).toBeNull();
   });
 
   test('live PF login binds the intent to the OAuth transaction and prompts for credentials', async () => {
@@ -166,6 +226,9 @@ describe('one-shot ID-JAG login intent', () => {
     jest.spyOn(oauthUserService, 'generateCodeVerifier').mockReturnValue('verifier-1');
     jest.spyOn(oauthUserService, 'generateAuthorizationUrl').mockImplementation(({ prompt }) =>
       `https://pf.example.test/as/authorization.oauth2?prompt=${prompt}`);
+    const handoff = { session, headers: { cookie: `_id_jag_run=${saved.nonce}` } };
+    expect(oauthUserRouter.markVerifiedIdJagLogoutContinuation(handoff)).toBe(true);
+    expect(oauthUserRouter.consumeVerifiedIdJagLogoutContinuation(handoff)).toBe(true);
     const res = await request(appFor(session)).get('/api/auth/oauth/user/login')
       .query({ mode: 'live-id-jag', return_to: intent.returnTo })
       .set('Cookie', `_id_jag_run=${saved.nonce}`);

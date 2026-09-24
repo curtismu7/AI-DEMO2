@@ -169,6 +169,14 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — PF ID-JAG launch stopped at the UI event
+
+- **Files changed:** `demo_api_ui/src/hooks/useAuth.js`, `src/components/{LogoutPage,OAuthProviderToggle}.jsx`, `src/context/SessionTokenContext.js`, ID-JAG run helpers, `demo_api_server/routes/oauthUser.js`, and focused tests.
+- **What was broken:** The explicit live launcher had no browser handoff through logout and PF login; normal auth changes could retain stale replay state.
+- **What was fixed:** The browser posts a one-shot server intent, uses provider-aware logout, resumes only a verified logout continuation, emits callback detail from PF session status, and clears the run grant after a completed trace. Ordinary login, logout, and provider switch clear client state and ID-JAG visual evidence.
+- **Do not break:** Ordinary PingOne/PF login, existing logout token revocation, session cookie cleanup, and the configured enterprise MCP capability flag. The live launcher does not arm that global flag.
+- **Verify:** Focused ID-JAG BFF Jest suites, UI auth/reset Vitest suites, and UI build.
+
 ### 2026-09-24 — UC40 ID-JAG recovery and provider guards were lost across agent paths
 
 - **Files changed:** `demo_api_server/routes/{agentInvokeRoute,demoAgentRoutes,agentTool,oauthUser}.js`, `demo_api_server/services/{agentMcpTokenService,mcpToolPipeline,bffMcpToolExecutor}.js`, `demo_api_server/server.js` and focused tests.

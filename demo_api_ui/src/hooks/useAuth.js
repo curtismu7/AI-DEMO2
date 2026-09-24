@@ -5,6 +5,11 @@ import { savePublicConfig } from "../services/configService";
 import { SESSION_REAUTH_EVENT } from "../utils/authUi";
 import { clearStatusCache } from "../services/cachedStatusService";
 import { nrLog } from "../utils/nrLog";
+import bffAxios from '../services/bffAxios';
+import { notifyError } from '../utils/appToast';
+import { clearIdJagRunState, ID_JAG_USE_CASE_ID, ID_JAG_VALIDATED_CALLBACK_KEY, RUN_MODES } from '../utils/idJagRunMode';
+import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
+import { isNativeIdJagTrace } from '../services/tokenChainTrace/buildTraceSteps';
 
 // Module-level flag mirrors the _didLogOut pattern — survives React
 // re-renders, reset only on explicit logout.
@@ -16,13 +21,26 @@ export function useAuth() {
   const [sessionReauth, setSessionReauth] = useState(null);
   const sessionEstablishedRef = useRef(null);
   const hadUserRef = useRef(false);
+  const completedIdJagRunRef = useRef(null);
 
   const checkOAuthSession = useCallback(async () => {
-    const applyUser = (u) => {
+    const applyUser = (u, status = {}) => {
       setUser(u);
       if (!sessionEstablishedRef.current) {
         sessionEstablishedRef.current = true;
-        window.dispatchEvent(new CustomEvent("userAuthenticated"));
+        const run = status.oauthProvider === 'pingfederate' ? status.idJagRunIntent : null;
+        const validated = run?.useCaseId === ID_JAG_USE_CASE_ID && run.mode === RUN_MODES.LIVE_ID_JAG
+          && typeof run.message === 'string' && !!run.message.trim();
+        if (!validated) clearIdJagRunState();
+        const detail = validated ? {
+          idJagCallbackValidated: true, useCaseId: ID_JAG_USE_CASE_ID,
+          mode: RUN_MODES.LIVE_ID_JAG, message: run.message,
+        } : undefined;
+        if (detail) {
+          try { sessionStorage.setItem(ID_JAG_VALIDATED_CALLBACK_KEY, JSON.stringify(detail)); }
+          catch { /* event still works without storage */ }
+        }
+        window.dispatchEvent(new CustomEvent("userAuthenticated", { detail }));
         nrLog('ui.login', { username: u?.username || u?.email || 'unknown' });
       }
       setLoading(false);
@@ -31,19 +49,19 @@ export function useAuth() {
     try {
       const adminResponse = await getCachedJson("/api/auth/oauth/status");
       if (adminResponse.data.authenticated) {
-        applyUser(adminResponse.data.user);
+        applyUser(adminResponse.data.user, adminResponse.data);
         return true;
       }
 
       const userResponse = await getCachedJson("/api/auth/oauth/user/status");
       if (userResponse.data.authenticated) {
-        applyUser(userResponse.data.user);
+        applyUser(userResponse.data.user, userResponse.data);
         return true;
       }
 
       const sessionResponse = await getCachedJson("/api/auth/session");
       if (sessionResponse.data.authenticated) {
-        applyUser(sessionResponse.data.user);
+        applyUser(sessionResponse.data.user, sessionResponse.data);
         return true;
       }
 
@@ -72,6 +90,41 @@ export function useAuth() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    const onLiveRun = async (event) => {
+      const intent = event.detail;
+      if (intent?.useCaseId !== ID_JAG_USE_CASE_ID || intent.mode !== RUN_MODES.LIVE_ID_JAG) return;
+      let intentPosted = false;
+      try {
+        await bffAxios.post('/api/auth/oauth/user/id-jag/intent', intent);
+        intentPosted = true;
+        const response = await fetch('/api/auth/logout?id_jag_handoff=1', {
+          credentials: 'include', headers: { Accept: 'application/json' },
+        });
+        if (!response.ok) throw new Error('Logout failed');
+        const body = await response.json();
+        if (!body.idJagHandoff || !body.logoutUrl) throw new Error('ID-JAG logout handoff was not accepted');
+        window.dispatchEvent(new CustomEvent('userLoggedOut', { detail: { idJagHandoff: true } }));
+        window.location.href = body.logoutUrl;
+      } catch (error) {
+        if (intentPosted) await bffAxios.post('/api/auth/oauth/user/id-jag/cancel').catch(() => {});
+        clearIdJagRunState();
+        notifyError(`Could not start PingFederate ID-JAG login: ${error.message}`);
+      }
+    };
+    window.addEventListener('id-jag-run-requested', onLiveRun);
+    return () => window.removeEventListener('id-jag-run-requested', onLiveRun);
+  }, []);
+
+  useEffect(() => tokenChainTraceStore.subscribe(({ trace }) => {
+    if (!isNativeIdJagTrace(trace) || !trace.outcome || trace.runId == null
+      || completedIdJagRunRef.current === trace.runId) return;
+    completedIdJagRunRef.current = trace.runId;
+    void bffAxios.post('/api/auth/oauth/user/id-jag/complete')
+      .catch((error) => notifyError(`Could not clear the ID-JAG run: ${error.message}`))
+      .finally(() => clearIdJagRunState());
+  }), []);
+
   // Auth check with exponential backoff retry on oauth=success
   useEffect(() => {
     const pathname =
@@ -89,6 +142,12 @@ export function useAuth() {
     if (userLoggedOut) {
       _didLogOut = true;
       sessionEstablishedRef.current = false;
+      if (isPostLogoutLanding) {
+        // LogoutPage owns the clear-session/pending-intent decision after IdP signoff.
+        setUser(null);
+        setLoading(false);
+        return undefined;
+      }
       fetch("/api/auth/clear-session", {
         method: "POST",
         credentials: "include",
@@ -108,6 +167,7 @@ export function useAuth() {
     const params = typeof window !== "undefined"
       ? new URLSearchParams(window.location.search || "")
       : null;
+    if (params?.has('error') && pathname === '/pingfederate-id-jag/demo') clearIdJagRunState();
     // Privilege MCP uses `auth=success` because it owns a separate gateway
     // OAuth handshake. Treat that callback exactly like the main app's
     // `oauth=success` so the global banner refreshes immediately too.
@@ -187,6 +247,7 @@ export function useAuth() {
 
   const logout = useCallback(() => {
     console.info("Starting logout — navigating to /api/auth/logout");
+    clearIdJagRunState();
 
     // Store current path before clearing storage so LogoutPage can redirect there
     try {

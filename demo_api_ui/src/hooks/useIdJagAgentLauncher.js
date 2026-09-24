@@ -1,12 +1,13 @@
 import { useEffect, useRef } from 'react';
 import {
   ID_JAG_USE_CASE_ID,
+  ID_JAG_REPLAYED_KEY,
+  ID_JAG_VALIDATED_CALLBACK_KEY,
   RUN_MODES,
   completeIdJagRunHandoff,
   requestLiveIdJagRun,
 } from '../utils/idJagRunMode';
 
-const REPLAYED_KEY = 'bx_id_jag_replayed';
 const isLaunchPhrase = (text) => /^(?:run (?:the )?demo|run (?:the )?id[- ]jag demo|enterprise[- ]managed mcp(?: authorization)?|show my balance)[.!?]*$/i.test(text.trim());
 
 /** Each agent supplies its own active-use-case reader; launch and replay policy stay shared. */
@@ -16,15 +17,15 @@ export function useIdJagAgentLauncher({ pathname, readUseCaseId }) {
   useEffect(() => {
     const onLaunch = () => {
       replayedRef.current = false;
-      try { sessionStorage.removeItem(REPLAYED_KEY); } catch { /* storage unavailable */ }
+      try { sessionStorage.removeItem(ID_JAG_REPLAYED_KEY); } catch { /* storage unavailable */ }
     };
     const onAuthenticated = (event) => {
       const detail = event.detail;
       if (detail?.idJagCallbackValidated !== true || detail.useCaseId !== ID_JAG_USE_CASE_ID
         || detail.mode !== RUN_MODES.LIVE_ID_JAG || !detail.message || replayedRef.current) return;
       try {
-        if (sessionStorage.getItem(REPLAYED_KEY) === '1') return;
-        sessionStorage.setItem(REPLAYED_KEY, '1');
+        if (sessionStorage.getItem(ID_JAG_REPLAYED_KEY) === '1') return;
+        sessionStorage.setItem(ID_JAG_REPLAYED_KEY, '1');
       } catch { /* the in-memory guard still handles duplicate events */ }
       replayedRef.current = true;
       completeIdJagRunHandoff();
@@ -37,6 +38,12 @@ export function useIdJagAgentLauncher({ pathname, readUseCaseId }) {
     };
     window.addEventListener('id-jag-run-requested', onLaunch);
     window.addEventListener('userAuthenticated', onAuthenticated);
+    // The app's auth hook may validate the callback before this agent mounts.
+    // This is a UI replay aid only; the BFF session grant remains authoritative.
+    try {
+      const saved = sessionStorage.getItem(ID_JAG_VALIDATED_CALLBACK_KEY);
+      if (saved) onAuthenticated({ detail: JSON.parse(saved) });
+    } catch { /* storage unavailable or stale data */ }
     return () => {
       window.removeEventListener('id-jag-run-requested', onLaunch);
       window.removeEventListener('userAuthenticated', onAuthenticated);

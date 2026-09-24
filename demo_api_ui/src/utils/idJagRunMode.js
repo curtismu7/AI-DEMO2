@@ -8,6 +8,8 @@ export const RUN_MODES = Object.freeze({
 });
 
 export const ID_JAG_PENDING_INTENT_KEY = 'bx_id_jag_pending_intent';
+export const ID_JAG_REPLAYED_KEY = 'bx_id_jag_replayed';
+export const ID_JAG_VALIDATED_CALLBACK_KEY = 'bx_id_jag_validated_callback';
 // Shared with the agent's existing use-case run-context hook.
 export const USE_CASE_RUN_CONTEXT_KEY = 'bx_run_context';
 
@@ -62,6 +64,8 @@ export function requestMockIdJagReplay() {
 
 export function clearIdJagRunState({ preservePending = false } = {}) {
   if (!preservePending) completeIdJagRunHandoff();
+  try { sessionStorage.removeItem(ID_JAG_REPLAYED_KEY); } catch { /* storage unavailable */ }
+  try { sessionStorage.removeItem(ID_JAG_VALIDATED_CALLBACK_KEY); } catch { /* storage unavailable */ }
   try {
     const raw = sessionStorage.getItem(USE_CASE_RUN_CONTEXT_KEY);
     if (raw) {

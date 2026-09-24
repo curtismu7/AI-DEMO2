@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import bffAxios from '../services/bffAxios';
 import { notifyError, notifySuccess } from '../utils/appToast';
+import { clearIdJagRunState } from '../utils/idJagRunMode';
 import './OAuthProviderToggle.css';
 
 /**
@@ -44,6 +45,7 @@ export default function OAuthProviderToggle() {
       setProvider(next);
       notifySuccess(`Login provider switched to ${next === 'pingone' ? 'PingOne' : 'PingFederate'} — please sign in again`);
       // Current session tokens belong to the previous provider — force re-login.
+      clearIdJagRunState();
       window.dispatchEvent(new CustomEvent('userLoggedOut'));
       window.location.href = '/logout';
     } catch (err) {

@@ -123,6 +123,7 @@ function consumeVerifiedIdJagLogoutContinuation(req) {
 function claimPendingIdJagRunForLogin(req, returnTo) {
   const intent = pendingIdJagRun(req);
   if (!intent || configStore.getOAuthProvider?.() !== 'pingfederate'
+    || !intent.logoutVerifiedAt || !intent.logoutContinuationConsumed
     || intent.returnTo !== sanitizePostLoginReturnPath(returnTo)) return null;
   if (req.session) req.session.pendingIdJagNonce = intent.nonce;
   return intent;
@@ -276,9 +277,26 @@ router.post('/id-jag/intent', (req, res) => {
 
 router.get('/id-jag/pending', (req, res) => {
   const intent = pendingIdJagRun(req);
-  res.json(intent
+  res.json(intent?.logoutVerifiedAt && !intent.logoutContinuationConsumed
     ? { pending: true, useCaseId: intent.useCaseId, mode: intent.mode, message: intent.message, returnTo: intent.returnTo }
     : { pending: false });
+});
+
+router.post('/id-jag/complete', (req, res) => {
+  if (req.get('origin') !== getFrontendOrigin()) return res.status(403).json({ error: 'invalid_origin' });
+  delete req.session.idJagRunIntent;
+  req.session.save((err) => err
+    ? res.status(500).json({ error: 'session_persist_failed' })
+    : res.json({ ok: true }));
+});
+
+router.post('/id-jag/cancel', (req, res) => {
+  if (req.get('origin') !== getFrontendOrigin()) return res.status(403).json({ error: 'invalid_origin' });
+  clearPendingIdJagRun(req);
+  clearIdJagCookie(res);
+  req.session.save((err) => err
+    ? res.status(500).json({ error: 'session_persist_failed' })
+    : res.json({ ok: true }));
 });
 
 router.get('/login', (req, res) => {
@@ -1186,7 +1204,10 @@ router.get('/status', (req, res) => {
       notificationPrefs: req.session.user.notificationPrefs || null
     } : null,
     oauthProvider: isAuthenticated ? (req.session.oauthProvider || req.session.user.oauthProvider) : null,
-    idJagRunIntent: isAuthenticated && req.session.idJagRunIntent?.mode === 'live-id-jag'
+    idJagRunIntent: isAuthenticated && req.session.oauthType === 'user'
+      && req.session.oauthProvider === 'pingfederate'
+      && configStore.getOAuthProvider?.() === 'pingfederate'
+      && req.session.idJagRunIntent?.mode === 'live-id-jag'
       && Date.now() - req.session.idJagRunIntent.createdAt < ID_JAG_RUN_TTL_MS
       ? { useCaseId: ID_JAG_USE_CASE, mode: 'live-id-jag', message: req.session.idJagRunIntent.message,
           returnTo: req.session.idJagRunIntent.returnTo }
