@@ -39,6 +39,12 @@ const config = {
     };
   },
 
+  // The pi.flow SDK uses a PingOne redirect flow policy. The embedded widget
+  // uses a different DaVinci application and a widget flow policy.
+  get sdk() {
+    return { policyId: process.env.PINGONE_DAVINCI_SDK_POLICY_ID };
+  },
+
   get webhookUrl() {
     if (process.env.DAVINCI_WEBHOOK_URL) return process.env.DAVINCI_WEBHOOK_URL;
     const base = configStore.getEffective('pingone_public_app_url') || '';

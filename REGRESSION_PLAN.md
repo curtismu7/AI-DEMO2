@@ -169,6 +169,33 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — DaVinci widget policy leaked into Orchestration SDK
+
+**Files changed:** `demo_api_server/config/davinci.js`,
+`demo_api_server/routes/davinciSdkLogin.js`, `.env.example`, and focused BFF
+tests; the widget lesson page, Call Inspector, and lesson sections.
+
+**What was broken:** the SDK `/start` route read
+`PINGONE_DAVINCI_LOGIN_POLICY_ID_V1`, which belongs to the widget. PingOne
+rejected that policy in the SDK authorize call as an invalid redirect flow
+policy. The widget lesson also buried the form under a blue tenant canvas and
+a long call trace.
+
+**What was fixed:** SDK `/start` now requires its own
+`PINGONE_DAVINCI_SDK_POLICY_ID`; the widget retains its policy and BFF minted
+SDK token. The widget lesson gives the live form more space, summarizes its
+available sign-in, registration, and recovery paths, and makes the trace easier
+to inspect.
+
+**Do not break:** preserve the SDK public client, PKCE callback, nonce, and
+session handling; preserve widget API-key custody, nonce, and token validation.
+The two integrations have different parent flow policies and final nodes; a
+shared journey must live in a common subflow rather than assigning one policy
+to both modes.
+
+**Verify:** focused BFF SDK/widget/config Jest suites, focused widget and SDK
+Vitest suites, UI build, and local policy-start checks.
+
 ### 2026-09-24 — OAuth login reused a session issued by the previous provider
 
 **Files changed:** `demo_api_server/routes/oauthUser.js` and

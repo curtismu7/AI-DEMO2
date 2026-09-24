@@ -99,7 +99,8 @@ describe('routes/davinciSdkLogin', () => {
     // file still points at the old one, so every mockImplementation set here
     // would be invisible to the code under test and /start would 503.
     process.env.PINGONE_DAVINCI_LOGIN_APP_ID = SDK_APP_ID;
-    process.env.PINGONE_DAVINCI_LOGIN_POLICY_ID_V1 = FLOW_POLICY_ID;
+    process.env.PINGONE_DAVINCI_LOGIN_POLICY_ID_V1 = 'widget-only-policy';
+    process.env.PINGONE_DAVINCI_SDK_POLICY_ID = FLOW_POLICY_ID;
     app = buildApp();
   });
 
@@ -108,6 +109,7 @@ describe('routes/davinciSdkLogin', () => {
     // same worker.
     delete process.env.PINGONE_DAVINCI_LOGIN_APP_ID;
     delete process.env.PINGONE_DAVINCI_LOGIN_POLICY_ID_V1;
+    delete process.env.PINGONE_DAVINCI_SDK_POLICY_ID;
   });
 
   describe('POST /start', () => {
@@ -148,7 +150,7 @@ describe('routes/davinciSdkLogin', () => {
 
     it('makes NO upstream call — the SDK talks to PingOne directly', async () => {
       // Unlike the widget's /sdk-token there is no DaVinci SDK token to mint,
-      // so requiring companyId/policyId/apiKey here would be dead weight.
+      // so requiring companyId/apiKey here would be dead weight.
       await request(app).post('/api/davinci-sdk-login/start').expect(200);
       expect(axios.post).not.toHaveBeenCalled();
     });
@@ -158,6 +160,12 @@ describe('routes/davinciSdkLogin', () => {
       const res = await request(app).post('/api/davinci-sdk-login/start').expect(503);
       expect(res.body.error).toBe('davinci_sdk_not_configured');
       expect(res.body.missing.join(' ')).toContain('PINGONE_DAVINCI_LOGIN_APP_ID');
+    });
+
+    it('503s rather than using the widget policy when the SDK policy is unset', async () => {
+      delete process.env.PINGONE_DAVINCI_SDK_POLICY_ID;
+      const res = await request(app).post('/api/davinci-sdk-login/start').expect(503);
+      expect(res.body.missing.join(' ')).toContain('PINGONE_DAVINCI_SDK_POLICY_ID');
     });
   });
 
