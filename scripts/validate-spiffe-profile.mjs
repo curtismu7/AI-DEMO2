@@ -10,6 +10,8 @@ const requiredFiles = [
   'spiffe/docker-compose/helper-bff.conf',
   'spiffe/docker-compose/oidc-discovery-provider.conf',
   'spiffe/docker-compose/entries.sh',
+  'spiffe/docker-compose/Dockerfile.registration',
+  'spiffe/docker-compose/Dockerfile.agent',
 ];
 
 const failures = [];
@@ -23,6 +25,12 @@ for (const service of ['spire-server:', 'spire-agent:', 'spire-registration:', '
   if (!compose.includes(service)) failures.push(`compose is missing ${service}`);
 }
 if (!/profiles:\s*\["spiffe"\]/.test(compose)) failures.push('SPIFFE services are not profile-gated');
+if (!/spire-registration:[\s\S]*?dockerfile:\s*Dockerfile\.registration/.test(compose)) {
+  failures.push('spire-registration must use the shell-enabled registration image');
+}
+if (!/spire-agent:[\s\S]*?dockerfile:\s*Dockerfile\.agent/.test(compose)) {
+  failures.push('spire-agent must use the shell-enabled agent image');
+}
 if (!compose.includes('FF_SPIFFE_CLIENT_AUTH')) failures.push('BFF SPIFFE client-auth flag is not wired');
 
 const entries = fs.readFileSync(path.join(root, 'spiffe/docker-compose/entries.sh'), 'utf8');

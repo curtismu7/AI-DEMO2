@@ -701,9 +701,12 @@ services:
 
   spire-agent:
     profiles: ["spiffe"]
-    image: ghcr.io/spiffe/spire-agent:1.15.2
+    build:
+      context: ./spiffe/docker-compose
+      dockerfile: Dockerfile.agent
+    image: ai-demo-spire-agent:1.15.2
     container_name: ai-demo-spire-agent
-    command: ["/bin/sh", "-c", "spire-agent run -config /etc/spire/agent.conf -joinToken $(cat /run/spire-bootstrap/join-token)"]
+    command: ["exec /usr/local/bin/spire-agent run -config /etc/spire/agent.conf -joinToken \"$(cat /run/spire-bootstrap/join-token)\""]
     depends_on:
       spire-registration:
         condition: service_completed_successfully
@@ -719,14 +722,15 @@ services:
 
   spire-registration:
     profiles: ["spiffe"]
-    image: ghcr.io/spiffe/spire-server:1.15.2
+    build:
+      context: ./spiffe/docker-compose
+      dockerfile: Dockerfile.registration
+    image: ai-demo-spire-registration:1.15.2
     container_name: ai-demo-spire-registration
-    entrypoint: ["/bin/sh", "/etc/spire/entries.sh"]
     depends_on:
       spire-server:
         condition: service_healthy
     volumes:
-      - ./spiffe/docker-compose/entries.sh:/etc/spire/entries.sh:ro
       - spiffe-server-api-socket:/run/spire/server/private
       - spiffe-bootstrap:/run/spire-bootstrap
     networks:
