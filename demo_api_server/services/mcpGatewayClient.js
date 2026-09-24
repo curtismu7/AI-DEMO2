@@ -45,7 +45,7 @@ const DEFAULT_TIMEOUT_MS    = 30_000;
 // it. Retry these idempotent reads once; never replay writes or policy errors.
 const RETRYABLE_READ_TOOLS = new Set(['get_account_balance', 'get_airline_bookings']);
 const RETRYABLE_GATEWAY_NETWORK_CODES = new Set([
-    'ECONNABORTED', 'ECONNRESET', 'EAI_AGAIN', 'EPIPE', 'ETIMEDOUT',
+    'ECONNABORTED', 'ECONNREFUSED', 'ECONNRESET', 'EAI_AGAIN', 'EPIPE', 'ETIMEDOUT',
 ]);
 const RETRYABLE_GATEWAY_STATUSES = new Set([502, 503, 504]);
 const SAFE_READ_RETRY_DELAY_MS = 100;

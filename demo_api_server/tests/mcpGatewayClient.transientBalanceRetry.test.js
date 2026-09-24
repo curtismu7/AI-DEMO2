@@ -48,6 +48,20 @@ describe('mcpGatewayClient transient balance retry', () => {
     await expect(callToolViaGateway('https://gw.example', 'token', 'get_account_balance', { account_id: 'acct-1' }))
       .resolves.toMatchObject({ result: successResponse().data.result });
     expect(axios.post).toHaveBeenCalledTimes(2);
+    expect(axios.post.mock.calls.map(([url]) => url)).toEqual([
+      'https://gw.example/mcp',
+      'https://gw.example/mcp',
+    ]);
+  });
+
+  test('retries a refused connection for the read-only balance tool once', async () => {
+    axios.post
+      .mockRejectedValueOnce(Object.assign(new Error('connection refused'), { code: 'ECONNREFUSED' }))
+      .mockResolvedValueOnce(successResponse());
+
+    await expect(callToolViaGateway('https://gw.example', 'token', 'get_account_balance', { account_id: 'acct-1' }))
+      .resolves.toMatchObject({ result: successResponse().data.result });
+    expect(axios.post).toHaveBeenCalledTimes(2);
   });
 
   test('does not retry a write tool after a gateway 502', async () => {
