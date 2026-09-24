@@ -32,14 +32,16 @@ describe("PingFederate ID-JAG architecture", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "PingFederate architecture" }));
     expect(screen.getByText("PingFederate in the system")).toBeTruthy();
-    expect(screen.getByText("Generalist agent")).toBeTruthy();
+    expect(screen.getByText("MCP Authorization Server")).toBeTruthy();
   });
 
-  it("steps through the ID-JAG issuance and exchange narrative", () => {
+  it("shows both ID-JAG sides: upstream validation and downstream assertion redemption", () => {
     renderPage();
-    fireEvent.click(screen.getByRole("button", { name: "Step 2: Exchange 1 issues an ID-JAG" }));
-    expect(screen.getByText("Exchange 1 issues an ID-JAG")).toBeTruthy();
-    expect(screen.getByText(/user remains sub/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Step 2: Side 1 · PingFederate validates the upstream token" }));
+    expect(screen.getByText(/token-exchange policy validates the refresh token/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Step 4: Side 2 · submit ID-JAG for validation" }));
+    expect(screen.getAllByText(/JWT bearer assertion/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/issuer\/signature, audience, expiry/)).toBeTruthy();
   });
 
   it("shows step-synced mock claims and API exchanges in both architecture views", () => {
@@ -48,25 +50,33 @@ describe("PingFederate ID-JAG architecture", () => {
     expect(panel).toBeTruthy();
     fireEvent.click(screen.getByText("Protocol details"));
     expect(screen.getByText(/MOCK DATA — NOT A REAL TOKEN/)).toBeTruthy();
+    expect(panel.textContent).toContain('"useCaseId": "enterprise-managed-mcp-authorization"');
+    expect(panel.textContent).toContain('"threadId": "[MOCK THREAD ID]"');
 
-    fireEvent.click(screen.getByRole("button", { name: "Step 2: Exchange 1 issues an ID-JAG" }));
+    fireEvent.click(screen.getByRole("button", { name: "Step 2: Side 1 · PingFederate validates the upstream token" }));
     expect(panel.textContent).toContain("requested_token_type");
     expect(panel.textContent).toContain("oauth:token-type:id-jag");
-    fireEvent.click(screen.getByRole("button", { name: "Step 5: PingOne Authorize permits the action" }));
-    expect(panel.textContent).toContain('"decision": "PERMIT"');
-    fireEvent.click(screen.getByRole("button", { name: "Step 6: Exchange 3 reaches the investment resource" }));
-    expect(panel.textContent).toContain("Exchange 3 + investment MCP call");
+    expect(panel.textContent).toContain("subject_token_type");
+    expect(panel.textContent).toContain("token-type:refresh_token");
+    fireEvent.click(screen.getByRole("button", { name: "Step 4: Side 2 · submit ID-JAG for validation" }));
+    expect(panel.textContent).toContain("jwt-bearer");
+    expect(panel.textContent).toContain("MCP authorization server validates the ID-JAG");
+    fireEvent.click(screen.getByRole("button", { name: "Step 5: Downstream AS issues its local access token" }));
+    expect(panel.textContent).toContain("MOCK LOCAL MCP ACCESS TOKEN");
+    fireEvent.click(screen.getByRole("button", { name: "Step 6: Call the protected MCP tool" }));
     expect(panel.textContent).toContain('"method": "tools/call"');
+    expect(panel.textContent).toContain("Bearer [MOCK LOCAL MCP ACCESS TOKEN]");
 
     fireEvent.click(screen.getByRole("tab", { name: "PingFederate architecture" }));
     expect(screen.getByText("PingFederate in the system")).toBeTruthy();
     expect(panel.textContent).toContain("MOCK DATA — NOT A REAL TOKEN");
-    expect(panel.textContent).toContain("Browser sign-in redirect");
-    fireEvent.click(screen.getByRole("button", { name: "Step 2: PingFederate issues delegated identity" }));
-    expect(panel.textContent).toContain("Exchange 1 · issue ID-JAG");
-    fireEvent.click(screen.getByRole("button", { name: "Step 5: PingOne Authorize makes the decision" }));
-    expect(panel.textContent).toContain('"decision": "PERMIT"');
-    fireEvent.click(screen.getByRole("button", { name: "Step 6: Investment MCP returns the result" }));
+    expect(panel.textContent).toContain("PingFederate user sign-in");
+    fireEvent.click(screen.getByRole("button", { name: "Step 2: Side 1 · PingFederate validates the refresh token" }));
+    expect(panel.textContent).toContain("token-type:refresh_token");
+    fireEvent.click(screen.getByRole("button", { name: "Step 4: Side 2 · MCP AS validates the ID-JAG" }));
+    expect(panel.textContent).toContain("jwt-bearer");
+    expect(panel.textContent).toContain("MCP authorization server validates the ID-JAG");
+    fireEvent.click(screen.getByRole("button", { name: "Step 6: Gateway authorizes and forwards the call" }));
     expect(panel.textContent).toContain('"method": "tools/call"');
   });
 
@@ -107,7 +117,7 @@ describe("PingFederate ID-JAG architecture", () => {
       renderPage();
       fireEvent.change(screen.getByLabelText("Step time:"), { target: { value: "800" } });
       fireEvent.click(screen.getByRole("button", { name: "Simulate" }));
-      fireEvent.click(screen.getByRole("button", { name: "Step 3: Carry the ID-JAG to PingGateway" }));
+      fireEvent.click(screen.getByRole("button", { name: "Step 3: PingFederate issues the ID-JAG" }));
 
       expect(screen.getByText("Step 3 / 6")).toBeTruthy();
       expect(screen.getByRole("button", { name: "Simulate" })).toBeTruthy();
