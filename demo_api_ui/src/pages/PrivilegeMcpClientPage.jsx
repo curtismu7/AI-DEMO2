@@ -906,7 +906,19 @@ export default function PrivilegeMcpClientPage() {
   const switchGatewayMode = async (nextMode, { forceReauth = false } = {}) => {
     if (nextMode === gatewayMode && !forceReauth) return;
     const savedConfig = gatewayConfigs[nextMode] || {};
-    const nextConfig = { ...config, ...savedConfig };
+    // The path selector changes how we reach the selected MCP app. Keep that
+    // app name across paths when the destination has a matching door; otherwise
+    // the page silently switches (for example, Direct opensearch → Privilege
+    // aggregate) and applies a different app's policy.
+    const selectedDoor = doorName(config.mcpUrl);
+    const matchingDoor = selectedDoor && presets.find(
+      (preset) => preset.mode === nextMode && doorName(preset.url) === selectedDoor,
+    );
+    const nextConfig = {
+      ...config,
+      ...savedConfig,
+      ...(matchingDoor ? { mcpUrl: matchingDoor.url } : {}),
+    };
     const prevMode = gatewayMode;
     const prevConfig = config;
 
@@ -914,6 +926,8 @@ export default function PrivilegeMcpClientPage() {
     setConfig(nextConfig);
     setTools([]);
     setSelectedTool(null);
+    setBlockedDetail(null);
+    setShowBlockedModal(false);
     try {
       const saved = await api('/config', {
         method: 'POST',

@@ -169,6 +169,24 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-23 — Client path switch changed the selected AI Gateway app
+
+**Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`.
+
+**What was broken:** each path remembered its own MCP app. Switching from
+Direct `opensearch` to Privilege could silently select `aggregate`, so a policy
+configured for `opensearch` did not apply to the request. The previous path's
+403 banner also remained visible and was attributed to the newly selected app.
+
+**What was fixed:** switching paths now keeps the selected app when the
+destination has a matching door, then clears the prior denial and closes its
+modal. A new denial on the selected app can still show normally.
+
+**Do not break:** a denial remains visible until a successful refresh or path
+change; switching paths must not weaken gateway authorization or tool policy.
+
+**Verify:** `cd demo_api_ui && npm run build`.
+
 ### 2026-09-23 — CIBA approval lacked a verified, transaction-bound handoff
 
 **Files changed:** `demo_api_server/config/oauth.js`, `routes/ciba.js`,
