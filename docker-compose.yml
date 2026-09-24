@@ -693,7 +693,7 @@ services:
     networks:
       - ai-demo
     healthcheck:
-      test: ["CMD", "spire-server", "healthcheck", "-socketPath", "/run/spire-server/private/api.sock"]
+      test: ["CMD", "/opt/spire/bin/spire-server", "healthcheck", "-socketPath", "/run/spire-server/private/api.sock"]
       interval: 10s
       timeout: 5s
       retries: 12
