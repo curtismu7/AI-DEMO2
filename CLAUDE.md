@@ -79,6 +79,8 @@ Citable facts live in `graphify-out/*.kb.json`: `repo-topology` (service boundar
 
 Commit often (free, and uncommitted work is the only work that dies). **Push once per logical unit and always before going idle** — push is the only handoff between worktrees, and unpushed is the real loss risk. One PR per feature.
 
+Before saying GitHub CLI is unauthenticated or asking the user to log in, run `gh auth status`. If an account is active, use it and diagnose the remote, repository access, or required scopes from the actual operation error before suggesting login or account changes.
+
 The expensive part is not opening a PR, it's watching it. `.claude/hooks/warn-token-leaks.py` warns (never blocks) on the three biggest leaks — repeat `gh pr checks` polling instead of one `--watch`, an unscoped test run, and a whole-stack `run-docker.sh restart`. Proceed past a warning when you have a reason and say why; suppress with `# no-leak-warn`. Self-check: `bash .claude/hooks/warn-token-leaks.test.sh`.
 
 Deploy only after merge, only if you touched a bind-mounted service, and targeted (`scripts/deploy-live.sh` already is). Deploy is a singleton — check `npm run serve:worktree` before yanking the mounts out from under another session. The launchd job syncs main every 15 min, so a manual sync is only for "I need it current now".
