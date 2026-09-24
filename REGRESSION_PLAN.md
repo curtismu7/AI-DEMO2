@@ -169,6 +169,22 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — OAuth provider switch returned to home
+
+**Files changed:** `demo_api_ui/src/components/OAuthProviderToggle.jsx`.
+
+**What was broken:** switching P1/PF navigated to `/logout`, whose default
+return path is `/`, so the browser left the page where the switch began.
+
+**What was fixed:** after saving the provider, clear the old BFF session and
+reload the current URL. The selected page remains open for the next sign-in.
+
+**Do not break:** old-provider tokens must be cleared before the page reloads;
+the BFF remains the browser-token custodian, and normal logout keeps its own
+redirect behavior.
+
+**Verify:** `cd demo_api_ui && npm run build`.
+
 ### 2026-09-24 — PingFederate DaVinci demo rejects PingOne sessions
 
 **Files changed:** `demo_api_server/services/oauthUserService.js`,

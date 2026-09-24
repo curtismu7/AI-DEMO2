@@ -62,6 +62,8 @@ const readiness = {
 
 const SCENARIO_TITLES = [
   "Delegated access",
+  "Multi-party delegation",
+  "Healthcare caregiver delegation",
   "Authorize denial",
   "CIBA and approval",
   "Agent revocation",
@@ -98,11 +100,11 @@ describe("StandaloneDemoLauncherPage", () => {
     );
   });
 
-  it("presents all ten short scenarios with a complete presenter runbook", async () => {
+  it("presents all twelve short scenarios with a complete presenter runbook", async () => {
     renderLauncher();
     await screen.findByText("Needs attention");
 
-    expect(screen.getAllByRole("article")).toHaveLength(10);
+    expect(screen.getAllByRole("article")).toHaveLength(12);
     for (const title of SCENARIO_TITLES) {
       const card = screen.getByRole("article", { name: title });
       expect(
