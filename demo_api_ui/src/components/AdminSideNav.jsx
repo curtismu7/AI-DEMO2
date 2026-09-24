@@ -167,6 +167,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "identity-journeys", paths: ["/self-service", "/samples/user-registration", "/samples/mfa-demo", "/login-flow", "/oauth-academy", "/oas-demo"] },
   { id: "ai-experiences", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/agent-lifecycle", "/delegation-chain-value", "/a2a-protocol-learning", "/control-plane", "/ai-control-plane", "/agent-registry", "/agent-builder", "/agent-flow-inspector", "/agent-onboarding-flow", "/agent-onboarding-flow-subway", "/langchain", "/ungoverned-agent", "/servers", "/autonomous-agents", "/personal-agent", "/privilege-for-ai"] },
   { id: "mcp-integrations", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/demo/enterprise-mcp", "/ping-ai-test-lab", "/agent-gateway-inspector", "/agent-gateway-capabilities", "/webmcp", "/mcp-scanner", "/personal-agent"] },
+  { id: "pingfederate-id-jag", paths: ["/pingfederate-id-jag"] },
   { id: "utilities", paths: ["/pingone-test", "/mfa-test", "/oauth-debug-logs", "/token-exchange-tester", "/mgmt-api", "/pingone-setup", "/mcp-discovery", "/check"] },
   { id: "delegation-consent", paths: ["/transaction-consent", "/actor-token-education"] },
   { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
@@ -1377,6 +1378,11 @@ export default function AdminSideNav({
       "LibreChat (browser)",
       "LM Studio (Mac)",
     ], "mcp"),
+    productGroup("PingFederate ID-JAG", [
+      { label: "Run ID-JAG Demo", path: "/pingfederate-id-jag/demo" },
+      { label: "How ID-JAG Works", path: "/pingfederate-id-jag" },
+      { label: "ID-JAG Diagram", path: "/pingfederate-id-jag/diagram" },
+    ], "sec"),
     productGroup("Developer Tools", [
       "Code Explorer",
       { from: "Graphify", rename: "Graphify" },
