@@ -18,17 +18,23 @@ ensure_entry() {
   ENTRY_ID="$1"
   SPIFFE_ID="$2"
   SELECTOR="$3"
-  EXISTING="$(spire-server entry show -socketPath "$SERVER_SOCKET" -entryID "$ENTRY_ID")"
-
-  if printf '%s\n' "$EXISTING" | grep -Fq "$ENTRY_ID"; then
+  if EXISTING="$(spire-server entry show -socketPath "$SERVER_SOCKET" -entryID "$ENTRY_ID" 2>&1)"; then
     spire-server entry update -socketPath "$SERVER_SOCKET" \
       -entryID "$ENTRY_ID" -parentID "$NODE_SPIFFE_ID" \
       -selector "$SELECTOR" -x509SVIDTTL 3600
   else
-    spire-server entry create -socketPath "$SERVER_SOCKET" \
-      -entryID "$ENTRY_ID" -spiffeID "$SPIFFE_ID" \
-      -parentID "$NODE_SPIFFE_ID" -selector "$SELECTOR" \
-      -x509SVIDTTL 3600
+    case "$EXISTING" in
+      *"entry not found"*)
+        spire-server entry create -socketPath "$SERVER_SOCKET" \
+          -entryID "$ENTRY_ID" -spiffeID "$SPIFFE_ID" \
+          -parentID "$NODE_SPIFFE_ID" -selector "$SELECTOR" \
+          -x509SVIDTTL 3600
+        ;;
+      *)
+        printf '%s\n' "$EXISTING" >&2
+        exit 1
+        ;;
+    esac
   fi
 }
 
