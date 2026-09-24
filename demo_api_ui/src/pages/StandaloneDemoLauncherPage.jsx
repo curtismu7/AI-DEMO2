@@ -31,6 +31,40 @@ export const SCENARIOS = Object.freeze([
       "Clear the captured evidence, then use the linked demo reset if its session history must also be cleared.",
   },
   {
+    id: "multi-party-delegation",
+    title: "Multi-party delegation",
+    lessonId: "multi-party-delegation",
+    evidenceAction: null,
+    durationMinutes: 5,
+    dependencyIds: ["pingone", "authorize"],
+    outcome:
+      "The customer sees a consumer authorize a separate delegate and the delegate's agent within purpose, scope, expiry, and approval boundaries.",
+    script: [
+      "Start with the consumer as the trust root, then identify the named delegate and the delegate's agent.",
+      "Choose a resource and purpose, such as reviewing healthcare medication information without changing treatment.",
+      "Compare the permitted low-risk request with a denied or approval-gated action and trace every actor in the evidence story.",
+    ],
+    resetBehavior:
+      "Clear the launcher evidence and reset the linked delegation walkthrough before selecting another consumer scenario.",
+  },
+  {
+    id: "healthcare-caregiver-delegation",
+    title: "Healthcare caregiver delegation",
+    lessonId: "multi-party-delegation",
+    evidenceAction: null,
+    durationMinutes: 5,
+    dependencyIds: ["pingone", "authorize"],
+    outcome:
+      "The customer sees a caregiver receive narrow access to a consumer's health information without inheriting authority to change treatment.",
+    script: [
+      "Identify the consumer, caregiver, caregiver-operated agent, and protected health resource.",
+      "Show the purpose-bound read request and the scope that excludes treatment changes or unrelated records.",
+      "Trigger the higher-impact request and explain whether policy denies it or pauses it for consumer approval or step-up.",
+    ],
+    resetBehavior:
+      "Clear the launcher evidence and return to the domain-neutral delegation scenario before selecting another preset.",
+  },
+  {
     id: "authorize-denial",
     title: "Authorize denial",
     lessonId: "authorize",

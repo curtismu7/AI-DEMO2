@@ -60,7 +60,7 @@ describe("GuidedJourneyPage", () => {
     );
   });
 
-  it("advances through the ordered thirteen-step customer story", async () => {
+  it("advances through the ordered fourteen-step customer story", async () => {
     renderJourney();
     await screen.findByText("Needs attention");
 
@@ -68,6 +68,7 @@ describe("GuidedJourneyPage", () => {
       "Discover agents",
       "PingOne login",
       "Delegation",
+      "Multi-party delegation",
       "Personal Agent",
       "Digital Assistant",
       "MCP",
@@ -187,14 +188,14 @@ describe("GuidedJourneyPage", () => {
     await screen.findByText("Needs attention");
 
     fireEvent.click(screen.getByRole("button", { name: "Skip step" }));
-    for (let index = 0; index < 11; index += 1) {
+    for (let index = 0; index < 12; index += 1) {
       fireEvent.click(screen.getByRole("button", { name: "Next step" }));
     }
 
     expect(
       screen.getByRole("heading", { level: 2, name: "Evidence summary" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("11 completed steps")).toBeInTheDocument();
+    expect(screen.getByText("12 completed steps")).toBeInTheDocument();
     expect(screen.getByText("1 skipped step")).toBeInTheDocument();
     expect(screen.getByText("0 captured evidence checks")).toBeInTheDocument();
   });
@@ -219,7 +220,7 @@ describe("GuidedJourneyPage", () => {
       });
       await pendingRun.promise;
     });
-    for (let index = 0; index < 12; index += 1) {
+    for (let index = 0; index < 13; index += 1) {
       fireEvent.click(screen.getByRole("button", { name: "Next step" }));
     }
 
@@ -241,7 +242,7 @@ describe("GuidedJourneyPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Check live evidence" }));
     expect(await screen.findByText("Evidence captured")).toBeInTheDocument();
-    for (let index = 0; index < 12; index += 1) {
+    for (let index = 0; index < 13; index += 1) {
       fireEvent.click(screen.getByRole("button", { name: "Next step" }));
     }
 

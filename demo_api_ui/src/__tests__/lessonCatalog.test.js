@@ -12,6 +12,7 @@ const REQUIRED_IDS = [
   "agent-landscape",
   "login",
   "delegation",
+  "multi-party-delegation",
   "consumer-agent",
   "customer-service-agent",
   "mcp",
@@ -89,6 +90,27 @@ describe("AI Security Academy lesson catalog", () => {
   test("returns a catalog entry by ID and null for an unknown lesson", () => {
     expect(getLesson(lessonCatalog[0].id)).toBe(lessonCatalog[0]);
     expect(getLesson("does-not-exist")).toBeNull();
+  });
+
+  test("describes multi-party delegation as a domain-neutral consumer lesson", () => {
+    const lesson = getLesson("multi-party-delegation");
+
+    expect(lesson.title).toBe("Multi-party consumer delegation");
+    expect(lesson.talkingPoints).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/consumer/i),
+        expect.stringMatching(/delegate/i),
+        expect.stringMatching(/agent/i),
+      ]),
+    );
+    expect(lesson.walkthrough).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: expect.stringMatching(/delegate/i),
+          demonstrate: expect.stringMatching(/healthcare|caregiver/i),
+        }),
+      ]),
+    );
   });
 
   test("maps each lesson to the company maturity journey and agent taxonomy", () => {
