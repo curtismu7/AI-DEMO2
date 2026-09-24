@@ -12,7 +12,7 @@ import { DEFAULT_STEP_MS, DiagramControls, STEP_TIME_OPTIONS } from "./diagram";
 import "./PingFederateIdJagPage.css";
 
 const MOCK = "MOCK DATA — NOT A REAL TOKEN";
-// These samples follow the PF ID-JAG lane in agentMcpTokenService: the BFF
+// ID-JAG samples follow the PF ID-JAG lane in agentMcpTokenService: the BFF
 // exchanges its server-held refresh token at PF, then redeems the ID-JAG at the
 // separately configured downstream MCP authorization server with JWT bearer.
 const PROTOCOL_DETAILS = [
@@ -66,17 +66,51 @@ const PROTOCOL_DETAILS = [
   },
 ];
 
-const PF_LOGIN_PROTOCOL = {
-  token: "No OAuth token in browser",
-  claims: { note: "The browser holds a session cookie; the BFF stores the PingFederate refresh token." },
-  requestTitle: "PingFederate user sign-in",
-  request: { method: "GET PingFederate /as/authorization.oauth2", query: { response_type: "code", client_id: "[MOCK CLIENT ID]", redirect_uri: "[BFF CALLBACK URI]", scope: "openid profile", code_challenge: "[MOCK PKCE CHALLENGE]", state: "[MOCK STATE]" } },
-  responseTitle: "Authorization + BFF callback",
-  response: { pingFederate: { status: "302 Found", location: "[BFF callback]?code=[MOCK AUTHORIZATION CODE]&state=[MOCK STATE]" }, bff: { status: "302 Found", set_cookie: "[HTTP-only session cookie]", browser_tokens: "none" } },
-};
+const PF_LOGIN_PROTOCOL = [
+  {
+    token: "No OAuth token yet",
+    claims: { note: "The BFF starts an OpenID Connect Authorization Code + PKCE sign-in. The browser receives redirects, not OAuth tokens." },
+    requestTitle: "Redirect browser to PingFederate",
+    request: { method: "GET /as/authorization.oauth2", query: { response_type: "code", client_id: "[MOCK CLIENT ID]", redirect_uri: "[BFF CALLBACK URI]", scope: "openid profile", state: "[MOCK STATE]", nonce: "[MOCK NONCE]", code_challenge: "[MOCK PKCE CHALLENGE]", code_challenge_method: "S256" } },
+    responseTitle: "PingFederate sign-in page",
+    response: { status: "302 Found", location: "[PingFederate authentication page]", state: "[MOCK STATE]" },
+  },
+  {
+    token: "No OAuth token yet",
+    claims: { authentication: "user authenticates directly with PingFederate", browser: "credentials are submitted to PingFederate, not the BFF" },
+    requestTitle: "User authenticates with PingFederate",
+    request: { event: "user completes the configured PingFederate authentication policy" },
+    responseTitle: "PingFederate authentication result",
+    response: { result: "user authenticated", next: "return a short-lived authorization code to the BFF callback" },
+  },
+  {
+    token: "Authorization code · short-lived",
+    claims: { code: "[MOCK AUTHORIZATION CODE]", state: "[MOCK STATE]", delivered_via: "browser redirect to the BFF callback" },
+    requestTitle: "PingFederate redirects to the BFF",
+    request: { method: "GET [BFF CALLBACK]", query: { code: "[MOCK AUTHORIZATION CODE]", state: "[MOCK STATE]" } },
+    responseTitle: "BFF validates the callback",
+    response: { checks: ["state matches the sign-in request", "authorization code is present"] },
+  },
+  {
+    token: "OIDC tokens · BFF only",
+    claims: { id_token: { iss: "https://pingfederate.example.invalid", sub: "user-123", aud: "[MOCK CLIENT ID]", nonce: "[MOCK NONCE]", exp: "[mock expiry]" }, access_token: "[MOCK ACCESS TOKEN]", refresh_token: "[MOCK REFRESH TOKEN]", custody: "BFF only · never sent to the browser" },
+    requestTitle: "BFF exchanges the authorization code",
+    request: { method: "POST /as/token.oauth2", body: { grant_type: "authorization_code", code: "[MOCK AUTHORIZATION CODE]", redirect_uri: "[BFF CALLBACK URI]", client_id: "[MOCK CLIENT ID]", code_verifier: "[MOCK PKCE VERIFIER]" }, note: "BFF authenticates using the configured PingFederate client-authentication method" },
+    responseTitle: "PingFederate token response",
+    response: { token_type: "Bearer", access_token: "[MOCK ACCESS TOKEN]", id_token: "[MOCK ID TOKEN]", id_token_validation: "BFF validates the ID token nonce, signature, issuer, audience, and expiry", refresh_token: "[MOCK REFRESH TOKEN]", expires_in: 3600 },
+  },
+  {
+    token: "BFF session · browser cookie",
+    claims: { browser: "HTTP-only session cookie only", oauth_tokens: "retained in the BFF session" },
+    requestTitle: "BFF establishes the application session",
+    request: { event: "BFF stores the validated PingFederate tokens in its server-side session" },
+    responseTitle: "Signed-in browser session",
+    response: { status: "302 Found", set_cookie: "[HTTP-only session cookie]", browser_tokens: "none" },
+  },
+];
 
 function ProtocolDetails({ diagramId, stepIndex }) {
-  const example = diagramId === "pingfederate" && stepIndex === 0 ? PF_LOGIN_PROTOCOL : PROTOCOL_DETAILS[stepIndex];
+  const example = diagramId === "pingfederate" ? PF_LOGIN_PROTOCOL[stepIndex] : PROTOCOL_DETAILS[stepIndex];
   return (
     <details className="pfj-protocol">
       <summary>Protocol details <span>Mock tokens · API request / response</span></summary>
@@ -100,6 +134,7 @@ export const DIAGRAMS = {
     title: "ID-JAG token journey",
     intro: "Two sides: PingFederate issues the ID-JAG; the downstream MCP authorization server validates and redeems it.",
     badge: "ID-JAG · urn:ietf:params:oauth:token-type:id-jag",
+    lanes: ["ID-JAG issuance and grant redemption", "Gateway policy and protected resource"],
     chain: ["upstream refresh token", "PingFederate ID-JAG", "MCP access token"],
     steps: [
       { title: "Start the UC40 MCP request", detail: "The BFF receives the user's request and keeps OAuth tokens out of the browser. The UC40 PingFederate lane uses its server-held refresh token as the upstream subject.", active: ["user", "bff"], links: ["request"] },
@@ -132,39 +167,33 @@ export const DIAGRAMS = {
     ],
   },
   pingfederate: {
-    label: "PingFederate architecture",
-    title: "PingFederate in the system",
-    intro: "See both ID-JAG sides: PingFederate issues the assertion, then the MCP authorization server validates it and issues its own token.",
-    badge: "PingFederate · identity and token services",
-    chain: ["refresh token", "ID-JAG assertion", "MCP access token"],
+    label: "PingFederate login",
+    title: "PingFederate standard login",
+    intro: "Standard OpenID Connect sign-in with Authorization Code + PKCE. PingFederate authenticates the user; the BFF redeems the code and keeps tokens server-side.",
+    badge: "OIDC · Authorization Code + PKCE",
+    lanes: ["Browser redirect and PingFederate authentication", "BFF token exchange and application session"],
+    chain: ["Authorization request", "Authorization code", "BFF session"],
     steps: [
-      { title: "User signs in with PingFederate", detail: "The browser receives a BFF session cookie. The refresh token remains in the BFF session and never enters the browser.", active: ["user", "bff", "pingfed"], links: ["login"] },
-      { title: "Side 1 · PingFederate validates the refresh token", detail: "For UC40, the BFF calls PingFederate's token endpoint using token exchange and requests an ID-JAG for the configured MCP authorization server and resource.", active: ["bff", "pingfed"], links: ["issue"] },
-      { title: "PingFederate returns the ID-JAG", detail: "PingFederate validates the upstream refresh token, applies its processor policy, then signs and returns an audience-bound ID-JAG to the BFF.", active: ["pingfed", "jag", "bff"], links: ["mint", "return"] },
-      { title: "Side 2 · MCP AS validates the ID-JAG", detail: "The BFF submits the ID-JAG in a JWT bearer grant to the configured downstream MCP authorization server. The MCP AS checks issuer/signature, audience, expiry, ID-JAG type, resource allowlist, and single-use jti before accepting the grant.", active: ["bff", "jag", "mcpas"], links: ["return", "redeem"] },
-      { title: "MCP AS issues its own access token", detail: "The downstream authorization server returns a scoped MCP access token. That local token, not the ID-JAG, is used for the protected MCP call.", active: ["mcpas", "bff", "gateway"], links: ["local-token"] },
-      { title: "Gateway authorizes and forwards the call", detail: "The BFF sends the MCP request with the downstream access token. PingGateway and PingOne Authorize evaluate that token and requested action, then the MCP resource returns the tool result.", active: ["bff", "gateway", "authorize", "invest"], links: ["dispatch", "policy", "tool"] },
+      { title: "Start sign-in with the BFF", detail: "The BFF creates state, nonce, and a PKCE verifier, then redirects the browser to PingFederate's authorization endpoint with the S256 challenge.", active: ["user", "bff"], links: ["start", "authorize"] },
+      { title: "User authenticates with PingFederate", detail: "The browser follows the redirect to PingFederate. The user authenticates there under the configured policy; credentials do not pass through the BFF.", active: ["user", "pingfed"], links: ["authenticate", "credentials"] },
+      { title: "PingFederate returns an authorization code", detail: "After authentication, PingFederate redirects the browser to the BFF callback with a short-lived code and the original state. The BFF validates state and the callback before redeeming the code.", active: ["user", "pingfed", "bff"], links: ["callback"] },
+      { title: "BFF exchanges code for tokens", detail: "The BFF authenticates with its configured PingFederate client-authentication method, then posts the code and original PKCE verifier. It validates the returned ID token, including stored nonce, signature, issuer, audience, and expiry.", active: ["bff", "pingfed"], links: ["token", "tokens"] },
+      { title: "BFF establishes the application session", detail: "The BFF retains the PingFederate tokens server-side and gives the browser an HTTP-only session cookie. OAuth tokens stay out of browser JavaScript.", active: ["bff", "user"], links: ["session"] },
     ],
     participants: [
-      { id: "user", title: "User + agent", subtitle: "UC40 request", role: "request", position: { x: 0, y: 130 } },
-      { id: "bff", title: "Demo BFF", subtitle: "session + token custodian", role: "runtime", position: { x: 220, y: 130 } },
-      { id: "pingfed", title: "PingFederate", subtitle: "IdP AS · Side 1", role: "identity", position: { x: 440, y: 130 } },
-      { id: "jag", title: "ID-JAG", subtitle: "signed authorization assertion", role: "token", position: { x: 660, y: 130 } },
-      { id: "mcpas", title: "MCP Authorization Server", subtitle: "resource AS · Side 2", role: "mcpas", position: { x: 880, y: 130 } },
-      { id: "gateway", title: "PingGateway", subtitle: "MCP access-token enforcement", role: "gateway", position: { x: 220, y: 340 } },
-      { id: "authorize", title: "PingOne Authorize", subtitle: "tool action policy", role: "policy", position: { x: 550, y: 340 } },
-      { id: "invest", title: "MCP resource", subtitle: "protected tools", role: "resource", position: { x: 880, y: 340 } },
+      { id: "user", title: "User / browser", subtitle: "sign-in experience", role: "request", position: { x: 40, y: 220 } },
+      { id: "bff", title: "Demo BFF", subtitle: "OIDC client · state + PKCE", role: "runtime", position: { x: 420, y: 220 } },
+      { id: "pingfed", title: "PingFederate", subtitle: "authorize + token endpoints", role: "identity", position: { x: 800, y: 220 } },
     ],
     links: [
-      { id: "login", source: "user", target: "bff", label: "sign-in" },
-      { id: "issue", source: "bff", target: "pingfed", label: "Ex1" },
-      { id: "mint", source: "pingfed", target: "jag", label: "" },
-      { id: "return", source: "jag", target: "bff", label: "JAG → BFF", sourceHandle: "top", targetHandle: "top" },
-      { id: "redeem", source: "bff", target: "mcpas", label: "JWT bearer grant", sourceHandle: "bottom", targetHandle: "bottom" },
-      { id: "local-token", source: "mcpas", target: "bff", label: "local AT", sourceHandle: "top", targetHandle: "top" },
-      { id: "dispatch", source: "bff", target: "gateway", label: "access token", sourceHandle: "bottom", targetHandle: "top" },
-      { id: "policy", source: "gateway", target: "authorize", label: "policy" },
-      { id: "tool", source: "gateway", target: "invest", label: "tool call" },
+      { id: "start", source: "user", target: "bff", label: "sign in" },
+      { id: "authorize", source: "bff", target: "pingfed", label: "302 · /authorize + PKCE" },
+      { id: "authenticate", source: "pingfed", target: "user", label: "authenticate" },
+      { id: "credentials", source: "user", target: "pingfed", label: "credentials" },
+      { id: "callback", source: "pingfed", target: "bff", label: "code + state" },
+      { id: "token", source: "bff", target: "pingfed", label: "code + verifier" },
+      { id: "tokens", source: "pingfed", target: "bff", label: "ID / access / refresh" },
+      { id: "session", source: "bff", target: "user", label: "HTTP-only cookie" },
     ],
   },
 };
@@ -368,8 +397,8 @@ export default function PingFederateIdJagPage() {
 
       <section className="pfj-diagram" aria-label={`Interactive ${diagram.label}`}>
         <ArrowDefs />
-        <div className="pfj-lane pfj-lane--top">ID-JAG issuance and grant redemption</div>
-        <div className="pfj-lane pfj-lane--bottom">Gateway policy and protected resource</div>
+        <div className="pfj-lane pfj-lane--top">{diagram.lanes[0]}</div>
+        <div className="pfj-lane pfj-lane--bottom">{diagram.lanes[1]}</div>
         <ReactFlow
           key={diagramId}
           nodes={nodes}
