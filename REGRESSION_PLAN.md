@@ -280,6 +280,57 @@ the isolated ID-JAG demo path.
 **Verify:** `node --test scripts/check-mcp-gateway-credential-parity.test.js`;
 `bash -n run-docker.sh`; `npm run hygiene:check`.
 
+### 2026-09-23 — Malicious Content details hid the gateway request and redacted response
+
+**Files changed:** Attack Lab evidence in `demo_api_ui/src/pages/AttackLabTab.jsx`
+and `attackLabEvidence.js`; hostile MCP, denial panel, and inter-agent runner
+components/styles; their focused UI tests.
+
+**What was broken:** the Malicious Content run showed generic evidence without
+the actual request, while evidence normalization discarded the gateway response
+that could contain `[REDACTED:…]` markers. Other attack tabs likewise lacked
+request/response detail, or exposed it only indirectly in logs.
+
+**What was fixed:** all five attack tabs now offer expandable observed request
+and response details where the live runner provides them. Tool Abuse responses
+are field-allowlisted to avoid token claims; schema and gateway results show the
+actual validator/decision fields; Tool Poisoning exposes the tools/list exchange,
+agent request/trace, and induced call; Inter-Agent Abuse shows each probe and
+HTTP response while masking the forged bearer value. Malicious Content displays
+the exact safe POST body, returned text, and redaction marker count, and clearly
+distinguishes an unsent example from a sent request. No auth headers, token
+claims, or original redacted values are displayed.
+
+**Do not break:** this changes presentation/evidence only; keep the existing
+Privilege request, provider selection, authorization, and policy flow intact.
+Never infer or reconstruct values omitted by Privilege redaction.
+
+**Verify:** the four focused attack-runner suites (20 tests), the existing
+Privilege theme-contrast test, full UI unit suite (663 files, 5,066 passed,
+24 skipped), and `npm run build` passed. A signed-in visual contrast audit was
+unavailable because the browser automation daemon denied access; the new
+disclosure styles use existing `--th-*` theme tokens.
+
+### 2026-09-23 — TopNav referenced the active-session flag without reading it
+
+**Files changed:** `demo_api_ui/src/components/TopNav.js`,
+`demo_api_ui/src/components/__tests__/TopNavFavoritesLayout.test.jsx`,
+`REGRESSION_PLAN.md`.
+
+**What was broken:** the shared header's session controls referenced
+`hasActiveToken`, but `TopNav` no longer read that value from
+`SessionTokenContext`, causing a ReferenceError on every route.
+
+**What was fixed:** restored the existing context value in the component's
+destructuring and added a regression test covering signed-out and active-session
+controls. Token state computation and login/logout behavior are unchanged.
+
+**Do not break:** continue using the `SessionTokenContext` active-token signal
+for session action visibility; do not duplicate or alter token lifecycle logic.
+
+**Verify:** focused TopNav + monitoring-route tests (8 passed); full UI suite
+passed (663 files, 5,066 passed, 24 skipped); UI production build passed.
+
 ### 2026-09-23 — Standard PingFederate exchanges used PingOne's token endpoint
 
 **Files changed:** `demo_api_server/services/oauthService.js`, `services/pfStandardTokenExchangeService.js`, `docs/FEDERATE-SETUP.md`, and focused BFF tests.

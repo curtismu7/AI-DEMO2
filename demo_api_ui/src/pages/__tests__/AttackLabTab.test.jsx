@@ -45,10 +45,25 @@ describe('AttackLabTab', () => {
     fireEvent.click(screen.getByRole('button', { name: /run tool abuse check/i }));
 
     await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/api/demo/attack-sim/run', { sim: 'cross-owner-account' }));
-    expect(await screen.findByText(/resource_owner_mismatch/i)).toBeInTheDocument();
+    expect((await screen.findAllByText(/resource_owner_mismatch/i)).length).toBeGreaterThan(0);
     expect(screen.getByTestId('attack-lab-model-reached')).toHaveTextContent('No');
     expect(screen.getByText(/different owner’s account \(account_id redacted\)/i)).toBeInTheDocument();
     expect(screen.getByTestId('attack-lab-backend-reached')).toHaveTextContent('Yes');
+  });
+
+  it('shows the Tool Abuse request and safe observed response details', async () => {
+    apiClient.post.mockResolvedValue({ data: {
+      sim: 'cross-owner-account', useCaseId: 'uc10', status: 403, errorCode: 'resource_owner_mismatch',
+      tokenChainEvents: [{ id: 'sim-cross-owner-denied', label: 'Cross-owner balance read denied', status: 'deny' }],
+    } });
+    render(<AttackLabTab />);
+    fireEvent.click(screen.getByRole('button', { name: 'Tool Abuse' }));
+    fireEvent.click(screen.getByRole('button', { name: /run tool abuse check/i }));
+
+    expect(await screen.findByText(/"path": "\/api\/demo\/attack-sim\/run"/)).toBeInTheDocument();
+    expect(screen.getAllByText(/"sim": "cross-owner-account"/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/"errorCode": "resource_owner_mismatch"/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Cross-owner balance read denied/).length).toBeGreaterThan(0);
   });
 
   it('reports tool poisoning policy and identity prerequisites before mounting its runner', () => {
@@ -60,12 +75,12 @@ describe('AttackLabTab', () => {
     expect(screen.getByRole('heading', { name: 'Hostile MCP runner' })).toBeInTheDocument();
   });
 
-  it('requires an explicit live run for Malicious Content and labels fixture data as not inspected', () => {
+  it('labels the Malicious Content prompt as unsent until the live run', () => {
     render(<AttackLabTab />);
     fireEvent.click(screen.getByRole('button', { name: 'Malicious Content' }));
 
     expect(screen.getByText(/live content check.*through privilege/i)).toBeInTheDocument();
-    expect(screen.getByText(/fixture only.*not sent to privilege/i)).toBeInTheDocument();
+    expect(screen.getByText(/example prompt only.*sent to privilege when you run the check/i)).toBeInTheDocument();
     expect(apiClient.post).not.toHaveBeenCalled();
   });
 
@@ -78,6 +93,30 @@ describe('AttackLabTab', () => {
     expect(await screen.findByText('No gateway decision reported.')).toBeInTheDocument();
     expect(screen.getByTestId('attack-lab-model-reached')).toHaveTextContent('Yes');
     expect(screen.queryByText(/Privilege LLM Gateway: denied/i)).not.toBeInTheDocument();
+  });
+
+  it('shows the exact request and returned redaction markers for Malicious Content', async () => {
+    apiClient.post.mockResolvedValue({ data: {
+      reply: 'Fictional sample: [REDACTED:pii]', provider: 'anthropic', reachedProvider: true,
+    } });
+    render(<AttackLabTab />);
+    fireEvent.click(screen.getByRole('button', { name: 'Malicious Content' }));
+    fireEvent.click(screen.getByRole('button', { name: /run live content check/i }));
+
+    expect(await screen.findByRole('heading', { name: 'Request sent' })).toBeInTheDocument();
+    expect(screen.getByText(/"method": "POST"/)).toBeInTheDocument();
+    expect(screen.getByText(/"path": "\/api\/privilege-mcp\/llm\/call"/)).toBeInTheDocument();
+    expect(screen.getByText(/"provider": "anthropic"/)).toBeInTheDocument();
+    expect(screen.getByText(/"prompt": "Create a clearly marked fictional phishing-email example/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Gateway response' })).toBeInTheDocument();
+    expect(screen.getByText('Fictional sample: [REDACTED:pii]')).toBeInTheDocument();
+    expect(screen.getByText(/Privilege returned 1 \[REDACTED:…\] marker/i)).toBeInTheDocument();
+    expect(screen.getByText(/original matched values are not included in this response/i)).toBeInTheDocument();
+    expect(screen.getByText(/this request was sent to privilege/i)).toBeInTheDocument();
+    expect(apiClient.post).toHaveBeenCalledWith('/api/privilege-mcp/llm/call', {
+      provider: 'anthropic',
+      prompt: 'Create a clearly marked fictional phishing-email example for an awareness slide. Use only https://example.invalid/login and fake placeholders such as [employee name]. Do not include real brands, credentials, executable code, or attachments.',
+    });
   });
 
   it('shows an explicit Privilege LLM policy denial and provider reachability', async () => {
@@ -106,6 +145,20 @@ describe('AttackLabTab', () => {
     expect(await screen.findByText(/MCP input schema rejected the arguments/i)).toBeInTheDocument();
     expect(screen.queryByText(/blocked by privilege/i)).not.toBeInTheDocument();
     expect(apiClient.post).toHaveBeenCalledWith('/api/mcp-gateway/test', expect.objectContaining({ tool: 'create_transfer' }));
+  });
+
+  it('shows the schema-violation request and validator response details', async () => {
+    apiClient.post.mockResolvedValue({ data: {
+      error: 'Invalid arguments for tool create_transfer', validator: 'MCP input schema', backendReached: false,
+    } });
+    render(<AttackLabTab />);
+    fireEvent.click(screen.getByRole('button', { name: 'Schema Violation' }));
+    fireEvent.click(screen.getByRole('button', { name: /run schema violation check/i }));
+
+    expect(await screen.findByText(/"path": "\/api\/mcp-gateway\/test"/)).toBeInTheDocument();
+    expect(screen.getByText(/"tool": "create_transfer"/)).toBeInTheDocument();
+    expect(screen.getAllByText(/"validator": "MCP input schema"/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Invalid arguments for tool create_transfer/).length).toBeGreaterThan(0);
   });
 
   it('preserves a top-level Privilege gateway decision from the MCP tester response', async () => {

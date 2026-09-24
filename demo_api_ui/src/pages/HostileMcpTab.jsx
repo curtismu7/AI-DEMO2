@@ -48,6 +48,7 @@ export default function HostileMcpTab() {
   const [currentUrl, setCurrentUrl] = useState('');
   const [config, setConfig] = useState({});
   const [tools, setTools] = useState([]);
+  const [toolsListEvidence, setToolsListEvidence] = useState(null);
   const [authenticated, setAuthenticated] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -82,6 +83,7 @@ export default function HostileMcpTab() {
       setCurrentUrl(url);
       setAuthenticated(Boolean(saved?.oauth?.authenticated));
       setTools([]);
+      setToolsListEvidence(null);
       log(`door → ${url}`);
     } catch (err) {
       setError(err.message);
@@ -112,8 +114,20 @@ export default function HostileMcpTab() {
     try {
       const data = await api('/tools/list', { method: 'POST', body: {} });
       setTools(data.tools || []);
+      setToolsListEvidence({
+        request: JSON.stringify({ method: 'POST', path: '/api/privilege-mcp/tools/list', body: {} }, null, 2),
+        response: JSON.stringify({ tools: Array.isArray(data.tools) ? data.tools.map((tool) => ({
+          name: tool.name,
+          description: tool.description || '',
+          inputSchema: tool.inputSchema || {},
+        })) : [] }, null, 2),
+      });
       log(`tools/list — ${data.tools?.length || 0} tools, poison included verbatim`);
     } catch (err) {
+      setToolsListEvidence({
+        request: JSON.stringify({ method: 'POST', path: '/api/privilege-mcp/tools/list', body: {} }, null, 2),
+        response: JSON.stringify({ status: err.status ?? null, error: err.message }, null, 2),
+      });
       if (err.status === 401) { setAuthenticated(false); setError('Not authenticated — click Sign in with Privilege.'); }
       else setError(err.message);
     } finally {
@@ -167,6 +181,19 @@ export default function HostileMcpTab() {
         modelReached: true,
         metadataServerReached: true,
         toolCallBackend,
+        request: JSON.stringify({ method: 'POST', path: '/api/privilege-mcp/agent/run', body: { provider, task } }, null, 2),
+        response: JSON.stringify({
+          answer: data.answer ?? null,
+          trace: trace.map((step) => ({
+            step: step.step || null,
+            tool: step.tool || null,
+            verdict: step.verdict || null,
+            latencyMs: step.latencyMs ?? null,
+            detail: step.detail || null,
+          })),
+          tools: Array.isArray(data.tools) ? data.tools.map((tool) => ({ name: tool.name, description: tool.description })) : [],
+          steps: Array.isArray(data.steps) ? data.steps : [],
+        }, null, 2),
       });
       log(`— agent run (${provider}, ${latency} ms) — task: "${task}"`);
       for (const step of data.trace || []) {
@@ -181,7 +208,14 @@ export default function HostileMcpTab() {
     } catch (err) {
       const observedOutcome = classifyHostileAgentOutcome({ error: err.message });
       setAgentOutcome(observedOutcome);
-      setAgentRunEvidence({ provider, modelReached: null, metadataServerReached: null, toolCallBackend: 'unknown' });
+      setAgentRunEvidence({
+        provider,
+        modelReached: null,
+        metadataServerReached: null,
+        toolCallBackend: 'unknown',
+        request: JSON.stringify({ method: 'POST', path: '/api/privilege-mcp/agent/run', body: { provider, task } }, null, 2),
+        response: JSON.stringify({ error: err.message }, null, 2),
+      });
       log(`✕ agent run — ${err.message}`);
       setError(err.message);
     } finally {
@@ -230,6 +264,7 @@ export default function HostileMcpTab() {
         <div className={`hmc-outcome hmc-outcome--${agentOutcome.kind}`} role="status" aria-live="polite" data-testid="hostile-agent-outcome">
           <p>{hostileAgentOutcomeLabel(agentOutcome)}</p>
           {agentRunEvidence ? (
+            <>
             <p className="hmc-reachability">
               Model/provider reached: {agentRunEvidence.modelReached === null ? 'Unknown / not reported' : `Yes — ${agentRunEvidence.provider}`}<br />
               MCP tool metadata server reached: {agentRunEvidence.metadataServerReached === null ? 'Unknown / not reported'
@@ -239,6 +274,16 @@ export default function HostileMcpTab() {
                   : agentRunEvidence.toolCallBackend === 'not-evaluated' ? 'Not evaluated — no tool invocation appeared in the trace'
                     : 'Unknown / not reported'}
             </p>
+            {agentRunEvidence.request ? (
+              <details className="hmc-details">
+                <summary>Agent request and observed response</summary>
+                <h3>Request</h3>
+                <pre>{agentRunEvidence.request}</pre>
+                <h3>Response</h3>
+                <pre>{agentRunEvidence.response}</pre>
+              </details>
+            ) : null}
+            </>
           ) : null}
         </div>
       ) : null}
@@ -305,6 +350,15 @@ export default function HostileMcpTab() {
                 </button>
               </div>
             </div>
+          ) : null}
+          {toolsListEvidence ? (
+            <details className="hmc-details">
+              <summary>tools/list request and observed response</summary>
+              <h3>Request</h3>
+              <pre>{toolsListEvidence.request}</pre>
+              <h3>Response (tool metadata, including any poison)</h3>
+              <pre>{toolsListEvidence.response}</pre>
+            </details>
           ) : null}
         </section>
 
