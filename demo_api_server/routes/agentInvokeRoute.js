@@ -50,6 +50,7 @@ const agentBuilderService = require('../services/agentBuilderService');
 const { USE_CASES, VERTICALS, resolveUseCase } = require('../config/useCases');
 const scopeTopology = require('../services/scopeTopology');
 const { nrTransactionMiddleware } = require('../middleware/nrTransactionMiddleware');
+const pingOneProtectService = require('../services/pingOneProtectService');
 
 const router = express.Router();
 
@@ -144,6 +145,9 @@ function extractIntentFromResponse(response) {
  *   (same as /api/demo-agent/message)
  */
 router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddleware, express.json(), nrTransactionMiddleware, async (req, res) => {
+  let protectEvaluation = null;
+  let protectTokenEvent = null;
+  let protectCompletionAttempted = false;
   // Hoist flowTraceId so the catch block can stamp NDJSON error events with it.
   const flowTraceId = typeof req.body?.flowTraceId === 'string' ? req.body.flowTraceId.trim() : null;
   try {
@@ -469,6 +473,37 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
       }
     }
     const agentTokenEvents = [];
+    if (requestedUseCaseId === 'protect-agent-dispatch-risk' && configStore.getEffective('ff_protect_agent_dispatch') === 'true') {
+      if (!userId) return res.status(401).json({ error: 'protect_requires_signed_in_user', need_auth: true });
+      protectEvaluation = await pingOneProtectService.createAgentDispatchEvaluation({
+        user: { id: userId, name: req.user?.email || req.user?.username || null },
+        ip: req.ip,
+        userAgent: req.get('user-agent') || '',
+        signalsData: typeof req.body?.protectSignalsData === 'string' && req.body.protectSignalsData.length <= 250000
+          ? req.body.protectSignalsData
+          : undefined,
+        sessionId: req.session?.id,
+      });
+      protectTokenEvent = pingOneProtectService.toTokenEvent(protectEvaluation);
+      req.tokenEvents.push(protectTokenEvent);
+      if (protectTokenEvent.blocked) {
+        protectCompletionAttempted = true;
+        try {
+          await pingOneProtectService.completeEvaluation(protectEvaluation.id, 'FAILED');
+          protectTokenEvent.completionStatus = 'FAILED';
+        } catch (completionError) {
+          protectTokenEvent.completionStatus = 'UPDATE_FAILED';
+          console.warn('[agentInvokeRoute] Protect block update failed:', completionError.message);
+        }
+        return res.json({
+          reply: `PingOne Protect evaluated this browser as ${protectTokenEvent.level}${protectTokenEvent.recommendedAction ? ` (${protectTokenEvent.recommendedAction})` : ''}. The demo dispatch policy blocked the agent action.`,
+          success: false,
+          toolsCalled: [],
+          tokenEvents: req.tokenEvents,
+          protectRiskEvaluation: protectTokenEvent,
+        });
+      }
+    }
     const agentResponse = await processAgentMessage({
       message: prompt,
       userId,
@@ -480,6 +515,19 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
       isGuest,
       req,
     });
+
+    if (protectEvaluation?.id) {
+      const completed = agentResponse.success !== false && (agentResponse.toolsCalled?.length ?? 0) > 0;
+      protectCompletionAttempted = true;
+      try {
+        await pingOneProtectService.completeEvaluation(protectEvaluation.id, completed ? 'SUCCESS' : 'FAILED');
+        protectTokenEvent.completionStatus = completed ? 'SUCCESS' : 'FAILED';
+      } catch (completionError) {
+        protectTokenEvent.completionStatus = 'UPDATE_FAILED';
+        console.warn('[agentInvokeRoute] Protect completion update failed:', completionError.message);
+      }
+      agentResponse.protectRiskEvaluation = protectTokenEvent;
+    }
 
     console.log('[agentInvokeRoute] Agent response received, toolsCalled:', agentResponse.toolsCalled);
 
@@ -676,6 +724,16 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
     ensureNonEmptyReply(agentResponse);
     return res.json(agentResponse);
   } catch (error) {
+    if (protectEvaluation?.id && !protectCompletionAttempted) {
+      protectCompletionAttempted = true;
+      try {
+        await pingOneProtectService.completeEvaluation(protectEvaluation.id, 'FAILED');
+        if (protectTokenEvent) protectTokenEvent.completionStatus = 'FAILED';
+      } catch (completionError) {
+        if (protectTokenEvent) protectTokenEvent.completionStatus = 'UPDATE_FAILED';
+        console.warn('[agentInvokeRoute] Protect failure update failed:', completionError.message);
+      }
+    }
     console.error('[agentInvokeRoute] Error:', error.message);
     appEventService.logEvent('intent_auth', 'error', 'Agent invocation error', {
       metadata: {

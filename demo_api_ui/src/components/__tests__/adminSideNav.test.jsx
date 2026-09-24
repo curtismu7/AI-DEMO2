@@ -89,6 +89,14 @@ describe("AdminSideNav — best-of-breed pass", () => {
     );
   });
 
+  it("places PingOne Protect under PingOne Products", () => {
+    renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^PingOne Products/ }));
+    const protect = screen.getByRole("link", { name: "PingOne Protect" });
+    expect(protect).toHaveAttribute("href", "/ai-products/protect");
+    expect(protect.closest(".admin-side-nav__group")).toHaveTextContent("PingOne Products");
+  });
+
   it("exposes aria-expanded + aria-controls on expandable groups", () => {
     renderNav();
     const monitoring = screen.getByRole("button", { name: /^Observability/ });

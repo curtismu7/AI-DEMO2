@@ -16,7 +16,7 @@ export const NAV_STRUCTURE_CATALOG = [
   ] },
   { label: "DaVinci", children: ["DaVinci SDK"] },
   { label: "PingOne Products", children: [
-    "Headless Identity / PingCLI", "SDK Login", "M2M Client Credentials", "Custom Admin Role",
+    "PingOne Protect", "Headless Identity / PingCLI", "SDK Login", "M2M Client Credentials", "Custom Admin Role",
   ] },
   { label: "Identity Journeys", children: [
     "Self-Service Registration", "User Registration", "Login with MFA", "Identity Journey Map", "OAuth Academy", "OAS Demo",

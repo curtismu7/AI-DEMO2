@@ -36,6 +36,7 @@ describe('demoUseCaseSteps', () => {
       'UC30',
       'UC31',
       'UC32',
+      'UC36',
       'UC40',
       'UC38',
       'UC-TOOL1',
@@ -146,8 +147,8 @@ describe('demoUseCaseSteps', () => {
     }
   });
 
-  it('primary list has 24 steps (all use cases visible)', () => {
-    expect(DEMO_PRIMARY_USE_CASE_IDS).toHaveLength(24);
+  it('primary list has 25 steps (all use cases visible)', () => {
+    expect(DEMO_PRIMARY_USE_CASE_IDS).toHaveLength(25);
   });
 
   // UC29 cannot fire on this deployment (Node gateway validates by JWKS, no

@@ -20,8 +20,7 @@ ensure_entry() {
   SELECTOR="$3"
   if EXISTING="$(spire-server entry show -socketPath "$SERVER_SOCKET" -entryID "$ENTRY_ID" 2>&1)"; then
     spire-server entry update -socketPath "$SERVER_SOCKET" \
-      -entryID "$ENTRY_ID" -spiffeID "$SPIFFE_ID" \
-      -parentID "$NODE_SPIFFE_ID" \
+      -entryID "$ENTRY_ID" -spiffeID "$SPIFFE_ID" -parentID "$NODE_SPIFFE_ID" \
       -selector "$SELECTOR" -x509SVIDTTL 3600
   else
     case "$EXISTING" in
