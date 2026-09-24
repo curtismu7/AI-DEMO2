@@ -385,6 +385,30 @@
 .pfj-protocol pre { max-height: 310px; overflow: auto; margin: 0; padding: 10px; border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg-card); color: var(--th-text-body); font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .pfj-protocol__token pre { margin-top: 12px; }
 
+.pfj-learning {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.72fr) minmax(0, 2fr);
+  gap: 14px 18px;
+  padding: 16px;
+  border-top: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
+  color: var(--th-text-body);
+}
+.pfj-learning__intro h3 { margin: 5px 0 7px; color: var(--th-text); font-size: var(--font-size-lg); }
+.pfj-learning__intro p,
+.pfj-learning__points p { margin: 0; color: var(--th-text-body); font-size: var(--font-size-sm); line-height: 1.55; }
+.pfj-learning__points { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.pfj-learning__points article { display: flex; gap: 10px; min-width: 0; padding: 12px; border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg-card); color: var(--th-text-body); }
+.pfj-learning__number { flex: 0 0 auto; color: var(--th-status-info-text); font-family: var(--font-mono); font-size: var(--font-size-xs); font-weight: 800; }
+.pfj-learning__points h4,
+.pfj-learning__docs h4 { margin: 0 0 5px; color: var(--th-text); font-size: var(--font-size-sm); }
+.pfj-learning__docs { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid var(--th-border); }
+.pfj-learning__docs h4 { margin: 0; }
+.pfj-learning__docs > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.pfj-learning__docs a { padding: 6px 9px; border: 1px solid var(--th-border); border-radius: var(--radius-sm); color: var(--th-text); background: var(--th-bg-card); font-size: var(--font-size-xs); font-weight: 650; text-decoration: none; }
+.pfj-learning__docs a:hover { text-decoration: underline; }
+.pfj-learning__docs a:focus-visible { outline: 3px solid var(--th-status-info); outline-offset: 2px; }
+
 .pfj-footnote {
   margin: -8px 0 0;
   color: var(--th-text-muted);
@@ -399,6 +423,9 @@
   .pfj-step-nav { align-self: flex-end; }
   .pfj-chain { gap: 5px; right: 10px; font-size: var(--font-size-2xs); }
   .pfj-protocol__body { grid-template-columns: 1fr; }
+  .pfj-learning { grid-template-columns: 1fr; }
+  .pfj-learning__docs { align-items: flex-start; flex-direction: column; }
+  .pfj-learning__docs > div { justify-content: flex-start; }
 }
 
 @media (max-width: 620px) {
@@ -414,6 +441,7 @@
   .pfj-chain { display: none; }
   .pfj-protocol summary { align-items: flex-start; flex-direction: column; }
   .pfj-protocol__exchange { grid-template-columns: 1fr; }
+  .pfj-learning__points { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

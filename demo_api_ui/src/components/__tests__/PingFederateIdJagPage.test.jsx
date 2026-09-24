@@ -29,6 +29,25 @@ function topControls() {
 }
 
 describe("PingFederate ID-JAG architecture", () => {
+  it("provides flow education and official PingFederate docs in both open tabs", () => {
+    renderPage();
+
+    let details = screen.getByText("Protocol details").closest("details");
+    expect(details.open).toBe(true);
+    expect(screen.getByRole("heading", { name: "Understand this flow" })).toBeTruthy();
+    expect(screen.getByText(/PingFederate validates the refresh token and issues the ID-JAG/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Refresh token → ID-JAG setup" }).getAttribute("href")).toBe("https://docs.pingidentity.com/pingfederate/13.1/administrators_reference_guide/pf_configuring_refresh_token_to_idjag_exchange.html");
+    expect(screen.getByRole("link", { name: "JWT bearer assertion setup" }).getAttribute("href")).toBe("https://docs.pingidentity.com/pingfederate/13.1/administrators_reference_guide/pf_configuring_oauth_assertion_grant_idp_connection.html");
+
+    fireEvent.click(screen.getByRole("tab", { name: "PingFederate login, PF login + agent authorization" }));
+    details = screen.getByText("Protocol details").closest("details");
+    expect(details.open).toBe(true);
+    expect(screen.getByText(/The two agent exchanges happen after login/)).toBeTruthy();
+    expect(screen.getByText(/PingOne Authorize evaluates the action policy/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "OAuth grant types" }).getAttribute("href")).toBe("https://docs.pingidentity.com/pingfederate/13.1/introduction_to_pingfederate/pf_grant_types.html");
+    expect(screen.getByRole("link", { name: "OIDC authorization endpoint" }).getAttribute("href")).toBe("https://docs.pingidentity.com/pingfederate/13.1/developers_reference_guide/pf_authorization_endpoint.html");
+  });
+
   it("shows PingFederate login followed by the complete AI request path", () => {
     renderPage();
     expect(screen.getByText("2 token exchanges")).toBeTruthy();
