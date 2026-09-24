@@ -2,7 +2,7 @@
 //
 // /demo/enterprise-mcp — run the MCP Enterprise-Managed Authorization demo.
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import TokenChainFilmstrip from "../components/TokenChainFilmstrip";
 import { EDU } from "../components/education/educationIds";
 import { useEducationUIOptional } from "../context/EducationUIContext";
@@ -14,12 +14,24 @@ const DEMO_CHIP = "show my balance";
 
 export default function EnterpriseMcpDemoPage() {
   const [runMode, setRunMode] = useState(null);
+  const [providerRequired, setProviderRequired] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("error") === "id_jag_provider_required"
+  );
+  useEffect(() => {
+    const onProviderRequired = () => {
+      setRunMode(null);
+      setProviderRequired(true);
+    };
+    window.addEventListener("id-jag-provider-required", onProviderRequired);
+    return () => window.removeEventListener("id-jag-provider-required", onProviderRequired);
+  }, []);
   // Optional variant on purpose: useEducationUI() THROWS outside its provider,
   // which would take the whole page down anywhere the provider is absent. Null
   // here simply hides the explainer buttons rather than shipping dead controls.
   const edu = useEducationUIOptional();
   const { darkMode, toggleDarkMode } = useThemeOptional();
   const handleLiveRun = useCallback(() => {
+    setProviderRequired(false);
     const intent = requestLiveIdJagRun({
       mode: RUN_MODES.LIVE_ID_JAG,
       message: DEMO_CHIP,
@@ -90,6 +102,13 @@ export default function EnterpriseMcpDemoPage() {
             Run mock demo
           </button>
         </div>
+        {providerRequired && (
+          <div className="emd-prerequisite" role="alert">
+            <strong>PingOne is selected.</strong> Live ID-JAG requires PingFederate.
+            Select PF with the top-bar P1/PF switch, then run the demo again.
+            If the switch requires admin access, <a href="/api/auth/oauth/login?return_to=%2Fpingfederate-id-jag%2Fdemo">sign in as admin</a> first.
+          </div>
+        )}
         {runMode === RUN_MODES.LIVE_ID_JAG && (
           <p className="emd-status" role="status">Live PF ID-JAG — PingFederate login required before the agent runs.</p>
         )}

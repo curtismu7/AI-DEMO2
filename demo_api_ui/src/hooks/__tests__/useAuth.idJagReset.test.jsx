@@ -2,8 +2,9 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { useAuth } from '../useAuth';
 import bffAxios from '../../services/bffAxios';
 import { getCachedJson } from '../../services/cachedStatusService';
-import { ID_JAG_PENDING_INTENT_KEY, ID_JAG_USE_CASE_ID, ID_JAG_VALIDATED_CALLBACK_KEY, RUN_MODES, requestLiveIdJagRun } from '../../utils/idJagRunMode';
+import { clearIdJagRunState, ID_JAG_PENDING_INTENT_KEY, ID_JAG_USE_CASE_ID, ID_JAG_VALIDATED_CALLBACK_KEY, RUN_MODES, requestLiveIdJagRun } from '../../utils/idJagRunMode';
 import { tokenChainTraceStore } from '../../services/tokenChainTrace/tokenChainTraceStore';
+import { notifyError } from '../../utils/appToast';
 
 vi.mock('../../services/bffAxios', () => ({ default: { post: vi.fn(), get: vi.fn() } }));
 vi.mock('axios', () => ({ default: { get: vi.fn().mockResolvedValue({ data: { config: {} } }) } }));
@@ -17,12 +18,14 @@ const originalLocation = window.location;
 const intent = { mode: RUN_MODES.LIVE_ID_JAG, message: 'show my balance', returnTo: '/pingfederate-id-jag/demo' };
 
 beforeEach(() => {
+  clearIdJagRunState();
   vi.clearAllMocks();
   sessionStorage.clear();
   localStorage.clear();
   delete window.location;
   window.location = { pathname: '/pingfederate-id-jag/demo', search: '', href: 'https://local.ping-devops.com:4000/pingfederate-id-jag/demo' };
   bffAxios.post.mockResolvedValue({ data: { mode: RUN_MODES.LIVE_ID_JAG } });
+  bffAxios.get.mockResolvedValue({ data: { config: { oauth_provider: 'pingfederate' } } });
   global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ logoutUrl: 'https://pf.example.test/idp/init_logout.openid', idJagHandoff: true }) });
   getCachedJson.mockImplementation(async (url) => ({ data: url === '/api/auth/oauth/status' ? { authenticated: false } : { authenticated: false } }));
 });
@@ -37,6 +40,17 @@ test('explicit run posts server intent then starts provider-aware logout once', 
   expect(bffAxios.post).toHaveBeenCalledWith('/api/auth/oauth/user/id-jag/intent', expect.objectContaining({ useCaseId: ID_JAG_USE_CASE_ID, ...intent }));
   expect(global.fetch).toHaveBeenCalledWith('/api/auth/logout?id_jag_handoff=1', expect.objectContaining({ credentials: 'include' }));
   expect(sessionStorage.getItem(ID_JAG_PENDING_INTENT_KEY)).not.toBeNull();
+});
+
+test('PingOne selection blocks live handoff before sign-out and explains how to recover', async () => {
+  bffAxios.get.mockResolvedValue({ data: { config: { oauth_provider: 'pingone' } } });
+  renderHook(() => useAuth());
+  act(() => requestLiveIdJagRun(intent));
+  await waitFor(() => expect(notifyError).toHaveBeenCalledWith(expect.stringMatching(/select PingFederate.*P1\/PF.*retry/i)));
+  expect(bffAxios.post).not.toHaveBeenCalled();
+  expect(global.fetch).not.toHaveBeenCalledWith('/api/auth/logout?id_jag_handoff=1', expect.anything());
+  expect(sessionStorage.getItem(ID_JAG_PENDING_INTENT_KEY)).toBeNull();
+  expect(window.location.href).toBe('https://local.ping-devops.com:4000/pingfederate-id-jag/demo');
 });
 
 test('failed intent leaves current session and page in place and clears client handoff', async () => {

@@ -50,6 +50,33 @@ describe("EnterpriseMcpDemoPage", () => {
     }
   });
 
+  it("explains how to recover when PingOne rejected the live login after sign-out", () => {
+    const previousUrl = window.location.href;
+    window.history.replaceState({}, "", "/pingfederate-id-jag/demo?error=id_jag_provider_required");
+    try {
+      render(<EnterpriseMcpDemoPage />);
+      const alert = screen.getByRole("alert");
+      expect(alert).toHaveTextContent(/PingOne.*selected/i);
+      expect(alert).toHaveTextContent(/PingFederate/i);
+      expect(alert).toHaveTextContent(/P1\/PF/);
+      expect(alert).toHaveTextContent(/run.*again/i);
+      expect(screen.getByRole("link", { name: /sign in as admin/i })).toHaveAttribute(
+        "href", "/api/auth/oauth/login?return_to=%2Fpingfederate-id-jag%2Fdemo"
+      );
+    } finally {
+      window.history.replaceState({}, "", previousUrl);
+    }
+  });
+
+  it("replaces the live status with provider recovery when preflight rejects PingOne", () => {
+    render(<EnterpriseMcpDemoPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Run live ID-JAG demo" }));
+    fireEvent(window, new Event("id-jag-provider-required"));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/PingOne.*selected/i);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
   it("replays a visibly mock ID-JAG flow while signed out without auth, network, flags, or agent events", () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);

@@ -169,6 +169,26 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — ID-JAG live launch with PingOne selected had no recovery message
+
+**Files changed:** `demo_api_ui/src/hooks/useAuth.js`,
+`demo_api_ui/src/pages/EnterpriseMcpDemoPage.jsx` and `.css`, and focused tests.
+
+**What was broken:** The live launcher signed the presenter out before discovering
+that PingOne was selected. The server returned to the ID-JAG demo with a provider
+error that the page did not display.
+
+**What was fixed:** The shared launch handler reads the effective provider before
+creating the server intent or starting logout. A PingOne selection leaves the
+session in place and explains how to select PF. If provider selection changes
+during the handoff, the return page shows the same recovery steps and an admin
+sign-in link.
+
+**Do not break:** Ordinary PingOne/PingFederate sign-in, the server-side provider
+guard, and the one-shot ID-JAG logout handoff.
+
+**Verify:** Focused `EnterpriseMcpDemoPage` and `useAuth.idJagReset` Vitest; UI build.
+
 ### 2026-09-24 — PF ID-JAG Compose, OAuth health, and public route audit
 
 **Files changed:** `docker-compose.yml`, `demo_api_server/middleware/oauthErrorHandler.js`,

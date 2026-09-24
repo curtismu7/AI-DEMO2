@@ -96,6 +96,12 @@ export function useAuth() {
       if (intent?.useCaseId !== ID_JAG_USE_CASE_ID || intent.mode !== RUN_MODES.LIVE_ID_JAG) return;
       let intentPosted = false;
       try {
+        const provider = (await bffAxios.get('/api/admin/config')).data?.config?.oauth_provider;
+        if (provider !== 'pingfederate') {
+          const error = new Error('select PingFederate with the top-bar P1/PF switch and retry');
+          error.code = 'id_jag_provider_required';
+          throw error;
+        }
         await bffAxios.post('/api/auth/oauth/user/id-jag/intent', intent);
         intentPosted = true;
         const response = await fetch('/api/auth/logout?id_jag_handoff=1', {
@@ -109,6 +115,9 @@ export function useAuth() {
       } catch (error) {
         if (intentPosted) await bffAxios.post('/api/auth/oauth/user/id-jag/cancel').catch(() => {});
         clearIdJagRunState();
+        if (error.code === 'id_jag_provider_required') {
+          window.dispatchEvent(new Event('id-jag-provider-required'));
+        }
         notifyError(`Could not start PingFederate ID-JAG login: ${error.message}`);
       }
     };
