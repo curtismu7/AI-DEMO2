@@ -169,6 +169,31 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — Delegated reads failed on transient gateway errors
+
+**Files changed:** `demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/tests/mcpGatewayClient.transientBalanceRetry.test.js`.
+
+**What was broken:** the delegated-access consent-only run could complete the
+provider-specific RFC 8693 exchange and receive an Authorize PERMIT, then fail
+the `get_account_balance` or airlines `get_airline_bookings` dispatch on a
+transient gateway transport or upstream 502/503/504 response. The gateway
+request was attempted once for PingOne and PingFederate alike.
+
+**What was fixed:** retry those idempotent reads once after a transient
+transport failure or 502/503/504. Writes and authorization responses are never
+retried, and a failed retry still surfaces the error without running a local
+unauthorized fallback.
+
+**Do not break:** keep PingOne and PingFederate token exchange/provider
+selection unchanged; keep PingOne Authorize as the dispatch gate; never replay
+mutating tools or bypass the gateway after a failure.
+
+**Verify:** `node --check` passed for the client and focused test. The focused
+Jest suite still needs to run in an environment with the BFF dependencies
+installed: `CI=true ./node_modules/.bin/jest
+tests/mcpGatewayClient.transientBalanceRetry.test.js --forceExit --runInBand`.
+
 ### 2026-09-24 — DaVinci widget policy leaked into Orchestration SDK
 
 **Files changed:** `demo_api_server/config/davinci.js`,
