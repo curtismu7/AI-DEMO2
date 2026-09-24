@@ -1,7 +1,7 @@
 import React from 'react';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import TokenTopologyPanel, { buildA2aTopology, buildObservedTopology, isUnfired } from '../TokenTopologyPanel';
 import { ThemeProvider } from '../../context/ThemeContext';
 import { tokenChainTraceStore } from '../../services/tokenChainTrace/tokenChainTraceStore';
@@ -11,9 +11,18 @@ vi.mock('../DraggableModal', () => ({
 }));
 
 beforeEach(() => {
+  vi.stubGlobal('ResizeObserver', class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  });
   tokenChainTraceStore.reset();
   localStorage.clear();
   document.documentElement.removeAttribute('data-theme');
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe('buildA2aTopology', () => {
@@ -155,7 +164,7 @@ describe('buildA2aTopology', () => {
       </ThemeProvider>,
     );
 
-    await user.click(screen.getByText('Token exchange'));
+    fireEvent.click(screen.getByText('Token exchange'));
     expect(screen.queryByRole('button', { name: 'Request' })).not.toBeInTheDocument();
 
     act(() => {
@@ -183,7 +192,7 @@ describe('buildA2aTopology', () => {
     expect(screen.queryByText('Click a node to inspect its token details')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Show details' })).toBeInTheDocument();
 
-    await user.click(screen.getByText('Website'));
+    fireEvent.click(screen.getByText('Website'));
     expect(screen.getByText('Website — browser / UI app')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Hide details' })).toBeInTheDocument();
 
@@ -227,7 +236,7 @@ describe('buildA2aTopology', () => {
       </ThemeProvider>,
     );
 
-    await user.click(screen.getByText('Website'));
+    fireEvent.click(screen.getByText('Website'));
     expect(screen.getByText('Website — browser / UI app')).toBeInTheDocument();
 
     act(() => {
