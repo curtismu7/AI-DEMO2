@@ -61,6 +61,8 @@ describe("PingFederate ID-JAG architecture", () => {
     fireEvent.click(screen.getByRole("button", { name: "Step 4: Side 2 · submit ID-JAG for validation" }));
     expect(panel.textContent).toContain("jwt-bearer");
     expect(panel.textContent).toContain("MCP authorization server validates the ID-JAG");
+    expect(panel.textContent).toContain("RS256 signature from trusted IdP JWKS");
+    expect(panel.textContent).toContain("jti is present and not previously redeemed");
     fireEvent.click(screen.getByRole("button", { name: "Step 5: Downstream AS issues its local access token" }));
     expect(panel.textContent).toContain("MOCK LOCAL MCP ACCESS TOKEN");
     fireEvent.click(screen.getByRole("button", { name: "Step 6: Call the protected MCP tool" }));
