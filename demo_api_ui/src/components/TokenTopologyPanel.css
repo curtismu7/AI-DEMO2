@@ -208,6 +208,7 @@
 }
 .ttp-diagram {
   flex: 1;
+  min-height: 0;
   padding: 20px 18px 16px;
   overflow-x: auto;
   overflow-y: auto;
@@ -243,22 +244,78 @@
 }
 /* Height of the callout band reserved above EVERY node so the boxes stay on one
    baseline. Connectors offset by the same amount to meet the box, not the callout. */
-.ttp-graph { --ttp-callout-band: 62px; }
-
-.ttp-graph {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: flex-start;
+.ttp-flow-canvas {
+  position: relative;
+  width: 100%;
+  --ttp-callout-band: 62px;
+  flex: 1;
+  min-height: 220px;
+  height: auto;
+  overflow: hidden;
+  border: 1px solid #30363d;
+  border-radius: var(--radius-md);
+  background: #0d1117;
+  --xy-background-color: #0d1117;
+  --xy-controls-button-background-color: #161b22;
+  --xy-controls-button-background-color-hover: #21262d;
+  --xy-controls-button-color: #e6edf3;
+  --xy-controls-button-color-hover: #ffffff;
+  --xy-controls-button-border-color: #3d444d;
+  --xy-controls-button-box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+  --xy-minimap-background-color: #161b22;
+  --xy-minimap-mask-background-color: rgba(13, 17, 23, .68);
+  --xy-minimap-node-background-color: #6e7681;
+  --xy-minimap-node-stroke-color: #0d1117;
+  --xy-attribution-background-color: transparent;
 }
-.ttp-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 0;
-  /* nowrap so the branch row's measured offsetLeft alignment stays valid;
-     .ttp-diagram already scrolls horizontally. */
-  flex-wrap: nowrap;
+.ttp-root[data-theme="light"] .ttp-flow-canvas {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  --xy-background-color: #f8fafc;
+  --xy-controls-button-background-color: #ffffff;
+  --xy-controls-button-background-color-hover: #f1f5f9;
+  --xy-controls-button-color: #334155;
+  --xy-controls-button-color-hover: #0f172a;
+  --xy-controls-button-border-color: #cbd5e1;
+  --xy-minimap-background-color: #ffffff;
+  --xy-minimap-mask-background-color: rgba(248, 250, 252, .68);
+  --xy-minimap-node-background-color: #64748b;
+  --xy-minimap-node-stroke-color: #ffffff;
 }
+.ttp-flow-canvas .react-flow__handle {
+  width: 7px;
+  height: 7px;
+  border: 1px solid #8b949e;
+  background: #161b22;
+  opacity: .85;
+}
+.ttp-flow-canvas .react-flow__node {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+.ttp-flow-canvas .ttp-branch { display: block; align-items: initial; gap: 0; }
+.ttp-flow-edge { stroke: #6e7681; stroke-width: 2; }
+.ttp-flow-edge.is-blocked { stroke: #f85149; }
+.ttp-flow-edge.is-ghost { stroke-dasharray: 5 5; opacity: .55; }
+.ttp-flow-edge-label {
+  position: absolute;
+  padding: 2px 7px;
+  border: 1px solid #3d444d;
+  border-radius: var(--radius-pill);
+  background: #161b22;
+  color: #c9d1d9;
+  font: 700 10px var(--font-mono);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.ttp-root[data-theme="light"] .ttp-flow-edge-label {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+}
+.ttp-branch .ttp-branch-label { margin: 0 0 4px; text-align: center; }
 
 /* ── enforcement callouts ── */
 .ttp-callout-slot {
@@ -361,6 +418,7 @@
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  width: 100%;
   cursor: pointer;
   user-select: none;
 }
@@ -392,8 +450,10 @@
   border: 1px solid #3d444d;
   border-radius: var(--radius-md);
   padding: 10px 14px;
-  min-width: 150px;
-  max-width: 200px;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
   transition: border-color .15s, background .12s, box-shadow .15s;
   position: relative;
 }
@@ -933,28 +993,34 @@
   overflow: hidden;
 }
 /* ── movie-reel layout: reel pinned to the bottom, details on the right ── */
-/* .ttp-reel-body replaces .ttp-body's row layout with a column: the diagram
-   (evidence/A2A context) fills the top, and the node reel sits along the
-   bottom edge like a film strip. The inspector pane stays the right-hand
-   column for click-a-box details. */
+/* The topology canvas spans the full width below the context and evidence. */
 .ttp-root.ttp-reel-layout .ttp-body {
-  flex-direction: row-reverse;
+  flex-direction: row;
+}
+.ttp-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 .ttp-reel {
   flex-shrink: 0;
+  flex-basis: clamp(300px, 37vh, 480px);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 280px;
+  height: clamp(300px, 37vh, 480px);
+  box-sizing: border-box;
   border-top: 1px solid #30363d;
   padding: 10px 14px 12px;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: hidden;
 }
 .ttp-reel .ttp-label { margin-bottom: 6px; }
-.ttp-reel .ttp-graph {
-  flex-direction: row;
-  align-items: flex-end;
-  gap: 0;
-  width: max-content;
-  min-width: 100%;
-}
+.ttp-root[data-theme="light"] .ttp-reel { border-color: #cbd5e1; }
 .ttp-context { display: flex; flex-direction: column; gap: 10px; }
 .ttp-context-hint { padding: 0; align-items: flex-start; font-style: normal; }
 .ttp-inline .ttp-root { min-height: 360px; }

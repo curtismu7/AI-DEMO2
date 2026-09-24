@@ -1,11 +1,26 @@
 // TokenTopologyPanel.jsx
 // Real-time security topology diagram — shows RFC 8693 delegation chain as
 // nodes appear dynamically while the agent flow runs. Separate from Flow Detail.
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import {
+  ReactFlow,
+  ReactFlowProvider,
+  Controls,
+  MiniMap,
+  Handle,
+  Position,
+  BaseEdge,
+  EdgeLabelRenderer,
+  MarkerType,
+  getSmoothStepPath,
+  useReactFlow,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import DraggableModal from './DraggableModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { MCP_STEP_IDS, laneLabel } from '../services/tokenChainTrace/buildTraceSteps';
 import { buildA2aEvidenceRows } from '../utils/a2aChainDetail';
+import { getElk } from '../utils/elkLayout';
 import { useTheme } from '../context/ThemeContext';
 import useDividerDrag from '../hooks/useDividerDrag';
 import './TokenTopologyPanel.css';
@@ -15,6 +30,9 @@ const TOPOLOGY_SPEEDS = [
   { value: 2400, label: 'Normal' },
   { value: 4200, label: 'Slow' },
 ];
+
+const TOPOLOGY_NODE_WIDTH = 220;
+const TOPOLOGY_NODE_HEIGHT = 300;
 
 // Coerce any value to a renderable string — trace data can contain {message} objects
 function str(v) {
@@ -133,7 +151,7 @@ function ObjectIcon({ object }) {
 // that was available and went unused is part of the security story — filtering
 // to observed-only hops made the diagram unable to say "this check exists here
 // but was not needed", which is exactly what the enforcement callouts report.
-// Unfired hops render as ghosts (see NodeRow).
+// Unfired hops render as ghosts in the topology canvas.
 const UNFIRED_STATUSES = ['pending', 'notinpath'];
 
 export function isUnfired(step) {
@@ -286,7 +304,7 @@ function FormattedValue({ value, depth = 0 }) {
   return <span className="ttp-fv-str">{str(parsed)}</span>;
 }
 
-function NodeBox({ node, step, selected, current, onClick, animateIn, nodeRef, ghost }) {
+function NodeBox({ node, step, selected, current, onClick, animateIn, ghost, branchHead = false }) {
   const st = step?.status || 'pending';
   const isOk = st === 'done';
   const isErr = st === 'error';
@@ -300,10 +318,20 @@ function NodeBox({ node, step, selected, current, onClick, animateIn, nodeRef, g
 
   return (
     <div
-      ref={nodeRef}
       className={`ttp-node${selected ? ' selected' : ''}${current ? ' current' : ''}${animateIn ? ' animate-in' : ''}${ghost ? ' ghost' : ''}`}
+      role="button"
+      tabIndex={0}
+      aria-label={str(step?.title || node.name)}
       onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onClick?.();
+        }
+      }}
     >
+      <Handle type="target" position={Position.Left} isConnectable={false} />
+      {branchHead && <div className="ttp-branch-label">Services &amp; Tools — delegated tool call</div>}
       <div className="ttp-callout-slot">
         {enf && (
           <>
@@ -343,41 +371,79 @@ function NodeBox({ node, step, selected, current, onClick, animateIn, nodeRef, g
           </div>
         )}
       </div>
+      <Handle type="source" position={Position.Right} isConnectable={false} />
     </div>
   );
 }
 
-// One horizontal run of nodes joined by labelled connectors. Used for both the
-// spine and the tool-call branch so they stay visually identical.
-function NodeRow({ nodes, expandedId, currentId, onNodeClick, nodeRefs, className }) {
+function TopologyFlowNode({ data }) {
   return (
-    <div className={`ttp-row${className ? ' ' + className : ''}`}>
-      {nodes.map((node, i) => {
-        const { step } = node;
-        const label = edgeLabel(node);
-        const unfired = isUnfired(step);
-        return (
-          <React.Fragment key={node.id}>
-            {i > 0 && (
-              <div className={`ttp-conn${step.status === 'error' ? ' blocked' : ''}${unfired ? ' ghost' : ''}`}>
-                {label && <span className="ttp-conn-label">{label}</span>}
-                <div className="ttp-line" />
-                <span className="ttp-arrowhead">▶</span>
-              </div>
-            )}
-            <NodeBox
-              node={node}
-              step={step}
-              selected={expandedId === node.id}
-              current={currentId === node.id}
-              ghost={unfired}
-              animateIn={!unfired}
-              onClick={() => onNodeClick(node.id)}
-              nodeRef={nodeRefs ? (el) => { nodeRefs.current[node.id] = el; } : undefined}
-            />
-          </React.Fragment>
-        );
-      })}
+    <NodeBox
+      node={data.node}
+      step={data.step}
+      selected={data.selected}
+      current={data.current}
+      ghost={data.ghost}
+      animateIn={data.animateIn}
+      branchHead={data.branchHead}
+      onClick={data.onClick}
+    />
+  );
+}
+
+function TopologyFlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, data }) {
+  const [path, labelX, labelY] = getSmoothStepPath({
+    sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition,
+    borderRadius: 12,
+  });
+  return (
+    <>
+      <BaseEdge id={id} path={path} markerEnd={markerEnd} className={`ttp-flow-edge${data?.blocked ? ' is-blocked' : ''}${data?.ghost ? ' is-ghost' : ''}`} />
+      {data?.label && (
+        <EdgeLabelRenderer>
+          <div className="ttp-flow-edge-label nodrag nopan" style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}>
+            {data.label}
+          </div>
+        </EdgeLabelRenderer>
+      )}
+    </>
+  );
+}
+
+const TOPOLOGY_NODE_TYPES = { topology: TopologyFlowNode };
+const TOPOLOGY_EDGE_TYPES = { topology: TopologyFlowEdge };
+
+function TopologyCanvas({ nodes, edges, fitKey }) {
+  const { fitView } = useReactFlow();
+  const fittedRun = useRef(null);
+
+  useEffect(() => {
+    if (!nodes.length || !fitKey || fittedRun.current === fitKey) return undefined;
+    const timer = setTimeout(() => {
+      fitView({ padding: 0.14, duration: 220, minZoom: 0.35, maxZoom: 1.15 });
+      fittedRun.current = fitKey;
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [fitKey, fitView, nodes.length]);
+
+  return (
+    <div className="ttp-flow-canvas" role="group" aria-label="Token topology graph">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        nodeTypes={TOPOLOGY_NODE_TYPES}
+        edgeTypes={TOPOLOGY_EDGE_TYPES}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        elementsSelectable={false}
+        minZoom={0.35}
+        maxZoom={2}
+        panOnScroll
+        proOptions={{ hideAttribution: true }}
+      >
+        <Controls showInteractive={false} />
+        <MiniMap pannable zoomable nodeColor={(node) => node.data?.step?.status === 'error' ? '#f85149' : node.data?.step?.status === 'active' ? '#2f81f7' : '#6e7681'} />
+      </ReactFlow>
     </div>
   );
 }
@@ -564,15 +630,13 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
   const [storeState, setStoreState] = useState(() => tokenChainTraceStore.getState());
   const [expandedId, setExpandedId] = useState(null);
   const prevRunId = useRef(null);
+  const [layout, setLayout] = useState({ signature: '', positions: {} });
   const { size: inspWidth, handleProps: inspHandleProps } = useDividerDrag({
     min: 200,
     max: 600,
     initial: 320,
     invert: true, // inspector pane sits right of its divider
   });
-  const nodeRefs = useRef({});
-  const diagramRef = useRef(null);
-  const [branchOffset, setBranchOffset] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [revealCount, setRevealCount] = useState(null);
   const [speed, setSpeed] = useState(2400);
@@ -631,31 +695,114 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
     trace.outcome || trace.routingMode || a2aTopology,
   );
   const topologyNodes = hasActivity ? buildObservedTopology(steps) : [];
+  const topologySignature = topologyNodes.map((node) => node.id).join('|');
   const totalNodes = topologyNodes.length;
   const visibleCount = revealCount == null ? totalNodes : Math.min(revealCount, totalNodes);
   const visibleNodes = topologyNodes.slice(0, visibleCount);
   const { spine, branch, anchorId } = partitionSpineBranch(visibleNodes);
+  const topologyPartitions = useMemo(() => partitionSpineBranch(topologyNodes), [topologySignature]);
+  const currentId = playing && visibleNodes.length
+    ? visibleNodes[visibleNodes.length - 1]?.id
+    : topologyNodes.find((node) => node.step.status === 'active')?.id;
+
+  // ELK positions the whole trace once per run shape. Status updates therefore
+  // repaint evidence without shifting the graph around while it is being read.
+  useEffect(() => {
+    if (!topologyNodes.length) {
+      setLayout({ signature: '', positions: {} });
+      return undefined;
+    }
+    let cancelled = false;
+    const { spine: allSpine, branch: allBranch, anchorId: allAnchorId } = topologyPartitions;
+    const edges = [];
+    for (let index = 1; index < allSpine.length; index += 1) {
+      edges.push({ id: `spine-${allSpine[index - 1].id}-${allSpine[index].id}`, sources: [allSpine[index - 1].id], targets: [allSpine[index].id] });
+    }
+    if (allAnchorId && allBranch.length) {
+      edges.push({ id: `branch-${allAnchorId}-${allBranch[0].id}`, sources: [allAnchorId], targets: [allBranch[0].id] });
+    }
+    for (let index = 1; index < allBranch.length; index += 1) {
+      edges.push({ id: `branch-${allBranch[index - 1].id}-${allBranch[index].id}`, sources: [allBranch[index - 1].id], targets: [allBranch[index].id] });
+    }
+
+    getElk().then((elk) => elk.layout({
+      id: 'token-topology',
+      layoutOptions: {
+        'elk.algorithm': 'layered',
+        'elk.direction': 'RIGHT',
+        'elk.edgeRouting': 'ORTHOGONAL',
+        'elk.spacing.nodeNode': '52',
+        'elk.layered.spacing.nodeNodeBetweenLayers': '64',
+        'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX',
+      },
+      children: topologyNodes.map((node) => ({ id: node.id, width: TOPOLOGY_NODE_WIDTH, height: TOPOLOGY_NODE_HEIGHT })),
+      edges,
+    })).then((result) => {
+      if (cancelled) return;
+      const positions = Object.fromEntries((result.children || []).map((node) => [node.id, { x: node.x || 0, y: node.y || 0 }]));
+      setLayout({ signature: topologySignature, positions });
+    }).catch((error) => {
+      console.error('[TokenTopologyPanel] layout failed; using linear fallback', error);
+      const branchIds = new Set(allBranch.map((node) => node.id));
+      const positions = Object.fromEntries(topologyNodes.map((node, index) => [node.id, {
+        x: index * (TOPOLOGY_NODE_WIDTH + 80),
+        y: branchIds.has(node.id) ? TOPOLOGY_NODE_HEIGHT + 72 : 0,
+      }]));
+      setLayout({ signature: topologySignature, positions });
+    });
+    return () => { cancelled = true; };
+  }, [topologySignature]);
+
+  const flowNodes = useMemo(() => {
+    const branchIds = new Set(branch.map((node) => node.id));
+    const branchHeadId = branch[0]?.id;
+    return visibleNodes.map((node, index) => ({
+      id: node.id,
+      type: 'topology',
+      className: branchIds.has(node.id) ? 'ttp-branch' : 'ttp-spine',
+      position: layout.signature === topologySignature && layout.positions[node.id]
+        ? layout.positions[node.id]
+        : { x: index * (TOPOLOGY_NODE_WIDTH + 80), y: 0 },
+      width: TOPOLOGY_NODE_WIDTH,
+      height: TOPOLOGY_NODE_HEIGHT,
+      data: {
+        node,
+        step: node.step,
+        selected: expandedId === node.id,
+        current: currentId === node.id,
+        ghost: isUnfired(node.step),
+        animateIn: !isUnfired(node.step),
+        branchHead: node.id === branchHeadId,
+        onClick: () => handleNodeClick(node.id),
+      },
+    }));
+  }, [visibleNodes, branch, layout, topologySignature, expandedId, currentId, handleNodeClick]);
+
+  const flowEdges = useMemo(() => {
+    const visibleIds = new Set(visibleNodes.map((node) => node.id));
+    const pairs = [];
+    for (let index = 1; index < spine.length; index += 1) pairs.push([spine[index - 1], spine[index]]);
+    if (anchorId && branch.length) pairs.push([topologyNodes.find((node) => node.id === anchorId), branch[0]]);
+    for (let index = 1; index < branch.length; index += 1) pairs.push([branch[index - 1], branch[index]]);
+    return pairs
+      .filter(([source, target]) => source && target && visibleIds.has(source.id) && visibleIds.has(target.id))
+      .map(([source, target]) => ({
+        id: `edge-${source.id}-${target.id}`,
+        source: source.id,
+        target: target.id,
+        sourceHandle: 'source',
+        targetHandle: 'target',
+        type: 'topology',
+        markerEnd: { type: MarkerType.ArrowClosed, color: target.step.status === 'error' ? '#f85149' : '#6e7681' },
+        data: { label: edgeLabel(target), blocked: target.step.status === 'error', ghost: isUnfired(target.step) },
+      }));
+  }, [visibleNodes, spine, branch, anchorId, topologyNodes]);
+  const flowFitKey = `${trace.runId || 'run'}:${layout.signature === topologySignature ? topologySignature : ''}`;
   const selectedStep = expandedId
     ? topologyNodes.find((node) => node.id === expandedId)?.step
       || a2aNodes.find((node) => node.sourceId === expandedId)?.step
       || null
     : null;
-
-  // Align the tool-call branch under the spine node it hangs off. Measured
-  // rather than computed because node width varies with the claim rows; the
-  // spine does not wrap (ttp-row is nowrap), so offsetLeft is stable.
-  useEffect(() => {
-    const measure = () => {
-      const el = anchorId ? nodeRefs.current[anchorId] : null;
-      setBranchOffset(el ? el.offsetLeft : 0);
-    };
-    measure();
-    const target = diagramRef.current;
-    if (!target || typeof ResizeObserver === 'undefined') return undefined;
-    const observer = new ResizeObserver(measure);
-    observer.observe(target);
-    return () => observer.disconnect();
-  }, [anchorId, spine.length, branch.length, inspWidth]);
 
   useEffect(() => {
     if (revealCount == null) setRevealCount(totalNodes);
@@ -689,10 +836,6 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
     setPlaying(true);
     setExpandedId(null);
   }, [totalNodes]);
-
-  const currentId = playing && visibleNodes.length
-    ? visibleNodes[visibleNodes.length - 1]?.id
-    : topologyNodes.find((node) => node.step.status === 'active')?.id;
 
   const content = (
       <div className="ttp-root ttp-reel-layout" data-theme={darkMode ? 'dark' : 'light'} data-font-size={fontSize}>
@@ -749,16 +892,15 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
           </div>
         </div>
 
-        {/* Movie-reel layout: details on the right, context on top, and the
-            node reel pinned along the bottom edge like a film strip. Clicking
-            a box still opens its details in the right-hand inspector column. */}
+        {/* Keep the inspector beside the full-width context and topology canvas. */}
         <div className={`ttp-body${selectedStep ? ' has-insp' : ''}`}>
           {inspectorVisible && hasActivity && selectedStep ? (
             <div className="ttp-insp-pane" style={{ width: inspWidth }}><div className="ttp-resize-handle" {...inspHandleProps} /><Inspector step={selectedStep} topologyNodes={topologyNodes} onClose={handleInspectorClose} fontSize={fontSize} setFontSize={setFontSize} /></div>
           ) : inspectorVisible && hasActivity && (
             <div className="ttp-insp-pane" style={{ width: inspWidth }}><div className="ttp-resize-handle" {...inspHandleProps} /><div className="ttp-insp-empty"><div className="ttp-insp-empty-icon">🔑</div><div className="ttp-insp-empty-text">Click a node to inspect its token details</div></div></div>
           )}
-          <div className="ttp-diagram" ref={diagramRef}>
+          <div className="ttp-main">
+            <div className="ttp-diagram">
             {hasActivity && (
               <div className="ttp-context">
                 <div className="ttp-label">Delegation context — enforcement callouts and A2A evidence for the run</div>
@@ -774,7 +916,7 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
             )}
             {hasActivity ? (
               <div className="ttp-idle ttp-context-hint">
-                <div>Click any box in the reel below for details.</div>
+                <div>Click any node below for details. Pan or zoom to follow the full path.</div>
               </div>
             ) : (
               <div className="ttp-idle">
@@ -782,24 +924,16 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
                 <div>Nodes will appear as each hop produces evidence.</div>
               </div>
             )}
-          </div>
-          {hasActivity ? (
-            <div className="ttp-reel">
-              <div className="ttp-label">Live delegated pipeline — current step is highlighted; click any box for details</div>
-              <div className="ttp-graph">
-                <NodeRow nodes={spine} className="ttp-spine" expandedId={expandedId} currentId={currentId} onNodeClick={handleNodeClick} nodeRefs={nodeRefs} />
-                {branch.length > 0 && (
-                  <div className="ttp-branch" style={{ marginLeft: branchOffset }}>
-                    <div className="ttp-branch-elbow" aria-hidden="true" />
-                    <div className="ttp-branch-body">
-                      <div className="ttp-branch-label">Services &amp; Tools — delegated tool call</div>
-                      <NodeRow nodes={branch} expandedId={expandedId} currentId={currentId} onNodeClick={handleNodeClick} />
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
-          ) : null}
+            {hasActivity ? (
+              <div className="ttp-reel">
+                <div className="ttp-label">Live delegated topology — current step is highlighted; pan or zoom to follow the full path</div>
+                <ReactFlowProvider>
+                  <TopologyCanvas nodes={flowNodes} edges={flowEdges} fitKey={flowFitKey} />
+                </ReactFlowProvider>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
   );

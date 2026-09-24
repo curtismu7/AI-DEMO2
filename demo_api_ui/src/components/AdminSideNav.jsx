@@ -1165,7 +1165,7 @@ export default function AdminSideNav({
         { label: "Protected RAG", path: "/code-search", icon: "srch" },
         { label: "Graphify", path: "/graphify", icon: "arc" },
         { label: "Mgmt API Runner", path: "/mgmt-api", icon: "tool" },
-        { label: "PromptFoo Evals", path: "/promptfoo", icon: "tst" },
+        { label: "PromptFoo Evals", path: "/promptfoo", icon: "tst", searchAlias: "foo" },
       ],
     },
     {
@@ -1384,6 +1384,7 @@ export default function AdminSideNav({
       "API Docs (Swagger)",
       "API Reference (Scalar)",
       "llama-vscode Guide",
+      "PromptFoo Evals",
     ], "tst"),
     productGroup("Observability", [
       "Audit Trail",
