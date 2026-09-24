@@ -1,30 +1,21 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-// The side-nav label and the page's own <h1> are two separate strings that have
-// to agree, and they drifted: the nav was renamed to "Orchestration SDK Login"
-// while the page kept saying "DaVinci SDK Login". Clicking the orchestration
-// entry then landed on a page that did not look like the orchestration app —
-// reported as "I do not see a way to start the orchestration app, I only see
-// widget", when in fact the page was working the whole time.
-//
-// A string read rather than a render: the page calls fetch and boots the SDK on
-// mount, and none of that is needed to compare two labels.
+// DaVinci has one sidebar entry: the SDK master lesson. The two runnable lessons
+// remain reachable from that page rather than appearing as duplicate nav items.
 const read = (rel) => fs.readFileSync(path.resolve(__dirname, rel), 'utf8');
 
-describe('the SDK login page is named the same thing in the nav and on the page', () => {
-  it('h1 text matches the AdminSideNav label for /davinci-orchestration-sdk', () => {
+describe('the DaVinci SDK master lesson is named the same thing in the nav and on the page', () => {
+  it('h1 text matches the single AdminSideNav label for /davinci-sdk', () => {
     const nav = read('../../components/AdminSideNav.jsx');
     const navLabel = nav.match(
-      /label:\s*"([^"]+)",\s*path:\s*"\/davinci-orchestration-sdk"/,
+      /label:\s*"([^"]+)",\s*path:\s*"\/davinci-sdk"/,
     )?.[1];
-    expect(navLabel, 'AdminSideNav must list /davinci-orchestration-sdk').toBeTruthy();
+    expect(navLabel, 'AdminSideNav must list /davinci-sdk').toBeTruthy();
 
-    // The page's h1 is rendered by the shared lesson shell from LessonLayout's
-    // `title` prop.
-    const page = read('../DavinciSdkLoginPage.jsx');
-    const heading = page.match(/<LessonLayout[\s\S]*?\btitle="([^"]+)"/)?.[1];
-    expect(heading, 'DavinciSdkLoginPage must pass LessonLayout a title').toBeTruthy();
+    const page = read('../OrchestrationSdkExplainerPage.jsx');
+    const heading = page.match(/<h1[^>]*>([^<]+)<\/h1>/)?.[1];
+    expect(heading, 'DaVinci SDK master lesson must have an h1').toBeTruthy();
 
     expect(heading.trim()).toBe(navLabel.trim());
   });

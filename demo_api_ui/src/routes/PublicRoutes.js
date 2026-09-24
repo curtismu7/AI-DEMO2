@@ -47,6 +47,7 @@ import DavinciExplainerPage from "../pages/DavinciExplainerPage";
 import OrchestrationSdkExplainerPage from "../pages/OrchestrationSdkExplainerPage";
 import DavinciSdkLoginPage from "../pages/DavinciSdkLoginPage";
 import DavinciLoginGuidePage from "../pages/DavinciLoginGuidePage";
+import PingFederateDavinciKitPage from "../pages/PingFederateDavinciKitPage";
 import CibaApprovalPage from "../pages/CibaApprovalPage";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
 import EnterpriseMcpDemoPage from '../pages/EnterpriseMcpDemoPage';
@@ -492,6 +493,14 @@ export function DavinciLoginGuidePageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <DavinciLoginGuidePage />
+    </AppShell>
+  );
+}
+
+export function PingFederateDavinciKitRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <PingFederateDavinciKitPage />
     </AppShell>
   );
 }

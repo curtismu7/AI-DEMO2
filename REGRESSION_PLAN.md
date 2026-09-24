@@ -146,6 +146,76 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — PingFederate DaVinci demo rejects PingOne sessions
+
+**Files changed:** `demo_api_server/services/oauthUserService.js`,
+`demo_api_server/routes/oauthUser.js`, `demo_api_server/routes/pfDavinciAuth.js`,
+their provider tests,
+`demo_api_ui/src/pages/PingFederateDavinciKitPage.jsx` and CSS, its focused test,
+`demo_api_ui/src/routes/PublicRoutes.js`, `demo_api_ui/src/App.js`,
+`demo_api_ui/src/pages/OrchestrationSdkExplainerPage.jsx`, and
+`demo_api_server/config/auth-requirements.json`,
+`demo_api_server/config/useCases.js` plus generated `docs/use-cases/` pages,
+and `docs/DAVINCI_ORCHESTRATION_STATUS.md`.
+
+**What was broken:** the BFF labeled every end-user login `pingone_sso`, so the
+app could not distinguish a PingFederate session from PingOne for the PF
+Integration Kit demo.
+
+**What was fixed:** identify provider provenance for normal end-user sessions,
+then add a dedicated PF authorization-code/PKCE handshake using the registered
+PF client. Its callback verifies the signed ID token, issuer, audience, nonce,
+and state before storing a short-lived PF proof. The PF lesson requires that
+proof; a PingOne session alone cannot run it. The separate PF handshake does
+not replace the normal PingOne tokens. The page is linked from the DaVinci
+master without adding a second DaVinci sidebar item.
+
+**Do not break:** keep PingOne sessions labeled `pingone_sso`; only PF endpoint
+patterns may produce `pingfederate`; unknown providers stay `oidc`. Keep PF
+tokens server-side, keep the existing PingOne login and session untouched, and
+preserve the DaVinci widget and SDK paths.
+
+**Verify:** focused `oauthUserService` Jest and PF lesson Vitest; `cd
+demo_api_ui && npm run build`; `npm run authz:verify`.
+
+### 2026-09-24 — DaVinci has one master lesson in the sidebar
+
+**Files changed:** `demo_api_ui/src/components/AdminSideNav.jsx`,
+`demo_api_ui/src/config/navStructureCatalog.js`, `demo_api_ui/src/App.js`,
+`demo_api_ui/src/pages/OrchestrationSdkExplainerPage.jsx`,
+`demo_api_server/config/auth-requirements.json`.
+
+**What was broken:** four sidebar entries split the DaVinci overview, static SDK
+lesson, widget lesson, and live SDK lesson across separate navigation links.
+
+**What was fixed:** the DaVinci SDK lesson is the single sidebar/master entry;
+it links to the DaVinci Widget and DaVinci Orchestration SDK pages. The prior
+overview and guide URLs redirect to the master, and the existing child URLs
+remain available.
+
+**Do not break:** keep both runnable lessons reachable from the master, keep
+legacy routes redirecting, and keep all DaVinci lesson routes public.
+
+**Verify:** `cd demo_api_ui && npm run build`; `npm run authz:verify`.
+
+### 2026-09-24 — DaVinci widget reports the SDK token failure details
+
+**Files changed:** `demo_api_ui/src/lib/davinciWidgetClient.js`,
+`demo_api_ui/src/pages/DavinciLoginWidget.jsx`.
+
+**What was broken:** the widget's SDK-token request could fail without making
+the HTTP status and server error code visible, leaving the DaVinci load failure
+hard to diagnose.
+
+**What was fixed:** the widget now shows the HTTP status, server error code, and
+server-provided message in an accessible alert. A local request reproduced the
+reported failure as `400: FlowId not valid`.
+
+**Do not break:** keep the BFF's safe normalized error message visible; never
+include the DaVinci API key or nonce in the browser response.
+
+**Verify:** `cd demo_api_ui && npm run build`.
+
 ### 2026-09-18 — DaVinci SDK execution reel separates masked live evidence from concept preview
 
 **Files changed:** `demo_api_ui/src/components/davinci/sdkExecutionEvents.js`,

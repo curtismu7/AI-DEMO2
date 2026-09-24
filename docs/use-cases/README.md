@@ -87,4 +87,5 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC-LEARN8** — Enterprise-Managed MCP Authorization](./enterprise-managed-mcp-auth.md) ✅
 - [**UC-LEARN9** — ID-JAG / Cross-App Access](./id-jag-cross-app-access.md) ✅
 - [**UC-LEARN10** — Orchestration SDK (Custom UI)](./orchestration-sdk.md) ✅
+- [**UC-LEARN12** — PingFederate DaVinci Integration Kit](./pingfederate-davinci-integration-kit.md) ✅
 - [**UC-LEARN11** — Privilege LLM — prompt injection blocked](./privilege-llm-prompt-injection.md) ✅ 🛡️
