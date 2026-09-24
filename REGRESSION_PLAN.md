@@ -169,6 +169,26 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-23 — Spinner Ping P escaped the red circle
+
+**Files changed:** `demo_api_ui/src/components/shared/PingIdentitySpinner.jsx`,
+`demo_api_ui/src/components/shared/__tests__/PingIdentitySpinner.test.jsx`,
+`REGRESSION_PLAN.md`.
+
+**What was broken:** the default spinner used `ping-identity-logo.png`, a square
+opaque image containing the full Ping Identity wordmark. The spinner constrains
+its mark to a square, so the wordmark was compressed into the circular badge and
+made the P look detached from the ring.
+
+**What was fixed:** use the existing square Ping P asset (`/branding/ping-logo.svg`)
+for the default mark. Custom uploaded logos and spinner layout remain unchanged.
+
+**Do not break:** the default Ping P stays inside the red circle; custom logos,
+label placement, reduced-motion behavior, and the overlay/inline spinner API
+remain unchanged.
+
+**Verify:** `cd demo_api_ui && npm run build`.
+
 ### 2026-09-23 — Refresh-token marker disappeared when access token expired
 
 **Files changed:** `demo_api_server/routes/oauth.js`,
