@@ -1416,21 +1416,25 @@ export default function BankingAgent({
       chooseOauthVisualizerSurface(withoutEmbeddedSurface(oauthVisualizerSurface));
       chooseMovieReelSurface(movieReelSurface === "none" ? "embedded" : movieReelSurface);
     } else if (view === "simple-stepper") {
+      chooseMovieReelSurface(withoutEmbeddedSurface(movieReelSurface));
       chooseSequenceSurface(withoutEmbeddedSurface(sequenceSurface));
       chooseTopologySurface(withoutEmbeddedSurface(topologySurface));
       chooseOauthVisualizerSurface(withoutEmbeddedSurface(oauthVisualizerSurface));
       chooseSimpleStepperSurface(simpleStepperSurface === "none" ? "embedded" : simpleStepperSurface);
     } else if (view === "sequence-view") {
+      chooseMovieReelSurface(withoutEmbeddedSurface(movieReelSurface));
       chooseSimpleStepperSurface(withoutEmbeddedSurface(simpleStepperSurface));
       chooseTopologySurface(withoutEmbeddedSurface(topologySurface));
       chooseOauthVisualizerSurface(withoutEmbeddedSurface(oauthVisualizerSurface));
       chooseSequenceSurface(sequenceSurface === "none" ? "embedded" : sequenceSurface);
     } else if (view === "token-topology") {
+      chooseMovieReelSurface(withoutEmbeddedSurface(movieReelSurface));
       chooseSimpleStepperSurface(withoutEmbeddedSurface(simpleStepperSurface));
       chooseSequenceSurface(withoutEmbeddedSurface(sequenceSurface));
       chooseOauthVisualizerSurface(withoutEmbeddedSurface(oauthVisualizerSurface));
       chooseTopologySurface(topologySurface === "none" ? "embedded" : topologySurface);
     } else if (view === "oauth-visualizer") {
+      chooseMovieReelSurface(withoutEmbeddedSurface(movieReelSurface));
       chooseSimpleStepperSurface(withoutEmbeddedSurface(simpleStepperSurface));
       chooseSequenceSurface(withoutEmbeddedSurface(sequenceSurface));
       chooseTopologySurface(withoutEmbeddedSurface(topologySurface));
