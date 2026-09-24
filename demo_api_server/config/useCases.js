@@ -2075,6 +2075,7 @@ const RAW_USE_CASES = [
     trigger: { type: 'chip', text: 'show my balance' },
     expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['user-token', 'protect-risk-evaluation', 'tool-dispatched'], activity: ['token', 'protect', 'mcp'] },
+    owasp: { threats: ['T3'], sections: ['§5.4'] },
     codeRefs: [
       'demo_api_server/services/pingOneProtectService.js',
       'demo_api_server/routes/agentInvokeRoute.js',
