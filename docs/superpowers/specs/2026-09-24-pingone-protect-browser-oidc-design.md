@@ -13,7 +13,9 @@ evaluates the sign-in with PingOne Protect, and demonstrates three outcomes:
 The existing Protect product entry should describe this browser authentication
 flow, not agent dispatch. Put the demo in its own page under the **Ping products**
 side-navigation group and provide a **PingOne Protect** demo-steps chip/action to
-open and run it.
+open and run it. The page must work embedded in the lesson and as a standalone
+pop-out, and expose a light/dark control in either presentation. Protect runs
+only when the user clicks the chip; it does not run on every app sign-in.
 
 ## Recommended approach
 

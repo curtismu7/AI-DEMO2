@@ -107,7 +107,7 @@
 .pf-davinci-section {
   margin-top: 28px;
   padding: 24px;
-  background: var(--th-bg-surface);
+  background: var(--th-bg-card);
   border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
 }

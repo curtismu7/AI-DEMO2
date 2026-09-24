@@ -20,6 +20,7 @@ describe("side-nav ownership", () => {
     ["/logs", user, "shell"], // no-chrome route: App.js opts out
     ["/agent", user, "shell"],
     ["/sdk-login", user, "shell"],
+    ["/protect-auth-demo", user, "shell"], // Protect run is an independent pop-out page.
     ["/", user, "shell"], // home is full-bleed: App.js opts out
     // Guests get the same nav as signed-in users (2026-08-18): App.js owns it
     // everywhere except home and the no-chrome routes, signed in or not.

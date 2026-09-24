@@ -216,7 +216,7 @@ const NAV_SECTION_LABELS = new Map([
   ["Identity Journeys", "Separate Areas"],
 ]);
 
-const PRODUCT_CARD_GROUPS = new Set(["AI Gateway", "DaVinci", "PingOne Products"]);
+const PRODUCT_CARD_GROUPS = new Set(["AI Gateway", "DaVinci", "Ping products"]);
 
 const navGroupClassName = (label) => {
   if (PRODUCT_CARD_GROUPS.has(label)) return "admin-side-nav__group--product-card";
@@ -1265,8 +1265,16 @@ export default function AdminSideNav({
       "Protected RAG",
       { from: "Privilege Demo", rename: "AI Gateway Demo" },
     ]),
-    productGroup("DaVinci", ["DaVinci SDK"], "doc"),
-    productGroup("PingOne Products", [
+    productGroup("DaVinci", [
+      { label: "DaVinci Widget", path: "/davinci-widget" },
+      { label: "DaVinci Login", path: "/davinci-login-guide" },
+      { label: "DaVinci SDK Login", path: "/davinci-sdk-login" },
+      { label: "DaVinci Orchestration", path: "/davinci-orchestration" },
+      { label: "DaVinci Orchestration SDK", path: "/davinci-orchestration-sdk" },
+      { label: "Orchestration SDK Guide", path: "/orchestration-sdk" },
+      { label: "DaVinci Orchestration Overview", path: "/davinci-orchestration" },
+    ], "doc"),
+    productGroup("Ping products", [
       { from: "PingOne Protect", rename: "PingOne Protect", path: "/ai-products/protect" },
       { from: "Headless Identity Demo", rename: "Headless Identity / PingCLI" },
       "SDK Login",

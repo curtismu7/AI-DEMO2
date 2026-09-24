@@ -178,6 +178,7 @@ import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import NotebookLmPage from "./pages/NotebookLmPage";
 import AgenticAccessConsolePage from "./pages/AgenticAccessConsolePage";
 import PingAiProductPage from "./pages/PingAiProductPage";
+import PingOneProtectBrowserDemo from "./pages/PingOneProtectBrowserDemo";
 import AdminRoute from "./routes/AdminRoute";
 import HostedRegistrationPage from "./pages/HostedRegistrationPage";
 import HostedRegistrationAdminPage from "./pages/HostedRegistrationAdminPage";
@@ -920,6 +921,7 @@ function AppWithAuth() {
                   element={<SdkLoginPageRoute user={user} logout={logout} />}
                 />
                 <Route path="/sdk-login/callback" element={<SdkLoginCallbackRoute />} />
+                <Route path="/protect-auth-demo" element={<PingOneProtectBrowserDemo popout />} />
                 <Route path="/davinci-login/callback" element={<DavinciLoginCallbackRoute user={user} logout={logout} />} />
                 <Route path="/davinci-login/confirmed" element={<DavinciLoginConfirmedRoute user={user} logout={logout} />} />
                 <Route path="/davinci-orchestration-sdk" element={<DavinciSdkLoginRoute user={user} logout={logout} />} />

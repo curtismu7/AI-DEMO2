@@ -266,10 +266,12 @@ describe('theming ratchet', () => {
  * 453 -> 454: SequenceReelDiagram.css's `.srd-scroll::-webkit-scrollbar-thumb`
  * takes `background: var(--th-border-strong)` and has no color — a scrollbar
  * thumb renders no text, so "ink" does not apply; a themed thumb is correct.
+ * 489 -> 484: AIAgent.css adds matching --th-text ink to the agent header,
+ * results panel, token event dark override, and both embedded-agent surfaces.
  */
 // Measured on the current main tree after the latest UI merges. New themed
 // surfaces must still add their own ink.
-const MAX_GROUND_WITHOUT_INK = 485;
+const MAX_GROUND_WITHOUT_INK = 484;
 
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const HAS_COLOR = /(?:^|\n)\s*color\s*:/;
