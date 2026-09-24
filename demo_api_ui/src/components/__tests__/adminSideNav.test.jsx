@@ -89,12 +89,25 @@ describe("AdminSideNav — best-of-breed pass", () => {
     );
   });
 
-  it("places PingOne Protect under PingOne Products", () => {
+  it("places PingOne Protect under Ping products", () => {
     renderNav();
-    fireEvent.click(screen.getByRole("button", { name: /^PingOne Products/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^Ping products/ }));
     const protect = screen.getByRole("link", { name: "PingOne Protect" });
     expect(protect).toHaveAttribute("href", "/ai-products/protect");
-    expect(protect.closest(".admin-side-nav__group")).toHaveTextContent("PingOne Products");
+    expect(protect.closest(".admin-side-nav__group")).toHaveTextContent("Ping products");
+  });
+
+  it("keeps the DaVinci learning pages together in the DaVinci group", () => {
+    renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^DaVinci/ }));
+    const group = screen.getByRole("button", { name: /^DaVinci/ }).closest(".admin-side-nav__group");
+    expect(within(group).getByRole("link", { name: "DaVinci Widget" })).toHaveAttribute("href", "/davinci-widget");
+    expect(within(group).getByRole("link", { name: "DaVinci Login" })).toHaveAttribute("href", "/davinci-login-guide");
+    expect(within(group).getByRole("link", { name: "DaVinci SDK Login" })).toHaveAttribute("href", "/davinci-sdk-login");
+    expect(within(group).getByRole("link", { name: "DaVinci Orchestration" })).toHaveAttribute("href", "/davinci-orchestration");
+    expect(within(group).getByRole("link", { name: "DaVinci Orchestration SDK" })).toHaveAttribute("href", "/davinci-orchestration-sdk");
+    expect(within(group).getByRole("link", { name: "Orchestration SDK Guide" })).toHaveAttribute("href", "/orchestration-sdk");
+    expect(within(group).getByRole("link", { name: "DaVinci Orchestration Overview" })).toHaveAttribute("href", "/davinci-orchestration");
   });
 
   it("exposes aria-expanded + aria-controls on expandable groups", () => {

@@ -1,0 +1,216 @@
+.p1p-auth {
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: clamp(1rem, 2.5vw, 1.75rem);
+}
+
+.p1p-auth--popout {
+  width: min(100%, 760px);
+  min-height: 100vh;
+  margin: 0 auto;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: clamp(1.25rem, 4vw, 2rem);
+}
+
+.p1p-auth__header,
+.p1p-auth__actions {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.p1p-auth__header h2 {
+  margin: 0 0 0.4rem;
+  color: var(--th-text);
+  font-size: var(--font-size-xl);
+}
+
+.p1p-auth__header p,
+.p1p-auth__note {
+  color: var(--th-text-body);
+}
+
+.p1p-auth__eyebrow {
+  margin: 0 0 0.45rem;
+  color: var(--th-text);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.p1p-auth__actions {
+  flex-shrink: 0;
+}
+
+.p1p-auth__icon-button,
+.p1p-auth__secondary {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.9rem;
+  color: var(--th-text);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.p1p-auth__icon-button {
+  width: 44px;
+  padding: 0;
+}
+
+.p1p-auth__icon-button:hover,
+.p1p-auth__secondary:hover {
+  color: var(--th-text);
+  background: var(--th-bg-hover);
+}
+
+.p1p-auth__outcomes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1.5rem 0;
+}
+
+.p1p-auth__outcomes > div {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.85rem 1rem;
+  color: var(--th-text);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+}
+
+.p1p-auth__outcomes strong {
+  font-size: var(--font-size-md);
+}
+
+.p1p-auth__outcomes span {
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+}
+
+.p1p-auth__form,
+.p1p-auth__result {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 560px;
+  padding: 1.25rem;
+  color: var(--th-text);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+}
+
+.p1p-auth__form label {
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+  font-weight: 650;
+}
+
+.p1p-auth__form input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.65rem 0.75rem;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+
+.p1p-auth__run-chip {
+  justify-self: start;
+  min-height: 44px;
+  margin-top: 0.25rem;
+  padding: 0.65rem 1rem;
+  color: #fff;
+  background: #1769aa;
+  border: 1px solid #1769aa;
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.p1p-auth__run-chip:hover:not(:disabled) {
+  color: #fff;
+  background: #0e548d;
+}
+
+.p1p-auth__run-chip:disabled {
+  cursor: wait;
+  opacity: 0.75;
+}
+
+.p1p-auth__status,
+.p1p-auth__risk,
+.p1p-auth__error,
+.p1p-auth__result p,
+.p1p-auth__result h3 {
+  margin: 0;
+}
+
+.p1p-auth__status,
+.p1p-auth__risk {
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+}
+
+.p1p-auth__result h3 {
+  color: var(--th-text);
+  font-size: var(--font-size-lg);
+}
+
+.p1p-auth__result--success {
+  border-inline-start: 4px solid #198754;
+}
+
+.p1p-auth__result--blocked,
+.p1p-auth__error {
+  border-inline-start: 4px solid #b42318;
+}
+
+.p1p-auth__error {
+  padding: 0.65rem 0.8rem;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border-strong);
+  border-inline-start: 4px solid #b42318;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.p1p-auth__note {
+  margin: 1rem 0 0;
+  font-size: var(--font-size-xs);
+}
+
+@media (max-width: 620px) {
+  .p1p-auth__header {
+    flex-direction: column;
+  }
+
+  .p1p-auth__actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .p1p-auth__outcomes {
+    grid-template-columns: 1fr;
+  }
+}

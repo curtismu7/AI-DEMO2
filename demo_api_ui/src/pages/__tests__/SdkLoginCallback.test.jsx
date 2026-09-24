@@ -2,6 +2,12 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import SdkLoginCallback from "../SdkLoginCallback";
 import { getSdkClient, isSdkError } from "../../lib/oidcSdkClient";
+import { completeProtectAuthentication } from "../../services/protectAuthenticationService";
+import { PROTECT_AUTH_FLOW_KEY } from "../../lib/protectAuthFlow";
+
+vi.mock("../../services/protectAuthenticationService", () => ({
+  completeProtectAuthentication: vi.fn(),
+}));
 
 vi.mock("../../lib/oidcSdkClient", () => ({
   getSdkClient: vi.fn(),
@@ -13,22 +19,29 @@ describe("SdkLoginCallback", () => {
     sessionStorage.clear();
     vi.clearAllMocks();
     isSdkError.mockImplementation((result) => !result || Boolean(result?.error));
+    completeProtectAuthentication.mockResolvedValue(undefined);
   });
 
   function renderAt(search) {
     // The component reads window.location.search directly (not react-router's
-    // location), so the URL has to be set on the jsdom window itself. A real
-    // /sdk-login route is included so navigate("/sdk-login") is observable.
+    // location), so the URL has to be set on the jsdom window itself.
     window.history.pushState({}, "", `/sdk-login/callback${search}`);
     return render(
       <MemoryRouter initialEntries={[`/sdk-login/callback${search}`]}>
         <Routes>
           <Route path="/sdk-login/callback" element={<SdkLoginCallback />} />
           <Route path="/sdk-login" element={<div>SIGN IN PAGE</div>} />
+          <Route path="/protect-auth-demo" element={<div>PROTECT DEMO PAGE</div>} />
+          <Route path="/ai-products/protect" element={<div>PROTECT PRODUCT PAGE</div>} />
         </Routes>
       </MemoryRouter>,
     );
   }
+
+  const idToken = (claims) => {
+    const encode = (value) => btoa(JSON.stringify(value)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+    return `${encode({ alg: "RS256" })}.${encode(claims)}.signature`;
+  };
 
   it("on a reload of an already-attempted code, auto-recovers to the sign-in page without an error screen", async () => {
     sessionStorage.setItem("sdk-login-attempted-code", "usedcode");
@@ -63,6 +76,45 @@ describe("SdkLoginCallback", () => {
     expect(await screen.findByText("SIGN IN PAGE")).toBeInTheDocument();
     expect(exchange).toHaveBeenCalledWith("freshcode", "somestate");
     expect(sessionStorage.getItem("sdk-login-attempted-code")).toBe("freshcode");
+  });
+
+  it("reports successful Protect completion and returns to the Protect demo", async () => {
+    const exchange = vi.fn().mockResolvedValue({ ok: true });
+    const get = vi.fn().mockResolvedValue({ idToken: idToken({ email: "demo@example.com" }) });
+    getSdkClient.mockResolvedValue({ token: { exchange, get } });
+    sessionStorage.setItem(PROTECT_AUTH_FLOW_KEY, JSON.stringify({ version: 1, flowId: "opaque-flow", returnTo: "product", userId: "demo@example.com", issuedAt: Date.now() }));
+
+    renderAt("?code=protectcode&state=protectstate");
+
+    expect(await screen.findByText("PROTECT PRODUCT PAGE")).toBeInTheDocument();
+    expect(completeProtectAuthentication).toHaveBeenCalledWith({ flowId: "opaque-flow", completionStatus: "SUCCESS" });
+    expect(sessionStorage.getItem(PROTECT_AUTH_FLOW_KEY)).toBeNull();
+  });
+
+  it("reports FAILED when OIDC authenticates a different account than Protect evaluated", async () => {
+    const exchange = vi.fn().mockResolvedValue({ ok: true });
+    const get = vi.fn().mockResolvedValue({ idToken: idToken({ email: "other@example.com" }) });
+    const revoke = vi.fn().mockResolvedValue({ ok: true });
+    getSdkClient.mockResolvedValue({ token: { exchange, get, revoke } });
+    sessionStorage.setItem(PROTECT_AUTH_FLOW_KEY, JSON.stringify({ version: 1, flowId: "opaque-flow", returnTo: "product", userId: "demo@example.com", issuedAt: Date.now() }));
+
+    renderAt("?code=other-account-code&state=protectstate");
+
+    expect(await screen.findByText("PROTECT PRODUCT PAGE")).toBeInTheDocument();
+    expect(completeProtectAuthentication).toHaveBeenCalledWith({ flowId: "opaque-flow", completionStatus: "FAILED" });
+    expect(completeProtectAuthentication).not.toHaveBeenCalledWith({ flowId: "opaque-flow", completionStatus: "SUCCESS" });
+    expect(revoke).toHaveBeenCalled();
+    expect(sessionStorage.getItem(PROTECT_AUTH_FLOW_KEY)).toBeNull();
+  });
+
+  it("reports failed Protect completion when PingOne denies sign-in", async () => {
+    sessionStorage.setItem(PROTECT_AUTH_FLOW_KEY, JSON.stringify({ version: 1, flowId: "opaque-flow", userId: "demo@example.com", issuedAt: Date.now() }));
+
+    renderAt("?error=access_denied&error_description=Denied");
+
+    expect(await screen.findByText("PROTECT DEMO PAGE")).toBeInTheDocument();
+    expect(completeProtectAuthentication).toHaveBeenCalledWith({ flowId: "opaque-flow", completionStatus: "FAILED" });
+    expect(sessionStorage.getItem(PROTECT_AUTH_FLOW_KEY)).toBeNull();
   });
 
   describe("opened as the /sdk-login pop-out", () => {
