@@ -58,16 +58,8 @@ describe("applyChildOrder", () => {
 describe("PingOne platform navigation", () => {
   const group = (label) => NAV_STRUCTURE_CATALOG.find((item) => item.label === label);
 
-  it("keeps DaVinci together as its own product group", () => {
-    expect(group("DaVinci").children).toEqual([
-      "DaVinci Widget",
-      "DaVinci Login",
-      "DaVinci SDK Login",
-      "DaVinci Orchestration",
-      "DaVinci Orchestration SDK",
-      "Orchestration SDK Guide",
-      "DaVinci Orchestration Overview",
-    ]);
+  it("keeps the unified DaVinci SDK link in its product group", () => {
+    expect(group("DaVinci").children).toEqual(["DaVinci SDK"]);
   });
 
   it("places RAG inside AI Gateway and treats Headless Identity as a product", () => {
