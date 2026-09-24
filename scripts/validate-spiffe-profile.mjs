@@ -48,7 +48,11 @@ if (!entries.includes('-x509SVIDTTL 3600') || entries.includes('-ttl 3600')) {
   failures.push('registration entries must use the current X509 SVID TTL flag');
 }
 if (!entries.includes('spire-server entry update')) failures.push('registration job must update stable entries on rerun');
-const updateCommand = entries.match(/spire-server entry update[\s\S]*?-x509SVIDTTL 3600/)?.[0] || '';
+const updateStart = entries.indexOf('spire-server entry update');
+const updateEnd = entries.indexOf('\n  else', updateStart);
+const updateCommand = updateStart >= 0 && updateEnd >= 0
+  ? entries.slice(updateStart, updateEnd)
+  : '';
 if (!updateCommand.includes('-spiffeID "$SPIFFE_ID"')) {
   failures.push('registration job must preserve the SPIFFE ID when updating stable entries');
 }
