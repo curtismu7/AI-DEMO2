@@ -738,6 +738,8 @@ services:
 
   spiffe-helper-bff:
     profiles: ["spiffe"]
+    labels:
+      com.ai-demo.spiffe-workload: bff
     image: ghcr.io/spiffe/spiffe-helper:0.11.0
     container_name: ai-demo-spiffe-helper-bff
     command: ["-config", "/etc/spiffe-helper/helper.conf"]

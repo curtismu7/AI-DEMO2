@@ -32,6 +32,10 @@ if (!/spire-agent:[\s\S]*?dockerfile:\s*Dockerfile\.agent/.test(compose)) {
   failures.push('spire-agent must use the shell-enabled agent image');
 }
 if (!compose.includes('FF_SPIFFE_CLIENT_AUTH')) failures.push('BFF SPIFFE client-auth flag is not wired');
+const helperService = compose.match(/^  spiffe-helper-bff:\n([\s\S]*?)(?=^  [a-zA-Z0-9_-]+:[ \t]*$)/m)?.[1] || '';
+if (!helperService.includes('com.ai-demo.spiffe-workload: bff')) {
+  failures.push('SPIFFE helper must carry the BFF Docker workload selector');
+}
 
 const entries = fs.readFileSync(path.join(root, 'spiffe/docker-compose/entries.sh'), 'utf8');
 const agentConfig = fs.readFileSync(path.join(root, 'spiffe/docker-compose/spire-agent.conf'), 'utf8');
