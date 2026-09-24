@@ -1,7 +1,7 @@
 import React from 'react';
 import './LoadingOverlay.css';
 
-const DEFAULT_LOGO_SRC = '/assets/ping-identity-logo.png';
+const DEFAULT_LOGO_SRC = '/branding/ping-logo.svg';
 
 /**
  * Shared Ping identity loading mark.
