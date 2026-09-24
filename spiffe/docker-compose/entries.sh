@@ -2,16 +2,17 @@
 set -eu
 
 SERVER_SOCKET=/run/spire/server/private/api.sock
-NODE_SPIFFE_ID="spiffe://bxfinance.demo/node/agent"
+NODE_SPIFFE_ID_PREFIX="spiffe://bxfinance.demo/spire/agent/join_token"
 
 until spire-server healthcheck -socketPath "$SERVER_SOCKET" >/dev/null 2>&1; do
   sleep 2
 done
 
-# Give the node a stable SPIFFE ID so workload entries keep the same parent
-# across registration job runs while each one-time join token can expire.
-TOKEN="$(spire-server token generate -socketPath "$SERVER_SOCKET" -spiffeID "$NODE_SPIFFE_ID" -ttl 600 | awk '/Token:/ {print $2}')"
+# The join-token node attestor derives the node SVID from this token, so use
+# the resulting identity as the parent for workload entries.
+TOKEN="$(spire-server token generate -socketPath "$SERVER_SOCKET" -ttl 600 | awk '/Token:/ {print $2}')"
 test -n "$TOKEN"
+NODE_SPIFFE_ID="$NODE_SPIFFE_ID_PREFIX/$TOKEN"
 printf '%s' "$TOKEN" > /run/spire-bootstrap/join-token
 
 ensure_entry() {
@@ -21,14 +22,14 @@ ensure_entry() {
   if EXISTING="$(spire-server entry show -socketPath "$SERVER_SOCKET" -entryID "$ENTRY_ID" 2>&1)"; then
     spire-server entry update -socketPath "$SERVER_SOCKET" \
       -entryID "$ENTRY_ID" -spiffeID "$SPIFFE_ID" -parentID "$NODE_SPIFFE_ID" \
-      -selector "$SELECTOR" -x509SVIDTTL 3600
+      -selector "$SELECTOR" -x509SVIDTTL 3600 -jwtSVIDTTL 3600
   else
     case "$EXISTING" in
       *"code = NotFound"*"entry not found"*)
         spire-server entry create -socketPath "$SERVER_SOCKET" \
           -entryID "$ENTRY_ID" -spiffeID "$SPIFFE_ID" \
           -parentID "$NODE_SPIFFE_ID" -selector "$SELECTOR" \
-          -x509SVIDTTL 3600
+          -x509SVIDTTL 3600 -jwtSVIDTTL 3600
         ;;
       *)
         printf '%s\n' "$EXISTING" >&2

@@ -63,8 +63,12 @@ if (!updateCommand.includes('-spiffeID "$SPIFFE_ID"')) {
 if (!entries.includes('code = NotFound') || !entries.includes('entry not found')) {
   failures.push('registration job must create workload entries only for SPIRE NotFound errors');
 }
-if (!entries.includes('NODE_SPIFFE_ID="spiffe://bxfinance.demo/node/agent"')) {
-  failures.push('registration job must use a stable agent parent ID');
+if (!entries.includes('NODE_SPIFFE_ID_PREFIX="spiffe://bxfinance.demo/spire/agent/join_token"')
+  || !entries.includes('NODE_SPIFFE_ID="$NODE_SPIFFE_ID_PREFIX/$TOKEN"')) {
+  failures.push('registration job must derive the agent parent ID from the join token');
+}
+if (!entries.includes('-jwtSVIDTTL 3600')) {
+  failures.push('registration entries must configure a JWT SVID TTL');
 }
 for (const selector of [
   'docker:label:com.ai-demo.spiffe-workload:bff',
