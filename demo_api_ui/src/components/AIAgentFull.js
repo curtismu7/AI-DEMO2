@@ -63,7 +63,8 @@ import {
   toast,
 } from "../utils/appToast";
 import { isPublicMarketingAgentPath, isPingOneAdminAgentRoute } from "../utils/embeddedAgentFabVisibility";
-import { ID_JAG_USE_CASE_ID, RUN_MODES, USE_CASE_RUN_CONTEXT_KEY, completeIdJagRunHandoff, requestLiveIdJagRun } from "../utils/idJagRunMode";
+import { USE_CASE_RUN_CONTEXT_KEY } from "../utils/idJagRunMode";
+import { useIdJagAgentLauncher } from "../hooks/useIdJagAgentLauncher";
 import { runsSignedOut, authLevelOf, viewerMeetsUseCaseAuth } from "../utils/useCaseAuth";
 import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER, sourceLabel } from "../config/agentModes";
 import AccountDetailsPanel from "./AccountDetailsPanel";
@@ -117,9 +118,6 @@ import AgentModeSelector from "./AgentModeSelector";
 import Check from "./common/Check";
 import useQuickFlags from "../hooks/useQuickFlags";
 import { QUICK_FLAGS } from "./QuickFlagsPill";
-
-const ID_JAG_REPLAYED_KEY = "bx_id_jag_replayed";
-const isIdJagLaunchPhrase = (text) => /^(?:run (?:the )?demo|run (?:the )?id[- ]jag demo|enterprise[- ]managed mcp(?: authorization)?|show my balance)[.!?]*$/i.test(text.trim());
 
 // The demo switches worth reaching without leaving the agent header. Kept
 // short on purpose — the full curated lineup stays in the header pill.
@@ -1355,13 +1353,19 @@ export default function BankingAgentFull({
   // learning drawer's "Run this attack" buttons. Assigned each render (see the
   // useEffect below) so window listeners always call the current closure.
   const runDrawerAttackRef = useRef(null);
-  const idJagReplayRef = useRef(false);
   const toolProgressIdRef = useRef(null);
   const panelRef = useRef(null);
   const isDraggingRef = useRef(false);
   const dragOffsetRef = useRef({ x: 0, y: 0 });
   const navigate = useNavigate();
   const location = useLocation();
+  const { launchDemoStep: launchIdJagDemoStep, launchPhrase: launchIdJagPhrase } = useIdJagAgentLauncher({
+    pathname: location.pathname,
+    readUseCaseId: () => {
+      try { return JSON.parse(sessionStorage.getItem(USE_CASE_RUN_CONTEXT_KEY) || 'null')?.useCaseId; }
+      catch { return null; }
+    },
+  });
   const [searchParams] = useSearchParams();
   // Current pathname reachable from effects that must not list it as a dep.
   const pathnameRef = useRef(location.pathname);
@@ -1508,36 +1512,6 @@ export default function BankingAgentFull({
     return () => {
       window.removeEventListener("banking-agent-prefill", handler);
       timerIds.forEach(clearTimeout);
-    };
-  }, []);
-
-  useEffect(() => {
-    const onLaunch = () => {
-      idJagReplayRef.current = false;
-      try { sessionStorage.removeItem(ID_JAG_REPLAYED_KEY); } catch (_) { /* storage unavailable */ }
-    };
-    const onAuthenticated = (event) => {
-      const detail = event.detail;
-      if (detail?.idJagCallbackValidated !== true || detail.useCaseId !== ID_JAG_USE_CASE_ID
-        || detail.mode !== RUN_MODES.LIVE_ID_JAG || !detail.message || idJagReplayRef.current) return;
-      try {
-        if (sessionStorage.getItem(ID_JAG_REPLAYED_KEY) === '1') return;
-        sessionStorage.setItem(ID_JAG_REPLAYED_KEY, '1');
-      } catch (_) { /* the in-memory guard still handles duplicate events */ }
-      idJagReplayRef.current = true;
-      completeIdJagRunHandoff();
-      window.dispatchEvent(new CustomEvent('banking-agent-prefill', { detail: {
-        message: detail.message,
-        autoSend: true,
-        useCaseId: ID_JAG_USE_CASE_ID,
-        mode: RUN_MODES.LIVE_ID_JAG,
-      } }));
-    };
-    window.addEventListener('id-jag-run-requested', onLaunch);
-    window.addEventListener('userAuthenticated', onAuthenticated);
-    return () => {
-      window.removeEventListener('id-jag-run-requested', onLaunch);
-      window.removeEventListener('userAuthenticated', onAuthenticated);
     };
   }, []);
 
@@ -7939,14 +7913,7 @@ export default function BankingAgentFull({
     if (!uc) return;
     setShowDemoSteps(false);
     setShowDiscovery(false);
-    if (uc.id === 'UC40' && uc.useCaseId === ID_JAG_USE_CASE_ID) {
-      requestLiveIdJagRun({
-        mode: RUN_MODES.LIVE_ID_JAG,
-        message: 'show my balance',
-        returnTo: location.pathname === '/pingfederate-id-jag/demo' ? location.pathname : '/dashboard',
-      });
-      return;
-    }
+    if (launchIdJagDemoStep(uc)) return;
     if (isAgentBlockedByConsentDecline()) {
       addMessage("assistant", AGENT_CONSENT_BLOCK_USER_MESSAGE);
       return;
@@ -8293,18 +8260,7 @@ export default function BankingAgentFull({
   }
 
   async function handleNaturalLanguageInner(text) {
-    let storedUseCaseId = null;
-    try { storedUseCaseId = JSON.parse(sessionStorage.getItem(USE_CASE_RUN_CONTEXT_KEY) || 'null')?.useCaseId; }
-    catch (_) { /* storage unavailable */ }
-    const inIdJagContext = storedUseCaseId === ID_JAG_USE_CASE_ID
-      || location.pathname === '/pingfederate-id-jag/demo'
-      || location.pathname === '/demo/enterprise-mcp';
-    if (inIdJagContext && isIdJagLaunchPhrase(text)) {
-      requestLiveIdJagRun({
-        mode: RUN_MODES.LIVE_ID_JAG,
-        message: 'show my balance',
-        returnTo: location.pathname === '/dashboard' ? '/dashboard' : '/pingfederate-id-jag/demo',
-      });
+    if (launchIdJagPhrase(text)) {
       setNlInput('');
       return;
     }

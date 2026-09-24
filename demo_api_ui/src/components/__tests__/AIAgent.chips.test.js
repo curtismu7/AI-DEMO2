@@ -223,33 +223,34 @@ describe("ID-JAG agent phrases", () => {
     },
   );
 
-  it("keeps an unscoped balance request on the ordinary banking path", async () => {
-    const onLaunch = vi.fn();
-    window.addEventListener("id-jag-run-requested", onLaunch);
-    try {
-      renderAgent({ user: customerUser, mode: "inline" }, { route: "/dashboard" });
-      const input = screen.getByPlaceholderText(/^Message |^Ask about/);
-      fireEvent.change(input, { target: { value: "show my balance" } });
-      fireEvent.keyDown(input, { key: "Enter" });
-      expect(onLaunch).not.toHaveBeenCalled();
-    } finally {
-      window.removeEventListener("id-jag-run-requested", onLaunch);
-    }
-  });
-
-  it("does not turn an unscoped run demo phrase into an ID-JAG handoff", async () => {
-    const onLaunch = vi.fn();
-    window.addEventListener("id-jag-run-requested", onLaunch);
-    try {
-      renderAgent({ user: customerUser, mode: "inline" }, { route: "/dashboard" });
-      const input = screen.getByPlaceholderText(/^Message |^Ask about/);
-      fireEvent.change(input, { target: { value: "run demo" } });
-      fireEvent.keyDown(input, { key: "Enter" });
-      expect(onLaunch).not.toHaveBeenCalled();
-    } finally {
-      window.removeEventListener("id-jag-run-requested", onLaunch);
-    }
-  });
+  it.each(["show my balance", "run demo"])(
+    "keeps an unscoped %s request on the ordinary NL path",
+    async (phrase) => {
+      const onLaunch = vi.fn();
+      const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue({
+        ok: true,
+        json: async () => ({ source: "heuristic", result: { kind: "none" } }),
+      });
+      window.addEventListener("id-jag-run-requested", onLaunch);
+      try {
+        renderAgent({ user: customerUser, mode: "inline" }, { route: "/dashboard" });
+        const input = screen.getByPlaceholderText(/^Message |^Ask about/);
+        fireEvent.change(input, { target: { value: phrase } });
+        fireEvent.keyDown(input, { key: "Enter" });
+        await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith(
+          "/api/demo-agent/nl",
+          expect.objectContaining({
+            method: "POST",
+            body: expect.stringContaining(`"message":"${phrase}"`),
+          }),
+        ));
+        expect(onLaunch).not.toHaveBeenCalled();
+      } finally {
+        window.removeEventListener("id-jag-run-requested", onLaunch);
+        fetchSpy.mockRestore();
+      }
+    },
+  );
 
   it("replays a validated callback exactly once with live UC40 metadata", async () => {
     const onPrefill = vi.fn();

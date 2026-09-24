@@ -361,7 +361,14 @@ export default function DemoStepsDropdown({
             </span>
           )}
           <span className="ba-demo-steps-popout__id">{uc.id}</span>
-          <span className="banking-chips-dropdown__chip-name">{uc.id === 'UC40' ? 'Run PingFederate ID-JAG' : uc.demoLabel || uc.title}</span>
+          <span className={`banking-chips-dropdown__chip-name${uc.id === 'UC40' ? ' banking-chips-dropdown__chip-name--id-jag' : ''}`}>
+            {uc.id === 'UC40' ? 'Run PingFederate ID-JAG' : uc.demoLabel || uc.title}
+            {uc.id === 'UC40' && (
+              <span className="ba-demo-steps-popout__id-jag-copy">
+                Signs out your current session silently, then opens PingFederate login.
+              </span>
+            )}
+          </span>
           {uc.demoSurface === 'hosted-pingone-mcp' && (
             <span
               className="ba-demo-steps-popout__hosted-badge"

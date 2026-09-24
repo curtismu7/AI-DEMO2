@@ -53,6 +53,7 @@ describe('DemoStepsDropdown', () => {
         }
         const chip = await screen.findByTestId(testId);
         expect(chip).toHaveTextContent('Run PingFederate ID-JAG');
+        expect(chip).toHaveTextContent('Signs out your current session silently, then opens PingFederate login.');
         fireEvent.click(chip);
         expect(onLaunch).toHaveBeenCalledTimes(1);
         expect(onLaunch.mock.calls[0][0].detail).toEqual({
