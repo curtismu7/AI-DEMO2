@@ -34,7 +34,7 @@ export default function TopNav({ user, onLogout }) {
   const location = useLocation();
   const { pageManifest } = useVertical();
   const identity = pageManifest?.identity;
-  const { tokenSecondsLeft, tokenLoading, sessionType, staleSession, hasRefreshToken, openTokenModal } = useSessionToken();
+  const { tokenSecondsLeft, tokenLoading, sessionType, staleSession, hasRefreshToken, hasActiveToken, openTokenModal } = useSessionToken();
   const { darkMode, toggleDarkMode } = useTheme();
   const brandName = (identity && (identity.headerTitle || identity.displayName)) || 'AI Demo';
   // Per-vertical brand icon (manifest identity.icon); unknown/absent → bank icon.

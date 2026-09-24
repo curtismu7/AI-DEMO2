@@ -94,7 +94,7 @@ function ProtocolDetails({ diagramId, stepIndex }) {
   );
 }
 
-const DIAGRAMS = {
+export const DIAGRAMS = {
   jag: {
     label: "ID-JAG flow",
     title: "ID-JAG token journey",
@@ -104,8 +104,8 @@ const DIAGRAMS = {
     steps: [
       { title: "Start the UC40 MCP request", detail: "The BFF receives the user's request and keeps OAuth tokens out of the browser. The UC40 PingFederate lane uses its server-held refresh token as the upstream subject.", active: ["user", "bff"], links: ["request"] },
       { title: "Side 1 · PingFederate validates the upstream token", detail: "The BFF sends a token-exchange request with the refresh token, its token type, the downstream audience/resource, and requested scopes. PingFederate's token-exchange policy validates the refresh token.", active: ["bff", "pingfed"], links: ["issue"] },
-      { title: "PingFederate issues the ID-JAG", detail: "After validation and attribute mapping, PingFederate returns a signed ID-JAG to the BFF. Its audience identifies the downstream authorization server; its resource and scope constrain the MCP access being requested.", active: ["pingfed", "jag", "bff"], links: ["mint"] },
-      { title: "Side 2 · submit ID-JAG for validation", detail: "The BFF sends the ID-JAG to the configured downstream MCP authorization server as a JWT bearer assertion. The MCP AS checks issuer/signature, audience, expiry, ID-JAG type, its resource allowlist, and the single-use jti.", active: ["bff", "jag", "mcpas"], links: ["redeem"] },
+      { title: "PingFederate issues the ID-JAG", detail: "After validation and attribute mapping, PingFederate returns a signed ID-JAG to the BFF. Its audience identifies the downstream authorization server; its resource and scope constrain the MCP access being requested.", active: ["pingfed", "jag", "bff"], links: ["mint", "return"] },
+      { title: "Side 2 · submit ID-JAG for validation", detail: "The BFF sends the ID-JAG to the configured downstream MCP authorization server as a JWT bearer assertion. The MCP AS checks issuer/signature, audience, expiry, ID-JAG type, its resource allowlist, and the single-use jti.", active: ["bff", "jag", "mcpas"], links: ["return", "redeem"] },
       { title: "Downstream AS issues its local access token", detail: "A successful JWT bearer grant returns a resource-specific MCP access token. The ID-JAG was the grant assertion; the newly issued access token is what authorizes the protected call.", active: ["mcpas", "bff", "gateway"], links: ["local-token"] },
       { title: "Call the protected MCP tool", detail: "The BFF sends the MCP request to PingGateway with the downstream access token. PingGateway and PingOne Authorize apply the configured access-token and action policy checks before the MCP resource returns data.", active: ["bff", "gateway", "authorize", "invest"], links: ["dispatch", "policy", "tool"] },
     ],
@@ -122,9 +122,10 @@ const DIAGRAMS = {
     links: [
       { id: "request", source: "user", target: "bff", label: "request" },
       { id: "issue", source: "bff", target: "pingfed", label: "Ex1" },
-      { id: "mint", source: "pingfed", target: "jag", label: "ID-JAG" },
+      { id: "mint", source: "pingfed", target: "jag", label: "" },
+      { id: "return", source: "jag", target: "bff", label: "JAG → BFF", sourceHandle: "top", targetHandle: "top" },
       { id: "redeem", source: "bff", target: "mcpas", label: "JWT bearer grant", sourceHandle: "bottom", targetHandle: "bottom" },
-      { id: "local-token", source: "mcpas", target: "bff", label: "MCP token", sourceHandle: "top", targetHandle: "top" },
+      { id: "local-token", source: "mcpas", target: "bff", label: "local AT", sourceHandle: "top", targetHandle: "top" },
       { id: "dispatch", source: "bff", target: "gateway", label: "access token", sourceHandle: "bottom", targetHandle: "top" },
       { id: "policy", source: "gateway", target: "authorize", label: "policy" },
       { id: "tool", source: "gateway", target: "invest", label: "tool call" },
@@ -139,8 +140,8 @@ const DIAGRAMS = {
     steps: [
       { title: "User signs in with PingFederate", detail: "The browser receives a BFF session cookie. The refresh token remains in the BFF session and never enters the browser.", active: ["user", "bff", "pingfed"], links: ["login"] },
       { title: "Side 1 · PingFederate validates the refresh token", detail: "For UC40, the BFF calls PingFederate's token endpoint using token exchange and requests an ID-JAG for the configured MCP authorization server and resource.", active: ["bff", "pingfed"], links: ["issue"] },
-      { title: "PingFederate returns the ID-JAG", detail: "PingFederate validates the upstream refresh token, applies its processor policy, then signs and returns an audience-bound ID-JAG to the BFF.", active: ["pingfed", "jag", "bff"], links: ["mint"] },
-      { title: "Side 2 · MCP AS validates the ID-JAG", detail: "The BFF submits the ID-JAG in a JWT bearer grant to the configured downstream MCP authorization server. The MCP AS checks issuer/signature, audience, expiry, ID-JAG type, resource allowlist, and single-use jti before accepting the grant.", active: ["bff", "jag", "mcpas"], links: ["redeem"] },
+      { title: "PingFederate returns the ID-JAG", detail: "PingFederate validates the upstream refresh token, applies its processor policy, then signs and returns an audience-bound ID-JAG to the BFF.", active: ["pingfed", "jag", "bff"], links: ["mint", "return"] },
+      { title: "Side 2 · MCP AS validates the ID-JAG", detail: "The BFF submits the ID-JAG in a JWT bearer grant to the configured downstream MCP authorization server. The MCP AS checks issuer/signature, audience, expiry, ID-JAG type, resource allowlist, and single-use jti before accepting the grant.", active: ["bff", "jag", "mcpas"], links: ["return", "redeem"] },
       { title: "MCP AS issues its own access token", detail: "The downstream authorization server returns a scoped MCP access token. That local token, not the ID-JAG, is used for the protected MCP call.", active: ["mcpas", "bff", "gateway"], links: ["local-token"] },
       { title: "Gateway authorizes and forwards the call", detail: "The BFF sends the MCP request with the downstream access token. PingGateway and PingOne Authorize evaluate that token and requested action, then the MCP resource returns the tool result.", active: ["bff", "gateway", "authorize", "invest"], links: ["dispatch", "policy", "tool"] },
     ],
@@ -157,9 +158,10 @@ const DIAGRAMS = {
     links: [
       { id: "login", source: "user", target: "bff", label: "sign-in" },
       { id: "issue", source: "bff", target: "pingfed", label: "Ex1" },
-      { id: "mint", source: "pingfed", target: "jag", label: "ID-JAG" },
+      { id: "mint", source: "pingfed", target: "jag", label: "" },
+      { id: "return", source: "jag", target: "bff", label: "JAG → BFF", sourceHandle: "top", targetHandle: "top" },
       { id: "redeem", source: "bff", target: "mcpas", label: "JWT bearer grant", sourceHandle: "bottom", targetHandle: "bottom" },
-      { id: "local-token", source: "mcpas", target: "bff", label: "MCP token", sourceHandle: "top", targetHandle: "top" },
+      { id: "local-token", source: "mcpas", target: "bff", label: "local AT", sourceHandle: "top", targetHandle: "top" },
       { id: "dispatch", source: "bff", target: "gateway", label: "access token", sourceHandle: "bottom", targetHandle: "top" },
       { id: "policy", source: "gateway", target: "authorize", label: "policy" },
       { id: "tool", source: "gateway", target: "invest", label: "tool call" },
