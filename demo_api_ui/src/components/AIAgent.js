@@ -69,6 +69,7 @@ import {
 } from "../utils/appToast";
 import { isPublicMarketingAgentPath, isPingOneAdminAgentRoute } from "../utils/embeddedAgentFabVisibility";
 import { useUseCaseRunContext } from "../utils/useCaseRunContext";
+import { ID_JAG_USE_CASE_ID, RUN_MODES, requestLiveIdJagRun } from "../utils/idJagRunMode";
 import { runsSignedOut, authLevelOf, viewerMeetsUseCaseAuth } from "../utils/useCaseAuth";
 import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER, sourceLabel } from "../config/agentModes";
 import AccountDetailsPanel from "./AccountDetailsPanel";
@@ -132,6 +133,9 @@ export const MORE_MENU_FLAG_IDS = [
   "ff_dpop",
   "ff_rar",
 ];
+
+const ID_JAG_REPLAYED_KEY = "bx_id_jag_replayed";
+const isIdJagLaunchPhrase = (text) => /^(?:run (?:the )?demo|run (?:the )?id[- ]jag demo|enterprise[- ]managed mcp(?: authorization)?|show my balance)[.!?]*$/i.test(text.trim());
 
 const SURFACE_OPTIONS = [
   { value: "none", label: "Off", description: "Hide this view." },
@@ -1651,6 +1655,7 @@ export default function BankingAgent({
   const navigate = useNavigate();
   const location = useLocation();
   const runContext = useUseCaseRunContext(location);
+  const idJagReplayRef = useRef(false);
   const [searchParams] = useSearchParams();
   // Current pathname reachable from effects that must not list it as a dep.
   const pathnameRef = useRef(location.pathname);
@@ -1800,6 +1805,35 @@ export default function BankingAgent({
     return () => {
       window.removeEventListener("banking-agent-prefill", handler);
       timerIds.forEach(clearTimeout);
+    };
+  }, []);
+
+  useEffect(() => {
+    const onLaunch = () => {
+      idJagReplayRef.current = false;
+      try { sessionStorage.removeItem(ID_JAG_REPLAYED_KEY); } catch (_) { /* storage unavailable */ }
+    };
+    const onAuthenticated = (event) => {
+      const detail = event.detail;
+      if (detail?.idJagCallbackValidated !== true || detail.useCaseId !== ID_JAG_USE_CASE_ID
+        || detail.mode !== RUN_MODES.LIVE_ID_JAG || !detail.message || idJagReplayRef.current) return;
+      try {
+        if (sessionStorage.getItem(ID_JAG_REPLAYED_KEY) === '1') return;
+        sessionStorage.setItem(ID_JAG_REPLAYED_KEY, '1');
+      } catch (_) { /* the in-memory guard still handles duplicate events */ }
+      idJagReplayRef.current = true;
+      window.dispatchEvent(new CustomEvent('banking-agent-prefill', { detail: {
+        message: detail.message,
+        autoSend: true,
+        useCaseId: ID_JAG_USE_CASE_ID,
+        mode: RUN_MODES.LIVE_ID_JAG,
+      } }));
+    };
+    window.addEventListener('id-jag-run-requested', onLaunch);
+    window.addEventListener('userAuthenticated', onAuthenticated);
+    return () => {
+      window.removeEventListener('id-jag-run-requested', onLaunch);
+      window.removeEventListener('userAuthenticated', onAuthenticated);
     };
   }, []);
 
@@ -8233,6 +8267,14 @@ export default function BankingAgent({
     if (!uc) return;
     setShowDemoSteps(false);
     setShowDiscovery(false);
+    if (uc.id === 'UC40' && uc.useCaseId === ID_JAG_USE_CASE_ID) {
+      requestLiveIdJagRun({
+        mode: RUN_MODES.LIVE_ID_JAG,
+        message: 'show my balance',
+        returnTo: location.pathname === '/pingfederate-id-jag/demo' ? location.pathname : '/dashboard',
+      });
+      return;
+    }
     if (isAgentBlockedByConsentDecline()) {
       addMessage("assistant", AGENT_CONSENT_BLOCK_USER_MESSAGE);
       return;
@@ -8579,6 +8621,18 @@ export default function BankingAgent({
   }
 
   async function handleNaturalLanguageInner(text) {
+    const inIdJagContext = runContext?.useCaseId === ID_JAG_USE_CASE_ID
+      || location.pathname === '/pingfederate-id-jag/demo'
+      || location.pathname === '/demo/enterprise-mcp';
+    if (inIdJagContext && isIdJagLaunchPhrase(text)) {
+      requestLiveIdJagRun({
+        mode: RUN_MODES.LIVE_ID_JAG,
+        message: 'show my balance',
+        returnTo: location.pathname === '/dashboard' ? '/dashboard' : '/pingfederate-id-jag/demo',
+      });
+      setNlInput('');
+      return;
+    }
     if (!isLoggedIn && !marketingGuestChatEnabled) return;
     if (isAgentBlockedByConsentDecline()) {
       addMessage("assistant", AGENT_CONSENT_BLOCK_USER_MESSAGE);

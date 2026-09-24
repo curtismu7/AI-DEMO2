@@ -13,6 +13,7 @@ import {
   DEMO_USE_CASE_IDS,
   ADMIN_PRIMARY_USE_CASE_IDS,
 } from '../../config/demoUseCaseSteps';
+import { clearIdJagRunState, ID_JAG_USE_CASE_ID } from '../../utils/idJagRunMode';
 
 vi.mock('../../services/apiClient', () => ({
   default: {
@@ -23,7 +24,7 @@ vi.mock('../../services/apiClient', () => ({
 
 const CATALOG = DEMO_USE_CASE_IDS.map((id, i) => ({
   id,
-  useCaseId: `slug-${id}`,
+  useCaseId: id === 'UC40' ? ID_JAG_USE_CASE_ID : `slug-${id}`,
   title: `Title for ${id}`,
   ...(id === 'UC8' ? { demoLabel: '✦ MCP App · transfer approval' } : {}),
   whatLong: `Long explanation for ${id}`,
@@ -36,8 +37,36 @@ describe('DemoStepsDropdown', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStorage.clear();
+    clearIdJagRunState();
     apiClient.get.mockResolvedValue({ data: { useCases: CATALOG } });
   });
+
+  it.each(['demo-step-UC40', 'demo-step-privilege-UC40'])(
+    'launches %s through the shared live ID-JAG intent', async (testId) => {
+      const onSelect = vi.fn();
+      const onLaunch = vi.fn();
+      window.addEventListener('id-jag-run-requested', onLaunch);
+      try {
+        render(<DemoStepsDropdown open onOpenChange={() => {}} onSelect={onSelect} />);
+        if (testId === 'demo-step-privilege-UC40') {
+          fireEvent.click(await screen.findByTestId('demo-steps-group-j-privilege-mcp'));
+        }
+        const chip = await screen.findByTestId(testId);
+        expect(chip).toHaveTextContent('Run PingFederate ID-JAG');
+        fireEvent.click(chip);
+        expect(onLaunch).toHaveBeenCalledTimes(1);
+        expect(onLaunch.mock.calls[0][0].detail).toEqual({
+          useCaseId: ID_JAG_USE_CASE_ID,
+          mode: 'live-id-jag',
+          message: 'show my balance',
+          returnTo: '/dashboard',
+        });
+        expect(onSelect).not.toHaveBeenCalled();
+      } finally {
+        window.removeEventListener('id-jag-run-requested', onLaunch);
+      }
+    },
+  );
 
   it('renders the Demo steps trigger', () => {
     render(
