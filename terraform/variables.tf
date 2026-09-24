@@ -36,6 +36,14 @@ variable "image_repository" {
   description = "Optional image repository prefix for SE images, for example ghcr.io/alex."
   type        = string
   default     = ""
+
+  validation {
+    condition = var.image_repository == "" || can(regex(
+      "^[A-Za-z0-9.-]+(:[0-9]+)?(/[a-z0-9]+([._-][a-z0-9]+)*)+$",
+      var.image_repository
+    ))
+    error_message = "image_repository must be a registry host followed by a repository path, for example ghcr.io/alex."
+  }
 }
 
 variable "project_name" {

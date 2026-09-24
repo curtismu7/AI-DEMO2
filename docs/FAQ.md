@@ -58,7 +58,7 @@ npm run setup:fresh   # provisions PingOne apps, scopes, resources and demo user
 
 ### What versions do I need?
 
-- **Node 22 or later.** Every `package.json` declares `"node": ">=22"`. Some older docs still say Node 20.
+- **Node 22 or later.** Every `package.json` declares `"node": ">=22"`.
 - **Python 3.11 or later**, for the Python agents.
 - **Docker Desktop or OrbStack.** Even local mode uses Docker to run PingOne Agent Gateway.
 - **mkcert**, for local HTTPS.

@@ -80,10 +80,8 @@ log=$(mktemp)
 trap 'rm -f "$log"' EXIT
 
 if [ "$SERVICE" = "authz-server" ]; then
-  # node --test does NOT recurse on Node 20 (what ci.yml pins); it only gained
-  # recursive discovery in Node 21. `node --test` alone therefore runs the root
-  # *.test.js files and SILENTLY SKIPS tests/ — which is where the UC16 and tier
-  # suites live. Pass both globs explicitly so the set is identical on every Node.
+  # Pass both globs explicitly so test discovery stays clear and independent of
+  # how `node --test` handles recursive discovery across supported Node majors.
   shopt -s nullglob
   cd "$DIR" || exit 1
   files=( *.test.js tests/*.test.js )
