@@ -89,7 +89,8 @@ import path from 'node:path';
 // nav-reachable pages from the full audit. Each page's own brand/legend
 // accent (the CC orange, --dtp-red/--dc-navy/--dc-blue, the #0a66c2 OWASP
 // blue, the SecurityCenter navy header) stays literal per THEMING.md §1.3.
-const MAX_UNTHEMED = 71;
+// 71 -> 69: Hub theme links, protocol lab, and Privilege MCP are now themed.
+const MAX_UNTHEMED = 69;
 
 const SRC = path.join(__dirname, '..', '..');
 
@@ -266,9 +267,9 @@ describe('theming ratchet', () => {
  * takes `background: var(--th-border-strong)` and has no color — a scrollbar
  * thumb renders no text, so "ink" does not apply; a themed thumb is correct.
  */
-// Reconciled with the current main baseline after the MCP observability and
-// A2A console merges. New themed surfaces must still add their own ink.
-const MAX_GROUND_WITHOUT_INK = 476;
+// Measured on the current main tree after the latest UI merges. New themed
+// surfaces must still add their own ink.
+const MAX_GROUND_WITHOUT_INK = 485;
 
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const HAS_COLOR = /(?:^|\n)\s*color\s*:/;

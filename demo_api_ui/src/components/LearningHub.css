@@ -1,7 +1,4 @@
-/* Themed with --th-* per THEMING.md. The .learning-hub__rag block (teal
-   accent throughout) is this page's own deliberate brand identity for that
-   feature, matching OAuth Academy's indigo palette elsewhere in the app —
-   left literal on purpose, not a bug. */
+/* Themeable surfaces and ink use the platform --th-* tokens. */
 .learning-hub {
   max-width: 1400px;
   margin: 0 auto;
@@ -50,16 +47,37 @@
   margin: 0.5rem 0 1.5rem 0;
 }
 
+.learning-hub__weblink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 14px;
+  padding: 8px 14px;
+  border: 1px solid var(--th-border);
+  border-radius: 999px;
+  background: var(--th-bg-inset);
+  color: var(--th-status-info-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.learning-hub__weblink:hover {
+  background: var(--th-bg-hover);
+  color: var(--th-status-info-text);
+}
+
 .learning-hub__rag {
   margin: 0 0 2rem;
   padding: 1.5rem;
-  border: 1px solid #b7d7d1;
-  border-radius: var(--radius-xl);
-  background: linear-gradient(135deg, #effaf7, #f8fbff);
+  border: 1px solid var(--th-status-success-border);
+  border-radius: 12px;
+  background: var(--th-status-success-bg);
+  color: var(--th-status-success-text);
 }
 
 .learning-hub__rag-eyebrow {
-  color: #146c60;
+  color: var(--th-status-success-text);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -68,11 +86,11 @@
 
 .learning-hub__rag h2 {
   margin: 0.35rem 0;
-  color: #123d3a;
+  color: var(--th-text);
 }
 
 .learning-hub__rag p {
-  color: #244b49;
+  color: var(--th-text-body);
   line-height: 1.5;
 }
 
@@ -86,17 +104,19 @@
   flex: 1;
   min-width: 0;
   padding: 0.75rem 1rem;
-  border: 1px solid #8fbcb4;
-  border-radius: var(--radius-md);
+  border: 1px solid var(--th-border-strong);
+  border-radius: 6px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
   font: inherit;
 }
 
 .learning-hub__rag-form button {
   padding: 0.75rem 1rem;
   border: 0;
-  border-radius: var(--radius-md);
-  background: #146c60;
-  color: #fff;
+  border-radius: 6px;
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
   font-weight: 700;
   cursor: pointer;
 }
@@ -107,21 +127,22 @@
 }
 
 .learning-hub__rag-error {
-  color: #a51d2d !important;
+  color: var(--th-status-error-text) !important;
   font-weight: 600;
 }
 
 .learning-hub__rag-answer {
   margin-top: 1.25rem;
   padding: 1rem;
-  border-radius: var(--radius-lg);
-  background: #fff;
-  border: 1px solid #cfe4e0;
+  border-radius: 8px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
 }
 
 .learning-hub__rag-answer h3 {
   margin-top: 0;
-  color: #123d3a;
+  color: var(--th-text);
 }
 
 .learning-hub__rag-answer p {
@@ -158,10 +179,10 @@
 @media (max-width: 680px) { .learning-hub__documents-heading, .learning-hub__documents-search > div { flex-direction: column; } .learning-hub__documents-upload, .learning-hub__documents-search button { width: 100%; } }
 
 .learning-hub__rag-clear {
-  border: 1px solid #8fbcb4;
+  border: 1px solid var(--th-border-strong);
   border-radius: 6px;
-  background: #fff;
-  color: #146c60;
+  background: var(--th-bg-card);
+  color: var(--th-text);
   font-weight: 700;
   cursor: pointer;
 }
@@ -171,14 +192,14 @@
 }
 
 .learning-hub__rag-prompts summary {
-  color: #146c60;
+  color: var(--th-status-success-text);
   cursor: pointer;
   font-weight: 700;
 }
 
 .learning-hub__rag-prompts summary span {
   margin-left: 0.5rem;
-  color: #66827e;
+  color: var(--th-text-muted);
   font-size: 0.8rem;
   font-weight: 500;
 }
@@ -194,69 +215,19 @@
 
 .learning-hub__rag-prompt-grid button {
   padding: 0.6rem 0.75rem;
-  border: 1px solid #cfe4e0;
+  border: 1px solid var(--th-border);
   border-radius: 6px;
-  background: #fff;
-  color: #244b49;
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
   cursor: pointer;
   font: inherit;
   text-align: left;
 }
 
 .learning-hub__rag-prompt-grid button:hover:not(:disabled) {
-  border-color: #146c60;
-  background: #effaf7;
-}
-
-.learning-hub__rag-clear {
-  border: 1px solid #8fbcb4;
-  border-radius: 6px;
-  background: #fff;
-  color: #146c60;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.learning-hub__rag-prompts {
-  margin-top: 1rem;
-}
-
-.learning-hub__rag-prompts summary {
-  color: #146c60;
-  cursor: pointer;
-  font-weight: 700;
-}
-
-.learning-hub__rag-prompts summary span {
-  margin-left: 0.5rem;
-  color: #66827e;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.learning-hub__rag-prompt-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-  max-height: 240px;
-  overflow-y: auto;
-}
-
-.learning-hub__rag-prompt-grid button {
-  padding: 0.6rem 0.75rem;
-  border: 1px solid #cfe4e0;
-  border-radius: 6px;
-  background: #fff;
-  color: #244b49;
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
-
-.learning-hub__rag-prompt-grid button:hover:not(:disabled) {
-  border-color: #146c60;
-  background: #effaf7;
+  border-color: var(--th-status-success);
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .learning-hub__rag-results {
@@ -264,16 +235,16 @@
 }
 
 .learning-hub__rag-results h3 {
-  color: #123d3a;
+  color: var(--th-text);
 }
 
 .learning-hub__rag-result {
   padding: 0.75rem 0;
-  border-top: 1px solid #cfe4e0;
+  border-top: 1px solid var(--th-border);
 }
 
 .learning-hub__rag-result code {
-  color: #146c60;
+  color: var(--th-status-success-text);
   font-size: 0.8rem;
 }
 
@@ -294,13 +265,15 @@
   padding-right: 2.5rem;
   border: 2px solid var(--th-border);
   border-radius: 6px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
   font-size: 1rem;
   transition: border-color 0.2s;
 }
 
 .learning-hub__search-input:focus {
   outline: none;
-  border-color: var(--primary, #0066cc);
+  border-color: var(--th-status-info);
   box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
 }
 
@@ -443,6 +416,7 @@
   margin: 0 0 2.5rem;
   padding: 1.5rem;
   background: var(--th-bg-inset);
+  color: var(--th-text);
   border: 1px solid var(--th-border);
   border-left: 4px solid var(--th-status-info);
   border-radius: var(--radius-lg);
@@ -490,6 +464,7 @@
   min-height: 180px;
   padding: 1rem;
   background: var(--th-bg-card);
+  color: var(--th-text);
   border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
   color: var(--th-text);
@@ -667,8 +642,8 @@
 
 .learning-hub__reset-button {
   padding: 0.75rem 1.5rem;
-  background: var(--primary, #0066cc);
-  color: white;
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
   border: none;
   border-radius: 6px;
   font-size: 1rem;
@@ -677,7 +652,7 @@
 }
 
 .learning-hub__reset-button:hover {
-  background: var(--primary-dark, #0052a3);
+  filter: brightness(0.94);
 }
 
 @media (max-width: 768px) {
