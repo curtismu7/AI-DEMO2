@@ -189,10 +189,9 @@ unauthorized fallback.
 selection unchanged; keep PingOne Authorize as the dispatch gate; never replay
 mutating tools or bypass the gateway after a failure.
 
-**Verify:** `node --check` passed for the client and focused test. The focused
-Jest suite still needs to run in an environment with the BFF dependencies
-installed: `CI=true ./node_modules/.bin/jest
-tests/mcpGatewayClient.transientBalanceRetry.test.js --forceExit --runInBand`.
+**Verify:** `CI=true ./node_modules/.bin/jest
+tests/mcpGatewayClient.*.test.js --forceExit --runInBand` — 7 suites, 27 tests
+passed; `node --check` passed for the client and focused test.
 
 ### 2026-09-24 — DaVinci widget policy leaked into Orchestration SDK
 
