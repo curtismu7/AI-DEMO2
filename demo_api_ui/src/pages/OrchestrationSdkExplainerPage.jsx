@@ -1,4 +1,5 @@
-// How the Ping Orchestration SDK works (/orchestration-sdk) — a static lesson.
+// DaVinci SDK master lesson (/davinci-sdk) — static overview and links to both
+// runnable variants: the hosted widget and the collector-rendered SDK page.
 //
 // Makes NO live SDK, PingOne or BFF calls, so it teaches correctly regardless of
 // whether the DaVinci console setup for the SDK login path has been done. That
@@ -7,10 +8,8 @@
 // 2026-09-02), and a lesson that only works on a configured tenant is not a
 // lesson.
 //
-// Companion to /davinci-orchestration, which argues WHY DaVinci orchestration
-// is worth buying. This page answers HOW you drive a DaVinci flow from your own
-// UI with @forgerock/davinci-client, and it is the concept half of the two
-// education surfaces; the live SDK trace on the login page is the other.
+// This page explains how to drive a DaVinci flow from your own UI with
+// @forgerock/davinci-client, then links to the widget and live SDK lessons.
 //
 // Every code sample here is copied from shipped code, never hand-written for
 // the page. Three docs in this repo went stale by describing intended code
@@ -143,8 +142,8 @@ export default function OrchestrationSdkExplainerPage() {
 
   return (
     <div className="osx-page">
-      <p className="osx-eyebrow">Ping Orchestration SDK</p>
-      <h1 className="osx-title">Running a DaVinci flow in your own UI</h1>
+      <p className="osx-eyebrow">DaVinci SDK</p>
+      <h1 className="osx-title">DaVinci SDK</h1>
       <p className="osx-lede">
         A DaVinci flow can reach a user three ways, and only one of them lets you render the
         screens. With <code className="osx-code-inline">@forgerock/davinci-client</code> the flow
@@ -155,7 +154,7 @@ export default function OrchestrationSdkExplainerPage() {
 
       {/* The working page, above everything else. This lesson used to open with
           the three-mode comparison, whose Widget card links out — so the first
-          click from a page called "Orchestration SDK" landed on the widget, and
+          click from a page called "DaVinci SDK" landed on the widget, and
           the SDK's own UI was the one thing not offered. */}
       <p className="osx-cta-row">
         <a className="osx-cta" href="/davinci-orchestration-sdk">
@@ -382,26 +381,25 @@ export default function OrchestrationSdkExplainerPage() {
       </section>
 
       <section className="osx-section">
-        <h2 className="osx-h2">Where to go next</h2>
+        <h2 className="osx-h2">Explore the runnable demos</h2>
         <ul className="osx-links">
           <li>
-            <a href="/davinci-orchestration-sdk">/davinci-orchestration-sdk</a> &mdash; the SDK driving a real flow,
+            <a href="/davinci-widget">DaVinci Widget</a> &mdash; run the flow in Ping's hosted widget.
+          </li>
+          <li>
+            <a href="/davinci-orchestration-sdk">DaVinci Orchestration SDK</a> &mdash; drive a real flow,
             with a live trace of every call it makes.
           </li>
           <li>
-            <a href="/davinci-widget">/davinci-widget</a> &mdash; the same flow in the hosted widget,
-            for contrast.
-          </li>
-          <li>
-            <a href="/davinci-orchestration">/davinci-orchestration</a> &mdash; why DaVinci
-            orchestration is worth the licence, rather than how to drive it.
+            <a href="/pingfederate-davinci-kit">PingFederate DaVinci Integration Kit</a> &mdash; run
+            the flow through the adapter installed in PingFederate.
           </li>
         </ul>
       </section>
 
       <p className="osx-footnote">
-        Static content only &mdash; this page makes no SDK, PingOne or BFF calls, so it works in any
-        environment regardless of console setup.
+        Static lesson content. The PingFederate Integration Kit demo is available from its own page
+        and requires a PingFederate session.
       </p>
     </div>
   );

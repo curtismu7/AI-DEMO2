@@ -16,12 +16,12 @@ The Ping Orchestration SDK (@forgerock/davinci-client) runs a DaVinci flow with 
 
 ## How to Run
 
-**Trigger:** Trigger (link): `{"type":"link","path":"/orchestration-sdk","label":"Open Orchestration SDK"}`  
+**Trigger:** Trigger (link): `{"type":"link","path":"/davinci-sdk","label":"Open DaVinci SDK guide"}`  
 **Expected outcome:** `GUIDED_LEARNING`
 
 ## What to Say
 
-> Three ways to run a DaVinci flow — redirect, hosted widget, or the SDK. Only the SDK lets you render the screens, and all three are live in this demo against the same flow.
+> Start at the DaVinci SDK guide, then open the Widget or Orchestration SDK lesson to compare how each runs a flow.
 
 ## Evidence
 

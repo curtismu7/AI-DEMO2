@@ -14,10 +14,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Agent Gateway", "PingOne Authorize", "AI Gateway · LLM", "AI Gateway · A2A", "AI Gateway · MCP",
     "Protected RAG", "AI Gateway Demo",
   ] },
-  { label: "DaVinci", children: [
-    "DaVinci Widget", "DaVinci Login", "DaVinci SDK Login", "DaVinci Orchestration",
-    "DaVinci Orchestration SDK", "Orchestration SDK Guide", "DaVinci Orchestration Overview",
-  ] },
+  { label: "DaVinci", children: ["DaVinci SDK"] },
   { label: "PingOne Products", children: [
     "Headless Identity / PingCLI", "SDK Login", "M2M Client Credentials", "Custom Admin Role",
   ] },

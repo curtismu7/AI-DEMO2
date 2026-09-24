@@ -44,7 +44,9 @@ export async function fetchWidgetConfig() {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.message || `Could not start a DaVinci login flow (HTTP ${res.status}).`);
+    const detail = body.message || body.error_description || body.error || "The server did not include an error description.";
+    const code = body.error && body.message ? `, ${body.error}` : "";
+    throw new Error(`Could not start a DaVinci login flow (HTTP ${res.status}${code}): ${detail}`);
   }
   return res.json();
 }

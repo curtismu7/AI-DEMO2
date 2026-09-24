@@ -204,10 +204,10 @@ import PublicRoutes, {
   CopilotPageRoute,
   DavinciLoginCallbackRoute,
   DavinciLoginConfirmedRoute,
-  DavinciExplainerRoute,
   OrchestrationSdkExplainerRoute,
   DavinciSdkLoginRoute,
   DavinciLoginGuidePageRoute,
+  PingFederateDavinciKitRoute,
   GraphifyPageRoute,
   GuidedJourneyRoute,
   StandaloneDemoLauncherRoute,
@@ -922,10 +922,12 @@ function AppWithAuth() {
                 <Route path="/sdk-login/callback" element={<SdkLoginCallbackRoute />} />
                 <Route path="/davinci-login/callback" element={<DavinciLoginCallbackRoute user={user} logout={logout} />} />
                 <Route path="/davinci-login/confirmed" element={<DavinciLoginConfirmedRoute user={user} logout={logout} />} />
-                <Route path="/davinci-orchestration" element={<DavinciExplainerRoute user={user} logout={logout} />} />
                 <Route path="/davinci-orchestration-sdk" element={<DavinciSdkLoginRoute user={user} logout={logout} />} />
                 <Route path="/davinci-widget" element={<DavinciLoginGuidePageRoute user={user} logout={logout} />} />
-                <Route path="/orchestration-sdk" element={<OrchestrationSdkExplainerRoute user={user} logout={logout} />} />
+                <Route path="/davinci-sdk" element={<OrchestrationSdkExplainerRoute user={user} logout={logout} />} />
+                <Route path="/pingfederate-davinci-kit" element={<PingFederateDavinciKitRoute user={user} logout={logout} />} />
+                <Route path="/orchestration-sdk" element={<Navigate to="/davinci-sdk" replace />} />
+                <Route path="/davinci-orchestration" element={<Navigate to="/davinci-sdk" replace />} />
                 <Route path="/davinci-sdk-login" element={<Navigate to="/davinci-orchestration-sdk" replace />} />
                 <Route path="/davinci-login-guide" element={<Navigate to="/davinci-widget" replace />} />
                 <Route path="/ciba-approve" element={<CibaApprovalPageRoute />} />
