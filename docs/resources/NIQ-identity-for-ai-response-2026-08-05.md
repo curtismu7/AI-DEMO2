@@ -88,21 +88,15 @@ Lead the next NIQ session with **Agent Lifecycle** end-to-end (registration → 
 
 **Status:** Protect is still planned, not built. **Verified Trust's code is now built and merged** (all 5 plan tasks, 2026-08-10) — but it's still a no-op on this tenant: no DaVinci flow is configured, so issuance fails `NOT_CONFIGURED` and the fail-open path keeps the demo working exactly as before. Don't demo it as "live" to NIQ or Coupa until a real flow + entitlement exists.
 
-### PingOne Protect — agent-dispatch risk evaluation
+### PingOne Protect — standalone browser risk evaluation
 
-Plan: [`docs/superpowers/plans/2026-08-10-protect-agent-dispatch-risk.md`](../superpowers/plans/2026-08-10-protect-agent-dispatch-risk.md)
-
-**Entitlement gate:** the plan opens with a live-probe step against Protect risk-evaluations on env `01d89b06` — not yet confirmed licensed. Do the probe before trusting the run steps below.
-
-Once implemented:
-
-1. Enable the flag: Admin → Feature Flags → `ff_protect_agent_dispatch` → ON (or `PATCH /api/admin/feature-flags/ff_protect_agent_dispatch`).
-2. Open the app on `local.ping-devops.com:4000`, pick the **Super Sports** vertical, sign in.
-3. Dispatch any agent chip action (e.g. "show my balance").
-4. Client collects a Protect device signal (`demo_api_ui/src/services/protectSignalService.js`) and sends it with the invoke request; the BFF gate (`demo_api_server/middleware/protectRiskGate.js`) risk-scores it before the agent runs.
-5. Verify: the **ProofStrip** evidence panel for that action shows a new `protect_risk_evaluation` row with a real `evaluationId` — not a placeholder.
-6. To see a `BLOCK`: use whatever risk-policy trigger condition was configured during setup (e.g. a known-bad test signal) — the request should return `403 agent_dispatch_blocked` before the agent dispatches at all.
-7. Also registered as **UC36** in the use-case catalog (Task 6 of the plan) — dispatchable from the catalog UI like every other demo chip, not just by hand-typing the phrase above.
+The earlier agent-dispatch demo design was withdrawn: a browser risk evaluation
+does not establish that a later agent action is protected. The current demo is a
+standalone page under **Ping products**. It runs the PingOne Signals Web SDK,
+sends the collected payload to the BFF, and displays the Protect risk level,
+recommended action, and available bot-detection response. It does not invoke an
+agent or start OIDC/MFA. See
+[`docs/superpowers/specs/2026-09-24-pingone-protect-browser-oidc-design.md`](../superpowers/specs/2026-09-24-pingone-protect-browser-oidc-design.md).
 
 ### Verified Trust — signed agent assertion on A2A delegation
 

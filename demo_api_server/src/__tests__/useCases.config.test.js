@@ -13,9 +13,9 @@ const UTILITY_TRACKS = ['tools', 'learn', 'nhi'];
 describe('useCases catalog SoT', () => {
   test('contains the complete catalog including the CIAM/NHI agent lanes', () => {
     // UC43/44 and the SaaS-Embedded Website Worker UC45 are part of the CIAM/NHI catalog.
-    expect(USE_CASES).toHaveLength(69);
+    expect(USE_CASES).toHaveLength(68);
     const ids = USE_CASES.map((u) => u.id);
-    expect(new Set(ids).size).toBe(69);
+    expect(new Set(ids).size).toBe(68);
     for (let n = 1; n <= 22; n++) expect(ids).toContain(`UC${n}`);
     expect(ids).toContain('UC23');
     expect(ids).toContain('UC24');
@@ -30,8 +30,9 @@ describe('useCases catalog SoT', () => {
     expect(ids).toContain('UC33');
     expect(ids).toContain('UC34');
     expect(ids).toContain('UC35');
-    // UC36 (Protect) is implemented alongside the UC37/UC38 trust demos.
-    expect(ids).toContain('UC36');
+    // PingOne Protect is demonstrated on its standalone browser page, not as an agent use case.
+    expect(ids).not.toContain('UC36');
+    expect(USE_CASES.some((useCase) => useCase.useCaseId === 'protect-agent-dispatch-risk')).toBe(false);
     expect(ids).toContain('UC37');
     expect(ids).toContain('UC38');
     expect(ids).toContain('UC39');
@@ -224,8 +225,8 @@ describe('useCases catalog SoT', () => {
   });
 
   test('listUseCases returns all catalog entries resolved for a vertical', () => {
-    expect(listUseCases('healthcare')).toHaveLength(69);
-    expect(listUseCases()).toHaveLength(69);
+    expect(listUseCases('healthcare')).toHaveLength(68);
+    expect(listUseCases()).toHaveLength(68);
   });
 
   test('only UC14 and UC15 are advanced', () => {

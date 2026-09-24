@@ -13,7 +13,6 @@ const LANES = {
   website: "BROWSER", signin: "PINGONE", prompt: "CHAT", agent: "AGENT",
   "tools-list-challenge": "MCP", "tools-list": "MCP", llm: "LLM",
   "agent-token": "BFF", "exchange-1": "BFF", exchange: "BFF", authorize: "AUTHZ", stepup: "AUTHZ",
-  "protect-risk-evaluation": "PINGONE",
   // Enterprise-Managed MCP Authorization. Issuance is the IdP's decision, so it
   // sits in the PINGONE lane beside sign-in; redemption happens at the MCP
   // Authorization Server, which is the MCP lane.
@@ -87,7 +86,6 @@ const TITLES = {
   "id-jag-issued": "ID-JAG issued — enterprise IdP",
   "id-jag-redeemed": "ID-JAG redeemed — MCP authorization server",
   authorize: "PingOne Authorize — policy decision",
-  "protect-risk-evaluation": "PingOne Protect — agent dispatch risk",
   stepup: "Step-up required — HITL / MFA",
   "par-push": "PAR push — authorization_details to PingOne",
   "request-uri": "request_uri issued by PingOne",
@@ -115,7 +113,6 @@ const NARRATIVES = {
   website: "The browser hosts the UI and never holds a bearer token. It relies on the secure, HttpOnly session cookie from the BFF.",
   signin: "User authenticated via OIDC Authorization Code + PKCE. The BFF holds the User Token server-side — it never reaches the browser.",
   prompt: "The browser sends only the message — no tokens; the session cookie identifies the user to the BFF.",
-  "protect-risk-evaluation": "The BFF submits browser Signals, client IP, user, and target resource to PingOne Protect before dispatch. The demo policy denies HIGH risk and deny-style recommendations such as BOT_MITIGATION, and fails closed on an unknown result. Protect itself returns a risk result, not an allow/block verdict.",
   agent: `BFF forwards to the ${AGENT_ROLES.generalist}. The agent loads conversation history and the gateway tool catalog (with required scopes), then prepares the LLM call.`,
   "tools-list-challenge": "The first tools/list goes out with NO Authorization header. The gateway refuses it with 401 and a WWW-Authenticate challenge that names its realm and points at its RFC 9728 metadata — that pointer is how a client that arrives holding nothing learns which authorization server to go to.",
   "tools-list": "The second tools/list carries the agent token. PingOne Authorize filters the catalog per vertical and scope, so the model is only ever shown tools this caller may actually invoke.",
@@ -916,22 +913,6 @@ export function buildTraceSteps(trace) {
     request: { title: "Request (actual)",
       text: `POST /api/agent/run\n${asJson({ message: prompt.message })}` },
   } : {}));
-
-  const protectEvent = findEvent(tokenEvents, "protect-risk-evaluation");
-  if (protectEvent) {
-    steps.push(makeStep("protect-risk-evaluation", protectEvent.blocked ? "error" : "done", {
-      tokenEvent: protectEvent,
-      kv: [
-        ["PingOne Protect risk", String(protectEvent.level || "UNKNOWN")],
-        ["Bot Detection", protectEvent.botDetectionLevel || protectEvent.botDetectionStatus || "No Bot Detection result returned"],
-        protectEvent.detectedRuleId != null ? ["detected rule ID", String(protectEvent.detectedRuleId)] : null,
-        ["recommended action", protectEvent.recommendedAction || "None returned"],
-        ["demo dispatch policy", protectEvent.blocked ? "Blocked before agent dispatch" : "Proceed to existing authorization"],
-        protectEvent.completionStatus ? ["Protect flow update", protectEvent.completionStatus] : null,
-        ["evaluation ID", protectEvent.evaluationId || "Not returned"],
-      ].filter(Boolean),
-    }));
-  }
 
   // 3. agent — evidence: request_accepted phase, LLM activity, or heuristic routing
   const agentSeen = isHeuristic || hasPhase(phases, "request_accepted") || !!llmDetail;

@@ -28,10 +28,12 @@ describe("PingAiProductPage", () => {
     );
   });
 
-  it("renders the browser authentication demo chip instead of agent dispatch", () => {
+  it("renders the standalone browser risk evaluation instead of authentication or agent dispatch", () => {
     render(<MemoryRouter><PingAiProductPage product="protect" /></MemoryRouter>);
-    expect(screen.getByRole("button", { name: /run pingone protect sign-in/i })).toBeInTheDocument();
-    expect(screen.getByText(/Medium requests PingOne MFA/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /run pingone protect evaluation/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/displays the returned evaluation/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/requests PingOne MFA/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Low continues to OIDC/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/agent dispatch/i)).not.toBeInTheDocument();
   });
 

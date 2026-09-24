@@ -103,6 +103,12 @@ describe('ff_tracing flag registration', () => {
   });
 });
 
+describe('PingOne Protect flag registration', () => {
+  test('Protect is no longer exposed as an agent-dispatch feature flag', () => {
+    expect(flagById('ff_protect_agent_dispatch')).toBeUndefined();
+  });
+});
+
 describe('ff_transaction_ledger flag registration', () => {
   test('exists in registry as a boolean defaulting to true', () => {
     const f = flagById('ff_transaction_ledger');
