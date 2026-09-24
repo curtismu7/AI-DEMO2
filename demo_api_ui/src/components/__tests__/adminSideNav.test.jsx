@@ -119,6 +119,13 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(screen.getByText("Observability")).toBeTruthy();
   });
 
+  it('searching "foo" surfaces PromptFoo Evals under Developer Tools', () => {
+    renderNav();
+    fireEvent.change(screen.getByLabelText(/search navigation/i), { target: { value: "foo" } });
+    expect(screen.getByText("Developer Tools")).toBeInTheDocument();
+    expect(screen.getByText("PromptFoo Evals").closest("a")).toHaveAttribute("href", "/promptfoo");
+  });
+
   it("searching \"authorize\" still surfaces the renamed P1AZ Inspector item", () => {
     renderNav();
     const input = screen.getByLabelText(/search navigation/i);
