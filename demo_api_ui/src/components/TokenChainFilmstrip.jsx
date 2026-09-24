@@ -9,7 +9,7 @@
 // in the narrowest column on screen.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
-import { MCP_STEP_IDS } from "../services/tokenChainTrace/buildTraceSteps";
+import { MCP_STEP_IDS, isMockIdJagTrace, isNativeIdJagTrace } from "../services/tokenChainTrace/buildTraceSteps";
 import { resolveInspectClaims } from "../services/tokenChainTrace/resolveInspectClaims";
 import { isFlagOn, shouldShowTrustTab } from "../utils/tokenChainTrust";
 import { useTokenChainOptional } from "../context/TokenChainContext";
@@ -123,6 +123,9 @@ export default function TokenChainFilmstrip() {
   }, []);
 
   useEffect(() => {
+    // The ID-JAG teaching page must work offline, including its mock replay.
+    // Trust tabs are unrelated to this page and would fetch admin flags on mount.
+    if (window.location.pathname === "/pingfederate-id-jag/demo") return undefined;
     let alive = true;
     fetch("/api/admin/feature-flags", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
@@ -149,6 +152,8 @@ export default function TokenChainFilmstrip() {
   }, [moreOpen]);
 
   const { trace } = snap;
+  const traceProvenance = isMockIdJagTrace(trace) ? "mock-id-jag"
+    : isNativeIdJagTrace(trace) ? "live-id-jag" : trace.provenance;
   const classicSteps = snap.steps;
   const steps = useMemo(
     () => (viewMode === "classic" ? classicSteps : buildLiveTokenChainSteps(classicSteps, trace)),
@@ -213,7 +218,7 @@ export default function TokenChainFilmstrip() {
       <div className="tcfs-head">
         <div className="tcfs-title-group">
           <span className="tcfs-title">Token Chain</span>
-          {hasTraceActivity ? <TraceProvenanceBadge provenance={trace.provenance} /> : null}
+          {hasTraceActivity ? <TraceProvenanceBadge provenance={traceProvenance} /> : null}
         </div>
         <div className="tcfs-actions">
           <ChainViewMenu
@@ -321,12 +326,16 @@ export default function TokenChainFilmstrip() {
               <ul className="tcfs-spotlight-intro-list">
                 <li>Every hop's token — issuer, audience, scopes, and the nested <code>act</code> chain (RFC 8693)</li>
                 <li>Who is acting on whose behalf, proven cryptographically at each step</li>
-                <li>Live claims you can inspect, not just a diagram</li>
+                <li>{traceProvenance === "mock-id-jag"
+                  ? "Sample claims you can inspect; no live tokens were issued"
+                  : "Live claims you can inspect, not just a diagram"}</li>
               </ul>
               <div className="tcfs-spotlight-intro-value">
-                Token exchange means every downstream service gets proof of the
-                original user AND every agent that acted on their behalf — no
-                blanket credentials, no impersonation, full auditability end to end.
+                {traceProvenance === "mock-id-jag"
+                  ? "This replay illustrates how a sample ID-JAG grant is redeemed for an MCP access token."
+                  : traceProvenance === "live-id-jag"
+                    ? "PingFederate issues the ID-JAG grant; the downstream authorization server redeems it for an MCP access token."
+                    : "Token exchange means every downstream service gets proof of the original user AND every agent that acted on their behalf — no blanket credentials, no impersonation, full auditability end to end."}
               </div>
               <div className="tcfs-spotlight-intro-cta">
                 {steps.length === 0
@@ -343,7 +352,7 @@ export default function TokenChainFilmstrip() {
           <summary className="tcfs-label">
             <span className="tcfs-chev">▶</span>
             {trace.prompt
-              ? `${viewMode === "live" ? "Live pipeline" : "Pipeline"} — "${trace.prompt.message}"`
+              ? `${traceProvenance === "mock-id-jag" ? "Mock replay" : viewMode === "live" ? "Live pipeline" : "Pipeline"} — "${trace.prompt.message}"`
               : `${viewMode === "live" ? "Live pipeline" : "Pipeline"} — awaiting agent action`}
           </summary>
 
@@ -376,7 +385,7 @@ export default function TokenChainFilmstrip() {
       <TokenChainPresenter
           steps={steps}
           activeId={activeStepId}
-          provenance={trace.provenance}
+          provenance={traceProvenance}
           onSelect={setActiveStepId}
           onClose={() => setPresenting(false)}
         />

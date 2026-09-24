@@ -33,27 +33,29 @@ vi.mock("../TokenLegendModal", () => ({
 const ID_JAG_EVENTS = [
   { id: "user-token", status: "active", claims: { sub: "u1", scope: "banking:read" } },
   {
-    id: "id-jag-issued",
-    label: "Enterprise IdP issued an ID-JAG",
+    id: "pf-id-jag-issued",
+    label: "PingFederate issued an ID-JAG",
     status: "active",
     alg: "RS256",
     claims: { iss: "https://idp.ping.demo", sub: "u1", aud: "https://as", scope: "banking:read" },
     idJagStandIn: false,
     resource: "https://mcpserver.ping.demo",
+    provider: "pingfederate", provenance: "live-id-jag", mode: "id-jag",
   },
   {
-    id: "id-jag-redeemed",
-    label: "MCP Authorization Server redeemed the ID-JAG",
+    id: "pf-id-jag-redeemed",
+    label: "Downstream AS redeemed the ID-JAG",
     status: "active",
     alg: "RS256",
     claims: { iss: "https://mcpserver.ping.demo:8080", sub: "u1", scope: "banking:read" },
     idJagStandIn: false,
     scope: "banking:read",
+    provider: "pingfederate", provenance: "live-id-jag", mode: "id-jag",
   },
 ];
 
 function seedIdJagTrace() {
-  act(() => tokenChainTraceStore.beginTrace({ prompt: "show my balance" }));
+  act(() => tokenChainTraceStore.beginTrace({ prompt: "show my balance", provenance: "live-id-jag", mode: "id-jag" }));
   act(() => tokenChainTraceStore.ingestTokenEvents(ID_JAG_EVENTS));
 }
 
@@ -75,8 +77,8 @@ describe("movie-roll filmstrip shows ID-JAG", () => {
   it("renders both ID-JAG hops as frames", () => {
     render(<TokenChainFilmstrip />);
     seedIdJagTrace();
-    expect(screen.getAllByText(/ID-JAG issued/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/ID-JAG redeemed/i).length).toBeGreaterThan(0);
+    expect(screen.getByTitle("PingFederate ID-JAG issued")).toBeInTheDocument();
+    expect(screen.getByTitle("PingFederate ID-JAG redeemed")).toBeInTheDocument();
   });
 
   it("STAND-IN UNCHANGED: no ID-JAG frames without the events", () => {

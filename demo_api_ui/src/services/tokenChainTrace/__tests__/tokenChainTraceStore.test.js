@@ -1,6 +1,7 @@
 import { buildRunStory } from "../buildTraceSteps";
 import { tokenChainTraceStore } from "../tokenChainTraceStore";
 import { agentFlowDiagram } from "../../agentFlowDiagramService";
+import { createMockIdJagTrace } from "../../../utils/idJagMockTrace";
 
 beforeEach(() => tokenChainTraceStore.reset());
 
@@ -19,6 +20,32 @@ test("beginTrace records provenance without changing the runtime trace shape", (
 
   tokenChainTraceStore.beginTrace({ prompt: "live request", provenance: "unknown" });
   expect(tokenChainTraceStore.getState().trace.provenance).toBe("live");
+});
+
+test("beginTrace retains explicit PF ID-JAG mode for this run only", () => {
+  tokenChainTraceStore.beginTrace({ prompt: "show my balance", provenance: "live-id-jag", mode: "id-jag" });
+  expect(tokenChainTraceStore.getState().trace).toMatchObject({ provenance: "live-id-jag", mode: "id-jag" });
+  tokenChainTraceStore.beginTrace({ prompt: "show my balance", provenance: "live-id-jag", mode: "live-id-jag" });
+  expect(tokenChainTraceStore.getState().trace).toMatchObject({ provenance: "live-id-jag", mode: "live-id-jag" });
+  tokenChainTraceStore.beginTrace({ prompt: "ordinary balance" });
+  expect(tokenChainTraceStore.getState().trace).toMatchObject({ provenance: "live", mode: null });
+});
+
+test("mock replay replaces a live trace, publishes safe evidence, and records non-live history", () => {
+  tokenChainTraceStore.beginTrace({ prompt: "live request", flowTraceId: "old-live" });
+  tokenChainTraceStore.ingestTokenEvent({ id: "exchanged-token", flowTraceId: "old-live" });
+  const snapshots = [];
+  const unsubscribe = tokenChainTraceStore.subscribe((snapshot) => snapshots.push(snapshot));
+  window.dispatchEvent(new CustomEvent("id-jag-mock-replay-requested", { detail: createMockIdJagTrace() }));
+  const { trace, steps, history } = tokenChainTraceStore.getState();
+  expect(trace).toMatchObject({ provenance: "mock-id-jag", mode: "mock-id-jag", outcome: "mock-success" });
+  expect(trace.tokenEvents.map((event) => event.id)).toEqual(["id-jag-issued", "id-jag-redeemed"]);
+  expect(steps.map((step) => step.id)).toContain("id-jag-issued");
+  expect(history[0].provenance).toBe("mock-id-jag");
+  expect(snapshots.at(-1).trace.provenance).toBe("mock-id-jag");
+  tokenChainTraceStore.ingestTokenEvent({ id: "late-live", flowTraceId: "old-live" });
+  expect(tokenChainTraceStore.getState().trace.tokenEvents.some((event) => event.id === "late-live")).toBe(false);
+  unsubscribe();
 });
 
 test("subscribe fires immediately and on ingest", () => {

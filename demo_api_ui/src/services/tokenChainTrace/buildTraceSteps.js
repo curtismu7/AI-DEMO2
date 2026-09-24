@@ -412,6 +412,19 @@ const splitScopes = (s) =>
 // mode — 1-exchange ("agent-actor-token", "exchanged-token") vs 2-exchange
 // ("two-ex-agent-actor", "two-ex-final-token"). Both must light up the rail.
 const findEvent = (events, ...ids) => events.find((e) => e && ids.includes(e.id)) || null;
+
+export function isMockIdJagTrace(trace) {
+  return trace?.provenance === "mock-id-jag" && trace?.mode === "mock-id-jag";
+}
+
+export function isNativeIdJagTrace(trace) {
+  if (!trace || isMockIdJagTrace(trace)) return false;
+  if (trace.provenance === "live-id-jag" && ["id-jag", "live-id-jag"].includes(trace.mode)) return true;
+  const events = Array.isArray(trace.tokenEvents) ? trace.tokenEvents : [];
+  return ["pf-id-jag-issued", "pf-id-jag-redeemed"].every((id) => events.some((event) =>
+    event?.id === id && event.provider === "pingfederate"
+      && event.provenance === "live-id-jag" && event.mode === "id-jag" && event.mock !== true));
+}
 // req.recordTokenEvent() (agentSessionMiddleware) stamps `type`, not `id`, so
 // events it produces — the tools/list family among them — are invisible to
 // findEvent. Match those by type instead of widening findEvent, which would
@@ -892,7 +905,7 @@ export function buildTraceSteps(trace) {
   // is no longer "still coming" — it was genuinely never part of this run's
   // path (mTLS off, gateway not in route, OAuth-bearer path with no API-key
   // swap, no step-up demanded). Mirrors TokenChainDisplay's notinpath bucket.
-  const traceComplete = outcome === "ok" || outcome === "error";
+  const traceComplete = outcome === "ok" || outcome === "error" || outcome === "mock-success";
   const steps = [];
 
   // 0. Website (Browser) — always considered active/done
@@ -901,12 +914,12 @@ export function buildTraceSteps(trace) {
   // 1. signin — evidence: user-token / session-token-introspection events
   const userTok = findEvent(tokenEvents, "user-token") ||
     findEvent(tokenEvents, "session-token-introspection");
-  steps.push(makeStep("signin", userTok ? "done" : "pending", userTok ? {
+  steps.push({ ...makeStep("signin", userTok ? "done" : "pending", userTok ? {
     kv: Object.entries(userTok.claims || {}).slice(0, 6).map(([k, v]) => [k, asJson(v)]),
     response: claimsBlock("User token claims (full)", userTok.claims),
     inspectToken: "user",
     tokenEvent: userTok,
-  } : {}));
+  } : {}), lane: isNativeIdJagTrace(trace) ? "PINGFEDERATE" : "PINGONE" });
 
   // 2. prompt
   steps.push(makeStep("prompt", prompt ? "done" : "pending", prompt ? {
@@ -1130,18 +1143,28 @@ export function buildTraceSteps(trace) {
   }
 
   // ── Native ID-JAG (MCP Enterprise-Managed Authorization) ──────────────────
-  // Conditional hops: they exist only when the BFF actually minted and redeemed
-  // an assertion. Absent those events the chain is byte-identical to before,
-  // which keeps the 17-step stand-in baseline intact.
-  const idJagIssued = findEvent(tokenEvents, "id-jag-issued");
-  const idJagRedeemed = findEvent(tokenEvents, "id-jag-redeemed");
+  // Only validated PingFederate evidence, or the explicit teaching fixture,
+  // earns these hops. A stale enterprise-managed flag cannot create them.
+  const mockIdJag = isMockIdJagTrace(trace);
+  const pfIdJag = isNativeIdJagTrace(trace);
+  const validatedPfEvent = (id) => tokenEvents.find((event) => event?.id === id
+    && event.provider === "pingfederate" && event.provenance === "live-id-jag"
+    && event.mode === "id-jag" && event.mock !== true) || null;
+  const idJagIssued = pfIdJag
+    ? validatedPfEvent("pf-id-jag-issued")
+    : mockIdJag ? findEvent(tokenEvents, "id-jag-issued") : null;
+  const idJagRedeemed = pfIdJag
+    ? validatedPfEvent("pf-id-jag-redeemed")
+    : mockIdJag ? findEvent(tokenEvents, "id-jag-redeemed") : null;
   const nativeIdJag = Boolean(idJagIssued || idJagRedeemed);
 
   if (idJagIssued) {
-    steps.push(makeStep("id-jag-issued", "done", {
-      why: "IT policy passed, so the enterprise IdP signed an ID-JAG for this user"
-        + (idJagIssued.resource ? ` scoped to ${idJagIssued.resource}` : "")
-        + ". A denied employee would have received an error here instead, with no assertion issued.",
+    steps.push({ ...makeStep("id-jag-issued", "done", {
+      narrative: mockIdJag ? "Mock replay: sample issuance evidence only. No identity provider issued a grant." : NARRATIVES["id-jag-issued"],
+      why: mockIdJag ? "Mock replay: sample ID-JAG issuance; no live grant was minted."
+        : "IT policy passed, so PingFederate signed an ID-JAG for this user"
+          + (idJagIssued.resource ? ` scoped to ${idJagIssued.resource}` : "")
+          + ". A denied employee would have received an error here instead, with no assertion issued.",
       response: idJagIssued.claims
         ? { title: "ID-JAG claims", text: asJson(idJagIssued.claims) }
         : undefined,
@@ -1149,26 +1172,29 @@ export function buildTraceSteps(trace) {
         idJagIssued.claims && idJagIssued.claims.iss ? ["issuer", String(idJagIssued.claims.iss)] : null,
         idJagIssued.resource ? ["resource", String(idJagIssued.resource)] : null,
         idJagIssued.claims && idJagIssued.claims.scope ? ["scope", String(idJagIssued.claims.scope)] : null,
-        ["single-use", "jti — replay rejected"],
+        !mockIdJag ? ["single-use", "jti — replay rejected"] : null,
       ].filter(Boolean),
       tokenEvent: idJagIssued,
-    }));
+    }), title: mockIdJag ? "Mock replay — ID-JAG issued" : "PingFederate ID-JAG issued",
+      lane: pfIdJag ? "PINGFEDERATE" : "PINGONE" });
   }
 
   if (idJagRedeemed) {
-    steps.push(makeStep("id-jag-redeemed", "done", {
-      why: "The MCP authorization server verified the assertion against the IdP JWKS and issued its own "
-        + "access token. No browser redirect to an MCP authorize endpoint was involved.",
+    steps.push({ ...makeStep("id-jag-redeemed", "done", {
+      narrative: mockIdJag ? "Mock replay: sample redemption evidence only. No authorization server issued a token." : NARRATIVES["id-jag-redeemed"],
+      why: mockIdJag ? "Mock replay: sample redemption; no live MCP access token was issued."
+        : "The MCP authorization server verified the assertion against the IdP JWKS and issued its own "
+          + "access token. No browser redirect to an MCP authorize endpoint was involved.",
       response: idJagRedeemed.claims
         ? { title: "MCP access token claims", text: asJson(idJagRedeemed.claims) }
         : undefined,
       kv: [
         idJagRedeemed.scope ? ["scope", String(idJagRedeemed.scope)] : null,
-        ["grant", "urn:ietf:params:oauth:grant-type:jwt-bearer"],
+        !mockIdJag ? ["grant", "urn:ietf:params:oauth:grant-type:jwt-bearer"] : null,
       ].filter(Boolean),
       inspectToken: "mcp",
       tokenEvent: idJagRedeemed,
-    }));
+    }), title: mockIdJag ? "Mock replay — ID-JAG redeemed" : "PingFederate ID-JAG redeemed" });
   }
 
   steps.push(makeStep("exchange",
@@ -1197,9 +1223,10 @@ export function buildTraceSteps(trace) {
       tokenEvent: exTok || undefined,
     } : nativeIdJag ? {
       notRequired: true,
-      why: "No RFC 8693 exchange ran. In enterprise-managed mode the MCP access token "
-        + "comes from redeeming an ID-JAG at the MCP authorization server instead, so this "
-        + "hop is replaced rather than skipped.",
+      why: mockIdJag ? "Mock replay: no live token exchange ran. This sample illustrates the ID-JAG redemption path."
+        : "No RFC 8693 exchange ran. In enterprise-managed mode the MCP access token "
+          + "comes from redeeming an ID-JAG at the MCP authorization server instead, so this "
+          + "hop is replaced rather than skipped.",
     } : exchangeNotRequired ? {
       // Reuses the `notinpath` STATUS so every surface that already buckets
       // statuses keeps working (TokenFlowDetailModal, TokenTopologyPanel,

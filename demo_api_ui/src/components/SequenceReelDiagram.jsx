@@ -25,7 +25,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef, useContext } from "react";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { deriveLifelineSteps, deriveLifelineParticipants } from "../services/tokenChainTrace/deriveLifelineSteps";
-import { laneLabel } from "../services/tokenChainTrace/buildTraceSteps";
+import { laneLabel, isNativeIdJagTrace, isMockIdJagTrace } from "../services/tokenChainTrace/buildTraceSteps";
 import { VerticalContext } from "../vertical/VerticalProvider";
 import { sequenceDiagramLabel } from "./sequenceDiagramLabels";
 import { buildA2aTokenChainSteps } from "./TokenChainTraceRail";
@@ -208,8 +208,9 @@ export default function SequenceReelDiagram({
     return deriveLifelineSteps(visibleSteps);
   }, [steps]);
   const runId = externalRunId ?? snap.trace?.runId ?? null;
-  const runProvenance = provenance || snap.trace?.provenance || "live";
-  const traceFinished = externalTraceFinished ?? (snap.trace?.outcome === "ok" || snap.trace?.outcome === "error");
+  const runProvenance = provenance || (isMockIdJagTrace(snap.trace) ? "mock-id-jag"
+    : isNativeIdJagTrace(snap.trace) ? "live-id-jag" : snap.trace?.provenance) || "live";
+  const traceFinished = externalTraceFinished ?? (["ok", "error", "mock-success"].includes(snap.trace?.outcome));
 
   // Slow mode: reveal one step at a time on a timer instead of the full set
   // arriving instantly. Real steps keep arriving at full speed underneath —
@@ -544,11 +545,15 @@ export default function SequenceReelDiagram({
           className="srd-svg"
           style={{ width: `${(width * zoomLevel) / 100}px` }}
           role="img"
-          aria-label={ariaLabel}
+          aria-label={isMockIdJagTrace(snap.trace) && ariaLabel === "Live sequence diagram of this session's token chain"
+            ? "Mock replay sequence diagram of the sample ID-JAG chain" : ariaLabel}
         >
           {participants.map((lane) => {
             const x = colX(lane);
-            const label = sequenceDiagramLabel(laneLabel(lane), verticalName);
+            const laneName = lane === "PINGONE" && isNativeIdJagTrace(snap.trace)
+              ? "PINGFEDERATE"
+              : lane === "PINGONE" && isMockIdJagTrace(snap.trace) ? "MOCK IDP" : laneLabel(lane);
+            const label = sequenceDiagramLabel(laneName, verticalName);
             const fitLabel = actorLabelNeedsFit(label);
             const fitAttrs = fitLabel
               ? { textLength: ACTOR_BOX_W - 8, lengthAdjust: "spacingAndGlyphs" }
