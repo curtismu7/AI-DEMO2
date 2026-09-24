@@ -8,7 +8,10 @@ export const RUN_MODES = Object.freeze({
 });
 
 export const ID_JAG_PENDING_INTENT_KEY = 'bx_id_jag_pending_intent';
-export const USE_CASE_RUN_CONTEXT_KEY = 'bx_use_case_run_context';
+// Shared with the agent's existing use-case run-context hook.
+export const USE_CASE_RUN_CONTEXT_KEY = 'bx_run_context';
+
+let liveLaunchPending = false;
 
 export function isIdJagRunMode(mode) {
   return mode === RUN_MODES.LIVE_ID_JAG || mode === RUN_MODES.MOCK_ID_JAG;
@@ -33,8 +36,22 @@ export function createIdJagLaunchIntent({ mode, message, returnTo } = {}) {
 export function requestLiveIdJagRun(detail) {
   const intent = createIdJagLaunchIntent(detail);
   if (intent.mode !== RUN_MODES.LIVE_ID_JAG) throw new Error('Live ID-JAG mode required');
+  if (liveLaunchPending) return null;
+  try {
+    if (sessionStorage.getItem(ID_JAG_PENDING_INTENT_KEY)) return null;
+    sessionStorage.setItem(ID_JAG_PENDING_INTENT_KEY, JSON.stringify(intent));
+  } catch {
+    // The in-memory guard still prevents duplicate launches in this page.
+  }
+  liveLaunchPending = true;
   window.dispatchEvent(new CustomEvent('id-jag-run-requested', { detail: intent }));
   return intent;
+}
+
+/** Release the client handoff guard after a validated callback; retain run context. */
+export function completeIdJagRunHandoff() {
+  liveLaunchPending = false;
+  try { sessionStorage.removeItem(ID_JAG_PENDING_INTENT_KEY); } catch { /* storage unavailable */ }
 }
 
 export function requestMockIdJagReplay() {
@@ -43,13 +60,15 @@ export function requestMockIdJagReplay() {
   return trace;
 }
 
-export function clearIdJagRunState() {
+export function clearIdJagRunState({ preservePending = false } = {}) {
+  if (!preservePending) completeIdJagRunHandoff();
   try {
-    sessionStorage.removeItem(ID_JAG_PENDING_INTENT_KEY);
     const raw = sessionStorage.getItem(USE_CASE_RUN_CONTEXT_KEY);
     if (raw) {
       const context = JSON.parse(raw);
-      if (context && typeof context === 'object' && isIdJagRunMode(context.mode)) {
+      if (context?.useCaseId === ID_JAG_USE_CASE_ID) {
+        sessionStorage.removeItem(USE_CASE_RUN_CONTEXT_KEY);
+      } else if (context && typeof context === 'object' && isIdJagRunMode(context.mode)) {
         const { mode: _mode, ...ordinaryContext } = context;
         sessionStorage.setItem(USE_CASE_RUN_CONTEXT_KEY, JSON.stringify(ordinaryContext));
       }

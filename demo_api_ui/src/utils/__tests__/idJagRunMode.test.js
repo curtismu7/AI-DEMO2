@@ -9,10 +9,13 @@ import {
   clearIdJagRunState,
 } from '../idJagRunMode';
 import { createMockIdJagTrace } from '../idJagMockTrace';
-import { getUseCaseRunContext, setUseCaseRunContext } from '../useCaseRunContext';
+import { RUN_CONTEXT_STORAGE_KEY } from '../useCaseRunContext';
 
 describe('ID-JAG run-mode contract', () => {
-  beforeEach(() => sessionStorage.clear());
+  beforeEach(() => {
+    clearIdJagRunState();
+    sessionStorage.clear();
+  });
 
   it('accepts only the two explicit ID-JAG modes', () => {
     expect(isIdJagRunMode(RUN_MODES.LIVE_ID_JAG)).toBe(true);
@@ -54,6 +57,23 @@ describe('ID-JAG run-mode contract', () => {
     }
   });
 
+  it('emits only one launch while the handoff is pending, then permits a new run after reset', () => {
+    const heard = [];
+    const onRun = (event) => heard.push(event.detail);
+    window.addEventListener('id-jag-run-requested', onRun);
+    const detail = { mode: RUN_MODES.LIVE_ID_JAG, message: 'show my balance', returnTo: '/dashboard' };
+    try {
+      requestLiveIdJagRun(detail);
+      requestLiveIdJagRun(detail);
+      expect(heard).toHaveLength(1);
+      clearIdJagRunState();
+      requestLiveIdJagRun(detail);
+      expect(heard).toHaveLength(2);
+    } finally {
+      window.removeEventListener('id-jag-run-requested', onRun);
+    }
+  });
+
   it('dispatches an offline replay with mock provenance and no live-token material', () => {
     const heard = [];
     const onMock = (event) => heard.push(event.detail);
@@ -77,7 +97,9 @@ describe('ID-JAG run-mode contract', () => {
   it('clears only ID-JAG state and announces the reset', () => {
     sessionStorage.setItem('bx_id_jag_pending_intent', 'pending');
     sessionStorage.setItem('unrelated-presenter-state', 'keep');
-    setUseCaseRunContext({ useCaseId: ID_JAG_USE_CASE_ID, message: 'show my balance', autoSend: true, mode: RUN_MODES.LIVE_ID_JAG });
+    sessionStorage.setItem(RUN_CONTEXT_STORAGE_KEY, JSON.stringify({
+      source: 'use-cases', useCaseId: ID_JAG_USE_CASE_ID, triggerText: 'show my balance', autoSend: true, mode: RUN_MODES.LIVE_ID_JAG,
+    }));
     const heard = [];
     const onClear = () => heard.push('cleared');
     window.addEventListener('id-jag-run-cleared', onClear);
@@ -85,10 +107,17 @@ describe('ID-JAG run-mode contract', () => {
       clearIdJagRunState();
       expect(sessionStorage.getItem('bx_id_jag_pending_intent')).toBeNull();
       expect(sessionStorage.getItem('unrelated-presenter-state')).toBe('keep');
-      expect(getUseCaseRunContext()).toEqual({ useCaseId: ID_JAG_USE_CASE_ID, message: 'show my balance', autoSend: true });
+      expect(sessionStorage.getItem(RUN_CONTEXT_STORAGE_KEY)).toBeNull();
       expect(heard).toEqual(['cleared']);
     } finally {
       window.removeEventListener('id-jag-run-cleared', onClear);
     }
+  });
+
+  it('preserves an unrelated run context when clearing ID-JAG state', () => {
+    const unrelated = { source: 'demo-track', useCaseId: 'UC1', triggerText: 'show reservations' };
+    sessionStorage.setItem(RUN_CONTEXT_STORAGE_KEY, JSON.stringify(unrelated));
+    clearIdJagRunState();
+    expect(JSON.parse(sessionStorage.getItem(RUN_CONTEXT_STORAGE_KEY))).toEqual(unrelated);
   });
 });

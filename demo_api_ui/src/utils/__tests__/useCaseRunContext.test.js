@@ -1,6 +1,6 @@
-import { runContextFromLocation } from '../useCaseRunContext';
 import { act, renderHook } from '@testing-library/react';
-import { useUseCaseRunContext } from '../useCaseRunContext';
+import { runContextFromLocation, useUseCaseRunContext, RUN_CONTEXT_STORAGE_KEY } from '../useCaseRunContext';
+import { ID_JAG_USE_CASE_ID, RUN_MODES, clearIdJagRunState, requestLiveIdJagRun } from '../idJagRunMode';
 
 describe('runContextFromLocation', () => {
   beforeEach(() => {
@@ -67,5 +67,78 @@ describe('runContextFromLocation', () => {
       useCaseLabel: 'Delegated access (consent only)',
       triggerText: 'Show my reservations',
     });
+  });
+
+  it('persists ID-JAG mode on the existing prefill binding and clears UC40 on ordinary login', () => {
+    const { result } = renderHook(() => useUseCaseRunContext({ pathname: '/dashboard', state: null }));
+    act(() => window.dispatchEvent(new CustomEvent('banking-agent-prefill', {
+      detail: { useCaseId: ID_JAG_USE_CASE_ID, message: 'show my balance', autoSend: true, mode: RUN_MODES.LIVE_ID_JAG },
+    })));
+    expect(result.current).toMatchObject({ useCaseId: ID_JAG_USE_CASE_ID, mode: RUN_MODES.LIVE_ID_JAG });
+    expect(JSON.parse(sessionStorage.getItem(RUN_CONTEXT_STORAGE_KEY)).mode).toBe(RUN_MODES.LIVE_ID_JAG);
+
+    act(() => window.dispatchEvent(new CustomEvent('userAuthenticated', { detail: { mode: RUN_MODES.LIVE_ID_JAG } })));
+    expect(result.current).toBeNull();
+    expect(sessionStorage.getItem(RUN_CONTEXT_STORAGE_KEY)).toBeNull();
+  });
+
+  it('clears a UC40 launch on logout but leaves an unrelated event-bound context alone', () => {
+    const { result } = renderHook(() => useUseCaseRunContext({ pathname: '/dashboard', state: null }));
+    act(() => window.dispatchEvent(new CustomEvent('banking-agent-prefill', {
+      detail: { useCaseId: ID_JAG_USE_CASE_ID, message: 'show my balance', mode: RUN_MODES.LIVE_ID_JAG },
+    })));
+    act(() => window.dispatchEvent(new Event('userLoggedOut')));
+    expect(result.current).toBeNull();
+    expect(sessionStorage.getItem(RUN_CONTEXT_STORAGE_KEY)).toBeNull();
+
+    act(() => window.dispatchEvent(new CustomEvent('agent-track-step-pick', {
+      detail: { step: { stepId: 'UC1', title: 'Delegated access', buyerStory: 'Show reservations' } },
+    })));
+    act(() => window.dispatchEvent(new Event('userAuthenticated')));
+    expect(result.current).toMatchObject({ source: 'demo-track', useCaseId: 'UC1' });
+    expect(JSON.parse(sessionStorage.getItem(RUN_CONTEXT_STORAGE_KEY)).useCaseId).toBe('UC1');
+  });
+
+  it('keeps UC40 mode only after a validated ID-JAG callback', () => {
+    const { result } = renderHook(() => useUseCaseRunContext({ pathname: '/dashboard', state: null }));
+    act(() => window.dispatchEvent(new CustomEvent('banking-agent-prefill', {
+      detail: { useCaseId: ID_JAG_USE_CASE_ID, message: 'show my balance', mode: RUN_MODES.LIVE_ID_JAG },
+    })));
+    act(() => window.dispatchEvent(new CustomEvent('userAuthenticated', {
+      detail: { idJagCallbackValidated: true, useCaseId: ID_JAG_USE_CASE_ID, mode: RUN_MODES.LIVE_ID_JAG },
+    })));
+    expect(result.current).toMatchObject({ useCaseId: ID_JAG_USE_CASE_ID, mode: RUN_MODES.LIVE_ID_JAG });
+  });
+
+  it('keeps a single pending launch through an ID-JAG handoff logout while clearing its old context', () => {
+    const heard = [];
+    const onRun = (event) => heard.push(event.detail);
+    window.addEventListener('id-jag-run-requested', onRun);
+    const { result } = renderHook(() => useUseCaseRunContext({ pathname: '/dashboard', state: null }));
+    const intent = { mode: RUN_MODES.LIVE_ID_JAG, message: 'show my balance', returnTo: '/dashboard' };
+    try {
+      act(() => window.dispatchEvent(new CustomEvent('banking-agent-prefill', {
+        detail: { useCaseId: ID_JAG_USE_CASE_ID, message: 'show my balance', mode: RUN_MODES.LIVE_ID_JAG },
+      })));
+      act(() => requestLiveIdJagRun(intent));
+      act(() => window.dispatchEvent(new CustomEvent('userLoggedOut', { detail: { idJagHandoff: true } })));
+      expect(result.current).toBeNull();
+      expect(sessionStorage.getItem(RUN_CONTEXT_STORAGE_KEY)).toBeNull();
+      act(() => requestLiveIdJagRun(intent));
+      expect(heard).toHaveLength(1);
+    } finally {
+      window.removeEventListener('id-jag-run-requested', onRun);
+      act(() => clearIdJagRunState());
+    }
+  });
+
+  it('clears UC40 in memory when the explicit ID-JAG reset event fires', () => {
+    const { result } = renderHook(() => useUseCaseRunContext({ pathname: '/dashboard', state: null }));
+    act(() => window.dispatchEvent(new CustomEvent('banking-agent-prefill', {
+      detail: { useCaseId: ID_JAG_USE_CASE_ID, message: 'show my balance', mode: RUN_MODES.LIVE_ID_JAG },
+    })));
+    act(() => clearIdJagRunState());
+    expect(result.current).toBeNull();
+    expect(sessionStorage.getItem(RUN_CONTEXT_STORAGE_KEY)).toBeNull();
   });
 });
