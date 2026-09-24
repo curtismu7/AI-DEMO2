@@ -134,9 +134,9 @@
 .emd-btn:not(:disabled):hover { filter: brightness(0.97); }
 
 .emd-btn--primary {
-  color: var(--th-text-on-emphasis);
-  border-color: var(--th-bg-emphasis);
-  background: var(--th-bg-emphasis);
+  color: #fff;
+  border-color: var(--signin-accent, #2563eb);
+  background: var(--signin-accent, #2563eb);
 }
 
 .emd-btn--reset {

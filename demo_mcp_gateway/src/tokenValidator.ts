@@ -308,6 +308,14 @@ async function _decodeAndVerify(token: string): Promise<DecodedGatewayToken> {
     return _verifyWithJwks(token, _idJagJwksEndpoint());
   }
 
+  // Secondary issuer (PingFederate, 2026-09-22 A2A-under-PF): PF-issued tokens
+  // (iss == PF_ISSUER_URI) verify against the PF JWKS, not PingOne's. Same
+  // additive-branch contract as the ID-JAG filter above.
+  const pfIssuer = process.env.PF_ISSUER_URI || process.env.PF_ISSUER || '';
+  if (pfIssuer && unverifiedIss === pfIssuer) {
+    return _verifyWithJwks(token, process.env.PF_JWKS_URI || `${pfIssuer}/JWKS`);
+  }
+
   // PINGONE_JWKS_URI is accepted as an alias because it is the name this stack
   // actually SETS. The gateway container carries
   // PINGONE_JWKS_URI=https://auth.pingone.com/<env>/as/jwks and nothing anywhere

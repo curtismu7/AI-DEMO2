@@ -586,9 +586,12 @@ router.get('/status', (req, res) => {
   // /api/auth/oauth/user/status for customer logins — checkOAuthSession (useAuth.js)
   // queries this endpoint first and stops at the first authenticated:true it sees.
   const isAuthenticated = !!(req.session.user && hasOAuthToken && tokenNotExpired && req.session.oauthType !== 'user');
+  const wasAdminOAuthLogin = !!(req.session.user && (req.session.oauthType === 'admin' || (!req.session.oauthType && req.session.user.role === 'admin')));
 
   res.json({
     authenticated: isAuthenticated,
+    staleSession: wasAdminOAuthLogin && !isAuthenticated,
+    sessionType: wasAdminOAuthLogin ? 'admin' : null,
     user: isAuthenticated ? {
       id: req.session.user.id,
       username: req.session.user.username,
@@ -601,6 +604,7 @@ router.get('/status', (req, res) => {
     // accessToken intentionally omitted — token stays on the backend (Backend-for-Frontend (BFF) pattern)
     tokenType: isAuthenticated ? req.session.oauthTokens.tokenType : null,
     expiresAt: isAuthenticated ? req.session.oauthTokens.expiresAt : null,
+    hasRefreshToken: wasAdminOAuthLogin && !!req.session.oauthTokens?.refreshToken,
     clientType: isAuthenticated ? req.session.clientType : null
   });
 });

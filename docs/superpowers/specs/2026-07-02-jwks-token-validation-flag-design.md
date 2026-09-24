@@ -5,7 +5,7 @@
 
 ## Problem
 
-The PingGateway MCP gateway validates every inbound bearer token by remote
+The PingOne Agent Gateway MCP gateway validates every inbound bearer token by remote
 introspection against PingOne (`TokenIntrospectionAccessTokenResolver` →
 `PINGONE_INTROSPECTION_ENDPOINT`). We want a demo-visible feature flag that
 switches token validation to local JWKS-based JWT verification, per request,
@@ -55,7 +55,7 @@ headers['X-Token-Validation'] = jwks ? 'jwks' : 'introspect';
 
 New route `ping-gateway/config/routes/00-mcp-olb-jwks.json`:
 
-- File name sorts **before** `01-mcp-olb.json`; PingGateway selects the first
+- File name sorts **before** `01-mcp-olb.json`; PingOne Agent Gateway selects the first
   matching route, so the existing route files stay byte-for-byte unchanged.
 - Condition: `${find(request.uri.path, '^/mcp(?!/invest)') and
   request.headers['X-Token-Validation'][0] == 'jwks'}` (exact expression

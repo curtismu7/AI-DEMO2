@@ -45,6 +45,16 @@ describe("OAuthTokenExchangeLessonPage", () => {
     expect(screen.getByText(/mock: use the recorded chain when credentials or network access are unavailable/i)).toBeInTheDocument();
   });
 
+  it("shows the authorization decision and delegated execution proof", () => {
+    renderLesson();
+
+    expect(screen.getByRole("heading", { name: /gateway authorization and proof/i })).toBeInTheDocument();
+    expect(screen.getByText(/PingOne Agent Gateway validates aud, scope, and act/i)).toBeInTheDocument();
+    expect(screen.getByText(/pingone authorize returns permit, deny, or step-up/i)).toBeInTheDocument();
+    expect(screen.getByText(/tool executes only after permit/i)).toBeInTheDocument();
+    expect(screen.getByText(/deny or step-up/i)).toBeInTheDocument();
+  });
+
   it("opens the matching Education Hub topic from the lesson", async () => {
     const user = userEvent.setup();
     renderLesson();

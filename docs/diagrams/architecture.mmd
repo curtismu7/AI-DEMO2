@@ -119,8 +119,8 @@ runtime switchable"]
     MastraAgent["mastra_agent<br/>Mastra agent framework :8892<br/>alternative agent — proxied via AG-UI"]
     AuthzMock["demo_authz_server<br/>Mock PingOne Authorization Server :9001<br/>fallback_simulated (opt-in), AUTHORIZE_FAILOVER_MODE"]
 
-    %% ── PingGateway (Ping Identity IG) — DEFAULT MCP gateway ──────────
-    PingGW["PingGateway (IG, :3036)<br/>DEFAULT MCP gateway<br/>Selected by ff_mcp_gateway_pinggateway (default true)<br/>Warms Authorize on startup (best-effort)<br/>Authorize outage: AUTHORIZE_FAILOVER_MODE=deny (fail-closed 503, default)<br/>fallback_simulated (mock authz-server :9001) is opt-in only<br/>Sends UserId + McpResourceUri in Authorize params<br/>RFC 8693 single-resource exchange"]
+    %% ── PingOne Agent Gateway (Ping Identity IG) — DEFAULT MCP gateway ──────────
+    PingGW["PingOne Agent Gateway (IG, :3036)<br/>DEFAULT MCP gateway<br/>Selected by ff_mcp_gateway_pinggateway (default true)<br/>Warms Authorize on startup (best-effort)<br/>Authorize outage: AUTHORIZE_FAILOVER_MODE=deny (fail-closed 503, default)<br/>fallback_simulated (mock authz-server :9001) is opt-in only<br/>Sends UserId + McpResourceUri in Authorize params<br/>RFC 8693 single-resource exchange"]
 
     %% ── AG-UI agent-run streaming ──────────────────────────────────────
     AGUIRoutes["/api/agent-run (agentRun.js)<br/>SSE stream — agent-run events<br/>Decoded token-chain events injected (never raw JWTs)<br/>In-memory trace store (runId, 1h TTL)<br/>ff_agui_enabled (default ON)<br/>Proxies: langchain :8888, openai :8891, mastra :8892, pydantic :8893"]
@@ -215,7 +215,7 @@ runtime switchable"]
     MCPInvestSvc -->|"REST exchanged Bearer"| TxRoutes
     GwAuthorize -->|"PDP evaluate"| PDP
 
-    %% ── Connections: PingGateway (default MCP gateway) ───────────────────────
+    %% ── Connections: PingOne Agent Gateway (default MCP gateway) ───────────────────────
     AuthRoutes -->|"RFC 8693 exchanged Bearer<br/>(ff_mcp_gateway_pinggateway=true, default)"| PingGW
     PingGW -->|"PDP evaluate (UserId + McpResourceUri)<br/>outage → fail-closed deny (default)"| PDP
     PingGW -->|"WS/HTTP MCP — exchanged Bearer"| MCPProtocol

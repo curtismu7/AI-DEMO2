@@ -118,7 +118,7 @@ Purpose: Alternative final audience for 2-exchange; differs from MCP server for 
 
 ## Configuration
 
-The scope-audience mapping is now configured dynamically in `banking_api_server/services/configStore.js`:
+The scope-audience mapping is now configured dynamically in `demo_api_server/services/configStore.js`:
 
 **Function**: `buildAllowedScopesByAudience()` — Builds the mapping from environment variables  
 **Function**: `validateScopeAudience(scopes, audience)` — Validates and narrows scopes for target audience

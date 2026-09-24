@@ -63,14 +63,14 @@ scopes are an Authorize/provisioning decision). See memory
 
 - `scope-topology.json` — `scopes` / `resources` / `apps` / `tools` blocks
   (repo root; the SSOT).
-- `banking_api_server/services/pingoneBootstrapService.js`,
+- `demo_api_server/services/pingoneBootstrapService.js`,
   `pingoneProvisionService.js`, `pingoneManagementService.js`,
   `scripts/bootstrapPingOne.js` — provisioning of resources/scopes/users/apps.
 - RFC 8693 exchange: `agentMcpTokenService.js`,
   `enhancedTokenExchangeService.js` — `aud`/scope resolution.
 - PingOne Authorize decisioning (scope enforcement).
 - `banking_mcp_gateway/src/router.ts` — tool `requiredScopes`.
-- MCP tool registry (`banking_mcp_server`, `banking_mcp_resource_server`).
+- MCP tool registry (`demo_mcp_server`, `banking_mcp_resource_server`).
 - `.env` / `secrets.vault` — app client_ids/secrets if apps' ids change (Q7).
 - Demo user references (login hints, e2e fixtures, docs).
 

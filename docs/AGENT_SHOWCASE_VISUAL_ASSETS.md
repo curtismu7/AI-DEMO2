@@ -87,7 +87,7 @@ After AI Banking:
 **Visual**: Icon grid of AI capabilities with usage statistics
 **Speaker Notes**: "The AI agent handles the full spectrum of banking needs, from daily transactions to long-term planning."
 
-#### Slide 8: Daily Banking Demo
+#### Slide 8: Daily AI Demo
 **Title**: "Morning Financial Check-in"
 **Demo Script**:
 ```

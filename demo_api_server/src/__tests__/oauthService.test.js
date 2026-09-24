@@ -32,7 +32,7 @@ const MOCK_CONFIG = {
   clientId:               'test-admin-client-id',
   clientSecret:           'test-admin-client-secret',
   redirectUri:            'https://banking-demo-puce.vercel.app/api/auth/oauth/callback',
-  cibaEndpoint:           'https://auth.pingone.com/env-test-111/as/bc-authorize',
+  cibaEndpoint:           'https://auth.pingone.com/env-test-111/as/cibaAuthorization',
   scopes:                 ['openid', 'profile', 'email'],
   sessionSecret:          'test-sess-secret',
   adminRole:              'admin',
@@ -668,6 +668,8 @@ describe('token exchange — client authentication method', () => {
       await svcSingleton.performTokenExchangeAs('subj', 'actor', 'xch-client', 'xch-secret', 'https://aud', ['scope:x'], 'basic');
       const { params, headers } = lastPostCall();
       expect(params.get('client_secret')).toBeNull();
+      expect(params.get('audience')).toBe('https://aud');
+      expect(params.has('resource')).toBe(false);
       expect(headers.Authorization).toMatch(/^Basic /);
     });
 
@@ -683,6 +685,26 @@ describe('token exchange — client authentication method', () => {
       const { params, headers } = lastPostCall();
       expect(params.get('client_secret')).toBeNull();
       expect(headers.Authorization).toMatch(/^Basic /);
+    });
+
+    it('uses an explicit provider token endpoint when supplied', async () => {
+      const pfTokenEndpoint = 'https://pf.example.test/as/token.oauth2';
+      await svcSingleton.performTokenExchangeAs(
+        'subj', 'actor', 'xch-client', 'xch-secret', 'https://aud', ['scope:x'], 'basic',
+        { tokenEndpoint: pfTokenEndpoint }
+      );
+      expect(axios.post.mock.calls.at(-1)[0]).toBe(pfTokenEndpoint);
+    });
+  });
+
+  describe('client-credentials provider token endpoint override', () => {
+    it('uses an explicit provider token endpoint when supplied', async () => {
+      const pfTokenEndpoint = 'https://pf.example.test/as/token.oauth2';
+      await svcSingleton.getAiAgentClientCredentialsToken({
+        clientId: 'pf-actor', clientSecret: 'pf-secret', authMethod: 'basic',
+        actorScope: 'agent:invoke', tokenEndpoint: pfTokenEndpoint,
+      });
+      expect(axios.post.mock.calls.at(-1)[0]).toBe(pfTokenEndpoint);
     });
   });
 });

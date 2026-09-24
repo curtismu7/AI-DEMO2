@@ -41,6 +41,7 @@ describe('useCaseAuth', () => {
     expect(viewerMeetsUseCaseAuth({ auth: 'public' }, guest)).toBe(true);
     expect(viewerMeetsUseCaseAuth({ auth: 'user' }, guest)).toBe(false);
     expect(viewerMeetsUseCaseAuth({ auth: 'user' }, customer)).toBe(true);
+    expect(viewerMeetsUseCaseAuth({ auth: 'user' }, admin)).toBe(true);
     expect(viewerMeetsUseCaseAuth({ auth: 'admin' }, customer)).toBe(false);
     expect(viewerMeetsUseCaseAuth({ auth: 'admin' }, admin)).toBe(true);
   });

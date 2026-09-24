@@ -151,7 +151,7 @@ Keep **one** source of truth for “what a user may do”; avoid duplicating pol
 ## 11. References in this repo
 
 - OAuth / PingOne patterns: `.claude/skills/oauth-pingone/SKILL.md`  
-- API and scope patterns: `banking_api_server` routes and `middleware/auth.js`  
+- API and scope patterns: `demo_api_server` routes and `middleware/auth.js`  
 - Vercel/session notes: `.claude/skills/vercel-banking/SKILL.md`  
 
 ---

@@ -237,8 +237,8 @@ NVMRC
   fi
 }
 
-# Ensure Python 3.10+ is available. The Python agents (langchain, openai,
-# pydantic) require it; run.sh creates per-service venvs at startup.
+# Ensure Python 3.10+ is available. The Python agents (langchain)
+# require it; run.sh creates per-service venvs at startup.
 # Installs python@3.12 via Homebrew on macOS if no suitable version is found.
 ensure_python() {
   local py=""
@@ -910,7 +910,7 @@ configure_llm_providers() {
   # ── Anthropic (Claude) ───────────────────────────────────────────────────
   echo "  ${BOLD}Anthropic (Claude)${RESET}"
   echo "  Cloud API that powers Claude. Used by the LangChain agent"
-  echo "  (provider=anthropic) and the Mastra agent. Requires an API key"
+  echo "  (provider=anthropic). Requires an API key"
   echo "  from https://console.anthropic.com — billed per token."
   echo ""
   if ask_yes_no "  Configure Anthropic API key now? [y/N] " no; then
@@ -922,7 +922,6 @@ configure_llm_providers() {
     if [[ -n "$anthropic_key" ]]; then
       _set_env_key "${dir}/langchain_agent/.env"    "ANTHROPIC_API_KEY" "$anthropic_key"
       _set_env_key "${dir}/langchain_agent/.env"    "LANGCHAIN_LLM_PROVIDER" "anthropic"
-      _set_env_key "${dir}/mastra_agent/.env"       "ANTHROPIC_API_KEY" "$anthropic_key"
       _set_env_key "${dir}/demo_agent_service/.env" "ANTHROPIC_API_KEY" "$anthropic_key"
       ok "Anthropic API key saved."
     else
@@ -936,8 +935,8 @@ configure_llm_providers() {
 
   # ── OpenAI ────────────────────────────────────────────────────────────────
   echo "  ${BOLD}OpenAI${RESET}"
-  echo "  Cloud API for GPT-4o and other OpenAI models. Used by the OpenAI"
-  echo "  Agents SDK agent, Pydantic AI agent, and Mastra agent."
+  echo "  Cloud API for GPT-4o and other OpenAI models. Used by the LangChain"
+  echo "  agent (provider=openai)."
   echo "  Requires an API key from https://platform.openai.com — billed per token."
   echo ""
   if ask_yes_no "  Configure OpenAI API key now? [y/N] " no; then
@@ -947,9 +946,6 @@ configure_llm_providers() {
       read -r openai_key </dev/tty || true
     fi
     if [[ -n "$openai_key" ]]; then
-      _set_env_key "${dir}/openai_agent/.env"       "OPENAI_API_KEY" "$openai_key"
-      _set_env_key "${dir}/pydantic_agent/.env"     "OPENAI_API_KEY" "$openai_key"
-      _set_env_key "${dir}/mastra_agent/.env"       "OPENAI_API_KEY" "$openai_key"
       _set_env_key "${dir}/langchain_agent/.env"    "OPENAI_API_KEY" "$openai_key"
       ok "OpenAI API key saved."
     else

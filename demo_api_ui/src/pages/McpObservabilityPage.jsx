@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import apiClient from "../services/apiClient";
 import { useThemeOptional } from "../context/ThemeContext";
+import { KIBANA_URL } from "../config/observabilityLinks";
 import "./McpObservabilityPage.css";
 
 const REFRESH_MS = 15000;
@@ -68,7 +69,7 @@ export function buildObservabilitySummary(events, summary, gatewayMetrics, healt
     gatewayAvailable,
     healthStatus: health?.status || "unknown",
     serverHealth: [
-      { name: "PingGateway", detail: "policy boundary", status: gatewayAvailable ? "healthy" : "unavailable" },
+      { name: "PingOne Agent Gateway", detail: "policy boundary", status: gatewayAvailable ? "healthy" : "unavailable" },
       { name: "MCP server", detail: "configured resource", status: components.mcp_server?.status || "unknown" },
       { name: "PingOne JWKS", detail: "identity keys", status: components.pingone_jwks?.status || "unknown" },
     ],
@@ -192,7 +193,7 @@ export default function McpObservabilityPage() {
     <div className="mcp-observability-page">
       <header className="mcp-observability-header">
         <div><h1>MCP traffic, with the why attached</h1><p>A live view of server health, tool performance, and authorization outcomes across the agent gateway.</p></div>
-        <div className="mcp-observability-header-actions"><span className="mcp-observability-live"><StatusDot status="healthy" /> LIVE · {lastUpdated ? formatTime(lastUpdated) : "connecting"}</span>{toggleDarkMode && <button type="button" className="mcp-observability-button" onClick={toggleDarkMode}>{darkMode ? "☀️ Light mode" : "🌙 Dark mode"}</button>}<button type="button" className="mcp-observability-button mcp-observability-button--primary" onClick={() => load()}>Refresh</button></div>
+        <div className="mcp-observability-header-actions"><span className="mcp-observability-live"><StatusDot status="healthy" /> LIVE · {lastUpdated ? formatTime(lastUpdated) : "connecting"}</span><a className="mcp-observability-button" href={KIBANA_URL} target="_blank" rel="noopener noreferrer">Open Kibana logs</a>{toggleDarkMode && <button type="button" className="mcp-observability-button" onClick={toggleDarkMode}>{darkMode ? "☀️ Light mode" : "🌙 Dark mode"}</button>}<button type="button" className="mcp-observability-button mcp-observability-button--primary" onClick={() => load()}>Refresh</button></div>
       </header>
 
       {error && <div className="mcp-observability-error" role="alert">{error}</div>}

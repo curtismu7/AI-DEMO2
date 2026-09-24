@@ -1,6 +1,6 @@
-# banking_mcp_resource_server skips token introspection that banking_mcp_server performs
+# banking_mcp_resource_server skips token introspection that demo_mcp_server performs
 
-`banking_mcp_server` (OLB tools, port 8080) calls PingOne's RFC 7662 introspection endpoint on every inbound token via `TokenIntrospector`. `banking_mcp_resource_server` (port 8081) deliberately does NOT — it only does local JWT decode + `exp` + `aud` claim validation. The investment server therefore accepts revoked-but-unexpired tokens for the brief window between revocation and token expiry, where the OLB server would catch and reject them.
+`demo_mcp_server` (OLB tools, port 8080) calls PingOne's RFC 7662 introspection endpoint on every inbound token via `TokenIntrospector`. `banking_mcp_resource_server` (port 8081) deliberately does NOT — it only does local JWT decode + `exp` + `aud` claim validation. The investment server therefore accepts revoked-but-unexpired tokens for the brief window between revocation and token expiry, where the OLB server would catch and reject them.
 
 **Status:** accepted
 

@@ -6,9 +6,9 @@
 ## Problem
 
 A single agent turn crosses six instrumentable Node services — BFF, agent-service, mcp-gateway,
-mcp-server, authz-server, hitl-service — plus PingGateway, which is Identity Gateway
+mcp-server, authz-server, hitl-service — plus PingOne Agent Gateway, which is Identity Gateway
 configuration only (`config/routes/`, `config/groovy/`) with no Node process, no correlation
-middleware, and therefore no hop emission. PingGateway is out of scope for emission; its
+middleware, and therefore no hop emission. PingOne Agent Gateway is out of scope for emission; its
 involvement is visible indirectly through the gateway and authz hops on either side of it.
 
 Today there is no way to follow one transaction across these services, and no way to assert

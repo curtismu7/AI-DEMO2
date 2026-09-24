@@ -1,4 +1,4 @@
-# Super Banking — Secure AI Agent: PingGateway + Consent Implementation Plan
+# Super Banking — Secure AI Agent: PingOne Agent Gateway + Consent Implementation Plan
 
 _Source: "Securing AI Agents with PingOne using Delegation and Least Privilege"_
 _Last updated: 2026-03-27_
@@ -18,7 +18,7 @@ The PDF adds **two layers Super Banking is missing**:
 
 1. **User consent** — a PingOne consent agreement that gates agent delegation, enforced
    in the BFF before token exchange and surfaced in the agent panel UI
-2. **PingGateway** — a security enforcement proxy in front of the MCP server that
+2. **PingOne Agent Gateway** — a security enforcement proxy in front of the MCP server that
    validates the MCP token, audits every tool call, and blocks unvalidated requests
 
 Everything else — React UI, Express BFF, MCP server, Token Chain Display — stays.
@@ -35,13 +35,13 @@ PDF pattern:
   User → Banking Web App (OIDC/PKCE + Consent Agreement) → User Token (acr, may_act)
   Agent → PingOne Client Credentials → Actor Token
   Agent → Token Exchange (subject=User Token, actor=Agent Token) → MCP Token (act+sub)
-  Agent → PingGateway /mcp (Bearer: MCP Token) → MCP Server
+  Agent → PingOne Agent Gateway /mcp (Bearer: MCP Token) → MCP Server
 
 Super Banking today:
   User → Banking Web App (OIDC/PKCE, NO consent step)  ⚠️ no acr, may_act unverified
   BFF  → PingOne Client Credentials → Actor Token        ⚠️ disabled (USE_AGENT_ACTOR_FOR_MCP=false)
   BFF  → Token Exchange → MCP Token                     ⚠️ proceeds even without may_act
-  BFF  → ws://localhost:8080 (no gateway, no audit)      ❌ no PingGateway
+  BFF  → ws://localhost:8080 (no gateway, no audit)      ❌ no PingOne Agent Gateway
 ```
 
 ### Gap analysis
@@ -58,16 +58,16 @@ Super Banking today:
 | UI consent status + re-consent button | No consent gate in agent panel | Add amber banner + "Grant permission" button |
 | `acr` pill in Token Chain Display | Hidden inside full JWT dump | Surface as named pill |
 | `agent` resource with `may_act` expression | `may_act` works but expression not to PDF spec | PingOne config update |
-| `test` resource (aud = PingGateway URL) | Uses `MCP_RESOURCE_URI`, may not match gateway | Config update |
+| `test` resource (aud = PingOne Agent Gateway URL) | Uses `MCP_RESOURCE_URI`, may not match gateway | Config update |
 | AI Agent as first-class PingOne identity | Uses generic OAuth client | Already using PingOne AI Agents ✅ |
 | Actor token via Client Credentials | Code exists, disabled by default | Enable + point to AI Agent |
 | Token exchange with subject + actor token | Code exists, env flag off | Enable by default |
-| MCP Token audience = PingGateway URL | `MCP_RESOURCE_URI`, needs to match gateway | Set to `https://ig.example.com:8443/mcp` |
-| PingGateway protecting MCP server | BFF talks directly via WebSocket | New: PingGateway in front |
-| McpProtectionFilter + McpAuditFilter | ❌ | New PingGateway route config |
-| Token introspection via PingOne | ❌ | PingGateway handles this |
-| MCP audit log | ❌ | Free with PingGateway |
-| Token Chain Display shows full chain | ✅ shows actor + exchange + MCP | Add consent pill + PingGateway hop |
+| MCP Token audience = PingOne Agent Gateway URL | `MCP_RESOURCE_URI`, needs to match gateway | Set to `https://ig.example.com:8443/mcp` |
+| PingOne Agent Gateway protecting MCP server | BFF talks directly via WebSocket | New: PingOne Agent Gateway in front |
+| McpProtectionFilter + McpAuditFilter | ❌ | New PingOne Agent Gateway route config |
+| Token introspection via PingOne | ❌ | PingOne Agent Gateway handles this |
+| MCP audit log | ❌ | Free with PingOne Agent Gateway |
+| Token Chain Display shows full chain | ✅ shows actor + exchange + MCP | Add consent pill + PingOne Agent Gateway hop |
 
 ---
 
@@ -125,7 +125,7 @@ Copy Client ID → `AGENT_OAUTH_CLIENT_ID`, Client Secret → `AGENT_OAUTH_CLIEN
 _The `may_act` expression asserts the agent (client_id) may act for the user during
 Authorization Code flow only — not when the agent is doing Client Credentials itself._
 
-**`test` resource** — issues MCP tokens scoped to PingGateway:
+**`test` resource** — issues MCP tokens scoped to PingOne Agent Gateway:
 
 | Field | Value |
 |---|---|
@@ -135,7 +135,7 @@ Authorization Code flow only — not when the agent is doing Client Credentials 
 | `act` attribute expression | `(#root.context.requestData.subjectToken.may_act.sub == #root.context.requestData.actorToken.client_id)?#root.context.requestData.subjectToken.may_act:null` |
 | Scope | `test` |
 
-Copy the Resource ID and Client Secret — needed for PingGateway (section C).
+Copy the Resource ID and Client Secret — needed for PingOne Agent Gateway (section C).
 
 ---
 
@@ -215,18 +215,18 @@ AGENT_OAUTH_CLIENT_SCOPES=agent
 # Consent — must match the PingOne policy name exactly
 AGENT_CONSENT_ACR=Agent-Consent-Login
 
-# MCP audience = PingGateway URL (was MCP server URL directly)
+# MCP audience = PingOne Agent Gateway URL (was MCP server URL directly)
 MCP_RESOURCE_URI=https://ig.example.com:8443/mcp
 
-# MCP requests go through PingGateway (not directly to MCP server)
+# MCP requests go through PingOne Agent Gateway (not directly to MCP server)
 MCP_SERVER_URL=https://ig.example.com:8443/mcp
 ```
 
 ---
 
-### C. PingGateway configuration (new infrastructure)
+### C. PingOne Agent Gateway configuration (new infrastructure)
 
-PingGateway runs on a persistent host — not Vercel. See `docs/session-login-plan.md`
+PingOne Agent Gateway runs on a persistent host — not Vercel. See `docs/session-login-plan.md`
 § P3 for why persistent processes are required for this component.
 
 **C1. admin.json — enable SSE streaming**
@@ -244,7 +244,7 @@ PingGateway runs on a persistent host — not Vercel. See `docs/session-login-pl
 ```
 
 `streamingEnabled: true` is required for MCP's Server-Sent Events (SSE) transport.
-PingGateway will drop MCP traffic if this is missing.
+PingOne Agent Gateway will drop MCP traffic if this is missing.
 
 **C2. Set the resource secret environment variable**
 
@@ -365,7 +365,7 @@ Five files. All changes are additive.
 
 **D1. Store `acr` and `may_act` in session on OAuth callback**
 
-File: `banking_api_server/routes/oauthUser.js`
+File: `demo_api_server/routes/oauthUser.js`
 
 In the session storage block (where `req.session.oauthTokens` and `req.session.user`
 are set), add:
@@ -384,7 +384,7 @@ req.session.mayAct = accessTokenClaims?.may_act || null;
 
 **D2. Return consent status from the user status endpoint**
 
-File: `banking_api_server/routes/auth.js` (wherever `/api/auth/oauth/user/status` lives)
+File: `demo_api_server/routes/auth.js` (wherever `/api/auth/oauth/user/status` lives)
 
 ```js
 const expectedAcr  = process.env.AGENT_CONSENT_ACR || 'Agent-Consent-Login';
@@ -425,7 +425,7 @@ router.get('/consent-url', (req, res) => {
 
 **D3. Hard-block token exchange when consent is missing**
 
-File: `banking_api_server/services/agentMcpTokenService.js`
+File: `demo_api_server/services/agentMcpTokenService.js`
 
 Currently `describeMayAct()` flags a missing `may_act` but the exchange proceeds
 anyway. Replace with an early throw:
@@ -475,7 +475,7 @@ if (error.response?.data?.error === 'access_denied') {
 
 **D4. Add `acr` and `consentGiven` to the User Token chain event**
 
-File: `banking_api_server/services/agentMcpTokenService.js`
+File: `demo_api_server/services/agentMcpTokenService.js`
 
 In the `id: 'user-token'` event object:
 
@@ -504,7 +504,7 @@ In the `id: 'user-token'` event object:
 
 **E1. BankingAgent panel — consent status and re-auth**
 
-File: `banking_api_ui/src/components/BankingAgent.js`
+File: `demo_api_ui/src/components/BankingAgent.js`
 
 On panel open, fetch `consentGiven` from the user status endpoint:
 
@@ -547,7 +547,7 @@ const handleGrantConsent = async () => {
 };
 ```
 
-File: `banking_api_ui/src/components/BankingAgent.css`
+File: `demo_api_ui/src/components/BankingAgent.css`
 
 Add `.ba-consent-required` — amber/yellow background, positioned at top of `.ba-right-col`.
 
@@ -555,7 +555,7 @@ Add `.ba-consent-required` — amber/yellow background, positioned at top of `.b
 
 **E2. Token Chain Display — `acr` pill**
 
-File: `banking_api_ui/src/components/TokenChainDisplay.js`
+File: `demo_api_ui/src/components/TokenChainDisplay.js`
 
 After the existing `may_act` pills, add:
 
@@ -574,7 +574,7 @@ After the existing `may_act` pills, add:
 )}
 ```
 
-Update the "MCP Token → MCP Server" label to "MCP Token → PingGateway → MCP Server"
+Update the "MCP Token → MCP Server" label to "MCP Token → PingOne Agent Gateway → MCP Server"
 when `MCP_SERVER_URL` contains the gateway host.
 
 Update the legend:
@@ -584,42 +584,42 @@ Update the legend:
 { color: 'amber', label: 'Agent consent missing or policy mismatch'  },
 ```
 
-File: `banking_api_ui/src/components/TokenChainDisplay.css` — add `.tcd-pill--consent` (green).
+File: `demo_api_ui/src/components/TokenChainDisplay.css` — add `.tcd-pill--consent` (green).
 
 ---
 
-### F. MCP server — accept Bearer header from PingGateway
+### F. MCP server — accept Bearer header from PingOne Agent Gateway
 
-File: `banking_mcp_server/src/server/MCPMessageHandler.ts`
+File: `demo_mcp_server/src/server/MCPMessageHandler.ts`
 
 ```typescript
-// Accept token from Authorization header (PingGateway path)
+// Accept token from Authorization header (PingOne Agent Gateway path)
 // OR from agentToken in WS initialize handshake (direct/local path)
 const agentToken =
   request.headers['authorization']?.replace('Bearer ', '') ||
   params.agentToken;
 ```
 
-PingGateway has already validated the token via introspection before forwarding.
+PingOne Agent Gateway has already validated the token via introspection before forwarding.
 Skip re-introspection when the request arrives via the gateway path (detectable via
-a `X-ForgeRock-TransactionId` header that PingGateway adds automatically).
+a `X-ForgeRock-TransactionId` header that PingOne Agent Gateway adds automatically).
 
 ---
 
 ### G. BFF — switch MCP transport from WebSocket to HTTPS+SSE
 
-File: `banking_api_server/services/mcpWebSocketClient.js`
+File: `demo_api_server/services/mcpWebSocketClient.js`
 
 ```js
 const mcpUrl   = getMcpServerUrl();
 const transport = mcpUrl.startsWith('https://') || mcpUrl.startsWith('http://')
-  ? 'sse'   // PingGateway path — HTTP POST + SSE streaming
-  : 'ws';   // Direct path — WebSocket (local dev without PingGateway)
+  ? 'sse'   // PingOne Agent Gateway path — HTTP POST + SSE streaming
+  : 'ws';   // Direct path — WebSocket (local dev without PingOne Agent Gateway)
 ```
 
 For SSE transport, pass the MCP token as an `Authorization: Bearer` header rather
 than in the WebSocket `initialize` handshake params. The existing WebSocket path is
-unchanged, so local development without PingGateway continues to work.
+unchanged, so local development without PingOne Agent Gateway continues to work.
 
 ---
 
@@ -660,7 +660,7 @@ unchanged, so local development without PingGateway continues to work.
          aud:  https://ig.example.com:8443/mcp
          scope: banking:accounts:read
 
-5. BFF → HTTPS POST to PingGateway /mcp
+5. BFF → HTTPS POST to PingOne Agent Gateway /mcp
    Authorization: Bearer <MCP Token>
    └─► McpAuditFilter: writes to audit/mcp.audit.json
    └─► McpProtectionFilter: introspects token → PingOne /as/introspect ✅
@@ -678,8 +678,8 @@ unchanged, so local development without PingGateway continues to work.
      Exchange row: RFC 8693 on-behalf-of ✅
      MCP Token row:
        act ✅ — delegation chain preserved
-       aud narrowed to PingGateway URL ✅
-     [NEW] PingGateway hop: Gateway Validated ✅
+       aud narrowed to PingOne Agent Gateway URL ✅
+     [NEW] PingOne Agent Gateway hop: Gateway Validated ✅
 
 No consent → blocked:
    └─► User token missing acr / may_act
@@ -713,12 +713,12 @@ No consent → blocked:
    scope:         test  (or per-tool scope)
 
 4. MCP Token  (exchanged, on-behalf-of)
-   aud:  https://ig.example.com:8443/mcp  ← scoped to PingGateway
+   aud:  https://ig.example.com:8443/mcp  ← scoped to PingOne Agent Gateway
    sub:  demouser                          ← user identity preserved
    act:  { sub: <AI Agent client_id> }     ← delegation chain
    scope: test
 
-5. PingGateway validates:
+5. PingOne Agent Gateway validates:
    introspect → PingOne ✅  scope=test ✅  act claim ✅
    writes audit/mcp.audit.json
    forwards to MCP server
@@ -735,13 +735,13 @@ No consent → blocked:
 │  Vercel (existing)                            │
 │  ┌──────────┐    ┌──────────────────────┐    │
 │  │ React SPA│───►│ Express BFF          │    │
-│  │ (UI)     │    │ banking_api_server   │    │
+│  │ (UI)     │    │ demo_api_server   │    │
 │  └──────────┘    └──────────┬───────────┘    │
 └─────────────────────────────┼────────────────┘
                               │ HTTPS  Authorization: Bearer <MCP Token>
                               ▼
 ┌──────────────────────────────────────────────┐
-│  PingGateway host  (NEW — persistent process) │
+│  PingOne Agent Gateway host  (NEW — persistent process) │
 │  ig.example.com:8443                          │
 │  ┌────────────────────────────────────────┐  │
 │  │  mcp.json route                        │  │
@@ -755,7 +755,7 @@ No consent → blocked:
                       ▼
 ┌──────────────────────────────────────────────┐
 │  MCP Server (existing — Railway / Render)     │
-│  banking_mcp_server  http://localhost:8000    │
+│  demo_mcp_server  http://localhost:8000    │
 └──────────────────────────────────────────────┘
 ```
 
@@ -779,7 +779,7 @@ No consent → blocked:
         Audience = https://ig.example.com:8443/mcp
         sub expression  = #root.context.requestData.subjectToken.sub
         act expression  = (may_act.sub == actor.client_id)?may_act:null
-        Copy Resource ID + Client Secret → PingGateway RESOURCE_SECRET_ID
+        Copy Resource ID + Client Secret → PingOne Agent Gateway RESOURCE_SECRET_ID
 
 [ ] A3. Create "Agent Consent" agreement
         English text: "I consent to allow Super Banking AI agents to act on my behalf"
@@ -803,12 +803,12 @@ No consent → blocked:
 [ ] B6. MCP_RESOURCE_URI=https://ig.example.com:8443/mcp
 [ ] B7. MCP_SERVER_URL=https://ig.example.com:8443/mcp
 
-─── PingGateway (new persistent host) ──────────────────────────────────────────
+─── PingOne Agent Gateway (new persistent host) ──────────────────────────────────────────
 
-[ ] C1. Install PingGateway, configure TLS
+[ ] C1. Install PingOne Agent Gateway, configure TLS
 [ ] C2. export RESOURCE_SECRET_ID=$(printf '%s' "<secret>" | base64)
 [ ] C3. Write mcp.json route (fill in pingOneEnvID + pingOneResourceID)
-[ ] C4. Restart PingGateway — verify route loads in log
+[ ] C4. Restart PingOne Agent Gateway — verify route loads in log
 [ ] C5. Smoke test: curl https://ig.example.com:8443/mcp → 401 (no token) ✅
 [ ] C6. Smoke test: curl with valid MCP token → 200 from MCP server ✅
 
@@ -831,7 +831,7 @@ No consent → blocked:
 [ ] E1. BankingAgent.js — handleGrantConsent → /api/auth/consent-url redirect
 [ ] E1. BankingAgent.css — .ba-consent-required styles (amber, top of ba-right-col)
 [ ] E2. TokenChainDisplay.js — acr pill (green if consentGiven, amber if not)
-[ ] E2. TokenChainDisplay.js — "MCP Token → PingGateway → MCP Server" label
+[ ] E2. TokenChainDisplay.js — "MCP Token → PingOne Agent Gateway → MCP Server" label
 [ ] E2. TokenChainDisplay.js — update legend
 [ ] E2. TokenChainDisplay.css — .tcd-pill--consent (green)
 
@@ -840,7 +840,7 @@ No consent → blocked:
 [ ] F1. MCPMessageHandler.ts — accept Authorization: Bearer header
           (alongside existing agentToken in WS handshake for local dev)
 [ ] F2. TokenIntrospector.ts — skip re-introspection when
-          X-ForgeRock-TransactionId header is present (PingGateway already validated)
+          X-ForgeRock-TransactionId header is present (PingOne Agent Gateway already validated)
 
 ─── BFF transport ───────────────────────────────────────────────────────────────
 
@@ -854,9 +854,9 @@ No consent → blocked:
 [ ] H3. Manual: login → Token Chain → User Token shows acr ✅ + may_act ✅ pills
 [ ] H4. Manual: login WITHOUT consent policy → amber banner shown, buttons disabled
 [ ] H5. Manual: "Grant agent permission" → PingOne shows consent → accept → unlocks
-[ ] H6. Manual: "My Accounts" → Token Chain shows 5 hops including PingGateway
-[ ] H7. Manual: check PingGateway audit/mcp.audit.json after tool call
-[ ] H8. Manual: tamper MCP token → PingGateway returns 401
+[ ] H6. Manual: "My Accounts" → Token Chain shows 5 hops including PingOne Agent Gateway
+[ ] H7. Manual: check PingOne Agent Gateway audit/mcp.audit.json after tool call
+[ ] H8. Manual: tamper MCP token → PingOne Agent Gateway returns 401
 [ ] H9. Manual: tamper acr in session → exchange blocked server-side (403)
 ```
 
@@ -866,15 +866,15 @@ No consent → blocked:
 
 | File | Change |
 |---|---|
-| `banking_api_server/routes/oauthUser.js` | Store `consentAcr` + `mayAct` in session on OAuth callback |
-| `banking_api_server/routes/auth.js` | Add `consentGiven`/`consentAcr`/`mayAct` to user status; add `/consent-url` endpoint |
-| `banking_api_server/services/agentMcpTokenService.js` | Hard-block on `AGENT_CONSENT_REQUIRED`; add `acr`/`consentGiven` to token event |
-| `banking_api_server/services/mcpWebSocketClient.js` | Detect HTTPS → SSE transport; Bearer header for PingGateway path |
-| `banking_api_ui/src/components/BankingAgent.js` | Fetch consent status; amber banner; disable buttons; re-auth button |
-| `banking_api_ui/src/components/BankingAgent.css` | `.ba-consent-required` styles |
-| `banking_api_ui/src/components/TokenChainDisplay.js` | `acr` consent pill; PingGateway hop label; legend update |
-| `banking_api_ui/src/components/TokenChainDisplay.css` | `.tcd-pill--consent` styles |
-| `banking_mcp_server/src/server/MCPMessageHandler.ts` | Accept `Authorization: Bearer` header; skip introspection on PingGateway path |
+| `demo_api_server/routes/oauthUser.js` | Store `consentAcr` + `mayAct` in session on OAuth callback |
+| `demo_api_server/routes/auth.js` | Add `consentGiven`/`consentAcr`/`mayAct` to user status; add `/consent-url` endpoint |
+| `demo_api_server/services/agentMcpTokenService.js` | Hard-block on `AGENT_CONSENT_REQUIRED`; add `acr`/`consentGiven` to token event |
+| `demo_api_server/services/mcpWebSocketClient.js` | Detect HTTPS → SSE transport; Bearer header for PingOne Agent Gateway path |
+| `demo_api_ui/src/components/BankingAgent.js` | Fetch consent status; amber banner; disable buttons; re-auth button |
+| `demo_api_ui/src/components/BankingAgent.css` | `.ba-consent-required` styles |
+| `demo_api_ui/src/components/TokenChainDisplay.js` | `acr` consent pill; PingOne Agent Gateway hop label; legend update |
+| `demo_api_ui/src/components/TokenChainDisplay.css` | `.tcd-pill--consent` styles |
+| `demo_mcp_server/src/server/MCPMessageHandler.ts` | Accept `Authorization: Bearer` header; skip introspection on PingOne Agent Gateway path |
 
 **No changes to:** TokenChainContext, UserDashboard, LandingPage, App.js, session handling
 
@@ -885,16 +885,16 @@ No consent → blocked:
 | Area | Effort | Critical path blocker |
 |---|---|---|
 | PingOne config A1–A6 | 1–2 hrs | PingOne admin access |
-| BFF env vars B1–B7 | 15 min | PingGateway deployed first |
-| PingGateway deploy + config C1–C6 | 2–4 hrs | Persistent host + TLS cert |
+| BFF env vars B1–B7 | 15 min | PingOne Agent Gateway deployed first |
+| PingOne Agent Gateway deploy + config C1–C6 | 2–4 hrs | Persistent host + TLS cert |
 | Consent BFF code D1–D4 | 2–3 hrs | — |
 | Consent UI E1–E2 | 2–3 hrs | — |
 | MCP server F1–F2 | 1–2 hrs | — |
 | BFF transport G1–G2 | 2–3 hrs | — |
 | Testing H1–H9 | 1–2 hrs | Everything above |
-| **Total** | **~2 days** | PingGateway host is the critical path |
+| **Total** | **~2 days** | PingOne Agent Gateway host is the critical path |
 
-Consent work (D + E) can be done and shipped independently before PingGateway is
+Consent work (D + E) can be done and shipped independently before PingOne Agent Gateway is
 deployed — it only requires the PingOne config steps A3–A5 and the BFF env var B5.
 
 ---
@@ -908,7 +908,7 @@ deployed — it only requires the PingOne config steps A3–A5 and the BFF env v
 | `act` claim null in MCP token | Attribute expressions in `test` resource don't match your client IDs exactly (A2) |
 | Token exchange fails with `access_denied` | `may_act.sub` doesn't match actor token `client_id` — check AI Agent client ID in PingOne |
 | Amber consent banner stuck after accepting | Session not updated — re-check D1 (consentAcr stored on callback) |
-| PingGateway drops MCP traffic | `streamingEnabled: true` must be set in admin.json (C1) |
-| PingGateway 404 from MCP server | `UriPathRewriteFilter` must strip `/mcp` → `/` (C3) |
-| PingGateway 401 on valid token | `RESOURCE_SECRET_ID` has trailing newline — use `printf` not `echo` (C2) |
+| PingOne Agent Gateway drops MCP traffic | `streamingEnabled: true` must be set in admin.json (C1) |
+| PingOne Agent Gateway 404 from MCP server | `UriPathRewriteFilter` must strip `/mcp` → `/` (C3) |
+| PingOne Agent Gateway 401 on valid token | `RESOURCE_SECRET_ID` has trailing newline — use `printf` not `echo` (C2) |
 | Consent agreement not shown at login | Policy must be attached AND enabled; agreement must be enabled in PingOne |

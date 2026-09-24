@@ -1,6 +1,6 @@
-# How To Test: Prompt → LLM → PingGateway → P1AZ → Agent Response
+# How To Test: Prompt → LLM → PingOne Agent Gateway → P1AZ → Agent Response
 
-This guide walks through the end-to-end banking agent path where a natural-language prompt is routed by the LLM, authorized at Ping Agent Gateway (PingGateway) and PingOne Authorize (P1AZ), and returns tool output to the agent UI.
+This guide walks through the end-to-end banking agent path where a natural-language prompt is routed by the LLM, authorized at PingOne Agent Gateway (PingOne Agent Gateway) and PingOne Authorize (P1AZ), and returns tool output to the agent UI.
 
 **Last verified:** 2026-07-08 (k8s / OrbStack, port-forwards active)
 
@@ -11,13 +11,13 @@ See also: [HITL transfer flow test](./llm-pinggateway-p1az-hitl-flow-test.md) ·
 | Verification | Result |
 |--------------|--------|
 | UI SPA (`/`) | ✅ `PingOne AI IAM Core` |
-| Token Lab (`/pinggateway-test.html`) | ✅ `PingGateway Test` |
+| Agent Gateway Inspector (`/pinggateway-test.html`) | ✅ Agent Gateway Inspector |
 | BFF health (`/health`) | ✅ `healthy` |
 | MCP gateway in-cluster (`mcp-gateway:3005/health`) | ✅ `ok` / `banking-mcp-gateway` |
 | LLM proxy in-cluster (`llm-proxy:8090/health`) | ✅ `ok` (local MS Phi-4 GGUF from `~/models`) |
 | Screenshot capture script | ✅ 7/7 images regenerated |
 
-Screenshots below were captured with the Playwright script against the live UI. Agent steps (03–06) use mocked session/API responses to demonstrate the Token Chain and chat UX; architecture (01), Token Lab (02), and Gateway Tester shell (07) are live pages.
+Screenshots below were captured with the Playwright script against the live UI. Agent steps (03–06) use mocked session/API responses to demonstrate the Token Chain and chat UX; architecture (01), Agent Gateway Inspector (02), and Gateway Tester shell (07) are live pages.
 
 ## Prerequisites
 
@@ -37,7 +37,7 @@ sequenceDiagram
     participant UI as demo_api_ui :4000
     participant BFF as demo_api_server :3001
     participant LLM as langchain_agent + LLM
-    participant GW as Ping Agent Gateway
+    participant GW as PingOne Agent Gateway
     participant P1AZ as PingOne Authorize
     participant MCP as mcp-server :8080
 
@@ -62,7 +62,7 @@ sequenceDiagram
 | 1 | **UI / Agent** | User submits prompt (NL input or chip action) |
 | 2 | **LLM** | Resolves intent → MCP tool name (`get_my_accounts`) |
 | 3 | **BFF** | Session token → RFC 8693 delegated token (`aud=mcp-gateway`, `act`) |
-| 4 | **PingGateway** | Introspect token, enforce D-05 anti-bypass |
+| 4 | **PingOne Agent Gateway** | Introspect token, enforce D-05 anti-bypass |
 | 5 | **P1AZ** | Authorize decision: PERMIT / DENY / INDETERMINATE |
 | 6 | **MCP Server** | Executes tool against banking API |
 | 7 | **Return path** | Result + gateway audit trail → agent UI + Token Chain panel |
@@ -71,7 +71,7 @@ sequenceDiagram
 
 ### 1. Review the token-flow architecture
 
-Open the interactive diagram to see where PingGateway and P1AZ sit in the delegation chain.
+Open the interactive diagram to see where PingOne Agent Gateway and P1AZ sit in the delegation chain.
 
 ![Token flow architecture](../screenshots/llm-pinggateway-p1az-flow/01-architecture-token-flow.png)
 
@@ -110,20 +110,20 @@ Expected: Account balances returned in the chat panel.
 |----------|---------|
 | `user-token` | OIDC session token |
 | `exchanged-token` | RFC 8693 delegated token (`aud=mcp-gateway`) |
-| `mcp-gateway-route` | PingGateway introspect + route |
+| `mcp-gateway-route` | PingOne Agent Gateway introspect + route |
 | `gw-authorize` | P1AZ decision (**PERMIT** for read-only accounts) |
 | `mcp-tool-result` | MCP tool output |
 
 ![Token Chain panel](../screenshots/llm-pinggateway-p1az-flow/06-token-chain.png)
 
-### 6. Optional — Token Lab (raw gateway APIs)
+### 6. Optional — Agent Gateway Inspector (raw gateway APIs)
 
 For power-user debugging with pasted tokens (introspect / authorize / MCP call tabs):
 
-- AdminSideNav → **Agent Gateway Server** → **Token Lab**
+- AdminSideNav → **Agent Gateway Server** → **Agent Gateway Inspector**
 - URL: `https://api.ping.demo:4000/pinggateway-test.html`
 
-![Token Lab](../screenshots/llm-pinggateway-p1az-flow/02-token-lab.png)
+![Agent Gateway Inspector](../screenshots/llm-pinggateway-p1az-flow/02-token-lab.png)
 
 ### 7. Optional — Gateway Tester (admin)
 
@@ -141,7 +141,7 @@ For power-user debugging with pasted tokens (introspect / authorize / MCP call t
 curl -sk https://api.ping.demo:4000/ | grep '<title>'
 curl -sk https://api.ping.demo:3001/health
 
-# Token Lab proxied through UI nginx
+# Agent Gateway Inspector proxied through UI nginx
 curl -sk https://api.ping.demo:4000/pinggateway-test.html | grep '<title>'
 
 # MCP gateway health from inside the cluster (authoritative)
@@ -212,7 +212,7 @@ E2E_BASE_URL=https://api.ping.demo:4000 npm run test:e2e:real -- tests/e2e/banki
 - BFF token exchange: `demo_api_server/services/agentMcpTokenService.js`
 - Gateway client: `demo_api_server/services/mcpGatewayClient.js`
 - Gateway tester API: `demo_api_server/routes/mcpGatewayConfig.js` (`POST /api/mcp-gateway/test`)
-- Token Lab routes: `demo_api_server/routes/pinggatewayTestRoutes.js`
+- Agent Gateway Inspector routes: `demo_api_server/routes/pinggatewayTestRoutes.js`
 - Token Chain UI: `demo_api_ui/src/components/TokenChainDisplay.js`
 - Progressive trust plan: `docs/planning/PLAN-progressive-trust-demo.md`
 

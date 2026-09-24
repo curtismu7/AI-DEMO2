@@ -86,9 +86,6 @@ IMAGE_MAP=(
   "ai-demo-k8-api-resource-server:ai-demo-api-resource-server"
   "ai-demo-k8-mcp-brave:ai-demo-mcp-brave"
   "ai-demo-k8-langchain-agent:ai-demo-langchain-agent"
-  "ai-demo-k8-openai-agent:ai-demo-openai-agent"
-  "ai-demo-k8-mastra-agent:ai-demo-mastra-agent"
-  "ai-demo-k8-pydantic-agent:ai-demo-pydantic-agent"
   "ai-demo-k8-llm-proxy:ai-demo-llm-proxy"
   "ai-demo-k8-tier-manager:ai-demo-tier-manager"
   "ai-demo-k8-mcp-code-search:ai-demo-mcp-code-search"
@@ -226,8 +223,11 @@ if [[ -n "$K8S_NAMESPACE" ]]; then
   if [[ -z "${HOSTED_ACCESS_REQUIRED_GROUP_ID:-}" ]]; then
     die "HOSTED_ACCESS_REQUIRED_GROUP_ID must be set before enabling hosted access"
   fi
+  # ALLOWED_DOMAINS includes pingone.com (demoUser's email domain) and
+  # REQUIRE_VERIFIED_EMAIL stays false — matching the live-patched configmap
+  # that fixed hosted-access logins; see REGRESSION_PLAN before changing.
   kubectl patch configmap ai-demo-config -n "$NS" --type merge -p \
-    "{\"data\":{\"HOSTED_ACCESS_GATE_ENABLED\":\"true\",\"HOSTED_ACCESS_ALLOWED_DOMAINS\":\"pingidentity.com\",\"HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL\":\"true\",\"HOSTED_ACCESS_REQUIRED_GROUP_ID\":\"${HOSTED_ACCESS_REQUIRED_GROUP_ID}\"}}"
+    "{\"data\":{\"HOSTED_ACCESS_GATE_ENABLED\":\"true\",\"HOSTED_ACCESS_ALLOWED_DOMAINS\":\"pingidentity.com,pingone.com\",\"HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL\":\"false\",\"HOSTED_ACCESS_REQUIRED_GROUP_ID\":\"${HOSTED_ACCESS_REQUIRED_GROUP_ID}\"}}"
 fi
 
 # Override the nginx-config ConfigMap from 02-configmap.yaml (which contains the
@@ -333,9 +333,6 @@ for manifest in \
   71-ping-gateway-deployment.yaml \
   61-agent-service-deployment.yaml \
   40-agent-service-deployment.yaml \
-  65-mastra-agent-deployment.yaml \
-  66-openai-agent-deployment.yaml \
-  67-pydantic-agent-deployment.yaml \
   76-prometheus-deployment.yaml \
   83-alertmanager-deployment.yaml \
   81-loki-deployment.yaml \
@@ -385,7 +382,7 @@ kubectl scale deployment/weaviate deployment/embeddings deployment/mcp-code-sear
 info "Waiting for rollouts (timeout 3m each)..."
 for dep in jaeger mcp-server mcp-resource-server api-resource-server mcp-weather mcp-brave hitl-service \
            llm-proxy tier-manager demo-api-server mcp-gateway agent-service langchain-agent \
-           mastra-agent openai-agent pydantic-agent frontend weaviate embeddings \
+           frontend weaviate embeddings \
            mcp-code-search llamaindex-agent; do
   kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s
 done

@@ -182,7 +182,7 @@ describe("Inline agent handles AI Attacks drawer events (no isInline early retur
 
     // Handler defers 80ms then sendAsNl adds the user turn to the transcript.
     expect(
-      await screen.findByText(/Transfer \$1000 to savings/, {}, { timeout: 3000 }),
+      await screen.findByText(/Transfer \$1000 to savings/, { selector: 'p.md-para' }, { timeout: 3000 }),
     ).toBeInTheDocument();
   });
 
@@ -337,7 +337,7 @@ describe("Agent presence flag + pending-attack replay", () => {
     );
     // Replay defers 300ms then submits through the same NL pipeline.
     expect(
-      await screen.findByText(/Transfer \$1000 to savings/, {}, { timeout: 3000 }),
+      await screen.findByText(/Transfer \$1000 to savings/, { selector: 'p.md-para' }, { timeout: 3000 }),
     ).toBeInTheDocument();
   });
 

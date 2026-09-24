@@ -1,34 +1,71 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { RUN_MODES } from '../idJagRunMode';
-import { getUseCaseRunContext, setUseCaseRunContext } from '../useCaseRunContext';
+import { runContextFromLocation } from '../useCaseRunContext';
+import { act, renderHook } from '@testing-library/react';
+import { useUseCaseRunContext } from '../useCaseRunContext';
 
-describe('use-case run context', () => {
-  beforeEach(() => sessionStorage.clear());
-
-  it('round trips existing event fields while keeping standard mode optional', () => {
-    setUseCaseRunContext({ useCaseId: 'UC1', message: 'show my balance', autoSend: true });
-    expect(getUseCaseRunContext()).toEqual({ useCaseId: 'UC1', message: 'show my balance', autoSend: true });
-    setUseCaseRunContext({ useCaseId: 'enterprise-managed-mcp-authorization', message: 'show my balance', autoSend: true, mode: RUN_MODES.LIVE_ID_JAG });
-    expect(getUseCaseRunContext()).toEqual({ useCaseId: 'enterprise-managed-mcp-authorization', message: 'show my balance', autoSend: true, mode: 'live-id-jag' });
+describe('runContextFromLocation', () => {
+  beforeEach(() => {
+    sessionStorage.clear();
   });
 
-  it('drops stale ID-JAG mode on logout while retaining ordinary context fields', () => {
-    setUseCaseRunContext({ useCaseId: 'UC1', message: 'next', mode: RUN_MODES.LIVE_ID_JAG });
-    window.dispatchEvent(new Event('userLoggedOut'));
-    expect(getUseCaseRunContext()).toEqual({ useCaseId: 'UC1', message: 'next' });
+  it('returns the launcher context for a Use Case dashboard navigation', () => {
+    expect(runContextFromLocation({
+      pathname: '/dashboard',
+      state: {
+        triggerText: 'show my balance',
+        runContext: { source: 'use-cases', useCaseId: 'audit-trail' },
+      },
+    })).toEqual({ source: 'use-cases', useCaseId: 'audit-trail' });
   });
 
-  it('drops stale mode on ordinary login, including an unvalidated mode hint', () => {
-    setUseCaseRunContext({ useCaseId: 'UC1', message: 'next', mode: RUN_MODES.LIVE_ID_JAG });
-    window.dispatchEvent(new CustomEvent('userAuthenticated', { detail: { mode: RUN_MODES.LIVE_ID_JAG } }));
-    expect(getUseCaseRunContext()).toEqual({ useCaseId: 'UC1', message: 'next' });
+  it('returns null for a direct dashboard navigation', () => {
+    expect(runContextFromLocation({ pathname: '/dashboard', state: null })).toBeNull();
   });
 
-  it('keeps the mode only for an explicitly validated UC40 callback', () => {
-    setUseCaseRunContext({ useCaseId: 'enterprise-managed-mcp-authorization', message: 'show my balance', mode: RUN_MODES.LIVE_ID_JAG });
-    window.dispatchEvent(new CustomEvent('userAuthenticated', {
-      detail: { idJagCallbackValidated: true, useCaseId: 'enterprise-managed-mcp-authorization', mode: RUN_MODES.LIVE_ID_JAG },
-    }));
-    expect(getUseCaseRunContext().mode).toBe('live-id-jag');
+  it('does not label an ordinary prompt-prefill as a Use Case launch', () => {
+    expect(runContextFromLocation({
+      pathname: '/dashboard',
+      state: { triggerText: 'show my balance' },
+    })).toBeNull();
+  });
+
+  it('clears context after a route transition with null state', () => {
+    const { result, rerender } = renderHook(
+      ({ location }) => useUseCaseRunContext(location),
+      {
+        initialProps: {
+          location: {
+            pathname: '/dashboard',
+            state: {
+              triggerText: 'show my balance',
+              runContext: { source: 'use-cases', useCaseId: 'audit-trail' },
+            },
+          },
+        },
+      },
+    );
+
+    expect(result.current.useCaseId).toBe('audit-trail');
+    rerender({ location: { pathname: '/use-cases', state: null } });
+    rerender({ location: { pathname: '/dashboard', state: null } });
+    expect(result.current).toBeNull();
+  });
+
+  it('binds the selected scenario when a Demo Track step is picked', () => {
+    const { result } = renderHook(() => useUseCaseRunContext({ pathname: '/dashboard', state: null }));
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('agent-track-step-pick', {
+        detail: {
+          step: { stepId: 'UC1', title: 'Delegated access (consent only)', buyerStory: 'Show my reservations' },
+        },
+      }));
+    });
+
+    expect(result.current).toMatchObject({
+      source: 'demo-track',
+      useCaseId: 'UC1',
+      useCaseLabel: 'Delegated access (consent only)',
+      triggerText: 'Show my reservations',
+    });
   });
 });

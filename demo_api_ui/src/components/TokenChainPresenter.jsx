@@ -10,6 +10,7 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { laneLabel } from "../services/tokenChainTrace/buildTraceSteps";
+import TraceProvenanceBadge from "./TraceProvenanceBadge";
 import "./TokenChainPresenter.css";
 
 const STATUS_TEXT = {
@@ -31,7 +32,7 @@ function evidenceText(value) {
   }
 }
 
-export default function TokenChainPresenter({ steps, activeId, onSelect, onClose }) {
+export default function TokenChainPresenter({ steps, activeId, provenance = "live", onSelect, onClose }) {
   const count = Array.isArray(steps) ? steps.length : 0;
   const index = count ? steps.findIndex((s) => s.id === activeId) : -1;
   const at = index < 0 ? 0 : index;
@@ -122,6 +123,7 @@ export default function TokenChainPresenter({ steps, activeId, onSelect, onClose
           Step {at + 1} of {count}
         </span>
         <span className="tcp-lane">{laneLabel(step.lane)}</span>
+        <TraceProvenanceBadge provenance={provenance} />
         <span className={`tcp-status tcp-status--${step.status || "pending"}`}>
           {STATUS_TEXT[step.status] || step.status}
         </span>

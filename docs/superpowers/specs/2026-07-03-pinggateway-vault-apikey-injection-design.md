@@ -1,4 +1,4 @@
-# PingGateway/IG Vault-Sourced API-Key Injection — Design
+# PingOne Agent Gateway/IG Vault-Sourced API-Key Injection — Design
 
 **Date:** 2026-07-03 (revised 2026-07-04 after codebase exploration)
 **Status:** Approved (design) — implementation plans authored per phase
@@ -6,7 +6,7 @@
 
 ## Goal
 
-Demonstrate **credential mediation through PingGateway/IG**: a fake backend API
+Demonstrate **credential mediation through PingOne Agent Gateway/IG**: a fake backend API
 key lives encrypted in the vault; **IG pulls it from the vault at request time
 and injects it (`X-API-Key`)** when proxying to backend resources
 (`api-resource-server` and `mcp-resource-server`). The user's OAuth token never carries the
@@ -20,7 +20,7 @@ Trace Rail**.
 | 1 | Demo point | Credential mediation — IG injects a secret backend key the agent never sees; vault is the secure source |
 | 2 | Vault→gateway bridge | Runtime fetch — IG fetches the key from a BFF endpoint at request time (cached) |
 | 3 | Backend enforcement | Injected + observable. Mortgage already enforces `X-API-Key`; investment is observe-only |
-| 4 | Which gateway | **PingGateway/IG** (`ai-demo-ping-gateway`), the enforcement point when `ff_mcp_gateway_pinggateway=true` (the running-stack default) |
+| 4 | Which gateway | **PingOne Agent Gateway/IG** (`ai-demo-ping-gateway`), the enforcement point when `ff_mcp_gateway_pinggateway=true` (the running-stack default) |
 | 5 | Backends | Both mortgage (`api-resource-server:8082`) and investment (`mcp-resource-server:8081`) |
 | 6 | Observability | New Token Chain Trace Rail step per injection |
 | 7 | IG→BFF trust | **Mount the mkcert CA into IG + import to the JVM truststore**; IG→BFF stays TLS-verified (approach A) |
@@ -28,7 +28,7 @@ Trace Rail**.
 
 ## Gateway reality (confirmed by exploration)
 
-- Two gateways exist. **PingGateway/IG** (`ai-demo-ping-gateway`, ForgeRock IG,
+- Two gateways exist. **PingOne Agent Gateway/IG** (`ai-demo-ping-gateway`, ForgeRock IG,
   JSON routes + Groovy in `ping-gateway/`) and a Node **`mcp-gateway`**
   (`demo_mcp_gateway/`, TS, :3005). The flag `ff_mcp_gateway_pinggateway`
   selects which one handles MCP traffic — **they are alternatives, not chained**
@@ -247,7 +247,7 @@ result's `_meta` (read in `AIAgent.js` `vertical_feature_demo`). We add an
   6. Trace Rail: surface the `apiCall` / masked key on the gateway/api step in
      `buildTraceSteps.js`.
 
-- **Phase 3 — move the injection onto the IG path (the "PingGateway does it"
+- **Phase 3 — move the injection onto the IG path (the "PingOne Agent Gateway does it"
   part) + live.** The IG scriptable handler (REST→MCP + vault-key fetch via the
   Phase-1 bridge + `X-API-Key`) fronting `demo_data_service` for BOTH
   `show_mortgage` and `show_investment`, plus BFF tool→path routing

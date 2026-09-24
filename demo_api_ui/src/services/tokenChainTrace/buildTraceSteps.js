@@ -128,7 +128,7 @@ const NARRATIVES = {
   "request-uri": "PingOne stores the pushed request and returns a request_uri that points at it. It does not check the amount; the intent cap is enforced afterwards.",
   "intent-binding": "Verifies the requested transfer against the declared RFC 9396 authorization_details cap.",
   "p1az-resolver": "PingOne Authorize called the private account-context resolver. The resolver queried SQLite for the selected account and returned the attributes used by policy.",
-  gateway: "Ping Agent Gateway checks the delegated token before anything reaches the MCP server: introspection, audience binding, scope, delegation chain.",
+  gateway: "PingOne Agent Gateway checks the delegated token before anything reaches the MCP server: introspection, audience binding, scope, delegation chain.",
   "vault-key-inject": "The gateway asks the BFF's internal vault bridge for the API key bound to this tool route. The key stays server-side and is shown only as a masked value in the trace.",
   "api-key-swap": "Path A (api_key): the gateway drops the OAuth bearer and attaches a service API key (X-API-Key + X-User-Sub). The user's bearer never reaches the downstream service.",
   "tools-call-challenge": "The same handshake on invocation: the first tools/call carries no credential, and the gateway answers 401 with the WWW-Authenticate challenge rather than passing an anonymous call through to the MCP server. Nothing executes on this leg.",
@@ -787,7 +787,7 @@ export const GW_STAGE_META = {
   P1AZDecision: { label: "PingOne Authorize decision", note: "The gateway's OWN policy call — separate from the BFF's earlier one." },
   mTLS: { label: "mTLS to MCP server", note: "Client-certificate hop; skipped unless MCP_MTLS_ON." },
   BackendExchange: { label: "Backend token exchange", note: "RFC 8693 again — re-mints the token for the upstream audience." },
-  // The PingGateway (IG) route emits a DIFFERENT chain from the Node gateway's,
+  // The PingOne Agent Gateway (IG) route emits a DIFFERENT chain from the Node gateway's,
   // and these three are what a live IG run actually reports — confirmed on the
   // focus-mode dashboard, where they were rendering under their raw Java class
   // names via the unknown-stage fallback. The fallback did its job; these give
@@ -1356,7 +1356,7 @@ export function buildTraceSteps(trace) {
   // for that path is only knowable on the retry's own trace, via
   // azEval.hitlApproved (mcpToolAuthorizationService.js's evaluation already
   // carries it once a verified receipt permits the call).
-  // gateway_hitl_required is the live PingGateway PDP's phase for the same
+  // gateway_hitl_required is the live PingOne Agent Gateway PDP's phase for the same
   // consent gate (SystemFlowMap's Consent box already reads it).
   const hitlChallengeStarted = hasPhase(phases, "authorize_denied_hitl")
     || hasPhase(phases, "gateway_step_up_required")
@@ -1519,7 +1519,7 @@ export function buildTraceSteps(trace) {
   const gwFilterDenied = gwFilterChainEvent?.status === "deny";
   const gwDenied = !!gwDeniedPhase || !!simGwDeny || gwFilterDenied;
   // gw-filter-chain is built only from a gateway response (X-Gw-Audit-Trail) or
-  // a gateway deny, never as a skip marker. On a PingGateway permit it is often
+  // a gateway deny, never as a skip marker. On a PingOne Agent Gateway permit it is often
   // the only gateway evidence, so leaving it out drew that gateway not in path.
   const gwSeen = !!(gwAz || gwIntro || gwInbound || gwScope || gwFilterChainEvent);
   const gwSkipEvidence = [gwIntroRaw, gwMtls].filter((e) => e && e.status === "skipped");

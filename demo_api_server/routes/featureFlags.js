@@ -703,13 +703,10 @@ const FLAG_REGISTRY = [
     description:
       'Selects which agent framework handles POST /api/agent/run requests. ' +
       '**langchain** (default) — LangChain agent, AG-UI SSE on port 8888. ' +
-      '**openai_agents** / **mastra** / **pydantic_ai** — same POST /run contract, ' +
-      'different SDK; start via `./run-docker.sh agents` first. ' +
-      '**auto** — LLM-backed pick among the four per request (services/agentFrameworkOrchestrator.js); ' +
-      'also requires the three non-langchain containers running.',
+      '**auto** — resolves to langchain (services/agentFrameworkOrchestrator.js).',
     impact: 'Changes take effect immediately — no restart required.',
     type:         'enum',
-    options:      ['langchain', 'openai_agents', 'mastra', 'pydantic_ai', 'auto'],
+    options:      ['langchain', 'auto'],
     defaultValue: 'langchain',
   },
   {

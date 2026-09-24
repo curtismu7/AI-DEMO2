@@ -74,9 +74,6 @@ COPY ping-gateway /repo/ping-gateway
 COPY demo_hitl_service /repo/demo_hitl_service
 COPY langchain_agent /repo/langchain_agent
 COPY llamaindex_agent /repo/llamaindex_agent
-COPY openai_agent /repo/openai_agent
-COPY pydantic_agent /repo/pydantic_agent
-COPY mastra_agent /repo/mastra_agent
 COPY demo_llm_proxy /repo/demo_llm_proxy
 COPY demo_mcp_code_search/src /repo/demo_mcp_code_search/src
 

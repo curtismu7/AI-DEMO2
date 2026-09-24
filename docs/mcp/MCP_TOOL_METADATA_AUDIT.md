@@ -10,7 +10,7 @@ Ensure MCP tool discovery metadata is complete and consistent from registry to `
 ## Contract
 
 Canonical metadata source:
-- `banking_mcp_server/src/tools/BankingToolRegistry.ts`
+- `demo_mcp_server/src/tools/BankingToolRegistry.ts`
 
 `tools/list` response contract (per tool):
 - `name`
@@ -37,8 +37,8 @@ Canonical metadata source:
 
 ## Verification Checklist
 
-- `cd banking_mcp_server && npm run test -- tests/server/MCPMessageHandler.test.ts --runInBand`
-- `cd banking_mcp_server && npm run test -- tests/tools/BankingToolRegistry.test.ts --runInBand`
+- `cd demo_mcp_server && npm run test -- tests/server/MCPMessageHandler.test.ts --runInBand`
+- `cd demo_mcp_server && npm run test -- tests/tools/BankingToolRegistry.test.ts --runInBand`
 - Manual spot-check of one tool in `tools/list` includes title/icons/annotations when present.
 
 ## Future Guardrails

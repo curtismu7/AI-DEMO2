@@ -1,4 +1,4 @@
-# OAuth Scope Reference — Super Banking Demo
+# OAuth Scope Reference — Super AI Demo
 
 Canonical scope names (Phase 146). Must exactly match the strings issued by PingOne.
 

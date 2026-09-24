@@ -16,7 +16,7 @@
 
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
-| UC1 | `show my balance` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC1 | `show my balance` | `PERMIT` | The user consented, and the act claim proves the agent acted on their behalf — fully attributable. |
 | UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `show my mortgage` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
@@ -39,7 +39,7 @@
 
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
-| UC1 | `check my coverage` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC1 | `check my coverage` | `PERMIT` | The user consented, and the act claim proves the agent acted on their behalf — fully attributable. |
 | UC2 | `show my sensitive patient records` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `show my health records` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
@@ -63,7 +63,7 @@
 
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
-| UC1 | `list my orders` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC1 | `list my orders` | `PERMIT` | The user consented, and the act claim proves the agent acted on their behalf — fully attributable. |
 | UC2 | `show my sensitive order history` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `show my large purchase` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
@@ -87,7 +87,7 @@
 
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
-| UC1 | `show my A&F orders` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC1 | `show my A&F orders` | `PERMIT` | The user consented, and the act claim proves the agent acted on their behalf — fully attributable. |
 | UC2 | `show my sensitive A&F order history` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `show my saved items at A&F` | `PERMIT` | Same delegated token, a different A&F tool — the act claim proves the agent through the saved-styles lookup, not just order history. |
@@ -111,7 +111,7 @@
 
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
-| UC1 | `show my permits` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC1 | `show my permits` | `PERMIT` | The user consented, and the act claim proves the agent acted on their behalf — fully attributable. |
 | UC2 | `show my sensitive tax record` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `show my permit status` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
@@ -135,7 +135,7 @@
 
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
-| UC1 | `show my enrolled courses` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC1 | `show my enrolled courses` | `PERMIT` | The user consented, and the act claim proves the agent acted on their behalf — fully attributable. |
 | UC2 | `access my sensitive student finance` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `show my enrollment status` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
@@ -159,7 +159,7 @@
 
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
-| UC1 | `my benefits` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC1 | `my benefits` | `PERMIT` | The user consented, and the act claim proves the agent acted on their behalf — fully attributable. |
 | UC2 | `show my sensitive payroll details` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `show my expense report` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
@@ -183,7 +183,7 @@
 
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
-| UC1 | `my gear` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC1 | `my gear` | `PERMIT` | The user consented, and the act claim proves the agent acted on their behalf — fully attributable. |
 | UC2 | `show my sensitive membership details` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `show my gear warranty` | `PERMIT` | Same delegated token, a different product — the act claim proves the agent all the way to a warranty lookup, not just the gear list. |
@@ -207,7 +207,7 @@
 
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
-| UC1 | `show my work orders` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC1 | `show my work orders` | `PERMIT` | The user consented, and the act claim proves the agent acted on their behalf — fully attributable. |
 | UC2 | `show my sensitive supplier contract` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `show my work order status` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
@@ -231,7 +231,7 @@
 
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
-| UC1 | `show my portfolios` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC1 | `show my portfolios` | `PERMIT` | The user consented, and the act claim proves the agent acted on their behalf — fully attributable. |
 | UC2 | `show my sensitive holdings` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `show my portfolio` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
@@ -255,7 +255,7 @@
 
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
-| UC1 | `show my reservations` | `PERMIT` | The agent acted for you, and the act claim proves it — fully attributable. |
+| UC1 | `show my reservations` | `PERMIT` | The user consented, and the act claim proves the agent acted on their behalf — fully attributable. |
 | UC2 | `show my sensitive passenger record` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
 | UC33 | `what is the status of flight UA328` | `PERMIT` | Same delegated token, a different tool — the act claim proves the agent all the way to a mortgage lookup, not just a balance check. |
@@ -273,5 +273,4 @@
 | UC41 | `search the news for PingOne DaVinci` | `PERMIT` | An ordinary business search — no blocked term, so the gateway forwards it to the real Brave API. |
 | UC42 | `search the news for bitcoin price today` | `DENY` | Demo bank policy says no crypto research through the agent gateway. The gateway kills the query before Brave ever sees it. |
 | UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
-| UC38 | `have my agent use my miles for an upgrade` | `PERMIT` | MFA proved, personal agent verified, miles redeemed — cabin upgraded. |
 

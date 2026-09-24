@@ -1,4 +1,4 @@
-# PingOne Authorize Setup Guide — Banking Demo
+# PingOne Authorize Setup Guide — AI Demo
 
 > **Who this is for:** Anyone setting up PingOne Authorize policies for this banking demo, including people new to PingOne.
 >
@@ -368,7 +368,7 @@ This is how the RFC 8693 delegation chain is configured. The `may_act` attribute
 DEMO_API_RESOURCE_ID="<id of Demo API resource>"
 AI_AGENT_CLIENT_ID="d21c5124-8ac5-43d1-81f2-31a7ec649b96"
 
-# Set may_act on Demo API — authorises Exchange #1 (user token → gateway token)
+# Set may_act on Demo API — authorises Exchange #1 (user token → MCP Gateway token)
 curl -s -X POST "${MGMT_API}/resources/${DEMO_API_RESOURCE_ID}/attributes" \
   -H "Authorization: Bearer ${WORKER_TOKEN}" \
   -H "Content-Type: application/json" \
@@ -769,7 +769,7 @@ After completing Parts 1–3, verify everything works end to end.
 ### Step 4.4 — Check the Token Chain in the demo UI
 
 1. In the demo, open the **Token Chain** panel.
-2. You should see three tokens: T1 (user token), T2 (gateway token), T3 (MCP server token).
+2. You should see three tokens: T1 (User token), T2 (MCP Gateway token), T3 (Per-MCP server token).
 3. T1 should show `may_act.sub` set to the AI Agent client ID.
 4. T2 and T3 should show `act.sub`.
 

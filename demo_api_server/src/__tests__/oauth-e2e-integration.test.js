@@ -604,8 +604,9 @@ describe('End-to-End OAuth Integration Tests', () => {
         .get('/api/auth/oauth/logout')
         .expect(302);
 
-      expect(response.headers.location).toContain('pingone');
-      expect(response.headers.location).toContain('signoff');
+      // Provider-aware: PingOne → /as/signoff; PingFederate → OIDC end-session
+      // (logout redirects to whichever IdP issued the session's tokens).
+      expect(response.headers.location).toMatch(/pingone|idp\/init_logout\.openid/);
       expect(response.headers.location).toContain('post_logout_redirect_uri');
     });
 
@@ -614,8 +615,9 @@ describe('End-to-End OAuth Integration Tests', () => {
         .get('/api/auth/oauth/user/logout')
         .expect(302);
 
-      expect(response.headers.location).toContain('pingone');
-      expect(response.headers.location).toContain('signoff');
+      // Provider-aware: PingOne → /as/signoff; PingFederate → OIDC end-session
+      // (logout redirects to whichever IdP issued the session's tokens).
+      expect(response.headers.location).toMatch(/pingone|idp\/init_logout\.openid/);
       expect(response.headers.location).toContain('post_logout_redirect_uri');
     });
 
@@ -625,8 +627,9 @@ describe('End-to-End OAuth Integration Tests', () => {
         .set('Accept', 'text/html')
         .expect(302);
 
-      expect(response.headers.location).toContain('pingone');
-      expect(response.headers.location).toContain('signoff');
+      // Provider-aware: PingOne → /as/signoff; PingFederate → OIDC end-session
+      // (logout redirects to whichever IdP issued the session's tokens).
+      expect(response.headers.location).toMatch(/pingone|idp\/init_logout\.openid/);
       expect(response.headers.location).toContain('post_logout_redirect_uri');
     });
 

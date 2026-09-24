@@ -8,13 +8,14 @@ import apiClient from '../services/apiClient';
 import KillSwitchConfirmModal from '../components/KillSwitchConfirmModal';
 import { useAgentUiMode } from '../context/AgentUiModeContext';
 import { useThemeOptional } from '../context/ThemeContext';
+import { PRIMARY_AGENT } from '../config/agentTerminology';
 
 function RegistrationSlot() {
   return (
     <section className="alp-slot alp-slot--video">
       <h2 className="alp-slot__title">1. Register agent + scoped consent</h2>
       <p className="alp-slot__desc">
-        A user registers an AI agent and delegates account access via a scoped
+        A user registers a {PRIMARY_AGENT.displayName} and delegates account access via a scoped
         consent screen. This step is live: <a href="/agent-builder">PingOne
         Agent Builder</a> creates a real PingOne application for the signed-in
         user and sets its resource grants, and the new identity then appears in
@@ -146,7 +147,7 @@ function StepUpSlot() {
           amount: 600,
           // Same bridge AIAgent.js/demoAgentService.js use for every other CIBA
           // retry: without the ORIGINAL gateway challengeId echoed back here,
-          // routes/ciba.js has nothing to mark approved, PingGateway's P1AZ
+          // routes/ciba.js has nothing to mark approved, PingOne Agent Gateway's P1AZ
           // decision re-asks fresh on retry, and CIBA approval loops forever.
           ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}),
         },
@@ -446,7 +447,7 @@ export default function AgentLifecyclePage() {
       </button>
       <h1 className="alp-title">Agent Lifecycle</h1>
       <p className="alp-subtitle">
-        Register, call, step up, and revoke — one AI agent's full access
+        Register, call, step up, and revoke — one {PRIMARY_AGENT.displayName}'s full access
         lifecycle end to end.
       </p>
       <div className="alp-body">

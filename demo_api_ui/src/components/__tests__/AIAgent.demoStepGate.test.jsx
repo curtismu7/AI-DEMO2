@@ -158,7 +158,7 @@ const UC12 = {
 const UC38 = {
   id: "UC38",
   useCaseId: "personal-agent-concierge",
-  title: "Personal Agent Concierge",
+  title: "Workload Agent: Digital Assistant — Personal Concierge",
   auth: "user",
   primaryTool: "redeem_miles",
   trigger: { type: "link", path: "/personal-agent" },
@@ -344,7 +344,12 @@ describe("UC2.5 runs the A2A orchestrator, not UC2's chat path", () => {
   it("posts the chip text to the orchestrator, shows its reply and ticks the step", async () => {
     apiPost.mockImplementation((url) => Promise.resolve({
       data: url === "/api/a2a/message"
-        ? { success: true, reply: "Delegation complete — specialist received narrowed token", tokenEvents: [] }
+        ? {
+          success: true,
+          reply: "Delegation complete — specialist retrieved sensitive_passenger_record",
+          delegationResult: { result: { recordId: "PNR-123", passenger: "Demo Passenger" } },
+          tokenEvents: [],
+        }
         : { initialized: true },
     }));
     renderSignedOut();
@@ -352,6 +357,7 @@ describe("UC2.5 runs the A2A orchestrator, not UC2's chat path", () => {
 
     await waitFor(() => {
       expect(document.body.textContent).toContain("Delegation complete");
+      expect(document.body.textContent).toContain('"recordId": "PNR-123"');
     });
     expect(apiPost).toHaveBeenCalledWith("/api/a2a/message", expect.objectContaining({ message: "delegate this to a specialist" }));
     expect(sendAgentMessage).not.toHaveBeenCalled();

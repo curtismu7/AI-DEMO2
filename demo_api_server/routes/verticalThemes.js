@@ -2,11 +2,13 @@
 
 // Per-vertical theme-zone overrides.
 //
-// Stores a single JSON blob per vertical in configStore under
-// `vertical_theme_overrides_<id>` → { "--brand-…": "#hex", … }. The server is a
-// blind merge: it validates that keys are theme brand vars and values are colors,
-// then stores whatever the client sends. Zone semantics live entirely in the
-// frontend registry (themeZones.js). See skill: vertical-theme-zones.
+// Stored in the verticalStore LMDB DB under `theme:<id>` → { cssVars: { … }, savedAt }
+// (single store for all vertical skin config since T2; pre-T2 blobs in configStore
+// under `vertical_theme_overrides_<id>` are lazily migrated by the resolver on
+// first read). The server is a blind merge: it validates that keys are theme brand
+// vars and values are colors, then stores whatever the client sends. Zone
+// semantics live entirely in the frontend registry (themeZones.js). See skill:
+// vertical-theme-zones.
 //
 // Fully public — no auth mount in server.js (deliberate; see server.js's mount
 // comment). Overrides are GLOBAL per vertical — any visitor's pick changes what
@@ -14,7 +16,6 @@
 
 const express = require('express');
 const router = express.Router();
-const configStore = require('../services/configStore');
 const { verticalManifest } = require('../services/verticalManifest');
 
 const ID_RE = /^[a-z][a-z0-9-]*$/;
@@ -27,17 +28,18 @@ const VAR_RE = /^--(?:brand|app|theme)[a-z0-9-]*$/;
 const COLOR_RE =
   /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$|^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*(?:,\s*(?:0|1|0?\.\d+)\s*)?\)$/i;
 
-const storeKey = (id) => `vertical_theme_overrides_${id}`;
-
 // A vertical id is writable only if it is a known vertical (listAll includes
 // hidden ones like the admin overlay). Rejects phantom/typo ids that would
 // otherwise pollute the store with overrides that are never served.
 const isKnownVertical = (id) => verticalManifest.listAll().some((v) => v.id === id);
 
+// The themes facade on the resolver wraps store mutations with cache
+// invalidation + vertical-edited events (mirrors resolver.overlay).
+const themes = () => verticalManifest.resolver.themes;
+
 function readBlob(id) {
-  const raw = configStore.get(storeKey(id));
-  if (!raw) return {};
-  try { return JSON.parse(raw); } catch { return {}; }
+  const blob = themes() && themes().get(id);
+  return (blob && blob.cssVars) || {};
 }
 
 // GET all verticals' overrides → { [verticalId]: { cssVar: hex } }
@@ -52,7 +54,7 @@ router.get('/vertical-themes', (_req, res) => {
 
 // PUT — merge the provided cssVars into the vertical's blob (per-zone updates
 // never clobber other zones).
-router.put('/vertical-themes/:verticalId', async (req, res) => {
+router.put('/vertical-themes/:verticalId', (req, res) => {
   const id = req.params.verticalId;
   if (!ID_RE.test(id)) return res.status(400).json({ error: 'invalid vertical id' });
   if (!isKnownVertical(id)) return res.status(404).json({ error: 'unknown vertical' });
@@ -71,12 +73,12 @@ router.put('/vertical-themes/:verticalId', async (req, res) => {
   }
 
   const merged = { ...readBlob(id), ...clean };
-  await configStore.setRaw({ [storeKey(id)]: JSON.stringify(merged) }, { persist: true });
+  themes().put(id, { cssVars: merged });
   res.json({ ok: true, cssVars: merged });
 });
 
 // DELETE — remove specific vars (body.vars: string[]) or clear all overrides.
-router.delete('/vertical-themes/:verticalId', async (req, res) => {
+router.delete('/vertical-themes/:verticalId', (req, res) => {
   const id = req.params.verticalId;
   if (!ID_RE.test(id)) return res.status(400).json({ error: 'invalid vertical id' });
   if (!isKnownVertical(id)) return res.status(404).json({ error: 'unknown vertical' });
@@ -85,11 +87,11 @@ router.delete('/vertical-themes/:verticalId', async (req, res) => {
   if (varsToRemove) {
     const blob = readBlob(id);
     for (const k of varsToRemove) delete blob[k];
-    await configStore.setRaw({ [storeKey(id)]: JSON.stringify(blob) }, { persist: true });
+    themes().put(id, { cssVars: blob });
     return res.json({ ok: true, cssVars: blob });
   }
 
-  await configStore.setRaw({ [storeKey(id)]: '' }, { persist: true });
+  themes().clear(id);
   res.json({ ok: true, cssVars: {} });
 });
 

@@ -8,7 +8,7 @@
 
 The demo presents three agents that are easy to confuse:
 
-1. **BFF LangGraph agent** — in-process inside `banking_api_server`, LangChain.js / LangGraph, owns conversation state + HITL gates. Reached via `/api/banking-agent/message`. The live primary.
+1. **BFF LangGraph agent** — in-process inside `demo_api_server`, LangChain.js / LangGraph, owns conversation state + HITL gates. Reached via `/api/banking-agent/message`. The live primary.
 2. **`banking_agent_service` (:3006)** — standalone Node/TS, raw Anthropic/OpenAI SDK (not LangChain), does its *own* RFC 8693 exchange + MCP gateway connection. Actively hardened (8+ recent security commits; Phase 261 roadmapped) but **not wired to any UI**.
 3. **`langchain_agent` (:8889)** — Python LangChain + local Ollama. First-class presented exhibit with its own `/langchain` page, Config panel, Ollama panel.
 
@@ -153,7 +153,7 @@ resolveLlmProvider(langchainConfig) → 'helix' | 'ollama'
      configured → fall back to 'helix', never a dead Ollama call.
 ```
 
-**Location:** new shared module `banking_api_server/services/llmProviderResolver.js`. BFF-side (the BFF owns `langchainConfig` / session / configStore — T-3, T-6). :3006 receives the *already-resolved* provider+model in the `/api/agent/reason` payload and does **not** re-resolve. Single decision point.
+**Location:** new shared module `demo_api_server/services/llmProviderResolver.js`. BFF-side (the BFF owns `langchainConfig` / session / configStore — T-3, T-6). :3006 receives the *already-resolved* provider+model in the `/api/agent/reason` payload and does **not** re-resolve. Single decision point.
 
 **Convergence (audit + fix list):**
 

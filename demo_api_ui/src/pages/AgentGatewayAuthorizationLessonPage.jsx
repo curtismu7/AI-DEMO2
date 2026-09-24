@@ -217,7 +217,7 @@ export default function AgentGatewayAuthorizationLessonPage() {
             <div><strong>Obligation</strong><span>step-up, consent, logging, or a final deny</span></div>
           </div>
         </div>
-        <p className="agal-source-note">This lesson is based on the provided authorization materials and Ping Identity documentation for PingOne Authorize and the PingGateway Agent Gateway module.</p>
+        <p className="agal-source-note">This lesson is based on the provided authorization materials and Ping Identity documentation for PingOne Authorize and the PingOne Agent Gateway Agent Gateway module.</p>
       </Section>
 
       <Section id="flow" title="Request flow">

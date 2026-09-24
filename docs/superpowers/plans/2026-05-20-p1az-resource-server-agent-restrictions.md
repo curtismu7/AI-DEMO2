@@ -1278,7 +1278,7 @@ git commit -m "feat(agent-restrictions): add agentRestrictions dropdown to admin
 - [ ] **Step 1: Find how existing education panels are registered**
 
 ```bash
-grep -r "AgenticTrust\|PingGateway\|TratPanel\|eduPanel\|registerPanel" \
+grep -r "AgenticTrust\|PingOne Agent Gateway\|TratPanel\|eduPanel\|registerPanel" \
   demo_api_ui/src/ --include="*.js" --include="*.jsx" --include="*.tsx" \
   -l 2>/dev/null | head -10
 ```

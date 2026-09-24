@@ -4,9 +4,9 @@
 
 **Goal:** Make the agent "Actions" popout legible and trustworthy — styled/explained scope control, non-clipping popout, three distinct chip grey-states — and stop spurious greying via discovery resilience plus a real→demo-authz gateway failover, with a once-per-session "using the demo authorize server" modal.
 
-**Architecture:** Frontend changes are CSS + small component edits in `demo_api_ui`. Discovery resilience adds a retry + local-catalog degraded fallback in the BFF (`demo_api_server`) surfaced to the UI as a `degraded` flag. Gateway failover adds real→mock retry in the Node gateway (`demo_mcp_gateway`, TypeScript) and the PingGateway Groovy filter. A shared modal/badge fires once per session whenever the session is degraded or on `mock-failover`.
+**Architecture:** Frontend changes are CSS + small component edits in `demo_api_ui`. Discovery resilience adds a retry + local-catalog degraded fallback in the BFF (`demo_api_server`) surfaced to the UI as a `degraded` flag. Gateway failover adds real→mock retry in the Node gateway (`demo_mcp_gateway`, TypeScript) and the PingOne Agent Gateway Groovy filter. A shared modal/badge fires once per session whenever the session is degraded or on `mock-failover`.
 
-**Tech Stack:** React (vitest + @testing-library/react), Node/Express (jest), TypeScript gateway (jest/tsc), Groovy (PingGateway/IG — verified by integration, no unit harness).
+**Tech Stack:** React (vitest + @testing-library/react), Node/Express (jest), TypeScript gateway (jest/tsc), Groovy (PingOne Agent Gateway/IG — verified by integration, no unit harness).
 
 ## Global Constraints
 
@@ -868,7 +868,7 @@ git commit -m "feat(gateway): real->mock Authorize failover with engine signal"
 
 ---
 
-### Task 7: PingGateway Groovy real→mock failover
+### Task 7: PingOne Agent Gateway Groovy real→mock failover
 
 **Files:**
 - Modify: `ping-gateway/scripts/groovy/p1az-decision.groovy:276-297` (decision call block)

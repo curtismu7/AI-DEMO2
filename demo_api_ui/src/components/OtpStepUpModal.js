@@ -3,6 +3,7 @@ import DraggableModal from './DraggableModal';
 import PingIdentitySpinner from './shared/PingIdentitySpinner';
 import { registerPasskey, normalizePublicKeyRequestOptions } from '../utils/passkeyCeremony';
 import { normalizePhoneE164, describePasskeyRegistrationError, isPasskeySupported } from '../utils/mfaEnrollment';
+import { COUNTRY_CODES, DEFAULT_COUNTRY_CODE, composePhone } from '../utils/countryCodes';
 
 /**
  * Find an email OTP device from a PingOne MFA device list.
@@ -231,6 +232,7 @@ export default function OtpStepUpModal({
   const [stubStep, setStubStep] = useState('choose'); // 'choose' | 'otp' | 'sms-enroll-phone' | 'sms-enroll-otp'
   const [otpChannel, setOtpChannel] = useState('email'); // 'email' | 'sms'
   const [smsPhone, setSmsPhone] = useState('');
+  const [countryCode, setCountryCode] = useState(DEFAULT_COUNTRY_CODE);
   const [smsEnrollDeviceId, setSmsEnrollDeviceId] = useState(null);
   const [smsBusy, setSmsBusy] = useState(false);
   const inputRef = useRef(null);
@@ -709,7 +711,7 @@ export default function OtpStepUpModal({
 
   /** POST /enroll/sms-init — PingOne texts an activation OTP. */
   const handleSmsEnrollInit = async () => {
-    const phone = normalizePhoneE164(smsPhone);
+    const phone = normalizePhoneE164(composePhone(countryCode, smsPhone));
     if (!phone || phone.length < 10) {
       setError('Enter a phone number in E.164 format, e.g. +15551234567');
       return;
@@ -942,20 +944,34 @@ export default function OtpStepUpModal({
   const smsEnrollPhonePanel = (
     <div className="otp-step-up-modal__sms-enroll" data-testid="mfa-sms-enroll-phone">
       <p className="otp-step-up-modal__hint" style={{ marginBottom: 8 }}>
-        Enter the mobile number that should receive SMS codes (E.164).
+        Enter the mobile number that should receive SMS codes.
       </p>
-      <input
-        type="tel"
-        className={`otp-step-up-modal__input ${error ? 'otp-step-up-modal__input--error' : ''}`}
-        placeholder="+15551234567"
-        value={smsPhone}
-        onChange={(e) => { setSmsPhone(e.target.value); if (error) setError(''); }}
-        onKeyDown={(e) => { if (e.key === 'Enter') handleSmsEnrollInit(); }}
-        aria-label="Mobile phone number"
-        autoFocus
-      />
+      <div style={{ display: 'flex', gap: 8 }}>
+        <select
+          className="otp-step-up-modal__input"
+          style={{ width: 130, flex: '0 0 auto' }}
+          value={countryCode}
+          onChange={(e) => { setCountryCode(e.target.value); if (error) setError(''); }}
+          aria-label="Country code"
+          data-testid="mfa-country-code"
+        >
+          {COUNTRY_CODES.map((c) => (
+            <option key={c.code} value={c.code}>{c.label}</option>
+          ))}
+        </select>
+        <input
+          type="tel"
+          className={`otp-step-up-modal__input ${error ? 'otp-step-up-modal__input--error' : ''}`}
+          placeholder="5551234567"
+          value={smsPhone}
+          onChange={(e) => { setSmsPhone(e.target.value); if (error) setError(''); }}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleSmsEnrollInit(); }}
+          aria-label="Mobile phone number"
+          autoFocus
+        />
+      </div>
       {error && <div className="otp-step-up-modal__error">{error}</div>}
-      <p className="otp-step-up-modal__hint">Example: +1 555 123 4567 — we&apos;ll text an activation code first.</p>
+      <p className="otp-step-up-modal__hint">Country code defaults to +1 — we&apos;ll text an activation code first.</p>
     </div>
   );
 

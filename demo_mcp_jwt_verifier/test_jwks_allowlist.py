@@ -48,6 +48,21 @@ def test_fetch_jwks_refuses_before_fetching():
         raise AssertionError("expected ValueError")
 
 
+def test_pf_jwks_host_allowed_when_configured():
+    os.environ["PF_ISSUER"] = "https://local.ping-devops.com:9031"
+    os.environ["PF_JWKS_URI"] = "https://local.ping-devops.com:9031/pf/JWKS"
+    import importlib
+    importlib.reload(server)
+    try:
+        assert server._jwks_uri_allowed("https://local.ping-devops.com:9031/pf/JWKS")
+        assert server.pf_auth is not None
+        assert server.pf_auth.issuer == "https://local.ping-devops.com:9031"
+    finally:
+        del os.environ["PF_ISSUER"], os.environ["PF_JWKS_URI"]
+        importlib.reload(server)
+        assert server.pf_auth is None
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

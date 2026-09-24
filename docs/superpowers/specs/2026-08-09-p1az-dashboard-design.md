@@ -212,7 +212,7 @@ one would misrepresent the other.
 - Cleaning the ~50 fixture `authorize` records already in New Relic. #1493 stops
   new pollution; history stays and will appear in wide windows.
 - A dashboard framework (see Shared components).
-- The MCP gateway and PingGateway dashboards — separate sub-projects.
+- The MCP gateway and PingOne Agent Gateway dashboards — separate sub-projects.
 
 ---
 
@@ -273,6 +273,6 @@ riskiest work benefits from settled patterns:
    registry and shared components.
 2. **MCP gateway → New Relic** — our own TypeScript service; add a forwarder
    mirroring `newRelicForwarder.js`. Validates a non-BFF service shipping to NR.
-3. **PingGateway/IG → New Relic** — a Groovy `ScriptableFilter` POSTing to the
+3. **PingOne Agent Gateway/IG → New Relic** — a Groovy `ScriptableFilter` POSTing to the
    Logs API. No native NR audit handler exists, and a slow call would sit in the
    enforcement path, so it goes last.

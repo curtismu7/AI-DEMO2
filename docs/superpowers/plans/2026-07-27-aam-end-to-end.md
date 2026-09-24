@@ -6,7 +6,7 @@
 
 **Architecture:** The IG route added in PR #1025 keeps using the stock `PingAuthorizeFilter`, but its `sidebandHandler` is replaced with a Chain containing one Groovy filter that both retargets the Sideband call (real PingOne vs the `demo_authz_server` mock, chosen by the existing `X-Authz-Simulated` header) and captures the request/response JSON. A second Groovy filter stamps that capture into the existing `X-Gw-Audit-Trail` header as an `aam` section, which the BFF already knows how to parse and the UI already knows how to render.
 
-**Tech Stack:** PingGateway (IG) Groovy `ScriptableFilter`; Node/Express (`demo_authz_server`, `demo_api_server`) with jest; React with vitest (`demo_api_ui`); PingOne Management API.
+**Tech Stack:** PingOne Agent Gateway (IG) Groovy `ScriptableFilter`; Node/Express (`demo_authz_server`, `demo_api_server`) with jest; React with vitest (`demo_api_ui`); PingOne Management API.
 
 ## Global Constraints
 
@@ -94,10 +94,10 @@ confirms the objects still exist rather than recreating them.
 
 | Object | Id |
 | --- | --- |
-| Gateway `PingGateway AAM` (`API_GATEWAY_INTEGRATION`) | `737420bd-d898-4af1-830c-d7452e5494fa` |
+| Gateway `PingOne Agent Gateway AAM` (`API_GATEWAY_INTEGRATION`) | `737420bd-d898-4af1-830c-d7452e5494fa` |
 | Gateway credential | `5fc12c5b-56c4-4d9e-870d-3785d8b27cbb` |
 | Resource `Demo AAM` (aud `https://api.ping.demo:3036/aam`) | `93178f39-a0ec-48d7-86f8-7ec92f3f1303` |
-| API server `PingGateway AAM Demo` (base `http://api.ping.demo:3036`), deployed | `fbf63ae6-616b-4ab3-9ac6-d088b90dfa5e` |
+| API server `PingOne Agent Gateway AAM Demo` (base `http://api.ping.demo:3036`), deployed | `fbf63ae6-616b-4ab3-9ac6-d088b90dfa5e` |
 | Operation `AAM health probe` — `GET /aam/health`, rule = group `Full access` | `5830c573-d81d-4b66-b950-152d5deb2276` |
 | Group `Full access` | `085b2810-c88c-4a4e-815b-f5beb385c73f` |
 

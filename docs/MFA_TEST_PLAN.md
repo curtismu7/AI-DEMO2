@@ -2,7 +2,7 @@
 
 ## Overview
 
-This test plan provides comprehensive testing procedures for Multi-Factor Authentication (MFA) in the Super Banking demo, focusing on OTP (One-Time Password) and FIDO2/WebAuthn methods.
+This test plan provides comprehensive testing procedures for Multi-Factor Authentication (MFA) in the AI Demo, focusing on OTP (One-Time Password) and FIDO2/WebAuthn methods.
 
 ## Test Objectives
 
@@ -14,7 +14,7 @@ This test plan provides comprehensive testing procedures for Multi-Factor Authen
 
 ## Prerequisites
 
-- Super Banking demo application running locally or deployed
+- AI Demo application running locally or deployed
 - PingOne environment configured with MFA policy
 - Test user account with MFA device registered
 - Test email account for OTP delivery
@@ -47,7 +47,7 @@ Ensure the following are configured in PingOne:
 
 ### 2. Environment Variables
 
-Set the following in `banking_api_server/.env`:
+Set the following in `demo_api_server/.env`:
 
 ```env
 PINGONE_MFA_POLICY_ID={your-policy-id}

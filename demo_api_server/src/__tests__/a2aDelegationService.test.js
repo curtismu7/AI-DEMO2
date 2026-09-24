@@ -524,9 +524,11 @@ describe('split exchanges', () => {
 
     expect(out.token).toBe('T.NESTED');
     // The hop bearer is the SUBJECT of Exchange #2, with the specialist as actor.
+    // PingOne mode passes empty exchangeOptions ({}) — the 8th arg is always
+    // present; PF mode fills it with the id-jag subject / access-token request.
     expect(d.oauthService.performTokenExchangeAs).toHaveBeenCalledWith(
       'T.AGENT1', 'AGENT2.ACTOR', 'spec-id', 'spec-secret',
-      'https://gateway.example', ['invest:read'], 'post',
+      'https://gateway.example', ['invest:read'], 'post', {},
     );
     expect(tokenEvents.map((e) => e.id)).toEqual(
       expect.arrayContaining(['a2a-agent2-actor', 'a2a-exchange2']),

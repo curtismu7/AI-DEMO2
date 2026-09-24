@@ -27,7 +27,7 @@ const AGENT_MCP_FINAL_TOKEN = `{
   "scope": "accounts:read transfer",
   "act": {
     "sub": "banking-mcp-gateway",
-    "act": { "sub": "openai-agent-svc" }
+    "act": { "sub": "langchain-agent-svc" }
   }
 }`;
 

@@ -18,7 +18,7 @@ const ARCHITECTURE_SOURCE = `graph TB
     end
 
     subgraph k8s["K8s cluster (SE)"]
-        GW["ping-gateway :8080<br/>PingGateway / ForgeRock IG<br/><b>enforces /mcp only</b><br/>OAuth AS paths pass through unfiltered"]
+        GW["ping-gateway :8080<br/>PingOne Agent Gateway / ForgeRock IG<br/><b>enforces /mcp only</b><br/>OAuth AS paths pass through unfiltered"]
         MCP["mcp-server :8080 (oauth-mcp)<br/><b>dual role, same pod/Service:</b><br/>MCP tool server AND<br/>embedded OAuth 2.1 AS<br/>(DCR, /authorize, /token, /jwks, /introspect)"]
     end
 

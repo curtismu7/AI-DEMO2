@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { MdStar, MdArrowDropDown, MdClose, MdAdd } from 'react-icons/md';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { getFavorites, addFavorite, removeFavorite, labelForPath, FAVORITES_CHANGED_EVENT } from '../utils/favorites';
 import './FavoritesMenu.css';
 
@@ -52,10 +52,22 @@ export default function FavoritesMenu() {
           ) : (
             favorites.map((f) => (
               <div className="fav-menu-row" key={f.path}>
-                <button className="fav-menu-item" type="button" onClick={() => goTo(f.path)}>
-                  <MdStar className="fav-menu-item-icon" />
-                  <span>{f.label}</span>
-                </button>
+                {f.path.endsWith('.html') ? (
+                  <Link
+                    className="fav-menu-item"
+                    to={f.path}
+                    reloadDocument
+                    onClick={() => setIsOpen(false)}
+                  >
+                    <MdStar className="fav-menu-item-icon" />
+                    <span>{f.label}</span>
+                  </Link>
+                ) : (
+                  <button className="fav-menu-item" type="button" onClick={() => goTo(f.path)}>
+                    <MdStar className="fav-menu-item-icon" />
+                    <span>{f.label}</span>
+                  </button>
+                )}
                 <button
                   className="fav-menu-remove"
                   type="button"

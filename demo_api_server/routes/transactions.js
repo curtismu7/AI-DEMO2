@@ -622,7 +622,30 @@ router.post('/', authenticateToken, idempotency, async (req, res) => {
     // Consume the flag (single-use) so subsequent transactions still enforce the gate.
     let effectiveAcr = req.user.acr;
     let sessionStepUpFresh = false;
-    if (req.session?.stepUpVerified > Date.now()) {
+    const approvedTransaction = req.session?.cibaApprovedTransaction;
+    const matchesCibaTransaction = !approvedTransaction || (
+      approvedTransaction.tool === `create_${type}`
+      && Number(approvedTransaction.amount) === hitlAmount
+      && approvedTransaction.fromAccountId === (fromAccountId || null)
+      && approvedTransaction.toAccountId === (toAccountId || null)
+    );
+    const receiptContext = {
+      fromAccountId: fromAccountId || null,
+      toAccountId: toAccountId || null,
+    };
+    const cibaReceiptClaim = (approvedTransaction && matchesCibaTransaction) || hasBearerAuth
+      ? cibaTransactionReceipt.claim(req.user.id, `create_${type}`, hitlAmount, receiptContext)
+      : null;
+    if (cibaReceiptClaim) {
+      res.once('finish', () => cibaTransactionReceipt.release(cibaReceiptClaim));
+      res.once('close', () => cibaTransactionReceipt.release(cibaReceiptClaim));
+    }
+    const cibaProofFresh = cibaReceiptClaim?.proofType === 'ciba'
+      || (cibaReceiptClaim?.proofType === 'simulated_ciba'
+        && require('../services/cibaSimulatedService').isLocalSimulationEnabled());
+    const sessionCibaReceiptFresh = Boolean(approvedTransaction && matchesCibaTransaction && cibaProofFresh);
+    if (matchesCibaTransaction && (!approvedTransaction || sessionCibaReceiptFresh)
+      && req.session?.stepUpVerified > Date.now()) {
       effectiveAcr = 'Multi_Factor';
       sessionStepUpFresh = true;
       req.session.stepUpVerified = 0;
@@ -635,7 +658,12 @@ router.post('/', authenticateToken, idempotency, async (req, res) => {
     // step-up gate. Single-use, same pattern as stepUpVerified above.
     let sessionHitlFresh = false;
     let sessionHitlClaimed = false;
-    if (hitlCredit.claim(req.session, { amount: hitlAmount })) {
+    if ((!approvedTransaction || sessionCibaReceiptFresh) && hitlCredit.claim(req.session, {
+      amount: hitlAmount,
+      tool: `create_${type}`,
+      fromAccountId: fromAccountId || null,
+      toAccountId: toAccountId || null,
+    })) {
       // Amount-bound + consume-on-use (services/hitlCredit.js): a live CIBA
       // credit for this amount applies, but do NOT spend it yet — consume it
       // below only if it actually discharged the consent gate, so an unrelated
@@ -644,19 +672,26 @@ router.post('/', authenticateToken, idempotency, async (req, res) => {
       // this same session until release()/consume() runs below.
       sessionHitlFresh = true;
       sessionHitlClaimed = true;
-    } else if (hasBearerAuth) {
+      res.once('finish', () => hitlCredit.release(req.session));
+      res.once('close', () => hitlCredit.release(req.session));
+    } else if (hasBearerAuth && !approvedTransaction) {
       // Bearer-token calls (demo_mcp_server's BankingAPIClient, the real MCP/
       // agent path) carry no session cookie, so the check above never fires
       // even right after a CIBA approval — see mcpToolAuthorizationService.js's
       // matching cibaTransactionReceipt.record() call and cibaTransactionReceipt.js.
-      sessionHitlFresh = cibaTransactionReceipt.consume(req.user.id, `create_${type}`, hitlAmount);
+      sessionHitlFresh = Boolean(cibaReceiptClaim);
+      if (cibaProofFresh) effectiveAcr = 'Multi_Factor';
+    }
+    if (sessionCibaReceiptFresh) {
+      sessionHitlFresh = true;
+      effectiveAcr = 'Multi_Factor';
     }
 
     // RFC 9470 §5 freshness: when stepUpMaxAge > 0, a strong ACR from a stale
     // authentication event is NOT sufficient — downgrade it so the gate fires
     // and the challenge sends the user back through a fresh ceremony.
     const stepUpMaxAge = parseFloat(runtimeSettings.get('stepUpMaxAge')) || 0;
-    if (stepUpMaxAge > 0 && !sessionStepUpFresh && effectiveAcr) {
+    if (stepUpMaxAge > 0 && !sessionStepUpFresh && !cibaProofFresh && effectiveAcr) {
       const authTime = Number(req.user.authTime);
       const ageSeconds = Number.isFinite(authTime) ? Date.now() / 1000 - authTime : Infinity;
       if (ageSeconds > stepUpMaxAge) {
@@ -681,7 +716,7 @@ router.post('/', authenticateToken, idempotency, async (req, res) => {
       amount: parseFloat(amount),
       type,
       acr: effectiveAcr,
-      useCaseId: (sessionStepUpFresh || sessionHitlFresh) ? '' : (req.body?.useCaseId || ''),
+      useCaseId: (sessionStepUpFresh || cibaProofFresh) ? '' : (req.body?.useCaseId || ''),
       hitlAlreadyVerified: sessionHitlFresh,
     });
 
@@ -689,9 +724,8 @@ router.post('/', authenticateToken, idempotency, async (req, res) => {
     // engine confirmed it actually discharged the consent gate. An unrelated
     // request never reaches here with hitlConsentDischarged set, so it cannot
     // burn the credit (fixes the cross-consumer starvation with the MCP gate).
-    if (authz.hitlConsentDischarged) {
-      hitlCredit.consume(req.session);
-    } else if (sessionHitlClaimed) {
+    const shouldConsumeHitlCredit = Boolean(authz.hitlConsentDischarged || sessionCibaReceiptFresh);
+    if (!shouldConsumeHitlCredit && sessionHitlClaimed) {
       // Claimed but not needed this request — release immediately rather
       // than waiting out the claim's TTL, so a pending retry on this same
       // session isn't wrongly told the credit is already held.
@@ -772,7 +806,9 @@ router.post('/', authenticateToken, idempotency, async (req, res) => {
         { tag: 'authorize/gate-skipped', metadata: { reason: authz.reason, type, userId: req.user?.id } });
     }
     // ── End Authorize gate ────────────────────────────────────────────────────
-
+    if (cibaReceiptClaim && !cibaTransactionReceipt.isClaimValid(cibaReceiptClaim)) {
+      return res.status(410).json({ error: 'ciba_approval_expired' });
+    }
     // Apply the balance change atomically (AFTER authorization, so HITL/deny/
     // step-up gates run first regardless of balance; BEFORE recording the
     // transaction so we never record a transfer we couldn't fund).
@@ -796,6 +832,8 @@ router.post('/', authenticateToken, idempotency, async (req, res) => {
         if (move.reason === 'insufficient_funds') return res.status(400).json({ error: 'Insufficient balance' });
         return res.status(400).json({ error: 'invalid_amount' });
       }
+      if (cibaReceiptClaim) cibaTransactionReceipt.consumeClaim(cibaReceiptClaim);
+      if (shouldConsumeHitlCredit) hitlCredit.consume(req.session);
     }
 
     // For transfers, create two separate transactions

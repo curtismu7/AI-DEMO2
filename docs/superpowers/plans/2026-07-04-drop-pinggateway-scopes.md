@@ -1,12 +1,12 @@
-# Drop Demo-Invented PingGateway Scopes Implementation Plan
+# Drop Demo-Invented PingOne Agent Gateway Scopes Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Remove the demo-invented `pinggateway:invoke` and `banking:mcp:invoke` scopes from the PingGateway (Agent Gateway / IG) exchange path so the whole chain carries the real `mcp:invoke` scope, with resource binding done by the RFC 8707 audience (`https://api.ping.demo:3036/mcp`) — matching how the real Ping Agent Gateway product actually works.
+**Goal:** Remove the demo-invented `pinggateway:invoke` and `banking:mcp:invoke` scopes from the PingOne Agent Gateway (Agent Gateway / IG) exchange path so the whole chain carries the real `mcp:invoke` scope, with resource binding done by the RFC 8707 audience (`https://api.ping.demo:3036/mcp`) — matching how the real PingOne Agent Gateway product actually works.
 
-**Architecture:** The PingGateway path is a parallel route to the working Node-gateway path, gated by `ff_mcp_gateway_pinggateway`. Today the BFF mints a special `pinggateway:invoke` scope for RFC 8693 Exchange #2 (audience `:3036/mcp`), the IG validates `banking:mcp:invoke` inbound and requests `banking:mcp:invoke` on its own Exchange #3, and `scope-topology.json` carries a dead `aliases{}` block to keep the drift-gate quiet. We replace all three demo-invented scope strings with `mcp:invoke` (already a first-class scope in the SoT) and delete the alias block. The real product requires only a valid bearer + RFC 8707 resource-indicator match + a configurable coarse scope — never a gateway-specific scope name (see `references/curated/agent-gateway-mcp.md`, McpProtectionFilter).
+**Architecture:** The PingOne Agent Gateway path is a parallel route to the working Node-gateway path, gated by `ff_mcp_gateway_pinggateway`. Today the BFF mints a special `pinggateway:invoke` scope for RFC 8693 Exchange #2 (audience `:3036/mcp`), the IG validates `banking:mcp:invoke` inbound and requests `banking:mcp:invoke` on its own Exchange #3, and `scope-topology.json` carries a dead `aliases{}` block to keep the drift-gate quiet. We replace all three demo-invented scope strings with `mcp:invoke` (already a first-class scope in the SoT) and delete the alias block. The real product requires only a valid bearer + RFC 8707 resource-indicator match + a configurable coarse scope — never a gateway-specific scope name (see `references/curated/agent-gateway-mcp.md`, McpProtectionFilter).
 
-**Tech Stack:** Node.js BFF (`demo_api_server`), PingOne Management API (worker app `89ad8921`, direct REST — the `pingone` MCP connector is unauthenticated this session), PingGateway 2026.x (`ai-demo-ping-gateway` container, ForgeRock IG routes + Groovy), `scope-topology.json` source-of-truth + `topology:verify` drift gate.
+**Tech Stack:** Node.js BFF (`demo_api_server`), PingOne Management API (worker app `89ad8921`, direct REST — the `pingone` MCP connector is unauthenticated this session), PingOne Agent Gateway 2026.x (`ai-demo-ping-gateway` container, ForgeRock IG routes + Groovy), `scope-topology.json` source-of-truth + `topology:verify` drift gate.
 
 ## Global Constraints
 
@@ -14,7 +14,7 @@
 - **PingOne edge quirks (from prior sessions):** `PATCH` on resources is rejected with a bogus `Invalid key=value in Authorization header` 403 — use `PUT` full-object or `POST` sub-resource instead. Mint the worker token *inside* the `ai-demo-api-server` container so the secret never leaves it.
 - **Reversibility:** All PingOne scope changes are additive first (add `mcp:invoke`), destructive last (remove `pinggateway:invoke`). Do not remove `pinggateway:invoke` until the empirical gate (Task 2) and the config changes (Tasks 3–5) are proven.
 - **Audience is canonical `:3036/mcp`** everywhere (already hardened by PR #141). Do not reintroduce `:3006`.
-- **Do NOT touch** the working Node-gateway path (`effectiveToolScopes` branch) — only the `usePingGatewayForExchange === true` branch.
+- **Do NOT touch** the working Node-gateway path (`effectiveToolScopes` branch) — only the `usePingOne Agent GatewayForExchange === true` branch.
 - **HARD GATE:** If Task 2's exchange test shows `mcp:invoke` + `audience=:3036/mcp` does NOT select resource `6635cfb8` (i.e. the returned token's `aud` is `mcpgateway.ping.demo` or the request errors `May not request scopes for multiple resources`), STOP. Do not proceed to Tasks 3–6. Report the finding — the demo-invented scope may be the only working disambiguator, which changes the design.
 
 ---
@@ -35,7 +35,7 @@ docker exec ai-demo-api-server sh -lc '
 ```
 
 - Management API base: `https://api.pingone.com/v1/environments/$ENV`
-- IG resource (Demo PingGateway MCP): id `6635cfb8`, aud `https://api.ping.demo:3036/mcp`
+- IG resource (Demo PingOne Agent Gateway MCP): id `6635cfb8`, aud `https://api.ping.demo:3036/mcp`
 - Exchanger app (Demo AI App - Token Exchanger): client `f4dd707d-f78d-4417-ba56-dc8707d10a1f`
 
 ---
@@ -65,7 +65,7 @@ Expected: lists `pinggateway:invoke` (record its scope id as the Task 6 rollback
 docker exec ai-demo-api-server sh -lc '
   ENV="$PINGONE_ENVIRONMENT_ID"
   TOK=$(curl -s -X POST "https://auth.pingone.com/$ENV/as/token" -u "$PINGONE_WORKER_CLIENT_ID:$PINGONE_WORKER_CLIENT_SECRET" -d grant_type=client_credentials | node -pe "JSON.parse(require(\"fs\").readFileSync(0)).access_token")
-  curl -s -X POST "https://api.pingone.com/v1/environments/$ENV/resources/6635cfb8/scopes" -H "Authorization: Bearer $TOK" -H "Content-Type: application/json" -d "{\"name\":\"mcp:invoke\",\"description\":\"Invoke MCP tools via the PingGateway MCP route (RFC 8693 exchange)\"}" | node -pe "let j=JSON.parse(require(\"fs\").readFileSync(0)); j.id?(\"CREATED \"+j.id):JSON.stringify(j)"
+  curl -s -X POST "https://api.pingone.com/v1/environments/$ENV/resources/6635cfb8/scopes" -H "Authorization: Bearer $TOK" -H "Content-Type: application/json" -d "{\"name\":\"mcp:invoke\",\"description\":\"Invoke MCP tools via the PingOne Agent Gateway MCP route (RFC 8693 exchange)\"}" | node -pe "let j=JSON.parse(require(\"fs\").readFileSync(0)); j.id?(\"CREATED \"+j.id):JSON.stringify(j)"
 '
 ```
 
@@ -134,39 +134,39 @@ Expected PASS: `aud` includes `https://api.ping.demo:3036/mcp` (NOT `mcpgateway.
 
 ---
 
-### Task 3: BFF — request `mcp:invoke` for the PingGateway leg instead of `pinggateway:invoke`
+### Task 3: BFF — request `mcp:invoke` for the PingOne Agent Gateway leg instead of `pinggateway:invoke`
 
 **Files:**
 - Modify: `demo_api_server/services/agentMcpTokenService.js:2289-2296`
 
 **Interfaces:**
-- Consumes: `usePingGatewayForExchange` (bool, line 2265), `effectiveToolScopes` (string[]).
-- Produces: `ex2Scopes` now `['mcp:invoke']` for the PingGateway leg.
+- Consumes: `usePingOne Agent GatewayForExchange` (bool, line 2265), `effectiveToolScopes` (string[]).
+- Produces: `ex2Scopes` now `['mcp:invoke']` for the PingOne Agent Gateway leg.
 
 - [ ] **Step 1: Replace the special-cased scope**
 
 Change the block at [agentMcpTokenService.js:2289-2296](demo_api_server/services/agentMcpTokenService.js#L2289) from:
 
 ```js
-    // When routing through PingGateway, send the unique pinggateway:invoke scope
+    // When routing through PingOne Agent Gateway, send the unique pinggateway:invoke scope
     // so PingOne unambiguously selects the f2669dd9 (https://api.ping.demo:3036/mcp)
     // grant. Sending effectiveToolScopes (read, transfer, …) caused PingOne to fall
     // back to fb2d09cb (mcpgateway.ping.demo, which has read). Empty scopes also
     // fail: PingOne returns "May not request scopes for multiple resources" when the
     // exchanger has multiple RS grants and no scope narrows the selection.
     const pingGatewayInvokeScope = configStore.getEffective('pinggateway_invoke_scope') || 'pinggateway:invoke';
-    const ex2Scopes = usePingGatewayForExchange ? [pingGatewayInvokeScope] : effectiveToolScopes;
+    const ex2Scopes = usePingOne Agent GatewayForExchange ? [pingGatewayInvokeScope] : effectiveToolScopes;
 ```
 
 to:
 
 ```js
-    // PingGateway (Agent Gateway) binds the request to its MCP resource via the
+    // PingOne Agent Gateway (Agent Gateway) binds the request to its MCP resource via the
     // RFC 8707 audience (https://api.ping.demo:3036/mcp), not a gateway-specific
     // scope. Request the real mcp:invoke scope — the audience narrows PingOne's
     // grant selection to the :3036 resource (verified 2026-07-04). No demo-invented
     // pinggateway:invoke / banking:* scope.
-    const ex2Scopes = usePingGatewayForExchange ? ['mcp:invoke'] : effectiveToolScopes;
+    const ex2Scopes = usePingOne Agent GatewayForExchange ? ['mcp:invoke'] : effectiveToolScopes;
 ```
 
 - [ ] **Step 2: Grep-verify no other references to the removed scope remain in the BFF**
@@ -306,13 +306,13 @@ Expected: `HTTP 204`.
 
 **Interfaces:**
 - Consumes: the fully-applied change.
-- Produces: proof the PingGateway chip flow works with real scopes, and an updated memory.
+- Produces: proof the PingOne Agent Gateway chip flow works with real scopes, and an updated memory.
 
-- [ ] **Step 1: Confirm the feature flag is on for the PingGateway path**
+- [ ] **Step 1: Confirm the feature flag is on for the PingOne Agent Gateway path**
 
 Run: `docker exec ai-demo-api-server sh -lc 'curl -s localhost:3006/api/authorize/evaluation-status -H "Authorization: Bearer $SOME_BEARER"'` (or the project's status route) to confirm `ff_mcp_gateway_pinggateway=true` in the LIVE singleton (a cold require lies — see memory).
 
-- [ ] **Step 2: Drive a tool-backed banking/CareConnect chip through the PingGateway path**
+- [ ] **Step 2: Drive a tool-backed banking/CareConnect chip through the PingOne Agent Gateway path**
 
 Use the existing real-mode e2e (`demo_api_ui` `test:e2e:real:careconnect:core`) or drive the chip in the UI. Watch `docker logs -f ai-demo-ping-gateway`:
 - `[JWKS] validation` PASSES (no `insufficient_scope`),

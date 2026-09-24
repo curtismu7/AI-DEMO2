@@ -435,7 +435,11 @@ router.post('/enroll/sms-init', authenticateToken, async (req, res) => {
     if (!phone) {
       return res.status(400).json({ error: 'missing_phone', message: 'Provide phone in E.164 format.' });
     }
-    const device = await mfaService.enrollSmsDevice(userId, phone, userAccessToken);
+    // Normalize a bare 10-digit NANP number to E.164 (+1) — the UI accepts
+    // "9725231586" and PingOne would otherwise store it without a country code.
+    const digits = phone.replace(/[\s()-]/g, '');
+    const normalizedPhone = /^\d{10}$/.test(digits) ? `+1${digits}` : phone;
+    const device = await mfaService.enrollSmsDevice(userId, normalizedPhone, userAccessToken);
     res.json({ deviceId: device.id, type: device.type, phone: device.phone, status: device.status });
   } catch (err) {
     console.error('[MFA route] POST /enroll/sms-init failed:', err.message);

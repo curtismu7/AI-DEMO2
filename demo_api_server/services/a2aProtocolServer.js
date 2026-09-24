@@ -17,6 +17,7 @@ const {
 const { jsonRpcHandler } = require('@a2a-js/sdk/server/express');
 const {
   specialistForVertical,
+  specialistDirectory,
   verticalsWithSpecialist,
 } = require('../config/a2aSpecialists');
 const { buildSpecialistAgentCard } = require('./a2aAgentCardService');
@@ -324,6 +325,13 @@ function createA2aProtocolRouter(opts = {}) {
 
   // Verification key for the Agent Card signatures (A2A v1.0 §8.4). Public, like the cards.
   router.get('/.well-known/jwks.json', (_req, res) => res.json(publicJwks()));
+
+  // Public display metadata for selectors and learning surfaces. Credentials,
+  // grants, and tenant data stay out of this response; protocol capabilities
+  // continue to come from each signed Agent Card.
+  router.get('/registry', (_req, res) => {
+    res.json({ specialists: specialistDirectory() });
+  });
 
   for (const vertical of verticalsWithSpecialist()) {
     // Startup probe only — "does this vertical have a card to serve?". The

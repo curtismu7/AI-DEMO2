@@ -16,23 +16,23 @@
 
 | Role | App Name | Client ID | Type | Token Auth | Grant Types |
 |---|---|---|---|---|---|
-| **Admin login** | Demo Admin App | `3937cbfd-8824-4f0d-adb2-178702fe9518` | WEB_APP | CLIENT_SECRET_POST | authorization_code, refresh_token, token_exchange |
-| **User/customer login** | Demo User App | `b7d00976-405f-4c55-914a-a3ebe8f369d8` | WEB_APP | CLIENT_SECRET_POST | authorization_code, refresh_token |
-| **AI Agent actor** | Demo AI Agent | `d21c5124-8ac5-43d1-81f2-31a7ec649b96` | WEB_APP | CLIENT_SECRET_POST | authorization_code, client_credentials, token_exchange |
-| **MCP Gateway CC actor** | Demo MCP Gateway | `3fc5ec99-48dd-42d2-b5fd-ec34055769d2` | WEB_APP | CLIENT_SECRET_POST | client_credentials, token_exchange |
-| **Legacy exchanger (unused)** | Demo MCP Exchanger | `d3f8fead-b81d-46f9-bba5-051e493cea0e` | WEB_APP | CLIENT_SECRET_POST | authorization_code, client_credentials, token_exchange |
-| **Management API (worker)** | Demo Worker Token App | `15881ac7-4d83-4cbf-9ab0-4d7cda31fab8` | WORKER | CLIENT_SECRET_BASIC | client_credentials |
-| **Agent service (worker)** | Demo Agent | `cf314c00-1fa8-470f-ab55-2ce58504e318` | WORKER | — | client_credentials |
+| **Admin login** | Demo AI App - Admin Login | `3937cbfd-8824-4f0d-adb2-178702fe9518` | WEB_APP | CLIENT_SECRET_POST | authorization_code, refresh_token, token_exchange |
+| **User/customer login** | Demo AI App - User Login | `b7d00976-405f-4c55-914a-a3ebe8f369d8` | WEB_APP | CLIENT_SECRET_POST | authorization_code, refresh_token |
+| **AI Agent actor** | Demo AI App - AI Agent Actor | `d21c5124-8ac5-43d1-81f2-31a7ec649b96` | WEB_APP | CLIENT_SECRET_POST | authorization_code, client_credentials, token_exchange |
+| **MCP Gateway CC actor** | Demo AI App - MCP Gateway | `3fc5ec99-48dd-42d2-b5fd-ec34055769d2` | WEB_APP | CLIENT_SECRET_POST | client_credentials, token_exchange |
+| **Legacy exchanger (unused)** | Demo AI App - MCP Step 9 Exchanger (legacy) | `d3f8fead-b81d-46f9-bba5-051e493cea0e` | WEB_APP | CLIENT_SECRET_POST | authorization_code, client_credentials, token_exchange |
+| **Management API (worker)** | Demo AI App - Introspection Worker | `15881ac7-4d83-4cbf-9ab0-4d7cda31fab8` | WORKER | CLIENT_SECRET_BASIC | client_credentials |
+| **Agent service (worker)** | Demo AI App - Agent Service Worker | `cf314c00-1fa8-470f-ab55-2ce58504e318` | WORKER | — | client_credentials |
 | **PingOne MCP Server (dev tooling)** | PingOne MCP Server | _per-tenant — `PINGONE_MCP_OAUTH_CLIENT_ID`_ | NATIVE_APP | NONE (PKCE S256) | authorization_code, refresh_token |
 
 ### Redirect URIs
 
 | App | Redirect URI |
 |---|---|
-| Demo Admin App | `https://api.ping.demo:4000/api/auth/oauth/callback` |
-| Demo User App | `https://api.ping.demo:4000/api/auth/oauth/user/callback` |
-| Demo AI Agent | `https://api.ping.demo:4000/api/auth/oauth/ai-agent-placeholder-callback` |
-| Demo MCP Exchanger | `https://api.ping.demo:4000/api/auth/oauth/mcp-exchanger-placeholder-callback` |
+| Demo AI App - Admin Login | `https://api.ping.demo:4000/api/auth/oauth/callback` |
+| Demo AI App - User Login | `https://api.ping.demo:4000/api/auth/oauth/user/callback` |
+| Demo AI App - AI Agent Actor | `https://api.ping.demo:4000/api/auth/oauth/ai-agent-placeholder-callback` |
+| Demo AI App - MCP Step 9 Exchanger (legacy) | `https://api.ping.demo:4000/api/auth/oauth/mcp-exchanger-placeholder-callback` |
 | PingOne MCP Server | `http://localhost:7464/callback`, `http://127.0.0.1:7464/callback` (Claude Code), `cursor://anysphere.cursor-mcp/oauth/callback`, `https://www.cursor.com/agents/mcp/oauth/callback` (Cursor; provisioned by bootstrap, patched into `.mcp.json` / `.cursor/mcp.json` by `install.sh`) |
 
 ---
@@ -95,7 +95,7 @@ The `may_act` claim on a user token prospectively authorises the RFC 8693 token 
 | `act` | `${(#root.context.requestData.actorToken != null and #root.context.requestData.subjectToken.may_act != null and #root.context.requestData.subjectToken.may_act.sub == #root.context.requestData.actorToken.client_id) ? #root.context.requestData.subjectToken.may_act : null}` | Native `act` (see below) — emits `{sub:<actor>}` when the actor matches `may_act.sub`, else `null` |
 
 > **Critical:** the user-record `mayAct.sub` MUST equal `PINGONE_AI_AGENT_CLIENT_ID` (`d21c5124...`).
-> The old value was `d3f8fead` (Demo MCP Exchanger) — **wrong, do not revert**.
+> The old value was `d3f8fead` (Demo AI App - MCP Step 9 Exchanger, legacy) — **wrong, do not revert**.
 > The user attribute value MUST be a JSON object `{"sub":"..."}` (schema type JSON, not STRING), and the resource attribute MUST be `${user.mayAct}`.
 
 ### `act` claim — minted by PingOne, with a header fallback
@@ -114,24 +114,24 @@ Every `.env` variable and what it maps to in PingOne:
 PINGONE_ENVIRONMENT_ID=01d89b06-66d5-430e-9f28-65636843788b
 
 # Admin login app
-PINGONE_ADMIN_CLIENT_ID=3937cbfd-8824-4f0d-adb2-178702fe9518        # Demo Admin App
+PINGONE_ADMIN_CLIENT_ID=3937cbfd-8824-4f0d-adb2-178702fe9518        # Demo AI App - Admin Login
 PINGONE_ADMIN_REDIRECT_URI=https://api.ping.demo:4000/api/auth/oauth/callback
 
 # User/customer login app
-PINGONE_USER_CLIENT_ID=b7d00976-405f-4c55-914a-a3ebe8f369d8          # Demo User App
+PINGONE_USER_CLIENT_ID=b7d00976-405f-4c55-914a-a3ebe8f369d8          # Demo AI App - User Login
 PINGONE_USER_REDIRECT_URI=https://api.ping.demo:4000/api/auth/oauth/user/callback
 
 # RFC 8693 actor app (Exchange #1: user token → gateway-scoped token)
-PINGONE_AI_AGENT_CLIENT_ID=d21c5124-8ac5-43d1-81f2-31a7ec649b96      # Demo AI Agent
+PINGONE_AI_AGENT_CLIENT_ID=d21c5124-8ac5-43d1-81f2-31a7ec649b96      # Demo AI App - AI Agent Actor
 # also aliased as:
-AGENT_CLIENT_ID=cf314c00-1fa8-470f-ab55-2ce58504e318                 # Demo Agent (worker)
+AGENT_CLIENT_ID=cf314c00-1fa8-470f-ab55-2ce58504e318                 # Demo AI App - Agent Service Worker
 
 # MCP Gateway CC client (Exchange #2 actor at gateway side)
-MCP_GW_CLIENT_ID=3fc5ec99-48dd-42d2-b5fd-ec34055769d2                # Demo MCP Gateway app
+MCP_GW_CLIENT_ID=3fc5ec99-48dd-42d2-b5fd-ec34055769d2                # Demo AI App - MCP Gateway app
 MCP_GW_TOKEN_ENDPOINT_AUTH_METHOD=post
 
 # Management / worker (PingOne API calls only — not user-facing)
-PINGONE_WORKER_CLIENT_ID=15881ac7-4d83-4cbf-9ab0-4d7cda31fab8        # Demo Worker Token App
+PINGONE_WORKER_CLIENT_ID=15881ac7-4d83-4cbf-9ab0-4d7cda31fab8        # Demo AI App - Introspection Worker
 
 # Audience (aud) values — must match resource server audience strings
 ENDUSER_AUDIENCE=enduser.ping.demo                                    # Demo API resource
@@ -152,12 +152,12 @@ MCP_SERVER_URL=wss://api.ping.demo:3005                               # BFF→ga
 ## RFC 8693 Token Exchange Chain
 
 ```
-User login (Demo User App b7d00976)
+User login (Demo AI App - User Login b7d00976)
   └─ issues T1: aud=enduser.ping.demo, may_act.sub=d21c5124 (AI Agent)
 
 Exchange #1 — BFF performs:
   subject_token = T1 (user access token)
-  actor_token   = AI Agent CC token (Demo AI Agent d21c5124, aud=agentgateway.ping.demo)
+  actor_token   = AI Agent CC token (Demo AI App - AI Agent Actor d21c5124, aud=agentgateway.ping.demo)
   audience      = mcpgateway.ping.demo
   └─ issues T2: aud=mcpgateway.ping.demo, act.sub=d21c5124, sub=<user>
 

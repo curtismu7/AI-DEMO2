@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * The sidecar agents (openai / pydantic / mastra) and LibreChat take their LLM
+ * LibreChat and other LLM-consuming sidecars take their LLM
  * endpoint from two env knobs so PingOne Privilege can be the first hop without
  * a code change. Run: node --test scripts/check-privilege-first-env.test.js
  *
@@ -22,15 +22,9 @@ describe('Privilege-first LLM posture is env-driven', () => {
   it('every sidecar AGENT_LLM_BASE_URL in docker-compose.yml is env-driven, with a key beside it', () => {
     const lines = read('docker-compose.yml').split('\n');
     const hits = lines.map((l, i) => [l, i]).filter(([l]) => /^\s+AGENT_LLM_BASE_URL:/.test(l));
-    // openai-agent, pydantic-agent, mastra-agent. The BFF must NOT carry one:
-    // its env_file supplies its env and the compose-env-shadow hygiene rule
-    // rejects an environment: entry beside it.
-    assert.equal(hits.length, 3, `expected exactly the three sidecar agents, found ${hits.length}`);
-    for (const [l, i] of hits) {
-      assert.match(l, /\$\{AGENT_LLM_BASE_URL:-http:\/\/host\.docker\.internal:8090\/v1\}/, `line ${i + 1} is not env-driven`);
-      const window = lines.slice(i, i + 8).join('\n');
-      assert.match(window, /AGENT_LLM_API_KEY: "\$\{AGENT_LLM_API_KEY:-none\}"/, `no key near line ${i + 1}`);
-    }
+    // The three framework sidecar agents were removed (2026-09-22); no
+    // AGENT_LLM_BASE_URL entries remain in docker-compose.yml.
+    assert.equal(hits.length, 0, `expected no hardcoded sidecar AGENT_LLM_BASE_URL, found ${hits.length}`);
   });
 
   it('LibreChat reads the same two knobs', () => {

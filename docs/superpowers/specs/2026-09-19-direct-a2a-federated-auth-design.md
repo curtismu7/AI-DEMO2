@@ -101,7 +101,7 @@ must issue a LangChain-specific audience before it can be trusted here.
 Privilege continues to call the same direct A2A service using its existing
 transaction token. The service keeps the current cryptographic validation
 requirements for that path, including PingOne issuer/signature/expiry,
-`PingGateway` audience, and required `client_id`.
+`PingOne Agent Gateway` audience, and required `client_id`.
 
 The two authentication branches converge only after validation into a common
 internal caller context:

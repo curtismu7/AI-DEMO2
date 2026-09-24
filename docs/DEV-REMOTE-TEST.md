@@ -131,7 +131,7 @@ Prefer git push for anything you want to keep — rsync is for quick experiments
 
 `push-to-test.sh` always runs `./run-docker.sh start full`, which includes:
 
-- Core banking stack (BFF, UI, MCP servers, PingGateway, agents, HITL, LLM proxy)
+- Core banking stack (BFF, UI, MCP servers, PingOne Agent Gateway, agents, HITL, LLM proxy)
 - RAG / Code Search (Weaviate, embeddings, llamaindex-agent)
 - Alternate agent frameworks (OpenAI, Mastra, Pydantic)
 - Jaeger tracing

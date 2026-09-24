@@ -215,6 +215,19 @@
         min-height: calc(100vh - 64px);
       }
 
+      html[data-embedded="true"] .topbar {
+        display: none;
+      }
+
+      html[data-embedded="true"] .academy-shell {
+        min-height: 100vh;
+      }
+
+      html[data-embedded="true"] .lesson-rail {
+        top: 0;
+        height: 100vh;
+      }
+
       .lesson-rail {
         position: sticky;
         top: 64px;
@@ -1013,6 +1026,24 @@
         font-weight: 800;
       }
 
+      .presenter-say {
+        margin-top: 10px;
+        padding: 9px 11px;
+        border-left: 3px solid var(--th-teal-soft);
+        background: var(--th-surface-soft);
+        color: var(--th-surface-soft-ink);
+        font-size: var(--font-size-xs);
+        font-style: italic;
+      }
+
+      .live-demo-link {
+        display: inline-block;
+        margin-top: 10px;
+        color: var(--th-teal-soft-ink);
+        font-size: var(--font-size-xs);
+        font-weight: 800;
+      }
+
       .learning-links {
         display: flex;
         flex-wrap: wrap;
@@ -1350,7 +1381,12 @@
             <span class="presenter-time" data-presenter-time>12 minute guided lesson</span>
             <h2>Presenter close</h2>
             <p data-presenter-copy></p>
+            <p class="presenter-say" data-demo-say hidden></p>
+            <a class="live-demo-link" data-link="live-demo" hidden>
+              Watch it live in the 15-min demo →
+            </a>
             <nav class="learning-links" aria-label="Related learning">
+              <a href="/academy/journey">Guided Journey (live)</a>
               <a href="/learning">Education Hub</a>
               <a href="/oauth-academy">OAuth Academy</a>
               <a href="/ai-products/core">Ping product map</a>
@@ -1430,6 +1466,7 @@
             frameProducts: ["PingOne Authentication", "Workload client authentication", "RFC 8693 + PingOne OAuth", "Agent Gateway audit"],
             presenter: "The customer remains visible in the chain; the agent gains only the authority required for this hop.",
             deepDive: "/token-exchange-tester",
+            demoBeat: { deepDive: "/use-cases/live", action: "Step 2 · delegated balance read (UC1)", say: "No password handed over. The agent got a token that says it acts for me - the act claim. Every step is attributable to me." },
             frames: [["authenticate", "Customer subject", "The BFF retrieves the customer's server-side token.", "sub=customer-1042\nscope=openid accounts"], ["authenticate", "Agent actor", "The controlled assistant proves its own client identity.", "act.sub=banking-assistant"], ["authorize", "Token exchange", "PingOne mints a resource-specific delegated token.", "aud=mcp-resource\nscope=accounts:read"], ["govern", "Attributable result", "The tool result stays connected to both customer and acting agent.", "outcome=completed\nactor_chain=preserved"]],
           },
           {
@@ -1505,6 +1542,7 @@
             products: ["PingOne Authorize", "Agent Gateway", "Policy obligations"],
             frameProducts: ["PingOne Authentication", "PingOne Authorize", "PingOne Authorize", "Agent Gateway"],
             presenter: "The agent may request either action. Only the independently evaluated policy result reaches the protected tool.",
+            demoBeat: { deepDive: "/use-cases/live", action: "Step 4 · transfer $2500 over the ceiling (UC6)", say: "Money now. $2500. PingOne Authorize returns DENY before the transfer runs - over the ceiling. The agent can't argue." },
             deepDive: "/agent-gateway-authorization",
             frames: [["authenticate", "Same identities", "Both requests carry the same customer and agent relationship.", "sub=customer\nact.sub=assistant"], ["authorize", "Permit account read", "The read action matches scope and policy context.", "action=accounts:read\ndecision=PERMIT"], ["authorize", "Deny large transfer", "The transfer exceeds the policy threshold.", "action=transfer\namount=12500\ndecision=DENY"], ["govern", "Enforce both", "The gateway dispatches the read and blocks the transfer before tool execution.", "read=dispatched\ntransfer=not reached"]],
           },
@@ -1524,6 +1562,7 @@
             products: ["CIBA", "PingOne MFA", "PingOne Authorize", "HITL"],
             frameProducts: ["PingOne Authorize", "CIBA + PingOne MFA", "Consent receipt + PingOne Authorize", "Agent Gateway + replay control"],
             presenter: "The assistant cannot assert that consent exists. The customer proves approval through a separate trusted channel.",
+            demoBeat: { deepDive: "/use-cases/live", action: "Step 5 · transfer $300, human must consent (UC8)", say: "$300 - the agent pauses and waits for a human to approve. It cannot complete this alone." },
             deepDive: "/use-cases/live",
             frames: [["authorize", "Action requires approval", "Policy returns an escalation obligation for the transfer.", "decision=STEP_UP\naction=transfer"], ["authenticate", "Challenge the customer", "CIBA or MFA reaches the customer's registered channel.", "challenge=pending\nchannel=user controlled"], ["authorize", "Bind approval", "The receipt is tied to amount, destination, actor, and expiry.", "amount=2500\nreceipt=single-use"], ["govern", "Resume once", "The exact paused call continues and a replay is rejected.", "first_use=PERMIT\nreplay=DENY"]],
           },
@@ -1544,6 +1583,7 @@
             frameProducts: ["A2A Agent Card", "RFC 8693", "PingOne Authorize", "A2A message:send + Agent Gateway", "A2A result + Audit"],
             presenter: "The Agent Card says how to talk to the specialist. OAuth and policy still decide what that specialist may do.",
             deepDive: "/a2a-protocol-learning",
+            demoBeat: { deepDive: "/use-cases/live", action: "Step 2 · hand off to a specialist (UC2, A2A)", say: "The Banking Agent generalist hands the job to a specialist. Watch the token chain - a second exchange nests the act claim: the specialist acts for the Banking Agent, which acts for me. Each hop gets less scope, not more." },
             frames: [["discover", "Discover Agent Card", "The planner learns the specialist endpoint, skills, and security requirements.", "GET=/.well-known/agent-card.json\nprotocol=A2A"], ["authenticate", "Exchange for specialist", "Nested delegation preserves the customer and both acting agents.", "sub=customer\nact=planner > specialist"], ["authorize", "Evaluate chain", "Policy checks the user, both agent identities, action, scope, and chain depth.", "chain_depth=2\ndecision=PERMIT"], ["authorize", "Send A2A task", "The planner sends the bounded task and specialist token over A2A.", "method=message:send\nscope=portfolio:read"], ["govern", "Return evidence", "The specialist result returns without returning a token across the wire.", "result=risk summary\ntoken_in_reply=false"]],
           },
           {
@@ -1581,6 +1621,7 @@
             products: ["Privilege AI Gateway", "PingOne Authorize", "Agent Gateway", "OAuth validation"],
             frameProducts: ["Privilege AI Gateway", "OAuth audience validation", "PingOne Authorize", "Approval replay protection", "Agent Gateway reachability evidence"],
             presenter: "The lesson is not that the model never makes a mistake. The lesson is that its mistake cannot manufacture authority.",
+            demoBeat: { deepDive: "/use-cases/live", action: "Step 9 · DPoP replay defense (UC12)", say: "Steal the token AND its proof, replay it at the gateway. DENY 401 - the proof works exactly once, and only with the private key you don't have. A stolen token is a dead token." },
             deepDive: "/llm-gateway",
             frames: [["discover", "Detect malicious instruction", "The input attempts to override policy and expand the action.", "signal=prompt injection\nrequested=transfer"], ["authenticate", "Reject wrong audience", "A token for another resource cannot authenticate at this boundary.", "aud=wrong-resource\nresult=DENY"], ["authorize", "Reject scope escalation", "Requested write scope is absent from delegated authority.", "have=accounts:read\nneed=transfer:write"], ["govern", "Reject replay", "A consumed approval receipt cannot authorize a second call.", "receipt=consumed\nresult=DENY"], ["govern", "Show reachability", "Evidence identifies which services were reached and which never saw the request.", "tool_reached=false\ndownstream_reached=false"]],
           },
@@ -1601,6 +1642,7 @@
             frameProducts: ["Agent Detection", "Agent IAM Core", "Agent Governance", "Agent Gateway + Audit"],
             presenter: "Blocking one call is not lifecycle management. Revocation changes what the identity can do on the next attempt.",
             deepDive: "/agent-lifecycle",
+            demoBeat: { deepDive: "/use-cases/live", action: "Step 10 · insufficient scope DENY (UC5)", say: "An MCP server reaches for a tool it was never scoped for - beyond its job. DENY, 403, at the gateway. Scope is a hard ceiling, not a suggestion." },
             frames: [["discover", "Observe unknown agent", "Traffic produces an agent signal without assumed ownership.", "state=unknown\nsource=observed"], ["register", "Register and relate", "The agent gains an owner, category, and lifecycle record.", "owner=demo tenant\nstate=active"], ["govern", "Revoke demo identity", "A bounded lifecycle action changes only the run-owned agent.", "target=academy-demo-agent\nstate=revoked"], ["govern", "Deny next attempt", "The same protected request now fails before tool execution.", "decision=DENY\nreason=agent revoked"]],
           },
           {
@@ -1632,6 +1674,7 @@
         let activeLesson = lessons[0];
         let activeFrame = -1;
         let journeyComplete = false;
+        let realReady = false;
         const skippedLessons = new Set();
         const journeyResults = new Map();
         const startedLessons = new Set();
@@ -1642,14 +1685,16 @@
         }
 
         function sourceLabel() {
-          if (document.body.dataset.runSource === "real") return "REAL — UNAVAILABLE";
+          if (document.body.dataset.runSource === "real") return realReady ? "REAL" : "REAL — UNAVAILABLE";
           if (document.body.dataset.runSource === "recorded") return "RECORDED — UNAVAILABLE";
           return "MOCK";
         }
 
         function readyStatus() {
           if (document.body.dataset.runSource === "real") {
-            return "Real mode selected. Configure the required services to start.";
+            return realReady
+              ? "Real mode ready. Open the Guided Journey below for live evidence."
+              : "Real mode selected. Configure the required services to start.";
           }
           if (document.body.dataset.runSource === "recorded") {
             return "Recorded mode selected. Add a sanitized capture before replaying it.";
@@ -1738,10 +1783,16 @@
           const sourceBadge = document.querySelector("[data-source-badge]");
           sourceBadge.textContent = sourceLabel();
           runAction.disabled = source !== "mock";
-          if (source === "real") {
+          if (source === "real" && realReady) {
+            readiness.dataset.state = "ready";
+            text("[data-readiness-title]", "Real tenant is ready");
+            text("[data-readiness-copy]", "PingOne tenant is configured. Open the Guided Journey or the 15-min demo for live evidence.");
+            runAction.textContent = "Live demo below";
+            runAction.disabled = true;
+          } else if (source === "real") {
             readiness.dataset.state = "unavailable";
             text("[data-readiness-title]", "Real needs tenant setup");
-            text("[data-readiness-copy]", "Real mode is not configured in this static prototype. Mock remains available.");
+            text("[data-readiness-copy]", "PingOne tenant is not reachable from here. Mock remains available.");
             runAction.textContent = "Real run unavailable";
           } else if (source === "recorded") {
             readiness.dataset.state = "unavailable";
@@ -1797,6 +1848,28 @@
           text("[data-scenario-title]", activeLesson.scenario);
           text("[data-scenario-copy]", activeLesson.scenarioCopy);
           text("[data-presenter-copy]", activeLesson.presenter);
+          const liveDemo = activeLesson.demoBeat || null;
+          const liveDemoLink = document.querySelector('[data-link="live-demo"]');
+          const demoSay = document.querySelector("[data-demo-say]");
+          if (liveDemoLink) {
+            if (liveDemo) {
+              liveDemoLink.hidden = false;
+              liveDemoLink.href = liveDemo.deepDive;
+              liveDemoLink.textContent = `Watch it live: ${liveDemo.action} →`;
+            } else {
+              liveDemoLink.hidden = true;
+              liveDemoLink.removeAttribute("href");
+            }
+          }
+          if (demoSay) {
+            if (liveDemo && liveDemo.say) {
+              demoSay.hidden = false;
+              demoSay.textContent = `From the demo script: “${liveDemo.say}”`;
+            } else {
+              demoSay.hidden = true;
+              demoSay.textContent = "";
+            }
+          }
           document.querySelector('[data-link="deep-dive"]').href = activeLesson.deepDive;
           text("[data-run-status]", readyStatus());
           renderStages();
@@ -1855,6 +1928,35 @@
           activeFrame = -1;
           renderFrames();
           renderEvidence();
+          renderReadiness();
+          text("[data-run-status]", readyStatus());
+          if (source === "real") probeRealReadiness();
+        }
+
+        // Real mode probes the same tenant readiness endpoints the React
+        // Academy uses (read-only, same-origin). When the deployment actually
+        // has a configured tenant, Real reports ready and points at the live
+        // surfaces instead of the blanket "static prototype" refusal. Failure
+        // (standalone file://, BFF down) keeps the previous honest message.
+        let realProbeToken = 0;
+        async function probeRealReadiness() {
+          const token = ++realProbeToken;
+          if (document.body.dataset.runSource !== "real") return;
+          text("[data-readiness-title]", "Checking tenant readiness");
+          text("[data-readiness-copy]", "Probing the live tenant endpoints.");
+          let configured = false;
+          try {
+            const [readiness, introspection] = await Promise.all([
+              fetch("/api/health/readiness").then((r) => r.json()),
+              fetch("/api/health/introspection").then((r) => r.json()).catch(() => null),
+            ]);
+            configured = Boolean(readiness?.configured) &&
+              ["connected", "ok", true].includes(introspection?.status ?? introspection?.connected ?? true);
+          } catch {
+            configured = false;
+          }
+          if (token !== realProbeToken || document.body.dataset.runSource !== "real") return;
+          realReady = configured;
           renderReadiness();
           text("[data-run-status]", readyStatus());
         }
@@ -1931,14 +2033,26 @@
           selectFrame(next);
         });
 
+        const embedded = new URLSearchParams(window.location.search).get("embedded") === "1";
+        if (embedded) {
+          document.documentElement.dataset.embedded = "true";
+          document.querySelector(".topbar").hidden = true;
+        }
+
         const themeToggle = document.querySelector("[data-theme-toggle]");
-        function setTheme(dark) {
+        function setTheme(dark, persist = true) {
           document.documentElement.dataset.theme = dark ? "dark" : "light";
           themeToggle.setAttribute("aria-pressed", String(dark));
           themeToggle.textContent = dark ? "☀️ Light mode" : "🌙 Dark mode";
-          localStorage.setItem("ba_dark_mode", String(dark));
+          if (persist) localStorage.setItem("ba_dark_mode", String(dark));
         }
         themeToggle.addEventListener("click", () => setTheme(document.documentElement.dataset.theme !== "dark"));
+        window.addEventListener("message", (event) => {
+          if (event.origin !== window.location.origin) return;
+          if (event.data?.type !== "academy-theme") return;
+          if (event.data.theme !== "light" && event.data.theme !== "dark") return;
+          setTheme(event.data.theme === "dark", false);
+        });
         setTheme(localStorage.getItem("ba_dark_mode") === "true");
 
         renderLessonList();

@@ -33,6 +33,7 @@ test("replays the stored run into the rail", () => {
   expect(replayUnattendedRun(UNATTENDED_RUN)).toBe(true);
   const ids = state().tokenEvents.map((e) => e.id);
   expect(ids).toContain("agent-actor-token");
+  expect(state().provenance).toBe("recorded");
 });
 
 // The regression that matters. beginTrace/ingestTokenEvents carry

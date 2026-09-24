@@ -144,7 +144,7 @@ Five files. All changes are additive (no existing logic removed).
 
 ### Change 1 — Store `acr` in session on OAuth callback
 
-**File:** `banking_api_server/routes/oauthUser.js`
+**File:** `demo_api_server/routes/oauthUser.js`
 
 Find the session storage block (where `req.session.oauthTokens`, `req.session.user`,
 and `req.session.oauthType` are set) and add `acr`:
@@ -170,7 +170,7 @@ and makes it immediately obvious what the field is for.
 
 ### Change 2 — Return consent status from the user status endpoint
 
-**File:** `banking_api_server/routes/auth.js` (or `oauthUser.js` — wherever
+**File:** `demo_api_server/routes/auth.js` (or `oauthUser.js` — wherever
 `/api/auth/oauth/user/status` lives)
 
 Add `consentGiven` and `consentAcr` to the response:
@@ -205,7 +205,7 @@ AGENT_CONSENT_ACR=Agent-Consent-Login
 
 ### Change 3 — Block token exchange when consent is missing
 
-**File:** `banking_api_server/services/agentMcpTokenService.js`
+**File:** `demo_api_server/services/agentMcpTokenService.js`
 
 Currently `describeMayAct()` returns a `valid: false` result but the exchange proceeds
 anyway. Change the pre-exchange check to hard-block when both `may_act` is absent AND
@@ -259,7 +259,7 @@ if (err.code === 'AGENT_CONSENT_REQUIRED') {
 
 ### Change 4 — Consent gate in the Banking Agent panel
 
-**File:** `banking_api_ui/src/components/BankingAgent.js`
+**File:** `demo_api_ui/src/components/BankingAgent.js`
 
 **A. Fetch consent status on panel open:**
 
@@ -342,7 +342,7 @@ router.get('/consent-url', (req, res) => {
 
 ### Change 5 — Show `acr` and consent status in Token Chain Display
 
-**File:** `banking_api_server/services/agentMcpTokenService.js`
+**File:** `demo_api_server/services/agentMcpTokenService.js`
 
 Add `acr` and `consentGiven` to the User Token event emitted for the Token Chain:
 
@@ -363,7 +363,7 @@ Add `acr` and `consentGiven` to the User Token event emitted for the Token Chain
 }
 ```
 
-**File:** `banking_api_ui/src/components/TokenChainDisplay.js`
+**File:** `demo_api_ui/src/components/TokenChainDisplay.js`
 
 Add an `acr` pill immediately after the existing `may_act` pills:
 
@@ -504,13 +504,13 @@ Testing
 
 | File | Change |
 |---|---|
-| `banking_api_server/routes/oauthUser.js` | Store `consentAcr` + `mayAct` in session on callback |
-| `banking_api_server/routes/auth.js` | Add `consentGiven`, `consentAcr`, `mayAct` to user status; add `/consent-url` endpoint |
-| `banking_api_server/services/agentMcpTokenService.js` | Block exchange on `AGENT_CONSENT_REQUIRED`; add `acr`/`consentGiven` to token event |
-| `banking_api_ui/src/components/BankingAgent.js` | Consent gate: fetch status, banner, disable buttons, re-auth button |
-| `banking_api_ui/src/components/BankingAgent.css` | `.ba-consent-required` styles |
-| `banking_api_ui/src/components/TokenChainDisplay.js` | `acr` pill on User Token row + legend entry |
-| `banking_api_ui/src/components/TokenChainDisplay.css` | `.tcd-pill--consent` styles |
+| `demo_api_server/routes/oauthUser.js` | Store `consentAcr` + `mayAct` in session on callback |
+| `demo_api_server/routes/auth.js` | Add `consentGiven`, `consentAcr`, `mayAct` to user status; add `/consent-url` endpoint |
+| `demo_api_server/services/agentMcpTokenService.js` | Block exchange on `AGENT_CONSENT_REQUIRED`; add `acr`/`consentGiven` to token event |
+| `demo_api_ui/src/components/BankingAgent.js` | Consent gate: fetch status, banner, disable buttons, re-auth button |
+| `demo_api_ui/src/components/BankingAgent.css` | `.ba-consent-required` styles |
+| `demo_api_ui/src/components/TokenChainDisplay.js` | `acr` pill on User Token row + legend entry |
+| `demo_api_ui/src/components/TokenChainDisplay.css` | `.tcd-pill--consent` styles |
 
 **No changes to:** TokenChainContext, UserDashboard, LandingPage, MCP server
 (consent is entirely a login-time and BFF-time concern).

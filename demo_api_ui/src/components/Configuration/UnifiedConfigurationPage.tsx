@@ -20,7 +20,7 @@ import { useEducationUI } from "../../context/EducationUIContext";
 import { useIndustryBranding } from "../../context/IndustryBrandingContext";
 import "./UnifiedConfigurationPage.css";
 import DemoSetupPanel from "../DemoSetupPanel";
-import NeuralSpinner from "../shared/NeuralSpinner";
+import PingIdentitySpinner from "../shared/PingIdentitySpinner";
 import LmStudioPanel from "../LmStudioPanel";
 import HelixPanel from "../HelixPanel";
 import AuthorizeConfigPage from "../AuthorizeConfigPage";
@@ -638,7 +638,7 @@ const ConfigurationHeader: FC<{
           disabled={saveStatus === "saving"}
         >
           {saveStatus === "saving"
-            ? "Saving..."
+            ? <><PingIdentitySpinner size={18} aria-hidden="true" /> Saving…</>
             : saveStatus === "saved"
               ? "Saved!"
               : saveStatus === "error"
@@ -2581,7 +2581,7 @@ const UnifiedConfigurationPage: FC<{
         <div className="cfg-section">
           <p className="cfg-section-desc">
             RFC 8693 Token Exchange lets the BFF swap a user access token for a
-            narrowly-scoped Ping Agent Gateway token. The resulting token carries an{" "}
+            narrowly-scoped PingOne Agent Gateway token. The resulting token carries an{" "}
             <code>act</code> claim showing who delegated and who is acting.
           </p>
           {state.pingoneEnvironmentId && (
@@ -2764,19 +2764,7 @@ const UnifiedConfigurationPage: FC<{
               } as React.CSSProperties
             }
           >
-            {state.spinnerVariant === "neural" ? (
-              <NeuralSpinner size={state.spinnerSize} />
-            ) : (
-              <span
-                style={{
-                  fontSize: "12px",
-                  color: state.spinnerDarkCard ? "#94a3b8" : "#64748b",
-                }}
-              >
-                No preview for the {state.spinnerVariant} variant — it renders
-                on the next overlay.
-              </span>
-            )}
+            <PingIdentitySpinner size={state.spinnerSize} label="Previewing loading state…" />
           </div>
           <CfgSelect
             label="Spinner"
@@ -3128,7 +3116,7 @@ const UnifiedConfigurationPage: FC<{
                 saveStatus: "idle",
               }))
             }
-            help="Shows/hides the token chain timeline panel on the dashboard. When enabled, you can see each token event as it happens: user access token → agent CC token → RFC 8693 exchange → MCP gateway token."
+            help="Shows/hides the token chain timeline panel on the dashboard. When enabled, you can see each token event as it happens: user access token → agent CC token → RFC 8693 exchange → MCP Gateway token."
           />
           <CfgField
             label="Max Token History to Display"
@@ -3746,7 +3734,7 @@ const UnifiedConfigurationPage: FC<{
                     disabled={state.saveStatus === "saving"}
                   >
                     {state.saveStatus === "saving"
-                      ? "Saving…"
+                      ? <><PingIdentitySpinner size={18} aria-hidden="true" /> Saving…</>
                       : state.saveStatus === "saved"
                         ? "✓ Saved"
                         : state.saveStatus === "error"

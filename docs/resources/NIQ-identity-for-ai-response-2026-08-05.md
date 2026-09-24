@@ -23,7 +23,7 @@ Secondary signals: multi-cloud/platform-agnostic is important to them; cost-sens
 |---|---|---|
 | **Agent Identity** | #1 Centralize (registration, ownership) | PingOne AI Agents feature (Agent IAM Core license), PingOne AIC `/aiagent/register` DCR, PingFederate DCR |
 | **Agent Security** | #3 Runtime authz, #4 Kill switch | PingOne/PingFederate OAuth 2.0 AS — client credentials, `private_key_jwt`/mTLS, scoped short-TTL tokens, RFC 8693 delegation, revocation |
-| **Agent Gateway** | #3 Runtime telemetry ("which gateways do we even have") | PingGateway Agent Gateway module (MCP audit/protection/validation filters) — sits in front of MCP servers/APIs, centralized audit trail |
+| **Agent Gateway** | #3 Runtime telemetry ("which gateways do we even have") | PingOne Agent Gateway (Agent Gateway module) (MCP audit/protection/validation filters) — sits in front of MCP servers/APIs, centralized audit trail |
 | **Agent Detection** | #1 "shadow AI" / unmanaged agent traffic | PingOne Protect bot-detection predictor — flags agentic AI/CUA traffic distinctly from human traffic |
 | **AI App Auth + Verified Trust** | #2 delegation model, cross-boundary trust | RFC 8693 token exchange, PingOne Credentials / DaVinci Verified Trust |
 

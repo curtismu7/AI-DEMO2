@@ -20,7 +20,7 @@
 | `src/components/AdminSideNav.jsx` | **Modify** — add 1 nav item in MCP cluster |
 | `src/components/education/MayActPanel.js` | **Modify** — 3 copy edits |
 | `src/components/education/TokenFlowPanel.js` | **Modify** — 3 copy edits |
-| `src/components/education/PingGatewayMcpPanel.js` | **Modify** — 3 copy edits |
+| `src/components/education/PingOne Agent GatewayMcpPanel.js` | **Modify** — 3 copy edits |
 | `src/components/education/PingOneAuthorizePanel.js` | **Modify** — 3 copy edits |
 | `src/components/education/HumanInLoopPanel.js` | **Modify** — 2 copy edits |
 | `src/components/education/StepUpPanel.js` | **Modify** — 2 copy edits |
@@ -630,10 +630,10 @@ git commit -m "feat(edu): update TokenFlowPanel — multi-service scoping, decod
 
 ---
 
-## Task 6: Edit PingGatewayMcpPanel — no-security-logic headline, route examples, audit attribution
+## Task 6: Edit PingOne Agent GatewayMcpPanel — no-security-logic headline, route examples, audit attribution
 
 **Files:**
-- Modify: `demo_api_ui/src/components/education/PingGatewayMcpPanel.js`
+- Modify: `demo_api_ui/src/components/education/PingOne Agent GatewayMcpPanel.js`
 
 - [ ] **Step 1: Add no-security-logic headline to OverviewTab**
 
@@ -693,8 +693,8 @@ Expected: `Compiled successfully.`
 - [ ] **Step 5: Commit**
 
 ```bash
-git add demo_api_ui/src/components/education/PingGatewayMcpPanel.js
-git commit -m "feat(edu): update PingGatewayMcpPanel — no-security-logic headline, route examples, audit attribution"
+git add demo_api_ui/src/components/education/PingOne Agent GatewayMcpPanel.js
+git commit -m "feat(edu): update PingOne Agent GatewayMcpPanel — no-security-logic headline, route examples, audit attribution"
 ```
 
 ---
@@ -931,7 +931,7 @@ Open each of these from AdminSideNav and confirm the new copy appears:
 - MayActPanel → "Plain English" tab: first paragraph should mention "no consent means no delegation"
 - StepUpPanel → "What is step-up" tab: first paragraph should describe the policy-first sequence
 - HumanInLoopPanel → "What is HITL?" tab: should mention reads vs writes distinction
-- PingGatewayMcpPanel → "Overview" tab: first paragraph should state MCP servers contain no security logic
+- PingOne Agent GatewayMcpPanel → "Overview" tab: first paragraph should state MCP servers contain no security logic
 
 - [ ] **Step 4: Commit spec file if not already committed**
 

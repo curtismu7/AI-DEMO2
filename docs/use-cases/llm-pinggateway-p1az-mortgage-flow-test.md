@@ -1,6 +1,6 @@
-# How To Test: Prompt → LLM → PingGateway → P1AZ → Mortgage App (API-Key Path)
+# How To Test: Prompt → LLM → PingOne Agent Gateway → P1AZ → Mortgage App (API-Key Path)
 
-This guide extends the [read-only banking flow](./llm-pinggateway-p1az-flow-test.md) with the **mortgage app** path (`/path/mortgage`). The agent calls `show_mortgage` through PingGateway; P1AZ checks `mortgage:read`; the gateway **swaps** the user's OAuth bearer for a service API key before calling `banking_api_resource_server`.
+This guide extends the [read-only banking flow](./llm-pinggateway-p1az-flow-test.md) with the **mortgage app** path (`/path/mortgage`). The agent calls `show_mortgage` through PingOne Agent Gateway; P1AZ checks `mortgage:read`; the gateway **swaps** the user's OAuth bearer for a service API key before calling `banking_api_resource_server`.
 
 **Last verified:** 2026-07-09 (k8s / OrbStack; live `show_mortgage` → `credentialPath=api_key`)
 
@@ -37,7 +37,7 @@ sequenceDiagram
     participant UI as demo_api_ui
     participant BFF as demo_api_server
     participant LLM as langchain_agent
-    participant GW as Ping Agent Gateway
+    participant GW as PingOne Agent Gateway
     participant P1AZ as PingOne Authorize
     participant MS as banking_api_resource_server
 
@@ -58,7 +58,7 @@ sequenceDiagram
 | Hop | Component | What happens |
 |-----|-----------|--------------|
 | 1–3 | Same as banking read | Prompt → LLM → RFC 8693 exchange |
-| 4 | **PingGateway** | Routes `show_mortgage` to **api_key** disposition |
+| 4 | **PingOne Agent Gateway** | Routes `show_mortgage` to **api_key** disposition |
 | 5 | **P1AZ** | PERMIT when `mortgage:read` present |
 | 6 | **Credential swap** | User bearer never reaches mortgage service |
 | 7 | **Mortgage service** | Returns loan payload |

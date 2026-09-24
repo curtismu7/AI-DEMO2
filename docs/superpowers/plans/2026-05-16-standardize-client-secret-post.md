@@ -9,19 +9,19 @@
 ## Verified change set (exact)
 
 ### A. Code defaults `'basic'` → `'post'` (NON-worker only)
-- `banking_api_server/services/agentMcpTokenService.js:1594` — `aiAgentAuthMethod` default `'basic'` → `'post'`.
-- `banking_api_server/services/agentMcpTokenService.js:1595` — `mcpExchangerAuthMethod` default `'basic'` → `'post'`.
+- `demo_api_server/services/agentMcpTokenService.js:1594` — `aiAgentAuthMethod` default `'basic'` → `'post'`.
+- `demo_api_server/services/agentMcpTokenService.js:1595` — `mcpExchangerAuthMethod` default `'basic'` → `'post'`.
 
 ### B. Code defaults that MUST NOT change (worker CC — stays basic)
-- `banking_api_server/services/oauthService.js:490` — inside `getAgentClientCredentialsToken()` (documented "PingOne Worker Token app"). **LEAVE `'basic'`.**
-- `banking_api_server/services/oauthService.js:631` — inside `getAgentClientCredentialsTokenWithExpiry()` (documented "PingOne Worker Token app"). **LEAVE `'basic'`.**
-- `banking_api_server/services/mfaService.js:34` — `PINGONE_WORKER_TOKEN_AUTH_METHOD || "basic"` (worker/mgmt). **LEAVE.**
-- `banking_api_server/services/pingOneUserService.js:62` — `pingone_mgmt_token_auth_method || 'basic'` (Mgmt worker). **LEAVE.**
+- `demo_api_server/services/oauthService.js:490` — inside `getAgentClientCredentialsToken()` (documented "PingOne Worker Token app"). **LEAVE `'basic'`.**
+- `demo_api_server/services/oauthService.js:631` — inside `getAgentClientCredentialsTokenWithExpiry()` (documented "PingOne Worker Token app"). **LEAVE `'basic'`.**
+- `demo_api_server/services/mfaService.js:34` — `PINGONE_WORKER_TOKEN_AUTH_METHOD || "basic"` (worker/mgmt). **LEAVE.**
+- `demo_api_server/services/pingOneUserService.js:62` — `pingone_mgmt_token_auth_method || 'basic'` (Mgmt worker). **LEAVE.**
 
 ### C. `.env` values → `post` (NON-worker)
-- `banking_api_server/.env:36` `MCP_GW_TOKEN_ENDPOINT_AUTH_METHOD=basic` → `post`.
-- `banking_api_server/.env:74` `PINGONE_INTROSPECTION_AUTH_METHOD=basic` → `post` (introspection uses the user token, not worker).
-- `banking_api_server/.env:30` `PINGONE_MCP_TOKEN_EXCHANGER_CC_AUTH_METHOD=post` — already correct (added earlier this session). Keep.
+- `demo_api_server/.env:36` `MCP_GW_TOKEN_ENDPOINT_AUTH_METHOD=basic` → `post`.
+- `demo_api_server/.env:74` `PINGONE_INTROSPECTION_AUTH_METHOD=basic` → `post` (introspection uses the user token, not worker).
+- `demo_api_server/.env:30` `PINGONE_MCP_TOKEN_EXCHANGER_CC_AUTH_METHOD=post` — already correct (added earlier this session). Keep.
 
 ### D. `.env` values that MUST stay basic (worker CC)
 - Any `PINGONE_WORKER_TOKEN_AUTH_METHOD` / `PINGONE_MGMT_TOKEN_AUTH_METHOD` — if present, stays `basic`. (Currently not set in `.env`; worker code default is `basic` at oauthService.js:490/631 — left unchanged in B.)
@@ -43,7 +43,7 @@
 
 - Live probe: ephemeral `*.real.spec.js` (customer login + `/api/mcp/tool`), assert status 200 + exchange event. Delete after.
 - Worker check: admin login probe (`loginAsAdmin`) → expect `/admin` reached, no `invalid_client` for `PINGONE_WORKER` in `/tmp/bank-api-server.log`.
-- Regression: `cd banking_api_server && OLLAMA_BASE_URL= npx jest oauthStatus hitlRoute tokenExchange 2>&1 | grep -E "Tests:|✕"` — no new failures vs baseline.
+- Regression: `cd demo_api_server && OLLAMA_BASE_URL= npx jest oauthStatus hitlRoute tokenExchange 2>&1 | grep -E "Tests:|✕"` — no new failures vs baseline.
 
 ## Rollback
 

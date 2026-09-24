@@ -228,7 +228,7 @@ export default function AgentModeSelector({
         <p className="ams-degraded" role="note">
           ⚠️ Delegation lost here — a third party holds a broad gateway token.
           No per-tool RFC 8693 exchange, no <code>act</code> claim, Token Chain
-          dark before the gateway. The Ping Agent Gateway + PingOne Authorization Server still enforce
+          dark before the gateway. The PingOne Agent Gateway + PingOne Authorization Server still enforce
           policy on every tool call.
         </p>
       )}

@@ -1,7 +1,7 @@
 // demo_api_ui/src/pages/TransactionTracePage.jsx
 import React, { useCallback, useEffect, useState } from "react";
 import "./TransactionTracePage.css";
-// One source for how the PingGateway filters are named and explained, shared
+// One source for how the PingOne Agent Gateway filters are named and explained, shared
 // with the Token Chain rail so the two surfaces cannot describe them differently.
 import { GW_STAGE_META } from "../services/tokenChainTrace/buildTraceSteps";
 import { useThemeOptional } from "../context/ThemeContext";
@@ -93,8 +93,8 @@ function Decision({ decision }) {
   );
 }
 
-// The PingGateway filters that handled this hop, in the order they ran.
-// PingGateway's own MCP module does this work — McpValidationFilter (protocol
+// The PingOne Agent Gateway filters that handled this hop, in the order they ran.
+// PingOne Agent Gateway's own MCP module does this work — McpValidationFilter (protocol
 // + schema), McpAuditFilter, McpProtectionFilter (OAuth2) — and until now the
 // trace showed only its VERDICT, so the product features that produced it were
 // invisible in the surface built to demonstrate them.
@@ -372,6 +372,7 @@ export default function TransactionTracePage() {
                         externalSteps={facadeHopsToSequenceSteps(detail.hops || [])}
                         externalRunId={detail.correlationId}
                         externalTraceFinished
+                        provenance="recorded"
                         slowMode
                         selectedStepId={selectedHopSeq == null ? undefined : `facade-hop-${selectedHopSeq}`}
                         onSelectStep={(step) => setSelectedHopSeq(step.hopSeq ?? null)}

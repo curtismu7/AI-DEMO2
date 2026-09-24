@@ -67,19 +67,6 @@
   color: var(--th-text-faint);
 }
 
-.rsp-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--th-border);
-  border-top-color: var(--th-status-info);
-  border-radius: 50%;
-  animation: rsp-spin 0.8s linear infinite;
-}
-
-@keyframes rsp-spin {
-  to { transform: rotate(360deg); }
-}
-
 /* Error */
 .rsp-error {
   text-align: center;

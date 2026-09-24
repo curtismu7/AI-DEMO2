@@ -1,6 +1,6 @@
 /**
  * Support Agent Routes
- * HTTP endpoints for customer support via Mastra framework
+ * HTTP endpoints for heuristic customer support
  */
 
 const express = require('express');
@@ -30,10 +30,10 @@ router.post('/init', agentSessionMiddleware, requestEventEmitterMiddleware, asyn
         session_id: `support-${userId}`,
         user_id: userId,
         agent_type: 'support-agent',
-        framework: 'mastra'
+        framework: 'support'
       },
       agentType: 'support-agent',
-      framework: 'mastra'
+      framework: 'support'
     });
   } catch (error) {
     console.error('Support agent init error:', error?.stack || String(error));
@@ -70,7 +70,7 @@ router.post('/message', agentSessionMiddleware, requestEventEmitterMiddleware, a
       toolsCalled: [],
       tokenEvents: [],
       agentConfigured: true,
-      framework: 'mastra'
+      framework: 'support'
     });
   }
 });

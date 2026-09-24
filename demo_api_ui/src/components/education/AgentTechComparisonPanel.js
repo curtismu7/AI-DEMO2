@@ -60,27 +60,26 @@ function Warn({ children }) {
 
 // ── At a Glance table ─────────────────────────────────────────────────────────
 
-const COLS = ["", "LangChain", "Mastra", "OpenAI Agents", "Pydantic AI"];
+const COLS = ["", "LangChain"];
 const ROWS = [
-  ["Language",         "Python 3.10",     "Node 20 / TS",   "Python 3.11",     "Python 3.11"],
-  ["Framework ver.",   "demo pins 0.0.353 + LangGraph · current stable 1.x (GA Oct 2025)", "1.37", "0.17 (official)", "demo pins 0.0.54 · current stable 1.x (GA Sept 2025)"],
-  ["Agent loop",       "ReAct",           "Tool-calling",   "Tool-calling",    "Tool-calling"],
-  ["LLM providers",    "Helix, LM Studio, Anthropic", "OpenAI-compat, Anthropic", "OpenAI / compat", "OpenAI-compat, Anthropic"],
-  ["MCP support",      "Full MCP host",   "None",           "None",            "None"],
-  ["OAuth / tokens",   "Manages own",     "BFF delegates",  "BFF delegates",   "BFF delegates"],
-  ["Conv. memory",     "Per-session + trim", "Stateless",   "Stateless",       "Stateless"],
-  ["Tracing",          "Built-in + viz",  "AG-UI events",   "AG-UI + usage",   "AG-UI events"],
-  ["Horiz. scaling",   "Harder",          "Easy",           "Easy",            "Easy"],
-  ["Complexity",       "High (prod-grade)", "Low",          "Medium",          "Medium"],
+  ["Language",         "Python 3.10"],
+  ["Framework ver.",   "demo pins 0.0.353 + LangGraph · current stable 1.x (GA Oct 2025)"],
+  ["Agent loop",       "ReAct"],
+  ["LLM providers",    "Helix, LM Studio, Anthropic"],
+  ["MCP support",      "Full MCP host"],
+  ["OAuth / tokens",   "Manages own"],
+  ["Conv. memory",     "Per-session + trim"],
+  ["Tracing",          "Built-in + viz"],
+  ["Horiz. scaling",   "Harder"],
+  ["Complexity",       "High (prod-grade)"],
 ];
 
 function GlanceTab() {
-  const colW = `${Math.floor(85 / 4)}%`;
+  const colW = "70%";
   return (
     <>
       <p style={{ marginTop: 0 }}>
-        Quick-scan comparison across all four frameworks. Use the per-framework tabs for depth,
-        or jump to <strong>Decision Guide</strong> if you need to choose one now.
+        Quick-scan of the demo's agent framework. Use the per-framework tab for depth.
       </p>
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.78rem" }}>
@@ -120,14 +119,11 @@ function GlanceTab() {
       <SectionHead>The key architectural split</SectionHead>
       <p style={{ fontSize: "0.83rem", color: "#374151", marginTop: 0 }}>
         <strong>LangChain</strong> is a self-contained agent — it manages its own session memory,
-        OAuth tokens, and MCP connections. The other three are <strong>stateless compute engines</strong>:
-        the BFF sends them everything they need per request and receives the result. State,
-        history, and tokens all live in the BFF.
+        OAuth tokens, and MCP connections.
       </p>
       <p style={{ fontSize: "0.83rem", color: "#374151" }}>
-        That makes Mastra, OpenAI Agents, and Pydantic AI interchangeable from the BFF's
-        perspective — swapping one for another requires no change to how the BFF constructs
-        requests.
+        The BFF constructs every request for it the same way — no framework-specific
+        branching remains on the banking chat path.
       </p>
     </>
   );
@@ -211,191 +207,20 @@ function LangChainTab() {
   );
 }
 
-// ── Mastra tab ────────────────────────────────────────────────────────────────
-
-function MastraTab() {
-  return (
-    <>
-      <Card accent="#7c3aed">
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-          <Pill color="#7c3aed">Node 20 / TypeScript</Pill>
-          <Pill color="#7c3aed">Tool-calling</Pill>
-          <Pill color="#7c3aed">No MCP</Pill>
-          <Pill color="#7c3aed">Stateless</Pill>
-          <Pill color="#7c3aed">BFF-backed</Pill>
-        </div>
-        <Row label="Framework">Mastra Core 1.37 + AI SDK (Anthropic / OpenAI)</Row>
-        <Row label="Port">8892 (POST /run → SSE)</Row>
-      </Card>
-
-      <SectionHead>Agent Loop</SectionHead>
-      <p style={{ fontSize: "0.83rem", color: "#374151", marginTop: 0 }}>
-        Mastra's native tool-calling loop — not ReAct. The BFF sends messages, tool schemas,
-        context, and session ID per request. A fresh <code>Agent</code> is constructed for that
-        request, <code>agent.stream()</code> runs, tools POST to the BFF, and the result
-        streams back as AG-UI SSE events. No state survives between calls.
-      </p>
-
-      <SectionHead>LLM Providers</SectionHead>
-      <p style={{ fontSize: "0.83rem", color: "#374151", marginTop: 0 }}>
-        Default: any OpenAI-compatible endpoint (LM Studio, Groq, Together) via
-        <code>AGENT_LLM_BASE_URL</code>. Pass <code>context.provider = "anthropic"</code> in
-        the request payload to switch to Anthropic without restarting.
-      </p>
-
-      <SectionHead>Tools</SectionHead>
-      <p style={{ fontSize: "0.83rem", color: "#374151", marginTop: 0 }}>
-        No MCP. Tools are built at request time from BFF-provided JSON schemas
-        (<code>buildBffTools()</code>). Each tool is a thin wrapper that POSTs to the BFF.
-        Tool list changes every request.
-      </p>
-
-      <SectionHead>Only TypeScript agent</SectionHead>
-      <p style={{ fontSize: "0.83rem", color: "#374151", marginTop: 0 }}>
-        The only Node.js / TypeScript option in the project. If your team prefers TS, this is
-        the natural pick.
-      </p>
-
-      <SectionHead>When to use</SectionHead>
-      <ul style={{ paddingLeft: 18, fontSize: "0.83rem", color: "#374151", lineHeight: 1.7 }}>
-        <li>TypeScript/Node.js preferred over Python</li>
-        <li>Need simple, horizontally scalable stateless compute</li>
-        <li>Per-request model/provider switching needed</li>
-        <li>BFF owns all state, history, and tokens</li>
-        <li>Want local LLM support via LM Studio</li>
-      </ul>
-
-      <Warn>No MCP, no OAuth. Conversation history must fit in the request payload — no server-side trimming.</Warn>
-    </>
-  );
-}
-
-// ── OpenAI Agents tab ─────────────────────────────────────────────────────────
-
-function OpenAITab() {
-  return (
-    <>
-      <Card accent="#059669">
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-          <Pill color="#059669">Python 3.11</Pill>
-          <Pill color="#059669">Official OpenAI SDK</Pill>
-          <Pill color="#059669">Tool-calling</Pill>
-          <Pill color="#059669">No MCP</Pill>
-          <Pill color="#059669">Stateless</Pill>
-        </div>
-        <Row label="Framework">openai-agents 0.17 (official OpenAI package)</Row>
-        <Row label="Port">8891 (POST /run → SSE)</Row>
-      </Card>
-
-      <SectionHead>Agent Loop</SectionHead>
-      <p style={{ fontSize: "0.83rem", color: "#374151", marginTop: 0 }}>
-        OpenAI's <code>Runner.run_streamed()</code> manages the tool-calling loop. The BFF
-        sends messages, tool schemas, context, and session ID. Each request builds a fresh
-        <code>Agent</code> with <code>FunctionTool</code> objects, runs, streams typed SDK
-        events (<code>RawResponsesStreamEvent</code>, <code>RunItemStreamEvent</code>), which
-        are mapped to AG-UI format.
-      </p>
-
-      <SectionHead>LLM Providers</SectionHead>
-      <p style={{ fontSize: "0.83rem", color: "#374151", marginTop: 0 }}>
-        Primarily OpenAI. Base URL override (<code>AGENT_LLM_BASE_URL</code>) allows pointing
-        at an OpenAI-compatible endpoint, but the SDK is built around OpenAI's API — no native
-        Anthropic support.
-      </p>
-
-      <SectionHead>Observability advantage</SectionHead>
-      <p style={{ fontSize: "0.83rem", color: "#374151", marginTop: 0 }}>
-        Slightly better tool lifecycle visibility than Mastra and Pydantic AI — the SDK emits
-        explicit tool-call and tool-result stream events, plus token usage tracking if available.
-      </p>
-
-      <SectionHead>When to use</SectionHead>
-      <ul style={{ paddingLeft: 18, fontSize: "0.83rem", color: "#374151", lineHeight: 1.7 }}>
-        <li>Official OpenAI SDK preferred (well-documented, official support)</li>
-        <li>Python-native team</li>
-        <li>Deploying to OpenAI models (GPT-5.5, GPT-5 mini) in production</li>
-        <li>Want cleaner structured stream events for tool lifecycle</li>
-      </ul>
-
-      <Warn>OpenAI-only in practice — no native Anthropic, no Helix, no LM Studio. Stateless like all BFF-backed agents.</Warn>
-    </>
-  );
-}
-
-// ── Pydantic AI tab ───────────────────────────────────────────────────────────
-
-function PydanticTab() {
-  return (
-    <>
-      <Card accent="#dc2626">
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-          <Pill color="#dc2626">Python 3.11</Pill>
-          <Pill color="#dc2626">Pydantic-native</Pill>
-          <Pill color="#dc2626">Tool-calling</Pill>
-          <Pill color="#dc2626">No MCP</Pill>
-          <Pill color="#dc2626">Demo pin 0.0.54</Pill>
-        </div>
-        <Row label="Framework">pydantic-ai — demo pins 0.0.54 · current stable 1.x (GA Sept 2025)</Row>
-        <Row label="Port">8893 (POST /run → SSE)</Row>
-      </Card>
-
-      <SectionHead>Agent Loop</SectionHead>
-      <p style={{ fontSize: "0.83rem", color: "#374151", marginTop: 0 }}>
-        Pydantic AI's <code>Agent.run_stream()</code>. Tools receive a
-        <code>RunContext[BffDeps]</code> parameter giving them clean access to the BFF URL,
-        internal secret, and session ID without global state. Text deltas are streamed via
-        <code>result.stream_text(delta=True)</code>. Tool calls happen internally — they don't
-        surface as separate stream events in the current version.
-      </p>
-
-      <SectionHead>LLM Providers</SectionHead>
-      <p style={{ fontSize: "0.83rem", color: "#374151", marginTop: 0 }}>
-        <Pill color="#dc2626">OpenAI-compatible</Pill> (LM Studio, Groq) via
-        <code>OpenAIModel</code> + <code>OpenAIProvider</code>. Pass
-        <code>context.provider = "anthropic"</code> to switch to <code>AnthropicModel</code>{" "}
-        using <code>ANTHROPIC_API_KEY</code>.
-      </p>
-
-      <SectionHead>Type-safety strength</SectionHead>
-      <p style={{ fontSize: "0.83rem", color: "#374151", marginTop: 0 }}>
-        The cleanest Pydantic-native design. <code>BffDeps</code> dataclass scopes all
-        request context. Tool definitions are fully type-safe. Easy to extend with typed
-        response models.
-      </p>
-
-      <SectionHead>When to use</SectionHead>
-      <ul style={{ paddingLeft: 18, fontSize: "0.83rem", color: "#374151", lineHeight: 1.7 }}>
-        <li>Codebase heavy on Pydantic models and type safety</li>
-        <li>Anthropic + OpenAI-compat needed without LangChain complexity</li>
-        <li>Experimenting with a lightweight, modern Python agent framework</li>
-        <li>Clean per-request dependency injection pattern preferred</li>
-      </ul>
-
-      <Warn>Demo pins 0.0.54; current stable is Pydantic AI 1.x (GA Sept 2025). Tool call lifecycle is least visible of all four agents. Stateless like all BFF-backed agents.</Warn>
-    </>
-  );
-}
-
 // ── Decision Guide tab ────────────────────────────────────────────────────────
 
 function DecisionTab() {
   const items = [
-    { q: "Need MCP tool discovery?", a: "LangChain — it's the only MCP host. The others only call HTTP endpoints." },
-    { q: "Agent must manage its own OAuth?", a: "LangChain — the others delegate token management to the BFF entirely." },
-    { q: "Local LLM via Helix or LM Studio?", a: "LangChain (Helix + LM Studio) or Mastra / Pydantic AI (LM Studio via OpenAI-compat)." },
-    { q: "TypeScript / Node.js preferred?", a: "Mastra — the only Node.js agent in the project." },
-    { q: "Simplest stateless compute node?", a: "Mastra (TS) or OpenAI Agents / Pydantic AI (Python) — all three are pure request-response." },
-    { q: "OpenAI models in production?", a: "OpenAI Agents — official SDK, cleanest stream events, best for GPT-5.5 deployments." },
-    { q: "Anthropic without LangChain overhead?", a: "Pydantic AI or Mastra — both support Anthropic natively and are simpler to operate." },
-    { q: "Need horizontal scaling?", a: "Mastra, OpenAI Agents, or Pydantic AI — all stateless. LangChain's session memory complicates this." },
+    { q: "Need MCP tool discovery?", a: "LangChain — it's a full MCP host with dynamic tool discovery." },
+    { q: "Agent must manage its own OAuth?", a: "LangChain — it manages its own token lifecycle end-to-end." },
+    { q: "Local LLM via Helix or LM Studio?", a: "LangChain — the only agent with Helix support, plus LM Studio." },
     { q: "Need full execution tracing?", a: "LangChain — built-in trace server with step-by-step reasoning reconstruction." },
-    { q: "Comfortable with the demo's pinned version?", a: "Pydantic AI — demo pins 0.0.54; current stable is 1.x (GA Sept 2025)." },
   ];
 
   return (
     <>
       <p style={{ marginTop: 0 }}>
-        Use this as a quick filter before committing to a framework.
+        Why the demo uses LangChain for the banking chat path.
       </p>
       {items.map(({ q, a }) => (
         <div key={q} style={{
@@ -412,9 +237,8 @@ function DecisionTab() {
         background: "#eff6ff", border: "1px solid #bfdbfe",
         borderRadius: 8, padding: "10px 14px", marginTop: 12, fontSize: "0.82rem", color: "#1e40af",
       }}>
-        <strong>Key rule:</strong> Mastra, OpenAI Agents, and Pydantic AI are interchangeable
-        from the BFF's perspective. Swapping one for another changes only which endpoint the BFF
-        calls — not how it builds requests.
+        <strong>Key rule:</strong> Ping controls (token exchange, Authorize, HITL)
+        are framework-agnostic — they live in the BFF and MCP gateway, not the agent.
       </div>
     </>
   );
@@ -426,9 +250,6 @@ export default function AgentTechComparisonPanel({ isOpen, onClose, initialTabId
   const tabs = [
     { id: "glance", label: "At a Glance", content: <GlanceTab /> },
     { id: "langchain", label: "LangChain", content: <LangChainTab /> },
-    { id: "mastra", label: "Mastra", content: <MastraTab /> },
-    { id: "openai", label: "OpenAI Agents", content: <OpenAITab /> },
-    { id: "pydantic", label: "Pydantic AI", content: <PydanticTab /> },
     { id: "decision", label: "Decision Guide", content: <DecisionTab /> },
   ];
 

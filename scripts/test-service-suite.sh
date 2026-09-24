@@ -47,19 +47,15 @@ DEFAULT_WORKERS=2
 case "$SERVICE" in
   authz-server) DIR="$ROOT/demo_authz_server" ;;
   mcp-gateway)  DIR="$ROOT/demo_mcp_gateway"; DEFAULT_WORKERS=1 ;;
-  # 2026-08-17: six more services had a `test` script and no CI job at all.
-  # All six now run as BLOCKING gates from ci.yml (SUITE_BLOCKING=1) — a red
-  # there is a regression. mastra-agent was wired non-blocking for three
-  # runHandler failures; they were one production bug (abort on req 'close',
-  # which Node fires when the request BODY completes rather than on client
-  # disconnect) and it now passes 36/36.
+  # 2026-08-17: five more services had a `test` script and no CI job at all.
+  # All five now run as BLOCKING gates from ci.yml (SUITE_BLOCKING=1) — a red
+  # there is a regression, not inherited debt.
   agent-service)        DIR="$ROOT/demo_agent_service" ;;
   hitl-service)         DIR="$ROOT/demo_hitl_service" ;;
   code-search)          DIR="$ROOT/demo_mcp_code_search" ;;
   agent-token-service)  DIR="$ROOT/agent_token_service" ;;
   api-resource-server)  DIR="$ROOT/demo_api_resource_server" ;;
-  mastra-agent)         DIR="$ROOT/mastra_agent" ;;
-  *) echo "usage: $0 <authz-server|mcp-gateway|agent-service|hitl-service|code-search|agent-token-service|api-resource-server|mastra-agent>" >&2; exit 2 ;;
+  *) echo "usage: $0 <authz-server|mcp-gateway|agent-service|hitl-service|code-search|agent-token-service|api-resource-server>" >&2; exit 2 ;;
 esac
 
 [ -d "$DIR" ] || { echo "$SERVICE: $DIR not present — skipping"; exit 0; }

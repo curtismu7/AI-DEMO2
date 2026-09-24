@@ -6,7 +6,7 @@
 
 **Architecture:** This is a straight classname-and-structure conversion, not a restructuring — `AgentGatewayTester` already has exactly the topbar + 3-column shape `InspectorShell` was built for (tool tree left, param form middle, tabbed output right), unlike `PingOneAuthorizePage` which needed real content reshuffling. Every `p1mcp-*` classname becomes its `inspector-shell-*` equivalent (already defined in `InspectorShell.css`, a straight rename with no new CSS needed), the hand-rolled topbar+grid `<div>`s become `<InspectorShell>`'s `actions`/`left`/`middle`/`right` slots, and the hand-rolled output-tab button loop becomes `<InspectorTabs>`. All state, all data fetching, all handlers stay exactly as they are — this task touches only the return statement's structure and classnames, plus one helper function's return strings.
 
-**Scope correction found during this plan's research (before any code was touched):** the original design spec assumed this component was reached via its own dedicated route (`/pinggateway-test`) with its own `AdminSideNav` entry ("PingGateway Test"). Neither exists anymore — an unrelated, already-merged commit from a different session redirected `/pinggateway-test` to `/pinggateway-inspector?subtab=tester` and folded this component in as one of 10 tabs inside a new consolidated `McpGatewayConfig.jsx` admin page (`<div className="mgc-panel"><AgentGatewayTester /></div>`, tab label "Gateway Tester"). Net effect: **this plan needs zero routing or nav changes** — there is nothing left to touch there. It does mean `AgentGatewayTester` now renders embedded mid-page (inside `.mgc-panel`, which has no fixed height — `display:flex; flex-direction:column; gap:24px`) rather than as a full-page route, so — same as the `PingOneAuthorizePage` conversion — it needs `fullHeight={false}` on its `<InspectorShell>` call, not the default `true`.
+**Scope correction found during this plan's research (before any code was touched):** the original design spec assumed this component was reached via its own dedicated route (`/pinggateway-test`) with its own `AdminSideNav` entry ("PingOne Agent Gateway Test"). Neither exists anymore — an unrelated, already-merged commit from a different session redirected `/pinggateway-test` to `/pinggateway-inspector?subtab=tester` and folded this component in as one of 10 tabs inside a new consolidated `McpGatewayConfig.jsx` admin page (`<div className="mgc-panel"><AgentGatewayTester /></div>`, tab label "Gateway Tester"). Net effect: **this plan needs zero routing or nav changes** — there is nothing left to touch there. It does mean `AgentGatewayTester` now renders embedded mid-page (inside `.mgc-panel`, which has no fixed height — `display:flex; flex-direction:column; gap:24px`) rather than as a full-page route, so — same as the `PingOneAuthorizePage` conversion — it needs `fullHeight={false}` on its `<InspectorShell>` call, not the default `true`.
 
 **Tech Stack:** React 18, Vitest + `@testing-library/react` + `@testing-library/jest-dom`, `vi.mock('../services/apiClient', ...)` per this repo's established pattern (see `demo_api_ui/src/components/AuthzTestPage.sections.test.jsx`) — this file uses `apiClient`, not `bffAxios` (the service the two prior InspectorShell conversions used).
 
@@ -71,7 +71,7 @@ vi.mock('../../services/apiClient', () => ({
   },
 }));
 
-const ACTIVE_GATEWAY = { name: 'Demo Agent Gateway', authzBackend: 'simulated', usePingGateway: false, simulated: true, url: 'http://gateway.local' };
+const ACTIVE_GATEWAY = { name: 'Demo Agent Gateway', authzBackend: 'simulated', usePingOne Agent Gateway: false, simulated: true, url: 'http://gateway.local' };
 
 function mockDefaultEndpoints() {
   apiClient.get.mockImplementation((url) => {
@@ -616,7 +616,7 @@ Replace the entire `return (...)` block (from `return (\n    <div className="p1m
                           </div>
                         </div>
                       ) : (
-                        <JsonHighlight value={{ note: 'No McpAudit event. Ensure McpAuditFilter is active in PingGateway.' }} />
+                        <JsonHighlight value={{ note: 'No McpAudit event. Ensure McpAuditFilter is active in PingOne Agent Gateway.' }} />
                       )}
                     </>
                   )}

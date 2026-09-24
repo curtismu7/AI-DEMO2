@@ -78,6 +78,7 @@
   font: inherit;
   font-size: var(--font-size-sm);
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
 }
 

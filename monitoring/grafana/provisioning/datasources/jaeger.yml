@@ -23,6 +23,6 @@ datasources:
     editable: false
     jsonData:
       # Service dependency graph built from the traces themselves — the view
-      # that shows PingGateway sitting between the BFF and the MCP servers.
+      # that shows PingOne Agent Gateway sitting between the BFF and the MCP servers.
       nodeGraph:
         enabled: true

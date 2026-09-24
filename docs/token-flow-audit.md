@@ -1,4 +1,4 @@
-# Token-Flow Audit — Super Banking demo
+# Token-Flow Audit — AI Demo
 
 > **Historical note:** This is a forensic audit from 2026-05-13. The two-exchange path described was never in production — it was blocked upstream before reaching production and the failure was diagnosed here. Treat as historical reference only.
 

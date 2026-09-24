@@ -1,8 +1,8 @@
-# PingGateway Credential-Mediation Demo — Finish Plan
+# PingOne Agent Gateway Credential-Mediation Demo — Finish Plan
 
 **Date:** 2026-07-05
 **Status:** IG mechanism proven end-to-end; live path blocked by a chain of wiring/config issues (not route-code bugs).
-**Goal:** A live signed-in `show_mortgage` / `show_investment` flows through PingGateway/IG → token validated (introspection or JWKS per FF) → PingOne Authorize PERMIT → vault key fetched → `X-API-Key` → `demo_data_service` record → `vault-key-inject` in the Token Chain.
+**Goal:** A live signed-in `show_mortgage` / `show_investment` flows through PingOne Agent Gateway/IG → token validated (introspection or JWKS per FF) → PingOne Authorize PERMIT → vault key fetched → `X-API-Key` → `demo_data_service` record → `vault-key-inject` in the Token Chain.
 
 ---
 
@@ -14,7 +14,7 @@
 | #154 | Phase 1+2: vault bridge (`/internal/vault/service-key`), IG mkcert truststore, invest app + credential-mediation UI evidence, **investment vertical** |
 | #173 | Working IG `/mcp/apikey` route + `apikey-dispatch` handler. Fixed: the missing `RsFilterChain` heap object (route never built), a non-compiling handler, the **Vert.x event-loop deadlock** (`McpValidationFilter` now buffers the body before the handler reads `request.entity.string`), the vault-URL host (`demo-api-server` → `api.ping.demo`, matching the mkcert cert SAN), and IG↔BFF `BFF_INTERNAL_SECRET` alignment. **Handler proven end-to-end in isolation (returns the mortgage record in ~0.38s).** |
 | #174 | p1az authorization filter on the api-key route + FF-based **JWKS validation variant** (`00-mcp-apikey-jwks.json`, selected by `X-Token-Validation: jwks`; name-based precedence `mcp-apikey-jwks` < `mcp-apikey-primary`). |
-| #176 | BFF routes api-key tools (`show_mortgage`, `show_investment`, …) to `/mcp/apikey` when the gateway base is PingGateway (`base === pgUrl`). Required for *any* traffic to reach the api-key routes. |
+| #176 | BFF routes api-key tools (`show_mortgage`, `show_investment`, …) to `/mcp/apikey` when the gateway base is PingOne Agent Gateway (`base === pgUrl`). Required for *any* traffic to reach the api-key routes. |
 
 **The IG route + handler + p1az wiring is correct and verified.** What remains is live-path wiring/config.
 
@@ -47,7 +47,7 @@ The policy is built for the OLB/token-exchange flow; the api-key path's token/ac
 - In `mcpGatewayClient.js:232-236`, replace the hard-coded `expectedAud` with `resolveExpectedMcpResourceUri()`
   from `services/mcpToolAuthorizationService` (it already returns the IG resource `https://api.ping.demo:3036/mcp`
   when `ff_mcp_gateway_pinggateway` is on). Keep the existing chain as a fallback for the Node-gateway path.
-- **Verify:** re-fire `show_mortgage` via the app; the response no longer says "Wrong audience" — IG's true rejection surfaces (read `docker logs ai-demo-ping-gateway` + the BFF `[GW→PingGateway] RESPONSE`).
+- **Verify:** re-fire `show_mortgage` via the app; the response no longer says "Wrong audience" — IG's true rejection surfaces (read `docker logs ai-demo-ping-gateway` + the BFF `[GW→PingOne Agent Gateway] RESPONSE`).
 
 ### Phase B — Fix IG's real rejection (IG route, ~30 min) — can do now, no PingOne auth
 Depending on what Phase A reveals:
@@ -79,7 +79,7 @@ vault key → `X-API-Key` → record → `vault-key-inject` token event in the T
 
 ## Config drift to reconcile alongside (`scope-topology.json`)
 `PG_GATEWAY_RESOURCE_ID` (`https://api.ping.demo:3036/mcp`) and `PG_GATEWAY_RESOURCE_URI`
-(`mcpgateway.ping.demo`) are two names for the PingGateway resource that disagree. Phase B's route-audience fix
+(`mcpgateway.ping.demo`) are two names for the PingOne Agent Gateway resource that disagree. Phase B's route-audience fix
 should key off the value the **token actually carries** (`PG_GATEWAY_RESOURCE_ID`). Longer term, align these in
 `scope-topology.json` so the BFF-minted aud and the IG-validated aud are the same string.
 

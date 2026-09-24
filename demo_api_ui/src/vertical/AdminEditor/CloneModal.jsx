@@ -4,17 +4,19 @@ const ID_REGEX = /^[a-z][a-z0-9-]*$/;
 
 /**
  * Modal for cloning a vertical. Validates the new id matches /^[a-z][a-z0-9-]*$/
- * and that it isn't already in use. Submit calls onSubmit({ newId, displayName }).
+ * and that it isn't already in use. Submit calls onSubmit({ newId, displayName, cloneOverlay, cloneTheme }).
  *
  * Props:
  *   sourceId: string — the id being cloned from (shown in heading)
  *   existingIds: string[] — to reject collisions client-side
  *   onClose: () => void
- *   onSubmit: ({ newId, displayName }) => void
+ *   onSubmit: ({ newId, displayName, cloneOverlay, cloneTheme }) => void
  */
 export function CloneModal({ sourceId, existingIds, onClose, onSubmit }) {
   const [newId, setNewId] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [cloneOverlay, setCloneOverlay] = useState(true);
+  const [cloneTheme, setCloneTheme] = useState(true);
   const [error, setError] = useState('');
 
   function handleSubmit(e) {
@@ -32,7 +34,7 @@ export function CloneModal({ sourceId, existingIds, onClose, onSubmit }) {
       setError('display name required');
       return;
     }
-    onSubmit({ newId, displayName: displayName.trim() });
+    onSubmit({ newId, displayName: displayName.trim(), cloneOverlay, cloneTheme });
   }
 
   return (
@@ -54,6 +56,22 @@ export function CloneModal({ sourceId, existingIds, onClose, onSubmit }) {
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
             />
+          </label>
+          <label className="modal__check">
+            <input
+              type="checkbox"
+              checked={cloneOverlay}
+              onChange={(e) => setCloneOverlay(e.target.checked)}
+            />
+            Copy runtime edits (overrides)
+          </label>
+          <label className="modal__check">
+            <input
+              type="checkbox"
+              checked={cloneTheme}
+              onChange={(e) => setCloneTheme(e.target.checked)}
+            />
+            Copy colors and logo
           </label>
           {error && <div className="modal__error">{error}</div>}
           <div className="modal__actions">

@@ -1,8 +1,10 @@
 # CIBA Real Provisioning — Your Remaining Steps
 
-Status as of 2026-07-20: code side is done and merged (main). What's left is
-PingOne Admin Console + DaVinci clicking — no MCP tool or script can do this
-part. This file is a standalone checklist for that. Full engineering plan
+Status as of 2026-09-23: the app now fails closed when real CIBA is unavailable.
+Banking transaction approvals require the real PingOne result even if local
+simulation is explicitly enabled for a generic CIBA walkthrough.
+What's left is PingOne Admin Console + DaVinci provisioning. This file is a
+standalone checklist for that. Full engineering plan
 with rationale: `docs/superpowers/plans/2026-07-20-ciba-real-platform-provisioning.md`.
 
 **Environment:** `01d89b06-66d5-430e-9f28-65636843788b` (region `com`,
@@ -10,11 +12,10 @@ with rationale: `docs/superpowers/plans/2026-07-20-ciba-real-platform-provisioni
 ("Demo AI App - Admin Login") — that's the live login app, untouched by this
 work on purpose.
 
-**What's already done (no action needed):** `demo_api_server/services/cibaService.js`
-reads `PINGONE_CIBA_CLIENT_ID` / `PINGONE_CIBA_CLIENT_SECRET` and falls back
-to the admin app's credentials if those are unset. So nothing breaks while
-this checklist is incomplete — CIBA just keeps running simulated
-(`cibaSimulatedService.js`) until you finish below and set those two env vars.
+**Code prerequisite:** `demo_api_server/services/cibaService.js` requires
+`PINGONE_CIBA_CLIENT_ID` and `PINGONE_CIBA_CLIENT_SECRET` for the dedicated
+CIBA app. The normal banking login app remains separate. Until provisioning
+is complete, CIBA initiation returns `ciba_not_configured`.
 
 ---
 
@@ -118,7 +119,7 @@ PingOne Admin Console → **Applications > Applications**.
 
 ---
 
-## 4. Hand back to Claude
+## 4. Set credentials and validate
 
 Once steps 1-3 are done, come back and say so (you don't need to paste the
 secret into the conversation — just confirm it's done, and set the two env
@@ -131,17 +132,16 @@ PINGONE_CIBA_CLIENT_ID=<client id from step 3.5>
 PINGONE_CIBA_CLIENT_SECRET=<client secret from step 3.5>
 ```
 
-Claude will then run the live validation pass:
-- Force `ciba_failover_mode=deny` temporarily so failures are loud, not silent
+The live validation pass is:
+- Keep `ciba_failover_mode=deny` (the default) so failures are visible
 - Initiate a real CIBA request via the CIBAPanel "Try It" tab
 - Confirm `auth_req_id` does **not** start with `sim-`
 - Confirm the notification email arrives with the right template
 - Approve it, confirm the poll flips to `approved`
 - Check PingOne **Monitoring > Audit** for a **CIBA Authentication Succeeded** event
-- Revert `ciba_failover_mode` back to `fallback_simulated`
 - Run a real transfer above the step-up threshold end-to-end
 
-If bc-authorize still fails after all of the above, the audit log's
+If CIBA initiation still fails after all of the above, the audit log's
 **CIBA Authentication Failed** event detail is the fastest way to tell
 whether it's the grant type, the flow policy attachment, or the notification
 policy ID — check that before re-reading the whole plan.

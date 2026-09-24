@@ -16,7 +16,7 @@
 |------|----------------|
 | `demo_api_server/services/checks/usecaseCheck.js` | Gate PERMIT + DENY descriptors |
 | `demo_api_server/services/checks/index.js` | Require usecaseCheck |
-| `demo_api_server/services/checks/gatewayCheck.js` | Drop `heavy: true` so PingGateway path runs in default when flag on |
+| `demo_api_server/services/checks/gatewayCheck.js` | Drop `heavy: true` so PingOne Agent Gateway path runs in default when flag on |
 | `demo_api_server/services/checkService.js` | Forward `nextAction`; severity-aware verdict |
 | `demo_api_server/tests/checkService.test.js` (+ usecase tests) | Verdict + usecase behavior |
 | `demo_api_ui/src/pages/CheckPage.jsx` (+ cards/rail) | Label, nextAction display |

@@ -9,7 +9,7 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 
 ## Foundations
 
-- [**UC1** — Delegated access with proof](./delegated-access-with-proof.md) ✅ 🛡️
+- [**UC1** — Delegated access (consent only)](./delegated-access-with-proof.md) ✅ 🛡️
 - [**UC2** — A2A delegation](./a2a-delegation.md) ✅ 🛡️
 - [**UC2.5** — A2A Orchestrator — Interactive Learning](./a2a-orchestrator-learning.md) ✅ 🛡️
 - [**UC2.6** — A2A generalist mismatch](./a2a-generalist-mismatch.md) ✅ 🛡️
@@ -19,7 +19,10 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC33** — My mortgage](./mortgage-delegated-access.md) ✅ 🛡️
 - [**UC34** — Spot unusual patterns](./ai-spot-unusual-patterns.md) ✅ 🛡️
 - [**UC35** — Why was that blocked?](./ai-explain-last-denial.md) ✅ 🛡️
-- [**UC38** — Personal Agent Concierge](./personal-agent-concierge.md) 🚩 🛡️
+- [**UC38** — Workload Agent: MFA-gated protected action](./personal-agent-concierge.md) 🚩 🛡️
+- [**UC43** — Consumer & Partner Agent — CIMD registration](./consumer-partner-agent-cimd-registration.md) ✅ 🛡️
+- [**UC44** — Workload Agent: OBO customer-data read](./workload-digital-assistant-obo.md) ✅ 🛡️
+- [**UC45** — SaaS-Embedded Agent — Website Worker](./saas-embedded-worker.md) ✅ 🛡️
 
 ## Demo
 
@@ -55,13 +58,14 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC14** — PAR + RAR intent violation (pushed intent exceeded)](./par-rar-intent-violation.md) 🚩 🛡️
 - [**UC15** — Intent-token tampering](./intent-token-tampering.md) 🏗️ 🛡️
 - [**UC16** — Impersonation blocked (OBO required)](./impersonation-blocked.md) ✅ 🛡️
+- [**UC16b** — Raw user-token forwarding blocked (Zero Trust)](./raw-user-token-forwarding-blocked.md) ✅ 🛡️
 - [**UC18** — Rate-limit / resource-overload defense](./rate-limit-defense.md) ✅ 🛡️
 - [**UC29** — OAuth introspection outage — fail closed](./oauth-fail-closed.md) 🏗️ 🛡️
 
 ## Hitl
 
-- [**UC7** — Step-up required](./step-up-required.md) ✅ 🛡️
-- [**UC8** — HITL consent](./hitl-consent.md) ✅ 🛡️
+- [**UC7** — MFA step-up (HITL)](./step-up-required.md) ✅ 🛡️
+- [**UC8** — MFA + HITL consent](./hitl-consent.md) ✅ 🛡️
 - [**UC22** — CIBA out-of-band approval](./ciba-out-of-band-approval.md) 🚩 🛡️
 - [**UC27** — HITL consent bypass attempt](./hitl-consent-bypass-attempt.md) ✅ 🛡️
 

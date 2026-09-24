@@ -12,19 +12,19 @@ vi.mock("../config/navStructureCatalog", async (importOriginal) => {
   return {
     ...actual,
     NAV_STRUCTURE_CATALOG: [
-      { label: "Themes" },
+      { label: "Skin Studio" },
       { label: "Monitoring", children: ["Audit Trail", "Activity Log"] },
       { label: "Authorize", children: ["Scope Audit"] },
     ],
-    NAV_ITEM_CATALOG: ["Themes", "Monitoring", "Authorize"],
+    NAV_ITEM_CATALOG: ["Skin Studio", "Monitoring", "Authorize"],
   };
 });
 
-const PREFS_RESPONSE = { hiddenLabels: ["Themes"], activeConfigId: null, flagOn: true };
+const PREFS_RESPONSE = { hiddenLabels: ["Skin Studio"], activeConfigId: null, flagOn: true };
 const CONFIGS_RESPONSE = {
   configs: [
     { id: "full-mode", name: "Full mode", isBuiltin: true, hiddenLabels: [], flagSnapshot: {} },
-    { id: "demo-mode", name: "Demo mode", isBuiltin: true, hiddenLabels: ["Themes"], flagSnapshot: {} },
+    { id: "demo-mode", name: "Demo mode", isBuiltin: true, hiddenLabels: ["Skin Studio"], flagSnapshot: {} },
   ],
 };
 
@@ -52,9 +52,9 @@ describe("DemoConfigPage", () => {
   it("renders the catalog as checkboxes, unchecking hidden items", async () => {
     mockFetch();
     render(<DemoConfigPage />);
-    await waitFor(() => expect(screen.getByText("Themes")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Skin Studio")).toBeInTheDocument());
 
-    expect(screen.getByLabelText("Themes")).not.toBeChecked();
+    expect(screen.getByLabelText("Skin Studio")).not.toBeChecked();
     expect(screen.getByLabelText("Monitoring")).toBeChecked();
   });
 
@@ -76,24 +76,24 @@ describe("DemoConfigPage", () => {
   it("filters groups and pages from the search field", async () => {
     mockFetch();
     render(<DemoConfigPage />);
-    await waitFor(() => expect(screen.getByText("Themes")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Skin Studio")).toBeInTheDocument());
 
     fireEvent.change(screen.getByRole("searchbox", { name: /search groups and pages/i }), {
       target: { value: "audit" },
     });
 
     expect(screen.getByText("Audit Trail")).toBeInTheDocument();
-    expect(screen.queryByText("Themes")).not.toBeInTheDocument();
+    expect(screen.queryByText("Skin Studio")).not.toBeInTheDocument();
   });
 
   it("collapses a visual section without changing its group selections", async () => {
     mockFetch();
     render(<DemoConfigPage />);
-    await waitFor(() => expect(screen.getByText("Themes")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Skin Studio")).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole("button", { name: /core navigation/i }));
 
-    expect(screen.queryByText("Themes")).not.toBeInTheDocument();
+    expect(screen.queryByText("Skin Studio")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /core navigation/i })).toHaveAttribute(
       "aria-expanded",
       "false",
@@ -108,7 +108,7 @@ describe("DemoConfigPage", () => {
 
     expect(screen.getAllByRole("columnheader", { name: "Page" })).toHaveLength(3);
     expect(screen.getAllByRole("link", { name: /^Open / })).toHaveLength(6);
-    expect(screen.getByRole("link", { name: "Open Themes" })).toHaveAttribute("href", "/themes");
+    expect(screen.getByRole("link", { name: "Open Skin Studio" })).toHaveAttribute("href", "/admin/skin-studio");
     expect(screen.getByRole("link", { name: "Open Monitoring" })).toHaveAttribute("href", "/audit");
     expect(screen.getByRole("link", { name: "Open Audit Trail" })).toHaveAttribute("href", "/audit");
     expect(screen.getByRole("link", { name: "Open Activity Log" })).toHaveAttribute(

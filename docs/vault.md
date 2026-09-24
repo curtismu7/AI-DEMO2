@@ -1,7 +1,7 @@
 # Portable Encrypted Credential Vault
 
 > Phase 269 — single-file, password-decrypted credential store for the
-> Super Banking demo. Encrypted at rest, portable across machines, no
+> AI Demo. Encrypted at rest, portable across machines, no
 > recovery if you lose the password.
 
 This document is the operator-facing reference for the vault. It covers

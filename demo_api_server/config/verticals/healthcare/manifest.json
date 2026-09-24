@@ -346,5 +346,85 @@
       "hint": "demoAdmin",
       "passwordHint": "Tigers7&"
     }
+  },
+  "capabilities": {
+    "adminOps": {
+      "lookupSlices": {
+        "patientRecords": "patientRecords",
+        "appointments": "appointments",
+        "billingHistory": "billingHistory",
+        "medications": "medications",
+        "referrals": "referrals",
+        "coverage": "coverage"
+      },
+      "writes": [
+        {
+          "route": "appointments/:id/cancel",
+          "method": "post",
+          "mutator": "cancelAppointment",
+          "noun": "appointment"
+        },
+        {
+          "route": "bills/:id/pay",
+          "method": "post",
+          "mutator": "payBill",
+          "noun": "bill"
+        },
+        {
+          "route": "medications/:id/refill",
+          "method": "post",
+          "mutator": "refillPrescription",
+          "noun": "medication"
+        },
+        {
+          "route": "records/:id/release",
+          "method": "post",
+          "mutator": "markRecordReleased",
+          "noun": "record"
+        },
+        {
+          "route": "referrals/:id/cancel",
+          "method": "post",
+          "mutator": "cancelReferral",
+          "noun": "referral"
+        }
+      ],
+      "queueRules": [
+        {
+          "slice": "billingHistory",
+          "label": "Billing",
+          "open": [
+            "due",
+            "overdue"
+          ],
+          "title": {
+            "field": "description",
+            "fallback": "Bill"
+          }
+        },
+        {
+          "slice": "medications",
+          "label": "Medications",
+          "open": [
+            "on hold"
+          ],
+          "title": {
+            "field": "name",
+            "fallback": "Medication"
+          }
+        },
+        {
+          "slice": "referrals",
+          "label": "Referrals",
+          "open": [
+            "pending"
+          ],
+          "title": {
+            "field": "specialty",
+            "fallback": "Referral"
+          }
+        }
+      ]
+    }
   }
 }

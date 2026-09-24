@@ -14,6 +14,7 @@ const config = {
   get tokenEndpoint() { return endpointResolver.getTokenEndpoint(); },
   get userInfoEndpoint() { return endpointResolver.getUserInfoEndpoint(); },
   get issuer() { return endpointResolver.getIssuer(); },
+  get jwksEndpoint() { return endpointResolver.getJwksUri(); },
   get scopes() { return ['openid', 'profile', 'email']; },
   get tokenEndpointAuthMethod() {
     return String(process.env.HOSTED_ACCESS_TOKEN_ENDPOINT_AUTH_METHOD || 'basic').toLowerCase();

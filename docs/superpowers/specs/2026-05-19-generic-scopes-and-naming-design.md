@@ -101,8 +101,8 @@ A new top-level `provisioning` block holds the generic display names:
 
 ## Cleanup Script
 
-**New file:** `banking_api_server/scripts/cleanupPingOneApps.js`  
-**New npm script:** `npm run pingone:cleanup` (in `banking_api_server/package.json`)
+**New file:** `demo_api_server/scripts/cleanupPingOneApps.js`  
+**New npm script:** `npm run pingone:cleanup` (in `demo_api_server/package.json`)
 
 ### Behavior
 
@@ -117,7 +117,7 @@ A new top-level `provisioning` block holds the generic display names:
 After running the cleanup script, all PingOne client IDs and secrets change. The required sequence:
 
 1. `npm run pingone:cleanup -- --execute` — wipes all `Super Banking *` apps and resource servers
-2. `npm run pingone:bootstrap` — creates new `Demo *` apps, writes new credentials to `banking_api_server/.env`
+2. `npm run pingone:bootstrap` — creates new `Demo *` apps, writes new credentials to `demo_api_server/.env`
 3. Rebuild vault: export `VAULT_PASSWORD`, run vault sync command
 4. `./run-demo.sh` — restart all services
 
@@ -136,9 +136,9 @@ The bootstrap already overwrites `.env` completely with new client IDs/secrets. 
 
 **Propagation of `api.ping.demo`:**
 
-- `scope-topology.json` `servers.banking_api_server.validatesAudience`
-- `banking_api_server/middleware/auth.js` — JWT `aud` validation default
-- `banking_api_server/services/configStore.js` — default audience config
+- `scope-topology.json` `servers.demo_api_server.validatesAudience`
+- `demo_api_server/middleware/auth.js` — JWT `aud` validation default
+- `demo_api_server/services/configStore.js` — default audience config
 - `bootstrapPingOne.js` — `PINGONE_BOOTSTRAP_AUDIENCE` default
 - `.env` — `PINGONE_RESOURCE_SERVER_URI` (or equivalent key) default value
 
@@ -182,13 +182,13 @@ Existing `.env` files with `banking_api_enduser` continue to work until re-provi
 - Stop message: `Stopping Banking services` → `Stopping Demo services`
 - Stop message: `All Banking listeners stopped` → `All Demo listeners stopped`
 - `tail_bank_logs` function → `tail_demo_logs`
-- Directory references (`banking_api_server/`, etc.) stay as-is — real filesystem paths, not display labels
+- Directory references (`demo_api_server/`, etc.) stay as-is — real filesystem paths, not display labels
 
 ---
 
 ## Code Consumer Propagation
 
-### `banking_api_server/config/scopes.js`
+### `demo_api_server/config/scopes.js`
 
 Constant value updates:
 - `BANKING_SCOPES.BANKING_READ` → `'read'`
@@ -200,7 +200,7 @@ Constant value updates:
 - `COMPOUND_SCOPES.MORTGAGE_READ` — removed; replaced by vertical `featureScope` lookup
 - New constants: `MCP_INVOKE: 'mcp:invoke'`, `AGENT_INVOKE: 'agent:invoke'`
 
-### `banking_api_server/services/agentMcpTokenService.js`
+### `demo_api_server/services/agentMcpTokenService.js`
 
 Hardcoded string replacements:
 - `'banking:read'` → `'read'`
@@ -211,18 +211,18 @@ Hardcoded string replacements:
 
 **`startsWith('banking:')` heuristic fix:** The `ff_inject_scopes` fallback uses `existingScopes.some(s => s.startsWith('banking:'))` to detect whether the user token has any banking scopes. After rename this heuristic breaks. Replacement: check for presence of `'read'` or `'write'` in the scope set — same intent, vertical-neutral.
 
-### `banking_mcp_gateway` and `banking_mcp_server`
+### `banking_mcp_gateway` and `demo_mcp_server`
 
 Both derive scope maps from topology at build time via `scopeTopology.ts`. No string changes needed — recompile after topology update.
 
 ### Tests
 
 Files with hardcoded `banking:*` scope strings that need updating:
-- `banking_api_server/tests/ccTokenScope.regression.test.js`
-- `banking_api_server/tests/mcpGatewayConfig.test.js`
-- `banking_api_server/tests/tokenUtils.test.js`
-- `banking_api_server/tests/routes/langchainChatProxy.regression.test.js`
-- Any test file returned by: `grep -rl "banking:read\|banking:write\|banking:mcp\|banking:agent" banking_api_server/tests banking_mcp_server/src`
+- `demo_api_server/tests/ccTokenScope.regression.test.js`
+- `demo_api_server/tests/mcpGatewayConfig.test.js`
+- `demo_api_server/tests/tokenUtils.test.js`
+- `demo_api_server/tests/routes/langchainChatProxy.regression.test.js`
+- Any test file returned by: `grep -rl "banking:read\|banking:write\|banking:mcp\|banking:agent" demo_api_server/tests demo_mcp_server/src`
 
 ### Documentation
 
@@ -235,11 +235,11 @@ Files with hardcoded `banking:*` scope strings that need updating:
 
 1. Update `scope-topology.json` — new scope strings, `provisioning` block, `api.ping.demo` URI, vertical `featureScope` in `resources`
 2. Update vertical configs — `banking.json`, `retail.json`, `workforce.json` `scopes` blocks
-3. Update `banking_api_server/config/scopes.js` — constant values
+3. Update `demo_api_server/config/scopes.js` — constant values
 4. Update BFF services — `agentMcpTokenService.js` and other hardcoded `banking:` references
 5. Update provisioner — `pingoneProvisionService.js`, `bootstrapPingOne.js` (display names from topology, new audience default)
 6. Create cleanup script — `scripts/cleanupPingOneApps.js`, add `pingone:cleanup` npm script
-7. Recompile TypeScript services — `banking_mcp_gateway`, `banking_mcp_server`, `banking_agent_service`
+7. Recompile TypeScript services — `banking_mcp_gateway`, `demo_mcp_server`, `banking_agent_service`
 8. Update tests — replace hardcoded `banking:*` strings
 9. Update `run-demo.sh` — log/pid renames, banner/heading text, `tail_demo_logs`
 10. Update docs — `CLAUDE.md`, `REGRESSION_PLAN.md`
@@ -249,9 +249,9 @@ Files with hardcoded `banking:*` scope strings that need updating:
 
 ## Success Criteria
 
-- `cd banking_api_ui && npm run build` exits 0
+- `cd demo_api_ui && npm run build` exits 0
 - `cd banking_mcp_gateway && npm run build` exits 0
-- `cd banking_mcp_server && npm run build` exits 0
+- `cd demo_mcp_server && npm run build` exits 0
 - `npx jest ccTokenScope.regression mcpGatewayConfig tokenUtils` all pass
 - `npm run pingone:cleanup -- --execute` deletes all `Super Banking *` apps and resource servers without error
 - `npm run pingone:bootstrap` creates all `Demo *` apps and resources, writes new `.env`

@@ -556,29 +556,6 @@ select.cur-input { cursor: pointer; }
   padding: 8px 0;
 }
 
-.cur-spinner {
-  display: inline-block;
-  flex: none;
-  width: 12px;
-  height: 12px;
-  /* --th-border and --th-bg-emphasis are both declared per theme in index.css,
-     so no literal fallback — a fallback here would just hide a renamed token. */
-  border: 2px solid var(--th-border);
-  border-top-color: var(--th-bg-emphasis);
-  /* --radius-pill (999px) circles a 12px square the same as 50% would, and
-     keeps the border-radius-literal ratchet flat — THEMING.md §9.3. */
-  border-radius: var(--radius-pill);
-  animation: cur-spin 0.8s linear infinite;
-}
-
-@keyframes cur-spin {
-  to { transform: rotate(360deg); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cur-spinner { animation-duration: 2.4s; }
-}
-
 /* Main area */
 .cur-main {
   flex: 1;
@@ -1075,6 +1052,7 @@ select.cur-input { cursor: pointer; }
   color: #ccc;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
+  text-decoration: none;
 }
 .cur-flow-trigger:hover { border-color: #007acc; color: #fff; }
 
@@ -1953,90 +1931,3 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-viewmode button { background: #f0f0f0; color: #666; }
 .cur-ide[data-cur-theme="light"] .cur-viewmode button:hover { background: #e4e4e4; color: #222; }
 .cur-ide[data-cur-theme="light"] .cur-viewmode button.is-active { background: #fff; color: #000; }
-
-.cur-ide[data-cur-theme="dark"] {
-  --cur-panel-ground: #16181d;
-  --cur-panel-ink: #f8fafc;
-  --cur-panel-muted: #cbd5e1;
-  --cur-panel-border: #475569;
-  --cur-panel-emphasis: #1f2937;
-  --cur-panel-error: #fca5a5;
-}
-
-.cur-ide[data-cur-theme="light"] {
-  --cur-panel-ground: #ffffff;
-  --cur-panel-ink: #1e1e1e;
-  --cur-panel-muted: #475569;
-  --cur-panel-border: #cbd5e1;
-  --cur-panel-emphasis: #f8fafc;
-  --cur-panel-error: #b91c1c;
-}
-
-.cur-hostile-panel {
-  margin: 12px;
-  padding: 16px;
-  border: 1px solid var(--cur-panel-border);
-  background: var(--cur-panel-ground);
-  color: var(--cur-panel-ink);
-}
-.cur-hostile-panel__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-.cur-hostile-panel__eyebrow {
-  margin: 0 0 4px;
-  color: var(--cur-panel-muted);
-  font-size: var(--font-size-2xs);
-  letter-spacing: 0.04em;
-}
-.cur-hostile-panel h2,
-.cur-hostile-panel h3 { margin: 0; }
-.cur-hostile-panel h2 { font-size: var(--font-size-lg); }
-.cur-hostile-panel h3 { font-size: var(--font-size-sm); }
-.cur-hostile-panel__header p,
-.cur-hostile-panel__summary,
-.cur-hostile-panel__evidence p { color: var(--cur-panel-muted); }
-.cur-hostile-panel__header p { margin: 6px 0 0; }
-.cur-hostile-panel__summary { margin: 12px 0; }
-.cur-hostile-panel__selector { min-width: 210px; }
-.cur-hostile-panel__selector .cur-field-label { display: block; }
-.cur-hostile-panel__evidence {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 14px;
-}
-.cur-hostile-panel__evidence article {
-  min-height: 118px;
-  padding: 10px;
-  border: 1px solid var(--cur-panel-border);
-  background: var(--cur-panel-emphasis);
-  color: var(--cur-panel-ink);
-}
-.cur-hostile-panel__meta {
-  display: block;
-  margin-top: 4px;
-  color: var(--cur-panel-muted);
-  font-size: var(--font-size-2xs);
-}
-.cur-hostile-panel pre {
-  max-height: 150px;
-  margin: 8px 0 0;
-  overflow: auto;
-  white-space: pre-wrap;
-  color: var(--cur-panel-ink);
-  font-size: var(--font-size-2xs);
-}
-.cur-hostile-panel__decision--denied {
-  border-color: var(--cur-panel-error) !important;
-}
-.cur-hostile-panel__decision--denied strong,
-.cur-hostile-panel__error { color: var(--cur-panel-error); }
-.cur-hostile-panel__error { margin: 10px 0 0; }
-@media (max-width: 760px) {
-  .cur-hostile-panel__header { display: block; }
-  .cur-hostile-panel__selector { margin-top: 12px; }
-  .cur-hostile-panel__evidence { grid-template-columns: 1fr; }
-}

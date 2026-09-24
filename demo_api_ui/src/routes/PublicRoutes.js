@@ -454,7 +454,7 @@ export function McpGatewayConfigRoute({ user, logout }) {
     <InspectorFieldProvider>
       <AppShell user={user} logout={logout}>
         <AgentGatewayInspectorClean />
-        {/* Every PingGateway P1AZ decision (who, which app, why), fed by the
+        {/* Every PingOne Agent Gateway P1AZ decision (who, which app, why), fed by the
             gateway's post to /internal/gateway-decision. Below the inspector,
             which fills the viewport height, so scroll down to it. .mgc-root
             restores the width, 24px inset and font its old host provided. */}

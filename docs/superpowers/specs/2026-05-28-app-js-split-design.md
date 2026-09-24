@@ -320,7 +320,7 @@ Existing 13 assertions stay. New assertions added per route file:
 
 **Per route file:**
 - Critical import present (spot-check 2–3 key components per file)
-- No `banking_api_ui` path strings (stale path guard)
+- No `demo_api_ui` path strings (stale path guard)
 
 ### Build verification
 

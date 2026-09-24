@@ -9,7 +9,7 @@ export default function JourneyStep({
   onRun,
   summary,
 }) {
-  const [showTalkingPoints, setShowTalkingPoints] = useState(false);
+  const [showTalkingPoints, setShowTalkingPoints] = useState(true);
 
   return (
     <article className="journey-step">

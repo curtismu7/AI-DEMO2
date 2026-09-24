@@ -57,7 +57,7 @@ POST {pingone}/token
   subject_token  = <user access token>          (the user — aud=BFF)
   actor_token    = <agent client-credentials token>  (the agent)
   audience       = mcp-gateway resource uri
-→ delegated token:  sub = user,  aud = mcp-gateway,  act = { sub: <agent client id> }
+→ MCP Gateway token:  sub = user,  aud = mcp-gateway,  act = { sub: <agent client id> }
 ```
 
 The result carries an **`act` claim** naming the agent. From here on, every component can see *"user X, acted for by agent Y."*
@@ -240,9 +240,9 @@ The AI Control Plane (`/ai-control-plane`) provides cross-platform agent governa
 - **Secret custody:** the PingOne `client_secret` and API key are held server-side only; in Copilot Studio mode, user-token custody is platform-side.
 - The service is not in docker-compose and must be run separately.
 
-### PingGateway real→mock Authorize failover
+### PingOne Agent Gateway real→mock Authorize failover
 
-PingGateway (Ping Identity IG, host port 3036) is the alternative MCP gateway selected by `ff_mcp_gateway_pinggateway` (default true). It performs its own RFC 8693 single-resource exchange and sends `UserId` + `McpResourceUri` in the `McpToolCall` Authorize params. It supports a live-switchable real→mock Authorize failover via the `X-Authz-Simulated` request header, letting a demo operator fall back to the simulated AS without restarting. The `authorize_mode` env/configStore key (`pingone` | `simulated` | `pingone-with-fallback`) is the engine selector used by both gateway paths; the Docker default is strict `pingone`.
+PingOne Agent Gateway (Ping Identity IG, host port 3036) is the alternative MCP gateway selected by `ff_mcp_gateway_pinggateway` (default true). It performs its own RFC 8693 single-resource exchange and sends `UserId` + `McpResourceUri` in the `McpToolCall` Authorize params. It supports a live-switchable real→mock Authorize failover via the `X-Authz-Simulated` request header, letting a demo operator fall back to the simulated AS without restarting. The `authorize_mode` env/configStore key (`pingone` | `simulated` | `pingone-with-fallback`) is the engine selector used by both gateway paths; the Docker default is strict `pingone`.
 
 ---
 

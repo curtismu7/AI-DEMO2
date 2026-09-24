@@ -246,6 +246,28 @@ def parseActClaim = { v ->
 }
 def actClaim        = parseActClaim(tokenInfo['act'])
 def mayActClaim     = parseActClaim(tokenInfo['may_act'])
+// PingFederate ATM serializes nested Map attribute values via Java toString
+// ('{sub=<id>}'), not JSON (2026-09-22 A2A-under-PF). Coerce that form so the
+// Exchange #2 inner act (the generalist) survives chain-depth checks instead
+// of reading as a string and flattening the chain to depth 1.
+def coerceJavaMapString = { v ->
+    if (v instanceof Map) {
+        def inner = v['act']
+        if (inner instanceof String && inner.startsWith('{') && inner.endsWith('}')) {
+            // parse '{k=v, k2=v2}' (single level — PF only nests one deep here)
+            def body = inner.substring(1, inner.length() - 1)
+            def parsed = new java.util.LinkedHashMap()
+            body.split(',(?=[^=]+=)').each { kv ->
+                def idx = kv.indexOf('=')
+                if (idx > 0) parsed[kv.substring(0, idx).trim()] = kv.substring(idx + 1)
+            }
+            v['act'] = parsed
+        }
+    }
+    return v
+}
+actClaim        = coerceJavaMapString(actClaim)
+mayActClaim     = coerceJavaMapString(mayActClaim)
 def nativeActSub    = actClaim?.sub ?: ''
 def nativeMayActSub = mayActClaim?.sub ?: ''
 // Bridged actor headers are honored ONLY for a trusted internal caller (see the
@@ -261,7 +283,10 @@ def hdrMayActSub    = trustedCaller ? (request.headers.getFirst('X-May-Act-Sub')
 def forceDemoActor  = trustedCaller && (request.headers.getFirst('X-Demo-Force-Actor') == 'true')
 def actSub    = forceDemoActor ? hdrActClientId : (nativeActSub ?: hdrActClientId)
 def mayActSub = nativeMayActSub ?: hdrMayActSub
-def scope     = tokenInfo['scope'] ?: ''
+def rawScope = tokenInfo['scope'] ?: ''
+// scope may be a space-delimited string (PingOne) or a JSON array (PingFederate
+// ATM emits the list form when multiple requested scopes are granted).
+def scope = rawScope instanceof List ? rawScope.collect { it as String }.join(' ') : rawScope
 def tokenScopes = scope.tokenize(' ').findAll { it }.join(' ')
 // TokenAudActual: the ACTUAL aud carried by the inbound token (from introspection),
 // mirroring the Node gateway (decoded.aud). It is the only audience signal that carries

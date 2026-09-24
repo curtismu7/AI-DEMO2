@@ -129,3 +129,15 @@ Overview ends with the full agent + brain inventory table.
 | Heuristics | `heuristics` | Nothing |
 | Google Gemini | `gemini` | Google API key |
 | llama.cpp | `llamacpp` | `demo_llm_proxy` + GGUF models |
+
+---
+
+## 2026-09-22 — Alternative LLM frameworks removed
+
+`openai_agent/` (:8891), `mastra_agent/` (:8892), and `pydantic_agent/` (:8893)
+have been removed. LangChain (`langchain_agent/`, :8888) is the only banking
+AG-UI runtime. The `llm_framework` flag now accepts only `langchain` (with
+`auto` resolving to it); the Compose `agents` profile, the k8s 65/66/67 agent
+deployments, and the framework round-robin orchestrator are gone. LlamaIndex
+RAG (:8894) and the compliance specialist (:3007) are unchanged. Historical
+comparisons in docs/ describe the removed frameworks and are kept as records.

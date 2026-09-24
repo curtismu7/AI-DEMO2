@@ -23,12 +23,164 @@
   color: var(--th-text-muted);
 }
 
+.lfp-journey,
+.lfp-trace {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-xl);
+  padding: 1.25rem;
+}
+
+.lfp-journey {
+  margin-bottom: 1rem;
+}
+
+.lfp-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.lfp-section-heading h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--th-text);
+}
+
+.lfp-section-heading span {
+  color: var(--th-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lfp-section-heading > div:first-child {
+  min-width: 0;
+}
+
+.lfp-trace-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.lfp-trace-button {
+  border: 1px solid var(--th-status-info);
+  border-radius: var(--radius-pill);
+  padding: 0.35rem 0.7rem;
+  background: var(--th-status-info);
+  color: var(--th-text-on-emphasis);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.lfp-trace-button:hover {
+  filter: brightness(1.08);
+}
+
+.lfp-trace-button:focus-visible {
+  outline: 2px solid var(--th-status-info-border);
+  outline-offset: 2px;
+}
+
+.lfp-trace-button--quiet {
+  border-color: var(--th-border-strong);
+  background: transparent;
+  color: var(--th-text);
+}
+
+.lfp-journey-track {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(4rem, 0.45fr) minmax(0, 1fr) minmax(4rem, 0.45fr) minmax(0, 1fr) minmax(4rem, 0.45fr) minmax(0, 1fr) minmax(4rem, 0.45fr) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lfp-journey-stage {
+  min-width: 0;
+  padding: 0.65rem 0.6rem 0.7rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
+}
+
+.lfp-journey-stage--1 { border-top: 3px solid var(--th-status-info); }
+.lfp-journey-stage--2 { border-top: 3px solid var(--th-status-info-border); }
+.lfp-journey-stage--3 { border-top: 3px solid var(--th-status-warning); }
+.lfp-journey-stage--4 { border-top: 3px solid var(--th-status-error); }
+.lfp-journey-stage--5 { border-top: 3px solid var(--th-status-success); }
+
+.lfp-journey-handoff {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  color: var(--th-text-muted);
+  text-align: center;
+  font-size: 0.65rem;
+  line-height: 1.25;
+}
+
+.lfp-journey-arrow {
+  color: var(--th-status-info);
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.lfp-journey-number {
+  display: inline-grid;
+  place-items: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  margin-bottom: 0.45rem;
+  border-radius: var(--radius-pill);
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.lfp-journey-stage h3 {
+  margin: 0 0 0.3rem;
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.lfp-journey-stage p {
+  margin: 0;
+  color: var(--th-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
 .lfp-diagram {
   background: var(--th-bg-card);
   color: var(--th-text);
   border: 1px solid var(--th-border);
   border-radius: var(--radius-xl);
   padding: 1.25rem;
+}
+
+.lfp-trace {
+  padding-bottom: 1.5rem;
+}
+
+.lfp-trace--empty {
+  padding-bottom: 1.25rem;
 }
 
 .lfp-empty {
@@ -38,6 +190,34 @@
   padding: 2rem 1.5rem;
   text-align: center;
   color: var(--th-text-muted);
+}
+
+@media (max-width: 760px) {
+  .lfp-journey-track {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+
+  .lfp-journey-handoff {
+    min-height: 2rem;
+    flex-direction: row;
+    justify-content: flex-start;
+    padding-left: 1rem;
+    text-align: left;
+  }
+
+  .lfp-journey-arrow {
+    transform: rotate(90deg);
+  }
+
+  .lfp-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .lfp-trace-actions {
+    justify-content: flex-start;
+  }
 }
 
 .lfp-empty p {

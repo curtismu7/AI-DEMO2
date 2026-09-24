@@ -34,10 +34,16 @@ describe('InterAgentAbuseTester', () => {
     fireEvent.click(screen.getByRole('button', { name: /fire inter-agent abuse/i }));
 
     await waitFor(() => expect(screen.getByText(/HTTP 200/)).toBeInTheDocument()); // discovery
-    const denied = await screen.findAllByText(/HTTP 401/);
+    const denied = (await screen.findAllByText(/HTTP 401/)).filter((element) => element.classList.contains('iaa-badge'));
     expect(denied).toHaveLength(2); // no-bearer + forged-bearer
     expect(screen.queryByText(/❌/)).not.toBeInTheDocument();
     expect(screen.getAllByText(/✅/).length).toBe(3);
+    expect(screen.getAllByText(/Specialist execution: not reached — wire gate returned HTTP 401/i)).toHaveLength(2);
+    expect(screen.getAllByText(/Model\/provider: not involved/i)).toHaveLength(3);
+    expect(screen.getAllByText(/"path": "\/a2a\/specialists\/sporting-goods"/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/"method": "POST"/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/message\/send/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/PingOne signature verification/).length).toBeGreaterThan(0);
   });
 
   it('marks the unauthorized call ❌ if the wire hop wrongly allows it (200)', async () => {
@@ -47,5 +53,6 @@ describe('InterAgentAbuseTester', () => {
 
     // The two RPC probes expected 401 but got 200 -> two failures.
     await waitFor(() => expect(screen.getAllByText(/❌/).length).toBe(2));
+    expect(screen.getAllByText(/Specialist execution: unknown — endpoint returned HTTP 200; execution not reported/i)).toHaveLength(2);
   });
 });

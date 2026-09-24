@@ -25,7 +25,7 @@ const QUICK_FLAGS = [
   { id: 'ff_authorize_real',       group: 'AuthN / AuthZ',   control: 'segmented', label: 'Authorize Engine',                modes: [{ value: true, label: 'Real P1AZ' }, { value: false, label: 'Mock (outage)' }] },
   { id: 'ff_authorize_fail_open',        group: 'AuthN / AuthZ',   control: 'toggle',    label: 'Authorize — Fail Open' },
   { id: 'ff_require_act_for_agent_tools', group: 'AuthN / AuthZ',  control: 'toggle',    label: 'Require act claim (UC16)' },
-  { id: 'ff_id_token_exchange',         group: 'AuthN / AuthZ',   control: 'toggle',    label: 'ID Token Exchange Mode' },
+  { id: 'ff_id_token_exchange',         group: 'AuthN / AuthZ',   control: 'toggle',    label: 'ID Token Chain' },
   { id: 'ff_token_auth_private_key_jwt', group: 'AuthN / AuthZ',  control: 'toggle',    label: 'Client Auth — Private Key JWT' },
   { id: 'ciba_enabled',                 group: 'AuthN / AuthZ',   control: 'toggle',    label: 'CIBA — Out-of-Band Approval' },
   { id: 'ff_heuristic_enabled',         group: 'Agent',           control: 'toggle',    label: 'Routing — Fallback to Heuristics' },

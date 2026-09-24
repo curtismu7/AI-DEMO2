@@ -34,6 +34,12 @@ const CATALOG = [
     expectedOutcome: 'RANKED_RESULTS',
     evidence: { tokenChain: ['authorize-decision'], activity: ['authorize', 'mcp'] },
   },
+  {
+    useCaseId: 'ciba-out-of-band-approval',
+    title: 'CIBA out-of-band approval',
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['authorize-decision', 'ciba-poll', 'tool-dispatched'], activity: ['authorize', 'mcp', 'ciba'] },
+  },
 ];
 
 function Probe() {
@@ -79,6 +85,63 @@ test('a fully-matched PERMIT trace verdicts as verified', async () => {
   });
   await waitFor(() => expect(getByTestId('verdict').textContent).toBe('delegated-access-with-proof:verified'));
   expect(getByTestId('vertical').textContent).toBe('banking');
+});
+
+test('approved CIBA followed by a successful dispatch satisfies UC22 when the trace retains the challenge decision', () => {
+  const v = computeVerdict({
+    tokenEvents: [
+      { id: 'authorize-decision' },
+      { id: 'ciba-poll', additionalData: { status: 'approved' } },
+    ],
+    authorize: { decision: 'INDETERMINATE', outcome: 'STEP_UP' },
+    mcpResult: { tool: 'create_transfer', denied: false },
+    outcome: 'ok',
+  }, CATALOG.find((entry) => entry.useCaseId === 'ciba-out-of-band-approval'));
+
+  expect(v.state).toBe('verified');
+  expect(v.missingSteps).toEqual([]);
+});
+
+test('CIBA approval without a successful dispatch does not satisfy UC22', () => {
+  const v = computeVerdict({
+    tokenEvents: [
+      { id: 'authorize-decision' },
+      { id: 'ciba-poll', additionalData: { status: 'approved' } },
+    ],
+    authorize: { decision: 'INDETERMINATE', outcome: 'STEP_UP' },
+    mcpResult: { tool: 'create_transfer', status: 'error', denied: false },
+    outcome: 'error',
+  }, CATALOG.find((entry) => entry.useCaseId === 'ciba-out-of-band-approval'));
+
+  expect(v.state).toBe('mismatch');
+});
+
+test('a CIBA approval cannot override a hard denial on the final authorization trace', () => {
+  const v = computeVerdict({
+    tokenEvents: [
+      { id: 'authorize-decision' },
+      { id: 'ciba-poll', additionalData: { status: 'approved' } },
+    ],
+    authorize: { decision: 'PERMIT', outcome: 'DENY' },
+    mcpResult: { tool: 'create_transfer', status: 'success', denied: false },
+    outcome: 'ok',
+  }, CATALOG.find((entry) => entry.useCaseId === 'ciba-out-of-band-approval'));
+
+  expect(v.state).toBe('mismatch');
+});
+
+test('CIBA approval without a recorded authorization challenge does not infer a PERMIT', () => {
+  const v = computeVerdict({
+    tokenEvents: [
+      { id: 'authorize-decision' },
+      { id: 'ciba-poll', additionalData: { status: 'approved' } },
+    ],
+    authorize: {},
+    mcpResult: { tool: 'create_transfer', denied: false },
+    outcome: 'ok',
+  }, CATALOG.find((entry) => entry.useCaseId === 'ciba-out-of-band-approval'));
+
+  expect(v.state).toBe('mismatch');
 });
 
 test('a real RFC 8693 two-exchange trace (no literal "token-exchange" id) still matches the token-exchange evidence step', async () => {
@@ -347,7 +410,7 @@ describe('a failed run is not reported as still waiting', () => {
     expect(v.missingSteps).toEqual(['authorize-decision', 'tool-dispatched']);
   });
 
-  // 2026-08-31: mcp-weather was absent from the SE cluster, so PingGateway 502'd
+  // 2026-08-31: mcp-weather was absent from the SE cluster, so PingOne Agent Gateway 502'd
   // on UnknownHostException. ingestMcpResult still stamps trace.mcpResult for a
   // failed call, so EVERY evidence step matched and UC30 rendered
   // "VERIFIED — Completed — get_weather dispatched" over a chat that said the

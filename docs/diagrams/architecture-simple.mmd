@@ -1,6 +1,6 @@
 flowchart LR
 
-    %% title: Banking Demo — Architecture (clean view)
+    %% title: AI Demo — Architecture (clean view)
     %% Simplified architecture diagram for /architecture/overview.
     %%
     %% Two notable layout decisions:
@@ -61,8 +61,8 @@ flowchart LR
     %% Path C (oauth_bearer): RFC 8693 exchange, Bearer (new aud) to banking_resource_server /accounts /transactions.
     %% Paths B and C both terminate at the same banking_resource_server node at different routes.
 
-    %% ── PingGateway (Ping Identity IG) — DEFAULT MCP gateway ──────────
-    PingGW["PingGateway (IG, :3036)<br/>DEFAULT MCP gateway<br/>ff_mcp_gateway_pinggateway (default true)<br/>Warms Authorize on startup<br/>Authorize outage: fail-closed deny 503 (default)<br/>mock failover (authz-server :9001) opt-in only"]
+    %% ── PingOne Agent Gateway (Ping Identity IG) — DEFAULT MCP gateway ──────────
+    PingGW["PingOne Agent Gateway (IG, :3036)<br/>DEFAULT MCP gateway<br/>ff_mcp_gateway_pinggateway (default true)<br/>Warms Authorize on startup<br/>Authorize outage: fail-closed deny 503 (default)<br/>mock failover (authz-server :9001) opt-in only"]
 
     %% ── AG-UI agent-run SSE streaming ─────────────────────────────────
     AGUI["AG-UI SSE streams (agentRun.js)<br/>Decoded token-chain events injected<br/>In-memory trace (runId, 1h TTL)<br/>ff_agui_enabled (default ON)<br/>Runtimes: langchain :8888 · openai :8891<br/>mastra :8892 · pydantic :8893"]
@@ -137,7 +137,7 @@ flowchart LR
     Gateway -.->|"INDETERMINATE →<br/>request consent"| HITL
     HITL -.->|"approval / deny<br/>(CIBA-style)"| Gateway
 
-    %% ── PingGateway edges ──────────────────────────────────────────────
+    %% ── PingOne Agent Gateway edges ──────────────────────────────────────────────
     BFF -->|"RFC 8693 exchanged Bearer<br/>(ff_mcp_gateway_pinggateway=true)"| PingGW
     PingGW -->|"PDP evaluate<br/>UserId + McpResourceUri in params<br/>outage → fail-closed deny (default)"| Authorize
     PingGW -->|"WS/HTTP MCP — exchanged Bearer"| MCPServer

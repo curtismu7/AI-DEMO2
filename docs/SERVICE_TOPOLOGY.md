@@ -14,9 +14,9 @@ Companion to [ARCHITECTURE.md](ARCHITECTURE.md). This document is the concrete m
 | Frontend | `demo_api_ui` | React/Vite → nginx | 4000 → 3000 (HTTPS) | BFF | BFF only (cookies) |
 | MCP Gateway | `demo_mcp_gateway` | TypeScript | 3005 → 3005 | mcp-server, mcp-resource-server | MCP server, MCP invest, mortgage, HITL, Authorize |
 | MCP Server | `demo_mcp_server` | TypeScript | 8080 → 8080 (WS+HTTP) | — | BFF (vertical tools) |
-| MCP Invest | `demo_mcp_resource_server` | TypeScript | 8081 → 8081 (WS) | BFF | — |
+| Demo MCP Resource Server | `demo_mcp_resource_server` | TypeScript | 8081 → 8081 (WS) | BFF | — |
 | HITL Service | `demo_hitl_service` | Node | 3009 → 3009 | — | (called by gateway/BFF) |
-| Mortgage Service | `demo_api_resource_server` | Node | 8082 → 8082 | BFF | (called via API key) |
+| Mortgage Resource Server | `demo_api_resource_server` | Node | 8082 → 8082 | BFF | (called via API key) |
 | Mock Authz | `demo_authz_server` | Node | 9001 → 9001 | — | optionally PingOne |
 | Agent Service | `demo_agent_service` | TypeScript | 3016 → 3006¹ | BFF, MCP gateway | BFF |
 | LangChain Agent | `langchain_agent` | Python / uvicorn | 8888 / 8890 | BFF, mcp-server | MCP servers (WS), BFF |
@@ -127,7 +127,7 @@ Either way, the security pipeline (Authorize → token exchange → HITL → res
                         → GatewayTokenPolicy.validate
                         → PingOneAuthorizeClient.evaluate → PERMIT (read, low risk)
 6. Gateway              internal RFC 8693 exchange → token aud=mcp-server
-7. Gateway → MCP server tools/call get_my_accounts (delegated token)
+7. Gateway → MCP server tools/call get_my_accounts (MCP Gateway token)
 8. MCP server           execute → result
 9. result → Gateway → BFF → SPA (rendered per vertical render rules)
 ```
@@ -159,7 +159,7 @@ Status codes you will see: **403** (deny, failed verification, or HITL required 
 2. agent_token_service             → PingOne client_credentials grant
    (dedicated AI_AGENT app; scope agent:invoke, aud agentgateway.ping.demo)
 3. agent_token_service             → caller: { access_token }
-4. Copilot agent                   → MCP Gateway (PingGateway :3036 or Node :3005)
+4. Copilot agent                   → MCP Gateway (PingOne Agent Gateway :3036 or Node :3005)
    with the minted bearer token
 5. Gateway                         → Authorize policy → PERMIT/DENY/HITL
 6. Gateway                         → upstream MCP server (RFC 8693 exchange)
@@ -179,7 +179,7 @@ Token custody for this flow is platform-side: the Copilot agent holds the short-
 
 The gateway picks the target by tool name, performs any required token exchange (re-audiencing), and forwards. For the `apikey` route, it first calls the BFF's internal `/internal/vault/service-key` bridge with the tool and backend route, receives the route-bound API key, then drops the OAuth bearer and calls the backend with `X-API-Key` plus `X-User-Sub`. The bridge is allow-listed and server-side; the browser never receives the key.
 
-**Gateway selection.** `ff_mcp_gateway_pinggateway` (default `true`) selects between the **PingGateway** (`ping-gateway`, IG, host port 3036, internal 8080) and the **Node gateway** (`demo_mcp_gateway`, port 3005). Both warm their PingOne Authorize connection on startup. PingGateway performs its own RFC 8693 single-resource exchange and supports real→mock Authorize failover (switchable via `X-Authz-Simulated`).
+**Gateway selection.** `ff_mcp_gateway_pinggateway` (default `true`) selects between the **PingOne Agent Gateway** (`ping-gateway`, IG, host port 3036, internal 8080) and the **Node gateway** (`demo_mcp_gateway`, port 3005). Both warm their PingOne Authorize connection on startup. PingOne Agent Gateway performs its own RFC 8693 single-resource exchange and supports real→mock Authorize failover (switchable via `X-Authz-Simulated`).
 
 **Authorize engine.** The `authorize_mode` configStore key (env `AUTHORIZE_MODE`) selects the PDP: `pingone` (strict, Docker default), `simulated` (mock authz server only), or `pingone_with_fallback` (real PingOne with simulated fallback). This is the engine selector only; it has no effect on LLM or agent mode.
 
@@ -206,12 +206,12 @@ The gateway picks the target by tool name, performs any required token exchange 
 | 3009 | HITL Service |
 | 3016 → 3006 | Agent Service |
 | 8080 | MCP Server (primary) |
-| 8081 | MCP Invest |
-| 8082 | Mortgage Service |
+| 8081 | Demo MCP Resource Server |
+| 8082 | Mortgage Resource Server |
 | 8888 / 8890 | LangChain Agent (SSE / health) |
 | 8891 | OpenAI Agent |
 | 8892 | Mastra Agent |
 | 8893 | Pydantic Agent |
 | 9001 | Mock Authz Server |
-| 3036 | PingGateway (Ping Identity IG, host) |
+| 3036 | PingOne Agent Gateway (Ping Identity IG, host) |
 | 8097 | Agent Token Service (standalone, Copilot Studio broker) |

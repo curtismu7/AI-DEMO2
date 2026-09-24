@@ -2,11 +2,11 @@
 
 ## Overview
 
-This guide provides comprehensive education about actor tokens, subject tokens, and other AI-related tokens used in the Super Banking demo. Understanding these token types is crucial for implementing secure AI agent integrations with banking APIs.
+This guide provides comprehensive education about actor tokens, subject tokens, and other AI-related tokens used in the AI Demo. Understanding these token types is crucial for implementing secure AI agent integrations with banking APIs.
 
 ## Token Types in AI Integration
 
-### Subject Token
+### User token
 
 **Definition**: The original token representing the end user's identity and permissions.
 
@@ -106,7 +106,7 @@ MCP Token (User as subject, Agent as actor)
 
 ## Real-World Examples
 
-### Subject Token Example
+### User token Example
 ```json
 {
   "aud": "https://api.superbanking.com",
@@ -223,7 +223,7 @@ MCP Token (User as subject, Agent as actor)
 
 ## Phase 83 Implementation
 
-This education page is part of **Phase 83: AI Tokens Education** in the Super Banking demo roadmap. The phase includes:
+This education page is part of **Phase 83: AI Tokens Education** in the AI Demo roadmap. The phase includes:
 
 - Interactive token flow diagrams
 - Real-time token inspection

@@ -14,25 +14,37 @@
 body.admin-skin-p1 .admin-side-nav__ping-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 18px 16px 14px;
+  gap: 10px;
+  padding: 20px 18px 18px;
 }
 body.admin-skin-p1 .admin-side-nav__ping-mark {
-  width: 22px;
-  height: 22px;
-  background: #b3282d;
-  border-radius: 3px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  background: #a9d7f5;
+  border-radius: var(--radius-md);
   flex: none;
+  color: #102a43;
+  font-size: 12px;
+  font-weight: 800;
 }
 body.admin-skin-p1 .admin-side-nav__ping-wordmark {
-  font-size: var(--font-size-lg);
-  /* The red --ping-mark square above stays literal: it is the brand. Only the
-     wordmark ink follows the theme, or it vanishes on the dark panel. */
-  color: var(--th-text);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: #f4f8fc;
   letter-spacing: -0.01em;
 }
 body.admin-skin-p1 .admin-side-nav__ping-wordmark strong {
+  font-size: 15px;
   font-weight: 700;
+}
+body.admin-skin-p1 .admin-side-nav__ping-wordmark small {
+  color: #91abc2;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
 }
 
 /* ── Sidebar surface ────────────────────────────────────────────────────── */
@@ -42,45 +54,48 @@ body.admin-skin-p1 .admin-side-nav__ping-wordmark strong {
    AdminSideNav.css gradient it overrides is dark, but the skin always won.
    --th-bg-card is #ffffff in light, so the panel is unchanged there. */
 body.admin-skin-p1 .admin-side-nav {
-  background: var(--th-bg-card);
-  box-shadow: none;
-  border-right: 1px solid var(--th-border);
+  background: #102a43;
+  box-shadow: 2px 0 18px rgba(5, 17, 29, 0.22);
+  border-right: 1px solid #1d415e;
 }
 
 /* Collapse toggle: subtle inset on the panel ground */
 body.admin-skin-p1 .admin-side-nav__toggle {
-  background: var(--th-bg-inset);
-  border: 1px solid var(--th-border);
-  color: var(--th-text-muted);
+  background: #173752;
+  border: 1px solid #2b5573;
+  color: #b8ccdc;
 }
 body.admin-skin-p1 .admin-side-nav__toggle:hover {
-  background: var(--th-bg-inset);
-  border-color: var(--th-border-strong);
+  background: #214866;
+  border-color: #477b9e;
 }
 
 /* ── Quick links (Customer / Admin / Setup) ─────────────────────────────── */
 body.admin-skin-p1 .admin-side-nav__quick-links {
-  border-bottom: 1px solid var(--th-border);
-  padding: 14px 12px 16px;
-  gap: 8px;
+  border-bottom: 1px solid #1d415e;
+  padding: 10px 16px 14px;
+  gap: 6px;
 }
 body.admin-skin-p1 .admin-side-nav__quick-link {
-  background: var(--th-bg-inset);
-  border: 1px solid var(--th-border);
-  color: var(--th-text) !important;
-  box-shadow: 0 1px 2px rgba(20, 21, 26, 0.06);
+  background: transparent;
+  border: 1px solid transparent;
+  color: #c4d4e2 !important;
+  box-shadow: none;
+  justify-content: flex-start;
+  padding: 7px 8px;
+  font-size: 11px;
 }
 body.admin-skin-p1 .admin-side-nav__quick-link:hover {
-  background: #eef3fc;
-  border-color: #2767d2;
-  color: #2767d2 !important;
-  box-shadow: 0 3px 8px rgba(39, 103, 210, 0.2);
+  background: #173b5b;
+  border-color: #2d6088;
+  color: #f4f8fc !important;
+  box-shadow: none;
 }
 body.admin-skin-p1 .admin-side-nav__quick-link--active {
-  background: #e8edfc;
-  border: 2px solid #2767d2;
-  color: #2767d2 !important;
-  box-shadow: 0 1px 2px rgba(39, 103, 210, 0.15);
+  background: #2c638d;
+  border: 1px solid #3e7ca7;
+  color: #fff !important;
+  box-shadow: none;
 }
 
 /* ── Search box ─────────────────────────────────────────────────────────────
@@ -114,58 +129,145 @@ body.admin-skin-p1 .admin-side-nav {
    Text colors win on specificity (body.admin-skin-p1 prefix) alone. */
 body.admin-skin-p1 .admin-side-nav__item,
 body.admin-skin-p1 .admin-side-nav__label {
-  color: var(--th-text);
+  color: #c5d5e3;
 }
 /* --th-text-muted (dark: #94a3b8 on #131c2e card) reads as barely-visible for
    a 16px icon glyph even though it passes body-text contrast — same finding
    that drove the collapsed-rail fix below, now applied to the expanded rail
    too so icons stay legible next to their label. */
 body.admin-skin-p1 .admin-side-nav__icon {
-  color: var(--th-text);
+  color: #8fb7d3;
 }
 /* Collapsed rail: the icon IS the label — no text sits beside it to carry
-   legibility. Redundant with the rule above now that both states use
-   --th-text, kept explicit in case the expanded-rail tone changes later. */
+   legibility. Literal light tone, not --th-text: that token is near-black
+   (#0f172a) in the light theme, which rendered black-on-navy here. */
 body.admin-skin-p1 .admin-side-nav--collapsed .admin-side-nav__icon {
-  color: var(--th-text);
+  color: #eaf4fb;
 }
 body.admin-skin-p1 .admin-side-nav__item:hover {
-  background: var(--th-bg-inset) !important;
-  color: var(--th-text);
-  border-left-color: rgba(39, 103, 210, 0.5);
+  background: #173b5b !important;
+  color: #f4f8fc;
+  border-left-color: #4b8bb3;
 }
 
 /* Active item: light-blue highlight (new console "Settings" state).
    Theme-zone: sidebar active item — brand tokens win, literals are the fallback. */
 body.admin-skin-p1 .admin-side-nav__item--active {
-  background: var(--brand-sidebar-active-bg, #e8edfc) !important;
-  color: var(--brand-sidebar-active-text, #2767d2);
-  border-left-color: var(--brand-sidebar-active-text, #2767d2);
+  background: #2c638d !important;
+  color: #fff;
+  border-left-color: #83c4ec;
 }
 body.admin-skin-p1 .admin-side-nav__item--parent-active {
-  color: var(--brand-sidebar-active-text, #2767d2);
-  border-left-color: rgba(39, 103, 210, 0.6);
+  color: #fff;
+  border-left-color: #83c4ec;
 }
 body.admin-skin-p1 .admin-side-nav__item--active .admin-side-nav__label,
 body.admin-skin-p1 .admin-side-nav__item--parent-active .admin-side-nav__label,
 body.admin-skin-p1 .admin-side-nav__item--active .admin-side-nav__icon,
 body.admin-skin-p1 .admin-side-nav__item--parent-active .admin-side-nav__icon {
-  color: var(--brand-sidebar-active-text, #2767d2);
+  color: #fff;
 }
 
 /* Chevrons + submenu */
 body.admin-skin-p1 .admin-side-nav__chevron {
-  color: #8b8c94;
+  color: #8fb7d3;
 }
 body.admin-skin-p1 .admin-side-nav__chevron--expanded {
-  color: var(--th-text-muted);
+  color: #f4f8fc;
 }
 body.admin-skin-p1 .admin-side-nav__submenu {
-  background: var(--th-bg-inset);
-  border-left-color: rgba(39, 103, 210, 0.3);
+  background: #0d2338;
+  border-left-color: #2c638d;
 }
 body.admin-skin-p1 .admin-side-nav__item--child {
-  color: var(--th-text-body);
+  color: #b9ccdc;
+}
+
+/* ── Compact platform hierarchy ─────────────────────────────────────────── */
+body.admin-skin-p1 .admin-side-nav__menu {
+  padding: 12px 16px 24px;
+}
+body.admin-skin-p1 .admin-side-nav__section-label {
+  padding: 14px 10px 7px;
+  color: #91abc2;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+body.admin-skin-p1 .admin-side-nav__group--product-card {
+  margin: 0 0 6px;
+  overflow: hidden;
+  border: 1px solid #2b5573;
+  border-radius: var(--radius-lg);
+  background: #132f4b;
+}
+body.admin-skin-p1 .admin-side-nav__group--product-card > .admin-side-nav__item--parent {
+  padding: 10px 10px;
+  color: #eaf4fb;
+  font-weight: 700;
+}
+body.admin-skin-p1 .admin-side-nav__group--product-card > .admin-side-nav__item--parent:hover,
+body.admin-skin-p1 .admin-side-nav__group--product-card > .admin-side-nav__item--parent-active {
+  background: #1b4669 !important;
+}
+body.admin-skin-p1 .admin-side-nav__group--product-card .admin-side-nav__submenu {
+  margin: 0;
+  border-left: 0;
+  background: transparent;
+}
+body.admin-skin-p1 .admin-side-nav__group--product-card .admin-side-nav__item--child {
+  min-height: 31px;
+  padding: 7px 10px 7px 30px;
+  font-size: 12px;
+}
+body.admin-skin-p1 .admin-side-nav__group--product-card .admin-side-nav__item--child::before,
+body.admin-skin-p1 .admin-side-nav__group--utility .admin-side-nav__item--child::before,
+body.admin-skin-p1 .admin-side-nav__group--separate .admin-side-nav__item::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  background: #78adcb;
+}
+body.admin-skin-p1 .admin-side-nav__group--product-card .admin-side-nav__item--child:hover,
+body.admin-skin-p1 .admin-side-nav__group--product-card .admin-side-nav__item--child.admin-side-nav__item--active {
+  padding-left: 30px;
+  border-left: 0;
+  border-radius: var(--radius-md);
+  background: #2c638d !important;
+}
+body.admin-skin-p1 .admin-side-nav__group--utility {
+  margin: 0 0 8px;
+  border: 1px solid #2b5573;
+  border-radius: var(--radius-lg);
+  background: #132f4b;
+}
+body.admin-skin-p1 .admin-side-nav__group--utility > .admin-side-nav__item--parent {
+  padding: 10px;
+  color: #eaf4fb;
+  font-weight: 700;
+}
+body.admin-skin-p1 .admin-side-nav__group--utility .admin-side-nav__submenu {
+  margin: 0;
+  border-left: 0;
+  background: transparent;
+}
+body.admin-skin-p1 .admin-side-nav__group--separate {
+  margin: 0;
+}
+body.admin-skin-p1 .admin-side-nav__group--separate > .admin-side-nav__item--parent,
+body.admin-skin-p1 .admin-side-nav__group--separate > .admin-side-nav__item:not(.admin-side-nav__item--child) {
+  padding: 7px 10px;
+  font-size: 12px;
+}
+body.admin-skin-p1 .admin-side-nav__group--separate > .admin-side-nav__submenu {
+  margin-left: 10px;
+}
+body.admin-skin-p1 .admin-side-nav__divider {
+  background: #2b5573;
+  margin: 12px 10px;
 }
 
 /* Agent Onboarding Flow trio (Diagrams group) — panel-ground row background

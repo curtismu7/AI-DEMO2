@@ -5,6 +5,9 @@ jest.mock('axios');
 jest.mock('../../services/pingOneClientService', () => ({
   getManagementToken: jest.fn().mockResolvedValue('mock-mgmt-token'),
 }));
+jest.mock('../../services/agentLifecycleEvents', () => ({
+  emit: jest.fn(),
+}));
 jest.mock('../../services/configStore', () => ({
   getEffective: jest.fn((key) => ({
     PINGONE_ENVIRONMENT_ID: 'env-123',
@@ -12,12 +15,26 @@ jest.mock('../../services/configStore', () => ({
     PUBLIC_APP_URL: 'https://demo-api-server:3001',
   })[key]),
 }));
+jest.mock('../../services/personalAgentCimdService', () => ({
+  registerPersonalAgentCimd: jest.fn().mockResolvedValue({
+    ok: true,
+    mocked: true,
+    created: true,
+    registrationType: 'cimd-facade',
+    metadataUrl: 'http://127.0.0.1:3001/api/cimd/personal-agents/reg-1/client-metadata.json',
+    clientId: 'http://127.0.0.1:3001/api/cimd/personal-agents/reg-1/client-metadata.json',
+    steps: [],
+  }),
+  removePersonalAgentCimd: jest.fn().mockResolvedValue({ removed: true }),
+  getPersonalAgentCimd: jest.fn().mockReturnValue(null),
+}));
 
 const axios = require('axios');
 // Top-level require — setup.js runs jest.resetModules() after every test, so
 // an in-test require would return a DIFFERENT mock instance than the one the
 // service module captured at load. Share the load-time instance.
 const configStore = require('../../services/configStore');
+const personalAgentCimdService = require('../../services/personalAgentCimdService');
 const svc = require('../../services/agentBuilderService');
 
 const USER = { id: 'u1', username: 'demoUser', email: 'demoUser@demo.test', oauthId: 'sub-abc' };
@@ -38,6 +55,7 @@ beforeEach(() => jest.clearAllMocks());
 describe('agent naming + lookup', () => {
   test('agentName is deterministic per user', () => {
     expect(svc.agentName(USER)).toBe('AI Agent - demoUser');
+    expect(svc.agentName(USER, 'saas-embedded-worker')).toBe('Website Worker - demoUser');
   });
 
   test('getAgentForUser returns null when no app matches', async () => {
@@ -57,9 +75,72 @@ describe('agent naming + lookup', () => {
     const agent = await svc.getAgentForUser(USER);
     expect(agent).toMatchObject({ id: 'app-1', type: 'WEB_APP', fallback: true });
   });
+
+  test('getRuntimeForUser returns owned client credentials without exposing them in the public summary', async () => {
+    mockGet({
+      '/applications?limit=100': { _embedded: { applications: [{
+        id: 'agent-1', clientId: 'oauth-agent-client', name: 'AI Agent - demoUser', type: 'AI_AGENT', enabled: true,
+        description: 'Created by Agent Builder for sub-abc', grantTypes: ['CLIENT_CREDENTIALS'],
+        tokenEndpointAuthMethod: 'CLIENT_SECRET_POST',
+      }] } },
+      '/applications/agent-1/secret': { secret: 'private-agent-secret' },
+    });
+
+    const runtime = await svc.getRuntimeForUser(USER);
+
+    expect(runtime).toMatchObject({
+      agent: { id: 'agent-1', name: 'AI Agent - demoUser' },
+      clientId: 'oauth-agent-client', clientSecret: 'private-agent-secret', authMethod: 'post',
+    });
+    expect(runtime.agent).not.toHaveProperty('clientSecret');
+    expect(axios.get).toHaveBeenCalledWith(
+      `${BASE}/applications/agent-1/secret`,
+      expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer mock-mgmt-token' }) }),
+    );
+  });
+
+  test('getRuntimeForUser rejects an app without client credentials grant', async () => {
+    mockGet({
+      '/applications?limit=100': { _embedded: { applications: [{
+        id: 'agent-1', name: 'AI Agent - demoUser', type: 'WEB_APP', enabled: true,
+        description: 'Created by Agent Builder for sub-abc', grantTypes: ['AUTHORIZATION_CODE'],
+      }] } },
+    });
+    await expect(svc.getRuntimeForUser(USER)).rejects.toMatchObject({ code: 'workload_agent_not_client' });
+    expect(axios.get).not.toHaveBeenCalledWith(expect.stringContaining('/secret'), expect.anything());
+  });
+
+  test('getRuntimeForUser ignores a same-name app not owned by this customer', async () => {
+    mockGet({
+      '/applications?limit=100': { _embedded: { applications: [{
+        id: 'other-user-agent', name: 'AI Agent - demoUser', type: 'AI_AGENT',
+        description: 'Created by Agent Builder for another-user', grantTypes: ['CLIENT_CREDENTIALS'],
+      }] } },
+    });
+    await expect(svc.getRuntimeForUser(USER)).resolves.toBeNull();
+    expect(axios.get).not.toHaveBeenCalledWith(expect.stringContaining('/secret'), expect.anything());
+  });
 });
 
 describe('createAgentForUser', () => {
+  test('creates a distinct idempotent Website Worker identity', async () => {
+    mockGet({ '/applications': { _embedded: { applications: [] } } });
+    axios.post.mockResolvedValue({ data: {
+      id: 'worker-new', name: 'Website Worker - demoUser', type: 'AI_AGENT', enabled: true,
+    } });
+
+    const result = await svc.createEmbeddedWorkerForUser(USER);
+
+    expect(result.created).toBe(true);
+    expect(result.agent.name).toBe('Website Worker - demoUser');
+    expect(axios.post.mock.calls[0][1]).toMatchObject({ name: 'Website Worker - demoUser', type: 'AI_AGENT' });
+    expect(personalAgentCimdService.registerPersonalAgentCimd).toHaveBeenCalledWith(
+      USER,
+      expect.objectContaining({ id: 'worker-new' }),
+      { agentType: 'saas-embedded-worker' },
+    );
+  });
+
   test('creates a first-class AI_AGENT via /applications', async () => {
     mockGet({ '/applications': { _embedded: { applications: [] } } });
     axios.post.mockResolvedValue({ data: {
@@ -69,6 +150,7 @@ describe('createAgentForUser', () => {
     expect(result.created).toBe(true);
     expect(result.agent.type).toBe('AI_AGENT');
     expect(result.agent.fallback).toBe(false);
+    expect(result.cimd).toMatchObject({ mocked: true, registrationType: 'cimd-facade' });
     expect(axios.post).toHaveBeenCalledTimes(1);
     const [url, body] = axios.post.mock.calls[0];
     expect(url).toContain('/applications');
@@ -80,6 +162,10 @@ describe('createAgentForUser', () => {
       tokenEndpointAuthMethod: 'CLIENT_SECRET_POST',
       description: 'Created by Agent Builder for sub-abc',
     });
+    expect(personalAgentCimdService.registerPersonalAgentCimd).toHaveBeenCalledWith(
+      USER,
+      expect.objectContaining({ id: 'agent-new', type: 'AI_AGENT' }),
+    );
   });
 
   test('falls back to WEB_APP when the environment rejects the AI_AGENT type', async () => {
@@ -107,6 +193,21 @@ describe('createAgentForUser', () => {
       tokenEndpointAuthMethod: 'CLIENT_SECRET_POST',
       description: 'Created by Agent Builder for sub-abc',
     });
+  });
+
+  test('keeps the PingOne agent when the mocked CIMD facade fails', async () => {
+    mockGet({ '/applications': { _embedded: { applications: [] } } });
+    axios.post.mockResolvedValue({ data: {
+      id: 'agent-new', name: 'AI Agent - demoUser', type: 'AI_AGENT', enabled: true,
+    } });
+    personalAgentCimdService.registerPersonalAgentCimd.mockRejectedValueOnce(new Error('local registry unavailable'));
+
+    const result = await svc.createAgentForUser(USER);
+
+    expect(result.created).toBe(true);
+    expect(result.agent.id).toBe('agent-new');
+    expect(result.cimd).toMatchObject({ ok: false, mocked: true, status: 'failed' });
+    expect(result.cimd.steps[0]).toMatchObject({ step: 'register', status: 'failed', engine: 'mock' });
   });
 
   test('is idempotent — returns existing agent with created:false and does not POST', async () => {
@@ -141,6 +242,7 @@ describe('deleteAgentForUser', () => {
       `${BASE}/applications/app-1`,
       expect.objectContaining({ headers: expect.objectContaining({ Authorization: 'Bearer mock-mgmt-token' }) })
     );
+    expect(personalAgentCimdService.removePersonalAgentCimd).toHaveBeenCalledWith(USER, 'app-1');
   });
 
   test('throws not_found when user has no agent', async () => {
@@ -370,6 +472,7 @@ describe('upgradeAgentForUser', () => {
     const result = await svc.upgradeAgentForUser(USER);
     expect(result.agent.type).toBe('AI_AGENT');
     expect(axios.delete).toHaveBeenCalledWith(expect.stringContaining('/applications/app-old'), expect.anything());
+    expect(personalAgentCimdService.removePersonalAgentCimd).toHaveBeenCalledWith(USER, 'app-old');
     const grantPost = axios.post.mock.calls.find(([url]) => url.includes('/applications/agent-new/grants'));
     expect(grantPost[1]).toEqual({ resource: { id: 'r-demo' }, scopes: [{ id: 's-read-0' }] });
   });

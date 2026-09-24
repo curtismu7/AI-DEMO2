@@ -9,7 +9,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const jsx = readFileSync(join(here, '../McpGatewayConfig.jsx'), 'utf8');
 const css = readFileSync(join(here, '../McpGatewayConfig.css'), 'utf8');
 
-test('PingGateway Inspector tab labels match the rename contract', () => {
+test('PingOne Agent Gateway Inspector tab labels match the rename contract', () => {
   expect(jsx).toMatch(/Agent Gateway\s*<\/button>/);
   expect(jsx).toMatch(/Agent Gateway Tester\s*<\/button>/);
   expect(jsx).toMatch(/MCP Tool Tester\s*<\/button>/);

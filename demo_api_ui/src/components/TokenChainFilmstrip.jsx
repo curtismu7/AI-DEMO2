@@ -26,6 +26,7 @@ import { SimpleStepper, DetailedStepper } from "./agent-clinical/TokensPane";
 import ClaimDetailsModal from "./ClaimDetailsModal";
 import TokenLegendModal from "./TokenLegendModal";
 import TokenChainDemoTrackTab from "./TokenChainDemoTrackTab";
+import TraceProvenanceBadge from "./TraceProvenanceBadge";
 import "./TokenChainFilmstrip.css";
 
 const VIEW_MODE_KEY = "tctr:view-mode";
@@ -210,7 +211,10 @@ export default function TokenChainFilmstrip() {
     <section className="tcfs" aria-label="Token chain">
       <div className="tcfs-spotlight">
       <div className="tcfs-head">
-        <span className="tcfs-title">Token Chain</span>
+        <div className="tcfs-title-group">
+          <span className="tcfs-title">Token Chain</span>
+          {hasTraceActivity ? <TraceProvenanceBadge provenance={trace.provenance} /> : null}
+        </div>
         <div className="tcfs-actions">
           <ChainViewMenu
             steps={steps}
@@ -369,9 +373,10 @@ export default function TokenChainFilmstrip() {
       </div>
 
       {presenting ? (
-        <TokenChainPresenter
+      <TokenChainPresenter
           steps={steps}
           activeId={activeStepId}
+          provenance={trace.provenance}
           onSelect={setActiveStepId}
           onClose={() => setPresenting(false)}
         />

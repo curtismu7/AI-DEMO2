@@ -14,7 +14,7 @@ This audit report evaluates the current UI state and identifies enhancement oppo
 
 #### 1.1 Component Structure
 ```
-banking_api_ui/src/
+demo_api_ui/src/
   components/
     - BankingAgent.css (2,870 lines) - Main agent interface
     - App.css (961 lines) - Global application styles

@@ -336,6 +336,15 @@
   letter-spacing: 0.5px;
 }
 
+.srd-actor-label--fit {
+  font-size: clamp(
+    var(--font-size-3xs),
+    calc(var(--font-size-3xs) * var(--srd-font-scale)),
+    var(--font-size-2xs)
+  );
+  letter-spacing: 0;
+}
+
 .srd-lifeline {
   stroke: var(--srd-border-strong);
   stroke-width: 2.5;

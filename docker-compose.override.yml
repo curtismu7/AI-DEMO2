@@ -54,6 +54,7 @@ services:
       # the target from REACT_APP_API_HOST). secure:false there tolerates the cert
       # CN mismatch on demo-api-server.
       REACT_APP_API_HOST: demo-api-server
+      REACT_APP_KIBANA_URL: ${REACT_APP_KIBANA_URL:-http://localhost:4180}
       # Exit at boot if mkcert files are missing — never serve HTTP-only on :4000 silently.
       REQUIRE_DEV_TLS: "1"
     volumes:

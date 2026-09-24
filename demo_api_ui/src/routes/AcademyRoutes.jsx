@@ -5,6 +5,7 @@ import { getLesson } from "../learning/lessonCatalog";
 import GuidedJourneyPage from "../pages/GuidedJourneyPage";
 import StandaloneDemoLauncherPage from "../pages/StandaloneDemoLauncherPage";
 import OAuthTokenExchangeLessonPage from "../pages/OAuthTokenExchangeLessonPage";
+import AgentIdentityAcademyPage from "../pages/AgentIdentityAcademyPage";
 import {
   canObserveLesson,
   resetLesson,
@@ -20,6 +21,16 @@ export function normalizeAcademyMode(routeMode) {
 export function AcademyLegacyPrefixRoute() {
   const { lessonId, mode } = useParams();
   return <Navigate to={`/academy/${lessonId}/${mode}`} replace />;
+}
+
+export function AgentIdentityAcademyRoute({ loading = false, user, logout }) {
+  if (loading) return null;
+
+  return (
+    <AppShell user={user} logout={logout}>
+      <AgentIdentityAcademyPage />
+    </AppShell>
+  );
 }
 
 export function AcademyLessonRoute({ loading, user, logout }) {

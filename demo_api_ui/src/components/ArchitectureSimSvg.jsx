@@ -33,29 +33,35 @@ const cy = (y) => y + NH / 2;
 const ABOVE_RS = 308;
 
 // ── Nodes — id, position and label copied from the original SimNode calls ──
-const NODES = [
+export const ARCHITECTURE_NODES = [
   { id: 'n-browser', x: COL.browser, y: ROW.top, label: 'Browser', sub: 'port 4000',
     tooltip: "User's browser — holds only an httpOnly session cookie; no tokens are ever stored client-side" },
   { id: 'n-bff', x: COL.bff, y: ROW.top, label: 'BFF', sub: 'demo_api_server :3001',
     tooltip: 'Backend For Frontend — sole OAuth token custodian; resolves session cookie to access token; never exposes tokens to the browser' },
-  { id: 'n-mcp-gw', x: COL.mcpGw, y: ROW.top, label: 'Agent Gateway', sub: 'Agent Gateway :3036',
-    tooltip: 'Agent Gateway — central enforcement point; default is the real product (:3036, ff_mcp_gateway_pinggateway=true); demo Node Gateway (:3005) is the opt-in demo-auth path; introspects token then consults PingOne Authorize before every tool call; validates aud (D-05 anti-bypass)' },
+  { id: 'n-mcp-gw', x: COL.mcpGw, y: ROW.top, label: 'PingGateway', sub: 'Ping Identity · :3036',
+    tooltip: 'PingGateway (Ping Identity) is the default gateway at :3036. The optional Node gateway at :3005 is an alternative. The BFF performs RFC 8693 token exchange with PingOne; PingGateway enforces the downstream policy and routes tool requests.' },
   { id: 'n-mcp-server', x: COL.services, y: ROW.top, label: 'MCP Server', sub: ':8080',
     tooltip: 'MCP Server (:8080) — executes banking tools; validates token aud and scopes per tool; checks act claim for delegated agent authority' },
   { id: 'n-agent', x: COL.mcpGw, y: ROW.mid, label: 'Agent Service', sub: ':3006 / :8888',
-    tooltip: 'Agent Service — LangChain (:8888) / OpenAI Agents (:8891) / Mastra (:8892) / Pydantic AI (:8893) / LM Studio (:3006); translates natural language to MCP tool calls' },
+    tooltip: 'Agent Service — LangChain (:8888) / LM Studio (:3006); translates natural language to MCP tool calls' },
   { id: 'n-mcp-resource-server', x: COL.services, y: ROW.mid, label: 'MCP Resource Server', sub: ':8081',
     tooltip: 'MCP Resource Server (:8081) — dedicated MCP resource server for investment and portfolio tools; separate instance for financial data' },
   { id: 'n-mortgage', x: COL.services, y: ROW.mid + NH + 10, label: 'API Resource Server', sub: ':8082',
-    tooltip: 'API Resource Server (:8082) — REST API resource server using API key auth; reached via Ping Agent Gateway Path A (api_key disposition)' },
+    tooltip: 'API Resource Server (:8082) — REST API resource server using API key auth; reached via PingGateway Path A (api_key disposition)' },
   { id: 'n-pingone', x: COL.external, y: ROW.mid, label: 'PingOne', sub: 'OAuth AS',
     tooltip: 'PingOne — OAuth 2.0 Authorization Server and Identity Provider; issues tokens, validates may_act for RFC 8693 token exchange, enforces PKCE' },
-  { id: 'n-resource-server', x: COL.services, y: ROW.lower, label: 'Resource Server', sub: '/api/resource-server',
+  { id: 'n-resource-server', x: COL.services, y: ROW.lower, label: 'Banking Resource Server', sub: '/api/resource-server',
     tooltip: 'Resource Server (/api/resource-server) — validates access tokens independently; serves banking data; used in Path B (dual-token) and Path C (oauth_bearer) dispositions' },
-  { id: 'n-pingauthorize', x: COL.external, y: ROW.lower, label: 'PingOne Authorization Server', sub: 'cloud PDP',
-    tooltip: 'PingOne Authorization Server — policy decision point (PDP); returns PERMIT, DENY, or INDETERMINATE for every MCP tool call; real cloud Authorize by default (outage → fail-closed deny 503); mock at :9001 is opt-in via ff_authorize_real / AUTHORIZE_FAILOVER_MODE=fallback_simulated' },
+  { id: 'n-pingauthorize', x: COL.external, y: ROW.lower, label: 'PingOne Authorize', sub: 'Policy decision point',
+    tooltip: 'PingOne Authorize is the policy decision point (PDP); it returns PERMIT, DENY, or INDETERMINATE for protected tool calls. The real cloud service is the default; configured outages fail closed.' },
+  { id: 'n-banking-data', x: COL.external, y: ROW.bot, label: 'Banking Data Store', sub: 'accounts + transactions',
+    tooltip: 'Protected banking data — accounts, transactions, and audit records returned only after Resource Server validation' },
   { id: 'n-hitl', x: COL.services, y: ROW.bot, label: 'HITL Service', sub: ':3009',
     tooltip: 'HITL Service (:3009) — Human-In-The-Loop consent; creates time-limited challenges after PingOne Authorization Server INDETERMINATE signals; binds each challenge to userId + agentId + tool' },
+  { id: 'n-vault', x: COL.bff, y: ROW.lower, label: 'Vault / Secrets', sub: 'BFF · encrypted · AEAD',
+    tooltip: 'The BFF loads its encrypted secrets vault at startup. It is distinct from PingGateway’s dotenvx-managed environment configuration; secrets are not fetched from the vault for each request.' },
+  { id: 'n-llm', x: COL.mcpGw, y: ROW.lower, label: 'LLM Provider', sub: 'local or configured API',
+    tooltip: 'The agent runtime calls the configured language-model provider through the LLM proxy. Provider selection depends on local configuration; it is not an identity or authorization service.' },
 ];
 
 // Column headers. Plain flow nodes (not React Flow chrome) so they pan and
@@ -63,8 +69,8 @@ const NODES = [
 const COL_LABEL_Y = ROW.top - 22;
 const COL_LABELS = [
   { id: 'label-browser', x: COL.browser, label: 'Client' },
-  { id: 'label-bff', x: COL.bff, label: 'BFF' },
-  { id: 'label-mcpgw', x: COL.mcpGw, label: 'MCP Layer' },
+  { id: 'label-bff', x: COL.bff, label: 'BFF + Vault' },
+  { id: 'label-mcpgw', x: COL.mcpGw, label: 'Agent + Gateway' },
   { id: 'label-services', x: COL.services, label: 'Services' },
   { id: 'label-external', x: COL.external, label: 'PingOne / Authz' },
 ];
@@ -73,17 +79,23 @@ const COL_LABELS = [
 // JSX. Multi-segment edges (routed around the resource-server row, or fanned
 // out from the same node side) become one polyline each instead of two or
 // three separate <line> elements sharing a state.
-const EDGES = [
+export const ARCHITECTURE_EDGES = [
   { id: 'e-browser-bff', source: 'n-browser', target: 'n-bff',
     points: [[COL.browser + NW, cy(ROW.top)], [COL.bff, cy(ROW.top)]] },
   { id: 'e-bff-mcpgw', source: 'n-bff', target: 'n-mcp-gw',
     points: [[COL.bff + NW, cy(ROW.top)], [COL.mcpGw, cy(ROW.top)]] },
+  { id: 'e-bff-vault', source: 'n-bff', target: 'n-vault',
+    points: [[cx(COL.bff), ROW.top + NH], [cx(COL.bff), 112]] },
   { id: 'e-mcpgw-mcpserver', source: 'n-mcp-gw', target: 'n-mcp-server',
     points: [[COL.mcpGw + NW, cy(ROW.top)], [COL.services, cy(ROW.top)]] },
   { id: 'e-mcpgw-mortgage', source: 'n-mcp-gw', target: 'n-mortgage',
     points: [[cx(COL.mcpGw), ROW.top + NH], [cx(COL.mcpGw), cy(ROW.mid + NH + 10)], [COL.services, cy(ROW.mid + NH + 10)]] },
   { id: 'e-mcpgw-resourceserver', source: 'n-mcp-gw', target: 'n-resource-server',
     points: [[COL.mcpGw + NW, cy(ROW.lower)], [COL.services, cy(ROW.lower)]] },
+  { id: 'e-mcpserver-resource-server', source: 'n-mcp-server', target: 'n-resource-server',
+    points: [[COL.services + NW, cy(ROW.top)], [COL.services + NW + 50, cy(ROW.top)], [COL.services + NW + 50, cy(ROW.lower)], [COL.services + NW, cy(ROW.lower)]] },
+  { id: 'e-resource-server-banking-data', source: 'n-resource-server', target: 'n-banking-data',
+    points: [[COL.services + NW, cy(ROW.lower)], [COL.external, cy(ROW.bot)]] },
   { id: 'e-bff-pingone', source: 'n-bff', target: 'n-pingone',
     points: [[cx(COL.bff), ROW.top + NH], [cx(COL.bff), cy(ROW.mid)], [COL.external, cy(ROW.mid)]] },
   { id: 'e-mcpgw-pingone', source: 'n-mcp-gw', target: 'n-pingone',
@@ -98,6 +110,8 @@ const EDGES = [
     points: [[cx(COL.mcpGw) + 12, ROW.top + NH], [cx(COL.mcpGw) + 12, ABOVE_RS], [cx(COL.external), ABOVE_RS], [cx(COL.external), ROW.lower]] },
   { id: 'e-mcpgw-hitl', source: 'n-mcp-gw', target: 'n-hitl',
     points: [[cx(COL.mcpGw) + 24, ROW.top + NH], [cx(COL.mcpGw) + 24, cy(ROW.bot)], [COL.services, cy(ROW.bot)]] },
+  { id: 'e-agent-llm', source: 'n-agent', target: 'n-llm',
+    points: [[COL.mcpGw + NW, cy(ROW.mid)], [COL.mcpGw + NW + 24, cy(ROW.mid)], [COL.mcpGw + NW + 24, cy(ROW.lower)], [COL.mcpGw, cy(ROW.lower)]] },
 ];
 
 // React Flow needs a parent-before-children node order and a position per
@@ -108,9 +122,9 @@ const FLOW_NODES = [
     id: c.id, type: 'colLabel', position: { x: c.x, y: COL_LABEL_Y }, width: NW, height: 16,
     data: { label: c.label },
   })),
-  ...NODES.map((n) => ({
+  ...ARCHITECTURE_NODES.map((n) => ({
     id: n.id, type: 'sim', position: { x: n.x, y: n.y }, width: NW, height: NH,
-    data: { label: n.label, sub: n.sub, tooltip: n.tooltip },
+    data: { label: n.label, sub: n.sub, tooltip: n.tooltip, category: n.id.replace('n-', '') },
   })),
 ];
 
@@ -119,7 +133,7 @@ const FLOW_NODES = [
 // is enough — React Flow just needs one to exist to accept the edge at all.
 function SimNode({ data }) {
   return (
-    <div className="asim-node" data-state={data.state} title={data.tooltip}>
+    <div className="asim-node" data-state={data.state} data-category={data.category} title={data.tooltip}>
       <Handle type="target" position={Position.Top} isConnectable={false} />
       <span className="asim-node-label">{data.label}</span>
       {data.sub && <span className="asim-node-sub">{data.sub}</span>}
@@ -172,12 +186,12 @@ function ArchitectureSimSvg({ nodeStates = {}, edgeStates = {} }) {
     [nodeStates],
   );
   const flowEdges = useMemo(
-    () => EDGES.map((e) => ({ ...e, type: 'sim', data: { ...e, state: edgeStates[e.id] ?? 'idle' } })),
+    () => ARCHITECTURE_EDGES.map((e) => ({ ...e, type: 'sim', data: { ...e, state: edgeStates[e.id] ?? 'idle' } })),
     [edgeStates],
   );
 
   return (
-    <div className="asim-canvas" aria-label="Banking demo architecture diagram">
+    <div className="asim-canvas" aria-label="Interactive banking demo architecture diagram">
       <ArrowDefs />
       <ReactFlow
         nodes={flowNodes}

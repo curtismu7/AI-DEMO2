@@ -7,15 +7,11 @@ const dataStore = require('../data/store');
 // store by req.user.sub, whereas admin ops keys by the selected demo user's
 // local id — so admin ops is its own internally-consistent surface, not a
 // mirror of a given user's live chat session.
-const healthcare = require('../config/verticals/healthcare');
-const retail = require('../config/verticals/retail');
-const sportingGoods = require('../config/verticals/sporting-goods');
-const workforce = require('../config/verticals/workforce');
-const university = require('../config/verticals/university');
-const government = require('../config/verticals/government');
-const manufacturing = require('../config/verticals/manufacturing');
-const investment = require('../config/verticals/investment');
-const abercrombieFitch = require('../config/verticals/abercrombie-fitch');
+const { verticalManifest } = require('../services/verticalManifest');
+// Registration reads seeds at module load. server.js inits the manifest before
+// mounting this router, but the route tests require this file directly — so
+// init here too. It's idempotent (guarded by an `initialized` flag).
+verticalManifest.init();
 // Reads this session's own record of what it was granted — no signature check
 // needed, and none performed.
 const { decodeJwt } = require('../utils/tokenUtils');
@@ -23,6 +19,13 @@ const { decodeJwt } = require('../utils/tokenUtils');
 // /api/admin mount, and a router-level guard would 403 their traffic before
 // Express could fall through to them.
 const { requireAdmin } = require('../middleware/auth');
+
+// Plugins for verticals that declare capabilities.adminOps with lookupMode
+// 'plugin' (the default). Resolved lazily through verticalManifest.plugins so
+// this file holds no per-vertical requires.
+function pluginFor(id) {
+  return verticalManifest.plugins.get(id) || null;
+}
 
 // Known demo users an operator can type into a vertical ops lookup box.
 // The BFF user store is shared across verticals — accounts are seeded per
@@ -40,9 +43,11 @@ function listLookupUsers(vertical) {
   };
 }
 
-for (const vertical of ['banking', 'healthcare', 'retail', 'sporting-goods', 'workforce',
-  'university', 'government', 'manufacturing', 'investment', 'abercrombie-fitch']) {
-  router.get(`/${vertical}/users`, requireAdmin, listLookupUsers(vertical));
+// Lookup users for every vertical that declares capabilities.adminOps.
+for (const v of verticalManifest.listAll()) {
+  const seed = verticalManifest.loader.get(v.id);
+  if (!seed?.manifest?.capabilities?.adminOps) continue;
+  router.get(`/${v.id}/users`, requireAdmin, listLookupUsers(v.id));
 }
 
 // Resolve a free-text query (username, email, name fragment, or id) to a single
@@ -307,162 +312,73 @@ const { makeRequireCustomerVerified } = require('../middleware/requireCustomerVe
 // tests red; that is the proof the gate is real and not decorative.
 const ADMIN_WRITE = [requireAdmin, makeRequireCustomerVerified({ isCustomerVerified, recordAudit })];
 
-for (const vertical of ['banking', 'healthcare', 'retail', 'sporting-goods', 'workforce',
-  'university', 'government', 'manufacturing', 'investment', 'abercrombie-fitch']) {
-  router.post(`/${vertical}/verify/initiate`, ...ADMIN_WRITE, verifyInitiate);
-  router.get(`/${vertical}/verify/status`, ...ADMIN_WRITE, verifyStatus);
-  router.get(`/${vertical}/permissions`, ...ADMIN_WRITE, permissionsFor);
-  router.get(`/${vertical}/audit`, auditFor);
-  router.get(`/${vertical}/queue`, requireAdmin, (req, res, next) => {
-    req.queueVertical = vertical;
-    return queueFor(req, res, next);
-  });
+// ── Capability-driven registration (T4) ──────────────────────────────────────
+// Route URLs, methods, and guards are unchanged from the pre-T4 hardcoded
+// registration; what changed is WHERE the per-vertical data lives: each
+// vertical's manifest.json declares it under capabilities.adminOps, so a new
+// vertical opts in with config, not edits to this file. A vertical without the
+// block registers no per-vertical routes at all (not disabled ones — none).
+//
+// Verify/permissions/audit/queue are registered for every declaring vertical;
+// lookup and writes come from lookupSlices/writes. Banking uses
+// lookupMode 'banking' (global accounts store, not a per-user plugin store).
+// investment declares writes: [] deliberately — its only mutators are trades,
+// which is not a support operator's authority; abercrombie-fitch's store
+// exposes no mutators at all. Neither registers a write route.
+//
+// Queue rules moved into the manifests too. A projection over each vertical's
+// existing slices, not a new store — every row traces to a record really in
+// that state. banking and investment declare no rules deliberately: banking's
+// store is the global accounts/transactions one with no open states in its
+// seed; investment's trades are all 'Settled' or 'Posted'. Inventing flags to
+// fill those queues would mean fabricating demo data.
+
+// queueRule.title is a declared projection { field, fallback } evaluated here —
+// the manifest stays plain data and never ships executable code.
+function queueTitle(rule, row) {
+  return row[rule.title.field] || rule.fallback || rule.title.field;
 }
 
-// Lookups stay open: an operator has to find the customer before verifying
-// them. Only the writes below carry the gate.
-router.get('/banking/lookup', requireAdmin, bankingLookup);
+for (const v of verticalManifest.listAll()) {
+  const seed = verticalManifest.loader.get(v.id);
+  const ops = seed?.manifest?.capabilities?.adminOps;
+  if (!ops) continue;
+  const id = v.id;
 
-router.get('/healthcare/lookup', requireAdmin, lookupAction(healthcare, 'healthcare', {
-  patientRecords: 'patientRecords', appointments: 'appointments', billingHistory: 'billingHistory',
-  medications: 'medications', referrals: 'referrals', coverage: 'coverage',
-}));
-router.post('/healthcare/appointments/:id/cancel', ...ADMIN_WRITE, writeAction(healthcare, 'cancelAppointment', 'appointment'));
-router.post('/healthcare/bills/:id/pay', ...ADMIN_WRITE, writeAction(healthcare, 'payBill', 'bill'));
-router.post('/healthcare/medications/:id/refill', ...ADMIN_WRITE, writeAction(healthcare, 'refillPrescription', 'medication'));
-router.post('/healthcare/records/:id/release', ...ADMIN_WRITE, writeAction(healthcare, 'markRecordReleased', 'record'));
-router.post('/healthcare/referrals/:id/cancel', ...ADMIN_WRITE, writeAction(healthcare, 'cancelReferral', 'referral'));
+  router.post(`/${id}/verify/initiate`, ...ADMIN_WRITE, verifyInitiate);
+  router.get(`/${id}/verify/status`, ...ADMIN_WRITE, verifyStatus);
+  router.get(`/${id}/permissions`, ...ADMIN_WRITE, permissionsFor);
+  router.get(`/${id}/audit`, auditFor);
+  router.get(`/${id}/queue`, requireAdmin, (req, res, next) => {
+    req.queueVertical = id;
+    return queueFor(req, res, next);
+  });
 
-router.get('/retail/lookup', requireAdmin, lookupAction(retail, 'retail', {
-  orders: 'orders', returns: 'returns', subscriptions: 'subscriptions',
-  support_tickets: 'support_tickets', rewards: 'rewards',
-}));
-router.post('/retail/orders/:id/cancel', ...ADMIN_WRITE, writeAction(retail, 'cancelOrder', 'order'));
-router.post('/retail/subscriptions/:id/cancel', ...ADMIN_WRITE, writeAction(retail, 'cancelSubscription', 'subscription'));
-router.post('/retail/tickets/:id/resolve', ...ADMIN_WRITE, writeAction(retail, 'resolveTicket', 'ticket'));
-router.post('/retail/returns/:id/approve', ...ADMIN_WRITE, writeAction(retail, 'approveReturn', 'return'));
-
-router.get('/sporting-goods/lookup', requireAdmin, lookupAction(sportingGoods, 'sporting-goods', {
-  orders: 'orders', rentals: 'rentals', support_tickets: 'support_tickets',
-  coaching_sessions: 'coaching_sessions', loyalty: 'loyalty',
-}));
-router.post('/sporting-goods/orders/:id/cancel', ...ADMIN_WRITE, writeAction(sportingGoods, 'cancelOrder', 'order'));
-router.post('/sporting-goods/rentals/:id/return', ...ADMIN_WRITE, writeAction(sportingGoods, 'returnRental', 'rental'));
-router.post('/sporting-goods/tickets/:id/resolve', ...ADMIN_WRITE, writeAction(sportingGoods, 'resolveTicket', 'ticket'));
-router.post('/sporting-goods/coaching/:id/cancel', ...ADMIN_WRITE, writeAction(sportingGoods, 'cancelCoaching', 'coaching session'));
-
-router.get('/workforce/lookup', requireAdmin, lookupAction(workforce, 'workforce', {
-  expenses: 'expenses', tickets: 'tickets', trainings: 'trainings', pto: 'pto', benefits: 'benefits',
-}));
-router.post('/workforce/expenses/:id/approve', ...ADMIN_WRITE, writeAction(workforce, 'approveExpense', 'expense'));
-router.post('/workforce/expenses/:id/deny', ...ADMIN_WRITE, writeAction(workforce, 'denyExpense', 'expense'));
-router.post('/workforce/tickets/:id/resolve', ...ADMIN_WRITE, writeAction(workforce, 'resolveTicket', 'ticket'));
-router.post('/workforce/trainings/:id/complete', ...ADMIN_WRITE, writeAction(workforce, 'completeTraining', 'training'));
-
-// ── Phase 2 verticals ─────────────────────────────────────────────────────────
-// Cards are curated from each seed rather than dumped: university and
-// government seed 14 slices each, and a console showing all of them is noise.
-// Only array-valued slices are cards — government's `fees` and manufacturing's
-// `inventory` are objects and render nothing useful in a row list.
-//
-// Write actions are limited to mutators whose signature is (userId, itemId),
-// which is what writeAction passes. The createSeedStore mutators shaped
-// (data, {...}) — registerCourse, releaseTranscript, payFee, scheduleRun —
-// would receive the row id where they expect an options object, silently fall
-// back to a default row, and report success for an action the operator did not
-// ask for. They stay unexposed until there is a parameter contract for them.
-
-router.get('/university/lookup', requireAdmin, lookupAction(university, 'university', {
-  courses: 'courses', billing: 'billing', holds: 'holds',
-  financial_aid: 'financial_aid', enrollmentHistory: 'enrollmentHistory',
-}));
-
-router.get('/government/lookup', requireAdmin, lookupAction(government, 'government', {
-  permits: 'permits', payments: 'payments', filings: 'filings',
-  inspections: 'inspections', recordsRequests: 'recordsRequests',
-}));
-router.post('/government/permits/:id/release', ...ADMIN_WRITE, writeAction(government, 'releaseRecord', 'permit', 'permits'));
-
-router.get('/manufacturing/lookup', requireAdmin, lookupAction(manufacturing, 'manufacturing', {
-  workOrders: 'workOrders', maintenanceTickets: 'maintenanceTickets', shipments: 'shipments',
-  qualityInspections: 'qualityInspections', purchaseOrders: 'purchaseOrders',
-}));
-router.post('/manufacturing/work-orders/:id/release', ...ADMIN_WRITE, writeAction(manufacturing, 'releaseWorkOrder', 'work order', 'workOrders'));
-
-// Read-only. investment's only mutators are trades (buy/sell/deposit/withdraw),
-// which is not a support operator's authority; abercrombie-fitch's store
-// exposes no mutators at all. Neither registers a write route — not a disabled
-// one, none.
-router.get('/investment/lookup', requireAdmin, lookupAction(investment, 'investment', {
-  portfolios: 'portfolios', holdings: 'holdings', trades: 'trades', dividends: 'dividends',
-}));
-router.get('/abercrombie-fitch/lookup', requireAdmin, lookupAction(abercrombieFitch, 'abercrombie-fitch', {
-  orders: 'orders', returns: 'returns', support_tickets: 'support_tickets',
-  rewards: 'rewards', gift_cards: 'gift_cards',
-}));
+  if (ops.lookupMode === 'banking') {
+    router.get(`/${id}/lookup`, requireAdmin, bankingLookup);
+  } else if (ops.lookupSlices) {
+    const plugin = pluginFor(id);
+    if (plugin) {
+      router.get(`/${id}/lookup`, requireAdmin, lookupAction(plugin, id, ops.lookupSlices));
+      for (const w of ops.writes || []) {
+        router[`${w.method}`](`/${id}/${w.route}`, ...ADMIN_WRITE,
+          writeAction(plugin, w.mutator, w.noun, w.sliceKey));
+      }
+    }
+  }
+}
 
 // ── Support queue ─────────────────────────────────────────────────────────────
-// A projection over each vertical's existing slices, not a new store. Every row
-// traces to a record that is really in that state, so the queue cannot drift
-// from the data and a vertical with nothing open renders an honest empty queue.
-//
-// Statuses are compared case-insensitively: sporting-goods seeds 'open' /
-// 'in_progress' where retail seeds 'Open' / 'In Progress'.
-//
-// banking and investment declare no rules deliberately. Banking's store is the
-// global accounts/transactions one rather than per-user slices, and its seed
-// carries no open states at all — every account status is null and every
-// transaction is 'completed'. Investment's trades are all 'Settled' or
-// 'Posted'. Inventing flags to fill those queues would mean fabricating demo
-// data; they stay empty until the seeds carry real open work.
-const QUEUE_RULES = {
-  banking: [],
-  healthcare: [
-    { slice: 'billingHistory', label: 'Billing', open: ['due', 'overdue'], title: (r) => r.description || 'Bill' },
-    { slice: 'medications', label: 'Medications', open: ['on hold'], title: (r) => r.name || 'Medication' },
-    { slice: 'referrals', label: 'Referrals', open: ['pending'], title: (r) => r.specialty || 'Referral' },
-  ],
-  retail: [
-    { slice: 'returns', label: 'Returns', open: ['pending'], title: (r) => r.product || 'Return' },
-    { slice: 'support_tickets', label: 'Support', open: ['open', 'in progress'], title: (r) => r.subject || 'Ticket' },
-  ],
-  'sporting-goods': [
-    { slice: 'orders', label: 'Orders', open: ['processing'], title: (r) => r.product || 'Order' },
-    { slice: 'support_tickets', label: 'Support', open: ['open', 'in_progress'], title: (r) => r.subject || 'Ticket' },
-  ],
-  workforce: [
-    { slice: 'expenses', label: 'Expenses', open: ['pending', 'submitted'], title: (r) => r.description || 'Expense' },
-    { slice: 'tickets', label: 'IT tickets', open: ['open', 'pending approval'], title: (r) => r.subject || 'Ticket' },
-  ],
-  university: [
-    { slice: 'holds', label: 'Holds', open: ['active'], title: (r) => `${r.holdType || 'Hold'} hold` },
-    { slice: 'billing', label: 'Billing', open: ['unpaid'], title: (r) => r.description || 'Charge' },
-  ],
-  government: [
-    { slice: 'recordsRequests', label: 'Records requests', open: ['in review'], title: (r) => r.requestType || 'Request' },
-    { slice: 'inspections', label: 'Inspections', open: ['failed'], title: (r) => r.type || 'Inspection' },
-  ],
-  manufacturing: [
-    { slice: 'maintenanceTickets', label: 'Maintenance', open: ['open'], title: (r) => r.issue || 'Ticket' },
-    { slice: 'purchaseOrders', label: 'Purchase orders', open: ['pending approval'], title: (r) => r.material || 'Purchase order' },
-  ],
-  investment: [],
-  'abercrombie-fitch': [
-    { slice: 'support_tickets', label: 'Support', open: ['open'], title: (r) => r.subject || 'Ticket' },
-  ],
-};
-
-const VERTICAL_PLUGINS = {
-  healthcare, retail, 'sporting-goods': sportingGoods, workforce,
-  university, government, manufacturing, investment,
-  'abercrombie-fitch': abercrombieFitch,
-};
+// Rules now come from each vertical's manifest (capabilities.adminOps.queueRules);
+// the projection logic lives here. See the registration block above for why
+// banking and investment intentionally declare none.
 
 // GET /<vertical>/queue — open work across the demo customers this vertical lists.
 function queueFor(req, res) {
   const vertical = req.baseUrl.split('/').pop() || req.params.vertical;
-  const rules = QUEUE_RULES[req.queueVertical || vertical] || [];
-  const plugin = VERTICAL_PLUGINS[req.queueVertical || vertical];
+  const seed = verticalManifest.loader.get(req.queueVertical || vertical);
+  const rules = seed?.manifest?.capabilities?.adminOps?.queueRules || [];
+  const plugin = pluginFor(req.queueVertical || vertical);
   if (!plugin || rules.length === 0) {
     return res.json({ vertical: req.queueVertical || vertical, data: { rows: [] } });
   }
@@ -483,7 +399,7 @@ function queueFor(req, res) {
           category: rule.slice,
           categoryLabel: rule.label,
           id: String(row.id),
-          title: rule.title(row),
+          title: queueTitle(rule, row),
           status: row.status,
         });
       }

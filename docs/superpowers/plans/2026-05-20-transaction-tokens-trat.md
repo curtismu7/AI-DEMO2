@@ -1134,7 +1134,7 @@ TRANSACTION_TOKENS: "transaction-tokens",
 Create `demo_api_ui/src/components/education/TransactionTokensPanel.js`:
 
 ```javascript
-// banking_api_ui/src/components/education/TransactionTokensPanel.js
+// demo_api_ui/src/components/education/TransactionTokensPanel.js
 import React from "react";
 import EducationDrawer from "../shared/EducationDrawer";
 

@@ -104,7 +104,6 @@
   background:
     linear-gradient(180deg, transparent 0 57%, color-mix(in srgb, var(--th-bg-inset) 62%, transparent) 57% 100%),
     var(--pfj-canvas);
-  color: var(--th-text);
 }
 
 .pfj-diagram .react-flow {
@@ -221,7 +220,6 @@
   border: 1px solid var(--th-border);
   border-radius: var(--radius-sm);
   background: var(--th-bg-card);
-  color: var(--th-text);
 }
 
 .pfj-chain b { color: var(--th-status-info-text); }
@@ -236,7 +234,6 @@
 .pfj-diagram .react-flow__controls-button {
   border-bottom-color: var(--th-border);
   background: var(--th-bg-card);
-  color: var(--th-text);
   fill: var(--th-text);
 }
 
@@ -249,7 +246,6 @@
   border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
   background: var(--th-bg-card);
-  color: var(--th-text);
 }
 
 .pfj-guide__copy {
@@ -305,10 +301,7 @@
   cursor: pointer;
 }
 
-.pfj-step-nav button:hover:not(:disabled) {
-  background: var(--th-bg-hover);
-  color: var(--th-text);
-}
+.pfj-step-nav button:hover:not(:disabled) { background: var(--th-bg-hover); }
 .pfj-step-nav button.is-current { border-color: #087d76; background: #087d76; color: #fff; }
 .pfj-step-nav button:disabled { opacity: 0.42; cursor: default; }
 .pfj-step-nav button:focus-visible { outline: 3px solid var(--th-status-info); outline-offset: 2px; }
@@ -356,7 +349,6 @@
   border: 1px solid var(--th-border);
   border-radius: var(--radius-sm);
   background: var(--th-bg-inset);
-  color: var(--th-text);
 }
 
 .pfj-protocol__heading { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }

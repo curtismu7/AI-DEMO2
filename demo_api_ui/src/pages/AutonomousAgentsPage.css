@@ -5,6 +5,10 @@
   flex-direction: column;
   gap: 22px;
   max-width: 900px;
+  /* Clear the fixed sidebar — this page renders bare in .main-content (no
+     .app-page-shell wrapper), which only pads vertically. */
+  padding: 0 1.5rem 2.5rem;
+  box-sizing: border-box;
   color: var(--th-text, var(--th-text));
   /* Explicit base. Without it the page inherited the shell's smaller size and
      every rule below was relative to something this page never chose — which is

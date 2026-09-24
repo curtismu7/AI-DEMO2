@@ -243,8 +243,8 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         icon: "👤‍💼",
       },
       {
-        label: "Ping Agent Gateway Security",
-        description: "Security architecture of PingGateway",
+        label: "PingOne Agent Gateway Security",
+        description: "Security architecture of PingOne Agent Gateway",
         icon: "🔐",
       },
       {
@@ -496,7 +496,7 @@ export default function LearningHub() {
       "Agent Gateway Authorization": () => navigate("/agent-gateway-authorization"),
       "Computer Use Agent (CUA)": () => openEdu(EDU.CUA, "what"),
       "Human-in-the-loop": () => openEdu(EDU.HUMAN_IN_LOOP, "what"),
-      "Ping Agent Gateway Security": () =>
+      "PingOne Agent Gateway Security": () =>
         openEdu(EDU.PINGGATEWAY_MCP, "overview"),
       "Enterprise-Managed Auth (EMA)": () =>
         openEdu(EDU.ENTERPRISE_MANAGED_AUTH, "overview"),

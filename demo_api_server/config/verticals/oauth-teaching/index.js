@@ -4,6 +4,7 @@ const { verticalManifest } = require('../../../services/verticalManifest');
 const tokenDisplayService = require('../../../services/tokenDisplayService');
 const { executeBffTool } = require('../../../services/bffMcpToolExecutor');
 const { EDUCATION_HEURISTICS } = require('../shared/educationHeuristics');
+const { CURRICULUM } = require('./curriculum');
 
 // topic regex -> { text, panel(EDU string value), tab, rfc, code }. Panel strings
 // mirror educationIds.js. `rfc` is always rendered when present ("Spec: ..."), and
@@ -128,6 +129,8 @@ const HEURISTICS = [
 ];
 
 function getManifest() { return verticalManifest.resolver.resolve('oauth-teaching'); }
+
+function getCurriculum() { return CURRICULUM; }
 
 function getSystemPrompt(ctx) {
   const role = ctx && ctx.role ? ctx.role : 'learner';
@@ -322,6 +325,7 @@ async function inspectToken(params, ctx) {
 
 module.exports = {
   getManifest,
+  getCurriculum,
   getTools: () => TOOLS,
   getHeuristics: () => [...HEURISTICS, ...EDUCATION_HEURISTICS],
   getSystemPrompt,

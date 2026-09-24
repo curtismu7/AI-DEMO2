@@ -286,6 +286,43 @@ describe('POST /:sourceId/clone', () => {
     const list = verticalManifest.list().map((v) => v.id);
     expect(list).toContain('new-thing');
   });
+
+  // T5: DB-backed skin config (overlay, theme overrides, uploaded logo) is
+  // copied only when the matching flag is set — the seed clone alone would
+  // produce a vertical that silently loses every runtime skin edit.
+  test('cloneOverlay copies the source overlay; default off', async () => {
+    const admin = { role: 'admin' };
+    verticalManifest.resolver.overlay.setField('banking', 'identity.tagline', 'Runtime Edit');
+    await request(makeApp({ user: admin }))
+      .post('/api/verticals/banking/clone').send({ newId: 'clone-plain', displayName: 'Plain' });
+    expect(verticalManifest.resolver.overlay.get('clone-plain')).toEqual({});
+
+    await request(makeApp({ user: admin }))
+      .post('/api/verticals/banking/clone')
+      .send({ newId: 'clone-with', displayName: 'With', cloneOverlay: true });
+    expect(verticalManifest.resolver.overlay.get('clone-with').identity.tagline).toBe('Runtime Edit');
+  });
+
+  test('cloneTheme copies theme overrides and uploaded logo; default off', async () => {
+    const admin = { role: 'admin' };
+    verticalManifest.resolver.themes.put('banking', { cssVars: { '--theme-accent': '#123456' } });
+    verticalManifest.store.setLogo('banking', { data: 'aGk=', mimeType: 'image/png' });
+
+    await request(makeApp({ user: admin }))
+      .post('/api/verticals/banking/clone').send({ newId: 'clone-notheme', displayName: 'NoTheme' });
+    expect(verticalManifest.resolver.themes.get('clone-notheme')).toBeNull();
+    expect(verticalManifest.store.getLogo('clone-notheme')).toBeNull();
+
+    await request(makeApp({ user: admin }))
+      .post('/api/verticals/banking/clone')
+      .send({ newId: 'clone-theme', displayName: 'WithTheme', cloneTheme: true });
+    expect(verticalManifest.resolver.themes.get('clone-theme').cssVars['--theme-accent']).toBe('#123456');
+    const logo = verticalManifest.store.getLogo('clone-theme');
+    expect(logo.data).toBe('aGk=');
+    expect(logo.mimeType).toBe('image/png');
+    // resolve() derives the clone's own logoUrl, not the source's.
+    expect(verticalManifest.resolver.resolve('clone-theme').identity.logoUrl).toBe('/api/verticals/clone-theme/logo');
+  });
 });
 
 describe('DELETE /:id', () => {

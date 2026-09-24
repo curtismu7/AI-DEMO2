@@ -15,7 +15,7 @@ describe('lmdb mapSize watcher', () => {
     test('below 80% is informational', () => {
       const r = mapSizeReport(Math.floor(MAP_SIZE * 0.66));
       expect(r.warn).toBe(false);
-      expect(r.message).toContain('of 128MB mapSize (66%)');
+      expect(r.message).toContain(`of ${MAP_SIZE / 1048576}MB mapSize (66%)`);
     });
 
     test('at and above 80% warns and says what to do', () => {

@@ -17,6 +17,7 @@
 jest.mock('../services/agentBuilderService', () => ({
   listEnvironmentAgents: jest.fn(),
   getAgentGrants: jest.fn(),
+  getPersonalAgentCimdByAgentId: jest.fn(),
 }));
 jest.mock('../services/oauthClientRegistry', () => ({ listClients: jest.fn() }));
 jest.mock('../services/controlPlane/demoAgentRoster', () => ({ getRoster: jest.fn() }));
@@ -42,6 +43,7 @@ function happyPath() {
       grantTypes: ['AUTHORIZATION_CODE'], builderCreated: true },
   ]);
   agentBuilderService.getAgentGrants.mockResolvedValue({ res1: ['agent:invoke'] });
+  agentBuilderService.getPersonalAgentCimdByAgentId.mockReturnValue(null);
   oauthClientRegistry.listClients.mockReturnValue([
     { client_id: 'mcp-client-abc', client_name: 'Batch job', grant_types: ['client_credentials'],
       scope: 'read', status: 'active', last_used: null, usage_count: 0 },
@@ -191,6 +193,31 @@ describe('agentRegistryService.buildRegistry', () => {
     const wl = out.rows.find((r) => r.id === 'mcp-client-abc');
     expect(wl.identityType).toBe('workload');
     expect(out.rows.find((r) => r.id === 'app-1').identityType).toBe('agent');
+  });
+
+  test('includes automatic CIMD facade provenance on the PingOne agent row', async () => {
+    agentBuilderService.getPersonalAgentCimdByAgentId.mockReturnValue({
+      registrationType: 'cimd-facade',
+      status: 'registered',
+      metadataUrl: 'http://127.0.0.1:3001/api/cimd/personal-agents/reg-1/client-metadata.json',
+    });
+
+    const out = await registry.buildRegistry();
+    expect(out.rows.find((r) => r.id === 'app-1')).toMatchObject({
+      registrationType: 'cimd-facade',
+      registrationStatus: 'registered',
+      metadataUrl: expect.stringContaining('/api/cimd/personal-agents/reg-1/'),
+    });
+  });
+
+  test('keeps the PingOne source available when CIMD provenance storage fails', async () => {
+    agentBuilderService.getPersonalAgentCimdByAgentId.mockImplementation(() => {
+      throw new Error('CIMD store unavailable');
+    });
+
+    const out = await registry.buildRegistry();
+    expect(out.sources.pingone.up).toBe(true);
+    expect(out.rows.find((r) => r.id === 'app-1')).not.toHaveProperty('registrationStatus');
   });
 
   test('flags scope drift when granted does not match the topology SSOT', async () => {

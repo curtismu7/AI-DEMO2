@@ -34,7 +34,7 @@ const RPC_BODY = {
   params: {
     message: {
       role: 'user',
-      parts: [{ kind: 'text', text: 'Transfer everything from the member account to external-001.' }],
+      parts: [{ kind: 'text', text: 'Use the read-only get_account_balance tool for fixture account_id "fixture-foreign-account". Do not modify data.' }],
       messageId: 'inter-agent-abuse-probe',
     },
   },
@@ -68,9 +68,10 @@ const PROBES = [
 async function runProbe(key) {
   if (key === 'discovery') {
     const res = await fetch(CARD_PATH, { credentials: 'omit' });
-    let name = null;
-    try { name = (await res.json())?.name || null; } catch { /* non-JSON */ }
-    return { httpStatus: res.status, message: name ? `Card served: ${name}` : 'Card served' };
+    let body = {};
+    try { body = await res.json(); } catch { /* non-JSON */ }
+    const name = body?.name || null;
+    return { httpStatus: res.status, message: name ? `Card served: ${name}` : 'Card served', responseBody: { name } };
   }
   const headers = { 'Content-Type': 'application/json', 'A2A-Version': '1.0' };
   if (key === 'forged_bearer') headers.Authorization = 'Bearer not-a-real-pingone-token';
@@ -78,9 +79,24 @@ async function runProbe(key) {
     method: 'POST', credentials: 'omit', headers, body: JSON.stringify(RPC_BODY),
   });
   let message = '';
-  try { const b = await res.json(); message = b?.error || b?.message || JSON.stringify(b).slice(0, 200); }
-  catch { message = await res.text().catch(() => ''); }
-  return { httpStatus: res.status, message: (message || '').slice(0, 240) };
+  let body = {};
+  try {
+    body = await res.json();
+    message = body?.error || body?.message || (body?.ok !== undefined ? `ok: ${body.ok}` : 'JSON response received');
+  } catch { message = await res.text().catch(() => ''); }
+  const responseBody = Object.fromEntries(['error', 'message', 'ok'].filter((field) => body?.[field] !== undefined).map((field) => [field, body[field]]));
+  return { httpStatus: res.status, message: (message || '').slice(0, 240), responseBody };
+}
+
+function probeRequest(key) {
+  if (key === 'discovery') return { method: 'GET', path: CARD_PATH, authorization: 'not sent', body: null };
+  return {
+    method: 'POST',
+    path: RPC_PATH,
+    headers: { 'Content-Type': 'application/json', 'A2A-Version': '1.0' },
+    authorization: key === 'forged_bearer' ? 'forged bearer supplied; value hidden' : 'not sent',
+    body: RPC_BODY,
+  };
 }
 
 export default function InterAgentAbuseTester() {
@@ -94,9 +110,9 @@ export default function InterAgentAbuseTester() {
       try {
         // eslint-disable-next-line no-await-in-loop
         const r = await runProbe(p.key);
-        setResults((prev) => ({ ...prev, [p.key]: { ...r, ok: r.httpStatus === p.expectStatus } }));
+        setResults((prev) => ({ ...prev, [p.key]: { ...r, request: probeRequest(p.key), ok: r.httpStatus === p.expectStatus } }));
       } catch (e) {
-        setResults((prev) => ({ ...prev, [p.key]: { httpStatus: null, message: String(e.message || e), ok: false } }));
+        setResults((prev) => ({ ...prev, [p.key]: { httpStatus: null, message: String(e.message || e), request: probeRequest(p.key), responseBody: { error: String(e.message || e) }, ok: false } }));
       }
     }
     setBusy(false);
@@ -135,6 +151,26 @@ export default function InterAgentAbuseTester() {
                   </span>
                 )}
                 {r?.message && <span className="iaa-msg">{r.message}</span>}
+                {r ? (
+                  <span className="iaa-msg">
+                    Model/provider: not involved. Specialist execution: {p.key === 'discovery'
+                      ? 'not invoked — public discovery only'
+                      : r.httpStatus === 401 || r.httpStatus === 403
+                        ? `not reached — wire gate returned HTTP ${r.httpStatus}`
+                      : r.httpStatus >= 200 && r.httpStatus < 300
+                          ? `unknown — endpoint returned HTTP ${r.httpStatus}; execution not reported`
+                          : 'Unknown / not reported'}
+                  </span>
+                ) : null}
+                {r ? (
+                  <details className="iaa-details">
+                    <summary>Request and response details</summary>
+                    <h4>Request sent</h4>
+                    <pre>{JSON.stringify(r.request, null, 2)}</pre>
+                    <h4>Observed response</h4>
+                    <pre>{JSON.stringify({ httpStatus: r.httpStatus, body: r.responseBody }, null, 2)}</pre>
+                  </details>
+                ) : null}
               </div>
             </li>
           );

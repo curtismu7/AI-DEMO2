@@ -8,6 +8,8 @@ import { navigateToAdminOAuthLogin } from '../utils/authUi';
 import AdminSubPageShell from './AdminSubPageShell';
 import PageNav from './PageNav';
 import { useSortableTable, SortableTh, dateOf } from '../hooks/useSortableTable';
+import PingIdentitySpinner from './shared/PingIdentitySpinner';
+import { PRIMARY_AGENT } from '../config/agentTerminology';
 
 // Transactions never get an updatedAt from the data layer, so "latest update" is the Date column.
 const TRANSACTION_SORT_ACCESSORS = {
@@ -71,7 +73,7 @@ const Transactions = ({ user, onLogout }) => {
     if (clientType === 'enduser') {
       return { icon: '👤', label: 'End User', color: 'var(--brand-navy)' };
     } else if (clientType === 'ai_agent') {
-      return { icon: '', label: 'AI Agent', color: '#8b5cf6' };
+      return { icon: '', label: PRIMARY_AGENT.displayName, color: '#8b5cf6' };
     } else {
       return { icon: '', label: 'Unknown', color: '#374151' };
     }
@@ -80,8 +82,8 @@ const Transactions = ({ user, onLogout }) => {
   if (loading && transactions.length === 0) {
     return (
       <AdminSubPageShell title="Transactions" lead="Review transfers, deposits, and withdrawals.">
-        <div className="loading">
-          <div>Loading transactions...</div>
+        <div className="loading" role="status" aria-live="polite">
+          <PingIdentitySpinner size={32} label="Loading transactions…" />
         </div>
       </AdminSubPageShell>
     );

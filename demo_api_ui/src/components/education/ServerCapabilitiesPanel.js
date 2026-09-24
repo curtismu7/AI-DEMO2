@@ -53,7 +53,7 @@ function SystemMapTab() {
     └── demo_api_server  ←──── OAuth / session / banking data
             └── demo_agent_service  ← internal reasoning (no user token custody)
                     ↓
-AI Agents (langchain / mastra / openai / pydantic)
+AI Agent (langchain)
     └── demo_mcp_gateway  ← token validation + policy enforcement + HITL gating
             ├── demo_authz_server      ← PERMIT / DENY decisions
             ├── demo_hitl_service      ← human approval challenges
@@ -224,7 +224,7 @@ function AgentsTab() {
       </Section>
 
       <p style={{ fontSize: "0.81rem", color: "#64748b", borderTop: "1px solid #e5e7eb", paddingTop: 12 }}>
-        The four AI agent runtimes (LangChain, Mastra, OpenAI Agents, Pydantic AI) are
+        The AI agent runtime (LangChain) is
         compared in detail in the <strong>Agent Tech Comparison</strong> panel — see Learn menu.
       </p>
     </>

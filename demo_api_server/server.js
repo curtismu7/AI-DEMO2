@@ -143,6 +143,7 @@ const transactionRoutes = require('./routes/transactions');
 const demoScenarioRoutes = require('./routes/demoScenario');
 const adminRoutes = require('./routes/admin');
 const pingcliRoutes = require('./routes/pingcli');
+const promptfooRoutes = require('./routes/promptfoo');
 const mgmtApiRoutes = require('./routes/mgmtApi');
 const secretRotationRoutes = require('./routes/secretRotation');
 const pingAiTestLabRoutes = require('./routes/pingAiTestLab');
@@ -1074,6 +1075,7 @@ app.get('/api/auth/debug', async (req, res) => {
 // unauthenticated requests to the config endpoint are not blocked by the
 // authenticateToken middleware that guards the broader /api/admin/* prefix.
 app.use('/api/admin/pingcli', authenticateToken, pingcliRoutes);
+app.use('/api/admin/promptfoo', authenticateToken, promptfooRoutes);
 // requireAdmin, not just authenticateToken (which the sibling pingcli/test-lab
 // mounts use): these operations list every PingOne user in the environment and
 // create/delete real applications, so a signed-in demo customer must not reach
@@ -1471,7 +1473,7 @@ app.use('/api/a2a', authenticateToken, a2aAgentRoutes);
 // A2A Protocol wire surface (Agent Cards + JSON-RPC). PingOne Bearer only —
 // no session cookie. Always mounted: A2A delegation is a required subsystem.
 app.use('/a2a/specialists', createA2aProtocolRouter());
-// Support Agent: customer support via Mastra framework
+// Support Agent: heuristic customer support
 app.use('/api/support-agent', authenticateToken, supportAgentRoutes);
 // Compliance Agent: transaction compliance checking via Pydantic AI
 app.use('/api/compliance-agent', authenticateToken, complianceAgentRoutes);
@@ -1530,16 +1532,9 @@ app.use('/api/admin/agent-gateway', agentGatewayConfigRouter);
 // Agent Gateway Inspector — tool introspection and invocation
 app.use('/api/agent-gateway', agentGatewayInspectorRouter);
 app.use('/api/mcp/traffic', requireSession, mcpTrafficRoutes);
-// MCP Audit: admin-only route — proxies to MCP server /audit internal endpoint (D-11)
-app.use('/api/mcp/audit', (req, res, next) => {
-    if (!req.session ?.user || req.session.user.role !== 'admin') {
-        return res.status(401).json({
-            error: 'admin_required',
-            message: 'Admin session required to access audit log.'
-        });
-    }
-    next();
-}, mcpAuditRouter);
+// MCP Audit: read-only observability data for any signed-in user. Mutating and
+// prompt-flow admin surfaces remain separately gated below.
+app.use('/api/mcp/audit', requireSession, mcpAuditRouter);
 // Prompt Flow Inspector: admin-only route — reads transactionLedger.lmdb
 // filtered by correlationId. Same gate pattern as /api/mcp/audit above.
 app.use('/api/prompt-flow', (req, res, next) => {
@@ -1907,6 +1902,7 @@ app.use('/api/security', securityMonitoringRoutes);
 const demoProvisioningRoutes = require('./routes/demoProvisioning');
 app.use('/api/demo', express.json(), demoProvisioningRoutes);
 app.use('/api/agent-builder', express.json(), require('./routes/agentBuilder')); // AgentBuilderPage — self-service per-user agent identity
+app.use('/api/embedded-worker', express.json(), require('./routes/embeddedWorker'));
 
 const demoAttackSeedsRoutes = require('./routes/demoAttackSeeds');
 app.use('/api/demo/attacks', express.json(), demoAttackSeedsRoutes);
@@ -2973,6 +2969,22 @@ async function runBackgroundStartupTasks() {
         }
     } catch (err) {
         console.warn('[pingone-preflight] Skipped (non-fatal):', err.message);
+    }
+
+    // ── Client-secret drift preflight ────────────────────────────────────────
+    // Compares the STORED admin/user login client secrets against what PingOne
+    // reports (worker reads GET /applications/{id}/secret). Catches a rotation
+    // done server-side that configStore didn't see — the failure class that
+    // otherwise surfaces only as invalid_client during a browser login.
+    try {
+        const { runClientSecretPreflight } = require('./services/pingoneClientSecretPreflight');
+        const sp = await runClientSecretPreflight();
+        if (!sp.ok && sp.fatal) {
+            console.error('[client-secret-preflight] Refusing to start (PINGONE_PREFLIGHT_STRICT): ' + sp.message);
+            process.exit(1);
+        }
+    } catch (err) {
+        console.warn('[client-secret-preflight] Skipped (non-fatal):', err.message);
     }
 
     try {

@@ -76,12 +76,12 @@ step-up for high-value calls, Streamable HTTP headers (`Mcp-Session-Id`, `Last-E
 `isError`, `notifications/tools/list_changed`), and live inspector link.
 **Tabs:** How it works · Available tools · Server discovery · Security & sign-in · Two AI paths · Auth challenge · MFA gate · Handshake sequence · Live inspector · In this repo
 
-### PingGateway — Securing MCP Servers (`PingGatewayMcpPanel`)
-Why a gateway in front of MCP matters. Covers the official PingGateway MCP filter chain
+### PingOne Agent Gateway — Securing MCP Servers (`PingOne Agent GatewayMcpPanel`)
+Why a gateway in front of MCP matters. Covers the official PingOne Agent Gateway MCP filter chain
 (`McpAuditFilter` → `McpProtectionFilter` → `McpValidationFilter`), `streamingEnabled`,
-`resourceIdPointer`, `soTimeout` for SSE, deployment topologies, custom vs PingGateway
+`resourceIdPointer`, `soTimeout` for SSE, deployment topologies, custom vs PingOne Agent Gateway
 comparison, and configuration examples.
-**Tabs:** Overview · Architecture · MCP Filters · Custom vs PingGateway · Configuration
+**Tabs:** Overview · Architecture · MCP Filters · Custom vs PingOne Agent Gateway · Configuration
 
 ### WebMCP — Browser-Native MCP Access (`WebMcpEduPanel`)
 BFF-proxy pattern for exposing MCP tools to browser-based agents. Tokens stay server-side;

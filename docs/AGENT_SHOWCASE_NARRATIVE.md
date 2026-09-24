@@ -73,8 +73,8 @@ BFF — Express (port 3001)          ← Token custodian
     |-- MCP Gateway (port 3005)     (token exchange, scope routing, HITL)
     |       |
     |       |-- MCP Banking Server (port 8080)  → get_my_accounts, create_transfer, …
-    |       |-- MCP Invest Server  (port 8081)  → portfolio tools
-    |       `-- Mortgage Service   (port 8082)  → API-key swapped backend
+    |       |-- Demo MCP Resource Server Server  (port 8081)  → portfolio tools
+    |       `-- Mortgage Resource Server   (port 8082)  → API-key swapped backend
     |
     |-- HITL Service (port 3009)    (consent challenge create / approve / deny)
     |

@@ -34,6 +34,7 @@ export function replayUnattendedRun(run) {
   // run has no prompt because nobody typed one — say what fired it instead.
   tokenChainTraceStore.beginTrace({
     prompt: `${run.job || "scheduled job"} — ${run.trigger || "unattended"} (no user present)`,
+    provenance: "recorded",
   });
   tokenChainTraceStore.ingestTokenEvents(events);
   tokenChainTraceStore.completeTrace(run.status !== "failed");

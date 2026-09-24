@@ -26,6 +26,11 @@ import {
   normalizePhoneE164,
   describePasskeyRegistrationError,
 } from "../utils/mfaEnrollment";
+import {
+  COUNTRY_CODES,
+  DEFAULT_COUNTRY_CODE,
+  composePhone,
+} from "../utils/countryCodes";
 import "./TransactionConsentPage.css";
 
 interface Account {
@@ -124,6 +129,7 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
     null | "sms-phone" | "sms-otp" | "email-address" | "email-otp"
   >(null);
   const [enrollContact, setEnrollContact] = useState("");
+  const [countryCode, setCountryCode] = useState(DEFAULT_COUNTRY_CODE);
   const [enrollCode, setEnrollCode] = useState("");
   const [enrollDeviceId, setEnrollDeviceId] = useState<string | null>(null);
   const [enrollBusy, setEnrollBusy] = useState(false);
@@ -462,7 +468,7 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
     setEnrollBusy(true);
     try {
       if (enrollStep === "sms-phone") {
-        const phone = normalizePhoneE164(val);
+        const phone = normalizePhoneE164(composePhone(countryCode, val));
         const { data } = await bffAxios.post("/api/auth/mfa/enroll/sms-init", { phone });
         const status = String(data.status || "").toUpperCase();
         // Worker-token enroll can return ACTIVE immediately — skip the code step.
@@ -731,12 +737,32 @@ const TransactionConsentModal: FC<TransactionConsentModalProps> = ({
                 : "Enter the email address where you'd like to receive verification codes."}
             </p>
             <div className="tx-otp-panel__input-row">
+              {enrollStep === "sms-phone" && (
+                <select
+                  className="tx-otp-panel__input"
+                  style={{ maxWidth: 130 }}
+                  value={countryCode}
+                  onChange={(e) => {
+                    setRegisterError(null);
+                    setCountryCode(e.target.value);
+                  }}
+                  disabled={enrollBusy}
+                  aria-label="Country code"
+                  data-testid="mfa-country-code"
+                >
+                  {COUNTRY_CODES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.label}
+                    </option>
+                  ))}
+                </select>
+              )}
               <input
                 className={`tx-otp-panel__input${registerError ? " tx-otp-panel__input--error" : ""}`}
                 type="text"
                 inputMode={enrollStep === "sms-phone" ? "tel" : "email"}
                 autoComplete={enrollStep === "sms-phone" ? "tel" : "email"}
-                placeholder={enrollStep === "sms-phone" ? "+15551234567" : "your@email.com"}
+                placeholder={enrollStep === "sms-phone" ? "5551234567" : "your@email.com"}
                 value={enrollContact}
                 onChange={(e) => {
                   setRegisterError(null);

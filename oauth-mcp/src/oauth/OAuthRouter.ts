@@ -83,6 +83,8 @@ export class OAuthRouter {
     switch (path) {
       case '/.well-known/oauth-authorization-server':
         return this.handleMetadata(req, res);
+      case '/.well-known/openid-configuration':
+        return this.handleOpenIdMetadata(req, res);
       case '/jwks':
         return this.handleJWKS(req, res);
       case '/authorize':
@@ -93,6 +95,8 @@ export class OAuthRouter {
         return this.handleToken(req, res);
       case '/introspect':
         return this.handleIntrospect(req, res);
+      case '/userinfo':
+        return this.handleUserInfo(req, res);
       case '/revoke':
         return this.handleRevoke(req, res);
       case '/register':
@@ -134,6 +138,31 @@ export class OAuthRouter {
     return true;
   }
 
+  // --- OpenID Connect Discovery 1.0 ---
+  private handleOpenIdMetadata(req: IncomingMessage, res: ServerResponse): boolean {
+    if (req.method !== 'GET') {
+      this.json(res, 405, { error: 'method_not_allowed' });
+      return true;
+    }
+    this.json(res, 200, {
+      issuer: this.issuer,
+      authorization_endpoint: `${this.issuer}/authorize`,
+      token_endpoint: `${this.issuer}/token`,
+      jwks_uri: `${this.issuer}/jwks`,
+      userinfo_endpoint: `${this.issuer}/userinfo`,
+      scopes_supported: AUTHORIZATION_SERVER_SCOPES,
+      response_types_supported: ['code'],
+      grant_types_supported: ['authorization_code'],
+      subject_types_supported: ['public'],
+      id_token_signing_alg_values_supported: ['RS256'],
+      userinfo_signing_alg_values_supported: ['none'],
+      token_endpoint_auth_methods_supported: ['client_secret_basic', 'client_secret_post', 'none'],
+      claims_supported: ['iss', 'sub', 'aud', 'iat', 'exp', 'nonce', 'email', 'preferred_username', 'auth_time', 'amr', 'acr'],
+      code_challenge_methods_supported: ['S256'],
+    });
+    return true;
+  }
+
   // --- RFC 7517: JSON Web Key Set ---
   private async handleJWKS(_req: IncomingMessage, res: ServerResponse): Promise<boolean> {
     const jwks = await this.keyManager.getJWKS();
@@ -156,6 +185,7 @@ export class OAuthRouter {
     const state = url.searchParams.get('state') || '';
     const codeChallenge = url.searchParams.get('code_challenge');
     const codeChallengeMethod = url.searchParams.get('code_challenge_method') || 'S256';
+    const nonce = url.searchParams.get('nonce') || undefined;
 
     if (!clientId || !redirectUri || responseType !== 'code') {
       this.json(res, 400, { error: 'invalid_request', error_description: 'Missing required parameters' });
@@ -215,7 +245,7 @@ export class OAuthRouter {
     // so "who asked" and "who came back" sit on one trace.
     const correlationId = crypto.randomUUID();
     const relayState = this.tokenStore.createPendingAuthorization({
-      clientId, redirectUri, scope, codeChallenge, codeChallengeMethod, clientState: state,
+      clientId, redirectUri, scope, codeChallenge, codeChallengeMethod, clientState: state, nonce,
       pingOneCodeVerifier, correlationId,
     });
 
@@ -332,6 +362,13 @@ export class OAuthRouter {
       );
 
       pingOneAccessToken = tokenResponse.data.access_token as string;
+      // OIDC identity claims belong to the ID token. PingOne access tokens may
+      // be opaque or use a different signing profile, so verifying the access
+      // token here can fail even though the authorization-code exchange worked.
+      // Keep the access token for downstream use, but verify the ID token when
+      // the openid scope caused PingOne to return one.
+      const identityToken = tokenResponse.data.id_token as string | undefined;
+      const tokenToVerify = identityToken || pingOneAccessToken;
       const jwks = await createJwksKeySet();
       if (!jwks) {
         throw new Error('PingOne JWKS not configured (PINGONE_JWKS_URI / PINGONE_ISSUER / PINGONE_BASE_URL)');
@@ -344,8 +381,8 @@ export class OAuthRouter {
       // options object across jose versions, so branch rather than pass it in.
       const expectedIssuer = process.env.PINGONE_ISSUER;
       const { payload } = expectedIssuer
-        ? await jwtVerify(pingOneAccessToken, jwks, { issuer: expectedIssuer })
-        : await jwtVerify(pingOneAccessToken, jwks);
+        ? await jwtVerify(tokenToVerify, jwks, { issuer: expectedIssuer })
+        : await jwtVerify(tokenToVerify, jwks);
       if (!payload.sub) {
         throw new Error('PingOne access token has no sub claim');
       }
@@ -391,6 +428,8 @@ export class OAuthRouter {
       codeChallengeMethod: pending.codeChallengeMethod,
       subject,
       pingOneAccessToken,
+      identityClaims,
+      nonce: pending.nonce,
     });
 
     const callback = new URL(pending.redirectUri);
@@ -468,7 +507,12 @@ export class OAuthRouter {
         }
 
         const tokenResponse = await this.tokenIssuer.issueAuthorizationCode(
-          client, authCode.subject, authCode.scope, authCode.pingOneAccessToken,
+          client,
+          authCode.subject,
+          authCode.scope,
+          authCode.pingOneAccessToken,
+          authCode.identityClaims,
+          authCode.nonce,
         );
         this.json(res, 200, tokenResponse);
         return true;
@@ -578,6 +622,28 @@ export class OAuthRouter {
 
     const result = await this.tokenIssuer.introspect(token);
     this.json(res, 200, result);
+    return true;
+  }
+
+  // --- OpenID Connect Core §5.3: UserInfo Endpoint ---
+  private async handleUserInfo(req: IncomingMessage, res: ServerResponse): Promise<boolean> {
+    if (req.method !== 'GET' && req.method !== 'POST') {
+      this.json(res, 405, { error: 'method_not_allowed' });
+      return true;
+    }
+    const authHeader = req.headers['authorization'] || '';
+    if (!authHeader.startsWith('Bearer ')) {
+      res.setHeader('WWW-Authenticate', 'Bearer');
+      this.json(res, 401, { error: 'invalid_token' });
+      return true;
+    }
+    const userInfo = await this.tokenIssuer.userInfo(authHeader.slice(7).trim());
+    if (!userInfo) {
+      res.setHeader('WWW-Authenticate', 'Bearer error="invalid_token"');
+      this.json(res, 401, { error: 'invalid_token' });
+      return true;
+    }
+    this.json(res, 200, userInfo);
     return true;
   }
 

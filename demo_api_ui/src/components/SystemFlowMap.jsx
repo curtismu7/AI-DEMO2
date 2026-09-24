@@ -61,7 +61,7 @@ export const NODES = {
   bff: { name: 'BFF', sub: 'demo_api_server :3001' },
   agent: { name: 'LangGraph agent', sub: 'demoAgentLangGraphService' },
   llm: { name: 'LLM proxy', sub: ':8090 · one shared rate bucket' },
-  pep: { name: 'Gateway PEP', sub: 'PingGateway :3036 · /mcp' },
+  pep: { name: 'Gateway PEP', sub: 'PingOne Agent Gateway :3036 · /mcp' },
   mcp: { name: 'MCP Server', sub: 'oauth-mcp · protected resource' },
   // The downstream business-logic API the MCP tool call actually reaches —
   // named "Resource Server" first since that is the role people ask "where is
@@ -242,7 +242,7 @@ function deriveGateStates(trace, ended) {
   const mfa = mfaFailed ? 'error' : mfaDone ? 'done' : mfaStarted ? 'active' : ended ? 'skipped' : null;
 
   // authorize_denied_hitl (local/simulated path) and gateway_hitl_required
-  // (live PingGateway path) are the two PDPs' phases for the SAME HITL_CONSENT
+  // (live PingOne Agent Gateway path) are the two PDPs' phases for the SAME HITL_CONSENT
   // obligation this demo enforces on transfers (authorizeObligations.js,
   // simulatedAuthorizeService.js: "all transfers require human consent").
   // mcp_auth_challenge_intercepted is the anonymous-caller 401 leg of the same

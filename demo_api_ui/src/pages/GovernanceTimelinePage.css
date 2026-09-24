@@ -1,0 +1,131 @@
+.governance-timeline-page {
+  min-height: 100%;
+  padding: 42px clamp(24px, 5vw, 76px) 72px;
+  color: var(--th-text);
+  background: linear-gradient(145deg, var(--th-bg-page) 0%, var(--th-bg-inset) 100%);
+}
+
+.governance-timeline-page__hero {
+  max-width: 760px;
+  margin-bottom: 28px;
+}
+
+.governance-timeline-page__eyebrow {
+  margin: 0 0 8px;
+  color: var(--th-status-info-text);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .16em;
+}
+
+.governance-timeline-page h1 {
+  margin: 0 0 10px;
+  font-size: clamp(30px, 4vw, 48px);
+  letter-spacing: -.04em;
+}
+
+.governance-timeline-page__hero > p:last-child {
+  margin: 0;
+  color: var(--th-text-muted);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.governance-timeline-page__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.governance-timeline-page__filters button {
+  border: 1px solid var(--th-border);
+  border-radius: 999px;
+  padding: 9px 14px;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.governance-timeline-page__filters button.is-active,
+.governance-timeline-page__filters button:hover {
+  border-color: var(--th-status-info);
+  color: var(--th-text-invert);
+  background: var(--th-status-info);
+}
+
+.governance-timeline-page__timeline {
+  max-width: 900px;
+  border: 1px solid var(--th-border);
+  border-radius: 18px;
+  padding: 12px 22px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  box-shadow: var(--shadow-lg);
+}
+
+.governance-timeline-page__empty {
+  margin: 28px 0;
+  color: var(--th-text-muted);
+  text-align: center;
+}
+
+.governance-timeline-event {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 14px;
+  min-height: 92px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--th-border);
+}
+
+.governance-timeline-event:last-child { border-bottom: 0; }
+
+.governance-timeline-event__marker {
+  width: 12px;
+  height: 12px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--th-border-strong);
+  color: var(--th-text);
+  outline: 5px solid var(--th-bg-inset);
+}
+
+.governance-timeline-event__marker--identity { background: #bd4d82; }
+.governance-timeline-event__marker--authorization { background: #4777c7; }
+.governance-timeline-event__marker--privilege { background: #b38821; }
+.governance-timeline-event__marker--governance { background: #3b9279; }
+
+.governance-timeline-event__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--th-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.governance-timeline-event__content p {
+  margin: 8px 0;
+  color: var(--th-text);
+  font-size: 15px;
+}
+
+.governance-timeline-event__use-case {
+  display: inline-block;
+  border-radius: 5px;
+  padding: 3px 7px;
+  color: var(--th-status-info-text);
+  background: var(--th-status-info-bg);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+@media (max-width: 640px) {
+  .governance-timeline-page { padding: 28px 18px 48px; }
+  .governance-timeline-event__meta { display: block; }
+  .governance-timeline-event__meta time { display: block; margin-top: 4px; }
+}

@@ -13,7 +13,7 @@ Complement the existing PingOne + `demo_mcp_gateway` stack with an optional AWS
 path on EKS:
 
 1. **AgentCore Gateway** — managed MCP entry point for tool calls (complements,
-   does not replace, `demo_mcp_gateway` or PingGateway).
+   does not replace, `demo_mcp_gateway` or PingOne Agent Gateway).
 2. **Bedrock LLM** — optional model backend for the canonical agent-service
    (`:3006`) instead of llama.cpp / Helix.
 
@@ -42,7 +42,7 @@ presenters can narrate when AWS services are in use.
 - Replacing `demo_mcp_gateway` for local development
 - Bedrock Knowledge Bases / RAG
 - Bedrock Agents as a separate multi-step runtime (Bedrock is LLM-only here)
-- AgentCore Gateway layered in front of PingGateway
+- AgentCore Gateway layered in front of PingOne Agent Gateway
 - Committing AWS secrets, kubeconfig, or live PingOne policy changes
 - Enabling Bedrock paths without explicit admin flag toggle
 
@@ -67,7 +67,7 @@ BFF ──► agent-service ──► llama.cpp  BFF ──► agent-service ─
 
 ### Auth bridge (gateway flag)
 
-AgentCore Gateway registers `banking_mcp_server` (exposed via ALB) as an MCP
+AgentCore Gateway registers `demo_mcp_server` (exposed via ALB) as an MCP
 target. Amazon Bedrock AgentCore Identity handles OAuth to PingOne (authorization
 code / on-behalf-of). The BFF still mints the user delegation token via RFC 8693;
 `bedrockAuthBridge` performs AgentCore session binding per AWS 3LO model on first
@@ -147,14 +147,14 @@ Both flags:
      POST tools/call { name, arguments }
      Headers: Bearer <agentcore-bound-token>
               MCP-Protocol-Version: 2025-11-25
-6. AgentCore Gateway → MCP target (banking_mcp_server @ ALB /mcp)
+6. AgentCore Gateway → MCP target (demo_mcp_server @ ALB /mcp)
 7. Response → BFF → token chain:
      - agentcore-gateway (tool, target ID, latency)
      - downstream MCP events (unchanged)
 8. UI: Token chain AWS hop; agent chip badge "AgentCore"
 ```
 
-Gateway flag OFF → existing `mcpGatewayClient` path (Node gateway or PingGateway).
+Gateway flag OFF → existing `mcpGatewayClient` path (Node gateway or PingOne Agent Gateway).
 
 ### Agent turn (LLM flag ON)
 
@@ -188,7 +188,7 @@ Single narratable chip for presenters:
 
 ```text
 AgentCore Gateway (managed AWS)
-  └── Target: banking_mcp_server
+  └── Target: demo_mcp_server
         URL: https://<ALB>/mcp
         Auth: AgentCore Identity OAuth → PingOne AS
         Protocol: 2025-11-25
@@ -301,7 +301,7 @@ regression-guard skill:
 
 1. **Exact PingOne ↔ AgentCore Identity mapping** — confirm OAuth client, scopes,
    and audience for 3LO with AWS solutions architect.
-2. **MCP target URL** — direct `banking_mcp_server` vs ALB path prefix; align
+2. **MCP target URL** — direct `demo_mcp_server` vs ALB path prefix; align
    with existing `k8s/aws/ingress.yaml`.
 3. **Model default** — Haiku for cost vs Sonnet for demo quality; make
    `BEDROCK_MODEL_ID` operator-tunable without code change.

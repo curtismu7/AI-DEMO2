@@ -11,6 +11,7 @@ const {
   stampHostedAccessApproval,
 } = require('../services/hostedAccessPolicy');
 const { startLoginAudit, resumeLoginAudit, finishLoginAudit } = require('../services/authAccessAuditService');
+const { resolvePingOneIdentifier } = require('../services/pingOneUserLookupService');
 const { hostedAccessCheck, sendAccessRestricted } = require('../middleware/hostedAccessGate');
 
 const router = express.Router();
@@ -34,7 +35,7 @@ function finishFailure(req, reasonCode) {
   finishLoginAudit(req, { outcome: 'failure', reasonCode });
 }
 
-router.get('/login', (req, res) => {
+router.get('/login', async (req, res) => {
   const policy = loadHostedAccessPolicy();
   if (!policy.enabled) return res.redirect(`${getFrontendOrigin()}${sanitizeReturnPath(req.query.return_to)}`);
 
@@ -54,7 +55,23 @@ router.get('/login', (req, res) => {
   req.hostedSession.hostedOAuthRedirectUri = redirectUri;
   req.hostedSession.hostedReturnToPath = sanitizeReturnPath(req.query.return_to);
   startLoginAudit(req, 'frontdoor', Date.now(), state);
-  const authUrl = hostedOAuth.generateAuthorizationUrl({ state, codeVerifier, redirectUri, nonce });
+
+  // Optional identifier pre-resolve: accept PingOne user ID, username, or
+  // email, and hand PingOne the canonical username via login_hint so the
+  // hosted sign-on screen skips identifier entry (PingOne matches the
+  // username field only).
+  let loginHint;
+  const identifier = typeof req.query.identifier === 'string' ? req.query.identifier.trim() : '';
+  if (identifier) {
+    try {
+      const { user } = await resolvePingOneIdentifier(identifier);
+      if (user?.username) loginHint = user.username;
+    } catch (err) {
+      console.warn('[hostedAccess] identifier resolution failed:', err.message);
+    }
+  }
+
+  const authUrl = hostedOAuth.generateAuthorizationUrl({ state, codeVerifier, redirectUri, nonce, loginHint });
   return req.hostedSession.save((err) => {
     if (err) {
       finishFailure(req, 'session_persist_failed');

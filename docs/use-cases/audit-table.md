@@ -9,7 +9,7 @@
 
 | ID | Title | Track | Maturity | OWASP | What to Enable |
 |---|---|---|---|---|---|
-| UC1 | [Delegated access with proof](./delegated-access-with-proof.md) | foundations | ✅ works | 🛡️ T8, T9 |  |
+| UC1 | [Delegated access (consent only)](./delegated-access-with-proof.md) | foundations | ✅ works | 🛡️ T8, T9 |  |
 | UC2 | [A2A delegation](./a2a-delegation.md) | foundations | ✅ works | 🛡️ T9, T13 |  |
 | UC2.5 | [A2A Orchestrator — Interactive Learning](./a2a-orchestrator-learning.md) | foundations | ✅ works | 🛡️ T9, T13 |  |
 | UC2.7 | [A2A end to end — protocol + identity](./a2a-protocol-walkthrough.md) | learn | ✅ works | 🛡️ T9, T13 |  |
@@ -22,8 +22,8 @@
 | UC35 | [Why was that blocked?](./ai-explain-last-denial.md) | foundations | ✅ works | 🛡️ T8 |  |
 | UC4 | [Overscoped agent](./overscoped-agent.md) | controls | ✅ works | 🛡️ T3 |  |
 | UC6 | [Authz denied](./authz-denied.md) | controls | ✅ works | 🛡️ T6 |  |
-| UC7 | [Step-up required](./step-up-required.md) | hitl | ✅ works | 🛡️ T10, T3 |  |
-| UC8 | [HITL consent](./hitl-consent.md) | hitl | ✅ works | 🛡️ T10 |  |
+| UC7 | [MFA step-up (HITL)](./step-up-required.md) | hitl | ✅ works | 🛡️ T10, T3 |  |
+| UC8 | [MFA + HITL consent](./hitl-consent.md) | hitl | ✅ works | 🛡️ T10 |  |
 | UC21 | [Entitlement-tiered capability](./entitlement-tiered-capability.md) | controls | ✅ works | 🛡️ T3 |  |
 | UC23 | [Progressive trust demo — presenter guide](./progressive-trust-demo.md) | demo | ✅ works | 🛡️ T8, T10 |  |
 | UC24 | [Act 1 — Public catalog access](./progressive-trust-public-access.md) | demo | ✅ works | 🛡️ T3 |  |
@@ -33,6 +33,7 @@
 | UC11 | [Bad client → agent gateway](./bad-client-gateway.md) | attacks | ✅ works | 🛡️ T9 |  |
 | UC13 | [Confused-deputy actor injection](./confused-deputy-actor-injection.md) | attacks | ✅ works | 🛡️ T13 |  |
 | UC16 | [Impersonation blocked (OBO required)](./impersonation-blocked.md) | attacks | ✅ works | 🛡️ T9 |  |
+| UC16b | [Raw user-token forwarding blocked (Zero Trust)](./raw-user-token-forwarding-blocked.md) | attacks | ✅ works | 🛡️ T9 |  |
 | UC17 | [JIT / ephemeral credentials](./jit-ephemeral-credentials.md) | controls | ✅ works | 🛡️ T3, T9 |  |
 | UC18 | [Rate-limit / resource-overload defense](./rate-limit-defense.md) | attacks | ✅ works | 🛡️ T4 |  |
 | UC30 | [Third-party MCP server, scoped at the gateway](./weather-mcp-texas-permit.md) | controls | ✅ works | 🛡️ T6 |  |
@@ -60,6 +61,9 @@
 | UC-LEARN11 | [Privilege LLM — prompt injection blocked](./privilege-llm-prompt-injection.md) | learn | ✅ works | 🛡️ T5 |  |
 | UC27 | [HITL consent bypass attempt](./hitl-consent-bypass-attempt.md) | hitl | ✅ works | 🛡️ T5 |  |
 | UC28 | [Tool set as the authorization boundary (Air Canada pattern)](./unauthorized-commitment-fee-waiver.md) | controls | ✅ works | 🛡️ T1 |  |
+| UC43 | [Consumer & Partner Agent — CIMD registration](./consumer-partner-agent-cimd-registration.md) | foundations | ✅ works | 🛡️ T1, T9 |  |
+| UC44 | [Workload Agent: OBO customer-data read](./workload-digital-assistant-obo.md) | foundations | ✅ works | 🛡️ T1, T9, T13 |  |
+| UC45 | [SaaS-Embedded Agent — Website Worker](./saas-embedded-worker.md) | foundations | ✅ works | 🛡️ T1, T9, T13 |  |
 
 ## 🚩 Flag-gated (`flag:*`)
 
@@ -74,7 +78,7 @@
 | UC39 | [Centralized MCP revocation](./enterprise-mcp-revocation.md) | controls | 🚩 flag-gated (ff_enterprise_managed_mcp_auth) | 🛡️ T8, T9 |  |
 | UC40 | [Enterprise-Managed MCP Authorization (native ID-JAG)](./enterprise-managed-mcp-authorization.md) | controls | 🚩 flag-gated (ff_enterprise_managed_mcp_auth) | 🛡️ T8, T9 |  |
 | UC37 | [Verified Trust — signed agent assertion on A2A delegation](./verified-trust-a2a-assertion.md) | controls | 🚩 flag-gated (ff_verified_trust_a2a) | 🛡️ T9, T13 |  |
-| UC38 | [Personal Agent Concierge](./personal-agent-concierge.md) | foundations | 🚩 flag-gated (ff_personal_agent_concierge) | 🛡️ T1, T9 |  |
+| UC38 | [Workload Agent: MFA-gated protected action](./personal-agent-concierge.md) | foundations | 🚩 flag-gated (ff_personal_agent_concierge) | 🛡️ T1, T9 |  |
 
 ## 🏗️ Needs build (`needs-build`)
 
@@ -87,8 +91,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 51 |
+| ✅ Works | 55 |
 | 🚩 Flag-gated | 10 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 2 |
-| **Total** | **63** |
+| **Total** | **67** |

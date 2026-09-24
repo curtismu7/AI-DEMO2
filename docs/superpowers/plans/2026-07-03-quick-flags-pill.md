@@ -364,7 +364,7 @@ import './QuickFlagsPill.css';
 const QUICK_FLAGS = [
   { id: 'ff_mcp_gateway_jwks',          group: 'Token & Gateway', control: 'segmented', label: 'Token Validation',                modes: [{ value: true, label: '🔐 JWKS' }, { value: false, label: '🔎 Introspect' }] },
   { id: 'ff_mcp_gateway_pinggateway',   group: 'Token & Gateway', control: 'segmented', label: 'Agent Gateway',                   modes: [{ value: true, label: 'PingOne GW' }, { value: false, label: 'Demo GW' }] },
-  { id: 'introspectionProvider',        group: 'Token & Gateway', control: 'segmented', label: 'Introspection Provider',          modes: [{ value: 'pinggateway', label: 'PingGateway' }, { value: 'p1az', label: 'P1AZ' }] },
+  { id: 'introspectionProvider',        group: 'Token & Gateway', control: 'segmented', label: 'Introspection Provider',          modes: [{ value: 'pinggateway', label: 'PingOne Agent Gateway' }, { value: 'p1az', label: 'P1AZ' }] },
   { id: 'ff_skip_token_exchange',       group: 'Token & Gateway', control: 'toggle',    label: 'Skip Token Exchange' },
   { id: 'ff_authorize_simulated',       group: 'AuthN / AuthZ',   control: 'segmented', label: 'Authorize Engine',                modes: [{ value: false, label: 'Real P1AZ' }, { value: true, label: 'Simulated' }] },
   { id: 'ff_id_token_exchange',         group: 'AuthN / AuthZ',   control: 'toggle',    label: 'ID Token Exchange Mode' },

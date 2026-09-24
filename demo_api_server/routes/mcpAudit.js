@@ -10,7 +10,7 @@ const mcpAuditStore = require('../services/lmdb/mcpAuditStore.lmdb');
  * (cross-vertical, survives restarts). Replaces the former proxy to the MCP
  * server's ephemeral in-memory store.
  *
- * Admin session is enforced at server.js registration level.
+ * A signed-in session is enforced at server.js registration level.
  * Query params: eventType, outcome, agentId, operation, limit, summary
  */
 router.get('/', (req, res) => {

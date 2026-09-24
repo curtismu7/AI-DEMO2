@@ -1,8 +1,8 @@
-# PingGateway MCP filter audit — McpProtectionFilter gap
+# PingOne Agent Gateway MCP filter audit — McpProtectionFilter gap
 
 ## Context
 
-User asked whether three native PingGateway MCP filters are turned on:
+User asked whether three native PingOne Agent Gateway MCP filters are turned on:
 `McpAuditFilter`, `McpProtectionFilter`, `McpValidationFilter`
 (docs.pingidentity.com/pinggateway/2026/reference/). Audit of
 `ping-gateway/config/routes/*.json` (7 MCP routes) found `McpAuditFilter` and

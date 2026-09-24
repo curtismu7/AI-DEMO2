@@ -6,7 +6,7 @@
 
 **Architecture:** Phases 1-3 are localized changes verified by the existing 98-test agent suite + new helper unit tests. Phase 4 replaces the dual-mount with a single lifted `<BankingAgent>` whose `floatShell` is portaled into the active surface host, staged none→bottom→middle→cleanup.
 
-**Tech Stack:** CRA (ES modules + JSX in `.js`), React `createPortal`, Jest via `react-scripts test`. Pure helpers in `banking_api_ui/src/components/bankingAgentSafety.js`.
+**Tech Stack:** CRA (ES modules + JSX in `.js`), React `createPortal`, Jest via `react-scripts test`. Pure helpers in `demo_api_ui/src/components/bankingAgentSafety.js`.
 
 ---
 
@@ -16,10 +16,10 @@
 
 ## Global conventions (every task)
 
-- Repo root: `/Users/curtismuir/Development/banking`. UI dir: `banking_api_ui`.
-- Test runner: `cd banking_api_ui && CI=true npx react-scripts test <paths> --watchAll=false`. **Bare `npx jest` is wrong** (skips Babel).
-- Build gate: `cd banking_api_ui && npm run build` — must exit 0 ("Compiled with warnings" is OK if warnings are pre-existing; "Failed to compile" is not).
-- Full agent suite (run after every phase): `cd banking_api_ui && CI=true npx react-scripts test src/__tests__/BankingAgent.test.js src/__tests__/BankingAgent.safety.test.js src/__tests__/BankingAgent.integration.test.js src/__tests__/BankingAgent.chipRouting.test.js src/context/__tests__/AgentUiModeContext.test.js --watchAll=false` — baseline is 98 in the first four suites + the AgentUiModeContext suite; must not regress.
+- Repo root: `/Users/curtismuir/Development/banking`. UI dir: `demo_api_ui`.
+- Test runner: `cd demo_api_ui && CI=true npx react-scripts test <paths> --watchAll=false`. **Bare `npx jest` is wrong** (skips Babel).
+- Build gate: `cd demo_api_ui && npm run build` — must exit 0 ("Compiled with warnings" is OK if warnings are pre-existing; "Failed to compile" is not).
+- Full agent suite (run after every phase): `cd demo_api_ui && CI=true npx react-scripts test src/__tests__/BankingAgent.test.js src/__tests__/BankingAgent.safety.test.js src/__tests__/BankingAgent.integration.test.js src/__tests__/BankingAgent.chipRouting.test.js src/context/__tests__/AgentUiModeContext.test.js --watchAll=false` — baseline is 98 in the first four suites + the AgentUiModeContext suite; must not regress.
 - **Git hygiene (critical):** the working tree has long-standing unrelated dirty files. Stage ONLY this task's files by explicit pathspec. `BankingAgent.js` additionally has pre-existing dirty hunks at old-side ~5065/~5135 (ERROR_EXPLAINER block) that must NEVER be staged — when committing a `BankingAgent.js` change, filter the diff to your task's hunks via the patch-filter recipe in Appendix A. Always `git diff --cached --stat` and inspect the staged `BankingAgent.js` diff before committing. Commit with `git commit --no-verify` (the pre-commit hook's lint-staged restages files and corrupts scoped commits; `--no-verify` is safe per project memory). After committing run `git show --stat HEAD --format=""` to confirm only intended files landed.
 - Emoji rule: only `⚠️` `✅` `❌`. No others anywhere.
 - §1 files touched: `BankingAgent.js` (Phases 3,4), `App.js` (Phases 2,4), `UserDashboard.js` (Phases 1,4). Before editing each, state in the commit body / task notes the preserved invariants listed in that phase.
@@ -28,17 +28,17 @@
 
 | File | Phase | Responsibility / change |
 |---|---|---|
-| `banking_api_ui/src/components/SideAgentDock.js` `.css`, `ResponsiveAgentDock.js` | 1 | DELETE (dead) |
-| `banking_api_ui/src/hooks/useChatWidget.js` | 1 | DELETE (dead no-op) |
-| `banking_api_ui/src/context/AgentUiModeContext.js` | 1 | Remove right/left-dock + dead CustomEvent; safe fallback |
-| `banking_api_ui/src/context/__tests__/AgentUiModeContext.test.js` | 1 | Remove dead-mode tests; add fallback test |
-| `banking_api_ui/src/components/UserDashboard.js` | 1,4 | Remove dead useChatWidget; (4) middle uses portal host |
-| `banking_api_ui/src/components/bankingAgentSafety.js` | 2,3 | Add `resolveEmbeddedFocus`, `isAgentRoute` helpers |
-| `banking_api_ui/src/__tests__/BankingAgent.safety.test.js` | 2,3 | Helper unit tests |
-| `banking_api_ui/src/components/EmbeddedAgentDock.js` | 2,4 | (2) use helper; (4) expose portal host, drop own `<BankingAgent>` |
-| `banking_api_ui/src/App.js` | 2,4 | (2) pass embeddedFocus to float; (4) single lifted mount + portal routing |
-| `banking_api_ui/src/services/bankingAgentService.js` | 3 | `callMcpTool` accepts `signal` |
-| `banking_api_ui/src/services/bankingAgentLangGraphClientService.js` | 3 | `sendMessage` accepts `signal` |
+| `demo_api_ui/src/components/SideAgentDock.js` `.css`, `ResponsiveAgentDock.js` | 1 | DELETE (dead) |
+| `demo_api_ui/src/hooks/useChatWidget.js` | 1 | DELETE (dead no-op) |
+| `demo_api_ui/src/context/AgentUiModeContext.js` | 1 | Remove right/left-dock + dead CustomEvent; safe fallback |
+| `demo_api_ui/src/context/__tests__/AgentUiModeContext.test.js` | 1 | Remove dead-mode tests; add fallback test |
+| `demo_api_ui/src/components/UserDashboard.js` | 1,4 | Remove dead useChatWidget; (4) middle uses portal host |
+| `demo_api_ui/src/components/bankingAgentSafety.js` | 2,3 | Add `resolveEmbeddedFocus`, `isAgentRoute` helpers |
+| `demo_api_ui/src/__tests__/BankingAgent.safety.test.js` | 2,3 | Helper unit tests |
+| `demo_api_ui/src/components/EmbeddedAgentDock.js` | 2,4 | (2) use helper; (4) expose portal host, drop own `<BankingAgent>` |
+| `demo_api_ui/src/App.js` | 2,4 | (2) pass embeddedFocus to float; (4) single lifted mount + portal routing |
+| `demo_api_ui/src/services/bankingAgentService.js` | 3 | `callMcpTool` accepts `signal` |
+| `demo_api_ui/src/services/bankingAgentLangGraphClientService.js` | 3 | `sendMessage` accepts `signal` |
 | `REGRESSION_PLAN.md` | 1,3,4 | §4 entries |
 
 ---
@@ -47,12 +47,12 @@
 
 - [ ] **Step 1: Confirm clean baseline**
 
-Run: `cd /Users/curtismuir/Development/banking/banking_api_ui && npm run build 2>&1 | tail -2 && echo "EXIT=$?"`
+Run: `cd /Users/curtismuir/Development/banking/demo_api_ui && npm run build 2>&1 | tail -2 && echo "EXIT=$?"`
 Expected: build line + EXIT=0.
 
 - [ ] **Step 2: Baseline suite**
 
-Run: `cd /Users/curtismuir/Development/banking/banking_api_ui && CI=true npx react-scripts test src/__tests__/BankingAgent.test.js src/__tests__/BankingAgent.safety.test.js src/__tests__/BankingAgent.integration.test.js src/__tests__/BankingAgent.chipRouting.test.js src/context/__tests__/AgentUiModeContext.test.js --watchAll=false 2>&1 | tail -6`
+Run: `cd /Users/curtismuir/Development/banking/demo_api_ui && CI=true npx react-scripts test src/__tests__/BankingAgent.test.js src/__tests__/BankingAgent.safety.test.js src/__tests__/BankingAgent.integration.test.js src/__tests__/BankingAgent.chipRouting.test.js src/context/__tests__/AgentUiModeContext.test.js --watchAll=false 2>&1 | tail -6`
 Expected: all suites pass; record counts as the regression baseline.
 
 ---
@@ -62,25 +62,25 @@ Expected: all suites pass; record counts as the regression baseline.
 **§1 note:** `UserDashboard.js` is §1 (REAUTH_KEY, `middleAgentOpen` init, `fetchUserData` 401, FAB/dock/consent). This task removes ONLY a dead import + a no-op hook call there — no state/effect/handler/route/control-flow line changes. State this in the commit.
 
 **Files:**
-- Delete: `banking_api_ui/src/components/SideAgentDock.js`, `banking_api_ui/src/components/SideAgentDock.css`, `banking_api_ui/src/components/ResponsiveAgentDock.js`, `banking_api_ui/src/hooks/useChatWidget.js`
-- Modify: `banking_api_ui/src/context/AgentUiModeContext.js`, `banking_api_ui/src/components/UserDashboard.js`
-- Test: `banking_api_ui/src/context/__tests__/AgentUiModeContext.test.js`
+- Delete: `demo_api_ui/src/components/SideAgentDock.js`, `demo_api_ui/src/components/SideAgentDock.css`, `demo_api_ui/src/components/ResponsiveAgentDock.js`, `demo_api_ui/src/hooks/useChatWidget.js`
+- Modify: `demo_api_ui/src/context/AgentUiModeContext.js`, `demo_api_ui/src/components/UserDashboard.js`
+- Test: `demo_api_ui/src/context/__tests__/AgentUiModeContext.test.js`
 
 - [ ] **Step 1: Confirm the files are dead**
 
-Run: `cd /Users/curtismuir/Development/banking && grep -rn 'SideAgentDock\|ResponsiveAgentDock\|useChatWidget\|banking-agent-ui-mode' banking_api_ui/src --include='*.js' --include='*.jsx'`
+Run: `cd /Users/curtismuir/Development/banking && grep -rn 'SideAgentDock\|ResponsiveAgentDock\|useChatWidget\|banking-agent-ui-mode' demo_api_ui/src --include='*.js' --include='*.jsx'`
 Expected: `SideAgentDock`/`ResponsiveAgentDock` only in their own files; `useChatWidget` only in `hooks/useChatWidget.js` + `UserDashboard.js:13,516`; `banking-agent-ui-mode` only in `AgentUiModeContext.js:139`. If anything else references them, STOP and report — they are not dead.
 
 - [ ] **Step 2: Delete the orphan files**
 
 ```bash
 cd /Users/curtismuir/Development/banking
-git rm banking_api_ui/src/components/SideAgentDock.js banking_api_ui/src/components/SideAgentDock.css banking_api_ui/src/components/ResponsiveAgentDock.js banking_api_ui/src/hooks/useChatWidget.js
+git rm demo_api_ui/src/components/SideAgentDock.js demo_api_ui/src/components/SideAgentDock.css demo_api_ui/src/components/ResponsiveAgentDock.js demo_api_ui/src/hooks/useChatWidget.js
 ```
 
 - [ ] **Step 3: Remove the dead `useChatWidget` usage from UserDashboard.js**
 
-In `banking_api_ui/src/components/UserDashboard.js` delete the import line (line 13):
+In `demo_api_ui/src/components/UserDashboard.js` delete the import line (line 13):
 ```javascript
 import useChatWidget from "../hooks/useChatWidget";
 ```
@@ -92,7 +92,7 @@ Change nothing else in the file.
 
 - [ ] **Step 4: Strip right-dock/left-dock + dead CustomEvent from AgentUiModeContext.js**
 
-Make these exact edits in `banking_api_ui/src/context/AgentUiModeContext.js`:
+Make these exact edits in `demo_api_ui/src/context/AgentUiModeContext.js`:
 
 (a) Typedef (line 9) — replace:
 ```javascript
@@ -167,7 +167,7 @@ delete that single line (leave the surrounding lines).
 
 - [ ] **Step 5: Update AgentUiModeContext.test.js**
 
-In `banking_api_ui/src/context/__tests__/AgentUiModeContext.test.js`, delete the entire `describe("left-dock and right-dock placements", ...)` block (starts ~line 95). Append a new test (inside the top-level describe, or as a new `describe`) proving the safe fallback:
+In `demo_api_ui/src/context/__tests__/AgentUiModeContext.test.js`, delete the entire `describe("left-dock and right-dock placements", ...)` block (starts ~line 95). Append a new test (inside the top-level describe, or as a new `describe`) proving the safe fallback:
 
 ```javascript
 describe("removed dock placements fall back safely", () => {
@@ -189,7 +189,7 @@ NOTE: match the existing test file's render/Probe harness. Read the top of the f
 
 - [ ] **Step 6: Build + suite**
 
-Run: `cd /Users/curtismuir/Development/banking/banking_api_ui && npm run build 2>&1 | grep -iE "Failed to compile|SideAgentDock|useChatWidget|Compiled"; echo "EXIT=$?"`
+Run: `cd /Users/curtismuir/Development/banking/demo_api_ui && npm run build 2>&1 | grep -iE "Failed to compile|SideAgentDock|useChatWidget|Compiled"; echo "EXIT=$?"`
 Expected: "Compiled with warnings" or success, EXIT=0, no "Failed to compile", no module-not-found for the deleted files.
 
 Run the full agent suite (Global conventions command).
@@ -197,7 +197,7 @@ Expected: baseline counts unchanged; `AgentUiModeContext` suite green incl. the 
 
 - [ ] **Step 7: Confirm nothing references the deleted symbols**
 
-Run: `cd /Users/curtismuir/Development/banking && grep -rn 'SideAgentDock\|ResponsiveAgentDock\|useChatWidget\|right-dock\|left-dock\|banking-agent-ui-mode' banking_api_ui/src`
+Run: `cd /Users/curtismuir/Development/banking && grep -rn 'SideAgentDock\|ResponsiveAgentDock\|useChatWidget\|right-dock\|left-dock\|banking-agent-ui-mode' demo_api_ui/src`
 Expected: no output.
 
 - [ ] **Step 8: REGRESSION_PLAN §4 entry**
@@ -208,16 +208,16 @@ Insert at the TOP of §4 in `REGRESSION_PLAN.md` (above the current newest `### 
 ### 2026-05-18 — Dead agent-UI code removed (SideAgentDock/ResponsiveAgentDock/right-dock/left-dock/useChatWidget/dead CustomEvent)
 
 **Files changed:**
-- Deleted `banking_api_ui/src/components/SideAgentDock.js` `.css`, `ResponsiveAgentDock.js`, `banking_api_ui/src/hooks/useChatWidget.js` — all had zero live references / were hardcoded no-ops.
-- `banking_api_ui/src/context/AgentUiModeContext.js` — removed `right-dock`/`left-dock` placement (typedef, `syncLegacyString` branches, `readState`); a stored unknown/removed placement now falls back to `bottom` instead of a state where no agent renders; deleted the `banking-agent-ui-mode` CustomEvent dispatch (no listeners existed).
-- `banking_api_ui/src/components/UserDashboard.js` — removed the dead `useChatWidget` import + no-op call (§1 file: no state/effect/handler/route/control-flow changed).
-- `banking_api_ui/src/context/__tests__/AgentUiModeContext.test.js` — removed dead-mode tests; added a fallback regression test.
+- Deleted `demo_api_ui/src/components/SideAgentDock.js` `.css`, `ResponsiveAgentDock.js`, `demo_api_ui/src/hooks/useChatWidget.js` — all had zero live references / were hardcoded no-ops.
+- `demo_api_ui/src/context/AgentUiModeContext.js` — removed `right-dock`/`left-dock` placement (typedef, `syncLegacyString` branches, `readState`); a stored unknown/removed placement now falls back to `bottom` instead of a state where no agent renders; deleted the `banking-agent-ui-mode` CustomEvent dispatch (no listeners existed).
+- `demo_api_ui/src/components/UserDashboard.js` — removed the dead `useChatWidget` import + no-op call (§1 file: no state/effect/handler/route/control-flow changed).
+- `demo_api_ui/src/context/__tests__/AgentUiModeContext.test.js` — removed dead-mode tests; added a fallback regression test.
 
 **What was broken:** `right-dock`/`left-dock` were selectable/persistable placements that no component rendered, so a user/scenario persisting them reached a state with no agent UI at all. `SideAgentDock`/`ResponsiveAgentDock`/`useChatWidget`/the `banking-agent-ui-mode` event were dead weight (no references / hardcoded-false guard / no listeners).
 
 **What was fixed:** Dead files deleted; removed placements now degrade to `bottom`.
 
-**Verify:** `grep -rn 'SideAgentDock\|ResponsiveAgentDock\|useChatWidget\|right-dock\|left-dock\|banking-agent-ui-mode' banking_api_ui/src` → empty. `cd banking_api_ui && npm run build` exit 0. AgentUiModeContext suite green incl. the right-dock→bottom fallback test.
+**Verify:** `grep -rn 'SideAgentDock\|ResponsiveAgentDock\|useChatWidget\|right-dock\|left-dock\|banking-agent-ui-mode' demo_api_ui/src` → empty. `cd demo_api_ui && npm run build` exit 0. AgentUiModeContext suite green incl. the right-dock→bottom fallback test.
 
 **Do not break:** A stale/unknown persisted placement MUST fall back to a rendering mode (`bottom`), never pass through. Do not reintroduce a `banking-agent-ui-mode` listener contract or the localhost `useChatWidget` bridge — hosted builds use the React `BankingAgent`.
 ```
@@ -226,7 +226,7 @@ Insert at the TOP of §4 in `REGRESSION_PLAN.md` (above the current newest `### 
 
 ```bash
 cd /Users/curtismuir/Development/banking
-git add banking_api_ui/src/context/AgentUiModeContext.js banking_api_ui/src/context/__tests__/AgentUiModeContext.test.js banking_api_ui/src/components/UserDashboard.js REGRESSION_PLAN.md
+git add demo_api_ui/src/context/AgentUiModeContext.js demo_api_ui/src/context/__tests__/AgentUiModeContext.test.js demo_api_ui/src/components/UserDashboard.js REGRESSION_PLAN.md
 # the git rm in Step 2 already staged the 4 deletions
 git diff --cached --stat
 ```
@@ -245,12 +245,12 @@ git show --stat HEAD --format=""
 **§1 note:** `App.js` is §1 (BankingAgent FAB / bottom-dock-on-dashboard). Change is additive (one prop). State preserved invariants in commit.
 
 **Files:**
-- Modify: `banking_api_ui/src/components/bankingAgentSafety.js`, `banking_api_ui/src/components/EmbeddedAgentDock.js`, `banking_api_ui/src/components/UserDashboard.js`, `banking_api_ui/src/App.js`
-- Test: `banking_api_ui/src/__tests__/BankingAgent.safety.test.js`
+- Modify: `demo_api_ui/src/components/bankingAgentSafety.js`, `demo_api_ui/src/components/EmbeddedAgentDock.js`, `demo_api_ui/src/components/UserDashboard.js`, `demo_api_ui/src/App.js`
+- Test: `demo_api_ui/src/__tests__/BankingAgent.safety.test.js`
 
 - [ ] **Step 1: Failing test for the helper**
 
-Append to `banking_api_ui/src/__tests__/BankingAgent.safety.test.js`. First ensure the import line at the top includes `resolveEmbeddedFocus`:
+Append to `demo_api_ui/src/__tests__/BankingAgent.safety.test.js`. First ensure the import line at the top includes `resolveEmbeddedFocus`:
 `import { claimPendingNl, clampPanelPosition, makeReentrancyGuard, resolveEmbeddedFocus } from "../components/bankingAgentSafety";`
 Then append:
 ```javascript
@@ -270,12 +270,12 @@ describe("resolveEmbeddedFocus — route → agent persona parity (Phase 2)", ()
 
 - [ ] **Step 2: Run, verify fail**
 
-Run: `cd /Users/curtismuir/Development/banking/banking_api_ui && CI=true npx react-scripts test src/__tests__/BankingAgent.safety.test.js -t "resolveEmbeddedFocus" --watchAll=false 2>&1 | tail -6`
+Run: `cd /Users/curtismuir/Development/banking/demo_api_ui && CI=true npx react-scripts test src/__tests__/BankingAgent.safety.test.js -t "resolveEmbeddedFocus" --watchAll=false 2>&1 | tail -6`
 Expected: FAIL (`resolveEmbeddedFocus is not a function`).
 
 - [ ] **Step 3: Implement the helper (verbatim port of the dock predicate)**
 
-The current dock predicate is `pathname.replace(/\/$/, '') === '/config'` (`EmbeddedAgentDock.js:103`). Append to `banking_api_ui/src/components/bankingAgentSafety.js`:
+The current dock predicate is `pathname.replace(/\/$/, '') === '/config'` (`EmbeddedAgentDock.js:103`). Append to `demo_api_ui/src/components/bankingAgentSafety.js`:
 ```javascript
 /**
  * Map a route to the agent's embeddedFocus persona. This is a verbatim port
@@ -290,12 +290,12 @@ export function resolveEmbeddedFocus(pathname) {
 
 - [ ] **Step 4: Run, verify pass**
 
-Run: `cd /Users/curtismuir/Development/banking/banking_api_ui && CI=true npx react-scripts test src/__tests__/BankingAgent.safety.test.js -t "resolveEmbeddedFocus" --watchAll=false 2>&1 | tail -6`
+Run: `cd /Users/curtismuir/Development/banking/demo_api_ui && CI=true npx react-scripts test src/__tests__/BankingAgent.safety.test.js -t "resolveEmbeddedFocus" --watchAll=false 2>&1 | tail -6`
 Expected: 2 tests PASS.
 
 - [ ] **Step 5: Use the helper in EmbeddedAgentDock.js**
 
-In `banking_api_ui/src/components/EmbeddedAgentDock.js` add the import (with the existing imports near the top, matching style):
+In `demo_api_ui/src/components/EmbeddedAgentDock.js` add the import (with the existing imports near the top, matching style):
 ```javascript
 import { resolveEmbeddedFocus } from './bankingAgentSafety';
 ```
@@ -314,7 +314,7 @@ with:
 
 - [ ] **Step 6: Use the helper in UserDashboard.js (middle)**
 
-In `banking_api_ui/src/components/UserDashboard.js`: confirm `useLocation` is already imported (it is used elsewhere) and a `pathname` is in scope in the component; if not, add `const { pathname } = useLocation();` near the other hooks. Add the import:
+In `demo_api_ui/src/components/UserDashboard.js`: confirm `useLocation` is already imported (it is used elsewhere) and a `pathname` is in scope in the component; if not, add `const { pathname } = useLocation();` near the other hooks. Add the import:
 ```javascript
 import { resolveEmbeddedFocus } from "./bankingAgentSafety";
 ```
@@ -326,7 +326,7 @@ NOTE: read the component around line 2669 to confirm a `pathname` identifier exi
 
 - [ ] **Step 7: Use the helper in App.js (float mount)**
 
-In `banking_api_ui/src/App.js` add `resolveEmbeddedFocus` import (the file imports many helpers; add alongside, matching style):
+In `demo_api_ui/src/App.js` add `resolveEmbeddedFocus` import (the file imports many helpers; add alongside, matching style):
 ```javascript
 import { resolveEmbeddedFocus } from "./components/bankingAgentSafety";
 ```
@@ -359,16 +359,16 @@ Insert at top of §4:
 ### 2026-05-18 — embeddedFocus route-parity across all 3 agent modes
 
 **Files changed:**
-- `banking_api_ui/src/components/bankingAgentSafety.js` — new pure `resolveEmbeddedFocus(pathname)` (verbatim port of EmbeddedAgentDock's `/config` predicate).
-- `banking_api_ui/src/components/EmbeddedAgentDock.js` — uses the helper (behavior-identical, deduplicated).
-- `banking_api_ui/src/components/UserDashboard.js` (middle) and `banking_api_ui/src/App.js` (float) — `embeddedFocus` now route-derived instead of hardcoded `banking`/omitted.
-- `banking_api_ui/src/__tests__/BankingAgent.safety.test.js` — helper tests.
+- `demo_api_ui/src/components/bankingAgentSafety.js` — new pure `resolveEmbeddedFocus(pathname)` (verbatim port of EmbeddedAgentDock's `/config` predicate).
+- `demo_api_ui/src/components/EmbeddedAgentDock.js` — uses the helper (behavior-identical, deduplicated).
+- `demo_api_ui/src/components/UserDashboard.js` (middle) and `demo_api_ui/src/App.js` (float) — `embeddedFocus` now route-derived instead of hardcoded `banking`/omitted.
+- `demo_api_ui/src/__tests__/BankingAgent.safety.test.js` — helper tests.
 
 **What was broken:** On `/config`, only the bottom dock showed the setup-assistant persona; middle and float showed the banking persona (wrong assistant).
 
 **What was fixed:** All three modes derive `embeddedFocus` from the same single predicate.
 
-**Verify:** safety suite green incl. resolveEmbeddedFocus; `cd banking_api_ui && npm run build` exit 0; on `/config` all modes present the config persona.
+**Verify:** safety suite green incl. resolveEmbeddedFocus; `cd demo_api_ui && npm run build` exit 0; on `/config` all modes present the config persona.
 
 **Do not break:** `resolveEmbeddedFocus` MUST mirror EmbeddedAgentDock's route predicate (`pathname.replace(/\/$/, '') === '/config'`). If the config route changes, change it in the helper only.
 ```
@@ -377,7 +377,7 @@ Insert at top of §4:
 
 ```bash
 cd /Users/curtismuir/Development/banking
-git add banking_api_ui/src/components/bankingAgentSafety.js banking_api_ui/src/__tests__/BankingAgent.safety.test.js banking_api_ui/src/components/EmbeddedAgentDock.js banking_api_ui/src/components/UserDashboard.js REGRESSION_PLAN.md
+git add demo_api_ui/src/components/bankingAgentSafety.js demo_api_ui/src/__tests__/BankingAgent.safety.test.js demo_api_ui/src/components/EmbeddedAgentDock.js demo_api_ui/src/components/UserDashboard.js REGRESSION_PLAN.md
 git diff --cached --stat
 ```
 App.js change is a §1 file — stage it via the Appendix A patch-filter (its only Phase-2 hunks are the import + the float mount prop; exclude any unrelated dirty hunks). Inspect staged App.js diff: only the import + the `embeddedFocus` prop line. Then:
@@ -395,8 +395,8 @@ git show --stat HEAD --format=""
 **§1 note:** `BankingAgent.js` is §1 (FAB, float resize caps, `liveAccounts`, consent). Change is additive (signal plumbing + an abort effect); no FAB/resize/liveAccounts/consent line changes. State this in commit.
 
 **Files:**
-- Modify: `banking_api_ui/src/components/bankingAgentSafety.js` (route predicate helper), `banking_api_ui/src/services/bankingAgentService.js`, `banking_api_ui/src/services/bankingAgentLangGraphClientService.js`, `banking_api_ui/src/components/BankingAgent.js`
-- Test: `banking_api_ui/src/__tests__/BankingAgent.safety.test.js`
+- Modify: `demo_api_ui/src/components/bankingAgentSafety.js` (route predicate helper), `demo_api_ui/src/services/bankingAgentService.js`, `demo_api_ui/src/services/bankingAgentLangGraphClientService.js`, `demo_api_ui/src/components/BankingAgent.js`
+- Test: `demo_api_ui/src/__tests__/BankingAgent.safety.test.js`
 
 - [ ] **Step 1: Failing test — abort classification helper**
 
@@ -423,12 +423,12 @@ describe("isAbortError — silent-cancel classification (Phase 3)", () => {
 
 - [ ] **Step 2: Run, verify fail**
 
-Run: `cd /Users/curtismuir/Development/banking/banking_api_ui && CI=true npx react-scripts test src/__tests__/BankingAgent.safety.test.js -t "isAbortError" --watchAll=false 2>&1 | tail -6`
+Run: `cd /Users/curtismuir/Development/banking/demo_api_ui && CI=true npx react-scripts test src/__tests__/BankingAgent.safety.test.js -t "isAbortError" --watchAll=false 2>&1 | tail -6`
 Expected: FAIL (`isAbortError is not a function`).
 
 - [ ] **Step 3: Implement `isAbortError`**
 
-Append to `banking_api_ui/src/components/bankingAgentSafety.js`:
+Append to `demo_api_ui/src/components/bankingAgentSafety.js`:
 ```javascript
 /**
  * True for fetch/AbortController cancellation. Such errors are intentional
@@ -442,20 +442,20 @@ export function isAbortError(err) {
 
 - [ ] **Step 4: Run, verify pass**
 
-Run: `cd /Users/curtismuir/Development/banking/banking_api_ui && CI=true npx react-scripts test src/__tests__/BankingAgent.safety.test.js -t "isAbortError" --watchAll=false 2>&1 | tail -6`
+Run: `cd /Users/curtismuir/Development/banking/demo_api_ui && CI=true npx react-scripts test src/__tests__/BankingAgent.safety.test.js -t "isAbortError" --watchAll=false 2>&1 | tail -6`
 Expected: 3 tests PASS.
 
 - [ ] **Step 5: Add optional `signal` to the service functions**
 
-`banking_api_ui/src/services/bankingAgentService.js` — `callMcpTool` is `export async function callMcpTool(tool, params = {})` (line 77). Change signature to `export async function callMcpTool(tool, params = {}, { signal } = {})` and pass `signal` into every `fetch("/api/mcp/tool", fetchOpts)` in that function — i.e. set `fetchOpts.signal = signal` before each `fetch` call (lines ~179, ~263) so retries also carry it. Do NOT change the retry logic itself, only thread `signal` into `fetchOpts`.
+`demo_api_ui/src/services/bankingAgentService.js` — `callMcpTool` is `export async function callMcpTool(tool, params = {})` (line 77). Change signature to `export async function callMcpTool(tool, params = {}, { signal } = {})` and pass `signal` into every `fetch("/api/mcp/tool", fetchOpts)` in that function — i.e. set `fetchOpts.signal = signal` before each `fetch` call (lines ~179, ~263) so retries also carry it. Do NOT change the retry logic itself, only thread `signal` into `fetchOpts`.
 
-`banking_api_ui/src/services/bankingAgentLangGraphClientService.js` — `sendMessage` is `export async function sendMessage(message, consentId = null)` (line 37). Change to `export async function sendMessage(message, consentId = null, { signal } = {})` and add `signal` to the `fetch(...)` options object inside it.
+`demo_api_ui/src/services/bankingAgentLangGraphClientService.js` — `sendMessage` is `export async function sendMessage(message, consentId = null)` (line 37). Change to `export async function sendMessage(message, consentId = null, { signal } = {})` and add `signal` to the `fetch(...)` options object inside it.
 
 If either fetch options object is built inline, add `signal,` to it (a bare `signal: undefined` is harmless — `fetch` ignores undefined signals).
 
 - [ ] **Step 6: Wire the AbortController in BankingAgent.js**
 
-Read `banking_api_ui/src/components/BankingAgent.js` around: the import block (~line 77), the ref cluster (~line 1710 where `nlSendGuardRef` lives), the `handleNaturalLanguageInner` / `sendAsNlInner` send sites, the resume effect (~line 6112), and how `callMcpTool`/`sendMessage`/the inline `fetch("/api/banking-agent/nl"...)` are invoked.
+Read `demo_api_ui/src/components/BankingAgent.js` around: the import block (~line 77), the ref cluster (~line 1710 where `nlSendGuardRef` lives), the `handleNaturalLanguageInner` / `sendAsNlInner` send sites, the resume effect (~line 6112), and how `callMcpTool`/`sendMessage`/the inline `fetch("/api/banking-agent/nl"...)` are invoked.
 
 (a) Import: add `isAbortError` to the existing `./bankingAgentSafety` import.
 
@@ -501,7 +501,7 @@ NOTE: the cleanup runs on unmount AND whenever `pathname` changes (React runs th
 
 - [ ] **Step 7: Failing integration test — abort is wired + silent + guard releases**
 
-Append to `banking_api_ui/src/__tests__/BankingAgent.safety.test.js`:
+Append to `demo_api_ui/src/__tests__/BankingAgent.safety.test.js`:
 ```javascript
 describe("abort wiring contract (Phase 3)", () => {
   test("a fetch given an aborted signal rejects with AbortError and isAbortError catches it", async () => {
@@ -524,7 +524,7 @@ describe("abort wiring contract (Phase 3)", () => {
 
 - [ ] **Step 8: Run, verify pass; build; full suite**
 
-Run: `cd /Users/curtismuir/Development/banking/banking_api_ui && CI=true npx react-scripts test src/__tests__/BankingAgent.safety.test.js --watchAll=false 2>&1 | tail -8`
+Run: `cd /Users/curtismuir/Development/banking/demo_api_ui && CI=true npx react-scripts test src/__tests__/BankingAgent.safety.test.js --watchAll=false 2>&1 | tail -8`
 Expected: all safety describes pass (claimPendingNl, clampPanelPosition, makeReentrancyGuard, resolveEmbeddedFocus, isAbortError, abort wiring). If `AbortSignal.any` is undefined in jsdom, add a minimal shim in `bankingAgentSafety.js` (`export function anySignal(signals){...}`) and use it in BankingAgent.js instead of `AbortSignal.any`; re-run.
 
 Run build gate + full agent suite. Expected: EXIT 0; baseline 98 unchanged (no new "state update on unmounted component" should appear; if any test now logs that warning, the guard in 6(e) is wrong — fix before proceeding).
@@ -540,16 +540,16 @@ Start the app (`cd /Users/curtismuir/Development/banking && ./run-bank-local.sh 
 ### 2026-05-18 — AbortController on the agent send pipeline (no state-on-dead-instance / mis-attributed Token Chain)
 
 **Files changed:**
-- `banking_api_ui/src/components/bankingAgentSafety.js` — `isAbortError` (+ optional `anySignal` shim if jsdom lacks `AbortSignal.any`).
-- `banking_api_ui/src/services/bankingAgentService.js` / `bankingAgentLangGraphClientService.js` — `callMcpTool` / `sendMessage` accept an optional `{ signal }` forwarded to fetch.
-- `banking_api_ui/src/components/BankingAgent.js` — a per-send `AbortController` (ref); fresh per send (aborts the prior); aborted on unmount AND route-change; `AbortError` swallowed silently; `nlLoading`/Token-Chain writes skipped when the signal is already aborted; reentrancy guard still releases on abort.
-- `banking_api_ui/src/__tests__/BankingAgent.safety.test.js` — abort classification + wiring tests.
+- `demo_api_ui/src/components/bankingAgentSafety.js` — `isAbortError` (+ optional `anySignal` shim if jsdom lacks `AbortSignal.any`).
+- `demo_api_ui/src/services/bankingAgentService.js` / `bankingAgentLangGraphClientService.js` — `callMcpTool` / `sendMessage` accept an optional `{ signal }` forwarded to fetch.
+- `demo_api_ui/src/components/BankingAgent.js` — a per-send `AbortController` (ref); fresh per send (aborts the prior); aborted on unmount AND route-change; `AbortError` swallowed silently; `nlLoading`/Token-Chain writes skipped when the signal is already aborted; reentrancy guard still releases on abort.
+- `demo_api_ui/src/__tests__/BankingAgent.safety.test.js` — abort classification + wiring tests.
 
 **What was broken:** In-flight NL/MCP calls had no cancellation. On unmount/route-change their handlers ran `setMessages`/`setNlLoading`/`appendTokenEvents` on a dead/wrong instance → React warnings + Token Chain events attributed to a destroyed instance (compounded by the dual-mount; Phase 4 addresses the dual mount itself).
 
 **What was fixed:** One AbortController per send, aborted on unmount + route change; `AbortError` is silent; UI/Token-Chain writes guarded on `signal.aborted`.
 
-**Verify:** safety suite green incl. abort tests; `cd banking_api_ui && npm run build` exit 0; manual: fire a command then navigate away → no unmounted-state-update warning.
+**Verify:** safety suite green incl. abort tests; `cd demo_api_ui && npm run build` exit 0; manual: fire a command then navigate away → no unmounted-state-update warning.
 
 **Do not break:** `AbortError` MUST stay silent (never `reportNlFailure`). The abort must NOT double-flip `nlLoading` or write Token Chain when aborted. The reentrancy guard MUST still `release()` on an aborted send. Abort scope is unmount + route-change (the route-change cleanup is load-bearing once Phase 4 makes the instance long-lived).
 ```
@@ -573,7 +573,7 @@ This task is staged. Commit after EACH of 4a–4d (4 commits). Run build + full 
 
 ### Task 4a: Introduce host-ref portal indirection (float-only, behavioral no-op)
 
-**Files:** `banking_api_ui/src/components/BankingAgent.js`, `banking_api_ui/src/App.js`
+**Files:** `demo_api_ui/src/components/BankingAgent.js`, `demo_api_ui/src/App.js`
 
 - [ ] **Step 1** — In `BankingAgent.js` find the portal return (the analysis cites `if (isInline) return <>{floatShell}</>; return createPortal(floatShell, document.body);` near line 8862). Add an optional prop `surfaceHostRef` to the component signature (default `undefined`). Change the portal return so the float (non-inline) path is:
 ```javascript
@@ -594,7 +594,7 @@ For now NO caller passes `surfaceHostRef`, so `host` is always `document.body` �
 
 ### Task 4b: Bottom dock = portal host (remove its own `<BankingAgent>`)
 
-**Files:** `banking_api_ui/src/components/EmbeddedAgentDock.js`, `banking_api_ui/src/App.js`
+**Files:** `demo_api_ui/src/components/EmbeddedAgentDock.js`, `demo_api_ui/src/App.js`
 
 - [ ] **Step 1: Decide the ref-publishing channel.** Add to `AgentUiModeContext` a `surfaceHostRef` (a `useRef(null)` created in the provider) plus `setSurfaceHostEl(el)` that assigns `surfaceHostRef.current = el` and forces a re-render of consumers (store the element in state: `const [surfaceHostEl, setSurfaceHostEl] = useState(null)` and expose both `surfaceHostEl` and `setSurfaceHostEl`). This is the registry the dock/middle publish into and App reads.
 
@@ -629,7 +629,7 @@ where `agentSurfaceHostRef` is `{ current: surfaceHostEl }` derived from context
 
 ### Task 4c: Middle column = portal host
 
-**Files:** `banking_api_ui/src/components/UserDashboard.js`, `banking_api_ui/src/App.js`
+**Files:** `demo_api_ui/src/components/UserDashboard.js`, `demo_api_ui/src/App.js`
 
 - [ ] **Step 1:** In `UserDashboard.js`, replace the middle `<BankingAgent .../>` block (lines 2669-2677) with a host div registering via context `setSurfaceHostEl`:
 ```javascript
@@ -648,7 +648,7 @@ where `agentSurfaceHostRef` is `{ current: surfaceHostEl }` derived from context
 
 ### Task 4d: Remove dual-mount remnants; fab = CSS-only; final invariant
 
-**Files:** `banking_api_ui/src/App.js`, `banking_api_ui/src/components/BankingAgent.js` (FAB visibility), `REGRESSION_PLAN.md`
+**Files:** `demo_api_ui/src/App.js`, `demo_api_ui/src/components/BankingAgent.js` (FAB visibility), `REGRESSION_PLAN.md`
 
 - [ ] **Step 1:** In `App.js`, delete the now-dead branches of the old `showFloatingAgent` that existed solely to force a SECOND instance alongside a dock (the `(Boolean(user) && agentFab && onDashboardAgentRoute)` override clause that overrode `hasEmbeddedDockLayout`). The single mount's `shouldMountAgent` should reduce to: agent should exist on this route for this user (marketing-guest float, or signed-in on a dashboard/dock/monitoring agent route, or placement none). Simplify the boolean; there is exactly one `<BankingAgent>` (plus the `/agent` page route). Read the final `shouldMountAgent` aloud in the commit body and confirm no path yields two.
 
@@ -660,7 +660,7 @@ where `agentSurfaceHostRef` is `{ current: surfaceHostEl }` derived from context
 ```markdown
 ### 2026-05-18 — Single BankingAgent instance; surfaces are portal hosts (double-mount eliminated)
 
-**Files changed:** `banking_api_ui/src/App.js` (one lifted `<BankingAgent>`, `shouldMountAgent` simplified, dual-mount override removed), `banking_api_ui/src/components/BankingAgent.js` (`surfaceHostRef` portal target, `fabVisible` prop), `banking_api_ui/src/components/EmbeddedAgentDock.js` / `UserDashboard.js` (render a host div, no own `<BankingAgent>`), `banking_api_ui/src/context/AgentUiModeContext.js` (surface-host registry).
+**Files changed:** `demo_api_ui/src/App.js` (one lifted `<BankingAgent>`, `shouldMountAgent` simplified, dual-mount override removed), `demo_api_ui/src/components/BankingAgent.js` (`surfaceHostRef` portal target, `fabVisible` prop), `demo_api_ui/src/components/EmbeddedAgentDock.js` / `UserDashboard.js` (render a host div, no own `<BankingAgent>`), `demo_api_ui/src/context/AgentUiModeContext.js` (surface-host registry).
 
 **What was broken:** When `placement≠none && fab`, App.js mounted TWO `<BankingAgent>` instances (dock + float) → split-brain conversation, dual Token-Chain writers (last-writer-wins), 2× session polling, 2× WebSocket churn.
 
@@ -676,10 +676,10 @@ Commit `App.js` + `BankingAgent.js` via Appendix A (exclude pre-existing ~5065/~
 
 ## Final verification (after Task 4d)
 
-- [ ] **Step 1:** `cd /Users/curtismuir/Development/banking/banking_api_ui && npm run build 2>&1 | tail -2; echo EXIT=$?` → EXIT 0.
+- [ ] **Step 1:** `cd /Users/curtismuir/Development/banking/demo_api_ui && npm run build 2>&1 | tail -2; echo EXIT=$?` → EXIT 0.
 - [ ] **Step 2:** Full agent suite (Global conventions) → baseline + new tests green, no regressions.
 - [ ] **Step 3:** `cd /Users/curtismuir/Development/banking && git log --oneline -10` — confirm the phase commits (Phase 1; Phase 2; Phase 3; 4a; 4b; 4c; 4d) are present and scoped.
-- [ ] **Step 4:** `git status --porcelain | grep BankingAgent.js` — the pre-existing ~5065/~5135 ERROR_EXPLAINER dirty hunks must STILL be uncommitted in the working tree (never swept into any phase commit). Confirm via `git diff banking_api_ui/src/components/BankingAgent.js | grep -c '^@@'` shows the leftover pre-existing hunks only.
+- [ ] **Step 4:** `git status --porcelain | grep BankingAgent.js` — the pre-existing ~5065/~5135 ERROR_EXPLAINER dirty hunks must STILL be uncommitted in the working tree (never swept into any phase commit). Confirm via `git diff demo_api_ui/src/components/BankingAgent.js | grep -c '^@@'` shows the leftover pre-existing hunks only.
 
 ---
 
@@ -717,4 +717,4 @@ EOF
 git apply --cached /tmp/keep.patch
 git diff --cached -- <file>        # INSPECT: must be ONLY your task's lines
 ```
-Before committing, always inspect `git diff --cached -- banking_api_ui/src/components/BankingAgent.js` and confirm zero ERROR_EXPLAINER / unrelated lines. The known pre-existing contaminant hunks are at old-side ~5065 and ~5135. If unsure which hunks are yours, list headers with `git diff -- <file> | grep -nE '^@@'` and classify by the line numbers your task edited.
+Before committing, always inspect `git diff --cached -- demo_api_ui/src/components/BankingAgent.js` and confirm zero ERROR_EXPLAINER / unrelated lines. The known pre-existing contaminant hunks are at old-side ~5065 and ~5135. If unsure which hunks are yours, list headers with `git diff -- <file> | grep -nE '^@@'` and classify by the line numbers your task edited.

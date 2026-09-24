@@ -40,7 +40,7 @@ describe('agentGatewayCapabilities', () => {
     expect(cap.evidence.code).toContain('demo_agent_service/src/vault.ts');
   });
 
-  it('the metadata-controls (RAR) capability cites no Groovy/PingGateway equivalent', () => {
+  it('the metadata-controls (RAR) capability cites no Groovy/PingOne Agent Gateway equivalent', () => {
     const cap = AGENT_GATEWAY_CAPABILITIES.find((c) => c.id === 'metadata-controls');
     expect(cap.evidence.code).toMatch(/no Groovy equivalent/i);
     expect(cap.relatedUCIds).toEqual(expect.arrayContaining(['UC14b']));

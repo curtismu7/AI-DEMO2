@@ -444,20 +444,3 @@
     transform: translateY(0);
   }
 }
-
-/* Loading spinner for running state */
-.swt-btn:disabled:not(.swt-btn--danger)::after {
-  content: '';
-  width: 1em;
-  height: 1em;
-  border: 2px solid transparent;
-  border-top: 2px solid currentColor;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-left: 0.5em;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}

@@ -347,5 +347,68 @@
       "hint": "demoWfEmployee",
       "passwordHint": "Tigers7&"
     }
+  },
+  "capabilities": {
+    "adminOps": {
+      "lookupSlices": {
+        "expenses": "expenses",
+        "tickets": "tickets",
+        "trainings": "trainings",
+        "pto": "pto",
+        "benefits": "benefits"
+      },
+      "writes": [
+        {
+          "route": "expenses/:id/approve",
+          "method": "post",
+          "mutator": "approveExpense",
+          "noun": "expense"
+        },
+        {
+          "route": "expenses/:id/deny",
+          "method": "post",
+          "mutator": "denyExpense",
+          "noun": "expense"
+        },
+        {
+          "route": "tickets/:id/resolve",
+          "method": "post",
+          "mutator": "resolveTicket",
+          "noun": "ticket"
+        },
+        {
+          "route": "trainings/:id/complete",
+          "method": "post",
+          "mutator": "completeTraining",
+          "noun": "training"
+        }
+      ],
+      "queueRules": [
+        {
+          "slice": "expenses",
+          "label": "Expenses",
+          "open": [
+            "pending",
+            "submitted"
+          ],
+          "title": {
+            "field": "description",
+            "fallback": "Expense"
+          }
+        },
+        {
+          "slice": "tickets",
+          "label": "IT tickets",
+          "open": [
+            "open",
+            "pending approval"
+          ],
+          "title": {
+            "field": "subject",
+            "fallback": "Ticket"
+          }
+        }
+      ]
+    }
   }
 }

@@ -134,11 +134,11 @@ No machine-readable API documentation for automated client generation.
 # openapi.yaml
 openapi: 3.0.3
 info:
-  title: Banking Demo API
+  title: AI Demo API
   description: REST API for banking operations with PingOne authentication
   version: 1.0.0
   contact:
-    name: Banking Demo Team
+    name: AI Demo Team
 servers:
   - url: http://localhost:3001
     description: Development server

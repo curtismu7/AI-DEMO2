@@ -10,7 +10,7 @@
 
 Starting from "finish setting up Weaviate," this effort grew into: getting the RAG
 code-search stack working, indexing the codebase, exposing it to agents as three
-**scoped MCP tools** wired end-to-end through the demo's **real PingGateway (IG) +
+**scoped MCP tools** wired end-to-end through the demo's **real PingOne Agent Gateway (IG) +
 PingOne + RFC 8693** authorization chain, and finally **hardening** that chain so a
 new tool can't silently break any of its authorization layers again.
 
@@ -18,7 +18,7 @@ Six PRs landed. The headline results:
 
 - Code search works: 24,712 chunks indexed; UI page functional; three agent tools
   (`code_search`, `get_code`, `list_codebases`) callable **end-to-end through real
-  PingGateway** with a new `code:search` scope.
+  PingOne Agent Gateway** with a new `code:search` scope.
 - Live PingOne provisioned via the startup reconciler across the whole exchange
   chain (Agent Gateway → MCP Gateway → MCP Server).
 - **Four hidden authorization layers** (beyond the scope-topology SSOT) were
@@ -127,10 +127,10 @@ the first three:
 |---|---|---|---|
 | 1 | `intentTokenService.js` `permitted_tools` (prompt-injection allowlist) | gateway HTTP 400 | add code-search tools to `INTENT_TO_PERMITTED_TOOLS` + `READ_ONLY_TOOLS` |
 | 2 | `configStore.js` `buildAllowedScopesByAudience()` (RFC 8707 allowlist) | `SCOPE_MISMATCH` for mcpserver.ping.demo | add `code:search` to the MCP Gateway + MCP Server audiences |
-| 3 | `mcp-tool-schemas.json` (PingGateway tool config, generated) | `Unknown tool: code_search` from PingGateway | regenerate via `gen:tool-schemas` (219 tools) |
+| 3 | `mcp-tool-schemas.json` (PingOne Agent Gateway tool config, generated) | `Unknown tool: code_search` from PingOne Agent Gateway | regenerate via `gen:tool-schemas` (219 tools) |
 | 4 | mock gateway `toolScopes` | (already SSOT-derived + gated) | image rebuild only |
 
-**Verified end-to-end against REAL PingGateway** — confirmed the path is Ping's
+**Verified end-to-end against REAL PingOne Agent Gateway** — confirmed the path is Ping's
 Identity Gateway product (`us-docker.pkg.dev/forgeops-public/images-base/ig:latest`),
 `X-Authz-Simulated: false`, real PingOne introspection, real RFC 8693 exchanges
 (only the TraT header is simulated). All three tools returned **HTTP 200**:
@@ -154,7 +154,7 @@ existing derivations (no hand-editing needed, but verified):
   and the three tools.
 - Both are steps in `topology:verify` (3/7 and 5/7), so P1AZ stays in lock-step.
 
-The mock authz gateway (`demo_mcp_gateway`) vs the real PingGateway: the demo
+The mock authz gateway (`demo_mcp_gateway`) vs the real PingOne Agent Gateway: the demo
 toggles via `FF_MCP_GATEWAY_PINGGATEWAY` (real is the running default). Decision
 recorded to **keep both** (the mock's transparent Node implementation has teaching
 value) and keep them in sync — which motivated the hardening below.
@@ -170,7 +170,7 @@ live e2e. Spec:
 
 **Design revised during implementation** after measuring the live tool set:
 
-- **Inv-1 — PingGateway schema drift: GATED.** `mcp-tool-schemas.json` is now
+- **Inv-1 — PingOne Agent Gateway schema drift: GATED.** `mcp-tool-schemas.json` is now
   checked by the existing `toolSchemaDrift` test in `topology:verify` (step 6/7)
   and **auto-regenerated in `.husky/pre-commit`** when tool sources change
   (mirroring the P1AZ-snapshot auto-regen precedent). The pre-commit trigger was
@@ -188,7 +188,7 @@ live e2e. Spec:
   `transfer` asymmetry). Implementing it exposed **5 latent missing scopes**
   (`invest/permits/transcript/workorders/sensitive:read`) — the same
   `SCOPE_MISMATCH` bug `code:search` hit, for the investment/government/university/
-  workforce/sensitive tools through PingGateway. Fixed by adding them to
+  workforce/sensitive tools through PingOne Agent Gateway. Fixed by adding them to
   `buildAllowedScopesByAudience()` for both audiences.
 
 **Also corrected a pre-existing PR #175 drift:** removed `code:search` from the
@@ -199,7 +199,7 @@ API the User App's `/authorize` targets — so it could never be requested there
 flagged.
 
 **Result:** `topology:verify` is now **7 steps, all green**. Adding a tool now
-either auto-updates PingGateway's schema at commit time or the gate fails loudly
+either auto-updates PingOne Agent Gateway's schema at commit time or the gate fails loudly
 with a precise "add X to Y" message across the schema, scope-audience, and P1AZ
 layers.
 
@@ -213,8 +213,8 @@ layers.
 | #139 | Code Search UI: render result fields + StrictMode localStorage fix |
 | #151 | server-backed codebase list (menu always shows indexed codebases) |
 | #175 | code search as scoped agent tools (`code:search`) |
-| #178 | wire code-search tools through the full agent token chain (intent + configStore + PingGateway schema) |
-| #180 | gate PingGateway schema + scope-audience coverage (drift hardening) |
+| #178 | wire code-search tools through the full agent token chain (intent + configStore + PingOne Agent Gateway schema) |
+| #180 | gate PingOne Agent Gateway schema + scope-audience coverage (drift hardening) |
 
 ---
 
@@ -226,7 +226,7 @@ layers.
 - **5 vertical scopes newly allowed at the exchange layer** (invest/permits/
   transcript/workorders/sensitive) — the configStore/scope-audience layer is now
   consistent, but each vertical's full end-to-end path (permitted_tools mapping,
-  PingGateway schema, PingOne grants) was not individually e2e-verified. The new
+  PingOne Agent Gateway schema, PingOne grants) was not individually e2e-verified. The new
   gate makes any remaining gap visible.
 - **Stray commit `e945fa4ae`** on `fix/architectural-improvements` — a harmless
   byte-identical duplicate of the mcp-server `MCP_CODE_SEARCH_URL` env line (a
@@ -244,12 +244,12 @@ layers.
 
 - **The tool-authz chain has more layers than the SSOT.** `scope-topology.json`
   drives most consumers, but three enforcement layers (intent `permitted_tools`,
-  the RFC 8707 scope-audience allowlist, and PingGateway's generated tool schema)
+  the RFC 8707 scope-audience allowlist, and PingOne Agent Gateway's generated tool schema)
   are hand-maintained or generated-but-ungated. Onboarding a tool touches all of
   them; only a gate makes that safe.
 - **Component tests pass while the assembled chain fails.** Every unit was green
   and `topology:verify` passed, yet the live agent call failed four times. Driving
-  the real end-to-end path (through real PingGateway) is what found the gaps — and
+  the real end-to-end path (through real PingOne Agent Gateway) is what found the gaps — and
   motivated hardening them.
 - **Guards encode intent, including asymmetries.** The `transfer` gateway-only
   exclusion and the sparse `permitted_tools` map are deliberate; a naive "cover

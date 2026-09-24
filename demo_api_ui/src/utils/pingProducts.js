@@ -71,7 +71,7 @@ const STEP_MAP = {
   'sim-replay-start':              'idp', // attack-sim: the replayed user token
   // PingOne MFA -- step-up challenges
   'mfa-challenge':                 'mfa', // catalog slug
-  // PingGateway -- gateway enforcement
+  // PingOne Agent Gateway -- gateway enforcement
   'gw-introspection':              'gw',
   'gw-mtls':                      'gw',
   'mcp-tool-invoked':              'gw',

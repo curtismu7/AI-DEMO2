@@ -102,7 +102,7 @@ describe('OAuthRouter — real PingOne-backed /authorize', () => {
     expect(pingOneChallenge).not.toBe('abc'); // ours, not the downstream client's
     expect(location.searchParams.get('code_challenge_method')).toBe('S256');
 
-    mockedAxios.post.mockResolvedValue({ data: { access_token: 'pingone.access.token' } });
+    mockedAxios.post.mockResolvedValue({ data: { access_token: 'pingone.access.token', id_token: 'pingone.id.token' } });
     const jwtVerify = jest.fn().mockResolvedValue({ payload: { sub: 'real-pingone-user' } });
     mockedJwks.getJose.mockResolvedValue({ jwtVerify } as any);
     mockedJwks.createJwksKeySet.mockResolvedValue((() => {}) as any);
@@ -122,6 +122,7 @@ describe('OAuthRouter — real PingOne-backed /authorize', () => {
     const codeVerifier = postedBody.get('code_verifier')!;
     expect(codeVerifier).toBeTruthy();
     expect(crypto.createHash('sha256').update(codeVerifier).digest('base64url')).toBe(pingOneChallenge);
+    expect(jwtVerify).toHaveBeenCalledWith('pingone.id.token', expect.anything());
   });
 
   it('/authorize/callback rejects an unknown/expired relay state', async () => {

@@ -56,7 +56,7 @@ Add to `FLAG_REGISTRY`, next to the existing `ff_weather_mcp_showcase` entry:
   name:         'Weather MCP — Allowed State',
   category:     'MCP / Agent',
   description:
-    'Which US state the Agent Gateway (PingGateway/IG) currently allows through the ' +
+    'Which US state the Agent Gateway (PingOne Agent Gateway/IG) currently allows through the ' +
     'weather-mcp showcase route (`/mcp/weather`). `tx-weather-scope.groovy` reads this ' +
     'live on every request via `GET /internal/feature-flags/weather-mcp-showcase`, so ' +
     'changing it here takes effect immediately, with no gateway restart — the SAME query ' +

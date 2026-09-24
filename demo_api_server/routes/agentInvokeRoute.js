@@ -37,7 +37,9 @@ const configStore = require('../services/configStore');
 const appEventService = require('../services/appEventService');
 const { guardPromptInput } = require('../services/promptGuard');
 const mcpFlowSseHub = require('../services/mcpFlowSseHub');
-const { parseVerticalParam } = require('../services/nlIntentParser');
+const { parseVerticalParam, parseHeuristic, resolveVerticalCtx } = require('../services/nlIntentParser');
+const { toolForAction } = require('../services/stepVerificationExpectations');
+const { resolveAgentMode } = require('../services/agentModeResolver');
 const { stampUseCaseId, stampVertical } = require('../services/useCaseTagging');
 const { verticalManifest } = require('../services/verticalManifest');
 const reportStore = require('../services/lmdb/reportStore.lmdb');
@@ -45,6 +47,8 @@ const conversationStore = require('../services/lmdb/conversationStore.lmdb');
 const { mintIntentToken } = require('../services/intentTokenService');
 const { buildTokenEvent, decodeJwtClaims, resolveMcpAccessTokenWithEvents, buildSessionPreviewTokenEvents } = require('../services/agentMcpTokenService');
 const agentBuilderService = require('../services/agentBuilderService');
+const { USE_CASES, VERTICALS, resolveUseCase } = require('../config/useCases');
+const scopeTopology = require('../services/scopeTopology');
 const { nrTransactionMiddleware } = require('../middleware/nrTransactionMiddleware');
 
 const router = express.Router();
@@ -168,6 +172,38 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
       || verticalManifest.resolver.activeIdFor(req)
       || null;
 
+    const requestedUseCaseId = typeof req.body?.useCaseId === 'string' ? req.body.useCaseId.trim() : null;
+    const catalogUseCase = requestedUseCaseId && USE_CASES.find((entry) => entry.useCaseId === requestedUseCaseId);
+    if (req.body?.useCaseId != null && !catalogUseCase) {
+      return res.status(400).json({ error: 'invalid_use_case' });
+    }
+    if (req.body?.toolName !== undefined) {
+      return res.status(400).json({ error: 'tool_selection_not_allowed' });
+    }
+    const isWorkloadAgent = requestedUseCaseId === 'personal-agent-concierge'
+      || requestedUseCaseId === 'workload-digital-assistant-obo';
+    let workloadScenario = null;
+    if (isWorkloadAgent) {
+      workloadScenario = VERTICALS.includes(verticalRaw) && catalogUseCase.perVertical?.[verticalRaw]
+        ? resolveUseCase(catalogUseCase.id, verticalRaw)
+        : null;
+      if (!workloadScenario?.primaryTool || !workloadScenario.runPrompt ||
+          !scopeTopology.allTools().includes(workloadScenario.primaryTool)) {
+        return res.status(400).json({ error: 'invalid_workload_mapping' });
+      }
+      if (prompt !== workloadScenario.runPrompt) {
+        return res.status(400).json({ error: 'invalid_workload_action' });
+      }
+      const heuristic = parseHeuristic(workloadScenario.runPrompt, verticalRaw, resolveVerticalCtx(verticalRaw), {});
+      const action = heuristic?.banking?.action || heuristic?.action;
+      if (!action || toolForAction(action, verticalRaw) !== workloadScenario.primaryTool) {
+        return res.status(400).json({ error: 'invalid_workload_mapping' });
+      }
+      // Bind this catalog action to the deterministic dispatch even when the
+      // session selected LLM-only mode. No client-supplied tool name is used.
+      req.body.forceHeuristic = true;
+    }
+
     const promptBlock = guardPromptInput(prompt);
     if (promptBlock) {
       return res.status(promptBlock.status).json(promptBlock.body);
@@ -188,16 +224,15 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
     // Must run before intent gating: the checks are identity-layer (MFA + agent
     // registration), not intent-layer. If either fails we return immediately
     // without running the agent, so we don't burn LLM calls on an invalid setup.
-    const requestedUseCaseId = typeof req.body?.useCaseId === 'string' ? req.body.useCaseId.trim() : null;
-    if (requestedUseCaseId === 'personal-agent-concierge') {
+    if (requestedUseCaseId === 'personal-agent-concierge' || requestedUseCaseId === 'workload-digital-assistant-obo' || requestedUseCaseId === 'saas-embedded-worker') {
       if (!req.user) {
         return res.status(401).json({ error: 'authentication_required', message: 'Sign in to use the personal agent concierge.' });
       }
 
-      // Require MFA — acr claim set by PingOne when acr_values was honoured.
+      // UC38 requires MFA — acr claim set by PingOne when acr_values was honoured.
       const tokenAcr = req.user.acr || '';
       const hasMfa = /multi.factor|multi_factor|mfa/i.test(String(tokenAcr));
-      if (!hasMfa) {
+      if ((requestedUseCaseId === 'personal-agent-concierge' || requestedUseCaseId === 'saas-embedded-worker') && !hasMfa) {
         const stepUpAcr = configStore.getEffective('stepUpAcrValue') || 'Multi_Factor';
         appEventService.logEvent('personal_agent', 'info', 'UC38: MFA step-up required before delegation',
           { tag: 'personal_agent/step_up_required', metadata: { userId, tokenAcr } });
@@ -215,12 +250,29 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
       }
 
       // Require a registered personal agent.
+      const agentType = requestedUseCaseId === 'saas-embedded-worker' ? 'saas-embedded-worker' : 'personal';
       let personalAgent = null;
+      let workloadAgentRuntime = null;
+      let runtimeLookupFailed = false;
       try {
-        personalAgent = req.session?.user ? await agentBuilderService.getAgentForUser(req.session.user) : null;
+        if (req.session?.user && isWorkloadAgent) {
+          workloadAgentRuntime = await agentBuilderService.getRuntimeForUser(req.session.user, agentType);
+          personalAgent = workloadAgentRuntime?.agent || null;
+        } else {
+          personalAgent = req.session?.user ? await agentBuilderService.getAgentForUser(req.session.user, agentType) : null;
+        }
       } catch (_err) {
+        runtimeLookupFailed = isWorkloadAgent;
         // Treat lookup failure as unregistered rather than a hard 502.
         personalAgent = null;
+      }
+
+      if (runtimeLookupFailed) {
+        return res.status(409).json({
+          error: 'workload_agent_runtime_unavailable',
+          message: 'The registered workload agent is not ready to run. It must be enabled, support client_credentials, and have a readable PingOne client secret.',
+          tokenEvents: req.tokenEvents || [],
+        });
       }
 
       if (!personalAgent) {
@@ -236,21 +288,56 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
         });
       }
 
+      if (isWorkloadAgent) {
+        // Request-local BFF credentials bind the actual OAuth actor_token to
+        // the same customer-owned PingOne app checked above. Never send these
+        // credentials in the response or token-event metadata.
+        req.workloadAgentRuntime = {
+          clientId: workloadAgentRuntime.clientId,
+          clientSecret: workloadAgentRuntime.clientSecret,
+          authMethod: workloadAgentRuntime.authMethod,
+        };
+      }
+
+      // CIMD is a mocked registration facade. Retry a pending/failed facade
+      // record on agent use, but never let that optional evidence path block
+      // the real PingOne-backed delegation below.
+      try {
+        await agentBuilderService.ensurePersonalAgentCimd(req.session.user, personalAgent, { agentType });
+      } catch (err) {
+        console.warn('[agentInvokeRoute] CIMD retry failed:', err?.message || String(err));
+      }
+
       // Surface the personal agent identity in the Flow Inspector.
+      const workloadScopes = workloadScenario
+        ? scopeTopology.toolScopes(workloadScenario.primaryTool)
+        : null;
+      const scopeDescription = workloadScopes?.length
+        ? `The selected ${vertical} action uses ${workloadScenario.primaryTool} and requires ${workloadScopes.join(', ')}. `
+        : '';
       req.tokenEvents.push(buildTokenEvent(
         'personal-agent-lookup',
-        `Personal Agent — ${personalAgent.name} (${personalAgent.type}) registered`,
+        `${agentType === 'saas-embedded-worker' ? 'Website Worker' : 'Personal Agent'} — ${personalAgent.name} (${personalAgent.type}) registered`,
         'active',
         null,
-        `BFF verified that a personal agent "${personalAgent.name}" (PingOne application ${personalAgent.id}) is registered for this user. ` +
-          'The agent\'s scope grants were configured on the Agent Builder page. RFC 8693 token exchange will mint a delegated token with sub=user and act=agent, \'  ' +
-          'scoped to airlines:read airlines:write — giving the agent authority to act on the premium flyer account on the user\'s behalf.',
+        `BFF verified that the customer-owned ${agentType === 'saas-embedded-worker' ? 'website worker' : 'personal agent'} "${personalAgent.name}" (PingOne application ${personalAgent.id}${isWorkloadAgent ? `, OAuth client ${workloadAgentRuntime.clientId}` : ''}) is registered. ` +
+          (isWorkloadAgent
+            ? `${scopeDescription}This same application supplies the client-credentials actor token for RFC 8693; the customer remains the subject, and gateway/Authorize policy decides whether the action is permitted.`
+            : 'The existing agent registration and delegation checks remain in effect.'),
         { agentId: personalAgent.id, agentName: personalAgent.name, agentType: personalAgent.type },
       ));
-      appEventService.logEvent('personal_agent', 'info', `UC38: personal agent "${personalAgent.name}" verified`,
+      appEventService.logEvent('personal_agent', 'info', `${requestedUseCaseId}: ${agentType === 'saas-embedded-worker' ? 'website worker' : 'personal agent'} "${personalAgent.name}" verified`,
         { tag: 'personal_agent/verified', metadata: { userId, agentId: personalAgent.id } });
     }
     // ─────────────────────────────────────────────────────────────────────────
+
+    // Platform wiring enters a separate runtime before processAgentMessage's
+    // heuristic gate. Check only after customer and registration verification.
+    if (isWorkloadAgent && resolveAgentMode(
+      configStore.getEffective('agent_mode'), configStore.getEffective('agent_external_wiring')
+    ).externalWiring === 'platform') {
+      return res.status(409).json({ error: 'workload_action_requires_bff_wiring' });
+    }
 
     // ── PHASE 1: PRE-EXECUTION INTENT GATING ──
     // Extract intent from prompt BEFORE calling agent
@@ -323,11 +410,16 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
     // can be validated against it at the MCP gateway.
     const intentTokenEnabled = configStore.getEffective('ff_intent_token_enabled') !== 'false';
 
+    // Hoisted for the cross-vertical mismatch guard below (which runs after the
+    // agent responds, outside this block): what the pre-execution parser saw.
+    let _itIntent = null;
+    let _itConf = 0;
+
     if (intentTokenEnabled) {
       // Vertical-aware: the regex extractor alone classifies most vertical
       // chips as "unknown", whose permitted_tools exclude the sensitive reads
       // UC2/UC2.5 delegate — see extractIntentAndConfidence.
-      const { intent: _itIntent, confidence: _itConf } = extractIntentAndConfidence(prompt, vertical);
+      ({ intent: _itIntent, confidence: _itConf } = extractIntentAndConfidence(prompt, vertical));
       const { token: _intentToken } = mintIntentToken({
         userId,
         sessionId: req.session?.id || null,
@@ -390,6 +482,47 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
     });
 
     console.log('[agentInvokeRoute] Agent response received, toolsCalled:', agentResponse.toolsCalled);
+
+    // ── CROSS-VERTICAL INTENT MISMATCH GUARD ─────────────────────────────────
+    // The pre-execution intent regexes are vertical-blind (nlIntentParser.js),
+    // so "extend my rental $300" mints intent=extend_rental in ANY vertical.
+    // But the heuristic dispatch runs against the ACTIVE vertical only: in a
+    // vertical that has no such action, the prompt falls through to the LLM
+    // reason loop, whose tool list does not contain the intent's tool — so the
+    // model answers as chat ("which account? landlord details?") and the demo
+    // silently does nothing (observed live 2026-09-22). Detect exactly that:
+    // no tool ran, the minted intent has a toolName, and that tool belongs to
+    // a DIFFERENT vertical's plugin. Reply with a guidance card naming the
+    // right vertical instead of letting the LLM freestyle.
+    if ((agentResponse.toolsCalled?.length ?? 0) === 0 && _itIntent && _itIntent !== 'unknown' && (_itConf ?? 0) >= 0.5) {
+      try {
+        const { verticalManifest: _vm } = require('../services/verticalManifest');
+        const intentTool = _itIntent; // vertical regexes set toolName === intent
+        const ownerVerticals = [];
+        for (const { id: vid } of _vm.listAll()) {
+          if (vid === vertical) continue;
+          const plugin = _vm.plugins.get(vid);
+          if (!plugin || typeof plugin.getTools !== 'function') continue;
+          const names = plugin.getTools().map((t) => t && t.name);
+          if (names.includes(intentTool)) ownerVerticals.push(vid);
+        }
+        if (ownerVerticals.length > 0 && ownerVerticals[0] !== vertical) {
+          const owner = ownerVerticals[0];
+          console.log('[agentInvokeRoute] Cross-vertical intent mismatch: intent=%s active=%s owner=%s — replying with switch hint', _itIntent, vertical, owner);
+          return res.json({
+            reply: `That request is a **${owner.replace(/-/g, ' ')}** action, but your session is pinned to **${String(vertical || 'banking').replace(/-/g, ' ')}**. Switch the vertical picker at the top of the page to continue — this action routes through that vertical's own MCP tools and authorization policies.`,
+            success: true,
+            toolsCalled: [],
+            tokensUsed: 0,
+            requiresConsent: false,
+            agentConfigured: true,
+            tokenEvents: req.tokenEvents || [],
+            crossVerticalHint: { intent: _itIntent, activeVertical: vertical, ownerVertical: owner },
+          });
+        }
+      } catch (_e) { /* diagnostics only — never break the agent path */ }
+    }
+
 
     // Prepend pre-execution token events (intent token, auth events) collected
     // on req.tokenEvents before the processAgentMessage call.
@@ -556,6 +689,13 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
     const errorTokenEvents = Array.isArray(error.tokenEvents) && error.tokenEvents.length
       ? error.tokenEvents
       : (Array.isArray(req.tokenEvents) ? req.tokenEvents : []);
+    if (error.code === 'workload_actor_provider_unsupported') {
+      return res.status(409).json({
+        error: error.code,
+        message: error.message,
+        tokenEvents: errorTokenEvents,
+      });
+    }
     // Dead/expired user token: surface as 401 so the SPA can trigger re-auth
     // instead of treating it as a generic server error.
     if (error.code === 'TOKEN_INACTIVE') {

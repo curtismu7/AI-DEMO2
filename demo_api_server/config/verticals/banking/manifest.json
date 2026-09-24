@@ -344,5 +344,11 @@
       "hint": "demoAdmin",
       "passwordHint": "Tigers7&"
     }
+  },
+  "capabilities": {
+    "adminOps": {
+      "lookupMode": "banking",
+      "queueRules": []
+    }
   }
 }

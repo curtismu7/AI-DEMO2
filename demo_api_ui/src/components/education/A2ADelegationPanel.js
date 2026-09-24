@@ -1,6 +1,10 @@
 // banking_api_ui/src/components/education/A2ADelegationPanel.js
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AGENT_ROLES, PRIMARY_AGENT } from '../../config/agentTerminology';
+import {
+  fetchA2aSpecialistRegistry,
+  specialistRoleLabel,
+} from '../../services/a2aSpecialistRegistry';
 import EducationDrawer from '../shared/EducationDrawer';
 import { useEducationUI } from '../../context/EducationUIContext';
 import { EDU } from './educationIds';
@@ -12,6 +16,16 @@ import { EDU } from './educationIds';
  */
 export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
   const { open } = useEducationUI();
+  const [specialists, setSpecialists] = useState([]);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+    let cancelled = false;
+    fetchA2aSpecialistRegistry()
+      .then((entries) => { if (!cancelled) setSpecialists(entries); })
+      .catch(() => { if (!cancelled) setSpecialists([]); });
+    return () => { cancelled = true; };
+  }, [isOpen]);
 
   const CrossLink = ({ panelId, tabId, children }) => (
     <button
@@ -70,6 +84,12 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
             <code>act&#123;specialist, act&#123;generalist&#125;&#125;</code>. The resource server sees the{' '}
             <em>whole</em> chain of agents that acted on your behalf.
           </Callout>
+          <Callout color="#0f766e" bg="rgba(15,118,110,0.08)">
+            <strong>Keep the metadata separate.</strong> The Agent identity names the non-human
+            identity, the Agent runtime names the process or framework, and the Agent Card
+            advertises capability and protocol metadata. None of those alone grants delegated
+            authority; PingOne Authorize evaluates the token chain and policy at call time.
+          </Callout>
         </>
       ),
     },
@@ -121,21 +141,16 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
               </tr>
             </thead>
             <tbody>
-              {[
-                ['Banking', 'Investment Advisor', 'Read investment positions'],
-                ['Healthcare', 'Records Specialist', 'Read the sensitive patient record'],
-                ['Retail', 'Purchase Specialist', 'Read sensitive order history'],
-                ['Sporting Goods', 'Membership Specialist', 'Read sensitive membership details'],
-                ['Workforce', 'Payroll Specialist', 'Read sensitive payroll details'],
-              ].map(([v, s, t]) => (
-                <tr key={v} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                  <td style={{ padding: '4px 8px', fontWeight: 600 }}>{v}</td>
-                  <td style={{ padding: '4px 8px' }}>{s}</td>
-                  <td style={{ padding: '4px 8px', color: '#374151' }}>{t}</td>
+              {specialists.map((specialist) => (
+                <tr key={specialist.vertical} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                  <td style={{ padding: '4px 8px', fontWeight: 600 }}>{specialist.vertical}</td>
+                  <td style={{ padding: '4px 8px' }}>{specialistRoleLabel(specialist)}</td>
+                  <td style={{ padding: '4px 8px', color: '#374151' }}>{specialist.subtaskHint || 'Sensitive specialist task'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {!specialists.length && <p style={{ color: '#6b7280' }}>The server specialist registry is unavailable; open the A2A learning page to inspect the live Agent Card. The card describes capability; PingOne Authorize still decides delegated authority.</p>}
           <h3>How it shows up</h3>
           <ol>
             <li><strong>Ask for sensitive data</strong> — e.g. &ldquo;show the sensitive record&rdquo;. The generalist can&apos;t read it directly.</li>

@@ -15,42 +15,42 @@
 | File | Change type | What changes |
 |------|-------------|--------------|
 | `scope-topology.json` | Modify | Scope strings, resource URIs, add `provisioning` block, add `featureScope` to resource defs |
-| `banking_api_server/config/verticals/banking.json` | Modify | `scopes` block values + add `featureScope` |
-| `banking_api_server/config/verticals/retail.json` | Modify | `scopes` block values + add `featureScope` |
-| `banking_api_server/config/verticals/workforce.json` | Modify | `scopes` block values + add `featureScope` |
-| `banking_api_server/config/scopes.js` | Modify | Constant string values |
-| `banking_api_server/services/configStore.js` | Modify | Default scope strings in config schema |
-| `banking_api_server/services/agentMcpTokenService.js` | Modify | Hardcoded `banking:*` strings + `startsWith('banking:')` heuristic |
-| `banking_api_server/services/agentCCTokenService.js` | Modify | Default `banking:mcp:invoke` → `mcp:invoke` |
-| `banking_api_server/services/resourceIndicatorService.js` | Modify | Hardcoded scope array |
-| `banking_api_server/services/scopeAuditService.js` | Modify | `Super Banking *` app name keys |
-| `banking_api_server/services/scopePolicyEngine.js` | Modify | Scope strings in policy map |
-| `banking_api_server/routes/transactions.js` | Modify | `requireScopes` calls + comments |
-| `banking_api_server/routes/authorizeConfig.js` | Modify | Scope-keyed config object |
-| `banking_api_server/routes/tokens.js` | Modify | `bankingScopes` array + fallback |
-| `banking_api_server/routes/mcpInspector.js` | Modify | Fallback scope hint |
-| `banking_api_server/routes/setupWizard.js` | Modify | `banking_api_enduser` default strings |
-| `banking_api_server/scripts/bootstrapPingOne.js` | Modify | Audience defaults, app name list, read from topology `provisioning` block |
-| `banking_api_server/scripts/cleanupPingOneApps.js` | **Create** | New standalone cleanup script |
-| `banking_api_server/services/pingoneProvisionService.js` | Modify | App/resource display names read from topology `provisioning` block |
-| `banking_mcp_server/src/tools/BankingToolRegistry.ts` | Modify | Hardcoded `banking:read`/`banking:write` strings |
-| `banking_mcp_server/src/tools/toolScopeMap.ts` | Modify | Scope strings + fallback comment |
-| `banking_mcp_server/src/auth/AuthorizationRequestGenerator.ts` | Modify | Hardcoded scope strings |
-| `banking_api_server/src/__tests__/scopeTopology.regression.test.js` | Modify | Scope assertions + `Super Banking` key refs |
-| `banking_api_server/src/__tests__/agentMcpTokenService.test.js` | Modify | `banking_api_enduser` audience string |
-| `banking_api_server/src/__tests__/agentDelegation.real-token.test.js` | Modify | `banking:read`/`banking:write` assertions |
-| `banking_api_server/src/__tests__/accounts.route.test.js` | Modify | Scope arrays in test headers |
-| `banking_api_server/src/__tests__/delegationChainValidationService.test.js` | Modify | Scope strings in test fixtures |
-| `banking_api_server/src/__tests__/transaction-consent-challenge.test.js` | Modify | Scope array in fixture |
-| `banking_api_server/tests/ccTokenScope.regression.test.js` | Modify | Scope strings |
-| `banking_api_server/tests/mcpGatewayConfig.test.js` | Modify | `mcp_scope` assertions |
-| `banking_api_server/tests/tokenUtils.test.js` | Modify | Scope strings |
-| `banking_api_server/tests/routes/langchainChatProxy.regression.test.js` | Modify | Scope strings |
-| `banking_api_server/tests/bankingAgentLangGraphService.modes.test.js` | Modify | Scope strings |
+| `demo_api_server/config/verticals/banking.json` | Modify | `scopes` block values + add `featureScope` |
+| `demo_api_server/config/verticals/retail.json` | Modify | `scopes` block values + add `featureScope` |
+| `demo_api_server/config/verticals/workforce.json` | Modify | `scopes` block values + add `featureScope` |
+| `demo_api_server/config/scopes.js` | Modify | Constant string values |
+| `demo_api_server/services/configStore.js` | Modify | Default scope strings in config schema |
+| `demo_api_server/services/agentMcpTokenService.js` | Modify | Hardcoded `banking:*` strings + `startsWith('banking:')` heuristic |
+| `demo_api_server/services/agentCCTokenService.js` | Modify | Default `banking:mcp:invoke` → `mcp:invoke` |
+| `demo_api_server/services/resourceIndicatorService.js` | Modify | Hardcoded scope array |
+| `demo_api_server/services/scopeAuditService.js` | Modify | `Super Banking *` app name keys |
+| `demo_api_server/services/scopePolicyEngine.js` | Modify | Scope strings in policy map |
+| `demo_api_server/routes/transactions.js` | Modify | `requireScopes` calls + comments |
+| `demo_api_server/routes/authorizeConfig.js` | Modify | Scope-keyed config object |
+| `demo_api_server/routes/tokens.js` | Modify | `bankingScopes` array + fallback |
+| `demo_api_server/routes/mcpInspector.js` | Modify | Fallback scope hint |
+| `demo_api_server/routes/setupWizard.js` | Modify | `banking_api_enduser` default strings |
+| `demo_api_server/scripts/bootstrapPingOne.js` | Modify | Audience defaults, app name list, read from topology `provisioning` block |
+| `demo_api_server/scripts/cleanupPingOneApps.js` | **Create** | New standalone cleanup script |
+| `demo_api_server/services/pingoneProvisionService.js` | Modify | App/resource display names read from topology `provisioning` block |
+| `demo_mcp_server/src/tools/BankingToolRegistry.ts` | Modify | Hardcoded `banking:read`/`banking:write` strings |
+| `demo_mcp_server/src/tools/toolScopeMap.ts` | Modify | Scope strings + fallback comment |
+| `demo_mcp_server/src/auth/AuthorizationRequestGenerator.ts` | Modify | Hardcoded scope strings |
+| `demo_api_server/src/__tests__/scopeTopology.regression.test.js` | Modify | Scope assertions + `Super Banking` key refs |
+| `demo_api_server/src/__tests__/agentMcpTokenService.test.js` | Modify | `banking_api_enduser` audience string |
+| `demo_api_server/src/__tests__/agentDelegation.real-token.test.js` | Modify | `banking:read`/`banking:write` assertions |
+| `demo_api_server/src/__tests__/accounts.route.test.js` | Modify | Scope arrays in test headers |
+| `demo_api_server/src/__tests__/delegationChainValidationService.test.js` | Modify | Scope strings in test fixtures |
+| `demo_api_server/src/__tests__/transaction-consent-challenge.test.js` | Modify | Scope array in fixture |
+| `demo_api_server/tests/ccTokenScope.regression.test.js` | Modify | Scope strings |
+| `demo_api_server/tests/mcpGatewayConfig.test.js` | Modify | `mcp_scope` assertions |
+| `demo_api_server/tests/tokenUtils.test.js` | Modify | Scope strings |
+| `demo_api_server/tests/routes/langchainChatProxy.regression.test.js` | Modify | Scope strings |
+| `demo_api_server/tests/bankingAgentLangGraphService.modes.test.js` | Modify | Scope strings |
 | `run-demo.sh` | Modify | Log/pid variable values, banner/heading text, `tail_bank_logs` → `tail_demo_logs` |
 | `CLAUDE.md` | Modify | `/tmp/bank-api-server.log` → `/tmp/demo-api.log` in verification checklist |
 | `REGRESSION_PLAN.md` | Modify | §4 migration entry; §1 audience string update |
-| `banking_api_server/package.json` | Modify | Add `pingone:cleanup` script |
+| `demo_api_server/package.json` | Modify | Add `pingone:cleanup` script |
 
 ---
 
@@ -115,10 +115,10 @@ In `"resources"."Super Banking API"`, change:
 
 (All other resource URIs stay unchanged.)
 
-- [ ] **Step 4: Update `servers.banking_api_server.validatesAudience`**
+- [ ] **Step 4: Update `servers.demo_api_server.validatesAudience`**
 
 ```json
-"banking_api_server": {
+"demo_api_server": {
   "resource": "Super Banking API",
   "validatesAudience": "api.ping.demo",
   ...
@@ -220,9 +220,9 @@ git commit -m "feat(scopes): genericize scope strings and app names in topology 
 ## Task 2: Update vertical configs
 
 **Files:**
-- Modify: `banking_api_server/config/verticals/banking.json`
-- Modify: `banking_api_server/config/verticals/retail.json`
-- Modify: `banking_api_server/config/verticals/workforce.json`
+- Modify: `demo_api_server/config/verticals/banking.json`
+- Modify: `demo_api_server/config/verticals/retail.json`
+- Modify: `demo_api_server/config/verticals/workforce.json`
 
 - [ ] **Step 1: Update `banking.json` scopes block**
 
@@ -263,9 +263,9 @@ Replace the `"scopes"` object:
 - [ ] **Step 4: Commit**
 
 ```bash
-git add banking_api_server/config/verticals/banking.json \
-        banking_api_server/config/verticals/retail.json \
-        banking_api_server/config/verticals/workforce.json
+git add demo_api_server/config/verticals/banking.json \
+        demo_api_server/config/verticals/retail.json \
+        demo_api_server/config/verticals/workforce.json
 git commit -m "feat(verticals): generic scope block + featureScope per vertical"
 ```
 
@@ -274,7 +274,7 @@ git commit -m "feat(verticals): generic scope block + featureScope per vertical"
 ## Task 3: Update `scopes.js` constants
 
 **Files:**
-- Modify: `banking_api_server/config/scopes.js`
+- Modify: `demo_api_server/config/scopes.js`
 
 - [ ] **Step 1: Update constant values in `BANKING_SCOPES`**
 
@@ -311,14 +311,14 @@ The values reference the constants above — no string changes needed here since
 
 Search the file for any remaining literal `'banking:'` strings and replace:
 ```bash
-grep -n "banking:" banking_api_server/config/scopes.js
+grep -n "banking:" demo_api_server/config/scopes.js
 ```
 Fix any remaining literals found.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add banking_api_server/config/scopes.js
+git add demo_api_server/config/scopes.js
 git commit -m "feat(scopes): update scope constants to generic names"
 ```
 
@@ -327,7 +327,7 @@ git commit -m "feat(scopes): update scope constants to generic names"
 ## Task 4: Update `configStore.js` defaults
 
 **Files:**
-- Modify: `banking_api_server/services/configStore.js`
+- Modify: `demo_api_server/services/configStore.js`
 
 - [ ] **Step 1: Update default scope strings in config schema**
 
@@ -363,7 +363,7 @@ PINGONE_AI_AGENT_CLIENT_ID: { public: true, default: '' }, // Demo AI Agent App 
 - [ ] **Step 2: Verify no remaining `banking:` literals**
 
 ```bash
-grep -n "banking:" banking_api_server/services/configStore.js
+grep -n "banking:" demo_api_server/services/configStore.js
 ```
 
 Fix any remaining hits.
@@ -371,7 +371,7 @@ Fix any remaining hits.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add banking_api_server/services/configStore.js
+git add demo_api_server/services/configStore.js
 git commit -m "feat(scopes): update configStore defaults to generic scope names"
 ```
 
@@ -380,11 +380,11 @@ git commit -m "feat(scopes): update configStore defaults to generic scope names"
 ## Task 5: Update BFF services
 
 **Files:**
-- Modify: `banking_api_server/services/agentMcpTokenService.js`
-- Modify: `banking_api_server/services/agentCCTokenService.js`
-- Modify: `banking_api_server/services/resourceIndicatorService.js`
-- Modify: `banking_api_server/services/scopeAuditService.js`
-- Modify: `banking_api_server/services/scopePolicyEngine.js`
+- Modify: `demo_api_server/services/agentMcpTokenService.js`
+- Modify: `demo_api_server/services/agentCCTokenService.js`
+- Modify: `demo_api_server/services/resourceIndicatorService.js`
+- Modify: `demo_api_server/services/scopeAuditService.js`
+- Modify: `demo_api_server/services/scopePolicyEngine.js`
 
 - [ ] **Step 1: Update `agentMcpTokenService.js` — string replacements**
 
@@ -401,7 +401,7 @@ Run a search-replace across the file:
 
 After replacing, verify:
 ```bash
-grep -n "banking:" banking_api_server/services/agentMcpTokenService.js
+grep -n "banking:" demo_api_server/services/agentMcpTokenService.js
 ```
 
 - [ ] **Step 2: Fix `startsWith('banking:')` heuristic in `agentMcpTokenService.js`**
@@ -472,17 +472,17 @@ Replace scope string keys and values in the policy map:
 
 Find and replace any remaining `banking:` literals:
 ```bash
-grep -n "banking:" banking_api_server/services/scopePolicyEngine.js
+grep -n "banking:" demo_api_server/services/scopePolicyEngine.js
 ```
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add banking_api_server/services/agentMcpTokenService.js \
-        banking_api_server/services/agentCCTokenService.js \
-        banking_api_server/services/resourceIndicatorService.js \
-        banking_api_server/services/scopeAuditService.js \
-        banking_api_server/services/scopePolicyEngine.js
+git add demo_api_server/services/agentMcpTokenService.js \
+        demo_api_server/services/agentCCTokenService.js \
+        demo_api_server/services/resourceIndicatorService.js \
+        demo_api_server/services/scopeAuditService.js \
+        demo_api_server/services/scopePolicyEngine.js
 git commit -m "feat(scopes): update BFF services to generic scope names"
 ```
 
@@ -491,11 +491,11 @@ git commit -m "feat(scopes): update BFF services to generic scope names"
 ## Task 6: Update BFF routes
 
 **Files:**
-- Modify: `banking_api_server/routes/transactions.js`
-- Modify: `banking_api_server/routes/authorizeConfig.js`
-- Modify: `banking_api_server/routes/tokens.js`
-- Modify: `banking_api_server/routes/mcpInspector.js`
-- Modify: `banking_api_server/routes/setupWizard.js`
+- Modify: `demo_api_server/routes/transactions.js`
+- Modify: `demo_api_server/routes/authorizeConfig.js`
+- Modify: `demo_api_server/routes/tokens.js`
+- Modify: `demo_api_server/routes/mcpInspector.js`
+- Modify: `demo_api_server/routes/setupWizard.js`
 
 - [ ] **Step 1: Update `transactions.js`**
 
@@ -508,7 +508,7 @@ Update comments referencing `banking:read`/`banking:write`/`banking:transactions
 
 Verify:
 ```bash
-grep -n "banking:" banking_api_server/routes/transactions.js
+grep -n "banking:" demo_api_server/routes/transactions.js
 ```
 
 - [ ] **Step 2: Update `authorizeConfig.js`**
@@ -559,18 +559,18 @@ requiredScopesHint: MCP_TOOL_SCOPES[tool] || ['read'],
 
 Replace all occurrences of `'banking_api_enduser'` with `'api.ping.demo'`:
 ```bash
-grep -n "banking_api_enduser" banking_api_server/routes/setupWizard.js
+grep -n "banking_api_enduser" demo_api_server/routes/setupWizard.js
 ```
 Three occurrences at lines ~92, ~377, ~378. Update all three.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add banking_api_server/routes/transactions.js \
-        banking_api_server/routes/authorizeConfig.js \
-        banking_api_server/routes/tokens.js \
-        banking_api_server/routes/mcpInspector.js \
-        banking_api_server/routes/setupWizard.js
+git add demo_api_server/routes/transactions.js \
+        demo_api_server/routes/authorizeConfig.js \
+        demo_api_server/routes/tokens.js \
+        demo_api_server/routes/mcpInspector.js \
+        demo_api_server/routes/setupWizard.js
 git commit -m "feat(scopes): update BFF routes to generic scope names and audience"
 ```
 
@@ -579,8 +579,8 @@ git commit -m "feat(scopes): update BFF routes to generic scope names and audien
 ## Task 7: Create cleanup script
 
 **Files:**
-- Create: `banking_api_server/scripts/cleanupPingOneApps.js`
-- Modify: `banking_api_server/package.json`
+- Create: `demo_api_server/scripts/cleanupPingOneApps.js`
+- Modify: `demo_api_server/package.json`
 
 - [ ] **Step 1: Create `cleanupPingOneApps.js`**
 
@@ -598,7 +598,7 @@ git commit -m "feat(scopes): update BFF routes to generic scope names and audien
  *   node scripts/cleanupPingOneApps.js            # dry-run (prints what would be deleted)
  *   node scripts/cleanupPingOneApps.js --execute  # actually deletes
  *
- * Requires in banking_api_server/.env:
+ * Requires in demo_api_server/.env:
  *   PINGONE_ENVIRONMENT_ID
  *   PINGONE_REGION          (e.g. com, eu, ca, ap)
  *   PINGONE_WORKER_CLIENT_ID
@@ -780,7 +780,7 @@ main().catch((err) => {
 });
 ```
 
-- [ ] **Step 2: Add npm script to `banking_api_server/package.json`**
+- [ ] **Step 2: Add npm script to `demo_api_server/package.json`**
 
 In the `"scripts"` section, add:
 ```json
@@ -790,7 +790,7 @@ In the `"scripts"` section, add:
 - [ ] **Step 3: Verify dry-run works**
 
 ```bash
-cd banking_api_server && node scripts/cleanupPingOneApps.js
+cd demo_api_server && node scripts/cleanupPingOneApps.js
 ```
 
 Expected output: lists apps/resources it would delete (or "No matching apps found" if PingOne not configured). Must not throw or hang.
@@ -798,7 +798,7 @@ Expected output: lists apps/resources it would delete (or "No matching apps foun
 - [ ] **Step 4: Commit**
 
 ```bash
-git add banking_api_server/scripts/cleanupPingOneApps.js banking_api_server/package.json
+git add demo_api_server/scripts/cleanupPingOneApps.js demo_api_server/package.json
 git commit -m "feat(provisioner): add cleanupPingOneApps script to wipe Super Banking PingOne entities"
 ```
 
@@ -807,8 +807,8 @@ git commit -m "feat(provisioner): add cleanupPingOneApps script to wipe Super Ba
 ## Task 8: Update provisioner (bootstrapPingOne.js + pingoneProvisionService.js)
 
 **Files:**
-- Modify: `banking_api_server/scripts/bootstrapPingOne.js`
-- Modify: `banking_api_server/services/pingoneProvisionService.js`
+- Modify: `demo_api_server/scripts/bootstrapPingOne.js`
+- Modify: `demo_api_server/services/pingoneProvisionService.js`
 
 - [ ] **Step 1: Update `bootstrapPingOne.js` audience defaults**
 
@@ -892,7 +892,7 @@ Then replace every hardcoded `'Super Banking ...'` display name string in provis
 
 Find any remaining hardcoded `banking:` scope strings (the provisioner reads most from topology, but check for stragglers):
 ```bash
-grep -n "banking:" banking_api_server/services/pingoneProvisionService.js
+grep -n "banking:" demo_api_server/services/pingoneProvisionService.js
 ```
 
 Replace any literals found with the generic equivalents.
@@ -900,8 +900,8 @@ Replace any literals found with the generic equivalents.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add banking_api_server/scripts/bootstrapPingOne.js \
-        banking_api_server/services/pingoneProvisionService.js
+git add demo_api_server/scripts/bootstrapPingOne.js \
+        demo_api_server/services/pingoneProvisionService.js
 git commit -m "feat(provisioner): read Demo display names from topology provisioning block; update audience default"
 ```
 
@@ -910,9 +910,9 @@ git commit -m "feat(provisioner): read Demo display names from topology provisio
 ## Task 9: Update TypeScript services (MCP server + gateway)
 
 **Files:**
-- Modify: `banking_mcp_server/src/tools/BankingToolRegistry.ts`
-- Modify: `banking_mcp_server/src/tools/toolScopeMap.ts`
-- Modify: `banking_mcp_server/src/auth/AuthorizationRequestGenerator.ts`
+- Modify: `demo_mcp_server/src/tools/BankingToolRegistry.ts`
+- Modify: `demo_mcp_server/src/tools/toolScopeMap.ts`
+- Modify: `demo_mcp_server/src/auth/AuthorizationRequestGenerator.ts`
 
 - [ ] **Step 1: Update `toolScopeMap.ts`**
 
@@ -953,7 +953,7 @@ Replace all `requiredScopes` arrays:
 
 Verify:
 ```bash
-grep -n "banking:" banking_mcp_server/src/tools/BankingToolRegistry.ts
+grep -n "banking:" demo_mcp_server/src/tools/BankingToolRegistry.ts
 ```
 
 - [ ] **Step 3: Update `AuthorizationRequestGenerator.ts`**
@@ -964,13 +964,13 @@ Replace:
 
 Verify:
 ```bash
-grep -n "banking:" banking_mcp_server/src/auth/AuthorizationRequestGenerator.ts
+grep -n "banking:" demo_mcp_server/src/auth/AuthorizationRequestGenerator.ts
 ```
 
 - [ ] **Step 4: Build the MCP server**
 
 ```bash
-cd banking_mcp_server && npm run build
+cd demo_mcp_server && npm run build
 ```
 
 Expected: exits 0 with no TypeScript errors.
@@ -986,10 +986,10 @@ Expected: exits 0. (The gateway derives scopes from topology at build time — n
 - [ ] **Step 6: Commit**
 
 ```bash
-git add banking_mcp_server/src/tools/BankingToolRegistry.ts \
-        banking_mcp_server/src/tools/toolScopeMap.ts \
-        banking_mcp_server/src/auth/AuthorizationRequestGenerator.ts \
-        banking_mcp_server/dist \
+git add demo_mcp_server/src/tools/BankingToolRegistry.ts \
+        demo_mcp_server/src/tools/toolScopeMap.ts \
+        demo_mcp_server/src/auth/AuthorizationRequestGenerator.ts \
+        demo_mcp_server/dist \
         banking_mcp_gateway/dist
 git commit -m "feat(mcp): update MCP server/gateway scope strings to generic names; recompile"
 ```
@@ -999,17 +999,17 @@ git commit -m "feat(mcp): update MCP server/gateway scope strings to generic nam
 ## Task 10: Update tests
 
 **Files:**
-- Modify: `banking_api_server/src/__tests__/scopeTopology.regression.test.js`
-- Modify: `banking_api_server/src/__tests__/agentMcpTokenService.test.js`
-- Modify: `banking_api_server/src/__tests__/agentDelegation.real-token.test.js`
-- Modify: `banking_api_server/src/__tests__/accounts.route.test.js`
-- Modify: `banking_api_server/src/__tests__/delegationChainValidationService.test.js`
-- Modify: `banking_api_server/src/__tests__/transaction-consent-challenge.test.js`
-- Modify: `banking_api_server/tests/ccTokenScope.regression.test.js`
-- Modify: `banking_api_server/tests/mcpGatewayConfig.test.js`
-- Modify: `banking_api_server/tests/tokenUtils.test.js`
-- Modify: `banking_api_server/tests/routes/langchainChatProxy.regression.test.js`
-- Modify: `banking_api_server/tests/bankingAgentLangGraphService.modes.test.js`
+- Modify: `demo_api_server/src/__tests__/scopeTopology.regression.test.js`
+- Modify: `demo_api_server/src/__tests__/agentMcpTokenService.test.js`
+- Modify: `demo_api_server/src/__tests__/agentDelegation.real-token.test.js`
+- Modify: `demo_api_server/src/__tests__/accounts.route.test.js`
+- Modify: `demo_api_server/src/__tests__/delegationChainValidationService.test.js`
+- Modify: `demo_api_server/src/__tests__/transaction-consent-challenge.test.js`
+- Modify: `demo_api_server/tests/ccTokenScope.regression.test.js`
+- Modify: `demo_api_server/tests/mcpGatewayConfig.test.js`
+- Modify: `demo_api_server/tests/tokenUtils.test.js`
+- Modify: `demo_api_server/tests/routes/langchainChatProxy.regression.test.js`
+- Modify: `demo_api_server/tests/bankingAgentLangGraphService.modes.test.js`
 
 - [ ] **Step 1: Global search-replace in all test files**
 
@@ -1073,7 +1073,7 @@ expect(lastPostBody().get('scope')).toBe('mcp:invoke read');
 - [ ] **Step 5: Run all updated tests**
 
 ```bash
-cd banking_api_server && npm test -- --passWithNoTests 2>&1 | tail -30
+cd demo_api_server && npm test -- --passWithNoTests 2>&1 | tail -30
 ```
 
 Expected: all pass. Fix any remaining `banking:` string mismatches surfaced by failures.
@@ -1082,17 +1082,17 @@ Expected: all pass. Fix any remaining `banking:` string mismatches surfaced by f
 
 ```bash
 git add \
-  banking_api_server/src/__tests__/scopeTopology.regression.test.js \
-  banking_api_server/src/__tests__/agentMcpTokenService.test.js \
-  banking_api_server/src/__tests__/agentDelegation.real-token.test.js \
-  banking_api_server/src/__tests__/accounts.route.test.js \
-  banking_api_server/src/__tests__/delegationChainValidationService.test.js \
-  banking_api_server/src/__tests__/transaction-consent-challenge.test.js \
-  banking_api_server/tests/ccTokenScope.regression.test.js \
-  banking_api_server/tests/mcpGatewayConfig.test.js \
-  banking_api_server/tests/tokenUtils.test.js \
-  banking_api_server/tests/routes/langchainChatProxy.regression.test.js \
-  banking_api_server/tests/bankingAgentLangGraphService.modes.test.js
+  demo_api_server/src/__tests__/scopeTopology.regression.test.js \
+  demo_api_server/src/__tests__/agentMcpTokenService.test.js \
+  demo_api_server/src/__tests__/agentDelegation.real-token.test.js \
+  demo_api_server/src/__tests__/accounts.route.test.js \
+  demo_api_server/src/__tests__/delegationChainValidationService.test.js \
+  demo_api_server/src/__tests__/transaction-consent-challenge.test.js \
+  demo_api_server/tests/ccTokenScope.regression.test.js \
+  demo_api_server/tests/mcpGatewayConfig.test.js \
+  demo_api_server/tests/tokenUtils.test.js \
+  demo_api_server/tests/routes/langchainChatProxy.regression.test.js \
+  demo_api_server/tests/bankingAgentLangGraphService.modes.test.js
 git commit -m "test: update all test fixtures to generic scope names"
 ```
 
@@ -1168,7 +1168,7 @@ tail_demo_logs "${2:-}"
 grep -n "bank-" run-demo.sh
 ```
 
-The only remaining hits should be filesystem directory refs (`banking_api_server`, etc.) — not `/tmp/` paths.
+The only remaining hits should be filesystem directory refs (`demo_api_server`, etc.) — not `/tmp/` paths.
 
 - [ ] **Step 5: Commit**
 
@@ -1208,7 +1208,7 @@ In the §1 protected files table, find the row referencing `banking_api_enduser`
 - [ ] **Step 4: Run UI build gate**
 
 ```bash
-cd banking_api_ui && npm run build
+cd demo_api_ui && npm run build
 ```
 
 Expected: exits 0. (UI has no scope string references — this is a sanity check.)
@@ -1229,7 +1229,7 @@ This task is operator-run, not automated by CI.
 - [ ] **Step 1: Run cleanup (dry-run first)**
 
 ```bash
-cd banking_api_server && node scripts/cleanupPingOneApps.js
+cd demo_api_server && node scripts/cleanupPingOneApps.js
 ```
 
 Review the output — confirm it lists the expected `Super Banking *` apps and resource servers.
@@ -1237,7 +1237,7 @@ Review the output — confirm it lists the expected `Super Banking *` apps and r
 - [ ] **Step 2: Execute cleanup**
 
 ```bash
-cd banking_api_server && node scripts/cleanupPingOneApps.js --execute
+cd demo_api_server && node scripts/cleanupPingOneApps.js --execute
 ```
 
 Expected: all `Super Banking *` entries deleted (or "No matching apps found" if already clean). Exit 0.
@@ -1245,10 +1245,10 @@ Expected: all `Super Banking *` entries deleted (or "No matching apps found" if 
 - [ ] **Step 3: Re-bootstrap**
 
 ```bash
-cd banking_api_server && npm run pingone:bootstrap
+cd demo_api_server && npm run pingone:bootstrap
 ```
 
-Expected: creates `Demo API`, `Demo MCP Server`, `Demo User App`, etc. Writes new client IDs/secrets to `banking_api_server/.env`.
+Expected: creates `Demo API`, `Demo MCP Server`, `Demo User App`, etc. Writes new client IDs/secrets to `demo_api_server/.env`.
 
 - [ ] **Step 4: Rebuild vault**
 
@@ -1283,10 +1283,10 @@ ls /tmp/demo-*.log
 
 ## Success Criteria
 
-- `cd banking_api_ui && npm run build` → exit 0
+- `cd demo_api_ui && npm run build` → exit 0
 - `cd banking_mcp_gateway && npm run build` → exit 0
-- `cd banking_mcp_server && npm run build` → exit 0
-- `cd banking_api_server && npm test -- --passWithNoTests` → all pass
+- `cd demo_mcp_server && npm run build` → exit 0
+- `cd demo_api_server && npm test -- --passWithNoTests` → all pass
 - `node scripts/cleanupPingOneApps.js` (dry-run) → prints `Super Banking *` entities without error
 - After re-bootstrap: PingOne token claims show `read`, `write`, `mcp:invoke` (not `banking:*`)
 - Log files at `/tmp/demo-api.log` etc. after `./run-demo.sh`

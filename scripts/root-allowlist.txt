@@ -89,12 +89,10 @@ librechat
 llamaindex_agent
 llm-timeouts.json
 lmstudio
-mastra_agent
 mcp-tool-schemas.json
 monitoring
 neural-spinner-mock.html
 oauth-mcp
-openai_agent
 pac
 package-lock.json
 package.json
@@ -110,7 +108,6 @@ pingone-privgateway-helm-main.zip
 planning
 postman
 privilege
-pydantic_agent
 render.yaml
 rs-page-mocks.html
 run-docker.sh

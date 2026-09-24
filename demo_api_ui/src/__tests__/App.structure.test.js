@@ -123,12 +123,38 @@ describe("App.js — critical JSX placements", () => {
     expect(block).not.toContain("<RequireAdminLogin");
   });
 
+  test("MCP observability is a signed-in user route, not an admin role-switch route", () => {
+    const start = appSrc.indexOf('path="/mcp-observability"');
+    expect(start).toBeGreaterThan(-1);
+    const block = appSrc.slice(start, start + 420);
+    expect(block).toContain("<McpObservabilityPage");
+    expect(block).not.toContain("<RequireAdminLogin");
+  });
+
   test("MonitoringRoutes is rendered for /monitoring/*", () => {
     expect(appSrc).toContain("<MonitoringRoutes");
   });
 
   test("EducationRoutes is rendered for /architecture/*", () => {
     expect(appSrc).toContain("<EducationRoutes user={user} logout={logout} />");
+  });
+
+  test("normal public and training pages render inside AppShell", () => {
+    const shellRoutes = [
+      ["/request-access", "<HostedRegistrationPage />"],
+      ["/spinner-showcase", "<SpinnerShowcasePage />"],
+      ["/hosted-registrations", "<HostedRegistrationAdminPage />"],
+      ["/governance-timeline", "<GovernanceTimelinePage />"],
+      ["/learning-lab/:lab", "<LearningProtocolLabPage />"],
+    ];
+
+    for (const [routePath, page] of shellRoutes) {
+      expect(appSrc).toMatch(
+        new RegExp(
+          `<Route\\s+[\\s\\S]*?path="${routePath.replace("/", "\\/")}"[\\s\\S]*?<AppShell[\\s\\S]*?${page.replace(/[<>]/g, "\\$&")}[\\s\\S]*?<\\/AppShell>`,
+        ),
+      );
+    }
   });
 
   test("Wildcard catch-all does NOT contain bare component wrappers around <Route>", () => {
@@ -189,7 +215,7 @@ describe("App.js — critical JSX placements", () => {
 });
 
 // ─── Gateway decisions panel — the decision feed's only screen ───────────────
-// PingGateway posts every P1AZ decision to /internal/gateway-decision and the
+// PingOne Agent Gateway posts every P1AZ decision to /internal/gateway-decision and the
 // panel reads it back. The panel's old host (McpGatewayConfig) is not routed
 // anywhere, so without this mount the feed has no screen at all.
 

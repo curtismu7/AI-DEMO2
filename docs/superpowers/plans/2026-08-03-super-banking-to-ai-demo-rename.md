@@ -59,7 +59,7 @@ agreements, sign-on policies).
 
 So if the live display name changes and `provisioning.*Names` does not — or vice versa —
 the provisioner **stops finding the existing object and creates a duplicate**. That is
-exactly the failure we hit on 2026-08-02 with `Demo MCP Invest`, where the audience in
+exactly the failure we hit on 2026-08-02 with `Demo Demo MCP Resource Server`, where the audience in
 the manifest did not match the live resource: the reconciler 400'd on every BFF boot for
 weeks while logging `OK`.
 

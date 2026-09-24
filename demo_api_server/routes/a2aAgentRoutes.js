@@ -77,6 +77,7 @@ router.post('/message', async (req, res) => {
       message,
       vertical: activeVertical,
       userId,
+      tokenEvents: tokenEvents || [],
       availableSpecialists: [], // Could be populated from config
     });
 
@@ -97,7 +98,7 @@ router.post('/message', async (req, res) => {
     }
 
     // Delegation was approved and executed
-    if (orchestrationResult.error) {
+    if (!orchestrationResult.success) {
       const allTokenEvents = prependRefreshEvent(req, orchestrationResult.tokenEvents || []);
       console.error('[a2a-agent/message] Delegation execution failed:', orchestrationResult.error);
       return res.status(502).json({
@@ -112,26 +113,28 @@ router.post('/message', async (req, res) => {
       });
     }
 
-    // Successful delegation with nested act chain
+    // Successful delegation, nested act chain, and specialist tool execution.
     const allTokenEvents = prependRefreshEvent(req, orchestrationResult.tokenEvents || []);
-    const reply = `Delegation complete — ${orchestrationResult.specialist} received narrowed token with ${
+    const reply = `Delegation complete — ${orchestrationResult.specialist} retrieved ${
+      orchestrationResult.tool?.replace(/_/g, ' ') || 'the requested data'
+    } with narrowed scopes ${
       orchestrationResult.scopes?.join(' ') || 'specialist scopes'
     } (act-chain depth ${orchestrationResult.actChainDepth || 0}).`;
 
     return res.json({
       reply,
       success: true,
-      toolsCalled: ['orchestrate_delegation', 'delegate_to_specialist'],
+      toolsCalled: ['orchestrate_delegation', 'delegate_to_specialist', orchestrationResult.tool].filter(Boolean),
       tokenEvents: allTokenEvents,
       requiresConsent: false,
       agentConfigured: true,
       delegationDecision: orchestrationResult,
       delegationResult: {
-        token: orchestrationResult.token,
         specialist: orchestrationResult.specialist,
+        tool: orchestrationResult.tool,
         scopes: orchestrationResult.scopes,
         actChainDepth: orchestrationResult.actChainDepth,
-        claims: orchestrationResult.claims,
+        result: orchestrationResult.result,
       },
     });
   } catch (error) {

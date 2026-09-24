@@ -245,7 +245,7 @@ export function buildDiagramSource(trace, steps, dark = true) {
 
   // ── Gateway subgraph ─────────────────────────────────────────────────────
   if (showGWs) {
-    lines.push(`    subgraph GW["Ping Agent Gateway"]`);
+    lines.push(`    subgraph GW["PingOne Agent Gateway"]`);
     lines.push(`        TV["Token Validated`);
         lines.push(`        ────────────────────────`);
         lines.push(`        ${kpad('sub')}      confirmed — user identity`);

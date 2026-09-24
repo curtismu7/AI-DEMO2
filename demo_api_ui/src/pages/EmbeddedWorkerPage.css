@@ -1,0 +1,50 @@
+.embedded-worker-page {
+  min-height: 100%;
+  padding: 32px clamp(18px, 5vw, 72px) 56px;
+  color: var(--th-text);
+  background: var(--th-bg-page);
+}
+
+.embedded-worker-page__context {
+  display: flex;
+  justify-content: space-between;
+  gap: 28px;
+  max-width: 1100px;
+  margin: 0 auto 22px;
+  padding: 24px 28px;
+  border: 1px solid var(--th-border);
+  border-radius: 18px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  box-shadow: var(--shadow-lg);
+}
+
+.embedded-worker-page__eyebrow {
+  margin: 0 0 8px;
+  color: var(--th-status-info-text);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .15em;
+}
+
+.embedded-worker-page h1 { margin: 0 0 8px; font-size: 34px; letter-spacing: -.04em; }
+.embedded-worker-page__context p:last-child { max-width: 620px; margin: 0; color: var(--th-text-muted); line-height: 1.5; }
+
+.embedded-worker-page__identity { display: flex; align-items: center; gap: 10px; min-width: 250px; color: var(--th-status-info-text); }
+.embedded-worker-page__identity strong, .embedded-worker-page__identity span { display: block; }
+.embedded-worker-page__identity span:last-child { margin-top: 4px; color: var(--th-text-muted); font-size: 12px; }
+.embedded-worker-page__status { width: 10px; height: 10px; border-radius: 50%; background: var(--th-border-strong); }
+.embedded-worker-page__status.is-live {
+  background: var(--th-status-success);
+  color: var(--th-text);
+  outline: 5px solid var(--th-status-success-bg);
+}
+.embedded-worker-page__identity button { margin-left: 8px; border: 0; border-radius: 7px; padding: 8px 10px; color: var(--th-text-invert); background: var(--th-status-info); cursor: pointer; font-weight: 700; font-size: 12px; }
+.embedded-worker-page__identity button:disabled { opacity: .65; cursor: wait; }
+
+.embedded-worker-page__experience { max-width: 1100px; height: min(680px, calc(100vh - 230px)); min-height: 480px; margin: 0 auto; overflow: hidden; border: 1px solid var(--th-border); border-radius: 18px; background: var(--th-bg-card); box-shadow: var(--shadow-lg); }
+
+@media (max-width: 720px) {
+  .embedded-worker-page__context { display: block; padding: 20px; }
+  .embedded-worker-page__identity { margin-top: 18px; }
+}

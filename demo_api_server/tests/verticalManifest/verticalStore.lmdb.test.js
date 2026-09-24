@@ -73,13 +73,52 @@ describe('verticalStore', () => {
     expect(store.getSnapshot('user1')).toBeNull();
   });
 
+  test('theme per-vertical round-trip', () => {
+    expect(store.getTheme('banking')).toBeNull();
+    store.setTheme('banking', { cssVars: { '--theme-accent': '#123456' } });
+    const t = store.getTheme('banking');
+    expect(t.cssVars).toEqual({ '--theme-accent': '#123456' });
+    expect(typeof t.savedAt).toBe('number');
+    store.clearTheme('banking');
+    expect(store.getTheme('banking')).toBeNull();
+  });
+
+  test('listThemeIds returns ids with themes', () => {
+    store.setTheme('a', { cssVars: {} });
+    store.setTheme('b', { cssVars: {} });
+    store.clearTheme('a');
+    expect(store.listThemeIds()).toEqual(['b']);
+  });
+
+  test('logo per-vertical round-trip', () => {
+    expect(store.getLogo('banking')).toBeNull();
+    store.setLogo('banking', { data: 'aGk=', mimeType: 'image/png' });
+    const l = store.getLogo('banking');
+    expect(l.data).toBe('aGk=');
+    expect(l.mimeType).toBe('image/png');
+    expect(typeof l.savedAt).toBe('number');
+    store.clearLogo('banking');
+    expect(store.getLogo('banking')).toBeNull();
+  });
+
+  test('listLogoIds returns ids with logos', () => {
+    store.setLogo('a', { data: 'x', mimeType: 'image/png' });
+    store.setLogo('b', { data: 'y', mimeType: 'image/png' });
+    store.clearLogo('b');
+    expect(store.listLogoIds()).toEqual(['a']);
+  });
+
   test('clearAll wipes everything', () => {
     store.setOverlay('a', { x: 1 });
     store.setActiveId('a');
     store.setSnapshot('u', { activeId: 'a', overlays: {} });
+    store.setTheme('a', { cssVars: { '--c': '#000' } });
+    store.setLogo('a', { data: 'x', mimeType: 'image/png' });
     store.clearAll();
     expect(store.getOverlay('a')).toEqual({});
     expect(store.getActiveId()).toBeNull();
     expect(store.getSnapshot('u')).toBeNull();
+    expect(store.getTheme('a')).toBeNull();
+    expect(store.getLogo('a')).toBeNull();
   });
 });

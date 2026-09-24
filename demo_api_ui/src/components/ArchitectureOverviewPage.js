@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 
 import { DEFAULT_SCENARIO_ID, SCENARIO_MAP, SCENARIOS } from '../config/architecture-sim-scenarios';
+import { useVertical } from '../vertical/useVertical';
 import { DEFAULT_STEP_MS, STEP_TIME_OPTIONS } from './diagram';
 import ArchitectureSimControls from './ArchitectureSimControls';
 import ArchitectureSimStepDesc from './ArchitectureSimStepDesc';
@@ -118,6 +119,10 @@ function simReducer(state, action) {
 // ─── Page component ──────────────────────────────────────────────────────────
 
 export default function ArchitectureOverviewPage() {
+  const { activeId, pageManifest } = useVertical();
+  const verticalName = activeId === 'banking'
+    ? 'Banking'
+    : pageManifest?.identity?.displayName || 'Banking';
   const [sim, dispatch] = useReducer(simReducer, INITIAL_STATE);
   const playTimerRef = useRef(null);
   const sseRef = useRef(null);
@@ -184,10 +189,10 @@ export default function ArchitectureOverviewPage() {
       <div className="aov-inner">
         <div className="aov-header-row">
           <div>
-            <h1>Architecture Overview</h1>
+            <h1>PingOne AI {verticalName} Architecture</h1>
             <p className="aov-subtitle">
-              Interactive simulation of request flows through the banking demo system. For the step-by-step
-              token-exchange walkthrough, see{' '}
+              Run the complete request path across PingOne, PingGateway, the BFF vault, agents, and protected
+              resource servers. Choose a flow, then play or step through it. For deeper token-exchange details, see{' '}
               <a href="/sequence-diagram">
                 /sequence-diagram
               </a>.
@@ -214,24 +219,22 @@ export default function ArchitectureOverviewPage() {
           />
         </div>
 
-        {/* Colour legend — matches ArchitectureSimSvg's own node-state
-            palette, so it stays its own fixed colors regardless of theme. */}
+        {/* Node color identifies system area; state colors identify playback progress. */}
         <div className="aov-legend">
           {[
-            { bg: '#f1f5f9', border: '#cbd5e1', label: 'Idle' },
-            { bg: '#fffbeb', border: '#f59e0b', label: 'Active request' },
-            { bg: '#f0fdf4', border: '#22c55e', label: 'Completed' },
-            { bg: '#fef2f2', border: '#ef4444', label: 'Blocked / Denied' },
-          ].map(({ bg, border, label }) => (
+            { className: 'app', label: 'Client' },
+            { className: 'bff', label: 'BFF / Vault' },
+            { className: 'identity', label: 'Ping Identity' },
+            { className: 'gateway', label: 'Gateway' },
+            { className: 'data', label: 'Resources' },
+            { className: 'agent', label: 'Agent / AI' },
+          ].map(({ className, label }) => (
             <span key={label} className="aov-legend-item">
-              <span
-                className="aov-legend-swatch"
-                style={{ background: bg, border: `2px solid ${border}` }}
-              />
+              <span className={`aov-legend-swatch aov-legend-${className}`} />
               {label}
             </span>
           ))}
-          <span className="aov-legend-hint">Hover any node for details</span>
+          <span className="aov-legend-hint">Amber = active · green = complete · red = denied · hover for details</span>
         </div>
 
         <ArchitectureSimStepDesc

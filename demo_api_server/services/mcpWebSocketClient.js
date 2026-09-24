@@ -302,6 +302,14 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
             ...(wsTlsOpts.headers || {}),
             Authorization: `Bearer ${agentToken}`,
           };
+          // PingGateway mode: select the local-JWKS validation route
+          // (00-mcp-olb-jwks.json) — the default introspection route sends the
+          // token to PingOne, which cannot parse PF-issued tokens
+          // (2026-09-22 A2A-under-PF).
+          if (configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true'
+              && configStore.getEffective('ff_mcp_gateway_jwks') === 'true') {
+            wsTlsOpts.headers['X-Token-Validation'] = 'jwks';
+          }
         }
         const ws = new WebSocket(mcpUrl, [], wsTlsOpts);
         /** @type {'awaiting_init' | 'awaiting_follow'} */

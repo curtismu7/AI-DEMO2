@@ -45,11 +45,11 @@ const SOURCES = [
     description: 'Test raw MCP protocol methods that are not tools/call — resources, prompts, completion, and log level.',
   },
   // One tab for BOTH gateway-fronted third-party servers. They are the same
-  // story told twice — PingGateway scoping a server it does not own — and
+  // story told twice — PingOne Agent Gateway scoping a server it does not own — and
   // Brave exposes a single tool, which is a thin thing to give a tab of its own.
   {
     key: 'gateway', label: 'Gateway Showcase',
-    description: 'Third-party MCP servers (Weather, Brave) reached through PingGateway, which scopes access to them at the edge.',
+    description: 'Third-party MCP servers (Weather, Brave) reached through PingOne Agent Gateway, which scopes access to them at the edge.',
   },
 ];
 

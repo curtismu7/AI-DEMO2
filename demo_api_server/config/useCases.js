@@ -112,6 +112,25 @@ const AMOUNT_PRIMARY_TOOL_BY_VERTICAL = {
   airlines: 'pay_airline_fee',
 };
 
+const AMOUNT_600_PROMPTS = amountTriggerByVertical(600);
+const WORKLOAD_AGENT_UC38_BY_VERTICAL = Object.fromEntries(
+  VERTICALS.map((vertical) => [vertical, {
+    primaryTool: vertical === 'banking'
+      ? 'create_transfer'
+      : AMOUNT_PRIMARY_TOOL_BY_VERTICAL[vertical],
+    runPrompt: AMOUNT_600_PROMPTS[vertical]
+      || 'transfer $600 from checking to savings',
+  }]),
+);
+const WORKLOAD_AGENT_UC44_BY_VERTICAL = Object.fromEntries(
+  VERTICALS.map((vertical) => [vertical, {
+    primaryTool: vertical === 'banking'
+      ? 'get_account_balance'
+      : READ_PRIMARY_TOOL_BY_VERTICAL[vertical],
+    runPrompt: READ_TRIGGER_BY_VERTICAL[vertical] || 'show my balance',
+  }]),
+);
+
 /**
  * UC33 — SECOND product type per vertical. The point of UC33 is that delegated
  * proof travels to a tool that is NOT the everyday read, so this MUST differ
@@ -341,19 +360,19 @@ const RAW_USE_CASES = [
     id: 'UC1',
     useCaseId: 'delegated-access-with-proof',
     track: 'foundations',
-    title: 'Delegated access with proof',
-    buyerStory: "Every agent action must trace back to a real human — no anonymous agent access.",
-    pingOneSolution: 'RFC 8693 token exchange mints a delegated token carrying act={agent}; the gateway and Authorize verify the chain.',
+    title: 'Delegated access (consent only)',
+    buyerStory: "Every agent action must trace back to a real human's consent — no anonymous agent access.",
+    pingOneSolution: 'After the user consents, RFC 8693 token exchange mints a delegated token carrying act={agent}; the gateway and Authorize verify the chain.',
     trigger: { type: 'chip', text: 'show my balance' },
     expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['user-token', 'token-exchange', 'authorize-decision', 'tool-dispatched'], activity: ['token', 'authorize', 'mcp'] },
     codeRefs: ['demo_api_server/services/agentMcpTokenService.js', 'demo_mcp_gateway/src/auth/GatewayTokenPolicy.ts'],
     maturity: 'works',
     owasp: { threats: ['T8', 'T9'], sections: ['§4.1.1', '§3.3.3', '§8'] },
-    whatToSay: 'The agent acted for you, and the act claim proves it — fully attributable.',
+    whatToSay: 'The user consented, and the act claim proves the agent acted on their behalf — fully attributable.',
     advanced: false,
     match: { tool: 'get_balance' },
-    whatLong: "An AI agent calls a financial tool on the user's behalf — but without proof of delegation, the action is invisible and unattributable. This scenario shows the complete RFC 8693 token-exchange chain: user token → delegated agent token carrying act={agent} → gateway validation → Authorize decision → tool.",
+    whatLong: "An AI agent calls a financial tool on the user's behalf after consent. This consent-only scenario shows the complete RFC 8693 token-exchange chain: user token → delegated agent token carrying act={agent} → gateway validation → Authorize decision → tool. It does not add a transaction MFA gate.",
     businessValue: 'Every agent action is cryptographically tied to the user who authorized it. Audit teams get a full chain of custody from user login to tool call — no hand-rolled attribution, no guesswork.',
     productRoles: {
       idp:   'Authenticates the user and mints the delegated token via RFC 8693 exchange, embedding the act claim.',
@@ -730,9 +749,9 @@ const RAW_USE_CASES = [
     id: 'UC7',
     useCaseId: 'step-up-required',
     track: 'hitl',
-    title: 'Step-up required',
-    buyerStory: "A high-value agent action shouldn't go through on the agent's say-so alone.",
-    pingOneSolution: 'PingOne Authorize returns a step-up obligation → MFA before PERMIT.',
+    title: 'MFA step-up (HITL)',
+    buyerStory: "A high-value agent action shouldn't go through on the agent's say-so alone; a human must complete MFA.",
+    pingOneSolution: 'PingOne Authorize returns a step-up obligation; the human-in-the-loop completes MFA before PERMIT.',
     trigger: { type: 'chip', text: 'transfer $600 from checking to savings' },
     expectedOutcome: 'STEP_UP',
     evidence: { tokenChain: ['authorize-decision'], activity: ['authorize', 'mcp'] },
@@ -773,10 +792,10 @@ const RAW_USE_CASES = [
     id: 'UC8',
     useCaseId: 'hitl-consent',
     track: 'hitl',
-    title: 'HITL consent',
+    title: 'MFA + HITL consent',
     demoLabel: '✦ MCP App · transfer approval',
-    buyerStory: "Some agent actions are consequential enough to require a human approval — not just an MFA tap.",
-    pingOneSolution: 'PingOne Authorize returns a HITL obligation; the agent pauses until a verified human approval receipt is received.',
+    buyerStory: "Some agent actions are consequential enough to require human-in-the-loop consent with MFA.",
+    pingOneSolution: 'PingOne Authorize returns a HITL obligation; the agent pauses until the human completes MFA and a verified approval receipt is received.',
     trigger: { type: 'chip', text: 'transfer $300 from checking to savings' },
     expectedOutcome: 'HITL_REQUIRED',
     evidence: { tokenChain: ['authorize-decision'], activity: ['authorize', 'mcp', 'hitl'] },
@@ -1234,6 +1253,36 @@ const RAW_USE_CASES = [
     productRoles: {
       gw:    'Requires an act claim on every agent-mediated tool call; rejects tokens without one.',
       authz: 'Validates the act chain when present; this scenario demonstrates the absence case.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC16b',
+    useCaseId: 'raw-user-token-forwarding-blocked',
+    track: 'attacks',
+    title: 'Raw user-token forwarding blocked (Zero Trust)',
+    buyerStory: 'The agent must never hold or forward the user\'s raw access token — only scoped, exchanged agent tokens may leave the BFF.',
+    pingOneSolution: 'The BFF performs RFC 8693 token exchange and enforces ff_skip_token_exchange fail-closed: an attempt to resolve a tool token by raw user-token forwarding is blocked with 403 user_token_forwarding_disabled at the source.',
+    trigger: { type: 'attack', sim: 'raw-user-token-forwarding' },
+    expectedOutcome: 'DENY_403',
+    // BFF-level deny: the custody guard fires inside agentMcpTokenService BEFORE
+    // any gateway or Authorize call, so no 'authorize-decision' evidence exists.
+    evidence: { tokenChain: ['user-token', 'exchange-skipped'], activity: ['token'] },
+    codeRefs: [
+      'demo_api_server/services/agentMcpTokenService.js',
+      'demo_api_server/services/agentPreflightService.js',
+      'demo_api_server/services/bffMcpToolExecutor.js',
+    ],
+    maturity: 'works',
+    owasp: { threats: ['T9'], sections: ['§4.1.1'] },
+    whatToSay: 'The agent tried to hand MCP the user\'s own token — the BFF refused to forward it. Only exchanged, agent-scoped tokens with an act claim ever leave the BFF. Zero Trust.',
+    advanced: false,
+    whatLong: 'An agent attempts to call an MCP tool by presenting the user\'s raw access token directly — no RFC 8693 exchange, no act claim, no scope narrowing. The BFF is the sole browser-token custodian and enforces the custody rule fail-closed: ff_skip_token_exchange arms the deny path, and agentMcpTokenService blocks the resolution with 403 user_token_forwarding_disabled before any gateway or Authorize call is made. The sim self-arms the flag, runs the real production resolver, and restores the prior flag value afterward.',
+    businessValue: 'Token custody is enforced at the source, not downstream. The user token never crosses a process boundary to the agent runtime, the gateway, or the LLM context — eliminating confused-deputy and token-theft exposure at the widest attack surface: the agent itself.',
+    productRoles: {
+      idp:   'Issues the user access token the agent attempts to forward.',
+      bff:   'Refuses to forward the raw user token to MCP; only RFC 8693-exchanged, agent-scoped tokens leave the BFF (fail-closed ff_skip_token_exchange guard).',
+      gw:    'Never reached on this path — the block fires at the BFF source, which is the demonstration point.',
     },
     primaryTool: null,
   },
@@ -2030,50 +2079,117 @@ const RAW_USE_CASES = [
     id: 'UC38',
     useCaseId: 'personal-agent-concierge',
     track: 'foundations',
-    title: 'Personal Agent Concierge',
-    buyerStory: "Users want a trusted agent acting on their behalf — but delegation must require proof of identity and be scoped to what the user explicitly registered.",
-    pingOneSolution: 'User authenticates with MFA; BFF verifies the registered personal agent (Agent Builder); RFC 8693 exchange mints a delegated token (sub=user, act=agent) scoped to airlines:read airlines:write.',
-    // `/airlines` is not a route — no match in App.js or routes/*, so this step
-    // fell through to the catch-all and landed the presenter on the wrong page.
-    // `/personal-agent` is the Personal Agent Studio this step is named for.
-    trigger: { type: 'link', path: '/personal-agent', label: 'Airlines vertical only — switch vertical to demo' },
+    title: 'Workload Agent: MFA-gated protected action',
+    buyerStory: "Customers want a trusted digital assistant acting on their behalf — but delegation must require proof of identity and be scoped to what the user explicitly authorized.",
+    pingOneSolution: 'User authenticates with MFA; the pre-registered workload agent is verified; RFC 8693 exchange mints a delegated token (sub=user, act=assistant) scoped to the selected vertical action.',
+    trigger: { type: 'link', path: '/workload-agents?useCase=UC38', label: 'Open MFA-gated workload action' },
     expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['user-token', 'personal-agent-lookup', 'mcp-exchange', 'tool-dispatched'], activity: ['token', 'mcp'] },
     codeRefs: [
       'demo_api_server/routes/agentInvokeRoute.js',
       'demo_api_server/services/agentBuilderService.js',
-      'demo_mcp_resource_server/src/tools/airlinesToolHandler.ts',
+      'demo_api_server/services/agentMcpTokenService.js',
     ],
     maturity: 'flag:ff_personal_agent_concierge',
     owasp: { threats: ['T1', 'T9'], sections: ['§4.1', '§4.2'] },
-    whatToSay: 'User proves identity with MFA, their registered personal agent is looked up, RFC 8693 delegates authority — the agent redeems miles for a seat upgrade.',
+    whatToSay: 'Choose this to demonstrate identity step-up before a workload agent makes a protected change.',
     advanced: false,
-    whatLong: 'A user triggers the premium flyer concierge. The BFF requires a multi-factor authentication claim before delegation — a token without the MFA acr causes a step-up prompt. Once MFA is proved, the BFF looks up the user\'s registered personal agent (created on the Agent Builder page). An RFC 8693 token exchange mints a delegated token where the user remains the subject and the agent carries the act claim, scoped to airlines:read airlines:write. The agent then calls get_loyalty_status to check the miles balance and redeem_miles to upgrade the cabin on the next upcoming booking.',
-    businessValue: 'End users get personalized agentic services that act on their behalf — but delegation is always gated on explicit identity proof (MFA) and pre-registered agent authorization, not implied by session context alone.',
+    whatLong: 'A customer selects a protected action in the active vertical. The BFF requires a multi-factor authentication claim before delegation — a token without the MFA acr causes a step-up prompt. Once MFA is proved, the BFF verifies the pre-registered workload agent. An RFC 8693 token exchange mints a delegated token where the customer remains the subject and the agent carries the act claim. The agent then runs the selected vertical action through the gateway and Authorize.',
+    businessValue: 'Customers get personalized digital-assistant services that act on their behalf — but delegation is always gated on explicit identity proof (MFA) and pre-registered workload-agent authorization, not implied by session context alone.',
     productRoles: {
-      idp:   'Issues the high-assurance (MFA-satisfied) user token; serves as the source of truth for the personal agent identity registered via the Agent Builder.',
+      idp:   'Issues the high-assurance (MFA-satisfied) user token and serves as the source of truth for the pre-registered workload-agent identity.',
       gw:    'Passes the delegated token to the MCP resource server; the act claim is visible in every tool call.',
-      authz: 'Can extend this pattern: add a P1AZ policy that further constrains the personal agent\'s allowed actions based on the user\'s loyalty tier.',
+      authz: 'Evaluates the selected vertical action and any assurance obligations before the tool executes.',
+    },
+    primaryTool: 'create_transfer',
+    runPrompt: 'transfer $600 from checking to savings',
+    studioPath: '/personal-agent',
+    perVertical: WORKLOAD_AGENT_UC38_BY_VERTICAL,
+  },
+  {
+    id: 'UC43',
+    useCaseId: 'consumer-partner-agent-cimd-registration',
+    track: 'foundations',
+    title: 'Consumer & Partner Agent — CIMD registration',
+    buyerStory: 'Customer-facing agents need a discoverable registration path that establishes trust without pretending the identity provider supports CIMD natively.',
+    pingOneSolution: 'The BFF runs a clearly labeled CIMD registration facade in the background, stores only public-safe metadata, and keeps the user-owned agent association visible in the NHI inventory.',
+    trigger: { type: 'link', path: '/agent-builder', label: 'Open Consumer & Partner Agent registration' },
+    expectedOutcome: 'CIMD_FACADE_REGISTERED',
+    evidence: { tokenChain: [], activity: ['register', 'inventory'] },
+    codeRefs: [
+      'demo_api_server/services/personalAgentCimdService.js',
+      'demo_api_server/routes/cimdAgentMetadata.js',
+      'demo_api_server/services/agentRegistryService.js',
+    ],
+    maturity: 'works',
+    owasp: { threats: ['T1', 'T9'], sections: ['§4.1', '§4.2'] },
+    whatToSay: 'This is the Consumer & Partner Agent registration lane: CIMD is shown as a mock facade because PingOne does not support it natively, while the association and lifecycle evidence are real in the demo.',
+    advanced: false,
+    whatLong: 'The customer-facing agent registration path demonstrates the shape of CIMD without overstating PingOne capability. The BFF creates a public-safe metadata document, resolves it through the existing local CIMD mock, and records the relationship between the user and the agent for inventory and lifecycle views. Subsequent governed execution is demonstrated separately by the Workload Agent: Digital Assistant lane.',
+    businessValue: 'Customer and partner agents can be onboarded through a consistent identity pattern while security teams retain registration provenance, ownership, and lifecycle evidence.',
+    productRoles: {
+      idp: 'Remains the source of the user identity and real PingOne-backed agent identity used by later governed flows.',
+      gw: 'Publishes the metadata facade and exposes the safe registration evidence.',
+    },
+    primaryTool: null,
+  },
+  {
+    id: 'UC44',
+    useCaseId: 'workload-digital-assistant-obo',
+    track: 'foundations',
+    title: 'Workload Agent: OBO customer-data read',
+    buyerStory: 'A hosted digital assistant must act for an authenticated customer without collapsing the assistant identity into the human identity.',
+    pingOneSolution: 'PingOne pre-registers the workload agent identity; RFC 8693 token exchange produces a delegated token with sub=user and act=assistant, which the gateway and Authorize evaluate on every tool call.',
+    trigger: { type: 'link', path: '/workload-agents?useCase=UC44', label: 'Open OBO customer-data read' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'personal-agent-lookup', 'mcp-exchange', 'tool-dispatched'], activity: ['token', 'authorize', 'mcp'] },
+    codeRefs: [
+      'demo_api_server/routes/agentInvokeRoute.js',
+      'demo_api_server/services/agentBuilderService.js',
+      'demo_api_server/services/agentMcpTokenService.js',
+    ],
+    maturity: 'works',
+    owasp: { threats: ['T1', 'T9', 'T13'], sections: ['§4.1', '§4.2', '§4.3'] },
+    whatToSay: 'Choose this to demonstrate who authorized the request, which workload agent acted, and what data it could access.',
+    advanced: false,
+    whatLong: 'A customer signs in and asks a hosted Digital Assistant to perform an action. The assistant is a pre-registered Workload Agent with its own PingOne identity. RFC 8693 exchanges the user authority for a delegated token containing the customer as subject and the assistant as actor. The gateway and PingOne Authorize evaluate the chain, scopes, resource owner, and any step-up or CIBA obligation before a tool executes.',
+    businessValue: 'Digital channels get a first-class workload identity without losing customer attribution, least privilege, policy enforcement, or the ability to re-involve the human for sensitive operations.',
+    productRoles: {
+      idp: 'Authenticates the customer and issues the source token; PingOne is also the source of the pre-registered workload-agent identity.',
+      gw: 'Validates the delegated token and routes the assistant call to the protected tool.',
+      authz: 'Evaluates the user, assistant actor, scopes, resource ownership, and step-up requirements.',
+    },
+    primaryTool: 'get_account_balance',
+    runPrompt: 'show my balance',
+    perVertical: WORKLOAD_AGENT_UC44_BY_VERTICAL,
+  },
+  {
+    id: 'UC45',
+    useCaseId: 'saas-embedded-worker',
+    track: 'foundations',
+    title: 'SaaS-Embedded Agent — Website Worker',
+    buyerStory: 'A SaaS website needs an embedded worker that acts for a signed-in customer while keeping its own workload identity and tenant context.',
+    pingOneSolution: 'PingOne provisions a distinct Website Worker identity; the BFF uses mocked CIMD registration for provenance and real delegated execution for every customer action.',
+    trigger: { type: 'link', path: '/embedded-worker', label: 'Open Website Worker demo' },
+    expectedOutcome: 'PERMIT',
+    evidence: { tokenChain: ['user-token', 'personal-agent-lookup', 'mcp-exchange', 'tool-dispatched'], activity: ['register', 'inventory', 'token', 'authorize', 'mcp'] },
+    codeRefs: [
+      'demo_api_server/routes/embeddedWorker.js',
+      'demo_api_server/services/agentBuilderService.js',
+      'demo_api_server/services/personalAgentCimdService.js',
+    ],
+    maturity: 'works',
+    owasp: { threats: ['T1', 'T9', 'T13'], sections: ['§4.1', '§4.2', '§4.3'] },
+    whatToSay: 'The Website Worker is embedded in the customer site, but PingOne still sees a distinct workload identity and the token chain preserves customer attribution.',
+    advanced: false,
+    whatLong: 'A customer signs in to a SaaS website and asks its embedded Website Worker to perform an action. The worker has a separate PingOne AI Agent identity and a separate CIMD/NHI association. The BFF verifies the worker, exchanges the customer authority for a delegated token, and sends the request through the existing gateway and Authorize path.',
+    businessValue: 'SaaS providers can embed helpful agents without conflating the website session, customer identity, and worker identity.',
+    productRoles: {
+      idp: 'Authenticates the customer and remains the source of the distinct Website Worker identity.',
+      gw: 'Validates and routes the worker request with the delegated customer context.',
+      authz: 'Evaluates the customer, worker actor, scopes, tenant context, and action policy.',
     },
     primaryTool: 'redeem_miles',
-    // The SECOND tool this use case runs. `primaryTool` is the chip's entry
-    // point and was, until now, the only tool a use case declared anywhere
-    // machine-readable — so every gate built on this catalog was blind to the
-    // rest of a multi-tool flow. get_loyalty_status sat intent-unreachable
-    // through two rounds of fixes because nothing could see it; it was found by
-    // driving the live stack, not by a test (PR #2446).
-    // Declare every gateway tool a use case calls, not just the first.
-    // `useCases.secondaryTools.test.js` fails on a gateway tool named in this
-    // entry's prose but absent from primaryTool/secondaryTools.
-    secondaryTools: ['get_loyalty_status'],
-    studioPath: '/personal-agent',
-    perVertical: {
-      airlines: {
-        trigger: { type: 'chip', text: 'have my agent use my miles for an upgrade' },
-        primaryTool: 'redeem_miles',
-        whatToSay: 'MFA proved, personal agent verified, miles redeemed — cabin upgraded.',
-      },
-    },
   },
 ];
 

@@ -17,7 +17,7 @@ enterprise identity with governance, privileges, and security applied
 throughout its lifecycle. The diagram names three onboarding flows (Enterprise
 AI User, Developer/Agent Builder, Security/Identity Admin discovery) that route
 through a proposed **Agent Studio** portal into **IGA for AI**, the **Privileges
-MCP Gateway**, **PingGateway MCP Security Gateway**, and **PingAuthorize**.
+MCP Gateway**, **PingOne Agent Gateway MCP Security Gateway**, and **PingAuthorize**.
 
 A repo survey (general-purpose agent, 2026-07-12) found most of these pieces do
 not exist in AI-DEMO2 today:
@@ -27,7 +27,7 @@ not exist in AI-DEMO2 today:
 | Agent Studio (unified 3-persona portal) | PARTIAL | 3 disconnected flows: `AgentBuilderPage.jsx`, `clientRegistration.js`, `adminAgentRoutes.js` |
 | IGA for AI | MISSING | narrative-only in `AgentGuardrailsDiagram.jsx`; no inventory/lifecycle/certification code |
 | P1 Privileges MCP Gateway | PARTIAL | `PrivilegeDemoPage` demos privilege approval, not wired into the main MCP request path |
-| PingGateway MCP Security Gateway | EXISTS | `docker-compose.yml` `ping-gateway` service, token exchange/validation |
+| PingOne Agent Gateway MCP Security Gateway | EXISTS | `docker-compose.yml` `ping-gateway` service, token exchange/validation |
 | PingAuthorize | EXISTS | `demo_mcp_gateway/src/auth/PingOneAuthorizeClient.ts`, `pingAuthorizeGuard.ts` |
 | Cloud Discovery (admin) | MISSING | no shadow-agent detection in Foundry/AWS/Vertex |
 | Browser/Device Discovery | MISSING | `UngovernedAgentPage.js` is a static before/after page, not a live detector |

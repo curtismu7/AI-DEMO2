@@ -1,0 +1,72 @@
+.rfps-wrap {
+  width: 100%;
+  overflow: auto;
+  border: 1px solid var(--rfp-border, #cbd5e1);
+  border-radius: 8px;
+  background: var(--rfp-card, #fff);
+  min-height: 560px;
+}
+
+.rfps-svg {
+  display: block;
+}
+
+.rfps-participant {
+  fill: var(--rfp-card, #fff);
+  stroke-width: 2;
+}
+
+.rfps-participant__text {
+  font-size: 0.82rem;
+  font-weight: 700;
+  fill: var(--rfp-text, #0f172a);
+}
+
+.rfps-lifeline {
+  stroke: var(--rfp-lifeline, #cbd5e1);
+  stroke-dasharray: 4 4;
+}
+
+.rfps-row-bg {
+  fill: transparent;
+}
+
+.rfps-row-bg--active {
+  fill: var(--rfp-row-active, rgba(0, 70, 135, 0.06));
+}
+
+.rfps-step-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.rfps-arrow {
+  stroke-width: 2;
+  fill: none;
+}
+
+.rfps-arrowhead--on {
+  fill: #004687;
+}
+
+.rfps-arrowhead--off {
+  fill: var(--rfp-border, #cbd5e1);
+}
+
+/* Dark-mode passive arrows need a lighter stroke */
+.rfp-dark .rfps-arrow:not(.rfps-arrow--active),
+.rfp-dark .rfps-arrowhead--off {
+  filter: brightness(1.8);
+}
+
+.rfps-token {
+  fill: #f59e0b;
+  stroke: #b91c1c;
+  stroke-width: 1;
+  filter: drop-shadow(0 0 3px rgba(245, 158, 11, 0.8));
+}
+
+.rfps-arrow-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+}

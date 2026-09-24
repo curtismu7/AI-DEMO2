@@ -175,5 +175,5 @@ T-3-amended):
 - ARCHITECTURE-TRUTHS T-3, T-4, T-10
 - REGRESSION_PLAN §1 (HITL/transfer enforcement), Phase 170
 - Gateway: `banking_mcp_gateway/src/{tokenValidator,auth/GatewayTokenPolicy,auth/PingOneAuthorizeClient,credentialSwap}.ts`
-- `banking_api_server/services/llmProviderResolver.js`,
-  `banking_api_ui/src/hooks/useLangchainProvider.js`
+- `demo_api_server/services/llmProviderResolver.js`,
+  `demo_api_ui/src/hooks/useLangchainProvider.js`

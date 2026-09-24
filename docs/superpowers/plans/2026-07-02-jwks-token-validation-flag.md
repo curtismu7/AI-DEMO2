@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** A demo-visible feature flag (`ff_mcp_gateway_jwks`) that switches PingGateway MCP token validation from remote PingOne introspection to local JWT validation (RS256 via PingOne JWKS, HS256 via the mock shared secret), per request, with no gateway restart.
+**Goal:** A demo-visible feature flag (`ff_mcp_gateway_jwks`) that switches PingOne Agent Gateway MCP token validation from remote PingOne introspection to local JWT validation (RS256 via PingOne JWKS, HS256 via the mock shared secret), per request, with no gateway restart.
 
-**Architecture:** The BFF stamps an `X-Token-Validation: jwks|introspect` header on PingGateway-bound requests (mirroring the existing `X-Authz-Simulated` pattern). A new route file `00-mcp-olb-jwks.json` sorts ahead of the untouched `01-mcp-olb.json` and matches only when the header is `jwks`; its chain replaces the introspection resource-server stage with a Groovy validator script that verifies the JWT locally and populates `attributes['oauth2AccessToken']` — the fallback `p1az-decision.groovy` already reads — so the downstream authorize + token-exchange filters run unmodified.
+**Architecture:** The BFF stamps an `X-Token-Validation: jwks|introspect` header on PingOne Agent Gateway-bound requests (mirroring the existing `X-Authz-Simulated` pattern). A new route file `00-mcp-olb-jwks.json` sorts ahead of the untouched `01-mcp-olb.json` and matches only when the header is `jwks`; its chain replaces the introspection resource-server stage with a Groovy validator script that verifies the JWT locally and populates `attributes['oauth2AccessToken']` — the fallback `p1az-decision.groovy` already reads — so the downstream authorize + token-exchange filters run unmodified.
 
-**Tech Stack:** Node/Express BFF (jest), PingGateway (ForgeRock IG) route JSON + Groovy ScriptableFilter, docker compose.
+**Tech Stack:** Node/Express BFF (jest), PingOne Agent Gateway (ForgeRock IG) route JSON + Groovy ScriptableFilter, docker compose.
 
 **Spec:** `docs/superpowers/specs/2026-07-02-jwks-token-validation-flag-design.md`
 
@@ -36,7 +36,7 @@
 **Interfaces:**
 
 - Consumes: `configStore.getEffective(key) → string|undefined` (existing).
-- Produces: config key `ff_mcp_gateway_jwks` resolvable via `getEffective`; outbound header `X-Token-Validation: 'jwks'|'introspect'` on PingGateway-bound requests. Tasks 2–4 rely on these exact names.
+- Produces: config key `ff_mcp_gateway_jwks` resolvable via `getEffective`; outbound header `X-Token-Validation: 'jwks'|'introspect'` on PingOne Agent Gateway-bound requests. Tasks 2–4 rely on these exact names.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -46,7 +46,7 @@ Create `demo_api_server/tests/pinggatewayJwksHeader.test.js` (mirrors the existi
 'use strict';
 
 // Unit test for the X-Token-Validation header that callToolViaGateway stamps on
-// PingGateway-bound requests. The BFF carries the effective ff_mcp_gateway_jwks
+// PingOne Agent Gateway-bound requests. The BFF carries the effective ff_mcp_gateway_jwks
 // value so the gateway selects the validation route per request: 'jwks' matches
 // route 00-mcp-olb-jwks.json (local JWT validation), 'introspect' falls through
 // to route 01-mcp-olb.json (RFC 7662 introspection, today's behavior). Added
@@ -176,7 +176,7 @@ Expected: FAIL — `expect(lastHeaders()['X-Token-Validation']).toBe('jwks')` re
 FIELD_DEFS (after line 311 `ff_mcp_gateway_pinggateway: ...`):
 
 ```js
-  ff_mcp_gateway_jwks:             { public: true, default: 'false' }, // PingGateway validates MCP tokens locally (JWKS/HS256) instead of introspecting
+  ff_mcp_gateway_jwks:             { public: true, default: 'false' }, // PingOne Agent Gateway validates MCP tokens locally (JWKS/HS256) instead of introspecting
 ```
 
 Env alias map (after line 1044 `ff_mcp_gateway_pinggateway: ['FF_MCP_GATEWAY_PINGGATEWAY'],`):
@@ -200,7 +200,7 @@ Expected: both suites PASS (the pre-existing X-Authz-Simulated suite guards agai
 
 ```bash
 git add demo_api_server/tests/pinggatewayJwksHeader.test.js demo_api_server/routes/featureFlags.js demo_api_server/services/configStore.js demo_api_server/services/mcpGatewayClient.js
-git commit -m "feat: ff_mcp_gateway_jwks flag + X-Token-Validation header on PingGateway requests"
+git commit -m "feat: ff_mcp_gateway_jwks flag + X-Token-Validation header on PingOne Agent Gateway requests"
 ```
 
 ---
@@ -401,7 +401,7 @@ If a local `groovy` CLI exists (`command -v groovy`), run: `groovy -e "new Groov
 
 ```bash
 git add ping-gateway/scripts/groovy/jwks-token-validation.groovy
-git commit -m "feat: Groovy local JWKS/HS256 token validation script for PingGateway"
+git commit -m "feat: Groovy local JWKS/HS256 token validation script for PingOne Agent Gateway"
 ```
 
 ---
@@ -562,7 +562,7 @@ Expected: `OK`
 
 ```bash
 git add ping-gateway/config/routes/00-mcp-olb-jwks.json ping-gateway/.env.example ping-gateway/README.md
-git commit -m "feat: header-selected JWKS validation route for PingGateway MCP path"
+git commit -m "feat: header-selected JWKS validation route for PingOne Agent Gateway MCP path"
 ```
 
 ---

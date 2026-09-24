@@ -9,7 +9,8 @@
  * Imported by server.js as the sole session store.
  */
 const { Store } = require('express-session');
-const { openEnv } = require('./openEnv');
+const { openEnv, MAP_SIZE } = require('./openEnv');
+const storeHealth = require('./storeHealth');
 
 const DB_NAME = 'sessions';
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -32,6 +33,15 @@ class LmdbSessionStore extends Store {
     for (const { key, value } of this._db.getRange()) {
       if (value.expire <= now) this._db.removeSync(key);
     }
+    // Continuous mapSize monitoring (2026-09-22 incident): the startup-only
+    // watcher in openEnv.js missed drift that happened after boot. data.mdb
+    // never shrinks on its own, so the file size IS the high-water mark.
+    storeHealth.snapshot();
+  }
+
+  get dataMdbPctOfMap() {
+    const snap = storeHealth.snapshot();
+    return snap.dataMdbBytes != null ? Math.round((snap.dataMdbBytes / MAP_SIZE) * 100) : null;
   }
 
   // IMPORTANT: every method invokes its SUCCESS callback OUTSIDE the try/catch.
@@ -51,6 +61,15 @@ class LmdbSessionStore extends Store {
     cb(null, sess);
   }
 
+  get(sid, cb) {
+    let sess;
+    try {
+      const entry = this._db.get(sid);
+      sess = (!entry || entry.expire <= Date.now()) ? null : entry.sess;
+    } catch (e) { return cb(e); }
+    cb(null, sess);
+  }
+
   set(sid, sess, cb) {
     try {
       // sess.cookie.maxAge is already in milliseconds (express-session stores
@@ -59,7 +78,15 @@ class LmdbSessionStore extends Store {
       const maxAge = sess.cookie && sess.cookie.maxAge ? sess.cookie.maxAge : this.ttl;
       const expire = Date.now() + maxAge;
       this._db.putSync(sid, { sess, expire });
-    } catch (e) { return cb(e); }
+    } catch (e) {
+      // 2026-09-22: at the mapSize ceiling putSync was failing here and the
+      // only trace was a login loop hours later. Mark the store unhealthy
+      // (surfaces via /api/health/demo-status) and log at ERROR. Callback
+      // semantics unchanged — cb(err) still reaches express-session.
+      storeHealth.setWriteError(e);
+      return cb(e);
+    }
+    storeHealth.clearWriteError();
     cb(null);
   }
 

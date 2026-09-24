@@ -1399,7 +1399,7 @@ function McpToolBox({ event }) {
             <ul className="tcd-edu-checklist">
               {toolName && <li><span className="tcd-edu-check-lbl">Tool:</span><span><code>{toolName}</code></span></li>}
               {toolArgs && <li><span className="tcd-edu-check-lbl">Args:</span><span>{toolArgs.length ? toolArgs.map((k) => <code key={String(k)}>{k}</code>).reduce((a, b) => [a, ', ', b]) : '(none)'}</span></li>}
-              {routedVia && <li><span className="tcd-edu-check-lbl">Route:</span><span>{routedVia === 'gateway' ? 'Ping Agent Gateway (HTTP)' : 'Direct WebSocket'}</span></li>}
+              {routedVia && <li><span className="tcd-edu-check-lbl">Route:</span><span>{routedVia === 'gateway' ? 'PingOne Agent Gateway (HTTP)' : 'Direct WebSocket'}</span></li>}
             </ul>
           </>
         ) : (
@@ -1425,13 +1425,13 @@ function GatewayRouteBox({ event }) {
     <div className="tcd-edu-box tcd-edu-box--neutral">
       <div className="tcd-edu-box-hd">
         <span className="tcd-edu-icon">→</span>
-        <strong>Ping Agent Gateway Route</strong>
+        <strong>PingOne Agent Gateway Route</strong>
       </div>
       <div className="tcd-edu-body">
         {isGateway ? (
           <>
             <p>
-              The Ping Agent Gateway received the request, verified the token, and routed it to the upstream MCP server.
+              The PingOne Agent Gateway received the request, verified the token, and routed it to the upstream MCP server.
               The gateway enforces RFC 7662 token introspection and PingOne Authorization Server policy decisions before forwarding the token unchanged.
             </p>
             <ul className="tcd-edu-checklist">
@@ -1441,7 +1441,7 @@ function GatewayRouteBox({ event }) {
             </ul>
           </>
         ) : (
-          <p>No Ping Agent Gateway is configured — the tool request was sent directly to the MCP server via WebSocket.</p>
+          <p>No PingOne Agent Gateway is configured — the tool request was sent directly to the MCP server via WebSocket.</p>
         )}
       </div>
     </div>
@@ -1474,7 +1474,7 @@ function ResourceServerReplyBox({ event }) {
             <span className="tcd-edu-check-lbl">Path:</span>
             <span>
               {routedVia === 'gateway'
-                ? 'BFF → Ping Agent Gateway → MCP Server → Banking API'
+                ? 'BFF → PingOne Agent Gateway → MCP Server → Banking API'
                 : 'BFF → MCP Server (WebSocket) → Banking API'}
             </span>
           </li>
@@ -3222,7 +3222,7 @@ function NlRoutingCard({ event }) {
  *   Browser → BFF         (mkcert — api.ping.demo:3001  HTTPS)
  *   Browser → UI          (mkcert — demo-api-server:3001  HTTPS)
  *   BFF → PingOne AS      (public CA — auth.pingone.com  HTTPS)
- *   BFF → Ping Agent Gateway     (mkcert — api.ping.demo:3005  HTTPS)
+ *   BFF → PingOne Agent Gateway     (mkcert — api.ping.demo:3005  HTTPS)
  *   Gateway → MCP Server  (HTTP — loopback only; no token leaves the host)
  */
 
@@ -3253,7 +3253,7 @@ const TLS_HOPS = [
   },
   {
     from: "BFF",
-    to: "Ping Agent Gateway",
+    to: "PingOne Agent Gateway",
     host: "api.ping.demo:3005",
     protocol: "HTTPS",
     cert: "mkcert (dev CA)",
@@ -4132,25 +4132,25 @@ const PLACEHOLDER_EVENTS = [
   },
   {
     id: "exchanged-token",
-    label: "Delegated Token (aud=mcp-gw) — BFF → Ping Agent Gateway",
+    label: "Delegated Token (aud=mcp-gw) — BFF → PingOne Agent Gateway",
     status: "waiting",
     claims: null,
     explanation:
-      "The delegated token (aud=mcp-gw, sub=user, act=agent) is sent by the BFF to the Ping Agent Gateway. Contains act proving delegation chain. The user access token stays in the BFF — only this token crosses the network.",
+      "The delegated token (aud=mcp-gw, sub=user, act=agent) is sent by the BFF to the PingOne Agent Gateway. Contains act proving delegation chain. The user access token stays in the BFF — only this token crosses the network.",
     rfc: "RFC 8693",
   },
   {
     id: "gw-introspection",
-    label: "Ping Agent Gateway — RFC 7662 Token Introspection",
+    label: "PingOne Agent Gateway — RFC 7662 Token Introspection",
     status: "waiting",
     claims: null,
     explanation:
-      "Per tool call, the Ping Agent Gateway calls PingOne Authorization Server's introspection endpoint (RFC 7662) to confirm the delegated token is active, not revoked, and carries the expected claims. Results are cached briefly to reduce round-trips. If active: false, the request is rejected with 401 before any policy evaluation.",
+      "Per tool call, the PingOne Agent Gateway calls PingOne Authorization Server's introspection endpoint (RFC 7662) to confirm the delegated token is active, not revoked, and carries the expected claims. Results are cached briefly to reduce round-trips. If active: false, the request is rejected with 401 before any policy evaluation.",
     rfc: "RFC 7662",
   },
   {
     id: "gw-authorize",
-    label: "Ping Agent Gateway — PingOne Authorization Server policy decision",
+    label: "PingOne Agent Gateway — PingOne Authorization Server policy decision",
     status: "waiting",
     claims: null,
     explanation:
@@ -4174,7 +4174,7 @@ const PLACEHOLDER_EVENTS = [
     status: "waiting",
     claims: null,
     explanation:
-      "On PERMIT, the Ping Agent Gateway forwards the delegated token to the MCP Server unchanged — no second RFC 8693 exchange. The token (aud=mcp-gw) is valid at both the gateway and the downstream MCP Server by design.",
+      "On PERMIT, the PingOne Agent Gateway forwards the delegated token to the MCP Server unchanged — no second RFC 8693 exchange. The token (aud=mcp-gw) is valid at both the gateway and the downstream MCP Server by design.",
     rfc: "RFC 6750",
     routedVia: "gateway",
   },

@@ -1,0 +1,20 @@
+# The UI Dockerfile uses the repo root as context only for llm-timeouts.json.
+# Keep this context scoped to the UI build inputs; the root .dockerignore must
+# remain broader for other services that build from the repo root.
+**
+!demo_api_ui
+!demo_api_ui/**
+!llm-timeouts.json
+
+# The UI image build does not consume local dependencies or generated/test data.
+demo_api_ui/node_modules
+demo_api_ui/build
+demo_api_ui/dist
+demo_api_ui/.vite
+demo_api_ui/coverage
+demo_api_ui/e2e
+demo_api_ui/tests
+demo_api_ui/docs
+demo_api_ui/test-results
+demo_api_ui/design
+demo_api_ui/evidence

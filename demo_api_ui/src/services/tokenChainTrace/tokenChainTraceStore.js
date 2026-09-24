@@ -4,6 +4,7 @@
 // from two passive listeners wired below.
 import { buildTraceSteps } from "./buildTraceSteps";
 import { agentFlowDiagram } from "../agentFlowDiagramService";
+import { RUN_PROVENANCE } from "../../config/agentTerminology";
 
 const EMPTY_TRACE = () => ({
   // Identifies THIS run. Consumers that render per-run evidence (ProofStrip via
@@ -15,7 +16,7 @@ const EMPTY_TRACE = () => ({
   // whose flowTraceId belongs to a DIFFERENT run (a prior run's late, out-of-
   // order SSE result landing on this run's fresh trace).
   flowTraceId: null,
-  startedAt: null, finishedAt: null, prompt: null, routingMode: null, routingDetail: null,
+  startedAt: null, finishedAt: null, prompt: null, provenance: "live", routingMode: null, routingDetail: null,
   llmDetail: null, llmReply: null,
   phases: [], tokenEvents: [], mcpResult: null, authorize: null, authorizeEvaluations: null, outcome: null,
   // 'declined' once the human refuses a step-up / HITL approval gate. Without
@@ -155,7 +156,7 @@ function ensureTrace() {
 export const tokenChainTraceStore = {
   subscribe(fn) { listeners.add(fn); fn(getState()); return () => listeners.delete(fn); },
   getState,
-  beginTrace({ prompt, flowTraceId } = {}) {
+  beginTrace({ prompt, flowTraceId, provenance = "live" } = {}) {
     // Session-scoped evidence (the sign-in token) outlives any single tool
     // call — carry it into the new trace so the sign-in step doesn't regress
     // to "pending" on every chip click. Per-call events are dropped.
@@ -180,6 +181,9 @@ export const tokenChainTraceStore = {
     trace.startedAt = Date.now();
     trace.runId = ++runSeq;
     trace.prompt = prompt ? { message: String(prompt) } : null;
+    trace.provenance = Object.prototype.hasOwnProperty.call(RUN_PROVENANCE, provenance)
+      ? provenance
+      : "live";
     trace.tokenEvents = sessionEvents;
     trace.phases = carriedMfaPhases;
     if (carried) trace.authorize = { outcome: carried, priorGate: carried };

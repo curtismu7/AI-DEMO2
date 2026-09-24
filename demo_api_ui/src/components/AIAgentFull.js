@@ -594,6 +594,10 @@ export default function BankingAgentFull({
   const cibaPollTimeoutsRef = useRef(new Map());
   const cibaUnmountedRef = useRef(false);
   useEffect(() => {
+    // React StrictMode replays effects with setup → cleanup → setup on mount.
+    // Cleanup marks this instance inactive; reset it whenever listeners are
+    // installed so the replayed instance can continue polling.
+    cibaUnmountedRef.current = false;
     const wakeCibaPoller = (event) => {
       try {
         const payload = JSON.parse(event.newValue || '{}');
@@ -6176,7 +6180,7 @@ export default function BankingAgentFull({
         addMessage(
           "token-event",
           [
-            ` Ping Agent Gateway — Policy Denial: \`${gwCode}`,
+            ` PingOne Agent Gateway — Policy Denial: \`${gwCode}`,
             `   Tool: \`${err.tool || actionId}`,
             `   Gateway error code: \`${gwCode}`,
             `   Message: ${gwMsg}`,
@@ -7968,7 +7972,11 @@ export default function BankingAgentFull({
           message: trigger.text,
           vertical: effectiveVerticalId,
         });
-        addMessage("assistant", `${stepLabel}\n${data?.reply || "The orchestrator returned no reply."}`);
+        const specialistResult = data?.delegationResult?.result;
+        const resultText = specialistResult == null
+          ? ""
+          : `\nSpecialist result:\n${typeof specialistResult === "string" ? specialistResult : JSON.stringify(specialistResult, null, 2)}`;
+        addMessage("assistant", `${stepLabel}\n${data?.reply || "The orchestrator returned no reply."}${resultText}`);
         if (data?.tokenEvents?.length) {
           appendTokenEvents(data.tokenEvents);
           try { tokenChainTraceStore.ingestTokenEvents(data.tokenEvents); } catch (_) {}
@@ -8047,7 +8055,7 @@ export default function BankingAgentFull({
       if (uc.id === "UC14b" && opts?.quickResult) {
         addMessage("user", stepLabel);
         setNlLoading(true);
-        try { tokenChainTraceStore.beginTrace({ prompt: stepLabel }); } catch (_) {}
+        try { tokenChainTraceStore.beginTrace({ prompt: stepLabel, provenance: "mock" }); } catch (_) {}
         try {
           const { data } = await apiClient.post("/api/demo/intent-binding/run", {
             action: "permit",
@@ -8111,7 +8119,7 @@ export default function BankingAgentFull({
       addMessage("user", stepLabel);
       setNlLoading(true);
       // Reset token chain trace so the proof strip shows this use case, not a stale one
-      try { tokenChainTraceStore.beginTrace({ prompt: stepLabel }); } catch (_) {}
+      try { tokenChainTraceStore.beginTrace({ prompt: stepLabel, provenance: "mock" }); } catch (_) {}
       try {
         const { data } = await apiClient.post("/api/demo/attack-sim/run", { sim });
         const status = data?.status;

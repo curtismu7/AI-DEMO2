@@ -19,6 +19,7 @@ import QuickFlagsPill from "./QuickFlagsPill";
 import UserMenu from "./UserMenu";
 import FavoritesMenu from "./FavoritesMenu";
 import VerticalSwitcher from "./VerticalSwitcher";
+import OAuthProviderToggle from "./OAuthProviderToggle";
 import "./TopNav.css";
 
 // Curated react-icons/md set selectable per vertical via manifest identity.icon.
@@ -33,7 +34,7 @@ export default function TopNav({ user, onLogout }) {
   const location = useLocation();
   const { pageManifest } = useVertical();
   const identity = pageManifest?.identity;
-  const { tokenSecondsLeft, tokenLoading, sessionType, staleSession, hasActiveToken: tokenIsActive, openTokenModal } = useSessionToken();
+  const { tokenSecondsLeft, tokenLoading, sessionType, staleSession, hasRefreshToken, hasActiveToken, openTokenModal } = useSessionToken();
   const { darkMode, toggleDarkMode } = useTheme();
   const brandName = (identity && (identity.headerTitle || identity.displayName)) || 'AI Demo';
   // Per-vertical brand icon (manifest identity.icon); unknown/absent → bank icon.
@@ -101,7 +102,19 @@ export default function TopNav({ user, onLogout }) {
 
   const tokenExpiring = tokenSecondsLeft !== null && tokenSecondsLeft > 0 && tokenSecondsLeft < 300;
   const tokenExpired = tokenSecondsLeft !== null && tokenSecondsLeft <= 0;
-  const hasActiveToken = !!user && tokenIsActive;
+  // Presence is the signal: keep the red R visible even if the access token
+  // expired or a refresh attempt failed transiently. The server hides it once
+  // the refresh token is gone or revoked.
+  const showRefreshMarker = !!user && hasRefreshToken;
+  const refreshMarker = showRefreshMarker ? (
+    <span
+      className="topnav-token-pill__refresh-marker"
+      title="Refresh token present — access token refreshes automatically near expiry"
+      aria-label="Refresh token present"
+    >
+      R
+    </span>
+  ) : null;
 
   const displayName =
     (user?.firstName && user?.lastName)
@@ -239,6 +252,7 @@ export default function TopNav({ user, onLogout }) {
                 {!tokenLoading && staleSession && (
                   <>
                     <span className="topnav-token-pill__dot" aria-hidden="true" />
+                    {refreshMarker}
                     {sessionType === 'admin' && (
                       <span className="topnav-token-pill__session-label">Admin</span>
                     )}
@@ -258,6 +272,7 @@ export default function TopNav({ user, onLogout }) {
                 {!tokenLoading && !staleSession && tokenSecondsLeft === null && (
                   <>
                     <span className="topnav-token-pill__dot" aria-hidden="true" />
+                    {refreshMarker}
                     <span className="topnav-token-pill__expired-label">No token — please sign in</span>
                   </>
                 )}
@@ -270,6 +285,7 @@ export default function TopNav({ user, onLogout }) {
                       </span>
                     )}
                     {displayName && <span className="topnav-token-pill__name">{displayName}</span>}
+                    {refreshMarker}
                     <span className="topnav-token-pill__countdown">{formatCountdown(tokenSecondsLeft)}</span>
                     {openTokenModal && (
                       <button
@@ -286,6 +302,7 @@ export default function TopNav({ user, onLogout }) {
                 {!staleSession && tokenExpired && (
                   <>
                     <span className="topnav-token-pill__dot" aria-hidden="true" />
+                    {refreshMarker}
                     <span className="topnav-token-pill__expired-label">Session expired</span>
                     <button
                       type="button"
@@ -318,6 +335,14 @@ export default function TopNav({ user, onLogout }) {
               absolutely positioned below this control, and the scroller's
               overflow clipping would hide it after the trigger opens it. */}
           <FavoritesMenu />
+
+          {/* OAuth provider toggle — visible to everyone. Switches the BFF's
+              login provider (PingOne ⇄ PingFederate) at runtime; no restart
+              needed because every OAuth config getter reads the provider
+              lazily. Changing provider invalidates the current token chain,
+              so the user is signed out after the switch. The component hides
+              itself if the BFF config endpoint is unreachable. */}
+          <OAuthProviderToggle />
 
           {/* Theme toggle — always visible (outside the scroll area) so it never
               scrolls off, and available to every page since TopNav is app-wide. */}

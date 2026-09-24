@@ -137,7 +137,7 @@ export default function VerticalsSection() {
             <div className="aac-stat-tile">
               <div className="aac-stat-value">{totalCalls}</div>
               <div className="aac-stat-label">MCP calls observed</div>
-              <div className="aac-stat-detail">PingGateway admin connector</div>
+              <div className="aac-stat-detail">PingOne Agent Gateway admin connector</div>
             </div>
             <div className="aac-stat-tile">
               <div className="aac-stat-value">{formatMs(meanLatency)}</div>
@@ -152,7 +152,7 @@ export default function VerticalsSection() {
           <div className="aac-card">
             <div className="aac-card-body">
               {metricsError || metrics?.available === false
-                ? (metrics?.reason || "PingGateway admin connector not reachable in this environment.")
+                ? (metrics?.reason || "PingOne Agent Gateway admin connector not reachable in this environment.")
                 : "Loading…"}
             </div>
           </div>
@@ -160,7 +160,7 @@ export default function VerticalsSection() {
         <div className="aac-card" style={{ marginTop: 12 }}>
           <div className="aac-card-body">
             Grafana / Prometheus / Jaeger, source <code>monitoring/</code>, scraping
-            PingGateway's admin connector. Alert rules evaluate but there is no
+            PingOne Agent Gateway's admin connector. Alert rules evaluate but there is no
             Alertmanager to route them to.
           </div>
         </div>

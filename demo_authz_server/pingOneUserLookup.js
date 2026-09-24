@@ -94,7 +94,17 @@ async function lookupUser(sub) {
     const envId  = _envOrDefault('PINGONE_ENVIRONMENT_ID');
     const region = _envOrDefault('PINGONE_REGION', 'com');
 
-    const url = `https://api.pingone.${region}/v1/environments/${envId}/users/${sub}`;
+    // The sub is normally the PingOne user UUID. PingFederate mode issues
+    // sub=<username> (the HTML Form adapter contract has no PingOne UUID), and
+    // a username is not a valid /users/{id} path segment — PingOne answers 400
+    // and every decision failed closed. Resolve non-UUID subs by username
+    // filter, then evaluate the same enabled/status fields.
+    let url;
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sub)) {
+      url = `https://api.pingone.${region}/v1/environments/${envId}/users/${sub}`;
+    } else {
+      url = `https://api.pingone.${region}/v1/environments/${envId}/users?filter=username+eq+%22${encodeURIComponent(sub)}%22`;
+    }
     const resp = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(4000),
@@ -111,7 +121,16 @@ async function lookupUser(sub) {
       return { enabled: false, status: 'LOOKUP_FAILED', found: false };
     }
 
-    const user = await resp.json();
+    let user = await resp.json();
+    // Filter responses wrap matches in _embedded.users — take the first.
+    if (Array.isArray(user?._embedded?.users)) {
+      if (user._embedded.users.length === 0) {
+        const result = { enabled: false, status: 'NOT_FOUND', found: false };
+        _cache.set(sub, { ...result, fetchedAt: Date.now(), ttl: NOT_FOUND_CACHE_TTL_MS });
+        return result;
+      }
+      user = user._embedded.users[0];
+    }
     const result = {
       enabled: user.enabled !== false,
       status:  user.status || 'ACTIVE',

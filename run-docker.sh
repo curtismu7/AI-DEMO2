@@ -28,7 +28,6 @@
 #
 # Optional groups (for `optional start|stop`):
 #   rag        Code Search — started with core by default; `optional stop rag` to free RAM
-#   agents     Alternate agent frameworks — openai-agent, mastra-agent, pydantic-agent
 #   tracing    Jaeger OTLP backend
 #   demo-auth  Demo authz-server + demo mcp-gateway (auto via demo-sync)
 #   observability  Grafana + Prometheus + Loki + Alloy + Alertmanager — off by default
@@ -118,14 +117,14 @@ CORE_SERVICES=(
 )
 
 # Optional groups — start on demand via `./run-docker.sh optional start <group>`.
-OPTIONAL_GROUP_NAMES=(rag agents tracing demo-auth mcpgw observability spiffe)
+OPTIONAL_GROUP_NAMES=(rag tracing demo-auth mcpgw observability spiffe)
 
 # Also brought up on every `start` / `restart` / `build` (core stack). Still
 # stoppable with `./run-docker.sh optional stop rag` without tearing down core.
 DEFAULT_OPTIONAL_GROUPS=(rag)
 
 # Compose profiles matching OPTIONAL_GROUP_NAMES (also used for `start full`).
-FULL_STACK_PROFILE_ARGS=(--profile rag --profile agents --profile tracing --profile demo-auth --profile mcpgw --profile observability --profile spiffe)
+FULL_STACK_PROFILE_ARGS=(--profile rag --profile tracing --profile demo-auth --profile mcpgw --profile observability --profile spiffe)
 
 # Teardown only. `notebooklm` is deliberately absent from FULL_STACK_PROFILE_ARGS
 # (it restart-loops without a host ~/.notebooklm cookie jar, so it is never
@@ -164,7 +163,6 @@ _optional_profile_args() {
 _optional_group_services() {
   case "$1" in
     rag)       echo "weaviate embeddings demo-mcp-code-search llamaindex-agent" ;;
-    agents)    echo "openai-agent mastra-agent pydantic-agent" ;;
     tracing)   echo "jaeger" ;;
     demo-auth) echo "authz-server mcp-gateway mcp-jwt-verifier" ;;
     mcpgw)     echo "ping-mcpgw mcpgw-nginx opensearch opensearch-mcp-server" ;;
@@ -186,7 +184,6 @@ _optional_group_services() {
 _optional_group_desc() {
   case "$1" in
     rag)       echo "Code Search (Weaviate + embeddings + MCP code-search + LlamaIndex /ask)" ;;
-    agents)    echo "Alternate agent frameworks (OpenAI / Mastra / Pydantic)" ;;
     tracing)   echo "Jaeger OTLP tracing backend" ;;
     demo-auth) echo "Demo Authorize AS + Demo Agent Gateway (Node mcp-gateway)" ;;
     mcpgw)     echo "PingOne Privilege MCPGW (JIT least-privilege + session recording) + OpenSearch sample backend" ;;
@@ -771,14 +768,19 @@ if [[ "${_RUN_DOCKER_CMD_EARLY}" != "stop" && "${_RUN_DOCKER_CMD_EARLY}" != "hel
 fi
 unset _RUN_DOCKER_CMD_EARLY
 
-if [[ ! -f "${BASEDIR}/demo_api_server/.env" ]]; then
+case "${1:-start}" in
+  help|--help|-h) ;;
+  *)
+    if [[ ! -f "${BASEDIR}/demo_api_server/.env" ]]; then
   err "demo_api_server/.env not found."
   echo ""
   echo "  Run bootstrap first:"
   echo "    cd demo_api_server && npm run pingone:bootstrap"
   echo ""
   exit 1
-fi
+    fi
+    ;;
+esac
 
 # ── Service / port / log table (matches docker-compose.yml) ──────────────────
 SERVICES=(
@@ -804,12 +806,9 @@ SERVICES=(
   "mcp-audit|MCP Audit             |8898|http://localhost:8898/health"
   "mcp-jwt-verifier|MCP JWT Verifier     |8083|http://localhost:8083"
   "api-resource-server|Mortgage Service     |8082|http://localhost:8082"
-  "openai-agent|OpenAI Agent          |8891|http://localhost:8891"
-  "mastra-agent|Mastra Agent          |8892|http://localhost:8892"
-  "pydantic-agent|Pydantic AI Agent    |8893|http://localhost:8893"
   "authz-server|Authz Server          |9001|http://localhost:9001"
   "promptfoo-step-narration|promptfoo (eval)      |-|./run-docker.sh promptfoo"
-  "notebooklm|NotebookLM Sidecar   |-|opt-in profile, no published port"
+  "notebooklm|NotebookLM sidecar    |-|internal :8000"
 )
 
 # True if $1 is one of the compose service names in SERVICES, OR a member of
@@ -1153,6 +1152,15 @@ _includes_bff() {
   return 1
 }
 
+_includes_mcp_gateway() {
+  for svc in "$@"; do [[ "${svc}" == "mcp-gateway" ]] && return 0; done
+  return 1
+}
+
+_check_demo_auth_credentials() {
+  node "${BASEDIR}/scripts/check-mcp-gateway-credential-parity.js"
+}
+
 cmd_stop_one() {
   _require_services "$@"
   echo ""
@@ -1168,6 +1176,9 @@ cmd_stop_one() {
 
 cmd_restart_one() {
   _require_services "$@"
+  if _includes_mcp_gateway "$@"; then
+    _check_demo_auth_credentials || return 1
+  fi
   echo ""
   echo -e "${CYAN}${BOLD}   [DOCKER]  Restarting ${*} (others untouched)${RESET}"
   echo ""
@@ -1222,6 +1233,9 @@ cmd_build_one() {
   done
 
   _require_services "${services[@]}"
+  if _includes_mcp_gateway "${services[@]}"; then
+    _check_demo_auth_credentials || return 1
+  fi
   echo ""
   echo -e "${CYAN}${BOLD}   [DOCKER]  Rebuilding + restarting ${services[@]} (others untouched)${RESET}"
   echo ""
@@ -1340,6 +1354,8 @@ cmd_demo_sync() {
     return 0
   fi
 
+  _check_demo_auth_credentials || return 1
+
   local flags sim pgw trc need_authz=0 need_demo_gw=0
   flags="$(_read_demo_stack_flags)"
   sim="${flags%% *}"
@@ -1376,17 +1392,8 @@ cmd_demo_sync() {
   # The demo-auth-gated services are always up now (see the sync above), so
   # they are always part of the instrumented set.
   local otel_services="demo-api-server mcp-server agent-service hitl-service mcp-resource-server authz-server mcp-gateway mcp-proxy llm-proxy langchain-agent"
-  # mastra-agent, openai-agent, pydantic-agent live in the optional "agents"
-  # compose profile — only fold each into the toggle when a user has actually
-  # started it, so flipping ff_tracing never force-starts an optional
-  # container nobody asked for.
-  local running_agents
-  running_agents="$(docker compose "${COMPOSE_FILES[@]}" ps --status running --services 2>/dev/null)"
-  for svc in mastra-agent openai-agent pydantic-agent; do
-    if grep -qx "${svc}" <<<"${running_agents}"; then
-      otel_services="${otel_services} ${svc}"
-    fi
-  done
+  # No optional agent-framework containers remain — the toggle only ever
+  # touches core instrumented services now.
   if [[ "${trc}" == "0" ]]; then
     ok "Tracing OFF — stopping Jaeger and recreating instrumented services without OTLP export"
     docker compose "${COMPOSE_FILES[@]}" stop jaeger 2>/dev/null || true
@@ -1411,6 +1418,10 @@ cmd_optional_start() {
     cmd_optional_help
     exit 1
   }
+
+  if [[ " ${groups[*]} " == *" demo-auth "* ]] || [[ " ${groups[*]} " == *" all "* ]]; then
+    _check_demo_auth_credentials || return 1
+  fi
 
   echo ""
   echo -e "${CYAN}${BOLD}   [DOCKER]  Starting optional: ${groups[*]}${RESET}"
@@ -1529,18 +1540,25 @@ cmd_optional_status() {
 }
 
 cmd_optional_help() {
-  echo "  Optional groups:"
-  local g
-  for g in "${OPTIONAL_GROUP_NAMES[@]}" all; do
-    echo "    ${g}  — $(_optional_group_desc "${g}")"
-  done
+  echo "  Optional service groups (start/stop/status without tearing down core):"
+  echo "    Data and search:"
+  echo "      rag           — $(_optional_group_desc rag)"
+  echo "    Identity and gateways:"
+  echo "      spiffe        — $(_optional_group_desc spiffe)"
+  echo "      demo-auth     — $(_optional_group_desc demo-auth)"
+  echo "      mcpgw         — $(_optional_group_desc mcpgw)"
+  echo "    Observability and tracing:"
+  echo "      observability — $(_optional_group_desc observability)"
+  echo "      tracing       — $(_optional_group_desc tracing)"
+  echo "    all             — $(_optional_group_desc all)"
+  echo "    Service-specific opt-in:"
+  echo "      notebooklm    — build explicitly with ./run-docker.sh build notebooklm (not started by full)"
   echo ""
   echo "  Note: rag starts with core by default; observability does not. Use optional stop/start to toggle."
   echo "        Starting or stopping observability can recreate the BFF (~35s) to switch its Loki push."
   echo "  Examples:"
   echo "    ./run-docker.sh optional stop rag"
-  echo "    ./run-docker.sh optional start rag"
-  echo "    ./run-docker.sh optional start agents"
+  echo "    ./run-docker.sh optional start spiffe"
   echo "    ./run-docker.sh optional start observability"
   echo "    ./run-docker.sh optional status"
   echo ""
@@ -1558,6 +1576,10 @@ cmd_start() {
       *) shift ;;
     esac
   done
+
+  if [[ "${stack}" == "full" ]]; then
+    _check_demo_auth_credentials || return 1
+  fi
 
   demo_machine_banner docker
 
@@ -1704,9 +1726,6 @@ cmd_start() {
   echo -e "${MAGENTA}${BOLD}  │${RESET}  MCP Server             :8080  ${YELLOW}(WebSocket)${RESET}"
   echo -e "${MAGENTA}${BOLD}  │${RESET}  MCP Gateway            :3005"
   echo -e "${MAGENTA}${BOLD}  │${RESET}  LangChain Agent        :8888  ${YELLOW}(SSE)${RESET}  :8890  ${YELLOW}(health)${RESET}"
-  echo -e "${MAGENTA}${BOLD}  │${RESET}  OpenAI Agent           :8891"
-  echo -e "${MAGENTA}${BOLD}  │${RESET}  Mastra Agent           :8892"
-  echo -e "${MAGENTA}${BOLD}  │${RESET}  Pydantic AI Agent      :8893"
   echo -e "${MAGENTA}${BOLD}  │${RESET}  Agent Service          :3016"
   echo -e "${MAGENTA}${BOLD}  │${RESET}  HITL Service           :3009"
   echo -e "${MAGENTA}${BOLD}  │${RESET}  Mortgage Service       :8082"
@@ -1882,9 +1901,6 @@ cmd_help() {
   echo "    MCP Server             :8080  (WebSocket)"
   echo "    MCP Gateway            :3005"
   echo "    LangChain Agent        :8888 (SSE) :8890 (health)"
-  echo "    OpenAI Agent           :8891"
-  echo "    Mastra Agent           :8892"
-  echo "    Pydantic AI Agent      :8893"
   echo "    Agent Service          :3016"
   echo "    HITL Service           :3009"
   echo "    Mortgage Service       :8082"
@@ -1902,7 +1918,6 @@ cmd_help() {
   echo "    ./run-docker.sh demo-sync                   # apply Quick Flag toggles to containers"
   echo "    ./run-docker.sh optional stop rag           # free Code Search RAM when unused"
   echo "    ./run-docker.sh optional start rag          # re-enable Code Search"
-  echo "    ./run-docker.sh optional start agents       # alt agent frameworks"
   echo "    ./run-docker.sh optional start observability # Grafana + Prometheus + Loki, when needed"
   echo "    ./run-docker.sh optional status             # see what's running"
   echo "    DEMO_STACK=full ./run-docker.sh start       # env override for full stack"

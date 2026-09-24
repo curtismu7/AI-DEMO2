@@ -5,6 +5,11 @@ import {
   DEMO_ADVANCED_USE_CASE_IDS,
   DEMO_USE_CASE_LABEL,
   ADMIN_PRIMARY_USE_CASE_IDS,
+  CIAM_AGENT_TYPE_USE_CASE_IDS,
+  DEMO_USE_CASE_SEARCH_TERMS,
+  DEMO_MATURITY_GROUPS,
+  DEMO_MISSION_GROUPS,
+  PRIVILEGE_USE_CASE_IDS,
 } from '../demoUseCaseSteps';
 
 describe('demoUseCaseSteps', () => {
@@ -39,6 +44,69 @@ describe('demoUseCaseSteps', () => {
 
   it('exports the Demo section label', () => {
     expect(DEMO_USE_CASE_LABEL).toMatch(/Demo/i);
+  });
+
+  it('exports the curated CIAM agent-type group in demo order', () => {
+    expect(CIAM_AGENT_TYPE_USE_CASE_IDS).toEqual(['UC43', 'UC44', 'UC45', 'UC2', 'UC2.6']);
+  });
+
+  it('exports presenter-friendly aliases for the live lanes', () => {
+    expect(DEMO_USE_CASE_SEARCH_TERMS.UC7).toEqual(
+      expect.arrayContaining(['mfa', 'step-up']),
+    );
+    expect(DEMO_USE_CASE_SEARCH_TERMS.UC43).toEqual(
+      expect.arrayContaining(['cimd', 'agent registration']),
+    );
+    expect(DEMO_USE_CASE_SEARCH_TERMS.UC44).toEqual(
+      expect.arrayContaining(['obo', 'digital assistant']),
+    );
+    expect(DEMO_USE_CASE_SEARCH_TERMS.UC45).toEqual(
+      expect.arrayContaining(['saas embedded', 'website worker', 'embedded agent', 'customer tenant']),
+    );
+  });
+
+  it('partitions the scripted demo across the maturity-model groups', () => {
+    const groupedIds = DEMO_MATURITY_GROUPS.flatMap((group) => group.useCaseIds);
+    expect(new Set(groupedIds)).toEqual(new Set(DEMO_USE_CASE_IDS));
+    expect(groupedIds).toHaveLength(DEMO_USE_CASE_IDS.length);
+  });
+
+  it('keeps all 12 Mission Control shortcuts visible in the agreed order without the SaaS lane', () => {
+    expect(DEMO_MISSION_GROUPS).toHaveLength(12);
+    expect(DEMO_MISSION_GROUPS.map((group) => group.id)).toEqual([
+      'personal-agent',
+      'digital-assistant',
+      'consumer-partner',
+      'employee-agent',
+      'workload-agent',
+      'agent-network',
+      'discover',
+      'register',
+      'authenticate',
+      'authorize',
+      'privilege',
+      'govern',
+    ]);
+    expect(DEMO_MISSION_GROUPS.find((group) => group.id === 'personal-agent').useCaseIds)
+      .toEqual(['UC43', 'UC44', 'UC38']);
+  });
+
+  it('exports the Privilege & JIT access lanes', () => {
+    expect(PRIVILEGE_USE_CASE_IDS).toEqual([
+      'UC17',
+      'UC25',
+      'UC40',
+      'UC-PAM-SETUP',
+      'UC-PAM-SCRIPT',
+      'UC-LEARN11',
+      'UC-TOOL3',
+    ]);
+    expect(DEMO_USE_CASE_SEARCH_TERMS.UC17).toEqual(
+      expect.arrayContaining(['jit', 'ephemeral credentials', 'secretless']),
+    );
+    expect(DEMO_USE_CASE_SEARCH_TERMS['UC-PAM-SCRIPT']).toEqual(
+      expect.arrayContaining(['approval', 'session recording', 'kill switch']),
+    );
   });
 
   it('exports the admin vertical demo-steps id list', () => {
@@ -83,7 +151,7 @@ describe('demoUseCaseSteps', () => {
   });
 
   // UC29 cannot fire on this deployment (Node gateway validates by JWKS, no
-  // introspection hook; PingGateway has no outage toggle) — it must not be
+  // introspection hook; PingOne Agent Gateway has no outage toggle) — it must not be
   // put back into the script until that changes.
   it('does not script UC29 (introspection outage is not demonstrable here)', () => {
     expect(DEMO_PRIMARY_USE_CASE_IDS).not.toContain('UC29');

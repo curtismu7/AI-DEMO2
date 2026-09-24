@@ -1023,6 +1023,8 @@ router.get('/status', (req, res) => {
     // accessToken intentionally omitted — token stays on the backend (Backend-for-Frontend (BFF) pattern)
     tokenType: isAuthenticated ? req.session.oauthTokens.tokenType : null,
     expiresAt: isAuthenticated ? req.session.oauthTokens.expiresAt : null,
+    hasRefreshToken: wasOAuthLogin && !!req.session.oauthTokens?.refreshToken,
+    sessionType: wasOAuthLogin ? req.session.oauthType : null,
     clientType: isAuthenticated ? req.session.clientType : null,
     // In-app consent gate field — consumed by BankingAgent.js and agentMcpTokenService
     consentGiven,

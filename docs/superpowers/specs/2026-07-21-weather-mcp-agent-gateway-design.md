@@ -70,7 +70,7 @@ shared) → `TxWeatherScope` (new `ScriptableFilter`) → `ReverseProxyHandler` 
 `baseURI: ${env['PG_WEATHER_BACKEND_URL']}`.
 
 **Naming/shadowing note:** the file is named `00-mcp-weather.json`, but the `00-` filename
-prefix is cosmetic only — live testing during implementation proved PingGateway selects among
+prefix is cosmetic only — live testing during implementation proved PingOne Agent Gateway selects among
 matching routes by the route's `"name"` field, sorted alphabetically, NOT by filename (an
 in-repo comment in `00-mcp-apikey-jwks.json` states this outright: "IG selects by name, not
 filename"). `01-mcp-olb.json`'s condition is a catch-all — `^/mcp(?!/invest)` — and its name
@@ -127,7 +127,7 @@ New capability card: third-party MCP passthrough + geographic scoping. Evidence 
 at `ping-gateway/scripts/groovy/tx-weather-scope.groovy` and
 `ping-gateway/config/routes/00-mcp-weather.json`, matching the existing evidence-string
 convention in this file (`file:line` references). Unlike every other entry in this ledger,
-there is no Node `demo_mcp_gateway` equivalent — this capability is PingGateway-only, noted
+there is no Node `demo_mcp_gateway` equivalent — this capability is PingOne Agent Gateway-only, noted
 explicitly (the same convention the existing `metadata-controls` entry uses for its Node-only
 case, inverted).
 
@@ -201,7 +201,7 @@ failing open rather than denying the whole capability on a BFF hiccup.
 ## Success criteria
 
 - `/mcp/weather` route live and reachable through `ping-gateway` — and NOT silently shadowed
-  by `01-mcp-olb.json`'s catch-all (PingGateway selects among matching routes by the route's
+  by `01-mcp-olb.json`'s catch-all (PingOne Agent Gateway selects among matching routes by the route's
   `"name"` field alphabetically, not by filename — verify via a `WWW-Authenticate` header
   comparison against `/mcp`, not just a matching status code).
 - A Texas-scoped request (city name or coordinates) returns real weather data (200).

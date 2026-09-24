@@ -11,11 +11,11 @@ const MATURITY = /^(works|needs-console-import|needs-build|flag:[a-z0-9_]+)$/;
 const UTILITY_TRACKS = ['tools', 'learn', 'nhi'];
 
 describe('useCases catalog SoT', () => {
-  test('contains all 63 use cases including UC1..UC32, UC33..UC35, UC37..UC42, and UC-NHI1/2', () => {
-    // 57 since UC40 (enterprise-managed-mcp-authorization) joined the catalog.
-    expect(USE_CASES).toHaveLength(63);
+  test('contains the complete catalog including the CIAM/NHI agent lanes', () => {
+    // UC43/44 and the SaaS-Embedded Website Worker UC45 are part of the CIAM/NHI catalog.
+    expect(USE_CASES).toHaveLength(66);
     const ids = USE_CASES.map((u) => u.id);
-    expect(new Set(ids).size).toBe(63);
+    expect(new Set(ids).size).toBe(66);
     for (let n = 1; n <= 22; n++) expect(ids).toContain(`UC${n}`);
     expect(ids).toContain('UC23');
     expect(ids).toContain('UC24');
@@ -96,6 +96,22 @@ describe('useCases catalog SoT', () => {
   test('getUseCase returns the base entry by id', () => {
     expect(getUseCase('UC7').useCaseId).toBe('step-up-required');
     expect(getUseCase('NOPE')).toBeUndefined();
+  });
+
+  test('uses the approved consent and MFA terminology for UC1, UC7, and UC8', () => {
+    expect(getUseCase('UC1')).toMatchObject({
+      title: 'Delegated access (consent only)',
+      buyerStory: expect.stringMatching(/consent/i),
+      whatLong: expect.stringMatching(/consent[- ]only/i),
+    });
+    expect(getUseCase('UC7')).toMatchObject({
+      title: 'MFA step-up (HITL)',
+      pingOneSolution: expect.stringMatching(/MFA.*(?:HITL|human-in-the-loop)|(?:HITL|human-in-the-loop).*MFA/i),
+    });
+    expect(getUseCase('UC8')).toMatchObject({
+      title: 'MFA + HITL consent',
+      pingOneSolution: expect.stringMatching(/MFA.*(?:HITL|human-in-the-loop)|(?:HITL|human-in-the-loop).*MFA/i),
+    });
   });
 
   test('resolveUseCase merges perVertical overrides over the base', () => {
@@ -206,9 +222,9 @@ describe('useCases catalog SoT', () => {
     }
   });
 
-  test('listUseCases returns all 63 resolved for a vertical', () => {
-    expect(listUseCases('healthcare')).toHaveLength(63);
-    expect(listUseCases()).toHaveLength(63);
+  test('listUseCases returns all catalog entries resolved for a vertical', () => {
+    expect(listUseCases('healthcare')).toHaveLength(66);
+    expect(listUseCases()).toHaveLength(66);
   });
 
   test('only UC14 and UC15 are advanced', () => {

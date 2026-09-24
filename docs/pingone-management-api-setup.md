@@ -83,19 +83,19 @@ Use the provided setup script for quick automation:
 
 ```bash
 # Validate Management API connection
-node banking_api_server/scripts/setupResourceServers.js validate
+node demo_api_server/scripts/setupResourceServers.js validate
 
 # Setup MCP server configuration
-node banking_api_server/scripts/setupResourceServers.js setup mcp-server
+node demo_api_server/scripts/setupResourceServers.js setup mcp-server
 
 # Setup two-exchange delegation
-node banking_api_server/scripts/setupResourceServers.js setup two-exchange
+node demo_api_server/scripts/setupResourceServers.js setup two-exchange
 
 # Setup all configurations
-node banking_api_server/scripts/setupResourceServers.js setup all
+node demo_api_server/scripts/setupResourceServers.js setup all
 
 # List existing resource servers
-node banking_api_server/scripts/setupResourceServers.js list
+node demo_api_server/scripts/setupResourceServers.js list
 ```
 
 ### 2. Admin API Endpoints
@@ -140,7 +140,7 @@ Content-Type: application/json
 
 ```bash
 # Step 1: Validate connection
-cd banking_api_server
+cd demo_api_server
 node scripts/setupResourceServers.js validate
 
 # Step 2: Setup MCP server
@@ -346,7 +346,7 @@ jobs:
           
       - name: Install dependencies
         run: |
-          cd banking_api_server
+          cd demo_api_server
           npm install
           
       - name: Setup PingOne Resources
@@ -355,7 +355,7 @@ jobs:
           PINGONE_ENVIRONMENT_ID: ${{ secrets.PINGONE_ENVIRONMENT_ID }}
           PINGONE_REGION: ${{ secrets.PINGONE_REGION }}
         run: |
-          cd banking_api_server
+          cd demo_api_server
           node scripts/setupResourceServers.js validate
           node scripts/setupResourceServers.js setup mcp-server
 ```

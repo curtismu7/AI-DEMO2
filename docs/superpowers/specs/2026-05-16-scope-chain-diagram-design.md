@@ -48,7 +48,7 @@ two consumers + `clientType` derivation onto the already-granted, prefixed
 |---|---|
 | `pingoneProvisionService.js:1223` | Remove `{ name: 'ai_agent', ... }` from created scopes |
 | `services/mcpWebSocketClient.js:52` | `query_user_by_email: ['ai_agent']` → `['banking:ai:agent:read']` |
-| `banking_mcp_server/openapi/mcp-olb.openapi.json:120,122` | `["ai_agent"]` → `["banking:ai:agent:read"]` (security + x-required-scopes) |
+| `demo_mcp_server/openapi/mcp-olb.openapi.json:120,122` | `["ai_agent"]` → `["banking:ai:agent:read"]` (security + x-required-scopes) |
 | `middleware/auth.js:31,58,~70/96,388` | Derive `clientType==='ai_agent'` from `banking:ai:agent:read` instead of bare `ai_agent`; `requireAIAgent` (:957) logic unchanged |
 | `utils/oauthAuthorizeResource.js:29` | Drop `\|\| s === 'ai_agent'` (redundant — `banking:ai:agent:read` matches `startsWith('banking:')`) |
 | `config/scopes.js:15,39,81,83` | Remove `AI_AGENT_IDENTITY: 'ai_agent'` + uses; fix legacy comment |
@@ -59,7 +59,7 @@ two consumers + `clientType` derivation onto the already-granted, prefixed
 
 - Targeted tests pass: `npx jest auth users query_user_by_email` (nearest
   existing suites).
-- `cd banking_mcp_server && npm run build` exits 0.
+- `cd demo_mcp_server && npm run build` exits 0.
 - Very-thorough re-search: zero bare `ai_agent` *scope* references remain
   (unrelated `AI_AGENT` app-type / `loginType` strings are out of scope).
 - A token with `banking:ai:agent:read` still yields `clientType==='ai_agent'`
@@ -149,13 +149,13 @@ narrowing at Exchange #1 and the re-widening at Exchange #2 visually obvious.
    The script already copies the `.mmd` next to the PNG so the UI can show
    source; no other change needed.
 
-3. **`banking_api_ui/src/App.js`** — add a `scopes` sub-route under the
+3. **`demo_api_ui/src/App.js`** — add a `scopes` sub-route under the
    existing `/architecture/*` route block, reusing the same zoomable
    image-viewer pattern already used by `/architecture/overview` (zoom steps,
    open-in-new-tab, scroll/pan container).
 
 4. Render the PNG (`bash scripts/build-diagrams.sh scope-chain`) and run
-   `cd banking_api_ui && npm run build` (exit 0).
+   `cd demo_api_ui && npm run build` (exit 0).
 
 ### Out of scope (YAGNI)
 
@@ -168,7 +168,7 @@ narrowing at Exchange #1 and the re-widening at Exchange #2 visually obvious.
 
 - `bash scripts/build-diagrams.sh scope-chain` renders `scope-chain.png` with
   zero failures.
-- `cd banking_api_ui && npm run build` exits 0.
+- `cd demo_api_ui && npm run build` exits 0.
 - `/architecture/scopes` loads the zoomable image and is reachable.
 - Every scope string in the rendered diagram matches the verified table above.
 - No `REGRESSION_PLAN.md` §1 protected file is modified destructively — the

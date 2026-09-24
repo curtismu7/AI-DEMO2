@@ -120,6 +120,10 @@ const _SECRET_KEYS_RAW = [
   'PF_ADMIN_CLIENT_SECRET',
   'PF_USER_CLIENT_SECRET',
   'PF_TOKEN_EXCHANGE_CLIENT_SECRET',
+  'PF_STANDARD_AGENT_EXCHANGE_CLIENT_SECRET',
+  'PF_STANDARD_TOKEN_EXCHANGE_CLIENT_SECRET',
+  'PF_AI_AGENT_ACTOR_CLIENT_SECRET',
+  'PF_MCP_SERVICE_ACTOR_CLIENT_SECRET',
   'PF_ID_JAG_REDEMPTION_CLIENT_SECRET',
   'pingone_fraud_watch_agent_client_secret',
   'pingone_balance_sweep_agent_client_secret',
@@ -197,6 +201,10 @@ const BOOTSTRAP_ALLOWLIST = new Set([
   'pf_user_redirect_uri',
   'pf_token_exchange_client_id',
   'pf_token_exchange_client_secret',
+  'pf_standard_token_exchange_client_id',
+  'pf_standard_token_exchange_client_secret',
+  'pf_ai_agent_actor_client_id',
+  'pf_ai_agent_actor_client_secret',
   'pf_id_jag_redemption_token_endpoint',
   'pf_id_jag_redemption_client_id',
   'pf_id_jag_redemption_client_secret',
@@ -378,7 +386,7 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   ff_agui_enabled:           { public: true, default: 'true'  }, // AG-UI streaming agent via POST /api/agent/run
   ff_activity_narration:     { public: true, default: 'true'  }, // "What's happening" activity narration panel (always visible when on, no toggle)
   ff_agent_clinical_split:   { public: true, default: 'false' }, // 2B refined clinical-split dashboard layout (chat-left, audit-timeline-right) behind feature flag
-  llm_framework:             { public: true, default: 'langchain' }, // Agent framework — langchain/openai_agents/mastra/pydantic_ai/auto (see routes/featureFlags.js)
+  llm_framework:             { public: true, default: 'langchain' }, // Agent framework — langchain/auto (see routes/featureFlags.js)
   ff_davinci_orchestration:  { public: true, default: 'false' }, // DaVinci multi-connector showcase (transaction step-up + widget login)
   // Feature-flag registry IDs that were missing from FIELD_DEFS — without an
   // entry getEffective() can't resolve them and the env-override fallback below
@@ -597,6 +605,21 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   PF_TOKEN_EXCHANGE_CLIENT_ID:   { public: true,  default: '' },
   PF_TOKEN_EXCHANGE_CLIENT_SECRET: { public: false, default: '' },
   PF_TOKEN_EXCHANGE_TOKEN_ENDPOINT_AUTH_METHOD: { public: true, default: 'basic' },
+  PF_STANDARD_AGENT_EXCHANGE_CLIENT_ID: { public: true, default: '' },
+  PF_STANDARD_AGENT_EXCHANGE_CLIENT_SECRET: { public: false, default: '' },
+  PF_STANDARD_AGENT_EXCHANGE_TOKEN_ENDPOINT_AUTH_METHOD: { public: true, default: 'basic' },
+  PF_STANDARD_INTERMEDIATE_AUDIENCE: { public: true, default: '' },
+  PF_STANDARD_TOKEN_EXCHANGE_CLIENT_ID: { public: true, default: '' },
+  PF_STANDARD_TOKEN_EXCHANGE_CLIENT_SECRET: { public: false, default: '' },
+  PF_STANDARD_TOKEN_EXCHANGE_TOKEN_ENDPOINT_AUTH_METHOD: { public: true, default: 'basic' },
+  PF_STANDARD_TOKEN_EXCHANGE_ACTOR_SCOPE: { public: true, default: 'agent:invoke' },
+  PF_AI_AGENT_ACTOR_CLIENT_ID: { public: true, default: '' },
+  PF_AI_AGENT_ACTOR_CLIENT_SECRET: { public: false, default: '' },
+  PF_AI_AGENT_ACTOR_TOKEN_ENDPOINT_AUTH_METHOD: { public: true, default: 'basic' },
+  PF_MCP_SERVICE_ACTOR_CLIENT_ID: { public: true, default: '' },
+  PF_MCP_SERVICE_ACTOR_CLIENT_SECRET: { public: false, default: '' },
+  PF_MCP_SERVICE_ACTOR_TOKEN_ENDPOINT_AUTH_METHOD: { public: true, default: 'basic' },
+  PF_STANDARD_MCP_ACTOR_SCOPE: { public: true, default: 'mcp:invoke' },
   PF_ID_JAG_ENABLED:             { public: true,  default: 'false' },
   PF_ID_JAG_AUDIENCE:            { public: true,  default: '' },
   PF_ID_JAG_RESOURCE:            { public: true,  default: '' },
@@ -1209,6 +1232,21 @@ const ENV_FALLBACK_MAP = {
   pf_user_token_endpoint_auth_method: ['PF_USER_TOKEN_ENDPOINT_AUTH_METHOD'],
   pf_token_exchange_client_id:   ['PF_TOKEN_EXCHANGE_CLIENT_ID'],
   pf_token_exchange_client_secret: ['PF_TOKEN_EXCHANGE_CLIENT_SECRET'],
+  pf_standard_agent_exchange_client_id: ['PF_STANDARD_AGENT_EXCHANGE_CLIENT_ID'],
+  pf_standard_agent_exchange_client_secret: ['PF_STANDARD_AGENT_EXCHANGE_CLIENT_SECRET'],
+  pf_standard_agent_exchange_token_endpoint_auth_method: ['PF_STANDARD_AGENT_EXCHANGE_TOKEN_ENDPOINT_AUTH_METHOD'],
+  pf_standard_intermediate_audience: ['PF_STANDARD_INTERMEDIATE_AUDIENCE'],
+  pf_standard_token_exchange_client_id: ['PF_STANDARD_TOKEN_EXCHANGE_CLIENT_ID'],
+  pf_standard_token_exchange_client_secret: ['PF_STANDARD_TOKEN_EXCHANGE_CLIENT_SECRET'],
+  pf_standard_token_exchange_token_endpoint_auth_method: ['PF_STANDARD_TOKEN_EXCHANGE_TOKEN_ENDPOINT_AUTH_METHOD'],
+  pf_standard_token_exchange_actor_scope: ['PF_STANDARD_TOKEN_EXCHANGE_ACTOR_SCOPE'],
+  pf_ai_agent_actor_client_id: ['PF_AI_AGENT_ACTOR_CLIENT_ID'],
+  pf_ai_agent_actor_client_secret: ['PF_AI_AGENT_ACTOR_CLIENT_SECRET'],
+  pf_ai_agent_actor_token_endpoint_auth_method: ['PF_AI_AGENT_ACTOR_TOKEN_ENDPOINT_AUTH_METHOD'],
+  pf_mcp_service_actor_client_id: ['PF_MCP_SERVICE_ACTOR_CLIENT_ID'],
+  pf_mcp_service_actor_client_secret: ['PF_MCP_SERVICE_ACTOR_CLIENT_SECRET'],
+  pf_mcp_service_actor_token_endpoint_auth_method: ['PF_MCP_SERVICE_ACTOR_TOKEN_ENDPOINT_AUTH_METHOD'],
+  pf_standard_mcp_actor_scope: ['PF_STANDARD_MCP_ACTOR_SCOPE'],
   pf_token_exchange_token_endpoint_auth_method: ['PF_TOKEN_EXCHANGE_TOKEN_ENDPOINT_AUTH_METHOD'],
   pf_id_jag_enabled:             ['PF_ID_JAG_ENABLED'],
   pf_id_jag_audience:            ['PF_ID_JAG_AUDIENCE'],
@@ -2565,28 +2603,32 @@ const configStore = new ConfigStore();
  * Callers are expected to log them and move on.
  */
 function detectRotatedCredentials() {
-  // Map: lowercase config key → canonical env var name
-  const WATCHLIST = [
-    ['pingone_admin_client_secret',              'PINGONE_ADMIN_CLIENT_SECRET'],
-    ['pingone_user_client_secret',               'PINGONE_USER_CLIENT_SECRET'],
-    ['pingone_authorize_worker_client_secret',   'PINGONE_AUTHORIZE_WORKER_CLIENT_SECRET'],
-    ['pingone_management_client_secret',         'PINGONE_MANAGEMENT_CLIENT_SECRET'],
-    ['pingone_agent_client_id',                  'PINGONE_AGENT_CLIENT_ID'],
-    ['pingone_agent_client_secret',              'PINGONE_AGENT_CLIENT_SECRET'],
-    ['pingone_a2a_investment_agent_client_secret', 'PINGONE_A2A_INVESTMENT_AGENT_CLIENT_SECRET'],
-    ['pingone_a2a_records_agent_client_secret',  'PINGONE_A2A_RECORDS_AGENT_CLIENT_SECRET'],
-    ['pingone_a2a_purchase_agent_client_secret', 'PINGONE_A2A_PURCHASE_AGENT_CLIENT_SECRET'],
-    ['pingone_a2a_membership_agent_client_secret', 'PINGONE_A2A_MEMBERSHIP_AGENT_CLIENT_SECRET'],
-    ['pingone_a2a_payroll_agent_client_secret',  'PINGONE_A2A_PAYROLL_AGENT_CLIENT_SECRET'],
-    ['mcp_gw_client_secret',                    'MCP_GW_CLIENT_SECRET'],
-    ['gw_introspection_client_secret',          'GW_INTROSPECTION_CLIENT_SECRET'],
-    ['demo_password',                           'DEMO_USER_PASSWORD'],
-    ['demo_admin_password',                     'DEMO_ADMIN_PASSWORD'],
-  ];
+  // Derive the watchlist from ENV_FALLBACK_MAP × SECRET_KEYS instead of a
+  // hand-maintained table. The first version of this check missed
+  // admin_client_secret (the live admin-login key) because it watched a
+  // stale 'pingone_admin_client_secret' key name — a drift this derivation
+  // makes structurally impossible. Only keys with a canonical env alias in
+  // process.env are checked (an unset env var is nothing to compare against).
+  const seen = new Set();
+  const watchlist = [];
+  const isRotatableSecret = (key) =>
+    /(_secret|_password|_api_key)$/.test(key) || SECRET_KEYS.has(key.toUpperCase());
+  for (const [configKey, envAliases] of Object.entries(ENV_FALLBACK_MAP)) {
+    if (!isRotatableSecret(configKey)) continue;
+    for (const envKey of envAliases) {
+      if (envKey !== envKey.toUpperCase() || !/^[A-Z0-9_]+$/.test(envKey)) continue;
+      if (seen.has(envKey)) continue;
+      seen.add(envKey);
+      // One watch entry PER env alias: the caller may have set any alias (e.g.
+      // PINGONE_AI_CORE_CLIENT_SECRET or PINGONE_ADMIN_CLIENT_SECRET both feed
+      // admin_client_secret), and a rotated value can appear under any of them.
+      watchlist.push([configKey, envKey]);
+    }
+  }
 
   const warnings = [];
   try {
-    for (const [configKey, envKey] of WATCHLIST) {
+    for (const [configKey, envKey] of watchlist) {
       const envVal = (process.env[envKey] || '').trim();
       if (!envVal) continue; // not set in .env — nothing to compare
 

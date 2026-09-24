@@ -7,7 +7,7 @@
 
 ## Summary
 
-Add PingOne Recognize WebSDK support to the Super Banking demo as a fourth `hitl_consent_mfa_mode` value (`recognize`). When selected, face authentication replaces OTP/MFA as the verification step in the HITL transfer consent flow. Enrollment is managed from the user's Profile page.
+Add PingOne Recognize WebSDK support to the AI Demo as a fourth `hitl_consent_mfa_mode` value (`recognize`). When selected, face authentication replaces OTP/MFA as the verification step in the HITL transfer consent flow. Enrollment is managed from the user's Profile page.
 
 ---
 

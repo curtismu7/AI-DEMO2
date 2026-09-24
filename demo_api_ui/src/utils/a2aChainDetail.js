@@ -2,7 +2,12 @@
 'use strict';
 
 import { extractA2aFacts } from './a2aFacts';
-import { AGENT_ROLES, PRIMARY_AGENT, formatAgentLabel } from '../config/agentTerminology';
+import {
+  AGENT_ROLES,
+  PRIMARY_AGENT,
+  formatAgentLabel,
+} from '../config/agentTerminology';
+import { specialistRoleLabel } from '../services/a2aSpecialistRegistry';
 
 function byId(events, id) {
   return (Array.isArray(events) ? events : []).find((e) => e && e.id === id) || null;
@@ -211,7 +216,7 @@ export function buildA2aChainDetail(tokenEvents) {
   const hops = [
     actorHop(a1, `${PRIMARY_AGENT.displayName} · ${AGENT_ROLES.generalist} · client_credentials`),
     exchangeHop(ex1, `Exchange #1 · User → ${PRIMARY_AGENT.displayName}`),
-    actorHop(a2, `${AGENT_ROLES.specialist} · ${sLabel} · client_credentials`),
+    actorHop(a2, `${specialistRoleLabel({ specialistName: sLabel })} · client_credentials`),
     exchangeHop(ex2, 'Exchange #2 · nested act'),
   ].filter(Boolean);
 
@@ -303,7 +308,7 @@ export function buildA2aEvidenceRows(tokenEvents) {
     identity: [
       rowFor(actor1, `${PRIMARY_AGENT.displayName} · ${AGENT_ROLES.generalist}`, 'Actor identity · client_credentials', detail.hops[0]),
       rowFor(exchange1, `Exchange #1 · user + ${AGENT_ROLES.generalist}`, 'RFC 8693 · delegated bearer for A2A', detail.hops[1]),
-      rowFor(actor2, `${AGENT_ROLES.specialist} · ${detail.specialist || AGENT_ROLES.specialist}`, 'Actor identity · client_credentials', detail.hops[2]),
+      rowFor(actor2, `${specialistRoleLabel({ specialistName: detail.specialist || AGENT_ROLES.specialist })}`, 'Actor identity · client_credentials', detail.hops[2]),
       rowFor(exchange2, 'Exchange #2 · nested specialist delegation', 'RFC 8693 · delegated token for MCP', detail.hops[3]),
     ].filter(Boolean),
     wire: [

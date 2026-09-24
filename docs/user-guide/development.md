@@ -36,8 +36,8 @@ npm run setup:fresh -- /path/to/archive.tar.gz
 - UI (demo_api_ui) on `https://api.ping.demo:4000`
 - MCP Server on `localhost:8080` (loopback)
 - MCP Gateway on `localhost:3005`
-- MCP Invest on `localhost:8081`
-- Mortgage Service on `localhost:8082`
+- Demo MCP Resource Server on `localhost:8081`
+- Mortgage Resource Server on `localhost:8082`
 - Agent Service on host `localhost:3016` (container 3006)
 - HITL Service on `localhost:3009`
 - LangChain Agent on `localhost:8888/8890` (Python)

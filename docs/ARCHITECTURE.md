@@ -41,7 +41,7 @@ This document is the **full system overview**. Two companion documents go deeper
 Two ideas hold the whole thing together:
 
 1. **The browser never sees a token.** The BFF (Backend-for-Frontend) keeps all OAuth tokens server-side; the SPA only carries a session cookie. This is the standard BFF pattern and removes the entire class of XSS token-theft attacks.
-2. **An agent acts *as* the user, but is *not* the user.** When an AI agent calls a tool, the system mints a delegated token via RFC 8693 token exchange that carries an `act` claim naming the agent. Every downstream service can see "this is *user X*, being acted for by *agent Y*," and policy decisions are made on that basis.
+2. **An agent acts *as* the user, but is *not* the user.** When an AI agent calls a tool, the system mints the MCP Gateway token via RFC 8693 token exchange; it carries an `act` claim naming the agent. Every downstream service can see "this is *user X*, being acted for by *agent Y*," and policy decisions are made on that basis.
 
 ---
 
@@ -53,9 +53,9 @@ Two ideas hold the whole thing together:
 | **Frontend** | `demo_api_ui` | React + Vite → nginx | 4000 (HTTPS) | SPA; talks only to the BFF over cookies |
 | **MCP Gateway** | `demo_mcp_gateway` | TypeScript | 3005 | Validates inbound tokens, runs Authorize policy, performs token exchange, routes tool calls, triggers HITL |
 | **MCP Server (primary)** | `demo_mcp_server` | TypeScript | 8080 (WS + HTTP) | Primary tool server; introspects tokens; banking + vertical tools |
-| **MCP Invest** | `demo_mcp_resource_server` | TypeScript | 8081 (WS) | Investment/portfolio tool server |
+| **Demo MCP Resource Server** | `demo_mcp_resource_server` | TypeScript | 8081 (WS) | Investment/portfolio tool server |
 | **HITL Service** | `demo_hitl_service` | Node | 3009 | Human approval challenges (create / poll / respond) |
-| **Mortgage Service** | `demo_api_resource_server` | Node | 8082 | API-key-gated resource (demonstrates token→API-key swap) |
+| **Mortgage Resource Server** | `demo_api_resource_server` | Node | 8082 | API-key-gated resource (demonstrates token→API-key swap) |
 | **Mock Authz Server** | `demo_authz_server` | Node | 9001 | Drop-in replacement for PingOne Authorize + introspection (dev/test) |
 | **Agent Service** | `demo_agent_service` | TypeScript | 3006 (→3016 in Docker) | Reasoning-only agent (Helix / Anthropic) |
 | **LangChain Agent** | `langchain_agent` | Python / FastAPI | 8888 (SSE), 8890 (health) | Full MCP-driven agent orchestrator |
@@ -63,7 +63,7 @@ Two ideas hold the whole thing together:
 | **OpenAI Agent** | `openai_agent` | Python / FastAPI | 8891 | Agent runtime (OpenAI Agents SDK) |
 | **Pydantic Agent** | `pydantic_agent` | Python / FastAPI | 8893 | Agent runtime (Pydantic AI) |
 | **In-BFF agent** | `demo_api_server/services` | Node | via `runReasonLoop()` → TypeScript reasoning service at :3006 (`demo_agent_service`) | Heuristic-first fallback agent; BFF calls `agentReasoningClient.js` (`req.agentPath = 'reason_loop_3006'`), does not run LangGraph.js in-process |
-| **PingGateway** | `ping-gateway` | Ping Identity IG | 3036 (host) → 8080 (internal) | Alternative MCP gateway (selected by `ff_mcp_gateway_pinggateway`, default `true`); performs RFC 8693 single-resource exchange, real→mock Authorize failover |
+| **PingOne Agent Gateway** | `ping-gateway` | Ping Identity IG | 3036 (host) → 8080 (internal) | Alternative MCP gateway (selected by `ff_mcp_gateway_pinggateway`, default `true`); performs RFC 8693 single-resource exchange, real→mock Authorize failover |
 | **Agent Token Service** | `agent_token_service` | Node / Express | 8097 (standalone, not in compose) | Copilot Studio broker; mints PingOne `client_credentials` AI_AGENT tokens on request; caller auth = static `x-api-key` |
 
 External dependency: **PingOne** (authorization server, OIDC provider, and — optionally — the live Authorize policy engine). The mock `demo_authz_server` stands in for PingOne Authorize when running offline. The `authorize_mode` configStore key (`AUTHORIZE_MODE` env) selects the active engine: `pingone` (strict, Docker default), `simulated`, or `pingone_with_fallback`.

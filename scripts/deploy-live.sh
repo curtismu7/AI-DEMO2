@@ -142,7 +142,7 @@ echo "[deploy-live] checkout at ${NEW:0:12}"
 RESTART_SET=""
 BUILD_SET=""
 NOTES=""
-SERVICE_CANDIDATES="demo-api-server promptfoo-step-narration ui ping-gateway ping-mcpgw mcp-server mcp-gateway mcp-jwt-verifier mcp-proxy mcp-resource-server mcp-weather demo-mcp-code-search api-resource-server authz-server agent-service hitl-service langchain-agent llamaindex-agent mastra-agent openai-agent pydantic-agent ungoverned-agent mcp-brave prometheus alertmanager alloy grafana llm-proxy"
+SERVICE_CANDIDATES="demo-api-server promptfoo-step-narration ui ping-gateway ping-mcpgw mcp-server mcp-gateway mcp-jwt-verifier mcp-proxy mcp-resource-server mcp-weather demo-mcp-code-search api-resource-server authz-server agent-service hitl-service langchain-agent llamaindex-agent ungoverned-agent mcp-brave prometheus alertmanager alloy grafana llm-proxy"
 [ -n "${TARGET_SERVICES// /}" ] || TARGET_SERVICES="$SERVICE_CANDIDATES"
 for _requested in $TARGET_SERVICES; do
   case " $SERVICE_CANDIDATES " in
@@ -242,7 +242,6 @@ while IFS= read -r f; do
         LLM_PROXY_NOTED=1
         note "demo_llm_proxy changed — run-docker.sh does not manage llm-proxy (see its SERVICES table); rebuild it directly: docker compose up -d --build llm-proxy"
       fi ;;
-    mastra_agent/*)               add_build mastra-agent ;;
     demo_mcp_brave/*)             add_build mcp-brave ;;
     demo_mcp_gateway/*)           add_build mcp-gateway ;;
     demo_mcp_jwt_verifier/*)      add_build mcp-jwt-verifier ;;
@@ -250,8 +249,6 @@ while IFS= read -r f; do
     demo_mcp_resource_server/*)   add_build mcp-resource-server ;;
     oauth-mcp/*)                  add_build mcp-server ;;
     demo_mcp_weather/*)           add_build mcp-weather ;;
-    openai_agent/*)               add_build openai-agent ;;
-    pydantic_agent/*)             add_build pydantic-agent ;;
     demo_ungoverned_agent/*)      add_build ungoverned-agent ;;
     # ── monitoring configs: bind-mounted, but none of these three containers
     # watches its file for changes — a restart is the only way they pick one up.

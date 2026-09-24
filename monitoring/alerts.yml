@@ -66,14 +66,14 @@ groups:
     interval: 30s
     rules:
       # If this fires, every other panel and rule here is blind rather than calm.
-      - alert: PingGatewayMetricsDown
+      - alert: PingOneAgentGatewayMetricsDown
         expr: up{job="pinggateway"} == 0
         for: 2m
         labels:
           severity: critical
           component: pinggateway
         annotations:
-          summary: "PingGateway admin connector is not answering"
+          summary: "PingOne Agent Gateway admin connector is not answering"
           description: >-
             Prometheus cannot scrape ping-gateway:8085. The gateway may be down,
             or its admin connector may have stopped while routes keep serving —

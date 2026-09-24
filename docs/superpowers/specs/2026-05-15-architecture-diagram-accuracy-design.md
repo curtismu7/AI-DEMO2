@@ -23,7 +23,7 @@ REGRESSION_PLAN §4 (2026-05-14, Phase 270) already ran an "architecture diagram
 - No secret-value substrings (`VAULT_PASSWORD=`, `client_secret=`, `_SECRET=`, `api_key=value`) in any diagram label.
 - Every regenerated PNG's mtime must be **newer** than its `.mmd` source.
 - The `/architecture/*` route group stays anon-safe — no new admin-only mount-time fetches (§4 2026-05-12).
-- `cd banking_api_ui && npm run build` exits 0 after any UI edit.
+- `cd demo_api_ui && npm run build` exits 0 after any UI edit.
 
 This is a **documentation-accuracy fix**, so it gets a §4 Bug Fix Log entry (the port collision is a shipping-affecting factual error in a customer-facing educational page).
 
@@ -31,7 +31,7 @@ This is a **documentation-accuracy fix**, so it gets a §4 Bug Fix Log entry (th
 
 ## Findings (audited 2026-05-15 against implemented code)
 
-Ground truth: 9 services — `banking_api_server` :3001, `banking_api_ui` :4000, `banking_mcp_server` :8080, `banking_mcp_gateway` :3005, `banking_mcp_resource_server` :8081, `banking_hitl_service` :3009, `banking_agent_service` :3006, `banking_api_resource_server` :8082, `langchain_agent` :8888 (uvicorn) / :8889 (chat WS) / :8890 (health+inspector).
+Ground truth: 9 services — `demo_api_server` :3001, `demo_api_ui` :4000, `demo_mcp_server` :8080, `banking_mcp_gateway` :3005, `banking_mcp_resource_server` :8081, `banking_hitl_service` :3009, `banking_agent_service` :3006, `banking_api_resource_server` :8082, `langchain_agent` :8888 (uvicorn) / :8889 (chat WS) / :8890 (health+inspector).
 
 ### F1 — 🔴 Port collision bug in `architecture.mmd` (the only hard error)
 
@@ -54,8 +54,8 @@ The Jest test only requires a service to appear in *one* `.mmd`. Individual rend
 
 ### F3 — 🟡 Conceptual-model inaccuracy (user chose "make it accurate")
 
-- The **default** agent is the BFF in-process LangGraph agent (`/api/banking-agent/*` in `banking_api_server`). `banking_agent_service` :3006 and `langchain_agent` are optional alternatives. Token-flow and flow diagrams draw "Agent" as a standalone box in the main path, implying the separate service is the default.
-- Gateway routing is **conditional** on `MCP_GATEWAY_HTTP_URL`; when unset, BFF talks to `banking_mcp_server` directly (legacy fallback). Token-flow/flow show the gateway as unconditional.
+- The **default** agent is the BFF in-process LangGraph agent (`/api/banking-agent/*` in `demo_api_server`). `banking_agent_service` :3006 and `langchain_agent` are optional alternatives. Token-flow and flow diagrams draw "Agent" as a standalone box in the main path, implying the separate service is the default.
+- Gateway routing is **conditional** on `MCP_GATEWAY_HTTP_URL`; when unset, BFF talks to `demo_mcp_server` directly (legacy fallback). Token-flow/flow show the gateway as unconditional.
 
 ---
 
@@ -117,7 +117,7 @@ Lowest-risk form: **labels + one annotation line**, not structural redraws.
 
 | Risk | Severity | Mitigation |
 |---|---|---|
-| Editing `banking_api_ui/` files (§1 protected, `/architecture/*` route group) | Required gate | State §1 invariants before edit (done above). Data-only edits to node/label arrays. `npm run build` must exit 0. Run `ArchitectureTabsPanel.anon` + `ArchitectureDiagram.completeness` Jest tests after. |
+| Editing `demo_api_ui/` files (§1 protected, `/architecture/*` route group) | Required gate | State §1 invariants before edit (done above). Data-only edits to node/label arrays. `npm run build` must exit 0. Run `ArchitectureTabsPanel.anon` + `ArchitectureDiagram.completeness` Jest tests after. |
 | PNG regen pipeline drift (mermaid-cli version, missing local dep) | Medium | Use `scripts/build-diagrams.sh` exactly (mermaid-cli@11 pinned per §1). If the script fails locally, **stop and report** — do not hand-edit a PNG (that would violate §1 and produce an unreproducible artifact). |
 | Adding nodes to interactive pages breaks the step simulation (index/length assumptions) | Medium | Inspect each page's step-engine for hardcoded participant counts before adding nodes. Add nodes without renumbering existing steps; extend, don't reorder. Manual click-through of each page after the change. |
 | Over-cluttering token-flow/flow by forcing every service in | Low | Add only services that genuinely participate in that page's flow. Phase-266 page gets a scope caption instead of forced nodes. |
@@ -130,19 +130,19 @@ Lowest-risk form: **labels + one annotation line**, not structural redraws.
 
 ```bash
 # 1. mmd lint: no disallowed emoji, no secret substrings (manual scan + the Jest test covers it)
-cd banking_api_ui && CI=true npx react-scripts test --watchAll=false \
+cd demo_api_ui && CI=true npx react-scripts test --watchAll=false \
   --testPathPattern='ArchitectureDiagram.completeness'        # must pass
 
 # 2. PNG regen via pinned pipeline
 bash scripts/build-diagrams.sh
-ls -la --time-style=full-iso architecture.mmd banking_api_ui/public/architecture/overview2.png
+ls -la --time-style=full-iso architecture.mmd demo_api_ui/public/architecture/overview2.png
 #   → overview2.png mtime MUST be newer than architecture.mmd
 
-# 3. UI build gate (mandatory after banking_api_ui edits)
-cd banking_api_ui && npm run build                            # exit 0
+# 3. UI build gate (mandatory after demo_api_ui edits)
+cd demo_api_ui && npm run build                            # exit 0
 
 # 4. Regression: anon-safe route group not broken
-cd banking_api_ui && CI=true npx react-scripts test --watchAll=false \
+cd demo_api_ui && CI=true npx react-scripts test --watchAll=false \
   --testPathPattern='ArchitectureTabsPanel.anon'              # still passes
 
 # 5. Manual: click through all 5 /architecture/* pages

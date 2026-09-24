@@ -68,6 +68,20 @@ function defaultAxios() {
   return require('axios');
 }
 
+function activeIssuer() {
+  return require('./oauthEndpointResolver').getIssuer();
+}
+
+function normalizeIssuer(issuer) {
+  return typeof issuer === 'string' ? issuer.replace(/\/+$/, '') : '';
+}
+
+function providerForIssuer(issuer, expectedPfIssuer) {
+  if (/^https:\/\/auth\.pingone\.[^/]+\/[^/]+\/as$/i.test(issuer)) return 'pingone';
+  if (expectedPfIssuer && issuer === normalizeIssuer(expectedPfIssuer)) return 'pingfederate';
+  return null;
+}
+
 function authzEndpoint() {
   return process.env.PINGAUTHORIZE_ENDPOINT || 'http://localhost:9001';
 }
@@ -252,16 +266,29 @@ function resolveA2aConfig(cfgArg, specialist, scopeTopo) {
     'post'
   ).toLowerCase();
 
+  const pfAud = cfg.getOAuthProvider?.() === 'pingfederate';
   return {
     agent1ClientId,
     agent1Secret,
     agent2ClientId,
     agent2Secret,
-    intermediateAud,
-    specialistAud,
+    intermediateAud: pfAud ? 'https://' + intermediateAud : intermediateAud,
+    // PF only accepts audiences matching a registered SP resourceUri; the A2A
+    // gateway SP (mcpgateway-a2a.ping.demo) is that registered audience. The
+    // final MCP hop's stricter aud (https://api.ping.demo:3036/mcp) is pinned
+    // on the PF ATM mapping's aud attribute instead (runtime config).
+    specialistAud: pfAud ? 'https://' + specialistAud : specialistAud,
     intermediateScope,
     agent2AuthMethod,
     exchangeAuthMethod,
+    // PingFederate mode: SP connections issue id-jag typed tokens only, and the
+    // resource URIs are registered with an https:// scheme (2026-09-22 A2A-under-PF).
+    // The https-prefixed audience is applied to intermediateAud/specialistAud above
+    // so the wire-bearer verifier (audienceMatches vs intermediateAud) sees the
+    // same form the ID-JAG carries.
+    pfExchange: pfAud ? {
+      requestedTokenType: 'urn:ietf:params:oauth:token-type:id-jag',
+    } : null,
   };
 }
 
@@ -337,6 +364,22 @@ async function exchangeAsGeneralist(req, opts = {}) {
     return { ...base, error: 'No user token in session for A2A delegation' };
   }
   const userDecoded = decodeJwt(userToken);
+  const issuer = normalizeIssuer(userDecoded?.claims?.iss);
+  if (!issuer) {
+    return { ...base, error: 'A2A session token issuer is missing' };
+  }
+  const expectedIssuer = normalizeIssuer((deps.getIssuer || activeIssuer)());
+  const activeProvider = cfg.getOAuthProvider?.() || 'pingone';
+  const issuerProvider = providerForIssuer(
+    issuer,
+    cfg.getEffective('pf_issuer') || process.env.PF_ISSUER_URI || (activeProvider === 'pingfederate' ? expectedIssuer : ''),
+  );
+  if (!issuerProvider) {
+    return { ...base, error: 'A2A session token issuer is not recognized' };
+  }
+  if (issuerProvider !== activeProvider || issuer !== expectedIssuer) {
+    return { ...base, error: 'A2A session provider does not match the active OAuth provider; sign in again with the active provider' };
+  }
   const userSub = userDecoded?.claims?.sub || null;
   // The A2A evidence contract starts with the authenticated subject. The
   // exchange events below prove each agent hop, but without this marker the
@@ -351,6 +394,7 @@ async function exchangeAsGeneralist(req, opts = {}) {
     { a2aRole: 'user-subject', vertical, userSub },
   ));
 
+  let stage = 'agent1_actor';
   try {
     // ── Exchange #1: user → Agent 1 delegated token (act:{agent1}) ───────────────
     const agent1Actor = await oauth.getAiAgentClientCredentialsToken();
@@ -363,6 +407,7 @@ async function exchangeAsGeneralist(req, opts = {}) {
       { a2aRole: 'agent1-actor', vertical },
     ));
 
+    stage = 'exchange1';
     const tAgent1 = await runExchange(
       () => oauth.performTokenExchangeAs(
         userToken,
@@ -372,6 +417,7 @@ async function exchangeAsGeneralist(req, opts = {}) {
         c.intermediateAud,
         [c.intermediateScope],
         c.exchangeAuthMethod,
+        c.pfExchange ? { requestedTokenType: c.pfExchange.requestedTokenType } : {},
       ),
       { label: 'A2A Exchange #1', timeoutMs: exchangeTimeoutMs, attempts: exchangeAttempts, retryDelayMs, timers: deps.timers },
     );
@@ -421,8 +467,8 @@ async function exchangeAsGeneralist(req, opts = {}) {
       'A2A delegation failed',
       'failed',
       null,
-      `Chained RFC 8693 exchange failed: ${err.message}`,
-      { a2aRole: 'error', error: err.message, httpStatus: err.httpStatus || null },
+      `A2A delegation failed at ${stage}: ${err.message}`,
+      { a2aRole: 'error', stage, code: `a2a_${stage}_failed`, upstreamCode: err.code || null, error: err.message, httpStatus: err.httpStatus || err.response?.status || null },
     ));
     return { token: null, tokenEvents, userSub, vertical, error: err.message };
   }
@@ -459,11 +505,16 @@ async function exchangeAsSpecialist(subjectToken, opts = {}) {
   }
   const specialistScopes = deriveSpecialistScopes(specialist, scopeTopo);
   const c = resolveA2aConfig(cfg, specialist, scopeTopo);
+  // PF mode: the Ex2 token goes straight to ping-gateway, whose rsFilter (and
+  // jwks-token-validation.groovy) requires the gateway inbound scope
+  // gateway:mcp:invoke - topology-derived invest:read alone is insufficient.
+  if (c.pfExchange) specialistScopes.unshift('gateway:mcp:invoke');
 
   // The subject token (tAgent1) already carries the user as `sub` — decode it
   // rather than threading userSub through as a separate param.
   const userSub = decodeJwt(subjectToken)?.claims?.sub || null;
 
+  let stage = 'agent2_actor';
   try {
     // ── Exchange #2: Agent 1 token + Agent 2 (specialist) actor → nested act ─────
     // Agent 2's actor token targets its OWN intermediate audience (not the final
@@ -488,6 +539,7 @@ async function exchangeAsSpecialist(subjectToken, opts = {}) {
       { a2aRole: 'agent2-actor', vertical, specialist: specialist.specialistName },
     ));
 
+    stage = 'exchange2';
     const tInvest = await runExchange(
       () => oauth.performTokenExchangeAs(
         subjectToken,
@@ -497,6 +549,14 @@ async function exchangeAsSpecialist(subjectToken, opts = {}) {
         c.specialistAud,
         specialistScopes,
         c.exchangeAuthMethod,
+        c.pfExchange ? {
+          // PF forbids id-jag→id-jag ("may not be used as the subject_token when
+          // requesting a new id-jag"), but accepts an id-jag subject when the
+          // REQUESTED type is a plain access_token. The final MCP hop wants an
+          // access token anyway.
+          requestedTokenType: 'urn:ietf:params:oauth:token-type:access_token',
+          subjectTokenType: 'urn:ietf:params:oauth:token-type:id-jag',
+        } : {},
       ),
       { label: 'A2A Exchange #2', timeoutMs: exchangeTimeoutMs, attempts: exchangeAttempts, retryDelayMs, timers: deps.timers },
     );
@@ -577,8 +637,8 @@ async function exchangeAsSpecialist(subjectToken, opts = {}) {
       'A2A delegation failed',
       'failed',
       null,
-      `Chained RFC 8693 exchange failed: ${err.message}`,
-      { a2aRole: 'error', error: err.message, httpStatus: err.httpStatus || null },
+      `A2A delegation failed at ${stage}: ${err.message}`,
+      { a2aRole: 'error', stage, code: `a2a_${stage}_failed`, upstreamCode: err.code || null, error: err.message, httpStatus: err.httpStatus || err.response?.status || null },
     ));
     return { token: null, claims: null, error: err.message };
   }

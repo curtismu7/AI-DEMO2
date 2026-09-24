@@ -6,7 +6,7 @@
 
 **Architecture:** `demo_mcp_brave/server.js` (new, hand-written MCP-over-HTTP server, no child-process bridge) → `ping-gateway` route `/mcp/brave` (new: audit → strip-prefix → the existing global `rsFilter` → MCP validation → new `tx-brave-scope.groovy` doing a query-content blocklist check → reverse-proxy) → real outbound call to `https://api.search.brave.com/res/v1/news/search`. `AgentGatewayTester.jsx` gets the tool added via a code change in `mcpGatewayClient.js` (tool-name → sub-path routing is a hardcoded `Set` lookup there, same pattern already used for weather).
 
-**Tech Stack:** Node 22 (`demo_mcp_brave`, no new npm dependency — built-in `fetch`), ping-gateway (PingGateway/IG config JSON + Groovy `ScriptableFilter`), Docker Compose, React (`demo_api_ui`).
+**Tech Stack:** Node 22 (`demo_mcp_brave`, no new npm dependency — built-in `fetch`), ping-gateway (PingOne Agent Gateway/IG config JSON + Groovy `ScriptableFilter`), Docker Compose, React (`demo_api_ui`).
 
 ## Global Constraints
 
@@ -603,7 +603,7 @@ Add this object to the existing flags array, immediately after the `ff_weather_m
     name:         'Brave Search MCP Showcase (Agent Gateway)',
     category:     'MCP / Agent',
     description:
-      'Controls whether the Agent Gateway (PingGateway/IG) Brave Search MCP showcase route ' +
+      'Controls whether the Agent Gateway (PingOne Agent Gateway/IG) Brave Search MCP showcase route ' +
       '(`/mcp/brave`) is enabled. A standalone gateway capability demo — a remote third-party ' +
       'API (Brave News Search) fronted by the gateway, gated by a crypto-term content ' +
       'blocklist. `tx-brave-scope.groovy` calls this flag live on every `/mcp/brave` request ' +
@@ -684,11 +684,11 @@ git commit -m "feat(brave-mcp): add live ff_brave_mcp_showcase feature flag"
 Find the existing `WEATHER_TOOLS` declaration (a `Set` containing `'get_weather'`) and add immediately after it:
 
 ```js
-// brave-mcp showcase: PingGateway (IG) only — 00-mcp-brave.json fronts a
+// brave-mcp showcase: PingOne Agent Gateway (IG) only — 00-mcp-brave.json fronts a
 // hand-written MCP server that calls the real Brave Search News API, gated
 // by tx-brave-scope.groovy (crypto-term content blocklist). No
 // Node mcp-gateway equivalent exists. Only applied when the gateway base IS
-// PingGateway (base === pgUrl below) — same conditional weather uses.
+// PingOne Agent Gateway (base === pgUrl below) — same conditional weather uses.
 const BRAVE_TOOLS = new Set([
     'brave_news_search',
 ]);

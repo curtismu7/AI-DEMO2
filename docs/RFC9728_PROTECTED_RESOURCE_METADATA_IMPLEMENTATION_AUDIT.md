@@ -14,7 +14,7 @@ This audit report evaluates the current RFC 9728 Protected Resource Metadata imp
 
 #### 1.1 Current Implementation Structure
 ```
-banking_api_server/
+demo_api_server/
   services/
     rfc9728ComplianceAuditService.js (876 lines) - Compliance audit service
   routes/
@@ -85,7 +85,7 @@ const RFC9728_REQUIREMENTS = {
     "https://auth.pingone.com/12345678-1234-1234-1234-123456789012/as"
   ],
   "bearer_methods_supported": ["header"],
-  "resource_name": "Banking Demo API",
+  "resource_name": "AI Demo API",
   "resource_documentation": "https://banking-demo.example.com/docs"
 }
 ```
@@ -372,7 +372,7 @@ class EnhancedMetadataGenerator {
         process.env.PINGONE_ISSUER
       ],
       bearer_methods_supported: ['header', 'body'],
-      resource_name: 'Banking Demo API',
+      resource_name: 'AI Demo API',
       resource_documentation: `${process.env.PUBLIC_APP_URL}/docs`
     };
   }
@@ -439,7 +439,7 @@ class EnhancedMetadataGenerator {
 
   getResourceDescription(language = 'en') {
     const descriptions = {
-      en: 'Banking Demo API with comprehensive financial operations and OAuth 2.0 security',
+      en: 'AI Demo API with comprehensive financial operations and OAuth 2.0 security',
       es: 'API de demo bancaria con operaciones financieras integrales y seguridad OAuth 2.0',
       fr: 'API de démonstration bancaire avec opérations financières complètes et sécurité OAuth 2.0',
       de: 'Banking-Demo-API mit umfassenden Finanzoperationen und OAuth 2.0-Sicherheit'
@@ -882,7 +882,7 @@ class RFC9728APIDocumentation {
           scopes_supported: ['banking:read', 'banking:write', 'banking:sensitive:read'],
           authorization_servers: ['https://auth.pingone.com/12345678/as'],
           bearer_methods_supported: ['header', 'body'],
-          resource_name: 'Banking Demo API',
+          resource_name: 'AI Demo API',
           resource_documentation: 'https://banking-demo.example.com/docs'
         }
       }

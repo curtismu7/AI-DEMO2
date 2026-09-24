@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="32" viewBox="0 0 96 32">
+  <text x="0" y="25" font-family="Inter, ui-sans-serif, system-ui, sans-serif" font-size="24" font-weight="800" fill="#ffffff" letter-spacing="-0.5">ping</text>
+  <circle cx="86" cy="10" r="4" fill="#B3282D"/>
+</svg>

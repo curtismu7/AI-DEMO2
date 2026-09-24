@@ -1,4 +1,6 @@
-// Static catalog of top-level AdminSideNav.jsx entries, for the Demo Config
+import { NAV_STRUCTURE_CATALOG } from "./navStructureCatalog";
+
+// Catalog of top-level AdminSideNav.jsx entries, for the Demo Config
 // picker + built-in preset seeds (demo_api_server/services/lmdb/navConfigStore.lmdb.js
 // BUILTIN_CONFIGS). Keep in sync with allNavItems' top-level labels in
 // AdminSideNav.jsx, in the same order — the picker lists them in this order.
@@ -13,34 +15,4 @@
 // label RENDERS, which stays green when the catalog is missing entries — the
 // reverse assertion in config/__tests__/navStructureCatalog.drift.test.js now
 // closes that direction.
-export const NAV_ITEM_CATALOG = [
-  "Home",
-  "Dashboard",
-  "AI-Gateway",
-  "AI Agent Gateway",
-  "AI Product Pages",
-  "Themes",
-  "Demos",
-  "AI Flows",
-  "Inspectors",
-  "PingOne MCP",
-  "PingFederate ID-JAG",
-  "MCP & Gateways",
-  "PingOne Sample Apps",
-  "PingOne Demo Apps",
-  "Delegation & Consent",
-  "Authorize",
-  "OAuth & Identity",
-  "Platform Admin",
-  "Industry Verticals",
-  "Users & Accounts",
-  "AI Attack Demos",
-  "Monitoring",
-  "Telemetry",
-  "Diagrams",
-  "Agent Studio (Preview)",
-  "Learn & Present",
-  "Developer Tools",
-  "System Tools",
-  "Integration Tests",
-];
+export const NAV_ITEM_CATALOG = NAV_STRUCTURE_CATALOG.map((item) => item.label);

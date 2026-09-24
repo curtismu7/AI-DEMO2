@@ -9,7 +9,7 @@
 ## Overview
 
 Three tool-inspector surfaces in `demo_api_ui` show raw JSON as their primary output:
-`AgentGatewayConfigEditor.jsx` (PingGateway Inspector → JSON Config tab, Monaco editor),
+`AgentGatewayConfigEditor.jsx` (PingOne Agent Gateway Inspector → JSON Config tab, Monaco editor),
 `McpInspectorPage.jsx` (PingOne MCP Inspector, Response/Request/History tabs), and
 `AgentGatewayTester.jsx` (Gateway Tester, Response Body/Request tabs). Each needs one
 more output tab that renders the same JSON as a readable form instead of a raw blob.
@@ -83,7 +83,7 @@ New files in `demo_api_ui/src/components/shared/`:
 
 ### Integration points
 
-**1. `AgentGatewayConfigEditor.jsx` (PingGateway Inspector → JSON Config tab)**
+**1. `AgentGatewayConfigEditor.jsx` (PingOne Agent Gateway Inspector → JSON Config tab)**
 No existing tab bar here — it's a file-picker + single Monaco pane. Add a small local
 view toggle in the existing toolbar (next to Revert/Save): "Editor" / "Form" buttons,
 state `viewMode`. When `viewMode === 'form'`, attempt `JSON.parse(editorValue)` and

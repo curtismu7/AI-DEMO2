@@ -77,9 +77,10 @@ import HealthcareAdminOps from "./components/HealthcareAdminOps";
 import KillSwitchConfirmModal from "./components/KillSwitchConfirmModal";
 import LandingPage from "./components/LandingPage";
 import LearningHub from "./components/LearningHub";
-import { AcademyLessonRoute, AcademyLegacyPrefixRoute } from "./routes/AcademyRoutes";
+import { AcademyLessonRoute, AcademyLegacyPrefixRoute, AgentIdentityAcademyRoute } from "./routes/AcademyRoutes";
 import ShadowAiDetectorPage from "./pages/ShadowAiDetectorPage";
 import LearningProtocolLabPage from "./pages/LearningProtocolLabPage";
+import SpinnerShowcasePage from "./pages/SpinnerShowcasePage";
 import LlmConfigPage from "./components/LlmConfigPage";
 import LogoutPage from "./components/LogoutPage";
 import LoginSuccessModal from "./components/LoginSuccessModal";
@@ -149,7 +150,7 @@ import { useAppFlags } from "./hooks/useAppFlags";
 import { useAuth } from "./hooks/useAuth";
 import { useOAuthUrlCleanup } from "./hooks/useOAuthUrlCleanup";
 import { useServerHealthCheck } from "./hooks/useServerHealthCheck";
-import AdminThemesPage from "./pages/AdminThemesPage";
+import SkinStudioPage from "./pages/SkinStudioPage";
 import AiControlPlanePage from "./pages/AiControlPlanePage";
 import ControlPlanePage from "./pages/ControlPlanePage";
 import AgentRegistryPage from "./pages/AgentRegistryPage";
@@ -166,9 +167,13 @@ import McpObservabilityPage from "./pages/McpObservabilityPage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
 import PersonalAgentStudioPage from "./pages/PersonalAgentStudioPage";
+import WorkloadAgentsPage from "./pages/WorkloadAgentsPage";
 import PersonalAgentClientWindow from "./pages/PersonalAgentClientWindow";
+import GovernanceTimelinePage from "./pages/GovernanceTimelinePage";
+import EmbeddedWorkerPage from "./pages/EmbeddedWorkerPage";
 import TransactionTraceEmbedPage from "./pages/TransactionTraceEmbedPage";
 import PingCliPage from "./components/PingCliPage";
+import PromptFooPage from "./components/PromptFooPage";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import NotebookLmPage from "./pages/NotebookLmPage";
 import AgenticAccessConsolePage from "./pages/AgenticAccessConsolePage";
@@ -699,8 +704,32 @@ function AppWithAuth() {
                 </main>
               )}
               <Routes>
-                <Route path="/request-access" element={<HostedRegistrationPage />} />
-                <Route path="/hosted-registrations" element={<AdminRoute user={user}><HostedRegistrationAdminPage /></AdminRoute>} />
+                <Route
+                  path="/request-access"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <HostedRegistrationPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/spinner-showcase"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <SpinnerShowcasePage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/hosted-registrations"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <AdminRoute user={user}>
+                        <HostedRegistrationAdminPage />
+                      </AdminRoute>
+                    </AppShell>
+                  }
+                />
                 {/* /setup/* sub-routes — no auth required */}
                 <Route
                   path="/setup/*"
@@ -710,6 +739,14 @@ function AppWithAuth() {
                 <Route
                   path="/monitoring/new-relic"
                   element={<NewRelicRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/governance-timeline"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <GovernanceTimelinePage />
+                    </AppShell>
+                  }
                 />
                 {/* PingOne webhook events — public, same posture as New Relic */}
                 <Route
@@ -832,7 +869,11 @@ function AppWithAuth() {
                 />
                 <Route
                   path="/learning-lab/:lab"
-                  element={<LearningProtocolLabPage />}
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <LearningProtocolLabPage />
+                    </AppShell>
+                  }
                 />
                 <Route
                   path="/token-exchange-tester"
@@ -948,6 +989,16 @@ function AppWithAuth() {
                   path="/academy/demos"
                   element={
                     <StandaloneDemoLauncherRoute
+                      loading={loading}
+                      user={user}
+                      logout={logout}
+                    />
+                  }
+                />
+                <Route
+                  path="/academy/identity"
+                  element={
+                    <AgentIdentityAcademyRoute
                       loading={loading}
                       user={user}
                       logout={logout}
@@ -1355,6 +1406,15 @@ function AppWithAuth() {
                   }
                 />
                 <Route
+                  path="/promptfoo"
+                  element={
+                    // Public route — no login required (same pattern as /pingcli).
+                    <AppShell user={user} logout={logout}>
+                      <PromptFooPage user={user} />
+                    </AppShell>
+                  }
+                />
+                <Route
                   path="/personal-agent"
                   element={
                     // Public route — no login required (same pattern as /pingcli).
@@ -1364,10 +1424,26 @@ function AppWithAuth() {
                   }
                 />
                 <Route
+                  path="/workload-agents"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <WorkloadAgentsPage />
+                    </AppShell>
+                  }
+                />
+                <Route
                   path="/personal-agent/client"
                   element={
                     // Bare route for pop-out window — no nav shell.
                     <PersonalAgentClientWindow />
+                  }
+                />
+                <Route
+                  path="/embedded-worker"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <EmbeddedWorkerPage />
+                    </AppShell>
                   }
                 />
                 <Route
@@ -1506,9 +1582,7 @@ function AppWithAuth() {
                             <Route
                               path="/mcp-observability"
                               element={
-                                <RequireAdminLogin user={user}>
-                                  <McpObservabilityPage />
-                                </RequireAdminLogin>
+                                user ? <McpObservabilityPage /> : <SignInPrompt />
                               }
                             />
                             {/* === Admin routes ===
@@ -1681,11 +1755,23 @@ function AppWithAuth() {
                               }
                             />
                             <Route
+                              path="/admin/skin-studio"
+                              // Admin-gated like /admin/verticals: logo upload and
+                              // duplicate are admin write surfaces. Theme picks via
+                              // ThemeZonePanel are publicly writable on the backend
+                              // (deliberate — see verticalThemes.js) and remain so.
+                              element={
+                                <RequireAdminLogin user={user}>
+                                  <SkinStudioPage />
+                                </RequireAdminLogin>
+                              }
+                            />
+                            <Route
                               path="/themes"
-                              // Fully public — no session/user gate. Matches the
-                              // backend, which mounts vertical-themes with no
-                              // auth middleware at all (see verticalThemes.js).
-                              element={<AdminThemesPage />}
+                              // Legacy alias — the Themes admin moved to the
+                              // Skin Studio (T7). Kept public to match the old
+                              // route; Skin Studio itself is admin-gated.
+                              element={<Navigate to="/admin/skin-studio" replace />}
                             />
                             <Route
                               path="/users"

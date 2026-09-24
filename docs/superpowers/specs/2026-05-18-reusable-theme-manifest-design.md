@@ -13,10 +13,10 @@ theme — there are **three overlapping, partially-conflicting mechanisms**, and
 the default **banking** experience is **hardcoded into components**, bypassing
 all of them:
 
-1. **Vertical configs** (`banking_api_server/config/verticals/*.json`) +
+1. **Vertical configs** (`demo_api_server/config/verticals/*.json`) +
    `VerticalContext` + `VerticalSwitcher` — has terminology/greeting, but
    `VerticalContext` is **loaded and then ignored** by the UI.
-2. **Industry presets** (`banking_api_ui/src/config/industryPresets.js`) +
+2. **Industry presets** (`demo_api_ui/src/config/industryPresets.js`) +
    `IndustryBrandingContext` — applies CSS color vars only; the only mechanism
    actually wired through the app.
 3. **Phase 225 `ff_retail_mode`** — a feature flag + `RetailModeBanner` +
@@ -68,7 +68,7 @@ presentation only.
 
 ## Section 1 — Theme Manifest schema (single source of truth)
 
-One JSON file per theme at `banking_api_server/config/verticals/<id>.json`,
+One JSON file per theme at `demo_api_server/config/verticals/<id>.json`,
 promoted to `schemaVersion: 2`. Every theme-varying thing lives here and
 nowhere else — **including the strings currently hardcoded in components** so
 banking can be data-driven.
@@ -336,7 +336,7 @@ is Phase 2.
   bounded by the presentation-only manifest constraint and recorded in the
   REGRESSION_PLAN §1 theme-contract note with that rationale.
 - State-what-I-won't-break per protected file; minimal diff; no emoji except
-  the three permitted (`⚠️ ✅ ❌`); `cd banking_api_ui && npm run build` exit 0
+  the three permitted (`⚠️ ✅ ❌`); `cd demo_api_ui && npm run build` exit 0
   after every UI step; targeted `npm test` for `verticalConfigService` +
   configStore; run the skip-proof chip pipeline suite after step 4.
 - New reusable theme contract → REGRESSION_PLAN §1 table note. Any defect

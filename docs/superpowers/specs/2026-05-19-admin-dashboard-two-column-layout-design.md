@@ -85,12 +85,12 @@ main.admin-dash-main--split .dash-shell-card:not(.dash-shell-card--token) {
 
 | File | Change |
 |------|--------|
-| `banking_api_ui/src/components/Dashboard.js` | Add conditional `className` to `<main>` |
-| `banking_api_ui/src/components/Dashboard.css` | Add `admin-dash-main--split` CSS rules |
+| `demo_api_ui/src/components/Dashboard.js` | Add conditional `className` to `<main>` |
+| `demo_api_ui/src/components/Dashboard.css` | Add `admin-dash-main--split` CSS rules |
 
 ## Verification
 
 1. Admin dashboard, Middle mode selected → Token Chain pinned left, admin sections on right
 2. Admin dashboard, Float mode selected → single column layout, no change from today
 3. Viewport < 1024px → single column regardless of mode
-4. `cd banking_api_ui && npm run build` exits 0
+4. `cd demo_api_ui && npm run build` exits 0

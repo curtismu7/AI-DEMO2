@@ -22,6 +22,7 @@ import {
 } from "../utils/appToast";
 import { navigateToCustomerOAuthLogin, SESSION_REAUTH_EVENT } from "../utils/authUi";
 import { normalizePhoneE164, pickPreferredDevice, isPasskeySupported } from "../utils/mfaEnrollment";
+import { COUNTRY_CODES, DEFAULT_COUNTRY_CODE, composePhone } from "../utils/countryCodes";
 import {
   getDashboardLayout,
   setDashboardLayout,
@@ -501,6 +502,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   // SMS enrollment sub-flow inside the enroll modal: 'choose' | 'phone' | 'otp'
   const [smsEnrollStep, setSmsEnrollStep] = useState("choose");
   const [smsEnrollPhone, setSmsEnrollPhone] = useState("");
+  const [smsCountryCode, setSmsCountryCode] = useState(DEFAULT_COUNTRY_CODE);
   const [smsEnrollOtp, setSmsEnrollOtp] = useState("");
   const [smsEnrollDeviceId, setSmsEnrollDeviceId] = useState(null);
   const autoInitiateTimerRef = useRef(null); // [t1, t2, t3] setTimeout IDs
@@ -835,6 +837,117 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       document.addEventListener("mouseup", onUp);
     },
     [agentColWidth],
+  );
+
+  /**
+   * Focus Mode: drag the agent/spotlight column split. agentFrac is the agent
+   * track's fr value against the fixed 1fr spotlight track (1 = half width,
+   * the default). Dragging right raises the fr, widening the agent column.
+   */
+  const [agentFrac, setAgentFrac] = useState(() => {
+    try {
+      const n = parseFloat(
+        localStorage.getItem("ud_focus_agent_frac") || "",
+        10,
+      );
+      if (Number.isFinite(n)) {
+        return Math.min(4, Math.max(0.25, n));
+      }
+    } catch {
+      /* ignore */
+    }
+    return 1;
+  });
+
+  useEffect(() => {
+    if (agentPlacement !== "middle") return;
+    try {
+      localStorage.setItem("ud_focus_agent_frac", String(agentFrac));
+    } catch {
+      /* ignore */
+    }
+  }, [agentFrac, agentPlacement]);
+
+  const onFocusAgentResizeMouseDown = useCallback(
+    (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      const gridEl = e.currentTarget.parentElement;
+      if (!gridEl) return;
+      const totalPx = gridEl.getBoundingClientRect().width;
+      const startX = e.clientX;
+      const startFrac = agentFrac;
+      const onMove = (ev) => {
+        setAgentFrac(
+          Math.min(4, Math.max(0.25, startFrac + (ev.clientX - startX) / totalPx)),
+        );
+      };
+      const onUp = () => {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        dragCleanupRef.current = null;
+      };
+      dragCleanupRef.current = onUp;
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    },
+    [agentFrac],
+  );
+
+  /** Focus Mode: drag the token chain (bottom section) height. */
+  const [focusChainHeight, setFocusChainHeight] = useState(() => {
+    try {
+      const n = parseInt(
+        localStorage.getItem("ud_focus_chain_height_px") || "",
+        10,
+      );
+      if (Number.isFinite(n)) return Math.min(720, Math.max(60, n));
+    } catch {
+      /* ignore */
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (agentPlacement !== "middle" || focusChainHeight == null) return;
+    try {
+      localStorage.setItem("ud_focus_chain_height_px", String(focusChainHeight));
+    } catch {
+      /* ignore */
+    }
+  }, [focusChainHeight, agentPlacement]);
+
+  const onFocusChainResizeMouseDown = useCallback(
+    (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      const startY = e.clientY;
+      const startH = focusChainHeight ?? 240;
+      const onMove = (ev) => {
+        // Handle sits ABOVE the chain: dragging up grows the chain (the
+        // divider moves up, revealing more of the panel below it).
+        setFocusChainHeight(
+          Math.min(720, Math.max(60, startH - (ev.clientY - startY))),
+        );
+      };
+      const onUp = () => {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        dragCleanupRef.current = null;
+      };
+      dragCleanupRef.current = onUp;
+      document.body.style.cursor = "ns-resize";
+      document.body.style.userSelect = "none";
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    },
+    [focusChainHeight],
   );
 
   const onDetailPaneResizeMouseDown = useCallback(
@@ -1174,7 +1287,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
 
   /** POST /enroll/sms-init — PingOne texts an activation code to the phone. */
   const handleEnrollSmsInit = useCallback(async () => {
-    const phone = normalizePhoneE164(smsEnrollPhone);
+    const phone = normalizePhoneE164(composePhone(smsCountryCode, smsEnrollPhone));
     if (!phone || phone.length < 10) {
       setEnrollError("Enter a phone number in E.164 format, e.g. +15551234567");
       return;
@@ -3645,20 +3758,34 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
                     className="otp-step-up-modal__lead"
                     htmlFor="enroll-sms-phone"
                   >
-                    Mobile number (E.164 format)
+                    Mobile number
                   </label>
-                  <input
-                    id="enroll-sms-phone"
-                    className="otp-step-up-modal__input"
-                    type="tel"
-                    placeholder="+15551234567"
-                    value={smsEnrollPhone}
-                    onChange={(e) => setSmsEnrollPhone(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleEnrollSmsInit();
-                    }}
-                    data-testid="enroll-sms-phone"
-                  />
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <select
+                      className="otp-step-up-modal__input"
+                      style={{ width: 130, flex: "0 0 auto" }}
+                      value={smsCountryCode}
+                      onChange={(e) => setSmsCountryCode(e.target.value)}
+                      aria-label="Country code"
+                      data-testid="mfa-country-code"
+                    >
+                      {COUNTRY_CODES.map((c) => (
+                        <option key={c.code} value={c.code}>{c.label}</option>
+                      ))}
+                    </select>
+                    <input
+                      id="enroll-sms-phone"
+                      className="otp-step-up-modal__input"
+                      type="tel"
+                      placeholder="5551234567"
+                      value={smsEnrollPhone}
+                      onChange={(e) => setSmsEnrollPhone(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleEnrollSmsInit();
+                      }}
+                      data-testid="enroll-sms-phone"
+                    />
+                  </div>
                   <div
                     className="otp-step-up-modal__actions"
                     style={{ flexDirection: "column", gap: "0.75rem" }}
@@ -3871,7 +3998,12 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           className={`dashboard-content ud-body ud-body--2026 ud-focus-mode ${splitGridClass(
             showBankingInMiddle,
           )}${middleAgentOpen ? "" : " ud-middle-collapsed"}${showSequenceDiagram ? " ud-sequence-view-active" : ""}${showSequenceDiagram && slowMode ? " ud-slow-mode-active" : ""}`}
-          style={{ '--ud-agent-col-width': `${agentColWidth}px` }}
+          style={{
+            '--ud-agent-col-width': `${agentColWidth}px`,
+            '--ud-focus-agent-frac': `${agentFrac}fr`,            ...(focusChainHeight != null
+              ? { '--ud-focus-chain-h': `${focusChainHeight}px` }
+              : {}),
+          }}
         >
           {/* Full width above both columns, where the mock puts it. Inside the
               agent column it had ~760px for ~14 controls and wrapped onto five
@@ -3902,7 +4034,11 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
             {/* biome-ignore lint/a11y/noStaticElementInteractions: pointer-only drag; height handle remains keyboard-reachable. */}
             <div
               className="ud-agent-column__resize-handle"
-              onMouseDown={onAgentWidthResizeMouseDown}
+              onMouseDown={
+                showSequenceDiagram
+                  ? onAgentWidthResizeMouseDown
+                  : onFocusAgentResizeMouseDown
+              }
               role="separator"
               aria-orientation="vertical"
               aria-label="Drag to resize assistant width"
@@ -3963,6 +4099,18 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
               nothing on screen: it governed only the float branch, which does
               not mount in this layout. The reel was never lost, the control
               was simply wired to the copy you were not looking at. */}
+          {showFilmstrip && !showSequenceDiagram && middleAgentOpen && (
+            /* Full-width handle between agent/spotlight row and chain row. */
+            /* biome-ignore lint/a11y/noStaticElementInteractions: pointer-only drag. */
+            <div
+              className="ud-focus-chain-resize"
+              onMouseDown={onFocusChainResizeMouseDown}
+              role="separator"
+              aria-orientation="horizontal"
+              aria-label="Drag to resize token chain height"
+              data-testid="dashboard-focus-chain-resize"
+            />
+          )}
           {showFilmstrip && !showSequenceDiagram && <TokenChainFilmstrip />}
           {showTokenTopology && !showSequenceDiagram && <TokenTopologyPanel inline />}
           {showSequenceDiagram && (

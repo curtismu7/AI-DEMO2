@@ -16,6 +16,13 @@ export const AGENT_ROLES = Object.freeze({
   specialist: "Specialist agent",
 });
 
+export const AGENT_METADATA_LABELS = Object.freeze({
+  identity: "Agent identity",
+  runtime: "Agent runtime",
+  card: "Agent Card",
+  authority: "Delegated authority",
+});
+
 export const RUN_PROVENANCE = Object.freeze({
   mock: "Mock replay",
   recorded: "Recorded run",

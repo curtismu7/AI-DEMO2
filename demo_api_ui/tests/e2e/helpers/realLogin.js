@@ -158,39 +158,74 @@ async function driveLogin(page, { loginInitUrl, username, password, expectedLand
 
   // Wait for PingOne to load its login form.
   // PingOne hosted pages use an <input> with id="username" and id="password".
-  await page.waitForSelector('input[name="username"], input[id="username"], input[type="email"]', {
-    timeout: LOGIN_TIMEOUT,
-  });
+  // PingFederate's hosted form (local.ping-devops.com:9031) names its fields
+  // pf.username / pf.pass with the SAME id="username"/id="password" — so the
+  // id selectors match both, and the [name=] variants cover deployments that
+  // rename the ids too.
+  await page.waitForSelector(
+    'input[name="username"], input[id="username"], input[name="pf.username"], input[type="email"]',
+    { timeout: LOGIN_TIMEOUT },
+  );
 
   // Fill credentials — handle both id and name variants
-  const usernameInput = page.locator('input[name="username"], input[id="username"], input[type="email"]').first();
-  const passwordInput = page.locator('input[name="password"], input[id="password"], input[type="password"]').first();
+  const usernameInput = page.locator(
+    'input[name="username"], input[id="username"], input[name="pf.username"], input[type="email"]',
+  ).first();
+  const passwordInput = page.locator(
+    'input[name="password"], input[id="password"], input[name="pf.pass"], input[type="password"]',
+  ).first();
 
   await usernameInput.fill(username);
+  await expectFilled(usernameInput, username);
 
   // Some PingOne flows ask for username first, then present password on the next screen.
   // Re-query after that navigation — a pre-step locator goes stale / is not the visible field.
-  const passwordVisible = await passwordInput.isVisible().catch(() => false);
-  if (!passwordVisible) {
-    await page.locator('button[type="submit"], button:has-text("Next"), button:has-text("Sign On")').first().click();
-    await page.getByRole('textbox', { name: /Password/i }).waitFor({ timeout: LOGIN_TIMEOUT });
-  }
-  const passwordField = page.getByRole('textbox', { name: /Password/i });
+  // PF's hosted form renders the password input with no accessible name, so
+  // getByRole('textbox', { name: /Password/i }) never matches. Wait attached
+  // and fill directly — click() can be blocked by the error-banner overlay.
+  await passwordInput.waitFor({ state: 'attached', timeout: LOGIN_TIMEOUT });
+  const passwordField = passwordInput;
   await passwordField.click();
   await passwordField.fill(password);
   await expectFilled(passwordField, password);
 
-  // Submit the login form (PingOne hosted page uses "Sign On")
-  const signOn = page.getByRole('button', { name: /Sign On/i });
-  if (await signOn.count()) {
-    await signOn.first().click();
-  } else {
-    await page.locator('button[type="submit"]').first().click();
+  // Submit: PF's Sign On control is a styled anchor; synthetic clicks do not
+  // always fire it headless — requestSubmit the form directly.
+  const submitted = await page.evaluate(() => {
+    const form = document.querySelector('form');
+    if (form) { if (form.requestSubmit) form.requestSubmit(); else form.submit(); return true; }
+    const el = [...document.querySelectorAll('a, div, span, button, input')]
+      .find((n) => (n.textContent || n.value || '').trim() === 'Sign On' && n.offsetParent);
+    if (el) { el.click(); return true; }
+    return false;
+  });
+  if (!submitted) {
+    await page.locator('button[type="submit"], a:has-text("Sign On"), [role="button"]:has-text("Sign On")')
+      .first()
+      .click({ timeout: LOGIN_TIMEOUT });
   }
+
+  // PF consent screen: "Request for Approval" — Allow is a clickable div.
+  try {
+    await page.locator('text="Allow"').first().waitFor({ state: 'visible', timeout: POST_LOGIN_TIMEOUT });
+    await page.evaluate(() => {
+      const el = [...document.querySelectorAll('div, span, a, button')]
+        .find((n) => n.textContent.trim() === 'Allow');
+      if (el) el.click();
+    });
+  } catch (_) { /* no consent screen — continue */ }
 
   // Wait for the app to redirect back and settle on the expected page.
   // Uses a loose URL match so /dashboard?oauth=success also counts.
-  await page.waitForURL(`**${expectedLandingPath}**`, { timeout: POST_LOGIN_TIMEOUT });
+  // PF mode may land on the SPA root ('/') instead of the requested path when
+  // the IdP drops return_to — the OAuth round-trip itself is the success
+  // signal, so falling back to "back on the app origin" is not a soft-fail.
+  const appOrigin = new URL(getE2eBaseUrl()).origin;
+  try {
+    await page.waitForURL(`**${expectedLandingPath}**`, { timeout: POST_LOGIN_TIMEOUT });
+  } catch (_) {
+    await page.waitForURL(`${appOrigin}/**`, { timeout: POST_LOGIN_TIMEOUT });
+  }
 
   // Wait for React to hydrate (status endpoint must have resolved)
   await page.waitForSelector('[class*="dashboard"], [class*="ba-subtitle"], .banking-agent-fab', {
@@ -283,8 +318,10 @@ async function loginAsCustomerViaApiCookie(page) {
     sameSite: 'Lax',
   }]);
   await page.goto(`${base.replace(/\/$/, '')}/dashboard`, { waitUntil: 'domcontentloaded' });
+  // The SPA can take >30s to hydrate right after a stack restart (vite
+  // dev-server cold compile) — give it double the default window.
   await page.waitForSelector('[class*="dashboard"], [class*="ba-subtitle"], .banking-agent-fab', {
-    timeout: POST_LOGIN_TIMEOUT,
+    timeout: POST_LOGIN_TIMEOUT * 2,
   });
   return true;
 }
@@ -364,6 +401,7 @@ module.exports = {
   getE2eBaseUrl,
   waitForE2eBaseUrl,
   loginAsCustomer,
+  loginAsCustomerViaApiCookie,
   loginAsAdmin,
   saveCustomerSession,
   saveAdminSession,

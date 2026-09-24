@@ -465,9 +465,26 @@ router.get('/demo-status', async (_req, res) => {
   });
 
   const allUp = servers.every(s => s.up);
+
+  // LMDB store health (2026-09-22): silent session-write loss at the mapSize
+  // ceiling was only visible in container logs. Expose store health + the
+  // data.mdb high-water mark so dashboards can alarm before MDB_MAP_FULL.
+  let lmdb = null;
+  try {
+    const storeHealth = require('../services/lmdb/storeHealth');
+    const { getDb, MAP_SIZE } = require('../services/lmdb/openEnv');
+    getDb('sessions'); // ensure env is open so the stat finds data.mdb
+    const snap = storeHealth.snapshot();
+    lmdb = {
+      ...snap,
+      dataMdbPctOfMap: snap.dataMdbBytes != null ? Math.round((snap.dataMdbBytes / MAP_SIZE) * 100) : null,
+    };
+  } catch { /* LMDB not initialized (e.g. memory fallback) — omit the block */ }
+
   return res.status(allUp ? 200 : 503).json({
     ok: allUp,
     servers,
+    lmdb,
     timestamp: new Date().toISOString(),
   });
 });

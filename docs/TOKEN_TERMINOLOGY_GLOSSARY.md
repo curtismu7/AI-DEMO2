@@ -1,12 +1,16 @@
 # RFC 8693 Token Exchange Terminology Glossary
 
-> **Purpose:** Map RFC 8693 normative terms to common alternate names used in the Super Banking AI Banking Demo. All code, documentation, and education panels use these RFC terms as primary vocabulary.
+> **Purpose:** Map RFC 8693 normative terms to common alternate names used in the AI Demo. All code, documentation, and education panels use these RFC terms as primary vocabulary.
+>
+> **Canonical token names (demo canon):** Token #1 **User token** (BFF-held) · Token #2 **Agent actor token** ("Actor Token" technical ≡ "Agent Token" UI — see [ACTOR_TOKEN_TERMINOLOGY.md](ACTOR_TOKEN_TERMINOLOGY.md)) · Token #3 **MCP Gateway token** · Token #4 **Per-MCP server token**.
+>
+> **"Delegated token"** is an education-only term: it names the token produced by exchanging a user token with an Agent actor token (the token-delegation act). Use it in education panels and conceptual explanations; in diagrams, token cards, the Token Chain trace, and technical docs showing what happened, use the specific token name (MCP Gateway token / Per-MCP server token) and `act` claim language instead.
 
 ---
 
 ## Token Roles
 
-### Subject Token (RFC 8693 §2.1)
+### User token (RFC 8693 §2.1)
 
 **Definition:** The security token that represents the identity of the party on behalf of whom the request is being made. In delegation scenarios, this is the user whose authority is being delegated.
 
@@ -107,13 +111,13 @@
 ## Exchange Patterns
 
 ### Single Exchange (1-Exchange)
-- **Input:** Subject Token (user's access token)
+- **Input:** User token (user's access token)
 - **Output:** MCP-Scoped Access Token (with `sub` but no `act`)
 - **RFC 8693 fields:** `subject_token`, `audience`, `scope`
 - **Use case:** User directly authorizes MCP access without agent delegation
 
 ### Dual Exchange (2-Exchange)
-- **Input:** Subject Token (user) + Actor Token (agent)
+- **Input:** User token (user) + Actor Token (agent)
 - **Output:** MCP-Scoped Access Token (with `sub` + `act`)
 - **RFC 8693 fields:** `subject_token`, `actor_token`, `audience`, `scope`
 - **Use case:** Agent acts on behalf of user; both identities represented in result

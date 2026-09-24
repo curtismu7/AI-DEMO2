@@ -21,6 +21,24 @@ function resolveMkcertPaths() {
   return null
 }
 
+function legacyJsxPlugin(name) {
+  return {
+    name,
+    enforce: 'pre',
+    async transform(code, id) {
+      if (!id.endsWith('.js') || id.includes('node_modules')) return null
+      const esbuild = await import('esbuild')
+      const result = await esbuild.transform(code, {
+        loader: 'jsx',
+        jsx: 'automatic',
+        sourcefile: id,
+        sourcemap: true,
+      })
+      return { code: result.code, map: result.map }
+    },
+  }
+}
+
 export default defineConfig(({ mode }) => {
   // Load env vars prefixed with REACT_APP_ or VITE_ (REACT_APP_ for CRA compat).
   // IMPORTANT: loadEnv only reads .env* files — it does NOT see process.env. In
@@ -82,24 +100,10 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react(),
-      // CRA allowed JSX inside .js files (Babel processed all of them). Vite's esbuild
-      // plugin skips .js by default. This plugin intercepts src .js files and re-runs
-      // them through esbuild with loader 'jsx' so no files need to be renamed to .jsx.
-      {
-        name: 'vite:js-jsx',
-        enforce: 'pre',
-        async transform(code, id) {
-          if (!id.endsWith('.js') || id.includes('node_modules')) return null
-          const esbuild = await import('esbuild')
-          const result = await esbuild.transform(code, {
-            loader: 'jsx',
-            jsx: 'automatic',
-            sourcefile: id,
-            sourcemap: true,
-          })
-          return { code: result.code, map: result.map }
-        },
-      },
+      // CRA allowed JSX inside .js files. Keep a narrow pre-transform for those
+      // legacy modules; dependency optimization itself stays on Vite 8's OXC
+      // path and no longer uses the deprecated esbuildOptions setting.
+      legacyJsxPlugin('vite:js-jsx'),
     ],
 
     define: {
@@ -107,19 +111,33 @@ export default defineConfig(({ mode }) => {
       ...reactAppDefines,
     },
 
-    // Preserve function/class names through minification so React's
-    // componentStack in the ErrorBoundary names real components (not mangled
-    // single letters), making production crashes diagnosable.
-    esbuild: { keepNames: true },
+    // The BFF has its own older OpenTelemetry dependency tree. Vite can walk
+    // up from the UI package and pair the browser exporter with that tree's
+    // transformer, which omits the exporter's 0.222 metrics helper. Pin the
+    // shared transformer to the UI dependency tree so the browser packages
+    // stay on one compatible OpenTelemetry release line.
+    resolve: {
+      alias: {
+        '@opentelemetry/otlp-transformer': resolve(
+          __dirname,
+          'node_modules/@opentelemetry/otlp-transformer',
+        ),
+        '@azure/msal-common': resolve(
+          __dirname,
+          'node_modules/@azure/msal-common',
+        ),
+      },
+    },
 
-    // Dev server only: Vite's dependency scanner/optimizer runs raw esbuild,
-    // which (unlike the vite:js-jsx plugin above) doesn't know our .js files
-    // contain JSX. Without this, `vite` (dev/HMR — used by docker-compose.override.yml)
-    // fails to boot with "JSX syntax extension is not currently enabled". Does not
-    // affect `vite build` (Rollup + the plugin), so the nginx production path is unchanged.
+    // Vitest's transform pipeline does not consume Vite 8's OXC JSX runtime
+    // settings for test modules yet. Keep the automatic runtime there only;
+    // production builds use OXC exclusively.
+    ...(process.env.VITEST ? { esbuild: { jsx: 'automatic' } } : {}),
+
     optimizeDeps: {
-      esbuildOptions: {
-        loader: { '.js': 'jsx' },
+      rolldownOptions: {
+        plugins: [legacyJsxPlugin('vite:dep-js-jsx')],
+        transform: { jsx: { runtime: 'automatic' } },
       },
     },
 

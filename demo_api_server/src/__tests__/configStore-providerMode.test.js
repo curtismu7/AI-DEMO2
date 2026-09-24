@@ -42,6 +42,24 @@ describe('OAuth provider mode', () => {
     expect(configStore.SECRET_KEYS.has('PF_USER_CLIENT_SECRET')).toBe(true);
   });
 
+  test('registers the PF two-hop exchanger and actor settings with encrypted secrets', () => {
+    process.env.PF_STANDARD_AGENT_EXCHANGE_CLIENT_ID = 'pf-agent-hop';
+    process.env.PF_STANDARD_AGENT_EXCHANGE_CLIENT_SECRET = 'pf-agent-hop-secret';
+    process.env.PF_STANDARD_INTERMEDIATE_AUDIENCE = 'https://pf.example.test/agent-intermediate';
+    process.env.PF_MCP_SERVICE_ACTOR_CLIENT_ID = 'pf-mcp-actor';
+    process.env.PF_MCP_SERVICE_ACTOR_CLIENT_SECRET = 'pf-mcp-actor-secret';
+
+    const configStore = require('../../services/configStore');
+
+    expect(configStore.getEffective('pf_standard_agent_exchange_client_id')).toBe('pf-agent-hop');
+    expect(configStore.getEffective('pf_standard_intermediate_audience')).toBe('https://pf.example.test/agent-intermediate');
+    expect(configStore.getEffective('pf_mcp_service_actor_client_id')).toBe('pf-mcp-actor');
+    expect(configStore.SECRET_KEYS.has('PF_STANDARD_AGENT_EXCHANGE_CLIENT_SECRET')).toBe(true);
+    expect(configStore.SECRET_KEYS.has('PF_MCP_SERVICE_ACTOR_CLIENT_SECRET')).toBe(true);
+    expect(configStore.FIELD_DEFS.PF_STANDARD_AGENT_EXCHANGE_CLIENT_SECRET.public).toBe(false);
+    expect(configStore.FIELD_DEFS.PF_MCP_SERVICE_ACTOR_CLIENT_SECRET.public).toBe(false);
+  });
+
   test('rejects an unsupported provider instead of silently selecting PingOne', () => {
     process.env.OAUTH_PROVIDER = 'local-mock';
     const configStore = require('../../services/configStore');

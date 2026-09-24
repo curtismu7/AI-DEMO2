@@ -559,16 +559,25 @@ const validatePingOneCoreToken = async (token, requestContext = {}) => {
     } catch { /* malformed token — falls through to the normal PingOne path below */ }
 
     // Validate using PingOne JWKS (or oauth-mcp's own, for a native ID-JAG token)
+    // Secondary issuer (PingFederate, 2026-09-22 A2A-under-PF): tokens whose iss
+    // matches PF_ISSUER_URI verify against the PF JWKS — PingOne's JWKS cannot
+    // verify a PF signature. Mirrors the Node gateway's dual-issuer branches.
+    const PF_ISSUER_URI_AUTH = process.env.PF_ISSUER_URI || process.env.PF_ISSUER || '';
     const payload = unverifiedIss === OAUTH_MCP_ID_JAG_ISSUER
       ? await validatePingOneToken(token, {
           jwksUri: OAUTH_MCP_ID_JAG_JWKS_URL,
           issuer: OAUTH_MCP_ID_JAG_ISSUER,
           allowHttp: true,
         })
-      : await validatePingOneToken(token, {
-          jwksUri: oauthConfig.jwksEndpoint,
-          issuer: oauthConfig.issuer,
-        });
+      : PF_ISSUER_URI_AUTH && unverifiedIss === PF_ISSUER_URI_AUTH
+        ? await validatePingOneToken(token, {
+            jwksUri: process.env.PF_JWKS_URI || `${PF_ISSUER_URI_AUTH}/JWKS`,
+            issuer: PF_ISSUER_URI_AUTH,
+          })
+        : await validatePingOneToken(token, {
+            jwksUri: oauthConfig.jwksEndpoint,
+            issuer: oauthConfig.issuer,
+          });
 
     // ── Audience validation (always-on when BFF_RESOURCE_URI is configured) ────
     // Tokens arriving at the BFF must be targeted at this service's resource URI.

@@ -24,6 +24,7 @@ const { getManagementToken } = require('./pingOneClientService');
 const { getCanonicalPublicOrigin } = require('./vercelPublicUrl');
 const { sanitizeAxiosCause } = require('../utils/sanitizeAxiosCause');
 const agentLifecycleEvents = require('./agentLifecycleEvents');
+const personalAgentCimdService = require('./personalAgentCimdService');
 
 const BUILDER_MARKER = 'Created by Agent Builder for ';
 
@@ -35,8 +36,10 @@ function displayName(user) {
   return user.username || String(user.email || 'user').split('@')[0];
 }
 
-function agentName(user) {
-  return `AI Agent - ${displayName(user)}`;
+function agentName(user, agentType = 'personal') {
+  return agentType === 'saas-embedded-worker'
+    ? `Website Worker - ${displayName(user)}`
+    : `AI Agent - ${displayName(user)}`;
 }
 
 function markerFor(user) {
@@ -128,16 +131,50 @@ async function listApplicationsRaw(opts) {
 
 /** AI_AGENT apps appear in the standard applications list, so one lookup
  *  covers both first-class agents and WEB_APP fallbacks. */
-async function findAgentRaw(user, opts) {
-  const name = agentName(user);
+async function findAgentRaw(user, opts, agentType = 'personal') {
+  const name = agentName(user, agentType);
   const apps = await listApplicationsRaw(opts);
   return apps.find((a) => a.name === name) || null;
 }
 
-async function getAgentForUser(user) {
+async function getAgentForUser(user, agentType = 'personal') {
   const opts = await requestOptions();
-  const raw = await findAgentRaw(user, opts);
+  const raw = await findAgentRaw(user, opts, agentType);
   return raw ? summarizeAgent(raw) : null;
+}
+
+/** Resolve an owned client-credentials app for a real workload run.
+ * The secret is fetched server-side for this request and is never included in
+ * the public agent summary or persisted by this service. */
+async function getRuntimeForUser(user, agentType = 'personal') {
+  const opts = await requestOptions();
+  const raw = await findAgentRaw(user, opts, agentType);
+  if (!raw || !ownsObject(user, raw)) return null;
+  if (raw.enabled === false || !(raw.grantTypes || []).includes('CLIENT_CREDENTIALS') || !raw.clientId) {
+    throw Object.assign(new Error('The registered workload agent must be enabled and allow client_credentials.'), {
+      code: 'workload_agent_not_client',
+    });
+  }
+
+  const secretResponse = await axios.get(`${apiBase()}/applications/${raw.id}/secret`, opts);
+  const clientSecret = secretResponse.data?.secret;
+  if (!clientSecret) {
+    throw Object.assign(new Error('PingOne did not return a client secret for the registered workload agent.'), {
+      code: 'workload_agent_secret_unavailable',
+    });
+  }
+  const authMethod = String(raw.tokenEndpointAuthMethod || 'CLIENT_SECRET_POST').toUpperCase();
+  if (!['CLIENT_SECRET_POST', 'CLIENT_SECRET_BASIC'].includes(authMethod)) {
+    throw Object.assign(new Error('The registered workload agent must use client secret post or basic authentication.'), {
+      code: 'workload_agent_auth_method_unsupported',
+    });
+  }
+  return {
+    agent: summarizeAgent(raw),
+    clientId: raw.clientId,
+    clientSecret,
+    authMethod: authMethod === 'CLIENT_SECRET_BASIC' ? 'basic' : 'post',
+  };
 }
 
 /**
@@ -175,11 +212,36 @@ function recordAgentLifecycle(eventType, agent, user, reason) {
 }
 
 async function createAgentForUser(user, overrides = {}) {
+  const agentType = overrides.agentType || 'personal';
   const opts = await requestOptions();
-  const existing = await findAgentRaw(user, opts);
+  const existing = await findAgentRaw(user, opts, agentType);
   if (existing) return { created: false, agent: summarizeAgent(existing) };
 
-  const name = agentName(user);
+  async function withCimd(agent) {
+    const summary = summarizeAgent(agent);
+    let cimd;
+    try {
+      cimd = agentType === 'personal'
+        ? await personalAgentCimdService.registerPersonalAgentCimd(user, summary)
+        : await personalAgentCimdService.registerPersonalAgentCimd(user, summary, { agentType });
+    } catch (err) {
+      // CIMD is a demo facade. A local registry/storage problem must not
+      // turn a successful PingOne agent creation into a failed request.
+      cimd = {
+        ok: false,
+        mocked: true,
+        created: false,
+        registrationType: 'cimd-facade',
+        status: 'failed',
+        metadataUrl: null,
+        clientId: null,
+        steps: [{ step: 'register', status: 'failed', engine: 'mock', detail: { error: err.message } }],
+      };
+    }
+    return { created: true, agent: summary, cimd };
+  }
+
+  const name = agentName(user, agentType);
   const description = markerFor(user);
 
   // First choice: a first-class AI agent — a standard application with
@@ -199,7 +261,7 @@ async function createAgentForUser(user, overrides = {}) {
     const res = await axios.post(`${apiBase()}/applications`, aiPayload, { ...opts, validateStatus: () => true });
     const agent = summarizeAgent(res.data);
     recordAgentLifecycle('joiner', agent, user, 'agent-builder');
-    return { created: true, agent };
+    return withCimd(res.data);
   } catch (err) {
     if (!isAgentTypeUnsupported(err)) throw err;
   }
@@ -225,17 +287,26 @@ async function createAgentForUser(user, overrides = {}) {
   const res = await axios.post(`${apiBase()}/applications`, payload, { ...opts, validateStatus: () => true });
   const agent = summarizeAgent(res.data);
   recordAgentLifecycle('joiner', agent, user, 'agent-builder');
-  return { created: true, agent };
+  return withCimd(res.data);
 }
 
-async function deleteAgentForUser(user) {
+async function deleteAgentForUser(user, agentType = 'personal') {
   const opts = await requestOptions();
-  const raw = await findAgentRaw(user, opts);
+  const raw = await findAgentRaw(user, opts, agentType);
   if (!raw) throw Object.assign(new Error('No agent to delete'), { code: 'not_found' });
   if (!ownsObject(user, raw)) {
     throw Object.assign(new Error('Refusing to delete: app was not created by Agent Builder for this user'), { code: 'forbidden' });
   }
   await axios.delete(`${apiBase()}/applications/${raw.id}`, opts);
+  try {
+    if (agentType === 'personal') {
+      await personalAgentCimdService.removePersonalAgentCimd(user, raw.id);
+    } else {
+      await personalAgentCimdService.removePersonalAgentCimd(user, raw.id, { agentType });
+    }
+  } catch (err) {
+    console.warn('[agentBuilder] CIMD cleanup failed after delete:', err?.message || String(err));
+  }
   recordAgentLifecycle('leaver', raw, user, 'agent-builder-delete');
 }
 
@@ -300,6 +371,11 @@ async function upgradeAgentForUser(user) {
   const grantList = Object.entries(grants).map(([resourceId, scopes]) => ({ resourceId, scopes }));
 
   await axios.delete(`${apiBase()}/applications/${raw.id}`, opts);
+  try {
+    await personalAgentCimdService.removePersonalAgentCimd(user, raw.id);
+  } catch (err) {
+    console.warn('[agentBuilder] CIMD cleanup failed during upgrade:', err?.message || String(err));
+  }
   const created = await createAgentForUser(user);
   if (grantList.length > 0) {
     await setAgentGrants(created.agent.id, grantList);
@@ -463,7 +539,13 @@ module.exports = {
   agentName,
   listApplicationsRaw,
   getAgentForUser: withSanitizedErrors(getAgentForUser),
+  getRuntimeForUser: withSanitizedErrors(getRuntimeForUser),
+  getEmbeddedWorkerForUser: withSanitizedErrors((user) => getAgentForUser(user, 'saas-embedded-worker')),
+  getPersonalAgentCimd: personalAgentCimdService.getPersonalAgentCimd,
+  ensurePersonalAgentCimd: personalAgentCimdService.ensurePersonalAgentCimd,
+  getPersonalAgentCimdByAgentId: personalAgentCimdService.getByPingoneAgentId,
   createAgentForUser: withSanitizedErrors(createAgentForUser),
+  createEmbeddedWorkerForUser: withSanitizedErrors((user) => createAgentForUser(user, { agentType: 'saas-embedded-worker' })),
   deleteAgentForUser: withSanitizedErrors(deleteAgentForUser),
   upgradeAgentForUser: withSanitizedErrors(upgradeAgentForUser),
   listEnvironmentAgents: withSanitizedErrors(listEnvironmentAgents),
