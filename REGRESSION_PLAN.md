@@ -169,6 +169,29 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — Local demo-auth startup allowed token-exchanger credentials to drift
+
+**Files changed:** `scripts/check-mcp-gateway-credential-parity.js`,
+`run-docker.sh`, focused startup-guard tests, and `package.json`.
+
+**What was broken:** The BFF and MCP Gateway load the same PingOne token-exchanger
+client from separate ignored `.env` files. A stale gateway secret made gateway
+actor-token requests fail with PingOne `invalid_client`, while the BFF continued
+to use its current credential.
+
+**What was fixed:** Local startup paths that enable the `demo-auth` profile now
+compare the client ID and secret before Compose starts the gateway. The check
+handles plaintext or dotenvx-encrypted files, fails closed on missing or
+mismatched values, and never prints credential contents. It does not alter the
+P1/PF exchange behavior or UC40's separate ID-JAG path.
+
+**Do not break:** Keep the BFF and MCP Gateway token-exchanger credentials equal;
+keep secrets in ignored env files; preserve provider-specific token exchange and
+the isolated ID-JAG demo path.
+
+**Verify:** `node --test scripts/check-mcp-gateway-credential-parity.test.js`;
+`bash -n run-docker.sh`; `npm run hygiene:check`.
+
 ### 2026-09-23 — Standard PingFederate exchanges used PingOne's token endpoint
 
 **Files changed:** `demo_api_server/services/oauthService.js`, `services/pfStandardTokenExchangeService.js`, `docs/FEDERATE-SETUP.md`, and focused BFF tests.
