@@ -990,7 +990,7 @@ services:
     tmpfs:
       - /app/dev-data:uid=1001,gid=1001  # writable for dev-mode session data
     networks:
-      - name: ai-demo
+      ai-demo:
         aliases:
           # The local PF profile's ID-JAG SP connection targets this stable
           # downstream issuer/resource name. It aliases the same oauth-mcp

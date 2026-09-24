@@ -618,13 +618,13 @@ const createGracefulDegradationHandler = (fallbackValidation) => {
 // Enhanced health check for OAuth provider with comprehensive monitoring
 const checkOAuthProviderHealth = async (oauthConfig) => {
   const startTime = Date.now();
+  const healthCheckUrl = oauthConfig.discoveryEndpoint || `${oauthConfig.issuer}/.well-known/openid-configuration`;
   
   try {
     logger.debug(LOG_CATEGORIES.PROVIDER_HEALTH, 'Starting OAuth provider health check', {
       issuer: oauthConfig.issuer
     });
 
-    const healthCheckUrl = oauthConfig.discoveryEndpoint || `${oauthConfig.issuer}/.well-known/openid-configuration`;
     const response = await axios.get(healthCheckUrl, { timeout: 3000, validateStatus: () => true });
     const responseTime = Date.now() - startTime;
     

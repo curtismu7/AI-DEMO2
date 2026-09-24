@@ -169,6 +169,25 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — PF ID-JAG Compose, OAuth health, and public route audit
+
+**Files changed:** `docker-compose.yml`, `demo_api_server/middleware/oauthErrorHandler.js`,
+`demo_api_server/config/auth-requirements.json`, and focused BFF tests.
+
+**What was broken:** Compose rejected the MCP server's network alias entry;
+an OAuth discovery outage raised a `ReferenceError` inside the health-check
+catch block; three public PF ID-JAG pages were absent from the route audit.
+
+**What was fixed:** Declare the alias under the `ai-demo` network mapping, keep
+the discovery URL in scope for failure logging, and classify the three pages
+as public in the hand-authored authorization source of truth.
+
+**Do not break:** Existing Compose network membership, normal OAuth health
+results, or the page's public route guards.
+
+**Verify:** `docker compose config --quiet` with the worktree file and main
+project directory; focused OAuth and auth-requirements Jest; `npm run authz:verify`.
+
 ### 2026-09-24 — ID-JAG callback replay and logout status fallback
 
 **Files changed:** `demo_api_ui/src/hooks/useIdJagAgentLauncher.js`,
