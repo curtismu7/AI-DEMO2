@@ -6573,10 +6573,7 @@ export default function BankingAgentFull({
             heuristicSaved: !source || source === "heuristic",
           });
           // Pure-mode provider unavailable → ask before using heuristics (#1).
-          if (maybeDeferToHeuristicPrompt({ result, source, text, llm_attempted, llm_not_configured, useCaseId, mode })) {
-            if (mode === 'live-id-jag') tokenChainTraceStore.completeTrace(false);
-            return undefined;
-          }
+          if (maybeDeferToHeuristicPrompt({ result, source, text, llm_attempted, llm_not_configured, useCaseId, mode })) return undefined;
           return dispatchNlResult(result, source || "heuristic", text, useCaseId, mode);
         })
         .catch((err) => {
@@ -6891,7 +6888,7 @@ export default function BankingAgentFull({
   async function dispatchNlResult(...args) {
     try {
       const out = await dispatchNlResultInner(...args);
-      if (args[4] === 'live-id-jag' && !tokenChainTraceStore.getState().trace.outcome) {
+      if (args[4] === 'live-id-jag' && out !== 'awaiting-input' && !tokenChainTraceStore.getState().trace.outcome) {
         tokenChainTraceStore.completeTrace(false);
       }
       try { agentFlowDiagram.completeReply(true); } catch (_) { /* display-only */ }
@@ -7299,6 +7296,7 @@ export default function BankingAgentFull({
           clarifyOptions: acctTypes,
           amountOptions,
         });
+        return 'awaiting-input';
       } else {
         await runAction(action, p, { skipUserLabel: true, nlSource: _source, useCaseId, mode, vertical: effectiveVerticalId });
       }
@@ -7485,12 +7483,15 @@ export default function BankingAgentFull({
             setPendingClarification({
               kind: 'vertical',
               action: response.needsParams.action,
+              useCaseId,
+              mode,
               missingParams: response.needsParams.missing,
               partialParams: result.params || {},
               asked: response.reply,
               hint: paramHint,
               clarifyOptions: needsClarifyOptions,
             });
+            return 'awaiting-input';
           }
           return;
         }
@@ -8293,7 +8294,10 @@ export default function BankingAgentFull({
     // New typed turn: start a fresh token-chain trace with the user's prompt
     // (same as sendAsNlInner — the chat input box routes here, not there).
     try {
-      tokenChainTraceStore.beginTrace({ prompt: text });
+      tokenChainTraceStore.beginTrace({ prompt: text,
+        ...(pendingClarification?.useCaseId === 'enterprise-managed-mcp-authorization' && pendingClarification?.mode === 'live-id-jag'
+          ? { provenance: 'live-id-jag', mode: pendingClarification.mode } : {}),
+      });
     } catch (_) { /* display-only */ }
 
     const signal = beginAbortableSend();
@@ -8348,7 +8352,7 @@ export default function BankingAgentFull({
       prepNlCompliance(text);
       const syntheticResult = buildClarificationResult(pc, merged);
       try {
-        await dispatchNlResult(syntheticResult, "clarify", text);
+        await dispatchNlResult(syntheticResult, "clarify", text, pc.useCaseId, pc.mode);
       } catch (err) {
         if (!isAbortError(err)) reportNlFailure(err);
       }
@@ -9920,7 +9924,10 @@ export default function BankingAgentFull({
                       type="button"
                       aria-label="Dismiss"
                       className="ba-model-advisory-dismiss"
-                      onClick={() => setPendingLlmFallback(null)}
+                      onClick={() => {
+                        if (pendingLlmFallback.mode === 'live-id-jag') tokenChainTraceStore.completeTrace(false);
+                        setPendingLlmFallback(null);
+                      }}
                     >×</button>
                   </span>
                 )}

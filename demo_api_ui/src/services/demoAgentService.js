@@ -1143,8 +1143,14 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false, flowTraceId
     if (typeof data.reply === "string" && data.reply) {
       tokenChainTraceStore.ingestLlmReply(data.reply, flowTraceId);
     }
-    const failed = data.success === false || Boolean(data.error);
-    tokenChainTraceStore.completeTrace(!failed, flowTraceId);
+    // A native UC40 missing-parameter reply pauses before a tool call. Keep
+    // the PF grant for the follow-up; leave ordinary trace handling unchanged.
+    const awaitingNativeClarification = tokenChainTraceStore.getState().trace.mode === "live-id-jag"
+      && data.needsParams?.missing?.length && !data.toolsCalled?.length;
+    if (!awaitingNativeClarification) {
+      const failed = data.success === false || Boolean(data.error);
+      tokenChainTraceStore.completeTrace(!failed, flowTraceId);
+    }
   } catch { /* display-only */ }
 }
 

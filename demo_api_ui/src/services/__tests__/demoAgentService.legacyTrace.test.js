@@ -61,6 +61,27 @@ test("forceHeuristic wins over agentPath and errors complete the trace as failed
   expect(trace.outcome).toBe("error");
 });
 
+test("a native agent clarification keeps its run open for the follow-up tool request", () => {
+  tokenChainTraceStore.beginTrace({ prompt: "show my balance", provenance: "live-id-jag", mode: "live-id-jag" });
+  ingestLegacyRunTrace({
+    success: false,
+    reply: "Which account would you like to check?",
+    needsParams: { action: "get_account_balance", missing: ["accountId"] },
+  });
+  expect(tokenChainTraceStore.getState().trace).toMatchObject({
+    mode: "live-id-jag", provenance: "live-id-jag", outcome: null,
+  });
+});
+
+test("ordinary agent clarification keeps its existing trace outcome", () => {
+  ingestLegacyRunTrace({
+    success: false,
+    reply: "Which account would you like to check?",
+    needsParams: { action: "get_account_balance", missing: ["accountId"] },
+  });
+  expect(tokenChainTraceStore.getState().trace.outcome).toBe("error");
+});
+
 // Regression: the agent success path (UC1) rendered "Incomplete" because
 // ingestLegacyRunTrace never surfaced the tool result or the response's token
 // events — so 'tool-dispatched' and 'token-exchange' evidence could not match.

@@ -169,6 +169,26 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — PF ID-JAG clarification and fallback consumed the run grant early
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`, `AIAgentFull.js`,
+`demo_api_ui/src/services/demoAgentService.js`, and focused UI tests.
+
+**What was broken:** A typed clarification lost UC40 and live ID-JAG mode, while
+clarification and explicit heuristic fallback could finish the trace before a
+tool request. The auth subscriber then deleted the server run grant.
+
+**What was fixed:** Both agent variants carry the saved run identity through
+typed replies and defer native trace completion while awaiting input. The
+legacy agent trace also stays open for a native missing-parameter response;
+ordinary trace outcomes retain their prior behavior. A dismissed fallback is
+an explicit failed run.
+
+**Do not break:** Ordinary NL requests, the one-shot PF grant, and server-side
+UC40 provider validation.
+
+**Verify:** Focused ID-JAG clarification and legacy trace Vitest; UI build.
+
 ### 2026-09-24 — PF callback lost UC40 and failed runs lost their trace
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`, `AIAgentFull.js`,
