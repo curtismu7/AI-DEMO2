@@ -218,6 +218,8 @@ describe('isEnterpriseMcpDemoRoute', () => {
   it('is true for the ID-JAG demo page', () => {
     expect(isEnterpriseMcpDemoRoute('/demo/enterprise-mcp')).toBe(true);
     expect(isEnterpriseMcpDemoRoute('/demo/enterprise-mcp/')).toBe(true);
+    expect(isEnterpriseMcpDemoRoute('/pingfederate-id-jag/demo')).toBe(true);
+    expect(isEnterpriseMcpDemoRoute('/pingfederate-id-jag/demo/')).toBe(true);
   });
 
   it('is false for unrelated routes', () => {
