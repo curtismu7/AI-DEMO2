@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getSdkClient, isSdkError } from "../lib/oidcSdkClient";
 import { isSdkLoginPopup, POPUP_RESULT_TYPE } from "../lib/sdkLoginPopup";
 import { completeProtectAuthentication } from "../services/protectAuthenticationService";
-import { clearProtectAuthFlow, protectAuthReturnPath, readProtectAuthFlow } from "../lib/protectAuthFlow";
+import { clearProtectAuthFlow, protectAuthReturnPath, protectIdentityMatches, readProtectAuthFlow } from "../lib/protectAuthFlow";
 
 // OIDC redirect callback for the SDK centralized-login demo.
 // PingOne redirects here with ?code&state. We exchange the code for tokens via the
@@ -109,6 +109,11 @@ export default function SdkLoginCallback() {
             throw new Error(result.error || "Token exchange failed.");
           }
           if (protectFlow) {
+            const tokens = await client.token.get();
+            if (isSdkError(tokens) || !protectIdentityMatches(protectFlow.userId, tokens.idToken)) {
+              await client.token.revoke().catch(() => {});
+              throw new Error("The PingOne account did not match the identifier evaluated by Protect.");
+            }
             await completeProtectAuthentication({ flowId: protectFlow.flowId, completionStatus: "SUCCESS" });
             clearProtectAuthFlow();
             navigate(protectAuthReturnPath(protectFlow, "success"), { replace: true });

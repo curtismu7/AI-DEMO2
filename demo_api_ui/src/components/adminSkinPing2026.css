@@ -78,24 +78,33 @@ body.admin-skin-p1 .admin-side-nav__quick-links {
 }
 body.admin-skin-p1 .admin-side-nav__quick-link {
   background: transparent;
-  border: 1px solid transparent;
+  border: 1px solid #000;
   color: #c4d4e2 !important;
   box-shadow: none;
   justify-content: flex-start;
   padding: 7px 8px;
   font-size: 11px;
 }
+:root[data-theme="dark"] body.admin-skin-p1 .admin-side-nav__quick-link {
+  border-color: #fff;
+}
 body.admin-skin-p1 .admin-side-nav__quick-link:hover {
   background: #173b5b;
-  border-color: #2d6088;
+  border-color: #000;
   color: #f4f8fc !important;
   box-shadow: none;
 }
+:root[data-theme="dark"] body.admin-skin-p1 .admin-side-nav__quick-link:hover {
+  border-color: #fff;
+}
 body.admin-skin-p1 .admin-side-nav__quick-link--active {
   background: #2c638d;
-  border: 1px solid #3e7ca7;
+  border: 1px solid #000;
   color: #fff !important;
   box-shadow: none;
+}
+:root[data-theme="dark"] body.admin-skin-p1 .admin-side-nav__quick-link--active {
+  border-color: #fff;
 }
 
 /* ── Search box ─────────────────────────────────────────────────────────────

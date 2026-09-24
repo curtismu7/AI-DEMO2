@@ -265,18 +265,28 @@ export const FLOW_SOURCE = `sequenceDiagram
   Page->>W: davinci.skRenderScreen(container, props)
   W->>DV: POST /davinci/policy/policyId/start with Bearer SDK token
   DV-->>W: first screen as JSON, Set-Cookie interactionId
-  loop each screen
-    W->>DV: POST /capabilities/customHTMLTemplate with eventName continue
-    DV->>P1: PingOne SSO looks up the user and checks the password
-    DV-->>W: next screen as JSON
+  alt Sign in
+    W->>DV: submit username and password
+    DV->>P1: look up user and check password
+    DV-->>W: welcome and completion screens
+  else Register
+    W->>DV: choose Register on the first screen
+    DV->>P1: create user and verify email
+    DV-->>W: registration screens
+  else Recover
+    W->>DV: choose Having trouble signing on
+    DV->>P1: send recovery code and reset password
+    DV-->>W: recovery screens
   end
-  DV->>P1: PingOne Authentication creates the session and issues tokens
-  DV-->>W: success, id_token with nonce, access_token
-  W-->>Page: successCallback(response)
-  Page->>BFF: POST /api/davinci-login/widget-session
-  BFF->>P1: GET /as/jwks and verify both signatures
-  BFF->>P1: GET /as/userinfo
-  BFF-->>Page: ok and an HttpOnly session cookie`;
+  opt branch reaches the widget success node
+    DV->>P1: PingOne Authentication creates the session and issues tokens
+    DV-->>W: success, id_token with nonce, access_token
+    W-->>Page: successCallback(response)
+    Page->>BFF: POST /api/davinci-login/widget-session
+    BFF->>P1: GET /as/jwks and verify both signatures
+    BFF->>P1: GET /as/userinfo
+    BFF-->>Page: ok and an HttpOnly session cookie
+  end`;
 
 const FINAL_NODES = [
   [
@@ -423,8 +433,9 @@ export default function WidgetLessonSections({ calls = [] }) {
       <Section id="the-flow" title="The Flow">
         <MermaidFigure source={FLOW_SOURCE} label="DaVinci widget sign-in sequence" />
         <p>
-          That diagram is a fixed lesson drawing, not driven by a real run. Sign in above under Try It Live,
-          then open the live trace below to watch this same sequence play out step by step from your own run.
+          The first screen offers sign-in, registration, and account recovery. Those paths are in the same
+          DaVinci flow; the diagram shows their main actions. Choose one under Try It Live, then open the
+          live trace to see the steps from your own run. The diagram is a fixed lesson drawing.
         </p>
         <button type="button" className="dvl-retry" onClick={() => agentFlowDiagram.open()}>
           Open Live Trace

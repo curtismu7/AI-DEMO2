@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - Use the existing `PINGONE_SDK_DEMO_CLIENT_ID`, configured redirect URI, PKCE flow, callback, and `step_up_acr_value`.
-- Keep PingOne Worker credentials and risk evaluation IDs server-side; bind every evaluation to the current browser session and consume completion once.
+- Keep PingOne Worker credentials and risk evaluation IDs server-side; bind every evaluation to the current browser session and consume completion once. Carry the evaluated user identifier and issue time in a sessionStorage marker for at most 10 minutes, and only report SUCCESS when the validated OIDC ID token identifies that same user.
 - Do not start OIDC on HIGH or on an SDK, config, or Protect evaluation error.
 - The page must describe this as a demo application gate; do not imply PingOne's hosted authorization service itself consumes the preflight risk result.
 - Keep the existing agent Protect path isolated from the new authentication route and remove agent-dispatch as the Protect page's demo action/copy.
@@ -134,7 +134,7 @@
 - Fixed the DaVinci sidebar/catalog drift by restoring its seven live learning links, replaced the undefined `--th-bg-surface` with `--th-bg-card`, and added `--th-text` to five themed agent surfaces. Lowered the ground-without-ink ratchet from 485 to 484 after the count dropped to 484.
 - Worktree is serving on the local stack. Playwright confirmed the lesson, Ping products group, pop-out route and controls. The page contrast audit returned no failures in either theme.
 - A live risk evaluation and OIDC callback were not run; the tenant's policy-controlled risk outcome and MFA presentation remain to verify.
-- No implementation commit has been made.
+- Callback handling checks evaluated identity against ID token email, preferred username, or username; mismatch revokes local tokens, reports FAILED, and returns to the demo. Stale/future flow markers are discarded.
 
 ## Spec coverage review
 

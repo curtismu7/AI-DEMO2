@@ -33,7 +33,11 @@ demo branch: LOW starts the existing OIDC flow normally; MEDIUM starts it with t
 configured step-up ACR value; HIGH records a failed/blocked completion and renders
 the block page without redirecting to OIDC. After the OIDC callback, the page
 reports SUCCESS or FAILED against the risk evaluation through the BFF. Keep the
-evaluation ID in the server session associated with the opaque flow handle.
+evaluation ID in the server session associated with the opaque flow handle. The
+callback must confirm the validated ID token identifies the same user evaluated
+by Protect before reporting SUCCESS. A short-lived sessionStorage marker carries
+the evaluated identifier and issue time across the OIDC redirect; expire it after
+the 10-minute flow TTL and fail closed when identity claims do not match.
 
 This is a demo application gate around OIDC, not a claim that PingOne's hosted
 authorization service itself consumes the preflight Protect result. A DaVinci
@@ -60,9 +64,10 @@ describes branching on risk for access, MFA, or blocking.
    configured `step_up_acr_value` already exposed to the SDK login demo. Both use
    the existing public PKCE OIDC client and callback. HIGH does not start OIDC.
 5. **Completion feedback:** Update Protect with SUCCESS only after the OIDC flow
-   returns authenticated; report FAILED for denied, failed, or abandoned sign-in
-   when the flow outcome is available. High-risk blocks are FAILED. Keep completion
-   state single-use and scoped to the browser session.
+   returns authenticated as the evaluated identity; report FAILED for denied,
+   mismatched, failed, or abandoned sign-in when the flow outcome is available.
+   High-risk blocks are FAILED. Keep completion state single-use and scoped to
+   the browser session.
 6. **Failure behavior:** SDK, configuration, or Protect errors render an explicit
    error and never silently fall through to normal sign-in. Do not claim HIGH if
    evaluation did not return a valid risk result.

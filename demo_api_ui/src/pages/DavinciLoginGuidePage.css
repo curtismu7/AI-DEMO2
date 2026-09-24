@@ -4,28 +4,75 @@
    DavinciSdkLoginPage.css's .dvsdk-live. Every colour is a --th-* token; font
    sizes come from the scale; radii from --radius-*. */
 
-.dvl-live {
-  display: grid;
-  grid-template-columns: minmax(300px, 440px) minmax(0, 1fr);
-  gap: 1.5rem;
-  align-items: start;
-  margin-top: 1rem;
+.dvl-lesson .lesson-content {
+  max-width: 1600px;
+  width: 100%;
 }
 
-/* The widget card: the thing this page is about, so it stands apart from the
-   lesson around it, matching DavinciSdkLoginPage.css's flow card. It sits on
-   the emphasis surface with that surface's ink, runs larger than the Call
-   Inspector cards, and carries the large elevation.
-   Sticky below the app's sticky TopNav, not under it. */
+.dvl-live-intro {
+  max-width: 68ch;
+}
+
+.dvl-journeys {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dvl-journeys li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  padding: 1rem 1.1rem;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+}
+
+.dvl-journey-number {
+  flex: 0 0 auto;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.dvl-journeys li div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.dvl-journeys strong {
+  font-size: var(--font-size-sm);
+}
+
+.dvl-journeys li div span {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.dvl-live {
+  display: grid;
+  grid-template-columns: minmax(440px, 3fr) minmax(320px, 2fr);
+  gap: 1.25rem;
+  align-items: start;
+  margin-top: 1.5rem;
+}
+
+/* The live widget is the primary surface; the call trace is a quieter rail. */
 .dvl-live-app {
-  position: sticky;
-  top: calc(var(--topnav-height, 60px) + 1rem);
-  padding: 1.75rem;
-  color: var(--th-text-on-emphasis);
-  background: var(--th-bg-emphasis);
-  border: 1px solid var(--th-border-strong);
+  min-width: 0;
+  padding: 1.5rem;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-sm);
 }
 
 .dvl-login-header {
@@ -136,42 +183,105 @@
   border-color: var(--th-border);
 }
 
-/* Text with no ground of its own takes the card's ink. DavinciLoginPage.css
-   gives these --th-text / --th-text-muted for the other pages that share it,
-   so the override is scoped to this card. .dvl-error keeps its own ground. */
+/* The embedded runner inherits the card's ink and removes its standalone-page spacing. */
 .dvl-live-app .dvl-page,
 .dvl-live-app .dvl-status,
 .dvl-live-app .dvl-version {
   color: inherit;
 }
 
-/* DaVinci draws its own HTML here (its end-user-nano styles), so it gets a
-   card panel and keeps its normal ground instead of the emphasis surface. */
-.dvl-live-app .dvl-widget {
-  color: var(--th-text);
-  background: var(--th-bg-card);
-  border-radius: var(--radius-md);
-  overflow: hidden;
+.dvl-live-app .dvl-page {
+  margin: 0;
+  padding: 0;
 }
 
-/* .dvl-retry already sits on the card surface, so it inverts against the
-   emphasis ground; its focus ring takes the card's ink. */
+/* DaVinci draws its own HTML here (its end-user-nano styles), so it gets a
+   card panel and keeps its normal ground instead of the emphasis surface. */
+.dvl-live-app .dvl-widget,
+.dvl-popout-card .dvl-widget {
+  color: var(--th-text);
+  background: var(--th-bg-card) !important;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  min-height: 580px;
+}
+
+/* The tenant's existing DaVinci templates use a full-bleed blue canvas,
+   a fixed-width card, and a large stock logo. Keep their form controls and
+   behavior, but let the embedded experience fit this lesson's surface. */
+:is(.dvl-live-app, .dvl-popout-card) .dvl-widget .end-user-nano .bg-light {
+  background: var(--th-bg-card) !important;
+}
+
+:is(.dvl-live-app, .dvl-popout-card) .dvl-widget .end-user-nano .bg-light > div {
+  width: min(calc(100% - 2rem), 420px) !important;
+  min-width: 0 !important;
+  max-width: 420px !important;
+}
+
+:is(.dvl-live-app, .dvl-popout-card) .dvl-widget .end-user-nano .card {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm) !important;
+}
+
+:is(.dvl-live-app, .dvl-popout-card) .dvl-widget .end-user-nano .card-body {
+  padding: 2rem !important;
+}
+
+:is(.dvl-live-app, .dvl-popout-card) .dvl-widget .end-user-nano .companyLogo {
+  max-width: 124px;
+  max-height: 90px;
+  width: auto;
+  height: auto;
+  margin-bottom: 1.5rem !important;
+}
+
+/* The current Success template includes optional profile rows whose linked
+   values can resolve empty. Hide those labels until the tenant supplies data. */
+:is(.dvl-live-app, .dvl-popout-card) .dvl-widget .end-user-nano p:has(> strong:empty) {
+  display: none;
+}
+
+/* Keep the retry focus ring visible against the live card. */
 .dvl-live-app .dvl-retry:focus-visible {
-  outline: 2px solid var(--th-text-on-emphasis);
+  outline: 2px solid var(--th-status-info);
   outline-offset: 2px;
 }
 
-.dvl-live-calls h3 {
-  margin: 0 0 0.75rem;
+.dvl-live-calls {
+  min-width: 0;
+  padding: 1.25rem;
+  color: var(--th-text-body);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-lg);
+}
+
+.dvl-calls-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.dvl-calls-heading h3 {
+  margin: 0;
   font-size: var(--font-size-lg);
   color: var(--th-text);
+}
+
+.dvl-calls-heading span {
+  white-space: nowrap;
+  font-size: var(--font-size-xs);
+  color: var(--th-text-muted);
 }
 
 .dvl-signed-in {
   margin-top: 1rem;
   padding-top: 1rem;
   color: inherit;
-  border-top: 1px solid var(--th-text-on-emphasis);
+  border-top: 1px solid var(--th-border);
 }
 
 .dvl-calls {
@@ -181,12 +291,71 @@
 }
 
 .dvl-call {
-  margin: 0 0 0.75rem;
-  padding: 0.75rem 1rem;
-  color: var(--th-text-body);
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--th-border);
+}
+
+.dvl-call summary {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 0.25rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.dvl-call summary::-webkit-details-marker {
+  display: none;
+}
+
+.dvl-call summary:focus-visible {
+  outline: 2px solid var(--th-status-info);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.dvl-call-number {
+  display: grid;
+  flex: 0 0 1.75rem;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  color: var(--th-text);
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+}
+
+.dvl-call-summary {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0.15rem;
+}
+
+.dvl-call-summary strong {
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+}
+
+.dvl-call-summary code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-xs);
+}
+
+.dvl-call summary .lesson-ok,
+.dvl-call summary .lesson-warn {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+}
+
+.dvl-call-detail {
+  padding: 0 0.25rem 1rem 2.75rem;
 }
 
 .dvl-call-title {
@@ -208,11 +377,11 @@
 }
 
 @media (max-width: 900px) {
-  .dvl-live {
-    grid-template-columns: minmax(0, 1fr);
+  .dvl-journeys {
+    grid-template-columns: 1fr;
   }
 
-  .dvl-live-app {
-    position: static;
+  .dvl-live {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

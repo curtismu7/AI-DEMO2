@@ -38,6 +38,11 @@ describe("SdkLoginCallback", () => {
     );
   }
 
+  const idToken = (claims) => {
+    const encode = (value) => btoa(JSON.stringify(value)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+    return `${encode({ alg: "RS256" })}.${encode(claims)}.signature`;
+  };
+
   it("on a reload of an already-attempted code, auto-recovers to the sign-in page without an error screen", async () => {
     sessionStorage.setItem("sdk-login-attempted-code", "usedcode");
     const revoke = vi.fn().mockResolvedValue({});
@@ -75,8 +80,9 @@ describe("SdkLoginCallback", () => {
 
   it("reports successful Protect completion and returns to the Protect demo", async () => {
     const exchange = vi.fn().mockResolvedValue({ ok: true });
-    getSdkClient.mockResolvedValue({ token: { exchange } });
-    sessionStorage.setItem(PROTECT_AUTH_FLOW_KEY, JSON.stringify({ version: 1, flowId: "opaque-flow", returnTo: "product" }));
+    const get = vi.fn().mockResolvedValue({ idToken: idToken({ email: "demo@example.com" }) });
+    getSdkClient.mockResolvedValue({ token: { exchange, get } });
+    sessionStorage.setItem(PROTECT_AUTH_FLOW_KEY, JSON.stringify({ version: 1, flowId: "opaque-flow", returnTo: "product", userId: "demo@example.com", issuedAt: Date.now() }));
 
     renderAt("?code=protectcode&state=protectstate");
 
@@ -85,8 +91,24 @@ describe("SdkLoginCallback", () => {
     expect(sessionStorage.getItem(PROTECT_AUTH_FLOW_KEY)).toBeNull();
   });
 
+  it("reports FAILED when OIDC authenticates a different account than Protect evaluated", async () => {
+    const exchange = vi.fn().mockResolvedValue({ ok: true });
+    const get = vi.fn().mockResolvedValue({ idToken: idToken({ email: "other@example.com" }) });
+    const revoke = vi.fn().mockResolvedValue({ ok: true });
+    getSdkClient.mockResolvedValue({ token: { exchange, get, revoke } });
+    sessionStorage.setItem(PROTECT_AUTH_FLOW_KEY, JSON.stringify({ version: 1, flowId: "opaque-flow", returnTo: "product", userId: "demo@example.com", issuedAt: Date.now() }));
+
+    renderAt("?code=other-account-code&state=protectstate");
+
+    expect(await screen.findByText("PROTECT PRODUCT PAGE")).toBeInTheDocument();
+    expect(completeProtectAuthentication).toHaveBeenCalledWith({ flowId: "opaque-flow", completionStatus: "FAILED" });
+    expect(completeProtectAuthentication).not.toHaveBeenCalledWith({ flowId: "opaque-flow", completionStatus: "SUCCESS" });
+    expect(revoke).toHaveBeenCalled();
+    expect(sessionStorage.getItem(PROTECT_AUTH_FLOW_KEY)).toBeNull();
+  });
+
   it("reports failed Protect completion when PingOne denies sign-in", async () => {
-    sessionStorage.setItem(PROTECT_AUTH_FLOW_KEY, JSON.stringify({ version: 1, flowId: "opaque-flow" }));
+    sessionStorage.setItem(PROTECT_AUTH_FLOW_KEY, JSON.stringify({ version: 1, flowId: "opaque-flow", userId: "demo@example.com", issuedAt: Date.now() }));
 
     renderAt("?error=access_denied&error_description=Denied");
 

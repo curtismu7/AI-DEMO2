@@ -58,7 +58,7 @@ describe("applyChildOrder", () => {
 describe("PingOne platform navigation", () => {
   const group = (label) => NAV_STRUCTURE_CATALOG.find((item) => item.label === label);
 
-  it("keeps DaVinci together as its own product group", () => {
+  it("keeps the DaVinci learning links in their product group", () => {
     expect(group("DaVinci").children).toEqual([
       "DaVinci Widget",
       "DaVinci Login",

@@ -107,6 +107,7 @@
 .pf-davinci-section {
   margin-top: 28px;
   padding: 24px;
+  color: var(--th-text);
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
@@ -130,6 +131,7 @@
 .pf-davinci-sequence li {
   min-height: 140px;
   padding: 16px;
+  color: var(--th-text);
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
   border-top: 3px solid var(--th-status-info);
@@ -174,6 +176,7 @@
 
 .pf-davinci-modes article {
   padding: 18px;
+  color: var(--th-text);
   background: var(--th-bg-inset);
   border-left: 3px solid var(--th-border-strong);
 }

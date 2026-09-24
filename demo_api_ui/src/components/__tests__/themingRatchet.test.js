@@ -90,7 +90,7 @@ import path from 'node:path';
 // accent (the CC orange, --dtp-red/--dc-navy/--dc-blue, the #0a66c2 OWASP
 // blue, the SecurityCenter navy header) stays literal per THEMING.md §1.3.
 // 71 -> 69: Hub theme links, protocol lab, and Privilege MCP are now themed.
-const MAX_UNTHEMED = 69;
+const MAX_UNTHEMED = 68;
 
 const SRC = path.join(__dirname, '..', '..');
 
@@ -271,7 +271,7 @@ describe('theming ratchet', () => {
  */
 // Measured on the current main tree after the latest UI merges. New themed
 // surfaces must still add their own ink.
-const MAX_GROUND_WITHOUT_INK = 484;
+const MAX_GROUND_WITHOUT_INK = 481;
 
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const HAS_COLOR = /(?:^|\n)\s*color\s*:/;

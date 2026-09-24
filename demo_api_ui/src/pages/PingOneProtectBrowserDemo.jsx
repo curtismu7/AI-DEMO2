@@ -74,7 +74,13 @@ export default function PingOneProtectBrowserDemo({ popout = false }) {
       }
       const url = await client.authorize.url({ query });
       if (typeof url !== "string") throw new Error(url?.error || "Could not start PingOne sign-in");
-      sessionStorage.setItem(PROTECT_AUTH_FLOW_KEY, JSON.stringify({ version: 1, flowId: resultFromProtect.flowId, returnTo: popout ? "popout" : "product" }));
+      sessionStorage.setItem(PROTECT_AUTH_FLOW_KEY, JSON.stringify({
+        version: 1,
+        flowId: resultFromProtect.flowId,
+        returnTo: popout ? "popout" : "product",
+        userId: normalizedUser,
+        issuedAt: Date.now(),
+      }));
       setStage("redirecting");
       window.location.href = url;
     } catch (runError) {

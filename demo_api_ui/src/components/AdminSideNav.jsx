@@ -1936,7 +1936,8 @@ export default function AdminSideNav({
               navigate("/dashboard");
             }}
           >
-            {collapsed ? <MdDashboard size={16} aria-hidden="true" /> : "Agent"}
+            <MdDashboard size={16} aria-hidden="true" />
+            {!collapsed && <span>Agent</span>}
           </button>
           <button
             type="button"
@@ -1962,21 +1963,24 @@ export default function AdminSideNav({
                 );
             }}
           >
-            {collapsed ? <MdSecurity size={16} aria-hidden="true" /> : "Admin"}
+            <MdSecurity size={16} aria-hidden="true" />
+            {!collapsed && <span>Admin</span>}
           </button>
           <Link
             to="/configure"
             className={`admin-side-nav__quick-link${location.pathname.startsWith("/configure") ? " admin-side-nav__quick-link--active" : ""}`}
             title="Setup"
           >
-            {collapsed ? <MdSettings size={16} aria-hidden="true" /> : "Setup"}
+            <MdSettings size={16} aria-hidden="true" />
+            {!collapsed && <span>Setup</span>}
           </Link>
           <Link
             to="/admin/agentic-access-console"
             className={`admin-side-nav__quick-link${location.pathname === "/admin/agentic-access-console" ? " admin-side-nav__quick-link--active" : ""}`}
             title="Agentic Access Console"
           >
-            {collapsed ? <MdShield size={16} aria-hidden="true" /> : "Console"}
+            <MdShield size={16} aria-hidden="true" />
+            {!collapsed && <span>Console</span>}
           </Link>
           {collapsed && (
             <button
