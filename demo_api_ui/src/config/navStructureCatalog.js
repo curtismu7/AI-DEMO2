@@ -87,6 +87,14 @@ export const NAV_STRUCTURE_CATALOG = [
     ],
   },
   {
+    label: "PingFederate ID-JAG",
+    children: [
+      "Run ID-JAG Demo",
+      "How ID-JAG Works",
+      "ID-JAG Diagram",
+    ],
+  },
+  {
     label: "MCP & Gateways",
     children: [
       "MCP Discovery",

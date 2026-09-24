@@ -7,6 +7,7 @@ import ArchitectureTokenFlowPage from "../components/ArchitectureTokenFlowPage";
 import Phase266ArchitecturePage from "../components/Phase266ArchitecturePage";
 import ArchitectureCanvasPage from "../components/ArchitectureCanvasPage";
 import TokenChainArchitecturePage from "../components/TokenChainArchitecturePage";
+import PingFederateIdJagPage from "../components/PingFederateIdJagPage";
 
 // /architecture/* sub-routes
 //
@@ -26,6 +27,7 @@ export default function EducationRoutes({ user, logout }) {
         <Route path="flow" element={<ArchitectureFlowPage user={user} />} />
         <Route path="phase-266" element={<Phase266ArchitecturePage />} />
         <Route path="canvas" element={<ArchitectureCanvasPage />} />
+        <Route path="pingfederate-id-jag" element={<PingFederateIdJagPage />} />
       </Routes>
     </AppShell>
   );

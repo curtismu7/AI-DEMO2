@@ -24,6 +24,7 @@ export const NAV_ITEM_CATALOG = [
   "AI Flows",
   "Inspectors",
   "PingOne MCP",
+  "PingFederate ID-JAG",
   "MCP & Gateways",
   "PingOne Sample Apps",
   "PingOne Demo Apps",

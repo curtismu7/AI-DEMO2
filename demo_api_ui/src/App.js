@@ -217,6 +217,9 @@ import PublicRoutes, {
   OAuthAcademyPageRoute,
   PrivilegeDemoPageRoute,
   EnterpriseMcpDemoPageRoute,
+  PingFederateIdJagExplainerPageRoute,
+  PingFederateIdJagDemoPageRoute,
+  PingFederateIdJagDiagramPageRoute,
   GroupPolicyBoardPageRoute,
   PrivilegeMcpClientPageRoute,
   LlmGatewayPageRoute,
@@ -1268,6 +1271,18 @@ function AppWithAuth() {
                       <EnterpriseMcpDemoPageRoute user={user} logout={logout} />
                     )
                   }
+                />
+                <Route
+                  path="/pingfederate-id-jag"
+                  element={<PingFederateIdJagExplainerPageRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/pingfederate-id-jag/demo"
+                  element={<PingFederateIdJagDemoPageRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/pingfederate-id-jag/diagram"
+                  element={<PingFederateIdJagDiagramPageRoute user={user} logout={logout} />}
                 />
                 <Route
                   path="/privilege-demo"

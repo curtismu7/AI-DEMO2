@@ -50,6 +50,8 @@ import DavinciLoginGuidePage from "../pages/DavinciLoginGuidePage";
 import CibaApprovalPage from "../pages/CibaApprovalPage";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
 import EnterpriseMcpDemoPage from '../pages/EnterpriseMcpDemoPage';
+import PingFederateIdJagExplainerPage from '../pages/PingFederateIdJagExplainerPage';
+import PingFederateIdJagPage from '../components/PingFederateIdJagPage';
 import GroupPolicyBoardPage from '../pages/GroupPolicyBoardPage';
 import PrivilegeMcpClientPage from "../pages/PrivilegeMcpClientPage";
 import LlmGatewayCombinedPage from '../pages/LlmGatewayCombinedPage';
@@ -304,6 +306,30 @@ export function EnterpriseMcpDemoPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <EnterpriseMcpDemoPage />
+    </AppShell>
+  );
+}
+
+export function PingFederateIdJagExplainerPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <PingFederateIdJagExplainerPage />
+    </AppShell>
+  );
+}
+
+export function PingFederateIdJagDemoPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <EnterpriseMcpDemoPage />
+    </AppShell>
+  );
+}
+
+export function PingFederateIdJagDiagramPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <PingFederateIdJagPage />
     </AppShell>
   );
 }

@@ -166,6 +166,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "demos", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/demo-config", "/delegation", "/delegation-chain-value", "/a2a-protocol-learning"] },
   { id: "ai-agents", paths: ["/ai-control-plane", "/control-plane", "/agent-registry", "/agent", "/agent-builder", "/agent-flow-inspector", "/langchain", "/ungoverned-agent", "/servers"] },
   { id: "pingone-mcp", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/privilege-mcp-client", "/llm-gateway", "/llm-test", "/privilege-mcp-learning"] },
+  { id: "pingfederate-id-jag", paths: ["/pingfederate-id-jag"] },
   { id: "banking-mcp", paths: ["/webmcp", "/ping-ai-test-lab"] },
   { id: "banking-mcp-gateways", paths: ["/agent-gateway-inspector", "/pinggateway-test", "/mcp-traffic", "/token-security", "/agent-gateway-capabilities", "/agent-gateway-authorization", "/mcp-discovery"] },
   { id: "pingone-demo-apps", paths: ["/self-service", "/pingone-test", "/mfa-test", "/token-exchange-tester", "/oauth-academy", "/oas-demo", "/privilege-demo", "/sdk-login"] },
@@ -674,6 +675,15 @@ export default function AdminSideNav({
           path: "/demo/enterprise-mcp",
           icon: "shld",
         },
+      ],
+    },
+    {
+      label: "PingFederate ID-JAG",
+      icon: "sec",
+      children: [
+        { label: "Run ID-JAG Demo", path: "/pingfederate-id-jag/demo", icon: "demo" },
+        { label: "How ID-JAG Works", path: "/pingfederate-id-jag", icon: "doc" },
+        { label: "ID-JAG Diagram", path: "/pingfederate-id-jag/diagram", icon: "arc" },
       ],
     },
     {
