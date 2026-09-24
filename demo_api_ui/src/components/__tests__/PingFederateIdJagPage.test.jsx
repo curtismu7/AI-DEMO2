@@ -31,7 +31,8 @@ function topControls() {
 describe("PingFederate ID-JAG architecture", () => {
   it("shows standard PingFederate Authorization Code + PKCE login as a separate view", () => {
     renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "PingFederate login" }));
+    expect(screen.getByText("2 token exchanges")).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "PingFederate login, 1 code exchange" }));
 
     expect(screen.getByRole("heading", { name: "PingFederate standard login" })).toBeTruthy();
     expect(DIAGRAMS.pingfederate.chain).toEqual(["Authorization request", "Authorization code", "BFF session"]);
@@ -39,7 +40,8 @@ describe("PingFederate ID-JAG architecture", () => {
     expect(DIAGRAMS.pingfederate.steps.some((step) => /ID-JAG|Side 1|Side 2|JWT bearer/.test(`${step.title} ${step.detail}`))).toBe(false);
 
     const panel = screen.getByText("Protocol details").closest("details");
-    fireEvent.click(screen.getByText("Protocol details"));
+    expect(panel.open).toBe(true);
+    expect(screen.getByText("1 code exchange")).toBeTruthy();
     expect(panel.textContent).toContain("code_challenge_method");
     expect(panel.textContent).toContain("S256");
 
@@ -64,6 +66,8 @@ describe("PingFederate ID-JAG architecture", () => {
       renderPage();
       const midControls = screen.getByRole("group", { name: "Mid-page diagram controls" });
       const topControls = screen.getByRole("group", { name: "Top diagram controls" });
+      expect(midControls.classList.contains("pfj-toolbar--mid")).toBe(true);
+      expect(within(midControls).getByText("Playback controls")).toBeTruthy();
       const midStepTime = within(midControls).getByLabelText("Step time:");
 
       fireEvent.change(midStepTime, { target: { value: "800" } });
@@ -82,11 +86,11 @@ describe("PingFederate ID-JAG architecture", () => {
 
   it("renders both interactive React Flow views", () => {
     const { container } = renderPage();
-    expect(screen.getByRole("tab", { name: "ID-JAG flow" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tab", { name: "ID-JAG flow, 2 token exchanges" }).getAttribute("aria-selected")).toBe("true");
     expect(screen.getByText("ID-JAG token journey")).toBeTruthy();
     expect(container.querySelector(".react-flow")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("tab", { name: "PingFederate login" }));
+    fireEvent.click(screen.getByRole("tab", { name: "PingFederate login, 1 code exchange" }));
     expect(screen.getByRole("heading", { name: "PingFederate standard login" })).toBeTruthy();
     expect(screen.getByText(/OIDC · Authorization Code \+ PKCE/)).toBeTruthy();
     expect(screen.getByText("PingFederate")).toBeTruthy();
@@ -94,6 +98,8 @@ describe("PingFederate ID-JAG architecture", () => {
 
   it("shows both ID-JAG sides: upstream validation and downstream assertion redemption", () => {
     renderPage();
+    expect(screen.getByText("2 token exchanges")).toBeTruthy();
+    expect(screen.getByText("1 code exchange")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Step 2: Side 1 · PingFederate validates the upstream token" }));
     expect(screen.getByText(/token-exchange policy validates the refresh token/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Step 3: PingFederate issues the ID-JAG" }));
@@ -110,7 +116,8 @@ describe("PingFederate ID-JAG architecture", () => {
     renderPage();
     const panel = screen.getByText("Protocol details").closest("details");
     expect(panel).toBeTruthy();
-    fireEvent.click(screen.getByText("Protocol details"));
+    expect(panel.open).toBe(true);
+    expect(screen.getByText("2 token exchanges")).toBeTruthy();
     expect(screen.getByText(/MOCK DATA — NOT A REAL TOKEN/)).toBeTruthy();
     expect(panel.textContent).toContain('"useCaseId": "enterprise-managed-mcp-authorization"');
     expect(panel.textContent).toContain('"threadId": "[MOCK THREAD ID]"');
@@ -187,7 +194,7 @@ describe("PingFederate ID-JAG architecture", () => {
       renderPage();
       fireEvent.change(topControls().getByLabelText("Step time:"), { target: { value: "800" } });
       fireEvent.click(topControls().getByRole("button", { name: "Simulate" }));
-      fireEvent.click(screen.getByRole("tab", { name: "PingFederate login" }));
+      fireEvent.click(screen.getByRole("tab", { name: "PingFederate login, 1 code exchange" }));
 
       expect(topControls().getByText("Step 1 / 5")).toBeTruthy();
       expect(topControls().getByRole("button", { name: "Simulate" })).toBeTruthy();

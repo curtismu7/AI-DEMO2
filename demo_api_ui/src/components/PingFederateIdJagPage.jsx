@@ -112,7 +112,7 @@ const PF_LOGIN_PROTOCOL = [
 function ProtocolDetails({ diagramId, stepIndex }) {
   const example = diagramId === "pingfederate" ? PF_LOGIN_PROTOCOL[stepIndex] : PROTOCOL_DETAILS[stepIndex];
   return (
-    <details className="pfj-protocol">
+    <details open className="pfj-protocol">
       <summary>Protocol details <span>Mock tokens · API request / response</span></summary>
       <div className="pfj-protocol__body">
         <div className="pfj-protocol__token">
@@ -131,6 +131,7 @@ function ProtocolDetails({ diagramId, stepIndex }) {
 export const DIAGRAMS = {
   jag: {
     label: "ID-JAG flow",
+    exchangeSummary: "2 token exchanges",
     title: "ID-JAG token journey",
     intro: "Two sides: PingFederate issues the ID-JAG; the downstream MCP authorization server validates and redeems it.",
     badge: "ID-JAG · urn:ietf:params:oauth:token-type:id-jag",
@@ -168,6 +169,7 @@ export const DIAGRAMS = {
   },
   pingfederate: {
     label: "PingFederate login",
+    exchangeSummary: "1 code exchange",
     title: "PingFederate standard login",
     intro: "Standard OpenID Connect sign-in with Authorization Code + PKCE. PingFederate authenticates the user; the BFF redeems the code and keeps tokens server-side.",
     badge: "OIDC · Authorization Code + PKCE",
@@ -387,7 +389,10 @@ export default function PingFederateIdJagPage() {
 
       <nav className="pfj-diagram-tabs" role="tablist" aria-label="Architecture views">
         {Object.entries(DIAGRAMS).map(([id, item]) => (
-          <button key={id} type="button" role="tab" aria-selected={diagramId === id} className={diagramId === id ? "is-current" : ""} onClick={() => selectDiagram(id)}>{item.label}</button>
+          <button key={id} type="button" role="tab" aria-label={`${item.label}, ${item.exchangeSummary}`} aria-selected={diagramId === id} className={diagramId === id ? "is-current" : ""} onClick={() => selectDiagram(id)}>
+            <span>{item.label}</span>
+            <small>{item.exchangeSummary}</small>
+          </button>
         ))}
       </nav>
 
@@ -436,7 +441,8 @@ export default function PingFederateIdJagPage() {
         </nav>
       </section>
 
-      <div className="pfj-toolbar" role="group" aria-label="Mid-page diagram controls">
+      <div className="pfj-toolbar pfj-toolbar--mid" role="group" aria-label="Mid-page diagram controls">
+        <span className="pfj-toolbar__label">Playback controls</span>
         <DiagramControls {...controlProps} />
       </div>
 

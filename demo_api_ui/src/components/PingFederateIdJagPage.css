@@ -65,6 +65,10 @@
 }
 
 .pfj-diagram-tabs button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
   margin-bottom: -1px;
   padding: 8px 12px;
   border: 1px solid transparent;
@@ -78,8 +82,15 @@
   cursor: pointer;
 }
 
+.pfj-diagram-tabs button small {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
 .pfj-diagram-tabs button:hover { color: var(--th-text); background: var(--th-bg-hover); }
 .pfj-diagram-tabs button.is-current { border-color: var(--th-border); border-bottom-color: #087d76; background: var(--th-bg-card); color: var(--th-text); }
+.pfj-diagram-tabs button.is-current small { color: var(--th-status-info-text); }
 .pfj-diagram-tabs button:focus-visible { outline: 3px solid var(--th-status-info); outline-offset: 2px; }
 
 .pfj-toolbar {
@@ -92,6 +103,21 @@
 
 .pfj-toolbar .dc-toolbar {
   margin: 0;
+}
+
+.pfj-toolbar--mid {
+  position: sticky;
+  top: 72px;
+  z-index: 10;
+  box-shadow: var(--shadow-md);
+}
+
+.pfj-toolbar__label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--th-status-info-text);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
 }
 
 .pfj-diagram {
