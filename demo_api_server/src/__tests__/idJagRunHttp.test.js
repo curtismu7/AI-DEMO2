@@ -43,7 +43,7 @@ test('agent tool response carries the ID-JAG login error and safe target', async
   const error = new Error('PingFederate login required');
   error.code = 'id_jag_login_required';
   error.httpStatus = 401;
-  error.loginTarget = '/api/auth/oauth/user/login?mode=live-id-jag&return_to=%2Fpingfederate-id-jag%2Fdemo';
+  error.loginTarget = '/pingfederate-id-jag/demo';
   mockExecuteBffTool.mockRejectedValueOnce(error);
   const res = await request(buildApp()).post('/internal/agent-tool')
     .set('x-internal-gateway-secret', 'dev-shared-secret-change-me')
@@ -56,7 +56,7 @@ test('agent invoke response carries the ID-JAG provider error and safe target', 
   const error = new Error('PingFederate login required');
   error.code = 'id_jag_provider_required';
   error.httpStatus = 401;
-  error.loginTarget = '/api/auth/oauth/user/login?mode=live-id-jag&return_to=%2Fpingfederate-id-jag%2Fdemo';
+  error.loginTarget = '/pingfederate-id-jag/demo';
   mockProcessAgentMessage.mockRejectedValueOnce(error);
   const app = express();
   app.use(express.json());
@@ -64,4 +64,28 @@ test('agent invoke response carries the ID-JAG provider error and safe target', 
   const res = await request(app).post('/api/agent/invoke').send({ prompt: 'show my balance' });
   expect(res.status).toBe(401);
   expect(res.body).toMatchObject({ error: 'id_jag_provider_required', loginTarget: error.loginTarget });
+});
+
+test('UC40 invoke is rejected before a successful heuristic reply can mask the provider guard', async () => {
+  mockProcessAgentMessage.mockResolvedValueOnce({ reply: 'ordinary response', success: true });
+  const app = express();
+  app.use(express.json());
+  app.use('/api', require('../../routes/agentInvokeRoute'));
+  const res = await request(app).post('/api/agent/invoke')
+    .send({ prompt: 'show my balance', useCaseId: 'enterprise-managed-mcp-authorization' });
+  expect(res.status).toBe(401);
+  expect(res.body).toMatchObject({ error: 'id_jag_provider_required', loginTarget: '/pingfederate-id-jag/demo' });
+  expect(mockProcessAgentMessage).not.toHaveBeenCalled();
+});
+
+test('UC40 demo-agent message is rejected before agent execution', async () => {
+  mockProcessAgentMessage.mockResolvedValueOnce({ reply: 'ordinary response', success: true });
+  const app = express();
+  app.use(express.json());
+  app.use('/api/demo-agent', require('../../routes/demoAgentRoutes'));
+  const res = await request(app).post('/api/demo-agent/message')
+    .send({ message: 'show my balance', useCaseId: 'enterprise-managed-mcp-authorization' });
+  expect(res.status).toBe(401);
+  expect(res.body).toMatchObject({ error: 'id_jag_provider_required', loginTarget: '/pingfederate-id-jag/demo' });
+  expect(mockProcessAgentMessage).not.toHaveBeenCalled();
 });

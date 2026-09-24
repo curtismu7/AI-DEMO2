@@ -45,7 +45,7 @@ const { verticalManifest } = require('../services/verticalManifest');
 const reportStore = require('../services/lmdb/reportStore.lmdb');
 const conversationStore = require('../services/lmdb/conversationStore.lmdb');
 const { mintIntentToken } = require('../services/intentTokenService');
-const { buildTokenEvent, decodeJwtClaims, resolveMcpAccessTokenWithEvents, buildSessionPreviewTokenEvents } = require('../services/agentMcpTokenService');
+const { buildTokenEvent, decodeJwtClaims, resolveMcpAccessTokenWithEvents, buildSessionPreviewTokenEvents, assertPfIdJagRunAllowed } = require('../services/agentMcpTokenService');
 const agentBuilderService = require('../services/agentBuilderService');
 const { USE_CASES, VERTICALS, resolveUseCase } = require('../config/useCases');
 const scopeTopology = require('../services/scopeTopology');
@@ -180,6 +180,9 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
     if (req.body?.toolName !== undefined) {
       return res.status(400).json({ error: 'tool_selection_not_allowed' });
     }
+    // UC40 must be authorized before heuristics or an agent can produce a
+    // normal reply; token-evidence reconstruction below is best-effort only.
+    assertPfIdJagRunAllowed(req, requestedUseCaseId);
     const isWorkloadAgent = requestedUseCaseId === 'personal-agent-concierge'
       || requestedUseCaseId === 'workload-digital-assistant-obo';
     let workloadScenario = null;

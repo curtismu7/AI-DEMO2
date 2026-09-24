@@ -231,7 +231,7 @@ router.post('/agent-tool', async (req, res) => {
     console.error('[agent-tool] tool execution failed:', err.message);
     if (err.code === 'id_jag_login_required' || err.code === 'id_jag_provider_required') {
       return res.status(401).json({ error: err.code, message: err.message,
-        loginTarget: err.loginTarget, tokenEvents });
+        loginTarget: err.loginTarget, tokenEvents: err.tokenEvents || tokenEvents });
     }
     return res.status(502).json({
       error: 'tool_call_failed',

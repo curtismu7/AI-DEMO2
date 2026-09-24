@@ -347,6 +347,15 @@ async function executeBffTool({ name, args, userId, userToken, req = null, token
     return JSON.stringify({ error: outcome.body?.error || 'mcp_blocked', ...outcome.body });
   }
 
+  if (outcome.body?.error === 'id_jag_login_required' || outcome.body?.error === 'id_jag_provider_required') {
+    const error = new Error(outcome.body.message || outcome.body.error);
+    error.code = outcome.body.error;
+    error.httpStatus = 401;
+    error.loginTarget = outcome.body.loginTarget;
+    error.tokenEvents = Array.isArray(outcome.tokenEvents) ? outcome.tokenEvents : [];
+    throw error;
+  }
+
   // kind === 'error' — keep body fields (pingone / exchange detail) so the agent
   // reply and Token Chain can surface why the hop failed, not just a bare code.
   return JSON.stringify({

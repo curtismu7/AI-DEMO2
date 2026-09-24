@@ -79,7 +79,7 @@ describe('PingFederate provider isolation', () => {
     const req = { body: { useCaseId: 'enterprise-managed-mcp-authorization' }, session: { oauthType: 'user', oauthProvider: 'pingfederate', oauthTokens: { accessToken: 'user-token' } } };
     await expect(resolveMcpAccessTokenWithEvents(req, 'get_account_balance')).rejects.toMatchObject({
       code: 'id_jag_login_required',
-      loginTarget: '/api/auth/oauth/user/login?mode=live-id-jag&return_to=%2Fpingfederate-id-jag%2Fdemo',
+      loginTarget: '/pingfederate-id-jag/demo',
     });
     expect(oauthService.performIdJagExchange).not.toHaveBeenCalled();
     expect(oauthService.performTokenExchange).not.toHaveBeenCalled();

@@ -60,6 +60,59 @@ describe('one-shot ID-JAG login intent', () => {
     expect(oauthUserRouter.consumePendingIdJagRun(req)).toBeNull();
   });
 
+  test('capacity evicts the oldest live intent while retaining the newest', () => {
+    const first = oauthUserRouter.setPendingIdJagRun({ session: {}, headers: {} }, intent);
+    let newest;
+    for (let i = 0; i < 256; i++) {
+      newest = oauthUserRouter.setPendingIdJagRun({ session: {}, headers: {} }, intent);
+    }
+    const lookup = (nonce) => ({ headers: { cookie: `_id_jag_run=${nonce}` } });
+    expect(oauthUserRouter.pendingIdJagRun(lookup(first.nonce))).toBeNull();
+    expect(oauthUserRouter.pendingIdJagRun(lookup(newest.nonce))).toEqual(newest);
+  });
+
+  test('clear-session continuation is one-shot and requires a verified logout marker', () => {
+    const direct = oauthUserRouter.setPendingIdJagRun({ session: {}, headers: {} }, intent);
+    const directReq = { headers: { cookie: `_id_jag_run=${direct.nonce}` }, session: {} };
+    expect(oauthUserRouter.consumeVerifiedIdJagLogoutContinuation(directReq)).toBe(false);
+    oauthUserRouter.clearPendingIdJagRun(directReq);
+    expect(oauthUserRouter.pendingIdJagRun(directReq)).toBeNull();
+
+    const handoffSession = {};
+    const handoff = oauthUserRouter.setPendingIdJagRun({ session: handoffSession, headers: {} }, intent);
+    const handoffReq = { headers: { cookie: `_id_jag_run=${handoff.nonce}` }, session: handoffSession };
+    expect(oauthUserRouter.markVerifiedIdJagLogoutContinuation(handoffReq)).toBe(true);
+    expect(oauthUserRouter.consumeVerifiedIdJagLogoutContinuation(handoffReq)).toBe(true);
+    expect(oauthUserRouter.pendingIdJagRun(handoffReq)).toEqual(handoff);
+    expect(oauthUserRouter.consumeVerifiedIdJagLogoutContinuation(handoffReq)).toBe(false);
+  });
+
+  test('the real clear-session endpoint drops an unverified pending intent', async () => {
+    const app = require('../../server');
+    const activeRouter = require('../../routes/oauthUser');
+    const saved = activeRouter.setPendingIdJagRun({ session: {}, headers: {} }, intent);
+    const cookie = `_id_jag_run=${saved.nonce}`;
+    const cleared = await request(app).post('/api/auth/clear-session').set('Cookie', cookie);
+    expect(cleared.status).toBe(200);
+    expect(activeRouter.pendingIdJagRun({ headers: { cookie } })).toBeNull();
+    expect(cleared.headers['set-cookie'].join(';')).toContain('_id_jag_run=');
+  });
+
+  test('the real clear-session endpoint preserves only one verified logout continuation', async () => {
+    const app = require('../../server');
+    const activeRouter = require('../../routes/oauthUser');
+    const session = {};
+    const saved = activeRouter.setPendingIdJagRun({ session, headers: {} }, intent);
+    const cookie = `_id_jag_run=${saved.nonce}`;
+    expect(activeRouter.markVerifiedIdJagLogoutContinuation({ session, headers: { cookie } })).toBe(true);
+    const first = await request(app).post('/api/auth/clear-session').set('Cookie', cookie);
+    expect(first.status).toBe(200);
+    expect(activeRouter.pendingIdJagRun({ headers: { cookie } })).not.toBeNull();
+    const second = await request(app).post('/api/auth/clear-session').set('Cookie', cookie);
+    expect(second.status).toBe(200);
+    expect(activeRouter.pendingIdJagRun({ headers: { cookie } })).toBeNull();
+  });
+
   test('route exposes only a same-origin one-shot handoff and rejects another origin', async () => {
     const originalGetEffective = configStore.getEffective.bind(configStore);
     jest.spyOn(configStore, 'getEffective').mockImplementation((key) => key === 'public_app_url'

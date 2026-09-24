@@ -838,7 +838,7 @@ app.get('/api/auth/reauth', (req, res) => {
 // cookie is cleared even if the 302-redirect Set-Cookie header was not honoured
 // by an intermediate redirect (e.g. PingOne signoff without id_token_hint).
 app.post('/api/auth/clear-session', (req, res) => {
-    if (!oauthUserRoutes.pendingIdJagRun(req)) {
+    if (!oauthUserRoutes.consumeVerifiedIdJagLogoutContinuation(req)) {
         oauthUserRoutes.clearPendingIdJagRun(req);
         oauthUserRoutes.clearIdJagCookie(res);
     }
@@ -854,7 +854,8 @@ app.post('/api/auth/clear-session', (req, res) => {
 // cookie-clearing Set-Cookie headers are delivered on the /api/auth/logout
 // response (not on a 302 redirect that gets proxied away without cookies).
 app.get('/api/auth/logout', async (req, res) => {
-    const idJagHandoff = req.query.id_jag_handoff === '1' && !!oauthUserRoutes.pendingIdJagRun(req);
+    const idJagHandoff = req.query.id_jag_handoff === '1'
+        && oauthUserRoutes.markVerifiedIdJagLogoutContinuation(req);
     if (!idJagHandoff) {
         oauthUserRoutes.clearPendingIdJagRun(req);
         oauthUserRoutes.clearIdJagCookie(res);

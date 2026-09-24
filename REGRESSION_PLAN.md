@@ -169,6 +169,14 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — UC40 ID-JAG recovery and provider guards were lost across agent paths
+
+- **Files changed:** `demo_api_server/routes/{agentInvokeRoute,demoAgentRoutes,agentTool,oauthUser}.js`, `demo_api_server/services/{agentMcpTokenService,mcpToolPipeline,bffMcpToolExecutor}.js`, `demo_api_server/server.js` and focused tests.
+- **What was broken:** UC40 agent routes could answer normally after a provider rejection; the MCP tool pipeline converted ID-JAG 401s into HTTP 200 without a recovery target. The advertised OAuth URL required an intent it could not create, the pending map was unbounded, and ordinary `clear-session` retained intent.
+- **What was fixed:** Gate UC40 before execution; carry stable 401 codes and the safe demo launcher through the real pipeline; cap pending intents at 256; preserve an intent across `clear-session` only once after a session-bound logout handoff.
+- **Do not break:** Ordinary agent requests, normal logout cleanup, existing token revocation, and the BFF's sole browser-token custody.
+- **Verify:** Focused `idJagRunHttp`, `idJagPipelineHttp`, `idJagRunIntent`, PF provider-isolation, OAuth, agent-invoke, tool-executor, and MCP pipeline Jest suites.
+
 ### 2026-09-23 — Spinner Ping P escaped the red circle
 
 **Files changed:** `demo_api_ui/src/components/shared/PingIdentitySpinner.jsx`,

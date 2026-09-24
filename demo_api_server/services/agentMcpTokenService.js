@@ -97,7 +97,9 @@ function _flagOn(key) {
 }
 
 const PF_ID_JAG_DEMO_USE_CASE = 'enterprise-managed-mcp-authorization';
-const PF_ID_JAG_LOGIN_TARGET = '/api/auth/oauth/user/login?mode=live-id-jag&return_to=%2Fpingfederate-id-jag%2Fdemo';
+// The launcher creates a fresh intent. The OAuth URL alone cannot recover an
+// absent/expired intent and must never be advertised as the recovery target.
+const PF_ID_JAG_LOGIN_TARGET = '/pingfederate-id-jag/demo';
 
 function assertPfIdJagRunAllowed(req, useCaseId) {
   if (useCaseId !== PF_ID_JAG_DEMO_USE_CASE) return;
@@ -3221,3 +3223,4 @@ function mapErrorToStructuredResponse(error, context = {}) {
 }
 
 module.exports.mapErrorToStructuredResponse = mapErrorToStructuredResponse;
+module.exports.assertPfIdJagRunAllowed = assertPfIdJagRunAllowed;

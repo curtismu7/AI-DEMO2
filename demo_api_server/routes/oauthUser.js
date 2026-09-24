@@ -26,6 +26,7 @@ const { sendAccessRestricted } = require('../middleware/hostedAccessGate');
 
 const STEP_UP_TTL_MS = 5 * 60 * 1000; // 5 min step-up validity
 const ID_JAG_RUN_TTL_MS = 5 * 60 * 1000;
+const MAX_PENDING_ID_JAG_RUNS = 256;
 const ID_JAG_RUN_COOKIE = '_id_jag_run';
 const ID_JAG_USE_CASE = 'enterprise-managed-mcp-authorization';
 // A handoff crosses session.destroy() during RP logout. The opaque cookie is only
@@ -78,6 +79,11 @@ function setPendingIdJagRun(req, intent) {
   for (const [nonce, entry] of pendingIdJagRuns) {
     if (Date.now() - entry.createdAt >= ID_JAG_RUN_TTL_MS) pendingIdJagRuns.delete(nonce);
   }
+  // Map insertion order gives deterministic oldest-first eviction under a
+  // burst of fresh intents, independent of whether callers retain cookies.
+  while (pendingIdJagRuns.size >= MAX_PENDING_ID_JAG_RUNS) {
+    pendingIdJagRuns.delete(pendingIdJagRuns.keys().next().value);
+  }
   const saved = { useCaseId: ID_JAG_USE_CASE, mode: 'live-id-jag', message: intent.message.trim(),
     returnTo, createdAt: Date.now(), nonce: crypto.randomBytes(16).toString('hex') };
   pendingIdJagRuns.set(saved.nonce, saved);
@@ -98,6 +104,20 @@ function clearPendingIdJagRun(req) {
   const nonce = idJagCookieNonce(req) || req.session?.pendingIdJagNonce;
   if (nonce) pendingIdJagRuns.delete(nonce);
   if (req.session) delete req.session.pendingIdJagNonce;
+}
+
+function markVerifiedIdJagLogoutContinuation(req) {
+  const intent = pendingIdJagRun(req);
+  if (!intent || req.session?.pendingIdJagNonce !== intent.nonce) return false;
+  intent.logoutVerifiedAt = Date.now();
+  return true;
+}
+
+function consumeVerifiedIdJagLogoutContinuation(req) {
+  const intent = pendingIdJagRun(req);
+  if (!intent?.logoutVerifiedAt || intent.logoutContinuationConsumed) return false;
+  intent.logoutContinuationConsumed = true;
+  return true;
 }
 
 function claimPendingIdJagRunForLogin(req, returnTo) {
@@ -1741,6 +1761,8 @@ module.exports.sanitizePostLoginReturnPath = sanitizePostLoginReturnPath;
 module.exports.setPendingIdJagRun = setPendingIdJagRun;
 module.exports.consumePendingIdJagRun = consumePendingIdJagRun;
 module.exports.clearPendingIdJagRun = clearPendingIdJagRun;
+module.exports.markVerifiedIdJagLogoutContinuation = markVerifiedIdJagLogoutContinuation;
+module.exports.consumeVerifiedIdJagLogoutContinuation = consumeVerifiedIdJagLogoutContinuation;
 module.exports.claimPendingIdJagRunForLogin = claimPendingIdJagRunForLogin;
 module.exports.pendingIdJagRun = pendingIdJagRun;
 module.exports.clearIdJagCookie = clearIdJagCookie;
