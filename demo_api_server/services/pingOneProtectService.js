@@ -16,7 +16,12 @@ async function createBrowserRiskEvaluation({ userId, ip, userAgent, signalsData,
   const token = await pingOneClientService.getManagementToken();
   const event = {
     ip,
-    user: { id: userId, type: 'PING_ONE', name: userId },
+    user: {
+      id: userId,
+      type: 'EXTERNAL',
+      name: userId,
+      ...(userId.includes('@') ? { email: userId } : {}),
+    },
     browser: { userAgent },
     flow: { type: 'AUTHENTICATION' },
     ...(sessionId ? { session: { id: sessionId } } : {}),
