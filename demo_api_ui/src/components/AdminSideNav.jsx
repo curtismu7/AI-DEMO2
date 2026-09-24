@@ -1037,7 +1037,7 @@ export default function AdminSideNav({
       icon: "log",
       children: [
         { label: "Service Graph", path: "/telemetry", icon: "log" },
-        { label: "Tracing", path: "/tracing", icon: "log" },
+        { label: "Tracing", path: "/tracing", icon: "log", searchAlias: "jaeger opentelemetry distributed traces" },
         { label: "Transaction Trace", path: "/transaction-trace", icon: "log" },
         { label: "MCP Observability", path: "/mcp-observability", icon: "log", adminOnly: true },
         {

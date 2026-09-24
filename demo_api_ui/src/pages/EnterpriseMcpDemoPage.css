@@ -145,6 +145,25 @@
   background: transparent;
 }
 
+.emd-status {
+  margin: 0.75rem 0 0;
+  color: var(--th-status-info-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.emd-prerequisite {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--th-status-warning-border);
+  border-radius: 7px;
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+  font-size: var(--font-size-sm);
+}
+
+.emd-prerequisite a { color: var(--th-status-warning-text); text-decoration: underline; }
+
 .emd-note {
   margin: 0.75rem 0 0;
   max-width: 78ch;

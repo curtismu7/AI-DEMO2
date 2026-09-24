@@ -4,7 +4,7 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import apiClient from "../services/apiClient";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
-import { MCP_STEP_IDS, buildRunStory } from "../services/tokenChainTrace/buildTraceSteps";
+import { MCP_STEP_IDS, buildRunStory, resolveTraceProvenance } from "../services/tokenChainTrace/buildTraceSteps";
 import { resolveInspectClaims } from "../services/tokenChainTrace/resolveInspectClaims";
 import { isFlagOn, shouldShowTrustTab } from "../utils/tokenChainTrust";
 import { buildA2aChainDetail } from "../utils/a2aChainDetail";
@@ -265,7 +265,7 @@ export function buildLiveTokenChainSteps(steps, trace) {
   );
   if (!hasActivity) return [];
 
-  const complete = trace?.outcome === "ok" || trace?.outcome === "error";
+  const complete = ["ok", "error", "mock-success"].includes(trace?.outcome);
   const projected = !complete
     // `|| detail.notRequired`: a hop marked "not required" is notinpath, and
     // this filter would drop it from an incomplete trace entirely — so the
@@ -276,7 +276,7 @@ export function buildLiveTokenChainSteps(steps, trace) {
       || step.detail?.notRequired)
     : source.map((step) => {
     const baseId = step.baseId || step.id;
-    if (step.status === "notinpath" && SKIPPED_STEP_REASONS[baseId]) {
+    if (step.status === "notinpath" && SKIPPED_STEP_REASONS[baseId] && trace?.outcome !== "mock-success") {
       return {
         ...step,
         detail: {
@@ -510,6 +510,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
     trace.llmDetail || trace.llmReply || trace.outcome || trace.routingMode,
   );
   const runStory = buildRunStory(trace, snap.steps);
+  const traceProvenance = resolveTraceProvenance(trace);
 
   // Drop Trust selection if the use case ends while that tab is open.
   useEffect(() => {
@@ -523,7 +524,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
       <div className="tctr-head">
         <div className="tctr-title-group">
           <span className="tctr-title">Token Chain</span>
-          {hasTraceActivity ? <TraceProvenanceBadge provenance={trace.provenance} /> : null}
+          {hasTraceActivity ? <TraceProvenanceBadge provenance={traceProvenance} /> : null}
           {agentClass ? (
             <span
               className={`tctr-agent-class tctr-agent-class--${agentClass}`}
@@ -743,7 +744,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
           <TokenChainPresenter
             steps={steps}
             activeId={activeStepId}
-            provenance={trace.provenance}
+            provenance={traceProvenance}
             onSelect={setActiveStepId}
               onClose={() => setPresenting(false)}
             />

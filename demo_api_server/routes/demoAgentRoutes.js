@@ -15,7 +15,7 @@ const hitlServiceClient = require('../services/hitlServiceClient');
 const { processAgentMessage } = require('../services/demoAgentLangGraphService');
 const appEventService = require('../services/appEventService');
 const { trackTokenEvent } = require('../services/tokenChainService');
-const { prependRefreshEvent } = require('../services/agentMcpTokenService');
+const { prependRefreshEvent, assertPfIdJagRunAllowed } = require('../services/agentMcpTokenService');
 const { buildActivitySteps } = require('../services/activityStepsBuilder');
 const reportStore = require('../services/lmdb/reportStore.lmdb');
 const conversationStore = require('../services/lmdb/conversationStore.lmdb');
@@ -205,6 +205,7 @@ router.post('/message', async (req, res) => {
     if (message.length > 4000) {
       return res.status(400).json({ error: 'Message too long (max 4000 characters)' });
     }
+    assertPfIdJagRunAllowed(req, useCaseId);
 
     console.log('[demo-agent/message] Message length:', message.length);
     console.log('[demo-agent/message] agentContext present:', !!req.agentContext);
@@ -553,6 +554,12 @@ router.post('/message', async (req, res) => {
           },
         },
       );
+    }
+
+    if (error.code === 'id_jag_login_required' || error.code === 'id_jag_provider_required') {
+      return res.status(401).json({ error: error.code, message: error.message,
+        loginTarget: error.loginTarget, tokenEvents: error.tokenEvents || [],
+        events: req.eventEmitter.getAllEvents() });
     }
 
     // D-03: Structured recovery responses — agent threw a typed recovery error

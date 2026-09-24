@@ -1,5 +1,21 @@
-import { describe, it, expect } from "vitest";
-import { getTokenChainProgress } from "../TokenChainDisplay";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { render, screen, act } from "@testing-library/react";
+import TokenChainDisplay, { getTokenChainProgress } from "../TokenChainDisplay";
+import { tokenChainTraceStore } from "../../services/tokenChainTrace/tokenChainTraceStore";
+import { createMockIdJagTrace } from "../../utils/idJagMockTrace";
+
+vi.mock("../../context/TokenChainContext", () => ({
+  useTokenChainOptional: () => ({ events: [], history: [], mcpToolCalls: [], mcpAuthMode: "consumer", nlRoutingEvent: null, clearEvents: vi.fn(), clearMcpToolCalls: vi.fn(), resolvedIdentity: null }),
+}));
+vi.mock("../../context/EducationUIContext", () => ({ useEducationUIOptional: () => null }));
+vi.mock("../../hooks/useDraggablePanel", () => ({
+  useDraggablePanel: () => ({ pos: { x: 0, y: 0 }, size: { width: 640, height: 420 }, handleDragStart: vi.fn(), createResizeHandler: vi.fn() }),
+}));
+
+beforeEach(() => {
+  tokenChainTraceStore.reset();
+  global.fetch = vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) });
+});
 
 /**
  * The ID-JAG steps emitted by the BFF in enterprise-managed native mode
@@ -53,5 +69,30 @@ describe("token chain progress with native ID-JAG steps", () => {
     ];
     const progress = getTokenChainProgress(failed, true);
     expect(progress.state).toBe("failed");
+  });
+});
+
+describe("TokenChainDisplay ID-JAG provenance", () => {
+  it("shows the mock fixture and labels its claim cards as a mock replay", () => {
+    render(<TokenChainDisplay />);
+    act(() => tokenChainTraceStore.replayTrace(createMockIdJagTrace()));
+    expect(screen.getByText("Mock replay", { selector: ".trace-provenance" })).toBeInTheDocument();
+    expect(screen.getByText("Mock PingFederate issued an ID-JAG")).toBeInTheDocument();
+    expect(screen.getByText("Mock MCP authorization server redeemed the ID-JAG")).toBeInTheDocument();
+    expect(screen.queryByText("Live run", { selector: ".trace-provenance" })).not.toBeInTheDocument();
+  });
+
+  it("shows live PF claims without a stand-in caption", () => {
+    render(<TokenChainDisplay />);
+    act(() => {
+      tokenChainTraceStore.beginTrace({ prompt: "show my balance", provenance: "live-id-jag", mode: "id-jag" });
+      tokenChainTraceStore.ingestTokenEvents([
+        { id: "pf-id-jag-issued", label: "PingFederate issued an ID-JAG", status: "active", provider: "pingfederate", provenance: "live-id-jag", mode: "id-jag", claims: { iss: "https://pf.example" } },
+        { id: "pf-id-jag-redeemed", label: "Downstream AS redeemed the ID-JAG", status: "exchanged", provider: "pingfederate", provenance: "live-id-jag", mode: "id-jag", claims: { iss: "https://as.example" } },
+      ]);
+    });
+    expect(screen.getByText("PingFederate ID-JAG", { selector: ".trace-provenance" })).toBeInTheDocument();
+    expect(screen.getByText("PingFederate issued an ID-JAG")).toBeInTheDocument();
+    expect(screen.queryByText(/ID-JAG equivalent \(stand-in\)/)).not.toBeInTheDocument();
   });
 });

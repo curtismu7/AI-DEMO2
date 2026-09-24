@@ -29,6 +29,7 @@ import * as configService from "../../services/configService";
 import * as demoAgentService from "../../services/demoAgentService";
 import * as agentAccessConsent from "../../services/agentAccessConsent";
 import { useVertical } from "../../vertical/useVertical";
+import { clearIdJagRunState, ID_JAG_REPLAYED_KEY, ID_JAG_USE_CASE_ID, ID_JAG_VALIDATED_CALLBACK_KEY } from "../../utils/idJagRunMode";
 
 const simpleStepperPanelMock = vi.hoisted(() => ({ props: [] }));
 
@@ -184,6 +185,127 @@ beforeEach(() => {
   const svcMock = demoAgentService;
   svcMock.sendAgentMessage.mockResolvedValue({ success: true, reply: "Done." });
   useVertical.mockReturnValue(DEFAULT_VERTICAL_MOCK);
+});
+
+describe("ID-JAG agent phrases", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    clearIdJagRunState();
+  });
+  afterEach(() => {
+    clearIdJagRunState();
+    sessionStorage.clear();
+  });
+  it.each(["run demo", "run ID-JAG demo", "enterprise managed MCP", "show my balance"])(
+    "launches %s in the UC40 use-case context",
+    async (phrase) => {
+      const onLaunch = vi.fn();
+      window.addEventListener("id-jag-run-requested", onLaunch);
+      try {
+        renderAgent({ user: customerUser, mode: "inline" }, { route: "/dashboard" });
+        act(() => window.dispatchEvent(new CustomEvent("banking-agent-prefill", {
+          detail: { useCaseId: ID_JAG_USE_CASE_ID, message: phrase },
+        })));
+        const input = screen.getByPlaceholderText(/^Message |^Ask about/);
+        await waitFor(() => expect(input).toHaveValue(phrase));
+        fireEvent.keyDown(input, { key: "Enter" });
+        await waitFor(() => expect(onLaunch).toHaveBeenCalledTimes(1));
+        expect(onLaunch.mock.calls[0][0].detail).toMatchObject({
+          useCaseId: ID_JAG_USE_CASE_ID,
+          mode: "live-id-jag",
+          message: "show my balance",
+          returnTo: "/dashboard",
+        });
+        expect(demoAgentService.sendAgentMessage).not.toHaveBeenCalled();
+      } finally {
+        window.removeEventListener("id-jag-run-requested", onLaunch);
+      }
+    },
+  );
+
+  it.each(["show my balance", "run demo"])(
+    "keeps an unscoped %s request on the ordinary NL path",
+    async (phrase) => {
+      const onLaunch = vi.fn();
+      const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue({
+        ok: true,
+        json: async () => ({ source: "heuristic", result: { kind: "none" } }),
+      });
+      window.addEventListener("id-jag-run-requested", onLaunch);
+      try {
+        renderAgent({ user: customerUser, mode: "inline" }, { route: "/dashboard" });
+        const input = screen.getByPlaceholderText(/^Message |^Ask about/);
+        fireEvent.change(input, { target: { value: phrase } });
+        fireEvent.keyDown(input, { key: "Enter" });
+        await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith(
+          "/api/demo-agent/nl",
+          expect.objectContaining({
+            method: "POST",
+            body: expect.stringContaining(`"message":"${phrase}"`),
+          }),
+        ));
+        expect(onLaunch).not.toHaveBeenCalled();
+      } finally {
+        window.removeEventListener("id-jag-run-requested", onLaunch);
+        fetchSpy.mockRestore();
+      }
+    },
+  );
+
+  it("replays a validated callback exactly once with live UC40 metadata", async () => {
+    const onPrefill = vi.fn();
+    window.addEventListener("banking-agent-prefill", onPrefill);
+    try {
+      renderAgent({ user: customerUser, mode: "inline" }, { route: "/dashboard" });
+      act(() => window.dispatchEvent(new CustomEvent("userAuthenticated")));
+      expect(onPrefill).not.toHaveBeenCalled();
+      const callback = new CustomEvent("userAuthenticated", { detail: {
+        idJagCallbackValidated: true,
+        useCaseId: ID_JAG_USE_CASE_ID,
+        mode: "live-id-jag",
+        message: "show my balance",
+      } });
+      act(() => {
+        window.dispatchEvent(callback);
+        window.dispatchEvent(callback);
+      });
+      expect(onPrefill).toHaveBeenCalledTimes(1);
+      expect(onPrefill.mock.calls[0][0].detail).toEqual({
+        useCaseId: ID_JAG_USE_CASE_ID,
+        mode: "live-id-jag",
+        message: "show my balance",
+        autoSend: true,
+      });
+    } finally {
+      window.removeEventListener("banking-agent-prefill", onPrefill);
+    }
+  });
+
+  it("sends the saved PF callback prompt after a late agent mount", async () => {
+    sessionStorage.setItem(ID_JAG_VALIDATED_CALLBACK_KEY, JSON.stringify({
+      idJagCallbackValidated: true,
+      useCaseId: ID_JAG_USE_CASE_ID,
+      mode: "live-id-jag",
+      message: "show my balance",
+    }));
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ source: "heuristic", result: { kind: "none" } }),
+    });
+    try {
+      renderAgent({ user: customerUser, mode: "inline" }, { route: "/dashboard" });
+      await waitFor(() => expect(fetchSpy).toHaveBeenCalledWith(
+        "/api/demo-agent/nl",
+        expect.objectContaining({
+          method: "POST",
+          body: expect.stringContaining('"message":"show my balance"'),
+        }),
+      ));
+      expect(sessionStorage.getItem(ID_JAG_REPLAYED_KEY)).toBe("1");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
 });
 
 const customerUser = {

@@ -25,6 +25,7 @@ const config = {
   get introspectionEndpoint()  { return endpointResolver.getIntrospectionEndpoint(); },
   get revocationEndpoint()     { return endpointResolver.getRevocationEndpoint(); },
   get issuer()                 { return endpointResolver.getIssuer(); },
+  get discoveryEndpoint()      { return endpointResolver.getDiscoveryEndpoint(); },
 
   // Admin OAuth2 client
   get clientId()               {

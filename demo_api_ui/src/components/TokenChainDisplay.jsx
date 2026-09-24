@@ -5,6 +5,8 @@ import { useTokenChainOptional } from "../context/TokenChainContext";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { useDraggablePanel } from "../hooks/useDraggablePanel";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
+import { isMockIdJagTrace, isNativeIdJagTrace, resolveTraceProvenance } from "../services/tokenChainTrace/buildTraceSteps";
+import TraceProvenanceBadge from "./TraceProvenanceBadge";
 import JsonHighlight, { tokenize, formatJson } from "./shared/JsonHighlight";
 import JsonView, { JSON_VIEW_TABS } from "./shared/JsonView";
 import InspectorTabs from "./shared/InspectorTabs";
@@ -4441,6 +4443,11 @@ function StepExplainer({ event, index, total, scrollRef, onClose }) {
 
 const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
   const ctx = useTokenChainOptional();
+  const [traceSnap, setTraceSnap] = useState(() => tokenChainTraceStore.getState());
+  useEffect(() => tokenChainTraceStore.subscribe(setTraceSnap), []);
+  const idJagTrace = traceSnap.trace;
+  const mockIdJag = isMockIdJagTrace(idJagTrace);
+  const nativeIdJag = isNativeIdJagTrace(idJagTrace);
   const edu = useEducationUIOptional();
   const [tab, setTab] = useState("current");
   const [sessionPreviewEvents, setSessionPreviewEvents] = useState(null);
@@ -4573,12 +4580,14 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isLive = ctx && ctx.events.length > 0;
+  const idJagEvents = mockIdJag || nativeIdJag ? idJagTrace.tokenEvents || [] : [];
+  const isLive = !mockIdJag && Boolean((ctx && ctx.events.length > 0) || (nativeIdJag && idJagEvents.length > 0));
+  const hasRunEvidence = mockIdJag || isLive;
   const isSessionPreview =
-    !isLive &&
+    !hasRunEvidence &&
     Array.isArray(sessionPreviewEvents) &&
     sessionPreviewEvents.length > 0;
-  const canClearChain = Boolean(isLive || isSessionPreview);
+  const canClearChain = Boolean(hasRunEvidence || isSessionPreview);
 
   /** Clear live/session events and the shared TraceRail so every Token Chain surface resets together. */
   const handleClearChain = useCallback(() => {
@@ -4606,14 +4615,17 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
       return ev;
     });
   }, [idTokenMode]);
-  const currentEvents = isLive
-    ? ctx.events
+  const currentEvents = mockIdJag || (nativeIdJag && idJagEvents.length > 0)
+    ? idJagEvents
+    : isLive
+    ? ctx.events.filter((event) => !["id-jag-issued", "id-jag-redeemed", "pf-id-jag-issued", "pf-id-jag-redeemed"].includes(event?.id))
     : isSessionPreview
       ? sessionPreviewEvents
       : effectivePlaceholders;
   // Prepend agent CC token event if present and not already represented in the chain.
   // Dedup: filter agentCcEvents to only include events whose IDs don't exist in currentEvents.
   const currentEventsWithCc = React.useMemo(() => {
+    if (mockIdJag) return currentEvents;
     if (!Array.isArray(agentCcEvents) || agentCcEvents.length === 0)
       return currentEvents;
     // Build a Set of all IDs already present in currentEvents for O(1) dedup
@@ -4627,9 +4639,11 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
     if (uniqueAgentCcEvents.length === 0) return currentEvents;
     // Prepend unique agent CC events to currentEvents
     return [...uniqueAgentCcEvents, ...currentEvents];
-  }, [currentEvents, agentCcEvents]);
-  const chainProgress = getTokenChainProgress(currentEventsWithCc, isLive);
-  const isPlaceholder = !isLive && !isSessionPreview;
+  }, [currentEvents, agentCcEvents, mockIdJag]);
+  const chainProgress = mockIdJag
+    ? { state: "completed", label: "Mock replay complete", completed: currentEventsWithCc.length, total: currentEventsWithCc.length }
+    : getTokenChainProgress(currentEventsWithCc, isLive);
+  const isPlaceholder = !hasRunEvidence && !isSessionPreview;
   const history = ctx ? ctx.history : [];
 
   /** Open the inspector for a given event, positioning near the trigger element. */
@@ -4663,7 +4677,7 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
   const handleCopyAll = useCallback(() => {
     const payload = {
       copied_at: new Date().toISOString(),
-      source: isLive
+      source: mockIdJag ? "mock-id-jag" : isLive
         ? "live"
         : isSessionPreview
           ? "session-preview"
@@ -4719,7 +4733,7 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       });
-  }, [currentEventsWithCc, ctx, isLive, isSessionPreview]);
+  }, [currentEventsWithCc, ctx, isLive, isSessionPreview, mockIdJag]);
 
   // Track when live events arrive; show 'Updated' badge for 30s then 'Completed'.
   useEffect(() => {
@@ -4885,7 +4899,8 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
             <div className="tcd-header-title-row">
               <div className="tcd-header-title">
                 Token Chain
-                {(ctx?.mcpAuthMode === "enterprise-managed" || ctx?.mcpAuthMode === "enterprise") && (
+                {(mockIdJag || nativeIdJag) && <TraceProvenanceBadge provenance={resolveTraceProvenance(idJagTrace)} />}
+                {!mockIdJag && !nativeIdJag && (ctx?.mcpAuthMode === "enterprise-managed" || ctx?.mcpAuthMode === "enterprise") && (
                   <span
                     className="tcd-badge tcd-badge--exchanged"
                     title="Enterprise-managed MCP authorization — RFC 8693 is an ID-JAG stand-in"
@@ -4894,7 +4909,7 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
                     Enterprise-managed
                   </span>
                 )}
-                {ctx?.mcpAuthMode &&
+                {!mockIdJag && !nativeIdJag && ctx?.mcpAuthMode &&
                   ctx.mcpAuthMode !== "enterprise-managed" &&
                   ctx.mcpAuthMode !== "enterprise" && (
                   <span
@@ -4996,7 +5011,11 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
               </div>
             )}
             <p className="tcd-header-sub">
-              {ctx?.mcpAuthMode === "enterprise-managed" || ctx?.mcpAuthMode === "enterprise"
+              {mockIdJag
+                ? "Mock replay — sample ID-JAG issuance and redemption; no login or live tokens"
+                : nativeIdJag
+                ? "PingFederate ID-JAG run — issuance and downstream redemption appear here as evidence arrives"
+                : ctx?.mcpAuthMode === "enterprise-managed" || ctx?.mcpAuthMode === "enterprise"
                 ? "Enterprise-managed mode — SSO once, IT policy gate, RFC 8693 as ID-JAG equivalent (stand-in) → MCP access token → MCP server"
                 : idTokenMode
                 ? "ID Token 2-Token Exchange Flow — ID token → RFC 8693 exchange → MCP access token → MCP server → Banking API"

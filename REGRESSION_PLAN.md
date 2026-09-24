@@ -169,6 +169,124 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — PF ID-JAG clarification and fallback consumed the run grant early
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`, `AIAgentFull.js`,
+`demo_api_ui/src/services/demoAgentService.js`, and focused UI tests.
+
+**What was broken:** A typed clarification lost UC40 and live ID-JAG mode, while
+clarification and explicit heuristic fallback could finish the trace before a
+tool request. The auth subscriber then deleted the server run grant.
+
+**What was fixed:** Both agent variants carry the saved run identity through
+typed replies and defer native trace completion while awaiting input. The
+legacy agent trace also stays open for a native missing-parameter response;
+ordinary trace outcomes retain their prior behavior. A dismissed fallback is
+an explicit failed run.
+
+**Do not break:** Ordinary NL requests, the one-shot PF grant, and server-side
+UC40 provider validation.
+
+**Verify:** Focused ID-JAG clarification and legacy trace Vitest; UI build.
+
+### 2026-09-24 — PF callback lost UC40 and failed runs lost their trace
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`, `AIAgentFull.js`,
+`demo_api_ui/src/services/demoAgentService.js`, token-chain trace rendering,
+and focused tests.
+
+**What was broken:** Callback prefill carried UC40 and live ID-JAG mode, but
+non-streaming NL and tool dispatch dropped them. A failed issuance or redemption
+then looked like an ordinary run and left its server grant pending.
+
+**What was fixed:** Both agent variants pass the validated run identity to the
+BFF request. Agent and direct-tool traces start in PF ID-JAG mode, preserve
+partial events, and settle on failure so the completion subscriber clears the
+grant. Partial steps show the failed hop.
+
+**Do not break:** Ordinary agent requests, mock replay, and server-side UC40
+provider checks.
+
+**Verify:** Focused UC40 agent, service, trace, and cleanup Vitest; UI build.
+
+### 2026-09-24 — ID-JAG live launch with PingOne selected had no recovery message
+
+**Files changed:** `demo_api_ui/src/hooks/useAuth.js`,
+`demo_api_ui/src/pages/EnterpriseMcpDemoPage.jsx` and `.css`, and focused tests.
+
+**What was broken:** The live launcher signed the presenter out before discovering
+that PingOne was selected. The server returned to the ID-JAG demo with a provider
+error that the page did not display.
+
+**What was fixed:** The shared launch handler reads the effective provider before
+creating the server intent or starting logout. A PingOne selection leaves the
+session in place and explains how to select PF. If provider selection changes
+during the handoff, the return page shows the same recovery steps and an admin
+sign-in link.
+
+**Do not break:** Ordinary PingOne/PingFederate sign-in, the server-side provider
+guard, and the one-shot ID-JAG logout handoff.
+
+**Verify:** Focused `EnterpriseMcpDemoPage` and `useAuth.idJagReset` Vitest; UI build.
+
+### 2026-09-24 — PF ID-JAG Compose, OAuth health, and public route audit
+
+**Files changed:** `docker-compose.yml`, `demo_api_server/middleware/oauthErrorHandler.js`,
+`demo_api_server/config/auth-requirements.json`, and focused BFF tests.
+
+**What was broken:** Compose rejected the MCP server's network alias entry;
+an OAuth discovery outage raised a `ReferenceError` inside the health-check
+catch block; three public PF ID-JAG pages were absent from the route audit.
+
+**What was fixed:** Declare the alias under the `ai-demo` network mapping, keep
+the discovery URL in scope for failure logging, and classify the three pages
+as public in the hand-authored authorization source of truth.
+
+**Do not break:** Existing Compose network membership, normal OAuth health
+results, or the page's public route guards.
+
+**Verify:** `docker compose config --quiet` with the worktree file and main
+project directory; focused OAuth and auth-requirements Jest; `npm run authz:verify`.
+
+### 2026-09-24 — ID-JAG callback replay and logout status fallback
+
+**Files changed:** `demo_api_ui/src/hooks/useIdJagAgentLauncher.js`,
+`demo_api_ui/src/components/AIAgent.js`, `AIAgentFull.js`, `LogoutPage.js`,
+and their focused tests; `demo_api_server/src/__tests__/idJagRunIntent.test.js`.
+
+**What was broken:** A saved PF callback could be marked replayed before a
+late-mounted agent installed its prefill listener. A failed pending-status read
+on the logout landing silently took the ordinary return path.
+
+**What was fixed:** The agent signals listener readiness before the saved
+callback is dispatched and consumed. When the pending-status read fails, a
+validated local live intent supplies the PF login target; the BFF still checks
+the verified one-shot continuation. An explicit `pending: false` remains an
+ordinary logout.
+
+**Do not break:** Ordinary PingOne/PF login and logout, the server provider
+guard, and UC40's one-shot replay.
+
+**Verify:** Focused AIAgent, AIAgentFull, and LogoutPage Vitest; the BFF
+`idJagRunIntent` continuation test; `cd demo_api_ui && npm run build`.
+
+
+### 2026-09-24 — PF ID-JAG launch stopped at the UI event
+
+- **Files changed:** `demo_api_ui/src/hooks/useAuth.js`, `src/components/{LogoutPage,OAuthProviderToggle}.jsx`, `src/context/SessionTokenContext.js`, ID-JAG run helpers, `demo_api_server/routes/oauthUser.js`, and focused tests.
+- **What was broken:** The explicit live launcher had no browser handoff through logout and PF login; normal auth changes could retain stale replay state.
+- **What was fixed:** The browser posts a one-shot server intent, uses provider-aware logout, resumes only a verified logout continuation, emits callback detail from PF session status, and clears the run grant after a completed trace. Ordinary login, logout, and provider switch clear client state and ID-JAG visual evidence.
+- **Do not break:** Ordinary PingOne/PF login, existing logout token revocation, session cookie cleanup, and the configured enterprise MCP capability flag. The live launcher does not arm that global flag.
+- **Verify:** Focused ID-JAG BFF Jest suites, UI auth/reset Vitest suites, and UI build.
+
+### 2026-09-24 — UC40 ID-JAG recovery and provider guards were lost across agent paths
+
+- **Files changed:** `demo_api_server/routes/{agentInvokeRoute,demoAgentRoutes,agentTool,oauthUser}.js`, `demo_api_server/services/{agentMcpTokenService,mcpToolPipeline,bffMcpToolExecutor}.js`, `demo_api_server/server.js` and focused tests.
+- **What was broken:** UC40 agent routes could answer normally after a provider rejection; the MCP tool pipeline converted ID-JAG 401s into HTTP 200 without a recovery target. The advertised OAuth URL required an intent it could not create, the pending map was unbounded, and ordinary `clear-session` retained intent.
+- **What was fixed:** Gate UC40 before execution; carry stable 401 codes and the safe demo launcher through the real pipeline; cap pending intents at 256; preserve an intent across `clear-session` only once after a session-bound logout handoff.
+- **Do not break:** Ordinary agent requests, normal logout cleanup, existing token revocation, and the BFF's sole browser-token custody.
+- **Verify:** Focused `idJagRunHttp`, `idJagPipelineHttp`, `idJagRunIntent`, PF provider-isolation, OAuth, agent-invoke, tool-executor, and MCP pipeline Jest suites.
+
 ### 2026-09-23 — Spinner Ping P escaped the red circle
 
 **Files changed:** `demo_api_ui/src/components/shared/PingIdentitySpinner.jsx`,

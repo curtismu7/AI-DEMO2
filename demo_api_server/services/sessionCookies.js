@@ -48,7 +48,7 @@ function clearAllAuthCookies(res, isProduction) {
  * @param {string|null} idToken - id_token_hint value (may be null)
  * @returns {string} full signoff redirect URL
  */
-function buildPingOneSignoffUrl(postLogoutUri, clientIdKey, idToken) {
+function buildPingOneSignoffUrl(postLogoutUri, clientIdKey, idToken, provider = configStore.getOAuthProvider?.()) {
   const params = new URLSearchParams({ post_logout_redirect_uri: postLogoutUri });
   if (idToken) params.set('id_token_hint', idToken);
 
@@ -56,19 +56,25 @@ function buildPingOneSignoffUrl(postLogoutUri, clientIdKey, idToken) {
   // endpoint with the PF user client. Redirecting to PingOne's signoff instead
   // leaves the PF session alive, so the next /login silently re-authenticates
   // as the previous user — logout appeared to do nothing.
-  if ((configStore.getOAuthProvider?.() || '') === 'pingfederate') {
+  if (provider === 'pingfederate') {
     const endpointResolver = require('./oauthEndpointResolver');
-    const endSession = endpointResolver.getEndSessionEndpoint
-      ? endpointResolver.getEndSessionEndpoint()
-      : '';
+    const currentProvider = configStore.getOAuthProvider?.();
+    const pfIssuer = configStore.getEffective('pf_issuer') || '';
+    const endSession = currentProvider === 'pingfederate'
+      ? endpointResolver.getEndSessionEndpoint?.()
+      : (configStore.getEffective('pf_end_session_endpoint')
+        || (pfIssuer ? `${pfIssuer.replace(/\/+$/, '')}/idp/init_logout.openid` : ''));
     const clientId = configStore.getEffective('pf_user_client_id');
     if (clientId) params.set('client_id', clientId);
-    if (endSession) return `${endSession}?${params.toString()}`;
+    return endSession ? `${endSession}?${params.toString()}` : postLogoutUri;
   }
 
   const envId = configStore.getEffective('pingone_environment_id');
   const region = configStore.getEffective('pingone_region') || 'com';
-  const clientId = configStore.getEffective(clientIdKey);
+  const clientId = configStore.getEffective(clientIdKey)
+    || (clientIdKey === 'pingone_admin_client_id'
+      ? (process.env.PINGONE_ADMIN_CLIENT_ID || process.env.PINGONE_CLIENT_ID)
+      : process.env.PINGONE_USER_CLIENT_ID);
   if (clientId) params.set('client_id', clientId);
   return `https://auth.pingone.${region}/${envId}/as/signoff?${params.toString()}`;
 }

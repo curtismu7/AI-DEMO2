@@ -990,7 +990,12 @@ services:
     tmpfs:
       - /app/dev-data:uid=1001,gid=1001  # writable for dev-mode session data
     networks:
-      - ai-demo
+      ai-demo:
+        aliases:
+          # The local PF profile's ID-JAG SP connection targets this stable
+          # downstream issuer/resource name. It aliases the same oauth-mcp
+          # authorization server; no second MCP server is required locally.
+          - pf-mcp-server
     healthcheck:
       test: ["CMD", "node", "scripts/health-check.js", "localhost", "8080", "/.well-known/mcp-server"]
       interval: 30s

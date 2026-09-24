@@ -228,7 +228,7 @@ const {
     clearAuthCookie,
     readAuthCookie
 } = require('./services/authStateCookie');
-const { clearAllAuthCookies } = require('./services/sessionCookies');
+const { clearAllAuthCookies, buildPingOneSignoffUrl } = require('./services/sessionCookies');
 const {
     migrateAccounts
 } = require('./services/demoDataService');
@@ -838,6 +838,10 @@ app.get('/api/auth/reauth', (req, res) => {
 // cookie is cleared even if the 302-redirect Set-Cookie header was not honoured
 // by an intermediate redirect (e.g. PingOne signoff without id_token_hint).
 app.post('/api/auth/clear-session', (req, res) => {
+    if (!oauthUserRoutes.consumeVerifiedIdJagLogoutContinuation(req)) {
+        oauthUserRoutes.clearPendingIdJagRun(req);
+        oauthUserRoutes.clearIdJagCookie(res);
+    }
     clearAllAuthCookies(res, isProduction);
     if (req.session) {
         req.session.destroy(() => {});
@@ -850,6 +854,12 @@ app.post('/api/auth/clear-session', (req, res) => {
 // cookie-clearing Set-Cookie headers are delivered on the /api/auth/logout
 // response (not on a 302 redirect that gets proxied away without cookies).
 app.get('/api/auth/logout', async (req, res) => {
+    const idJagHandoff = req.query.id_jag_handoff === '1'
+        && oauthUserRoutes.markVerifiedIdJagLogoutContinuation(req);
+    if (!idJagHandoff) {
+        oauthUserRoutes.clearPendingIdJagRun(req);
+        oauthUserRoutes.clearIdJagCookie(res);
+    }
     const idToken = req.session.oauthTokens?.idToken
         // Fallback: auth-state cookie carries the id_token for RP-Initiated Logout
         // when the server session has expired or been lost.
@@ -872,6 +882,7 @@ app.get('/api/auth/logout', async (req, res) => {
 
     // Capture oauthType before destroy so we can pick the right client_id below.
     const oauthType = req.session.oauthType || 'user';
+    const logoutProvider = req.session.oauthProvider || req.session.user?.oauthProvider || configStore.getOAuthProvider?.();
 
     // Clear in-memory demo state so next login starts fresh (fire-and-forget)
     try {
@@ -926,32 +937,9 @@ app.get('/api/auth/logout', async (req, res) => {
         // the user signed in on the next request.
         clearAllAuthCookies(res, isProduction);
 
-        const envId = configStore.getEffective('pingone_environment_id');
-        const region = configStore.getEffective('pingone_region') || 'com';
-        const pingoneSignoff = `https://auth.pingone.${region}/${envId}/as/signoff`;
-
-        // Pick the right OAuth client_id so PingOne ends the correct SSO session.
-        // client_id is required by PingOne to locate and terminate the SSO session.
-        const userClientId  = configStore.getEffective('pingone_user_client_id')  || process.env.PINGONE_USER_CLIENT_ID;
-        const adminClientId = configStore.getEffective('pingone_admin_client_id') || process.env.PINGONE_ADMIN_CLIENT_ID || process.env.PINGONE_CLIENT_ID;
-        const clientId = (oauthType === 'admin' ? adminClientId : userClientId) || userClientId;
-
-        const params = new URLSearchParams({
-            post_logout_redirect_uri: postLogoutUri
-        });
-        if (idToken) {
-            params.set('id_token_hint', idToken);
-        } else {
-            console.warn('[logout] id_token not found in session — PingOne SSO session may not be cleared. oauthType:', oauthType);
-        }
-        if (clientId) {
-            params.set('client_id', clientId);
-        } else {
-            console.warn('[logout] No client_id resolved — PingOne may not identify the RP for signoff.');
-        }
-
-        const signoffUrl = `${pingoneSignoff}?${params.toString()}`;
-        console.info(`[logout] Signoff URL built (id_token_hint: ${idToken ? 'yes' : 'NO'}, client_id: ${clientId || 'none'})`);
+        const clientIdKey = oauthType === 'admin' ? 'pingone_admin_client_id' : 'pingone_user_client_id';
+        const signoffUrl = buildPingOneSignoffUrl(postLogoutUri, clientIdKey, idToken, logoutProvider);
+        console.info(`[logout] Signoff URL built (provider: ${logoutProvider || 'pingone'}, id_token_hint: ${idToken ? 'yes' : 'NO'})`);
 
         // Detect whether the caller expects a redirect (window.location.href navigation)
         // or a JSON body (fetch from the SPA). Accept header contains 'text/html' for
@@ -964,7 +952,7 @@ app.get('/api/auth/logout', async (req, res) => {
         } else {
             // Fetch from SPA — return JSON so the SPA can navigate after receiving
             // the Set-Cookie headers that clear connect.sid and _auth.
-            res.json({ logoutUrl: signoffUrl });
+            res.json({ logoutUrl: signoffUrl, ...(idJagHandoff ? { idJagHandoff: true } : {}) });
         }
     });
 });

@@ -16,7 +16,7 @@ const EMPTY_TRACE = () => ({
   // whose flowTraceId belongs to a DIFFERENT run (a prior run's late, out-of-
   // order SSE result landing on this run's fresh trace).
   flowTraceId: null,
-  startedAt: null, finishedAt: null, prompt: null, provenance: "live", routingMode: null, routingDetail: null,
+  startedAt: null, finishedAt: null, prompt: null, provenance: "live", mode: null, routingMode: null, routingDetail: null,
   llmDetail: null, llmReply: null,
   phases: [], tokenEvents: [], mcpResult: null, authorize: null, authorizeEvaluations: null, outcome: null,
   // 'declined' once the human refuses a step-up / HITL approval gate. Without
@@ -54,11 +54,13 @@ let activeFlowTraceId = null;
 let explicitlyReset = false;
 const listeners = new Set();
 
-// True when `flowTraceId` identifies a DIFFERENT run than the one that owns the
-// trace right now. Untagged evidence (no flowTraceId) and the brief window
-// before a run binds its id are accepted — this only drops evidence that a
-// prior run positively stamped with its own id, which is the cross-run leak.
+const isMockReplayActive = () => trace.mode === "mock-id-jag" && trace.provenance === "mock-id-jag";
+
+// Reject all late evidence while a mock replay owns the view. For live runs,
+// only a positively different flowTraceId is foreign; untagged events remain
+// accepted because existing passive listeners do not all stamp an id.
 function isForeignRun(flowTraceId) {
+  if (isMockReplayActive()) return true;
   if (flowTraceId == null) return false;
   if (explicitlyReset) return true;
   return (
@@ -156,7 +158,7 @@ function ensureTrace() {
 export const tokenChainTraceStore = {
   subscribe(fn) { listeners.add(fn); fn(getState()); return () => listeners.delete(fn); },
   getState,
-  beginTrace({ prompt, flowTraceId, provenance = "live" } = {}) {
+  beginTrace({ prompt, flowTraceId, provenance = "live", mode = null } = {}) {
     // Session-scoped evidence (the sign-in token) outlives any single tool
     // call — carry it into the new trace so the sign-in step doesn't regress
     // to "pending" on every chip click. Per-call events are dropped.
@@ -182,8 +184,10 @@ export const tokenChainTraceStore = {
     trace.runId = ++runSeq;
     trace.prompt = prompt ? { message: String(prompt) } : null;
     trace.provenance = Object.prototype.hasOwnProperty.call(RUN_PROVENANCE, provenance)
+      || provenance === "live-id-jag" || provenance === "mock-id-jag"
       ? provenance
       : "live";
+    trace.mode = ["id-jag", "live-id-jag", "mock-id-jag"].includes(mode) ? mode : null;
     trace.tokenEvents = sessionEvents;
     trace.phases = carriedMfaPhases;
     if (carried) trace.authorize = { outcome: carried, priorGate: carried };
@@ -213,6 +217,7 @@ export const tokenChainTraceStore = {
   },
   ingestPhases(serverEvents) {
     if (!Array.isArray(serverEvents) || !serverEvents.length) return;
+    if (isMockReplayActive()) return;
     ensureTrace();
     // Keep any carried MFA phase (beginTrace seeded it from the trace this
     // run resumes) that this run's own stream does not repeat — a resumed
@@ -302,6 +307,7 @@ export const tokenChainTraceStore = {
   },
   ingestAuthorizeEvaluations(list) {
     if (!Array.isArray(list) || !list.length) return;
+    if (isMockReplayActive()) return;
     ensureTrace();
     trace.authorizeEvaluations = list;
     emit();
@@ -340,6 +346,7 @@ export const tokenChainTraceStore = {
   },
   /** The human refused a step-up / HITL approval gate — nothing was executed. */
   ingestApprovalDeclined() {
+    if (isMockReplayActive()) return;
     ensureTrace();
     trace.approvalOutcome = "declined";
     emit();
@@ -356,6 +363,27 @@ export const tokenChainTraceStore = {
       history = [{ ...trace }, ...history].slice(0, HISTORY_MAX);
     }
     emit();
+  },
+  /** Replace the active view with a completed, non-live teaching fixture. */
+  replayTrace(fixture) {
+    if (!fixture || fixture.provenance !== "mock-id-jag" || fixture.mode !== "mock-id-jag"
+      || !Array.isArray(fixture.tokenEvents)) return false;
+    trace = {
+      ...EMPTY_TRACE(), ...fixture, runId: ++runSeq,
+      phases: Array.isArray(fixture.phases) ? fixture.phases.slice() : [],
+      tokenEvents: fixture.tokenEvents.map((event) => ({ ...event })),
+      finishedAt: fixture.finishedAt ?? Date.now(),
+      outcome: fixture.outcome || "mock-success",
+    };
+    activeFlowTraceId = trace.flowTraceId;
+    explicitlyReset = true;
+    history = [{ ...trace }, ...history].slice(0, HISTORY_MAX);
+    try {
+      agentFlowDiagram.clearServerEvents();
+      agentFlowDiagram.resetComplianceSteps(null, null);
+    } catch { /* display-only */ }
+    emit();
+    return true;
   },
   /** The store's own replay log — up to the last HISTORY_MAX completed runs. */
   getHistory() {
@@ -382,6 +410,9 @@ agentFlowDiagram.subscribe((snap) => {
   }
 });
 if (typeof window !== "undefined") {
+  window.addEventListener("id-jag-mock-replay-requested", (event) => {
+    tokenChainTraceStore.replayTrace(event?.detail);
+  });
   window.addEventListener("mcp-tool-result-sse", (e) => {
     if (!e || !e.detail) return;
     // A late result from a prior run carries that run's flowTraceId — drop the

@@ -72,6 +72,16 @@ describe('auth-requirements SoT', () => {
     expect(authLevelForRoute('/mcp-observability')).toBe('user');
   });
 
+  test('PingFederate ID-JAG learning and demo pages are public', () => {
+    for (const route of [
+      '/pingfederate-id-jag',
+      '/pingfederate-id-jag/demo',
+      '/pingfederate-id-jag/diagram',
+    ]) {
+      expect(authLevelForRoute(route)).toBe('public');
+    }
+  });
+
   test('levels rank public < user < admin', () => {
     expect(compareLevels('public', 'user')).toBeLessThan(0);
     expect(compareLevels('admin', 'user')).toBeGreaterThan(0);
