@@ -169,6 +169,22 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-23 — Quick Config resolves multiple embedded trace views
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`, `REGRESSION_PLAN.md`.
+
+**What was broken:** saved Quick Config preferences could restore multiple trace
+views as embedded at once, and choosing another embedded surface could silently
+leave conflicting views active.
+
+**What was fixed:** Quick Config now opens a required chooser when embedded trace
+views conflict. Picking one turns the others off; losing “Both” views remain
+available as pop-outs. Requests to add a second embedded view use the same chooser.
+
+**Do not break:** permit at most one embedded trace view while retaining one or
+more independent pop-outs; do not change authentication or session behavior.
+
+**Verify:** `cd demo_api_ui && npm run build`.
 ### 2026-09-23 — React Flow's custom shadow value tripped the shadow ratchet
 
 **Files changed:** `demo_api_ui/src/components/TokenTopologyPanel.css` and

@@ -1048,6 +1048,7 @@ export default function BankingAgent({
       return "movie-reel";
     }
   });
+  const [pendingSurfaceChoice, setPendingSurfaceChoice] = useState(null);
   // "Sequence view" — swaps the dashboard's right-column reel for a live
   // lifeline sequence diagram of the same trace data. Restored from the SAME key
   // UserDashboardPing2026 persists, because both components hold a copy of this
@@ -1341,6 +1342,65 @@ export default function BankingAgent({
     }));
   }, []);
 
+  const evidenceSurfaceRows = useMemo(() => ([
+    { id: "movie-reel", label: "Movie reel", value: movieReelSurface, choose: chooseMovieReelSurface },
+    { id: "simple-stepper", label: "Simple stepper", value: simpleStepperSurface, choose: chooseSimpleStepperSurface },
+    { id: "sequence-view", label: "Sequence view", value: sequenceSurface, choose: chooseSequenceSurface },
+    { id: "token-topology", label: "Token topology", value: topologySurface, choose: chooseTopologySurface },
+    { id: "oauth-visualizer", label: "OAuth visualizer", value: oauthVisualizerSurface, choose: chooseOauthVisualizerSurface },
+  ]), [movieReelSurface, simpleStepperSurface, sequenceSurface, topologySurface, oauthVisualizerSurface, chooseMovieReelSurface, chooseSimpleStepperSurface, chooseSequenceSurface, chooseTopologySurface, chooseOauthVisualizerSurface]);
+  const embeddedEvidenceSurfaces = useMemo(
+    () => evidenceSurfaceRows.filter((row) => surfaceHasEmbedded(row.value)),
+    [evidenceSurfaceRows],
+  );
+  const surfaceChoiceCandidates = pendingSurfaceChoice?.candidates
+    || (embeddedEvidenceSurfaces.length > 1 ? embeddedEvidenceSurfaces : null);
+  const hasEmbeddedSurfaceConflict = Boolean(surfaceChoiceCandidates?.length > 1);
+
+  useEffect(() => {
+    if (!hasEmbeddedSurfaceConflict || headerMoreOpen) return;
+    setHeaderMoreOpen(true);
+    setOpenSurfaceSelector(null);
+  }, [hasEmbeddedSurfaceConflict, headerMoreOpen]);
+
+  const chooseEvidenceSurface = useCallback((id, surface) => {
+    const row = evidenceSurfaceRows.find((item) => item.id === id);
+    if (!row) return;
+    if (surfaceHasEmbedded(surface)) {
+      const alreadyEmbedded = evidenceSurfaceRows.filter(
+        (item) => item.id !== id && surfaceHasEmbedded(item.value),
+      );
+      if (alreadyEmbedded.length) {
+        setPendingSurfaceChoice({
+          requested: { id, surface },
+          candidates: [
+            ...alreadyEmbedded.map(({ id: candidateId, label, value }) => ({ id: candidateId, label, value })),
+            { id, label: row.label, value: surface },
+          ],
+        });
+        setOpenSurfaceSelector(null);
+        setHeaderMoreOpen(true);
+        return;
+      }
+    }
+    row.choose(surface);
+  }, [evidenceSurfaceRows]);
+
+  const resolveEmbeddedSurfaceConflict = useCallback((keepId) => {
+    const requested = pendingSurfaceChoice?.requested;
+    evidenceSurfaceRows.forEach((row) => {
+      const surface = requested?.id === row.id ? requested.surface : row.value;
+      const nextSurface = row.id !== keepId && surfaceHasEmbedded(surface)
+        ? surface === "both" ? "popout" : "none"
+        : surface;
+      if (nextSurface !== row.value) row.choose(nextSurface);
+    });
+    setQuickConfigView(keepId);
+    try { localStorage.setItem("ba_quick_config_view", keepId); } catch {}
+    setPendingSurfaceChoice(null);
+    setOpenSurfaceSelector(null);
+  }, [evidenceSurfaceRows, pendingSurfaceChoice]);
+
   const chooseEvidenceView = useCallback((view) => {
     setQuickConfigView(view);
     try { localStorage.setItem("ba_quick_config_view", view); } catch {}
@@ -1354,13 +1414,12 @@ export default function BankingAgent({
       chooseSequenceSurface(withoutEmbeddedSurface(sequenceSurface));
       chooseTopologySurface(withoutEmbeddedSurface(topologySurface));
       chooseOauthVisualizerSurface(withoutEmbeddedSurface(oauthVisualizerSurface));
+      chooseMovieReelSurface(movieReelSurface === "none" ? "embedded" : movieReelSurface);
     } else if (view === "simple-stepper") {
       chooseSequenceSurface(withoutEmbeddedSurface(sequenceSurface));
       chooseTopologySurface(withoutEmbeddedSurface(topologySurface));
       chooseOauthVisualizerSurface(withoutEmbeddedSurface(oauthVisualizerSurface));
       chooseSimpleStepperSurface(simpleStepperSurface === "none" ? "embedded" : simpleStepperSurface);
-    } else if (view === "movie-reel") {
-      chooseMovieReelSurface(movieReelSurface === "none" ? "embedded" : movieReelSurface);
     } else if (view === "sequence-view") {
       chooseSimpleStepperSurface(withoutEmbeddedSurface(simpleStepperSurface));
       chooseTopologySurface(withoutEmbeddedSurface(topologySurface));
@@ -10290,39 +10349,63 @@ export default function BankingAgent({
                           <button type="button" aria-label="Increase controls font size" onClick={() => setHeaderMoreFontScale("115")}>A+</button>
                         </div>
                       </div>
-                      <div className="ba-header-more-intro">
-                        <strong>Choose a trace evidence view surface</strong>
-                        <span>Embedded views stay on this page. Pop-outs open a separate window.</span>
-                      </div>
-                      <div className="ba-header-more-view-picker" role="group" aria-label="Trace evidence views">
-                        <div className="ba-header-more-heading">Trace evidence views</div>
-                        <div className="ba-header-more-view-grid">
-                          {EVIDENCE_VIEW_OPTIONS.map((option) => (
-                            <button
-                              key={option.value}
-                              type="button"
-                              className={`ba-header-more-view-option${quickConfigView === option.value ? " selected" : ""}`}
-                              aria-pressed={quickConfigView === option.value}
-                              onClick={() => chooseEvidenceView(option.value)}
-                            >
-                              <strong>{option.label}</strong>
-                              <span>{option.description}</span>
-                            </button>
-                          ))}
-                          {/* Not an evidence view — it opens the unattended-runs
-                              picker directly, but the grid is where demo users
-                              look for it. Styled as a view option on purpose. */}
-                          <button
-                            type="button"
-                            className="ba-header-more-view-option"
-                            onClick={() => setUnattendedPanelOpen(true)}
-                          >
-                            <strong>Unattended</strong>
-                            <span>Runs with nobody signed in</span>
-                          </button>
+                      {hasEmbeddedSurfaceConflict ? (
+                        <div className="ba-header-more-view-picker" role="alert" aria-live="assertive">
+                          <div className="ba-header-more-heading">Choose one embedded trace view</div>
+                          <div className="ba-header-more-intro">
+                            <strong>Several views are set to embed.</strong>
+                            <span>Pick the one to keep here. Other embedded views turn off, while “Both” becomes Pop-out.</span>
+                          </div>
+                          <div className="ba-header-more-view-grid" role="group" aria-label="Choose one embedded trace view">
+                            {surfaceChoiceCandidates.map((candidate) => (
+                              <button
+                                key={candidate.id}
+                                type="button"
+                                className="ba-header-more-view-option"
+                                aria-label={`Keep ${candidate.label} embedded`}
+                                onClick={() => resolveEmbeddedSurfaceConflict(candidate.id)}
+                              >
+                                <strong>{candidate.label}</strong>
+                                <span>{candidate.value === "both" ? "Keep embedded and keep its pop-out." : "Keep this view embedded."}</span>
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                      <div className="ba-header-more-context" aria-live="polite">
+                      ) : (
+                        <>
+                          <div className="ba-header-more-intro">
+                            <strong>Choose a trace evidence view surface</strong>
+                            <span>Embedded views stay on this page. Pop-outs open a separate window.</span>
+                          </div>
+                          <div className="ba-header-more-view-picker" role="group" aria-label="Trace evidence views">
+                            <div className="ba-header-more-heading">Trace evidence views</div>
+                            <div className="ba-header-more-view-grid">
+                              {EVIDENCE_VIEW_OPTIONS.map((option) => (
+                                <button
+                                  key={option.value}
+                                  type="button"
+                                  className={`ba-header-more-view-option${quickConfigView === option.value ? " selected" : ""}`}
+                                  aria-pressed={quickConfigView === option.value}
+                                  onClick={() => chooseEvidenceView(option.value)}
+                                >
+                                  <strong>{option.label}</strong>
+                                  <span>{option.description}</span>
+                                </button>
+                              ))}
+                              {/* Not an evidence view — it opens the unattended-runs
+                                  picker directly, but the grid is where demo users
+                                  look for it. Styled as a view option on purpose. */}
+                              <button
+                                type="button"
+                                className="ba-header-more-view-option"
+                                onClick={() => setUnattendedPanelOpen(true)}
+                              >
+                                <strong>Unattended</strong>
+                                <span>Runs with nobody signed in</span>
+                              </button>
+                            </div>
+                          </div>
+                          <div className="ba-header-more-context" aria-live="polite">
                         <div className="ba-header-more-heading">{EVIDENCE_VIEW_OPTIONS.find((option) => option.value === quickConfigView)?.label} controls</div>
                         {quickConfigView === "movie-reel" && (
                           <>
@@ -10331,23 +10414,25 @@ export default function BankingAgent({
                               id="movie-reel-surface-select"
                               label="Movie reel"
                               value={movieReelSurface}
-                              onChange={(e) => chooseMovieReelSurface(e.target.value)}
+                              onChange={(e) => chooseEvidenceSurface("movie-reel", e.target.value)}
                               open={openSurfaceSelector === "movie-reel-surface-select"}
                               onToggle={setOpenSurfaceSelector}
                             />
                           </>
                         )}
-                        {quickConfigView === "simple-stepper" && <SurfaceSelector id="simple-step-surface-select" label="Simple stepper" value={simpleStepperSurface} onChange={(e) => chooseSimpleStepperSurface(e.target.value)} open={openSurfaceSelector === "simple-step-surface-select"} onToggle={setOpenSurfaceSelector} />}
+                        {quickConfigView === "simple-stepper" && <SurfaceSelector id="simple-step-surface-select" label="Simple stepper" value={simpleStepperSurface} onChange={(e) => chooseEvidenceSurface("simple-stepper", e.target.value)} open={openSurfaceSelector === "simple-step-surface-select"} onToggle={setOpenSurfaceSelector} />}
                         {quickConfigView === "sequence-view" && (
                           <>
-                            <SurfaceSelector id="sequence-view-surface-select" label="Sequence view" value={sequenceSurface} onChange={(e) => chooseSequenceSurface(e.target.value)} open={openSurfaceSelector === "sequence-view-surface-select"} onToggle={setOpenSurfaceSelector} />
+                            <SurfaceSelector id="sequence-view-surface-select" label="Sequence view" value={sequenceSurface} onChange={(e) => chooseEvidenceSurface("sequence-view", e.target.value)} open={openSurfaceSelector === "sequence-view-surface-select"} onToggle={setOpenSurfaceSelector} />
                             <Check variant="switch" className="ba-header-toggle-label" checked={followSequenceFlow} onChange={(e) => chooseFollowSequenceFlow(e.target.checked)}>Follow flow</Check>
                             <Check variant="switch" className="ba-header-toggle-label" checked={slowMode} onChange={(e) => { setSlowMode(e.target.checked); window.dispatchEvent(new CustomEvent("agent-slow-mode-toggle", { detail: { on: e.target.checked } })); }}>Slow mode</Check>
                           </>
                         )}
-                        {quickConfigView === "token-topology" && <SurfaceSelector id="topology-surface-select" label="Token topology" value={topologySurface} onChange={(e) => chooseTopologySurface(e.target.value)} open={openSurfaceSelector === "topology-surface-select"} onToggle={setOpenSurfaceSelector} />}
-                        {quickConfigView === "oauth-visualizer" && <SurfaceSelector id="oauth-visualizer-surface-select" label="OAuth visualizer" value={oauthVisualizerSurface} onChange={(e) => chooseOauthVisualizerSurface(e.target.value)} open={openSurfaceSelector === "oauth-visualizer-surface-select"} onToggle={setOpenSurfaceSelector} />}
-                      </div>
+                        {quickConfigView === "token-topology" && <SurfaceSelector id="topology-surface-select" label="Token topology" value={topologySurface} onChange={(e) => chooseEvidenceSurface("token-topology", e.target.value)} open={openSurfaceSelector === "topology-surface-select"} onToggle={setOpenSurfaceSelector} />}
+                        {quickConfigView === "oauth-visualizer" && <SurfaceSelector id="oauth-visualizer-surface-select" label="OAuth visualizer" value={oauthVisualizerSurface} onChange={(e) => chooseEvidenceSurface("oauth-visualizer", e.target.value)} open={openSurfaceSelector === "oauth-visualizer-surface-select"} onToggle={setOpenSurfaceSelector} />}
+                          </div>
+                        </>
+                      )}
                       <div className="ba-header-more-legacy" aria-hidden="true">
                       <div className="ba-header-more-heading">Display preferences</div>
                       <Check
@@ -10411,7 +10496,7 @@ export default function BankingAgent({
                         id="topology-surface-select"
                         label="Token topology"
                         value={topologySurface}
-                        onChange={(e) => chooseTopologySurface(e.target.value)}
+                        onChange={(e) => chooseEvidenceSurface("token-topology", e.target.value)}
                         disabledValues={isEmbeddedSurfaceDisabled("embedded", sequenceSurface) ? ["embedded", "both"] : []}
                         open={openSurfaceSelector === "topology-surface-select"}
                         onToggle={setOpenSurfaceSelector}
@@ -10420,7 +10505,7 @@ export default function BankingAgent({
                         id="simple-step-surface-select"
                         label="Simple step"
                         value={simpleStepperSurface}
-                        onChange={(e) => chooseSimpleStepperSurface(e.target.value)}
+                        onChange={(e) => chooseEvidenceSurface("simple-stepper", e.target.value)}
                         disabledValues={isEmbeddedSurfaceDisabled("embedded", sequenceSurface) ? ["embedded", "both"] : []}
                         open={openSurfaceSelector === "simple-step-surface-select"}
                         onToggle={setOpenSurfaceSelector}
@@ -10431,7 +10516,7 @@ export default function BankingAgent({
                         checked={showFilmstrip}
                         onChange={(e) => {
                           const newVal = e.target.checked;
-                          chooseMovieReelSurface(newVal ? "embedded" : "none");
+                          chooseEvidenceSurface("movie-reel", newVal ? "embedded" : "none");
                         }}
                         title="Show or hide the token chain movie reel; this choice is saved across reloads"
                       >
@@ -10442,7 +10527,7 @@ export default function BankingAgent({
                         label="Sequence view"
                         value={sequenceSurface}
                         onChange={(e) => {
-                          chooseSequenceSurface(e.target.value);
+                          chooseEvidenceSurface("sequence-view", e.target.value);
                           const embedded = e.target.value === "embedded" || e.target.value === "both";
                           window.dispatchEvent(new CustomEvent("admin-sidenav-collapse-toggle", { detail: { collapsed: embedded } }));
                           if (!embedded && slowMode) {
@@ -10468,7 +10553,7 @@ export default function BankingAgent({
                         id="oauth-visualizer-surface-select"
                         label="OAuth Visualizer"
                         value={oauthVisualizerSurface}
-                        onChange={(e) => chooseOauthVisualizerSurface(e.target.value)}
+                        onChange={(e) => chooseEvidenceSurface("oauth-visualizer", e.target.value)}
                         disabledValues={isEmbeddedSurfaceDisabled("embedded", sequenceSurface) ? ["embedded", "both"] : []}
                         open={openSurfaceSelector === "oauth-visualizer-surface-select"}
                         onToggle={setOpenSurfaceSelector}
@@ -10543,9 +10628,9 @@ export default function BankingAgent({
                         title="Real-time token topology — RFC 8693 delegation chain"
                         onClick={() => {
                           if (showTokenTopology) {
-                            chooseTopologySurface(showInlineTokenTopology ? "embedded" : "none");
+                            chooseEvidenceSurface("token-topology", showInlineTokenTopology ? "embedded" : "none");
                           } else {
-                            chooseTopologySurface(showInlineTokenTopology ? "both" : "popout");
+                            chooseEvidenceSurface("token-topology", showInlineTokenTopology ? "both" : "popout");
                           }
                         }}
                       >
@@ -10581,10 +10666,10 @@ export default function BankingAgent({
                         aria-label="OAuth Visualizer"
                         title="OAuth Visualizer — explore grant types and token exchange step by step"
                         onClick={() => {
-                          if (oauthVisualizerSurface === "none") chooseOauthVisualizerSurface("popout");
-                          else if (oauthVisualizerSurface === "popout") chooseOauthVisualizerSurface("embedded");
-                          else if (oauthVisualizerSurface === "embedded") chooseOauthVisualizerSurface("both");
-                          else chooseOauthVisualizerSurface("none");
+                          if (oauthVisualizerSurface === "none") chooseEvidenceSurface("oauth-visualizer", "popout");
+                          else if (oauthVisualizerSurface === "popout") chooseEvidenceSurface("oauth-visualizer", "embedded");
+                          else if (oauthVisualizerSurface === "embedded") chooseEvidenceSurface("oauth-visualizer", "both");
+                          else chooseEvidenceSurface("oauth-visualizer", "none");
                         }}
                       >
                         <><span>OAuth Visualizer</span><span className="ba-surface-badge" aria-hidden="true">{oauthVisualizerSurface === "none" ? "Off" : oauthVisualizerSurface === "embedded" ? "Embedded" : oauthVisualizerSurface === "both" ? "Both" : "Pop-out"}</span></>
@@ -13100,12 +13185,12 @@ export default function BankingAgent({
       {showOauthVisualizer && (
         <OAuthVisualizerPanel
           embedded
-          onOpenPopout={() => chooseOauthVisualizerSurface("both")}
+          onOpenPopout={() => chooseEvidenceSurface("oauth-visualizer", "both")}
         />
       )}
       <OAuthVisualizerPanel
         isOpen={showOauthVisualizerPopout}
-        onClose={() => chooseOauthVisualizerSurface(showOauthVisualizer ? "embedded" : "none")}
+        onClose={() => chooseEvidenceSurface("oauth-visualizer", showOauthVisualizer ? "embedded" : "none")}
       />
       <SimpleStepperPanel
         isOpen={showSimpleStepperPopout}
@@ -13114,14 +13199,14 @@ export default function BankingAgent({
           // Persist, same as the "Simple step" switch. Without this the ✕ only
           // closed it for the current render and ba_show_simple_stepper stayed
           // "1", so the panel came back on every page load.
-          chooseSimpleStepperSurface(simpleStepperSurface === "both" ? "embedded" : "none");
+          chooseEvidenceSurface("simple-stepper", simpleStepperSurface === "both" ? "embedded" : "none");
         }}
       />
       <DraggableModal
         isOpen={showSequencePopout}
         onClose={() => {
           setSelectedSequencePopoutStep(null);
-          chooseSequenceSurface(sequenceSurface === "both" ? "embedded" : "none");
+          chooseEvidenceSurface("sequence-view", sequenceSurface === "both" ? "embedded" : "none");
         }}
         title="Sequence view"
         defaultWidth={860}
