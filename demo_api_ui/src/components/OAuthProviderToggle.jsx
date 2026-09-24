@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import bffAxios from '../services/bffAxios';
-import { notifyError, notifySuccess } from '../utils/appToast';
+import { notifyError } from '../utils/appToast';
 import './OAuthProviderToggle.css';
 
 /**
@@ -14,9 +14,9 @@ import './OAuthProviderToggle.css';
  *
  * Switching provider invalidates the current token chain (a PingOne access
  * token will not validate against PingFederate's JWKS and vice versa), so the
- * caller should sign out / re-login after toggling. We dispatch the standard
- * 'userLoggedOut' event and redirect to the login entry so the next sign-in
- * goes through the newly selected provider.
+ * caller should sign out / re-login after toggling. Clear the BFF session and
+ * reload the current page so the next sign-in uses the selected provider
+ * without losing the user's place.
  */
 export default function OAuthProviderToggle() {
   const [provider, setProvider] = useState(null);
@@ -42,14 +42,14 @@ export default function OAuthProviderToggle() {
     try {
       await bffAxios.post('/api/admin/config', { oauth_provider: next });
       setProvider(next);
-      notifySuccess(`Login provider switched to ${next === 'pingone' ? 'PingOne' : 'PingFederate'} — please sign in again`);
-      // Current session tokens belong to the previous provider — force re-login.
+      // Current session tokens belong to the previous provider.
+      await bffAxios.post('/api/auth/clear-session');
       window.dispatchEvent(new CustomEvent('userLoggedOut'));
-      window.location.href = '/logout';
+      window.location.reload();
     } catch (err) {
       notifyError(err?.response?.data?.error === 'not_authorized'
         ? 'Admin session required to switch login provider'
-        : `Provider switch failed: ${err?.response?.data?.message || err.message}`);
+        : `Provider switch or session clear failed: ${err?.response?.data?.message || err.message}`);
     } finally {
       setSaving(false);
     }
