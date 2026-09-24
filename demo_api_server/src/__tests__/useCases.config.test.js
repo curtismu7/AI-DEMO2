@@ -13,9 +13,9 @@ const UTILITY_TRACKS = ['tools', 'learn', 'nhi'];
 describe('useCases catalog SoT', () => {
   test('contains the complete catalog including the CIAM/NHI agent lanes', () => {
     // UC43/44 and the SaaS-Embedded Website Worker UC45 are part of the CIAM/NHI catalog.
-    expect(USE_CASES).toHaveLength(66);
+    expect(USE_CASES).toHaveLength(69);
     const ids = USE_CASES.map((u) => u.id);
-    expect(new Set(ids).size).toBe(66);
+    expect(new Set(ids).size).toBe(69);
     for (let n = 1; n <= 22; n++) expect(ids).toContain(`UC${n}`);
     expect(ids).toContain('UC23');
     expect(ids).toContain('UC24');
@@ -30,7 +30,8 @@ describe('useCases catalog SoT', () => {
     expect(ids).toContain('UC33');
     expect(ids).toContain('UC34');
     expect(ids).toContain('UC35');
-    // UC36 (Protect) is a separate, not-yet-built plan — only UC37/UC38 exist today.
+    // UC36 (Protect) is implemented alongside the UC37/UC38 trust demos.
+    expect(ids).toContain('UC36');
     expect(ids).toContain('UC37');
     expect(ids).toContain('UC38');
     expect(ids).toContain('UC39');
@@ -223,8 +224,8 @@ describe('useCases catalog SoT', () => {
   });
 
   test('listUseCases returns all catalog entries resolved for a vertical', () => {
-    expect(listUseCases('healthcare')).toHaveLength(66);
-    expect(listUseCases()).toHaveLength(66);
+    expect(listUseCases('healthcare')).toHaveLength(69);
+    expect(listUseCases()).toHaveLength(69);
   });
 
   test('only UC14 and UC15 are advanced', () => {
@@ -241,11 +242,11 @@ describe('useCases catalog SoT', () => {
     expect(resolveUseCase('UC7').perVertical).toBeUndefined();
   });
 
-  test('productRoles keys are valid product ids', () => {
-    const VALID = new Set(['idp', 'mfa', 'gw', 'authz', 'llm', 'privilege']);
+  test('productRoles keys use a known product or demo component id', () => {
+    const VALID_ROLE_KEYS = new Set(['idp', 'mfa', 'gw', 'authz', 'llm', 'privilege', 'bff', 'protect']);
     for (const u of USE_CASES) {
       for (const key of Object.keys(u.productRoles)) {
-        expect(VALID.has(key)).toBe(true);
+        expect(VALID_ROLE_KEYS.has(key)).toBe(true);
       }
     }
   });
