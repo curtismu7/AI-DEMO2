@@ -699,6 +699,12 @@ destroy() {
 # keeping the namespace, config, secrets, and PVC intact, so a later `deploy`
 # brings everything back without a rebuild. Use `destroy` for a full teardown.
 stop_cluster() {
+  # Bail fast when the cluster is unreachable — kubectl's own retry/timeout
+  # would otherwise hang the stop for ~30s+ per invocation.
+  if ! kubectl auth can-i get deployments --namespace "$NS" >/dev/null 2>&1; then
+    info "Cluster unreachable or namespace $NS inaccessible — nothing to stop."
+    return 0
+  fi
   info "Scaling all $NS deployments to 0 (config preserved)..."
   kubectl scale deployment --all -n "$NS" --replicas=0 2>/dev/null \
     || { info "No deployments to scale (namespace empty?)."; return 0; }
