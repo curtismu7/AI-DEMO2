@@ -3,6 +3,7 @@
 const { HITL_CHALLENGE_ARG } = require('./hitlServiceClient');
 const { logger, LOG_CATEGORIES } = require('../utils/logger');
 const { buildGwAuthorizeEventExtra } = require('./agentMcpTokenService');
+const { isNodeGatewayOnlyTool, tokenResolutionOptions } = require('./mcpGatewayRoutingPolicy');
 const { resolveStepUpMethod } = require('./mcpToolAuthorizationService');
 const { getUseCaseStepUpMethod } = require('../config/useCases');
 
@@ -288,9 +289,10 @@ async function runMcpToolPipeline(ctx) {
         // SKIP the user→agent exchange. The act chain (act:{specialist, act:{generalist}})
         // then flows into Authorize, where the depth-2 chain is PERMITTED. Events for
         // the chained exchange were already pushed/published by the caller.
+        const tokenOptions = tokenResolutionOptions(tool, useGateway, !!ctx.suppliedToken);
         const resolved = ctx.suppliedToken
             ? { token: ctx.suppliedToken, tokenEvents: [], userSub: ctx.suppliedUserSub || null, tratContextHeader: null }
-            : await deps.resolveMcpAccessTokenWithEvents(req, tool);
+            : await deps.resolveMcpAccessTokenWithEvents(req, tool, tokenOptions);
         mcpAccessToken = resolved.token;
         tokenEvents = resolved.tokenEvents;
         userSub = resolved.userSub || null;
@@ -974,7 +976,17 @@ async function runMcpToolPipeline(ctx) {
     // performs RFC 8693 token exchange to the upstream MCP server — the mcpAccessToken
     // must already be scoped to the gateway audience (MCP_GW_RESOURCE_URI).
     // Graceful fallback: if MCP_GATEWAY_HTTP_URL is not set, use the previous direct path.
-    const gatewayHttpUrl = deps.config.gatewayHttpUrl;
+    const configuredGatewayHttpUrl = deps.config.gatewayHttpUrl;
+    const routingConfig = require('./configStore');
+    const pingGatewayHttpUrl = (process.env.MCP_PINGGATEWAY_URL
+      || routingConfig.getEffective('mcp_pinggateway_url') || '').replace(/\/$/, '');
+    const nodeGatewayHttpUrl = (process.env.MCP_DEMO_GATEWAY_URL
+      || routingConfig.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
+    const gatewayHttpUrl = useGateway
+      ? (isNodeGatewayOnlyTool(tool)
+        ? nodeGatewayHttpUrl
+        : pingGatewayHttpUrl)
+      : configuredGatewayHttpUrl;
     // useGateway hoisted above the authorize-gate block — see declaration near
     // the top of the function.
     const mcpUrl = deps.config.mcpUrl;
@@ -990,7 +1002,7 @@ async function runMcpToolPipeline(ctx) {
         // answers with 401 + WWW-Authenticate, then the authorized one below.
         // Gateway path only — direct mode has no HTTP MCP endpoint to challenge.
         // Evidence only: probeMcpChallenge never throws and its result is unused.
-        if (useGateway) {
+        if (useGateway && gatewayHttpUrl) {
             const challengeProbe = await require('./mcpChallengeProbe').probeMcpChallenge(req, {
                 method: 'tools/call',
                 phase: 'tools/call',

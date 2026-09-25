@@ -197,6 +197,7 @@ describe('resolveMcpAccessTokenWithEvents — PingFederate standard exchange aud
       pf_standard_token_exchange_client_id: 'pf-standard-client',
       pf_standard_token_exchange_client_secret: 'pf-standard-secret',
       pf_standard_token_exchange_token_endpoint_auth_method: 'basic',
+      pf_token_endpoint: 'https://pf.example.test/as/token.oauth2',
       pf_standard_token_exchange_actor_scope: 'agent:invoke',
       pf_ai_agent_actor_client_id: 'pf-agent-actor',
       pf_ai_agent_actor_client_secret: 'pf-actor-secret',
@@ -216,7 +217,7 @@ describe('resolveMcpAccessTokenWithEvents — PingFederate standard exchange aud
       }
       return Promise.resolve(makeJwt({
         sub: USER_SUB,
-        aud: 'mcpserver.ping.demo',
+        aud: audience,
         scope: scopes.join(' '),
         act: { sub: actorClaims.sub, act: { sub: 'pf-agent-actor' } },
       }));
@@ -263,6 +264,25 @@ describe('resolveMcpAccessTokenWithEvents — PingFederate standard exchange aud
       expect.objectContaining({ omitAudience: true })
     );
     expect(result.tokenEvents.find((event) => event.id === 'two-ex-final-token')?.audExpected).toBe('mcpserver.ping.demo');
+  });
+
+  it('requests the PingGateway audience for regular PF vertical calls', async () => {
+    const pingGatewayAud = 'https://api.ping.demo:3036/mcp';
+    const originalGetEffective = configStore.getEffective.getMockImplementation();
+    configStore.getEffective.mockImplementation((key) => ({
+      pingone_resource_pinggateway_uri: pingGatewayAud,
+      ff_mcp_gateway_pinggateway: 'false',
+    })[key] || originalGetEffective(key));
+
+    const result = await resolveMcpAccessTokenWithEvents(
+      makeReq(sampleJwtUserAccessToken), 'get_airline_bookings', { forcePingGatewayAudience: true }
+    );
+
+    expect(mockPerformTokenExchangeAs).toHaveBeenNthCalledWith(
+      2, expect.any(String), sampleJwtPfMcpActorToken, 'pf-standard-client', 'pf-standard-secret',
+      [pingGatewayAud], expect.any(Array), 'basic', expect.objectContaining({ omitAudience: true })
+    );
+    expect(result.tokenEvents.find((event) => event.id === 'two-ex-final-token')?.audExpected).toBe(pingGatewayAud);
   });
 });
 
@@ -1074,6 +1094,17 @@ const finalMcpJwt = makeJwt({
   exp: Math.floor(Date.now() / 1000) + 3600,
 });
 
+const finalPingGatewayJwt = makeJwt({
+  sub: USER_SUB,
+  aud: 'https://api.ping.demo:3036/mcp',
+  scope: 'gateway:mcp:invoke',
+  act: {
+    sub: MCP_EXCHANGER_CLIENT,
+    act: { sub: AI_AGENT_CLIENT },
+  },
+  exp: Math.floor(Date.now() / 1000) + 3600,
+});
+
 // ---------------------------------------------------------------------------
 // resolveMcpAccessTokenWithEvents — 2-exchange delegation
 // ---------------------------------------------------------------------------
@@ -1208,6 +1239,32 @@ describe('resolveMcpAccessTokenWithEvents — 2-exchange delegation (ff_two_exch
       // Passed as array so PingOne uses resource= (not audience=) and actually mints the aud
       expect(exchange2Audience).toEqual([TWO_EX_MCP_RESOURCE]);
       expect(exchange2Scopes).toEqual(['server:mcp:invoke']);
+    });
+  });
+
+  describe('forcePingGatewayAudience for ordinary gateway calls', () => {
+    it('exchanges a regular call for PingGateway even when the runtime routing flag is off', async () => {
+      const pingGatewayAud = 'https://api.ping.demo:3036/mcp';
+      configStore.getEffective.mockImplementation((key) => {
+        if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri') return TWO_EX_MCP_RESOURCE;
+        if (key === 'ff_two_exchange_delegation') return 'true';
+        if (key === 'ff_mcp_gateway_pinggateway') return 'false';
+        if (key === 'pingone_resource_pinggateway_uri') return pingGatewayAud;
+        return null;
+      });
+      mockPerformTokenExchangeAs.mockReset()
+        .mockResolvedValueOnce(agentExchangedJwt)
+        .mockResolvedValueOnce(finalPingGatewayJwt);
+
+      const { token } = await resolveMcpAccessTokenWithEvents(
+        makeReq2ex(sampleJwtUserAccessToken),
+        'get_airline_bookings',
+        { forcePingGatewayAudience: true },
+      );
+
+      expect(token).toBe(finalPingGatewayJwt);
+      expect(mockPerformTokenExchangeAs.mock.calls[1][4]).toEqual([pingGatewayAud]);
+      expect(mockPerformTokenExchangeAs.mock.calls[1][5]).toEqual(['gateway:mcp:invoke']);
     });
   });
 

@@ -107,17 +107,24 @@ minimal diff.
 
 ---
 
-### 2026-09-24 — MCP gateway routing follows the exchanged token audience
+### 2026-09-25 — MCP gateway destination and token audience are resolved independently
 
-`demo_api_server/services/mcpGatewayClient.js` routes ordinary MCP calls to the
-configured PingGateway or Node gateway when the bearer token's `aud` matches
-exactly one of their canonical resource URIs. This prevents an otherwise
-permitted delegated token from reaching the other gateway and failing during
-that gateway's downstream token exchange. Existing A2A/ID-JAG pins and
-Node-only tool routes remain authoritative; ambiguous or unconfigured
-audiences retain the resolved route. Guarded by
-`demo_api_server/src/__tests__/mcpGatewayClient.pinnedAudience.test.js` and
-`demo_api_server/src/__tests__/mcpGatewayClient.a2aPin.test.js`.
+Regular vertical tools always dispatch to the real PingGateway and the BFF
+exchanges for the configured PingGateway audience first. A Node-audienced token
+must never cause a regular tool to be redirected to the local/mock Node gateway;
+the BFF requests the correct PingGateway token, and the client fails closed if a
+Node-audienced token is presented or the PingGateway HTTP destination is absent.
+Only explicit Node-only tools (`user_profile_card`, `demo_show_accounts`, and
+`demo_show_transactions`) and explicit A2A/ID-JAG token flows dispatch to the
+Node gateway. PingGateway's trusted BFF decision headers follow the actual
+destination, independent of the legacy routing flag; API-key routes use their
+own configured audience for error classification. Direct MCP callers retain
+their direct audience. Guarded by
+`demo_api_server/src/__tests__/mcpGatewayRoutingPolicy.test.js`,
+`demo_api_server/src/__tests__/mcpGatewayClient.pinnedAudience.test.js`,
+`demo_api_server/src/__tests__/mcpGatewayClient.a2aPin.test.js`, and the focused
+PingOne/PingFederate audience tests in
+`demo_api_server/src/__tests__/agentMcpTokenService.test.js`.
 
 ### 2026-09-19 — Hosted demo exposed the full browser surface without an employee-domain perimeter
 

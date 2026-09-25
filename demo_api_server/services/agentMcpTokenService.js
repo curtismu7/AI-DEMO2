@@ -64,6 +64,21 @@ const APIKEY_TOOLS = new Set([
     'show_work_order',
     'show_investment',
 ]);
+
+function configuredPingGatewayAudience(tool) {
+  if (APIKEY_TOOLS.has(tool)) {
+    return firstHttpResourceUri(process.env.PINGONE_RESOURCE_MCP_APIKEY_URI)
+      || firstHttpResourceUri(configStore.getEffective('pingone_resource_mcp_apikey_uri'));
+  }
+  return firstHttpResourceUri(process.env.PINGONE_RESOURCE_PINGGATEWAY_URI)
+    || firstHttpResourceUri(configStore.getEffective('pingone_resource_pinggateway_uri'));
+}
+
+function configuredNodeGatewayAudience() {
+  const value = process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI
+    || configStore.getEffective('pingone_resource_mcp_gateway_uri');
+  return value ? String(value).split(',').map((part) => part.trim()).find(Boolean) || '' : '';
+}
 const { writeMcpTrafficEntry } = require('./mcpTrafficLogger');
 const { trackTokenEvent } = require('./tokenChainService');
 const { trackToken } = require('./apiCallTrackerService');
@@ -1742,9 +1757,24 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   if (pfExchangeMode === 'standard') {
     const pfConfig = pfStandardTokenExchangeService.resolveConfig();
     let expectedFinalAudience = mcpResourceUri;
-    if (!opts.forceDirectMcpAudience) try {
+    if (opts.forcePingGatewayAudience && !opts.forceDirectMcpAudience) {
+      expectedFinalAudience = configuredPingGatewayAudience(tool);
+    } else if (opts.forceNodeGatewayAudience) {
+      expectedFinalAudience = configuredNodeGatewayAudience();
+    } else if (!opts.forceDirectMcpAudience) try {
       expectedFinalAudience = require('./mcpToolAuthorizationService').resolveExpectedMcpResourceUri() || mcpResourceUri;
     } catch { /* use configured MCP resource audience when the resolver is unavailable */ }
+
+    if (((opts.forcePingGatewayAudience && !opts.forceDirectMcpAudience) || opts.forceNodeGatewayAudience) && !expectedFinalAudience) {
+      throwTokenResolutionError(
+        tokenEvents,
+        'gateway_audience_not_configured',
+        opts.forcePingGatewayAudience
+          ? `PingGateway audience is not configured for tool ${tool}.`
+          : `Node gateway audience is not configured for tool ${tool}.`,
+        503,
+      );
+    }
 
     return await _performTwoExchangeDelegation(
       tokenEvents, userToken, finalScopes, userSub, toolTrigger, mcpResourceUri, req,
@@ -1758,7 +1788,10 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   const sessionExchangeMode = req && req.session ? req.session.mcpExchangeMode : undefined;
   // Workload Agents promise a cryptographic act identity, so they cannot use
   // the debug single-exchange path even if the user's session selected it.
-  const ffTwoExchange = !!req?.workloadAgentRuntime || sessionExchangeMode !== 'single';
+  const ffTwoExchange = !!req?.workloadAgentRuntime
+    || opts.forcePingGatewayAudience === true
+    || opts.forceNodeGatewayAudience === true
+    || sessionExchangeMode !== 'single';
   if (ffTwoExchange) {
     return await _performTwoExchangeDelegation(
       tokenEvents, userToken, finalScopes, userSub, toolTrigger, mcpResourceUri, req, { ...opts, tool }
@@ -2412,7 +2445,25 @@ let _warnedInsecureProbe = false;
  * @param {string} mcpServerAud - Bypass/direct audience (mcp-server URI)
  * @returns {Promise<string>}
  */
-async function _resolveFinalMcpAudience(gatewayAud, mcpServerAud) {
+async function _resolveFinalMcpAudience(gatewayAud, mcpServerAud, opts = {}) {
+  if (opts.forcePingGatewayAudience && !opts.forceDirectMcpAudience) {
+    const audience = configuredPingGatewayAudience(opts.tool);
+    if (!audience) {
+      throw Object.assign(new Error(`PingGateway audience is not configured for tool ${opts.tool || '(unknown)'}`), {
+        code: 'PINGGATEWAY_AUDIENCE_NOT_CONFIGURED',
+      });
+    }
+    return audience;
+  }
+  if (opts.forceNodeGatewayAudience && !opts.forceDirectMcpAudience) {
+    const audience = configuredNodeGatewayAudience();
+    if (!audience) {
+      throw Object.assign(new Error(`Node gateway audience is not configured for tool ${opts.tool || '(unknown)'}`), {
+        code: 'NODE_GATEWAY_AUDIENCE_NOT_CONFIGURED',
+      });
+    }
+    return audience;
+  }
   // Direct mode: gateway not configured — always use mcp-server aud.
   // Use configStore.get() (not getEffective) so a FIELD_DEFS default doesn't
   // falsely trigger gateway mode when the gateway isn't deployed.
@@ -2543,7 +2594,7 @@ async function _performTwoExchangeDelegation(
     ? (provider ? mcpResourceUri : mcpServerAudForFallback)
     : provider
       ? opts.expectedFinalAudience
-      : await _resolveFinalMcpAudience(configResult.audiences.finalAud, mcpServerAudForFallback);
+      : await _resolveFinalMcpAudience(configResult.audiences.finalAud, mcpServerAudForFallback, opts);
   const aiAgentClientSecret   = provider ? providerConfig.agentActorClientSecret : agentRuntime?.clientSecret || configStore.getEffective('pingone_ai_agent_client_secret') || process.env.PINGONE_AI_AGENT_CLIENT_SECRET || process.env.AI_AGENT_CLIENT_SECRET;
   const mcpExchangerSecret    = provider ? providerConfig.mcpActorClientSecret : configStore.getEffective('pingone_mcp_token_exchanger_client_secret');
   // ARCHITECTURE TRUTH: all PingOne client connections use client_secret_post.
@@ -2815,7 +2866,9 @@ async function _performTwoExchangeDelegation(
   // routes through PingGateway regardless of this flag) set this to skip the
   // gateway-audience override below and fall through to twoExFinalAud, which
   // already resolves correctly for direct/bypass mode.
-  const routeViaPingGateway = !opts.forceDirectMcpAudience && configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true';
+  const routeViaPingGateway = !opts.forceDirectMcpAudience
+    && !opts.forceNodeGatewayAudience
+    && (opts.forcePingGatewayAudience || configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true');
   const usePingGatewayForExchange = routeViaPingGateway;
   const pingGatewayUriAud =
     firstHttpResourceUri(process.env.PINGONE_RESOURCE_PINGGATEWAY_URI) ||

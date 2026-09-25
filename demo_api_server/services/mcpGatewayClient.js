@@ -28,6 +28,7 @@ const configStore = require('./configStore');
 const { decodeJwt } = require('../utils/tokenUtils');
 const { getCorrelationId } = require('../utils/correlationContext');
 const nrSegments = require('./nrSegments');
+const { isNodeGatewayOnlyTool } = require('./mcpGatewayRoutingPolicy');
 
 // TLS cert validation is ON by default. Opt out only for local dev.
 // Refusing opt-out in production prevents MITM exfil of bearer tokens.
@@ -92,13 +93,6 @@ const APIKEY_TOOLS = new Set([
 // gateway only. PingGateway has no dualtoken/bankingdata routes yet — when
 // ff_mcp_gateway_pinggateway is ON, still send these tools to the Node gateway
 // so they do not fall through to the OLB exchange path ("Unknown tool").
-const DUALTOKEN_TOOLS = new Set([
-    'user_profile_card',
-]);
-const BANKINGDATA_TOOLS = new Set([
-    'demo_show_accounts',
-    'demo_show_transactions',
-]);
 
 // weather-mcp showcase: fronted by PingGateway's 00-mcp-weather.json (a
 // third-party weather MCP server, scoped to Texas by tx-weather-scope.groovy)
@@ -142,11 +136,17 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // to the dedicated /mcp/apikey route (vault-key credential mediation); every
     // other tool (and the Node gateway) uses /mcp.
     const pgUrl = (process.env.MCP_PINGGATEWAY_URL || configStore.getEffective('mcp_pinggateway_url') || '').replace(/\/$/, '');
-    // Path B/C are Node-gateway-only: if the caller resolved PingGateway as the
-    // default base but the tool is dual_token or bankingdata, force Node URL.
-    if ((DUALTOKEN_TOOLS.has(tool) || BANKINGDATA_TOOLS.has(tool)) && pgUrl && base === pgUrl) {
-        const nodeUrl = (process.env.MCP_GATEWAY_HTTP_URL || configStore.getEffective('mcp_gateway_http_url') || '').replace(/\/$/, '');
-        if (nodeUrl) base = nodeUrl;
+    // Explicit Node-only tools always use the Node gateway, regardless of the
+    // caller's default base. They must not leak to PingGateway when Node is down.
+    if (isNodeGatewayOnlyTool(tool)) {
+        const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
+        if (!nodeUrl) {
+            const err = new Error(`Node gateway is required for Node-only MCP tool ${tool}, but its HTTP URL is not configured.`);
+            err.code = 'GATEWAY_UNREACHABLE';
+            err.httpStatus = 503;
+            throw err;
+        }
+        base = nodeUrl;
     }
     // Set by a pin below to the audience that CAUSED the redirect. A pin only
     // fires when the bearer's `aud` already contains that value, so it is by
@@ -155,6 +155,18 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // otherwise judge a pinned bearer against the audience of the gateway it was
     // deliberately routed away from.
     let pinnedAud = null;
+    if (isNodeGatewayOnlyTool(tool)) {
+        const claims = decodeJwt(bearerToken)?.claims;
+        const audList = Array.isArray(claims?.aud) ? claims.aud.map(String)
+            : (claims?.aud != null ? [String(claims.aud)] : []);
+        const nodeAcceptedAudiences = [
+            process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI || configStore.getEffective('pingone_resource_mcp_gateway_uri'),
+            process.env.MCP_GW_RESOURCE_URI || configStore.getEffective('mcp_gw_resource_uri'),
+            process.env.A2A_GATEWAY_AUDIENCE || configStore.getEffective('a2a_gateway_audience'),
+            process.env.PINGONE_RESOURCE_MCP_SERVER_URI || configStore.getEffective('pingone_resource_mcp_server_uri'),
+        ].filter(Boolean).flatMap((value) => String(value).split(',').map((part) => part.trim()).filter(Boolean));
+        pinnedAud = audList.find((audience) => nodeAcceptedAudiences.includes(audience)) || null;
+    }
     // A2A nested-act tokens are audienced to the DEDICATED A2A gateway resource
     // (a2a_gateway_audience / A2A_GATEWAY_AUDIENCE), which only the Node Demo
     // Agent Gateway accepts (comma-list MCP_GW_RESOURCE_URI). PingGateway (IG)
@@ -174,10 +186,14 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             if (audList.includes(a2aAud)) {
                 const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL
                     || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
-                // Only when the redirect actually happens: an empty nodeUrl leaves
-                // base on PingGateway, and then PingGateway's audience is still the
-                // right one to judge against.
-                if (nodeUrl) { base = nodeUrl; pinnedAud = a2aAud; }
+                if (!nodeUrl) {
+                    const err = new Error('A2A MCP calls require the Node gateway, but its HTTP URL is not configured.');
+                    err.code = 'GATEWAY_UNREACHABLE';
+                    err.httpStatus = 503;
+                    throw err;
+                }
+                base = nodeUrl;
+                pinnedAud = a2aAud;
             }
         }
     }
@@ -201,38 +217,51 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             if (audList.includes(olbAud)) {
                 const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL
                     || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
-                // Same as A2A above: record the audience only if we really moved.
-                if (nodeUrl) { base = nodeUrl; pinnedAud = olbAud; }
+                if (!nodeUrl) {
+                    const err = new Error('Native ID-JAG MCP calls require the Node gateway, but its HTTP URL is not configured.');
+                    err.code = 'GATEWAY_UNREACHABLE';
+                    err.httpStatus = 503;
+                    throw err;
+                }
+                base = nodeUrl;
+                pinnedAud = olbAud;
             }
         }
     }
-    // The exchanged bearer is authoritative for the resource server it may
-    // reach. Routing mode can be stale (for example, a PG-audienced token sent
-    // to Node after a runtime mode switch), which causes the selected gateway
-    // to attempt a second exchange against the wrong resource and fail with
-    // invalid_scope. Keep explicitly Node-only tools and the A2A/ID-JAG pins
-    // above unchanged; for ordinary tools, route only when the token matches
-    // exactly one configured gateway audience.
-    if (!pinnedAud && !DUALTOKEN_TOOLS.has(tool) && !BANKINGDATA_TOOLS.has(tool)) {
+    // Regular vertical calls always go to PingGateway. The pipeline obtains a
+    // matching token before dispatch; this final guard prevents a stale
+    // Node-audienced token from being sent to the local mock gateway. A2A and
+    // ID-JAG pins above and explicitly Node-only tools remain exceptions.
+    if (!pinnedAud && !isNodeGatewayOnlyTool(tool)) {
         const claims = decodeJwt(bearerToken)?.claims;
         const audList = Array.isArray(claims?.aud) ? claims.aud.map(String)
             : (claims?.aud != null ? [String(claims.aud)] : []);
-        const pingGatewayAud = process.env.PINGONE_RESOURCE_PINGGATEWAY_URI
-            || configStore.getEffective('pingone_resource_pinggateway_uri') || '';
-        const nodeGatewayAud = process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI
-            || configStore.getEffective('pingone_resource_mcp_gateway_uri') || '';
+        const configuredPingAud = APIKEY_TOOLS.has(tool)
+            ? (process.env.PINGONE_RESOURCE_MCP_APIKEY_URI || configStore.getEffective('pingone_resource_mcp_apikey_uri'))
+            : (process.env.PINGONE_RESOURCE_PINGGATEWAY_URI || configStore.getEffective('pingone_resource_pinggateway_uri'));
+        const pingGatewayAud = String(configuredPingAud || '').split(',').map((part) => part.trim()).find(Boolean) || '';
+        const nodeGatewayAuds = String(process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI
+            || configStore.getEffective('pingone_resource_mcp_gateway_uri') || '').split(',').map((part) => part.trim()).filter(Boolean);
         const hasPingGatewayAud = !!pingGatewayAud && audList.includes(pingGatewayAud);
-        const hasNodeGatewayAud = !!nodeGatewayAud && audList.includes(nodeGatewayAud);
+        const hasNodeGatewayAud = nodeGatewayAuds.some((audience) => audList.includes(audience));
 
-        // An ambiguous multi-audience token does not select a route. Keep the
-        // resolved base unless exactly one configured gateway audience matches.
-        if (hasPingGatewayAud && !hasNodeGatewayAud && pgUrl && base !== pgUrl) {
+        if (hasNodeGatewayAud && !hasPingGatewayAud) {
+            const err = new Error(
+                `Regular MCP tool ${tool} requires a PingGateway-audienced token; ` +
+                'the BFF must exchange for the PingGateway resource before dispatch.'
+            );
+            err.code = 'GATEWAY_AUDIENCE_MISMATCH';
+            err.httpStatus = 401;
+            throw err;
+        }
+        if (pgUrl) {
             base = pgUrl;
-            pinnedAud = pingGatewayAud;
-        } else if (hasNodeGatewayAud && !hasPingGatewayAud && base === pgUrl) {
-            const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL
-                || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
-            if (nodeUrl) { base = nodeUrl; pinnedAud = nodeGatewayAud; }
+            if (pingGatewayAud) pinnedAud = pingGatewayAud;
+        } else {
+            const err = new Error('PingGateway is selected for regular MCP calls but its HTTP URL is not configured.');
+            err.code = 'GATEWAY_UNREACHABLE';
+            err.httpStatus = 503;
+            throw err;
         }
     }
     const isIgBase = !!pgUrl && base === pgUrl;
@@ -409,12 +438,12 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
         console.log('[GW→PingGateway] CONFUSED-DEPUTY DEMO: overriding X-Act-Client-Id with rogue actor=%s (forcing over native act)', opts.testActClientId);
     }
 
-    // When routing through PingGateway (IG), tell it which authorize backend to use,
+    // When the effective destination is PingGateway (IG), tell it which authorize backend to use,
     // mirroring the inverse of the BFF's ff_authorize_real (live-switchable mock demo_authz_server
     // vs real PingOne Authorize). PingGateway's Groovy decision filter reads this header
     // per-request; the Node gateway never sees it (header added only on the PG path), so
     // the Node-gateway request shape is unchanged.
-    if (configStore.getEffective('ff_mcp_gateway_pinggateway') === 'true') {
+    if (isIgBase) {
         // Prove this is the trusted BFF caller so PingGateway's decision filter honors
         // the delegation signals below (X-Authz-Simulated) and the bridged actor
         // (X-Act-Client-Id / X-May-Act-Sub added above). Without a valid secret the IG

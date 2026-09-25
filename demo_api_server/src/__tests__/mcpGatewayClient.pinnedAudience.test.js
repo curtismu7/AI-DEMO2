@@ -60,7 +60,7 @@ const jwtWithAud = (aud) =>
 const ENV_KEYS = [
   'MCP_PINGGATEWAY_URL', 'MCP_DEMO_GATEWAY_URL', 'PINGONE_RESOURCE_MCP_SERVER_URI',
   'A2A_GATEWAY_AUDIENCE', 'PINGONE_RESOURCE_MCP_GATEWAY_URI', 'MCP_GW_RESOURCE_URI',
-  'PINGONE_RESOURCE_PINGGATEWAY_URI',
+  'PINGONE_RESOURCE_PINGGATEWAY_URI', 'PINGONE_RESOURCE_MCP_APIKEY_URI',
 ];
 let saved;
 
@@ -98,15 +98,63 @@ describe('expected audience follows the pin, not the routing mode', () => {
     expect(axios.post.mock.calls[0][0]).toBe(`${PG_URL}/mcp`);
   });
 
-  it('routes a Node-gateway-audienced bearer to Node when PingGateway was selected', async () => {
-    await callWith(jwtWithAud(NODE_AUD)).catch(() => {});
+  it('refuses to send a regular Node-audienced bearer to the mock Node gateway', async () => {
+    const err = await callWith(jwtWithAud(NODE_AUD)).catch((e) => e);
+    expect(err.code).toBe('GATEWAY_AUDIENCE_MISMATCH');
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+
+  it('sends explicitly Node-only tools to the Node gateway with a Node-audienced token', async () => {
+    const err = await callToolViaGateway(PG_URL, jwtWithAud(NODE_AUD), 'demo_show_accounts', {}, {}).catch((e) => e);
     expect(axios.post.mock.calls[0][0]).toBe(`${NODE_URL}/mcp`);
+    expect(err.code).toBe('GATEWAY_TOKEN_REJECTED');
+  });
+
+  it('fails closed when an explicitly Node-only tool has no Node gateway URL', async () => {
+    delete process.env.MCP_DEMO_GATEWAY_URL;
+    const err = await callToolViaGateway(PG_URL, jwtWithAud(NODE_AUD), 'demo_show_accounts', {}, {}).catch((e) => e);
+    expect(err.code).toBe('GATEWAY_UNREACHABLE');
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when PingGateway has no configured HTTP destination', async () => {
+    delete process.env.MCP_PINGGATEWAY_URL;
+    const err = await callToolViaGateway(NODE_URL, jwtWithAud(PINGGATEWAY_AUD), 'get_airline_bookings', {}, {}).catch((e) => e);
+    expect(err.code).toBe('GATEWAY_UNREACHABLE');
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+
+  it('sends trusted decision headers to PingGateway even when its legacy route flag is off', async () => {
+    mockConfig.ff_mcp_gateway_pinggateway = 'false';
+    mockConfig.ff_authorize_real = 'false';
+    mockConfig.bff_internal_secret = 'test-bff-secret';
+    await callWith(jwtWithAud(PINGGATEWAY_AUD)).catch(() => {});
+
+    const [, , request] = axios.post.mock.calls[0];
+    expect(request.headers['x-internal-gateway-secret']).toBe('test-bff-secret');
+    expect(request.headers['X-Authz-Simulated']).toBe('true');
+    expect(request.headers['X-Token-Validation']).toBe('introspect');
+  });
+
+  it('classifies an API-key PingGateway token against the API-key resource', async () => {
+    const apiKeyAud = 'https://api.ping.demo:3036/mcp/apikey';
+    process.env.PINGONE_RESOURCE_MCP_APIKEY_URI = apiKeyAud;
+    const err = await callToolViaGateway(PG_URL, jwtWithAud(apiKeyAud), 'show_mortgage', {}, {}).catch((e) => e);
+    expect(axios.post.mock.calls[0][0]).toBe(`${PG_URL}/mcp/apikey`);
+    expect(err.code).toBe('GATEWAY_TOKEN_REJECTED');
   });
 
   it('sends a pinned native ID-JAG bearer to the Node gateway, not PingGateway', async () => {
     await callWith(jwtWithAud(OLB_AUD)).catch(() => {});
     expect(axios.post).toHaveBeenCalled();
     expect(axios.post.mock.calls[0][0]).toBe(`${NODE_URL}/mcp`);
+  });
+
+  it('fails closed for native ID-JAG when the required Node gateway URL is absent', async () => {
+    delete process.env.MCP_DEMO_GATEWAY_URL;
+    const err = await callWith(jwtWithAud(OLB_AUD)).catch((e) => e);
+    expect(err.code).toBe('GATEWAY_UNREACHABLE');
+    expect(axios.post).not.toHaveBeenCalled();
   });
 
   // The regression: this used to be GATEWAY_AUDIENCE_MISMATCH against PingGateway.
@@ -126,6 +174,13 @@ describe('expected audience follows the pin, not the routing mode', () => {
     expect(err.message).not.toContain(PINGGATEWAY_AUD);
   });
 
+  it('fails closed for A2A when the required Node gateway URL is absent', async () => {
+    delete process.env.MCP_DEMO_GATEWAY_URL;
+    const err = await callWith(jwtWithAud(A2A_AUD)).catch((e) => e);
+    expect(err.code).toBe('GATEWAY_UNREACHABLE');
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+
   // Not pinned: the mode's audience is still the right thing to judge against,
   // so the existing PingGateway behaviour must be untouched.
   it('still reports a genuine mismatch for an UNPINNED bearer on the PingGateway path', async () => {
@@ -134,13 +189,4 @@ describe('expected audience follows the pin, not the routing mode', () => {
     expect(err.message).toContain(PINGGATEWAY_AUD);
   });
 
-  // The silent no-op case: with no Node URL the pin cannot move `base`, so the
-  // request really does go to PingGateway and PingGateway's audience applies.
-  it('keeps the mode audience when the pin could not move the request', async () => {
-    delete process.env.MCP_DEMO_GATEWAY_URL;
-    mockConfig.mcp_demo_gateway_url = '';
-    const err = await callWith(jwtWithAud(OLB_AUD)).catch((e) => e);
-    expect(axios.post.mock.calls[0][0]).toBe(`${PG_URL}/mcp`);
-    expect(err.code).toBe('GATEWAY_AUDIENCE_MISMATCH');
-  });
 });
