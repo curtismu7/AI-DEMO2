@@ -1013,8 +1013,53 @@ flowchart LR
       <div class="source"><a href="../demo_api_ui/src/hooks/useAgentRun.js">UI AG-UI stream</a><a href="../demo_api_server/routes/agentRun.js">BFF run route</a><a href="../demo_api_server/routes/agentTool.js">Internal tool route</a><a href="../demo_api_server/services/agentMcpTokenService.js">Token exchange</a></div>
     </section>
 
+        <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>39 / Delegated AI flow · every hop</div>
+      <p class="eyebrow">User-agent prompt to tool result · sequence across all servers</p><h2>Delegation in one sequence: user, agent, BFF, identity, policy, consent, tool.</h2>
+      <pre class="mermaid" id="deleg-mermaid">
+sequenceDiagram
+  autonumber
+  actor U as User (browser ui :4000)
+  participant BFF as BFF demo-api-server :3001
+  participant ID as PingOne (OAuth · MFA)
+  participant A as langchain-agent :8888
+  participant LLM as llm-proxy :8090
+  participant GW as ping-gateway :3036
+  participant HITL as hitl-service :3009
+  participant MCP as mcp-server :8080 / api-resource-server :8082
+  participant AUD as mcp-audit :8898 · jaeger
+
+  U->>BFF: prompt + session cookie (no tokens in page)
+  BFF->>ID: session check / OIDC tokens (held server-side)
+  BFF->>A: POST /run (AG-UI, SSE open)
+  A->>LLM: interpret open text (heuristics skip this)
+  A-->>BFF: tool request via /internal/agent-tool callback
+  BFF->>ID: RFC 8693 exchange → audience + scope-narrowed tool token
+  BFF->>GW: tool call with exchanged token
+  GW->>GW: P1AZ policy decision: permit · challenge · deny
+  alt write above threshold
+    GW->>HITL: consent required
+    HITL-->>U: approve / reject (step-up MFA via PingOne)
+    HITL-->>GW: approval recorded
+  end
+  GW->>MCP: authorized MCP / REST call
+  MCP-->>GW: result
+  MCP->>AUD: tool event · trace
+  GW-->>BFF: authorized response
+  BFF-->>A: tool result
+  A-->>U: answer + token-chain evidence (SSE)
+      </pre>
+      <div class="ai-flow-band">
+        <span><b>Delegation points:</b> the user token never reaches the agent or the tool — the BFF exchanges it (8693) and PingGateway enforces the narrowed grant.</span>
+        <span><b>Consent is in-band:</b> HITL pauses the gateway path for human approval, with PingOne step-up MFA, before the write proceeds.</span>
+        <span><b>Every hop is evidenced:</b> token-chain events, mcp-audit tool events and jaeger traces are collected across the run.</span>
+      </div>
+      <div class="source"><a href="../demo_api_server/routes/agentRun.js">BFF run route</a><a href="../demo_api_server/routes/agentTool.js">Internal tool route</a><a href="../demo_api_server/services/agentMcpTokenService.js">RFC 8693 exchange</a><a href="../docs/architecture-token-flow.mmd">Token-flow source</a></div>
+    </section>
+
+
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>39 / Technical choices visible in code</div>
+      <div class="brand"><span class="brand-mark"></span>40 / Technical choices visible in code</div>
       <p class="eyebrow">Why the pieces have these boundaries</p><h2>The implementation favors inspectable identity decisions and swappable demos.</h2>
       <div class="decision-grid">
         <div class="decision"><b>Tokens stay with the BFF</b><span>Browser gets a session cookie; the server performs exchange and tool authorization. This keeps provider credentials and user tokens out of model-facing code.</span></div>
