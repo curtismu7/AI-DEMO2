@@ -199,21 +199,22 @@
     .srv-table .st > span:nth-child(3) { color: var(--muted); font-size: 15px; }
     .srv-table .th > span { background: #e8edf4; color: var(--navy); font-weight: 750; font-size: 17px; }
     .srv-table .core > span:first-child { background: var(--red-soft); }
-    .flow-diagram { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-evenly; gap: 4px; }
-    .fd-row { display: flex; gap: 8px; align-items: stretch; }
-    .fd-label { writing-mode: vertical-rl; transform: rotate(180deg); flex: 0 0 auto; color: var(--muted); font-size: 13px; font-weight: 750; text-transform: uppercase; letter-spacing: .05em; display: flex; align-items: center; justify-content: center; border-left: 3px solid var(--navy-2); padding: 4px 2px; }
-    .fd-box { flex: 1 1 0; min-width: 0; background: white; border: 1px solid var(--line); border-top: 3px solid var(--navy-2); padding: 7px 9px; display: flex; flex-direction: column; gap: 2px; position: relative; }
-    .fd-box b { color: var(--navy); font-size: 15px; line-height: 1.1; overflow-wrap: anywhere; }
-    .fd-box span { color: var(--muted); font-size: 12.5px; line-height: 1.2; }
+    .flow-diagram { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-evenly; gap: 6px; }
+    .fd-row { display: flex; gap: 8px; align-items: stretch; min-height: 64px; }
+    .fd-label { writing-mode: vertical-rl; transform: rotate(180deg); flex: 0 0 auto; color: var(--muted); font-size: 14px; font-weight: 750; text-transform: uppercase; letter-spacing: .05em; display: flex; align-items: center; justify-content: center; border-left: 3px solid var(--navy-2); padding: 4px 2px; }
+    .fd-box { flex: 1 1 0; min-width: 0; background: white; border: 1px solid var(--line); border-top: 3px solid var(--navy-2); padding: 8px 10px; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+    .fd-box b { color: var(--navy); font-size: 15px; line-height: 1.15; overflow-wrap: anywhere; }
+    .fd-box span { color: var(--muted); font-size: 12.5px; line-height: 1.25; }
     .fd-box.hot { border-top-color: var(--red); }
     .fd-box.ext { border-top-color: #8fa2bb; background: #eef2f7; }
-    .fd-arrows { display: flex; justify-content: center; gap: 40px; padding: 0 0 0 22px; }
-    .fd-a { position: relative; color: var(--red); font-size: 13px; font-weight: 700; padding: 0 26px; line-height: 1.3; }
+    .fd-arrows { display: flex; justify-content: center; gap: 48px; padding: 0 0 0 22px; min-height: 20px; align-items: center; }
+    .fd-a { position: relative; color: var(--red); font-size: 12.5px; font-weight: 700; padding: 0 26px; line-height: 1.2; white-space: nowrap; }
     .fd-a::before, .fd-a::after { content: ""; position: absolute; background: var(--red); }
     .fd-a::before { left: 0; right: 0; top: 50%; height: 2px; }
-    .fd-a.r::after { right: 0; top: 50%; margin-top: -4px; border: 5px solid transparent; border-left-color: var(--red); }
-    .fd-a.l::after { left: 0; top: 50%; margin-top: -4px; border: 5px solid transparent; border-right-color: var(--red); }
-    .fd-a.up::after { content: "▲"; border: none; background: none; top: -10px; left: 50%; margin-left: -5px; font-size: 12px; }
+    .fd-a.r::after { right: 0; top: 50%; margin-top: -4px; border: 4.5px solid transparent; border-left-color: var(--red); }
+    .fd-a.l::after { left: 0; top: 50%; margin-top: -4.5px; border: 4.5px solid transparent; border-right-color: var(--red); }
+    .fd-a.up::before { display: none; }
+    .fd-a.up::after { content: "▼"; background: none; border: none; top: 0; left: 50%; margin-left: -6px; font-size: 13px; }
     .gateway-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.15fr); gap: 24px; }
     .gateway-layout .panel { min-height: 0; padding: 24px 27px; }
     .gateway-layout h3 { font-size: 32px; }
@@ -531,117 +532,61 @@
       <div class="brand"><span class="brand-mark"></span>12 / AI request flow</div>
       <p class="eyebrow">AI request flow</p><h2>Prompt in, answer out: 10 hops, user token never leaves the BFF.</h2>
       <pre class="mermaid" id="aif-mermaid">
-flowchart LR
-  %% Request path
-  B["Browser<br/>ui :4000<br/>session cookie only"]
-  BFF["BFF<br/>demo-api-server :3001<br/>session · heuristics · exchange"]
-  AG["LangChain agent :8888<br/>SSE · AG-UI"]
-  AG2["agent-service :3006<br/>banking / AG-UI"]
-  LLM["llm-proxy :8090<br/>model endpoint"]
-  GW["ping-gateway :3036<br/>default policy path"]
-  HITL["hitl-service :3009<br/>human approval"]
-  MCP["mcp-server :8080<br/>mcp-resource-server :8081<br/>api-resource-server :8082"]
-  B -- "prompt (no tokens)" --> BFF
-  BFF -- "AG-UI /run SSE" --> AG
-  AG -- "model calls" --> LLM
-  AG -- "tool callback /internal/agent-tool" --> BFF
-  BFF -- "exchanged token" --> GW
-  GW -- "write above threshold" --> HITL
-  GW -- "authorized call" --> MCP
-  HITL -- approved --> GW
-  MCP -- "result SSE" --> BFF
-  BFF -- "answer + token chain" --> B
-  AG2 -.-> BFF
-
-  %% Identity
-  subgraph ID["Identity"]
-    PING["PingOne<br/>OAuth · OIDC · MFA · Authorize"]
-    SECRETS["secrets.vault<br/>(dotenvx-encrypted,<br/>dotenvx in BFF)"]
+flowchart TD
+  subgraph L1["1 · Request"]
+    direction LR
+    B["Browser<br/>ui :4000"]
+    BFF["BFF<br/>demo-api-server :3001"]
   end
-  B -- "OIDC redirect" --> PING
-  BFF -- "RFC 8693 exchange" --> PING
-  BFF --- SECRETS
+  B -->|"prompt · session cookie only"| BFF
 
-  %% Alternate enforcement
-  subgraph ALT["Alternate enforcement · demo-auth"]
-    MGW["mcp-gateway :3005"]
-    AUTHZ["authz-server :9001"]
-    JWT["mcp-jwt-verifier :8083"]
-    MGW --- AUTHZ
-    MGW --- JWT
+  subgraph L2["2 · Identity and exchange"]
+    direction LR
+    PING["PingOne<br/>OAuth · OIDC · MFA"]
+    EX["RFC 8693 exchange<br/>audience + scope narrowed"]
   end
-  ALT -.-> GW
+  BFF --> PING
+  BFF --> EX
 
-  %% External tools
-  subgraph TOOLS["Third-party tools"]
-    WEATHER["mcp-weather :8896"]
-    BRAVE["mcp-brave :8897"]
+  subgraph L3["3 · Agent"]
+    direction LR
+    AG["langchain-agent :8888<br/>SSE"]
+    LLM["llm-proxy :8090"]
+    CB["tool callback<br/>/internal/agent-tool"]
   end
-  MCP -.-> TOOLS
+  BFF -->|"AG-UI /run"| AG
+  AG --> LLM
+  AG -->|"tool request"| CB
+  CB --> EX
 
-  %% Search & RAG
-  subgraph RAG["Search / RAG"]
-    TIKA["tika"]
-    CS["demo-mcp-code-search"]
-    LI["llamaindex-agent"]
-    EMB["embeddings + embed-models"]
-    WEAV["weaviate"]
-    TIKA --> CS
-    CS --- WEAV
-    LI --- WEAV
-    WEAV --- EMB
+  subgraph L4["4 · Enforcement and approval"]
+    direction LR
+    GW["ping-gateway :3036<br/>P1AZ policy"]
+    HITL["hitl-service :3009<br/>human approval"]
   end
+  EX --> GW
+  GW -.->|"write above threshold"| HITL
 
-  %% Observability
-  subgraph OBS["Observability"]
-    PROM["prometheus"]
-    GRAF["grafana"]
-    ALERT["alertmanager"]
-    ALLOY["alloy"]
-    LOKI["loki"]
-    JAEGER["jaeger :16686"]
-    PF["promptfoo-step-narration<br/>(eval sidecar)"]
-    PROM --> GRAF
-    PROM --> ALERT
-    ALLOY --> LOKI
+  subgraph L5["5 · Tools"]
+    direction LR
+    MCP["mcp-server :8080<br/>api-resource-server :8082"]
+    AUD["mcp-audit :8898"]
   end
-  BFF -. "metrics / logs / traces" .-> OBS
-  MCP -- "tool events" --> AUD["mcp-audit :8898"]
-  AG -.-> OBS
-  MCP -- "traces" --> JAEGER
+  GW -->|"authorized call"| MCP
+  MCP --> AUD
 
-  %% Discovery
-  DISC["mcp-discovery-agent"] -.-> BFF
+  MCP -->|"result"| GW
+  GW --> BFF
+  BFF -->|"answer + token chain"| B
 
-  %% Data
-  subgraph DATA["Data stores"]
-    LMDB["LMDB (in BFF)"]
-    REDIS["redis · optional"]
-    OS["opensearch"]
-    OSM["opensearch-mcp-server"]
-    OSM --- OS
-  end
-  MCP --- DATA
-
-  %% Workload identity
-  subgraph SPI["SPIFFE workload identity"]
-    SPIRE["spire-server<br/>spire-registration<br/>spire-agent"]
-    SHB["spiffe-helper-bff"]
-    SOIDC["spiffe-oidc-provider"]
-    SPIRE --- SHB
-    SPIRE --- SOIDC
-  end
-
-  %% Specialist
-  SPEC["ungoverned-agent<br/>(attack comparison)<br/>tier-manager-k8 (build)<br/>mcpgw-nginx → ping-mcpgw<br/>(Privilege gateway · opt)"]
-
-  classDef hot fill:#fce9e9,stroke:#d92732,color:#17243a;
-  classDef mid fill:#dce9f8,stroke:#1d3458,color:#17243a;
-  classDef opt fill:#eef2f7,stroke:#8fa2bb,color:#17243a;
-  class B,BFF,AG,GW,MCP hot
-  class PING,HITL,LLM,AUD,SECRETS mid
-  class TOOLS,RAG,OBS,SPI,SPEC,DISC,AG2 opt
-  class MGW,AUTHZ,JWT,WEATHER,BRAVE,TIKA,CS,LI,EMB,WEAV,PROM,GRAF,ALERT,ALLOY,LOKI,JAEGER,PF,LMDB,REDIS,OS,OSM,SPIRE,SHB,SOIDC,DISC,AG2 opt
+  classDef client fill:#fce9e9,stroke:#d92732,stroke-width:1.5px,color:#17243a
+  classDef core fill:#fce9e9,stroke:#d92732,stroke-width:1.5px,color:#17243a
+  classDef plane fill:#dce9f8,stroke:#1d3458,stroke-width:1.5px,color:#17243a
+  classDef support fill:#eef2f7,stroke:#8fa2bb,stroke-width:1.5px,color:#17243a
+  class B client
+  class BFF,AG,GW,MCP core
+  class PING,HITL,EX plane
+  class LLM,CB,AUD support
       </pre>
       <div class="ai-flow-band">
         <span><b>Red:</b> the browser-to-tool request path · <b>Blue:</b> identity and approval gates · <b>Grey:</b> optional/alternate services.</span>
@@ -654,30 +599,58 @@ flowchart LR
       <div class="brand"><span class="brand-mark"></span>13 / Privilege AI Gateway · flow</div>
       <p class="eyebrow">Privilege gateway flow</p><h2>One gateway, two MCP roles — policy applied between the sessions.</h2>
       <pre class="mermaid" id="priv-mermaid">
-flowchart LR
-  subgraph CLIENTSIDE["Client side · browser and BFF"]
-    UI["Browser UI<br/>/privilege-mcp-client<br/>drives BFF over HTTPS<br/>(never an MCP client)"]
-    BFF["BFF relay<br/>demo-api-server :3001<br/>/api/privilege-mcp/*<br/>THE MCP CLIENT"]
+flowchart TD
+  subgraph S1["Client side"]
+    direction LR
+    UI["Browser UI<br/>/privilege-mcp-client"]
+    BFF["BFF relay :3001<br/>the MCP client"]
   end
-  UI -- "HTTPS fetch · no MCP" --> BFF
-  BFF -- "user mode: OAuth code + PKCE<br/>simple mode: client-credentials" --> PING["PingOne<br/>token issuer"]
-  BFF -- "1 initialize<br/>2 tools/list<br/>3 tools/call" --> NGX["mcpgw-nginx<br/>front door · Host rewrite<br/>to Frontend Name"]
-  NGX --> GW["ping-mcpgw<br/>Privilege MCP Gateway<br/>per-app policy · JIT least privilege<br/>session recording"]
-  PING -. "policy + app registry" .-> GW
-  CTRL["Privilege console<br/>control plane<br/>applications · tools · policy"] -. "control plane" .-> GW
-  GW -- "second MCP session<br/>only permitted calls" --> UP["MCP servers (unchanged)<br/>demo-mcp-server :8080<br/>opensearch-mcp-server → opensearch<br/>PingOne Management MCP · Grafana MCP"]
-  GW -- "session records" --> REC["mcpgw-recordings"]
-  GW -- "logs" --> LOGS["mcpgw-logs"]
-  UP -- "response" --> GW
+  UI -->|"HTTPS · no MCP"| BFF
+
+  subgraph S2["Identity"]
+    direction LR
+    PING["PingOne<br/>token issuer"]
+  end
+  BFF -->|"user mode: code + PKCE<br/>simple mode: client-credentials"| PING
+
+  subgraph S3["Gateway"]
+    direction LR
+    NGX["mcpgw-nginx<br/>Host rewrite"]
+    GW["ping-mcpgw<br/>per-app policy · JIT<br/>session recording"]
+  end
+  BFF -->|"1 initialize<br/>2 tools/list<br/>3 tools/call"| NGX
+  NGX --> GW
+  PING -.->|"policy + apps"| GW
+
+  subgraph S3B["MCP servers · unchanged"]
+    direction LR
+    UP["demo-mcp-server :8080<br/>opensearch-mcp-server :9900<br/>PingOne Management · Grafana"]
+  end
+  GW -->|"only permitted calls"| UP
+
+  subgraph S5["Records"]
+    direction LR
+    REC["mcpgw-recordings"]
+    LOGS["mcpgw-logs"]
+  end
+  GW --> REC
+  GW --> LOGS
+
+  UP -->|"response"| GW
   GW --> NGX
   NGX --> BFF
-  BFF -- "SSE events: OAuth phases,<br/>relayed calls, upstream responses" --> UI
-  classDef hot fill:#fce9e9,stroke:#d92732,color:#17243a;
-  classDef mid fill:#dce9f8,stroke:#1d3458,color:#17243a;
-  classDef opt fill:#eef2f7,stroke:#8fa2bb,color:#17243a;
-  class UI,BFF,GW hot
-  class PING,CTRL,NGX mid
-  class UP,REC,LOGS opt
+  BFF -->|"SSE events"| UI
+
+  CTRL["Privilege console<br/>applications · tools · policy"]
+  CTRL -.->|"control plane"| GW
+
+  classDef client fill:#fce9e9,stroke:#d92732,stroke-width:1.5px,color:#17243a
+  classDef core fill:#fce9e9,stroke:#d92732,stroke-width:1.5px,color:#17243a
+  classDef plane fill:#dce9f8,stroke:#1d3458,stroke-width:1.5px,color:#17243a
+  classDef support fill:#eef2f7,stroke:#8fa2bb,stroke-width:1.5px,color:#17243a
+  class UI,BFF,GW client
+  class PING,CTRL,NGX plane
+  class UP,REC,LOGS support
       </pre>
       <div class="ai-flow-band">
         <span><b>Two roles:</b> the gateway terminates the BFF's MCP session and opens its own to the server — that is exactly how policy and recording are possible.</span>
@@ -692,27 +665,27 @@ flowchart LR
       <pre class="mermaid" id="deleg-mermaid">
 sequenceDiagram
   autonumber
-  actor U as User (browser ui :4000)
-  participant BFF as BFF demo-api-server :3001
-  participant ID as PingOne (OAuth · MFA)
-  participant A as langchain-agent :8888
-  participant LLM as llm-proxy :8090
-  participant GW as ping-gateway :3036
-  participant HITL as hitl-service :3009
-  participant MCP as mcp-server :8080 / api-resource-server :8082
-  participant AUD as mcp-audit :8898 · jaeger
+  actor U as User · ui :4000
+  participant BFF as BFF · :3001
+  participant ID as PingOne
+  participant A as langchain-agent · :8888
+  participant LLM as llm-proxy · :8090
+  participant GW as ping-gateway · :3036
+  participant HITL as hitl-service · :3009
+  participant MCP as mcp-server · :8080
+  participant AUD as audit · mcp-audit · jaeger
 
-  U->>BFF: prompt + session cookie (no tokens in page)
-  BFF->>ID: session check / OIDC tokens (held server-side)
-  BFF->>A: POST /run (AG-UI, SSE open)
-  A->>LLM: interpret open text (heuristics skip this)
-  A-->>BFF: tool request via /internal/agent-tool callback
-  BFF->>ID: RFC 8693 exchange → audience + scope-narrowed tool token
+  U->>BFF: prompt + session cookie
+  BFF->>ID: session check · tokens held server-side
+  BFF->>A: POST /run · AG-UI SSE
+  A->>LLM: interpret open text
+  A-->>BFF: tool request via /internal/agent-tool
+  BFF->>ID: RFC 8693 exchange · narrowed token
   BFF->>GW: tool call with exchanged token
-  GW->>GW: P1AZ policy decision: permit · challenge · deny
+  GW->>GW: P1AZ decision · permit / challenge / deny
   alt write above threshold
     GW->>HITL: consent required
-    HITL-->>U: approve / reject (step-up MFA via PingOne)
+    HITL-->>U: approve / reject · step-up MFA
     HITL-->>GW: approval recorded
   end
   GW->>MCP: authorized MCP / REST call
@@ -720,7 +693,7 @@ sequenceDiagram
   MCP->>AUD: tool event · trace
   GW-->>BFF: authorized response
   BFF-->>A: tool result
-  A-->>U: answer + token-chain evidence (SSE)
+  A-->>U: answer + token-chain evidence
       </pre>
       <div class="ai-flow-band">
         <span><b>Delegation:</b> user token never reaches agent or tool — BFF exchanges (8693), gateway enforces.</span>
