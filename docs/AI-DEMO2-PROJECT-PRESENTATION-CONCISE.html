@@ -1,0 +1,806 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101f3c">
+  <title>AI-DEMO2 — Project presentation</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --navy: #101f3c;
+      --navy-2: #1d3458;
+      --red: #d92732;
+      --red-soft: #fce9e9;
+      --ink: #17243a;
+      --muted: #59677a;
+      --line: #d9e0e9;
+      --paper: #f5f7fa;
+      --white: #fff;
+      --blue: #dce9f8;
+      --green: #16755a;
+      --amber: #8a5a00;
+      --font: Inter, "Aptos", "Segoe UI", sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--navy); color: var(--ink); font-family: var(--font); }
+    body { overflow: hidden; }
+    a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    a:focus-visible, button:focus-visible { outline: 3px solid #ffadad; outline-offset: 3px; }
+    .deck { height: 100svh; width: 100vw; position: relative; }
+    .slide {
+      display: none; position: absolute; inset: 0; overflow: auto;
+      padding: clamp(36px, 4vw, 78px) clamp(34px, 6vw, 100px) 88px;
+      background: var(--paper); animation: arrive .24s ease-out;
+    }
+    .slide.active { display: flex; flex-direction: column; gap: clamp(12px, 1.7vh, 22px); }
+    .slide:not(.cover) > .catalog,
+    .slide:not(.cover) > .grid,
+    .slide:not(.cover) > .cols3,
+    .slide:not(.cover) > .arch,
+    .slide:not(.cover) > .timeline,
+    .slide:not(.cover) > .table-like,
+    .slide:not(.cover) > .plain-table {
+      flex: 1 0 auto;
+      align-content: space-evenly;
+      grid-auto-rows: minmax(min-content, 1fr);
+    }
+    .slide.dark { background: var(--navy); color: var(--white); }
+    @keyframes arrive { from { opacity: .65; } to { opacity: 1; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+    .brand { position: absolute; top: 24px; right: clamp(28px, 7vw, 110px); display: flex; gap: 11px; align-items: center; color: var(--muted); font-size: 17px; letter-spacing: .04em; }
+    .brand-mark { width: 10px; height: 10px; border-radius: 50%; background: var(--red); }
+    .dark .brand { color: #c3cede; }
+    .eyebrow { color: var(--red); font-size: 19px; font-weight: 750; letter-spacing: .07em; text-transform: uppercase; margin: 0 0 8px; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { font-size: clamp(58px, 8.4vw, 122px); letter-spacing: -.065em; line-height: .99; max-width: 1050px; margin: 0 0 28px; }
+    h2 { color: var(--navy); font-size: clamp(60px, 6.4vw, 88px); letter-spacing: -.045em; line-height: 1.04; max-width: 1440px; margin: 0 0 10px; }
+    .dark h2 { color: var(--white); }
+    h3 { font-size: 36px; letter-spacing: -.02em; line-height: 1.15; margin: 0 0 18px; }
+    p { font-size: 26px; line-height: 1.48; }
+    .dek { color: var(--muted); font-size: clamp(24px, 2.7vw, 34px); line-height: 1.4; max-width: 900px; }
+    .dark .dek { color: #d2dceb; }
+    .rule { width: 64px; height: 5px; background: var(--red); margin: 23px 0 27px; }
+    .grow { flex: 1; }
+    .source { margin-top: auto; padding-top: 14px; display: flex; flex-wrap: wrap; gap: 8px 20px; color: #6a7788; font: 18px/1.4 var(--mono); }
+    .source a { color: inherit; }
+    .dark .source { color: #aebbd0; }
+    .grid { display: grid; gap: 20px; }
+    .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .panel { background: var(--white); border: 1px solid var(--line); padding: 22px 24px; min-width: 0; }
+    .panel.redline { border-top: 4px solid var(--red); }
+    .panel.blue { background: #edf3fa; }
+    .panel p:last-child, .panel ul:last-child { margin-bottom: 0; }
+    .panel p, li { color: var(--muted); font-size: 28px; line-height: 1.38; }
+    ul { margin: 14px 0 0; padding-left: 30px; }
+    li + li { margin-top: 12px; }
+    .tag { display: inline-block; border: 1px solid #d3dce8; background: #fff; padding: 7px 11px; margin: 4px 5px 4px 0; color: var(--navy-2); font-size: 15px; font-weight: 650; }
+    .tag.red { color: #a21d28; background: var(--red-soft); border-color: #f1c4c7; }
+    .lead-line { font-size: clamp(34px, 4vw, 54px); line-height: 1.26; letter-spacing: -.03em; max-width: 1120px; }
+    .metric { font-size: 64px; font-weight: 760; letter-spacing: -.04em; color: var(--navy); margin-bottom: 9px; }
+    .metric-label { color: var(--muted); font-size: 23px; line-height: 1.45; }
+    .sequence { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; margin: 25px 0; }
+    .step { border-top: 3px solid var(--red); padding: 16px 16px 0 0; position: relative; }
+    .step:not(:last-child)::after { content: ""; position: absolute; right: 8px; top: -7px; border: 6px solid transparent; border-left-color: var(--red); }
+    .step strong { display: block; font-size: 20px; margin-bottom: 8px; }
+    .step span { color: var(--muted); font-size: 16px; line-height: 1.45; display: block; max-width: 210px; }
+    .arch { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; align-items: stretch; margin-top: 4px; }
+    .arch-layer { padding: 22px; background: white; border: 1px solid var(--line); border-left: 4px solid var(--navy-2); }
+    .arch-layer.core { border-left-color: var(--red); }
+    .arch-layer h3 { color: var(--navy); }
+    .arch-layer p { color: var(--muted); font-size: 16px; margin: 9px 0 0; line-height: 1.45; }
+    .arch-bridge { grid-column: 1 / -1; padding: 16px 22px; color: var(--white); background: var(--navy); text-align: center; font-size: 18px; line-height: 1.5; }
+    .timeline { display: grid; grid-template-columns: 120px 1fr; gap: 0 20px; border-left: 2px solid #bbc9d9; margin: 2px 0 0 10px; padding-left: 24px; }
+    .timeline div { padding: 12px 0; }
+    .date { color: var(--red); font-weight: 750; font-size: 16px; }
+    .event { border-bottom: 1px solid var(--line); font-size: 17px; line-height: 1.42; }
+    .event b { display: block; color: var(--navy); font-size: 19px; margin-bottom: 4px; }
+    .small { color: var(--muted); font-size: 22px; line-height: 1.48; }
+    .dark .small { color: #c3cede; }
+    .pill { font-size: 14px; font-weight: 750; padding: 6px 9px; border-radius: 2px; display: inline-block; margin-bottom: 12px; }
+    .pill.live { color: #135e49; background: #d9f0e6; }
+    .pill.partial { color: #755000; background: #fff0c7; }
+    .pill.plan { color: #46576e; background: #e5ebf3; }
+    .quote { font-size: clamp(34px, 4vw, 54px); line-height: 1.23; letter-spacing: -.035em; max-width: 1000px; }
+    .controls { position: fixed; z-index: 4; bottom: 0; left: 0; right: 0; display: flex; align-items: center; gap: 15px; height: 68px; padding: 0 30px; background: rgba(16,31,60,.97); color: #fff; }
+    .controls button { border: 1px solid #60708a; color: white; background: transparent; padding: 10px 16px; font: 600 18px var(--font); cursor: pointer; }
+    .controls button:hover { background: #263a5c; }
+    .count { font: 15px var(--mono); min-width: 75px; color: #d2dceb; }
+    .progress { position: absolute; top: 0; left: 0; height: 3px; background: var(--red); width: 0; transition: width .15s linear; }
+    .hint { margin-left: auto; color: #b7c3d5; font-size: 14px; }
+    .cover h1 { max-width: 1050px; }
+    .cover .stamp { margin-top: 34px; border-left: 5px solid var(--red); padding: 12px 0 12px 18px; color: #ced7e5; font-size: 17px; line-height: 1.5; }
+    .cover .signature { margin-top: 54px; font-size: 16px; letter-spacing: .03em; color: #b8c5d8; }
+    .table-like { display: grid; grid-template-columns: 1.05fr 1fr 1.45fr; border-top: 1px solid var(--line); }
+    .table-like > div { padding: 16px 18px; border-bottom: 1px solid var(--line); font-size: 24px; line-height: 1.42; }
+    .table-like .th { background: #e8edf4; color: var(--navy); font-weight: 750; }
+    .table-like .muted { color: var(--muted); }
+    .dense li { font-size: 16px; }
+    .catalog { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 34px; }
+    .catalog > div { border-bottom: 2px solid var(--line); padding: 17px 0; font-size: 29px; line-height: 1.42; }
+    .catalog code { color: #a21d28; font: 700 22px var(--mono); white-space: nowrap; }
+    .subhead { color: var(--navy); font-size: 29px; font-weight: 750; margin: 4px 0 14px; }
+    .plain-list { margin: 0; padding-left: 21px; }
+    .plain-list li { font-size: 27px; line-height: 1.4; margin: 0 0 12px; }
+    .plain-list code, .mono { font: 22px var(--mono); }
+    .cols3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+    .fact { padding: 18px 20px; border-left: 4px solid var(--red); background: white; }
+    .fact b { display: block; color: var(--navy); font-size: 26px; margin-bottom: 10px; }
+    .fact span { display: block; color: var(--muted); font-size: 23px; line-height: 1.43; }
+    .grid > .panel, .cols3 > .fact { display: flex; flex-direction: column; justify-content: center; }
+    .plain-table { width: 100%; border-collapse: collapse; background: white; }
+    .plain-table th, .plain-table td { text-align: left; vertical-align: top; padding: 16px 18px; border-bottom: 1px solid var(--line); font-size: 24px; line-height: 1.4; }
+    .plain-table th { background: #e8edf4; color: var(--navy); font-weight: 750; }
+    .plain-table td:first-child { color: var(--navy); font-weight: 700; }
+    .screen-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(320px, .8fr); gap: 26px; align-items: stretch; }
+    .screen-frame { min-height: 0; display: grid; place-items: center; padding: 12px; background: #e8edf4; border: 1px solid var(--line); }
+    .screen-frame img { display: block; width: 100%; height: 100%; object-fit: contain; }
+    .screen-copy { min-width: 0; display: flex; flex-direction: column; justify-content: space-evenly; }
+    .screen-copy h3 { font-size: 34px; margin: 0 0 8px; }
+    .screen-copy p { font-size: 27px; margin: 0; }
+    .screen-pair { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, .9fr); gap: 24px; }
+    .screen-pair figure { display: flex; flex-direction: column; min-height: 0; margin: 0; padding: 12px; background: #e8edf4; border: 1px solid var(--line); }
+    .screen-pair img { flex: 1; min-height: 0; width: 100%; height: 100%; object-fit: contain; }
+    .screen-pair figcaption { padding: 9px 3px 0; color: var(--muted); font-size: 20px; line-height: 1.35; }
+    .map-board { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 16px; }
+    .map-lane { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+    .map-card { position: relative; min-width: 0; padding: 19px 20px; background: white; border: 1px solid var(--line); border-top: 5px solid var(--navy-2); }
+    .map-card.hot { border-top-color: var(--red); }
+    .map-card h3 { color: var(--navy); font-size: 27px; margin: 0 0 10px; overflow-wrap: anywhere; }
+    .map-card p { color: var(--muted); font-size: 21px; line-height: 1.33; margin: 0 0 8px; }
+    .map-card p:last-child { margin-bottom: 0; }
+    .map-card code { color: #a21d28; font: 700 19px/1.35 var(--mono); overflow-wrap: anywhere; }
+    .map-lane.flow .map-card:not(:last-child)::after { content: "→"; position: absolute; z-index: 2; right: -22px; top: 43%; color: var(--red); font-size: 28px; font-weight: 800; }
+    .map-band { padding: 17px 20px; background: #e8edf4; border-left: 5px solid var(--red); color: var(--ink); font-size: 21px; line-height: 1.4; }
+    .map-band strong { color: var(--navy); }
+    .map-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .map-grid .map-card { display: flex; flex-direction: column; justify-content: center; padding: 18px 20px; }
+    .map-grid .map-card p { font-size: 20px; }
+    .map-grid .map-card .inventory { margin-top: 7px; color: var(--navy-2); font: 700 17px/1.45 var(--mono); overflow-wrap: anywhere; }
+
+    .ai-flow { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; align-content: space-evenly; }
+    .aif-box { background: white; border: 1px solid var(--line); border-top: 4px solid var(--navy-2); padding: 12px 14px; display: flex; flex-direction: column; gap: 5px; }
+    .aif-box h4 { margin: 0; color: var(--navy); font-size: 19px; letter-spacing: -.01em; }
+    .aif-box p { margin: 0; color: var(--muted); font-size: 15.5px; line-height: 1.3; }
+    .aif-box code { font: 700 13.5px var(--mono); color: #a21d28; }
+    .aif-box.start, .aif-box.route, .aif-box.agent { border-top-color: var(--red); }
+    .aif-box.policy, .aif-box.consent { border-top-color: var(--amber); }
+    .aif-box.done { border-top-color: var(--green); }
+    .aif-arrow { align-self: center; color: var(--red); font-size: 24px; font-weight: 800; text-align: center; }
+    .ai-flow-band { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 13px 18px; background: var(--navy); color: #d2dceb; font-size: 16px; line-height: 1.4; }
+    .ai-flow-band b { color: white; }
+
+    .rfc-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 14px; }
+    .rfc-card { background: white; border: 1px solid var(--line); border-top: 4px solid var(--navy-2); padding: 16px 18px; display: flex; flex-direction: column; }
+    .rfc-card h3 { color: var(--navy); font-size: 24px; margin: 0 0 8px; }
+    .rfc-card .rfc-list { margin: 0; color: var(--muted); font-size: 18px; line-height: 1.45; }
+    .rfc-card .rfc-list b { color: var(--navy); }
+    .rfc-card.core { border-top-color: var(--red); }
+    .rfc-card.p1az { border-top-color: var(--green); }
+    .rfc-card code { font: 700 16px var(--mono); color: #a21d28; }
+
+    .rfc-table { flex: 1; min-height: 0; display: grid; grid-template-columns: 130px 1.1fr 1.8fr; align-content: space-evenly; border-top: 1px solid var(--line); overflow: auto; }
+    .rfc-table .rt { display: contents; }
+    .rfc-table .rt > span { padding: 9px 14px; border-bottom: 1px solid var(--line); font-size: 19px; line-height: 1.35; color: var(--muted); }
+    .rfc-table .rt > span:first-child { font: 750 19px var(--mono); color: #a21d28; }
+    .rfc-table .rt > span:nth-child(2) { color: var(--navy); font-weight: 650; }
+    .rfc-table .th > span { background: #e8edf4; color: var(--navy); font-weight: 750; font-size: 19px; }
+    .rfc-table .core > span:first-child { background: var(--red-soft); }
+    .rfc-table .p1az > span:first-child { background: #d9f0e6; color: #135e49; }
+
+    .srv-table { flex: 1; min-height: 0; display: grid; grid-template-columns: 200px 90px 110px 1fr; align-content: space-evenly; border-top: 1px solid var(--line); overflow: auto; }
+    .srv-table .st { display: contents; }
+    .srv-table .st > span { padding: 6px 12px; border-bottom: 1px solid var(--line); font-size: 16.5px; line-height: 1.3; color: var(--muted); }
+    .srv-table .st > span:first-child { font: 700 16.5px var(--mono); color: var(--navy); overflow-wrap: anywhere; }
+    .srv-table .st > span:nth-child(2) { font: 700 16px var(--mono); color: #a21d28; }
+    .srv-table .st > span:nth-child(3) { color: var(--muted); font-size: 15px; }
+    .srv-table .th > span { background: #e8edf4; color: var(--navy); font-weight: 750; font-size: 17px; }
+    .srv-table .core > span:first-child { background: var(--red-soft); }
+    .flow-diagram { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-evenly; gap: 4px; }
+    .fd-row { display: flex; gap: 8px; align-items: stretch; }
+    .fd-label { writing-mode: vertical-rl; transform: rotate(180deg); flex: 0 0 auto; color: var(--muted); font-size: 13px; font-weight: 750; text-transform: uppercase; letter-spacing: .05em; display: flex; align-items: center; justify-content: center; border-left: 3px solid var(--navy-2); padding: 4px 2px; }
+    .fd-box { flex: 1 1 0; min-width: 0; background: white; border: 1px solid var(--line); border-top: 3px solid var(--navy-2); padding: 7px 9px; display: flex; flex-direction: column; gap: 2px; position: relative; }
+    .fd-box b { color: var(--navy); font-size: 15px; line-height: 1.1; overflow-wrap: anywhere; }
+    .fd-box span { color: var(--muted); font-size: 12.5px; line-height: 1.2; }
+    .fd-box.hot { border-top-color: var(--red); }
+    .fd-box.ext { border-top-color: #8fa2bb; background: #eef2f7; }
+    .fd-arrows { display: flex; justify-content: center; gap: 40px; padding: 0 0 0 22px; }
+    .fd-a { position: relative; color: var(--red); font-size: 13px; font-weight: 700; padding: 0 26px; line-height: 1.3; }
+    .fd-a::before, .fd-a::after { content: ""; position: absolute; background: var(--red); }
+    .fd-a::before { left: 0; right: 0; top: 50%; height: 2px; }
+    .fd-a.r::after { right: 0; top: 50%; margin-top: -4px; border: 5px solid transparent; border-left-color: var(--red); }
+    .fd-a.l::after { left: 0; top: 50%; margin-top: -4px; border: 5px solid transparent; border-right-color: var(--red); }
+    .fd-a.up::after { content: "▲"; border: none; background: none; top: -10px; left: 50%; margin-left: -5px; font-size: 12px; }
+    .gateway-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.15fr); gap: 24px; }
+    .gateway-layout .panel { min-height: 0; padding: 24px 27px; }
+    .gateway-layout h3 { font-size: 32px; }
+    .gateway-layout p, .gateway-layout li { font-size: 22px; line-height: 1.34; }
+    .tool-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 25px; }
+    .tool-columns p { margin: 3px 0; overflow-wrap: anywhere; }
+    .skill-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+    .skill-grid.duo { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .skill-card { padding: 22px 24px; background: white; border-top: 5px solid var(--red); }
+    .skill-card h3 { color: var(--navy); font-size: 31px; margin-bottom: 12px; }
+    .skill-card ul { margin: 0; padding-left: 23px; }
+    .skill-card li { font-size: 23px; line-height: 1.3; margin-top: 5px; overflow-wrap: anywhere; }
+    .skill-card.dense li { font-size: 19px; line-height: 1.28; margin-top: 3px; }
+    .skill-footer { color: var(--muted); font-size: 21px; line-height: 1.4; margin: 0; }
+    .trace-flow { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
+    .trace-step { position: relative; display: flex; flex-direction: column; justify-content: center; padding: 20px; background: white; border-top: 5px solid var(--red); }
+    .trace-step:not(:last-child)::after { content: "→"; position: absolute; right: -19px; top: 46%; z-index: 2; color: var(--red); font-size: 25px; font-weight: 800; }
+    .trace-step b { display: block; color: var(--navy); font-size: 26px; margin-bottom: 12px; }
+    .trace-step span { color: var(--muted); font-size: 21px; line-height: 1.4; }
+    .decision-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .decision { display: flex; flex-direction: column; justify-content: center; padding: 23px 25px; background: white; border-left: 5px solid var(--red); }
+    .decision b { color: var(--navy); font-size: 27px; margin-bottom: 9px; }
+    .decision span { color: var(--muted); font-size: 23px; line-height: 1.42; }
+    @media (max-width: 760px) {
+      body { overflow: auto; }
+      .slide { padding: 52px 24px 84px; }
+      .brand { top: 17px; right: 24px; }
+      .g2, .g3, .g4, .arch { grid-template-columns: 1fr; }
+      .arch-bridge { grid-column: auto; }
+      .sequence { grid-template-columns: 1fr; gap: 12px; }
+      .step { border-top: 0; border-left: 3px solid var(--red); padding: 0 0 0 12px; }
+      .step:not(:last-child)::after { display: none; }
+      .timeline { grid-template-columns: 75px 1fr; }
+      .catalog, .cols3 { grid-template-columns: 1fr; }
+      .screen-layout, .screen-pair, .gateway-layout, .skill-grid, .skill-grid.duo, .decision-grid { grid-template-columns: 1fr; }
+      .map-lane, .map-grid, .trace-flow { grid-template-columns: 1fr; grid-template-rows: none; }
+      .map-lane.flow .map-card:not(:last-child)::after, .trace-step:not(:last-child)::after { display: none; }
+      .catalog > div, .plain-list li, .panel p, li { font-size: 23px; }
+      h2 { font-size: clamp(40px, 9vw, 62px); }
+      h3 { font-size: 30px; }
+      .table-like { grid-template-columns: .8fr 1fr 1.2fr; }
+      .table-like > div { font-size: 16px; padding: 10px 7px; }
+      .hint { display: none; }
+    }
+    @media print {
+      html, body { overflow: visible; background: white; }
+      .deck { height: auto; }
+      .slide, .slide.active { display: flex !important; position: relative; height: 100vh; page-break-after: always; animation: none; }
+      .controls { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck" aria-label="AI-DEMO2 code tour presentation">
+    <section class="slide dark cover active" aria-label="Title slide">
+      <div class="brand"><span class="brand-mark"></span>AI-DEMO2</div>
+      <p class="eyebrow">Code inventory · 25 September 2026</p>
+      <h1>AI-DEMO2<br>a governed AI agent demo stack</h1>
+      <div class="rule"></div>
+      <p class="dek">68 use cases, 43 servers, 11 verticals — every hop evidenced with token-chain views.</p>
+      <div class="stamp">Source: tracked code and commit history through 25 Sep 2026. Maturity and setup requirements called out.</div>
+      <div class="signature">16 slides · arrow keys · source links on every slide</div>
+      <div class="source"><a href="../demo_api_server/config/useCases.js">Use-case source of truth</a><a href="../README.md">Repository README</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>01 / At a glance</div>
+      <p class="eyebrow">Scale of the build</p><h2>68 use cases. 11 verticals. 43 servers. One agent demo.</h2>
+      <div class="cols3">
+        <div class="fact"><b>68 use cases</b><span>One catalog in <code>useCases.js</code>: foundations, controls, attacks, HITL, learning, tools, NHI.</span></div>
+        <div class="fact"><b>11 verticals</b><span>Banking, healthcare, retail, A&amp;F, government, university, workforce, sporting goods, manufacturing, investment, airlines.</span></div>
+        <div class="fact"><b>1 agent runtime</b><span>LangChain active; OpenAI Agents SDK, Mastra and Pydantic AI tested.</span></div>
+        <div class="fact"><b>2 timeline modes</b><span>Filmstrip and sequence views; topology and inspectors beyond those.</span></div>
+        <div class="fact"><b>13 core services</b><span>Plus a separate Copilot Studio token broker.</span></div>
+        <div class="fact"><b>4 deploy shapes</b><span>Native, Compose, local K8s, remote K8s (+ Vercel option).</span></div>
+      </div>
+      <p class="small" style="margin-top:16px">Counts read from catalog source. Flagged or externally-provisioned entries may not appear in every environment.</p>
+      <div class="source"><a href="../demo_api_server/config/useCases.js">USE_CASES and VERTICALS</a><a href="../README.md">Service map &amp; run modes</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>02 / Vertical packs</div>
+      <p class="eyebrow">Vertical packs</p><h2>11 verticals. Same security pattern, different tools per industry.</h2>
+      <table class="plain-table"><thead><tr><th>Vertical</th><th>Example read tool</th><th>Example amount-gated action</th></tr></thead><tbody>
+        <tr><td>Banking</td><td><code>get_account_balance</code></td><td><code>create_transfer</code></td></tr>
+        <tr><td>Healthcare</td><td><code>view_coverage</code></td><td><code>pay_bill</code></td></tr>
+        <tr><td>Retail</td><td><code>list_orders</code></td><td><code>checkout</code></td></tr>
+        <tr><td>Abercrombie &amp; Fitch</td><td><code>list_anf_orders</code></td><td><code>checkout</code></td></tr>
+        <tr><td>Government</td><td><code>view_permits</code></td><td><code>pay_fee</code></td></tr>
+        <tr><td>University</td><td><code>view_courses</code></td><td><code>pay_tuition_balance</code></td></tr>
+        <tr><td>Workforce</td><td><code>view_benefits</code></td><td><code>submit_expense</code></td></tr>
+        <tr><td>Sporting goods</td><td><code>list_gear</code></td><td><code>extend_rental</code></td></tr>
+        <tr><td>Manufacturing</td><td><code>view_work_orders</code></td><td><code>approve_purchase_order</code></td></tr>
+        <tr><td>Investment</td><td><code>view_portfolios</code></td><td><code>large_trade</code></td></tr>
+        <tr><td>Airlines</td><td><code>get_airline_bookings</code></td><td><code>pay_airline_fee</code></td></tr>
+      </tbody></table>
+      <div class="source"><a href="../demo_api_server/config/useCases.js">VERTICALS and per-vertical tool maps</a><a href="../demo_api_server/config/verticals/">Vertical manifests and data</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>03 / Use cases · foundation</div>
+      <p class="eyebrow">Use cases 1 of 5</p><h2>Foundation: delegation, workload identity, domain tasks.</h2>
+      <div class="catalog">
+        <div><code>UC1</code> Delegated access (consent only)</div><div><code>UC2</code> A2A delegation</div>
+        <div><code>UC2.5</code> A2A Orchestrator — Interactive Learning</div><div><code>UC2.6</code> A2A generalist mismatch</div>
+        <div><code>UC3</code> act gate</div><div><code>UC19</code> Non-human (agent) identity lifecycle</div>
+        <div><code>UC20</code> Agent observability and traceability</div><div><code>UC33</code> My mortgage</div>
+        <div><code>UC34</code> Spot unusual patterns</div><div><code>UC35</code> Why was that blocked?</div>
+        <div><code>UC38</code> Workload Agent: MFA-gated protected action</div><div><code>UC43</code> Consumer &amp; Partner Agent — CIMD registration</div>
+        <div><code>UC44</code> Workload Agent: OBO customer-data read</div><div><code>UC45</code> SaaS-Embedded Agent — Website Worker</div>
+      </div>
+      <div class="source"><a href="../demo_api_server/config/useCases.js">Catalog definitions and codeRefs</a><a href="../demo_api_ui/src/config/demoUseCaseSteps.js">Presenter steps</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>04 / All servers · full-stack diagram</div>
+      <p class="eyebrow">All servers</p><h2>All 43 services on one diagram, client to data stores.</h2>
+      <div class="flow-diagram">
+        <div class="fd-row">
+          <div class="fd-label">Client</div>
+          <div class="fd-box hot"><b>ui</b>:4000<span>React SPA</span></div>
+          <div class="fd-box ext"><b>PingOne</b><span>OAuth · MFA · Authorize</span></div>
+        </div>
+        <div class="fd-arrows"><span class="fd-a r">session cookie / API fetch</span><span class="fd-a up">OIDC redirect</span></div>
+        <div class="fd-row">
+          <div class="fd-label">BFF</div>
+          <div class="fd-box hot"><b>demo-api-server</b>:3001<span>session · token exchange · tool pipeline</span></div>
+          <div class="fd-box"><b>hitl-service</b>:3009<span>human approval</span></div>
+        </div>
+        <div class="fd-arrows"><span class="fd-a r">AG-UI HTTP + SSE /run</span><span class="fd-a l">tool callback /internal/agent-tool</span></div>
+        <div class="fd-row">
+          <div class="fd-label">Agent</div>
+          <div class="fd-box hot"><b>langchain-agent</b>:8888<span>current runtime · SSE</span></div>
+          <div class="fd-box"><b>agent-service</b>:3006<span>banking / AG-UI</span></div>
+          <div class="fd-box"><b>llm-proxy</b>:8090<span>model endpoint</span></div>
+        </div>
+        <div class="fd-arrows"><span class="fd-a r">exchanged token via gateway</span></div>
+        <div class="fd-row">
+          <div class="fd-label">Enforcement</div>
+          <div class="fd-box hot"><b>ping-gateway</b>:3036<span>default policy path</span></div>
+          <div class="fd-box"><b>mcp-gateway</b>:3005<span>demo-auth alt</span></div>
+          <div class="fd-box"><b>authz-server</b>:9001<span>policy decisions</span></div>
+          <div class="fd-box"><b>mcp-jwt-verifier</b>:8083<span>token verify</span></div>
+          <div class="fd-box"><b>ping-mcpgw</b><span>Privilege policy</span></div>
+        </div>
+        <div class="fd-arrows"><span class="fd-a r">authorized MCP / REST calls</span></div>
+        <div class="fd-row">
+          <div class="fd-label">Tools</div>
+          <div class="fd-box hot"><b>mcp-server</b>:8080<span>banking tools · ws</span></div>
+          <div class="fd-box"><b>mcp-resource-server</b>:8081</div>
+          <div class="fd-box"><b>api-resource-server</b>:8082</div>
+          <div class="fd-box"><b>mcp-weather</b>:8896</div>
+          <div class="fd-box"><b>mcp-brave</b>:8897</div>
+          <div class="fd-box"><b>mcp-audit</b>:8898<span>event recording</span></div>
+        </div>
+        <div class="fd-arrows"><span class="fd-a r">storage · telemetry</span></div>
+        <div class="fd-row">
+          <div class="fd-label">Data &amp; ops</div>
+          <div class="fd-box"><b>LMDB</b><span>BFF stores</span></div>
+          <div class="fd-box"><b>weaviate</b><span>vectors</span></div>
+          <div class="fd-box"><b>opensearch</b><span>search sample</span></div>
+          <div class="fd-box"><b>redis</b><span>cache</span></div>
+          <div class="fd-box"><b>prometheus / grafana</b><span>metrics</span></div>
+          <div class="fd-box"><b>loki / alloy</b><span>logs</span></div>
+          <div class="fd-box"><b>jaeger</b>:16686<span>traces</span></div>
+        </div>
+        <div class="fd-row">
+          <div class="fd-label">Optional</div>
+          <div class="fd-box"><b>mcp-proxy</b>:8895</div>
+          <div class="fd-box"><b>mcp-discovery-agent</b></div>
+          <div class="fd-box"><b>spire-server / agent</b><span>SPIFFE identity</span></div>
+          <div class="fd-box"><b>spiffe-oidc-provider</b></div>
+          <div class="fd-box"><b>tika</b><span>doc extraction</span></div>
+          <div class="fd-box"><b>ungoverned-agent</b><span>attack compare</span></div>
+        </div>
+      </div>
+      <p class="small" style="margin-top:10px"><b>Red nodes</b> are the default request path; <code>opt</code> marks profile-selected optional services. Launcher modes (<code>demo</code>, <code>mcpgw</code>, <code>full</code>, observability, SPIFFE) select subsets — not every server runs at once.</p>
+      <div class="source"><a href="../docker-compose.yml">All 43 Compose services</a><a href="../service-topology.json">Canonical network topology</a><a href="../run-docker.sh">Launcher modes</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>05 / Server detail table</div>
+      <p class="eyebrow">Every runnable server · Compose name, port, profile, job</p><h2>29 runnable servers, one row each.</h2>
+      <div class="srv-table">
+        <div class="st th"><span>Server</span><span>Port</span><span>Profile</span><span>Job</span></div>
+        <div class="st core"><span class="mono">ui</span><span>4000</span><span>core</span><span>React SPA; banking admin/customer pages, agent composer, inspectors</span></div>
+        <div class="st core"><span class="mono">demo-api-server</span><span>3001</span><span>core</span><span>BFF: OAuth callback, session, RFC 8693 exchange, tool pipeline, LMDB stores</span></div>
+        <div class="st core"><span class="mono">langchain-agent</span><span>8888</span><span>core</span><span>Current agent runtime (Python); AG-UI over HTTP + SSE; health on 8890</span></div>
+        <div class="st core"><span class="mono">agent-service</span><span>3006</span><span>core</span><span>Banking AG-UI runner; host port 3016</span></div>
+        <div class="st core"><span class="mono">llm-proxy</span><span>8090</span><span>core</span><span>OpenAI-compatible model front; routes Helix/OpenAI/Anthropic/local (oMLX, LM Studio)</span></div>
+        <div class="st core"><span class="mono">ping-gateway</span><span>3036</span><span>core</span><span>PingGateway (IG) — default MCP/REST enforcement path; container 8443</span></div>
+        <div class="st core"><span class="mono">mcp-server</span><span>8080</span><span>core</span><span>Banking/vertical MCP tools (oauth-mcp, TypeScript); WebSocket + HTTP</span></div>
+        <div class="st core"><span class="mono">mcp-resource-server</span><span>8081</span><span>core</span><span>Investment MCP tools; WebSocket + HTTP</span></div>
+        <div class="st core"><span class="mono">api-resource-server</span><span>8082</span><span>core</span><span>REST resource server; gateway credential-conversion path</span></div>
+        <div class="st core"><span class="mono">hitl-service</span><span>3009</span><span>core</span><span>Human-in-the-loop consent challenge and receipt service</span></div>
+        <div class="st core"><span class="mono">mcp-audit</span><span>8898</span><span>core</span><span>Records tool-call events for run evidence</span></div>
+        <div class="st core"><span class="mono">mcp-proxy</span><span>8895</span><span>core</span><span>MCP transport proxy hop</span></div>
+        <div class="st core"><span class="mono">mcp-weather</span><span>8896</span><span>core</span><span>Third-party weather MCP tool (governed external example)</span></div>
+        <div class="st core"><span class="mono">mcp-brave</span><span>8897</span><span>core</span><span>Brave Search MCP tool (governed external example)</span></div>
+        <div class="st core"><span class="mono">mcp-discovery-agent</span><span>—</span><span>core</span><span>Discovers configured MCP tools from protected-resource metadata</span></div>
+        <div class="st"><span class="mono">promptfoo-step-narration</span><span>—</span><span>core</span><span>Evaluation sidecar narrating agent run steps for promptfoo</span></div>
+        <div class="st"><span class="mono">mcp-gateway</span><span>3005</span><span>demo-auth</span><span>Alternate Node demo gateway (ungoverned-vs-governed comparison)</span></div>
+        <div class="st"><span class="mono">authz-server</span><span>9001</span><span>demo-auth</span><span>Demo policy-decision server used by the Node gateway</span></div>
+        <div class="st"><span class="mono">mcp-jwt-verifier</span><span>8083</span><span>demo-auth</span><span>JWT verification service for the Node gateway path</span></div>
+        <div class="st"><span class="mono">ungoverned-agent</span><span>—</span><span>demo-attack</span><span>Deliberately unguarded agent path for secure-vs-ungoverned demos</span></div>
+        <div class="st"><span class="mono">mcpgw-nginx</span><span>443</span><span>mcpgw</span><span>Privilege gateway front door; rewrites Host to registered Frontend Name</span></div>
+        <div class="st"><span class="mono">ping-mcpgw</span><span>8620·8623·8690</span><span>mcpgw</span><span>Privilege MCP Gateway: per-app policy, JIT least privilege, session recording</span></div>
+        <div class="st"><span class="mono">mcpgw</span><span>8443</span><span>mcpgw-legacy</span><span>Legacy Privilege gateway profile (kept for comparison)</span></div>
+        <div class="st"><span class="mono">opensearch-mcp-server</span><span>9900</span><span>mcpgw</span><span>MCP server sample over OpenSearch; gateway upstream</span></div>
+        <div class="st"><span class="mono">opensearch</span><span>9200</span><span>mcpgw</span><span>Search backend for the Privilege MCP sample</span></div>
+        <div class="st"><span class="mono">tika</span><span>9998</span><span>rag</span><span>Document text extraction for code search / RAG</span></div>
+        <div class="st"><span class="mono">demo-mcp-code-search</span><span>8095</span><span>rag</span><span>Code Explorer MCP tools; queries vector store</span></div>
+        <div class="st"><span class="mono">llamaindex-agent</span><span>8894</span><span>rag</span><span>LlamaIndex retrieval agent over Weaviate</span></div>
+        <div class="st"><span class="mono">embeddings</span><span>8084</span><span>rag</span><span>Embedding service (with embed-models volume)</span></div>
+        <div class="st"><span class="mono">weaviate</span><span>—</span><span>rag</span><span>Vector store for RAG and code search</span></div>
+        <div class="st"><span class="mono">prometheus</span><span>9090</span><span>observability</span><span>Metrics scrape and store</span></div>
+        <div class="st"><span class="mono">grafana</span><span>3000</span><span>observability</span><span>Dashboards (also an MCP tool backend)</span></div>
+        <div class="st"><span class="mono">alertmanager</span><span>9093</span><span>observability</span><span>Alert routing; default receiver is a no-op</span></div>
+        <div class="st"><span class="mono">loki</span><span>3100</span><span>observability</span><span>Log storage</span></div>
+        <div class="st"><span class="mono">alloy</span><span>—</span><span>observability</span><span>Log/telemetry shipper into Loki</span></div>
+        <div class="st core"><span class="mono">jaeger</span><span>16686</span><span>core</span><span>Distributed traces (OTLP 4317); run evidence views</span></div>
+        <div class="st"><span class="mono">spire-server</span><span>—</span><span>spiffe</span><span>Issues SPIFFE workload identities</span></div>
+        <div class="st"><span class="mono">spire-agent</span><span>—</span><span>spiffe</span><span>Workload identity agent (SVID delivery)</span></div>
+        <div class="st"><span class="mono">spire-registration</span><span>—</span><span>spiffe</span><span>Registers demo workloads with SPIRE</span></div>
+        <div class="st"><span class="mono">spiffe-helper-bff</span><span>—</span><span>spiffe</span><span>Delivers BFF workload identity from SPIRE</span></div>
+        <div class="st"><span class="mono">spiffe-oidc-provider</span><span>8443</span><span>spiffe</span><span>Exposes workload identity as OIDC tokens to the demo</span></div>
+        <div class="st"><span class="mono">tier-manager-k8</span><span>—</span><span>k8-build</span><span>Build-time helper for vertical tier manifests in K8s</span></div>
+      </div>
+      <p class="small" style="margin-top:8px">Plus 14 data-volume containers (ai-demo-bff-data, weaviate-data, opensearch-data, spiffe sockets, mcpgw-ssl/logs/recordings) and the ai-demo network helper. 43 entries in docker-compose.yml, 59 with volumes.</p>
+      <div class="source"><a href="../docker-compose.yml">All Compose services and profiles</a><a href="../service-topology.json">Canonical network topology</a><a href="../run-docker.sh">Launcher profiles</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>06 / AI request flow</div>
+      <p class="eyebrow">AI request flow</p><h2>Prompt in, answer out: 10 hops, user token never leaves the BFF.</h2>
+      <pre class="mermaid" id="aif-mermaid">
+flowchart LR
+  %% Request path
+  B["Browser<br/>ui :4000<br/>session cookie only"]
+  BFF["BFF<br/>demo-api-server :3001<br/>session · heuristics · exchange"]
+  AG["LangChain agent :8888<br/>SSE · AG-UI"]
+  AG2["agent-service :3006<br/>banking / AG-UI"]
+  LLM["llm-proxy :8090<br/>model endpoint"]
+  GW["ping-gateway :3036<br/>default policy path"]
+  HITL["hitl-service :3009<br/>human approval"]
+  MCP["mcp-server :8080<br/>mcp-resource-server :8081<br/>api-resource-server :8082"]
+  B -- "prompt (no tokens)" --> BFF
+  BFF -- "AG-UI /run SSE" --> AG
+  AG -- "model calls" --> LLM
+  AG -- "tool callback /internal/agent-tool" --> BFF
+  BFF -- "exchanged token" --> GW
+  GW -- "write above threshold" --> HITL
+  GW -- "authorized call" --> MCP
+  HITL -- approved --> GW
+  MCP -- "result SSE" --> BFF
+  BFF -- "answer + token chain" --> B
+  AG2 -.-> BFF
+
+  %% Identity
+  subgraph ID["Identity"]
+    PING["PingOne<br/>OAuth · OIDC · MFA · Authorize"]
+    SECRETS["secrets.vault<br/>(dotenvx-encrypted,<br/>dotenvx in BFF)"]
+  end
+  B -- "OIDC redirect" --> PING
+  BFF -- "RFC 8693 exchange" --> PING
+  BFF --- SECRETS
+
+  %% Alternate enforcement
+  subgraph ALT["Alternate enforcement · demo-auth"]
+    MGW["mcp-gateway :3005"]
+    AUTHZ["authz-server :9001"]
+    JWT["mcp-jwt-verifier :8083"]
+    MGW --- AUTHZ
+    MGW --- JWT
+  end
+  ALT -.-> GW
+
+  %% External tools
+  subgraph TOOLS["Third-party tools"]
+    WEATHER["mcp-weather :8896"]
+    BRAVE["mcp-brave :8897"]
+  end
+  MCP -.-> TOOLS
+
+  %% Search & RAG
+  subgraph RAG["Search / RAG"]
+    TIKA["tika"]
+    CS["demo-mcp-code-search"]
+    LI["llamaindex-agent"]
+    EMB["embeddings + embed-models"]
+    WEAV["weaviate"]
+    TIKA --> CS
+    CS --- WEAV
+    LI --- WEAV
+    WEAV --- EMB
+  end
+
+  %% Observability
+  subgraph OBS["Observability"]
+    PROM["prometheus"]
+    GRAF["grafana"]
+    ALERT["alertmanager"]
+    ALLOY["alloy"]
+    LOKI["loki"]
+    JAEGER["jaeger :16686"]
+    PF["promptfoo-step-narration<br/>(eval sidecar)"]
+    PROM --> GRAF
+    PROM --> ALERT
+    ALLOY --> LOKI
+  end
+  BFF -. "metrics / logs / traces" .-> OBS
+  MCP -- "tool events" --> AUD["mcp-audit :8898"]
+  AG -.-> OBS
+  MCP -- "traces" --> JAEGER
+
+  %% Discovery
+  DISC["mcp-discovery-agent"] -.-> BFF
+
+  %% Data
+  subgraph DATA["Data stores"]
+    LMDB["LMDB (in BFF)"]
+    REDIS["redis · optional"]
+    OS["opensearch"]
+    OSM["opensearch-mcp-server"]
+    OSM --- OS
+  end
+  MCP --- DATA
+
+  %% Workload identity
+  subgraph SPI["SPIFFE workload identity"]
+    SPIRE["spire-server<br/>spire-registration<br/>spire-agent"]
+    SHB["spiffe-helper-bff"]
+    SOIDC["spiffe-oidc-provider"]
+    SPIRE --- SHB
+    SPIRE --- SOIDC
+  end
+
+  %% Specialist
+  SPEC["ungoverned-agent<br/>(attack comparison)<br/>tier-manager-k8 (build)<br/>mcpgw-nginx → ping-mcpgw<br/>(Privilege gateway · opt)"]
+
+  classDef hot fill:#fce9e9,stroke:#d92732,color:#17243a;
+  classDef mid fill:#dce9f8,stroke:#1d3458,color:#17243a;
+  classDef opt fill:#eef2f7,stroke:#8fa2bb,color:#17243a;
+  class B,BFF,AG,GW,MCP hot
+  class PING,HITL,LLM,AUD,SECRETS mid
+  class TOOLS,RAG,OBS,SPI,SPEC,DISC,AG2 opt
+  class MGW,AUTHZ,JWT,WEATHER,BRAVE,TIKA,CS,LI,EMB,WEAV,PROM,GRAF,ALERT,ALLOY,LOKI,JAEGER,PF,LMDB,REDIS,OS,OSM,SPIRE,SHB,SOIDC,DISC,AG2 opt
+      </pre>
+      <div class="ai-flow-band">
+        <span><b>Red:</b> the browser-to-tool request path · <b>Blue:</b> identity and approval gates · <b>Grey:</b> optional/alternate services.</span>
+        <span><b>Heuristics:</b> known chips skip the LLM; open text goes through the agent.</span>
+        <span><b>Never token-exposed:</b> the agent and model only see tool calls — the BFF holds and exchanges all credentials.</span>
+      </div>
+      <div class="source"><a href="../demo_api_server/routes/agentRun.js">Agent run route</a><a href="../demo_api_server/services/agentMcpTokenService.js">Token exchange</a><a href="../demo_api_server/services/mcpToolPipeline.js">Tool pipeline</a></div>
+    </section>
+        <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>07 / Privilege AI Gateway · flow</div>
+      <p class="eyebrow">Privilege gateway flow</p><h2>One gateway, two MCP roles — policy applied between the sessions.</h2>
+      <pre class="mermaid" id="priv-mermaid">
+flowchart LR
+  subgraph CLIENTSIDE["Client side · browser and BFF"]
+    UI["Browser UI<br/>/privilege-mcp-client<br/>drives BFF over HTTPS<br/>(never an MCP client)"]
+    BFF["BFF relay<br/>demo-api-server :3001<br/>/api/privilege-mcp/*<br/>THE MCP CLIENT"]
+  end
+  UI -- "HTTPS fetch · no MCP" --> BFF
+  BFF -- "user mode: OAuth code + PKCE<br/>simple mode: client-credentials" --> PING["PingOne<br/>token issuer"]
+  BFF -- "1 initialize<br/>2 tools/list<br/>3 tools/call" --> NGX["mcpgw-nginx<br/>front door · Host rewrite<br/>to Frontend Name"]
+  NGX --> GW["ping-mcpgw<br/>Privilege MCP Gateway<br/>per-app policy · JIT least privilege<br/>session recording"]
+  PING -. "policy + app registry" .-> GW
+  CTRL["Privilege console<br/>control plane<br/>applications · tools · policy"] -. "control plane" .-> GW
+  GW -- "second MCP session<br/>only permitted calls" --> UP["MCP servers (unchanged)<br/>demo-mcp-server :8080<br/>opensearch-mcp-server → opensearch<br/>PingOne Management MCP · Grafana MCP"]
+  GW -- "session records" --> REC["mcpgw-recordings"]
+  GW -- "logs" --> LOGS["mcpgw-logs"]
+  UP -- "response" --> GW
+  GW --> NGX
+  NGX --> BFF
+  BFF -- "SSE events: OAuth phases,<br/>relayed calls, upstream responses" --> UI
+  classDef hot fill:#fce9e9,stroke:#d92732,color:#17243a;
+  classDef mid fill:#dce9f8,stroke:#1d3458,color:#17243a;
+  classDef opt fill:#eef2f7,stroke:#8fa2bb,color:#17243a;
+  class UI,BFF,GW hot
+  class PING,CTRL,NGX mid
+  class UP,REC,LOGS opt
+      </pre>
+      <div class="ai-flow-band">
+        <span><b>Two roles:</b> the gateway terminates the BFF's MCP session and opens its own to the server — that is exactly how policy and recording are possible.</span>
+        <span><b>Unchanged server:</b> <code>demo-mcp-server</code> has zero Privilege-specific code; policy is authored in the console and enforced on the wire.</span>
+        <span><b>Known limit:</b> PingOne-issued client tokens fail the gateway's Notary <code>kid</code> check; the console-token chain is the proven path.</span>
+      </div>
+      <div class="source"><a href="../privilege/PRIVILEGE-MCP.md">Privilege MCP canonical record</a><a href="../demo_api_server/routes/privilegeMcpClient.js">BFF relay route</a><a href="../docker-compose.yml">mcpgw profile services</a></div>
+    </section>
+        <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>08 / Delegated AI flow · every hop</div>
+      <p class="eyebrow">Delegated flow</p><h2>The full delegation sequence across all nine participants.</h2>
+      <pre class="mermaid" id="deleg-mermaid">
+sequenceDiagram
+  autonumber
+  actor U as User (browser ui :4000)
+  participant BFF as BFF demo-api-server :3001
+  participant ID as PingOne (OAuth · MFA)
+  participant A as langchain-agent :8888
+  participant LLM as llm-proxy :8090
+  participant GW as ping-gateway :3036
+  participant HITL as hitl-service :3009
+  participant MCP as mcp-server :8080 / api-resource-server :8082
+  participant AUD as mcp-audit :8898 · jaeger
+
+  U->>BFF: prompt + session cookie (no tokens in page)
+  BFF->>ID: session check / OIDC tokens (held server-side)
+  BFF->>A: POST /run (AG-UI, SSE open)
+  A->>LLM: interpret open text (heuristics skip this)
+  A-->>BFF: tool request via /internal/agent-tool callback
+  BFF->>ID: RFC 8693 exchange → audience + scope-narrowed tool token
+  BFF->>GW: tool call with exchanged token
+  GW->>GW: P1AZ policy decision: permit · challenge · deny
+  alt write above threshold
+    GW->>HITL: consent required
+    HITL-->>U: approve / reject (step-up MFA via PingOne)
+    HITL-->>GW: approval recorded
+  end
+  GW->>MCP: authorized MCP / REST call
+  MCP-->>GW: result
+  MCP->>AUD: tool event · trace
+  GW-->>BFF: authorized response
+  BFF-->>A: tool result
+  A-->>U: answer + token-chain evidence (SSE)
+      </pre>
+      <div class="ai-flow-band">
+        <span><b>Delegation:</b> user token never reaches agent or tool — BFF exchanges (8693), gateway enforces.</span>
+        <span><b>Consent is in-band:</b> HITL pauses the gateway path for human approval, with PingOne step-up MFA, before the write proceeds.</span>
+        <span><b>Every hop is evidenced:</b> token-chain events, mcp-audit tool events and jaeger traces are collected across the run.</span>
+      </div>
+      <div class="source"><a href="../demo_api_server/routes/agentRun.js">BFF run route</a><a href="../demo_api_server/routes/agentTool.js">Internal tool route</a><a href="../demo_api_server/services/agentMcpTokenService.js">RFC 8693 exchange</a><a href="../docs/architecture-token-flow.mmd">Token-flow source</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>09 / One request through the stack</div>
+      <p class="eyebrow">One request, source-traced</p><h2>A protected tool call passes six explicit boundaries.</h2>
+      <div class="trace-flow">
+        <div class="trace-step"><b>1 · Ask</b><span>React → BFF prompt with session cookie.</span></div>
+        <div class="trace-step"><b>2 · Check</b><span>BFF validates session, selects LangChain runtime.</span></div>
+        <div class="trace-step"><b>3 · Run</b><span>BFF calls agent <code>/run</code>; AG-UI events stream back.</span></div>
+        <div class="trace-step"><b>4 · Tool</b><span>Agent calls BFF <code>/internal/agent-tool</code>.</span></div>
+        <div class="trace-step"><b>5 · Authorize</b><span>BFF exchanges token, calls PingGateway: permit · deny · approval.</span></div>
+        <div class="trace-step"><b>6 · Show</b><span>Result + events return to UI and token-chain views.</span></div>
+      </div>
+      <div class="map-band"><strong>Credential boundary:</strong> BFF holds browser tokens; the agent only requests tools via callback.</div>
+      <div class="source"><a href="../demo_api_ui/src/hooks/useAgentRun.js">UI AG-UI stream</a><a href="../demo_api_server/routes/agentRun.js">BFF run route</a><a href="../demo_api_server/routes/agentTool.js">Internal tool route</a><a href="../demo_api_server/services/agentMcpTokenService.js">Token exchange</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>10 / Architecture</div>
+      <p class="eyebrow">Architecture</p><h2>The BFF is the token custodian. Nothing else sees user credentials.</h2>
+      <div class="arch">
+        <div class="arch-layer"><h3>Browser</h3><p>React SPA, page routes, session cookie, Agent UI, inspectors</p><p><b>ui :4000</b></p></div>
+        <div class="arch-layer core"><h3>BFF</h3><p>OAuth callback, server session, token exchange, API routes and tool pipeline</p><p><b>demo_api_server :3001</b></p></div>
+        <div class="arch-layer"><h3>Agent</h3><p>LangChain is the current framework. AG-UI runner and model endpoint are separate services.</p><p><b>langchain-agent :8888 · agent-service :3006 in Compose</b></p></div>
+        <div class="arch-layer"><h3>Identity</h3><p>PingOne issues user, actor and resource-specific tokens; policy/MFA decisions</p><p><b>PingOne / optional PingFederate</b></p></div>
+        <div class="arch-layer"><h3>Enforcement</h3><p>PingGateway is the default path. The Node demo gateway and Privilege MCP Gateway are separate optional paths.</p><p><b>ping-gateway · mcp-gateway · ping-mcpgw · hitl-service</b></p></div>
+        <div class="arch-layer"><h3>Resources</h3><p>MCP banking/vertical tools, investment resources, REST records and third-party tools.</p><p><b>mcp-server · mcp-resource-server · api-resource-server</b></p></div>
+        <div class="arch-bridge">Sign in → ask agent → BFF-held user token → RFC 8693 exchange → gateway policy → MCP/REST tool → event/trace result → UI</div>
+      </div>
+      <div class="source"><a href="../README.md">Architecture and component diagram</a><a href="../docs/architecture-token-flow.mmd">Token-flow source</a><a href="../demo_api_server/services/agentMcpTokenService.js">Token exchange implementation</a></div>
+    </section>
+        <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>11 / Standards and RFCs</div>
+      <p class="eyebrow">Protocol surface implemented and exercised in the repo · includes PingOne Authorize (P1AZ)</p><h2>The demo speaks the OAuth/OIDC RFC stack—not just a login button.</h2>
+      <div class="rfc-grid">
+        <div class="rfc-card core"><h3>Core authorization</h3><p class="rfc-list"><b>RFC 6749</b> OAuth 2.0 framework · <b>RFC 6750</b> bearer tokens · <b>RFC 7636</b> PKCE · <b>RFC 8693</b> token exchange — the demo's signature delegation primitive · <b>RFC 8414</b> authorization-server metadata · <b>RFC 9207</b> iss parameter · <b>RFC 9700</b> OAuth 2.0 security BCP</p></div>
+        <div class="rfc-card core"><h3>Tokens and revocation</h3><p class="rfc-list"><b>RFC 7519</b> JWT · <b>RFC 7515</b> JWS signing · <b>RFC 7638</b> JWK thumbprint · <b>RFC 7009</b> token revocation · <b>RFC 7662</b> token introspection · <b>RFC 9068</b> JWT access tokens · <b>RFC 8705</b> mTLS / DPoP-bound credentials · <b>RFC 9449</b> DPoP</p></div>
+        <div class="rfc-card"><h3>Advanced authorization</h3><p class="rfc-list"><b>RFC 9396</b> Rich Authorization Requests (RAR) · <b>RFC 9126</b> Pushed Authorization Requests (PAR) · <b>RFC 7591</b> dynamic client registration · <b>RFC 7521/7523</b> JWT client assertion grants · <b>RFC 8707</b> resource indicators (audience narrowing)</p></div>
+        <div class="rfc-card core"><h3>Protected resources and MCP</h3><p class="rfc-list"><b>RFC 9728</b> Protected Resource Metadata — how MCP clients find OAuth servers · <b>RFC 9470</b> client-initiated backchannel authentication / 428 re-auth in HITL flows · <b>RFC 9421</b> HTTP message signatures · <b>RFC 5424</b> syslog audit events</p></div>
+        <div class="rfc-card p1az"><h3>PingOne Authorize (P1AZ)</h3><p class="rfc-list"><b>Trust framework + policy rules</b> imported via snapshot; <b>TokenActive</b> rules evaluate the actor/act token chain from the RFC 8693 exchanges · <b>Step-up MFA</b> and amount-threshold policies exercised in live flows · <code>p1az-import-generator</code> skill and <code>docs/P1AZ_TOKENACTIVE_RULE_SETUP.md</code> · Privilege AI Gateway policy runtime (slide 33) applies P1AZ decisions at the MCP boundary</p></div>
+        <div class="rfc-card"><h3>Where to see them</h3><p class="rfc-list">Token Chain inspector renders <b>principal/actor/audience/scopes</b> per hop · Authorize decision inspector shows P1AZ rules firing · token lab exercises <b>7662 introspection</b> and <b>7009 revocation</b> fail-closed · PAR button on the gateway console sends <b>9126</b> pushes · A2A sequence demonstrates nested <b>8693</b> exchanges</p></div>
+      </div>
+      <p class="small" style="margin-top:10px">Most-referenced specs by count in tracked docs: 8693 · 9728 · 7662 · 8707 · 6749 · 7009 · 9396 · 9700 · 7636 · 9449. RFC 2119/8174/6819/3749/7235 appear only in boilerplate/error text and are not claimed as implemented features.</p>
+      <div class="source"><a href="../REGRESSION_PLAN.md">Token exchange contract</a><a href="../docs/P1AZ_TOKENACTIVE_RULE_SETUP.md">P1AZ TokenActive rule setup</a><a href="../docs/scope-topology.md">Scope and audience topology</a><a href="../.claude/skills/par/SKILL.md">PAR skill</a></div>
+    </section>
+        <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>12 / RFC reference list</div>
+      <p class="eyebrow">RFC reference</p><h2>22 RFCs implemented, one product standard (P1AZ).</h2>
+      <div class="rfc-table">
+        <div class="rt th"><span>RFC</span><span>Title</span><span>Where it shows up</span></div>
+        <div class="rt"><span class="mono">6749</span><span>OAuth 2.0 Framework</span><span>Base authorization-code flows: user sign-in, M2M, SDK paths</span></div>
+        <div class="rt"><span class="mono">6750</span><span>Bearer Token Usage</span><span>401 challenge paths on resource and gateway routes</span></div>
+        <div class="rt"><span class="mono">7009</span><span>Token Revocation</span><span>Logout and session teardown revoke tokens at PingOne</span></div>
+        <div class="rt"><span class="mono">7519</span><span>JWT</span><span>All issued tokens; act-claim actor nesting in the chain view</span></div>
+        <div class="rt"><span class="mono">7515</span><span>JWS</span><span>Signed tokens; RFC badges in the Actions popout</span></div>
+        <div class="rt"><span class="mono">7521/7523</span><span>JWT Assertion Grants</span><span>Client-assertion exchange paths in the BFF</span></div>
+        <div class="rt"><span class="mono">7636</span><span>PKCE</span><span>Browser and Privilege user-mode code flows</span></div>
+        <div class="rt"><span class="mono">7638</span><span>JWK Thumbprint</span><span>Key identity in token verification</span></div>
+        <div class="rt core"><span class="mono">8693</span><span>Token Exchange</span><span>The signature primitive: user → actor → audience-narrowed tool tokens, nested A2A delegation</span></div>
+        <div class="rt"><span class="mono">8414</span><span>AS Metadata</span><span>Discovery of PingOne authorization-server metadata</span></div>
+        <div class="rt"><span class="mono">8705</span><span>mTLS / DPoP Bound Tokens</span><span>Certificate-bound credential demonstrations</span></div>
+        <div class="rt"><span class="mono">8707</span><span>Resource Indicators</span><span>Audience binding (aud: mcpserver.ping.demo) on every exchange</span></div>
+        <div class="rt"><span class="mono">9068</span><span>JWT Access Token Profile</span><span>JWT-shaped access tokens from PingOne</span></div>
+        <div class="rt"><span class="mono">9126</span><span>PAR</span><span>Pushed authorization requests from the gateway console and par skill</span></div>
+        <div class="rt"><span class="mono">9207</span><span>iss Parameter</span><span>Issuer confirmation in authorization responses</span></div>
+        <div class="rt"><span class="mono">9396</span><span>RAR</span><span>Fine-grained authorization data in tool-call grants (feature-flagged)</span></div>
+        <div class="rt"><span class="mono">9421</span><span>HTTP Message Signatures</span><span>Web Bot Auth verification in the gateway (monitor mode)</span></div>
+        <div class="rt"><span class="mono">9449</span><span>DPoP</span><span>Sender-constrained tokens; replay protection (feature-flagged)</span></div>
+        <div class="rt"><span class="mono">9470</span><span>CIBA-lite / 428 Re-auth</span><span>428 session-expired triggers force-login in HITL flows; ACR step-up</span></div>
+        <div class="rt"><span class="mono">9700</span><span>OAuth Security BCP</span><span>Hardening baseline across flows</span></div>
+        <div class="rt"><span class="mono">9728</span><span>Protected Resource Metadata</span><span>MCP clients discover the OAuth server for each resource</span></div>
+        <div class="rt"><span class="mono">7662</span><span>Token Introspection</span><span>Token Lab introspection; fail-closed on outage</span></div>
+        <div class="rt p1az"><span class="mono">P1AZ</span><span>PingOne Authorize (product, not RFC)</span><span>Trust framework + TokenActive rules evaluate the 8693 chain; step-up MFA and amount policies at PingGateway and the Privilege gateway</span></div>
+      </div>
+      <p class="small" style="margin-top:10px">Not claimed as implemented: RFC 2119/8174 (boilerplate), 6819/3749/7235 (incidental citations). Flagged entries (RAR, DPoP) are feature-flagged per the use-case catalog.</p>
+      <div class="source"><a href="../docs/PINGONE_API_LINKS.md">RFC link table</a><a href="../docs/scope-topology.md">Scope and audience topology</a><a href="../CHANGELOG.md">RFC citations in changelog</a></div>
+    </section>
+    <section class="slide dark">
+      <div class="brand"><span class="brand-mark"></span>13 / Current vs incomplete</div>
+      <p class="eyebrow">Maturity</p><h2>56 scenarios work. 10 need flags. 2 need building.</h2>
+      <div class="grid g3">
+        <div class="panel"><div class="metric">56</div><h3>“Works”</h3><p>Declared maturity; tenant, scopes, apps or model credentials may still be required.</p></div>
+        <div class="panel"><div class="metric">10</div><h3>Flag-gated</h3><p>DPoP replay, RAR, CIBA, group policy, enterprise MCP, verified A2A, concierge.</p></div>
+        <div class="panel"><div class="metric">2</div><h3>Needs build</h3><p>UC15 intent tampering; UC29 introspection fail-closed.</p></div>
+      </div>
+      <div class="panel" style="margin-top:18px"><h3>Open debt (<code>TECH_DEBT.md</code>)</h3><p>One Privilege transport bypasses the shared pipeline; <code>AIAgentFull</code> duplicates a large component; shared event feeds lack per-user filtering; SDK sign-in needs manually provisioned CORS.</p></div>
+      <p class="small" style="margin-top:12px"><b>Current:</b> LangChain active. Protected demos need a configured PingOne tenant; LLM routes need credentials or a local model. The stack was stopped during this revision — these pages describe code and saved captures, not live health.</p>
+      <div class="source"><a href="../demo_api_server/config/useCases.js">Catalog maturity values</a><a href="../TECH_DEBT.md">Open and resolved debt ledger</a><a href="../planning/">Plans and handoffs</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>14 / Server inventory · core</div>
+      <p class="eyebrow">Core servers</p><h2>10 core servers: UI, BFF, tools, gateways, consent.</h2>
+      <table class="plain-table"><thead><tr><th>Service</th><th>Port</th><th>Responsibility</th></tr></thead><tbody>
+        <tr><td><code>demo_api_ui</code></td><td>4000</td><td>React customer/admin interface</td></tr>
+        <tr><td><code>demo_api_server</code></td><td>3001</td><td>Express BFF, browser API, OAuth session/token custodian</td></tr>
+        <tr><td><code>oauth-mcp</code></td><td>8080</td><td>TypeScript banking MCP server; OAuth/resource endpoints</td></tr>
+        <tr><td><code>demo_mcp_resource_server</code></td><td>8081</td><td>Investment MCP tools</td></tr>
+        <tr><td><code>demo_api_resource_server</code></td><td>8082</td><td>REST resource server; gateway credential conversion path</td></tr>
+        <tr><td><code>demo_mcp_gateway</code></td><td>3005</td><td>Optional Node gateway; demo profile</td></tr>
+        <tr><td><code>ping-gateway</code></td><td>3036</td><td>PingGateway/IG MCP enforcement path</td></tr>
+        <tr><td><code>demo_agent_service</code></td><td>3006</td><td>AG-UI runner; streams run state over SSE</td></tr>
+        <tr><td><code>demo_hitl_service</code></td><td>3009</td><td>Human approval challenge service</td></tr>
+        <tr><td><code>agent_token_service</code></td><td>8097</td><td>Separate token broker for Copilot Studio</td></tr>
+      </tbody></table>
+      <div class="source"><a href="../README.md">Current component table</a><a href="../docker-compose.yml">Compose wiring</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>15 / Start here</div>
+      <p class="eyebrow">Start here</p><h2>Three tours: delegated read, transfer approval, A2A hand-off.</h2>
+      <div class="grid g3">
+        <div class="panel redline"><h3>1 · Delegated read</h3><p>Run UC1 “show my balance” → open Token Chain → compare user token, exchanged token, audience and scopes.</p></div>
+        <div class="panel redline"><h3>2 · Transfer approval</h3><p>Run UC7/UC8 in a configured vertical → watch MFA/consent challenge → approve → inspect retry and tool result.</p></div>
+        <div class="panel redline"><h3>3 · A2A hand-off</h3><p>Run UC2/UC2.5 → inspect actor nesting and narrowed scopes → compare the A2A sequence and topology views.</p></div>
+      </div>
+      <p class="small" style="margin-top:18px">Open the use-case entry before presenting — it carries the prompt, maturity, flag and expected evidence.</p>
+      <div class="source"><a href="../demo_api_server/config/useCases.js">Use-case source</a><a href="../docs/user-guide/AGENT_SHOWCASE_DEMO_SCENARIOS.md">Presenter scenarios</a><a href="../README.md">Setup and run guide</a></div>
+    </section>
+  </main>
+  <nav class="controls" aria-label="Slide controls">
+    <div class="progress" id="progress"></div>
+    <button id="prev" type="button" aria-label="Previous slide">Previous</button>
+    <span class="count" id="count" aria-live="polite"></span>
+    <button id="next" type="button" aria-label="Next slide">Next</button>
+    <span class="hint">Arrow keys · Home / End · browser print for PDF</span>
+  </nav>
+  <script src="presentation-assets/mermaid.min.js"></script>
+  <script>
+    (() => {
+      let mermaidReady = false;
+      try {
+        mermaid.initialize({ startOnLoad: false, theme: 'base', securityLevel: 'loose',
+          themeVariables: { fontSize: '15px', fontFamily: 'Inter, sans-serif', primaryColor: '#dce9f8', primaryBorderColor: '#1d3458', lineColor: '#d92732', edgeLabelBackground: '#f5f7fa' },
+          flowchart: { curve: 'basis', nodeSpacing: 28, rankSpacing: 42, useMaxWidth: true } });
+        mermaid.run({ querySelector: '.mermaid' }).then(() => { mermaidReady = true; }).catch(() => {});
+      } catch (e) {}
+      window.__mermaidReady = () => mermaidReady;
+      const slides = [...document.querySelectorAll('.slide')];
+      const count = document.getElementById('count');
+      const progress = document.getElementById('progress');
+      let current = 0;
+      function show(index) {
+        current = Math.max(0, Math.min(slides.length - 1, index));
+        slides.forEach((slide, i) => {
+          slide.classList.toggle('active', i === current);
+          slide.setAttribute('aria-hidden', i === current ? 'false' : 'true');
+        });
+        count.textContent = `${String(current + 1).padStart(2, '0')} / ${String(slides.length).padStart(2, '0')}`;
+        progress.style.width = `${((current + 1) / slides.length) * 100}%`;
+        history.replaceState(null, '', `#slide-${current + 1}`);
+      }
+      document.getElementById('prev').addEventListener('click', () => show(current - 1));
+      document.getElementById('next').addEventListener('click', () => show(current + 1));
+      document.addEventListener('keydown', event => {
+        if (event.altKey || event.ctrlKey || event.metaKey) return;
+        if (['ArrowRight', 'PageDown', ' '].includes(event.key)) { event.preventDefault(); show(current + 1); }
+        if (['ArrowLeft', 'PageUp'].includes(event.key)) { event.preventDefault(); show(current - 1); }
+        if (event.key === 'Home') show(0);
+        if (event.key === 'End') show(slides.length - 1);
+      });
+      const target = location.hash.match(/^#slide-(\d+)$/);
+      show(target ? Number(target[1]) - 1 : 0);
+    })();
+  </script>
+</body>
+</html>
