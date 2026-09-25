@@ -8,6 +8,7 @@ const auditLogService = require('../services/auditLogService');
 const appEventService = require('../services/appEventService');
 const agentLifecycleEvents = require('../services/agentLifecycleEvents');
 const controlPlaneOverview = require('../services/controlPlaneOverview');
+const { terminateAllUserSessions } = require('../services/pingOneSessionService');
 
 // Honest-subset stop for a demo platform identity: writes a REAL immutable audit
 // record and emits a control_plane push event, then flips session status. Does
@@ -91,6 +92,98 @@ router.post('/reset', authenticateToken, (req, res) => {
     });
   });
   req.session.save(() => res.json({ ok: true, demo }));
+});
+
+/**
+ * POST /api/control-plane/comprehensive-shutdown
+ *
+ * The "everything at once" escalation of the kill switch, for the
+ * comprehensive-shutdown demo beat:
+ *   1. Full-scope kill of the live agent via the unchanged killSwitchService
+ *      (token revocation, user disable, agent app disable, schedule cancel,
+ *      session invalidation, revoked flag, audit record).
+ *   2. Terminate every active PingOne SSO session for the user — closes the
+ *      "agent re-mints via an alive SSO session" hole that token revocation
+ *      alone leaves open.
+ *   3. Cascade-stop all demo roster identities (same honest-subset stop as
+ *      /stop-all), so every platform row reads revoked in one action.
+ *
+ * Like the kill-switch, this destroys the caller's session: the kill is the
+ * expected 401-shaped response (error: 'agent_killed') so the UI's existing
+ * session-expiry handling takes over. Never calls with scope other than
+ * 'full' — this endpoint is by definition the identity-layer kill.
+ */
+router.post('/comprehensive-shutdown', authenticateToken, async (req, res) => {
+  const reason = (req.body && req.body.reason) || 'comprehensive_shutdown';
+  const userId = req.session?.user?.oauthId || req.session?.user?.id || null;
+  const oauthTokens = req.session?.oauthTokens || null;
+  const agentId = 'demo-agent';
+  const steps = [];
+
+  // 1. Full-scope kill (real PingOne revocation + app disable). Reuse the
+  //    service directly rather than the /kill-switch route so this one call
+  //    can continue to steps 2-3 before the session dies with the response.
+  let killResult = null;
+  try {
+    const killSwitchService = require('../services/killSwitchService');
+    killResult = await killSwitchService.killAgent(agentId, reason, userId, oauthTokens, 'full', req.sessionID);
+    steps.push({ key: 'live_kill', label: 'Full-scope kill of the live agent', detail: `Revoked tokens and disabled the agent's PingOne application (${killResult.time_to_revoke_ms}ms).`, ran: true, skipped: false });
+  } catch (e) {
+    steps.push({ key: 'live_kill', label: 'Full-scope kill of the live agent', detail: `Kill switch failed: ${e.message}`, ran: false, skipped: false });
+  }
+
+  // 2. PingOne SSO session termination (best-effort; already-covered by
+  //    token revocation when this fails).
+  try {
+    const sessionResult = await terminateAllUserSessions(userId);
+    steps.push({
+      key: 'pingone_sessions',
+      label: 'Terminate PingOne SSO sessions',
+      detail: sessionResult.terminated > 0
+        ? `${sessionResult.terminated} of ${sessionResult.sessions_found} SSO session(s) terminated — the agent cannot silently re-authenticate.`
+        : 'No active PingOne SSO sessions found (or termination unsupported) — token revocation above already covers re-auth.',
+      ran: sessionResult.terminated > 0,
+      skipped: sessionResult.sessions_found === 0,
+      skipReason: sessionResult.sessions_found === 0 ? 'no_sessions' : undefined,
+    });
+  } catch (e) {
+    steps.push({ key: 'pingone_sessions', label: 'Terminate PingOne SSO sessions', detail: `Could not enumerate/terminate SSO sessions: ${e.message}`, ran: false, skipped: false });
+  }
+
+  // 3. Cascade-stop all demo platform identities.
+  const active = demoAgentRoster.getRoster(req).filter((a) => a.status === 'active');
+  const stopped = [];
+  for (const agent of active) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const auditId = await stopDemoAgent(req, agent, reason);
+      stopped.push({ id: agent.id, audit_id: auditId });
+    } catch (_) { /* keep cascading */ }
+  }
+  steps.push({
+    key: 'platform_cascade',
+    label: 'Stop all Ping-governed platforms',
+    detail: stopped.length > 0
+      ? `${stopped.map((s) => s.id).join(', ')} revoked — immutable audit records written for each.`
+      : 'No active demo platform identities on this session roster.',
+    ran: stopped.length > 0,
+    skipped: stopped.length === 0,
+    skipReason: stopped.length === 0 ? 'no_active_agents' : undefined,
+  });
+
+  // Session is dead after a full kill — respond in the kill-switch's expected
+  // 401 shape so the UI's existing handling (redirect to sign-in, result
+  // modal) takes over unchanged.
+  req.session.destroy(() => {});
+  return res.status(401).json({
+    error: 'agent_killed',
+    need_auth: true,
+    revoked_at: killResult ? killResult.revoked_at : null,
+    scope: 'full',
+    stopped,
+    steps,
+    message: 'Comprehensive shutdown complete. Session revoked. Please sign in again.',
+  });
 });
 
 router.get('/lifecycle-events', authenticateToken, (req, res) => {

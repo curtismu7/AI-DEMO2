@@ -188,6 +188,51 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-25 — DaVinci SDK lesson login clobbered the main app session
+
+**Files changed:** `demo_api_server/routes/davinciSdkLogin.js`,
+`demo_api_server/tests/routes/davinciSdkLogin.test.js`, and
+`REGRESSION_PLAN.md`.
+
+**What was broken:** the BFF keeps one shared browser session, and the DaVinci
+SDK lesson's callback (`routes/davinciSdkLogin.js`) wrote the lesson's tokens
+straight into `session.oauthTokens` — overwriting the main login. A user who
+completed the `/davinci-sdk-login` lesson then carried a DaVinci-app token in
+the main session: every dashboard tool call failed the RFC 8693 exchange
+(`invalid_request: Not a valid access token for request param
+'subject_token'`) and 502'd until re-login (found live 2026-09-25, session
+`M-rFGvoOm88…`; see the token-exchange-policy row below for the tenant half).
+
+**What was fixed:** the callback now captures the main app session before
+`regenerate()` (capture at callback, not at `/start`, so a silent refresh from
+`middleware/tokenRefresh.js` during the lesson window is not undone), stores
+the lesson identity in a dedicated `session.davinciSdkLogin` sandbox (tokens,
+user, `clientType`, `oauthSubjectClient` stamp, `signedInAt`), and restores the
+main credentials around it. New read-only
+`GET /api/davinci-sdk-login/sandbox-status` and destructive
+`POST /api/davinci-sdk-login/sandbox-reset` endpoints manage the sandbox; the
+callback response (username/userId/email) is unchanged, so the lesson page's
+"Signed in as" UI works unchanged. Signed-out users who complete the lesson
+stay signed-out in the main app, as before.
+
+**Do not break:** the callback's exchange → existing-user-only lookup →
+`session.regenerate` → `session.save` sequence and its nonce/PKCE verification
+(§4 2026-08-18) are unchanged; the exchange still carries the DaVinci app
+`client_id` and never a secret (the load-bearing first test). The widget path's
+silent-refresh mechanics and `middleware/tokenRefresh.js` (which only touches
+`session.oauthTokens` — now always the main tokens) are untouched. No token
+material is returned to the browser. The tenant-side token-exchange-policy gap
+for DaVinci subjects is tracked separately (see the 2026-09-25 exchange-subject
+entry) and remains a console step.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+tests/routes/davinciSdkLogin.test.js tests/davinciLoginNonce.test.js
+tests/davinciConfig.test.js
+tests/services/pingoneAppConfigService.sdkLogout.test.js --forceExit`
+(31/31, run 3× stable); `npm run authz:verify`; BFF restart healthy with
+`[EXCHANGE-PROBE] OK`; live `GET /api/davinci-sdk-login/sandbox-status` and
+`POST /sandbox-reset` answer correctly; `npm run test:unit` 96/96.
+
 ### 2026-09-25 — DaVinci SDK session tokens were rejected as RFC 8693 exchange subjects
 
 **Files changed:** `demo_api_server/services/exchangeSubjectProbe.js` (new),

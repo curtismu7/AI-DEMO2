@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import apiClient from "../services/apiClient";
-import { getAgents, stopAgent, resetRoster } from "../services/controlPlaneApi";
+import { getAgents, stopAgent, resetRoster, comprehensiveShutdown } from "../services/controlPlaneApi";
 import { useAppEventsSSE } from "../hooks/useAppEventsSSE";
 import { useAuth } from "../hooks/useAuth";
 import { useThemeOptional } from "../context/ThemeContext";
@@ -108,6 +108,27 @@ export default function ControlPlaneRoster({ openKillSwitchModal }) {
     setEndCard({ count, time: nowStamp() });
     setProgress(`Done - control plane severed access across ${count} platforms.`);
     setBusy(false);
+  };
+
+  // Comprehensive shutdown: full-scope kill of the live agent + PingOne SSO
+  // session termination + demo-platform cascade, one click. The server
+  // destroys the session and answers 401 agent_killed; comprehensiveShutdown
+  // resolves with the step report. Show it before the session-death redirect
+  // takes over — same trick as the kill-switch modal's end state.
+  const onComprehensiveShutdown = async () => {
+    if (busy) return;
+    setBusy(true);
+    setCaption("Full kill + PingOne SSO termination + all-platform cascade...");
+    setProgress("Running comprehensive shutdown...");
+    try {
+      const result = await comprehensiveShutdown();
+      const ran = (result?.steps || []).filter((s) => s.ran).length;
+      setProgress(`Comprehensive shutdown: ${ran} enforcement step(s) ran, ${result?.stopped?.length ?? 0} platform(s) stopped.`);
+    } catch (_) {
+      setProgress("Comprehensive shutdown request failed — check the roster and audit trail.");
+    }
+    // Don't reset busy: the session is destroyed server-side; the apiClient
+    // 401 handling (sign-out) takes over from here.
   };
 
   const onReset = async () => {
@@ -334,6 +355,12 @@ export default function ControlPlaneRoster({ openKillSwitchModal }) {
 
       <div className="cp-actions">
         <button className="cp-btn stopall" disabled={busy} onClick={onStopAll}>Stop across all platforms</button>
+        <button
+          className="cp-btn stopall cp-btn--comprehensive"
+          disabled={busy}
+          title="Full-scope kill (tokens + user + agent app at PingOne), PingOne SSO session termination, and the all-platform cascade — in one action."
+          onClick={onComprehensiveShutdown}
+        >Comprehensive shutdown</button>
         <button className="cp-btn reset" disabled={busy} onClick={onReset}>Reset roster</button>
         <span className="cp-progress">{progress}</span>
       </div>
