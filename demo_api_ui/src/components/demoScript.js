@@ -141,11 +141,11 @@ export const DEMO_SCRIPT = {
     warn: "One deliberate hop to /ai-control-plane. Use INSTANCE scope (the default) - it self-recovers and is safe for the shared env. Do NOT use full (disables the PingOne app for every user of that client). Do NOT re-run a step afterward - with instance scope it would just work again.",
     steps: [
       "Left nav: Agent Kill Switch.",
-      "On the LIVE row, click the red STOP button.",
+      "On the LIVE row, click STOP this instance.",
       "In the confirm modal: keep scope Instance, pick a reason, click Confirm Stop Agent.",
     ],
     expected:
-      "Row flips to REVOKED with an ALL AI ACTIVITY HALTED card; the kill destroys the session so you are force-logged-out to sign-in. The forced logout IS the payoff.",
+      "Row flips to REVOKED; the kill destroys the session so you are force-logged-out to sign-in. The forced logout IS the payoff.",
     say: "Everything you saw was attributable to the user - provable at decision time. So when an agent goes bad, you don't negotiate with it. One switch. (click Confirm) It's done. Watch - I'm logged out. The whole surface went dark the instant the agent was revoked. The agent that moved money a minute ago no longer exists.",
   },
   fallback: [

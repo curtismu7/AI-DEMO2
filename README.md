@@ -695,7 +695,7 @@ See **[docs/privilege-llm-protection.md](docs/privilege-llm-protection.md)** —
 - **Activity narration** (`ff_activity_narration`, default ON) — a "What's happening" panel that narrates each step of the agent flow in plain language.
 - **Security Showcase** — a tabbed chip panel inside the agent (Defenses / AI Reasoning / Attacks) demonstrating 6 live attacks (prompt injection, indirect injection, wrong audience, scope escalation, confused deputy, HITL receipt-binding replay) plus defense chips; enabled in all 5 verticals.
 - **Live Policy Console** (`/pingone-authorize`) — overhauled PingOne Authorize page with a live policy tree, recent decisions, an Evaluate tab with presets and explainers, and full request/response JSON; open to any authenticated user and warms the Authorize connection on boot and page load.
-- **AI Control Plane** (`/ai-control-plane`) — cross-platform agent governance: stopping an agent revokes its identity at Ping so access dies everywhere at once; includes a Compliance Report view with CSV/JSON export.
+- **AI Control Plane** (`/ai-control-plane`) — agent governance over real identities only: instance or full-identity kill revokes the agent's PingOne identity so access dies everywhere at once; Comprehensive shutdown adds PingOne SSO session termination; includes a Compliance Report view with CSV/JSON export.
 - **Microsoft Copilot Studio integration** — a standalone agent mode where MSAL/Entra login drives a Copilot Studio client that calls `agent_token_service` (port 8097) to mint a PingOne agent token before reaching the gateway. See **[docs/COPILOT_PART3_RUNBOOK.md](docs/COPILOT_PART3_RUNBOOK.md)** for setup.
 
 ## Configuration

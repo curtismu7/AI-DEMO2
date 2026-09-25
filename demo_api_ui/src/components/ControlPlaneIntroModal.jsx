@@ -30,18 +30,18 @@ export default function ControlPlaneIntroModal({ isOpen, onConfirm, onCancel }) 
         <div className="ksm-instructions">
           <p className="ksm-instructions-lead">
             The Agent Kill Switch is where you <strong>govern, authorize, audit,
-            and shut down</strong> AI agents across every platform — your live
-            agent plus connected platforms like ChatGPT, Copilot, Glean, and
-            others. Stopping an agent here revokes its identity at Ping, so
-            access dies everywhere at once.
+            and shut down</strong> AI agents — every agent gets its identity and
+            tokens from Ping, so stopping an agent here revokes that identity
+            at Ping and access dies everywhere at once. Every identity shown is
+            real: nothing on this console is simulated.
           </p>
         </div>
 
         <div className="ksm-warning-note">
           <strong>This is the live stop &amp; govern console.</strong> Entering
-          does not stop anything — but actions taken here (Stop, Stop across all
-          platforms) immediately revoke tokens and are logged to the audit
-          trail.
+          does not stop anything — but actions taken here (Stop this instance,
+          Stop entire agent, Comprehensive shutdown) immediately revoke tokens
+          at PingOne and are logged to the audit trail.
         </div>
       </div>
     </DraggableModal>

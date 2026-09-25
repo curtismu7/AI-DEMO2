@@ -89,7 +89,7 @@ Three dedicated demo surfaces complement the vertical dashboards:
 
 - **Security Showcase** — a tabbed chip panel embedded in the agent UI, exposing six live attack scenarios (enabled across all five verticals).
 - **Live Policy Console** (`/pingone-authorize`) — overhauled PingOne Authorize page with a live policy tree, recent decisions panel, and Evaluate presets; open to any authenticated user; warms the Authorize connection on boot and page load.
-- **AI Control Plane** (`/ai-control-plane`) — cross-platform agent governance; stopping an agent revokes its Ping identity so access dies on every platform simultaneously; includes a Compliance Report view with CSV/JSON export.
+- **AI Control Plane** (`/ai-control-plane`) — agent governance over real identities only; an instance or full-identity kill revokes the agent's Ping identity so access dies on every platform simultaneously, and Comprehensive shutdown also terminates PingOne SSO sessions; includes a Compliance Report view with CSV/JSON export.
 
 ### 3.2 Agent plane — pluggable reasoning runtimes
 

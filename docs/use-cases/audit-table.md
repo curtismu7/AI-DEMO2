@@ -44,7 +44,7 @@
 | UC-TOOL1 | [Protected RAG](./code-search.md) | tools | ✅ works | 🛡️ T2, T6 |  |
 | UC-TOOL2 | [Code Explorer](./code-explorer.md) | tools | ✅ works |  |  |
 | UC-TOOL3 | [LLM Gateway](./llm-gateway.md) | tools | ✅ works |  |  |
-| UC-NHI1 | [Multi-source NHI inventory](./nhi-inventory.md) | nhi | ✅ works |  |  |
+| UC-NHI1 | [Live agent NHI inventory](./nhi-inventory.md) | nhi | ✅ works |  |  |
 | UC-NHI2 | [Agent lifecycle export (JML)](./nhi-lifecycle-export.md) | nhi | ✅ works |  |  |
 | UC-LEARN1 | [OAuth Academy](./oauth-academy.md) | learn | ✅ works |  |  |
 | UC-LEARN2 | [PingOne MCP Inspector](./pingone-mcp-inspector.md) | learn | ✅ works |  |  |
