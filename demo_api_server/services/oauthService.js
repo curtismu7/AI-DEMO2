@@ -206,13 +206,11 @@ class OAuthService {
   // username, producing a genuine "incorrect username and password" once the
   // user submits credentials for whoever they actually are.
   generateAuthorizationUrl(state, codeVerifier, redirectUri, nonce = null, loginHint) {
-    // PingFederate disables (readonly) the username field when login_hint is
-    // present — same trap as oauthUserService's user login (see that fix). The
-    // 'demoAdmin' hint was a PingOne-hosted-page convenience; in PF mode it
-    // locked the admin username to a user that does not exist in the IdP.
-    // Default: PingOne keeps 'demoAdmin'; PF omits the hint entirely.
+    // NOTE: PingFederate disables (readonly) the username field when login_hint is
+    // present. We now deliberately send 'demoadmin' in PF mode too (requested
+    // demo behavior); routes/davinciLogin.js still passes null to omit it.
     if (loginHint === undefined) {
-      loginHint = (configStore.getOAuthProvider?.() === 'pingfederate') ? null : 'demoAdmin';
+      loginHint = (configStore.getOAuthProvider?.() === 'pingfederate') ? 'demoadmin' : 'demoAdmin';
     }
     const usePiFlow = !!this.config.authorizeUsesPiFlow;
     const codeChallenge = this.generateCodeChallenge(codeVerifier);

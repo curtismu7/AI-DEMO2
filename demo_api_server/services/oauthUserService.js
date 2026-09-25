@@ -141,14 +141,13 @@ class OAuthUserService {
    * @param {boolean} [config.forcePiFlow] - Force pi.flow response type instead of code
    */
   generateAuthorizationUrl({ state, codeVerifier, redirectUri, nonce, acr_values, prompt, max_age, login_hint, forcePiFlow } = {}) {
-    // PingFederate disables (readonly) the username field on its login page when
-    // login_hint is present — users then can't correct the pre-filled identity
-    // and get a genuine "We didn't recognize the username or password" for
-    // whoever they actually are. Omit the hint in PF mode unless explicitly given.
+    // NOTE: PingFederate disables (readonly) the username field on its login page when
+    // login_hint is present. We now deliberately send 'demouser' in PF mode too
+    // (requested demo behavior); pass login_hint: null explicitly to omit it.
     const effectiveLoginHint =
       login_hint !== undefined
         ? login_hint
-        : (configStore.getOAuthProvider?.() === 'pingfederate' ? undefined : 'demoUser');
+        : (configStore.getOAuthProvider?.() === 'pingfederate' ? 'demouser' : 'demoUser');
     console.log('[oauth-auth-url] authorizationEndpoint:', this.config.authorizationEndpoint);
     console.log('[oauth-auth-url] Generated with:', { redirectUri, nonce, acr_values, prompt, max_age });
     const usePiFlow = Boolean(forcePiFlow) || Boolean(this.config.authorizeUsesPiFlow);

@@ -20,19 +20,31 @@ jest.mock('../../config/oauth', () => ({
   authorizeUsesPiFlow: false,
 }));
 
+jest.mock('../../services/configStore', () => ({
+  getOAuthProvider: jest.fn(),
+}));
+
 const oauthService = require('../../services/oauthService');
+const configStore = require('../../services/configStore');
 
 function hintOf(url) {
   return new URL(url).searchParams.get('login_hint');
 }
 
 test('defaults to demoAdmin when no loginHint is passed (routes/oauth.js unaffected)', () => {
+  configStore.getOAuthProvider.mockReturnValue('pingone');
   const url = oauthService.generateAuthorizationUrl('state-1', 'verifier-1', 'https://x/cb', 'nonce-1');
   expect(hintOf(url)).toBe('demoAdmin');
 });
 
+test('defaults to demoadmin in PingFederate mode', () => {
+  configStore.getOAuthProvider.mockReturnValue('pingfederate');
+  const url = oauthService.generateAuthorizationUrl('state-1', 'verifier-1', 'https://x/cb', 'nonce-1');
+  expect(hintOf(url)).toBe('demoadmin');
+});
+
 test('omits login_hint entirely when explicitly passed null', () => {
+  configStore.getOAuthProvider.mockReturnValue('pingfederate');
   const url = oauthService.generateAuthorizationUrl('state-1', 'verifier-1', 'https://x/cb', 'nonce-1', null);
-  expect(hintOf(url)).toBeNull();
   expect(url).not.toContain('login_hint');
 });
