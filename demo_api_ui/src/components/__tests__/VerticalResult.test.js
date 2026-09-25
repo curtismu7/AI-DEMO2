@@ -13,6 +13,23 @@ test('money format renders a dollar amount', () => {
   expect(screen.getByText('$142.50')).toBeInTheDocument();
 });
 
+test('fieldList results show structured tool rows and disclose when rows are truncated', () => {
+  render(
+    <VerticalResult
+      descriptor={{ type: 'fieldList', title: 'PingOne MCP Result', fields: [{ label: 'Tool', path: 'tool' }] }}
+      data={{
+        tool: 'listUsers',
+        rows: [{ username: 'alice', email: 'alice@example.com', enabled: true }],
+        totalCount: 37,
+        rowsTruncated: true,
+      }}
+    />,
+  );
+  expect(screen.getByText('alice')).toBeInTheDocument();
+  expect(screen.getByText('alice@example.com')).toBeInTheDocument();
+  expect(screen.getByText(/Showing 1 of 37 users/)).toBeInTheDocument();
+});
+
 test('table renders columns over an array-valued property', () => {
   render(<VerticalResult descriptor={{ type: 'table', columns: [{ label: 'Provider', path: 'provider' }, { label: 'Status', path: 'status' }] }} data={{ records: [{ provider: 'Dr. A', status: 'Active' }, { provider: 'Dr. B', status: 'Released' }] }} />);
   expect(screen.getByText('Dr. A')).toBeInTheDocument();

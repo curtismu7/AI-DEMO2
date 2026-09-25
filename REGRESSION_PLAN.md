@@ -169,6 +169,46 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — PingOne Admin agent results had no inspectable records
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/VerticalResult.jsx`, and focused UI tests.
+
+**What was broken:** the floating result panel was disabled by default, and the
+PingOne Admin field-list renderer showed only a summary, hiding the rows returned
+by tools such as `listUsers`.
+
+**What was fixed:** PingOne Admin results render structured rows with total
+counts and an explicit preview notice when truncated. Short results use the
+floating panel; long or truncated lists render inline in the scrollable agent
+conversation so the full preview remains reachable. Other verticals still follow
+the floating results feature flag.
+
+**Do not break:** preserve the PingOne Admin tool allowlist, authorization,
+query filters, token custody, and the server's bounded rows sent to the agent.
+
+**Verify:** focused `VerticalResult` and `AIAgent.addToCart` Vitest suites and
+the UI production build.
+
+### 2026-09-24 — Token chain node selection hid its detail below the map
+
+**Files changed:** `demo_api_ui/src/components/TokenChainTraceRail.jsx`,
+`demo_api_ui/src/components/TokenChainTraceRail.css`, and the focused trace-rail
+test.
+
+**What was broken:** selecting a node in Chain Map rendered its detail after the
+map, where it could be missed in the admin dashboard's constrained viewport.
+
+**What was fixed:** the selected node's full detail now sits beside the map on
+wider layouts and below it on narrow layouts, with its own scroll area for long
+evidence.
+
+**Do not break:** keep the existing trace projection, claim redaction, and token
+inspection flow unchanged; Step Detail remains available as its own view.
+
+**Verify:** focused `TokenChainTraceRail` Vitest suite and the UI production
+build.
+
 ### 2026-09-24 — Delegated reads failed on transient gateway errors
 
 **Files changed:** `demo_api_server/services/mcpGatewayClient.js`,
