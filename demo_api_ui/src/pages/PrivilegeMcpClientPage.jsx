@@ -1256,18 +1256,19 @@ export default function PrivilegeMcpClientPage() {
       : (consoleData?.applications || [])
         .map((a) => (gatewayMode === 'facade' ? a.facadeUrl : a.gatewayUrl))
         .filter(Boolean);
-    // The direct-mode presets are excluded UNLESS the active mode can actually
-    // reach them: sameGatewayDoors() below groups by origin, and Direct's
-    // presets (banking/brave/opensearch/pingone-admin — plain façade doors,
-    // no Privilege in the path) share PUBLIC_APP_ORIGIN with Façade's own
-    // presets, so Façade mode gets the same base door set as Direct — plus
-    // whatever Privilege-gated multiApp targets it has of its own. Privilege
-    // mode (the raw AI Gateway, a different host entirely) does not: without
-    // this check they would leak into every non-direct door picker.
+    // Keep the picker tied to the selected path, not just the URL origin.
+    // Direct, Privilege, and Façade endpoints can share PUBLIC_APP_ORIGIN,
+    // while representing different routes and authorization chains. Offering
+    // a same-origin preset from another path makes switching the Door silently
+    // change the path semantics without changing the Path selector.
+    const directDoorNames = new Set(['banking', 'opensearch', 'brave', 'pingone-admin']);
     const fromPresets = presets
-      .filter((p) => p.mode !== 'direct' || gatewayMode === 'direct' || gatewayMode === 'facade')
+      .filter((p) => p.mode === gatewayMode)
+      .filter((p) => gatewayMode !== 'direct' || directDoorNames.has(doorName(p.url)))
       .map((p) => p.url);
-    const all = [...new Set([...fromConsole, ...fromPresets, ...(includeCurrent ? [config.mcpUrl] : [])])];
+    const all = [...new Set([...fromConsole, ...fromPresets])];
+    // During probes, includeCurrent keeps the selected known door in the
+    // candidate list; it does not add a URL from a different path.
     return all.filter((u) => u && (includeCurrent || u !== config.mcpUrl));
   };
 
@@ -2752,24 +2753,24 @@ export default function PrivilegeMcpClientPage() {
             </div>
             <div className="cur-terminal-content">
               {visibleTerminalTab === 'trace' && (
-                <div className="cur-terminal-log">
+                <div className="cur-terminal-log cur-trace-log">
                   {events.length === 0 && <span className="cur-terminal-empty">No events yet — sign in or call a tool</span>}
                   {events.slice(0, 100).map((e, i) => {
                     const rest = { ...e, ts: undefined, type: undefined };
                     let label = e.type;
-                    let color = '#888';
-                    if (e.type === 'relay' && e.direction === 'client->mcp') { label = `→ MCP ${e.method || ''} ${e.url || ''}`; color = '#7ec8e3'; }
-                    if (e.type === 'relay' && e.direction === 'mcp->client') { label = `← MCP ${e.status >= 400 ? '❌' : '✅'} ${e.status}`; color = e.status >= 400 ? '#ff6b6b' : '#a8e6cf'; }
-                    if (e.type === 'oauth') { label = `OAuth: ${e.phase}`; color = '#ffd93d'; }
-                    if (e.type === 'mcp') { label = `MCP: ${e.phase}`; color = '#c3aed6'; }
-                    if (e.type === 'error') { label = `ERROR: ${e.scope}`; color = '#ff6b6b'; }
-                    if (e.type === 'config') { label = 'Config updated'; color = '#b2bec3'; }
+                    let tone = e.type;
+                    if (e.type === 'relay' && e.direction === 'client->mcp') { label = `→ MCP ${e.method || ''} ${e.url || ''}`; tone = 'relay-outbound'; }
+                    if (e.type === 'relay' && e.direction === 'mcp->client') { label = `← MCP ${e.status >= 400 ? '❌' : '✅'} ${e.status}`; tone = e.status >= 400 ? 'relay-error' : 'relay-success'; }
+                    if (e.type === 'oauth') { label = `OAuth: ${e.phase}`; tone = 'oauth'; }
+                    if (e.type === 'mcp') { label = `MCP: ${e.phase}`; tone = 'mcp'; }
+                    if (e.type === 'error') { label = `ERROR: ${e.scope}`; tone = 'error'; }
+                    if (e.type === 'config') { label = 'Config updated'; tone = 'config'; }
                     return (
                       <details key={i} style={{borderBottom:'1px solid #222',padding:'2px 0'}}>
-                        <summary style={{cursor:'pointer',color,listStyle:'none',display:'flex',gap:8,alignItems:'center'}}>
+                        <summary className="cur-trace-summary">
                           <span className="cur-trace-ts">{e.ts?.slice(11,23)||''}</span>
-                          <span>{label}</span>
-                          {e.type === 'error' && <span style={{color:'#ff6b6b'}}>{e.message}</span>}
+                          <span className={`cur-trace-label cur-trace-label--${tone}`}>{label}</span>
+                          {e.type === 'error' && <span className="cur-trace-error">{e.message}</span>}
                         </summary>
                         <pre className="cur-trace-json">
                           {JSON.stringify(rest, null, 2)}
