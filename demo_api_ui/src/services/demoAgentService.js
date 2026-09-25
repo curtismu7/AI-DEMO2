@@ -1043,26 +1043,23 @@ export function createWithdrawalWithConsent(
 export function ingestLegacyRunTrace(data, { forceHeuristic = false, flowTraceId = null } = {}) {
   try {
     const heuristicRun = forceHeuristic || data.agentPath === "heuristic";
-    const blockedBeforeAgent = data.protectRiskEvaluation?.blocked === true;
-    if (!blockedBeforeAgent) {
-      if (heuristicRun) {
-        tokenChainTraceStore.ingestRoutingMode("heuristic", {
-          action: data.toolsCalled?.[0] || data.action || null,
-        }, flowTraceId);
-      } else {
-        tokenChainTraceStore.ingestRoutingMode("llm", {
-          action: data.toolsCalled?.[0] || data.action || null,
-        }, flowTraceId);
-        tokenChainTraceStore.ingestLlmDetail({
-          model: data.model || "session default",
-          toolCalls: Array.isArray(data.toolsCalled)
-            ? data.toolsCalled.map((tool) => ({ tool }))
-            : [],
-          usage: data.inputTokens || data.outputTokens
-            ? { inputTokens: data.inputTokens ?? 0, outputTokens: data.outputTokens ?? 0 }
-            : null,
-        }, flowTraceId);
-      }
+    if (heuristicRun) {
+      tokenChainTraceStore.ingestRoutingMode("heuristic", {
+        action: data.toolsCalled?.[0] || data.action || null,
+      }, flowTraceId);
+    } else {
+      tokenChainTraceStore.ingestRoutingMode("llm", {
+        action: data.toolsCalled?.[0] || data.action || null,
+      }, flowTraceId);
+      tokenChainTraceStore.ingestLlmDetail({
+        model: data.model || "session default",
+        toolCalls: Array.isArray(data.toolsCalled)
+          ? data.toolsCalled.map((tool) => ({ tool }))
+          : [],
+        usage: data.inputTokens || data.outputTokens
+          ? { inputTokens: data.inputTokens ?? 0, outputTokens: data.outputTokens ?? 0 }
+          : null,
+      }, flowTraceId);
     }
     if (data.mcpAuthorizeEvaluation) {
       tokenChainTraceStore.ingestAuthorize(data.mcpAuthorizeEvaluation, flowTraceId);
@@ -1130,7 +1127,7 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false, flowTraceId
         });
       }
     }
-    if (!blockedBeforeAgent && typeof data.reply === "string" && data.reply) {
+    if (typeof data.reply === "string" && data.reply) {
       tokenChainTraceStore.ingestLlmReply(data.reply, flowTraceId);
     }
     const failed = data.success === false || Boolean(data.error);
@@ -1184,16 +1181,6 @@ async function sendToAdminAgent(message, { signal, onTokenEvent } = {}) {
   };
 }
 
-function withProtectTimeout(promise, label, timeoutMs = 5000) {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error(`${label} timed out`)), timeoutMs);
-    Promise.resolve(promise).then(
-      (value) => { clearTimeout(timeout); resolve(value); },
-      (error) => { clearTimeout(timeout); reject(error); },
-    );
-  });
-}
-
 export async function sendAgentMessage(message, consentId = null, { signal, forceHeuristic = false, vertical = null, consentGiven = false, hitlChallengeId = null, useCaseId = null, onTokenEvent } = {}) {
   if (vertical === 'pingone-admin') {
     return sendToAdminAgent(message, { signal, onTokenEvent });
@@ -1214,53 +1201,6 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
   // HITL approval retry: the BFF threads this to the pre-flight (receipt verify)
   // and the gateway (as _hitl_challenge_id) so an approved challenge PERMITs.
   if (hitlChallengeId) body.hitlChallengeId = hitlChallengeId;
-
-  // UC36 uses the real PingOne Signals SDK. The payload goes only to the BFF;
-  // the worker token and Protect API call remain server-side.
-  if (useCaseId === 'protect-agent-dispatch-risk') {
-    try {
-      if (!window._pingOneSignals) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://apps.pingone.com/signals/web-sdk/5.6.11/signals-sdk.js';
-          script.async = true;
-          const timeout = setTimeout(() => reject(new Error('Signals SDK load timed out')), 5000);
-          script.onload = () => { clearTimeout(timeout); resolve(); };
-          script.onerror = () => { clearTimeout(timeout); reject(new Error('Signals SDK failed to load')); };
-          document.head.appendChild(script);
-        });
-      }
-      if (!window._pingOneSignalsReady) {
-        await new Promise((resolve, reject) => {
-          const onReady = () => { clearTimeout(timeout); resolve(); };
-          const timeout = setTimeout(() => {
-            document.removeEventListener('PingOneSignalsReadyEvent', onReady);
-            reject(new Error('Signals SDK readiness timed out'));
-          }, 5000);
-          document.addEventListener('PingOneSignalsReadyEvent', onReady, { once: true });
-          if (window._pingOneSignalsReady) onReady();
-        });
-      }
-      if (!window.__protectSignalsReady) {
-        const initPromise = withProtectTimeout(
-          window._pingOneSignals.init({ isIAFDetectionEnabled: true }),
-          'Signals SDK initialization',
-        );
-        window.__protectSignalsReady = initPromise;
-        initPromise.catch(() => {
-          if (window.__protectSignalsReady === initPromise) window.__protectSignalsReady = null;
-        });
-      }
-      await window.__protectSignalsReady;
-      const signalsData = await withProtectTimeout(window._pingOneSignals.getData(), 'Signals data collection');
-      if (signalsData && !signalsData.error) {
-        body.protectSignalsData = typeof signalsData === 'string' ? signalsData : JSON.stringify(signalsData);
-      }
-    } catch {
-      // Protect still evaluates available request context when browser signal
-      // collection is unavailable; the server remains fail-closed on API errors.
-    }
-  }
 
   // flowTraceId binds this agent run to the live MCP flow SSE stream so the
   // compliance checklist lights up the full pipeline (token exchange, gateway,

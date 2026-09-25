@@ -20,6 +20,9 @@ export function isNoChromeRoute(pathNorm) {
     // SDK centralized-login sandbox: standalone page, no app chrome/panels/footer.
     pathNorm === "/sdk-login" ||
     pathNorm === "/sdk-login/callback" ||
+    // PingOne Protect's compact run window is deliberately no-chrome. The
+    // primary evaluation route remains inside the normal app shell.
+    pathNorm === "/protect-auth-demo/popout" ||
     // UC22 CIBA approve popup: bare modal page — no sidebar / agent FAB.
     pathNorm === "/ciba-approve" ||
     // Personal-agent pop-out client window: bare route, no nav shell (App.js

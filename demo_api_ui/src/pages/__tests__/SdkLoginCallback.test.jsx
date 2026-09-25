@@ -17,8 +17,7 @@ describe("SdkLoginCallback", () => {
 
   function renderAt(search) {
     // The component reads window.location.search directly (not react-router's
-    // location), so the URL has to be set on the jsdom window itself. A real
-    // /sdk-login route is included so navigate("/sdk-login") is observable.
+    // location), so the URL has to be set on the jsdom window itself.
     window.history.pushState({}, "", `/sdk-login/callback${search}`);
     return render(
       <MemoryRouter initialEntries={[`/sdk-login/callback${search}`]}>
@@ -63,6 +62,17 @@ describe("SdkLoginCallback", () => {
     expect(await screen.findByText("SIGN IN PAGE")).toBeInTheDocument();
     expect(exchange).toHaveBeenCalledWith("freshcode", "somestate");
     expect(sessionStorage.getItem("sdk-login-attempted-code")).toBe("freshcode");
+  });
+
+  it("keeps an old Protect marker from changing the ordinary SDK callback", async () => {
+    const exchange = vi.fn().mockResolvedValue({ ok: true });
+    getSdkClient.mockResolvedValue({ token: { exchange } });
+    sessionStorage.setItem("protect-auth-flow-v1", JSON.stringify({ flowId: "old-protect-flow" }));
+
+    renderAt("?code=ordinarycode&state=ordinary-state");
+
+    expect(await screen.findByText("SIGN IN PAGE")).toBeInTheDocument();
+    expect(exchange).toHaveBeenCalledWith("ordinarycode", "ordinary-state");
   });
 
   describe("opened as the /sdk-login pop-out", () => {

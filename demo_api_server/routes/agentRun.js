@@ -231,20 +231,6 @@ router.post('/run', nrTransactionMiddleware, async (req, res) => {
     return res.status(404).json({ error: 'AG-UI not enabled. Set ff_agui_enabled=true in config.' });
   }
 
-  // UC36's evaluation and completion are enforced by /api/agent/invoke. The
-  // AG-UI route dispatches tools through a separate streaming pipeline, so it
-  // must refuse this use case while Protect is armed rather than bypassing the
-  // risk decision. The UI routes UC36 through the gated invoke endpoint.
-  const requestedUseCaseId = typeof req.body?.useCaseId === 'string' ? req.body.useCaseId.trim() : '';
-  const protectEnabled = configStore.getEffective('ff_protect_agent_dispatch') === 'true'
-    || configStore.getEffective('ff_protect_agent_dispatch') === true;
-  if (requestedUseCaseId === 'protect-agent-dispatch-risk' && protectEnabled) {
-    return res.status(409).json({
-      error: 'protect_requires_gated_agent_invoke',
-      message: 'UC36 must use the PingOne Protect gated invoke path.',
-    });
-  }
-
   const { userId, email: userEmail, accessToken, tokenEvents: sessionTokenEvents } = req.agentContext || {};
 
   // Signed-out callers are allowed ONLY for the public catalog actions, which

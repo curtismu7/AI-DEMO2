@@ -36,7 +36,6 @@ describe('demoUseCaseSteps', () => {
       'UC30',
       'UC31',
       'UC32',
-      'UC36',
       'UC40',
       'UC38',
       'UC-TOOL1',
@@ -52,6 +51,7 @@ describe('demoUseCaseSteps', () => {
   });
 
   it('exports presenter-friendly aliases for the live lanes', () => {
+    expect(DEMO_USE_CASE_IDS).not.toContain('UC36');
     expect(DEMO_USE_CASE_SEARCH_TERMS.UC7).toEqual(
       expect.arrayContaining(['mfa', 'step-up']),
     );
@@ -147,8 +147,8 @@ describe('demoUseCaseSteps', () => {
     }
   });
 
-  it('primary list has 25 steps (all use cases visible)', () => {
-    expect(DEMO_PRIMARY_USE_CASE_IDS).toHaveLength(25);
+  it('primary list has 24 steps (all use cases visible)', () => {
+    expect(DEMO_PRIMARY_USE_CASE_IDS).toHaveLength(24);
   });
 
   // UC29 cannot fire on this deployment (Node gateway validates by JWKS, no

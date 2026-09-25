@@ -711,34 +711,36 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
             </button>
           </div>
           {chainView === "map" && (
-          <TokenChainNodeRail
-            steps={steps}
-            activeId={activeStepId}
-            onPresent={() => {
-              if (!activeStepId && steps.length > 0) setActiveStepId(steps[0].id);
-              setPresenting(true);
-            }}
-            onSelect={(id) => {
-              setActiveStepId(id);
-              // TraceStepCard already renders data-step-id on its <details>, so
-              // the map can reveal a card without either component knowing about
-              // the other's internals. On the map tab the cards are not mounted;
-              // the querySelector simply finds nothing and the node stays the
-              // selection indicator.
-              const card = railRef.current?.querySelector(`.tctr-step[data-step-id="${id}"]`);
-              if (card) {
-                card.open = true;
-                card.scrollIntoView({ block: "nearest", behavior: "smooth" });
-              }
-            }}
-          />
+            <div className="tctr-map-layout">
+              <TokenChainNodeRail
+                steps={steps}
+                activeId={activeStepId}
+                onPresent={() => {
+                  if (!activeStepId && steps.length > 0) setActiveStepId(steps[0].id);
+                  setPresenting(true);
+                }}
+                onSelect={(id) => {
+                  setActiveStepId(id);
+                  // TraceStepCard already renders data-step-id on its <details>, so
+                  // the map can reveal a card without either component knowing about
+                  // the other's internals. On the map tab the cards are not mounted;
+                  // the querySelector simply finds nothing and the node stays the
+                  // selection indicator.
+                  const card = railRef.current?.querySelector(`.tctr-step[data-step-id="${id}"]`);
+                  if (card) {
+                    card.open = true;
+                    card.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                  }
+                }}
+              />
+              {activeStepId ? (
+                <StepDetailPanel
+                  step={steps.find((s) => s.id === activeStepId)}
+                  onInspect={onInspect}
+                />
+              ) : null}
+            </div>
           )}
-          {chainView === "map" && activeStepId ? (
-            <StepDetailPanel
-              step={steps.find((s) => s.id === activeStepId)}
-              onInspect={onInspect}
-            />
-          ) : null}
           {presenting ? (
           <TokenChainPresenter
             steps={steps}

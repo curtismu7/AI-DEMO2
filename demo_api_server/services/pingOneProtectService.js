@@ -9,16 +9,23 @@ function apiBase() {
   return `https://api.pingone.${region}/v1/environments/${configStore.getEffective('PINGONE_ENVIRONMENT_ID')}/riskEvaluations`;
 }
 
-async function createAgentDispatchEvaluation({ user, ip, userAgent, signalsData, sessionId }) {
+async function createBrowserRiskEvaluation({ userId, ip, userAgent, signalsData, targetResourceId, sessionId }) {
   const environmentId = configStore.getEffective('PINGONE_ENVIRONMENT_ID');
   if (!environmentId) throw new Error('PingOne environment is not configured');
+  if (!targetResourceId) throw new Error('PingOne Protect evaluation target is not configured');
   const token = await pingOneClientService.getManagementToken();
   const event = {
     ip,
-    user: { id: user.id, type: 'PING_ONE', ...(user.name ? { name: user.name } : {}) },
+    user: {
+      id: userId,
+      type: 'EXTERNAL',
+      name: userId,
+      ...(userId.includes('@') ? { email: userId } : {}),
+    },
     browser: { userAgent },
-    flow: { type: 'AUTHORIZATION' },
+    flow: { type: 'AUTHENTICATION' },
     ...(sessionId ? { session: { id: sessionId } } : {}),
+    targetResource: { id: targetResourceId, name: 'PingOne Protect browser risk evaluation demo' },
     ...(signalsData ? { sdk: { signals: { data: signalsData } } } : {}),
   };
   let response;
@@ -29,8 +36,7 @@ async function createAgentDispatchEvaluation({ user, ip, userAgent, signalsData,
     });
   } catch (error) {
     const apiError = error.response?.data || {};
-    // Keep the management token and submitted Signals payload out of diagnostics.
-    console.warn('[PingOneProtect] risk evaluation request rejected', {
+    console.warn('[PingOneProtect] authentication risk evaluation rejected', {
       status: error.response?.status || null,
       code: apiError.code || null,
       message: apiError.message || null,
@@ -44,43 +50,4 @@ async function createAgentDispatchEvaluation({ user, ip, userAgent, signalsData,
   return response.data;
 }
 
-async function completeEvaluation(evaluationId, completionStatus) {
-  const environmentId = configStore.getEffective('PINGONE_ENVIRONMENT_ID');
-  const token = await pingOneClientService.getManagementToken();
-  const region = configStore.getEffective('PINGONE_REGION') || 'com';
-  await axios.put(
-    `https://api.pingone.${region}/v1/environments/${environmentId}/riskEvaluations/${encodeURIComponent(evaluationId)}/event`,
-    { completionStatus },
-    { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 },
-  );
-}
-
-function shouldBlock(result = {}) {
-  if (!['LOW', 'MEDIUM', 'HIGH'].includes(result.level)) return true;
-  return result.level === 'HIGH' || [
-    'BOT_MITIGATION',
-    'DENY',
-    'AITM_MITIGATION',
-    'ACCOUNT_RECOVERY',
-  ].includes(result.recommendedAction);
-}
-
-function toTokenEvent(evaluation) {
-  const result = evaluation?.result || {};
-  const botDetection = evaluation?.details?.botDetection || {};
-  return {
-    id: 'protect-risk-evaluation',
-    eventType: 'protect_risk_evaluation',
-    status: 'done',
-    evaluationId: evaluation?.id || null,
-    level: result.level || 'UNKNOWN',
-    recommendedAction: result.recommendedAction || null,
-    botDetectionLevel: botDetection.level || null,
-    botDetectionStatus: botDetection.status || null,
-    detectedRuleId: botDetection.detected?.rule?.id ?? null,
-    blocked: shouldBlock(result),
-    timestamp: new Date().toISOString(),
-  };
-}
-
-module.exports = { createAgentDispatchEvaluation, completeEvaluation, shouldBlock, toTokenEvent };
+module.exports = { createBrowserRiskEvaluation };

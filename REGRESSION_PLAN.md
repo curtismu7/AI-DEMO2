@@ -186,7 +186,69 @@ text readable in both themes and preserve dark-mode status colors.
 
 **Verify:** focused Privilege MCP theme contrast test, UI build, and Playwright
 computed-style checks on the isolated worktree page in both themes.
+### 2026-09-24 — PingOne Admin agent results had no inspectable records
 
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/VerticalResult.jsx`, and focused UI tests.
+
+**What was broken:** the floating result panel was disabled by default, and the
+PingOne Admin field-list renderer showed only a summary, hiding the rows returned
+by tools such as `listUsers`.
+
+**What was fixed:** PingOne Admin results render structured rows with total
+counts and an explicit preview notice when truncated. Short results use the
+floating panel; long or truncated lists render inline in the scrollable agent
+conversation so the full preview remains reachable. Other verticals still follow
+the floating results feature flag.
+
+**Do not break:** preserve the PingOne Admin tool allowlist, authorization,
+query filters, token custody, and the server's bounded rows sent to the agent.
+
+**Verify:** focused `VerticalResult` and `AIAgent.addToCart` Vitest suites and
+the UI production build.
+
+### 2026-09-24 — Token chain node selection hid its detail below the map
+
+**Files changed:** `demo_api_ui/src/components/TokenChainTraceRail.jsx`,
+`demo_api_ui/src/components/TokenChainTraceRail.css`, and the focused trace-rail
+test.
+
+**What was broken:** selecting a node in Chain Map rendered its detail after the
+map, where it could be missed in the admin dashboard's constrained viewport.
+
+**What was fixed:** the selected node's full detail now sits beside the map on
+wider layouts and below it on narrow layouts, with its own scroll area for long
+evidence.
+
+**Do not break:** keep the existing trace projection, claim redaction, and token
+inspection flow unchanged; Step Detail remains available as its own view.
+
+**Verify:** focused `TokenChainTraceRail` Vitest suite and the UI production
+build.
+
+### 2026-09-24 — Delegated reads failed on transient gateway errors
+
+**Files changed:** `demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/tests/mcpGatewayClient.transientBalanceRetry.test.js`.
+
+**What was broken:** the delegated-access consent-only run could complete the
+provider-specific RFC 8693 exchange and receive an Authorize PERMIT, then fail
+the `get_account_balance` or airlines `get_airline_bookings` dispatch on a
+transient gateway transport or upstream 502/503/504 response. The gateway
+request was attempted once for PingOne and PingFederate alike.
+
+**What was fixed:** retry those idempotent reads once after a transient
+transport failure or 502/503/504. Writes and authorization responses are never
+retried, and a failed retry still surfaces the error without running a local
+unauthorized fallback.
+
+**Do not break:** keep PingOne and PingFederate token exchange/provider
+selection unchanged; keep PingOne Authorize as the dispatch gate; never replay
+mutating tools or bypass the gateway after a failure.
+
+**Verify:** `CI=true ./node_modules/.bin/jest
+tests/mcpGatewayClient.*.test.js --forceExit --runInBand` — 7 suites, 27 tests
+passed; `node --check` passed for the client and focused test.
 ### 2026-09-24 — DaVinci widget policy leaked into Orchestration SDK
 
 **Files changed:** `demo_api_server/config/davinci.js`,

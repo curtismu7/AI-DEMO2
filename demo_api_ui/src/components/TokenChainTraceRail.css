@@ -1,4 +1,4 @@
-/* TokenChainTraceRail — portal-brand styling, single-column by construction.
+/* TokenChainTraceRail — portal-brand styling with a responsive map/detail view.
  * Dark header bars match ExchangeModeToggle (#16325c). */
 .tctr {
   /* Routed through the semantic --th-* palette (index.css) so the rail shares
@@ -88,6 +88,28 @@
   background: var(--th-bg-card, #ffffff);
   color: var(--th-text, var(--th-text));
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.15);
+}
+
+/* Keep the selected node's evidence in view beside the map. The detail pane
+   gets its own scroll area so long request/response bodies do not bury the
+   rest of the chain; narrower dashboard surfaces stack the two areas. */
+.tctr-map-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+.tctr-map-layout > .tcnr,
+.tctr-map-layout > .sdp {
+  min-width: 0;
+}
+.tctr-map-layout > .sdp {
+  max-height: min(68vh, 820px);
+  overflow: auto;
+}
+@media (max-width: 920px) {
+  .tctr-map-layout { grid-template-columns: minmax(0, 1fr); }
+  .tctr-map-layout > .sdp { max-height: none; }
 }
 
 /* Visible toolbar. Everything that used to sit here — Live/Classic, the zoom

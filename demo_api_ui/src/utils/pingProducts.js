@@ -87,7 +87,6 @@ const STEP_MAP = {
   // PingOne Authorize -- policy decisions
   'gw-authorize':                  'authz',
   'authorize-decision':            'authz', // catalog slug
-  'protect-risk-evaluation':       'protect', // catalog slug
   // tool-hitl defaults to authz; productForEvent refines by challengeType
   'tool-hitl':                     'authz',
 };

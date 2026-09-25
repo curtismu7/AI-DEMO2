@@ -78,6 +78,15 @@ describe("App.js — critical JSX placements", () => {
     );
   });
 
+  test("Protect full page uses app chrome and its separate pop-out stays standalone", () => {
+    expect(appSrc).toMatch(
+      /path="\/protect-auth-demo"[\s\S]*?<AppShell user=\{user\} logout=\{logout\}>[\s\S]*?<PingOneProtectBrowserDemo\s*\/>[\s\S]*?<\/AppShell>/,
+    );
+    expect(appSrc).toMatch(
+      /<Route path="\/protect-auth-demo\/popout" element=\{<PingOneProtectBrowserDemo popout \/>\} \/>/,
+    );
+  });
+
   test("SessionTokenProvider wraps AppWithAuth", () => {
     const providerOpen = appSrc.indexOf("<SessionTokenProvider>");
     const appWithAuth = appSrc.indexOf("<AppWithAuth />", providerOpen);
