@@ -1063,7 +1063,7 @@ _compose_down() {
   local project_containers project_networks
   project_containers="$(docker ps -aq --filter "label=com.docker.compose.project=${COMPOSE_PROJECT_NAME}")" || project_containers="unknown"
   project_networks="$(docker network ls -q --filter "label=com.docker.compose.project=${COMPOSE_PROJECT_NAME}")" || project_networks="unknown"
-  if [[ -z "${project_containers}" && -z "${project_networks}" ]]; then
+  if [[ $# -eq 0 && -z "${project_containers}" && -z "${project_networks}" ]]; then
     ok "No ${COMPOSE_PROJECT_NAME} containers or networks to stop — skipping compose down."
     _purge_leftover_stack
     return 0
