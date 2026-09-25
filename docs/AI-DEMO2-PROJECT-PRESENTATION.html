@@ -160,6 +160,18 @@
     .map-grid .map-card { display: flex; flex-direction: column; justify-content: center; padding: 18px 20px; }
     .map-grid .map-card p { font-size: 20px; }
     .map-grid .map-card .inventory { margin-top: 7px; color: var(--navy-2); font: 700 17px/1.45 var(--mono); overflow-wrap: anywhere; }
+
+    .ai-flow { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; align-content: space-evenly; }
+    .aif-box { background: white; border: 1px solid var(--line); border-top: 4px solid var(--navy-2); padding: 12px 14px; display: flex; flex-direction: column; gap: 5px; }
+    .aif-box h4 { margin: 0; color: var(--navy); font-size: 19px; letter-spacing: -.01em; }
+    .aif-box p { margin: 0; color: var(--muted); font-size: 15.5px; line-height: 1.3; }
+    .aif-box code { font: 700 13.5px var(--mono); color: #a21d28; }
+    .aif-box.start, .aif-box.route, .aif-box.agent { border-top-color: var(--red); }
+    .aif-box.policy, .aif-box.consent { border-top-color: var(--amber); }
+    .aif-box.done { border-top-color: var(--green); }
+    .aif-arrow { align-self: center; color: var(--red); font-size: 24px; font-weight: 800; text-align: center; }
+    .ai-flow-band { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 13px 18px; background: var(--navy); color: #d2dceb; font-size: 16px; line-height: 1.4; }
+    .ai-flow-band b { color: white; }
     .flow-diagram { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-evenly; gap: 4px; }
     .fd-row { display: flex; gap: 8px; align-items: stretch; }
     .fd-label { writing-mode: vertical-rl; transform: rotate(180deg); flex: 0 0 auto; color: var(--muted); font-size: 13px; font-weight: 750; text-transform: uppercase; letter-spacing: .05em; display: flex; align-items: center; justify-content: center; border-left: 3px solid var(--navy-2); padding: 4px 2px; }
@@ -731,8 +743,39 @@
       <div class="source"><a href="../docker-compose.yml">All 43 Compose services</a><a href="../service-topology.json">Canonical network topology</a><a href="../run-docker.sh">Launcher modes</a></div>
     </section>
 
+        <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>31 / AI request flow</div>
+      <p class="eyebrow">One prompt through the AI path · who holds which token</p><h2>A prompt is routed, interpreted, tool-called and consented—never seeing a user token.</h2>
+      <div class="ai-flow">
+        <div class="aif-box start"><h4>Browser</h4><p>“Transfer $500 to Sam” — typed in the agent composer. Session cookie only; no tokens in the page.</p></div>
+        <div class="aif-arrow">→</div>
+        <div class="aif-box route"><h4>BFF · demo-api-server</h4><p>Heuristics try known chips first; open text goes to the LLM. Holds the user token server-side.</p></div>
+        <div class="aif-arrow">→</div>
+        <div class="aif-box agent"><h4>Intent &amp; agent</h4><p>LangChain agent plans the tool calls. Runs over AG-UI HTTP + SSE; model reached via llm-proxy.</p></div>
+        <div class="aif-arrow">→</div>
+        <div class="aif-box tool"><h4>Tool callback</h4><p>Agent calls the BFF back at <code>/internal/agent-tool</code>. The agent itself never receives credentials.</p></div>
+        <div class="aif-arrow">→</div>
+        <div class="aif-box exchange"><h4>RFC 8693 exchange</h4><p>BFF exchanges the user token for an audience- and scope-narrowed tool token.</p></div>
+        <div class="aif-arrow">→</div>
+        <div class="aif-box policy"><h4>Policy gate</h4><p>PingGateway (default) or authz-server + mcp-jwt-verifier decides: permit, challenge or deny.</p></div>
+        <div class="aif-arrow">→</div>
+        <div class="aif-box consent"><h4>HITL consent</h4><p>Write actions above policy thresholds pause at hitl-service for explicit human approval.</p></div>
+        <div class="aif-arrow">→</div>
+        <div class="aif-box exec"><h4>MCP / REST tool</h4><p>mcp-server :8080 or api-resource-server executes; mcp-audit records the event.</p></div>
+        <div class="aif-arrow">→</div>
+        <div class="aif-box done"><h4>Result &amp; evidence</h4><p>SSE streams the answer back; token chain, traces and audit trail available beside the run.</p></div>
+      </div>
+      <div class="ai-flow-band">
+        <span><b>Identity:</b> PingOne issues the user token, the exchanged actor token and MFA decisions.</span>
+        <span><b>Heuristics:</b> known commands skip the LLM entirely — deterministic routing.</span>
+        <span><b>Evidence:</b> jaeger traces + mcp-audit events + token-chain inspector at every hop.</span>
+      </div>
+      <div class="source"><a href="../demo_api_server/routes/agentRun.js">Agent run route</a><a href="../demo_api_server/services/agentMcpTokenService.js">Token exchange</a><a href="../demo_api_server/services/mcpToolPipeline.js">Tool pipeline</a></div>
+    </section>
+
+
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>31 / Privilege AI Gateway</div>
+      <div class="brand"><span class="brand-mark"></span>32 / Privilege AI Gateway</div>
       <p class="eyebrow">Optional PingOne MCP Gateway · tool access and policy</p><h2>A governed MCP boundary with discovery, least-privilege decisions and session records.</h2>
       <div class="gateway-layout">
         <div class="panel redline">
@@ -767,7 +810,7 @@
     </section>
 
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>32 / Skills used in the project</div>
+      <div class="brand"><span class="brand-mark"></span>33 / Skills used in the project</div>
       <p class="eyebrow">Project-local library · .claude/skills</p><h2>Local skills package repeatable agent, PingOne, Privilege and delivery work.</h2>
       <div class="skill-grid">
         <div class="skill-card"><h3>Agent and protocol</h3><ul><li>a2a-protocol</li><li>agent-demo-triage</li><li>chip-correctness-testing</li><li>generate-tests</li><li>inspector-template</li><li>karpathy-guidelines</li></ul></div>
@@ -778,7 +821,7 @@
     </section>
 
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>33 / Shareable skills · general and security</div>
+      <div class="brand"><span class="brand-mark"></span>34 / Shareable skills · general and security</div>
       <p class="eyebrow">Portable library · claudSkills/general + security</p><h2>Reusable skills bring common tools and security workflows to other projects.</h2>
       <div class="skill-grid duo">
         <div class="skill-card"><h3>General · 13 skills</h3><ul><li>agent-tool</li><li>cheapest-model</li><li>docx</li><li>graphify</li><li>impeccable</li><li>mcp-builder</li><li>pdf</li><li>pptx</li><li>supergoal</li><li>theme-factory</li><li>tighten-prompt</li><li>webapp-testing</li><li>xlsx</li></ul></div>
@@ -789,7 +832,7 @@
     </section>
 
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>34 / Shareable skills · PingOne and field export</div>
+      <div class="brand"><span class="brand-mark"></span>35 / Shareable skills · PingOne and field export</div>
       <p class="eyebrow">Portable PingOne library · SE export bundle</p><h2>Focused identity skills package configuration, integration and field workflows.</h2>
       <div class="skill-grid duo">
         <div class="skill-card"><h3>PingOne · 11 skills</h3><ul><li>authz-server</li><li>authz-server-parity</li><li>ciba</li><li>oauth-pingone</li><li>pingone-api-calls</li><li>pingone-authorize-configure</li><li>pingone-mcp</li><li>pingone-mcp-install</li><li>pingone-mfa</li><li>pingone-recognize</li><li>pingone-session-termination</li></ul></div>
@@ -799,7 +842,7 @@
     </section>
 
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>35 / One request through the stack</div>
+      <div class="brand"><span class="brand-mark"></span>36 / One request through the stack</div>
       <p class="eyebrow">Source-traced flow · not a live run</p><h2>A protected tool call moves through six explicit boundaries.</h2>
       <div class="trace-flow">
         <div class="trace-step"><b>1 · Ask</b><span>React sends the prompt to the BFF with the browser session cookie.</span></div>
@@ -814,7 +857,7 @@
     </section>
 
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>36 / Technical choices visible in code</div>
+      <div class="brand"><span class="brand-mark"></span>37 / Technical choices visible in code</div>
       <p class="eyebrow">Why the pieces have these boundaries</p><h2>The implementation favors inspectable identity decisions and swappable demos.</h2>
       <div class="decision-grid">
         <div class="decision"><b>Tokens stay with the BFF</b><span>Browser gets a session cookie; the server performs exchange and tool authorization. This keeps provider credentials and user tokens out of model-facing code.</span></div>
