@@ -1419,12 +1419,50 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   }
   // ─────────────────────────────────────────────────────────────────────────
 
+  // ── DaVinci-widget token gate (2026-09-25) ────────────────────────────────
+  // Tokens minted by the DaVinci widget/SDK login (azp = PINGONE_DAVINCI_LOGIN_APP_ID)
+  // are valid PingOne JWTs, but PingOne's token-exchange policy refuses them as
+  // RFC 8693 subjects ("Not a valid access token for request param 'subject_token'",
+  // reproduced live 2026-09-25 — azp=4e122cbf fails for every exchanger client and
+  // audience form, while azp=<User App> tokens exchange fine). They also lack
+  // transfer/accounts:read, so the scope intersection would drop write tools anyway.
+  // Fail fast here with an actionable message instead of an opaque 400 deep in
+  // the exchange. The user must re-authenticate through the standard PingOne
+  // hosted login (routes/oauthUser.js, azp = pingone_user_client_id).
+  let userAccessTokenClaims = _rawUserClaims;
+  {
+    const widgetAppId = String(
+      process.env.PINGONE_DAVINCI_LOGIN_APP_ID
+      || ''
+    ).trim();
+    const tokenAzp = String(userAccessTokenClaims?.azp || userAccessTokenClaims?.client_id || '');
+    if (widgetAppId && tokenAzp && tokenAzp === widgetAppId) {
+      tokenEvents.push(buildTokenEvent(
+        'user-token-exchange-incompatible',
+        'User Token — Issued by the DaVinci widget app (not exchangeable)',
+        'failed',
+        userAccessTokenClaims,
+        'This session token was minted by the DaVinci widget/SDK login app, which PingOne\'s ' +
+        'token-exchange policy does not accept as an RFC 8693 subject (and it lacks the ' +
+        'transfer/accounts:read scopes the agent needs). Sign out and sign in through the ' +
+        'standard PingOne login, then retry the use case.',
+        { rfc: 'RFC 8693 §2.1', azp: tokenAzp, widgetAppId }
+      ));
+      throwTokenResolutionError(
+        tokenEvents,
+        'davinci_widget_token_not_exchangeable',
+        'This session was signed in through the DaVinci widget, whose tokens cannot be ' +
+        'exchanged for agent delegation. Please sign out and sign in with the standard PingOne login.',
+        403
+      );
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   // ── RFC 8693 may_act Support Removed ──────────────────────────────────────
   // Delegation authorization is now handled at the platform level (PingOne app
   // grants and delegation policies) rather than via a may_act claim in the token.
   // The act claim in the exchanged token records the delegation chain for audit.
-
-  let userAccessTokenClaims = _rawUserClaims;
 
   // ── ff_inject_scopes — Demo Scope Injection (Phase 146 — D-04) ───────────
   // When ON and the user access token lacks * scopes, the BFF injects
@@ -2754,6 +2792,23 @@ async function _performTwoExchangeDelegation(
         pingoneErrorDescription: err.pingoneErrorDescription, exchangeStep: '1-exchange',
         ...(ex1ExchangeRequest ? { exchangeRequest: ex1ExchangeRequest } : {}) }
     ));
+    // Name the subject client when PingOne rejects the subject outright —
+    // "Not a valid access token for request param 'subject_token'" means the
+    // tenant's token-exchange policy does not trust this login app, and the
+    // fix is a tenant change, not a code change. Log it loudly here so the
+    // failure is diagnosable from logs alone (found live 2026-09-25 with the
+    // DaVinci SDK Login app's tokens).
+    const subjectClient = req?.session?.oauthSubjectClient
+      || (() => { try { return decodeJwtClaims(userToken)?.claims?.client_id || null; } catch (_) { return null; } })();
+    const isSubjectRejection = (err.pingoneErrorDescription || '').includes('subject_token')
+      || (err.pingoneErrorDescription || '').includes('Not a valid access token');
+    if (isSubjectRejection) {
+      console.error(
+        `[TwoExchange] Subject token REJECTED by the tenant token-exchange policy` +
+        ` (subject client=${subjectClient || 'unknown'}, tool=${tool || 'discovery'}).\n` +
+        `  Sessions signed in through this client cannot delegate tools — add this client to the` +
+        ` tenant's token-exchange policy (PingOne Authorize console) or sign in via the standard user login app.`);
+    }
     const { errorCode: ex1Code, errorDetails: ex1Details } = mapErrorToStructuredResponse(err);
     void writeExchangeEvent({ type: 'exchange-failed', level: 'error',
       message: `[2-Exchange#1] Failed — error_code=${ex1Code} — ${err.message}`,

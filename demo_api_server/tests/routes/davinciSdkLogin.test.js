@@ -85,6 +85,8 @@ function buildApp() {
     oauthType: req.session.oauthType || null,
     clientType: req.session.clientType || null,
     username: req.session.user?.username || null,
+    sandboxUser: req.session.davinciSdkLogin?.user?.username || null,
+    sandboxSubjectClient: req.session.davinciSdkLogin?.oauthSubjectClient || null,
   }));
   return app;
 }
@@ -217,18 +219,47 @@ describe('routes/davinciSdkLogin', () => {
       expect(body).not.toContain('client_secret');
     });
 
-    // A customer sign-in: without oauthType 'user' the session reads as admin to
-    // /api/auth/oauth/status and as signed-out to /api/auth/oauth/user/status.
-    it('stores the session as a customer (oauthType user) sign-in', async () => {
+    // Lesson-sandbox contract (2026-09-25): the lesson's login must NEVER
+    // overwrite the main app session — its tokens go to
+    // session.davinciSdkLogin only. With no prior main session, the main slot
+    // stays signed-out; the identity the page shows comes from the callback
+    // response body, not from session.user.
+    it('stores the lesson sign-in in the sandbox and leaves the main session signed out', async () => {
       const { a, nonce } = await armed();
       happyUpstream(nonce);
 
       await a.post('/api/davinci-sdk-login/callback').send({ code: 'c', codeVerifier: 'v' }).expect(200);
 
       const { body } = await a.get('/__session').expect(200);
-      expect(body.username).toBe('customer1');
+      expect(body.username).toBeNull();
+      expect(body.oauthType).toBeNull();
+      expect(body.sandboxUser).toBe('customer1');
+      expect(body.sandboxSubjectClient).toBe(SDK_APP_ID);
+    });
+
+    // A main session that existed before the lesson survives the lesson's
+    // login: the dashboard's RFC 8693 exchange must never see a DaVinci-app
+    // subject token (found live 2026-09-25 — the old overwrite 502'd every
+    // delegated tool call until re-login).
+    it('preserves the existing main session alongside the lesson sandbox', async () => {
+      const { a, nonce } = await armed();
+      // Sign the MAIN session in first (main-session user differs from the
+      // lesson's customer to prove which one is which).
+      a.get('/__as-main', (req, res, next) => {
+        req.session.oauthTokens = { accessToken: 'main-token', refreshToken: 'r' };
+        req.session.user = { id: 'm1', username: 'mainuser', role: 'customer' };
+        req.session.clientType = 'enduser';
+        req.session.oauthType = 'user';
+        next();
+      });
+      happyUpstream(nonce);
+
+      await a.post('/api/davinci-sdk-login/callback').send({ code: 'c', codeVerifier: 'v' }).expect(200);
+
+      const { body } = await a.get('/__session').expect(200);
+      expect(body.username).toBe('mainuser');
       expect(body.oauthType).toBe('user');
-      expect(body.clientType).not.toBeNull();
+      expect(body.sandboxUser).toBe('customer1');
     });
 
     it("falls back to the demo user record's email when PingOne userinfo has none", async () => {

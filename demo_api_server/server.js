@@ -3210,6 +3210,15 @@ if (require.main === module) {
             console.warn('[STARTUP GUARD] unexpected error (non-fatal):', e.message);
         }
 
+        // ── Token-exchange subject probe (advisory, fire-and-forget) ─────────
+        // A new login app whose tokens the tenant's token-exchange policy does
+        // not trust silently 502s every delegated tool call. The probe names
+        // the offending client at boot instead of at chip-click.
+        setImmediate(() => {
+            require('./services/exchangeSubjectProbe').runExchangeSubjectProbe()
+                .catch((e) => console.warn('[EXCHANGE-PROBE] unexpected error (non-fatal):', e.message));
+        });
+
         // Vertical consistency guard: every featurePage vertical's scope + tool
         // must be present across scope-topology.json, or the feature page 403s
         // silently at runtime. VERTICAL_GUARD=warn downgrades to a warning.

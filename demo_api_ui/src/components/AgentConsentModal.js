@@ -232,21 +232,30 @@ export default function AgentConsentModal({
           </>
         ) : (
           <>
-            <p className="acm-body">
+            <p className="acm-lead">
               The <strong>AI Assistant</strong> is requesting permission to use
               your delegated access to answer your request and access resources
               you authorize.
             </p>
-            <ul className="acm-list">
-              <li>The agent can only act within this session</li>
-              <li>
-                All actions are logged and visible in the Token Chain display
-              </li>
-              <li>You can revoke access at any time by logging out</li>
-              <li>
-                The agent cannot change your credentials or contact details
-              </li>
-            </ul>
+
+            <section className="acm-card">
+              <div className="acm-card__head">
+                <span className="acm-card__kicker">What you are granting</span>
+                <span className="acm-card__title">
+                  Delegated agent access, for this session only
+                </span>
+              </div>
+              <ul className="acm-list">
+                <li>The agent can only act within this session</li>
+                <li>
+                  All actions are logged and visible in the Token Chain display
+                </li>
+                <li>You can revoke access at any time by logging out</li>
+                <li>
+                  The agent cannot change your credentials or contact details
+                </li>
+              </ul>
+            </section>
           </>
         )}
 

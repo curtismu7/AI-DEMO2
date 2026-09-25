@@ -20,6 +20,22 @@ jest.mock('../../services/agentLifecycleEvents', () => ({
 jest.mock('../../services/controlPlane/liveAgentInfo', () => ({
   getLiveAgentRow: () => ({ id: 'demo-agent', kind: 'live', label: 'Live Agent (Super Banking)', provider: 'helix', status: 'active' }),
 }));
+jest.mock('../../services/pingOneSessionService', () => ({
+  getUserSessions: jest.fn(async () => []),
+  terminateUserSessions: jest.fn(async () => ({ terminated: 0, errors: [] })),
+  terminateAllUserSessions: jest.fn(async (userId) => ({ sessions_found: userId ? 2 : 0, terminated: userId ? 2 : 0, errors: [] })),
+}));
+jest.mock('../../services/killSwitchService', () => ({
+  killAgent: jest.fn(async () => ({
+    success: true,
+    revoked_at: new Date().toISOString(),
+    time_to_revoke_ms: 120,
+    scope: 'full',
+    steps: [],
+    auto_reset_at: new Date(Date.now() + 600000).toISOString(),
+  })),
+  isAgentRevoked: jest.fn(async () => false),
+}));
 
 // Build a fresh app + return the fresh service mocks, all on the same module
 // instance, bound to a single shared session object for the test.
@@ -27,12 +43,14 @@ function build(session) {
   const auditLogService = require('../../services/auditLogService');
   const appEventService = require('../../services/appEventService');
   const agentLifecycleEvents = require('../../services/agentLifecycleEvents');
+  const killSwitchService = require('../../services/killSwitchService');
+  const pingOneSessionService = require('../../services/pingOneSessionService');
   const controlPlaneRouter = require('../../routes/controlPlane');
   const app = express();
   app.use(express.json());
   app.use((req, _res, next) => { req.session = session; req.session.save = (cb) => cb && cb(); next(); });
   app.use('/api/control-plane', controlPlaneRouter);
-  return { app, auditLogService, appEventService, agentLifecycleEvents };
+  return { app, auditLogService, appEventService, agentLifecycleEvents, killSwitchService, pingOneSessionService };
 }
 
 describe('control-plane routes', () => {
@@ -103,6 +121,30 @@ describe('control-plane routes', () => {
     expect(agentLifecycleEvents.emit).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: 'joiner', kind: 'demo', reason: 'registration' })
     );
+  });
+
+  it('POST comprehensive-shutdown runs full kill, SSO termination and cascade, then 401s', async () => {
+    const session = { user: { id: 'u-1', oauthId: 'po-1' }, oauthTokens: { accessToken: 'at' }, destroy: (cb) => cb && cb() };
+    const { app, auditLogService, killSwitchService, pingOneSessionService } = build(session);
+    const res = await request(app).post('/api/control-plane/comprehensive-shutdown').send({ reason: 'comprehensive_shutdown' });
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('agent_killed');
+    expect(killSwitchService.killAgent.mock.calls[0].slice(0, 5)).toEqual(['demo-agent', 'comprehensive_shutdown', 'po-1', { accessToken: 'at' }, 'full']);
+    expect(pingOneSessionService.terminateAllUserSessions).toHaveBeenCalledWith('po-1');
+    expect(res.body.stopped).toHaveLength(5);
+    expect(res.body.steps.map((s) => s.key)).toEqual(['live_kill', 'pingone_sessions', 'platform_cascade']);
+    // Demo stops wrote real audit records.
+    expect(auditLogService.recordKillEvent).toHaveBeenCalledTimes(5);
+  });
+
+  it('POST comprehensive-shutdown survives a failing kill and still reports the other steps', async () => {
+    const session = { user: { id: 'u-1' }, destroy: (cb) => cb && cb() };
+    const { app, killSwitchService } = build(session);
+    killSwitchService.killAgent.mockRejectedValueOnce(new Error('pingone down'));
+    const res = await request(app).post('/api/control-plane/comprehensive-shutdown').send({});
+    expect(res.status).toBe(401);
+    expect(res.body.steps.find((s) => s.key === 'live_kill').detail).toContain('pingone down');
+    expect(res.body.steps.find((s) => s.key === 'platform_cascade').ran).toBe(true);
   });
 
   describe('GET /lifecycle-events', () => {

@@ -1112,6 +1112,10 @@ services:
       SSL_CERT_FILE: "/etc/ssl/certs/ca-bundle-with-mkcert.pem"
       # OpenTelemetry → local Jaeger. Unset = tracing disabled (no-op in otel-python-entrypoint.sh).
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT-http://jaeger:4317}"
+      # Jaeger all-in-one's OTLP receiver registers the trace service only —
+      # metric export logs "unknown service …MetricsService" every minute.
+      # Traces still flow; metrics stay local (Prometheus exporter present).
+      OTEL_METRICS_EXPORTER: "none"
       OTEL_SERVICE_NAME: "langchain-agent"
     env_file:
       - path: ./langchain_agent/.env
