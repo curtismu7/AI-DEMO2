@@ -188,6 +188,49 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-25 — Runtime provider toggle could CrashLoop the SE BFF via dead PF endpoints
+
+**Files changed:** `demo_api_server/routes/adminConfig.js`,
+`demo_api_server/src/__tests__/adminConfig.pfPreflight.test.js`,
+`demo_api_ui/src/components/OAuthProviderToggle.jsx`,
+`k8s/aws/deploy.sh`, `REGRESSION_PLAN.md`.
+
+**What was broken:** the UI's provider toggle
+(`OAuthProviderToggle.jsx`) persists `oauth_provider=pingfederate` into the
+LMDB config store via `POST /api/admin/config`. On the SE cluster the `PF_*`
+endpoints point at `local.ping-devops.com:9031` (a dev Mac's PingFederate),
+which does not resolve in-cluster. After a toggle (or a browsing session
+touching the admin config at ~14:32 on 2026-09-25), every OAuth config getter
+resolved to the dead PF discovery URL, `/health` checked it and returned 503,
+and the K8s startup probe CrashLooped `demo-api-server`. The startup config
+guard missed it because all PF settings were *present* (only unreachable at
+runtime), and the LMDB value survived across restarts.
+
+**What was fixed:** two layers. (1) `k8s/aws/deploy.sh` pins
+`OAUTH_PROVIDER=pingone` in the SE configmap patch — envFrom beats the LMDB
+store, so the toggle can never change the effective provider on SE. (2)
+`POST /api/admin/config` now runs a server-side pre-flight when the payload
+switches the provider TO `pingfederate`: it probes the resolved PF OIDC
+discovery endpoint (5s timeout) and refuses the switch with HTTP 422
+`pf_unreachable` if it does not respond. Switching back to pingone and saving
+other keys are never gated. The toggle maps `pf_unreachable` to a clear toast
+and leaves its local state unflipped.
+
+**Do not break:** the toggle's post-switch sequence (save → clear-session →
+reload current URL) is unchanged for successful switches; `POST
+/api/admin/config` key whitelisting and the audit event are unchanged; the
+pre-flight must only gate the switch-to-pingfederate direction, and env must
+keep beating LMDB in `configStore.getEffective` (that is what makes the SE pin
+work).
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+src/__tests__/adminConfig.pfPreflight.test.js --forceExit` (6 passed, covers
+422-on-unreachable, allow-on-reachable, no-probe for pingone/other keys, 5xx
+treated as unreachable, unset discovery endpoint); focused adminConfig +
+configStore-providerMode + startupConfigGuard suites (13 passed); UI build
+passed. Live re-enable of the gate was verified after pinning
+`OAUTH_PROVIDER=pingone` in the running configmap.
+
 ### 2026-09-25 — DaVinci SDK lesson login clobbered the main app session
 
 **Files changed:** `demo_api_server/routes/davinciSdkLogin.js`,

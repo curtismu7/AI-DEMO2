@@ -414,7 +414,7 @@ aws_build() {
   (
     cd "$BASEDIR" || die "cannot cd to $BASEDIR"
     COMPOSE_PARALLEL_LIMIT=1 docker compose -p "$K8_COMPOSE_PROJECT" -f docker-compose.yml \
-      --profile demo-auth --profile rag build
+      --profile demo-auth --profile rag --profile k8-build build
   ) || die "image build failed"
 
   # mcp-code-search and llamaindex-agent pin an explicit `image:` in
@@ -443,6 +443,13 @@ aws_build() {
     "ai-demo-k8-mcp-code-search:ai-demo-mcp-code-search"
     "ai-demo-k8-llamaindex-agent:ai-demo-llamaindex-agent"
     "ai-demo-k8-langchain-agent:ai-demo-langchain-agent"
+    # llm-proxy + tier-manager ship in k8s/56-llm-stack.yaml and are in
+    # k8s/aws/deploy.sh's IMAGE_MAP; omitting them here meant their sha-tagged
+    # images were never pushed while the deploy referenced them → ImagePullBackOff
+    # (observed 2026-09-25: llm-proxy unready on SE). The k8-build profile above
+    # builds them; these pairs push them.
+    "ai-demo-k8-llm-proxy:ai-demo-llm-proxy"
+    "ai-demo-k8-tier-manager:ai-demo-tier-manager"
   )
 
   # Fail fast if any expected image is missing (avoids a partial GHCR push).

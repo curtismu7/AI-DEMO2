@@ -88,6 +88,26 @@ function requireAdminOrUnconfigured(req, res, next) {
   });
 }
 
+/**
+ * Probe the PingFederate OIDC discovery endpoint. Resolves endpoints the same
+ * way the OAuth config getters would after a switch (oauthEndpointResolver), so
+ * "reachable here" means "the switch will actually work".
+ * Never throws — returns { ok, error }.
+ */
+async function probePingFederateReachability() {
+  const { getDiscoveryEndpoint } = require('../services/oauthEndpointResolver');
+  const discoveryUrl = getDiscoveryEndpoint();
+  if (!discoveryUrl) {
+    return { ok: false, error: 'PF discovery endpoint is not configured (PF_ISSUER / PF_DISCOVERY_ENDPOINT missing)' };
+  }
+  try {
+    await axios.get(discoveryUrl, { timeout: 5000, validateStatus: (s) => s < 500 });
+    return { ok: true, error: null };
+  } catch (err) {
+    return { ok: false, error: err.code || err.message };
+  }
+}
+
 // ---------------------------------------------------------------------------
 // GET /api/admin/config
 // ---------------------------------------------------------------------------
@@ -156,6 +176,23 @@ router.post('/', requireAdminOrUnconfigured, async (req, res) => {
       const val = dataLower[key.toLowerCase()];
       if (val !== undefined) {
         filtered[key] = String(val).trim(); // empty string = "leave unchanged" (setConfig skips empty)
+      }
+    }
+
+    // Pre-flight: refuse switching to the PingFederate provider when its OIDC
+    // discovery endpoint is unreachable. A persisted oauth_provider=pingfederate
+    // with a dead PF host makes every OAuth config getter point at an
+    // unresolvable issuer — /health then 503s and the K8s startup probe
+    // CrashLoops the pod (2026-09-25 SE incident). Only the switch itself is
+    // gated: saving other keys and switching BACK to pingone are unaffected.
+    const requestedProvider = String(filtered.OAUTH_PROVIDER || '').trim().toLowerCase();
+    if (requestedProvider === 'pingfederate') {
+      const preflight = await probePingFederateReachability();
+      if (!preflight.ok) {
+        return res.status(422).json({
+          error:   'pf_unreachable',
+          message: `PingFederate is not reachable (${preflight.error}) — refusing to switch the login provider. Check PF_ISSUER / PF_DISCOVERY_ENDPOINT or stay on PingOne.`,
+        });
       }
     }
 

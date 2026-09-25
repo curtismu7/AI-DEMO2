@@ -1,18 +1,19 @@
 /**
  * Phase266ArchitecturePage.jsx — /architecture/phase-266
  *
- * Live Mermaid render of the Phase 266 three-credential-path architecture:
+ * Live React Flow render of the Phase 266 three-credential-path architecture:
  *   • Path A (api_key): Gateway calls banking_api_resource_server :8082 via X-API-Key (amber, Phase 267)
  *   • Path B (dual_token): Gateway POSTs to banking_resource_server /identity (teal)
  *   • Path C (oauth_bearer): Gateway GETs banking_resource_server /accounts + /transactions (blue)
  *
- * The diagram is rendered client-side via mermaid@11 — no PNG export step.
- * The mermaid source matches the diagram presented at plan-approval time.
+ * Converted from the original Mermaid source to the shared StaticFlowDiagram
+ * React Flow renderer — same nodes/edges/groups, plus the PathFilterBar
+ * dimming now driven by node `path` data instead of SVG tag scraping, and
+ * per-node click details.
  */
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { PathFilterBar } from "./diagram";
-import DiagramExportBar from "./DiagramExportBar";
-import { useMermaidRender } from "../hooks/useMermaidRender";
+import StaticFlowDiagram from "./StaticFlowDiagram";
 import "./Phase266ArchitecturePage.css";
 
 // Module-level paths constant — consumed by the shared PathFilterBar component
@@ -102,33 +103,95 @@ const MERMAID_SOURCE = `flowchart TB
     class BankingDb db
 `;
 
-// Node identifier strings from the Mermaid source that map to each path.
-// tagPathNodes() checks whether a <g>'s text content *contains* one of these
-// strings. More specific strings first to avoid substring false-positives.
+// Node → credential-path mapping (drives the PathFilterBar dimming). Shared
+// nodes have no path and stay at full opacity under every selection.
 const PATH_NODE_MAP = {
   A: ["ApiResourceServer", "PathInfo"],
   B: ["Identity", "InternalIdToken"],
   C: ["Accounts", "Transactions", "BankingDb"],
-  shared: ["User", "SPA", "Gateway", "PingOne", "Session"],
 };
 
-/**
- * Walk all <g> elements in the rendered Mermaid SVG and stamp data-path
- * attributes so CSS can dim/highlight nodes by path selection.
- * Called once after mermaid.render() injects the SVG.
- */
-function tagPathNodes(container) {
-  const groups = container.querySelectorAll("g");
-  groups.forEach((g) => {
-    const text = g.textContent || "";
-    for (const [path, identifiers] of Object.entries(PATH_NODE_MAP)) {
-      if (identifiers.some((id) => text.includes(id))) {
-        g.setAttribute("data-path", path);
-        break; // first match wins
-      }
-    }
-  });
-}
+// ─── Graph data (converted from MERMAID_SOURCE) ─────────────────────────────
+
+const P266_GROUPS = {
+  bff: { label: "banking_api_server :3001 (BFF + traffic terminus)", bg: "#1e40af" },
+  rs: { label: "banking_resource_server (authenticateToken)", bg: "#047857" },
+};
+
+const P266_NODES = [
+  { id: "User", group: "bff", label: "User / browser", x: 0, y: 40 },
+  {
+    id: "SPA", group: "bff", label: "SPA — banking_api_ui :4000",
+    sub: ["3 result pages:", "ResourceServerPage (blue)", "ApiKeyPathPage (amber)", "AccessIdTokenPathPage (teal)"],
+    x: 0, y: 160,
+  },
+  {
+    id: "Session", group: "bff", label: "Express session",
+    sub: ["oauthTokens.accessToken", "oauthTokens.idToken"],
+    x: 0, y: 330,
+  },
+  { id: "InternalIdToken", group: "bff", label: "/internal/id-token", sub: ["secret-gated", "server-to-server"], path: "B", x: 0, y: 460 },
+  { id: "PathInfo", group: "bff", label: "/api/path/apikey-info", sub: ["masked apiKey last4", "(Path A info marker)"], path: "A", x: 0, y: 470 },
+
+  { id: "Summary", group: "rs", label: "GET /summary", sub: ["existing — untouched"], x: 260, y: 40 },
+  { id: "Identity", group: "rs", label: "POST or GET /identity", sub: ["decodes access+id tokens", "act-chain audit log", "scrubRawJwts walker"], path: "B", x: 260, y: 160 },
+  { id: "Accounts", group: "rs", label: "GET /accounts", sub: ["reads LMDB"], path: "C", x: 260, y: 300 },
+  { id: "Transactions", group: "rs", label: "GET /transactions", sub: ["reads LMDB"], path: "C", x: 260, y: 430 },
+
+  { id: "BankingDb", group: "bff", label: "LMDB store", sub: ["data/persistent/lmdb/", "banking_accounts +", "banking_transactions"], path: "C", x: 0, y: 610 },
+
+  {
+    id: "Gateway", group: "bff", label: "banking_mcp_gateway :3005 — TRAFFIC COP",
+    sub: ["routeTool(name) → credentialPath", "selectCredentialForBackend()", "synthesizes _meta.tokenEvents"],
+    x: 520, y: 160,
+  },
+  { id: "PingOne", group: "bff", label: "PingOne AS", sub: ["RFC 8693 /token", "RFC 7662 /introspect", "RFC 7517 /jwks"], x: 520, y: 470 },
+  {
+    id: "ApiResourceServer", group: "bff", label: "banking_api_resource_server :8082",
+    sub: ["X-API-Key gate", "GET /mortgage", "(no OAuth involved)"],
+    path: "A", x: 520, y: 620,
+  },
+];
+
+const P266_EDGES = [
+  ["User", "SPA", "1. OIDC login (OIDC Core)"],
+  ["SPA", "Session", "session cookie"],
+  ["SPA", "Gateway", "2. 'show my profile card' via bffAxios → BankingAgent"],
+  ["Gateway", "PingOne", "3. RFC 8693 token exchange — subject=user bearer, actor=gateway-client, aud=banking_resource_server"],
+  ["PingOne", "Gateway", "exchanged token — aud=banking_resource_server, act.client_id=gateway-client"],
+  ["Gateway", "InternalIdToken", "fetches id_token (secret-gated)"],
+  ["InternalIdToken", "Session", null],
+  ["Gateway", "ApiResourceServer", "Path A: api_key — GET /mortgage, X-API-Key + X-User-Sub (no OAuth bearer)", { dashed: false, color: "#b45309" }],
+  ["ApiResourceServer", "Gateway", "mortgage record (JSON)", { color: "#b45309" }],
+  ["Gateway", "SPA", "Path A response — credentialPath: api_key + masked last4", { color: "#b45309" }],
+  ["SPA", "PathInfo", "navigate(/path/mortgage, state: mortgagePayload)", { color: "#b45309" }],
+  ["Gateway", "Identity", "Path B: dual_token — POST /identity, Bearer EXCHANGED + idToken body", { color: "#0f766e" }],
+  ["Gateway", "Accounts", "Path C: oauth_bearer — GET /accounts, Bearer EXCHANGED", { color: "#1e40af" }],
+  ["Gateway", "Transactions", "GET /transactions, Bearer EXCHANGED", { color: "#1e40af" }],
+  ["Accounts", "BankingDb", "getAccountsByUserId (parameterized SQL)"],
+  ["Transactions", "BankingDb", "getTransactionsByUserId (parameterized SQL)"],
+  ["Identity", "PingOne", "authenticateToken — RFC 7515 sig (JWKS), RFC 8707 aud, optional RFC 7662", { dashed: true }],
+  ["Accounts", "PingOne", "same validation", { dashed: true }],
+  ["Transactions", "PingOne", "same validation", { dashed: true }],
+  ["Identity", "Gateway", "claims only (sanitizeClaims + scrubRawJwts), NO raw JWT"],
+  ["Accounts", "Gateway", "LMDB rows"],
+  ["Transactions", "Gateway", "LMDB rows"],
+  ["Gateway", "SPA", "_meta.credentialPath + _meta.tokenEvents"],
+  ["SPA", "Summary", "existing (unchanged)", { dashed: true }],
+];
+
+// Per-node click detail (teaching values).
+const P266_NODE_DETAILS = {
+  Gateway: "Route tool name → credential path, exchange the user bearer (RFC 8693, actor=gateway-client), and stamp _meta.credentialPath + _meta.tokenEvents on the response.",
+  PingOne: "Issues and exchanges tokens: RFC 8693 /token, RFC 7662 /introspect, RFC 7517 JWKS.",
+  Identity: "Path B target. Decodes access + id tokens, writes the act-chain audit log, and scrubs raw JWTs from the response body.",
+  Accounts: "Path C target. LMDB-backed account read behind authenticateToken.",
+  Transactions: "Path C target. LMDB-backed transaction read behind authenticateToken.",
+  ApiResourceServer: "Path A target. X-API-Key gate, no OAuth — the one credential path that skips OAuth entirely.",
+  InternalIdToken: "Secret-gated server-to-server endpoint the gateway uses to fetch the id_token for Path B.",
+  Session: "Express session holds oauthTokens; the browser holds only the cookie.",
+  BankingDb: "LMDB persistence seeded from store.js on first boot.",
+};
 
 
 const SPEC_HOPS = [
@@ -170,19 +233,13 @@ const SPEC_HOPS = [
 const FLOWCHART_OPTS = { htmlLabels: true, useMaxWidth: true, curve: "basis" };
 
 export default function Phase266ArchitecturePage() {
-  const [source, setSource] = useState(MERMAID_SOURCE);
   const [selectedPath, setSelectedPath] = useState(null);
-  const { containerRef, error: renderError } = useMermaidRender(source, {
-    flowchart: FLOWCHART_OPTS,
-    onRendered: tagPathNodes,
-  });
+  const [selectedNode, setSelectedNode] = useState(null);
 
-  const wrapperClass = [
-    "p266-arch-diagram-wrapper",
-    selectedPath ? "p266-path-active" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const nodeDetail = selectedNode
+    ? P266_NODE_DETAILS[selectedNode.id] ||
+      `${selectedNode.data.label} — participant in the Phase 266 flow.`
+    : null;
 
   return (
     <div className="p266-arch-page">
@@ -190,8 +247,9 @@ export default function Phase266ArchitecturePage() {
         <span className="p266-arch-eyebrow">Phase 266</span>
         <h1>Three Credential Paths — Architecture</h1>
         <p className="p266-arch-subtitle">
-          One Gateway, three credential mechanisms. Live Mermaid render —
-          matches the diagram approved before execution.
+          One Gateway, three credential mechanisms. Live React Flow render —
+          same graph as the Mermaid original, now interactive: filter by path
+          and click any node for its role.
         </p>
         <p className="p266-arch-subtitle">
           Scope: this view is intentionally limited to the Phase 266
@@ -200,8 +258,8 @@ export default function Phase266ArchitecturePage() {
           are out of scope here — see the Flow and Token Flow pages for those.
         </p>
         <p className="p266-arch-subtitle">
-          <strong>Historical snapshot.</strong> The diagram below is kept verbatim
-          from Phase 266's plan-approval time, including its original{" "}
+          <strong>Historical snapshot.</strong> The diagram below is kept from
+          Phase 266's plan-approval time, including its original{" "}
           <code>banking_*</code> service naming (this repo's directories/containers
           are now <code>demo_*</code>/<code>ai-demo-*</code>). For the current
           service topology, see{" "}
@@ -209,26 +267,32 @@ export default function Phase266ArchitecturePage() {
         </p>
       </header>
 
-      <PathFilterBar paths={P266_PATHS} selectedPath={selectedPath} onSelect={setSelectedPath} className="p266-filter-bar" />
-
-      <DiagramExportBar
-        source={source}
-        sourceFilename="phase266-architecture.mmd"
-        onSourceChange={(s) => { setSource(s); setSelectedPath(null); }}
-      />
+      <PathFilterBar paths={P266_PATHS} selectedPath={selectedPath} onSelect={(p) => { setSelectedPath(p); setSelectedNode(null); }} className="p266-filter-bar" />
 
       <section
-        className={wrapperClass}
+        className={[
+          "p266-arch-diagram-wrapper",
+          selectedPath ? "p266-path-active" : "",
+        ].filter(Boolean).join(" ")}
         {...(selectedPath ? { "data-selected-path": selectedPath } : {})}
       >
-        {renderError ? (
-          <div className="p266-arch-error">
-            <strong>Diagram failed to render:</strong> {renderError}
-          </div>
-        ) : (
-          <div ref={containerRef} className="p266-arch-diagram" />
-        )}
+        <StaticFlowDiagram
+          NODES={P266_NODES}
+          EDGES={P266_EDGES}
+          GROUPS={P266_GROUPS}
+          selectedPath={selectedPath}
+          onNodeClick={(node) => setSelectedNode(selectedNode?.id === node.id ? null : node)}
+          testId="p266-flow-diagram"
+          height={640}
+        />
       </section>
+
+      {nodeDetail && (
+        <div className="p266-arch-node-detail" role="status">
+          <strong>{selectedNode.data.label}</strong>
+          <p>{nodeDetail}</p>
+        </div>
+      )}
 
       <section className="p266-arch-spec-section">
         <h2>Specs exercised by this flow</h2>

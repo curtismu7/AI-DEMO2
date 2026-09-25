@@ -50,9 +50,15 @@ export default function OAuthProviderToggle() {
       window.dispatchEvent(new CustomEvent('userLoggedOut'));
       window.location.reload();
     } catch (err) {
-      notifyError(err?.response?.data?.error === 'not_authorized'
-        ? 'Admin session required to switch login provider'
-        : `Provider switch or session clear failed: ${err?.response?.data?.message || err.message}`);
+      if (err?.response?.data?.error === 'not_authorized') {
+        notifyError('Admin session required to switch login provider');
+      } else if (err?.response?.data?.error === 'pf_unreachable') {
+        // Server refused the switch — PF discovery is unreachable from the BFF.
+        // Do not flip the local state; the provider is unchanged.
+        notifyError('PingFederate is not reachable from the server — staying on PingOne');
+      } else {
+        notifyError(`Provider switch or session clear failed: ${err?.response?.data?.message || err.message}`);
+      }
     } finally {
       setSaving(false);
     }

@@ -58,6 +58,27 @@
 
 .p266-arch-diagram svg {
   max-width: 100%;
+}
+
+.p266-arch-node-detail {
+  max-width: 1280px;
+  margin: 0 auto 2rem;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.p266-arch-node-detail strong {
+  color: var(--th-text);
+}
+
+.p266-arch-node-detail p {
+  margin: 6px 0 0;
+  color: var(--th-text-body, var(--th-text));
+  line-height: 1.5;
+}
   height: auto;
 }
 

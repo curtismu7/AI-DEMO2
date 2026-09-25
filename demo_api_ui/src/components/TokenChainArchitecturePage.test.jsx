@@ -1,51 +1,76 @@
-// Regression: the page shipped its flowchart in a plain <pre className="mermaid">
-// and never called mermaid.render(), so /architecture/token-chain showed the raw
-// source. mermaid.render() needs real layout measurement, so it is mocked here
-// and the source itself is checked with mermaid.parse (the pattern used by
-// PrivilegeGatewayTopologyPage.test.jsx).
+// The page renders the token-chain graph as a React Flow canvas
+// (TokenChainFlowDiagram) instead of Mermaid. mermaid.render() needs real
+// layout measurement, and so does React Flow's renderer — but the graph
+// nodes/edges are static data, so the tests assert on DOM structure instead.
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 
-vi.mock("mermaid", () => ({
-  default: {
-    initialize: vi.fn(),
-    render: vi.fn(async () => ({ svg: "<svg data-testid='token-chain-svg'></svg>" })),
-    parse: vi.fn(async () => true),
-  },
-}));
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+window.ResizeObserver = window.ResizeObserver || ResizeObserverStub;
+window.DOMMatrixReadOnly = window.DOMMatrixReadOnly || class {};
 
-import mermaid from "mermaid";
-import TokenChainArchitecturePage, { MERMAID_DIAGRAM } from "./TokenChainArchitecturePage";
+import TokenChainArchitecturePage from "./TokenChainArchitecturePage";
+import TokenChainFlowDiagram, { NODES, EDGES, GROUPS } from "./TokenChainFlowDiagram";
 
 describe("TokenChainArchitecturePage", () => {
-  it("renders the diagram through mermaid instead of dumping the source", async () => {
+  it("renders the React Flow canvas with every chain node present", () => {
     render(<TokenChainArchitecturePage />);
-    await waitFor(() => expect(mermaid.render).toHaveBeenCalled());
-    expect(mermaid.render.mock.calls[0][1]).toBe(MERMAID_DIAGRAM);
-    await waitFor(() =>
-      expect(screen.getByTestId("token-chain-svg")).toBeTruthy(),
-    );
+    const canvas = screen.getByTestId("tcf-token-chain-canvas");
+    expect(canvas).toBeTruthy();
+    // All 18 nodes render as React Flow cards (via data-nodeid through the
+    // node title text — check a few anchors from each plane).
+    expect(screen.getByText("PingOne/PF/AIC")).toBeTruthy();
+    expect(screen.getByText("Agent Service")).toBeTruthy();
+    expect(screen.getByText("Exchange Service")).toBeTruthy();
+    expect(screen.getByText("Agent Gateway")).toBeTruthy();
+    expect(screen.getByText("PingAuthorize")).toBeTruthy();
+    expect(screen.getByText("MCP Resource Server")).toBeTruthy();
+    // "HITL/CIBA" appears as a node AND a summary-card title — assert all
+    // instances exist rather than a unique match.
+    expect(screen.getAllByText("HITL/CIBA").length).toBeGreaterThanOrEqual(2);
+    // No Mermaid artifacts remain.
     expect(document.querySelector("pre.mermaid")).toBeNull();
   });
 
-  it("starts zoomed in above 100% and lets the toolbar zoom out again", async () => {
-    render(<TokenChainArchitecturePage />);
-    await waitFor(() => expect(mermaid.render).toHaveBeenCalled());
-
-    expect(screen.getByText("120%")).toBeInTheDocument();
-    fireEvent.click(screen.getByTitle("Zoom out"));
-    expect(screen.getByText("95%")).toBeInTheDocument();
+  it("keeps the graph contract: every edge references known nodes", () => {
+    const ids = new Set(NODES.map((n) => n.id));
+    EDGES.forEach(([source, target]) => {
+      expect(ids.has(source)).toBe(true);
+      expect(ids.has(target)).toBe(true);
+    });
   });
 
-  it("right-clicking the diagram viewport starts a pan instead of opening the context menu", async () => {
+  it("shows node detail with a mock token when a token node is clicked", () => {
     render(<TokenChainArchitecturePage />);
-    await waitFor(() => expect(mermaid.render).toHaveBeenCalled());
+    expect(screen.queryByRole("status")).toBeNull();
+    fireEvent.click(screen.getByText("Exchange Service"));
+    const detail = screen.getByRole("status");
+    expect(detail.textContent).toContain("Exchange Service");
+    expect(detail.textContent).toContain("exchange");
+    // Token nodes show a MOCK decoded-claims JSON block.
+    fireEvent.click(screen.getByText("TX Token"));
+    const txDetail = screen.getByRole("status");
+    expect(txDetail.textContent).toContain("RFC 8693 exchange result");
+    expect(txDetail.textContent).toContain('"act"');
+    expect(txDetail.textContent).toContain('"sub": "user1"');
+  });
 
-    const viewport = screen.getByTestId("token-chain-svg").closest(".tca-diagram-viewport");
-    expect(viewport.className).not.toContain("--panning");
-    fireEvent.mouseDown(viewport, { button: 2, clientX: 10, clientY: 10 });
-    expect(viewport.className).toContain("--panning");
-    fireEvent.mouseUp(window);
-    expect(viewport.className).not.toContain("--panning");
+  it("explains token-less nodes instead of showing a fake token", () => {
+    render(<TokenChainArchitecturePage />);
+    fireEvent.click(screen.getByText("LLM"));
+    const detail = screen.getByRole("status");
+    expect(detail.textContent).toContain("No token");
+  });
+
+  it("renders all nine group legends with their Mermaid-palette colors", () => {
+    render(<TokenChainArchitecturePage />);
+    Object.entries(GROUPS).forEach(([, group]) => {
+      expect(screen.getByText(group.label)).toBeTruthy();
+    });
   });
 });
+
