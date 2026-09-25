@@ -44,6 +44,7 @@
 set -euo pipefail
 
 BASEDIR="$(cd "$(dirname "$0")" && pwd)"
+BUILD_CONTEXT_TMP=""
 COMPOSE_FILE="${BASEDIR}/docker-compose.yml"
 OVERRIDE_FILE="${BASEDIR}/docker-compose.override.yml"
 # shellcheck source=scripts/demo-terminal.sh
@@ -1228,6 +1229,25 @@ _prune_build_leftovers() {
   fi
 }
 
+_prepare_docker_build_contexts() {
+  local contexts=("$@")
+  [[ ${#contexts[@]} -gt 0 ]] || return 0
+  [[ -z "${BUILD_CONTEXT_TMP}" ]] || return 0
+
+  BUILD_CONTEXT_TMP="$(mktemp -d "${TMPDIR:-/tmp}/ai-demo-build-context.XXXXXX")"
+  node "${BASEDIR}/scripts/docker-build-contexts.js" "${BASEDIR}" "${BUILD_CONTEXT_TMP}" ${contexts[@]+"${contexts[@]}"}
+  trap '[[ -z "${BUILD_CONTEXT_TMP}" ]] || rm -rf "${BUILD_CONTEXT_TMP}"' EXIT
+
+  if [[ " ${contexts[*]} " == *" bff "* ]]; then
+    export AI_DEMO_BFF_BUILD_CONTEXT="${BUILD_CONTEXT_TMP}/bff"
+    export AI_DEMO_BFF_DOCKERFILE="demo_api_server/Dockerfile"
+  fi
+  if [[ " ${contexts[*]} " == *" langchain "* ]]; then
+    export AI_DEMO_LANGCHAIN_BUILD_CONTEXT="${BUILD_CONTEXT_TMP}/langchain"
+    export AI_DEMO_LANGCHAIN_DOCKERFILE="langchain_agent/Dockerfile"
+  fi
+}
+
 cmd_build_one() {
   local build_opts=""
   local services=()
@@ -1244,6 +1264,10 @@ cmd_build_one() {
   if _includes_mcp_gateway "${services[@]}"; then
     _check_demo_auth_credentials || return 1
   fi
+  local staged_contexts=()
+  if _includes_bff "${services[@]}"; then staged_contexts+=(bff); fi
+  [[ " ${services[*]} " == *" langchain-agent "* ]] && staged_contexts+=(langchain)
+  _prepare_docker_build_contexts ${staged_contexts[@]+"${staged_contexts[@]}"}
   echo ""
   echo -e "${CYAN}${BOLD}   [DOCKER]  Rebuilding + restarting ${services[@]} (others untouched)${RESET}"
   echo ""
@@ -1671,6 +1695,7 @@ cmd_start() {
   if [[ "${build_flag}" == "--build" ]]; then
     ok "Rebuilding images..."
     echo ""
+    _prepare_docker_build_contexts bff langchain
     if [[ "${stack}" == "full" ]]; then
       docker compose "${COMPOSE_FILES[@]}" "${FULL_STACK_PROFILE_ARGS[@]}" up --build -d
     else
@@ -1680,6 +1705,7 @@ cmd_start() {
   else
     ok "Ensuring demo-api-server is up to date..."
     echo ""
+    _prepare_docker_build_contexts bff
     local _boot_build=(demo-api-server)
     local _ui_dev; _ui_dev="$(_dev_ui_build_arg)"
     [[ -n "${_ui_dev}" ]] && _boot_build+=("${_ui_dev}")

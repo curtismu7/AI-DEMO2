@@ -249,8 +249,10 @@ services:
     labels:
       com.ai-demo.spiffe-workload: bff
     build:
-      context: .    # repo root — BFF references scope-topology.json and docs/ from ../../
-      dockerfile: demo_api_server/Dockerfile
+      # run-docker.sh stages only the BFF's declared inputs into a temporary
+      # context. Direct Compose use falls back to the repository root.
+      context: ${AI_DEMO_BFF_BUILD_CONTEXT:-.}
+      dockerfile: ${AI_DEMO_BFF_DOCKERFILE:-demo_api_server/Dockerfile}
       args:
         GIT_SHA: ${GIT_SHA:-unknown}
     container_name: ai-demo-api-server
@@ -1064,8 +1066,9 @@ services:
   # ── LangChain Agent (Python / uvicorn) ───────────────────────────────────────
   langchain-agent:
     build:
-      context: .
-      dockerfile: langchain_agent/Dockerfile
+      # run-docker.sh stages this image's inputs to avoid scanning the full repo.
+      context: ${AI_DEMO_LANGCHAIN_BUILD_CONTEXT:-.}
+      dockerfile: ${AI_DEMO_LANGCHAIN_DOCKERFILE:-langchain_agent/Dockerfile}
       args:
         GIT_SHA: ${GIT_SHA:-unknown}
     container_name: ai-demo-langchain-agent
