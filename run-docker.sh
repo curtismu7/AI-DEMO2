@@ -927,9 +927,14 @@ _docker_daemon_ready() {
 }
 
 # Run `docker compose …` with a wall-clock cap so a hung daemon does not block stop.
+# When $2 is "down", the wait loop exits early once the project's containers are
+# all gone — a wedged compose CLI (busy daemon) must not hold the script for the
+# full cap when the work is already done. Not valid for `stop <svc>`, which
+# intentionally leaves other project containers running.
 _compose_with_timeout() {
   local secs="$1"
   shift
+  local cmd="${1:-}"
   docker compose "${COMPOSE_FILES[@]}" "$@" &
   local pid=$!
   local waited=0
@@ -939,7 +944,17 @@ _compose_with_timeout() {
     fi
     sleep 1
     ((waited++)) || true
+    if [[ "${cmd}" == "down" ]] && ! docker ps -aq --filter "label=com.docker.compose.project=${COMPOSE_PROJECT_NAME}" 2>/dev/null | grep -q .; then
+      break
+    fi
   done
+  if [[ "${cmd}" == "down" ]] && ! docker ps -aq --filter "label=com.docker.compose.project=${COMPOSE_PROJECT_NAME}" 2>/dev/null | grep -q .; then
+    # Containers are all gone (early exit). Kill the wedged CLI if it lingers,
+    # but report success — the work is done, so callers must not "force stop".
+    kill "${pid}" 2>/dev/null || true
+    wait "${pid}" 2>/dev/null || true
+    return 0
+  fi
   if kill -0 "${pid}" 2>/dev/null; then
     kill "${pid}" 2>/dev/null || true
     wait "${pid}" 2>/dev/null || true
