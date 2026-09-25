@@ -1720,7 +1720,7 @@ cmd_start() {
   else
     ok "Ensuring demo-api-server is up to date..."
     echo ""
-    _prepare_docker_build_contexts bff
+    _prepare_docker_build_contexts bff langchain
     local _boot_build=(demo-api-server)
     local _ui_dev; _ui_dev="$(_dev_ui_build_arg)"
     [[ -n "${_ui_dev}" ]] && _boot_build+=("${_ui_dev}")
