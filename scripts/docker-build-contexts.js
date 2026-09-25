@@ -19,7 +19,7 @@ const repoRoot = path.resolve(repoRootArg);
 const outputRoot = path.resolve(outputArg);
 const requestedContexts = new Set(requested);
 for (const name of requestedContexts) {
-  if (!['bff', 'langchain'].includes(name)) {
+  if (!['bff', 'langchain', 'authz', 'gateway'].includes(name)) {
     console.error(`Unknown context: ${name}`);
     process.exit(2);
   }
@@ -170,6 +170,37 @@ function stageLangchain(destination) {
   console.log(`LangChain staged context: ${stats.files} files, ${(stats.bytes / 1024 / 1024).toFixed(1)} MB`);
 }
 
+// Small root-context images: copy only the paths their Dockerfiles declare.
+function stageAuthz(destination) {
+  ensureDir(destination);
+  const service = 'demo_authz_server';
+  copyTree(path.join(repoRoot, service), path.join(destination, service));
+  copyFile('scope-topology.json', destination);
+  for (const file of [
+    'snapshots/gen-authorize-snapshot.js',
+    'snapshots/intentGovernancePolicy.js',
+    'snapshots/AI_Demo_Transaction_Authorization_P1AZ.snapshot.json',
+  ]) copyFile(file, destination);
+
+  const stats = countContextFiles(destination);
+  console.log(`Authz staged context: ${stats.files} files, ${(stats.bytes / 1024 / 1024).toFixed(1)} MB`);
+}
+
+function stageGateway(destination) {
+  ensureDir(destination);
+  const service = 'demo_mcp_gateway';
+  copyTree(path.join(repoRoot, service), path.join(destination, service));
+  copyFile('scope-topology.json', destination);
+  copyFile('mcp-tool-schemas.json', destination);
+  copyTree(path.join(repoRoot, 'oauth-mcp/openapi'), path.join(destination, 'oauth-mcp', 'openapi'));
+  copyTree(path.join(repoRoot, 'demo_mcp_resource_server/openapi'), path.join(destination, 'demo_mcp_resource_server', 'openapi'));
+
+  const stats = countContextFiles(destination);
+  console.log(`Gateway staged context: ${stats.files} files, ${(stats.bytes / 1024 / 1024).toFixed(1)} MB`);
+}
+
 fs.mkdirSync(outputRoot, { recursive: true });
 if (requestedContexts.has('bff')) stageBff(path.join(outputRoot, 'bff'));
 if (requestedContexts.has('langchain')) stageLangchain(path.join(outputRoot, 'langchain'));
+if (requestedContexts.has('authz')) stageAuthz(path.join(outputRoot, 'authz'));
+if (requestedContexts.has('gateway')) stageGateway(path.join(outputRoot, 'gateway'));

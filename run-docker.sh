@@ -1261,6 +1261,14 @@ _prepare_docker_build_contexts() {
     export AI_DEMO_LANGCHAIN_BUILD_CONTEXT="${BUILD_CONTEXT_TMP}/langchain"
     export AI_DEMO_LANGCHAIN_DOCKERFILE="langchain_agent/Dockerfile"
   fi
+  if [[ " ${contexts[*]} " == *" authz "* ]]; then
+    export AI_DEMO_AUTHZ_BUILD_CONTEXT="${BUILD_CONTEXT_TMP}/authz"
+    export AI_DEMO_AUTHZ_DOCKERFILE="demo_authz_server/Dockerfile"
+  fi
+  if [[ " ${contexts[*]} " == *" gateway "* ]]; then
+    export AI_DEMO_GATEWAY_BUILD_CONTEXT="${BUILD_CONTEXT_TMP}/gateway"
+    export AI_DEMO_GATEWAY_DOCKERFILE="demo_mcp_gateway/Dockerfile"
+  fi
 }
 
 cmd_build_one() {
@@ -1420,6 +1428,7 @@ cmd_demo_sync() {
   _export_loki_url
 
   ok "Ensuring demo-auth containers are up (RAR demo needs the Demo Agent Gateway; routing: simulated=${sim}, pingGateway=${pgw})"
+  _prepare_docker_build_contexts authz gateway
   docker compose "${COMPOSE_FILES[@]}" --profile demo-auth up -d authz-server mcp-gateway
 
   # mcp-proxy is core — point it at the active gateway (PingGateway by default).

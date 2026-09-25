@@ -1148,8 +1148,10 @@ services:
       com.ai-demo.spiffe-workload: mcp-gateway
     profiles: ["demo-auth"]
     build:
-      context: .    # repo root — needs scope-topology.json and sibling openapi files
-      dockerfile: demo_mcp_gateway/Dockerfile
+      # run-docker.sh stages only this image's inputs; direct Compose use falls
+      # back to the repository root.
+      context: ${AI_DEMO_GATEWAY_BUILD_CONTEXT:-.}
+      dockerfile: ${AI_DEMO_GATEWAY_DOCKERFILE:-demo_mcp_gateway/Dockerfile}
       args:
         GIT_SHA: ${GIT_SHA:-unknown}
     container_name: ai-demo-mcp-gateway
@@ -1645,8 +1647,10 @@ services:
   authz-server:
     profiles: ["demo-auth"]
     build:
-      context: .    # repo root — needs scope-topology.json (single source of truth)
-      dockerfile: demo_authz_server/Dockerfile
+      # run-docker.sh stages only this image's inputs; direct Compose use falls
+      # back to the repository root.
+      context: ${AI_DEMO_AUTHZ_BUILD_CONTEXT:-.}
+      dockerfile: ${AI_DEMO_AUTHZ_DOCKERFILE:-demo_authz_server/Dockerfile}
       args:
         GIT_SHA: ${GIT_SHA:-unknown}
     container_name: ai-demo-authz-server
