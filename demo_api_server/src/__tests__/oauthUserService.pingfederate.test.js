@@ -44,6 +44,7 @@ describe('OAuthUserService PingFederate browser flow', () => {
     expect(parsed.searchParams.get('code_challenge_method')).toBe('S256');
     expect(parsed.searchParams.get('state')).toBe('state');
     expect(parsed.searchParams.get('nonce')).toBe('nonce');
+    expect(parsed.searchParams.get('login_hint')).toBe('demouser');
   });
 
   test('exchanges the code at PF with server-side client authentication', async () => {
