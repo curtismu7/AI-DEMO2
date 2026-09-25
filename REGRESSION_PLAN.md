@@ -169,6 +169,23 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — Privilege MCP trace text was too light in the light theme
+
+**Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.css`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`, the page theme contrast
+test, and `REGRESSION_PLAN.md`.
+
+**What was broken:** an unclosed CSS comment disabled the trace styles, leaving
+light event labels and low-contrast timestamps on the white trace surface.
+
+**What was fixed:** the comment is closed; trace text is bold and dark in light
+mode, with event colors retained in dark mode.
+
+**Do not break:** trace content and event order remain unchanged; keep trace
+text readable in both themes and preserve dark-mode status colors.
+
+**Verify:** focused Privilege MCP theme contrast test, UI build, and Playwright
+computed-style checks on the isolated worktree page in both themes.
 ### 2026-09-24 — Malicious MCP tab + agent loop added to /llm-gateway (feature, not a fix)
 
 **Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,

@@ -1459,10 +1459,38 @@ select.cur-input { cursor: pointer; }
    Connection debug strip + trace JSON — were inline-styled with fixed dark
    colors, so light mode left them dark ("stays dark even when toggled").
    Now class-based with explicit light overrides so the toggle flips them too.
-   ───────────────────────────────────────────────────────────────────────── *
+   ───────────────────────────────────────────────────────────────────────── */
+.cur-trace-summary { cursor: pointer; list-style: none; display: flex; gap: 8px; align-items: center; font-weight: 700; }
 .cur-trace-ts { color: #777; min-width: 70px; }
-.cur-trace-json { margin: 4px 0 4px 80px; color: #ddd; white-space: pre-wrap; word-break: break-all; } .cur-ide[data-cur-theme="light"] .cur-trace-ts { color: #999; }
-.cur-ide[data-cur-theme="light"] .cur-trace-json { color: #333; }
+.cur-trace-label--relay-outbound { color: #7ec8e3; }
+.cur-trace-label--relay-success { color: #a8e6cf; }
+.cur-trace-label--relay-error,
+.cur-trace-label--error { color: #ff6b6b; }
+.cur-trace-label--oauth { color: #ffd93d; }
+.cur-trace-label--mcp { color: #c3aed6; }
+.cur-trace-label--config { color: #b2bec3; }
+.cur-trace-error { color: #ff6b6b; }
+.cur-trace-json { margin: 4px 0 4px 80px; color: #ddd; white-space: pre-wrap; word-break: break-all; font-weight: 700; }
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-log .cur-trace-label--relay-outbound { color: #7ec8e3; }
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-log .cur-trace-label--relay-success { color: #a8e6cf; }
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-log .cur-trace-label--relay-error,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-log .cur-trace-label--error,
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-log .cur-trace-error { color: #ff6b6b; }
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-log .cur-trace-label--oauth { color: #ffd93d; }
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-log .cur-trace-label--mcp { color: #c3aed6; }
+.cur-ide:not([data-cur-theme="light"]) .cur-terminal-log .cur-trace-label--config { color: #b2bec3; }
+.cur-ide[data-cur-theme="light"] .cur-trace-log {
+  background: #ffffff;
+  color: #1e1e1e;
+}
+.cur-ide[data-cur-theme="light"] .cur-trace-summary,
+.cur-ide[data-cur-theme="light"] .cur-trace-ts,
+.cur-ide[data-cur-theme="light"] .cur-trace-label,
+.cur-ide[data-cur-theme="light"] .cur-trace-error,
+.cur-ide[data-cur-theme="light"] .cur-trace-json {
+  color: inherit;
+  font-weight: 700;
+}
 
 /* Scope pick — left rail pill selects and jumps to the right SCOPES table. */
 .cur-scope-pill[role="button"] { cursor: pointer; }
