@@ -500,11 +500,15 @@
   max-width: none !important;
 }
 
-.afm-live-shell .afm-vcs-editor,
 .afm-live-shell .afm-code-editor,
 .afm-live-shell .afm-saas-main {
   flex: 0 1 200px !important;
   max-width: 28% !important;
+}
+
+.afm-live-shell .afm-vcs-editor {
+  flex: 0 1 320px !important;
+  max-width: 40% !important;
 }
 
 /* Six-box footprint picks */
