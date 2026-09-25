@@ -19,6 +19,7 @@ import apiClient from '../services/apiClient';
 import UseCaseExplainModal from './UseCaseExplainModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import { a2aEventsForExplain } from './demoStepsA2a';
+import { ID_JAG_USE_CASE_ID, RUN_MODES, requestLiveIdJagRun } from '../utils/idJagRunMode';
 import {
   clearCompletedUseCases,
   getCompletedUseCaseIds,
@@ -217,6 +218,14 @@ export default function DemoStepsDropdown({
   /** Run a demo step and refresh checkmarks. */
   function handleSelect(uc, stepNumber) {
     onOpenChange(false);
+    if (uc.id === 'UC40' && uc.useCaseId === ID_JAG_USE_CASE_ID) {
+      requestLiveIdJagRun({
+        mode: RUN_MODES.LIVE_ID_JAG,
+        message: 'show my balance',
+        returnTo: '/dashboard',
+      });
+      return;
+    }
     let selectedUc = uc;
     if (['UC38', 'UC44'].includes(uc.id) && uc.trigger?.type === 'link' && uc.trigger.path) {
       const url = new URL(uc.trigger.path, window.location.origin);
@@ -341,6 +350,7 @@ export default function DemoStepsDropdown({
           className={btnClass}
           onClick={() => handleSelect(uc, stepNumber)}
           data-testid={testId || `demo-step-${uc.id}`}
+          title={uc.id === 'UC40' ? 'Signs out the current session, then opens PingFederate login for the live ID-JAG run' : undefined}
         >
           {completed && (
             <span
@@ -351,7 +361,14 @@ export default function DemoStepsDropdown({
             </span>
           )}
           <span className="ba-demo-steps-popout__id">{uc.id}</span>
-          <span className="banking-chips-dropdown__chip-name">{uc.demoLabel || uc.title}</span>
+          <span className={`banking-chips-dropdown__chip-name${uc.id === 'UC40' ? ' banking-chips-dropdown__chip-name--id-jag' : ''}`}>
+            {uc.id === 'UC40' ? 'Run PingFederate ID-JAG' : uc.demoLabel || uc.title}
+            {uc.id === 'UC40' && (
+              <span className="ba-demo-steps-popout__id-jag-copy">
+                Signs out your current session silently, then opens PingFederate login.
+              </span>
+            )}
+          </span>
           {uc.demoSurface === 'hosted-pingone-mcp' && (
             <span
               className="ba-demo-steps-popout__hosted-badge"

@@ -326,6 +326,17 @@ async function runMcpToolPipeline(ctx) {
             code: err.code || 'token_exchange_failed'
         });
 
+        // This is a run-identity gate, never an exchange/config failure that
+        // can degrade into a local tool call or an ordinary agent response.
+        if (err.code === 'id_jag_login_required' || err.code === 'id_jag_provider_required') {
+            const events = Array.isArray(err.tokenEvents) ? err.tokenEvents : [];
+            deps.publishTokenEventsToSse(flowTraceId, events);
+            return { kind: 'error', httpStatus: 401, tokenEvents: events, body: {
+                error: err.code, message: err.message, loginTarget: err.loginTarget,
+                requiresLogin: true, tokenEvents: events,
+            } };
+        }
+
         // When the exchange fails because the subject token lacks the required scopes
         // (e.g. ENDUSER_AUDIENCE login path only carries agent:invoke, not
         // write), PingOne returns 400 "At least one scope must be granted".

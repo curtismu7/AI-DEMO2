@@ -1,6 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
+import {
+  ID_JAG_USE_CASE_ID,
+  RUN_MODES,
+  USE_CASE_RUN_CONTEXT_KEY,
+  clearIdJagRunState,
+  completeIdJagRunHandoff,
+  isIdJagRunMode,
+} from './idJagRunMode';
 
-export const RUN_CONTEXT_STORAGE_KEY = 'bx_run_context';
+export const RUN_CONTEXT_STORAGE_KEY = USE_CASE_RUN_CONTEXT_KEY;
+
+function withIdJagMode(context, mode) {
+  if (context?.useCaseId !== ID_JAG_USE_CASE_ID || !isIdJagRunMode(mode)) return context;
+  return { ...context, mode };
+}
 
 function persistRunContext(runContext) {
   try {
@@ -31,11 +44,11 @@ export function runContextFromLocation(location) {
   const state = location?.state;
   if (!state?.triggerText || (!state.runContext && !state.useCaseId)) return null;
 
-  return state.runContext || {
+  return withIdJagMode(state.runContext || {
     source: 'use-cases',
     useCaseId: state.useCaseId,
     triggerText: state.triggerText,
-  };
+  }, state.mode);
 }
 
 export function useUseCaseRunContext(location) {
@@ -88,12 +101,12 @@ export function useUseCaseRunContext(location) {
     const handler = (e) => {
       const useCaseId = e.detail?.useCaseId;
       if (!useCaseId) return;
-      const nextRunContext = {
+      const nextRunContext = withIdJagMode({
         source: 'use-cases',
         useCaseId,
         useCaseLabel: e.detail?.useCaseTitle,
         triggerText: e.detail?.message,
-      };
+      }, e.detail?.mode);
       launchedThisMountRef.current = true;
       eventBoundRef.current = true;
       persistRunContext(nextRunContext);
@@ -146,15 +159,38 @@ export function useUseCaseRunContext(location) {
       persistRunContext(nextRunContext);
       setRunContext(nextRunContext);
     };
+    const onIdJagRunCleared = () => {
+      setRunContext((current) => {
+        if (current?.useCaseId === ID_JAG_USE_CASE_ID) return null;
+        if (!isIdJagRunMode(current?.mode)) return current;
+        const { mode: _mode, ...ordinaryContext } = current;
+        return ordinaryContext;
+      });
+    };
+    const onAuthBoundary = (event) => {
+      const detail = event.detail;
+      const validCallback = event.type === 'userAuthenticated'
+        && detail?.idJagCallbackValidated === true
+        && detail?.useCaseId === ID_JAG_USE_CASE_ID
+        && detail?.mode === RUN_MODES.LIVE_ID_JAG;
+      if (validCallback) completeIdJagRunHandoff();
+      else clearIdJagRunState({ preservePending: event.type === 'userLoggedOut' && detail?.idJagHandoff === true });
+    };
     window.addEventListener('banking-agent-prefill', handler);
     window.addEventListener('agent-track-step-pick', onTrackStepPick);
     window.addEventListener('agent-demo-step-select', onDemoStepSelect);
     window.addEventListener('agent-prompt-run', onPromptRun);
+    window.addEventListener('id-jag-run-cleared', onIdJagRunCleared);
+    window.addEventListener('userAuthenticated', onAuthBoundary);
+    window.addEventListener('userLoggedOut', onAuthBoundary);
     return () => {
       window.removeEventListener('banking-agent-prefill', handler);
       window.removeEventListener('agent-track-step-pick', onTrackStepPick);
       window.removeEventListener('agent-demo-step-select', onDemoStepSelect);
       window.removeEventListener('agent-prompt-run', onPromptRun);
+      window.removeEventListener('id-jag-run-cleared', onIdJagRunCleared);
+      window.removeEventListener('userAuthenticated', onAuthBoundary);
+      window.removeEventListener('userLoggedOut', onAuthBoundary);
     };
   }, []);
 

@@ -1,31 +1,49 @@
 // demo_api_ui/src/pages/EnterpriseMcpDemoPage.jsx
 //
 // /demo/enterprise-mcp — run the MCP Enterprise-Managed Authorization demo.
-// UC40 travels with this run only; the BFF applies and discards its policy
-// context without changing shared feature flags or login configuration.
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import TokenChainFilmstrip from "../components/TokenChainFilmstrip";
 import { EDU } from "../components/education/educationIds";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { useThemeOptional } from "../context/ThemeContext";
+import { requestLiveIdJagRun, requestMockIdJagReplay, RUN_MODES } from "../utils/idJagRunMode";
 import "./EnterpriseMcpDemoPage.css";
 
 const DEMO_CHIP = "show my balance";
 
 export default function EnterpriseMcpDemoPage() {
-  const [ran, setRan] = useState(false);
+  const [runMode, setRunMode] = useState(null);
+  const [providerRequired, setProviderRequired] = useState(() =>
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("error") === "id_jag_provider_required"
+  );
+  useEffect(() => {
+    const onProviderRequired = () => {
+      setRunMode(null);
+      setProviderRequired(true);
+    };
+    window.addEventListener("id-jag-provider-required", onProviderRequired);
+    return () => window.removeEventListener("id-jag-provider-required", onProviderRequired);
+  }, []);
   // Optional variant on purpose: useEducationUI() THROWS outside its provider,
   // which would take the whole page down anywhere the provider is absent. Null
   // here simply hides the explainer buttons rather than shipping dead controls.
   const edu = useEducationUIOptional();
   const { darkMode, toggleDarkMode } = useThemeOptional();
-  const handleRun = useCallback(() => {
-    // Same mechanism LiveUseCaseWorkbenchPage uses to drive the agent.
-    window.dispatchEvent(new CustomEvent("banking-agent-prefill", {
-      detail: { message: DEMO_CHIP, autoSend: true, useCaseId: "enterprise-managed-mcp-authorization" },
-    }));
-    setRan(true);
+  const handleLiveRun = useCallback(() => {
+    setProviderRequired(false);
+    const intent = requestLiveIdJagRun({
+      mode: RUN_MODES.LIVE_ID_JAG,
+      message: DEMO_CHIP,
+      returnTo: "/pingfederate-id-jag/demo",
+    });
+    if (intent) {
+      setRunMode(RUN_MODES.LIVE_ID_JAG);
+    }
+  }, []);
+  const handleMockRun = useCallback(() => {
+    requestMockIdJagReplay();
+    setRunMode(RUN_MODES.MOCK_ID_JAG);
   }, []);
 
   return (
@@ -76,23 +94,38 @@ export default function EnterpriseMcpDemoPage() {
           <button
             type="button"
             className="emd-btn emd-btn--primary"
-            onClick={handleRun}
+            onClick={handleLiveRun}
           >
-            {ran ? "Run again" : `Run “${DEMO_CHIP}”`}
+            Run live ID-JAG demo
+          </button>
+          <button type="button" className="emd-btn" onClick={handleMockRun}>
+            Run mock demo
           </button>
         </div>
+        {providerRequired && (
+          <div className="emd-prerequisite" role="alert">
+            <strong>PingOne is selected.</strong> Live ID-JAG requires PingFederate.
+            Select PF with the top-bar P1/PF switch, then run the demo again.
+            If the switch requires admin access, <a href="/api/auth/oauth/login?return_to=%2Fpingfederate-id-jag%2Fdemo">sign in as admin</a> first.
+          </div>
+        )}
+        {runMode === RUN_MODES.LIVE_ID_JAG && (
+          <p className="emd-status" role="status">Live PF ID-JAG — PingFederate login required before the agent runs.</p>
+        )}
+        {runMode === RUN_MODES.MOCK_ID_JAG && (
+          <p className="emd-status" role="status">Mock replay — no login or live tokens</p>
+        )}
         <p className="emd-note">
-          This run carries the UC40 identity and requires a PingFederate login. Policy and
-          ID-JAG handling are selected for this run and discarded when it ends; ordinary demo
-          steps keep using the selected PingOne or PingFederate login mode.
+          Live PF ID-JAG signs you out, asks for PingFederate login, then runs UC40 with
+          “{DEMO_CHIP}”. Mock replay shows a sample flow immediately, even when signed out.
         </p>
       </section>
 
       <section className="emd-card emd-card--film">
         <h2>Token chain</h2>
         <p className="emd-note">
-          Watch for <code>ID-JAG issued</code> and <code>ID-JAG redeemed</code>. With the flag off
-          you will see the RFC 8693 exchange instead, labelled as the stand-in.
+          Watch for <code>ID-JAG issued</code> and <code>ID-JAG redeemed</code> in the trace.
+          Mock replay shows sample steps; an ordinary exchange is labeled as a stand-in.
         </p>
         <TokenChainFilmstrip />
       </section>

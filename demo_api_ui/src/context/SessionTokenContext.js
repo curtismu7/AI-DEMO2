@@ -14,6 +14,8 @@
 // the routes where that modal exists.
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
 import { resolveSessionExpiry } from '../services/sessionResolver';
+import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
+import { isMockIdJagTrace, isNativeIdJagTrace } from '../services/tokenChainTrace/buildTraceSteps';
 
 const SessionTokenContext = createContext(null);
 
@@ -52,17 +54,24 @@ export function SessionTokenProvider({ children }) {
 
   useEffect(() => {
     refreshTokenStatus();
+    const clearIdJagVisuals = (event) => {
+      if (event.type === 'userAuthenticated' && event.detail?.idJagCallbackValidated === true) return;
+      const current = tokenChainTraceStore.getState().trace;
+      if (isMockIdJagTrace(current) || isNativeIdJagTrace(current)) tokenChainTraceStore.reset();
+    };
     const onLogout = () => {
+      clearIdJagVisuals({ type: 'userLoggedOut' });
       setTokenExpiresAt(null);
       setSessionType(null);
       setStaleSession(false);
       setHasRefreshToken(false);
       setOauthProvider(null);
     };
-    window.addEventListener('userAuthenticated', refreshTokenStatus);
+    const onAuthenticated = (event) => { clearIdJagVisuals(event); void refreshTokenStatus(); };
+    window.addEventListener('userAuthenticated', onAuthenticated);
     window.addEventListener('userLoggedOut', onLogout);
     return () => {
-      window.removeEventListener('userAuthenticated', refreshTokenStatus);
+      window.removeEventListener('userAuthenticated', onAuthenticated);
       window.removeEventListener('userLoggedOut', onLogout);
     };
   }, [refreshTokenStatus]);

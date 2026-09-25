@@ -134,9 +134,9 @@
 .emd-btn:not(:disabled):hover { filter: brightness(0.97); }
 
 .emd-btn--primary {
-  color: var(--th-text-on-emphasis);
-  border-color: var(--th-bg-emphasis);
-  background: var(--th-bg-emphasis);
+  color: #fff;
+  border-color: var(--signin-accent, #2563eb);
+  background: var(--signin-accent, #2563eb);
 }
 
 .emd-btn--reset {
@@ -144,6 +144,25 @@
   border-color: var(--th-status-warning-border);
   background: transparent;
 }
+
+.emd-status {
+  margin: 0.75rem 0 0;
+  color: var(--th-status-info-text);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.emd-prerequisite {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--th-status-warning-border);
+  border-radius: 7px;
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+  font-size: var(--font-size-sm);
+}
+
+.emd-prerequisite a { color: var(--th-status-warning-text); text-decoration: underline; }
 
 .emd-note {
   margin: 0.75rem 0 0;

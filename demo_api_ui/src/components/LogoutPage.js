@@ -2,6 +2,9 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { navigateToCustomerOAuthForceLogin } from '../utils/authUi';
+import bffAxios from '../services/bffAxios';
+import { clearIdJagRunState, ID_JAG_PENDING_INTENT_KEY, ID_JAG_USE_CASE_ID, RUN_MODES } from '../utils/idJagRunMode';
+import { notifyError } from '../utils/appToast';
 import './LogoutPage.css';
 
 /**
@@ -12,17 +15,44 @@ export default function LogoutPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    let returnTo = '/';
-    try {
-      // Check if logout was initiated from a dashboard
-      returnTo = sessionStorage.getItem('logoutReturnTo') || '/';
-      sessionStorage.clear();
-      localStorage.removeItem('userLoggedOut');
-    } catch (e) {
-      // ignore storage errors
-    }
-
-    navigate(returnTo, { replace: true });
+    let cancelled = false;
+    const finishLogout = async () => {
+      let returnTo = '/';
+      try { returnTo = sessionStorage.getItem('logoutReturnTo') || '/'; } catch { /* storage unavailable */ }
+      let pending = null;
+      try { pending = (await bffAxios.get('/api/auth/oauth/user/id-jag/pending')).data; }
+      catch {
+        // The verified server intent remains authoritative at login. A failed
+        // status read must not turn an explicit live handoff into normal logout.
+        try {
+          const saved = JSON.parse(sessionStorage.getItem(ID_JAG_PENDING_INTENT_KEY) || 'null');
+          if (saved?.useCaseId === ID_JAG_USE_CASE_ID && saved.mode === RUN_MODES.LIVE_ID_JAG
+            && ['/pingfederate-id-jag/demo', '/dashboard'].includes(saved.returnTo)) {
+            pending = { pending: true, mode: saved.mode, returnTo: saved.returnTo };
+          }
+        } catch { /* no usable client handoff; ordinary logout continues */ }
+      }
+      try {
+        await bffAxios.post('/api/auth/clear-session');
+        if (cancelled) return;
+        clearIdJagRunState();
+        try { sessionStorage.clear(); localStorage.removeItem('userLoggedOut'); } catch { /* storage unavailable */ }
+        const isLiveHandoff = pending?.pending === true && pending.mode === 'live-id-jag'
+          && ['/pingfederate-id-jag/demo', '/dashboard'].includes(pending.returnTo);
+        if (isLiveHandoff) {
+          window.location.href = `/api/auth/oauth/user/login?mode=live-id-jag&return_to=${encodeURIComponent(pending.returnTo)}`;
+          return;
+        }
+        navigate(returnTo, { replace: true });
+      } catch {
+        if (cancelled) return;
+        clearIdJagRunState();
+        notifyError('Sign-out cleanup failed. Please try again.');
+        navigate('/pingfederate-id-jag/demo?error=id_jag_handoff_failed', { replace: true });
+      }
+    };
+    void finishLogout();
+    return () => { cancelled = true; };
   }, [navigate]);
 
   return (
