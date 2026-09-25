@@ -12,7 +12,7 @@ const nowStamp = () => new Date().toLocaleTimeString();
 // Agent Kill Switch roster. Any logged-in user. The only row is the real
 // agent with real PingOne revocation — no simulated platform identities.
 export default function ControlPlaneRoster({ openKillSwitchModal }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { darkMode, toggleDarkMode } = useThemeOptional();
   const [showGuide, setShowGuide] = useState(false);
   const [live, setLive] = useState(null);
@@ -51,12 +51,14 @@ export default function ControlPlaneRoster({ openKillSwitchModal }) {
     try {
       const result = await comprehensiveShutdown();
       const ran = (result?.steps || []).filter((s) => s.ran).length;
-      setProgress(`Comprehensive shutdown: ${ran} enforcement step(s) ran.`);
+      setProgress(`Comprehensive shutdown: ${ran} enforcement step(s) ran. Signing out…`);
+      // `_noAuthBanner` suppressed the global 401 handling, so nothing signs
+      // the user out implicitly — do it explicitly now that the report showed.
+      setTimeout(() => logout(), 2500);
     } catch (_) {
       setProgress("Comprehensive shutdown request failed — check the roster and audit trail.");
+      setBusy(false);
     }
-    // Don't reset busy: the session is destroyed server-side; the apiClient
-    // 401 handling (sign-out) takes over from here.
   };
 
   // Live row: real kill via the existing unchanged endpoint. Destroys the
