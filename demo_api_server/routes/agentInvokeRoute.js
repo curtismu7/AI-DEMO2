@@ -345,7 +345,13 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
     let preExecutionConfidence = null;
     let preExecutionDecision = null;
 
-    if (intentAuthorizationEnabled) {
+    // UC7 and UC8 carry explicit, catalog-validated authorization scenarios.
+    // Let their MCP Authorize obligations reach the existing step-up/HITL
+    // handlers; the generic intent pre-gate would otherwise short-circuit both
+    // before those use-case-specific controls can fire. Free-form requests and
+    // every other catalog entry remain subject to this gate.
+    const useCaseOwnsAuthorizationChallenge = ['UC7', 'UC8'].includes(catalogUseCase?.id);
+    if (intentAuthorizationEnabled && !useCaseOwnsAuthorizationChallenge) {
       console.log('[agentInvokeRoute] Extracting intent from prompt (pre-execution)');
       const { intent, confidence, toolName } = extractIntentFromPrompt(prompt);
       preExecutionIntent = intent;

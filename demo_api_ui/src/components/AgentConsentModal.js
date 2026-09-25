@@ -135,12 +135,13 @@ export default function AgentConsentModal({
       zIndex={100070}
       backdropClose={false}
     >
-      {/* HITL persistent badge */}
-      <div className="acm-hitl-badge" aria-live="polite">
-        <span className="acm-hitl-badge__label">
-          Human-in-the-Loop — <strong>manual approval required</strong>
-        </span>
-      </div>
+      {(hitlContext || transaction) && (
+        <div className="acm-hitl-badge" aria-live="polite">
+          <span className="acm-hitl-badge__label">
+            Human-in-the-Loop — <strong>manual approval required</strong>
+          </span>
+        </div>
+      )}
 
       <div className="acm-body-wrap">
         {hitlContext ? (
@@ -232,9 +233,9 @@ export default function AgentConsentModal({
         ) : (
           <>
             <p className="acm-body">
-              The <strong>AI Banking Assistant</strong> is requesting permission
-              to act on your behalf — checking balances, viewing transactions,
-              and initiating transfers.
+              The <strong>AI Assistant</strong> is requesting permission to use
+              your delegated access to answer your request and access resources
+              you authorize.
             </p>
             <ul className="acm-list">
               <li>The agent can only act within this session</li>

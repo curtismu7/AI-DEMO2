@@ -10,7 +10,7 @@
  */
 import React from "react";
 import "@testing-library/jest-dom";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { ActivityNarrativeProvider } from "../../context/ActivityNarrativeContext";
 import { ProofOfEnforcementProvider } from "../../context/ProofOfEnforcementContext";
@@ -236,14 +236,28 @@ describe("guest on a guest-chat surface", () => {
 });
 
 describe("signed-in customer", () => {
-  it("runs a user-level step, and is still refused an admin one", async () => {
+  it("requires slide-out consent before running UC1, and still refuses an admin step", async () => {
     const customer = { id: "u1", role: "customer", email: "u@test.com", username: "cust" };
 
     const { unmount } = renderAt("/dashboard", customer);
     await runStep(UC1);
+    expect(await screen.findByText("Allow AI Agent Access")).toBeInTheDocument();
+    expect(screen.queryByText(/Human-in-the-Loop/)).not.toBeInTheDocument();
+    expect(sendAgentMessage).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Allow" }));
     await waitFor(() => {
-      expect(screen.getByText(/Running Demo step 1/i)).toBeInTheDocument();
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/api/auth/oauth/user/consent",
+        expect.objectContaining({ method: "POST" }),
+      );
+      expect(sendAgentMessage).toHaveBeenCalledWith(
+        UC1.trigger.text,
+        null,
+        expect.objectContaining({ useCaseId: UC1.useCaseId }),
+      );
     });
+    expect(global.fetch.mock.invocationCallOrder[0])
+      .toBeLessThan(sendAgentMessage.mock.invocationCallOrder[0]);
     unmount();
 
     renderAt("/dashboard", customer);
@@ -294,6 +308,11 @@ describe("resuming a queued step after sign-in", () => {
     await act(async () => { await new Promise((r) => setTimeout(r, 300)); });
   }
 
+  async function approveUc1Access() {
+    await screen.findByText("Allow AI Agent Access");
+    fireEvent.click(screen.getByRole("button", { name: "Allow" }));
+  }
+
   it("arms the deferred flags and sends, in that order", async () => {
     seedPendingStep({
       nl: "What is my balance?",
@@ -303,6 +322,7 @@ describe("resuming a queued step after sign-in", () => {
 
     renderAt("/dashboard", ADMIN);
     await settle();
+    await approveUc1Access();
 
     await waitFor(() => expect(sendAgentMessage).toHaveBeenCalled());
 
@@ -335,6 +355,7 @@ describe("resuming a queued step after sign-in", () => {
 
     renderAt("/dashboard", CUSTOMER);
     await settle();
+    await approveUc1Access();
 
     expect(sessionStorage.getItem("bx_agent_pending_nl")).toBeNull();
     expect(sessionStorage.getItem("bx_agent_pending_uc_id")).toBeNull();
@@ -424,6 +445,7 @@ describe("resuming a queued step after sign-in", () => {
 
     renderAt("/dashboard", CUSTOMER);
     await settle();
+    await approveUc1Access();
 
     // Unarmed is a degraded step; a thrown parse error is a lost one.
     await waitFor(() => expect(sendAgentMessage).toHaveBeenCalled());
@@ -482,6 +504,7 @@ describe("resuming a queued step after sign-in", () => {
 
     // Session lands.
     await resolveSession(ADMIN);
+    await approveUc1Access();
 
     await waitFor(() => expect(sendAgentMessage).toHaveBeenCalled());
     expect(apiPatch).toHaveBeenCalledWith(

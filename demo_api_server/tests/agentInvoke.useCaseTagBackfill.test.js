@@ -18,6 +18,7 @@
 
 const express = require('express');
 const request = require('supertest');
+const { processAgentMessage } = require('../services/demoAgentLangGraphService');
 
 // Untagged events, shaped like the A2A / branch-hours chains that reach the
 // route with no useCaseId of their own. `user-token` is a session card and
@@ -71,6 +72,19 @@ beforeAll(() => {
 });
 
 describe('/api/agent/invoke useCaseId backfill', () => {
+  test.each([
+    ['step-up-required', 'transfer $600 from checking to savings'],
+    ['hitl-consent', 'transfer $300 from checking to savings'],
+  ])('%s reaches its use-case-specific authorization handler', async (useCaseId, prompt) => {
+    processAgentMessage.mockClear();
+    const res = await request(app)
+      .post('/api/agent/invoke')
+      .send({ prompt, useCaseId, vertical: 'sporting-goods' });
+
+    expect(res.status).toBe(200);
+    expect(processAgentMessage).toHaveBeenCalledTimes(1);
+  });
+
   test('tags every call-scoped token event with the requested useCaseId', async () => {
     const res = await request(app)
       .post('/api/agent/invoke')

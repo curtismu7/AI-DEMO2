@@ -169,6 +169,31 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — UC1 consent and UC7/UC8 authorization challenges did not fire
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/AgentConsentModal.js`,
+`demo_api_server/routes/agentInvokeRoute.js`, and focused UI/BFF tests.
+
+**What was broken:** UC1 dispatched immediately without its access-consent
+drawer. The generic pre-execution intent gate could return before UC7's MFA
+and UC8's HITL policy handlers ran.
+
+**What was fixed:** UC1 pauses the queued run until the consent endpoint accepts,
+including when resuming after sign-in. Only catalog-validated UC7/UC8 runs skip
+the generic pre-gate so their dedicated downstream policies decide MFA/HITL;
+free-form prompts and other use cases retain the generic gate. Access consent
+does not display the HITL badge.
+
+**Do not break:** OAuth/session hydration and queued-run restoration; UC7 MFA and
+UC8 HITL policy enforcement; generic intent authorization; tool authorization
+and token custody.
+
+**Verify:** `cd demo_api_ui && npm run test:unit -- --run
+src/components/__tests__/AIAgent.protectedStepLogin.test.jsx`; `cd demo_api_ui &&
+npm run build`; `cd demo_api_server && CI=true npx jest
+tests/agentInvoke.useCaseTagBackfill.test.js --forceExit`.
+
 ### 2026-09-24 — PingOne Admin agent results had no inspectable records
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`,
