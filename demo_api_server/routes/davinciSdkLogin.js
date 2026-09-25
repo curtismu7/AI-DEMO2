@@ -51,10 +51,19 @@ const router = express.Router();
 // then /api/auth/me 401.
 //
 // Asking for a scope of the "Demo API" resource is what makes PingOne mint the
-// token for that resource instead. Kept in sync with config/scopes.js's
-// `customer` user type — the SDK sign-in produces a customer, so it must not
-// hand out more than the ordinary user-login path does.
-const SCOPE = ['openid', 'profile', 'email', ...getScopesForUserType('customer')].join(' ');
+// token for that resource instead. Kept in sync with config/oauthUser.js's
+// bankingScopes — the SDK sign-in produces a customer, so it must not hand out
+// more than the ordinary user-login path does. Scope PARITY matters beyond
+// least privilege: the agent's RFC 8693 exchange intersects the token's scopes
+// with the tool's requirements, so a token without transfer/accounts:read
+// fails write tools at the exchange even before PingOne's subject policy does.
+// offline_access is included so middleware/tokenRefresh.js can renew the
+// session like any other login path.
+const SCOPE = [
+  'openid', 'profile', 'email', 'offline_access',
+  'read', 'accounts:read', 'write', 'transfer',
+  ...getScopesForUserType('customer'),
+].join(' ');
 
 // Config-first, headers last. Header derivation once put the INTERNAL upstream
 // name into redirect_uri on the live stack (https://demo-api-server:3001/...),
