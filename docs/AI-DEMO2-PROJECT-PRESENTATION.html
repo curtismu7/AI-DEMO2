@@ -730,8 +730,24 @@ sequenceDiagram
       </div>
       <div class="source"><a href="../README.md">Architecture and component diagram</a><a href="../docs/architecture-token-flow.mmd">Token-flow source</a><a href="../demo_api_server/services/agentMcpTokenService.js">Token exchange implementation</a></div>
     </section>
+
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>17 / Runtime and platform architecture</div>
+      <p class="eyebrow">Languages · runtimes · platform</p><h2>Node 22+ and Python, on Docker — OrbStack locally, Kubernetes for scale.</h2>
+      <div class="arch">
+        <div class="arch-layer core"><h3>Languages and runtimes</h3><p><b>Node.js 22+ / TypeScript</b> — UI (React/Vite), BFF (Express), most MCP servers and gateways</p><p><b>Python 3</b> — langchain-agent, llamaindex-agent, authz-server</p><p><b>Secrets:</b> dotenvx-encrypted secrets.vault per service</p></div>
+        <div class="arch-layer"><h3>Frontend</h3><p><b>React 18 + Vite + React Router</b>; token views in XYFlow/D3/Konva; Monaco editor</p><p>Vite dev server (native run) or ui container on :4000</p></div>
+        <div class="arch-layer"><h3>Local platform</h3><p><b>Docker Desktop or OrbStack</b> runs Compose; profiles opt into RAG, observability, SPIFFE, mcpgw</p><p><b>OrbStack also supplies the local Kubernetes cluster</b> for ./run-k8.sh</p></div>
+        <div class="arch-layer"><h3>Cluster platform</h3><p><b>Kubernetes</b> — OrbStack/Docker Desktop locally, AWS EKS and Ping SE remote; Terraform handoff available</p></div>
+        <div class="arch-layer"><h3>External services</h3><p><b>PingOne cloud</b>: OAuth, MFA, Authorize, Protect, Privilege</p><p><b>Models</b>: Helix, OpenAI, Anthropic — or local LM Studio, Ollama, oMLX on Apple Silicon</p></div>
+        <div class="arch-layer"><h3>Data and infra</h3><p><b>LMDB</b> in-process (no DB server) · Weaviate · OpenSearch · Redis as containers</p><p>The core path needs nothing external except PingOne</p></div>
+        <div class="arch-bridge">Browser (JS) → BFF (Node) → agent (Python) → gateway (Ping + Node) → tools (TS) — bound by Docker Compose on OrbStack</div>
+      </div>
+      <div class="source"><a href="../README.md">Run requirements</a><a href="../AGENTS.md">Node ≥22 policy</a><a href="../run-docker.sh">Compose launcher</a><a href="../run-k8.sh">K8s launcher</a></div>
+    </section>
+
         <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>17 / Standards and RFCs</div>
+      <div class="brand"><span class="brand-mark"></span>18 / Standards and RFCs</div>
       <p class="eyebrow">Protocol surface implemented and exercised in the repo · includes PingOne Authorize (P1AZ)</p><h2>The demo speaks the OAuth/OIDC RFC stack—not just a login button.</h2>
       <div class="rfc-grid">
         <div class="rfc-card core"><h3>Core authorization</h3><p class="rfc-list"><b>RFC 6749</b> OAuth 2.0 framework · <b>RFC 6750</b> bearer tokens · <b>RFC 7636</b> PKCE · <b>RFC 8693</b> token exchange — the demo's signature delegation primitive · <b>RFC 8414</b> authorization-server metadata · <b>RFC 9207</b> iss parameter · <b>RFC 9700</b> OAuth 2.0 security BCP</p></div>
@@ -745,7 +761,7 @@ sequenceDiagram
       <div class="source"><a href="../REGRESSION_PLAN.md">Token exchange contract</a><a href="../docs/P1AZ_TOKENACTIVE_RULE_SETUP.md">P1AZ TokenActive rule setup</a><a href="../docs/scope-topology.md">Scope and audience topology</a><a href="../.claude/skills/par/SKILL.md">PAR skill</a></div>
     </section>
         <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>18 / RFC reference list</div>
+      <div class="brand"><span class="brand-mark"></span>19 / RFC reference list</div>
       <p class="eyebrow">RFC reference</p><h2>22 RFCs implemented, one product standard (P1AZ).</h2>
       <div class="rfc-table">
         <div class="rt th"><span>RFC</span><span>Title</span><span>Where it shows up</span></div>
@@ -777,7 +793,7 @@ sequenceDiagram
       <div class="source"><a href="../docs/PINGONE_API_LINKS.md">RFC link table</a><a href="../docs/scope-topology.md">Scope and audience topology</a><a href="../CHANGELOG.md">RFC citations in changelog</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>19 / Saved interface capture</div>
+      <div class="brand"><span class="brand-mark"></span>20 / Saved interface capture</div>
       <p class="eyebrow">Saved capture</p><h2>The dashboard: banking app, agent chat and token chain on one screen.</h2>
       <div class="screen-layout">
         <figure class="screen-frame"><img src="presentation-assets/banking-dashboard.png" alt="Saved AI-DEMO2 banking dashboard screenshot showing the banking interface, agent conversation and token-chain panel"></figure>
@@ -791,7 +807,7 @@ sequenceDiagram
       <div class="source"><a href="reports/token-chain-heuristics-verticals-2026-07-08/REPORT.md">Capture report and test context</a><a href="reports/token-chain-heuristics-verticals-2026-07-08/banking-01-dashboard.png">Original dashboard capture</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>20 / Gateway and approval screens</div>
+      <div class="brand"><span class="brand-mark"></span>21 / Gateway and approval screens</div>
       <p class="eyebrow">Saved captures</p><h2>Gateway decisions and consent modals, captured from test runs.</h2>
       <div class="screen-pair">
         <figure><img src="presentation-assets/gateway-inspector.png" alt="Saved Gateway Test Console screen showing an authorization and token-flow inspection"><figcaption>Gateway Test Console · saved test capture</figcaption></figure>
@@ -801,7 +817,7 @@ sequenceDiagram
       <div class="source"><a href="screenshots/llm-pinggateway-p1az-flow/02-token-lab.png">Original Gateway Test Console capture</a><a href="screenshots/llm-pinggateway-p1az-hitl-flow/04-hitl-consent-modal.png">Original consent capture and flow</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>21 / Privilege AI Gateway</div>
+      <div class="brand"><span class="brand-mark"></span>22 / Privilege AI Gateway</div>
       <p class="eyebrow">Privilege AI Gateway</p><h2>JIT least-privilege tool policy and session recording at the MCP boundary.</h2>
       <div class="gateway-layout">
         <div class="panel redline">
@@ -835,7 +851,7 @@ sequenceDiagram
       <div class="source"><a href="../privilege/PRIVILEGE-MCP.md">Privilege MCP design and protocol</a><a href="../demo_mcp_pingone/README.md">PingOne tool catalog and sandbox guard</a><a href="../demo_mcp_grafana/server.js">Grafana tools</a><a href="../docker-compose.yml">Optional gateway and OpenSearch services</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>22 / Server inventory · core</div>
+      <div class="brand"><span class="brand-mark"></span>23 / Server inventory · core</div>
       <p class="eyebrow">Core servers</p><h2>10 core servers: UI, BFF, tools, gateways, consent.</h2>
       <table class="plain-table"><thead><tr><th>Service</th><th>Port</th><th>Responsibility</th></tr></thead><tbody>
         <tr><td><code>demo_api_ui</code></td><td>4000</td><td>React customer/admin interface</td></tr>
@@ -852,7 +868,7 @@ sequenceDiagram
       <div class="source"><a href="../README.md">Current component table</a><a href="../docker-compose.yml">Compose wiring</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>23 / Server inventory · optional &amp; specialist</div>
+      <div class="brand"><span class="brand-mark"></span>24 / Server inventory · optional &amp; specialist</div>
       <p class="eyebrow">Optional servers</p><h2>10 more MCP packages: third-party tools and operator functions.</h2>
       <div class="catalog">
         <div><code>demo_mcp_weather</code> Weather MCP bridge</div><div><code>demo_mcp_brave</code> Brave Search MCP</div>
@@ -865,7 +881,7 @@ sequenceDiagram
       <div class="source"><a href="../docker-compose.yml">Compose profiles and service wiring</a><a href="../demo_mcp_resource_server/README.md">Investment MCP server</a><a href="../oauth-mcp/README.md">Banking MCP package</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>24 / Server architecture · request path</div>
+      <div class="brand"><span class="brand-mark"></span>25 / Server architecture · request path</div>
       <p class="eyebrow">Request path</p><h2>One run crosses five boundaries: UI → BFF → agent → policy → tools.</h2>
       <div class="map-board">
         <div class="map-lane flow">
@@ -887,7 +903,7 @@ sequenceDiagram
       <div class="source"><a href="../docker-compose.yml">All Compose services and dependency links</a><a href="../demo_api_server/routes/agentRun.js">BFF AG-UI route</a><a href="../demo_api_server/routes/agentTool.js">BFF tool callback</a><a href="../demo_api_server/services/mcpToolPipeline.js">MCP tool pipeline</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>25 / Server architecture · optional planes</div>
+      <div class="brand"><span class="brand-mark"></span>26 / Server architecture · optional planes</div>
       <p class="eyebrow">Optional planes</p><h2>Optional planes: RAG, Privilege, SPIFFE, observability.</h2>
       <div class="map-grid">
         <div class="map-card"><h3>Code Search / RAG</h3><p>Tika extracts documents; code-search calls vector services; LlamaIndex serves retrieval requests.</p><p class="inventory">tika → demo-mcp-code-search ↔ weaviate + embeddings<br>llamaindex-agent ↔ weaviate + embeddings</p></div>
@@ -901,7 +917,7 @@ sequenceDiagram
       <div class="source"><a href="../docker-compose.yml">Compose service profiles and dependencies</a><a href="../run-docker.sh">Launcher presets</a><a href="../docs/ARCHITECTURE.md">System architecture</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>26 / Human-facing interfaces</div>
+      <div class="brand"><span class="brand-mark"></span>27 / Human-facing interfaces</div>
       <p class="eyebrow">Human-facing pages</p><h2>40+ pages: run, configure, inspect and learn.</h2>
       <div class="catalog">
         <div><b>Customer:</b> <code>/dashboard</code> · <code>/accounts</code> · <code>/transactions</code> · marketing/login</div><div><b>Agent:</b> embedded/resizable chat · <code>/personal-agent</code> · <code>/autonomous-agents</code></div>
@@ -914,7 +930,7 @@ sequenceDiagram
       <div class="source"><a href="../demo_api_ui/src/components/AdminSideNav.jsx">Navigation labels &amp; routes</a><a href="../demo_api_ui/src/App.js">App route wiring</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>27 / Machine-facing interfaces</div>
+      <div class="brand"><span class="brand-mark"></span>28 / Machine-facing interfaces</div>
       <p class="eyebrow">Machine-facing interfaces</p><h2>Five wire protocols: REST, MCP, OAuth, SSE, A2A.</h2>
       <div class="grid g2">
         <div class="panel"><h3>Browser ↔ BFF</h3><ul class="plain-list"><li>Cookie-authenticated Express <code>/api/*</code></li><li>OAuth/OIDC start, callback, refresh, logout</li><li>Agent runs and consent routes</li><li>OpenAPI JSON and Swagger UI (admin-gated)</li></ul></div>
@@ -925,7 +941,7 @@ sequenceDiagram
       <div class="source"><a href="../demo_api_server/server.js">BFF route mounts</a><a href="../README.md">Token flow / service connections</a><a href="../docs/user-guide/POSTMAN-GUIDE.md">Postman guide</a><a href="../agent_token_service/README.md">Agent token broker</a></div>
     </section>
     <section class="slide dark">
-      <div class="brand"><span class="brand-mark"></span>28 / Token-chain displays</div>
+      <div class="brand"><span class="brand-mark"></span>29 / Token-chain displays</div>
       <p class="eyebrow">Token-chain displays</p><h2>One run, five renderings: reel, sequence, rail, topology, claims.</h2>
       <div class="grid g2">
         <div class="panel"><h3>Dashboard formats</h3><ul class="plain-list"><li><code>TokenChainFilmstrip</code> — compact movie-reel / event strip</li><li><code>SequenceReelDiagram</code> — actor lanes and message sequence</li><li>Dashboard toggle switches “reel” and “sequence” modes</li><li><code>TokenChainDisplay</code> — event rows and expandable events</li><li><code>TokenChainTraceRail</code> — ordered pipeline rail with status / halt point</li></ul></div>
@@ -935,7 +951,7 @@ sequenceDiagram
       <div class="source"><a href="../demo_api_ui/src/components/UserDashboardPing2026.js">Dashboard view toggle</a><a href="../demo_api_ui/src/components/TokenTopologyPanel.jsx">Topology panel</a><a href="../demo_api_ui/src/components/SequenceReelDiagram.jsx">Sequence view</a><a href="../demo_api_ui/src/components/TokenFlowDetailModal.jsx">Detail tabs</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>29 / What the trace exposes</div>
+      <div class="brand"><span class="brand-mark"></span>30 / What the trace exposes</div>
       <p class="eyebrow">Trace contents</p><h2>Every hop shows principal, actor, audience, scopes and verdict.</h2>
       <div class="cols3">
         <div class="fact"><b>Tokens</b><span>Login token · agent actor token · exchanged MCP token · resource token; claim details and scope comparison.</span></div>
@@ -948,7 +964,7 @@ sequenceDiagram
       <div class="source"><a href="../demo_api_ui/src/components/TokenChainTraceRail.jsx">Trace rail details</a><a href="../demo_api_ui/src/components/TokenTopologyPanel.jsx">Topology nodes</a><a href="../demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js">Trace step model</a><a href="../demo_api_ui/src/components/ClaimDetailsModal.jsx">JWT claims inspector</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>30 / Standout builds</div>
+      <div class="brand"><span class="brand-mark"></span>31 / Standout builds</div>
       <p class="eyebrow">Standout builds</p><h2>13 features you can demo live, not just describe.</h2>
       <div class="catalog">
         <div><b>One-click per-user AI agent identity:</b> Agent Builder creates a PingOne AI_AGENT app and grants resources/scopes.</div>
@@ -968,7 +984,7 @@ sequenceDiagram
       <div class="source"><a href="../demo_api_server/services/agentBuilderService.js">Agent Builder service</a><a href="../demo_api_server/services/killSwitchService.js">Kill switch</a><a href="../docs/user-guide/FEATURES.md">Scenario details</a><a href="../demo_llm_proxy/README.md">Model routing</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>31 / AI functionality</div>
+      <div class="brand"><span class="brand-mark"></span>32 / AI functionality</div>
       <p class="eyebrow">AI usage</p><h2>Heuristics handle known commands. LLMs handle open text. Neither grants scope.</h2>
       <div class="grid g2">
         <div class="panel redline"><h3>Intent routing</h3><ul class="plain-list"><li>Heuristic phrase parser runs for known commands and chips.</li><li>LLM can return structured action intent for free-text requests.</li><li>Heuristic fallback keeps common flows available if the LLM route fails.</li><li>Prompt guard checks configured attack patterns before the LLM call.</li></ul></div>
@@ -979,7 +995,7 @@ sequenceDiagram
       <div class="source"><a href="../docs/user-guide/FEATURES.md">Three-tier NL router</a><a href="../demo_api_server/services/promptGuard.js">Prompt guard</a><a href="../demo_api_server/services/mcpToolPipeline.js">Tool enforcement path</a><a href="../demo_llm_proxy/README.md">Local LLM backends</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>32 / Identity and authorization</div>
+      <div class="brand"><span class="brand-mark"></span>33 / Identity and authorization</div>
       <p class="eyebrow">Identity and authorization</p><h2>Ten auth controls in code — from PKCE to ID-JAG.</h2>
       <div class="catalog">
         <div><b>Login:</b> OAuth 2.0 / OIDC authorization code + PKCE; state and nonce checks.</div>
@@ -996,7 +1012,7 @@ sequenceDiagram
       <div class="source"><a href="../docs/ARCHITECTURE_WALKTHROUGH.md">PKCE, CIBA and exchange steps</a><a href="../demo_api_server/config/auth-requirements.json">Route access source of truth</a><a href="../demo_api_server/routes/">Auth route implementations</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>33 / Integrations</div>
+      <div class="brand"><span class="brand-mark"></span>34 / Integrations</div>
       <p class="eyebrow">Integrations</p><h2>Ping services plus external MCP clients, model providers and observability.</h2>
       <div class="grid g2">
         <div class="panel"><h3>Ping identity services</h3><ul class="plain-list"><li>PingOne Authorization Server / OIDC</li><li>PingOne Management API</li><li>PingOne Authorize policy decisions</li><li>PingOne MFA and device authentication</li><li>PingOne CIBA, PAR, token introspection, revocation, JWKS</li><li>PingOne Protect and PingOne Privilege demo paths</li><li>PingFederate and DaVinci integration examples</li></ul></div>
@@ -1005,7 +1021,7 @@ sequenceDiagram
       <div class="source"><a href="../README.md">System topology</a><a href="../demo_mcp_pingone/README.md">PingOne MCP</a><a href="../demo_mcp_weather/package.json">Weather MCP</a><a href="../standalone/">External-client examples</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>34 / Data and storage</div>
+      <div class="brand"><span class="brand-mark"></span>35 / Data and storage</div>
       <p class="eyebrow">Data and storage</p><h2>LMDB holds all BFF state. No production bank database.</h2>
       <div class="grid g3">
         <div class="panel redline"><h3>LMDB named stores</h3><ul class="plain-list"><li>Express sessions</li><li>Config and feature choices</li><li>Demo accounts, transactions and banking state</li><li>Delegations, client registry and vertical manifests</li><li>Conversation, agent run, audit, report and event records</li></ul></div>
@@ -1016,7 +1032,7 @@ sequenceDiagram
       <div class="source"><a href="../demo_api_server/services/lmdb/README.md">LMDB storage map</a><a href="../demo_api_server/services/lmdb/openEnv.js">LMDB environment</a><a href="../docker-compose.yml">Persistent volumes and monitoring</a><a href="../CLAUDE.md">Monitoring receiver caveat</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>35 / Commit history</div>
+      <div class="brand"><span class="brand-mark"></span>36 / Commit history</div>
       <p class="eyebrow">Commit history</p><h2>Four months of build, June to September 2026.</h2>
       <div class="timeline">
         <div class="date">25–30 Jun</div><div class="event"><b>Base and operations surfaces</b><code>ee711d407</code> initial service code · <code>cce195077</code> two-exchange hardening · <code>3b58a70bf</code> five-vertical operations console.</div>
@@ -1028,7 +1044,7 @@ sequenceDiagram
       <div class="source"><a href="../CHANGELOG.md">Changelog</a><span>Current remote tip reviewed through ad510a237 · 25 Sep 2026</span></div>
     </section>
     <section class="slide dark">
-      <div class="brand"><span class="brand-mark"></span>36 / Current vs incomplete</div>
+      <div class="brand"><span class="brand-mark"></span>37 / Current vs incomplete</div>
       <p class="eyebrow">Maturity</p><h2>56 scenarios work. 10 need flags. 2 need building.</h2>
       <div class="grid g3">
         <div class="panel"><div class="metric">56</div><h3>“Works”</h3><p>Declared maturity; tenant, scopes, apps or model credentials may still be required.</p></div>
@@ -1040,7 +1056,7 @@ sequenceDiagram
       <div class="source"><a href="../demo_api_server/config/useCases.js">Catalog maturity values</a><a href="../TECH_DEBT.md">Open and resolved debt ledger</a><a href="../planning/">Plans and handoffs</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>37 / Start here</div>
+      <div class="brand"><span class="brand-mark"></span>38 / Start here</div>
       <p class="eyebrow">Start here</p><h2>Three tours: delegated read, transfer approval, A2A hand-off.</h2>
       <div class="grid g3">
         <div class="panel redline"><h3>1 · Delegated read</h3><p>Run UC1 “show my balance” → open Token Chain → compare user token, exchanged token, audience and scopes.</p></div>
@@ -1051,7 +1067,7 @@ sequenceDiagram
       <div class="source"><a href="../demo_api_server/config/useCases.js">Use-case source</a><a href="../docs/user-guide/AGENT_SHOWCASE_DEMO_SCENARIOS.md">Presenter scenarios</a><a href="../README.md">Setup and run guide</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>38 / Open-source stack</div>
+      <div class="brand"><span class="brand-mark"></span>39 / Open-source stack</div>
       <p class="eyebrow">Open-source stack</p><h2>Built on LangChain, MCP, React Flow, LMDB and OpenTelemetry.</h2>
       <div class="grid g3">
         <div class="panel redline"><h3>Agent and protocol building blocks</h3><ul class="plain-list"><li><b>LangChain + LangGraph</b> — current tool-using agents and stateful workflows</li><li><b>OpenAI Agents SDK, Mastra and Pydantic AI</b> — alternate frameworks tested in the project</li><li><b>LlamaIndex</b> — document retrieval and Weaviate integration</li><li><b>Model Context Protocol SDK</b> — MCP servers and clients</li><li><b>A2A SDK</b> — agent-to-agent demos</li></ul></div>
@@ -1062,7 +1078,7 @@ sequenceDiagram
       <div class="source"><a href="../demo_api_ui/package.json">UI dependencies</a><a href="../demo_api_server/package.json">BFF dependencies</a><a href="../demo_agent_service/package.json">AG-UI / agent dependencies</a><a href="../langchain_agent/requirements.txt">Current LangChain runtime</a><a href="../llamaindex_agent/requirements.txt">LlamaIndex runtime</a><a href="../compliance_agent/requirements.txt">Pydantic AI experiment</a><a href="../docker-compose.yml">Infrastructure images</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>39 / Ways to run it</div>
+      <div class="brand"><span class="brand-mark"></span>40 / Ways to run it</div>
       <p class="eyebrow">Ways to run it</p><h2>Four launchers: native, Compose, local K8s, remote K8s.</h2>
       <div class="grid g2">
         <div class="panel redline"><h3>Native on macOS</h3><p><code>./run.sh</code> — BFF, React dev server, MCP server and agent as local Node/Python processes; PingGateway still in Docker. Lightest dev loop; <code>stop/restart/status/tail</code> to manage.</p></div>
@@ -1074,7 +1090,7 @@ sequenceDiagram
       <div class="source"><a href="../run.sh">Native launcher</a><a href="../run-docker.sh">Compose launcher + help</a><a href="../run-k8.sh">Kubernetes launcher + help</a><a href="../run-pingaws.sh">SE cluster wrapper</a><a href="../README.md">Run options and Vercel notes</a><a href="../terraform/README.md">Terraform handoff</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>40 / Skills used in the project</div>
+      <div class="brand"><span class="brand-mark"></span>41 / Skills used in the project</div>
       <p class="eyebrow">Project skills</p><h2>18 project-local skills for agent, PingOne, Privilege and delivery work.</h2>
       <div class="skill-grid">
         <div class="skill-card"><h3>Agent and protocol</h3><ul><li>a2a-protocol</li><li>agent-demo-triage</li><li>chip-correctness-testing</li><li>generate-tests</li><li>inspector-template</li><li>karpathy-guidelines</li></ul></div>
@@ -1084,7 +1100,7 @@ sequenceDiagram
       <div class="source"><a href="../.claude/skills/">18 project-local skill folders</a><a href="../.claude/skills/regression-guard/SKILL.md">Regression guard</a><a href="../.claude/skills/verify-ai-demo2/SKILL.md">Project verification skill</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>41 / Shareable skills · general and security</div>
+      <div class="brand"><span class="brand-mark"></span>42 / Shareable skills · general and security</div>
       <p class="eyebrow">Portable skills</p><h2>27 portable skills: 13 general, 11 PingOne, 3 security.</h2>
       <div class="skill-grid duo">
         <div class="skill-card"><h3>General · 13 skills</h3><ul><li>agent-tool</li><li>cheapest-model</li><li>docx</li><li>graphify</li><li>impeccable</li><li>mcp-builder</li><li>pdf</li><li>pptx</li><li>supergoal</li><li>theme-factory</li><li>tighten-prompt</li><li>webapp-testing</li><li>xlsx</li></ul></div>
@@ -1094,7 +1110,7 @@ sequenceDiagram
       <div class="source"><a href="../claudSkills/general/">General portable skills</a><a href="../claudSkills/security/">Security portable skills</a><a href="../claudSkills/">Portable library index</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>42 / Shareable skills · PingOne and field export</div>
+      <div class="brand"><span class="brand-mark"></span>43 / Shareable skills · PingOne and field export</div>
       <p class="eyebrow">Portable PingOne skills</p><h2>11 PingOne skills plus a 5-skill SE export bundle.</h2>
       <div class="skill-grid duo">
         <div class="skill-card"><h3>PingOne · 11 skills</h3><ul><li>authz-server</li><li>authz-server-parity</li><li>ciba</li><li>oauth-pingone</li><li>pingone-api-calls</li><li>pingone-authorize-configure</li><li>pingone-mcp</li><li>pingone-mcp-install</li><li>pingone-mfa</li><li>pingone-recognize</li><li>pingone-session-termination</li></ul></div>
@@ -1103,7 +1119,7 @@ sequenceDiagram
       <div class="source"><a href="../claudSkills/pingone/">PingOne portable skills</a><a href="../se-skills-export/">SE skill export bundle</a><a href="../.claude/skills/">Project-local library</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>43 / Technical choices visible in code</div>
+      <div class="brand"><span class="brand-mark"></span>44 / Technical choices visible in code</div>
       <p class="eyebrow">Design decisions</p><h2>Six decisions that define the architecture.</h2>
       <div class="decision-grid">
         <div class="decision"><b>Tokens stay with the BFF</b><span>Browser gets a session cookie only; the server does exchange and tool authorization.</span></div>
