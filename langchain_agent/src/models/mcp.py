@@ -71,8 +71,8 @@ class MCPServerConfig:
             raise ValueError("endpoint must be a non-empty string")
         
         # Basic URL validation
-        if not (self.endpoint.startswith('http://') or self.endpoint.startswith('https://') or self.endpoint.startswith('ws://') or self.endpoint.startswith('wss://')):
-            raise ValueError("endpoint must be a valid URL starting with http://, https://, ws://, or wss://")
+        if not (self.endpoint.startswith('local://') or self.endpoint.startswith('http://') or self.endpoint.startswith('https://') or self.endpoint.startswith('ws://') or self.endpoint.startswith('wss://')):
+            raise ValueError("endpoint must be a valid URL starting with http://, https://, ws://, wss://, or local://")
         
         if not isinstance(self.capabilities, list):
             raise ValueError("capabilities must be a list")

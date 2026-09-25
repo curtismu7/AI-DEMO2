@@ -188,6 +188,52 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-25 — DaVinci SDK session tokens were rejected as RFC 8693 exchange subjects
+
+**Files changed:** `demo_api_server/services/exchangeSubjectProbe.js` (new),
+`demo_api_server/server.js` (probe wiring after the startup guard),
+`demo_api_server/routes/davinciSdkLogin.js` (session stamp),
+`demo_api_server/services/agentMcpTokenService.js` (named failure log),
+`demo_api_server/scripts/fixTokenExchangeSubjectPolicy.js` (new), and
+`REGRESSION_PLAN.md`.
+
+**What was broken:** PingOne's native token-exchange grant only accepts subject
+tokens from clients the tenant's token-exchange policy trusts. Sessions signed
+in via the DaVinci SDK Login app (`4e122cbf…`) minted valid PingOne JWTs, but
+Exchange #1 of the two-exchange chain rejected them with an opaque
+`invalid_request: Not a valid access token for request param 'subject_token'`,
+502ing EVERY delegated tool call — while sessions from the standard User Login
+app (`83572007…`) kept working. The failure surfaced only as a polite tool
+error at chip-click, nothing at boot.
+
+**What was fixed:** (1) a boot-time exchange-subject probe
+(`exchangeSubjectProbe.js`) that proves the exchange chain alive with a
+machine subject and then probes one exchange per distinct PingOne-issued
+client found in live LMDB sessions, naming any client the tenant policy
+rejects; (2) the DaVinci SDK callback stamps
+`session.oauthSubjectClient`/`oauthTokenIssuer`; (3) the two-exchange failure
+path logs `Subject token REJECTED by the tenant token-exchange policy (subject
+client=…, tool=…)` with the fix; (4) `fixTokenExchangeSubjectPolicy.js`
+diagnoses the tenant and prints exact console steps — the token-exchange
+policy API is 403 for the demo Worker's roles (verified 2026-09-25), so the
+policy change itself is a console step. A machine-subject probe and a live
+user-client exchange both verified OK after the BFF restart.
+
+**Do not break:** the probe is advisory — never fatal, never caches an
+exchanged token, never mutates session state. `performTokenExchangeAs`
+signature and auth-method resolution untouched; the DaVinci callback's
+exchange → existing-user-only lookup → `session.regenerate` → `session.save`
+sequence and its nonce/PKCE handling unchanged (§4 2026-08-18). The
+subject-client rejection log must not change the thrown error shape
+(`createTokenExchangeError('invalid_grant', …)` stays what callers see).
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+tests/davinciLoginNonce.test.js tests/davinciConfig.test.js
+tests/agentMcpTokenService.scopeNarrowingMisconfig.regression.test.js
+tests/agentMcpTokenService.rarConsent.test.js --forceExit`; BFF restart shows
+`[EXCHANGE-PROBE] OK — token exchange chain alive`; live user-session exchange
+verified OK via the exchanger.
+
 ### 2026-09-24 — Privilege MCP trace text was too light in the light theme
 
 **Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.css`,
