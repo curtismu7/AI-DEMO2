@@ -107,6 +107,18 @@ minimal diff.
 
 ---
 
+### 2026-09-24 — MCP gateway routing follows the exchanged token audience
+
+`demo_api_server/services/mcpGatewayClient.js` routes ordinary MCP calls to the
+configured PingGateway or Node gateway when the bearer token's `aud` matches
+exactly one of their canonical resource URIs. This prevents an otherwise
+permitted delegated token from reaching the other gateway and failing during
+that gateway's downstream token exchange. Existing A2A/ID-JAG pins and
+Node-only tool routes remain authoritative; ambiguous or unconfigured
+audiences retain the resolved route. Guarded by
+`demo_api_server/src/__tests__/mcpGatewayClient.pinnedAudience.test.js` and
+`demo_api_server/src/__tests__/mcpGatewayClient.a2aPin.test.js`.
+
 ### 2026-09-19 — Hosted demo exposed the full browser surface without an employee-domain perimeter
 
 `ai-demo.ping-devops.com` previously allowed anonymous visitors to load the demo

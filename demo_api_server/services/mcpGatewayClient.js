@@ -206,6 +206,35 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             }
         }
     }
+    // The exchanged bearer is authoritative for the resource server it may
+    // reach. Routing mode can be stale (for example, a PG-audienced token sent
+    // to Node after a runtime mode switch), which causes the selected gateway
+    // to attempt a second exchange against the wrong resource and fail with
+    // invalid_scope. Keep explicitly Node-only tools and the A2A/ID-JAG pins
+    // above unchanged; for ordinary tools, route only when the token matches
+    // exactly one configured gateway audience.
+    if (!pinnedAud && !DUALTOKEN_TOOLS.has(tool) && !BANKINGDATA_TOOLS.has(tool)) {
+        const claims = decodeJwt(bearerToken)?.claims;
+        const audList = Array.isArray(claims?.aud) ? claims.aud.map(String)
+            : (claims?.aud != null ? [String(claims.aud)] : []);
+        const pingGatewayAud = process.env.PINGONE_RESOURCE_PINGGATEWAY_URI
+            || configStore.getEffective('pingone_resource_pinggateway_uri') || '';
+        const nodeGatewayAud = process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI
+            || configStore.getEffective('pingone_resource_mcp_gateway_uri') || '';
+        const hasPingGatewayAud = !!pingGatewayAud && audList.includes(pingGatewayAud);
+        const hasNodeGatewayAud = !!nodeGatewayAud && audList.includes(nodeGatewayAud);
+
+        // An ambiguous multi-audience token does not select a route. Keep the
+        // resolved base unless exactly one configured gateway audience matches.
+        if (hasPingGatewayAud && !hasNodeGatewayAud && pgUrl && base !== pgUrl) {
+            base = pgUrl;
+            pinnedAud = pingGatewayAud;
+        } else if (hasNodeGatewayAud && !hasPingGatewayAud && base === pgUrl) {
+            const nodeUrl = (process.env.MCP_DEMO_GATEWAY_URL
+                || configStore.getEffective('mcp_demo_gateway_url') || '').replace(/\/$/, '');
+            if (nodeUrl) { base = nodeUrl; pinnedAud = nodeGatewayAud; }
+        }
+    }
     const isIgBase = !!pgUrl && base === pgUrl;
     const url  = isIgBase && APIKEY_TOOLS.has(tool) ? `${base}/mcp/apikey`
                : isIgBase && WEATHER_TOOLS.has(tool) ? `${base}/mcp/weather`

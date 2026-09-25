@@ -51,6 +51,7 @@ const PG_URL = 'http://ping-gateway:8080';
 const NODE_URL = 'http://mcp-gateway:3005';
 const OLB_AUD = 'mcpserver.ping.demo';
 const A2A_AUD = 'mcpgateway-a2a.ping.demo';
+const NODE_AUD = 'mcpgateway.ping.demo';
 
 const b64u = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
 const jwtWithAud = (aud) =>
@@ -59,6 +60,7 @@ const jwtWithAud = (aud) =>
 const ENV_KEYS = [
   'MCP_PINGGATEWAY_URL', 'MCP_DEMO_GATEWAY_URL', 'PINGONE_RESOURCE_MCP_SERVER_URI',
   'A2A_GATEWAY_AUDIENCE', 'PINGONE_RESOURCE_MCP_GATEWAY_URI', 'MCP_GW_RESOURCE_URI',
+  'PINGONE_RESOURCE_PINGGATEWAY_URI',
 ];
 let saved;
 
@@ -71,6 +73,8 @@ beforeEach(() => {
   process.env.MCP_PINGGATEWAY_URL = PG_URL;
   process.env.MCP_DEMO_GATEWAY_URL = NODE_URL;
   process.env.PINGONE_RESOURCE_MCP_SERVER_URI = OLB_AUD;
+  process.env.PINGONE_RESOURCE_PINGGATEWAY_URI = PINGGATEWAY_AUD;
+  process.env.PINGONE_RESOURCE_MCP_GATEWAY_URI = NODE_AUD;
   process.env.A2A_GATEWAY_AUDIENCE = A2A_AUD;
 
   // Any 401 — the point is how it gets CLASSIFIED, not what the gateway said.
@@ -89,6 +93,16 @@ afterEach(() => {
 const callWith = (token) => callToolViaGateway(PG_URL, token, 'get_account_balance', {}, {});
 
 describe('expected audience follows the pin, not the routing mode', () => {
+  it('routes a PingGateway-audienced bearer to PingGateway when Node was selected', async () => {
+    await callToolViaGateway(NODE_URL, jwtWithAud(PINGGATEWAY_AUD), 'get_airline_bookings', {}, {}).catch(() => {});
+    expect(axios.post.mock.calls[0][0]).toBe(`${PG_URL}/mcp`);
+  });
+
+  it('routes a Node-gateway-audienced bearer to Node when PingGateway was selected', async () => {
+    await callWith(jwtWithAud(NODE_AUD)).catch(() => {});
+    expect(axios.post.mock.calls[0][0]).toBe(`${NODE_URL}/mcp`);
+  });
+
   it('sends a pinned native ID-JAG bearer to the Node gateway, not PingGateway', async () => {
     await callWith(jwtWithAud(OLB_AUD)).catch(() => {});
     expect(axios.post).toHaveBeenCalled();
