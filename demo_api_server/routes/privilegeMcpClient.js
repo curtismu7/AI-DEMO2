@@ -864,6 +864,18 @@ async function fetchMcp(session, pathname, body, withAuth = true, allowRefreshRe
     if (response.status === 401 && withAuth && allowRefreshRetry && await refreshAccessToken(session)) {
       return fetchMcp(session, pathname, body, withAuth, false);
     }
+    // The gateway binds MCP-Session-Id to its in-memory session, which dies on
+    // gateway restarts and door flips. A 401 "Bearer token required" with a
+    // VALID token is usually that dead session id, not a dead token — the
+    // token was accepted seconds earlier and nothing expired it. Retry once
+    // with a fresh MCP session (the same recovery callMcp already performs for
+    // legacy-era expired-session errors) instead of surfacing a 401 the UI
+    // answers with a sign-in prompt nobody needs — observed live 2026-09-25 as
+    // "Get MCP Tools must be clicked twice".
+    if (response.status === 401 && withAuth && allowRefreshRetry && session.mcpSession.sessionId) {
+      resetMcpState(session);
+      return fetchMcp(session, pathname, body, withAuth, false);
+    }
     const err = mcpRelayError(response.status, text);
     err.rpcError = parsed?.error || null;
     throw err;
@@ -2002,6 +2014,15 @@ router.post('/config', express.json(), (req, res) => {
   const providedBearerThisRequest = /^Bearer\s+\S+/i.test(String(req.headers?.authorization || ''));
   const previousOauthKey = oauthKey(session.gatewayMode, session.config.mcpUrl);
   const nextOauthKey = oauthKey(gatewayMode, session.gatewayConfigs[gatewayMode].mcpUrl);
+  // A key change drops the working token when the destination door has no live
+  // stash — the "sign in again after every Get MCP Tools" loop. Log the
+  // transition and what the incoming body claimed, so the offending frontend
+  // call site is identifiable from the log alone.
+  if (nextOauthKey !== previousOauthKey) {
+    console.log(`[privilege-mcp] /config oauth key change: ${previousOauthKey} -> ${nextOauthKey} `
+      + `hadToken=${Boolean(session.oauth.accessToken)} bodyUrl=${body.mcpUrl || '(absent)'} `
+      + `bodyMode=${body.gatewayMode || '(absent)'}`);
+  }
   if (nextOauthKey !== previousOauthKey && !providedBearerThisRequest) {
     if (session.oauth.accessToken) {
       session.savedOauthByDoor[previousOauthKey] = { ...session.oauth };
@@ -2011,9 +2032,42 @@ router.post('/config', express.json(), (req, res) => {
     // would skip /auth/start on the strength of it and hand a dead token
     // straight to tools/list instead of getting a fresh one.
     const restoredIsLive = restored && (!restored.expiresAt || restored.expiresAt > Date.now());
-    session.oauth = restoredIsLive
-      ? { ...restored }
-      : { accessToken: null, refreshToken: null, expiresAt: null, tokenUri: null, source: null, dcrClientId: null, dcrClientSecret: null };
+    // A destination door with no live stash of its own used to NULL the slot,
+    // which turned a door flip (denial-probe "Use this door", a stale frontend
+    // config re-POST) into a forced sign-in on the next tools/list — observed
+    // live 2026-09-25 as opensearch22 → brave → opensearch → aggregate flips
+    // each dropping a working token. Keeping the outgoing token in the slot
+    // instead lets the gateway deliver its own verdict: a same-AS token keeps
+    // working; a cross-app token gets the gateway's natural 401, which the
+    // denial modal + door probe already handle with real evidence, rather
+    // than a synthetic "Not authenticated" that demands a fresh sign-in.
+    const live = (o) => o && o.accessToken && (!o.expiresAt || o.expiresAt > Date.now());
+    if (restoredIsLive) {
+      session.oauth = { ...restored };
+    } else if (live(session.oauth)) {
+      // keep the outgoing token in the slot; it stays stashed under its own key
+    } else {
+      session.oauth = { accessToken: null, refreshToken: null, expiresAt: null, tokenUri: null, source: null, dcrClientId: null, dcrClientSecret: null };
+    }
+    // The slot can be empty here for reasons a stash covers: the outgoing
+    // sign-in's token was written to a slot that a subsequent same-door config
+    // POST re-nulled, or the round-trip through the OAuth callback landed the
+    // token under a key the frontend then switched away from before any
+    // tools/list ran. Before giving up, scan every stash for ANY live token
+    // whose key matches the destination door under any mode — the stash is
+    // written under the mode it was signed in from, and the door picker can
+    // arrive from a different one. Observed live 2026-09-25: aggregate worked,
+    // a round-trip switch emptied the slot, and the return to aggregate 401'd
+    // although a live aggregate token sat in the stash.
+    if (!live(session.oauth)) {
+      const stashKeys = Object.keys(session.savedOauthByDoor || {});
+      const match = stashKeys.find((k) => k.endsWith(`::${session.gatewayConfigs[gatewayMode].mcpUrl}`)
+        && live(session.savedOauthByDoor[k]));
+      if (match) {
+        session.oauth = { ...session.savedOauthByDoor[match] };
+        console.log(`[privilege-mcp] /config restored live stash for destination door from key ${match}`);
+      }
+    }
     persistPrivilegeOauth(session);
   }
   session.gatewayMode = gatewayMode;
@@ -2330,7 +2384,18 @@ router.post('/tools/list', express.json(), async (req, res) => {
   const session = getClientSession(req);
   try {
     if (!session.oauth.accessToken && !isProcyonAgentUrl(session.config.mcpUrl) && !isOpenDoor(session)) {
-      return res.status(401).json({ error: 'Not authenticated — click Sign In with Privilege.' });
+      // A door flip (this page's picker, another demo page re-pointing the shared
+      // relay) moves the live token into savedOauthByDoor and leaves the slot
+      // empty. A live stash for the CURRENT door is exactly as good as a live
+      // slot — restore it before answering 401, so returning to a door you
+      // already signed into needs no second sign-in. Observed live 2026-09-25.
+      const stashed = doorCredential(session, session.config.mcpUrl);
+      if (stashed) {
+        session.oauth = { ...stashed };
+        persistPrivilegeOauth(session);
+      } else {
+        return res.status(401).json({ error: 'Not authenticated — click Sign In with Privilege.' });
+      }
     }
     await discoverPolicyTools(session);
     res.json({ tools: session.tools, policy: publicPolicySummary(session) });
@@ -2353,7 +2418,15 @@ router.post('/tools/call', express.json(), async (req, res) => {
   const session = getClientSession(req);
   try {
     if (!session.oauth.accessToken && !isProcyonAgentUrl(session.config.mcpUrl) && !isOpenDoor(session)) {
-      return res.status(401).json({ error: 'Not authenticated.' });
+      // Same door-flip recovery as /tools/list: a live stash for the current
+      // door restores authentication without a second sign-in.
+      const stashed = doorCredential(session, session.config.mcpUrl);
+      if (stashed) {
+        session.oauth = { ...stashed };
+        persistPrivilegeOauth(session);
+      } else {
+        return res.status(401).json({ error: 'Not authenticated.' });
+      }
     }
     const { name, arguments: args } = req.body || {};
     if (!name) return res.status(400).json({ error: 'Tool name is required.' });
