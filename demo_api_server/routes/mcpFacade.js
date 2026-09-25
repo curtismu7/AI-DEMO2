@@ -1245,8 +1245,16 @@ router.get('/reel/:correlationId.svg', async (req, res) => {
 });
 
 // No server-initiated stream through the façade; spec-compliant clients treat
-// 405 as "not offered".
-router.get(['/:door/mcp', '/:door/:app/mcp'], (req, res) => res.status(405).end());
+// 405 as "not offered". The 405 still carries the RFC 9728 challenge: LM
+// Studio's bridge probes unauthenticated doors with a GET first, and a bare
+// 405 (no WWW-Authenticate) means it never starts the OAuth flow — it reports
+// "requires authentication" with no login prompt instead (observed live
+// 2026-09-25 against the privilege-gateway doors).
+router.get(['/:door/mcp', '/:door/:app/mcp'], (req, res) => {
+  if (!req.door) return res.status(405).end();
+  res.set('WWW-Authenticate', rewriteChallenge(null, `${facadeBase(req)}/.well-known/oauth-protected-resource`, req.door.scopes));
+  return res.status(405).end();
+});
 
 // Both shapes, exactly as POST and GET register them. Registering only the bare
 // path 404'd every app-scoped teardown, and resolving with upstream() tore down
