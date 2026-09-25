@@ -1947,6 +1947,7 @@ cmd_help() {
   echo "    status                Show container health table"
   echo "    llamacpp restart      Stop and restart host LLM backend (llama.cpp tiers or oMLX)"
   echo "    promptfoo             Run Phi step-narration eval (core promptfoo sidecar → :8090)"
+  echo "    librechat [sub]       Standalone LibreChat stack: start|stop|down|restart|logs|status (UI :3080)"
   echo "    help                  Show this message"
   echo ""
   cmd_optional_help
@@ -1989,6 +1990,82 @@ cmd_help() {
   echo ""
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
   echo ""
+}
+
+# ── LibreChat (standalone stack) ──────────────────────────────────────────────
+# librechat/docker-compose.yml is a separate Compose project (containers
+# `librechat`, `librechat-mongodb`, `librechat-oauth-loopback`) — never part of
+# the ai-demo project, so it gets its own compose file args and must NOT be
+# touched by cmd_stop / _compose_down. See librechat/README.md for setup
+# (librechat/.env secrets) and the pingaws variant (LIBRECHAT_CONFIG).
+_LIBRECHAT_COMPOSE=(-f "${BASEDIR}/librechat/docker-compose.yml")
+# run-docker.sh exports COMPOSE_PROJECT_NAME=ai-demo for the main stack (line 62);
+# the librechat compose file must keep its own project name so `ps`/`down` never
+# see or touch ai-demo containers. Pass -p explicitly, which wins over the env var.
+_LIBRECHAT_COMPOSE=(-p librechat "${_LIBRECHAT_COMPOSE[@]}")
+
+_librechat_env_check() {
+  if [[ ! -f "${BASEDIR}/librechat/.env" || -d "${BASEDIR}/librechat/.env" ]]; then
+    err "librechat/.env missing (or a stray directory Docker auto-created)."
+    echo ""
+    echo "  First-time setup (see librechat/README.md):"
+    echo "    cd librechat && cp .env.example .env"
+    echo "    # then generate JWT_SECRET, JWT_REFRESH_SECRET, CREDS_KEY, CREDS_IV,"
+    echo "    # OPENID_SESSION_SECRET per the README"
+    echo ""
+    if [[ -d "${BASEDIR}/librechat/.env" ]]; then
+      echo "  librechat/.env is a directory — fix: rmdir librechat/.env, then set it up."
+      echo ""
+    fi
+    exit 1
+  fi
+}
+
+cmd_librechat() {
+  local sub="${1:-start}"
+  shift || true
+
+  case "${sub}" in
+    start|up)
+      _librechat_env_check
+      echo -e "${CYAN}${BOLD}   [DOCKER]  Starting standalone LibreChat stack${RESET}"
+      if [[ -n "${LIBRECHAT_CONFIG:-}" ]]; then
+        echo -e "${DIM}   config: ${LIBRECHAT_CONFIG}${RESET}"
+      fi
+      docker compose "${_LIBRECHAT_COMPOSE[@]}" up -d
+      ok "LibreChat up — http://localhost:3080"
+      # The oauth-loopback sidecar shares the api container's network; after
+      # recreating librechat, bring it up too (librechat/README.md).
+      docker compose "${_LIBRECHAT_COMPOSE[@]}" up -d oauth-loopback
+      ;;
+    stop)
+      echo -e "${CYAN}${BOLD}   [DOCKER]  Stopping standalone LibreChat stack${RESET}"
+      docker compose "${_LIBRECHAT_COMPOSE[@]}" stop
+      ok "LibreChat stopped."
+      ;;
+    down)
+      echo -e "${CYAN}${BOLD}   [DOCKER]  Removing standalone LibreChat stack${RESET}"
+      docker compose "${_LIBRECHAT_COMPOSE[@]}" down
+      ok "LibreChat removed (volumes preserved)."
+      ;;
+    restart)
+      cmd_librechat stop
+      cmd_librechat start
+      ;;
+    logs)
+      docker compose "${_LIBRECHAT_COMPOSE[@]}" logs -f --tail=50 librechat
+      ;;
+    status)
+      docker compose "${_LIBRECHAT_COMPOSE[@]}" ps
+      ;;
+    *)
+      err "Unknown librechat subcommand: ${sub}"
+      echo ""
+      echo "  Usage: ./run-docker.sh librechat [start|stop|down|restart|logs|status]"
+      echo ""
+      exit 1
+      ;;
+  esac
 }
 
 # ── Dispatch ──────────────────────────────────────────────────────────────────
@@ -2086,6 +2163,9 @@ case "${COMMAND}" in
     cmd_demo_sync
     print_status_table
     echo ""
+    ;;
+  librechat)
+    cmd_librechat "$@"
     ;;
   help|--help|-h)
     cmd_help
