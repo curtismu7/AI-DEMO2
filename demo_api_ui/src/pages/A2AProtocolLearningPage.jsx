@@ -6,6 +6,7 @@ import { useThemeOptional } from '../context/ThemeContext';
 import { buildA2aChainDetail } from '../utils/a2aChainDetail';
 import { A2A_RECORDED_RUN } from '../data/a2aRecordedRun';
 import A2AArchitectureDiagram from '../components/A2AArchitectureDiagram';
+import A2AFlowVisualizer from '../components/A2AFlowVisualizer';
 import RelatedLearningRail from '../components/learning/RelatedLearningRail';
 import { EDU } from '../components/education/educationIds';
 import { RUN_PROVENANCE } from '../config/agentTerminology';
@@ -431,7 +432,13 @@ export default function A2AProtocolLearningPage() {
         )}
         {runError && <p className="a2l-err">{runError}</p>}
         {detail.present && (
-          <pre className="a2l-diagram">{detail.diagramLines.join('\n')}</pre>
+          <A2AFlowVisualizer
+            tokenEvents={events}
+            labels={{
+              generalist: detail.generalist || 'Generalist Agent',
+              specialist: detail.specialist || 'Specialist',
+            }}
+          />
         )}
       </Section>
 

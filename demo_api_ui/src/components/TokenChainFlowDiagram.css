@@ -1,0 +1,80 @@
+/* TokenChainFlowDiagram.css — React Flow token-chain canvas.
+ *
+ * Node/group colors carry over verbatim from the Mermaid style directives
+ * this canvas replaces (matched-legend rule with the summary cards — they
+ * stay literal regardless of theme). Only chrome uses --th-* tokens.
+ */
+
+.tcf-canvas {
+  position: relative;
+  height: 640px;
+  width: 100%;
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  overflow: hidden;
+}
+
+.tcf-node {
+  background: var(--group-color);
+  border: 1.5px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  width: 200px;
+  height: 64px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  color: #fff;
+}
+
+.tcf-node__title {
+  font-weight: 700;
+  font-size: 0.85rem;
+  line-height: 1.2;
+}
+
+.tcf-node__sub {
+  font-size: 0.68rem;
+  opacity: 0.85;
+  line-height: 1.25;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tcf-node .react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tcf-group {
+  border: 2px solid;
+  border-radius: 10px;
+  position: relative;
+}
+
+.tcf-group__label {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.tcf-edge-label {
+  font-size: 11px;
+  font-weight: 650;
+  fill: var(--th-text-muted);
+  paint-order: stroke;
+  stroke: var(--th-bg-card);
+  stroke-width: 4px;
+}
+
+.tcf-canvas .react-flow__controls button {
+  background: var(--th-bg-card);
+  border-bottom: 1px solid var(--th-border);
+  color: var(--th-text);
+}

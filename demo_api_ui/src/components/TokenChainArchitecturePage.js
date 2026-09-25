@@ -2,144 +2,15 @@
  * TokenChainArchitecturePage.js — /architecture/token-chain
  *
  * Interactive token chain diagram showing all servers, authentication,
- * authorization, token exchange, and MCP gateway flow.
+ * authorization, token exchange, and MCP gateway flow — rendered as a React
+ * Flow canvas (TokenChainFlowDiagram) replacing the previous Mermaid render.
+ * Zoom/pan is built into React Flow; click a node for its details.
  */
-import React from 'react';
-import { useMermaidRender } from '../hooks/useMermaidRender';
-import useZoomPanViewport from '../hooks/useZoomPanViewport';
-import { DiagramControls } from './diagram';
+import React, { useState } from 'react';
+import { ReactFlowProvider } from '@xyflow/react';
+import { Controls } from '@xyflow/react';
+import TokenChainFlowDiagram from './TokenChainFlowDiagram';
 import './TokenChainArchitecturePage.css';
-
-const ZOOM_MIN = 0.5;
-const ZOOM_MAX = 3;
-const ZOOM_STEP = 0.25;
-// Bigger by default per the ticket, not just zoomable: fontSize up from
-// mermaid's own ~16px default (mermaid auto-sizes node boxes to fit their
-// text, so this also makes every box bigger), plus a modest initial zoom on
-// top of that.
-export const MERMAID_DIAGRAM = `
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#2E5090', 'primaryTextColor': '#fff', 'primaryBorderColor': '#1a3a5c', 'lineColor': '#4a7bb8', 'secondaryColor': '#28a745', 'tertiaryColor': '#f57c00', 'fontFamily': 'sans-serif', 'fontSize': '20px'}, 'flowchart': {'useMaxWidth': false}}}%%
-graph LR
-    subgraph Client["CLIENT"]
-      User["👤 User"]
-      OLB["OLB Application<br/>chatbot"]
-    end
-
-    subgraph Auth["🔐 AUTHENTICATION"]
-      PingOne["PingOne/PF/AIC"]
-      HumanToken["Human Token<br/>━━━━━━<br/>sub: user1<br/>may_act: agent1"]
-    end
-
-    subgraph Agent["AGENT"]
-      AgentSvc["Agent Service"]
-      LLM["LLM<br/>tool selector"]
-      AgentToken["Agent Token<br/>━━━━━━<br/>client_id: agent1<br/>SPIFFE SVID"]
-    end
-
-    subgraph Exchange["TOKEN EXCHANGE"]
-      TxService["Exchange Service"]
-      TxToken["TX Token<br/>━━━━━━<br/>sub: user1<br/>act: agent1<br/>scope: mcp"]
-    end
-
-    subgraph Gateway["GATEWAY"]
-      GWService["Agent Gateway<br/>route & introspect"]
-      AuthCall["authorize()<br/>check token"]
-    end
-
-    subgraph Authz["✅ AUTHORIZATION"]
-      PingAuthz["PingAuthorize<br/>Policy Engine<br/>Read metadata"]
-    end
-
-    subgraph MCPs["MCP SERVERS"]
-      MCP_OLB["MCP OLB<br/>mcp-olb.bxf.com"]
-      MCP_Invest["MCP Resource Server<br/>mcp-resource-server.bxf.com"]
-    end
-
-    subgraph Resources["RESOURCES"]
-      RS_OLB["olb-resource<br/>/balance /transfer"]
-      RS_Invest["invest-resource<br/>API key vault"]
-    end
-
-    subgraph Safety["SAFETY"]
-      HITL["HITL/CIBA<br/>step-up"]
-      Metadata["Agent metadata<br/>capabilities"]
-    end
-
-    User -->|login| OLB
-    OLB -->|auth| PingOne
-    PingOne -->|token| HumanToken
-    HumanToken -->|present| AgentSvc
-
-    AgentSvc -->|own creds| AgentToken
-    AgentSvc -->|tool list| GWService
-    GWService -->|agent token| AuthCall
-    AuthCall -->|verify| PingAuthz
-
-    AgentSvc -->|route tool| LLM
-    LLM -->|select: balance| AgentSvc
-    AgentSvc -->|call| GWService
-
-    GWService -->|DENY<br/>no subject| AuthCall
-    AuthCall -->|unauthorized| AgentSvc
-
-    AgentSvc -->|human+agent| TxService
-    TxService -->|issue| TxToken
-
-    TxToken -->|authorize| GWService
-    GWService -->|introspect| PingAuthz
-    PingAuthz -->|PERMIT| GWService
-
-    GWService -->|balance<br/>PERMIT| MCP_OLB
-    MCP_OLB -->|get API key| RS_OLB
-    RS_OLB -->|data| MCP_OLB
-    MCP_OLB -->|response| GWService
-
-    GWService -->|transfer| AuthCall
-    AuthCall -->|DENY<br/>HITL required| GWService
-    GWService -->|step-up| AgentSvc
-    AgentSvc -->|CIBA| HITL
-    HITL -->|MFA approve| AgentSvc
-    AgentSvc -->|MFA token| TxService
-
-    TxService -->|new TX| TxToken
-    TxToken -->|retry| GWService
-    GWService -->|PERMIT| MCP_Invest
-    MCP_Invest -->|execute| RS_Invest
-    RS_Invest -->|confirm| MCP_Invest
-    MCP_Invest -->|result| GWService
-
-    AgentSvc -->|check| Metadata
-    PingAuthz -->|query| Metadata
-
-    style Client fill:#1e3a5f,stroke:#0f2438,stroke-width:2px,color:#fff
-    style Auth fill:#2e5090,stroke:#1a3a5c,stroke-width:2px,color:#fff
-    style Agent fill:#3b5998,stroke:#2a3f6c,stroke-width:2px,color:#fff
-    style Exchange fill:#28a745,stroke:#1e7e34,stroke-width:2px,color:#fff
-    style Gateway fill:#f57c00,stroke:#d66b00,stroke-width:2px,color:#fff
-    style Authz fill:#dc3545,stroke:#a02830,stroke-width:2px,color:#fff
-    style MCPs fill:#6f42c1,stroke:#4a276a,stroke-width:2px,color:#fff
-    style Resources fill:#17a2b8,stroke:#0e5968,stroke-width:2px,color:#fff
-    style Safety fill:#ffc107,stroke:#d9a308,stroke-width:2px,color:#000
-
-    style User fill:#0f2438,stroke:#e0e0e0,stroke-width:1px,color:#fff
-    style OLB fill:#0f2438,stroke:#e0e0e0,stroke-width:1px,color:#fff
-    style PingOne fill:#2a3f6c,stroke:#e0e0e0,stroke-width:1px,color:#fff
-    style HumanToken fill:#4a7bb8,stroke:#e0e0e0,stroke-width:1px,color:#fff
-    style AgentSvc fill:#2a3f6c,stroke:#e0e0e0,stroke-width:1px,color:#fff
-    style LLM fill:#2a3f6c,stroke:#e0e0e0,stroke-width:1px,color:#fff
-    style AgentToken fill:#4a7bb8,stroke:#e0e0e0,stroke-width:1px,color:#fff
-    style TxService fill:#1e7e34,stroke:#e0e0e0,stroke-width:1px,color:#fff
-    style TxToken fill:#45c754,stroke:#e0e0e0,stroke-width:1px,color:#000
-    style GWService fill:#d66b00,stroke:#e0e0e0,stroke-width:1px,color:#fff
-    style AuthCall fill:#d66b00,stroke:#e0e0e0,stroke-width:1px,color:#fff
-    style PingAuthz fill:#a02830,stroke:#e0e0e0,stroke-width:1px,color:#fff
-    style MCP_OLB fill:#4a276a,stroke:#e0e0e0,stroke-width:1px,color:#fff
-    style MCP_Invest fill:#4a276a,stroke:#e0e0e0,stroke-width:1px,color:#fff
-    style RS_OLB fill:#0e5968,stroke:#e0e0e0,stroke-width:1px,color:#fff
-    style RS_Invest fill:#0e5968,stroke:#e0e0e0,stroke-width:1px,color:#fff
-    style HITL fill:#d9a308,stroke:#e0e0e0,stroke-width:2px,color:#000
-    style Metadata fill:#d9a308,stroke:#e0e0e0,stroke-width:1px,color:#000
-`;
 
 const CARDS = [
   { color: '#2E5090', title: '🔐 Authentication', body: <>PingOne issues human token with <code>may_act: agent1</code> delegation claim</> },
@@ -151,19 +22,25 @@ const CARDS = [
   { color: '#17a2b8', title: 'Resources', body: 'Backend APIs behind MCP servers, may do token exchange for API keys' },
   // Yellow (#ffc107) is too light for title text on either page background,
   // so unlike the others this card's heading tracks the theme instead of
-  // its own accent -- the border still matches the diagram's Safety subgraph.
+  // its own accent -- the border still matches the diagram's Safety group.
   { color: '#ffc107', titleColor: 'themed', title: 'HITL/CIBA', body: 'Step-up flow for high-risk actions (transfers), requires Multi-Factor ACR' },
 ];
 
+function CanvasWithControls({ onNodeClick }) {
+  return (
+    <div className="tca-canvas-frame">
+      <ReactFlowProvider>
+        <TokenChainFlowDiagram onClickNode={onNodeClick} />
+        <Controls position="top-right" showInteractive={false} />
+      </ReactFlowProvider>
+    </div>
+  );
+}
+
 export default function TokenChainArchitecturePage({ user }) {
-  // The diagram carries its own %%{init}%% theme block, which overrides
-  // useMermaidRender's theme for this render — it renders the same in both
-  // app modes by design (see MERMAID_DIAGRAM's %%{init}%% line).
-  const { containerRef: diagramRef, error: renderError } = useMermaidRender(MERMAID_DIAGRAM);
-  const {
-    zoom, isPanning, containerRef: viewportRef,
-    zoomIn, zoomOut, zoomReset, viewportProps, contentStyle,
-  } = useZoomPanViewport({ initialZoom: 1.2, min: ZOOM_MIN, max: ZOOM_MAX, step: ZOOM_STEP });
+  const [selected, setSelected] = useState(null);
+  // selected = { group, label, sub, id, detail: { role, mockToken, tokenNote } }
+  const info = selected?.detail;
 
   return (
     <div className="tca-page">
@@ -177,32 +54,43 @@ export default function TokenChainArchitecturePage({ user }) {
       </div>
 
       <div className="tca-diagram-frame">
-        <DiagramControls
-          zoom={zoom}
-          onZoomIn={zoomIn}
-          onZoomOut={zoomOut}
-          onZoomReset={zoomReset}
-          zoomMin={ZOOM_MIN}
-          zoomMax={ZOOM_MAX}
-          zoomStep={ZOOM_STEP}
-        />
-        <p className="tca-zoom-hint">Scroll to zoom · Right-click and drag to pan</p>
-        {renderError ? (
-          <p className="tca-diagram-error">Diagram failed to render: {renderError}</p>
-        ) : (
-          <div
-            className={`tca-diagram-viewport${isPanning ? ' tca-diagram-viewport--panning' : ''}`}
-            ref={viewportRef}
-            {...viewportProps}
-          >
-            <div className="tca-diagram-content" style={contentStyle}>
-              <div ref={diagramRef} className="tca-diagram" />
-            </div>
-          </div>
-        )}
+        <p className="tca-zoom-hint">
+          Scroll to zoom · Drag to pan · Click a node for its role and the (mock) token it carries
+        </p>
+        <CanvasWithControls onNodeClick={(node) => setSelected(node)} />
       </div>
 
-      {/* Card accents match the mermaid subgraph colors above by design —
+      {info && (
+        <div className="tca-node-detail" role="status">
+          <div className="tca-node-detail-head">
+            <strong>{selected.label}</strong>
+            <span className="tca-node-detail-group">· {selected.group} · {selected.id}</span>
+            <button
+              type="button"
+              className="tca-node-detail-close"
+              onClick={() => setSelected(null)}
+              aria-label="Close node detail"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="tca-node-detail-role">{info.role}</p>
+          {info.mockToken ? (
+            <>
+              <p className="tca-node-detail-note">
+                {info.mockToken.note} — decoded claims (MOCK, teaching values only):
+              </p>
+              <pre className="tca-node-detail-json">
+                {JSON.stringify(info.mockToken.claims, null, 2)}
+              </pre>
+            </>
+          ) : (
+            <p className="tca-node-detail-note">{info.tokenNote}</p>
+          )}
+        </div>
+      )}
+
+      {/* Card accents match the flow graph's group colors above by design —
           a matched legend, so they stay literal regardless of theme. */}
       <div className="tca-cards">
         {CARDS.map(({ color, titleColor, title, body }) => (

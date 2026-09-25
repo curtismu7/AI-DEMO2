@@ -5,6 +5,7 @@ import ArchitectureOverviewPage from "../components/ArchitectureOverviewPage";
 import ArchitectureTabsPanel from "../components/ArchitectureTabsPanel";
 import ArchitectureTokenFlowPage from "../components/ArchitectureTokenFlowPage";
 import Phase266ArchitecturePage from "../components/Phase266ArchitecturePage";
+import A2AArchitecturePage from "../components/A2AArchitecturePage";
 import ArchitectureCanvasPage from "../components/ArchitectureCanvasPage";
 import TokenChainArchitecturePage from "../components/TokenChainArchitecturePage";
 import ReactFlowPocPage from "../components/ReactFlowPocPage";
@@ -28,6 +29,7 @@ export default function EducationRoutes({ user, logout }) {
         <Route path="token-chain" element={<TokenChainArchitecturePage user={user} />} />
         <Route path="flow" element={<ArchitectureFlowPage user={user} />} />
         <Route path="phase-266" element={<Phase266ArchitecturePage />} />
+        <Route path="a2a" element={<A2AArchitecturePage />} />
         <Route path="canvas" element={<ArchitectureCanvasPage />} />
         <Route path="reactflow-poc" element={<ReactFlowPocPage />} />
         <Route path="poc-compare" element={<ReactFlowPocComparePage />} />

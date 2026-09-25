@@ -1,0 +1,136 @@
+/* A2AArchitecturePage.css — Mermaid-rendered A2A delegation architecture page */
+
+.a2a-arch-page {
+  padding: 1.5rem 2rem 4rem;
+  background: #f8fafc;
+  min-height: calc(100vh - 64px);
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  color: var(--th-text);
+  max-width: none;
+}
+
+/* The token canvas needs horizontal room — let the page use the full
+ * main-content width instead of the 1280px header column. */
+.a2a-arch-page .a2a-arch-card {
+  max-width: none;
+}
+
+.a2a-arch-header {
+  max-width: 1280px;
+  margin: 0 auto 1.5rem;
+}
+
+.a2a-arch-eyebrow {
+  display: inline-block;
+  background: #1f2937;
+  color: #fff;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  border-radius: 2px;
+  margin-bottom: 12px;
+}
+
+.a2a-arch-header h1 {
+  font-size: var(--font-size-h1);
+  font-weight: 700;
+  color: var(--th-text);
+  margin: 6px 0 4px 0;
+}
+
+.a2a-arch-subtitle {
+  font-size: var(--font-size-base);
+  color: var(--th-text);
+  margin: 0;
+  line-height: 1.55;
+  max-width: 760px;
+}
+
+.a2a-arch-card {
+  max-width: 1280px;
+  margin: 0 auto 2rem;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 24px;
+  overflow-x: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.a2a-arch-card--wide {
+  /* Full available content width for the token canvas. */
+  width: 100%;
+}
+
+.a2a-arch-card h2 {
+  font-size: var(--font-size-h2, 1.25rem);
+  font-weight: 700;
+  color: var(--th-text);
+  margin: 0 0 12px 0;
+}
+
+.a2a-arch-note {
+  font-size: var(--font-size-sm, 0.875rem);
+  color: var(--th-text);
+  line-height: 1.5;
+  margin: 0 0 12px 0;
+}
+
+.a2a-arch-diagram {
+  display: flex;
+  justify-content: center;
+}
+
+.a2a-arch-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.a2a-arch-error {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: var(--font-size-sm, 0.875rem);
+}
+
+.a2a-arch-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm, 0.875rem);
+}
+
+.a2a-arch-table th,
+.a2a-arch-table td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.a2a-arch-table th {
+  background: #f1f5f9;
+  font-weight: 700;
+  color: var(--th-text);
+}
+
+.a2a-arch-links {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.a2a-arch-links li {
+  padding: 6px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.a2a-arch-links a {
+  color: #1d4ed8;
+  text-decoration: none;
+}
+
+.a2a-arch-links a:hover {
+  text-decoration: underline;
+}

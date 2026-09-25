@@ -1,0 +1,191 @@
+/* A2ATokenFlowDiagram.css — large, zoomable React Flow token-chain canvas.
+ *
+ * Theme tokens for surfaces/ink; actor colors are the shared diagram palette
+ * (identity #7c3aed, runtime #004687, policy #dc2626, specialist #b45309,
+ * MCP #0e7490) — same literals ReactFlowPocPage/ReactFlowSequenceDiagram use,
+ * they do not flip with theme.
+ */
+
+.a2t {
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  margin-top: 12px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.a2t-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
+}
+
+.a2t-counter {
+  font-size: var(--font-size-sm);
+  color: var(--th-text);
+  font-weight: 650;
+  margin-left: auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+}
+
+.a2t-btn {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.a2t-btn:hover { background: var(--th-bg-hover); }
+.a2t-btn--primary { font-weight: 700; }
+.a2t-counter-label { color: var(--th-text); font-weight: 600; }
+
+.a2t-stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+.a2t-canvas {
+  height: 620px;
+  width: 100%;
+}
+
+/* ── Actor nodes: large and readable (232×92, ~13px+ text) ────────────────── */
+
+.a2t-node {
+  position: relative;
+  width: 232px;
+  border: 1.5px solid var(--th-border-strong);
+  border-radius: 10px;
+  background: var(--th-bg-card);
+  padding: 0 12px 10px;
+  box-sizing: border-box;
+}
+.a2t-node--active {
+  border-color: var(--actor-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--actor-color) 25%, transparent),
+    0 0 18px color-mix(in srgb, var(--actor-color) 45%, transparent);
+}
+.a2t-node--done { opacity: 0.85; }
+
+.a2t-node__bar {
+  height: 5px;
+  margin: 0 -12px 8px;
+  border-radius: 10px 10px 0 0;
+}
+
+.a2t-node__row { display: flex; align-items: flex-start; gap: 8px; }
+
+.a2t-node__icon { font-size: 1.25rem; line-height: 1.2; }
+
+.a2t-node__title {
+  font-size: 0.95rem;
+  font-weight: 750;
+  color: var(--th-text);
+  line-height: 1.25;
+}
+
+.a2t-node__sub {
+  font-size: 0.72rem;
+  color: var(--th-text-muted);
+  line-height: 1.3;
+  margin-top: 2px;
+}
+
+.a2t-node__token {
+  margin-top: 8px;
+  border: 1px dashed var(--actor-color);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 0.7rem;
+  color: var(--th-text-body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Edges ────────────────────────────────────────────────────────────────── */
+
+.a2t-edge-label {
+  font-size: 11px;
+  font-weight: 650;
+  fill: var(--th-text-muted);
+  paint-order: stroke;
+  stroke: var(--th-bg-card);
+  stroke-width: 4px;
+}
+
+.a2t-traveling-token {
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+/* ── Inspector ────────────────────────────────────────────────────────────── */
+
+.a2t-inspector {
+  border-top: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
+  padding: 14px 16px;
+}
+
+.a2t-inspector-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.a2t-inspector-title {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--th-text);
+}
+
+.a2t-inspector-close {
+  background: none;
+  border: none;
+  color: var(--th-text-muted);
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.a2t-inspector-json {
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  border: 1px solid var(--th-border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  overflow: auto;
+  max-height: 400px;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* React Flow control theming follows the canvas background token. */
+.a2t-canvas .react-flow__controls button {
+  background: var(--th-bg-card);
+  border-bottom: 1px solid var(--th-border);
+  color: var(--th-text);
+}
+.a2t-canvas .react-flow__minimap {
+  border: 1px solid var(--th-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .a2t { width: calc(100vw - 48px); }
+  .a2t-canvas { height: 380px; }
+}
