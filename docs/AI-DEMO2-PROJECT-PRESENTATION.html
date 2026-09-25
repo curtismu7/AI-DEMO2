@@ -748,32 +748,116 @@
       <p class="eyebrow">One prompt through the AI path · who holds which token</p><h2>A prompt is routed, interpreted, tool-called and consented—never seeing a user token.</h2>
       <pre class="mermaid" id="aif-mermaid">
 flowchart LR
+  %% Request path
   B["Browser<br/>ui :4000<br/>session cookie only"]
-  BFF["BFF<br/>demo-api-server :3001<br/>heuristic chip routing"]
+  BFF["BFF<br/>demo-api-server :3001<br/>session · heuristics · exchange"]
+  AG["LangChain agent :8888<br/>SSE · AG-UI"]
+  AG2["agent-service :3006<br/>banking / AG-UI"]
+  LLM["llm-proxy :8090<br/>model endpoint"]
+  GW["ping-gateway :3036<br/>default policy path"]
+  HITL["hitl-service :3009<br/>human approval"]
+  MCP["mcp-server :8080<br/>mcp-resource-server :8081<br/>api-resource-server :8082"]
   B -- "prompt (no tokens)" --> BFF
-  B -- "OIDC redirect" --- PING["PingOne<br/>OAuth · MFA · Authorize"]
-  BFF --- PING
-  BFF -- "AG-UI HTTP + SSE /run" --> AG["LangChain agent<br/>:8888 · SSE"]
-  AG -- "model calls" --> LLM["llm-proxy :8090"]
-  AG -- "tool callback<br/>/internal/agent-tool" --> BFF
-  BFF -- "RFC 8693 exchange" --> PING
-  BFF -- "exchanged token" --> GW["ping-gateway :3036<br/>default policy path"]
-  ALT["mcp-gateway :3005 +<br/>authz-server :9001 +<br/>mcp-jwt-verifier :8083<br/>(demo-auth alternative)"] -.-> GW
-  GW -- "write above threshold" --> HITL["hitl-service :3009<br/>human approval"]
-  GW -- "authorized call" --> MCP["mcp-server :8080<br/>mcp-resource-server :8081<br/>api-resource-server :8082"]
-  MCP -.-> TOOLS["mcp-weather :8896<br/>mcp-brave :8897"]
-  MCP -- "events" --> AUD["mcp-audit :8898"]
-  HITL -- "approved" --> GW
+  BFF -- "AG-UI /run SSE" --> AG
+  AG -- "model calls" --> LLM
+  AG -- "tool callback /internal/agent-tool" --> BFF
+  BFF -- "exchanged token" --> GW
+  GW -- "write above threshold" --> HITL
+  GW -- "authorized call" --> MCP
+  HITL -- approved --> GW
   MCP -- "result SSE" --> BFF
   BFF -- "answer + token chain" --> B
-  MCP --- DB["LMDB · weaviate · opensearch · redis"]
-  AUD -.-> OBS["jaeger · prometheus · loki"]
+  AG2 -.-> BFF
+
+  %% Identity
+  subgraph ID["Identity"]
+    PING["PingOne<br/>OAuth · OIDC · MFA · Authorize"]
+    SECRETS["secrets.vault<br/>(dotenvx-encrypted,<br/>dotenvx in BFF)"]
+  end
+  B -- "OIDC redirect" --> PING
+  BFF -- "RFC 8693 exchange" --> PING
+  BFF --- SECRETS
+
+  %% Alternate enforcement
+  subgraph ALT["Alternate enforcement · demo-auth"]
+    MGW["mcp-gateway :3005"]
+    AUTHZ["authz-server :9001"]
+    JWT["mcp-jwt-verifier :8083"]
+    MGW --- AUTHZ
+    MGW --- JWT
+  end
+  ALT -.-> GW
+
+  %% External tools
+  subgraph TOOLS["Third-party tools"]
+    WEATHER["mcp-weather :8896"]
+    BRAVE["mcp-brave :8897"]
+  end
+  MCP -.-> TOOLS
+
+  %% Search & RAG
+  subgraph RAG["Search / RAG"]
+    TIKA["tika"]
+    CS["demo-mcp-code-search"]
+    LI["llamaindex-agent"]
+    EMB["embeddings + embed-models"]
+    WEAV["weaviate"]
+    TIKA --> CS
+    CS --- WEAV
+    LI --- WEAV
+    WEAV --- EMB
+  end
+
+  %% Observability
+  subgraph OBS["Observability"]
+    PROM["prometheus"]
+    GRAF["grafana"]
+    ALERT["alertmanager"]
+    ALLOY["alloy"]
+    LOKI["loki"]
+    JAEGER["jaeger :16686"]
+    PF["promptfoo-step-narration<br/>(eval sidecar)"]
+    PROM --> GRAF
+    PROM --> ALERT
+    ALLOY --> LOKI
+  end
+  BFF -. "metrics / logs / traces" .-> OBS
+  MCP -- "tool events" --> AUD["mcp-audit :8898"]
+  AG -.-> OBS
+  MCP -- "traces" --> JAEGER
+
+  %% Discovery
+  DISC["mcp-discovery-agent"] -.-> BFF
+
+  %% Data
+  subgraph DATA["Data stores"]
+    LMDB["LMDB (in BFF)"]
+    REDIS["redis · optional"]
+    OS["opensearch"]
+    OSM["opensearch-mcp-server"]
+    OSM --- OS
+  end
+  MCP --- DATA
+
+  %% Workload identity
+  subgraph SPI["SPIFFE workload identity"]
+    SPIRE["spire-server<br/>spire-registration<br/>spire-agent"]
+    SHB["spiffe-helper-bff"]
+    SOIDC["spiffe-oidc-provider"]
+    SPIRE --- SHB
+    SPIRE --- SOIDC
+  end
+
+  %% Specialist
+  SPEC["ungoverned-agent<br/>(attack comparison)<br/>notebooklm · tier-manager-k8<br/>mcpgw-nginx → ping-mcpgw<br/>(Privilege gateway · opt)"]
+
   classDef hot fill:#fce9e9,stroke:#d92732,color:#17243a;
   classDef mid fill:#dce9f8,stroke:#1d3458,color:#17243a;
   classDef opt fill:#eef2f7,stroke:#8fa2bb,color:#17243a;
   class B,BFF,AG,GW,MCP hot
-  class PING,HITL,LLM,AUD mid
-  class ALT,TOOLS,DB opt
+  class PING,HITL,LLM,AUD,SECRETS mid
+  class TOOLS,RAG,OBS,SPI,SPEC,DISC,AG2 opt
+  class MGW,AUTHZ,JWT,WEATHER,BRAVE,TIKA,CS,LI,EMB,WEAV,PROM,GRAF,ALERT,ALLOY,LOKI,JAEGER,PF,LMDB,REDIS,OS,OSM,SPIRE,SHB,SOIDC,DISC,AG2 opt
       </pre>
       <div class="ai-flow-band">
         <span><b>Red:</b> the browser-to-tool request path · <b>Blue:</b> identity and approval gates · <b>Grey:</b> optional/alternate services.</span>
