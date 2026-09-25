@@ -4,6 +4,11 @@
    footer). A flat 100vh made the document taller than the viewport, so the
    page loaded already scrolled and the terminal/logs pane fell below the fold. */
 .cur-ide {
+  --cur-prompt-surface: #252526;
+  --cur-prompt-ink: #d4d4d4;
+  --cur-prompt-muted: #b8b8b8;
+  --cur-prompt-border: #454545;
+  --cur-prompt-error: #f87171;
   height: calc(100vh - 176px);
   min-height: 520px;
   display: flex;
@@ -372,10 +377,25 @@ select.cur-input { cursor: pointer; }
    that the sign-in return no longer auto-loads, so it leads at full width and
    the rest sit under it at the same height — grouped, not competing. */
 .cur-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
   margin-top: 12px;
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: 8px;
+  background: #1e1e1e;
+  color: #cccccc;
+  border-top: 1px solid #454545;
+  box-shadow: 0 -8px 16px rgba(0, 0, 0, 0.22);
+}
+
+.cur-ide[data-cur-theme="light"] .cur-actions {
+  background: #f7f7f7;
+  color: #1e1e1e;
+  border-top-color: #d0d0d0;
+  box-shadow: 0 -8px 16px rgba(0, 0, 0, 0.1);
 }
 
 .cur-actions__row {
@@ -1690,36 +1710,43 @@ select.cur-input { cursor: pointer; }
 /* A denial is the demo, not a failure: warning tones, with the reason shown. *
 /* Per-lane route/model probe table. Every rule that takes a --th-* ground also
    states its ink — THEMING.md §1.5, enforced by the ground-without-ink ratchet. *
-/* Sign-in behaviour for MCP doors — the mcp_broker_prompt radio.
-   Colours come from --th-* tokens only (THEMING.md): this stylesheet still
-   carries older literals like #8b949e, and adding more would deepen the
-   light-mode debt rather than pay it down. */
+/* Sign-in behaviour for MCP doors. This embedded client has its own theme
+   toggle, independent of the outer app's --th-* tokens, so use the local
+   palette declared on .cur-ide and overridden by its light theme below. */
 .cur-prompt-mode {
   margin: 0 0 14px;
   padding: 12px 14px;
-  border: 1px solid var(--th-border);
+  border: 1px solid var(--cur-prompt-border);
   border-radius: 8px;
-  /* Ink WITH the ground (THEMING.md H1): a themed background without a themed
-     colour inherits whatever the ancestor set and goes unreadable in one theme.
-     themingRatchet.test.js counts these, and caught this rule. */
-  background: var(--th-bg-inset);
-  color: var(--th-text);
+  background: var(--cur-prompt-surface);
+  color: var(--cur-prompt-ink);
+}
+
+.cur-ide .cur-rpc-panel .cur-prompt-mode {
+  border-color: var(--cur-prompt-border);
 }
 
 .cur-prompt-mode legend {
   padding: 0 6px;
   font-size: var(--font-size-body);
   font-weight: 600;
-  color: var(--th-text);
+  color: var(--cur-prompt-ink);
 }
 
 .cur-prompt-mode__row {
   display: grid;
-  grid-template-columns: auto auto 1fr;
-  align-items: baseline;
+  grid-template-columns: 18px max-content minmax(0, 1fr);
+  align-items: start;
   gap: 8px;
   padding: 4px 0;
   cursor: pointer;
+}
+
+.cur-prompt-mode__row input {
+  width: auto;
+  margin: 3px 0 0;
+  justify-self: start;
+  accent-color: #007acc;
 }
 
 .cur-prompt-mode__row input:disabled {
@@ -1728,21 +1755,39 @@ select.cur-input { cursor: pointer; }
 
 .cur-prompt-mode__label {
   font-size: var(--font-size-body);
-  color: var(--th-text);
+  color: var(--cur-prompt-ink);
 }
 
 /* The hint carries the OIDC parameter, so it has to stay readable rather than
    fade out — --font-size-3xs is the 10px floor from the scale, not a literal. */
 .cur-prompt-mode__hint {
   font-size: var(--font-size-2xs);
-  color: var(--th-text-muted, var(--th-text));
+  color: var(--cur-prompt-muted);
   line-height: 1.5;
 }
 
 .cur-prompt-mode__err {
   margin: 8px 0 0;
   font-size: var(--font-size-2xs);
-  color: var(--th-status-error);
+  color: var(--cur-prompt-error);
+}
+
+.cur-ide[data-cur-theme="light"] {
+  --cur-prompt-surface: #f5f5f5;
+  --cur-prompt-ink: #1e1e1e;
+  --cur-prompt-muted: #444444;
+  --cur-prompt-border: #cccccc;
+  --cur-prompt-error: #b91c1c;
+}
+
+@media (max-width: 640px) {
+  .cur-prompt-mode__row {
+    grid-template-columns: 18px minmax(0, 1fr);
+  }
+
+  .cur-prompt-mode__hint {
+    grid-column: 2;
+  }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
