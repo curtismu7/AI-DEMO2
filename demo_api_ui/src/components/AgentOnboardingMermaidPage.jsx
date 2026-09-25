@@ -1,78 +1,114 @@
 // AgentOnboardingMermaidPage.jsx — the same onboarding architecture as
-// AgentOnboardingFlowDiagram.jsx (box+arrow diagram, kept unchanged), redrawn
-// as a real Mermaid.js flowchart: auto-laid-out boxes with directional
-// arrows instead of hand-positioned CSS. A third, additive view — not a
-// replacement. Follows the mermaid.initialize/render pattern already used in
-// Phase266ArchitecturePage.jsx.
+// AgentOnboardingFlowDiagram.jsx (box+arrow diagram, kept unchanged), rendered
+// as an interactive React Flow graph via the shared StaticFlowDiagram
+// component. Click any node for its role in the onboarding story.
 import React, { useState } from "react";
-import DiagramExportBar from "./DiagramExportBar";
-import { useMermaidRender } from "../hooks/useMermaidRender";
+import StaticFlowDiagram from "./StaticFlowDiagram";
 import "./AgentOnboardingMermaidPage.css";
 
-const ICON = (name, alt) =>
-  `<img src="/images/vendor-logos/${name}.svg" alt="${alt}" width="16" height="16" style="vertical-align:-3px;margin-right:3px"/>`;
+export const AOM_GROUPS = {
+  entry: { label: "Entry / Discovery", bg: "#4f8a3d" },
+  studio: { label: "Agent Studio", bg: "#5b8cff" },
+  identity: { label: "Identity & Metadata", bg: "#c8860a" },
+  gov: { label: "Governance & Enforcement", bg: "#e8ae3d" },
+  disc: { label: "Privilege / Cloud Discovery", bg: "#d9730d" },
+  iga: { label: "IGA for AI", bg: "#a83289" },
+  rt: { label: "Enterprise Runtime", bg: "#0891b2" },
+};
 
-const MERMAID_SOURCE = `flowchart TD
-    subgraph ENTRY[" "]
-        direction LR
-        A1["<b>1. Enterprise Users</b><br/><i>(AI Consumers)</i><br/>${ICON("claude", "Claude")}Claude Desktop &nbsp; ${ICON("cursor", "Cursor")}Cursor<br/>${ICON("vscode", "VS Code")}VS Code (Copilot) &nbsp; ${ICON("openai", "ChatGPT")}ChatGPT Enterprise<br/>&bull; Adds/configures MCPs in AI client<br/>&bull; Opens Agent Studio to register"]
-        A2["<b>2. Developers /<br/>Agent Builders</b><br/>${ICON("azure", "Foundry")}Foundry &nbsp; ${ICON("aws", "AWS")}AWS<br/>${ICON("googlecloud", "Vertex")}Vertex &nbsp; Other Platforms<br/>&bull; Build agent on any platform<br/>&bull; Register agent, MCPs, tools, resources<br/>&bull; Publish to PingOne Agent Gateway (auto)"]
-        A3["<b>3. Cloud Discovery</b><br/><i>(Admin)</i><br/>${ICON("azure", "Foundry")}Foundry &nbsp; ${ICON("aws", "AWS")}AWS<br/>${ICON("googlecloud", "Vertex")}Vertex &nbsp; Other Platforms<br/>&bull; Agents discovered in cloud<br/>&bull; Admin notified<br/>&bull; Admin reviews &amp; imports"]
-    end
+export const AOM_NODES = [
+  {
+    id: "A1", group: "entry", label: "1. Enterprise Users (AI Consumers)",
+    sub: ["Claude Desktop · Cursor", "VS Code (Copilot) · ChatGPT Enterprise", "Adds/configures MCPs in AI client", "Opens Agent Studio to register"],
+    x: 0, y: 40,
+  },
+  {
+    id: "A2", group: "entry", label: "2. Developers / Agent Builders",
+    sub: ["Foundry · AWS · Vertex · Others", "Build agent on any platform", "Register agent, MCPs, tools, resources", "Publish to PingOne Agent Gateway (auto)"],
+    x: 0, y: 230,
+  },
+  {
+    id: "A3", group: "entry", label: "3. Cloud Discovery (Admin)",
+    sub: ["Foundry · AWS · Vertex · Others", "Agents discovered in cloud", "Admin notified", "Admin reviews & imports"],
+    x: 0, y: 420,
+  },
+  {
+    id: "AS", group: "studio", label: "Agent Studio",
+    sub: ["Enterprise AI Onboarding Portal", "Users: discover + register MCPs", "Devs: register agents/MCPs, publish FGA", "Admins: import discovered, review & submit"],
+    x: 320, y: 40,
+  },
+  {
+    id: "IDM", group: "identity", label: "Identity & Metadata (Ping Identity Platform)",
+    sub: ["PingOne · PingFederate · AIC", "Create identity & metadata for Agents and MCPs", "Agent Identity, MCP Identity", "Tools, Resources, Prompts Metadata"],
+    x: 320, y: 330,
+  },
+  {
+    id: "ORCH", group: "studio", label: "Orchestrates onboarding across the Ping platform",
+    sub: ["① Create identity & metadata", "② Publish MCP to PingOne Agent Gateway", "③ Publish FGA rules to PingAuthorize", "④ Register in IGA for AI", "⑤ Keep metadata synchronized"],
+    x: 640, y: 40,
+  },
+  {
+    id: "PG", group: "gov", label: "P1 Privilege Agent Gateway",
+    sub: ["Policy enforcement", "JIT access & secret injection", "Session & activity logging", "Audit all actor activity"],
+    x: 960, y: 40,
+  },
+  {
+    id: "PGW", group: "gov", label: "PingOne Agent Gateway — MCP Security Gateway",
+    sub: ["Secures all MCP comms", "Validates OAuth tokens", "Token exchange / transform", "Routes authz to PingAuthorize"],
+    x: 960, y: 230,
+  },
+  {
+    id: "PA", group: "gov", label: "PingAuthorize / PingOne Authorize",
+    sub: ["Fine-grained authz decisions", "Policies for tools/resources/APIs", "Context-aware, real-time"],
+    x: 960, y: 430,
+  },
+  {
+    id: "PD", group: "disc", label: "A. Privilege Discovery",
+    sub: ["Browser / Device Agents", "Gateway detects unmanaged AI", "Admin notified, reviews, approves", "Metadata synced to IGA"],
+    x: 1280, y: 40,
+  },
+  {
+    id: "CD", group: "disc", label: "B. Cloud Discovery (IGA)",
+    sub: ["IGA discovers cloud-native agents", "Admin reviews & approves", "Identity created, synced to IGA"],
+    x: 1280, y: 230,
+  },
+  {
+    id: "IGA", group: "iga", label: "IGA for AI",
+    sub: ["Intelligent Governance & Administration", "Inventory · Ownership/Lifecycle · Entitlements", "Certification · Compliance & Audit", "Single source of truth for all AI agents/MCPs"],
+    x: 1600, y: 40,
+  },
+  {
+    id: "RT", group: "rt", label: "Enterprise AI Runtime",
+    sub: ["Applications · Databases · APIs", "Files & Storage · SaaS · Enterprise Systems", "All traffic validated, authorized, governed"],
+    x: 1920, y: 40,
+  },
+];
 
-    AS["<b>Agent Studio</b><br/><i>Enterprise AI Onboarding Portal</i><br/>Users: discover + register MCPs<br/>Devs: register agents/MCPs, publish FGA<br/>Admins: import discovered, review &amp; submit"]
+export const AOM_EDGES = [
+  ["A1", "AS"], ["A2", "AS"], ["A3", "AS"],
+  ["AS", "ORCH"], ["IDM", "ORCH"],
+  ["ORCH", "PG"], ["ORCH", "PGW"], ["ORCH", "PA"],
+  ["PGW", "PA", null, { dashed: true }],
+  ["PD", "PG", "direct route"],
+  ["CD", "IGA"], ["PG", "IGA"], ["PGW", "IGA"], ["PA", "IGA"],
+  ["IGA", "RT"],
+];
 
-    IDM["<b>Identity &amp; Metadata</b><br/><i>(Ping Identity Platform)</i><br/>PingOne &middot; PingFederate &middot; AIC<br/>Create identity &amp; metadata for Agents and MCPs<br/>&bull; Agent Identity, MCP Identity<br/>&bull; Tools, Resources, Prompts Metadata<br/>&bull; Ownership &amp; Attributes"]
-
-    ORCH["<b>Orchestrates onboarding across the Ping platform</b><br/>&#9312; Create identity &amp; metadata<br/>&#9313; Publish MCP to PingOne Agent Gateway<br/>&#9314; Publish FGA rules to PingAuthorize<br/>&#9315; Register in IGA for AI<br/>&#9316; Keep metadata synchronized"]
-
-    subgraph GOV[" "]
-        direction LR
-        PG["<b>P1 Privileges<br/>Agent Gateway</b><br/>&bull; Policy enforcement<br/>&bull; JIT access &amp; secret injection<br/>&bull; Session &amp; activity logging<br/>&bull; Audit all actor activity"]
-        PGW["<b>PingOne Agent Gateway<br/>MCP Security Gateway</b><br/>&bull; Secures all MCP comms<br/>&bull; Validates OAuth tokens<br/>&bull; Token exchange / transform<br/>&bull; Routes authz to PingAuthorize"]
-        PA["<b>PingAuthorize /<br/>PingOne Authorize</b><br/>&bull; Fine-grained authz decisions<br/>&bull; Policies for tools/resources/APIs<br/>&bull; Context-aware, real-time"]
-    end
-
-    subgraph DISC[" "]
-        direction LR
-        PD["<b>A. Privilege Discovery</b><br/><i>Browser / Device Agents</i><br/>&bull; Gateway detects unmanaged AI<br/>&bull; Admin notified, reviews, approves<br/>&bull; Metadata synced to IGA"]
-        CD["<b>B. Cloud Discovery</b><br/><i>(IGA)</i><br/>&bull; IGA discovers cloud-native agents<br/>&bull; Admin reviews &amp; approves<br/>&bull; Identity created, synced to IGA"]
-    end
-
-    IGA["<b>IGA for AI</b><br/><i>Intelligent Governance &amp; Administration</i><br/>Inventory &middot; Ownership/Lifecycle &middot; Entitlements<br/>Certification &middot; Compliance &amp; Audit<br/>Single source of truth for all AI agents/MCPs"]
-
-    RT["<b>Enterprise AI Runtime</b><br/>Applications &middot; Databases &middot; APIs<br/>Files &amp; Storage &middot; SaaS &middot; Enterprise Systems<br/>All traffic validated, authorized, governed"]
-
-    A1 --> AS
-    A2 --> AS
-    A3 --> AS
-    AS --> ORCH
-    IDM --> ORCH
-    ORCH --> PG
-    ORCH --> PGW
-    ORCH --> PA
-    PGW <--> PA
-    PD -->|"direct route"| PG
-    CD --> IGA
-    PG --> IGA
-    PGW --> IGA
-    PA --> IGA
-    IGA --> RT
-
-    classDef entry fill:#1b2a1f,stroke:#4f8a3d,color:#e9ecf3,text-align:left;
-    classDef studio fill:#1b1f3a,stroke:#5b8cff,color:#e9ecf3,text-align:left;
-    classDef identity fill:#3d2b06,stroke:#c8860a,color:#e9ecf3,text-align:left;
-    classDef gov fill:#241a06,stroke:#e8ae3d,color:#e9ecf3,text-align:left;
-    classDef disc fill:#2c1811,stroke:#d9730d,color:#e9ecf3,text-align:left;
-    classDef iga fill:#241533,stroke:#a83289,color:#e9ecf3,text-align:left;
-    classDef rt fill:#062024,stroke:#0891b2,color:#e9ecf3,text-align:left;
-    class A1,A2,A3 entry;
-    class AS,ORCH studio;
-    class IDM identity;
-    class PG,PGW,PA gov;
-    class PD,CD disc;
-    class IGA iga;
-    class RT rt;`;
+const AOM_DETAILS = {
+  A1: "Enterprise users add and configure MCPs inside their AI clients, then open Agent Studio to register.",
+  A2: "Developers build agents on any platform and register agents, MCPs, tools, and resources — publishing to the PingOne Agent Gateway automatically.",
+  A3: "Agents running in cloud platforms are discovered; admins are notified and review before importing.",
+  AS: "The onboarding portal where users discover and register MCPs, developers register agents and publish FGA, and admins import discovered agents.",
+  IDM: "The Ping Identity platform creates identity and metadata for agents and MCPs — identities, tools, resources, prompts, ownership, and attributes.",
+  ORCH: "Coordinates onboarding across the Ping platform: identity & metadata, MCP publishing, FGA rules, IGA registration, and metadata sync.",
+  PG: "P1 Privilege Agent Gateway — policy enforcement, JIT access & secret injection, session logging, and full actor audit.",
+  PGW: "The MCP security gateway — secures all MCP comms, validates OAuth tokens, performs token exchange/transform, and routes authz to PingAuthorize.",
+  PA: "Fine-grained, context-aware authorization decisions for tools, resources, and APIs in real time.",
+  PD: "Privilege detects unmanaged AI usage from browser/device agents; admins review and approve, and metadata syncs to IGA.",
+  CD: "IGA discovers cloud-native agents; admins review and approve, and identities are created and synced.",
+  IGA: "The single source of truth for all AI agents/MCPs — inventory, ownership/lifecycle, entitlements, certification, compliance, and audit.",
+  RT: "Where enterprise systems live. All agent traffic here is validated, authorized, and governed.",
+};
 
 const LEGEND = [
   { color: "#4f8a3d", label: "Entry / Discovery (Users, Devs, Admin)" },
@@ -84,38 +120,43 @@ const LEGEND = [
   { color: "#0891b2", label: "Enterprise Runtime" },
 ];
 
-const FLOWCHART_OPTS = { htmlLabels: true, useMaxWidth: true, curve: "basis" };
-
 export default function AgentOnboardingMermaidPage() {
-  const [source, setSource] = useState(MERMAID_SOURCE);
-  const { containerRef, error: renderError } = useMermaidRender(source, {
-    flowchart: FLOWCHART_OPTS,
-  });
+  const [selectedNode, setSelectedNode] = useState(null);
+
+  const nodeDetail = selectedNode
+    ? AOM_DETAILS[selectedNode.id] ||
+      `${selectedNode.data.label} — participant in the onboarding architecture.`
+    : null;
 
   return (
     <div className="aom-page">
       <div className="aom-hero">
         <span className="aom-eyebrow">Proposed architecture — T. Madiraju</span>
-        <h1>Enterprise AI Onboarding — Mermaid Flowchart</h1>
+        <h1>Enterprise AI Onboarding — Architecture</h1>
         <p className="aom-sub">
-          Same architecture and detail as the box+arrow diagram, rendered with Mermaid's
-          auto-layout engine — real directional arrows between nodes.
+          Same architecture and detail as the box+arrow diagram, now an
+          interactive React Flow graph — zoom, pan, and click any node for its
+          role in the onboarding story.
         </p>
       </div>
 
-      <DiagramExportBar
-        source={source}
-        sourceFilename="agent-onboarding.mmd"
-        onSourceChange={setSource}
-      />
-
       <div className="aom-panel">
-        {renderError ? (
-          <p className="aom-error">Diagram failed to render: {renderError}</p>
-        ) : (
-          <div className="aom-diagram" ref={containerRef} aria-label="Onboarding architecture Mermaid flowchart" />
-        )}
+        <StaticFlowDiagram
+          NODES={AOM_NODES}
+          EDGES={AOM_EDGES}
+          GROUPS={AOM_GROUPS}
+          onNodeClick={(node) => setSelectedNode(selectedNode?.id === node.id ? null : node)}
+          testId="aom-flow-diagram"
+          height={640}
+        />
       </div>
+
+      {nodeDetail && (
+        <div className="aom-node-detail" role="status">
+          <strong>{selectedNode.data.label}</strong>
+          <p>{nodeDetail}</p>
+        </div>
+      )}
 
       <div className="aom-legend">
         {LEGEND.map((l) => (

@@ -22,6 +22,172 @@ export const GATEWAY_ENFORCEMENT_JOURNEY_MERMAID = `flowchart LR
   class b_temporal,b_scope,b_d05,b_tier done
   class b_rar bydesign`;
 
+export const GATEWAY_ENFORCEMENT_JOURNEY_GROUPS = {
+  "entry": {
+    "label": "Request",
+    "bg": "#0d9488"
+  },
+  "pdp": {
+    "label": "P1AZ — business policy",
+    "bg": "#7c3aed"
+  },
+  "checks": {
+    "label": "PEP checks — enforced at the gateway",
+    "bg": "#059669"
+  },
+  "out": {
+    "label": "Decision",
+    "bg": "#0d9488"
+  }
+};
+
+export const GATEWAY_ENFORCEMENT_JOURNEY_NODES = [
+  {
+    "id": "req",
+    "group": "entry",
+    "label": "Tool call arrives",
+    "x": 0,
+    "y": 160
+  },
+  {
+    "id": "p1az",
+    "group": "pdp",
+    "label": "P1AZ decides business policy",
+    "sub": [
+      "amount · tier · group · step-up · HITL"
+    ],
+    "x": 260,
+    "y": 160
+  },
+  {
+    "id": "b_temporal",
+    "group": "checks",
+    "label": "Temporal exp/iat/nbf",
+    "x": 520,
+    "y": 0,
+    "path": "done"
+  },
+  {
+    "id": "b_scope",
+    "group": "checks",
+    "label": "Per-tool scope membership",
+    "x": 520,
+    "y": 130,
+    "path": "done"
+  },
+  {
+    "id": "b_rar",
+    "group": "checks",
+    "label": "RAR payee allow-list",
+    "x": 520,
+    "y": 260,
+    "path": "bydesign"
+  },
+  {
+    "id": "b_d05",
+    "group": "checks",
+    "label": "D-05 multi-aud anti-bypass",
+    "x": 520,
+    "y": 390,
+    "path": "done"
+  },
+  {
+    "id": "b_tier",
+    "group": "checks",
+    "label": "tiers.groupToTier mapping",
+    "x": 520,
+    "y": 520,
+    "path": "done"
+  },
+  {
+    "id": "gw",
+    "group": "out",
+    "label": "Gateway enforces at the PEP",
+    "x": 780,
+    "y": 160
+  },
+  {
+    "id": "dec",
+    "group": "out",
+    "label": "Final decision",
+    "x": 1040,
+    "y": 160
+  }
+];
+
+export const GATEWAY_ENFORCEMENT_JOURNEY_EDGES = [
+  [
+    "req",
+    "p1az",
+    "tool call arrives"
+  ],
+  [
+    "p1az",
+    "b_temporal",
+    "delegates to PEP",
+    {
+      "dashed": true
+    }
+  ],
+  [
+    "p1az",
+    "b_scope",
+    "delegates to PEP",
+    {
+      "dashed": true
+    }
+  ],
+  [
+    "p1az",
+    "b_rar",
+    "delegates to PEP",
+    {
+      "dashed": true
+    }
+  ],
+  [
+    "p1az",
+    "b_d05",
+    "delegates to PEP",
+    {
+      "dashed": true
+    }
+  ],
+  [
+    "p1az",
+    "b_tier",
+    "delegates to PEP",
+    {
+      "dashed": true
+    }
+  ],
+  [
+    "b_temporal",
+    "gw"
+  ],
+  [
+    "b_scope",
+    "gw"
+  ],
+  [
+    "b_rar",
+    "gw"
+  ],
+  [
+    "b_d05",
+    "gw"
+  ],
+  [
+    "b_tier",
+    "gw"
+  ],
+  [
+    "gw",
+    "dec",
+    "final decision"
+  ]
+];
+
 export const GATEWAY_ENFORCEMENT_STAKES = [
   {
     "id": "temporal",

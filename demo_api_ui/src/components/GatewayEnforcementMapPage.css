@@ -131,3 +131,17 @@
   font-size: var(--font-size-xs);
   margin-top: 16px;
 }
+
+.gwe-node-detail {
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  color: var(--th-text);
+}
+
+.gwe-node-detail p {
+  margin: 6px 0 0;
+  color: var(--th-text-body, var(--th-text));
+  line-height: 1.5;
+}

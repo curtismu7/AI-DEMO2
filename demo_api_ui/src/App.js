@@ -175,7 +175,6 @@ import TransactionTraceEmbedPage from "./pages/TransactionTraceEmbedPage";
 import PingCliPage from "./components/PingCliPage";
 import PromptFooPage from "./components/PromptFooPage";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
-import NotebookLmPage from "./pages/NotebookLmPage";
 import AgenticAccessConsolePage from "./pages/AgenticAccessConsolePage";
 import PingAiProductPage from "./pages/PingAiProductPage";
 import PingOneProtectBrowserDemo from "./pages/PingOneProtectBrowserDemo";
@@ -1828,13 +1827,6 @@ function AppWithAuth() {
                                 </RequireAdminLogin>
                               }
                             />
-                            {/* NotebookLM Docs Oracle — PUBLIC, no sign-in required.
-                                The parent path="*" element contributes no guard, so an
-                                unwrapped route here audits as public. Backed by a
-                                host-local sidecar holding a personal Google session;
-                                the sidecar's bearer is the only credential between
-                                callers and that account. */}
-                            <Route path="/notebooklm" element={<NotebookLmPage />} />
                             <Route
                               path="/feature-flags"
                               element={
