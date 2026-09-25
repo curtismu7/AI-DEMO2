@@ -928,8 +928,46 @@ flowchart LR
       <div class="source"><a href="../privilege/PRIVILEGE-MCP.md">Privilege MCP design and protocol</a><a href="../demo_mcp_pingone/README.md">PingOne tool catalog and sandbox guard</a><a href="../demo_mcp_grafana/server.js">Grafana tools</a><a href="../docker-compose.yml">Optional gateway and OpenSearch services</a></div>
     </section>
 
+        <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>34 / Privilege AI Gateway · flow</div>
+      <p class="eyebrow">PingOne Privilege MCP Gateway · both MCP roles on one wire</p><h2>A governed MCP boundary: server to the client, client to the server—policy between.</h2>
+      <pre class="mermaid" id="priv-mermaid">
+flowchart LR
+  subgraph CLIENTSIDE["Client side · browser and BFF"]
+    UI["Browser UI<br/>/privilege-mcp-client<br/>drives BFF over HTTPS<br/>(never an MCP client)"]
+    BFF["BFF relay<br/>demo-api-server :3001<br/>/api/privilege-mcp/*<br/>THE MCP CLIENT"]
+  end
+  UI -- "HTTPS fetch · no MCP" --> BFF
+  BFF -- "user mode: OAuth code + PKCE<br/>simple mode: client-credentials" --> PING["PingOne<br/>token issuer"]
+  BFF -- "1 initialize<br/>2 tools/list<br/>3 tools/call" --> NGX["mcpgw-nginx<br/>front door · Host rewrite<br/>to Frontend Name"]
+  NGX --> GW["ping-mcpgw<br/>Privilege MCP Gateway<br/>per-app policy · JIT least privilege<br/>session recording"]
+  PING -. "policy + app registry" .-> GW
+  CTRL["Privilege console<br/>control plane<br/>applications · tools · policy"] -. "control plane" .-> GW
+  GW -- "second MCP session<br/>only permitted calls" --> UP["MCP servers (unchanged)<br/>demo-mcp-server :8080<br/>opensearch-mcp-server → opensearch<br/>PingOne Management MCP · Grafana MCP"]
+  GW -- "session records" --> REC["mcpgw-recordings"]
+  GW -- "logs" --> LOGS["mcpgw-logs"]
+  UP -- "response" --> GW
+  GW --> NGX
+  NGX --> BFF
+  BFF -- "SSE events: OAuth phases,<br/>relayed calls, upstream responses" --> UI
+  classDef hot fill:#fce9e9,stroke:#d92732,color:#17243a;
+  classDef mid fill:#dce9f8,stroke:#1d3458,color:#17243a;
+  classDef opt fill:#eef2f7,stroke:#8fa2bb,color:#17243a;
+  class UI,BFF,GW hot
+  class PING,CTRL,NGX mid
+  class UP,REC,LOGS opt
+      </pre>
+      <div class="ai-flow-band">
+        <span><b>Two roles:</b> the gateway terminates the BFF's MCP session and opens its own to the server — that is exactly how policy and recording are possible.</span>
+        <span><b>Unchanged server:</b> <code>demo-mcp-server</code> has zero Privilege-specific code; policy is authored in the console and enforced on the wire.</span>
+        <span><b>Known limit:</b> PingOne-issued client tokens fail the gateway's Notary <code>kid</code> check; the console-token chain is the proven path.</span>
+      </div>
+      <div class="source"><a href="../privilege/PRIVILEGE-MCP.md">Privilege MCP canonical record</a><a href="../demo_api_server/routes/privilegeMcpClient.js">BFF relay route</a><a href="../docker-compose.yml">mcpgw profile services</a></div>
+    </section>
+
+
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>34 / Skills used in the project</div>
+      <div class="brand"><span class="brand-mark"></span>35 / Skills used in the project</div>
       <p class="eyebrow">Project-local library · .claude/skills</p><h2>Local skills package repeatable agent, PingOne, Privilege and delivery work.</h2>
       <div class="skill-grid">
         <div class="skill-card"><h3>Agent and protocol</h3><ul><li>a2a-protocol</li><li>agent-demo-triage</li><li>chip-correctness-testing</li><li>generate-tests</li><li>inspector-template</li><li>karpathy-guidelines</li></ul></div>
@@ -940,7 +978,7 @@ flowchart LR
     </section>
 
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>35 / Shareable skills · general and security</div>
+      <div class="brand"><span class="brand-mark"></span>36 / Shareable skills · general and security</div>
       <p class="eyebrow">Portable library · claudSkills/general + security</p><h2>Reusable skills bring common tools and security workflows to other projects.</h2>
       <div class="skill-grid duo">
         <div class="skill-card"><h3>General · 13 skills</h3><ul><li>agent-tool</li><li>cheapest-model</li><li>docx</li><li>graphify</li><li>impeccable</li><li>mcp-builder</li><li>pdf</li><li>pptx</li><li>supergoal</li><li>theme-factory</li><li>tighten-prompt</li><li>webapp-testing</li><li>xlsx</li></ul></div>
@@ -951,7 +989,7 @@ flowchart LR
     </section>
 
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>36 / Shareable skills · PingOne and field export</div>
+      <div class="brand"><span class="brand-mark"></span>37 / Shareable skills · PingOne and field export</div>
       <p class="eyebrow">Portable PingOne library · SE export bundle</p><h2>Focused identity skills package configuration, integration and field workflows.</h2>
       <div class="skill-grid duo">
         <div class="skill-card"><h3>PingOne · 11 skills</h3><ul><li>authz-server</li><li>authz-server-parity</li><li>ciba</li><li>oauth-pingone</li><li>pingone-api-calls</li><li>pingone-authorize-configure</li><li>pingone-mcp</li><li>pingone-mcp-install</li><li>pingone-mfa</li><li>pingone-recognize</li><li>pingone-session-termination</li></ul></div>
@@ -961,7 +999,7 @@ flowchart LR
     </section>
 
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>37 / One request through the stack</div>
+      <div class="brand"><span class="brand-mark"></span>38 / One request through the stack</div>
       <p class="eyebrow">Source-traced flow · not a live run</p><h2>A protected tool call moves through six explicit boundaries.</h2>
       <div class="trace-flow">
         <div class="trace-step"><b>1 · Ask</b><span>React sends the prompt to the BFF with the browser session cookie.</span></div>
@@ -976,7 +1014,7 @@ flowchart LR
     </section>
 
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>38 / Technical choices visible in code</div>
+      <div class="brand"><span class="brand-mark"></span>39 / Technical choices visible in code</div>
       <p class="eyebrow">Why the pieces have these boundaries</p><h2>The implementation favors inspectable identity decisions and swappable demos.</h2>
       <div class="decision-grid">
         <div class="decision"><b>Tokens stay with the BFF</b><span>Browser gets a session cookie; the server performs exchange and tool authorization. This keeps provider credentials and user tokens out of model-facing code.</span></div>
