@@ -30,6 +30,7 @@ const cibaService = require('../services/cibaService');
 const cibaSimulatedService = require('../services/cibaSimulatedService');
 const delegationService = require('../services/delegationService');
 const { authenticateToken } = require('../middleware/auth');
+const { optionalAuthenticateToken } = require('../middleware/optionalAuth');
 const configStore = require('../services/configStore');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const { trackTokenEvent } = require('../services/tokenChainService');
@@ -369,7 +370,7 @@ router.get('/request/:authReqId', authenticateToken, (req, res) => {
 // recipient labels.
 // ---------------------------------------------------------------------------
 
-router.get('/requests', authenticateToken, (req, res) => {
+router.get('/requests', optionalAuthenticateToken, (req, res) => {
   const now = Date.now();
   const requests = Object.entries(req.session.cibaRequests || {}).map(([authReqId, pending]) => {
     let status = 'pending';

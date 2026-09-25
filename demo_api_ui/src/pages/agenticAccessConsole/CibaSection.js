@@ -35,7 +35,7 @@ function ApprovalStatusPill({ status }) {
 
 const LIVE_STATUS_MAP = { approved: "permit", denied: "deny", pending: "indeterminate", expired: "deny" };
 
-export default function CibaSection({ user }) {
+export default function CibaSection() {
   const [requests, setRequests] = useState(null);
   const [error, setError] = useState(false);
   const [initiating, setInitiating] = useState(false);
@@ -50,12 +50,11 @@ export default function CibaSection({ user }) {
   };
 
   useEffect(() => {
-    if (!user) return;
     let cancelled = false;
     fetchRequests().then(() => { if (cancelled) return; });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, []);
 
   const handleTryIt = () => {
     setInitiating(true);
@@ -74,7 +73,7 @@ export default function CibaSection({ user }) {
       .finally(() => setInitiating(false));
   };
 
-  const showLive = !!user && !error && Array.isArray(requests);
+  const showLive = !error && Array.isArray(requests);
 
   return (
     <div>
@@ -212,7 +211,7 @@ export default function CibaSection({ user }) {
               </table>
             </div>
             <p className="aac-card-sub" style={{ marginTop: 8 }}>
-              {!user ? "Sign in to see live data." : "Live CIBA request data unavailable — showing an illustrative example."}
+              {"Live CIBA request data unavailable — showing an illustrative example."}
             </p>
           </>
         )}

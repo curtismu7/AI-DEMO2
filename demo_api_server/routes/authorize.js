@@ -11,6 +11,7 @@
 const express = require('express');
 const axios = require('axios');
 const { authenticateToken } = require('../middleware/auth');
+const { optionalAuthenticateToken } = require('../middleware/optionalAuth');
 const configStore = require('../services/configStore');
 const {
   getRecentDecisions,
@@ -108,10 +109,10 @@ router.get('/decision-endpoints', authenticateToken, async (req, res) => {
  * GET /api/authorize/recent-decisions?endpointId=&limit=
  * Fetch recent decisions for a decision endpoint.
  * Requires recordRecentRequests: true on the endpoint in PingOne Authorize.
- * Any authenticated user; used by the Live Policy Console, education panel, and
- * debugging UI (read-only PingOne data).
+ * Any user, including signed-out visitors (optional auth) — the Agentic Access
+ * Console is public and shows this feed. Read-only PingOne data.
  */
-router.get('/recent-decisions', authenticateToken, async (req, res) => {
+router.get('/recent-decisions', optionalAuthenticateToken, async (req, res) => {
   if (!isConfigured()) {
     return res.status(422).json({
       error: 'authorize_not_configured',

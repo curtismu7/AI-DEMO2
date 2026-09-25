@@ -59,21 +59,20 @@ const IDENTITY_TYPE_LABEL = {
  * who's actually configured to call this broker. Not per-attempt
  * attribution: /llm/call is a human-driven test console with no agent
  * identity on the wire, so past attempts can't be tied to one of these. */
-function AgentsUsingBrokerPanel({ user }) {
+function AgentsUsingBrokerPanel() {
   const [rows, setRows] = useState(null);
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
     let cancelled = false;
     apiClient
       .get("/api/registry/agents")
       .then(({ data }) => { if (!cancelled) setRows(data?.rows || []); })
       .catch(() => { if (!cancelled) setError(true); });
     return () => { cancelled = true; };
-  }, [user]);
+  }, []);
 
-  const showLive = !!user && !error && Array.isArray(rows);
+  const showLive = !error && Array.isArray(rows);
 
   const groups = {};
   if (showLive) {
@@ -92,7 +91,7 @@ function AgentsUsingBrokerPanel({ user }) {
       </p>
       {!showLive ? (
         <p className="aac-card-sub">
-          {!user ? "Sign in to see the real registry, grouped by identity type." : "Registry unavailable right now."}
+          Registry unavailable right now.
         </p>
       ) : Object.keys(groups).length === 0 ? (
         <p className="aac-card-sub">No registered identities found.</p>
@@ -155,7 +154,7 @@ export default function AiBrokerSection({ user }) {
         llama.cpp by default, oMLX auto-detected on Apple Silicon.
       </p>
 
-      <AgentsUsingBrokerPanel user={user} />
+      <AgentsUsingBrokerPanel />
 
       <div className="aac-section-block">
         <h3>Model tiers {tiersAreLive && <span className="aac-badge aac-badge--live">Live</span>}</h3>
@@ -262,7 +261,7 @@ export default function AiBrokerSection({ user }) {
               </div>
             ))}
             <p className="aac-card-sub" style={{ marginTop: 4 }}>
-              {!user ? "Sign in to see live data." : "Live attempt log unavailable — showing an illustrative example."}
+              Live attempt log unavailable — showing an illustrative example.
             </p>
           </>
         )}

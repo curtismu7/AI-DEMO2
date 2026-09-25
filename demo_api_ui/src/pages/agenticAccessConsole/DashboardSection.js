@@ -25,27 +25,17 @@ const COVERAGE_BY_VERTICAL = [
 ];
 const VERTICAL_PREVIEW_COUNT = 5;
 
-// Signed-out fallback only — signed-in users get GET /api/authorize/recent-decisions.
-const RECENT_DECISIONS = [
-  { time: "14:02:11", agent: "langchain_agent", tool: "create_transfer", scope: "transfer", decision: "PERMIT" },
-  { time: "14:01:47", agent: "langchain_agent", tool: "create_transfer", scope: "transfer", decision: "INDETERMINATE" },
-  { time: "13:58:03", agent: "langchain_agent", tool: "delete_customer", scope: "admin:delete", decision: "DENY" },
-  { time: "13:55:22", agent: "langchain_agent", tool: "get_sensitive_account_details", scope: "sensitive:read", decision: "PERMIT" },
-  { time: "13:50:09", agent: "langchain_agent", tool: "freeze_account", scope: "admin:write", decision: "DENY" },
-];
-
 function DecisionPill({ decision }) {
   const label = String(decision || "UNKNOWN");
   return <span className={`aac-pill aac-pill--${label.toLowerCase()}`}>{label}</span>;
 }
 
-export default function DashboardSection({ user }) {
+export default function DashboardSection() {
   const [showAllVerticals, setShowAllVerticals] = useState(false);
   const [decisions, setDecisions] = useState(null);
   const [decisionsState, setDecisionsState] = useState("idle"); // idle|loading|ok|not_configured|error
 
   useEffect(() => {
-    if (!user) return;
     let cancelled = false;
     setDecisionsState("loading");
     apiClient
@@ -60,7 +50,7 @@ export default function DashboardSection({ user }) {
         setDecisionsState(err?.response?.status === 422 ? "not_configured" : "error");
       });
     return () => { cancelled = true; };
-  }, [user]);
+  }, []);
   const visibleVerticals = showAllVerticals ? COVERAGE_BY_VERTICAL : COVERAGE_BY_VERTICAL.slice(0, VERTICAL_PREVIEW_COUNT);
 
   return (
@@ -156,85 +146,46 @@ export default function DashboardSection({ user }) {
       <div className="aac-section-block">
         <h3>
           Recent authorization decisions{" "}
-          {user
-            ? decisionsState === "ok" && <span className="aac-badge aac-badge--live">Live</span>
-            : <span className="aac-badge aac-badge--neutral">Illustrative</span>}
+          {decisionsState === "ok" && <span className="aac-badge aac-badge--live">Live</span>}
         </h3>
-        {user ? (
-          <>
-            {decisionsState === "ok" && decisions?.length > 0 && (
-              <div className="aac-table-wrap">
-                <table className="aac-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Time</th>
-                      <th scope="col">Decision</th>
-                      <th scope="col">Details</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {decisions.map((d, i) => (
-                      <tr key={d.id || i}>
-                        <td className="aac-mono">{d.createdAt || d.timestamp || "—"}</td>
-                        <td><DecisionPill decision={d.decision || d.result?.decision} /></td>
-                        <td>
-                          <details>
-                            <summary className="aac-card-sub" style={{ cursor: "pointer" }}>Raw</summary>
-                            <pre className="aac-prompt-block">{JSON.stringify(d, null, 2)}</pre>
-                          </details>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            {decisionsState === "not_configured" && (
-              <div className="aac-card"><div className="aac-card-body">PingOne Authorize worker credentials not configured in this environment.</div></div>
-            )}
-            {decisionsState === "error" && (
-              <div className="aac-card"><div className="aac-card-body">Live decision log unavailable right now.</div></div>
-            )}
-            {decisionsState === "ok" && (!decisions || decisions.length === 0) && (
-              <div className="aac-card"><div className="aac-card-body">No recorded decisions for the configured endpoint yet.</div></div>
-            )}
-            {decisionsState === "loading" && (
-              <div className="aac-card"><div className="aac-card-body">Loading…</div></div>
-            )}
-          </>
-        ) : (
-          <>
-            <div className="aac-table-wrap">
-              <table className="aac-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Time</th>
-                    <th scope="col">Agent</th>
-                    <th scope="col">Tool</th>
-                    <th scope="col">Scope</th>
-                    <th scope="col">Decision</th>
+        {decisionsState === "error" && (
+          <div className="aac-card"><div className="aac-card-body">Live decision log unavailable right now.</div></div>
+        )}
+        {decisionsState === "ok" && decisions?.length > 0 && (
+          <div className="aac-table-wrap">
+            <table className="aac-table">
+              <thead>
+                <tr>
+                  <th scope="col">Time</th>
+                  <th scope="col">Decision</th>
+                  <th scope="col">Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {decisions.map((d, i) => (
+                  <tr key={d.id || i}>
+                    <td className="aac-mono">{d.createdAt || d.timestamp || "—"}</td>
+                    <td><DecisionPill decision={d.decision || d.result?.decision} /></td>
+                    <td>
+                      <details>
+                        <summary className="aac-card-sub" style={{ cursor: "pointer" }}>Raw</summary>
+                        <pre className="aac-prompt-block">{JSON.stringify(d, null, 2)}</pre>
+                      </details>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {RECENT_DECISIONS.map((d, i) => (
-                    <tr key={i}>
-                      <td className="aac-mono">{d.time}</td>
-                      <td>{d.agent}</td>
-                      <td className="aac-mono">{d.tool}</td>
-                      <td className="aac-mono">{d.scope}</td>
-                      <td>
-                        <DecisionPill decision={d.decision} />
-                        {d.decision === "INDETERMINATE" && (
-                          <span className="aac-card-sub"> → demo_hitl_service</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="aac-card-sub" style={{ marginTop: 8 }}>Sign in to see live data.</p>
-          </>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {decisionsState === "not_configured" && (
+          <div className="aac-card"><div className="aac-card-body">PingOne Authorize worker credentials not configured in this environment.</div></div>
+        )}
+        {decisionsState === "ok" && (!decisions || decisions.length === 0) && (
+          <div className="aac-card"><div className="aac-card-body">No recorded decisions for the configured endpoint yet.</div></div>
+        )}
+        {decisionsState === "loading" && (
+          <div className="aac-card"><div className="aac-card-body">Loading…</div></div>
         )}
       </div>
     </div>

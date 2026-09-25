@@ -9,6 +9,8 @@ import TokenExchangeSection from "./agenticAccessConsole/TokenExchangeSection";
 import AiBrokerSection from "./agenticAccessConsole/AiBrokerSection";
 import CibaSection from "./agenticAccessConsole/CibaSection";
 import VerticalsSection from "./agenticAccessConsole/VerticalsSection";
+import DelegationSection from "./agenticAccessConsole/DelegationSection";
+import SecuritySection from "./agenticAccessConsole/SecuritySection";
 import "./AgenticAccessConsolePage.css";
 
 /**
@@ -30,9 +32,11 @@ const TABS = [
   { id: "aiBroker", label: "AI Broker", Component: AiBrokerSection },
   { id: "ciba", label: "CIBA", Component: CibaSection },
   { id: "verticals", label: "Verticals", Component: VerticalsSection },
+  { id: "delegation", label: "Delegation & A2A", Component: DelegationSection },
+  { id: "security", label: "Security", Component: SecuritySection },
 ];
 
-export default function AgenticAccessConsolePage({ user }) {
+export default function AgenticAccessConsolePage() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
   const [activeTab, setActiveTab] = useState("dashboard");
 
@@ -74,7 +78,7 @@ export default function AgenticAccessConsolePage({ user }) {
       </nav>
 
       <section className="aac-section">
-        <Active user={user} />
+        <Active />
       </section>
     </div>
   );

@@ -9,6 +9,7 @@
  */
 const express = require('express');
 const { authenticateToken } = require('../middleware/auth');
+const { optionalAuthenticateToken } = require('../middleware/optionalAuth');
 const agentRegistryService = require('../services/agentRegistryService');
 
 const router = express.Router();
@@ -20,7 +21,7 @@ const router = express.Router();
  * as `sources.<name>.up === false` with the reason, and every other identity
  * still renders. Degrading beats blanking the page.
  */
-router.get('/agents', authenticateToken, async (req, res) => {
+router.get('/agents', optionalAuthenticateToken, async (req, res) => {
   try {
     // req carries the session-scoped control-plane roster; without it the
     // runtime source can only offer the event-derived identities.
@@ -33,7 +34,7 @@ router.get('/agents', authenticateToken, async (req, res) => {
 });
 
 /** GET /api/registry/agents/:id — one identity from the same merged view. */
-router.get('/agents/:id', authenticateToken, async (req, res) => {
+router.get('/agents/:id', optionalAuthenticateToken, async (req, res) => {
   try {
     const registry = await agentRegistryService.buildRegistry(req);
     const row = registry.rows.find((r) => r.id === req.params.id);

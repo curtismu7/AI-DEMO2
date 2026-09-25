@@ -78,7 +78,7 @@ function ScopeStatusBadge({ status }) {
   return <span className={`aac-badge aac-badge--${map[status] || "neutral"}`}>{status}</span>;
 }
 
-export default function AgentsSection({ user }) {
+export default function AgentsSection() {
   const [registry, setRegistry] = useState(null);
   const [error, setError] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
@@ -87,14 +87,13 @@ export default function AgentsSection({ user }) {
   const [specialistsError, setSpecialistsError] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
     let cancelled = false;
     apiClient
       .get("/api/registry/agents")
       .then(({ data }) => { if (!cancelled) setRegistry(data); })
       .catch(() => { if (!cancelled) setError(true); });
     return () => { cancelled = true; };
-  }, [user]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,7 +112,7 @@ export default function AgentsSection({ user }) {
   }, []);
 
   const liveRows = registry?.rows || [];
-  const showLive = !!user && !error && liveRows.length > 0;
+  const showLive = !error && liveRows.length > 0;
 
   if (showLive) {
     const selected = liveRows.find((r) => r.id === selectedId) || liveRows[0];
@@ -230,9 +229,7 @@ export default function AgentsSection({ user }) {
       )}
 
       <p className="aac-card-sub" style={{ marginTop: 12 }}>
-        {!user
-          ? "Sign in to see live agent registry data."
-          : error
+        {error
             ? "Live agent registry unavailable — showing the illustrative runtime catalog."
             : "Loading live agent registry…"}
       </p>
