@@ -172,6 +172,15 @@
     .aif-arrow { align-self: center; color: var(--red); font-size: 24px; font-weight: 800; text-align: center; }
     .ai-flow-band { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 13px 18px; background: var(--navy); color: #d2dceb; font-size: 16px; line-height: 1.4; }
     .ai-flow-band b { color: white; }
+
+    .rfc-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: minmax(0, 1fr); gap: 14px; }
+    .rfc-card { background: white; border: 1px solid var(--line); border-top: 4px solid var(--navy-2); padding: 16px 18px; display: flex; flex-direction: column; }
+    .rfc-card h3 { color: var(--navy); font-size: 24px; margin: 0 0 8px; }
+    .rfc-card .rfc-list { margin: 0; color: var(--muted); font-size: 18px; line-height: 1.45; }
+    .rfc-card .rfc-list b { color: var(--navy); }
+    .rfc-card.core { border-top-color: var(--red); }
+    .rfc-card.p1az { border-top-color: var(--green); }
+    .rfc-card code { font: 700 16px var(--mono); color: #a21d28; }
     .flow-diagram { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-evenly; gap: 4px; }
     .fd-row { display: flex; gap: 8px; align-items: stretch; }
     .fd-label { writing-mode: vertical-rl; transform: rotate(180deg); flex: 0 0 auto; color: var(--muted); font-size: 13px; font-weight: 750; text-transform: uppercase; letter-spacing: .05em; display: flex; align-items: center; justify-content: center; border-left: 3px solid var(--navy-2); padding: 4px 2px; }
@@ -868,8 +877,24 @@ flowchart LR
     </section>
 
 
+        <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>32 / Standards and RFCs</div>
+      <p class="eyebrow">Protocol surface implemented and exercised in the repo · includes PingOne Authorize (P1AZ)</p><h2>The demo speaks the OAuth/OIDC RFC stack—not just a login button.</h2>
+      <div class="rfc-grid">
+        <div class="rfc-card core"><h3>Core authorization</h3><p class="rfc-list"><b>RFC 6749</b> OAuth 2.0 framework · <b>RFC 6750</b> bearer tokens · <b>RFC 7636</b> PKCE · <b>RFC 8693</b> token exchange — the demo's signature delegation primitive · <b>RFC 8414</b> authorization-server metadata · <b>RFC 9207</b> iss parameter · <b>RFC 9700</b> OAuth 2.0 security BCP</p></div>
+        <div class="rfc-card core"><h3>Tokens and revocation</h3><p class="rfc-list"><b>RFC 7519</b> JWT · <b>RFC 7515</b> JWS signing · <b>RFC 7638</b> JWK thumbprint · <b>RFC 7009</b> token revocation · <b>RFC 7662</b> token introspection · <b>RFC 9068</b> JWT access tokens · <b>RFC 8705</b> mTLS / DPoP-bound credentials · <b>RFC 9449</b> DPoP</p></div>
+        <div class="rfc-card"><h3>Advanced authorization</h3><p class="rfc-list"><b>RFC 9396</b> Rich Authorization Requests (RAR) · <b>RFC 9126</b> Pushed Authorization Requests (PAR) · <b>RFC 7591</b> dynamic client registration · <b>RFC 7521/7523</b> JWT client assertion grants · <b>RFC 8707</b> resource indicators (audience narrowing)</p></div>
+        <div class="rfc-card core"><h3>Protected resources and MCP</h3><p class="rfc-list"><b>RFC 9728</b> Protected Resource Metadata — how MCP clients find OAuth servers · <b>RFC 9470</b> client-initiated backchannel authentication / 428 re-auth in HITL flows · <b>RFC 9421</b> HTTP message signatures · <b>RFC 5424</b> syslog audit events</p></div>
+        <div class="rfc-card p1az"><h3>PingOne Authorize (P1AZ)</h3><p class="rfc-list"><b>Trust framework + policy rules</b> imported via snapshot; <b>TokenActive</b> rules evaluate the actor/act token chain from the RFC 8693 exchanges · <b>Step-up MFA</b> and amount-threshold policies exercised in live flows · <code>p1az-import-generator</code> skill and <code>docs/P1AZ_TOKENACTIVE_RULE_SETUP.md</code> · Privilege AI Gateway policy runtime (slide 33) applies P1AZ decisions at the MCP boundary</p></div>
+        <div class="rfc-card"><h3>Where to see them</h3><p class="rfc-list">Token Chain inspector renders <b>principal/actor/audience/scopes</b> per hop · Authorize decision inspector shows P1AZ rules firing · token lab exercises <b>7662 introspection</b> and <b>7009 revocation</b> fail-closed · PAR button on the gateway console sends <b>9126</b> pushes · A2A sequence demonstrates nested <b>8693</b> exchanges</p></div>
+      </div>
+      <p class="small" style="margin-top:10px">Most-referenced specs by count in tracked docs: 8693 · 9728 · 7662 · 8707 · 6749 · 7009 · 9396 · 9700 · 7636 · 9449. RFC 2119/8174/6819/3749/7235 appear only in boilerplate/error text and are not claimed as implemented features.</p>
+      <div class="source"><a href="../REGRESSION_PLAN.md">Token exchange contract</a><a href="../docs/P1AZ_TOKENACTIVE_RULE_SETUP.md">P1AZ TokenActive rule setup</a><a href="../docs/scope-topology.md">Scope and audience topology</a><a href="../.claude/skills/par/SKILL.md">PAR skill</a></div>
+    </section>
+
+
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>32 / Privilege AI Gateway</div>
+      <div class="brand"><span class="brand-mark"></span>33 / Privilege AI Gateway</div>
       <p class="eyebrow">Optional PingOne MCP Gateway · tool access and policy</p><h2>A governed MCP boundary with discovery, least-privilege decisions and session records.</h2>
       <div class="gateway-layout">
         <div class="panel redline">
@@ -904,7 +929,7 @@ flowchart LR
     </section>
 
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>33 / Skills used in the project</div>
+      <div class="brand"><span class="brand-mark"></span>34 / Skills used in the project</div>
       <p class="eyebrow">Project-local library · .claude/skills</p><h2>Local skills package repeatable agent, PingOne, Privilege and delivery work.</h2>
       <div class="skill-grid">
         <div class="skill-card"><h3>Agent and protocol</h3><ul><li>a2a-protocol</li><li>agent-demo-triage</li><li>chip-correctness-testing</li><li>generate-tests</li><li>inspector-template</li><li>karpathy-guidelines</li></ul></div>
@@ -915,7 +940,7 @@ flowchart LR
     </section>
 
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>34 / Shareable skills · general and security</div>
+      <div class="brand"><span class="brand-mark"></span>35 / Shareable skills · general and security</div>
       <p class="eyebrow">Portable library · claudSkills/general + security</p><h2>Reusable skills bring common tools and security workflows to other projects.</h2>
       <div class="skill-grid duo">
         <div class="skill-card"><h3>General · 13 skills</h3><ul><li>agent-tool</li><li>cheapest-model</li><li>docx</li><li>graphify</li><li>impeccable</li><li>mcp-builder</li><li>pdf</li><li>pptx</li><li>supergoal</li><li>theme-factory</li><li>tighten-prompt</li><li>webapp-testing</li><li>xlsx</li></ul></div>
@@ -926,7 +951,7 @@ flowchart LR
     </section>
 
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>35 / Shareable skills · PingOne and field export</div>
+      <div class="brand"><span class="brand-mark"></span>36 / Shareable skills · PingOne and field export</div>
       <p class="eyebrow">Portable PingOne library · SE export bundle</p><h2>Focused identity skills package configuration, integration and field workflows.</h2>
       <div class="skill-grid duo">
         <div class="skill-card"><h3>PingOne · 11 skills</h3><ul><li>authz-server</li><li>authz-server-parity</li><li>ciba</li><li>oauth-pingone</li><li>pingone-api-calls</li><li>pingone-authorize-configure</li><li>pingone-mcp</li><li>pingone-mcp-install</li><li>pingone-mfa</li><li>pingone-recognize</li><li>pingone-session-termination</li></ul></div>
@@ -936,7 +961,7 @@ flowchart LR
     </section>
 
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>36 / One request through the stack</div>
+      <div class="brand"><span class="brand-mark"></span>37 / One request through the stack</div>
       <p class="eyebrow">Source-traced flow · not a live run</p><h2>A protected tool call moves through six explicit boundaries.</h2>
       <div class="trace-flow">
         <div class="trace-step"><b>1 · Ask</b><span>React sends the prompt to the BFF with the browser session cookie.</span></div>
@@ -951,7 +976,7 @@ flowchart LR
     </section>
 
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>37 / Technical choices visible in code</div>
+      <div class="brand"><span class="brand-mark"></span>38 / Technical choices visible in code</div>
       <p class="eyebrow">Why the pieces have these boundaries</p><h2>The implementation favors inspectable identity decisions and swappable demos.</h2>
       <div class="decision-grid">
         <div class="decision"><b>Tokens stay with the BFF</b><span>Browser gets a session cookie; the server performs exchange and tool authorization. This keeps provider credentials and user tokens out of model-facing code.</span></div>
