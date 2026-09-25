@@ -278,7 +278,6 @@
       <div class="signature">44 slides · arrow keys · source links on every slide</div>
       <div class="source"><a href="../demo_api_server/config/useCases.js">Use-case source of truth</a><a href="../README.md">Repository README</a></div>
     </section>
-
     <section class="slide">
       <div class="brand"><span class="brand-mark"></span>01 / At a glance</div>
       <p class="eyebrow">Scale of the build</p><h2>68 use cases. 11 verticals. 43 servers. One agent demo.</h2>
@@ -293,7 +292,6 @@
       <p class="small" style="margin-top:16px">Counts read from catalog source. Flagged or externally-provisioned entries may not appear in every environment.</p>
       <div class="source"><a href="../demo_api_server/config/useCases.js">USE_CASES and VERTICALS</a><a href="../README.md">Service map &amp; run modes</a></div>
     </section>
-
         <section class="slide">
       <div class="brand"><span class="brand-mark"></span>02 / Ping products used</div>
       <p class="eyebrow">Ping products in the demo</p><h2>Eight Ping products. This is what each one does.</h2>
@@ -309,8 +307,6 @@
       </tbody></table>
       <div class="source"><a href="../README.md">Ping services in topology</a><a href="../privilege/PRIVILEGE-MCP.md">Privilege gateway record</a></div>
     </section>
-
-
     <section class="slide">
       <div class="brand"><span class="brand-mark"></span>03 / Agents</div>
       <p class="eyebrow">Agents</p><h2>Seven agent endpoints. One runtime: LangChain.</h2>
@@ -321,7 +317,6 @@
       <p class="small" style="margin-top:14px">Code Explorer, RAG and LLM Gateway are tool experiences, not runtimes.</p>
       <div class="source"><a href="../README.md">Ports and runtime descriptions</a><a href="../demo_api_server/server.js">Agent route mounts</a><a href="../demo_api_ui/src/components/AdminSideNav.jsx">Agent pages in navigation</a></div>
     </section>
-
     <section class="slide">
       <div class="brand"><span class="brand-mark"></span>04 / Use cases · foundation</div>
       <p class="eyebrow">Use cases 1 of 5</p><h2>Foundation: delegation, workload identity, domain tasks.</h2>
@@ -336,7 +331,6 @@
       </div>
       <div class="source"><a href="../demo_api_server/config/useCases.js">Catalog definitions and codeRefs</a><a href="../demo_api_ui/src/config/demoUseCaseSteps.js">Presenter steps</a></div>
     </section>
-
     <section class="slide">
       <div class="brand"><span class="brand-mark"></span>05 / Use cases · controls</div>
       <p class="eyebrow">Use cases 2 of 5</p><h2>Controls: 15 policy gates plus 4 human-approval flows.</h2>
@@ -354,7 +348,6 @@
       </div>
       <div class="source"><a href="../demo_api_server/config/useCases.js">Track, trigger, outcome and maturity fields</a><a href="../docs/ARCHITECTURE_WALKTHROUGH.md">Auth flow detail</a></div>
     </section>
-
     <section class="slide">
       <div class="brand"><span class="brand-mark"></span>06 / Use cases · attacks</div>
       <p class="eyebrow">Use cases 3 of 5</p><h2>Attacks: 11 scenarios the system is built to stop.</h2>
@@ -372,7 +365,6 @@
       </div>
       <div class="source"><a href="../demo_api_server/config/useCases.js">Current declared maturity by use case</a><a href="../demo_api_ui/src/components/AdminSideNav.jsx">Attack Demo navigation</a></div>
     </section>
-
     <section class="slide">
       <div class="brand"><span class="brand-mark"></span>07 / Use cases · demos &amp; tools</div>
       <p class="eyebrow">Use cases 4 of 5</p><h2>Tools and demos: launcher, RAG, code search, NHI inventory.</h2>
@@ -386,7 +378,6 @@
       <p class="small">Each catalog entry carries trigger, expected result, evidence fields, code refs, vertical overrides and maturity — not just titles.</p>
       <div class="source"><a href="../demo_api_server/config/useCases.js">Scenario metadata</a><a href="../demo_api_ui/src/pages/UseCaseLauncherPage.js">Use Cases page</a><a href="../demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js">Live Workbench</a></div>
     </section>
-
     <section class="slide">
       <div class="brand"><span class="brand-mark"></span>08 / Use cases · learning</div>
       <p class="eyebrow">Use cases 5 of 5</p><h2>Learning: 16 guided protocol and product walkthroughs.</h2>
@@ -402,7 +393,6 @@
       </div>
       <div class="source"><a href="../demo_api_server/config/useCases.js">Learning catalog records</a><a href="../demo_api_ui/src/components/AdminSideNav.jsx">Page names and routes</a></div>
     </section>
-
     <section class="slide">
       <div class="brand"><span class="brand-mark"></span>09 / Vertical packs</div>
       <p class="eyebrow">Vertical packs</p><h2>11 verticals. Same security pattern, different tools per industry.</h2>
@@ -421,307 +411,8 @@
       </tbody></table>
       <div class="source"><a href="../demo_api_server/config/useCases.js">VERTICALS and per-vertical tool maps</a><a href="../demo_api_server/config/verticals/">Vertical manifests and data</a></div>
     </section>
-
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>10 / Server inventory · core</div>
-      <p class="eyebrow">Core servers</p><h2>10 core servers: UI, BFF, tools, gateways, consent.</h2>
-      <table class="plain-table"><thead><tr><th>Service</th><th>Port</th><th>Responsibility</th></tr></thead><tbody>
-        <tr><td><code>demo_api_ui</code></td><td>4000</td><td>React customer/admin interface</td></tr>
-        <tr><td><code>demo_api_server</code></td><td>3001</td><td>Express BFF, browser API, OAuth session/token custodian</td></tr>
-        <tr><td><code>oauth-mcp</code></td><td>8080</td><td>TypeScript banking MCP server; OAuth/resource endpoints</td></tr>
-        <tr><td><code>demo_mcp_resource_server</code></td><td>8081</td><td>Investment MCP tools</td></tr>
-        <tr><td><code>demo_api_resource_server</code></td><td>8082</td><td>REST resource server; gateway credential conversion path</td></tr>
-        <tr><td><code>demo_mcp_gateway</code></td><td>3005</td><td>Optional Node gateway; demo profile</td></tr>
-        <tr><td><code>ping-gateway</code></td><td>3036</td><td>PingGateway/IG MCP enforcement path</td></tr>
-        <tr><td><code>demo_agent_service</code></td><td>3006</td><td>AG-UI runner; streams run state over SSE</td></tr>
-        <tr><td><code>demo_hitl_service</code></td><td>3009</td><td>Human approval challenge service</td></tr>
-        <tr><td><code>agent_token_service</code></td><td>8097</td><td>Separate token broker for Copilot Studio</td></tr>
-      </tbody></table>
-      <div class="source"><a href="../README.md">Current component table</a><a href="../docker-compose.yml">Compose wiring</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>11 / Server inventory · optional &amp; specialist</div>
-      <p class="eyebrow">Optional servers</p><h2>10 more MCP packages: third-party tools and operator functions.</h2>
-      <div class="catalog">
-        <div><code>demo_mcp_weather</code> Weather MCP bridge</div><div><code>demo_mcp_brave</code> Brave Search MCP</div>
-        <div><code>demo_mcp_pingone</code> PingOne management MCP tools</div><div><code>demo_mcp_grafana</code> Grafana MCP integration</div>
-        <div><code>demo_mcp_code_search</code> Code-search tools</div><div><code>demo_mcp_promptguard</code> Guardrail-related MCP service</div>
-        <div><code>demo_mcp_audit</code> MCP audit package</div><div><code>demo_mcp_proxy</code> MCP transport/proxy service</div>
-        <div><code>demo_mcp_banking_rest</code> Banking REST/MCP integration</div><div><code>jwt-verifier-mcp-server</code> JWT-verification MCP package</div>
-      </div>
-      <div class="panel blue" style="margin-top:16px"><h3>Tool paths</h3><p>Vertical MCP tools · investment resource · REST records · Weather/Brave third-party · PingOne admin · protected RAG. Compose profiles choose what runs.</p></div>
-      <div class="source"><a href="../docker-compose.yml">Compose profiles and service wiring</a><a href="../demo_mcp_resource_server/README.md">Investment MCP server</a><a href="../oauth-mcp/README.md">Banking MCP package</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>12 / Human-facing interfaces</div>
-      <p class="eyebrow">Human-facing pages</p><h2>40+ pages: run, configure, inspect and learn.</h2>
-      <div class="catalog">
-        <div><b>Customer:</b> <code>/dashboard</code> · <code>/accounts</code> · <code>/transactions</code> · marketing/login</div><div><b>Agent:</b> embedded/resizable chat · <code>/personal-agent</code> · <code>/autonomous-agents</code></div>
-        <div><b>Use cases:</b> <code>/use-cases</code> · <code>/use-cases/live</code> · <code>/demo-track</code></div><div><b>Agent admin:</b> <code>/control-plane</code> · <code>/agent-registry</code> · <code>/agent-builder</code> · kill switch</div>
-        <div><b>OAuth:</b> <code>/oauth-academy</code> · <code>/token-exchange-tester</code> · <code>/oauth-debug-logs</code></div><div><b>MCP:</b> <code>/pingone-mcp-inspector</code> · <code>/mcp-discovery</code></div>
-        <div><b>Gateways:</b> <code>/agent-gateway-inspector</code> · <code>/privilege-mcp-client</code> · <code>/protocol-playground</code></div><div><b>Policy:</b> <code>/pingone-authorize</code> · <code>/scope-audit</code> · group policy board</div>
-        <div><b>Attacks:</b> prompt injection · HITL bypass · indirect injection · scope abuse · intent bypass</div><div><b>Operations:</b> banking/healthcare/retail/workforce ops · user/account/transaction tables</div>
-        <div><b>Observability:</b> <code>/audit</code> · token exchange monitor · API activity · tracing · service graph</div><div><b>Learning:</b> A2A protocol · ID-JAG · learning hub · agent guardrails · OWASP risks</div>
-      </div>
-      <div class="source"><a href="../demo_api_ui/src/components/AdminSideNav.jsx">Navigation labels &amp; routes</a><a href="../demo_api_ui/src/App.js">App route wiring</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>13 / Machine-facing interfaces</div>
-      <p class="eyebrow">Machine-facing interfaces</p><h2>Five wire protocols: REST, MCP, OAuth, SSE, A2A.</h2>
-      <div class="grid g2">
-        <div class="panel"><h3>Browser ↔ BFF</h3><ul class="plain-list"><li>Cookie-authenticated Express <code>/api/*</code></li><li>OAuth/OIDC start, callback, refresh, logout</li><li>Agent runs and consent routes</li><li>OpenAPI JSON and Swagger UI (admin-gated)</li></ul></div>
-        <div class="panel"><h3>Agent ↔ model / BFF</h3><ul class="plain-list"><li>AG-UI run events over SSE</li><li>HTTP agent runtime endpoints</li><li>OpenAI-compatible <code>/v1/chat/completions</code> local proxy</li><li>Provider-specific Helix, OpenAI, Anthropic and local model APIs</li></ul></div>
-        <div class="panel"><h3>Agent ↔ tool</h3><ul class="plain-list"><li>MCP JSON-RPC: WebSocket and HTTP transports</li><li>MCP discovery: tools/list and protected-resource metadata</li><li>Resource-specific REST APIs behind gateway</li><li>A2A Agent Card and JSON-RPC walkthrough</li></ul></div>
-        <div class="panel"><h3>Setup and client examples</h3><ul class="plain-list"><li>PingOne Management API from server-side provisioning tools</li><li>Postman collections and API guide</li><li>LibreChat MCP OAuth client setup</li><li>Separate token broker for Microsoft Copilot Studio</li></ul></div>
-      </div>
-      <div class="source"><a href="../demo_api_server/server.js">BFF route mounts</a><a href="../README.md">Token flow / service connections</a><a href="../docs/user-guide/POSTMAN-GUIDE.md">Postman guide</a><a href="../agent_token_service/README.md">Agent token broker</a></div>
-    </section>
-
-    <section class="slide dark">
-      <div class="brand"><span class="brand-mark"></span>14 / Token-chain displays</div>
-      <p class="eyebrow">Token-chain displays</p><h2>One run, five renderings: reel, sequence, rail, topology, claims.</h2>
-      <div class="grid g2">
-        <div class="panel"><h3>Dashboard formats</h3><ul class="plain-list"><li><code>TokenChainFilmstrip</code> — compact movie-reel / event strip</li><li><code>SequenceReelDiagram</code> — actor lanes and message sequence</li><li>Dashboard toggle switches “reel” and “sequence” modes</li><li><code>TokenChainDisplay</code> — event rows and expandable events</li><li><code>TokenChainTraceRail</code> — ordered pipeline rail with status / halt point</li></ul></div>
-        <div class="panel"><h3>Topology and inspection formats</h3><ul class="plain-list"><li><code>TokenTopologyPanel</code> — actor/token graph with clickable nodes</li><li><code>TokenFlowDetailModal</code> tabs: Pipeline · Topology · Detailed · Cross-App · Least Agency</li><li><code>UnifiedTokenFlowInspector</code> — trace steps plus token claims and exchange detail</li><li><code>ClaimDetailsModal</code> — selected user, agent or MCP JWT claims</li><li>Interactive system architecture page — layers, scenario highlighting, token overlays</li></ul></div>
-      </div>
-      <p class="small" style="margin-top:14px">Each is a distinct rendering; the architecture page is a system diagram, not a per-run trace.</p>
-      <div class="source"><a href="../demo_api_ui/src/components/UserDashboardPing2026.js">Dashboard view toggle</a><a href="../demo_api_ui/src/components/TokenTopologyPanel.jsx">Topology panel</a><a href="../demo_api_ui/src/components/SequenceReelDiagram.jsx">Sequence view</a><a href="../demo_api_ui/src/components/TokenFlowDetailModal.jsx">Detail tabs</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>15 / What the trace exposes</div>
-      <p class="eyebrow">Trace contents</p><h2>Every hop shows principal, actor, audience, scopes and verdict.</h2>
-      <div class="cols3">
-        <div class="fact"><b>Tokens</b><span>Login token · agent actor token · exchanged MCP token · resource token; claim details and scope comparison.</span></div>
-        <div class="fact"><b>Identity</b><span><code>sub</code> · <code>client_id</code> · <code>act</code> · <code>may_act</code> · cross-app or nested delegation links.</span></div>
-        <div class="fact"><b>Resource</b><span><code>aud</code> · requested resource · scopes · token issuer and validation method.</span></div>
-        <div class="fact"><b>Decision steps</b><span>Token exchange · introspection/JWKS · gateway route · Authorize decision · tool dispatch · HITL/MFA checkpoint.</span></div>
-        <div class="fact"><b>Outcome</b><span>PERMIT · DENY · STEP_UP · consent pending · error/failure phase; inspect why a run halted.</span></div>
-        <div class="fact"><b>Run context</b><span>Tool name, vertical, correlation ID, actor hops, elapsed time and linked use-case evidence where recorded.</span></div>
-      </div>
-      <div class="source"><a href="../demo_api_ui/src/components/TokenChainTraceRail.jsx">Trace rail details</a><a href="../demo_api_ui/src/components/TokenTopologyPanel.jsx">Topology nodes</a><a href="../demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js">Trace step model</a><a href="../demo_api_ui/src/components/ClaimDetailsModal.jsx">JWT claims inspector</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>16 / Standout builds</div>
-      <p class="eyebrow">Standout builds</p><h2>13 features you can demo live, not just describe.</h2>
-      <div class="catalog">
-        <div><b>One-click per-user AI agent identity:</b> Agent Builder creates a PingOne AI_AGENT app and grants resources/scopes.</div>
-        <div><b>Kill switch:</b> revoke agent state and disable agent identity apps to stop new token issuance.</div>
-        <div><b>A2A token chain:</b> nested <code>act</code> identities and narrower scopes survive specialist hand-offs.</div>
-        <div><b>Consent challenge + retry:</b> gateway returns a challenge; user approves; agent retries with receipt.</div>
-        <div><b>Real gateway evidence:</b> inspect PingGateway request, policy decision, token audience and tool outcome.</div>
-        <div><b>Live policy flip:</b> change a third-party tool’s allowed scope/query and run permit/deny cases.</div>
-        <div><b>Audience-aware MCP routing:</b> gateway client selects the downstream route from the delegated token audience.</div>
-        <div><b>Eleven data skins:</b> the use-case catalog remaps read/write tools and triggers by vertical.</div>
-        <div><b>Secure-vs-unguarded comparison:</b> run the same kind of task through a deliberately ungoverned agent path.</div>
-        <div><b>Protected RAG / Code Explorer:</b> ask questions about indexed project code and documents.</div>
-        <div><b>Interactive A2A lesson:</b> inspect Agent Card, real missing-bearer 401, then run identity delegation.</div>
-        <div><b>Local model routing:</b> model proxy can route small/large workloads and use oMLX on Apple Silicon.</div>
-        <div><b>Admin-created verticals:</b> skin studio and manifest-backed operations configure the demo per environment.</div>
-      </div>
-      <div class="source"><a href="../demo_api_server/services/agentBuilderService.js">Agent Builder service</a><a href="../demo_api_server/services/killSwitchService.js">Kill switch</a><a href="../docs/user-guide/FEATURES.md">Scenario details</a><a href="../demo_llm_proxy/README.md">Model routing</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>17 / AI functionality</div>
-      <p class="eyebrow">AI usage</p><h2>Heuristics handle known commands. LLMs handle open text. Neither grants scope.</h2>
-      <div class="grid g2">
-        <div class="panel redline"><h3>Intent routing</h3><ul class="plain-list"><li>Heuristic phrase parser runs for known commands and chips.</li><li>LLM can return structured action intent for free-text requests.</li><li>Heuristic fallback keeps common flows available if the LLM route fails.</li><li>Prompt guard checks configured attack patterns before the LLM call.</li></ul></div>
-        <div class="panel redline"><h3>Providers / local servers</h3><ul class="plain-list"><li>Ping AI / Helix</li><li>OpenAI</li><li>Anthropic Claude</li><li>LM Studio and llama.cpp / oMLX local model modes</li><li>Ollama in Kubernetes profile; optional proxy fallback where configured</li></ul></div>
-        <div class="panel redline"><h3>Reasoning and retrieval features</h3><ul class="plain-list"><li>Multi-turn LangChain agent runs and conversation history</li><li>Alternate runtimes explored with OpenAI Agents SDK, Mastra and Pydantic AI</li><li>Protected code search / Code Explorer</li><li>Document RAG and knowledge-grounding paths</li><li>Reasoning/tool activity streamed through AG-UI and traces</li></ul></div>
-        <div class="panel redline"><h3>Non-LLM enforcement</h3><ul class="plain-list"><li>LLM output does not grant OAuth scope.</li><li>BFF, gateway and resource server validate identity, audience, scope and policy.</li><li>HITL/MFA stops a write tool until the approval path is satisfied.</li></ul></div>
-      </div>
-      <div class="source"><a href="../docs/user-guide/FEATURES.md">Three-tier NL router</a><a href="../demo_api_server/services/promptGuard.js">Prompt guard</a><a href="../demo_api_server/services/mcpToolPipeline.js">Tool enforcement path</a><a href="../demo_llm_proxy/README.md">Local LLM backends</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>18 / Identity and authorization</div>
-      <p class="eyebrow">Identity and authorization</p><h2>Ten auth controls in code — from PKCE to ID-JAG.</h2>
-      <div class="catalog">
-        <div><b>Login:</b> OAuth 2.0 / OIDC authorization code + PKCE; state and nonce checks.</div>
-        <div><b>Session:</b> server-side access, refresh and ID tokens; httpOnly session cookie.</div>
-        <div><b>Exchange:</b> RFC 8693 subject-token exchange; optional agent actor / nested act.</div>
-        <div><b>Audience:</b> RFC 8707 resource indicator / audience-bound resource token.</div>
-        <div><b>Validation:</b> JWT signature/JWKS, RFC 7662 introspection, issuer and scope checks.</div>
-        <div><b>Authorization:</b> PingOne Authorize and gateway policy decision; route requires public/user/admin.</div>
-        <div><b>Step-up:</b> PingOne MFA/device auth; OTP, Push, FIDO2/WebAuthn/TOTP paths.</div>
-        <div><b>Out-of-band:</b> CIBA approval flow for separately configured scenarios.</div>
-        <div><b>Intent:</b> PAR + RAR authorization details; DPoP replay demonstrations.</div>
-        <div><b>Enterprise MCP:</b> ID-JAG / cross-app access and centralized revocation demos.</div>
-      </div>
-      <div class="source"><a href="../docs/ARCHITECTURE_WALKTHROUGH.md">PKCE, CIBA and exchange steps</a><a href="../demo_api_server/config/auth-requirements.json">Route access source of truth</a><a href="../demo_api_server/routes/">Auth route implementations</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>19 / Integrations</div>
-      <p class="eyebrow">Integrations</p><h2>Ping services plus external MCP clients, model providers and observability.</h2>
-      <div class="grid g2">
-        <div class="panel"><h3>Ping identity services</h3><ul class="plain-list"><li>PingOne Authorization Server / OIDC</li><li>PingOne Management API</li><li>PingOne Authorize policy decisions</li><li>PingOne MFA and device authentication</li><li>PingOne CIBA, PAR, token introspection, revocation, JWKS</li><li>PingOne Protect and PingOne Privilege demo paths</li><li>PingFederate and DaVinci integration examples</li></ul></div>
-        <div class="panel"><h3>Agent and data clients</h3><ul class="plain-list"><li>MCP clients: LibreChat, MCP Inspector, custom/enterprise-managed clients</li><li>Microsoft Copilot Studio token broker</li><li>Weather, Brave Search, Grafana and PingOne MCP tool packages</li><li>REST resource servers for demo records</li><li>OpenAI, Anthropic, Helix/Ping AI and local model endpoints</li><li>Prometheus, Grafana, Loki/Alloy and Jaeger observability stack</li></ul></div>
-      </div>
-      <div class="source"><a href="../README.md">System topology</a><a href="../demo_mcp_pingone/README.md">PingOne MCP</a><a href="../demo_mcp_weather/package.json">Weather MCP</a><a href="../standalone/">External-client examples</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>20 / Data and storage</div>
-      <p class="eyebrow">Data and storage</p><h2>LMDB holds all BFF state. No production bank database.</h2>
-      <div class="grid g3">
-        <div class="panel redline"><h3>LMDB named stores</h3><ul class="plain-list"><li>Express sessions</li><li>Config and feature choices</li><li>Demo accounts, transactions and banking state</li><li>Delegations, client registry and vertical manifests</li><li>Conversation, agent run, audit, report and event records</li></ul></div>
-        <div class="panel redline"><h3>Other persistence choices</h3><ul class="plain-list"><li>Redis / Upstash for session deployment profiles</li><li>SQLite in individual services/demos</li><li>JSON seed data and manifests for verticals</li><li>Files / model indexes for Code Explorer and RAG</li><li>In-memory caches for transient challenges and runtime state</li></ul></div>
-        <div class="panel redline"><h3>Operations telemetry</h3><ul class="plain-list"><li>Prometheus metrics</li><li>Grafana dashboards</li><li>Loki logs via Alloy</li><li>Jaeger distributed traces</li><li>Alertmanager configured; default receiver is a no-op</li></ul></div>
-      </div>
-      <p class="small" style="margin-top:12px">This is demo/application storage split by service. There is no single production bank database behind the UI.</p>
-      <div class="source"><a href="../demo_api_server/services/lmdb/README.md">LMDB storage map</a><a href="../demo_api_server/services/lmdb/openEnv.js">LMDB environment</a><a href="../docker-compose.yml">Persistent volumes and monitoring</a><a href="../CLAUDE.md">Monitoring receiver caveat</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>21 / Architecture</div>
-      <p class="eyebrow">Architecture</p><h2>The BFF is the token custodian. Nothing else sees user credentials.</h2>
-      <div class="arch">
-        <div class="arch-layer"><h3>Browser</h3><p>React SPA, page routes, session cookie, Agent UI, inspectors</p><p><b>ui :4000</b></p></div>
-        <div class="arch-layer core"><h3>BFF</h3><p>OAuth callback, server session, token exchange, API routes and tool pipeline</p><p><b>demo_api_server :3001</b></p></div>
-        <div class="arch-layer"><h3>Agent</h3><p>LangChain is the current framework. AG-UI runner and model endpoint are separate services.</p><p><b>langchain-agent :8888 · agent-service :3006 in Compose</b></p></div>
-        <div class="arch-layer"><h3>Identity</h3><p>PingOne issues user, actor and resource-specific tokens; policy/MFA decisions</p><p><b>PingOne / optional PingFederate</b></p></div>
-        <div class="arch-layer"><h3>Enforcement</h3><p>PingGateway is the default path. The Node demo gateway and Privilege MCP Gateway are separate optional paths.</p><p><b>ping-gateway · mcp-gateway · ping-mcpgw · hitl-service</b></p></div>
-        <div class="arch-layer"><h3>Resources</h3><p>MCP banking/vertical tools, investment resources, REST records and third-party tools.</p><p><b>mcp-server · mcp-resource-server · api-resource-server</b></p></div>
-        <div class="arch-bridge">Sign in → ask agent → BFF-held user token → RFC 8693 exchange → gateway policy → MCP/REST tool → event/trace result → UI</div>
-      </div>
-      <div class="source"><a href="../README.md">Architecture and component diagram</a><a href="../docs/architecture-token-flow.mmd">Token-flow source</a><a href="../demo_api_server/services/agentMcpTokenService.js">Token exchange implementation</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>22 / Commit history</div>
-      <p class="eyebrow">Commit history</p><h2>Four months of build, June to September 2026.</h2>
-      <div class="timeline">
-        <div class="date">25–30 Jun</div><div class="event"><b>Base and operations surfaces</b><code>ee711d407</code> initial service code · <code>cce195077</code> two-exchange hardening · <code>3b58a70bf</code> five-vertical operations console.</div>
-        <div class="date">1–8 Jul</div><div class="event"><b>Policy and gateway instrumentation</b><code>2be65eaf5</code> Authorize decision inspector · <code>118486343</code> Authorize parsing/timeouts/audit hardening · vertical-scoped policy work.</div>
-        <div class="date">1–30 Aug</div><div class="event"><b>Privilege, MCP and external clients</b><code>3f3436027</code> Privilege proxy with PingOne token exchange · <code>fdb5f7fd4</code> standalone LibreChat MCP OAuth proof · gateway inspector expanded.</div>
-        <div class="date">11–25 Sep</div><div class="event"><b>Vertical architecture, token views and trust demos</b><code>967c7f33f</code> live identity chain · <code>20e277873</code> vertical manifest ops · <code>0d79eac39</code> attack lab · <code>9db694be1</code> cross-vertical consent coverage · <code>bc858fb6f</code> audience-aware MCP routing.</div>
-      </div>
-      <p class="small" style="margin-top:14px">Repo begins 25 Jun 2026. Features often span many commits across branches.</p>
-      <div class="source"><a href="../CHANGELOG.md">Changelog</a><span>Current remote tip reviewed through ad510a237 · 25 Sep 2026</span></div>
-    </section>
-
-    <section class="slide dark">
-      <div class="brand"><span class="brand-mark"></span>23 / Current vs incomplete</div>
-      <p class="eyebrow">Maturity</p><h2>56 scenarios work. 10 need flags. 2 need building.</h2>
-      <div class="grid g3">
-        <div class="panel"><div class="metric">56</div><h3>“Works”</h3><p>Declared maturity; tenant, scopes, apps or model credentials may still be required.</p></div>
-        <div class="panel"><div class="metric">10</div><h3>Flag-gated</h3><p>DPoP replay, RAR, CIBA, group policy, enterprise MCP, verified A2A, concierge.</p></div>
-        <div class="panel"><div class="metric">2</div><h3>Needs build</h3><p>UC15 intent tampering; UC29 introspection fail-closed.</p></div>
-      </div>
-      <div class="panel" style="margin-top:18px"><h3>Open debt (<code>TECH_DEBT.md</code>)</h3><p>One Privilege transport bypasses the shared pipeline; <code>AIAgentFull</code> duplicates a large component; shared event feeds lack per-user filtering; SDK sign-in needs manually provisioned CORS.</p></div>
-      <p class="small" style="margin-top:12px"><b>Current:</b> LangChain active. Protected demos need a configured PingOne tenant; LLM routes need credentials or a local model. The stack was stopped during this revision — these pages describe code and saved captures, not live health.</p>
-      <div class="source"><a href="../demo_api_server/config/useCases.js">Catalog maturity values</a><a href="../TECH_DEBT.md">Open and resolved debt ledger</a><a href="../planning/">Plans and handoffs</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>24 / Start here</div>
-      <p class="eyebrow">Start here</p><h2>Three tours: delegated read, transfer approval, A2A hand-off.</h2>
-      <div class="grid g3">
-        <div class="panel redline"><h3>1 · Delegated read</h3><p>Run UC1 “show my balance” → open Token Chain → compare user token, exchanged token, audience and scopes.</p></div>
-        <div class="panel redline"><h3>2 · Transfer approval</h3><p>Run UC7/UC8 in a configured vertical → watch MFA/consent challenge → approve → inspect retry and tool result.</p></div>
-        <div class="panel redline"><h3>3 · A2A hand-off</h3><p>Run UC2/UC2.5 → inspect actor nesting and narrowed scopes → compare the A2A sequence and topology views.</p></div>
-      </div>
-      <p class="small" style="margin-top:18px">Open the use-case entry before presenting — it carries the prompt, maturity, flag and expected evidence.</p>
-      <div class="source"><a href="../demo_api_server/config/useCases.js">Use-case source</a><a href="../docs/user-guide/AGENT_SHOWCASE_DEMO_SCENARIOS.md">Presenter scenarios</a><a href="../README.md">Setup and run guide</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>25 / Open-source stack</div>
-      <p class="eyebrow">Open-source stack</p><h2>Built on LangChain, MCP, React Flow, LMDB and OpenTelemetry.</h2>
-      <div class="grid g3">
-        <div class="panel redline"><h3>Agent and protocol building blocks</h3><ul class="plain-list"><li><b>LangChain + LangGraph</b> — current tool-using agents and stateful workflows</li><li><b>OpenAI Agents SDK, Mastra and Pydantic AI</b> — alternate frameworks tested in the project</li><li><b>LlamaIndex</b> — document retrieval and Weaviate integration</li><li><b>Model Context Protocol SDK</b> — MCP servers and clients</li><li><b>A2A SDK</b> — agent-to-agent demos</li></ul></div>
-        <div class="panel redline"><h3>Interfaces and visualization</h3><ul class="plain-list"><li><b>React + React Router + Vite</b> — browser application</li><li><b>XYFlow / React Flow + D3 + ELKjs</b> — interactive token topology and layout</li><li><b>Konva</b> — canvas-based views</li><li><b>Mermaid</b> — generated diagrams</li><li><b>Monaco Editor</b> — code exploration surface</li></ul></div>
-        <div class="panel redline"><h3>Storage, observability and delivery</h3><ul class="plain-list"><li><b>LMDB</b> — local BFF stores</li><li><b>Redis</b> — optional session/cache profiles</li><li><b>Weaviate</b> — vector search for RAG</li><li><b>OpenTelemetry + Prometheus</b> — instrumentation and metrics</li><li><b>Grafana, Loki, Alloy + Jaeger</b> — dashboards, logs and traces</li><li><b>Apache Tika</b> — document text extraction</li></ul></div>
-      </div>
-      <p class="small" style="margin-top:14px">From package manifests and container images. Ping services, model providers and our own services are separate.</p>
-      <div class="source"><a href="../demo_api_ui/package.json">UI dependencies</a><a href="../demo_api_server/package.json">BFF dependencies</a><a href="../demo_agent_service/package.json">AG-UI / agent dependencies</a><a href="../langchain_agent/requirements.txt">Current LangChain runtime</a><a href="../llamaindex_agent/requirements.txt">LlamaIndex runtime</a><a href="../compliance_agent/requirements.txt">Pydantic AI experiment</a><a href="../docker-compose.yml">Infrastructure images</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>26 / Ways to run it</div>
-      <p class="eyebrow">Ways to run it</p><h2>Four launchers: native, Compose, local K8s, remote K8s.</h2>
-      <div class="grid g2">
-        <div class="panel redline"><h3>Native on macOS</h3><p><code>./run.sh</code> — BFF, React dev server, MCP server and agent as local Node/Python processes; PingGateway still in Docker. Lightest dev loop; <code>stop/restart/status/tail</code> to manage.</p></div>
-        <div class="panel redline"><h3>Docker Compose · Docker Desktop or OrbStack</h3><p><code>./run-docker.sh</code> — core + RAG by default; <code>start full</code> for everything. Opt-in: <code>spiffe</code>, <code>demo-auth</code>, <code>mcpgw</code>, <code>observability</code>, <code>tracing</code>.</p></div>
-        <div class="panel redline"><h3>Local Kubernetes · OrbStack or Docker Desktop</h3><p>Enable K8s, then <code>./run-k8.sh</code> builds, deploys and port-forwards. OrbStack or Docker Desktop.</p></div>
-        <div class="panel redline"><h3>Remote Kubernetes + deployment handoffs</h3><p><b>AWS EKS:</b> <code>./run-k8.sh aws-all</code>. <b>Ping SE:</b> <code>./run-pingaws.sh</code>. Terraform can hand off to an existing namespace.</p></div>
-      </div>
-      <p class="small" style="margin-top:14px">Also documented: Vercel serverless for the web app (needs Upstash + external WebSocket MCP) — not the full multi-service deployment.</p>
-      <div class="source"><a href="../run.sh">Native launcher</a><a href="../run-docker.sh">Compose launcher + help</a><a href="../run-k8.sh">Kubernetes launcher + help</a><a href="../run-pingaws.sh">SE cluster wrapper</a><a href="../README.md">Run options and Vercel notes</a><a href="../terraform/README.md">Terraform handoff</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>27 / Saved interface capture</div>
-      <p class="eyebrow">Saved capture</p><h2>The dashboard: banking app, agent chat and token chain on one screen.</h2>
-      <div class="screen-layout">
-        <figure class="screen-frame"><img src="presentation-assets/banking-dashboard.png" alt="Saved AI-DEMO2 banking dashboard screenshot showing the banking interface, agent conversation and token-chain panel"></figure>
-        <div class="screen-copy">
-          <div><h3>Dashboard</h3><p>Customer banking UI and domain navigation.</p></div>
-          <div><h3>Agent</h3><p>Prompt and response stay in the same working screen.</p></div>
-          <div><h3>Token Chain</h3><p>Inspect the ordered identity and gateway steps beside the run.</p></div>
-          <div class="map-band"><strong>Capture from 8 Jul 2026.</strong> Saved test screenshot; stack stopped during revision.</div>
-        </div>
-      </div>
-      <div class="source"><a href="reports/token-chain-heuristics-verticals-2026-07-08/REPORT.md">Capture report and test context</a><a href="reports/token-chain-heuristics-verticals-2026-07-08/banking-01-dashboard.png">Original dashboard capture</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>28 / Gateway and approval screens</div>
-      <p class="eyebrow">Saved captures</p><h2>Gateway decisions and consent modals, captured from test runs.</h2>
-      <div class="screen-pair">
-        <figure><img src="presentation-assets/gateway-inspector.png" alt="Saved Gateway Test Console screen showing an authorization and token-flow inspection"><figcaption>Gateway Test Console · saved test capture</figcaption></figure>
-        <figure><img src="presentation-assets/hitl-consent.png" alt="Saved agent consent modal asking for approval before a protected action"><figcaption>Consent modal · the walkthrough used mocked API responses at this step</figcaption></figure>
-      </div>
-      <p class="skill-footer">Real UI captures; the consent walkthrough mocked challenge responses.</p>
-      <div class="source"><a href="screenshots/llm-pinggateway-p1az-flow/02-token-lab.png">Original Gateway Test Console capture</a><a href="screenshots/llm-pinggateway-p1az-hitl-flow/04-hitl-consent-modal.png">Original consent capture and flow</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>29 / Server architecture · request path</div>
-      <p class="eyebrow">Request path</p><h2>One run crosses five boundaries: UI → BFF → agent → policy → tools.</h2>
-      <div class="map-board">
-        <div class="map-lane flow">
-          <div class="map-card hot"><h3>Browser UI</h3><p>Pages, dashboard, inspectors, agent composer.</p><p><code>ui :4000</code></p></div>
-          <div class="map-card hot"><h3>BFF</h3><p>Session, token custody, tool pipeline.</p><p><code>demo-api-server :3001</code></p></div>
-          <div class="map-card hot"><h3>Agent</h3><p>LangChain; AG-UI over HTTP + SSE.</p><p><code>langchain-agent :8888</code></p><p><code>agent-service :3006</code> (host 3016)</p></div>
-          <div class="map-card"><h3>Tool callback</h3><p>Agent → BFF <code>/internal/agent-tool</code>; BFF exchanges and applies policy.</p></div>
-          <div class="map-card hot"><h3>Enforcement</h3><p>PingGateway default; Node gateway optional.</p><p><code>ping-gateway :3036</code></p><p><code>mcp-gateway :3005</code> · <code>mcp-proxy :8895</code></p></div>
-        </div>
-        <div class="map-band"><strong>Tools:</strong> <code>mcp-server :8080</code> · <code>mcp-resource-server :8081</code> · <code>api-resource-server :8082</code> · <code>mcp-weather :8896</code> · <code>mcp-brave :8897</code> · <code>mcp-audit :8898</code></div>
-        <div class="map-lane">
-          <div class="map-card"><h3>Identity</h3><p>PingOne: OAuth, tokens, Authorize, MFA, management.</p></div>
-          <div class="map-card"><h3>Consent</h3><p><code>hitl-service :3009</code> handles the approval side path.</p></div>
-          <div class="map-card"><h3>Discovery</h3><p><code>mcp-discovery-agent</code> discovers configured MCP tools.</p></div>
-          <div class="map-card"><h3>Models</h3><p><code>llm-proxy :8090</code> fronts configured local/provider model endpoints.</p></div>
-          <div class="map-card"><h3>Run evidence</h3><p><code>jaeger :16686</code> traces · promptfoo eval sidecar.</p></div>
-        </div>
-      </div>
-      <div class="source"><a href="../docker-compose.yml">All Compose services and dependency links</a><a href="../demo_api_server/routes/agentRun.js">BFF AG-UI route</a><a href="../demo_api_server/routes/agentTool.js">BFF tool callback</a><a href="../demo_api_server/services/mcpToolPipeline.js">MCP tool pipeline</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>30 / Server architecture · optional planes</div>
-      <p class="eyebrow">Optional planes</p><h2>Optional planes: RAG, Privilege, SPIFFE, observability.</h2>
-      <div class="map-grid">
-        <div class="map-card"><h3>Code Search / RAG</h3><p>Tika extracts documents; code-search calls vector services; LlamaIndex serves retrieval requests.</p><p class="inventory">tika → demo-mcp-code-search ↔ weaviate + embeddings<br>llamaindex-agent ↔ weaviate + embeddings</p></div>
-        <div class="map-card"><h3>Privilege AI Gateway + search</h3><p>Optional gateway front door, policy runtime and sample MCP search backend.</p><p class="inventory">mcpgw-nginx → ping-mcpgw → opensearch-mcp-server → opensearch<br>mcpgw (legacy profile)</p></div>
-        <div class="map-card"><h3>Demo authorization gateway</h3><p>Alternate Node gateway and its policy / token-verification services.</p><p class="inventory">mcp-gateway :3005 → authz-server :9001 + mcp-jwt-verifier :8083</p></div>
-        <div class="map-card"><h3>Observability</h3><p>Metrics and alerts, dashboards, and logs shipped through Alloy.</p><p class="inventory">prometheus → grafana + alertmanager<br>alloy → loki</p></div>
-        <div class="map-card"><h3>SPIFFE workload identity</h3><p>Local SPIRE issues workload identities; helper and OIDC services expose them to the demo.</p><p class="inventory">spire-server → spire-registration → spire-agent<br>spiffe-helper-bff · spiffe-oidc-provider</p></div>
-        <div class="map-card"><h3>Build and comparison services</h3><p>Special-purpose services outside the normal request path.</p><p class="inventory">tier-manager-k8 (build profile)<br>ungoverned-agent (attack comparison)</p></div>
-      </div>
-      <p class="skill-footer">With the request-path map: all 43 Compose services named. OpenSearch here, not Elasticsearch.</p>
-      <div class="source"><a href="../docker-compose.yml">Compose service profiles and dependencies</a><a href="../run-docker.sh">Launcher presets</a><a href="../docs/ARCHITECTURE.md">System architecture</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>31 / All servers · full-stack diagram</div>
+      <div class="brand"><span class="brand-mark"></span>10 / All servers · full-stack diagram</div>
       <p class="eyebrow">All servers</p><h2>All 43 services on one diagram, client to data stores.</h2>
       <div class="flow-diagram">
         <div class="fd-row">
@@ -785,9 +476,8 @@
       <p class="small" style="margin-top:10px"><b>Red nodes</b> are the default request path; <code>opt</code> marks profile-selected optional services. Launcher modes (<code>demo</code>, <code>mcpgw</code>, <code>full</code>, observability, SPIFFE) select subsets — not every server runs at once.</p>
       <div class="source"><a href="../docker-compose.yml">All 43 Compose services</a><a href="../service-topology.json">Canonical network topology</a><a href="../run-docker.sh">Launcher modes</a></div>
     </section>
-
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>32 / Server detail table</div>
+      <div class="brand"><span class="brand-mark"></span>11 / Server detail table</div>
       <p class="eyebrow">Every runnable server · Compose name, port, profile, job</p><h2>29 runnable servers, one row each.</h2>
       <div class="srv-table">
         <div class="st th"><span>Server</span><span>Port</span><span>Profile</span><span>Job</span></div>
@@ -837,10 +527,8 @@
       <p class="small" style="margin-top:8px">Plus 14 data-volume containers (ai-demo-bff-data, weaviate-data, opensearch-data, spiffe sockets, mcpgw-ssl/logs/recordings) and the ai-demo network helper. 43 entries in docker-compose.yml, 59 with volumes.</p>
       <div class="source"><a href="../docker-compose.yml">All Compose services and profiles</a><a href="../service-topology.json">Canonical network topology</a><a href="../run-docker.sh">Launcher profiles</a></div>
     </section>
-
-
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>33 / AI request flow</div>
+      <div class="brand"><span class="brand-mark"></span>12 / AI request flow</div>
       <p class="eyebrow">AI request flow</p><h2>Prompt in, answer out: 10 hops, user token never leaves the BFF.</h2>
       <pre class="mermaid" id="aif-mermaid">
 flowchart LR
@@ -962,95 +650,8 @@ flowchart LR
       </div>
       <div class="source"><a href="../demo_api_server/routes/agentRun.js">Agent run route</a><a href="../demo_api_server/services/agentMcpTokenService.js">Token exchange</a><a href="../demo_api_server/services/mcpToolPipeline.js">Tool pipeline</a></div>
     </section>
-
-
         <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>34 / Standards and RFCs</div>
-      <p class="eyebrow">Protocol surface implemented and exercised in the repo · includes PingOne Authorize (P1AZ)</p><h2>The demo speaks the OAuth/OIDC RFC stack—not just a login button.</h2>
-      <div class="rfc-grid">
-        <div class="rfc-card core"><h3>Core authorization</h3><p class="rfc-list"><b>RFC 6749</b> OAuth 2.0 framework · <b>RFC 6750</b> bearer tokens · <b>RFC 7636</b> PKCE · <b>RFC 8693</b> token exchange — the demo's signature delegation primitive · <b>RFC 8414</b> authorization-server metadata · <b>RFC 9207</b> iss parameter · <b>RFC 9700</b> OAuth 2.0 security BCP</p></div>
-        <div class="rfc-card core"><h3>Tokens and revocation</h3><p class="rfc-list"><b>RFC 7519</b> JWT · <b>RFC 7515</b> JWS signing · <b>RFC 7638</b> JWK thumbprint · <b>RFC 7009</b> token revocation · <b>RFC 7662</b> token introspection · <b>RFC 9068</b> JWT access tokens · <b>RFC 8705</b> mTLS / DPoP-bound credentials · <b>RFC 9449</b> DPoP</p></div>
-        <div class="rfc-card"><h3>Advanced authorization</h3><p class="rfc-list"><b>RFC 9396</b> Rich Authorization Requests (RAR) · <b>RFC 9126</b> Pushed Authorization Requests (PAR) · <b>RFC 7591</b> dynamic client registration · <b>RFC 7521/7523</b> JWT client assertion grants · <b>RFC 8707</b> resource indicators (audience narrowing)</p></div>
-        <div class="rfc-card core"><h3>Protected resources and MCP</h3><p class="rfc-list"><b>RFC 9728</b> Protected Resource Metadata — how MCP clients find OAuth servers · <b>RFC 9470</b> client-initiated backchannel authentication / 428 re-auth in HITL flows · <b>RFC 9421</b> HTTP message signatures · <b>RFC 5424</b> syslog audit events</p></div>
-        <div class="rfc-card p1az"><h3>PingOne Authorize (P1AZ)</h3><p class="rfc-list"><b>Trust framework + policy rules</b> imported via snapshot; <b>TokenActive</b> rules evaluate the actor/act token chain from the RFC 8693 exchanges · <b>Step-up MFA</b> and amount-threshold policies exercised in live flows · <code>p1az-import-generator</code> skill and <code>docs/P1AZ_TOKENACTIVE_RULE_SETUP.md</code> · Privilege AI Gateway policy runtime (slide 33) applies P1AZ decisions at the MCP boundary</p></div>
-        <div class="rfc-card"><h3>Where to see them</h3><p class="rfc-list">Token Chain inspector renders <b>principal/actor/audience/scopes</b> per hop · Authorize decision inspector shows P1AZ rules firing · token lab exercises <b>7662 introspection</b> and <b>7009 revocation</b> fail-closed · PAR button on the gateway console sends <b>9126</b> pushes · A2A sequence demonstrates nested <b>8693</b> exchanges</p></div>
-      </div>
-      <p class="small" style="margin-top:10px">Most-referenced specs by count in tracked docs: 8693 · 9728 · 7662 · 8707 · 6749 · 7009 · 9396 · 9700 · 7636 · 9449. RFC 2119/8174/6819/3749/7235 appear only in boilerplate/error text and are not claimed as implemented features.</p>
-      <div class="source"><a href="../REGRESSION_PLAN.md">Token exchange contract</a><a href="../docs/P1AZ_TOKENACTIVE_RULE_SETUP.md">P1AZ TokenActive rule setup</a><a href="../docs/scope-topology.md">Scope and audience topology</a><a href="../.claude/skills/par/SKILL.md">PAR skill</a></div>
-    </section>
-
-
-        <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>35 / RFC reference list</div>
-      <p class="eyebrow">RFC reference</p><h2>22 RFCs implemented, one product standard (P1AZ).</h2>
-      <div class="rfc-table">
-        <div class="rt th"><span>RFC</span><span>Title</span><span>Where it shows up</span></div>
-        <div class="rt"><span class="mono">6749</span><span>OAuth 2.0 Framework</span><span>Base authorization-code flows: user sign-in, M2M, SDK paths</span></div>
-        <div class="rt"><span class="mono">6750</span><span>Bearer Token Usage</span><span>401 challenge paths on resource and gateway routes</span></div>
-        <div class="rt"><span class="mono">7009</span><span>Token Revocation</span><span>Logout and session teardown revoke tokens at PingOne</span></div>
-        <div class="rt"><span class="mono">7519</span><span>JWT</span><span>All issued tokens; act-claim actor nesting in the chain view</span></div>
-        <div class="rt"><span class="mono">7515</span><span>JWS</span><span>Signed tokens; RFC badges in the Actions popout</span></div>
-        <div class="rt"><span class="mono">7521/7523</span><span>JWT Assertion Grants</span><span>Client-assertion exchange paths in the BFF</span></div>
-        <div class="rt"><span class="mono">7636</span><span>PKCE</span><span>Browser and Privilege user-mode code flows</span></div>
-        <div class="rt"><span class="mono">7638</span><span>JWK Thumbprint</span><span>Key identity in token verification</span></div>
-        <div class="rt core"><span class="mono">8693</span><span>Token Exchange</span><span>The signature primitive: user → actor → audience-narrowed tool tokens, nested A2A delegation</span></div>
-        <div class="rt"><span class="mono">8414</span><span>AS Metadata</span><span>Discovery of PingOne authorization-server metadata</span></div>
-        <div class="rt"><span class="mono">8705</span><span>mTLS / DPoP Bound Tokens</span><span>Certificate-bound credential demonstrations</span></div>
-        <div class="rt"><span class="mono">8707</span><span>Resource Indicators</span><span>Audience binding (aud: mcpserver.ping.demo) on every exchange</span></div>
-        <div class="rt"><span class="mono">9068</span><span>JWT Access Token Profile</span><span>JWT-shaped access tokens from PingOne</span></div>
-        <div class="rt"><span class="mono">9126</span><span>PAR</span><span>Pushed authorization requests from the gateway console and par skill</span></div>
-        <div class="rt"><span class="mono">9207</span><span>iss Parameter</span><span>Issuer confirmation in authorization responses</span></div>
-        <div class="rt"><span class="mono">9396</span><span>RAR</span><span>Fine-grained authorization data in tool-call grants (feature-flagged)</span></div>
-        <div class="rt"><span class="mono">9421</span><span>HTTP Message Signatures</span><span>Web Bot Auth verification in the gateway (monitor mode)</span></div>
-        <div class="rt"><span class="mono">9449</span><span>DPoP</span><span>Sender-constrained tokens; replay protection (feature-flagged)</span></div>
-        <div class="rt"><span class="mono">9470</span><span>CIBA-lite / 428 Re-auth</span><span>428 session-expired triggers force-login in HITL flows; ACR step-up</span></div>
-        <div class="rt"><span class="mono">9700</span><span>OAuth Security BCP</span><span>Hardening baseline across flows</span></div>
-        <div class="rt"><span class="mono">9728</span><span>Protected Resource Metadata</span><span>MCP clients discover the OAuth server for each resource</span></div>
-        <div class="rt"><span class="mono">7662</span><span>Token Introspection</span><span>Token Lab introspection; fail-closed on outage</span></div>
-        <div class="rt p1az"><span class="mono">P1AZ</span><span>PingOne Authorize (product, not RFC)</span><span>Trust framework + TokenActive rules evaluate the 8693 chain; step-up MFA and amount policies at PingGateway and the Privilege gateway</span></div>
-      </div>
-      <p class="small" style="margin-top:10px">Not claimed as implemented: RFC 2119/8174 (boilerplate), 6819/3749/7235 (incidental citations). Flagged entries (RAR, DPoP) are feature-flagged per the use-case catalog.</p>
-      <div class="source"><a href="../docs/PINGONE_API_LINKS.md">RFC link table</a><a href="../docs/scope-topology.md">Scope and audience topology</a><a href="../CHANGELOG.md">RFC citations in changelog</a></div>
-    </section>
-
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>36 / Privilege AI Gateway</div>
-      <p class="eyebrow">Privilege AI Gateway</p><h2>JIT least-privilege tool policy and session recording at the MCP boundary.</h2>
-      <div class="gateway-layout">
-        <div class="panel redline">
-          <h3>What the gateway path adds</h3>
-          <ul class="plain-list">
-            <li>React page at <code>/privilege-mcp-client</code>; BFF relays MCP at <code>/api/privilege-mcp/*</code>.</li>
-            <li>User mode uses OAuth code + PKCE; simple mode uses a service client-credentials token.</li>
-            <li>MCP handshake and tool discovery: <code>initialize</code>, <code>tools/list</code>, then <code>tools/call</code>.</li>
-            <li>The gateway is a server to the BFF and a client to each backend; policy is applied between those sessions.</li>
-            <li>Per-application tool policy, just-in-time least privilege, and session recording.</li>
-            <li>BFF SSE events show OAuth phases, relayed calls and upstream responses.</li>
-          </ul>
-          <p class="small">Run with the opt-in Compose profile <code>mcpgw</code>: <code>mcpgw-nginx</code> fronts <code>ping-mcpgw</code>. Tenant and gateway console configuration are required. This is separate from PingGateway and the demo Node gateway.</p>
-        </div>
-        <div class="panel blue">
-          <h3>Tool surfaces wired in the repo</h3>
-          <p><b>PingOne Management MCP · 8 curated tools</b></p>
-          <div class="tool-columns">
-            <p>READ · <code>list_applications</code></p><p>WRITE · <code>create_oidc_application</code></p>
-            <p>READ · <code>get_application</code></p><p>WRITE · <code>update_oidc_application</code></p>
-            <p>READ · <code>list_populations</code></p><p>WRITE · <code>create_population</code></p>
-            <p>READ · <code>get_population</code></p><p>WRITE · <code>update_population</code></p>
-          </div>
-          <p><b>Grafana MCP · 3 read-only tools</b></p>
-          <p><code>grafana_search_dashboards</code> · <code>grafana_list_datasources</code> · <code>grafana_get_dashboard</code></p>
-          <p><b>OpenSearch sample backend</b></p>
-          <p><code>opensearch-mcp-server</code> discovers tools from the configured MCP backend.</p>
-          <p class="small">PingOne writes are explicitly enabled for the demo and are restricted to a sandbox environment by the upstream server. Backend tools run as gateway sidecars/upstreams, not as default Compose services.</p>
-        </div>
-      </div>
-      <div class="source"><a href="../privilege/PRIVILEGE-MCP.md">Privilege MCP design and protocol</a><a href="../demo_mcp_pingone/README.md">PingOne tool catalog and sandbox guard</a><a href="../demo_mcp_grafana/server.js">Grafana tools</a><a href="../docker-compose.yml">Optional gateway and OpenSearch services</a></div>
-    </section>
-
-        <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>37 / Privilege AI Gateway · flow</div>
+      <div class="brand"><span class="brand-mark"></span>13 / Privilege AI Gateway · flow</div>
       <p class="eyebrow">Privilege gateway flow</p><h2>One gateway, two MCP roles — policy applied between the sessions.</h2>
       <pre class="mermaid" id="priv-mermaid">
 flowchart LR
@@ -1085,57 +686,8 @@ flowchart LR
       </div>
       <div class="source"><a href="../privilege/PRIVILEGE-MCP.md">Privilege MCP canonical record</a><a href="../demo_api_server/routes/privilegeMcpClient.js">BFF relay route</a><a href="../docker-compose.yml">mcpgw profile services</a></div>
     </section>
-
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>38 / Skills used in the project</div>
-      <p class="eyebrow">Project skills</p><h2>18 project-local skills for agent, PingOne, Privilege and delivery work.</h2>
-      <div class="skill-grid">
-        <div class="skill-card"><h3>Agent and protocol</h3><ul><li>a2a-protocol</li><li>agent-demo-triage</li><li>chip-correctness-testing</li><li>generate-tests</li><li>inspector-template</li><li>karpathy-guidelines</li></ul></div>
-        <div class="skill-card"><h3>PingOne</h3><ul><li>oauth-teaching-agent</li><li>p1az-import-generator</li><li>pingone-davinci-orchestration</li><li>pingone-mcp</li><li>pingone-mcp-install</li><li>pingone-remote-mcp-connect</li></ul></div>
-        <div class="skill-card"><h3>Privilege, operations and quality</h3><ul><li>privilege-admin-config-ui</li><li>privilege-cloud-mcp</li><li>privilege-mcpgw-agent-k8s</li><li>regression-guard</li><li>se-k8-deploy</li><li>verify-ai-demo2</li></ul></div>
-      </div>
-      <div class="source"><a href="../.claude/skills/">18 project-local skill folders</a><a href="../.claude/skills/regression-guard/SKILL.md">Regression guard</a><a href="../.claude/skills/verify-ai-demo2/SKILL.md">Project verification skill</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>39 / Shareable skills · general and security</div>
-      <p class="eyebrow">Portable skills</p><h2>27 portable skills: 13 general, 11 PingOne, 3 security.</h2>
-      <div class="skill-grid duo">
-        <div class="skill-card"><h3>General · 13 skills</h3><ul><li>agent-tool</li><li>cheapest-model</li><li>docx</li><li>graphify</li><li>impeccable</li><li>mcp-builder</li><li>pdf</li><li>pptx</li><li>supergoal</li><li>theme-factory</li><li>tighten-prompt</li><li>webapp-testing</li><li>xlsx</li></ul></div>
-        <div class="skill-card"><h3>Security · 3 skills</h3><ul><li>codeql</li><li>sarif-parsing</li><li>semgrep</li></ul><p>Portable instructions for code analysis, parsing security findings and working with common document, web and agent tools.</p></div>
-      </div>
-      <p class="skill-footer">Portable instructions for documents, web testing, agent tooling and security scanning.</p>
-      <div class="source"><a href="../claudSkills/general/">General portable skills</a><a href="../claudSkills/security/">Security portable skills</a><a href="../claudSkills/">Portable library index</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>40 / Shareable skills · PingOne and field export</div>
-      <p class="eyebrow">Portable PingOne skills</p><h2>11 PingOne skills plus a 5-skill SE export bundle.</h2>
-      <div class="skill-grid duo">
-        <div class="skill-card"><h3>PingOne · 11 skills</h3><ul><li>authz-server</li><li>authz-server-parity</li><li>ciba</li><li>oauth-pingone</li><li>pingone-api-calls</li><li>pingone-authorize-configure</li><li>pingone-mcp</li><li>pingone-mcp-install</li><li>pingone-mfa</li><li>pingone-recognize</li><li>pingone-session-termination</li></ul></div>
-        <div class="skill-card"><h3>SE export · 5 skills</h3><ul><li>karpathy-guidelines</li><li>p1az-import-generator</li><li>ping-se-cluster-deploy</li><li>pingone-mcp-connect</li><li>privilege-cloud-mcp-gateway</li></ul><p>Field-facing deployment and integration workflows for SE use.</p></div>
-      </div>
-      <div class="source"><a href="../claudSkills/pingone/">PingOne portable skills</a><a href="../se-skills-export/">SE skill export bundle</a><a href="../.claude/skills/">Project-local library</a></div>
-    </section>
-
-    <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>41 / One request through the stack</div>
-      <p class="eyebrow">One request, source-traced</p><h2>A protected tool call passes six explicit boundaries.</h2>
-      <div class="trace-flow">
-        <div class="trace-step"><b>1 · Ask</b><span>React → BFF prompt with session cookie.</span></div>
-        <div class="trace-step"><b>2 · Check</b><span>BFF validates session, selects LangChain runtime.</span></div>
-        <div class="trace-step"><b>3 · Run</b><span>BFF calls agent <code>/run</code>; AG-UI events stream back.</span></div>
-        <div class="trace-step"><b>4 · Tool</b><span>Agent calls BFF <code>/internal/agent-tool</code>.</span></div>
-        <div class="trace-step"><b>5 · Authorize</b><span>BFF exchanges token, calls PingGateway: permit · deny · approval.</span></div>
-        <div class="trace-step"><b>6 · Show</b><span>Result + events return to UI and token-chain views.</span></div>
-      </div>
-      <div class="map-band"><strong>Credential boundary:</strong> BFF holds browser tokens; the agent only requests tools via callback.</div>
-      <div class="source"><a href="../demo_api_ui/src/hooks/useAgentRun.js">UI AG-UI stream</a><a href="../demo_api_server/routes/agentRun.js">BFF run route</a><a href="../demo_api_server/routes/agentTool.js">Internal tool route</a><a href="../demo_api_server/services/agentMcpTokenService.js">Token exchange</a></div>
-    </section>
-
         <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>42 / Delegated AI flow · every hop</div>
+      <div class="brand"><span class="brand-mark"></span>14 / Delegated AI flow · every hop</div>
       <p class="eyebrow">Delegated flow</p><h2>The full delegation sequence across all nine participants.</h2>
       <pre class="mermaid" id="deleg-mermaid">
 sequenceDiagram
@@ -1177,8 +729,406 @@ sequenceDiagram
       </div>
       <div class="source"><a href="../demo_api_server/routes/agentRun.js">BFF run route</a><a href="../demo_api_server/routes/agentTool.js">Internal tool route</a><a href="../demo_api_server/services/agentMcpTokenService.js">RFC 8693 exchange</a><a href="../docs/architecture-token-flow.mmd">Token-flow source</a></div>
     </section>
-
-
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>15 / One request through the stack</div>
+      <p class="eyebrow">One request, source-traced</p><h2>A protected tool call passes six explicit boundaries.</h2>
+      <div class="trace-flow">
+        <div class="trace-step"><b>1 · Ask</b><span>React → BFF prompt with session cookie.</span></div>
+        <div class="trace-step"><b>2 · Check</b><span>BFF validates session, selects LangChain runtime.</span></div>
+        <div class="trace-step"><b>3 · Run</b><span>BFF calls agent <code>/run</code>; AG-UI events stream back.</span></div>
+        <div class="trace-step"><b>4 · Tool</b><span>Agent calls BFF <code>/internal/agent-tool</code>.</span></div>
+        <div class="trace-step"><b>5 · Authorize</b><span>BFF exchanges token, calls PingGateway: permit · deny · approval.</span></div>
+        <div class="trace-step"><b>6 · Show</b><span>Result + events return to UI and token-chain views.</span></div>
+      </div>
+      <div class="map-band"><strong>Credential boundary:</strong> BFF holds browser tokens; the agent only requests tools via callback.</div>
+      <div class="source"><a href="../demo_api_ui/src/hooks/useAgentRun.js">UI AG-UI stream</a><a href="../demo_api_server/routes/agentRun.js">BFF run route</a><a href="../demo_api_server/routes/agentTool.js">Internal tool route</a><a href="../demo_api_server/services/agentMcpTokenService.js">Token exchange</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>16 / Architecture</div>
+      <p class="eyebrow">Architecture</p><h2>The BFF is the token custodian. Nothing else sees user credentials.</h2>
+      <div class="arch">
+        <div class="arch-layer"><h3>Browser</h3><p>React SPA, page routes, session cookie, Agent UI, inspectors</p><p><b>ui :4000</b></p></div>
+        <div class="arch-layer core"><h3>BFF</h3><p>OAuth callback, server session, token exchange, API routes and tool pipeline</p><p><b>demo_api_server :3001</b></p></div>
+        <div class="arch-layer"><h3>Agent</h3><p>LangChain is the current framework. AG-UI runner and model endpoint are separate services.</p><p><b>langchain-agent :8888 · agent-service :3006 in Compose</b></p></div>
+        <div class="arch-layer"><h3>Identity</h3><p>PingOne issues user, actor and resource-specific tokens; policy/MFA decisions</p><p><b>PingOne / optional PingFederate</b></p></div>
+        <div class="arch-layer"><h3>Enforcement</h3><p>PingGateway is the default path. The Node demo gateway and Privilege MCP Gateway are separate optional paths.</p><p><b>ping-gateway · mcp-gateway · ping-mcpgw · hitl-service</b></p></div>
+        <div class="arch-layer"><h3>Resources</h3><p>MCP banking/vertical tools, investment resources, REST records and third-party tools.</p><p><b>mcp-server · mcp-resource-server · api-resource-server</b></p></div>
+        <div class="arch-bridge">Sign in → ask agent → BFF-held user token → RFC 8693 exchange → gateway policy → MCP/REST tool → event/trace result → UI</div>
+      </div>
+      <div class="source"><a href="../README.md">Architecture and component diagram</a><a href="../docs/architecture-token-flow.mmd">Token-flow source</a><a href="../demo_api_server/services/agentMcpTokenService.js">Token exchange implementation</a></div>
+    </section>
+        <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>17 / Standards and RFCs</div>
+      <p class="eyebrow">Protocol surface implemented and exercised in the repo · includes PingOne Authorize (P1AZ)</p><h2>The demo speaks the OAuth/OIDC RFC stack—not just a login button.</h2>
+      <div class="rfc-grid">
+        <div class="rfc-card core"><h3>Core authorization</h3><p class="rfc-list"><b>RFC 6749</b> OAuth 2.0 framework · <b>RFC 6750</b> bearer tokens · <b>RFC 7636</b> PKCE · <b>RFC 8693</b> token exchange — the demo's signature delegation primitive · <b>RFC 8414</b> authorization-server metadata · <b>RFC 9207</b> iss parameter · <b>RFC 9700</b> OAuth 2.0 security BCP</p></div>
+        <div class="rfc-card core"><h3>Tokens and revocation</h3><p class="rfc-list"><b>RFC 7519</b> JWT · <b>RFC 7515</b> JWS signing · <b>RFC 7638</b> JWK thumbprint · <b>RFC 7009</b> token revocation · <b>RFC 7662</b> token introspection · <b>RFC 9068</b> JWT access tokens · <b>RFC 8705</b> mTLS / DPoP-bound credentials · <b>RFC 9449</b> DPoP</p></div>
+        <div class="rfc-card"><h3>Advanced authorization</h3><p class="rfc-list"><b>RFC 9396</b> Rich Authorization Requests (RAR) · <b>RFC 9126</b> Pushed Authorization Requests (PAR) · <b>RFC 7591</b> dynamic client registration · <b>RFC 7521/7523</b> JWT client assertion grants · <b>RFC 8707</b> resource indicators (audience narrowing)</p></div>
+        <div class="rfc-card core"><h3>Protected resources and MCP</h3><p class="rfc-list"><b>RFC 9728</b> Protected Resource Metadata — how MCP clients find OAuth servers · <b>RFC 9470</b> client-initiated backchannel authentication / 428 re-auth in HITL flows · <b>RFC 9421</b> HTTP message signatures · <b>RFC 5424</b> syslog audit events</p></div>
+        <div class="rfc-card p1az"><h3>PingOne Authorize (P1AZ)</h3><p class="rfc-list"><b>Trust framework + policy rules</b> imported via snapshot; <b>TokenActive</b> rules evaluate the actor/act token chain from the RFC 8693 exchanges · <b>Step-up MFA</b> and amount-threshold policies exercised in live flows · <code>p1az-import-generator</code> skill and <code>docs/P1AZ_TOKENACTIVE_RULE_SETUP.md</code> · Privilege AI Gateway policy runtime (slide 33) applies P1AZ decisions at the MCP boundary</p></div>
+        <div class="rfc-card"><h3>Where to see them</h3><p class="rfc-list">Token Chain inspector renders <b>principal/actor/audience/scopes</b> per hop · Authorize decision inspector shows P1AZ rules firing · token lab exercises <b>7662 introspection</b> and <b>7009 revocation</b> fail-closed · PAR button on the gateway console sends <b>9126</b> pushes · A2A sequence demonstrates nested <b>8693</b> exchanges</p></div>
+      </div>
+      <p class="small" style="margin-top:10px">Most-referenced specs by count in tracked docs: 8693 · 9728 · 7662 · 8707 · 6749 · 7009 · 9396 · 9700 · 7636 · 9449. RFC 2119/8174/6819/3749/7235 appear only in boilerplate/error text and are not claimed as implemented features.</p>
+      <div class="source"><a href="../REGRESSION_PLAN.md">Token exchange contract</a><a href="../docs/P1AZ_TOKENACTIVE_RULE_SETUP.md">P1AZ TokenActive rule setup</a><a href="../docs/scope-topology.md">Scope and audience topology</a><a href="../.claude/skills/par/SKILL.md">PAR skill</a></div>
+    </section>
+        <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>18 / RFC reference list</div>
+      <p class="eyebrow">RFC reference</p><h2>22 RFCs implemented, one product standard (P1AZ).</h2>
+      <div class="rfc-table">
+        <div class="rt th"><span>RFC</span><span>Title</span><span>Where it shows up</span></div>
+        <div class="rt"><span class="mono">6749</span><span>OAuth 2.0 Framework</span><span>Base authorization-code flows: user sign-in, M2M, SDK paths</span></div>
+        <div class="rt"><span class="mono">6750</span><span>Bearer Token Usage</span><span>401 challenge paths on resource and gateway routes</span></div>
+        <div class="rt"><span class="mono">7009</span><span>Token Revocation</span><span>Logout and session teardown revoke tokens at PingOne</span></div>
+        <div class="rt"><span class="mono">7519</span><span>JWT</span><span>All issued tokens; act-claim actor nesting in the chain view</span></div>
+        <div class="rt"><span class="mono">7515</span><span>JWS</span><span>Signed tokens; RFC badges in the Actions popout</span></div>
+        <div class="rt"><span class="mono">7521/7523</span><span>JWT Assertion Grants</span><span>Client-assertion exchange paths in the BFF</span></div>
+        <div class="rt"><span class="mono">7636</span><span>PKCE</span><span>Browser and Privilege user-mode code flows</span></div>
+        <div class="rt"><span class="mono">7638</span><span>JWK Thumbprint</span><span>Key identity in token verification</span></div>
+        <div class="rt core"><span class="mono">8693</span><span>Token Exchange</span><span>The signature primitive: user → actor → audience-narrowed tool tokens, nested A2A delegation</span></div>
+        <div class="rt"><span class="mono">8414</span><span>AS Metadata</span><span>Discovery of PingOne authorization-server metadata</span></div>
+        <div class="rt"><span class="mono">8705</span><span>mTLS / DPoP Bound Tokens</span><span>Certificate-bound credential demonstrations</span></div>
+        <div class="rt"><span class="mono">8707</span><span>Resource Indicators</span><span>Audience binding (aud: mcpserver.ping.demo) on every exchange</span></div>
+        <div class="rt"><span class="mono">9068</span><span>JWT Access Token Profile</span><span>JWT-shaped access tokens from PingOne</span></div>
+        <div class="rt"><span class="mono">9126</span><span>PAR</span><span>Pushed authorization requests from the gateway console and par skill</span></div>
+        <div class="rt"><span class="mono">9207</span><span>iss Parameter</span><span>Issuer confirmation in authorization responses</span></div>
+        <div class="rt"><span class="mono">9396</span><span>RAR</span><span>Fine-grained authorization data in tool-call grants (feature-flagged)</span></div>
+        <div class="rt"><span class="mono">9421</span><span>HTTP Message Signatures</span><span>Web Bot Auth verification in the gateway (monitor mode)</span></div>
+        <div class="rt"><span class="mono">9449</span><span>DPoP</span><span>Sender-constrained tokens; replay protection (feature-flagged)</span></div>
+        <div class="rt"><span class="mono">9470</span><span>CIBA-lite / 428 Re-auth</span><span>428 session-expired triggers force-login in HITL flows; ACR step-up</span></div>
+        <div class="rt"><span class="mono">9700</span><span>OAuth Security BCP</span><span>Hardening baseline across flows</span></div>
+        <div class="rt"><span class="mono">9728</span><span>Protected Resource Metadata</span><span>MCP clients discover the OAuth server for each resource</span></div>
+        <div class="rt"><span class="mono">7662</span><span>Token Introspection</span><span>Token Lab introspection; fail-closed on outage</span></div>
+        <div class="rt p1az"><span class="mono">P1AZ</span><span>PingOne Authorize (product, not RFC)</span><span>Trust framework + TokenActive rules evaluate the 8693 chain; step-up MFA and amount policies at PingGateway and the Privilege gateway</span></div>
+      </div>
+      <p class="small" style="margin-top:10px">Not claimed as implemented: RFC 2119/8174 (boilerplate), 6819/3749/7235 (incidental citations). Flagged entries (RAR, DPoP) are feature-flagged per the use-case catalog.</p>
+      <div class="source"><a href="../docs/PINGONE_API_LINKS.md">RFC link table</a><a href="../docs/scope-topology.md">Scope and audience topology</a><a href="../CHANGELOG.md">RFC citations in changelog</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>19 / Saved interface capture</div>
+      <p class="eyebrow">Saved capture</p><h2>The dashboard: banking app, agent chat and token chain on one screen.</h2>
+      <div class="screen-layout">
+        <figure class="screen-frame"><img src="presentation-assets/banking-dashboard.png" alt="Saved AI-DEMO2 banking dashboard screenshot showing the banking interface, agent conversation and token-chain panel"></figure>
+        <div class="screen-copy">
+          <div><h3>Dashboard</h3><p>Customer banking UI and domain navigation.</p></div>
+          <div><h3>Agent</h3><p>Prompt and response stay in the same working screen.</p></div>
+          <div><h3>Token Chain</h3><p>Inspect the ordered identity and gateway steps beside the run.</p></div>
+          <div class="map-band"><strong>Capture from 8 Jul 2026.</strong> Saved test screenshot; stack stopped during revision.</div>
+        </div>
+      </div>
+      <div class="source"><a href="reports/token-chain-heuristics-verticals-2026-07-08/REPORT.md">Capture report and test context</a><a href="reports/token-chain-heuristics-verticals-2026-07-08/banking-01-dashboard.png">Original dashboard capture</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>20 / Gateway and approval screens</div>
+      <p class="eyebrow">Saved captures</p><h2>Gateway decisions and consent modals, captured from test runs.</h2>
+      <div class="screen-pair">
+        <figure><img src="presentation-assets/gateway-inspector.png" alt="Saved Gateway Test Console screen showing an authorization and token-flow inspection"><figcaption>Gateway Test Console · saved test capture</figcaption></figure>
+        <figure><img src="presentation-assets/hitl-consent.png" alt="Saved agent consent modal asking for approval before a protected action"><figcaption>Consent modal · the walkthrough used mocked API responses at this step</figcaption></figure>
+      </div>
+      <p class="skill-footer">Real UI captures; the consent walkthrough mocked challenge responses.</p>
+      <div class="source"><a href="screenshots/llm-pinggateway-p1az-flow/02-token-lab.png">Original Gateway Test Console capture</a><a href="screenshots/llm-pinggateway-p1az-hitl-flow/04-hitl-consent-modal.png">Original consent capture and flow</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>21 / Privilege AI Gateway</div>
+      <p class="eyebrow">Privilege AI Gateway</p><h2>JIT least-privilege tool policy and session recording at the MCP boundary.</h2>
+      <div class="gateway-layout">
+        <div class="panel redline">
+          <h3>What the gateway path adds</h3>
+          <ul class="plain-list">
+            <li>React page at <code>/privilege-mcp-client</code>; BFF relays MCP at <code>/api/privilege-mcp/*</code>.</li>
+            <li>User mode uses OAuth code + PKCE; simple mode uses a service client-credentials token.</li>
+            <li>MCP handshake and tool discovery: <code>initialize</code>, <code>tools/list</code>, then <code>tools/call</code>.</li>
+            <li>The gateway is a server to the BFF and a client to each backend; policy is applied between those sessions.</li>
+            <li>Per-application tool policy, just-in-time least privilege, and session recording.</li>
+            <li>BFF SSE events show OAuth phases, relayed calls and upstream responses.</li>
+          </ul>
+          <p class="small">Run with the opt-in Compose profile <code>mcpgw</code>: <code>mcpgw-nginx</code> fronts <code>ping-mcpgw</code>. Tenant and gateway console configuration are required. This is separate from PingGateway and the demo Node gateway.</p>
+        </div>
+        <div class="panel blue">
+          <h3>Tool surfaces wired in the repo</h3>
+          <p><b>PingOne Management MCP · 8 curated tools</b></p>
+          <div class="tool-columns">
+            <p>READ · <code>list_applications</code></p><p>WRITE · <code>create_oidc_application</code></p>
+            <p>READ · <code>get_application</code></p><p>WRITE · <code>update_oidc_application</code></p>
+            <p>READ · <code>list_populations</code></p><p>WRITE · <code>create_population</code></p>
+            <p>READ · <code>get_population</code></p><p>WRITE · <code>update_population</code></p>
+          </div>
+          <p><b>Grafana MCP · 3 read-only tools</b></p>
+          <p><code>grafana_search_dashboards</code> · <code>grafana_list_datasources</code> · <code>grafana_get_dashboard</code></p>
+          <p><b>OpenSearch sample backend</b></p>
+          <p><code>opensearch-mcp-server</code> discovers tools from the configured MCP backend.</p>
+          <p class="small">PingOne writes are explicitly enabled for the demo and are restricted to a sandbox environment by the upstream server. Backend tools run as gateway sidecars/upstreams, not as default Compose services.</p>
+        </div>
+      </div>
+      <div class="source"><a href="../privilege/PRIVILEGE-MCP.md">Privilege MCP design and protocol</a><a href="../demo_mcp_pingone/README.md">PingOne tool catalog and sandbox guard</a><a href="../demo_mcp_grafana/server.js">Grafana tools</a><a href="../docker-compose.yml">Optional gateway and OpenSearch services</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>22 / Server inventory · core</div>
+      <p class="eyebrow">Core servers</p><h2>10 core servers: UI, BFF, tools, gateways, consent.</h2>
+      <table class="plain-table"><thead><tr><th>Service</th><th>Port</th><th>Responsibility</th></tr></thead><tbody>
+        <tr><td><code>demo_api_ui</code></td><td>4000</td><td>React customer/admin interface</td></tr>
+        <tr><td><code>demo_api_server</code></td><td>3001</td><td>Express BFF, browser API, OAuth session/token custodian</td></tr>
+        <tr><td><code>oauth-mcp</code></td><td>8080</td><td>TypeScript banking MCP server; OAuth/resource endpoints</td></tr>
+        <tr><td><code>demo_mcp_resource_server</code></td><td>8081</td><td>Investment MCP tools</td></tr>
+        <tr><td><code>demo_api_resource_server</code></td><td>8082</td><td>REST resource server; gateway credential conversion path</td></tr>
+        <tr><td><code>demo_mcp_gateway</code></td><td>3005</td><td>Optional Node gateway; demo profile</td></tr>
+        <tr><td><code>ping-gateway</code></td><td>3036</td><td>PingGateway/IG MCP enforcement path</td></tr>
+        <tr><td><code>demo_agent_service</code></td><td>3006</td><td>AG-UI runner; streams run state over SSE</td></tr>
+        <tr><td><code>demo_hitl_service</code></td><td>3009</td><td>Human approval challenge service</td></tr>
+        <tr><td><code>agent_token_service</code></td><td>8097</td><td>Separate token broker for Copilot Studio</td></tr>
+      </tbody></table>
+      <div class="source"><a href="../README.md">Current component table</a><a href="../docker-compose.yml">Compose wiring</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>23 / Server inventory · optional &amp; specialist</div>
+      <p class="eyebrow">Optional servers</p><h2>10 more MCP packages: third-party tools and operator functions.</h2>
+      <div class="catalog">
+        <div><code>demo_mcp_weather</code> Weather MCP bridge</div><div><code>demo_mcp_brave</code> Brave Search MCP</div>
+        <div><code>demo_mcp_pingone</code> PingOne management MCP tools</div><div><code>demo_mcp_grafana</code> Grafana MCP integration</div>
+        <div><code>demo_mcp_code_search</code> Code-search tools</div><div><code>demo_mcp_promptguard</code> Guardrail-related MCP service</div>
+        <div><code>demo_mcp_audit</code> MCP audit package</div><div><code>demo_mcp_proxy</code> MCP transport/proxy service</div>
+        <div><code>demo_mcp_banking_rest</code> Banking REST/MCP integration</div><div><code>jwt-verifier-mcp-server</code> JWT-verification MCP package</div>
+      </div>
+      <div class="panel blue" style="margin-top:16px"><h3>Tool paths</h3><p>Vertical MCP tools · investment resource · REST records · Weather/Brave third-party · PingOne admin · protected RAG. Compose profiles choose what runs.</p></div>
+      <div class="source"><a href="../docker-compose.yml">Compose profiles and service wiring</a><a href="../demo_mcp_resource_server/README.md">Investment MCP server</a><a href="../oauth-mcp/README.md">Banking MCP package</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>24 / Server architecture · request path</div>
+      <p class="eyebrow">Request path</p><h2>One run crosses five boundaries: UI → BFF → agent → policy → tools.</h2>
+      <div class="map-board">
+        <div class="map-lane flow">
+          <div class="map-card hot"><h3>Browser UI</h3><p>Pages, dashboard, inspectors, agent composer.</p><p><code>ui :4000</code></p></div>
+          <div class="map-card hot"><h3>BFF</h3><p>Session, token custody, tool pipeline.</p><p><code>demo-api-server :3001</code></p></div>
+          <div class="map-card hot"><h3>Agent</h3><p>LangChain; AG-UI over HTTP + SSE.</p><p><code>langchain-agent :8888</code></p><p><code>agent-service :3006</code> (host 3016)</p></div>
+          <div class="map-card"><h3>Tool callback</h3><p>Agent → BFF <code>/internal/agent-tool</code>; BFF exchanges and applies policy.</p></div>
+          <div class="map-card hot"><h3>Enforcement</h3><p>PingGateway default; Node gateway optional.</p><p><code>ping-gateway :3036</code></p><p><code>mcp-gateway :3005</code> · <code>mcp-proxy :8895</code></p></div>
+        </div>
+        <div class="map-band"><strong>Tools:</strong> <code>mcp-server :8080</code> · <code>mcp-resource-server :8081</code> · <code>api-resource-server :8082</code> · <code>mcp-weather :8896</code> · <code>mcp-brave :8897</code> · <code>mcp-audit :8898</code></div>
+        <div class="map-lane">
+          <div class="map-card"><h3>Identity</h3><p>PingOne: OAuth, tokens, Authorize, MFA, management.</p></div>
+          <div class="map-card"><h3>Consent</h3><p><code>hitl-service :3009</code> handles the approval side path.</p></div>
+          <div class="map-card"><h3>Discovery</h3><p><code>mcp-discovery-agent</code> discovers configured MCP tools.</p></div>
+          <div class="map-card"><h3>Models</h3><p><code>llm-proxy :8090</code> fronts configured local/provider model endpoints.</p></div>
+          <div class="map-card"><h3>Run evidence</h3><p><code>jaeger :16686</code> traces · promptfoo eval sidecar.</p></div>
+        </div>
+      </div>
+      <div class="source"><a href="../docker-compose.yml">All Compose services and dependency links</a><a href="../demo_api_server/routes/agentRun.js">BFF AG-UI route</a><a href="../demo_api_server/routes/agentTool.js">BFF tool callback</a><a href="../demo_api_server/services/mcpToolPipeline.js">MCP tool pipeline</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>25 / Server architecture · optional planes</div>
+      <p class="eyebrow">Optional planes</p><h2>Optional planes: RAG, Privilege, SPIFFE, observability.</h2>
+      <div class="map-grid">
+        <div class="map-card"><h3>Code Search / RAG</h3><p>Tika extracts documents; code-search calls vector services; LlamaIndex serves retrieval requests.</p><p class="inventory">tika → demo-mcp-code-search ↔ weaviate + embeddings<br>llamaindex-agent ↔ weaviate + embeddings</p></div>
+        <div class="map-card"><h3>Privilege AI Gateway + search</h3><p>Optional gateway front door, policy runtime and sample MCP search backend.</p><p class="inventory">mcpgw-nginx → ping-mcpgw → opensearch-mcp-server → opensearch<br>mcpgw (legacy profile)</p></div>
+        <div class="map-card"><h3>Demo authorization gateway</h3><p>Alternate Node gateway and its policy / token-verification services.</p><p class="inventory">mcp-gateway :3005 → authz-server :9001 + mcp-jwt-verifier :8083</p></div>
+        <div class="map-card"><h3>Observability</h3><p>Metrics and alerts, dashboards, and logs shipped through Alloy.</p><p class="inventory">prometheus → grafana + alertmanager<br>alloy → loki</p></div>
+        <div class="map-card"><h3>SPIFFE workload identity</h3><p>Local SPIRE issues workload identities; helper and OIDC services expose them to the demo.</p><p class="inventory">spire-server → spire-registration → spire-agent<br>spiffe-helper-bff · spiffe-oidc-provider</p></div>
+        <div class="map-card"><h3>Build and comparison services</h3><p>Special-purpose services outside the normal request path.</p><p class="inventory">tier-manager-k8 (build profile)<br>ungoverned-agent (attack comparison)</p></div>
+      </div>
+      <p class="skill-footer">With the request-path map: all 43 Compose services named. OpenSearch here, not Elasticsearch.</p>
+      <div class="source"><a href="../docker-compose.yml">Compose service profiles and dependencies</a><a href="../run-docker.sh">Launcher presets</a><a href="../docs/ARCHITECTURE.md">System architecture</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>26 / Human-facing interfaces</div>
+      <p class="eyebrow">Human-facing pages</p><h2>40+ pages: run, configure, inspect and learn.</h2>
+      <div class="catalog">
+        <div><b>Customer:</b> <code>/dashboard</code> · <code>/accounts</code> · <code>/transactions</code> · marketing/login</div><div><b>Agent:</b> embedded/resizable chat · <code>/personal-agent</code> · <code>/autonomous-agents</code></div>
+        <div><b>Use cases:</b> <code>/use-cases</code> · <code>/use-cases/live</code> · <code>/demo-track</code></div><div><b>Agent admin:</b> <code>/control-plane</code> · <code>/agent-registry</code> · <code>/agent-builder</code> · kill switch</div>
+        <div><b>OAuth:</b> <code>/oauth-academy</code> · <code>/token-exchange-tester</code> · <code>/oauth-debug-logs</code></div><div><b>MCP:</b> <code>/pingone-mcp-inspector</code> · <code>/mcp-discovery</code></div>
+        <div><b>Gateways:</b> <code>/agent-gateway-inspector</code> · <code>/privilege-mcp-client</code> · <code>/protocol-playground</code></div><div><b>Policy:</b> <code>/pingone-authorize</code> · <code>/scope-audit</code> · group policy board</div>
+        <div><b>Attacks:</b> prompt injection · HITL bypass · indirect injection · scope abuse · intent bypass</div><div><b>Operations:</b> banking/healthcare/retail/workforce ops · user/account/transaction tables</div>
+        <div><b>Observability:</b> <code>/audit</code> · token exchange monitor · API activity · tracing · service graph</div><div><b>Learning:</b> A2A protocol · ID-JAG · learning hub · agent guardrails · OWASP risks</div>
+      </div>
+      <div class="source"><a href="../demo_api_ui/src/components/AdminSideNav.jsx">Navigation labels &amp; routes</a><a href="../demo_api_ui/src/App.js">App route wiring</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>27 / Machine-facing interfaces</div>
+      <p class="eyebrow">Machine-facing interfaces</p><h2>Five wire protocols: REST, MCP, OAuth, SSE, A2A.</h2>
+      <div class="grid g2">
+        <div class="panel"><h3>Browser ↔ BFF</h3><ul class="plain-list"><li>Cookie-authenticated Express <code>/api/*</code></li><li>OAuth/OIDC start, callback, refresh, logout</li><li>Agent runs and consent routes</li><li>OpenAPI JSON and Swagger UI (admin-gated)</li></ul></div>
+        <div class="panel"><h3>Agent ↔ model / BFF</h3><ul class="plain-list"><li>AG-UI run events over SSE</li><li>HTTP agent runtime endpoints</li><li>OpenAI-compatible <code>/v1/chat/completions</code> local proxy</li><li>Provider-specific Helix, OpenAI, Anthropic and local model APIs</li></ul></div>
+        <div class="panel"><h3>Agent ↔ tool</h3><ul class="plain-list"><li>MCP JSON-RPC: WebSocket and HTTP transports</li><li>MCP discovery: tools/list and protected-resource metadata</li><li>Resource-specific REST APIs behind gateway</li><li>A2A Agent Card and JSON-RPC walkthrough</li></ul></div>
+        <div class="panel"><h3>Setup and client examples</h3><ul class="plain-list"><li>PingOne Management API from server-side provisioning tools</li><li>Postman collections and API guide</li><li>LibreChat MCP OAuth client setup</li><li>Separate token broker for Microsoft Copilot Studio</li></ul></div>
+      </div>
+      <div class="source"><a href="../demo_api_server/server.js">BFF route mounts</a><a href="../README.md">Token flow / service connections</a><a href="../docs/user-guide/POSTMAN-GUIDE.md">Postman guide</a><a href="../agent_token_service/README.md">Agent token broker</a></div>
+    </section>
+    <section class="slide dark">
+      <div class="brand"><span class="brand-mark"></span>28 / Token-chain displays</div>
+      <p class="eyebrow">Token-chain displays</p><h2>One run, five renderings: reel, sequence, rail, topology, claims.</h2>
+      <div class="grid g2">
+        <div class="panel"><h3>Dashboard formats</h3><ul class="plain-list"><li><code>TokenChainFilmstrip</code> — compact movie-reel / event strip</li><li><code>SequenceReelDiagram</code> — actor lanes and message sequence</li><li>Dashboard toggle switches “reel” and “sequence” modes</li><li><code>TokenChainDisplay</code> — event rows and expandable events</li><li><code>TokenChainTraceRail</code> — ordered pipeline rail with status / halt point</li></ul></div>
+        <div class="panel"><h3>Topology and inspection formats</h3><ul class="plain-list"><li><code>TokenTopologyPanel</code> — actor/token graph with clickable nodes</li><li><code>TokenFlowDetailModal</code> tabs: Pipeline · Topology · Detailed · Cross-App · Least Agency</li><li><code>UnifiedTokenFlowInspector</code> — trace steps plus token claims and exchange detail</li><li><code>ClaimDetailsModal</code> — selected user, agent or MCP JWT claims</li><li>Interactive system architecture page — layers, scenario highlighting, token overlays</li></ul></div>
+      </div>
+      <p class="small" style="margin-top:14px">Each is a distinct rendering; the architecture page is a system diagram, not a per-run trace.</p>
+      <div class="source"><a href="../demo_api_ui/src/components/UserDashboardPing2026.js">Dashboard view toggle</a><a href="../demo_api_ui/src/components/TokenTopologyPanel.jsx">Topology panel</a><a href="../demo_api_ui/src/components/SequenceReelDiagram.jsx">Sequence view</a><a href="../demo_api_ui/src/components/TokenFlowDetailModal.jsx">Detail tabs</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>29 / What the trace exposes</div>
+      <p class="eyebrow">Trace contents</p><h2>Every hop shows principal, actor, audience, scopes and verdict.</h2>
+      <div class="cols3">
+        <div class="fact"><b>Tokens</b><span>Login token · agent actor token · exchanged MCP token · resource token; claim details and scope comparison.</span></div>
+        <div class="fact"><b>Identity</b><span><code>sub</code> · <code>client_id</code> · <code>act</code> · <code>may_act</code> · cross-app or nested delegation links.</span></div>
+        <div class="fact"><b>Resource</b><span><code>aud</code> · requested resource · scopes · token issuer and validation method.</span></div>
+        <div class="fact"><b>Decision steps</b><span>Token exchange · introspection/JWKS · gateway route · Authorize decision · tool dispatch · HITL/MFA checkpoint.</span></div>
+        <div class="fact"><b>Outcome</b><span>PERMIT · DENY · STEP_UP · consent pending · error/failure phase; inspect why a run halted.</span></div>
+        <div class="fact"><b>Run context</b><span>Tool name, vertical, correlation ID, actor hops, elapsed time and linked use-case evidence where recorded.</span></div>
+      </div>
+      <div class="source"><a href="../demo_api_ui/src/components/TokenChainTraceRail.jsx">Trace rail details</a><a href="../demo_api_ui/src/components/TokenTopologyPanel.jsx">Topology nodes</a><a href="../demo_api_ui/src/services/tokenChainTrace/buildTraceSteps.js">Trace step model</a><a href="../demo_api_ui/src/components/ClaimDetailsModal.jsx">JWT claims inspector</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>30 / Standout builds</div>
+      <p class="eyebrow">Standout builds</p><h2>13 features you can demo live, not just describe.</h2>
+      <div class="catalog">
+        <div><b>One-click per-user AI agent identity:</b> Agent Builder creates a PingOne AI_AGENT app and grants resources/scopes.</div>
+        <div><b>Kill switch:</b> revoke agent state and disable agent identity apps to stop new token issuance.</div>
+        <div><b>A2A token chain:</b> nested <code>act</code> identities and narrower scopes survive specialist hand-offs.</div>
+        <div><b>Consent challenge + retry:</b> gateway returns a challenge; user approves; agent retries with receipt.</div>
+        <div><b>Real gateway evidence:</b> inspect PingGateway request, policy decision, token audience and tool outcome.</div>
+        <div><b>Live policy flip:</b> change a third-party tool’s allowed scope/query and run permit/deny cases.</div>
+        <div><b>Audience-aware MCP routing:</b> gateway client selects the downstream route from the delegated token audience.</div>
+        <div><b>Eleven data skins:</b> the use-case catalog remaps read/write tools and triggers by vertical.</div>
+        <div><b>Secure-vs-unguarded comparison:</b> run the same kind of task through a deliberately ungoverned agent path.</div>
+        <div><b>Protected RAG / Code Explorer:</b> ask questions about indexed project code and documents.</div>
+        <div><b>Interactive A2A lesson:</b> inspect Agent Card, real missing-bearer 401, then run identity delegation.</div>
+        <div><b>Local model routing:</b> model proxy can route small/large workloads and use oMLX on Apple Silicon.</div>
+        <div><b>Admin-created verticals:</b> skin studio and manifest-backed operations configure the demo per environment.</div>
+      </div>
+      <div class="source"><a href="../demo_api_server/services/agentBuilderService.js">Agent Builder service</a><a href="../demo_api_server/services/killSwitchService.js">Kill switch</a><a href="../docs/user-guide/FEATURES.md">Scenario details</a><a href="../demo_llm_proxy/README.md">Model routing</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>31 / AI functionality</div>
+      <p class="eyebrow">AI usage</p><h2>Heuristics handle known commands. LLMs handle open text. Neither grants scope.</h2>
+      <div class="grid g2">
+        <div class="panel redline"><h3>Intent routing</h3><ul class="plain-list"><li>Heuristic phrase parser runs for known commands and chips.</li><li>LLM can return structured action intent for free-text requests.</li><li>Heuristic fallback keeps common flows available if the LLM route fails.</li><li>Prompt guard checks configured attack patterns before the LLM call.</li></ul></div>
+        <div class="panel redline"><h3>Providers / local servers</h3><ul class="plain-list"><li>Ping AI / Helix</li><li>OpenAI</li><li>Anthropic Claude</li><li>LM Studio and llama.cpp / oMLX local model modes</li><li>Ollama in Kubernetes profile; optional proxy fallback where configured</li></ul></div>
+        <div class="panel redline"><h3>Reasoning and retrieval features</h3><ul class="plain-list"><li>Multi-turn LangChain agent runs and conversation history</li><li>Alternate runtimes explored with OpenAI Agents SDK, Mastra and Pydantic AI</li><li>Protected code search / Code Explorer</li><li>Document RAG and knowledge-grounding paths</li><li>Reasoning/tool activity streamed through AG-UI and traces</li></ul></div>
+        <div class="panel redline"><h3>Non-LLM enforcement</h3><ul class="plain-list"><li>LLM output does not grant OAuth scope.</li><li>BFF, gateway and resource server validate identity, audience, scope and policy.</li><li>HITL/MFA stops a write tool until the approval path is satisfied.</li></ul></div>
+      </div>
+      <div class="source"><a href="../docs/user-guide/FEATURES.md">Three-tier NL router</a><a href="../demo_api_server/services/promptGuard.js">Prompt guard</a><a href="../demo_api_server/services/mcpToolPipeline.js">Tool enforcement path</a><a href="../demo_llm_proxy/README.md">Local LLM backends</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>32 / Identity and authorization</div>
+      <p class="eyebrow">Identity and authorization</p><h2>Ten auth controls in code — from PKCE to ID-JAG.</h2>
+      <div class="catalog">
+        <div><b>Login:</b> OAuth 2.0 / OIDC authorization code + PKCE; state and nonce checks.</div>
+        <div><b>Session:</b> server-side access, refresh and ID tokens; httpOnly session cookie.</div>
+        <div><b>Exchange:</b> RFC 8693 subject-token exchange; optional agent actor / nested act.</div>
+        <div><b>Audience:</b> RFC 8707 resource indicator / audience-bound resource token.</div>
+        <div><b>Validation:</b> JWT signature/JWKS, RFC 7662 introspection, issuer and scope checks.</div>
+        <div><b>Authorization:</b> PingOne Authorize and gateway policy decision; route requires public/user/admin.</div>
+        <div><b>Step-up:</b> PingOne MFA/device auth; OTP, Push, FIDO2/WebAuthn/TOTP paths.</div>
+        <div><b>Out-of-band:</b> CIBA approval flow for separately configured scenarios.</div>
+        <div><b>Intent:</b> PAR + RAR authorization details; DPoP replay demonstrations.</div>
+        <div><b>Enterprise MCP:</b> ID-JAG / cross-app access and centralized revocation demos.</div>
+      </div>
+      <div class="source"><a href="../docs/ARCHITECTURE_WALKTHROUGH.md">PKCE, CIBA and exchange steps</a><a href="../demo_api_server/config/auth-requirements.json">Route access source of truth</a><a href="../demo_api_server/routes/">Auth route implementations</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>33 / Integrations</div>
+      <p class="eyebrow">Integrations</p><h2>Ping services plus external MCP clients, model providers and observability.</h2>
+      <div class="grid g2">
+        <div class="panel"><h3>Ping identity services</h3><ul class="plain-list"><li>PingOne Authorization Server / OIDC</li><li>PingOne Management API</li><li>PingOne Authorize policy decisions</li><li>PingOne MFA and device authentication</li><li>PingOne CIBA, PAR, token introspection, revocation, JWKS</li><li>PingOne Protect and PingOne Privilege demo paths</li><li>PingFederate and DaVinci integration examples</li></ul></div>
+        <div class="panel"><h3>Agent and data clients</h3><ul class="plain-list"><li>MCP clients: LibreChat, MCP Inspector, custom/enterprise-managed clients</li><li>Microsoft Copilot Studio token broker</li><li>Weather, Brave Search, Grafana and PingOne MCP tool packages</li><li>REST resource servers for demo records</li><li>OpenAI, Anthropic, Helix/Ping AI and local model endpoints</li><li>Prometheus, Grafana, Loki/Alloy and Jaeger observability stack</li></ul></div>
+      </div>
+      <div class="source"><a href="../README.md">System topology</a><a href="../demo_mcp_pingone/README.md">PingOne MCP</a><a href="../demo_mcp_weather/package.json">Weather MCP</a><a href="../standalone/">External-client examples</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>34 / Data and storage</div>
+      <p class="eyebrow">Data and storage</p><h2>LMDB holds all BFF state. No production bank database.</h2>
+      <div class="grid g3">
+        <div class="panel redline"><h3>LMDB named stores</h3><ul class="plain-list"><li>Express sessions</li><li>Config and feature choices</li><li>Demo accounts, transactions and banking state</li><li>Delegations, client registry and vertical manifests</li><li>Conversation, agent run, audit, report and event records</li></ul></div>
+        <div class="panel redline"><h3>Other persistence choices</h3><ul class="plain-list"><li>Redis / Upstash for session deployment profiles</li><li>SQLite in individual services/demos</li><li>JSON seed data and manifests for verticals</li><li>Files / model indexes for Code Explorer and RAG</li><li>In-memory caches for transient challenges and runtime state</li></ul></div>
+        <div class="panel redline"><h3>Operations telemetry</h3><ul class="plain-list"><li>Prometheus metrics</li><li>Grafana dashboards</li><li>Loki logs via Alloy</li><li>Jaeger distributed traces</li><li>Alertmanager configured; default receiver is a no-op</li></ul></div>
+      </div>
+      <p class="small" style="margin-top:12px">This is demo/application storage split by service. There is no single production bank database behind the UI.</p>
+      <div class="source"><a href="../demo_api_server/services/lmdb/README.md">LMDB storage map</a><a href="../demo_api_server/services/lmdb/openEnv.js">LMDB environment</a><a href="../docker-compose.yml">Persistent volumes and monitoring</a><a href="../CLAUDE.md">Monitoring receiver caveat</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>35 / Commit history</div>
+      <p class="eyebrow">Commit history</p><h2>Four months of build, June to September 2026.</h2>
+      <div class="timeline">
+        <div class="date">25–30 Jun</div><div class="event"><b>Base and operations surfaces</b><code>ee711d407</code> initial service code · <code>cce195077</code> two-exchange hardening · <code>3b58a70bf</code> five-vertical operations console.</div>
+        <div class="date">1–8 Jul</div><div class="event"><b>Policy and gateway instrumentation</b><code>2be65eaf5</code> Authorize decision inspector · <code>118486343</code> Authorize parsing/timeouts/audit hardening · vertical-scoped policy work.</div>
+        <div class="date">1–30 Aug</div><div class="event"><b>Privilege, MCP and external clients</b><code>3f3436027</code> Privilege proxy with PingOne token exchange · <code>fdb5f7fd4</code> standalone LibreChat MCP OAuth proof · gateway inspector expanded.</div>
+        <div class="date">11–25 Sep</div><div class="event"><b>Vertical architecture, token views and trust demos</b><code>967c7f33f</code> live identity chain · <code>20e277873</code> vertical manifest ops · <code>0d79eac39</code> attack lab · <code>9db694be1</code> cross-vertical consent coverage · <code>bc858fb6f</code> audience-aware MCP routing.</div>
+      </div>
+      <p class="small" style="margin-top:14px">Repo begins 25 Jun 2026. Features often span many commits across branches.</p>
+      <div class="source"><a href="../CHANGELOG.md">Changelog</a><span>Current remote tip reviewed through ad510a237 · 25 Sep 2026</span></div>
+    </section>
+    <section class="slide dark">
+      <div class="brand"><span class="brand-mark"></span>36 / Current vs incomplete</div>
+      <p class="eyebrow">Maturity</p><h2>56 scenarios work. 10 need flags. 2 need building.</h2>
+      <div class="grid g3">
+        <div class="panel"><div class="metric">56</div><h3>“Works”</h3><p>Declared maturity; tenant, scopes, apps or model credentials may still be required.</p></div>
+        <div class="panel"><div class="metric">10</div><h3>Flag-gated</h3><p>DPoP replay, RAR, CIBA, group policy, enterprise MCP, verified A2A, concierge.</p></div>
+        <div class="panel"><div class="metric">2</div><h3>Needs build</h3><p>UC15 intent tampering; UC29 introspection fail-closed.</p></div>
+      </div>
+      <div class="panel" style="margin-top:18px"><h3>Open debt (<code>TECH_DEBT.md</code>)</h3><p>One Privilege transport bypasses the shared pipeline; <code>AIAgentFull</code> duplicates a large component; shared event feeds lack per-user filtering; SDK sign-in needs manually provisioned CORS.</p></div>
+      <p class="small" style="margin-top:12px"><b>Current:</b> LangChain active. Protected demos need a configured PingOne tenant; LLM routes need credentials or a local model. The stack was stopped during this revision — these pages describe code and saved captures, not live health.</p>
+      <div class="source"><a href="../demo_api_server/config/useCases.js">Catalog maturity values</a><a href="../TECH_DEBT.md">Open and resolved debt ledger</a><a href="../planning/">Plans and handoffs</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>37 / Start here</div>
+      <p class="eyebrow">Start here</p><h2>Three tours: delegated read, transfer approval, A2A hand-off.</h2>
+      <div class="grid g3">
+        <div class="panel redline"><h3>1 · Delegated read</h3><p>Run UC1 “show my balance” → open Token Chain → compare user token, exchanged token, audience and scopes.</p></div>
+        <div class="panel redline"><h3>2 · Transfer approval</h3><p>Run UC7/UC8 in a configured vertical → watch MFA/consent challenge → approve → inspect retry and tool result.</p></div>
+        <div class="panel redline"><h3>3 · A2A hand-off</h3><p>Run UC2/UC2.5 → inspect actor nesting and narrowed scopes → compare the A2A sequence and topology views.</p></div>
+      </div>
+      <p class="small" style="margin-top:18px">Open the use-case entry before presenting — it carries the prompt, maturity, flag and expected evidence.</p>
+      <div class="source"><a href="../demo_api_server/config/useCases.js">Use-case source</a><a href="../docs/user-guide/AGENT_SHOWCASE_DEMO_SCENARIOS.md">Presenter scenarios</a><a href="../README.md">Setup and run guide</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>38 / Open-source stack</div>
+      <p class="eyebrow">Open-source stack</p><h2>Built on LangChain, MCP, React Flow, LMDB and OpenTelemetry.</h2>
+      <div class="grid g3">
+        <div class="panel redline"><h3>Agent and protocol building blocks</h3><ul class="plain-list"><li><b>LangChain + LangGraph</b> — current tool-using agents and stateful workflows</li><li><b>OpenAI Agents SDK, Mastra and Pydantic AI</b> — alternate frameworks tested in the project</li><li><b>LlamaIndex</b> — document retrieval and Weaviate integration</li><li><b>Model Context Protocol SDK</b> — MCP servers and clients</li><li><b>A2A SDK</b> — agent-to-agent demos</li></ul></div>
+        <div class="panel redline"><h3>Interfaces and visualization</h3><ul class="plain-list"><li><b>React + React Router + Vite</b> — browser application</li><li><b>XYFlow / React Flow + D3 + ELKjs</b> — interactive token topology and layout</li><li><b>Konva</b> — canvas-based views</li><li><b>Mermaid</b> — generated diagrams</li><li><b>Monaco Editor</b> — code exploration surface</li></ul></div>
+        <div class="panel redline"><h3>Storage, observability and delivery</h3><ul class="plain-list"><li><b>LMDB</b> — local BFF stores</li><li><b>Redis</b> — optional session/cache profiles</li><li><b>Weaviate</b> — vector search for RAG</li><li><b>OpenTelemetry + Prometheus</b> — instrumentation and metrics</li><li><b>Grafana, Loki, Alloy + Jaeger</b> — dashboards, logs and traces</li><li><b>Apache Tika</b> — document text extraction</li></ul></div>
+      </div>
+      <p class="small" style="margin-top:14px">From package manifests and container images. Ping services, model providers and our own services are separate.</p>
+      <div class="source"><a href="../demo_api_ui/package.json">UI dependencies</a><a href="../demo_api_server/package.json">BFF dependencies</a><a href="../demo_agent_service/package.json">AG-UI / agent dependencies</a><a href="../langchain_agent/requirements.txt">Current LangChain runtime</a><a href="../llamaindex_agent/requirements.txt">LlamaIndex runtime</a><a href="../compliance_agent/requirements.txt">Pydantic AI experiment</a><a href="../docker-compose.yml">Infrastructure images</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>39 / Ways to run it</div>
+      <p class="eyebrow">Ways to run it</p><h2>Four launchers: native, Compose, local K8s, remote K8s.</h2>
+      <div class="grid g2">
+        <div class="panel redline"><h3>Native on macOS</h3><p><code>./run.sh</code> — BFF, React dev server, MCP server and agent as local Node/Python processes; PingGateway still in Docker. Lightest dev loop; <code>stop/restart/status/tail</code> to manage.</p></div>
+        <div class="panel redline"><h3>Docker Compose · Docker Desktop or OrbStack</h3><p><code>./run-docker.sh</code> — core + RAG by default; <code>start full</code> for everything. Opt-in: <code>spiffe</code>, <code>demo-auth</code>, <code>mcpgw</code>, <code>observability</code>, <code>tracing</code>.</p></div>
+        <div class="panel redline"><h3>Local Kubernetes · OrbStack or Docker Desktop</h3><p>Enable K8s, then <code>./run-k8.sh</code> builds, deploys and port-forwards. OrbStack or Docker Desktop.</p></div>
+        <div class="panel redline"><h3>Remote Kubernetes + deployment handoffs</h3><p><b>AWS EKS:</b> <code>./run-k8.sh aws-all</code>. <b>Ping SE:</b> <code>./run-pingaws.sh</code>. Terraform can hand off to an existing namespace.</p></div>
+      </div>
+      <p class="small" style="margin-top:14px">Also documented: Vercel serverless for the web app (needs Upstash + external WebSocket MCP) — not the full multi-service deployment.</p>
+      <div class="source"><a href="../run.sh">Native launcher</a><a href="../run-docker.sh">Compose launcher + help</a><a href="../run-k8.sh">Kubernetes launcher + help</a><a href="../run-pingaws.sh">SE cluster wrapper</a><a href="../README.md">Run options and Vercel notes</a><a href="../terraform/README.md">Terraform handoff</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>40 / Skills used in the project</div>
+      <p class="eyebrow">Project skills</p><h2>18 project-local skills for agent, PingOne, Privilege and delivery work.</h2>
+      <div class="skill-grid">
+        <div class="skill-card"><h3>Agent and protocol</h3><ul><li>a2a-protocol</li><li>agent-demo-triage</li><li>chip-correctness-testing</li><li>generate-tests</li><li>inspector-template</li><li>karpathy-guidelines</li></ul></div>
+        <div class="skill-card"><h3>PingOne</h3><ul><li>oauth-teaching-agent</li><li>p1az-import-generator</li><li>pingone-davinci-orchestration</li><li>pingone-mcp</li><li>pingone-mcp-install</li><li>pingone-remote-mcp-connect</li></ul></div>
+        <div class="skill-card"><h3>Privilege, operations and quality</h3><ul><li>privilege-admin-config-ui</li><li>privilege-cloud-mcp</li><li>privilege-mcpgw-agent-k8s</li><li>regression-guard</li><li>se-k8-deploy</li><li>verify-ai-demo2</li></ul></div>
+      </div>
+      <div class="source"><a href="../.claude/skills/">18 project-local skill folders</a><a href="../.claude/skills/regression-guard/SKILL.md">Regression guard</a><a href="../.claude/skills/verify-ai-demo2/SKILL.md">Project verification skill</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>41 / Shareable skills · general and security</div>
+      <p class="eyebrow">Portable skills</p><h2>27 portable skills: 13 general, 11 PingOne, 3 security.</h2>
+      <div class="skill-grid duo">
+        <div class="skill-card"><h3>General · 13 skills</h3><ul><li>agent-tool</li><li>cheapest-model</li><li>docx</li><li>graphify</li><li>impeccable</li><li>mcp-builder</li><li>pdf</li><li>pptx</li><li>supergoal</li><li>theme-factory</li><li>tighten-prompt</li><li>webapp-testing</li><li>xlsx</li></ul></div>
+        <div class="skill-card"><h3>Security · 3 skills</h3><ul><li>codeql</li><li>sarif-parsing</li><li>semgrep</li></ul><p>Portable instructions for code analysis, parsing security findings and working with common document, web and agent tools.</p></div>
+      </div>
+      <p class="skill-footer">Portable instructions for documents, web testing, agent tooling and security scanning.</p>
+      <div class="source"><a href="../claudSkills/general/">General portable skills</a><a href="../claudSkills/security/">Security portable skills</a><a href="../claudSkills/">Portable library index</a></div>
+    </section>
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>42 / Shareable skills · PingOne and field export</div>
+      <p class="eyebrow">Portable PingOne skills</p><h2>11 PingOne skills plus a 5-skill SE export bundle.</h2>
+      <div class="skill-grid duo">
+        <div class="skill-card"><h3>PingOne · 11 skills</h3><ul><li>authz-server</li><li>authz-server-parity</li><li>ciba</li><li>oauth-pingone</li><li>pingone-api-calls</li><li>pingone-authorize-configure</li><li>pingone-mcp</li><li>pingone-mcp-install</li><li>pingone-mfa</li><li>pingone-recognize</li><li>pingone-session-termination</li></ul></div>
+        <div class="skill-card"><h3>SE export · 5 skills</h3><ul><li>karpathy-guidelines</li><li>p1az-import-generator</li><li>ping-se-cluster-deploy</li><li>pingone-mcp-connect</li><li>privilege-cloud-mcp-gateway</li></ul><p>Field-facing deployment and integration workflows for SE use.</p></div>
+      </div>
+      <div class="source"><a href="../claudSkills/pingone/">PingOne portable skills</a><a href="../se-skills-export/">SE skill export bundle</a><a href="../.claude/skills/">Project-local library</a></div>
+    </section>
     <section class="slide">
       <div class="brand"><span class="brand-mark"></span>43 / Technical choices visible in code</div>
       <p class="eyebrow">Design decisions</p><h2>Six decisions that define the architecture.</h2>
