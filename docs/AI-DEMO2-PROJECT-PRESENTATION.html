@@ -274,8 +274,8 @@
       <h1>AI-DEMO2<br>a governed AI agent demo stack</h1>
       <div class="rule"></div>
       <p class="dek">68 use cases, 43 servers, 11 verticals — every hop evidenced with token-chain views.</p>
-      <div class="stamp">Evidence base: tracked code and commit history through 25 September 2026.<br>Feature maturity and external setup requirements are called out.</div>
-      <div class="signature">36 slides · arrow keys to move · source links on every section</div>
+      <div class="stamp">Source: tracked code and commit history through 25 Sep 2026. Maturity and setup requirements called out.</div>
+      <div class="signature">44 slides · arrow keys · source links on every slide</div>
       <div class="source"><a href="../demo_api_server/config/useCases.js">Use-case source of truth</a><a href="../README.md">Repository README</a></div>
     </section>
 
@@ -283,14 +283,14 @@
       <div class="brand"><span class="brand-mark"></span>01 / At a glance</div>
       <p class="eyebrow">Scale of the build</p><h2>68 use cases. 11 verticals. 43 servers. One agent demo.</h2>
       <div class="cols3">
-        <div class="fact"><b>68 use cases</b><span>One catalog in <code>demo_api_server/config/useCases.js</code>; foundations, controls, attacks, HITL, learning, tools, demos and non-human identity.</span></div>
-        <div class="fact"><b>11 vertical packs</b><span>Banking, healthcare, retail, Abercrombie &amp; Fitch, government, university, workforce, sporting goods, manufacturing, investment and airlines.</span></div>
-        <div class="fact"><b>1 current agent framework</b><span>LangChain is the active runtime. OpenAI Agents SDK, Mastra and Pydantic AI are frameworks we also tested.</span></div>
-        <div class="fact"><b>2 dashboard timeline modes</b><span>Switch between the movie-reel filmstrip and sequence-diagram view; topology and inspector views add more.</span></div>
-        <div class="fact"><b>13 core services + broker</b><span>README service map lists 13 UI/API/MCP/gateway/agent/runtime services and a separately run Copilot Studio token broker.</span></div>
-        <div class="fact"><b>Several deployment shapes</b><span>Native processes, local Docker Compose, Kubernetes/OrbStack, and documented AWS/EKS and Vercel paths.</span></div>
+        <div class="fact"><b>68 use cases</b><span>One catalog in <code>useCases.js</code>: foundations, controls, attacks, HITL, learning, tools, NHI.</span></div>
+        <div class="fact"><b>11 verticals</b><span>Banking, healthcare, retail, A&amp;F, government, university, workforce, sporting goods, manufacturing, investment, airlines.</span></div>
+        <div class="fact"><b>1 agent runtime</b><span>LangChain active; OpenAI Agents SDK, Mastra and Pydantic AI tested.</span></div>
+        <div class="fact"><b>2 timeline modes</b><span>Filmstrip and sequence views; topology and inspectors beyond those.</span></div>
+        <div class="fact"><b>13 core services</b><span>Plus a separate Copilot Studio token broker.</span></div>
+        <div class="fact"><b>4 deploy shapes</b><span>Native, Compose, local K8s, remote K8s (+ Vercel option).</span></div>
       </div>
-      <p class="small" style="margin-top:16px">The 68 and 11 counts are read from the current catalog source. A configured environment may expose fewer paths because some entries are feature-flagged or need external PingOne setup.</p>
+      <p class="small" style="margin-top:16px">Counts read from catalog source. Flagged or externally-provisioned entries may not appear in every environment.</p>
       <div class="source"><a href="../demo_api_server/config/useCases.js">USE_CASES and VERTICALS</a><a href="../README.md">Service map &amp; run modes</a></div>
     </section>
 
@@ -315,10 +315,10 @@
       <div class="brand"><span class="brand-mark"></span>03 / Agents</div>
       <p class="eyebrow">Agents</p><h2>Seven agent endpoints. One runtime: LangChain.</h2>
       <div class="grid g2">
-        <div class="panel redline"><h3>Named agent surfaces / endpoints</h3><ul class="plain-list"><li>Banking demo agent: <code>/api/demo-agent</code></li><li>Admin: <code>/api/admin-agent</code> · Ops: <code>/api/ops-agent</code></li><li>Support: <code>/api/support-agent</code> · Compliance: <code>/api/compliance-agent</code></li><li>A2A: <code>/api/a2a</code> · generalist/specialist hand-off · orchestrator</li><li>Autonomous agents · workload/personal agent · SaaS-embedded Website Worker</li><li>Ungoverned agent for policy comparison</li></ul></div>
-        <div class="panel redline"><h3>Current runtime and frameworks tested</h3><ul class="plain-list"><li><code>langchain_agent</code>: current Python LangChain runtime, port 8888</li><li><code>demo_agent_service</code>: AG-UI run service; streams events to the BFF</li><li>Also tested: OpenAI Agents SDK, Mastra and Pydantic AI alternate runtimes</li><li>AG-UI is the run/event interface, not an agent framework</li><li>Separate <code>agent_token_service</code> brokers tokens for Microsoft Copilot Studio</li></ul></div>
+        <div class="panel redline"><h3>Named agent surfaces / endpoints</h3><ul class="plain-list"><li>Banking · Admin · Ops · Support · Compliance agents (<code>/api/*-agent</code>)</li><li>A2A: hand-off, orchestrator, generalist mismatch</li><li>Autonomous · workload · personal · SaaS Website Worker</li><li>Ungoverned agent (comparison)</li></ul></div>
+        <div class="panel redline"><h3>Current runtime and frameworks tested</h3><ul class="plain-list"><li><code>langchain_agent</code> :8888 — current Python runtime</li><li><code>demo_agent_service</code> :3006 — AG-UI runner, SSE to BFF</li><li>Tested alternates: OpenAI Agents SDK, Mastra, Pydantic AI</li><li>Copilot Studio token broker runs separately</li></ul></div>
       </div>
-      <p class="small" style="margin-top:14px">Code Explorer, Protected RAG and LLM Gateway are adjacent AI/tool experiences, not agent runtimes. Optional runtimes need to be started and configured.</p>
+      <p class="small" style="margin-top:14px">Code Explorer, RAG and LLM Gateway are tool experiences, not runtimes.</p>
       <div class="source"><a href="../README.md">Ports and runtime descriptions</a><a href="../demo_api_server/server.js">Agent route mounts</a><a href="../demo_api_ui/src/components/AdminSideNav.jsx">Agent pages in navigation</a></div>
     </section>
 
@@ -367,8 +367,8 @@
         <div><code>UC29</code> OAuth introspection outage — fail closed</div>
       </div>
       <div class="grid g2" style="margin-top:16px">
-        <div class="panel"><h3>Catalog status tags</h3><p><b>UC15 and UC29</b> are marked <code>needs-build</code> in the catalog.</p></div>
-        <div class="panel"><h3>Flag-gated examples</h3><p><b>UC12</b> requires <code>ff_dpop</code>; <b>UC14</b> requires <code>ff_rar</code>. A catalog entry does not mean the flag is on in every deployment.</p></div>
+        <div class="panel"><h3>Needs build</h3><p>UC15, UC29 are marked <code>needs-build</code>.</p></div>
+        <div class="panel"><h3>Flag-gated</h3><p>UC12 needs <code>ff_dpop</code>; UC14 needs <code>ff_rar</code>.</p></div>
       </div>
       <div class="source"><a href="../demo_api_server/config/useCases.js">Current declared maturity by use case</a><a href="../demo_api_ui/src/components/AdminSideNav.jsx">Attack Demo navigation</a></div>
     </section>
@@ -383,7 +383,7 @@
         <div><code>UC-NHI1</code> Multi-source non-human identity inventory</div><div><code>UC-NHI2</code> Agent lifecycle export (JML)</div>
       </div>
       <div class="rule"></div>
-      <p class="small">The launcher’s catalog records the trigger, expected result, evidence fields, code references, vertical overrides and maturity for each scenario. It is not just a menu of titles.</p>
+      <p class="small">Each catalog entry carries trigger, expected result, evidence fields, code refs, vertical overrides and maturity — not just titles.</p>
       <div class="source"><a href="../demo_api_server/config/useCases.js">Scenario metadata</a><a href="../demo_api_ui/src/pages/UseCaseLauncherPage.js">Use Cases page</a><a href="../demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js">Live Workbench</a></div>
     </section>
 
@@ -450,7 +450,7 @@
         <div><code>demo_mcp_audit</code> MCP audit package</div><div><code>demo_mcp_proxy</code> MCP transport/proxy service</div>
         <div><code>demo_mcp_banking_rest</code> Banking REST/MCP integration</div><div><code>jwt-verifier-mcp-server</code> JWT-verification MCP package</div>
       </div>
-      <div class="panel blue" style="margin-top:16px"><h3>Tool execution paths</h3><p>Banking and vertical MCP tools · investment MCP resource · REST-backed records · Weather and Brave Search third-party examples · PingOne admin tools · protected code/RAG tools. Compose profiles determine which services are running.</p></div>
+      <div class="panel blue" style="margin-top:16px"><h3>Tool paths</h3><p>Vertical MCP tools · investment resource · REST records · Weather/Brave third-party · PingOne admin · protected RAG. Compose profiles choose what runs.</p></div>
       <div class="source"><a href="../docker-compose.yml">Compose profiles and service wiring</a><a href="../demo_mcp_resource_server/README.md">Investment MCP server</a><a href="../oauth-mcp/README.md">Banking MCP package</a></div>
     </section>
 
@@ -487,7 +487,7 @@
         <div class="panel"><h3>Dashboard formats</h3><ul class="plain-list"><li><code>TokenChainFilmstrip</code> — compact movie-reel / event strip</li><li><code>SequenceReelDiagram</code> — actor lanes and message sequence</li><li>Dashboard toggle switches “reel” and “sequence” modes</li><li><code>TokenChainDisplay</code> — event rows and expandable events</li><li><code>TokenChainTraceRail</code> — ordered pipeline rail with status / halt point</li></ul></div>
         <div class="panel"><h3>Topology and inspection formats</h3><ul class="plain-list"><li><code>TokenTopologyPanel</code> — actor/token graph with clickable nodes</li><li><code>TokenFlowDetailModal</code> tabs: Pipeline · Topology · Detailed · Cross-App · Least Agency</li><li><code>UnifiedTokenFlowInspector</code> — trace steps plus token claims and exchange detail</li><li><code>ClaimDetailsModal</code> — selected user, agent or MCP JWT claims</li><li>Interactive system architecture page — layers, scenario highlighting, token overlays</li></ul></div>
       </div>
-      <p class="small" style="margin-top:14px">The filmstrip, sequence, topology and inspector are distinct renderings. The interactive architecture page is a system diagram; it is not the same artifact as the per-run token trace.</p>
+      <p class="small" style="margin-top:14px">Each is a distinct rendering; the architecture page is a system diagram, not a per-run trace.</p>
       <div class="source"><a href="../demo_api_ui/src/components/UserDashboardPing2026.js">Dashboard view toggle</a><a href="../demo_api_ui/src/components/TokenTopologyPanel.jsx">Topology panel</a><a href="../demo_api_ui/src/components/SequenceReelDiagram.jsx">Sequence view</a><a href="../demo_api_ui/src/components/TokenFlowDetailModal.jsx">Detail tabs</a></div>
     </section>
 
@@ -602,7 +602,7 @@
         <div class="date">1–30 Aug</div><div class="event"><b>Privilege, MCP and external clients</b><code>3f3436027</code> Privilege proxy with PingOne token exchange · <code>fdb5f7fd4</code> standalone LibreChat MCP OAuth proof · gateway inspector expanded.</div>
         <div class="date">11–25 Sep</div><div class="event"><b>Vertical architecture, token views and trust demos</b><code>967c7f33f</code> live identity chain · <code>20e277873</code> vertical manifest ops · <code>0d79eac39</code> attack lab · <code>9db694be1</code> cross-vertical consent coverage · <code>bc858fb6f</code> audience-aware MCP routing.</div>
       </div>
-      <p class="small" style="margin-top:14px">The repository begins 25 June 2026. Dates group selected commits by what they added; branches and follow-up fixes mean a feature often spans many commits.</p>
+      <p class="small" style="margin-top:14px">Repo begins 25 Jun 2026. Features often span many commits across branches.</p>
       <div class="source"><a href="../CHANGELOG.md">Changelog</a><span>Current remote tip reviewed through ad510a237 · 25 Sep 2026</span></div>
     </section>
 
@@ -610,12 +610,12 @@
       <div class="brand"><span class="brand-mark"></span>23 / Current vs incomplete</div>
       <p class="eyebrow">Maturity</p><h2>56 scenarios work. 10 need flags. 2 need building.</h2>
       <div class="grid g3">
-        <div class="panel"><div class="metric">56</div><h3>Catalog says “works”</h3><p>Declared maturity only. A live tenant, scopes, apps, model credentials or optional service may still be required.</p></div>
-        <div class="panel"><div class="metric">10</div><h3>Feature-flagged entries</h3><p>Examples: DPoP replay, RAR, CIBA, group policy, enterprise-managed MCP, verified A2A and personal-agent concierge.</p></div>
-        <div class="panel"><div class="metric">2</div><h3>Marked “needs-build”</h3><p>UC15 intent-token tampering; UC29 introspection outage fail-closed.</p></div>
+        <div class="panel"><div class="metric">56</div><h3>“Works”</h3><p>Declared maturity; tenant, scopes, apps or model credentials may still be required.</p></div>
+        <div class="panel"><div class="metric">10</div><h3>Flag-gated</h3><p>DPoP replay, RAR, CIBA, group policy, enterprise MCP, verified A2A, concierge.</p></div>
+        <div class="panel"><div class="metric">2</div><h3>Needs build</h3><p>UC15 intent tampering; UC29 introspection fail-closed.</p></div>
       </div>
-      <div class="panel" style="margin-top:18px"><h3>Open technical debt in <code>TECH_DEBT.md</code></h3><p>A Privilege MCP transport bypasses the shared exchange/Authorize/HITL/kill-switch pipeline; <code>AIAgentFull</code> duplicates a large component; several shared event/token feeds are documented without per-user filtering; SDK sign-in depends on manually provisioned PingOne CORS.</p></div>
-      <p class="small" style="margin-top:12px"><b>Current implementation:</b> LangChain is the active framework; OpenAI Agents SDK, Mastra and Pydantic AI were tested. Protected demos need the configured PingOne tenant, applications and scopes. LLM-dependent routes need provider credentials or a configured local model. Optional Compose services are profile-selected. <b>The stack was stopped while this deck was revised</b>, so these pages describe code and saved captures rather than live health.</p>
+      <div class="panel" style="margin-top:18px"><h3>Open debt (<code>TECH_DEBT.md</code>)</h3><p>One Privilege transport bypasses the shared pipeline; <code>AIAgentFull</code> duplicates a large component; shared event feeds lack per-user filtering; SDK sign-in needs manually provisioned CORS.</p></div>
+      <p class="small" style="margin-top:12px"><b>Current:</b> LangChain active. Protected demos need a configured PingOne tenant; LLM routes need credentials or a local model. The stack was stopped during this revision — these pages describe code and saved captures, not live health.</p>
       <div class="source"><a href="../demo_api_server/config/useCases.js">Catalog maturity values</a><a href="../TECH_DEBT.md">Open and resolved debt ledger</a><a href="../planning/">Plans and handoffs</a></div>
     </section>
 
@@ -627,7 +627,7 @@
         <div class="panel redline"><h3>2 · Transfer approval</h3><p>Run UC7/UC8 in a configured vertical → watch MFA/consent challenge → approve → inspect retry and tool result.</p></div>
         <div class="panel redline"><h3>3 · A2A hand-off</h3><p>Run UC2/UC2.5 → inspect actor nesting and narrowed scopes → compare the A2A sequence and topology views.</p></div>
       </div>
-      <p class="small" style="margin-top:18px">Open the use-case entry before presenting: it carries the selected vertical’s prompt, maturity, required flag and expected evidence.</p>
+      <p class="small" style="margin-top:18px">Open the use-case entry before presenting — it carries the prompt, maturity, flag and expected evidence.</p>
       <div class="source"><a href="../demo_api_server/config/useCases.js">Use-case source</a><a href="../docs/user-guide/AGENT_SHOWCASE_DEMO_SCENARIOS.md">Presenter scenarios</a><a href="../README.md">Setup and run guide</a></div>
     </section>
 
@@ -639,7 +639,7 @@
         <div class="panel redline"><h3>Interfaces and visualization</h3><ul class="plain-list"><li><b>React + React Router + Vite</b> — browser application</li><li><b>XYFlow / React Flow + D3 + ELKjs</b> — interactive token topology and layout</li><li><b>Konva</b> — canvas-based views</li><li><b>Mermaid</b> — generated diagrams</li><li><b>Monaco Editor</b> — code exploration surface</li></ul></div>
         <div class="panel redline"><h3>Storage, observability and delivery</h3><ul class="plain-list"><li><b>LMDB</b> — local BFF stores</li><li><b>Redis</b> — optional session/cache profiles</li><li><b>Weaviate</b> — vector search for RAG</li><li><b>OpenTelemetry + Prometheus</b> — instrumentation and metrics</li><li><b>Grafana, Loki, Alloy + Jaeger</b> — dashboards, logs and traces</li><li><b>Apache Tika</b> — document text extraction</li></ul></div>
       </div>
-      <p class="small" style="margin-top:14px">Inventory is based on package/requirements manifests and configured container images. These are upstream projects used by the demo; Ping services, model providers and our own services are separate integrations.</p>
+      <p class="small" style="margin-top:14px">From package manifests and container images. Ping services, model providers and our own services are separate.</p>
       <div class="source"><a href="../demo_api_ui/package.json">UI dependencies</a><a href="../demo_api_server/package.json">BFF dependencies</a><a href="../demo_agent_service/package.json">AG-UI / agent dependencies</a><a href="../langchain_agent/requirements.txt">Current LangChain runtime</a><a href="../llamaindex_agent/requirements.txt">LlamaIndex runtime</a><a href="../compliance_agent/requirements.txt">Pydantic AI experiment</a><a href="../docker-compose.yml">Infrastructure images</a></div>
     </section>
 
@@ -647,12 +647,12 @@
       <div class="brand"><span class="brand-mark"></span>26 / Ways to run it</div>
       <p class="eyebrow">Ways to run it</p><h2>Four launchers: native, Compose, local K8s, remote K8s.</h2>
       <div class="grid g2">
-        <div class="panel redline"><h3>Native on macOS</h3><p><code>./run.sh</code> starts the BFF, React dev server, MCP server and agent as local Node/Python processes. No app containers or Kubernetes; PingGateway still uses Docker.</p><p><b>Use for:</b> lightest local development. <code>stop</code>, <code>restart</code>, <code>status</code> and <code>tail</code> manage the processes.</p></div>
-        <div class="panel redline"><h3>Docker Compose · Docker Desktop or OrbStack</h3><p><code>./run-docker.sh</code> starts core + Code Search (RAG). <code>start full</code> starts the full service set; <code>mode demo</code> and <code>mode mcpgw</code> start focused subsets.</p><p><b>Opt-in groups:</b> <code>spiffe</code>, <code>demo-auth</code>, <code>mcpgw</code>, <code>observability</code>, <code>tracing</code> and <code>all</code>.</p></div>
-        <div class="panel redline"><h3>Local Kubernetes · OrbStack or Docker Desktop</h3><p>Enable Kubernetes, then <code>./run-k8.sh</code> builds images, deploys manifests and supervises port-forwards. Use <code>mode demo</code>, <code>mode mcpgw</code>, <code>mode full</code>, <code>rag on</code>, <code>status</code> or <code>stop</code>.</p><p>OrbStack and Docker Desktop both provide supported local Kubernetes clusters.</p></div>
-        <div class="panel redline"><h3>Remote Kubernetes + deployment handoffs</h3><p><b>AWS EKS:</b> <code>./run-k8.sh aws-all</code> builds/pushes images and deploys. <b>Ping SE cluster:</b> <code>./run-pingaws.sh</code> wraps the SE build/deploy/status lifecycle.</p><p>Terraform can manage the local Compose lifecycle or hand off into an existing SE namespace.</p></div>
+        <div class="panel redline"><h3>Native on macOS</h3><p><code>./run.sh</code> — BFF, React dev server, MCP server and agent as local Node/Python processes; PingGateway still in Docker. Lightest dev loop; <code>stop/restart/status/tail</code> to manage.</p></div>
+        <div class="panel redline"><h3>Docker Compose · Docker Desktop or OrbStack</h3><p><code>./run-docker.sh</code> — core + RAG by default; <code>start full</code> for everything. Opt-in: <code>spiffe</code>, <code>demo-auth</code>, <code>mcpgw</code>, <code>observability</code>, <code>tracing</code>.</p></div>
+        <div class="panel redline"><h3>Local Kubernetes · OrbStack or Docker Desktop</h3><p>Enable K8s, then <code>./run-k8.sh</code> builds, deploys and port-forwards. OrbStack or Docker Desktop.</p></div>
+        <div class="panel redline"><h3>Remote Kubernetes + deployment handoffs</h3><p><b>AWS EKS:</b> <code>./run-k8.sh aws-all</code>. <b>Ping SE:</b> <code>./run-pingaws.sh</code>. Terraform can hand off to an existing namespace.</p></div>
       </div>
-      <p class="small" style="margin-top:14px"><b>Separate hosted option:</b> README also documents a Vercel serverless deployment for the web app; it needs external Upstash session storage and an external WebSocket MCP server. It is not the same full multi-service deployment as local Compose/Kubernetes.</p>
+      <p class="small" style="margin-top:14px">Also documented: Vercel serverless for the web app (needs Upstash + external WebSocket MCP) — not the full multi-service deployment.</p>
       <div class="source"><a href="../run.sh">Native launcher</a><a href="../run-docker.sh">Compose launcher + help</a><a href="../run-k8.sh">Kubernetes launcher + help</a><a href="../run-pingaws.sh">SE cluster wrapper</a><a href="../README.md">Run options and Vercel notes</a><a href="../terraform/README.md">Terraform handoff</a></div>
     </section>
 
@@ -665,7 +665,7 @@
           <div><h3>Dashboard</h3><p>Customer banking UI and domain navigation.</p></div>
           <div><h3>Agent</h3><p>Prompt and response stay in the same working screen.</p></div>
           <div><h3>Token Chain</h3><p>Inspect the ordered identity and gateway steps beside the run.</p></div>
-          <div class="map-band"><strong>Capture from 8 July 2026.</strong> This is a saved test screenshot. The stack is stopped while this deck is being revised, so it does not show current service health.</div>
+          <div class="map-band"><strong>Capture from 8 Jul 2026.</strong> Saved test screenshot; stack stopped during revision.</div>
         </div>
       </div>
       <div class="source"><a href="reports/token-chain-heuristics-verticals-2026-07-08/REPORT.md">Capture report and test context</a><a href="reports/token-chain-heuristics-verticals-2026-07-08/banking-01-dashboard.png">Original dashboard capture</a></div>
@@ -678,7 +678,7 @@
         <figure><img src="presentation-assets/gateway-inspector.png" alt="Saved Gateway Test Console screen showing an authorization and token-flow inspection"><figcaption>Gateway Test Console · saved test capture</figcaption></figure>
         <figure><img src="presentation-assets/hitl-consent.png" alt="Saved agent consent modal asking for approval before a protected action"><figcaption>Consent modal · the walkthrough used mocked API responses at this step</figcaption></figure>
       </div>
-      <p class="skill-footer">The pages are real UI captures. The approval walkthrough explicitly mocked the challenge responses; neither image is a live check of the stopped stack.</p>
+      <p class="skill-footer">Real UI captures; the consent walkthrough mocked challenge responses.</p>
       <div class="source"><a href="screenshots/llm-pinggateway-p1az-flow/02-token-lab.png">Original Gateway Test Console capture</a><a href="screenshots/llm-pinggateway-p1az-hitl-flow/04-hitl-consent-modal.png">Original consent capture and flow</a></div>
     </section>
 
@@ -687,19 +687,19 @@
       <p class="eyebrow">Request path</p><h2>One run crosses five boundaries: UI → BFF → agent → policy → tools.</h2>
       <div class="map-board">
         <div class="map-lane flow">
-          <div class="map-card hot"><h3>Browser UI</h3><p>React pages, dashboard, inspectors and agent composer.</p><p><code>ui :4000</code></p><p>Session cookie to BFF</p></div>
-          <div class="map-card hot"><h3>BFF</h3><p>Session, API routes, token custody and tool pipeline.</p><p><code>demo-api-server :3001</code></p><p>Run: <code>/api/agent/run</code></p></div>
-          <div class="map-card hot"><h3>Current agent</h3><p>LangChain runtime; AG-UI run uses HTTP + SSE.</p><p><code>langchain-agent :8888</code></p><p>Separate banking/AG-UI service: <code>agent-service :3006</code> in Compose, host <code>:3016</code></p></div>
-          <div class="map-card"><h3>Tool callback</h3><p>Agent calls the BFF internal tool endpoint. BFF exchanges credentials and applies route policy.</p><p><code>demo-api-server /internal/agent-tool</code></p></div>
-          <div class="map-card hot"><h3>Enforcement</h3><p>Default PingGateway path; the Node gateway is an optional demo-auth route.</p><p><code>ping-gateway :3036</code> host / <code>:8443</code> container</p><p><code>mcp-gateway :3005</code> · <code>mcp-proxy :8895</code></p></div>
+          <div class="map-card hot"><h3>Browser UI</h3><p>Pages, dashboard, inspectors, agent composer.</p><p><code>ui :4000</code></p></div>
+          <div class="map-card hot"><h3>BFF</h3><p>Session, token custody, tool pipeline.</p><p><code>demo-api-server :3001</code></p></div>
+          <div class="map-card hot"><h3>Agent</h3><p>LangChain; AG-UI over HTTP + SSE.</p><p><code>langchain-agent :8888</code></p><p><code>agent-service :3006</code> (host 3016)</p></div>
+          <div class="map-card"><h3>Tool callback</h3><p>Agent → BFF <code>/internal/agent-tool</code>; BFF exchanges and applies policy.</p></div>
+          <div class="map-card hot"><h3>Enforcement</h3><p>PingGateway default; Node gateway optional.</p><p><code>ping-gateway :3036</code></p><p><code>mcp-gateway :3005</code> · <code>mcp-proxy :8895</code></p></div>
         </div>
-        <div class="map-band"><strong>Tool and resource servers:</strong> <code>mcp-server :8080</code> · <code>mcp-resource-server :8081</code> · <code>api-resource-server :8082</code> · <code>mcp-weather :8896</code> · <code>mcp-brave :8897</code> · <code>mcp-audit :8898</code>. PingGateway routes authorized MCP/REST calls; the audit service records tool events.</div>
+        <div class="map-band"><strong>Tools:</strong> <code>mcp-server :8080</code> · <code>mcp-resource-server :8081</code> · <code>api-resource-server :8082</code> · <code>mcp-weather :8896</code> · <code>mcp-brave :8897</code> · <code>mcp-audit :8898</code></div>
         <div class="map-lane">
-          <div class="map-card"><h3>Identity</h3><p>External PingOne handles OAuth, tokens, Authorize, MFA and management APIs.</p></div>
+          <div class="map-card"><h3>Identity</h3><p>PingOne: OAuth, tokens, Authorize, MFA, management.</p></div>
           <div class="map-card"><h3>Consent</h3><p><code>hitl-service :3009</code> handles the approval side path.</p></div>
           <div class="map-card"><h3>Discovery</h3><p><code>mcp-discovery-agent</code> discovers configured MCP tools.</p></div>
           <div class="map-card"><h3>Models</h3><p><code>llm-proxy :8090</code> fronts configured local/provider model endpoints.</p></div>
-          <div class="map-card"><h3>Run evidence</h3><p><code>jaeger :16686</code> receives traces; <code>promptfoo-step-narration</code> is the evaluation sidecar.</p></div>
+          <div class="map-card"><h3>Run evidence</h3><p><code>jaeger :16686</code> traces · promptfoo eval sidecar.</p></div>
         </div>
       </div>
       <div class="source"><a href="../docker-compose.yml">All Compose services and dependency links</a><a href="../demo_api_server/routes/agentRun.js">BFF AG-UI route</a><a href="../demo_api_server/routes/agentTool.js">BFF tool callback</a><a href="../demo_api_server/services/mcpToolPipeline.js">MCP tool pipeline</a></div>
@@ -716,7 +716,7 @@
         <div class="map-card"><h3>SPIFFE workload identity</h3><p>Local SPIRE issues workload identities; helper and OIDC services expose them to the demo.</p><p class="inventory">spire-server → spire-registration → spire-agent<br>spiffe-helper-bff · spiffe-oidc-provider</p></div>
         <div class="map-card"><h3>Build and comparison services</h3><p>Special-purpose services outside the normal request path.</p><p class="inventory">tier-manager-k8 (build profile)<br>ungoverned-agent (attack comparison)</p></div>
       </div>
-      <p class="skill-footer">Together with the request-path map, this names all 43 services in <code>docker-compose.yml</code>. The launcher selects subsets by mode/profile. The search database here is OpenSearch, not an Elasticsearch container.</p>
+      <p class="skill-footer">With the request-path map: all 43 Compose services named. OpenSearch here, not Elasticsearch.</p>
       <div class="source"><a href="../docker-compose.yml">Compose service profiles and dependencies</a><a href="../run-docker.sh">Launcher presets</a><a href="../docs/ARCHITECTURE.md">System architecture</a></div>
     </section>
 
@@ -1089,7 +1089,7 @@ flowchart LR
 
     <section class="slide">
       <div class="brand"><span class="brand-mark"></span>38 / Skills used in the project</div>
-      <p class="eyebrow">Project-local library · .claude/skills</p><h2>Local skills package repeatable agent, PingOne, Privilege and delivery work.</h2>
+      <p class="eyebrow">Project skills</p><h2>18 project-local skills for agent, PingOne, Privilege and delivery work.</h2>
       <div class="skill-grid">
         <div class="skill-card"><h3>Agent and protocol</h3><ul><li>a2a-protocol</li><li>agent-demo-triage</li><li>chip-correctness-testing</li><li>generate-tests</li><li>inspector-template</li><li>karpathy-guidelines</li></ul></div>
         <div class="skill-card"><h3>PingOne</h3><ul><li>oauth-teaching-agent</li><li>p1az-import-generator</li><li>pingone-davinci-orchestration</li><li>pingone-mcp</li><li>pingone-mcp-install</li><li>pingone-remote-mcp-connect</li></ul></div>
@@ -1100,21 +1100,21 @@ flowchart LR
 
     <section class="slide">
       <div class="brand"><span class="brand-mark"></span>39 / Shareable skills · general and security</div>
-      <p class="eyebrow">Portable library · claudSkills/general + security</p><h2>Reusable skills bring common tools and security workflows to other projects.</h2>
+      <p class="eyebrow">Portable skills</p><h2>27 portable skills: 13 general, 11 PingOne, 3 security.</h2>
       <div class="skill-grid duo">
         <div class="skill-card"><h3>General · 13 skills</h3><ul><li>agent-tool</li><li>cheapest-model</li><li>docx</li><li>graphify</li><li>impeccable</li><li>mcp-builder</li><li>pdf</li><li>pptx</li><li>supergoal</li><li>theme-factory</li><li>tighten-prompt</li><li>webapp-testing</li><li>xlsx</li></ul></div>
         <div class="skill-card"><h3>Security · 3 skills</h3><ul><li>codeql</li><li>sarif-parsing</li><li>semgrep</li></ul><p>Portable instructions for code analysis, parsing security findings and working with common document, web and agent tools.</p></div>
       </div>
-      <p class="skill-footer">The portable library has 27 skills in total: 13 general, 11 PingOne and 3 security.</p>
+      <p class="skill-footer">Portable instructions for documents, web testing, agent tooling and security scanning.</p>
       <div class="source"><a href="../claudSkills/general/">General portable skills</a><a href="../claudSkills/security/">Security portable skills</a><a href="../claudSkills/">Portable library index</a></div>
     </section>
 
     <section class="slide">
       <div class="brand"><span class="brand-mark"></span>40 / Shareable skills · PingOne and field export</div>
-      <p class="eyebrow">Portable PingOne library · SE export bundle</p><h2>Focused identity skills package configuration, integration and field workflows.</h2>
+      <p class="eyebrow">Portable PingOne skills</p><h2>11 PingOne skills plus a 5-skill SE export bundle.</h2>
       <div class="skill-grid duo">
         <div class="skill-card"><h3>PingOne · 11 skills</h3><ul><li>authz-server</li><li>authz-server-parity</li><li>ciba</li><li>oauth-pingone</li><li>pingone-api-calls</li><li>pingone-authorize-configure</li><li>pingone-mcp</li><li>pingone-mcp-install</li><li>pingone-mfa</li><li>pingone-recognize</li><li>pingone-session-termination</li></ul></div>
-        <div class="skill-card"><h3>SE export · 5 skills</h3><ul><li>karpathy-guidelines</li><li>p1az-import-generator</li><li>ping-se-cluster-deploy</li><li>pingone-mcp-connect</li><li>privilege-cloud-mcp-gateway</li></ul><p>This separate bundle packages field-facing deployment and integration workflows for SE use.</p></div>
+        <div class="skill-card"><h3>SE export · 5 skills</h3><ul><li>karpathy-guidelines</li><li>p1az-import-generator</li><li>ping-se-cluster-deploy</li><li>pingone-mcp-connect</li><li>privilege-cloud-mcp-gateway</li></ul><p>Field-facing deployment and integration workflows for SE use.</p></div>
       </div>
       <div class="source"><a href="../claudSkills/pingone/">PingOne portable skills</a><a href="../se-skills-export/">SE skill export bundle</a><a href="../.claude/skills/">Project-local library</a></div>
     </section>
@@ -1123,14 +1123,14 @@ flowchart LR
       <div class="brand"><span class="brand-mark"></span>41 / One request through the stack</div>
       <p class="eyebrow">One request, source-traced</p><h2>A protected tool call passes six explicit boundaries.</h2>
       <div class="trace-flow">
-        <div class="trace-step"><b>1 · Ask</b><span>React sends the prompt to the BFF with the browser session cookie.</span></div>
-        <div class="trace-step"><b>2 · Check</b><span>BFF validates session and route state, then selects the current LangChain runtime.</span></div>
-        <div class="trace-step"><b>3 · Run</b><span>BFF calls <code>langchain-agent:8888/run</code>; AG-UI events stream back to the screen.</span></div>
-        <div class="trace-step"><b>4 · Tool</b><span>LangChain calls the secret-gated BFF <code>/internal/agent-tool</code> endpoint.</span></div>
-        <div class="trace-step"><b>5 · Authorize</b><span>BFF exchanges the credential and calls PingGateway; policy may allow, deny or request approval.</span></div>
-        <div class="trace-step"><b>6 · Show</b><span>MCP/REST result and run events return to the UI and token-chain evidence views.</span></div>
+        <div class="trace-step"><b>1 · Ask</b><span>React → BFF prompt with session cookie.</span></div>
+        <div class="trace-step"><b>2 · Check</b><span>BFF validates session, selects LangChain runtime.</span></div>
+        <div class="trace-step"><b>3 · Run</b><span>BFF calls agent <code>/run</code>; AG-UI events stream back.</span></div>
+        <div class="trace-step"><b>4 · Tool</b><span>Agent calls BFF <code>/internal/agent-tool</code>.</span></div>
+        <div class="trace-step"><b>5 · Authorize</b><span>BFF exchanges token, calls PingGateway: permit · deny · approval.</span></div>
+        <div class="trace-step"><b>6 · Show</b><span>Result + events return to UI and token-chain views.</span></div>
       </div>
-      <div class="map-band"><strong>Credential boundary:</strong> the BFF holds browser tokens. The LangChain runtime requests a tool through an internal callback; the BFF performs the credential and gateway work.</div>
+      <div class="map-band"><strong>Credential boundary:</strong> BFF holds browser tokens; the agent only requests tools via callback.</div>
       <div class="source"><a href="../demo_api_ui/src/hooks/useAgentRun.js">UI AG-UI stream</a><a href="../demo_api_server/routes/agentRun.js">BFF run route</a><a href="../demo_api_server/routes/agentTool.js">Internal tool route</a><a href="../demo_api_server/services/agentMcpTokenService.js">Token exchange</a></div>
     </section>
 
@@ -1171,7 +1171,7 @@ sequenceDiagram
   A-->>U: answer + token-chain evidence (SSE)
       </pre>
       <div class="ai-flow-band">
-        <span><b>Delegation points:</b> the user token never reaches the agent or the tool — the BFF exchanges it (8693) and PingGateway enforces the narrowed grant.</span>
+        <span><b>Delegation:</b> user token never reaches agent or tool — BFF exchanges (8693), gateway enforces.</span>
         <span><b>Consent is in-band:</b> HITL pauses the gateway path for human approval, with PingOne step-up MFA, before the write proceeds.</span>
         <span><b>Every hop is evidenced:</b> token-chain events, mcp-audit tool events and jaeger traces are collected across the run.</span>
       </div>
@@ -1183,12 +1183,12 @@ sequenceDiagram
       <div class="brand"><span class="brand-mark"></span>43 / Technical choices visible in code</div>
       <p class="eyebrow">Design decisions</p><h2>Six decisions that define the architecture.</h2>
       <div class="decision-grid">
-        <div class="decision"><b>Tokens stay with the BFF</b><span>Browser gets a session cookie; the server performs exchange and tool authorization. This keeps provider credentials and user tokens out of model-facing code.</span></div>
-        <div class="decision"><b>Known commands stay deterministic</b><span>Heuristics route common phrases and chips. Natural-language interpretation and agent reasoning use configured model endpoints, with fallbacks where implemented.</span></div>
-        <div class="decision"><b>One active agent framework</b><span>LangChain is the current runtime. OpenAI Agents SDK, Mastra and Pydantic AI remain documented as tested alternatives, not active runtime choices.</span></div>
-        <div class="decision"><b>Gateway boundaries stay distinct</b><span>PingGateway is the default tool enforcement path; Node mcp-gateway is an optional demo; Privilege AI Gateway adds managed MCP policy and recording.</span></div>
-        <div class="decision"><b>Run profiles control the footprint</b><span>Compose and Kubernetes select RAG, observability, SPIFFE and gateway services as needed; build-heavy or experimental services stay out of ordinary runs.</span></div>
-        <div class="decision"><b>Each data system has a job</b><span>LMDB stores local BFF state, Weaviate serves vector retrieval, and OpenSearch backs the optional MCP search sample. There is no single production bank database.</span></div>
+        <div class="decision"><b>Tokens stay with the BFF</b><span>Browser gets a session cookie only; the server does exchange and tool authorization.</span></div>
+        <div class="decision"><b>Known commands stay deterministic</b><span>Heuristics route known phrases; LLMs handle open text, with fallbacks.</span></div>
+        <div class="decision"><b>One active agent framework</b><span>LangChain. The others are tested, not active.</span></div>
+        <div class="decision"><b>Gateway boundaries stay distinct</b><span>PingGateway default; Node gateway demo; Privilege gateway managed policy + recording.</span></div>
+        <div class="decision"><b>Run profiles control the footprint</b><span>RAG, observability, SPIFFE and gateways are profile-selected; experimental services stay out of ordinary runs.</span></div>
+        <div class="decision"><b>Each data system has a job</b><span>LMDB = BFF state · Weaviate = vectors · OpenSearch = MCP search sample. No production bank database.</span></div>
       </div>
       <div class="source"><a href="../demo_api_server/services/agentFrameworkOrchestrator.js">Current framework selector</a><a href="../demo_api_server/services/nlIntentParser.js">Intent routing implementation</a><a href="../docker-compose.yml">Service profiles</a><a href="../TECH_DEBT.md">Documented limitations and follow-up</a></div>
     </section>
