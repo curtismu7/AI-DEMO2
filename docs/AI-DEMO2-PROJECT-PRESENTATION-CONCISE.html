@@ -716,8 +716,32 @@ sequenceDiagram
       <p class="small" style="margin-top:10px">Not claimed as implemented: RFC 2119/8174 (boilerplate), 6819/3749/7235 (incidental citations). Flagged entries (RAR, DPoP) are feature-flagged per the use-case catalog.</p>
       <div class="source"><a href="../docs/PINGONE_API_LINKS.md">RFC link table</a><a href="../docs/scope-topology.md">Scope and audience topology</a><a href="../CHANGELOG.md">RFC citations in changelog</a></div>
     </section>
+
+    <section class="slide">
+      <div class="brand"><span class="brand-mark"></span>13 / DaVinci and OAuth surfaces we built</div>
+      <p class="eyebrow">Orchestration and identity tooling · implementation inventory</p><h2>DaVinci orchestration and OAuth tooling, built in the BFF and UI.</h2>
+      <div class="grid g2">
+        <div class="panel redline"><h3>DaVinci orchestration (PingFederate + PingOne DaVinci)</h3><ul class="plain-list">
+          <li><code>davinciLogin.js</code> — widget-based DaVinci login flow via BFF</li>
+          <li><code>davinciSdkLogin.js</code> — Orchestration SDK embedded login (custom collectors UI)</li>
+          <li><code>pfDavinciAuth.js</code> — PingFederate-to-DaVinci auth bridge</li>
+          <li><code>webhookDavinci.js</code> — DaVinci webhook receiver</li>
+          <li>UC-LEARN10 Orchestration SDK custom UI · UC-LEARN12 integration kit</li>
+          <li><code>pingone-davinci-orchestration</code> skill for safe flow debugging</li>
+        </ul></div>
+        <div class="panel redline"><h3>OAuth tooling built in the product</h3><ul class="plain-list">
+          <li><code>/oauth-academy</code> — guided OAuth/OIDC lessons</li>
+          <li><code>/token-exchange-tester</code> — live RFC 8693 exchanges</li>
+          <li><code>/oauth-debug-logs</code> — auth lifecycle event stream</li>
+          <li>BFF routes: <code>oauth.js</code> · <code>oauthUser.js</code> · <code>oauthToken.js</code> · <code>oauthClients.js</code> · <code>oauthJwks.js</code> · <code>mcpOAuthConfig.js</code></li>
+          <li>OAuth teaching agent skill — token-flow instruction in chat</li>
+        </ul></div>
+      </div>
+      <p class="small" style="margin-top:12px">Both surfaces are wired into the same BFF session/token custody model — DaVinci flows end in the same token chain as standard OAuth logins.</p>
+      <div class="source"><a href="../demo_api_server/routes/">BFF auth route implementations</a><a href="../.claude/skills/pingone-davinci-orchestration/SKILL.md">DaVinci skill</a><a href="../.claude/skills/oauth-teaching-agent/SKILL.md">OAuth teaching agent</a></div>
+    </section>
     <section class="slide dark">
-      <div class="brand"><span class="brand-mark"></span>13 / Current vs incomplete</div>
+      <div class="brand"><span class="brand-mark"></span>14 / Current vs incomplete</div>
       <p class="eyebrow">Maturity</p><h2>56 scenarios work. 10 need flags. 2 need building.</h2>
       <div class="grid g3">
         <div class="panel"><div class="metric">56</div><h3>“Works”</h3><p>Declared maturity; tenant, scopes, apps or model credentials may still be required.</p></div>
@@ -729,7 +753,7 @@ sequenceDiagram
       <div class="source"><a href="../demo_api_server/config/useCases.js">Catalog maturity values</a><a href="../TECH_DEBT.md">Open and resolved debt ledger</a><a href="../planning/">Plans and handoffs</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>14 / Server inventory · core</div>
+      <div class="brand"><span class="brand-mark"></span>15 / Server inventory · core</div>
       <p class="eyebrow">Core servers</p><h2>10 core servers: UI, BFF, tools, gateways, consent.</h2>
       <table class="plain-table"><thead><tr><th>Service</th><th>Port</th><th>Responsibility</th></tr></thead><tbody>
         <tr><td><code>demo_api_ui</code></td><td>4000</td><td>React customer/admin interface</td></tr>
@@ -746,7 +770,7 @@ sequenceDiagram
       <div class="source"><a href="../README.md">Current component table</a><a href="../docker-compose.yml">Compose wiring</a></div>
     </section>
     <section class="slide">
-      <div class="brand"><span class="brand-mark"></span>15 / Start here</div>
+      <div class="brand"><span class="brand-mark"></span>16 / Start here</div>
       <p class="eyebrow">Start here</p><h2>Three tours: delegated read, transfer approval, A2A hand-off.</h2>
       <div class="grid g3">
         <div class="panel redline"><h3>1 · Delegated read</h3><p>Run UC1 “show my balance” → open Token Chain → compare user token, exchanged token, audience and scopes.</p></div>
