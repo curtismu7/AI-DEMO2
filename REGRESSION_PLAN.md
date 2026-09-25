@@ -169,6 +169,32 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — Malicious MCP tab + agent loop added to /llm-gateway (feature, not a fix)
+
+**Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_ui/src/pages/LlmGatewayCombinedPage.jsx`,
+`demo_api_ui/src/pages/HostileMcpTab.jsx` (new),
+`demo_api_ui/src/pages/HostileMcpTab.css` (new). PR #179.
+
+**What changed:** a third tab on `/llm-gateway` driving the hostile MCP server
+(`standalone/hostile-mcp-server`, Agentic App `hostile-mcp`): poisoned tool
+metadata listed verbatim, a manual `create_transfer` call, and
+`POST /api/privilege-mcp/agent/run` — an LLM agent loop (llama.cpp or Claude
+through the Privilege LLM virtual key) that feeds the poisoned `tools/list`
+to the model verbatim and executes its tool calls through the session's
+Privilege relay, feeding the gateway verdict back as the tool result.
+
+**Do not break:** the existing relay contract this builds on — `/config`'s
+mode-keyed session slots (`mode::mcpUrl`), `/tools/list` and `/tools/call`
+response shapes, and the pinned preset list (the UI matches the hostile preset
+loosely by label, so a label edit must keep the string `hostile-mcp`). The
+agent loop must keep sending tool metadata UNMODIFIED — sanitizing it there
+would silently turn the poison demo into a false pass.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/routes/privilegeMcpClient --forceExit --runInBand`
+(32/33; the one failure is the pre-existing env-dependent gateway-host case in
+`privilegeMcpClient.state.test.js`), and `cd demo_api_ui && npm run build` exit 0.
+
 ### 2026-09-25 — Gateway RFC 8707 exchange rejected legacy comma-separated backend audience
 
 **Files changed:** `demo_mcp_gateway/src/router.ts`,
