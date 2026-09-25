@@ -221,13 +221,26 @@ apply_patched "$K8S_DIR/02-configmap.yaml"
 # local Kubernetes developer environments remain accessible without PingOne.
 if [[ -n "$K8S_NAMESPACE" ]]; then
   if [[ -z "${HOSTED_ACCESS_REQUIRED_GROUP_ID:-}" ]]; then
-    die "HOSTED_ACCESS_REQUIRED_GROUP_ID must be set before enabling hosted access"
+    # Fallback to the BFF .env, where the value already lives next to the other
+    # HOSTED_ACCESS_* group/population IDs that create-secrets.sh reads. An
+    # explicit shell export still wins.
+    HOSTED_ACCESS_REQUIRED_GROUP_ID="$(grep -E '^HOSTED_ACCESS_REQUIRED_GROUP_ID=' "$K8S_DIR/../demo_api_server/.env" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '\"')"
+  fi
+  if [[ -z "${HOSTED_ACCESS_REQUIRED_GROUP_ID:-}" ]]; then
+    die "HOSTED_ACCESS_REQUIRED_GROUP_ID must be set (shell export or demo_api_server/.env) before enabling hosted access"
   fi
   # ALLOWED_DOMAINS includes pingone.com (demoUser's email domain) and
   # REQUIRE_VERIFIED_EMAIL stays false — matching the live-patched configmap
   # that fixed hosted-access logins; see REGRESSION_PLAN before changing.
+  #
+  # OAUTH_PROVIDER=pingone is pinned here deliberately: the UI's provider
+  # toggle persists oauth_provider=pingfederate into LMDB, and the SE PF_*
+  # endpoints (local.ping-devops.com:9031) only resolve on a dev Mac — an
+  # in-cluster pod health-checking them 503s and the startup probe CrashLoops
+  # the BFF (2026-09-25). envFrom beats the LMDB store, so this pin makes the
+  # toggle a no-op on SE regardless of what LMDB holds.
   kubectl patch configmap ai-demo-config -n "$NS" --type merge -p \
-    "{\"data\":{\"HOSTED_ACCESS_GATE_ENABLED\":\"true\",\"HOSTED_ACCESS_ALLOWED_DOMAINS\":\"pingidentity.com,pingone.com\",\"HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL\":\"false\",\"HOSTED_ACCESS_REQUIRED_GROUP_ID\":\"${HOSTED_ACCESS_REQUIRED_GROUP_ID}\"}}"
+    "{\"data\":{\"OAUTH_PROVIDER\":\"pingone\",\"HOSTED_ACCESS_GATE_ENABLED\":\"true\",\"HOSTED_ACCESS_ALLOWED_DOMAINS\":\"pingidentity.com,pingone.com\",\"HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL\":\"false\",\"HOSTED_ACCESS_REQUIRED_GROUP_ID\":\"${HOSTED_ACCESS_REQUIRED_GROUP_ID}\"}}"
 fi
 
 # Override the nginx-config ConfigMap from 02-configmap.yaml (which contains the

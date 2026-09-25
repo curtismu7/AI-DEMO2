@@ -630,7 +630,7 @@ async function main(deps = {}) {
   //
   // Degrades to the .env value when the vault is absent or locked, so a fresh
   // clone with no vault behaves as it always did.
-  const vaultSecrets = await loadVaultSecrets(['INTENT_TOKEN_SECRET', 'BFF_INTERNAL_SECRET']);
+  const vaultSecrets = await loadVaultSecrets(['INTENT_TOKEN_SECRET', 'BFF_INTERNAL_SECRET', 'MCP_RESOURCE_SERVER_API_KEY', 'ENCRYPTION_MASTER_KEY', 'MCP_SERVER_ENCRYPTION_KEY', 'PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET']);
   const fbVault = (key) => vaultSecrets[key] || fb(key);
   const existingResourceEnv = parseEnv(path.join(ROOT, 'demo_mcp_resource_server', '.env'));
   // This key is local service configuration, not a PingOne application secret.
@@ -645,7 +645,7 @@ async function main(deps = {}) {
     mcpGatewayClientId:     apps.mcpGateway?.clientId     || fb('PINGONE_MCP_GATEWAY_CLIENT_ID'),
     mcpGatewaySecret:       mcpGwSecret                   || fb('PINGONE_MCP_GATEWAY_CLIENT_SECRET'),
     mcpExchangerClientId:   apps.mcpExchanger?.clientId   || fb('PINGONE_TOKEN_EXCHANGER_CLIENT_ID'),
-    mcpExchangerSecret:     mcpExchangerSecret             || fb('PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET'),
+    mcpExchangerSecret:     mcpExchangerSecret             || vaultSecrets.PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET || fb('PINGONE_TOKEN_EXCHANGER_CLIENT_SECRET'),
     aiAgentClientId:        apps.aiAgent?.clientId        || fb('PINGONE_AI_AGENT_ACTOR_CLIENT_ID'),
     aiAgentSecret:          aiAgentSecret                 || fb('PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET'),
     agentClientId:          apps.agent?.clientId          || fb('AGENT_CLIENT_ID'),
@@ -769,9 +769,11 @@ async function main(deps = {}) {
     // deriving it from the BFF HMAC secret meant one compromised value exposed
     // both. Set MCP_SERVER_ENCRYPTION_KEY in demo_api_server/.env; the derived
     // value remains only as a back-compat fallback for envs that never set it.
+    // Vault-first: the vault holds the authoritative key and create-secrets.sh's
+    // drift guard fails the deploy on a stale fallback value.
     // NOTE: changing this orphans any existing *.enc token storage — re-encrypt
     // or purge the store before rotating it on a populated deployment.
-    ENCRYPTION_KEY:                  fb('MCP_SERVER_ENCRYPTION_KEY') || fb('BFF_INTERNAL_SECRET').slice(0, 32) || 'demo-encryption-key-32chars-paddd',
+    ENCRYPTION_KEY:                  vaultSecrets.MCP_SERVER_ENCRYPTION_KEY || fb('MCP_SERVER_ENCRYPTION_KEY') || fb('BFF_INTERNAL_SECRET').slice(0, 32) || 'demo-encryption-key-32chars-paddd',
     DEMO_API_BASE_URL:               'http://api-server:3001',
     // Both are fail-OPEN auth switches that were hand-added straight into this
     // service's .env, which this generator rewrites wholesale — so every
@@ -872,8 +874,10 @@ async function main(deps = {}) {
     PINGONE_CLIENT_REGISTRATION_ENDPOINT:  `${asBase}/register`,
     PINGONE_REDIRECT_URI:                  `${clientUrl}/auth/callback`,
     // Independent key — see the MCP_SERVER_ENCRYPTION_KEY note above. Set
-    // LANGCHAIN_ENCRYPTION_MASTER_KEY in demo_api_server/.env.
-    ENCRYPTION_MASTER_KEY:                 fb('LANGCHAIN_ENCRYPTION_MASTER_KEY') || fb('BFF_INTERNAL_SECRET').slice(0, 32) || 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    // LANGCHAIN_ENCRYPTION_MASTER_KEY in demo_api_server/.env. Vault-first:
+    // the vault holds the authoritative key and create-secrets.sh's drift
+    // guard fails the deploy if a stale BFF-derivation lands here instead.
+    ENCRYPTION_MASTER_KEY:                 vaultSecrets.ENCRYPTION_MASTER_KEY || fb('LANGCHAIN_ENCRYPTION_MASTER_KEY') || 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     ENCRYPTION_SALT:                       'bbbbbbbbbbbbbbbb',
     BFF_BASE_URL:                          'http://api-server:3001',
     BFF_INTERNAL_TOOL_URL:                 'http://api-server:3001/internal/agent-tool',
