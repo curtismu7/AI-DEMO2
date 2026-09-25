@@ -45,7 +45,7 @@ const { verticalManifest } = require('../services/verticalManifest');
 const reportStore = require('../services/lmdb/reportStore.lmdb');
 const conversationStore = require('../services/lmdb/conversationStore.lmdb');
 const { mintIntentToken } = require('../services/intentTokenService');
-const { buildTokenEvent, decodeJwtClaims, resolveMcpAccessTokenWithEvents, buildSessionPreviewTokenEvents } = require('../services/agentMcpTokenService');
+const { buildTokenEvent, decodeJwtClaims, resolveMcpAccessTokenWithEvents, buildSessionPreviewTokenEvents, assertPfIdJagRunAllowed } = require('../services/agentMcpTokenService');
 const agentBuilderService = require('../services/agentBuilderService');
 const { USE_CASES, VERTICALS, resolveUseCase } = require('../config/useCases');
 const scopeTopology = require('../services/scopeTopology');
@@ -180,6 +180,9 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
     if (req.body?.toolName !== undefined) {
       return res.status(400).json({ error: 'tool_selection_not_allowed' });
     }
+    // UC40 must be authorized before heuristics or an agent can produce a
+    // normal reply; token-evidence reconstruction below is best-effort only.
+    assertPfIdJagRunAllowed(req, requestedUseCaseId);
     const isWorkloadAgent = requestedUseCaseId === 'personal-agent-concierge'
       || requestedUseCaseId === 'workload-digital-assistant-obo';
     let workloadScenario = null;
@@ -708,6 +711,10 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
         message: error.message,
         tokenEvents: errorTokenEvents,
       });
+    }
+    if (error.code === 'id_jag_login_required' || error.code === 'id_jag_provider_required') {
+      return res.status(401).json({ error: error.code, message: error.message,
+        loginTarget: error.loginTarget, tokenEvents: errorTokenEvents });
     }
     // Dead/expired user token: surface as 401 so the SPA can trigger re-auth
     // instead of treating it as a generic server error.

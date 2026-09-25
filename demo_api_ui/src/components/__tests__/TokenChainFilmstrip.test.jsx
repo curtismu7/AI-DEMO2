@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import TokenChainFilmstrip from "../TokenChainFilmstrip";
 import { tokenChainTraceStore } from "../../services/tokenChainTrace/tokenChainTraceStore";
+import { createMockIdJagTrace } from "../../utils/idJagMockTrace";
 
 vi.mock("../../context/TokenChainContext", () => ({
   useTokenChainOptional: () => ({ clearEvents: vi.fn() }),
@@ -95,4 +96,50 @@ test("zoom clamps at the rail's own min/max", () => {
   for (let i = 0; i < 10; i += 1) fireEvent.click(smaller);
   expect(smaller).toBeDisabled();
   expect(sheetBody.style.zoom).toBe("0.8");
+});
+
+test("mock replay populates the movie reel with labeled mock ID-JAG nodes", () => {
+  render(<TokenChainFilmstrip />);
+  act(() => tokenChainTraceStore.replayTrace(createMockIdJagTrace()));
+  expect(screen.getByText("Mock replay", { selector: ".trace-provenance" })).toBeInTheDocument();
+  expect(screen.getByTitle("Mock replay — ID-JAG issued")).toBeInTheDocument();
+  expect(screen.getByTitle("Mock replay — ID-JAG redeemed")).toBeInTheDocument();
+  expect(screen.queryByText("Live run", { selector: ".trace-provenance" })).not.toBeInTheDocument();
+  expect(screen.queryByText(/Live claims you can inspect/)).not.toBeInTheDocument();
+});
+
+test("live PF evidence labels the movie reel as PingFederate ID-JAG", () => {
+  render(<TokenChainFilmstrip />);
+  act(() => {
+    tokenChainTraceStore.beginTrace({ prompt: "show my balance", provenance: "live-id-jag", mode: "id-jag" });
+    tokenChainTraceStore.ingestTokenEvents([
+      { id: "pf-id-jag-issued", provider: "pingfederate", provenance: "live-id-jag", mode: "id-jag", status: "active" },
+      { id: "pf-id-jag-redeemed", provider: "pingfederate", provenance: "live-id-jag", mode: "id-jag", status: "exchanged" },
+    ]);
+  });
+  expect(screen.getByText("PingFederate ID-JAG", { selector: ".trace-provenance" })).toBeInTheDocument();
+  expect(screen.getByTitle("PingFederate ID-JAG issued")).toBeInTheDocument();
+});
+
+test("validated PF evidence labels the reel even when beginTrace used the ordinary default", () => {
+  render(<TokenChainFilmstrip />);
+  act(() => {
+    tokenChainTraceStore.beginTrace({ prompt: "show my balance" });
+    tokenChainTraceStore.ingestTokenEvents([
+      { id: "pf-id-jag-issued", provider: "pingfederate", provenance: "live-id-jag", mode: "id-jag", status: "active" },
+      { id: "pf-id-jag-redeemed", provider: "pingfederate", provenance: "live-id-jag", mode: "id-jag", status: "exchanged" },
+    ]);
+  });
+  expect(screen.getByText("PingFederate ID-JAG", { selector: ".trace-provenance" })).toBeInTheDocument();
+});
+
+test("the ID-JAG teaching page mounts without loading live trust flags", () => {
+  const previousPath = window.location.pathname;
+  window.history.replaceState({}, "", "/pingfederate-id-jag/demo");
+  try {
+    render(<TokenChainFilmstrip />);
+    expect(global.fetch).not.toHaveBeenCalled();
+  } finally {
+    window.history.replaceState({}, "", previousPath);
+  }
 });

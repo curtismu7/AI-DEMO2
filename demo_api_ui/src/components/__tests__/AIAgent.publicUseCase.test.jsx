@@ -146,7 +146,10 @@ vi.mock("../../vertical/useVertical", () => ({
 }));
 
 import AIAgent from "../AIAgent";
+import { getAccountBalance } from "../../services/demoAgentService";
 import { requiredFlagsForUseCase } from "../../utils/requiredDemoFlags";
+import { clearIdJagRunState, ID_JAG_USE_CASE_ID, ID_JAG_VALIDATED_CALLBACK_KEY } from "../../utils/idJagRunMode";
+import { tokenChainTraceStore } from "../../services/tokenChainTrace/tokenChainTraceStore";
 
 // primaryTool is what makes requiredFlagsForUseCase return a non-empty list
 // (every MCP-tool chip needs ff_mcp_gateway_pinggateway armed). Without it the
@@ -176,6 +179,7 @@ function jsonResponse(body) {
 beforeEach(() => {
   localStorage.clear();
   sessionStorage.clear();
+  clearIdJagRunState();
   apiPatch.mockReset();
   apiPatch.mockResolvedValue({ data: {} });
   sendAgentMessage.mockReset();
@@ -188,6 +192,52 @@ beforeEach(() => {
     ],
   });
   global.fetch = vi.fn(() => jsonResponse({}));
+});
+
+it("routes UC40 Demo Steps selection to the live ID-JAG launcher before ordinary auth and flags", async () => {
+  const onLaunch = vi.fn();
+  window.addEventListener("id-jag-run-requested", onLaunch);
+  try {
+    renderSignedOut("/dashboard");
+    await runStep({
+      id: "UC40",
+      useCaseId: ID_JAG_USE_CASE_ID,
+      title: "Enterprise-Managed MCP Authorization",
+      auth: "user",
+      trigger: { type: "link", path: "/demo/enterprise-mcp" },
+    });
+    expect(onLaunch).toHaveBeenCalledTimes(1);
+    expect(onLaunch.mock.calls[0][0].detail).toMatchObject({
+      useCaseId: ID_JAG_USE_CASE_ID,
+      mode: "live-id-jag",
+      returnTo: "/dashboard",
+    });
+    expect(apiPatch).not.toHaveBeenCalled();
+    expect(sendAgentMessage).not.toHaveBeenCalled();
+  } finally {
+    window.removeEventListener("id-jag-run-requested", onLaunch);
+  }
+});
+
+it("carries validated UC40 mode through non-streaming NL to a direct tool", async () => {
+  sessionStorage.setItem(ID_JAG_VALIDATED_CALLBACK_KEY, JSON.stringify({
+    idJagCallbackValidated: true, useCaseId: ID_JAG_USE_CASE_ID,
+    mode: "live-id-jag", message: "show my balance",
+  }));
+  global.fetch = vi.fn((url) => String(url).includes("/api/demo-agent/nl")
+    ? jsonResponse({ source: "heuristic", result: { kind: "banking", banking: { action: "balance", params: { accountId: "checking" } } } })
+    : jsonResponse({}));
+  render(
+    <MemoryRouter initialEntries={["/dashboard"]}>
+      <ActivityNarrativeProvider><ProofOfEnforcementProvider>
+        <AIAgent user={{ id: "u1", role: "customer" }} mode="inline" />
+      </ProofOfEnforcementProvider></ActivityNarrativeProvider>
+    </MemoryRouter>,
+  );
+  await waitFor(() => expect(getAccountBalance).toHaveBeenCalledWith("checking", expect.objectContaining({
+    useCaseId: ID_JAG_USE_CASE_ID, mode: "live-id-jag",
+  })));
+  expect(tokenChainTraceStore.getState().trace).toMatchObject({ mode: "live-id-jag", provenance: "live-id-jag" });
 });
 
 /**

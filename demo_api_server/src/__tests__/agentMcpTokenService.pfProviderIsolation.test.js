@@ -18,13 +18,21 @@ jest.mock('../../services/oauthService', () => ({
 }));
 
 const oauthService = require('../../services/oauthService');
-const { resolvePingFederateIdJagToken, __test } = require('../../services/agentMcpTokenService');
+const { resolvePingFederateIdJagToken, resolveMcpAccessTokenWithEvents, __test } = require('../../services/agentMcpTokenService');
 
 const idJag = [
   Buffer.from(JSON.stringify({ typ: 'oauth-id-jag+jwt', alg: 'none' })).toString('base64url'),
   Buffer.from(JSON.stringify({ iss: 'https://pf.example.test', sub: 'user-1', aud: 'https://downstream.example.test', exp: Math.floor(Date.now() / 1000) + 300 })).toString('base64url'),
   'signature',
 ].join('.');
+const liveSession = () => ({
+  oauthType: 'user', oauthProvider: 'pingfederate',
+  idJagRunIntent: {
+    useCaseId: 'enterprise-managed-mcp-authorization', mode: 'live-id-jag',
+    createdAt: Date.now(), nonce: 'a'.repeat(32), returnTo: '/pingfederate-id-jag/demo',
+  },
+  oauthTokens: { refreshToken: 'server-refresh-token' },
+});
 
 describe('PingFederate provider isolation', () => {
   beforeEach(() => {
@@ -43,7 +51,7 @@ describe('PingFederate provider isolation', () => {
   test('uses PF ID-JAG methods and never the legacy exchange method', async () => {
     const events = [];
     const token = await resolvePingFederateIdJagToken({
-      session: { oauthTokens: { refreshToken: 'server-refresh-token' } },
+      session: liveSession(),
     }, events, { resource: 'https://api.example.test', scope: ['accounts:read'] });
 
     expect(token).toBe('downstream-access-token');
@@ -64,5 +72,26 @@ describe('PingFederate provider isolation', () => {
       'pf-id-jag-issued',
       'pf-id-jag-redeemed',
     ]);
+    expect(events.every((event) => event.provenance === 'live-id-jag' && event.mode === 'id-jag')).toBe(true);
+  });
+
+  test('rejects UC40 without a validated PF login before any exchange', async () => {
+    const req = { body: { useCaseId: 'enterprise-managed-mcp-authorization' }, session: { oauthType: 'user', oauthProvider: 'pingfederate', oauthTokens: { accessToken: 'user-token' } } };
+    await expect(resolveMcpAccessTokenWithEvents(req, 'get_account_balance')).rejects.toMatchObject({
+      code: 'id_jag_login_required',
+      loginTarget: '/pingfederate-id-jag/demo',
+    });
+    expect(oauthService.performIdJagExchange).not.toHaveBeenCalled();
+    expect(oauthService.performTokenExchange).not.toHaveBeenCalled();
+  });
+
+  test('rejects PingOne session even when a live intent is present', async () => {
+    const req = { body: { useCaseId: 'enterprise-managed-mcp-authorization' }, session: { oauthType: 'user', oauthProvider: 'pingone', idJagRunIntent: { mode: 'live-id-jag', useCaseId: 'enterprise-managed-mcp-authorization' }, oauthTokens: { accessToken: 'user-token' } } };
+    await expect(resolveMcpAccessTokenWithEvents(req, 'get_account_balance')).rejects.toMatchObject({ code: 'id_jag_provider_required' });
+    expect(oauthService.performIdJagExchange).not.toHaveBeenCalled();
+  });
+
+  test('rejects ordinary PF session when no live intent is present', () => {
+    expect(() => __test.assertPfIdJagRunAllowed({ session: { oauthType: 'user', oauthProvider: 'pingfederate' } }, 'enterprise-managed-mcp-authorization')).toThrow(expect.objectContaining({ code: 'id_jag_login_required' }));
   });
 });

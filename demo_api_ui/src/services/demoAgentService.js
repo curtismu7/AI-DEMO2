@@ -170,7 +170,7 @@ export async function warmupAuthz() {
  * @param {object} params - Tool parameters
  * @returns {Promise<{ result: any, tokenEvents: Array }>}
  */
-export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertical, onTokenEvent } = {}) {
+export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertical, mode, onTokenEvent } = {}) {
   log.debug("=== MCP TOOL CALL START ===");
   log.debug("tool:", tool);
   log.debug("params:", JSON.stringify(params));
@@ -209,7 +209,10 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
   // Chips are deterministic (no LLM) — mark the rail as heuristic so steps 4/11
   // show HEURISTICS labels and checkmarks instead of pending LLM hops.
   try {
-    tokenChainTraceStore.beginTrace({ prompt: tool });
+    tokenChainTraceStore.beginTrace({ prompt: tool,
+      ...(useCaseId === 'enterprise-managed-mcp-authorization' && mode === 'live-id-jag'
+        ? { provenance: 'live-id-jag', mode } : {}),
+    });
     tokenChainTraceStore.ingestRoutingMode("heuristic", { action: tool });
   } catch { /* display-only */ }
 
@@ -765,11 +768,21 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
       ok: true,
       errorMessage: null,
     });
+    if (useCaseId === 'enterprise-managed-mcp-authorization' && mode === 'live-id-jag') {
+      try { tokenChainTraceStore.completeTrace(true, flowTraceId); } catch { /* display-only */ }
+    }
     return {
       result: data.result,
       tokenEvents: pathTaggedEvents,
     };
   } catch (e) {
+    if (useCaseId === 'enterprise-managed-mcp-authorization' && mode === 'live-id-jag') {
+      try {
+        const partialEvents = [...tokenEventsFromSse, ...(Array.isArray(e.tokenEvents) ? e.tokenEvents : [])];
+        if (partialEvents.length) tokenChainTraceStore.ingestTokenEvents(partialEvents);
+        tokenChainTraceStore.completeTrace(false, flowTraceId);
+      } catch { /* display-only */ }
+    }
     // Phase 194: mark milestone error
     updateMilestoneStatus(_toolId, "error", {
       errorMsg: e.message || "Tool call failed",
@@ -864,11 +877,11 @@ export function getMyAccounts({ useCaseId, vertical } = {}) {
   return callMcpTool("get_my_accounts", {}, { useCaseId, vertical });
 }
 
-export function getAccountBalance(accountId, { useCaseId, vertical } = {}) {
+export function getAccountBalance(accountId, { useCaseId, vertical, mode } = {}) {
   return callMcpTool(
     "get_account_balance",
     { account_id: accountId },
-    { useCaseId, vertical },
+    { useCaseId, vertical, mode },
   );
 }
 
@@ -1130,8 +1143,14 @@ export function ingestLegacyRunTrace(data, { forceHeuristic = false, flowTraceId
     if (typeof data.reply === "string" && data.reply) {
       tokenChainTraceStore.ingestLlmReply(data.reply, flowTraceId);
     }
-    const failed = data.success === false || Boolean(data.error);
-    tokenChainTraceStore.completeTrace(!failed, flowTraceId);
+    // A native UC40 missing-parameter reply pauses before a tool call. Keep
+    // the PF grant for the follow-up; leave ordinary trace handling unchanged.
+    const awaitingNativeClarification = tokenChainTraceStore.getState().trace.mode === "live-id-jag"
+      && data.needsParams?.missing?.length && !data.toolsCalled?.length;
+    if (!awaitingNativeClarification) {
+      const failed = data.success === false || Boolean(data.error);
+      tokenChainTraceStore.completeTrace(!failed, flowTraceId);
+    }
   } catch { /* display-only */ }
 }
 
@@ -1181,7 +1200,7 @@ async function sendToAdminAgent(message, { signal, onTokenEvent } = {}) {
   };
 }
 
-export async function sendAgentMessage(message, consentId = null, { signal, forceHeuristic = false, vertical = null, consentGiven = false, hitlChallengeId = null, useCaseId = null, onTokenEvent } = {}) {
+export async function sendAgentMessage(message, consentId = null, { signal, forceHeuristic = false, vertical = null, consentGiven = false, hitlChallengeId = null, useCaseId = null, mode = null, onTokenEvent } = {}) {
   if (vertical === 'pingone-admin') {
     return sendToAdminAgent(message, { signal, onTokenEvent });
   }
@@ -1217,7 +1236,10 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
   // When forceHeuristic is set (vertical chips after /nl), mark HEURISTICS
   // immediately so Token Chain steps 4/11 check before /agent/invoke returns.
   try {
-    tokenChainTraceStore.beginTrace({ prompt: message, flowTraceId });
+    tokenChainTraceStore.beginTrace({ prompt: message, flowTraceId,
+      ...(useCaseId === 'enterprise-managed-mcp-authorization' && mode === 'live-id-jag'
+        ? { provenance: 'live-id-jag', mode } : {}),
+    });
     if (forceHeuristic) {
       tokenChainTraceStore.ingestRoutingMode("heuristic", { action: null });
     }
@@ -1320,6 +1342,14 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
 
     // Attach HTTP status for caller to inspect (428 = HITL required)
     return { ...data, _status: res.status };
+  } catch (error) {
+    if (useCaseId === 'enterprise-managed-mcp-authorization' && mode === 'live-id-jag') {
+      try {
+        if (Array.isArray(error.tokenEvents) && error.tokenEvents.length) tokenChainTraceStore.ingestTokenEvents(error.tokenEvents);
+        tokenChainTraceStore.completeTrace(false, flowTraceId);
+      } catch { /* display-only */ }
+    }
+    throw error;
   } finally {
     closeSse();
     clearCurrentTurn();

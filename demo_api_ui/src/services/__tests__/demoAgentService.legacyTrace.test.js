@@ -4,7 +4,7 @@
  * the AG-UI streaming path ingested llm_detail. Chip runs and non-streaming
  * typed prompts showed the LLM step permanently pending.
  */
-import { ingestLegacyRunTrace } from "../demoAgentService";
+import { getAccountBalance, ingestLegacyRunTrace, sendAgentMessage } from "../demoAgentService";
 import { tokenChainTraceStore } from "../tokenChainTrace/tokenChainTraceStore";
 
 beforeEach(() => {
@@ -61,6 +61,27 @@ test("forceHeuristic wins over agentPath and errors complete the trace as failed
   expect(trace.outcome).toBe("error");
 });
 
+test("a native agent clarification keeps its run open for the follow-up tool request", () => {
+  tokenChainTraceStore.beginTrace({ prompt: "show my balance", provenance: "live-id-jag", mode: "live-id-jag" });
+  ingestLegacyRunTrace({
+    success: false,
+    reply: "Which account would you like to check?",
+    needsParams: { action: "get_account_balance", missing: ["accountId"] },
+  });
+  expect(tokenChainTraceStore.getState().trace).toMatchObject({
+    mode: "live-id-jag", provenance: "live-id-jag", outcome: null,
+  });
+});
+
+test("ordinary agent clarification keeps its existing trace outcome", () => {
+  ingestLegacyRunTrace({
+    success: false,
+    reply: "Which account would you like to check?",
+    needsParams: { action: "get_account_balance", missing: ["accountId"] },
+  });
+  expect(tokenChainTraceStore.getState().trace.outcome).toBe("error");
+});
+
 // Regression: the agent success path (UC1) rendered "Incomplete" because
 // ingestLegacyRunTrace never surfaced the tool result or the response's token
 // events — so 'tool-dispatched' and 'token-exchange' evidence could not match.
@@ -102,6 +123,40 @@ test("a failed agent run synthesizes an error mcpResult for TraceRail", () => {
   const mcp = steps.find((s) => s.id === "mcp");
   expect(mcp.status).toBe("error");
   expect(mcp.detail.why).toMatch(/get_weather|mcp_error/i);
+});
+
+test("native UC40 agent request reaches the BFF and keeps partial PF evidence on redemption failure", async () => {
+  const issued = { id: "pf-id-jag-issued", provider: "pingfederate", provenance: "live-id-jag", mode: "id-jag", status: "active", claims: { iss: "https://pf.example" } };
+  global.fetch = vi.fn(async () => ({
+    ok: false, status: 502,
+    json: async () => ({ success: false, error: "id_jag_redemption_failed", toolsCalled: ["get_account_balance"], tokenEvents: [issued] }),
+  }));
+  await sendAgentMessage("show my balance", null, {
+    useCaseId: "enterprise-managed-mcp-authorization", mode: "live-id-jag", vertical: "banking", forceHeuristic: true,
+  });
+  const request = global.fetch.mock.calls.find(([url]) => url === "/api/agent/invoke");
+  expect(JSON.parse(request[1].body)).toMatchObject({ useCaseId: "enterprise-managed-mcp-authorization" });
+  const { trace, steps } = tokenChainTraceStore.getState();
+  expect(trace).toMatchObject({ provenance: "live-id-jag", mode: "live-id-jag", outcome: "error" });
+  expect(trace.tokenEvents).toEqual(expect.arrayContaining([issued]));
+  expect(steps.map((step) => step.id)).toContain("id-jag-issued");
+});
+
+test("native UC40 direct tool request carries useCaseId and completes failed trace", async () => {
+  const issued = { id: "pf-id-jag-issued", provider: "pingfederate", provenance: "live-id-jag", mode: "id-jag", status: "active" };
+  global.fetch = vi.fn(async () => ({
+    ok: false, status: 502,
+    json: async () => ({ error: "id_jag_redemption_failed", message: "Redemption failed", tokenEvents: [issued] }),
+  }));
+  await expect(getAccountBalance("checking", {
+    useCaseId: "enterprise-managed-mcp-authorization", mode: "live-id-jag", vertical: "banking",
+  })).rejects.toThrow("Redemption failed");
+  const request = global.fetch.mock.calls.find(([url]) => url === "/api/mcp/tool");
+  expect(JSON.parse(request[1].body)).toMatchObject({ tool: "get_account_balance", useCaseId: "enterprise-managed-mcp-authorization" });
+  const { trace, steps } = tokenChainTraceStore.getState();
+  expect(trace).toMatchObject({ provenance: "live-id-jag", mode: "live-id-jag", outcome: "error" });
+  expect(trace.tokenEvents).toEqual(expect.arrayContaining([issued]));
+  expect(steps.map((step) => step.id)).toContain("id-jag-issued");
 });
 
 test("ingestLegacyRunTrace forwards mcpAuthorizeEvaluations to the store", () => {

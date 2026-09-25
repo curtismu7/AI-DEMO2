@@ -167,7 +167,7 @@ export function isAgentLifecycleRoute(pathname) {
 export function isEnterpriseMcpDemoRoute(pathname) {
   if (pathname == null || typeof pathname !== 'string') return false;
   const p = pathname.replace(/\/$/, '') || '/';
-  return p === '/demo/enterprise-mcp';
+  return p === '/demo/enterprise-mcp' || p === '/pingfederate-id-jag/demo';
 }
 
 /**

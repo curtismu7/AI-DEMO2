@@ -4,10 +4,11 @@
  */
 import React from "react";
 import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { ActivityNarrativeProvider } from "../../context/ActivityNarrativeContext";
 import { ProofOfEnforcementProvider } from "../../context/ProofOfEnforcementContext";
+import { clearIdJagRunState, ID_JAG_REPLAYED_KEY, ID_JAG_USE_CASE_ID, ID_JAG_VALIDATED_CALLBACK_KEY, USE_CASE_RUN_CONTEXT_KEY } from "../../utils/idJagRunMode";
 
 vi.mock("../../context/IndustryBrandingContext", () => ({
   useIndustryBranding: () => ({
@@ -42,6 +43,7 @@ vi.mock("../../services/demoAgentNlService", () => ({
   parseNaturalLanguage: vi.fn().mockResolvedValue({ source: "local", result: { kind: "none" } }),
 }));
 
+const sendAgentMessage = vi.fn().mockResolvedValue({ success: true, reply: "Done." });
 vi.mock("../../services/demoAgentService", () => ({
   getMyAccounts: vi.fn().mockResolvedValue([]),
   getAccountBalance: vi.fn().mockResolvedValue({ balance: 100 }),
@@ -52,7 +54,7 @@ vi.mock("../../services/demoAgentService", () => ({
   refreshOAuthSession: vi.fn().mockResolvedValue({}),
   warmupAuthz: vi.fn().mockResolvedValue({}),
   callMcpTool: vi.fn().mockResolvedValue({ success: true }),
-  sendAgentMessage: vi.fn().mockResolvedValue({ success: true, reply: "Done." }),
+  sendAgentMessage: (...args) => sendAgentMessage(...args),
   fetchAgentTools: vi.fn().mockResolvedValue({ availableTools: [], vertical: null, allowWrite: true }),
 }));
 
@@ -131,17 +133,20 @@ import AIAgentFull from "../AIAgentFull";
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
+  clearIdJagRunState();
   mockManifest = { id: "healthcare", identity: { displayName: "CareConnect" } };
   bffGet.mockReset();
   bffGet.mockResolvedValue({ data: {} });
+  sendAgentMessage.mockClear();
   global.fetch = vi.fn(() =>
     Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) }),
   );
 });
 
-function renderAgent(props = {}) {
+function renderAgent(props = {}, route = "/") {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[route]}>
       <ActivityNarrativeProvider>
         <ProofOfEnforcementProvider>
           <AIAgentFull {...props} />
@@ -161,5 +166,87 @@ describe("AIAgentFull smoke", () => {
     expect(await screen.findByLabelText(/mcp transport/i)).toBeInTheDocument();
     expect(await screen.findByText(/privilege a2a/i)).toBeInTheDocument();
     expect(screen.getByText(/coming later/i)).toBeInTheDocument();
+  });
+
+  it("launches a UC40-scoped phrase from its stored context", async () => {
+    sessionStorage.setItem(USE_CASE_RUN_CONTEXT_KEY, JSON.stringify({ useCaseId: ID_JAG_USE_CASE_ID }));
+    const onLaunch = vi.fn();
+    window.addEventListener("id-jag-run-requested", onLaunch);
+    try {
+      renderAgent({ user: { id: "u1", role: "customer" }, mode: "inline" }, "/dashboard");
+      const input = screen.getByPlaceholderText(/^Message |^Ask about/);
+      fireEvent.change(input, { target: { value: "run ID-JAG demo" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+      await waitFor(() => expect(onLaunch).toHaveBeenCalledTimes(1));
+      expect(onLaunch.mock.calls[0][0].detail).toMatchObject({
+        useCaseId: ID_JAG_USE_CASE_ID,
+        mode: "live-id-jag",
+        message: "show my balance",
+        returnTo: "/dashboard",
+      });
+      expect(global.fetch).not.toHaveBeenCalledWith("/api/demo-agent/nl", expect.anything());
+    } finally {
+      window.removeEventListener("id-jag-run-requested", onLaunch);
+    }
+  });
+
+  it("replays a validated callback once across duplicate events", () => {
+    const onPrefill = vi.fn();
+    window.addEventListener("banking-agent-prefill", onPrefill);
+    try {
+      renderAgent({ user: { id: "u1", role: "customer" }, mode: "inline" }, "/dashboard");
+      const callback = new CustomEvent("userAuthenticated", { detail: {
+        idJagCallbackValidated: true,
+        useCaseId: ID_JAG_USE_CASE_ID,
+        mode: "live-id-jag",
+        message: "show my balance",
+      } });
+      act(() => {
+        window.dispatchEvent(new CustomEvent("userAuthenticated"));
+        window.dispatchEvent(callback);
+        window.dispatchEvent(callback);
+      });
+      expect(onPrefill).toHaveBeenCalledTimes(1);
+      expect(onPrefill.mock.calls[0][0].detail).toEqual({
+        useCaseId: ID_JAG_USE_CASE_ID,
+        mode: "live-id-jag",
+        message: "show my balance",
+        autoSend: true,
+      });
+    } finally {
+      window.removeEventListener("banking-agent-prefill", onPrefill);
+    }
+  });
+
+  it("sends the saved PF callback prompt after a late full-agent mount", async () => {
+    sessionStorage.setItem(ID_JAG_VALIDATED_CALLBACK_KEY, JSON.stringify({
+      idJagCallbackValidated: true,
+      useCaseId: ID_JAG_USE_CASE_ID,
+      mode: "live-id-jag",
+      message: "show my balance",
+    }));
+    renderAgent({ user: { id: "u1", role: "customer" }, mode: "inline" }, "/dashboard");
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+      "/api/demo-agent/nl",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining('"message":"show my balance"'),
+      }),
+    ));
+    expect(sessionStorage.getItem(ID_JAG_REPLAYED_KEY)).toBe("1");
+  });
+
+  it("carries validated UC40 mode through non-streaming NL to agent dispatch", async () => {
+    sessionStorage.setItem(ID_JAG_VALIDATED_CALLBACK_KEY, JSON.stringify({
+      idJagCallbackValidated: true, useCaseId: ID_JAG_USE_CASE_ID,
+      mode: "live-id-jag", message: "show my balance",
+    }));
+    global.fetch = vi.fn((url) => String(url).includes("/api/demo-agent/nl")
+      ? Promise.resolve({ ok: true, status: 200, json: async () => ({ source: "heuristic", result: { kind: "vertical", vertical: "healthcare", action: "show_health_record", params: {} } }) })
+      : Promise.resolve({ ok: true, status: 200, json: async () => ({}) }));
+    renderAgent({ user: { id: "u1", role: "customer" }, mode: "inline" }, "/dashboard");
+    await waitFor(() => expect(sendAgentMessage).toHaveBeenCalledWith(
+      "show my balance", null, expect.objectContaining({ useCaseId: ID_JAG_USE_CASE_ID, mode: "live-id-jag" }),
+    ));
   });
 });
