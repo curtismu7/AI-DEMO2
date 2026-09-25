@@ -322,21 +322,6 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             if (ownerId) headers['X-Resource-Owner-Id'] = String(ownerId);
         } catch (_) { /* best-effort — never block a tool call on the lookup */ }
     }
-    // DPoP (RFC 9449): sign a fresh per-hop proof bound to this request URL + access
-    // token when the session has a DPoP key (ff_dpop). The htu path must match what
-    // the gateway sees (/mcp). Best-effort — never block the call on proof failure.
-    if (opts.dpopKey && opts.dpopKey.privatePem) {
-        try {
-            const { signDpopProof, accessTokenHash } = require('./dpopKeyService');
-            headers['DPoP'] = signDpopProof({
-                privatePem: opts.dpopKey.privatePem,
-                publicJwk: opts.dpopKey.publicJwk,
-                htu: url,
-                htm: 'POST',
-                ath: accessTokenHash(bearerToken),
-            });
-        } catch (_) { /* best-effort */ }
-    }
     // Web Bot Auth (RFC 9421, draft-meunier profile): sign @authority +
     // signature-agent with the BFF's stable Ed25519 agent key. The gateway
     // resolves the public key from Signature-Agent's
@@ -438,6 +423,22 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     let response;
     const maxAttempts = RETRYABLE_READ_TOOLS.has(tool) ? 2 : 1;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        // DPoP jti values are single-use. Sign inside the attempt loop so a
+        // retry after a transient 502/503/504 cannot replay the first proof.
+        // Keep this best-effort, matching the original call behavior.
+        if (opts.dpopKey && opts.dpopKey.privatePem) {
+            delete headers.DPoP;
+            try {
+                const { signDpopProof, accessTokenHash } = require('./dpopKeyService');
+                headers['DPoP'] = signDpopProof({
+                    privatePem: opts.dpopKey.privatePem,
+                    publicJwk: opts.dpopKey.publicJwk,
+                    htu: url,
+                    htm: 'POST',
+                    ath: accessTokenHash(bearerToken),
+                });
+            } catch (_) { /* best-effort */ }
+        }
         try {
             response = await nrSegments.mcpToolCall(() =>
                 axios.post(url, body, {

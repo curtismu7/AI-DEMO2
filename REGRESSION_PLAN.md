@@ -169,6 +169,35 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-25 — Gateway RFC 8707 exchange rejected legacy comma-separated backend audience
+
+**Files changed:** `demo_mcp_gateway/src/router.ts`,
+`demo_mcp_gateway/tests/mcpTokenExchangeClient.test.ts`,
+`demo_api_server/services/mcpGatewayClient.js`, and
+`demo_api_server/src/__tests__/mcpGatewayClient.dpopRetry.test.js`.
+
+**What was broken:** a live MCP Invest audience setting contained both the current
+resource URI and a retired alias, comma-separated. The gateway forwarded both as
+one RFC 8707 `resource` value; PingOne rejected the token exchange with HTTP 400
+`invalid_scope` before the Authorize decision could be reported. This affected
+all vertical tools routed through the Invest resource server. The BFF then retried
+the idempotent read with the same DPoP proof, whose single-use `jti` was rejected
+as a replay and obscured the original exchange failure.
+
+**What was fixed:** normalize configured backend resource values to one trimmed,
+nonempty URI at the gateway routing boundary. Mint a fresh DPoP proof for every
+HTTP attempt. Scope intersection, consent, Authorize, and fail-closed behavior
+remain unchanged.
+
+**Do not break:** every RFC 8693 exchange must target one resource URI and request
+only scopes held by the subject on that backend. Never bypass token exchange or
+Authorize to recover from a rejected exchange.
+
+**Verify:** `cd demo_mcp_gateway && CI=true npm test -- --runInBand
+--runTestsByPath tests/mcpTokenExchangeClient.test.ts --forceExit` (21 passed);
+`npm run build` (passed); `cd demo_api_server && CI=true npx jest
+src/__tests__/mcpGatewayClient.dpopRetry.test.js --runInBand --forceExit` (1 passed).
+
 ### 2026-09-24 — UC1 consent and UC7/UC8 authorization challenges did not fire
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`,

@@ -247,8 +247,16 @@ export function backendHttpMcpUrl(target: BackendTarget, config: GatewayConfig):
 // not mcpOlbResourceUri / mcpResourceServerResourceUri / mcpJwtVerifierResourceUri.
 export function backendResourceUri(target: BackendTarget, config: GatewayConfig): string {
   if (target === 'apikey' || target === 'dualtoken' || target === 'bankingdata') return '';
-  if (target === 'jwtverifier') return config.mcpJwtVerifierResourceUri;
-  return target === 'invest' ? config.mcpResourceServerResourceUri : config.mcpOlbResourceUri;
+  const configured = target === 'jwtverifier'
+    ? config.mcpJwtVerifierResourceUri
+    : target === 'invest'
+      ? config.mcpResourceServerResourceUri
+      : config.mcpOlbResourceUri;
+  // Older stack configurations kept both the current and retired resource
+  // server audience in this setting. RFC 8707 permits one resource per token
+  // exchange; forwarding the comma-joined value makes PingOne reject every
+  // call with invalid_scope before Authorize can record its decision.
+  return configured.split(',').map((uri) => uri.trim()).find(Boolean) || '';
 }
 
 // Resolve the concrete HTTP URL for a given (target, toolName).

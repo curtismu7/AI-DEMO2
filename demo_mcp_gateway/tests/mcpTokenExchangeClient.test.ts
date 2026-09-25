@@ -54,6 +54,19 @@ describe('McpTokenExchangeClient', () => {
     expect(result.targetAud).toBe('mcpserver.ping.demo');
   });
 
+  it('normalizes legacy comma-separated backend resource aliases to one RFC 8707 resource', async () => {
+    const aliasConfig = {
+      ...config,
+      mcpResourceServerResourceUri: 'mcp-invest.ping.demo,mcp-resource-server.ping.demo',
+    } as GatewayConfig;
+    const client = new McpTokenExchangeClient(aliasConfig);
+    const result = await client.exchangeForBackend(subjectToken, 'invest');
+
+    expect(result.targetAud).toBe('mcp-invest.ping.demo');
+    expect(new URLSearchParams(String(mockedPost.mock.calls[1][1])).getAll('resource'))
+      .toEqual(['mcp-invest.ping.demo']);
+  });
+
   it('returns cached=true on the second identical exchange', async () => {
     const client = new McpTokenExchangeClient(config);
     await client.exchange(subjectToken, 'get_my_accounts');
