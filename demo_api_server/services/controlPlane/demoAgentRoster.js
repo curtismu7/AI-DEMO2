@@ -1,15 +1,11 @@
 'use strict';
 
-// Seeded demo identities representing other AI platforms. These are NOT real
-// PingOne apps — stopping them writes a real audit record but does not call
-// PingOne disable (there is no real user/app behind them).
-const DEMO_AGENTS = [
-  { id: 'chatgpt', platform: 'ChatGPT', label: 'ChatGPT', source: 'azure', sourceLabel: 'Azure' },
-  { id: 'copilot', platform: 'Copilot Studio', label: 'Copilot Studio', source: 'azure', sourceLabel: 'Azure' },
-  { id: 'glean', platform: 'Glean', label: 'Glean', source: 'gcp', sourceLabel: 'GCP' },
-  { id: 'agentforce', platform: 'Agentforce', label: 'Agentforce', source: 'aws', sourceLabel: 'AWS' },
-  { id: 'servicenow', platform: 'ServiceNow', label: 'ServiceNow', source: 'on-prem', sourceLabel: 'On-Prem' },
-];
+// No simulated platform identities: every row the control plane shows must
+// have a real PingOne identity behind it, so this roster is empty. The only
+// real stoppable agent is the live row built by liveAgentInfo.js. Kept as an
+// empty seeded list so the session-scoped store, stop/reset endpoints and the
+// registry's runtime-agent union keep working unchanged.
+const DEMO_AGENTS = [];
 
 function seed() {
   return DEMO_AGENTS.map((a) => ({ ...a, status: 'active' }));

@@ -296,7 +296,7 @@ The Live Policy Console is an overhauled inspection surface for PingOne Authoriz
 
 ### AI Control Plane (`/ai-control-plane`)
 
-The AI Control Plane provides cross-platform agent governance. Stopping an agent revokes its identity at PingOne, making its access die everywhere at once — no per-service call is required. The kill event is logged to the audit trail and broadcast over SSE. Governance scenarios include group-deny, unauthorized-tool alert, and a Compliance Report view with CSV/JSON export.
+The AI Control Plane provides agent governance over real identities only — nothing on the roster is simulated. An instance kill revokes the agent's tokens; a full-identity kill also disables the PingOne user and application, making its access die everywhere at once — no per-service call is required. Comprehensive shutdown adds PingOne SSO session termination in one call. The kill event is logged to the audit trail and broadcast over SSE. Governance scenarios include group-deny, unauthorized-tool alert, and a Compliance Report view with CSV/JSON export.
 
 ---
 

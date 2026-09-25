@@ -54,29 +54,35 @@ function build(session) {
 }
 
 describe('control-plane routes', () => {
-  it('GET /agents returns live + 5 demo', async () => {
+  it('GET /agents returns only the live row (no simulated identities)', async () => {
     const { app } = build({});
     const res = await request(app).get('/api/control-plane/agents');
     expect(res.status).toBe(200);
     expect(res.body.live.kind).toBe('live');
-    expect(res.body.demo).toHaveLength(5);
+    expect(res.body.demo).toHaveLength(0);
   });
 
-  it('POST stop on a demo agent writes audit, emits event, flips status', async () => {
-    const session = {};
-    const { app, auditLogService, appEventService, agentLifecycleEvents } = build(session);
+  it('POST stop on an unknown id is 404 (roster is empty — nothing simulated)', async () => {
+    const { app } = build({});
     const res = await request(app).post('/api/control-plane/agents/glean/stop').send({ reason: 'manual_safety' });
+    expect(res.status).toBe(404);
+    expect(res.body.error).toBe('unknown_agent');
+  });
+
+  it('POST stop-all flips zero demo agents (nothing simulated exists)', async () => {
+    const session = {};
+    const { app } = build(session);
+    const res = await request(app).post('/api/control-plane/stop-all').send({ reason: 'manual_safety' });
     expect(res.status).toBe(200);
-    expect(res.body.audit_id).toBe('audit-123');
-    expect(auditLogService.recordKillEvent).toHaveBeenCalledWith('glean', 'manual_safety', expect.any(Object), 0, 'demo-glean');
-    expect(appEventService.logEvent).toHaveBeenCalledWith(
-      'control_plane', 'warning', expect.stringContaining('Glean'), expect.objectContaining({ tag: 'agent_stopped' })
-    );
-    expect(agentLifecycleEvents.emit).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: 'leaver', agentId: 'glean', kind: 'demo', auditId: 'audit-123' })
-    );
-    const after = await request(app).get('/api/control-plane/agents');
-    expect(after.body.demo.find((a) => a.id === 'glean').status).toBe('revoked');
+    expect(res.body.count).toBe(0);
+  });
+
+  it('POST reset restores the (empty) roster to active', async () => {
+    const session = {};
+    const { app } = build(session);
+    const res = await request(app).post('/api/control-plane/reset').send({});
+    expect(res.status).toBe(200);
+    expect(res.body.demo).toHaveLength(0);
   });
 
   it('POST stop on the live id is rejected with 409', async () => {
@@ -86,65 +92,26 @@ describe('control-plane routes', () => {
     expect(res.body.error).toBe('use_live_endpoint');
   });
 
-  it('POST stop on unknown id is 404', async () => {
-    const { app } = build({});
-    const res = await request(app).post('/api/control-plane/agents/nope/stop').send({});
-    expect(res.status).toBe(404);
-  });
-
-  it('POST stop-all flips all active demo agents', async () => {
-    const session = {};
-    const { app } = build(session);
-    const res = await request(app).post('/api/control-plane/stop-all').send({ reason: 'manual_safety' });
-    expect(res.status).toBe(200);
-    expect(res.body.count).toBe(5);
-    const after = await request(app).get('/api/control-plane/agents');
-    expect(after.body.demo.every((a) => a.status === 'revoked')).toBe(true);
-  });
-
-  it('POST reset restores all to active', async () => {
-    const session = {};
-    const { app } = build(session);
-    await request(app).post('/api/control-plane/stop-all').send({});
-    const res = await request(app).post('/api/control-plane/reset').send({});
-    expect(res.status).toBe(200);
-    expect(res.body.demo.every((a) => a.status === 'active')).toBe(true);
-  });
-
-  it('POST reset emits a joiner event per re-seeded demo agent', async () => {
-    const session = {};
-    const { app, agentLifecycleEvents } = build(session);
-    agentLifecycleEvents.emit.mockClear();
-    const res = await request(app).post('/api/control-plane/reset').send({});
-    expect(res.status).toBe(200);
-    expect(agentLifecycleEvents.emit).toHaveBeenCalledTimes(5);
-    expect(agentLifecycleEvents.emit).toHaveBeenCalledWith(
-      expect.objectContaining({ eventType: 'joiner', kind: 'demo', reason: 'registration' })
-    );
-  });
-
-  it('POST comprehensive-shutdown runs full kill, SSO termination and cascade, then 401s', async () => {
+  it('POST comprehensive-shutdown runs full kill + SSO termination, then 401s', async () => {
     const session = { user: { id: 'u-1', oauthId: 'po-1' }, oauthTokens: { accessToken: 'at' }, destroy: (cb) => cb && cb() };
-    const { app, auditLogService, killSwitchService, pingOneSessionService } = build(session);
+    const { app, killSwitchService, pingOneSessionService } = build(session);
     const res = await request(app).post('/api/control-plane/comprehensive-shutdown').send({ reason: 'comprehensive_shutdown' });
     expect(res.status).toBe(401);
     expect(res.body.error).toBe('agent_killed');
     expect(killSwitchService.killAgent.mock.calls[0].slice(0, 5)).toEqual(['demo-agent', 'comprehensive_shutdown', 'po-1', { accessToken: 'at' }, 'full']);
     expect(pingOneSessionService.terminateAllUserSessions).toHaveBeenCalledWith('po-1');
-    expect(res.body.stopped).toHaveLength(5);
-    expect(res.body.steps.map((s) => s.key)).toEqual(['live_kill', 'pingone_sessions', 'platform_cascade']);
-    // Demo stops wrote real audit records.
-    expect(auditLogService.recordKillEvent).toHaveBeenCalledTimes(5);
+    expect(res.body.stopped).toHaveLength(0);
+    expect(res.body.steps.map((s) => s.key)).toEqual(['live_kill', 'pingone_sessions']);
   });
 
-  it('POST comprehensive-shutdown survives a failing kill and still reports the other steps', async () => {
+  it('POST comprehensive-shutdown survives a failing kill and still reports SSO termination', async () => {
     const session = { user: { id: 'u-1' }, destroy: (cb) => cb && cb() };
     const { app, killSwitchService } = build(session);
     killSwitchService.killAgent.mockRejectedValueOnce(new Error('pingone down'));
     const res = await request(app).post('/api/control-plane/comprehensive-shutdown').send({});
     expect(res.status).toBe(401);
     expect(res.body.steps.find((s) => s.key === 'live_kill').detail).toContain('pingone down');
-    expect(res.body.steps.find((s) => s.key === 'platform_cascade').ran).toBe(true);
+    expect(res.body.steps.find((s) => s.key === 'pingone_sessions').ran).toBe(true);
   });
 
   describe('GET /lifecycle-events', () => {

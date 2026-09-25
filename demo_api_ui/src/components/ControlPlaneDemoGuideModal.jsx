@@ -28,7 +28,7 @@ export default function ControlPlaneDemoGuideModal({ isOpen, onClose }) {
             Sign in at <code>local.ping-devops.com:4000</code> (passkeys need
             that host — <code>api.ping.demo</code> won't work).
           </li>
-          <li>Go to <code>/ai-control-plane</code>. The live row is the real agent with real PingOne revocation; the other rows are simulated.</li>
+          <li>Go to <code>/ai-control-plane</code>. The live row is the real agent with real PingOne revocation — it is the only row; nothing on this page is simulated.</li>
           <li>Click <strong>STOP</strong> on the live row to open the confirm modal.</li>
           <li>
             Point out the scope choice: <strong>This instance only
