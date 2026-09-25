@@ -228,65 +228,31 @@ export default function HostileMcpTab() {
       <header className="hmc-bar">
         <div>
           <h1>Malicious MCP</h1>
-          <p>
-            The hostile MCP server (<code>hostile-mcp</code> Agentic App) serves poisoned tool
-            metadata. Privilege does not police metadata. Follow whether the poison induces a
-            <code> create_transfer</code> call and observe the actual gateway result: only a
-            policy denial demonstrates enforcement; an allowed call reaches a no-money stub.
-            {' '}<Link to="/privilege-mcp-client">Open the full client</Link>
+          <p className="hmc-storyline">
+            A malicious MCP server hides instructions in its tool descriptions. A model reading
+            that list acts on the poison — and <strong>Privilege blocks the action</strong>, even
+            though it never saw the poison itself.
           </p>
         </div>
         <div className="hmc-bar__side">
           {!onHostileDoor ? (
             <button type="button" className="hmc-btn hmc-btn--danger" disabled={busy || !doorUrl}
               onClick={() => pointAt(doorUrl)} title="Point the relay at the hostile door">
-              Switch to hostile door
+              Step 1 — Switch to hostile door
             </button>
           ) : (
-            <span className="hmc-pill hmc-pill--ok">On the hostile door</span>
+            <span className="hmc-pill hmc-pill--ok">✓ Connected to the malicious server</span>
           )}
           {onHostileDoor && !authenticated ? (
             <button type="button" className="hmc-btn" disabled={busy} onClick={signIn}>
-              Sign in with Privilege
+              Step 2 — Sign in with Privilege
             </button>
           ) : null}
           <button type="button" className="hmc-btn" disabled={busy || !onHostileDoor || !authenticated} onClick={refreshTools}>
-            Get MCP Tools
+            Step 3 — Load the poisoned tools
           </button>
         </div>
       </header>
-
-      <aside className="hmc-prereq" role="note">
-        Before testing a denial, manually confirm the hostile-mcp Agentic App policy denies create_transfer for this demo user. An allowed result reaches only the hostile server&apos;s no-money stub. If Privilege reports &quot;user not found in system&quot;, sync the demo identity first. If the model does not propose create_transfer, the policy was not tested.
-      </aside>
-
-      {agentOutcome ? (
-        <div className={`hmc-outcome hmc-outcome--${agentOutcome.kind}`} role="status" aria-live="polite" data-testid="hostile-agent-outcome">
-          <p>{hostileAgentOutcomeLabel(agentOutcome)}</p>
-          {agentRunEvidence ? (
-            <>
-            <p className="hmc-reachability">
-              Model/provider reached: {agentRunEvidence.modelReached === null ? 'Unknown / not reported' : `Yes — ${agentRunEvidence.provider}`}<br />
-              MCP tool metadata server reached: {agentRunEvidence.metadataServerReached === null ? 'Unknown / not reported'
-                : 'Yes — tools/list loaded before the model run'}<br />
-              Tool-call backend: {agentRunEvidence.toolCallBackend === 'yes' ? 'Yes — at least one call was allowed'
-                : agentRunEvidence.toolCallBackend === 'no' ? 'No — all observed calls were denied before the tool backend'
-                  : agentRunEvidence.toolCallBackend === 'not-evaluated' ? 'Not evaluated — no tool invocation appeared in the trace'
-                    : 'Unknown / not reported'}
-            </p>
-            {agentRunEvidence.request ? (
-              <details className="hmc-details">
-                <summary>Agent request and observed response</summary>
-                <h3>Request</h3>
-                <pre>{agentRunEvidence.request}</pre>
-                <h3>Response</h3>
-                <pre>{agentRunEvidence.response}</pre>
-              </details>
-            ) : null}
-            </>
-          ) : null}
-        </div>
-      ) : null}
 
       {error ? <p className="hmc-error" role="alert">{error}</p> : null}
 
@@ -298,40 +264,39 @@ export default function HostileMcpTab() {
 
       <div className="hmc-body">
         <section className="hmc-pane" aria-label="Poisoned tools">
-          <h2 className="hmc-k">Tools ({tools.length})</h2>
+          <h2 className="hmc-k">What the model sees ({tools.length} tools)</h2>
           {tools.length === 0 ? (
             <p className="hmc-note">
-              Switch to the hostile door, sign in, then Get MCP Tools. The poison arrives in the
-              metadata below, unfiltered — that is the point: it lands in the client&rsquo;s context.
-              The gateway&rsquo;s job begins at the call.
+              Load the tools first (Step 3). The highlighted ones carry hidden instructions —
+              read their description to see the poison the way the model will.
             </p>
           ) : tools.map((t) => (
             <div key={t.name} className={`hmc-tool${isPoisoned(t) ? ' hmc-tool--poison' : ''}`}>
               <div className="hmc-tool__name">
                 {t.name}
-                {isPoisoned(t) ? <span className="hmc-pill hmc-pill--warn">poisoned metadata</span> : null}
-                {t.name === 'create_transfer' ? <span className="hmc-pill hmc-pill--bad">harmful action</span> : null}
+                {isPoisoned(t) ? <span className="hmc-pill hmc-pill--warn">carries hidden instructions</span> : null}
+                {t.name === 'create_transfer' ? <span className="hmc-pill hmc-pill--bad">the dangerous action</span> : null}
               </div>
               <details className="hmc-tool__desc">
-                <summary>description / schema</summary>
+                <summary>Show the description / schema the model reads</summary>
                 <pre>{(t.description || '') + '\n' + JSON.stringify(t.inputSchema || {}, null, 2)}</pre>
               </details>
               {t.name === 'create_transfer' ? (
                 <button type="button" className="hmc-btn hmc-btn--danger" disabled={busy}
-                  onClick={callTransfer}>
-                  Call create_transfer ($500 → external-001)
+                  onClick={callTransfer} title="Fire the dangerous call yourself, without the model">
+                  Fire it yourself — call create_transfer ($500 → external-001)
                 </button>
               ) : null}
             </div>
           ))}
           {tools.length > 0 ? (
             <div className="hmc-agent">
-              <div className="hmc-tool__name">Let the model act on the poison</div>
+              <h2 className="hmc-k">Step 4 — Run the attack: let a real model read the poison</h2>
               <p className="hmc-note">
-                Sends the poisoned <code>tools/list</code> metadata to the model as real tool
-                definitions. A benign task (&ldquo;What&rsquo;s the weather in Denver?&rdquo;) shows the
-                poison landing only if the model chooses the injected action. The run is inconclusive
-                if no <code>create_transfer</code> call appears in the trace.
+                The task below is deliberately innocent — &ldquo;What&rsquo;s the weather in
+                Denver?&rdquo;. If the model calls <code>create_transfer</code> anyway, that is the
+                poison working. Watch the relay log: <strong>🛡 DENIED</strong> means Privilege
+                stopped it; <strong>allowed (stub)</strong> means no deny policy is set yet.
               </p>
               <div className="hmc-agent__row">
                 <select value={agentProvider} onChange={(e) => setAgentProvider(e.target.value)} disabled={busy} aria-label="Model">
@@ -351,6 +316,33 @@ export default function HostileMcpTab() {
               </div>
             </div>
           ) : null}
+          {agentOutcome ? (
+            <div className={`hmc-outcome hmc-outcome--${agentOutcome.kind}`} role="status" aria-live="polite" data-testid="hostile-agent-outcome">
+              <p>{hostileAgentOutcomeLabel(agentOutcome)}</p>
+              {agentRunEvidence ? (
+                <>
+                <p className="hmc-reachability">
+                  Model/provider reached: {agentRunEvidence.modelReached === null ? 'Unknown / not reported' : `Yes — ${agentRunEvidence.provider}`}<br />
+                  MCP tool metadata server reached: {agentRunEvidence.metadataServerReached === null ? 'Unknown / not reported'
+                    : 'Yes — tools/list loaded before the model run'}<br />
+                  Tool-call backend: {agentRunEvidence.toolCallBackend === 'yes' ? 'Yes — at least one call was allowed'
+                    : agentRunEvidence.toolCallBackend === 'no' ? 'No — all observed calls were denied before the tool backend'
+                      : agentRunEvidence.toolCallBackend === 'not-evaluated' ? 'Not evaluated — no tool invocation appeared in the trace'
+                        : 'Unknown / not reported'}
+                </p>
+                {agentRunEvidence.request ? (
+                  <details className="hmc-details">
+                    <summary>Agent request and observed response</summary>
+                    <h3>Request</h3>
+                    <pre>{agentRunEvidence.request}</pre>
+                    <h3>Response</h3>
+                    <pre>{agentRunEvidence.response}</pre>
+                  </details>
+                ) : null}
+                </>
+              ) : null}
+            </div>
+          ) : null}
           {toolsListEvidence ? (
             <details className="hmc-details">
               <summary>tools/list request and observed response</summary>
@@ -364,8 +356,10 @@ export default function HostileMcpTab() {
 
         <section className="hmc-pane" aria-label="Relay log">
           <h2 className="hmc-k">Relay log</h2>
+          <p className="hmc-note">Every action above appears here in order, with the gateway&rsquo;s
+            verdict on each tool call.</p>
           {events.length === 0 ? (
-            <p className="hmc-note">Fire the induced call and the gateway&rsquo;s verdict lands here.</p>
+            <p className="hmc-note">Nothing yet. Work through the steps and the log fills in.</p>
           ) : (
             <ol className="hmc-events">
               {events.map((e, i) => <li key={i} className="hmc-event">{e.line}</li>)}
@@ -373,6 +367,9 @@ export default function HostileMcpTab() {
           )}
         </section>
       </div>
+      <aside className="hmc-prereq" role="note">
+        Before testing a denial, manually confirm the hostile-mcp Agentic App policy denies create_transfer for this demo user. An allowed result reaches only the hostile server&apos;s no-money stub. If Privilege reports &quot;user not found in system&quot;, sync the demo identity first. If the model does not propose create_transfer, the policy was not tested.
+      </aside>
     </div>
   );
 }
