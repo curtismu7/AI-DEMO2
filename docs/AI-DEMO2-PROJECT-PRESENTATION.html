@@ -648,7 +648,7 @@
       <p class="eyebrow">Ways to run it</p><h2>Four launchers: native, Compose, local K8s, remote K8s.</h2>
       <div class="grid g2">
         <div class="panel redline"><h3>Native on macOS</h3><p><code>./run.sh</code> starts the BFF, React dev server, MCP server and agent as local Node/Python processes. No app containers or Kubernetes; PingGateway still uses Docker.</p><p><b>Use for:</b> lightest local development. <code>stop</code>, <code>restart</code>, <code>status</code> and <code>tail</code> manage the processes.</p></div>
-        <div class="panel redline"><h3>Docker Compose · Docker Desktop or OrbStack</h3><p><code>./run-docker.sh</code> starts core + Code Search (RAG). <code>start full</code> starts the full service set; <code>mode demo</code> and <code>mode mcpgw</code> start focused subsets.</p><p><b>Opt-in groups:</b> <code>spiffe</code>, <code>demo-auth</code>, <code>mcpgw</code>, <code>observability</code>, <code>tracing</code>, <code>notebooklm</code> and <code>all</code>. NotebookLM requires an explicit build and is not started by <code>full</code>.</p></div>
+        <div class="panel redline"><h3>Docker Compose · Docker Desktop or OrbStack</h3><p><code>./run-docker.sh</code> starts core + Code Search (RAG). <code>start full</code> starts the full service set; <code>mode demo</code> and <code>mode mcpgw</code> start focused subsets.</p><p><b>Opt-in groups:</b> <code>spiffe</code>, <code>demo-auth</code>, <code>mcpgw</code>, <code>observability</code>, <code>tracing</code> and <code>all</code>.</p></div>
         <div class="panel redline"><h3>Local Kubernetes · OrbStack or Docker Desktop</h3><p>Enable Kubernetes, then <code>./run-k8.sh</code> builds images, deploys manifests and supervises port-forwards. Use <code>mode demo</code>, <code>mode mcpgw</code>, <code>mode full</code>, <code>rag on</code>, <code>status</code> or <code>stop</code>.</p><p>OrbStack and Docker Desktop both provide supported local Kubernetes clusters.</p></div>
         <div class="panel redline"><h3>Remote Kubernetes + deployment handoffs</h3><p><b>AWS EKS:</b> <code>./run-k8.sh aws-all</code> builds/pushes images and deploys. <b>Ping SE cluster:</b> <code>./run-pingaws.sh</code> wraps the SE build/deploy/status lifecycle.</p><p>Terraform can manage the local Compose lifecycle or hand off into an existing SE namespace.</p></div>
       </div>
@@ -714,7 +714,7 @@
         <div class="map-card"><h3>Demo authorization gateway</h3><p>Alternate Node gateway and its policy / token-verification services.</p><p class="inventory">mcp-gateway :3005 → authz-server :9001 + mcp-jwt-verifier :8083</p></div>
         <div class="map-card"><h3>Observability</h3><p>Metrics and alerts, dashboards, and logs shipped through Alloy.</p><p class="inventory">prometheus → grafana + alertmanager<br>alloy → loki</p></div>
         <div class="map-card"><h3>SPIFFE workload identity</h3><p>Local SPIRE issues workload identities; helper and OIDC services expose them to the demo.</p><p class="inventory">spire-server → spire-registration → spire-agent<br>spiffe-helper-bff · spiffe-oidc-provider</p></div>
-        <div class="map-card"><h3>Build and comparison services</h3><p>Special-purpose services outside the normal request path.</p><p class="inventory">notebooklm (explicit build; not started by full)<br>tier-manager-k8 (build profile)<br>ungoverned-agent (attack comparison)</p></div>
+        <div class="map-card"><h3>Build and comparison services</h3><p>Special-purpose services outside the normal request path.</p><p class="inventory">tier-manager-k8 (build profile)<br>ungoverned-agent (attack comparison)</p></div>
       </div>
       <p class="skill-footer">Together with the request-path map, this names all 43 services in <code>docker-compose.yml</code>. The launcher selects subsets by mode/profile. The search database here is OpenSearch, not an Elasticsearch container.</p>
       <div class="source"><a href="../docker-compose.yml">Compose service profiles and dependencies</a><a href="../run-docker.sh">Launcher presets</a><a href="../docs/ARCHITECTURE.md">System architecture</a></div>
@@ -780,7 +780,6 @@
           <div class="fd-box"><b>spiffe-oidc-provider</b></div>
           <div class="fd-box"><b>tika</b><span>doc extraction</span></div>
           <div class="fd-box"><b>ungoverned-agent</b><span>attack compare</span></div>
-          <div class="fd-box"><b>notebooklm</b></div>
         </div>
       </div>
       <p class="small" style="margin-top:10px"><b>Red nodes</b> are the default request path; <code>opt</code> marks profile-selected optional services. Launcher modes (<code>demo</code>, <code>mcpgw</code>, <code>full</code>, observability, SPIFFE) select subsets — not every server runs at once.</p>
@@ -833,7 +832,6 @@
         <div class="st"><span class="mono">spire-registration</span><span>—</span><span>spiffe</span><span>Registers demo workloads with SPIRE</span></div>
         <div class="st"><span class="mono">spiffe-helper-bff</span><span>—</span><span>spiffe</span><span>Delivers BFF workload identity from SPIRE</span></div>
         <div class="st"><span class="mono">spiffe-oidc-provider</span><span>8443</span><span>spiffe</span><span>Exposes workload identity as OIDC tokens to the demo</span></div>
-        <div class="st"><span class="mono">notebooklm</span><span>—</span><span>notebooklm</span><span>NotebookLM integration; explicit build, not started by full</span></div>
         <div class="st"><span class="mono">tier-manager-k8</span><span>—</span><span>k8-build</span><span>Build-time helper for vertical tier manifests in K8s</span></div>
       </div>
       <p class="small" style="margin-top:8px">Plus 14 data-volume containers (ai-demo-bff-data, weaviate-data, opensearch-data, spiffe sockets, mcpgw-ssl/logs/recordings) and the ai-demo network helper. 43 entries in docker-compose.yml, 59 with volumes.</p>
@@ -947,7 +945,7 @@ flowchart LR
   end
 
   %% Specialist
-  SPEC["ungoverned-agent<br/>(attack comparison)<br/>notebooklm · tier-manager-k8<br/>mcpgw-nginx → ping-mcpgw<br/>(Privilege gateway · opt)"]
+  SPEC["ungoverned-agent<br/>(attack comparison)<br/>tier-manager-k8 (build)<br/>mcpgw-nginx → ping-mcpgw<br/>(Privilege gateway · opt)"]
 
   classDef hot fill:#fce9e9,stroke:#d92732,color:#17243a;
   classDef mid fill:#dce9f8,stroke:#1d3458,color:#17243a;
