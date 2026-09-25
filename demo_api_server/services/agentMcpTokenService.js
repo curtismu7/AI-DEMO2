@@ -2754,6 +2754,23 @@ async function _performTwoExchangeDelegation(
         pingoneErrorDescription: err.pingoneErrorDescription, exchangeStep: '1-exchange',
         ...(ex1ExchangeRequest ? { exchangeRequest: ex1ExchangeRequest } : {}) }
     ));
+    // Name the subject client when PingOne rejects the subject outright —
+    // "Not a valid access token for request param 'subject_token'" means the
+    // tenant's token-exchange policy does not trust this login app, and the
+    // fix is a tenant change, not a code change. Log it loudly here so the
+    // failure is diagnosable from logs alone (found live 2026-09-25 with the
+    // DaVinci SDK Login app's tokens).
+    const subjectClient = req?.session?.oauthSubjectClient
+      || (() => { try { return decodeJwtClaims(userToken)?.claims?.client_id || null; } catch (_) { return null; } })();
+    const isSubjectRejection = (err.pingoneErrorDescription || '').includes('subject_token')
+      || (err.pingoneErrorDescription || '').includes('Not a valid access token');
+    if (isSubjectRejection) {
+      console.error(
+        `[TwoExchange] Subject token REJECTED by the tenant token-exchange policy` +
+        ` (subject client=${subjectClient || 'unknown'}, tool=${tool || 'discovery'}).\n` +
+        `  Sessions signed in through this client cannot delegate tools — add this client to the` +
+        ` tenant's token-exchange policy (PingOne Authorize console) or sign in via the standard user login app.`);
+    }
     const { errorCode: ex1Code, errorDetails: ex1Details } = mapErrorToStructuredResponse(err);
     void writeExchangeEvent({ type: 'exchange-failed', level: 'error',
       message: `[2-Exchange#1] Failed — error_code=${ex1Code} — ${err.message}`,

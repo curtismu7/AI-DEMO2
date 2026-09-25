@@ -114,6 +114,13 @@ router.post('/start', (req, res) => {
   // pages open cannot have one consume the other's armed nonce.
   req.session.davinciSdkLoginNonce = nonce;
   req.session.davinciSdkLoginRedirectUri = redirectUri;
+  // NOTE: the main session is deliberately NOT stashed here. The callback
+  // captures and restores it around regenerate (see below) — a /start snapshot
+  // would go stale if the main token were silently refreshed during the lesson.
+  // The lesson's login itself writes only to session.davinciSdkLogin, so the
+  // dashboard session is never clobbered (found live 2026-09-25: this callback
+  // used to replace session.oauthTokens with a DaVinci-app token, and every
+  // dashboard tool call then failed the RFC 8693 exchange until re-login).
   req.session.save((err) => {
     if (err) {
       console.error('[davinci-sdk-login/start] Session save FAILED:', err.message);
@@ -208,6 +215,20 @@ router.post('/callback', async (req, res) => {
       return res.status(404).json({ error: 'user_not_found', message: `No demo user found for "${oauthUser.username}".` });
     }
 
+    // Capture the MAIN app session before regenerate wipes it (fixation
+    // protection). Restored after the sandbox is written below, so the lesson's
+    // login never clobbers the dashboard session. Captured HERE rather than at
+    // /start so a silent refresh (middleware/tokenRefresh.js) that runs during
+    // the lesson window is not undone by restoring a stale /start snapshot.
+    const mainSession = {
+      oauthTokens: req.session.oauthTokens || null,
+      user: req.session.user || null,
+      clientType: req.session.clientType || null,
+      oauthType: req.session.oauthType || null,
+      oauthSubjectClient: req.session.oauthSubjectClient || null,
+      oauthTokenIssuer: req.session.oauthTokenIssuer || null,
+    };
+
     // Regenerate before storing credentials to prevent session fixation
     // (mirrors routes/oauth.js and routes/oauthUser.js). Failure is fatal.
     req.session.regenerate((regenErr) => {
@@ -216,20 +237,51 @@ router.post('/callback', async (req, res) => {
         return res.status(500).json({ error: 'session_regenerate_failed', message: 'Could not establish a session.' });
       }
 
-      req.session.oauthTokens = {
-        accessToken: tokenData.access_token,
-        idToken: tokenData.id_token || null,
-        refreshToken: tokenData.refresh_token,
-        expiresAt: Date.now() + (tokenData.expires_in * 1000),
-        tokenType: tokenData.token_type || 'Bearer',
-        scope: tokenData.scope || null,
+      // Lesson-sandbox identity: the DaVinci tokens live in their OWN slot, never
+      // in session.oauthTokens. The main app session (restored below) keeps its
+      // own tokens — the dashboard's RFC 8693 exchange must never see a
+      // DaVinci-app subject token (found live 2026-09-25: overwriting
+      // session.oauthTokens here 502'd every delegated tool call until the user
+      // re-logged in).
+      req.session.davinciSdkLogin = {
+        oauthTokens: {
+          accessToken: tokenData.access_token,
+          idToken: tokenData.id_token || null,
+          refreshToken: tokenData.refresh_token,
+          expiresAt: Date.now() + (tokenData.expires_in * 1000),
+          tokenType: tokenData.token_type || 'Bearer',
+          scope: tokenData.scope || null,
+        },
+        user,
+        clientType: determineClientType(tokenData.access_token),
+        signedInAt: Date.now(),
       };
-      req.session.user = user;
-      // A customer sign-in, stored like routes/oauthUser.js's callback. Without
-      // oauthType 'user' the session reads as ADMIN to /api/auth/oauth/status
-      // (routes/oauth.js) and as signed-out to /api/auth/oauth/user/status.
-      req.session.clientType = determineClientType(tokenData.access_token);
-      req.session.oauthType = 'user';
+
+      // Stamp the minting client on the sandbox too: the RFC 8693 chain only
+      // accepts subject tokens from clients the tenant's token-exchange policy
+      // trusts, and a DaVinci-app subject fails exchange #1 with an opaque
+      // PingOne error. Storing the client_id makes the failure diagnosable
+      // downstream if the sandbox tokens are ever used on a governed path.
+      try {
+        const claims = JSON.parse(
+          Buffer.from(String(tokenData.access_token || '').split('.')[1] || '', 'base64url').toString(),
+        );
+        req.session.davinciSdkLogin.oauthSubjectClient = claims.client_id || null;
+        req.session.davinciSdkLogin.oauthTokenIssuer = claims.iss || null;
+      } catch (_) { /* non-JWT or malformed — leave the stamp unset */ }
+
+      // Restore the main app session captured before regenerate. When the user
+      // had no main session, this restores nothing and the session simply holds
+      // the lesson sandbox — same signed-out-main-app behavior as before the
+      // sandbox existed.
+      if (mainSession.oauthTokens) {
+        req.session.oauthTokens = mainSession.oauthTokens;
+        req.session.user = mainSession.user;
+        req.session.clientType = mainSession.clientType;
+        req.session.oauthType = mainSession.oauthType;
+        req.session.oauthSubjectClient = mainSession.oauthSubjectClient;
+        req.session.oauthTokenIssuer = mainSession.oauthTokenIssuer;
+      }
 
       req.session.save((saveErr) => {
         if (saveErr) {
@@ -265,6 +317,39 @@ router.post('/callback', async (req, res) => {
     console.error('[davinci-sdk-login/callback] exchange failed:', normalized.message);
     return res.status(status).json({ error: 'davinci_sdk_login_exchange_failed', message: normalized.message });
   }
+});
+
+// GET /api/davinci-sdk-login/sandbox-status
+//
+// Read-only view of the lesson sandbox for the page: which user the SANDBOX is
+// signed in as, whether a main session survived alongside it, and the sandbox
+// token's expiry. Never returns token material.
+router.get('/sandbox-status', (req, res) => {
+  const sandbox = req.session.davinciSdkLogin || null;
+  const hasMain = Boolean(req.session.oauthTokens && req.session.oauthTokens.accessToken);
+  return res.json({
+    sandboxSignedIn: Boolean(sandbox),
+    username: (sandbox && sandbox.user && sandbox.user.username) || null,
+    subjectClient: (sandbox && sandbox.oauthSubjectClient) || null,
+    expiresAt: (sandbox && sandbox.oauthTokens && sandbox.oauthTokens.expiresAt) || null,
+    mainSessionPreserved: hasMain,
+  });
+});
+
+// POST /api/davinci-sdk-login/sandbox-reset
+//
+// Clear ONLY the lesson sandbox (tokens + stashed main copy). The main session
+// is untouched — the stash and the live main credentials are the same data at
+// this point, so dropping the stash loses nothing.
+router.post('/sandbox-reset', (req, res) => {
+  delete req.session.davinciSdkLogin;
+  req.session.save((err) => {
+    if (err) {
+      console.error('[davinci-sdk-login/sandbox-reset] Session save FAILED:', err.message);
+      return res.status(500).json({ error: 'session_save_failed', message: 'Could not clear the lesson sign-in.' });
+    }
+    return res.json({ ok: true });
+  });
 });
 
 module.exports = router;
