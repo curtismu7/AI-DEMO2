@@ -1,47 +1,60 @@
-// ExternalDoorDiagramPage.jsx — two Mermaid diagrams for the external-door MCP
-// flow (docs/EXTERNAL_DOOR_MCP_FLOW.md): an architecture graph (styled like
-// PrivilegeMcpDiagramPage's Architecture tab) and a dual-credential-path
-// sequence diagram with notes (styled like InvestDualAuthDiagramPage).
+// ExternalDoorDiagramPage.jsx — two diagrams for the external-door MCP flow
+// (docs/EXTERNAL_DOOR_MCP_FLOW.md): an architecture graph on React Flow
+// (StaticFlowDiagram) and a dual-credential-path sequence diagram (Mermaid,
+// a true sequence shape) with notes.
 import React, { useState } from "react";
 import DiagramExportBar from "./DiagramExportBar";
+import StaticFlowDiagram from "./StaticFlowDiagram";
 import { useMermaidRender } from "../hooks/useMermaidRender";
 import "./PrivilegeMcpDiagramPage.css";
 import "./McpGatewayOauthFlowPage.css";
 
-const ARCHITECTURE_SOURCE = `graph TB
-    subgraph client["External client — never talked to this system before"]
-        EXT["LM Studio / MCP Inspector /<br/>Claude Desktop"]
-    end
+export const EXT_DOOR_GROUPS = {
+  client: { label: "External client — never talked to this system before", bg: "#1e40af" },
+  ingress: { label: "Ingress — cmuir-mcp.ping-devops.com", bg: "#b45309" },
+  k8s: { label: "K8s cluster (SE)", bg: "#047857" },
+  pingone: { label: "PingOne (cloud) — tenant 01d89b06", bg: "#9d174d" },
+  bff: { label: "demo_api_server — Banking API (BFF)", bg: "#475569" },
+};
 
-    subgraph ingress["Ingress — cmuir-mcp.ping-devops.com"]
-        ING["mcp-public-door-ingress<br/>2 routing rules, split by path"]
-    end
+export const EXT_DOOR_NODES = [
+  { id: "ext", group: "client", label: "LM Studio / MCP Inspector / Claude Desktop", x: 0, y: 40 },
+  { id: "ing", group: "ingress", label: "mcp-public-door-ingress", sub: ["2 routing rules, split by path"], x: 300, y: 40 },
+  {
+    id: "gw", group: "k8s", label: "ping-gateway :8080",
+    sub: ["PingOne Agent Gateway / ForgeRock IG", "enforces /mcp only", "OAuth AS paths pass through unfiltered"],
+    x: 600, y: 40,
+  },
+  {
+    id: "mcp", group: "k8s", label: "mcp-server :8080 (oauth-mcp) — dual role",
+    sub: ["MCP tool server AND", "embedded OAuth 2.1 AS", "(DCR, /authorize, /token, /jwks, /introspect)"],
+    x: 900, y: 40,
+  },
+  { id: "as", group: "pingone", label: "auth.pingone.com/{envId}/as", sub: ["real IdP — actual login"], x: 600, y: 300 },
+  { id: "p1az", group: "pingone", label: "PingOne Authorize", sub: ["decision endpoint", "PERMIT / DENY per MCP call"], x: 900, y: 300 },
+  { id: "api", group: "bff", label: "Same REST API browser sessions use", sub: ["reached here over Bearer", "aud = enduser.ping.demo"], x: 1200, y: 40 },
+];
 
-    subgraph k8s["K8s cluster (SE)"]
-        GW["ping-gateway :8080<br/>PingOne Agent Gateway / ForgeRock IG<br/><b>enforces /mcp only</b><br/>OAuth AS paths pass through unfiltered"]
-        MCP["mcp-server :8080 (oauth-mcp)<br/><b>dual role, same pod/Service:</b><br/>MCP tool server AND<br/>embedded OAuth 2.1 AS<br/>(DCR, /authorize, /token, /jwks, /introspect)"]
-    end
+export const EXT_DOOR_EDGES = [
+  ["ext", "ing", "well-known discovery, DCR, OAuth (everything except oauth-protected-resource)"],
+  ["ing", "mcp", ".well-known/oauth-protected-resource — direct, bypasses gateway", { dashed: true }],
+  ["ing", "gw", "everything else: /register /authorize /token /jwks /mcp …"],
+  ["gw", "mcp", "^/mcp only: introspect → P1AZ decision → tools-filter → reverse proxy"],
+  ["gw", "mcp", "OAuth AS endpoints: passthrough, unfiltered, NOT P1AZ-gated", { dashed: true }],
+  ["gw", "p1az", "P1AZ decision per MCP request", { dashed: true }],
+  ["mcp", "as", "federated OAuth: own /authorize redirects here, own /token exchanges PingOne's code", { dashed: true }],
+  ["mcp", "api", "Bearer: real federated PingOne token or self-issued JWT (fallback)"],
+];
 
-    subgraph pingone["PingOne (cloud) — tenant 01d89b06"]
-        AS["auth.pingone.com/{envId}/as<br/>real IdP — actual login"]
-        P1AZ["PingOne Authorize<br/>decision endpoint<br/>PERMIT / DENY per MCP call"]
-    end
-
-    subgraph bff["demo_api_server — Banking API (BFF)"]
-        API["Same REST API browser sessions use<br/>reached here over Bearer<br/>aud = enduser.ping.demo"]
-    end
-
-    EXT -->|"well-known discovery, DCR,<br/>OAuth (everything except<br/>oauth-protected-resource)"| ING
-    ING -->|".well-known/oauth-protected-resource<br/>direct — bypasses gateway"| MCP
-    ING -->|"everything else:<br/>/register /authorize /token<br/>/jwks /mcp ..."| GW
-    GW -->|"^/mcp only: introspect →<br/>P1AZ decision → tools-filter →<br/>reverse proxy"| MCP
-    GW -.->|"OAuth AS endpoints:<br/>passthrough, unfiltered,<br/>NOT P1AZ-gated"| MCP
-    GW -->|"P1AZ decision<br/>per MCP request"| P1AZ
-    MCP <-->|"federated OAuth: own /authorize<br/>redirects here, own /token<br/>exchanges PingOne's code"| AS
-    MCP -->|"Bearer: real federated PingOne token<br/>or self-issued JWT (fallback)"| API
-
-    classDef dual stroke-width:3px
-    class MCP dual`;
+const EXT_DOOR_DETAILS = {
+  ext: "A self-registering external client — DCR creates its client credentials on first contact.",
+  ing: "The public door. Two routing rules: the well-known resource metadata goes straight to mcp-server; everything else goes through ping-gateway.",
+  gw: "PingOne Agent Gateway / ForgeRock IG. Enforces ^/mcp only — introspection, P1AZ decision, tool filtering — and passes OAuth AS endpoints through unfiltered (a client can't hold a token yet at DCR/authorize time).",
+  mcp: "One process, two hats: MCP tool server AND its own embedded OAuth 2.1 Authorization Server with federated PingOne login.",
+  as: "The real IdP. oauth-mcp's federated OAuth completes actual logins here.",
+  p1az: "PERMIT/DENY per MCP call, attributed to the real PingOne sub (or client_id when no user federated).",
+  api: "The Banking API the browser uses — reached externally over Bearer with aud = enduser.ping.demo.",
+};
 
 const SEQUENCE_SOURCE = `sequenceDiagram
     autonumber
@@ -113,18 +126,19 @@ const NOTES = [
   },
 ];
 
-const FLOWCHART_OPTS = { useMaxWidth: true };
 const SEQUENCE_OPTS = { useMaxWidth: true, wrap: true };
 
 export default function ExternalDoorDiagramPage() {
-  const [archSource, setArchSource] = useState(ARCHITECTURE_SOURCE);
+  const [selectedNode, setSelectedNode] = useState(null);
   const [seqSource, setSeqSource] = useState(SEQUENCE_SOURCE);
-  const { containerRef: archRef, error: archError } = useMermaidRender(archSource, {
-    flowchart: FLOWCHART_OPTS,
-  });
   const { containerRef: seqRef, error: seqError } = useMermaidRender(seqSource, {
     sequence: SEQUENCE_OPTS,
   });
+
+  const nodeDetail = selectedNode
+    ? EXT_DOOR_DETAILS[selectedNode.id] ||
+      `${selectedNode.data.label} — participant in the external-door flow.`
+    : null;
 
   return (
     <>
@@ -138,22 +152,27 @@ export default function ExternalDoorDiagramPage() {
             single process wearing two hats, MCP tool server and its own embedded
             OAuth 2.1 Authorization Server — through ping-gateway's per-request P1AZ
             enforcement, out to the real PingOne login, and on to the Banking API.
+            Click any node for its role.
           </p>
         </div>
 
-        <DiagramExportBar
-          source={archSource}
-          sourceFilename="external-door-architecture.mmd"
-          onSourceChange={setArchSource}
-        />
-
         <div className="pmd-panel">
-          {archError ? (
-            <p className="pmd-error">Diagram failed to render: {archError}</p>
-          ) : (
-            <div className="pmd-diagram" ref={archRef} aria-label="External door architecture diagram" />
-          )}
+          <StaticFlowDiagram
+            NODES={EXT_DOOR_NODES}
+            EDGES={EXT_DOOR_EDGES}
+            GROUPS={EXT_DOOR_GROUPS}
+            onNodeClick={(node) => setSelectedNode(selectedNode?.id === node.id ? null : node)}
+            testId="ext-door-flow-diagram"
+            height={560}
+          />
         </div>
+
+        {nodeDetail && (
+          <div className="pmd-node-detail" role="status">
+            <strong>{selectedNode.data.label}</strong>
+            <p>{nodeDetail}</p>
+          </div>
+        )}
 
         <p className="pmd-footer">
           Source:{" "}
