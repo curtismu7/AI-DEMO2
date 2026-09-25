@@ -15,6 +15,8 @@ import { MemoryRouter } from "react-router-dom";
 import { ActivityNarrativeProvider } from "../../context/ActivityNarrativeContext";
 import { ProofOfEnforcementProvider } from "../../context/ProofOfEnforcementContext";
 
+const verticalState = vi.hoisted(() => ({ activeId: "banking" }));
+
 vi.mock("../../context/IndustryBrandingContext", () => ({
   useIndustryBranding: () => ({ preset: { shortName: "Super Banking", name: "Super Banking" } }),
 }));
@@ -110,9 +112,9 @@ vi.mock("../../services/apiClient", () => ({
 
 vi.mock("../../vertical/useVertical", () => ({
   useVertical: () => ({
-    activeId: "banking",
-    pageManifest: { id: "banking", identity: { displayName: "Super Banking" } },
-    agentManifest: { id: "banking", identity: { displayName: "Super Banking" } },
+    activeId: verticalState.activeId,
+    pageManifest: { id: verticalState.activeId, identity: { displayName: "Super Banking" } },
+    agentManifest: { id: verticalState.activeId, identity: { displayName: "Super Banking" } },
     adminManifest: null,
     pageMockData: null,
     isAdminScope: false,
@@ -152,6 +154,7 @@ const ADMIN1 = {
 };
 
 beforeEach(() => {
+  verticalState.activeId = "banking";
   localStorage.clear();
   sessionStorage.clear();
   apiPatch.mockReset();
@@ -236,6 +239,43 @@ describe("guest on a guest-chat surface", () => {
 });
 
 describe("signed-in customer", () => {
+  it("shows consent before UC1 dispatch in every vertical", async () => {
+    const customer = { id: "u1", role: "customer", email: "u@test.com", username: "cust" };
+    const verticals = ["banking", "healthcare", "retail", "abercrombie-fitch", "government", "university", "workforce", "sporting-goods", "manufacturing", "investment", "airlines"];
+
+    for (const vertical of verticals) {
+      verticalState.activeId = vertical;
+      const { unmount } = renderAt("/dashboard", customer);
+      await runStep(UC1);
+      await screen.findByText("Allow AI Agent Access");
+      expect(sendAgentMessage).not.toHaveBeenCalled();
+      fireEvent.click(screen.getByRole("button", { name: "Allow" }));
+      await waitFor(() => expect(sendAgentMessage).toHaveBeenCalledWith(
+        UC1.trigger.text,
+        null,
+        expect.objectContaining({ vertical, useCaseId: UC1.useCaseId }),
+      ));
+      unmount();
+      sendAgentMessage.mockClear();
+      global.fetch.mockClear();
+    }
+  });
+
+  it("does not dispatch UC1 on consent dismissal and allows a fresh retry", async () => {
+    const customer = { id: "u1", role: "customer", email: "u@test.com", username: "cust" };
+    renderAt("/dashboard", customer);
+
+    await runStep(UC1);
+    await screen.findByText("Allow AI Agent Access");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(sendAgentMessage).not.toHaveBeenCalled();
+
+    await runStep(UC1);
+    await screen.findByText("Allow AI Agent Access");
+    fireEvent.click(screen.getByRole("button", { name: "Allow" }));
+    await waitFor(() => expect(sendAgentMessage).toHaveBeenCalledTimes(1));
+  });
+
   it("requires slide-out consent before running UC1, and still refuses an admin step", async () => {
     const customer = { id: "u1", role: "customer", email: "u@test.com", username: "cust" };
 

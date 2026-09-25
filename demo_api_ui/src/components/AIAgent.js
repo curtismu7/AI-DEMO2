@@ -11014,6 +11014,9 @@ export default function BankingAgent({
                 onDismiss={() => {
                   pendingNlResumeRef.current = null;
                   pendingUcIdRef.current = null;
+                  pendingUcPublicRef.current = false;
+                  pendingUcFlagsRef.current = null;
+                  pendingUcAuthRef.current = null;
                   setNlResumeAfterAuth(null);
                   setPendingAgentAccessConsent(null);
                 }}
