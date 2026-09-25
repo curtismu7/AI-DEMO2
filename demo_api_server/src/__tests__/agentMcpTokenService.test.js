@@ -184,6 +184,63 @@ describe('resolveMcpAccessTokenWithEvents — no session token', () => {
   });
 });
 
+describe('resolveMcpAccessTokenWithEvents — DaVinci widget token gate', () => {
+  const WIDGET_APP = '4e122cbf-defe-4c39-a5b5-c6b7da2b63f1';
+  const ORIG_WIDGET_ENV = process.env.PINGONE_DAVINCI_LOGIN_APP_ID;
+
+  afterAll(() => {
+    if (ORIG_WIDGET_ENV === undefined) delete process.env.PINGONE_DAVINCI_LOGIN_APP_ID;
+    else process.env.PINGONE_DAVINCI_LOGIN_APP_ID = ORIG_WIDGET_ENV;
+  });
+
+  it('rejects a DaVinci-widget token with davinci_widget_token_not_exchangeable (403)', async () => {
+    process.env.PINGONE_DAVINCI_LOGIN_APP_ID = WIDGET_APP;
+    const widgetToken = makeJwt({
+      sub: USER_SUB,
+      aud: 'banking_enduser',
+      azp: WIDGET_APP,
+      scope: 'openid profile email read write ai:agent:read',
+      iss: 'https://auth.pingone.com/test-env/as',
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      iat: Math.floor(Date.now() / 1000),
+    });
+    await expect(resolveMcpAccessTokenWithEvents(makeReq(widgetToken), 'pay_airline_fee'))
+      .rejects.toMatchObject({ code: 'davinci_widget_token_not_exchangeable', httpStatus: 403 });
+  });
+
+  it('does NOT reject a standard User-App token (azp = User App)', async () => {
+    process.env.PINGONE_DAVINCI_LOGIN_APP_ID = WIDGET_APP;
+    // Single-exchange path so no exchange mocks are needed; scope check runs after the gate.
+    const userAppToken = makeJwt({
+      sub: USER_SUB,
+      aud: 'banking_enduser',
+      azp: '83572007-b2c7-4862-8197-dc225a9fb8e1',
+      scope: 'openid profile email offline_access read write transfer',
+      iss: 'https://auth.pingone.com/test-env/as',
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      iat: Math.floor(Date.now() / 1000),
+    });
+    await expect(resolveMcpAccessTokenWithEvents(makeReq(userAppToken), 'get_my_accounts'))
+      .resolves.toMatchObject({ token: null });
+    // Gate did not fire: no incompatible-token event in the chain
+  });
+
+  it('does not fire when the widget app id env is unset', async () => {
+    delete process.env.PINGONE_DAVINCI_LOGIN_APP_ID;
+    const widgetToken = makeJwt({
+      sub: USER_SUB,
+      aud: 'banking_enduser',
+      azp: WIDGET_APP,
+      scope: 'openid profile email read',
+      iss: 'https://auth.pingone.com/test-env/as',
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      iat: Math.floor(Date.now() / 1000),
+    });
+    const r = await resolveMcpAccessTokenWithEvents(makeReq(widgetToken), 'get_my_accounts');
+    expect(r.tokenEvents.some((e) => e.id === 'user-token-exchange-incompatible')).toBe(false);
+  });
+});
+
 describe('resolveMcpAccessTokenWithEvents — PingFederate standard exchange audience', () => {
   beforeEach(() => {
     jest.clearAllMocks();
