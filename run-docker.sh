@@ -127,12 +127,7 @@ DEFAULT_OPTIONAL_GROUPS=(rag demo-auth)
 # Compose profiles matching OPTIONAL_GROUP_NAMES (also used for `start full`).
 FULL_STACK_PROFILE_ARGS=(--profile rag --profile tracing --profile demo-auth --profile mcpgw --profile observability --profile spiffe)
 
-# Teardown only. `notebooklm` is deliberately absent from FULL_STACK_PROFILE_ARGS
-# (it restart-loops without a host ~/.notebooklm cookie jar, so it is never
-# started implicitly), but `down` must still reach its container — otherwise it
-# lingers holding its network. Start it deliberately with
-# `./run-docker.sh build notebooklm`: naming a service enables its profile.
-TEARDOWN_PROFILE_ARGS=("${FULL_STACK_PROFILE_ARGS[@]}" --profile notebooklm)
+TEARDOWN_PROFILE_ARGS=("${FULL_STACK_PROFILE_ARGS[@]}")
 
 # Return compose profile name(s) for an optional group (or `all`).
 _optional_group_profiles() {
@@ -809,7 +804,6 @@ SERVICES=(
   "api-resource-server|Mortgage Service     |8082|http://localhost:8082"
   "authz-server|Authz Server          |9001|http://localhost:9001"
   "promptfoo-step-narration|promptfoo (eval)      |-|./run-docker.sh promptfoo"
-  "notebooklm|NotebookLM sidecar    |-|internal :8000"
 )
 
 # True if $1 is one of the compose service names in SERVICES, OR a member of
@@ -1087,7 +1081,7 @@ _compose_down() {
   echo "Stopping containers (all profiles)..."
   local down_rc=0
   # Pass every compose profile so optional-group containers (rag, tracing,
-  # agents, demo-auth, notebooklm) stop too — otherwise the shared network
+  # agents, demo-auth) stop too — otherwise the shared network
   # stays in use and `down` blocks at "Network ai-demo_ai-demo Removing".
   if [[ $# -gt 0 ]]; then
     _compose_with_timeout 90 "${TEARDOWN_PROFILE_ARGS[@]}" down --timeout 5 "$@" --remove-orphans || down_rc=$?
@@ -1607,8 +1601,6 @@ cmd_optional_help() {
   echo "      observability — $(_optional_group_desc observability)"
   echo "      tracing       — $(_optional_group_desc tracing)"
   echo "    all             — $(_optional_group_desc all)"
-  echo "    Service-specific opt-in:"
-  echo "      notebooklm    — build explicitly with ./run-docker.sh build notebooklm (not started by full)"
   echo ""
   echo "  Note: rag starts with core by default; observability does not. Use optional stop/start to toggle."
   echo "        Starting or stopping observability can recreate the BFF (~35s) to switch its Loki push."

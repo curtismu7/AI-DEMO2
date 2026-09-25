@@ -1,37 +1,48 @@
 // ResourceServerPlacementPage.jsx — where the Kong-mock resource server sits
 // in the agent flow, and which token it validates (only the step-9 token,
-// delegated to PingOne Authorize over the AAM sideband). Follows the
-// mermaid.initialize/render pattern used by McpGatewayOauthFlowPage.jsx.
+// delegated to PingOne Authorize over the AAM sideband). Rendered as an
+// interactive React Flow graph via the shared StaticFlowDiagram component.
 import React, { useState } from "react";
-import DiagramExportBar from "./DiagramExportBar";
-import { useMermaidRender } from "../hooks/useMermaidRender";
+import StaticFlowDiagram from "./StaticFlowDiagram";
 import "./ResourceServerPlacementPage.css";
 
-const MERMAID_SOURCE = `flowchart TD
-    U["USER + AI AGENT<br/>UI :4000 · local.ping-devops.com · chat / chips"]
-    B["BFF — demo_api_server :3001<br/>session ✓ · P1AZ pre-flight gate<br/>RFC 8693 exchange #1/#2 ⇒ MCP token"]
-    G["GATEWAY — IG :3036 or Node MCP-GW :3005<br/>✓ token validation (JWKS / introspection) — their job<br/>P1AZ decision · schema checks · exchange #3"]
-    M["MCP SERVER — oauth-mcp :8080<br/>✓ JWKS + last-hop authz (D-05) — their job<br/>tool scope narrowing · STEP-9 exchange"]
-    RS["RESOURCE SERVER — the Kong mock<br/>/api/accounts · /api/transactions<br/>validates ONLY the step-9 token addressed to it<br/>never re-validates upstream tokens"]
-    P["PingOne Authorize — AAM<br/>mock authz :9001 / real PingOne sideband"]
-    D[("Banking data<br/>data/store.js")]
+export const RSP_NODES = [
+  { id: "U", group: "upstream", label: "USER + AI AGENT", sub: ["UI :4000 · local.ping-devops.com", "chat / chips"], x: 0, y: 40 },
+  { id: "B", group: "upstream", label: "BFF — demo_api_server :3001", sub: ["session ✓ · P1AZ pre-flight gate", "RFC 8693 exchange #1/#2 ⇒ MCP token"], x: 300, y: 40 },
+  { id: "G", group: "upstream", label: "GATEWAY — IG :3036 / MCP-GW :3005", sub: ["✓ token validation (JWKS / introspection)", "P1AZ decision · schema checks · exchange #3"], x: 600, y: 40 },
+  { id: "M", group: "upstream", label: "MCP SERVER — oauth-mcp :8080", sub: ["✓ JWKS + last-hop authz (D-05)", "tool scope narrowing · STEP-9 exchange"], x: 900, y: 40 },
+  { id: "RS", group: "hot", label: "RESOURCE SERVER — Kong mock", sub: ["/api/accounts · /api/transactions", "validates ONLY the step-9 token", "never re-validates upstream tokens"], x: 1200, y: 40 },
+  { id: "P", group: "pdp", label: "PingOne Authorize — AAM", sub: ["mock authz :9001 / real sideband"], x: 1200, y: 280 },
+  { id: "D", group: "upstream", label: "Banking data", sub: ["data/store.js"], x: 1500, y: 40 },
+];
 
-    U -->|session cookie| B
-    B -->|MCP token · aud = mcp resource| G
-    G -->|gateway token · aud = mcpserver.ping.demo| M
-    M ==>|"STEP-9 token · aud = banking RS · scopes narrowed · act chain + X-Agent-Sub / X-MCP-Tool"| RS
-    RS -.->|"1. /sideband/request — ctx + raw Authorization"| P
-    P -.->|"decision — deny = complete direct response"| RS
-    RS -.->|"2. /sideband/response — real body"| P
-    P -.->|"redacted / modified body"| RS
-    RS -->|only after PERMIT| D
+export const RSP_EDGES = [
+  ["U", "B", "session cookie"],
+  ["B", "G", "MCP token · aud = mcp resource"],
+  ["G", "M", "gateway token · aud = mcpserver.ping.demo"],
+  ["M", "RS", "STEP-9 token · aud = banking RS · scopes narrowed · act chain + X-Agent-Sub / X-MCP-Tool", { color: "#e0575c" }],
+  ["RS", "P", "1. /sideband/request — ctx + raw Authorization", { dashed: true }],
+  ["P", "RS", "decision — deny = complete direct response", { dashed: true }],
+  ["RS", "P", "2. /sideband/response — real body", { dashed: true }],
+  ["P", "RS", "redacted / modified body", { dashed: true }],
+  ["RS", "D", "only after PERMIT"],
+];
 
-    classDef upstream fill:#161a21,stroke:#2a313c,color:#e9ecf3
-    classDef hot fill:#2d1416,stroke:#e0575c,color:#ffe2e3,stroke-width:2.5px
-    classDef pdp fill:#161a21,stroke:#e0575c,stroke-dasharray:5 3,color:#e9ecf3
-    class U,B,G,M,D upstream
-    class RS hot
-    class P pdp`;
+export const RSP_GROUPS = {
+  upstream: { label: "Agent flow — each hop keeps its own token work", bg: "#2a313c" },
+  hot: { label: "The Kong-mock checkpoint", bg: "#e0575c" },
+  pdp: { label: "P1AZ sideband (AAM)", bg: "#7c3aed" },
+};
+
+const RSP_DETAILS = {
+  U: "User signs in once; the browser holds only a session cookie.",
+  B: "Owns the session, runs the P1AZ pre-flight tool gate, and performs RFC 8693 exchanges #1/#2 to mint the MCP token.",
+  G: "Validates the MCP token (JWKS / introspection), asks P1AZ for a decision, schema-checks the call, and performs exchange #3 for the gateway token.",
+  M: "Verifies the gateway token, narrows per-tool scopes, and performs the STEP-9 exchange for the banking RS audience.",
+  RS: "The Kong-mock checkpoint. Validates exactly one credential — the step-9 token — by handing it to PingOne Authorize over the AAM sideband. Deny is relayed verbatim; the store is reachable only on PERMIT.",
+  P: "The PDP. Validates the forwarded token, decides, and redacts the response body on the way back.",
+  D: "Banking data. Reached only after a PERMIT decision.",
+};
 
 const HOP_ROWS = [
   {
@@ -86,13 +97,13 @@ const RULES = [
   },
 ];
 
-const FLOWCHART_OPTS = { htmlLabels: true, useMaxWidth: true, curve: "linear" };
-
 export default function ResourceServerPlacementPage() {
-  const [source, setSource] = useState(MERMAID_SOURCE);
-  const { containerRef, error: renderError } = useMermaidRender(source, {
-    flowchart: FLOWCHART_OPTS,
-  });
+  const [selectedNode, setSelectedNode] = useState(null);
+
+  const nodeDetail = selectedNode
+    ? RSP_DETAILS[selectedNode.id] ||
+      `${selectedNode.data.label} — participant in the resource-server placement flow.`
+    : null;
 
   return (
     <div className="rsp-page">
@@ -103,27 +114,27 @@ export default function ResourceServerPlacementPage() {
           Where the Kong-mock checkpoint sits in the agent flow. Every upstream hop keeps its
           own token work — the resource server validates exactly one thing: the step-9 token
           addressed to it, and it does that the Kong way, by handing it to PingOne Authorize
-          over the AAM sideband. The store is only reachable on PERMIT.
+          over the AAM sideband. The store is only reachable on PERMIT. Click any node for its role.
         </p>
       </div>
 
-      <DiagramExportBar
-        source={source}
-        sourceFilename="resource-server-placement.mmd"
-        onSourceChange={setSource}
-      />
-
       <div className="rsp-panel">
-        {renderError ? (
-          <p className="rsp-error">Diagram failed to render: {renderError}</p>
-        ) : (
-          <div
-            className="rsp-diagram"
-            ref={containerRef}
-            aria-label="Resource server placement flow diagram"
-          />
-        )}
+        <StaticFlowDiagram
+          NODES={RSP_NODES}
+          EDGES={RSP_EDGES}
+          GROUPS={RSP_GROUPS}
+          onNodeClick={(node) => setSelectedNode(selectedNode?.id === node.id ? null : node)}
+          testId="rsp-flow-diagram"
+          height={560}
+        />
       </div>
+
+      {nodeDetail && (
+        <div className="rsp-node-detail" role="status">
+          <strong>{selectedNode.data.label}</strong>
+          <p>{nodeDetail}</p>
+        </div>
+      )}
 
       <h2>Token work per hop</h2>
       <div className="rsp-tablewrap">

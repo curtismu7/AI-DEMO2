@@ -25,10 +25,10 @@ else
   bad "does not advertise unsupported agents group"
 fi
 
-if [[ "$output" == *"build notebooklm"* ]]; then
-  ok "documents NotebookLM's service-specific opt-in"
+if [[ "$output" != *"build notebooklm"* ]]; then
+  ok "no longer advertises the removed NotebookLM service"
 else
-  bad "documents NotebookLM's service-specific opt-in"
+  bad "no longer advertises the removed NotebookLM service"
 fi
 
 if [[ "$output" == *"./run-docker.sh optional start spiffe"* ]]; then

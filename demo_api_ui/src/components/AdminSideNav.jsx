@@ -648,11 +648,6 @@ export default function AdminSideNav({
           path: "/ungoverned-agent",
           icon: "dbg",
         },
-        {
-          label: "NotebookLM Docs Oracle",
-          path: "/notebooklm",
-          icon: "agt",
-        },
       ],
     },
     {
@@ -1344,7 +1339,6 @@ export default function AdminSideNav({
       "Delegated Commerce (guided demo)",
       "LangChain Agent",
       "Ungoverned Agent",
-      "NotebookLM Docs Oracle",
       "Prompt Injection",
       "HITL Bypass",
       "Indirect Injection",

@@ -43,7 +43,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Agent & Token Flow History", "Autonomous Agents", "Personal Agent",
     "Agent Onboarding Flow (Node)", "Agent Onboarding Flow Subway (Node)",
     "Agent Lifecycle (guided demo)", "Delegated Commerce (guided demo)", "LangChain Agent", "Ungoverned Agent",
-    "NotebookLM Docs Oracle", "Prompt Injection", "HITL Bypass", "Indirect Injection", "Unauthorized Commitments",
+    "Prompt Injection", "HITL Bypass", "Indirect Injection", "Unauthorized Commitments",
     "Scope Abuse", "Intent Bypass", "IGA for AI", "Discovery", "AI Gateway (Preview)", "Platform Gaps",
     "AI Security Academy", "Academy Standalone Demos", "Agentic Trust", "Agent Guardrails", "OWASP Agent Risks",
     "AI Gateway for AI",

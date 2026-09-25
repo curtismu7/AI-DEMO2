@@ -242,7 +242,6 @@
     "/monitoring/system-flow": "public",
     "/monitoring/token-chain": "public",
     "/monitoring/token-exchange": "public",
-    "/notebooklm": "public",
     "/oas-demo": "public",
     "/oauth-academy": "public",
     "/spiffe-pingone-bridge": "public",

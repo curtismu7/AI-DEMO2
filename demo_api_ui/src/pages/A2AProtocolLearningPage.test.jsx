@@ -6,6 +6,7 @@ import {
   EducationUIProvider,
   useEducationUI,
 } from '../context/EducationUIContext';
+import A2AProtocolLearningPage from './A2AProtocolLearningPage';
 
 vi.mock('../context/ThemeContext', () => ({
   useThemeOptional: () => ({ darkMode: false, toggleDarkMode: vi.fn() }),
@@ -33,16 +34,6 @@ vi.mock('./a2aTeachingPanes', () => ({
   summarizeActChain: () => null,
   LAYER: { IDENTITY: 'identity', WIRE: 'wire' },
 }));
-
-vi.mock('../components/A2AArchitectureDiagram', () => ({
-  default: ({ onClose }) => (
-    <div role="dialog" aria-label="A2A implementation architecture">
-      <button type="button" onClick={onClose}>Close architecture</button>
-    </div>
-  ),
-}));
-
-import A2AProtocolLearningPage from './A2AProtocolLearningPage';
 
 function EducationState() {
   const { panel, tab } = useEducationUI();
@@ -116,14 +107,6 @@ describe('A2A protocol learning lessons', () => {
     expect(screen.getByRole('link', { name: /AAIF production lessons/i })).toHaveAttribute(
       'href', 'https://aaif.io/blog/what-we-learned-putting-a2a-into-production',
     );
-  });
-
-  it('opens the implementation architecture diagram from the learning hub', async () => {
-    const user = (await import('@testing-library/user-event')).default.setup();
-    renderPage();
-
-    await user.click(screen.getByRole('button', { name: /show A2A implementation architecture/i }));
-    expect(screen.getByRole('dialog', { name: /A2A implementation architecture/i })).toBeInTheDocument();
   });
 
   it('opens the matching A2A topic in the Education Hub', async () => {

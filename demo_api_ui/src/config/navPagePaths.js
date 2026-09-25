@@ -49,7 +49,6 @@ export const NAV_PAGE_PATHS = {
   "Family Delegation": "/delegation",
   "LangChain Agent": "/langchain",
   "Ungoverned Agent": "/ungoverned-agent",
-  "NotebookLM Docs Oracle": "/notebooklm",
   "MCP Inspector": "/pingone-mcp-inspector",
   "Agent Gateway Inspector": "/agent-gateway-inspector",
   "P1AZ Inspector": "/pingone-authorize",
