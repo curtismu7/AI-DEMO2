@@ -169,6 +169,63 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-25 — Gateway RFC 8707 exchange rejected legacy comma-separated backend audience
+
+**Files changed:** `demo_mcp_gateway/src/router.ts`,
+`demo_mcp_gateway/tests/mcpTokenExchangeClient.test.ts`,
+`demo_api_server/services/mcpGatewayClient.js`, and
+`demo_api_server/src/__tests__/mcpGatewayClient.dpopRetry.test.js`.
+
+**What was broken:** a live MCP Invest audience setting contained both the current
+resource URI and a retired alias, comma-separated. The gateway forwarded both as
+one RFC 8707 `resource` value; PingOne rejected the token exchange with HTTP 400
+`invalid_scope` before the Authorize decision could be reported. This affected
+all vertical tools routed through the Invest resource server. The BFF then retried
+the idempotent read with the same DPoP proof, whose single-use `jti` was rejected
+as a replay and obscured the original exchange failure.
+
+**What was fixed:** normalize configured backend resource values to one trimmed,
+nonempty URI at the gateway routing boundary. Mint a fresh DPoP proof for every
+HTTP attempt. Scope intersection, consent, Authorize, and fail-closed behavior
+remain unchanged.
+
+**Do not break:** every RFC 8693 exchange must target one resource URI and request
+only scopes held by the subject on that backend. Never bypass token exchange or
+Authorize to recover from a rejected exchange.
+
+**Verify:** `cd demo_mcp_gateway && CI=true npm test -- --runInBand
+--runTestsByPath tests/mcpTokenExchangeClient.test.ts --forceExit` (21 passed);
+`npm run build` (passed); `cd demo_api_server && CI=true npx jest
+src/__tests__/mcpGatewayClient.dpopRetry.test.js --runInBand --forceExit` (1 passed).
+
+### 2026-09-24 — UC1 consent and UC7/UC8 authorization challenges did not fire
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/AgentConsentModal.js`,
+`demo_api_server/routes/agentInvokeRoute.js`, and focused UI/BFF tests.
+
+**What was broken:** UC1 dispatched immediately without its access-consent
+drawer. The generic pre-execution intent gate could return before UC7's MFA
+and UC8's HITL policy handlers ran.
+
+**What was fixed:** UC1 pauses the queued run until the consent endpoint accepts,
+including when resuming after sign-in. Only an exact, vertical-resolved UC7/UC8
+catalog prompt skips the generic pre-gate so its dedicated downstream policy
+decides MFA/HITL; mismatched prompts and other use cases retain the generic
+gate. Access consent does not display the HITL badge.
+
+**Do not break:** OAuth/session hydration and queued-run restoration; UC7 MFA and
+UC8 HITL policy enforcement; generic intent authorization; tool authorization
+and token custody.
+
+**Verify:** `cd demo_api_ui && npm run test:unit -- --run
+src/components/__tests__/AIAgent.protectedStepLogin.test.jsx`; `cd demo_api_ui &&
+npm run build`; `cd demo_api_server && CI=true npx jest
+tests/agentInvoke.useCaseTagBackfill.test.js
+tests/mcpToolAuthorization.transactionPolicyHitl.test.js --forceExit`. The route
+test covers UC7/UC8 for all 11 supported verticals and rejects a mismatched
+prompt; the policy test pins UC7 step-up and UC8 HITL behavior.
+
 ### 2026-09-24 — PingOne Admin agent results had no inspectable records
 
 **Files changed:** `demo_api_ui/src/components/AIAgent.js`,

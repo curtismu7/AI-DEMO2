@@ -1665,6 +1665,9 @@ export default function BankingAgent({
 
   /** Pending HITL intent — shows AgentConsentModal (transaction mode) before OTP. */
   const [hitlPendingIntent, setHitlPendingIntent] = useState(null);
+  /** UC1 access consent pauses the queued run until the user grants access. */
+  const [pendingAgentAccessConsent, setPendingAgentAccessConsent] = useState(null);
+  const agentAccessConsentAcceptedRef = useRef(false);
   /** Safe toolbar preview for demonstrating the right-side approval drawer. */
   const [demoApprovalOpen, setDemoApprovalOpen] = useState(false);
   const [a2aExplainUc, setA2aExplainUc] = useState(null);
@@ -9034,6 +9037,11 @@ export default function BankingAgent({
     // Consume the useCaseId claimed alongside the pending NL (launcher deep-link).
     // Passed to the BFF so A2.1/A2.2 stamping fires for this run.
     const useCaseId = pendingUcIdRef.current ?? undefined;
+    if (useCaseId === "delegated-access-with-proof" && !agentAccessConsentAcceptedRef.current) {
+      setPendingAgentAccessConsent((current) => current || { text, useCaseId });
+      return;
+    }
+    agentAccessConsentAcceptedRef.current = false;
     pendingUcIdRef.current = null;
     pendingUcPublicRef.current = false;
     pendingUcAuthRef.current = null;
@@ -10993,6 +11001,26 @@ export default function BankingAgent({
                 </div>
                 </div>
               </DraggableModal>
+            )}
+
+            {pendingAgentAccessConsent && !hitlPendingIntent && (
+              <AgentConsentModal
+                onAccept={() => {
+                  agentAccessConsentAcceptedRef.current = true;
+                  pendingNlResumeRef.current = null;
+                  setPendingAgentAccessConsent(null);
+                  setResumeWaitTick((tick) => tick + 1);
+                }}
+                onDismiss={() => {
+                  pendingNlResumeRef.current = null;
+                  pendingUcIdRef.current = null;
+                  pendingUcPublicRef.current = false;
+                  pendingUcFlagsRef.current = null;
+                  pendingUcAuthRef.current = null;
+                  setNlResumeAfterAuth(null);
+                  setPendingAgentAccessConsent(null);
+                }}
+              />
             )}
 
             {demoApprovalOpen && !hitlPendingIntent && (
