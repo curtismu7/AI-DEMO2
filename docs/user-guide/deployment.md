@@ -15,7 +15,7 @@ Four modes are supported. Pick the one that matches your environment.
 
 Runs the BFF, UI dev server, MCP server, and AI agent directly as Node/Python processes on your Mac. The lightest-weight option — no containers involved.
 
-**Prerequisites:** Node 20+, Python 3.11+, mkcert
+**Prerequisites:** Node 22+, Python 3.11+, mkcert
 
 ### Option 1: First-time setup
 

@@ -373,8 +373,20 @@ class OAuthService {
   async performIdJagExchange(subjectToken, subjectTokenType, audience, resource, scopes) {
     if (!subjectToken) throw new Error('ID-JAG exchange requires a subject token');
 
-    const exchangeClientId = configStore.getEffective('pf_token_exchange_client_id');
-    const exchangeClientSecret = configStore.getEffective('pf_token_exchange_client_secret');
+    // PF binds refresh tokens to the client that received them (OAuth §6 / PF
+    // processor policy). The BFF's session refresh token is minted to the User
+    // Login client, so the exchange MUST run as that same client — the migrated
+    // PingOne Token Exchanger client (f4dd707d…) is a different identity and PF
+    // rejects its attempt with "unknown, invalid, or expired refresh token".
+    // PingOne tolerated the cross-client exchange, which is why PingOne worked
+    // while PingFederate did not. Fall back to the explicit exchange client for
+    // deployments that mint the subject token with a dedicated PF client.
+    const userClientId = configStore.getEffective('pf_user_client_id');
+    const exchangeClientId = userClientId
+      || configStore.getEffective('pf_token_exchange_client_id');
+    const exchangeClientSecret = userClientId
+      ? configStore.getEffective('pf_user_client_secret')
+      : configStore.getEffective('pf_token_exchange_client_secret');
     if (!exchangeClientId) throw new Error('PingFederate ID-JAG exchange client is not configured');
 
     const scopeStr = Array.isArray(scopes) ? scopes.join(' ') : String(scopes || '');
@@ -390,6 +402,7 @@ class OAuthService {
     if (resource) body.set('resource', resource);
 
     const method = String(
+      configStore.getEffective('pf_user_token_endpoint_auth_method') ||
       configStore.getEffective('pf_token_exchange_token_endpoint_auth_method') || 'basic'
     ).toLowerCase();
     const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
@@ -947,6 +960,7 @@ class OAuthService {
       configStore.getEffective('pingone_ai_agent_cc_auth_method') ||
       process.env.PINGONE_AI_AGENT_CC_AUTH_METHOD || 'post'
     ).toLowerCase();
+    const tokenEndpoint = runtime?.tokenEndpoint || this.config.tokenEndpoint;
     const order = authMethodOrder(configured);
     for (let i = 0; i < order.length; i++) {
       const method = order[i];
@@ -956,13 +970,13 @@ class OAuthService {
       // client_credentials request that would span both ("May not request scopes for
       // multiple resources"). agent:invoke pins the token to the Agent Gateway resource —
       // the correct actor audience for the Two-Exchange Step 1.
-      const actorScope = (configStore.getEffective('pingone_ai_agent_actor_scope') || 'agent:invoke').trim();
+      const actorScope = (runtime?.actorScope || configStore.getEffective('pingone_ai_agent_actor_scope') || 'agent:invoke').trim();
       if (actorScope) body.set('scope', actorScope);
       if (method === 'post') body.set('client_id', clientId);
       const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-      applyTokenEndpointAuth(clientId, clientSecret, method, body, headers);
+      applyTokenEndpointAuth(clientId, clientSecret, method, body, headers, tokenEndpoint);
       try {
-        const response = await axios.post(this.config.tokenEndpoint, body.toString(), { headers });
+        const response = await axios.post(tokenEndpoint, body.toString(), { headers });
         const at = response.data.access_token;
         if (!at) throw new Error('AI Agent client credentials response missing access_token');
         return at;
@@ -1102,6 +1116,7 @@ class OAuthService {
    */
   // Standard: token exchange always uses client_secret_basic (RFC 8693 + PingOne convention)
   async performTokenExchangeAs(subjectToken, actorToken, clientId, clientSecret, audience, scopes, method = 'basic', exchangeOptions = {}) {
+    const tokenEndpoint = exchangeOptions.tokenEndpoint || this.config.tokenEndpoint;
     const scopeStr = Array.isArray(scopes) ? scopes.join(' ') : scopes;
     const body = new URLSearchParams({
       grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
@@ -1121,7 +1136,8 @@ class OAuthService {
     if (exchangeOptions.tokenLifetime != null) {
       body.set('token_lifetime', String(exchangeOptions.tokenLifetime));
     }
-    applyAudienceParam(body, audience);
+    if (!exchangeOptions.omitAudience) applyAudienceParam(body, audience);
+    const audienceDescription = exchangeOptions.omitAudience ? '(policy-derived)' : audience;
     // Only include actor_token when provided (Exchange 1 is delegation-only, no actor)
     // NOTE: Even if actor_token is sent, PingOne may not include an `act` claim in the response
     // if the MCP resource's token policy isn't configured for delegation. This is expected behavior
@@ -1131,13 +1147,13 @@ class OAuthService {
       body.set('actor_token_type', 'urn:ietf:params:oauth:token-type:access_token');
     }
     const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-    applyTokenEndpointAuth(clientId, clientSecret, method, body, headers);
+    applyTokenEndpointAuth(clientId, clientSecret, method, body, headers, tokenEndpoint);
     // exchangeClientId is the parameter clientId (the exchanger performing this
     // hop), not this.config.clientId — that distinction is the whole point of
     // the 2-exchange chain. clientSecret itself must never reach telemetry.
     const telemetry = {
       exchangeVariant: 'exchange-as',
-      audience,
+      audience: audienceDescription,
       scope: scopeStr,
       exchangeClientId: clientId,
       hasActorToken: !!actorToken,
@@ -1146,11 +1162,13 @@ class OAuthService {
     _emitTokenExchangeEvent('request', telemetry);
     const startTime = Date.now();
     try {
-      const response = await axios.post(this.config.tokenEndpoint, body.toString(), { headers });
+      const response = await axios.post(tokenEndpoint, body.toString(), { headers });
       const exchanged = response.data.access_token;
       if (!exchanged) throw new Error('Token exchange response missing access_token');
       _emitTokenExchangeEvent('ok', { ...telemetry, latencyMs: Date.now() - startTime });
-      console.log(`[Exchange-As] client=${clientId} audience=${audience} scope="${scopeStr}"`);
+      console.log(
+        `[Exchange-As] client=${clientId} audience=${audienceDescription} scope="${scopeStr}"`
+      );
       return exchanged;
     } catch (error) {
       const pingoneData = error.response?.data || {};
@@ -1163,7 +1181,7 @@ class OAuthService {
       richErr.pingoneError            = pingoneData.error;
       richErr.pingoneErrorDescription = pingoneData.error_description;
       richErr.pingoneErrorDetail      = pingoneData.error_detail || pingoneData.details;
-      richErr.requestContext          = { audience, scope: scopeStr, client_id: clientId };
+      richErr.requestContext          = { audience: audienceDescription, scope: scopeStr, client_id: clientId };
       _emitTokenExchangeEvent('fail', {
         ...telemetry,
         latencyMs: Date.now() - startTime,

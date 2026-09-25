@@ -167,15 +167,18 @@ import McpObservabilityPage from "./pages/McpObservabilityPage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
 import PersonalAgentStudioPage from "./pages/PersonalAgentStudioPage";
+import WorkloadAgentsPage from "./pages/WorkloadAgentsPage";
 import PersonalAgentClientWindow from "./pages/PersonalAgentClientWindow";
 import GovernanceTimelinePage from "./pages/GovernanceTimelinePage";
 import EmbeddedWorkerPage from "./pages/EmbeddedWorkerPage";
 import TransactionTraceEmbedPage from "./pages/TransactionTraceEmbedPage";
 import PingCliPage from "./components/PingCliPage";
+import PromptFooPage from "./components/PromptFooPage";
 import LlamaVscodeGuidePage from "./components/LlamaVscodeGuidePage";
 import NotebookLmPage from "./pages/NotebookLmPage";
 import AgenticAccessConsolePage from "./pages/AgenticAccessConsolePage";
 import PingAiProductPage from "./pages/PingAiProductPage";
+import PingOneProtectBrowserDemo from "./pages/PingOneProtectBrowserDemo";
 import AdminRoute from "./routes/AdminRoute";
 import HostedRegistrationPage from "./pages/HostedRegistrationPage";
 import HostedRegistrationAdminPage from "./pages/HostedRegistrationAdminPage";
@@ -202,10 +205,10 @@ import PublicRoutes, {
   CopilotPageRoute,
   DavinciLoginCallbackRoute,
   DavinciLoginConfirmedRoute,
-  DavinciExplainerRoute,
   OrchestrationSdkExplainerRoute,
   DavinciSdkLoginRoute,
   DavinciLoginGuidePageRoute,
+  PingFederateDavinciKitRoute,
   GraphifyPageRoute,
   GuidedJourneyRoute,
   StandaloneDemoLauncherRoute,
@@ -220,6 +223,9 @@ import PublicRoutes, {
   OAuthAcademyPageRoute,
   PrivilegeDemoPageRoute,
   EnterpriseMcpDemoPageRoute,
+  PingFederateIdJagExplainerPageRoute,
+  PingFederateIdJagDemoPageRoute,
+  PingFederateIdJagDiagramPageRoute,
   GroupPolicyBoardPageRoute,
   PrivilegeMcpClientPageRoute,
   LlmGatewayPageRoute,
@@ -915,12 +921,23 @@ function AppWithAuth() {
                   element={<SdkLoginPageRoute user={user} logout={logout} />}
                 />
                 <Route path="/sdk-login/callback" element={<SdkLoginCallbackRoute />} />
+                <Route
+                  path="/protect-auth-demo"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <PingOneProtectBrowserDemo />
+                    </AppShell>
+                  }
+                />
+                <Route path="/protect-auth-demo/popout" element={<PingOneProtectBrowserDemo popout />} />
                 <Route path="/davinci-login/callback" element={<DavinciLoginCallbackRoute user={user} logout={logout} />} />
                 <Route path="/davinci-login/confirmed" element={<DavinciLoginConfirmedRoute user={user} logout={logout} />} />
-                <Route path="/davinci-orchestration" element={<DavinciExplainerRoute user={user} logout={logout} />} />
                 <Route path="/davinci-orchestration-sdk" element={<DavinciSdkLoginRoute user={user} logout={logout} />} />
                 <Route path="/davinci-widget" element={<DavinciLoginGuidePageRoute user={user} logout={logout} />} />
-                <Route path="/orchestration-sdk" element={<OrchestrationSdkExplainerRoute user={user} logout={logout} />} />
+                <Route path="/davinci-sdk" element={<OrchestrationSdkExplainerRoute user={user} logout={logout} />} />
+                <Route path="/pingfederate-davinci-kit" element={<PingFederateDavinciKitRoute user={user} logout={logout} />} />
+                <Route path="/orchestration-sdk" element={<Navigate to="/davinci-sdk" replace />} />
+                <Route path="/davinci-orchestration" element={<Navigate to="/davinci-sdk" replace />} />
                 <Route path="/davinci-sdk-login" element={<Navigate to="/davinci-orchestration-sdk" replace />} />
                 <Route path="/davinci-login-guide" element={<Navigate to="/davinci-widget" replace />} />
                 <Route path="/ciba-approve" element={<CibaApprovalPageRoute />} />
@@ -1051,6 +1068,16 @@ function AppWithAuth() {
                     <AppShell user={user} logout={logout}>
                       <main className="ai-product-main">
                         <PingAiProductPage product="authorize" />
+                      </main>
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/ai-products/protect"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <main className="ai-product-main">
+                        <PingAiProductPage product="protect" />
                       </main>
                     </AppShell>
                   }
@@ -1319,6 +1346,18 @@ function AppWithAuth() {
                   }
                 />
                 <Route
+                  path="/pingfederate-id-jag"
+                  element={<PingFederateIdJagExplainerPageRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/pingfederate-id-jag/demo"
+                  element={<PingFederateIdJagDemoPageRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/pingfederate-id-jag/diagram"
+                  element={<PingFederateIdJagDiagramPageRoute user={user} logout={logout} />}
+                />
+                <Route
                   path="/privilege-demo"
                   element={
                     <PrivilegeDemoPageRoute user={user} logout={logout} />
@@ -1389,11 +1428,28 @@ function AppWithAuth() {
                   }
                 />
                 <Route
+                  path="/promptfoo"
+                  element={
+                    // Public route — no login required (same pattern as /pingcli).
+                    <AppShell user={user} logout={logout}>
+                      <PromptFooPage user={user} />
+                    </AppShell>
+                  }
+                />
+                <Route
                   path="/personal-agent"
                   element={
                     // Public route — no login required (same pattern as /pingcli).
                     <AppShell user={user} logout={logout}>
                       <PersonalAgentStudioPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/workload-agents"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <WorkloadAgentsPage />
                     </AppShell>
                   }
                 />

@@ -127,7 +127,7 @@ describe("SdkWalkthrough", () => {
   it("links to the in-app guide and Ping's SDK documentation", () => {
     const { container } = render(<SdkWalkthrough via="form" trace={[]} />);
     const hrefs = [...container.querySelectorAll("a")].map((a) => a.getAttribute("href"));
-    expect(hrefs).toContain("/orchestration-sdk");
+    expect(hrefs).toContain("/davinci-sdk");
     expect(hrefs).toContain("https://developer.pingidentity.com/orchsdks/index.html");
   });
 });

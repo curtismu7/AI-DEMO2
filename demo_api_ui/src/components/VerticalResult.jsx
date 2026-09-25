@@ -9,6 +9,59 @@ function valueByPath(obj, path) {
   return String(path).split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);
 }
 
+function renderRecordRows(data) {
+  const rows = Array.isArray(data?.rows) ? data.rows : [];
+  if (rows.length === 0) return null;
+  const columns = [...new Set(rows.flatMap((row) => Object.keys(row || {})))];
+  if (columns.length === 0) return null;
+
+  const total = Number.isFinite(data.totalCount) ? data.totalCount : rows.length;
+  const label = ({
+    listUsers: 'users',
+    listApplications: 'applications',
+    listPopulations: 'populations',
+    listResources: 'resources',
+    getEnvironmentServices: 'environment services',
+    listDavinciFlows: 'DaVinci flows',
+    listDavinciApplications: 'DaVinci applications',
+    listDavinciConnectors: 'DaVinci connectors',
+  })[data.tool] || 'results';
+  const columnLabel = (key) => key
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const cellValue = (value, key) => {
+    if (value == null || value === '') return '—';
+    if (typeof value === 'boolean') {
+      return key === 'enabled' ? (value ? 'Enabled' : 'Disabled') : (value ? 'Yes' : 'No');
+    }
+    return typeof value === 'object' ? JSON.stringify(value) : String(value);
+  };
+
+  return (
+    <section className="vertical-result-rows" aria-label="Tool results">
+      <h4 className="vertical-result-rows__summary">Showing {rows.length} of {total} {label}</h4>
+      {data.rowsTruncated ? (
+        <p className="vertical-result-rows__note">This agent result includes a preview of the first {rows.length} rows.</p>
+      ) : null}
+      <div className="vertical-result-rows__table-wrap" style={{ overflowX: 'auto' }}>
+        <table className="bar-rp-table vertical-result-rows__table">
+          <thead>
+            <tr>{columns.map((key) => <th key={key}>{columnLabel(key)}</th>)}</tr>
+          </thead>
+          <tbody>
+            {rows.map((row, rowIndex) => (
+              <tr key={row.id || row.username || row.name || rowIndex}>
+                {columns.map((key) => <td key={key}>{cellValue(row?.[key], key)}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 function VerticalResult({ descriptor, data, onAction }) {
   // Token card(s) — decoded JWT view(s). data carries {header,payload,tokenType} (token)
   // or { t1, t2 } each of that shape (token-pair). No raw token string is present.
@@ -82,6 +135,7 @@ function VerticalResult({ descriptor, data, onAction }) {
             );
           })}
         </dl>
+        {renderRecordRows(data)}
       </div>
     );
   }

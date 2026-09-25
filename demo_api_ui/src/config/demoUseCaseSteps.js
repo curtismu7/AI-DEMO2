@@ -288,13 +288,6 @@ export const DEMO_MISSION_GROUPS = [
     useCaseIds: ['UC38', 'UC40'],
   },
   {
-    id: 'saas-embedded-agent',
-    label: 'SaaS-Embedded Agent',
-    shortLabel: 'SaaS-Embedded',
-    description: 'Application-owned agent lane reserved for a future embedded flow.',
-    useCaseIds: ['UC45'],
-  },
-  {
     id: 'agent-network',
     label: 'Agent Network',
     shortLabel: 'Agent Network',

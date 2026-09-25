@@ -51,6 +51,7 @@ describe('demoUseCaseSteps', () => {
   });
 
   it('exports presenter-friendly aliases for the live lanes', () => {
+    expect(DEMO_USE_CASE_IDS).not.toContain('UC36');
     expect(DEMO_USE_CASE_SEARCH_TERMS.UC7).toEqual(
       expect.arrayContaining(['mfa', 'step-up']),
     );
@@ -71,15 +72,14 @@ describe('demoUseCaseSteps', () => {
     expect(groupedIds).toHaveLength(DEMO_USE_CASE_IDS.length);
   });
 
-  it('keeps all 13 Mission Control shortcuts visible in the agreed order', () => {
-    expect(DEMO_MISSION_GROUPS).toHaveLength(13);
+  it('keeps all 12 Mission Control shortcuts visible in the agreed order without the SaaS lane', () => {
+    expect(DEMO_MISSION_GROUPS).toHaveLength(12);
     expect(DEMO_MISSION_GROUPS.map((group) => group.id)).toEqual([
       'personal-agent',
       'digital-assistant',
       'consumer-partner',
       'employee-agent',
       'workload-agent',
-      'saas-embedded-agent',
       'agent-network',
       'discover',
       'register',

@@ -112,6 +112,25 @@ const AMOUNT_PRIMARY_TOOL_BY_VERTICAL = {
   airlines: 'pay_airline_fee',
 };
 
+const AMOUNT_600_PROMPTS = amountTriggerByVertical(600);
+const WORKLOAD_AGENT_UC38_BY_VERTICAL = Object.fromEntries(
+  VERTICALS.map((vertical) => [vertical, {
+    primaryTool: vertical === 'banking'
+      ? 'create_transfer'
+      : AMOUNT_PRIMARY_TOOL_BY_VERTICAL[vertical],
+    runPrompt: AMOUNT_600_PROMPTS[vertical]
+      || 'transfer $600 from checking to savings',
+  }]),
+);
+const WORKLOAD_AGENT_UC44_BY_VERTICAL = Object.fromEntries(
+  VERTICALS.map((vertical) => [vertical, {
+    primaryTool: vertical === 'banking'
+      ? 'get_account_balance'
+      : READ_PRIMARY_TOOL_BY_VERTICAL[vertical],
+    runPrompt: READ_TRIGGER_BY_VERTICAL[vertical] || 'show my balance',
+  }]),
+);
+
 /**
  * UC33 — SECOND product type per vertical. The point of UC33 is that delegated
  * proof travels to a tool that is NOT the everyday read, so this MUST differ
@@ -1830,16 +1849,36 @@ const RAW_USE_CASES = [
     title: 'Orchestration SDK (Custom UI)',
     buyerStory: 'Teams want their own sign-in UI without giving up orchestration — and without shipping an app release every time the flow changes.',
     pingOneSolution: 'The Ping Orchestration SDK (@forgerock/davinci-client) runs a DaVinci flow with response_mode=pi.flow and hands the app collectors — a description of what the flow needs next — so the app renders every field itself while the flow stays editable in DaVinci.',
-    trigger: { type: 'link', path: '/orchestration-sdk', label: 'Open Orchestration SDK' },
+    trigger: { type: 'link', path: '/davinci-sdk', label: 'Open DaVinci SDK guide' },
     expectedOutcome: 'GUIDED_LEARNING',
     evidence: { tokenChain: [], activity: [] },
     codeRefs: ['demo_api_ui/src/pages/OrchestrationSdkExplainerPage.jsx'],
     maturity: 'works',
     owasp: { threats: [], sections: [] },
-    whatToSay: 'Three ways to run a DaVinci flow — redirect, hosted widget, or the SDK. Only the SDK lets you render the screens, and all three are live in this demo against the same flow.',
+    whatToSay: 'Start at the DaVinci SDK guide, then open the Widget or Orchestration SDK lesson to compare how each runs a flow.',
     advanced: false,
-    whatLong: 'A learning surface (not an identity scenario): how the Ping Orchestration SDK drives a DaVinci flow from your own UI. Covers the three invocation modes side by side, the client lifecycle (davinci → start → collectors → update → next → code), the four collector categories, why response_mode=pi.flow removes the redirect, and the traps that compile but fail at runtime — immutable collectors, the updater return value, and where per-field server validation actually lives.',
+    whatLong: 'A learning surface (not an identity scenario): the DaVinci SDK master guide links the hosted Widget and Orchestration SDK lessons. The SDK lesson shows how @forgerock/davinci-client drives a flow from your own UI, including the client lifecycle, four collector categories, and runtime pitfalls.',
     businessValue: 'Custom-branded authentication with no loss of orchestration control: the flow is changed by an identity team in DaVinci, not by an app release.',
+    productRoles: {},
+    primaryTool: null,
+  },
+  {
+    id: 'UC-LEARN12',
+    useCaseId: 'pingfederate-davinci-integration-kit',
+    track: 'learn',
+    title: 'PingFederate DaVinci Integration Kit',
+    buyerStory: 'Teams want their PingFederate authentication policy to run a DaVinci flow while keeping PingFederate in control of the sign-in session.',
+    pingOneSolution: 'PingFederate invokes the installed PingOne DaVinci IdP Adapter from its authentication policy. The user must sign in through PingFederate; a PingOne application login does not run this adapter.',
+    trigger: { type: 'link', path: '/pingfederate-davinci-kit', label: 'Open PingFederate DaVinci Integration Kit' },
+    expectedOutcome: 'GUIDED_LEARNING',
+    evidence: { tokenChain: [], activity: [] },
+    codeRefs: ['demo_api_ui/src/pages/PingFederateDavinciKitPage.jsx', 'demo_api_server/routes/pfDavinciAuth.js'],
+    maturity: 'works',
+    owasp: { threats: [], sections: [] },
+    whatToSay: 'PingFederate runs the installed DaVinci Integration Kit in its authentication policy. A dedicated PF sign-in proves this run; PingOne login alone does not.',
+    advanced: false,
+    whatLong: 'A PingFederate administrator lesson for the installed PingOne DaVinci Integration Kit. Compare widget and API modes, follow the PF-to-DaVinci sign-in sequence, review adapter operations, and verify a dedicated PF sign-in proof before running again. Normal PingOne login remains available for other demos.',
+    businessValue: 'Keep workforce or customer sign-in anchored in PingFederate while using DaVinci to orchestrate identity journeys and return attributes to the PF policy.',
     productRoles: {},
     primaryTool: null,
   },
@@ -2023,11 +2062,8 @@ const RAW_USE_CASES = [
     },
   },
 
-  // --- COUPA/NIQ GAP-CLOSURE DEMO (Protect risk-eval + Verified Trust A2A assertion) ---
-  // Keep UC36/UC37 adjacent — same source research, same track, meant to be browsed
-  // as a pair. UC36 (Protect) is not built yet — see docs/superpowers/plans/
-  // 2026-08-10-protect-agent-dispatch-risk.md Task 6; insert it above this comment,
-  // before UC37, when it lands.
+  // --- COUPA/NIQ GAP-CLOSURE DEMO (Verified Trust A2A assertion) ---
+  // UC37 remains a standalone A2A assertion walkthrough.
   {
     id: 'UC37',
     useCaseId: 'verified-trust-a2a-assertion',
@@ -2060,50 +2096,32 @@ const RAW_USE_CASES = [
     id: 'UC38',
     useCaseId: 'personal-agent-concierge',
     track: 'foundations',
-    title: 'Workload Agent: Digital Assistant — Personal Concierge',
+    title: 'Workload Agent: MFA-gated protected action',
     buyerStory: "Customers want a trusted digital assistant acting on their behalf — but delegation must require proof of identity and be scoped to what the user explicitly authorized.",
-    pingOneSolution: 'User authenticates with MFA; the pre-registered Workload Agent: Digital Assistant is verified; RFC 8693 exchange mints a delegated token (sub=user, act=assistant) scoped to airlines:read airlines:write.',
-    // `/airlines` is not a route — no match in App.js or routes/*, so this step
-    // fell through to the catch-all and landed the presenter on the wrong page.
-    // `/personal-agent` is the Digital Assistant studio this step is named for.
-    trigger: { type: 'link', path: '/personal-agent', label: 'Airlines vertical only — switch vertical to demo' },
+    pingOneSolution: 'User authenticates with MFA; the pre-registered workload agent is verified; RFC 8693 exchange mints a delegated token (sub=user, act=assistant) scoped to the selected vertical action.',
+    trigger: { type: 'link', path: '/workload-agents?useCase=UC38', label: 'Open MFA-gated workload action' },
     expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['user-token', 'personal-agent-lookup', 'mcp-exchange', 'tool-dispatched'], activity: ['token', 'mcp'] },
     codeRefs: [
       'demo_api_server/routes/agentInvokeRoute.js',
       'demo_api_server/services/agentBuilderService.js',
-      'demo_mcp_resource_server/src/tools/airlinesToolHandler.ts',
+      'demo_api_server/services/agentMcpTokenService.js',
     ],
     maturity: 'flag:ff_personal_agent_concierge',
     owasp: { threats: ['T1', 'T9'], sections: ['§4.1', '§4.2'] },
-    whatToSay: 'User proves identity with MFA, the workload digital assistant is verified, RFC 8693 delegates authority — the assistant redeems miles for a seat upgrade.',
+    whatToSay: 'Choose this to demonstrate identity step-up before a workload agent makes a protected change.',
     advanced: false,
-    whatLong: 'A user triggers the premium flyer concierge. The BFF requires a multi-factor authentication claim before delegation — a token without the MFA acr causes a step-up prompt. Once MFA is proved, the BFF verifies the pre-registered Workload Agent: Digital Assistant. An RFC 8693 token exchange mints a delegated token where the user remains the subject and the assistant carries the act claim, scoped to airlines:read airlines:write. The assistant then calls get_loyalty_status to check the miles balance and redeem_miles to upgrade the cabin on the next upcoming booking.',
+    whatLong: 'A customer selects a protected action in the active vertical. The BFF requires a multi-factor authentication claim before delegation — a token without the MFA acr causes a step-up prompt. Once MFA is proved, the BFF verifies the pre-registered workload agent. An RFC 8693 token exchange mints a delegated token where the customer remains the subject and the agent carries the act claim. The agent then runs the selected vertical action through the gateway and Authorize.',
     businessValue: 'Customers get personalized digital-assistant services that act on their behalf — but delegation is always gated on explicit identity proof (MFA) and pre-registered workload-agent authorization, not implied by session context alone.',
     productRoles: {
       idp:   'Issues the high-assurance (MFA-satisfied) user token and serves as the source of truth for the pre-registered workload-agent identity.',
       gw:    'Passes the delegated token to the MCP resource server; the act claim is visible in every tool call.',
-      authz: 'Can extend this pattern: add a P1AZ policy that further constrains the digital assistant\'s allowed actions based on the user\'s loyalty tier.',
+      authz: 'Evaluates the selected vertical action and any assurance obligations before the tool executes.',
     },
-    primaryTool: 'redeem_miles',
-    // The SECOND tool this use case runs. `primaryTool` is the chip's entry
-    // point and was, until now, the only tool a use case declared anywhere
-    // machine-readable — so every gate built on this catalog was blind to the
-    // rest of a multi-tool flow. get_loyalty_status sat intent-unreachable
-    // through two rounds of fixes because nothing could see it; it was found by
-    // driving the live stack, not by a test (PR #2446).
-    // Declare every gateway tool a use case calls, not just the first.
-    // `useCases.secondaryTools.test.js` fails on a gateway tool named in this
-    // entry's prose but absent from primaryTool/secondaryTools.
-    secondaryTools: ['get_loyalty_status'],
+    primaryTool: 'create_transfer',
+    runPrompt: 'transfer $600 from checking to savings',
     studioPath: '/personal-agent',
-    perVertical: {
-      airlines: {
-        trigger: { type: 'chip', text: 'have my agent use my miles for an upgrade' },
-        primaryTool: 'redeem_miles',
-        whatToSay: 'MFA proved, digital assistant verified, miles redeemed — cabin upgraded.',
-      },
-    },
+    perVertical: WORKLOAD_AGENT_UC38_BY_VERTICAL,
   },
   {
     id: 'UC43',
@@ -2136,10 +2154,10 @@ const RAW_USE_CASES = [
     id: 'UC44',
     useCaseId: 'workload-digital-assistant-obo',
     track: 'foundations',
-    title: 'Workload Agent: Digital Assistant — OBO',
+    title: 'Workload Agent: OBO customer-data read',
     buyerStory: 'A hosted digital assistant must act for an authenticated customer without collapsing the assistant identity into the human identity.',
     pingOneSolution: 'PingOne pre-registers the workload agent identity; RFC 8693 token exchange produces a delegated token with sub=user and act=assistant, which the gateway and Authorize evaluate on every tool call.',
-    trigger: { type: 'link', path: '/personal-agent', label: 'Open Digital Assistant OBO demo' },
+    trigger: { type: 'link', path: '/workload-agents?useCase=UC44', label: 'Open OBO customer-data read' },
     expectedOutcome: 'PERMIT',
     evidence: { tokenChain: ['user-token', 'personal-agent-lookup', 'mcp-exchange', 'tool-dispatched'], activity: ['token', 'authorize', 'mcp'] },
     codeRefs: [
@@ -2149,7 +2167,7 @@ const RAW_USE_CASES = [
     ],
     maturity: 'works',
     owasp: { threats: ['T1', 'T9', 'T13'], sections: ['§4.1', '§4.2', '§4.3'] },
-    whatToSay: 'The Digital Assistant has its own workload identity, but the exchanged token proves which customer authorized the action and which assistant acted.',
+    whatToSay: 'Choose this to demonstrate who authorized the request, which workload agent acted, and what data it could access.',
     advanced: false,
     whatLong: 'A customer signs in and asks a hosted Digital Assistant to perform an action. The assistant is a pre-registered Workload Agent with its own PingOne identity. RFC 8693 exchanges the user authority for a delegated token containing the customer as subject and the assistant as actor. The gateway and PingOne Authorize evaluate the chain, scopes, resource owner, and any step-up or CIBA obligation before a tool executes.',
     businessValue: 'Digital channels get a first-class workload identity without losing customer attribution, least privilege, policy enforcement, or the ability to re-involve the human for sensitive operations.',
@@ -2158,7 +2176,9 @@ const RAW_USE_CASES = [
       gw: 'Validates the delegated token and routes the assistant call to the protected tool.',
       authz: 'Evaluates the user, assistant actor, scopes, resource ownership, and step-up requirements.',
     },
-    primaryTool: 'redeem_miles',
+    primaryTool: 'get_account_balance',
+    runPrompt: 'show my balance',
+    perVertical: WORKLOAD_AGENT_UC44_BY_VERTICAL,
   },
   {
     id: 'UC45',

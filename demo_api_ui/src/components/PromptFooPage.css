@@ -1,0 +1,216 @@
+.promptfoo-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem 2rem 3rem;
+  color: var(--text-primary, #1a1a2e);
+}
+
+.promptfoo-page__header h1 {
+  font-size: 1.6rem;
+  margin: 0 0 0.5rem;
+}
+
+.promptfoo-page__lead {
+  color: var(--text-secondary, #555);
+  font-size: 0.95rem;
+  margin: 0 0 1.5rem;
+}
+
+.promptfoo-page__lead code,
+.promptfoo-page__hint code {
+  background: var(--bg-subtle, rgba(127, 127, 127, 0.12));
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85em;
+}
+
+.promptfoo-page__suites {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.promptfoo-page__suite {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border-subtle, rgba(127, 127, 127, 0.25));
+  border-radius: var(--radius-lg);
+  background: var(--bg-card, #fff);
+}
+
+.promptfoo-page__suite-info h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.05rem;
+}
+
+.promptfoo-page__suite-info p {
+  margin: 0 0 0.4rem;
+  font-size: 0.88rem;
+  color: var(--text-secondary, #555);
+}
+
+.promptfoo-page__config {
+  font-size: 0.78rem;
+  color: var(--text-tertiary, #777);
+}
+
+.promptfoo-page__suite-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.promptfoo-page__run-btn {
+  padding: 0.5rem 1.1rem;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--accent, #6c2bd9);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.promptfoo-page__run-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.promptfoo-page__results {
+  margin-bottom: 2rem;
+}
+
+.promptfoo-page__results-header h2 {
+  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.promptfoo-page__verdict {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.promptfoo-page__verdict.pass {
+  background: rgba(76, 175, 80, 0.15);
+  color: #2e7d32;
+}
+
+.promptfoo-page__verdict.fail {
+  background: rgba(244, 67, 54, 0.15);
+  color: #c62828;
+}
+
+.promptfoo-page__stats {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #555);
+  margin: 0.25rem 0 0.75rem;
+}
+
+.promptfoo-page__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.promptfoo-page__table th,
+.promptfoo-page__table td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border-subtle, rgba(127, 127, 127, 0.2));
+  vertical-align: top;
+}
+
+.promptfoo-page__table tr.fail td:first-child {
+  border-left: 3px solid #c62828;
+}
+
+.promptfoo-page__table tr.pass td:first-child {
+  border-left: 3px solid #4caf50;
+}
+
+.promptfoo-page__expand {
+  background: none;
+  border: 1px solid var(--border-subtle, rgba(127, 127, 127, 0.3));
+  border-radius: var(--radius-sm);
+  padding: 0.15rem 0.6rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+  color: inherit;
+}
+
+.promptfoo-page__output {
+  margin: 0.5rem 0 0;
+  padding: 0.6rem;
+  background: var(--bg-subtle, rgba(127, 127, 127, 0.08));
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.promptfoo-page__error {
+  background: var(--th-status-error-bg);
+  border: 1px solid var(--th-status-error-border);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1rem;
+  color: var(--th-status-error-text);
+  font-size: 0.88rem;
+  margin: 0.75rem 0;
+}
+
+.promptfoo-page__error pre {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.promptfoo-page__error-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.promptfoo-page__cli {
+  border-top: 1px solid var(--border-subtle, rgba(127, 127, 127, 0.2));
+  padding-top: 1.25rem;
+}
+
+.promptfoo-page__cli h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.5rem;
+}
+
+.promptfoo-page__cli pre {
+  background: var(--bg-code, #16161f);
+  color: #d4d4d8;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.promptfoo-page__hint {
+  font-size: 0.82rem;
+  color: var(--text-secondary, #666);
+}
+
+.promptfoo-page__loading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-secondary, #666);
+}

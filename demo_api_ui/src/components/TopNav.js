@@ -34,7 +34,7 @@ export default function TopNav({ user, onLogout }) {
   const location = useLocation();
   const { pageManifest } = useVertical();
   const identity = pageManifest?.identity;
-  const { tokenSecondsLeft, tokenLoading, sessionType, staleSession, hasRefreshToken, hasActiveToken: tokenIsActive, openTokenModal } = useSessionToken();
+  const { tokenSecondsLeft, tokenLoading, sessionType, staleSession, hasRefreshToken, hasActiveToken, openTokenModal } = useSessionToken();
   const { darkMode, toggleDarkMode } = useTheme();
   const brandName = (identity && (identity.headerTitle || identity.displayName)) || 'AI Demo';
   // Per-vertical brand icon (manifest identity.icon); unknown/absent → bank icon.
@@ -102,10 +102,19 @@ export default function TopNav({ user, onLogout }) {
 
   const tokenExpiring = tokenSecondsLeft !== null && tokenSecondsLeft > 0 && tokenSecondsLeft < 300;
   const tokenExpired = tokenSecondsLeft !== null && tokenSecondsLeft <= 0;
-  const hasActiveToken = !!user && tokenIsActive;
-  // Red "R" — the session's access token is backed by a refresh token (it will
-  // be silently refreshed near expiry rather than bouncing the user to login).
-  const showRefreshMarker = !!user && !staleSession && hasActiveToken && hasRefreshToken;
+  // Presence is the signal: keep the red R visible even if the access token
+  // expired or a refresh attempt failed transiently. The server hides it once
+  // the refresh token is gone or revoked.
+  const showRefreshMarker = !!user && hasRefreshToken;
+  const refreshMarker = showRefreshMarker ? (
+    <span
+      className="topnav-token-pill__refresh-marker"
+      title="Refresh token present — access token refreshes automatically near expiry"
+      aria-label="Refresh token present"
+    >
+      R
+    </span>
+  ) : null;
 
   const displayName =
     (user?.firstName && user?.lastName)
@@ -243,6 +252,7 @@ export default function TopNav({ user, onLogout }) {
                 {!tokenLoading && staleSession && (
                   <>
                     <span className="topnav-token-pill__dot" aria-hidden="true" />
+                    {refreshMarker}
                     {sessionType === 'admin' && (
                       <span className="topnav-token-pill__session-label">Admin</span>
                     )}
@@ -262,6 +272,7 @@ export default function TopNav({ user, onLogout }) {
                 {!tokenLoading && !staleSession && tokenSecondsLeft === null && (
                   <>
                     <span className="topnav-token-pill__dot" aria-hidden="true" />
+                    {refreshMarker}
                     <span className="topnav-token-pill__expired-label">No token — please sign in</span>
                   </>
                 )}
@@ -274,15 +285,7 @@ export default function TopNav({ user, onLogout }) {
                       </span>
                     )}
                     {displayName && <span className="topnav-token-pill__name">{displayName}</span>}
-                    {showRefreshMarker && (
-                      <span
-                        className="topnav-token-pill__refresh-marker"
-                        title="Refresh token present — access token refreshes automatically near expiry"
-                        aria-label="Refresh token present"
-                      >
-                        R
-                      </span>
-                    )}
+                    {refreshMarker}
                     <span className="topnav-token-pill__countdown">{formatCountdown(tokenSecondsLeft)}</span>
                     {openTokenModal && (
                       <button
@@ -299,6 +302,7 @@ export default function TopNav({ user, onLogout }) {
                 {!staleSession && tokenExpired && (
                   <>
                     <span className="topnav-token-pill__dot" aria-hidden="true" />
+                    {refreshMarker}
                     <span className="topnav-token-pill__expired-label">Session expired</span>
                     <button
                       type="button"

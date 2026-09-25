@@ -120,9 +120,9 @@ export default function DavinciLoginWidget({ onCall, onStart, onSignedIn }) {
 
   return (
     <div className="dvl-page">
-      {flowVersion && <p className="dvl-version">Flow version: {flowVersion}</p>}
+      {flowVersion && <p className="dvl-version">Policy variant: {flowVersion}</p>}
 
-      {error && <div className="dvl-error">{error}</div>}
+      {error && <div className="dvl-error" role="alert">{error}</div>}
       {status === "loading" && <p className="dvl-status">Starting the DaVinci flow...</p>}
 
       {/* Always mounted: skRenderScreen needs the node to exist before it runs. */}

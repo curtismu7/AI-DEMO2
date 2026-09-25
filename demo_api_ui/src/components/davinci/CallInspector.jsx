@@ -23,6 +23,16 @@ export function callTitle(call) {
   return `${call.method} ${call.host}${call.path}`;
 }
 
+const CALL_LABELS = {
+  "sdk-token": "Prepare the flow",
+  start: "Start the flow",
+  screen: "Continue the flow",
+  final: "Complete the flow",
+  session: "Create the app session",
+  authorize: "Authorize request",
+  other: "Network request",
+};
+
 function CallRole({ call }) {
   switch (callKind(call)) {
     case "sdk-token":
@@ -86,19 +96,25 @@ function CallCard({ n, call }) {
   const ok = call.status < 400;
   return (
     <li className="dvl-call">
-      <h4 className="dvl-call-title">
-        Call {n}: <code>{callTitle(call)}</code>
-      </h4>
-      <p>
-        <Status ok={ok}>HTTP {call.status}</Status>
-        {callKind(call) === "final" && call.success === true && (
-          <>
-            {" "}
-            <Status ok>success, tokens returned</Status>
-          </>
-        )}
-      </p>
-      <CallRole call={call} />
+      <details>
+        <summary>
+          <span className="dvl-call-number">{n}</span>
+          <span className="dvl-call-summary">
+            <strong>{CALL_LABELS[callKind(call)]}</strong>
+            <code>{call.method} {call.path}</code>
+          </span>
+          <Status ok={ok}>HTTP {call.status}</Status>
+        </summary>
+        <div className="dvl-call-detail">
+          <h4 className="dvl-call-title">
+            Call {n}: <code>{callTitle(call)}</code>
+          </h4>
+          {callKind(call) === "final" && call.success === true && (
+            <p><Status ok>success, tokens returned</Status></p>
+          )}
+          <CallRole call={call} />
+        </div>
+      </details>
     </li>
   );
 }

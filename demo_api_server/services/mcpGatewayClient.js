@@ -40,6 +40,15 @@ if (_allowInsecureTls && process.env.NODE_ENV === 'production') {
 const _httpsAgent = new https.Agent({ rejectUnauthorized: !_allowInsecureTls });
 
 const DEFAULT_TIMEOUT_MS    = 30_000;
+// UC1's proof-of-delegation demo is a read-only lookup. A brief gateway or
+// backend restart can otherwise fail the run after Authorize already PERMITs
+// it. Retry these idempotent reads once; never replay writes or policy errors.
+const RETRYABLE_READ_TOOLS = new Set(['get_account_balance', 'get_airline_bookings']);
+const RETRYABLE_GATEWAY_NETWORK_CODES = new Set([
+    'ECONNABORTED', 'ECONNREFUSED', 'ECONNRESET', 'EAI_AGAIN', 'EPIPE', 'ETIMEDOUT',
+]);
+const RETRYABLE_GATEWAY_STATUSES = new Set([502, 503, 504]);
+const SAFE_READ_RETRY_DELAY_MS = 100;
 // Keep in sync with demo_mcp_gateway and demo_mcp_server package.json#mcpVersion.
 const MCP_PROTOCOL_VERSION  = '2025-11-25';
 // PingGateway (IG) ships an older MCP SDK that validates against this exact
@@ -313,21 +322,6 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             if (ownerId) headers['X-Resource-Owner-Id'] = String(ownerId);
         } catch (_) { /* best-effort — never block a tool call on the lookup */ }
     }
-    // DPoP (RFC 9449): sign a fresh per-hop proof bound to this request URL + access
-    // token when the session has a DPoP key (ff_dpop). The htu path must match what
-    // the gateway sees (/mcp). Best-effort — never block the call on proof failure.
-    if (opts.dpopKey && opts.dpopKey.privatePem) {
-        try {
-            const { signDpopProof, accessTokenHash } = require('./dpopKeyService');
-            headers['DPoP'] = signDpopProof({
-                privatePem: opts.dpopKey.privatePem,
-                publicJwk: opts.dpopKey.publicJwk,
-                htu: url,
-                htm: 'POST',
-                ath: accessTokenHash(bearerToken),
-            });
-        } catch (_) { /* best-effort */ }
-    }
     // Web Bot Auth (RFC 9421, draft-meunier profile): sign @authority +
     // signature-agent with the BFF's stable Ed25519 agent key. The gateway
     // resolves the public key from Signature-Agent's
@@ -427,25 +421,55 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     }
 
     let response;
-    try {
-        response = await nrSegments.mcpToolCall(() =>
-            axios.post(url, body, {
-                headers,
-                timeout: timeoutMs,
-                // Handle error status codes ourselves so we can emit structured errors
-                validateStatus: () => true,
-                httpsAgent: _httpsAgent,
-            })
-        );
-    } catch (axErr) {
-        console.error(
-            '[mcpGatewayClient] axios error: code=%s message=%s url=%s',
-            axErr.code, axErr.message, axErr.config?.url
-        );
-        // Normalize transport failures (timeout / connection refused) into stable
-        // GATEWAY_* codes + HTTP statuses so callers get a consistent shape instead
-        // of a raw axios ECONNABORTED/ECONNREFUSED.
-        throw _normalizeGatewayNetworkError(axErr, timeoutMs);
+    const maxAttempts = RETRYABLE_READ_TOOLS.has(tool) ? 2 : 1;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        // DPoP jti values are single-use. Sign inside the attempt loop so a
+        // retry after a transient 502/503/504 cannot replay the first proof.
+        // Keep this best-effort, matching the original call behavior.
+        if (opts.dpopKey && opts.dpopKey.privatePem) {
+            delete headers.DPoP;
+            try {
+                const { signDpopProof, accessTokenHash } = require('./dpopKeyService');
+                headers['DPoP'] = signDpopProof({
+                    privatePem: opts.dpopKey.privatePem,
+                    publicJwk: opts.dpopKey.publicJwk,
+                    htu: url,
+                    htm: 'POST',
+                    ath: accessTokenHash(bearerToken),
+                });
+            } catch (_) { /* best-effort */ }
+        }
+        try {
+            response = await nrSegments.mcpToolCall(() =>
+                axios.post(url, body, {
+                    headers,
+                    timeout: timeoutMs,
+                    // Handle error status codes ourselves so we can emit structured errors
+                    validateStatus: () => true,
+                    httpsAgent: _httpsAgent,
+                })
+            );
+        } catch (axErr) {
+            const canRetry = attempt < maxAttempts && RETRYABLE_GATEWAY_NETWORK_CODES.has(axErr?.code);
+            if (!canRetry) {
+                console.error(
+                    '[mcpGatewayClient] axios error: code=%s message=%s url=%s',
+                    axErr.code, axErr.message, axErr.config?.url
+                );
+                // Normalize transport failures (timeout / connection refused) into stable
+                // GATEWAY_* codes + HTTP statuses so callers get a consistent shape instead
+                // of a raw axios ECONNABORTED/ECONNREFUSED.
+                throw _normalizeGatewayNetworkError(axErr, timeoutMs);
+            }
+            console.warn('[mcpGatewayClient] transient read call transport failure; retrying once: tool=%s code=%s', tool, axErr.code);
+        }
+        if (response && !(attempt < maxAttempts && RETRYABLE_GATEWAY_STATUSES.has(response.status))) {
+            break;
+        }
+        if (attempt < maxAttempts) {
+            console.warn('[mcpGatewayClient] transient read call gateway response; retrying once: tool=%s status=%d', tool, response?.status);
+        }
+        await new Promise((resolve) => setTimeout(resolve, SAFE_READ_RETRY_DELAY_MS));
     }
 
     const status = response.status;

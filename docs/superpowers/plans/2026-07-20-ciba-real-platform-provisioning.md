@@ -1,5 +1,10 @@
 # Real PingOne CIBA Provisioning — Implementation Plan
 
+> Historical plan (July 2026). The CIBA code was repaired in PR #200 on 2026-09-23.
+> The current endpoint is `/as/cibaAuthorization`; dedicated CIBA credentials
+> are required and transaction approvals do not fall back to simulation. Use
+> `docs/ciba-real-provisioning-todo.md` for the current console setup steps.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make `POST https://auth.pingone.com/01d89b06-66d5-430e-9f28-65636843788b/as/bc-authorize` actually work on the demo's PingOne environment, so `cibaService.js`'s real path succeeds and `cibaSimulatedService.js`'s failover stops triggering — without touching the existing login-critical "Demo AI App - Admin Login" application.

@@ -12,7 +12,7 @@ const AGENT_IDENTITY_ACADEMY_FAVORITE = {
 // Seeded on first use so a fresh browser already has the primary demo lanes.
 const DEFAULT_FAVORITES = [
   { label: 'AI Guard', path: '/llm-gateway' },
-  { label: 'AI Gateway Client', path: '/privilege-mcp-client' },
+  { label: 'AI Guard Client', path: '/privilege-mcp-client' },
   AGENT_IDENTITY_ACADEMY_FAVORITE,
   { label: 'Guided Demo Tour', path: '/academy/journey' },
 ];
@@ -22,6 +22,7 @@ const DEFAULT_FAVORITES = [
 const ACRONYMS = { llm: 'LLM', mcp: 'MCP', ai: 'AI', api: 'API', ui: 'UI', oauth: 'OAuth', hitl: 'HITL', a2a: 'A2A' };
 const FAVORITE_LABELS = {
   '/llm-gateway': 'AI Guard',
+  '/privilege-mcp-client': 'AI Guard Client',
   [LEGACY_AGENT_IDENTITY_ACADEMY_PATH]: 'Agent Identity Academy',
   '/academy/identity': 'Agent Identity Academy',
   '/academy/journey': 'Guided Demo Tour',

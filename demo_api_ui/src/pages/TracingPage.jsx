@@ -12,6 +12,7 @@ import TraceGraphView from "../components/TraceGraphView";
 import ProjectedTimeline from "../components/ProjectedTimeline";
 import GatewayMcpMetrics from "../components/GatewayMcpMetrics";
 import { useThemeOptional } from "../context/ThemeContext";
+import { PRIMARY_AGENT } from "../config/agentTerminology";
 
 const REFRESH_MS = 15000;
 const LOOKBACK_OPTIONS = [
@@ -280,7 +281,7 @@ export default function TracingPage() {
           <h1>Tracing</h1>
           <p className="tracing-subtitle">
             See how a single request travels across the demo&apos;s services. Generate traffic —
-            sign in, use the AI agent, make a transfer — then inspect the call path and latency below.
+            sign in, use the {PRIMARY_AGENT.displayName}, make a transfer — then inspect the call path and latency below.
           </p>
         </div>
         <div className="tracing-header-actions">
@@ -321,8 +322,8 @@ export default function TracingPage() {
       <details className="tracing-explainer">
         <summary>What am I looking at?</summary>
         <p>
-          Every action in this demo — signing in, an AI agent tool call, a money transfer —
-          travels through several cooperating services: the app backend (BFF), the AI agent,
+          Every action in this demo — signing in, a {PRIMARY_AGENT.displayName} tool call, a money transfer —
+          travels through several cooperating services: the app backend (BFF), the {PRIMARY_AGENT.displayName},
           the MCP gateway, and PingOne for authorization. <strong>Distributed tracing</strong> records
           that journey. Each row below is one <strong>trace</strong> — a single end-to-end request —
           made up of <strong>spans</strong>, the individual steps it took in each service.
@@ -434,7 +435,7 @@ export default function TracingPage() {
                   <ul>
                     <li>Try another service — traffic often lands on mcp-gateway or agent-service first.</li>
                     <li>Widen the window above if the action was more than an hour ago.</li>
-                    <li>Generate traffic: sign in, use the AI agent, or make a transfer, then refresh.</li>
+                    <li>Generate traffic: sign in, use the {PRIMARY_AGENT.displayName}, or make a transfer, then refresh.</li>
                   </ul>
                   <p>
                     For the OAuth / MCP token story of those same actions, open{" "}
@@ -445,7 +446,7 @@ export default function TracingPage() {
             ) : showLightEmpty ? (
               <tr>
                 <td colSpan={6} className="tracing-empty">
-                  No traces in this window yet. Sign in, use the AI agent, or make a transfer, then refresh.
+                  No traces in this window yet. Sign in, use the {PRIMARY_AGENT.displayName}, or make a transfer, then refresh.
                   {" "}
                   <a href={TOKEN_CHAIN_HREF}>Token Chain</a> shows the token hops while you generate traffic.
                 </td>

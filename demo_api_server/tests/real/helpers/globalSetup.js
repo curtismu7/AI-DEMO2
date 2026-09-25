@@ -8,6 +8,7 @@ dotenv.config({ path: path.resolve(__dirname, '../../../.env'), override: false 
 const { resolveSession, SESSION_CACHE } = require('./session');
 const { createBffClient }               = require('./bffClient');
 const { bootstrapFixtures }             = require('./fixtures');
+const { assertDedicatedAdminSession } = require('./a2aProviderMatrix');
 
 const FIXTURES_CACHE = path.resolve(__dirname, '../../../.test-fixtures.json');
 const VERTICALS = ['banking', 'retail', 'sporting-goods', 'healthcare', 'workforce', 'admin'];
@@ -17,8 +18,12 @@ module.exports = async function globalSetup() {
 
   console.log('[globalSetup] Resolving sessions...');
 
-  const enduserCookie = await resolveSession('enduser');
-  const adminCookie   = await resolveSession('admin') || enduserCookie;
+  const expectedProvider = String(process.env.A2A_EXPECTED_OAUTH_PROVIDER || '').trim().toLowerCase();
+  const sessionOptions = { ignoreCache: Boolean(expectedProvider) };
+  const enduserCookie = await resolveSession('enduser', sessionOptions);
+  const resolvedAdminCookie = await resolveSession('admin', sessionOptions);
+  assertDedicatedAdminSession(expectedProvider, enduserCookie, resolvedAdminCookie);
+  const adminCookie = resolvedAdminCookie || enduserCookie;
 
   const cache = {
     enduser: enduserCookie || 'skip',
@@ -29,6 +34,21 @@ module.exports = async function globalSetup() {
   if (!enduserCookie) {
     console.warn('[globalSetup] No valid session found — all real tests will be skipped');
     return;
+  }
+
+  if (expectedProvider) {
+    const adminClient = createBffClient('admin');
+    const enduserClient = createBffClient('enduser');
+    const [adminProbe, enduserProbe] = await Promise.all([
+      adminClient.get('/api/admin/stats'),
+      enduserClient.get('/api/admin/stats'),
+    ]);
+    if (adminProbe.status !== 200) {
+      throw new Error(`${expectedProvider} A2A provider-matrix admin login failed its admin-role probe (HTTP ${adminProbe.status})`);
+    }
+    if (enduserProbe.status !== 403) {
+      throw new Error(`${expectedProvider} A2A provider-matrix end-user session did not fail the admin-role probe (HTTP ${enduserProbe.status})`);
+    }
   }
 
   console.log('[globalSetup] Bootstrapping fixtures for all verticals...');

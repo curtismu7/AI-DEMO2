@@ -169,6 +169,971 @@ read the configured host. A new browser origin must be added to ALL of:
 
 ## §4 — Bug Fix Log
 
+### 2026-09-24 — Privilege MCP trace text was too light in the light theme
+
+**Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.css`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`, the page theme contrast
+test, and `REGRESSION_PLAN.md`.
+
+**What was broken:** an unclosed CSS comment disabled the trace styles, leaving
+light event labels and low-contrast timestamps on the white trace surface.
+
+**What was fixed:** the comment is closed; trace text is bold and dark in light
+mode, with event colors retained in dark mode.
+
+**Do not break:** trace content and event order remain unchanged; keep trace
+text readable in both themes and preserve dark-mode status colors.
+
+**Verify:** focused Privilege MCP theme contrast test, UI build, and Playwright
+computed-style checks on the isolated worktree page in both themes.
+### 2026-09-24 — Malicious MCP tab + agent loop added to /llm-gateway (feature, not a fix)
+
+**Files changed:** `demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_ui/src/pages/LlmGatewayCombinedPage.jsx`,
+`demo_api_ui/src/pages/HostileMcpTab.jsx` (new),
+`demo_api_ui/src/pages/HostileMcpTab.css` (new). PR #179.
+
+**What changed:** a third tab on `/llm-gateway` driving the hostile MCP server
+(`standalone/hostile-mcp-server`, Agentic App `hostile-mcp`): poisoned tool
+metadata listed verbatim, a manual `create_transfer` call, and
+`POST /api/privilege-mcp/agent/run` — an LLM agent loop (llama.cpp or Claude
+through the Privilege LLM virtual key) that feeds the poisoned `tools/list`
+to the model verbatim and executes its tool calls through the session's
+Privilege relay, feeding the gateway verdict back as the tool result.
+
+**Do not break:** the existing relay contract this builds on — `/config`'s
+mode-keyed session slots (`mode::mcpUrl`), `/tools/list` and `/tools/call`
+response shapes, and the pinned preset list (the UI matches the hostile preset
+loosely by label, so a label edit must keep the string `hostile-mcp`). The
+agent loop must keep sending tool metadata UNMODIFIED — sanitizing it there
+would silently turn the poison demo into a false pass.
+
+**Verify:** `cd demo_api_server && CI=true npx jest tests/routes/privilegeMcpClient --forceExit --runInBand`
+(32/33; the one failure is the pre-existing env-dependent gateway-host case in
+`privilegeMcpClient.state.test.js`), and `cd demo_api_ui && npm run build` exit 0.
+
+### 2026-09-25 — Gateway RFC 8707 exchange rejected legacy comma-separated backend audience
+
+**Files changed:** `demo_mcp_gateway/src/router.ts`,
+`demo_mcp_gateway/tests/mcpTokenExchangeClient.test.ts`,
+`demo_api_server/services/mcpGatewayClient.js`, and
+`demo_api_server/src/__tests__/mcpGatewayClient.dpopRetry.test.js`.
+
+**What was broken:** a live MCP Invest audience setting contained both the current
+resource URI and a retired alias, comma-separated. The gateway forwarded both as
+one RFC 8707 `resource` value; PingOne rejected the token exchange with HTTP 400
+`invalid_scope` before the Authorize decision could be reported. This affected
+all vertical tools routed through the Invest resource server. The BFF then retried
+the idempotent read with the same DPoP proof, whose single-use `jti` was rejected
+as a replay and obscured the original exchange failure.
+
+**What was fixed:** normalize configured backend resource values to one trimmed,
+nonempty URI at the gateway routing boundary. Mint a fresh DPoP proof for every
+HTTP attempt. Scope intersection, consent, Authorize, and fail-closed behavior
+remain unchanged.
+
+**Do not break:** every RFC 8693 exchange must target one resource URI and request
+only scopes held by the subject on that backend. Never bypass token exchange or
+Authorize to recover from a rejected exchange.
+
+**Verify:** `cd demo_mcp_gateway && CI=true npm test -- --runInBand
+--runTestsByPath tests/mcpTokenExchangeClient.test.ts --forceExit` (21 passed);
+`npm run build` (passed); `cd demo_api_server && CI=true npx jest
+src/__tests__/mcpGatewayClient.dpopRetry.test.js --runInBand --forceExit` (1 passed).
+
+### 2026-09-24 — UC1 consent and UC7/UC8 authorization challenges did not fire
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/AgentConsentModal.js`,
+`demo_api_server/routes/agentInvokeRoute.js`, and focused UI/BFF tests.
+
+**What was broken:** UC1 dispatched immediately without its access-consent
+drawer. The generic pre-execution intent gate could return before UC7's MFA
+and UC8's HITL policy handlers ran.
+
+**What was fixed:** UC1 pauses the queued run until the consent endpoint accepts,
+including when resuming after sign-in. Only an exact, vertical-resolved UC7/UC8
+catalog prompt skips the generic pre-gate so its dedicated downstream policy
+decides MFA/HITL; mismatched prompts and other use cases retain the generic
+gate. Access consent does not display the HITL badge.
+
+**Do not break:** OAuth/session hydration and queued-run restoration; UC7 MFA and
+UC8 HITL policy enforcement; generic intent authorization; tool authorization
+and token custody.
+
+**Verify:** `cd demo_api_ui && npm run test:unit -- --run
+src/components/__tests__/AIAgent.protectedStepLogin.test.jsx`; `cd demo_api_ui &&
+npm run build`; `cd demo_api_server && CI=true npx jest
+tests/agentInvoke.useCaseTagBackfill.test.js
+tests/mcpToolAuthorization.transactionPolicyHitl.test.js --forceExit`. The route
+test covers UC7/UC8 for all 11 supported verticals and rejects a mismatched
+prompt; the policy test pins UC7 step-up and UC8 HITL behavior.
+
+### 2026-09-24 — PingOne Admin agent results had no inspectable records
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/VerticalResult.jsx`, and focused UI tests.
+
+**What was broken:** the floating result panel was disabled by default, and the
+PingOne Admin field-list renderer showed only a summary, hiding the rows returned
+by tools such as `listUsers`.
+
+**What was fixed:** PingOne Admin results render structured rows with total
+counts and an explicit preview notice when truncated. Short results use the
+floating panel; long or truncated lists render inline in the scrollable agent
+conversation so the full preview remains reachable. Other verticals still follow
+the floating results feature flag.
+
+**Do not break:** preserve the PingOne Admin tool allowlist, authorization,
+query filters, token custody, and the server's bounded rows sent to the agent.
+
+**Verify:** focused `VerticalResult` and `AIAgent.addToCart` Vitest suites and
+the UI production build.
+
+### 2026-09-24 — Token chain node selection hid its detail below the map
+
+**Files changed:** `demo_api_ui/src/components/TokenChainTraceRail.jsx`,
+`demo_api_ui/src/components/TokenChainTraceRail.css`, and the focused trace-rail
+test.
+
+**What was broken:** selecting a node in Chain Map rendered its detail after the
+map, where it could be missed in the admin dashboard's constrained viewport.
+
+**What was fixed:** the selected node's full detail now sits beside the map on
+wider layouts and below it on narrow layouts, with its own scroll area for long
+evidence.
+
+**Do not break:** keep the existing trace projection, claim redaction, and token
+inspection flow unchanged; Step Detail remains available as its own view.
+
+**Verify:** focused `TokenChainTraceRail` Vitest suite and the UI production
+build.
+
+### 2026-09-24 — Delegated reads failed on transient gateway errors
+
+**Files changed:** `demo_api_server/services/mcpGatewayClient.js`,
+`demo_api_server/tests/mcpGatewayClient.transientBalanceRetry.test.js`.
+
+**What was broken:** the delegated-access consent-only run could complete the
+provider-specific RFC 8693 exchange and receive an Authorize PERMIT, then fail
+the `get_account_balance` or airlines `get_airline_bookings` dispatch on a
+transient gateway transport or upstream 502/503/504 response. The gateway
+request was attempted once for PingOne and PingFederate alike.
+
+**What was fixed:** retry those idempotent reads once after a transient
+transport failure or 502/503/504. Writes and authorization responses are never
+retried, and a failed retry still surfaces the error without running a local
+unauthorized fallback.
+
+**Do not break:** keep PingOne and PingFederate token exchange/provider
+selection unchanged; keep PingOne Authorize as the dispatch gate; never replay
+mutating tools or bypass the gateway after a failure.
+
+**Verify:** `CI=true ./node_modules/.bin/jest
+tests/mcpGatewayClient.*.test.js --forceExit --runInBand` — 7 suites, 27 tests
+passed; `node --check` passed for the client and focused test.
+
+### 2026-09-24 — DaVinci widget policy leaked into Orchestration SDK
+
+**Files changed:** `demo_api_server/config/davinci.js`,
+`demo_api_server/routes/davinciSdkLogin.js`, `.env.example`, and focused BFF
+tests; the widget lesson page, Call Inspector, and lesson sections.
+
+**What was broken:** the SDK `/start` route read
+`PINGONE_DAVINCI_LOGIN_POLICY_ID_V1`, which belongs to the widget. PingOne
+rejected that policy in the SDK authorize call as an invalid redirect flow
+policy. The widget lesson also buried the form under a blue tenant canvas and
+a long call trace.
+
+**What was fixed:** SDK `/start` now requires its own
+`PINGONE_DAVINCI_SDK_POLICY_ID`; the widget retains its policy and BFF minted
+SDK token. The widget lesson gives the live form more space, summarizes its
+available sign-in, registration, and recovery paths, and makes the trace easier
+to inspect.
+
+**Do not break:** preserve the SDK public client, PKCE callback, nonce, and
+session handling; preserve widget API-key custody, nonce, and token validation.
+The two integrations have different parent flow policies and final nodes; a
+shared journey must live in a common subflow rather than assigning one policy
+to both modes.
+
+**Verify:** focused BFF SDK/widget/config Jest suites, focused widget and SDK
+Vitest suites, UI build, and local policy-start checks.
+
+### 2026-09-24 — OAuth login reused a session issued by the previous provider
+
+**Files changed:** `demo_api_server/routes/oauthUser.js` and
+`demo_api_server/tests/oauthUser.test.js`.
+
+**What was broken:** after changing the global login provider, `/login` reused
+any unexpired end-user session without checking its issuer. The BFF then sent a
+PingOne token to PingFederate, or a PingFederate token to PingOne, and the
+token-exchange endpoint rejected it (`issuer was not recognized`).
+
+**What was fixed:** reuse a session only when its recorded OAuth provider
+matches the selected provider. On mismatch, clear the old server-side tokens
+and auth cookie before starting the selected provider's login flow.
+
+**Do not break:** keep the BFF as the browser-token custodian; preserve normal
+same-provider session reuse, the P1/PF authorization endpoints, and the RFC 8693
+exchange and Authorize gates.
+
+**Verify:** `cd demo_api_server && CI=true ./node_modules/.bin/jest
+tests/oauthUser.test.js --forceExit --runInBand` — 26 passed, including both
+provider-switch directions and same-provider reuse.
+
+### 2026-09-24 — OAuth provider switch returned to home
+
+**Files changed:** `demo_api_ui/src/components/OAuthProviderToggle.jsx`.
+
+**What was broken:** switching P1/PF navigated to `/logout`, whose default
+return path is `/`, so the browser left the page where the switch began.
+
+**What was fixed:** after saving the provider, clear the old BFF session and
+reload the current URL. The selected page remains open for the next sign-in.
+
+**Do not break:** old-provider tokens must be cleared before the page reloads;
+the BFF remains the browser-token custodian, and normal logout keeps its own
+redirect behavior.
+
+**Verify:** `cd demo_api_ui && npm run build`.
+
+### 2026-09-24 — PingFederate DaVinci demo rejects PingOne sessions
+
+**Files changed:** `demo_api_server/services/oauthUserService.js`,
+`demo_api_server/routes/oauthUser.js`, `demo_api_server/routes/pfDavinciAuth.js`,
+their provider tests,
+`demo_api_ui/src/pages/PingFederateDavinciKitPage.jsx` and CSS, its focused test,
+`demo_api_ui/src/routes/PublicRoutes.js`, `demo_api_ui/src/App.js`,
+`demo_api_ui/src/pages/OrchestrationSdkExplainerPage.jsx`, and
+`demo_api_server/config/auth-requirements.json`,
+`demo_api_server/config/useCases.js` plus generated `docs/use-cases/` pages,
+and `docs/DAVINCI_ORCHESTRATION_STATUS.md`.
+
+**What was broken:** the BFF labeled every end-user login `pingone_sso`, so the
+app could not distinguish a PingFederate session from PingOne for the PF
+Integration Kit demo.
+
+**What was fixed:** identify provider provenance for normal end-user sessions,
+then add a dedicated PF authorization-code/PKCE handshake using the registered
+PF client. Its callback verifies the signed ID token, issuer, audience, nonce,
+and state before storing a short-lived PF proof. The PF lesson requires that
+proof; a PingOne session alone cannot run it. The separate PF handshake does
+not replace the normal PingOne tokens. The page is linked from the DaVinci
+master without adding a second DaVinci sidebar item.
+
+**Do not break:** keep PingOne sessions labeled `pingone_sso`; only PF endpoint
+patterns may produce `pingfederate`; unknown providers stay `oidc`. Keep PF
+tokens server-side, keep the existing PingOne login and session untouched, and
+preserve the DaVinci widget and SDK paths.
+
+**Verify:** focused `oauthUserService` Jest and PF lesson Vitest; `cd
+demo_api_ui && npm run build`; `npm run authz:verify`.
+
+### 2026-09-24 — DaVinci has one master lesson in the sidebar
+
+**Files changed:** `demo_api_ui/src/components/AdminSideNav.jsx`,
+`demo_api_ui/src/config/navStructureCatalog.js`, `demo_api_ui/src/App.js`,
+`demo_api_ui/src/pages/OrchestrationSdkExplainerPage.jsx`,
+`demo_api_server/config/auth-requirements.json`.
+
+**What was broken:** four sidebar entries split the DaVinci overview, static SDK
+lesson, widget lesson, and live SDK lesson across separate navigation links.
+
+**What was fixed:** the DaVinci SDK lesson is the single sidebar/master entry;
+it links to the DaVinci Widget and DaVinci Orchestration SDK pages. The prior
+overview and guide URLs redirect to the master, and the existing child URLs
+remain available.
+
+**Do not break:** keep both runnable lessons reachable from the master, keep
+legacy routes redirecting, and keep all DaVinci lesson routes public.
+
+**Verify:** `cd demo_api_ui && npm run build`; `npm run authz:verify`.
+
+### 2026-09-24 — DaVinci widget reports the SDK token failure details
+
+**Files changed:** `demo_api_ui/src/lib/davinciWidgetClient.js`,
+`demo_api_ui/src/pages/DavinciLoginWidget.jsx`.
+
+**What was broken:** the widget's SDK-token request could fail without making
+the HTTP status and server error code visible, leaving the DaVinci load failure
+hard to diagnose.
+
+**What was fixed:** the widget now shows the HTTP status, server error code, and
+server-provided message in an accessible alert. A local request reproduced the
+reported failure as `400: FlowId not valid`.
+
+**Do not break:** keep the BFF's safe normalized error message visible; never
+include the DaVinci API key or nonce in the browser response.
+
+**Verify:** `cd demo_api_ui && npm run build`.
+
+### 2026-09-24 — Learning Hub pages follow the platform light/dark theme
+
+**Files changed:** Learning Hub, OAuth Academy, shared education drawer and
+token-chain styles; Agent Gateway Authorization, Intent Binding, Learning
+Protocol Lab, and Privilege MCP lesson styles; theme ratchet tests.
+
+**What was broken:** Hub and lesson surfaces retained fixed light or dark
+palettes, and some pages paired themed grounds with ink that did not follow the
+same theme. The shared drawer could show white text on its white light surface.
+
+**What was fixed:** themeable surfaces and ink now use paired `--th-*` tokens;
+the Hub link no longer uses inline themeable styles; status, code, drawer, and
+token-chain surfaces follow the active platform theme.
+
+**Do not break:** all Hub content and linked lessons must follow the platform's
+`data-theme` state. Keep each tokenized ground paired with tokenized ink; do not
+add `prefers-color-scheme` rules or inline themeable styles.
+
+**Verify:** focused UI/theme tests and the UI build; live computed-style
+inspection was unavailable in the original run.
+
+### 2026-09-24 — ID-JAG explainer CTAs and dark accent failed contrast
+
+**Files changed:** `demo_api_ui/src/pages/PingFederateIdJagExplainerPage.css`,
+`REGRESSION_PLAN.md`.
+
+**What was broken:** end-user-nano's global link color overrode the explainer's
+CTA colors, and its fixed teal accent was too dark for step labels in dark mode.
+
+**What was fixed:** scoped link-state rules preserve readable CTA ink; the
+explainer accent now follows the light/dark-aware info-text token while the
+primary button keeps its high-contrast teal background.
+
+**Do not break:** both CTA labels and all four step numbers remain readable in
+light and dark themes; no inline themeable styles.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build`; Playwright
+contrast audit on `/pingfederate-id-jag` in both themes.
+
+### 2026-09-24 — Switching trace evidence views left Movie reel embedded
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`REGRESSION_PLAN.md`.
+
+**What was broken:** selecting Simple stepper, Sequence view, Token topology,
+or OAuth visualizer did not clear the default embedded Movie reel. The
+single-embedded-view guard then showed its conflict prompt instead of the
+selected view's controls.
+
+**What was fixed:** switching to any non-Movie-reel view now clears the Movie
+reel's embedded state while preserving a pop-out choice.
+
+**Do not break:** only one trace evidence view may be embedded; selecting a
+different view must keep its own surface controls available.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build`.
+
+### 2026-09-23 — Quick Config resolves multiple embedded trace views
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`, `REGRESSION_PLAN.md`.
+
+**What was broken:** saved Quick Config preferences could restore multiple trace
+views as embedded at once, and choosing another embedded surface could silently
+leave conflicting views active.
+
+**What was fixed:** Quick Config now opens a required chooser when embedded trace
+views conflict. Picking one turns the others off; losing “Both” views remain
+available as pop-outs. Requests to add a second embedded view use the same chooser.
+
+**Do not break:** permit at most one embedded trace view while retaining one or
+more independent pop-outs; do not change authentication or session behavior.
+
+**Verify:** `cd demo_api_ui && npm run build`.
+### 2026-09-23 — React Flow's custom shadow value tripped the shadow ratchet
+
+**Files changed:** `demo_api_ui/src/components/TokenTopologyPanel.css` and
+`REGRESSION_PLAN.md`.
+
+**What was broken:** the React Flow controls' `--xy-controls-button-box-shadow`
+used a literal shadow value, pushing the design-token shadow count one over its
+ratchet ceiling after the topology panel landed.
+
+**What was fixed:** the control shadow now uses the shared `--shadow-sm` token.
+
+**Do not break:** retain the React Flow controls' subtle elevation while keeping
+the UI shadow-literal ratchet at or below its existing ceiling.
+
+**Verify:** `cd demo_api_ui && npm run test:unit && npm run build`.
+### 2026-09-24 — Setup pages render unreadable white surfaces in dark mode
+
+**Files changed:** `demo_api_ui/src/components/Configuration/UnifiedConfigurationPage.css`,
+`demo_api_ui/src/components/Configuration/UnifiedConfigurationPage.tsx`,
+`demo_api_ui/src/components/SetupPage.css`, `REGRESSION_PLAN.md`.
+
+**What was broken:** `/configure` kept white page, tab, and section surfaces while
+dark mode changed ink to white; quick-start examples and several setup controls
+also used fixed colors that failed against the opposite theme's surface.
+
+**What was fixed:** setup and configuration surfaces now use paired `--th-*`
+surface and ink tokens, including active navigation, status panels, helper text,
+scenario cards, and form controls. Quick-start examples no longer use inline ink.
+
+**Do not break:** light and dark theme text/surface pairs must remain above 4.5:1;
+setup navigation, configuration fields, save behavior, and setup flow are unchanged.
+
+**Verify:** contrast ratios calculated from the light/dark token values; both
+themes' edited text/surface pairs exceed 4.5:1. `cd demo_api_ui && npm run build`.
+
+### 2026-09-23 — Spinner Ping P escaped the red circle
+
+**Files changed:** `demo_api_ui/src/components/shared/PingIdentitySpinner.jsx`,
+`demo_api_ui/src/components/shared/__tests__/PingIdentitySpinner.test.jsx`,
+`REGRESSION_PLAN.md`.
+
+**What was broken:** the default spinner used `ping-identity-logo.png`, a square
+opaque image containing the full Ping Identity wordmark. The spinner constrains
+its mark to a square, so the wordmark was compressed into the circular badge and
+made the P look detached from the ring.
+
+**What was fixed:** use the existing square Ping P asset (`/branding/ping-logo.svg`)
+for the default mark. Custom uploaded logos and spinner layout remain unchanged.
+
+**Do not break:** the default Ping P stays inside the red circle; custom logos,
+label placement, reduced-motion behavior, and the overlay/inline spinner API
+remain unchanged.
+
+**Verify:** `cd demo_api_ui && npm run build`.
+
+### 2026-09-23 — Refresh-token marker disappeared when access token expired
+
+**Files changed:** `demo_api_server/routes/oauth.js`,
+`demo_api_server/routes/oauthUser.js`, `demo_api_ui/src/services/sessionResolver.js`,
+`demo_api_ui/src/components/TopNav.js`, `REGRESSION_PLAN.md`.
+
+**What was broken:** the status endpoints reported `hasRefreshToken` only while
+the access token was authenticated, and the top bar required an active access
+token to display the red R. An expired token or transient refresh failure hid
+the fact that the BFF still held a refresh token.
+
+**What was fixed:** admin and user status now report refresh-token presence as
+a boolean for their OAuth session, including stale sessions. The shared top-bar
+red R is shown whenever that boolean is true, including on dashboard and Agent
+routes, and goes away when the refresh token is cleared.
+
+**Do not break:** raw refresh tokens remain server-side; only a boolean reaches
+the UI. P1/PF admin and user session selection and automatic refresh stay
+separate.
+
+**Verify:** syntax checks for touched server files and `cd demo_api_ui && npm
+run build`.
+
+### 2026-09-23 — Auto-refresh used the wrong OAuth client for admin sessions
+
+**Files changed:** `demo_api_server/middleware/tokenRefresh.js`,
+`demo_api_server/middleware/agentSessionMiddleware.js`,
+`demo_api_server/services/oauthUserService.js`,
+`demo_api_ui/src/services/demoAgentService.js`,
+`demo_api_server/routes/privilegeMcpClient.js`,
+`demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`, `REGRESSION_PLAN.md`.
+
+**What was broken:** proactive and agent-session refresh always used the user
+OAuth client, even for admin sessions. PingFederate user refresh also omitted
+the configured Basic or `private_key_jwt` client authentication. The AI Guard
+client did not request `offline_access`, so issuers that could refresh never
+returned a refresh token.
+
+**What was fixed:** both middleware paths now select the issuer client by
+`oauthType` (with the session role as a fallback). PingFederate user refresh
+uses the same token endpoint authentication method as authorization-code
+exchange. The Agent manual refresh tries the current session type first. The AI
+Guard flow requests `offline_access` in both PF and P1 flows,
+while preserving the advertised MCP scopes. Existing main-app P1 and PF scope
+configuration continues to request `offline_access`.
+
+**Do not break:** refresh-token rotation, durable session saves, OAuth client
+separation between admin and user, or configured P1/PF token endpoint auth.
+
+**Verify:** syntax checks for the changed server JavaScript modules and
+`cd demo_api_ui && npm run build`.
+
+### 2026-09-23 — Repeated tool discovery reopened gateway sign-in prompt
+
+**Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`,
+`REGRESSION_PLAN.md`.
+
+**What was broken:** every `tools/list` 401 reopened the sign-in modal, so retrying
+Get MCP Tools repeatedly interrupted the user with the same prompt.
+
+**What was fixed:** show at most one automatic sign-in prompt per app during a
+page visit. Switching apps allows a separate prompt, and explicitly choosing
+Sign in starts a fresh attempt.
+
+**Do not break:** per-app OAuth tokens remain isolated; 401s still set the
+identity to signed out; users still explicitly request tool discovery; policy
+decisions remain server-side.
+
+**Verify:** `cd demo_api_ui && npm run build`.
+
+### 2026-09-23 — Client path switch changed the selected AI Gateway app
+
+**Files changed:** `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx`.
+
+**What was broken:** each path remembered its own MCP app. Switching from
+Direct `opensearch` to Privilege could silently select `aggregate`, so a policy
+configured for `opensearch` did not apply to the request. The previous path's
+403 banner also remained visible and was attributed to the newly selected app.
+
+**What was fixed:** switching paths now keeps the selected app when the
+destination has a matching door, then clears the prior denial and closes its
+modal. A new denial on the selected app can still show normally.
+
+**Do not break:** a denial remains visible until a successful refresh or path
+change; switching paths must not weaken gateway authorization or tool policy.
+
+**Verify:** `cd demo_api_ui && npm run build`.
+
+### 2026-09-24 — Local demo-auth startup allowed token-exchanger credentials to drift
+
+**Files changed:** `scripts/check-mcp-gateway-credential-parity.js`,
+`run-docker.sh`, focused startup-guard tests, and `package.json`.
+
+**What was broken:** The BFF and MCP Gateway load the same PingOne token-exchanger
+client from separate ignored `.env` files. A stale gateway secret made gateway
+actor-token requests fail with PingOne `invalid_client`, while the BFF continued
+to use its current credential.
+
+**What was fixed:** Local startup paths that enable the `demo-auth` profile now
+compare the client ID and secret before Compose starts the gateway. The check
+handles plaintext or dotenvx-encrypted files, fails closed on missing or
+mismatched values, and never prints credential contents. It does not alter the
+P1/PF exchange behavior or UC40's separate ID-JAG path.
+
+**Do not break:** Keep the BFF and MCP Gateway token-exchanger credentials equal;
+keep secrets in ignored env files; preserve provider-specific token exchange and
+the isolated ID-JAG demo path.
+
+**Verify:** `node --test scripts/check-mcp-gateway-credential-parity.test.js`;
+`bash -n run-docker.sh`; `npm run hygiene:check`.
+
+### 2026-09-23 — Malicious Content details hid the gateway request and redacted response
+
+**Files changed:** Attack Lab evidence in `demo_api_ui/src/pages/AttackLabTab.jsx`
+and `attackLabEvidence.js`; hostile MCP, denial panel, and inter-agent runner
+components/styles; their focused UI tests.
+
+**What was broken:** the Malicious Content run showed generic evidence without
+the actual request, while evidence normalization discarded the gateway response
+that could contain `[REDACTED:…]` markers. Other attack tabs likewise lacked
+request/response detail, or exposed it only indirectly in logs.
+
+**What was fixed:** all five attack tabs now offer expandable observed request
+and response details where the live runner provides them. Tool Abuse responses
+are field-allowlisted to avoid token claims; schema and gateway results show the
+actual validator/decision fields; Tool Poisoning exposes the tools/list exchange,
+agent request/trace, and induced call; Inter-Agent Abuse shows each probe and
+HTTP response while masking the forged bearer value. Malicious Content displays
+the exact safe POST body, returned text, and redaction marker count, and clearly
+distinguishes an unsent example from a sent request. No auth headers, token
+claims, or original redacted values are displayed.
+
+**Do not break:** this changes presentation/evidence only; keep the existing
+Privilege request, provider selection, authorization, and policy flow intact.
+Never infer or reconstruct values omitted by Privilege redaction.
+
+**Verify:** the four focused attack-runner suites (20 tests), the existing
+Privilege theme-contrast test, full UI unit suite (663 files, 5,066 passed,
+24 skipped), and `npm run build` passed. A signed-in visual contrast audit was
+unavailable because the browser automation daemon denied access; the new
+disclosure styles use existing `--th-*` theme tokens.
+
+### 2026-09-23 — TopNav referenced the active-session flag without reading it
+
+**Files changed:** `demo_api_ui/src/components/TopNav.js`,
+`demo_api_ui/src/components/__tests__/TopNavFavoritesLayout.test.jsx`,
+`REGRESSION_PLAN.md`.
+
+**What was broken:** the shared header's session controls referenced
+`hasActiveToken`, but `TopNav` no longer read that value from
+`SessionTokenContext`, causing a ReferenceError on every route.
+
+**What was fixed:** restored the existing context value in the component's
+destructuring and added a regression test covering signed-out and active-session
+controls. Token state computation and login/logout behavior are unchanged.
+
+**Do not break:** continue using the `SessionTokenContext` active-token signal
+for session action visibility; do not duplicate or alter token lifecycle logic.
+
+**Verify:** focused TopNav + monitoring-route tests (8 passed); full UI suite
+passed (663 files, 5,066 passed, 24 skipped); UI production build passed.
+
+### 2026-09-23 — Standard PingFederate exchanges used PingOne's token endpoint
+
+**Files changed:** `demo_api_server/services/oauthService.js`, `services/pfStandardTokenExchangeService.js`, `docs/FEDERATE-SETUP.md`, and focused BFF tests.
+
+**What was broken:** the PF standard adapter supplied PF credentials but the shared OAuth helper still posted actor-token and exchange requests to the shared PingOne token endpoint.
+
+**What was fixed:** the shared helper accepts an optional provider token endpoint and retains its existing default. The PF adapter supplies `PF_TOKEN_ENDPOINT` for both actor client-credentials calls and both RFC 8693 exchanges. The PF final-token mapping now documents the verified nested OGNL `act` map expression. Standard PF keeps P1's two-exchange semantics; UC40 ID-JAG remains separate.
+
+**Do not break:** PingOne continues using the configured default endpoint and request behavior; PF standard uses PF endpoint/clients; UC40 ID-JAG remains opt-in and independent; browser tokens stay in the BFF.
+
+**Verify:** 2 focused BFF suites (66 tests), full repository unit runner (96 API tests plus UI Vite smoke), UI production build, topology verification, and four live local PF route exchanges validated `sub`, route-specific `aud`/`scope`, and nested MCP-service → AI-agent `act`. The live exchanges used an AI-agent client-credentials token as a subject stand-in; browser-driven “show my reservations” was unavailable because the shared browser daemon denied access.
+
+### 2026-09-23 — UC2.5 reported a depth-one token exchange as complete and hid the specialist result
+
+**Files changed:** `demo_api_server/services/a2aOrchestratorService.js`,
+`demo_api_server/routes/a2aAgentRoutes.js`, `demo_api_server/src/__tests__/a2aOrchestratorService.test.js`,
+`demo_api_server/tests/real/shared/a2a-delegation-live.test.js`,
+`demo_api_ui/src/components/AIAgent.js`, `demo_api_ui/src/components/AIAgentFull.js`,
+`demo_api_ui/src/components/__tests__/AIAgent.demoStepGate.test.jsx`.
+
+**What was broken:** UC2.5 called `delegateToSpecialist` directly, minting only
+the first delegated token, then returned HTTP success with an act-chain depth
+of 1. Its catalog contract requires both A2A exchanges and `tool-dispatched`.
+The UI also discarded the structured tool result, so even a successful specialist
+execution could show only a generic delegation sentence. The response shape
+could include the delegated token.
+
+**What was fixed:** the orchestrator now uses the same specialist wire handoff
+and PERMIT-gated tool executor as UC2. It reports success only when the specialist
+tool succeeds and the nested act-chain depth is exactly 2; response fields are
+whitelisted to exclude tokens and token claims. UC2.5 now renders the returned
+specialist result in the assistant message.
+
+**Do not break:** Exchange #2 stays inside the specialist executor; the bearer
+token never crosses back to the browser; tools remain PERMIT-gated; failed or
+depth-one runs cannot tick UC2.5 complete. UC2/UC2.5 remain separate
+provider-configured PingOne and PingFederate runs with fresh login sessions.
+
+**Verify:** `cd demo_api_server && CI=true npx jest
+src/__tests__/a2aOrchestratorService.test.js src/__tests__/a2aExecution.test.js
+tests/a2aSpecialistExecutor.test.js tests/a2aProviderSessionGuard.test.js
+--forceExit`; `cd demo_api_ui && npm run test:unit && npm run build`.
+The real suite also runs UC2.5 airlines under each provider when configured with
+`A2A_EXPECTED_OAUTH_PROVIDER`, requiring fresh customer/admin sessions and both
+exchange events plus tool dispatch. PingOne tenant-claim provisioning is not
+performed by this code change.
+### 2026-09-23 — Workload Agents: UC38 and UC44 shared the Airlines action and MFA gate
+
+**Files changed:** `demo_api_server/config/useCases.js`, `demo_api_server/routes/agentInvokeRoute.js`, `demo_api_server/services/agentBuilderService.js`, `demo_api_server/services/delegatedCommerceRuntime.js`, `demo_api_server/services/agentMcpTokenService.js`, `demo_api_server/config/auth-requirements.json`, `demo_api_ui/src/pages/WorkloadAgentsPage.jsx`, `demo_api_ui/src/pages/WorkloadAgentsPage.css`, `demo_api_ui/src/pages/PersonalAgentStudioPage.jsx`, `demo_api_ui/src/pages/PersonalAgentClientWindow.jsx`, `demo_api_ui/src/components/DemoStepsDropdown.jsx`, `demo_api_ui/src/config/missionControlCatalog.js`, `demo_api_ui/src/App.js`, generated use-case docs, the deleted obsolete `demo_api_server/data/goldens/airlines/personal-agent-concierge.json` replay, and focused tests.
+
+**What was broken:** UC38 and UC44 both opened the Airlines Personal Agent Studio and ran `redeem_miles`; the studio hardcoded the Airlines vertical and UC44 slug, while the BFF applied the same blanket MFA pre-check to both slugs. The two workload-agent stories therefore showed the same action and gate even though UC38 is an MFA-protected write and UC44 is an on-behalf-of customer-data read. The BFF's registration check also did not bind that registered per-user PingOne application to the `act` identity actually used for token exchange, and the new runner left its security rail on empty or previous-run token evidence.
+
+**What was fixed:** `/workload-agents` now presents the two catalog scenarios across all 11 supported verticals, with the selected action and exact prompt visible before launch. UC38 resolves to each vertical's UC7 protected write and requires customer MFA before delegation. UC44 resolves to a distinct customer-owned read and uses normal gateway/Authorize policy without an extra blanket MFA pre-check. Mission Control and UC38/UC44 deep links open the page with use-case and vertical context. For UC38/UC44, the BFF verifies the customer's owned, enabled client-credentials app, reads its secret with the PingOne Management API on the server, and binds that request-local runtime to the RFC 8693 actor token using the app's OAuth client ID; it does not persist or return the secret. Workload runs require two-exchange mode even when the session selected debug single-exchange, and ignore consent attached to a different delegated-commerce app in that session. Workload requests skip native enterprise ID-JAG so they retain the selected actor; PingFederate ID-JAG workload requests fail closed until that path supports actor binding. The run's token events clear stale evidence and populate the security rail/filmstrip. The page is public to read; the UC38/UC44 branches of `/api/agent/invoke` require an authenticated customer and a registered agent.
+
+**Do not break:** the browser sends only the canonical use-case slug, vertical, and catalog prompt; the BFF rejects a browser-selected tool, missing or unsupported vertical, cross-vertical prompt, or a mismatch with the resolved catalog action. It must never silently fall back to Airlines or the other scenario. UC38 still returns step-up before execution without MFA; UC44 remains eligible for policy-driven step-up or denial. The BFF keeps tokens and the request-local workload-app secret, and the existing RFC 8693 two-exchange, gateway, and Authorize boundaries still govern execution. The actor client ID must match the customer-owned PingOne app reported in the trace, and its secret must never enter browser responses or event metadata. The debug single-exchange session switch cannot remove a workload actor claim, native enterprise ID-JAG cannot bypass that actor, and PingFederate ID-JAG must fail closed for workload runs. A separate delegated-commerce registration cannot supply the workload consent decision. The trace names the selected vertical's action scopes; it must not claim Airlines scopes for every run. Legacy `/personal-agent` freeform callers retain the generic guest-tolerant invocation path by omitting the UC38/UC44 slugs; those workload branches require customer authentication. UC45 retains its MFA gate. Each workload run clears and replaces live token evidence, including structured failures, and an obsolete response cannot replace the selected run's evidence.
+
+**Verify:** `cd demo_api_ui && npx vitest run src/pages/__tests__/WorkloadAgentsPage.test.jsx src/pages/__tests__/PersonalAgentStudioPage.test.jsx src/pages/__tests__/PersonalAgentStudioPage.workloadEvidence.test.jsx src/pages/__tests__/PersonalAgentClientWindow.test.jsx src/components/__tests__/DemoStepsDropdown.test.jsx src/config/__tests__/missionControlCatalog.test.js`; `cd demo_api_server && CI=true npx jest tests/useCases.workloadAgents.test.js tests/agentInvokeRoute.workloadAgents.test.js src/__tests__/agentBuilderService.test.js tests/delegatedCommerceRuntime.test.js src/__tests__/agentMcpTokenService.test.js --forceExit`; from the repository root, `npm run use-cases:check` and `npm run authz:verify`; `cd demo_api_ui && npm run build`. These local checks pin the catalog, route, actor binding, evidence, exchange mode, and request behavior. They do not establish that the running PingOne worker can read the agent secret, that the per-user app has the necessary client-credentials grants, or a live PingOne exchange and gateway/Authorize decision; check those against the running stack with test credentials before claiming live execution.
+### 2026-09-23 — Local mock-phone CIBA approval could not finish a banking write
+
+**Files changed:** `demo_api_server/routes/ciba.js`, `routes/transactions.js`,
+`services/cibaSimulatedService.js`, `services/cibaTransactionReceipt.js`,
+`.env.example`, and `demo_api_ui/src/context/ProofOfEnforcementContext.js`.
+
+**What was broken:** the BFF rejected simulated banking requests at initiation
+and polling, so tapping Approve on the mock phone could never release the agent.
+The proof verdict also required one particular Authorize challenge shape even
+after an approved poll and successful dispatch.
+
+**What was fixed:** explicitly opt in to local simulation in development, carry
+the mock decision through polling and an amount and account bound, single-use
+receipt, and score a completed approved dispatch without depending on the first
+challenge's exact decision shape. The mock receipt remains distinct from real
+PingOne CIBA proof and cannot satisfy step-up outside the local opt-in.
+
+**Do not break:** a hard authorization DENY still blocks the write, a pending
+or failed dispatch cannot score as a success, and real CIBA stays the default.
+
+**Verify:** build `demo_api_ui`, inspect the active local CIBA status and the
+approved mock-phone request through the live agent flow.
+
+### 2026-09-23 — CIBA approval lacked a verified, transaction-bound handoff
+
+**Files changed:** `demo_api_server/config/oauth.js`, `routes/ciba.js`,
+`routes/transactions.js`, `services/cibaService.js`,
+`services/cibaSimulatedService.js`, `services/cibaTransactionReceipt.js`,
+`services/hitlCredit.js`, `services/mcpToolAuthorizationService.js`,
+`demo_api_ui/src/components/AIAgent.js`, `src/pages/CibaApprovalPage.js`,
+and their existing focused test fixtures.
+
+**What was broken:** PingOne CIBA was sent to the wrong endpoint and silently
+fell back to a same-session mock that auto-approved. The real poll accepted an
+unvalidated ID token and replaced the banking login token. The agent's
+bearer-only transaction could not see CIBA's fresh authentication; its receipt
+matched only user, tool, and amount, so a different account pair could spend it.
+Session expiry left the UI polling a 401 indefinitely.
+
+**What was fixed:** use PingOne's documented CIBA endpoint and a dedicated
+CIBA client, default to fail-closed, validate the signed ID token and subject,
+respect poll intervals, retain the banking login token, and carry a single-use
+approval bound to the exact amount and account IDs through the bearer hop.
+The local simulation requires an explicit click and is labeled as simulation.
+An expired browser session terminates polling with a sign-in instruction.
+
+**Do not break:** banking tokens remain in the BFF; transaction DENY and
+canonical HITL receipt checks remain authoritative; a CIBA result for another
+subject, account pair, or amount cannot authorize a write. Real CIBA still
+requires a provisioned PingOne app and DaVinci flow.
+
+**Verify:** JS syntax, UI build, and focused local flow checks before merge.
+
+### 2026-09-23 — Approved UC22 CIBA retry looped at the bearer-only transaction hop
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_server/routes/ciba.js`, and
+`demo_api_server/tests/routes/ciba.bearerReceipt.test.js`.
+
+**What was broken:** the gateway permitted the resumed `create_transfer`, but
+the banking MCP server's bearer-only `/api/transactions` call has no browser
+session to read CIBA's session proof. The CIBA request retained a downstream
+transaction receipt only when a separate canonical HITL challenge id existed;
+UC22's CIBA step-up had no such id and the transaction route re-issued the
+step-up challenge on every retry.
+
+**What was fixed:** the three agent CIBA initiation paths now pass the
+transaction type. The BFF stores only recognized transaction types alongside
+the approved amount and records the existing single-use `(user, tool, amount)`
+receipt after approval, with or without a separate HITL challenge. Canonical
+HITL challenge approval and validation remain unchanged.
+
+**Do not break:** receipts stay single-use and amount-bound; unknown
+transaction types create no bearer receipt; an invalid canonical HITL
+challenge still blocks approval. Keep browser tokens in the BFF.
+
+**Verify:** focused CIBA route regression test, focused CIBA UI tests, and UI build.
+
+### 2026-09-23 — Dashboard run card retained stale scenario after refresh
+
+**Files changed:** `demo_api_ui/src/utils/useCaseRunContext.js` and
+`demo_api_ui/src/components/UseCaseRunContextCard.jsx`.
+
+**What was broken:** the dashboard restored its last scenario from
+`sessionStorage` after a browser reload. React Router can also retain the
+scenario in navigation state, so the card continued to show the previous title
+after refresh.
+
+**What was fixed:** an ordinary reload of `/dashboard` now clears the stored
+scenario and ignores stale navigation state. An OAuth success return still
+restores its queued scenario. The empty card now says “Welcome” and explains
+that prompts and scenarios run here with authorization and tool evidence.
+
+**Do not break:** preserve scenario context through an OAuth sign-in return and
+when a scenario is explicitly launched; only ordinary dashboard reloads reset
+the card.
+
+**Verify:** `cd demo_api_ui && npm run build`.
+
+### 2026-09-23 — Separate ordinary PingFederate demo exchange from the UC40 ID-JAG run
+
+**Files changed:**
+- `demo_api_server/services/agentMcpTokenService.js` — select PF ID-JAG only for the explicit UC40 run; ordinary PF runs use a PF standard access-token exchanger.
+- `demo_api_server/services/oauthService.js`, `configStore.js`, and `envReconcile.js` — support separate PF standard exchange credentials and actor scope.
+- `demo_api_server/services/enterpriseMcpPolicyService.js` — add a per-run policy mode that bypasses shared caches/flags and does not write session state.
+- `demo_api_ui/src/pages/EnterpriseMcpDemoPage.jsx` — pass the UC40 catalog slug with the chip instead of modifying a shared flag.
+- `demo_api_server/env.example` and `docs/FEDERATE-SETUP.md` — document standard PF exchange configuration separately from ID-JAG.
+
+**What was broken:** every PF tool-token request entered ID-JAG, including ordinary demo steps. Once that unconditional branch was removed, the default two-exchange path would still read PingOne-only credentials. The UC40 page also armed a shared feature flag, which could change later runs.
+
+**What was fixed:** UC40 alone selects PF ID-JAG. Ordinary PF steps use a separately configured PF client and explicitly request an access token; P1 keeps its existing default flow. UC40 carries its identity on the run, evaluates policy without a global flag, and leaves consent/cache session fields untouched.
+
+**Do not break:** never infer ID-JAG from provider mode alone. Keep PF standard-exchange credentials distinct from the ID-JAG issuer/redemption credentials. Do not turn UC40 on through a shared flag or persist its run-only policy/consent state in the session. Ordinary demo-step provider parity must include all catalog use cases.
+
+**Verify:** focused BFF Jest suites for provider selection, catalog selection, OAuth exchange, policy, and PF login; focused UC40 UI Vitest suite; `cd demo_api_ui && npm run build`. Mocked tests do not prove live PF client/SP-connection provisioning; verify that separately in a read-only PF environment.
+
+### 2026-09-23 — Sequence diagram labels clipped and continued after failure
+
+**Files changed:** `demo_api_ui/src/components/SequenceReelDiagram.jsx`,
+`demo_api_ui/src/components/SequenceReelDiagram.css`, and
+`demo_api_ui/src/components/__tests__/SequenceReelDiagram.slowReveal.test.jsx`.
+
+**What was broken:** long participant titles overflowed their fixed-width actor
+boxes, and the diagram included later successful hops after an earlier step
+failed, including an Authorize denial.
+
+**What was fixed:** long actor labels now use a compact font and fit to the
+available box width. The first failed step remains visible and all later steps
+are omitted from the sequence diagram.
+
+**Do not break:** preserve the failed step and its detail, keep successful
+sequences unchanged, and leave authorization enforcement in the existing
+pipeline untouched.
+
+**Verify:** focused `SequenceReelDiagram` Vitest suites (67 pass) and
+`cd demo_api_ui && npm run build`.
+
+### 2026-09-23 — Sequence diagram used banking labels in every vertical
+
+**Files changed:** `demo_api_ui/src/components/SequenceReelDiagram.jsx`,
+`demo_api_ui/src/components/sequenceDiagramLabels.js`, and its focused test.
+
+**What was broken:** the shared trace model labels agent lanes and messages as
+`Banking Agent`, so the live sequence diagram showed banking terminology for
+United Airlines and every other active vertical.
+
+**What was fixed:** the sequence diagram now derives its agent label from the
+active vertical manifest and replaces the shared banking labels at render time.
+While the manifest is unresolved, it uses the neutral `AI Agent` label.
+
+**Do not break:** keep the vertical's existing trace lanes, message ordering,
+and auth/session behavior unchanged; never display banking-specific agent
+labels in a non-banking vertical.
+
+**Verify:** `cd demo_api_ui && npm run test:unit` and `npm run build`.
+
+### 2026-09-23 — Live run card kept the previous prompt title
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/pages/LiveUseCaseWorkbenchPage.js`,
+`demo_api_ui/src/utils/useCaseRunContext.js`, and
+`demo_api_ui/src/components/UseCaseRunContextCard.jsx`.
+
+**What was broken:** the run-context card updated on scenario selection, but a
+new direct prompt did not replace the prior title. The Live Use-Case Workbench
+also sent only the use-case ID, so its latest run could lose the scenario's
+display title. Direct dashboard runs could be labeled as originating from Use
+Cases in the source row.
+
+**What was fixed:** prompt submissions now refresh the card when a direct
+dashboard prompt starts, workbench launches include the selected scenario title,
+and direct dashboard runs identify their source correctly. Existing named
+scenario titles and source labels remain bound to their launch selection.
+
+**Do not break:** prompt execution, auth and consent gates, token evidence, or
+the existing Demo Steps / Demo Track / Use Cases run bindings.
+
+**Verify:** `cd demo_api_ui && npm run build`.
+
+### 2026-09-23 — Approved CIBA action was reported as a proof mismatch
+
+**Files changed:** `demo_api_ui/src/context/ProofOfEnforcementContext.js` and
+`demo_api_ui/src/context/__tests__/ProofOfEnforcementContext.test.js`.
+
+**What was broken:** UC22's initial Authorize challenge remains
+`INDETERMINATE/STEP_UP` in the trace. The successful transaction retry can
+complete without emitting a second browser-visible Authorize decision, leaving
+the proof evaluator to compare that challenge against UC22's expected `PERMIT`
+and show `MISMATCH` even when CIBA was approved and the tool completed.
+
+**What was fixed:** for UC22 only, the verdict treats the challenge as
+discharged when the trace has an approved CIBA poll, a non-denied tool result,
+and a completed successful run. Pending/failed runs and hard DENY decisions
+remain mismatches.
+
+**Do not break:** hard authorization denials must never be overridden by CIBA
+approval, and an approval without a completed tool dispatch must not score as a
+PERMIT. Authorization gates and BFF session/token handling are unchanged.
+
+**Verify:** focused `ProofOfEnforcementContext.test.js` and `npm run build` in
+`demo_api_ui`.
+
+### 2026-09-23 — React StrictMode left CIBA agent pollers permanently inactive
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/AIAgentFull.js`, and
+`demo_api_ui/src/components/__tests__/AIAgent.cibaStepUp.test.js`.
+
+**What was broken:** React StrictMode replays effect setup and cleanup on mount.
+The CIBA listener cleanup marked the agent unmounted, but the next setup did not
+reset that flag, so every poll returned before contacting the BFF.
+
+**What was fixed:** reset the poller lifecycle flag whenever the listener effect
+sets up, and cover the StrictMode replay with a regression test.
+
+**Do not break:** the agent still trusts only `/api/auth/ciba/poll/:authReqId`
+before resuming the action; BFF approval, session, and token handling are
+unchanged.
+
+**Verify:** focused CIBA UI tests (20/20) and `npm run build` (exit 0).
+
+### 2026-09-23 — Demo Steps runs left the dashboard use-case card unbound
+
+**Files changed:** `demo_api_ui/src/components/AIAgent.js`,
+`demo_api_ui/src/components/UseCaseRunContextCard.jsx`,
+`demo_api_ui/src/utils/useCaseRunContext.js`, and their focused tests.
+
+**What was broken:** the Demo Steps dropdown called `handleDemoStepSelect`
+directly, bypassing the event bridge used by the context card. The agent ran the
+scenario while the card remained at “No use case selected.”
+
+**What was fixed:** Demo Steps selection now goes through the existing
+`agent-demo-step-select` event. The context hook records the selected use-case
+ID, title, and prompt, and the card identifies the source as Demo Steps.
+
+**Do not break:** step execution still goes through the existing handler and
+its auth and consent gates. Demo Track, Use Cases, and direct dashboard context
+behavior remain intact.
+
+**Verify:** `cd demo_api_ui && npm run test:unit --
+src/components/__tests__/AIAgent.publicUseCase.test.jsx
+src/components/__tests__/UseCaseRunContextCard.test.jsx` and `npm run build`.
+
+### 2026-09-23 — Demo Track runs did not update the dashboard use-case card
+
+**Files changed:** `demo_api_ui/src/utils/useCaseRunContext.js`,
+`demo_api_ui/src/components/UseCaseRunContextCard.jsx`, and their focused tests.
+
+**What was broken:** selecting a guided Demo Track step started the agent flow
+without binding its use-case ID to the dashboard card, which stayed at “No use
+case selected.”
+
+**What was fixed:** Demo Track step picks now persist the step ID, title, and
+buyer story as the active run context. The card labels the source as Demo Track
+and shows the selected scenario.
+
+**Do not break:** Demo Track selection remains display-only here; agent step
+execution and the existing Use Cases launch binding are unchanged. Direct
+dashboard visits still show “No use case selected.”
+
+**Verify:** `cd demo_api_ui && npm run test:unit --
+src/utils/__tests__/useCaseRunContext.test.js
+src/components/__tests__/UseCaseRunContextCard.test.jsx` and `npm run build`.
+
+### 2026-09-23 — A2A provider/session drift could send a stale login into the wrong token endpoint
+
+**Files changed:** `demo_api_server/services/a2aDelegationService.js`,
+`demo_api_server/tests/a2aProviderSessionGuard.test.js`,
+`demo_api_server/tests/a2aProviderMatrixAssertions.test.js`,
+`demo_api_server/tests/real/helpers/a2aProviderMatrix.js`,
+`demo_api_server/tests/real/shared/a2a-delegation-live.test.js`.
+
+**What was broken:** the two-exchange chain selected PingOne vs PF from the
+process-wide `OAUTH_PROVIDER` setting, but did not compare that provider and its
+issuer with the signed-in session's access-token issuer. A browser retaining a
+session from the other login mode could therefore send its user token to the
+wrong provider endpoint and fail later as an opaque client-credential/token
+exchange error. Failures also combined actor-token acquisition and exchange
+errors into one stage, obscuring where the chain stopped. The prior live test
+could pass on a consent prompt or be skipped for missing login state.
+
+**What was fixed:** A2A now fails closed before actor-token minting when the
+session issuer is missing, unknown, from the other provider, or differs from
+the active provider's configured issuer. Actor-token and exchange failures
+carry a stable stage/code and the upstream code separately. The live suite can
+be run in strict provider-matrix mode; it requires a login session, checks its
+issuer against the API's active issuer, requires the API provider to match the
+requested matrix leg, fails on vertical activation problems, and requires both
+actor/exchange hops plus successful tool dispatch.
+Run once per provider-configured API process, with fresh enduser and admin
+login sessions each. The strict matrix requires a dedicated admin session
+(`DEMO_ADMIN_USERNAME`/`DEMO_ADMIN_PASSWORD` or
+`PINGONE_TEST_ADMIN_USER`/`PINGONE_TEST_ADMIN_PASSWORD`) and verifies admin
+access separately from the enduser's 403 response. Set `RUN_REAL_TESTS=true`
+so the real-suite setup resolves and validates both personas:
+`RUN_REAL_TESTS=true A2A_EXPECTED_OAUTH_PROVIDER=pingone CI=true npx jest --config=jest.real.config.js tests/real/shared/a2a-delegation-live.test.js --runInBand`
+and
+`RUN_REAL_TESTS=true A2A_EXPECTED_OAUTH_PROVIDER=pingfederate CI=true npx jest --config=jest.real.config.js tests/real/shared/a2a-delegation-live.test.js --runInBand`.
+
+**Do not break:** OAuth callbacks and session persistence are unchanged; each
+run still uses the configured provider's endpoint, audiences, and exchange
+types. A provider mismatch must stop before either actor client-credentials
+request. The default live suite keeps its existing skip behavior when no
+session is available; strict matrix mode must never silently skip.
+
+**Verify:** `CI=true npx jest tests/a2aProviderMatrixAssertions.test.js
+tests/a2aProviderSessionGuard.test.js
+tests/a2aSpecialistToolRegistry.test.js tests/a2aProtocolHttpTokenChain.test.js
+tests/a2aSpecialistExecutor.test.js tests/a2aBearerValidation.test.js --forceExit`;
+provider matrix commands above require their respective live login sessions.
+
+### 2026-09-23 — Place the hostile MCP denial demo on the LLM Gateway page
+
+**Files changed:** `demo_api_ui/src/pages/HostileMcpTab.jsx`, `demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx` + `.css`, `demo_api_ui/src/pages/__tests__/LlmGatewayCombinedPage.test.jsx`, `demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.themeContrast.test.js`, `demo_api_ui/src/components/privilege/HostileMcpDenialPanel.jsx` + `.css`.
+**What was broken:** the hostile MCP denial scenario was mounted in the chat view of `/privilege-mcp-client`, while `/llm-gateway` owns the malicious MCP demonstration.
+**What was fixed:** moved the scenario into the existing “Malicious MCP” tab on `/llm-gateway` and kept its reads and induced tool call on the same Privilege-backed MCP relay.
+**Do not break:** keep the scenario’s tool, resource, and prompt reads plus the induced call routed through the BFF MCP relay so the displayed decision remains a real Privilege result.
+**Verify:** `cd demo_api_ui && npx vitest run src/pages/__tests__/LlmGatewayCombinedPage.test.jsx src/pages/__tests__/PrivilegeMcpClientPage.themeContrast.test.js src/components/privilege/__tests__/HostileMcpDenialPanel.test.jsx` and `npm run build`.
+
 ### 2026-09-22 — Credential-rotation drift: stale admin-login secret invisible to the boot-time rotation check (PR #160)
 
 **Files changed:** `demo_api_server/services/configStore.js`, `demo_api_server/services/pingoneClientSecretPreflight.js` (new), `demo_api_server/scripts/rotateClientSecret.js` (new), `demo_api_server/server.js`.

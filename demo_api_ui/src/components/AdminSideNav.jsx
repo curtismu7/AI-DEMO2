@@ -162,11 +162,12 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.co
 // `allNavItems` below — update both together when renaming a group.
 const AUTO_EXPAND_SECTIONS = [
   { id: "ai-gateway", paths: ["/ai-gateway/shadow-ai-detector", "/privilege-mcp-client", "/llm-gateway", "/agent-gateway-authorization", "/code-search"] },
-  { id: "davinci", paths: ["/davinci-widget", "/davinci-login-guide", "/davinci-sdk-login", "/davinci-orchestration", "/davinci-orchestration-sdk", "/orchestration-sdk"] },
+  { id: "davinci", paths: ["/davinci-sdk", "/davinci-widget", "/davinci-orchestration-sdk", "/pingfederate-davinci-kit"] },
   { id: "pingone-products", paths: ["/pingcli", "/sdk-login", "/samples/m2m-credentials", "/samples/custom-admin-role"] },
   { id: "identity-journeys", paths: ["/self-service", "/samples/user-registration", "/samples/mfa-demo", "/login-flow", "/oauth-academy", "/oas-demo"] },
   { id: "ai-experiences", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/agent-lifecycle", "/delegation-chain-value", "/a2a-protocol-learning", "/control-plane", "/ai-control-plane", "/agent-registry", "/agent-builder", "/agent-flow-inspector", "/agent-onboarding-flow", "/agent-onboarding-flow-subway", "/langchain", "/ungoverned-agent", "/servers", "/autonomous-agents", "/personal-agent", "/privilege-for-ai"] },
   { id: "mcp-integrations", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/demo/enterprise-mcp", "/ping-ai-test-lab", "/agent-gateway-inspector", "/agent-gateway-capabilities", "/webmcp", "/mcp-scanner", "/personal-agent"] },
+  { id: "pingfederate-id-jag", paths: ["/pingfederate-id-jag"] },
   { id: "utilities", paths: ["/pingone-test", "/mfa-test", "/oauth-debug-logs", "/token-exchange-tester", "/mgmt-api", "/pingone-setup", "/mcp-discovery", "/check"] },
   { id: "delegation-consent", paths: ["/transaction-consent", "/actor-token-education"] },
   { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
@@ -215,7 +216,7 @@ const NAV_SECTION_LABELS = new Map([
   ["Identity Journeys", "Separate Areas"],
 ]);
 
-const PRODUCT_CARD_GROUPS = new Set(["AI Gateway", "DaVinci", "PingOne Products"]);
+const PRODUCT_CARD_GROUPS = new Set(["AI Gateway", "DaVinci", "Ping products"]);
 
 const navGroupClassName = (label) => {
   if (PRODUCT_CARD_GROUPS.has(label)) return "admin-side-nav__group--product-card";
@@ -514,7 +515,7 @@ export default function AdminSideNav({
       icon: "shld",
       children: [
         { label: "Protocol Playground", path: "/protocol-playground", icon: "dbg" },
-        { label: "AI Gateway Client", path: "/privilege-mcp-client", icon: "shld" },
+        { label: "AI Guard Client", path: "/privilege-mcp-client", icon: "shld" },
         { label: "LLM Gateway", path: "/llm-gateway", icon: "key" },
         { label: "Intent Inspector", path: "/intent-inspector", icon: "shld", adminOnly: true },
         { label: "Audit Agent", path: "/audit-agent", icon: "shld" },
@@ -535,6 +536,7 @@ export default function AdminSideNav({
         { label: "Agent IAM Core", path: "/ai-products/core", icon: "key" },
         { label: "Agent Gateway", path: "/ai-products/gateway", icon: "shld" },
         { label: "PingOne Authorize", path: "/ai-products/authorize", icon: "pol" },
+        { label: "PingOne Protect", path: "/ai-products/protect", icon: "shld" },
         { label: "Privilege · LLM", path: "/ai-products/privilege-llm", icon: "key" },
         { label: "Privilege · A2A", path: "/ai-products/privilege-a2a", icon: "lnk" },
         { label: "Privilege · MCP", path: "/ai-products/privilege-mcp", icon: "mcp" },
@@ -754,13 +756,7 @@ export default function AdminSideNav({
         { label: "OAS Demo", path: "/oas-demo", icon: "pol" },
         { label: "Privilege Demo", path: "/privilege-demo", icon: "shld" },
         { label: "SDK Login", path: "/sdk-login", icon: "mbl" },
-        { label: "DaVinci Widget", path: "/davinci-widget", icon: "doc" },
-        { label: "DaVinci Orchestration SDK", path: "/davinci-orchestration-sdk", icon: "mbl" },
-        { label: "Orchestration SDK Guide", path: "/orchestration-sdk", icon: "sec" },
-        // Was reachable only from the agent header's More menu with DaVinci Mode
-        // on, so nobody could find the repo's own DaVinci explainer. It is a
-        // static page with no API calls; listing it here costs nothing.
-        { label: "DaVinci Orchestration Overview", path: "/davinci-orchestration", icon: "pol" },
+        { label: "DaVinci SDK", path: "/davinci-sdk", icon: "sec" },
       ],
     },
     {
@@ -1056,6 +1052,7 @@ export default function AdminSideNav({
       label: "Diagrams",
       icon: "arc",
       children: [
+        { label: "PingFederate ID-JAG (Node)", path: "/architecture/pingfederate-id-jag", icon: "arc" },
         {
           label: "System Diagram (Node)",
           path: "/architecture/system",
@@ -1164,6 +1161,7 @@ export default function AdminSideNav({
         { label: "Protected RAG", path: "/code-search", icon: "srch" },
         { label: "Graphify", path: "/graphify", icon: "arc" },
         { label: "Mgmt API Runner", path: "/mgmt-api", icon: "tool" },
+        { label: "PromptFoo Evals", path: "/promptfoo", icon: "tst", searchAlias: "foo" },
       ],
     },
     {
@@ -1251,7 +1249,7 @@ export default function AdminSideNav({
     productGroup("AI Gateway", [
       { from: "Shadow AI Detector", rename: "AI Guard" },
       "Protocol Playground",
-      "AI Gateway Client",
+      "AI Guard Client",
       "LLM Gateway",
       "Intent Inspector",
       "Audit Agent",
@@ -1268,15 +1266,16 @@ export default function AdminSideNav({
       { from: "Privilege Demo", rename: "AI Gateway Demo" },
     ]),
     productGroup("DaVinci", [
-      "DaVinci Widget",
+      { label: "DaVinci Widget", path: "/davinci-widget" },
       { label: "DaVinci Login", path: "/davinci-login-guide" },
       { label: "DaVinci SDK Login", path: "/davinci-sdk-login" },
       { label: "DaVinci Orchestration", path: "/davinci-orchestration" },
-      "DaVinci Orchestration SDK",
-      "Orchestration SDK Guide",
-      "DaVinci Orchestration Overview",
+      { label: "DaVinci Orchestration SDK", path: "/davinci-orchestration-sdk" },
+      { label: "Orchestration SDK Guide", path: "/orchestration-sdk" },
+      { label: "DaVinci Orchestration Overview", path: "/davinci-orchestration" },
     ], "doc"),
-    productGroup("PingOne Products", [
+    productGroup("Ping products", [
+      { from: "PingOne Protect", rename: "PingOne Protect", path: "/ai-products/protect" },
       { from: "Headless Identity Demo", rename: "Headless Identity / PingCLI" },
       "SDK Login",
       "M2M Client Credentials",
@@ -1375,6 +1374,11 @@ export default function AdminSideNav({
       "LibreChat (browser)",
       "LM Studio (Mac)",
     ], "mcp"),
+    productGroup("PingFederate ID-JAG", [
+      { label: "Run ID-JAG Demo", path: "/pingfederate-id-jag/demo" },
+      { label: "How ID-JAG Works", path: "/pingfederate-id-jag" },
+      { label: "ID-JAG Diagram", path: "/pingfederate-id-jag/diagram" },
+    ], "sec"),
     productGroup("Developer Tools", [
       "Code Explorer",
       { from: "Graphify", rename: "Graphify" },
@@ -1382,6 +1386,7 @@ export default function AdminSideNav({
       "API Docs (Swagger)",
       "API Reference (Scalar)",
       "llama-vscode Guide",
+      "PromptFoo Evals",
     ], "tst"),
     productGroup("Observability", [
       "Audit Trail",
@@ -1402,6 +1407,7 @@ export default function AdminSideNav({
       "Grafana",
     ], "log"),
     productGroup("Architecture & Learning", [
+      "PingFederate ID-JAG (Node)",
       "System Diagram (Node)",
       "Overview Diagram (Node)",
       "Token Flow (Interactive) (Node)",
@@ -1930,7 +1936,8 @@ export default function AdminSideNav({
               navigate("/dashboard");
             }}
           >
-            {collapsed ? <MdDashboard size={16} aria-hidden="true" /> : "Agent"}
+            <MdDashboard size={16} aria-hidden="true" />
+            {!collapsed && <span>Agent</span>}
           </button>
           <button
             type="button"
@@ -1956,21 +1963,24 @@ export default function AdminSideNav({
                 );
             }}
           >
-            {collapsed ? <MdSecurity size={16} aria-hidden="true" /> : "Admin"}
+            <MdSecurity size={16} aria-hidden="true" />
+            {!collapsed && <span>Admin</span>}
           </button>
           <Link
             to="/configure"
             className={`admin-side-nav__quick-link${location.pathname.startsWith("/configure") ? " admin-side-nav__quick-link--active" : ""}`}
             title="Setup"
           >
-            {collapsed ? <MdSettings size={16} aria-hidden="true" /> : "Setup"}
+            <MdSettings size={16} aria-hidden="true" />
+            {!collapsed && <span>Setup</span>}
           </Link>
           <Link
             to="/admin/agentic-access-console"
             className={`admin-side-nav__quick-link${location.pathname === "/admin/agentic-access-console" ? " admin-side-nav__quick-link--active" : ""}`}
             title="Agentic Access Console"
           >
-            {collapsed ? <MdShield size={16} aria-hidden="true" /> : "Console"}
+            <MdShield size={16} aria-hidden="true" />
+            {!collapsed && <span>Console</span>}
           </Link>
           {collapsed && (
             <button

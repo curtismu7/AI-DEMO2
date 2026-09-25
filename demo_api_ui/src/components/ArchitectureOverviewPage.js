@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 
 import { DEFAULT_SCENARIO_ID, SCENARIO_MAP, SCENARIOS } from '../config/architecture-sim-scenarios';
+import { useVertical } from '../vertical/useVertical';
 import { DEFAULT_STEP_MS, STEP_TIME_OPTIONS } from './diagram';
 import ArchitectureSimControls from './ArchitectureSimControls';
 import ArchitectureSimStepDesc from './ArchitectureSimStepDesc';
@@ -118,6 +119,10 @@ function simReducer(state, action) {
 // ─── Page component ──────────────────────────────────────────────────────────
 
 export default function ArchitectureOverviewPage() {
+  const { activeId, pageManifest } = useVertical();
+  const verticalName = activeId === 'banking'
+    ? 'Banking'
+    : pageManifest?.identity?.displayName || 'Banking';
   const [sim, dispatch] = useReducer(simReducer, INITIAL_STATE);
   const playTimerRef = useRef(null);
   const sseRef = useRef(null);
@@ -184,7 +189,7 @@ export default function ArchitectureOverviewPage() {
       <div className="aov-inner">
         <div className="aov-header-row">
           <div>
-            <h1>PingOne AI Banking Architecture</h1>
+            <h1>PingOne AI {verticalName} Architecture</h1>
             <p className="aov-subtitle">
               Run the complete request path across PingOne, PingGateway, the BFF vault, agents, and protected
               resource servers. Choose a flow, then play or step through it. For deeper token-exchange details, see{' '}

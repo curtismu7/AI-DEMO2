@@ -305,9 +305,8 @@ warn() { demo_warn "$@"; }
 err()  { demo_err "$@"; }
 
 # Floor for the running Node major. Must match root package.json#engines.node
-# (currently ">=20"). The runtime accepts any major at or above this floor —
-# Node 20, 22, 24, future LTSes are all fine.
-NODE_MIN_VERSION=20
+# (currently ">=22"). The runtime accepts any major at or above this floor.
+NODE_MIN_VERSION=22
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 _node_major() {
@@ -322,8 +321,7 @@ _node_major() {
 ensure_node_runtime() {
   local current
   current="$(_node_major)"
-  # Pass when current Node major is at or above the floor (20+). Node 22, 24,
-  # future LTSes all work; we only need to act when current is missing or below.
+  # Pass when current Node major is at or above the floor; otherwise try nvm.
   if [[ -n "${current}" ]] && [[ "${current}" -ge "${NODE_MIN_VERSION}" ]] 2>/dev/null; then
     return 0
   fi

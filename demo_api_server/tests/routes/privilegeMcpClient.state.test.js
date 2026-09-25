@@ -5,6 +5,9 @@ describe('GET /api/privilege-mcp/state — mcpUrl default', () => {
   const original = process.env.PRIVILEGE_MCPGW_URL;
   const originalAgentless = process.env.PRIVILEGE_AGENTLESS_MCPGW_URL;
   const originalBanking = process.env.PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING;
+  const originalHostedUrl = process.env.PRIVILEGE_DIRECT_PINGONE_HOSTED_MCP_URL;
+  const originalPingOneEnvId = process.env.PINGONE_ENVIRONMENT_ID;
+  const originalPingOneClientId = process.env.PINGONE_MCP_OAUTH_CLIENT_ID;
 
   afterEach(() => {
     if (original === undefined) delete process.env.PRIVILEGE_MCPGW_URL;
@@ -13,6 +16,12 @@ describe('GET /api/privilege-mcp/state — mcpUrl default', () => {
     else process.env.PRIVILEGE_AGENTLESS_MCPGW_URL = originalAgentless;
     if (originalBanking === undefined) delete process.env.PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING;
     else process.env.PRIVILEGE_AGENTLESS_MCPGW_URL_BANKING = originalBanking;
+    if (originalHostedUrl === undefined) delete process.env.PRIVILEGE_DIRECT_PINGONE_HOSTED_MCP_URL;
+    else process.env.PRIVILEGE_DIRECT_PINGONE_HOSTED_MCP_URL = originalHostedUrl;
+    if (originalPingOneEnvId === undefined) delete process.env.PINGONE_ENVIRONMENT_ID;
+    else process.env.PINGONE_ENVIRONMENT_ID = originalPingOneEnvId;
+    if (originalPingOneClientId === undefined) delete process.env.PINGONE_MCP_OAUTH_CLIENT_ID;
+    else process.env.PINGONE_MCP_OAUTH_CLIENT_ID = originalPingOneClientId;
   });
 
   it('seeds config.mcpUrl from PRIVILEGE_MCPGW_URL when set', async () => {
@@ -89,6 +98,26 @@ describe('GET /api/privilege-mcp/state — mcpUrl default', () => {
         'Direct — Brave Search',
         'Direct — Banking (oauth-mcp)',
         'Direct — PingOne Admin',
+      ]),
+    );
+  });
+
+  it('offers the authorization-code PingOne Hosted MCP client under Direct', async () => {
+    process.env.PRIVILEGE_DIRECT_PINGONE_HOSTED_MCP_URL =
+      'https://mcp.pingone.com/admin/01d89b06-66d5-430e-9f28-65636843788b/mcp';
+    process.env.PINGONE_ENVIRONMENT_ID = '01d89b06-66d5-430e-9f28-65636843788b';
+    process.env.PINGONE_MCP_OAUTH_CLIENT_ID = 'eec33861-dc73-4ca2-93c7-9ceb45174825';
+
+    const res = await request(app).get('/api/privilege-mcp/state').expect(200);
+
+    expect(res.body.presets).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: 'Direct — PingOne Hosted MCP',
+          mode: 'direct',
+          url: 'https://mcp.pingone.com/admin/01d89b06-66d5-430e-9f28-65636843788b/mcp',
+          clientId: 'eec33861-dc73-4ca2-93c7-9ceb45174825',
+        }),
       ]),
     );
   });

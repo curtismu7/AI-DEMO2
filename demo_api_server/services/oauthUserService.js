@@ -95,6 +95,24 @@ class OAuthUserService {
     this.config = config;
   }
 
+  identifyProvider(issuer = this.config.issuer) {
+    const issuerHost = (() => {
+      try { return new URL(issuer).hostname; } catch { return ''; }
+    })();
+    const authorizationPath = (() => {
+      try { return new URL(this.config.authorizationEndpoint).pathname; } catch { return ''; }
+    })();
+    const tokenPath = (() => {
+      try { return new URL(this.config.tokenEndpoint).pathname; } catch { return ''; }
+    })();
+
+    if (/(^|\.)auth\.pingone\./i.test(issuerHost)) return 'pingone_sso';
+    if (/\/as\/authorization\.oauth2$/i.test(authorizationPath) && /\/as\/token\.oauth2$/i.test(tokenPath)) {
+      return 'pingfederate';
+    }
+    return 'oidc';
+  }
+
   /**
    * Generate PKCE code verifier (random 64-byte hex string)
    */
@@ -277,10 +295,20 @@ class OAuthUserService {
       refresh_token: refreshToken,
       client_id: this.config.clientId,
     });
-    if (shouldSendClientSecret(this.config)) body.set('client_secret', this.config.clientSecret);
+    const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+    const authMethod = String(this.config.tokenEndpointAuthMethod || '').trim().toLowerCase();
+    const isPingFederate = configStore.getOAuthProvider?.() === 'pingfederate';
+    if (shouldSendClientSecret(this.config) && isPingFederate && authMethod === 'basic') {
+      headers.Authorization = `Basic ${Buffer.from(`${this.config.clientId}:${this.config.clientSecret}`).toString('base64')}`;
+    } else if (isPingFederate && authMethod === 'private_key_jwt') {
+      body.set('client_assertion_type', clientAssertionService.CLIENT_ASSERTION_TYPE);
+      body.set('client_assertion', clientAssertionService.buildClientAssertion(this.config.clientId, this.config.tokenEndpoint));
+    } else if (shouldSendClientSecret(this.config)) {
+      body.set('client_secret', this.config.clientSecret);
+    }
     try {
       const response = await axios.post(this.config.tokenEndpoint, body.toString(), {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers,
         timeout: 10000,
       });
       console.log('[TokenRefresh] End-user access token refreshed successfully');
@@ -317,9 +345,11 @@ class OAuthUserService {
   }
 
   /**
-   * Create a user object from PingOne Core user info (end users get customer role)
+   * Create a user object from OIDC user info (end users get customer role)
    */
   createUserFromOAuth(userInfo) {
+    const oauthIssuer = userInfo.iss || this.config.issuer || null;
+    const oauthProvider = this.identifyProvider(oauthIssuer);
     return {
       id: userInfo.sub || userInfo.id,
       username: userInfo.preferred_username || userInfo.username || userInfo.email,
@@ -329,7 +359,8 @@ class OAuthUserService {
       role: this.config.userRole, // End users get customer role
       isActive: true,
       createdAt: new Date(),
-      oauthProvider: 'pingone_sso',
+      oauthProvider,
+      oauthIssuer,
       oauthId: userInfo.sub || userInfo.id
     };
   }

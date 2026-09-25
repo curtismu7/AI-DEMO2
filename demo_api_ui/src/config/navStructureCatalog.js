@@ -9,7 +9,7 @@ export const NAV_STRUCTURE_CATALOG = [
   { label: "Security Dashboard" },
   { label: "Skin Studio" },
   { label: "AI Gateway", children: [
-    "AI Guard", "Protocol Playground", "AI Gateway Client", "LLM Gateway", "Intent Inspector", "Audit Agent",
+    "AI Guard", "Protocol Playground", "AI Guard Client", "LLM Gateway", "Intent Inspector", "Audit Agent",
     "AI Gateway Guide", "Agent Gateway Authorization", "AI Gateway Diagrams", "Agent IAM Core",
     "Agent Gateway", "PingOne Authorize", "AI Gateway · LLM", "AI Gateway · A2A", "AI Gateway · MCP",
     "Protected RAG", "AI Gateway Demo",
@@ -18,8 +18,8 @@ export const NAV_STRUCTURE_CATALOG = [
     "DaVinci Widget", "DaVinci Login", "DaVinci SDK Login", "DaVinci Orchestration",
     "DaVinci Orchestration SDK", "Orchestration SDK Guide", "DaVinci Orchestration Overview",
   ] },
-  { label: "PingOne Products", children: [
-    "Headless Identity / PingCLI", "SDK Login", "M2M Client Credentials", "Custom Admin Role",
+  { label: "Ping products", children: [
+    "PingOne Protect", "Headless Identity / PingCLI", "SDK Login", "M2M Client Credentials", "Custom Admin Role",
   ] },
   { label: "Identity Journeys", children: [
     "Self-Service Registration", "User Registration", "Login with MFA", "Identity Journey Map", "OAuth Academy", "OAS Demo",
@@ -52,8 +52,11 @@ export const NAV_STRUCTURE_CATALOG = [
     "MCP Inspector", "Agent Gateway Inspector", "Enterprise-Managed MCP Auth", "Ping AI Test Lab",
     "Capability Tour", "MCP Runtime Inventory", "MCP Scanner", "Personal Agent Clients", "LibreChat (browser)", "LM Studio (Mac)",
   ] },
+  { label: "PingFederate ID-JAG", children: [
+    "Run ID-JAG Demo", "How ID-JAG Works", "ID-JAG Diagram",
+  ] },
   { label: "Developer Tools", children: [
-    "Code Explorer", "Graphify", "Postman Collections", "API Docs (Swagger)", "API Reference (Scalar)", "llama-vscode Guide",
+    "Code Explorer", "Graphify", "Postman Collections", "API Docs (Swagger)", "API Reference (Scalar)", "llama-vscode Guide", "PromptFoo Evals",
   ] },
   { label: "Observability", children: [
     "Audit Trail", "Learning Log", "Activity Log", "API Activity", "Run Reports", "Error Audit Log", "New Relic",

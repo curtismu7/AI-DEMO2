@@ -47,9 +47,12 @@ import DavinciExplainerPage from "../pages/DavinciExplainerPage";
 import OrchestrationSdkExplainerPage from "../pages/OrchestrationSdkExplainerPage";
 import DavinciSdkLoginPage from "../pages/DavinciSdkLoginPage";
 import DavinciLoginGuidePage from "../pages/DavinciLoginGuidePage";
+import PingFederateDavinciKitPage from "../pages/PingFederateDavinciKitPage";
 import CibaApprovalPage from "../pages/CibaApprovalPage";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
 import EnterpriseMcpDemoPage from '../pages/EnterpriseMcpDemoPage';
+import PingFederateIdJagExplainerPage from '../pages/PingFederateIdJagExplainerPage';
+import PingFederateIdJagPage from '../components/PingFederateIdJagPage';
 import GroupPolicyBoardPage from '../pages/GroupPolicyBoardPage';
 import PrivilegeMcpClientPage from "../pages/PrivilegeMcpClientPage";
 import LlmGatewayCombinedPage from '../pages/LlmGatewayCombinedPage';
@@ -308,6 +311,30 @@ export function EnterpriseMcpDemoPageRoute({ user, logout }) {
   );
 }
 
+export function PingFederateIdJagExplainerPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <PingFederateIdJagExplainerPage />
+    </AppShell>
+  );
+}
+
+export function PingFederateIdJagDemoPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <EnterpriseMcpDemoPage />
+    </AppShell>
+  );
+}
+
+export function PingFederateIdJagDiagramPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <PingFederateIdJagPage />
+    </AppShell>
+  );
+}
+
 /** Group policy board — live per-vertical decisions against real directory membership. */
 export function GroupPolicyBoardPageRoute({ user, logout }) {
   return (
@@ -515,6 +542,14 @@ export function DavinciLoginGuidePageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <DavinciLoginGuidePage />
+    </AppShell>
+  );
+}
+
+export function PingFederateDavinciKitRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <PingFederateDavinciKitPage />
     </AppShell>
   );
 }

@@ -17,7 +17,8 @@
   right: 0;
   bottom: 0;
   z-index: var(--z-shell);
-  background: #fff;
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
   display: flex;
   flex-direction: column;
@@ -35,8 +36,9 @@
   align-items: flex-start;
   gap: 0.75rem;
   padding: 0.65rem 3rem 0.5rem 0.75rem; /* right padding keeps tabs from hiding under X */
-  border-bottom: 1px solid #e5e7eb;
-  background: var(--brand-light-gray);
+  border-bottom: 1px solid var(--th-border);
+  background: var(--th-bg-inset);
+  color: var(--th-text);
 }
 
 .edu-drawer-tabs {
@@ -51,7 +53,7 @@
 
 .edu-drawer-title-row {
   padding: 0.5rem 1rem 0.35rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--th-border);
 }
 
 .edu-drawer-title {
@@ -71,9 +73,9 @@
   justify-content: center;
   width: 2rem;
   height: 2rem;
-  border: 1px solid #CCCCCC;
+  border: 1px solid var(--th-border-strong);
   border-radius: 50%;
-  background: #fff;
+  background: var(--th-bg-card);
   font-size: 1.1rem;
   line-height: 1;
   cursor: pointer;
@@ -84,19 +86,19 @@
 }
 
 .edu-drawer-close:hover {
-  background: #fee2e2;
-  border-color: #fca5a5;
-  color: #b91c1c;
+  background: var(--th-status-error-bg);
+  border-color: var(--th-status-error-border);
+  color: var(--th-status-error-text);
 }
 
 .edu-drawer-tab {
-  border: 1px solid #CCCCCC;
-  background: #fff;
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-card);
   border-radius: 999px;
   padding: 0.35rem 0.65rem;
   font-size: 0.7rem;
   cursor: pointer;
-  color: var(--brand-dark-gray);
+  color: var(--th-text-body);
 }
 
 .edu-drawer-tab--active {
@@ -111,17 +113,18 @@
   padding: 1rem 1.25rem 1.5rem;
   font-size: 0.875rem;
   line-height: 1.55;
-  color: var(--brand-dark-gray);
+  color: var(--th-text-body);
 }
 
 .edu-drawer-body pre,
 .edu-code {
-  background: var(--brand-light-gray);
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
   border-radius: 0.375rem;
   padding: 0.75rem;
   font-size: 0.75rem;
   overflow: auto;
-  border: 1px solid #DDDDDD;
+  border: 1px solid var(--th-border);
 }
 
 .edu-drawer-body h3 {
@@ -149,7 +152,7 @@
 }
 
 .edu-drawer-body a {
-  color: var(--brand-navy);
+  color: var(--th-status-info-text);
 }
 
 .edu-modal {
@@ -165,7 +168,8 @@
 
 .edu-modal-inner {
   pointer-events: auto;
-  background: #fff;
+  background: var(--th-bg-card);
+  color: var(--th-text-body);
   border-radius: 0.5rem;
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
   width: min(1200px, 100%);
@@ -181,17 +185,18 @@
   padding: 1rem 1.25rem 1.5rem;
   font-size: 0.875rem;
   line-height: 1.55;
-  color: var(--brand-dark-gray);
+  color: var(--th-text-body);
 }
 
 .edu-modal-body pre,
 .edu-modal-body .edu-code {
-  background: var(--brand-light-gray);
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
   border-radius: 0.375rem;
   padding: 0.75rem;
   font-size: 0.7rem;
   overflow: auto;
-  border: 1px solid #DDDDDD;
+  border: 1px solid var(--th-border);
 }
 
 /* ── Education panel shared table styles ─────────────────────────────────── */
@@ -222,6 +227,7 @@
 
 .edu-table tbody tr:nth-child(even) {
   background: var(--th-bg-inset);
+  color: var(--th-text-body);
 }
 
 /* ── Education section / info box ────────────────────────────────────────── */
@@ -234,8 +240,9 @@
 }
 
 .edu-info-box {
-  background: #f0f9ff;
-  border: 1px solid #bae6fd;
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+  border: 1px solid var(--th-status-info-border);
   border-radius: 0.375rem;
   padding: 0.75rem 1rem;
   margin: 0.75rem 0;
@@ -244,15 +251,16 @@
 }
 
 .edu-info-box--warning {
-  background: #fffbeb;
-  border-color: #fcd34d;
+  background: var(--th-status-warning-bg);
+  color: var(--th-status-warning-text);
+  border-color: var(--th-status-warning-border);
 }
 
 .edu-rfc-link {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  color: var(--brand-navy, #004687);
+  color: var(--th-status-info-text);
   font-weight: 600;
   text-decoration: none;
   font-size: 0.8rem;
@@ -268,4 +276,3 @@
   opacity: 0.7;
   flex-shrink: 0;
 }
-

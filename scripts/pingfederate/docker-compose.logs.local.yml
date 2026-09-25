@@ -1,0 +1,34 @@
+# Filebeat for an already-running local PingFederate container.
+# Run from the main checkout; it attaches read-only to PF's output volume.
+
+name: ai-demo-pingfederate-logs
+
+services:
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:${ELASTIC_STACK_VERSION:?set to the Elasticsearch version}
+    container_name: ${PINGFEDERATE_FILEBEAT_CONTAINER_NAME:-ai-demo-pingfederate-filebeat}
+    restart: unless-stopped
+    user: root
+    command: ["--strict.perms=false", "-e"]
+    environment:
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:?set to a URL reachable from Docker}
+      ELASTICSEARCH_USERNAME: ${ELASTICSEARCH_USERNAME:?set the dedicated ingestion username}
+      ELASTICSEARCH_PASSWORD: ${ELASTICSEARCH_PASSWORD:?set the dedicated ingestion password}
+    volumes:
+      - pf-logs:/pf-out:ro
+      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - filebeat-data:/usr/share/filebeat/data
+    networks:
+      - ai-demo
+
+networks:
+  ai-demo:
+    external: true
+    name: ${PINGFEDERATE_NETWORK_NAME:-ai-demo_ai-demo}
+
+volumes:
+  pf-logs:
+    external: true
+    name: ${PINGFEDERATE_LOG_VOLUME_NAME:-ai-demo-pingfederate-bootstrap}
+  filebeat-data:
+    name: ${PINGFEDERATE_FILEBEAT_DATA_VOLUME_NAME:-ai-demo-pingfederate-filebeat-data}

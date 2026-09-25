@@ -89,6 +89,27 @@ describe("AdminSideNav — best-of-breed pass", () => {
     );
   });
 
+  it("places PingOne Protect under Ping products", () => {
+    renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^Ping products/ }));
+    const protect = screen.getByRole("link", { name: "PingOne Protect" });
+    expect(protect).toHaveAttribute("href", "/ai-products/protect");
+    expect(protect.closest(".admin-side-nav__group")).toHaveTextContent("Ping products");
+  });
+
+  it("keeps the DaVinci learning pages together in the DaVinci group", () => {
+    renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^DaVinci/ }));
+    const group = screen.getByRole("button", { name: /^DaVinci/ }).closest(".admin-side-nav__group");
+    expect(within(group).getByRole("link", { name: "DaVinci Widget" })).toHaveAttribute("href", "/davinci-widget");
+    expect(within(group).getByRole("link", { name: "DaVinci Login" })).toHaveAttribute("href", "/davinci-login-guide");
+    expect(within(group).getByRole("link", { name: "DaVinci SDK Login" })).toHaveAttribute("href", "/davinci-sdk-login");
+    expect(within(group).getByRole("link", { name: "DaVinci Orchestration" })).toHaveAttribute("href", "/davinci-orchestration");
+    expect(within(group).getByRole("link", { name: "DaVinci Orchestration SDK" })).toHaveAttribute("href", "/davinci-orchestration-sdk");
+    expect(within(group).getByRole("link", { name: "Orchestration SDK Guide" })).toHaveAttribute("href", "/orchestration-sdk");
+    expect(within(group).getByRole("link", { name: "DaVinci Orchestration Overview" })).toHaveAttribute("href", "/davinci-orchestration");
+  });
+
   it("exposes aria-expanded + aria-controls on expandable groups", () => {
     renderNav();
     const monitoring = screen.getByRole("button", { name: /^Observability/ });
@@ -117,6 +138,13 @@ describe("AdminSideNav — best-of-breed pass", () => {
     // non-matching top-level item is filtered out; matching group remains
     expect(screen.queryByText("Skin Studio")).toBeNull();
     expect(screen.getByText("Observability")).toBeTruthy();
+  });
+
+  it('searching "foo" surfaces PromptFoo Evals under Developer Tools', () => {
+    renderNav();
+    fireEvent.change(screen.getByLabelText(/search navigation/i), { target: { value: "foo" } });
+    expect(screen.getByText("Developer Tools")).toBeInTheDocument();
+    expect(screen.getByText("PromptFoo Evals").closest("a")).toHaveAttribute("href", "/promptfoo");
   });
 
   it("searching \"authorize\" still surfaces the renamed P1AZ Inspector item", () => {

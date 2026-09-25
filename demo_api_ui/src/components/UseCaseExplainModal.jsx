@@ -5,7 +5,7 @@ import { PING_PRODUCTS } from '../utils/pingProducts';
 import { isA2aUseCase, extractA2aFacts } from '../utils/a2aFacts';
 import './UseCaseExplainModal.css';
 
-const PRODUCT_ORDER = ['idp', 'mfa', 'gw', 'authz'];
+const PRODUCT_ORDER = ['idp', 'mfa', 'gw', 'authz', 'protect'];
 
 /** Shown for A2A UCs when live /rules is unavailable — mirrors decision.js A2A gates. */
 const A2A_FALLBACK_RULES = {

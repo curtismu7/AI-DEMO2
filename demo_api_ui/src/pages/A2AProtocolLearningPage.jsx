@@ -22,6 +22,8 @@ import {
 import {
   A2A_IMPLEMENTATION_STATUS,
   A2A_LATEST_LESSONS,
+  A2A_STEP_EXPLANATIONS,
+  A2A_TRAINING_REFERENCES,
 } from './a2aLearningLessons';
 import './A2AProtocolLearningPage.css';
 
@@ -340,8 +342,9 @@ export default function A2AProtocolLearningPage() {
               How the two agents talk. An Agent Card advertises the specialist&apos;s
               skills and protocol metadata; a JSON-RPC <code>message/send</code> carries the task.
               Agent Cards describe capability and protocol metadata; they do not grant authority.
-              The handoff authenticates with its <strong>own</strong> PingOne bearer — not the
-              nested-<code>act</code> token.
+              The handoff uses an HTTP bearer credential. In this demo it is the user-bound
+              Exchange #1 token, which already carries <code>act: generalist</code> — not the
+              Exchange #2 downstream tool token.
             </p>
             <p className="a2l-meta">Layer 2 · <code>@a2a-js/sdk</code> · <code>/a2a/specialists</code></p>
           </div>
@@ -497,6 +500,37 @@ export default function A2AProtocolLearningPage() {
               <a href={lesson.href} target="_blank" rel="noreferrer">Read the official lesson</a>
             </article>
           ))}
+        </div>
+        <div className="a2l-status-block">
+          <h3>Follow the delegation step by step</h3>
+          <p>
+            The live token-chain events on this page are PingOne-backed. PingFederate also supports
+            RFC 8693 token exchange, but it must be configured on the PF authorization server and
+            the exchanging OAuth clients. A successful browser login and a working agent-token
+            exchange are separate checks; this walkthrough does not claim that its live chain ran on PF.
+          </p>
+          <div className="a2l-lesson-grid">
+            {A2A_STEP_EXPLANATIONS.map((step) => (
+              <article className="a2l-lesson" key={step.id}>
+                <h3>{step.title}</h3>
+                <p>{step.body}</p>
+                <p className="a2l-links">
+                  Sources:{' '}
+                  {step.references.map((id, index) => {
+                    const reference = A2A_TRAINING_REFERENCES[id];
+                    return (
+                      <React.Fragment key={id}>
+                        {index > 0 && ' · '}
+                        <a href={reference.href} target="_blank" rel="noopener noreferrer">
+                          {reference.label}
+                        </a>
+                      </React.Fragment>
+                    );
+                  })}
+                </p>
+              </article>
+            ))}
+          </div>
         </div>
         <div className="a2l-status-block">
           <h3>Implementation status</h3>

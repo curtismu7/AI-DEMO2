@@ -808,7 +808,7 @@ SERVICES=(
   "api-resource-server|Mortgage Service     |8082|http://localhost:8082"
   "authz-server|Authz Server          |9001|http://localhost:9001"
   "promptfoo-step-narration|promptfoo (eval)      |-|./run-docker.sh promptfoo"
-  "notebooklm|NotebookLM Sidecar   |-|opt-in profile, no published port"
+  "notebooklm|NotebookLM sidecar    |-|internal :8000"
 )
 
 # True if $1 is one of the compose service names in SERVICES, OR a member of
@@ -1152,6 +1152,15 @@ _includes_bff() {
   return 1
 }
 
+_includes_mcp_gateway() {
+  for svc in "$@"; do [[ "${svc}" == "mcp-gateway" ]] && return 0; done
+  return 1
+}
+
+_check_demo_auth_credentials() {
+  node "${BASEDIR}/scripts/check-mcp-gateway-credential-parity.js"
+}
+
 cmd_stop_one() {
   _require_services "$@"
   echo ""
@@ -1167,6 +1176,9 @@ cmd_stop_one() {
 
 cmd_restart_one() {
   _require_services "$@"
+  if _includes_mcp_gateway "$@"; then
+    _check_demo_auth_credentials || return 1
+  fi
   echo ""
   echo -e "${CYAN}${BOLD}   [DOCKER]  Restarting ${*} (others untouched)${RESET}"
   echo ""
@@ -1221,6 +1233,9 @@ cmd_build_one() {
   done
 
   _require_services "${services[@]}"
+  if _includes_mcp_gateway "${services[@]}"; then
+    _check_demo_auth_credentials || return 1
+  fi
   echo ""
   echo -e "${CYAN}${BOLD}   [DOCKER]  Rebuilding + restarting ${services[@]} (others untouched)${RESET}"
   echo ""
@@ -1339,6 +1354,8 @@ cmd_demo_sync() {
     return 0
   fi
 
+  _check_demo_auth_credentials || return 1
+
   local flags sim pgw trc need_authz=0 need_demo_gw=0
   flags="$(_read_demo_stack_flags)"
   sim="${flags%% *}"
@@ -1401,6 +1418,10 @@ cmd_optional_start() {
     cmd_optional_help
     exit 1
   }
+
+  if [[ " ${groups[*]} " == *" demo-auth "* ]] || [[ " ${groups[*]} " == *" all "* ]]; then
+    _check_demo_auth_credentials || return 1
+  fi
 
   echo ""
   echo -e "${CYAN}${BOLD}   [DOCKER]  Starting optional: ${groups[*]}${RESET}"
@@ -1555,6 +1576,10 @@ cmd_start() {
       *) shift ;;
     esac
   done
+
+  if [[ "${stack}" == "full" ]]; then
+    _check_demo_auth_credentials || return 1
+  fi
 
   demo_machine_banner docker
 

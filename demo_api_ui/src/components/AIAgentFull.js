@@ -594,6 +594,10 @@ export default function BankingAgentFull({
   const cibaPollTimeoutsRef = useRef(new Map());
   const cibaUnmountedRef = useRef(false);
   useEffect(() => {
+    // React StrictMode replays effects with setup → cleanup → setup on mount.
+    // Cleanup marks this instance inactive; reset it whenever listeners are
+    // installed so the replayed instance can continue polling.
+    cibaUnmountedRef.current = false;
     const wakeCibaPoller = (event) => {
       try {
         const payload = JSON.parse(event.newValue || '{}');
@@ -7968,7 +7972,11 @@ export default function BankingAgentFull({
           message: trigger.text,
           vertical: effectiveVerticalId,
         });
-        addMessage("assistant", `${stepLabel}\n${data?.reply || "The orchestrator returned no reply."}`);
+        const specialistResult = data?.delegationResult?.result;
+        const resultText = specialistResult == null
+          ? ""
+          : `\nSpecialist result:\n${typeof specialistResult === "string" ? specialistResult : JSON.stringify(specialistResult, null, 2)}`;
+        addMessage("assistant", `${stepLabel}\n${data?.reply || "The orchestrator returned no reply."}${resultText}`);
         if (data?.tokenEvents?.length) {
           appendTokenEvents(data.tokenEvents);
           try { tokenChainTraceStore.ingestTokenEvents(data.tokenEvents); } catch (_) {}

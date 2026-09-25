@@ -71,6 +71,7 @@
   overflow: auto;
   padding: 8px;
   background: var(--th-bg-page);
+  color: var(--th-text);
   border: 1px solid var(--th-border);
   border-radius: 8px;
 }

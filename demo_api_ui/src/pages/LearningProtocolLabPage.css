@@ -2,6 +2,7 @@
   max-width: 960px;
   margin: 0 auto;
   padding: 2rem 1.5rem 4rem;
+  background: var(--th-bg-page);
   color: var(--th-text);
 }
 
@@ -33,6 +34,7 @@
 .learning-lab__header h1 {
   margin: 0;
   font-size: clamp(1.7rem, 4vw, 2.5rem);
+  color: var(--th-text);
 }
 
 .learning-lab__header p:last-child {
@@ -58,11 +60,13 @@
   border: 1px solid var(--th-border);
   border-radius: var(--radius-lg);
   background: var(--th-bg-card);
+  color: var(--th-text);
   box-shadow: var(--shadow-sm);
 }
 
 .learning-lab__panel h2 {
   margin-top: 0;
+  color: var(--th-text);
 }
 
 .learning-lab__panel p {
@@ -123,7 +127,7 @@
   border: 1px solid var(--th-border);
   border-radius: var(--radius-sm);
   color: var(--th-text);
-  background: var(--th-bg-page);
+  background: var(--th-bg-card);
   font: inherit;
 }
 
@@ -133,8 +137,8 @@
   overflow-x: auto;
   padding: 0.85rem;
   border-radius: var(--radius-sm);
-  color: var(--th-text-body);
-  background: var(--th-bg-inset);
+  color: var(--th-code-text);
+  background: var(--th-code-bg);
   font-size: var(--font-size-sm);
 }
 

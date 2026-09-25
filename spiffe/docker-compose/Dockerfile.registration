@@ -1,0 +1,11 @@
+FROM ghcr.io/spiffe/spire-server:1.15.2 AS spire
+
+FROM busybox:1.36.1
+
+# The upstream SPIRE image is distroless. Keep its static CLI binary in a
+# small image that also provides the shell and applets used by entries.sh.
+COPY --from=spire /opt/spire/bin/spire-server /usr/local/bin/spire-server
+COPY entries.sh /etc/spire/entries.sh
+
+USER 0:0
+ENTRYPOINT ["/bin/sh", "/etc/spire/entries.sh"]

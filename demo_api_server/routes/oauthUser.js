@@ -23,6 +23,7 @@ const loginFlowTrace = require('../services/loginFlowTraceService');
 const { loadHostedAccessPolicy, evaluateHostedIdentity, coherentHostedIdentityClaims, stampHostedAccessApproval, hasCurrentHostedAccessApproval, clearHostedAccessApproval } = require('../services/hostedAccessPolicy');
 const { startLoginAudit, resumeLoginAudit, finishLoginAudit } = require('../services/authAccessAuditService');
 const { sendAccessRestricted } = require('../middleware/hostedAccessGate');
+const pfDavinciAuth = require('./pfDavinciAuth');
 
 const STEP_UP_TTL_MS = 5 * 60 * 1000; // 5 min step-up validity
 
@@ -164,6 +165,9 @@ router.get('/login-trace/:id', (req, res) => {
   res.json({ steps: loginFlowTrace.finish(req.params.id) });
 });
 
+router.get('/pf-davinci/status', pfDavinciAuth.status);
+router.get('/pf-davinci/login', pfDavinciAuth.login);
+
 router.get('/login', (req, res) => {
   try {
     const _mask = (v, n) => v ? v.slice(0, n) + '...' : 'MISSING';
@@ -180,6 +184,11 @@ router.get('/login', (req, res) => {
     }
 
     const forceLogin = req.query.force === 'true';
+    const selectedProvider = configStore.getOAuthProvider?.() || 'pingone';
+    const sessionProvider = req.session.user?.oauthProvider;
+    const sessionProviderMatches = selectedProvider === 'pingfederate'
+      ? sessionProvider === 'pingfederate'
+      : sessionProvider === 'pingone_sso';
 
     if (!forceLogin) {
       // Check if user already has an active session
@@ -187,7 +196,13 @@ router.get('/login', (req, res) => {
       const hasOAuthToken = !!(token && token !== '_cookie_session');
       const expiresAt = req.session.oauthTokens?.expiresAt;
       const tokenNotExpired = !expiresAt || Date.now() < expiresAt;
-      const isUserAuthenticated = !!(req.session.user && hasOAuthToken && tokenNotExpired && req.session.oauthType === 'user');
+      const isUserAuthenticated = !!(
+        req.session.user
+        && hasOAuthToken
+        && tokenNotExpired
+        && req.session.oauthType === 'user'
+        && sessionProviderMatches
+      );
 
       const policy = loadHostedAccessPolicy();
       if (isUserAuthenticated && hasCurrentHostedAccessApproval(req.session, policy)) {
@@ -195,6 +210,16 @@ router.get('/login', (req, res) => {
         const returnPath = sanitizePostLoginReturnPath(req.query.return_to) || '/dashboard';
         console.log('[oauth/user/login] User already authenticated, redirecting to:', returnPath, req.session.user.email);
         return res.redirect(`${getFrontendOrigin()}${returnPath}`);
+      }
+      if (req.session.user && hasOAuthToken && !sessionProviderMatches) {
+        console.info(
+          `[oauth/user/login] Clearing session from ${sessionProvider || 'unknown'} before login with ${selectedProvider}`
+        );
+        delete req.session.oauthTokens;
+        delete req.session.user;
+        delete req.session.clientType;
+        delete req.session.oauthType;
+        clearAuthCookie(res, _isProd());
       }
     } else {
       // Force re-authentication: clear existing tokens so the callback treats this as a fresh login
@@ -414,6 +439,11 @@ router.get('/silent-reauth', (req, res) => {
  * Handle OAuth callback for end users
  */
 router.get('/callback', async (req, res) => {
+  // The dedicated PF client already has this callback registered. Its state
+  // prefix dispatches to an isolated PF proof without replacing PingOne login.
+  if (typeof req.query.state === 'string' && req.query.state.startsWith('pf-')) {
+    return pfDavinciAuth.callback(req, res);
+  }
   try {
     const { code, state, error } = req.query;
     resumeLoginAudit(req, state, 'user');
@@ -569,7 +599,13 @@ router.get('/callback', async (req, res) => {
 
     // Merge ID token claims as fallback for any userinfo gaps (e.g. email not in userinfo response).
     // userinfo takes priority; idTokenClaims fills only missing fields.
-    const mergedUserInfo = { ...idTokenClaims, ...userInfo };
+    const mergedUserInfo = {
+      ...idTokenClaims,
+      ...userInfo,
+      // The userinfo response is not the authority for the OIDC issuer.
+      // Preserve the token's issuer, falling back to the configured issuer.
+      iss: idTokenClaims.iss || oauthService.config?.issuer || null,
+    };
 
     const hostedAccessPolicy = loadHostedAccessPolicy();
     const hostedIdentityClaims = coherentHostedIdentityClaims(idTokenClaims, userInfo);
@@ -664,6 +700,7 @@ router.get('/callback', async (req, res) => {
         ...(oauthUser.lastName ? { lastName: oauthUser.lastName } : {}),
         role: oauthUser.role,
         oauthProvider: oauthUser.oauthProvider,
+        oauthIssuer: oauthUser.oauthIssuer,
         oauthId: oauthUser.oauthId
       });
 
@@ -1004,6 +1041,7 @@ router.get('/status', (req, res) => {
 
   res.json({
     authenticated: isAuthenticated,
+    loginProvider: oauthService.identifyProvider(),
     staleSession,
     staleReason,
     enterpriseManagedMode,
@@ -1015,15 +1053,19 @@ router.get('/status', (req, res) => {
       firstName: req.session.user.firstName,
       lastName: req.session.user.lastName,
       role: req.session.user.role,
+      oauthProvider: req.session.user.oauthProvider || null,
+      oauthIssuer: req.session.user.oauthIssuer || null,
       phone: req.session.user.phone || null,
       hideSuccessScreen: req.session.user.hideSuccessScreen || false,
       notificationPrefs: req.session.user.notificationPrefs || null
     } : null,
     oauthProvider: isAuthenticated ? req.session.user.oauthProvider : null,
+    oauthIssuer: isAuthenticated ? (req.session.user.oauthIssuer || null) : null,
     // accessToken intentionally omitted — token stays on the backend (Backend-for-Frontend (BFF) pattern)
     tokenType: isAuthenticated ? req.session.oauthTokens.tokenType : null,
     expiresAt: isAuthenticated ? req.session.oauthTokens.expiresAt : null,
-    hasRefreshToken: isAuthenticated ? !!req.session.oauthTokens.refreshToken : false,
+    hasRefreshToken: wasOAuthLogin && !!req.session.oauthTokens?.refreshToken,
+    sessionType: wasOAuthLogin ? req.session.oauthType : null,
     clientType: isAuthenticated ? req.session.clientType : null,
     // In-app consent gate field — consumed by BankingAgent.js and agentMcpTokenService
     consentGiven,

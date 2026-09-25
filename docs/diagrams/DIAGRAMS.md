@@ -2,6 +2,12 @@
 
 This directory contains architecture and flow diagrams for the AI Demo project.
 
+## Interactive UI diagrams
+
+| Route | Description |
+| --- | --- |
+| `/architecture/pingfederate-id-jag` | React Flow walkthrough with two views: the ID-JAG token journey and the PingFederate-backed UC2 system architecture. |
+
 ## Mermaid Diagrams (source + rendered)
 
 | File | Description |

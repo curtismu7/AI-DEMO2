@@ -167,7 +167,7 @@ describe("the queued question", () => {
 
     // The user's turn is on screen — that is what addMessage captured.
     await waitFor(() => {
-      expect(screen.getByText("What is my account balance?")).toBeInTheDocument();
+      expect(screen.getByText("What is my account balance?", { selector: 'p.md-para' })).toBeInTheDocument();
     });
 
     // Now the run fails for want of a session.

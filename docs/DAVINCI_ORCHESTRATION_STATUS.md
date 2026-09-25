@@ -25,9 +25,10 @@ The original ask was "highlight how DaVinci can do orchestration." A first pass 
 - `demo_api_server/routes/davinciLogin.js` (`GET /api/davinci-demo/config`, `POST /api/davinci-login/callback`) — exchanges the widget's OIDC code for tokens and establishes a real session (mirrors `routes/oauthUser.js`'s customer-login pattern: `exchangeCodeForToken` → `getUserInfo` → existing-user lookup → `session.regenerate()` → session write)
 - This is a **new parallel route** — does not touch the protected `routes/oauth.js`/`routes/oauthUser.js`
 
-### 3. Presenter controls — the "run without DaVinci" story
-- **"DaVinci Mode" toggle** — agent header → More menu (client-side only, no admin rights needed, mirrors the existing "Movie reel" toggle). Off by default.
-- When DaVinci Mode is on, a **"DaVinci Orchestration"** button appears in the same menu → **`/davinci-orchestration`**, a static explainer page (comparison table vs. Okta/Auth0/Entra, the 7-step connector chain, light/dark toggle) that makes **zero live API calls** — safe to show in any demo regardless of whether the DaVinci console setup below has been done.
+### 3. DaVinci lessons and navigation
+- The sidebar has one DaVinci entry, **DaVinci SDK** at **`/davinci-sdk`**. It is the master lesson and links to **DaVinci Widget** (`/davinci-widget`) and **DaVinci Orchestration SDK** (`/davinci-orchestration-sdk`).
+- Legacy `/davinci-orchestration` and `/orchestration-sdk` routes redirect to the master lesson.
+- **PingFederate DaVinci Integration Kit** (`/pingfederate-davinci-kit`) is linked from the master and listed as UC-LEARN12. Its dedicated PF client verifies a PF sign-in before the lesson reports the demo ready. Normal PingOne sign-in remains available for the other demos. This adapter-hosted PF integration is distinct from the direct PingOne widget and SDK lessons.
 
 ### 4. Bonus workstream landed on the same branch
 `services/agentFrameworkOrchestrator.js` unlocks `llm_framework=auto` — an LLM-backed picker (round-robin fallback) across the demo's 4 interchangeable agent frameworks (langchain/openai_agents/mastra/pydantic_ai), previously hardcoded to langchain-only.

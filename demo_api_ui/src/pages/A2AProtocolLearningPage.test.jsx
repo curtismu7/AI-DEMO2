@@ -89,6 +89,35 @@ describe('A2A protocol learning lessons', () => {
     );
   });
 
+  it('explains each A2A delegation step and links provider-neutral and PingFederate guidance', async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: /follow the delegation step by step/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /separate the protocol from delegated authority/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /exchange the user subject for a generalist actor/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /exchange again for the specialist and its narrow permission/i })).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/the live token-chain events on this page are PingOne-backed/i)).toBeInTheDocument();
+    expect(screen.getByText(/user-bound Exchange #1 token/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /PingFederate authorization-code login flow/i })).toHaveAttribute(
+      'href', 'https://docs.pingidentity.com/developer-resources/oauth_20_developer_guide/authorization-code-grant-types.html',
+    );
+    expect(screen.getAllByRole('link', { name: /PingFederate OAuth token-exchange guide/i })).toHaveLength(2);
+    screen.getAllByRole('link', { name: /PingFederate OAuth token-exchange guide/i }).forEach((link) => {
+      expect(link).toHaveAttribute(
+        'href', 'https://docs.pingidentity.com/pingfederate/13.0/administrators_reference_guide/pf_config_oauth_token_exchange.html',
+      );
+    });
+    expect(screen.getByRole('link', { name: /PingFederate token endpoint and client authentication/i })).toHaveAttribute(
+      'href', 'https://docs.pingidentity.com/pingfederate/13.1/developers_reference_guide/pf_token_endpoint.html',
+    );
+    expect(screen.getByRole('link', { name: /AAIF production lessons/i })).toHaveAttribute(
+      'href', 'https://aaif.io/blog/what-we-learned-putting-a2a-into-production',
+    );
+  });
+
   it('opens the implementation architecture diagram from the learning hub', async () => {
     const user = (await import('@testing-library/user-event')).default.setup();
     renderPage();

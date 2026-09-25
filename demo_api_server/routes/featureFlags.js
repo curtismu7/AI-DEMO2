@@ -266,7 +266,6 @@ const FLAG_REGISTRY = [
     defaultValue: true,
   },
 
-  // ── Agent Security ──────────────────────────────────────────────────────────
   {
     id:           'ff_require_act_for_agent_tools',
     name:         'Require agent act claim (UC16 — impersonation block)',

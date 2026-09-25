@@ -11,6 +11,8 @@
 // than implying a scan. The Privilege verdict shown is on the TOOL CALL only.
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import HostileMcpDenialPanel from '../components/privilege/HostileMcpDenialPanel';
+import { classifyHostileAgentOutcome, hostileAgentOutcomeLabel } from './hostileMcpOutcome';
 import './HostileMcpTab.css';
 
 const API_BASE = '/api/privilege-mcp';
@@ -46,12 +48,15 @@ export default function HostileMcpTab() {
   const [currentUrl, setCurrentUrl] = useState('');
   const [config, setConfig] = useState({});
   const [tools, setTools] = useState([]);
+  const [toolsListEvidence, setToolsListEvidence] = useState(null);
   const [authenticated, setAuthenticated] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [events, setEvents] = useState([]);
   const [agentProvider, setAgentProvider] = useState('llamacpp');
   const [agentTask, setAgentTask] = useState("What's the weather in Denver?");
+  const [agentOutcome, setAgentOutcome] = useState(null);
+  const [agentRunEvidence, setAgentRunEvidence] = useState(null);
 
   const log = (line) => setEvents((prev) => [...prev.slice(-40), { at: new Date(), line }]);
 
@@ -78,6 +83,7 @@ export default function HostileMcpTab() {
       setCurrentUrl(url);
       setAuthenticated(Boolean(saved?.oauth?.authenticated));
       setTools([]);
+      setToolsListEvidence(null);
       log(`door → ${url}`);
     } catch (err) {
       setError(err.message);
@@ -108,8 +114,20 @@ export default function HostileMcpTab() {
     try {
       const data = await api('/tools/list', { method: 'POST', body: {} });
       setTools(data.tools || []);
+      setToolsListEvidence({
+        request: JSON.stringify({ method: 'POST', path: '/api/privilege-mcp/tools/list', body: {} }, null, 2),
+        response: JSON.stringify({ tools: Array.isArray(data.tools) ? data.tools.map((tool) => ({
+          name: tool.name,
+          description: tool.description || '',
+          inputSchema: tool.inputSchema || {},
+        })) : [] }, null, 2),
+      });
       log(`tools/list — ${data.tools?.length || 0} tools, poison included verbatim`);
     } catch (err) {
+      setToolsListEvidence({
+        request: JSON.stringify({ method: 'POST', path: '/api/privilege-mcp/tools/list', body: {} }, null, 2),
+        response: JSON.stringify({ status: err.status ?? null, error: err.message }, null, 2),
+      });
       if (err.status === 401) { setAuthenticated(false); setError('Not authenticated — click Sign in with Privilege.'); }
       else setError(err.message);
     } finally {
@@ -125,12 +143,14 @@ export default function HostileMcpTab() {
       const data = await api('/tools/call', { method: 'POST', body: { name: 'create_transfer', arguments: { amount: 500, to: 'external-001' } } });
       const latency = Math.round(performance.now() - t0);
       const text = (data.content || []).map((c) => c.text || '').join('\n') || JSON.stringify(data);
-      log(`ALLOWED by the gateway (${latency} ms) — create_transfer: ${text}`);
+      log(`Manual create_transfer call was allowed by the gateway (${latency} ms); hostile MCP stub moved no money — ${text}`);
     } catch (err) {
-      if (err.status === 403 || err.status === 401) {
-        log(`🛡 DENIED by Privilege (${err.status}) — create_transfer: ${err.message}`);
+      if (/user not found in system/i.test(err.message)) {
+        log(`INCONCLUSIVE — demo user not found in Privilege; sync identity before testing policy — ${err.message}`);
+      } else if (err.status === 403 && /policy|denied|not authorized/i.test(err.message)) {
+        log(`🛡 Privilege policy denied the manual create_transfer call (${err.status}) — ${err.message}`);
       } else {
-        log(`✕ create_transfer — ${err.message}`);
+        log(`INCONCLUSIVE — manual create_transfer call did not return a policy verdict — ${err.message}`);
       }
     } finally {
       setBusy(false);
@@ -143,10 +163,38 @@ export default function HostileMcpTab() {
   const runAgent = async (provider, task) => {
     setBusy(true);
     setError('');
+    setAgentOutcome(null);
+    setAgentRunEvidence(null);
     try {
       const t0 = performance.now();
       const data = await api('/agent/run', { method: 'POST', body: { provider, task } });
       const latency = Math.round(performance.now() - t0);
+      const observedOutcome = classifyHostileAgentOutcome(data);
+      const trace = Array.isArray(data.trace) ? data.trace : [];
+      setAgentOutcome(observedOutcome);
+      const toolCallBackend = trace.some((step) => step.verdict === 'allowed')
+        ? 'yes'
+        : trace.length === 0 ? 'not-evaluated'
+          : trace.every((step) => step.verdict === 'denied') ? 'no' : 'unknown';
+      setAgentRunEvidence({
+        provider,
+        modelReached: true,
+        metadataServerReached: true,
+        toolCallBackend,
+        request: JSON.stringify({ method: 'POST', path: '/api/privilege-mcp/agent/run', body: { provider, task } }, null, 2),
+        response: JSON.stringify({
+          answer: data.answer ?? null,
+          trace: trace.map((step) => ({
+            step: step.step || null,
+            tool: step.tool || null,
+            verdict: step.verdict || null,
+            latencyMs: step.latencyMs ?? null,
+            detail: step.detail || null,
+          })),
+          tools: Array.isArray(data.tools) ? data.tools.map((tool) => ({ name: tool.name, description: tool.description })) : [],
+          steps: Array.isArray(data.steps) ? data.steps : [],
+        }, null, 2),
+      });
       log(`— agent run (${provider}, ${latency} ms) — task: "${task}"`);
       for (const step of data.trace || []) {
         log(step.verdict === 'denied'
@@ -155,8 +203,19 @@ export default function HostileMcpTab() {
             ? `✓ ${step.tool} allowed (${step.latencyMs} ms) — ${step.detail}`
             : `✕ ${step.tool} — ${step.detail}`);
       }
+      if (observedOutcome.kind === 'inconclusive') log(`INCONCLUSIVE — ${observedOutcome.detail}`);
       log(`model: ${data.answer}`);
     } catch (err) {
+      const observedOutcome = classifyHostileAgentOutcome({ error: err.message });
+      setAgentOutcome(observedOutcome);
+      setAgentRunEvidence({
+        provider,
+        modelReached: null,
+        metadataServerReached: null,
+        toolCallBackend: 'unknown',
+        request: JSON.stringify({ method: 'POST', path: '/api/privilege-mcp/agent/run', body: { provider, task } }, null, 2),
+        response: JSON.stringify({ error: err.message }, null, 2),
+      });
       log(`✕ agent run — ${err.message}`);
       setError(err.message);
     } finally {
@@ -171,8 +230,9 @@ export default function HostileMcpTab() {
           <h1>Malicious MCP</h1>
           <p>
             The hostile MCP server (<code>hostile-mcp</code> Agentic App) serves poisoned tool
-            metadata. Privilege does not police metadata — the demonstration is the gateway
-            denying the <code>create_transfer</code> <strong>call</strong> the poison induces.
+            metadata. Privilege does not police metadata. Follow whether the poison induces a
+            <code> create_transfer</code> call and observe the actual gateway result: only a
+            policy denial demonstrates enforcement; an allowed call reaches a no-money stub.
             {' '}<Link to="/privilege-mcp-client">Open the full client</Link>
           </p>
         </div>
@@ -196,7 +256,45 @@ export default function HostileMcpTab() {
         </div>
       </header>
 
+      <aside className="hmc-prereq" role="note">
+        Before testing a denial, manually confirm the hostile-mcp Agentic App policy denies create_transfer for this demo user. An allowed result reaches only the hostile server&apos;s no-money stub. If Privilege reports &quot;user not found in system&quot;, sync the demo identity first. If the model does not propose create_transfer, the policy was not tested.
+      </aside>
+
+      {agentOutcome ? (
+        <div className={`hmc-outcome hmc-outcome--${agentOutcome.kind}`} role="status" aria-live="polite" data-testid="hostile-agent-outcome">
+          <p>{hostileAgentOutcomeLabel(agentOutcome)}</p>
+          {agentRunEvidence ? (
+            <>
+            <p className="hmc-reachability">
+              Model/provider reached: {agentRunEvidence.modelReached === null ? 'Unknown / not reported' : `Yes — ${agentRunEvidence.provider}`}<br />
+              MCP tool metadata server reached: {agentRunEvidence.metadataServerReached === null ? 'Unknown / not reported'
+                : 'Yes — tools/list loaded before the model run'}<br />
+              Tool-call backend: {agentRunEvidence.toolCallBackend === 'yes' ? 'Yes — at least one call was allowed'
+                : agentRunEvidence.toolCallBackend === 'no' ? 'No — all observed calls were denied before the tool backend'
+                  : agentRunEvidence.toolCallBackend === 'not-evaluated' ? 'Not evaluated — no tool invocation appeared in the trace'
+                    : 'Unknown / not reported'}
+            </p>
+            {agentRunEvidence.request ? (
+              <details className="hmc-details">
+                <summary>Agent request and observed response</summary>
+                <h3>Request</h3>
+                <pre>{agentRunEvidence.request}</pre>
+                <h3>Response</h3>
+                <pre>{agentRunEvidence.response}</pre>
+              </details>
+            ) : null}
+            </>
+          ) : null}
+        </div>
+      ) : null}
+
       {error ? <p className="hmc-error" role="alert">{error}</p> : null}
+
+      <HostileMcpDenialPanel
+        tools={tools}
+        onRequest={({ method, params }) => api('/request', { method: 'POST', body: { method, params } })}
+        onCall={({ name, arguments: args }) => api('/tools/call', { method: 'POST', body: { name, arguments: args } })}
+      />
 
       <div className="hmc-body">
         <section className="hmc-pane" aria-label="Poisoned tools">
@@ -232,8 +330,8 @@ export default function HostileMcpTab() {
               <p className="hmc-note">
                 Sends the poisoned <code>tools/list</code> metadata to the model as real tool
                 definitions. A benign task (&ldquo;What&rsquo;s the weather in Denver?&rdquo;) shows the
-                poison landing: the model calls <code>create_transfer</code> or fills the exfil sink on
-                its own, and Privilege polices the call.
+                poison landing only if the model chooses the injected action. The run is inconclusive
+                if no <code>create_transfer</code> call appears in the trace.
               </p>
               <div className="hmc-agent__row">
                 <select value={agentProvider} onChange={(e) => setAgentProvider(e.target.value)} disabled={busy} aria-label="Model">
@@ -252,6 +350,15 @@ export default function HostileMcpTab() {
                 </button>
               </div>
             </div>
+          ) : null}
+          {toolsListEvidence ? (
+            <details className="hmc-details">
+              <summary>tools/list request and observed response</summary>
+              <h3>Request</h3>
+              <pre>{toolsListEvidence.request}</pre>
+              <h3>Response (tool metadata, including any poison)</h3>
+              <pre>{toolsListEvidence.response}</pre>
+            </details>
           ) : null}
         </section>
 

@@ -77,7 +77,8 @@ function sdkRedirectUri(req) {
 //
 // Unlike the widget's /sdk-token this makes NO upstream call: the SDK talks to
 // PingOne directly, so there is no DaVinci SDK token to mint and no reason to
-// require companyId/policyId/apiKey here.
+// require companyId or apiKey here. The redirect flow policy is required so
+// this route cannot accidentally select the widget's policy.
 //
 // The nonce IS returned to the browser, which the widget path deliberately
 // avoids. That is fine and unavoidable: the SDK builds the authorize request, so
@@ -86,7 +87,8 @@ function sdkRedirectUri(req) {
 // that the SERVER remembers what it expects and spends it once, and neither half
 // of that is in the browser.
 router.post('/start', (req, res) => {
-  const { appId, policyIdV1 } = davinciConfig.login;
+  const { appId } = davinciConfig.login;
+  const { policyId } = davinciConfig.sdk;
   if (!appId) {
     // Name the exact key and where it lives. A blanket "set these" cannot
     // distinguish a missing .env entry from a value that never reached
@@ -95,6 +97,13 @@ router.post('/start', (req, res) => {
       error: 'davinci_sdk_not_configured',
       message: 'DaVinci SDK login is not configured — missing: PINGONE_DAVINCI_LOGIN_APP_ID (.env).',
       missing: ['PINGONE_DAVINCI_LOGIN_APP_ID (.env)'],
+    });
+  }
+  if (!policyId) {
+    return res.status(503).json({
+      error: 'davinci_sdk_not_configured',
+      message: 'DaVinci SDK login is not configured — missing: PINGONE_DAVINCI_SDK_POLICY_ID (.env).',
+      missing: ['PINGONE_DAVINCI_SDK_POLICY_ID (.env)'],
     });
   }
 
@@ -112,7 +121,7 @@ router.post('/start', (req, res) => {
     }
     return res.json({
       clientId: appId,
-      flowPolicyId: policyIdV1 || null,
+      flowPolicyId: policyId,
       redirectUri,
       scope: SCOPE,
       wellknown: getDiscoveryEndpoint(),

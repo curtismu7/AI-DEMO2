@@ -41,6 +41,47 @@ deploy_live_service_selected ui \
   && bad "unselected service was accepted" \
   || ok "unselected service is excluded"
 
+for service in ai-demo-spire-server ai-demo-spire-agent ai-demo-spire-registration ai-demo-spiffe-helper-bff ai-demo-spiffe-oidc-provider; do
+  deploy_live_created_service_is_optional_profile "$service" \
+    && ok "$service is ignored only by the project-wide created-container check" \
+    || bad "$service should be recognized as an optional SPIFFE profile container"
+done
+deploy_live_created_service_is_optional_profile ai-demo-api-server \
+  && bad "a default-stack service was treated as an optional profile container" \
+  || ok "default-stack created containers remain health-check failures"
+
+health_fn="$(awk '/^assert_stack_health\(\)/,/^\}/' "$HERE/deploy-live.sh")"
+if [ -n "$health_fn" ]; then
+  eval "$health_fn"
+  docker() { [ "$1 $2" = "ps -a" ] && printf '%s\n' "$HEALTH_ROWS"; }
+  HEALTH_ROWS=$'ai-demo-spire-agent\tcreated\tCreated\nai-demo-spire-registration\tcreated\tCreated\nai-demo-spiffe-helper-bff\tcreated\tCreated\nai-demo-spiffe-oidc-provider\tcreated\tCreated'
+  if health_output="$(assert_stack_health 2>&1)"; then
+    ok "created SPIFFE profile containers do not fail the project-wide health check"
+  else
+    bad "created SPIFFE profile containers failed the project-wide health check: $health_output"
+  fi
+  HEALTH_ROWS+=$'\nai-demo-api-server\tcreated\tCreated'
+  if health_output="$(assert_stack_health 2>&1)"; then
+    bad "a created default-stack container passed the project-wide health check"
+  else
+    case "$health_output" in
+      *"ai-demo-api-server"*) ok "created default-stack containers still fail the health check" ;;
+      *) bad "the default-stack failure did not name the created container: $health_output" ;;
+    esac
+  fi
+  HEALTH_ROWS=$'ai-demo-spire-agent\trestarting\tRestarting (1)'
+  if health_output="$(assert_stack_health 2>&1)"; then
+    bad "a restarting SPIFFE service passed the project-wide health check"
+  else
+    case "$health_output" in
+      *"ai-demo-spire-agent"*) ok "restarting SPIFFE services remain health-check failures" ;;
+      *) bad "the restarting SPIFFE failure did not name the container: $health_output" ;;
+    esac
+  fi
+else
+  bad "could not extract assert_stack_health for behavior checks"
+fi
+
 printf '%s\n' newsha > "$tmp/services/demo-api-server.sha"
 [ "$(cat "$tmp/services/demo-api-server.sha")" = newsha ] \
   && ok "service stamp can be advanced independently" \

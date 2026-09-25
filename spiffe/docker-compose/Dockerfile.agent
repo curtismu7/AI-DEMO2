@@ -1,0 +1,9 @@
+FROM ghcr.io/spiffe/spire-agent:1.15.2 AS spire
+
+FROM busybox:1.36.1
+
+# The upstream SPIRE image is distroless, while local bootstrap needs shell
+# expansion to read the one-time join token from the shared volume.
+COPY --from=spire /opt/spire/bin/spire-agent /usr/local/bin/spire-agent
+
+ENTRYPOINT ["/bin/sh", "-c"]

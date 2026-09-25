@@ -9,6 +9,7 @@ import ArchitectureCanvasPage from "../components/ArchitectureCanvasPage";
 import TokenChainArchitecturePage from "../components/TokenChainArchitecturePage";
 import ReactFlowPocPage from "../components/ReactFlowPocPage";
 import ReactFlowPocComparePage from "../components/ReactFlowPocComparePage";
+import PingFederateIdJagPage from "../components/PingFederateIdJagPage";
 
 // /architecture/* sub-routes
 //
@@ -30,6 +31,7 @@ export default function EducationRoutes({ user, logout }) {
         <Route path="canvas" element={<ArchitectureCanvasPage />} />
         <Route path="reactflow-poc" element={<ReactFlowPocPage />} />
         <Route path="poc-compare" element={<ReactFlowPocComparePage />} />
+        <Route path="pingfederate-id-jag" element={<PingFederateIdJagPage />} />
       </Routes>
     </AppShell>
   );

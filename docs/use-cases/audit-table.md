@@ -58,11 +58,12 @@
 | UC-LEARN8 | [Enterprise-Managed MCP Authorization](./enterprise-managed-mcp-auth.md) | learn | ✅ works |  |  |
 | UC-LEARN9 | [ID-JAG / Cross-App Access](./id-jag-cross-app-access.md) | learn | ✅ works |  |  |
 | UC-LEARN10 | [Orchestration SDK (Custom UI)](./orchestration-sdk.md) | learn | ✅ works |  |  |
+| UC-LEARN12 | [PingFederate DaVinci Integration Kit](./pingfederate-davinci-integration-kit.md) | learn | ✅ works |  |  |
 | UC-LEARN11 | [Privilege LLM — prompt injection blocked](./privilege-llm-prompt-injection.md) | learn | ✅ works | 🛡️ T5 |  |
 | UC27 | [HITL consent bypass attempt](./hitl-consent-bypass-attempt.md) | hitl | ✅ works | 🛡️ T5 |  |
 | UC28 | [Tool set as the authorization boundary (Air Canada pattern)](./unauthorized-commitment-fee-waiver.md) | controls | ✅ works | 🛡️ T1 |  |
 | UC43 | [Consumer & Partner Agent — CIMD registration](./consumer-partner-agent-cimd-registration.md) | foundations | ✅ works | 🛡️ T1, T9 |  |
-| UC44 | [Workload Agent: Digital Assistant — OBO](./workload-digital-assistant-obo.md) | foundations | ✅ works | 🛡️ T1, T9, T13 |  |
+| UC44 | [Workload Agent: OBO customer-data read](./workload-digital-assistant-obo.md) | foundations | ✅ works | 🛡️ T1, T9, T13 |  |
 | UC45 | [SaaS-Embedded Agent — Website Worker](./saas-embedded-worker.md) | foundations | ✅ works | 🛡️ T1, T9, T13 |  |
 
 ## 🚩 Flag-gated (`flag:*`)
@@ -78,7 +79,7 @@
 | UC39 | [Centralized MCP revocation](./enterprise-mcp-revocation.md) | controls | 🚩 flag-gated (ff_enterprise_managed_mcp_auth) | 🛡️ T8, T9 |  |
 | UC40 | [Enterprise-Managed MCP Authorization (native ID-JAG)](./enterprise-managed-mcp-authorization.md) | controls | 🚩 flag-gated (ff_enterprise_managed_mcp_auth) | 🛡️ T8, T9 |  |
 | UC37 | [Verified Trust — signed agent assertion on A2A delegation](./verified-trust-a2a-assertion.md) | controls | 🚩 flag-gated (ff_verified_trust_a2a) | 🛡️ T9, T13 |  |
-| UC38 | [Workload Agent: Digital Assistant — Personal Concierge](./personal-agent-concierge.md) | foundations | 🚩 flag-gated (ff_personal_agent_concierge) | 🛡️ T1, T9 |  |
+| UC38 | [Workload Agent: MFA-gated protected action](./personal-agent-concierge.md) | foundations | 🚩 flag-gated (ff_personal_agent_concierge) | 🛡️ T1, T9 |  |
 
 ## 🏗️ Needs build (`needs-build`)
 
@@ -91,8 +92,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 55 |
+| ✅ Works | 56 |
 | 🚩 Flag-gated | 10 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 2 |
-| **Total** | **67** |
+| **Total** | **68** |

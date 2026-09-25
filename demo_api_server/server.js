@@ -143,6 +143,7 @@ const transactionRoutes = require('./routes/transactions');
 const demoScenarioRoutes = require('./routes/demoScenario');
 const adminRoutes = require('./routes/admin');
 const pingcliRoutes = require('./routes/pingcli');
+const promptfooRoutes = require('./routes/promptfoo');
 const mgmtApiRoutes = require('./routes/mgmtApi');
 const secretRotationRoutes = require('./routes/secretRotation');
 const pingAiTestLabRoutes = require('./routes/pingAiTestLab');
@@ -1074,6 +1075,7 @@ app.get('/api/auth/debug', async (req, res) => {
 // unauthenticated requests to the config endpoint are not blocked by the
 // authenticateToken middleware that guards the broader /api/admin/* prefix.
 app.use('/api/admin/pingcli', authenticateToken, pingcliRoutes);
+app.use('/api/admin/promptfoo', authenticateToken, promptfooRoutes);
 // requireAdmin, not just authenticateToken (which the sibling pingcli/test-lab
 // mounts use): these operations list every PingOne user in the environment and
 // create/delete real applications, so a signed-in demo customer must not reach
@@ -1429,6 +1431,8 @@ app.get('/api/davinci-demo/config', (req, res) => {
 // SDK demo token store — LMDB-backed custom storage adapter for @forgerock/oidc-client
 // (see routes/sdkDemoTokens.js). Mounted here, next to the public config endpoint.
 app.use('/api/sdk-demo', require('./routes/sdkDemoTokens'));
+// Standalone PingOne Protect browser risk evaluation demo.
+app.use('/api/protect-auth', require('./routes/protectAuthentication'));
 
 // DaVinci login callback route — exchanges OIDC code for tokens and establishes session
 app.use('/api/davinci-login', require('./routes/davinciLogin'));

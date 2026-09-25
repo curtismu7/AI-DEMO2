@@ -45,7 +45,6 @@ export default function SdkLoginCallback() {
         const code = params.get("code");
         const state = params.get("state");
         const oauthErr = params.get("error");
-
         // Pop-out sign-in: hand the result to /sdk-login and close. The opener
         // does the exchange — it holds the SDK's state + PKCE verifier.
         if (isSdkLoginPopup()) {

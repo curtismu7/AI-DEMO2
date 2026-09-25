@@ -87,11 +87,9 @@ const DEMO_ID_SET = new Set([
   ...DEMO_ADVANCED_USE_CASE_IDS,
 ]);
 
-// Coupa/NIQ gap-closure demo (2026-08-10) — UC36 (Protect, not yet built) and
-// UC37 (Verified Trust) carved into their own section on this page only.
-// Both stay track: 'controls' in the catalog SoT, so the main /use-cases
-// launcher is unaffected — this exclusion + section is local to this page.
-const COUPA_NIQ_ID_SET = new Set(['UC36', 'UC37']);
+// UC37 (Verified Trust) stays in its compact companion section. PingOne Protect
+// runs from its standalone browser evaluation page, outside the agent workbench.
+const COUPA_NIQ_ID_SET = new Set(['UC37']);
 
 /**
  * Format trigger for secondary card line.
@@ -333,7 +331,7 @@ export default function LiveUseCaseWorkbenchPage() {
           setGlanceRecent('Transfer');
         }
         window.dispatchEvent(new CustomEvent('banking-agent-prefill', {
-          detail: { message: data.triggerText, autoSend: true, useCaseId: data.useCaseId },
+          detail: { message: data.triggerText, autoSend: true, useCaseId: data.useCaseId, useCaseTitle: uc.title },
         }));
       })
       .catch((err) => {

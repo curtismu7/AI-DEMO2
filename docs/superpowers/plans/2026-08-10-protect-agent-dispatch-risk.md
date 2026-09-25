@@ -1,5 +1,7 @@
 # PingOne Protect Agent-Dispatch Risk Evaluation Implementation Plan
 
+> **Status: withdrawn (2026-09-24).** The UC36 agent-dispatch integration was removed because browser risk evaluation was not a valid agent security boundary. PingOne Protect now runs only on the standalone browser evaluation page, which displays the Signals-based risk response without dispatching an agent action. The plan below is retained as historical design context and is not an implementation guide.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Wire a PingOne Protect risk evaluation into the point where a human's browser request triggers an AI agent action, so the demo can show Coupa's "detect an agent acting outside approved bounds" and "agentic AI / bot detection" asks running against a live Protect risk evaluation — not a diagram.

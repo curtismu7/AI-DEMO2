@@ -18,6 +18,7 @@ const definitions = [
       link('Token Chain Architecture', '/architecture/token-chain'),
       link('Agent Gateway Authorization', '/agent-gateway-authorization'),
     ],
+    routes: [link('Open Personal Agents', '/personal-agent')],
   },
   {
     id: 'digital-assistant',
@@ -63,6 +64,7 @@ const definitions = [
   {
     id: 'workload-agent',
     product: 'PingOne AI Agent Gateway',
+    routes: [link('Open Workload Agents', '/workload-agents')],
     inspectors: [
       link('Agent Gateway Authorization', '/agent-gateway-authorization'),
       link('Token Exchange', '/monitoring/token-exchange'),
@@ -73,14 +75,6 @@ const definitions = [
       link('Gateway vs P1AZ Enforcement', '/gateway-enforcement-map'),
       link('Resource Server Placement', '/resource-server-placement'),
     ],
-  },
-  {
-    id: 'saas-embedded-agent',
-    product: 'Identity for AI & NHI',
-    status: 'live',
-    inspectors: [link('Agent Registry & NHI', '/agent-registry')],
-    diagrams: [link('Agent Onboarding Flow', '/agent-onboarding-flow')],
-    routes: [link('Open Website Worker', '/embedded-worker')],
   },
   {
     id: 'agent-network',

@@ -11,10 +11,15 @@ jest.mock('../services/configStore', () => ({
       'pingone_environment_id': 'test-env-id',
       'user_client_id': 'test-client-id',
       'user_client_secret': 'test-secret',
+      'pf_user_client_id': 'test-pf-client-id',
+      'pf_user_client_secret': 'test-pf-secret',
+      'pf_user_redirect_uri': 'https://api.ping.demo:4000/api/auth/oauth/user/callback',
+      'pf_authorization_endpoint': 'https://pf.example/as/authorization.oauth2',
     };
     return defaults[key];
   }),
   isUserOAuthConfigured: jest.fn(() => true),
+  getOAuthProvider: jest.fn(() => 'pingone'),
 }));
 
 // Mock other dependencies
@@ -56,6 +61,12 @@ app.use(
   })
 );
 app.use(express.json());
+app.get('/__test/session/:provider', (req, res) => {
+  req.session.oauthTokens = { accessToken: 'session-token', expiresAt: Date.now() + 60_000 };
+  req.session.user = { oauthProvider: req.params.provider, email: 'user@example.test' };
+  req.session.oauthType = 'user';
+  req.session.save((error) => res.sendStatus(error ? 500 : 204));
+});
 app.use('/api/auth/oauth/user', router);
 
 describe('OAuth User Login', () => {
@@ -159,6 +170,47 @@ describe('OAuth User Login', () => {
 
     const url = new URL(res.headers.location);
     expect(url.searchParams.get('prompt')).toBeNull();
+  });
+
+  test('a valid session from another provider starts the selected provider login', async () => {
+    const browser = request.agent(app);
+    await browser.get('/__test/session/pingfederate').expect(204);
+
+    const res = await browser.get('/api/auth/oauth/user/login').expect(302);
+
+    expect(new URL(res.headers.location).host).toBe('auth.pingone.com');
+  });
+
+  test('a valid session from the selected provider is reused', async () => {
+    const browser = request.agent(app);
+    await browser.get('/__test/session/pingone_sso').expect(204);
+
+    const res = await browser.get('/api/auth/oauth/user/login').expect(302);
+
+    expect(res.headers.location).toBe('http://localhost:3000/dashboard');
+  });
+
+  test('a PingOne session is not reused after selecting PingFederate', async () => {
+    configStore.getOAuthProvider.mockReturnValue('pingfederate');
+    const browser = request.agent(app);
+    await browser.get('/__test/session/pingone_sso').expect(204);
+
+    const res = await browser.get('/api/auth/oauth/user/login').expect(302);
+
+    const authorizationUrl = new URL(res.headers.location);
+    expect(authorizationUrl.origin + authorizationUrl.pathname)
+      .toBe('https://pf.example/as/authorization.oauth2');
+    expect(authorizationUrl.searchParams.get('client_id')).toBe('test-pf-client-id');
+  });
+
+  test('a valid PingFederate session is reused while PingFederate is selected', async () => {
+    configStore.getOAuthProvider.mockReturnValue('pingfederate');
+    const browser = request.agent(app);
+    await browser.get('/__test/session/pingfederate').expect(204);
+
+    const res = await browser.get('/api/auth/oauth/user/login').expect(302);
+
+    expect(res.headers.location).toBe('http://localhost:3000/dashboard');
   });
 });
 

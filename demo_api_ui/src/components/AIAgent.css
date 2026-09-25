@@ -863,6 +863,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   gap: 8px;
   padding: 10px 14px 9px;
   background: var(--th-bg-card);
+  color: var(--th-text);
   border-bottom: 1px solid var(--ba-border);
   flex-shrink: 0;
   cursor: grab;
@@ -1817,6 +1818,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 :root[data-theme="dark"] .banking-agent-msg.token-event .banking-agent-msg-bubble {
   background: var(--th-bg-inset);
+  color: var(--th-text);
   border-color: var(--th-border-strong);
 }
 
@@ -2648,6 +2650,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   display: flex;
   flex-direction: column;
   background: var(--th-bg-card);
+  color: var(--th-text);
   border-radius: 14px;
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.16);
   overflow: hidden;
@@ -3133,6 +3136,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border-radius: 12px;
   overflow: hidden;
   background: var(--th-bg-inset);
+  color: var(--th-text);
 }
 
 .embedded-banking-agent:not(.embedded-banking-agent--bottom)
@@ -3213,6 +3217,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border-bottom: none;
   border-radius: 0;
   background: var(--th-bg-card);
+  color: var(--th-text);
 }
 
 .embedded-banking-agent.embedded-banking-agent--bottom

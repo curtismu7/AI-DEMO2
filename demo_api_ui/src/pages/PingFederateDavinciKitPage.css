@@ -1,0 +1,236 @@
+.pf-davinci-page {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 28px 24px 64px;
+  color: var(--th-text);
+}
+
+.pf-davinci-page a,
+.pf-davinci-page a:link,
+.pf-davinci-page a:visited {
+  color: var(--th-status-info-text);
+}
+
+.pf-davinci-page a:focus-visible,
+.pf-davinci-page button:focus-visible {
+  outline: 2px solid var(--th-status-info);
+  outline-offset: 3px;
+}
+
+.pf-davinci-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(270px, 0.8fr);
+  align-items: center;
+  gap: 28px;
+  padding: 30px;
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.pf-davinci-hero h1 {
+  max-width: 12ch;
+  margin: 0 0 14px;
+  color: var(--th-text-on-emphasis);
+  font-size: var(--font-size-h1);
+  line-height: 1.12;
+}
+
+.pf-davinci-kicker {
+  margin: 0 0 8px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.pf-davinci-hero .pf-davinci-kicker {
+  color: var(--th-text-on-emphasis);
+  opacity: 0.82;
+}
+
+.pf-davinci-lede {
+  max-width: 60ch;
+  margin: 0;
+  color: var(--th-text-on-emphasis);
+  font-size: var(--font-size-lg);
+  line-height: 1.55;
+}
+
+.pf-davinci-session {
+  padding: 18px;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-left: 5px solid var(--th-status-warning);
+  border-radius: var(--radius-md);
+}
+
+.pf-davinci-session.is-ready {
+  border-left-color: var(--th-status-success);
+}
+
+.pf-davinci-session strong {
+  display: block;
+  font-size: var(--font-size-md);
+}
+
+.pf-davinci-session p {
+  margin: 8px 0 14px;
+  color: var(--th-text-body);
+  line-height: 1.45;
+}
+
+.pf-davinci-run {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 14px;
+  color: var(--th-text-on-emphasis);
+  background: var(--th-bg-emphasis);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.pf-davinci-page .pf-davinci-run:link,
+.pf-davinci-page .pf-davinci-run:visited,
+.pf-davinci-page .pf-davinci-run:hover {
+  color: var(--th-text-on-emphasis);
+}
+
+.pf-davinci-section {
+  margin-top: 28px;
+  padding: 24px;
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+}
+
+.pf-davinci-section-heading h2 {
+  margin: 0 0 18px;
+  color: var(--th-text);
+  font-size: var(--font-size-h2);
+}
+
+.pf-davinci-sequence {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pf-davinci-sequence li {
+  min-height: 140px;
+  padding: 16px;
+  color: var(--th-text);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-top: 3px solid var(--th-status-info);
+  border-radius: var(--radius-sm);
+}
+
+.pf-davinci-sequence li > span {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 12px;
+  place-items: center;
+  color: var(--th-text-on-emphasis);
+  background: var(--th-bg-emphasis);
+  border-radius: 50%;
+  font-weight: 700;
+}
+
+.pf-davinci-sequence strong,
+.pf-davinci-sequence small {
+  display: block;
+}
+
+.pf-davinci-sequence small {
+  margin-top: 6px;
+  color: var(--th-text-body);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+}
+
+.pf-davinci-note {
+  margin: 18px 0 0;
+  color: var(--th-text-body);
+  line-height: 1.5;
+}
+
+.pf-davinci-modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.pf-davinci-modes article {
+  padding: 18px;
+  color: var(--th-text);
+  background: var(--th-bg-inset);
+  border-left: 3px solid var(--th-border-strong);
+}
+
+.pf-davinci-modes h3 {
+  margin: 0 0 8px;
+  font-size: var(--font-size-lg);
+}
+
+.pf-davinci-modes p,
+.pf-davinci-setup li,
+.pf-davinci-setup > p {
+  color: var(--th-text-body);
+  line-height: 1.55;
+}
+
+.pf-davinci-setup ol {
+  padding-left: 22px;
+}
+
+.pf-davinci-setup li + li {
+  margin-top: 8px;
+}
+
+.pf-davinci-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--th-border);
+}
+
+@media (max-width: 760px) {
+  .pf-davinci-page {
+    padding: 16px 12px 40px;
+  }
+
+  .pf-davinci-hero,
+  .pf-davinci-modes {
+    grid-template-columns: 1fr;
+  }
+
+  .pf-davinci-sequence {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 460px) {
+  .pf-davinci-hero,
+  .pf-davinci-section {
+    padding: 18px;
+  }
+
+  .pf-davinci-sequence {
+    grid-template-columns: 1fr;
+  }
+}

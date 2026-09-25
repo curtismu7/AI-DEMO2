@@ -48,6 +48,11 @@ const WALKTHROUGHS = Object.freeze({
     { title: "Add the acting agent", explain: "The act claim records which agent is acting without changing who the subject is.", demonstrate: "Compare sub and act in the token-chain trace." },
     { title: "Constrain the result", explain: "RFC 8693 exchange narrows scope and audience for the downstream resource.", demonstrate: "Show the delegated token's audience, scopes, and expiry." },
   ],
+  "multi-party-delegation": [
+    { title: "Establish the consumer and delegate", explain: "The consumer owns the resource while a named caregiver, family member, advocate, or partner receives bounded authority.", demonstrate: "Map the consumer, delegate, agent, and protected resource before any action runs." },
+    { title: "Delegate a purpose-bound task", explain: "The delegation records the allowed purpose, actions, resource scope, and expiry instead of granting broad account access.", demonstrate: "Select a healthcare caregiver scenario and show a medication-information read that excludes treatment changes." },
+    { title: "Enforce and explain the boundary", explain: "The delegate's agent presents its own identity, and runtime policy distinguishes the consumer, delegate, agent, and requested action.", demonstrate: "Compare the permitted low-risk request with a denied or approval-gated high-impact request and trace the evidence." },
+  ],
   "consumer-agent": [
     { title: "Detect the external agent", explain: "A Personal Agent may run outside the enterprise and must be recognized before access is granted.", demonstrate: "Use the client view to identify ChatGPT, Claude Desktop, or LM Studio as the caller." },
     { title: "Register the client", explain: "CIMD or DCR supplies client metadata so the connection has an accountable identity.", demonstrate: "Show the metadata, redirect, and client registration record." },
@@ -154,6 +159,26 @@ export const lessonCatalog = Object.freeze([
     talkingPoints: [
       "RFC 8693 lets an agent act with narrowly scoped authority on behalf of a user.",
       "Read the chain as person, agent, audience, and scope—not as user impersonation.",
+    ],
+  }),
+  lesson({
+    id: "multi-party-delegation",
+    title: "Multi-party consumer delegation",
+    audience: "Sales engineers, CIAM architects, and customer stakeholders",
+    category: "Consumer delegation",
+    route: "/academy/multi-party-delegation/guided",
+    standaloneRoute: "/academy/multi-party-delegation/standalone",
+    run: { action: "multi-party-delegation", exposesRawBearerToken: false, result: REDACTED_RESULT },
+    evidence: { events: ["consumer", "delegate", "agent", "delegation", "policy", "approval", "outcome"], result: REDACTED_RESULT },
+    fallback: { provenance: PROVENANCE.RECORDED, label: "Recorded multi-party delegation trace" },
+    maturityStages: [MATURITY_STAGES.AUTHENTICATE, MATURITY_STAGES.AUTHORIZE, MATURITY_STAGES.GOVERN],
+    agentCategory: "Consumer & Partner Agent",
+    productRoles: ["PingOne", "Agent Authorize", "Agent Gateway / Broker", "Agent Governance"],
+    talkingPoints: [
+      "The consumer remains the trust root even when a caregiver, family member, advocate, or partner acts on their behalf.",
+      "The delegate is a separate human principal and the agent is a separate workload identity; neither is the consumer.",
+      "A domain-neutral delegation model can protect healthcare records, bank accounts, travel bookings, benefits, or other consumer resources.",
+      "Purpose, scope, expiry, approval, and revocation make delegated access explainable and enforceable.",
     ],
   }),
   lesson({

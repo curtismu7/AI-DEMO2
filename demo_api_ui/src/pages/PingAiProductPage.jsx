@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Section, LessonLayout, Lede, OnThisRun, Status } from "../components/lesson";
+import PingOneProtectBrowserDemo from "./PingOneProtectBrowserDemo";
 import "./PingAiProductPage.css";
 
 const PRODUCTS = {
@@ -127,6 +128,23 @@ const PRODUCTS = {
     sections: ["Overview", "MCP risks", "Agent runs", "Protection path", "Takeaway"],
     takeaway: "Treat MCP as a real application boundary: protect both what the agent discovers and what it invokes.",
   },
+  protect: {
+    title: "PingOne Protect",
+    eyebrow: "Browser risk evaluation",
+    accent: "protect",
+    subtitle: "Send browser Signals to PingOne Protect and inspect its risk response.",
+    lede: "This standalone demo collects browser context with the PingOne Signals SDK, sends the payload to PingOne Protect through the BFF, and displays the returned evaluation. It does not start a sign-in or dispatch an agent action.",
+    capabilities: [
+      ["Collect browser Signals", "The Signals SDK collects device context when the user runs this demo; its raw payload is sent only to the BFF."],
+      ["Evaluate browser risk", "The BFF adds request context and calls PingOne Protect with the collected Signals payload."],
+      ["Inspect the response", "See the returned risk level, recommended action, and available bot-detection details."],
+      ["Keep credentials server-side", "The browser never receives the Protect Worker token or raw evaluation details."],
+    ],
+    runExamples: [],
+    flow: ["Browser Signals SDK", "BFF request", "PingOne Protect", "Risk response in the page"],
+    sections: ["Overview", "Risk signals", "Run the demo", "Evaluation path", "Takeaway"],
+    takeaway: "Evaluate browser risk in a standalone page and inspect the Protect response without changing an authentication or agent flow.",
+  },
 };
 
 const NAV = [
@@ -136,12 +154,14 @@ const NAV = [
   ["privilegeLlm", "Privilege · LLM"],
   ["privilegeA2a", "Privilege · A2A"],
   ["privilegeMcp", "Privilege · MCP"],
+  ["protect", "PingOne Protect"],
 ];
 
 const slug = (key) => `/ai-products/${key.replace(/([A-Z])/g, "-$1").toLowerCase()}`;
 
 export default function PingAiProductPage({ product = "core" }) {
   const data = PRODUCTS[product] || PRODUCTS.core;
+
   return (
     <LessonLayout
       pageClassName="pai-lesson-page"
@@ -171,16 +191,21 @@ export default function PingAiProductPage({ product = "core" }) {
       </Section>
 
       <Section id={data.sections[2].toLowerCase().replaceAll(" ", "-")} title={data.sections[2]}>
-        <div className="pai-run-grid">
-          {data.runExamples.map(([title, description, path]) => <Link className="pai-run" key={title} to={path}><span className="pai-run__label">Open agent run</span><h3>{title}</h3><p>{description}</p><span className="pai-run__arrow" aria-hidden="true">→</span></Link>)}
-        </div>
+        {product === "protect" && <PingOneProtectBrowserDemo />}
+        {data.runExamples.length > 0 && (
+          <div className="pai-run-grid">
+            {data.runExamples.map(([title, description, path]) => <Link className="pai-run" key={title} to={path}><span className="pai-run__label">Open agent run</span><h3>{title}</h3><p>{description}</p><span className="pai-run__arrow" aria-hidden="true">→</span></Link>)}
+          </div>
+        )}
       </Section>
 
       <Section id={data.sections[3].toLowerCase().replaceAll(" ", "-")} title={data.sections[3]}>
         <div className="pai-flow" aria-label={`${data.title} flow`}>
           {data.flow.map((node, index) => <div className="pai-flow__item" key={node}><span>{node}</span>{index < data.flow.length - 1 && <i aria-hidden="true" />}</div>)}
         </div>
-        <OnThisRun title="Architecture note"><p><Status ok>Boundary defined</Status> This page explains the product’s role in an AI security architecture. Live demo routes and inspectors remain available in the navigation.</p></OnThisRun>
+        <OnThisRun title="Architecture note"><p><Status ok>Boundary defined</Status> {product === "protect" ? "The page collects browser Signals, sends them through the BFF to PingOne Protect, and displays the returned evaluation. It does not make sign-in, MFA, or agent-dispatch decisions." : "This page explains the product’s role in an AI security architecture. Live demo routes and inspectors remain available in the navigation."}</p>
+          {product === "protect" && <p><a href="https://docs.pingidentity.com/pingone/threat_protection_using_pingone_protect/p1_protect_risk_predictors.html" target="_blank" rel="noreferrer">Read PingOne Protect predictor guidance</a></p>}
+        </OnThisRun>
       </Section>
 
       <Section id="takeaway" title={data.sections[4]}>

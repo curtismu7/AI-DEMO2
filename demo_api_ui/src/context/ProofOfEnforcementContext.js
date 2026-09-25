@@ -146,13 +146,33 @@ export function computeVerdict(trace, catalogEntry) {
   // went green on a HITL approval gate (and vice versa).
   const actualOutcome = trace.authorize && trace.authorize.outcome;
   const expectedFamily = expected && EXPECTED_OUTCOME_FAMILY[expected];
-  const outcomeMatches = expectedIsDenyLike && expectedFamily && actualOutcome
-    ? actualOutcome === expectedFamily
-    : !expected || !decision
-      ? true
-      : expectedIsDenyLike
-        ? decision !== 'PERMIT'
-        : decision === 'PERMIT';
+  // UC22's first Authorize response is the STEP_UP decision that caused CIBA.
+  // A successful retry may retain the original challenge, or have no second
+  // browser-visible Authorize decision. Score the completed approval and write
+  // instead of requiring one particular shape for that first decision.
+  const cibaApprovedAndDispatched =
+    useCaseId === 'ciba-out-of-band-approval' &&
+    expected === 'PERMIT' &&
+    actualOutcome === 'STEP_UP' &&
+    decision !== 'DENY' &&
+    actualOutcome !== 'DENY' &&
+    (trace.tokenEvents || []).some((event) =>
+      event?.id === 'ciba-poll' && event.additionalData?.status === 'approved') &&
+    !!trace.mcpResult &&
+    trace.mcpResult.status !== 'error' &&
+    trace.mcpResult?.denied !== true &&
+    trace.outcome === 'ok';
+  const cibaSuccessExpected = useCaseId === 'ciba-out-of-band-approval' && expected === 'PERMIT';
+  const cibaExplicitlyDenied = cibaSuccessExpected && actualOutcome === 'DENY';
+  const outcomeMatches = cibaSuccessExpected
+    ? !cibaExplicitlyDenied && (decision === 'PERMIT' || cibaApprovedAndDispatched)
+    : expectedIsDenyLike && expectedFamily && actualOutcome
+      ? actualOutcome === expectedFamily
+      : !expected || !decision
+        ? true
+        : expectedIsDenyLike
+          ? decision !== 'PERMIT'
+          : decision === 'PERMIT';
   const state = outcomeMatches
     ? (expectedIsDenyLike ? 'denied-as-expected' : 'verified')
     : 'mismatch';

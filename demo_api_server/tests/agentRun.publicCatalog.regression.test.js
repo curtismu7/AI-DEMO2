@@ -19,7 +19,7 @@ const request = require('supertest');
 const http = require('http');
 
 jest.mock('../services/configStore', () => ({
-  getEffective: (k) => (k === 'ff_agui_enabled' ? 'true' : ''),
+  getEffective: (k) => (k === 'ff_agui_enabled' || k === 'ff_protect_agent_dispatch' ? 'true' : ''),
   get: () => undefined,
 }));
 
@@ -150,5 +150,17 @@ describe('agentRun — UC24 public catalog short-circuit', () => {
     const res = await post(runBody('transfer 500 dollars to savings'));
     expect(res.status).toBe(401);
     expect(res.body.need_auth).toBe(true);
+  });
+
+  test('legacy UC36 requests use ordinary agent authentication instead of a Protect agent gate', async () => {
+    const res = await post({
+      ...runBody('show my balance'),
+      useCaseId: 'protect-agent-dispatch-risk',
+    });
+
+    expect(res.status).toBe(401);
+    expect(res.body.need_auth).toBe(true);
+    expect(res.body.error).not.toBe('protect_requires_gated_agent_invoke');
+    expect(agentCalls).toHaveLength(0);
   });
 });

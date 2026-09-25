@@ -24,7 +24,7 @@ const AUDIT = "http://localhost:3002/mcp-facade/audit/mcp";
 
 const PRESETS = [
   { label: "2 · Privilege — direct to the AI Gateway", mode: "privilege", url: CMUIR },
-  { label: "3 · Privilege — through the façade", mode: "facade", url: EXTERNAL },
+  { label: "Privilege — external", mode: "privilege", url: EXTERNAL },
   { label: "1 · Direct — no Privilege in the path", mode: "direct", url: AGENT },
   { label: "Agent Gateway — PingOne audit (scope-narrowed)", mode: "privilege", url: AUDIT },
 ];
@@ -38,7 +38,12 @@ function jsonResponse(body, { status = 200 } = {}) {
   };
 }
 
-function mockApi({ gatewayMode = "privilege", mcpUrl = CMUIR, presets = PRESETS } = {}) {
+function mockApi({
+  gatewayMode = "privilege",
+  mcpUrl = CMUIR,
+  presets = PRESETS,
+  gatewayConfigs = { direct: {}, privilege: {}, facade: {} },
+} = {}) {
   const posted = [];
   global.fetch = vi.fn(async (url, opts) => {
     const u = String(url);
@@ -46,7 +51,7 @@ function mockApi({ gatewayMode = "privilege", mcpUrl = CMUIR, presets = PRESETS 
       return jsonResponse({
         config: { mcpUrl, clientId: "a6219652", scopes: "openid profile email" },
         gatewayMode,
-        gatewayConfigs: { direct: {}, privilege: {}, facade: {} },
+        gatewayConfigs,
         oauth: { authenticated: true },
         mainAppAuthenticated: true,
         user: { email: "cmuir+demo@pingone.com" },
@@ -106,13 +111,45 @@ describe("titlebar door picker", () => {
     expect(posted[0].mcpUrl).toBe(EXTERNAL);
   });
 
-  it("still appears in Direct mode with only one direct door known — a live readout, not just a switcher", async () => {
-    mockApi({ gatewayMode: "direct", mcpUrl: AGENT });
+  it("shows one known Direct door as a live readout", async () => {
+    const directOpenSearch = "https://ai-demo.example.com/mcp-facade/opensearch/mcp";
+    mockApi({
+      gatewayMode: "direct",
+      mcpUrl: directOpenSearch,
+      presets: [{ label: "Direct — OpenSearch", mode: "direct", url: directOpenSearch }],
+    });
     renderPage();
     await waitFor(() => expect(screen.getByLabelText("Connection path")).toBeTruthy());
     await waitFor(() => expect(picker()).toBeTruthy());
     const options = [...picker().options].map((o) => o.textContent);
-    expect(options).toHaveLength(1);
+    expect(options).toEqual(["opensearch"]);
+  });
+
+  it("Direct shows only banking, opensearch, brave, and pingone-admin", async () => {
+    const origin = "https://ai-demo.example.com";
+    const direct = ["banking", "opensearch", "brave", "pingone-admin"]
+      .map((name) => `${origin}/mcp-facade/${name}/mcp`);
+    const sameOriginOtherPaths = [
+      `${origin}/mcp-facade/privilege-gateway/opensearch22/mcp`,
+      `${origin}/mcp-facade/privilege-gateway/aggregate/mcp`,
+      `${origin}/custom-door/mcp`,
+    ];
+    mockApi({
+      gatewayMode: "direct",
+      mcpUrl: direct[1],
+      presets: [
+        ...direct.map((url) => ({ label: `Direct — ${url}`, mode: "direct", url })),
+        { label: "Direct — PingOne Hosted MCP", mode: "direct", url: "https://mcp.pingone.com/admin/env-123/mcp" },
+        ...sameOriginOtherPaths.map((url) => ({ label: `Other path — ${url}`, mode: "facade", url })),
+      ],
+    });
+    renderPage();
+    await waitFor(() => expect(picker()).toBeTruthy());
+
+    expect([...picker().options].map((option) => option.textContent)).toEqual([
+      "banking", "opensearch", "brave", "pingone-admin",
+    ]);
+    expect([...picker().options].map((option) => option.value)).toEqual(direct);
   });
 
   it("appears in Direct mode once a sibling direct door exists, and switching still works", async () => {
@@ -142,7 +179,36 @@ describe("titlebar door picker", () => {
     expect(posted[0].mcpUrl).toBe(BRAVE);
   });
 
-  it("Facade mode gets the same plain doors as Direct, alongside its own Privilege-gated apps", async () => {
+  it("carries a preset OAuth client ID when switching to a hosted Direct door", async () => {
+    const hosted = "https://mcp.pingone.com/admin/env-123/mcp";
+    const posted = mockApi({
+      gatewayMode: "direct",
+      mcpUrl: AGENT,
+      presets: [
+        { label: "1 · Direct — no Privilege in the path", mode: "direct", url: AGENT },
+        {
+          label: "Direct — PingOne Hosted MCP",
+          mode: "direct",
+          url: hosted,
+          clientId: "eec33861-dc73-4ca2-93c7-9ceb45174825",
+        },
+      ],
+    });
+    renderPage();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Settings" })).toBeTruthy());
+
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.change(screen.getByLabelText("Gateway Preset"), { target: { value: hosted } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(posted.length).toBeGreaterThan(0));
+    expect(posted[0]).toMatchObject({
+      mcpUrl: hosted,
+      clientId: "eec33861-dc73-4ca2-93c7-9ceb45174825",
+    });
+  });
+
+  it("Facade mode lists its own doors without leaking Direct-only doors", async () => {
     const FACADE_ORIGIN = "https://ai-demo.example.com";
     const OPENSEARCH_DIRECT = `${FACADE_ORIGIN}/mcp-facade/opensearch/mcp`;
     const BRAVE_DIRECT = `${FACADE_ORIGIN}/mcp-facade/brave/mcp`;
@@ -160,14 +226,44 @@ describe("titlebar door picker", () => {
     await waitFor(() => expect(picker()).toBeTruthy());
 
     const options = [...picker().options].map((o) => o.textContent);
-    expect(options).toEqual(["opensearch", "brave", "opensearch22"]);
+    expect(options).toEqual(["opensearch22"]);
 
-    fireEvent.change(picker(), { target: { value: OPENSEARCH_DIRECT } });
-    await waitFor(() => expect(posted.length).toBeGreaterThan(0));
-    // Reuses the exact same façade-hosted URL Direct mode uses for this door —
-    // it is already a /mcp-facade/... route, so nothing extra is needed to
-    // keep it "wired to the façade" while Facade mode is active.
-    expect(posted[0].mcpUrl).toBe(OPENSEARCH_DIRECT);
+    expect(picker().value).toBe(OPENSEARCH22_PRIVILEGE);
+    expect(posted).toHaveLength(0);
+  });
+
+  it("updates the door list when the selected Path changes to Direct", async () => {
+    const origin = "https://ai-demo.example.com";
+    const direct = ["banking", "opensearch", "brave", "pingone-admin"]
+      .map((name) => `${origin}/mcp-facade/${name}/mcp`);
+    const facadeOpenSearch22 = `${origin}/mcp-facade/privilege-gateway/opensearch22/mcp`;
+    const facadeOpenSearch = `${origin}/mcp-facade/privilege-gateway/opensearch/mcp`;
+    const presets = [
+      ...direct.map((url) => ({ label: `Direct — ${url}`, mode: "direct", url })),
+      { label: "Façade — opensearch22", mode: "facade", url: facadeOpenSearch22 },
+      { label: "Façade — opensearch", mode: "facade", url: facadeOpenSearch },
+    ];
+    mockApi({
+      gatewayMode: "facade",
+      mcpUrl: facadeOpenSearch22,
+      presets,
+      gatewayConfigs: {
+        direct: { mcpUrl: direct[1] },
+        privilege: {},
+        facade: { mcpUrl: facadeOpenSearch22 },
+      },
+    });
+    renderPage();
+
+    const pathPicker = await screen.findByLabelText("Connection path");
+    expect([...picker().options].map((option) => option.textContent)).toEqual(["opensearch22", "opensearch"]);
+
+    fireEvent.change(pathPicker, { target: { value: "direct" } });
+
+    await waitFor(() => expect(picker().value).toBe(direct[1]));
+    expect([...picker().options].map((option) => option.textContent)).toEqual([
+      "banking", "opensearch", "brave", "pingone-admin",
+    ]);
   });
 
   it("Privilege mode (raw AI Gateway, different origin) does NOT gain Direct's plain doors", async () => {

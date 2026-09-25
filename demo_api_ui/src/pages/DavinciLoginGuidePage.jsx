@@ -31,7 +31,12 @@ export default function DavinciLoginGuidePage() {
     setCalls([]);
     setSignedIn(null);
   }, []);
-  const onCall = useCallback((call) => setCalls((prev) => [...prev, call]), []);
+  const onCall = useCallback((call) => {
+    // The background session refresh can overlap StrictMode's first render.
+    // It is unrelated to the journey the visitor is watching.
+    if (call.path?.endsWith("/api/davinci-login/session-status")) return;
+    setCalls((prev) => [...prev, call]);
+  }, []);
   const onSignedIn = useCallback((info) => {
     setSignedIn(info);
     setShowSummary(true);
@@ -78,27 +83,41 @@ export default function DavinciLoginGuidePage() {
   return (
     <LessonLayout
       title="DaVinci Widget"
+      pageClassName="dvl-lesson"
       subtitle={
         <>
-          Ping&rsquo;s hosted davinci.js runs a PingOne DaVinci flow and draws the flow&rsquo;s own screens
-          inside this page. Try it live, watch every API call in the Call Inspector, then read how it works.
+          Run a live DaVinci journey inside the app. See each screen DaVinci sends and inspect the calls
+          that move the journey forward.
         </>
       }
       sections={WIDGET_LESSON_SECTIONS}
       storageKey="dvl-lesson-nav-width"
     >
       <Section id="try-it-live" title="Try It Live">
-        <p>
-          This is a working sign-in. Every screen below is DaVinci&rsquo;s own HTML, drawn by the widget. Each
-          call the widget and this page make appears in the Call Inspector as it happens: config from the BFF,
-          the flow start, each screen submit, the final node&rsquo;s tokens, and the session.
+        <p className="dvl-live-intro">
+          Choose a path on the first DaVinci screen. The trace records each transition and the app session
+          when sign-in completes.
         </p>
+
+        <ol className="dvl-journeys" aria-label="Paths in this DaVinci flow">
+          <li>
+            <span className="dvl-journey-number">01</span>
+            <div><strong>Sign in</strong><span>Use an existing PingOne account.</span></div>
+          </li>
+          <li>
+            <span className="dvl-journey-number">02</span>
+            <div><strong>Register</strong><span>Create and verify a new account.</span></div>
+          </li>
+          <li>
+            <span className="dvl-journey-number">03</span>
+            <div><strong>Recover</strong><span>Reset a forgotten password.</span></div>
+          </li>
+        </ol>
 
         <div className="dvl-live">
           <div className="dvl-live-app">
             <div className="dvl-login-header">
-              <p className="dvl-eyebrow">PingOne DaVinci</p>
-              <h2>DaVinci Widget Login</h2>
+              <h2>Live DaVinci flow</h2>
               <p>Continue with the embedded widget, or open the same flow in a separate window.</p>
               <div className="dvl-mode-actions">
                 <span className="dvl-mode-label">Embedded</span>
@@ -132,7 +151,10 @@ export default function DavinciLoginGuidePage() {
           </div>
 
           <div className="dvl-live-calls">
-            <h3>Call Inspector</h3>
+            <div className="dvl-calls-heading">
+              <h3>Call Inspector</h3>
+              <span>{calls.length} {calls.length === 1 ? "call" : "calls"} recorded</span>
+            </div>
             <CallInspector calls={calls} />
           </div>
         </div>

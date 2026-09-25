@@ -26,6 +26,7 @@ import "@xyflow/react/dist/style.css";
 import apiClient from "../services/apiClient";
 import { agentFlowDiagram } from "../services/agentFlowDiagramService";
 import { useAppEventsSSE } from "../hooks/useAppEventsSSE";
+import { getElk } from "../utils/elkLayout";
 import "./ArchitectureFlowPage.css";
 
 // ─── Colors ───────────────────────────────────────────────────────────────────
@@ -564,16 +565,6 @@ const INITIAL_EDGES = [
 // instead of using the full ~18-node topology's fixed grid up front. ────────
 // Loaded on demand (not at module scope) — elkjs is ~1.4MB and this page
 // isn't code-split, so a static import would ship it on every route.
-let elkInstancePromise = null;
-function getElk() {
-  if (!elkInstancePromise) {
-    elkInstancePromise = import("elkjs/lib/elk.bundled.js").then(
-      (mod) => new mod.default(),
-    );
-  }
-  return elkInstancePromise;
-}
-
 const ELK_LAYOUT_OPTIONS = {
   "elk.algorithm": "layered",
   "elk.direction": "RIGHT",
@@ -3292,4 +3283,3 @@ export default function ArchitectureFlowPage({ user }) {
     </div>
   );
 }
-

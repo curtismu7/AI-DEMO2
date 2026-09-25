@@ -2671,7 +2671,7 @@ const UnifiedConfigurationPage: FC<{
                 <strong>Default Demo:</strong> Balanced mix of checking,
                 savings, and investment accounts.{" "}
                 <em>Most transfers do NOT trigger MFA or consent.</em> <br />
-                <span style={{ color: "#374151" }}>
+                <span className="cfg-example-text">
                   Example: Transfer $200 from Checking to Savings (no MFA, no
                   consent required).
                 </span>
@@ -2680,7 +2680,7 @@ const UnifiedConfigurationPage: FC<{
                 <strong>High-Value Transactions (triggers MFA):</strong>{" "}
                 Pre-loads large transfers above the MFA threshold.{" "}
                 <em>Every significant transfer requires step-up MFA.</em> <br />
-                <span style={{ color: "#374151" }}>
+                <span className="cfg-example-text">
                   Example: Transfer $2,000 from Checking to Investment (MFA
                   required, consent optional).
                 </span>
@@ -2694,7 +2694,7 @@ const UnifiedConfigurationPage: FC<{
                   transfers.
                 </em>{" "}
                 <br />
-                <span style={{ color: "#374151" }}>
+                <span className="cfg-example-text">
                   Example: Agent proposes a transfer → user sees consent dialog
                   → approves → MFA if over threshold.
                 </span>
@@ -2704,7 +2704,7 @@ const UnifiedConfigurationPage: FC<{
                 set to $1.{" "}
                 <em>Every transfer requires both consent and MFA, even $5.</em>{" "}
                 <br />
-                <span style={{ color: "#374151" }}>
+                <span className="cfg-example-text">
                   Example: Transfer $5 from Checking to Savings (consent dialog
                   + MFA required).
                 </span>

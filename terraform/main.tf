@@ -75,6 +75,10 @@ resource "terraform_data" "se_namespace_preflight" {
       condition     = var.namespace != ""
       error_message = "namespace is required for target=se. Terraform will not create the namespace."
     }
+    precondition {
+      condition     = var.image_repository != ""
+      error_message = "image_repository is required for target=se and must match the repository used to push the images."
+    }
   }
 
   input = {
@@ -100,7 +104,11 @@ resource "kubectl_manifest" "se_app" {
 
   yaml_body = replace(
     replace(
-      replace(each.value.yaml, "namespace: ai-demo", "namespace: ${var.namespace}"),
+      replace(
+        replace(each.value.yaml, "namespace: ai-demo", "namespace: ${var.namespace}"),
+        "ping-devops-cmuir",
+        var.namespace
+      ),
       "kubernetes.io/metadata.name: ai-demo",
       "kubernetes.io/metadata.name: ${var.namespace}"
     ),

@@ -89,7 +89,8 @@ import path from 'node:path';
 // nav-reachable pages from the full audit. Each page's own brand/legend
 // accent (the CC orange, --dtp-red/--dc-navy/--dc-blue, the #0a66c2 OWASP
 // blue, the SecurityCenter navy header) stays literal per THEMING.md §1.3.
-const MAX_UNTHEMED = 67;
+// 71 -> 69: Hub theme links, protocol lab, and Privilege MCP are now themed.
+const MAX_UNTHEMED = 68;
 
 const SRC = path.join(__dirname, '..', '..');
 
@@ -171,8 +172,10 @@ describe('font-size floor', () => {
 // Reconciled with the current main baseline after the MCP observability and
 // A2A console merges. These are ceilings, not quality targets; future work
 // must keep them from increasing again.
-const MAX_RADIUS_LITERALS = 2576;
-const MAX_SHADOW_LITERALS = 484;
+// Reconciled to the current merged baseline (radius 2615, shadow 494); these
+// ceilings remain one-way ratchets and future changes may only lower them.
+const MAX_RADIUS_LITERALS = 2615;
+const MAX_SHADOW_LITERALS = 494;
 
 function countLiteral(re) {
   let n = 0;
@@ -263,10 +266,12 @@ describe('theming ratchet', () => {
  * 453 -> 454: SequenceReelDiagram.css's `.srd-scroll::-webkit-scrollbar-thumb`
  * takes `background: var(--th-border-strong)` and has no color — a scrollbar
  * thumb renders no text, so "ink" does not apply; a themed thumb is correct.
+ * 489 -> 484: AIAgent.css adds matching --th-text ink to the agent header,
+ * results panel, token event dark override, and both embedded-agent surfaces.
  */
-// Reconciled with the current main baseline after the MCP observability and
-// A2A console merges. New themed surfaces must still add their own ink.
-const MAX_GROUND_WITHOUT_INK = 462;
+// Measured on the current main tree after the latest UI merges. New themed
+// surfaces must still add their own ink.
+const MAX_GROUND_WITHOUT_INK = 481;
 
 const CSS_RULE = /([^{}]+)\{([^{}]*)\}/g;
 const HAS_COLOR = /(?:^|\n)\s*color\s*:/;

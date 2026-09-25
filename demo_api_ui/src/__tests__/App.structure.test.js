@@ -68,10 +68,22 @@ describe("App.js — critical imports", () => {
 describe("App.js — critical JSX placements", () => {
   test("AI product pages render inside the explicit sidebar-offset shell", () => {
     const productRoutes = appSrc.match(/className="ai-product-main"/g);
-    expect(productRoutes).toHaveLength(6);
+    expect(productRoutes).toHaveLength(7);
     expect(appSrc).toContain('className="ai-product-main"');
     expect(appSrc).toMatch(
       /<Route\s+path="\/ai-products\/core"[\s\S]*?<AppShell[\s\S]*?<main className="ai-product-main">/,
+    );
+    expect(appSrc).toMatch(
+      /<Route\s+path="\/ai-products\/protect"[\s\S]*?<PingAiProductPage product="protect"\s*\/>/,
+    );
+  });
+
+  test("Protect full page uses app chrome and its separate pop-out stays standalone", () => {
+    expect(appSrc).toMatch(
+      /path="\/protect-auth-demo"[\s\S]*?<AppShell user=\{user\} logout=\{logout\}>[\s\S]*?<PingOneProtectBrowserDemo\s*\/>[\s\S]*?<\/AppShell>/,
+    );
+    expect(appSrc).toMatch(
+      /<Route path="\/protect-auth-demo\/popout" element=\{<PingOneProtectBrowserDemo popout \/>\} \/>/,
     );
   });
 

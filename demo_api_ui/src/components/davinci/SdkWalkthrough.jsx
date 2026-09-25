@@ -133,7 +133,7 @@ export default function SdkWalkthrough({ via = "form", username = null, trace = 
       />
 
       <LessonFoot>
-        More: the <a href="/orchestration-sdk">Orchestration SDK Guide</a> on this site, and
+        More: the <a href="/davinci-sdk">DaVinci SDK guide</a> on this site, and
         Ping&rsquo;s{" "}
         <a href="https://developer.pingidentity.com/orchsdks/index.html" target="_blank" rel="noreferrer">
           Orchestration SDK documentation

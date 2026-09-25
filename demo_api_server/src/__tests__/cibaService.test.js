@@ -19,7 +19,8 @@ jest.mock('axios');
 jest.mock('../../config/oauth', () => ({
   clientId:      'test-client-id',
   clientSecret:  'test-client-secret',
-  cibaEndpoint:  'https://auth.pingone.com/env-123/as/bc-authorize',
+  cibaEndpoint:  'https://auth.pingone.com/env-123/as/cibaAuthorization',
+  _base:         'https://auth.pingone.com/env-123/as',
   tokenEndpoint: 'https://auth.pingone.com/env-123/as/token',
 }));
 jest.mock('../../services/configStore', () => ({
@@ -29,6 +30,18 @@ jest.mock('../../services/configStore', () => ({
 const axios       = require('axios');
 const configStore = require('../../services/configStore');
 const cibaService = require('../../services/cibaService');
+const originalCibaClientId = process.env.PINGONE_CIBA_CLIENT_ID;
+const originalCibaClientSecret = process.env.PINGONE_CIBA_CLIENT_SECRET;
+beforeEach(() => {
+  process.env.PINGONE_CIBA_CLIENT_ID = 'test-client-id';
+  process.env.PINGONE_CIBA_CLIENT_SECRET = 'test-client-secret';
+});
+afterAll(() => {
+  if (originalCibaClientId === undefined) delete process.env.PINGONE_CIBA_CLIENT_ID;
+  else process.env.PINGONE_CIBA_CLIENT_ID = originalCibaClientId;
+  if (originalCibaClientSecret === undefined) delete process.env.PINGONE_CIBA_CLIENT_SECRET;
+  else process.env.PINGONE_CIBA_CLIENT_SECRET = originalCibaClientSecret;
+});
 
 // Convenience: the base64-encoded "test-client-id:test-client-secret"
 const EXPECTED_BASIC = Buffer.from('test-client-id:test-client-secret').toString('base64');
@@ -105,7 +118,7 @@ describe('cibaService.initiateBackchannelAuth()', () => {
     await cibaService.initiateBackchannelAuth('user@example.com', 'Test', 'openid', '');
 
     expect(axios.post).toHaveBeenCalledWith(
-      'https://auth.pingone.com/env-123/as/bc-authorize',
+      'https://auth.pingone.com/env-123/as/cibaAuthorization',
       expect.any(String),
       expect.objectContaining({
         headers: expect.objectContaining({
@@ -134,14 +147,11 @@ describe('cibaService.initiateBackchannelAuth()', () => {
     }
   });
 
-  it('falls back to the admin app credentials when PINGONE_CIBA_CLIENT_ID is unset', async () => {
+  it('rejects an unconfigured dedicated CIBA client', async () => {
     delete process.env.PINGONE_CIBA_CLIENT_ID;
     delete process.env.PINGONE_CIBA_CLIENT_SECRET;
-
-    await cibaService.initiateBackchannelAuth('user@example.com', 'msg');
-
-    const [, , opts] = axios.post.mock.calls[0];
-    expect(opts.headers.Authorization).toBe(`Basic ${EXPECTED_BASIC}`);
+    await expect(cibaService.initiateBackchannelAuth('user@example.com', 'msg'))
+      .rejects.toThrow('CIBA client credentials are not configured');
   });
 
   it('sends login_hint, scope, and binding_message in the request body', async () => {
@@ -199,33 +209,25 @@ describe('cibaService.initiateBackchannelAuth()', () => {
     expect(new URLSearchParams(body).has('client_notification_token')).toBe(false);
   });
 
-  it('includes client_notification_token in ping mode', async () => {
+  it('rejects ping delivery mode because this client implements polling only', async () => {
     configStore.getEffective.mockImplementation((key) => {
       if (key === 'ciba_token_delivery_mode')   return 'ping';
       if (key === 'ciba_notification_endpoint') return 'https://my-app.example.com/notify';
       return null;
     });
-    await cibaService.initiateBackchannelAuth('user@example.com', 'Test', 'openid', '');
-
-    const [, body] = axios.post.mock.calls[0];
-    const params = new URLSearchParams(body);
-    expect(params.get('client_notification_token')).toBeTruthy();
-    expect(params.get('client_notification_token')).toHaveLength(64); // 32 bytes hex
-    expect(params.get('client_notification_endpoint')).toBe('https://my-app.example.com/notify');
+    await expect(cibaService.initiateBackchannelAuth('user@example.com', 'Test', 'openid', ''))
+      .rejects.toThrow('Only CIBA poll delivery mode is supported');
+    expect(axios.post).not.toHaveBeenCalled();
   });
 
-  it('includes ping notification token even when endpoint not configured', async () => {
+  it('rejects ping delivery mode even when a notification endpoint is absent', async () => {
     configStore.getEffective.mockImplementation((key) => {
       if (key === 'ciba_token_delivery_mode') return 'ping';
       return null;
     });
-    await cibaService.initiateBackchannelAuth('user@example.com', 'Test', 'openid', '');
-
-    const [, body] = axios.post.mock.calls[0];
-    const params = new URLSearchParams(body);
-    // token present but no endpoint
-    expect(params.get('client_notification_token')).toBeTruthy();
-    expect(params.has('client_notification_endpoint')).toBe(false);
+    await expect(cibaService.initiateBackchannelAuth('user@example.com', 'Test', 'openid', ''))
+      .rejects.toThrow('Only CIBA poll delivery mode is supported');
+    expect(axios.post).not.toHaveBeenCalled();
   });
 
   it('propagates axios errors (PingOne 4xx / network failure)', async () => {

@@ -27,6 +27,7 @@ const SECTION_GROUPS = [
       "PingOne Sample Apps",
       "PingOne Demo Apps",
       "Delegation & Consent",
+      "Ping products",
       "Authorize",
       "OAuth & Identity",
       "Platform Admin",

@@ -58,6 +58,19 @@ describe("TracingPage", () => {
     vi.clearAllMocks();
   });
 
+  it("uses the canonical Banking Agent name in the traffic guidance", async () => {
+    vi.stubGlobal("fetch", vi.fn((url) => {
+      const u = String(url);
+      if (u.includes("/tracing/status")) return jsonOk({ ok: true, tracesUiUrl: "http://grafana" });
+      if (u.includes("/tracing/services")) return jsonOk({ services: ["quiet-svc"] });
+      return jsonOk({ traces: [] });
+    }));
+
+    render(<TracingPage />);
+    expect(screen.getByText(/use the Banking Agent, make a transfer/i)).toBeInTheDocument();
+    expect(screen.getByText(/a Banking Agent tool call/i)).toBeInTheDocument();
+  });
+
   it("auto-selects the service with the newest traces when none stored", async () => {
     vi.stubGlobal(
       "fetch",

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { FootprintSkinPicker } from '../components/aiFootprintMocks/FootprintSkinPicker';
 import { KIBANA_URL } from '../config/observabilityLinks';
-import HostileMcpDenialPanel from '../components/privilege/HostileMcpDenialPanel';
 import ToolsTable from '../components/privilege/ToolsTable';
 import JsonHighlight from '../components/shared/JsonHighlight';
 import JsonFormView from '../components/shared/JsonFormView';
@@ -310,7 +309,7 @@ export default function PrivilegeMcpClientPage() {
   // by itself. It is consumed once, then stripped.
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [config, setConfig] = useState({ mcpUrl: '', clientId: '', scopes: 'openid profile email', llmUrl: 'http://127.0.0.1:11434', llmModel: 'llama3.2:1b' });
+  const [config, setConfig] = useState({ mcpUrl: '', clientId: '', scopes: 'openid profile email offline_access', llmUrl: 'http://127.0.0.1:11434', llmModel: 'llama3.2:1b' });
   // Per-mode "what actually supplies the OAuth client", from /state. Only read
   // when the Client ID field is blank, which is the normal state for every door
   // shipped here (they all self-advertise and register their own client).
@@ -368,6 +367,10 @@ export default function PrivilegeMcpClientPage() {
   const [rawRpcResult, setRawRpcResult] = useState('');
   const [showBlockedModal, setShowBlockedModal] = useState(false);
   const [showSignInModal, setShowSignInModal] = useState(false);
+  // A repeated tools/list 401 should not reopen the sign-in modal on every
+  // click. Keep one prompt per app for this page visit; changing apps changes
+  // the key, and the explicit Sign in control starts a fresh attempt.
+  const signInPromptedForRef = useRef(null);
   // The gateway answers a policy denial with a bare "Forbidden" and writes
   // nothing to its own log, so the modal has to assemble its own evidence:
   // the door and identity we already know, plus a live probe of the other doors.
@@ -411,6 +414,9 @@ export default function PrivilegeMcpClientPage() {
   // Façade/Privilege. Every isGatewayAuthChallenge() call site routes through
   // here instead of the raw setter so this stays in one place, not seven.
   const requestSignIn = (reason) => {
+    const promptKey = `${gatewayMode}:${config.mcpUrl}`;
+    if (signInPromptedForRef.current === promptKey) return;
+    signInPromptedForRef.current = promptKey;
     // The rail note alone lost the room: it renders three rows down from the
     // failure and reads as description, not as the next action. Raise a modal
     // over it too -- the note stays, so nothing that keys on it changes.
@@ -907,7 +913,22 @@ export default function PrivilegeMcpClientPage() {
   const switchGatewayMode = async (nextMode, { forceReauth = false } = {}) => {
     if (nextMode === gatewayMode && !forceReauth) return;
     const savedConfig = gatewayConfigs[nextMode] || {};
-    const nextConfig = { ...config, ...savedConfig };
+    // The path selector changes how we reach the selected MCP app. Keep that
+    // app name across paths when the destination has a matching door; otherwise
+    // the page silently switches (for example, Direct opensearch → Privilege
+    // aggregate) and applies a different app's policy.
+    const selectedDoor = doorName(config.mcpUrl);
+    const matchingDoor = selectedDoor && presets.find(
+      (preset) => preset.mode === nextMode && doorName(preset.url) === selectedDoor,
+    );
+    const nextConfig = {
+      ...config,
+      ...savedConfig,
+      ...(matchingDoor ? {
+        mcpUrl: matchingDoor.url,
+        clientId: matchingDoor.clientId || '',
+      } : {}),
+    };
     const prevMode = gatewayMode;
     const prevConfig = config;
 
@@ -915,6 +936,8 @@ export default function PrivilegeMcpClientPage() {
     setConfig(nextConfig);
     setTools([]);
     setSelectedTool(null);
+    setBlockedDetail(null);
+    setShowBlockedModal(false);
     try {
       const saved = await api('/config', {
         method: 'POST',
@@ -1050,6 +1073,7 @@ export default function PrivilegeMcpClientPage() {
   };
 
   const startAuth = async () => {
+    signInPromptedForRef.current = null;
     try {
       await api('/config', { method: 'POST', body: config });
       await startAuthRedirect();
@@ -1163,7 +1187,12 @@ export default function PrivilegeMcpClientPage() {
   };
 
   const switchDoor = async (mcpUrl) => {
-    const next = { ...config, mcpUrl };
+    const preset = presets.find((item) => item.url === mcpUrl);
+    const next = {
+      ...config,
+      mcpUrl,
+      ...(preset ? { clientId: preset.clientId || '' } : {}),
+    };
     try {
       const saved = await api('/config', { method: 'POST', body: next });
       setConfig(next);
@@ -1227,18 +1256,19 @@ export default function PrivilegeMcpClientPage() {
       : (consoleData?.applications || [])
         .map((a) => (gatewayMode === 'facade' ? a.facadeUrl : a.gatewayUrl))
         .filter(Boolean);
-    // The direct-mode presets are excluded UNLESS the active mode can actually
-    // reach them: sameGatewayDoors() below groups by origin, and Direct's
-    // presets (banking/brave/opensearch/pingone-admin — plain façade doors,
-    // no Privilege in the path) share PUBLIC_APP_ORIGIN with Façade's own
-    // presets, so Façade mode gets the same base door set as Direct — plus
-    // whatever Privilege-gated multiApp targets it has of its own. Privilege
-    // mode (the raw AI Gateway, a different host entirely) does not: without
-    // this check they would leak into every non-direct door picker.
+    // Keep the picker tied to the selected path, not just the URL origin.
+    // Direct, Privilege, and Façade endpoints can share PUBLIC_APP_ORIGIN,
+    // while representing different routes and authorization chains. Offering
+    // a same-origin preset from another path makes switching the Door silently
+    // change the path semantics without changing the Path selector.
+    const directDoorNames = new Set(['banking', 'opensearch', 'brave', 'pingone-admin']);
     const fromPresets = presets
-      .filter((p) => p.mode !== 'direct' || gatewayMode === 'direct' || gatewayMode === 'facade')
+      .filter((p) => p.mode === gatewayMode)
+      .filter((p) => gatewayMode !== 'direct' || directDoorNames.has(doorName(p.url)))
       .map((p) => p.url);
-    const all = [...new Set([...fromConsole, ...fromPresets, ...(includeCurrent ? [config.mcpUrl] : [])])];
+    const all = [...new Set([...fromConsole, ...fromPresets])];
+    // During probes, includeCurrent keeps the selected known door in the
+    // candidate list; it does not add a URL from a different path.
     return all.filter((u) => u && (includeCurrent || u !== config.mcpUrl));
   };
 
@@ -1370,14 +1400,6 @@ export default function PrivilegeMcpClientPage() {
     }
     recordResult(name, out, ok);
     return out;
-  };
-
-  const runHostileMcpRequest = async ({ method, params }) => {
-    return api('/request', { method: 'POST', body: { method, params } });
-  };
-
-  const runHostileToolCall = async ({ name, arguments: args }) => {
-    return api('/tools/call', { method: 'POST', body: { name, arguments: args } });
   };
 
   // Land on the Tools tab the first time tools are discovered — it is the point
@@ -1787,7 +1809,12 @@ export default function PrivilegeMcpClientPage() {
                         const nextMode = preset.mode || gatewayMode;
                         const savedConfig = gatewayConfigs[nextMode] || {};
                         setGatewayMode(nextMode);
-                        setConfig({ ...config, ...savedConfig, mcpUrl: preset.url });
+                        setConfig({
+                          ...config,
+                          ...savedConfig,
+                          mcpUrl: preset.url,
+                          clientId: preset.clientId || '',
+                        });
                       }}
                     >
                       <option value="">Custom</option>
@@ -2296,11 +2323,6 @@ export default function PrivilegeMcpClientPage() {
           <div className="cur-editor-area">
             {visibleTab === 'chat' && (
               <>
-                <HostileMcpDenialPanel
-                  tools={tools}
-                  onRequest={runHostileMcpRequest}
-                  onCall={runHostileToolCall}
-                />
                 <div className="cur-chat-panel">
                 <div className="cur-chat-messages">
                   {chatMessages.length === 0 && (
@@ -2731,24 +2753,24 @@ export default function PrivilegeMcpClientPage() {
             </div>
             <div className="cur-terminal-content">
               {visibleTerminalTab === 'trace' && (
-                <div className="cur-terminal-log">
+                <div className="cur-terminal-log cur-trace-log">
                   {events.length === 0 && <span className="cur-terminal-empty">No events yet — sign in or call a tool</span>}
                   {events.slice(0, 100).map((e, i) => {
                     const rest = { ...e, ts: undefined, type: undefined };
                     let label = e.type;
-                    let color = '#888';
-                    if (e.type === 'relay' && e.direction === 'client->mcp') { label = `→ MCP ${e.method || ''} ${e.url || ''}`; color = '#7ec8e3'; }
-                    if (e.type === 'relay' && e.direction === 'mcp->client') { label = `← MCP ${e.status >= 400 ? '❌' : '✅'} ${e.status}`; color = e.status >= 400 ? '#ff6b6b' : '#a8e6cf'; }
-                    if (e.type === 'oauth') { label = `OAuth: ${e.phase}`; color = '#ffd93d'; }
-                    if (e.type === 'mcp') { label = `MCP: ${e.phase}`; color = '#c3aed6'; }
-                    if (e.type === 'error') { label = `ERROR: ${e.scope}`; color = '#ff6b6b'; }
-                    if (e.type === 'config') { label = 'Config updated'; color = '#b2bec3'; }
+                    let tone = e.type;
+                    if (e.type === 'relay' && e.direction === 'client->mcp') { label = `→ MCP ${e.method || ''} ${e.url || ''}`; tone = 'relay-outbound'; }
+                    if (e.type === 'relay' && e.direction === 'mcp->client') { label = `← MCP ${e.status >= 400 ? '❌' : '✅'} ${e.status}`; tone = e.status >= 400 ? 'relay-error' : 'relay-success'; }
+                    if (e.type === 'oauth') { label = `OAuth: ${e.phase}`; tone = 'oauth'; }
+                    if (e.type === 'mcp') { label = `MCP: ${e.phase}`; tone = 'mcp'; }
+                    if (e.type === 'error') { label = `ERROR: ${e.scope}`; tone = 'error'; }
+                    if (e.type === 'config') { label = 'Config updated'; tone = 'config'; }
                     return (
                       <details key={i} style={{borderBottom:'1px solid #222',padding:'2px 0'}}>
-                        <summary style={{cursor:'pointer',color,listStyle:'none',display:'flex',gap:8,alignItems:'center'}}>
+                        <summary className="cur-trace-summary">
                           <span className="cur-trace-ts">{e.ts?.slice(11,23)||''}</span>
-                          <span>{label}</span>
-                          {e.type === 'error' && <span style={{color:'#ff6b6b'}}>{e.message}</span>}
+                          <span className={`cur-trace-label cur-trace-label--${tone}`}>{label}</span>
+                          {e.type === 'error' && <span className="cur-trace-error">{e.message}</span>}
                         </summary>
                         <pre className="cur-trace-json">
                           {JSON.stringify(rest, null, 2)}

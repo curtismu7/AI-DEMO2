@@ -265,6 +265,20 @@ import {
   normalizeBankingParams,
   parseLogPrompt,
 } from "./agentFormatters";
+
+function resolveCibaTransactionType(transactionType, actionId) {
+  const aliases = {
+    transfer: "transfer",
+    transfer_600_test: "transfer",
+    create_transfer: "transfer",
+    deposit: "deposit",
+    create_deposit: "deposit",
+    withdraw: "withdrawal",
+    withdrawal: "withdrawal",
+    create_withdrawal: "withdrawal",
+  };
+  return aliases[transactionType] || aliases[actionId] || undefined;
+}
 // Re-export pure helpers kept on AIAgent's public surface for tests/consumers.
 export {
   formatResult,
@@ -718,6 +732,10 @@ export default function BankingAgent({
   const cibaPollTimeoutsRef = useRef(new Map());
   const cibaUnmountedRef = useRef(false);
   useEffect(() => {
+    // React StrictMode replays effects with setup → cleanup → setup on mount.
+    // Cleanup marks this instance inactive; reset it whenever listeners are
+    // installed so the replayed instance can continue polling.
+    cibaUnmountedRef.current = false;
     const wakeCibaPoller = (event) => {
       try {
         const payload = JSON.parse(event.newValue || '{}');
@@ -1030,6 +1048,7 @@ export default function BankingAgent({
       return "movie-reel";
     }
   });
+  const [pendingSurfaceChoice, setPendingSurfaceChoice] = useState(null);
   // "Sequence view" — swaps the dashboard's right-column reel for a live
   // lifeline sequence diagram of the same trace data. Restored from the SAME key
   // UserDashboardPing2026 persists, because both components hold a copy of this
@@ -1323,6 +1342,65 @@ export default function BankingAgent({
     }));
   }, []);
 
+  const evidenceSurfaceRows = useMemo(() => ([
+    { id: "movie-reel", label: "Movie reel", value: movieReelSurface, choose: chooseMovieReelSurface },
+    { id: "simple-stepper", label: "Simple stepper", value: simpleStepperSurface, choose: chooseSimpleStepperSurface },
+    { id: "sequence-view", label: "Sequence view", value: sequenceSurface, choose: chooseSequenceSurface },
+    { id: "token-topology", label: "Token topology", value: topologySurface, choose: chooseTopologySurface },
+    { id: "oauth-visualizer", label: "OAuth visualizer", value: oauthVisualizerSurface, choose: chooseOauthVisualizerSurface },
+  ]), [movieReelSurface, simpleStepperSurface, sequenceSurface, topologySurface, oauthVisualizerSurface, chooseMovieReelSurface, chooseSimpleStepperSurface, chooseSequenceSurface, chooseTopologySurface, chooseOauthVisualizerSurface]);
+  const embeddedEvidenceSurfaces = useMemo(
+    () => evidenceSurfaceRows.filter((row) => surfaceHasEmbedded(row.value)),
+    [evidenceSurfaceRows],
+  );
+  const surfaceChoiceCandidates = pendingSurfaceChoice?.candidates
+    || (embeddedEvidenceSurfaces.length > 1 ? embeddedEvidenceSurfaces : null);
+  const hasEmbeddedSurfaceConflict = Boolean(surfaceChoiceCandidates?.length > 1);
+
+  useEffect(() => {
+    if (!hasEmbeddedSurfaceConflict || headerMoreOpen) return;
+    setHeaderMoreOpen(true);
+    setOpenSurfaceSelector(null);
+  }, [hasEmbeddedSurfaceConflict, headerMoreOpen]);
+
+  const chooseEvidenceSurface = useCallback((id, surface) => {
+    const row = evidenceSurfaceRows.find((item) => item.id === id);
+    if (!row) return;
+    if (surfaceHasEmbedded(surface)) {
+      const alreadyEmbedded = evidenceSurfaceRows.filter(
+        (item) => item.id !== id && surfaceHasEmbedded(item.value),
+      );
+      if (alreadyEmbedded.length) {
+        setPendingSurfaceChoice({
+          requested: { id, surface },
+          candidates: [
+            ...alreadyEmbedded.map(({ id: candidateId, label, value }) => ({ id: candidateId, label, value })),
+            { id, label: row.label, value: surface },
+          ],
+        });
+        setOpenSurfaceSelector(null);
+        setHeaderMoreOpen(true);
+        return;
+      }
+    }
+    row.choose(surface);
+  }, [evidenceSurfaceRows]);
+
+  const resolveEmbeddedSurfaceConflict = useCallback((keepId) => {
+    const requested = pendingSurfaceChoice?.requested;
+    evidenceSurfaceRows.forEach((row) => {
+      const surface = requested?.id === row.id ? requested.surface : row.value;
+      const nextSurface = row.id !== keepId && surfaceHasEmbedded(surface)
+        ? surface === "both" ? "popout" : "none"
+        : surface;
+      if (nextSurface !== row.value) row.choose(nextSurface);
+    });
+    setQuickConfigView(keepId);
+    try { localStorage.setItem("ba_quick_config_view", keepId); } catch {}
+    setPendingSurfaceChoice(null);
+    setOpenSurfaceSelector(null);
+  }, [evidenceSurfaceRows, pendingSurfaceChoice]);
+
   const chooseEvidenceView = useCallback((view) => {
     setQuickConfigView(view);
     try { localStorage.setItem("ba_quick_config_view", view); } catch {}
@@ -1336,24 +1414,27 @@ export default function BankingAgent({
       chooseSequenceSurface(withoutEmbeddedSurface(sequenceSurface));
       chooseTopologySurface(withoutEmbeddedSurface(topologySurface));
       chooseOauthVisualizerSurface(withoutEmbeddedSurface(oauthVisualizerSurface));
+      chooseMovieReelSurface(movieReelSurface === "none" ? "embedded" : movieReelSurface);
     } else if (view === "simple-stepper") {
+      chooseMovieReelSurface(withoutEmbeddedSurface(movieReelSurface));
       chooseSequenceSurface(withoutEmbeddedSurface(sequenceSurface));
       chooseTopologySurface(withoutEmbeddedSurface(topologySurface));
       chooseOauthVisualizerSurface(withoutEmbeddedSurface(oauthVisualizerSurface));
       chooseSimpleStepperSurface(simpleStepperSurface === "none" ? "embedded" : simpleStepperSurface);
-    } else if (view === "movie-reel") {
-      chooseMovieReelSurface(movieReelSurface === "none" ? "embedded" : movieReelSurface);
     } else if (view === "sequence-view") {
+      chooseMovieReelSurface(withoutEmbeddedSurface(movieReelSurface));
       chooseSimpleStepperSurface(withoutEmbeddedSurface(simpleStepperSurface));
       chooseTopologySurface(withoutEmbeddedSurface(topologySurface));
       chooseOauthVisualizerSurface(withoutEmbeddedSurface(oauthVisualizerSurface));
       chooseSequenceSurface(sequenceSurface === "none" ? "embedded" : sequenceSurface);
     } else if (view === "token-topology") {
+      chooseMovieReelSurface(withoutEmbeddedSurface(movieReelSurface));
       chooseSimpleStepperSurface(withoutEmbeddedSurface(simpleStepperSurface));
       chooseSequenceSurface(withoutEmbeddedSurface(sequenceSurface));
       chooseOauthVisualizerSurface(withoutEmbeddedSurface(oauthVisualizerSurface));
       chooseTopologySurface(topologySurface === "none" ? "embedded" : topologySurface);
     } else if (view === "oauth-visualizer") {
+      chooseMovieReelSurface(withoutEmbeddedSurface(movieReelSurface));
       chooseSimpleStepperSurface(withoutEmbeddedSurface(simpleStepperSurface));
       chooseSequenceSurface(withoutEmbeddedSurface(sequenceSurface));
       chooseTopologySurface(withoutEmbeddedSurface(topologySurface));
@@ -1386,6 +1467,10 @@ export default function BankingAgent({
   const [heuristicEnabled, setHeuristicEnabled] = useState(true);
   /** Whether the floating results panel is enabled (ff_agent_results_panel). false = panel hidden; results inline only. */
   const [agentResultsPanelEnabled, setAgentResultsPanelEnabled] = useState(false);
+  // PingOne Admin tool output is a directory/tool result surface: keep the
+  // structured records visible in the floating results panel even when the
+  // optional banking results flag is off.
+  const showAgentResultsPanel = agentResultsPanelEnabled || effectiveVerticalId === "pingone-admin";
   /** Whether AG-UI streaming is enabled (ff_agui_enabled). false = legacy sendAgentMessage path. */
   const [aguiEnabled, setAguiEnabled] = useState(false);
   /** Whether activity narration is enabled (ff_activity_narration). Controls visibility of the always-on panel. */
@@ -1580,6 +1665,9 @@ export default function BankingAgent({
 
   /** Pending HITL intent — shows AgentConsentModal (transaction mode) before OTP. */
   const [hitlPendingIntent, setHitlPendingIntent] = useState(null);
+  /** UC1 access consent pauses the queued run until the user grants access. */
+  const [pendingAgentAccessConsent, setPendingAgentAccessConsent] = useState(null);
+  const agentAccessConsentAcceptedRef = useRef(false);
   /** Safe toolbar preview for demonstrating the right-side approval drawer. */
   const [demoApprovalOpen, setDemoApprovalOpen] = useState(false);
   const [a2aExplainUc, setA2aExplainUc] = useState(null);
@@ -3783,18 +3871,21 @@ export default function BankingAgent({
   }
 
   // Route an agent response's verticalResult to its renderer and return the
-  // addMessage `extra` for inline display. The render descriptor is resolved
-  // from the active manifest (the mapping verticals provide). When the floating
-  // Results Panel is enabled it owns the card; otherwise the card renders inline
-  // under the reply bubble ("results inline only" — the documented default).
-  // Mutually exclusive so the same card never shows twice.
+  // addMessage `extra` for inline display. Long or truncated record lists stay
+  // in the conversation flow so they can use its scroll area; shorter results
+  // use the floating panel when enabled. Mutually exclusive so the same card
+  // never shows twice.
   function verticalResultExtra(response) {
     const vr = response?.verticalResult;
     if (!vr) return {};
     // Use server-embedded descriptor first (A2A results from another vertical carry it
     // because the active pageManifest belongs to the host vertical, not the specialist).
     const descriptor = vr.descriptor || pageManifest?.render?.[vr.render] || null;
-    if (agentResultsPanelEnabled) {
+    const rows = Array.isArray(vr.data?.rows) ? vr.data.rows : [];
+    const isLongRecordList = rows.length > 5
+      || vr.data?.rowsTruncated
+      || (Number.isFinite(vr.data?.totalCount) && vr.data.totalCount > rows.length);
+    if (showAgentResultsPanel && !isLongRecordList) {
       setResultPanel({
         type: "vertical",
         title: descriptor?.title || "Result",
@@ -3804,6 +3895,7 @@ export default function BankingAgent({
       });
       return {};
     }
+    if (isLongRecordList) setResultPanel(null);
     return { verticalResult: { descriptor, data: vr.data, terminology } };
   }
 
@@ -5468,8 +5560,8 @@ export default function BankingAgent({
           pendingOtpActionRef.current = { actionId, form };
 
           // CIBA: out-of-band backchannel approval. No device-picker modal --
-          // initiate, then poll until the user approves elsewhere (or, on this
-          // environment, the simulated fallback auto-approves after ~60s). See
+          // initiate, then poll until the user approves through PingOne or an
+          // explicitly configured local simulation. See
           // docs/superpowers/specs/2026-07-19-uc22-ciba-step-up-override-design.md.
           if (normalized.step_up_method === "ciba") {
             // Open a blank tab now, before the initiate fetch, so the browser
@@ -5499,23 +5591,32 @@ export default function BankingAgent({
                   binding_message: "Approve your banking transaction",
                   acr_values: normalized.step_up_acr || "",
                   amount: normalized.transaction_amount ?? undefined,
+                  transaction_type: resolveCibaTransactionType(
+                    normalized.transactionType,
+                    actionId,
+                  ),
                   hitl_challenge_id:
                     normalized.hitlChallengeId || normalized.hitl_challenge_id || undefined,
                   from_account_label: fromLabel,
                   to_account_label: toLabel,
+                  from_account_id: fromAccountId,
+                  to_account_id: toAccountId,
                 }),
               });
-              if (!initRes.ok)
-                throw new Error(`CIBA initiation failed: ${initRes.status}`);
-              const { auth_req_id, interval } = await initRes.json();
+              if (!initRes.ok) {
+                const failure = await initRes.json().catch(() => ({}));
+                throw new Error(failure.message || `CIBA initiation failed: ${initRes.status}`);
+              }
+              const { auth_req_id, interval, binding_message, engine } = await initRes.json();
               if (cibaTab) {
-                cibaTab.location.href = `/ciba-approve?authReqId=${encodeURIComponent(auth_req_id)}`;
+                if (engine === "simulated") cibaTab.location.href = `/ciba-approve?authReqId=${encodeURIComponent(auth_req_id)}`;
+                else cibaTab.close();
               }
               addMessage(
                 "assistant",
-                " Waiting for CIBA approval — this normally completes on a separate device. Click Approve to continue now, or it will continue automatically in about a minute.",
+                `Waiting for CIBA approval. Match this request on your authentication device: ${binding_message || "Banking request"}`,
                 `ciba-step-${Date.now()}`,
-                { showCibaApproveAction: true, cibaAuthReqId: auth_req_id },
+                { showCibaApproveAction: engine === "simulated", cibaAuthReqId: auth_req_id },
               );
               toast.dismiss(toastId);
               agentFlowDiagram.completeMfaChallenge(null); // Pending
@@ -5535,7 +5636,7 @@ export default function BankingAgent({
               if (cibaTab) cibaTab.close();
               addMessage(
                 "assistant",
-                "❌ Could not start CIBA approval. Please try again.",
+                `❌ Could not start CIBA approval: ${err.message}`,
                 `ciba-error-${Date.now()}`,
               );
               toast.dismiss(toastId);
@@ -6183,8 +6284,8 @@ export default function BankingAgent({
           );
           try {
             const apiBase = process.env.REACT_APP_API_URL || "";
-            const fromAccountId = err.fromAccountId || err.from_account_id;
-            const toAccountId = err.toAccountId || err.to_account_id;
+            const fromAccountId = err.fromAccountId || err.from_account_id || form.fromId || (actionId === "withdraw" ? form.accountId : null);
+            const toAccountId = err.toAccountId || err.to_account_id || form.toId || (actionId === "deposit" ? form.accountId : null);
             const fromLabel = liveAccounts?.find((a) => a.id === fromAccountId)?.name;
             const toLabel = liveAccounts?.find((a) => a.id === toAccountId)?.name;
             const initRes = await fetch(`${apiBase}/api/auth/ciba/initiate`, {
@@ -6194,24 +6295,33 @@ export default function BankingAgent({
               body: JSON.stringify({
                 binding_message: "Approve your banking transaction",
                 acr_values: err.step_up_acr || "",
-                amount: err.transaction_amount ?? undefined,
+                amount: err.transaction_amount ?? Number(form.amount),
+                transaction_type: resolveCibaTransactionType(
+                  err.transactionType,
+                  actionId,
+                ),
                 hitl_challenge_id:
                   err.hitlChallengeId || err.hitl_challenge_id || undefined,
                 from_account_label: fromLabel,
                 to_account_label: toLabel,
+                from_account_id: fromAccountId,
+                to_account_id: toAccountId,
               }),
             });
-            if (!initRes.ok)
-              throw new Error(`CIBA initiation failed: ${initRes.status}`);
-            const { auth_req_id, interval } = await initRes.json();
+            if (!initRes.ok) {
+              const failure = await initRes.json().catch(() => ({}));
+              throw new Error(failure.message || `CIBA initiation failed: ${initRes.status}`);
+            }
+            const { auth_req_id, interval, binding_message, engine } = await initRes.json();
             if (cibaTab) {
-              cibaTab.location.href = `/ciba-approve?authReqId=${encodeURIComponent(auth_req_id)}`;
+              if (engine === "simulated") cibaTab.location.href = `/ciba-approve?authReqId=${encodeURIComponent(auth_req_id)}`;
+              else cibaTab.close();
             }
             addMessage(
               "assistant",
-              " Waiting for CIBA approval — this normally completes on a separate device. Click Approve to continue now, or it will continue automatically in about a minute.",
+              `Waiting for CIBA approval. Match this request on your authentication device: ${binding_message || "Banking request"}`,
               `ciba-step-${Date.now()}`,
-              { showCibaApproveAction: true, cibaAuthReqId: auth_req_id },
+              { showCibaApproveAction: engine === "simulated", cibaAuthReqId: auth_req_id },
             );
             toast.dismiss(toastId);
             agentFlowDiagram.completeMfaChallenge(null);
@@ -6229,7 +6339,7 @@ export default function BankingAgent({
             if (cibaTab) cibaTab.close();
             addMessage(
               "assistant",
-              "❌ Could not start CIBA approval. Please try again.",
+              `❌ Could not start CIBA approval: ${cibaErr.message}`,
               `ciba-error-${Date.now()}`,
             );
             toast.dismiss(toastId);
@@ -6681,7 +6791,15 @@ export default function BankingAgent({
     } catch (_) {}
   }
 
+  function bindPromptRunContext(text, useCaseId) {
+    if (!text?.trim()) return;
+    window.dispatchEvent(new CustomEvent("agent-prompt-run", {
+      detail: { prompt: text.trim(), useCaseId: useCaseId || null },
+    }));
+  }
+
   function sendAsNlInner(text, useCaseId) {
+    bindPromptRunContext(text, useCaseId);
     nrLog('ui.agent_message', { useCaseId: useCaseId || null, length: text ? text.length : 0 });
     // A typed message is a new turn: start a fresh token-chain trace with the
     // user's actual prompt so the trace rail shows "Pipeline — <prompt>" and
@@ -8257,7 +8375,11 @@ export default function BankingAgent({
           message: trigger.text,
           vertical: effectiveVerticalId,
         });
-        addMessage("assistant", `${stepLabel}\n${data?.reply || "The orchestrator returned no reply."}`);
+        const specialistResult = data?.delegationResult?.result;
+        const resultText = specialistResult == null
+          ? ""
+          : `\nSpecialist result:\n${typeof specialistResult === "string" ? specialistResult : JSON.stringify(specialistResult, null, 2)}`;
+        addMessage("assistant", `${stepLabel}\n${data?.reply || "The orchestrator returned no reply."}${resultText}`);
         if (data?.tokenEvents?.length) {
           appendTokenEvents(data.tokenEvents);
           try { tokenChainTraceStore.ingestTokenEvents(data.tokenEvents); } catch (_) {}
@@ -8536,6 +8658,8 @@ export default function BankingAgent({
       addMessage("assistant", AGENT_CONSENT_BLOCK_USER_MESSAGE);
       return;
     }
+
+    bindPromptRunContext(text, pendingUcIdRef.current);
 
     // New typed turn: start a fresh token-chain trace with the user's prompt
     // (same as sendAsNlInner — the chat input box routes here, not there).
@@ -8899,6 +9023,11 @@ export default function BankingAgent({
     // Consume the useCaseId claimed alongside the pending NL (launcher deep-link).
     // Passed to the BFF so A2.1/A2.2 stamping fires for this run.
     const useCaseId = pendingUcIdRef.current ?? undefined;
+    if (useCaseId === "delegated-access-with-proof" && !agentAccessConsentAcceptedRef.current) {
+      setPendingAgentAccessConsent((current) => current || { text, useCaseId });
+      return;
+    }
+    agentAccessConsentAcceptedRef.current = false;
     pendingUcIdRef.current = null;
     pendingUcPublicRef.current = false;
     pendingUcAuthRef.current = null;
@@ -9278,10 +9407,10 @@ export default function BankingAgent({
   };
 
   /**
-   * Demo convenience: skip the CIBA fallback engine's timed auto-approve.
+   * Explicit approval for the local CIBA simulation.
    * The in-flight poll loop (pollCibaStepUp / pollCibaThenResumeNl) picks up
    * the approval on its next tick -- this only tells the backend to consider
-   * the request already due.
+   * the request approved.
    */
   const approveCibaNow = async (authReqId) => {
     if (!authReqId) return;
@@ -9348,11 +9477,15 @@ export default function BankingAgent({
         settled = true;
         return;
       }
-      if (res.status === 403 || res.status === 410) {
+      if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (res.status >= 500 && data.status === "pending") {
+          cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, Math.max(intervalMs, (data.retry_after || 5) * 1000)));
+          return;
+        }
         addMessage(
           "assistant",
-          `❌ ${data.message || "CIBA approval was denied or expired. Please try again."}`,
+          `❌ ${res.status === 401 ? "Your session expired. Sign in and start the approval again." : (data.message || "CIBA approval could not be completed. Start again.")}`,
           `ciba-denied-${Date.now()}`,
         );
         agentFlowDiagram.completeMfaChallenge(false);
@@ -9392,7 +9525,7 @@ export default function BankingAgent({
         return;
       }
       // still pending
-      cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
+      cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, Math.max(intervalMs, Number(data.retry_after || 0) * 1000)));
     };
     cibaPollersRef.current.set(authReqId, poll);
     cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
@@ -9421,8 +9554,8 @@ export default function BankingAgent({
     // CIBA: out-of-band backchannel approval, forced for the UC22 demo
     // use-case regardless of what the policy engine would otherwise show
     // (consent modal / device picker). No HITL/step-up modal here -- initiate,
-    // then poll until approved (or, on this environment, the simulated
-    // fallback auto-approves after ~60s), then resume the same NL request.
+    // then poll until approved by PingOne or the explicitly configured local
+    // simulation, then resume the same NL request.
     if (
       response.step_up_method === "ciba" &&
       (response.error === "step_up_required" || response.error === "mcp_step_up_required")
@@ -9448,22 +9581,31 @@ export default function BankingAgent({
             binding_message: "Approve your banking transaction",
             acr_values: response.step_up_acr || "",
             amount: response.transactionAmount ?? undefined,
+            transaction_type: resolveCibaTransactionType(
+              response.transactionType,
+            ),
             hitl_challenge_id:
               response.hitlChallengeId || response.hitl_challenge_id || undefined,
             from_account_label: fromLabel,
             to_account_label: toLabel,
+            from_account_id: fromAccountId,
+            to_account_id: toAccountId,
           }),
         });
-        if (!initRes.ok) throw new Error(`CIBA initiation failed: ${initRes.status}`);
-        const { auth_req_id, interval } = await initRes.json();
+        if (!initRes.ok) {
+          const failure = await initRes.json().catch(() => ({}));
+          throw new Error(failure.message || `CIBA initiation failed: ${initRes.status}`);
+        }
+        const { auth_req_id, interval, binding_message, engine } = await initRes.json();
         if (cibaTab) {
-          cibaTab.location.href = `/ciba-approve?authReqId=${encodeURIComponent(auth_req_id)}`;
+          if (engine === "simulated") cibaTab.location.href = `/ciba-approve?authReqId=${encodeURIComponent(auth_req_id)}`;
+          else cibaTab.close();
         }
         addMessage(
           "assistant",
-          " Waiting for CIBA approval — this normally completes on a separate device. Click Approve to continue now, or it will continue automatically in about a minute.",
+          `Waiting for CIBA approval. Match this request on your authentication device: ${binding_message || "Banking request"}`,
           `ciba-step-${Date.now()}`,
-          { showCibaApproveAction: true, cibaAuthReqId: auth_req_id },
+          { showCibaApproveAction: engine === "simulated", cibaAuthReqId: auth_req_id },
         );
         agentFlowDiagram.completeMfaChallenge(null);
         tokenChainTraceStore.ingestTokenEvent({
@@ -9477,7 +9619,7 @@ export default function BankingAgent({
       } catch (err) {
         console.error("[BankingAgent] CIBA initiation failed:", err);
         if (cibaTab) cibaTab.close();
-        addMessage("assistant", "❌ Could not start CIBA approval. Please try again.", `ciba-error-${Date.now()}`);
+        addMessage("assistant", `❌ Could not start CIBA approval: ${err.message}`, `ciba-error-${Date.now()}`);
         agentFlowDiagram.completeMfaChallenge(false);
       }
       return;
@@ -9761,11 +9903,15 @@ export default function BankingAgent({
         settled = true;
         return;
       }
-      if (res.status === 403 || res.status === 410) {
+      if (!res.ok) {
         const data = await res.json().catch(() => ({}));
+        if (res.status >= 500 && data.status === "pending") {
+          cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, Math.max(intervalMs, (data.retry_after || 5) * 1000)));
+          return;
+        }
         addMessage(
           "assistant",
-          `❌ ${data.message || "CIBA approval was denied or expired. Please try again."}`,
+          `❌ ${res.status === 401 ? "Your session expired. Sign in and start the approval again." : (data.message || "CIBA approval could not be completed. Start again.")}`,
           `ciba-denied-${Date.now()}`,
         );
         agentFlowDiagram.completeMfaChallenge(false);
@@ -9823,7 +9969,7 @@ export default function BankingAgent({
         return;
       }
       // still pending
-      cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
+      cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, Math.max(intervalMs, Number(data.retry_after || 0) * 1000)));
     };
     cibaPollersRef.current.set(authReqId, poll);
     cibaPollTimeoutsRef.current.set(authReqId, setTimeout(poll, intervalMs));
@@ -9942,7 +10088,7 @@ export default function BankingAgent({
       )}
 
       {/* Results panel — sits to the left of the agent (portal-renders over page; works in all modes) */}
-      {effectiveIsOpen && resultPanel && agentResultsPanelEnabled && (
+      {effectiveIsOpen && resultPanel && showAgentResultsPanel && (
         <ResultsPanel
           panel={resultPanel}
           onClose={() => setResultPanel(null)}
@@ -10209,39 +10355,63 @@ export default function BankingAgent({
                           <button type="button" aria-label="Increase controls font size" onClick={() => setHeaderMoreFontScale("115")}>A+</button>
                         </div>
                       </div>
-                      <div className="ba-header-more-intro">
-                        <strong>Choose a trace evidence view surface</strong>
-                        <span>Embedded views stay on this page. Pop-outs open a separate window.</span>
-                      </div>
-                      <div className="ba-header-more-view-picker" role="group" aria-label="Trace evidence views">
-                        <div className="ba-header-more-heading">Trace evidence views</div>
-                        <div className="ba-header-more-view-grid">
-                          {EVIDENCE_VIEW_OPTIONS.map((option) => (
-                            <button
-                              key={option.value}
-                              type="button"
-                              className={`ba-header-more-view-option${quickConfigView === option.value ? " selected" : ""}`}
-                              aria-pressed={quickConfigView === option.value}
-                              onClick={() => chooseEvidenceView(option.value)}
-                            >
-                              <strong>{option.label}</strong>
-                              <span>{option.description}</span>
-                            </button>
-                          ))}
-                          {/* Not an evidence view — it opens the unattended-runs
-                              picker directly, but the grid is where demo users
-                              look for it. Styled as a view option on purpose. */}
-                          <button
-                            type="button"
-                            className="ba-header-more-view-option"
-                            onClick={() => setUnattendedPanelOpen(true)}
-                          >
-                            <strong>Unattended</strong>
-                            <span>Runs with nobody signed in</span>
-                          </button>
+                      {hasEmbeddedSurfaceConflict ? (
+                        <div className="ba-header-more-view-picker" role="alert" aria-live="assertive">
+                          <div className="ba-header-more-heading">Choose one embedded trace view</div>
+                          <div className="ba-header-more-intro">
+                            <strong>Several views are set to embed.</strong>
+                            <span>Pick the one to keep here. Other embedded views turn off, while “Both” becomes Pop-out.</span>
+                          </div>
+                          <div className="ba-header-more-view-grid" role="group" aria-label="Choose one embedded trace view">
+                            {surfaceChoiceCandidates.map((candidate) => (
+                              <button
+                                key={candidate.id}
+                                type="button"
+                                className="ba-header-more-view-option"
+                                aria-label={`Keep ${candidate.label} embedded`}
+                                onClick={() => resolveEmbeddedSurfaceConflict(candidate.id)}
+                              >
+                                <strong>{candidate.label}</strong>
+                                <span>{candidate.value === "both" ? "Keep embedded and keep its pop-out." : "Keep this view embedded."}</span>
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                      <div className="ba-header-more-context" aria-live="polite">
+                      ) : (
+                        <>
+                          <div className="ba-header-more-intro">
+                            <strong>Choose a trace evidence view surface</strong>
+                            <span>Embedded views stay on this page. Pop-outs open a separate window.</span>
+                          </div>
+                          <div className="ba-header-more-view-picker" role="group" aria-label="Trace evidence views">
+                            <div className="ba-header-more-heading">Trace evidence views</div>
+                            <div className="ba-header-more-view-grid">
+                              {EVIDENCE_VIEW_OPTIONS.map((option) => (
+                                <button
+                                  key={option.value}
+                                  type="button"
+                                  className={`ba-header-more-view-option${quickConfigView === option.value ? " selected" : ""}`}
+                                  aria-pressed={quickConfigView === option.value}
+                                  onClick={() => chooseEvidenceView(option.value)}
+                                >
+                                  <strong>{option.label}</strong>
+                                  <span>{option.description}</span>
+                                </button>
+                              ))}
+                              {/* Not an evidence view — it opens the unattended-runs
+                                  picker directly, but the grid is where demo users
+                                  look for it. Styled as a view option on purpose. */}
+                              <button
+                                type="button"
+                                className="ba-header-more-view-option"
+                                onClick={() => setUnattendedPanelOpen(true)}
+                              >
+                                <strong>Unattended</strong>
+                                <span>Runs with nobody signed in</span>
+                              </button>
+                            </div>
+                          </div>
+                          <div className="ba-header-more-context" aria-live="polite">
                         <div className="ba-header-more-heading">{EVIDENCE_VIEW_OPTIONS.find((option) => option.value === quickConfigView)?.label} controls</div>
                         {quickConfigView === "movie-reel" && (
                           <>
@@ -10250,23 +10420,25 @@ export default function BankingAgent({
                               id="movie-reel-surface-select"
                               label="Movie reel"
                               value={movieReelSurface}
-                              onChange={(e) => chooseMovieReelSurface(e.target.value)}
+                              onChange={(e) => chooseEvidenceSurface("movie-reel", e.target.value)}
                               open={openSurfaceSelector === "movie-reel-surface-select"}
                               onToggle={setOpenSurfaceSelector}
                             />
                           </>
                         )}
-                        {quickConfigView === "simple-stepper" && <SurfaceSelector id="simple-step-surface-select" label="Simple stepper" value={simpleStepperSurface} onChange={(e) => chooseSimpleStepperSurface(e.target.value)} open={openSurfaceSelector === "simple-step-surface-select"} onToggle={setOpenSurfaceSelector} />}
+                        {quickConfigView === "simple-stepper" && <SurfaceSelector id="simple-step-surface-select" label="Simple stepper" value={simpleStepperSurface} onChange={(e) => chooseEvidenceSurface("simple-stepper", e.target.value)} open={openSurfaceSelector === "simple-step-surface-select"} onToggle={setOpenSurfaceSelector} />}
                         {quickConfigView === "sequence-view" && (
                           <>
-                            <SurfaceSelector id="sequence-view-surface-select" label="Sequence view" value={sequenceSurface} onChange={(e) => chooseSequenceSurface(e.target.value)} open={openSurfaceSelector === "sequence-view-surface-select"} onToggle={setOpenSurfaceSelector} />
+                            <SurfaceSelector id="sequence-view-surface-select" label="Sequence view" value={sequenceSurface} onChange={(e) => chooseEvidenceSurface("sequence-view", e.target.value)} open={openSurfaceSelector === "sequence-view-surface-select"} onToggle={setOpenSurfaceSelector} />
                             <Check variant="switch" className="ba-header-toggle-label" checked={followSequenceFlow} onChange={(e) => chooseFollowSequenceFlow(e.target.checked)}>Follow flow</Check>
                             <Check variant="switch" className="ba-header-toggle-label" checked={slowMode} onChange={(e) => { setSlowMode(e.target.checked); window.dispatchEvent(new CustomEvent("agent-slow-mode-toggle", { detail: { on: e.target.checked } })); }}>Slow mode</Check>
                           </>
                         )}
-                        {quickConfigView === "token-topology" && <SurfaceSelector id="topology-surface-select" label="Token topology" value={topologySurface} onChange={(e) => chooseTopologySurface(e.target.value)} open={openSurfaceSelector === "topology-surface-select"} onToggle={setOpenSurfaceSelector} />}
-                        {quickConfigView === "oauth-visualizer" && <SurfaceSelector id="oauth-visualizer-surface-select" label="OAuth visualizer" value={oauthVisualizerSurface} onChange={(e) => chooseOauthVisualizerSurface(e.target.value)} open={openSurfaceSelector === "oauth-visualizer-surface-select"} onToggle={setOpenSurfaceSelector} />}
-                      </div>
+                        {quickConfigView === "token-topology" && <SurfaceSelector id="topology-surface-select" label="Token topology" value={topologySurface} onChange={(e) => chooseEvidenceSurface("token-topology", e.target.value)} open={openSurfaceSelector === "topology-surface-select"} onToggle={setOpenSurfaceSelector} />}
+                        {quickConfigView === "oauth-visualizer" && <SurfaceSelector id="oauth-visualizer-surface-select" label="OAuth visualizer" value={oauthVisualizerSurface} onChange={(e) => chooseEvidenceSurface("oauth-visualizer", e.target.value)} open={openSurfaceSelector === "oauth-visualizer-surface-select"} onToggle={setOpenSurfaceSelector} />}
+                          </div>
+                        </>
+                      )}
                       <div className="ba-header-more-legacy" aria-hidden="true">
                       <div className="ba-header-more-heading">Display preferences</div>
                       <Check
@@ -10330,7 +10502,7 @@ export default function BankingAgent({
                         id="topology-surface-select"
                         label="Token topology"
                         value={topologySurface}
-                        onChange={(e) => chooseTopologySurface(e.target.value)}
+                        onChange={(e) => chooseEvidenceSurface("token-topology", e.target.value)}
                         disabledValues={isEmbeddedSurfaceDisabled("embedded", sequenceSurface) ? ["embedded", "both"] : []}
                         open={openSurfaceSelector === "topology-surface-select"}
                         onToggle={setOpenSurfaceSelector}
@@ -10339,7 +10511,7 @@ export default function BankingAgent({
                         id="simple-step-surface-select"
                         label="Simple step"
                         value={simpleStepperSurface}
-                        onChange={(e) => chooseSimpleStepperSurface(e.target.value)}
+                        onChange={(e) => chooseEvidenceSurface("simple-stepper", e.target.value)}
                         disabledValues={isEmbeddedSurfaceDisabled("embedded", sequenceSurface) ? ["embedded", "both"] : []}
                         open={openSurfaceSelector === "simple-step-surface-select"}
                         onToggle={setOpenSurfaceSelector}
@@ -10350,7 +10522,7 @@ export default function BankingAgent({
                         checked={showFilmstrip}
                         onChange={(e) => {
                           const newVal = e.target.checked;
-                          chooseMovieReelSurface(newVal ? "embedded" : "none");
+                          chooseEvidenceSurface("movie-reel", newVal ? "embedded" : "none");
                         }}
                         title="Show or hide the token chain movie reel; this choice is saved across reloads"
                       >
@@ -10361,7 +10533,7 @@ export default function BankingAgent({
                         label="Sequence view"
                         value={sequenceSurface}
                         onChange={(e) => {
-                          chooseSequenceSurface(e.target.value);
+                          chooseEvidenceSurface("sequence-view", e.target.value);
                           const embedded = e.target.value === "embedded" || e.target.value === "both";
                           window.dispatchEvent(new CustomEvent("admin-sidenav-collapse-toggle", { detail: { collapsed: embedded } }));
                           if (!embedded && slowMode) {
@@ -10387,7 +10559,7 @@ export default function BankingAgent({
                         id="oauth-visualizer-surface-select"
                         label="OAuth Visualizer"
                         value={oauthVisualizerSurface}
-                        onChange={(e) => chooseOauthVisualizerSurface(e.target.value)}
+                        onChange={(e) => chooseEvidenceSurface("oauth-visualizer", e.target.value)}
                         disabledValues={isEmbeddedSurfaceDisabled("embedded", sequenceSurface) ? ["embedded", "both"] : []}
                         open={openSurfaceSelector === "oauth-visualizer-surface-select"}
                         onToggle={setOpenSurfaceSelector}
@@ -10462,9 +10634,9 @@ export default function BankingAgent({
                         title="Real-time token topology — RFC 8693 delegation chain"
                         onClick={() => {
                           if (showTokenTopology) {
-                            chooseTopologySurface(showInlineTokenTopology ? "embedded" : "none");
+                            chooseEvidenceSurface("token-topology", showInlineTokenTopology ? "embedded" : "none");
                           } else {
-                            chooseTopologySurface(showInlineTokenTopology ? "both" : "popout");
+                            chooseEvidenceSurface("token-topology", showInlineTokenTopology ? "both" : "popout");
                           }
                         }}
                       >
@@ -10500,10 +10672,10 @@ export default function BankingAgent({
                         aria-label="OAuth Visualizer"
                         title="OAuth Visualizer — explore grant types and token exchange step by step"
                         onClick={() => {
-                          if (oauthVisualizerSurface === "none") chooseOauthVisualizerSurface("popout");
-                          else if (oauthVisualizerSurface === "popout") chooseOauthVisualizerSurface("embedded");
-                          else if (oauthVisualizerSurface === "embedded") chooseOauthVisualizerSurface("both");
-                          else chooseOauthVisualizerSurface("none");
+                          if (oauthVisualizerSurface === "none") chooseEvidenceSurface("oauth-visualizer", "popout");
+                          else if (oauthVisualizerSurface === "popout") chooseEvidenceSurface("oauth-visualizer", "embedded");
+                          else if (oauthVisualizerSurface === "embedded") chooseEvidenceSurface("oauth-visualizer", "both");
+                          else chooseEvidenceSurface("oauth-visualizer", "none");
                         }}
                       >
                         <><span>OAuth Visualizer</span><span className="ba-surface-badge" aria-hidden="true">{oauthVisualizerSurface === "none" ? "Off" : oauthVisualizerSurface === "embedded" ? "Embedded" : oauthVisualizerSurface === "both" ? "Both" : "Pop-out"}</span></>
@@ -10575,7 +10747,9 @@ export default function BankingAgent({
                     if (next) setShowDiscovery(false);
                   }}
                   onSelect={(uc, stepNumber, opts) => {
-                    handleDemoStepSelect(uc, stepNumber, opts);
+                    window.dispatchEvent(new CustomEvent("agent-demo-step-select", {
+                      detail: { uc, stepNumber, opts },
+                    }));
                   }}
                 />
                 {/* Live Use-Case Workbench — same catalog, live/interactive mode */}
@@ -10813,6 +10987,26 @@ export default function BankingAgent({
                 </div>
                 </div>
               </DraggableModal>
+            )}
+
+            {pendingAgentAccessConsent && !hitlPendingIntent && (
+              <AgentConsentModal
+                onAccept={() => {
+                  agentAccessConsentAcceptedRef.current = true;
+                  pendingNlResumeRef.current = null;
+                  setPendingAgentAccessConsent(null);
+                  setResumeWaitTick((tick) => tick + 1);
+                }}
+                onDismiss={() => {
+                  pendingNlResumeRef.current = null;
+                  pendingUcIdRef.current = null;
+                  pendingUcPublicRef.current = false;
+                  pendingUcFlagsRef.current = null;
+                  pendingUcAuthRef.current = null;
+                  setNlResumeAfterAuth(null);
+                  setPendingAgentAccessConsent(null);
+                }}
+              />
             )}
 
             {demoApprovalOpen && !hitlPendingIntent && (
@@ -13017,12 +13211,12 @@ export default function BankingAgent({
       {showOauthVisualizer && (
         <OAuthVisualizerPanel
           embedded
-          onOpenPopout={() => chooseOauthVisualizerSurface("both")}
+          onOpenPopout={() => chooseEvidenceSurface("oauth-visualizer", "both")}
         />
       )}
       <OAuthVisualizerPanel
         isOpen={showOauthVisualizerPopout}
-        onClose={() => chooseOauthVisualizerSurface(showOauthVisualizer ? "embedded" : "none")}
+        onClose={() => chooseEvidenceSurface("oauth-visualizer", showOauthVisualizer ? "embedded" : "none")}
       />
       <SimpleStepperPanel
         isOpen={showSimpleStepperPopout}
@@ -13031,14 +13225,14 @@ export default function BankingAgent({
           // Persist, same as the "Simple step" switch. Without this the ✕ only
           // closed it for the current render and ba_show_simple_stepper stayed
           // "1", so the panel came back on every page load.
-          chooseSimpleStepperSurface(simpleStepperSurface === "both" ? "embedded" : "none");
+          chooseEvidenceSurface("simple-stepper", simpleStepperSurface === "both" ? "embedded" : "none");
         }}
       />
       <DraggableModal
         isOpen={showSequencePopout}
         onClose={() => {
           setSelectedSequencePopoutStep(null);
-          chooseSequenceSurface(sequenceSurface === "both" ? "embedded" : "none");
+          chooseEvidenceSurface("sequence-view", sequenceSurface === "both" ? "embedded" : "none");
         }}
         title="Sequence view"
         defaultWidth={860}

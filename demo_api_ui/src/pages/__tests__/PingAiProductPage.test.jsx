@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import PingAiProductPage from "../PingAiProductPage";
 import productPageStyles from "../PingAiProductPage.css?raw";
 
@@ -12,6 +12,7 @@ describe("PingAiProductPage", () => {
     ["privilegeLlm", "PingOne Privilege for AI — LLM protection"],
     ["privilegeA2a", "PingOne Privilege for AI — A2A protection"],
     ["privilegeMcp", "PingOne Privilege for AI — MCP protection"],
+    ["protect", "PingOne Protect"],
   ])("renders the %s product story", (product, title) => {
     render(<MemoryRouter><PingAiProductPage product={product} /></MemoryRouter>);
     expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
@@ -25,6 +26,15 @@ describe("PingAiProductPage", () => {
       "href",
       "/llm-gateway?attack=prompt_injection",
     );
+  });
+
+  it("renders the standalone browser risk evaluation instead of authentication or agent dispatch", () => {
+    render(<MemoryRouter><PingAiProductPage product="protect" /></MemoryRouter>);
+    expect(screen.getByRole("button", { name: /run pingone protect evaluation/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/displays the returned evaluation/i).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/requests PingOne MFA/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Low continues to OIDC/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/agent dispatch/i)).not.toBeInTheDocument();
   });
 
   it("keeps inactive product navigation readable on the dark header", () => {
