@@ -29,7 +29,7 @@
 # Optional groups (for `optional start|stop`):
 #   rag        Code Search — started with core by default; `optional stop rag` to free RAM
 #   tracing    Jaeger OTLP backend
-#   demo-auth  Demo authz-server + demo mcp-gateway (auto via demo-sync)
+#   demo-auth  Demo authz-server + demo mcp-gateway — started with core by default
 #   observability  Grafana + Prometheus + Loki + Alloy + Alertmanager — off by default
 #   spiffe     Local SPIRE workload identity stack — opt-in only
 #
@@ -122,7 +122,7 @@ OPTIONAL_GROUP_NAMES=(rag tracing demo-auth mcpgw observability spiffe)
 
 # Also brought up on every `start` / `restart` / `build` (core stack). Still
 # stoppable with `./run-docker.sh optional stop rag` without tearing down core.
-DEFAULT_OPTIONAL_GROUPS=(rag)
+DEFAULT_OPTIONAL_GROUPS=(rag demo-auth)
 
 # Compose profiles matching OPTIONAL_GROUP_NAMES (also used for `start full`).
 FULL_STACK_PROFILE_ARGS=(--profile rag --profile tracing --profile demo-auth --profile mcpgw --profile observability --profile spiffe)
