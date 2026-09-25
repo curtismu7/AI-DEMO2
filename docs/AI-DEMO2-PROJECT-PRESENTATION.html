@@ -746,29 +746,39 @@
         <section class="slide">
       <div class="brand"><span class="brand-mark"></span>31 / AI request flow</div>
       <p class="eyebrow">One prompt through the AI path · who holds which token</p><h2>A prompt is routed, interpreted, tool-called and consented—never seeing a user token.</h2>
-      <div class="ai-flow">
-        <div class="aif-box start"><h4>Browser</h4><p>“Transfer $500 to Sam” — typed in the agent composer. Session cookie only; no tokens in the page.</p></div>
-        <div class="aif-arrow">→</div>
-        <div class="aif-box route"><h4>BFF · demo-api-server</h4><p>Heuristics try known chips first; open text goes to the LLM. Holds the user token server-side.</p></div>
-        <div class="aif-arrow">→</div>
-        <div class="aif-box agent"><h4>Intent &amp; agent</h4><p>LangChain agent plans the tool calls. Runs over AG-UI HTTP + SSE; model reached via llm-proxy.</p></div>
-        <div class="aif-arrow">→</div>
-        <div class="aif-box tool"><h4>Tool callback</h4><p>Agent calls the BFF back at <code>/internal/agent-tool</code>. The agent itself never receives credentials.</p></div>
-        <div class="aif-arrow">→</div>
-        <div class="aif-box exchange"><h4>RFC 8693 exchange</h4><p>BFF exchanges the user token for an audience- and scope-narrowed tool token.</p></div>
-        <div class="aif-arrow">→</div>
-        <div class="aif-box policy"><h4>Policy gate</h4><p>PingGateway (default) or authz-server + mcp-jwt-verifier decides: permit, challenge or deny.</p></div>
-        <div class="aif-arrow">→</div>
-        <div class="aif-box consent"><h4>HITL consent</h4><p>Write actions above policy thresholds pause at hitl-service for explicit human approval.</p></div>
-        <div class="aif-arrow">→</div>
-        <div class="aif-box exec"><h4>MCP / REST tool</h4><p>mcp-server :8080 or api-resource-server executes; mcp-audit records the event.</p></div>
-        <div class="aif-arrow">→</div>
-        <div class="aif-box done"><h4>Result &amp; evidence</h4><p>SSE streams the answer back; token chain, traces and audit trail available beside the run.</p></div>
-      </div>
+      <pre class="mermaid" id="aif-mermaid">
+flowchart LR
+  B["Browser<br/>ui :4000<br/>session cookie only"]
+  BFF["BFF<br/>demo-api-server :3001<br/>heuristic chip routing"]
+  B -- "prompt (no tokens)" --> BFF
+  B -- "OIDC redirect" --- PING["PingOne<br/>OAuth · MFA · Authorize"]
+  BFF --- PING
+  BFF -- "AG-UI HTTP + SSE /run" --> AG["LangChain agent<br/>:8888 · SSE"]
+  AG -- "model calls" --> LLM["llm-proxy :8090"]
+  AG -- "tool callback<br/>/internal/agent-tool" --> BFF
+  BFF -- "RFC 8693 exchange" --> PING
+  BFF -- "exchanged token" --> GW["ping-gateway :3036<br/>default policy path"]
+  ALT["mcp-gateway :3005 +<br/>authz-server :9001 +<br/>mcp-jwt-verifier :8083<br/>(demo-auth alternative)"] -.-> GW
+  GW -- "write above threshold" --> HITL["hitl-service :3009<br/>human approval"]
+  GW -- "authorized call" --> MCP["mcp-server :8080<br/>mcp-resource-server :8081<br/>api-resource-server :8082"]
+  MCP -.-> TOOLS["mcp-weather :8896<br/>mcp-brave :8897"]
+  MCP -- "events" --> AUD["mcp-audit :8898"]
+  HITL -- "approved" --> GW
+  MCP -- "result SSE" --> BFF
+  BFF -- "answer + token chain" --> B
+  MCP --- DB["LMDB · weaviate · opensearch · redis"]
+  AUD -.-> OBS["jaeger · prometheus · loki"]
+  classDef hot fill:#fce9e9,stroke:#d92732,color:#17243a;
+  classDef mid fill:#dce9f8,stroke:#1d3458,color:#17243a;
+  classDef opt fill:#eef2f7,stroke:#8fa2bb,color:#17243a;
+  class B,BFF,AG,GW,MCP hot
+  class PING,HITL,LLM,AUD mid
+  class ALT,TOOLS,DB opt
+      </pre>
       <div class="ai-flow-band">
-        <span><b>Identity:</b> PingOne issues the user token, the exchanged actor token and MFA decisions.</span>
-        <span><b>Heuristics:</b> known commands skip the LLM entirely — deterministic routing.</span>
-        <span><b>Evidence:</b> jaeger traces + mcp-audit events + token-chain inspector at every hop.</span>
+        <span><b>Red:</b> the browser-to-tool request path · <b>Blue:</b> identity and approval gates · <b>Grey:</b> optional/alternate services.</span>
+        <span><b>Heuristics:</b> known chips skip the LLM; open text goes through the agent.</span>
+        <span><b>Never token-exposed:</b> the agent and model only see tool calls — the BFF holds and exchanges all credentials.</span>
       </div>
       <div class="source"><a href="../demo_api_server/routes/agentRun.js">Agent run route</a><a href="../demo_api_server/services/agentMcpTokenService.js">Token exchange</a><a href="../demo_api_server/services/mcpToolPipeline.js">Tool pipeline</a></div>
     </section>
@@ -877,8 +887,17 @@
     <button id="next" type="button" aria-label="Next slide">Next</button>
     <span class="hint">Arrow keys · Home / End · browser print for PDF</span>
   </nav>
+  <script src="presentation-assets/mermaid.min.js"></script>
   <script>
     (() => {
+      let mermaidReady = false;
+      try {
+        mermaid.initialize({ startOnLoad: false, theme: 'base', securityLevel: 'loose',
+          themeVariables: { fontSize: '15px', fontFamily: 'Inter, sans-serif', primaryColor: '#dce9f8', primaryBorderColor: '#1d3458', lineColor: '#d92732', edgeLabelBackground: '#f5f7fa' },
+          flowchart: { curve: 'basis', nodeSpacing: 28, rankSpacing: 42, useMaxWidth: true } });
+        mermaid.run({ querySelector: '.mermaid' }).then(() => { mermaidReady = true; }).catch(() => {});
+      } catch (e) {}
+      window.__mermaidReady = () => mermaidReady;
       const slides = [...document.querySelectorAll('.slide')];
       const count = document.getElementById('count');
       const progress = document.getElementById('progress');
