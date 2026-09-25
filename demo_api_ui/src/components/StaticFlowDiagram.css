@@ -1,0 +1,46 @@
+/* StaticFlowDiagram.css — theme-token-only styling for StaticFlowDiagram.jsx */
+
+.sfd {
+  overflow: auto;
+  border: 1px solid var(--th-border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--th-surface, #ffffff);
+}
+
+.sfd-canvas {
+  display: block;
+  min-width: 100%;
+}
+
+.sfd-edge-label {
+  font-size: 11px;
+  fill: var(--th-text-muted, #475569);
+  paint-order: stroke;
+  stroke: var(--th-surface, #ffffff);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.sfd-edge.dimmed {
+  opacity: 0.25;
+}
+
+.sfd-node.dimmed {
+  opacity: 0.35;
+}
+
+.sfd-node-box {
+  fill: var(--th-surface, #ffffff);
+  stroke-width: 1.5;
+}
+
+.sfd-node-label {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--th-text, #0f172a);
+}
+
+.sfd-node-sub {
+  font-size: 10px;
+  fill: var(--th-text-muted, #64748b);
+}

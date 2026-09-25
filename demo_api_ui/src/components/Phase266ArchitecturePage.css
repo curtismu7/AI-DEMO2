@@ -58,6 +58,7 @@
 
 .p266-arch-diagram svg {
   max-width: 100%;
+  height: auto;
 }
 
 .p266-arch-node-detail {
@@ -78,8 +79,6 @@
   margin: 6px 0 0;
   color: var(--th-text-body, var(--th-text));
   line-height: 1.5;
-}
-  height: auto;
 }
 
 .p266-arch-error {
