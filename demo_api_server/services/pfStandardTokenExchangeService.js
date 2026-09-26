@@ -66,9 +66,14 @@ function scopeSet(value) {
 }
 
 function sameScopes(actual, expected) {
-  const left = [...scopeSet(actual)].sort();
-  const right = [...scopeSet(expected)].sort();
-  return left.length === right.length && left.every((scope, index) => scope === right[index]);
+  // Subset semantics (2026-09-26): PingFederate's token-exchange policy issues a
+  // policy-defined scope set (client/AS-level), which is a superset of the
+  // requested exchange scopes. Requiring exact equality made every PF-mode
+  // exchange fail "intermediate scope mismatch" even though every requested
+  // scope was granted. What actually matters for least privilege: every
+  // EXPECTED scope was granted.
+  const actualSet = scopeSet(actual);
+  return [...scopeSet(expected)].every((scope) => actualSet.has(scope));
 }
 
 function includesAudience(actual, expected) {
