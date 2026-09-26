@@ -106,9 +106,9 @@ async function main() {
 
   console.log('Current: name=' + rs.name + ' audience=' + JSON.stringify(rs.audience));
   const patch = await fetch('https://api.pingone.com/v1/environments/' + envId + '/resources/' + rs.id, {
-    method: 'PATCH',
+    method: 'PUT',
     headers: H,
-    body: JSON.stringify([{ op: 'replace', path: '/audience', value: WANT }]),
+    body: JSON.stringify({ name: rs.name, description: rs.description, type: rs.type || 'CUSTOM', audience: WANT }),
   });
   if (patch.status === 403) {
     console.error('PATCH 403 — this principal lacks the environment-admin role.');
