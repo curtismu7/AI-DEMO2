@@ -163,7 +163,7 @@ export async function guardToolsList(
     // this to config.gatewayResourceUri, as this path once did, made the cloud
     // rule compare McpResourceUri to itself — a tautology that could never deny.
     // Omitted (not fabricated) when no aud.
-    const tokenAud = Array.isArray(decoded.aud) ? decoded.aud.join(', ') : (decoded.aud ?? '');
+    const tokenAud = Array.isArray(decoded.aud) ? decoded.aud.join(' ') : (decoded.aud ?? '');
     const body = {
       parameters: {
         DecisionContext: 'McpToolsList',

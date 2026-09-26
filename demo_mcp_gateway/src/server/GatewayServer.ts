@@ -228,8 +228,17 @@ export class GatewayServer {
     const keyEnv = process.env.GW_TLS_KEY;
     const defaultCert = resolve(__dirname, '../../../certs/api.ping.demo+2.pem');
     const defaultKey  = resolve(__dirname, '../../../certs/api.ping.demo+2-key.pem');
-    const certPath = certEnv || (existsSync(defaultCert) ? defaultCert : null);
-    const keyPath  = keyEnv  || (existsSync(defaultKey)  ? defaultKey  : null);
+    // An env-configured cert that does not exist disables TLS outright — tests
+    // and dev overrides use a sentinel path to force plain HTTP instead of
+    // crashing the server. With no env override, the certs/ directory enables
+    // TLS only when both files exist.
+    const envTlsRequested = Boolean(certEnv || keyEnv);
+    const certPath = envTlsRequested
+      ? (certEnv && existsSync(certEnv) ? certEnv : null)
+      : (existsSync(defaultCert) ? defaultCert : null);
+    const keyPath = envTlsRequested
+      ? (keyEnv && existsSync(keyEnv) ? keyEnv : null)
+      : (existsSync(defaultKey) ? defaultKey : null);
     const reqHandler = (req: IncomingMessage, res: ServerResponse) => {
       this.handleRequest(req, res).catch((err) => {
         console.error('[GatewayServer] Unhandled error:', err);

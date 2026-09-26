@@ -112,7 +112,7 @@ describe('Phase 267 — HTTP and WS transports behave identically (no-PA mode)',
   const httpClient = new PingOneAuthorizeClient(CONFIG);
 
   test('both DENY when mortgage:read is absent', async () => {
-    const decoded = tokenWith('openid read');
+    const decoded = tokenWith('openid read accounts:read');
 
     const http = await httpClient.evaluate(decoded, 'tools/call', 'show_mortgage');
     const ws = await guardToolCall('show_mortgage', decoded, CONFIG);
@@ -135,7 +135,7 @@ describe('Phase 267 — HTTP and WS transports behave identically (no-PA mode)',
   });
 
   test('a read-only tool still PERMITs with a basic bearer (no regression)', async () => {
-    const decoded = tokenWith('openid read');
+    const decoded = tokenWith('openid read accounts:read');
 
     const http = await httpClient.evaluate(decoded, 'tools/call', 'get_my_accounts');
     const ws = await guardToolCall('get_my_accounts', decoded, CONFIG);

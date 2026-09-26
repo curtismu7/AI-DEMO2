@@ -9,11 +9,16 @@ import type { IncomingMessage } from 'http';
  * bare audience identifier (e.g. `mcpgateway.ping.demo`), which has no scheme or
  * host and is unreachable, breaking MCP OAuth auto-discovery.
  */
-export function selfBaseUrl(req: IncomingMessage, fallbackPort: number | string): string {
-  const fwdProto = (req.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0]?.trim();
-  const proto = fwdProto || ((req.socket as { encrypted?: boolean }).encrypted ? 'https' : 'http');
-  const host = (req.headers['x-forwarded-host'] as string | undefined)?.split(',')[0]?.trim()
-    || (req.headers['host'] as string | undefined)
+export function selfBaseUrl(req: IncomingMessage | undefined, fallbackPort: number | string): string {
+  // Defensive: unit tests drive the middleware with a bare `{}` (no headers).
+  // Fall through to localhost:<port> — the metadata URL is still well-formed
+  // and the middleware itself never runs headerless in production.
+  const headers = (req?.headers ?? {}) as Record<string, string | string[] | undefined>;
+  const socket = req?.socket as { encrypted?: boolean } | undefined;
+  const fwdProto = (headers['x-forwarded-proto'] as string | undefined)?.split(',')[0]?.trim();
+  const proto = fwdProto || (socket?.encrypted ? 'https' : 'http');
+  const host = (headers['x-forwarded-host'] as string | undefined)?.split(',')[0]?.trim()
+    || (headers['host'] as string | undefined)
     || `localhost:${fallbackPort}`;
   return `${proto}://${host}`;
 }

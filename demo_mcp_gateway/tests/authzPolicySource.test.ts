@@ -35,7 +35,7 @@ const p1azOff: any = { ...p1azOn, p1azEnabled: false, pingAuthorizeEndpoint: '' 
 const localOptIn: any = { ...p1azOff, allowLocalScopeFallback: true };
 
 const decoded: any
-  = { sub: 'u1', scope: 'read transfer', aud: 'mcpgateway.ping.demo', act: { sub: 'agent' } };
+  = { sub: 'u1', scope: 'read transfer accounts:read', aud: 'mcpgateway.ping.demo', act: { sub: 'agent' } };
 
 describe('F1 — MCP_GW_P1AZ_ENABLED defaults to true', () => {
   const OLD = { ...process.env };

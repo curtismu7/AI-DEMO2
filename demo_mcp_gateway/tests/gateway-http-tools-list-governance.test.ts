@@ -1,3 +1,5 @@
+process.env.GW_TLS_CERT = '/nonexistent/gw-cert.pem';
+process.env.GW_TLS_KEY = '/nonexistent/gw-key.pem';
 'use strict';
 
 // Dev TLS certs exist on disk, so GatewayServer creates an HTTPS server.
@@ -145,7 +147,7 @@ describe('GatewayServer HTTP tools/list governance', () => {
 
   it('drops a tool the caller\'s scope does not cover (audit:read missing)', async () => {
     mockUpstreamToolsListResponse();
-    const token = makeToken('read mcp:invoke');
+    const token = makeToken('accounts:read mcp:invoke');
 
     const res = await request
       .post('/mcp')
@@ -164,7 +166,7 @@ describe('GatewayServer HTTP tools/list governance', () => {
 
   it('keeps every tool the caller\'s scope already covers (audit:read present)', async () => {
     mockUpstreamToolsListResponse();
-    const token = makeToken('read audit:read mcp:invoke');
+    const token = makeToken('accounts:read audit:read mcp:invoke');
 
     const res = await request
       .post('/mcp')
@@ -186,7 +188,7 @@ describe('GatewayServer HTTP tools/list governance', () => {
       headers: { 'content-type': 'application/json' },
       data: Buffer.from(JSON.stringify({ jsonrpc: '2.0', id: 1, result: TOOLS_LIST_RESULT })),
     } as never);
-    const token = makeToken('read mcp:invoke');
+    const token = makeToken('accounts:read mcp:invoke');
 
     const res = await request
       .post('/mcp')
@@ -272,7 +274,7 @@ describe('GatewayServer HTTP tools/list governance', () => {
       upstreamMcpUrl: 'http://127.0.0.1:19999',
     });
     const deniedRequest = supertest(deniedGateway.httpServer);
-    const token = makeToken('read mcp:invoke');
+    const token = makeToken('accounts:read mcp:invoke');
 
     const res = await deniedRequest
       .post('/mcp')
